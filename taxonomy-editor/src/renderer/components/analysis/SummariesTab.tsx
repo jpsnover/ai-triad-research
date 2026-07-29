@@ -109,7 +109,7 @@ const CATEGORY_MAP: Record<string, Category> = {
 
 // ── Sub-components (props-only; extracted to keep SummariesTab under the complexity ceiling) ──
 
-type GetLabelForId = ReturnType<typeof useTaxonomyStore>['getLabelForId'];
+type GetLabelForId = ReturnType<typeof useTaxonomyStore.getState>['getLabelForId'];
 
 interface SourceListBodyProps {
   sourcesLoading: boolean;

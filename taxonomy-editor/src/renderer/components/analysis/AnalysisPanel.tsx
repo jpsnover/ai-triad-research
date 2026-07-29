@@ -8,7 +8,16 @@ import remarkGfm from 'remark-gfm';
 import { useTaxonomyStore } from '../../hooks/useTaxonomyStore';
 import { ApiKeyErrorMessage } from '../settings/ApiKeyErrorMessage';
 import type { PovNode } from '../../types/taxonomy';
+import type { AnalysisElement } from '../../hooks/useTaxonomyStore/slices/analysisSlice';
 import './AnalysisPanel.css';
+
+type AnalysisRetryInfo = {
+  attempt: number;
+  maxRetries: number;
+  backoffSeconds: number;
+  limitType: string;
+  limitMessage: string;
+};
 
 interface AnalysisPanelProps {
   width?: number;
@@ -215,6 +224,262 @@ function formatSimpleValue(val: unknown): string {
   return JSON.stringify(val, null, 2);
 }
 
+// ─── Presentational sub-components ──────────────────────
+
+interface AnalysisHeaderProps {
+  analysisTitle: string;
+  analysisCached: boolean;
+  analysisResult: string | null;
+  isCritique: boolean;
+  geminiModel: string;
+  onRefresh: () => void;
+  onCollapse: () => void;
+  onClose: () => void;
+}
+
+function AnalysisHeader({
+  analysisTitle,
+  analysisCached,
+  analysisResult,
+  isCritique,
+  geminiModel,
+  onRefresh,
+  onCollapse,
+  onClose,
+}: AnalysisHeaderProps) {
+  return (
+    <div className="analysis-panel-header">
+      <div className="analysis-panel-title">
+        {analysisTitle || 'Analysis'}
+        {analysisCached && <span className="analysis-cached-badge">cached</span>}
+      </div>
+      <div className="analysis-panel-actions">
+        {analysisResult && !isCritique && (
+          <button
+            className="btn btn-ghost btn-sm"
+            onClick={onRefresh}
+            title={`Re-run with ${geminiModel}`}
+          >
+            Refresh
+          </button>
+        )}
+        <button className="pane-collapse-btn" onClick={onCollapse} title="Collapse" aria-label="Collapse panel">&lsaquo;</button>
+        <button className="btn btn-ghost btn-sm" onClick={onClose}>
+          Close
+        </button>
+      </div>
+    </div>
+  );
+}
+
+interface AnalysisElementsProps {
+  analysisElementA: AnalysisElement | null;
+  analysisElementB: AnalysisElement | null;
+}
+
+function AnalysisElements({ analysisElementA, analysisElementB }: AnalysisElementsProps) {
+  if (analysisElementA && analysisElementB) {
+    return (
+      <div className="analysis-elements">
+        <div className="analysis-element">
+          <div className="analysis-element-tag">Element A <span className="analysis-element-category">{analysisElementA.category}</span></div>
+          <div className="analysis-element-label">{analysisElementA.label}</div>
+        </div>
+        <div className="analysis-vs">vs</div>
+        <div className="analysis-element">
+          <div className="analysis-element-tag">Element B <span className="analysis-element-category">{analysisElementB.category}</span></div>
+          <div className="analysis-element-label">{analysisElementB.label}</div>
+        </div>
+      </div>
+    );
+  }
+  if (analysisElementA && !analysisElementB) {
+    return (
+      <div className="analysis-elements">
+        <div className="analysis-element">
+          <div className="analysis-element-tag">{analysisElementA.category}</div>
+          <div className="analysis-element-label">{analysisElementA.label}</div>
+        </div>
+      </div>
+    );
+  }
+  return null;
+}
+
+interface AnalysisStepsProps {
+  analysisLoading: boolean;
+  analysisStep: number;
+  geminiModel: string;
+  analysisRetry: AnalysisRetryInfo | null;
+}
+
+function AnalysisSteps({ analysisLoading, analysisStep, geminiModel, analysisRetry }: AnalysisStepsProps) {
+  if (!analysisLoading || analysisStep <= 0) return null;
+  return (
+    <div className="analysis-steps">
+      {STEPS.map(({ step, label }) => {
+        const displayLabel = step === 3 ? `Sending to ${geminiModel}` : label;
+        let status: 'pending' | 'active' | 'done' = 'pending';
+        if (analysisStep > step) status = 'done';
+        else if (analysisStep === step) status = 'active';
+
+        return (
+          <div key={step}>
+            <div className={`analysis-step analysis-step-${status}`}>
+              <span className="analysis-step-indicator">
+                {status === 'done' && '✓'}
+                {status === 'active' && <span className="search-spinner" />}
+                {status === 'pending' && <span className="analysis-step-dot" />}
+              </span>
+              <span className="analysis-step-label">{displayLabel}</span>
+            </div>
+            {step === 3 && status === 'active' && analysisRetry && (
+              <div className="analysis-retry-info">
+                <div className="analysis-retry-headline">
+                  {analysisRetry.limitType !== 'unknown'
+                    ? `${analysisRetry.limitType} limit hit`
+                    : 'Rate limited'} — retry {analysisRetry.attempt}/{analysisRetry.maxRetries}, waiting {analysisRetry.backoffSeconds}s
+                </div>
+                <div className="analysis-retry-detail">
+                  {analysisRetry.limitMessage}
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/** Render the value display for a diff, with sub-field highlighting for graph_attributes */
+function DiffValues({ diff }: { diff: FieldDiff }) {
+  if (diff.key === 'graph_attributes') {
+    const oldAttrs = (diff.oldValue || {}) as Record<string, unknown>;
+    const newAttrs = (diff.newValue || {}) as Record<string, unknown>;
+    const subDiffs = computeAttrSubDiffs(oldAttrs, newAttrs);
+    const changedCount = subDiffs.filter(s => s.changed).length;
+
+    return (
+      <div className="analysis-diff-attrs">
+        <div className="analysis-diff-attrs-summary">
+          {changedCount} field{changedCount !== 1 ? 's' : ''} changed
+        </div>
+        {subDiffs.map(sub => (
+          <div
+            key={sub.key}
+            className={`analysis-diff-attr-row ${sub.changed ? 'analysis-diff-attr-changed' : ''}`}
+          >
+            <div className="analysis-diff-attr-key">{sub.key}</div>
+            {sub.changed ? (
+              <div className="analysis-diff-attr-values">
+                <div className="analysis-diff-old">
+                  <span className="analysis-diff-tag">Current</span>
+                  <pre>{formatSimpleValue(sub.oldValue)}</pre>
+                </div>
+                <div className="analysis-diff-new">
+                  <span className="analysis-diff-tag">Proposed</span>
+                  <pre>{formatSimpleValue(sub.newValue)}</pre>
+                </div>
+              </div>
+            ) : (
+              <div className="analysis-diff-attr-unchanged">unchanged</div>
+            )}
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  // Default: simple current/proposed
+  return (
+    <div className="analysis-diff-values">
+      <div className="analysis-diff-old">
+        <span className="analysis-diff-tag">Current</span>
+        <pre>{formatSimpleValue(diff.oldValue)}</pre>
+      </div>
+      <div className="analysis-diff-new">
+        <span className="analysis-diff-tag">Proposed</span>
+        <pre>{formatSimpleValue(diff.newValue)}</pre>
+      </div>
+    </div>
+  );
+}
+
+interface CritiqueViewProps {
+  analysisResult: string | null;
+  isCritique: boolean;
+  critiqueSummary: string | null;
+  diffs: FieldDiff[];
+  unmatchedRationale: string | null;
+  acceptedFields: Set<string>;
+  onAccept: (diff: FieldDiff) => void;
+}
+
+function CritiqueView({
+  analysisResult,
+  isCritique,
+  critiqueSummary,
+  diffs,
+  unmatchedRationale,
+  acceptedFields,
+  onAccept,
+}: CritiqueViewProps) {
+  if (!analysisResult || !isCritique) return null;
+  return (
+    <>
+      {critiqueSummary && (
+        <div className="analysis-critique-summary markdown-body">
+          <Markdown remarkPlugins={[remarkGfm]}>{critiqueSummary}</Markdown>
+        </div>
+      )}
+
+      {diffs.length > 0 && (
+        <div className="analysis-diffs">
+          <div className="analysis-diffs-header">Suggested Changes</div>
+          {diffs.map(diff => {
+            const isAccepted = acceptedFields.has(diff.key);
+            return (
+              <div key={diff.key} className="analysis-diff-item">
+                <div className="analysis-diff-field">{diff.label}</div>
+                {diff.rationale && (
+                  <div className="analysis-diff-rationale markdown-body">
+                    <Markdown remarkPlugins={[remarkGfm]}>{diff.rationale}</Markdown>
+                  </div>
+                )}
+                <DiffValues diff={diff} />
+                {isAccepted ? (
+                  <span className="analysis-diff-accepted">Accepted</span>
+                ) : (
+                  <button
+                    className="btn btn-sm analysis-diff-accept-btn"
+                    onClick={() => void onAccept(diff)}
+                  >
+                    Accept
+                  </button>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {diffs.length === 0 && (
+        <div className="analysis-diffs">
+          <div className="analysis-diffs-header apanel-diffs-header-flush">No changes proposed</div>
+        </div>
+      )}
+
+      {unmatchedRationale && (
+        <div className="analysis-critique-additional markdown-body">
+          <div className="analysis-diffs-header">Additional Notes</div>
+          <Markdown remarkPlugins={[remarkGfm]}>{unmatchedRationale}</Markdown>
+        </div>
+      )}
+    </>
+  );
+}
+
 // ─── Component ──────────────────────────────────────────
 
 export function AnalysisPanel({ width }: AnalysisPanelProps) {
@@ -322,145 +587,31 @@ export function AnalysisPanel({ width }: AnalysisPanelProps) {
     setAcceptedFields(prev => new Set(prev).add(diff.key));
   };
 
-  /** Render the value display for a diff, with sub-field highlighting for graph_attributes */
-  const renderDiffValues = (diff: FieldDiff) => {
-    if (diff.key === 'graph_attributes') {
-      const oldAttrs = (diff.oldValue || {}) as Record<string, unknown>;
-      const newAttrs = (diff.newValue || {}) as Record<string, unknown>;
-      const subDiffs = computeAttrSubDiffs(oldAttrs, newAttrs);
-      const changedCount = subDiffs.filter(s => s.changed).length;
-
-      return (
-        <div className="analysis-diff-attrs">
-          <div className="analysis-diff-attrs-summary">
-            {changedCount} field{changedCount !== 1 ? 's' : ''} changed
-          </div>
-          {subDiffs.map(sub => (
-            <div
-              key={sub.key}
-              className={`analysis-diff-attr-row ${sub.changed ? 'analysis-diff-attr-changed' : ''}`}
-            >
-              <div className="analysis-diff-attr-key">{sub.key}</div>
-              {sub.changed ? (
-                <div className="analysis-diff-attr-values">
-                  <div className="analysis-diff-old">
-                    <span className="analysis-diff-tag">Current</span>
-                    <pre>{formatSimpleValue(sub.oldValue)}</pre>
-                  </div>
-                  <div className="analysis-diff-new">
-                    <span className="analysis-diff-tag">Proposed</span>
-                    <pre>{formatSimpleValue(sub.newValue)}</pre>
-                  </div>
-                </div>
-              ) : (
-                <div className="analysis-diff-attr-unchanged">unchanged</div>
-              )}
-            </div>
-          ))}
-        </div>
-      );
-    }
-
-    // Default: simple current/proposed
-    return (
-      <div className="analysis-diff-values">
-        <div className="analysis-diff-old">
-          <span className="analysis-diff-tag">Current</span>
-          <pre>{formatSimpleValue(diff.oldValue)}</pre>
-        </div>
-        <div className="analysis-diff-new">
-          <span className="analysis-diff-tag">Proposed</span>
-          <pre>{formatSimpleValue(diff.newValue)}</pre>
-        </div>
-      </div>
-    );
-  };
-
   return (
     <div
       className="analysis-panel"
       /* eslint-disable-next-line local/no-inline-style -- dynamic: panel width driven by `width` prop */
       style={width ? { width, minWidth: 320 } : undefined}
     >
-      <div className="analysis-panel-header">
-        <div className="analysis-panel-title">
-          {analysisTitle || 'Analysis'}
-          {analysisCached && <span className="analysis-cached-badge">cached</span>}
-        </div>
-        <div className="analysis-panel-actions">
-          {analysisResult && !isCritique && (
-            <button
-              className="btn btn-ghost btn-sm"
-              onClick={handleRefresh}
-              title={`Re-run with ${geminiModel}`}
-            >
-              Refresh
-            </button>
-          )}
-          <button className="pane-collapse-btn" onClick={() => setCollapsed(true)} title="Collapse" aria-label="Collapse panel">&lsaquo;</button>
-          <button className="btn btn-ghost btn-sm" onClick={clearAnalysis}>
-            Close
-          </button>
-        </div>
-      </div>
+      <AnalysisHeader
+        analysisTitle={analysisTitle}
+        analysisCached={analysisCached}
+        analysisResult={analysisResult}
+        isCritique={isCritique}
+        geminiModel={geminiModel}
+        onRefresh={handleRefresh}
+        onCollapse={() => setCollapsed(true)}
+        onClose={clearAnalysis}
+      />
 
-      {analysisElementA && analysisElementB && (
-        <div className="analysis-elements">
-          <div className="analysis-element">
-            <div className="analysis-element-tag">Element A <span className="analysis-element-category">{analysisElementA.category}</span></div>
-            <div className="analysis-element-label">{analysisElementA.label}</div>
-          </div>
-          <div className="analysis-vs">vs</div>
-          <div className="analysis-element">
-            <div className="analysis-element-tag">Element B <span className="analysis-element-category">{analysisElementB.category}</span></div>
-            <div className="analysis-element-label">{analysisElementB.label}</div>
-          </div>
-        </div>
-      )}
-      {analysisElementA && !analysisElementB && (
-        <div className="analysis-elements">
-          <div className="analysis-element">
-            <div className="analysis-element-tag">{analysisElementA.category}</div>
-            <div className="analysis-element-label">{analysisElementA.label}</div>
-          </div>
-        </div>
-      )}
+      <AnalysisElements analysisElementA={analysisElementA} analysisElementB={analysisElementB} />
 
-      {analysisLoading && analysisStep > 0 && (
-        <div className="analysis-steps">
-          {STEPS.map(({ step, label }) => {
-            const displayLabel = step === 3 ? `Sending to ${geminiModel}` : label;
-            let status: 'pending' | 'active' | 'done' = 'pending';
-            if (analysisStep > step) status = 'done';
-            else if (analysisStep === step) status = 'active';
-
-            return (
-              <div key={step}>
-                <div className={`analysis-step analysis-step-${status}`}>
-                  <span className="analysis-step-indicator">
-                    {status === 'done' && '\u2713'}
-                    {status === 'active' && <span className="search-spinner" />}
-                    {status === 'pending' && <span className="analysis-step-dot" />}
-                  </span>
-                  <span className="analysis-step-label">{displayLabel}</span>
-                </div>
-                {step === 3 && status === 'active' && analysisRetry && (
-                  <div className="analysis-retry-info">
-                    <div className="analysis-retry-headline">
-                      {analysisRetry.limitType !== 'unknown'
-                        ? `${analysisRetry.limitType} limit hit`
-                        : 'Rate limited'} — retry {analysisRetry.attempt}/{analysisRetry.maxRetries}, waiting {analysisRetry.backoffSeconds}s
-                    </div>
-                    <div className="analysis-retry-detail">
-                      {analysisRetry.limitMessage}
-                    </div>
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      )}
+      <AnalysisSteps
+        analysisLoading={analysisLoading}
+        analysisStep={analysisStep}
+        geminiModel={geminiModel}
+        analysisRetry={analysisRetry}
+      />
 
       {analysisError && (
         <>
@@ -479,58 +630,15 @@ export function AnalysisPanel({ width }: AnalysisPanelProps) {
       )}
 
       {/* Critique mode: structured view with rationale per change */}
-      {analysisResult && isCritique && (
-        <>
-          {critiqueSummary && (
-            <div className="analysis-critique-summary markdown-body">
-              <Markdown remarkPlugins={[remarkGfm]}>{critiqueSummary}</Markdown>
-            </div>
-          )}
-
-          {diffs.length > 0 && (
-            <div className="analysis-diffs">
-              <div className="analysis-diffs-header">Suggested Changes</div>
-              {diffs.map(diff => {
-                const isAccepted = acceptedFields.has(diff.key);
-                return (
-                  <div key={diff.key} className="analysis-diff-item">
-                    <div className="analysis-diff-field">{diff.label}</div>
-                    {diff.rationale && (
-                      <div className="analysis-diff-rationale markdown-body">
-                        <Markdown remarkPlugins={[remarkGfm]}>{diff.rationale}</Markdown>
-                      </div>
-                    )}
-                    {renderDiffValues(diff)}
-                    {isAccepted ? (
-                      <span className="analysis-diff-accepted">Accepted</span>
-                    ) : (
-                      <button
-                        className="btn btn-sm analysis-diff-accept-btn"
-                        onClick={() => void handleAccept(diff)}
-                      >
-                        Accept
-                      </button>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          )}
-
-          {diffs.length === 0 && (
-            <div className="analysis-diffs">
-              <div className="analysis-diffs-header apanel-diffs-header-flush">No changes proposed</div>
-            </div>
-          )}
-
-          {unmatchedRationale && (
-            <div className="analysis-critique-additional markdown-body">
-              <div className="analysis-diffs-header">Additional Notes</div>
-              <Markdown remarkPlugins={[remarkGfm]}>{unmatchedRationale}</Markdown>
-            </div>
-          )}
-        </>
-      )}
+      <CritiqueView
+        analysisResult={analysisResult}
+        isCritique={isCritique}
+        critiqueSummary={critiqueSummary}
+        diffs={diffs}
+        unmatchedRationale={unmatchedRationale}
+        acceptedFields={acceptedFields}
+        onAccept={handleAccept}
+      />
     </div>
   );
 }
