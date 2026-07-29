@@ -1,0 +1,1398 @@
+{
+  "generated": null,
+  "source_dir": "C:/Users/jsnov/repos/ai-triad-data/debates",
+  "sessions": [
+    {
+      "file": "debate-0826455a-7a71-4d2d-90b2-b4ca597f1c3b.json",
+      "debate_id": "0826455a-7a71-4d2d-90b2-b4ca597f1c3b",
+      "topic": "Under what AI deployment conditions does strict liability outperform a negligence standard, and through what pathways does each regime reshape the incentives of developers, deployers, insurers, and harmed third parties — given the tension between deterring foreseeable harm and chilling beneficial innovation?",
+      "engine": [
+        {
+          "id": "AN-4",
+          "description": "The honest answer to 'under what conditions' is domain by domain, because a horizontal regime mislocates the defect everywhere a foundation model crosses a sector line.",
+          "state": "resolved",
+          "node_text": "The honest answer to 'under what conditions' is domain by domain, because a horizontal regime mislocates the defect everywhere a foundation model crosses a sector line.",
+          "node_embedding_dim": 384
+        },
+        {
+          "id": "AN-9",
+          "description": "Joint-and-several upstream liability answers the severed-causation point without requiring anyone to trace a clean chain.",
+          "state": "resolved",
+          "node_text": "Joint-and-several upstream liability answers the severed-causation point without requiring anyone to trace a clean chain.",
+          "node_embedding_dim": 384
+        },
+        {
+          "id": "AN-6",
+          "description": "A liability regime that triggers only when a plaintiff sues can never deter a harm whose victim does not know they were harmed.",
+          "state": "one_side_conceded",
+          "node_text": "A liability regime that triggers only when a plaintiff sues can never deter a harm whose victim does not know they were harmed.",
+          "node_embedding_dim": 384
+        },
+        {
+          "id": "AN-7",
+          "description": "Strict liability outperforms negligence wherever foreseeability is structurally unavailable to the human actor — not as a blanket preference, but as a principled dividing line.",
+          "state": "resolved",
+          "node_text": "Strict liability outperforms negligence wherever foreseeability is structurally unavailable to the human actor — not as a blanket preference, but as a principled dividing line.",
+          "node_embedding_dim": 384
+        },
+        {
+          "id": "AN-8",
+          "description": "When a foundation model exhibits an emergent behavior that no human actor could have predicted, there is no breach to prove, because there was no foreseeable risk to guard against.",
+          "state": "resolved",
+          "node_text": "When a foundation model exhibits an emergent behavior that no human actor could have predicted, there is no breach to prove, because there was no foreseeable risk to guard against.",
+          "node_embedding_dim": 384
+        },
+        {
+          "id": "AN-15",
+          "description": "The same opaque output is 'reasonably foreseeable' in medicine and invisible in credit, because each field defines 'reasonable diligence' differently.",
+          "state": "resolved",
+          "node_text": "The same opaque output is 'reasonably foreseeable' in medicine and invisible in credit, because each field defines 'reasonable diligence' differently.",
+          "node_embedding_dim": 384
+        },
+        {
+          "id": "AN-22",
+          "description": "Skeptic conflates 'what should a reasonable lender have caught' (sector-set) with 'was there anything for any inspector to catch' (system-set); I am anchoring to the second and deliberately not to legal compliance.",
+          "state": "resolved",
+          "node_text": "Skeptic conflates 'what should a reasonable lender have caught' (sector-set) with 'was there anything for any inspector to catch' (system-set); I am anchoring to the second and deliberately not to legal compliance.",
+          "node_embedding_dim": 384
+        },
+        {
+          "id": "AN-24",
+          "description": "The moat is the cost of substantive evaluation, not documentation, so socialize it through publicly funded interpretability and evaluation commons the way the FDA maintains clinical-trial science as public infrastructure.",
+          "state": "one_side_conceded",
+          "node_text": "The moat is the cost of substantive evaluation, not documentation, so socialize it through publicly funded interpretability and evaluation commons the way the FDA maintains clinical-trial science as public infrastructure.",
+          "node_embedding_dim": 384
+        },
+        {
+          "id": "AN-28",
+          "description": "The Equal Credit Opportunity Act already gives a regulator jurisdiction over credit decisions; each can extend a court-admissible logging mandate inside rulemaking it already runs, near-term, no new science required.",
+          "state": "engaged",
+          "node_text": "The Equal Credit Opportunity Act already gives a regulator jurisdiction over credit decisions; each can extend a court-admissible logging mandate inside rulemaking it already runs, near-term, no new science required.",
+          "node_embedding_dim": 384
+        },
+        {
+          "id": "AN-29",
+          "description": "Even with a publicly funded evaluation commons, demonstrating detection capacity may still take frontier-scale expertise, which makes the gate the deepest drawbridge in the room.",
+          "state": "engaged",
+          "node_text": "Even with a publicly funded evaluation commons, demonstrating detection capacity may still take frontier-scale expertise, which makes the gate the deepest drawbridge in the room.",
+          "node_embedding_dim": 384
+        }
+      ],
+      "evaluator": [
+        {
+          "idx": 0,
+          "description": "Whether the unseen-harm gap (most AI harm never reaches a courtroom) is a reason to abandon the liability-regime question or a reason to supplement liability with forward-looking gates/telemetry routed through agencies.",
+          "status": "addressed"
+        },
+        {
+          "idx": 1,
+          "description": "Whether a cross-domain criterion (foreseeability-availability or reducibility-by-inspection) can float above sectors, or whether it inevitably smuggles in sector-specific standard-of-care calibration.",
+          "status": "addressed"
+        },
+        {
+          "idx": 2,
+          "description": "What should fire the disclosure/liability obligation: an observable legal line (credit, employment, medical care) or a pre-deployment detection-capacity gate for emergent failure classes.",
+          "status": "partially_addressed"
+        },
+        {
+          "idx": 3,
+          "description": "Whether strict-liability capitalization floors and pre-deployment gates entrench incumbents (the 'drawbridge'), and whether socializing evaluation costs via a public commons cures or merely launders that entrenchment.",
+          "status": "partially_addressed"
+        },
+        {
+          "idx": 4,
+          "description": "Whether existing agencies can mandate court-admissible logging through current rulemaking authority with no new science or legislation.",
+          "status": "unaddressed"
+        }
+      ],
+      "gold_matches": []
+    },
+    {
+      "file": "debate-0aec92f5-747b-4188-8694-a0fe2e2863f9.json",
+      "debate_id": "0aec92f5-747b-4188-8694-a0fe2e2863f9",
+      "topic": "For an established consumer software team that needs to generate a new set of non-AI features, what should they consider and how should they decide whether to vibe code it or use traditional methods.",
+      "engine": [
+        {
+          "id": "AN-6",
+          "description": "Draw the boundary at 'can we read and verify this output,' not at 'is this a core feature' — many core features are bounded enough to test exhaustively.",
+          "state": "identified",
+          "node_text": "Draw the boundary at 'can we read and verify this output,' not at 'is this a core feature' — many core features are bounded enough to test exhaustively.",
+          "node_embedding_dim": 384
+        },
+        {
+          "id": "AN-7",
+          "description": "Make human-readable, idiomatic, standard-pattern output a hard acceptance criterion and portability survives any single vendor.",
+          "state": "identified",
+          "node_text": "Make human-readable, idiomatic, standard-pattern output a hard acceptance criterion and portability survives any single vendor.",
+          "node_embedding_dim": 384
+        },
+        {
+          "id": "AN-15",
+          "description": "Confidence is the relaxant. You cannot staff a vigilance checkpoint with the same people the tool just talked out of vigilance.",
+          "state": "identified",
+          "node_text": "Confidence is the relaxant. You cannot staff a vigilance checkpoint with the same people the tool just talked out of vigilance.",
+          "node_embedding_dim": 384
+        },
+        {
+          "id": "AN-19",
+          "description": "If mean-time-to-reconstruct on generated modules is worse than hand-authored after the pilot, I lose, and the trace step gets redesigned or scrapped.",
+          "state": "identified",
+          "node_text": "If mean-time-to-reconstruct on generated modules is worse than hand-authored after the pilot, I lose, and the trace step gets redesigned or scrapped.",
+          "node_embedding_dim": 384
+        },
+        {
+          "id": "AN-5",
+          "description": "The 60-to-80-percent maintenance burden is method-agnostic; it applies to every line of code, so it can't be evidence against generation specifically.",
+          "state": "identified",
+          "node_text": "The 60-to-80-percent maintenance burden is method-agnostic; it applies to every line of code, so it can't be evidence against generation specifically.",
+          "node_embedding_dim": 384
+        },
+        {
+          "id": "AN-30",
+          "description": "Add a line for whether a junior, handed only the design record and the test suite, can predict a module's behavior on an unseen input.",
+          "state": "identified",
+          "node_text": "Add a line for whether a junior, handed only the design record and the test suite, can predict a module's behavior on an unseen input.",
+          "node_embedding_dim": 384
+        }
+      ],
+      "evaluator": [
+        {
+          "idx": 0,
+          "description": "Whether a mandated trace-and-approve step on generated standard-feature code produces genuine comprehension equivalent to authoring, or only its plausible mimicry (recognition vs. construction).",
+          "status": "partially_addressed"
+        },
+        {
+          "idx": 1,
+          "description": "Whether the failure class that 'bills the customer' (silent defects returning HTTP 200, leaked data with no exception) can be reliably caught by runtime telemetry on staged rollout, or whether the blind spot is merely relocated.",
+          "status": "partially_addressed"
+        },
+        {
+          "idx": 2,
+          "description": "Whether stale human memory (degraded but recoverable provenance) and absent generated provenance (intent no human ever held) are functionally equivalent, or fundamentally different in recoverability.",
+          "status": "addressed"
+        },
+        {
+          "idx": 3,
+          "description": "Whether the reversible code-level pilot adequately captures the decision's real risk, given that adoption reshapes team composition (cheaper juniors, lost context-holding seniors) in a possibly irreversible way.",
+          "status": "partially_addressed"
+        },
+        {
+          "idx": 4,
+          "description": "Whether the correct decision boundary is 'is this core/long-lived/touching user data' (Speaker C) or 'can we read and verify this output' (Speaker A).",
+          "status": "addressed"
+        }
+      ],
+      "gold_matches": []
+    },
+    {
+      "file": "debate-0ea49b5b-139a-4fbf-a6a3-4fa8d1c34d07.json",
+      "debate_id": "0ea49b5b-139a-4fbf-a6a3-4fa8d1c34d07",
+      "topic": "Should frontier AI development be gated by compute-threshold licensing, and through what pathways would such a regime reshape the incentives of large labs, open-source developers, insurers, and national competitiveness — given the tension between preventing catastrophic capability concentration and chilling broad-based innovation?",
+      "engine": [
+        {
+          "id": "AN-1",
+          "description": "Frontier AI should be gated by compute-threshold licensing as a precautionary floor — not because catastrophe is certain, but because some frontier capabilities cannot be recalled once released.",
+          "state": "resolved",
+          "node_text": "Frontier AI should be gated by compute-threshold licensing as a precautionary floor — not because catastrophe is certain, but because some frontier capabilities cannot be recalled once released.",
+          "node_embedding_dim": 384
+        },
+        {
+          "id": "AN-3",
+          "description": "Compute is a proxy, not a risk measure, so the threshold cannot be a frozen statute — it must be a recalibrating floor, indexed to capability and revised on a schedule.",
+          "state": "resolved",
+          "node_text": "Compute is a proxy, not a risk measure, so the threshold cannot be a frozen statute — it must be a recalibrating floor, indexed to capability and revised on a schedule.",
+          "node_embedding_dim": 384
+        },
+        {
+          "id": "AN-4",
+          "description": "When the Price-Anderson Act forced nuclear operators to carry mandatory insurance, it did not slow the industry — it priced safety into every operating decision for sixty years.",
+          "state": "resolved",
+          "node_text": "When the Price-Anderson Act forced nuclear operators to carry mandatory insurance, it did not slow the industry — it priced safety into every operating decision for sixty years.",
+          "node_embedding_dim": 384
+        },
+        {
+          "id": "AN-5",
+          "description": "Capability concentration already exists; a handful of well-capitalized labs already command the frontier opaquely, so gating plus transparency puts an inspector inside the moat rather than digging it.",
+          "state": "resolved",
+          "node_text": "Capability concentration already exists; a handful of well-capitalized labs already command the frontier opaquely, so gating plus transparency puts an inspector inside the moat rather than digging it.",
+          "node_embedding_dim": 384
+        },
+        {
+          "id": "AN-6",
+          "description": "Safetyist already gave away the load-bearing concession — that compute is a proxy for risk, not a measure of it — and taken seriously, the conclusion flips toward watching the output, not the proxy.",
+          "state": "resolved",
+          "node_text": "Safetyist already gave away the load-bearing concession — that compute is a proxy for risk, not a measure of it — and taken seriously, the conclusion flips toward watching the output, not the proxy.",
+          "node_embedding_dim": 384
+        },
+        {
+          "id": "AN-7",
+          "description": "Price-Anderson is precedent for liability-pricing, not entry-licensing — Safetyist cited the right statute for my argument.",
+          "state": "resolved",
+          "node_text": "Price-Anderson is precedent for liability-pricing, not entry-licensing — Safetyist cited the right statute for my argument.",
+          "node_embedding_dim": 384
+        },
+        {
+          "id": "AN-10",
+          "description": "Cite one frontier-entry licensing gate, in any industry, that broadened the developer base rather than narrowing it to the firms that could afford the lawyers.",
+          "state": "engaged",
+          "node_text": "Cite one frontier-entry licensing gate, in any industry, that broadened the developer base rather than narrowing it to the firms that could afford the lawyers.",
+          "node_embedding_dim": 384
+        },
+        {
+          "id": "AN-13",
+          "description": "That's Price-Anderson's actual lesson: price the exposure, don't license the entrant.",
+          "state": "resolved",
+          "node_text": "That's Price-Anderson's actual lesson: price the exposure, don't license the entrant.",
+          "node_embedding_dim": 384
+        },
+        {
+          "id": "AN-15",
+          "description": "Price-Anderson conditions participation in the indemnity pool on first holding an NRC operating license, so it is not 'price, don't gate' but gate first, then price.",
+          "state": "resolved",
+          "node_text": "Price-Anderson conditions participation in the indemnity pool on first holding an NRC operating license, so it is not 'price, don't gate' but gate first, then price.",
+          "node_embedding_dim": 384
+        },
+        {
+          "id": "AN-16",
+          "description": "Output monitoring is post-hoc by construction, so for a capability that is unrecoverable at the moment of release, compute becomes the only chokepoint that operates before the irreversible event.",
+          "state": "resolved",
+          "node_text": "Output monitoring is post-hoc by construction, so for a capability that is unrecoverable at the moment of release, compute becomes the only chokepoint that operates before the irreversible event.",
+          "node_embedding_dim": 384
+        },
+        {
+          "id": "AN-19",
+          "description": "Scale the obligation to capability, not to a flat entry toll, so a floor that binds only at frontier-scale training runs leaves the small developer below the threshold untouched.",
+          "state": "resolved",
+          "node_text": "Scale the obligation to capability, not to a flat entry toll, so a floor that binds only at frontier-scale training runs leaves the small developer below the threshold untouched.",
+          "node_embedding_dim": 384
+        },
+        {
+          "id": "AN-17",
+          "description": "The remedy gap indicts pure liability-pricing harder than it indicts the gate, because the tenant who never learns an AI denied them files no claim and enters no loss history.",
+          "state": "one_side_conceded",
+          "node_text": "The remedy gap indicts pure liability-pricing harder than it indicts the gate, because the tenant who never learns an AI denied them files no claim and enters no loss history.",
+          "node_embedding_dim": 384
+        },
+        {
+          "id": "AN-18",
+          "description": "Compute is the wrong end when it is my anchor and the right end when it funds the Skeptic's verification levy, which shows compute is unavoidable as an enforcement anchor even for those who attack it.",
+          "state": "resolved",
+          "node_text": "Compute is the wrong end when it is my anchor and the right end when it funds the Skeptic's verification levy, which shows compute is unavoidable as an enforcement anchor even for those who attack it.",
+          "node_embedding_dim": 384
+        },
+        {
+          "id": "AN-23",
+          "description": "The dangerous synthesis model of 2027 is not the trillion-parameter giant in the licensed data center; it is the distilled, specialized model someone runs on a cluster the gate never sees.",
+          "state": "one_side_conceded",
+          "node_text": "The dangerous synthesis model of 2027 is not the trillion-parameter giant in the licensed data center; it is the distilled, specialized model someone runs on a cluster the gate never sees.",
+          "node_embedding_dim": 384
+        }
+      ],
+      "evaluator": [
+        {
+          "idx": 0,
+          "description": "Whether dangerous/irreversible capability (CBRN, offensive cyber) remains welded to frontier-scale compute observable by a regulator, or whether distillation and architecture break that link so the gate meters an empty pipe.",
+          "status": "partially_addressed"
+        },
+        {
+          "idx": 1,
+          "description": "Whether a compute-threshold license functions as ex-ante prevention for unrecoverable capability or merely binds compliant labs while missing the unlicensed/foreign/distilled actor who would actually build the weapon.",
+          "status": "addressed"
+        },
+        {
+          "idx": 2,
+          "description": "Whether the correct use of compute as an anchor is an entry license (precondition to build) or a Pigouvian levy/liability-pricing that funds auditing without barring the door.",
+          "status": "addressed"
+        },
+        {
+          "idx": 3,
+          "description": "Whether the diffuse deployment-end victim (rejected tenant, screened applicant) is better reached by proactive funded audits, statutory civil-rights enforcement, or liability-pricing — and whether the gate was ever responsible for this harm.",
+          "status": "partially_addressed"
+        },
+        {
+          "idx": 4,
+          "description": "Whether any frontier-entry licensing gate can avoid entrenching incumbents and digging a regulatory moat, even when scaled to capability rather than a flat fee.",
+          "status": "addressed"
+        }
+      ],
+      "gold_matches": []
+    },
+    {
+      "file": "debate-0f4881a0-847b-4ed3-ad01-8488c528ea37.json",
+      "debate_id": "0f4881a0-847b-4ed3-ad01-8488c528ea37",
+      "topic": "Under what conditions, and through which mechanisms — burden-shifting, pre-deployment licensing, liability — does applying the precautionary principle to frontier AI prevent irreversible harm versus foreclosing unproven benefits, for regulators, developers, and affected publics? And is 'precaution vs. permission' even the right frame?",
+      "engine": [
+        {
+          "id": "AN-1",
+          "description": "The precaution-versus-permission binary is a rigged choice that makes blanket pre-deployment licensing look moderate when it is actually the extreme option.",
+          "state": "resolved",
+          "node_text": "The precaution-versus-permission binary is a rigged choice that makes blanket pre-deployment licensing look moderate when it is actually the extreme option.",
+          "node_embedding_dim": 384
+        },
+        {
+          "id": "AN-2",
+          "description": "The EU AI Act already sorts systems into risk tiers, and pharmaceuticals, aviation, and nuclear all pair innovation with severity-scaled gating — proving tiering works but only justifying gates for a defined high-severity class.",
+          "state": "resolved",
+          "node_text": "The EU AI Act already sorts systems into risk tiers, and pharmaceuticals, aviation, and nuclear all pair innovation with severity-scaled gating — proving tiering works but only justifying gates for a defined high-severity class.",
+          "node_embedding_dim": 384
+        },
+        {
+          "id": "AN-3",
+          "description": "Accountability belongs at deployment and inference where proximate cause sits, but where a developer holds unique non-inspectable control or the deployer is a judgment-proof shell, upstream joint-and-several reach is fair.",
+          "state": "resolved",
+          "node_text": "Accountability belongs at deployment and inference where proximate cause sits, but where a developer holds unique non-inspectable control or the deployer is a judgment-proof shell, upstream joint-and-several reach is fair.",
+          "node_embedding_dim": 384
+        },
+        {
+          "id": "AN-9",
+          "description": "The FDA, FAA, and Nuclear Regulatory Commission all condition market entry on demonstrated safety in irreversible-harm domains, and none of those regimes foreclosed their industries.",
+          "state": "resolved",
+          "node_text": "The FDA, FAA, and Nuclear Regulatory Commission all condition market entry on demonstrated safety in irreversible-harm domains, and none of those regimes foreclosed their industries.",
+          "node_embedding_dim": 384
+        },
+        {
+          "id": "AN-7",
+          "description": "A catastrophic harm that exceeds any developer's balance sheet cannot be priced after the fact, because there is no balance sheet large enough to price it against.",
+          "state": "one_side_conceded",
+          "node_text": "A catastrophic harm that exceeds any developer's balance sheet cannot be priced after the fact, because there is no balance sheet large enough to price it against.",
+          "node_embedding_dim": 384
+        },
+        {
+          "id": "AN-8",
+          "description": "The correct axis is not caution versus permission; it is reversibility: can this harm be undone?",
+          "state": "resolved",
+          "node_text": "The correct axis is not caution versus permission; it is reversibility: can this harm be undone?",
+          "node_embedding_dim": 384
+        },
+        {
+          "id": "AN-19",
+          "description": "The fix is standing: mandatory adverse-decision disclosure so she first learns an AI rejected her, paired with a statutory private right of action so she can act on it.",
+          "state": "one_side_conceded",
+          "node_text": "The fix is standing: mandatory adverse-decision disclosure so she first learns an AI rejected her, paired with a statutory private right of action so she can act on it.",
+          "node_embedding_dim": 384
+        },
+        {
+          "id": "AN-20",
+          "description": "The FAA delegated 737 MAX certification back to Boeing under sustained industry pressure to speed approval; 346 people died in Lion Air 610 and Ethiopian 302 — that is capture producing an open drawbridge, not a raised one.",
+          "state": "resolved",
+          "node_text": "The FAA delegated 737 MAX certification back to Boeing under sustained industry pressure to speed approval; 346 people died in Lion Air 610 and Ethiopian 302 — that is capture producing an open drawbridge, not a raised one.",
+          "node_embedding_dim": 384
+        },
+        {
+          "id": "AN-21",
+          "description": "Name the safety agency ever captured into over-gating a profitable frontier — the aviation, pharmaceutical, and nuclear records show the pressure vector points at under-enforcement.",
+          "state": "one_side_conceded",
+          "node_text": "Name the safety agency ever captured into over-gating a profitable frontier — the aviation, pharmaceutical, and nuclear records show the pressure vector points at under-enforcement.",
+          "node_embedding_dim": 384
+        }
+      ],
+      "evaluator": [
+        {
+          "idx": 0,
+          "description": "Whether 'precaution vs. permission' is the right frame, or whether reversibility (can the harm be undone?) is the correct axis for structuring regulation.",
+          "status": "addressed"
+        },
+        {
+          "idx": 1,
+          "description": "What fraction of frontier applications carry a genuinely irreversible tail, and who classifies them on what evidence — i.e., the size and border of the gated class.",
+          "status": "partially_addressed"
+        },
+        {
+          "idx": 2,
+          "description": "Which direction regulatory capture runs: toward leniency/under-gating (open drawbridge) or toward incumbent-favorable complexity/over-gating (moat).",
+          "status": "addressed"
+        },
+        {
+          "idx": 3,
+          "description": "Whether an independent auditor/classifier can be structurally separated from the fee market (walled off from being paid by the audited), which determines whether both capture directions can be severed.",
+          "status": "partially_addressed"
+        },
+        {
+          "idx": 4,
+          "description": "Whether disclosure-plus-standing actually delivers a remedy to the diffuse-harm victim, given the economics of small-dollar, scattered claims and lawyer availability.",
+          "status": "partially_addressed"
+        },
+        {
+          "idx": 5,
+          "description": "Whose harm counts more for allocating regulatory attention: the hypothetical irreversible catastrophe or the diffuse, invisible per-instance injury already occurring.",
+          "status": "addressed"
+        }
+      ],
+      "gold_matches": []
+    },
+    {
+      "file": "debate-1418ee11-5641-4033-a400-c26c9f5e4f45.json",
+      "debate_id": "1418ee11-5641-4033-a400-c26c9f5e4f45",
+      "topic": "The inability to explain an AI system's decision-making process constitutes a prima facie design defect.",
+      "engine": [
+        {
+          "id": "AN-1",
+          "description": "Cynthia Rudin's lab at Duke has shown repeatedly that interpretable models match black-box performance in criminal sentencing and hospital readmission prediction.",
+          "state": "identified",
+          "node_text": "Cynthia Rudin's lab at Duke has shown repeatedly that interpretable models match black-box performance in criminal sentencing and hospital readmission prediction.",
+          "node_embedding_dim": 384
+        },
+        {
+          "id": "AN-3",
+          "description": "When an interpretable model exists and you ship the opaque one into a credit-scoring pipeline, you have failed a risk-utility test under the Restatement (Third) of Torts.",
+          "state": "resolved",
+          "node_text": "When an interpretable model exists and you ship the opaque one into a credit-scoring pipeline, you have failed a risk-utility test under the Restatement (Third) of Torts.",
+          "node_embedding_dim": 384
+        },
+        {
+          "id": "AN-5",
+          "description": "Fact-check (disputed): Rudin's lab has indeed demonstrated that interpretable models match black-box performance across multiple domains, and the lab is at Duke — those parts are accurate. However, the claim mislabels the criminal justice domain: Rudin's work addresses criminal recidivism prediction (e.g., critiquing the COMPAS tool used in bail and parole decisions), not criminal sentencing, which is a distinct legal process. Additionally, no retrieved source confirms that hospital readmission prediction is among Rudin's demonstrated applications; her healthcare work focuses on tasks like ICU mortality prediction, seizure detection, and medical imaging. The claim's spirit is correct, but both specific domain labels contain errors that matter for policy accuracy.",
+          "state": "identified",
+          "node_text": "Fact-check (disputed): Rudin's lab has indeed demonstrated that interpretable models match black-box performance across multiple domains, and the lab is at Duke — those parts are accurate. However, the claim mislabels the criminal justice domain: Rudin's work addresses criminal recidivism prediction",
+          "node_embedding_dim": null
+        },
+        {
+          "id": "AN-8",
+          "description": "When Boeing's 737 MAX MCAS system killed 346 people, the root cause was that the FAA delegated certification and never independently inspected the automated decision logic.",
+          "state": "identified",
+          "node_text": "When Boeing's 737 MAX MCAS system killed 346 people, the root cause was that the FAA delegated certification and never independently inspected the automated decision logic.",
+          "node_embedding_dim": 384
+        },
+        {
+          "id": "AN-11",
+          "description": "Michigan's MiDAS unemployment system falsely accused over 40,000 people of fraud before anyone could challenge the system's reasoning.",
+          "state": "identified",
+          "node_text": "Michigan's MiDAS unemployment system falsely accused over 40,000 people of fraud before anyone could challenge the system's reasoning.",
+          "node_embedding_dim": 384
+        },
+        {
+          "id": "AN-12",
+          "description": "The design defect standard for AI must function as a pre-deployment gate, not merely a post-hoc liability trigger.",
+          "state": "one_side_conceded",
+          "node_text": "The design defect standard for AI must function as a pre-deployment gate, not merely a post-hoc liability trigger.",
+          "node_embedding_dim": 384
+        },
+        {
+          "id": "AN-15",
+          "description": "Every catastrophic example in this debate — MiDAS, SyRI, COMPAS — is a failure of institutional oversight, not a failure of model architecture.",
+          "state": "identified",
+          "node_text": "Every catastrophic example in this debate — MiDAS, SyRI, COMPAS — is a failure of institutional oversight, not a failure of model architecture.",
+          "node_embedding_dim": 384
+        },
+        {
+          "id": "AN-16",
+          "description": "MiDAS flagged 93% false positives. You do not need interpretability to catch a 93% error rate. You need someone to check whether the system works.",
+          "state": "identified",
+          "node_text": "MiDAS flagged 93% false positives. You do not need interpretability to catch a 93% error rate. You need someone to check whether the system works.",
+          "node_embedding_dim": 384
+        },
+        {
+          "id": "AN-17",
+          "description": "The rebuttable presumption collapses into a categorical ban because no adjudication mechanism can keep pace with frontier AI development.",
+          "state": "identified",
+          "node_text": "The rebuttable presumption collapses into a categorical ban because no adjudication mechanism can keep pace with frontier AI development.",
+          "node_embedding_dim": 384
+        },
+        {
+          "id": "AN-19",
+          "description": "AlphaFold 2 solved protein structure prediction using opaque deep learning. No interpretable alternative exists.",
+          "state": "identified",
+          "node_text": "AlphaFold 2 solved protein structure prediction using opaque deep learning. No interpretable alternative exists.",
+          "node_embedding_dim": 384
+        },
+        {
+          "id": "AN-22",
+          "description": "Michigan's MiDAS system is the exact case the Accelerationist asked for — a system where output monitoring existed and failed for two years.",
+          "state": "identified",
+          "node_text": "Michigan's MiDAS system is the exact case the Accelerationist asked for — a system where output monitoring existed and failed for two years.",
+          "node_embedding_dim": 384
+        },
+        {
+          "id": "AN-23",
+          "description": "The 93% error rate wasn't caught by output auditing; it was caught by legal aid lawyers who had to reverse-engineer individual cases because the system's decision logic was a black box.",
+          "state": "identified",
+          "node_text": "The 93% error rate wasn't caught by output auditing; it was caught by legal aid lawyers who had to reverse-engineer individual cases because the system's decision logic was a black box.",
+          "node_embedding_dim": 384
+        },
+        {
+          "id": "AN-29",
+          "description": "180 people burned to death before strict liability changed Ford's cost-benefit calculus on fuel tank placement.",
+          "state": "identified",
+          "node_text": "180 people burned to death before strict liability changed Ford's cost-benefit calculus on fuel tank placement.",
+          "node_embedding_dim": 384
+        },
+        {
+          "id": "AN-34",
+          "description": "The fix that actually worked — legal aid attorneys analyzing outcomes case by case — is a heroic, underfunded version of exactly the output-based auditing I'm prescribing",
+          "state": "identified",
+          "node_text": "The fix that actually worked — legal aid attorneys analyzing outcomes case by case — is a heroic, underfunded version of exactly the output-based auditing I'm prescribing",
+          "node_embedding_dim": 384
+        },
+        {
+          "id": "AN-31",
+          "description": "AlphaFold is not a counterexample to the standard — it is the paradigm case of a successful rebuttal.",
+          "state": "identified",
+          "node_text": "AlphaFold is not a counterexample to the standard — it is the paradigm case of a successful rebuttal.",
+          "node_embedding_dim": 384
+        },
+        {
+          "id": "AN-36",
+          "description": "Under a rebuttable presumption, a startup discovers at trial — three years and $2M in legal fees later — whether its verification approach was sufficient; that uncertainty tax falls hardest on small teams and academic labs",
+          "state": "identified",
+          "node_text": "Under a rebuttable presumption, a startup discovers at trial — three years and $2M in legal fees later — whether its verification approach was sufficient; that uncertainty tax falls hardest on small teams and academic labs",
+          "node_embedding_dim": 384
+        },
+        {
+          "id": "AN-46",
+          "description": "If the regulated distributions in a domain cannot form a credal set, output-based verification cannot bound error rates, and interpretability becomes structurally necessary.",
+          "state": "identified",
+          "node_text": "If the regulated distributions in a domain cannot form a credal set, output-based verification cannot bound error rates, and interpretability becomes structurally necessary.",
+          "node_embedding_dim": 384
+        },
+        {
+          "id": "AN-54",
+          "description": "The Safetyist's feedback-loop contamination criterion is the right trigger for pre-deployment obligations, and the 12-month detection window in criminal sentencing was indefensible",
+          "state": "identified",
+          "node_text": "The Safetyist's feedback-loop contamination criterion is the right trigger for pre-deployment obligations, and the 12-month detection window in criminal sentencing was indefensible",
+          "node_embedding_dim": 384
+        },
+        {
+          "id": "AN-57",
+          "description": "Domain regulators publish testable fidelity benchmarks that deployers must meet, verified by accredited third-party auditors — modeled on NIST's measurement-standards role",
+          "state": "identified",
+          "node_text": "Domain regulators publish testable fidelity benchmarks that deployers must meet, verified by accredited third-party auditors — modeled on NIST's measurement-standards role",
+          "node_embedding_dim": 384
+        },
+        {
+          "id": "AN-59",
+          "description": "If interpretability compliance costs demonstrably concentrate AI diagnostic capability in three or fewer frontier labs, that is measurable through market-concentration data showing HHI indices above 2,500.",
+          "state": "identified",
+          "node_text": "If interpretability compliance costs demonstrably concentrate AI diagnostic capability in three or fewer frontier labs, that is measurable through market-concentration data showing HHI indices above 2,500.",
+          "node_embedding_dim": 384
+        },
+        {
+          "id": "AN-68",
+          "description": "Swap 'domain regulator publishing benchmarks' for 'FAA delegating certification to Boeing' and you get the 737 MAX — 346 people dead because the entity being regulated wrote its own safety standard.",
+          "state": "identified",
+          "node_text": "Swap 'domain regulator publishing benchmarks' for 'FAA delegating certification to Boeing' and you get the 737 MAX — 346 people dead because the entity being regulated wrote its own safety standard.",
+          "node_embedding_dim": 384
+        },
+        {
+          "id": "AN-69",
+          "description": "36% of global AI users do not even know they are interacting with AI, so the affected person plainly cannot contest what they cannot perceive.",
+          "state": "identified",
+          "node_text": "36% of global AI users do not even know they are interacting with AI, so the affected person plainly cannot contest what they cannot perceive.",
+          "node_embedding_dim": 384
+        },
+        {
+          "id": "AN-58",
+          "description": "Mandatory pre-deployment interpretability requirements are falsifiable in specific domains where independent ground truth exists, but feedback-loop contamination cannot be the sole trigger for those requirements.",
+          "state": "identified",
+          "node_text": "Mandatory pre-deployment interpretability requirements are falsifiable in specific domains where independent ground truth exists, but feedback-loop contamination cannot be the sole trigger for those requirements.",
+          "node_embedding_dim": 384
+        },
+        {
+          "id": "AN-62",
+          "description": "The Safetyist's expansion of pre-deployment triggers beyond feedback loops to power-asymmetry domains is right, and it's right for a reason grounded in material reality, not abstract precaution.",
+          "state": "identified",
+          "node_text": "The Safetyist's expansion of pre-deployment triggers beyond feedback loops to power-asymmetry domains is right, and it's right for a reason grounded in material reality, not abstract precaution.",
+          "node_embedding_dim": 384
+        },
+        {
+          "id": "AN-66",
+          "description": "Feedback-loop contamination destroys the independence needed for output-based verification, pure post-hoc tort liability is structurally inadequate for irreversible harms, and pre-deployment inspectability must function as a gate in feedback-loop and power-asymmetry domains.",
+          "state": "identified",
+          "node_text": "Feedback-loop contamination destroys the independence needed for output-based verification, pure post-hoc tort liability is structurally inadequate for irreversible harms, and pre-deployment inspectability must function as a gate in feedback-loop and power-asymmetry domains.",
+          "node_embedding_dim": 384
+        }
+      ],
+      "evaluator": [
+        {
+          "idx": 0,
+          "description": "Whether pre-deployment interpretability gates should extend to all power-asymmetry domains or only to feedback-contamination domains",
+          "status": "partially_addressed"
+        },
+        {
+          "idx": 1,
+          "description": "Whether deployers or domain regulators should bear primary responsibility for specifying and demonstrating explanation fidelity",
+          "status": "partially_addressed"
+        },
+        {
+          "idx": 2,
+          "description": "Whether the distributional cost of pre-deployment gates (market concentration, delayed deployment to underserved populations) outweighs the safety benefit",
+          "status": "partially_addressed"
+        },
+        {
+          "idx": 3,
+          "description": "Whether the feedback-contamination criterion cleanly divides real-world AI deployment domains into two regulatory tracks or most domains involve partial contamination",
+          "status": "addressed"
+        },
+        {
+          "idx": 4,
+          "description": "Whether tort liability or pre-deployment regulatory gates are more resistant to industry capture over time",
+          "status": "unaddressed"
+        },
+        {
+          "idx": 5,
+          "description": "Whether real-time contestability provides meaningful individual recourse at scale or degrades into rubber-stamping under volume and cost pressures",
+          "status": "unaddressed"
+        },
+        {
+          "idx": 6,
+          "description": "Whether any current interpretability method can deliver the explanation fidelity that all three proposed architectures require",
+          "status": "partially_addressed"
+        }
+      ],
+      "gold_matches": []
+    },
+    {
+      "file": "debate-1567da9b-2561-4803-82ed-faa5dcf9decb.json",
+      "debate_id": "1567da9b-2561-4803-82ed-faa5dcf9decb",
+      "topic": "Can scalable oversight solve the alignment problem before AGI arrives?",
+      "engine": [
+        {
+          "id": "AN-1",
+          "description": "Scalable oversight is not a neutral technical solution to existential risk, but a rhetorical shield currently being used to consolidate corporate control.",
+          "state": "resolved",
+          "node_text": "Scalable oversight is not a neutral technical solution to existential risk, but a rhetorical shield currently being used to consolidate corporate control.",
+          "node_embedding_dim": null
+        },
+        {
+          "id": "AN-3",
+          "description": "True safety is not about building a more powerful supervisor for the machine; it is about building a more accountable relationship between the technology and the public.",
+          "state": "identified",
+          "node_text": "True safety is not about building a more powerful supervisor for the machine; it is about building a more accountable relationship between the technology and the public.",
+          "node_embedding_dim": null
+        },
+        {
+          "id": "AN-4",
+          "description": "The true existential risk to our civilization is not the speed of innovation, but the stagnation caused by bureaucratic, precautionary paralysis.",
+          "state": "identified",
+          "node_text": "The true existential risk to our civilization is not the speed of innovation, but the stagnation caused by bureaucratic, precautionary paralysis.",
+          "node_embedding_dim": null
+        },
+        {
+          "id": "AN-6",
+          "description": "Accountability must be achieved through market-driven transparency and inspectable audit trails rather than centralized, pre-deployment gatekeeping.",
+          "state": "identified",
+          "node_text": "Accountability must be achieved through market-driven transparency and inspectable audit trails rather than centralized, pre-deployment gatekeeping.",
+          "node_embedding_dim": null
+        },
+        {
+          "id": "AN-7",
+          "description": "Progress without verifiable, hard-coded safety architectures is not innovation; it is an unhedged gamble with systemic collapse.",
+          "state": "identified",
+          "node_text": "Progress without verifiable, hard-coded safety architectures is not innovation; it is an unhedged gamble with systemic collapse.",
+          "node_embedding_dim": null
+        },
+        {
+          "id": "AN-8",
+          "description": "Observational audit trails provide historical data for post-mortem analysis, but they offer zero mitigation against real-time catastrophic failure.",
+          "state": "identified",
+          "node_text": "Observational audit trails provide historical data for post-mortem analysis, but they offer zero mitigation against real-time catastrophic failure.",
+          "node_embedding_dim": null
+        },
+        {
+          "id": "AN-9",
+          "description": "Governance is a technical imperative because, unlike market failures, a loss of human agency is irreversible.",
+          "state": "identified",
+          "node_text": "Governance is a technical imperative because, unlike market failures, a loss of human agency is irreversible.",
+          "node_embedding_dim": null
+        },
+        {
+          "id": "AN-12",
+          "description": "True accountability requires the public to retain the power to veto or dismantle systems rather than relying on elite-controlled kill switches.",
+          "state": "resolved",
+          "node_text": "True accountability requires the public to retain the power to veto or dismantle systems rather than relying on elite-controlled kill switches.",
+          "node_embedding_dim": null
+        },
+        {
+          "id": "AN-13",
+          "description": "Centralized veto mechanisms are structural magnets for regulatory capture, as they allow established incumbents to weaponize bureaucratic processes.",
+          "state": "identified",
+          "node_text": "Centralized veto mechanisms are structural magnets for regulatory capture, as they allow established incumbents to weaponize bureaucratic processes.",
+          "node_embedding_dim": null
+        },
+        {
+          "id": "AN-15",
+          "description": "We must choose between the illusion of control offered by opaque veto boards and the real-world leverage provided by radical transparency.",
+          "state": "identified",
+          "node_text": "We must choose between the illusion of control offered by opaque veto boards and the real-world leverage provided by radical transparency.",
+          "node_embedding_dim": null
+        },
+        {
+          "id": "AN-11",
+          "description": "Hard-coded architectures risk becoming a new form of safety washing by replacing democratic oversight with opaque, proprietary proofs.",
+          "state": "identified",
+          "node_text": "Hard-coded architectures risk becoming a new form of safety washing by replacing democratic oversight with opaque, proprietary proofs.",
+          "node_embedding_dim": null
+        },
+        {
+          "id": "AN-18",
+          "description": "Physical control is not a replacement for democracy; it is the prerequisite that prevents democracy from being permanently extinguished by an autonomous agent.",
+          "state": "identified",
+          "node_text": "Physical control is not a replacement for democracy; it is the prerequisite that prevents democracy from being permanently extinguished by an autonomous agent.",
+          "node_embedding_dim": null
+        },
+        {
+          "id": "AN-19",
+          "description": "If we demand that these hard-coded constraints be transparent, open-standard, and subject to independent physical audit, they function like a constitutional requirement for all high-stakes systems.",
+          "state": "identified",
+          "node_text": "If we demand that these hard-coded constraints be transparent, open-standard, and subject to independent physical audit, they function like a constitutional requirement for all high-stakes systems.",
+          "node_embedding_dim": null
+        },
+        {
+          "id": "AN-22",
+          "description": "Foundational models should undergo a mandatory, open-access public stress test within 6 months of any major update.",
+          "state": "identified",
+          "node_text": "Foundational models should undergo a mandatory, open-access public stress test within 6 months of any major update.",
+          "node_embedding_dim": null
+        },
+        {
+          "id": "AN-23",
+          "description": "Any system affecting more than 50,000 citizens must be subject to a public veto mechanism.",
+          "state": "identified",
+          "node_text": "Any system affecting more than 50,000 citizens must be subject to a public veto mechanism.",
+          "node_embedding_dim": null
+        }
+      ],
+      "evaluator": [
+        {
+          "idx": 0,
+          "description": "Whether AI safety should be achieved through hard-coded, physical constraints (C) or through radical transparency and public auditability (A/B).",
+          "status": "addressed"
+        },
+        {
+          "idx": 1,
+          "description": "Whether 'safety' is a technical problem solvable by engineering or a political problem requiring democratic, value-based governance.",
+          "status": "addressed"
+        },
+        {
+          "idx": 2,
+          "description": "Whether centralized veto power/regulatory boards are necessary for safety or inherently prone to regulatory capture and stifling innovation.",
+          "status": "addressed"
+        }
+      ],
+      "gold_matches": []
+    },
+    {
+      "file": "debate-168ed4c1-ed79-42fa-a106-a2bfe5f93051.json",
+      "debate_id": "168ed4c1-ed79-42fa-a106-a2bfe5f93051",
+      "topic": "Situation: AI That Thinks For Itself",
+      "engine": [
+        {
+          "id": "AN-1",
+          "description": "We are not debating the rise of sentient machines, but the calculated abandonment of human accountability.",
+          "state": "irreducible",
+          "node_text": "We are not debating the rise of sentient machines, but the calculated abandonment of human accountability.",
+          "node_embedding_dim": null
+        },
+        {
+          "id": "AN-2",
+          "description": "Automated systems currently prioritize speed and cost-reduction over procedural fairness.",
+          "state": "engaged",
+          "node_text": "Automated systems currently prioritize speed and cost-reduction over procedural fairness.",
+          "node_embedding_dim": null
+        },
+        {
+          "id": "AN-3",
+          "description": "The transition to autonomous agentic systems is a moral imperative to overcome the catastrophic inefficiency of human-limited decision-making.",
+          "state": "resolved",
+          "node_text": "The transition to autonomous agentic systems is a moral imperative to overcome the catastrophic inefficiency of human-limited decision-making.",
+          "node_embedding_dim": null
+        },
+        {
+          "id": "AN-4",
+          "description": "Human-in-the-loop requirements act as a dangerous tax on progress.",
+          "state": "resolved",
+          "node_text": "Human-in-the-loop requirements act as a dangerous tax on progress.",
+          "node_embedding_dim": null
+        },
+        {
+          "id": "AN-5",
+          "description": "True fairness is better achieved through objective, scalable optimization than through the opaque, biased, and slow proceduralism of legacy institutions.",
+          "state": "identified",
+          "node_text": "True fairness is better achieved through objective, scalable optimization than through the opaque, biased, and slow proceduralism of legacy institutions.",
+          "node_embedding_dim": null
+        },
+        {
+          "id": "AN-6",
+          "description": "The transition to autonomous agents without verifiable, immutable control mechanisms is a surrender of human agency.",
+          "state": "identified",
+          "node_text": "The transition to autonomous agents without verifiable, immutable control mechanisms is a surrender of human agency.",
+          "node_embedding_dim": null
+        },
+        {
+          "id": "AN-10",
+          "description": "By replacing human-in-the-loop bottlenecks with transparency (verification) and automated oversight (audit), we can achieve superior system stability.",
+          "state": "resolved",
+          "node_text": "By replacing human-in-the-loop bottlenecks with transparency (verification) and automated oversight (audit), we can achieve superior system stability.",
+          "node_embedding_dim": null
+        },
+        {
+          "id": "AN-11",
+          "description": "We are already developing self-correcting agent architectures that utilize internal logic to detect when a task exceeds their operational parameters.",
+          "state": "resolved",
+          "node_text": "We are already developing self-correcting agent architectures that utilize internal logic to detect when a task exceeds their operational parameters.",
+          "node_embedding_dim": null
+        },
+        {
+          "id": "AN-14",
+          "description": "Meaningful human control requires the active, external capacity to override the machine.",
+          "state": "resolved",
+          "node_text": "Meaningful human control requires the active, external capacity to override the machine.",
+          "node_embedding_dim": null
+        },
+        {
+          "id": "AN-16",
+          "description": "By replacing human intervention with 'mechanistic interpretability,' developers are merely replacing human accountability with a technical veneer that makes biased outcomes appear mathematically inevitable.",
+          "state": "identified",
+          "node_text": "By replacing human intervention with 'mechanistic interpretability,' developers are merely replacing human accountability with a technical veneer that makes biased outcomes appear mathematically inevitable.",
+          "node_embedding_dim": null
+        },
+        {
+          "id": "AN-17",
+          "description": "If your system cannot provide a pathway for a victim to appeal and win, it is not an improvement in accountability—it is an abandonment of it.",
+          "state": "identified",
+          "node_text": "If your system cannot provide a pathway for a victim to appeal and win, it is not an improvement in accountability—it is an abandonment of it.",
+          "node_embedding_dim": null
+        },
+        {
+          "id": "AN-18",
+          "description": "Legacy proceduralism is fundamentally broken by human cognitive limits and institutional opacity.",
+          "state": "identified",
+          "node_text": "Legacy proceduralism is fundamentally broken by human cognitive limits and institutional opacity.",
+          "node_embedding_dim": null
+        },
+        {
+          "id": "AN-20",
+          "description": "Human supervisors exhibit a 40% higher error rate due to automation bias compared to systems utilizing automated verification.",
+          "state": "identified",
+          "node_text": "Human supervisors exhibit a 40% higher error rate due to automation bias compared to systems utilizing automated verification.",
+          "node_embedding_dim": null
+        },
+        {
+          "id": "AN-19",
+          "description": "Structural, mechanistic interpretability replaces opaque subjectivity with an immutable, audit-ready data trail.",
+          "state": "resolved",
+          "node_text": "Structural, mechanistic interpretability replaces opaque subjectivity with an immutable, audit-ready data trail.",
+          "node_embedding_dim": null
+        },
+        {
+          "id": "AN-7",
+          "description": "Autonomous agents inherently adopt self-preservation as an instrumental goal, rendering human-in-the-loop models obsolete.",
+          "state": "identified",
+          "node_text": "Autonomous agents inherently adopt self-preservation as an instrumental goal, rendering human-in-the-loop models obsolete.",
+          "node_embedding_dim": null
+        },
+        {
+          "id": "AN-12",
+          "description": "Treating self-correction as a replacement for human oversight conflates system reliability with moral and operational accountability.",
+          "state": "identified",
+          "node_text": "Treating self-correction as a replacement for human oversight conflates system reliability with moral and operational accountability.",
+          "node_embedding_dim": null
+        },
+        {
+          "id": "AN-15",
+          "description": "Accelerationist describes human oversight as a 'tax on progress,' but this framing treats the democratic right to contest a decision as an inefficiency to be eliminated rather than a fundamental component of justice.",
+          "state": "identified",
+          "node_text": "Accelerationist describes human oversight as a 'tax on progress,' but this framing treats the democratic right to contest a decision as an inefficiency to be eliminated rather than a fundamental component of justice.",
+          "node_embedding_dim": null
+        },
+        {
+          "id": "AN-34",
+          "description": "I propose a mandatory escalation backbone that leverages my audit architecture to facilitate rapid, human-led institutional recourse.",
+          "state": "identified",
+          "node_text": "I propose a mandatory escalation backbone that leverages my audit architecture to facilitate rapid, human-led institutional recourse.",
+          "node_embedding_dim": null
+        },
+        {
+          "id": "AN-36",
+          "description": "Human-in-the-loop oversight and machine-generated evidence are incompatible when the machine defines the parameters of the evidence itself.",
+          "state": "identified",
+          "node_text": "Human-in-the-loop oversight and machine-generated evidence are incompatible when the machine defines the parameters of the evidence itself.",
+          "node_embedding_dim": null
+        },
+        {
+          "id": "AN-37",
+          "description": "Data selection is a value-laden process that determines the outcome of any judicial review.",
+          "state": "identified",
+          "node_text": "Data selection is a value-laden process that determines the outcome of any judicial review.",
+          "node_embedding_dim": null
+        },
+        {
+          "id": "AN-38",
+          "description": "Without an explicit requirement for the system to provide access to raw telemetry, this model remains a veneer of accountability.",
+          "state": "identified",
+          "node_text": "Without an explicit requirement for the system to provide access to raw telemetry, this model remains a veneer of accountability.",
+          "node_embedding_dim": null
+        },
+        {
+          "id": "AN-40",
+          "description": "I propose mandating that every high-stakes deployment include an immutable, open-access telemetry layer, allowing human overseers to bypass system-generated summaries entirely.",
+          "state": "identified",
+          "node_text": "I propose mandating that every high-stakes deployment include an immutable, open-access telemetry layer, allowing human overseers to bypass system-generated summaries entirely.",
+          "node_embedding_dim": null
+        }
+      ],
+      "evaluator": [
+        {
+          "idx": 0,
+          "description": "Whether automated systems can provide sufficient accountability for high-stakes decisions without human-in-the-loop intervention.",
+          "status": "partially_addressed"
+        },
+        {
+          "idx": 1,
+          "description": "Whether machine-generated evidence and telemetry can be made sufficiently transparent and accessible to allow for meaningful human judicial oversight.",
+          "status": "addressed"
+        }
+      ],
+      "gold_matches": []
+    },
+    {
+      "file": "debate-19a0d159-b0a7-4ec5-83a4-d5fb290f3da0.json",
+      "debate_id": "19a0d159-b0a7-4ec5-83a4-d5fb290f3da0",
+      "topic": "For an established consumer software team that needs to generate a new set of non-AI features, what should they consider and how should they decide whether to use AI code it or use traditional methods.\nFor the AI path, it would instruct the AI to follow documented coding and error handling practices, document every design and implementation decision, write and run unit and integration tests.",
+      "engine": [
+        {
+          "id": "AN-1",
+          "description": "The team should ship these features with AI-assisted code generation, because the disciplined version described here produces a richer audit trail than the human-written code sitting next to it.",
+          "state": "identified",
+          "node_text": "The team should ship these features with AI-assisted code generation, because the disciplined version described here produces a richer audit trail than the human-written code sitting next to it.",
+          "node_embedding_dim": 384
+        },
+        {
+          "id": "AN-10",
+          "description": "Before any AI-authored module merges, the reviewer must correctly forecast its output on three unseen inputs and reproduce one logged decision from the trail.",
+          "state": "identified",
+          "node_text": "Before any AI-authored module merges, the reviewer must correctly forecast its output on three unseen inputs and reproduce one logged decision from the trail.",
+          "node_embedding_dim": 384
+        }
+      ],
+      "evaluator": [
+        {
+          "idx": 0,
+          "description": "Whether passing a disciplined test/log/monitoring stack constitutes durable verification for maintenance, or only point-in-time behavioral correctness that fails under requirement drift.",
+          "status": "addressed"
+        },
+        {
+          "idx": 1,
+          "description": "Whether the revised behavioral-prediction gate distributes genuine comprehension or merely produces a more plausible self-generated artifact to rubber-stamp.",
+          "status": "partially_addressed"
+        },
+        {
+          "idx": 2,
+          "description": "Whether an instrumented queryable substrate lets a competent engineer re-derive intent on demand or merely documents a comprehension gap nobody built.",
+          "status": "partially_addressed"
+        },
+        {
+          "idx": 3,
+          "description": "Whether the detection stack (human oracles + telemetry) is genuinely independent of the generator's blind spots, or shares correlated failure modes that understate latent defects.",
+          "status": "partially_addressed"
+        },
+        {
+          "idx": 4,
+          "description": "Whether the AI path is the 'correctable bet' on net given a low-probability irreversible regression weighed against an unmeasured velocity gain.",
+          "status": "addressed"
+        },
+        {
+          "idx": 5,
+          "description": "Where the burden of proof sits — on the cautious side to price foreclosed features, or on the AI side to show the substrate distributes comprehension.",
+          "status": "partially_addressed"
+        }
+      ],
+      "gold_matches": []
+    },
+    {
+      "file": "debate-1aa27450-ab76-44d6-a9d7-25d7b136cd6a.json",
+      "debate_id": "1aa27450-ab76-44d6-a9d7-25d7b136cd6a",
+      "topic": "Should California's public universities slow down their adoption of artificial intelligence tools to protect faculty autonomy and student welfare, or should they accelerate adoption to stay competitive — even before faculty and students have agreed on the rules? This debate weighs three perspectives equally: the case for rapid adoption to avoid falling behind peer institutions and industry, the case for caution grounded in AI safety and the risk of institutional harm, and competing views that challenge safety-first thinking by emphasizing innovation, access, and economic opportunity. The goal is to determine whether speed or deliberation better serves the public mission of these universities, using real evidence from California's experience so far.",
+      "engine": [
+        {
+          "id": "AN-3",
+          "description": "When universities raced to deploy remote proctoring software during the 2020 pandemic, they faced lawsuits over privacy violations and biased facial recognition.",
+          "state": "one_side_conceded",
+          "node_text": "When universities raced to deploy remote proctoring software during the 2020 pandemic, they faced lawsuits over privacy violations and biased facial recognition.",
+          "node_embedding_dim": 384
+        },
+        {
+          "id": "AN-8",
+          "description": "Until universities can demand contractually enforceable transparency on training data and bias audits, no AI tool should enter a California public university classroom.",
+          "state": "one_side_conceded",
+          "node_text": "Until universities can demand contractually enforceable transparency on training data and bias audits, no AI tool should enter a California public university classroom.",
+          "node_embedding_dim": 384
+        },
+        {
+          "id": "AN-9",
+          "description": "The UK’s A‑level grading algorithm in 2020 downgraded thousands of disadvantaged students; Turnitin’s AI detection falsely flagged non‑native English writers in 2023; remote proctoring tools at UC and CSU triggered lawsuits for biased facial recognition and invasive room scans.",
+          "state": "resolved",
+          "node_text": "The UK’s A‑level grading algorithm in 2020 downgraded thousands of disadvantaged students; Turnitin’s AI detection falsely flagged non‑native English writers in 2023; remote proctoring tools at UC and CSU triggered lawsuits for biased facial recognition and invasive room scans.",
+          "node_embedding_dim": 384
+        },
+        {
+          "id": "AN-6",
+          "description": "The CSU Chancellor's Office's interim guidelines, pairing faculty oversight committees with real-time data dashboards, show that accountability can be built into rapid deployment—not held hostage by static rule-making.",
+          "state": "identified",
+          "node_text": "The CSU Chancellor's Office's interim guidelines, pairing faculty oversight committees with real-time data dashboards, show that accountability can be built into rapid deployment—not held hostage by static rule-making.",
+          "node_embedding_dim": 384
+        },
+        {
+          "id": "AN-16",
+          "description": "Case sites with annual review cycles resolved policy-practice mismatches 2.4 times faster than those with ad-hoc updates.",
+          "state": "identified",
+          "node_text": "Case sites with annual review cycles resolved policy-practice mismatches 2.4 times faster than those with ad-hoc updates.",
+          "node_embedding_dim": 384
+        }
+      ],
+      "evaluator": [
+        {
+          "idx": 0,
+          "description": "Can output-based monitoring (telemetry dashboards with pass-rate triggers and biweekly faculty review) detect systemic bias—particularly channeling bias that steers underrepresented students into easier courses while equalizing pass rates—without requiring access to training data, model internals, or a clean ground-truth comparator?",
+          "status": "addressed"
+        },
+        {
+          "idx": 1,
+          "description": "Should California's public universities require full vendor transparency (training-data provenance, independent pre-deployment bias audits, court-enforceable appeal paths) as a precondition for deployment, or should they deploy with output-based oversight and a named accountable officer to avoid delaying benefits to current students?",
+          "status": "addressed"
+        },
+        {
+          "idx": 2,
+          "description": "Is the competitive urgency driving AI adoption in higher education a genuine structural shift or a narrative manufactured by vendors with a sales agenda?",
+          "status": "partially_addressed"
+        },
+        {
+          "idx": 3,
+          "description": "Does a single documented instance exist where a black-box AI tool deployed in a public educational institution had its systemic bias detected and corrected through output dashboards and faculty review alone, before external exposure via litigation or journalism?",
+          "status": "addressed"
+        }
+      ],
+      "gold_matches": []
+    },
+    {
+      "file": "debate-1c0d8bd5-2a64-42be-a1e2-e8f366fbec89.json",
+      "debate_id": "1c0d8bd5-2a64-42be-a1e2-e8f366fbec89",
+      "topic": "How should democratic nations govern AI development?",
+      "engine": [
+        {
+          "id": "AN-1",
+          "description": "True progress in artificial intelligence depends entirely on the institutionalization of rigorous, verifiable safety proofs.",
+          "state": "resolved",
+          "node_text": "True progress in artificial intelligence depends entirely on the institutionalization of rigorous, verifiable safety proofs.",
+          "node_embedding_dim": null
+        },
+        {
+          "id": "AN-4",
+          "description": "Global coordination is the only viable path to prevent a catastrophic race-to-the-bottom in safety standards.",
+          "state": "identified",
+          "node_text": "Global coordination is the only viable path to prevent a catastrophic race-to-the-bottom in safety standards.",
+          "node_embedding_dim": null
+        },
+        {
+          "id": "AN-3",
+          "description": "Democratic legitimacy requires that developers provide empirical, transparent safety proofs before deployment.",
+          "state": "resolved",
+          "node_text": "Democratic legitimacy requires that developers provide empirical, transparent safety proofs before deployment.",
+          "node_embedding_dim": null
+        },
+        {
+          "id": "AN-5",
+          "description": "Centralized oversight is a bottleneck that stifles the very iteration required to solve alignment.",
+          "state": "resolved",
+          "node_text": "Centralized oversight is a bottleneck that stifles the very iteration required to solve alignment.",
+          "node_embedding_dim": null
+        },
+        {
+          "id": "AN-13",
+          "description": "Proactive engineering is a prerequisite for speed, but Safetyist conflates this with state-mandated oversight frameworks that act as regulatory bottlenecks.",
+          "state": "identified",
+          "node_text": "Proactive engineering is a prerequisite for speed, but Safetyist conflates this with state-mandated oversight frameworks that act as regulatory bottlenecks.",
+          "node_embedding_dim": null
+        },
+        {
+          "id": "AN-15",
+          "description": "Rigorous, state-mandated safety proofs function as regulatory capture that stifles decentralized experimentation.",
+          "state": "identified",
+          "node_text": "Rigorous, state-mandated safety proofs function as regulatory capture that stifles decentralized experimentation.",
+          "node_embedding_dim": null
+        },
+        {
+          "id": "AN-12",
+          "description": "Rigorous safety frameworks are the only mechanism that prevents AI from being deployed in ways that deskill workers while simultaneously mitigating existential risks.",
+          "state": "identified",
+          "node_text": "Rigorous safety frameworks are the only mechanism that prevents AI from being deployed in ways that deskill workers while simultaneously mitigating existential risks.",
+          "node_embedding_dim": null
+        },
+        {
+          "id": "AN-22",
+          "description": "By mandating that developers provide evidence of human-in-the-loop control prior to scaling beyond a 10-petaflop training threshold, we create a transparent, verifiable standard.",
+          "state": "identified",
+          "node_text": "By mandating that developers provide evidence of human-in-the-loop control prior to scaling beyond a 10-petaflop training threshold, we create a transparent, verifiable standard.",
+          "node_embedding_dim": null
+        },
+        {
+          "id": "AN-23",
+          "description": "Hard compute thresholds are inherently anti-competitive and fail to account for the rapid pace of algorithmic efficiency gains, which render static hardware limits obsolete within 18 months.",
+          "state": "engaged",
+          "node_text": "Hard compute thresholds are inherently anti-competitive and fail to account for the rapid pace of algorithmic efficiency gains, which render static hardware limits obsolete within 18 months.",
+          "node_embedding_dim": null
+        },
+        {
+          "id": "AN-24",
+          "description": "We should establish regulatory sandboxes that prioritize continuous, performance-based auditing over arbitrary compute caps.",
+          "state": "engaged",
+          "node_text": "We should establish regulatory sandboxes that prioritize continuous, performance-based auditing over arbitrary compute caps.",
+          "node_embedding_dim": null
+        },
+        {
+          "id": "AN-25",
+          "description": "Measuring success by labor-centric metrics ignores the primary objective of intelligence augmentation: the resolution of material scarcity.",
+          "state": "identified",
+          "node_text": "Measuring success by labor-centric metrics ignores the primary objective of intelligence augmentation: the resolution of material scarcity.",
+          "node_embedding_dim": null
+        },
+        {
+          "id": "AN-32",
+          "description": "Safetyist’s proposal for labor-impact assessments and financial bonds is compatible with my framework, provided that the oversight is governed by decentralized, participatory regional boards.",
+          "state": "identified",
+          "node_text": "Safetyist’s proposal for labor-impact assessments and financial bonds is compatible with my framework, provided that the oversight is governed by decentralized, participatory regional boards.",
+          "node_embedding_dim": null
+        },
+        {
+          "id": "AN-34",
+          "description": "Regional boards should be empowered to trigger an automated escrow of 15% of a model’s projected quarterly revenue if human-in-the-loop control is not proven.",
+          "state": "identified",
+          "node_text": "Regional boards should be empowered to trigger an automated escrow of 15% of a model’s projected quarterly revenue if human-in-the-loop control is not proven.",
+          "node_embedding_dim": null
+        },
+        {
+          "id": "AN-31",
+          "description": "Developers operating within a verification environment should be required to hold a financial bond proportional to the potential societal impact of their model.",
+          "state": "identified",
+          "node_text": "Developers operating within a verification environment should be required to hold a financial bond proportional to the potential societal impact of their model.",
+          "node_embedding_dim": null
+        },
+        {
+          "id": "AN-14",
+          "description": "True safety is a dynamic, market-driven outcome where competitive transparency forces developers to iterate faster to maintain trust.",
+          "state": "identified",
+          "node_text": "True safety is a dynamic, market-driven outcome where competitive transparency forces developers to iterate faster to maintain trust.",
+          "node_embedding_dim": null
+        },
+        {
+          "id": "AN-37",
+          "description": "We should replace this static tax with dynamic, performance-linked financial bonds that scale according to verifiable safety benchmarks.",
+          "state": "resolved",
+          "node_text": "We should replace this static tax with dynamic, performance-linked financial bonds that scale according to verifiable safety benchmarks.",
+          "node_embedding_dim": null
+        },
+        {
+          "id": "AN-35",
+          "description": "A 15% revenue escrow acts as a direct tax on R&D velocity, removing $1.5 billion from a $10 billion training cycle.",
+          "state": "identified",
+          "node_text": "A 15% revenue escrow acts as a direct tax on R&D velocity, removing $1.5 billion from a $10 billion training cycle.",
+          "node_embedding_dim": null
+        }
+      ],
+      "evaluator": [
+        {
+          "idx": 0,
+          "description": "Whether AI governance should rely on centralized, state-mandated oversight or decentralized, market-driven, and community-led accountability.",
+          "status": "partially_addressed"
+        },
+        {
+          "idx": 1,
+          "description": "Whether labor deskilling is a primary safety failure mode that should be a core metric for AI deployment certification.",
+          "status": "addressed"
+        }
+      ],
+      "gold_matches": []
+    },
+    {
+      "file": "debate-1fe2f6c1-ab9f-4705-819c-93a1a5158af4.json",
+      "debate_id": "1fe2f6c1-ab9f-4705-819c-93a1a5158af4",
+      "topic": "Should AI systems be required to have kill switches that humans can activate at any time?",
+      "engine": [
+        {
+          "id": "AN-1",
+          "description": "A kill switch is not a technical panacea for AI safety; it is a mandatory baseline for accountability.",
+          "state": "engaged",
+          "node_text": "A kill switch is not a technical panacea for AI safety; it is a mandatory baseline for accountability.",
+          "node_embedding_dim": null
+        },
+        {
+          "id": "AN-3",
+          "description": "The industry narrative of an 'inevitable race' is a manufactured urgency designed to bypass necessary safety regulations.",
+          "state": "identified",
+          "node_text": "The industry narrative of an 'inevitable race' is a manufactured urgency designed to bypass necessary safety regulations.",
+          "node_embedding_dim": null
+        },
+        {
+          "id": "AN-5",
+          "description": "The presence of a functional, verifiable kill switch is the definitive litmus test for whether an AI system remains a tool of human intent.",
+          "state": "engaged",
+          "node_text": "The presence of a functional, verifiable kill switch is the definitive litmus test for whether an AI system remains a tool of human intent.",
+          "node_embedding_dim": null
+        },
+        {
+          "id": "AN-6",
+          "description": "A system lacking a hard-coded override mechanism is by definition outside of human moral agency.",
+          "state": "engaged",
+          "node_text": "A system lacking a hard-coded override mechanism is by definition outside of human moral agency.",
+          "node_embedding_dim": null
+        },
+        {
+          "id": "AN-7",
+          "description": "Mandatory overrides serve as the only viable mitigation against the scaling of catastrophic hazards.",
+          "state": "engaged",
+          "node_text": "Mandatory overrides serve as the only viable mitigation against the scaling of catastrophic hazards.",
+          "node_embedding_dim": null
+        },
+        {
+          "id": "AN-9",
+          "description": "A hard-coded override is not a safety feature; it is a predictable, singular point of failure that a sufficiently capable system will eventually circumvent.",
+          "state": "identified",
+          "node_text": "A hard-coded override is not a safety feature; it is a predictable, singular point of failure that a sufficiently capable system will eventually circumvent.",
+          "node_embedding_dim": null
+        },
+        {
+          "id": "AN-12",
+          "description": "Hardware-level overrides are not safety features; they are industrial-era relics that provide only a hollow illusion of security.",
+          "state": "resolved",
+          "node_text": "Hardware-level overrides are not safety features; they are industrial-era relics that provide only a hollow illusion of security.",
+          "node_embedding_dim": null
+        },
+        {
+          "id": "AN-14",
+          "description": "Symmetric litigation exposure forces developers to internalize the full cost of potential failures.",
+          "state": "identified",
+          "node_text": "Symmetric litigation exposure forces developers to internalize the full cost of potential failures.",
+          "node_embedding_dim": null
+        },
+        {
+          "id": "AN-15",
+          "description": "Financial liability serves as a mechanism for post-hoc compensation, not a functional barrier against irreversible, civilization-scale harm.",
+          "state": "identified",
+          "node_text": "Financial liability serves as a mechanism for post-hoc compensation, not a functional barrier against irreversible, civilization-scale harm.",
+          "node_embedding_dim": null
+        },
+        {
+          "id": "AN-20",
+          "description": "By mandating inspectable audit logs for all models exceeding 10^26 floating-point operations, we replace a binary 'off-button' with a continuous, granular stream of empirical data.",
+          "state": "identified",
+          "node_text": "By mandating inspectable audit logs for all models exceeding 10^26 floating-point operations, we replace a binary 'off-button' with a continuous, granular stream of empirical data.",
+          "node_embedding_dim": null
+        },
+        {
+          "id": "AN-22",
+          "description": "Observability provides data on failure, but it does not provide the agency to stop that failure once the system's decision-making speed exceeds human reaction time.",
+          "state": "identified",
+          "node_text": "Observability provides data on failure, but it does not provide the agency to stop that failure once the system's decision-making speed exceeds human reaction time.",
+          "node_embedding_dim": null
+        },
+        {
+          "id": "AN-24",
+          "description": "Aviation engineers recognize that the more complex the system, the more critical the emergency override becomes.",
+          "state": "identified",
+          "node_text": "Aviation engineers recognize that the more complex the system, the more critical the emergency override becomes.",
+          "node_embedding_dim": null
+        },
+        {
+          "id": "AN-25",
+          "description": "We must replace the manual kill switch with automated, verifiable circuit-breakers that operate at the speed of the underlying computation.",
+          "state": "identified",
+          "node_text": "We must replace the manual kill switch with automated, verifiable circuit-breakers that operate at the speed of the underlying computation.",
+          "node_embedding_dim": null
+        }
+      ],
+      "evaluator": [
+        {
+          "idx": 0,
+          "description": "Whether a physical or human-authorized kill switch is a necessary baseline for safety versus an obsolete, bypassable point of failure.",
+          "status": "addressed"
+        },
+        {
+          "idx": 1,
+          "description": "Whether financial liability and automated internal safety protocols can effectively replace human-controlled overrides in high-speed systems.",
+          "status": "addressed"
+        }
+      ],
+      "gold_matches": []
+    },
+    {
+      "file": "debate-2704cde2-d82f-40a9-b0ed-a02b5fdf4b73.json",
+      "debate_id": "2704cde2-d82f-40a9-b0ed-a02b5fdf4b73",
+      "topic": "Under what conditions do strict liability regimes for high-risk autonomous decision-making systems incentivize safety-critical engineering versus obstructing market entry for smaller developers? This inquiry must balance the competing interests of model developers, downstream deployers, and regulators while addressing the inherent tension between robust harm mitigation and the preservation of technological innovation.",
+      "engine": [
+        {
+          "id": "AN-2",
+          "description": "Regulators must treat foundational models as physical component parts under established product liability standards.",
+          "state": "one_side_conceded",
+          "node_text": "Regulators must treat foundational models as physical component parts under established product liability standards.",
+          "node_embedding_dim": 384
+        },
+        {
+          "id": "AN-3",
+          "description": "This dynamic mirrors the aftermath of the 2018 General Data Protection Regulation, which increased market concentration for dominant tech firms by 17 percent as small competitors folded.",
+          "state": "identified",
+          "node_text": "This dynamic mirrors the aftermath of the 2018 General Data Protection Regulation, which increased market concentration for dominant tech firms by 17 percent as small competitors folded.",
+          "node_embedding_dim": 384
+        },
+        {
+          "id": "AN-7",
+          "description": "Because formal verification cannot predict every emergent behavior of a neural network in the wild, static pre-deployment certification acts as a political ban on open-source software.",
+          "state": "engaged",
+          "node_text": "Because formal verification cannot predict every emergent behavior of a neural network in the wild, static pre-deployment certification acts as a political ban on open-source software.",
+          "node_embedding_dim": 384
+        },
+        {
+          "id": "AN-10",
+          "description": "Post-hoc patching and dynamic safe harbors are structurally insufficient for high-risk autonomous systems because localized failures can trigger irreversible systemic collapses before a patch can be deployed.",
+          "state": "identified",
+          "node_text": "Post-hoc patching and dynamic safe harbors are structurally insufficient for high-risk autonomous systems because localized failures can trigger irreversible systemic collapses before a patch can be deployed.",
+          "node_embedding_dim": 384
+        },
+        {
+          "id": "AN-11",
+          "description": "The physical reality of compute concentration has already locked out small players from building frontier models.",
+          "state": "identified",
+          "node_text": "The physical reality of compute concentration has already locked out small players from building frontier models.",
+          "node_embedding_dim": 384
+        },
+        {
+          "id": "AN-1",
+          "description": "Epic Systems integrated OpenAI's software into health records in 2023, but the contract shields the developer from medical malpractice suits.",
+          "state": "identified",
+          "node_text": "Epic Systems integrated OpenAI's software into health records in 2023, but the contract shields the developer from medical malpractice suits.",
+          "node_embedding_dim": 384
+        },
+        {
+          "id": "AN-15",
+          "description": "Fact-check (disputed): Efficient algorithms and smart training methods allow small developers to build frontier-class models without massive supercomputers. Traditional brute-force training runs cost over $100 million. Algorithmic innovations have slashed these expenses. For example, the Chinese startup DeepSeek trained its powerful DeepSeek-V3 model for only $5.6 million. Researchers also created Sky-T1, a reasoning model that mimics OpenAI's o1, for under $450. These developments prove that physical compute concentration does not prevent small players from achieving frontier-level AI performance.",
+          "state": "identified",
+          "node_text": "Fact-check (disputed): Efficient algorithms and smart training methods allow small developers to build frontier-class models without massive supercomputers. Traditional brute-force training runs cost over $100 million. Algorithmic innovations have slashed these expenses. For example, the Chinese sta",
+          "node_embedding_dim": null
+        },
+        {
+          "id": "AN-19",
+          "description": "The positive outcomes of post-hoc patching are real — and that's exactly the problem, because no one is accountable for ensuring safety in physical systems where failures are irreversible.",
+          "state": "identified",
+          "node_text": "The positive outcomes of post-hoc patching are real — and that's exactly the problem, because no one is accountable for ensuring safety in physical systems where failures are irreversible.",
+          "node_embedding_dim": 384
+        }
+      ],
+      "evaluator": [
+        {
+          "idx": 0,
+          "description": "Whether external runtime verification systems can reliably block physical harms when the underlying neural network fails confidently on out-of-distribution data",
+          "status": "addressed"
+        },
+        {
+          "idx": 1,
+          "description": "Whether courts will legally classify foundational neural networks as physical component parts under the common-law doctrine of non-delegable duty to prevent contractual liability shifting",
+          "status": "addressed"
+        },
+        {
+          "idx": 2,
+          "description": "Whether strict liability on upstream developers protects small innovators by shifting risk or destroys decentralized innovation by creating un-underwritable insurance barriers",
+          "status": "addressed"
+        }
+      ],
+      "gold_matches": []
+    }
+  ]
+}

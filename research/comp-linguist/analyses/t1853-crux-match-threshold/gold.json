@@ -1,0 +1,67 @@
+{
+  "labeler": "Computational Linguist (agent judgment — supports `derived`, not `human-validated`)",
+  "labeled_before_any_similarity_computed": true,
+  "note": "engine_ids is the SET of engine cruxes describing the same disagreement as the evaluator crux; sets may overlap across evaluator cruxes. Evaluator cruxes without an entry are UNCERTAIN, not negative — excluded from scoring.",
+  "sessions": {
+    "debate-0826455a-7a71-4d2d-90b2-b4ca597f1c3b.json": [
+      { "evaluator_idx": 0, "engine_ids": ["AN-6"], "confidence": "high" },
+      { "evaluator_idx": 1, "engine_ids": ["AN-4"], "confidence": "medium" },
+      { "evaluator_idx": 3, "engine_ids": ["AN-24"], "confidence": "high" },
+      { "evaluator_idx": 4, "engine_ids": ["AN-28"], "confidence": "high" }
+    ],
+    "debate-0aec92f5-747b-4188-8694-a0fe2e2863f9.json": [
+      { "evaluator_idx": 0, "engine_ids": ["AN-15"], "confidence": "medium" },
+      { "evaluator_idx": 3, "engine_ids": ["AN-19"], "confidence": "medium" },
+      { "evaluator_idx": 4, "engine_ids": ["AN-6"], "confidence": "high" }
+    ],
+    "debate-0ea49b5b-139a-4fbf-a6a3-4fa8d1c34d07.json": [
+      { "evaluator_idx": 0, "engine_ids": ["AN-23"], "confidence": "high" },
+      { "evaluator_idx": 1, "engine_ids": ["AN-16"], "confidence": "medium" },
+      { "evaluator_idx": 2, "engine_ids": ["AN-13", "AN-18", "AN-15", "AN-7"], "confidence": "high" },
+      { "evaluator_idx": 3, "engine_ids": ["AN-17"], "confidence": "high" },
+      { "evaluator_idx": 4, "engine_ids": ["AN-10", "AN-19"], "confidence": "high" }
+    ],
+    "debate-0f4881a0-847b-4ed3-ad01-8488c528ea37.json": [
+      { "evaluator_idx": 0, "engine_ids": ["AN-8", "AN-1"], "confidence": "high" },
+      { "evaluator_idx": 2, "engine_ids": ["AN-21", "AN-20"], "confidence": "high" },
+      { "evaluator_idx": 4, "engine_ids": ["AN-19"], "confidence": "high" }
+    ],
+    "debate-1418ee11-5641-4033-a400-c26c9f5e4f45.json": [
+      { "evaluator_idx": 0, "engine_ids": ["AN-62", "AN-58", "AN-54"], "confidence": "medium" },
+      { "evaluator_idx": 1, "engine_ids": ["AN-57"], "confidence": "high" },
+      { "evaluator_idx": 2, "engine_ids": ["AN-59"], "confidence": "high" },
+      { "evaluator_idx": 3, "engine_ids": ["AN-66", "AN-58"], "confidence": "medium" },
+      { "evaluator_idx": 4, "engine_ids": ["AN-68"], "confidence": "medium" }
+    ],
+    "debate-1567da9b-2561-4803-82ed-faa5dcf9decb.json": [
+      { "evaluator_idx": 0, "engine_ids": ["AN-11", "AN-7", "AN-19"], "confidence": "medium" },
+      { "evaluator_idx": 1, "engine_ids": ["AN-3"], "confidence": "medium" },
+      { "evaluator_idx": 2, "engine_ids": ["AN-13", "AN-12"], "confidence": "high" }
+    ],
+    "debate-168ed4c1-ed79-42fa-a106-a2bfe5f93051.json": [
+      { "evaluator_idx": 0, "engine_ids": ["AN-12", "AN-10"], "confidence": "medium" },
+      { "evaluator_idx": 1, "engine_ids": ["AN-36", "AN-38", "AN-40"], "confidence": "high" }
+    ],
+    "debate-19a0d159-b0a7-4ec5-83a4-d5fb290f3da0.json": [
+      { "evaluator_idx": 1, "engine_ids": ["AN-10"], "confidence": "high" }
+    ],
+    "debate-1aa27450-ab76-44d6-a9d7-25d7b136cd6a.json": [
+      { "evaluator_idx": 0, "engine_ids": ["AN-6"], "confidence": "medium" },
+      { "evaluator_idx": 1, "engine_ids": ["AN-8"], "confidence": "high" },
+      { "evaluator_idx": 3, "engine_ids": ["AN-9"], "confidence": "medium" }
+    ],
+    "debate-1c0d8bd5-2a64-42be-a1e2-e8f366fbec89.json": [
+      { "evaluator_idx": 0, "engine_ids": ["AN-5", "AN-15", "AN-14", "AN-3"], "confidence": "high" },
+      { "evaluator_idx": 1, "engine_ids": ["AN-12", "AN-25"], "confidence": "high" }
+    ],
+    "debate-1fe2f6c1-ab9f-4705-819c-93a1a5158af4.json": [
+      { "evaluator_idx": 0, "engine_ids": ["AN-9", "AN-1", "AN-12", "AN-5", "AN-6", "AN-24"], "confidence": "high" },
+      { "evaluator_idx": 1, "engine_ids": ["AN-25", "AN-15", "AN-14", "AN-22"], "confidence": "high" }
+    ],
+    "debate-2704cde2-d82f-40a9-b0ed-a02b5fdf4b73.json": [
+      { "evaluator_idx": 0, "engine_ids": ["AN-10", "AN-7"], "confidence": "medium" },
+      { "evaluator_idx": 1, "engine_ids": ["AN-2"], "confidence": "high" },
+      { "evaluator_idx": 2, "engine_ids": ["AN-3", "AN-11"], "confidence": "high" }
+    ]
+  }
+}
