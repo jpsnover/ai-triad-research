@@ -9,12 +9,13 @@
 import { ipcMain } from 'electron';
 import { storeApiKey, hasApiKey, getApiKeySummary, exportKeysForSharing, importKeysFromSharing, deleteApiKey, deleteAllApiKeys, removeApiKey, getMaskedKeys, loadApiKeys } from '../apiKeyStore.js';
 import type { KeySharePayload } from '../apiKeyStore.js';
+import type { ApiKeyBackend } from '../../../../lib/ai-client/types.js';
 import { probeApiKey, isSupportedProbeBackend } from '../keyProbe.js';
 import { getGlobalRecorder } from '../../../../lib/flight-recorder/index.js';
 
 export function registerApiKeyHandlers(): void {
   ipcMain.handle('set-api-key', (_event, key: string, backend?: string) => {
-    storeApiKey(key, backend as 'gemini' | 'claude' | 'groq' | 'openai' | 'deepseek' | undefined);
+    storeApiKey(key, backend as ApiKeyBackend | undefined);
   });
 
   ipcMain.handle('validate-api-key', async (_event, key: string, backend: string): Promise<{ valid: boolean; error?: string }> => {
@@ -57,7 +58,7 @@ export function registerApiKeyHandlers(): void {
 
   ipcMain.handle('has-api-key', (_event, backend?: string) => {
     if (backend === 'ollama') return true;
-    return hasApiKey(backend as 'gemini' | 'claude' | 'groq' | 'openai' | 'deepseek' | undefined);
+    return hasApiKey(backend as ApiKeyBackend | undefined);
   });
 
   ipcMain.handle('get-api-key-summary', () => {
