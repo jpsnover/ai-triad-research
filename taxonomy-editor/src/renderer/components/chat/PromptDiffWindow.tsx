@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
+import type { Dispatch, SetStateAction, RefObject } from 'react';
 import { useDebateStore } from '../../hooks/useDebateStore';
 import { useShallow } from 'zustand/react/shallow';
 import { lineDiff } from '@lib/diff/lineDiff.js';
@@ -108,6 +109,270 @@ function buildDiffBlocks(lines: DiffLine[]): { startFrac: number; endFrac: numbe
     }
   }
   return blocks;
+}
+
+type DiffBlock = { startFrac: number; endFrac: number; type: 'added' | 'removed' };
+
+/** Context passed to the keyboard-shortcut helpers. */
+interface KeyboardShortcutCtx {
+  searchOpen: boolean;
+  totalMatches: number;
+  paneNodes: PromptNode[];
+  focusedPane: number;
+  outlineBlocks: DiffBlock[];
+  panes: PaneData[];
+  scrollTop: number;
+  focusSearchInput: () => void;
+  setSearchOpen: Dispatch<SetStateAction<boolean>>;
+  setSearchTerm: Dispatch<SetStateAction<string>>;
+  setActiveMatchIndex: Dispatch<SetStateAction<number>>;
+  setFocusedPane: Dispatch<SetStateAction<number>>;
+  setWordWrap: Dispatch<SetStateAction<boolean>>;
+  closePane: (index: number) => void;
+  setSyncScroll: Dispatch<SetStateAction<boolean>>;
+  setScrollTop: Dispatch<SetStateAction<number>>;
+}
+
+/** Search-related keyboard shortcuts (Ctrl+F, Escape, F3/Ctrl+G). Returns true if handled. */
+function handleSearchKeys(e: KeyboardEvent, ctx: KeyboardShortcutCtx): boolean {
+  // Search shortcuts
+  if (e.ctrlKey && e.key === 'f') {
+    e.preventDefault();
+    ctx.setSearchOpen(true);
+    setTimeout(() => ctx.focusSearchInput(), 0);
+    return true;
+  }
+  if (e.key === 'Escape' && ctx.searchOpen) {
+    ctx.setSearchOpen(false);
+    ctx.setSearchTerm('');
+    ctx.setActiveMatchIndex(0);
+    return true;
+  }
+  if (e.key === 'F3' || (e.ctrlKey && e.key === 'g' && ctx.searchOpen)) {
+    e.preventDefault();
+    if (ctx.totalMatches > 0) {
+      ctx.setActiveMatchIndex(prev => e.shiftKey ? (prev - 1 + ctx.totalMatches) % ctx.totalMatches : (prev + 1) % ctx.totalMatches);
+    }
+    return true;
+  }
+  return false;
+}
+
+/** Number keys 1-4 focus the corresponding pane (only when search input not focused). Returns true if handled. */
+function handlePaneFocusKeys(e: KeyboardEvent, ctx: KeyboardShortcutCtx): boolean {
+  // Pane focus (only when search input not focused)
+  if (e.key >= '1' && e.key <= '4' && document.activeElement?.tagName !== 'INPUT') {
+    const idx = parseInt(e.key) - 1;
+    if (idx < ctx.paneNodes.length) ctx.setFocusedPane(idx);
+    return true;
+  }
+  return false;
+}
+
+/** Toggle shortcuts: word wrap, close pane, scroll sync, fullscreen. Returns true if handled. */
+function handleToggleKeys(e: KeyboardEvent, ctx: KeyboardShortcutCtx): boolean {
+  if (e.ctrlKey && e.shiftKey && (e.key === 'W' || e.key === 'w')) {
+    e.preventDefault();
+    ctx.setWordWrap(p => !p);
+    return true;
+  }
+  if (e.ctrlKey && e.key === 'w') {
+    e.preventDefault();
+    if (ctx.paneNodes.length > 0) ctx.closePane(ctx.focusedPane);
+    return true;
+  }
+  if (e.ctrlKey && e.key === 's') {
+    e.preventDefault();
+    ctx.setSyncScroll(p => !p);
+    return true;
+  }
+  if (e.key === 'F11') {
+    e.preventDefault();
+    if (document.fullscreenElement) {
+      void document.exitFullscreen();
+    } else {
+      void document.documentElement.requestFullscreen();
+    }
+    return true;
+  }
+  return false;
+}
+
+/** Ctrl+G (with search closed) jumps to the next/prev diff block in the outline. */
+function handleDiffJumpKeys(e: KeyboardEvent, ctx: KeyboardShortcutCtx): void {
+  if (e.ctrlKey && e.key === 'g' && !ctx.searchOpen) {
+    e.preventDefault();
+    // Jump to next/prev diff block
+    const blocks = ctx.outlineBlocks;
+    if (blocks.length === 0) return;
+    const totalLines = ctx.panes.length > 0 ? ctx.panes[ctx.panes.length - 1].lines.length : 0;
+    const currentLine = ctx.scrollTop / 18; // approx
+    const currentFrac = currentLine / Math.max(1, totalLines);
+    if (e.shiftKey) {
+      // Previous block
+      const prev = blocks.filter(b => b.startFrac < currentFrac - 0.01);
+      const target = prev.length > 0 ? prev[prev.length - 1] : blocks[blocks.length - 1];
+      ctx.setScrollTop(target.startFrac * totalLines * 18);
+    } else {
+      // Next block
+      const next = blocks.find(b => b.startFrac > currentFrac + 0.01);
+      const target = next ?? blocks[0];
+      ctx.setScrollTop(target.startFrac * totalLines * 18);
+    }
+  }
+}
+
+/** Toolbar: view-mode toggle (prompts/responses) and word-wrap toggle. */
+function PromptDiffToolbar({ viewMode, setViewMode, wordWrap, setWordWrap }: {
+  viewMode: DiffViewMode;
+  setViewMode: Dispatch<SetStateAction<DiffViewMode>>;
+  wordWrap: boolean;
+  setWordWrap: Dispatch<SetStateAction<boolean>>;
+}) {
+  return (
+    <div className="pdw-toolbar">
+      <span className="pdw-title">Prompt Diff</span>
+      <div className="pdw-toggle-group">
+        {(['prompts', 'responses'] as const).map(mode => (
+          <button
+            key={mode}
+            onClick={() => setViewMode(mode)}
+            className="pdw-mode-btn"
+            /* eslint-disable-next-line local/no-inline-style -- dynamic: active-state background/color */
+            style={{
+              background: viewMode === mode ? '#3b82f6' : 'var(--bg-primary)',
+              color: viewMode === mode ? '#fff' : 'var(--text-muted)',
+            }}
+          >
+            {mode}
+          </button>
+        ))}
+      </div>
+      <button
+        onClick={() => setWordWrap(p => !p)}
+        className="pdw-wrap-btn"
+        /* eslint-disable-next-line local/no-inline-style -- dynamic: active-state background/color */
+        style={{
+          background: wordWrap ? '#3b82f6' : 'var(--bg-primary)',
+          color: wordWrap ? '#fff' : 'var(--text-muted)',
+        }}
+        title="Toggle word wrap (Ctrl+Shift+W)"
+      >
+        Wrap
+      </button>
+    </div>
+  );
+}
+
+/** Search bar — visible only when search is open. */
+function PromptDiffSearchBar({
+  searchOpen, searchInputRef, searchTerm, setSearchTerm, setActiveMatchIndex,
+  totalMatches, activeMatchIndex, viewMode, setSearchOpen,
+}: {
+  searchOpen: boolean;
+  searchInputRef: RefObject<HTMLInputElement | null>;
+  searchTerm: string;
+  setSearchTerm: Dispatch<SetStateAction<string>>;
+  setActiveMatchIndex: Dispatch<SetStateAction<number>>;
+  totalMatches: number;
+  activeMatchIndex: number;
+  viewMode: DiffViewMode;
+  setSearchOpen: Dispatch<SetStateAction<boolean>>;
+}) {
+  if (!searchOpen) return null;
+  return (
+    <div className="pdw-search-bar">
+      <input
+        ref={searchInputRef}
+        type="text"
+        value={searchTerm}
+        onChange={(e) => { setSearchTerm(e.target.value); setActiveMatchIndex(0); }}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            if (totalMatches > 0) {
+              setActiveMatchIndex(prev => e.shiftKey ? (prev - 1 + totalMatches) % totalMatches : (prev + 1) % totalMatches);
+            }
+          }
+          if (e.key === 'Escape') {
+            setSearchOpen(false);
+            setSearchTerm('');
+            setActiveMatchIndex(0);
+          }
+        }}
+        placeholder={`Search ${viewMode}... (F3 next, Shift+F3 prev)`}
+        className="pdw-search-input"
+      />
+      {searchTerm && (
+        <span
+          className="pdw-match-count"
+          /* eslint-disable-next-line local/no-inline-style -- dynamic: color depends on match count */
+          style={{ color: totalMatches > 0 ? 'var(--text-primary)' : '#ef4444' }}
+        >
+          {totalMatches > 0 ? `${activeMatchIndex + 1} of ${totalMatches}` : 'No matches'}
+        </span>
+      )}
+      <button
+        onClick={() => totalMatches > 0 && setActiveMatchIndex(prev => (prev - 1 + totalMatches) % totalMatches)}
+        disabled={totalMatches === 0}
+        className="pdw-search-nav-btn"
+        title="Previous (Shift+F3)"
+        aria-label="Previous match"
+      >&#9650;</button>
+      <button
+        onClick={() => totalMatches > 0 && setActiveMatchIndex(prev => (prev + 1) % totalMatches)}
+        disabled={totalMatches === 0}
+        className="pdw-search-nav-btn"
+        title="Next (F3)"
+        aria-label="Next match"
+      >&#9660;</button>
+      <button
+        onClick={() => { setSearchOpen(false); setSearchTerm(''); setActiveMatchIndex(0); }}
+        className="pdw-search-close-btn"
+        title="Close (Esc)"
+        aria-label="Close"
+      >&times;</button>
+    </div>
+  );
+}
+
+/** Status bar — pane count, diff chain, scroll-sync toggle, search launcher. */
+function PromptDiffStatusBar({ panes, viewMode, syncScroll, setSyncScroll, searchOpen, setSearchOpen, searchInputRef }: {
+  panes: PaneData[];
+  viewMode: DiffViewMode;
+  syncScroll: boolean;
+  setSyncScroll: Dispatch<SetStateAction<boolean>>;
+  searchOpen: boolean;
+  setSearchOpen: Dispatch<SetStateAction<boolean>>;
+  searchInputRef: RefObject<HTMLInputElement | null>;
+}) {
+  // Diff chain description for status bar
+  const diffChain = panes.length >= 2
+    ? panes.slice(1).map((_, i) => `Pane ${i + 2} vs Pane ${i + 1}`).join(', ')
+    : '';
+
+  return (
+    <div className="pdw-status-bar">
+      <span>{panes.length} {viewMode === 'responses' ? 'response' : 'prompt'}{panes.length !== 1 ? 's' : ''} loaded</span>
+      {diffChain && <span>Diff: {diffChain}</span>}
+      <span
+        onClick={() => setSyncScroll(p => !p)}
+        className="pdw-status-link"
+        title="Ctrl+S to toggle"
+      >
+        Scroll sync: {syncScroll ? 'ON' : 'OFF'}
+      </span>
+      {!searchOpen && (
+        <span
+          onClick={() => { setSearchOpen(true); setTimeout(() => searchInputRef.current?.focus(), 0); }}
+          className="pdw-status-link"
+          title="Ctrl+F to search"
+        >
+          Search
+        </span>
+      )}
+    </div>
+  );
 }
 
 /** Embeddable prompt diff content — used both in standalone window and DiagnosticsWindow tab. */
@@ -229,76 +494,16 @@ export function PromptDiffContent({ debate, focusedEntryId: externalFocusedEntry
   // Keyboard shortcuts
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      // Search shortcuts
-      if (e.ctrlKey && e.key === 'f') {
-        e.preventDefault();
-        setSearchOpen(true);
-        setTimeout(() => searchInputRef.current?.focus(), 0);
-        return;
-      }
-      if (e.key === 'Escape' && searchOpen) {
-        setSearchOpen(false);
-        setSearchTerm('');
-        setActiveMatchIndex(0);
-        return;
-      }
-      if (e.key === 'F3' || (e.ctrlKey && e.key === 'g' && searchOpen)) {
-        e.preventDefault();
-        if (totalMatches > 0) {
-          setActiveMatchIndex(prev => e.shiftKey ? (prev - 1 + totalMatches) % totalMatches : (prev + 1) % totalMatches);
-        }
-        return;
-      }
-      // Pane focus (only when search input not focused)
-      if (e.key >= '1' && e.key <= '4' && document.activeElement?.tagName !== 'INPUT') {
-        const idx = parseInt(e.key) - 1;
-        if (idx < paneNodes.length) setFocusedPane(idx);
-        return;
-      }
-      if (e.ctrlKey && e.shiftKey && (e.key === 'W' || e.key === 'w')) {
-        e.preventDefault();
-        setWordWrap(p => !p);
-        return;
-      }
-      if (e.ctrlKey && e.key === 'w') {
-        e.preventDefault();
-        if (paneNodes.length > 0) closePane(focusedPane);
-        return;
-      }
-      if (e.ctrlKey && e.key === 's') {
-        e.preventDefault();
-        setSyncScroll(p => !p);
-        return;
-      }
-      if (e.key === 'F11') {
-        e.preventDefault();
-        if (document.fullscreenElement) {
-          void document.exitFullscreen();
-        } else {
-          void document.documentElement.requestFullscreen();
-        }
-        return;
-      }
-      if (e.ctrlKey && e.key === 'g' && !searchOpen) {
-        e.preventDefault();
-        // Jump to next/prev diff block
-        const blocks = outlineBlocks;
-        if (blocks.length === 0) return;
-        const totalLines = panes.length > 0 ? panes[panes.length - 1].lines.length : 0;
-        const currentLine = scrollTop / 18; // approx
-        const currentFrac = currentLine / Math.max(1, totalLines);
-        if (e.shiftKey) {
-          // Previous block
-          const prev = blocks.filter(b => b.startFrac < currentFrac - 0.01);
-          const target = prev.length > 0 ? prev[prev.length - 1] : blocks[blocks.length - 1];
-          setScrollTop(target.startFrac * totalLines * 18);
-        } else {
-          // Next block
-          const next = blocks.find(b => b.startFrac > currentFrac + 0.01);
-          const target = next ?? blocks[0];
-          setScrollTop(target.startFrac * totalLines * 18);
-        }
-      }
+      const ctx: KeyboardShortcutCtx = {
+        searchOpen, totalMatches, paneNodes, focusedPane, outlineBlocks, panes, scrollTop,
+        focusSearchInput: () => searchInputRef.current?.focus(),
+        setSearchOpen, setSearchTerm, setActiveMatchIndex, setFocusedPane,
+        setWordWrap, closePane, setSyncScroll, setScrollTop,
+      };
+      if (handleSearchKeys(e, ctx)) return;
+      if (handlePaneFocusKeys(e, ctx)) return;
+      if (handleToggleKeys(e, ctx)) return;
+      handleDiffJumpKeys(e, ctx);
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
@@ -325,11 +530,6 @@ export function PromptDiffContent({ debate, focusedEntryId: externalFocusedEntry
     );
   }
 
-  // Diff chain description for status bar
-  const diffChain = panes.length >= 2
-    ? panes.slice(1).map((_, i) => `Pane ${i + 2} vs Pane ${i + 1}`).join(', ')
-    : '';
-
   return (
     <div
       className="pdw-root"
@@ -337,93 +537,25 @@ export function PromptDiffContent({ debate, focusedEntryId: externalFocusedEntry
       style={{ height: embedded ? '100%' : '100vh', flex: embedded ? 1 : undefined }}
     >
       {/* Toolbar */}
-      <div className="pdw-toolbar">
-        <span className="pdw-title">Prompt Diff</span>
-        <div className="pdw-toggle-group">
-          {(['prompts', 'responses'] as const).map(mode => (
-            <button
-              key={mode}
-              onClick={() => setViewMode(mode)}
-              className="pdw-mode-btn"
-              /* eslint-disable-next-line local/no-inline-style -- dynamic: active-state background/color */
-              style={{
-                background: viewMode === mode ? '#3b82f6' : 'var(--bg-primary)',
-                color: viewMode === mode ? '#fff' : 'var(--text-muted)',
-              }}
-            >
-              {mode}
-            </button>
-          ))}
-        </div>
-        <button
-          onClick={() => setWordWrap(p => !p)}
-          className="pdw-wrap-btn"
-          /* eslint-disable-next-line local/no-inline-style -- dynamic: active-state background/color */
-          style={{
-            background: wordWrap ? '#3b82f6' : 'var(--bg-primary)',
-            color: wordWrap ? '#fff' : 'var(--text-muted)',
-          }}
-          title="Toggle word wrap (Ctrl+Shift+W)"
-        >
-          Wrap
-        </button>
-      </div>
+      <PromptDiffToolbar
+        viewMode={viewMode}
+        setViewMode={setViewMode}
+        wordWrap={wordWrap}
+        setWordWrap={setWordWrap}
+      />
 
       {/* Search bar */}
-      {searchOpen && (
-        <div className="pdw-search-bar">
-          <input
-            ref={searchInputRef}
-            type="text"
-            value={searchTerm}
-            onChange={(e) => { setSearchTerm(e.target.value); setActiveMatchIndex(0); }}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                e.preventDefault();
-                if (totalMatches > 0) {
-                  setActiveMatchIndex(prev => e.shiftKey ? (prev - 1 + totalMatches) % totalMatches : (prev + 1) % totalMatches);
-                }
-              }
-              if (e.key === 'Escape') {
-                setSearchOpen(false);
-                setSearchTerm('');
-                setActiveMatchIndex(0);
-              }
-            }}
-            placeholder={`Search ${viewMode}... (F3 next, Shift+F3 prev)`}
-            className="pdw-search-input"
-          />
-          {searchTerm && (
-            <span
-              className="pdw-match-count"
-              /* eslint-disable-next-line local/no-inline-style -- dynamic: color depends on match count */
-              style={{ color: totalMatches > 0 ? 'var(--text-primary)' : '#ef4444' }}
-            >
-              {totalMatches > 0 ? `${activeMatchIndex + 1} of ${totalMatches}` : 'No matches'}
-            </span>
-          )}
-          <button
-            onClick={() => totalMatches > 0 && setActiveMatchIndex(prev => (prev - 1 + totalMatches) % totalMatches)}
-            disabled={totalMatches === 0}
-            className="pdw-search-nav-btn"
-            title="Previous (Shift+F3)"
-            aria-label="Previous match"
-          >&#9650;</button>
-          <button
-            onClick={() => totalMatches > 0 && setActiveMatchIndex(prev => (prev + 1) % totalMatches)}
-            disabled={totalMatches === 0}
-            className="pdw-search-nav-btn"
-            title="Next (F3)"
-            aria-label="Next match"
-          >&#9660;</button>
-          <button
-            onClick={() => { setSearchOpen(false); setSearchTerm(''); setActiveMatchIndex(0); }}
-            className="pdw-search-close-btn"
-            title="Close (Esc)"
-            aria-label="Close"
-          >&times;</button>
-        </div>
-      )}
+      <PromptDiffSearchBar
+        searchOpen={searchOpen}
+        searchInputRef={searchInputRef}
+        searchTerm={searchTerm}
+        setSearchTerm={setSearchTerm}
+        setActiveMatchIndex={setActiveMatchIndex}
+        totalMatches={totalMatches}
+        activeMatchIndex={activeMatchIndex}
+        viewMode={viewMode}
+        setSearchOpen={setSearchOpen}
+      />
 
       {/* Main area: tree + panes + outline */}
       <div className="pdw-main">
@@ -509,26 +641,15 @@ export function PromptDiffContent({ debate, focusedEntryId: externalFocusedEntry
       </div>
 
       {/* Status bar */}
-      <div className="pdw-status-bar">
-        <span>{panes.length} {viewMode === 'responses' ? 'response' : 'prompt'}{panes.length !== 1 ? 's' : ''} loaded</span>
-        {diffChain && <span>Diff: {diffChain}</span>}
-        <span
-          onClick={() => setSyncScroll(p => !p)}
-          className="pdw-status-link"
-          title="Ctrl+S to toggle"
-        >
-          Scroll sync: {syncScroll ? 'ON' : 'OFF'}
-        </span>
-        {!searchOpen && (
-          <span
-            onClick={() => { setSearchOpen(true); setTimeout(() => searchInputRef.current?.focus(), 0); }}
-            className="pdw-status-link"
-            title="Ctrl+F to search"
-          >
-            Search
-          </span>
-        )}
-      </div>
+      <PromptDiffStatusBar
+        panes={panes}
+        viewMode={viewMode}
+        syncScroll={syncScroll}
+        setSyncScroll={setSyncScroll}
+        searchOpen={searchOpen}
+        setSearchOpen={setSearchOpen}
+        searchInputRef={searchInputRef}
+      />
     </div>
   );
 }

@@ -341,6 +341,149 @@ function ExportButton({ chat }: { chat: { topic: string; mode: ChatMode; pover: 
 
 // ── Main workspace ───────────────────────────────────────
 
+type ActiveChat = NonNullable<ReturnType<typeof useChatStore.getState>['activeChat']>;
+type ShareState = 'idle' | 'sharing' | 'success' | 'error';
+type ResizePanel = ReturnType<typeof useResizableRightPanel>;
+
+function ChatHeader({ activeChat, changeMode, shareState, onShare }: {
+  activeChat: ActiveChat;
+  changeMode: (m: ChatMode) => Promise<void>;
+  shareState: ShareState;
+  onShare: () => void;
+}) {
+  const poverInfo = POVER_INFO[activeChat.pover as keyof typeof POVER_INFO];
+  const headerCamp = povToCamp(activeChat.pover);
+  return (
+    <div className="chat-header">
+      <div className="chat-header-left">
+        <span className={`chat-header-pover${headerCamp ? ` camp-speaker-${headerCamp}` : ''}`}>
+          {poverInfo?.label ?? activeChat.pover}
+        </span>
+        <ModeSelector mode={activeChat.mode} onChange={(m) => { getGlobalRecorder()?.record({ type: 'user.action', component: 'chat', level: 'info', message: 'chat.mode_switch', data: { chat_id: activeChat.id, from: activeChat.mode, to: m } }); void changeMode(m); }} />
+      </div>
+      <div className="chat-header-topic" title={activeChat.topic}>
+        {activeChat.topic}
+      </div>
+      <ExportButton chat={activeChat} />
+      <button
+        className="btn btn-sm chat-share-btn"
+        onClick={onShare}
+        disabled={shareState !== 'idle'}
+        title="Submit this chat for community review"
+      >
+        {shareState === 'sharing' ? 'Sharing...' : 'Share'}
+      </button>
+    </div>
+  );
+}
+
+function ShareResult({ shareState, shareError, onDismiss }: {
+  shareState: ShareState;
+  shareError: string | null;
+  onDismiss: () => void;
+}) {
+  return (
+    <>
+      {shareState === 'success' && (
+        <CommunityShareBanner
+          itemType="chat"
+          compact
+          onDismiss={onDismiss}
+        />
+      )}
+      {shareState === 'error' && shareError && (
+        <div className="chat-share-error">
+          {'Failed: ' + shareError}
+        </div>
+      )}
+    </>
+  );
+}
+
+function ChatTranscript({ activeChat, chatGenerating, chatActivity, selectedRef, onSelectRef, transcriptEndRef }: {
+  activeChat: ActiveChat;
+  chatGenerating: boolean;
+  chatActivity: string | null;
+  selectedRef: EntityRef | null;
+  onSelectRef: (ref: EntityRef | null) => void;
+  transcriptEndRef: React.RefObject<HTMLDivElement | null>;
+}) {
+  return (
+    <div className="chat-transcript">
+      {activeChat.transcript.length === 0 && chatGenerating ? (
+        <div className="chat-generating-hero">
+          <div className="chat-generating-spinner" />
+          <span>{chatActivity || 'Preparing conversation...'}</span>
+        </div>
+      ) : (
+        <>
+          {activeChat.transcript.map((entry) => (
+            <ChatMessage key={entry.id} entry={entry} selectedRef={selectedRef} onSelectRef={onSelectRef} />
+          ))}
+          <ProgressIndicator />
+        </>
+      )}
+      <div ref={transcriptEndRef} />
+    </div>
+  );
+}
+
+function ChatInputBar({ input, onInputChange, onKeyDown, onSend, chatGenerating }: {
+  input: string;
+  onInputChange: (v: string) => void;
+  onKeyDown: (e: React.KeyboardEvent) => void;
+  onSend: () => void;
+  chatGenerating: boolean;
+}) {
+  return (
+    <div className="chat-input-bar">
+      <textarea
+        className="chat-input"
+        placeholder="Type a message... (Enter to send, Shift+Enter for newline)"
+        value={input}
+        onChange={(e) => onInputChange(e.target.value)}
+        onKeyDown={onKeyDown}
+        disabled={chatGenerating}
+        rows={2}
+      />
+      <button
+        className="btn btn-primary chat-send-btn"
+        onClick={onSend}
+        disabled={!input.trim() || chatGenerating}
+      >
+        Send
+      </button>
+    </div>
+  );
+}
+
+function ChatDetailPane({ selectedRef, onSelectRef, detailWidth, onDetailResize, onDetailTouchStart }: {
+  selectedRef: EntityRef | null;
+  onSelectRef: (ref: EntityRef | null) => void;
+  detailWidth: number;
+  onDetailResize: ResizePanel['onMouseDown'];
+  onDetailTouchStart: ResizePanel['onTouchStart'];
+}) {
+  if (!selectedRef) return null;
+  return (
+    <>
+    <div className="resize-handle" onMouseDown={onDetailResize} onTouchStart={onDetailTouchStart} />
+    <div
+      className="chat-refpane-host"
+      // eslint-disable-next-line local/no-inline-style -- dynamic resizable panel width
+      style={{ width: detailWidth }}
+    >
+      <DetailPane
+        className="chat-refpane"
+        selectedRef={selectedRef}
+        onSelectRef={onSelectRef}
+        onClose={() => onSelectRef(null)}
+      />
+    </div>
+    </>
+  );
+}
+
 export function ChatWorkspace() {
   const {
     activeChat, chatLoading, chatError, chatGenerating, chatActivity,
@@ -450,47 +593,14 @@ export function ChatWorkspace() {
     );
   }
 
-  const poverInfo = POVER_INFO[activeChat.pover as keyof typeof POVER_INFO];
-  const headerCamp = povToCamp(activeChat.pover);
-
   return (
     <div className={`chat-workspace${selectedRef ? ' has-detail-pane' : ''}`}>
       <div className="chat-main-column">
         {/* Header */}
-        <div className="chat-header">
-          <div className="chat-header-left">
-            <span className={`chat-header-pover${headerCamp ? ` camp-speaker-${headerCamp}` : ''}`}>
-              {poverInfo?.label ?? activeChat.pover}
-            </span>
-            <ModeSelector mode={activeChat.mode} onChange={(m) => { getGlobalRecorder()?.record({ type: 'user.action', component: 'chat', level: 'info', message: 'chat.mode_switch', data: { chat_id: activeChat.id, from: activeChat.mode, to: m } }); void changeMode(m); }} />
-          </div>
-          <div className="chat-header-topic" title={activeChat.topic}>
-            {activeChat.topic}
-          </div>
-          <ExportButton chat={activeChat} />
-          <button
-            className="btn btn-sm chat-share-btn"
-            onClick={handleShare}
-            disabled={shareState !== 'idle'}
-            title="Submit this chat for community review"
-          >
-            {shareState === 'sharing' ? 'Sharing...' : 'Share'}
-          </button>
-        </div>
+        <ChatHeader activeChat={activeChat} changeMode={changeMode} shareState={shareState} onShare={handleShare} />
 
         {/* Share result banner */}
-        {shareState === 'success' && (
-          <CommunityShareBanner
-            itemType="chat"
-            compact
-            onDismiss={() => setShareState('idle')}
-          />
-        )}
-        {shareState === 'error' && shareError && (
-          <div className="chat-share-error">
-            {'Failed: ' + shareError}
-          </div>
-        )}
+        <ShareResult shareState={shareState} shareError={shareError} onDismiss={() => setShareState('idle')} />
 
         {/* Error bar */}
         {chatError && (
@@ -498,61 +608,32 @@ export function ChatWorkspace() {
         )}
 
         {/* Transcript */}
-        <div className="chat-transcript">
-          {activeChat.transcript.length === 0 && chatGenerating ? (
-            <div className="chat-generating-hero">
-              <div className="chat-generating-spinner" />
-              <span>{chatActivity || 'Preparing conversation...'}</span>
-            </div>
-          ) : (
-            <>
-              {activeChat.transcript.map((entry) => (
-                <ChatMessage key={entry.id} entry={entry} selectedRef={selectedRef} onSelectRef={setSelectedRef} />
-              ))}
-              <ProgressIndicator />
-            </>
-          )}
-          <div ref={transcriptEndRef} />
-        </div>
+        <ChatTranscript
+          activeChat={activeChat}
+          chatGenerating={chatGenerating}
+          chatActivity={chatActivity}
+          selectedRef={selectedRef}
+          onSelectRef={setSelectedRef}
+          transcriptEndRef={transcriptEndRef}
+        />
 
         {/* Input bar */}
-        <div className="chat-input-bar">
-          <textarea
-            className="chat-input"
-            placeholder="Type a message... (Enter to send, Shift+Enter for newline)"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-            disabled={chatGenerating}
-            rows={2}
-          />
-          <button
-            className="btn btn-primary chat-send-btn"
-            onClick={handleSend}
-            disabled={!input.trim() || chatGenerating}
-          >
-            Send
-          </button>
-        </div>
+        <ChatInputBar
+          input={input}
+          onInputChange={setInput}
+          onKeyDown={handleKeyDown}
+          onSend={handleSend}
+          chatGenerating={chatGenerating}
+        />
       </div>
 
-      {selectedRef && (
-        <>
-        <div className="resize-handle" onMouseDown={onDetailResize} onTouchStart={onDetailTouchStart} />
-        <div
-          className="chat-refpane-host"
-          // eslint-disable-next-line local/no-inline-style -- dynamic resizable panel width
-          style={{ width: detailWidth }}
-        >
-          <DetailPane
-            className="chat-refpane"
-            selectedRef={selectedRef}
-            onSelectRef={setSelectedRef}
-            onClose={() => setSelectedRef(null)}
-          />
-        </div>
-        </>
-      )}
+      <ChatDetailPane
+        selectedRef={selectedRef}
+        onSelectRef={setSelectedRef}
+        detailWidth={detailWidth}
+        onDetailResize={onDetailResize}
+        onDetailTouchStart={onDetailTouchStart}
+      />
       <GeminiOnboardingModal {...geminiModalProps} />
     </div>
   );

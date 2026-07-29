@@ -56,38 +56,33 @@ function highlightTemplate(template: string): React.ReactNode[] {
 
 const ALL_MODELS = Object.values(MODELS_BY_BACKEND).flat();
 
-/** Simple line-based diff: returns lines tagged as 'same', 'added', or 'removed'. */
-function computeLineDiff(
-  baseline: string,
-  current: string,
-): { type: 'same' | 'added' | 'removed'; text: string }[] {
-  const baseLines = baseline.split('\n');
-  const currLines = current.split('\n');
-  const result: { type: 'same' | 'added' | 'removed'; text: string }[] = [];
+type DiffLine = { type: 'same' | 'added' | 'removed'; text: string };
 
-  // Simple LCS-based diff for reasonable-length prompts
+/** Sequential (non-LCS) fallback diff for very long prompts. */
+function sequentialDiff(baseLines: string[], currLines: string[]): DiffLine[] {
   const m = baseLines.length;
   const n = currLines.length;
-
-  // For very long prompts, fall back to sequential comparison
-  if (m + n > 2000) {
-    let bi = 0, ci = 0;
-    while (bi < m || ci < n) {
-      if (bi < m && ci < n && baseLines[bi] === currLines[ci]) {
-        result.push({ type: 'same', text: currLines[ci] });
-        bi++; ci++;
-      } else if (ci < n) {
-        result.push({ type: 'added', text: currLines[ci] });
-        ci++;
-      } else {
-        result.push({ type: 'removed', text: baseLines[bi] });
-        bi++;
-      }
+  const result: DiffLine[] = [];
+  let bi = 0, ci = 0;
+  while (bi < m || ci < n) {
+    if (bi < m && ci < n && baseLines[bi] === currLines[ci]) {
+      result.push({ type: 'same', text: currLines[ci] });
+      bi++; ci++;
+    } else if (ci < n) {
+      result.push({ type: 'added', text: currLines[ci] });
+      ci++;
+    } else {
+      result.push({ type: 'removed', text: baseLines[bi] });
+      bi++;
     }
-    return result;
   }
+  return result;
+}
 
-  // LCS table
+/** Build the LCS dynamic-programming table. */
+function buildLcsTable(baseLines: string[], currLines: string[]): number[][] {
+  const m = baseLines.length;
+  const n = currLines.length;
   const dp: number[][] = Array.from({ length: m + 1 }, () => new Array(n + 1).fill(0));
   for (let i = 1; i <= m; i++) {
     for (let j = 1; j <= n; j++) {
@@ -96,10 +91,13 @@ function computeLineDiff(
         : Math.max(dp[i - 1][j], dp[i][j - 1]);
     }
   }
+  return dp;
+}
 
-  // Backtrack
-  const diff: { type: 'same' | 'added' | 'removed'; text: string }[] = [];
-  let i = m, j = n;
+/** Backtrack the LCS table into a tagged line diff. */
+function backtrackDiff(dp: number[][], baseLines: string[], currLines: string[]): DiffLine[] {
+  const diff: DiffLine[] = [];
+  let i = baseLines.length, j = currLines.length;
   while (i > 0 || j > 0) {
     if (i > 0 && j > 0 && baseLines[i - 1] === currLines[j - 1]) {
       diff.push({ type: 'same', text: baseLines[i - 1] });
@@ -113,6 +111,24 @@ function computeLineDiff(
     }
   }
   return diff.reverse();
+}
+
+/** Simple line-based diff: returns lines tagged as 'same', 'added', or 'removed'. */
+function computeLineDiff(baseline: string, current: string): DiffLine[] {
+  const baseLines = baseline.split('\n');
+  const currLines = current.split('\n');
+
+  // Simple LCS-based diff for reasonable-length prompts
+  const m = baseLines.length;
+  const n = currLines.length;
+
+  // For very long prompts, fall back to sequential comparison
+  if (m + n > 2000) {
+    return sequentialDiff(baseLines, currLines);
+  }
+
+  const dp = buildLcsTable(baseLines, currLines);
+  return backtrackDiff(dp, baseLines, currLines);
 }
 
 /** Resolve a config value using the store state directly (no getState() call). */
@@ -161,6 +177,247 @@ function SettingsControls({ promptId, group }: { promptId: string; group: Prompt
         />
         <span className="pi-control-value">{temperature.toFixed(1)}</span>
       </label>
+    </div>
+  );
+}
+
+function PromptSelectorPane({
+  searchMode, searchQuery, setSearchQuery, setSearchMode, grouped, selectedId, setSelectedId,
+}: {
+  searchMode: 'label' | 'content';
+  searchQuery: string;
+  setSearchQuery: React.Dispatch<React.SetStateAction<string>>;
+  setSearchMode: React.Dispatch<React.SetStateAction<'label' | 'content'>>;
+  grouped: Map<PromptGroup, PromptCatalogEntry[]>;
+  selectedId: string;
+  setSelectedId: React.Dispatch<React.SetStateAction<string>>;
+}) {
+  return (
+    <div className="pi-selector">
+      <div className="pi-search">
+        <div className="pi-search-row">
+          <input
+            type="text"
+            className="pi-search-input"
+            placeholder={searchMode === 'label' ? 'Search by label...' : 'Search prompt content...'}
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+          />
+          {searchQuery && (
+            <button
+              className="pi-search-clear"
+              onClick={() => setSearchQuery('')}
+              title="Clear search"
+            >&times;</button>
+          )}
+        </div>
+        <div className="pi-search-mode">
+          <button
+            className={`pi-mode-pill ${searchMode === 'label' ? 'pi-mode-active' : ''}`}
+            onClick={() => setSearchMode('label')}
+          >Label</button>
+          <button
+            className={`pi-mode-pill ${searchMode === 'content' ? 'pi-mode-active' : ''}`}
+            onClick={() => setSearchMode('content')}
+          >Content</button>
+        </div>
+      </div>
+      {GROUP_ORDER.map(group => {
+        const entries = grouped.get(group);
+        if (!entries || entries.length === 0) return null;
+        return (
+          <div key={group} className="pi-group">
+            <div className="pi-group-header">{GROUP_LABELS[group]}</div>
+            {entries.map(entry => (
+              <button
+                key={entry.id}
+                className={`pi-entry ${entry.id === selectedId ? 'pi-entry-active' : ''}`}
+                onClick={() => setSelectedId(entry.id)}
+              >
+                <span className="pi-entry-title">{entry.title}</span>
+                <span className="pi-entry-meta">
+                  {entry.applicableDataSources.length} data source{entry.applicableDataSources.length !== 1 ? 's' : ''}
+                </span>
+              </button>
+            ))}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function TemplateSection({
+  selected, showTemplate, setShowTemplate, psPromptContent, psPromptLoading,
+}: {
+  selected: PromptCatalogEntry;
+  showTemplate: boolean;
+  setShowTemplate: React.Dispatch<React.SetStateAction<boolean>>;
+  psPromptContent: Record<string, string>;
+  psPromptLoading: boolean;
+}) {
+  return (
+    <div className="pi-section">
+      {selected.promptFiles && selected.promptFiles.length > 0 ? (
+        <>
+          <button
+            className="pi-template-toggle"
+            onClick={() => setShowTemplate(!showTemplate)}
+          >
+            <span className={`pi-chevron ${showTemplate ? 'pi-chevron-open' : ''}`}>&#9654;</span>
+            Prompt Files ({selected.promptFiles.length})
+            {!psPromptLoading && selected.promptFiles.every(f => psPromptContent[f]) && (
+              <span className="pi-template-tokens">
+                ~{estimateTokens(selected.promptFiles.map(f => psPromptContent[f] ?? '').join('\n')).toLocaleString()} tokens
+              </span>
+            )}
+            {psPromptLoading && <span className="pi-template-tokens">loading...</span>}
+          </button>
+          {showTemplate && selected.promptFiles.map(fileName => (
+            <div key={fileName} className="pi-prompt-file">
+              <div className="pi-prompt-file-header">
+                <code>{fileName}.prompt</code>
+                <span className="pi-template-tokens">
+                  {psPromptContent[fileName] ? `~${estimateTokens(psPromptContent[fileName]).toLocaleString()} tokens` : ''}
+                </span>
+              </div>
+              <pre className="pi-template">
+                {psPromptContent[fileName]
+                  ? highlightPsPlaceholders(psPromptContent[fileName])
+                  : 'Loading...'}
+              </pre>
+            </div>
+          ))}
+        </>
+      ) : (
+        <>
+          <button
+            className="pi-template-toggle"
+            onClick={() => setShowTemplate(!showTemplate)}
+          >
+            <span className={`pi-chevron ${showTemplate ? 'pi-chevron-open' : ''}`}>&#9654;</span>
+            Template
+            <span className="pi-template-tokens">
+              ~{estimateTokens(selected.template).toLocaleString()} tokens
+            </span>
+          </button>
+          {showTemplate && (
+            <pre className="pi-template">
+              {highlightTemplate(selected.template)}
+            </pre>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+function DiffView({ diffLines }: { diffLines: DiffLine[] }) {
+  return diffLines.length === 0 ? (
+    <div className="pi-diff-match">No differences — preview matches snapshot</div>
+  ) : (
+    <pre className="pi-preview pi-diff-view">
+      {diffLines.map((line, i) => (
+        <div
+          key={i}
+          className={
+            line.type === 'added' ? 'pi-diff-added' :
+            line.type === 'removed' ? 'pi-diff-removed' : ''
+          }
+        >
+          <span className="pi-diff-marker">
+            {line.type === 'added' ? '+' : line.type === 'removed' ? '-' : ' '}
+          </span>
+          {line.text}
+        </div>
+      ))}
+    </pre>
+  );
+}
+
+function PreviewSection({
+  hasActiveSession, livePreview, copyFeedback, handleCopy, handleSnapshot,
+  showDiff, setShowDiff, baselinePreview, diffLines,
+}: {
+  hasActiveSession: boolean;
+  livePreview: PromptPreviewResult | null;
+  copyFeedback: boolean;
+  handleCopy: () => void;
+  handleSnapshot: () => void;
+  showDiff: boolean;
+  setShowDiff: React.Dispatch<React.SetStateAction<boolean>>;
+  baselinePreview: PromptPreviewResult | null;
+  diffLines: DiffLine[] | null;
+}) {
+  return (
+    <div className="pi-section pi-preview-section">
+      {!hasActiveSession ? (
+        <div className="pi-preview-header">
+          <span className="pi-preview-hint">Start a debate or chat to see a live preview</span>
+        </div>
+      ) : livePreview ? (
+        <>
+          {/* Token count bar */}
+          <div className="pi-token-bar">
+            <span className="pi-token-total">
+              ~{livePreview.tokenEstimate.toLocaleString()} tokens
+            </span>
+            {livePreview.sections.length > 0 && (
+              <span className="pi-token-breakdown">
+                ({livePreview.sections.map(s =>
+                  `${s.name}: ~${s.tokenEstimate.toLocaleString()}`
+                ).join(' · ')})
+              </span>
+            )}
+          </div>
+
+          {/* Toolbar */}
+          <div className="pi-preview-header">
+            <button
+              className="btn btn-sm"
+              onClick={handleCopy}
+              title="Copy assembled prompt to clipboard"
+            >
+              {copyFeedback ? 'Copied!' : 'Copy'}
+            </button>
+            <button
+              className="btn btn-sm"
+              onClick={handleSnapshot}
+              title="Save current preview as baseline for diff comparison"
+            >
+              Snapshot
+            </button>
+            <button
+              className={`btn btn-sm ${showDiff ? 'pi-btn-active' : ''}`}
+              onClick={() => setShowDiff(d => !d)}
+              disabled={!baselinePreview}
+              title={baselinePreview ? 'Toggle diff view against snapshot' : 'Take a snapshot first'}
+            >
+              Diff
+            </button>
+            {baselinePreview && (
+              <span className="pi-diff-hint">
+                Baseline: ~{baselinePreview.tokenEstimate.toLocaleString()} tokens
+                {livePreview.tokenEstimate !== baselinePreview.tokenEstimate && (
+                  <> ({livePreview.tokenEstimate > baselinePreview.tokenEstimate ? '+' : ''}
+                  {(livePreview.tokenEstimate - baselinePreview.tokenEstimate).toLocaleString()})</>
+                )}
+              </span>
+            )}
+          </div>
+
+          {/* Diff view */}
+          {showDiff && diffLines !== null ? (
+            <DiffView diffLines={diffLines} />
+          ) : (
+            <pre className="pi-preview">{livePreview.text}</pre>
+          )}
+        </>
+      ) : (
+        <div className="pi-preview-header">
+          <span className="pi-preview-hint">Preview not available for this prompt type</span>
+        </div>
+      )}
     </div>
   );
 }
@@ -296,57 +553,15 @@ export function PromptInspector() {
   return (
     <div className="prompt-inspector">
       {/* Zone 1: Prompt Selector (sidebar) */}
-      <div className="pi-selector">
-        <div className="pi-search">
-          <div className="pi-search-row">
-            <input
-              type="text"
-              className="pi-search-input"
-              placeholder={searchMode === 'label' ? 'Search by label...' : 'Search prompt content...'}
-              value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-            />
-            {searchQuery && (
-              <button
-                className="pi-search-clear"
-                onClick={() => setSearchQuery('')}
-                title="Clear search"
-              >&times;</button>
-            )}
-          </div>
-          <div className="pi-search-mode">
-            <button
-              className={`pi-mode-pill ${searchMode === 'label' ? 'pi-mode-active' : ''}`}
-              onClick={() => setSearchMode('label')}
-            >Label</button>
-            <button
-              className={`pi-mode-pill ${searchMode === 'content' ? 'pi-mode-active' : ''}`}
-              onClick={() => setSearchMode('content')}
-            >Content</button>
-          </div>
-        </div>
-        {GROUP_ORDER.map(group => {
-          const entries = grouped.get(group);
-          if (!entries || entries.length === 0) return null;
-          return (
-            <div key={group} className="pi-group">
-              <div className="pi-group-header">{GROUP_LABELS[group]}</div>
-              {entries.map(entry => (
-                <button
-                  key={entry.id}
-                  className={`pi-entry ${entry.id === selectedId ? 'pi-entry-active' : ''}`}
-                  onClick={() => setSelectedId(entry.id)}
-                >
-                  <span className="pi-entry-title">{entry.title}</span>
-                  <span className="pi-entry-meta">
-                    {entry.applicableDataSources.length} data source{entry.applicableDataSources.length !== 1 ? 's' : ''}
-                  </span>
-                </button>
-              ))}
-            </div>
-          );
-        })}
-      </div>
+      <PromptSelectorPane
+        searchMode={searchMode}
+        searchQuery={searchQuery}
+        setSearchQuery={setSearchQuery}
+        setSearchMode={setSearchMode}
+        grouped={grouped}
+        selectedId={selectedId}
+        setSelectedId={setSelectedId}
+      />
 
       {/* Zone 2: Pipeline View (main area) */}
       <div className="pi-main">
@@ -397,148 +612,26 @@ export function PromptInspector() {
             )}
 
             {/* Section C: Template / Prompt Files */}
-            <div className="pi-section">
-              {selected.promptFiles && selected.promptFiles.length > 0 ? (
-                <>
-                  <button
-                    className="pi-template-toggle"
-                    onClick={() => setShowTemplate(!showTemplate)}
-                  >
-                    <span className={`pi-chevron ${showTemplate ? 'pi-chevron-open' : ''}`}>&#9654;</span>
-                    Prompt Files ({selected.promptFiles.length})
-                    {!psPromptLoading && selected.promptFiles.every(f => psPromptContent[f]) && (
-                      <span className="pi-template-tokens">
-                        ~{estimateTokens(selected.promptFiles.map(f => psPromptContent[f] ?? '').join('\n')).toLocaleString()} tokens
-                      </span>
-                    )}
-                    {psPromptLoading && <span className="pi-template-tokens">loading...</span>}
-                  </button>
-                  {showTemplate && selected.promptFiles.map(fileName => (
-                    <div key={fileName} className="pi-prompt-file">
-                      <div className="pi-prompt-file-header">
-                        <code>{fileName}.prompt</code>
-                        <span className="pi-template-tokens">
-                          {psPromptContent[fileName] ? `~${estimateTokens(psPromptContent[fileName]).toLocaleString()} tokens` : ''}
-                        </span>
-                      </div>
-                      <pre className="pi-template">
-                        {psPromptContent[fileName]
-                          ? highlightPsPlaceholders(psPromptContent[fileName])
-                          : 'Loading...'}
-                      </pre>
-                    </div>
-                  ))}
-                </>
-              ) : (
-                <>
-                  <button
-                    className="pi-template-toggle"
-                    onClick={() => setShowTemplate(!showTemplate)}
-                  >
-                    <span className={`pi-chevron ${showTemplate ? 'pi-chevron-open' : ''}`}>&#9654;</span>
-                    Template
-                    <span className="pi-template-tokens">
-                      ~{estimateTokens(selected.template).toLocaleString()} tokens
-                    </span>
-                  </button>
-                  {showTemplate && (
-                    <pre className="pi-template">
-                      {highlightTemplate(selected.template)}
-                    </pre>
-                  )}
-                </>
-              )}
-            </div>
+            <TemplateSection
+              selected={selected}
+              showTemplate={showTemplate}
+              setShowTemplate={setShowTemplate}
+              psPromptContent={psPromptContent}
+              psPromptLoading={psPromptLoading}
+            />
 
             {/* Zone 3: Live Preview (Phase C) */}
-            <div className="pi-section pi-preview-section">
-              {!hasActiveSession ? (
-                <div className="pi-preview-header">
-                  <span className="pi-preview-hint">Start a debate or chat to see a live preview</span>
-                </div>
-              ) : livePreview ? (
-                <>
-                  {/* Token count bar */}
-                  <div className="pi-token-bar">
-                    <span className="pi-token-total">
-                      ~{livePreview.tokenEstimate.toLocaleString()} tokens
-                    </span>
-                    {livePreview.sections.length > 0 && (
-                      <span className="pi-token-breakdown">
-                        ({livePreview.sections.map(s =>
-                          `${s.name}: ~${s.tokenEstimate.toLocaleString()}`
-                        ).join(' · ')})
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Toolbar */}
-                  <div className="pi-preview-header">
-                    <button
-                      className="btn btn-sm"
-                      onClick={handleCopy}
-                      title="Copy assembled prompt to clipboard"
-                    >
-                      {copyFeedback ? 'Copied!' : 'Copy'}
-                    </button>
-                    <button
-                      className="btn btn-sm"
-                      onClick={handleSnapshot}
-                      title="Save current preview as baseline for diff comparison"
-                    >
-                      Snapshot
-                    </button>
-                    <button
-                      className={`btn btn-sm ${showDiff ? 'pi-btn-active' : ''}`}
-                      onClick={() => setShowDiff(d => !d)}
-                      disabled={!baselinePreview}
-                      title={baselinePreview ? 'Toggle diff view against snapshot' : 'Take a snapshot first'}
-                    >
-                      Diff
-                    </button>
-                    {baselinePreview && (
-                      <span className="pi-diff-hint">
-                        Baseline: ~{baselinePreview.tokenEstimate.toLocaleString()} tokens
-                        {livePreview.tokenEstimate !== baselinePreview.tokenEstimate && (
-                          <> ({livePreview.tokenEstimate > baselinePreview.tokenEstimate ? '+' : ''}
-                          {(livePreview.tokenEstimate - baselinePreview.tokenEstimate).toLocaleString()})</>
-                        )}
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Diff view */}
-                  {showDiff && diffLines !== null ? (
-                    diffLines.length === 0 ? (
-                      <div className="pi-diff-match">No differences — preview matches snapshot</div>
-                    ) : (
-                      <pre className="pi-preview pi-diff-view">
-                        {diffLines.map((line, i) => (
-                          <div
-                            key={i}
-                            className={
-                              line.type === 'added' ? 'pi-diff-added' :
-                              line.type === 'removed' ? 'pi-diff-removed' : ''
-                            }
-                          >
-                            <span className="pi-diff-marker">
-                              {line.type === 'added' ? '+' : line.type === 'removed' ? '-' : ' '}
-                            </span>
-                            {line.text}
-                          </div>
-                        ))}
-                      </pre>
-                    )
-                  ) : (
-                    <pre className="pi-preview">{livePreview.text}</pre>
-                  )}
-                </>
-              ) : (
-                <div className="pi-preview-header">
-                  <span className="pi-preview-hint">Preview not available for this prompt type</span>
-                </div>
-              )}
-            </div>
+            <PreviewSection
+              hasActiveSession={hasActiveSession}
+              livePreview={livePreview}
+              copyFeedback={copyFeedback}
+              handleCopy={handleCopy}
+              handleSnapshot={handleSnapshot}
+              showDiff={showDiff}
+              setShowDiff={setShowDiff}
+              baselinePreview={baselinePreview}
+              diffLines={diffLines}
+            />
           </>
         ) : (
           <div className="pi-empty">Select a prompt from the sidebar</div>

@@ -5,7 +5,7 @@ import { useState, useCallback } from 'react';
 import './PromptDiffTree.css';
 import { DEFAULT_MODEL } from '@lib/ai-client/defaults';
 import { POVER_INFO } from '../../types/debate';
-import type { SpeakerId, DebateSession } from '../../types/debate';
+import type { SpeakerId, DebateSession, TurnAttempt } from '../../types/debate';
 import type { CitationResolutionDiagnostics } from '@lib/debate/citationResolution.js';
 
 export type DiffViewMode = 'prompts' | 'responses';
@@ -206,6 +206,84 @@ interface StageGroup {
   runs: StageRun[];
 }
 
+/** Build orchestration-level verdicts — one per attempt, displayed as separate tree nodes. */
+function buildVerdicts(attempts: TurnAttempt[]): AttemptVerdict[] {
+  const verdicts: AttemptVerdict[] = [];
+  for (const [ai, attempt] of attempts.entries()) {
+    const av = attempt.validation as unknown as Record<string, unknown> | undefined;
+    if (av) {
+      verdicts.push({
+        attemptIndex: ai,
+        validation: {
+          outcome: (av.outcome as string) ?? 'unknown',
+          process_reward: (av.process_reward as number) ?? 0,
+          repairHints: (av.repairHints as string[]) ?? [],
+          dimensions: (av.dimensions as OrchestrationValidation['dimensions']) ?? {
+            schema: { pass: true, issues: [] }, grounding: { pass: true, issues: [] },
+            advancement: { pass: true, signals: [] }, clarifies: { pass: true, signals: [] },
+          },
+        },
+      });
+    }
+  }
+  return verdicts;
+}
+
+interface RunRowHeaderProps {
+  r: StageRun;
+  node: PromptNode;
+  isSelected: boolean;
+  onSelectNode: (node: PromptNode) => void;
+}
+
+/** The primary run row (model/temperature/timing + retry badges + validation mark). */
+function RunRowHeader({ r, node, isSelected, onSelectNode }: RunRowHeaderProps) {
+  return (
+    <div
+      onClick={() => onSelectNode(node)}
+      className="pdt-run-row"
+      // eslint-disable-next-line local/no-inline-style -- dynamic: background/border-left depend on isSelected
+      style={{
+        background: isSelected ? 'rgba(59,130,246,0.12)' : 'transparent',
+        borderLeft: isSelected ? '2px solid #3b82f6' : '2px solid transparent',
+      }}
+      title="Click to add to diff pane"
+    >
+      <span className="pdt-fw-500">Run {r.runIndex + 1}</span>
+      {r.retryTrigger === 'stage-retry' && (
+        <span
+          className="pdt-stage-retry-badge"
+          title={r.repairHintsIn?.join('\n') ?? 'Stage validator retry'}
+        >
+          Stage Retry
+        </span>
+      )}
+      {r.retryTrigger === 'orchestration-rerun' && (
+        <span
+          className="pdt-rerun-badge"
+          title={r.repairHintsIn?.join('\n') ?? 'Judge-triggered rerun'}
+        >
+          Rerun
+        </span>
+      )}
+      <span className="pdt-muted-2xs">
+        {abbreviateModel(node.model)}, {node.temperature}, {(node.responseTimeMs / 1000).toFixed(1)}s
+      </span>
+      {node.validationPass !== undefined && (
+        <span
+          className="pdt-validation-mark"
+          // eslint-disable-next-line local/no-inline-style -- dynamic: color depends on validationPass
+          style={{
+            color: node.validationPass ? '#22c55e' : '#ef4444',
+          }}
+        >
+          {node.validationPass ? '✓' : '✗'}
+        </span>
+      )}
+    </div>
+  );
+}
+
 export function PromptDiffTree({ debate, focusedEntryId, onSelectNode, selectedNodeKey }: Props) {
   const [expandedEntries, setExpandedEntries] = useState<Set<string>>(() =>
     new Set(focusedEntryId ? [focusedEntryId] : [])
@@ -234,7 +312,7 @@ export function PromptDiffTree({ debate, focusedEntryId, onSelectNode, selectedN
     const attempts = trail?.attempts ?? [];
 
     let grouped: StageGroup[];
-    const verdicts: AttemptVerdict[] = [];
+    let verdicts: AttemptVerdict[] = [];
 
     if (attempts.length > 0) {
       // Multi-run entry: flatMap across ALL orchestration attempts' stage_diagnostics
@@ -281,23 +359,7 @@ export function PromptDiffTree({ debate, focusedEntryId, onSelectNode, selectedN
       }).filter(g => g.runs.length > 0);
 
       // Extract orchestration-level verdicts — one per attempt, displayed as separate tree nodes
-      for (const [ai, attempt] of attempts.entries()) {
-        const av = attempt.validation as unknown as Record<string, unknown> | undefined;
-        if (av) {
-          verdicts.push({
-            attemptIndex: ai,
-            validation: {
-              outcome: (av.outcome as string) ?? 'unknown',
-              process_reward: (av.process_reward as number) ?? 0,
-              repairHints: (av.repairHints as string[]) ?? [],
-              dimensions: (av.dimensions as OrchestrationValidation['dimensions']) ?? {
-                schema: { pass: true, issues: [] }, grounding: { pass: true, issues: [] },
-                advancement: { pass: true, signals: [] }, clarifies: { pass: true, signals: [] },
-              },
-            },
-          });
-        }
-      }
+      verdicts = buildVerdicts(attempts);
     } else {
       // Single-run fallback: use diagnostics.entries stage_diagnostics
       const allStages = (diags?.stage_diagnostics ?? []) as unknown as Array<Record<string, unknown>>;
@@ -439,48 +501,7 @@ export function PromptDiffTree({ debate, focusedEntryId, onSelectNode, selectedN
                     const scrubNode = r.subNodes?.find(sn => sn.kind === 'scrub');
                     return (
                       <div key={r.runIndex}>
-                        <div
-                          onClick={() => onSelectNode(node)}
-                          className="pdt-run-row"
-                          // eslint-disable-next-line local/no-inline-style -- dynamic: background/border-left depend on isSelected
-                          style={{
-                            background: isSelected ? 'rgba(59,130,246,0.12)' : 'transparent',
-                            borderLeft: isSelected ? '2px solid #3b82f6' : '2px solid transparent',
-                          }}
-                          title="Click to add to diff pane"
-                        >
-                          <span className="pdt-fw-500">Run {r.runIndex + 1}</span>
-                          {r.retryTrigger === 'stage-retry' && (
-                            <span
-                              className="pdt-stage-retry-badge"
-                              title={r.repairHintsIn?.join('\n') ?? 'Stage validator retry'}
-                            >
-                              Stage Retry
-                            </span>
-                          )}
-                          {r.retryTrigger === 'orchestration-rerun' && (
-                            <span
-                              className="pdt-rerun-badge"
-                              title={r.repairHintsIn?.join('\n') ?? 'Judge-triggered rerun'}
-                            >
-                              Rerun
-                            </span>
-                          )}
-                          <span className="pdt-muted-2xs">
-                            {abbreviateModel(node.model)}, {node.temperature}, {(node.responseTimeMs / 1000).toFixed(1)}s
-                          </span>
-                          {node.validationPass !== undefined && (
-                            <span
-                              className="pdt-validation-mark"
-                              // eslint-disable-next-line local/no-inline-style -- dynamic: color depends on validationPass
-                              style={{
-                                color: node.validationPass ? '#22c55e' : '#ef4444',
-                              }}
-                            >
-                              {node.validationPass ? '✓' : '✗'}
-                            </span>
-                          )}
-                        </div>
+                        <RunRowHeader r={r} node={node} isSelected={isSelected} onSelectNode={onSelectNode} />
                         {/* Tool call sub-nodes (Path B) */}
                         {toolCalls.length > 0 && toolCalls.map((tc, ti) => {
                           const tcKey = nodeKey(entry.id, stage, r.runIndex, 'tool-call', ti);

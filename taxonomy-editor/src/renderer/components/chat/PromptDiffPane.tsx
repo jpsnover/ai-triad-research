@@ -195,6 +195,214 @@ function CitationResolutionSummary({ cr }: { cr: CitationResolutionDiagnostics }
   );
 }
 
+function RetrySection({ retryTrigger, repairHintsIn }: {
+  retryTrigger?: RetryTrigger; repairHintsIn?: string[];
+}) {
+  if (!(retryTrigger && retryTrigger !== 'initial')) return null;
+  const tl = TRIGGER_LABEL[retryTrigger];
+  return (
+    <div className="pdp-mb6">
+      <div className="pdp-flex-ac-g6-mb2">
+        <span className="pdp-uc-label">
+          Triggered By
+        </span>
+        {/* eslint-disable-next-line local/no-inline-style -- dynamic: badge background/color from TRIGGER_LABEL[retryTrigger] */}
+        <span className="pdp-badge" style={{ background: tl.bg, color: tl.color }}>
+          {tl.text}
+        </span>
+      </div>
+      {repairHintsIn && repairHintsIn.length > 0 && (
+        <ul className="pdp-ul-hint">
+          {repairHintsIn.map((h, i) => (
+            <li key={i} className="pdp-li-secondary">{humanizeSpeakerIds(h)}</li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+function StageValidationSection({ validation }: { validation?: StageValidation }) {
+  if (!validation) return null;
+  return (
+    <div>
+      {/* Pass/Fail badge */}
+      {/* eslint-disable-next-line local/no-inline-style -- dynamic: badge background/color depend on validation.pass */}
+      <span className="pdp-badge" style={{
+        background: validation.pass ? 'rgba(34,197,94,0.15)' : 'rgba(239,68,68,0.15)',
+        color: validation.pass ? '#22c55e' : '#ef4444',
+      }}>
+        {validation.pass ? '✓ Pass' : '✗ Fail'}
+      </span>
+
+      {/* Hints */}
+      {validation.hints && validation.hints.length > 0 && (
+        <ul className="pdp-ul-hints2">
+          {validation.hints.map((h, i) => {
+            const cat = classifyHint(h);
+            const s = HINT_STYLE[cat];
+            return (
+              <li key={i} className="pdp-mb2">
+                {/* eslint-disable-next-line local/no-inline-style -- dynamic: hint-tag color/background from HINT_STYLE[cat] */}
+                <span className="pdp-hint-tag" style={{ color: s.color, background: s.bg }}>{s.label}</span>
+                {humanizeSpeakerIds(h)}
+              </li>
+            );
+          })}
+        </ul>
+      )}
+
+      {/* Directive compliance */}
+      {validation.directive_compliance && (
+        <div className="pdp-mt2-flex-ac-g4">
+          {/* eslint-disable-next-line local/no-inline-style -- dynamic: color depends on directive compliance */}
+          <span className="pdp-check" style={{
+            color: validation.directive_compliance.compliant ? '#22c55e' : '#ef4444',
+          }}>
+            {validation.directive_compliance.compliant ? '✓' : '✗'}
+          </span>
+          <span>Directive: {validation.directive_compliance.matched_terms}/{validation.directive_compliance.directive_terms.length} terms</span>
+        </div>
+      )}
+
+      {/* Per-rule details */}
+      {validation.details && validation.details.length > 0 && (
+        <details className="pdp-mt4">
+          <summary className="pdp-summary">
+            {validation.details.filter(d => d.pass).length}/{validation.details.length} rules passed
+          </summary>
+          <div className="pdp-mt2">
+            {validation.details.map((d, i) => (
+              <div key={i} className="pdp-flex-g4-ac">
+                {/* eslint-disable-next-line local/no-inline-style -- dynamic: color depends on rule d.pass */}
+                <span className="pdp-check" style={{ color: d.pass ? '#22c55e' : '#ef4444' }}>
+                  {d.pass ? '✓' : '✗'}
+                </span>
+                <span>{d.rule}</span>
+                {d.value && <span className="pdp-muted">({d.value})</span>}
+              </div>
+            ))}
+          </div>
+        </details>
+      )}
+    </div>
+  );
+}
+
+function QualitySection({ qualityCheck, validation }: {
+  qualityCheck?: QualityCheck; validation?: StageValidation;
+}) {
+  if (!qualityCheck) return null;
+  return (
+    // eslint-disable-next-line local/no-inline-style -- dynamic: margin-top depends on whether validation section rendered above
+    <div style={{ marginTop: validation ? 6 : 0 }}>
+      <div className="pdp-section-title">
+        Quality Pre-Check
+      </div>
+      <div className="pdp-flex-g8">
+        {(['grounded', 'falsifiable', 'engages'] as const).map(dim => (
+          <span key={dim} className="pdp-flex-ac-g2">
+            {/* eslint-disable-next-line local/no-inline-style -- dynamic: color depends on qualityCheck[dim] */}
+            <span className="pdp-check" style={{ color: qualityCheck[dim] ? '#22c55e' : '#ef4444' }}>
+              {qualityCheck[dim] ? '✓' : '✗'}
+            </span>
+            <span className="pdp-capitalize">{dim}</span>
+          </span>
+        ))}
+      </div>
+      {qualityCheck.weaknesses.length > 0 && (
+        <ul className="pdp-ul-14-muted">
+          {qualityCheck.weaknesses.map((w, i) => (
+            <li key={i} className="pdp-mb1">{humanizeSpeakerIds(w)}</li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+function OrchestrationSection({ orchestrationValidation, validation, qualityCheck }: {
+  orchestrationValidation?: OrchestrationValidation; validation?: StageValidation; qualityCheck?: QualityCheck;
+}) {
+  if (!orchestrationValidation) return null;
+  return (
+    // eslint-disable-next-line local/no-inline-style -- dynamic: margin-top depends on whether prior sections rendered
+    <div style={{ marginTop: (validation || qualityCheck) ? 6 : 0 }}>
+      <div className="pdp-section-title">
+        Orchestration Validation
+      </div>
+      <div className="pdp-flex-ac-g6-mb3">
+        {/* eslint-disable-next-line local/no-inline-style -- dynamic: badge background/color depend on outcome */}
+        <span className="pdp-badge" style={{
+          background: orchestrationValidation.outcome === 'accept'
+            ? 'rgba(34,197,94,0.15)' : 'rgba(239,68,68,0.15)',
+          color: orchestrationValidation.outcome === 'accept'
+            ? '#22c55e' : '#ef4444',
+        }}>
+          {orchestrationValidation.outcome.toUpperCase()}
+        </span>
+        <span className="pdp-2xs-muted">
+          score: {orchestrationValidation.process_reward.toFixed(2)}
+        </span>
+      </div>
+
+      {/* Repair hints */}
+      {orchestrationValidation.repairHints.length > 0 && (
+        <ul className="pdp-ul-hints3">
+          {orchestrationValidation.repairHints.map((h, i) => {
+            const cat = classifyHint(h);
+            const s = HINT_STYLE[cat];
+            return (
+              <li key={i} className="pdp-mb2">
+                {/* eslint-disable-next-line local/no-inline-style -- dynamic: hint-tag color/background from HINT_STYLE[cat] */}
+                <span className="pdp-hint-tag" style={{ color: s.color, background: s.bg }}>{s.label}</span>
+                {humanizeSpeakerIds(h)}
+              </li>
+            );
+          })}
+        </ul>
+      )}
+
+      {/* Dimensions breakdown */}
+      <details className="pdp-mt2">
+        <summary className="pdp-summary">
+          Dimensions
+          {' '}
+          {(['schema', 'grounding', 'advancement', 'clarifies'] as const)
+            .filter(d => !orchestrationValidation.dimensions[d].pass).length === 0
+            ? <span className="pdp-green-700">all pass</span>
+            : <span className="pdp-red-700">
+                {(['schema', 'grounding', 'advancement', 'clarifies'] as const)
+                  .filter(d => !orchestrationValidation.dimensions[d].pass).length} failed
+              </span>
+          }
+        </summary>
+        <div className="pdp-mt2">
+          {(['schema', 'grounding', 'advancement', 'clarifies'] as const).map(dim => {
+            const d = orchestrationValidation.dimensions[dim];
+            const items = 'issues' in d ? d.issues : d.signals;
+            return (
+              <div key={dim} className="pdp-mb2">
+                {/* eslint-disable-next-line local/no-inline-style -- dynamic: color depends on dimension d.pass */}
+                <span className="pdp-check" style={{ color: d.pass ? '#22c55e' : '#ef4444' }}>
+                  {d.pass ? '✓' : '✗'}
+                </span>
+                {' '}
+                <span className="pdp-cap-500">{dim}</span>
+                {items.length > 0 && (
+                  <ul className="pdp-ul-14b-muted">
+                    {items.map((item, j) => <li key={j} className="pdp-mb1">{humanizeSpeakerIds(item)}</li>)}
+                  </ul>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </details>
+    </div>
+  );
+}
+
 function ValidationPanel({ validation, qualityCheck, orchestrationValidation, retryTrigger, repairHintsIn, citationResolution }: {
   validation?: StageValidation; qualityCheck?: QualityCheck; orchestrationValidation?: OrchestrationValidation;
   retryTrigger?: RetryTrigger; repairHintsIn?: string[]; citationResolution?: CitationResolutionDiagnostics;
@@ -210,199 +418,15 @@ function ValidationPanel({ validation, qualityCheck, orchestrationValidation, re
   return (
     <div className="pdp-validation-panel">
       {/* Retry trigger badge + input repair hints */}
-      {retryTrigger && retryTrigger !== 'initial' && (() => {
-        const tl = TRIGGER_LABEL[retryTrigger];
-        return (
-          <div className="pdp-mb6">
-            <div className="pdp-flex-ac-g6-mb2">
-              <span className="pdp-uc-label">
-                Triggered By
-              </span>
-              {/* eslint-disable-next-line local/no-inline-style -- dynamic: badge background/color from TRIGGER_LABEL[retryTrigger] */}
-              <span className="pdp-badge" style={{ background: tl.bg, color: tl.color }}>
-                {tl.text}
-              </span>
-            </div>
-            {repairHintsIn && repairHintsIn.length > 0 && (
-              <ul className="pdp-ul-hint">
-                {repairHintsIn.map((h, i) => (
-                  <li key={i} className="pdp-li-secondary">{humanizeSpeakerIds(h)}</li>
-                ))}
-              </ul>
-            )}
-          </div>
-        );
-      })()}
+      <RetrySection retryTrigger={retryTrigger} repairHintsIn={repairHintsIn} />
 
-      {validation && (
-        <div>
-          {/* Pass/Fail badge */}
-          {/* eslint-disable-next-line local/no-inline-style -- dynamic: badge background/color depend on validation.pass */}
-          <span className="pdp-badge" style={{
-            background: validation.pass ? 'rgba(34,197,94,0.15)' : 'rgba(239,68,68,0.15)',
-            color: validation.pass ? '#22c55e' : '#ef4444',
-          }}>
-            {validation.pass ? '✓ Pass' : '✗ Fail'}
-          </span>
-
-          {/* Hints */}
-          {validation.hints && validation.hints.length > 0 && (
-            <ul className="pdp-ul-hints2">
-              {validation.hints.map((h, i) => {
-                const cat = classifyHint(h);
-                const s = HINT_STYLE[cat];
-                return (
-                  <li key={i} className="pdp-mb2">
-                    {/* eslint-disable-next-line local/no-inline-style -- dynamic: hint-tag color/background from HINT_STYLE[cat] */}
-                    <span className="pdp-hint-tag" style={{ color: s.color, background: s.bg }}>{s.label}</span>
-                    {humanizeSpeakerIds(h)}
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-
-          {/* Directive compliance */}
-          {validation.directive_compliance && (
-            <div className="pdp-mt2-flex-ac-g4">
-              {/* eslint-disable-next-line local/no-inline-style -- dynamic: color depends on directive compliance */}
-              <span className="pdp-check" style={{
-                color: validation.directive_compliance.compliant ? '#22c55e' : '#ef4444',
-              }}>
-                {validation.directive_compliance.compliant ? '✓' : '✗'}
-              </span>
-              <span>Directive: {validation.directive_compliance.matched_terms}/{validation.directive_compliance.directive_terms.length} terms</span>
-            </div>
-          )}
-
-          {/* Per-rule details */}
-          {validation.details && validation.details.length > 0 && (
-            <details className="pdp-mt4">
-              <summary className="pdp-summary">
-                {validation.details.filter(d => d.pass).length}/{validation.details.length} rules passed
-              </summary>
-              <div className="pdp-mt2">
-                {validation.details.map((d, i) => (
-                  <div key={i} className="pdp-flex-g4-ac">
-                    {/* eslint-disable-next-line local/no-inline-style -- dynamic: color depends on rule d.pass */}
-                    <span className="pdp-check" style={{ color: d.pass ? '#22c55e' : '#ef4444' }}>
-                      {d.pass ? '✓' : '✗'}
-                    </span>
-                    <span>{d.rule}</span>
-                    {d.value && <span className="pdp-muted">({d.value})</span>}
-                  </div>
-                ))}
-              </div>
-            </details>
-          )}
-        </div>
-      )}
+      <StageValidationSection validation={validation} />
 
       {/* Quality Pre-Check */}
-      {qualityCheck && (
-        // eslint-disable-next-line local/no-inline-style -- dynamic: margin-top depends on whether validation section rendered above
-        <div style={{ marginTop: validation ? 6 : 0 }}>
-          <div className="pdp-section-title">
-            Quality Pre-Check
-          </div>
-          <div className="pdp-flex-g8">
-            {(['grounded', 'falsifiable', 'engages'] as const).map(dim => (
-              <span key={dim} className="pdp-flex-ac-g2">
-                {/* eslint-disable-next-line local/no-inline-style -- dynamic: color depends on qualityCheck[dim] */}
-                <span className="pdp-check" style={{ color: qualityCheck[dim] ? '#22c55e' : '#ef4444' }}>
-                  {qualityCheck[dim] ? '✓' : '✗'}
-                </span>
-                <span className="pdp-capitalize">{dim}</span>
-              </span>
-            ))}
-          </div>
-          {qualityCheck.weaknesses.length > 0 && (
-            <ul className="pdp-ul-14-muted">
-              {qualityCheck.weaknesses.map((w, i) => (
-                <li key={i} className="pdp-mb1">{humanizeSpeakerIds(w)}</li>
-              ))}
-            </ul>
-          )}
-        </div>
-      )}
+      <QualitySection qualityCheck={qualityCheck} validation={validation} />
 
       {/* Orchestration Validation (judge feedback across the whole turn attempt) */}
-      {orchestrationValidation && (
-        // eslint-disable-next-line local/no-inline-style -- dynamic: margin-top depends on whether prior sections rendered
-        <div style={{ marginTop: (validation || qualityCheck) ? 6 : 0 }}>
-          <div className="pdp-section-title">
-            Orchestration Validation
-          </div>
-          <div className="pdp-flex-ac-g6-mb3">
-            {/* eslint-disable-next-line local/no-inline-style -- dynamic: badge background/color depend on outcome */}
-            <span className="pdp-badge" style={{
-              background: orchestrationValidation.outcome === 'accept'
-                ? 'rgba(34,197,94,0.15)' : 'rgba(239,68,68,0.15)',
-              color: orchestrationValidation.outcome === 'accept'
-                ? '#22c55e' : '#ef4444',
-            }}>
-              {orchestrationValidation.outcome.toUpperCase()}
-            </span>
-            <span className="pdp-2xs-muted">
-              score: {orchestrationValidation.process_reward.toFixed(2)}
-            </span>
-          </div>
-
-          {/* Repair hints */}
-          {orchestrationValidation.repairHints.length > 0 && (
-            <ul className="pdp-ul-hints3">
-              {orchestrationValidation.repairHints.map((h, i) => {
-                const cat = classifyHint(h);
-                const s = HINT_STYLE[cat];
-                return (
-                  <li key={i} className="pdp-mb2">
-                    {/* eslint-disable-next-line local/no-inline-style -- dynamic: hint-tag color/background from HINT_STYLE[cat] */}
-                    <span className="pdp-hint-tag" style={{ color: s.color, background: s.bg }}>{s.label}</span>
-                    {humanizeSpeakerIds(h)}
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-
-          {/* Dimensions breakdown */}
-          <details className="pdp-mt2">
-            <summary className="pdp-summary">
-              Dimensions
-              {' '}
-              {(['schema', 'grounding', 'advancement', 'clarifies'] as const)
-                .filter(d => !orchestrationValidation.dimensions[d].pass).length === 0
-                ? <span className="pdp-green-700">all pass</span>
-                : <span className="pdp-red-700">
-                    {(['schema', 'grounding', 'advancement', 'clarifies'] as const)
-                      .filter(d => !orchestrationValidation.dimensions[d].pass).length} failed
-                  </span>
-              }
-            </summary>
-            <div className="pdp-mt2">
-              {(['schema', 'grounding', 'advancement', 'clarifies'] as const).map(dim => {
-                const d = orchestrationValidation.dimensions[dim];
-                const items = 'issues' in d ? d.issues : d.signals;
-                return (
-                  <div key={dim} className="pdp-mb2">
-                    {/* eslint-disable-next-line local/no-inline-style -- dynamic: color depends on dimension d.pass */}
-                    <span className="pdp-check" style={{ color: d.pass ? '#22c55e' : '#ef4444' }}>
-                      {d.pass ? '✓' : '✗'}
-                    </span>
-                    {' '}
-                    <span className="pdp-cap-500">{dim}</span>
-                    {items.length > 0 && (
-                      <ul className="pdp-ul-14b-muted">
-                        {items.map((item, j) => <li key={j} className="pdp-mb1">{humanizeSpeakerIds(item)}</li>)}
-                      </ul>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </details>
-        </div>
-      )}
+      <OrchestrationSection orchestrationValidation={orchestrationValidation} validation={validation} qualityCheck={qualityCheck} />
 
       {/* Citation Resolution Summary */}
       {citationResolution && (
@@ -410,6 +434,19 @@ function ValidationPanel({ validation, qualityCheck, orchestrationValidation, re
       )}
     </div>
   );
+}
+
+type WordSeg = { text: string; type: 'same' | 'added' | 'removed' };
+
+/** Merge adjacent segments of the same type. */
+function mergeAdjacentSegments(raw: WordSeg[]): WordSeg[] {
+  const merged: WordSeg[] = [];
+  for (const seg of raw) {
+    const last = merged.length > 0 ? merged[merged.length - 1] : null;
+    if (last && last.type === seg.type) last.text += seg.text;
+    else merged.push({ ...seg });
+  }
+  return merged;
 }
 
 /** LCS-based word-level diff. Returns segments tagged same/added/removed. */
@@ -440,14 +477,7 @@ function diffWords(oldText: string, newText: string): Array<{ text: string; type
   }
   raw.reverse();
 
-  // Merge adjacent segments of the same type
-  const merged: typeof raw = [];
-  for (const seg of raw) {
-    const last = merged.length > 0 ? merged[merged.length - 1] : null;
-    if (last && last.type === seg.type) last.text += seg.text;
-    else merged.push({ ...seg });
-  }
-  return merged;
+  return mergeAdjacentSegments(raw);
 }
 
 /** Render a line with word-level diff highlights. Shows only 'same' + the line's own change type. */
@@ -630,6 +660,321 @@ function groupDiffLines(lines: PaneDiffLine[]): DiffItem[] {
   return items;
 }
 
+function countMatches(lines: PaneDiffLine[], searchLower: string): number {
+  if (!searchLower) return 0;
+  let count = 0;
+  for (const line of lines) {
+    if (line.type === 'ghost') continue;
+    let idx = 0;
+    const lower = line.text.toLowerCase();
+    while ((idx = lower.indexOf(searchLower, idx)) !== -1) {
+      count++;
+      idx += searchLower.length;
+    }
+  }
+  return count;
+}
+
+function renderDiffBody(
+  lines: PaneDiffLine[],
+  matchOffset: number | undefined,
+  expandedRegions: Set<number>,
+  toggleCollapsedRegion: (regionIdx: number) => void,
+  searchLower: string,
+  activeMatchIndex: number | undefined,
+  activeMatchRef: React.RefObject<HTMLSpanElement | null>,
+): React.ReactNode {
+  let globalIdx = matchOffset ?? 0;
+  const diffItems = groupDiffLines(lines);
+  // Pre-count search matches per original line index for correct globalIdx accounting
+  return diffItems.map((item, itemIdx) => {
+    if (item.kind === 'region') {
+      const { regionIdx, lines: regionLines } = item;
+      const collapsed = !expandedRegions.has(regionIdx);
+      const count = regionLines.length;
+      // When collapsed, skip globalIdx for these lines (they aren't rendered, so no match highlights)
+      // When expanded, account for matches in region lines
+      if (collapsed) {
+        return (
+          <div
+            key={`region-${itemIdx}`}
+            onClick={() => toggleCollapsedRegion(regionIdx)}
+            className="pdp-region-toggle"
+          >
+            {`⋯ ${count} unchanged lines`}
+          </div>
+        );
+      }
+      // Expanded: render all lines in region
+      const renderedLines = regionLines.map((line, k) => {
+        const lineMatchStart = globalIdx;
+        const el = (
+          <div
+            key={`region-${itemIdx}-line-${k}`}
+            className="pdp-line"
+            // eslint-disable-next-line local/no-inline-style -- dynamic: per-line diff background/border from LINE_BG/LINE_BORDER
+            style={{
+              background: LINE_BG[line.type],
+              borderLeft: LINE_BORDER[line.type],
+            }}
+          >
+            {/* eslint-disable-next-line local/no-inline-style -- dynamic: gutter opacity hides ghost line numbers */}
+            <span className="pdp-gutter" style={{
+              opacity: line.type === 'ghost' ? 0 : 0.6,
+            }}>
+              {line.lineNumber ?? ''}
+            </span>
+            <span className="pdp-line-text">
+              {searchLower && line.type !== 'ghost'
+                ? highlightMatches(line.text, searchLower, activeMatchIndex ?? -1, lineMatchStart, activeMatchRef)
+                : line.text}
+            </span>
+          </div>
+        );
+        if (searchLower && line.type !== 'ghost') {
+          let si = 0;
+          const lower = line.text.toLowerCase();
+          while ((si = lower.indexOf(searchLower, si)) !== -1) {
+            globalIdx++;
+            si += searchLower.length;
+          }
+        }
+        return el;
+      });
+      return (
+        <div key={`region-${itemIdx}`}>
+          <div
+            onClick={() => toggleCollapsedRegion(regionIdx)}
+            className="pdp-region-toggle"
+          >
+            {`▼ collapse ${count} lines`}
+          </div>
+          {renderedLines}
+        </div>
+      );
+    }
+    // kind === 'line'
+    const { line } = item;
+    const lineMatchStart = globalIdx;
+    const el = (
+      <div
+        key={`line-${itemIdx}`}
+        className="pdp-line"
+        // eslint-disable-next-line local/no-inline-style -- dynamic: per-line diff background/border from LINE_BG/LINE_BORDER
+        style={{
+          background: LINE_BG[line.type],
+          borderLeft: LINE_BORDER[line.type],
+        }}
+      >
+        {/* eslint-disable-next-line local/no-inline-style -- dynamic: gutter opacity hides ghost line numbers */}
+        <span className="pdp-gutter" style={{
+          opacity: line.type === 'ghost' ? 0 : 0.6,
+        }}>
+          {line.lineNumber ?? ''}
+        </span>
+        <span className="pdp-line-text">
+          {searchLower && line.type !== 'ghost'
+            ? highlightMatches(line.text, searchLower, activeMatchIndex ?? -1, lineMatchStart, activeMatchRef)
+            : line.pairText != null && (line.type === 'added' || line.type === 'removed')
+              ? renderWordDiff(line.text, line.pairText, line.type)
+              : line.text}
+        </span>
+      </div>
+    );
+    if (searchLower && line.type !== 'ghost') {
+      let si = 0;
+      const lower = line.text.toLowerCase();
+      while ((si = lower.indexOf(searchLower, si)) !== -1) {
+        globalIdx++;
+        si += searchLower.length;
+      }
+    }
+    return el;
+  });
+}
+
+function ToolCallBadges({ node, viewMode }: { node: PromptNode; viewMode?: DiffViewMode }) {
+  return (
+    <>
+      <span className="pdp-tool-badge">
+        🔍 {node.toolName ?? 'lookup_citation'}
+      </span>
+      <span className="pdp-fw600">#{(node.toolCallIndex ?? 0) + 1}</span>
+      {node.toolCallEmpty && (
+        <span className="pdp-empty-badge">
+          EMPTY
+        </span>
+      )}
+      {viewMode === 'responses' && (
+        <span className="pdp-results-badge">
+          results
+        </span>
+      )}
+    </>
+  );
+}
+
+function ScrubBadges({ viewMode }: { viewMode?: DiffViewMode }) {
+  return (
+    <>
+      <span className="pdp-scrub-badge">
+        ✂ Scrub
+      </span>
+      {viewMode === 'responses' && (
+        <span className="pdp-results-badge">
+          post
+        </span>
+      )}
+      {!viewMode || viewMode === 'prompts' ? (
+        <span className="pdp-2xs-muted">pre-scrub draft</span>
+      ) : (
+        <span className="pdp-2xs-muted">post-scrub draft</span>
+      )}
+    </>
+  );
+}
+
+function AttemptVerdictBadges({ node }: { node: PromptNode }) {
+  return (
+    <>
+      <span className="pdp-2xs">⚖</span>
+      <span className="pdp-fw700">Attempt {node.runIndex + 1} Verdict</span>
+      {node.orchestrationValidation && (() => {
+        const isAccept = node.orchestrationValidation.outcome === 'accept' || node.orchestrationValidation.outcome === 'accept_with_flag';
+        return (
+          // eslint-disable-next-line local/no-inline-style -- dynamic: badge background/color depend on isAccept
+          <span className="pdp-uc-badge" style={{
+            background: isAccept ? 'rgba(34,197,94,0.15)' : 'rgba(239,68,68,0.15)',
+            color: isAccept ? '#22c55e' : '#ef4444',
+          }}>
+            {node.orchestrationValidation.outcome.replace(/_/g, ' ')} ({node.orchestrationValidation.process_reward.toFixed(2)})
+          </span>
+        );
+      })()}
+    </>
+  );
+}
+
+function StageBadges({ node, viewMode, stageColor }: {
+  node: PromptNode; viewMode?: DiffViewMode; stageColor: string;
+}) {
+  return (
+    <>
+      {/* eslint-disable-next-line local/no-inline-style -- dynamic: badge background/color derived from stageColor */}
+      <span className="pdp-uc-badge" style={{
+        background: `${stageColor}20`, color: stageColor,
+      }}>
+        {node.stage}
+      </span>
+      {viewMode === 'responses' && (
+        <span className="pdp-results-badge">
+          resp
+        </span>
+      )}
+      <span className="pdp-fw600">Run {node.runIndex + 1}</span>
+    </>
+  );
+}
+
+function PreScrubToggle({ node, viewMode, preScrub, onTogglePreScrub }: {
+  node: PromptNode; viewMode?: DiffViewMode; preScrub?: boolean; onTogglePreScrub?: () => void;
+}) {
+  if (node.kind) return null;
+  if (node.stage !== 'draft') return null;
+  if (viewMode !== 'responses') return null;
+  if (node.citationResolution?.path !== 'bank-scrub') return null;
+  if ((node.citationResolution?.fabrications?.length ?? 0) === 0) return null;
+  if (!onTogglePreScrub) return null;
+  return (
+    <button
+      onClick={(e) => { e.stopPropagation(); onTogglePreScrub(); }}
+      className="pdp-prescrub-btn"
+      // eslint-disable-next-line local/no-inline-style -- dynamic: button background/color depend on preScrub
+      style={{
+        background: preScrub ? 'rgba(168,85,247,0.2)' : 'transparent',
+        color: preScrub ? '#a855f7' : 'var(--text-muted)',
+      }}
+      title={preScrub ? 'Showing pre-scrub draft (click to show post-scrub)' : 'Click to show pre-scrub draft (before citation cleanup)'}
+    >
+      {preScrub ? 'Pre-scrub ✓' : 'Pre-scrub'}
+    </button>
+  );
+}
+
+function PaneHeader({ node, viewMode, pane, stats, isReference, paneIndex, preScrub, onTogglePreScrub, onClose, stageColor }: {
+  node: PromptNode;
+  viewMode?: DiffViewMode;
+  pane: PaneData;
+  stats?: PaneData['stats'];
+  isReference: boolean;
+  paneIndex: number;
+  preScrub?: boolean;
+  onTogglePreScrub?: () => void;
+  onClose: () => void;
+  stageColor: string;
+}) {
+  return (
+    <div className="pdp-header">
+      {node.kind === 'tool-call' ? (
+        <ToolCallBadges node={node} viewMode={viewMode} />
+      ) : node.kind === 'scrub' ? (
+        <ScrubBadges viewMode={viewMode} />
+      ) : node.kind === 'attempt-verdict' ? (
+        <AttemptVerdictBadges node={node} />
+      ) : (
+        <StageBadges node={node} viewMode={viewMode} stageColor={stageColor} />
+      )}
+      <span className="pdp-muted">
+        S{node.entryIndex + 1} {speakerLabel(node.speaker)}
+      </span>
+      <span className="pdp-2xs-muted">
+        ({pane.lines.filter(l => l.type !== 'ghost').length} lines)
+      </span>
+      {/* Pre-scrub toggle: Path A drafts in Responses mode with fabrications */}
+      <PreScrubToggle node={node} viewMode={viewMode} preScrub={preScrub} onTogglePreScrub={onTogglePreScrub} />
+      {stats && !isReference && (
+        <span className="pdp-stats">
+          <span className="pdp-c-yellow">+{stats.added}</span>
+          {' / '}
+          <span className="pdp-c-red">-{stats.removed}</span>
+          {' / '}
+          {stats.total} lines
+        </span>
+      )}
+      {isReference && (
+        <span className="pdp-ref-label">
+          reference
+        </span>
+      )}
+      <button
+        onClick={(e) => { e.stopPropagation(); onClose(); }}
+        className="pdp-close-btn"
+        title={`Close pane ${paneIndex + 1} (Ctrl+W)`}
+        aria-label="Close"
+      >&times;</button>
+    </div>
+  );
+}
+
+function PaneValidation({ node, validationHeight, onValidationResize, onFindInPanes }: {
+  node: PromptNode;
+  validationHeight?: number;
+  onValidationResize?: (height: number) => void;
+  onFindInPanes?: (text: string) => void;
+}) {
+  if (!((!node.kind || node.kind === 'attempt-verdict') && (node.validation || node.qualityCheck || node.orchestrationValidation || node.citationResolution))) {
+    return null;
+  }
+  return (
+    <ValidationPanelContainer
+      node={node}
+      height={validationHeight ?? VALIDATION_DEFAULT_HEIGHT}
+      onResize={onValidationResize ?? (() => {})}
+      onFind={onFindInPanes}
+    />
+  );
+}
+
 export function PromptDiffPane({ pane, paneIndex, isReference, isFocused, onClose, onFocus, onScroll, scrollTop, searchTerm, activeMatchIndex, matchOffset, viewMode, wordWrap, validationHeight, onValidationResize, onFindInPanes, preScrub, onTogglePreScrub }: Props) {
   const contentRef = useRef<HTMLDivElement>(null);
   const suppressScrollEvent = useRef(false);
@@ -683,20 +1028,7 @@ export function PromptDiffPane({ pane, paneIndex, isReference, isFocused, onClos
 
   // Search: compute matches in this pane
   const searchLower = searchTerm?.toLowerCase() ?? '';
-  const matchCount = useMemo(() => {
-    if (!searchLower) return 0;
-    let count = 0;
-    for (const line of pane.lines) {
-      if (line.type === 'ghost') continue;
-      let idx = 0;
-      const lower = line.text.toLowerCase();
-      while ((idx = lower.indexOf(searchLower, idx)) !== -1) {
-        count++;
-        idx += searchLower.length;
-      }
-    }
-    return count;
-  }, [pane.lines, searchLower]);
+  const matchCount = useMemo(() => countMatches(pane.lines, searchLower), [pane.lines, searchLower]);
 
   // Scroll active match into view and propagate scroll position for sync
   useEffect(() => {
@@ -722,118 +1054,18 @@ export function PromptDiffPane({ pane, paneIndex, isReference, isFocused, onClos
       }}
     >
       {/* Header */}
-      <div className="pdp-header">
-        {node.kind === 'tool-call' ? (
-          <>
-            <span className="pdp-tool-badge">
-              🔍 {node.toolName ?? 'lookup_citation'}
-            </span>
-            <span className="pdp-fw600">#{(node.toolCallIndex ?? 0) + 1}</span>
-            {node.toolCallEmpty && (
-              <span className="pdp-empty-badge">
-                EMPTY
-              </span>
-            )}
-            {viewMode === 'responses' && (
-              <span className="pdp-results-badge">
-                results
-              </span>
-            )}
-          </>
-        ) : node.kind === 'scrub' ? (
-          <>
-            <span className="pdp-scrub-badge">
-              ✂ Scrub
-            </span>
-            {viewMode === 'responses' && (
-              <span className="pdp-results-badge">
-                post
-              </span>
-            )}
-            {!viewMode || viewMode === 'prompts' ? (
-              <span className="pdp-2xs-muted">pre-scrub draft</span>
-            ) : (
-              <span className="pdp-2xs-muted">post-scrub draft</span>
-            )}
-          </>
-        ) : node.kind === 'attempt-verdict' ? (
-          <>
-            <span className="pdp-2xs">⚖</span>
-            <span className="pdp-fw700">Attempt {node.runIndex + 1} Verdict</span>
-            {node.orchestrationValidation && (() => {
-              const isAccept = node.orchestrationValidation.outcome === 'accept' || node.orchestrationValidation.outcome === 'accept_with_flag';
-              return (
-                // eslint-disable-next-line local/no-inline-style -- dynamic: badge background/color depend on isAccept
-                <span className="pdp-uc-badge" style={{
-                  background: isAccept ? 'rgba(34,197,94,0.15)' : 'rgba(239,68,68,0.15)',
-                  color: isAccept ? '#22c55e' : '#ef4444',
-                }}>
-                  {node.orchestrationValidation.outcome.replace(/_/g, ' ')} ({node.orchestrationValidation.process_reward.toFixed(2)})
-                </span>
-              );
-            })()}
-          </>
-        ) : (
-          <>
-            {/* eslint-disable-next-line local/no-inline-style -- dynamic: badge background/color derived from stageColor */}
-            <span className="pdp-uc-badge" style={{
-              background: `${stageColor}20`, color: stageColor,
-            }}>
-              {node.stage}
-            </span>
-            {viewMode === 'responses' && (
-              <span className="pdp-results-badge">
-                resp
-              </span>
-            )}
-            <span className="pdp-fw600">Run {node.runIndex + 1}</span>
-          </>
-        )}
-        <span className="pdp-muted">
-          S{node.entryIndex + 1} {speakerLabel(node.speaker)}
-        </span>
-        <span className="pdp-2xs-muted">
-          ({pane.lines.filter(l => l.type !== 'ghost').length} lines)
-        </span>
-        {/* Pre-scrub toggle: Path A drafts in Responses mode with fabrications */}
-        {!node.kind && node.stage === 'draft' && viewMode === 'responses'
-          && node.citationResolution?.path === 'bank-scrub'
-          && (node.citationResolution?.fabrications?.length ?? 0) > 0
-          && onTogglePreScrub && (
-          <button
-            onClick={(e) => { e.stopPropagation(); onTogglePreScrub(); }}
-            className="pdp-prescrub-btn"
-            // eslint-disable-next-line local/no-inline-style -- dynamic: button background/color depend on preScrub
-            style={{
-              background: preScrub ? 'rgba(168,85,247,0.2)' : 'transparent',
-              color: preScrub ? '#a855f7' : 'var(--text-muted)',
-            }}
-            title={preScrub ? 'Showing pre-scrub draft (click to show post-scrub)' : 'Click to show pre-scrub draft (before citation cleanup)'}
-          >
-            {preScrub ? 'Pre-scrub ✓' : 'Pre-scrub'}
-          </button>
-        )}
-        {stats && !isReference && (
-          <span className="pdp-stats">
-            <span className="pdp-c-yellow">+{stats.added}</span>
-            {' / '}
-            <span className="pdp-c-red">-{stats.removed}</span>
-            {' / '}
-            {stats.total} lines
-          </span>
-        )}
-        {isReference && (
-          <span className="pdp-ref-label">
-            reference
-          </span>
-        )}
-        <button
-          onClick={(e) => { e.stopPropagation(); onClose(); }}
-          className="pdp-close-btn"
-          title={`Close pane ${paneIndex + 1} (Ctrl+W)`}
-          aria-label="Close"
-        >&times;</button>
-      </div>
+      <PaneHeader
+        node={node}
+        viewMode={viewMode}
+        pane={pane}
+        stats={stats}
+        isReference={isReference}
+        paneIndex={paneIndex}
+        preScrub={preScrub}
+        onTogglePreScrub={onTogglePreScrub}
+        onClose={onClose}
+        stageColor={stageColor}
+      />
 
       {/* Content — hidden for attempt-verdict nodes (validation panel is the sole content) */}
       {node.kind === 'attempt-verdict' ? (
@@ -861,115 +1093,7 @@ export function PromptDiffPane({ pane, paneIndex, isReference, isFocused, onClos
           </div>
           <div>{node.model} · {node.responseTimeMs}ms</div>
         </div>
-        {(() => {
-          let globalIdx = matchOffset ?? 0;
-          const diffItems = groupDiffLines(lines);
-          // Pre-count search matches per original line index for correct globalIdx accounting
-          return diffItems.map((item, itemIdx) => {
-            if (item.kind === 'region') {
-              const { regionIdx, lines: regionLines } = item;
-              const collapsed = !expandedRegions.has(regionIdx);
-              const count = regionLines.length;
-              // When collapsed, skip globalIdx for these lines (they aren't rendered, so no match highlights)
-              // When expanded, account for matches in region lines
-              if (collapsed) {
-                return (
-                  <div
-                    key={`region-${itemIdx}`}
-                    onClick={() => toggleCollapsedRegion(regionIdx)}
-                    className="pdp-region-toggle"
-                  >
-                    {`⋯ ${count} unchanged lines`}
-                  </div>
-                );
-              }
-              // Expanded: render all lines in region
-              const renderedLines = regionLines.map((line, k) => {
-                const lineMatchStart = globalIdx;
-                const el = (
-                  <div
-                    key={`region-${itemIdx}-line-${k}`}
-                    className="pdp-line"
-                    // eslint-disable-next-line local/no-inline-style -- dynamic: per-line diff background/border from LINE_BG/LINE_BORDER
-                    style={{
-                      background: LINE_BG[line.type],
-                      borderLeft: LINE_BORDER[line.type],
-                    }}
-                  >
-                    {/* eslint-disable-next-line local/no-inline-style -- dynamic: gutter opacity hides ghost line numbers */}
-                    <span className="pdp-gutter" style={{
-                      opacity: line.type === 'ghost' ? 0 : 0.6,
-                    }}>
-                      {line.lineNumber ?? ''}
-                    </span>
-                    <span className="pdp-line-text">
-                      {searchLower && line.type !== 'ghost'
-                        ? highlightMatches(line.text, searchLower, activeMatchIndex ?? -1, lineMatchStart, activeMatchRef)
-                        : line.text}
-                    </span>
-                  </div>
-                );
-                if (searchLower && line.type !== 'ghost') {
-                  let si = 0;
-                  const lower = line.text.toLowerCase();
-                  while ((si = lower.indexOf(searchLower, si)) !== -1) {
-                    globalIdx++;
-                    si += searchLower.length;
-                  }
-                }
-                return el;
-              });
-              return (
-                <div key={`region-${itemIdx}`}>
-                  <div
-                    onClick={() => toggleCollapsedRegion(regionIdx)}
-                    className="pdp-region-toggle"
-                  >
-                    {`▼ collapse ${count} lines`}
-                  </div>
-                  {renderedLines}
-                </div>
-              );
-            }
-            // kind === 'line'
-            const { line } = item;
-            const lineMatchStart = globalIdx;
-            const el = (
-              <div
-                key={`line-${itemIdx}`}
-                className="pdp-line"
-                // eslint-disable-next-line local/no-inline-style -- dynamic: per-line diff background/border from LINE_BG/LINE_BORDER
-                style={{
-                  background: LINE_BG[line.type],
-                  borderLeft: LINE_BORDER[line.type],
-                }}
-              >
-                {/* eslint-disable-next-line local/no-inline-style -- dynamic: gutter opacity hides ghost line numbers */}
-                <span className="pdp-gutter" style={{
-                  opacity: line.type === 'ghost' ? 0 : 0.6,
-                }}>
-                  {line.lineNumber ?? ''}
-                </span>
-                <span className="pdp-line-text">
-                  {searchLower && line.type !== 'ghost'
-                    ? highlightMatches(line.text, searchLower, activeMatchIndex ?? -1, lineMatchStart, activeMatchRef)
-                    : line.pairText != null && (line.type === 'added' || line.type === 'removed')
-                      ? renderWordDiff(line.text, line.pairText, line.type)
-                      : line.text}
-                </span>
-              </div>
-            );
-            if (searchLower && line.type !== 'ghost') {
-              let si = 0;
-              const lower = line.text.toLowerCase();
-              while ((si = lower.indexOf(searchLower, si)) !== -1) {
-                globalIdx++;
-                si += searchLower.length;
-              }
-            }
-            return el;
-          });
-        })()}
+        {renderDiffBody(lines, matchOffset, expandedRegions, toggleCollapsedRegion, searchLower, activeMatchIndex, activeMatchRef)}
       </div>
       )}
 
@@ -995,14 +1119,7 @@ export function PromptDiffPane({ pane, paneIndex, isReference, isFocused, onClos
       )}
 
       {/* Validation panel — resizable via drag handle, height synced across panes (not shown for tool-call/scrub sub-nodes) */}
-      {(!node.kind || node.kind === 'attempt-verdict') && (node.validation || node.qualityCheck || node.orchestrationValidation || node.citationResolution) && (
-        <ValidationPanelContainer
-          node={node}
-          height={validationHeight ?? VALIDATION_DEFAULT_HEIGHT}
-          onResize={onValidationResize ?? (() => {})}
-          onFind={onFindInPanes}
-        />
-      )}
+      <PaneValidation node={node} validationHeight={validationHeight} onValidationResize={onValidationResize} onFindInPanes={onFindInPanes} />
     </div>
   );
 }
