@@ -73,6 +73,10 @@ export function normalizeErrorForEvent(err: unknown): { name: string; message: s
   return { name: 'Error', message: String(err) };
 }
 
+type NonOkOutcome =
+  | { action: 'return'; result: ApiResult }
+  | { action: 'retry'; newCreds?: SyncCredentials; delayMs?: number };
+
 export class GitHubRestClient {
   // Rate limit tracking
   private rateLimit: RateLimitInfo = { remaining: 5000, limit: 5000, resetsAt: 0 };
@@ -99,34 +103,11 @@ export class GitHubRestClient {
 
     for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
       const startMs = Date.now();
-
-      this.deps.record({
-        type: 'github.api.request',
-        component: 'github-api',
-        level: 'debug',
-        message: `${method} ${pathAndQuery}`,
-        call_id: callId,
-        request_id: requestId,
-        data: { method, endpoint: pathAndQuery, attempt },
-      });
+      this.recordAttempt(method, pathAndQuery, attempt, callId, requestId);
 
       try {
         const url = `${GITHUB_API}${pathAndQuery}`;
-        const headers: Record<string, string> = {
-          Accept: 'application/vnd.github+json',
-          Authorization: `Bearer ${creds.token}`,
-          'User-Agent': USER_AGENT,
-          'X-GitHub-Api-Version': API_VERSION,
-        };
-        if (body !== undefined) headers['Content-Type'] = 'application/json';
-        if (requestId) headers['X-Request-ID'] = requestId;
-
-        // Add ETag for conditional requests
-        const cachedEtag = this.deps.getEtag(pathAndQuery);
-        if (cachedEtag && method === 'GET') {
-          headers['If-None-Match'] = cachedEtag;
-        }
-
+        const headers = this.buildRequestHeaders(creds, method, pathAndQuery, body, requestId);
         const res = await fetch(url, {
           method,
           headers,
@@ -134,111 +115,26 @@ export class GitHubRestClient {
         });
 
         const durationMs = Date.now() - startMs;
-
-        // Track rate limits from response headers
         this.updateRateLimit(res.headers);
-
-        // ETag from response
         const responseEtag = res.headers.get('etag') ?? undefined;
 
-        // 304 Not Modified — return cached
         if (res.status === 304) {
-          this.deps.record({
-            type: 'github.api.response',
-            component: 'github-api',
-            level: 'debug',
-            duration_ms: durationMs,
-            call_id: callId,
-            request_id: requestId,
-            data: { status: 304, method, endpoint: pathAndQuery, cache_hit: true,
-                    rate_remaining: this.rateLimit.remaining },
-          });
-          this.onApiSuccess();
-          return { ok: true, status: 304, data: null, etag: responseEtag };
+          return this.handleNotModified(durationMs, method, pathAndQuery, callId, requestId, responseEtag);
         }
 
-        // Parse response body
-        const text = await res.text();
-        let data: unknown = null;
-        try { data = text ? JSON.parse(text) : null; } catch { /* telemetry — silent by design */ data = text; }
-
-        const is404Optional = !res.ok && res.status === 404 && apiOpts?.optional;
-        this.deps.record({
-          type: res.ok ? 'github.api.response' : (is404Optional ? 'github.api.miss' : 'github.api.error'),
-          component: 'github-api',
-          level: res.ok ? 'debug' : (is404Optional ? 'debug' : 'error'),
-          duration_ms: durationMs,
-          call_id: callId,
-          request_id: requestId,
-          data: {
-            status: res.status, method, endpoint: pathAndQuery,
-            rate_remaining: this.rateLimit.remaining,
-            ...(res.ok ? {} : { error: text?.slice(0, 500) }),
-          },
-        });
+        const { data, text } = await this.parseAndLogResponse(
+          res, method, pathAndQuery, durationMs, callId, requestId, !!apiOpts?.optional,
+        );
 
         if (res.ok) {
           this.onApiSuccess();
           return { ok: true, status: res.status, data, etag: responseEtag };
         }
 
-        // 404 — not found, don't retry
-        if (res.status === 404) {
-          return { ok: false, status: 404, data, error: 'Not found' };
-        }
-
-        // 401 — token expired, refresh once and retry
-        if (res.status === 401 && attempt === 0) {
-          const freshCreds = await this.deps.refreshCreds();
-          if (freshCreds) {
-            creds = freshCreds;
-            continue; // retry with fresh token
-          }
-        }
-
-        // 409 — conflict (SHA mismatch on write)
-        if (res.status === 409) {
-          return { ok: false, status: 409, data,
-            error: 'Conflict — file was modified concurrently' };
-        }
-
-        // 422 — validation error (branch exists, etc.)
-        if (res.status === 422) {
-          return { ok: false, status: 422, data,
-            error: (data && typeof data === 'object' && 'message' in data)
-              ? String((data as { message: unknown }).message) : 'Validation error' };
-        }
-
-        // 429 — rate limited
-        if (res.status === 429) {
-          this.deps.record({
-            type: 'github.api.rate_limit',
-            component: 'github-api',
-            level: 'warn',
-            message: 'Rate limited by GitHub API',
-            data: { remaining: this.rateLimit.remaining, resetsAt: this.rateLimit.resetsAt },
-          });
-
-          const retryAfter = res.headers.get('retry-after');
-          if (retryAfter && attempt < MAX_RETRIES) {
-            await this.sleep(parseInt(retryAfter, 10) * 1000);
-            continue;
-          }
-        }
-
-        // 5xx — retryable
-        if (res.status >= 500 && attempt < MAX_RETRIES) {
-          this.onApiFailure();
-          await this.sleep(this.backoffMs(attempt));
-          continue;
-        }
-
-        // Other 4xx — not retryable
-        const errorMsg = (data && typeof data === 'object' && 'message' in data)
-          ? String((data as { message: unknown }).message)
-          : text || `HTTP ${res.status}`;
-        this.onApiFailure();
-        return { ok: false, status: res.status, data, error: errorMsg };
+        const outcome = await this.handleNonOkStatus(res, data, text, attempt);
+        if (outcome.action === 'return') return outcome.result;
+        if (outcome.newCreds) creds = outcome.newCreds;
+        if (outcome.delayMs) await this.sleep(outcome.delayMs);
 
       } catch (err: unknown) {
         getGlobalRecorder()?.record({
@@ -248,32 +144,160 @@ export class GitHubRestClient {
           message: 'Operation failed',
           error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
         });
-        // Network error — retryable
-        const durationMs = Date.now() - startMs;
-        this.deps.record({
-          type: 'github.api.error',
-          component: 'github-api',
-          level: 'error',
-          duration_ms: durationMs,
-          call_id: callId,
-          request_id: requestId,
-          error: normalizeErrorForEvent(err),
-          data: { method, endpoint: pathAndQuery, attempt, network_error: true },
-        });
-
-        this.onApiFailure();
-        if (attempt < MAX_RETRIES) {
-          await this.sleep(this.backoffMs(attempt));
-          continue;
-        }
-
-        return { ok: false, status: 0, data: null,
-          error: `Network error: ${err instanceof Error ? err.message : String(err)}` };
+        const networkResult = await this.handleNetworkError(
+          err, startMs, method, pathAndQuery, attempt, callId, requestId,
+        );
+        if (networkResult !== null) return networkResult;
       }
     }
 
     // Should not reach here, but just in case
     return { ok: false, status: 0, data: null, error: 'Max retries exceeded' };
+  }
+
+  private recordAttempt(
+    method: string, pathAndQuery: string, attempt: number,
+    callId: string | undefined, requestId: string,
+  ): void {
+    this.deps.record({
+      type: 'github.api.request',
+      component: 'github-api',
+      level: 'debug',
+      message: `${method} ${pathAndQuery}`,
+      call_id: callId,
+      request_id: requestId,
+      data: { method, endpoint: pathAndQuery, attempt },
+    });
+  }
+
+  private buildRequestHeaders(
+    creds: SyncCredentials, method: string, pathAndQuery: string,
+    body: unknown, requestId: string,
+  ): Record<string, string> {
+    const headers: Record<string, string> = {
+      Accept: 'application/vnd.github+json',
+      Authorization: `Bearer ${creds.token}`,
+      'User-Agent': USER_AGENT,
+      'X-GitHub-Api-Version': API_VERSION,
+    };
+    if (body !== undefined) headers['Content-Type'] = 'application/json';
+    if (requestId) headers['X-Request-ID'] = requestId;
+    const cachedEtag = this.deps.getEtag(pathAndQuery);
+    if (cachedEtag && method === 'GET') headers['If-None-Match'] = cachedEtag;
+    return headers;
+  }
+
+  private handleNotModified(
+    durationMs: number, method: string, pathAndQuery: string,
+    callId: string | undefined, requestId: string, responseEtag: string | undefined,
+  ): ApiResult {
+    this.deps.record({
+      type: 'github.api.response',
+      component: 'github-api',
+      level: 'debug',
+      duration_ms: durationMs,
+      call_id: callId,
+      request_id: requestId,
+      data: { status: 304, method, endpoint: pathAndQuery, cache_hit: true,
+              rate_remaining: this.rateLimit.remaining },
+    });
+    this.onApiSuccess();
+    return { ok: true, status: 304, data: null, etag: responseEtag };
+  }
+
+  private async parseAndLogResponse(
+    res: Response, method: string, pathAndQuery: string,
+    durationMs: number, callId: string | undefined, requestId: string, isOptional: boolean,
+  ): Promise<{ data: unknown; text: string }> {
+    const text = await res.text();
+    let data: unknown = null;
+    try { data = text ? JSON.parse(text) : null; } catch { /* telemetry — silent by design */ data = text; }
+
+    const is404Optional = !res.ok && res.status === 404 && isOptional;
+    this.deps.record({
+      type: res.ok ? 'github.api.response' : (is404Optional ? 'github.api.miss' : 'github.api.error'),
+      component: 'github-api',
+      level: res.ok ? 'debug' : (is404Optional ? 'debug' : 'error'),
+      duration_ms: durationMs,
+      call_id: callId,
+      request_id: requestId,
+      data: {
+        status: res.status, method, endpoint: pathAndQuery,
+        rate_remaining: this.rateLimit.remaining,
+        ...(res.ok ? {} : { error: text?.slice(0, 500) }),
+      },
+    });
+    return { data, text };
+  }
+
+  private extractApiMessage(data: unknown, fallback: string): string {
+    return (data && typeof data === 'object' && 'message' in data)
+      ? String((data as { message: unknown }).message)
+      : fallback;
+  }
+
+  private async handleNonOkStatus(
+    res: Response, data: unknown, text: string, attempt: number,
+  ): Promise<NonOkOutcome> {
+    if (res.status === 404) {
+      return { action: 'return', result: { ok: false, status: 404, data, error: 'Not found' } };
+    }
+    if (res.status === 401 && attempt === 0) {
+      const freshCreds = await this.deps.refreshCreds();
+      if (freshCreds) return { action: 'retry', newCreds: freshCreds };
+    }
+    if (res.status === 409) {
+      return { action: 'return', result: { ok: false, status: 409, data,
+        error: 'Conflict — file was modified concurrently' } };
+    }
+    if (res.status === 422) {
+      return { action: 'return', result: { ok: false, status: 422, data,
+        error: this.extractApiMessage(data, 'Validation error') } };
+    }
+    if (res.status === 429) {
+      this.deps.record({
+        type: 'github.api.rate_limit',
+        component: 'github-api',
+        level: 'warn',
+        message: 'Rate limited by GitHub API',
+        data: { remaining: this.rateLimit.remaining, resetsAt: this.rateLimit.resetsAt },
+      });
+      const retryAfter = res.headers.get('retry-after');
+      if (retryAfter && attempt < MAX_RETRIES) {
+        return { action: 'retry', delayMs: parseInt(retryAfter, 10) * 1000 };
+      }
+    }
+    if (res.status >= 500 && attempt < MAX_RETRIES) {
+      this.onApiFailure();
+      return { action: 'retry', delayMs: this.backoffMs(attempt) };
+    }
+    this.onApiFailure();
+    return { action: 'return', result: { ok: false, status: res.status, data,
+      error: this.extractApiMessage(data, text || `HTTP ${res.status}`) } };
+  }
+
+  private async handleNetworkError(
+    err: unknown, startMs: number, method: string, pathAndQuery: string,
+    attempt: number, callId: string | undefined, requestId: string,
+  ): Promise<ApiResult | null> {
+    const durationMs = Date.now() - startMs;
+    this.deps.record({
+      type: 'github.api.error',
+      component: 'github-api',
+      level: 'error',
+      duration_ms: durationMs,
+      call_id: callId,
+      request_id: requestId,
+      error: normalizeErrorForEvent(err),
+      data: { method, endpoint: pathAndQuery, attempt, network_error: true },
+    });
+    this.onApiFailure();
+    if (attempt < MAX_RETRIES) {
+      await this.sleep(this.backoffMs(attempt));
+      return null; // signal retry
+    }
+    return { ok: false, status: 0, data: null,
+      error: `Network error: ${err instanceof Error ? err.message : String(err)}` };
   }
 
   private backoffMs(attempt: number): number {
