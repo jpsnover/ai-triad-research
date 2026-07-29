@@ -1,9 +1,11 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { api } from '@bridge';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
+import { reconstructSeiContainer } from '../shared/mentionText';
+import { useMentionRenderer } from '../shared/MentionField';
 import './FactsPanel.css';
 
 export interface SourceFact {
@@ -84,6 +86,17 @@ export function FactsPanel({ nodeId, onSelectFact }: {
     return () => { cancelled = true; };
   }, [nodeId]);
 
+  // Mention-render kit (t/1906): the sei:<nodeId> container reconstructs the fact
+  // claims (single-LF join) so stored entity-name mentions render as .ref-link
+  // buttons in the reading flow. Hook is called unconditionally (before the early
+  // returns); claims are plain text, so no HighlightedTextarea caveat.
+  const containerId = `sei:${nodeId}`;
+  const container = useMemo(
+    () => reconstructSeiContainer((facts ?? []).map(f => f.claim)),
+    [facts],
+  );
+  const renderField = useMentionRenderer(containerId, container);
+
   if (loading) {
     return <div className="facts-message">Loading facts...</div>;
   }
@@ -120,7 +133,7 @@ export function FactsPanel({ nodeId, onSelectFact }: {
                 <div className="facts-label">{f.label}</div>
                 {!isExpanded && (
                   <div className="facts-claim-preview">
-                    {f.claim}
+                    {renderField(`fact-${i}`, f.claim)}
                   </div>
                 )}
               </div>
@@ -134,7 +147,7 @@ export function FactsPanel({ nodeId, onSelectFact }: {
             </div>
             {isExpanded && (
               <div className="facts-expanded">
-                <div className="facts-claim-full">{f.claim}</div>
+                <div className="facts-claim-full">{renderField(`fact-${i}`, f.claim)}</div>
                 <div className="facts-meta">
                   <span title="Source document"><strong>Doc:</strong> {f.doc_id}</span>
                   {f.temporal_bound && (
