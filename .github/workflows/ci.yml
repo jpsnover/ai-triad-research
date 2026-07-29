@@ -82,6 +82,11 @@ jobs:
             lib:
               - 'lib/**'
               - '.github/workflows/ci.yml'
+      - name: force-fail (verify t/1962 case c) — DO NOT MERGE
+        run: |
+          echo "Forcing the changes job to fail, to prove ci-gate BLOCKS on a filter failure"
+          echo "(skipped code jobs must NOT false-green through the gate)"
+          exit 1
 
   test-powershell:
     needs: [changes]
