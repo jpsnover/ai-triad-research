@@ -136,10 +136,13 @@ export interface CalibrationDataPoint {
   crux_resolution_divergence_rate: number | null;
   /**
    * Match/coverage accounting behind crux_resolution_divergence_rate (t/1853).
-   * Unmatched cruxes on either side are a coverage-asymmetry signal, not noise:
-   * `engine_unmatched`/`evaluator_unmatched` count embedding-bearing cruxes with no
-   * semantic partner ≥ `match_threshold`. Null when semantic matching was impossible
-   * (no embeddings on one side). Optional: rows written before t/1853 omit it.
+   * `engine_unmatched`/`evaluator_unmatched` are an UPPER BOUND on real coverage
+   * asymmetry — not a clean signal. Matcher recall ≈0.43 at θ=0.5 (t/1853 golden-set
+   * validation: prereg FAIL), so ~57% of unmatched pairs are register-mismatch artifact
+   * (engine embeds one-sided claim text; evaluator writes neutral "whether X or Y"
+   * statements). See analyses/t1853-crux-match-threshold/REPORT.md. Null when semantic
+   * matching was impossible (no embeddings on one side). Optional: rows written before
+   * t/1853 omit it.
    */
   crux_match_stats?: CruxMatchStats | null;
   /**
