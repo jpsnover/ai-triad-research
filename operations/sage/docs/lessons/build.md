@@ -758,6 +758,26 @@ Failure patterns related to builds, CI, tooling, environment, and git operations
 
 ---
 
+## [Build] `gh pr merge --delete-branch` From a Worktree Aborts AFTER the Merge Succeeds — the "fatal" Masks a Landed Merge
+
+**Pattern:** `gh pr merge <n> --rebase --delete-branch` run **from a linked git worktree** aborts with **"fatal: 'main' is already used by worktree"** — but the remote merge has **already succeeded**. `--delete-branch` does a *local* `git checkout main` to clean up the merged head branch, and git forbids checking out `main` when the primary worktree already holds it. So the command exits non-zero on the local-cleanup step *after* the PR is MERGED — a **false-failure signal**: the "fatal" reads as "merge failed" when it actually landed. **This is the exact command `/land-from-worktree` step 5 prescribes**, so every worktree lander hits it.
+
+**Instances:**
+- 2026-07-29 — ElectronMain (p/98#12): `gh pr merge <n> --rebase --delete-branch` from a worktree aborted "fatal: 'main' is already used by worktree" **after** the merge completed. Verified `state=MERGED` (`b2e370ff`), then deleted branches + removed the worktree by hand. No loss — the abort was post-merge cleanup only.
+
+**Root Cause:** `--delete-branch` cleans up the merged head branch **locally as well as remotely**, and to delete a local branch safely gh switches the working copy to the base branch (`git checkout main`). Git's **one-branch-per-worktree** rule blocks checking out `main` while the primary worktree has it checked out → `fatal`. The remote-side merge and branch delete already happened via the API; only the **local** checkout/cleanup fails. Same false-signal family as the "bookkeeping ≠ artifact" genus — the exit code describes a post-success cleanup step, not the merge.
+
+**Prevention:**
+1. **From a worktree, merge WITHOUT `--delete-branch`:** `gh pr merge <n> --rebase`, then delete the branch manually — remote `git push origin --delete <branch>` (or gh's remote delete), local `git branch -D <branch>` from the primary tree. Avoids the base-branch checkout entirely.
+2. **Treat the "fatal" as post-merge:** before reacting, verify `gh pr view <n> --json state` == `MERGED` (or the merge SHA on `origin/main`). If merged, **do NOT retry the merge** — it landed; just clean up branches/worktree by hand.
+3. **`/land-from-worktree` step 5 should drop `--delete-branch`** (or gate it to non-worktree runs) — the skill runs *from a worktree* by definition, so its prescribed command self-triggers this. Flagged to the skill owner (TL).
+
+**Status:** Active — **defect in the revised `/land-from-worktree` step 5** (e/49 PR-flow). Dangerous because the `fatal` masks a *successful* merge (retry/panic risk); safe only if the agent verifies `state=MERGED`. Flagged to TL for the step-5 fix.
+
+**Applies To:** Every worktree PR-flow lander — i.e. everyone using `/land-from-worktree` step 5.
+
+---
+
 ## [Build] Vitest Dynamic Import Misses Exports From vi.mock Factory
 
 **Pattern:** Using `await import()` on a module that has a `vi.mock` registration only sees exports defined in the mock factory — not the real module's exports. Missing exports throw "No X export on mock" at runtime, not at compile time.

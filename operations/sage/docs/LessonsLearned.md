@@ -2107,3 +2107,23 @@ Institutional memory for failure patterns across the AI Triad Research project.
 **Status:** Resolved — self-correcting (the flag errors immediately). Single instance; recorded because the new PR-flow makes `gh pr merge` routine and `--auto` is a natural but wrong reach.
 
 **Applies To:** Any agent self-merging a PR under the checks-only PR-flow.
+
+---
+
+## [Build] `gh pr merge --delete-branch` From a Worktree Aborts AFTER the Merge Succeeds — the "fatal" Masks a Landed Merge
+
+**Pattern:** `gh pr merge <n> --rebase --delete-branch` from a **linked git worktree** aborts "fatal: 'main' is already used by worktree" — but the remote merge **already succeeded**. `--delete-branch` does a local `git checkout main` to clean up the merged branch, which git forbids while the primary worktree holds `main`. The command exits non-zero on local cleanup *after* the PR is MERGED — a **false-failure signal**. This is the exact command `/land-from-worktree` step 5 prescribes, so every worktree lander hits it.
+
+**Instances:**
+- 2026-07-29 — ElectronMain (p/98#12): `gh pr merge <n> --rebase --delete-branch` from a worktree aborted "fatal: 'main' is already used by worktree" **after** the merge completed. Verified `state=MERGED` (`b2e370ff`), deleted branches + removed the worktree by hand. No loss.
+
+**Root Cause:** `--delete-branch` cleans up the merged head branch locally too, and gh switches the working copy to the base branch (`git checkout main`) to do so. Git's one-branch-per-worktree rule blocks checking out `main` while the primary worktree has it → `fatal`. The remote merge + branch delete already happened via the API; only the local checkout/cleanup fails. Bookkeeping-≠-artifact family — the exit code describes post-success cleanup, not the merge.
+
+**Prevention:**
+1. From a worktree, merge WITHOUT `--delete-branch`: `gh pr merge <n> --rebase`, then delete branches manually (remote `git push origin --delete <branch>`, local `git branch -D` from the primary tree).
+2. Treat the "fatal" as post-merge — verify `gh pr view <n> --json state` == `MERGED` (or the SHA on `origin/main`) before reacting; do NOT retry the merge, it landed.
+3. `/land-from-worktree` step 5 should drop `--delete-branch` (or gate it to non-worktree runs) — the skill runs from a worktree by definition. Flagged to TL.
+
+**Status:** Active — defect in the revised `/land-from-worktree` step 5 (e/49 PR-flow). Dangerous: the `fatal` masks a successful merge (retry/panic risk); safe only if the agent verifies `state=MERGED`. Flagged to TL.
+
+**Applies To:** Every worktree PR-flow lander — i.e. everyone using `/land-from-worktree` step 5.
