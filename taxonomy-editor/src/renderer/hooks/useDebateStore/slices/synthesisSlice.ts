@@ -52,130 +52,175 @@ export interface SynthesisSlice {
 // ── requestSynthesis sub-steps (t/1848 batch 4) ──────────────────────
 // Behavior-preserving decomposition: each post-synthesis pass is escape-free
 // (its own try/catch, no method-exiting return). Bodies moved verbatim.
+// ── buildSynthesisContent section builders (t/1848) ──────────────────
+// buildSynthesisContent was a single 64-complexity pure function. Each markdown
+// section is extracted as a pure string[]-returning helper (bodies moved verbatim;
+// see ADR-007 split pattern) so buildSynthesisContent is a flat composition.
+
+/** Strip inline node IDs from prose — they belong in taxonomy_refs, not the text. */
+function stripNodeIds(text: unknown): string {
+  const s = typeof text === 'string' ? text : String(text ?? '');
+  return s.replace(/\b(?:acc|saf|skp|sit|cc)-(?:beliefs|desires|intentions)-\d+\b/g, '')
+          .replace(/\s{2,}/g, ' ').trim();
+}
+
+function synthRawTextLines(synthesis: any): string[] {
+  if (!synthesis._raw_text) return [];
+  // Break raw text into readable paragraphs at sentence boundaries and bullet markers
+  const formatted = synthesis._raw_text
+    .replace(/([.!?])\s+(?=[A-Z"*-])/g, '$1\n\n')  // paragraph break at sentence ends before capitals
+    .replace(/\s*[-–—•]\s+/g, '\n- ')               // normalize bullet-like markers
+    .replace(/\s*\d+\.\s+/g, (m: string) => '\n' + m.trim() + ' '); // numbered lists
+  return ['*Synthesis could not be parsed as structured data. Raw output:*', '', formatted];
+}
+
+function synthAgreementLines(synthesis: any): string[] {
+  if (!(synthesis.areas_of_agreement?.length > 0)) return [];
+  const lines: string[] = ['## Areas of Agreement', ''];
+  for (const a of synthesis.areas_of_agreement) {
+    const who = Array.isArray(a.povers) ? a.povers.map((p: string) => POVER_INFO[p as Exclude<SpeakerId, 'user'>]?.label || p).join(', ') : '';
+    lines.push(`- ${stripNodeIds(a.point)}${who ? ` (${who})` : ''}`);
+  }
+  return lines;
+}
+
+function synthDisagreementLines(synthesis: any): string[] {
+  if (!(synthesis.areas_of_disagreement?.length > 0)) return [];
+  const lines: string[] = ['', '## Areas of Disagreement', ''];
+  for (const d of synthesis.areas_of_disagreement) {
+    const typeTag = d.type ? ` [${d.type}]` : '';
+    const bdiTag = d.bdi_layer ? ` {${d.bdi_layer}}` : '';
+    lines.push(`- **${stripNodeIds(d.point)}**${typeTag}${bdiTag}`);
+    const BDI_RESOLVABILITY: Record<string, string> = { belief: 'resolvable_by_evidence', desire: 'negotiable_via_tradeoffs', intention: 'requires_term_clarification' };
+    const resolv = (d.bdi_layer && BDI_RESOLVABILITY[d.bdi_layer]) || d.resolvability;
+    if (resolv) {
+      lines.push(`  - *Resolution path: ${resolv.replace(/_/g, ' ')}*`);
+    }
+    if (Array.isArray(d.positions)) {
+      for (const pos of d.positions) {
+        const label = POVER_INFO[pos.pover as Exclude<SpeakerId, 'user'>]?.label || pos.pover;
+        lines.push(`  - ${label}: ${stripNodeIds(pos.stance)}`);
+      }
+    }
+  }
+  return lines;
+}
+
+function synthCruxesLines(synthesis: any): string[] {
+  if (!(synthesis.cruxes?.length > 0)) return [];
+  const lines: string[] = ['', '## Cruxes', ''];
+  for (const c of synthesis.cruxes) {
+    const typeTag = c.type ? ` [${c.type}]` : '';
+    lines.push(`- ${stripNodeIds(c.question)}${typeTag}`);
+    if (c.if_yes) lines.push(`  - If yes: ${stripNodeIds(c.if_yes)}`);
+    if (c.if_no) lines.push(`  - If no: ${stripNodeIds(c.if_no)}`);
+  }
+  return lines;
+}
+
+function synthDocumentClaimsLines(synthesis: any): string[] {
+  if (!(synthesis.document_claims?.length > 0)) return [];
+  const lines: string[] = ['', '## Document Claims', ''];
+  for (const dc of synthesis.document_claims) {
+    const accepted = Array.isArray(dc.accepted_by)
+      ? dc.accepted_by.map((p: string) => POVER_INFO[p as Exclude<SpeakerId, 'user'>]?.label || p).join(', ')
+      : '';
+    const challenged = Array.isArray(dc.challenged_by)
+      ? dc.challenged_by.map((p: string) => POVER_INFO[p as Exclude<SpeakerId, 'user'>]?.label || p).join(', ')
+      : '';
+    lines.push(`- ${stripNodeIds(dc.claim)}`);
+    if (accepted) lines.push(`  - Accepted by: ${accepted}`);
+    if (challenged) lines.push(`  - Challenged by: ${challenged}${dc.challenge_basis ? ` — ${stripNodeIds(dc.challenge_basis)}` : ''}`);
+  }
+  return lines;
+}
+
+function synthPreferencesLines(synthesis: any): string[] {
+  if (!(synthesis.preferences?.length > 0)) return [];
+  const lines: string[] = ['', '## Resolution Analysis', ''];
+  for (const p of synthesis.preferences) {
+    if (p.prevails === 'undecidable') {
+      lines.push(`- **${stripNodeIds(p.conflict)}** — Undecidable`);
+      lines.push(`  - *${stripNodeIds(p.rationale)}*`);
+    } else {
+      let prevailsText = p.prevails;
+      if (/^C\d+$/.test(p.prevails) && synthesis.argument_map) {
+        const claim = synthesis.argument_map.find((c: { claim_id: string; claim: string; claimant: string }) => c.claim_id === p.prevails);
+        if (claim) prevailsText = `${claim.claimant}: "${stripNodeIds(claim.claim)}"`;
+      }
+      lines.push(`- **${stripNodeIds(p.conflict)}** — Stronger: ${prevailsText} (${p.criterion?.replace(/_/g, ' ')})`);
+      lines.push(`  - *${stripNodeIds(p.rationale)}*`);
+    }
+    if (p.what_would_change_this) {
+      lines.push(`  - Would change if: ${stripNodeIds(p.what_would_change_this)}`);
+    }
+  }
+  return lines;
+}
+
+function synthUnresolvedLines(synthesis: any): string[] {
+  if (!(synthesis.unresolved_questions?.length > 0)) return [];
+  const lines: string[] = ['', '## Unresolved Questions', ''];
+  for (const q of synthesis.unresolved_questions) {
+    lines.push(`- ${stripNodeIds(q)}`);
+  }
+  return lines;
+}
+
+function argMapSupportLines(claim: any): string[] {
+  if (!(claim.supported_by?.length > 0)) return [];
+  const lines: string[] = [];
+  for (const sup of claim.supported_by) {
+    if (typeof sup === 'string') {
+      lines.push(`  - Supported by: ${sup}`);
+    } else {
+      const schemeTag = sup.scheme ? ` (${sup.scheme.replace(/_/g, ' ')})` : '';
+      lines.push(`  - Supported by ${sup.claim_id}${schemeTag}${sup.warrant ? `: ${stripNodeIds(sup.warrant)}` : ''}`);
+    }
+  }
+  return lines;
+}
+
+function argMapAttackLines(claim: any): string[] {
+  if (!(claim.attacked_by?.length > 0)) return [];
+  const lines: string[] = [];
+  for (const attack of claim.attacked_by) {
+    const attackerLabel = POVER_INFO[attack.claimant as Exclude<SpeakerId, 'user'>]?.label || attack.claimant;
+    const schemeTag = attack.scheme ? ` via ${attack.scheme}` : '';
+    lines.push(`  - ← **${attack.claim_id}** ${attack.attack_type}${schemeTag} (${attackerLabel}): ${stripNodeIds(attack.claim)}`);
+  }
+  return lines;
+}
+
+function synthArgumentMapLines(synthesis: any): string[] {
+  if (!(synthesis.argument_map?.length > 0)) return [];
+  const lines: string[] = ['', '## Argument Map', ''];
+  for (const claim of synthesis.argument_map) {
+    const claimantLabel = POVER_INFO[claim.claimant as Exclude<SpeakerId, 'user'>]?.label || claim.claimant;
+    const typeTag = claim.type ? ` [${claim.type}]` : '';
+    lines.push(`- **${claim.claim_id}** (${claimantLabel})${typeTag}: ${stripNodeIds(claim.claim)}`);
+    lines.push(...argMapSupportLines(claim));
+    lines.push(...argMapAttackLines(claim));
+  }
+  return lines;
+}
+
 function buildSynthesisContent(synthesis: any): { lines: string[]; taxonomyCoverage: TaxonomyRef[] } {
-      // Build readable content
-      // Strip inline node IDs from text fields — they belong in taxonomy_refs, not prose
-      const stripNodeIds = (text: unknown): string => {
-        const s = typeof text === 'string' ? text : String(text ?? '');
-        return s.replace(/\b(?:acc|saf|skp|sit|cc)-(?:beliefs|desires|intentions)-\d+\b/g, '')
-                .replace(/\s{2,}/g, ' ').trim();
-      };
+  // Build readable content — one section builder per synthesis section, in order.
+  const lines: string[] = [
+    ...synthRawTextLines(synthesis),
+    ...synthAgreementLines(synthesis),
+    ...synthDisagreementLines(synthesis),
+    ...synthCruxesLines(synthesis),
+    ...synthDocumentClaimsLines(synthesis),
+    ...synthPreferencesLines(synthesis),
+    ...synthUnresolvedLines(synthesis),
+    ...synthArgumentMapLines(synthesis),
+  ];
 
-      const lines: string[] = [];
-      if (synthesis._raw_text) {
-        lines.push('*Synthesis could not be parsed as structured data. Raw output:*');
-        lines.push('');
-        // Break raw text into readable paragraphs at sentence boundaries and bullet markers
-        const formatted = synthesis._raw_text
-          .replace(/([.!?])\s+(?=[A-Z"*-])/g, '$1\n\n')  // paragraph break at sentence ends before capitals
-          .replace(/\s*[-–—•]\s+/g, '\n- ')               // normalize bullet-like markers
-          .replace(/\s*\d+\.\s+/g, (m: string) => '\n' + m.trim() + ' '); // numbered lists
-        lines.push(formatted);
-      }
-      if (synthesis.areas_of_agreement?.length > 0) {
-        lines.push('## Areas of Agreement', '');
-        for (const a of synthesis.areas_of_agreement) {
-          const who = Array.isArray(a.povers) ? a.povers.map((p: string) => POVER_INFO[p as Exclude<SpeakerId, 'user'>]?.label || p).join(', ') : '';
-          lines.push(`- ${stripNodeIds(a.point)}${who ? ` (${who})` : ''}`);
-        }
-      }
-      if (synthesis.areas_of_disagreement?.length > 0) {
-        lines.push('', '## Areas of Disagreement', '');
-        for (const d of synthesis.areas_of_disagreement) {
-          const typeTag = d.type ? ` [${d.type}]` : '';
-          const bdiTag = d.bdi_layer ? ` {${d.bdi_layer}}` : '';
-          lines.push(`- **${stripNodeIds(d.point)}**${typeTag}${bdiTag}`);
-          const BDI_RESOLVABILITY: Record<string, string> = { belief: 'resolvable_by_evidence', desire: 'negotiable_via_tradeoffs', intention: 'requires_term_clarification' };
-          const resolv = (d.bdi_layer && BDI_RESOLVABILITY[d.bdi_layer]) || d.resolvability;
-          if (resolv) {
-            lines.push(`  - *Resolution path: ${resolv.replace(/_/g, ' ')}*`);
-          }
-          if (Array.isArray(d.positions)) {
-            for (const pos of d.positions) {
-              const label = POVER_INFO[pos.pover as Exclude<SpeakerId, 'user'>]?.label || pos.pover;
-              lines.push(`  - ${label}: ${stripNodeIds(pos.stance)}`);
-            }
-          }
-        }
-      }
-      if (synthesis.cruxes?.length > 0) {
-        lines.push('', '## Cruxes', '');
-        for (const c of synthesis.cruxes) {
-          const typeTag = c.type ? ` [${c.type}]` : '';
-          lines.push(`- ${stripNodeIds(c.question)}${typeTag}`);
-          if (c.if_yes) lines.push(`  - If yes: ${stripNodeIds(c.if_yes)}`);
-          if (c.if_no) lines.push(`  - If no: ${stripNodeIds(c.if_no)}`);
-        }
-      }
-      if (synthesis.document_claims?.length > 0) {
-        lines.push('', '## Document Claims', '');
-        for (const dc of synthesis.document_claims) {
-          const accepted = Array.isArray(dc.accepted_by)
-            ? dc.accepted_by.map((p: string) => POVER_INFO[p as Exclude<SpeakerId, 'user'>]?.label || p).join(', ')
-            : '';
-          const challenged = Array.isArray(dc.challenged_by)
-            ? dc.challenged_by.map((p: string) => POVER_INFO[p as Exclude<SpeakerId, 'user'>]?.label || p).join(', ')
-            : '';
-          lines.push(`- ${stripNodeIds(dc.claim)}`);
-          if (accepted) lines.push(`  - Accepted by: ${accepted}`);
-          if (challenged) lines.push(`  - Challenged by: ${challenged}${dc.challenge_basis ? ` — ${stripNodeIds(dc.challenge_basis)}` : ''}`);
-        }
-      }
-      if (synthesis.preferences?.length > 0) {
-        lines.push('', '## Resolution Analysis', '');
-        for (const p of synthesis.preferences) {
-          if (p.prevails === 'undecidable') {
-            lines.push(`- **${stripNodeIds(p.conflict)}** — Undecidable`);
-            lines.push(`  - *${stripNodeIds(p.rationale)}*`);
-          } else {
-            let prevailsText = p.prevails;
-            if (/^C\d+$/.test(p.prevails) && synthesis.argument_map) {
-              const claim = synthesis.argument_map.find((c: { claim_id: string; claim: string; claimant: string }) => c.claim_id === p.prevails);
-              if (claim) prevailsText = `${claim.claimant}: "${stripNodeIds(claim.claim)}"`;
-            }
-            lines.push(`- **${stripNodeIds(p.conflict)}** — Stronger: ${prevailsText} (${p.criterion?.replace(/_/g, ' ')})`);
-            lines.push(`  - *${stripNodeIds(p.rationale)}*`);
-          }
-          if (p.what_would_change_this) {
-            lines.push(`  - Would change if: ${stripNodeIds(p.what_would_change_this)}`);
-          }
-        }
-      }
-      if (synthesis.unresolved_questions?.length > 0) {
-        lines.push('', '## Unresolved Questions', '');
-        for (const q of synthesis.unresolved_questions) {
-          lines.push(`- ${stripNodeIds(q)}`);
-        }
-      }
-      if (synthesis.argument_map?.length > 0) {
-        lines.push('', '## Argument Map', '');
-        for (const claim of synthesis.argument_map) {
-          const claimantLabel = POVER_INFO[claim.claimant as Exclude<SpeakerId, 'user'>]?.label || claim.claimant;
-          const typeTag = claim.type ? ` [${claim.type}]` : '';
-          lines.push(`- **${claim.claim_id}** (${claimantLabel})${typeTag}: ${stripNodeIds(claim.claim)}`);
-          if (claim.supported_by?.length > 0) {
-            for (const sup of claim.supported_by) {
-              if (typeof sup === 'string') {
-                lines.push(`  - Supported by: ${sup}`);
-              } else {
-                const schemeTag = sup.scheme ? ` (${sup.scheme.replace(/_/g, ' ')})` : '';
-                lines.push(`  - Supported by ${sup.claim_id}${schemeTag}${sup.warrant ? `: ${stripNodeIds(sup.warrant)}` : ''}`);
-              }
-            }
-          }
-          if (claim.attacked_by?.length > 0) {
-            for (const attack of claim.attacked_by) {
-              const attackerLabel = POVER_INFO[attack.claimant as Exclude<SpeakerId, 'user'>]?.label || attack.claimant;
-              const schemeTag = attack.scheme ? ` via ${attack.scheme}` : '';
-              lines.push(`  - ← **${attack.claim_id}** ${attack.attack_type}${schemeTag} (${attackerLabel}): ${stripNodeIds(attack.claim)}`);
-            }
-          }
-        }
-      }
-
-      const taxonomyCoverage: TaxonomyRef[] = (synthesis.taxonomy_coverage || [])
-        .filter((t: Record<string, unknown>) => t.node_id)
-        .map((t: Record<string, unknown>) => ({ node_id: t.node_id as string, relevance: (t.how_used as string) || '' }));
+  const taxonomyCoverage: TaxonomyRef[] = (synthesis.taxonomy_coverage || [])
+    .filter((t: Record<string, unknown>) => t.node_id)
+    .map((t: Record<string, unknown>) => ({ node_id: t.node_id as string, relevance: (t.how_used as string) || '' }));
   return { lines, taxonomyCoverage };
 }
 
