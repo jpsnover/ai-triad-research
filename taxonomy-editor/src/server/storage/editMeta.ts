@@ -96,6 +96,43 @@ export function changedFields(oldNode: NodeWithMeta, newNode: NodeWithMeta): str
   return fields.sort();
 }
 
+function restoreUnchangedStamps(node: NodeWithMeta, old: NodeWithMeta | undefined): NodeWithMeta {
+  if (!old) return node;
+  if (node._edit_meta !== undefined && node._edit_history !== undefined) return node;
+  const restored: NodeWithMeta = { ...node };
+  if (restored._edit_meta === undefined && old._edit_meta !== undefined) {
+    restored._edit_meta = old._edit_meta;
+  }
+  if (restored._edit_history === undefined && old._edit_history !== undefined) {
+    restored._edit_history = old._edit_history;
+  }
+  return restored;
+}
+
+function buildEditMeta(isNew: boolean, user: string, existing: NodeEditMeta | undefined, now: string): NodeEditMeta {
+  return {
+    last_edited_by: user,
+    last_edited_at: now,
+    created_by: isNew ? user : (existing?.created_by ?? user),
+    created_at: isNew ? now : (existing?.created_at ?? now),
+  };
+}
+
+function buildHistoryEntry(isNew: boolean, node: NodeWithMeta, oldMap: NodesById, user: string, now: string): EditHistoryEntry {
+  const fields = isNew ? ['*'] : changedFields(oldMap[node.id], node);
+  const entry: EditHistoryEntry = { user, timestamp: now, fields_changed: fields };
+
+  const descHist = node.description_history as TextHistoryEntry[] | undefined;
+  const labelHist = node.label_history as TextHistoryEntry[] | undefined;
+  const latestText = descHist?.at(-1) ?? labelHist?.at(-1);
+  if (latestText?.source && latestText.source !== 'interactive' && latestText.source !== 'initial') {
+    entry.source = latestText.source;
+    if (latestText.debate_id) entry.debate_id = latestText.debate_id;
+    if (latestText.reason) entry.reason = latestText.reason;
+  }
+  return entry;
+}
+
 export function stampNodeAuthorship(
   oldNodes: NodeWithMeta[],
   newNodes: NodeWithMeta[],
@@ -111,54 +148,18 @@ export function stampNodeAuthorship(
   const changedIds = new Set([...added, ...modified]);
 
   return newNodes.map(node => {
-    if (!changedIds.has(node.id)) {
-      // Unchanged node: carry forward prior authorship metadata. If the incoming
-      // payload dropped _edit_meta/_edit_history (the client didn't round-trip the
-      // stamps), restore them from disk so a re-save can't strip history a prior
-      // save recorded (t/828 root cause; the web PUT /api/taxonomy/:pov path had
-      // the same latent bug). Metadata is excluded from the content diff, so the
-      // node is genuinely unchanged — this only restores stamps, never content.
-      const old = oldMap[node.id];
-      if (!old) return node;
-      if (node._edit_meta !== undefined && node._edit_history !== undefined) return node;
-      const restored: NodeWithMeta = { ...node };
-      if (restored._edit_meta === undefined && old._edit_meta !== undefined) {
-        restored._edit_meta = old._edit_meta;
-      }
-      if (restored._edit_history === undefined && old._edit_history !== undefined) {
-        restored._edit_history = old._edit_history;
-      }
-      return restored;
-    }
+    // Unchanged node: carry forward prior authorship metadata. If the incoming
+    // payload dropped _edit_meta/_edit_history (the client didn't round-trip the
+    // stamps), restore them from disk so a re-save can't strip history a prior
+    // save recorded (t/828 root cause; the web PUT /api/taxonomy/:pov path had
+    // the same latent bug). Metadata is excluded from the content diff, so the
+    // node is genuinely unchanged — this only restores stamps, never content.
+    if (!changedIds.has(node.id)) return restoreUnchangedStamps(node, oldMap[node.id]);
 
     const existing = oldMap[node.id]?._edit_meta;
     const isNew = added.includes(node.id);
-
-    const meta: NodeEditMeta = {
-      last_edited_by: user,
-      last_edited_at: now,
-      created_by: isNew ? user : (existing?.created_by ?? user),
-      created_at: isNew ? now : (existing?.created_at ?? now),
-    };
-
-    const fields = isNew ? ['*'] : changedFields(oldMap[node.id], node);
-    const historyEntry: EditHistoryEntry = {
-      user,
-      timestamp: now,
-      fields_changed: fields,
-    };
-
-    // Copy reflection source from the node's text history so the edit
-    // record is self-contained (survives debate deletion — t/863#1).
-    const descHist = node.description_history as TextHistoryEntry[] | undefined;
-    const labelHist = node.label_history as TextHistoryEntry[] | undefined;
-    const latestText = descHist?.at(-1) ?? labelHist?.at(-1);
-    if (latestText?.source && latestText.source !== 'interactive' && latestText.source !== 'initial') {
-      historyEntry.source = latestText.source;
-      if (latestText.debate_id) historyEntry.debate_id = latestText.debate_id;
-      if (latestText.reason) historyEntry.reason = latestText.reason;
-    }
-
+    const meta = buildEditMeta(isNew, user, existing, now);
+    const historyEntry = buildHistoryEntry(isNew, node, oldMap, user, now);
     const prevHistory = (node._edit_history as EditHistoryEntry[] | undefined) ?? (oldMap[node.id]?._edit_history as EditHistoryEntry[] | undefined) ?? [];
     const newHistory = [...prevHistory, historyEntry].slice(-MAX_HISTORY_ENTRIES);
 
