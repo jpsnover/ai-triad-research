@@ -20,6 +20,142 @@ export interface TaxRefsTabProps {
   setOverviewTab: (tab: OverviewTab) => void;
 }
 
+type TaxRef = NonNullable<DebateSession['transcript'][number]['taxonomy_refs']>[number];
+type RelevanceSource = { node_id: string; source: 'an' | 'topic'; an_score: number; topic_score: number; best_claim_id?: string; best_claim_text?: string; best_claim_sim?: number };
+type NodeWeight = { confidence?: number; priority?: number; operationality?: number; category?: string };
+
+function scoreColorFor(score: number | undefined): string {
+  return score == null ? 'var(--text-muted)'
+    : score >= 0.45 ? 'var(--success)'
+    : score >= 0.30 ? 'var(--warning)'
+    : 'var(--danger)';
+}
+
+function weightLabelFor(tw: NodeWeight | undefined): string | null {
+  return tw?.category === 'Beliefs' ? 'Confidence'
+    : tw?.category === 'Desires' ? 'Priority'
+    : tw?.category === 'Intentions' ? 'Operationality' : null;
+}
+
+function weightValueFor(tw: NodeWeight | undefined): number | undefined {
+  return tw?.category === 'Beliefs' ? tw.confidence
+    : tw?.category === 'Desires' ? tw.priority
+    : tw?.category === 'Intentions' ? tw.operationality : undefined;
+}
+
+function RelevanceWeightLine({ score, weightLabel, weightValue }: { score: number | undefined; weightLabel: string | null; weightValue: number | undefined }) {
+  if (!(score != null || weightValue != null)) return null;
+  return (
+    <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', marginTop: 2 }}>
+      ({score != null && <>Relevance {score.toFixed(2)}</>}
+      {score != null && weightLabel && weightValue != null && ' ; '}
+      {weightLabel && weightValue != null && <>{weightLabel} {weightLabel === 'Confidence' ? weightValue.toFixed(2) : `${weightValue}/5`}</>})
+    </div>
+  );
+}
+
+function TaxRefIdCell({ r, score, tw, isSelected, setSelectedTaxRefId }: { r: TaxRef; score: number | undefined; tw: NodeWeight | undefined; isSelected: boolean; setSelectedTaxRefId: (id: string | null) => void }) {
+  const weightLabel = weightLabelFor(tw);
+  const weightValue = weightValueFor(tw);
+  return (
+    <>
+      <button
+        onClick={() => setSelectedTaxRefId(isSelected ? null : r.node_id)}
+        style={{
+          background: 'none', border: 'none', padding: 0, cursor: 'pointer',
+          color: 'var(--accent)', fontWeight: isSelected ? 700 : 600,
+          textDecoration: 'underline', fontFamily: 'inherit', fontSize: 'inherit', textAlign: 'left',
+        }}
+        title="Show Perspective details"
+      >{r.primary ? '★ ' : ''}{r.node_id}{(r as {label?: string}).label ? `: ${(r as {label?: string}).label}` : ''}</button>
+      <RelevanceWeightLine score={score} weightLabel={weightLabel} weightValue={weightValue} />
+    </>
+  );
+}
+
+function SourceCell({ src, isAN }: { src: RelevanceSource | undefined; isAN: boolean }) {
+  return (
+    <td style={{ padding: '4px 6px', verticalAlign: 'top' }}>
+      {src && (
+        <span style={{
+          display: 'inline-block',
+          padding: '1px 5px',
+          borderRadius: 3,
+          fontSize: 'var(--text-2xs)',
+          fontWeight: 700,
+          background: isAN ? 'color-mix(in srgb, var(--success) 20%, transparent)' : 'color-mix(in srgb, var(--warning) 20%, transparent)',
+          color: isAN ? 'var(--success)' : 'var(--warning)',
+        }}>{isAN ? (src.best_claim_id ?? 'AN') : 'TOPIC'}</span>
+      )}
+    </td>
+  );
+}
+
+function ScoringDetailRow({ src, isSelected, hasSourceData, setOverviewTab }: { src: RelevanceSource; isSelected: boolean; hasSourceData: boolean; setOverviewTab: (tab: OverviewTab) => void }) {
+  const isAN = src.source === 'an';
+  return (
+    <tr style={{ borderBottom: '1px solid var(--border)', background: isSelected ? 'color-mix(in srgb, var(--warning) 8%, transparent)' : 'transparent' }}>
+      <td colSpan={hasSourceData ? 4 : 3} style={{ padding: '0 6px 4px 20px' }}>
+        <details style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+          <summary style={{ cursor: 'pointer', userSelect: 'none' }}>Scoring detail</summary>
+          <div style={{ padding: '4px 0 2px 12px', lineHeight: 1.5 }}>
+            {isAN && src.best_claim_id && (
+              <div>
+                <strong>Best match:</strong>{' '}
+                <button onClick={() => setOverviewTab('argument-network')} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--accent)', textDecoration: 'underline', fontFamily: 'inherit', fontSize: 'inherit' }}>{src.best_claim_id}</button>
+                {src.best_claim_text && <> &ldquo;{truncateLabel(src.best_claim_text, 60)}&rdquo;</>}
+                {src.best_claim_sim != null && <> (sim: {src.best_claim_sim.toFixed(2)})</>}
+              </div>
+            )}
+            <div><strong>AN score:</strong> {src.an_score.toFixed(3)}</div>
+            <div><strong>Topic floor:</strong> {(src.topic_score * 0.5).toFixed(3)} (raw: {src.topic_score.toFixed(3)} {'×'} 0.5)</div>
+            <div><strong>Winner:</strong> {isAN ? 'AN score used' : 'Topic floor used — no AN match above floor'}</div>
+          </div>
+        </details>
+      </td>
+    </tr>
+  );
+}
+
+function TaxRefRow({ r, hasSourceData, isSelected, src, tw, setSelectedTaxRefId, setOverviewTab }: {
+  r: TaxRef;
+  hasSourceData: boolean;
+  isSelected: boolean;
+  src: RelevanceSource | undefined;
+  tw: NodeWeight | undefined;
+  setSelectedTaxRefId: (id: string | null) => void;
+  setOverviewTab: (tab: OverviewTab) => void;
+}) {
+  const score = r.relevance_score;
+  const scoreColor = scoreColorFor(score);
+  const isAN = src?.source === 'an';
+  return (
+    <Fragment>
+      <tr
+        style={{
+          borderBottom: src ? 'none' : '1px solid var(--border)',
+          background: isSelected ? 'color-mix(in srgb, var(--warning) 8%, transparent)' : 'transparent',
+        }}
+      >
+        {hasSourceData && <SourceCell src={src} isAN={isAN} />}
+        <td style={{ padding: '4px 6px', verticalAlign: 'top' }}>
+          <TaxRefIdCell r={r} score={score} tw={tw} isSelected={isSelected} setSelectedTaxRefId={setSelectedTaxRefId} />
+        </td>
+        <td style={{ padding: '4px 6px', verticalAlign: 'top', textAlign: 'center', fontWeight: 600, color: scoreColor, fontFamily: 'monospace', fontSize: '0.75rem' }}>
+          {score != null ? score.toFixed(2) : '—'}
+        </td>
+        <td style={{ padding: '4px 6px', verticalAlign: 'top', whiteSpace: 'normal', wordBreak: 'break-word' }}>
+          {r.relevance}
+        </td>
+      </tr>
+      {/* Expandable scoring detail */}
+      {src && (
+        <ScoringDetailRow src={src} isSelected={isSelected} hasSourceData={hasSourceData} setOverviewTab={setOverviewTab} />
+      )}
+    </Fragment>
+  );
+}
+
 /**
  * TaxRefsTab -- Taxonomy References tab.
  * Renders the taxonomy ref table with AN coverage and TaxonomyRefDetail.
@@ -155,96 +291,18 @@ export function TaxRefsTab({ entry, meta, debate, taxRefCount, nodeWeights, taxN
           </tr>
         </thead>
         <tbody>
-          {[...entry.taxonomy_refs!].sort((a, b) => (b.relevance_score ?? 0) - (a.relevance_score ?? 0)).map((r, i) => {
-            const isSelected = selectedTaxRefId === r.node_id;
-            const score = r.relevance_score;
-            const scoreColor = score == null ? 'var(--text-muted)'
-              : score >= 0.45 ? 'var(--success)'
-              : score >= 0.30 ? 'var(--warning)'
-              : 'var(--danger)';
-            const src = sourceMap.get(r.node_id);
-            const isAN = src?.source === 'an';
-            const tw = nodeWeights.get(r.node_id);
-            const weightLabel = tw?.category === 'Beliefs' ? 'Confidence'
-              : tw?.category === 'Desires' ? 'Priority'
-              : tw?.category === 'Intentions' ? 'Operationality' : null;
-            const weightValue = tw?.category === 'Beliefs' ? tw.confidence
-              : tw?.category === 'Desires' ? tw.priority
-              : tw?.category === 'Intentions' ? tw.operationality : undefined;
-            return (
-              <Fragment key={i}>
-                <tr
-                  style={{
-                    borderBottom: src ? 'none' : '1px solid var(--border)',
-                    background: isSelected ? 'color-mix(in srgb, var(--warning) 8%, transparent)' : 'transparent',
-                  }}
-                >
-                  {hasSourceData && (
-                    <td style={{ padding: '4px 6px', verticalAlign: 'top' }}>
-                      {src && (
-                        <span style={{
-                          display: 'inline-block',
-                          padding: '1px 5px',
-                          borderRadius: 3,
-                          fontSize: 'var(--text-2xs)',
-                          fontWeight: 700,
-                          background: isAN ? 'color-mix(in srgb, var(--success) 20%, transparent)' : 'color-mix(in srgb, var(--warning) 20%, transparent)',
-                          color: isAN ? 'var(--success)' : 'var(--warning)',
-                        }}>{isAN ? (src.best_claim_id ?? 'AN') : 'TOPIC'}</span>
-                      )}
-                    </td>
-                  )}
-                  <td style={{ padding: '4px 6px', verticalAlign: 'top' }}>
-                    <button
-                      onClick={() => setSelectedTaxRefId(isSelected ? null : r.node_id)}
-                      style={{
-                        background: 'none', border: 'none', padding: 0, cursor: 'pointer',
-                        color: 'var(--accent)', fontWeight: isSelected ? 700 : 600,
-                        textDecoration: 'underline', fontFamily: 'inherit', fontSize: 'inherit', textAlign: 'left',
-                      }}
-                      title="Show Perspective details"
-                    >{r.primary ? '★ ' : ''}{r.node_id}{(r as {label?: string}).label ? `: ${(r as {label?: string}).label}` : ''}</button>
-                    {(score != null || weightValue != null) && (
-                      <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', marginTop: 2 }}>
-                        ({score != null && <>Relevance {score.toFixed(2)}</>}
-                        {score != null && weightLabel && weightValue != null && ' ; '}
-                        {weightLabel && weightValue != null && <>{weightLabel} {weightLabel === 'Confidence' ? weightValue.toFixed(2) : `${weightValue}/5`}</>})
-                      </div>
-                    )}
-                  </td>
-                  <td style={{ padding: '4px 6px', verticalAlign: 'top', textAlign: 'center', fontWeight: 600, color: scoreColor, fontFamily: 'monospace', fontSize: '0.75rem' }}>
-                    {score != null ? score.toFixed(2) : '—'}
-                  </td>
-                  <td style={{ padding: '4px 6px', verticalAlign: 'top', whiteSpace: 'normal', wordBreak: 'break-word' }}>
-                    {r.relevance}
-                  </td>
-                </tr>
-                {/* Expandable scoring detail */}
-                {src && (
-                  <tr style={{ borderBottom: '1px solid var(--border)', background: isSelected ? 'color-mix(in srgb, var(--warning) 8%, transparent)' : 'transparent' }}>
-                    <td colSpan={hasSourceData ? 4 : 3} style={{ padding: '0 6px 4px 20px' }}>
-                      <details style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
-                        <summary style={{ cursor: 'pointer', userSelect: 'none' }}>Scoring detail</summary>
-                        <div style={{ padding: '4px 0 2px 12px', lineHeight: 1.5 }}>
-                          {isAN && src.best_claim_id && (
-                            <div>
-                              <strong>Best match:</strong>{' '}
-                              <button onClick={() => setOverviewTab('argument-network')} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--accent)', textDecoration: 'underline', fontFamily: 'inherit', fontSize: 'inherit' }}>{src.best_claim_id}</button>
-                              {src.best_claim_text && <> &ldquo;{truncateLabel(src.best_claim_text, 60)}&rdquo;</>}
-                              {src.best_claim_sim != null && <> (sim: {src.best_claim_sim.toFixed(2)})</>}
-                            </div>
-                          )}
-                          <div><strong>AN score:</strong> {src.an_score.toFixed(3)}</div>
-                          <div><strong>Topic floor:</strong> {(src.topic_score * 0.5).toFixed(3)} (raw: {src.topic_score.toFixed(3)} {'×'} 0.5)</div>
-                          <div><strong>Winner:</strong> {isAN ? 'AN score used' : 'Topic floor used — no AN match above floor'}</div>
-                        </div>
-                      </details>
-                    </td>
-                  </tr>
-                )}
-              </Fragment>
-            );
-          })}
+          {[...entry.taxonomy_refs!].sort((a, b) => (b.relevance_score ?? 0) - (a.relevance_score ?? 0)).map((r, i) => (
+            <TaxRefRow
+              key={i}
+              r={r}
+              hasSourceData={hasSourceData}
+              isSelected={selectedTaxRefId === r.node_id}
+              src={sourceMap.get(r.node_id)}
+              tw={nodeWeights.get(r.node_id)}
+              setSelectedTaxRefId={setSelectedTaxRefId}
+              setOverviewTab={setOverviewTab}
+            />
+          ))}
         </tbody>
       </table>
       {selectedTaxRefId && (() => {
