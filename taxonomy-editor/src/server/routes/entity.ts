@@ -60,6 +60,28 @@ function policiesOf(data: unknown): Record<string, unknown>[] {
   return Array.isArray(arr) ? (arr as Record<string, unknown>[]) : [];
 }
 
+/**
+ * Coerce a polymorphic string-array field to a real `string[]` at the read boundary.
+ * entities.json stores `aliases` and `source_refs` in THREE shapes (t/1964, Design
+ * live audit): array | null | bare string — e.g. aliases `["OAI"]` | `null` | `"GDPR"`,
+ * source_refs `["doc-1"]` | `"doc-1"`. A null crashes `.some`/`.length`; a bare string
+ * crashes `.map`/`.join` and renders its first character on `[0]`. Normalize here so no
+ * downstream consumer (browser summary, detail pane, mention flow) ever sees either.
+ * array→as-is · null/undefined→[] · string→single-element.
+ */
+function coerceStringArray(v: unknown): string[] {
+  return Array.isArray(v) ? (v as string[]) : v == null ? [] : [v as string];
+}
+
+/**
+ * Normalize an Entity's polymorphic string-array fields (`aliases`, `source_refs`) at
+ * the read boundary. The genus audit (t/1964#3, Design t/1882#7) bounds the coercion set
+ * to exactly these two fields — every other UI-rendered field is single-shape.
+ */
+function normalizeEntity(e: Entity): Entity {
+  return { ...e, aliases: coerceStringArray(e.aliases), source_refs: coerceStringArray(e.source_refs) };
+}
+
 /** Slugify a colloquial term into the `term:<slug>` wire form: lowercase,
  *  non-alphanumeric runs → single hyphen, trimmed. Deterministic and reversible
  *  enough that "labor displacement" ⇔ "labor-displacement". */
@@ -147,7 +169,9 @@ export function registerEntityRoutes(r: Router, _ctx: ServerCtx): void {
       const reg = await fileIO.readEntityRegistry();
       const rows: EntitySummary[] = reg
         ? [...reg.values()].map(e => ({
-            id: e.id, name: e.name, aliases: e.aliases,
+            // t/1964: aliases is polymorphic in the store (array | null | string) — coerce
+            // so EntityBrowserPanel's `e.aliases.some(...)` off the summary never crashes.
+            id: e.id, name: e.name, aliases: coerceStringArray(e.aliases),
             entity_type: e.entity_type, status: e.status,
             confidence: e.confidence, last_modified: e.last_modified,
           }))
@@ -225,11 +249,14 @@ export function registerEntityRoutes(r: Router, _ctx: ServerCtx): void {
           if (!registry) { json(res, notFound(ref)); return; }
           const resolved = resolveMergedInto(ref.id, id => registry.get(id) ?? null, { maxDepth: MAX_MERGE_DEPTH });
           if (!resolved) { json(res, notFound(ref)); return; }
+          // t/1964: normalize polymorphic aliases/source_refs before the detail/mention
+          // flow renders them — ent-034 "Claude" (the mention target) has aliases: null.
+          const record = normalizeEntity(resolved.record);
           json(
             res,
             resolved.redirectedFrom === undefined
-              ? { ref, kind: 'entity', record: resolved.record }
-              : { ref, redirected_from: resolved.redirectedFrom, kind: 'entity', record: resolved.record },
+              ? { ref, kind: 'entity', record }
+              : { ref, redirected_from: resolved.redirectedFrom, kind: 'entity', record },
           );
           return;
         }
