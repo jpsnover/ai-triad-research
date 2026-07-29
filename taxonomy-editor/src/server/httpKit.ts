@@ -26,6 +26,31 @@ export function json(res: ServerResponse, data: unknown, status = 200): void {
   res.end(JSON.stringify(data));
 }
 
+// t/1379: record 4xx client errors to the flight recorder (warn — expected
+// client errors, not server faults) so a client-side 4xx can be correlated with
+// server state by requestId. Server-side dump only; never leaked to the client.
+function recordClientError(res: ServerResponse, route: string, status: number, message: string): void {
+  getGlobalRecorder()?.record({
+    type: 'lifecycle', component: 'server', level: 'warn',
+    message: `${route}: ${status} client error`,
+    data: {
+      method: (res as unknown as { req?: { method?: string } }).req?.method,
+      path: route, status, requestId: getRequestId(), errorMessage: message,
+    },
+  });
+}
+
+// Prod 5xx: record the real detail server-side (withheld from the client body).
+function recordServerError(route: string, status: number, message: string, cause: unknown): void {
+  getGlobalRecorder()?.record({
+    type: 'system.error',
+    component: route,
+    level: 'error',
+    message: `${route}: server error (detail withheld from client)`,
+    error: { name: (cause as Error)?.name ?? 'Error', message, stack: (cause as Error)?.stack },
+  });
+}
+
 export function error(res: ServerResponse, message: string, status = 500, cause?: unknown): void {
   // M4: don't leak internal detail (file paths, stack) to clients on server
   // errors in production — record the real message server-side, return generic.
@@ -43,27 +68,11 @@ export function error(res: ServerResponse, message: string, status = 500, cause?
   if (status >= 500) {
     log.server.error({ component: route, status, err: cause }, `${route}: server error (${status}) — ${message}`);
   }
-  // t/1379: record 4xx client errors to the flight recorder (warn — expected
-  // client errors, not server faults) so a client-side 4xx can be correlated with
-  // server state by requestId. Server-side dump only; never leaked to the client.
   if (status >= 400 && status < 500) {
-    getGlobalRecorder()?.record({
-      type: 'lifecycle', component: 'server', level: 'warn',
-      message: `${route}: ${status} client error`,
-      data: {
-        method: (res as unknown as { req?: { method?: string } }).req?.method,
-        path: route, status, requestId: getRequestId(), errorMessage: message,
-      },
-    });
+    recordClientError(res, route, status, message);
   }
   if (status >= 500 && process.env.NODE_ENV === 'production') {
-    getGlobalRecorder()?.record({
-      type: 'system.error',
-      component: route,
-      level: 'error',
-      message: `${route}: server error (detail withheld from client)`,
-      error: { name: (cause as Error)?.name ?? 'Error', message, stack: (cause as Error)?.stack },
-    });
+    recordServerError(route, status, message, cause);
     json(res, { error: 'Internal server error', requestId: getRequestId() }, status);
     return;
   }

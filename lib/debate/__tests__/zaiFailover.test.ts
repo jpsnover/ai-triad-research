@@ -65,9 +65,9 @@ async function runWithTimers<T>(promise: Promise<T>): Promise<T> {
 
 // ── Setup / teardown ────────────────────────────────────
 
-// aiAdapter has no 'zai' entry in BACKEND_ENV_KEYS, so the zai call resolves
-// its key via the AI_API_KEY fallback; the gemini fallback uses GEMINI_API_KEY.
-const savedEnvKeys = ['GEMINI_API_KEY', 'AI_API_KEY', 'DEBATE_ENVELOPE'];
+// resolveApiKey('zai') reads ZAI_API_KEY first (t/1955), then falls through to
+// AI_API_KEY. The gemini fallback uses GEMINI_API_KEY.
+const savedEnvKeys = ['GEMINI_API_KEY', 'AI_API_KEY', 'ZAI_API_KEY', 'DEBATE_ENVELOPE'];
 const savedEnv: Record<string, string | undefined> = {};
 
 function onUnhandledRejection(event: PromiseRejectionEvent) {
@@ -118,7 +118,8 @@ afterEach(async () => {
 describe('Z.AI timeout failover (t/1628)', () => {
 
   it('a zai-glm-5-2 timeout fails over to gemini and returns a statement', async () => {
-    process.env.AI_API_KEY = 'test-key';       // zai (no BACKEND_ENV_KEYS entry)
+    process.env.ZAI_API_KEY = 'test-key';       // zai primary key (t/1955: ZAI_API_KEY → AI_API_KEY fallback)
+    process.env.AI_API_KEY = 'test-key';       // AI_API_KEY fallback (belt-and-suspenders)
     process.env.GEMINI_API_KEY = 'test-key';   // gemini fallback
 
     // Only the zai endpoint hangs; every other fetch (the gemini fallback)
