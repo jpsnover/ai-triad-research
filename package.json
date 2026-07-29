@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "debate": "tsx lib/debate/cli.ts",
-    "evals": "node evals/run.mjs"
+    "evals": "node evals/run.mjs",
+    "verify:config": "pwsh -File scripts/Verify-Config.ps1"
   },
   "devDependencies": {
     "tsx": "^4.23.1",
