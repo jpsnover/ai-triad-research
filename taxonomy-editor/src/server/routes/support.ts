@@ -33,6 +33,34 @@ function callerIdentity(): { principalName: string; idp: string } {
   return callerTierIdentity(getCurrentUser());
 }
 
+type ParsedSupportCase =
+  | { ok: true; subject: string; description: string; systemInfo: { appVersion: string; browser: string; os: string; deploymentMode: 'web' | 'electron' }; priority: 'low' | 'medium' | 'high' }
+  | { ok: false; error: string; status: number };
+
+/** Clamp the client-supplied systemInfo to known, length-bounded fields. */
+function boundSystemInfo(raw: unknown): { appVersion: string; browser: string; os: string; deploymentMode: 'web' | 'electron' } {
+  const si = (raw && typeof raw === 'object') ? raw as Record<string, unknown> : {};
+  return {
+    appVersion: String(si.appVersion ?? 'unknown').slice(0, 100),
+    browser: String(si.browser ?? 'unknown').slice(0, 200),
+    os: String(si.os ?? 'unknown').slice(0, 100),
+    deploymentMode: (si.deploymentMode === 'electron' ? 'electron' : 'web') as 'web' | 'electron',
+  };
+}
+
+/** Validate + normalize the create-case body: trims/length-caps subject & description,
+ *  clamps priority, and bounds the systemInfo fields. Returns a typed error on invalid input. */
+function parseSupportCaseBody(body: unknown): ParsedSupportCase {
+  const b = (body ?? {}) as { subject?: unknown; description?: unknown; systemInfo?: unknown; priority?: unknown };
+  const subject = typeof b.subject === 'string' ? b.subject.trim() : '';
+  const description = typeof b.description === 'string' ? b.description.trim() : '';
+  if (!subject || subject.length > 200) return { ok: false, error: 'subject is required (≤200 chars)', status: 400 };
+  if (!description || description.length > 10_000) return { ok: false, error: 'description is required (≤10000 chars)', status: 400 };
+  const priority = (b.priority === 'low' || b.priority === 'high') ? b.priority : 'medium';
+  const systemInfo = boundSystemInfo(b.systemInfo);
+  return { ok: true, subject, description, systemInfo, priority };
+}
+
 export function registerSupportRoutes(r: Router, _ctx: ServerCtx): void {
   const { get, post } = r;
 
@@ -59,22 +87,13 @@ export function registerSupportRoutes(r: Router, _ctx: ServerCtx): void {
   post('/api/support/cases', async (_req, res, body) => {
     if (isAnonymousUser()) { error(res, 'Sign in to file a support case', 401); return; }
     try {
-      const b = (body ?? {}) as { subject?: unknown; description?: unknown; systemInfo?: unknown; priority?: unknown };
-      const subject = typeof b.subject === 'string' ? b.subject.trim() : '';
-      const description = typeof b.description === 'string' ? b.description.trim() : '';
-      if (!subject || subject.length > 200) { error(res, 'subject is required (≤200 chars)', 400); return; }
-      if (!description || description.length > 10_000) { error(res, 'description is required (≤10000 chars)', 400); return; }
-      const priority = (b.priority === 'low' || b.priority === 'high') ? b.priority : 'medium';
-      const si = (b.systemInfo && typeof b.systemInfo === 'object') ? b.systemInfo as Record<string, unknown> : {};
-      const systemInfo = {
-        appVersion: String(si.appVersion ?? 'unknown').slice(0, 100),
-        browser: String(si.browser ?? 'unknown').slice(0, 200),
-        os: String(si.os ?? 'unknown').slice(0, 100),
-        deploymentMode: (si.deploymentMode === 'electron' ? 'electron' : 'web') as 'web' | 'electron',
-      };
+      const parsed = parseSupportCaseBody(body);
+      if (!parsed.ok) { error(res, parsed.error, parsed.status); return; }
       const userId = getStorageUserId();
       const { principalName } = callerIdentity();
-      const c = await supportStore.createCase(userId, principalName || userId, { subject, description, systemInfo, priority });
+      const c = await supportStore.createCase(userId, principalName || userId, {
+        subject: parsed.subject, description: parsed.description, systemInfo: parsed.systemInfo, priority: parsed.priority,
+      });
       json(res, { id: c.id, case: c });
     } catch (err) { getGlobalRecorder()?.record({ type: 'system.error', component: 'support', level: 'error', message: 'support: create case failed', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } }); error(res, String(err), 500, err); }
   });
