@@ -313,6 +313,38 @@ export function retryAfterMs(err: unknown): number {
   return 30_000;
 }
 
+// Normalize the caller-supplied key(s) to a filtered array, or undefined when the
+// caller passed nothing (→ fall back to the stored keys for each backend).
+function normalizeExplicitKeys(explicitApiKey: string | string[] | undefined): string[] | undefined {
+  if (explicitApiKey === undefined) return undefined;
+  return Array.isArray(explicitApiKey) ? explicitApiKey.filter(Boolean) : [explicitApiKey];
+}
+
+// Per-attempt generation options: explicit temperature > debate override > 0.7;
+// explicit timeout > backend default.
+function buildGenerateOptions(
+  options: { temperature?: number } | undefined,
+  timeoutMs: number | undefined,
+  currentModel: string,
+): GenerateOptions {
+  return {
+    temperature: options?.temperature ?? _debateTemperature ?? 0.7,
+    timeoutMs: timeoutMs ?? getDefaultTimeout(currentModel),
+  };
+}
+
+// No key for any model in the chain — throw a backend-named ActionableError.
+function throwNoApiKeyError(backend: string, modelsToTry: string[]): never {
+  const names: Record<string, string> = { gemini: 'Gemini', claude: 'Claude', groq: 'Groq', openai: 'OpenAI', tavily: 'Tavily', deepseek: 'DeepSeek', moonshot: 'Moonshot (Kimi)' };
+  const backendName = names[backend] ?? backend;
+  throw new ActionableError({
+    goal: `Generate text via ${backendName}`,
+    problem: `No API key configured for any model in the fallback chain: ${modelsToTry.join(' → ')}`,
+    location: 'aiBackends.generateText',
+    nextSteps: [`Set your ${backendName} API key in Settings`, 'Or switch to a backend that has a key configured'],
+  });
+}
+
 export async function generateText(
   prompt: string,
   model?: string,
@@ -322,9 +354,7 @@ export async function generateText(
   options?: { temperature?: number },
 ): Promise<GenerateResult> {
   const resolved = model || DEFAULT_MODEL;
-  const explicitKeys = explicitApiKey === undefined
-    ? undefined
-    : (Array.isArray(explicitApiKey) ? explicitApiKey.filter(Boolean) : [explicitApiKey]);
+  const explicitKeys = normalizeExplicitKeys(explicitApiKey);
   const modelsToTry = buildModelsToTry(resolved, explicitKeys !== undefined);
 
   let lastError: unknown;
@@ -341,21 +371,11 @@ export async function generateText(
         });
         continue;
       }
-      const names: Record<string, string> = { gemini: 'Gemini', claude: 'Claude', groq: 'Groq', openai: 'OpenAI', tavily: 'Tavily', deepseek: 'DeepSeek', moonshot: 'Moonshot (Kimi)' };
-      const backendName = names[backend] ?? backend;
-      throw new ActionableError({
-        goal: `Generate text via ${backendName}`,
-        problem: `No API key configured for any model in the fallback chain: ${modelsToTry.join(' → ')}`,
-        location: 'aiBackends.generateText',
-        nextSteps: [`Set your ${backendName} API key in Settings`, 'Or switch to a backend that has a key configured'],
-      });
+      throwNoApiKeyError(backend, modelsToTry);
     }
 
     const apiModel = getApiModelId(currentModel);
-    const opts: GenerateOptions = {
-      temperature: options?.temperature ?? _debateTemperature ?? 0.7,
-      timeoutMs: timeoutMs ?? getDefaultTimeout(currentModel),
-    };
+    const opts = buildGenerateOptions(options, timeoutMs, currentModel);
 
     const runWithRetry = (apiKey: string) => withRetry(
       () => callProvider(fetch, backend, prompt, apiModel, apiKey, opts),
