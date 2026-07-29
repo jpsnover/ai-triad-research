@@ -296,86 +296,148 @@ export function TaxonomyDiffPanel({ open, onClose, status, onManageChanges, onSu
           </div>
         </div>
 
-        <div className="txdiff-body">
-          {loading && <div className="txdiff-empty">Loading changes…</div>}
+        <DiffPanelBody loading={loading} unavailable={unavailable} totalCount={totalCount} data={data} />
 
-          {!loading && unavailable && (
-            <div className="txdiff-empty">
-              Node-level diff isn’t available right now. This view needs the sync
-              server with git sync enabled.
-            </div>
-          )}
+        <DiffPanelFooter
+          canSubmit={canSubmit}
+          submitted={submitted}
+          onManageChanges={onManageChanges}
+          description={description}
+          setDescription={setDescription}
+          setDescTouched={setDescTouched}
+          submitting={submitting}
+          submitError={submitError}
+          ghDisabled={ghDisabled}
+          existingPr={existingPr}
+          status={status}
+          onSubmit={onSubmit}
+          onClose={onClose}
+        />
+      </div>
+    </div>
+  );
+}
 
-          {!loading && !unavailable && totalCount === 0 && (
-            <div className="txdiff-empty">No pending changes — your session branch matches <code>main</code>.</div>
-          )}
+// ── Panel body + footer (extracted for complexity, t/1918) ──
 
-          {!loading && !unavailable && totalCount > 0 && data && (
-            <div className="txdiff-files">
-              {data.files.map(f => <FileSection key={f.path} file={f} />)}
-            </div>
-          )}
+function DiffPanelBody({ loading, unavailable, totalCount, data }: {
+  loading: boolean; unavailable: boolean; totalCount: number; data: NodeDiffResponse | null;
+}) {
+  return (
+    <div className="txdiff-body">
+      {loading && <div className="txdiff-empty">Loading changes…</div>}
+
+      {!loading && unavailable && (
+        <div className="txdiff-empty">
+          Node-level diff isn’t available right now. This view needs the sync
+          server with git sync enabled.
         </div>
+      )}
 
-        {(canSubmit || submitted || onManageChanges) && (
-          <div className="txdiff-footer">
-            {submitted ? (
-              <div className="txdiff-submitted">
-                <span className="txdiff-submitted-msg">
-                  {submitted.created ? 'Opened' : 'Updated'} PR #{submitted.number} ·{' '}
-                  <a href={submitted.url} target="_blank" rel="noreferrer noopener">View on GitHub ↗</a>
-                </span>
-                <button className="btn btn-primary btn-sm" onClick={onClose}>Done</button>
-              </div>
-            ) : canSubmit ? (
-              <div className="txdiff-submit">
-                <label className="txdiff-submit-label">
-                  <span>Description</span>
-                  <textarea
-                    rows={4}
-                    value={description}
-                    onChange={e => { setDescription(e.target.value); setDescTouched(true); }}
-                    disabled={submitting}
-                    placeholder="Describe these changes for the reviewer…"
-                  />
-                </label>
-                {submitError && <div className="txdiff-submit-error">{submitError}</div>}
-                <div className="txdiff-submit-actions">
-                  {onManageChanges && (
-                    <button
-                      className="btn btn-ghost"
-                      onClick={() => { onClose(); onManageChanges(); }}
-                      disabled={submitting}
-                      title="Open the sync drawer to resync or discard changes"
-                    >
-                      Manage changes →
-                    </button>
-                  )}
-                  <button
-                    className="btn btn-primary"
-                    onClick={() => void onSubmit()}
-                    disabled={submitting || ghDisabled}
-                    title={ghDisabled
-                      ? 'GitHub is not configured on this server.'
-                      : (existingPr ? 'Push the latest changes and update the pull request' : 'Open a pull request from your session branch to main')}
-                  >
-                    {submitting
-                      ? (existingPr ? 'Updating…' : 'Submitting…')
-                      : (existingPr ? `Update PR #${status!.pr_number}` : 'Submit for review')}
-                  </button>
-                </div>
-              </div>
-            ) : onManageChanges ? (
-              <button
-                className="btn btn-ghost"
-                onClick={() => { onClose(); onManageChanges(); }}
-                title="Open the sync drawer to resync or discard changes"
-              >
-                Manage changes →
-              </button>
-            ) : null}
-          </div>
+      {!loading && !unavailable && totalCount === 0 && (
+        <div className="txdiff-empty">No pending changes — your session branch matches <code>main</code>.</div>
+      )}
+
+      {!loading && !unavailable && totalCount > 0 && data && (
+        <div className="txdiff-files">
+          {data.files.map(f => <FileSection key={f.path} file={f} />)}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function DiffPanelFooter({
+  canSubmit, submitted, onManageChanges, description, setDescription, setDescTouched,
+  submitting, submitError, ghDisabled, existingPr, status, onSubmit, onClose,
+}: {
+  canSubmit: boolean; submitted: CreatePrSuccess | null; onManageChanges?: () => void;
+  description: string; setDescription: (v: string) => void; setDescTouched: (v: boolean) => void;
+  submitting: boolean; submitError: string | null; ghDisabled: boolean; existingPr: boolean;
+  status?: SyncStatus; onSubmit: () => void | Promise<void>; onClose: () => void;
+}) {
+  if (!(canSubmit || submitted || onManageChanges)) return null;
+  return (
+    <div className="txdiff-footer">
+      {submitted ? (
+        <div className="txdiff-submitted">
+          <span className="txdiff-submitted-msg">
+            {submitted.created ? 'Opened' : 'Updated'} PR #{submitted.number} ·{' '}
+            <a href={submitted.url} target="_blank" rel="noreferrer noopener">View on GitHub ↗</a>
+          </span>
+          <button className="btn btn-primary btn-sm" onClick={onClose}>Done</button>
+        </div>
+      ) : canSubmit ? (
+        <DiffPanelSubmitForm
+          description={description}
+          setDescription={setDescription}
+          setDescTouched={setDescTouched}
+          submitting={submitting}
+          submitError={submitError}
+          ghDisabled={ghDisabled}
+          existingPr={existingPr}
+          status={status}
+          onSubmit={onSubmit}
+          onManageChanges={onManageChanges}
+          onClose={onClose}
+        />
+      ) : onManageChanges ? (
+        <button
+          className="btn btn-ghost"
+          onClick={() => { onClose(); onManageChanges(); }}
+          title="Open the sync drawer to resync or discard changes"
+        >
+          Manage changes →
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
+function DiffPanelSubmitForm({
+  description, setDescription, setDescTouched, submitting, submitError,
+  ghDisabled, existingPr, status, onSubmit, onManageChanges, onClose,
+}: {
+  description: string; setDescription: (v: string) => void; setDescTouched: (v: boolean) => void;
+  submitting: boolean; submitError: string | null; ghDisabled: boolean; existingPr: boolean;
+  status?: SyncStatus; onSubmit: () => void | Promise<void>; onManageChanges?: () => void; onClose: () => void;
+}) {
+  return (
+    <div className="txdiff-submit">
+      <label className="txdiff-submit-label">
+        <span>Description</span>
+        <textarea
+          rows={4}
+          value={description}
+          onChange={e => { setDescription(e.target.value); setDescTouched(true); }}
+          disabled={submitting}
+          placeholder="Describe these changes for the reviewer…"
+        />
+      </label>
+      {submitError && <div className="txdiff-submit-error">{submitError}</div>}
+      <div className="txdiff-submit-actions">
+        {onManageChanges && (
+          <button
+            className="btn btn-ghost"
+            onClick={() => { onClose(); onManageChanges(); }}
+            disabled={submitting}
+            title="Open the sync drawer to resync or discard changes"
+          >
+            Manage changes →
+          </button>
         )}
+        <button
+          className="btn btn-primary"
+          onClick={() => void onSubmit()}
+          disabled={submitting || ghDisabled}
+          title={ghDisabled
+            ? 'GitHub is not configured on this server.'
+            : (existingPr ? 'Push the latest changes and update the pull request' : 'Open a pull request from your session branch to main')}
+        >
+          {submitting
+            ? (existingPr ? 'Updating…' : 'Submitting…')
+            : (existingPr ? `Update PR #${status!.pr_number}` : 'Submit for review')}
+        </button>
       </div>
     </div>
   );
