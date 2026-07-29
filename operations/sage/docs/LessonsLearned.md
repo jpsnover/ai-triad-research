@@ -185,6 +185,26 @@ Institutional memory for failure patterns across the AI Triad Research project.
 
 ---
 
+## [PowerShell] `Select-Object -First N` Sends a Stop-Upstream Signal — Truncates a `Tee-Object`/side-effect Write in the Same Pipeline
+
+**Pattern:** Putting `Select-Object -First N` at the end of a pipeline that also *writes* upstream (e.g. `... | Tee-Object -File f | Select-Object -First N`) produces a **truncated file**. Once `-First N` has its N items it fires a **stop-upstream signal**; PowerShell tears the pipeline down early, so the upstream `Tee-Object -File` only ever flushed the first N items to disk. The on-screen output looks right (N lines) while the file on disk is incomplete/invalid (e.g. truncated JSON).
+
+**Instances:**
+- 2026-07-28 — Shared Lib (p/5#15, self-resolved): `node gen.mjs | Tee-Object -File f | Select-Object -First 60` wrote **invalid, truncated JSON** — `-First 60` stopped the pipeline after 60 lines, so `Tee-Object` flushed only 60 of the full output. Fixed by capturing the full output with a plain redirect (`node ... | Out-File f`) and applying `Select-Object -First` only to a **separate display read**, never in the same pipeline as the file write.
+
+**Root Cause:** `Select-Object -First N` is an optimizing cmdlet — to avoid processing more than needed it throws `StopUpstreamCommandsException` (the "stop-upstream" signal) as soon as it has N objects, halting every upstream stage, including a `Tee-Object -File` whose *side effect* (writing to disk) is therefore cut short. The file is a partial artifact even though the pipeline "succeeded." Any side-effecting stage upstream of a `-First`/short-circuiting consumer is at risk — not just `Tee-Object` (also mid-pipeline `Out-File`, `Export-Csv`, a custom writer).
+
+**Prevention:**
+1. **Never put a file-writing stage (`Tee-Object -File`, mid-pipeline `Out-File`) upstream of `Select-Object -First N`** in the same pipeline — the `-First` stop-signal truncates the write.
+2. **Capture the full output first, then read a slice separately:** `node ... | Out-File f` (complete file), then `Get-Content f | Select-Object -First 60` for display. Separate the write from the truncating read.
+3. **Treat any short-circuiting consumer (`-First`, a `break` inside `ForEach-Object`) as pipeline-halting** — don't rely on an upstream side effect completing after it fires.
+
+**Status:** Active — PowerShell pipeline-semantics gotcha; the stop-upstream optimization silently truncates upstream side-effecting writes.
+
+**Applies To:** All agents writing PowerShell pipelines that both write a file and slice output with `Select-Object -First`.
+
+---
+
 ## [PowerShell] Private Module Functions Not Available in Standalone Scripts
 
 **Pattern:** Calling a `Private/` module function (e.g., `Get-DataRoot`) from a standalone `.ps1` script fails with "not recognized" because private functions are only available within the module scope.
