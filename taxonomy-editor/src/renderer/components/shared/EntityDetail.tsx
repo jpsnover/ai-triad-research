@@ -64,8 +64,8 @@ export function EntityDetail({ entity, redirectedFrom }: { entity: Entity; redir
           <TypeBadge type={entity_type} />
           <span className="ed-dolce-chip" title={dolce_category}>{humanizeDolce(dolce_category)}</span>
         </div>
-        {aliases.length > 0 && (
-          <div className="ed-aliases">also: {aliases.join(', ')}</div>
+        {(aliases ?? []).length > 0 && (
+          <div className="ed-aliases">also: {(aliases ?? []).join(', ')}</div>
         )}
         <div className="ed-status-row">
           <span className={`ed-status-pill ed-status-${status}`}>{STATUS_LABEL[status]}</span>

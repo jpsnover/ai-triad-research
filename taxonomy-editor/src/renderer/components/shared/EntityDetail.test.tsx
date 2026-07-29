@@ -34,6 +34,13 @@ const fullEntity: Entity = {
 };
 
 describe('EntityDetail', () => {
+  it('does not crash when aliases is null (real-data defect, t/1884#3)', () => {
+    // ent-034 "Claude" (the mention target) has aliases:null despite the string[] type.
+    render(<EntityDetail entity={{ ...fullEntity, aliases: null as unknown as string[] }} />);
+    expect(screen.getByRole('heading', { name: 'OpenAI' })).toBeInTheDocument();
+    expect(screen.queryByText(/^also:/)).not.toBeInTheDocument(); // no alias row, no throw
+  });
+
   it('renders the full field set', () => {
     render(<EntityDetail entity={fullEntity} />);
     expect(screen.getByRole('heading', { name: 'OpenAI' })).toBeInTheDocument();

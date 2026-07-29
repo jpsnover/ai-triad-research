@@ -45,7 +45,9 @@ function matchesSearch(e: EntitySummary, q: string): boolean {
     e.name.toLowerCase().includes(q) ||
     e.id.toLowerCase().includes(q) ||
     e.entity_type.toLowerCase().includes(q) ||
-    e.aliases.some(a => a.toLowerCase().includes(q))
+    // Defensive: real data has aliases:null on ~40% of entities despite the string[]
+    // type (t/1884#3); server normalization is the complementary fix.
+    (e.aliases ?? []).some(a => a.toLowerCase().includes(q))
   );
 }
 
@@ -62,7 +64,7 @@ function compareEntities(a: EntitySummary, b: EntitySummary, sort: SortKey): num
 
 /** One entity row — role=option; compact name + type badge + status dot + muted alias line. */
 function EntityRow({ entity, selected, onSelect }: { entity: EntitySummary; selected: boolean; onSelect: () => void }) {
-  const alias = entity.aliases[0];
+  const alias = entity.aliases?.[0]; // aliases can be null in real data despite the string[] type (t/1884#3)
   return (
     <li
       id={`ebp-opt-${entity.id}`}

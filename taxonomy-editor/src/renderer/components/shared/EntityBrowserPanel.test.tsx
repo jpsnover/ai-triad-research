@@ -45,6 +45,20 @@ function options() {
 }
 
 describe('EntityBrowserPanel', () => {
+  it('does not crash when an entity has aliases:null (real-data defect, t/1884#3)', async () => {
+    // ~40% of real entities carry aliases:null despite the string[] type. Exercises the
+    // row [0] read AND the search .some() path — both must survive null.
+    listEntitiesMock.mockResolvedValue([
+      { id: 'ent-034', name: 'Claude', aliases: null as unknown as string[], entity_type: 'artifact', status: 'approved', confidence: 0.9, last_modified: '2026-02-01' },
+    ]);
+    const user = userEvent.setup();
+    render(<EntityBrowserPanel />);
+    expect(await screen.findByText('Claude')).toBeInTheDocument();
+    expect(options()).toHaveLength(1);
+    await user.type(screen.getByLabelText('Search entities'), 'anything'); // .some over null must not throw
+    expect(screen.getByText('No entities match')).toBeInTheDocument();
+  });
+
   it('lists all entities and shows the total count', async () => {
     render(<EntityBrowserPanel />);
     expect(await screen.findByText('OpenAI')).toBeInTheDocument();
