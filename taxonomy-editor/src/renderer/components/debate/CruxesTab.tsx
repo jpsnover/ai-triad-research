@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import type { Dispatch, SetStateAction } from 'react';
 import { api, isElectronMode } from '@bridge';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { useTaxonomyStore } from '../../hooks/useTaxonomyStore';
@@ -108,134 +109,253 @@ export function CruxesTab() {
 
   return (
     <div className={`two-column${isPhone ? ' phone-mode' : ''}${isPhone && selectedNodeId && !toolbarPanel ? ' has-selection' : ''}`}>
-      {fullWidth ? (
-        <div className="list-panel list-panel-full">
-            {isPhone && <PhoneToolClose />}
-          <ToolbarPaneRenderer
-            panel={toolbarPanel}
-            onSelectResult={setSearchPreviewId}
-            onSelectPrompt={setSelectedPromptEntry}
-            onInspectorToggle={setPromptInspectorActive}
-          />
-        </div>
-      ) : toolbarPanel ? (
-        <div
-          className="list-panel"
-          // eslint-disable-next-line local/no-inline-style -- dynamic: width from useResizablePanel
-          style={{ width }}
-        >
-            {isPhone && <PhoneToolClose />}
-          <ToolbarPaneRenderer
-            panel={toolbarPanel}
-            onSelectResult={setSearchPreviewId}
-            onSelectPrompt={setSelectedPromptEntry}
-            onInspectorToggle={setPromptInspectorActive}
-          />
-        </div>
-      ) : listCollapsed ? (
-        <div className="pane-collapsed pane-collapsed-list" onClick={() => setListCollapsed(false)} title="Expand list">
-          <span className="pane-collapsed-label">Cruxes</span>
-        </div>
-      ) : (
-        <div
-          className="list-panel"
-          // eslint-disable-next-line local/no-inline-style -- dynamic: width from useResizablePanel
-          style={{ width }}
-        >
-          <div className="list-panel-header">
-            <h2>Cruxes</h2>
-            <div className="list-panel-header-actions">
-              <span className="crux-count-label">{filteredCruxes.length} of {cruxes.length}</span>
-              <button className="pane-collapse-btn" onClick={() => setListCollapsed(true)} title="Collapse" aria-label="Collapse panel">&lsaquo;</button>
-            </div>
-          </div>
-
-          {/* Filter bar */}
-          <div className="crux-filter-bar">
-            {(['all', 'empirical', 'values', 'definitional'] as const).map(t => (
-              <button
-                key={t}
-                className={`btn btn-sm crux-filter-btn${typeFilter === t ? ' btn-primary' : ''}`}
-                onClick={() => setTypeFilter(t)}
-              >
-                {t === 'all' ? 'All' : TYPE_LABELS[t]} ({typeCounts[t]})
-              </button>
-            ))}
-          </div>
-          <div className="crux-resolution-filter-bar">
-            {(['all', 'active', 'resolved', 'irreducible'] as const).map(r => (
-              <button
-                key={r}
-                className={`btn btn-sm crux-resolution-filter-btn${resolutionFilter === r ? ' btn-primary' : ''}`}
-                onClick={() => setResolutionFilter(r)}
-              >
-                {r}
-              </button>
-            ))}
-          </div>
-
-          {/* Search */}
-          <div className="crux-search-bar">
-            <SearchWithHistory
-              area="cruxes"
-              placeholder="Search cruxes..."
-              value={searchText}
-              onChange={setSearchText}
-              className="search-panel-text-input"
-            />
-          </div>
-
-          {/* Crux list */}
-          <div className="list-panel-items">
-            {filteredCruxes.length === 0 ? (
-              <div className="crux-empty">No cruxes match filters</div>
-            ) : (
-              filteredCruxes.map(crux => (
-                <CruxListItem
-                  key={crux.id}
-                  crux={crux}
-                  isSelected={selectedNodeId === crux.id}
-                  onSelect={setSelectedNodeId}
-                />
-              ))
-            )}
-          </div>
-        </div>
-      )}
+      <CruxListPane
+        fullWidth={fullWidth}
+        isPhone={isPhone}
+        toolbarPanel={toolbarPanel}
+        width={width}
+        setSearchPreviewId={setSearchPreviewId}
+        setSelectedPromptEntry={setSelectedPromptEntry}
+        setPromptInspectorActive={setPromptInspectorActive}
+        listCollapsed={listCollapsed}
+        setListCollapsed={setListCollapsed}
+        filteredCruxes={filteredCruxes}
+        cruxes={cruxes}
+        typeFilter={typeFilter}
+        setTypeFilter={setTypeFilter}
+        resolutionFilter={resolutionFilter}
+        setResolutionFilter={setResolutionFilter}
+        searchText={searchText}
+        setSearchText={setSearchText}
+        typeCounts={typeCounts}
+        selectedNodeId={selectedNodeId}
+        setSelectedNodeId={setSelectedNodeId}
+      />
 
       {!fullWidth && <div className="resize-handle" onMouseDown={onMouseDown} />}
 
-      {fullWidth ? null : toolbarPanel === 'search' ? (
-        <div className="detail-panel">
-          <SearchPreview searchPreviewId={searchPreviewId} onClear={() => setSearchPreviewId(null)} />
+      <CruxDetailPane
+        fullWidth={fullWidth}
+        toolbarPanel={toolbarPanel}
+        searchPreviewId={searchPreviewId}
+        setSearchPreviewId={setSearchPreviewId}
+        selectedPromptEntry={selectedPromptEntry}
+        promptInspectorActive={promptInspectorActive}
+        detailCollapsed={detailCollapsed}
+        setDetailCollapsed={setDetailCollapsed}
+        isPhone={isPhone}
+        selectedNodeId={selectedNodeId}
+        setSelectedNodeId={setSelectedNodeId}
+        selectedCrux={selectedCrux}
+        handleDebateClick={handleDebateClick}
+      />
+    </div>
+  );
+}
+
+// ── List Pane (left column) ──
+
+type TaxonomyStore = ReturnType<typeof useTaxonomyStore.getState>;
+
+interface CruxListPaneProps {
+  fullWidth: boolean;
+  isPhone: boolean;
+  toolbarPanel: TaxonomyStore['toolbarPanel'];
+  width: number;
+  setSearchPreviewId: Dispatch<SetStateAction<string | null>>;
+  setSelectedPromptEntry: Dispatch<SetStateAction<PromptCatalogEntry | null>>;
+  setPromptInspectorActive: Dispatch<SetStateAction<boolean>>;
+  listCollapsed: boolean;
+  setListCollapsed: Dispatch<SetStateAction<boolean>>;
+  filteredCruxes: AggregatedCrux[];
+  cruxes: AggregatedCrux[];
+  typeFilter: CruxType | 'all';
+  setTypeFilter: Dispatch<SetStateAction<CruxType | 'all'>>;
+  resolutionFilter: ResolutionFilter;
+  setResolutionFilter: Dispatch<SetStateAction<ResolutionFilter>>;
+  searchText: string;
+  setSearchText: Dispatch<SetStateAction<string>>;
+  typeCounts: { all: number; empirical: number; values: number; definitional: number };
+  selectedNodeId: TaxonomyStore['selectedNodeId'];
+  setSelectedNodeId: TaxonomyStore['setSelectedNodeId'];
+}
+
+/** Presentational left column: toolbar panes, collapsed rail, or the filter/search/list panel. */
+function CruxListPane({
+  fullWidth, isPhone, toolbarPanel, width,
+  setSearchPreviewId, setSelectedPromptEntry, setPromptInspectorActive,
+  listCollapsed, setListCollapsed, filteredCruxes, cruxes,
+  typeFilter, setTypeFilter, resolutionFilter, setResolutionFilter,
+  searchText, setSearchText, typeCounts, selectedNodeId, setSelectedNodeId,
+}: CruxListPaneProps) {
+  if (fullWidth) {
+    return (
+      <div className="list-panel list-panel-full">
+          {isPhone && <PhoneToolClose />}
+        <ToolbarPaneRenderer
+          panel={toolbarPanel}
+          onSelectResult={setSearchPreviewId}
+          onSelectPrompt={setSelectedPromptEntry}
+          onInspectorToggle={setPromptInspectorActive}
+        />
+      </div>
+    );
+  }
+  if (toolbarPanel) {
+    return (
+      <div
+        className="list-panel"
+        // eslint-disable-next-line local/no-inline-style -- dynamic: width from useResizablePanel
+        style={{ width }}
+      >
+          {isPhone && <PhoneToolClose />}
+        <ToolbarPaneRenderer
+          panel={toolbarPanel}
+          onSelectResult={setSearchPreviewId}
+          onSelectPrompt={setSelectedPromptEntry}
+          onInspectorToggle={setPromptInspectorActive}
+        />
+      </div>
+    );
+  }
+  if (listCollapsed) {
+    return (
+      <div className="pane-collapsed pane-collapsed-list" onClick={() => setListCollapsed(false)} title="Expand list">
+        <span className="pane-collapsed-label">Cruxes</span>
+      </div>
+    );
+  }
+  return (
+    <div
+      className="list-panel"
+      // eslint-disable-next-line local/no-inline-style -- dynamic: width from useResizablePanel
+      style={{ width }}
+    >
+      <div className="list-panel-header">
+        <h2>Cruxes</h2>
+        <div className="list-panel-header-actions">
+          <span className="crux-count-label">{filteredCruxes.length} of {cruxes.length}</span>
+          <button className="pane-collapse-btn" onClick={() => setListCollapsed(true)} title="Collapse" aria-label="Collapse panel">&lsaquo;</button>
         </div>
-      ) : (toolbarPanel === 'prompts' && !promptInspectorActive) ? (
-        <div className="detail-panel">
-          <PromptDetailPanel entry={selectedPromptEntry} />
-        </div>
-      ) : detailCollapsed ? (
-        <div className="pane-collapsed pane-collapsed-detail" onClick={() => setDetailCollapsed(false)} title="Expand detail">
-          <span className="pane-collapsed-label">Detail</span>
+      </div>
+
+      {/* Filter bar */}
+      <div className="crux-filter-bar">
+        {(['all', 'empirical', 'values', 'definitional'] as const).map(t => (
+          <button
+            key={t}
+            className={`btn btn-sm crux-filter-btn${typeFilter === t ? ' btn-primary' : ''}`}
+            onClick={() => setTypeFilter(t)}
+          >
+            {t === 'all' ? 'All' : TYPE_LABELS[t]} ({typeCounts[t]})
+          </button>
+        ))}
+      </div>
+      <div className="crux-resolution-filter-bar">
+        {(['all', 'active', 'resolved', 'irreducible'] as const).map(r => (
+          <button
+            key={r}
+            className={`btn btn-sm crux-resolution-filter-btn${resolutionFilter === r ? ' btn-primary' : ''}`}
+            onClick={() => setResolutionFilter(r)}
+          >
+            {r}
+          </button>
+        ))}
+      </div>
+
+      {/* Search */}
+      <div className="crux-search-bar">
+        <SearchWithHistory
+          area="cruxes"
+          placeholder="Search cruxes..."
+          value={searchText}
+          onChange={setSearchText}
+          className="search-panel-text-input"
+        />
+      </div>
+
+      {/* Crux list */}
+      <div className="list-panel-items">
+        {filteredCruxes.length === 0 ? (
+          <div className="crux-empty">No cruxes match filters</div>
+        ) : (
+          filteredCruxes.map(crux => (
+            <CruxListItem
+              key={crux.id}
+              crux={crux}
+              isSelected={selectedNodeId === crux.id}
+              onSelect={setSelectedNodeId}
+            />
+          ))
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── Detail Pane (right column) ──
+
+interface CruxDetailPaneProps {
+  fullWidth: boolean;
+  toolbarPanel: TaxonomyStore['toolbarPanel'];
+  searchPreviewId: string | null;
+  setSearchPreviewId: Dispatch<SetStateAction<string | null>>;
+  selectedPromptEntry: PromptCatalogEntry | null;
+  promptInspectorActive: boolean;
+  detailCollapsed: boolean;
+  setDetailCollapsed: Dispatch<SetStateAction<boolean>>;
+  isPhone: boolean;
+  selectedNodeId: TaxonomyStore['selectedNodeId'];
+  setSelectedNodeId: TaxonomyStore['setSelectedNodeId'];
+  selectedCrux: AggregatedCrux | null;
+  handleDebateClick: (debateId: string) => void;
+}
+
+/** Presentational right column: search preview, prompt detail, collapsed rail, or the crux detail panel. */
+function CruxDetailPane({
+  fullWidth, toolbarPanel, searchPreviewId, setSearchPreviewId,
+  selectedPromptEntry, promptInspectorActive, detailCollapsed, setDetailCollapsed,
+  isPhone, selectedNodeId, setSelectedNodeId, selectedCrux, handleDebateClick,
+}: CruxDetailPaneProps) {
+  if (fullWidth) return null;
+  if (toolbarPanel === 'search') {
+    return (
+      <div className="detail-panel">
+        <SearchPreview searchPreviewId={searchPreviewId} onClear={() => setSearchPreviewId(null)} />
+      </div>
+    );
+  }
+  if (toolbarPanel === 'prompts' && !promptInspectorActive) {
+    return (
+      <div className="detail-panel">
+        <PromptDetailPanel entry={selectedPromptEntry} />
+      </div>
+    );
+  }
+  if (detailCollapsed) {
+    return (
+      <div className="pane-collapsed pane-collapsed-detail" onClick={() => setDetailCollapsed(false)} title="Expand detail">
+        <span className="pane-collapsed-label">Detail</span>
+      </div>
+    );
+  }
+  return (
+    <div className="detail-panel">
+      {isPhone && selectedNodeId ? (
+        <div className="phone-detail-header">
+          <button className="phone-detail-back" onClick={() => setSelectedNodeId('')}>
+            &larr; Cruxes
+          </button>
         </div>
       ) : (
-        <div className="detail-panel">
-          {isPhone && selectedNodeId ? (
-            <div className="phone-detail-header">
-              <button className="phone-detail-back" onClick={() => setSelectedNodeId('')}>
-                &larr; Cruxes
-              </button>
-            </div>
-          ) : (
-            <div className="crux-detail-collapse-row">
-              <button className="pane-collapse-btn" onClick={() => setDetailCollapsed(true)} title="Collapse" aria-label="Collapse panel">&lsaquo;</button>
-            </div>
-          )}
-          {selectedCrux ? (
-            <CruxDetail crux={selectedCrux} onDebateClick={handleDebateClick} />
-          ) : (
-            <div className="detail-panel-empty">Select a crux to view details</div>
-          )}
+        <div className="crux-detail-collapse-row">
+          <button className="pane-collapse-btn" onClick={() => setDetailCollapsed(true)} title="Collapse" aria-label="Collapse panel">&lsaquo;</button>
         </div>
+      )}
+      {selectedCrux ? (
+        <CruxDetail crux={selectedCrux} onDebateClick={handleDebateClick} />
+      ) : (
+        <div className="detail-panel-empty">Select a crux to view details</div>
       )}
     </div>
   );

@@ -11,6 +11,7 @@ import { useShallow } from 'zustand/react/shallow';
 import { POVER_INFO, DEBATE_AUDIENCES } from '../../types/debate';
 import type { SpeakerId, DebateAudience } from '../../types/debate';
 import { AI_POVERS } from '@lib/debate/types';
+import type { DebateSession } from '../../types/debate';
 import { DEBATE_PROTOCOLS } from '../../data/debateProtocols';
 
 type DebatePacing = 'tight' | 'moderate' | 'thorough';
@@ -20,6 +21,27 @@ const PACING_PRESETS: { id: DebatePacing; label: string; desc: string }[] = [
   { id: 'moderate', label: 'Moderate', desc: 'Balanced depth.' },
   { id: 'thorough', label: 'Thorough', desc: 'Deep dive, longer exploration.' },
 ];
+
+interface SituationDebateConfig {
+  effectiveModel?: string;
+  pacing: DebatePacing;
+  useAdaptiveStaging: boolean;
+  temperature: number;
+  audience: DebateAudience;
+  protocolId: string;
+}
+
+// Apply the panel's non-default config onto a freshly created session (t/1915:
+// extracted from handleLaunch to keep that handler under the complexity ceiling).
+// Mirrors the original inline order exactly; only non-default values are written.
+function applySituationDebateConfig(session: DebateSession, cfg: SituationDebateConfig) {
+  if (cfg.effectiveModel) session.debate_model = cfg.effectiveModel;
+  if (cfg.pacing !== 'moderate') (session as unknown as Record<string, unknown>).pacing = cfg.pacing;
+  if (cfg.useAdaptiveStaging) (session as unknown as Record<string, unknown>).adaptive_staging = true;
+  if (cfg.temperature !== 0.7) (session as unknown as Record<string, unknown>).temperature = cfg.temperature;
+  if (cfg.audience !== 'policymakers') (session as unknown as Record<string, unknown>).audience = cfg.audience;
+  if (cfg.protocolId !== 'structured') (session as unknown as Record<string, unknown>).protocol_id = cfg.protocolId;
+}
 
 interface SituationDebatePanelProps {
   node: SituationNode;
@@ -77,12 +99,7 @@ export function SituationDebatePanel({ node, onLaunched }: SituationDebatePanelP
       const store = useDebateStore.getState();
       const session = store.activeDebate;
       if (session) {
-        if (effectiveModel) session.debate_model = effectiveModel;
-        if (pacing !== 'moderate') (session as unknown as Record<string, unknown>).pacing = pacing;
-        if (useAdaptiveStaging) (session as unknown as Record<string, unknown>).adaptive_staging = true;
-        if (temperature !== 0.7) (session as unknown as Record<string, unknown>).temperature = temperature;
-        if (audience !== 'policymakers') (session as unknown as Record<string, unknown>).audience = audience;
-        if (protocolId !== 'structured') (session as unknown as Record<string, unknown>).protocol_id = protocolId;
+        applySituationDebateConfig(session, { effectiveModel, pacing, useAdaptiveStaging, temperature, audience, protocolId });
         await store.saveDebate();
       }
 
