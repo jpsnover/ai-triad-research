@@ -7,11 +7,14 @@
 // the render-side staleness (quote-match) guard.
 
 import { describe, it, expect } from 'vitest';
+import { createHash } from 'node:crypto';
 import type { Mention } from '@lib/entities/mentionTypes';
+import goldenFixtures from '@lib/entities/mentionTextFixtures.json';
 import {
   reconstructNodeContainer,
   reconstructSeiContainer,
   buildFieldSegments,
+  type NodeContainerSource,
 } from './mentionText';
 
 const m = (entity_ref: string, quote: string, offset: number): Mention =>
@@ -164,4 +167,21 @@ describe('buildFieldSegments — offset overlay + staleness guard', () => {
   it('a field with no mentions renders as a single plain segment', () => {
     expect(buildFieldSegments(labelField, [])).toEqual([{ text: 'OpenAI builds AI' }]);
   });
+});
+
+// Cross-runtime drift guard (t/1904): assert this TS reconstruction stays byte-identical
+// to the shared golden fixtures that B (PowerShell/Pester) also asserts against — so a
+// recipe drift between the two implementations fails a test instead of silently
+// misplacing links. Fixtures are spec-derived (lib/entities/mentionTextFixtures.json);
+// each carries the expected NFC code points AND sha256(UTF-8) of the reconstructed text.
+describe('golden fixtures (cross-runtime recipe-drift guard, t/1904)', () => {
+  for (const fx of goldenFixtures.fixtures) {
+    it(fx.id, () => {
+      const text = fx.kind === 'node'
+        ? reconstructNodeContainer(fx.input as unknown as NodeContainerSource).text
+        : reconstructSeiContainer((fx.input as unknown as { claims: string[] }).claims).text;
+      expect(Array.from(text, ch => ch.codePointAt(0))).toEqual(fx.expected_nfc_codepoints);
+      expect(createHash('sha256').update(text, 'utf8').digest('hex')).toBe(fx.expected_sha256);
+    });
+  }
 });
