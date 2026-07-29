@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-import { useState, useRef } from 'react';
+import { useState, useRef, type RefObject } from 'react';
 import { useDebateStore } from '../../hooks/useDebateStore';
 import { useShallow } from 'zustand/react/shallow';
 import { POVER_INFO, DEBATE_AUDIENCES } from '../../types/debate';
@@ -203,9 +203,381 @@ const AI_MENTION_OPTIONS: { id: string; label: string; color: string }[] = [
   { id: 'skeptic', label: POVER_INFO.skeptic.label, color: POVER_INFO.skeptic.color },
 ];
 
+function isPhaseTerminated(d: any): boolean {
+  return d?.adaptive_staging?.phase_state?.current_phase === 'terminated';
+}
+
+function deriveAdaptiveState(activeDebate: any): {
+  isAdaptive: boolean;
+  isStepMode: boolean;
+  currentAdaptivePhase: AdaptivePhase | undefined;
+} {
+  return {
+    isAdaptive: activeDebate?.adaptive_staging?.enabled ?? false,
+    isStepMode: activeDebate?.adaptive_staging?.step_mode ?? false,
+    currentAdaptivePhase: activeDebate?.adaptive_staging?.current_phase as AdaptivePhase | undefined,
+  };
+}
+
+// Adaptive (non-step) cross-respond: run the debate engine to completion with a
+// safety cap, then synthesize once enough statements exist.
+async function runAdaptiveCrossRespond(
+  activeDebate: any,
+  crossRespond: () => Promise<void>,
+  requestSynthesis: () => Promise<void>,
+): Promise<void> {
+  const alreadyTerminated = isPhaseTerminated(activeDebate) || activeDebate.phase === 'closed';
+  if (alreadyTerminated) {
+    await crossRespond();
+    return;
+  }
+  const maxSafetyRounds = 50;
+  let consecutiveNoStatement = 0;
+  for (let i = 0; i < maxSafetyRounds; i++) {
+    const d = useDebateStore.getState().activeDebate;
+    if (!d) break;
+    if (isPhaseTerminated(d)) break;
+    const preLen = d.transcript.length;
+    await crossRespond();
+    const post = useDebateStore.getState().activeDebate;
+    if (!post) break;
+    const hasStatement = post.transcript.slice(preLen).some((e: any) => e.type === 'statement');
+    if (hasStatement) {
+      consecutiveNoStatement = 0;
+    } else {
+      consecutiveNoStatement++;
+      if (consecutiveNoStatement >= 3) break;
+    }
+  }
+  const final = useDebateStore.getState().activeDebate;
+  const finalStatements = final?.transcript.filter((e: any) => e.type === 'statement').length ?? 0;
+  if (finalStatements >= 3) {
+    await requestSynthesis();
+  }
+}
+
+function DebateErrorBanner({
+  debateError,
+  dailyLimitPaused,
+  disableAnalysis,
+  onRetry,
+  onDismiss,
+}: {
+  debateError: string;
+  dailyLimitPaused: boolean;
+  disableAnalysis: boolean;
+  onRetry: () => void;
+  onDismiss: () => void;
+}) {
+  return (
+    <div className={dailyLimitPaused ? 'debate-daily-limit' : 'debate-error'}>
+      <span className={dailyLimitPaused ? 'debate-daily-limit-text' : 'debate-error-text'}>{debateError}</span>
+      {!dailyLimitPaused && (
+        <button className="debate-error-retry" onClick={onRetry} disabled={disableAnalysis}>Retry</button>
+      )}
+      <button className={dailyLimitPaused ? 'debate-daily-limit-dismiss' : 'debate-error-dismiss'} onClick={onDismiss} title="Dismiss" aria-label="Dismiss">&times;</button>
+    </div>
+  );
+}
+
+function DebateInputBar({
+  inputRef,
+  input,
+  disableAnalysis,
+  mentionOpen,
+  mentionOptions,
+  mentionIndex,
+  onInputChange,
+  onKeyDown,
+  onSend,
+  onBlurClose,
+  onInsertMention,
+}: {
+  inputRef: RefObject<HTMLInputElement | null>;
+  input: string;
+  disableAnalysis: boolean;
+  mentionOpen: boolean;
+  mentionOptions: { id: string; label: string; color: string }[];
+  mentionIndex: number;
+  onInputChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onKeyDown: (e: React.KeyboardEvent) => void;
+  onSend: () => void | Promise<void>;
+  onBlurClose: () => void;
+  onInsertMention: (label: string) => void;
+}) {
+  return (
+    <>
+      <div className="debate-input-wrapper">
+        <input
+          ref={inputRef}
+          className="debate-input"
+          type="text"
+          placeholder="Ask a question (@Safetyist to target)..."
+          value={input}
+          onChange={onInputChange}
+          onKeyDown={onKeyDown}
+          onBlur={onBlurClose}
+          disabled={disableAnalysis}
+        />
+        {mentionOpen && mentionOptions.length > 0 && (
+          <div className="debate-mention-dropdown">
+            {mentionOptions.map((opt, i) => (
+              <div
+                key={opt.id}
+                className={`debate-mention-item${i === mentionIndex ? ' selected' : ''}`}
+                onMouseDown={(e) => { e.preventDefault(); onInsertMention(opt.label); }}
+              >
+                <span style={{ color: opt.color, fontWeight: 600 }}>{opt.label}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+      <button
+        className="btn btn-primary debate-send-btn"
+        onClick={onSend}
+        disabled={!input.trim() || disableAnalysis}
+      >
+        Send
+      </button>
+    </>
+  );
+}
+
+function CrossRespondControls({
+  isAdaptive,
+  isStepMode,
+  disableAnalysis,
+  crossRespondTurns,
+  onCrossRespond,
+  onToggleStepMode,
+  setCrossRespondTurns,
+}: {
+  isAdaptive: boolean;
+  isStepMode: boolean;
+  disableAnalysis: boolean;
+  crossRespondTurns: number;
+  onCrossRespond: () => void | Promise<void>;
+  onToggleStepMode: () => void | Promise<void>;
+  setCrossRespondTurns: (n: number) => void;
+}) {
+  return isAdaptive ? (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+      <button
+        className="btn debate-continue-btn"
+        onClick={onCrossRespond}
+        disabled={disableAnalysis}
+        title={isStepMode ? 'Run one debate round' : 'Let the debate engine select the next speaker and run to completion'}
+      >
+        {isStepMode ? 'Step' : 'Continue'}
+      </button>
+      <button
+        className={`btn btn-sm debate-step-toggle${isStepMode ? ' active' : ''}`}
+        onClick={() => void onToggleStepMode()}
+        disabled={disableAnalysis}
+        title={isStepMode ? 'Switch to auto mode (run all stages)' : 'Switch to step mode (1 round at a time, manual phase control)'}
+        style={{ fontSize: 'var(--text-2xs)', padding: '2px 6px' }}
+      >
+        {isStepMode ? 'Step' : 'Auto'}
+      </button>
+    </div>
+  ) : (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 0 }}>
+      <button
+        className="btn debate-cross-btn"
+        onClick={onCrossRespond}
+        disabled={disableAnalysis}
+        title={`Run ${crossRespondTurns} cross-respond round${crossRespondTurns > 1 ? 's' : ''}`}
+        style={{ borderTopRightRadius: 0, borderBottomRightRadius: 0 }}
+      >
+        Cross-Respond
+      </button>
+      <select
+        className="debate-turns-select"
+        value={crossRespondTurns}
+        onChange={(e) => setCrossRespondTurns(parseInt(e.target.value, 10))}
+        disabled={disableAnalysis}
+        title="Number of cross-respond rounds"
+      >
+        {[1, 2, 3, 6, 9, 12, 15, 18, 21].map(n => (
+          <option key={n} value={n}>{n}</option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
+function StepPhaseSelector({
+  currentAdaptivePhase,
+  disableAnalysis,
+  onSetPhase,
+}: {
+  currentAdaptivePhase: AdaptivePhase | undefined;
+  disableAnalysis: boolean;
+  onSetPhase: (phase: AdaptivePhase) => void | Promise<void>;
+}) {
+  return (
+    <div className="debate-step-phase-selector">
+      <span className="debate-step-phase-label">Stage:</span>
+      {ADAPTIVE_PHASES.map(phase => (
+        <button
+          key={phase}
+          className={`debate-step-phase-pill${currentAdaptivePhase === phase ? ' active' : ''}`}
+          style={currentAdaptivePhase === phase ? { borderColor: ADAPTIVE_PHASE_COLORS[phase], color: ADAPTIVE_PHASE_COLORS[phase] } : undefined}
+          onClick={() => void onSetPhase(phase)}
+          disabled={disableAnalysis || currentAdaptivePhase === phase}
+          title={`Set debate stage to ${ADAPTIVE_PHASE_LABELS[phase]}`}
+        >
+          {ADAPTIVE_PHASE_LABELS[phase]}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function SecondaryActionBar({
+  disableAnalysis,
+  isClosed,
+  showAdminControls,
+  showEvaluation,
+  setShowEvaluation,
+  showParamHistory,
+  setShowParamHistory,
+  setShowHarvest,
+  setShowReflections,
+  setShowNewsReport,
+}: {
+  disableAnalysis: boolean;
+  isClosed: boolean;
+  showAdminControls: boolean;
+  showEvaluation: boolean;
+  setShowEvaluation: (v: boolean) => void;
+  showParamHistory: boolean;
+  setShowParamHistory: (v: boolean) => void;
+  setShowHarvest: (v: boolean) => void;
+  setShowReflections: (v: boolean) => void;
+  setShowNewsReport: (v: boolean) => void;
+}) {
+  const { activeDebate, requestSynthesis, requestProbingQuestions, requestReflections, audience, setAudience } = useDebateStore(
+    useShallow(s => ({ activeDebate: s.activeDebate, requestSynthesis: s.requestSynthesis, requestProbingQuestions: s.requestProbingQuestions, requestReflections: s.requestReflections, audience: s.audience, setAudience: s.setAudience }))
+  );
+  const hasSynthesis = activeDebate?.transcript.some(e => e.type === 'concluding') || false;
+  const hasEvaluations = !!activeDebate?.neutral_evaluations?.length;
+  const disabled = disableAnalysis || isClosed;
+
+  return (
+    <div className="debate-action-bar-secondary">
+      <button
+        className="btn debate-synthesis-btn"
+        onClick={() => void requestSynthesis()}
+        disabled={disableAnalysis || hasSynthesis}
+        title={hasSynthesis ? 'Synthesis already generated' : 'Generate a synthesis of agreements, disagreements, and open questions'}
+      >
+        Synthesize
+      </button>
+      <button
+        className="btn debate-probe-btn"
+        onClick={() => void requestProbingQuestions()}
+        disabled={disableAnalysis || isClosed}
+        title="Get AI-suggested probing questions to deepen the debate"
+      >
+        Probe
+      </button>
+      {showAdminControls && (
+        <button
+          className="btn debate-harvest-btn"
+          onClick={() => setShowHarvest(true)}
+          disabled={disableAnalysis || !hasSynthesis}
+          title="Harvest debate findings into the taxonomy"
+        >
+          Harvest
+        </button>
+      )}
+      <button
+        className="btn debate-reflections-btn"
+        onClick={() => { setShowReflections(true); void requestReflections(); }}
+        disabled={disableAnalysis}
+        title="Each debater reflects on the debate and proposes taxonomy edits"
+      >
+        Reflections
+      </button>
+      <button
+        className="btn"
+        onClick={() => setShowNewsReport(true)}
+        disabled={disableAnalysis || !hasSynthesis}
+        title={hasSynthesis ? 'Generate a news-style article from this debate' : 'Synthesis required before generating news report'}
+      >
+        News Report
+      </button>
+      <button
+        className={`btn${showEvaluation ? ' active' : ''}`}
+        onClick={() => setShowEvaluation(!showEvaluation)}
+        disabled={!hasEvaluations}
+        title="Show/hide independent evaluation of claims and cruxes"
+      >
+        Evaluation
+      </button>
+      {showAdminControls && (
+        <button
+          className="btn"
+          onClick={() => setShowParamHistory(!showParamHistory)}
+          title="View calibration parameter history and current values"
+          style={{ fontSize: 'var(--text-2xs)' }}
+        >
+          Calibration
+        </button>
+      )}
+      <div style={{ flex: 1 }} />
+      <button
+        className="debate-dump-inline"
+        onClick={triggerManualDump}
+        title="Export flight recorder (Ctrl+Alt+D)"
+        aria-label="Export flight recorder"
+      >
+        ↓
+      </button>
+      <select
+        className="debate-audience-select"
+        value={audience}
+        onChange={(e) => setAudience(e.target.value as DebateAudience)}
+        disabled={disabled}
+        title="Target audience for debate responses"
+      >
+        {DEBATE_AUDIENCES.map(a => (
+          <option key={a.id} value={a.id}>{a.label}</option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
+function DebateModals({
+  showHarvest,
+  showReflections,
+  showNewsReport,
+  onCloseHarvest,
+  onCloseReflections,
+  onCloseNewsReport,
+}: {
+  showHarvest: boolean;
+  showReflections: boolean;
+  showNewsReport: boolean;
+  onCloseHarvest: () => void;
+  onCloseReflections: () => void;
+  onCloseNewsReport: () => void;
+}) {
+  return (
+    <>
+      {showHarvest && <HarvestDialog onClose={onCloseHarvest} />}
+      {showReflections && <ReflectionsPanel onClose={onCloseReflections} />}
+      {showNewsReport && <NewsReportModal onClose={onCloseNewsReport} />}
+    </>
+  );
+}
+
 export function DebateActions({ showParamHistory, setShowParamHistory, showEvaluation, setShowEvaluation }: { showParamHistory: boolean; setShowParamHistory: (v: boolean) => void; showEvaluation: boolean; setShowEvaluation: (v: boolean) => void }) {
-  const { activeDebate, debateGenerating, debateError, debateRetryAction, dailyLimitPaused, askQuestion, crossRespond, requestSynthesis, requestProbingQuestions, requestReflections, audience, setAudience, toggleStepMode, setDebatePhase, setError } = useDebateStore(
-    useShallow(s => ({ activeDebate: s.activeDebate, debateGenerating: s.debateGenerating, debateError: s.debateError, debateRetryAction: s.debateRetryAction, dailyLimitPaused: s.dailyLimitPaused, askQuestion: s.askQuestion, crossRespond: s.crossRespond, requestSynthesis: s.requestSynthesis, requestProbingQuestions: s.requestProbingQuestions, requestReflections: s.requestReflections, audience: s.audience, setAudience: s.setAudience, toggleStepMode: s.toggleStepMode, setDebatePhase: s.setDebatePhase, setError: s.setError }))
+  const { activeDebate, debateGenerating, debateError, debateRetryAction, dailyLimitPaused, askQuestion, crossRespond, requestSynthesis, requestProbingQuestions, requestReflections, toggleStepMode, setDebatePhase, setError } = useDebateStore(
+    useShallow(s => ({ activeDebate: s.activeDebate, debateGenerating: s.debateGenerating, debateError: s.debateError, debateRetryAction: s.debateRetryAction, dailyLimitPaused: s.dailyLimitPaused, askQuestion: s.askQuestion, crossRespond: s.crossRespond, requestSynthesis: s.requestSynthesis, requestProbingQuestions: s.requestProbingQuestions, requestReflections: s.requestReflections, toggleStepMode: s.toggleStepMode, setDebatePhase: s.setDebatePhase, setError: s.setError }))
   );
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
@@ -217,16 +589,12 @@ export function DebateActions({ showParamHistory, setShowParamHistory, showEvalu
   const [crossRespondTurns, setCrossRespondTurns] = useState(1);
   const inputRef = useRef<HTMLInputElement>(null);
   const showAdminControls = isElectronMode() || useFlag('permission-admin-features');
-  const hasSynthesis = activeDebate?.transcript.some(e => e.type === 'concluding') || false;
-  const isAdaptive = (activeDebate as any)?.adaptive_staging?.enabled ?? false;
-  const isStepMode = (activeDebate as any)?.adaptive_staging?.step_mode ?? false;
-  const currentAdaptivePhase = (activeDebate as any)?.adaptive_staging?.current_phase as AdaptivePhase | undefined;
+  const { isAdaptive, isStepMode, currentAdaptivePhase } = deriveAdaptiveState(activeDebate);
 
   if (!activeDebate) return null;
 
   const isGenerating = !!debateGenerating;
   const isClosed = activeDebate.phase === 'closed';
-  const disabled = isGenerating || sending || isClosed;
   const disableAnalysis = isGenerating || sending;
   const isSocratic = (activeDebate.active_povers ?? []).filter(p => p !== 'user').length < 2;
 
@@ -302,35 +670,7 @@ export function DebateActions({ showParamHistory, setShowParamHistory, showEvalu
     if (isAdaptive && isStepMode) {
       await crossRespond();
     } else if (isAdaptive) {
-      const maxSafetyRounds = 50;
-      const alreadyTerminated = (activeDebate as any)?.adaptive_staging?.phase_state?.current_phase === 'terminated'
-        || activeDebate.phase === 'closed';
-      if (alreadyTerminated) {
-        await crossRespond();
-      } else {
-        let consecutiveNoStatement = 0;
-        for (let i = 0; i < maxSafetyRounds; i++) {
-          const d = useDebateStore.getState().activeDebate;
-          if (!d) break;
-          if ((d as any).adaptive_staging?.phase_state?.current_phase === 'terminated') break;
-          const preLen = d.transcript.length;
-          await crossRespond();
-          const post = useDebateStore.getState().activeDebate;
-          if (!post) break;
-          const hasStatement = post.transcript.slice(preLen).some((e: any) => e.type === 'statement');
-          if (hasStatement) {
-            consecutiveNoStatement = 0;
-          } else {
-            consecutiveNoStatement++;
-            if (consecutiveNoStatement >= 3) break;
-          }
-        }
-        const final = useDebateStore.getState().activeDebate;
-        const finalStatements = final?.transcript.filter((e: any) => e.type === 'statement').length ?? 0;
-        if (finalStatements >= 3) {
-          await requestSynthesis();
-        }
-      }
+      await runAdaptiveCrossRespond(activeDebate, crossRespond, requestSynthesis);
     } else {
       for (let i = 0; i < crossRespondTurns; i++) {
         await crossRespond();
@@ -340,211 +680,85 @@ export function DebateActions({ showParamHistory, setShowParamHistory, showEvalu
     setSending(false);
   };
 
+  const handleRetry = () => {
+    const action = debateRetryAction;
+    setError(null);
+    if (action === 'synthesis') void requestSynthesis();
+    else if (action === 'probing') void requestProbingQuestions();
+    else if (action === 'reflections') void requestReflections();
+    else void handleCrossRespond();
+  };
+
   return (
     <div className="debate-action-bar">
       {debateError && (
-        <div className={dailyLimitPaused ? 'debate-daily-limit' : 'debate-error'}>
-          <span className={dailyLimitPaused ? 'debate-daily-limit-text' : 'debate-error-text'}>{debateError}</span>
-          {!dailyLimitPaused && (
-            <button className="debate-error-retry" onClick={() => {
-              const action = debateRetryAction;
-              setError(null);
-              if (action === 'synthesis') void requestSynthesis();
-              else if (action === 'probing') void requestProbingQuestions();
-              else if (action === 'reflections') void requestReflections();
-              else void handleCrossRespond();
-            }} disabled={disableAnalysis}>Retry</button>
-          )}
-          <button className={dailyLimitPaused ? 'debate-daily-limit-dismiss' : 'debate-error-dismiss'} onClick={() => setError(null)} title="Dismiss" aria-label="Dismiss">&times;</button>
-        </div>
+        <DebateErrorBanner
+          debateError={debateError}
+          dailyLimitPaused={dailyLimitPaused}
+          disableAnalysis={disableAnalysis}
+          onRetry={handleRetry}
+          onDismiss={() => setError(null)}
+        />
       )}
       <TokenBudgetIndicator />
       <div className="debate-action-bar-inner">
-        <div className="debate-input-wrapper">
-          <input
-            ref={inputRef}
-            className="debate-input"
-            type="text"
-            placeholder="Ask a question (@Safetyist to target)..."
-            value={input}
-            onChange={handleInputChange}
-            onKeyDown={handleKeyDown}
-            onBlur={() => setTimeout(() => setMentionOpen(false), 150)}
-            disabled={disableAnalysis}
+        <DebateInputBar
+          inputRef={inputRef}
+          input={input}
+          disableAnalysis={disableAnalysis}
+          mentionOpen={mentionOpen}
+          mentionOptions={mentionOptions}
+          mentionIndex={mentionIndex}
+          onInputChange={handleInputChange}
+          onKeyDown={handleKeyDown}
+          onSend={handleSend}
+          onBlurClose={() => setTimeout(() => setMentionOpen(false), 150)}
+          onInsertMention={insertMention}
+        />
+        {!isSocratic && (
+          <CrossRespondControls
+            isAdaptive={isAdaptive}
+            isStepMode={isStepMode}
+            disableAnalysis={disableAnalysis}
+            crossRespondTurns={crossRespondTurns}
+            onCrossRespond={handleCrossRespond}
+            onToggleStepMode={toggleStepMode}
+            setCrossRespondTurns={setCrossRespondTurns}
           />
-          {mentionOpen && mentionOptions.length > 0 && (
-            <div className="debate-mention-dropdown">
-              {mentionOptions.map((opt, i) => (
-                <div
-                  key={opt.id}
-                  className={`debate-mention-item${i === mentionIndex ? ' selected' : ''}`}
-                  onMouseDown={(e) => { e.preventDefault(); insertMention(opt.label); }}
-                >
-                  <span style={{ color: opt.color, fontWeight: 600 }}>{opt.label}</span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-        <button
-          className="btn btn-primary debate-send-btn"
-          onClick={handleSend}
-          disabled={!input.trim() || disableAnalysis}
-        >
-          Send
-        </button>
-        {!isSocratic && (isAdaptive ? (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <button
-              className="btn debate-continue-btn"
-              onClick={handleCrossRespond}
-              disabled={disableAnalysis}
-              title={isStepMode ? 'Run one debate round' : 'Let the debate engine select the next speaker and run to completion'}
-            >
-              {isStepMode ? 'Step' : 'Continue'}
-            </button>
-            <button
-              className={`btn btn-sm debate-step-toggle${isStepMode ? ' active' : ''}`}
-              onClick={() => void toggleStepMode()}
-              disabled={disableAnalysis}
-              title={isStepMode ? 'Switch to auto mode (run all stages)' : 'Switch to step mode (1 round at a time, manual phase control)'}
-              style={{ fontSize: 'var(--text-2xs)', padding: '2px 6px' }}
-            >
-              {isStepMode ? 'Step' : 'Auto'}
-            </button>
-          </div>
-        ) : (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 0 }}>
-            <button
-              className="btn debate-cross-btn"
-              onClick={handleCrossRespond}
-              disabled={disableAnalysis}
-              title={`Run ${crossRespondTurns} cross-respond round${crossRespondTurns > 1 ? 's' : ''}`}
-              style={{ borderTopRightRadius: 0, borderBottomRightRadius: 0 }}
-            >
-              Cross-Respond
-            </button>
-            <select
-              className="debate-turns-select"
-              value={crossRespondTurns}
-              onChange={(e) => setCrossRespondTurns(parseInt(e.target.value, 10))}
-              disabled={disableAnalysis}
-              title="Number of cross-respond rounds"
-            >
-              {[1, 2, 3, 6, 9, 12, 15, 18, 21].map(n => (
-                <option key={n} value={n}>{n}</option>
-              ))}
-            </select>
-          </div>
-        ))}
+        )}
       </div>
       {isStepMode && (
-        <div className="debate-step-phase-selector">
-          <span className="debate-step-phase-label">Stage:</span>
-          {ADAPTIVE_PHASES.map(phase => (
-            <button
-              key={phase}
-              className={`debate-step-phase-pill${currentAdaptivePhase === phase ? ' active' : ''}`}
-              style={currentAdaptivePhase === phase ? { borderColor: ADAPTIVE_PHASE_COLORS[phase], color: ADAPTIVE_PHASE_COLORS[phase] } : undefined}
-              onClick={() => void setDebatePhase(phase)}
-              disabled={disableAnalysis || currentAdaptivePhase === phase}
-              title={`Set debate stage to ${ADAPTIVE_PHASE_LABELS[phase]}`}
-            >
-              {ADAPTIVE_PHASE_LABELS[phase]}
-            </button>
-          ))}
-        </div>
+        <StepPhaseSelector
+          currentAdaptivePhase={currentAdaptivePhase}
+          disableAnalysis={disableAnalysis}
+          onSetPhase={setDebatePhase}
+        />
       )}
-      <div className="debate-action-bar-secondary">
-        <button
-          className="btn debate-synthesis-btn"
-          onClick={() => void requestSynthesis()}
-          disabled={disableAnalysis || hasSynthesis}
-          title={hasSynthesis ? 'Synthesis already generated' : 'Generate a synthesis of agreements, disagreements, and open questions'}
-        >
-          Synthesize
-        </button>
-        <button
-          className="btn debate-probe-btn"
-          onClick={() => void requestProbingQuestions()}
-          disabled={disableAnalysis || isClosed}
-          title="Get AI-suggested probing questions to deepen the debate"
-        >
-          Probe
-        </button>
-        {showAdminControls && (
-          <button
-            className="btn debate-harvest-btn"
-            onClick={() => setShowHarvest(true)}
-            disabled={disableAnalysis || !hasSynthesis}
-            title="Harvest debate findings into the taxonomy"
-          >
-            Harvest
-          </button>
-        )}
-        <button
-          className="btn debate-reflections-btn"
-          onClick={() => { setShowReflections(true); void requestReflections(); }}
-          disabled={disableAnalysis}
-          title="Each debater reflects on the debate and proposes taxonomy edits"
-        >
-          Reflections
-        </button>
-        <button
-          className="btn"
-          onClick={() => setShowNewsReport(true)}
-          disabled={disableAnalysis || !hasSynthesis}
-          title={hasSynthesis ? 'Generate a news-style article from this debate' : 'Synthesis required before generating news report'}
-        >
-          News Report
-        </button>
-        <button
-          className={`btn${showEvaluation ? ' active' : ''}`}
-          onClick={() => setShowEvaluation(!showEvaluation)}
-          disabled={!activeDebate?.neutral_evaluations?.length}
-          title="Show/hide independent evaluation of claims and cruxes"
-        >
-          Evaluation
-        </button>
-        {showAdminControls && (
-          <button
-            className="btn"
-            onClick={() => setShowParamHistory(!showParamHistory)}
-            title="View calibration parameter history and current values"
-            style={{ fontSize: 'var(--text-2xs)' }}
-          >
-            Calibration
-          </button>
-        )}
-        <div style={{ flex: 1 }} />
-        <button
-          className="debate-dump-inline"
-          onClick={triggerManualDump}
-          title="Export flight recorder (Ctrl+Alt+D)"
-          aria-label="Export flight recorder"
-        >
-          ↓
-        </button>
-        <select
-          className="debate-audience-select"
-          value={audience}
-          onChange={(e) => setAudience(e.target.value as DebateAudience)}
-          disabled={disabled}
-          title="Target audience for debate responses"
-        >
-          {DEBATE_AUDIENCES.map(a => (
-            <option key={a.id} value={a.id}>{a.label}</option>
-          ))}
-        </select>
-      </div>
+      <SecondaryActionBar
+        disableAnalysis={disableAnalysis}
+        isClosed={isClosed}
+        showAdminControls={showAdminControls}
+        showEvaluation={showEvaluation}
+        setShowEvaluation={setShowEvaluation}
+        showParamHistory={showParamHistory}
+        setShowParamHistory={setShowParamHistory}
+        setShowHarvest={setShowHarvest}
+        setShowReflections={setShowReflections}
+        setShowNewsReport={setShowNewsReport}
+      />
       {isGenerating && (
         <div className="debate-action-hint">
           {speakerLabel(debateGenerating)} is responding...
         </div>
       )}
-      {showHarvest && <HarvestDialog onClose={() => setShowHarvest(false)} />}
-      {showReflections && <ReflectionsPanel onClose={() => setShowReflections(false)} />}
-      {showNewsReport && <NewsReportModal onClose={() => setShowNewsReport(false)} />}
+      <DebateModals
+        showHarvest={showHarvest}
+        showReflections={showReflections}
+        showNewsReport={showNewsReport}
+        onCloseHarvest={() => setShowHarvest(false)}
+        onCloseReflections={() => setShowReflections(false)}
+        onCloseNewsReport={() => setShowNewsReport(false)}
+      />
     </div>
   );
 }
