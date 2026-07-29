@@ -73,6 +73,229 @@ export interface SessionSlice {
   setDebatePhase: (phase: 'confrontation' | 'argumentation' | 'concluding') => Promise<void>;
 }
 
+// ── saveDebate phase helpers (t/1848) ────────────────────────────────
+// saveDebate was a single 72-complexity async action. Its cohesive phases are
+// extracted here as helpers (bodies moved verbatim; see ADR-007 split pattern).
+// The load-bearing t/1637 save-path selection is preserved intact inside
+// persistDebateToServer; ADR-003 record() calls stay inline in saveDebate's catch.
+type SessionSet = Parameters<StateCreator<DebateStore, [], [], SessionSlice>>[0];
+type SessionGet = Parameters<StateCreator<DebateStore, [], [], SessionSlice>>[1];
+
+/**
+ * Stamp doc_meta for document-grounded debates so source-authority/recency
+ * calibration resolves on BOTH save paths (Electron IPC save + web POST) — t/1779.
+ * App-run debates never instantiate DebateEngine, whose filesystem-derived
+ * `docTitles` was the only place doc provenance was computed; without it,
+ * extractCalibrationData saw no docMeta and computeSourceAuthority returned all-null.
+ * Stamp from the same client-side catalog the turn pipeline already uses
+ * (getDocTitles), keyed to the doc_ids actually cited in the argument network.
+ * Doc-less debates cite no source docs → doc_meta stays undefined (back-compat).
+ */
+// Returns undefined (a synchronous no-op) when the debate cites no source docs, so
+// saveDebate does NOT introduce an await before the network save — preserving the
+// original timing the coalescing / t/1637 sent-snapshot invariants depend on. Only
+// when there ARE cited docs does it return a promise the caller awaits.
+function stampDocMeta(activeDebate: DebateSession): void | Promise<void> {
+  const citedDocIds = new Set<string>();
+  for (const node of activeDebate.argument_network?.nodes ?? []) {
+    for (const item of node.evidence_graph?.evidence_items ?? []) {
+      if (item.source_doc_id) citedDocIds.add(item.source_doc_id);
+    }
+  }
+  if (citedDocIds.size === 0) return;
+  return applyDocMeta(activeDebate, citedDocIds);
+}
+
+async function applyDocMeta(activeDebate: DebateSession, citedDocIds: Set<string>): Promise<void> {
+  const catalog = await getDocTitles();
+  if (!catalog) return;
+  const docMeta: DocMetaMap = {};
+  for (const id of citedDocIds) {
+    const meta = catalog[id];
+    if (meta) docMeta[id] = meta;
+  }
+  if (Object.keys(docMeta).length > 0) activeDebate.doc_meta = docMeta;
+}
+
+/** Tally move-type and disagreement-type counts from one transcript entry's metadata. */
+function tallyMoveTypes(
+  overview: { move_type_counts: Record<string, number>; disagreement_type_counts: Record<string, number> },
+  meta: Record<string, unknown> | undefined,
+): void {
+  if (Array.isArray(meta?.move_types)) {
+    for (const m of meta.move_types as (string | MoveAnnotation)[]) {
+      const name = getMoveName(m);
+      overview.move_type_counts[name] = (overview.move_type_counts[name] ?? 0) + 1;
+    }
+  }
+  if (typeof meta?.disagreement_type === 'string') {
+    overview.disagreement_type_counts[meta.disagreement_type] =
+      (overview.disagreement_type_counts[meta.disagreement_type] ?? 0) + 1;
+  }
+}
+
+/** Sum accepted/rejected claim counts across all per-entry extraction traces. */
+function tallyClaimCounts(
+  overview: { claims_accepted: number; claims_rejected: number },
+  entries: Record<string, EntryDiagnostics>,
+): void {
+  for (const diag of Object.values(entries) as EntryDiagnostics[]) {
+    const trace = diag.extraction_trace;
+    if (trace) {
+      overview.claims_accepted += trace.candidates_accepted ?? 0;
+      overview.claims_rejected += trace.candidates_rejected ?? 0;
+    }
+  }
+}
+
+/** Recompute the diagnostics overview aggregates (move/disagreement counts, accept/reject, situation citations) before save. */
+function rebuildOverviewDiagnostics(activeDebate: DebateSession): void {
+  const overview = activeDebate.diagnostics?.overview;
+  if (!overview) return;
+  overview.move_type_counts = {};
+  overview.disagreement_type_counts = {};
+  overview.claims_accepted = 0;
+  overview.claims_rejected = 0;
+  let turnsWithSitRefs = 0;
+  let totalDebateTurns = 0;
+  const uniqueSitIds = new Set<string>();
+  for (const e of activeDebate.transcript) {
+    if (e.type !== 'statement' && e.type !== 'opening') continue;
+    totalDebateTurns++;
+    const meta = e.metadata as Record<string, unknown> | undefined;
+    tallyMoveTypes(overview, meta);
+    const refs = e.taxonomy_refs;
+    if (refs && refs.length > 0) {
+      const sitRefs = refs.filter(r => r.node_id.startsWith('sit-'));
+      if (sitRefs.length > 0) {
+        turnsWithSitRefs++;
+        for (const r of sitRefs) uniqueSitIds.add(r.node_id);
+      }
+    }
+  }
+  tallyClaimCounts(overview, activeDebate.diagnostics?.entries ?? {});
+  if (totalDebateTurns > 0) {
+    overview.situation_citations = {
+      turns_with_sit_refs: turnsWithSitRefs,
+      total_debate_turns: totalDebateTurns,
+      citation_rate: turnsWithSitRefs / totalDebateTurns,
+      unique_sit_ids_cited: [...uniqueSitIds].sort(),
+    };
+  }
+}
+
+/** Assemble the flight-recorder save-diagnostics payload for a debate. */
+function buildSaveDiag(activeDebate: DebateSession, caller?: string) {
+  const payloadBytes = JSON.stringify(activeDebate).length;
+  const turnCount = activeDebate.transcript.length;
+  const nodeCount = (activeDebate as unknown as Record<string, unknown>).argument_network
+    ? ((activeDebate as unknown as Record<string, { nodes?: unknown[] }>).argument_network?.nodes?.length ?? 0)
+    : 0;
+  return { phase: activeDebate.phase, transcript_length: turnCount, caller: caller ?? 'unknown', payload_bytes: payloadBytes, turn_count: turnCount, node_count: nodeCount };
+}
+type SaveDiag = ReturnType<typeof buildSaveDiag>;
+
+/**
+ * Select and execute the save path (t/1637, parent t/1470). Web (2nd+ save of a
+ * session that already has a sync baseline) ships a minimal delta via PATCH;
+ * Electron and the first save of any session full-PUT. The server stores a
+ * full-PUT body VERBATIM (it does NOT bump `_saveVersion`), so on the full-PUT
+ * path the client stamps the next monotonic version and records it as the new
+ * sync baseline; on the delta path the server returns the authoritative `newVersion`.
+ */
+async function persistDebateToServer(activeDebate: DebateSession, saveDiag: SaveDiag, get: SessionGet, set: SessionSet): Promise<void> {
+  const { _lastSyncedVersion, _lastSyncedSnapshot } = get();
+
+  // Post-save bookkeeping shared by every success path: refresh the sessions
+  // summary row and emit the flight-recorder save event.
+  const recordSaved = (mode: string, saveVersion?: number) => {
+    set((state) => ({
+      sessions: state.sessions.map((s) =>
+        s.id === activeDebate.id
+          ? { ...s, title: activeDebate.title, updated_at: activeDebate.updated_at, phase: activeDebate.phase }
+          : s,
+      ),
+    }));
+    getGlobalRecorder()?.record({ type: 'state.save', component: 'debate-store', level: 'info', debate_id: activeDebate.id, message: 'Debate saved', data: { ...saveDiag, save_mode: mode, save_version: saveVersion } });
+  };
+
+  // Full PUT + baseline seed. `baseVersion` is the version the server currently
+  // holds; we stamp baseVersion+1 so a subsequent delta's baseVersion matches the
+  // stored value. The snapshot we install is the EXACT state we sent, captured
+  // BEFORE the await — never a post-await re-clone (t/1637 load-bearing condition:
+  // an edit landing mid-flight must survive into the next delta).
+  const fullPutAndSeed = async (baseVersion: number) => {
+    const nextVersion = baseVersion + 1;
+    activeDebate._saveVersion = nextVersion;
+    const sent = structuredClone(activeDebate);
+    await api.saveDebateSession(activeDebate);
+    set({ _lastSyncedSnapshot: sent, _lastSyncedVersion: nextVersion });
+    recordSaved('full', nextVersion);
+  };
+
+  if (isElectronMode()) {
+    // Electron desktop: local full-save, no version bookkeeping (deltas are
+    // a web-only optimization).
+    await api.saveDebateSession(activeDebate);
+    recordSaved('electron');
+  } else if (_lastSyncedVersion === null || _lastSyncedSnapshot === null) {
+    // Web, first save of a freshly-created (never-synced) session.
+    await fullPutAndSeed(activeDebate._saveVersion ?? 0);
+  } else {
+    // Web, 2nd+ save with an established baseline → incremental delta.
+    const result = buildDebateDelta(_lastSyncedSnapshot, activeDebate, _lastSyncedVersion);
+    if (result.kind === 'empty') {
+      // Nothing changed since the last sync — skip the network round-trip.
+      getGlobalRecorder()?.record({ type: 'state.save', component: 'debate-store', level: 'info', debate_id: activeDebate.id, message: 'Debate save skipped — no changes since last sync', data: { ...saveDiag, save_mode: 'noop' } });
+    } else if (result.kind === 'full') {
+      // A change the delta model can't represent (in-place transcript/mutation
+      // edit or truncation) — full-PUT and re-baseline.
+      await fullPutAndSeed(_lastSyncedVersion);
+    } else {
+      const sent = structuredClone(activeDebate);
+      try {
+        const { newVersion } = await api.saveDebateDelta(result.delta);
+        activeDebate._saveVersion = newVersion;
+        sent._saveVersion = newVersion;
+        set({ _lastSyncedSnapshot: sent, _lastSyncedVersion: newVersion });
+        recordSaved('delta', newVersion);
+      } catch (deltaErr) {
+        const code = (deltaErr as Error & { errorCode?: string }).errorCode;
+        if (code !== 'version_conflict') throw deltaErr; // save_in_progress / other → outer catch
+        // Stale baseVersion: another writer advanced the server. Fall back to
+        // an UNCONDITIONAL (never version-gated) full PUT — last-writer-wins —
+        // so a second concurrent write can't re-conflict us into a retry loop
+        // (t/1637). Stamp from the server's reported currentVersion when present.
+        const currentVersion = (deltaErr as Error & { currentVersion?: number }).currentVersion;
+        getGlobalRecorder()?.record({ type: 'state.save-coalesced', component: 'debate-store', level: 'warn', debate_id: activeDebate.id, message: `Delta save version_conflict (server at ${currentVersion ?? '?'}) — falling back to full PUT` });
+        await fullPutAndSeed(typeof currentVersion === 'number' ? currentVersion : _lastSyncedVersion);
+      }
+    }
+  }
+}
+
+/**
+ * Classify a save failure and build the user-facing error state (t/1639). Distinguishes
+ * a DURABLE-SAVE LOSS (debateIO/t/1638 total-loss: rename + copy both failed, a .tmp
+ * recovery copy was preserved) from an ordinary save error. Electron IPC strips the
+ * enriched ActionableError's structured fields, but its composed `.message` survives
+ * with stable markers; the at-risk count is recomputed locally from the transcript
+ * using debateIO's exact filter rather than string-scraped.
+ */
+function computeSaveErrorState(err: unknown, activeDebate: DebateSession): { isDurableSaveLoss: boolean; atRiskTurns: number; debateError: string } {
+  const rawMessage = String((err as Error)?.message ?? '');
+  const isDurableSaveLoss =
+    rawMessage.includes('taxonomy-editor/src/main/debateIO.ts saveDebateSession') &&
+    (rawMessage.includes('only durable copy') || rawMessage.includes('at risk of being lost'));
+  const atRiskTurns = activeDebate.transcript.filter(
+    (t) => t.type === 'statement' || t.type === 'opening',
+  ).length;
+  const debateError = isDurableSaveLoss
+    ? `Save failed: this debate couldn't be written to disk — a file lock (often antivirus or a file indexer) is holding the file. ${atRiskTurns} ${atRiskTurns === 1 ? 'turn is' : 'turns are'} at risk. A recovery copy was preserved on disk; retry the save once the lock clears, and don't close the app before it succeeds.`
+    : mapErrorToUserMessage(err);
+  return { isDurableSaveLoss, atRiskTurns, debateError };
+}
+
 export const createSessionSlice: StateCreator<DebateStore, [], [], SessionSlice> = (set, get) => ({
   sessions: [],
   sessionsLoading: false,
@@ -698,197 +921,28 @@ export const createSessionSlice: StateCreator<DebateStore, [], [], SessionSlice>
         (activeDebate as unknown as Record<string, unknown>).prompt_config = promptConfig;
       }
 
-      // Stamp doc_meta for document-grounded debates so source-authority/recency
-      // calibration resolves on BOTH save paths (Electron IPC save + web POST) — t/1779.
-      // App-run debates never instantiate DebateEngine, whose filesystem-derived
-      // `docTitles` was the only place doc provenance was computed; without it,
-      // extractCalibrationData saw no docMeta and computeSourceAuthority returned all-null.
-      // Stamp from the same client-side catalog the turn pipeline already uses
-      // (getDocTitles), keyed to the doc_ids actually cited in the argument network —
-      // mirroring computeSourceAuthority's own extraction so every id it looks up is
-      // present. Carrier + read fallback shipped by t/1769; the web-delta path carries
-      // doc_meta via changedFields (it is not a STRUCTURED_KEY). Doc-less debates cite no
-      // source docs → doc_meta stays undefined (back-compat).
-      const citedDocIds = new Set<string>();
-      for (const node of activeDebate.argument_network?.nodes ?? []) {
-        for (const item of node.evidence_graph?.evidence_items ?? []) {
-          if (item.source_doc_id) citedDocIds.add(item.source_doc_id);
-        }
-      }
-      if (citedDocIds.size > 0) {
-        const catalog = await getDocTitles();
-        if (catalog) {
-          const docMeta: DocMetaMap = {};
-          for (const id of citedDocIds) {
-            const meta = catalog[id];
-            if (meta) docMeta[id] = meta;
-          }
-          if (Object.keys(docMeta).length > 0) activeDebate.doc_meta = docMeta;
-        }
-      }
-
-      const overview = activeDebate.diagnostics?.overview;
-      if (overview) {
-        overview.move_type_counts = {};
-        overview.disagreement_type_counts = {};
-        overview.claims_accepted = 0;
-        overview.claims_rejected = 0;
-        let turnsWithSitRefs = 0;
-        let totalDebateTurns = 0;
-        const uniqueSitIds = new Set<string>();
-        for (const e of activeDebate.transcript) {
-          if (e.type !== 'statement' && e.type !== 'opening') continue;
-          totalDebateTurns++;
-          const meta = e.metadata as Record<string, unknown> | undefined;
-          if (Array.isArray(meta?.move_types)) {
-            for (const m of meta.move_types as (string | MoveAnnotation)[]) {
-              const name = getMoveName(m);
-              overview.move_type_counts[name] = (overview.move_type_counts[name] ?? 0) + 1;
-            }
-          }
-          if (typeof meta?.disagreement_type === 'string') {
-            overview.disagreement_type_counts[meta.disagreement_type] =
-              (overview.disagreement_type_counts[meta.disagreement_type] ?? 0) + 1;
-          }
-          const refs = e.taxonomy_refs;
-          if (refs && refs.length > 0) {
-            const sitRefs = refs.filter(r => r.node_id.startsWith('sit-'));
-            if (sitRefs.length > 0) {
-              turnsWithSitRefs++;
-              for (const r of sitRefs) uniqueSitIds.add(r.node_id);
-            }
-          }
-        }
-        const entries = activeDebate.diagnostics?.entries ?? {};
-        for (const diag of Object.values(entries) as EntryDiagnostics[]) {
-          const trace = diag.extraction_trace;
-          if (trace) {
-            overview.claims_accepted += trace.candidates_accepted ?? 0;
-            overview.claims_rejected += trace.candidates_rejected ?? 0;
-          }
-        }
-        if (totalDebateTurns > 0) {
-          overview.situation_citations = {
-            turns_with_sit_refs: turnsWithSitRefs,
-            total_debate_turns: totalDebateTurns,
-            citation_rate: turnsWithSitRefs / totalDebateTurns,
-            unique_sit_ids_cited: [...uniqueSitIds].sort(),
-          };
-        }
-      }
-
-      const payloadBytes = JSON.stringify(activeDebate).length;
-      const turnCount = activeDebate.transcript.length;
-      const nodeCount = (activeDebate as unknown as Record<string, unknown>).argument_network
-        ? ((activeDebate as unknown as Record<string, { nodes?: unknown[] }>).argument_network?.nodes?.length ?? 0)
-        : 0;
-      const saveDiag = { phase: activeDebate.phase, transcript_length: turnCount, caller: caller ?? 'unknown', payload_bytes: payloadBytes, turn_count: turnCount, node_count: nodeCount };
-      // ── Save path selection (t/1637, parent t/1470) ──────────────────────
-      // Web (2nd+ save of a session that already has a sync baseline) ships a
-      // minimal delta via PATCH; Electron and the first save of any session
-      // full-PUT. The server stores a full-PUT body VERBATIM (it does NOT bump
-      // `_saveVersion`), so on the full-PUT path the client stamps the next
-      // monotonic version onto the outgoing doc and records it as the new sync
-      // baseline; on the delta path the server returns the authoritative
-      // `newVersion`.
-      const { _lastSyncedVersion, _lastSyncedSnapshot } = get();
-
-      // Post-save bookkeeping shared by every success path: refresh the sessions
-      // summary row and emit the flight-recorder save event.
-      const recordSaved = (mode: string, saveVersion?: number) => {
-        set((state) => ({
-          sessions: state.sessions.map((s) =>
-            s.id === activeDebate.id
-              ? { ...s, title: activeDebate.title, updated_at: activeDebate.updated_at, phase: activeDebate.phase }
-              : s,
-          ),
-        }));
-        getGlobalRecorder()?.record({ type: 'state.save', component: 'debate-store', level: 'info', debate_id: activeDebate.id, message: 'Debate saved', data: { ...saveDiag, save_mode: mode, save_version: saveVersion } });
-      };
-
-      // Full PUT + baseline seed. `baseVersion` is the version the server
-      // currently holds (state's `_lastSyncedVersion`, the doc's own
-      // `_saveVersion`, or a 409's reported `currentVersion`); we stamp
-      // baseVersion+1 so a subsequent delta's baseVersion matches the stored
-      // value. The snapshot we install is the EXACT state we sent, captured
-      // BEFORE the await — never a post-await re-clone (t/1637 load-bearing
-      // condition: an edit landing mid-flight must survive into the next delta).
-      const fullPutAndSeed = async (baseVersion: number) => {
-        const nextVersion = baseVersion + 1;
-        activeDebate._saveVersion = nextVersion;
-        const sent = structuredClone(activeDebate);
-        await api.saveDebateSession(activeDebate);
-        set({ _lastSyncedSnapshot: sent, _lastSyncedVersion: nextVersion });
-        recordSaved('full', nextVersion);
-      };
-
-      if (isElectronMode()) {
-        // Electron desktop: local full-save, no version bookkeeping (deltas are
-        // a web-only optimization).
-        await api.saveDebateSession(activeDebate);
-        recordSaved('electron');
-      } else if (_lastSyncedVersion === null || _lastSyncedSnapshot === null) {
-        // Web, first save of a freshly-created (never-synced) session.
-        await fullPutAndSeed(activeDebate._saveVersion ?? 0);
-      } else {
-        // Web, 2nd+ save with an established baseline → incremental delta.
-        const result = buildDebateDelta(_lastSyncedSnapshot, activeDebate, _lastSyncedVersion);
-        if (result.kind === 'empty') {
-          // Nothing changed since the last sync — skip the network round-trip.
-          getGlobalRecorder()?.record({ type: 'state.save', component: 'debate-store', level: 'info', debate_id: activeDebate.id, message: 'Debate save skipped — no changes since last sync', data: { ...saveDiag, save_mode: 'noop' } });
-        } else if (result.kind === 'full') {
-          // A change the delta model can't represent (in-place transcript/mutation
-          // edit or truncation) — full-PUT and re-baseline.
-          await fullPutAndSeed(_lastSyncedVersion);
-        } else {
-          const sent = structuredClone(activeDebate);
-          try {
-            const { newVersion } = await api.saveDebateDelta(result.delta);
-            activeDebate._saveVersion = newVersion;
-            sent._saveVersion = newVersion;
-            set({ _lastSyncedSnapshot: sent, _lastSyncedVersion: newVersion });
-            recordSaved('delta', newVersion);
-          } catch (deltaErr) {
-            const code = (deltaErr as Error & { errorCode?: string }).errorCode;
-            if (code !== 'version_conflict') throw deltaErr; // save_in_progress / other → outer catch
-            // Stale baseVersion: another writer advanced the server. Fall back to
-            // an UNCONDITIONAL (never version-gated) full PUT — last-writer-wins —
-            // so a second concurrent write can't re-conflict us into a retry loop
-            // (t/1637). Stamp from the server's reported currentVersion when present.
-            const currentVersion = (deltaErr as Error & { currentVersion?: number }).currentVersion;
-            getGlobalRecorder()?.record({ type: 'state.save-coalesced', component: 'debate-store', level: 'warn', debate_id: activeDebate.id, message: `Delta save version_conflict (server at ${currentVersion ?? '?'}) — falling back to full PUT` });
-            await fullPutAndSeed(typeof currentVersion === 'number' ? currentVersion : _lastSyncedVersion);
-          }
-        }
-      }
+      // Stamp doc_meta (t/1779), rebuild the diagnostics overview, and assemble
+      // save diagnostics — see the phase helpers above. stampDocMeta only yields a
+      // promise when there are cited docs; awaiting conditionally preserves the
+      // original no-await-when-idle timing (coalescing / t/1637 snapshot invariants).
+      const docMetaWork = stampDocMeta(activeDebate);
+      if (docMetaWork) await docMetaWork;
+      rebuildOverviewDiagnostics(activeDebate);
+      const saveDiag = buildSaveDiag(activeDebate, caller);
+      // Save-path selection + post-save bookkeeping (t/1637) — see persistDebateToServer.
+      await persistDebateToServer(activeDebate, saveDiag, get, set);
     } catch (err) {
       const errorCode = (err as Error & { errorCode?: string }).errorCode;
       if (errorCode === 'save_in_progress') {
         set({ _saveDirty: true });
         getGlobalRecorder()?.record({ type: 'state.save-coalesced', component: 'debate-store', level: 'info', debate_id: activeDebate.id, message: 'Server 409 save_in_progress — will retry via coalesced follow-up' });
       } else {
-        // t/1639: distinguish a DURABLE-SAVE LOSS (debateIO/t/1638 total-loss:
-        // rename + copy fallback both failed, a .tmp recovery copy was preserved)
-        // from an ordinary save error, so the user is told their debate is at risk
-        // rather than seeing a generic failure. Electron IPC strips the enriched
-        // ActionableError's structured fields, but its composed `.message` survives
-        // with stable markers (the debateIO Location line + the preserved-copy
-        // wording). We do NOT parse turn_count out of that mangled message — we
-        // recompute it locally from the transcript using debateIO's exact filter,
-        // so the at-risk count is authoritative rather than string-scraped.
-        const rawMessage = String((err as Error)?.message ?? '');
-        const isDurableSaveLoss =
-          rawMessage.includes('taxonomy-editor/src/main/debateIO.ts saveDebateSession') &&
-          (rawMessage.includes('only durable copy') || rawMessage.includes('at risk of being lost'));
-        const atRiskTurns = activeDebate.transcript.filter(
-          (t) => t.type === 'statement' || t.type === 'opening',
-        ).length;
+        // Distinguish a durable-save loss from an ordinary save error (t/1639) so the
+        // user is told their debate is at risk — see computeSaveErrorState. record()
+        // stays inline here per ADR-003.
+        const { isDurableSaveLoss, atRiskTurns, debateError } = computeSaveErrorState(err, activeDebate);
         getGlobalRecorder()?.record({ type: 'state.error', component: 'debate-store', level: 'error', debate_id: activeDebate.id, message: isDurableSaveLoss ? 'Durable debate save failed — recovery copy preserved' : 'Failed to save debate', error: { name: isDurableSaveLoss ? 'DurableSaveError' : 'SaveError', message: String(err), stack: (err as Error).stack }, data: { caller: caller ?? 'unknown', payload_bytes: JSON.stringify(activeDebate).length, turn_count: activeDebate.transcript.length, save_degraded: isDurableSaveLoss, at_risk_turns: atRiskTurns } });
-        set({
-          debateError: isDurableSaveLoss
-            ? `Save failed: this debate couldn't be written to disk — a file lock (often antivirus or a file indexer) is holding the file. ${atRiskTurns} ${atRiskTurns === 1 ? 'turn is' : 'turns are'} at risk. A recovery copy was preserved on disk; retry the save once the lock clears, and don't close the app before it succeeds.`
-            : mapErrorToUserMessage(err),
-        });
+        set({ debateError });
       }
     } finally {
       const wasDirty = get()._saveDirty;
