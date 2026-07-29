@@ -77,6 +77,8 @@ Four POV camps with BDI categories (Beliefs, Desires, Intentions). Node IDs: `{p
 
 Configured in `ai-models.json` (single source of truth for PS and Electron). Backends: Google Gemini (free tier), Anthropic Claude, Groq (free tier). Keys via `Register-AIBackend` or env vars (`GEMINI_API_KEY`, `ANTHROPIC_API_KEY`, `GROQ_API_KEY`, `AI_API_KEY` fallback).
 
+**Before landing any `ai-models.json` edit, run `npm run verify:config`.** The registry's completeness gates live in other packages' test suites (taxonomy-editor vitest + the `tests/` Pester suite), so a root-config edit gets no local signal that it must satisfy them — that is how an incomplete registry edit went red in CI (t/1933). `scripts/Verify-Config.ps1` runs all six registry gates in one command and exits non-zero (naming the failing gate) if any fails: `Test-AIModelsConfig.Tests.ps1`, `ModelLiteralLint.Tests.ps1` (Pester), and `keysValidation`, `resolveApiModelId`, `configInvariant`, `modelDiscovery` (vitest, delegated to taxonomy-editor). Requires `pwsh` + `taxonomy-editor/node_modules` (`npm ci` there once).
+
 ## Shell Quoting Rule
 
 When writing, editing, or executing code containing special shell characters (template literals, nested quotes, apostrophes, backticks, `$` variables, f-strings), **always use Edit/Write tools** instead of Bash `sed`, `awk`, or heredocs. When running Python/PowerShell scripts that contain quotes or f-strings, write the script to a temp file with the `Write` tool and execute it, rather than inlining in a heredoc or `bash -c`. Shell escaping is the #1 source of silent corruption bugs.
