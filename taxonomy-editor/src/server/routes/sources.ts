@@ -53,39 +53,52 @@ function loadEvidenceIndex(): SourceEvidenceIndex | null {
 
 type DocMetaMap = import('../../../../lib/debate/evidenceFromSummaries.js').DocMetaMap;
 let _docTitles: DocMetaMap | null | undefined;
+
+/** Walk up from this module to find .aitriad.json and resolve its sources_root, or null. */
+function resolveSourcesRootFromConfig(): string | null {
+  let searchDir = path.resolve(__dirname, '..', '..', '..', '..');
+  let aitriadPath = '';
+  for (let i = 0; i < 5; i++) {
+    const candidate = path.join(searchDir, '.aitriad.json');
+    if (fs.existsSync(candidate)) { aitriadPath = candidate; break; }
+    searchDir = path.dirname(searchDir);
+  }
+  if (!aitriadPath) return null;
+  const aitriadConfig = JSON.parse(fs.readFileSync(aitriadPath, 'utf-8'));
+  const sourcesRoot = aitriadConfig.sources_root
+    ? path.resolve(path.dirname(aitriadPath), aitriadConfig.sources_root)
+    : null;
+  if (!sourcesRoot || !fs.existsSync(sourcesRoot)) return null;
+  return sourcesRoot;
+}
+
+/** Read per-source metadata.json titles/urls under sourcesRoot into a DocMetaMap. */
+function readDocMetaMap(sourcesRoot: string): DocMetaMap {
+  const metaMap: DocMetaMap = {};
+  for (const entry of fs.readdirSync(sourcesRoot, { withFileTypes: true })) {
+    if (!entry.isDirectory()) continue;
+    const metaPath = path.join(sourcesRoot, entry.name, 'metadata.json');
+    if (!fs.existsSync(metaPath)) continue;
+    try {
+      const meta = JSON.parse(fs.readFileSync(metaPath, 'utf-8'));
+      if (meta.title) {
+        const docMeta: { title: string; resolved_url?: string; provenance_label?: string } = { title: meta.title };
+        if (meta.resolved_url) docMeta.resolved_url = meta.resolved_url;
+        if (meta.provenance?.length > 0 && meta.provenance[0].id) docMeta.provenance_label = meta.provenance[0].id;
+        if (!docMeta.resolved_url && meta.url) docMeta.resolved_url = meta.url;
+        metaMap[entry.name] = docMeta;
+      }
+    } catch { /* telemetry — silent by design;  skip */ }
+  }
+  return metaMap;
+}
+
 function loadDocTitles(): DocMetaMap | null {
   if (_docTitles !== undefined) return _docTitles;
   try {
-    // Resolve sources root from .aitriad.json (project root)
-    let searchDir = path.resolve(__dirname, '..', '..', '..', '..');
-    let aitriadPath = '';
-    for (let i = 0; i < 5; i++) {
-      const candidate = path.join(searchDir, '.aitriad.json');
-      if (fs.existsSync(candidate)) { aitriadPath = candidate; break; }
-      searchDir = path.dirname(searchDir);
-    }
-    if (!aitriadPath) { _docTitles = null; return null; }
-    const aitriadConfig = JSON.parse(fs.readFileSync(aitriadPath, 'utf-8'));
-    const sourcesRoot = aitriadConfig.sources_root
-      ? path.resolve(path.dirname(aitriadPath), aitriadConfig.sources_root)
-      : null;
-    if (!sourcesRoot || !fs.existsSync(sourcesRoot)) { _docTitles = null; return null; }
-    const metaMap: DocMetaMap = {};
-    for (const entry of fs.readdirSync(sourcesRoot, { withFileTypes: true })) {
-      if (!entry.isDirectory()) continue;
-      const metaPath = path.join(sourcesRoot, entry.name, 'metadata.json');
-      if (!fs.existsSync(metaPath)) continue;
-      try {
-        const meta = JSON.parse(fs.readFileSync(metaPath, 'utf-8'));
-        if (meta.title) {
-          const docMeta: { title: string; resolved_url?: string; provenance_label?: string } = { title: meta.title };
-          if (meta.resolved_url) docMeta.resolved_url = meta.resolved_url;
-          if (meta.provenance?.length > 0 && meta.provenance[0].id) docMeta.provenance_label = meta.provenance[0].id;
-          if (!docMeta.resolved_url && meta.url) docMeta.resolved_url = meta.url;
-          metaMap[entry.name] = docMeta;
-        }
-      } catch { /* telemetry — silent by design;  skip */ }
-    }
+    const sourcesRoot = resolveSourcesRootFromConfig();
+    if (!sourcesRoot) { _docTitles = null; return null; }
+    const metaMap = readDocMetaMap(sourcesRoot);
     _docTitles = Object.keys(metaMap).length > 0 ? metaMap : null;
     return _docTitles;
   } catch { /* telemetry — silent by design */ _docTitles = null; return null; }
