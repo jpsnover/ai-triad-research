@@ -24,6 +24,7 @@ import { parseNpy, extractNodeVectors } from '../../../../lib/npy.js';
 import type { OrganizationEdge } from '../../../../lib/organizations/types.js';
 import type { Entity } from '../../../../lib/entities/types.js';
 import type { EntityMentionsFile, ContainerMentions } from '../../../../lib/entities/mentionTypes.js';
+import { serializeEdgesJson } from '../../../../lib/edges/serializeEdges.js';
 
 // ── Extracted sub-modules (ADR-007, t/1688) — cohesion splits behind a stable
 // barrel: importers keep importing these symbols from './fileIO.js'. Each module
@@ -661,7 +662,7 @@ export async function readEdgesFile(): Promise<unknown | null> {
 }
 
 export async function writeEdgesFile(data: unknown): Promise<void> {
-  await backend.writeFile(getEdgesPath(), JSON.stringify(data, null, 2));
+  await backend.writeFile(getEdgesPath(), serializeEdgesJson(data));
 }
 
 export async function updateEdgeStatus(edges: unknown, index: number, status: string): Promise<unknown> {
