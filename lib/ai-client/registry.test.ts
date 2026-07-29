@@ -8,6 +8,9 @@ import {
   estimateCost,
   validateModelConfig,
   assertModelConfigValid,
+  resolveBackend,
+  resolveModel,
+  getDefaultTimeout,
 } from './registry.js';
 import type { ModelRegistry } from './registry.js';
 
@@ -286,5 +289,26 @@ describe('assertModelConfigValid', () => {
   it('does not throw for a coherent config', () => {
     const registry: ModelRegistry = { ...BASE, defaults: { openai: 'openai-gpt-4o' } };
     expect(() => assertModelConfigValid(registry)).not.toThrow();
+  });
+});
+
+describe('moonshot backend routing (t/1945)', () => {
+  // The server path (aiBackends.ts generateText) uses the prefix-based
+  // resolveBackend(model); without the moonshot branch it fell through to gemini.
+  it('resolveBackend maps the moonshot prefix to moonshot, not gemini', () => {
+    expect(resolveBackend('moonshot-kimi-k3')).toBe('moonshot');
+    expect(resolveBackend('moonshot')).toBe('moonshot');
+  });
+
+  it('resolveModel resolves the moonshot prefix as a verbatim passthrough', () => {
+    const registry: ModelRegistry = { ...TEST_REGISTRY, models: [] };
+    expect(resolveModel(registry, 'moonshot-kimi-k3')).toEqual({
+      apiModelId: 'moonshot-kimi-k3',
+      backend: 'moonshot',
+    });
+  });
+
+  it('getDefaultTimeout uses the moonshot (240s) budget, mirroring zai', () => {
+    expect(getDefaultTimeout('moonshot-kimi-k3')).toBe(240_000);
   });
 });
