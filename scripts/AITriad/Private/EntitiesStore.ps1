@@ -31,6 +31,15 @@ function Get-EntityEmbeddingsFilePath {
     return Join-Path (Get-TaxonomyDir) 'entity_embeddings.json'
 }
 
+function Get-EntityMentionsFilePath {
+    # entity_mentions.json — the derived mention index (t/1894, contract lib/entities/mentionTypes.ts).
+    # Same data-repo location convention as entities.json / entity_extraction_log.json.
+    [CmdletBinding()]
+    [OutputType([string])]
+    param()
+    return Join-Path (Get-TaxonomyDir) 'entity_mentions.json'
+}
+
 function New-EmptyEntitiesStore {
     <#
     .SYNOPSIS

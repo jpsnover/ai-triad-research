@@ -899,6 +899,8 @@ Export-ModuleMember -Function @(
     # t/1806 — Entity ontology Phase 1: extraction + maintenance reports
     'Invoke-EntityExtraction'
     'Get-EntityReport'
+    # t/1894 — Entity ontology Phase 2-B: batch mention indexer (entity_mentions.json)
+    'Update-EntityMentionIndex'
 ) -Alias @(
     'Import-Document'
     'TaxonomyEditor'

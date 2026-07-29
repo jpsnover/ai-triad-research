@@ -45,6 +45,7 @@ Get-Help <CmdletName> -Full                     # full docs for any cmdlet
 | `Import-Entity` | Curation write: upsert 1-20 proposed/approved/deprecated entity records with a never-reused ent-NNN allocator; person records need a human description to approve (t/1804) |
 | `Invoke-EntityExtraction` | Phase 1 entity extraction from source_evidence_index.json facts; resolves against existing entities/orgs/taxonomy/dictionary/policy before minting only the unmatched remainder (t/1806) |
 | `Get-EntityReport` | Maintenance reports: near-duplicate entities, provenance orphans, dictionary-collision candidates, merge-chain defects (t/1806) |
+| `Update-EntityMentionIndex` | Phase 2-B batch re-index: rebuilds the derived `entity_mentions.json` by alias-first, deterministic matching of approved entities against curated container text (SEI facts + POV nodes); idempotent via per-container `text_sha256`, human mentions win, normalization mirrors the D1 parity contract (t/1894) |
 
 ### Graph & Conflict Analysis
 | Cmdlet | Use when |
