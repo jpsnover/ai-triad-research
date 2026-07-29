@@ -137,6 +137,13 @@ export class GitHubRestClient {
         if (outcome.delayMs) await this.sleep(outcome.delayMs);
 
       } catch (err: unknown) {
+        getGlobalRecorder()?.record({
+          type: 'system.error',
+          component: 'github-api',
+          level: 'error',
+          message: 'Operation failed',
+          error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+        });
         const networkResult = await this.handleNetworkError(
           err, startMs, method, pathAndQuery, attempt, callId, requestId,
         );
@@ -273,13 +280,6 @@ export class GitHubRestClient {
     err: unknown, startMs: number, method: string, pathAndQuery: string,
     attempt: number, callId: string | undefined, requestId: string,
   ): Promise<ApiResult | null> {
-    getGlobalRecorder()?.record({
-      type: 'system.error',
-      component: 'github-api',
-      level: 'error',
-      message: 'Operation failed',
-      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
-    });
     const durationMs = Date.now() - startMs;
     this.deps.record({
       type: 'github.api.error',
