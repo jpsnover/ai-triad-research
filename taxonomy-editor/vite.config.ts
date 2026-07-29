@@ -136,6 +136,7 @@ export default defineConfig({
       '../../../lib/debate/**/*.test.ts',
       // dictionary lint tests excluded — data consistency checks owned by data team
       '../../../lib/diff/**/*.test.ts',
+      '../../../lib/edges/**/*.test.ts',
       '../../../lib/flight-recorder/**/*.test.ts',
       '../../../lib/search/**/*.test.ts',
       '../../../lib/entities/**/*.test.ts',
