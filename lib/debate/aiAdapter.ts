@@ -115,6 +115,7 @@ const BACKEND_ENV_KEYS: Record<string, string> = {
   openai: 'OPENAI_API_KEY',
   azure: 'AZURE_OPENAI_API_KEY',
   deepseek: 'DEEPSEEK_API_KEY',
+  moonshot: 'MOONSHOT_API_KEY',
   tavily: 'TAVILY_API_KEY',
 };
 

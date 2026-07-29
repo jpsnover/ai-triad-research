@@ -14,6 +14,7 @@ export { generateViaAzure } from './providers/azure.js';
 export { generateViaDeepSeek, generateViaDeepSeekStream } from './providers/deepseek.js';
 export { generateViaOllama, isOllamaAvailable, OLLAMA_BASE } from './providers/ollama.js';
 export { generateViaZai } from './providers/zai.js';
+export { generateViaMoonshot } from './providers/moonshot.js';
 export { TaskTier, resolveModelForPurpose, probeOllama, configureRouter, getRouterConfig, getTierForPurpose, PURPOSE_TIER_MAP, resolveMultiProviderModels } from './modelRouter.js';
 export type { TaskPurpose, RouterConfig, RoutedModel, ModelTier } from './modelRouter.js';
 export { callGeminiBatchEmbed } from './providers/gemini-embeddings.js';
