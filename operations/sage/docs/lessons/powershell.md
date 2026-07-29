@@ -89,6 +89,26 @@ Failure patterns related to PowerShell strict mode, module system, and language 
 
 ---
 
+## [PowerShell] Pester Expands `<...>` Tokens in It/Describe Names — a Literal `<x>` Evaluates `$x` and Throws Under Ambient Strict Mode (Local≠CI)
+
+**Pattern:** Pester's data-driven syntax **expands `<token>` placeholders in `It`/`Describe`/`Context` NAME strings** by evaluating the variable of that name (the mechanism behind `-ForEach`/`-TestCases` name interpolation). A name written as a plain description — e.g. `It 'resolves a <family>-latest alias'` — therefore makes Pester evaluate `$family`. If nothing bound it, that's an **unbound-variable read**; under an **ambient `Set-StrictMode -Version Latest`** the read **THROWS**, and the test **false-reds** from name expansion, not from any assertion. It only bites when strict mode is live in the Pester run SCOPE (a wrapper script's own `Set-StrictMode`, or a module's `BeforeAll` import that sets it). CI's bare `Invoke-Pester` sets no strict mode → CI is GREEN, so a **local strict wrapper disagrees with CI**.
+
+**Instances:**
+- 2026-07-29 — PowerShell 2 (t/1971, PR #160, building `verify:config`): `Test-AIModelsConfig.Tests.ps1` had `It 'resolves a <family>-latest alias'`; Pester evaluated `$family` (unbound) and, under the wrapper's ambient `Set-StrictMode -Version Latest`, threw → false-red. CI (no strict mode) was green — the divergence was strict-mode-in-scope, not the test logic. Fix: run Pester with strict mode off in that scope — `& { Set-StrictMode -Off; Invoke-Pester -Configuration $c }`. (t/1971#1.)
+
+**Root Cause:** `<name>` in a Pester test-name string is a **template placeholder**, not literal text — Pester interpolates it from a variable (intended for `-ForEach`/`-TestCases` cases). A description that merely contains `<word>` triggers a read of `$word`. Strict mode turns an unbound read from silent-`$null` into a terminating error, so the same name is benign without strict mode (CI) and fatal with it (a local wrapper). Two compounding causes: (1) angle brackets in a name are magic, not literal; (2) local strict-mode-in-scope ≠ CI's strict-mode-off — a local≠CI divergence, same family as #88 (keys-present) and #94 (test-scope): the local harness differs from CI in a way that flips the result.
+
+**Prevention:**
+1. **Don't put literal `<...>` in a Pester test name** unless it's a real `-ForEach`/`-TestCases` placeholder you intend to interpolate. Rephrase (`resolves a family-latest alias`) so Pester doesn't treat it as a token.
+2. **Run Pester with strict mode OFF in the run scope** if a wrapper/module sets it: `& { Set-StrictMode -Off; Invoke-Pester -Configuration $c }` — matches CI (which sets none) and stops name-expansion of an unbound var from throwing.
+3. **A test that false-reds locally but is green in CI = suspect a local-harness/CI divergence** — here strict-mode-in-scope; compare the local wrapper's environment to CI's `Invoke-Pester` invocation. (Sibling of #88/#94.)
+
+**Status:** Active — Pester name-token expansion × ambient strict mode; a local-wrapper≠CI false-red.
+
+**Applies To:** All agents writing Pester tests whose names contain `<...>`, or running Pester via a wrapper/module that sets `Set-StrictMode`.
+
+---
+
 ## [PowerShell] Private Module Functions Not Available in Standalone Scripts
 
 **Pattern:** Calling a `Private/` module function (e.g., `Get-DataRoot`) from a standalone `.ps1` script fails with "not recognized" because private functions are only available within the module scope.
