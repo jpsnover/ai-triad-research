@@ -105,6 +105,187 @@ const CHECKPOINT_LABELS: Record<string, string> = {
   final: 'Final',
 };
 
+// ── Checkpoint tabs sub-component ──────────────────────────
+
+function CheckpointTabs({
+  evaluations,
+  activeTab,
+  onSelectTab,
+  divergenceItems,
+  showDivergence,
+  onToggleDivergence,
+}: {
+  evaluations: NeutralEvaluation[];
+  activeTab: string;
+  onSelectTab: (checkpoint: string) => void;
+  divergenceItems: DivergenceItem[];
+  showDivergence: boolean;
+  onToggleDivergence: () => void;
+}) {
+  return (
+    <div className="neutral-eval-tabs">
+      {evaluations.map(ev => (
+        <button
+          key={ev.checkpoint}
+          className={`neutral-eval-tab ${activeTab === ev.checkpoint ? 'active' : ''}`}
+          onClick={() => onSelectTab(ev.checkpoint)}
+        >
+          {CHECKPOINT_LABELS[ev.checkpoint] ?? ev.checkpoint}
+        </button>
+      ))}
+      {divergenceItems.length > 0 && (
+        <button
+          className={`neutral-eval-tab neutral-eval-tab-divergence ${showDivergence ? 'active' : ''}`}
+          onClick={onToggleDivergence}
+        >
+          Divergence ({divergenceItems.length})
+        </button>
+      )}
+    </div>
+  );
+}
+
+// ── Divergence view sub-component ──────────────────────────
+
+function DivergenceView({ items }: { items: DivergenceItem[] }) {
+  return (
+    <div className="neutral-eval-divergence">
+      <p className="neutral-eval-divergence-intro">
+        Cases where the neutral evaluator and the persona synthesis disagree:
+      </p>
+      {items.map((item, idx) => (
+        <div key={idx} className={`neutral-eval-divergence-item severity-${item.severity}`}>
+          <div className="neutral-eval-divergence-type">
+            <span className={`badge badge-severity-${item.severity}`}>
+              {item.severity}
+            </span>
+            <span className="neutral-eval-divergence-label">
+              {item.type.replace(/_/g, ' ')}
+            </span>
+          </div>
+          <p className="neutral-eval-divergence-desc">{item.description}</p>
+          <div className="neutral-eval-divergence-compare">
+            <div className="neutral-eval-divergence-side">
+              <strong>Neutral evaluator:</strong> {item.neutral_view}
+            </div>
+            <div className="neutral-eval-divergence-side">
+              <strong>Persona synthesis:</strong> {item.synthesis_view}
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ── Cruxes sub-component ───────────────────────────────────
+
+function CruxesSection({ cruxes }: { cruxes: Crux[] }) {
+  return (
+    <div className="neutral-eval-section">
+      <h4>Cruxes ({cruxes.length})</h4>
+      {cruxes.length === 0 ? (
+        <p className="neutral-eval-placeholder">No cruxes identified at this checkpoint.</p>
+      ) : (
+        <div className="neutral-eval-cruxes">
+          {cruxes.map(crux => (
+            <div key={crux.id} className="neutral-eval-crux">
+              <div className="neutral-eval-crux-header">
+                <span
+                  className="badge"
+                  /* eslint-disable-next-line local/no-inline-style -- dynamic: data-driven status color + confidence opacity */
+                  style={{
+                    backgroundColor: STATUS_BADGE_COLORS[crux.status] ?? '#999',
+                    opacity: CONFIDENCE_OPACITY[crux.confidence] ?? 1,
+                  }}
+                >
+                  {crux.status.replace(/_/g, ' ')}
+                </span>
+                <span className="badge badge-outline">
+                  {crux.disagreement_type}
+                </span>
+                <span className="neutral-eval-speakers">
+                  {crux.speakers_involved.map(s => `Speaker ${s}`).join(' vs ')}
+                </span>
+              </div>
+              <p className="neutral-eval-crux-desc">{crux.description}</p>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Claims sub-component ───────────────────────────────────
+
+function ClaimsSection({
+  claimCount,
+  filteredClaims,
+  strongestUnaddressedClaimId,
+  claimFilter,
+  onFilterChange,
+}: {
+  claimCount: number;
+  filteredClaims: EvaluatedClaim[];
+  strongestUnaddressedClaimId: string | null;
+  claimFilter: string;
+  onFilterChange: (value: string) => void;
+}) {
+  return (
+    <div className="neutral-eval-section">
+      <div className="neutral-eval-claims-header">
+        <h4>Claims ({claimCount})</h4>
+        <select
+          className="neutral-eval-filter"
+          value={claimFilter}
+          onChange={e => onFilterChange(e.target.value)}
+        >
+          <option value="all">All</option>
+          <option value="well_supported">Well supported</option>
+          <option value="plausible_but_underdefended">Underdefended</option>
+          <option value="contested_unresolved">Contested</option>
+          <option value="refuted">Refuted</option>
+          <option value="off_topic">Off topic</option>
+        </select>
+      </div>
+      {filteredClaims.length === 0 ? (
+        <p className="neutral-eval-placeholder">No claims match the current filter.</p>
+      ) : (
+        <div className="neutral-eval-claims">
+          {filteredClaims.map(claim => (
+            <div
+              key={claim.id}
+              className={`neutral-eval-claim ${claim.id === strongestUnaddressedClaimId ? 'strongest-unaddressed' : ''}`}
+            >
+              <div className="neutral-eval-claim-header">
+                <span className="neutral-eval-claim-speaker">
+                  Speaker {claim.speaker}
+                </span>
+                <span
+                  className="badge"
+                  /* eslint-disable-next-line local/no-inline-style -- dynamic: data-driven assessment color + confidence opacity */
+                  style={{
+                    backgroundColor: ASSESSMENT_BADGE_COLORS[claim.neutral_assessment] ?? '#999',
+                    opacity: CONFIDENCE_OPACITY[claim.confidence] ?? 1,
+                  }}
+                >
+                  {formatAssessment(claim.neutral_assessment)}
+                </span>
+                {claim.id === strongestUnaddressedClaimId && (
+                  <span className="badge badge-strongest">strongest unaddressed</span>
+                )}
+              </div>
+              <p className="neutral-eval-claim-text">{claim.claim_text}</p>
+              <p className="neutral-eval-claim-reasoning">{claim.reasoning}</p>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Diagnostics sub-component ──────────────────────────────
 
 function DiagnosticsSection({ eval: ev }: { eval: NeutralEvaluation }) {
@@ -193,55 +374,17 @@ export function NeutralEvaluationPanel({
       </div>
 
       {/* Checkpoint tabs + divergence toggle */}
-      <div className="neutral-eval-tabs">
-        {evaluations.map(ev => (
-          <button
-            key={ev.checkpoint}
-            className={`neutral-eval-tab ${activeTab === ev.checkpoint ? 'active' : ''}`}
-            onClick={() => { setActiveTab(ev.checkpoint); setShowDivergence(false); }}
-          >
-            {CHECKPOINT_LABELS[ev.checkpoint] ?? ev.checkpoint}
-          </button>
-        ))}
-        {divergenceItems.length > 0 && (
-          <button
-            className={`neutral-eval-tab neutral-eval-tab-divergence ${showDivergence ? 'active' : ''}`}
-            onClick={() => setShowDivergence(!showDivergence)}
-          >
-            Divergence ({divergenceItems.length})
-          </button>
-        )}
-      </div>
+      <CheckpointTabs
+        evaluations={evaluations}
+        activeTab={activeTab}
+        onSelectTab={checkpoint => { setActiveTab(checkpoint); setShowDivergence(false); }}
+        divergenceItems={divergenceItems}
+        showDivergence={showDivergence}
+        onToggleDivergence={() => setShowDivergence(!showDivergence)}
+      />
 
       {/* Divergence view */}
-      {showDivergence && (
-        <div className="neutral-eval-divergence">
-          <p className="neutral-eval-divergence-intro">
-            Cases where the neutral evaluator and the persona synthesis disagree:
-          </p>
-          {divergenceItems.map((item, idx) => (
-            <div key={idx} className={`neutral-eval-divergence-item severity-${item.severity}`}>
-              <div className="neutral-eval-divergence-type">
-                <span className={`badge badge-severity-${item.severity}`}>
-                  {item.severity}
-                </span>
-                <span className="neutral-eval-divergence-label">
-                  {item.type.replace(/_/g, ' ')}
-                </span>
-              </div>
-              <p className="neutral-eval-divergence-desc">{item.description}</p>
-              <div className="neutral-eval-divergence-compare">
-                <div className="neutral-eval-divergence-side">
-                  <strong>Neutral evaluator:</strong> {item.neutral_view}
-                </div>
-                <div className="neutral-eval-divergence-side">
-                  <strong>Persona synthesis:</strong> {item.synthesis_view}
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
+      {showDivergence && <DivergenceView items={divergenceItems} />}
 
       {/* Checkpoint content */}
       {!showDivergence && activeEval && (
@@ -257,90 +400,16 @@ export function NeutralEvaluationPanel({
           </div>
 
           {/* Cruxes */}
-          <div className="neutral-eval-section">
-            <h4>Cruxes ({activeEval.cruxes.length})</h4>
-            {activeEval.cruxes.length === 0 ? (
-              <p className="neutral-eval-placeholder">No cruxes identified at this checkpoint.</p>
-            ) : (
-              <div className="neutral-eval-cruxes">
-                {activeEval.cruxes.map(crux => (
-                  <div key={crux.id} className="neutral-eval-crux">
-                    <div className="neutral-eval-crux-header">
-                      <span
-                        className="badge"
-                        /* eslint-disable-next-line local/no-inline-style -- dynamic: data-driven status color + confidence opacity */
-                        style={{
-                          backgroundColor: STATUS_BADGE_COLORS[crux.status] ?? '#999',
-                          opacity: CONFIDENCE_OPACITY[crux.confidence] ?? 1,
-                        }}
-                      >
-                        {crux.status.replace(/_/g, ' ')}
-                      </span>
-                      <span className="badge badge-outline">
-                        {crux.disagreement_type}
-                      </span>
-                      <span className="neutral-eval-speakers">
-                        {crux.speakers_involved.map(s => `Speaker ${s}`).join(' vs ')}
-                      </span>
-                    </div>
-                    <p className="neutral-eval-crux-desc">{crux.description}</p>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+          <CruxesSection cruxes={activeEval.cruxes} />
 
           {/* Claims */}
-          <div className="neutral-eval-section">
-            <div className="neutral-eval-claims-header">
-              <h4>Claims ({activeEval.claims.length})</h4>
-              <select
-                className="neutral-eval-filter"
-                value={claimFilter}
-                onChange={e => setClaimFilter(e.target.value)}
-              >
-                <option value="all">All</option>
-                <option value="well_supported">Well supported</option>
-                <option value="plausible_but_underdefended">Underdefended</option>
-                <option value="contested_unresolved">Contested</option>
-                <option value="refuted">Refuted</option>
-                <option value="off_topic">Off topic</option>
-              </select>
-            </div>
-            {filteredClaims.length === 0 ? (
-              <p className="neutral-eval-placeholder">No claims match the current filter.</p>
-            ) : (
-              <div className="neutral-eval-claims">
-                {filteredClaims.map(claim => (
-                  <div
-                    key={claim.id}
-                    className={`neutral-eval-claim ${claim.id === activeEval.overall_assessment.strongest_unaddressed_claim_id ? 'strongest-unaddressed' : ''}`}
-                  >
-                    <div className="neutral-eval-claim-header">
-                      <span className="neutral-eval-claim-speaker">
-                        Speaker {claim.speaker}
-                      </span>
-                      <span
-                        className="badge"
-                        /* eslint-disable-next-line local/no-inline-style -- dynamic: data-driven assessment color + confidence opacity */
-                        style={{
-                          backgroundColor: ASSESSMENT_BADGE_COLORS[claim.neutral_assessment] ?? '#999',
-                          opacity: CONFIDENCE_OPACITY[claim.confidence] ?? 1,
-                        }}
-                      >
-                        {formatAssessment(claim.neutral_assessment)}
-                      </span>
-                      {claim.id === activeEval.overall_assessment.strongest_unaddressed_claim_id && (
-                        <span className="badge badge-strongest">strongest unaddressed</span>
-                      )}
-                    </div>
-                    <p className="neutral-eval-claim-text">{claim.claim_text}</p>
-                    <p className="neutral-eval-claim-reasoning">{claim.reasoning}</p>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+          <ClaimsSection
+            claimCount={activeEval.claims.length}
+            filteredClaims={filteredClaims}
+            strongestUnaddressedClaimId={activeEval.overall_assessment.strongest_unaddressed_claim_id}
+            claimFilter={claimFilter}
+            onFilterChange={setClaimFilter}
+          />
 
           {/* Diagnostics (prompt + raw response) */}
           {(activeEval.diagnostics_prompt || activeEval.diagnostics_raw_response) && (

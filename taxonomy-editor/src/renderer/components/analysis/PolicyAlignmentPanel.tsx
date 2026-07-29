@@ -4,7 +4,7 @@
 import { useState, useMemo } from 'react';
 import { POV_META, type PovMetaKey } from '@lib/electron-shared/povMeta';
 import { useTaxonomyStore } from '../../hooks/useTaxonomyStore';
-import type { Pov } from '../../types/taxonomy';
+import type { Pov, EdgesFile } from '../../types/taxonomy';
 
 interface PolicyUsage {
   nodeId: string;
@@ -18,6 +18,20 @@ interface SharedPolicy {
   povs: string[];
   usages: PolicyUsage[];
   edgeSummary: { contradicts: number; complements: number; tensions: number };
+}
+
+// Count edges touching a policy id, bucketed by edge type.
+function countPolicyEdges(edgesFile: EdgesFile | null, polId: string): SharedPolicy['edgeSummary'] {
+  let contradicts = 0, complements = 0, tensions = 0;
+  if (edgesFile) {
+    for (const edge of edgesFile.edges) {
+      if (edge.source !== polId && edge.target !== polId) continue;
+      if (edge.type === 'CONTRADICTS') contradicts++;
+      else if (edge.type === 'COMPLEMENTS') complements++;
+      else if (edge.type === 'TENSION_WITH') tensions++;
+    }
+  }
+  return { contradicts, complements, tensions };
 }
 
 export function PolicyAlignmentPanel() {
@@ -57,23 +71,12 @@ export function PolicyAlignmentPanel() {
       const reg = policyRegistry?.find(p => p.id === polId);
       if (!reg) continue;
 
-      // Count edges
-      let contradicts = 0, complements = 0, tensions = 0;
-      if (edgesFile) {
-        for (const edge of edgesFile.edges) {
-          if (edge.source !== polId && edge.target !== polId) continue;
-          if (edge.type === 'CONTRADICTS') contradicts++;
-          else if (edge.type === 'COMPLEMENTS') complements++;
-          else if (edge.type === 'TENSION_WITH') tensions++;
-        }
-      }
-
       result.push({
         id: polId,
         action: reg.action,
         povs,
         usages,
-        edgeSummary: { contradicts, complements, tensions },
+        edgeSummary: countPolicyEdges(edgesFile, polId),
       });
     }
 

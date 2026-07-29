@@ -16,6 +16,16 @@ import './analyticsCards.css';
 
 const mean = (a: number[]) => a.reduce((s, v) => s + v, 0) / a.length;
 
+const trendArrow = (trend: number): string =>
+  trend > 0.01 ? '↑' : trend < -0.01 ? '↓' : '→';
+
+const trendColorFor = (trend: number): string =>
+  trend > 0.01
+    ? 'var(--success, #22c55e)'
+    : trend < -0.01
+      ? 'var(--danger, #ef4444)'
+      : 'var(--text-muted)';
+
 export function DebateHealthCard({ eventTypes }: { eventTypes?: Record<string, number> }) {
   const [quality, setQuality] = useState<{ avg: number; trend: number } | null>(null);
   const [loaded, setLoaded] = useState(false);
@@ -60,8 +70,8 @@ export function DebateHealthCard({ eventTypes }: { eventTypes?: Record<string, n
 
   const rate = total > 0 ? Math.round((complete / total) * 100) : null;
   const trend = quality?.trend ?? 0;
-  const arrow = trend > 0.01 ? '↑' : trend < -0.01 ? '↓' : '→';
-  const trendColor = trend > 0.01 ? 'var(--success, #22c55e)' : trend < -0.01 ? 'var(--danger, #ef4444)' : 'var(--text-muted)';
+  const arrow = trendArrow(trend);
+  const trendColor = trendColorFor(trend);
 
   return (
     <div className="analytics-card">

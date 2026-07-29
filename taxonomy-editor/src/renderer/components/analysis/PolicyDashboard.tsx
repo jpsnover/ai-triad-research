@@ -4,6 +4,8 @@
 import { useState, useEffect, useMemo } from 'react';
 import { POV_KEYS } from '@lib/debate/types';
 import { useTaxonomyStore } from '../../hooks/useTaxonomyStore';
+import type { PolicyRegistryEntry } from '../../hooks/useTaxonomyStore';
+import type { EdgesFile } from '../../types/taxonomy';
 import { PolicySourcesPanel, getPolicySourceIndex } from '../policy/PolicySourcesPanel';
 import type { PolicySourceReference } from '../policy/PolicySourcesPanel';
 import { StakeholderSection } from '../organizations/StakeholderSection';
@@ -16,6 +18,69 @@ const POV_COLORS: Record<string, string> = {
 };
 
 type PolicySourceIndex = Record<string, PolicySourceReference[]>;
+
+type ContradictHotspot = { id: string; action: string; count: number };
+
+// Map each node ID to the policy IDs it references via graph_attributes.policy_actions.
+// Reads the current taxonomy store snapshot across all POV files plus situations.
+function buildNodeToPolicies(): Map<string, string[]> {
+  const state = useTaxonomyStore.getState();
+  const nodeToPolicies = new Map<string, string[]>();
+
+  for (const povKey of [...POV_KEYS, 'situations'] as const) {
+    const file = povKey === 'situations' ? state.situations : state[povKey];
+    if (!file?.nodes) continue;
+    for (const node of file.nodes) {
+      const ga = (node as { graph_attributes?: { policy_actions?: { policy_id?: string }[] } }).graph_attributes;
+      if (ga?.policy_actions) {
+        const policyIds = ga.policy_actions
+          .filter(a => a.policy_id)
+          .map(a => a.policy_id!);
+        if (policyIds.length > 0) {
+          nodeToPolicies.set(node.id, policyIds);
+        }
+      }
+    }
+  }
+
+  return nodeToPolicies;
+}
+
+// Contradiction hotspots: count approved CONTRADICTS edges per policy (via the nodes
+// associated with each policy) and return the top 5 by count.
+function computeContradictHotspots(
+  edgesFile: EdgesFile | null,
+  policies: PolicyRegistryEntry[],
+): ContradictHotspot[] {
+  const contradictCounts = new Map<string, number>();
+  if (edgesFile) {
+    // Build a set of node IDs involved in CONTRADICTS edges
+    const contradictEdges = edgesFile.edges.filter(e => e.type === 'CONTRADICTS' && e.status === 'approved');
+
+    // We need to find which policies are associated with nodes involved in contradictions
+    // Since policies are linked to nodes via graph_attributes.policy_actions, and we have
+    // the policy registry, we'll count edges whose source or target nodes are associated
+    // with each policy
+    const nodeToPolicies = buildNodeToPolicies();
+
+    for (const edge of contradictEdges) {
+      const sourcePolicies = nodeToPolicies.get(edge.source) ?? [];
+      const targetPolicies = nodeToPolicies.get(edge.target) ?? [];
+      const allPolicies = [...sourcePolicies, ...targetPolicies];
+      for (const polId of allPolicies) {
+        contradictCounts.set(polId, (contradictCounts.get(polId) ?? 0) + 1);
+      }
+    }
+  }
+
+  return [...contradictCounts.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5)
+    .map(([id, count]) => {
+      const pol = policies.find(p => p.id === id);
+      return { id, action: pol?.action ?? id, count };
+    });
+}
 
 export function PolicyDashboard() {
   const { policyRegistry, edgesFile, setToolbarPanel } = useTaxonomyStore();
@@ -51,52 +116,8 @@ export function PolicyDashboard() {
     const maxTag = tagEntries.length > 0 ? tagEntries[0][1] : 1;
 
     // Contradiction hotspots: count CONTRADICTS edges per policy
-    // We need to map node IDs to their policy_actions to connect edges to policies
-    const contradictCounts = new Map<string, number>();
-    if (edgesFile) {
-      // Build a set of node IDs involved in CONTRADICTS edges
-      const contradictEdges = edgesFile.edges.filter(e => e.type === 'CONTRADICTS' && e.status === 'approved');
-
-      // We need to find which policies are associated with nodes involved in contradictions
-      // Since policies are linked to nodes via graph_attributes.policy_actions, and we have
-      // the policy registry, we'll count edges whose source or target nodes are associated
-      // with each policy
-      const state = useTaxonomyStore.getState();
-      const nodeToPolicies = new Map<string, string[]>();
-
-      for (const povKey of [...POV_KEYS, 'situations'] as const) {
-        const file = povKey === 'situations' ? state.situations : state[povKey];
-        if (!file?.nodes) continue;
-        for (const node of file.nodes) {
-          const ga = (node as { graph_attributes?: { policy_actions?: { policy_id?: string }[] } }).graph_attributes;
-          if (ga?.policy_actions) {
-            const policyIds = ga.policy_actions
-              .filter(a => a.policy_id)
-              .map(a => a.policy_id!);
-            if (policyIds.length > 0) {
-              nodeToPolicies.set(node.id, policyIds);
-            }
-          }
-        }
-      }
-
-      for (const edge of contradictEdges) {
-        const sourcePolicies = nodeToPolicies.get(edge.source) ?? [];
-        const targetPolicies = nodeToPolicies.get(edge.target) ?? [];
-        const allPolicies = [...sourcePolicies, ...targetPolicies];
-        for (const polId of allPolicies) {
-          contradictCounts.set(polId, (contradictCounts.get(polId) ?? 0) + 1);
-        }
-      }
-    }
-
-    const contradictHotspots = [...contradictCounts.entries()]
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 5)
-      .map(([id, count]) => {
-        const pol = policies.find(p => p.id === id);
-        return { id, action: pol?.action ?? id, count };
-      });
+    // (mapping node IDs to their policy_actions to connect edges to policies)
+    const contradictHotspots = computeContradictHotspots(edgesFile, policies);
 
     return { totalCount, crossPovCount, top10, tagEntries, maxTag, contradictHotspots };
   }, [policyRegistry, edgesFile]);

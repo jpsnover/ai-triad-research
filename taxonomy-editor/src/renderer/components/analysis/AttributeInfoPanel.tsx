@@ -36,6 +36,50 @@ function formatValue(val: string): string {
   return val.replace(/_/g, ' ');
 }
 
+// Resolve the AttributeInfo for a field/value pair.
+// Lineage uses the canonicalizing resolver (strips parens, casing); other
+// fields use exact match with a case-insensitive fallback since parenthetical
+// variants don't apply. Behavior-preserving extraction of the former inline
+// ternary chain (?? is associative, so a ?? (b ?? null) === a ?? b ?? null).
+function resolveAttributeInfo(
+  field: string,
+  value: string,
+  dataSource: Record<string, AttributeInfo> | undefined,
+): AttributeInfo | null {
+  if (field === 'intellectual_lineage') return lookupLineage(value).info;
+  if (!dataSource) return null;
+  return (
+    dataSource[value]
+    ?? Object.entries(dataSource).find(([k]) => k.toLowerCase() === value.toLowerCase())?.[1]
+    ?? null
+  );
+}
+
+// Renders a titled list of link-style buttons. Verbatim extraction of the
+// repeated `<ul className="strategy-info-links">` sub-tree.
+function LinkList({
+  label,
+  items,
+}: {
+  label: string;
+  items: { key: string; text: string; title: string; onClick: () => void }[];
+}) {
+  return (
+    <div className="strategy-info-section">
+      <div className="strategy-info-label">{label}</div>
+      <ul className="strategy-info-links">
+        {items.map(({ key, text, title, onClick }) => (
+          <li key={key}>
+            <button className="strategy-info-link" onClick={onClick} title={title}>
+              {text}
+            </button>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 export function AttributeInfoPanel({ width }: AttributeInfoPanelProps) {
   const [collapsed, setCollapsed] = useState(false);
   const { attributeInfo, clearAttributeInfo, runAttributeFilter, showAttributeInfo } = useTaxonomyStore();
@@ -73,12 +117,7 @@ export function AttributeInfoPanel({ width }: AttributeInfoPanelProps) {
 
   const { field, value } = attributeInfo;
   const dataSource = getDataSources()[field];
-  // Lookup: lineage uses canonicalizing resolver (strips parens, casing); other
-  // fields use case-insensitive fallback since parenthetical variants don't apply.
-  const info = field === 'intellectual_lineage'
-    ? lookupLineage(value).info
-    : (dataSource?.[value]
-        ?? (dataSource ? Object.entries(dataSource).find(([k]) => k.toLowerCase() === value.toLowerCase())?.[1] ?? null : null));
+  const info = resolveAttributeInfo(field, value, dataSource);
   const fieldLabel = FIELD_LABELS[field] || formatValue(field);
 
   const handleFindNodes = () => {
@@ -124,41 +163,27 @@ export function AttributeInfoPanel({ width }: AttributeInfoPanelProps) {
           </div>
 
           {info.links && info.links.length > 0 && (
-            <div className="strategy-info-section">
-              <div className="strategy-info-label">Learn More</div>
-              <ul className="strategy-info-links">
-                {info.links.map((link, i) => (
-                  <li key={i}>
-                    <button
-                      className="strategy-info-link"
-                      onClick={() => api.openExternal(link.url)}
-                      title={link.url}
-                    >
-                      {link.label}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </div>
+            <LinkList
+              label="Learn More"
+              items={info.links.map((link, i) => ({
+                key: String(i),
+                text: link.label,
+                title: link.url,
+                onClick: () => api.openExternal(link.url),
+              }))}
+            />
           )}
 
           {Array.isArray(seeAlso) ? null : seeAlso.items.length > 0 && (
-            <div className="strategy-info-section">
-              <div className="strategy-info-label">See Also — {seeAlso.categoryLabel}</div>
-              <ul className="strategy-info-links">
-                {seeAlso.items.map(({ key, label }) => (
-                  <li key={key}>
-                    <button
-                      className="strategy-info-link"
-                      onClick={() => showAttributeInfo('intellectual_lineage', key)}
-                      title={`View: ${label}`}
-                    >
-                      {label}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </div>
+            <LinkList
+              label={`See Also — ${seeAlso.categoryLabel}`}
+              items={seeAlso.items.map(({ key, label }) => ({
+                key,
+                text: label,
+                title: `View: ${label}`,
+                onClick: () => showAttributeInfo('intellectual_lineage', key),
+              }))}
+            />
           )}
 
           <div className="strategy-info-actions">

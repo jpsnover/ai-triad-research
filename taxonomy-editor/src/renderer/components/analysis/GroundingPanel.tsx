@@ -16,6 +16,68 @@ function speakerLabel(speaker: string): string {
   return POVER_INFO[speaker as Exclude<SpeakerId, 'user'>]?.label || speaker;
 }
 
+type LineageEffectiveness = {
+  boosted: number;
+  promoted: number;
+  promotedReferenced: number;
+  promotedRefRate: number;
+  baselineRefRate: number;
+};
+
+type LineageManifest = {
+  lineage_boost?: { boostedNodeIds?: string[]; promotedNodeIds?: string[] };
+  povNodeIds?: string[];
+};
+
+type LineageSets = {
+  boosted: Set<string>;
+  promoted: Set<string>;
+  injected: Set<string>;
+  referenced: Set<string>;
+};
+
+// Fold one transcript entry's injection manifest into the accumulating lineage sets.
+function accumulateLineageEntry(entry: DebateSession['transcript'][number], sets: LineageSets): void {
+  if (entry.type !== 'opening' && entry.type !== 'statement') return;
+  const manifest = (entry.metadata as Record<string, unknown>)?.injection_manifest as LineageManifest | undefined;
+  if (!manifest) return;
+
+  for (const id of (entry.taxonomy_refs ?? []).map((r: { node_id: string }) => r.node_id)) sets.referenced.add(id);
+  for (const id of manifest.povNodeIds ?? []) sets.injected.add(id);
+
+  const lb = manifest.lineage_boost;
+  if (lb) {
+    for (const id of lb.boostedNodeIds ?? []) sets.boosted.add(id);
+    for (const id of lb.promotedNodeIds ?? []) sets.promoted.add(id);
+  }
+}
+
+// Compute lineage effectiveness from injection manifests (same logic as calibrationLogger)
+function computeLineageEffectiveness(transcript: DebateSession['transcript']): LineageEffectiveness | null {
+  const sets: LineageSets = {
+    boosted: new Set<string>(),
+    promoted: new Set<string>(),
+    injected: new Set<string>(),
+    referenced: new Set<string>(),
+  };
+
+  for (const entry of transcript) accumulateLineageEntry(entry, sets);
+
+  if (sets.boosted.size === 0) return null;
+
+  const promotedReferenced = [...sets.promoted].filter(id => sets.referenced.has(id)).length;
+  const promotedRefRate = sets.promoted.size > 0 ? promotedReferenced / sets.promoted.size : 0;
+  const baselineRefRate = sets.injected.size > 0 ? sets.referenced.size / sets.injected.size : 0;
+
+  return {
+    boosted: sets.boosted.size,
+    promoted: sets.promoted.size,
+    promotedReferenced,
+    promotedRefRate,
+    baselineRefRate,
+  };
+}
+
 export function GroundingPanel({ debate }: { debate: DebateSession }) {
   const [sortCol, setSortCol] = useState<'count' | 'id' | 'label'>('count');
   const [sortAsc, setSortAsc] = useState(false);
@@ -120,44 +182,10 @@ export function GroundingPanel({ debate }: { debate: DebateSession }) {
   const statementsWithRefs = debate.transcript.filter(e => e.taxonomy_refs?.length > 0).length;
 
   // Compute lineage effectiveness from injection manifests (same logic as calibrationLogger)
-  const lineageEffectiveness = useMemo(() => {
-    const allBoosted = new Set<string>();
-    const allPromoted = new Set<string>();
-    const allInjected = new Set<string>();
-    const allReferenced = new Set<string>();
-
-    for (const entry of debate.transcript) {
-      if (entry.type !== 'opening' && entry.type !== 'statement') continue;
-      const manifest = (entry.metadata as Record<string, unknown>)?.injection_manifest as {
-        lineage_boost?: { boostedNodeIds?: string[]; promotedNodeIds?: string[] };
-        povNodeIds?: string[];
-      } | undefined;
-      if (!manifest) continue;
-
-      for (const id of (entry.taxonomy_refs ?? []).map((r: { node_id: string }) => r.node_id)) allReferenced.add(id);
-      for (const id of manifest.povNodeIds ?? []) allInjected.add(id);
-
-      const lb = manifest.lineage_boost;
-      if (lb) {
-        for (const id of lb.boostedNodeIds ?? []) allBoosted.add(id);
-        for (const id of lb.promotedNodeIds ?? []) allPromoted.add(id);
-      }
-    }
-
-    if (allBoosted.size === 0) return null;
-
-    const promotedReferenced = [...allPromoted].filter(id => allReferenced.has(id)).length;
-    const promotedRefRate = allPromoted.size > 0 ? promotedReferenced / allPromoted.size : 0;
-    const baselineRefRate = allInjected.size > 0 ? allReferenced.size / allInjected.size : 0;
-
-    return {
-      boosted: allBoosted.size,
-      promoted: allPromoted.size,
-      promotedReferenced,
-      promotedRefRate,
-      baselineRefRate,
-    };
-  }, [debate.transcript]);
+  const lineageEffectiveness = useMemo(
+    () => computeLineageEffectiveness(debate.transcript),
+    [debate.transcript],
+  );
 
   return (
     <div className="grounding-root">

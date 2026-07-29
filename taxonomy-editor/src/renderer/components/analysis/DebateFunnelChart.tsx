@@ -13,7 +13,8 @@ import './analyticsCards.css';
 
 interface Stage { label: string; count: number; instrumented: boolean }
 
-export function DebateFunnelChart({ eventTypes }: { eventTypes?: Record<string, number> }) {
+/** Build the funnel stage array from server-aggregated event-type counts. */
+function computeStages(eventTypes?: Record<string, number>): Stage[] {
   const et = eventTypes ?? {};
   const complete = et['debate.complete'] ?? 0;
   const abandon = et['debate.abandon'] ?? 0;
@@ -21,13 +22,53 @@ export function DebateFunnelChart({ eventTypes }: { eventTypes?: Record<string, 
   const started = et['debate.start'] ?? (complete + abandon);
   const taxonomyChanges = (et['node.create'] ?? 0) + (et['node.edit'] ?? 0);
 
-  const stages: Stage[] = [
+  return [
     { label: 'Started', count: started, instrumented: true },
     { label: 'Turns completed', count: et['debate.turn'] ?? 0, instrumented: 'debate.turn' in et },
     { label: 'Extractions made', count: et['debate.extraction'] ?? 0, instrumented: 'debate.extraction' in et },
     { label: 'Taxonomy changes', count: taxonomyChanges, instrumented: true },
     { label: 'Completed', count: complete, instrumented: true },
   ];
+}
+
+/** Biggest drop-off between consecutive instrumented stages. */
+function findBiggestDropoff(stages: Stage[]): { dropIdx: number; dropMax: number } {
+  let dropIdx = -1, dropMax = 0;
+  for (let i = 1; i < stages.length; i++) {
+    if (stages[i].instrumented && stages[i - 1].instrumented && stages[i - 1].count > 0) {
+      const d = stages[i - 1].count - stages[i].count;
+      if (d > dropMax) { dropMax = d; dropIdx = i; }
+    }
+  }
+  return { dropIdx, dropMax };
+}
+
+function FunnelRow({ stage: s, index: i, max, dropIdx }: { stage: Stage; index: number; max: number; dropIdx: number }) {
+  return (
+    <div className="funnel-row">
+      <span className="funnel-label">
+        {s.label}{!s.instrumented && <span className="funnel-pending"> (not yet tracked)</span>}
+      </span>
+      <div className="funnel-bar-track">
+        <div
+          className="funnel-bar"
+          /* eslint-disable-next-line local/no-inline-style -- dynamic: data-driven bar width/opacity/color */
+          style={{
+            width: `${(s.count / max) * 100}%`,
+            opacity: s.instrumented ? 1 : 0.3,
+            background: i === dropIdx ? 'var(--danger, #ef4444)' : 'var(--color-acc, #3b82f6)',
+          }}
+        />
+      </div>
+      <span className="funnel-count">{s.instrumented ? s.count : '—'}</span>
+    </div>
+  );
+}
+
+export function DebateFunnelChart({ eventTypes }: { eventTypes?: Record<string, number> }) {
+  const stages = computeStages(eventTypes);
+  const started = stages[0].count;
+  const complete = stages[stages.length - 1].count;
 
   if (started === 0 && complete === 0) {
     return (
@@ -39,38 +80,14 @@ export function DebateFunnelChart({ eventTypes }: { eventTypes?: Record<string, 
   }
 
   const max = Math.max(...stages.map(s => s.count), 1);
-
-  // Biggest drop-off between consecutive instrumented stages.
-  let dropIdx = -1, dropMax = 0;
-  for (let i = 1; i < stages.length; i++) {
-    if (stages[i].instrumented && stages[i - 1].instrumented && stages[i - 1].count > 0) {
-      const d = stages[i - 1].count - stages[i].count;
-      if (d > dropMax) { dropMax = d; dropIdx = i; }
-    }
-  }
+  const { dropIdx, dropMax } = findBiggestDropoff(stages);
 
   return (
     <div className="analytics-panel">
       <div className="analytics-card-label">Debate Funnel</div>
       <div className="funnel">
         {stages.map((s, i) => (
-          <div key={s.label} className="funnel-row">
-            <span className="funnel-label">
-              {s.label}{!s.instrumented && <span className="funnel-pending"> (not yet tracked)</span>}
-            </span>
-            <div className="funnel-bar-track">
-              <div
-                className="funnel-bar"
-                /* eslint-disable-next-line local/no-inline-style -- dynamic: data-driven bar width/opacity/color */
-                style={{
-                  width: `${(s.count / max) * 100}%`,
-                  opacity: s.instrumented ? 1 : 0.3,
-                  background: i === dropIdx ? 'var(--danger, #ef4444)' : 'var(--color-acc, #3b82f6)',
-                }}
-              />
-            </div>
-            <span className="funnel-count">{s.instrumented ? s.count : '—'}</span>
-          </div>
+          <FunnelRow key={s.label} stage={s} index={i} max={max} dropIdx={dropIdx} />
         ))}
       </div>
       {dropIdx > 0 && (

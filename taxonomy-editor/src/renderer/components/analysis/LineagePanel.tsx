@@ -15,6 +15,21 @@ interface LineagePanelProps {
   onSelectValue?: (value: string) => void;
 }
 
+// Collect canonical lineage keys from a set of nodes' intellectual_lineage attributes.
+function addLineageKeys(
+  nodes: readonly { graph_attributes?: { intellectual_lineage?: (string | { name?: string })[] } }[],
+  keys: Set<string>,
+): void {
+  for (const n of nodes) {
+    for (const l of n.graph_attributes?.intellectual_lineage ?? []) {
+      const s = typeof l === 'string' ? l : (l as { name?: string })?.name;
+      if (!s) continue;
+      const resolved = lookupLineage(s).key;
+      keys.add(resolved ?? s);
+    }
+  }
+}
+
 export function LineagePanel({ onSelectValue }: LineagePanelProps) {
   const { pendingLineageValue, accelerationist, safetyist, skeptic, situations } = useTaxonomyStore();
   const [query, setQuery] = useState('');
@@ -29,25 +44,9 @@ export function LineagePanel({ onSelectValue }: LineagePanelProps) {
   const allKeys = useMemo(() => {
     const keys = new Set(Object.keys(getAllLineages()));
     for (const pov of [accelerationist, safetyist, skeptic] as const) {
-      if (pov) for (const n of pov.nodes) {
-        for (const l of n.graph_attributes?.intellectual_lineage ?? []) {
-          const s = typeof l === 'string' ? l : (l as { name?: string })?.name;
-          if (!s) continue;
-          const resolved = lookupLineage(s).key;
-          keys.add(resolved ?? s);
-        }
-      }
+      if (pov) addLineageKeys(pov.nodes, keys);
     }
-    if (situations) {
-      for (const n of situations.nodes) {
-        for (const l of n.graph_attributes?.intellectual_lineage ?? []) {
-          const s = typeof l === 'string' ? l : (l as { name?: string })?.name;
-          if (!s) continue;
-          const resolved = lookupLineage(s).key;
-          keys.add(resolved ?? s);
-        }
-      }
-    }
+    if (situations) addLineageKeys(situations.nodes, keys);
     return [...keys].sort();
   }, [accelerationist, safetyist, skeptic, situations]);
 
