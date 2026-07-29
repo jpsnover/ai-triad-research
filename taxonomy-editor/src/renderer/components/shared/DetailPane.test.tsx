@@ -2,7 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import type { EntityDetail } from '@lib/entities/types';
 
 vi.mock('@lib/flight-recorder/index', () => ({ getGlobalRecorder: () => ({ record: vi.fn() }) }));
@@ -104,5 +104,49 @@ describe('DetailPane — contract edge cases', () => {
     resolveImpl = async () => { throw new Error('Entity resolution is not available in desktop mode yet'); };
     render(<DetailPane selectedRef={{ kind: 'entity', id: 'ent-001' }} />);
     expect(await screen.findByText('Detail unavailable')).toBeInTheDocument();
+  });
+});
+
+describe('DetailPane — keyboard a11y (t/1925)', () => {
+  const orgReady = () => ready({ kind: 'organization', ref: { kind: 'organization', id: 'org-001' }, record: { name: 'FLI' } });
+
+  it('closes on Escape via onClose', async () => {
+    const onClose = vi.fn();
+    orgReady();
+    render(<DetailPane selectedRef={{ kind: 'organization', id: 'org-001' }} onClose={onClose} />);
+    await screen.findByTestId('org-detail');
+    fireEvent.keyDown(screen.getByRole('region'), { key: 'Escape' });
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not bind Escape when no onClose is provided (read-only pane)', async () => {
+    orgReady();
+    render(<DetailPane selectedRef={{ kind: 'organization', id: 'org-001' }} />);
+    await screen.findByTestId('org-detail');
+    // No throw / no handler — Escape is a no-op; the region simply has no onKeyDown.
+    expect(screen.getByRole('region')).toBeInTheDocument();
+  });
+
+  it('moves focus into the pane on open and restores it to the invoker on close', async () => {
+    orgReady();
+    function Harness({ open }: { open: boolean }) {
+      return (
+        <>
+          <button data-testid="invoker">open</button>
+          {open && <DetailPane selectedRef={{ kind: 'organization', id: 'org-001' }} onClose={vi.fn()} />}
+        </>
+      );
+    }
+    const { rerender } = render(<Harness open={false} />);
+    const invoker = screen.getByTestId('invoker');
+    invoker.focus();
+    expect(document.activeElement).toBe(invoker);
+
+    rerender(<Harness open />);
+    await screen.findByTestId('org-detail');
+    expect(document.activeElement).toBe(screen.getByRole('region')); // focus moved into the pane
+
+    rerender(<Harness open={false} />); // close → pane unmounts
+    expect(document.activeElement).toBe(invoker); // focus restored to the invoker
   });
 });

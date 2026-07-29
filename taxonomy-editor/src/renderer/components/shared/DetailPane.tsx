@@ -98,8 +98,37 @@ export function DetailPane({ selectedRef, onSelectRef, onClose, className }: Det
     // new selectedRef object reference; onSelectRef is read via onSelectRefRef, not a dep.
   }, [refKind, refId]);
 
+  // A11y focus + Escape lifecycle (t/1925): a shared-pane keyboard gate for EVERY
+  // EntityDetail consumer. On open, capture the invoking element and move focus into the
+  // pane; on close — selectedRef→null OR unmount, covering Escape / the ✕ button /
+  // programmatic close — restore focus to the invoker. Keyed on `isOpen` so it fires
+  // once per open/close, not on every ref-to-ref navigation within the pane.
+  const paneRef = useRef<HTMLDivElement>(null);
+  const invokerRef = useRef<HTMLElement | null>(null);
+  const isOpen = selectedRef !== null;
+
+  useEffect(() => {
+    if (!isOpen) return;
+    invokerRef.current = (document.activeElement as HTMLElement | null) ?? null;
+    paneRef.current?.focus({ preventScroll: true });
+    return () => {
+      const invoker = invokerRef.current;
+      invokerRef.current = null;
+      if (invoker && document.contains(invoker) && typeof invoker.focus === 'function') {
+        invoker.focus({ preventScroll: true });
+      }
+    };
+  }, [isOpen]);
+
   return (
-    <div className={`detail-pane${className ? ` ${className}` : ''}`}>
+    <div
+      ref={paneRef}
+      className={`detail-pane${className ? ` ${className}` : ''}`}
+      role="region"
+      aria-label={titleFor(state)}
+      tabIndex={-1}
+      onKeyDown={onClose ? (e) => { if (e.key === 'Escape') { e.stopPropagation(); onClose(); } } : undefined}
+    >
       <div className="detail-pane-header">
         <span className="detail-pane-title">{titleFor(state)}</span>
         {onClose && (
