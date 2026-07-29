@@ -6,6 +6,7 @@ import type { Root, Text, Parent } from 'mdast';
 import type { Plugin } from 'unified';
 import { scanRefs } from '@lib/entities/scanRefs';
 import type { EntityRefKind } from '@lib/entities/types';
+import './refLinkifyPlugin.css'; // single home for `.ref-link` (t/1907) — any plugin surface gets the styling automatically
 
 /**
  * Render-boundary kind filter: the shared `scanRefs` detects ALL six EntityRef kinds,
