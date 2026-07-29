@@ -683,6 +683,48 @@ export interface ChatMessage {
   content: string;
 }
 
+/** Extract the text delta from one Gemini SSE `data:` payload. Returns null for an
+ *  empty / `[DONE]` / malformed chunk (all skipped by design). Shared by the two
+ *  identical parse sites the streaming loop used to inline (t/1914 complexity split). */
+function parseGeminiSseChunk(payload: string): string | null {
+  if (!payload || payload === '[DONE]') return null;
+  try {
+    const parsed = JSON.parse(payload) as { candidates?: { content?: { parts?: { text?: string }[] } }[] };
+    return parsed.candidates?.[0]?.content?.parts?.[0]?.text ?? null;
+  } catch {
+    /* telemetry — silent by design;  skip malformed chunks */
+    return null;
+  }
+}
+
+/** Drain a Gemini SSE stream, emitting each text delta via `onChunk` and returning the
+ *  concatenated text. Extracted verbatim from generateChatStream's inline reader loop +
+ *  trailing-buffer flush (t/1914). */
+async function readGeminiSseStream(
+  reader: ReadableStreamDefaultReader<Uint8Array>,
+  onChunk: (chunk: string) => void,
+): Promise<string> {
+  const decoder = new TextDecoder();
+  let fullText = '';
+  let buffer = '';
+  const emit = (payload: string): void => {
+    const text = parseGeminiSseChunk(payload);
+    if (text) { fullText += text; onChunk(text); }
+  };
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split('\n');
+    buffer = lines.pop() || '';
+    for (const line of lines) {
+      if (line.startsWith('data: ')) emit(line.slice(6).trim());
+    }
+  }
+  if (buffer.startsWith('data: ')) emit(buffer.slice(6).trim());
+  return fullText;
+}
+
 export async function generateChatStream(
   systemInstruction: string,
   messages: ChatMessage[],
@@ -771,45 +813,7 @@ export async function generateChatStream(
     ],
   });
 
-  const decoder = new TextDecoder();
-  let fullText = '';
-  let buffer = '';
-
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    buffer += decoder.decode(value, { stream: true });
-    const lines = buffer.split('\n');
-    buffer = lines.pop() || '';
-    for (const line of lines) {
-      if (!line.startsWith('data: ')) continue;
-      const json = line.slice(6).trim();
-      if (!json || json === '[DONE]') continue;
-      try {
-        const parsed = JSON.parse(json) as { candidates?: { content?: { parts?: { text?: string }[] } }[] };
-        const text = parsed.candidates?.[0]?.content?.parts?.[0]?.text;
-        if (text) {
-          fullText += text;
-          onChunk(text);
-        }
-      } catch { /* telemetry — silent by design;  skip malformed chunks */ }
-    }
-  }
-
-  if (buffer.startsWith('data: ')) {
-    const json = buffer.slice(6).trim();
-    if (json && json !== '[DONE]') {
-      try {
-        const parsed = JSON.parse(json) as { candidates?: { content?: { parts?: { text?: string }[] } }[] };
-        const text = parsed.candidates?.[0]?.content?.parts?.[0]?.text;
-        if (text) {
-          fullText += text;
-          onChunk(text);
-        }
-      } catch { /* telemetry — silent by design;  skip */ }
-    }
-  }
-
+  const fullText = await readGeminiSseStream(reader, onChunk);
   console.log(`[chatStream] Complete, total length: ${fullText.length}`);
   return fullText;
 }
