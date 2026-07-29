@@ -439,249 +439,302 @@ type _SaveDebate = DebateStore['saveDebate'];
 type _PoverInfo = typeof POVER_INFO[_AiPover];
 type _ModResult = Awaited<ReturnType<typeof runModeratorSelection>>;
 
-function runPostRoundProcessing(get: _Get, set: _Set, addTranscriptEntry: _AddEntry, aiPovers: _AiPover[], crossRespondRound: number): void {
-    const postDebate = get().activeDebate;
-    if (postDebate) {
-      try {
-      pruneSessionData(postDebate);
-      if (postDebate.moderator_state) pruneModeratorState(postDebate.moderator_state);
+// ── runPostRoundProcessing phase helpers (t/1848) ────────────────────
+// runPostRoundProcessing was a single 73-complexity adaptive-staging hot-path.
+// Its phases are extracted here as helpers (bodies moved verbatim; see ADR-007
+// split pattern). ADR-003 record() calls stay inline in every catch. The
+// adaptive_staging guard lives in runPostRoundProcessing; evaluateAdaptiveStaging
+// runs only when it holds, so `!` non-null assertions there are sound.
 
-      // ── Adaptive staging: evaluate phase transition after each round ──
-      if (postDebate.adaptive_staging?.enabled && postDebate.adaptive_staging.phase_state) {
-        const asState = postDebate.adaptive_staging.phase_state;
-        const weights = loadProvisionalWeights();
-        const pacingPreset = weights.pacing_presets[postDebate.adaptive_staging.pacing] ?? weights.pacing_presets.moderate;
-        const config: PhaseTransitionConfig = {
-          useAdaptiveStaging: true,
-          maxTotalRounds: pacingPreset.maxTotalRounds,
-          pacing: postDebate.adaptive_staging.pacing,
-          dialecticalStyle: 'adversarial',
-          argumentationExitThreshold: asState.argumentation_exit_threshold,
-          concludingExitThreshold: asState.concluding_exit_threshold,
-          allowEarlyTermination: true,
-          phaseBoundsOverride: postDebate.adaptive_staging.phase_bounds_override,
-        };
+function buildConcessionOpportunityCtx(lastConvSignal: any) {
+  const co = lastConvSignal?.concession_opportunity;
+  return { outcome: co?.outcome ?? 'none', strong_attacks_faced: co?.strong_attacks_faced ?? 0 };
+}
 
-        // Advance round counter
-        const advanced = advanceRound(asState);
-        advanced.api_calls_used = (advanced.api_calls_used ?? 0) + 1;
+function buildConvergenceSignalsCtx(lastConvSignal: any): SignalContext['convergenceSignals'] {
+  const ar = lastConvSignal?.argument_redundancy;
+  return {
+    argument_redundancy: { avg_self_overlap: ar?.avg_self_overlap ?? 0, semantic_max_similarity: ar?.semantic_max_similarity },
+    dialectical_engagement: { ratio: lastConvSignal?.dialectical_engagement?.ratio ?? 1 },
+    position_drift: { drift: lastConvSignal?.position_drift?.drift ?? 0 },
+    concession_opportunity: buildConcessionOpportunityCtx(lastConvSignal),
+  };
+}
 
-        // Build signal context from session data
-        const an = postDebate.argument_network ?? { nodes: [], edges: [] };
-        const recentConvSignals = postDebate.convergence_signals ?? [];
-        const lastConvSignal = recentConvSignals.length > 0 ? recentConvSignals[recentConvSignals.length - 1] : null;
-        const allStatements = postDebate.transcript
-          .filter(e => e.type === 'statement' || e.type === 'opening')
-          .map(e => {
-            const meta = e.metadata as Record<string, unknown> | undefined;
-            return {
-              round: (meta?.round as number) ?? 0,
-              speaker: e.speaker,
-              text: e.content,
-              extraction_status: 'ok' as const,
-              claims_accepted: (meta?.extracted_claims_accepted as number) ?? 0,
-              claims_rejected: 0,
-              category_validity_ratio: 1.0,
-            };
-          });
-        const lastRoundStatements = allStatements.filter(s => s.round === crossRespondRound);
-        const lastClaimsAccepted = lastRoundStatements.reduce((sum, s) => sum + s.claims_accepted, 0);
+/** Assemble the SignalContext from session data; also returns last-round claim count + last convergence signal. */
+function buildPhaseSignalContext(
+  postDebate: DebateSession,
+  advanced: PhaseState,
+  aiPovers: _AiPover[],
+  crossRespondRound: number,
+  an: { nodes: any[]; edges: any[] },
+  recentConvSignals: any[],
+): { signalCtx: SignalContext; lastClaimsAccepted: number; lastConvSignal: any } {
+  const lastConvSignal = recentConvSignals.length > 0 ? recentConvSignals[recentConvSignals.length - 1] : null;
+  const allStatements = postDebate.transcript
+    .filter(e => e.type === 'statement' || e.type === 'opening')
+    .map(e => {
+      const meta = e.metadata as Record<string, unknown> | undefined;
+      return {
+        round: (meta?.round as number) ?? 0,
+        speaker: e.speaker,
+        text: e.content,
+        extraction_status: 'ok' as const,
+        claims_accepted: (meta?.extracted_claims_accepted as number) ?? 0,
+        claims_rejected: 0,
+        category_validity_ratio: 1.0,
+      };
+    });
+  const lastRoundStatements = allStatements.filter(s => s.round === crossRespondRound);
+  const lastClaimsAccepted = lastRoundStatements.reduce((sum, s) => sum + s.claims_accepted, 0);
 
-        const signalCtx: SignalContext = {
-          network: {
-            nodes: an.nodes.map(n => ({
-              id: n.id, speaker: n.speaker,
-              computed_strength: n.computed_strength ?? 0.5,
-              base_strength: n.base_strength,
-              base_strength_category: n.bdi_category,
-              argumentation_scheme: (an.edges.find(e => e.source === n.id))?.argumentation_scheme,
-              taxonomy_refs: n.taxonomy_refs.map(id => ({
-                node_id: typeof id === 'string' ? id : (id as unknown as { node_id: string }).node_id,
-                relevance: 'medium',
-              })),
-              turn_number: n.turn_number,
-            })),
-            edges: an.edges.filter(e => e.type === 'supports' || e.type === 'attacks').map(e => ({
-              id: e.id, source: e.source, target: e.target, type: e.type as 'supports' | 'attacks',
-              attack_type: e.attack_type, weight: e.weight ?? 0.5,
-              scheme: e.scheme, argumentation_scheme: e.argumentation_scheme,
-            })),
-            nodeCount: an.nodes.length,
-          },
-          transcript: {
-            currentRound: crossRespondRound,
-            roundsInPhase: advanced.rounds_in_phase,
-            activePovsCount: aiPovers.length,
-            lastNRounds: (n: number) => {
-              const maxRound = crossRespondRound;
-              const minRound = Math.max(1, maxRound - n + 1);
-              return allStatements.filter(s => s.round >= minRound && s.round <= maxRound);
-            },
-          },
-          priorSignals: {
-            get: (signalId: string, roundsBack: number) => getSignalValue(signalId, roundsBack),
-            movingAverage: (signalId: string, windowSize: number) => movingAverageSignal(signalId, windowSize),
-          },
-          convergenceSignals: {
-            argument_redundancy: { avg_self_overlap: lastConvSignal?.argument_redundancy?.avg_self_overlap ?? 0, semantic_max_similarity: lastConvSignal?.argument_redundancy?.semantic_max_similarity },
-            dialectical_engagement: { ratio: lastConvSignal?.dialectical_engagement?.ratio ?? 1 },
-            position_drift: { drift: lastConvSignal?.position_drift?.drift ?? 0 },
-            concession_opportunity: {
-              outcome: lastConvSignal?.concession_opportunity?.outcome ?? 'none',
-              strong_attacks_faced: lastConvSignal?.concession_opportunity?.strong_attacks_faced ?? 0,
-            },
-          },
-          processRewards: (postDebate.process_rewards ?? []).slice(-12).map(pr => ({
-            round: pr.round, score: pr.score,
-          })),
-          phase: {
-            current: advanced.current_phase,
-            allPovsResponded: true,
-            cruxNodes: detectCruxNodes(
-              an.nodes.map(n => ({ id: n.id, speaker: n.speaker, computed_strength: n.computed_strength ?? 0.5, taxonomy_refs: [], turn_number: n.turn_number })),
-              an.edges.filter(e => e.type === 'supports' || e.type === 'attacks').map(e => ({ id: e.id, source: e.source, target: e.target, type: e.type as 'supports' | 'attacks', weight: e.weight ?? 0.5 })),
-            ),
-            cruxResolution: (postDebate.crux_tracker ?? []).map(c => ({ id: c.id, state: c.state, support_polarity: c.support_polarity })),
-            priorCruxClusters: advanced.prior_crux_clusters,
-            regressionCount: advanced.regression_count,
-            argumentationExitThreshold: advanced.argumentation_exit_threshold,
-            concludingExitThreshold: advanced.concluding_exit_threshold,
-          },
-          extraction: {
-            lastRoundStatus: 'ok',
-            lastRoundClaimsAccepted: lastClaimsAccepted,
-            lastRoundCategoryValidityRatio: 1.0,
-          },
-        };
+  const signalCtx: SignalContext = {
+    network: {
+      nodes: an.nodes.map(n => ({
+        id: n.id, speaker: n.speaker,
+        computed_strength: n.computed_strength ?? 0.5,
+        base_strength: n.base_strength,
+        base_strength_category: n.bdi_category,
+        argumentation_scheme: (an.edges.find(e => e.source === n.id))?.argumentation_scheme,
+        taxonomy_refs: n.taxonomy_refs.map((id: unknown) => ({
+          node_id: typeof id === 'string' ? id : (id as unknown as { node_id: string }).node_id,
+          relevance: 'medium',
+        })),
+        turn_number: n.turn_number,
+      })),
+      edges: an.edges.filter(e => e.type === 'supports' || e.type === 'attacks').map(e => ({
+        id: e.id, source: e.source, target: e.target, type: e.type as 'supports' | 'attacks',
+        attack_type: e.attack_type, weight: e.weight ?? 0.5,
+        scheme: e.scheme, argumentation_scheme: e.argumentation_scheme,
+      })),
+      nodeCount: an.nodes.length,
+    },
+    transcript: {
+      currentRound: crossRespondRound,
+      roundsInPhase: advanced.rounds_in_phase,
+      activePovsCount: aiPovers.length,
+      lastNRounds: (n: number) => {
+        const maxRound = crossRespondRound;
+        const minRound = Math.max(1, maxRound - n + 1);
+        return allStatements.filter(s => s.round >= minRound && s.round <= maxRound);
+      },
+    },
+    priorSignals: {
+      get: (signalId: string, roundsBack: number) => getSignalValue(signalId, roundsBack),
+      movingAverage: (signalId: string, windowSize: number) => movingAverageSignal(signalId, windowSize),
+    },
+    convergenceSignals: buildConvergenceSignalsCtx(lastConvSignal),
+    processRewards: (postDebate.process_rewards ?? []).slice(-12).map(pr => ({
+      round: pr.round, score: pr.score,
+    })),
+    phase: {
+      current: advanced.current_phase,
+      allPovsResponded: true,
+      cruxNodes: detectCruxNodes(
+        an.nodes.map(n => ({ id: n.id, speaker: n.speaker, computed_strength: n.computed_strength ?? 0.5, taxonomy_refs: [], turn_number: n.turn_number })),
+        an.edges.filter(e => e.type === 'supports' || e.type === 'attacks').map(e => ({ id: e.id, source: e.source, target: e.target, type: e.type as 'supports' | 'attacks', weight: e.weight ?? 0.5 })),
+      ),
+      cruxResolution: (postDebate.crux_tracker ?? []).map(c => ({ id: c.id, state: c.state, support_polarity: c.support_polarity })),
+      priorCruxClusters: advanced.prior_crux_clusters,
+      regressionCount: advanced.regression_count,
+      argumentationExitThreshold: advanced.argumentation_exit_threshold,
+      concludingExitThreshold: advanced.concluding_exit_threshold,
+    },
+    extraction: {
+      lastRoundStatus: 'ok',
+      lastRoundClaimsAccepted: lastClaimsAccepted,
+      lastRoundCategoryValidityRatio: 1.0,
+    },
+  };
+  return { signalCtx, lastClaimsAccepted, lastConvSignal };
+}
 
-        // Build signals and evaluate
-        const signals = buildSignalRegistry();
+/** Sum POV taxonomy nodes across camps (floored at 1) for the health-score denominator. */
+function computeRelevantNodeCount(): number {
+  const taxState = useTaxonomyStore.getState();
+  return Math.max(1,
+    (taxState.accelerationist?.nodes?.length ?? 0) +
+    (taxState.safetyist?.nodes?.length ?? 0) +
+    (taxState.skeptic?.nodes?.length ?? 0));
+}
 
-        // Build health score for early termination
-        const turnCounts: Record<string, number> = {};
-        for (const p of aiPovers) turnCounts[p] = 0;
-        for (const e of postDebate.transcript) {
-          if (e.type === 'statement' && e.speaker !== 'system' && e.speaker !== 'moderator') {
-            turnCounts[e.speaker] = (turnCounts[e.speaker] ?? 0) + 1;
-          }
-        }
-        const referencedIds = new Set<string>();
-        for (const e of postDebate.transcript.slice(-6)) {
-          for (const ref of e.taxonomy_refs) referencedIds.add(ref.node_id);
-        }
-        const taxState = useTaxonomyStore.getState();
-        const relevantNodeCount = Math.max(1,
-          (taxState.accelerationist?.nodes?.length ?? 0) +
-          (taxState.safetyist?.nodes?.length ?? 0) +
-          (taxState.skeptic?.nodes?.length ?? 0));
-        const asHealthScore = computeDebateHealthScore(recentConvSignals.slice(-3), turnCounts, referencedIds.size, relevantNodeCount);
-
-        const result = evaluatePhaseTransition(advanced, signalCtx, signals, config, asHealthScore);
-        getGlobalRecorder()?.record({ type: 'debate.round', component: 'adaptive-staging', level: 'debug', debate_id: postDebate.id, message: `Phase evaluation computed`, data: { round: crossRespondRound, action: result.action, reason: result.reason } });
-
-        // Compute and record signal scores for history tracking
-        const coldStart = advanced.rounds_in_phase < 2;
-        const satScore = computeSaturationScore(signals, signalCtx, coldStart);
-        const convScore = computeConvergenceScore(signalCtx, coldStart);
-        recordSignalHistory('_argumentative_saturation_score', crossRespondRound, satScore);
-        recordSignalHistory('_convergence_score', crossRespondRound, convScore);
-
-        // Record peak trackers
-        if (lastConvSignal) {
-          const peakEngagement = getSignalValue('_peak_engagement_ratio', 0) ?? 0;
-          const currentEngagement = lastConvSignal.dialectical_engagement?.ratio ?? 0;
-          if (currentEngagement > peakEngagement) {
-            recordSignalHistory('_peak_engagement_ratio', crossRespondRound, currentEngagement);
-          }
-        }
-        const peakClaims = getSignalValue('_peak_claims_per_round', 0) ?? 0;
-        if (lastClaimsAccepted > peakClaims) {
-          recordSignalHistory('_peak_claims_per_round', crossRespondRound, lastClaimsAccepted);
-        }
-
-        // Record individual signal values
-        for (const signal of signals) {
-          if (!signal.enabled) continue;
-          try {
-            const val = Math.max(0, Math.min(1, signal.compute(signalCtx)));
-            recordSignalHistory(signal.id, crossRespondRound, val);
-          } catch (e) { getGlobalRecorder()?.record({ type: 'system.error', debate_id: postDebate.id, component: 'debate-store', level: 'warn', message: 'Phase signal computation failed', error: { name: (e as Error).name ?? 'Error', message: String(e), stack: (e as Error).stack } }); }
-        }
-
-        // Flight recorder telemetry — per-round state snapshot for diagnostics
-        getGlobalRecorder()?.record({
-          type: 'debate.round', component: 'adaptive-staging', level: 'info',
-          debate_id: postDebate.id,
-          message: `Phase evaluation: ${advanced.current_phase} R${crossRespondRound}`,
-          data: {
-            round: crossRespondRound, phase: advanced.current_phase,
-            rounds_in_phase: advanced.rounds_in_phase,
-            total_rounds_elapsed: advanced.total_rounds_elapsed,
-            saturation_score: satScore, convergence_score: convScore,
-            argumentation_exit_threshold: advanced.argumentation_exit_threshold,
-            concluding_exit_threshold: advanced.concluding_exit_threshold,
-            health_score: asHealthScore, action: result.action,
-            reason: result.reason, confidence_deferred: result.confidence_deferred,
-            network_nodes: signalCtx.network.nodeCount,
-            network_edges: signalCtx.network.edgeCount,
-            api_calls_used: advanced.api_calls_used,
-            maxTotalRounds: config.maxTotalRounds,
-            transcript_length: postDebate.transcript.length,
-          },
-        });
-
-        // Apply transition (skipped in step mode — user controls phase manually)
-        const isStepMode = postDebate.adaptive_staging.step_mode;
-        const prevPhase = advanced.current_phase;
-        const newState = isStepMode ? advanced : applyTransition(advanced, result);
-
-        if (!isStepMode) {
-          if (result.action === 'transition' || result.action === 'force_transition') {
-            addTranscriptEntry({
-              type: 'system', speaker: 'system',
-              content: `[Phase transition] ${prevPhase} → ${newState.current_phase}: ${result.reason}`,
-              taxonomy_refs: [],
-              metadata: { adaptive_transition: true, from_phase: prevPhase, to_phase: newState.current_phase, reason: result.reason },
-            });
-          } else if (result.action === 'regress') {
-            addTranscriptEntry({
-              type: 'system', speaker: 'system',
-              content: `[Phase regression] concluding → argumentation: ${result.reason}. Threshold ratcheted to ${(newState.argumentation_exit_threshold * 100).toFixed(0)}%.`,
-              taxonomy_refs: [],
-              metadata: { adaptive_regression: true, reason: result.reason, new_threshold: newState.argumentation_exit_threshold },
-            });
-          } else if (result.action === 'terminate') {
-            addTranscriptEntry({
-              type: 'system', speaker: 'system',
-              content: `[Adaptive termination] ${result.reason}`,
-              taxonomy_refs: [],
-              metadata: { adaptive_termination: true, reason: result.reason },
-            });
-            newState.current_phase = 'terminated';
-          }
-        }
-
-        // Persist updated phase state + UI convenience fields
-        const freshPostDebate = get().activeDebate;
-        if (freshPostDebate?.adaptive_staging) {
-          freshPostDebate.adaptive_staging.phase_state = newState;
-          // Write UI-facing fields for PhaseProgressBar
-          const asObj = freshPostDebate.adaptive_staging as Record<string, unknown>;
-          asObj.current_phase = newState.current_phase;
-          asObj.rounds_in_phase = newState.rounds_in_phase;
-          asObj.phase_progress = newState.total_rounds_elapsed / config.maxTotalRounds;
-          asObj.approaching_transition = result.action === 'transition' || result.action === 'force_transition';
-          asObj.rationale = result.reason;
-          set({ activeDebate: { ...freshPostDebate } });
-        }
-      } else {
-        set({ activeDebate: { ...postDebate } });
-      }
-      } catch (postErr) {
-        console.error('[crossRespond] Post-processing failed:', postErr);
-        getGlobalRecorder()?.record({ type: 'system.error', component: 'debate-store', level: 'error', debate_id: postDebate.id, message: 'Cross-respond post-processing failed', data: { error: String(postErr), stack: (postErr as Error).stack?.slice(0, 500) } });
-      }
+/** Health score for early termination — per-speaker turn balance, recent taxonomy coverage, convergence. */
+function computeAsHealthScore(postDebate: DebateSession, aiPovers: _AiPover[], recentConvSignals: any[]) {
+  const turnCounts: Record<string, number> = {};
+  for (const p of aiPovers) turnCounts[p] = 0;
+  for (const e of postDebate.transcript) {
+    if (e.type === 'statement' && e.speaker !== 'system' && e.speaker !== 'moderator') {
+      turnCounts[e.speaker] = (turnCounts[e.speaker] ?? 0) + 1;
     }
+  }
+  const referencedIds = new Set<string>();
+  for (const e of postDebate.transcript.slice(-6)) {
+    for (const ref of e.taxonomy_refs) referencedIds.add(ref.node_id);
+  }
+  return computeDebateHealthScore(recentConvSignals.slice(-3), turnCounts, referencedIds.size, computeRelevantNodeCount());
+}
+
+/** Record signal-history entries (saturation/convergence, peak trackers, per-signal values) + per-round telemetry. */
+function recordPhaseSignals(
+  postDebate: DebateSession, signals: Signal[], signalCtx: SignalContext, advanced: PhaseState,
+  crossRespondRound: number, lastConvSignal: any, lastClaimsAccepted: number,
+  satScore: number, convScore: number, asHealthScore: ReturnType<typeof computeAsHealthScore>, result: any, config: PhaseTransitionConfig,
+): void {
+  recordSignalHistory('_argumentative_saturation_score', crossRespondRound, satScore);
+  recordSignalHistory('_convergence_score', crossRespondRound, convScore);
+
+  // Record peak trackers
+  if (lastConvSignal) {
+    const peakEngagement = getSignalValue('_peak_engagement_ratio', 0) ?? 0;
+    const currentEngagement = lastConvSignal.dialectical_engagement?.ratio ?? 0;
+    if (currentEngagement > peakEngagement) {
+      recordSignalHistory('_peak_engagement_ratio', crossRespondRound, currentEngagement);
+    }
+  }
+  const peakClaims = getSignalValue('_peak_claims_per_round', 0) ?? 0;
+  if (lastClaimsAccepted > peakClaims) {
+    recordSignalHistory('_peak_claims_per_round', crossRespondRound, lastClaimsAccepted);
+  }
+
+  // Record individual signal values
+  for (const signal of signals) {
+    if (!signal.enabled) continue;
+    try {
+      const val = Math.max(0, Math.min(1, signal.compute(signalCtx)));
+      recordSignalHistory(signal.id, crossRespondRound, val);
+    } catch (e) { getGlobalRecorder()?.record({ type: 'system.error', debate_id: postDebate.id, component: 'debate-store', level: 'warn', message: 'Phase signal computation failed', error: { name: (e as Error).name ?? 'Error', message: String(e), stack: (e as Error).stack } }); }
+  }
+
+  // Flight recorder telemetry — per-round state snapshot for diagnostics
+  getGlobalRecorder()?.record({
+    type: 'debate.round', component: 'adaptive-staging', level: 'info',
+    debate_id: postDebate.id,
+    message: `Phase evaluation: ${advanced.current_phase} R${crossRespondRound}`,
+    data: {
+      round: crossRespondRound, phase: advanced.current_phase,
+      rounds_in_phase: advanced.rounds_in_phase,
+      total_rounds_elapsed: advanced.total_rounds_elapsed,
+      saturation_score: satScore, convergence_score: convScore,
+      argumentation_exit_threshold: advanced.argumentation_exit_threshold,
+      concluding_exit_threshold: advanced.concluding_exit_threshold,
+      health_score: asHealthScore, action: result.action,
+      reason: result.reason, confidence_deferred: result.confidence_deferred,
+      network_nodes: signalCtx.network.nodeCount,
+      network_edges: signalCtx.network.edgeCount,
+      api_calls_used: advanced.api_calls_used,
+      maxTotalRounds: config.maxTotalRounds,
+      transcript_length: postDebate.transcript.length,
+    },
+  });
+}
+
+/** Apply the phase-transition result (transcript entries + persist UI fields); skipped in step mode. */
+function applyPhaseTransitionResult(
+  get: _Get, set: _Set, addTranscriptEntry: _AddEntry,
+  advanced: PhaseState, result: any, config: PhaseTransitionConfig, isStepMode: boolean | undefined,
+): void {
+  const prevPhase = advanced.current_phase;
+  const newState = isStepMode ? advanced : applyTransition(advanced, result);
+
+  if (!isStepMode) {
+    if (result.action === 'transition' || result.action === 'force_transition') {
+      addTranscriptEntry({
+        type: 'system', speaker: 'system',
+        content: `[Phase transition] ${prevPhase} → ${newState.current_phase}: ${result.reason}`,
+        taxonomy_refs: [],
+        metadata: { adaptive_transition: true, from_phase: prevPhase, to_phase: newState.current_phase, reason: result.reason },
+      });
+    } else if (result.action === 'regress') {
+      addTranscriptEntry({
+        type: 'system', speaker: 'system',
+        content: `[Phase regression] concluding → argumentation: ${result.reason}. Threshold ratcheted to ${(newState.argumentation_exit_threshold * 100).toFixed(0)}%.`,
+        taxonomy_refs: [],
+        metadata: { adaptive_regression: true, reason: result.reason, new_threshold: newState.argumentation_exit_threshold },
+      });
+    } else if (result.action === 'terminate') {
+      addTranscriptEntry({
+        type: 'system', speaker: 'system',
+        content: `[Adaptive termination] ${result.reason}`,
+        taxonomy_refs: [],
+        metadata: { adaptive_termination: true, reason: result.reason },
+      });
+      newState.current_phase = 'terminated';
+    }
+  }
+
+  // Persist updated phase state + UI convenience fields
+  const freshPostDebate = get().activeDebate;
+  if (freshPostDebate?.adaptive_staging) {
+    freshPostDebate.adaptive_staging.phase_state = newState;
+    // Write UI-facing fields for PhaseProgressBar
+    const asObj = freshPostDebate.adaptive_staging as Record<string, unknown>;
+    asObj.current_phase = newState.current_phase;
+    asObj.rounds_in_phase = newState.rounds_in_phase;
+    asObj.phase_progress = newState.total_rounds_elapsed / config.maxTotalRounds;
+    asObj.approaching_transition = result.action === 'transition' || result.action === 'force_transition';
+    asObj.rationale = result.reason;
+    set({ activeDebate: { ...freshPostDebate } });
+  }
+}
+
+/** Evaluate + apply the adaptive-staging phase transition for one completed round. */
+function evaluateAdaptiveStaging(get: _Get, set: _Set, addTranscriptEntry: _AddEntry, aiPovers: _AiPover[], crossRespondRound: number, postDebate: DebateSession): void {
+  const asState = postDebate.adaptive_staging!.phase_state!;
+  const weights = loadProvisionalWeights();
+  const pacingPreset = weights.pacing_presets[postDebate.adaptive_staging!.pacing] ?? weights.pacing_presets.moderate;
+  const config: PhaseTransitionConfig = {
+    useAdaptiveStaging: true,
+    maxTotalRounds: pacingPreset.maxTotalRounds,
+    pacing: postDebate.adaptive_staging!.pacing,
+    dialecticalStyle: 'adversarial',
+    argumentationExitThreshold: asState.argumentation_exit_threshold,
+    concludingExitThreshold: asState.concluding_exit_threshold,
+    allowEarlyTermination: true,
+    phaseBoundsOverride: postDebate.adaptive_staging!.phase_bounds_override,
+  };
+
+  // Advance round counter
+  const advanced = advanceRound(asState);
+  advanced.api_calls_used = (advanced.api_calls_used ?? 0) + 1;
+
+  // Build signal context from session data
+  const an = postDebate.argument_network ?? { nodes: [], edges: [] };
+  const recentConvSignals = postDebate.convergence_signals ?? [];
+  const { signalCtx, lastClaimsAccepted, lastConvSignal } = buildPhaseSignalContext(postDebate, advanced, aiPovers, crossRespondRound, an, recentConvSignals);
+
+  const signals = buildSignalRegistry();
+  const asHealthScore = computeAsHealthScore(postDebate, aiPovers, recentConvSignals);
+
+  const result = evaluatePhaseTransition(advanced, signalCtx, signals, config, asHealthScore);
+  getGlobalRecorder()?.record({ type: 'debate.round', component: 'adaptive-staging', level: 'debug', debate_id: postDebate.id, message: `Phase evaluation computed`, data: { round: crossRespondRound, action: result.action, reason: result.reason } });
+
+  // Compute and record signal scores for history tracking
+  const coldStart = advanced.rounds_in_phase < 2;
+  const satScore = computeSaturationScore(signals, signalCtx, coldStart);
+  const convScore = computeConvergenceScore(signalCtx, coldStart);
+  recordPhaseSignals(postDebate, signals, signalCtx, advanced, crossRespondRound, lastConvSignal, lastClaimsAccepted, satScore, convScore, asHealthScore, result, config);
+
+  // Apply transition (skipped in step mode — user controls phase manually)
+  applyPhaseTransitionResult(get, set, addTranscriptEntry, advanced, result, config, postDebate.adaptive_staging!.step_mode);
+}
+
+function runPostRoundProcessing(get: _Get, set: _Set, addTranscriptEntry: _AddEntry, aiPovers: _AiPover[], crossRespondRound: number): void {
+  const postDebate = get().activeDebate;
+  if (!postDebate) return;
+  try {
+    pruneSessionData(postDebate);
+    if (postDebate.moderator_state) pruneModeratorState(postDebate.moderator_state);
+
+    // ── Adaptive staging: evaluate phase transition after each round ──
+    if (postDebate.adaptive_staging?.enabled && postDebate.adaptive_staging.phase_state) {
+      evaluateAdaptiveStaging(get, set, addTranscriptEntry, aiPovers, crossRespondRound, postDebate);
+    } else {
+      set({ activeDebate: { ...postDebate } });
+    }
+  } catch (postErr) {
+    console.error('[crossRespond] Post-processing failed:', postErr);
+    getGlobalRecorder()?.record({ type: 'system.error', component: 'debate-store', level: 'error', debate_id: postDebate.id, message: 'Cross-respond post-processing failed', data: { error: String(postErr), stack: (postErr as Error).stack?.slice(0, 500) } });
+  }
 }
 
 async function runGapInjectionCheck(get: _Get, set: _Set, addTranscriptEntry: _AddEntry, activeDebate: DebateSession): Promise<void> {
