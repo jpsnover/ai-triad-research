@@ -16,7 +16,7 @@
 //     ceiling and risk hard failures — hard-gate only (TL ruling, t/1691#2).
 
 import tseslint from 'typescript-eslint';
-import requireFlightRecorderInCatch from './eslint-rules/require-flight-recorder-in-catch.js';
+import requireFlightRecorderInCatch from '../lib/eslint-rules/require-flight-recorder-in-catch.js';
 import noUnmanagedModuleResources from './eslint-rules/no-unmanaged-module-resources.js';
 import noInlineStyle from './eslint-rules/no-inline-style.js';
 
