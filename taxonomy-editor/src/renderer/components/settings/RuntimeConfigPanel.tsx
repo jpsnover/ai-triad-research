@@ -148,6 +148,97 @@ function formatUnit(value: number, unit?: string): string {
   return `${value} ${unit}`;
 }
 
+// ── FieldRow input renderers ──
+
+function FieldIndicators({ field, path, isDirty, isModified, defaultValue, onReset }: {
+  field: FieldDef;
+  path: string;
+  isDirty: boolean;
+  isModified: boolean;
+  defaultValue: unknown;
+  onReset: (path: string) => void;
+}) {
+  return (
+    <div className="rc-field-indicators">
+      {isModified && <span className="rc-dot rc-dot--modified" title="Modified from default" />}
+      {isDirty && <span className="rc-dot rc-dot--dirty" title="Unsaved change" />}
+      {isModified && field.type !== 'backends' && (
+        <span className="rc-field-default" title={`Default: ${String(defaultValue)}`}>
+          (default: {field.unit && typeof defaultValue === 'number' ? formatUnit(defaultValue, field.unit) : String(defaultValue)})
+        </span>
+      )}
+      {isModified && (
+        <button className="rc-reset-btn" onClick={() => onReset(path)} title="Reset to default">&#8634;</button>
+      )}
+    </div>
+  );
+}
+
+function BackendsInput({ path, draftValue, onSet }: {
+  path: string;
+  draftValue: unknown;
+  onSet: (path: string, value: unknown) => void;
+}) {
+  const backends = (Array.isArray(draftValue) ? draftValue : []) as string[];
+  return (
+    <div className="rc-field-backends">
+      {KNOWN_BACKENDS.map(b => (
+        <label key={b} className="rc-backend-check">
+          <input type="checkbox" checked={backends.includes(b)}
+            onChange={e => {
+              const next = e.target.checked ? [...backends, b] : backends.filter(x => x !== b);
+              onSet(path, next);
+            }} />
+          {b}
+        </label>
+      ))}
+    </div>
+  );
+}
+
+function StringInput({ path, draftValue, onSet }: {
+  path: string;
+  draftValue: unknown;
+  onSet: (path: string, value: unknown) => void;
+}) {
+  return (
+    <input type="text" className="rc-field-input" value={String(draftValue ?? '')}
+      onChange={e => onSet(path, e.target.value)} />
+  );
+}
+
+function NumberInput({ path, field, draftValue, onSet }: {
+  path: string;
+  field: FieldDef;
+  draftValue: unknown;
+  onSet: (path: string, value: unknown) => void;
+}) {
+  const numValue = Number(draftValue) || 0;
+  const hint = field.unit ? formatUnit(numValue, field.unit) : '';
+  return (
+    <div className="rc-field-input-group">
+      <input type="number" className="rc-field-input" value={numValue}
+        step={field.type === 'factor' ? '0.1' : '1'}
+        onChange={e => {
+          const v = e.target.valueAsNumber;
+          if (!isNaN(v)) onSet(path, v);
+        }} />
+      {hint && <span className="rc-field-hint">{hint}</span>}
+    </div>
+  );
+}
+
+function FieldInput({ path, field, draftValue, onSet }: {
+  path: string;
+  field: FieldDef;
+  draftValue: unknown;
+  onSet: (path: string, value: unknown) => void;
+}) {
+  if (field.type === 'backends') return <BackendsInput path={path} draftValue={draftValue} onSet={onSet} />;
+  if (field.type === 'string') return <StringInput path={path} draftValue={draftValue} onSet={onSet} />;
+  return <NumberInput path={path} field={field} draftValue={draftValue} onSet={onSet} />;
+}
+
 // ── FieldRow ──
 
 function FieldRow({ path, field, draft, serverState, onSet, onReset }: {
@@ -164,69 +255,12 @@ function FieldRow({ path, field, draft, serverState, onSet, onReset }: {
   const isDirty = JSON.stringify(draftValue) !== JSON.stringify(serverValue);
   const isModified = JSON.stringify(draftValue) !== JSON.stringify(defaultValue);
 
-  const indicators = (
-    <div className="rc-field-indicators">
-      {isModified && <span className="rc-dot rc-dot--modified" title="Modified from default" />}
-      {isDirty && <span className="rc-dot rc-dot--dirty" title="Unsaved change" />}
-      {isModified && field.type !== 'backends' && (
-        <span className="rc-field-default" title={`Default: ${String(defaultValue)}`}>
-          (default: {field.unit && typeof defaultValue === 'number' ? formatUnit(defaultValue, field.unit) : String(defaultValue)})
-        </span>
-      )}
-      {isModified && (
-        <button className="rc-reset-btn" onClick={() => onReset(path)} title="Reset to default">&#8634;</button>
-      )}
-    </div>
-  );
-
-  if (field.type === 'backends') {
-    const backends = (Array.isArray(draftValue) ? draftValue : []) as string[];
-    return (
-      <div className={`rc-field${isDirty ? ' rc-field--dirty' : ''}`}>
-        <label className="rc-field-label">{field.label}</label>
-        <div className="rc-field-backends">
-          {KNOWN_BACKENDS.map(b => (
-            <label key={b} className="rc-backend-check">
-              <input type="checkbox" checked={backends.includes(b)}
-                onChange={e => {
-                  const next = e.target.checked ? [...backends, b] : backends.filter(x => x !== b);
-                  onSet(path, next);
-                }} />
-              {b}
-            </label>
-          ))}
-        </div>
-        {indicators}
-      </div>
-    );
-  }
-
-  if (field.type === 'string') {
-    return (
-      <div className={`rc-field${isDirty ? ' rc-field--dirty' : ''}`}>
-        <label className="rc-field-label">{field.label}</label>
-        <input type="text" className="rc-field-input" value={String(draftValue ?? '')}
-          onChange={e => onSet(path, e.target.value)} />
-        {indicators}
-      </div>
-    );
-  }
-
-  const numValue = Number(draftValue) || 0;
-  const hint = field.unit ? formatUnit(numValue, field.unit) : '';
   return (
     <div className={`rc-field${isDirty ? ' rc-field--dirty' : ''}`}>
       <label className="rc-field-label">{field.label}</label>
-      <div className="rc-field-input-group">
-        <input type="number" className="rc-field-input" value={numValue}
-          step={field.type === 'factor' ? '0.1' : '1'}
-          onChange={e => {
-            const v = e.target.valueAsNumber;
-            if (!isNaN(v)) onSet(path, v);
-          }} />
-        {hint && <span className="rc-field-hint">{hint}</span>}
-      </div>
-      {indicators}
+      <FieldInput path={path} field={field} draftValue={draftValue} onSet={onSet} />
+      <FieldIndicators field={field} path={path} isDirty={isDirty} isModified={isModified}
+        defaultValue={defaultValue} onReset={onReset} />
     </div>
   );
 }
@@ -343,6 +377,46 @@ function TierSection({ draft, serverState, modifiedOnly, onSet, onReset }: {
   );
 }
 
+// ── RuntimeConfigToolbar ──
+
+function RuntimeConfigToolbar({
+  isDirty, saving, saveSuccess, loading, modifiedOnly, modifiedCount, dirtyCount,
+  onSave, onReload, onResetAll, onToggleModifiedOnly,
+}: {
+  isDirty: boolean;
+  saving: boolean;
+  saveSuccess: boolean;
+  loading: boolean;
+  modifiedOnly: boolean;
+  modifiedCount: number;
+  dirtyCount: number;
+  onSave: () => Promise<void>;
+  onReload: () => Promise<void>;
+  onResetAll: () => void;
+  onToggleModifiedOnly: (value: boolean) => void;
+}) {
+  return (
+    <div className="rc-toolbar">
+      <button className="btn btn-sm" disabled={!isDirty || saving} onClick={() => void onSave()}>
+        {saving ? 'Saving…' : saveSuccess ? 'Saved!' : 'Save'}
+      </button>
+      <button className="btn btn-ghost btn-sm" disabled={loading} onClick={() => void onReload()} title="Reload from disk">
+        &#10227; Reload
+      </button>
+      <button className="btn btn-ghost btn-sm" disabled={!isDirty} onClick={onResetAll} title="Discard unsaved changes">
+        Reset
+      </button>
+      <div className="rc-toolbar-spacer" />
+      <label className="rc-filter-toggle">
+        <input type="checkbox" checked={modifiedOnly} onChange={e => onToggleModifiedOnly(e.target.checked)} />
+        Modified only
+        {modifiedCount > 0 && <span className="rc-count-badge">{modifiedCount}</span>}
+      </label>
+      {dirtyCount > 0 && <span className="rc-dirty-badge">{dirtyCount} unsaved</span>}
+    </div>
+  );
+}
+
 // ── RuntimeConfigPanel ──
 
 export function RuntimeConfigPanel() {
@@ -395,24 +469,11 @@ export function RuntimeConfigPanel() {
 
   return (
     <div className="rc-panel">
-      <div className="rc-toolbar">
-        <button className="btn btn-sm" disabled={!isDirty || saving} onClick={() => void handleSave()}>
-          {saving ? 'Saving…' : saveSuccess ? 'Saved!' : 'Save'}
-        </button>
-        <button className="btn btn-ghost btn-sm" disabled={loading} onClick={() => void reload()} title="Reload from disk">
-          &#10227; Reload
-        </button>
-        <button className="btn btn-ghost btn-sm" disabled={!isDirty} onClick={resetAll} title="Discard unsaved changes">
-          Reset
-        </button>
-        <div className="rc-toolbar-spacer" />
-        <label className="rc-filter-toggle">
-          <input type="checkbox" checked={modifiedOnly} onChange={e => setModifiedOnly(e.target.checked)} />
-          Modified only
-          {modifiedCount > 0 && <span className="rc-count-badge">{modifiedCount}</span>}
-        </label>
-        {dirtyCount > 0 && <span className="rc-dirty-badge">{dirtyCount} unsaved</span>}
-      </div>
+      <RuntimeConfigToolbar
+        isDirty={isDirty} saving={saving} saveSuccess={saveSuccess} loading={loading}
+        modifiedOnly={modifiedOnly} modifiedCount={modifiedCount} dirtyCount={dirtyCount}
+        onSave={handleSave} onReload={reload} onResetAll={resetAll}
+        onToggleModifiedOnly={setModifiedOnly} />
 
       {serverState.errors.length > 0 && (
         <div className="rc-validation-errors">

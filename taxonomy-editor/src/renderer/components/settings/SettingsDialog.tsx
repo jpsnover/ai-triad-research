@@ -340,6 +340,139 @@ function TestKeysButton({ hasKey }: { hasKey: Record<string, boolean> }) {
   );
 }
 
+function RefreshModelsResult({ result, error }: { result: RefreshResult | null; error: string | null }) {
+  return (
+    <>
+      {result && (
+        <div className="settings-refresh-result">
+          {(Object.keys(result) as (keyof RefreshResult)[])
+            .filter((b): b is Exclude<keyof RefreshResult, 'totalModels'> => b !== 'totalModels')
+            .map((b) => {
+            const r = result[b];
+            return (
+              <div key={b} className={`settings-refresh-line ${r.ok ? '' : 'settings-refresh-warn'}`}>
+                <span className="settings-refresh-backend">{b}</span>
+                <span>{r.ok ? `${r.count} models` : r.error || 'failed'}</span>
+              </div>
+            );
+          })}
+          <div className="settings-refresh-total">
+            Total: {result.totalModels} models saved to ai-models.json
+          </div>
+        </div>
+      )}
+      {error && <div className="settings-key-error">{error}</div>}
+    </>
+  );
+}
+
+interface ApiKeyEntrySectionProps {
+  aiBackend: AIBackend;
+  hasKey: Record<string, boolean>;
+  endpointInput: string;
+  setEndpointInput: React.Dispatch<React.SetStateAction<string>>;
+  keyInput: string;
+  setKeyInput: React.Dispatch<React.SetStateAction<string>>;
+  savingKey: boolean;
+  onSaveKey: () => void;
+  keyError: string | null;
+  keySuccess: string | null;
+}
+
+function ApiKeyEntrySection({
+  aiBackend,
+  hasKey,
+  endpointInput,
+  setEndpointInput,
+  keyInput,
+  setKeyInput,
+  savingKey,
+  onSaveKey,
+  keyError,
+  keySuccess,
+}: ApiKeyEntrySectionProps) {
+  const isLocalBackend = aiBackend === 'ollama';
+  const keyPlaceholder: Partial<Record<AIBackend, string>> = {
+    gemini: 'AIza...',
+    claude: 'sk-ant-...',
+    groq: 'gsk_...',
+    openai: 'sk-...',
+    deepseek: 'sk-...',
+    azure: 'your-api-key',
+  };
+
+  const keyProvisionUrl: Partial<Record<AIBackend, { url: string; label: string }>> = {
+    gemini:   { url: 'https://aistudio.google.com/apikey', label: 'Google AI Studio' },
+    claude:   { url: 'https://console.anthropic.com/settings/keys', label: 'Anthropic Console' },
+    groq:     { url: 'https://console.groq.com/keys', label: 'Groq Console' },
+    openai:   { url: 'https://platform.openai.com/api-keys', label: 'OpenAI Platform' },
+    deepseek: { url: 'https://platform.deepseek.com/api_keys', label: 'DeepSeek Platform' },
+    azure:    { url: 'https://portal.azure.com/#view/Microsoft_Azure_ProjectOxford/CognitiveServicesHub/~/OpenAI', label: 'Azure Portal' },
+  };
+
+  if (isLocalBackend) {
+    return (
+      <div className="settings-key-section">
+        <span className="settings-label settings-dialog-local-note">
+          {AI_BACKENDS.find(b => b.value === aiBackend)?.label} runs locally — no API key needed
+        </span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="settings-key-section">
+      {aiBackend === 'azure' && (
+        <>
+          <label className="settings-label">Endpoint URL</label>
+          <div className="settings-key-row settings-dialog-endpoint-row">
+            <input
+              type="text"
+              className="settings-key-input"
+              value={endpointInput}
+              onChange={(e) => setEndpointInput(e.target.value)}
+              placeholder="https://your-resource.openai.azure.com"
+            />
+          </div>
+        </>
+      )}
+      <label className="settings-label">
+        {AI_BACKENDS.find(b => b.value === aiBackend)?.label} API Key
+        {hasKey[aiBackend] && <span className="settings-key-status"> (set)</span>}
+      </label>
+      <div className="settings-key-row">
+        <input
+          type="password"
+          className="settings-key-input"
+          value={keyInput}
+          onChange={(e) => setKeyInput(e.target.value)}
+          placeholder={keyPlaceholder[aiBackend] ?? ''}
+        />
+        <button
+          className="btn btn-sm"
+          onClick={onSaveKey}
+          disabled={!keyInput.trim() || (aiBackend === 'azure' && !endpointInput.trim()) || savingKey}
+        >
+          {savingKey ? '...' : 'Save'}
+        </button>
+      </div>
+      {keyError && <div className="settings-key-error">{keyError}</div>}
+      {keySuccess && <div className="settings-key-success">{keySuccess}</div>}
+      {keyProvisionUrl[aiBackend] && (
+        <div className="settings-dialog-provision-link-wrap">
+          <a
+            href="#"
+            onClick={(e) => { e.preventDefault(); void api.openExternal(keyProvisionUrl[aiBackend]!.url); }}
+            className="settings-dialog-provision-link"
+          >
+            Get a {AI_BACKENDS.find(b => b.value === aiBackend)?.label} API key &#8594; {keyProvisionUrl[aiBackend]!.label}
+          </a>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function SettingsDialog({ onClose }: SettingsDialogProps) {
   const { colorScheme, setColorScheme, paneSpacing, setPaneSpacing, aiBackend, setAIBackend, geminiModel, setGeminiModel } = useTaxonomyStore();
   const [descMode, setDescMode] = useDescriptionMode();
@@ -447,25 +580,6 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
     }
   };
 
-  const isLocalBackend = aiBackend === 'ollama';
-  const keyPlaceholder: Partial<Record<AIBackend, string>> = {
-    gemini: 'AIza...',
-    claude: 'sk-ant-...',
-    groq: 'gsk_...',
-    openai: 'sk-...',
-    deepseek: 'sk-...',
-    azure: 'your-api-key',
-  };
-
-  const keyProvisionUrl: Partial<Record<AIBackend, { url: string; label: string }>> = {
-    gemini:   { url: 'https://aistudio.google.com/apikey', label: 'Google AI Studio' },
-    claude:   { url: 'https://console.anthropic.com/settings/keys', label: 'Anthropic Console' },
-    groq:     { url: 'https://console.groq.com/keys', label: 'Groq Console' },
-    openai:   { url: 'https://platform.openai.com/api-keys', label: 'OpenAI Platform' },
-    deepseek: { url: 'https://platform.deepseek.com/api_keys', label: 'DeepSeek Platform' },
-    azure:    { url: 'https://portal.azure.com/#view/Microsoft_Azure_ProjectOxford/CognitiveServicesHub/~/OpenAI', label: 'Azure Portal' },
-  };
-
   return (
     <div className="dialog-overlay" onClick={onClose}>
       <div className="dialog settings-dialog" onClick={(e) => e.stopPropagation()}>
@@ -512,85 +626,22 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
           </div>
         </div>
 
-        {refreshResult && (
-          <div className="settings-refresh-result">
-            {(Object.keys(refreshResult) as (keyof RefreshResult)[])
-              .filter((b): b is Exclude<keyof RefreshResult, 'totalModels'> => b !== 'totalModels')
-              .map((b) => {
-              const r = refreshResult[b];
-              return (
-                <div key={b} className={`settings-refresh-line ${r.ok ? '' : 'settings-refresh-warn'}`}>
-                  <span className="settings-refresh-backend">{b}</span>
-                  <span>{r.ok ? `${r.count} models` : r.error || 'failed'}</span>
-                </div>
-              );
-            })}
-            <div className="settings-refresh-total">
-              Total: {refreshResult.totalModels} models saved to ai-models.json
-            </div>
-          </div>
-        )}
-        {refreshError && <div className="settings-key-error">{refreshError}</div>}
+        <RefreshModelsResult result={refreshResult} error={refreshError} />
 
         <div className="settings-divider" />
 
-        {isLocalBackend ? (
-          <div className="settings-key-section">
-            <span className="settings-label settings-dialog-local-note">
-              {AI_BACKENDS.find(b => b.value === aiBackend)?.label} runs locally — no API key needed
-            </span>
-          </div>
-        ) : (
-          <div className="settings-key-section">
-            {aiBackend === 'azure' && (
-              <>
-                <label className="settings-label">Endpoint URL</label>
-                <div className="settings-key-row settings-dialog-endpoint-row">
-                  <input
-                    type="text"
-                    className="settings-key-input"
-                    value={endpointInput}
-                    onChange={(e) => setEndpointInput(e.target.value)}
-                    placeholder="https://your-resource.openai.azure.com"
-                  />
-                </div>
-              </>
-            )}
-            <label className="settings-label">
-              {AI_BACKENDS.find(b => b.value === aiBackend)?.label} API Key
-              {hasKey[aiBackend] && <span className="settings-key-status"> (set)</span>}
-            </label>
-            <div className="settings-key-row">
-              <input
-                type="password"
-                className="settings-key-input"
-                value={keyInput}
-                onChange={(e) => setKeyInput(e.target.value)}
-                placeholder={keyPlaceholder[aiBackend] ?? ''}
-              />
-              <button
-                className="btn btn-sm"
-                onClick={handleSaveKey}
-                disabled={!keyInput.trim() || (aiBackend === 'azure' && !endpointInput.trim()) || savingKey}
-              >
-                {savingKey ? '...' : 'Save'}
-              </button>
-            </div>
-            {keyError && <div className="settings-key-error">{keyError}</div>}
-            {keySuccess && <div className="settings-key-success">{keySuccess}</div>}
-            {keyProvisionUrl[aiBackend] && (
-              <div className="settings-dialog-provision-link-wrap">
-                <a
-                  href="#"
-                  onClick={(e) => { e.preventDefault(); void api.openExternal(keyProvisionUrl[aiBackend]!.url); }}
-                  className="settings-dialog-provision-link"
-                >
-                  Get a {AI_BACKENDS.find(b => b.value === aiBackend)?.label} API key &#8594; {keyProvisionUrl[aiBackend]!.label}
-                </a>
-              </div>
-            )}
-          </div>
-        )}
+        <ApiKeyEntrySection
+          aiBackend={aiBackend}
+          hasKey={hasKey}
+          endpointInput={endpointInput}
+          setEndpointInput={setEndpointInput}
+          keyInput={keyInput}
+          setKeyInput={setKeyInput}
+          savingKey={savingKey}
+          onSaveKey={handleSaveKey}
+          keyError={keyError}
+          keySuccess={keySuccess}
+        />
 
         <div className="settings-key-actions-row">
           <TestKeysButton hasKey={hasKey} />

@@ -33,59 +33,89 @@ function timeAgo(iso: string): string {
   return `${days}d ago`;
 }
 
-function ErrorDetail({ detail }: { detail: NonNullable<ErrorDetailResult> }) {
-  const [showStack, setShowStack] = useState(false);
-  const { entry, relatedDumps } = detail;
+type ErrorEntry = NonNullable<ErrorDetailResult>['entry'];
+type RelatedDumpList = NonNullable<ErrorDetailResult>['relatedDumps'];
+
+function ErrorMetaGrid({ entry }: { entry: ErrorEntry }) {
   const ctx = entry.context as Record<string, string> | undefined;
   const buildMismatch = ctx?.buildVersion && ctx.buildVersion !== __APP_VERSION__;
 
   return (
-    <div className="admin-errors-detail">
-      <h4>{entry.name}: {entry.message}</h4>
-      <dl className="admin-errors-detail-grid">
-        <dt>Time</dt>
-        <dd>{new Date(entry.timestamp).toLocaleString()} ({timeAgo(entry.timestamp)})</dd>
-        {entry.userId && <><dt>User</dt><dd>{entry.userId}</dd></>}
-        {ctx?.trigger && <><dt>Trigger</dt><dd>{ctx.trigger}</dd></>}
-        {ctx?.url && <><dt>URL</dt><dd>{ctx.url}</dd></>}
-        {ctx?.deploymentMode && <><dt>Mode</dt><dd>{ctx.deploymentMode}</dd></>}
-        {ctx?.buildVersion && (
-          <>
-            <dt>Build</dt>
-            <dd>
-              {ctx.buildVersion}
-              {buildMismatch && (
-                <span className="admin-errors-stale-badge">stale build</span>
-              )}
-            </dd>
-          </>
-        )}
-      </dl>
-
-      {entry.stack && (
+    <dl className="admin-errors-detail-grid">
+      <dt>Time</dt>
+      <dd>{new Date(entry.timestamp).toLocaleString()} ({timeAgo(entry.timestamp)})</dd>
+      {entry.userId && <><dt>User</dt><dd>{entry.userId}</dd></>}
+      {ctx?.trigger && <><dt>Trigger</dt><dd>{ctx.trigger}</dd></>}
+      {ctx?.url && <><dt>URL</dt><dd>{ctx.url}</dd></>}
+      {ctx?.deploymentMode && <><dt>Mode</dt><dd>{ctx.deploymentMode}</dd></>}
+      {ctx?.buildVersion && (
         <>
-          <button className="admin-errors-stack-toggle" onClick={() => setShowStack(v => !v)}>
-            {showStack ? 'Hide' : 'Show'} stack trace
-          </button>
-          {showStack && <pre className="admin-errors-stack">{entry.stack}</pre>}
+          <dt>Build</dt>
+          <dd>
+            {ctx.buildVersion}
+            {buildMismatch && (
+              <span className="admin-errors-stale-badge">stale build</span>
+            )}
+          </dd>
         </>
       )}
+    </dl>
+  );
+}
 
-      {relatedDumps.length > 0 && (
-        <div className="admin-errors-dumps">
-          <h5>Related Dumps</h5>
-          {relatedDumps.map(d => (
-            <a
-              key={d.dumpId}
-              href={`/api/admin/flight-recorder/merged?dumpId=${encodeURIComponent(d.dumpId)}`}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              {d.kind} — {timeAgo(d.timestamp)}
-            </a>
-          ))}
-        </div>
-      )}
+function StackTraceBlock({
+  stack,
+  showStack,
+  onToggle,
+}: {
+  stack?: string;
+  showStack: boolean;
+  onToggle: () => void;
+}) {
+  if (!stack) return null;
+  return (
+    <>
+      <button className="admin-errors-stack-toggle" onClick={onToggle}>
+        {showStack ? 'Hide' : 'Show'} stack trace
+      </button>
+      {showStack && <pre className="admin-errors-stack">{stack}</pre>}
+    </>
+  );
+}
+
+function RelatedDumps({ dumps }: { dumps: RelatedDumpList }) {
+  if (dumps.length === 0) return null;
+  return (
+    <div className="admin-errors-dumps">
+      <h5>Related Dumps</h5>
+      {dumps.map(d => (
+        <a
+          key={d.dumpId}
+          href={`/api/admin/flight-recorder/merged?dumpId=${encodeURIComponent(d.dumpId)}`}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          {d.kind} — {timeAgo(d.timestamp)}
+        </a>
+      ))}
+    </div>
+  );
+}
+
+function ErrorDetail({ detail }: { detail: NonNullable<ErrorDetailResult> }) {
+  const [showStack, setShowStack] = useState(false);
+  const { entry, relatedDumps } = detail;
+
+  return (
+    <div className="admin-errors-detail">
+      <h4>{entry.name}: {entry.message}</h4>
+      <ErrorMetaGrid entry={entry} />
+      <StackTraceBlock
+        stack={entry.stack}
+        showStack={showStack}
+        onToggle={() => setShowStack(v => !v)}
+      />
+      <RelatedDumps dumps={relatedDumps} />
     </div>
   );
 }

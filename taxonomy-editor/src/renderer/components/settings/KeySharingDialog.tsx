@@ -176,60 +176,22 @@ export function KeySharingDialog({ onClose, onKeysImported }: KeySharingDialogPr
         <h3>Key Sharing</h3>
 
         {mode === 'choose' && (
-          <>
-            <p className="key-sharing-intro">
-              Transfer API keys between devices using an encrypted QR code.
-            </p>
-            <div className="key-sharing-choice-row">
-              <button className="btn btn-primary key-sharing-choice-btn" onClick={() => setMode('export')}>
-                Share Keys (QR)
-              </button>
-              <button className="btn key-sharing-choice-btn" onClick={() => { setMode('import-scan'); void startCamera(); }}>
-                Scan QR
-              </button>
-              <button className="btn key-sharing-choice-btn" onClick={() => setMode('import-paste')}>
-                Paste Payload
-              </button>
-            </div>
-          </>
+          <ChoosePanel
+            onExport={() => setMode('export')}
+            onScan={() => { setMode('import-scan'); void startCamera(); }}
+            onPaste={() => setMode('import-paste')}
+          />
         )}
 
-        {mode === 'export' && !qrDataUrl && (
-          <>
-            <div className="settings-key-section">
-              <label className="settings-label">Encryption Passphrase</label>
-              <p className="key-sharing-hint">
-                Choose a passphrase to encrypt your keys. You will need this same passphrase on the target device.
-              </p>
-              <div className="settings-key-row">
-                <input
-                  type="password"
-                  className="settings-key-input"
-                  value={passphrase}
-                  onChange={(e) => setPassphrase(e.target.value)}
-                  placeholder="Enter passphrase..."
-                  onKeyDown={(e) => { if (e.key === 'Enter') void handleExport(); }}
-                />
-                <button className="btn btn-primary btn-sm" onClick={handleExport} disabled={!passphrase.trim() || loading}>
-                  {loading ? '...' : 'Generate QR'}
-                </button>
-              </div>
-            </div>
-          </>
-        )}
-
-        {mode === 'export' && qrDataUrl && (
-          <>
-            <div className="key-sharing-warning">
-              Anyone who photographs this QR code can extract your API keys (with the passphrase). Do not share it publicly.
-            </div>
-            <div className="key-sharing-qr-wrap">
-              <img src={qrDataUrl} alt="API keys QR code" className="key-sharing-qr-img" />
-            </div>
-            <button className="btn btn-sm key-sharing-full-btn" onClick={handleCopyPayload}>
-              Copy Encrypted Payload (for paste import)
-            </button>
-          </>
+        {mode === 'export' && (
+          <ExportPanel
+            passphrase={passphrase}
+            setPassphrase={setPassphrase}
+            loading={loading}
+            qrDataUrl={qrDataUrl}
+            onExport={handleExport}
+            onCopyPayload={handleCopyPayload}
+          />
         )}
 
         {mode === 'import-scan' && (
@@ -250,54 +212,169 @@ export function KeySharingDialog({ onClose, onKeysImported }: KeySharingDialogPr
         )}
 
         {mode === 'import-paste' && !success && (
-          <>
-            <div className="settings-key-section">
-              <label className="settings-label">Encrypted Payload</label>
-              <textarea
-                className="settings-key-input key-sharing-payload-textarea"
-                value={pasteInput}
-                onChange={(e) => setPasteInput(e.target.value)}
-                placeholder='Paste the encrypted payload JSON here...'
-                rows={3}
-              />
-            </div>
-            <div className="settings-key-section key-sharing-section-spaced">
-              <label className="settings-label">Passphrase</label>
-              <div className="settings-key-row">
-                <input
-                  type="password"
-                  className="settings-key-input"
-                  value={passphrase}
-                  onChange={(e) => setPassphrase(e.target.value)}
-                  placeholder="Enter the passphrase used during export..."
-                  onKeyDown={(e) => { if (e.key === 'Enter') void handleImport(pasteInput); }}
-                />
-                <button
-                  className="btn btn-primary btn-sm"
-                  onClick={() => void handleImport(pasteInput)}
-                  disabled={!passphrase.trim() || !pasteInput.trim() || loading}
-                >
-                  {loading ? '...' : 'Import'}
-                </button>
-              </div>
-            </div>
-          </>
+          <PastePanel
+            pasteInput={pasteInput}
+            setPasteInput={setPasteInput}
+            passphrase={passphrase}
+            setPassphrase={setPassphrase}
+            loading={loading}
+            onImport={handleImport}
+          />
         )}
 
         {error && <div className="settings-key-error key-sharing-message">{error}</div>}
         {success && <div className="settings-key-success key-sharing-message">{success}</div>}
 
-        <div className="dialog-actions key-sharing-actions">
-          {mode !== 'choose' && !success && (
-            <button className="btn btn-sm" onClick={() => { stopCamera(); setMode('choose'); setQrDataUrl(null); setError(null); setPassphrase(''); setPasteInput(''); }}>
-              Back
-            </button>
-          )}
-          <button className="btn btn-primary" onClick={() => { stopCamera(); onClose(); }}>
-            {success ? 'Done' : 'Close'}
+        <DialogActions
+          mode={mode}
+          success={success}
+          onBack={() => { stopCamera(); setMode('choose'); setQrDataUrl(null); setError(null); setPassphrase(''); setPasteInput(''); }}
+          onCloseClick={() => { stopCamera(); onClose(); }}
+        />
+      </div>
+    </div>
+  );
+}
+
+interface ChoosePanelProps {
+  onExport: () => void;
+  onScan: () => void;
+  onPaste: () => void;
+}
+
+function ChoosePanel({ onExport, onScan, onPaste }: ChoosePanelProps) {
+  return (
+    <>
+      <p className="key-sharing-intro">
+        Transfer API keys between devices using an encrypted QR code.
+      </p>
+      <div className="key-sharing-choice-row">
+        <button className="btn btn-primary key-sharing-choice-btn" onClick={onExport}>
+          Share Keys (QR)
+        </button>
+        <button className="btn key-sharing-choice-btn" onClick={onScan}>
+          Scan QR
+        </button>
+        <button className="btn key-sharing-choice-btn" onClick={onPaste}>
+          Paste Payload
+        </button>
+      </div>
+    </>
+  );
+}
+
+interface ExportPanelProps {
+  passphrase: string;
+  setPassphrase: (value: string) => void;
+  loading: boolean;
+  qrDataUrl: string | null;
+  onExport: () => void;
+  onCopyPayload: () => void;
+}
+
+function ExportPanel({ passphrase, setPassphrase, loading, qrDataUrl, onExport, onCopyPayload }: ExportPanelProps) {
+  if (!qrDataUrl) {
+    return (
+      <div className="settings-key-section">
+        <label className="settings-label">Encryption Passphrase</label>
+        <p className="key-sharing-hint">
+          Choose a passphrase to encrypt your keys. You will need this same passphrase on the target device.
+        </p>
+        <div className="settings-key-row">
+          <input
+            type="password"
+            className="settings-key-input"
+            value={passphrase}
+            onChange={(e) => setPassphrase(e.target.value)}
+            placeholder="Enter passphrase..."
+            onKeyDown={(e) => { if (e.key === 'Enter') void onExport(); }}
+          />
+          <button className="btn btn-primary btn-sm" onClick={onExport} disabled={!passphrase.trim() || loading}>
+            {loading ? '...' : 'Generate QR'}
           </button>
         </div>
       </div>
+    );
+  }
+  return (
+    <>
+      <div className="key-sharing-warning">
+        Anyone who photographs this QR code can extract your API keys (with the passphrase). Do not share it publicly.
+      </div>
+      <div className="key-sharing-qr-wrap">
+        <img src={qrDataUrl} alt="API keys QR code" className="key-sharing-qr-img" />
+      </div>
+      <button className="btn btn-sm key-sharing-full-btn" onClick={onCopyPayload}>
+        Copy Encrypted Payload (for paste import)
+      </button>
+    </>
+  );
+}
+
+interface PastePanelProps {
+  pasteInput: string;
+  setPasteInput: (value: string) => void;
+  passphrase: string;
+  setPassphrase: (value: string) => void;
+  loading: boolean;
+  onImport: (payloadStr: string) => void;
+}
+
+function PastePanel({ pasteInput, setPasteInput, passphrase, setPassphrase, loading, onImport }: PastePanelProps) {
+  return (
+    <>
+      <div className="settings-key-section">
+        <label className="settings-label">Encrypted Payload</label>
+        <textarea
+          className="settings-key-input key-sharing-payload-textarea"
+          value={pasteInput}
+          onChange={(e) => setPasteInput(e.target.value)}
+          placeholder='Paste the encrypted payload JSON here...'
+          rows={3}
+        />
+      </div>
+      <div className="settings-key-section key-sharing-section-spaced">
+        <label className="settings-label">Passphrase</label>
+        <div className="settings-key-row">
+          <input
+            type="password"
+            className="settings-key-input"
+            value={passphrase}
+            onChange={(e) => setPassphrase(e.target.value)}
+            placeholder="Enter the passphrase used during export..."
+            onKeyDown={(e) => { if (e.key === 'Enter') void onImport(pasteInput); }}
+          />
+          <button
+            className="btn btn-primary btn-sm"
+            onClick={() => void onImport(pasteInput)}
+            disabled={!passphrase.trim() || !pasteInput.trim() || loading}
+          >
+            {loading ? '...' : 'Import'}
+          </button>
+        </div>
+      </div>
+    </>
+  );
+}
+
+interface DialogActionsProps {
+  mode: Mode;
+  success: string | null;
+  onBack: () => void;
+  onCloseClick: () => void;
+}
+
+function DialogActions({ mode, success, onBack, onCloseClick }: DialogActionsProps) {
+  return (
+    <div className="dialog-actions key-sharing-actions">
+      {mode !== 'choose' && !success && (
+        <button className="btn btn-sm" onClick={onBack}>
+          Back
+        </button>
+      )}
+      <button className="btn btn-primary" onClick={onCloseClick}>
+        {success ? 'Done' : 'Close'}
+      </button>
     </div>
   );
 }

@@ -520,6 +520,138 @@ function PaidFallbackKeySection() {
 
 type AdminTab = 'reviews' | 'feedback' | 'flags' | 'config' | 'support';
 
+// ── Non-admin access-denied view ──
+
+function AdminAccessDenied({ azureConfigured }: { azureConfigured: boolean | null }) {
+  const message = isElectronMode() && azureConfigured === false
+    ? 'Set AZURE_STORAGE_ACCOUNT_URL to review community submissions from the desktop app.'
+    : 'You do not have admin access.';
+  return (
+    <div className="admin-review">
+      <div className="admin-review-header">
+        <button className="btn btn-ghost"
+          onClick={() => { window.location.hash = ''; window.location.reload(); }}>
+          &larr; Back
+        </button>
+        <h2>Admin Review</h2>
+      </div>
+      <div className="admin-review-empty">{message}</div>
+    </div>
+  );
+}
+
+// ── Admin tab bar ──
+
+function AdminReviewTabBar({ adminTab, onSelect }: {
+  adminTab: AdminTab;
+  onSelect: (tab: AdminTab) => void;
+}) {
+  return (
+    <div className="admin-review-tabs">
+      <button className={`admin-review-tab${adminTab === 'reviews' ? ' active' : ''}`}
+        onClick={() => onSelect('reviews')}>Reviews</button>
+      <button className={`admin-review-tab${adminTab === 'feedback' ? ' active' : ''}`}
+        onClick={() => onSelect('feedback')}>Feedback</button>
+      <button className={`admin-review-tab${adminTab === 'flags' ? ' active' : ''}`}
+        onClick={() => onSelect('flags')}>Feature Flags</button>
+      <button className={`admin-review-tab${adminTab === 'config' ? ' active' : ''}`}
+        onClick={() => onSelect('config')}>Config</button>
+      <button className={`admin-review-tab${adminTab === 'support' ? ' active' : ''}`}
+        onClick={() => onSelect('support')}>Support</button>
+    </div>
+  );
+}
+
+// ── Reviews pane (queue + domain viewer) ──
+
+interface ReviewsPaneProps {
+  queue: ReviewItem[];
+  stats: ReviewStats | null;
+  loading: boolean;
+  error: string | null;
+  filter: string;
+  setFilter: (value: string) => void;
+  selectedId: string | null;
+  setSelectedId: (value: string | null) => void;
+  setLoading: (value: boolean) => void;
+  load: () => void;
+}
+
+function ReviewsPane({
+  queue, stats, loading, error, filter, setFilter,
+  selectedId, setSelectedId, setLoading, load,
+}: ReviewsPaneProps) {
+  const filtered = filter === 'all' ? queue : queue.filter(i => i.domain === filter);
+  const selected = filtered.find(i => i.id === selectedId) ?? null;
+  const domains = Object.keys(stats?.byDomain ?? {});
+
+  return (
+    <div className="admin-review-body">
+      {/* Left pane: queue */}
+      <div className="admin-review-queue">
+        <div className="admin-review-queue-toolbar">
+          <select className="admin-review-filter" value={filter}
+            onChange={e => { setFilter(e.target.value); setSelectedId(null); }}>
+            <option value="all">All domains{stats ? ` (${stats.total})` : ''}</option>
+            {domains.map(d => (
+              <option key={d} value={d}>
+                {DOMAIN_LABELS[d] ?? d} ({stats?.byDomain[d] ?? 0})
+              </option>
+            ))}
+          </select>
+          <button className="btn btn-ghost btn-sm" onClick={() => { setLoading(true); void load(); }}
+            title="Refresh queue">
+            ⟳
+          </button>
+        </div>
+
+        {loading && <div className="admin-review-loading">Loading…</div>}
+        {error && <div className="admin-review-error">{error}</div>}
+
+        {!loading && !error && filtered.length === 0 && (
+          <div className="admin-review-empty">
+            No pending reviews{filter !== 'all' ? ` for ${DOMAIN_LABELS[filter] ?? filter}` : ''}.
+          </div>
+        )}
+
+        <div className="admin-review-queue-list">
+          {filtered.map(item => (
+            <QueueCard
+              key={item.id}
+              item={item}
+              selected={item.id === selectedId}
+              onClick={() => setSelectedId(item.id)}
+            />
+          ))}
+        </div>
+      </div>
+
+      {/* Right pane: domain-specific viewer */}
+      <div className="admin-review-viewer">
+        <ViewerRouter selected={selected} onActionComplete={load} />
+      </div>
+    </div>
+  );
+}
+
+// ── Tab body router ──
+
+function AdminTabBody(props: ReviewsPaneProps & { adminTab: AdminTab }) {
+  const { adminTab, ...reviewsProps } = props;
+  if (adminTab === 'support') return <SupportAdminPanel />;
+  if (adminTab === 'config') {
+    return (
+      <>
+        {!isElectronMode() && <PaidFallbackKeySection />}
+        <RuntimeConfigPanel />
+      </>
+    );
+  }
+  if (adminTab === 'flags') return <FeatureFlagsPanel />;
+  if (adminTab === 'feedback') return <FeedbackSection />;
+  return <ReviewsPane {...reviewsProps} />;
+}
+
 export function AdminReviewPanel() {
   const [adminTab, setAdminTab] = useState<AdminTab>('reviews');
   const profile = useUserProfile();
@@ -571,27 +703,8 @@ export function AdminReviewPanel() {
   }, [load, isAdmin]);
 
   if (!isAdmin) {
-    const message = isElectronMode() && azureConfigured === false
-      ? 'Set AZURE_STORAGE_ACCOUNT_URL to review community submissions from the desktop app.'
-      : 'You do not have admin access.';
-    return (
-      <div className="admin-review">
-        <div className="admin-review-header">
-          <button className="btn btn-ghost"
-            onClick={() => { window.location.hash = ''; window.location.reload(); }}>
-            &larr; Back
-          </button>
-          <h2>Admin Review</h2>
-        </div>
-        <div className="admin-review-empty">{message}</div>
-      </div>
-    );
+    return <AdminAccessDenied azureConfigured={azureConfigured} />;
   }
-
-  const filtered = filter === 'all' ? queue : queue.filter(i => i.domain === filter);
-  const selected = filtered.find(i => i.id === selectedId) ?? null;
-
-  const domains = Object.keys(stats?.byDomain ?? {});
 
   return (
     <div className="admin-review">
@@ -606,78 +719,22 @@ export function AdminReviewPanel() {
             {stats.total} pending
           </span>
         )}
-        <div className="admin-review-tabs">
-          <button className={`admin-review-tab${adminTab === 'reviews' ? ' active' : ''}`}
-            onClick={() => setAdminTab('reviews')}>Reviews</button>
-          <button className={`admin-review-tab${adminTab === 'feedback' ? ' active' : ''}`}
-            onClick={() => setAdminTab('feedback')}>Feedback</button>
-          <button className={`admin-review-tab${adminTab === 'flags' ? ' active' : ''}`}
-            onClick={() => setAdminTab('flags')}>Feature Flags</button>
-          <button className={`admin-review-tab${adminTab === 'config' ? ' active' : ''}`}
-            onClick={() => setAdminTab('config')}>Config</button>
-          <button className={`admin-review-tab${adminTab === 'support' ? ' active' : ''}`}
-            onClick={() => setAdminTab('support')}>Support</button>
-        </div>
+        <AdminReviewTabBar adminTab={adminTab} onSelect={setAdminTab} />
       </div>
 
-      {adminTab === 'support' ? (
-        <SupportAdminPanel />
-      ) : adminTab === 'config' ? (
-        <>
-          {!isElectronMode() && <PaidFallbackKeySection />}
-          <RuntimeConfigPanel />
-        </>
-      ) : adminTab === 'flags' ? (
-        <FeatureFlagsPanel />
-      ) : adminTab === 'feedback' ? (
-        <FeedbackSection />
-      ) : (
-        <div className="admin-review-body">
-          {/* Left pane: queue */}
-          <div className="admin-review-queue">
-            <div className="admin-review-queue-toolbar">
-              <select className="admin-review-filter" value={filter}
-                onChange={e => { setFilter(e.target.value); setSelectedId(null); }}>
-                <option value="all">All domains{stats ? ` (${stats.total})` : ''}</option>
-                {domains.map(d => (
-                  <option key={d} value={d}>
-                    {DOMAIN_LABELS[d] ?? d} ({stats?.byDomain[d] ?? 0})
-                  </option>
-                ))}
-              </select>
-              <button className="btn btn-ghost btn-sm" onClick={() => { setLoading(true); void load(); }}
-                title="Refresh queue">
-                ⟳
-              </button>
-            </div>
-
-            {loading && <div className="admin-review-loading">Loading…</div>}
-            {error && <div className="admin-review-error">{error}</div>}
-
-            {!loading && !error && filtered.length === 0 && (
-              <div className="admin-review-empty">
-                No pending reviews{filter !== 'all' ? ` for ${DOMAIN_LABELS[filter] ?? filter}` : ''}.
-              </div>
-            )}
-
-            <div className="admin-review-queue-list">
-              {filtered.map(item => (
-                <QueueCard
-                  key={item.id}
-                  item={item}
-                  selected={item.id === selectedId}
-                  onClick={() => setSelectedId(item.id)}
-                />
-              ))}
-            </div>
-          </div>
-
-          {/* Right pane: domain-specific viewer */}
-          <div className="admin-review-viewer">
-            <ViewerRouter selected={selected} onActionComplete={load} />
-          </div>
-        </div>
-      )}
+      <AdminTabBody
+        adminTab={adminTab}
+        queue={queue}
+        stats={stats}
+        loading={loading}
+        error={error}
+        filter={filter}
+        setFilter={setFilter}
+        selectedId={selectedId}
+        setSelectedId={setSelectedId}
+        setLoading={setLoading}
+        load={load}
+      />
     </div>
   );
 }

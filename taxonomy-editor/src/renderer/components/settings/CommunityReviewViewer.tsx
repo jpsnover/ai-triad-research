@@ -113,6 +113,172 @@ function TranscriptPreview({ entries }: { entries: TranscriptEntry[] }) {
   );
 }
 
+// ── Presentational sub-components (props in → JSX out) ──
+
+function CommunityHeader({ detail }: { detail: CommunityDetail }) {
+  return (
+    <div className="crv-header">
+      <span className="crv-type-badge">{detail.type}</span>
+      <span className="crv-submitter">{detail.submitter}</span>
+      <span className="crv-date">{formatDate(detail.submittedAt)}</span>
+    </div>
+  );
+}
+
+function CommunityMetadata({ detail }: { detail: CommunityDetail }) {
+  const { metadata } = detail;
+  return (
+    <div className="crv-meta">
+      {metadata.model && (
+        <div className="crv-meta-item">
+          <span className="crv-meta-label">Model:</span> {metadata.model}
+        </div>
+      )}
+      {metadata.turnCount != null && (
+        <div className="crv-meta-item">
+          <span className="crv-meta-label">Turns:</span> {metadata.turnCount}
+        </div>
+      )}
+      {metadata.phase && (
+        <div className="crv-meta-item">
+          <span className="crv-meta-label">Phase:</span> {metadata.phase}
+        </div>
+      )}
+      {metadata.audience && (
+        <div className="crv-meta-item">
+          <span className="crv-meta-label">Audience:</span> {metadata.audience}
+        </div>
+      )}
+      {metadata.activePovers && metadata.activePovers.length > 0 && (
+        <div className="crv-meta-item">
+          <span className="crv-meta-label">Participants:</span>{' '}
+          {metadata.activePovers.map(p => SPEAKER_LABELS[p] ?? p).join(', ')}
+        </div>
+      )}
+      {metadata.taxonomyRefs && metadata.taxonomyRefs.length > 0 && (
+        <div className="crv-meta-item">
+          <span className="crv-meta-label">Refs:</span> {metadata.taxonomyRefs.join(', ')}
+        </div>
+      )}
+      {detail.topic && (
+        <div className="crv-meta-item crv-meta-topic">
+          <span className="crv-meta-label">Topic:</span> {typeof detail.topic === 'string' ? detail.topic : String(detail.topic)}
+        </div>
+      )}
+      {detail.note && (
+        <div className="crv-meta-item">
+          <span className="crv-meta-label">Note:</span> {detail.note}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function TranscriptSection({ detail }: { detail: CommunityDetail }) {
+  const hasTranscript = detail.transcriptPreview && detail.transcriptPreview.length > 0;
+  return (
+    <>
+      <div className="crv-section-label">
+        {hasTranscript ? `Transcript (${detail.transcriptPreview!.length} entries)` : 'Preview'}
+      </div>
+      {hasTranscript ? (
+        <TranscriptPreview entries={detail.transcriptPreview!} />
+      ) : detail.preview ? (
+        <div className="crv-preview">{detail.preview}</div>
+      ) : (
+        <div className="crv-preview crv-preview-empty">No preview available — the submission data may use an unrecognized format.</div>
+      )}
+    </>
+  );
+}
+
+function SanitizationSection({ sanitization }: { sanitization: CommunityDetail['sanitization'] }) {
+  if (sanitization.willStrip.length === 0 && sanitization.willAdd.length === 0) return null;
+  return (
+    <>
+      <div className="crv-section-label">Sanitization</div>
+      <div className="crv-sanit">
+        {sanitization.willStrip.map((s, i) => (
+          <div key={`strip-${i}`} className="crv-sanit-row crv-sanit-strip">
+            <span className="crv-sanit-icon">&minus;</span> {s}
+          </div>
+        ))}
+        {sanitization.willAdd.map((s, i) => (
+          <div key={`add-${i}`} className="crv-sanit-row crv-sanit-add">
+            <span className="crv-sanit-icon">+</span> {s}
+          </div>
+        ))}
+      </div>
+    </>
+  );
+}
+
+function EditFields({
+  detail, editTitle, setEditTitle, editDescription, setEditDescription,
+}: {
+  detail: CommunityDetail;
+  editTitle: string;
+  setEditTitle: (v: string) => void;
+  editDescription: string;
+  setEditDescription: (v: string) => void;
+}) {
+  return (
+    <div className="crv-edit-fields">
+      <div className="crv-edit-field">
+        <label>Title</label>
+        <input value={editTitle} onChange={e => setEditTitle(e.target.value)}
+          placeholder={detail.title || 'Untitled'} />
+      </div>
+      <div className="crv-edit-field">
+        <label>Description (optional)</label>
+        <textarea value={editDescription} onChange={e => setEditDescription(e.target.value)}
+          placeholder="Add a description for the community library…" rows={2} />
+      </div>
+    </div>
+  );
+}
+
+function ActionButtons({
+  busy, rejectReason, setRejectReason, onPromote, onReject,
+}: {
+  busy: 'promote' | 'reject' | null;
+  rejectReason: string;
+  setRejectReason: (v: string) => void;
+  onPromote: () => void;
+  onReject: () => void;
+}) {
+  return (
+    <div className="crv-actions">
+      <button className="btn btn-sm btn-primary" onClick={onPromote}
+        disabled={busy !== null}>
+        {busy === 'promote' ? 'Promoting…' : 'Promote'}
+      </button>
+      <input className="crv-reject-reason" value={rejectReason}
+        onChange={e => setRejectReason(e.target.value)}
+        placeholder="Rejection reason…" />
+      <button className="btn btn-sm btn-danger" onClick={onReject}
+        disabled={busy !== null || !rejectReason.trim()}>
+        {busy === 'reject' ? 'Rejecting…' : 'Reject'}
+      </button>
+    </div>
+  );
+}
+
+// ── Pure helpers ──
+
+function buildEditsPayload(
+  detail: CommunityDetail,
+  editTitle: string,
+  editDescription: string,
+): Record<string, unknown> {
+  const fields: Record<string, string> = {};
+  if (editTitle && editTitle !== detail.title) fields.title = editTitle;
+  if (editDescription) fields.description = editDescription;
+  return Object.keys(fields).length > 0
+    ? { edits: { [detail.submissionId]: fields } }
+    : {};
+}
+
 // ── Component ──
 
 export function CommunityReviewViewer({ groupId, onActionComplete }: CommunityReviewViewerProps) {
@@ -159,12 +325,7 @@ export function CommunityReviewViewer({ groupId, onActionComplete }: CommunityRe
     if (!detail) return;
     setBusy('promote');
     try {
-      const fields: Record<string, string> = {};
-      if (editTitle && editTitle !== detail.title) fields.title = editTitle;
-      if (editDescription) fields.description = editDescription;
-      const editsPayload = Object.keys(fields).length > 0
-        ? { edits: { [detail.submissionId]: fields } }
-        : {};
+      const editsPayload = buildEditsPayload(detail, editTitle, editDescription);
       await postAction({
         domain: 'community',
         groupId,
@@ -221,125 +382,42 @@ export function CommunityReviewViewer({ groupId, onActionComplete }: CommunityRe
   if (error) return <div className="crv-error">{error}</div>;
   if (!detail) return <div className="crv-empty">No detail available.</div>;
 
-  const { metadata, sanitization } = detail;
-  const hasTranscript = detail.transcriptPreview && detail.transcriptPreview.length > 0;
+  const { sanitization } = detail;
 
   return (
     <div className="crv">
       {toast && <div className="crv-toast">{toast}</div>}
 
       {/* Header */}
-      <div className="crv-header">
-        <span className="crv-type-badge">{detail.type}</span>
-        <span className="crv-submitter">{detail.submitter}</span>
-        <span className="crv-date">{formatDate(detail.submittedAt)}</span>
-      </div>
+      <CommunityHeader detail={detail} />
 
       {/* Metadata */}
-      <div className="crv-meta">
-        {metadata.model && (
-          <div className="crv-meta-item">
-            <span className="crv-meta-label">Model:</span> {metadata.model}
-          </div>
-        )}
-        {metadata.turnCount != null && (
-          <div className="crv-meta-item">
-            <span className="crv-meta-label">Turns:</span> {metadata.turnCount}
-          </div>
-        )}
-        {metadata.phase && (
-          <div className="crv-meta-item">
-            <span className="crv-meta-label">Phase:</span> {metadata.phase}
-          </div>
-        )}
-        {metadata.audience && (
-          <div className="crv-meta-item">
-            <span className="crv-meta-label">Audience:</span> {metadata.audience}
-          </div>
-        )}
-        {metadata.activePovers && metadata.activePovers.length > 0 && (
-          <div className="crv-meta-item">
-            <span className="crv-meta-label">Participants:</span>{' '}
-            {metadata.activePovers.map(p => SPEAKER_LABELS[p] ?? p).join(', ')}
-          </div>
-        )}
-        {metadata.taxonomyRefs && metadata.taxonomyRefs.length > 0 && (
-          <div className="crv-meta-item">
-            <span className="crv-meta-label">Refs:</span> {metadata.taxonomyRefs.join(', ')}
-          </div>
-        )}
-        {detail.topic && (
-          <div className="crv-meta-item crv-meta-topic">
-            <span className="crv-meta-label">Topic:</span> {typeof detail.topic === 'string' ? detail.topic : String(detail.topic)}
-          </div>
-        )}
-        {detail.note && (
-          <div className="crv-meta-item">
-            <span className="crv-meta-label">Note:</span> {detail.note}
-          </div>
-        )}
-      </div>
+      <CommunityMetadata detail={detail} />
 
       {/* Transcript / Preview */}
-      <div className="crv-section-label">
-        {hasTranscript ? `Transcript (${detail.transcriptPreview!.length} entries)` : 'Preview'}
-      </div>
-      {hasTranscript ? (
-        <TranscriptPreview entries={detail.transcriptPreview!} />
-      ) : detail.preview ? (
-        <div className="crv-preview">{detail.preview}</div>
-      ) : (
-        <div className="crv-preview crv-preview-empty">No preview available — the submission data may use an unrecognized format.</div>
-      )}
+      <TranscriptSection detail={detail} />
 
       {/* Sanitization preview */}
-      {(sanitization.willStrip.length > 0 || sanitization.willAdd.length > 0) && (
-        <>
-          <div className="crv-section-label">Sanitization</div>
-          <div className="crv-sanit">
-            {sanitization.willStrip.map((s, i) => (
-              <div key={`strip-${i}`} className="crv-sanit-row crv-sanit-strip">
-                <span className="crv-sanit-icon">&minus;</span> {s}
-              </div>
-            ))}
-            {sanitization.willAdd.map((s, i) => (
-              <div key={`add-${i}`} className="crv-sanit-row crv-sanit-add">
-                <span className="crv-sanit-icon">+</span> {s}
-              </div>
-            ))}
-          </div>
-        </>
-      )}
+      <SanitizationSection sanitization={sanitization} />
 
       {/* Edit-on-promote */}
       <div className="crv-section-label">Edit before publishing</div>
-      <div className="crv-edit-fields">
-        <div className="crv-edit-field">
-          <label>Title</label>
-          <input value={editTitle} onChange={e => setEditTitle(e.target.value)}
-            placeholder={detail.title || 'Untitled'} />
-        </div>
-        <div className="crv-edit-field">
-          <label>Description (optional)</label>
-          <textarea value={editDescription} onChange={e => setEditDescription(e.target.value)}
-            placeholder="Add a description for the community library…" rows={2} />
-        </div>
-      </div>
+      <EditFields
+        detail={detail}
+        editTitle={editTitle}
+        setEditTitle={setEditTitle}
+        editDescription={editDescription}
+        setEditDescription={setEditDescription}
+      />
 
       {/* Actions */}
-      <div className="crv-actions">
-        <button className="btn btn-sm btn-primary" onClick={() => void handlePromote()}
-          disabled={busy !== null}>
-          {busy === 'promote' ? 'Promoting…' : 'Promote'}
-        </button>
-        <input className="crv-reject-reason" value={rejectReason}
-          onChange={e => setRejectReason(e.target.value)}
-          placeholder="Rejection reason…" />
-        <button className="btn btn-sm btn-danger" onClick={() => void handleReject()}
-          disabled={busy !== null || !rejectReason.trim()}>
-          {busy === 'reject' ? 'Rejecting…' : 'Reject'}
-        </button>
-      </div>
+      <ActionButtons
+        busy={busy}
+        rejectReason={rejectReason}
+        setRejectReason={setRejectReason}
+        onPromote={() => void handlePromote()}
+        onReject={() => void handleReject()}
+      />
     </div>
   );
 }
