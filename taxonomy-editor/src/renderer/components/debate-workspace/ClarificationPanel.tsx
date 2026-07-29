@@ -195,24 +195,236 @@ interface StructuredQuestion {
   options: string[];
 }
 
-export function ClarificationActions() {
+type ActiveDebate = NonNullable<ReturnType<typeof useDebateStore.getState>['activeDebate']>;
+type OpeningOrder = ReturnType<typeof useDebateStore.getState>['openingOrder'];
+type CheapModel = { value: string; label: string };
+
+function optionsSummaryText(
+  adaptiveStaging: ActiveDebate['adaptive_staging'],
+  initialCrossRespondRounds: number,
+  explorationModel: string | null,
+  cheapModels: CheapModel[],
+): string {
+  const pacing = adaptiveStaging?.enabled
+    ? `Adaptive${adaptiveStaging.step_mode ? ' · Step' : ` · ${adaptiveStaging.pacing}`}`
+    : `${initialCrossRespondRounds} rounds`;
+  const model = explorationModel
+    ? ` · ${cheapModels.find(m => m.value === explorationModel)?.label?.split(' (')[0] || ''}`
+    : '';
+  return `${pacing}${model}`;
+}
+
+function DebateOptionsPopover({
+  adaptiveStaging,
+  initialCrossRespondRounds,
+  setInitialCrossRespondRounds,
+  toggleStepMode,
+  openingOrder,
+  moveUp,
+  moveDown,
+  explorationModel,
+  setExplorationModel,
+  cheapModels,
+}: {
+  adaptiveStaging: ActiveDebate['adaptive_staging'];
+  initialCrossRespondRounds: number;
+  setInitialCrossRespondRounds: (n: number) => void;
+  toggleStepMode: () => void | Promise<void>;
+  openingOrder: OpeningOrder;
+  moveUp: (index: number) => void;
+  moveDown: (index: number) => void;
+  explorationModel: string | null;
+  setExplorationModel: (v: string) => void;
+  cheapModels: CheapModel[];
+}) {
+  return (
+    <div className="debate-options-popover" role="dialog" aria-label="Debate options">
+      <div className="debate-options-section">
+        <span className="debate-options-section-label">Pacing</span>
+        {adaptiveStaging?.enabled ? (
+          <>
+            <span className="pacing-description">
+              {adaptiveStaging.step_mode
+                ? 'Step-by-step — 1 round at a time, manual stage control'
+                : `Signal-driven phase transitions (${adaptiveStaging.pacing} pacing)`}
+            </span>
+            <div className="step-toggle-row">
+              <button
+                className={`btn btn-sm cp-step-toggle-btn${adaptiveStaging.step_mode ? ' active' : ''}`}
+                onClick={() => void toggleStepMode()}
+              >
+                {adaptiveStaging.step_mode ? 'Step Mode' : 'Auto Mode'}
+              </button>
+            </div>
+          </>
+        ) : (
+          <label className="cp-cross-respond-label">
+            Cross-respond rounds:
+            <select
+              value={initialCrossRespondRounds}
+              onChange={(e) => setInitialCrossRespondRounds(parseInt(e.target.value, 10))}
+              title="Number of cross-respond rounds after openings"
+            >
+              {[1, 2, 3, 6, 9, 12, 15, 18, 21].map(n => (
+                <option key={n} value={n}>{n}</option>
+              ))}
+            </select>
+          </label>
+        )}
+      </div>
+      {openingOrder.length > 0 && (
+        <div className="debate-options-section">
+          <span className="debate-options-section-label">Speaking order</span>
+          <div className="debate-opening-order">
+            <ol className="debate-opening-order-list">
+              {openingOrder.map((poverId, idx) => {
+                const info = POVER_INFO[poverId];
+                return (
+                  <li key={poverId} className="debate-opening-order-item">
+                    {/* eslint-disable-next-line local/no-inline-style -- dynamic per-pover color */}
+                    <span className="debate-opening-order-name" style={{ color: info.color }}>{info.label}</span>
+                    <span className="debate-opening-order-btns">
+                      <button className="debate-opening-order-btn" onClick={() => moveUp(idx)} disabled={idx === 0} title="Move left">&#9664;</button>
+                      <button className="debate-opening-order-btn" onClick={() => moveDown(idx)} disabled={idx === openingOrder.length - 1} title="Move right">&#9654;</button>
+                    </span>
+                  </li>
+                );
+              })}
+            </ol>
+          </div>
+        </div>
+      )}
+      <div className="debate-options-section">
+        <span className="debate-options-section-label">Exploration model</span>
+        <select
+          value={explorationModel || cheapModels[0]?.value || ''}
+          onChange={e => setExplorationModel(e.target.value)}
+        >
+          {cheapModels.map(m => (
+            <option key={m.value} value={m.value}>{m.label}</option>
+          ))}
+        </select>
+      </div>
+    </div>
+  );
+}
+
+function SetupActionButtons({
+  collapsedCount,
+  overflowOpen,
+  setOverflowOpen,
+  overflowTriggerRef,
+  overflowMenuRef,
+  isGenerating,
+  submitting,
+  onExploreFirst,
+  onRefine,
+  onBeginDebate,
+}: {
+  collapsedCount: number;
+  overflowOpen: boolean;
+  setOverflowOpen: (v: boolean) => void;
+  overflowTriggerRef: RefObject<HTMLButtonElement | null>;
+  overflowMenuRef: RefObject<HTMLDivElement | null>;
+  isGenerating: boolean;
+  submitting: boolean;
+  onExploreFirst: () => void | Promise<void>;
+  onRefine: () => void | Promise<void>;
+  onBeginDebate: () => void | Promise<void>;
+}) {
+  return (
+    <div className="debate-setup-actions">
+      {collapsedCount > 0 && (
+        <div className="debate-overflow-anchor">
+          <button
+            ref={overflowTriggerRef}
+            className="btn btn-ghost debate-overflow-trigger"
+            onClick={() => {
+              const opening = !overflowOpen;
+              setOverflowOpen(opening);
+              if (opening) setTimeout(() => overflowMenuRef.current?.querySelector<HTMLButtonElement>('button')?.focus(), 0);
+            }}
+            aria-haspopup="true"
+            aria-expanded={overflowOpen}
+            aria-label="More actions"
+            title="More actions"
+          >
+            ⋯
+          </button>
+          {overflowOpen && (
+            <div className="debate-overflow-menu" ref={overflowMenuRef} role="menu">
+              {collapsedCount >= 1 && (
+                <button
+                  className="debate-overflow-item"
+                  role="menuitem"
+                  onClick={() => { setOverflowOpen(false); void onExploreFirst(); }}
+                  disabled={isGenerating || submitting}
+                >
+                  Explore First
+                </button>
+              )}
+              {collapsedCount >= 2 && (
+                <button
+                  className="debate-overflow-item"
+                  role="menuitem"
+                  onClick={() => { setOverflowOpen(false); void onRefine(); }}
+                >
+                  Refine Topic
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+      {collapsedCount < 1 && (
+        <button
+          className="btn btn-ghost debate-setup-action-btn"
+          onClick={() => void onExploreFirst()}
+          disabled={isGenerating || submitting}
+          title="Run a quick exploration debate with a cheap model, then review findings before starting a full debate"
+        >
+          Explore First
+        </button>
+      )}
+      {collapsedCount < 2 && (
+        <button
+          className="btn debate-setup-action-btn"
+          onClick={() => void onRefine()}
+        >
+          Refine Topic
+        </button>
+      )}
+      <button
+        className="btn btn-primary debate-setup-action-btn"
+        onClick={onBeginDebate}
+        disabled={isGenerating || submitting}
+      >
+        Begin Debate
+      </button>
+    </div>
+  );
+}
+
+// Setup footer shown before clarifying questions exist — owns the debate-options
+// popover and the responsive overflow menu for its action buttons.
+function DebateSetupFooter() {
   const {
-    activeDebate, debateGenerating, debateError,
-    runClarification, submitAnswersAndSynthesize, beginDebate, runOpeningStatements,
+    activeDebate, debateGenerating,
+    runClarification, beginDebate, runOpeningStatements,
     initialCrossRespondRounds, setInitialCrossRespondRounds,
     openingOrder, setOpeningOrder,
-    runTopicCritique, reEvaluateSuggestedTopic, topicCritiqueLoading, updateTopic,
     toggleStepMode,
     explorationModel, setExplorationModel,
+    topicCritiqueLoading,
   } = useDebateStore(
     useShallow(s => ({
-      activeDebate: s.activeDebate, debateGenerating: s.debateGenerating, debateError: s.debateError,
-      runClarification: s.runClarification, submitAnswersAndSynthesize: s.submitAnswersAndSynthesize, beginDebate: s.beginDebate, runOpeningStatements: s.runOpeningStatements,
+      activeDebate: s.activeDebate, debateGenerating: s.debateGenerating,
+      runClarification: s.runClarification, beginDebate: s.beginDebate, runOpeningStatements: s.runOpeningStatements,
       initialCrossRespondRounds: s.initialCrossRespondRounds, setInitialCrossRespondRounds: s.setInitialCrossRespondRounds,
       openingOrder: s.openingOrder, setOpeningOrder: s.setOpeningOrder,
-      runTopicCritique: s.runTopicCritique, reEvaluateSuggestedTopic: s.reEvaluateSuggestedTopic, topicCritiqueLoading: s.topicCritiqueLoading, updateTopic: s.updateTopic,
       toggleStepMode: s.toggleStepMode,
       explorationModel: s.explorationModel, setExplorationModel: s.setExplorationModel,
+      topicCritiqueLoading: s.topicCritiqueLoading,
     }))
   );
 
@@ -223,65 +435,6 @@ export function ClarificationActions() {
     const cheap = all.filter(m => /flash|haiku|llama/i.test(m.label));
     return cheap.length > 0 ? cheap : all.slice(0, 3);
   }, []);
-
-  const critiqueTriggered = useRef(false);
-  useEffect(() => {
-    if (activeDebate?.source_type === 'topic' && !activeDebate.topic.critique && !critiqueTriggered.current && !topicCritiqueLoading) {
-      critiqueTriggered.current = true;
-      void runTopicCritique();
-    }
-  }, [activeDebate?.id]); // intentionally limited deps — only re-run on debate change
-  const [answer, setAnswer] = useState('');
-  const [selections, setSelections] = useState<Record<number, string>>({});
-  const [otherTexts, setOtherTexts] = useState<Record<number, string>>({});
-  const [submitting, setSubmitting] = useState(false);
-
-  if (!activeDebate) return null;
-
-  const hasClarifications = activeDebate.transcript.some((e) => e.type === 'clarification');
-  const hasAnswers = activeDebate.transcript.some((e) => e.type === 'answer');
-  const hasRefinedTopic = activeDebate.topic.refined !== null;
-
-  const clarificationEntry = activeDebate.transcript.find(e => e.type === 'clarification');
-  const rawQuestions = (clarificationEntry?.metadata as Record<string, unknown>)?.questions;
-  const structuredQuestions: StructuredQuestion[] | null =
-    Array.isArray(rawQuestions) && rawQuestions.length > 0 && typeof rawQuestions[0] === 'object' && rawQuestions[0] !== null && 'options' in (rawQuestions[0] as Record<string, unknown>)
-      ? (rawQuestions as StructuredQuestion[]).filter(q => q.options && q.options.length > 0)
-      : null;
-
-  const anyAnswered = structuredQuestions
-    ? structuredQuestions.some((_, i) => {
-        const sel = selections[i];
-        return sel === '__other__' ? (otherTexts[i] ?? '').trim().length > 0 : !!sel;
-      })
-    : answer.trim().length > 0;
-
-  const handlePillSelect = (qIdx: number, option: string) => {
-    setSelections(prev => ({ ...prev, [qIdx]: prev[qIdx] === option ? '' : option }));
-  };
-
-  const handleSubmitAnswers = async () => {
-    if (submitting) return;
-    setSubmitting(true);
-    if (structuredQuestions) {
-      const qaText = structuredQuestions
-        .map((q, i) => {
-          const sel = selections[i];
-          if (!sel) return null;
-          const answerText = sel === '__other__' ? (otherTexts[i] ?? '').trim() : sel;
-          return answerText ? `Q: ${q.question}\nA: ${answerText}` : null;
-        })
-        .filter(Boolean)
-        .join('\n\n');
-      await submitAnswersAndSynthesize(qaText);
-    } else {
-      await submitAnswersAndSynthesize(answer.trim());
-    }
-    setAnswer('');
-    setSelections({});
-    setOtherTexts({});
-    setSubmitting(false);
-  };
 
   const handleBeginDebate = async () => {
     await beginDebate();
@@ -320,7 +473,6 @@ export function ClarificationActions() {
     await runOpeningStatements();
   };
 
-  const [showExploreModel, setShowExploreModel] = useState(false);
   const [showOptions, setShowOptions] = useState(false);
   const optionsRef = useRef<HTMLDivElement>(null);
 
@@ -355,8 +507,6 @@ export function ClarificationActions() {
     [next[index], next[index + 1]] = [next[index + 1], next[index]];
     setOpeningOrder(next);
   };
-
-  const isGenerating = !!debateGenerating;
 
   // Overflow menu for narrow widths — collapses lower-priority buttons into ⋯
   const footerRef = useRef<HTMLDivElement>(null);
@@ -417,6 +567,351 @@ export function ClarificationActions() {
     return () => { document.removeEventListener('mousedown', handleClickOutside); document.removeEventListener('keydown', handleEscape); };
   }, [overflowOpen]);
 
+  if (!activeDebate) return null;
+
+  const isGenerating = !!debateGenerating;
+
+  return (
+    <div className="debate-clarification-choice">
+      {activeDebate.topic.critique && (activeDebate.topic.critique as TopicCritique).composite_score < 14 && (
+        <div className="debate-action-hint debate-refine-nudge">
+          Topic scored <strong>{(activeDebate.topic.critique as TopicCritique).composite_score}/20</strong> — refining can sharpen the debate.
+        </div>
+      )}
+      <div className="debate-setup-footer" ref={footerRef}>
+        <div className="debate-options-anchor" ref={optionsRef}>
+          <button
+            className="debate-options-trigger"
+            onClick={() => setShowOptions(v => !v)}
+            aria-expanded={showOptions}
+            aria-haspopup="true"
+          >
+            <span className="options-icon">{'⚙'}</span>
+            <span>Debate options</span>
+            <span className="options-summary">
+              {optionsSummaryText(activeDebate.adaptive_staging, initialCrossRespondRounds, explorationModel, cheapModels)}
+            </span>
+          </button>
+          {showOptions && (
+            <DebateOptionsPopover
+              adaptiveStaging={activeDebate.adaptive_staging}
+              initialCrossRespondRounds={initialCrossRespondRounds}
+              setInitialCrossRespondRounds={setInitialCrossRespondRounds}
+              toggleStepMode={toggleStepMode}
+              openingOrder={openingOrder}
+              moveUp={moveUp}
+              moveDown={moveDown}
+              explorationModel={explorationModel}
+              setExplorationModel={setExplorationModel}
+              cheapModels={cheapModels}
+            />
+          )}
+        </div>
+        <div className="debate-setup-status-zone">
+          {topicCritiqueLoading && (
+            <span className="debate-setup-status">
+              <span className="debate-setup-spinner" aria-hidden="true" />
+              Evaluating topic quality…
+            </span>
+          )}
+        </div>
+        <SetupActionButtons
+          collapsedCount={collapsedCount}
+          overflowOpen={overflowOpen}
+          setOverflowOpen={setOverflowOpen}
+          overflowTriggerRef={overflowTriggerRef}
+          overflowMenuRef={overflowMenuRef}
+          isGenerating={isGenerating}
+          submitting={false}
+          onExploreFirst={handleExploreFirst}
+          onRefine={runClarification}
+          onBeginDebate={handleBeginDebate}
+        />
+      </div>
+    </div>
+  );
+}
+
+function deriveStructuredQuestions(activeDebate: ActiveDebate): StructuredQuestion[] | null {
+  const clarificationEntry = activeDebate.transcript.find(e => e.type === 'clarification');
+  const rawQuestions = (clarificationEntry?.metadata as Record<string, unknown>)?.questions;
+  return Array.isArray(rawQuestions) && rawQuestions.length > 0 && typeof rawQuestions[0] === 'object' && rawQuestions[0] !== null && 'options' in (rawQuestions[0] as Record<string, unknown>)
+    ? (rawQuestions as StructuredQuestion[]).filter(q => q.options && q.options.length > 0)
+    : null;
+}
+
+function StructuredQuestionList({
+  structuredQuestions,
+  selections,
+  otherTexts,
+  isGenerating,
+  submitting,
+  anyAnswered,
+  onPillSelect,
+  setOtherTexts,
+  onSubmit,
+  onBegin,
+}: {
+  structuredQuestions: StructuredQuestion[];
+  selections: Record<number, string>;
+  otherTexts: Record<number, string>;
+  isGenerating: boolean;
+  submitting: boolean;
+  anyAnswered: boolean;
+  onPillSelect: (qIdx: number, option: string) => void;
+  setOtherTexts: (updater: (prev: Record<number, string>) => Record<number, string>) => void;
+  onSubmit: () => void | Promise<void>;
+  onBegin: () => void | Promise<void>;
+}) {
+  return (
+    <div className="cq-questions">
+      {structuredQuestions.map((q, qIdx) => (
+        <div key={qIdx} className="cq-question-card">
+          <div className="cq-question-text">{q.question}</div>
+          <div className="cq-options">
+            {q.options.map((opt, oIdx) => (
+              <button
+                key={oIdx}
+                className={`cq-option-pill ${selections[qIdx] === opt ? 'selected' : ''}`}
+                onClick={() => onPillSelect(qIdx, opt)}
+                disabled={isGenerating || submitting}
+              >
+                {selections[qIdx] === opt && <span className="cq-check">{'✓'} </span>}
+                {opt}
+              </button>
+            ))}
+            <button
+              className={`cq-option-pill cq-option-pill-other ${selections[qIdx] === '__other__' ? 'selected' : ''}`}
+              onClick={() => onPillSelect(qIdx, '__other__')}
+              disabled={isGenerating || submitting}
+            >
+              Other...
+            </button>
+          </div>
+          {selections[qIdx] === '__other__' && (
+            <input
+              className="cq-option-other-input"
+              type="text"
+              placeholder="Type your answer..."
+              value={otherTexts[qIdx] ?? ''}
+              onChange={e => setOtherTexts(prev => ({ ...prev, [qIdx]: e.target.value }))}
+              disabled={isGenerating || submitting}
+              autoFocus
+            />
+          )}
+        </div>
+      ))}
+      <div className="debate-clarification-buttons">
+        <button
+          className="btn btn-primary"
+          onClick={onSubmit}
+          disabled={!anyAnswered || isGenerating || submitting}
+        >
+          {submitting ? 'Synthesizing...' : 'Continue'}
+        </button>
+        <button
+          className="btn"
+          onClick={onBegin}
+          disabled={isGenerating || submitting}
+        >
+          Skip — Start Debating
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function FreeformAnswer({
+  answer,
+  setAnswer,
+  isGenerating,
+  submitting,
+  onSubmit,
+  onBegin,
+}: {
+  answer: string;
+  setAnswer: (v: string) => void;
+  isGenerating: boolean;
+  submitting: boolean;
+  onSubmit: () => void | Promise<void>;
+  onBegin: () => void | Promise<void>;
+}) {
+  return (
+    <div className="debate-clarification-input">
+      <textarea
+        className="debate-answer-textarea"
+        placeholder="Your answers..."
+        value={answer}
+        onChange={(e) => setAnswer(e.target.value)}
+        rows={3}
+        disabled={isGenerating || submitting}
+      />
+      <div className="debate-clarification-buttons">
+        <button
+          className="btn btn-primary"
+          onClick={onSubmit}
+          disabled={!answer.trim() || isGenerating || submitting}
+        >
+          {submitting ? 'Synthesizing...' : 'Submit Answers'}
+        </button>
+        <button
+          className="btn"
+          onClick={onBegin}
+          disabled={isGenerating || submitting}
+        >
+          Skip — Start Debating
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// Structured/freeform clarification answer capture, shown once questions exist.
+function ClarificationQuestions() {
+  const {
+    activeDebate, debateGenerating,
+    submitAnswersAndSynthesize, beginDebate, runOpeningStatements,
+  } = useDebateStore(
+    useShallow(s => ({
+      activeDebate: s.activeDebate, debateGenerating: s.debateGenerating,
+      submitAnswersAndSynthesize: s.submitAnswersAndSynthesize, beginDebate: s.beginDebate, runOpeningStatements: s.runOpeningStatements,
+    }))
+  );
+  const [answer, setAnswer] = useState('');
+  const [selections, setSelections] = useState<Record<number, string>>({});
+  const [otherTexts, setOtherTexts] = useState<Record<number, string>>({});
+  const [submitting, setSubmitting] = useState(false);
+
+  if (!activeDebate) return null;
+
+  const isGenerating = !!debateGenerating;
+  const structuredQuestions = deriveStructuredQuestions(activeDebate);
+
+  const anyAnswered = structuredQuestions
+    ? structuredQuestions.some((_, i) => {
+        const sel = selections[i];
+        return sel === '__other__' ? (otherTexts[i] ?? '').trim().length > 0 : !!sel;
+      })
+    : answer.trim().length > 0;
+
+  const handlePillSelect = (qIdx: number, option: string) => {
+    setSelections(prev => ({ ...prev, [qIdx]: prev[qIdx] === option ? '' : option }));
+  };
+
+  const handleSubmitAnswers = async () => {
+    if (submitting) return;
+    setSubmitting(true);
+    if (structuredQuestions) {
+      const qaText = structuredQuestions
+        .map((q, i) => {
+          const sel = selections[i];
+          if (!sel) return null;
+          const answerText = sel === '__other__' ? (otherTexts[i] ?? '').trim() : sel;
+          return answerText ? `Q: ${q.question}\nA: ${answerText}` : null;
+        })
+        .filter(Boolean)
+        .join('\n\n');
+      await submitAnswersAndSynthesize(qaText);
+    } else {
+      await submitAnswersAndSynthesize(answer.trim());
+    }
+    setAnswer('');
+    setSelections({});
+    setOtherTexts({});
+    setSubmitting(false);
+  };
+
+  const handleBeginDebate = async () => {
+    await beginDebate();
+    await runOpeningStatements();
+  };
+
+  return (
+    <>
+      <div className="debate-action-hint">Answer their questions to sharpen the topic, or skip ahead.</div>
+      {structuredQuestions ? (
+        <StructuredQuestionList
+          structuredQuestions={structuredQuestions}
+          selections={selections}
+          otherTexts={otherTexts}
+          isGenerating={isGenerating}
+          submitting={submitting}
+          anyAnswered={anyAnswered}
+          onPillSelect={handlePillSelect}
+          setOtherTexts={setOtherTexts}
+          onSubmit={handleSubmitAnswers}
+          onBegin={handleBeginDebate}
+        />
+      ) : (
+        <FreeformAnswer
+          answer={answer}
+          setAnswer={setAnswer}
+          isGenerating={isGenerating}
+          submitting={submitting}
+          onSubmit={handleSubmitAnswers}
+          onBegin={handleBeginDebate}
+        />
+      )}
+    </>
+  );
+}
+
+// Phase-driven body: picks the setup footer, generating hint, question capture,
+// or synthesizing hint based on transcript/phase state.
+function ClarificationBody() {
+  const { activeDebate, debateGenerating } = useDebateStore(
+    useShallow(s => ({ activeDebate: s.activeDebate, debateGenerating: s.debateGenerating }))
+  );
+
+  if (!activeDebate) return null;
+
+  const isGenerating = !!debateGenerating;
+  const hasClarifications = activeDebate.transcript.some((e) => e.type === 'clarification');
+  const hasAnswers = activeDebate.transcript.some((e) => e.type === 'answer');
+  const hasRefinedTopic = activeDebate.topic.refined !== null;
+
+  return (
+    <>
+      {!hasClarifications && !isGenerating && <DebateSetupFooter />}
+
+      {!hasClarifications && isGenerating && (
+        <div className="debate-action-hint">Generating clarifying questions...</div>
+      )}
+
+      {hasClarifications && !hasAnswers && !hasRefinedTopic && <ClarificationQuestions />}
+
+      {hasClarifications && hasAnswers && activeDebate.phase === 'clarification' && (
+        <div className="debate-action-hint">
+          {isGenerating ? 'Synthesizing topic and starting debate...' : 'Starting debate...'}
+        </div>
+      )}
+    </>
+  );
+}
+
+export function ClarificationActions() {
+  const {
+    activeDebate,
+    runTopicCritique, reEvaluateSuggestedTopic, topicCritiqueLoading, updateTopic,
+    debateError,
+  } = useDebateStore(
+    useShallow(s => ({
+      activeDebate: s.activeDebate,
+      runTopicCritique: s.runTopicCritique, reEvaluateSuggestedTopic: s.reEvaluateSuggestedTopic, topicCritiqueLoading: s.topicCritiqueLoading, updateTopic: s.updateTopic,
+      debateError: s.debateError,
+    }))
+  );
+
+  const critiqueTriggered = useRef(false);
+  useEffect(() => {
+    if (activeDebate?.source_type === 'topic' && !activeDebate.topic.critique && !critiqueTriggered.current && !topicCritiqueLoading) {
+      critiqueTriggered.current = true;
+      void runTopicCritique();
+    }
+  }, [activeDebate?.id]); // intentionally limited deps — only re-run on debate change
+
+  if (!activeDebate) return null;
+
   return (
     <div className="debate-action-bar">
       {debateError && <div className="debate-error">{debateError}</div>}
@@ -439,280 +934,7 @@ export function ClarificationActions() {
         />
       )}
 
-      {!hasClarifications && !isGenerating && (
-        <div className="debate-clarification-choice">
-          {activeDebate.topic.critique && (activeDebate.topic.critique as TopicCritique).composite_score < 14 && (
-            <div className="debate-action-hint debate-refine-nudge">
-              Topic scored <strong>{(activeDebate.topic.critique as TopicCritique).composite_score}/20</strong> — refining can sharpen the debate.
-            </div>
-          )}
-          <div className="debate-setup-footer" ref={footerRef}>
-            <div className="debate-options-anchor" ref={optionsRef}>
-              <button
-                className="debate-options-trigger"
-                onClick={() => setShowOptions(v => !v)}
-                aria-expanded={showOptions}
-                aria-haspopup="true"
-              >
-                <span className="options-icon">{'⚙'}</span>
-                <span>Debate options</span>
-                <span className="options-summary">
-                  {activeDebate.adaptive_staging?.enabled
-                    ? `Adaptive${activeDebate.adaptive_staging.step_mode ? ' · Step' : ` · ${activeDebate.adaptive_staging.pacing}`}`
-                    : `${initialCrossRespondRounds} rounds`}
-                  {explorationModel ? ` · ${cheapModels.find(m => m.value === explorationModel)?.label?.split(' (')[0] || ''}` : ''}
-                </span>
-              </button>
-              {showOptions && (
-                <div className="debate-options-popover" role="dialog" aria-label="Debate options">
-                  <div className="debate-options-section">
-                    <span className="debate-options-section-label">Pacing</span>
-                    {activeDebate.adaptive_staging?.enabled ? (
-                      <>
-                        <span className="pacing-description">
-                          {activeDebate.adaptive_staging.step_mode
-                            ? 'Step-by-step — 1 round at a time, manual stage control'
-                            : `Signal-driven phase transitions (${activeDebate.adaptive_staging.pacing} pacing)`}
-                        </span>
-                        <div className="step-toggle-row">
-                          <button
-                            className={`btn btn-sm cp-step-toggle-btn${activeDebate.adaptive_staging.step_mode ? ' active' : ''}`}
-                            onClick={() => void toggleStepMode()}
-                          >
-                            {activeDebate.adaptive_staging.step_mode ? 'Step Mode' : 'Auto Mode'}
-                          </button>
-                        </div>
-                      </>
-                    ) : (
-                      <label className="cp-cross-respond-label">
-                        Cross-respond rounds:
-                        <select
-                          value={initialCrossRespondRounds}
-                          onChange={(e) => setInitialCrossRespondRounds(parseInt(e.target.value, 10))}
-                          title="Number of cross-respond rounds after openings"
-                        >
-                          {[1, 2, 3, 6, 9, 12, 15, 18, 21].map(n => (
-                            <option key={n} value={n}>{n}</option>
-                          ))}
-                        </select>
-                      </label>
-                    )}
-                  </div>
-                  {openingOrder.length > 0 && (
-                    <div className="debate-options-section">
-                      <span className="debate-options-section-label">Speaking order</span>
-                      <div className="debate-opening-order">
-                        <ol className="debate-opening-order-list">
-                          {openingOrder.map((poverId, idx) => {
-                            const info = POVER_INFO[poverId];
-                            return (
-                              <li key={poverId} className="debate-opening-order-item">
-                                {/* eslint-disable-next-line local/no-inline-style -- dynamic per-pover color */}
-                                <span className="debate-opening-order-name" style={{ color: info.color }}>{info.label}</span>
-                                <span className="debate-opening-order-btns">
-                                  <button className="debate-opening-order-btn" onClick={() => moveUp(idx)} disabled={idx === 0} title="Move left">&#9664;</button>
-                                  <button className="debate-opening-order-btn" onClick={() => moveDown(idx)} disabled={idx === openingOrder.length - 1} title="Move right">&#9654;</button>
-                                </span>
-                              </li>
-                            );
-                          })}
-                        </ol>
-                      </div>
-                    </div>
-                  )}
-                  <div className="debate-options-section">
-                    <span className="debate-options-section-label">Exploration model</span>
-                    <select
-                      value={explorationModel || cheapModels[0]?.value || ''}
-                      onChange={e => setExplorationModel(e.target.value)}
-                    >
-                      {cheapModels.map(m => (
-                        <option key={m.value} value={m.value}>{m.label}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-              )}
-            </div>
-            <div className="debate-setup-status-zone">
-              {topicCritiqueLoading && (
-                <span className="debate-setup-status">
-                  <span className="debate-setup-spinner" aria-hidden="true" />
-                  Evaluating topic quality…
-                </span>
-              )}
-            </div>
-            <div className="debate-setup-actions">
-              {collapsedCount > 0 && (
-                <div className="debate-overflow-anchor">
-                  <button
-                    ref={overflowTriggerRef}
-                    className="btn btn-ghost debate-overflow-trigger"
-                    onClick={() => {
-                      const opening = !overflowOpen;
-                      setOverflowOpen(opening);
-                      if (opening) setTimeout(() => overflowMenuRef.current?.querySelector<HTMLButtonElement>('button')?.focus(), 0);
-                    }}
-                    aria-haspopup="true"
-                    aria-expanded={overflowOpen}
-                    aria-label="More actions"
-                    title="More actions"
-                  >
-                    ⋯
-                  </button>
-                  {overflowOpen && (
-                    <div className="debate-overflow-menu" ref={overflowMenuRef} role="menu">
-                      {collapsedCount >= 1 && (
-                        <button
-                          className="debate-overflow-item"
-                          role="menuitem"
-                          onClick={() => { setOverflowOpen(false); void handleExploreFirst(); }}
-                          disabled={isGenerating || submitting}
-                        >
-                          Explore First
-                        </button>
-                      )}
-                      {collapsedCount >= 2 && (
-                        <button
-                          className="debate-overflow-item"
-                          role="menuitem"
-                          onClick={() => { setOverflowOpen(false); void runClarification(); }}
-                        >
-                          Refine Topic
-                        </button>
-                      )}
-                    </div>
-                  )}
-                </div>
-              )}
-              {collapsedCount < 1 && (
-                <button
-                  className="btn btn-ghost debate-setup-action-btn"
-                  onClick={() => void handleExploreFirst()}
-                  disabled={isGenerating || submitting}
-                  title="Run a quick exploration debate with a cheap model, then review findings before starting a full debate"
-                >
-                  Explore First
-                </button>
-              )}
-              {collapsedCount < 2 && (
-                <button
-                  className="btn debate-setup-action-btn"
-                  onClick={() => void runClarification()}
-                >
-                  Refine Topic
-                </button>
-              )}
-              <button
-                className="btn btn-primary debate-setup-action-btn"
-                onClick={handleBeginDebate}
-                disabled={isGenerating || submitting}
-              >
-                Begin Debate
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {!hasClarifications && isGenerating && (
-        <div className="debate-action-hint">Generating clarifying questions...</div>
-      )}
-
-      {hasClarifications && !hasAnswers && !hasRefinedTopic && (
-        <>
-          <div className="debate-action-hint">Answer their questions to sharpen the topic, or skip ahead.</div>
-          {structuredQuestions ? (
-            <div className="cq-questions">
-              {structuredQuestions.map((q, qIdx) => (
-                <div key={qIdx} className="cq-question-card">
-                  <div className="cq-question-text">{q.question}</div>
-                  <div className="cq-options">
-                    {q.options.map((opt, oIdx) => (
-                      <button
-                        key={oIdx}
-                        className={`cq-option-pill ${selections[qIdx] === opt ? 'selected' : ''}`}
-                        onClick={() => handlePillSelect(qIdx, opt)}
-                        disabled={isGenerating || submitting}
-                      >
-                        {selections[qIdx] === opt && <span className="cq-check">{'✓'} </span>}
-                        {opt}
-                      </button>
-                    ))}
-                    <button
-                      className={`cq-option-pill cq-option-pill-other ${selections[qIdx] === '__other__' ? 'selected' : ''}`}
-                      onClick={() => handlePillSelect(qIdx, '__other__')}
-                      disabled={isGenerating || submitting}
-                    >
-                      Other...
-                    </button>
-                  </div>
-                  {selections[qIdx] === '__other__' && (
-                    <input
-                      className="cq-option-other-input"
-                      type="text"
-                      placeholder="Type your answer..."
-                      value={otherTexts[qIdx] ?? ''}
-                      onChange={e => setOtherTexts(prev => ({ ...prev, [qIdx]: e.target.value }))}
-                      disabled={isGenerating || submitting}
-                      autoFocus
-                    />
-                  )}
-                </div>
-              ))}
-              <div className="debate-clarification-buttons">
-                <button
-                  className="btn btn-primary"
-                  onClick={handleSubmitAnswers}
-                  disabled={!anyAnswered || isGenerating || submitting}
-                >
-                  {submitting ? 'Synthesizing...' : 'Continue'}
-                </button>
-                <button
-                  className="btn"
-                  onClick={handleBeginDebate}
-                  disabled={isGenerating || submitting}
-                >
-                  Skip — Start Debating
-                </button>
-              </div>
-            </div>
-          ) : (
-            <div className="debate-clarification-input">
-              <textarea
-                className="debate-answer-textarea"
-                placeholder="Your answers..."
-                value={answer}
-                onChange={(e) => setAnswer(e.target.value)}
-                rows={3}
-                disabled={isGenerating || submitting}
-              />
-              <div className="debate-clarification-buttons">
-                <button
-                  className="btn btn-primary"
-                  onClick={handleSubmitAnswers}
-                  disabled={!answer.trim() || isGenerating || submitting}
-                >
-                  {submitting ? 'Synthesizing...' : 'Submit Answers'}
-                </button>
-                <button
-                  className="btn"
-                  onClick={handleBeginDebate}
-                  disabled={isGenerating || submitting}
-                >
-                  Skip — Start Debating
-                </button>
-              </div>
-            </div>
-          )}
-        </>
-      )}
-
-      {hasClarifications && hasAnswers && activeDebate.phase === 'clarification' && (
-        <div className="debate-action-hint">
-          {isGenerating ? 'Synthesizing topic and starting debate...' : 'Starting debate...'}
-        </div>
-      )}
+      <ClarificationBody />
     </div>
   );
 }
