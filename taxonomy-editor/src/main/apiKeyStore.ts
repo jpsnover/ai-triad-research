@@ -7,15 +7,21 @@ import path from 'path';
 import crypto from 'crypto';
 import { app } from 'electron';
 import type { ApiKeyBackend } from '../../../lib/ai-client/types.js';
+import { ALL_API_KEY_BACKENDS } from '../../../lib/ai-client/types.js';
 import { getGlobalRecorder } from '../../../lib/flight-recorder/index.js';
 
-// Single source of truth for backend ids (lib/ai-client, t/958). Prevents the local
-// drift that broke things when 'azure' was added to BackendId — this stays in sync
-// automatically. ALL_BACKENDS below is still maintained by hand, but every code path
-// typed as Backend follows BackendId without edits here.
+// Single source of truth for backend ids (lib/ai-client, t/958). Every code path typed
+// as Backend follows BackendId without edits here.
 type Backend = ApiKeyBackend;
 
-const ALL_BACKENDS: Backend[] = ['gemini', 'claude', 'groq', 'openai', 'azure', 'deepseek', 'tavily', 'ollama'];
+// The full set of backends that deleteAllApiKeys/getApiKeySummary/exportKeysForSharing/
+// migrateToSingleKey iterate. Derived from lib/ai-client's canonical, exhaustive
+// ALL_API_KEY_BACKENDS (t/1956). The local list this replaced silently dropped 'zai' and
+// 'moonshot' (t/1957), leaving those keys on disk after a "delete all", because a Backend[]
+// annotation accepts any *subset* of the union so the type gave no warning. The canonical
+// list is built from a Record<ApiKeyBackend, true>, so adding a backend to the union without
+// listing it is a compile error in lib/ai-client — this can't drift again.
+const ALL_BACKENDS: readonly Backend[] = ALL_API_KEY_BACKENDS;
 
 function keyFilePath(backend?: Backend): string {
   const suffix = backend && backend !== 'gemini' ? `-${backend}` : '';

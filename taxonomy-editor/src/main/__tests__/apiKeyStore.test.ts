@@ -29,8 +29,9 @@ vi.mock('electron', () => ({
 // Imported after the mock is registered.
 import {
   removeApiKey, loadApiKeys, loadApiKey, storeApiKey, hasApiKey, migrateToSingleKey,
-  deleteApiKey, getMaskedKeys, getApiKeySummary, exportKeysForSharing, importKeysFromSharing,
+  deleteApiKey, deleteAllApiKeys, getMaskedKeys, getApiKeySummary, exportKeysForSharing, importKeysFromSharing,
 } from '../apiKeyStore.js';
+import type { ApiKeyBackend } from '../../../../lib/ai-client/types.js';
 import { setGlobalRecorder } from '../../../../lib/flight-recorder/index.js';
 
 beforeEach(() => {
@@ -167,5 +168,62 @@ describe('apiKeyStore single-key storage (t/1425)', () => {
       expect(loadApiKeys('claude')).toEqual(['solo']);
       expect(events).toHaveLength(0);
     });
+  });
+});
+
+describe('full-backend coverage (t/1957 — zai/moonshot were silently omitted)', () => {
+  // Exhaustive BY CONSTRUCTION: Record<ApiKeyBackend, string> fails to compile if a backend
+  // is added to the union but omitted here — so this regression can never silently skip a
+  // backend the way the old hand-maintained ALL_BACKENDS did (it dropped zai and moonshot,
+  // so deleteAllApiKeys left those keys on disk).
+  const FAKE_KEYS: Record<ApiKeyBackend, string> = {
+    gemini: 'k-gemini', claude: 'k-claude', groq: 'k-groq', openai: 'k-openai', azure: 'k-azure',
+    ollama: 'k-ollama', deepseek: 'k-deepseek', zai: 'k-zai', moonshot: 'k-moonshot', tavily: 'k-tavily',
+  };
+  const ALL = Object.keys(FAKE_KEYS) as ApiKeyBackend[];
+
+  it('AC: deleteAllApiKeys removes a key stored for EVERY backend — nothing left on disk', () => {
+    for (const backend of ALL) storeApiKey(FAKE_KEYS[backend], backend);
+    for (const backend of ALL) expect(hasApiKey(backend)).toBe(true); // precondition: all set
+
+    deleteAllApiKeys();
+
+    for (const backend of ALL) {
+      expect(hasApiKey(backend)).toBe(false);
+      expect(loadApiKeys(backend)).toEqual([]);
+    }
+    // No api-key*.enc file survives anywhere in the store dir.
+    const remaining = fs.readdirSync(tmpDir).filter((f) => f.startsWith('api-key') && f.endsWith('.enc'));
+    expect(remaining).toEqual([]);
+  });
+
+  it('regression: the specific zai + moonshot keys are deleted (were left behind pre-t/1957)', () => {
+    storeApiKey('zzz', 'zai');
+    storeApiKey('mmm', 'moonshot');
+    deleteAllApiKeys();
+    expect(hasApiKey('zai')).toBe(false);
+    expect(hasApiKey('moonshot')).toBe(false);
+  });
+
+  it('getApiKeySummary lists every backend, including zai and moonshot', () => {
+    const backends = getApiKeySummary().map((e) => e.backend);
+    for (const backend of ALL) expect(backends).toContain(backend);
+    expect(backends).toHaveLength(ALL.length);
+  });
+
+  it('exportKeysForSharing includes zai and moonshot keys', () => {
+    storeApiKey('zzz', 'zai');
+    storeApiKey('mmm', 'moonshot');
+    const payload = exportKeysForSharing('pw');
+    deleteAllApiKeys(); // wipe, then decrypt-via-import to inspect the payload contents
+    expect(importKeysFromSharing(payload, 'pw').sort()).toEqual(['moonshot', 'zai']);
+    expect(loadApiKeys('zai')).toEqual(['zzz']);
+    expect(loadApiKeys('moonshot')).toEqual(['mmm']);
+  });
+
+  it('migrateToSingleKey truncates a zai multi-key file (was skipped pre-t/1957)', () => {
+    writeMultiKeyFile('zai', ['z0', 'z1']);
+    expect(migrateToSingleKey()).toBe(1);
+    expect(loadApiKeys('zai')).toEqual(['z0']);
   });
 });
