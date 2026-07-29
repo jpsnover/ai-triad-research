@@ -218,9 +218,8 @@ function Set-Edge {
     end {
         if ($Modified) {
             $EdgesData.last_modified = (Get-Date).ToString('yyyy-MM-dd')
-            $Json = $EdgesData | ConvertTo-Json -Depth 20
             try {
-                Write-Utf8NoBom -Path $EdgesPath -Value $Json 
+                Write-EdgesFile -EdgesData $EdgesData -Path $EdgesPath
                 Write-OK "Updated $ModifiedCount edge(s) in $EdgesPath"
             }
             catch {

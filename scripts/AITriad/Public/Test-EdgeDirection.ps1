@@ -198,8 +198,7 @@ function Test-EdgeDirection {
         # Checkpoint every 10 batches
         if (($b + 1) % 10 -eq 0) {
             $EdgesData.edges = $AllEdges
-            $Json = $EdgesData | ConvertTo-Json -Depth 20
-            Write-Utf8NoBom -Path $EdgesPath -Value $Json
+            Write-EdgesFile -EdgesData $EdgesData -Path $EdgesPath
             Write-Info "Checkpoint at batch $($b + 1): $CheckedCount checked, $SuspectCount suspect"
         }
     }
@@ -208,8 +207,7 @@ function Test-EdgeDirection {
 
     # ── Final save ──
     $EdgesData.edges = $AllEdges
-    $Json = $EdgesData | ConvertTo-Json -Depth 20
-    Write-Utf8NoBom -Path $EdgesPath -Value $Json
+    Write-EdgesFile -EdgesData $EdgesData -Path $EdgesPath
 
     Write-Info "Done: $CheckedCount edges checked, $SuspectCount flagged as suspect, $ErrorCount errors"
 }

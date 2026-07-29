@@ -191,9 +191,8 @@ function Approve-Edge {
     # Save
     if ($PSCmdlet.ShouldProcess($EdgesPath, 'Write updated edges file')) {
         $EdgesData.last_modified = (Get-Date).ToString('yyyy-MM-dd')
-        $Json = $EdgesData | ConvertTo-Json -Depth 20
         try {
-            Write-Utf8NoBom -Path $EdgesPath -Value $Json 
+            Write-EdgesFile -EdgesData $EdgesData -Path $EdgesPath
             Write-OK "Saved $EdgesPath"
         }
         catch {

@@ -711,7 +711,7 @@ Omit pairs with no relationship. No markdown fences.
             if ($CheckpointEvery -gt 0 -and $BatchNum % $CheckpointEvery -eq 0) {
                 $EdgesData.edges = @($EdgesList)
                 $EdgesData.last_modified = (Get-Date).ToString('yyyy-MM-dd')
-                $EdgesData | ConvertTo-Json -Depth 20 | Write-Utf8NoBom -Path $EdgesPath
+                Write-EdgesFile -EdgesData $EdgesData -Path $EdgesPath
                 Write-Info "  Checkpoint at batch $BatchNum"
             }
 
@@ -734,7 +734,7 @@ Omit pairs with no relationship. No markdown fences.
             batches              = $ClassifyBatches.Count
         })
 
-        $EdgesData | ConvertTo-Json -Depth 20 | Write-Utf8NoBom -Path $EdgesPath
+        Write-EdgesFile -EdgesData $EdgesData -Path $EdgesPath
         Save-DiscoveryLog -Path $DiscLogPath -Entries $DiscLogEntries
 
         Write-Host "`n=== EMBEDDING-FIRST COMPLETE ===" -ForegroundColor Cyan
@@ -976,8 +976,7 @@ $BatchSchemaPrompt
                     try {
                         $EdgesData.edges         = $EdgesList.ToArray()
                         $EdgesData.last_modified = (Get-Date).ToString('yyyy-MM-dd')
-                        $Json = $EdgesData | ConvertTo-Json -Depth 20
-                        Write-Utf8NoBom -Path $EdgesPath -Value $Json
+                        Write-EdgesFile -EdgesData $EdgesData -Path $EdgesPath
                         Write-Info "Checkpoint saved ($($EdgesList.Count) edges)"
                     } catch {
                         Write-Warn "Checkpoint write failed: $($_.Exception.Message)"
@@ -1175,8 +1174,7 @@ $SchemaPrompt
         param([string]$Path, [PSObject]$Data, [System.Collections.Generic.List[PSObject]]$List)
         $Data.edges         = $List.ToArray()
         $Data.last_modified = (Get-Date).ToString('yyyy-MM-dd')
-        $Json = $Data | ConvertTo-Json -Depth 20
-        Write-Utf8NoBom -Path $Path -Value $Json 
+        Write-EdgesFile -EdgesData $Data -Path $Path
         Write-Info "Checkpoint saved ($($List.Count) edges)"
     }
 
@@ -1449,9 +1447,8 @@ $SchemaPrompt
             if ($EdgesData.PSObject.Properties['discovery_log']) {
                 $EdgesData.PSObject.Properties.Remove('discovery_log')
             }
-            $Json = $EdgesData | ConvertTo-Json -Depth 20
             try {
-                Write-Utf8NoBom -Path $EdgesPath -Value $Json
+                Write-EdgesFile -EdgesData $EdgesData -Path $EdgesPath
                 Write-OK "Saved edges to $EdgesPath"
             } catch {
                 Write-Fail "Failed to write edges.json — $($_.Exception.Message)"

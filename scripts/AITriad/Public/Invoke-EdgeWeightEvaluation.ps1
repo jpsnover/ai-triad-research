@@ -283,8 +283,7 @@ function Invoke-EdgeWeightEvaluation {
         if (($b + 1) % 10 -eq 0) {
             $EdgesData.edges = $AllEdges
             $EdgesData.last_modified = (Get-Date).ToString('yyyy-MM-dd')
-            $Json = $EdgesData | ConvertTo-Json -Depth 20
-            Write-Utf8NoBom -Path $EdgesPath -Value $Json
+            Write-EdgesFile -EdgesData $EdgesData -Path $EdgesPath
             Write-Info "Checkpoint at batch $($b + 1): $EvaluatedCount evaluated"
         }
     }
@@ -294,8 +293,7 @@ function Invoke-EdgeWeightEvaluation {
     # ── Final save ──
     $EdgesData.edges = $AllEdges
     $EdgesData.last_modified = (Get-Date).ToString('yyyy-MM-dd')
-    $Json = $EdgesData | ConvertTo-Json -Depth 20
-    Write-Utf8NoBom -Path $EdgesPath -Value $Json
+    Write-EdgesFile -EdgesData $EdgesData -Path $EdgesPath
 
     Write-OK "Done: $EvaluatedCount edges evaluated, $ErrorCount errors"
 }
