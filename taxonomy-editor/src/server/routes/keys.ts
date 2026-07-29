@@ -69,6 +69,7 @@ export const KEY_VALIDATION_PROBES: Record<string, KeyProbe> = {
   openai: key => fetch('https://api.openai.com/v1/models', { headers: { Authorization: `Bearer ${key}` } }),
   deepseek: key => fetch('https://api.deepseek.com/v1/models', { headers: { Authorization: `Bearer ${key}` } }),
   zai: key => fetch('https://api.z.ai/api/paas/v4/models', { headers: { Authorization: `Bearer ${key}` } }),
+  moonshot: key => fetch('https://api.moonshot.ai/v1/models', { headers: { Authorization: `Bearer ${key}` } }),
 };
 
 // t/1620 origin, t/1624 promotion: the provider-error decoders (extractProviderReason
