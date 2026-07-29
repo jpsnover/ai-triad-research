@@ -13,6 +13,7 @@ import { api } from '@bridge';
 import type { EntitySummary, EntityRef, EntityType, Entity } from '@lib/entities/types';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { TypeBadge } from './DetailPrimitives';
+import { coerceStringArray } from './coerceStringArray';
 import { DetailPane } from './DetailPane';
 import { EmptyState } from './EmptyState';
 import './EntityBrowserPanel.css';
@@ -45,7 +46,9 @@ function matchesSearch(e: EntitySummary, q: string): boolean {
     e.name.toLowerCase().includes(q) ||
     e.id.toLowerCase().includes(q) ||
     e.entity_type.toLowerCase().includes(q) ||
-    e.aliases.some(a => a.toLowerCase().includes(q))
+    // aliases is polymorphic in real data (array | string | null) despite the string[]
+    // type — coerce (t/1884#4); server normalization (t/1964) is the load-bearing fix.
+    coerceStringArray(e.aliases).some(a => a.toLowerCase().includes(q))
   );
 }
 
@@ -62,7 +65,7 @@ function compareEntities(a: EntitySummary, b: EntitySummary, sort: SortKey): num
 
 /** One entity row — role=option; compact name + type badge + status dot + muted alias line. */
 function EntityRow({ entity, selected, onSelect }: { entity: EntitySummary; selected: boolean; onSelect: () => void }) {
-  const alias = entity.aliases[0];
+  const alias = coerceStringArray(entity.aliases)[0]; // aliases is polymorphic (array|string|null) — coerce, so a bare string isn't sliced to its first char (t/1884#4)
   return (
     <li
       id={`ebp-opt-${entity.id}`}

@@ -34,6 +34,25 @@ const fullEntity: Entity = {
 };
 
 describe('EntityDetail', () => {
+  it('survives polymorphic aliases + source_refs (array|null|string) — no throw (t/1882#7)', () => {
+    // ent-034 "Claude" has aliases:null; 11 entities have source_refs as a bare string —
+    // both despite the string[] type. `.length`/`.map`/`.join` must not throw.
+    render(<EntityDetail entity={{
+      ...fullEntity,
+      aliases: null as unknown as string[],
+      source_refs: 'eu-ai-act-analysis' as unknown as string[],
+    }} />);
+    expect(screen.getByRole('heading', { name: 'OpenAI' })).toBeInTheDocument();
+    expect(screen.queryByText(/^also:/)).not.toBeInTheDocument(); // null aliases → no row
+    // a bare-string source_refs → exactly one chip with the full doc id (not char-sliced)
+    expect(screen.getByText('doc: eu-ai-act-analysis')).toBeInTheDocument();
+  });
+
+  it('renders a bare-string alias in full, not sliced to a character (t/1884#4)', () => {
+    render(<EntityDetail entity={{ ...fullEntity, aliases: 'GDPR' as unknown as string[] }} />);
+    expect(screen.getByText('also: GDPR')).toBeInTheDocument();
+  });
+
   it('renders the full field set', () => {
     render(<EntityDetail entity={fullEntity} />);
     expect(screen.getByRole('heading', { name: 'OpenAI' })).toBeInTheDocument();
