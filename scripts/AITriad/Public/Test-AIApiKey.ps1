@@ -63,7 +63,7 @@ function Test-AIApiKey {
     [OutputType([PSCustomObject])]
     param(
         [Parameter(Mandatory, ParameterSetName = 'One', Position = 0)]
-        [ValidateSet('gemini', 'claude', 'groq', 'openai', 'azure', 'ollama', 'zai', 'moonshot')]
+        [ValidateSet('gemini', 'claude', 'groq', 'openai', 'azure', 'ollama', 'zai', 'moonshot', 'deepseek')]
         [string]$Backend,
 
         [Parameter(ParameterSetName = 'One')]
@@ -176,6 +176,11 @@ function Test-AIApiKey {
                 $Uri = 'https://api.moonshot.ai/v1/models'
                 $Headers['Authorization'] = "Bearer $Key"
             }
+            # t/1938 — DeepSeek is OpenAI-compatible and exposes a GET /models list.
+            'deepseek' {
+                $Uri = 'https://api.deepseek.com/models'
+                $Headers['Authorization'] = "Bearer $Key"
+            }
         }
 
         # Probe the endpoint. Most backends are GET on /models; z.ai uses a POST
@@ -254,6 +259,8 @@ function Test-AIApiKey {
         # t/1437 — z.ai only if $env:ZAI_API_KEY is present (needs a real key).
         if ($env:ZAI_API_KEY) { $Backends += 'zai' }
         if ($env:MOONSHOT_API_KEY) { $Backends += 'moonshot' }
+        # t/1938 — DeepSeek only if $env:DEEPSEEK_API_KEY is present (needs a real key).
+        if ($env:DEEPSEEK_API_KEY) { $Backends += 'deepseek' }
         foreach ($B in $Backends) {
             _Probe-Backend -B $B -ExplicitKey '' -AzureEndpoint $env:AZURE_OPENAI_ENDPOINT -Timeout $TimeoutSec
         }

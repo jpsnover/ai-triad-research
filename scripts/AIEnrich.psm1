@@ -18,7 +18,7 @@
 # ─────────────────────────────────────────────────────────────────────────────
 $script:ModelRegistry = @{}
 $script:FallbackChains = @{}
-$script:ContextWindows = @{ gemini = 1048576; claude = 200000; groq = 131072; openai = 131072; zai = 1000000; moonshot = 1000000 }
+$script:ContextWindows = @{ gemini = 1048576; claude = 200000; groq = 131072; openai = 131072; zai = 1000000; moonshot = 1000000; deepseek = 65536 }
 $script:LastApiKeySource = ''
 $script:AIApiLoggedThisSession = $false
 $script:AIApiLastModel = ''
@@ -178,6 +178,7 @@ function Resolve-AIApiKey {
         'azure'  = @('AZURE_OPENAI_API_KEY')
         'zai'    = @('ZAI_API_KEY')
         'moonshot' = @('MOONSHOT_API_KEY')
+        'deepseek' = @('DEEPSEEK_API_KEY')
     }
 
     $BackendEnvVars = $EnvVarMap[$Backend]
@@ -434,7 +435,8 @@ function Invoke-AIApi {
                 'ollama' { '(no env var — local, keyless)' }
                 'zai'    { 'ZAI_API_KEY' }
                 'moonshot' { 'MOONSHOT_API_KEY' }
-                default  { "(unknown backend '$Backend' — expected gemini/claude/groq/openai/azure/ollama/zai/moonshot)" }
+                'deepseek' { 'DEEPSEEK_API_KEY' }
+                default  { "(unknown backend '$Backend' — expected gemini/claude/groq/openai/azure/ollama/zai/moonshot/deepseek)" }
             }
             Write-Warning "No API key found for $Backend backend. Set $EnvHint or AI_API_KEY."
             return $null
@@ -659,6 +661,45 @@ function Invoke-AIApi {
             }
 
             $Body = $MoonshotBody | ConvertTo-Json -Depth 10
+        }
+
+        # t/1938 — DeepSeek exposes an OpenAI-compatible /v1/chat/completions endpoint
+        # at https://api.deepseek.com/. Bearer auth ($env:DEEPSEEK_API_KEY); request
+        # shape matches Groq/z.ai exactly. 64K-token context ($script:ContextWindows.deepseek).
+        'deepseek' {
+            $Uri = 'https://api.deepseek.com/v1/chat/completions'
+            $Headers = @{
+                'Authorization' = "Bearer $ResolvedKey"
+            }
+
+            $DeepSeekMessages = [System.Collections.Generic.List[object]]::new()
+            if ($SystemInstruction) {
+                $DeepSeekMessages.Add(@{ role = 'system'; content = $SystemInstruction })
+            }
+            $DeepSeekMessages.Add(@{ role = 'user'; content = $Prompt })
+
+            $DeepSeekBody = @{
+                model       = $ApiModelId
+                messages    = @($DeepSeekMessages)
+                temperature = $Temperature
+                max_tokens  = $MaxTokens
+            }
+            if ($JsonMode) {
+                if ($ResponseSchema) {
+                    $DeepSeekBody['response_format'] = @{
+                        type        = 'json_schema'
+                        json_schema = @{
+                            name   = 'response'
+                            schema = $ResponseSchema
+                            strict = $true
+                        }
+                    }
+                } else {
+                    $DeepSeekBody['response_format'] = @{ type = 'json_object' }
+                }
+            }
+
+            $Body = $DeepSeekBody | ConvertTo-Json -Depth 10
         }
 
         # t/1409 — Ollama exposes an OpenAI-compatible /v1/chat/completions endpoint
@@ -987,6 +1028,26 @@ function Invoke-AIApi {
             } catch {
                 $TopKeys = ($Response.PSObject.Properties.Name | Select-Object -First 5) -join ', '
                 Write-Warning "Moonshot: unexpected response shape (top-level keys: $TopKeys). Expected choices[].message.content"
+                return $null
+            }
+        }
+        # t/1938 — DeepSeek's /v1/chat/completions mirrors the Groq/OpenAI response shape.
+        'deepseek' {
+            try {
+                $Choice = $Response.choices[0]
+                $Text = $Choice.message.content
+                $Truncated = ($Choice.finish_reason -eq 'length')
+                $u = $Response.usage
+                if ($u) {
+                    $Usage = [PSCustomObject]@{
+                        InputTokens  = [int]($u.prompt_tokens)
+                        OutputTokens = [int]($u.completion_tokens)
+                        TotalTokens  = [int]($u.total_tokens)
+                    }
+                }
+            } catch {
+                $TopKeys = ($Response.PSObject.Properties.Name | Select-Object -First 5) -join ', '
+                Write-Warning "DeepSeek: unexpected response shape (top-level keys: $TopKeys). Expected choices[].message.content"
                 return $null
             }
         }
