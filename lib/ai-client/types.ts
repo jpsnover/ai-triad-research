@@ -70,6 +70,28 @@ export type BackendId = 'gemini' | 'claude' | 'groq' | 'openai' | 'azure' | 'oll
 /** Superset of BackendId that includes non-generation backends needing API key management (e.g. tavily for search). */
 export type ApiKeyBackend = BackendId | 'tavily';
 
+/**
+ * Exhaustive map of every API-key backend. `Record<ApiKeyBackend, true>` forces
+ * every union member to be present, so adding a backend to `BackendId`/`ApiKeyBackend`
+ * without adding it here is a COMPILE ERROR — not a silent omission. This is the
+ * source of truth; do not hand-maintain parallel backend arrays (t/1956).
+ */
+const ALL_API_KEY_BACKENDS_MAP: Record<ApiKeyBackend, true> = {
+  gemini: true,
+  claude: true,
+  groq: true,
+  openai: true,
+  azure: true,
+  ollama: true,
+  deepseek: true,
+  zai: true,
+  moonshot: true,
+  tavily: true,
+};
+
+/** Canonical, exhaustive list of all API-key backends. Derived from {@link ALL_API_KEY_BACKENDS_MAP}. */
+export const ALL_API_KEY_BACKENDS = Object.keys(ALL_API_KEY_BACKENDS_MAP) as ApiKeyBackend[];
+
 export interface ModelCapabilities {
   supportsTools: boolean;
   supportsVision: boolean;

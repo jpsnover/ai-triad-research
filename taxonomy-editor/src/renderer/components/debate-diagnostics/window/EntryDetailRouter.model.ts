@@ -43,7 +43,11 @@ export const isTabEnabled = (t: EntryTabDescriptor) => t.has || !!t.ranEmpty;
 // Stage-diagnostic derivations (all diag-derived)
 // ---------------------------------------------------------------------------
 
-export function deriveEntryStages(diag: EntryDiagnostics | undefined) {
+/** Last element of an attempts array, or undefined when empty (verbatim of the former `len>0 ? arr[len-1] : undefined`). */
+const latestStage = <T,>(attempts: T[]): T | undefined =>
+  attempts.length > 0 ? attempts[attempts.length - 1] : undefined;
+
+function deriveEvidenceExtraction(diag: EntryDiagnostics | undefined) {
   const evidenceStage = diag?.stage_diagnostics?.find(s => s.stage === 'evidence');
   const evidenceWP = evidenceStage?.work_product as {
     facts?: { claim: string; claim_label: string; doc_id: string; specificity: string; temporal_bound?: string | null; linked_taxonomy_nodes: string[] }[];
@@ -57,6 +61,10 @@ export function deriveEntryStages(diag: EntryDiagnostics | undefined) {
     an_node_count_before: number; an_node_count_after: number;
     an_nodes_added_ids: string[];
   } | undefined;
+  return { evidenceStage, evidenceWP, extTrace };
+}
+
+function deriveCitationResolution(diag: EntryDiagnostics | undefined) {
   const _draftForCitations = (diag?.stage_diagnostics?.filter(s => s.stage === 'draft') ?? []).slice(-1)[0];
   const citationResDiag = _draftForCitations?.citation_resolution as {
     path: 'tool-calling' | 'bank-scrub';
@@ -70,7 +78,10 @@ export function deriveEntryStages(diag: EntryDiagnostics | undefined) {
     scrub_original?: string;
     warnings: string[];
   } | undefined;
+  return { citationResDiag };
+}
 
+function deriveStageAttempts(diag: EntryDiagnostics | undefined) {
   const stages = diag?.stage_diagnostics;
   const briefAttempts = stages?.filter(s => s.stage === 'brief') ?? [];
   const planAttempts = stages?.filter(s => s.stage === 'plan') ?? [];
@@ -78,21 +89,33 @@ export function deriveEntryStages(diag: EntryDiagnostics | undefined) {
   const citeAttempts = stages?.filter(s => s.stage === 'cite') ?? [];
   const postDraftStage = stages?.find(s => s.stage === 'postDraft');
   const draftQualityStage = stages?.find(s => s.stage === 'draft_quality');
-  const briefStage = briefAttempts.length > 0 ? briefAttempts[briefAttempts.length - 1] : undefined;
-  const planStage = planAttempts.length > 0 ? planAttempts[planAttempts.length - 1] : undefined;
-  const draftStage = draftAttempts.length > 0 ? draftAttempts[draftAttempts.length - 1] : undefined;
-  const citeStage = citeAttempts.length > 0 ? citeAttempts[citeAttempts.length - 1] : undefined;
+  const briefStage = latestStage(briefAttempts);
+  const planStage = latestStage(planAttempts);
+  const draftStage = latestStage(draftAttempts);
+  const citeStage = latestStage(citeAttempts);
+  return {
+    stages, briefAttempts, planAttempts, draftAttempts, citeAttempts,
+    postDraftStage, draftQualityStage, briefStage, planStage, draftStage, citeStage,
+  };
+}
 
+function deriveCiteWorkProduct(citeStage: ReturnType<typeof deriveStageAttempts>['citeStage']) {
   const citeWorkProduct = citeStage?.work_product as Record<string, unknown> | undefined;
   const pinResponse = citeWorkProduct?.pin_response as {
     position?: string; condition?: string; brief_reason?: string;
   } | undefined;
+  return { citeWorkProduct, pinResponse };
+}
 
+export function deriveEntryStages(diag: EntryDiagnostics | undefined) {
+  const evidence = deriveEvidenceExtraction(diag);
+  const { citationResDiag } = deriveCitationResolution(diag);
+  const attempts = deriveStageAttempts(diag);
+  const cite = deriveCiteWorkProduct(attempts.citeStage);
   return {
-    evidenceStage, evidenceWP, extTrace, citationResDiag,
-    stages, briefAttempts, planAttempts, draftAttempts, citeAttempts,
-    postDraftStage, draftQualityStage, briefStage, planStage, draftStage, citeStage,
-    citeWorkProduct, pinResponse,
+    ...evidence, citationResDiag,
+    ...attempts,
+    ...cite,
   };
 }
 
@@ -116,52 +139,113 @@ interface PresenceArgs {
   draftStage: StageData['draftStage'];
 }
 
-export function deriveTabPresence({
-  entry, diag, meta, debate, entryIdx,
-  stages, extTrace, evidenceStage, evidenceWP, citationResDiag, draftStage,
-}: PresenceArgs) {
-  const taxRefCount = entry.taxonomy_refs?.length ?? 0;
-  const hasClaims = !!(
+function computeHasClaims(
+  diag: EntryDiagnostics | undefined,
+  meta: Record<string, unknown> | undefined,
+) {
+  return !!(
     diag?.extracted_claims ||
     (meta?.my_claims && (meta.my_claims as unknown[]).length > 0)
   );
-  const evidenceFactCount = (evidenceWP?.facts?.length ?? 0) + (evidenceWP?.keyPoints?.length ?? 0);
-  const hasEvidence = !!evidenceStage || !!extTrace;
-  const hasExclusionData = !!(
+}
+
+function computeEvidenceFactCount(evidenceWP: StageData['evidenceWP']) {
+  return (evidenceWP?.facts?.length ?? 0) + (evidenceWP?.keyPoints?.length ?? 0);
+}
+
+function computeHasExclusionData(diag: EntryDiagnostics | undefined, entry: Entry) {
+  return !!(
     (diag?.extraction_trace as Record<string, unknown> | undefined)?.exclusion_guard ||
     (diag?.extraction_trace as Record<string, unknown> | undefined)?.exclusion_violations ||
     (diag as Record<string, unknown> | undefined)?.scope_drift_check ||
     (diag as Record<string, unknown> | undefined)?.scope_drift_warnings ||
     (diag?.extraction_trace && entry.type === 'statement')
   );
-  const hasCitations = !!citationResDiag;
-  const citationsCount = citationResDiag?.citations_extracted ?? 0;
-  const hasPrecedingIntervention = (() => {
-    if (!debate?.transcript || entryIdx <= 0) return false;
-    for (let i = entryIdx - 1; i >= 0; i--) {
-      const t = debate.transcript[i];
-      if (t.type === 'intervention' && t.speaker === 'moderator') return true;
-      if (t.type === 'statement' || t.type === 'opening') return false;
-    }
-    return false;
-  })();
-  const hasSuppressedIntervention = !!(
+}
+
+function computeHasPrecedingIntervention(debate: DebateSession, entryIdx: number) {
+  if (!debate?.transcript || entryIdx <= 0) return false;
+  for (let i = entryIdx - 1; i >= 0; i--) {
+    const t = debate.transcript[i];
+    if (t.type === 'intervention' && t.speaker === 'moderator') return true;
+    if (t.type === 'statement' || t.type === 'opening') return false;
+  }
+  return false;
+}
+
+function computeHasSuppressedIntervention(meta: Record<string, unknown> | undefined) {
+  return !!(
     (meta?.moderator_trace as Record<string, unknown> | undefined)?.intervention_recommended
     && !(meta?.moderator_trace as Record<string, unknown> | undefined)?.intervention_validated
   );
-  const stageRan = (stages?.length ?? 0) > 0;
-  const pipelineError = entry.type === 'statement' && !!diag && (stages?.length ?? 0) > 0 && !diag.extracted_claims && !extTrace;
-  const hasDetails = !!(
-    hasPrecedingIntervention || hasSuppressedIntervention ||
+}
+
+function computePipelineError(
+  entry: Entry,
+  diag: EntryDiagnostics | undefined,
+  stages: StageData['stages'],
+  extTrace: StageData['extTrace'],
+) {
+  return entry.type === 'statement' && !!diag && (stages?.length ?? 0) > 0 && !diag.extracted_claims && !extTrace;
+}
+
+// hasDetails is split into pure sub-predicates so each stays below the complexity ceiling.
+// The terms are side-effect-free reads, so grouping them under `||` preserves the boolean result.
+function hasMetaDetail(meta: Record<string, unknown> | undefined, entry: Entry) {
+  return !!(
     (meta?.key_assumptions && (meta.key_assumptions as unknown[]).length > 0) ||
     (meta?.policy_refs as string[])?.length || (entry.policy_refs?.length ?? 0) > 0 ||
+    (meta?.move_types && (meta.move_types as unknown[]).length > 0)
+  );
+}
+
+function hasDiagDetail(diag: EntryDiagnostics | undefined) {
+  return !!(
     diag?.model ||
     diag?.commitment_context ||
     diag?.edge_tensions ||
-    diag?.argument_network_context ||
-    (meta?.move_types && (meta.move_types as unknown[]).length > 0) ||
-    (entry.type === 'statement' && diag && (diag.stage_diagnostics?.length ?? 0) > 0 && !diag.extracted_claims && !extTrace)
+    diag?.argument_network_context
   );
+}
+
+function hasPipelineErrorDetail(entry: Entry, diag: EntryDiagnostics | undefined, extTrace: StageData['extTrace']) {
+  return !!(entry.type === 'statement' && diag && (diag.stage_diagnostics?.length ?? 0) > 0 && !diag.extracted_claims && !extTrace);
+}
+
+function computeHasDetails(p: {
+  entry: Entry;
+  meta: Record<string, unknown> | undefined;
+  diag: EntryDiagnostics | undefined;
+  extTrace: StageData['extTrace'];
+  hasPrecedingIntervention: boolean;
+  hasSuppressedIntervention: boolean;
+}) {
+  return !!(
+    p.hasPrecedingIntervention || p.hasSuppressedIntervention ||
+    hasMetaDetail(p.meta, p.entry) ||
+    hasDiagDetail(p.diag) ||
+    hasPipelineErrorDetail(p.entry, p.diag, p.extTrace)
+  );
+}
+
+export function deriveTabPresence({
+  entry, diag, meta, debate, entryIdx,
+  stages, extTrace, evidenceStage, evidenceWP, citationResDiag, draftStage,
+}: PresenceArgs) {
+  const taxRefCount = entry.taxonomy_refs?.length ?? 0;
+  const hasClaims = computeHasClaims(diag, meta);
+  const evidenceFactCount = computeEvidenceFactCount(evidenceWP);
+  const hasEvidence = !!evidenceStage || !!extTrace;
+  const hasExclusionData = computeHasExclusionData(diag, entry);
+  const hasCitations = !!citationResDiag;
+  const citationsCount = citationResDiag?.citations_extracted ?? 0;
+  const hasPrecedingIntervention = computeHasPrecedingIntervention(debate, entryIdx);
+  const hasSuppressedIntervention = computeHasSuppressedIntervention(meta);
+  const stageRan = (stages?.length ?? 0) > 0;
+  const pipelineError = computePipelineError(entry, diag, stages, extTrace);
+  const hasDetails = computeHasDetails({
+    entry, meta, diag, extTrace, hasPrecedingIntervention, hasSuppressedIntervention,
+  });
 
   return {
     taxRefCount, hasClaims, evidenceFactCount, hasEvidence, hasExclusionData,
@@ -201,6 +285,37 @@ type BuildTabsArgs = StageData & Presence & {
   lookaheadDiag: unknown;
 };
 
+function evidenceTabDescriptor(a: {
+  evidenceFactCount: number; hasEvidence: boolean; stageRan: boolean;
+  entry: Entry; pipelineError: boolean; evidenceStage: StageData['evidenceStage'];
+}): EntryTabDescriptor {
+  const { evidenceFactCount, hasEvidence, stageRan, entry, pipelineError, evidenceStage } = a;
+  return { id: 'evidence', label: 'Evidence', count: evidenceFactCount || undefined, has: hasEvidence, ranEmpty: !hasEvidence && stageRan && entry.type === 'statement' && !pipelineError, copy: evidenceStage?.raw_response ?? '' };
+}
+
+function citationsTabDescriptor(a: {
+  citationsCount: number; hasCitations: boolean; draftStage: StageData['draftStage'];
+  entry: Entry; pipelineError: boolean; citationResDiag: StageData['citationResDiag'];
+}): EntryTabDescriptor {
+  const { citationsCount, hasCitations, draftStage, entry, pipelineError, citationResDiag } = a;
+  return { id: 'citations', label: 'Citations', count: citationsCount || undefined, has: hasCitations, ranEmpty: !hasCitations && !!draftStage && entry.type === 'statement' && !pipelineError, copy: citationResDiag ? JSON.stringify(citationResDiag, null, 2) : '' };
+}
+
+function draftTabDescriptor(draftStage: StageData['draftStage'], entry: Entry): EntryTabDescriptor {
+  return { id: 'draft', label: 'Draft', has: !!(draftStage || entry.content), copy: draftStage ? (JSON.stringify(draftStage?.work_product, null, 2) ?? '') : (typeof entry.content === 'string' ? entry.content : JSON.stringify(entry.content, null, 2)) };
+}
+
+function claimsTabDescriptor(a: {
+  hasClaims: boolean; stageRan: boolean; entry: Entry; pipelineError: boolean; claimsCopy: string;
+}): EntryTabDescriptor {
+  const { hasClaims, stageRan, entry, pipelineError, claimsCopy } = a;
+  return { id: 'claims', label: 'Claims', has: hasClaims, ranEmpty: !hasClaims && stageRan && entry.type === 'statement' && !pipelineError, copy: claimsCopy };
+}
+
+function affectTabDescriptor(entry: Entry): EntryTabDescriptor {
+  return { id: 'affect', label: 'Affect', has: !!((entry.type === 'statement' || entry.type === 'opening') && entry.speaker !== 'system' && entry.speaker !== 'moderator' && entry.content && typeof entry.content === 'string' && entry.content.split(/\s+/).length >= 20), copy: '' };
+}
+
 export function buildEntryTabs(args: BuildTabsArgs): EntryTabDescriptor[] {
   const {
     entry, diag, meta, debate, hasModTab, modTrace, hasDetails, briefStage, planStage,
@@ -214,14 +329,14 @@ export function buildEntryTabs(args: BuildTabsArgs): EntryTabDescriptor[] {
     { id: 'details', label: 'Overview', has: hasDetails, copy: '' },
     { id: 'brief', label: 'Brief', has: !!briefStage, copy: JSON.stringify(briefStage?.work_product, null, 2) ?? '' },
     { id: 'plan', label: 'Plan', has: !!planStage, copy: JSON.stringify(planStage?.work_product, null, 2) ?? '' },
-    { id: 'evidence', label: 'Evidence', count: evidenceFactCount || undefined, has: hasEvidence, ranEmpty: !hasEvidence && stageRan && entry.type === 'statement' && !pipelineError, copy: evidenceStage?.raw_response ?? '' },
-    { id: 'citations', label: 'Citations', count: citationsCount || undefined, has: hasCitations, ranEmpty: !hasCitations && !!draftStage && entry.type === 'statement' && !pipelineError, copy: citationResDiag ? JSON.stringify(citationResDiag, null, 2) : '' },
-    { id: 'draft', label: 'Draft', has: !!(draftStage || entry.content), copy: draftStage ? (JSON.stringify(draftStage?.work_product, null, 2) ?? '') : (typeof entry.content === 'string' ? entry.content : JSON.stringify(entry.content, null, 2)) },
+    evidenceTabDescriptor({ evidenceFactCount, hasEvidence, stageRan, entry, pipelineError, evidenceStage }),
+    citationsTabDescriptor({ citationsCount, hasCitations, draftStage, entry, pipelineError, citationResDiag }),
+    draftTabDescriptor(draftStage, entry),
     { id: 'lookahead', label: 'Lookahead', has: !!lookaheadDiag, copy: lookaheadDiag ? JSON.stringify(lookaheadDiag, null, 2) : '' },
     { id: 'cite', label: 'Cite', has: !!citeStage, copy: JSON.stringify(citeStage?.work_product, null, 2) ?? '' },
-    { id: 'claims', label: 'Claims', has: hasClaims, ranEmpty: !hasClaims && stageRan && entry.type === 'statement' && !pipelineError, copy: claimsCopy },
+    claimsTabDescriptor({ hasClaims, stageRan, entry, pipelineError, claimsCopy }),
     { id: 'exclusion', label: 'Exclusion', has: hasExclusionData, copy: '' },
-    { id: 'affect', label: 'Affect', has: !!((entry.type === 'statement' || entry.type === 'opening') && entry.speaker !== 'system' && entry.speaker !== 'moderator' && entry.content && typeof entry.content === 'string' && entry.content.split(/\s+/).length >= 20), copy: '' },
+    affectTabDescriptor(entry),
     { id: 'tax-refs', label: 'Taxonomy Refs', count: taxRefCount, has: taxRefCount > 0, copy: entry.taxonomy_refs?.map(r => `${r.node_id}: ${r.relevance}`).join('\n') ?? '' },
   ];
 }
