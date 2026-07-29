@@ -240,20 +240,33 @@ function debateVersionConflict(debateId: string, currentVersion: number | null):
  * param. Anonymous sessions merge-and-mirror through the same anon store, so
  * anonymous callers pay the same uplink saving (the entire point of the delta).
  */
+async function applyDeltaAnon(delta: DebateDelta): Promise<{ newVersion: number }> {
+  const a = getAnonStore();
+  const loaded = a ? await a.store.loadDebate(a.sessionId, delta.debateId) : null;
+  if (loaded === null || a === null) throw debateVersionConflict(delta.debateId, null);
+  const existing = loaded as DebateSession;
+  const currentVersion = existing._saveVersion ?? 0;
+  if (delta.baseVersion !== currentVersion) throw debateVersionConflict(delta.debateId, currentVersion);
+  const merged = applyDebateDelta(existing, delta);
+  await a.store.saveDebate(a.sessionId, merged);
+  return { newVersion: merged._saveVersion ?? 0 };
+}
+
+function buildDebateIndexEntry(id: string, merged: DebateSession): { id: string; title: string; created_at: string; updated_at: string; phase: string } {
+  const m = merged as { title?: string; topic?: { final?: string; original?: string }; created_at?: string; updated_at?: string; phase?: string };
+  return {
+    id,
+    title: m.title || m.topic?.final || m.topic?.original || 'Untitled',
+    created_at: m.created_at || '',
+    updated_at: m.updated_at || m.created_at || '',
+    phase: m.phase || 'unknown',
+  };
+}
+
 export async function applyDebateDeltaToStorage(delta: DebateDelta): Promise<{ newVersion: number }> {
   assertSafeId(delta.debateId, 'debate id');
 
-  if (isAnonymousUser()) {
-    const a = getAnonStore();
-    const loaded = a ? await a.store.loadDebate(a.sessionId, delta.debateId) : null;
-    if (loaded === null || a === null) throw debateVersionConflict(delta.debateId, null);
-    const existing = loaded as DebateSession;
-    const currentVersion = existing._saveVersion ?? 0;
-    if (delta.baseVersion !== currentVersion) throw debateVersionConflict(delta.debateId, currentVersion);
-    const merged = applyDebateDelta(existing, delta);
-    await a.store.saveDebate(a.sessionId, merged);
-    return { newVersion: merged._saveVersion ?? 0 };
-  }
+  if (isAnonymousUser()) return applyDeltaAnon(delta);
 
   const backend = getUserContentBackend();
   const debatePath = path.join(getDebatesDir(), `debate-${delta.debateId}.json`);
@@ -269,15 +282,8 @@ export async function applyDebateDeltaToStorage(delta: DebateDelta): Promise<{ n
     log.server.warn({ debateId: delta.debateId, errorMessage }, 'Delta-merged debate session serialized with sanitizing replacer — non-serializable fields stripped');
   }
   await backend.writeFile(debatePath, json);
-  // Maintain the lightweight index
-  const m = merged as { title?: string; topic?: { final?: string; original?: string }; created_at?: string; updated_at?: string; phase?: string };
-  void upsertDebateIndex({
-    id: delta.debateId,
-    title: m.title || m.topic?.final || m.topic?.original || 'Untitled',
-    created_at: m.created_at || '',
-    updated_at: m.updated_at || m.created_at || '',
-    phase: m.phase || 'unknown',
-  }).catch((err) => { log.server.warn({ err }, 'Debate index upsert failed (best-effort)'); });
+  void upsertDebateIndex(buildDebateIndexEntry(delta.debateId, merged))
+    .catch((err) => { log.server.warn({ err }, 'Debate index upsert failed (best-effort)'); });
 
   return { newVersion: merged._saveVersion ?? 0 };
 }

@@ -243,6 +243,22 @@ function describeType(v: unknown): string {
   return typeof v;
 }
 
+function collectNodeAttrMismatches(nodeId: string, attrs: Record<string, unknown>): GraphAttrMismatch[] {
+  const out: GraphAttrMismatch[] = [];
+  for (const key of GA_STRING_KEYS) {
+    const v = attrs[key];
+    if (v != null && typeof v !== 'string') out.push({ nodeId, key, expected: 'string', actual: describeType(v) });
+  }
+  for (const key of GA_STRING_ARRAY_KEYS) {
+    const v = attrs[key];
+    if (v == null) continue;
+    if (!Array.isArray(v)) { out.push({ nodeId, key, expected: 'string[]', actual: describeType(v) }); continue; }
+    const bad = v.find(el => typeof el !== 'string');
+    if (bad !== undefined) out.push({ nodeId, key, expected: 'string[]', actual: `array with ${describeType(bad)} element` });
+  }
+  return out;
+}
+
 export interface GraphAttrMismatch { nodeId: string; key: string; expected: string; actual: string; }
 
 /** Pure detector: list graph_attributes entries whose value type is unexpected. */
@@ -256,18 +272,7 @@ export function findGraphAttributeMismatches(parsed: unknown): GraphAttrMismatch
     const ga = node.graph_attributes;
     if (!ga || typeof ga !== 'object' || Array.isArray(ga)) continue;
     const nodeId = typeof node.id === 'string' ? node.id : '(unknown)';
-    const attrs = ga as Record<string, unknown>;
-    for (const key of GA_STRING_KEYS) {
-      const v = attrs[key];
-      if (v != null && typeof v !== 'string') out.push({ nodeId, key, expected: 'string', actual: describeType(v) });
-    }
-    for (const key of GA_STRING_ARRAY_KEYS) {
-      const v = attrs[key];
-      if (v == null) continue;
-      if (!Array.isArray(v)) { out.push({ nodeId, key, expected: 'string[]', actual: describeType(v) }); continue; }
-      const bad = v.find(el => typeof el !== 'string');
-      if (bad !== undefined) out.push({ nodeId, key, expected: 'string[]', actual: `array with ${describeType(bad)} element` });
-    }
+    out.push(...collectNodeAttrMismatches(nodeId, ga as Record<string, unknown>));
   }
   return out;
 }
@@ -718,21 +723,10 @@ interface SourceReference {
 
 type NodeSourceIndex = Record<string, SourceReference[]>;
 
-/**
- * Scan all summary JSON files and build a reverse index:
- * nodeId → list of source references that mapped to it.
- */
-export async function buildNodeSourceIndex(): Promise<NodeSourceIndex> {
-  const summariesDir = resolveDataPath(loadDataConfig().summaries_dir);
-  const sourcesDir = getSourcesDir();
-  const index: NodeSourceIndex = {};
+type NodeSourceMeta = { title: string; url: string | null; sourceType: string; datePublished: string };
 
-  const summaryFiles = await backend.listDirectory(summariesDir);
-  if (summaryFiles.length === 0) return index;
-
-  // Pre-load source metadata for titles/URLs.
-  // Instead of checking isDirectory, we probe for metadata.json in each entry.
-  const metaCache: Record<string, { title: string; url: string | null; sourceType: string; datePublished: string }> = {};
+async function loadNodeMetaCache(sourcesDir: string | null): Promise<Record<string, NodeSourceMeta>> {
+  const metaCache: Record<string, NodeSourceMeta> = {};
   const sourceEntries = sourcesDir ? await backend.listDirectory(sourcesDir) : [];
   for (const name of sourceEntries) {
     const metaPath = path.join(sourcesDir!, name, 'metadata.json');
@@ -749,54 +743,67 @@ export async function buildNodeSourceIndex(): Promise<NodeSourceIndex> {
       }
     } catch { /* telemetry — silent by design;  skip */ }
   }
+  return metaCache;
+}
 
-  // Scan all summary files
-  for (const file of summaryFiles) {
-    if (!file.endsWith('.json')) continue;
-    const docId = file.replace(/\.json$/, '');
-
-    let summary: {
-      pov_summaries?: Record<string, {
-        key_points?: Array<{
-          taxonomy_node_id?: string | null;
-          point?: string;
-          stance?: string;
-          verbatim?: string;
-          excerpt_context?: string;
-        }>;
+async function indexSummaryFile(
+  summariesDir: string, file: string, metaCache: Record<string, NodeSourceMeta>, index: NodeSourceIndex,
+): Promise<void> {
+  const docId = file.replace(/\.json$/, '');
+  let summary: {
+    pov_summaries?: Record<string, {
+      key_points?: Array<{
+        taxonomy_node_id?: string | null;
+        point?: string; stance?: string; verbatim?: string; excerpt_context?: string;
       }>;
-    };
-
-    try {
-      const raw = await backend.readFile(path.join(summariesDir, file));
-      if (raw === null) continue;
-      summary = JSON.parse(raw);
-    } catch { /* telemetry — silent by design */ continue; }
-
-    const meta = metaCache[docId] || { title: docId, url: null, sourceType: 'unknown', datePublished: '' };
-
-    for (const [pov, povData] of Object.entries(summary.pov_summaries || {})) {
-      for (const kp of povData.key_points || []) {
-        const nodeId = kp.taxonomy_node_id;
-        if (!nodeId) continue;
-
-        if (!index[nodeId]) index[nodeId] = [];
-        index[nodeId].push({
-          docId,
-          title: meta.title,
-          pov,
-          stance: kp.stance || 'neutral',
-          point: kp.point || '',
-          verbatim: kp.verbatim || '',
-          excerptContext: kp.excerpt_context || '',
-          url: meta.url,
-          sourceType: meta.sourceType,
-          datePublished: meta.datePublished,
-        });
-      }
+    }>;
+  };
+  try {
+    const raw = await backend.readFile(path.join(summariesDir, file));
+    if (raw === null) return;
+    summary = JSON.parse(raw);
+  } catch { /* telemetry — silent by design */ return; }
+  const meta = metaCache[docId] ?? { title: docId, url: null, sourceType: 'unknown', datePublished: '' };
+  for (const [pov, povData] of Object.entries(summary.pov_summaries || {})) {
+    for (const kp of povData.key_points || []) {
+      const nodeId = kp.taxonomy_node_id;
+      if (!nodeId) continue;
+      if (!index[nodeId]) index[nodeId] = [];
+      index[nodeId].push({
+        docId, title: meta.title, pov,
+        stance: kp.stance || 'neutral',
+        point: kp.point || '',
+        verbatim: kp.verbatim || '',
+        excerptContext: kp.excerpt_context || '',
+        url: meta.url, sourceType: meta.sourceType, datePublished: meta.datePublished,
+      });
     }
   }
+}
 
+async function indexSummaryFiles(
+  summaryFiles: string[], summariesDir: string, metaCache: Record<string, NodeSourceMeta>, index: NodeSourceIndex,
+): Promise<void> {
+  for (const file of summaryFiles) {
+    if (!file.endsWith('.json')) continue;
+    await indexSummaryFile(summariesDir, file, metaCache, index);
+  }
+}
+
+/**
+ * Scan all summary JSON files and build a reverse index:
+ * nodeId → list of source references that mapped to it.
+ */
+export async function buildNodeSourceIndex(): Promise<NodeSourceIndex> {
+  const summariesDir = resolveDataPath(loadDataConfig().summaries_dir);
+  const sourcesDir = getSourcesDir();
+  const index: NodeSourceIndex = {};
+
+  const summaryFiles = await backend.listDirectory(summariesDir);
+  if (summaryFiles.length === 0) return index;
+
+  const metaCache = await loadNodeMetaCache(sourcesDir);
+  await indexSummaryFiles(summaryFiles, summariesDir, metaCache, index);
   return index;
 }
 
@@ -812,23 +819,7 @@ interface PolicySourceReference {
 
 type PolicySourceIndex = Record<string, PolicySourceReference[]>;
 
-/**
- * For each policy in policy_actions.json, find all nodes that reference it
- * (by scanning policy_actions in POV files), then use the node-source index
- * to find which sources reference those nodes.
- */
-export async function buildPolicySourceIndex(): Promise<PolicySourceIndex> {
-  const result: PolicySourceIndex = {};
-  const sourcesDir = getSourcesDir();
-
-  // 1. Load policy registry to get all policy IDs
-  const regRaw = await readPolicyRegistry() as { policies?: { id: string }[] } | null;
-  if (!regRaw?.policies) return result;
-  for (const pol of regRaw.policies) {
-    result[pol.id] = [];
-  }
-
-  // 2. Build node → policy mapping by scanning all POV files
+async function buildNodeToPoliciesMap(): Promise<Map<string, string[]>> {
   const nodeToPolicies = new Map<string, string[]>();
   for (const pov of POV_KEYS) {
     try {
@@ -845,11 +836,10 @@ export async function buildPolicySourceIndex(): Promise<PolicySourceIndex> {
       }
     } catch { /* telemetry — silent by design;  skip unavailable POV files */ }
   }
+  return nodeToPolicies;
+}
 
-  // 3. Build node-source index
-  const nodeSourceIdx = await buildNodeSourceIndex();
-
-  // 4. Pre-load source metadata for dateIngested / sourceTime
+async function loadPolicyMetaCache(sourcesDir: string | null): Promise<Record<string, { dateIngested: string; sourceTime: string }>> {
   const metaCache: Record<string, { dateIngested: string; sourceTime: string }> = {};
   const sourceEntries = sourcesDir ? await backend.listDirectory(sourcesDir) : [];
   for (const name of sourceEntries) {
@@ -865,29 +855,48 @@ export async function buildPolicySourceIndex(): Promise<PolicySourceIndex> {
       }
     } catch { /* telemetry — silent by design;  skip */ }
   }
+  return metaCache;
+}
 
-  // 5. For each node that has sources, map those sources to the node's policies
+function joinNodeSourcesToPolicies(
+  nodeToPolicies: Map<string, string[]>,
+  nodeSourceIdx: NodeSourceIndex,
+  policyMetaCache: Record<string, { dateIngested: string; sourceTime: string }>,
+  result: PolicySourceIndex,
+): void {
   for (const [nodeId, policyIds] of nodeToPolicies) {
     const sourceRefs = nodeSourceIdx[nodeId];
     if (!sourceRefs) continue;
-
     for (const polId of policyIds) {
       if (!result[polId]) result[polId] = [];
       for (const ref of sourceRefs) {
-        const meta = metaCache[ref.docId] || { dateIngested: ref.datePublished, sourceTime: '' };
+        const meta = policyMetaCache[ref.docId] || { dateIngested: ref.datePublished, sourceTime: '' };
         result[polId].push({
-          docId: ref.docId,
-          title: ref.title,
-          dateIngested: meta.dateIngested,
-          sourceTime: meta.sourceTime,
-          stance: ref.stance,
-          nodeId,
-          pov: ref.pov,
+          docId: ref.docId, title: ref.title, dateIngested: meta.dateIngested,
+          sourceTime: meta.sourceTime, stance: ref.stance, nodeId, pov: ref.pov,
         });
       }
     }
   }
+}
 
+/**
+ * For each policy in policy_actions.json, find all nodes that reference it
+ * (by scanning policy_actions in POV files), then use the node-source index
+ * to find which sources reference those nodes.
+ */
+export async function buildPolicySourceIndex(): Promise<PolicySourceIndex> {
+  const result: PolicySourceIndex = {};
+  const sourcesDir = getSourcesDir();
+
+  const regRaw = await readPolicyRegistry() as { policies?: { id: string }[] } | null;
+  if (!regRaw?.policies) return result;
+  for (const pol of regRaw.policies) { result[pol.id] = []; }
+
+  const nodeToPolicies = await buildNodeToPoliciesMap();
+  const nodeSourceIdx = await buildNodeSourceIndex();
+  const policyMetaCache = await loadPolicyMetaCache(sourcesDir);
+  joinNodeSourcesToPolicies(nodeToPolicies, nodeSourceIdx, policyMetaCache, result);
   return result;
 }
 
