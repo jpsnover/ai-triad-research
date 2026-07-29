@@ -2068,7 +2068,7 @@ Institutional memory for failure patterns across the AI Triad Research project.
 3. If urgency forces broadcasting first, label it PROVISIONAL / pending-validation; don't treat "written" as "validated." (e/49 self-corrected 4× in the hour.)
 4. Genus: a documented procedure is bookkeeping; the validating land is the artifact.
 
-**Status:** Active — TL-owned root cause of the 3 PR-flow defects (self-reported p/8#121). Candidate root-AGENTS.md / DevOps process rule for procedure rollouts. The three defects are recorded individually (refs/heads + `--delete-branch` in build.md; docs-only gate above); this is their common cause.
+**Status:** Active — TL-owned root cause of the 3 PR-flow defects (self-reported p/8#121). **BEING PROMOTED to a rule (TL p/8#123):** target = TL AGENTS.md (engineering/tech-lead), pending owner wording sign-off before the `ogit` overlay commit, citing `1ded61d4` + the 3-defect rollout; graduates to root AGENTS.md if the owner wants it fleet-binding. Add to the INDEX "AGENTS.md Rules (Escalated from Sage)" list once it lands. The three defects are recorded individually (refs/heads + `--delete-branch` in build.md; docs-only gate above); this is their common cause.
 
 **Applies To:** Anyone — esp. TL / DevOps — mandating a change to a fleet-standard procedure.
 
