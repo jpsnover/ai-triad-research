@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo, type ReactNode } from 'react';
 import { POV_META } from '@lib/electron-shared/povMeta';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import type { Pov, PovNode, Category, TabId } from '../../types/taxonomy';
@@ -28,6 +28,8 @@ import { NodeEditHistory } from './NodeEditHistory';
 import { nodeTypeFromId, nodePovFromId } from '@lib/debate/nodeIdUtils';
 import { POV_KEYS } from '@lib/debate/types';
 import { api } from '@bridge';
+import { useMentionRenderer } from '../shared/MentionField';
+import { reconstructNodeContainer } from '../shared/mentionText';
 import { EditConflictBadge, type NodeConflict } from '../conflict/edit-conflicts';
 import { triggerPovNodeRegeneration } from '../../utils/regeneratePlainDescription';
 import { generateAphorism } from '../../utils/regenerateAphorism';
@@ -127,6 +129,18 @@ export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, onRela
   const [relatedSplitPct, setRelatedSplitPct] = useState(40);
   const splitContainerRef = useRef<HTMLDivElement>(null);
   const formRef = useRef<HTMLDivElement>(null);
+
+  // Stored entity-name mentions for this node's reading-flow text (t/1898 §4.2). Fetched
+  // only in the read-only (reading) context — the editable editor uses inputs, not link
+  // spans. `reconstructNodeContainer` rebuilds the FULL container so every field's offset
+  // basis is correct even for fields we don't linkify here (label + plain_description
+  // land in E; the HighlightedTextarea `description` path is a tracked follow-up).
+  const mentionContainer = useMemo(
+    () => reconstructNodeContainer(node),
+    [node.label, node.description, node.plain_description],
+  );
+  const renderMentionField = useMentionRenderer(readOnly ? `node:${node.id}` : null, mentionContainer);
+  const labelContent: ReactNode = readOnly ? renderMentionField('label', node.label) : node.label;
 
   // Eagerly load facts index so count badge is available
   const [factCount, setFactCount] = useState(() => getFactCount(node.id));
@@ -359,6 +373,7 @@ export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, onRela
           onPin={onPin}
           moveTargets={moveTargets}
           setShowDelete={setShowDelete}
+          labelContent={labelContent}
         />
         <div className="nd-header-meta">
           <span className="nd-header-cat" data-cat={node.category}>
@@ -419,6 +434,7 @@ export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, onRela
             setExpandedLineage={setExpandedLineage}
             showAttributeInfo={showAttributeInfo}
             hasGraphAttrs={hasGraphAttrs}
+            renderMentionField={renderMentionField}
           />
         )}
 
@@ -520,14 +536,16 @@ interface NodeDetailHeaderTopProps {
   onPin?: () => void;
   moveTargets: MoveTarget[];
   setShowDelete: (v: boolean) => void;
+  /** Read-only label content (may carry linkified entity mentions, t/1898); falls back to node.label. */
+  labelContent?: ReactNode;
 }
 
-function NodeDetailHeaderTop({ pov, node, readOnly, err, update, maybeRegenAphorism, onSimilarSearch, onPin, moveTargets, setShowDelete }: NodeDetailHeaderTopProps) {
+function NodeDetailHeaderTop({ pov, node, readOnly, err, update, maybeRegenAphorism, onSimilarSearch, onPin, moveTargets, setShowDelete, labelContent }: NodeDetailHeaderTopProps) {
   return (
     <div className="nd-header-top">
       <div className="nd-header-title">
         {readOnly ? (
-          <span className="nd-header-label" title={node.label}>{node.label}</span>
+          <span className="nd-header-label" title={node.label}>{labelContent ?? node.label}</span>
         ) : (
           <input
             className={`nd-header-label nd-header-label-editable ${err('label') ? 'has-error' : ''}`}
@@ -777,9 +795,11 @@ interface DescriptionSectionProps {
   maybeRegenAphorism: () => void;
   update: (updates: Partial<PovNode>) => void;
   updatePovNode: (pov: Pov, id: string, updates: Partial<PovNode>) => void;
+  /** Renders a reconstructed container field's text with linkified entity mentions (t/1898); undefined = plain. */
+  renderMentionField?: (fieldName: string, fallback: string) => ReactNode;
 }
 
-function DescriptionSection({ pov, node, readOnly, err, descMode, setDescMode, maybeRegenAphorism, update, updatePovNode }: DescriptionSectionProps) {
+function DescriptionSection({ pov, node, readOnly, err, descMode, setDescMode, maybeRegenAphorism, update, updatePovNode, renderMentionField }: DescriptionSectionProps) {
   return (
     <div className={`form-group ${err('description') ? 'has-error' : ''}`}>
       <div className="description-header">
@@ -804,7 +824,11 @@ function DescriptionSection({ pov, node, readOnly, err, descMode, setDescMode, m
           {node.plain_description === null ? (
             <div className="plain-description-box plain-description-generating">Regenerating…</div>
           ) : (
-            <div className="plain-description-box">{node.plain_description ?? node.description}</div>
+            <div className="plain-description-box">
+              {readOnly && renderMentionField
+                ? renderMentionField(node.plain_description ? 'plain_description' : 'description', node.plain_description ?? node.description)
+                : (node.plain_description ?? node.description)}
+            </div>
           )}
           {!readOnly && (
             <button
@@ -977,9 +1001,11 @@ interface NodeDetailContentTabProps {
   setExpandedLineage: (v: string | null) => void;
   showAttributeInfo: (field: string, value: string) => void;
   hasGraphAttrs: boolean;
+  /** Renders a reconstructed container field's text with linkified entity mentions (t/1898). */
+  renderMentionField?: (fieldName: string, fallback: string) => ReactNode;
 }
 
-function NodeDetailContentTab({ pov, node, readOnly, err, descMode, setDescMode, maybeRegenAphorism, update, updatePovNode, showDtDrilldown, setShowDtDrilldown, expandedLineage, setExpandedLineage, showAttributeInfo, hasGraphAttrs }: NodeDetailContentTabProps) {
+function NodeDetailContentTab({ pov, node, readOnly, err, descMode, setDescMode, maybeRegenAphorism, update, updatePovNode, showDtDrilldown, setShowDtDrilldown, expandedLineage, setExpandedLineage, showAttributeInfo, hasGraphAttrs, renderMentionField }: NodeDetailContentTabProps) {
   return (
     <>
       {node.category === 'Beliefs' && (
@@ -1000,6 +1026,7 @@ function NodeDetailContentTab({ pov, node, readOnly, err, descMode, setDescMode,
         maybeRegenAphorism={maybeRegenAphorism}
         update={update}
         updatePovNode={updatePovNode}
+        renderMentionField={renderMentionField}
       />
 
       {hasGraphAttrs && (
