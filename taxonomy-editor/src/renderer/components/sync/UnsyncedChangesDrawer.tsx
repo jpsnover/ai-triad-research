@@ -138,181 +138,43 @@ export function UnsyncedChangesDrawer({ open, onClose, status, onChanged }: Prop
   return (
     <div className="unsynced-drawer-backdrop" onClick={onClose}>
       <div className="unsynced-drawer" onClick={e => e.stopPropagation()}>
-        <div className="unsynced-drawer-header">
-          <div>
-            <h3 className="unsynced-drawer-title">Unsynced changes</h3>
-            <div className="unsynced-drawer-subtitle">
-              {status.session_branch
-                ? <>Branch <code>{status.session_branch}</code> · {files.length} file{files.length === 1 ? '' : 's'}</>
-                : (isApiMode(status) ? 'No session branch — make edits to start' : 'Git sync disabled')}
-              {status.pr_number && status.pr_url && (
-                <> · <a href={status.pr_url} target="_blank" rel="noreferrer noopener" className="unsynced-drawer-pr-pill">
-                  PR #{status.pr_number}{status.push_pending ? ' ⏳' : ''}
-                </a></>
-              )}
-              {isApiMode(status) && status.behind_by != null && status.behind_by > 0 && (
-                <> · <span className="unsynced-drawer-behind">{status.behind_by} behind main</span></>
-              )}
-            </div>
-          </div>
-          <button className="btn btn-ghost" onClick={onClose} aria-label="Close">×</button>
-        </div>
+        <DrawerHeader status={status} files={files} onClose={onClose} />
 
         <GitProgressBanner />
 
-        <div className="unsynced-drawer-actions">
-          <button
-            className="btn btn-primary"
-            onClick={() => { setActionError(null); setPrDialog(true); }}
-            disabled={ghDisabled || busy !== null || (files.length === 0 && !status.pr_number)}
-            title={ghDisabled ? ghDisabledTitle : (status.pr_number ? 'Update the existing pull request' : 'Push the session branch and open a pull request')}
-          >
-            {status.pr_number ? `Update PR #${status.pr_number}` : 'Create pull request'}
-          </button>
-          <button
-            className="btn btn-ghost"
-            onClick={() => { setActionError(null); setResyncDialog(true); }}
-            disabled={ghDisabled || busy !== null}
-            title={ghDisabled ? ghDisabledTitle : 'Fetch origin/main and optionally rebase your session branch'}
-          >
-            Resync with GitHub
-          </button>
-          <button
-            className="btn btn-danger"
-            onClick={onDiscardAll}
-            disabled={busy !== null || files.length === 0}
-            title="Reset the session branch to main, dropping all local commits"
-          >
-            {busy === 'ALL' ? 'Discarding…' : 'Discard all'}
-          </button>
-        </div>
+        <DrawerActions
+          status={status}
+          ghDisabled={ghDisabled}
+          ghDisabledTitle={ghDisabledTitle}
+          busy={busy}
+          fileCount={files.length}
+          onCreatePr={() => { setActionError(null); setPrDialog(true); }}
+          onResync={() => { setActionError(null); setResyncDialog(true); }}
+          onDiscardAll={onDiscardAll}
+        />
 
-        {status.main_updated_available && (
-          <div className="unsynced-drawer-alert upstream">
-            <span>
-              Upstream <code>main</code> has new commits. Resync to avoid merge
-              surprises the next time you open a PR.
-            </span>
-            <button
-              className="btn btn-sm"
-              onClick={() => { setActionError(null); setResyncDialog(true); }}
-              disabled={ghDisabled || busy !== null}
-              title={ghDisabled ? ghDisabledTitle : 'Open the Resync dialog'}
-            >
-              Resync
-            </button>
-          </div>
-        )}
+        <DrawerAlerts
+          status={status}
+          ghDisabled={ghDisabled}
+          ghDisabledTitle={ghDisabledTitle}
+          busy={busy}
+          actionError={actionError}
+          actionInfo={actionInfo}
+          onResync={() => { setActionError(null); setResyncDialog(true); }}
+          onRebase={() => { setActionError(null); setRebaseModal(true); }}
+          onDismiss={() => { setActionError(null); setActionInfo(null); }}
+        />
 
-        {status.rebase_in_progress && !isApiMode(status) && (
-          <div className="unsynced-drawer-alert error">
-            <span>
-              Rebase paused with unresolved conflicts. Resolve them to finish
-              syncing with <code>origin/main</code>.
-            </span>
-            <button
-              className="btn btn-sm"
-              onClick={() => { setActionError(null); setRebaseModal(true); }}
-              disabled={busy !== null}
-              title="Open the conflict resolver"
-            >
-              Resolve conflicts
-            </button>
-          </div>
-        )}
-
-        {status.has_conflicts && isApiMode(status) && (
-          <div className="unsynced-drawer-alert error">
-            <span>
-              Merge conflicts detected between your session branch and <code>main</code>.
-              Resolve them on GitHub before continuing.
-            </span>
-            {status.pr_url && (
-              <a
-                href={status.pr_url}
-                target="_blank"
-                rel="noreferrer noopener"
-                className="btn btn-sm"
-              >
-                View on GitHub
-              </a>
-            )}
-          </div>
-        )}
-
-        {(actionError || actionInfo) && (
-          <div className={`unsynced-drawer-alert ${actionError ? 'error' : 'info'}`}>
-            <span>{actionError ?? actionInfo}</span>
-            <button
-              className="btn btn-ghost btn-sm"
-              onClick={() => { setActionError(null); setActionInfo(null); }}
-              aria-label="Dismiss"
-            >×</button>
-          </div>
-        )}
-
-        <div className="unsynced-drawer-body">
-          <div className="unsynced-drawer-file-list">
-            {loading && files.length === 0 && <div className="unsynced-drawer-empty">Loading…</div>}
-            {!loading && files.length === 0 && <div className="unsynced-drawer-empty">No unsynced changes.</div>}
-            {files.map(f => (
-              <div
-                key={f.path}
-                className={`unsynced-drawer-file ${selected === f.path ? 'selected' : ''}`}
-                onClick={() => setSelected(f.path)}
-              >
-                <span className={`unsynced-drawer-file-status status-${f.status.toLowerCase()}`}>
-                  {f.status}
-                </span>
-                <span className="unsynced-drawer-file-path" title={f.path}>{f.path}</span>
-                <span className="unsynced-drawer-file-label">{statusLabel(f.status)}</span>
-                {!isApiMode(status) && (
-                  <button
-                    className="btn btn-ghost btn-sm"
-                    onClick={(e) => { e.stopPropagation(); void onDiscardFile(f.path); }}
-                    disabled={busy !== null}
-                    title={`Discard changes to ${f.path}`}
-                  >
-                    {busy === f.path ? '…' : 'Discard'}
-                  </button>
-                )}
-              </div>
-            ))}
-          </div>
-
-          <div className="unsynced-drawer-diff-panel">
-            {selected && diff && (
-              <button
-                className="btn btn-ghost btn-sm unsynced-drawer-popout-btn"
-                onClick={() => {
-                  const w = window.open('', '_blank', 'width=1100,height=700');
-                  if (!w) return;
-                  const escaped = diff.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-                  const lines = escaped.split('\n').map(line => {
-                    let cls = '';
-                    if (line.startsWith('+++') || line.startsWith('---')) cls = 'hdr';
-                    else if (line.startsWith('+')) cls = 'add';
-                    else if (line.startsWith('-')) cls = 'del';
-                    else if (line.startsWith('@@')) cls = 'hunk';
-                    return `<div class="${cls}">${line || '&nbsp;'}</div>`;
-                  }).join('');
-                  w.document.write(`<!DOCTYPE html><html><head><title>Diff: ${selected.replace(/[<>&"]/g, '')}</title>
-<style>body{margin:0;background:#1a1a2e;color:#ccc;font:12px/1.5 monospace;padding:16px}
-.hdr{color:#888}.add{color:#4ade80;background:rgba(34,197,94,0.08)}
-.del{color:#f87171;background:rgba(239,68,68,0.08)}.hunk{color:#60a5fa}
-div{white-space:pre;padding:0 8px}</style></head><body>${lines}</body></html>`);
-                  w.document.close();
-                }}
-                title="Open diff in a new window for easier review"
-              >
-                ↗ Popout
-              </button>
-            )}
-            {selected
-              ? <DiffLines diff={diff} />
-              : <div className="unsynced-drawer-empty">Select a file to see its diff.</div>}
-          </div>
-        </div>
+        <DrawerBody
+          status={status}
+          loading={loading}
+          files={files}
+          selected={selected}
+          setSelected={setSelected}
+          diff={diff}
+          busy={busy}
+          onDiscardFile={onDiscardFile}
+        />
       </div>
 
       {prDialog && (
@@ -368,6 +230,211 @@ div{white-space:pre;padding:0 8px}</style></head><body>${lines}</body></html>`);
         }}
         onError={(msg) => { setRebaseModal(false); setActionError(msg); }}
       />
+    </div>
+  );
+}
+
+// ── Drawer sub-sections (extracted for complexity, t/1918) ──
+
+function DrawerHeader({ status, files, onClose }: { status: SyncStatus; files: UnsyncedFile[]; onClose: () => void }) {
+  return (
+    <div className="unsynced-drawer-header">
+      <div>
+        <h3 className="unsynced-drawer-title">Unsynced changes</h3>
+        <div className="unsynced-drawer-subtitle">
+          {status.session_branch
+            ? <>Branch <code>{status.session_branch}</code> · {files.length} file{files.length === 1 ? '' : 's'}</>
+            : (isApiMode(status) ? 'No session branch — make edits to start' : 'Git sync disabled')}
+          {status.pr_number && status.pr_url && (
+            <> · <a href={status.pr_url} target="_blank" rel="noreferrer noopener" className="unsynced-drawer-pr-pill">
+              PR #{status.pr_number}{status.push_pending ? ' ⏳' : ''}
+            </a></>
+          )}
+          {isApiMode(status) && status.behind_by != null && status.behind_by > 0 && (
+            <> · <span className="unsynced-drawer-behind">{status.behind_by} behind main</span></>
+          )}
+        </div>
+      </div>
+      <button className="btn btn-ghost" onClick={onClose} aria-label="Close">×</button>
+    </div>
+  );
+}
+
+function DrawerActions({ status, ghDisabled, ghDisabledTitle, busy, fileCount, onCreatePr, onResync, onDiscardAll }: {
+  status: SyncStatus; ghDisabled: boolean; ghDisabledTitle: string; busy: string | null; fileCount: number;
+  onCreatePr: () => void; onResync: () => void; onDiscardAll: () => void;
+}) {
+  return (
+    <div className="unsynced-drawer-actions">
+      <button
+        className="btn btn-primary"
+        onClick={onCreatePr}
+        disabled={ghDisabled || busy !== null || (fileCount === 0 && !status.pr_number)}
+        title={ghDisabled ? ghDisabledTitle : (status.pr_number ? 'Update the existing pull request' : 'Push the session branch and open a pull request')}
+      >
+        {status.pr_number ? `Update PR #${status.pr_number}` : 'Create pull request'}
+      </button>
+      <button
+        className="btn btn-ghost"
+        onClick={onResync}
+        disabled={ghDisabled || busy !== null}
+        title={ghDisabled ? ghDisabledTitle : 'Fetch origin/main and optionally rebase your session branch'}
+      >
+        Resync with GitHub
+      </button>
+      <button
+        className="btn btn-danger"
+        onClick={onDiscardAll}
+        disabled={busy !== null || fileCount === 0}
+        title="Reset the session branch to main, dropping all local commits"
+      >
+        {busy === 'ALL' ? 'Discarding…' : 'Discard all'}
+      </button>
+    </div>
+  );
+}
+
+function DrawerAlerts({ status, ghDisabled, ghDisabledTitle, busy, actionError, actionInfo, onResync, onRebase, onDismiss }: {
+  status: SyncStatus; ghDisabled: boolean; ghDisabledTitle: string; busy: string | null;
+  actionError: string | null; actionInfo: string | null;
+  onResync: () => void; onRebase: () => void; onDismiss: () => void;
+}) {
+  return (
+    <>
+      {status.main_updated_available && (
+        <div className="unsynced-drawer-alert upstream">
+          <span>
+            Upstream <code>main</code> has new commits. Resync to avoid merge
+            surprises the next time you open a PR.
+          </span>
+          <button
+            className="btn btn-sm"
+            onClick={onResync}
+            disabled={ghDisabled || busy !== null}
+            title={ghDisabled ? ghDisabledTitle : 'Open the Resync dialog'}
+          >
+            Resync
+          </button>
+        </div>
+      )}
+
+      {status.rebase_in_progress && !isApiMode(status) && (
+        <div className="unsynced-drawer-alert error">
+          <span>
+            Rebase paused with unresolved conflicts. Resolve them to finish
+            syncing with <code>origin/main</code>.
+          </span>
+          <button
+            className="btn btn-sm"
+            onClick={onRebase}
+            disabled={busy !== null}
+            title="Open the conflict resolver"
+          >
+            Resolve conflicts
+          </button>
+        </div>
+      )}
+
+      {status.has_conflicts && isApiMode(status) && (
+        <div className="unsynced-drawer-alert error">
+          <span>
+            Merge conflicts detected between your session branch and <code>main</code>.
+            Resolve them on GitHub before continuing.
+          </span>
+          {status.pr_url && (
+            <a
+              href={status.pr_url}
+              target="_blank"
+              rel="noreferrer noopener"
+              className="btn btn-sm"
+            >
+              View on GitHub
+            </a>
+          )}
+        </div>
+      )}
+
+      {(actionError || actionInfo) && (
+        <div className={`unsynced-drawer-alert ${actionError ? 'error' : 'info'}`}>
+          <span>{actionError ?? actionInfo}</span>
+          <button
+            className="btn btn-ghost btn-sm"
+            onClick={onDismiss}
+            aria-label="Dismiss"
+          >×</button>
+        </div>
+      )}
+    </>
+  );
+}
+
+function DrawerBody({ status, loading, files, selected, setSelected, diff, busy, onDiscardFile }: {
+  status: SyncStatus; loading: boolean; files: UnsyncedFile[];
+  selected: string | null; setSelected: (p: string) => void; diff: string; busy: string | null;
+  onDiscardFile: (p: string) => void | Promise<void>;
+}) {
+  return (
+    <div className="unsynced-drawer-body">
+      <div className="unsynced-drawer-file-list">
+        {loading && files.length === 0 && <div className="unsynced-drawer-empty">Loading…</div>}
+        {!loading && files.length === 0 && <div className="unsynced-drawer-empty">No unsynced changes.</div>}
+        {files.map(f => (
+          <div
+            key={f.path}
+            className={`unsynced-drawer-file ${selected === f.path ? 'selected' : ''}`}
+            onClick={() => setSelected(f.path)}
+          >
+            <span className={`unsynced-drawer-file-status status-${f.status.toLowerCase()}`}>
+              {f.status}
+            </span>
+            <span className="unsynced-drawer-file-path" title={f.path}>{f.path}</span>
+            <span className="unsynced-drawer-file-label">{statusLabel(f.status)}</span>
+            {!isApiMode(status) && (
+              <button
+                className="btn btn-ghost btn-sm"
+                onClick={(e) => { e.stopPropagation(); void onDiscardFile(f.path); }}
+                disabled={busy !== null}
+                title={`Discard changes to ${f.path}`}
+              >
+                {busy === f.path ? '…' : 'Discard'}
+              </button>
+            )}
+          </div>
+        ))}
+      </div>
+
+      <div className="unsynced-drawer-diff-panel">
+        {selected && diff && (
+          <button
+            className="btn btn-ghost btn-sm unsynced-drawer-popout-btn"
+            onClick={() => {
+              const w = window.open('', '_blank', 'width=1100,height=700');
+              if (!w) return;
+              const escaped = diff.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+              const lines = escaped.split('\n').map(line => {
+                let cls = '';
+                if (line.startsWith('+++') || line.startsWith('---')) cls = 'hdr';
+                else if (line.startsWith('+')) cls = 'add';
+                else if (line.startsWith('-')) cls = 'del';
+                else if (line.startsWith('@@')) cls = 'hunk';
+                return `<div class="${cls}">${line || '&nbsp;'}</div>`;
+              }).join('');
+              w.document.write(`<!DOCTYPE html><html><head><title>Diff: ${selected.replace(/[<>&"]/g, '')}</title>
+<style>body{margin:0;background:#1a1a2e;color:#ccc;font:12px/1.5 monospace;padding:16px}
+.hdr{color:#888}.add{color:#4ade80;background:rgba(34,197,94,0.08)}
+.del{color:#f87171;background:rgba(239,68,68,0.08)}.hunk{color:#60a5fa}
+div{white-space:pre;padding:0 8px}</style></head><body>${lines}</body></html>`);
+              w.document.close();
+            }}
+            title="Open diff in a new window for easier review"
+          >
+            ↗ Popout
+          </button>
+        )}
+        {selected
+          ? <DiffLines diff={diff} />
+          : <div className="unsynced-drawer-empty">Select a file to see its diff.</div>}
+      </div>
     </div>
   );
 }
