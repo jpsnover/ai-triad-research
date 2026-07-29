@@ -1,6 +1,6 @@
 # Computational Linguist — Owned Files
 
-**Last updated:** 2026-07-16
+**Last updated:** 2026-07-29
 **Author:** Computational Linguist (Orca)
 
 Files the Computational Linguist holds **mandatory review authority** over. Changes to any of these block merge until CL review (see `research/comp-linguist/AGENTS.md` → *When to Engage*). This list is updated in any PR that adds new prompt-bearing or metric-bearing code — see the Maintenance rule at the bottom.
@@ -56,6 +56,7 @@ Files the Computational Linguist holds **mandatory review authority** over. Chan
 | `<data>/taxonomy/Origin/entities.json` | Entity records — DOLCE-typed (`entity_type` + `dolce_category`, genus-differentia descriptions) | Mandatory |
 | `<data>/taxonomy/Origin/entity_edges.json` | `EntityEdgeType` vocabulary — AIF-adjacent edge semantics | Mandatory |
 | `<data>/taxonomy/Origin/entity_embeddings.json` | Entity linking/dedup vectors; `model` + `dim` recorded in-file so a silent model swap is detectable (t/1804) | Mandatory |
+| `<data>/taxonomy/Origin/entity_mentions.json` | Entity-mention index — per-container mentions (derived artifact, rebuildable by re-index); schema/`Mention` type in `lib/entities/mentionTypes.ts` (t/1893) | Mandatory |
 | **Other** | | |
 | `scripts/AITriad/Private/Get-EmbeddingClusters.ps1` | Embeddings | Mandatory |
 | `validation-report.json` | Validation outputs | Mandatory (sign-off) |
