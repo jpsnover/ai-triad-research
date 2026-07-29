@@ -256,6 +256,42 @@ describe('ClaimNodeRow', () => {
     expect(screen.getByText('▶')).toBeInTheDocument();
   });
 
+  it('shows the full attack source text without truncating past 100 chars', async () => {
+    const longText = 'The claim relies on debate hyperbole by fusing an inflated cost figure with an unrelated error-rate statistic to manufacture a false tradeoff between audit spend and worker accuracy.';
+    expect(longText.length).toBeGreaterThan(100);
+    const attackerNode = makeNode({ id: 'an-002', text: longText, speaker: 'safetyist' });
+    const attackEdge = makeEdge({ source: 'an-002', target: 'an-001', type: 'attacks', attack_type: 'rebut' });
+    const { container } = render(
+      <ClaimNodeRow
+        node={baseNode}
+        attacks={[attackEdge]}
+        supports={[]}
+        allNodes={[baseNode, attackerNode]}
+        strengthMap={new Map()}
+      />,
+    );
+    await userEvent.click(screen.getByText('▶'));
+    expect(container.textContent).toContain(longText);
+  });
+
+  it('shows the full support source text without truncating past 100 chars', async () => {
+    const longText = 'Dynamic, instrumented audit trails and reproducible test suites amortize remediation costs and provide durable evidence that materially strengthens the accountability claim over time.';
+    expect(longText.length).toBeGreaterThan(100);
+    const supporterNode = makeNode({ id: 'an-002', text: longText, speaker: 'accelerationist' });
+    const supportEdge = makeEdge({ source: 'an-002', target: 'an-001', type: 'supports' });
+    const { container } = render(
+      <ClaimNodeRow
+        node={baseNode}
+        attacks={[]}
+        supports={[supportEdge]}
+        allNodes={[baseNode, supporterNode]}
+        strengthMap={new Map()}
+      />,
+    );
+    await userEvent.click(screen.getByText('▶'));
+    expect(container.textContent).toContain(longText);
+  });
+
   it('uses strengthMap value when available', () => {
     const strengthMap = new Map([['an-001', 0.9]]);
     render(

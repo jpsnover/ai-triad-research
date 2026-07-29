@@ -1,5 +1,14 @@
 /* TaxonomyRefs — mechanical CSS migration of static inline styles (t/1866) */
 
+/* Selected BDI ref chip — persistent "active" look while its inline detail is open.
+   !important overrides the dynamic inline POV color the pill carries, matching the
+   existing .debate-taxonomy-pill-clickable:hover treatment. */
+.debate-taxonomy-pill-selected {
+  background: var(--focus-ring);
+  color: #fff !important;
+  border-color: var(--focus-ring) !important;
+}
+
 .taxrefs-explain-copied {
   color: #22c55e;
   cursor: default;

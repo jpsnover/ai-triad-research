@@ -49,13 +49,19 @@ export function CoverageBadge({ coverageMap, strengthWeighted }: { coverageMap: 
   );
 }
 
-export function TaxonomyPill({ taxRef }: { taxRef: TaxonomyRef }) {
+export function TaxonomyPill({ taxRef, onSelect, selected }: {
+  taxRef: TaxonomyRef;
+  /** When provided, a click toggles inline selection instead of navigating to the main window (t/1724 pattern). */
+  onSelect?: (nodeId: string) => void;
+  selected?: boolean;
+}) {
   const { colorVar } = nodeIdToTab(taxRef.node_id);
   const label = getNodeLabel(taxRef.node_id);
 
   const handleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    focusMainWindowNode(taxRef.node_id);
+    if (onSelect) onSelect(taxRef.node_id);
+    else focusMainWindowNode(taxRef.node_id);
   };
 
   const scoreLabel = taxRef.relevance_score != null
@@ -65,10 +71,11 @@ export function TaxonomyPill({ taxRef }: { taxRef: TaxonomyRef }) {
 
   return (
     <span
-      className={`debate-taxonomy-pill debate-taxonomy-pill-clickable${taxRef.primary ? ' debate-taxonomy-pill-primary' : ''}`}
+      className={`debate-taxonomy-pill debate-taxonomy-pill-clickable${taxRef.primary ? ' debate-taxonomy-pill-primary' : ''}${selected ? ' debate-taxonomy-pill-selected' : ''}`}
       // eslint-disable-next-line local/no-inline-style -- dynamic POV color from nodeIdToTab
       style={{ borderColor: colorVar, color: colorVar }}
       title={`${primaryMarker}${label}${scoreLabel}\n${taxRef.relevance}`}
+      aria-pressed={onSelect ? selected === true : undefined}
       onClick={handleClick}
     >
       {primaryMarker}{taxRef.node_id}{scoreLabel}
@@ -89,6 +96,10 @@ export function TaxonomyRefsSection({ refs, policyRefs, metaPolicyRefs, entry, s
   const [explainCopied, setExplainCopied] = useState(false);
   // Selected PLAN-view taxonomy anchor → shows its POV details inline (t/1724).
   const [selectedPlanNodeId, setSelectedPlanNodeId] = useState<string | null>(null);
+  // Selected BDI ref → shows its POV details inline below the list, in place of
+  // navigating away to the main window (same t/1724 inline-detail pattern).
+  const [selectedBdiNodeId, setSelectedBdiNodeId] = useState<string | null>(null);
+  const toggleBdiNode = (nodeId: string) => setSelectedBdiNodeId(prev => prev === nodeId ? null : nodeId);
   const lookupPinnedData = useTaxonomyStore(s => s.lookupPinnedData);
   const polRefs = metaPolicyRefs || policyRefs || [];
 
@@ -314,16 +325,22 @@ export function TaxonomyRefsSection({ refs, policyRefs, metaPolicyRefs, entry, s
               <div className="debate-reasoning-section-body">
                 <div className="debate-taxonomy-refs taxrefs-refs-mb">
                   {[...refs].sort((a, b) => (b.relevance_score ?? 0) - (a.relevance_score ?? 0)).map((taxRef) => (
-                    <TaxonomyPill key={taxRef.node_id} taxRef={taxRef} />
+                    <TaxonomyPill
+                      key={taxRef.node_id}
+                      taxRef={taxRef}
+                      onSelect={toggleBdiNode}
+                      selected={selectedBdiNodeId === taxRef.node_id}
+                    />
                   ))}
                   {polRefs.map((polRef, i) => {
                     const { id } = resolvePolRef(polRef);
                     return (
                       <span
                         key={`${id}-${i}`}
-                        className="debate-taxonomy-pill debate-taxonomy-pill-clickable taxrefs-pol-pill"
+                        className={`debate-taxonomy-pill debate-taxonomy-pill-clickable taxrefs-pol-pill${selectedBdiNodeId === id ? ' debate-taxonomy-pill-selected' : ''}`}
                         title={getPolicyAction(id)}
-                        onClick={(e) => { e.stopPropagation(); focusMainWindowNode(id); }}
+                        aria-pressed={selectedBdiNodeId === id}
+                        onClick={(e) => { e.stopPropagation(); toggleBdiNode(id); }}
                       >
                         {id}
                       </span>
@@ -346,7 +363,8 @@ export function TaxonomyRefsSection({ refs, policyRefs, metaPolicyRefs, entry, s
                         className="debate-reasoning-node"
                         // eslint-disable-next-line local/no-inline-style -- dynamic POV color from nodeIdToTab
                         style={{ color: colorVar }}
-                        onClick={() => focusMainWindowNode(taxRef.node_id)}
+                        aria-expanded={selectedBdiNodeId === taxRef.node_id}
+                        onClick={() => toggleBdiNode(taxRef.node_id)}
                       >
                         {taxRef.node_id}
                       </button>
@@ -366,7 +384,8 @@ export function TaxonomyRefsSection({ refs, policyRefs, metaPolicyRefs, entry, s
                     <div key={`${id}-${i}`} className="debate-reasoning-item">
                       <button
                         className="debate-reasoning-node taxrefs-node-sit"
-                        onClick={() => focusMainWindowNode(id)}
+                        aria-expanded={selectedBdiNodeId === id}
+                        onClick={() => toggleBdiNode(id)}
                       >
                         {id}
                       </button>
@@ -375,6 +394,26 @@ export function TaxonomyRefsSection({ refs, policyRefs, metaPolicyRefs, entry, s
                     </div>
                   );
                 })}
+                {/* Inline POV detail for the clicked BDI ref (chip or node id).
+                    Resolved from the client-side taxonomy store — no fetch. Rendered
+                    once at the end of the BDI body so clicking a ref reveals its
+                    details in place rather than navigating to the main window. */}
+                {selectedBdiNodeId && (() => {
+                  const data = lookupPinnedData(selectedBdiNodeId);
+                  const node = data && data.type !== 'conflict'
+                    ? (data.node as unknown as TaxRefNode)
+                    : undefined;
+                  const pov = data?.type === 'pov' ? data.pov
+                    : data?.type === 'situations' ? 'situations' : '';
+                  return (
+                    <TaxonomyRefDetail
+                      nodeId={selectedBdiNodeId}
+                      node={node}
+                      pov={pov}
+                      onClose={() => setSelectedBdiNodeId(null)}
+                    />
+                  );
+                })()}
               </div>
             </details>
           )}

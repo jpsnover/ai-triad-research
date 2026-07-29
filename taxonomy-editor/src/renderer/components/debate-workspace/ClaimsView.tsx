@@ -106,7 +106,7 @@ export function ClaimNodeRow({ node, attacks, supports, allNodes, strengthMap, s
                 <span title={`Attack type: ${e.attack_type ?? 'rebut'} (multiplier: ${atkMult.toFixed(1)})\nEdge weight: ${edgeWeight.toFixed(2)}${hasWeight ? '' : ' (default — no AI weight)'}${contribution != null ? `\nContribution: −${contribution.toFixed(2)} (${(srcStr ?? 0).toFixed(2)} × ${edgeWeight.toFixed(1)} × ${atkMult.toFixed(1)})` : ''}`}>
                   {e.attack_type ?? 'rebut'}
                 </span>{' '}
-                ({speakerLabel(src?.speaker ?? 'system')}): {src?.text?.slice(0, 100)}{(src?.text?.length ?? 0) > 100 ? '…' : ''}
+                ({speakerLabel(src?.speaker ?? 'system')}): {src?.text}
               </div>
             );
           })}
@@ -122,7 +122,7 @@ export function ClaimNodeRow({ node, attacks, supports, allNodes, strengthMap, s
                 <span title={`Support\nEdge weight: ${edgeWeight.toFixed(2)}${hasWeight ? '' : ' (default — no AI weight)'}${contribution != null ? `\nContribution: +${contribution.toFixed(2)} (${(srcStr ?? 0).toFixed(2)} × ${edgeWeight.toFixed(1)})` : ''}`}>
                   support
                 </span>{' '}
-                ({speakerLabel(src?.speaker ?? 'system')}): {src?.text?.slice(0, 100)}{(src?.text?.length ?? 0) > 100 ? '…' : ''}
+                ({speakerLabel(src?.speaker ?? 'system')}): {src?.text}
               </div>
             );
           })}
