@@ -936,171 +936,232 @@ function computeRoundAndPhase(activeDebate: DebateSession, aiPovers: _AiPover[],
   return { crossRespondRound, phase, totalRoundsForPhase };
 }
 
-async function runPostTerminationTurn(activeDebate: DebateSession, aiPovers: _AiPover[], topic: string, model: string, get: _Get, set: _Set, isStillValid: () => boolean, addTranscriptEntry: _AddEntry, saveDebate: _SaveDebate): Promise<boolean> {
-    const isAlreadyTerminated = activeDebate.phase === 'closed'
-      || (activeDebate as unknown as Record<string, unknown>).adaptive_staging
-        && ((activeDebate as unknown as Record<string, unknown>).adaptive_staging as Record<string, unknown>)?.phase_state
-        && ((activeDebate as unknown as Record<string, unknown>).adaptive_staging as Record<string, unknown> & { phase_state: { current_phase: string } }).phase_state.current_phase === 'terminated';
-    if (isAlreadyTerminated) {
-      // Find debaters who haven't spoken in the last round
-      const lastRoundSpeakers = new Set<string>();
-      for (let j = activeDebate.transcript.length - 1; j >= 0; j--) {
-        const e = activeDebate.transcript[j];
-        if ((e.type as string) === 'statement') lastRoundSpeakers.add(e.speaker);
-        else if (e.type === 'system' && /\[Phase|Moderator|Round/.test(e.content)) break;
-        else if ((e.type as string) !== 'statement' && e.type !== 'system') break;
-      }
-      const missingPovers = aiPovers.filter(p => !lastRoundSpeakers.has(p));
-      if (missingPovers.length > 0) {
-        // Use the first missing pover and jump straight to step 2 (response generation)
-        const responderPover = missingPovers[0];
-        const crossRespondRound = activeDebate.transcript.filter(e => e.type === 'statement').length + 1;
-        const phase = 'concluding';
-        const focusPoint = 'Give your final statement on this debate.';
-        const addressingLabel = 'all';
-        set({ debateGenerating: responderPover, debateActivity: `${POVER_INFO[responderPover].label} is preparing...` });
+// ── runPostTerminationTurn phase helpers (t/1848) ────────────────────
+// runPostTerminationTurn was a single 55-complexity terminated-debate final-statement
+// fast path. Its phases are extracted here as helpers (bodies moved verbatim; see
+// ADR-007 split pattern). Control flow uses early returns; the two `return true`
+// exit points (debate-switched abort + normal completion) are preserved.
 
-        // Jump to step 2 with these values — the rest of crossRespond handles it
-        // We need to skip to the pipeline section; use a goto-like pattern by setting these
-        // and falling through. Instead, extract a helper or inline the pipeline call.
-        // For simplicity: call the pipeline inline here.
-        const info = POVER_INFO[responderPover];
-        const currentTranscript = formatRecentTranscript(get().activeDebate!.transcript, 8, get().activeDebate!.context_summaries);
-        const ctx = await getRelevantTaxonomyContext(info.pov, topic, currentTranscript);
-        const speakerClaims = (activeDebate.argument_network?.nodes || []).filter(n => n.speaker === responderPover);
-        const commitBlock = formatCommitments(
-          activeDebate.commitments?.[responderPover] || { asserted: [], conceded: [], challenged: [] },
-          speakerClaims,
-        );
-        const allANNodes = (activeDebate.argument_network?.nodes || []).map(n => ({
-          id: n.id, text: n.text, speaker: POVER_INFO[n.speaker as Exclude<SpeakerId, 'user'>]?.label || n.speaker,
-        }));
-        const establishedBlock = formatEstablishedPoints(allANNodes, info.label, 10);
-        const edgeBlock = formatDebaterEdgeContext(info.pov);
-        const concessionAN = activeDebate.argument_network;
-        const priorConceded = activeDebate.commitments?.[responderPover]?.conceded ?? [];
-        const concessionHint = concessionAN
-          ? formatConcessionCandidatesHint(concessionAN.nodes, concessionAN.edges, responderPover, priorConceded)
-          : '';
-        const crVocab = get().vocabularyTerms;
-        const crVocabBlock = crVocab
-          ? '\n' + formatVocabularyContext({ pov: info.pov, standardizedTerms: crVocab.standardized, colloquialTerms: crVocab.colloquial })
-          : '';
-        const taxonomyBlock = formatTaxonomyContext(ctx, info.pov) + crVocabBlock;
-        const crDocAnalysis = activeDebate.document_analysis;
-        const priorMoves = activeDebate.transcript
-          .filter(e => e.speaker === responderPover && e.metadata)
-          .flatMap(e => {
-            const mt = (e.metadata as Record<string, unknown>)?.move_types;
-            return Array.isArray(mt) ? mt.map(m => getMoveName(m)) : [];
-          })
-          .slice(-6);
-        const priorRefs = activeDebate.transcript
-          .filter(e => e.speaker === responderPover && e.type !== 'opening')
-          .slice(-2)
-          .flatMap(e => (e.taxonomy_refs ?? []).map(r => r.node_id));
-        const availablePovNodeIds = [...getAllKnownNodeIds()];
-        const debaterGapHint = formatGapHint(activeDebate.gap_injections);
-        const [evidenceIndex, docTitles] = await Promise.all([getSourceEvidenceIndex(), getDocTitles()]);
+/** True when the debate is already terminated/closed (eligible for a final-statement fast path). */
+function isPostTerminationEligible(activeDebate: DebateSession): boolean {
+  return !!(activeDebate.phase === 'closed'
+    || (activeDebate as unknown as Record<string, unknown>).adaptive_staging
+      && ((activeDebate as unknown as Record<string, unknown>).adaptive_staging as Record<string, unknown>)?.phase_state
+      && ((activeDebate as unknown as Record<string, unknown>).adaptive_staging as Record<string, unknown> & { phase_state: { current_phase: string } }).phase_state.current_phase === 'terminated');
+}
 
-        // Count turns since this debater last used a CONCEDE move
-        const ptDebaterTurns = activeDebate.transcript
-          .filter(e => e.speaker === responderPover && ((e.type as string) === 'statement' || e.type === 'opening'));
-        let ptTurnsSinceLastConcession = ptDebaterTurns.length;
-        for (let i = ptDebaterTurns.length - 1; i >= 0; i--) {
-          const moves = ((ptDebaterTurns[i].metadata as Record<string, unknown>)?.move_types as (string | MoveAnnotation)[]) ?? [];
-          if (moves.some(m => getMoveName(m).includes('CONCEDE'))) {
-            ptTurnsSinceLastConcession = ptDebaterTurns.length - 1 - i;
-            break;
-          }
-        }
+/** POVers who have not spoken in the last round (walking the transcript back to the last phase/round marker). */
+function findLastRoundMissingResponders(activeDebate: DebateSession, aiPovers: _AiPover[]): _AiPover[] {
+  const lastRoundSpeakers = new Set<string>();
+  for (let j = activeDebate.transcript.length - 1; j >= 0; j--) {
+    const e = activeDebate.transcript[j];
+    if ((e.type as string) === 'statement') lastRoundSpeakers.add(e.speaker);
+    else if (e.type === 'system' && /\[Phase|Moderator|Round/.test(e.content)) break;
+    else if ((e.type as string) !== 'statement' && e.type !== 'system') break;
+  }
+  return aiPovers.filter(p => !lastRoundSpeakers.has(p));
+}
 
-        const pipelineInput: TurnPipelineInput = {
-          label: info.label,
-          pov: info.pov,
-          personality: info.personality,
-          topic,
-          taxonomyContext: taxonomyBlock,
-          commitmentContext: commitBlock,
-          establishedPoints: establishedBlock,
-          edgeContext: edgeBlock,
-          concessionHint: concessionHint + debaterGapHint,
-          recentTranscript: currentTranscript,
-          focusPoint,
-          addressing: addressingLabel,
-          phase,
-          priorMoves,
-          priorRefs,
-          availablePovNodeIds,
-          turnsSinceLastConcession: ptTurnsSinceLastConcession,
-          pendingIntervention: undefined,
-          sourceContent: crDocAnalysis ? undefined : (activeDebate.source_content || undefined),
-          documentAnalysis: crDocAnalysis,
-          audience: activeDebate.audience,
-          model: getSpeakerModel(activeDebate, responderPover, model),
-          briefModel: activeDebate.stage_models?.brief || undefined,
-          planModel: activeDebate.stage_models?.plan || undefined,
-          citeModel: activeDebate.stage_models?.cite || undefined,
-          sourceEvidenceIndex: evidenceIndex as TurnPipelineInput['sourceEvidenceIndex'],
-          docTitles: docTitles as TurnPipelineInput['docTitles'],
-          doctrinalBoundaries: info.doctrinal_boundaries,
-          background: activeDebate.topic?.background || undefined,
-        };
-
-        const stageGenerate = makeStageGenerate(set as (partial: Record<string, unknown>) => void, getSpeakerModel(activeDebate, responderPover, model));
-        const pipelineResult = await runTurnPipeline(pipelineInput, stageGenerate);
-        if (!isStillValid()) { releaseDebateDriver(); set({ debateGenerating: null }); getGlobalRecorder()?.record({ type: 'debate.lifecycle', component: 'debate-store', level: 'info', debate_id: activeDebate.id, message: 'debate.ended', data: { reason: 'debate_switched' } }); return true; }
-
-        const { statement, taxonomyRefs, meta } = parsePoverResponse(pipelineResult.final_text ?? '');
-        if (ctx.nodeScores) {
-          for (const ref of taxonomyRefs) {
-            const score = ctx.nodeScores.get(ref.node_id);
-            if (score != null) ref.relevance_score = score;
-          }
-        }
-        const relevanceSources = serializeNodeSourceMap(ctx.nodeSourceMap, taxonomyRefs);
-        addTranscriptEntry({
-          type: 'statement',
-          speaker: responderPover,
-          content: statement,
-          taxonomy_refs: taxonomyRefs,
-          policy_refs: meta.policy_refs,
-          addressing: addressingLabel,
-          metadata: { ...meta, round: crossRespondRound, moderator_trace: { selected: info.label, selection_reason: 'post_termination_final_statement' }, relevance_sources: relevanceSources, injection_manifest: ctx.injectionManifest },
-        });
-        const lastEntry = get().activeDebate?.transcript.slice(-1)[0];
-        if (lastEntry) {
-
-          const draftDiag = pipelineResult.stage_diagnostics.find(s => s.stage === 'draft');
-          const topicAlignDiagTerm = pipelineResult.topicAlignmentResult
-            ? {
-              topic_aligned: pipelineResult.topicAlignmentResult.topic_aligned,
-              repaired: pipelineResult.topicAlignmentResult.repaired || undefined,
-              draft_attempt: pipelineResult.topicAlignmentResult.draft_attempt,
-              scope_used: get().activeDebate?.topic?.scope ?? null,
-            }
-            : undefined;
-          recordDiagnostic(get, set, lastEntry.id, {
-            prompt: draftDiag?.raw_response ?? pipelineResult.final_text,
-            raw_response: pipelineResult.final_text,
-            model,
-            taxonomy_context: taxonomyBlock,
-            commitment_context: commitBlock || undefined,
-            stage_diagnostics: pipelineResult.stage_diagnostics,
-            topic_alignment: topicAlignDiagTerm,
-            quality_gate: pipelineResult.qualityGateResult,
-          });
-          void extractClaimsAndUpdateAN(statement, responderPover, lastEntry.id, taxonomyRefs.map(r => r.node_id), get, set, meta.my_claims);
-          await summarizeTranscriptEntry(lastEntry.id, statement, info.label, model, get, set);
-        }
-        releaseDebateDriver();
-        set({ debateGenerating: null });
-        getGlobalRecorder()?.record({ type: 'debate.lifecycle', component: 'debate-store', level: 'info', debate_id: activeDebate.id, message: 'debate.ended', data: { reason: 'post_termination_complete' } });
-        await saveDebate('crossRespond:postTermination');
-        return true;
-      }
+/** Turns since the responder last played a CONCEDE move (its total turn count if never). */
+function countTurnsSinceLastConcession(activeDebate: DebateSession, responderPover: _AiPover): number {
+  const ptDebaterTurns = activeDebate.transcript
+    .filter(e => e.speaker === responderPover && ((e.type as string) === 'statement' || e.type === 'opening'));
+  let ptTurnsSinceLastConcession = ptDebaterTurns.length;
+  for (let i = ptDebaterTurns.length - 1; i >= 0; i--) {
+    const moves = ((ptDebaterTurns[i].metadata as Record<string, unknown>)?.move_types as (string | MoveAnnotation)[]) ?? [];
+    if (moves.some(m => getMoveName(m).includes('CONCEDE'))) {
+      ptTurnsSinceLastConcession = ptDebaterTurns.length - 1 - i;
+      break;
     }
-  return false;
+  }
+  return ptTurnsSinceLastConcession;
+}
+
+/** Per-stage model overrides for a debate (undefined when unset). */
+function resolveStageModels(activeDebate: DebateSession) {
+  return {
+    briefModel: activeDebate.stage_models?.brief || undefined,
+    planModel: activeDebate.stage_models?.plan || undefined,
+    citeModel: activeDebate.stage_models?.cite || undefined,
+  };
+}
+
+/** Build the prompt-context blocks for a responder's post-termination turn. */
+function buildPostTerminationContextBlocks(
+  activeDebate: DebateSession,
+  responderPover: _AiPover,
+  info: typeof POVER_INFO[_AiPover],
+  ctx: Awaited<ReturnType<typeof getRelevantTaxonomyContext>>,
+  get: _Get,
+): { commitBlock: string; establishedBlock: string; edgeBlock: string; concessionHint: string; taxonomyBlock: string } {
+  const speakerClaims = (activeDebate.argument_network?.nodes || []).filter(n => n.speaker === responderPover);
+  const commitBlock = formatCommitments(
+    activeDebate.commitments?.[responderPover] || { asserted: [], conceded: [], challenged: [] },
+    speakerClaims,
+  );
+  const allANNodes = (activeDebate.argument_network?.nodes || []).map(n => ({
+    id: n.id, text: n.text, speaker: POVER_INFO[n.speaker as Exclude<SpeakerId, 'user'>]?.label || n.speaker,
+  }));
+  const establishedBlock = formatEstablishedPoints(allANNodes, info.label, 10);
+  const edgeBlock = formatDebaterEdgeContext(info.pov);
+  const concessionAN = activeDebate.argument_network;
+  const priorConceded = activeDebate.commitments?.[responderPover]?.conceded ?? [];
+  const concessionHint = concessionAN
+    ? formatConcessionCandidatesHint(concessionAN.nodes, concessionAN.edges, responderPover, priorConceded)
+    : '';
+  const crVocab = get().vocabularyTerms;
+  const crVocabBlock = crVocab
+    ? '\n' + formatVocabularyContext({ pov: info.pov, standardizedTerms: crVocab.standardized, colloquialTerms: crVocab.colloquial })
+    : '';
+  const taxonomyBlock = formatTaxonomyContext(ctx, info.pov) + crVocabBlock;
+  return { commitBlock, establishedBlock, edgeBlock, concessionHint, taxonomyBlock };
+}
+
+/** Assemble the TurnPipelineInput for a responder's post-termination final statement. */
+async function buildPostTerminationPipelineInput(
+  activeDebate: DebateSession,
+  responderPover: _AiPover,
+  info: typeof POVER_INFO[_AiPover],
+  topic: string,
+  model: string,
+  currentTranscript: string,
+  ctx: Awaited<ReturnType<typeof getRelevantTaxonomyContext>>,
+  phase: DebatePhase,
+  focusPoint: string,
+  addressingLabel: string,
+  get: _Get,
+): Promise<{ pipelineInput: TurnPipelineInput; taxonomyBlock: string; commitBlock: string }> {
+  const { commitBlock, establishedBlock, edgeBlock, concessionHint, taxonomyBlock } = buildPostTerminationContextBlocks(activeDebate, responderPover, info, ctx, get);
+  const crDocAnalysis = activeDebate.document_analysis;
+  const priorMoves = activeDebate.transcript
+    .filter(e => e.speaker === responderPover && e.metadata)
+    .flatMap(e => {
+      const mt = (e.metadata as Record<string, unknown>)?.move_types;
+      return Array.isArray(mt) ? mt.map(m => getMoveName(m)) : [];
+    })
+    .slice(-6);
+  const priorRefs = activeDebate.transcript
+    .filter(e => e.speaker === responderPover && e.type !== 'opening')
+    .slice(-2)
+    .flatMap(e => (e.taxonomy_refs ?? []).map(r => r.node_id));
+  const availablePovNodeIds = [...getAllKnownNodeIds()];
+  const debaterGapHint = formatGapHint(activeDebate.gap_injections);
+  const [evidenceIndex, docTitles] = await Promise.all([getSourceEvidenceIndex(), getDocTitles()]);
+  const ptTurnsSinceLastConcession = countTurnsSinceLastConcession(activeDebate, responderPover);
+  const stageModels = resolveStageModels(activeDebate);
+
+  const pipelineInput: TurnPipelineInput = {
+    label: info.label,
+    pov: info.pov,
+    personality: info.personality,
+    topic,
+    taxonomyContext: taxonomyBlock,
+    commitmentContext: commitBlock,
+    establishedPoints: establishedBlock,
+    edgeContext: edgeBlock,
+    concessionHint: concessionHint + debaterGapHint,
+    recentTranscript: currentTranscript,
+    focusPoint,
+    addressing: addressingLabel,
+    phase,
+    priorMoves,
+    priorRefs,
+    availablePovNodeIds,
+    turnsSinceLastConcession: ptTurnsSinceLastConcession,
+    pendingIntervention: undefined,
+    sourceContent: crDocAnalysis ? undefined : (activeDebate.source_content || undefined),
+    documentAnalysis: crDocAnalysis,
+    audience: activeDebate.audience,
+    model: getSpeakerModel(activeDebate, responderPover, model),
+    briefModel: stageModels.briefModel,
+    planModel: stageModels.planModel,
+    citeModel: stageModels.citeModel,
+    sourceEvidenceIndex: evidenceIndex as TurnPipelineInput['sourceEvidenceIndex'],
+    docTitles: docTitles as TurnPipelineInput['docTitles'],
+    doctrinalBoundaries: info.doctrinal_boundaries,
+    background: activeDebate.topic?.background || undefined,
+  };
+  return { pipelineInput, taxonomyBlock, commitBlock };
+}
+
+/** Record per-entry diagnostics for a completed post-termination turn. */
+function recordPostTerminationDiagnostics(
+  get: _Get, set: _Set, lastEntryId: string,
+  pipelineResult: Awaited<ReturnType<typeof runTurnPipeline>>,
+  model: string, taxonomyBlock: string, commitBlock: string,
+): void {
+  const draftDiag = pipelineResult.stage_diagnostics.find(s => s.stage === 'draft');
+  const topicAlignDiagTerm = pipelineResult.topicAlignmentResult
+    ? {
+      topic_aligned: pipelineResult.topicAlignmentResult.topic_aligned,
+      repaired: pipelineResult.topicAlignmentResult.repaired || undefined,
+      draft_attempt: pipelineResult.topicAlignmentResult.draft_attempt,
+      scope_used: get().activeDebate?.topic?.scope ?? null,
+    }
+    : undefined;
+  recordDiagnostic(get, set, lastEntryId, {
+    prompt: draftDiag?.raw_response ?? pipelineResult.final_text,
+    raw_response: pipelineResult.final_text,
+    model,
+    taxonomy_context: taxonomyBlock,
+    commitment_context: commitBlock || undefined,
+    stage_diagnostics: pipelineResult.stage_diagnostics,
+    topic_alignment: topicAlignDiagTerm,
+    quality_gate: pipelineResult.qualityGateResult,
+  });
+}
+
+async function runPostTerminationTurn(activeDebate: DebateSession, aiPovers: _AiPover[], topic: string, model: string, get: _Get, set: _Set, isStillValid: () => boolean, addTranscriptEntry: _AddEntry, saveDebate: _SaveDebate): Promise<boolean> {
+  if (!isPostTerminationEligible(activeDebate)) return false;
+  // Find debaters who haven't spoken in the last round
+  const missingPovers = findLastRoundMissingResponders(activeDebate, aiPovers);
+  if (missingPovers.length === 0) return false;
+
+  // Use the first missing pover and jump straight to step 2 (response generation)
+  const responderPover = missingPovers[0];
+  const crossRespondRound = activeDebate.transcript.filter(e => e.type === 'statement').length + 1;
+  const phase = 'concluding';
+  const focusPoint = 'Give your final statement on this debate.';
+  const addressingLabel = 'all';
+  set({ debateGenerating: responderPover, debateActivity: `${POVER_INFO[responderPover].label} is preparing...` });
+
+  const info = POVER_INFO[responderPover];
+  const currentTranscript = formatRecentTranscript(get().activeDebate!.transcript, 8, get().activeDebate!.context_summaries);
+  const ctx = await getRelevantTaxonomyContext(info.pov, topic, currentTranscript);
+  const { pipelineInput, taxonomyBlock, commitBlock } = await buildPostTerminationPipelineInput(activeDebate, responderPover, info, topic, model, currentTranscript, ctx, phase, focusPoint, addressingLabel, get);
+
+  const stageGenerate = makeStageGenerate(set as (partial: Record<string, unknown>) => void, getSpeakerModel(activeDebate, responderPover, model));
+  const pipelineResult = await runTurnPipeline(pipelineInput, stageGenerate);
+  if (!isStillValid()) { releaseDebateDriver(); set({ debateGenerating: null }); getGlobalRecorder()?.record({ type: 'debate.lifecycle', component: 'debate-store', level: 'info', debate_id: activeDebate.id, message: 'debate.ended', data: { reason: 'debate_switched' } }); return true; }
+
+  const { statement, taxonomyRefs, meta } = parsePoverResponse(pipelineResult.final_text ?? '');
+  if (ctx.nodeScores) {
+    for (const ref of taxonomyRefs) {
+      const score = ctx.nodeScores.get(ref.node_id);
+      if (score != null) ref.relevance_score = score;
+    }
+  }
+  const relevanceSources = serializeNodeSourceMap(ctx.nodeSourceMap, taxonomyRefs);
+  addTranscriptEntry({
+    type: 'statement',
+    speaker: responderPover,
+    content: statement,
+    taxonomy_refs: taxonomyRefs,
+    policy_refs: meta.policy_refs,
+    addressing: addressingLabel,
+    metadata: { ...meta, round: crossRespondRound, moderator_trace: { selected: info.label, selection_reason: 'post_termination_final_statement' }, relevance_sources: relevanceSources, injection_manifest: ctx.injectionManifest },
+  });
+  const lastEntry = get().activeDebate?.transcript.slice(-1)[0];
+  if (lastEntry) {
+    recordPostTerminationDiagnostics(get, set, lastEntry.id, pipelineResult, model, taxonomyBlock, commitBlock);
+    void extractClaimsAndUpdateAN(statement, responderPover, lastEntry.id, taxonomyRefs.map(r => r.node_id), get, set, meta.my_claims);
+    await summarizeTranscriptEntry(lastEntry.id, statement, info.label, model, get, set);
+  }
+  releaseDebateDriver();
+  set({ debateGenerating: null });
+  getGlobalRecorder()?.record({ type: 'debate.lifecycle', component: 'debate-store', level: 'info', debate_id: activeDebate.id, message: 'debate.ended', data: { reason: 'post_termination_complete' } });
+  await saveDebate('crossRespond:postTermination');
+  return true;
 }
 
 
