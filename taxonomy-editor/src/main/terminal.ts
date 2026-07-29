@@ -25,17 +25,10 @@ function findShell(): string {
   return process.env.SHELL_PWSH || 'pwsh';
 }
 
-/** Record a terminal-spawn failure and, if the window is alive, surface `dataMessage`
- *  to the xterm + emit terminal:exit. Extracted from the two identical error paths in
- *  the terminal:spawn handler (t/1914 complexity split). */
-function reportTerminalError(getWindow: () => BrowserWindow | null, err: unknown, dataMessage: string): void {
-  getGlobalRecorder()?.record({
-    type: 'system.error',
-    component: 'terminal',
-    level: 'error',
-    message: 'Operation failed',
-    error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
-  });
+/** If the window is alive, surface `dataMessage` to the xterm + emit terminal:exit.
+ *  Extracted from the two identical error paths in the terminal:spawn handler (t/1914).
+ *  Flight-recording stays IN each catch (ADR-003 is AST-enforced on the catch itself). */
+function sendTerminalFailure(getWindow: () => BrowserWindow | null, dataMessage: string): void {
   const win = getWindow();
   if (win && !win.isDestroyed()) {
     win.webContents.send('terminal:data', dataMessage);
@@ -54,8 +47,12 @@ export function registerTerminalHandlers(getWindow: () => BrowserWindow | null):
     try {
       pty = await import('node-pty');
     } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error', component: 'terminal', level: 'error', message: 'Operation failed',
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+      });
       const msg = err instanceof Error ? err.message : String(err);
-      reportTerminalError(getWindow, err,
+      sendTerminalFailure(getWindow,
         `Failed to load node-pty: ${msg}\r\n` +
         'The integrated terminal requires native node-pty support.\r\n');
       return;
@@ -84,8 +81,12 @@ export function registerTerminalHandlers(getWindow: () => BrowserWindow | null):
         handleFlowControl: true,
       });
     } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error', component: 'terminal', level: 'error', message: 'Operation failed',
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+      });
       const msg = err instanceof Error ? err.message : String(err);
-      reportTerminalError(getWindow, err,
+      sendTerminalFailure(getWindow,
         `Failed to start shell '${shell}': ${msg}\r\n` +
         'Install PowerShell 7+ from https://github.com/PowerShell/PowerShell and restart Taxonomy Editor.\r\n');
       return;
