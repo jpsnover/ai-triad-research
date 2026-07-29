@@ -253,4 +253,36 @@ Describe 'Update-EntityMentionIndex (t/1894 Phase 2-B)' -Tag 'unit' {
             Test-Path -LiteralPath $script:outPath | Should -BeFalse
         }
     }
+
+    # Cross-runtime recipe drift guard (t/1904). Reconstructs each shared golden fixture through
+    # the SAME production helper the indexer uses (Get-MentionContainerText) and asserts the
+    # NFC code points + sha256 match lib/entities/mentionTextFixtures.json — the identical file
+    # E's vitest asserts against. Any drift between B and E (or from the spec) fails here.
+    Context 'Golden-fixture recipe parity (t/1904 drift guard)' {
+        $fixturePath = Join-Path $PSScriptRoot '..' 'lib' 'entities' 'mentionTextFixtures.json'
+        $goldens = (Get-Content -Raw -LiteralPath $fixturePath -Encoding utf8 | ConvertFrom-Json).fixtures
+        # Hashtable ForEach so <id> names each case — a drift failure must name its fixture.
+        $cases = @($goldens | ForEach-Object { @{ id = $_.id; fixture = $_ } })
+
+        It 'reconstructs to the golden NFC + sha256: <id>' -ForEach $cases {
+            InModuleScope AITriad -Parameters @{ Fx = $_.fixture } {
+                param($Fx)
+                $fields = if ($Fx.kind -eq 'sei') {
+                    @($Fx.input.claims)
+                }
+                else {
+                    @('label', 'description', 'plain_description' | ForEach-Object {
+                            if ($Fx.input.PSObject.Properties[$_]) { $Fx.input.$_ } else { $null }
+                        })
+                }
+                $text = Get-MentionContainerText -Kind $Fx.kind -Fields $fields
+                # Code-point parity (BMP-only corpus → UTF-16 unit == code point); join-compared
+                # for a debuggable failure message. This is the encoding-independent check.
+                $cps = @($text.ToCharArray() | ForEach-Object { [int]$_ })
+                ($cps -join ',') | Should -Be (@($Fx.expected_nfc_codepoints) -join ',')
+                # sha256(UTF-8) — the byte-encoding check.
+                (Get-TextSha256 -Text $text) | Should -Be $Fx.expected_sha256
+            }
+        }
+    }
 }

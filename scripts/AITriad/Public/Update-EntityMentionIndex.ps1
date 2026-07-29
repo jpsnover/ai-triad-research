@@ -177,9 +177,10 @@ function Update-EntityMentionIndex {
             if (-not ($entry -is [System.Collections.IDictionary]) -or -not $entry.ContainsKey('facts')) { continue }
             $claims = @($entry['facts'] | ForEach-Object {
                     if ($_ -is [System.Collections.IDictionary] -and $_.ContainsKey('claim')) { [string]$_['claim'] }
-                }) | Where-Object { $_ }
-            if (@($claims).Count -eq 0) { continue }
-            $Containers["sei:$key"] = ($claims -join "`n")
+                })
+            $text = Get-MentionContainerText -Kind 'sei' -Fields $claims
+            if ($text -eq '') { continue }
+            $Containers["sei:$key"] = $text
         }
     }
     else {
@@ -195,12 +196,14 @@ function Update-EntityMentionIndex {
         if (-not $pov.PSObject.Properties['nodes']) { continue }
         foreach ($node in @($pov.nodes)) {
             if (-not $node.PSObject.Properties['id']) { continue }
-            $parts = [System.Collections.Generic.List[string]]::new()
-            foreach ($field in @('label', 'description', 'plain_description')) {
-                if ($node.PSObject.Properties[$field] -and $node.$field) { $parts.Add([string]$node.$field) }
+            # Pass field values in fixed order ($null for absent); the helper applies the
+            # omission rule (null/"" omitted, whitespace kept) and the "\n\n" join + NFC.
+            $vals = foreach ($field in @('label', 'description', 'plain_description')) {
+                if ($node.PSObject.Properties[$field]) { $node.$field } else { $null }
             }
-            if (@($parts).Count -eq 0) { continue }
-            $Containers["node:$($node.id)"] = ($parts -join "`n`n")
+            $text = Get-MentionContainerText -Kind 'node' -Fields @($vals)
+            if ($text -eq '') { continue }
+            $Containers["node:$($node.id)"] = $text
         }
     }
 
@@ -210,12 +213,12 @@ function Update-EntityMentionIndex {
     $AnyContentChanged = $false
 
     foreach ($cid in ($Containers.Keys | Sort-Object)) {
-        # NFC first (contract step 1). $nfc IS the "exact analyzed text" that text_sha256 pins
-        # and that offset/quote index into. $lower mirrors D1's ToLowerInvariant for matching;
-        # for the Latin corpus lowercasing is length-preserving, so match offsets align 1:1 with
-        # $nfc and quote is sliced from $nfc to preserve original casing.
-        $rawText = [string]$Containers[$cid]
-        $nfc = $rawText.Normalize([System.Text.NormalizationForm]::FormC)
+        # $nfc IS the "exact analyzed text" — already NFC-canonical from Get-MentionContainerText
+        # (contract step: reconstruct then NFC the whole). text_sha256 pins it; offset/quote index
+        # into it. $lower mirrors D1's ToLowerInvariant for matching; for the Latin corpus
+        # lowercasing is length-preserving, so match offsets align 1:1 with $nfc and quote is
+        # sliced from $nfc to preserve original casing.
+        $nfc = [string]$Containers[$cid]
         $lower = $nfc.ToLowerInvariant()
         $sha = Get-TextSha256 -Text $nfc
 
