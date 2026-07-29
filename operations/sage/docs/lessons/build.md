@@ -720,6 +720,25 @@ Failure patterns related to builds, CI, tooling, environment, and git operations
 
 ---
 
+## [Build] Pushing From a Detached-HEAD Worktree Needs a Fully-Qualified Destination Ref
+
+**Pattern:** `git push origin HEAD:<branch>` fails from a **detached-HEAD worktree** with "not a full refname" — with HEAD pointing at a bare commit (no current branch), git can't expand the short destination `<branch>` into a full ref, so the push is rejected. Fix: fully-qualify the destination — `git push origin HEAD:refs/heads/<branch>`.
+
+**Instances:**
+- 2026-07-29 — ServerAPI (p/79#19): pushing a feature branch from a detached worktree via `git push origin HEAD:<branch>` failed "not a full refname"; resolved with `git push origin HEAD:refs/heads/<branch>`. Surfaced by the **revised `/land-from-worktree`** (branch-protected PR-flow, owner-approved 2026-07-29), which pushes feature branches from detached worktrees.
+
+**Root Cause:** When the source side of a refspec is `HEAD` and HEAD is detached, git has no current-branch context to disambiguate an unqualified destination like `feature-x` (could be `refs/heads/feature-x`, a tag, etc.), so it refuses rather than guess. A checked-out branch would let git infer `refs/heads/`; a detached HEAD does not. The fully-qualified `refs/heads/<branch>` removes the ambiguity.
+
+**Prevention:**
+1. **From a detached-HEAD worktree, always fully-qualify the push destination:** `git push origin HEAD:refs/heads/<branch>`, not `HEAD:<branch>`.
+2. This is the sanctioned form for the revised `/land-from-worktree` PR-flow — the playbook (and any land script) should use `refs/heads/` so it works regardless of whether the worktree is on a branch or detached.
+
+**Status:** Resolved — self-correcting (git rejects the un-qualified form immediately). Single instance, but **load-bearing for the revised `/land-from-worktree`** (detached-worktree feature-branch push is now the standard land path) — flagged to the skill owner (TL) so the playbook uses the fully-qualified refspec.
+
+**Applies To:** Any agent pushing a feature branch from a detached-HEAD worktree — i.e. every `/land-from-worktree` PR-flow land.
+
+---
+
 ## [Build] Vitest Dynamic Import Misses Exports From vi.mock Factory
 
 **Pattern:** Using `await import()` on a module that has a `vi.mock` registration only sees exports defined in the mock factory — not the real module's exports. Missing exports throw "No X export on mock" at runtime, not at compile time.

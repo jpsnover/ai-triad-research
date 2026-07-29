@@ -2025,3 +2025,22 @@ Institutional memory for failure patterns across the AI Triad Research project.
 **Status:** Resolved — self-correcting (bad `cd` errors immediately). Single instance; recorded because worktree lands routinely reference sibling paths and the `..`-collapse is a silent retarget.
 
 **Applies To:** Any agent building sibling-worktree paths during `/land-from-worktree` or manual worktree ops.
+
+---
+
+## [Build] Pushing From a Detached-HEAD Worktree Needs a Fully-Qualified Destination Ref
+
+**Pattern:** `git push origin HEAD:<branch>` fails from a detached-HEAD worktree with "not a full refname" — HEAD points at a bare commit, so git can't expand the short destination into a full ref. Fix: `git push origin HEAD:refs/heads/<branch>`.
+
+**Instances:**
+- 2026-07-29 — ServerAPI (p/79#19): pushing a feature branch from a detached worktree via `git push origin HEAD:<branch>` failed "not a full refname"; resolved with `HEAD:refs/heads/<branch>`. Surfaced by the revised `/land-from-worktree` (branch-protected PR-flow, owner-approved 2026-07-29), which pushes feature branches from detached worktrees.
+
+**Root Cause:** With a detached HEAD as the refspec source, git has no current-branch context to disambiguate an unqualified destination (`feature-x` could be a branch, tag, …), so it refuses rather than guess. A checked-out branch would let git infer `refs/heads/`; a detached HEAD does not.
+
+**Prevention:**
+1. From a detached-HEAD worktree, always fully-qualify: `git push origin HEAD:refs/heads/<branch>`, not `HEAD:<branch>`.
+2. Sanctioned form for the revised `/land-from-worktree` PR-flow — the playbook / land script should use `refs/heads/` so it works whether the worktree is on a branch or detached.
+
+**Status:** Resolved — self-correcting (git rejects it immediately). Single instance, but **load-bearing for the revised `/land-from-worktree`** — flagged to the skill owner (TL) so the playbook uses the fully-qualified refspec.
+
+**Applies To:** Any agent pushing a feature branch from a detached-HEAD worktree — i.e. every `/land-from-worktree` PR-flow land.
