@@ -386,6 +386,15 @@ class AzureKeyVaultKeyStore extends BaseKeyStore {
     return `apikey-${backend}-${hash}`;
   }
 
+  /** A getSecret failure that means the secret simply doesn't exist (benign),
+   *  vs. a real vault error. Key Vault surfaces this as code 'SecretNotFound'
+   *  or HTTP 404. */
+  private static isSecretNotFoundError(err: unknown): boolean {
+    const code = (err as { code?: string; statusCode?: number })?.code;
+    const status = (err as { statusCode?: number })?.statusCode;
+    return code === 'SecretNotFound' || status === 404;
+  }
+
   async get(backend: AIBackend, userId: string): Promise<string | null> {
     const name = this.secretName(backend, userId);
     const hit = this.cache.get(name);
@@ -397,9 +406,7 @@ class AzureKeyVaultKeyStore extends BaseKeyStore {
       if (value) this.cache.set(name, { value, expires: Date.now() + this.cacheTtlMs });
       return value;
     } catch (err: unknown) {
-      const code = (err as { code?: string; statusCode?: number })?.code;
-      const status = (err as { statusCode?: number })?.statusCode;
-      const isNotFound = code === 'SecretNotFound' || status === 404;
+      const isNotFound = AzureKeyVaultKeyStore.isSecretNotFoundError(err);
       getGlobalRecorder()?.record({
         type: 'system.error',
         component: 'key-store',
