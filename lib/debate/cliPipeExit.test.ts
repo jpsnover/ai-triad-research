@@ -24,12 +24,18 @@ const repoRoot = path.resolve(here, '..', '..');
 const fixture = path.join(here, 'cliPipeExit.fixture.ts');
 
 // Run the harness via `node --import tsx <fixture> [--fix]`. cwd = repoRoot so `tsx` resolves from
-// the root node_modules. Returns the spawnSync result (status/signal/stdout).
+// the root node_modules. Returns the spawnSync result (status/signal/stdout/stderr).
+// API keys are stripped from the subprocess env so the fixture is always keyless regardless of
+// shell state — if the fixture ever grows to import the AI adapter, it cannot make live calls.
 function runHarness(fix: boolean, timeoutMs: number): SpawnSyncReturns<string> {
+  const env = { ...process.env };
+  for (const k of ['GEMINI_API_KEY', 'ANTHROPIC_API_KEY', 'GROQ_API_KEY', 'MOONSHOT_API_KEY', 'OPENAI_API_KEY', 'AI_API_KEY']) {
+    delete env[k];
+  }
   return spawnSync(
     process.execPath,
     ['--import', 'tsx', fixture, ...(fix ? ['--fix'] : [])],
-    { cwd: repoRoot, timeout: timeoutMs, encoding: 'utf8' },
+    { cwd: repoRoot, timeout: timeoutMs, encoding: 'utf8', env },
   );
 }
 
@@ -41,7 +47,9 @@ describe('debate CLI clean-exit lifecycle (t/1824)', () => {
     const r = runHarness(true, 120000); // 120s: tsx cold-start on loaded CI runners can exceed 60s
     expect(r.stdout).toContain('finalized'); // reached finalization
     expect(r.signal).toBeNull();             // not killed by timeout
-    expect(r.status).toBe(0);                // clean exit code — batch harnesses can trust returncode
+    expect(r.status).toBe(0);               // clean exit code — batch harnesses can trust returncode
+    // t/1949: no live provider calls — retry lines must not appear in subprocess stderr
+    expect(r.stderr ?? '').not.toMatch(/attempt \d+\/\d+ failed/);
   }, 150000);
 
   // Skipped: hang behavior is win32-specific AND environment-sensitive within Windows
