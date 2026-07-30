@@ -39,6 +39,47 @@ function povKeyForPath(p: string): string | null {
   return TAXONOMY_POV_FILES.has(key) ? key : null;
 }
 
+/** Verify the GitHub webhook HMAC (X-Hub-Signature-256) against the shared secret.
+ *  Constant-time compare; unequal buffer lengths fail fast (timingSafeEqual requires
+ *  equal-length inputs). Preserves the original inline check exactly — valid iff the
+ *  lengths match AND timingSafeEqual passes. */
+function isValidWebhookSignature(raw: string, sigHeader: string, secret: string): boolean {
+  const expected = 'sha256=' + crypto.createHmac('sha256', secret).update(raw).digest('hex');
+  const sigBuf = Buffer.from(sigHeader);
+  const expBuf = Buffer.from(expected);
+  return sigBuf.length === expBuf.length && crypto.timingSafeEqual(sigBuf, expBuf);
+}
+
+/** On a PR merged into main, delete the matching `api-session/*` branch (best-effort;
+ *  a failed delete is logged, never thrown). No-op for other actions/branches. */
+function handleMergedPrBranchCleanup(
+  parsed: Record<string, unknown>,
+  sessionManager: ReturnType<ServerCtx['getSessionManager']>,
+): void {
+  const action = parsed.action;
+  const pr = parsed.pull_request as { merged?: boolean; base?: { ref?: string }; head?: { ref?: string } } | undefined;
+  if (action === 'closed' && pr?.merged === true && pr.base?.ref === 'main') {
+    log.github.info('Webhook: PR merged into main');
+    // Post-merge cleanup: delete the session branch if it was an api-session branch
+    const headRef = pr.head?.ref ?? '';
+    if (headRef.startsWith('api-session/') && sessionManager) {
+      const branchUserId = headRef.slice('api-session/'.length);
+      void branchUserId;
+      // Find the user whose sanitized branch name matches
+      const activeBranches = sessionManager.getActiveBranches();
+      for (const entry of activeBranches) {
+        if (entry.branch === headRef) {
+          sessionManager.deleteBranch(entry.userId, 'pr-merged').catch(err => {
+            log.github.error({ err, userId: entry.userId, branch: headRef }, 'Post-merge branch cleanup failed');
+          });
+          log.github.info({ userId: entry.userId, branch: headRef }, 'Post-merge: session branch cleanup triggered');
+          break;
+        }
+      }
+    }
+  }
+}
+
 export function registerSyncRoutes(r: Router, ctx: ServerCtx): void {
   const { get, post } = r;
 
@@ -512,11 +553,7 @@ export function registerSyncRoutes(r: Router, ctx: ServerCtx): void {
 
     const raw = (req as RawBodyReq).__rawBody ?? '';
     const sigHeader = (req.headers['x-hub-signature-256'] as string | undefined) ?? '';
-    const expected = 'sha256=' + crypto.createHmac('sha256', secret).update(raw).digest('hex');
-    // timingSafeEqual needs equal-length buffers; mismatched length = fail fast.
-    const sigBuf = Buffer.from(sigHeader);
-    const expBuf = Buffer.from(expected);
-    if (sigBuf.length !== expBuf.length || !crypto.timingSafeEqual(sigBuf, expBuf)) {
+    if (!isValidWebhookSignature(raw, sigHeader, secret)) {
       error(res, 'Invalid signature', 401);
       return;
     }
@@ -536,30 +573,7 @@ export function registerSyncRoutes(r: Router, ctx: ServerCtx): void {
       return;
     }
 
-    if (event === 'pull_request') {
-      const action = parsed.action;
-      const pr = parsed.pull_request as { merged?: boolean; base?: { ref?: string }; head?: { ref?: string } } | undefined;
-      if (action === 'closed' && pr?.merged === true && pr.base?.ref === 'main') {
-        log.github.info('Webhook: PR merged into main');
-        // Post-merge cleanup: delete the session branch if it was an api-session branch
-        const headRef = pr.head?.ref ?? '';
-        if (headRef.startsWith('api-session/') && sessionManager) {
-          const branchUserId = headRef.slice('api-session/'.length);
-          void branchUserId;
-          // Find the user whose sanitized branch name matches
-          const activeBranches = sessionManager.getActiveBranches();
-          for (const entry of activeBranches) {
-            if (entry.branch === headRef) {
-              sessionManager.deleteBranch(entry.userId, 'pr-merged').catch(err => {
-                log.github.error({ err, userId: entry.userId, branch: headRef }, 'Post-merge branch cleanup failed');
-              });
-              log.github.info({ userId: entry.userId, branch: headRef }, 'Post-merge: session branch cleanup triggered');
-              break;
-            }
-          }
-        }
-      }
-    }
+    if (event === 'pull_request') handleMergedPrBranchCleanup(parsed, sessionManager);
 
     // Acknowledge everything else so GitHub doesn't retry.
     json(res, { ok: true });
