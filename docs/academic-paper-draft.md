@@ -96,13 +96,13 @@ The BDI categories used here align with formal DOLCE-grounded BDI semantics (Zup
 
 ### 2.5 LLM-as-Debater and Multi-Agent Argumentation
 
-Multi-agent debate (MAD) using LLMs has been explored for factual accuracy improvement (Du et al., 2024), reasoning enhancement (Liang et al., 2024), and deliberative alignment (Chan et al., 2024). The field is maturing rapidly: Irving et al. (2018) established the theoretical foundation with debate as a scalable oversight mechanism, showing that optimal debate play can answer PSPACE questions with polynomial-time judges. Subsequent work has revealed both capabilities and critical limitations.
+Multi-agent debate (MAD) using LLMs has been explored for factual accuracy improvement (Du et al., 2024), reasoning enhancement (Liang et al., 2024), and deliberative alignment (Chan et al., 2024). The field is maturing rapidly: Irving et al. (2018) established the theoretical foundation of the training-based debate paradigm with debate as a scalable oversight mechanism, showing that optimal debate play can answer PSPACE questions with polynomial-time judges. Irving's design rests on structural commitments we did not make. A single-winner judge is the reward signal; agents are optimized against that judge through zero-sum self-play across many games; and the complexity argument presupposes conditions we do not meet. The fundamental contrast is purpose. Irving's debate is a *training and alignment mechanism* whose product is a verdict; ours is an *analysis instrument* whose product is a map of where three camps disagree. We share the intuition that adversarial exchange surfaces signal a single generator would smooth over, but the designs diverge at that point, and the divergence cascades through every other choice. We do not train agents, have no adjudicating judge, and address questions with no ground truth (contested policy values where declaring a winner would be a category error). Removing the judge collapses Irving's design because the judge *is* the reward; it changes nothing in ours, where outcome measures were never verdicts. The PSPACE result holds under conditions we do not meet (optimal play through training, an adjudicating judge, and a decision problem with a correct answer), so we cite it only as the theoretical backbone of the training-based paradigm we depart from, not as support for our situation-injection or crux-alignment claims, which are empirical rather than complexity-theoretic. The MNIST toy (6px: 59.4%→88.9%; 4px: 48.2%→85.2%) illustrates the ground-truth paradigm, where a bounded judge is amplified by debate on a task with a correct label. This makes Irving the sharpest reference point for what "not accuracy" means in our frame. Subsequent work has revealed both capabilities and critical limitations.
 
 **Graph-guided debate.** DIAL-G² (Chen et al., 2025) introduces graph neural network-guided debate for ESG analysis, where agents populate a shared argumentation graph and a GNN directs attention toward the most contested information. Our system pursues a parallel architecture — agents populate an argument network and QBAF strength propagation identifies the most salient claims — but with interpretable formal semantics rather than learned attention weights.
 
-**Formal argumentation in LLM systems.** ArgLLMs (Saha et al., 2025) augment LLMs with Quantitative Bipolar Argumentation Frameworks for explainable claim verification, validating the QBAF approach we adopt. ArgRAG (2025) replaces black-box RAG reasoning with deterministic QBAF inference, demonstrating that formal argumentation outperforms neural-only baselines. Alfano et al. (2026) integrate argument mining with fuzzy description logic — a parallel to our DOLCE+QBAF combination, though using fuzzy DL where we use BDI typing. ARGORA (Jin et al., 2026) casts multi-agent argument graphs as causal models and ablates individual arguments to identify decisive reasoning chains — the same remove-and-recompute diagnostic our counterfactual-crux and edge-attribution layers compute.
+**Formal argumentation in LLM systems.** ArgLLMs (Freedman et al., 2025) augment LLMs with Quantitative Bipolar Argumentation Frameworks for explainable claim verification, validating the QBAF approach we adopt. ArgRAG (Zhu et al., 2025) replaces black-box RAG reasoning with deterministic QBAF inference, demonstrating that formal argumentation outperforms neural-only baselines. Alfano et al. (2026) integrate argument mining with fuzzy description logic — a parallel to our DOLCE+QBAF combination, though using fuzzy DL where we use BDI typing. ARGORA (Jin et al., 2026) casts multi-agent argument graphs as causal models and ablates individual arguments to identify decisive reasoning chains — the same remove-and-recompute diagnostic our counterfactual-crux and edge-attribution layers compute.
 
-**Identity-grounded debate.** The Heterogeneous Debate Engine (Maslowski et al., 2026) uses ID-RAG for doctrinal fidelity and Heuristic Theory of Mind for opponent modeling, finding that contrary doctrinal initializations increase argument complexity by an order of magnitude. This validates our design of three structurally different BDI-taxonomy-grounded characters.
+**Identity-grounded debate.** The Heterogeneous Debate Engine (Masłowski and Chudziak, 2026) uses ID-RAG for doctrinal fidelity and Heuristic Theory of Mind for opponent modeling, finding that contrary doctrinal initializations increase argument complexity by an order of magnitude. This validates our design of three structurally different BDI-taxonomy-grounded characters.
 
 **MAD limitations.** Zhang et al. (2025) demonstrate that MAD often fails to outperform single-agent baselines, identifying model heterogeneity as the key remedy. Liang et al. (2024) identify Degeneration-of-Thought — once an LLM commits to a position, self-reflection cannot generate novel thinking — which our phase transition system addresses by forcing transitions when argument recycling is detected. Estornell and Liu (2024) formalize tyranny of the majority and shared misconceptions as systemic risks; our three structurally different POVs with independent BDI taxonomies are a direct defense against shared misconceptions.
 
@@ -1146,6 +1146,8 @@ Future work includes formal FIRE evaluation (E1), scaled concession harvesting v
 
 ALDayel, A. and Magdy, W. (2021). Stance detection on social media: State of the art and trends. *Information Processing and Management*, 58(4):102597. https://doi.org/10.1016/j.ipm.2021.102597
 
+Alfano, G., Greco, S., La Cava, L., Monea, S. F., and Trubitsyna, I. (2026). LLM-based argument mining meets argumentation and description logics: A unified framework for reasoning about debates. *arXiv preprint arXiv:2603.02858*. https://arxiv.org/abs/2603.02858
+
 Baroni, P., Rago, M., and Toni, F. (2019). From fine-grained properties to broad principles for gradual argumentation: A principled spectrum. *International Journal of Approximate Reasoning*, 105:252-286. https://doi.org/10.1016/j.ijar.2019.01.005
 
 Zuppiroli, S., Longo, C. F., Lippolis, A. S., Paolillo, R., Giammei, L., Ceriani, M., Poggi, F., Zinilli, A., and Nuzzolese, A. G. (2025). The Belief-Desire-Intention Ontology for modelling mental reality and agency. *arXiv preprint arXiv:2511.17162*. https://arxiv.org/abs/2511.17162
@@ -1158,13 +1160,21 @@ Cayrol, C. and Lagasquie-Schiex, M.-C. (2005). On the acceptability of arguments
 
 Chan, C. M., Chen, W., Su, Y., Yu, J., Xue, W., Zhang, S., Fu, J., and Liu, Z. (2024). ChatEval: Towards better LLM-based evaluators through multi-agent debate. *Proceedings of the 12th International Conference on Learning Representations (ICLR)*. https://arxiv.org/abs/2308.07201
 
+Chen, Z., Chen, Y., Sha, T., Xu, B., Zheng, Y., and Wang, K. (2025). DIAL-G²: Graph-guided dialectical agent for advanced ESG reasoning. *OpenReview*. https://openreview.net/forum?id=6Eg9Y3zSfA
+
 Chesnevar, C. I., McGinnis, J., Modgil, S., Rahwan, I., Reed, C., Simari, G., South, M., Vreeswijk, G., and Willmott, S. (2006). Towards an argument interchange format. *The Knowledge Engineering Review*, 21(4):293-316. https://doi.org/10.1017/S0269888906001044
+
+Chowdhury, M. N., Beg, N. J., Khan, U. H., Raiyan, S. R., Hasan, M. K., and Mahmud, H. (2026). Courtroom-style multi-agent debate with progressive RAG and role-switching for controversial claim verification. *arXiv preprint arXiv:2603.28488*. https://arxiv.org/abs/2603.28488
 
 Du, Y., Li, S., Torralba, A., Tenenbaum, J. B., and Mordatch, I. (2024). Improving factuality and reasoning in language models through multiagent debate. *Proceedings of the 41st International Conference on Machine Learning (ICML)*. https://proceedings.mlr.press/v235/du24e.html
 
 Dung, P. M. (1995). On the acceptability of arguments and its fundamental role in nonmonotonic reasoning, logic programming and n-person games. *Artificial Intelligence*, 77(2):321-357. https://doi.org/10.1016/0004-3702(94)00041-X
 
+Estornell, A. and Liu, Y. (2024). Multi-LLM debate: Framework, principals, and interventions. *Advances in Neural Information Processing Systems 37 (NeurIPS 2024)*, pages 28938–28964. https://proceedings.neurips.cc/paper_files/paper/2024/hash/32e07a110c6c6acf1afbf2bf82b614ad-Abstract-Conference.html
+
 Fauconnier, G. and Turner, M. (2002). *The Way We Think: Conceptual Blending and the Mind's Hidden Complexities*. Basic Books.
+
+Freedman, G., Dejl, A., Gorur, D., Yin, X., Rago, A., and Toni, F. (2025). Argumentative large language models for explainable and contestable claim verification. *Proceedings of the AAAI Conference on Artificial Intelligence*, 39(14):14930–14939. https://arxiv.org/abs/2405.02079
 
 Gentner, D. and Markman, A. B. (1997). Structure mapping in analogy and similarity. *American Psychologist*, 52(1):45-56. https://psycnet.apa.org/record/1997-02239-006
 
@@ -1179,6 +1189,8 @@ Hart, H. L. A. (1961). *The Concept of Law*. Oxford University Press.
 Holyoak, K. J. and Thagard, P. (1995). *Mental Leaps: Analogy in Creative Thought*. MIT Press. https://direct.mit.edu/books/monograph/3906/Mental-LeapsAnalogy-in-Creative-Thought
 
 Hude, Z. (2025). Where has legal knowledge gone: Constraining LLMs with knowledge graphs for interpretable reasoning. *Proceedings of the JURIX 2025 Doctoral Consortium*.
+
+Irving, G., Christiano, P., and Amodei, D. (2018). AI safety via debate. *arXiv preprint arXiv:1805.00899*. https://arxiv.org/abs/1805.00899
 
 Janier, M., Lawrence, J., and Reed, C. (2014). OVA+: An argument analysis interface. *Proceedings of the 5th International Conference on Computational Models of Argument (COMMA)*, pages 463-464. https://doi.org/10.3233/978-1-61499-436-7-463
 
@@ -1205,6 +1217,8 @@ Lightman, H., Kosaraju, V., Burda, Y., Edwards, H., Baker, B., Lee, T., Leike, J
 Ling, X. and Weld, D. S. (2012). Fine-grained entity recognition. *Proceedings of the 26th AAAI Conference on Artificial Intelligence*. https://ojs.aaai.org/index.php/AAAI/article/view/8122
 
 Liu, N. F., Lin, K., Hewitt, J., Paranjape, A., Bevilacqua, M., Petroni, F., and Liang, P. (2023). Lost in the middle: How language models use long contexts. *arXiv preprint arXiv:2307.03172*. https://arxiv.org/abs/2307.03172
+
+Masłowski, J. and Chudziak, J. A. (2026). Heterogeneous debate engine: Identity-grounded cognitive architecture for resilient LLM-based ethical tutoring. *Proceedings of ACIIDS 2026*. arXiv:2603.27404. https://arxiv.org/abs/2603.27404
 
 Masolo, C., Borgo, S., Gangemi, A., Guarino, N., and Oltramari, A. (2003). WonderWeb deliverable D18: Ontology library (final). *IST Project 2001-33052 WonderWeb*. https://www.loa.istc.cnr.it/old/Papers/D18.pdf
 
@@ -1242,8 +1256,14 @@ Uesato, J., Kushman, N., Kumar, R., Song, F., Siegel, N., Wang, L., Creswell, A.
 
 Khalifa, M., Agarwal, R., Logeswaran, L., Kim, J., Peng, H., Lee, M., Lee, H., and Wang, L. (2025). Process reward models that think. *arXiv preprint arXiv:2504.16828*. https://arxiv.org/abs/2504.16828
 
+Wachsmuth, H., Naderi, N., Hou, Y., Bilu, Y., Prabhakaran, V., Thijm, T. A., Hirst, G., and Stein, B. (2017). Computational argumentation quality assessment in natural language. *Proceedings of the 15th Conference of the European Chapter of the Association for Computational Linguistics (EACL 2017)*, pages 176–187. https://aclanthology.org/E17-1017/
+
 Walton, D. N. and Krabbe, E. C. W. (1995). *Commitment in Dialogue: Basic Concepts of Interpersonal Reasoning*. SUNY Press.
 
 Walton, D., Reed, C., and Macagno, F. (2008). *Argumentation Schemes*. Cambridge University Press. https://doi.org/10.1017/CBO9780511802034
 
 Wei, J., Wang, X., Schuurmans, D., Bosma, M., Ichter, B., Xia, F., Chi, E., Le, Q., and Zhou, D. (2022). Chain-of-thought prompting elicits reasoning in large language models. *Advances in Neural Information Processing Systems (NeurIPS)*, 35. https://arxiv.org/abs/2201.11903
+
+Zhang, H., Cui, Z., Chen, J., Wang, X., Zhang, Q., Wang, Z., Wu, D., and Hu, S. (2025). Stop overvaluing multi-agent debate — We must rethink evaluation and embrace model heterogeneity. *arXiv preprint arXiv:2502.08788*. https://arxiv.org/abs/2502.08788
+
+Zhu, Y., Potyka, N., Hernández, D., He, Y., Ding, Z., Xiong, B., Zhou, D., Kharlamov, E., and Staab, S. (2025). ArgRAG: Explainable retrieval augmented generation using quantitative bipolar argumentation. *Proceedings of the 19th International Conference on Neurosymbolic Learning and Reasoning*, PMLR 284:697–718. https://proceedings.mlr.press/v284/zhu25a.html
