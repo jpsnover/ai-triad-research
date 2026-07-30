@@ -1131,6 +1131,11 @@ interface NodeDetailFactsTabProps {
 }
 
 function NodeDetailFactsTab({ node, selectedFact, setSelectedFact, sourceDoc, sourceDocLoading, factSplitPct, handleFactSplitMouseDown, factSplitRef }: NodeDetailFactsTabProps) {
+  // Co-mount WRITE side (t/1987 AC#2): supply the global ref setter so FactsPanel's
+  // stored-mention ref-links linkify and open the app-level DetailPane host. Without
+  // it FactsPanel gates to plain text per the t/1977 co-mount rule. The store setter
+  // is global, so this reads it directly rather than threading a prop from the parent.
+  const setSelectedRef = useDebateStore((s) => s.setSelectedRef);
   return (
     <div className="facts-split-container" ref={factSplitRef}>
       <div
@@ -1138,7 +1143,7 @@ function NodeDetailFactsTab({ node, selectedFact, setSelectedFact, sourceDoc, so
         /* eslint-disable-next-line local/no-inline-style -- height is a user-dragged split percentage, passed as a CSS custom property */
         style={sourceDoc?.available ? { '--nd-split-height': `${factSplitPct}%` } as React.CSSProperties : undefined}
       >
-        <FactsPanel nodeId={node.id} onSelectFact={setSelectedFact} />
+        <FactsPanel nodeId={node.id} onSelectFact={setSelectedFact} onSelectRef={setSelectedRef} />
       </div>
       {sourceDocLoading && (
         <div className="facts-doc-loading">
