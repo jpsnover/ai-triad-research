@@ -44,3 +44,70 @@ updates:
       actions:
         patterns: ["*"]
     open-pull-requests-limit: 5
+
+  # ── Coverage completion (2026-07): the original config watched only the 4
+  # ── front-end apps + actions. Added below: the remaining npm manifests, and
+  # ── the pip + docker ecosystems that were previously UNWATCHED entirely.
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      minor-and-patch:
+        update-types: [minor, patch]
+    open-pull-requests-limit: 5
+
+  - package-ecosystem: npm
+    directory: /lib
+    schedule:
+      interval: weekly
+    groups:
+      minor-and-patch:
+        update-types: [minor, patch]
+    open-pull-requests-limit: 5
+
+  - package-ecosystem: npm
+    directory: /lib/debate
+    schedule:
+      interval: weekly
+    groups:
+      minor-and-patch:
+        update-types: [minor, patch]
+    open-pull-requests-limit: 5
+
+  - package-ecosystem: npm
+    directory: /deploy/azure/runner/function
+    schedule:
+      interval: weekly
+    groups:
+      minor-and-patch:
+        update-types: [minor, patch]
+    open-pull-requests-limit: 5
+
+  # pip — the PowerShell module's Python helpers (scripts/requirements.txt)
+  - package-ecosystem: pip
+    directory: /scripts
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 3
+    ignore:
+      # Pinned intentionally — 5.x breaks the embedding pipeline
+      # (sentence-transformers 4.1.0 + transformers 4.51.3). Block major bumps;
+      # revisit deliberately if upgrading the embedding stack.
+      - dependency-name: sentence-transformers
+        update-types: [version-update:semver-major]
+      - dependency-name: transformers
+        update-types: [version-update:semver-major]
+
+  # docker — web image + azure base image
+  - package-ecosystem: docker
+    directory: /taxonomy-editor
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 3
+
+  - package-ecosystem: docker
+    directory: /deploy/azure
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 3
