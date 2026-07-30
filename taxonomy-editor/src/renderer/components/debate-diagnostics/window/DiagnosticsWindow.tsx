@@ -18,6 +18,8 @@ import { OverviewTabRouter } from './OverviewTabRouter';
 import { EntryDetailRouter } from './EntryDetailRouter';
 import { CopyLinkButton } from '../../shared/CopyLinkButton';
 import type { OverviewTab } from './types';
+import type { DebateSession } from '../../../types/debate';
+import type { RefObject } from 'react';
 import './DiagnosticsWindow.css';
 
 // ---------------------------------------------------------------------------
@@ -232,6 +234,98 @@ function HelpContent() {
 }
 
 // ---------------------------------------------------------------------------
+// Sidebar tab model + per-section builders (split to keep each ≤ complexity 15)
+// ---------------------------------------------------------------------------
+
+type SidebarTab = { id: OverviewTab; label: string; badge?: string; visible: boolean };
+type SidebarSection = { header: string; tabs: SidebarTab[] };
+
+function buildDebateSection(debate: DebateSession, hasAn: boolean, hasCommitments: boolean): SidebarSection {
+  return { header: 'DEBATE', tabs: [
+    { id: 'topic-scope', label: 'Topic Scope', visible: !!debate.topic?.scope },
+    { id: 'argument-network', label: 'Arg Net', visible: hasAn },
+    { id: 'commitments', label: 'Commitments', visible: hasCommitments },
+    { id: 'transcript', label: `Transcript (${debate.transcript.filter(e => e.type === 'statement' || e.type === 'opening').length} stmts / ${debate.transcript.length} total)`, visible: true },
+    { id: 'convergence', label: `Convergence (${debate.convergence_signals?.length ?? 0})`, visible: !!(debate.convergence_signals && debate.convergence_signals.length > 0) },
+    { id: 'gaps', label: 'Gaps', visible: !!(debate.taxonomy_gap_analysis || (debate.gap_injections && debate.gap_injections.length > 0) || (debate.cross_cutting_proposals && debate.cross_cutting_proposals.length > 0)) },
+    { id: 'pov-progression', label: 'Perspective Progression', visible: true },
+    { id: 'reflections', label: 'Post-Debate Reflections', visible: debate.transcript.some(e => e.type === 'reflection') },
+  ]};
+}
+
+function buildEvidenceSection(debate: DebateSession, plateau: boolean): SidebarSection {
+  return { header: 'EVIDENCE', tabs: [
+    { id: 'extraction', label: 'Extraction', badge: plateau ? '⚠' : undefined, visible: true },
+    { id: 'grounding', label: `Grounding (${debate.transcript.reduce((n, e) => n + (e.taxonomy_refs?.length ? 1 : 0), 0)})`, visible: debate.transcript.some(e => e.taxonomy_refs && e.taxonomy_refs.length > 0) },
+    { id: 'lineage', label: `Lineage (${debate.topic.critique?.lineage_frame?.length ?? 0})`, visible: !!(debate.topic.critique?.lineage_frame && debate.topic.critique.lineage_frame.length > 0) },
+  ]};
+}
+
+function buildEngineSection(debate: DebateSession, hasAn: boolean): SidebarSection {
+  return { header: 'ENGINE', tabs: [
+    { id: 'utility', label: 'Agent Utility', visible: hasAn },
+    { id: 'exclusion-overview', label: 'Exclusion Guard', visible: true },
+    { id: 'emotional-register', label: 'Emotional Register', visible: true },
+    { id: 'adaptive', label: 'Adaptive', visible: !!(debate as unknown as Record<string, unknown>).adaptive_staging_diagnostics },
+    { id: 'prompt-diff', label: 'Prompt Diff', visible: true },
+    { id: 'fr-context', label: 'Flight Recorder', visible: true },
+  ]};
+}
+
+// ---------------------------------------------------------------------------
+// DiagnosticsHeader — header bar (extracted to keep DiagnosticsWindow ≤ complexity 15)
+// ---------------------------------------------------------------------------
+
+function DiagnosticsHeader({
+  debate, showHelp, setShowHelp, searchQuery, setSearchQuery, matchCount, searchInputRef,
+}: {
+  debate: DebateSession | null;
+  showHelp: boolean;
+  setShowHelp: (v: boolean) => void;
+  searchQuery: string;
+  setSearchQuery: (q: string) => void;
+  matchCount: number;
+  searchInputRef?: RefObject<HTMLInputElement | null>;
+}) {
+  return (
+    <div className="diag-window-header">
+      <h2 className="diag-window-title">Debate Diagnostics</h2>
+      {debate && (
+        <>
+          <span className="diag-window-debate-title" title={debate.title}>
+            {debate.title}
+          </span>
+          <button
+            onClick={() => { void api.clipboardWriteText(debate.id); }}
+            className="diag-window-id-suffix"
+            title={`Copy full debate ID: ${debate.id}`}
+          >…{debate.id.slice(-6)} ⧉</button>
+          <span className="diag-window-ts" title={`Session start — matches flight recorder filename`}>
+            {new Date(debate.created_at).toISOString().replace(/\.\d{3}Z$/, 'Z')}
+          </span>
+        </>
+      )}
+      {debate && !showHelp && <SearchBar query={searchQuery} setQuery={setSearchQuery} matchCount={matchCount} inputRef={searchInputRef} />}
+      {(!debate || showHelp) && <div style={{ flex: 1 }} />}
+      <button
+        onClick={() => { void triggerManualDump(); }}
+        title="Dump flight recorder to disk (Ctrl+Alt+D)"
+        className="diag-dump-btn"
+      >
+        Dump Log
+      </button>
+      <button
+        onClick={() => setShowHelp(!showHelp)}
+        className="diag-help-btn"
+        style={{ background: showHelp ? 'var(--warning, var(--warning))' : 'none', color: showHelp ? '#000' : 'var(--warning, var(--warning))' }}
+      >
+        {showHelp ? 'Close Help' : 'Help'}
+      </button>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // DiagnosticsWindow — thin shell
 // ---------------------------------------------------------------------------
 
@@ -271,40 +365,15 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
     <div className="diag-window-content">
 
       {/* ── Header bar ── */}
-      <div className="diag-window-header">
-        <h2 className="diag-window-title">Debate Diagnostics</h2>
-        {debate && (
-          <>
-            <span className="diag-window-debate-title" title={debate.title}>
-              {debate.title}
-            </span>
-            <button
-              onClick={() => { void api.clipboardWriteText(debate.id); }}
-              className="diag-window-id-suffix"
-              title={`Copy full debate ID: ${debate.id}`}
-            >…{debate.id.slice(-6)} ⧉</button>
-            <span className="diag-window-ts" title={`Session start — matches flight recorder filename`}>
-              {new Date(debate.created_at).toISOString().replace(/\.\d{3}Z$/, 'Z')}
-            </span>
-          </>
-        )}
-        {debate && !showHelp && <SearchBar query={searchQuery} setQuery={setSearchQuery} matchCount={matchCount} inputRef={searchInputRef} />}
-        {(!debate || showHelp) && <div style={{ flex: 1 }} />}
-        <button
-          onClick={() => { void triggerManualDump(); }}
-          title="Dump flight recorder to disk (Ctrl+Alt+D)"
-          className="diag-dump-btn"
-        >
-          Dump Log
-        </button>
-        <button
-          onClick={() => setShowHelp(!showHelp)}
-          className="diag-help-btn"
-          style={{ background: showHelp ? 'var(--warning, var(--warning))' : 'none', color: showHelp ? '#000' : 'var(--warning, var(--warning))' }}
-        >
-          {showHelp ? 'Close Help' : 'Help'}
-        </button>
-      </div>
+      <DiagnosticsHeader
+        debate={debate}
+        showHelp={showHelp}
+        setShowHelp={setShowHelp}
+        searchQuery={searchQuery}
+        setSearchQuery={setSearchQuery}
+        matchCount={matchCount}
+        searchInputRef={searchInputRef}
+      />
 
       {showHelp && <HelpContent />}
       {!debate && !showHelp && (
@@ -327,31 +396,10 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
             const hasAn = !!(an && an.nodes.length > 0);
             const hasCommitments = !!(commitments && Object.keys(commitments).length > 0);
             const plateau = debate.extraction_summary?.plateau_detected === true;
-            type SidebarTab = { id: OverviewTab; label: string; badge?: string; visible: boolean };
-            const sections: { header: string; tabs: SidebarTab[] }[] = [
-              { header: 'DEBATE', tabs: [
-                { id: 'topic-scope', label: 'Topic Scope', visible: !!debate.topic?.scope },
-                { id: 'argument-network', label: 'Arg Net', visible: hasAn },
-                { id: 'commitments', label: 'Commitments', visible: hasCommitments },
-                { id: 'transcript', label: `Transcript (${debate.transcript.filter(e => e.type === 'statement' || e.type === 'opening').length} stmts / ${debate.transcript.length} total)`, visible: true },
-                { id: 'convergence', label: `Convergence (${debate.convergence_signals?.length ?? 0})`, visible: !!(debate.convergence_signals && debate.convergence_signals.length > 0) },
-                { id: 'gaps', label: 'Gaps', visible: !!(debate.taxonomy_gap_analysis || (debate.gap_injections && debate.gap_injections.length > 0) || (debate.cross_cutting_proposals && debate.cross_cutting_proposals.length > 0)) },
-                { id: 'pov-progression', label: 'Perspective Progression', visible: true },
-                { id: 'reflections', label: 'Post-Debate Reflections', visible: debate.transcript.some(e => e.type === 'reflection') },
-              ]},
-              { header: 'EVIDENCE', tabs: [
-                { id: 'extraction', label: 'Extraction', badge: plateau ? '⚠' : undefined, visible: true },
-                { id: 'grounding', label: `Grounding (${debate.transcript.reduce((n, e) => n + (e.taxonomy_refs?.length ? 1 : 0), 0)})`, visible: debate.transcript.some(e => e.taxonomy_refs && e.taxonomy_refs.length > 0) },
-                { id: 'lineage', label: `Lineage (${debate.topic.critique?.lineage_frame?.length ?? 0})`, visible: !!(debate.topic.critique?.lineage_frame && debate.topic.critique.lineage_frame.length > 0) },
-              ]},
-              { header: 'ENGINE', tabs: [
-                { id: 'utility', label: 'Agent Utility', visible: hasAn },
-                { id: 'exclusion-overview', label: 'Exclusion Guard', visible: true },
-                { id: 'emotional-register', label: 'Emotional Register', visible: true },
-                { id: 'adaptive', label: 'Adaptive', visible: !!(debate as unknown as Record<string, unknown>).adaptive_staging_diagnostics },
-                { id: 'prompt-diff', label: 'Prompt Diff', visible: true },
-                { id: 'fr-context', label: 'Flight Recorder', visible: true },
-              ]},
+            const sections: SidebarSection[] = [
+              buildDebateSection(debate, hasAn, hasCommitments),
+              buildEvidenceSection(debate, plateau),
+              buildEngineSection(debate, hasAn),
             ];
             return (
               <div className="diag-tab-sidebar">

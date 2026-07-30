@@ -355,67 +355,78 @@ function ArgNetMinimap({ nodes, edges }: { nodes: ArgumentNetworkNode[]; edges: 
   );
 }
 
-/** Inline sub-component: confidence impact trace from taxonomy store. */
-function ConfidenceImpactTrace({ debateId }: { debateId: string }) {
+interface ConfidenceImpact { nodeId: string; label: string; pov: string; entry: WeightHistoryEntry }
+
+/** Collect matching history entries from one history array into the shared impacts list. */
+function collectHistoryImpacts(
+  history: WeightHistoryEntry[] | undefined,
+  n: { id: string; label: string },
+  pov: string,
+  debateId: string,
+  impacts: ConfidenceImpact[],
+) {
+  if (!history) return;
+  for (const h of history) {
+    if (h.reason?.includes(debateId)) {
+      impacts.push({ nodeId: n.id, label: n.label, pov, entry: h });
+    }
+  }
+}
+
+/** Gather confidence/priority/operationality history impacts for a debate from the taxonomy store. */
+function collectConfidenceImpacts(debateId: string): ConfidenceImpact[] {
   const taxState = useTaxonomyStore.getState();
-  const impacts: { nodeId: string; label: string; pov: string; entry: WeightHistoryEntry }[] = [];
+  const impacts: ConfidenceImpact[] = [];
   for (const pov of ['accelerationist', 'safetyist', 'skeptic'] as const) {
     const file = taxState[pov];
     if (!file) continue;
     for (const n of file.nodes) {
-      if (n.confidence_history) {
-        for (const h of n.confidence_history) {
-          if (h.reason?.includes(debateId)) {
-            impacts.push({ nodeId: n.id, label: n.label, pov, entry: h });
-          }
-        }
-      }
-      if (n.priority_history) {
-        for (const h of n.priority_history) {
-          if (h.reason?.includes(debateId)) {
-            impacts.push({ nodeId: n.id, label: n.label, pov, entry: h });
-          }
-        }
-      }
-      if (n.operationality_history) {
-        for (const h of n.operationality_history) {
-          if (h.reason?.includes(debateId)) {
-            impacts.push({ nodeId: n.id, label: n.label, pov, entry: h });
-          }
-        }
-      }
+      collectHistoryImpacts(n.confidence_history, n, pov, debateId, impacts);
+      collectHistoryImpacts(n.priority_history, n, pov, debateId, impacts);
+      collectHistoryImpacts(n.operationality_history, n, pov, debateId, impacts);
     }
   }
+  return impacts;
+}
+
+/** Props-only sub-component: renders a single confidence-impact row. */
+function ConfidenceImpactRow({ imp }: { imp: ConfidenceImpact }) {
+  const deltaColor = imp.entry.delta > 0 ? 'var(--success)' : imp.entry.delta < 0 ? 'var(--danger)' : 'var(--text-muted)';
+  return (
+    <div className="ant-impact-row">
+      <code className="ant-impact-code">{imp.nodeId}</code>
+      <span className="ant-muted">{imp.label.length > 40 ? imp.label.slice(0, 40) + '…' : imp.label}</span>
+      <span className="ant-value">{imp.entry.value.toFixed(2)}</span>
+      {/* eslint-disable-next-line local/no-inline-style -- color is data-driven from delta sign */}
+      <span style={{ color: deltaColor, fontWeight: 600 }}>
+        {imp.entry.delta > 0 ? '+' : ''}{imp.entry.delta.toFixed(2)}
+      </span>
+      {imp.entry.attack_claim && (
+        <span className="ant-attack-claim" title={imp.entry.attack_claim}>
+          ← {imp.entry.attack_claim.length > 50 ? imp.entry.attack_claim.slice(0, 50) + '…' : imp.entry.attack_claim}
+        </span>
+      )}
+      {imp.entry.robustness != null && imp.entry.robustness >= 2 && (
+        <span className="ant-robust-chip">
+          {imp.entry.robustness}× confirmed
+        </span>
+      )}
+    </div>
+  );
+}
+
+/** Inline sub-component: confidence impact trace from taxonomy store. */
+function ConfidenceImpactTrace({ debateId }: { debateId: string }) {
+  const impacts = collectConfidenceImpacts(debateId);
   if (impacts.length === 0) return null;
   return (
     <div className="ant-impact">
       <div className="ant-impact-title">
         Confidence Impact ({impacts.length})
       </div>
-      {impacts.map((imp, i) => {
-        const deltaColor = imp.entry.delta > 0 ? 'var(--success)' : imp.entry.delta < 0 ? 'var(--danger)' : 'var(--text-muted)';
-        return (
-          <div key={i} className="ant-impact-row">
-            <code className="ant-impact-code">{imp.nodeId}</code>
-            <span className="ant-muted">{imp.label.length > 40 ? imp.label.slice(0, 40) + '…' : imp.label}</span>
-            <span className="ant-value">{imp.entry.value.toFixed(2)}</span>
-            {/* eslint-disable-next-line local/no-inline-style -- color is data-driven from delta sign */}
-            <span style={{ color: deltaColor, fontWeight: 600 }}>
-              {imp.entry.delta > 0 ? '+' : ''}{imp.entry.delta.toFixed(2)}
-            </span>
-            {imp.entry.attack_claim && (
-              <span className="ant-attack-claim" title={imp.entry.attack_claim}>
-                ← {imp.entry.attack_claim.length > 50 ? imp.entry.attack_claim.slice(0, 50) + '…' : imp.entry.attack_claim}
-              </span>
-            )}
-            {imp.entry.robustness != null && imp.entry.robustness >= 2 && (
-              <span className="ant-robust-chip">
-                {imp.entry.robustness}× confirmed
-              </span>
-            )}
-          </div>
-        );
-      })}
+      {impacts.map((imp, i) => (
+        <ConfidenceImpactRow key={i} imp={imp} />
+      ))}
     </div>
   );
 }
