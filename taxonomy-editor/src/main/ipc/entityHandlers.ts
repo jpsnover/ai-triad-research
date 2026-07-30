@@ -16,7 +16,8 @@ import path from 'path';
 import { readTaxonomyFile, readPolicyRegistry, getDataRootPath, readEntities } from '../fileIO.js';
 import { getOrganizationById } from '../organizations.js';
 import { parseEntityRef } from '../../../../lib/entities/types.js';
-import type { Entity, EntityDetail, EntityRef, EntitySummary, EntityListQuery } from '../../../../lib/entities/types.js';
+import { resolveMergedInto, normalizeEntity } from '../../../../lib/entities/entityResolve.js';
+import type { EntityDetail, EntityRef, EntitySummary, EntityListQuery } from '../../../../lib/entities/types.js';
 import type { PovNode, SituationNode } from '../../../../lib/debate/taxonomyTypes.js';
 import type { PolicyAction } from '../../../../lib/policy/types.js';
 import type { ColloquialTerm } from '../../../../lib/dictionary/types.js';
@@ -78,84 +79,14 @@ function loadColloquialTerms(): ColloquialTerm[] {
   return terms;
 }
 
-// Depth cap for the merged_into tombstone chase (Section 7). Mirrors
-// server/routes/entity.ts MAX_MERGE_DEPTH — keep in sync.
+// Depth cap passed to the shared resolveMergedInto (lib/entities/entityResolve, t/1974).
+// Matches server/routes/entity.ts's MAX_MERGE_DEPTH.
 const MAX_MERGE_DEPTH = 16;
 
-interface MergedIntoResult {
-  /** The terminal (non-tombstone) record the chain resolves to. */
-  record: Entity;
-  /** The originally-requested id, set only when ≥1 merge pointer was followed. */
-  redirectedFrom?: string;
-}
-
-/**
- * Follow an Entity's `merged_into` tombstone (Section 7) to the terminal record, stamping
- * the original id as `redirectedFrom` once any hop is taken. Returns null if any id in the
- * chain is absent. Throws {@link ActionableError} on a cycle or when the chain exceeds
- * `maxDepth` (both = corrupt merge data, not a deep-but-valid graph). Organizations have no
- * merged_into, so this is entity-only. SYNC mirror of server/routes/entity.ts
- * resolveMergedInto — keep the two in sync (a shared-lib factoring is the drift-guard
- * follow-up flagged to ServerAPI/TL on t/1898).
- */
-function resolveMergedInto(
-  id: string,
-  lookup: (id: string) => Entity | null | undefined,
-  maxDepth: number,
-): MergedIntoResult | null {
-  const seen = new Set<string>();
-  let currentId = id;
-  let redirectedFrom: string | undefined;
-
-  for (let depth = 0; depth <= maxDepth; depth++) {
-    if (seen.has(currentId)) {
-      throw new ActionableError({
-        goal: 'Resolve a merged entity to its canonical record',
-        problem: `merged_into chain forms a cycle at "${currentId}" (started from "${id}")`,
-        location: 'ipc/entityHandlers.ts → resolveMergedInto',
-        nextSteps: [
-          'Inspect entities.json for a merged_into loop (A→B→A) starting at this id',
-          'Break the cycle so exactly one record in the chain has no merged_into',
-        ],
-      });
-    }
-    seen.add(currentId);
-
-    const rec = lookup(currentId);
-    if (!rec) return null; // a hop points at a missing id → unresolved
-    if (!rec.merged_into) return { record: rec, redirectedFrom };
-
-    redirectedFrom = redirectedFrom ?? id; // first hop: remember where we started
-    currentId = rec.merged_into;
-  }
-
-  throw new ActionableError({
-    goal: 'Resolve a merged entity to its canonical record',
-    problem: `merged_into chain from "${id}" exceeded the depth cap (${maxDepth})`,
-    location: 'ipc/entityHandlers.ts → resolveMergedInto',
-    nextSteps: [
-      'Verify the merge graph is a short chain, not a deep or unbounded one',
-      `If a legitimately long chain exists, raise MAX_MERGE_DEPTH (currently ${maxDepth})`,
-    ],
-  });
-}
-
-/** Coerce a polymorphic string-array field (array | null | bare string) to a real string[].
- *  Mirrors server/routes/entity.ts coerceStringArray (t/1964): entities.json stores
- *  `aliases`/`source_refs` in all three shapes; a null crashes `.some`/`.length`, a bare
- *  string crashes `.map`/`.join` and renders its first char on `[0]`. array→as-is ·
- *  null/undefined→[] · string→single-element. */
-function coerceStringArray(v: unknown): string[] {
-  return Array.isArray(v) ? (v as string[]) : v == null ? [] : [v as string];
-}
-
-/** Normalize an Entity's polymorphic `aliases`/`source_refs` at the read boundary, before the
- *  detail/mention flow renders them (t/1964; the mention target ent-034 "Claude" has
- *  `aliases: null`). Mirrors server/routes/entity.ts normalizeEntity — the genus audit bounds
- *  coercion to exactly these two fields; every other rendered field is single-shape. */
-function normalizeEntity(e: Entity): Entity {
-  return { ...e, aliases: coerceStringArray(e.aliases), source_refs: coerceStringArray(e.source_refs) };
-}
+// resolveMergedInto / normalizeEntity / coerceStringArray now live in
+// lib/entities/entityResolve.ts (t/1974) — imported above, shared with the server route
+// so the merge-follow + polymorphic-field coercion can't drift between transports (t/1984,
+// replacing the sync mirror that t/1898 added).
 
 /** Resolve a parsed EntityRef to its record, returning the EntityDetail union (a miss →
  *  not_found). Extracted verbatim from the entity-resolve handler's switch (t/1914). */
@@ -201,7 +132,7 @@ function resolveEntityRef(ref: EntityRef): EntityDetail {
       // tombstone to the canonical record, and stamp redirected_from. An absent/empty store
       // → empty map → lookup miss → not_found (same semantic the server's null-registry has).
       const registry = new Map(readEntities().map((e) => [e.id, e] as const));
-      const resolved = resolveMergedInto(ref.id, (id) => registry.get(id) ?? null, MAX_MERGE_DEPTH);
+      const resolved = resolveMergedInto(ref.id, (id) => registry.get(id) ?? null, { maxDepth: MAX_MERGE_DEPTH });
       if (!resolved) return notFound(ref);
       // t/1964: normalize polymorphic aliases/source_refs before the detail/mention flow
       // renders them — ent-034 "Claude" (the mention target) has aliases: null.
