@@ -220,6 +220,7 @@ export async function runAdaptiveCrossRespond(engine: DebateEngineInternals): Pr
         phase: prevPhase,
         rounds: Array.from({ length: round - currentPhaseStartRound + 1 }, (_, i) => currentPhaseStartRound + i),
         exit_reason: result.reason,
+        force_active: result.force_active,
       });
       currentPhaseStartRound = round + 1;
       currentPhaseExitReason = result.reason;
@@ -265,6 +266,7 @@ export async function runAdaptiveCrossRespond(engine: DebateEngineInternals): Pr
         phase: state.current_phase,
         rounds: Array.from({ length: round - currentPhaseStartRound + 1 }, (_, i) => currentPhaseStartRound + i),
         exit_reason: result.reason,
+        force_active: result.force_active,
       });
 
       engine.addEntry({

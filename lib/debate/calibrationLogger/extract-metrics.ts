@@ -14,6 +14,7 @@
 
 import { getDebatePhase } from '../types.js';
 import type { DebateSession, ArgumentNetworkNode, TrackedCrux } from '../types.js';
+import type { CalibrationDataPoint } from './schema.js';
 import type { NeutralEvaluation } from '../neutralEvaluator.js';
 import { meanSentenceLength, lexicalDiversity, jargonDensity } from '../clarityMetrics.js';
 import { computeAffectIntensity, computeAffectProfile, computeAffectAppropriateness } from '../affectSignals.js';
@@ -676,5 +677,79 @@ export function computeCruxSemanticDivergence(
   return {
     cruxDivergenceRate: matched > 0 ? divergences / matched : null,
     cruxMatchStats,
+  };
+}
+
+// ── Censoring analysis (t/1671) ──────────────────────────────────────────────
+
+const CENSORED_REASONS: ReadonlySet<string> = new Set([
+  'max_iterations', 'situation_cap', 'api_ceiling',
+]);
+
+/** Result of computing a convergence metric conditioned on termination status (t/1671). */
+export interface CensoredConvergenceResult {
+  /** n_censored / (n_completed + n_censored) — unknown rows excluded from denominator. */
+  censoring_rate: number;
+  n_completed: number;
+  n_censored: number;
+  /** Legacy rows (termination_reason absent or 'unknown') excluded from both pools. */
+  n_unknown: number;
+  /** Headline: metric mean over natural-conclusion runs only. Null if no completed runs. */
+  metric_over_completed: number | null;
+  /** Informational: metric mean over completed + censored combined. Null if neither pool has values. */
+  metric_over_all: number | null;
+}
+
+/**
+ * Compute a convergence metric conditioned on termination status (t/1671).
+ *
+ * Censored  = termination_reason ∈ {max_iterations, situation_cap, api_ceiling}.
+ * Completed = termination_reason === 'natural_conclusion'.
+ * Unknown   = absent or 'unknown' — excluded from both pools; counted in n_unknown.
+ *
+ * selector may return number | null | boolean. Boolean is coerced (true→1, false→0).
+ */
+export function computeConvergenceWithCensoring(
+  entries: CalibrationDataPoint[],
+  selector: (entry: CalibrationDataPoint) => number | null | boolean,
+): CensoredConvergenceResult {
+  let nCompleted = 0;
+  let nCensored = 0;
+  let nUnknown = 0;
+  const completedValues: number[] = [];
+  const allValues: number[] = [];
+
+  for (const entry of entries) {
+    const reason = entry.termination_reason;
+    if (!reason || reason === 'unknown') {
+      nUnknown++;
+      continue;
+    }
+    const raw = selector(entry);
+    const val = typeof raw === 'boolean' ? (raw ? 1 : 0) : raw;
+    if (CENSORED_REASONS.has(reason)) {
+      nCensored++;
+      if (val !== null) allValues.push(val);
+    } else {
+      nCompleted++;
+      if (val !== null) {
+        completedValues.push(val);
+        allValues.push(val);
+      }
+    }
+  }
+
+  const denominator = nCompleted + nCensored;
+  return {
+    censoring_rate: denominator > 0 ? nCensored / denominator : 0,
+    n_completed: nCompleted,
+    n_censored: nCensored,
+    n_unknown: nUnknown,
+    metric_over_completed: completedValues.length > 0
+      ? completedValues.reduce((a, b) => a + b, 0) / completedValues.length
+      : null,
+    metric_over_all: allValues.length > 0
+      ? allValues.reduce((a, b) => a + b, 0) / allValues.length
+      : null,
   };
 }

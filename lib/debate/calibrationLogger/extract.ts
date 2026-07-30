@@ -120,15 +120,32 @@ export function extractCalibrationData(
       composite?: { argumentative_saturation_score?: number; convergence_score?: number };
       signals?: Record<string, number>;
     }[];
+    phases?: { phase: string; rounds: number[]; exit_reason: string; force_active?: boolean }[];
   } | undefined;
   let argumentativeSaturationAtTransition: number | null = null;
+  let convergenceScoreAtTermination: number | null = null;
   let signalsAtTransition: Record<string, number> | null = null;
   if (asd?.signal_telemetry && asd.signal_telemetry.length > 0) {
     const telemetry = asd.signal_telemetry;
     // Find the last entry before phase changed (closest to transition)
     const last = telemetry[telemetry.length - 1];
     argumentativeSaturationAtTransition = last.composite?.argumentative_saturation_score ?? null;
+    convergenceScoreAtTermination = last.composite?.convergence_score ?? null;
     signalsAtTransition = last.signals ?? null;
+  }
+  // ── Termination reason (t/1671) ──
+  // Derived from structured force_active stamped in crossRespond.ts — not prose regex.
+  const hitApiCeiling = session.transcript.some((e: { content: string }) =>
+    typeof e.content === 'string' && e.content.includes('API hard ceiling hit'),
+  );
+  const lastAsdPhase = asd?.phases && asd.phases.length > 0 ? asd.phases[asd.phases.length - 1] : undefined;
+  let terminationReason: 'natural_conclusion' | 'max_iterations' | 'situation_cap' | 'api_ceiling' | 'unknown' = 'unknown';
+  if (hitApiCeiling) {
+    terminationReason = 'api_ceiling';
+  } else if (lastAsdPhase !== undefined && lastAsdPhase.force_active !== undefined) {
+    terminationReason = lastAsdPhase.force_active
+      ? (/Max total rounds/i.test(lastAsdPhase.exit_reason) ? 'max_iterations' : 'situation_cap')
+      : 'natural_conclusion';
   }
 
   // ── Round count ──
@@ -444,9 +461,9 @@ export function extractCalibrationData(
     claims_per_1k_words: claimsPer1k,
     kp_divisor: config.kpDivisor ?? 500,
 
-    hit_api_ceiling: session.transcript.some((e: { content: string }) =>
-      typeof e.content === 'string' && e.content.includes('API hard ceiling hit'),
-    ),
+    hit_api_ceiling: hitApiCeiling,
+    termination_reason: terminationReason,
+    convergence_score_at_termination: convergenceScoreAtTermination,
     total_api_calls: session.diagnostics?.overview?.total_ai_calls ?? 0,
     budget_hard_multiplier: config.budgetHardMultiplier ?? 15,
 
