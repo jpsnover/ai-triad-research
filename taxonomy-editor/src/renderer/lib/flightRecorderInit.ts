@@ -497,6 +497,11 @@ export function initFlightRecorder(): FlightRecorder {
       if (elapsed > 60_000) {
         clearAuthTracking();
       } else {
+        // NOTE (t/2024, CodeQL js/user-controlled-bypass #5314 — dismissed as false
+        // positive, TL-approved p/56#192): this cookie read is DIAGNOSTIC ONLY. It
+        // populates the `has_session_cookie` telemetry field below and gates NO security
+        // decision — the auth-loop branch keys on redirectCount/elapsed, never on this
+        // value. Do not treat `hasSession` as an authorization signal.
         const hasSession = document.cookie.includes('AppServiceAuthSession');
         recorder.record({
           type: 'auth.callback_landing',

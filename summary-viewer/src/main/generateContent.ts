@@ -6,12 +6,14 @@ import { PROJECT_ROOT } from './fileIO';
 import { ActionableError } from '../../../lib/debate/errors';
 import { callByUsage } from '../../../lib/ai-client/usageRegistry.js';
 
-function sanitizeAiText(text: string): string {
-  return text
-    .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, '')
-    .replace(/<script\b[^>]*\/?>/gi, '')
-    .replace(/\bon\w+\s*=\s*["'][^"']*["']/gi, '');
-}
+// SECURITY INVARIANT (t/2024, CodeQL js/incomplete-multi-character-sanitization +
+// js/bad-tag-filter): AI-generated text is NOT HTML-sanitized here. It is rendered
+// exclusively via react-markdown (DocumentPane etc.), which does not execute embedded
+// raw HTML unless the `rehype-raw` plugin is added. A regex-based sanitizer was both
+// bypassable (CodeQL) and redundant, so it was removed (TL-approved p/56#192). The
+// safety guarantee therefore depends on the renderer NOT introducing a raw-HTML sink:
+// do NOT add `rehype-raw` or `dangerouslySetInnerHTML` to summary-viewer's renderer.
+// Enforced by htmlSafetyInvariant.test.ts.
 
 export async function generateContent(
   systemPrompt: string,
@@ -47,5 +49,5 @@ export async function generateContent(
     },
   );
 
-  return sanitizeAiText(result.text);
+  return result.text;
 }
