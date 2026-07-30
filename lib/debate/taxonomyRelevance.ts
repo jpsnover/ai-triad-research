@@ -345,6 +345,16 @@ export function selectRelevantNodes(
     }
   }
 
+  // Remove hardExcluded nodes from the candidate pool before grouping — score-0
+  // is insufficient because minPerCategory refill and POV-diversity floor pick by
+  // top-score regardless of threshold, so score-0 nodes can re-enter (t/1981).
+  const hardExcludedIds: Set<string> = _wellTestedResult?.excludedNodeIds?.length
+    ? new Set(_wellTestedResult.excludedNodeIds)
+    : new Set();
+  const candidateNodes = hardExcludedIds.size > 0
+    ? povNodes.filter(n => !hardExcludedIds.has(n.id))
+    : povNodes;
+
   // Group by category
   const groups: Record<string, ScoredPovNode[]> = {
     'Beliefs': [],
@@ -352,7 +362,7 @@ export function selectRelevantNodes(
     'Intentions': [],
   };
 
-  for (const node of povNodes) {
+  for (const node of candidateNodes) {
     const cat = node.category || 'Intentions';
     const score = effectiveScores.get(node.id) || 0;
     (groups[cat] ?? groups['Intentions']).push({ node, score });
@@ -384,7 +394,7 @@ export function selectRelevantNodes(
       const count = povCounts[pov];
       if (count >= minPov) continue;
       const deficit = minPov - count;
-      const candidates = povNodes
+      const candidates = candidateNodes
         .filter(n => n.id.startsWith(prefix) && !selectedIds.has(n.id))
         .map(n => ({ node: n, score: effectiveScores.get(n.id) || 0 }))
         .sort((a, b) => b.score - a.score);
