@@ -396,10 +396,14 @@ export class SessionBranchManager {
     const creds = await getCredentials();
     if (!creds) return;
 
-    // Delete the branch ref on GitHub
+    // Delete the branch ref on GitHub. Encode each URL segment so injected
+    // characters in creds.repo or branchName cannot alter the URL structure.
+    const [delOwner, delRepo] = creds.repo.split('/');
+    if (!delOwner || !delRepo) return;
+    const delBranchPath = state.branchName.split('/').map(encodeURIComponent).join('/');
     try {
       const res = await fetch(
-        `https://api.github.com/repos/${creds.repo}/git/refs/heads/${state.branchName}`,
+        `https://api.github.com/repos/${encodeURIComponent(delOwner)}/${encodeURIComponent(delRepo)}/git/refs/heads/${delBranchPath}`,
         {
           method: 'DELETE',
           headers: {
@@ -529,19 +533,25 @@ export class SessionBranchManager {
     const creds = await getCredentials();
     if (!creds) return false;
 
+    // SSRF guard: encode each URL path segment so injected characters in
+    // creds.repo or branchName cannot alter the URL structure. The scheme and
+    // host are structurally guaranteed by the template literal — no runtime
+    // startsWith check needed; the encoding is the actual protection.
+    const [owner, repoName] = creds.repo.split('/');
+    if (!owner || !repoName) return false;
+    const branchPath = branchName.split('/').map(encodeURIComponent).join('/');
+    const url = `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repoName)}/git/refs/heads/${branchPath}`;
+
     try {
-      const res = await fetch(
-        `https://api.github.com/repos/${creds.repo}/git/refs/heads/${branchName}`,
-        {
-          method: 'GET',
-          headers: {
-            Accept: 'application/vnd.github+json',
-            Authorization: `Bearer ${creds.token}`,
-            'User-Agent': 'ai-triad-taxonomy-editor',
-            'X-GitHub-Api-Version': '2022-11-28',
-          },
+      const res = await fetch(url, {
+        method: 'GET',
+        headers: {
+          Accept: 'application/vnd.github+json',
+          Authorization: `Bearer ${creds.token}`,
+          'User-Agent': 'ai-triad-taxonomy-editor',
+          'X-GitHub-Api-Version': '2022-11-28',
         },
-      );
+      });
       return res.ok;
     } catch {
       /* telemetry — silent by design */
