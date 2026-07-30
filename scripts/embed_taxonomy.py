@@ -142,6 +142,67 @@ CONFLICTS_DIR: Optional[Path] = None  # set in _resolve_taxonomy_dir
 DEFAULT_FIELD_WEIGHTS = (0.8, 0.2, 0.0, 0.0, 0.0)
 
 
+def _package_version(pkg_name: str) -> str:
+    """Return the installed version of a package, or 'unknown' if unresolvable.
+
+    Stamps encoder-stack provenance into the embeddings.json envelope so a
+    regenerated corpus records exactly which sentence-transformers / transformers
+    produced it (t/1994) — making later reproduction checks decidable from the
+    file rather than recovered by experiment.
+    """
+    from importlib.metadata import version, PackageNotFoundError
+
+    try:
+        return version(pkg_name)
+    except PackageNotFoundError:
+        return "unknown"
+
+
+def _composition_descriptor(weights) -> str:
+    """Human-readable descriptor of the embedding composition recipe (t/1994).
+
+    `weights` is the (description, assumes, lineage, epistemic, rhetorical) tuple
+    actually used for this run. Stamped into the envelope so the exact recipe
+    (raw encode → weighted sum → single L2, description verbatim incl. Excludes)
+    is recorded alongside the model, not inferred after the fact.
+    """
+    w_str = "/".join(f"{w:g}" for w in weights)
+    return (
+        f"raw-field-encode (normalize_embeddings=False); weighted sum {w_str} over "
+        "description,assumes,lineage,epistemic,rhetorical; single final L2 normalize "
+        "(preserves weight ratios, t/268); assumes joined '. '; description verbatim "
+        "incl. Excludes, no label prefix; policies/conflicts encoded single-field then L2"
+    )
+
+
+def _build_envelope(model_name, dimension, weights, generated_at, nodes_dict):
+    """Assemble the embeddings.json provenance envelope.
+
+    Extracted from cmd_generate so the provenance stamps (encoder versions +
+    composition descriptor) are unit-testable without running a full model
+    encode (t/1994). `weights` is the normalized
+    (description, assumes, lineage, epistemic, rhetorical) tuple.
+    """
+    w_desc, w_assumes, w_lineage, w_epistemic, w_rhetorical = weights
+    return {
+        "model": model_name,
+        "dimension": int(dimension),
+        "field_weights": {
+            "description": w_desc,
+            "assumes": w_assumes,
+            "lineage": w_lineage,
+            "epistemic": w_epistemic,
+            "rhetorical": w_rhetorical,
+        },
+        "sentence_transformers_version": _package_version("sentence-transformers"),
+        "transformers_version": _package_version("transformers"),
+        "composition": _composition_descriptor(weights),
+        "generated_at": generated_at,
+        "node_count": len(nodes_dict),
+        "nodes": nodes_dict,
+    }
+
+
 def _load_lineage_categories():
     """Load the lineage→category mapping from lineage_categories.json.
 
@@ -195,8 +256,12 @@ def _compose_field_texts(node, lineage_map):
     Returns (description_text, assumes_text, lineage_text,
              epistemic_text, rhetorical_text).
 
-    description_text: label + description (sans Excludes)
-    assumes_text:     concatenated assumes statements
+    description_text: the node's `description` verbatim — full text, Excludes
+                      clause INCLUDED, no label prefix. This is intentional: the
+                      raw description is what reproduces the shipped corpus at
+                      cosine 1.0; stripping Excludes drops it to ~0.98 and
+                      prefixing the label to ~0.92 (t/1994).
+    assumes_text:     assumes statements joined with '. '
     lineage_text:     deduplicated lineage category labels
     epistemic_text:   epistemic_type (underscores → spaces)
     rhetorical_text:  rhetorical_strategy (underscores → spaces)
@@ -309,14 +374,20 @@ def cmd_generate(args):
     """Rebuild embeddings.json from all taxonomy JSON files and policy registry.
 
     For taxonomy nodes, produces a weighted combination of five field embeddings:
-      - description (label + description sans Excludes)
-      - assumes (concatenated assumption statements)
+      - description (the node description verbatim — Excludes INCLUDED, no label prefix)
+      - assumes (assumption statements joined with ". ")
       - lineage (deduplicated lineage category labels)
       - epistemic_type (e.g. "normative prescription")
       - rhetorical_strategy (e.g. "precautionary framing, moral imperative")
 
-    Weights are configurable via --field-weights (default 0.35/0.35/0.20/0.05/0.05).
-    Policies continue to use a single embedding of their action text.
+    Each field is encoded raw (normalize_embeddings=False), the fields are
+    weighted-summed, then the combined vector is L2-normalized exactly once.
+    This raw-sum-then-single-normalize composition is deliberate — normalizing
+    per field first would flatten the weight ratios (t/268, see combination site).
+
+    Weights are configurable via --field-weights (DEFAULT_FIELD_WEIGHTS =
+    0.8/0.2/0/0/0). Policies and conflicts each use a single embedding of their
+    action/claim text, normalized individually.
     """
     nodes = _load_taxonomy_nodes()
     policies = _load_policy_registry()
@@ -483,20 +554,13 @@ def cmd_generate(args):
             "vector": conflict_vecs[i].tolist(),
         }
 
-    output = {
-        "model": MODEL_NAME,
-        "dimension": int(all_vecs.shape[1]),
-        "field_weights": {
-            "description": w_desc,
-            "assumes": w_assumes,
-            "lineage": w_lineage,
-            "epistemic": w_epistemic,
-            "rhetorical": w_rhetorical,
-        },
-        "generated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-        "node_count": len(nodes_dict),
-        "nodes": nodes_dict,
-    }
+    output = _build_envelope(
+        MODEL_NAME,
+        all_vecs.shape[1],
+        (w_desc, w_assumes, w_lineage, w_epistemic, w_rhetorical),
+        time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        nodes_dict,
+    )
 
     # --output overrides EMBEDDINGS_FILE — used by non-default field-weights
     # runs (t/1553 Stage 2 needs a 0.67/0.33 variant without clobbering
