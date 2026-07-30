@@ -40,6 +40,36 @@ function maskApiKey(key: string): string {
   const visible = getConfig().server.apiKeyMaskLength; // t/929: runtime-configurable (default 4)
   return key.length <= visible ? '••••' : `••••${key.slice(-visible)}`;
 }
+/** Validate an admin review-action body; returns an error message, or null if valid. */
+function validateReviewAction(action: Partial<ReviewAction>): string | null {
+  if (!action || typeof action.domain !== 'string' || !action.domain) return 'domain is required';
+  if (typeof action.groupId !== 'string' || !action.groupId) return 'groupId is required';
+  if (action.action !== 'promote' && action.action !== 'reject') return 'action must be "promote" or "reject"';
+  if (!Array.isArray(action.itemIds) || action.itemIds.length === 0) return 'a non-empty itemIds[] is required';
+  if (action.action === 'reject' && (!action.reason || typeof action.reason !== 'string')) return 'reason is required when rejecting';
+  return null;
+}
+
+/** Validate feedback input fields; returns an error message, or null if valid. */
+function validateFeedbackInput(rating: string, text: string | undefined, category: string | undefined): string | null {
+  if (rating !== 'up' && rating !== 'down') return 'rating must be "up" or "down"';
+  if (text && typeof text !== 'string') return 'text must be a string';
+  if (text && text.length > 500) return 'text must be 500 characters or fewer';
+  if (category !== undefined && !isFeedbackCategory(category)) return `category must be one of: ${FEEDBACK_CATEGORIES.join(', ')}`;
+  return null;
+}
+
+/** Best-effort feedback webhook notification (FEEDBACK_WEBHOOK_URL); fire-and-forget. */
+function notifyFeedbackWebhook(rating: string, userId: string, entry: { text: string | null; timestamp: string }): void {
+  const webhookUrl = process.env.FEEDBACK_WEBHOOK_URL;
+  if (!webhookUrl) return;
+  fetch(webhookUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ to: process.env.FEEDBACK_EMAIL || 'jsnover13@gmail.com', subject: `Taxonomy Editor Feedback: ${rating === 'up' ? '👍' : '👎'}`, body: `Rating: ${rating}\nUser: ${userId}\nText: ${entry.text || '(none)'}\nTime: ${entry.timestamp}` }),
+  }).catch(() => { /* telemetry — silent by design: webhook delivery is best-effort */ });
+}
+
 export function registerAdminRoutes(r: Router, ctx: ServerCtx): void {
   const { get, post, put, del } = r;
   const { serverRecorder, ensureSessionBranch, appendServerLogs } = ctx;
@@ -419,21 +449,8 @@ export function registerAdminRoutes(r: Router, ctx: ServerCtx): void {
   post('/api/admin/review/action', async (_req, res, body) => {
     if (!requireAdmin(res)) return;
     const action = body as Partial<ReviewAction>;
-    if (!action || typeof action.domain !== 'string' || !action.domain) {
-      error(res, 'domain is required', 400); return;
-    }
-    if (typeof action.groupId !== 'string' || !action.groupId) {
-      error(res, 'groupId is required', 400); return;
-    }
-    if (action.action !== 'promote' && action.action !== 'reject') {
-      error(res, 'action must be "promote" or "reject"', 400); return;
-    }
-    if (!Array.isArray(action.itemIds) || action.itemIds.length === 0) {
-      error(res, 'a non-empty itemIds[] is required', 400); return;
-    }
-    if (action.action === 'reject' && (!action.reason || typeof action.reason !== 'string')) {
-      error(res, 'reason is required when rejecting', 400); return;
-    }
+    const invalid = validateReviewAction(action);
+    if (invalid) { error(res, invalid, 400); return; }
     try {
       await ensureSessionBranch();
       await executeReviewAction(action as ReviewAction);
@@ -458,12 +475,8 @@ export function registerAdminRoutes(r: Router, ctx: ServerCtx): void {
   post('/api/admin/feedback', async (_req, res, body) => {
     try {
       const { rating, text, context, category } = body as { rating: string; text?: string; context?: Record<string, unknown>; category?: string };
-      if (rating !== 'up' && rating !== 'down') { error(res, 'rating must be "up" or "down"', 400); return; }
-      if (text && typeof text !== 'string') { error(res, 'text must be a string', 400); return; }
-      if (text && text.length > 500) { error(res, 'text must be 500 characters or fewer', 400); return; }
-      if (category !== undefined && !isFeedbackCategory(category)) {
-        error(res, `category must be one of: ${FEEDBACK_CATEGORIES.join(', ')}`, 400); return;
-      }
+      const invalid = validateFeedbackInput(rating, text, category);
+      if (invalid) { error(res, invalid, 400); return; }
 
       const userId = getCurrentUserId();
       const entry = {
@@ -483,14 +496,7 @@ export function registerAdminRoutes(r: Router, ctx: ServerCtx): void {
       serverRecorder.record({ type: 'lifecycle', component: 'server', level: 'info', message: `Feedback received: ${rating}`, data: { userId, rating } });
 
       // Email notification (best-effort, env var FEEDBACK_WEBHOOK_URL)
-      const webhookUrl = process.env.FEEDBACK_WEBHOOK_URL;
-      if (webhookUrl) {
-        fetch(webhookUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ to: process.env.FEEDBACK_EMAIL || 'jsnover13@gmail.com', subject: `Taxonomy Editor Feedback: ${rating === 'up' ? '👍' : '👎'}`, body: `Rating: ${rating}\nUser: ${userId}\nText: ${entry.text || '(none)'}\nTime: ${entry.timestamp}` }),
-        }).catch(() => { /* telemetry — silent by design: webhook delivery is best-effort */ });
-      }
+      notifyFeedbackWebhook(rating, userId, entry);
 
       json(res, { ok: true, id: entry.id });
     } catch (err) {
