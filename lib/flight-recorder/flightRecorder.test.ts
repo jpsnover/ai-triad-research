@@ -646,6 +646,53 @@ describe('dumpToFile', () => {
     fs.rmdirSync(tmpDir);
   });
 
+  it('defaults out of the tree (not CWD) when no dumpDir is configured', () => {
+    // Regression: an empty dumpDir must not fall through to '.', which would
+    // drop dump files into whatever tree the process runs from (t/2014).
+    const savedRuntimeDir = process.env.AI_TRIAD_RUNTIME_DIR;
+    delete process.env.AI_TRIAD_RUNTIME_DIR; // exercise the temp-dir fallback
+    try {
+      const rec = new FlightRecorder({ capacity: 10 }); // DEFAULT_CONFIG.dumpDir === ''
+      rec.record(makeInput({ message: 'default-path-event' }));
+
+      const result = rec.dumpToFile();
+
+      expect(path.isAbsolute(result.path)).toBe(true);
+      expect(path.dirname(result.path)).not.toBe(process.cwd());
+      // Fallback uses mkdtempSync: a private, randomly-named dir under os.tmpdir().
+      expect(result.path.startsWith(os.tmpdir())).toBe(true);
+      expect(path.dirname(result.path)).toMatch(/flight-recorder-/);
+      expect(fs.existsSync(result.path)).toBe(true);
+
+      fs.unlinkSync(result.path);
+      fs.rmdirSync(path.dirname(result.path));
+    } finally {
+      if (savedRuntimeDir === undefined) delete process.env.AI_TRIAD_RUNTIME_DIR;
+      else process.env.AI_TRIAD_RUNTIME_DIR = savedRuntimeDir;
+    }
+  });
+
+  it('honors AI_TRIAD_RUNTIME_DIR for the default dump dir', () => {
+    const savedRuntimeDir = process.env.AI_TRIAD_RUNTIME_DIR;
+    const runtimeDir = fs.mkdtempSync(path.join(os.tmpdir(), 'fr-runtime-'));
+    process.env.AI_TRIAD_RUNTIME_DIR = runtimeDir;
+    try {
+      const rec = new FlightRecorder({ capacity: 10 });
+      rec.record(makeInput({ message: 'runtime-dir-event' }));
+
+      const result = rec.dumpToFile();
+
+      expect(path.dirname(result.path)).toBe(runtimeDir);
+      expect(fs.existsSync(result.path)).toBe(true);
+
+      fs.unlinkSync(result.path);
+    } finally {
+      if (savedRuntimeDir === undefined) delete process.env.AI_TRIAD_RUNTIME_DIR;
+      else process.env.AI_TRIAD_RUNTIME_DIR = savedRuntimeDir;
+      fs.rmdirSync(runtimeDir);
+    }
+  });
+
   it('returns empty timestamps when buffer is empty', () => {
     const outPath = path.join(os.tmpdir(), `fr-empty-${Date.now()}.jsonl`);
     const result = recorder.dumpToFile(outPath);
