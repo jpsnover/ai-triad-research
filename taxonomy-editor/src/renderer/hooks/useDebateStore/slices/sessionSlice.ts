@@ -44,7 +44,7 @@ export interface SessionSlice {
   debateLoading: boolean;
 
   loadSessions: () => Promise<void>;
-  createDebate: (topic: string, povers: SpeakerId[], userIsPover: boolean, sourceType?: DebateSourceType, sourceRef?: string, sourceContent?: string, debateModel?: string, protocolId?: string, debateTemperature?: number, debateAudience?: DebateAudience, options?: { title?: string; evaluatorModel?: string; pacing?: string; useAdaptiveStaging?: boolean; phaseBoundsOverride?: { maxConfrontationRounds?: number; maxArgumentationRounds?: number; maxConcludingRounds?: number }; speakerModels?: Record<string, string>; modelTier?: 'basic' | 'advanced'; stepMode?: boolean; stageModels?: { brief?: string; plan?: string; cite?: string }; background?: string }) => Promise<string>;
+  createDebate: (topic: string, povers: SpeakerId[], userIsPover: boolean, sourceType?: DebateSourceType, sourceRef?: string, sourceContent?: string, debateModel?: string, protocolId?: string, debateTemperature?: number, debateAudience?: DebateAudience, options?: { title?: string; evaluatorModel?: string; pacing?: string; useAdaptiveStaging?: boolean; phaseBoundsOverride?: { maxConfrontationRounds?: number; maxArgumentationRounds?: number; maxConcludingRounds?: number }; speakerModels?: Record<string, string>; modelTier?: 'basic' | 'advanced'; stepMode?: boolean; stageModels?: { brief?: string; plan?: string; cite?: string }; background?: string; excludeGreatestHits?: boolean }) => Promise<string>;
   createSituationDebate: (ccNodeId: string) => Promise<string>;
   createConflictDebate: (claimId: string) => Promise<string>;
   loadDebate: (id: string) => Promise<void>;
@@ -372,6 +372,12 @@ export const createSessionSlice: StateCreator<DebateStore, [], [], SessionSlice>
       stage_models: options?.stageModels ? { ...options.stageModels } as Record<string, string> : undefined,
       model_tier: options?.modelTier || undefined,
       protocol_id: protocolId || 'structured',
+      // Greatest-hits exclusion toggle (t/1980, parent t/1979; engine rescope t/1438).
+      // Store is the single writer for app-created debates (which orchestrate via
+      // useDebateStore + in-renderer taxonomyRelevance, never the lib DebateEngine —
+      // t/1779); the CLI engine writes it for CLI-created sessions. Persisted here so
+      // it round-trips via save/load; absent on old debates ⇒ readers coalesce to false.
+      exclude_greatest_hits: options?.excludeGreatestHits ?? false,
       debate_temperature: debateTemperature ?? undefined,
       adaptive_staging: options?.useAdaptiveStaging
         ? { enabled: true, pacing: (options.pacing as 'tight' | 'moderate' | 'thorough') ?? 'moderate', phase_bounds_override: options.phaseBoundsOverride, step_mode: options.stepMode || undefined }
