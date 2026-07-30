@@ -74,6 +74,14 @@ On session start, after reading your AGENTS.md and confirming identity (`whoami`
 
 **Hook counter caveat:** The `Tickets: N` value injected by the UserPromptSubmit hook only counts **in-progress** tickets — it does NOT include Todo/unstarted tickets assigned to you. Never treat `Tickets: (none)` as "no work to do." Always run the explicit `list_tickets` query above.
 
+### Feedback-Rule Tooling Traps (Orca platform, t/1625)
+
+Two observability gaps in the `*_feedback_rule` MCP tools. Both are Orca-platform bugs with no in-repo fix — you can only work around them, so know the workarounds before you build or diagnose a hook:
+
+1. **A rule created or updated mid-session is inert until the next session.** MCP writes land in the Orca DB, but the hook runner loads compiled snapshots from `feedback-rules/manifests/*.json`, recompiled only on sync / session-start — never on the MCP write. Worse than "silent": `get_feedback_rule` / `list_feedback_rules` return the *new* matcher and description immediately, so the read API reports the change as live while the runtime is still on the old manifest — a misleading positive, not just an absent signal. **Verify liveness by grepping `feedback-rules/manifests/*.json` for the rule name, never by the returned `enabled`/matcher.** A hook you just created won't fire until a fresh session even after enablement — factor this into any same-session rollout.
+
+2. **Audit counters read false for actively-firing rules.** `has_run`, `fire_count_24h`, `last_fired_at`, and `recent_executions` read false/0/null even for rules watched firing on nearly every prompt (`scope-guard`, `security-secrets-block`, ping-length, ticket-default guards, …). `has_run:false` is therefore **not** evidence a rule never fires — never diagnose a "dead" gate from it. To find a *genuinely* dead gate, reason about **matcher-versus-platform**: e.g. a `Bash`-only matcher never fires on this win32/PowerShell fleet — the exact failure that let 69 zero-byte fragment files accumulate under `shell-code-mangling-guard` while everyone believed it was enforcing (t/1768). The one field that would surface a never-firing rule is the one field you can't trust.
+
 **Status text rule:** describe the work, never include `t/`, `p/`, `e/`, or `q/` entity references — the `update_status` API rejects them, and ticket keys are meaningless in the sidebar anyway.
 
 If all your tickets are blocked, check whether the blocker is done (it may have been completed since the ticket was last updated). If the blocker is genuinely still open, update your status to describe what you're waiting on and go idle.
