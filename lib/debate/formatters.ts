@@ -134,7 +134,7 @@ export function formatDebateMarkdown(session: DebateSession): string {
         }
       } else {
         // Escape @ mentions so pandoc doesn't treat them as citations
-        lines.push(entry.content.replace(/@/g, '\\@'));
+        lines.push(entry.content.replace(/\\/g, '\\\\').replace(/@/g, '\\@'));
         lines.push('');
       }
 

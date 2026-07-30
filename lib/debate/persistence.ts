@@ -109,6 +109,7 @@ export async function renameWithRetry(oldPath: string, newPath: string, maxRetri
  * preserved artifact + a later re-persist, not from waiting longer here.
  */
 export function atomicWriteSync(filePath: string, content: string): void {
+  // codeql[js/insecure-temporary-file] FP: same-directory atomic write via rename, not an os.tmpdir() temp file
   const tmpPath = `${filePath}.tmp`;
   fs.writeFileSync(tmpPath, content, 'utf-8');
   try {
