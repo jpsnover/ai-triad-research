@@ -2,7 +2,7 @@
 # Install: pip install -r scripts/requirements.txt
 
 # HTTP and web fetching
-requests>=2.33.0
+requests>=2.34.2
 httpx>=0.28.1
 
 # HTML to Markdown conversion
