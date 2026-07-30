@@ -354,25 +354,32 @@ export function loadVocabulary(repoRoot: string): { standardized: unknown[]; col
  */
 export async function convertToMarkdown(filePath: string): Promise<string> {
   let resolved = path.resolve(filePath);
-  if (!fs.existsSync(resolved)) {
-    throw new ActionableError({
-      goal: 'Load debate source document',
-      problem: `File not found: ${resolved}`,
-      location: 'taxonomyLoader.convertToMarkdown',
-      nextSteps: [
-        `Verify the file path is correct: ${resolved}`,
-        'Check that the file has not been moved or renamed',
-        'If using a relative path, ensure you are running from the repository root',
-      ],
-    });
+  let stat: import('fs').Stats;
+  try {
+    stat = fs.statSync(resolved);
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+      throw new ActionableError({
+        goal: 'Load debate source document',
+        problem: `File not found: ${resolved}`,
+        location: 'taxonomyLoader.convertToMarkdown',
+        nextSteps: [
+          `Verify the file path is correct: ${resolved}`,
+          'Check that the file has not been moved or renamed',
+          'If using a relative path, ensure you are running from the repository root',
+        ],
+      });
+    }
+    throw err;
   }
 
   // If path is a directory, look for snapshot.md or the first .md file inside
-  if (fs.statSync(resolved).isDirectory()) {
+  if (stat.isDirectory()) {
     const snapshot = path.join(resolved, 'snapshot.md');
-    if (fs.existsSync(snapshot)) {
+    try {
+      fs.statSync(snapshot);
       resolved = snapshot;
-    } else {
+    } catch {
       const mdFiles = fs.readdirSync(resolved).filter(f => f.endsWith('.md'));
       if (mdFiles.length > 0) {
         resolved = path.join(resolved, mdFiles[0]);
@@ -431,19 +438,35 @@ async function runMarkitdown(filePath: string): Promise<string> {
   });
 }
 
-function stripHtmlFallback(html: string): string {
-  return html
-    .replace(/<script[\s\S]*?<\/script>/gi, '')
-    .replace(/<style[\s\S]*?<\/style>/gi, '')
-    .replace(/<noscript[\s\S]*?<\/noscript>/gi, '')
-    .replace(/<head[\s\S]*?<\/head>/gi, '')
-    .replace(/<\/(p|div|h[1-6]|li|tr|blockquote)>/gi, '\n')
-    .replace(/<br\s*\/?>/gi, '\n')
-    .replace(/<[^>]+>/g, '')
-    .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&nbsp;/g, ' ')
-    .replace(/[ \t]+/g, ' ').replace(/\n{3,}/g, '\n\n')
-    .trim();
+// Exported for testing only — not part of the public module API.
+// Output is Markdown text consumed by callers; it is NOT HTML-rendered,
+// so residual HTML entities in the output are inert (appear as literal text).
+// Strips script/style/head blocks then runs a fixed-point loop (max 10 passes)
+// to handle adjacent or malformed tags. Fails closed: returns '' if unstable
+// after MAX_PASSES iterations rather than emitting potentially partial output.
+export function stripHtmlFallback(html: string): string {
+  const applyPass = (s: string): string =>
+    s
+      .replace(/<script[\s\S]*?<\/script\s*>/gi, '')
+      .replace(/<style[\s\S]*?<\/style\s*>/gi, '')
+      .replace(/<noscript[\s\S]*?<\/noscript\s*>/gi, '')
+      .replace(/<head[\s\S]*?<\/head\s*>/gi, '')
+      .replace(/<\/(p|div|h[1-6]|li|tr|blockquote)>/gi, '\n')
+      .replace(/<br\s*\/?>/gi, '\n')
+      .replace(/<[^>]+>/g, '')
+      .replace(/[ \t]+/g, ' ')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim();
+
+  const MAX_PASSES = 10;
+  let current = html;
+  for (let i = 0; i < MAX_PASSES; i++) {
+    const next = applyPass(current);
+    if (next === current) return next;
+    current = next;
+  }
+  // Did not reach fixed point — fail closed rather than emit partial output
+  return '';
 }
 
 // ── Source content loading ───────────────────────────────

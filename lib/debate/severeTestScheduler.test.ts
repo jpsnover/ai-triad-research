@@ -377,6 +377,7 @@ describe('loadTestingRecords', () => {
     const records = [
       makePrecomputedRecord('acc-belief-001', 'accelerationist', 'untested', 0.8, 1.0),
     ];
+    // codeql[js/insecure-temporary-file] intentional tmpdir usage in test setup
     fs.writeFileSync(tmpFile, JSON.stringify(records), 'utf-8');
     const loaded = loadTestingRecords(tmpFile);
     expect(loaded).toHaveLength(1);

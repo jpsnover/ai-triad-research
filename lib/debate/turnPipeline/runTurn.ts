@@ -15,6 +15,7 @@ import { buildCitationBank, buildScopedCitationBank, formatCitationBank, scrubCi
 import type { CitationBankEntry, CitationResolutionDiagnostics } from '../citationResolution.js';
 import type { DocMetaMap } from '../evidenceFromSummaries.js';
 import { sanitizeNodeIds } from '../nodeIdUtils.js';
+import { classifyUrl } from '../urlClassify.js';
 import { buildStageInput, parseStageResponse, tagProvenance, toPromptJson } from './runTurn-stages.js';
 import { splitIntoParagraphs, classifyDraftHintFields, buildFieldFreezeBlock, mergeFrozenDraftFields, ALL_DRAFT_FIELDS } from './repair.js';
 import type { DraftField } from './repair.js';
@@ -833,16 +834,7 @@ export async function runTurnPipeline(
           doc_id: docId,
           resolved_title: meta?.title ?? docId,
           resolved_url: (meta as { resolved_url?: string })?.resolved_url ?? null,
-          url_type: (() => {
-            const url = (meta as { resolved_url?: string })?.resolved_url ?? '';
-            if (url.includes('doi.org')) return 'doi';
-            if (url.includes('arxiv.org')) return 'arxiv';
-            if (url.includes('ssrn.com')) return 'ssrn';
-            if (url.includes('scholar.google')) return 'scholar_fallback';
-            if (url.includes('google.com/search')) return 'google_fallback';
-            if (url) return 'direct';
-            return 'none';
-          })(),
+          url_type: classifyUrl((meta as { resolved_url?: string })?.resolved_url ?? ''),
           provenance_label: (meta as { provenance_label?: string })?.provenance_label ?? null,
           cited: !!cited,
           match_type: cited?.match_type ?? null,

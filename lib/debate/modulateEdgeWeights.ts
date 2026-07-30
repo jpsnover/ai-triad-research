@@ -242,6 +242,7 @@ async function main(): Promise<void> {
   // Write
   if (!dryRun) {
     edgesFile.last_modified = new Date().toISOString();
+    // codeql[js/file-system-race] accepted risk: TOCTOU inherent to read-process-write in single-user batch tools
     fs.writeFileSync(edgesPath, serializeEdgesJson(edgesFile), 'utf-8');
     console.log(`\nWritten: ${edgesPath}`);
   } else {

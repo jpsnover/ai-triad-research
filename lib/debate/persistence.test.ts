@@ -60,6 +60,7 @@ describe('atomicWriteSync', () => {
   });
 
   it('overwrites existing file atomically', () => {
+    // codeql[js/insecure-temporary-file] intentional tmpdir usage in test setup
     fs.writeFileSync(testFile, '{"old":true}', 'utf-8');
     atomicWriteSync(testFile, '{"new":true}');
     expect(JSON.parse(fs.readFileSync(testFile, 'utf-8'))).toEqual({ new: true });
