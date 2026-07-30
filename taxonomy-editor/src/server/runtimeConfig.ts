@@ -266,7 +266,16 @@ function vBackends(val: unknown, def: string[], field: string, errors: string[])
     return [...def];
   }
   if (filtered.length !== val.length) {
+    const dropped = val.filter(b => !(typeof b === 'string' && (KNOWN_BACKENDS as readonly string[]).includes(b)));
     errors.push(`${field}: dropped ${val.length - filtered.length} unknown/invalid backend(s)`);
+    // t/1995: a silently-dropped backend (e.g. a newly-added one still missing from
+    // KNOWN_BACKENDS) previously surfaced only as a UI "(not on your tier)" with no
+    // server-side evidence. Emit a runtime warn naming the dropped backend(s) so it's a
+    // one-line log read, not a config-diff hunt. (errors[] above is aggregated post-load.)
+    log.server.warn(
+      { component: 'runtime-config', field, dropped, allowed: [...KNOWN_BACKENDS] },
+      `vBackends: dropped unknown backend(s) ${dropped.map(d => `'${String(d)}'`).join(', ')} from ${field} — add to KNOWN_BACKENDS to register`,
+    );
   }
   return filtered;
 }

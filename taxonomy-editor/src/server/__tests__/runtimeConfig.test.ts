@@ -6,7 +6,7 @@
  * so getConfig()/forceReload() exercise the ENOENT → defaults fail-safe.
  */
 
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
@@ -15,6 +15,7 @@ import {
   getConfigState, writeConfig, diffFromDefaults, getClientConfig,
   type RuntimeConfig,
 } from '../runtimeConfig.js';
+import { log } from '../logger.js';
 
 const defaults = (): RuntimeConfig => getDefaults();
 
@@ -144,6 +145,20 @@ describe('validateAndMerge — allowedBackends', () => {
     );
     expect(config.tiers.platform.allowedBackends).toEqual(['gemini', 'groq']);
     expect(errors.some(e => e.includes('dropped') && e.includes('platform'))).toBe(true);
+  });
+
+  it('t/1995: emits a runtime warn naming the dropped backend', () => {
+    const warnSpy = vi.spyOn(log.server, 'warn').mockImplementation(() => {});
+    try {
+      validateAndMerge({ tiers: { platform: { allowedBackends: ['gemini', 'bogus', 'groq'] } } }, defaults());
+      const call = warnSpy.mock.calls.find(c => typeof c[1] === 'string' && c[1].includes('vBackends'));
+      expect(call).toBeDefined();
+      expect(String(call?.[1])).toContain("'bogus'");
+      expect(String(call?.[1])).toContain('platform');
+      expect((call?.[0] as { dropped?: unknown }).dropped).toEqual(['bogus']);
+    } finally {
+      warnSpy.mockRestore();
+    }
   });
 
   it('falls back to default when no known backends remain', () => {
