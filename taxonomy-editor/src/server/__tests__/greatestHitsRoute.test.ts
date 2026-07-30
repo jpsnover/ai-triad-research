@@ -46,6 +46,27 @@ describe('loadGreatestHitsNodeIds (t/1998)', () => {
     expect(JSON.parse(JSON.stringify(result))).toEqual({ node_ids: ['acc-bel-001', 'saf-des-002'] });
   });
 
+  it('t/2003: reads the v2 shape (nodes[].node_id) into { node_ids }', () => {
+    writeGreatestHits(JSON.stringify({
+      version: 2,
+      nodes: [
+        { node_id: 'acc-beliefs-085', pov: 'accelerationist', bdi_category: 'beliefs', debate_count: 107, crux_link_count: 2 },
+        { node_id: 'acc-beliefs-032', pov: 'accelerationist', bdi_category: 'beliefs', debate_count: 85, crux_link_count: 21 },
+      ],
+    }));
+    expect(loadGreatestHitsNodeIds()).toEqual({ node_ids: ['acc-beliefs-085', 'acc-beliefs-032'] });
+  });
+
+  it('t/2003: v1 node_ids take precedence when both shapes are present', () => {
+    writeGreatestHits(JSON.stringify({ version: 2, node_ids: ['v1-id'], nodes: [{ node_id: 'v2-id' }] }));
+    expect(loadGreatestHitsNodeIds()).toEqual({ node_ids: ['v1-id'] });
+  });
+
+  it('t/2003: v2 filters entries with a non-string or missing node_id', () => {
+    writeGreatestHits(JSON.stringify({ version: 2, nodes: [{ node_id: 'ok' }, { node_id: 42 }, {}] }));
+    expect(loadGreatestHitsNodeIds()).toEqual({ node_ids: ['ok'] });
+  });
+
   it('returns null on malformed JSON (graceful no-op)', () => {
     writeGreatestHits('{ not valid json');
     expect(loadGreatestHitsNodeIds()).toBeNull();
