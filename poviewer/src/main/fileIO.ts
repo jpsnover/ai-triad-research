@@ -152,7 +152,17 @@ export function createSourceOnDisk(meta: SourceMetadataOnDisk): void {
   try {
     fs.writeFileSync(snapshotPath, '', { flag: 'wx' });
   } catch (err) {
-    if ((err as { code?: string }).code !== 'EEXIST') throw err;
+    // EEXIST is the expected benign outcome (snapshot already present) — no-op.
+    if ((err as { code?: string }).code === 'EEXIST') return; /* telemetry — silent by design */
+    // Any other error is a real write failure: record (ADR-003) then rethrow.
+    getGlobalRecorder()?.record({
+      type: 'system.error',
+      component: 'poviewer-fileio',
+      level: 'error',
+      message: 'Failed to create empty snapshot.md',
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+    });
+    throw err;
   }
 }
 
