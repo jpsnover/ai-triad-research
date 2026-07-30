@@ -11,7 +11,7 @@
 
 import type { Entity } from '@lib/entities/types';
 import { TypeBadge, ExternalLinkRow } from './DetailPrimitives';
-import { coerceStringArray } from './coerceStringArray';
+import { coerceStringArray } from '@lib/entities/entityResolve';
 import './EntityDetail.css';
 
 const STATUS_LABEL: Record<Entity['status'], string> = {

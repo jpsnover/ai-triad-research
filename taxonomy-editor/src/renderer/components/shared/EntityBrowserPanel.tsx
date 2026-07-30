@@ -13,7 +13,7 @@ import { api } from '@bridge';
 import type { EntitySummary, EntityRef, EntityType, Entity } from '@lib/entities/types';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { TypeBadge } from './DetailPrimitives';
-import { coerceStringArray } from './coerceStringArray';
+import { coerceStringArray } from '@lib/entities/entityResolve';
 import { DetailPane } from './DetailPane';
 import { EmptyState } from './EmptyState';
 import './EntityBrowserPanel.css';
