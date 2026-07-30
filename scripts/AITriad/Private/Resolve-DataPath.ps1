@@ -150,11 +150,14 @@ function Get-DataRoot {
 
     $Root = $script:DataConfig.data_root
     if ([System.IO.Path]::IsPathRooted($Root)) {
-        return $Root
+        return [System.IO.Path]::GetFullPath($Root)
     }
-    # Resolve relative to where .aitriad.json was found, then Get-CodeRoot fallback
+    # Resolve relative to where .aitriad.json was found, then Get-CodeRoot fallback.
+    # Normalize via GetFullPath so the returned path has no embedded '..' segments —
+    # from a sibling worktree the raw Join yields '<wt>\..\ai-triad-data', which is
+    # fine for file I/O but breaks path-string comparisons (mirrors Get-SourcesDir; t/2007).
     if ($script:DataConfigDir) { $Anchor = $script:DataConfigDir } else { $Anchor = Get-CodeRoot }
-    return Join-Path $Anchor $Root
+    return [System.IO.Path]::GetFullPath((Join-Path $Anchor $Root))
 }
 
 function Get-TaxonomyDir {
