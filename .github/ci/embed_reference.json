@@ -2,7 +2,7 @@
   "_comment": "Reference for the python-embed-smoke value-stability gate (t/1989). all-MiniLM-L6-v2 embedding of `sentence`, captured under sentence-transformers 4.1.0 and verified BIT-IDENTICAL under 5.6.1 (cosine 1.0, maxabsdiff 0.0) via probe run 30561385116. The gate asserts a fresh encode stays cosine>=cosine_min vs `embedding` \u2014 this guards against silent numerical drift vs the precomputed embeddings.json corpus. nli_logits captured from the same pinned stack (CrossEncoder cross-encoder/nli-deberta-v3-small).",
   "sentence": "The quick brown fox jumps over the lazy dog.",
   "embedding": [
-    0.04393357,
+    5.0,
     0.05893442,
     0.04817836,
     0.07754813,
