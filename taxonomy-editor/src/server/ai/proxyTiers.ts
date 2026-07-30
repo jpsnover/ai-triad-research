@@ -1,8 +1,8 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-import fs from 'fs';
 import path from 'path';
+import { readFileWithMtime } from './fsCache.js';
 import { getDataRoot } from '../config.js';
 import { log } from '../logger.js';
 import { getGlobalRecorder } from '../../../../lib/flight-recorder/index.js';
@@ -75,14 +75,14 @@ function loadTierConfig(): TierConfig {
   ];
   for (const p of candidates) {
     try {
-      const stat = fs.statSync(p);
-      if (_cache && stat.mtimeMs === _cacheMtime) return _cache;
-      const data = JSON.parse(fs.readFileSync(p, 'utf-8')) as Partial<TierConfig>;
+      const { content, mtimeMs } = readFileWithMtime(p);
+      if (_cache && mtimeMs === _cacheMtime) return _cache;
+      const data = JSON.parse(content) as Partial<TierConfig>;
       _cache = {
         defaults: { ...tierDefaults(), ...data.defaults },
         users: data.users ?? [],
       };
-      _cacheMtime = stat.mtimeMs;
+      _cacheMtime = mtimeMs;
       log.server.debug({ count: _cache.users.length, path: p }, 'Loaded tier entries');
       return _cache;
     } catch (err) {

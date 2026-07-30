@@ -119,4 +119,44 @@ describe('providerBinding', () => {
     expect(result.ok).toBe(false);
     expect(result.boundTo).toBe('google');
   });
+
+  // ── t/2021 security regression: prototype-pollution / property-injection ──
+  // storageUserId is user-derived (normalized OAuth id). CodeQL flagged the
+  // dynamic write `bindings[storageUserId] = idp` (js/remote-property-injection).
+
+  it('rejects __proto__ as a storageUserId and writes no binding', () => {
+    const result = checkProviderBinding('__proto__', 'github');
+    expect(result).toEqual({ ok: false });
+    expect(fs.existsSync(path.join(adminDir, 'provider_bindings.json'))).toBe(false);
+  });
+
+  it('rejects constructor and prototype as storageUserIds', () => {
+    expect(checkProviderBinding('constructor', 'github')).toEqual({ ok: false });
+    expect(checkProviderBinding('prototype', 'github')).toEqual({ ok: false });
+  });
+
+  it('does not treat an Object.prototype member name as an existing binding', () => {
+    // With a normal-prototype map, bindings['toString'] resolved to
+    // Object.prototype.toString (truthy) and mis-flagged a first-time login as
+    // an idp mismatch. The null-prototype map makes a fresh id bind cleanly.
+    expect(checkProviderBinding('toString', 'github')).toEqual({ ok: true });
+
+    _resetBindingsCache();
+    expect(checkProviderBinding('toString', 'github')).toEqual({ ok: true });
+    expect(checkProviderBinding('toString', 'google')).toEqual({ ok: false, boundTo: 'github' });
+  });
+
+  it('drops a forbidden key from a pre-existing file without polluting Object.prototype', () => {
+    fs.writeFileSync(
+      path.join(adminDir, 'provider_bindings.json'),
+      '{"__proto__":"evil","alice":"github"}',
+      'utf-8',
+    );
+    _resetBindingsCache();
+
+    expect(checkProviderBinding('alice', 'github')).toEqual({ ok: true });
+    // The forbidden entry was dropped on load; Object.prototype is untouched.
+    expect(({} as Record<string, unknown>).evil).toBeUndefined();
+    expect(Object.prototype.hasOwnProperty.call(Object.prototype, 'evil')).toBe(false);
+  });
 });

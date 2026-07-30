@@ -15,6 +15,7 @@
 
 import fs from 'fs';
 import path from 'path';
+import { readFileWithMtime } from './fsCache.js';
 import { getDataRoot } from '../config.js';
 import { log } from '../logger.js';
 import { getConfig } from '../runtimeConfig.js';
@@ -22,6 +23,20 @@ import { getGlobalRecorder } from '../../../../lib/flight-recorder/index.js';
 
 interface ProviderBindings {
   [storageUserId: string]: string;
+}
+
+// Property names that would reach Object.prototype if used as a dynamic map
+// key. A normalized storageUserId must never be one of these — using it as a
+// write target is a prototype-pollution vector (CodeQL js/remote-property-injection).
+const FORBIDDEN_KEYS = new Set<string>(['__proto__', 'constructor', 'prototype']);
+function isForbiddenKey(key: string): boolean {
+  return FORBIDDEN_KEYS.has(key);
+}
+
+// Bindings are held in a null-prototype object so a user-controlled key can
+// never resolve up the prototype chain on read, nor pollute it on write.
+function emptyBindings(): ProviderBindings {
+  return Object.create(null) as ProviderBindings;
 }
 
 let _cache: ProviderBindings | null = null;
@@ -35,11 +50,17 @@ function getBindingsPath(): string {
 function loadBindings(): ProviderBindings {
   const bindingsPath = getBindingsPath();
   try {
-    const stat = fs.statSync(bindingsPath);
-    if (_cache && stat.mtimeMs === _cacheMtime) return _cache;
-    const data = JSON.parse(fs.readFileSync(bindingsPath, 'utf-8')) as ProviderBindings;
-    _cache = data;
-    _cacheMtime = stat.mtimeMs;
+    const { content, mtimeMs } = readFileWithMtime(bindingsPath);
+    if (_cache && mtimeMs === _cacheMtime) return _cache;
+    const parsed = JSON.parse(content) as Record<string, unknown>;
+    // Rebuild into a null-prototype map, dropping any prototype-polluting or
+    // non-string entries a hand-edited bindings file could contain.
+    const clean = emptyBindings();
+    for (const [k, v] of Object.entries(parsed)) {
+      if (!isForbiddenKey(k) && typeof v === 'string') clean[k] = v;
+    }
+    _cache = clean;
+    _cacheMtime = mtimeMs;
     return _cache;
   } catch (err) {
     if ((err as NodeJS.ErrnoException).code !== 'ENOENT') {
@@ -51,7 +72,7 @@ function loadBindings(): ProviderBindings {
         error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
     }
-    return {};
+    return emptyBindings();
   }
 }
 
@@ -71,7 +92,7 @@ function saveBindings(bindings: ProviderBindings): void {
     fs.mkdirSync(dir, { recursive: true });
   }
   fs.writeFileSync(bindingsPath, JSON.stringify(bindings, null, 2), 'utf-8');
-  _cache = { ...bindings };
+  _cache = Object.assign(emptyBindings(), bindings);
   _cacheMtime = 0;
   _lastLoadTime = Date.now();
 }
@@ -92,6 +113,18 @@ export interface BindingResult {
  */
 export function checkProviderBinding(storageUserId: string, idp: string): BindingResult {
   if (!storageUserId || storageUserId === '_local') return { ok: true };
+  // Defensive: a normalized storageUserId must never be a prototype-polluting
+  // key. Reject rather than let it reach the dynamic write below
+  // (CodeQL js/remote-property-injection). Also guards the read that follows.
+  if (isForbiddenKey(storageUserId)) {
+    log.server.warn({ storageUserId }, 'Provider binding: rejected reserved storageUserId key');
+    getGlobalRecorder()?.record({
+      type: 'system.error', component: 'providerBinding', level: 'warn',
+      message: 'Rejected reserved storageUserId key',
+      data: { storageUserId },
+    });
+    return { ok: false };
+  }
 
   const bindings = getBindings();
   const bound = bindings[storageUserId];

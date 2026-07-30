@@ -20,6 +20,7 @@ import { getApiKey, getApiKeys, getProjectRoot, EMBED_SCRIPT, resolveDataPath, t
 import { ActionableError } from '../../../../lib/debate/errors.js';
 import { parseJsonRobust } from '../../../../lib/debate/helpers.js';
 import { extractProviderReason, deriveKeyErrorMessage } from './providerErrors.js';
+import { readFileWithMtime } from './fsCache.js';
 import { tavilySearch, buildSearchAugmentedPrompt } from '../../../../lib/search/tavily.js';
 import { resolveEmbeddings, type EmbeddingFallback } from '../../../../lib/embeddings/embeddingResolver.js';
 import type { EmbeddingsFile } from '../../../../lib/electron-shared/embeddingIO.js';
@@ -125,14 +126,13 @@ let _modelConfigMtime = 0;
 function loadModelConfig(): { modelMap: Record<string, string>; fallbackChains: Record<string, string[]>; defaults: Record<string, string> } {
   try {
     const configPath = path.join(getProjectRoot(), 'ai-models.json');
-    const stat = fs.statSync(configPath);
-    if (!_modelMapCache || stat.mtimeMs !== _modelConfigMtime) {
-      const raw = fs.readFileSync(configPath, 'utf-8');
+    const { content: raw, mtimeMs } = readFileWithMtime(configPath);
+    if (!_modelMapCache || mtimeMs !== _modelConfigMtime) {
       const registry = JSON.parse(raw) as { models: { id: string; apiModelId?: string }[]; fallbackChains?: Record<string, string[]>; defaults?: Record<string, string> };
       _modelMapCache = buildModelIdMap(registry as { models: { id: string; apiModelId: string; label: string; backend: string }[]; backends: [] });
       _fallbackChainCache = registry.fallbackChains ?? {};
       _defaultsCache = registry.defaults ?? {};
-      _modelConfigMtime = stat.mtimeMs;
+      _modelConfigMtime = mtimeMs;
       log.api.debug({ models: Object.keys(_modelMapCache!).length, chains: Object.keys(_fallbackChainCache!).length }, 'Reloaded model config');
     }
   } catch (err) {
