@@ -210,6 +210,8 @@ export interface AppAPI {
   // --- Source evidence ---
   loadSourceEvidenceIndex: () => Promise<Record<string, unknown> | null>;
   loadDocTitles: () => Promise<Record<string, string> | null>;
+  /** Greatest-hits exclusion node IDs from calibration/greatest-hits.json (t/1998). Null when the file is absent. */
+  loadGreatestHits: () => Promise<{ node_ids: string[] } | null>;
   getSourceEvidence: (nodeIds: string[], pov: string) => Promise<{
     facts: unknown[]; keyPoints: unknown[]; formattedBlock: string;
     nodesCovered: string[]; totalCandidates: number;

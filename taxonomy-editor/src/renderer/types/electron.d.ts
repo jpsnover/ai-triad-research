@@ -48,6 +48,9 @@ export interface ElectronAPI {
   resolveSourceDocument: (docId: string) => Promise<{ available: boolean; type: 'pdf' | 'markdown' | null; content?: string; path?: string }>;
   loadSourceEvidenceIndex: () => Promise<Record<string, unknown> | null>;
   loadDocTitles: () => Promise<Record<string, string> | null>;
+  // IPC handler (`load-greatest-hits`) lands in parallel (ElectronMain, t/1998).
+  // Optional until then so electron-bridge's fallback (`?.() ?? null`) typechecks.
+  loadGreatestHits?: () => Promise<{ node_ids: string[] } | null>;
   getSourceEvidence: (nodeIds: string[], pov: string) => Promise<{
     facts: unknown[]; keyPoints: unknown[]; formattedBlock: string;
     nodesCovered: string[]; totalCandidates: number;

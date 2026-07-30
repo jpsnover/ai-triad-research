@@ -963,6 +963,7 @@ const rawApi: AppAPI = {
   // Source evidence
   loadSourceEvidenceIndex: () => get<Record<string, unknown> | null>('/api/source-evidence-index').catch(bridgeWarn('loadSourceEvidenceIndex failed', null)),
   loadDocTitles: () => get<Record<string, string> | null>('/api/doc-titles').catch(bridgeWarn('loadDocTitles failed', null)),
+  loadGreatestHits: () => get<{ node_ids: string[] } | null>('/api/greatest-hits').catch(bridgeWarn('loadGreatestHits failed', null)),
   getSourceEvidence: (nodeIds, pov) => post('/api/source-evidence', { nodeIds, pov }),
   runEvidenceQbaf: (claimText, claimId, model) => post<{ computed_strength: number; qbaf_iterations: number; evidence_items: Array<{ id: string; source_doc_id: string; text: string; relation: 'support' | 'contradict'; similarity: number }>; claim_id: string } | null>('/api/evidence-qbaf', { claimText, claimId, model }).catch(bridgeWarn('runEvidenceQbaf failed', null)),
 

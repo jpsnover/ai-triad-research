@@ -16,6 +16,7 @@ import { computeLineageDistribution, formatLineageContext } from '@lib/debate/to
 import { cosineSimilarity, scoreNodeRelevanceMeanTopN, selectRelevantNodes, selectRelevantSituationNodes, buildRelevanceQuery, scoreNodesViaAN } from '../../../utils/taxonomyRelevance';
 import type { ANClaimEmbedding, RelevanceOptions } from '../../../utils/taxonomyRelevance';
 import type { TaxonomyContext } from '../../../utils/taxonomyContext';
+import { applyGreatestHitsExclusion } from './getGreatestHits';
 import { getLineageMapping, getL2Categories, isLineageDataLoaded } from '../../../data/lineageCategories';
 import { api } from '@bridge';
 
@@ -404,6 +405,20 @@ function buildRelevanceOptions(threshold: number, debate: ReturnType<typeof useD
   return relevanceOpts;
 }
 
+/**
+ * Surface a user-visible debate warning when greatest-hits exclusion was requested but
+ * not applied (t/1998 loud-degrade). Store-touching companion to the store-free
+ * applyGreatestHitsExclusion; de-duped so a multi-turn debate raises it at most once.
+ */
+function surfaceGreatestHitsWarning(outcome: { requested: boolean; applied: boolean }): void {
+  if (!outcome.requested || outcome.applied) return;
+  const s = useDebateStore.getState();
+  const warning = 'Greatest-hits exclusion is On, but the exclusion list is unavailable — retread nodes were NOT filtered for this debate.';
+  if (s.debateWarnings.length < 50 && !s.debateWarnings.includes(warning)) {
+    useDebateStore.setState({ debateWarnings: [...s.debateWarnings, warning] });
+  }
+}
+
 /** Build the diagnostics injection manifest and log the lineage-boost promotion outcome. */
 function buildInjectionManifest(
   scoredPov: ReturnType<typeof selectRelevantNodes>,
@@ -518,6 +533,14 @@ export async function getRelevantTaxonomyContext(
     // Build relevance options with optional lineage boost
     const debate = useDebateStore.getState().activeDebate;
     const relevanceOpts = buildRelevanceOptions(threshold, debate, allPovNodes);
+
+    // Greatest-hits exclusion (t/1998) — app mirror of the CLI engine (debateEngine/
+    // taxonomyContext.ts:266). Degrades LOUDLY, not by throwing (TL decision, PM p/19#120):
+    // when the flag is On but the exclusion list is unavailable, exclusion is skipped and
+    // surfaceGreatestHitsWarning raises a user-visible note so the overview can show
+    // "On — not applied".
+    const ghOutcome = await applyGreatestHitsExclusion(relevanceOpts, debate?.exclude_greatest_hits);
+    surfaceGreatestHitsWarning(ghOutcome);
 
     const scoredPov = selectRelevantNodes(allPovNodes, scores, relevanceOpts);
     const scoredCC = selectRelevantSituationNodes(allCCNodes, scores, threshold, 3, 15);
