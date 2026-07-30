@@ -107,22 +107,34 @@ function loadDocTitles(): DocMetaMap | null {
 }
 
 /**
- * t/1998: read `calibration/greatest-hits.json` and return just its `node_ids` for
- * the renderer's greatest-hits exclusion. Returns null when the file is absent or
- * unreadable (graceful no-op — the renderer treats null as "no exclusion available";
- * see the loud-degrade design in t/1998#2). Mirrors loadDocTitles (fs read, null on
- * absence). Deliberately does NOT use corpusCoverage.loadGreatestHitsFile(): that
- * returns a Set (JSON.stringify(new Set()) → {}) and throws on a missing file — this
- * endpoint returns the raw `{ node_ids }` array or null instead.
+ * t/1998: read `calibration/greatest-hits.json` and return its node IDs as
+ * `{ node_ids }` for the renderer's greatest-hits exclusion. Returns null when the
+ * file is absent or unreadable (graceful no-op — the renderer treats null as "no
+ * exclusion available"; see the loud-degrade design in t/1998#2). Mirrors
+ * loadDocTitles (fs read, null on absence). Deliberately does NOT use
+ * corpusCoverage.loadGreatestHitsFile(): that returns a Set (JSON.stringify(new
+ * Set()) → {}) and throws on a missing file.
+ *
+ * t/2003: accepts BOTH file shapes so it survives the DebateTool v2 data regen on
+ * either side of it — v1 = flat `node_ids: string[]`; v2 = `nodes: [{ node_id, pov,
+ * bdi_category, ... }]`. Without this, v2 leaves `node_ids` undefined → `{ node_ids:
+ * [] }` → exclusion silently no-ops. The response contract (`{ node_ids: string[] }`)
+ * is unchanged — the renderer builds the Set + filters vs. live nodes.
  */
 export function loadGreatestHitsNodeIds(): { node_ids: string[] } | null {
   try {
     const p = greatestHitsPath(getDataRoot());
     if (!fs.existsSync(p)) return null;
-    const parsed = JSON.parse(fs.readFileSync(p, 'utf-8')) as { node_ids?: unknown };
-    const node_ids = Array.isArray(parsed.node_ids)
-      ? parsed.node_ids.filter((id): id is string => typeof id === 'string')
-      : [];
+    const parsed = JSON.parse(fs.readFileSync(p, 'utf-8')) as {
+      node_ids?: unknown;
+      nodes?: Array<{ node_id?: unknown }>;
+    };
+    const raw: unknown[] = Array.isArray(parsed.node_ids)
+      ? parsed.node_ids
+      : Array.isArray(parsed.nodes)
+        ? parsed.nodes.map(n => n?.node_id)
+        : [];
+    const node_ids = raw.filter((id): id is string => typeof id === 'string');
     return { node_ids };
   } catch { /* telemetry — silent by design: absent/malformed → null (graceful no-op) */ return null; }
 }
