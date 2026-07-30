@@ -23,6 +23,13 @@ on:
   pull_request:
     branches: [main]
   workflow_dispatch:
+  # merge_group: fires when a PR is added to the GitHub merge queue (t/1968). The
+  # queue tests each PR against the PROJECTED merged state — restores strict=true's
+  # "tested against current main" guarantee without the up-to-date rebase livelock.
+  # No job edits needed: `changes` (if: event==pull_request) SKIPS on merge_group,
+  # so every code job's `github.event_name != 'pull_request'` guard runs the FULL
+  # suite unfiltered, and `ci-gate` (the queue's required check) aggregates them.
+  merge_group:
 
 permissions:
   contents: read
