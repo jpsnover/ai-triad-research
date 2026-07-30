@@ -20,12 +20,45 @@ const EXECUTABLE_TAGS = /<\/?(?:script|iframe|object|embed|style)\b[^>]*>/gi;
 const DANGEROUS_SCHEME = /\b(?:javascript|vbscript):/gi;
 const DATA_HTML = /\bdata:text\/html/gi;
 
-/** Neutralize executable tags + dangerous URL schemes in a single string. */
+// Fail-closed cap on the fixed-point loop below. Real content converges in
+// ≤ nesting-depth passes (1 for non-adversarial input), so this is only ever
+// reached by pathological deeply-nested input — far above any legitimate value.
+const MAX_SANITIZE_PASSES = 20;
+
+/**
+ * Neutralize executable tags + dangerous URL schemes in a single string.
+ *
+ * t/2023 (CodeQL js/incomplete-multi-character-sanitization): a SINGLE pass is
+ * bypassable because removing one match can reform another — `<scr<script>ipt>`
+ * strips the inner tag and leaves `<script>`, and removing tags can concatenate
+ * halves into a scheme (`java<script></script>script:` → `javascript:`). So we
+ * apply the pipeline to a FIXED POINT (repeat until the string stops changing).
+ *
+ * Termination: every pass that matches a tag strictly shortens the string (finite
+ * tags); the scheme/data replacements are idempotent once no tag reforms them —
+ * so the loop converges. MAX_SANITIZE_PASSES is a defensive, fail-closed backstop:
+ * if a pathological input somehow hasn't converged, we strip all angle brackets so
+ * no tag can survive rather than return possibly-executable content.
+ *
+ * The three regexes are linear-time (single bounded `[^>]*`, fixed alternations,
+ * literals) — no nested/overlapping unbounded quantifiers, so no ReDoS.
+ */
 export function sanitizeUserText(s: string): string {
-  return s
-    .replace(EXECUTABLE_TAGS, '')
-    .replace(DANGEROUS_SCHEME, 'blocked:')
-    .replace(DATA_HTML, 'data:blocked');
+  let out = s;
+  let prev: string;
+  let passes = 0;
+  do {
+    prev = out;
+    out = out
+      .replace(EXECUTABLE_TAGS, '')
+      .replace(DANGEROUS_SCHEME, 'blocked:')
+      .replace(DATA_HTML, 'data:blocked');
+    passes++;
+  } while (out !== prev && passes < MAX_SANITIZE_PASSES);
+  // Fail-closed: non-convergence within the cap means a pathological input —
+  // guarantee no executable tag can survive by neutralizing residual brackets.
+  if (out !== prev) out = out.replace(/[<>]/g, '');
+  return out;
 }
 
 /** Recursively sanitize every string in a JSON-like value (arrays/objects). */
