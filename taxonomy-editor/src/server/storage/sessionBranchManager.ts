@@ -396,10 +396,14 @@ export class SessionBranchManager {
     const creds = await getCredentials();
     if (!creds) return;
 
-    // Delete the branch ref on GitHub
+    // Delete the branch ref on GitHub. Encode each URL segment so injected
+    // characters in creds.repo or branchName cannot alter the URL structure.
+    const [delOwner, delRepo] = creds.repo.split('/');
+    if (!delOwner || !delRepo) return;
+    const delBranchPath = state.branchName.split('/').map(encodeURIComponent).join('/');
     try {
       const res = await fetch(
-        `https://api.github.com/repos/${creds.repo}/git/refs/heads/${state.branchName}`,
+        `https://api.github.com/repos/${encodeURIComponent(delOwner)}/${encodeURIComponent(delRepo)}/git/refs/heads/${delBranchPath}`,
         {
           method: 'DELETE',
           headers: {
@@ -529,22 +533,14 @@ export class SessionBranchManager {
     const creds = await getCredentials();
     if (!creds) return false;
 
-    // SSRF guard: encode each URL path segment independently so no injected
-    // characters in creds.repo or branchName can alter the host or path
-    // structure. Then assert the host before issuing the request.
+    // SSRF guard: encode each URL path segment so injected characters in
+    // creds.repo or branchName cannot alter the URL structure. The scheme and
+    // host are structurally guaranteed by the template literal — no runtime
+    // startsWith check needed; the encoding is the actual protection.
     const [owner, repoName] = creds.repo.split('/');
+    if (!owner || !repoName) return false;
     const branchPath = branchName.split('/').map(encodeURIComponent).join('/');
     const url = `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repoName)}/git/refs/heads/${branchPath}`;
-    if (!url.startsWith('https://api.github.com/')) {
-      getGlobalRecorder()?.record({
-        type: 'system.error',
-        component: 'session-branch-manager',
-        level: 'error',
-        message: 'SSRF guard: constructed URL escapes api.github.com — request blocked',
-        data: { prefix: url.slice(0, 60) },
-      });
-      return false;
-    }
 
     try {
       const res = await fetch(url, {
