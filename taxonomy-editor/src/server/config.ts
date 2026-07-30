@@ -7,6 +7,7 @@
  */
 
 import fs from 'fs';
+import os from 'os';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { log } from './logger.js';
@@ -297,7 +298,10 @@ export const STORAGE_MODE: StorageMode =
     ? process.env.STORAGE_MODE
     : (process.env.NODE_ENV === 'production' ? 'github-api' : 'filesystem');
 
-export const CACHE_DIR = process.env.TAXONOMY_CACHE_DIR || '/tmp/taxonomy-cache';
+// Default to a user-private cache dir (not world-writable /tmp) to avoid
+// symlink-race vulnerabilities (CodeQL js/insecure-temporary-file).
+// Production always sets TAXONOMY_CACHE_DIR via environment.
+export const CACHE_DIR = process.env.TAXONOMY_CACHE_DIR || path.join(os.homedir(), '.cache', 'taxonomy');
 
 // ── Server settings ──
 

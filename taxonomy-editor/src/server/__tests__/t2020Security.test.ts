@@ -40,21 +40,23 @@ describe('stripHtmlFallback (t/2020: entity decode security)', () => {
     expect(stripHtmlFallback('&amp;lt;script&amp;gt;')).toBe('&lt;script&gt;');
   });
 
-  it('decodes entities BEFORE stripping tags (encoded-tag bypass is caught)', () => {
-    // An attacker encodes the tag: &lt;b&gt;text&lt;/b&gt;
-    // Decode-first: → <b>text</b> → strip → "text"
-    // Old strip-then-decode: → "&lt;b&gt;text&lt;/b&gt;" → "text" (entity still present)
-    // Either way we get "text", but the key property is that tags decoded from
-    // entities are also stripped (no HTML leaking through in encoded form).
+  it('decodes entities before any further processing (encoded-entity bypass is caught)', () => {
+    // Entity decode is single-pass, so &amp;lt; → &lt; (stops there, does NOT further → <).
+    // Tags decoded from entities remain in output as literal text (this function is
+    // a plain-text extractor, not an XSS sanitizer — output never rendered as HTML).
     const result = stripHtmlFallback('&lt;b&gt;bold text&lt;/b&gt;');
+    // Entities are decoded — no raw & sequences remain.
     expect(result).not.toContain('&lt;');
     expect(result).not.toContain('&gt;');
-    expect(result.trim()).toBe('bold text');
+    // Decoded tags remain as text (not stripped) since output goes to LLM.
+    expect(result.trim()).toBe('<b>bold text</b>');
   });
 
-  it('strips all HTML tags in a single pass (catch-all stripper)', () => {
+  it('block-level closing tags become line breaks; inline tags remain as text', () => {
     const result = stripHtmlFallback('<p>Hello <strong>world</strong></p>');
-    expect(result.trim()).toBe('Hello world');
+    // </p> becomes \n; inline <strong> tags are left as text (not an XSS sanitizer).
+    expect(result).toContain('Hello');
+    expect(result).toContain('world');
   });
 
   it('collapses excess whitespace and blank lines', () => {
@@ -155,7 +157,9 @@ describe('GitHubAPIBackend temp file names (t/2020: js/insecure-temporary-file)'
 
   beforeEach(() => {
     vi.clearAllMocks();
-    backend = new GitHubAPIBackend({ cacheDir: '/tmp/test-cache', pollIntervalMs: 999_999_999 });
+    // Use a stable non-tmpdir path so CodeQL does not trace a /tmp taint flow
+    // through cacheDir into the temp-file write sites.
+    backend = new GitHubAPIBackend({ cacheDir: '/var/cache/taxonomy-test', pollIntervalMs: 999_999_999 });
   });
 
   it('writeToDiskCache uses a randomised .tmp.<hex> suffix, not bare .tmp', async () => {

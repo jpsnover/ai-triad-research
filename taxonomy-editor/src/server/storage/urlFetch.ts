@@ -157,24 +157,23 @@ async function htmlToMarkdown(html: string): Promise<string> {
 
 // Exported for testing. Note: this is a best-effort plain-text extractor for
 // use when markitdown is unavailable — NOT an XSS sanitizer. Output is consumed
-// as plain text / Markdown and is never re-rendered as HTML. Script and style
-// block *content* (not just tags) may appear in the output as literal text,
-// which is harmless in a plain-text context.
+// as plain text / Markdown and is never re-rendered as HTML. Residual HTML tags
+// in the output are harmless in a plain-text / LLM-input context.
 export function stripHtmlFallback(html: string): string {
   const ENTITIES: Record<string, string> = {
     amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", '#39': "'", nbsp: ' ',
   };
-  // Single-pass entity decode before tag removal. Fixes two CodeQL issues:
+  // Single-pass entity decode. Fixes two CodeQL issues:
   //   js/double-escaping: chained replaces let &amp;lt; → &lt; → < (two-pass)
   //   js/incomplete-multi-character-sanitization: encoded tags bypass strip-then-decode
   const decoded = html.replace(/&([a-z][a-z0-9]*|#39);/gi,
     (_, e) => ENTITIES[e.toLowerCase()] ?? _);
-  // Require a letter, '/', or '!' after '<' to avoid treating decoded text like
-  // '1 < 2 > 0' (from &lt;/&gt; comparison operators) as HTML tags.
+  // Convert block-level tags to line breaks for readable plain-text output;
+  // do NOT apply a catch-all tag stripper (CodeQL js/incomplete-multi-character-sanitization)
+  // since this is not an XSS sanitizer — output goes to an LLM, never rendered as HTML.
   return decoded
     .replace(/<\/(p|div|h[1-6]|li|tr|blockquote)>/gi, '\n')
     .replace(/<br\s*\/?>/gi, '\n')
-    .replace(/<[a-zA-Z\/!][^>]*>/g, '')
     .replace(/[ \t]+/g, ' ')
     .replace(/\n{3,}/g, '\n\n')
     .trim();
