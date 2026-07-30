@@ -529,19 +529,33 @@ export class SessionBranchManager {
     const creds = await getCredentials();
     if (!creds) return false;
 
+    // SSRF guard: encode each URL path segment independently so no injected
+    // characters in creds.repo or branchName can alter the host or path
+    // structure. Then assert the host before issuing the request.
+    const [owner, repoName] = creds.repo.split('/');
+    const branchPath = branchName.split('/').map(encodeURIComponent).join('/');
+    const url = `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repoName)}/git/refs/heads/${branchPath}`;
+    if (!url.startsWith('https://api.github.com/')) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'session-branch-manager',
+        level: 'error',
+        message: 'SSRF guard: constructed URL escapes api.github.com — request blocked',
+        data: { prefix: url.slice(0, 60) },
+      });
+      return false;
+    }
+
     try {
-      const res = await fetch(
-        `https://api.github.com/repos/${creds.repo}/git/refs/heads/${branchName}`,
-        {
-          method: 'GET',
-          headers: {
-            Accept: 'application/vnd.github+json',
-            Authorization: `Bearer ${creds.token}`,
-            'User-Agent': 'ai-triad-taxonomy-editor',
-            'X-GitHub-Api-Version': '2022-11-28',
-          },
+      const res = await fetch(url, {
+        method: 'GET',
+        headers: {
+          Accept: 'application/vnd.github+json',
+          Authorization: `Bearer ${creds.token}`,
+          'User-Agent': 'ai-triad-taxonomy-editor',
+          'X-GitHub-Api-Version': '2022-11-28',
         },
-      );
+      });
       return res.ok;
     } catch {
       /* telemetry — silent by design */
