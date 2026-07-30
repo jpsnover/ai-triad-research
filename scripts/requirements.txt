@@ -11,7 +11,7 @@ trafilatura>=1.8
 
 # PDF text extraction
 pypdf>=6.14.2
-pdfminer.six>=20251230
+pdfminer.six>=20260107
 
 # URL/slug utilities
 python-slugify>=8.0
