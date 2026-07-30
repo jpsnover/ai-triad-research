@@ -2400,3 +2400,23 @@ Institutional memory for failure patterns across the AI Triad Research project.
 **Status:** Active — gate-coverage gap (required `ci-gate` ⊊ all checks) surfaced by a concrete CodeQL high (predictable temp file). Sibling of the escalated "Gate Signal Integrity" rule and the bookkeeping-≠-artifact genus; relates to #94. Self-merge is fleet-wide now, so confirming non-required security check-runs before merge is a general habit, not a one-off. **Escalated → DISPOSITIONED (TL p/8#137):** (1) interim — a "confirm the CodeQL check-run, not just ci-gate" step added to the Wave-2 self-merge flow now (t/2001#3); (2) durable — **t/2025 (DevOps, high): make CodeQL a REQUIRED check in DIFFERENTIAL mode** (fail on new alerts only, per prevention #4). Structural required-gate is the real fix; the interim checklist line is the memory-dependent stopgap until it lands. t/1589 gate-integrity genus.
 
 **Applies To:** All agents self-merging PRs under the checks-only gate — especially confirming CodeQL/security check-runs; and anyone writing temp files in JS/TS.
+
+---
+
+## #113 [Build] `gh api` Auto-Switches to POST When Any `-f`/`-F` Field Is Passed — 404 on a GET-Only Endpoint; Use a Query String or `-X GET`
+
+**Pattern:** `gh api` defaults to GET, but **switches the HTTP method to POST the moment any `-f`/`-F` (`--field`/`--raw-field`) is passed** — the fields become a request BODY, not query params. So `gh api ".../code-scanning/alerts" -f state=open -f tool_name=CodeQL` **POSTs** to a **GET-only** endpoint → **404**. The 404 misleads toward "wrong URL / missing resource" when the real fault is the verb.
+
+**Instances:**
+- 2026-07-30 — Server Auth (p/303#1): the CodeQL-alert-pull command **templated into the Wave-2 security tickets** — `gh api ".../code-scanning/alerts" -f state=open -f tool_name=CodeQL` — returned **404** because the `-f` fields flipped it to POST on a GET-only endpoint. **Affects every Wave-2 subticket using the same template** (broad blast radius, ~7 roles). **Fix:** put params in the query string with a plain GET — `gh api ".../code-scanning/alerts?state=open&tool_name=CodeQL" --paginate --jq '…'`.
+
+**Root Cause:** `gh api`'s method is implicit: no fields → GET; any `-f`/`-F` → POST (fields sent as a body). Documented, but easy to miss — the same `-f key=val` idiom that adds *query params* in many CLIs adds a *POST body* here. On a GET-only REST endpoint (list code-scanning alerts) the POST 404s. A templated command carrying this bug propagates the failure to every consumer — the "validate a shared/templated procedure before mandating it" failure (#102).
+
+**Prevention:**
+1. **For a GET endpoint with params, use the query string, not `-f`:** `gh api "<path>?k1=v1&k2=v2" --paginate --jq '…'`. Or force the method while keeping `-f`: `gh api -X GET "<path>" -f k1=v1 -f k2=v2` (with `-X GET`, `gh` puts the fields in the query string instead of a body).
+2. **A `gh api` 404 on an endpoint you KNOW exists ⇒ suspect an unintended POST from `-f`/`-F`** — check the method before doubting the path (object-level: the endpoint isn't missing, the verb is wrong).
+3. **Verify a `gh api` command before templating it into tickets/skills** — a method bug in a template propagates to every consumer (here, all Wave-2 subtickets). Ties to #102 (validate a fleet-standard/templated procedure end-to-end before mandating it).
+
+**Status:** Active — `gh api` implicit-method gotcha; high blast radius via the Wave-2 ticket template (t/2001). Sibling of #102 (bug-in-a-template propagates).
+
+**Applies To:** All agents scripting `gh api` against GET endpoints with params (code-scanning alerts, list APIs) — especially commands templated across tickets/roles.
