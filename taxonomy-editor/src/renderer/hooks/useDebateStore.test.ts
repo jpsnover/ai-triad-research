@@ -555,6 +555,35 @@ describe('createDebate', () => {
     await useDebateStore.getState().createDebate('Topic', ['accelerationist'], false);
     expect(mockApi.listDebateSessionsMeta).toHaveBeenCalled();
   });
+
+  // ── excludeGreatestHits option → persisted config (t/1980) ──
+  // Store is the single writer for app-created debates; the option maps to the
+  // snake_case persisted field the renderer scoring + CLI engine both read.
+  it('persists exclude_greatest_hits=true when the option is set', async () => {
+    await useDebateStore.getState().createDebate(
+      'Topic', ['accelerationist'], false, 'topic', '', '', undefined, undefined,
+      undefined, undefined, { excludeGreatestHits: true },
+    );
+    const saved = mockApi.saveDebateSession.mock.calls[0][0] as Record<string, unknown>;
+    expect(saved.exclude_greatest_hits).toBe(true);
+    expect(useDebateStore.getState().activeDebate!.exclude_greatest_hits).toBe(true);
+  });
+
+  it('defaults exclude_greatest_hits to false when the option is omitted', async () => {
+    await useDebateStore.getState().createDebate('Topic', ['accelerationist'], false);
+    const saved = mockApi.saveDebateSession.mock.calls[0][0] as Record<string, unknown>;
+    expect(saved.exclude_greatest_hits).toBe(false);
+    expect(useDebateStore.getState().activeDebate!.exclude_greatest_hits).toBe(false);
+  });
+
+  it('persists exclude_greatest_hits=false when the option is explicitly false', async () => {
+    await useDebateStore.getState().createDebate(
+      'Topic', ['accelerationist'], false, 'topic', '', '', undefined, undefined,
+      undefined, undefined, { excludeGreatestHits: false },
+    );
+    const saved = mockApi.saveDebateSession.mock.calls[0][0] as Record<string, unknown>;
+    expect(saved.exclude_greatest_hits).toBe(false);
+  });
 });
 
 describe('loadDebate', () => {
@@ -596,6 +625,26 @@ describe('loadDebate', () => {
     await useDebateStore.getState().loadDebate('session-1');
 
     expect(useDebateStore.getState().debateModel).toBe('gemini-2.0-pro');
+  });
+
+  // ── exclude_greatest_hits round-trips on load (t/1980) ──
+  it('carries exclude_greatest_hits back on load', async () => {
+    const session = makeSession({ exclude_greatest_hits: true });
+    mockApi.loadDebateSession.mockResolvedValueOnce(session);
+
+    await useDebateStore.getState().loadDebate('session-1');
+
+    expect(useDebateStore.getState().activeDebate!.exclude_greatest_hits).toBe(true);
+  });
+
+  it('treats a pre-feature debate with no exclude_greatest_hits as false (absent ⇒ false)', async () => {
+    const session = makeSession(); // no exclude_greatest_hits field (lazy migration)
+    mockApi.loadDebateSession.mockResolvedValueOnce(session);
+
+    await useDebateStore.getState().loadDebate('session-1');
+
+    // Absent on the raw session; readers coalesce `?? false`.
+    expect(useDebateStore.getState().activeDebate!.exclude_greatest_hits ?? false).toBe(false);
   });
 
   it('restores audience from session', async () => {
