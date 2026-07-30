@@ -47,6 +47,19 @@ const DEFAULT_CLEANUP_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
 const SHARED_MOUNT = '/mnt/shared';
 type Kind = 'chats' | 'debates' | 'comments';
 
+// Module-level singleton for the tmpdir fallback path. mkdtempSync creates a
+// private (mode 0700) directory with an unpredictable name, eliminating the
+// symlink-race attack possible with the prior predictable 'aitriad-anon-sessions'
+// subdirectory (CodeQL js/insecure-temporary-file). Trade-off: sessions written
+// in the previous server process are lost on restart (directory name changes).
+// This is acceptable — the tmpdir path is local-dev only; production always uses
+// ANON_SESSION_DIR or /mnt/shared, both of which are stable across restarts.
+let _anonTmpBase: string | undefined;
+function getAnonTmpBase(): string {
+  if (!_anonTmpBase) _anonTmpBase = fs.mkdtempSync(path.join(os.tmpdir(), 'aitriad-anon-'));
+  return _anonTmpBase;
+}
+
 function defaultBaseDir(): string {
   if (process.env.ANON_SESSION_DIR) return process.env.ANON_SESSION_DIR;
   try {
@@ -61,7 +74,7 @@ function defaultBaseDir(): string {
     });
     /* not mounted — fall through to temp */
   }
-  return path.join(os.tmpdir(), 'aitriad-anon-sessions');
+  return getAnonTmpBase();
 }
 
 /** Restrict a session/item id to a path-safe token (no traversal). */
