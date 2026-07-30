@@ -2,29 +2,29 @@
 # Install: pip install -r scripts/requirements.txt
 
 # HTTP and web fetching
-requests>=2.33.0
+requests>=2.34.2
 httpx>=0.28.1
 
 # HTML to Markdown conversion
-markdownify>=0.11
-trafilatura>=1.8
+markdownify>=1.2.3
+trafilatura>=2.1.0
 
 # PDF text extraction
 pypdf>=6.14.2
-pdfminer.six>=20251230
+pdfminer.six>=20260107
 
 # URL/slug utilities
-python-slugify>=8.0
+python-slugify>=8.0.4
 
 # Wayback Machine archival
-waybackpy>=3.0
+waybackpy>=3.0.6
 
 # AI API clients (install whichever you use)
-anthropic>=0.30
+anthropic>=0.120.0
 # google-generativeai>=0.7
 
 # Git inspection
-gitpython>=3.1.50
+gitpython>=3.1.57
 
 # Semantic embeddings (all-MiniLM-L6-v2) and NLI cross-encoder
 # (cross-encoder/nli-deberta-v3-small) for taxonomy search and
@@ -36,7 +36,7 @@ gitpython>=3.1.50
 # the `python-embed-smoke` CI job (cosine vs a pinned reference) + the weekly
 # embed-drift workflow (which also catches transitive transformers/torch bumps
 # this file's paths-filter can't see). An evidence-backed floor, not a break-pin.
-sentence-transformers>=4.1
+sentence-transformers>=5.6.1
 
 # Document conversion (PDF, DOCX, PPTX, XLSX, HTML, images → Markdown)
-markitdown[all]>=0.1
+markitdown[all]>=0.1.6
