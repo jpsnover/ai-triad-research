@@ -63,6 +63,10 @@ export const api: AppAPI = {
   resolveSourceDocument: (docId) => window.electronAPI.resolveSourceDocument(docId),
   loadSourceEvidenceIndex: () => window.electronAPI.loadSourceEvidenceIndex(),
   loadDocTitles: () => window.electronAPI.loadDocTitles(),
+  // Optional-chaining fallback: the IPC handler (ElectronMain, t/1998) lands in parallel;
+  // until it's present window.electronAPI.loadGreatestHits is undefined → resolve null so
+  // the app degrades gracefully (no exclusion) rather than throwing.
+  loadGreatestHits: () => window.electronAPI.loadGreatestHits?.() ?? Promise.resolve(null),
   getSourceEvidence: (nodeIds, pov) => window.electronAPI.getSourceEvidence(nodeIds, pov),
   runEvidenceQbaf: (claimText, claimId, model) => window.electronAPI.runEvidenceQbaf(claimText, claimId, model),
 
