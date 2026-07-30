@@ -53,6 +53,16 @@ Orca config files (`.orca.yaml`, `AGENTS.md`, `.orca/` directory) live in a **se
 - If you need to update AGENTS.md, edit it normally but commit via `ogit`, not `git`
 - Run `ogit` from the repo root — `.orca-git` is not visible from subdirectories
 
+### Shared-Checkout Commit Guard (git pre-commit hook)
+
+The fleet shares one `main` checkout, so a commit made **directly on its `main` branch** strands work local-only and diverges `main` from `origin` (t/1926). A committed pre-commit hook (`.githooks/pre-commit`) **refuses** such commits. Worktree commits, non-`main` branches, and `--no-verify` are allowed, so `/land-from-worktree` is never blocked. Git does not auto-run committed hooks — **enable once per checkout**:
+
+```
+git config core.hooksPath .githooks
+```
+
+The hook is self-documenting (see its header comment). Owner / emergency override: `git commit --no-verify`.
+
 ### PowerShell Module (`scripts/AITriad/`)
 
 40+ cmdlets in `Public/`, internal helpers in `Private/`, AI prompt templates in `Prompts/`. Module manifest: `AITriad.psd1` (v0.8.0). Companion modules loaded alongside: `AIEnrich.psm1` (multi-backend AI abstraction with streaming, retry, token tracking) and `DocConverters.psm1` (PDF/DOCX/HTML to Markdown via pandoc/gs).

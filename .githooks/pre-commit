@@ -1,0 +1,54 @@
+#!/bin/sh
+# ─────────────────────────────────────────────────────────────────────────────
+# pre-commit — block direct commits on the shared-tree `main` checkout (t/1926).
+#
+# WHY: the fleet shares one `main` checkout. A commit made directly on its `main`
+# branch stays local-only, diverges `main` from `origin`, and gets swept into the
+# next agent's commit or wiped by the next reconcile. That treadmill (and one
+# near-loss of genuine work, 7e1f94a2) is what this hook stops. The friendly Orca
+# `direct-main-commit-warning` nudge only advised; this refuses.
+#
+# CARVE-OUTS (co-located here per the Gate Co-Location rule, t/1589 — NOT in a
+# ticket or external doc):
+#   • Linked worktrees are ALLOWED (git-dir != git-common-dir). The /land-from-worktree
+#     flow commits on a branch inside a worktree, so landing is never blocked.
+#   • Any branch other than `main` is ALLOWED.
+#   • Owner / emergency override: `git commit --no-verify` (git skips all hooks).
+#   • Fail-OPEN: if any git introspection errors, the hook ALLOWS the commit — a
+#     broken guard must never block legitimate work.
+#
+# ACTIVATION (one-time, per checkout — git does not auto-run committed hooks):
+#   git config core.hooksPath .githooks
+# Documented in root AGENTS.md so a fresh clone re-enables enforcement.
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Normalize BOTH paths through `cd && pwd` so the comparison is format-stable on
+# Git-for-Windows (where --absolute-git-dir yields `C:/…` but a relative dir cd's
+# to `/c/…`). Mixing the two styles would read the main checkout as a worktree and
+# silently fail open.
+gd=$(cd "$(git rev-parse --git-dir 2>/dev/null)" 2>/dev/null && pwd) || exit 0
+cdir=$(cd "$(git rev-parse --git-common-dir 2>/dev/null)" 2>/dev/null && pwd) || exit 0
+[ -n "$gd" ] && [ -n "$cdir" ] || exit 0
+
+# Linked worktree → allow (this is where legitimate landing commits happen).
+[ "$gd" = "$cdir" ] || exit 0
+
+# Shared checkout: only the `main` branch is protected.
+branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null) || exit 0
+[ "$branch" = "main" ] || exit 0
+
+# Direct commit on the shared `main` checkout — refuse.
+cat >&2 <<'MSG'
+
+  ✖ BLOCKED: direct commit to the shared-tree `main` checkout (t/1926).
+    This strands work local-only and diverges `main` from `origin`.
+
+  Land via /land-from-worktree instead:
+    git worktree add ../wt-<ticket> origin/main
+    #  …commit inside the worktree…
+    git push origin HEAD:<branch>   →   gh pr create   →   self-merge on green
+
+  Owner / emergency override (bypasses this hook):
+    git commit --no-verify
+MSG
+exit 1
