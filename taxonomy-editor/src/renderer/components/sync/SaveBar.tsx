@@ -5,6 +5,7 @@ import { useState, useMemo, useEffect, useRef } from 'react';
 import { nodePovFromId } from '@lib/debate/nodeIdUtils';
 import { useTaxonomyStore } from '../../hooks/useTaxonomyStore';
 import { useSyncStatus } from '../../hooks/useSyncStatus';
+import { type SyncStatus } from '../../utils/syncApi';
 import { useOnlineStatus } from '../../hooks/useOnlineStatus';
 import { triggerManualDump } from '../../lib/flightRecorderInit';
 import { useFlag } from '../../hooks/useFeatureFlags';
@@ -82,94 +83,22 @@ export function SaveBar() {
           ? `Unsaved: ${dirtyList}`
           : 'All changes saved'}
       </span>
-      {saveError && (
-        <span className="save-bar-error-wrap">
-          <span
-            className={`save-bar-error ${hasErrors ? 'clickable' : ''}`}
-            onClick={() => hasErrors && setShowErrors(v => !v)}
-            title={hasErrors ? 'Click to see error details' : undefined}
-          >
-            {saveError}{hasErrors && (showErrors ? ' ▾' : ' ▸')}
-          </span>
-          {integrityIssues.length > 0 && (
-            <button
-              type="button"
-              className="save-bar-fix-btn"
-              onClick={(e) => { e.stopPropagation(); fixIntegrityErrors(); }}
-              title="Auto-fix integrity errors (removes dangling references)"
-            >
-              Fix it
-            </button>
-          )}
-          <button
-            type="button"
-            className="save-bar-error-dismiss"
-            onClick={(e) => { e.stopPropagation(); setShowErrors(false); dismissSaveError(); }}
-            title="Dismiss error"
-            aria-label="Dismiss error"
-          >
-            ×
-          </button>
-        </span>
-      )}
-      {showErrors && hasErrors && (
-        <div className="save-bar-error-panel">
-          {Object.entries(groupedErrors).map(([file, errs]) => (
-            <div key={file} className="save-bar-error-group">
-              <div className="save-bar-error-file">{file}</div>
-              {errs.map((e, i) => (
-                <div key={i} className="save-bar-error-item" title={`${e.path}: ${e.message}`}>
-                  <span className="save-bar-error-path">{e.path}</span>
-                  <span className="save-bar-error-msg">{e.message}</span>
-                </div>
-              ))}
-            </div>
-          ))}
-        </div>
-      )}
+      <SaveBarErrorSection
+        saveError={saveError}
+        hasErrors={hasErrors}
+        showErrors={showErrors}
+        setShowErrors={setShowErrors}
+        integrityIssues={integrityIssues}
+        fixIntegrityErrors={fixIntegrityErrors}
+        dismissSaveError={dismissSaveError}
+        groupedErrors={groupedErrors}
+      />
       <div className="save-bar-right">
-        {syncStatus.enabled && syncStatus.has_conflicts && (
-          <span
-            className="save-bar-conflict-banner"
-            title="Your session branch has merge conflicts with main — open the sync panel to resolve"
-            onClick={() => setSyncDrawerOpen(true)}
-          >
-            Conflicts detected
-          </span>
-        )}
-        {syncStatus.enabled && syncStatus.unsynced_count > 0 && (
-          <button
-            type="button"
-            className="save-bar-unsynced"
-            onClick={() => setDiffPanelOpen(true)}
-            title={`${syncStatus.unsynced_count} pending change${syncStatus.unsynced_count === 1 ? '' : 's'} on ${syncStatus.session_branch ?? 'session branch'} — click to review the diff`}
-          >
-            <span className="save-bar-unsynced-dot" aria-hidden="true" />
-            {syncStatus.unsynced_count} pending change{syncStatus.unsynced_count === 1 ? '' : 's'}
-          </button>
-        )}
-        {syncStatus.enabled && syncStatus.main_updated_available && (
-          <button
-            type="button"
-            className="save-bar-upstream"
-            onClick={() => setSyncDrawerOpen(true)}
-            title="origin/main has new commits — click to resync"
-          >
-            <span className="save-bar-upstream-dot" aria-hidden="true" />
-            Upstream updated
-          </button>
-        )}
-        {syncStatus.enabled && syncStatus.rebase_in_progress && (
-          <button
-            type="button"
-            className="save-bar-rebase"
-            onClick={() => setSyncDrawerOpen(true)}
-            title="Rebase paused on conflicts — click to resolve"
-          >
-            <span className="save-bar-rebase-dot" aria-hidden="true" />
-            Rebase paused
-          </button>
-        )}
+        <SaveBarSyncBadges
+          syncStatus={syncStatus}
+          onOpenDrawer={() => setSyncDrawerOpen(true)}
+          onOpenDiffPanel={() => setDiffPanelOpen(true)}
+        />
         <button
           type="button"
           className="save-bar-sync-diag"
@@ -234,5 +163,117 @@ export function SaveBar() {
         onClose={() => setSyncDiagOpen(false)}
       />
     </div>
+  );
+}
+
+// ── Sync badges + error section (extracted for complexity, t/1918) ──
+
+function SaveBarSyncBadges({ syncStatus, onOpenDrawer, onOpenDiffPanel }: {
+  syncStatus: SyncStatus; onOpenDrawer: () => void; onOpenDiffPanel: () => void;
+}) {
+  return (
+    <>
+      {syncStatus.enabled && syncStatus.has_conflicts && (
+        <span
+          className="save-bar-conflict-banner"
+          title="Your session branch has merge conflicts with main — open the sync panel to resolve"
+          onClick={onOpenDrawer}
+        >
+          Conflicts detected
+        </span>
+      )}
+      {syncStatus.enabled && syncStatus.unsynced_count > 0 && (
+        <button
+          type="button"
+          className="save-bar-unsynced"
+          onClick={onOpenDiffPanel}
+          title={`${syncStatus.unsynced_count} pending change${syncStatus.unsynced_count === 1 ? '' : 's'} on ${syncStatus.session_branch ?? 'session branch'} — click to review the diff`}
+        >
+          <span className="save-bar-unsynced-dot" aria-hidden="true" />
+          {syncStatus.unsynced_count} pending change{syncStatus.unsynced_count === 1 ? '' : 's'}
+        </button>
+      )}
+      {syncStatus.enabled && syncStatus.main_updated_available && (
+        <button
+          type="button"
+          className="save-bar-upstream"
+          onClick={onOpenDrawer}
+          title="origin/main has new commits — click to resync"
+        >
+          <span className="save-bar-upstream-dot" aria-hidden="true" />
+          Upstream updated
+        </button>
+      )}
+      {syncStatus.enabled && syncStatus.rebase_in_progress && (
+        <button
+          type="button"
+          className="save-bar-rebase"
+          onClick={onOpenDrawer}
+          title="Rebase paused on conflicts — click to resolve"
+        >
+          <span className="save-bar-rebase-dot" aria-hidden="true" />
+          Rebase paused
+        </button>
+      )}
+    </>
+  );
+}
+
+function SaveBarErrorSection({
+  saveError, hasErrors, showErrors, setShowErrors, integrityIssues, fixIntegrityErrors, dismissSaveError, groupedErrors,
+}: {
+  saveError: string | null; hasErrors: boolean; showErrors: boolean;
+  setShowErrors: React.Dispatch<React.SetStateAction<boolean>>;
+  integrityIssues: unknown[]; fixIntegrityErrors: () => void; dismissSaveError: () => void;
+  groupedErrors: Record<string, { path: string; message: string }[]>;
+}) {
+  return (
+    <>
+      {saveError && (
+        <span className="save-bar-error-wrap">
+          <span
+            className={`save-bar-error ${hasErrors ? 'clickable' : ''}`}
+            onClick={() => hasErrors && setShowErrors(v => !v)}
+            title={hasErrors ? 'Click to see error details' : undefined}
+          >
+            {saveError}{hasErrors && (showErrors ? ' ▾' : ' ▸')}
+          </span>
+          {integrityIssues.length > 0 && (
+            <button
+              type="button"
+              className="save-bar-fix-btn"
+              onClick={(e) => { e.stopPropagation(); fixIntegrityErrors(); }}
+              title="Auto-fix integrity errors (removes dangling references)"
+            >
+              Fix it
+            </button>
+          )}
+          <button
+            type="button"
+            className="save-bar-error-dismiss"
+            onClick={(e) => { e.stopPropagation(); setShowErrors(false); dismissSaveError(); }}
+            title="Dismiss error"
+            aria-label="Dismiss error"
+          >
+            ×
+          </button>
+        </span>
+      )}
+      {showErrors && hasErrors && (
+        <div className="save-bar-error-panel">
+          {Object.entries(groupedErrors).map(([file, errs]) => (
+            <div key={file} className="save-bar-error-group">
+              <div className="save-bar-error-file">{file}</div>
+              {errs.map((e, i) => (
+                <div key={i} className="save-bar-error-item" title={`${e.path}: ${e.message}`}>
+                  <span className="save-bar-error-path">{e.path}</span>
+                  <span className="save-bar-error-msg">{e.message}</span>
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+      )}
+    </>
   );
 }
