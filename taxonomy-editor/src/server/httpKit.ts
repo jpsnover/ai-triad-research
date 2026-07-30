@@ -118,6 +118,29 @@ export function query(req: IncomingMessage, name: string): string | null {
   return url.searchParams.get(name);
 }
 
+/** t/2019 (js/user-controlled-bypass) — the ONE canonical request-path parse shared
+ *  by the auth gate and the router, so both make their allow/deny + routing decision
+ *  on the *identical* normalized pathname. The gate previously derived its path from
+ *  raw `req.url.split('?')` while the router used `new URL().pathname`: an
+ *  encoded-traversal path (e.g. `/api/public/%2e%2e/admin`) read as a public prefix at
+ *  the gate but resolved elsewhere (`/api/admin`) at the router — an auth bypass.
+ *  Routing both through this helper makes "gate and router agree" structural, not two
+ *  parses that happen to coincide. A malformed URL fails secure. */
+export function normalizedRequestPath(req: IncomingMessage): string {
+  try {
+    return new URL(req.url ?? '/', `http://localhost`).pathname;
+  } catch {
+    // Malformed URL (bad percent-encoding, protocol-relative '//'): fail secure to a
+    // sentinel that is never in the public allowlist and matches no route — the
+    // request is gated, then 404s, and the gate never throws mid-decision. Logged (not
+    // flight-recorder-recorded) so a hostile/garbled path is visible to ops without an
+    // attacker-controlled dump-amplification vector; the raw URL is withheld because a
+    // query string can carry a secret (no-secrets-in-logs rule).
+    log.server.warn({ component: 'httpKit' }, 'normalizedRequestPath: unparseable req.url — failing secure to gated sentinel');
+    return '/__malformed_url__';
+  }
+}
+
 /** Best-effort client IP: first X-Forwarded-For hop (behind the Azure ingress
  *  proxy), else the raw socket address. Used for per-IP rate-limit keys. */
 export function getClientIp(req: IncomingMessage): string {
