@@ -18,17 +18,12 @@ import { describe, it, expect } from 'vitest';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { computeIsPublicPath, PUBLIC_PATH_PREFIXES } from '../publicPaths.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const serverSrc = fs.readFileSync(path.join(here, '..', 'server.ts'), 'utf-8');
-
-// The isPublicPath allowlist block: from its declaration to the next statement.
-// Sliced to `const authDisabled` (not the first `;`) because the exemption
-// comments themselves contain semicolons.
-const isPublicBlock = serverSrc.slice(
-  serverSrc.indexOf('const isPublicPath ='),
-  serverSrc.indexOf('const authDisabled', serverSrc.indexOf('const isPublicPath =')),
-);
+// t/1910: isPublicPath moved to the import-safe publicPaths.ts (asserted behaviorally
+// below); serverSrc is still read for the serveStatic no-Set-Cookie invariant.
 
 // The serveStatic function body — the code path that delivers the SPA shell.
 const serveStaticBody = serverSrc.slice(
@@ -39,13 +34,14 @@ const serveStaticBody = serverSrc.slice(
 describe('/share/ public SPA-shell exemption (t/1789)', () => {
   // ── (a) auth-exempt + tightly scoped ──
   describe('isPublicPath exempts /share/ as a tight prefix', () => {
-    it('the /share/ clause is present in the auth-gate allowlist', () => {
-      expect(isPublicBlock).toContain("urlPath.startsWith('/share/')");
+    it('the /share/ prefix is present in the auth-gate allowlist', () => {
+      expect(PUBLIC_PATH_PREFIXES).toContain('/share/');
+      expect(computeIsPublicPath('/share/pov/acc-beliefs-001')).toBe(true);
     });
 
     it('a gated sibling (/api/taxonomy, /api/conflicts) is NOT exempted', () => {
-      expect(isPublicBlock).not.toContain('/api/taxonomy');
-      expect(isPublicBlock).not.toContain('/api/conflicts');
+      expect(computeIsPublicPath('/api/taxonomy')).toBe(false);
+      expect(computeIsPublicPath('/api/conflicts')).toBe(false);
     });
 
     it('predicate: /share/... is public, a gated app path is not', () => {
