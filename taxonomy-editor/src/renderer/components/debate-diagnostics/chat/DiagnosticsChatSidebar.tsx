@@ -74,15 +74,20 @@ function buildTaxonomySection(label: string, nodes: TaxNode[]): string {
   return lines.join('\n');
 }
 
-function buildDebateSnapshot(debate: DebateSession, taxonomies?: Map<string, TaxNode[]>): string {
+type ConvergenceSignal = NonNullable<DebateSession['convergence_signals']>[number];
+
+function snapshotHeaderLines(debate: DebateSession): string[] {
   const lines: string[] = [];
   lines.push(`# Debate: ${debate.topic}`);
   const povers = debate.active_povers ?? [];
   lines.push(`Debaters: ${povers.map(p => POVER_INFO[p as keyof typeof POVER_INFO]?.label ?? p).join(', ')}`);
   lines.push(`Transcript entries: ${debate.transcript.length}`);
   lines.push(`Argument network: ${debate.argument_network?.nodes.length ?? 0} nodes, ${debate.argument_network?.edges.length ?? 0} edges`);
+  return lines;
+}
 
-  lines.push('\n## Transcript Summary');
+function transcriptSummaryLines(debate: DebateSession): string[] {
+  const lines: string[] = ['\n## Transcript Summary'];
   for (const e of debate.transcript) {
     const speaker = POVER_INFO[e.speaker as keyof typeof POVER_INFO]?.label ?? e.speaker;
     const meta = e.metadata as Record<string, unknown> | undefined;
@@ -91,7 +96,11 @@ function buildDebateSnapshot(debate: DebateSession, taxonomies?: Map<string, Tax
     lines.push(`\n### ${e.id} — ${speaker} (${e.type})${moves}`);
     lines.push(preview);
   }
+  return lines;
+}
 
+function argNetworkLines(debate: DebateSession): string[] {
+  const lines: string[] = [];
   if (debate.argument_network && debate.argument_network.nodes.length > 0) {
     lines.push('\n## Argument Network Nodes');
     for (const n of debate.argument_network.nodes) {
@@ -107,7 +116,11 @@ function buildDebateSnapshot(debate: DebateSession, taxonomies?: Map<string, Tax
       lines.push(`- ${e.source} → ${e.target}: ${label}`);
     }
   }
+  return lines;
+}
 
+function commitmentLines(debate: DebateSession): string[] {
+  const lines: string[] = [];
   if (debate.commitments && Object.keys(debate.commitments).length > 0) {
     lines.push('\n## Commitments');
     for (const [speaker, store] of Object.entries(debate.commitments)) {
@@ -118,25 +131,46 @@ function buildDebateSnapshot(debate: DebateSession, taxonomies?: Map<string, Tax
       if (store.challenged.length) lines.push(`Challenged (${store.challenged.length}): ${store.challenged.slice(0, 5).join('; ')}${store.challenged.length > 5 ? '...' : ''}`);
     }
   }
+  return lines;
+}
 
+function formatConvergenceSnapshotLine(label: string, sig: ConvergenceSignal): string {
+  return `${label}: collab=${((sig.move_polarity?.ratio ?? 0) * 100).toFixed(0)}%, dialectical engagement=${((sig.dialectical_engagement?.ratio ?? 0) * 100).toFixed(0)}%, argument redundancy=${((sig.argument_redundancy?.max_self_overlap ?? 0) * 100).toFixed(0)}%, concession=${sig.concession_opportunity?.outcome ?? 'none'}, drift=${((sig.position_drift?.drift ?? 0) * 100).toFixed(0)}%`;
+}
+
+function convergenceSnapshotLines(debate: DebateSession): string[] {
+  const lines: string[] = [];
   if (debate.convergence_signals && debate.convergence_signals.length > 0) {
     lines.push('\n## Convergence Signals (latest per speaker)');
-    const bySpeaker = new Map<string, typeof debate.convergence_signals[0]>();
+    const bySpeaker = new Map<string, ConvergenceSignal>();
     for (const s of debate.convergence_signals) bySpeaker.set(s.speaker, s);
     for (const [speaker, sig] of bySpeaker) {
       const label = POVER_INFO[speaker as keyof typeof POVER_INFO]?.label ?? speaker;
-      lines.push(`${label}: collab=${((sig.move_polarity?.ratio ?? 0) * 100).toFixed(0)}%, dialectical engagement=${((sig.dialectical_engagement?.ratio ?? 0) * 100).toFixed(0)}%, argument redundancy=${((sig.argument_redundancy?.max_self_overlap ?? 0) * 100).toFixed(0)}%, concession=${sig.concession_opportunity?.outcome ?? 'none'}, drift=${((sig.position_drift?.drift ?? 0) * 100).toFixed(0)}%`);
+      lines.push(formatConvergenceSnapshotLine(label, sig));
     }
   }
+  return lines;
+}
 
-  if (taxonomies) {
-    const povLabels: Record<string, string> = Object.fromEntries(Object.entries(POV_META).map(([k, v]) => [k, v.label]));
-    for (const [pov, nodes] of taxonomies) {
-      lines.push(buildTaxonomySection(povLabels[pov] ?? pov, nodes));
-    }
+function taxonomyLines(taxonomies?: Map<string, TaxNode[]>): string[] {
+  if (!taxonomies) return [];
+  const lines: string[] = [];
+  const povLabels: Record<string, string> = Object.fromEntries(Object.entries(POV_META).map(([k, v]) => [k, v.label]));
+  for (const [pov, nodes] of taxonomies) {
+    lines.push(buildTaxonomySection(povLabels[pov] ?? pov, nodes));
   }
+  return lines;
+}
 
-  return lines.join('\n');
+function buildDebateSnapshot(debate: DebateSession, taxonomies?: Map<string, TaxNode[]>): string {
+  return [
+    ...snapshotHeaderLines(debate),
+    ...transcriptSummaryLines(debate),
+    ...argNetworkLines(debate),
+    ...commitmentLines(debate),
+    ...convergenceSnapshotLines(debate),
+    ...taxonomyLines(taxonomies),
+  ].join('\n');
 }
 
 function buildSystemPrompt(debate: DebateSession, taxonomies?: Map<string, TaxNode[]>): string {
@@ -376,6 +410,17 @@ function buildSuggestText(debate: DebateSession, selectedEntry: string | null): 
   return suggestions.join('\n');
 }
 
+function formatConvergenceStatusBlock(label: string, sig: ConvergenceSignal): string[] {
+  return [
+    `\n**${label}:**`,
+    `- Collaborative moves: ${((sig.move_polarity?.ratio ?? 0) * 100).toFixed(0)}%`,
+    `- Dialectical engagement: ${((sig.dialectical_engagement?.ratio ?? 0) * 100).toFixed(0)}%`,
+    `- Argument redundancy: ${((sig.argument_redundancy?.max_self_overlap ?? 0) * 100).toFixed(0)}%`,
+    `- Concession: ${sig.concession_opportunity?.outcome ?? 'none'}`,
+    `- Position drift: ${((sig.position_drift?.drift ?? 0) * 100).toFixed(0)}%`,
+  ];
+}
+
 const SLASH_COMMANDS: Record<string, { description: string; handler: (debate: DebateSession, selectedEntry?: string | null) => string }> = {
   '/help': {
     description: 'Show available commands',
@@ -424,22 +469,21 @@ const SLASH_COMMANDS: Record<string, { description: string; handler: (debate: De
     handler: (debate) => {
       const signals = debate.convergence_signals;
       if (!signals || signals.length === 0) return 'No convergence signals recorded yet.';
-      const bySpeaker = new Map<string, typeof signals[0]>();
+      const bySpeaker = new Map<string, ConvergenceSignal>();
       for (const s of signals) bySpeaker.set(s.speaker, s);
       const lines = ['**Convergence Status:**'];
       for (const [speaker, sig] of bySpeaker) {
         const label = POVER_INFO[speaker as keyof typeof POVER_INFO]?.label ?? speaker;
-        lines.push(`\n**${label}:**`);
-        lines.push(`- Collaborative moves: ${((sig.move_polarity?.ratio ?? 0) * 100).toFixed(0)}%`);
-        lines.push(`- Dialectical engagement: ${((sig.dialectical_engagement?.ratio ?? 0) * 100).toFixed(0)}%`);
-        lines.push(`- Argument redundancy: ${((sig.argument_redundancy?.max_self_overlap ?? 0) * 100).toFixed(0)}%`);
-        lines.push(`- Concession: ${sig.concession_opportunity?.outcome ?? 'none'}`);
-        lines.push(`- Position drift: ${((sig.position_drift?.drift ?? 0) * 100).toFixed(0)}%`);
+        lines.push(...formatConvergenceStatusBlock(label, sig));
       }
       return lines.join('\n');
     },
   },
 };
+
+function countSourceEdges(net: DebateSession['argument_network'], id: string, type: 'attacks' | 'supports') {
+  return net?.edges.filter(e => e.source === id && e.type === type) ?? [];
+}
 
 function handleCompareCommand(debate: DebateSession, args: string): string | null {
   const match = args.match(/\/compare\s+(\S+)\s+(\S+)/i);
@@ -451,10 +495,10 @@ function handleCompareCommand(debate: DebateSession, args: string): string | nul
   const s1 = POVER_INFO[e1.speaker as keyof typeof POVER_INFO]?.label ?? e1.speaker;
   const s2 = POVER_INFO[e2.speaker as keyof typeof POVER_INFO]?.label ?? e2.speaker;
   const net = debate.argument_network;
-  const e1Attacks = net?.edges.filter(e => e.source === e1.id && e.type === 'attacks') ?? [];
-  const e2Attacks = net?.edges.filter(e => e.source === e2.id && e.type === 'attacks') ?? [];
-  const e1Supports = net?.edges.filter(e => e.source === e1.id && e.type === 'supports') ?? [];
-  const e2Supports = net?.edges.filter(e => e.source === e2.id && e.type === 'supports') ?? [];
+  const e1Attacks = countSourceEdges(net, e1.id, 'attacks');
+  const e2Attacks = countSourceEdges(net, e2.id, 'attacks');
+  const e1Supports = countSourceEdges(net, e1.id, 'supports');
+  const e2Supports = countSourceEdges(net, e2.id, 'supports');
   return [
     `**Comparing ${e1.id} vs ${e2.id}:**`,
     '',
@@ -469,6 +513,350 @@ function handleCompareCommand(debate: DebateSession, args: string): string | nul
     `**${e1.id}** preview: ${e1.content.slice(0, 120)}...`,
     `**${e2.id}** preview: ${e2.content.slice(0, 120)}...`,
   ].join('\n');
+}
+
+function pickBackend(model: string): string {
+  return model.startsWith('claude') ? 'claude'
+    : model.startsWith('groq') ? 'groq'
+    : model.startsWith('openai') ? 'openai'
+    : 'gemini';
+}
+
+async function ensureApiKey(backend: string): Promise<void> {
+  const hasKey = await api.hasApiKey(backend);
+  if (!hasKey) {
+    const names: Record<string, string> = { gemini: 'Gemini', claude: 'Claude', groq: 'Groq', openai: 'OpenAI' };
+    throw new Error(`No ${names[backend] ?? backend} API key configured. Open Settings to add one.`);
+  }
+}
+
+function buildApiMessages(compacted: ChatMessage[], contextNote: string): { role: 'user' | 'model'; content: string }[] {
+  const apiMessages: { role: 'user' | 'model'; content: string }[] = [];
+  for (const m of compacted) {
+    if (m.role === 'system') {
+      apiMessages.push({ role: 'user', content: `[System update]: ${m.content}` });
+      apiMessages.push({ role: 'model', content: 'Noted, I\'ll incorporate this updated state.' });
+    } else if (m.role === 'user') {
+      apiMessages.push({ role: 'user', content: m.content });
+    } else {
+      apiMessages.push({ role: 'model', content: m.content });
+    }
+  }
+
+  const lastIdx = apiMessages.length - 1;
+  if (lastIdx >= 0 && apiMessages[lastIdx].role === 'user') {
+    apiMessages[lastIdx] = {
+      ...apiMessages[lastIdx],
+      content: apiMessages[lastIdx].content + '\n' + contextNote,
+    };
+  }
+  return apiMessages;
+}
+
+function runCleanups(cleanups: (() => void)[]): void {
+  for (const cleanup of cleanups) {
+    try { cleanup(); } catch (cleanupErr) { getGlobalRecorder()?.record({ type: 'system.error', component: 'diagnostics-chat', level: 'warn', message: 'Effect cleanup failed', error: { name: (cleanupErr as Error).name ?? 'Error', message: String(cleanupErr), stack: (cleanupErr as Error).stack } }); }
+  }
+}
+
+function historyPrev(promptHistory: React.MutableRefObject<string[]>, historyIdx: React.MutableRefObject<number>): string {
+  const newIdx = historyIdx.current === -1
+    ? promptHistory.current.length - 1
+    : Math.max(0, historyIdx.current - 1);
+  historyIdx.current = newIdx;
+  return promptHistory.current[newIdx];
+}
+
+function historyNext(promptHistory: React.MutableRefObject<string[]>, historyIdx: React.MutableRefObject<number>): string {
+  const newIdx = historyIdx.current + 1;
+  if (newIdx >= promptHistory.current.length) {
+    historyIdx.current = -1;
+    return '';
+  }
+  historyIdx.current = newIdx;
+  return promptHistory.current[newIdx];
+}
+
+function completeSlashCommand(input: string): string | null {
+  const partial = input.toLowerCase();
+  const allCmds = [...Object.keys(SLASH_COMMANDS), '/clear', '/compare', '/?'];
+  const match = allCmds.find(c => c.startsWith(partial) && c !== partial);
+  if (!match) return null;
+  return match === '/compare' ? '/compare ' : match;
+}
+
+function CollapsedToggleButton({ onOpen }: { onOpen: () => void }) {
+  return (
+    <button
+      onClick={onOpen}
+      title="Open Debate Chat (Ctrl+Shift+D)"
+      style={{
+        position: 'fixed', right: 12, bottom: 12, zIndex: 1000,
+        width: 44, height: 44, borderRadius: '50%',
+        background: 'var(--warning)', border: 'none', cursor: 'pointer',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+        fontSize: '1.2rem', color: '#000',
+      }}
+    >
+      ?
+    </button>
+  );
+}
+
+function ChatHeader({ model, hasMessages, onClear, onClose }: {
+  model: string;
+  hasMessages: boolean;
+  onClear: () => void;
+  onClose: () => void;
+}) {
+  return (
+    <div style={{
+      display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px',
+      borderBottom: '1px solid var(--border)', background: 'var(--bg-secondary)',
+    }}>
+      <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--warning)' }}>
+        Debate Chat
+      </span>
+      <span style={{
+        fontSize: 'var(--text-2xs)', color: 'var(--text-muted)',
+        padding: '1px 6px', borderRadius: 4,
+        background: 'rgba(255,255,255,0.06)', border: '1px solid var(--border)',
+        flex: 1,
+      }}>
+        {model}
+      </span>
+      {hasMessages && (
+        <button
+          onClick={onClear}
+          title="Clear chat (Ctrl+L)"
+          style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '0.7rem' }}
+        >Clear</button>
+      )}
+      <button
+        onClick={onClose}
+        title="Close chat (Esc)"
+        style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '0.85rem', lineHeight: 1 }}
+      >&times;</button>
+    </div>
+  );
+}
+
+function ChatEmptyState({ isWeb }: { isWeb: boolean }) {
+  return isWeb ? (
+    <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem', padding: '24px 12px', textAlign: 'center' }}>
+      Debate Chat is available in the desktop app.
+      <br /><br />
+      <span style={{ fontSize: 'var(--text-2xs)' }}>
+        AI-powered chat requires direct API access which is not supported in the web viewer.
+      </span>
+    </div>
+  ) : (
+    <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem', padding: '12px 0', textAlign: 'center' }}>
+      Ask questions about the debate.
+      <br /><br />
+      <span style={{ fontSize: 'var(--text-2xs)' }}>
+        Try: "Show me the brief for S21"
+        <br />"Which debater conceded the most?"
+        <br />"What's the strongest attack chain?"
+        <br /><br />
+        Type / or HELP for commands | /suggest for question ideas
+      </span>
+    </div>
+  );
+}
+
+function MessageBubble({ msg, onNavigate }: { msg: ChatMessage; onNavigate: (cmd: NavigateCommand) => void }) {
+  return (
+    <div
+      style={{
+        alignSelf: msg.role === 'user' ? 'flex-end' : 'flex-start',
+        maxWidth: '90%',
+        padding: '6px 10px',
+        borderRadius: 8,
+        fontSize: '0.75rem',
+        lineHeight: 1.4,
+        background: msg.role === 'user' ? 'color-mix(in srgb, var(--warning) 15%, transparent)' : 'var(--bg-tertiary, rgba(255,255,255,0.05))',
+        color: 'var(--text-primary, var(--border-color))',
+        border: msg.role === 'user' ? '1px solid color-mix(in srgb, var(--warning) 30%, transparent)' : '1px solid var(--border)',
+        userSelect: 'text',
+        cursor: 'text',
+      }}
+    >
+      {msg.role === 'assistant' ? (
+        <div className="diag-chat-markdown">
+          <Markdown remarkPlugins={[remarkGfm, remarkColorizePov]}>{msg.content}</Markdown>
+        </div>
+      ) : (
+        <div style={{ whiteSpace: 'pre-wrap' }}>{msg.content}</div>
+      )}
+      {msg.navigation && (
+        <div style={{
+          marginTop: 4, paddingTop: 4, borderTop: '1px solid var(--border)',
+          fontSize: 'var(--text-2xs)', color: 'var(--warning)', cursor: 'pointer',
+        }}
+          onClick={() => msg.navigation && onNavigate(msg.navigation)}
+        >
+          Navigated to {msg.navigation.entry ?? 'overview'}{msg.navigation.tab ? ` → ${msg.navigation.tab}` : ''}{msg.navigation.overviewTab ? ` → ${msg.navigation.overviewTab}` : ''}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function StreamingBubble({ streamingText }: { streamingText: string }) {
+  return (
+    <div style={{
+      alignSelf: 'flex-start', maxWidth: '90%',
+      padding: '6px 10px', borderRadius: 8,
+      fontSize: '0.75rem', lineHeight: 1.4,
+      background: 'var(--bg-tertiary, rgba(255,255,255,0.05))',
+      color: 'var(--text-primary, var(--border-color))',
+      border: '1px solid var(--border)',
+      userSelect: 'text', cursor: 'text',
+    }}>
+      <div className="diag-chat-markdown">
+        <Markdown remarkPlugins={[remarkGfm, remarkColorizePov]}>{streamingText}</Markdown>
+      </div>
+    </div>
+  );
+}
+
+function ThinkingIndicator({ activity }: { activity: string | null }) {
+  return (
+    <div style={{
+      alignSelf: 'flex-start', padding: '6px 10px', borderRadius: 8,
+      fontSize: '0.7rem', color: 'var(--text-muted)', fontStyle: 'italic',
+    }}>
+      {activity || 'Thinking...'}
+    </div>
+  );
+}
+
+function SuggestionsBar({ suggestions, onSuggestionClick }: { suggestions: string[]; onSuggestionClick: (s: string) => void }) {
+  if (!suggestions.length) return null;
+  return (
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, padding: '4px 0' }}>
+      {suggestions.map((s, i) => (
+        <button
+          key={i}
+          onClick={() => onSuggestionClick(s)}
+          style={{
+            padding: '3px 8px', borderRadius: 12,
+            fontSize: 'var(--text-2xs)', cursor: 'pointer',
+            background: 'color-mix(in srgb, var(--warning) 8%, transparent)',
+            color: 'var(--warning)',
+            border: '1px solid color-mix(in srgb, var(--warning) 20%, transparent)',
+            transition: 'background 0.15s',
+          }}
+          onMouseEnter={e => (e.currentTarget.style.background = 'color-mix(in srgb, var(--warning) 18%, transparent)')}
+          onMouseLeave={e => (e.currentTarget.style.background = 'color-mix(in srgb, var(--warning) 8%, transparent)')}
+        >
+          {s}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function ChatScrollArea({
+  isWeb, messages, generating, streamingText, activity, suggestions, onNavigate, onSuggestionClick, messagesEndRef,
+}: {
+  isWeb: boolean;
+  messages: ChatMessage[];
+  generating: boolean;
+  streamingText: string;
+  activity: string | null;
+  suggestions: string[];
+  onNavigate: (cmd: NavigateCommand) => void;
+  onSuggestionClick: (s: string) => void;
+  messagesEndRef: React.RefObject<HTMLDivElement | null>;
+}) {
+  return (
+    <div style={{
+      flex: 1, overflowY: 'auto', padding: '8px 12px',
+      display: 'flex', flexDirection: 'column', gap: 8,
+    }}>
+      {messages.length === 0 && !generating && (
+        <ChatEmptyState isWeb={isWeb} />
+      )}
+      {messages.filter(m => m.role !== 'system').map(msg => (
+        <MessageBubble key={msg.id} msg={msg} onNavigate={onNavigate} />
+      ))}
+      {generating && streamingText && (
+        <StreamingBubble streamingText={streamingText} />
+      )}
+      {generating && !streamingText && (
+        <ThinkingIndicator activity={activity} />
+      )}
+      {!generating && (
+        <SuggestionsBar suggestions={suggestions} onSuggestionClick={onSuggestionClick} />
+      )}
+      <div ref={messagesEndRef} />
+    </div>
+  );
+}
+
+function ChatInputBar({
+  isWeb, debate, generating, input, canSend, contextTokens, inputRef, onInputChange, onKeyDown, onSend,
+}: {
+  isWeb: boolean;
+  debate: DebateSession | null;
+  generating: boolean;
+  input: string;
+  canSend: boolean;
+  contextTokens: number;
+  inputRef: React.RefObject<HTMLTextAreaElement | null>;
+  onInputChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => void;
+  onKeyDown: (e: React.KeyboardEvent) => void;
+  onSend: () => void;
+}) {
+  return (
+    <div style={{
+      padding: '8px 12px', borderTop: '1px solid var(--border)',
+      background: 'var(--bg-secondary)',
+    }}>
+      <div style={{ display: 'flex', gap: 6 }}>
+        <textarea
+          ref={inputRef}
+          value={input}
+          onChange={onInputChange}
+          onKeyDown={onKeyDown}
+          placeholder={isWeb ? 'Chat available in desktop app' : debate ? 'Ask about the debate... (/ for commands)' : 'Waiting for debate data...'}
+          disabled={isWeb || !debate || generating}
+          rows={2}
+          style={{
+            flex: 1, resize: 'none',
+            padding: '6px 8px', borderRadius: 6,
+            fontSize: '0.75rem',
+            background: 'var(--bg-primary)',
+            color: 'var(--text-primary)',
+            border: '1px solid var(--border)',
+            outline: 'none',
+            fontFamily: 'inherit',
+          }}
+        />
+        <button
+          onClick={onSend}
+          disabled={isWeb || !input.trim() || !debate || generating}
+          style={{
+            padding: '0 12px', borderRadius: 6,
+            background: canSend ? 'var(--warning)' : 'var(--bg-tertiary)',
+            color: canSend ? '#000' : 'var(--text-muted)',
+            border: 'none', cursor: canSend ? 'pointer' : 'not-allowed',
+            fontWeight: 600, fontSize: '0.75rem',
+          }}
+        >Send</button>
+      </div>
+      <div style={{
+        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+        fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', marginTop: 4,
+      }}>
+        <span>~{contextTokens.toLocaleString()} tokens in context</span>
+        <span>Enter send | Ctrl+L clear</span>
+      </div>
+    </div>
+  );
 }
 
 export function DiagnosticsChatSidebar({ debate, selectedEntry, currentTab, onNavigate, embedded, onClose }: Props) {
@@ -640,15 +1028,8 @@ export function DiagnosticsChatSidebar({ debate, selectedEntry, currentTab, onNa
     const cleanups: (() => void)[] = [];
     try {
       const model = getModel();
-      const backend = model.startsWith('claude') ? 'claude'
-        : model.startsWith('groq') ? 'groq'
-        : model.startsWith('openai') ? 'openai'
-        : 'gemini';
-      const hasKey = await api.hasApiKey(backend);
-      if (!hasKey) {
-        const names: Record<string, string> = { gemini: 'Gemini', claude: 'Claude', groq: 'Groq', openai: 'OpenAI' };
-        throw new Error(`No ${names[backend] ?? backend} API key configured. Open Settings to add one.`);
-      }
+      const backend = pickBackend(model);
+      await ensureApiKey(backend);
 
       setActivity(`Calling ${model}...`);
 
@@ -664,25 +1045,7 @@ export function DiagnosticsChatSidebar({ debate, selectedEntry, currentTab, onNa
         setMessages(compacted);
       }
 
-      const apiMessages: { role: 'user' | 'model'; content: string }[] = [];
-      for (const m of compacted) {
-        if (m.role === 'system') {
-          apiMessages.push({ role: 'user', content: `[System update]: ${m.content}` });
-          apiMessages.push({ role: 'model', content: 'Noted, I\'ll incorporate this updated state.' });
-        } else if (m.role === 'user') {
-          apiMessages.push({ role: 'user', content: m.content });
-        } else {
-          apiMessages.push({ role: 'model', content: m.content });
-        }
-      }
-
-      const lastIdx = apiMessages.length - 1;
-      if (lastIdx >= 0 && apiMessages[lastIdx].role === 'user') {
-        apiMessages[lastIdx] = {
-          ...apiMessages[lastIdx],
-          content: apiMessages[lastIdx].content + '\n' + contextNote,
-        };
-      }
+      const apiMessages = buildApiMessages(compacted, contextNote);
 
       // Register chunk listener for progressive streaming (best-effort)
       const unsubChunk = api.onChatStreamChunk((chunk) => {
@@ -729,15 +1092,14 @@ export function DiagnosticsChatSidebar({ debate, selectedEntry, currentTab, onNa
         timestamp: new Date().toISOString(),
       }]);
     } finally {
-      for (const cleanup of cleanups) {
-        try { cleanup(); } catch (cleanupErr) { getGlobalRecorder()?.record({ type: 'system.error', component: 'diagnostics-chat', level: 'warn', message: 'Effect cleanup failed', error: { name: (cleanupErr as Error).name ?? 'Error', message: String(cleanupErr), stack: (cleanupErr as Error).stack } }); }
-      }
+      runCleanups(cleanups);
       setGenerating(false);
       setActivity(null);
     }
   }, [input, debate, generating, messages, selectedEntry, currentTab, onNavigate, taxonomies, handleSlashCommand]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    const textarea = e.target as HTMLTextAreaElement;
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       if (input.trim()) {
@@ -747,34 +1109,19 @@ export function DiagnosticsChatSidebar({ debate, selectedEntry, currentTab, onNa
       }
       void sendMessage();
     } else if (e.key === 'ArrowUp' && promptHistory.current.length > 0) {
-      const textarea = e.target as HTMLTextAreaElement;
       if (textarea.selectionStart === 0 && textarea.selectionEnd === 0) {
         e.preventDefault();
-        const newIdx = historyIdx.current === -1
-          ? promptHistory.current.length - 1
-          : Math.max(0, historyIdx.current - 1);
-        historyIdx.current = newIdx;
-        setInput(promptHistory.current[newIdx]);
+        setInput(historyPrev(promptHistory, historyIdx));
       }
     } else if (e.key === 'ArrowDown' && historyIdx.current >= 0) {
-      const textarea = e.target as HTMLTextAreaElement;
       if (textarea.selectionStart === textarea.value.length) {
         e.preventDefault();
-        const newIdx = historyIdx.current + 1;
-        if (newIdx >= promptHistory.current.length) {
-          historyIdx.current = -1;
-          setInput('');
-        } else {
-          historyIdx.current = newIdx;
-          setInput(promptHistory.current[newIdx]);
-        }
+        setInput(historyNext(promptHistory, historyIdx));
       }
     } else if (e.key === 'Tab' && input.startsWith('/')) {
       e.preventDefault();
-      const partial = input.toLowerCase();
-      const allCmds = [...Object.keys(SLASH_COMMANDS), '/clear', '/compare', '/?'];
-      const match = allCmds.find(c => c.startsWith(partial) && c !== partial);
-      if (match) setInput(match === '/compare' ? '/compare ' : match);
+      const match = completeSlashCommand(input);
+      if (match) setInput(match);
     }
   };
 
@@ -848,6 +1195,12 @@ export function DiagnosticsChatSidebar({ debate, selectedEntry, currentTab, onNa
   }, [width]);
 
   const lastAssistantMsg = [...messages].reverse().find(m => m.role === 'assistant');
+  const suggestions = lastAssistantMsg?.suggestions?.length
+    ? lastAssistantMsg.suggestions
+    : localSuggestions;
+  const canSend = !isWeb && !!input.trim() && !!debate && !generating;
+  const handleClear = () => { setMessages([]); lastSeenEntryCount.current = 0; };
+  const handleHeaderClose = () => { if (embedded && onClose) onClose(); else setOpen(false); };
 
   const chatContent = (
     <div className="diag-chat-sidebar" style={{
@@ -855,218 +1208,46 @@ export function DiagnosticsChatSidebar({ debate, selectedEntry, currentTab, onNa
       background: 'var(--bg-primary, var(--bg-secondary))',
     }}>
       {/* Header */}
-      <div style={{
-        display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px',
-        borderBottom: '1px solid var(--border)', background: 'var(--bg-secondary)',
-      }}>
-        <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--warning)' }}>
-          Debate Chat
-        </span>
-        <span style={{
-          fontSize: 'var(--text-2xs)', color: 'var(--text-muted)',
-          padding: '1px 6px', borderRadius: 4,
-          background: 'rgba(255,255,255,0.06)', border: '1px solid var(--border)',
-          flex: 1,
-        }}>
-          {getModel()}
-        </span>
-        {messages.length > 0 && (
-          <button
-            onClick={() => { setMessages([]); lastSeenEntryCount.current = 0; }}
-            title="Clear chat (Ctrl+L)"
-            style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '0.7rem' }}
-          >Clear</button>
-        )}
-        <button
-          onClick={() => { if (embedded && onClose) onClose(); else setOpen(false); }}
-          title="Close chat (Esc)"
-          style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '0.85rem', lineHeight: 1 }}
-        >&times;</button>
-      </div>
+      <ChatHeader
+        model={getModel()}
+        hasMessages={messages.length > 0}
+        onClear={handleClear}
+        onClose={handleHeaderClose}
+      />
 
       {/* Messages */}
-      <div style={{
-        flex: 1, overflowY: 'auto', padding: '8px 12px',
-        display: 'flex', flexDirection: 'column', gap: 8,
-      }}>
-        {messages.length === 0 && !generating && (
-          isWeb ? (
-            <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem', padding: '24px 12px', textAlign: 'center' }}>
-              Debate Chat is available in the desktop app.
-              <br /><br />
-              <span style={{ fontSize: 'var(--text-2xs)' }}>
-                AI-powered chat requires direct API access which is not supported in the web viewer.
-              </span>
-            </div>
-          ) : (
-            <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem', padding: '12px 0', textAlign: 'center' }}>
-              Ask questions about the debate.
-              <br /><br />
-              <span style={{ fontSize: 'var(--text-2xs)' }}>
-                Try: "Show me the brief for S21"
-                <br />"Which debater conceded the most?"
-                <br />"What's the strongest attack chain?"
-                <br /><br />
-                Type / or HELP for commands | /suggest for question ideas
-              </span>
-            </div>
-          )
-        )}
-        {messages.filter(m => m.role !== 'system').map(msg => (
-          <div
-            key={msg.id}
-            style={{
-              alignSelf: msg.role === 'user' ? 'flex-end' : 'flex-start',
-              maxWidth: '90%',
-              padding: '6px 10px',
-              borderRadius: 8,
-              fontSize: '0.75rem',
-              lineHeight: 1.4,
-              background: msg.role === 'user' ? 'color-mix(in srgb, var(--warning) 15%, transparent)' : 'var(--bg-tertiary, rgba(255,255,255,0.05))',
-              color: 'var(--text-primary, var(--border-color))',
-              border: msg.role === 'user' ? '1px solid color-mix(in srgb, var(--warning) 30%, transparent)' : '1px solid var(--border)',
-              userSelect: 'text',
-              cursor: 'text',
-            }}
-          >
-            {msg.role === 'assistant' ? (
-              <div className="diag-chat-markdown">
-                <Markdown remarkPlugins={[remarkGfm, remarkColorizePov]}>{msg.content}</Markdown>
-              </div>
-            ) : (
-              <div style={{ whiteSpace: 'pre-wrap' }}>{msg.content}</div>
-            )}
-            {msg.navigation && (
-              <div style={{
-                marginTop: 4, paddingTop: 4, borderTop: '1px solid var(--border)',
-                fontSize: 'var(--text-2xs)', color: 'var(--warning)', cursor: 'pointer',
-              }}
-                onClick={() => msg.navigation && onNavigate(msg.navigation)}
-              >
-                Navigated to {msg.navigation.entry ?? 'overview'}{msg.navigation.tab ? ` → ${msg.navigation.tab}` : ''}{msg.navigation.overviewTab ? ` → ${msg.navigation.overviewTab}` : ''}
-              </div>
-            )}
-          </div>
-        ))}
-        {generating && streamingText && (
-          <div style={{
-            alignSelf: 'flex-start', maxWidth: '90%',
-            padding: '6px 10px', borderRadius: 8,
-            fontSize: '0.75rem', lineHeight: 1.4,
-            background: 'var(--bg-tertiary, rgba(255,255,255,0.05))',
-            color: 'var(--text-primary, var(--border-color))',
-            border: '1px solid var(--border)',
-            userSelect: 'text', cursor: 'text',
-          }}>
-            <div className="diag-chat-markdown">
-              <Markdown remarkPlugins={[remarkGfm, remarkColorizePov]}>{streamingText}</Markdown>
-            </div>
-          </div>
-        )}
-        {generating && !streamingText && (
-          <div style={{
-            alignSelf: 'flex-start', padding: '6px 10px', borderRadius: 8,
-            fontSize: '0.7rem', color: 'var(--text-muted)', fontStyle: 'italic',
-          }}>
-            {activity || 'Thinking...'}
-          </div>
-        )}
-        {!generating && (() => {
-          const suggestions = lastAssistantMsg?.suggestions?.length
-            ? lastAssistantMsg.suggestions
-            : localSuggestions;
-          if (!suggestions.length) return null;
-          return (
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, padding: '4px 0' }}>
-              {suggestions.map((s, i) => (
-                <button
-                  key={i}
-                  onClick={() => handleSuggestionClick(s)}
-                  style={{
-                    padding: '3px 8px', borderRadius: 12,
-                    fontSize: 'var(--text-2xs)', cursor: 'pointer',
-                    background: 'color-mix(in srgb, var(--warning) 8%, transparent)',
-                    color: 'var(--warning)',
-                    border: '1px solid color-mix(in srgb, var(--warning) 20%, transparent)',
-                    transition: 'background 0.15s',
-                  }}
-                  onMouseEnter={e => (e.currentTarget.style.background = 'color-mix(in srgb, var(--warning) 18%, transparent)')}
-                  onMouseLeave={e => (e.currentTarget.style.background = 'color-mix(in srgb, var(--warning) 8%, transparent)')}
-                >
-                  {s}
-                </button>
-              ))}
-            </div>
-          );
-        })()}
-        <div ref={messagesEndRef} />
-      </div>
+      <ChatScrollArea
+        isWeb={isWeb}
+        messages={messages}
+        generating={generating}
+        streamingText={streamingText}
+        activity={activity}
+        suggestions={suggestions}
+        onNavigate={onNavigate}
+        onSuggestionClick={handleSuggestionClick}
+        messagesEndRef={messagesEndRef}
+      />
 
       {/* Input */}
-      <div style={{
-        padding: '8px 12px', borderTop: '1px solid var(--border)',
-        background: 'var(--bg-secondary)',
-      }}>
-        <div style={{ display: 'flex', gap: 6 }}>
-          <textarea
-            ref={inputRef}
-            value={input}
-            onChange={e => setInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder={isWeb ? 'Chat available in desktop app' : debate ? 'Ask about the debate... (/ for commands)' : 'Waiting for debate data...'}
-            disabled={isWeb || !debate || generating}
-            rows={2}
-            style={{
-              flex: 1, resize: 'none',
-              padding: '6px 8px', borderRadius: 6,
-              fontSize: '0.75rem',
-              background: 'var(--bg-primary)',
-              color: 'var(--text-primary)',
-              border: '1px solid var(--border)',
-              outline: 'none',
-              fontFamily: 'inherit',
-            }}
-          />
-          <button
-            onClick={() => void sendMessage()}
-            disabled={isWeb || !input.trim() || !debate || generating}
-            style={{
-              padding: '0 12px', borderRadius: 6,
-              background: !isWeb && input.trim() && debate && !generating ? 'var(--warning)' : 'var(--bg-tertiary)',
-              color: !isWeb && input.trim() && debate && !generating ? '#000' : 'var(--text-muted)',
-              border: 'none', cursor: !isWeb && input.trim() && debate && !generating ? 'pointer' : 'not-allowed',
-              fontWeight: 600, fontSize: '0.75rem',
-            }}
-          >Send</button>
-        </div>
-        <div style={{
-          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-          fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', marginTop: 4,
-        }}>
-          <span>~{contextTokens.toLocaleString()} tokens in context</span>
-          <span>Enter send | Ctrl+L clear</span>
-        </div>
-      </div>
+      <ChatInputBar
+        isWeb={isWeb}
+        debate={debate}
+        generating={generating}
+        input={input}
+        canSend={canSend}
+        contextTokens={contextTokens}
+        inputRef={inputRef}
+        onInputChange={e => setInput(e.target.value)}
+        onKeyDown={handleKeyDown}
+        onSend={() => void sendMessage()}
+      />
     </div>
   );
 
   if (!open) {
     if (embedded) return null;
     return (
-      <button
-        onClick={() => setOpen(true)}
-        title="Open Debate Chat (Ctrl+Shift+D)"
-        style={{
-          position: 'fixed', right: 12, bottom: 12, zIndex: 1000,
-          width: 44, height: 44, borderRadius: '50%',
-          background: 'var(--warning)', border: 'none', cursor: 'pointer',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
-          fontSize: '1.2rem', color: '#000',
-        }}
-      >
-        ?
-      </button>
+      <CollapsedToggleButton onOpen={() => setOpen(true)} />
     );
   }
 
