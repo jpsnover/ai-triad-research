@@ -17,13 +17,23 @@ import fs from 'fs';
  *
  * Throws like `fs` does (e.g. ENOENT) so callers keep their existing
  * try/catch for cache-miss and error semantics.
+ *
+ * Pass `cachedMtimeMs` to preserve the mtime-cache fast path: the fstat and
+ * the read still happen on the same fd (no race), but the (larger) read is
+ * skipped when the file is unchanged, returning `content: null` so the caller
+ * reuses its already-parsed cache.
  */
-export function readFileWithMtime(filePath: string): { content: string; mtimeMs: number } {
+export function readFileWithMtime(
+  filePath: string,
+  cachedMtimeMs?: number,
+): { content: string | null; mtimeMs: number } {
   const fd = fs.openSync(filePath, 'r');
   try {
     const mtimeMs = fs.fstatSync(fd).mtimeMs;
-    const content = fs.readFileSync(fd, 'utf-8');
-    return { content, mtimeMs };
+    if (cachedMtimeMs !== undefined && mtimeMs === cachedMtimeMs) {
+      return { content: null, mtimeMs };
+    }
+    return { content: fs.readFileSync(fd, 'utf-8'), mtimeMs };
   } finally {
     fs.closeSync(fd);
   }

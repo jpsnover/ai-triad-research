@@ -50,8 +50,8 @@ function getBindingsPath(): string {
 function loadBindings(): ProviderBindings {
   const bindingsPath = getBindingsPath();
   try {
-    const { content, mtimeMs } = readFileWithMtime(bindingsPath);
-    if (_cache && mtimeMs === _cacheMtime) return _cache;
+    const { content, mtimeMs } = readFileWithMtime(bindingsPath, _cache ? _cacheMtime : undefined);
+    if (content === null) return _cache ?? emptyBindings();
     const parsed = JSON.parse(content) as Record<string, unknown>;
     // Rebuild into a null-prototype map, dropping any prototype-polluting or
     // non-string entries a hand-edited bindings file could contain.

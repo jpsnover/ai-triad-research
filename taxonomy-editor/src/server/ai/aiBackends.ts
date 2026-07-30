@@ -126,8 +126,8 @@ let _modelConfigMtime = 0;
 function loadModelConfig(): { modelMap: Record<string, string>; fallbackChains: Record<string, string[]>; defaults: Record<string, string> } {
   try {
     const configPath = path.join(getProjectRoot(), 'ai-models.json');
-    const { content: raw, mtimeMs } = readFileWithMtime(configPath);
-    if (!_modelMapCache || mtimeMs !== _modelConfigMtime) {
+    const { content: raw, mtimeMs } = readFileWithMtime(configPath, _modelMapCache ? _modelConfigMtime : undefined);
+    if (raw !== null) {
       const registry = JSON.parse(raw) as { models: { id: string; apiModelId?: string }[]; fallbackChains?: Record<string, string[]>; defaults?: Record<string, string> };
       _modelMapCache = buildModelIdMap(registry as { models: { id: string; apiModelId: string; label: string; backend: string }[]; backends: [] });
       _fallbackChainCache = registry.fallbackChains ?? {};

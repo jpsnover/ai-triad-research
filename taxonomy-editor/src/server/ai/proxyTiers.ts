@@ -75,8 +75,8 @@ function loadTierConfig(): TierConfig {
   ];
   for (const p of candidates) {
     try {
-      const { content, mtimeMs } = readFileWithMtime(p);
-      if (_cache && mtimeMs === _cacheMtime) return _cache;
+      const { content, mtimeMs } = readFileWithMtime(p, _cache ? _cacheMtime : undefined);
+      if (content === null) return _cache ?? defaultTierConfig();
       const data = JSON.parse(content) as Partial<TierConfig>;
       _cache = {
         defaults: { ...tierDefaults(), ...data.defaults },

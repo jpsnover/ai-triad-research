@@ -37,6 +37,21 @@ describe('fsCache.readFileWithMtime (t/2021 — TOCTOU-safe read)', () => {
       .toThrowError(expect.objectContaining({ code: 'ENOENT' }));
   });
 
+  it('skips the read on a cache hit but still reads on a stale mtime', () => {
+    fs.writeFileSync(filePath, '{"a":1}', 'utf-8');
+    const { mtimeMs } = readFileWithMtime(filePath);
+
+    // Same mtime → fast path: content is null so the caller reuses its cache.
+    const hit = readFileWithMtime(filePath, mtimeMs);
+    expect(hit.content).toBeNull();
+    expect(hit.mtimeMs).toBe(mtimeMs);
+
+    // A stale cached mtime → the read happens and returns the current content.
+    const miss = readFileWithMtime(filePath, mtimeMs - 1);
+    expect(miss.content).toBe('{"a":1}');
+    expect(miss.mtimeMs).toBe(mtimeMs);
+  });
+
   it('does not leak a file descriptor across many reads', () => {
     fs.writeFileSync(filePath, 'x', 'utf-8');
     // If the fd were leaked each call, this loop would exhaust the fd table.
