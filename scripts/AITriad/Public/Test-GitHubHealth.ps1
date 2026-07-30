@@ -13,6 +13,10 @@ function Test-GitHubHealth {
         GitHub repo in owner/name format. Default: jpsnover/ai-triad-research.
     .PARAMETER TimeoutSec
         HTTP request timeout in seconds. Default: 10.
+    .PARAMETER Branch
+        Branch to scope the workflow-runs status check to. Default: main (the
+        deployed line) — so a red PR/branch run does not false-FAIL the CI-health
+        category in a prod smoke (t/1975).
     .EXAMPLE
         Test-GitHubHealth
     .EXAMPLE
@@ -29,7 +33,10 @@ function Test-GitHubHealth {
 
         [Parameter()]
         [ValidateRange(1, 120)]
-        [int]$TimeoutSec = 10
+        [int]$TimeoutSec = 10,
+
+        [Parameter()]
+        [string]$Branch = 'main'
     )
 
     Set-StrictMode -Version Latest
@@ -119,10 +126,15 @@ function Test-GitHubHealth {
     # ── Latest Workflow Runs ─────────────────────────────────────────────
     $KeyWorkflows = @('ci.yml', 'deploy-azure.yml', 'health-monitor.yml')
 
+    # t/1975 — scope the workflow-runs query to the deployed line (default: main)
+    # so a red PR/branch run doesn't false-FAIL the CI-health category in a prod
+    # smoke. GitHub filters by head_branch via the `branch` param; escape guards
+    # branch names containing '/'.
+    $BranchQ = [uri]::EscapeDataString($Branch)
     foreach ($Wf in $KeyWorkflows) {
         try {
             $RunsResp = Invoke-RestMethod `
-                -Uri "https://api.github.com/repos/$Repo/actions/workflows/$Wf/runs?per_page=1&status=completed" `
+                -Uri "https://api.github.com/repos/$Repo/actions/workflows/$Wf/runs?per_page=1&status=completed&branch=$BranchQ" `
                 -Headers $Headers -TimeoutSec $TimeoutSec -ErrorAction Stop
 
             if ($RunsResp.total_count -gt 0) {
@@ -131,7 +143,7 @@ function Test-GitHubHealth {
                 $RunDate = ([datetime]$Run.updated_at).ToString('yyyy-MM-dd HH:mm')
 
                 $Checks.Add([PSCustomObject]@{
-                    Check      = "Workflow: $Wf"
+                    Check      = "Workflow: $Wf @$Branch"
                     Pass       = $Conclusion -eq 'success'
                     ResponseMs = 0
                     Detail     = "conclusion=$Conclusion | $RunDate | #$($Run.run_number)"
@@ -139,7 +151,7 @@ function Test-GitHubHealth {
             }
             else {
                 $Checks.Add([PSCustomObject]@{
-                    Check      = "Workflow: $Wf"
+                    Check      = "Workflow: $Wf @$Branch"
                     Pass       = $true
                     ResponseMs = 0
                     Detail     = 'No completed runs found'
@@ -152,7 +164,7 @@ function Test-GitHubHealth {
                 $StatusCode = [int]$_.Exception.Response.StatusCode
             }
             $Checks.Add([PSCustomObject]@{
-                Check      = "Workflow: $Wf"
+                Check      = "Workflow: $Wf @$Branch"
                 Pass       = $false
                 ResponseMs = 0
                 Detail     = if ($StatusCode -eq 404) { 'Workflow not found' }
