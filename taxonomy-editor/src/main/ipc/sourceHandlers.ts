@@ -93,6 +93,22 @@ export function registerSourceHandlers(): void {
   ipcMain.handle('load-source-evidence-index', () => loadEvidenceIndex());
   ipcMain.handle('load-doc-titles', () => loadDocTitles());
 
+  // greatest-hits exclusion list (t/1998) — reads the same static calibration file the debate
+  // engine reads (lib/debate/debateEngine/taxonomyContext.ts) so desktop and engine exclude
+  // the same nodes. Returns { node_ids } or null when the file is absent/unreadable; the
+  // renderer degrades gracefully rather than failing the debate (TL t/1998#2). Mirrors the
+  // load-doc-titles / load-source-evidence-index read pattern. Read per call (not cached):
+  // called once per debate build, and t/1999 may generate the file mid-session, so a cached
+  // null would go stale.
+  ipcMain.handle('load-greatest-hits', (): { node_ids: string[] } | null => {
+    try {
+      const filePath = path.join(getDataRootPath(), 'calibration', 'greatest-hits.json');
+      if (!fs.existsSync(filePath)) return null;
+      const data = JSON.parse(fs.readFileSync(filePath, 'utf-8')) as { node_ids?: string[] };
+      return { node_ids: data.node_ids ?? [] };
+    } catch { /* telemetry — silent by design; missing/malformed → null, renderer degrades */ return null; }
+  });
+
   ipcMain.handle('get-source-evidence', async (_event, nodeIds: string[], pov: string) => {
     const emptyResult = { facts: [], keyPoints: [], formattedBlock: '', nodesCovered: [], totalCandidates: 0 };
     const index = loadEvidenceIndex();
