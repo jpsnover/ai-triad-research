@@ -5,8 +5,9 @@
 // Consumes the single canonical rule shared across all apps (lib/eslint-rules,
 // t/1929); no local fork. The typescript-eslint parser is wired so .ts/.tsx
 // files parse (the rule is purely syntactic — no type-aware projectService
-// needed). Rule is 'warn' here (advisory) pending a catch-block cleanup pass,
-// mirroring taxonomy-editor's warn→error-once-clean sequence.
+// needed). Rule is 'error' (ADR-003 hard gate): the mini-app catch tree is clean,
+// so this ratchets to full parity with taxonomy-editor's 'error' enforcement
+// (t/1976 warn→error, after t/1929 wired the rule to actually run here).
 
 import tseslint from 'typescript-eslint';
 import requireFlightRecorderInCatch from '../lib/eslint-rules/require-flight-recorder-in-catch.js';
@@ -25,7 +26,7 @@ export default tseslint.config(
     },
     plugins: { local: localPlugin },
     rules: {
-      'local/require-flight-recorder-in-catch': 'warn',
+      'local/require-flight-recorder-in-catch': 'error',
     },
   },
   {
