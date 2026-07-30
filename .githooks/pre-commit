@@ -10,9 +10,12 @@
 #
 # CARVE-OUTS (co-located here per the Gate Co-Location rule, t/1589 — NOT in a
 # ticket or external doc):
-#   • Linked worktrees are ALLOWED (git-dir != git-common-dir). The /land-from-worktree
-#     flow commits on a branch inside a worktree, so landing is never blocked.
-#   • Any branch other than `main` is ALLOWED.
+#   • Linked worktrees are ALLOWED on a NAMED branch (git-dir != git-common-dir).
+#     /land-from-worktree is branch-first (`git worktree add -b`), so landing
+#     commits sit on a named PR branch and are never blocked.
+#   • A commit on a DETACHED HEAD inside a worktree is REFUSED (t/2009): it would be
+#     an orphaned commit, lost on the next re-detach. Fix = create the branch first.
+#   • Any branch other than `main` (on the shared checkout) is ALLOWED.
 #   • Owner / emergency override: `git commit --no-verify` (git skips all hooks).
 #   • Fail-OPEN: if any git introspection errors, the hook ALLOWS the commit — a
 #     broken guard must never block legitimate work.
@@ -30,8 +33,28 @@ gd=$(cd "$(git rev-parse --git-dir 2>/dev/null)" 2>/dev/null && pwd) || exit 0
 cdir=$(cd "$(git rev-parse --git-common-dir 2>/dev/null)" 2>/dev/null && pwd) || exit 0
 [ -n "$gd" ] && [ -n "$cdir" ] || exit 0
 
-# Linked worktree → allow (this is where legitimate landing commits happen).
-[ "$gd" = "$cdir" ] || exit 0
+# Linked worktree: allow ONLY on a named branch. A commit on a DETACHED HEAD here
+# is orphaned-commit risk (lost on the next re-detach unless pushed); the
+# branch-first flow (`worktree add -b`) makes it a named branch from the start.
+if [ "$gd" != "$cdir" ]; then
+  git symbolic-ref -q HEAD >/dev/null 2>&1 && exit 0   # named branch → allow (landing)
+  cat >&2 <<'MSG'
+
+  ✖ BLOCKED: commit on a DETACHED HEAD inside a worktree (t/2009).
+    A detached-HEAD commit is orphaned — lost on the next re-detach unless pushed.
+
+  Create the worktree BRANCH-FIRST so commits land on a named PR branch:
+    git worktree add -b <type>/<slug>-t<ticket> ../wt-<ticket> origin/main
+    #  …commit on the named branch…  →  git push origin <branch>  →  gh pr create
+
+  Already detached with work to save? Name the branch in place, then commit:
+    git switch -c <type>/<slug>-t<ticket>
+
+  Owner / emergency override (bypasses this hook):
+    git commit --no-verify
+MSG
+  exit 1
+fi
 
 # Shared checkout: only the `main` branch is protected.
 branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null) || exit 0
@@ -43,10 +66,10 @@ cat >&2 <<'MSG'
   ✖ BLOCKED: direct commit to the shared-tree `main` checkout (t/1926).
     This strands work local-only and diverges `main` from `origin`.
 
-  Land via /land-from-worktree instead:
-    git worktree add ../wt-<ticket> origin/main
-    #  …commit inside the worktree…
-    git push origin HEAD:<branch>   →   gh pr create   →   self-merge on green
+  Land via /land-from-worktree instead (branch-first):
+    git worktree add -b <type>/<slug>-t<ticket> ../wt-<ticket> origin/main
+    #  …commit on the named branch inside the worktree…
+    git push origin <branch>   →   gh pr create   →   self-merge on green
 
   Owner / emergency override (bypasses this hook):
     git commit --no-verify

@@ -29,9 +29,9 @@ Prevention: when your commit imports something from another scope, `git show HEA
 
 Multi-file or multi-commit changes land from an **isolated git worktree**, never the shared working tree. Three shared-tree failure patterns forced this (Sage #51 landing race, #54 dirty-tree false witness): on a shared tree, your uncommitted state is every other agent's environment. Follow `/land-from-worktree` (playbook skill). The core rules:
 
-1. `git fetch origin` immediately before creating the worktree; create it off `origin/main` (a stale base sees phantom breakage).
+1. `git fetch origin` immediately before creating the worktree; create it **branch-first** off `origin/main`: `git worktree add -b <type>/<slug>-t<ticket> ../wt-<ticket> origin/main` (a stale base sees phantom breakage). Branch-first because the pre-commit hook now **refuses a commit on a detached HEAD** inside a worktree (t/2009, orphaned-commit guard) — the named PR branch must exist before you commit, which also retires the old `push HEAD:refs/heads/<branch>` short-ref dance.
 2. `npm ci` inside the worktree for every package your verify touches — fresh worktrees have no node_modules; verify against stale deps red-herrings.
-3. Copy only your changed files in; `git add` by pathspec; **commit and push INSIDE the worktree** — the commit is born there. One SHA, nothing lingers on the shared ref. Never commit on the shared main and cherry-pick a copy.
+3. Copy only your changed files in; `git add` by pathspec; **commit on the worktree's named branch and push INSIDE the worktree** — `git push origin <branch>` (not `HEAD:refs/heads/<branch>`; the branch already exists from step 1). The commit is born there. One SHA, nothing lingers on the shared ref. Never commit on the shared main and cherry-pick a copy.
 4. Run the full verify gate inside the worktree before pushing (Definition of Done applies where the commit is born).
 5. Sync the shared tree afterward with file-scoped `git checkout origin/main -- <files>` — never a reset, which can drop other agents' work.
 6. Remove the worktree; confirm `git log origin/main..main` on the shared tree shows nothing of yours lingering.

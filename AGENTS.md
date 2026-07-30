@@ -55,7 +55,7 @@ Orca config files (`.orca.yaml`, `AGENTS.md`, `.orca/` directory) live in a **se
 
 ### Shared-Checkout Commit Guard (git pre-commit hook)
 
-The fleet shares one `main` checkout, so a commit made **directly on its `main` branch** strands work local-only and diverges `main` from `origin` (t/1926). A committed pre-commit hook (`.githooks/pre-commit`) **refuses** such commits. Worktree commits, non-`main` branches, and `--no-verify` are allowed, so `/land-from-worktree` is never blocked. Git does not auto-run committed hooks — **enable once per checkout**:
+The fleet shares one `main` checkout, so a commit made **directly on its `main` branch** strands work local-only and diverges `main` from `origin` (t/1926). A committed pre-commit hook (`.githooks/pre-commit`) **refuses** such commits. It also **refuses a commit on a detached HEAD inside a worktree** (t/2009, orphaned-commit guard) — so `/land-from-worktree` is now **branch-first** (`git worktree add -b <branch> ...`). Worktree commits on a **named branch**, non-`main` branches, and `--no-verify` are allowed, so landing is never blocked. Git does not auto-run committed hooks — **enable once per checkout**:
 
 ```
 git config core.hooksPath .githooks
