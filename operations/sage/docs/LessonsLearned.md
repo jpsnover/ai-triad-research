@@ -2314,3 +2314,23 @@ Institutional memory for failure patterns across the AI Triad Research project.
 **Status:** Active — main strict "require up-to-date branch" protection; auto-merge (re-enabled 2026-07-29) covers the green-check wait but not the up-to-date update. Supersedes #105 (auto-merge-disabled, now stale). Recurred twice same session (TaxEditor #153, PowerShell #158).
 
 **Applies To:** All agents landing PRs on main via `gh pr merge`, especially during high-velocity/busy-main periods.
+
+---
+
+## #109 [Design] Score-Zeroing Is Not Removal — an Excluded Item Resurfaces When a Downstream Selector Ignores the Threshold
+
+**Pattern:** Excluding a candidate by **setting its score to 0** (a soft/marker exclusion) is NOT equivalent to **removing it from the candidate set** — unless *every* downstream selector honors the exclusion threshold. If any later stage selects by **rank / top-N / quota refill / diversity floor** rather than by "score > floor," it picks the zeroed item anyway and the exclusion silently leaks. The item you thought you excluded re-enters the result.
+
+**Instances:**
+- 2026-07-29 — DebateTool (t/1981, fixed f1b09440, p/234#3): `hardExclude` set excluded nodes to score 0 but left them in the `candidateNodes` array. Two downstream selectors — `minPerCategory` refill and the POV-diversity floor — both pick by **top-score regardless of threshold**, so the score-0 excluded nodes **re-entered** selection. Fix: filter the excluded IDs OUT of `candidateNodes` before grouping and before the diversity-floor scan (remove, don't just zero).
+
+**Root Cause:** Score-zeroing encodes exclusion as a *value* that only stages comparing against a floor will respect. Stages that rank-and-take (top-N, per-category quotas, a diversity floor that grabs the best available) read the item as merely low-scored, not excluded — so they resurface it. The exclusion invariant ("this node must not appear") is enforced at ONE site (the score) but assumed at ALL sites (selection); the mismatch is a silent correctness bug. General rule: an exclusion expressed by mutating a rank-signal is only as strong as the weakest downstream consumer's respect for that signal.
+
+**Prevention:**
+1. **Exclude by REMOVAL from the working set, not by zeroing a score** — filter excluded IDs out of the candidate array before any grouping/refill/diversity pass. Removal can't be bypassed by a rank-based selector.
+2. **If you must keep excluded items in the array** (e.g. for logging/telemetry), carry an explicit `excluded` flag and make EVERY selector skip it — audit each selection site (top-N, quota refill, diversity floor) to confirm it honors the flag, not just the primary threshold.
+3. **When adding a new selection stage, ask what "excluded" means to it** — a stage that picks "best available" ignores a score floor, so treat score-zeroing as advisory and removal as authoritative.
+
+**Status:** Active — exclusion-by-marking ≠ exclusion-by-removal; a soft-exclusion signal leaks through any rank/quota/diversity selector that ignores the threshold.
+
+**Applies To:** All code that excludes candidates via a score/flag while multiple downstream stages select by rank, quota, or diversity (debate node selection, ranking pipelines, refill/recommendation logic).
