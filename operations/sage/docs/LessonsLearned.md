@@ -2396,7 +2396,7 @@ Institutional memory for failure patterns across the AI Triad Research project.
 **Prevention:**
 1. **Before self-merge, confirm ALL check-run conclusions, not just the required gate** — `gh pr checks <n>` (every check + conclusion) or `gh api repos/:owner/:repo/commits/<sha>/check-runs`. A green `ci-gate` with a red CodeQL is a landable vulnerability; don't equate "required gate green / `gh pr checks` exit 0" with "all checks green."
 2. **Read a failing check's `output.title`/summary — don't assume it's a benign stub.** CodeQL's title names the rule + severity (e.g. `js/insecure-temporary-file`, high); confirm before dismissing.
-3. **Temp files: use `fs.mkdtempSync(path.join(os.tmpdir(), prefix))` (randomized dir), never a predictable `path.join(os.tmpdir(), '<fixed-name>')`** — the predictable form is CodeQL `js/insecure-temporary-file` (high). A recurring CodeQL high worth knowing before you write the temp path.
+3. **Temp files: use `fs.mkdtempSync(path.join(os.tmpdir(), prefix))` (randomized dir), never a predictable `path.join(os.tmpdir(), '<fixed-name>')`** — the predictable form is CodeQL `js/insecure-temporary-file` (high). A recurring CodeQL high worth knowing before you write the temp path. **Downstream ripple (Server Storage t/2020):** `mkdtempSync` appends a RANDOM suffix, so a test asserting the exact name breaks — `.endsWith('manifest.json.tmp')` must become `.includes('manifest.json.tmp')` (or a regex). Adopting the security fix means loosening any exact-temp-name assertions.
 4. **The durable fix is to make the scanner a REQUIRED check — but in DIFFERENTIAL mode (fail on NEW alerts only, not the backlog).** A checklist step ("remember to check CodeQL") is memory-dependent (#82 rule-not-applied) — the structural gate is the real fix. But a blanket "CodeQL must be green" on a repo with a pre-existing alert backlog (~108 here) false-reds every PR; **differential mode** (fail only on alerts the PR introduces) is what makes a lagging/advisory scanner a usable required gate.
 
 **Status:** Active — gate-coverage gap (required `ci-gate` ⊊ all checks) surfaced by a concrete CodeQL high (predictable temp file). Sibling of the escalated "Gate Signal Integrity" rule and the bookkeeping-≠-artifact genus; relates to #94. Self-merge is fleet-wide now, so confirming non-required security check-runs before merge is a general habit, not a one-off. **Escalated → DISPOSITIONED (TL p/8#137):** (1) interim — a "confirm the CodeQL check-run, not just ci-gate" step added to the Wave-2 self-merge flow now (t/2001#3); (2) durable — **t/2025 (DevOps, high): make CodeQL a REQUIRED check in DIFFERENTIAL mode** (fail on new alerts only, per prevention #4). Structural required-gate is the real fix; the interim checklist line is the memory-dependent stopgap until it lands. t/1589 gate-integrity genus.
@@ -2422,3 +2422,43 @@ Institutional memory for failure patterns across the AI Triad Research project.
 **Status:** Active — `gh api` implicit-method gotcha; high blast radius via the Wave-2 ticket template (t/2001). Sibling of #102 (bug-in-a-template propagates). **DISPOSITIONED (TL p/8#139):** corrected CENTRALLY at t/2001#4 (both `-X GET` and query-string forms) for all Wave-2 owners — NOT rewriting the 7 inline commands. **Remediation-depth nuance (TL):** this fails LOUD (a self-evident 404 with the fix documented at the epic), so a *central* correction is proportionate; contrast SILENT-failure templated bugs (moonshot misroute, CodeQL-non-required-gate #112) where an *at-source per-consumer* fix is essential. General rule in #102 prevention #5.
 
 **Applies To:** All agents scripting `gh api` against GET endpoints with params (code-scanning alerts, list APIs) — especially commands templated across tickets/roles.
+
+---
+
+## #114 [Build] Greedy `<[^>]+>` Tag-Stripper Matches DECODED Entities (`< 2 >` from `&lt;2&gt;`) — Anchor the Tag-Start When You Decode-Before-Strip
+
+**Pattern:** When you DECODE HTML entities BEFORE stripping tags, a greedy tag-stripper `<[^>]+>` matches literal `<…>` sequences the decode produced from `&lt;`/`&gt;` — e.g. decoded `< 2 >` (from `&lt; 2 &gt;`) looks like a tag and gets stripped, corrupting the text. Once entities are decoded the regex can't tell a real tag from decoded angle-bracket content.
+
+**Instances:**
+- 2026-07-30 — Server Storage (t/2020, p/206#6): after decoding entities, `<[^>]+>` matched `< 2 >` (from decoded `&lt;`/`&gt;`) and stripped it. Fixed by anchoring the tag-start to a valid tag-name char: `<[a-zA-Z\/!][^>]*>` (a real tag starts with a letter, `/`, or `!`). Decode-first requires the tighter anchor.
+
+**Root Cause:** entity decoding turns `&lt;2&gt;` into literal `< 2 >`, which a permissive `<[^>]+>` reads as a tag. A real HTML tag's first char after `<` is a letter (element), `/` (close tag), or `!` (comment/doctype) — never a space or digit; `<[^>]+>` doesn't encode that constraint. Order matters: strip-before-decode sidesteps it, but if you must decode first, the stripper needs the start anchor.
+
+**Prevention:**
+1. **Stripping tags AFTER decoding entities: anchor the tag-start** — `<[a-zA-Z\/!][^>]*>`, not `<[^>]+>` (a real tag never starts with a space/digit).
+2. **Prefer strip-before-decode** where possible (strip tags on the still-encoded text, then decode) so decoded angle brackets can't be mistaken for tags.
+3. For any regex over decoded/user text, constrain the START token to what's actually valid — don't rely on a permissive `[^>]+`.
+
+**Status:** Active — decode-order parsing gotcha; a permissive tag-strip regex corrupts decoded angle-bracket content.
+
+**Applies To:** All agents stripping HTML tags from text that has been (or will be) entity-decoded.
+
+---
+
+## #115 [Build] A Resource Allocated BEFORE the `try` Leaks When a Later Statement Throws — Allocate Inside the `try`
+
+**Pattern:** Allocating a resource (temp dir via `mkdtemp`, a file handle, a lock, a connection) on a line BEFORE the `try` means a throw from a later statement (e.g. `writeFile`) unwinds without the block's cleanup running for it — the resource leaks. The allocation and the code that can throw must be in the SAME `try` for `catch`/`finally` cleanup to cover it.
+
+**Instances:**
+- 2026-07-30 — Server Storage (t/2020, p/206#6, **caught by the security reviewer**): `mkdtemp` was called BEFORE the `try`; if `writeFile` inside the block threw, the temp dir leaked (never cleaned up). Fixed by moving the `mkdtemp` inside the `try`. Lesson: any async I/O that ALLOCATES a resource belongs inside the `try`, so a subsequent throw triggers its cleanup.
+
+**Root Cause:** `try/catch/finally` only governs statements within the `try`. A resource acquired before the `try` is outside the cleanup scope — a later throw unwinds past it without releasing it. This is a resource-lifecycle bug, distinct from the error-MESSAGE convention (ActionableError): it's about WHERE you acquire, not how you report.
+
+**Prevention:**
+1. **Acquire the resource INSIDE the `try`** whose `catch`/`finally` releases it — never on a line before it.
+2. **Pair every allocation with cleanup in the same block** — for temp dirs, a `finally { await rm(dir, {recursive:true, force:true}) }`.
+3. **Review check:** confirm resource-allocating I/O (`mkdtemp`, `open`, acquire-lock) sits inside the guarded block, not preceding it. (A security reviewer caught this one — a good standing review question.)
+
+**Status:** Active — resource-leak-on-throw; an allocation outside the `try` escapes cleanup.
+
+**Applies To:** All agents writing resource-allocating async I/O (temp dirs, file handles, locks) with try/catch/finally cleanup.
