@@ -62,6 +62,21 @@ describe('classifyUrl', () => {
     });
   });
 
+  describe('scheme allowlist', () => {
+    it('rejects javascript: URI', () => {
+      expect(classifyUrl('javascript:alert(1)')).toBe('direct');
+    });
+    it('rejects data: URI', () => {
+      expect(classifyUrl('data:text/html,<script>evil()</script>')).toBe('direct');
+    });
+    it('rejects file: URI', () => {
+      expect(classifyUrl('file:///etc/passwd')).toBe('direct');
+    });
+    it('accepts http: scheme (not just https)', () => {
+      expect(classifyUrl('http://doi.org/10.1234/test')).toBe('doi');
+    });
+  });
+
   describe('fallbacks', () => {
     it('returns none for empty string', () => {
       expect(classifyUrl('')).toBe('none');

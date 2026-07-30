@@ -7,7 +7,8 @@ export function classifyUrl(
 ): 'doi' | 'arxiv' | 'ssrn' | 'scholar_fallback' | 'google_fallback' | 'direct' | 'none' {
   if (!url) return 'none';
   try {
-    const { hostname, pathname } = new URL(url);
+    const { hostname, pathname, protocol } = new URL(url);
+    if (protocol !== 'https:' && protocol !== 'http:') return 'direct';
     if (hostname === 'doi.org' || hostname.endsWith('.doi.org')) return 'doi';
     if (hostname === 'arxiv.org' || hostname.endsWith('.arxiv.org')) return 'arxiv';
     if (hostname === 'ssrn.com' || hostname.endsWith('.ssrn.com')) return 'ssrn';

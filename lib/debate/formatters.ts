@@ -129,7 +129,7 @@ export function formatDebateMarkdown(session: DebateSession): string {
         // Ensure each numbered question is separated by a blank line for pandoc
         const questions = entry.content.split(/\n(?=\*?\d+\.\s)/);
         for (const q of questions) {
-          lines.push(q.trim());
+          lines.push(q.trim().replace(/\\/g, '\\\\').replace(/@/g, '\\@'));
           lines.push('');
         }
       } else {
