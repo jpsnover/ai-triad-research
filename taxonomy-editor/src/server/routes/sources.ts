@@ -31,6 +31,8 @@ import { getGlobalRecorder } from '../../../../lib/flight-recorder/index.js';
 import { DEFAULT_MODEL } from '../../../../lib/ai-client/index.js';
 import { log } from '../logger.js';
 import * as ai from '../ai/aiBackends.js';
+import { getDataRoot } from '../config.js';
+import { greatestHitsPath } from '../../../../lib/debate/corpusCoverage.js';
 import * as fileIO from '../storage/fileIO.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -102,6 +104,27 @@ function loadDocTitles(): DocMetaMap | null {
     _docTitles = Object.keys(metaMap).length > 0 ? metaMap : null;
     return _docTitles;
   } catch { /* telemetry — silent by design */ _docTitles = null; return null; }
+}
+
+/**
+ * t/1998: read `calibration/greatest-hits.json` and return just its `node_ids` for
+ * the renderer's greatest-hits exclusion. Returns null when the file is absent or
+ * unreadable (graceful no-op — the renderer treats null as "no exclusion available";
+ * see the loud-degrade design in t/1998#2). Mirrors loadDocTitles (fs read, null on
+ * absence). Deliberately does NOT use corpusCoverage.loadGreatestHitsFile(): that
+ * returns a Set (JSON.stringify(new Set()) → {}) and throws on a missing file — this
+ * endpoint returns the raw `{ node_ids }` array or null instead.
+ */
+export function loadGreatestHitsNodeIds(): { node_ids: string[] } | null {
+  try {
+    const p = greatestHitsPath(getDataRoot());
+    if (!fs.existsSync(p)) return null;
+    const parsed = JSON.parse(fs.readFileSync(p, 'utf-8')) as { node_ids?: unknown };
+    const node_ids = Array.isArray(parsed.node_ids)
+      ? parsed.node_ids.filter((id): id is string => typeof id === 'string')
+      : [];
+    return { node_ids };
+  } catch { /* telemetry — silent by design: absent/malformed → null (graceful no-op) */ return null; }
 }
 
 export function registerSourcesRoutes(r: Router, _ctx: ServerCtx): void {
@@ -185,6 +208,14 @@ export function registerSourcesRoutes(r: Router, _ctx: ServerCtx): void {
 
   get('/api/doc-titles', (_req, res) => {
     json(res, loadDocTitles());
+  });
+
+  // t/1998: greatest-hits exclusion list for the renderer's node scoring. Returns
+  // `{ node_ids }` or null (absent file) — never the Set that loadGreatestHitsFile
+  // yields (JSON.stringify(new Set()) → {}). Renderer builds the Set + filters vs.
+  // live nodes, so no server-side knownNodeIds filtering here.
+  get('/api/greatest-hits', (_req, res) => {
+    json(res, loadGreatestHitsNodeIds());
   });
 
   post('/api/source-evidence', async (_req, res, body) => {

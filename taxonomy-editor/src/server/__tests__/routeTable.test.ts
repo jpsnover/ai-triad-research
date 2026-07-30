@@ -20,8 +20,8 @@ const serverEntry = path.join(here, '..', 'server.ts');
 describe('server.ts route table (t/1295 — zero-behaviour-change guard)', () => {
   const routes = extractRoutes(serverEntry);
 
-  it('registers exactly 189 routes', () => {
-    expect(routes.length).toBe(189); // +GET /api/admin/usages (t/1265); +GET /api/organizations/:id/edges (t/1530); +POST/DELETE /api/cruxes/:id/evidence (t/1541); +PATCH /api/debates/:id (t/1636); +GET /api/entity/:ref (t/1786); +GET /api/public/pov/:pov/node/:nodeId (t/1788); +PUT /api/edges (t/1821); +GET /api/entities (t/1883); +GET /api/container-mentions/:containerId (t/1902)
+  it('registers exactly 190 routes', () => {
+    expect(routes.length).toBe(190); // +GET /api/admin/usages (t/1265); +GET /api/organizations/:id/edges (t/1530); +POST/DELETE /api/cruxes/:id/evidence (t/1541); +PATCH /api/debates/:id (t/1636); +GET /api/entity/:ref (t/1786); +GET /api/public/pov/:pov/node/:nodeId (t/1788); +PUT /api/edges (t/1821); +GET /api/entities (t/1883); +GET /api/container-mentions/:containerId (t/1902); +GET /api/greatest-hits (t/1998)
   });
 
   // GATE 1 — set identity: sorted (method, path) multiset. Fails on any add/drop.
