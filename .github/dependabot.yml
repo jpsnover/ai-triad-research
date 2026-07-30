@@ -90,14 +90,11 @@ updates:
     schedule:
       interval: weekly
     open-pull-requests-limit: 3
-    ignore:
-      # Pinned intentionally — 5.x breaks the embedding pipeline
-      # (sentence-transformers 4.1.0 + transformers 4.51.3). Block major bumps;
-      # revisit deliberately if upgrading the embedding stack.
-      - dependency-name: sentence-transformers
-        update-types: [version-update:semver-major]
-      - dependency-name: transformers
-        update-types: [version-update:semver-major]
+    # No ignore for sentence-transformers/transformers majors (t/1989): the prior
+    # "5.x breaks the embedding pipeline" reason was disproved (5.6.1 is value-stable,
+    # bit-identical vectors). An ignore only HIDES bumps; the `python-embed-smoke`
+    # gate now VALIDATES them (cosine vs a pinned reference — reds on real drift or a
+    # load/API break), so dependabot may propose majors and the gate decides.
 
   # docker — web image + azure base image
   - package-ecosystem: docker
