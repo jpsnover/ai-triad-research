@@ -84,6 +84,42 @@ describe('quotas config load — fd path (t/2023)', () => {
     expect(fsMock.statSync).not.toHaveBeenCalled();
   });
 
+  it('closes the fd when readFileSync throws after a successful open (finally on error path)', async () => {
+    fsMock.openSync.mockReturnValue(99);
+    fsMock.fstatSync.mockReturnValue({ mtimeMs: 7 });
+    fsMock.readFileSync.mockImplementation(() => { throw new Error('EIO'); });
+
+    const { getQuotaLimits } = await loadModule();
+    const limits = getQuotaLimits('u');
+
+    // read threw → caught → defaults; the fd opened before the throw must still close.
+    expect(limits.maxChats).toBe(25);
+    expect(fsMock.closeSync).toHaveBeenCalledWith(99);
+  });
+
+  it('cache-hit reload closes the fd without re-reading (finally runs on the early return)', async () => {
+    vi.useFakeTimers();
+    try {
+      fsMock.openSync.mockReturnValue(11);
+      fsMock.fstatSync.mockReturnValue({ mtimeMs: 42 }); // mtime never changes → cache hit on reload
+      fsMock.readFileSync.mockReturnValue(JSON.stringify({ elevated: [] }));
+
+      const { getQuotaLimits } = await loadModule();
+      getQuotaLimits('u');                        // first load: open + fstat + read + cache
+      expect(fsMock.readFileSync).toHaveBeenCalledTimes(1);
+
+      vi.advanceTimersByTime(10_000);             // past the 5000ms getConfig TTL → forces a reload
+      getQuotaLimits('u');                        // reload: open + fstat, mtime unchanged → cache hit, NO read
+
+      expect(fsMock.readFileSync).toHaveBeenCalledTimes(1); // not re-read on the cache hit
+      // fd opened on BOTH loads (incl. the cache-hit early return) and closed both times.
+      expect(fsMock.closeSync).toHaveBeenCalledTimes(2);
+      expect(fsMock.closeSync).toHaveBeenCalledWith(11);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('falls back to defaults when the config file is missing (openSync throws)', async () => {
     const { getQuotaLimits } = await loadModule();
     const limits = getQuotaLimits('someuser');

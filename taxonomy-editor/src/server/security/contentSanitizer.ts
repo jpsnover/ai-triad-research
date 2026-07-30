@@ -20,10 +20,16 @@ const EXECUTABLE_TAGS = /<\/?(?:script|iframe|object|embed|style)\b[^>]*>/gi;
 const DANGEROUS_SCHEME = /\b(?:javascript|vbscript):/gi;
 const DATA_HTML = /\bdata:text\/html/gi;
 
-// Fail-closed cap on the fixed-point loop below. Real content converges in
-// ≤ nesting-depth passes (1 for non-adversarial input), so this is only ever
-// reached by pathological deeply-nested input — far above any legitimate value.
-const MAX_SANITIZE_PASSES = 20;
+// Fail-closed backstop for the fixed-point loop below. Termination does NOT
+// depend on this cap — every changed pass strictly shrinks the string (tag
+// removal deletes chars; scheme/data substitutions are shrinking), so the loop
+// provably converges on its own. The cap only bounds a hypothetical future
+// change that broke the shrinking property. Non-adversarial content converges in
+// ~1 pass; matryoshka-nested tags need ~depth+2 passes, so the cap is set well
+// above any realistic nesting (a legit document with >100 levels of nested
+// tag-like text does not exist) while still tripping the fail-closed strip on a
+// deliberately pathological input rather than looping unbounded.
+const MAX_SANITIZE_PASSES = 100;
 
 /**
  * Neutralize executable tags + dangerous URL schemes in a single string.
