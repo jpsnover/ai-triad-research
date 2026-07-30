@@ -1226,7 +1226,7 @@ export class GitHubAPIBackend implements StorageBackend {
     if (!this.manifest) return;
 
     const manifestPath = path.join(this.cacheDir, MANIFEST_FILE);
-    const tmpPath = manifestPath + '.tmp';
+    const tmpPath = manifestPath + '.tmp.' + crypto.randomBytes(8).toString('hex');
     const content = JSON.stringify(this.manifest, null, 2);
 
     await fs.writeFile(tmpPath, content, 'utf-8');
@@ -1281,7 +1281,7 @@ export class GitHubAPIBackend implements StorageBackend {
     const diskPath = path.join(this.cacheDir, repoPath);
     await fs.mkdir(path.dirname(diskPath), { recursive: true });
 
-    const tmpPath = diskPath + '.tmp';
+    const tmpPath = diskPath + '.tmp.' + crypto.randomBytes(8).toString('hex');
     await fs.writeFile(tmpPath, content, 'utf-8');
     await this.renameWithRetry(tmpPath, diskPath);
 
@@ -1313,7 +1313,7 @@ export class GitHubAPIBackend implements StorageBackend {
     const diskPath = path.join(this.cacheDir, repoPath);
     await fs.mkdir(path.dirname(diskPath), { recursive: true });
 
-    const tmpPath = diskPath + '.tmp';
+    const tmpPath = diskPath + '.tmp.' + crypto.randomBytes(8).toString('hex');
     await fs.writeFile(tmpPath, content);
     await this.renameWithRetry(tmpPath, diskPath);
 

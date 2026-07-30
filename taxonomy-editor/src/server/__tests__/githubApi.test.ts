@@ -1546,7 +1546,7 @@ describe('GitHubAPIBackend — manifest mutex', () => {
     let maxConcurrentWrites = 0;
     mockWriteFile.mockImplementation(async (filePath) => {
       const fp = typeof filePath === 'string' ? filePath : String(filePath);
-      if (fp.endsWith('manifest.json.tmp')) {
+      if (fp.includes('manifest.json.tmp')) {
         activeWrites++;
         maxConcurrentWrites = Math.max(maxConcurrentWrites, activeWrites);
         // Simulate I/O delay to widen the race window

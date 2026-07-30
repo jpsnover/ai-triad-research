@@ -135,33 +135,47 @@ export async function fetchUrlContent(url: string): Promise<{ content: string; e
 }
 
 async function htmlToMarkdown(html: string): Promise<string> {
-  const tmpFile = path.join(os.tmpdir(), `aitriad-${Date.now()}.html`);
-  await fs.writeFile(tmpFile, html, 'utf-8');
+  // mkdtemp inside the try so the finally cleanup runs even if writeFile throws
+  // (predictable paths in os.tmpdir() are symlink-race targets — CodeQL js/insecure-temporary-file).
+  let tmpDir: string | undefined;
   try {
-    const stdout = await new Promise<string>((resolve, reject) => {
+    tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'aitriad-'));
+    const tmpFile = path.join(tmpDir, 'input.html');
+    await fs.writeFile(tmpFile, html, 'utf-8');
+    return await new Promise<string>((resolve, reject) => {
       execFile('markitdown', [tmpFile], { timeout: 30_000, maxBuffer: 10 * 1024 * 1024 }, (err, out) => {
         if (err) reject(err); else resolve(out);
       });
     });
-    return stdout;
   } catch {
     /* telemetry — silent by design */
     return stripHtmlFallback(html);
   } finally {
-    fs.unlink(tmpFile).catch(() => { /* ignore */ });
+    if (tmpDir) fs.rm(tmpDir, { recursive: true, force: true }).catch(() => { /* ignore */ });
   }
 }
 
-function stripHtmlFallback(html: string): string {
-  return html
-    .replace(/<script[\s\S]*?<\/script>/gi, '')
-    .replace(/<style[\s\S]*?<\/style>/gi, '')
-    .replace(/<head[\s\S]*?<\/head>/gi, '')
+// Exported for testing. Note: this is a best-effort plain-text extractor for
+// use when markitdown is unavailable — NOT an XSS sanitizer. Output is consumed
+// as plain text / Markdown and is never re-rendered as HTML. Script and style
+// block *content* (not just tags) may appear in the output as literal text,
+// which is harmless in a plain-text context.
+export function stripHtmlFallback(html: string): string {
+  const ENTITIES: Record<string, string> = {
+    amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", '#39': "'", nbsp: ' ',
+  };
+  // Single-pass entity decode before tag removal. Fixes two CodeQL issues:
+  //   js/double-escaping: chained replaces let &amp;lt; → &lt; → < (two-pass)
+  //   js/incomplete-multi-character-sanitization: encoded tags bypass strip-then-decode
+  const decoded = html.replace(/&([a-z][a-z0-9]*|#39);/gi,
+    (_, e) => ENTITIES[e.toLowerCase()] ?? _);
+  // Require a letter, '/', or '!' after '<' to avoid treating decoded text like
+  // '1 < 2 > 0' (from &lt;/&gt; comparison operators) as HTML tags.
+  return decoded
     .replace(/<\/(p|div|h[1-6]|li|tr|blockquote)>/gi, '\n')
     .replace(/<br\s*\/?>/gi, '\n')
-    .replace(/<[^>]+>/g, '')
-    .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&nbsp;/g, ' ')
-    .replace(/[ \t]+/g, ' ').replace(/\n{3,}/g, '\n\n')
+    .replace(/<[a-zA-Z\/!][^>]*>/g, '')
+    .replace(/[ \t]+/g, ' ')
+    .replace(/\n{3,}/g, '\n\n')
     .trim();
 }
