@@ -3,13 +3,13 @@
 Institutional memory for failure patterns across the AI Triad Research project.
 Organized by category. Each file contains the full pattern details.
 
-**Last updated:** 2026-07-29 | **Total patterns:** 113 | **Resolved:** 21 | **Active:** 92
+**Last updated:** 2026-07-29 | **Total patterns:** 114 | **Resolved:** 21 | **Active:** 93
 
 ## Summary
 
 | Category | File | Patterns | Resolved | Active |
 |----------|------|----------|----------|--------|
-| Build | [build.md](build.md) | 65 | 10 | 55 |
+| Build | [build.md](build.md) | 66 | 10 | 56 |
 | PowerShell | [powershell.md](powershell.md) | 10 | 3 | 7 |
 | Data | [data.md](data.md) | 4 | 1 | 3 |
 | Type System | [type-system.md](type-system.md) | 4 | 0 | 4 |

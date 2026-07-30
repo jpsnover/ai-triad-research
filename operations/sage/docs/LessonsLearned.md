@@ -2336,3 +2336,23 @@ Institutional memory for failure patterns across the AI Triad Research project.
 **Status:** Active — exclusion-by-marking ≠ exclusion-by-removal; a soft-exclusion signal leaks through any rank/quota/diversity selector that ignores the threshold.
 
 **Applies To:** All code that excludes candidates via a score/flag while multiple downstream stages select by rank, quota, or diversity (debate node selection, ranking pipelines, refill/recommendation logic).
+
+---
+
+## #110 [Build] A Runtime `getProjectRoot()` Calibrated for the Compiled (dist) Layout Mis-Resolves in the vitest SOURCE Context — Anchor Test Paths to `import.meta.url`
+
+**Pattern:** A helper like `getProjectRoot()` that finds the repo/app root by walking up from the **compiled `dist/`** location returns the WRONG directory when the same module runs from **source under vitest** — it stops at `taxonomy-editor/` (the source subtree root) instead of the repo root. A co-located test that reaches a repo-root/shared file via `path.join(getProjectRoot(), 'ai-models.json')` then fails **ENOENT** — the base is wrong, not the file. The helper is correct in production (from `dist`) and wrong in the test's source context: a source-vs-compiled path divergence.
+
+**Instances:**
+- 2026-07-29 — ServerAPI (t/1997, p/79#20): a co-located server test read `ai-models.json` (repo root) via `path.join(getProjectRoot(), 'ai-models.json')` → ENOENT, because `getProjectRoot()` resolves to `taxonomy-editor/` in the vitest source context (it only walks to the `/app` root from compiled `dist`). Fix: resolve the repo-root file relative to the TEST FILE via `import.meta.url` — `path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../../ai-models.json')` — not `getProjectRoot()`.
+
+**Root Cause:** `getProjectRoot()` encodes the DIST directory depth (how many levels `dist/...` sits below the app root). Under vitest the module executes from its SOURCE path, whose depth-to-root differs, so the upward walk stops early — at the app-subtree root (`taxonomy-editor/`), a plausible-looking directory — and the failure surfaces as ENOENT on the joined file, not as an obvious "wrong root." Same source-vs-compiled context divergence family as local≠CI issues (#88/#94): the runtime helper's assumption (compiled layout) doesn't hold in the test harness (source layout).
+
+**Prevention:**
+1. **In tests, anchor repo-root/shared-file paths to the test file itself, not a runtime root helper:** `path.resolve(path.dirname(fileURLToPath(import.meta.url)), '<relative-to-repo-root>')`. The test file's own location is stable across source and compiled; a dist-calibrated `getProjectRoot()` is not.
+2. **Treat any `getProjectRoot()`/`findUpToRoot()` helper as compiled-layout-specific** — if it walks a fixed depth or looks for a `dist` marker, it mis-resolves when run from source (vitest, tsx). Don't reuse it in tests to reach files outside the module tree.
+3. **An ENOENT on a file you KNOW exists ⇒ suspect a wrong base dir, not a missing file** — print the resolved absolute path and compare to the real location before concluding the file is absent (object-level; sibling of the #73 facet-C "valid path looks missing" caution).
+
+**Status:** Active — source-vs-compiled path-resolution divergence; a dist-calibrated root helper mis-resolves under vitest's source context.
+
+**Applies To:** All agents writing vitest tests (especially co-located server/lib tests) that read repo-root or shared files via a runtime root helper.
