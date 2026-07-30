@@ -48,6 +48,12 @@ const DATA_HTML = /\bdata:text\/html/gi;
 export function sanitizeUserText(s: string): string {
   let out = s;
   let prev: string;
+  // TERMINATION INVARIANT (nothing else bounds these loops — they exit ONLY on
+  // stability, `out === prev`): every replacement below MUST strictly shrink the
+  // string OR replace with an irreversible sentinel that can never re-match its
+  // own pattern. Tag removal deletes chars; `javascript:`/`vbscript:` → `blocked:`
+  // and `data:text/html` → `data:blocked` are sentinels that don't re-match. A
+  // future rule that could GROW the string or oscillate would infinite-loop here.
   do { prev = out; out = out.replace(EXECUTABLE_TAGS, ''); } while (out !== prev);
   do { prev = out; out = out.replace(DANGEROUS_SCHEME, 'blocked:'); } while (out !== prev);
   do { prev = out; out = out.replace(DATA_HTML, 'data:blocked'); } while (out !== prev);
