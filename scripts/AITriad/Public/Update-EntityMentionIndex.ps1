@@ -9,12 +9,16 @@ function Update-EntityMentionIndex {
     .DESCRIPTION
         The retroactive re-index (§7): the durable rebuild path for entity_mentions.json,
         a DERIVED artifact (never a source of truth). Scans each curated container's exact
-        analyzed text for approved-entity aliases and writes one Mention per hit.
+        analyzed text for entity aliases and writes one Mention per hit. By default only
+        APPROVED entities are indexed (design of record §5; the D1 caller-filters-to-approved
+        contract) — widen with -Status to build a preview over proposed/deprecated records.
 
         Matching is ALIAS-FIRST and deterministic — an alias table (name + aliases) over the
-        approved entities in entities.json, matched case-insensitively with word boundaries
-        and flexible interior whitespace. No AI call, no embeddings; embedding tie-break is
-        D1 (Shared Lib), out of scope here.
+        in-scope entities in entities.json (default: status 'approved'), matched
+        case-insensitively with word boundaries and flexible interior whitespace. No AI call,
+        no embeddings; embedding tie-break is D1 (Shared Lib), out of scope here. The
+        populated statuses are recorded in the envelope's `indexed_status`, so a curated
+        index is distinguishable from a preview by inspecting the file.
 
         Container sources (the curated batch tier — facts + POV, design §5):
           - Source-Evidence-Index facts: container id `sei:<sei_key>`, text = the entry's
@@ -46,6 +50,12 @@ function Update-EntityMentionIndex {
         skip POV containers entirely. Absent files are skipped (non-fatal).
     .PARAMETER OutputPath
         Override entity_mentions.json output path. Defaults to Get-EntityMentionsFilePath.
+    .PARAMETER Status
+        Which entity statuses to index. Default @('approved') — the design-of-record §5
+        population and the D1 caller-filters-to-approved contract. Pass e.g.
+        -Status approved,proposed to build an explicit PREVIEW over un-curated candidates
+        (useful before any entity has been approved, so the Phase-2 render is not empty).
+        The populated set is recorded in the output envelope's `indexed_status`.
     .PARAMETER Force
         Rewrite the file even when the containers are unchanged (bumps last_modified).
         Without -Force an unchanged rebuild is a no-op that does not touch the file.
@@ -73,6 +83,10 @@ function Update-EntityMentionIndex {
         [Parameter()]
         [Alias('Path')]
         [string]$OutputPath,
+
+        [Parameter()]
+        [ValidateSet('proposed', 'approved', 'deprecated')]
+        [string[]]$Status = @('approved'),
 
         [Parameter()]
         [switch]$Force
@@ -119,13 +133,17 @@ function Update-EntityMentionIndex {
         return $true
     }
 
-    # --- Alias table over approved entities: normalized surface -> raw ent-* ref ------------
+    # --- Alias table over in-scope entities (default: status 'approved'): normalized surface -> raw ent-* ref ------------
     $Store = Get-EntitiesStore -Path $EntPath -InitIfMissing
     $Entities = if ($Store.PSObject.Properties['entities']) { @($Store.entities) } else { @() }
 
     $AliasEntries = [System.Collections.Generic.List[object]]::new()
     foreach ($e in $Entities) {
         if (-not $e.PSObject.Properties['id']) { continue }
+        # Status gate (§5 curation contract): index only the requested statuses; default is
+        # approved-only. A record without a `status` field is treated as un-indexable.
+        $eStatus = if ($e.PSObject.Properties['status']) { [string]$e.status } else { '' }
+        if ($eStatus -notin $Status) { continue }
         $ref = [string]$e.id
         $surfaces = [System.Collections.Generic.List[string]]::new()
         if ($e.PSObject.Properties['name'] -and $e.name) { $surfaces.Add([string]$e.name) }
@@ -325,6 +343,7 @@ function Update-EntityMentionIndex {
         ContainerCount = @($NewContainers.Keys).Count
         MentionCount   = $TotalMentions
         AliasCount     = @($AliasEntries).Count
+        IndexedStatus  = @($Status | Sort-Object -Unique)
         Unchanged      = $unchanged
         Written        = $false
     }
@@ -337,6 +356,7 @@ function Update-EntityMentionIndex {
     $file = [ordered]@{
         _schema_version = '1.0.0'
         _doc            = 'Derived artifact — rebuildable via Update-EntityMentionIndex (re-index, epic t/1890 design §7). Absence of a container means "no links yet", never an error.'
+        indexed_status  = @($Status | Sort-Object -Unique)
         last_modified   = $lastModified
         containers      = $NewContainers
     }
