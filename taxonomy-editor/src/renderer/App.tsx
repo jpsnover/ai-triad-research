@@ -37,6 +37,7 @@ import { useFeatureFlagStore, useFlag } from './hooks/useFeatureFlags';
 import { PrecacheToast } from './components/shared/PrecacheToast';
 import { usePrecache } from './hooks/usePrecache';
 import { DiagnosticsDrawer } from './components/shared/DiagnosticsDrawer';
+import { GlobalDetailPaneHost } from './components/shared/GlobalDetailPaneHost';
 
 // Lazy-loaded tab components — only fetched when their tab is selected
 const SituationsTab = lazy(() => import('./components/debate/SituationsTab').then(m => ({ default: m.SituationsTab })));
@@ -656,6 +657,11 @@ function MainApp() {
             {activeTab === 'organizations' && <OrganizationsTab />}
           </Suspense>
         </div>
+        {/* One app-level ref → DetailPane host for every main tab in this shell (t/1987).
+            A ref-link click in PovTab/Situations/Conflicts/Cruxes/Debate sets the global
+            selectedRef; this single right-rail pane resolves it. Standalone Chat / debate
+            popout / EntityBrowser keep their own panes (separate contexts). */}
+        <GlobalDetailPaneHost />
       </div>
       <SaveBar />
       <BottomNav onOpenMore={() => setHamburgerOpen(true)} />
