@@ -29,7 +29,13 @@ gitpython>=3.1.50
 # Semantic embeddings (all-MiniLM-L6-v2) and NLI cross-encoder
 # (cross-encoder/nli-deberta-v3-small) for taxonomy search and
 # contradiction detection. Models download on first use (~180MB each).
-sentence-transformers>=2.7
+# PINNED <5 (t/1989): sentence-transformers 5.x restructured the model-load +
+# CrossEncoder API and breaks BOTH models' load path. Working combo =
+# sentence-transformers 4.1.x + transformers 4.51.3. The <5 upper bound is the
+# actual fix — dependabot's semver-major ignore does NOT block a constraint-range
+# widening (>=2.7 -> >=5.6.1 walked straight through it, PR #191). CI job
+# `python-embed-smoke` validates this pin whenever requirements change.
+sentence-transformers>=4.1,<5
 
 # Document conversion (PDF, DOCX, PPTX, XLSX, HTML, images → Markdown)
 markitdown[all]>=0.1

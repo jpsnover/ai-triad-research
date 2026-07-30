@@ -52,6 +52,7 @@ jobs:
       debate: ${{ steps.filter.outputs.debate }}
       schema: ${{ steps.filter.outputs.schema }}
       lib: ${{ steps.filter.outputs.lib }}
+      python: ${{ steps.filter.outputs.python }}
     steps:
       - uses: dorny/paths-filter@fbd0ab8f3e69293af611ebaee6363fc25e6d187d  # v4.0.1
         id: filter
@@ -81,6 +82,9 @@ jobs:
               - '.github/workflows/ci.yml'
             lib:
               - 'lib/**'
+              - '.github/workflows/ci.yml'
+            python:
+              - 'scripts/requirements*.txt'
               - '.github/workflows/ci.yml'
 
   test-powershell:
@@ -557,6 +561,58 @@ jobs:
         if: always()
         run: docker rm -f smoke-test || true
 
+  # ── python-embed-smoke: validate the pip embedding stack (t/1989) ──────────
+  # The pip ecosystem (scripts/requirements.txt) was never installed or exercised
+  # in CI, so a breaking bump — e.g. sentence-transformers 5.x, which restructured
+  # the model-load + CrossEncoder API — passed ci-gate with ZERO signal (#191, a
+  # false green). Paths-filtered to requirements changes, so normal PRs skip it
+  # (skipped = OK through ci-gate, same as the other conditional jobs). Two stages,
+  # deliberately split so failure modes stay distinguishable (zero-tolerated-noise):
+  # a red on "Download models" is an HF/network outage; a red on "Assert ... contract"
+  # (run offline, cache-only) is a REAL dependency incompatibility — never conflated.
+  python-embed-smoke:
+    needs: [changes]
+    if: >-
+      always() && !cancelled() &&
+      (github.event_name != 'pull_request' || needs.changes.outputs.python == 'true')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: scripts/requirements.txt
+      - name: Install Python deps (CPU-only torch to cut install weight)
+        working-directory: scripts
+        run: |
+          python -m pip install --upgrade pip
+          pip install torch --index-url https://download.pytorch.org/whl/cpu
+          pip install -r requirements.txt
+      - name: Download models (HF availability — a red HERE is infrastructure, not a dep break)
+        run: |
+          python - <<'PY'
+          from huggingface_hub import snapshot_download
+          snapshot_download('sentence-transformers/all-MiniLM-L6-v2')
+          snapshot_download('cross-encoder/nli-deberta-v3-small')
+          print('models fetched to cache')
+          PY
+      - name: Assert embedding + NLI contract (offline — a red HERE is a REAL incompatibility)
+        env:
+          HF_HUB_OFFLINE: '1'
+          TRANSFORMERS_OFFLINE: '1'
+        run: |
+          python - <<'PY'
+          import numpy as np
+          from sentence_transformers import SentenceTransformer, CrossEncoder
+          emb = SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2').encode('smoke test')
+          assert len(emb) == 384, f'embedding contract broken: expected 384-dim, got {len(emb)}'
+          ce = CrossEncoder('cross-encoder/nli-deberta-v3-small')
+          scores = np.asarray(ce.predict([('A cat sits on the mat.', 'A feline rests on a rug.')]))
+          assert scores.shape[-1] == 3, f'NLI contract broken: expected 3 logits/pair, got shape {scores.shape}'
+          print('OK: embedding 384-dim + NLI 3-logit contract holds ->', scores.tolist())
+          PY
+
   # ── ci-gate: the SINGLE required status context (t/1962) ──────────────────
   # Replaces the 6 individual code-check contexts in branch protection. Those get
   # SKIPPED by path-filtering on non-electron PRs (docs-only, PS-only); a skipped
@@ -572,9 +628,11 @@ jobs:
   # job IDs); lib-lint / dependency-audit / schema-validation are intentionally NOT
   # gated here (not required contexts today — separate decision). Add future
   # *required* jobs to `needs`; their path-filtered skips report OK.
+  # python-embed-smoke (t/1989) is gated here as exactly such a job: it validates
+  # the pip embedding stack, path-filtered to requirements changes, skip = OK.
   ci-gate:
     name: ci-gate
-    needs: [changes, test-powershell, test-electron, test-container]
+    needs: [changes, test-powershell, test-electron, test-container, python-embed-smoke]
     if: always()
     runs-on: ubuntu-latest
     steps:
