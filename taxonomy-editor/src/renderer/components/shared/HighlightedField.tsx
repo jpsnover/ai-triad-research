@@ -2,8 +2,11 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { useRef, useCallback, useMemo, type ReactNode, type CSSProperties } from 'react';
+import type { EntityRef } from '@lib/entities/types';
 import { useTaxonomyStore } from '../../hooks/useTaxonomyStore';
 import { buildSearchRegex } from '../../utils/searchRegex';
+import { RefLinkButton } from './MentionField';
+import type { MentionSegment } from './mentionText';
 
 interface HighlightedInputProps {
   value: string;
@@ -22,6 +25,10 @@ interface HighlightedTextareaProps {
   style?: CSSProperties;
   /** Literal substrings to render bold in the backdrop overlay (e.g. "Encompasses:", "Excludes:"). */
   boldKeywords?: readonly string[];
+  /** Read-only only (t/1908): stored entity-mention render segments to interleave as `.ref-link` buttons. */
+  mentionSegments?: readonly MentionSegment[];
+  /** Click handler for a mention `.ref-link` (paired with `mentionSegments`). */
+  onSelectRef?: (ref: EntityRef) => void;
 }
 
 const DEFAULT_BOLD_KEYWORDS: readonly string[] = ['Encompasses:', 'Excludes:'];
@@ -116,63 +123,103 @@ export function HighlightedInput({ value, onChange, readOnly, disabled, type, st
   );
 }
 
-/** Build formatted ReactNode[] for read-only display: line break before keywords + bold. */
-function useFormattedParts(text: string, boldKeywords: readonly string[]): ReactNode[] {
+/**
+ * Format one span of plain text for read-only display: interleave search-highlight (`mark`)
+ * and bold-keyword (`strong`, preceded by a `<br>` for visual separation) ranges. Pure —
+ * `searchRegex` is reset per call so it can be reused across segments; `keyPrefix` keeps
+ * React keys unique when several spans are concatenated. Extracted verbatim from the old
+ * `useFormattedParts` body (t/1908) so the no-mention render is unchanged.
+ */
+function formatFieldParts(
+  text: string,
+  boldKeywords: readonly string[],
+  searchRegex: RegExp | null,
+  keyPrefix: string,
+): ReactNode[] {
+  type Range = { start: number; end: number; kind: 'mark' | 'bold' };
+  const ranges: Range[] = [];
+
+  if (searchRegex) {
+    searchRegex.lastIndex = 0;
+    let m: RegExpExecArray | null;
+    let i = 0;
+    while ((m = searchRegex.exec(text)) !== null && i < 100) {
+      if (m[0].length > 0) ranges.push({ start: m.index, end: m.index + m[0].length, kind: 'mark' });
+      else searchRegex.lastIndex++;
+      i++;
+    }
+  }
+
+  for (const kw of boldKeywords) {
+    if (!kw) continue;
+    let from = 0;
+    while (from <= text.length) {
+      const idx = text.indexOf(kw, from);
+      if (idx < 0) break;
+      ranges.push({ start: idx, end: idx + kw.length, kind: 'bold' });
+      from = idx + kw.length;
+    }
+  }
+
+  ranges.sort((a, b) => a.start - b.start || (a.kind === b.kind ? 0 : a.kind === 'mark' ? -1 : 1));
+  const parts: ReactNode[] = [];
+  let lastIndex = 0;
+  let key = 0;
+  for (const r of ranges) {
+    if (r.start < lastIndex) continue;
+    if (r.start > lastIndex) parts.push(text.slice(lastIndex, r.start));
+    const content = text.slice(r.start, r.end);
+    if (r.kind === 'mark') {
+      parts.push(<mark key={`${keyPrefix}m${key++}`}>{content}</mark>);
+    } else {
+      // Line break before the bold keyword for visual separation
+      parts.push(<br key={`${keyPrefix}br${key}`} />);
+      parts.push(<strong key={`${keyPrefix}s${key++}`}>{content}</strong>);
+    }
+    lastIndex = r.end;
+  }
+  if (lastIndex < text.length) parts.push(text.slice(lastIndex));
+  return parts;
+}
+
+/**
+ * Build formatted ReactNode[] for read-only display: line break before keywords + bold.
+ * When `mentionSegments` is supplied (t/1908), the text is first split into stored
+ * entity-mention spans — `ref` segments render as shared `.ref-link` buttons and each plain
+ * span is formatted with `formatFieldParts` — so mentions interleave with search/bold
+ * ranges. With no mention segments the whole text is formatted directly (unchanged path for
+ * every existing consumer). A `ref` segment with no `onSelectRef` degrades to plain text.
+ */
+function useFormattedParts(
+  text: string,
+  boldKeywords: readonly string[],
+  mentionSegments?: readonly MentionSegment[],
+  onSelectRef?: (ref: EntityRef) => void,
+): ReactNode[] {
   const { findQuery, findMode, findCaseSensitive } = useTaxonomyStore();
 
   return useMemo(() => {
     const searchRegex = buildSearchRegex(findQuery, findMode, findCaseSensitive);
-    type Range = { start: number; end: number; kind: 'mark' | 'bold' };
-    const ranges: Range[] = [];
-
-    if (searchRegex) {
-      searchRegex.lastIndex = 0;
-      let m: RegExpExecArray | null;
-      let i = 0;
-      while ((m = searchRegex.exec(text)) !== null && i < 100) {
-        if (m[0].length > 0) ranges.push({ start: m.index, end: m.index + m[0].length, kind: 'mark' });
-        else searchRegex.lastIndex++;
-        i++;
-      }
+    if (mentionSegments && mentionSegments.length > 0) {
+      const parts: ReactNode[] = [];
+      mentionSegments.forEach((seg, i) => {
+        if (seg.ref && onSelectRef) {
+          const ref = seg.ref;
+          parts.push(<RefLinkButton key={`seg${i}`} text={seg.text} refKind={ref.kind} onSelect={() => onSelectRef(ref)} />);
+        } else {
+          parts.push(...formatFieldParts(seg.text, boldKeywords, searchRegex, `seg${i}-`));
+        }
+      });
+      return parts;
     }
-
-    for (const kw of boldKeywords) {
-      if (!kw) continue;
-      let from = 0;
-      while (from <= text.length) {
-        const idx = text.indexOf(kw, from);
-        if (idx < 0) break;
-        ranges.push({ start: idx, end: idx + kw.length, kind: 'bold' });
-        from = idx + kw.length;
-      }
-    }
-
-    ranges.sort((a, b) => a.start - b.start || (a.kind === b.kind ? 0 : a.kind === 'mark' ? -1 : 1));
-    const parts: ReactNode[] = [];
-    let lastIndex = 0;
-    let key = 0;
-    for (const r of ranges) {
-      if (r.start < lastIndex) continue;
-      if (r.start > lastIndex) parts.push(text.slice(lastIndex, r.start));
-      const content = text.slice(r.start, r.end);
-      if (r.kind === 'mark') {
-        parts.push(<mark key={key++}>{content}</mark>);
-      } else {
-        // Line break before the bold keyword for visual separation
-        parts.push(<br key={`br-${key}`} />);
-        parts.push(<strong key={key++}>{content}</strong>);
-      }
-      lastIndex = r.end;
-    }
-    if (lastIndex < text.length) parts.push(text.slice(lastIndex));
-    return parts;
-  }, [text, findQuery, findMode, findCaseSensitive, boldKeywords]);
+    return formatFieldParts(text, boldKeywords, searchRegex, '');
+  }, [text, findQuery, findMode, findCaseSensitive, boldKeywords, mentionSegments, onSelectRef]);
 }
 
-export function HighlightedTextarea({ value, onChange, readOnly, rows, style, boldKeywords = DEFAULT_BOLD_KEYWORDS }: HighlightedTextareaProps) {
+export function HighlightedTextarea({ value, onChange, readOnly, rows, style, boldKeywords = DEFAULT_BOLD_KEYWORDS, mentionSegments, onSelectRef }: HighlightedTextareaProps) {
   const backdropRef = useRef<HTMLDivElement>(null);
   const parts = useHighlightParts(value, boldKeywords);
-  const formattedParts = useFormattedParts(value, boldKeywords);
+  const formattedParts = useFormattedParts(value, boldKeywords, mentionSegments, onSelectRef);
   const hasHighlight = parts !== null;
 
   const handleChange = useCallback(

@@ -28,8 +28,9 @@ import { NodeEditHistory } from './NodeEditHistory';
 import { nodeTypeFromId, nodePovFromId } from '@lib/debate/nodeIdUtils';
 import { POV_KEYS } from '@lib/debate/types';
 import { api } from '@bridge';
-import { useMentionRenderer } from '../shared/MentionField';
-import { reconstructNodeContainer } from '../shared/mentionText';
+import { useContainerMentionKit } from '../shared/MentionField';
+import { reconstructNodeContainer, type MentionSegment } from '../shared/mentionText';
+import type { EntityRef } from '@lib/entities/types';
 import { EditConflictBadge, type NodeConflict } from '../conflict/edit-conflicts';
 import { triggerPovNodeRegeneration } from '../../utils/regeneratePlainDescription';
 import { generateAphorism } from '../../utils/regenerateAphorism';
@@ -133,14 +134,22 @@ export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, onRela
   // Stored entity-name mentions for this node's reading-flow text (t/1898 §4.2). Fetched
   // only in the read-only (reading) context — the editable editor uses inputs, not link
   // spans. `reconstructNodeContainer` rebuilds the FULL container so every field's offset
-  // basis is correct even for fields we don't linkify here (label + plain_description
-  // land in E; the HighlightedTextarea `description` path is a tracked follow-up).
+  // basis is correct. `label` + `plain_description` linkify via `renderMentionField`; the
+  // `description` field (rendered through `HighlightedTextarea`) interleaves its mention
+  // segments with search/bold ranges via `descriptionMention` (t/1908).
   const mentionContainer = useMemo(
     () => reconstructNodeContainer(node),
     [node.label, node.description, node.plain_description],
   );
-  const renderMentionField = useMentionRenderer(readOnly ? `node:${node.id}` : null, mentionContainer);
+  const mentionKit = useContainerMentionKit(readOnly ? `node:${node.id}` : null, mentionContainer);
+  const renderMentionField = mentionKit.renderField;
   const labelContent: ReactNode = readOnly ? renderMentionField('label', node.label) : node.label;
+  // Only engage the segment path when there is a real link to render, so the common
+  // no-mention read-only description keeps its exact existing formatting.
+  const descSegments = readOnly ? mentionKit.segmentsFor('description') : [];
+  const descriptionMention: DescriptionMention | undefined = descSegments.some(s => s.ref)
+    ? { segments: descSegments, onSelectRef: mentionKit.onSelectRef }
+    : undefined;
 
   // Eagerly load facts index so count badge is available
   const [factCount, setFactCount] = useState(() => getFactCount(node.id));
@@ -435,6 +444,7 @@ export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, onRela
             showAttributeInfo={showAttributeInfo}
             hasGraphAttrs={hasGraphAttrs}
             renderMentionField={renderMentionField}
+            descriptionMention={descriptionMention}
           />
         )}
 
@@ -785,6 +795,12 @@ function BeliefsMetricsRow({ node, showDtDrilldown, setShowDtDrilldown }: Belief
 
 // ── Content tab: Description section (extracted from NodeDetail for complexity) ──
 
+/** Entity-mention render segments for the read-only `description` field + their click handler (t/1908). */
+interface DescriptionMention {
+  segments: readonly MentionSegment[];
+  onSelectRef: (ref: EntityRef) => void;
+}
+
 interface DescriptionSectionProps {
   pov: Pov;
   node: PovNode;
@@ -797,9 +813,11 @@ interface DescriptionSectionProps {
   updatePovNode: (pov: Pov, id: string, updates: Partial<PovNode>) => void;
   /** Renders a reconstructed container field's text with linkified entity mentions (t/1898); undefined = plain. */
   renderMentionField?: (fieldName: string, fallback: string) => ReactNode;
+  /** Mention segments for the formal `description` HighlightedTextarea (t/1908); undefined = no links. */
+  descriptionMention?: DescriptionMention;
 }
 
-function DescriptionSection({ pov, node, readOnly, err, descMode, setDescMode, maybeRegenAphorism, update, updatePovNode, renderMentionField }: DescriptionSectionProps) {
+function DescriptionSection({ pov, node, readOnly, err, descMode, setDescMode, maybeRegenAphorism, update, updatePovNode, renderMentionField, descriptionMention }: DescriptionSectionProps) {
   return (
     <div className={`form-group ${err('description') ? 'has-error' : ''}`}>
       <div className="description-header">
@@ -816,6 +834,8 @@ function DescriptionSection({ pov, node, readOnly, err, descMode, setDescMode, m
             onChange={(v) => update({ description: v })}
             rows={6}
             readOnly={readOnly}
+            mentionSegments={descriptionMention?.segments}
+            onSelectRef={descriptionMention?.onSelectRef}
           />
           {err('description') && <div className="error-text">{err('description')}</div>}
         </div>
@@ -1003,9 +1023,11 @@ interface NodeDetailContentTabProps {
   hasGraphAttrs: boolean;
   /** Renders a reconstructed container field's text with linkified entity mentions (t/1898). */
   renderMentionField?: (fieldName: string, fallback: string) => ReactNode;
+  /** Mention segments for the formal `description` HighlightedTextarea (t/1908). */
+  descriptionMention?: DescriptionMention;
 }
 
-function NodeDetailContentTab({ pov, node, readOnly, err, descMode, setDescMode, maybeRegenAphorism, update, updatePovNode, showDtDrilldown, setShowDtDrilldown, expandedLineage, setExpandedLineage, showAttributeInfo, hasGraphAttrs, renderMentionField }: NodeDetailContentTabProps) {
+function NodeDetailContentTab({ pov, node, readOnly, err, descMode, setDescMode, maybeRegenAphorism, update, updatePovNode, showDtDrilldown, setShowDtDrilldown, expandedLineage, setExpandedLineage, showAttributeInfo, hasGraphAttrs, renderMentionField, descriptionMention }: NodeDetailContentTabProps) {
   return (
     <>
       {node.category === 'Beliefs' && (
@@ -1027,6 +1049,7 @@ function NodeDetailContentTab({ pov, node, readOnly, err, descMode, setDescMode,
         update={update}
         updatePovNode={updatePovNode}
         renderMentionField={renderMentionField}
+        descriptionMention={descriptionMention}
       />
 
       {hasGraphAttrs && (
