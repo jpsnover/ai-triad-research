@@ -211,44 +211,17 @@ export function RebaseConflictModal({ open, onClose, onCompleted, onAborted, onE
             ))}
           </div>
 
-          <div className="rebase-modal-editor">
-            {!selected ? (
-              <div className="rebase-modal-empty">
-                {remaining === 0
-                  ? 'Nothing to edit.'
-                  : 'Select a file on the left to resolve.'}
-              </div>
-            ) : (
-              <>
-                <div className="rebase-modal-toolbar">
-                  <button className="btn btn-sm" onClick={() => onAcceptPreset('ours')} disabled={busy !== null || !hasMarkers(content)}>
-                    Accept ours
-                  </button>
-                  <button className="btn btn-sm" onClick={() => onAcceptPreset('theirs')} disabled={busy !== null || !hasMarkers(content)}>
-                    Accept theirs
-                  </button>
-                  <span className="rebase-modal-marker-hint">
-                    {hasMarkers(content) ? 'Markers present — edit or pick a side.' : 'No markers — ready to stage.'}
-                  </span>
-                  <button
-                    className="btn btn-primary btn-sm"
-                    onClick={() => void onSaveAndStage()}
-                    disabled={busy !== null || hasMarkers(content)}
-                    title={hasMarkers(content) ? 'Resolve all markers first' : 'Write the file and stage it'}
-                  >
-                    {busy === 'resolve' ? 'Staging…' : 'Save & stage'}
-                  </button>
-                </div>
-                <textarea
-                  className="rebase-modal-textarea"
-                  value={content}
-                  onChange={e => { setContent(e.target.value); setDirty(true); }}
-                  spellCheck={false}
-                />
-                {dirty && <div className="rebase-modal-dirty-hint">Unsaved edits — click <b>Save & stage</b> to commit this file to the resolution.</div>}
-              </>
-            )}
-          </div>
+          <RebaseEditor
+            selected={selected}
+            remaining={remaining}
+            content={content}
+            setContent={setContent}
+            setDirty={setDirty}
+            dirty={dirty}
+            busy={busy}
+            onAcceptPreset={onAcceptPreset}
+            onSaveAndStage={onSaveAndStage}
+          />
         </div>
 
         <div className="dialog-actions">
@@ -260,6 +233,56 @@ export function RebaseConflictModal({ open, onClose, onCompleted, onAborted, onE
           </button>
         </div>
       </div>
+    </div>
+  );
+}
+
+// ── Editor pane (extracted for complexity, t/1918) ──
+
+function RebaseEditor({ selected, remaining, content, setContent, setDirty, dirty, busy, onAcceptPreset, onSaveAndStage }: {
+  selected: string | null; remaining: number; content: string;
+  setContent: (v: string) => void; setDirty: (v: boolean) => void; dirty: boolean;
+  busy: 'load' | 'resolve' | 'continue' | 'abort' | null;
+  onAcceptPreset: (side: 'ours' | 'theirs') => void; onSaveAndStage: () => void | Promise<void>;
+}) {
+  return (
+    <div className="rebase-modal-editor">
+      {!selected ? (
+        <div className="rebase-modal-empty">
+          {remaining === 0
+            ? 'Nothing to edit.'
+            : 'Select a file on the left to resolve.'}
+        </div>
+      ) : (
+        <>
+          <div className="rebase-modal-toolbar">
+            <button className="btn btn-sm" onClick={() => onAcceptPreset('ours')} disabled={busy !== null || !hasMarkers(content)}>
+              Accept ours
+            </button>
+            <button className="btn btn-sm" onClick={() => onAcceptPreset('theirs')} disabled={busy !== null || !hasMarkers(content)}>
+              Accept theirs
+            </button>
+            <span className="rebase-modal-marker-hint">
+              {hasMarkers(content) ? 'Markers present — edit or pick a side.' : 'No markers — ready to stage.'}
+            </span>
+            <button
+              className="btn btn-primary btn-sm"
+              onClick={() => void onSaveAndStage()}
+              disabled={busy !== null || hasMarkers(content)}
+              title={hasMarkers(content) ? 'Resolve all markers first' : 'Write the file and stage it'}
+            >
+              {busy === 'resolve' ? 'Staging…' : 'Save & stage'}
+            </button>
+          </div>
+          <textarea
+            className="rebase-modal-textarea"
+            value={content}
+            onChange={e => { setContent(e.target.value); setDirty(true); }}
+            spellCheck={false}
+          />
+          {dirty && <div className="rebase-modal-dirty-hint">Unsaved edits — click <b>Save & stage</b> to commit this file to the resolution.</div>}
+        </>
+      )}
     </div>
   );
 }
