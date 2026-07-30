@@ -197,7 +197,7 @@ export interface SignalTelemetryRecord {
 
 export interface AdaptiveStagingDiagnostics {
   enabled: boolean;
-  phases: { phase: DebatePhase; rounds: number[]; exit_reason: string }[];
+  phases: { phase: DebatePhase; rounds: number[]; exit_reason: string; force_active: boolean }[];
   regressions: { from_round: number; crux_id: string; threshold_after: number }[];
   total_predicate_evaluations: number;
   confidence_deferrals: number;

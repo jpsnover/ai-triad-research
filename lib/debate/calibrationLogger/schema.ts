@@ -64,7 +64,7 @@ export interface CalibrationDataPoint {
   evaluator_model_id?: string;
 
   // ── Parameter 1: Exploration exit threshold ──
-  /** Saturation score at the moment of exploration→synthesis transition (null if no transition) */
+  /** Saturation score from the last signal_telemetry entry at debate end (unconditional last-round value; null when no telemetry). Field name is historical — the extraction is not transition-gated. */
   argumentative_saturation_at_transition: number | null;
   /** The argumentation_exit threshold that was active */
   argumentation_exit_threshold: number;
@@ -421,4 +421,21 @@ export interface CalibrationDataPoint {
   // ── Over-generate/select/rewrite pipeline (t/1581) ──
   /** Whether a coherence gate miss occurred (rewrite failed to preserve ≥3/4 selected claims). */
   coherence_gate_miss?: boolean;
+
+  // ── Termination classification (t/1671) ──
+  /**
+   * How the debate ended, derived from phases[].force_active stamped in crossRespond.ts.
+   * 'natural_conclusion': force_active=false — convergence/saturation threshold reached naturally.
+   * 'max_iterations': force_active=true AND exit_reason matches /Max total rounds/i.
+   * 'situation_cap': force_active=true, any other forced cap (health, synthesis stall, etc.).
+   * 'api_ceiling': API hard ceiling hit (detected via transcript content; overrides force_active).
+   * 'unknown': legacy rows without force_active — excluded from censoring pools.
+   * Absent on pre-t/1671 rows; treated as 'unknown' by computeConvergenceWithCensoring.
+   */
+  termination_reason?: 'natural_conclusion' | 'max_iterations' | 'situation_cap' | 'api_ceiling' | 'unknown';
+  /**
+   * Last composite convergence_score from adaptive_staging_diagnostics.signal_telemetry.
+   * Same extraction point as argumentative_saturation_at_transition. Null when no telemetry.
+   */
+  convergence_score_at_termination?: number | null;
 }
