@@ -1,9 +1,12 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { api } from '@bridge';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
+import type { EntityRef } from '@lib/entities/types';
+import { reconstructSeiContainer } from '../shared/mentionText';
+import { useContainerMentions, MentionField } from '../shared/MentionField';
 import './FactsPanel.css';
 
 export interface SourceFact {
@@ -63,9 +66,14 @@ const SPECIFICITY_COLORS: Record<string, { bg: string; fg: string }> = {
   unknown: { bg: 'rgba(148,163,184,0.12)', fg: '#64748b' },
 };
 
-export function FactsPanel({ nodeId, onSelectFact }: {
+export function FactsPanel({ nodeId, onSelectFact, onSelectRef }: {
   nodeId: string;
   onSelectFact?: (fact: SourceFact | null) => void;
+  /** Ref-select handler injected by a co-mounted DetailPane. Mentions linkify ONLY when
+   *  this is wired — otherwise claims render as plain text (t/1977: never a dead link
+   *  where no pane receives the click). The taxonomy-view DetailPane host (blocks t/1906)
+   *  supplies it; until then FactsPanel renders plain. */
+  onSelectRef?: (ref: EntityRef) => void;
 }) {
   const [facts, setFacts] = useState<SourceFact[] | null>(null);
   const [loading, setLoading] = useState(true);
@@ -83,6 +91,32 @@ export function FactsPanel({ nodeId, onSelectFact }: {
     });
     return () => { cancelled = true; };
   }, [nodeId]);
+
+  // Mention-render kit (t/1906): reconstruct the sei:<nodeId> container from the fact
+  // claims (single-LF join) so stored entity-name mentions can render as .ref-link
+  // buttons. Two gates:
+  //   1. Co-mount (t/1977): linkify ONLY when `onSelectRef` is wired — a link must have a
+  //      DetailPane to receive its click, else render plain text (never a dead link). The
+  //      taxonomy-view host that supplies onSelectRef blocks t/1906; until then → plain.
+  //   2. WCAG AA (§9): links render only in the EXPANDED claim (var(--text-primary),
+  //      passes AA in all 4 themes). The collapsed preview stays plain — it uses
+  //      var(--text-muted) and .ref-link inherits color (var(--accent) is undefined
+  //      app-wide), which fails AA at the preview's small muted size.
+  // Hooks stay unconditional (above the early returns); claims are plain text (no
+  // HighlightedTextarea caveat).
+  const containerId = `sei:${nodeId}`;
+  const container = useMemo(
+    () => reconstructSeiContainer((facts ?? []).map(f => f.claim)),
+    [facts],
+  );
+  const mentions = useContainerMentions(onSelectRef ? containerId : null);
+  const renderClaim = (index: number, claim: string) => {
+    if (!onSelectRef) return claim; // no co-mounted pane → plain text (t/1977)
+    const field = container.fields.find(f => f.name === `fact-${index}`);
+    return field
+      ? <MentionField field={field} mentions={mentions} onSelectRef={onSelectRef} />
+      : claim;
+  };
 
   if (loading) {
     return <div className="facts-message">Loading facts...</div>;
@@ -134,7 +168,7 @@ export function FactsPanel({ nodeId, onSelectFact }: {
             </div>
             {isExpanded && (
               <div className="facts-expanded">
-                <div className="facts-claim-full">{f.claim}</div>
+                <div className="facts-claim-full">{renderClaim(i, f.claim)}</div>
                 <div className="facts-meta">
                   <span title="Source document"><strong>Doc:</strong> {f.doc_id}</span>
                   {f.temporal_bound && (
