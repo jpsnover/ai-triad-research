@@ -1,0 +1,1 @@
+SKIP-proof throwaway for t/1989 — verifies python-embed-smoke SKIPS on a non-requirements PR and ci-gate stays GREEN. Closed unmerged.
