@@ -10,6 +10,7 @@
 
 import type { Router } from '../httpKit.js';
 import type { ServerCtx } from './context.js';
+import type { ServerResponse } from 'http';
 import { json, error, param } from '../httpKit.js';
 import { getGlobalRecorder } from '../../../../lib/flight-recorder/index.js';
 import * as fileIO from '../storage/fileIO.js';
@@ -26,6 +27,67 @@ import type { DebateDelta } from '../../../../lib/debate/types.js';
 // slow-save diagnostic FR log that feeds the Server Storage blob-timeout ticket (t/1469).
 const inFlightDebateSaves = new Set<string>();
 const SLOW_DEBATE_SAVE_MS = 5_000;
+
+/** Append a calibration data point when the saved debate has a concluding entry.
+ *  Never blocks/aborts the save — a failure is recorded to the flight recorder. */
+async function logCalibrationIfComplete(body: unknown): Promise<void> {
+  try {
+    const session = body as { id?: string; transcript?: { type: string }[]; neutral_evaluations?: unknown[] };
+    if (session?.transcript?.some(e => e.type === 'concluding')) {
+      const { extractCalibrationData, appendCalibrationLog } = await import('../../../../lib/debate/calibrationLogger.js');
+      // `body` is the saved debate session at runtime; the local narrow type above
+      // is only for the transcript check, so cast to the function's param.
+      const dataPoint = extractCalibrationData(session as unknown as Parameters<typeof extractCalibrationData>[0], getStorageUserId());
+      appendCalibrationLog(dataPoint, getDataRoot());
+    }
+  } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error', component: 'calibration', level: 'warn',
+      message: 'Calibration logging skipped after save',
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+    });
+  }
+}
+
+/** t/1461 slow-save diagnostic: on the slow path only (>5s), record payload size +
+ *  duration — the sizing data the blob-timeout ticket (t/1469) is blocked on. */
+function recordSlowSaveIfNeeded(debateId: string | undefined, body: unknown, startedAt: number): void {
+  const durationMs = Date.now() - startedAt;
+  if (durationMs > SLOW_DEBATE_SAVE_MS) {
+    getGlobalRecorder()?.record({
+      type: 'lifecycle', component: 'debates', level: 'warn',
+      message: `Slow debate save: ${durationMs}ms`,
+      data: { debateId, userId: getStorageUserId(), payload_bytes: Buffer.byteLength(JSON.stringify(body)), duration_ms: durationMs },
+    });
+  }
+}
+
+/** Emit the failed-save response: a structured quota_exceeded body when quotaInfo
+ *  is present, else the generic error(). The flight-recorder call stays literally
+ *  in the catch (ADR-003); this is only the non-recording response tail. */
+function respondDebateSaveError(res: ServerResponse, err: unknown): void {
+  const status = (err as { statusCode?: number }).statusCode ?? 500;
+  const qi = (err as { quotaInfo?: { resource: string; current: number; limit: number } }).quotaInfo;
+  if (qi) { json(res, { error: 'quota_exceeded', resource: qi.resource, current: qi.current, limit: qi.limit, message: String(err) }, status); }
+  else { error(res, String(err), status); }
+}
+
+/** Pull the news-report input fields out of a saved session (argument-network
+ *  nodes/edges, synthesis json, doc analysis, topic, audience) with the tolerant
+ *  optional/`??` fallbacks the raw session shape needs. */
+function extractNewsReportFields(
+  session: Record<string, unknown>,
+  transcript: Array<{ type: string; content: string; speaker: string }>,
+): { anNodes: unknown[]; anEdges: unknown[]; synthesisJson: string; docAnalysis: string | undefined; topic: string; audience: string | undefined } {
+  const anNodes = ((session.argument_network as Record<string, unknown>)?.nodes ?? []) as unknown[];
+  const anEdges = ((session.argument_network as Record<string, unknown>)?.edges ?? []) as unknown[];
+  const synthesisEntry = transcript.find(e => e.type === 'synthesis' || e.type === 'concluding');
+  const synthesisJson = synthesisEntry?.content ?? '';
+  const docAnalysis = (session.document_analysis as string | undefined) ?? undefined;
+  const topic = ((session.topic as Record<string, unknown>)?.refined ?? (session.topic as Record<string, unknown>)?.original ?? '') as string;
+  const audience = (session.audience as string | undefined) ?? undefined;
+  return { anNodes, anEdges, synthesisJson, docAnalysis, topic, audience };
+}
 
 export function registerDebatesRoutes(r: Router, _ctx: ServerCtx): void {
   const { get, post, put, patch, del } = r;
@@ -77,39 +139,8 @@ export function registerDebatesRoutes(r: Router, _ctx: ServerCtx): void {
       // rollback window (authorized e/19#28).
       await fileIO.saveDebateSession(body);
 
-      // Log calibration data if debate has synthesis (completed debate)
-      try {
-        const session = body as { id?: string; transcript?: { type: string }[]; neutral_evaluations?: unknown[] };
-        if (session?.transcript?.some(e => e.type === 'concluding')) {
-          const { extractCalibrationData, appendCalibrationLog } = await import('../../../../lib/debate/calibrationLogger.js');
-          // `body` is the saved debate session at runtime; the local narrow type
-          // above is only for the transcript check. The await import() is now typed
-          // (require's `any` previously hid this), so cast to the function's param.
-          const dataPoint = extractCalibrationData(session as unknown as Parameters<typeof extractCalibrationData>[0], getStorageUserId());
-          appendCalibrationLog(dataPoint, getDataRoot());
-        }
-      } catch (err) {
-        // Calibration logging never blocks the save, but record so silent
-        // extraction/append failures are visible in dumps.
-        getGlobalRecorder()?.record({
-          type: 'system.error', component: 'calibration', level: 'warn',
-          message: 'Calibration logging skipped after save',
-          error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
-        });
-      }
-
-      // t/1461: slow-save diagnostic — payload size + duration, computed on the
-      // slow path only (the serialize cost is paid only when already >5s). This is
-      // the payload-size data the Server Storage blob-timeout ticket (t/1469) is
-      // blocked on to size its hard timeout (cold-replica stall vs huge payload).
-      const durationMs = Date.now() - startedAt;
-      if (durationMs > SLOW_DEBATE_SAVE_MS) {
-        getGlobalRecorder()?.record({
-          type: 'lifecycle', component: 'debates', level: 'warn',
-          message: `Slow debate save: ${durationMs}ms`,
-          data: { debateId, userId: getStorageUserId(), payload_bytes: Buffer.byteLength(JSON.stringify(body)), duration_ms: durationMs },
-        });
-      }
+      await logCalibrationIfComplete(body);
+      recordSlowSaveIfNeeded(debateId, body, startedAt);
 
       json(res, { ok: true });
     }
@@ -121,10 +152,7 @@ export function registerDebatesRoutes(r: Router, _ctx: ServerCtx): void {
         message: 'Failed to save debate session',
         error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
-      const status = (err as { statusCode?: number }).statusCode ?? 500;
-      const qi = (err as { quotaInfo?: { resource: string; current: number; limit: number } }).quotaInfo;
-      if (qi) { json(res, { error: 'quota_exceeded', resource: qi.resource, current: qi.current, limit: qi.limit, message: String(err) }, status); }
-      else { error(res, String(err), status); }
+      respondDebateSaveError(res, err);
     }
     finally {
       // Clear the guard even on a thrown/aborted save (the 180s scenario) so a hung
@@ -245,16 +273,9 @@ export function registerDebatesRoutes(r: Router, _ctx: ServerCtx): void {
       // @ts-expect-error — lib/debate uses bundler moduleResolution; dynamic import resolves at runtime
       const { newsReportPrompt } = await import('../../../lib/debate/prompts.js');
 
-      const anNodes = ((session.argument_network as Record<string, unknown>)?.nodes ?? []) as unknown[];
-      const anEdges = ((session.argument_network as Record<string, unknown>)?.edges ?? []) as unknown[];
+      const { anNodes, anEdges, synthesisJson, docAnalysis, topic, audience } = extractNewsReportFields(session, transcript);
       const highlights = extractTranscriptHighlights(transcript as never[], anNodes as never[]);
       const argSummary = summarizeArgumentNetwork(anNodes as never[], anEdges as never[]);
-      const synthesisEntry = transcript.find(e => e.type === 'synthesis' || e.type === 'concluding');
-      const synthesisJson = synthesisEntry?.content ?? '';
-      const docAnalysis = (session.document_analysis as string | undefined) ?? undefined;
-      const topic = ((session.topic as Record<string, unknown>)?.refined ?? (session.topic as Record<string, unknown>)?.original ?? '') as string;
-
-      const audience = (session.audience as string | undefined) ?? undefined;
       const prompt = newsReportPrompt(topic, synthesisJson, argSummary, highlights, docAnalysis, undefined, audience as import('../../../../lib/debate/types.js').DebateAudience | undefined);
       const result = await ai.generateTextByUsage('server.news-report', { prompt });
       json(res, { article: result.text });
