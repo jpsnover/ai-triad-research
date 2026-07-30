@@ -39,12 +39,15 @@ function buildMap(config: { models?: { id: string; apiId?: string }[] }): Record
 
 function resolveMirror(friendlyId: string): string {
   let statMtime = 0;
+  let fd: number | undefined;
   try {
-    const stat = fs.statSync(configPath);
+    // fd-based read mirrors the embeddings resolveApiModelId fix (js/file-system-race, t/2022).
+    fd = fs.openSync(configPath, 'r');
+    const stat = fs.fstatSync(fd);
     statMtime = stat.mtimeMs;
     if (!_cache || stat.mtimeMs !== _mtime) {
       _reads++;
-      const raw = fs.readFileSync(configPath, 'utf-8').replace(/^﻿/, '');
+      const raw = fs.readFileSync(fd, 'utf-8').replace(/^﻿/, '');
       _cache = buildMap(JSON.parse(raw));
       _mtime = stat.mtimeMs;
     }
@@ -52,6 +55,8 @@ function resolveMirror(friendlyId: string): string {
     _errors++;
     if (!_cache) _cache = {};
     if (statMtime !== 0) _mtime = statMtime;   // Option B: stop the re-read flood
+  } finally {
+    if (fd !== undefined) fs.closeSync(fd);
   }
   return _cache![friendlyId] ?? friendlyId;
 }
