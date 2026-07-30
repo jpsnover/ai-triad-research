@@ -384,6 +384,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('load-source-evidence-index'),
   loadDocTitles: (): Promise<Record<string, string> | null> =>
     ipcRenderer.invoke('load-doc-titles'),
+  loadGreatestHits: (): Promise<{ node_ids: string[] } | null> =>
+    ipcRenderer.invoke('load-greatest-hits'),
   getSourceEvidence: (nodeIds: string[], pov: string): Promise<unknown> =>
     ipcRenderer.invoke('get-source-evidence', nodeIds, pov),
   runEvidenceQbaf: (claimText: string, claimId: string, model?: string): Promise<unknown> =>
