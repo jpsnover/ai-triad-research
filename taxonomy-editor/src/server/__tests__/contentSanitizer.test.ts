@@ -65,8 +65,8 @@ describe('sanitizeUserText — multi-pass bypass resistance (t/2023)', () => {
   });
 
   it('still leaves ordinary text with < / > operators untouched (no over-strip)', () => {
-    // Non-adversarial input converges in one pass and never hits the fail-closed
-    // bracket strip, so comparison operators survive.
+    // The tag regex requires a literal tag-name right after `<`/`</`, so bare
+    // comparison operators never match and pass through unchanged.
     expect(sanitizeUserText('a < b > c, and 1<2')).toBe('a < b > c, and 1<2');
   });
 });
