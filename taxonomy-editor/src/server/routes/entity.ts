@@ -17,8 +17,11 @@ import type { ColloquialTerm } from '../../../../lib/dictionary/types.js';
 import type { Entity, EntityDetail, EntityRef, EntitySummary } from '../../../../lib/entities/types.js';
 import { json, error, param } from '../httpKit.js';
 import { getGlobalRecorder } from '../../../../lib/flight-recorder/index.js';
-import { ActionableError } from '../../../../lib/debate/errors.js';
 import { parseEntityRef } from '../../../../lib/entities/types.js';
+// t/1974: the pure resolve/coerce helpers now live in lib/entities/entityResolve
+// (shared byte-identical by the server + ElectronMain transports); imported here
+// rather than defined locally so the two copies can't drift.
+import { resolveMergedInto, normalizeEntity, coerceStringArray } from '../../../../lib/entities/entityResolve.js';
 import * as fileIO from '../storage/fileIO.js';
 import { getOrganizationById } from '../organizations.js';
 
@@ -60,90 +63,11 @@ function policiesOf(data: unknown): Record<string, unknown>[] {
   return Array.isArray(arr) ? (arr as Record<string, unknown>[]) : [];
 }
 
-/**
- * Coerce a polymorphic string-array field to a real `string[]` at the read boundary.
- * entities.json stores `aliases` and `source_refs` in THREE shapes (t/1964, Design
- * live audit): array | null | bare string — e.g. aliases `["OAI"]` | `null` | `"GDPR"`,
- * source_refs `["doc-1"]` | `"doc-1"`. A null crashes `.some`/`.length`; a bare string
- * crashes `.map`/`.join` and renders its first character on `[0]`. Normalize here so no
- * downstream consumer (browser summary, detail pane, mention flow) ever sees either.
- * array→as-is · null/undefined→[] · string→single-element.
- */
-function coerceStringArray(v: unknown): string[] {
-  return Array.isArray(v) ? (v as string[]) : v == null ? [] : [v as string];
-}
-
-/**
- * Normalize an Entity's polymorphic string-array fields (`aliases`, `source_refs`) at
- * the read boundary. The genus audit (t/1964#3, Design t/1882#7) bounds the coercion set
- * to exactly these two fields — every other UI-rendered field is single-shape.
- */
-function normalizeEntity(e: Entity): Entity {
-  return { ...e, aliases: coerceStringArray(e.aliases), source_refs: coerceStringArray(e.source_refs) };
-}
-
 /** Slugify a colloquial term into the `term:<slug>` wire form: lowercase,
  *  non-alphanumeric runs → single hyphen, trimmed. Deterministic and reversible
  *  enough that "labor displacement" ⇔ "labor-displacement". */
 function slugifyTerm(raw: string): string {
   return raw.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
-}
-
-export interface MergedIntoResult {
-  /** The terminal (non-tombstone) record the chain resolves to. */
-  record: Entity;
-  /** The originally-requested id, set only when ≥1 merge pointer was followed. */
-  redirectedFrom?: string;
-}
-
-/**
- * Follow an Entity's single canonical `merged_into` tombstone pointer (Section 7)
- * to the terminal record, recording the original id as `redirectedFrom` once any
- * hop is taken. Returns null if any id in the chain is absent. Throws
- * {@link ActionableError} on a cycle or when the chain exceeds `maxDepth` — both
- * indicate corrupt merge data, not a deep-but-valid graph. Organizations have NO
- * merged_into, so this is entity-only.
- */
-export function resolveMergedInto(
-  id: string,
-  lookup: (id: string) => Entity | null | undefined,
-  opts: { maxDepth: number },
-): MergedIntoResult | null {
-  const seen = new Set<string>();
-  let currentId = id;
-  let redirectedFrom: string | undefined;
-
-  for (let depth = 0; depth <= opts.maxDepth; depth++) {
-    if (seen.has(currentId)) {
-      throw new ActionableError({
-        goal: 'Resolve a merged entity to its canonical record',
-        problem: `merged_into chain forms a cycle at "${currentId}" (started from "${id}")`,
-        location: 'server/routes/entity.ts → resolveMergedInto',
-        nextSteps: [
-          'Inspect entities.json for a merged_into loop (A→B→A) starting at this id',
-          'Break the cycle so exactly one record in the chain has no merged_into',
-        ],
-      });
-    }
-    seen.add(currentId);
-
-    const rec = lookup(currentId);
-    if (!rec) return null; // a hop points at a missing id → unresolved
-    if (!rec.merged_into) return { record: rec, redirectedFrom };
-
-    redirectedFrom = redirectedFrom ?? id; // first hop: remember where we started
-    currentId = rec.merged_into;
-  }
-
-  throw new ActionableError({
-    goal: 'Resolve a merged entity to its canonical record',
-    problem: `merged_into chain from "${id}" exceeded the depth cap (${opts.maxDepth})`,
-    location: 'server/routes/entity.ts → resolveMergedInto',
-    nextSteps: [
-      'Verify the merge graph is a short chain, not a deep or unbounded one',
-      `If a legitimately long chain exists, raise MAX_MERGE_DEPTH (currently ${opts.maxDepth})`,
-    ],
-  });
 }
 
 /**
