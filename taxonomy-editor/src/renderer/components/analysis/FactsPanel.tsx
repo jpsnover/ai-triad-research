@@ -90,6 +90,10 @@ export function FactsPanel({ nodeId, onSelectFact }: {
   // claims (single-LF join) so stored entity-name mentions render as .ref-link
   // buttons in the reading flow. Hook is called unconditionally (before the early
   // returns); claims are plain text, so no HighlightedTextarea caveat.
+  // Links render only in the EXPANDED claim (var(--text-primary), passes WCAG AA in
+  // all 4 themes). The collapsed preview stays plain text: it uses var(--text-muted)
+  // and .ref-link inherits color (var(--accent) is undefined app-wide), which would
+  // fail AA at the preview's small muted size (§9 sign-off, t/1906).
   const containerId = `sei:${nodeId}`;
   const container = useMemo(
     () => reconstructSeiContainer((facts ?? []).map(f => f.claim)),
@@ -133,7 +137,7 @@ export function FactsPanel({ nodeId, onSelectFact }: {
                 <div className="facts-label">{f.label}</div>
                 {!isExpanded && (
                   <div className="facts-claim-preview">
-                    {renderField(`fact-${i}`, f.claim)}
+                    {f.claim}
                   </div>
                 )}
               </div>

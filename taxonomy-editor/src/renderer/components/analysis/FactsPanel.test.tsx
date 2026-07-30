@@ -53,8 +53,11 @@ describe('FactsPanel (t/1025, t/1906)', () => {
 
   it('renders a stored entity mention as a .ref-link and routes the click (t/1906)', async () => {
     render(<FactsPanel nodeId="node-mention" />);
-    // Once mentions load, "Anthropic" in the claim renders as a ref-link button
-    // (kind conveyed via aria-label), not plain text.
+    // Links render only in the EXPANDED claim (the muted collapsed preview stays plain
+    // text for WCAG AA — see FactsPanel §9 note). Expand the card first.
+    await waitFor(() => expect(screen.getByText('Model release')).toBeInTheDocument());
+    fireEvent.click(screen.getByText('Model release'));
+    // "Anthropic" in the expanded claim renders as a ref-link button (kind via aria-label).
     const link = await screen.findByRole('button', { name: /Organization: Anthropic/ });
     expect(link).toHaveClass('ref-link');
 
