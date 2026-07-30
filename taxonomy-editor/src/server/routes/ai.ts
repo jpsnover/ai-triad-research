@@ -63,6 +63,214 @@ const BACKEND_DISPLAY: Record<AIBackend, string> = {
   azure: 'Azure OpenAI', zai: 'Z.AI (GLM)', moonshot: 'Moonshot (Kimi)',
 };
 
+// ── POST /api/ai/generate guard/step helpers (extracted from the handler, ADR-007)
+// Each guard returns true when it has already sent a response (caller must return).
+type ResolvedTier = ReturnType<typeof proxyTiers.resolveTier>;
+
+/** 403 + record when the resolved backend isn't allowed on the caller's tier. */
+function enforceBackendAllowed(res: http.ServerResponse, tier: ResolvedTier, backend: AIBackend): boolean {
+  if (proxyTiers.isBackendAllowed(tier, backend)) return false;
+  // t/1463: record the tier context so a tier-restriction 403 is a one-line FR read
+  // instead of a server.ts → proxyTiers → runtimeConfig code trace.
+  getGlobalRecorder()?.record({
+    type: 'ai.error', component: 'ai-generate', level: 'warn',
+    message: `Backend '${backend}' not available on '${tier.level}' tier`,
+    data: { tier_level: tier.level, requested_backend: backend, allowed_backends: tier.allowedBackends },
+  });
+  res.writeHead(403);
+  res.end(JSON.stringify({ error: `Backend '${backend}' not available on your tier`, tier_level: tier.level, requested_backend: backend }));
+  return true;
+}
+
+/** Per-IP (free) / per-user RPM + daily-token limits. 429 + log/record on breach. */
+function enforceAiRateLimits(res: http.ServerResponse, isFree: boolean, limitKey: string, tier: ResolvedTier, backend: AIBackend): boolean {
+  const rpmCheck = isFree
+    ? rateLimiter.checkRate(limitKey, tier.limits.requestsPerMinute, 60_000)
+    : rateLimiter.checkRequestRate(limitKey, tier.limits.requestsPerMinute);
+  if (!rpmCheck.allowed) {
+    // t/924: rate-limit rejections were silent server-side — log + record so the
+    // 429 is diagnosable (which limit, pool state, retry timing).
+    log.server.warn({ component: 'rate-limiter', type: 'requests_per_minute', limitKey, limit: rpmCheck.limit, current: rpmCheck.current, retryAfterMs: rpmCheck.retryAfterMs, backend }, 'AI request rate-limited (RPM)');
+    getGlobalRecorder()?.record({
+      type: 'ai.error', component: 'rate-limiter', level: 'warn',
+      message: `RPM limit reached (${rpmCheck.current}/${rpmCheck.limit})`,
+      data: { type: 'requests_per_minute', limitKey, limit: rpmCheck.limit, current: rpmCheck.current, retryAfterMs: rpmCheck.retryAfterMs, backend, tier: tier.level },
+    });
+    res.writeHead(429); res.end(JSON.stringify({ error: 'Rate limit exceeded', limitType: 'requests_per_minute', retryAfterMs: rpmCheck.retryAfterMs, limit: rpmCheck.limit, current: rpmCheck.current })); return true;
+  }
+  const tokenCheck = rateLimiter.checkTokenLimit(limitKey, tier.limits.tokensPerDay);
+  if (!tokenCheck.allowed) {
+    log.server.warn({ component: 'rate-limiter', type: 'tokens_per_day', limitKey, limit: tokenCheck.limit, current: tokenCheck.current, backend }, 'AI request rate-limited (daily tokens)');
+    getGlobalRecorder()?.record({
+      type: 'ai.error', component: 'rate-limiter', level: 'warn',
+      message: `Daily token limit reached (${tokenCheck.current}/${tokenCheck.limit})`,
+      data: { type: 'tokens_per_day', limitKey, limit: tokenCheck.limit, current: tokenCheck.current, backend, tier: tier.level },
+    });
+    res.writeHead(429); res.end(JSON.stringify({ error: 'Daily token limit exceeded', limitType: 'tokens_per_day', limit: tokenCheck.limit, current: tokenCheck.current })); return true;
+  }
+  return false;
+}
+
+/** Resolve the key to inject: free tier → server FREE_TIER_GEMINI_KEY (503 if none);
+ *  platform → undefined (server-side keys); BYOK → client key, with a free-tier Gemini
+ *  fallback for a BYOK user with no key for the pinned backend (t/945). Returns
+ *  `{ ok: false }` after sending a 503 when the free tier is unavailable. */
+function resolveExplicitAiKey(res: http.ServerResponse, tier: ResolvedTier, clientKey: string | undefined, backend: AIBackend):
+  { ok: true; key: string | string[] | undefined } | { ok: false } {
+  if (tier.serverProvidedKey) {
+    // t/846: FREE_TIER_GEMINI_KEY may be a comma-separated list; >1 key round-robins
+    // across server keys via callWithKeyRotation in generateText.
+    const freeKeys = proxyTiers.parseFreeTierKeys(process.env.FREE_TIER_GEMINI_KEY);
+    if (freeKeys.length === 0) { res.writeHead(503); res.end(JSON.stringify({ error: 'Free tier is not available' })); return { ok: false }; }
+    return { ok: true, key: freeKeys.length === 1 ? freeKeys[0] : freeKeys };
+  }
+  let explicitKey: string | string[] | undefined = tier.level === 'platform' ? undefined : (clientKey || undefined);
+  explicitKey = explicitKey ?? proxyTiers.byokGeminiFallbackKey(tier.level, backend, explicitKey);
+  return { ok: true, key: explicitKey };
+}
+
+/** 422 fast-fail (t/896) when there's no usable key for the target backend — before
+ *  the request reaches the AI adapter (which would surface an opaque upstream 401/403).
+ *  Free tier (server-provided) is exempt. Returns true if a 422 was sent. */
+async function enforceKeyPresent(res: http.ServerResponse, backend: AIBackend, tier: ResolvedTier, explicitKey: string | string[] | undefined): Promise<boolean> {
+  const haveExplicitKey = (typeof explicitKey === 'string' && explicitKey.length > 0)
+    || (Array.isArray(explicitKey) && explicitKey.length > 0);
+  const missingKey = missingApiKeyError({
+    backend,
+    displayName: BACKEND_DISPLAY[backend] ?? backend,
+    serverProvidedKey: !!tier.serverProvidedKey,
+    haveExplicitKey,
+    hasResolvedKey: haveExplicitKey || (!tier.serverProvidedKey && await hasApiKey(backend)),
+  });
+  if (!missingKey) return false;
+  res.writeHead(422, { 'Content-Type': 'application/json' });
+  res.end(JSON.stringify(missingKey));
+  return true;
+}
+
+/** Generate via the standard chat-response usage; on a free-tier 429 with the whole
+ *  free pool exhausted, retry ONCE with the admin-registered paid Gemini key after a
+ *  deliberate 3s throttle (t/948). Re-throws the original error when there's no paid
+ *  path or the paid retry also fails. The paid key never enters the round-robin pool. */
+async function generateWithPaidFallback(
+  prompt: string,
+  usageOverrides: Record<string, unknown>,
+  explicitKey: string | string[] | undefined,
+  ctx: { isFree: boolean; backend: AIBackend; requestModel: string; t0: number },
+): Promise<Awaited<ReturnType<typeof ai.generateText>>> {
+  const { isFree, backend, requestModel, t0 } = ctx;
+  try {
+    return await ai.generateTextByUsage('server.chat-response', { prompt }, usageOverrides, undefined, explicitKey);
+  } catch (genErr) {
+    const paidKey = (ai.is429Error(genErr) && isFree) ? await getPaidGeminiFallbackKey() : null;
+    if (!paidKey) throw genErr; // non-free, non-429, or no paid key → outer 429 mapping records it
+    getGlobalRecorder()?.record({
+      type: 'ai.fallback', component: 'ai-generate', level: 'info',
+      message: 'Free-tier keys exhausted — waiting 3s before paid fallback',
+      data: { model: requestModel, backend, fallback: 'paid', delayMs: 3000, freeKeyCount: proxyTiers.parseFreeTierKeys(process.env.FREE_TIER_GEMINI_KEY).length },
+    });
+    // Throttle: caps paid-key throughput (~20/min) and gives free keys time to exit
+    // cooldown so the next request reverts to the free pool.
+    await new Promise(r => setTimeout(r, 3000));
+    try {
+      const result = await ai.generateTextByUsage('server.chat-response:paid-fallback', { prompt }, usageOverrides, undefined, paidKey);
+      getGlobalRecorder()?.record({
+        type: 'ai.response', component: 'ai-generate', level: 'info', duration_ms: Date.now() - t0,
+        message: `Paid fallback succeeded for ${backend}/${requestModel}`,
+        data: { model: requestModel, backend, fallback: 'paid', delayMs: 3000, responseLength: result.text?.length ?? 0 },
+      });
+      return result;
+    } catch (fallbackErr) {
+      getGlobalRecorder()?.record({
+        type: 'ai.error', component: 'ai-generate', level: 'warn',
+        message: 'Paid fallback also failed',
+        data: { model: requestModel, backend, fallback: 'paid', delayMs: 3000 },
+        error: { name: (fallbackErr as Error).name ?? 'Error', message: String(fallbackErr), stack: (fallbackErr as Error).stack },
+      });
+      throw genErr; // both pools exhausted → outer catch maps to a 429 for the client
+    }
+  }
+}
+
+/** t/1132: surface the crossed daily-budget milestone (50/80/95) via response headers
+ *  so the renderer can show a dismissable quota banner. No-op without token usage. */
+function applyTokenBudgetHeaders(res: http.ServerResponse, result: Awaited<ReturnType<typeof ai.generateText>>, limitKey: string, tier: ResolvedTier): void {
+  if (!result.tokenUsage) return;
+  const milestone = rateLimiter.recordTokenUsage(limitKey, result.tokenUsage.inputTokens, result.tokenUsage.outputTokens, tier.limits.tokensPerDay);
+  if (milestone != null) {
+    res.setHeader('X-Token-Budget-Warning', String(milestone));
+    res.setHeader('X-Token-Budget-Resets', rateLimiter.nextDailyResetUtc());
+  }
+}
+
+/** Search-grounded generation (server.search usage) + success record. */
+async function generateWithSearch(
+  prompt: string,
+  effectiveModel: string | undefined,
+  explicitKey: string | string[] | undefined,
+  ctx: { backend: AIBackend; requestModel: string; t0: number },
+): Promise<Awaited<ReturnType<typeof ai.generateTextWithSearchByUsage>>> {
+  const { backend, requestModel, t0 } = ctx;
+  const result = await ai.generateTextWithSearchByUsage('server.search', { prompt }, effectiveModel ? { model: effectiveModel } : undefined, explicitKey);
+  getGlobalRecorder()?.record({
+    type: 'ai.response', component: 'ai-generate', level: 'info',
+    duration_ms: Date.now() - t0,
+    message: `generate+search success ${backend}/${requestModel}`,
+    data: { model: requestModel, backend, responseLength: result.text?.length ?? 0, search: true },
+  });
+  return result;
+}
+
+/** t/997: Gemini surfaces a too-long context window as RESOURCE_EXHAUSTED — a 400-class
+ *  error retrying won't help. Map it to a context_too_long 400 (record + respond).
+ *  Returns true if it handled `err`. */
+function respondIfContextTooLong(res: http.ServerResponse, err: unknown, modelLabel: string): boolean {
+  if (!ai.isContextTooLongError(err)) return false;
+  log.server.warn({ component: 'ai-generate', model: modelLabel }, 'AI generate input exceeds model context window');
+  getGlobalRecorder()?.record({
+    type: 'ai.error', component: 'ai-generate', level: 'warn',
+    message: 'AI generate input too long for model context window',
+    data: { model: modelLabel, source: 'context_overflow' },
+  });
+  res.writeHead(400, { 'Content-Type': 'application/json' });
+  res.end(JSON.stringify({ error: 'context_too_long', message: 'Input exceeds the model context window — try a shorter prompt or a model with a larger context window' }));
+  return true;
+}
+
+/** t/920: an upstream provider rate-limit was collapsing into an opaque non-retryable
+ *  500. Map it to a retryable 429 with Retry-After (record + respond) so the debate
+ *  flow backs off + retries. Returns true if it handled `err`. */
+function respondIfUpstream429(res: http.ServerResponse, err: unknown, modelLabel: string): boolean {
+  if (!ai.is429Error(err)) return false;
+  const retry = ai.retryAfterMs(err);
+  log.server.warn({ component: 'ai-generate', model: modelLabel, retryAfterMs: retry }, 'AI generate upstream rate-limited — returning 429');
+  getGlobalRecorder()?.record({
+    type: 'ai.error', component: 'ai-generate', level: 'warn',
+    message: 'AI generate upstream rate-limited',
+    data: { model: modelLabel, retryAfterMs: retry, source: 'upstream' },
+  });
+  res.setHeader('Retry-After', String(Math.max(1, Math.ceil(retry / 1000))));
+  res.writeHead(429, { 'Content-Type': 'application/json' });
+  res.end(JSON.stringify({ error: 'Upstream AI provider rate limit — retry shortly', limitType: 'upstream_rate_limit', retryAfterMs: retry, retryable: true }));
+  return true;
+}
+
+/** Resolve the caller's tier + rate-limit key + effective (pinned-for-free) model +
+ *  target backend from the request. Pure setup — sends no response. */
+function resolveGenerationContext(req: http.IncomingMessage, model: string | undefined): {
+  tier: ResolvedTier; isFree: boolean; limitKey: string; effectiveModel: string | undefined; backend: AIBackend;
+} {
+  const { principalName, idp } = callerIdentity(); // t/848: verified context, not raw headers
+  const tier = proxyTiers.resolveTier(principalName, idp);
+  const isFree = tier.level === 'free';
+  // Free tier (t/793): keyed per-IP (all keyless users would otherwise share one
+  // bucket), with the model pinned. Other tiers key by user and honour the request model.
+  const limitKey = isFree ? `free:${getClientIp(req)}` : (principalName || '_anonymous');
+  const effectiveModel = isFree ? (tier.pinnedModel ?? model) : model;
+  const backend = ai.resolveBackend(effectiveModel || DEFAULT_MODEL);
+  return { tier, isFree, limitKey, effectiveModel, backend };
+}
+
 export function registerAiRoutes(r: Router, _ctx: ServerCtx): void {
   const { get, post } = r;
 
@@ -111,99 +319,24 @@ export function registerAiRoutes(r: Router, _ctx: ServerCtx): void {
       if (rc) rc.debateId = debateId.slice(0, 64);
     }
     try {
-      const { principalName, idp } = callerIdentity(); // t/848: verified context, not raw headers
-      const tier = proxyTiers.resolveTier(principalName, idp);
-      const isFree = tier.level === 'free';
-      // Free tier (t/793): keyed per-IP (all keyless users would otherwise share
-      // one bucket), with the model pinned and prompts capped. Other tiers key by
-      // user and honour the requested model.
-      const limitKey = isFree ? `free:${getClientIp(req)}` : (principalName || '_anonymous');
-      const effectiveModel = isFree ? (tier.pinnedModel ?? model) : model;
+      // Free-tier cost is bounded by tokensPerDay + per-IP rate limits; the redundant
+      // per-prompt char cap was removed in t/812 (broke long debate prompts).
+      const { tier, isFree, limitKey, effectiveModel, backend } = resolveGenerationContext(req, model);
+      if (enforceBackendAllowed(res, tier, backend)) return; // 403 if backend not on tier
 
-      // Free-tier cost is bounded by tokensPerDay + per-IP rate limits; the
-      // redundant per-prompt char cap was removed in t/812 (broke long debate
-      // prompts: system instructions + soul docs + taxonomy context > 4000 chars).
+      // Rate limiting: per-IP RPM (free tier) / per-user RPM + daily token budget (429 on breach).
+      if (enforceAiRateLimits(res, isFree, limitKey, tier, backend)) return;
 
-      // Check backend is allowed
-      const backend = ai.resolveBackend(effectiveModel || DEFAULT_MODEL);
-      if (!proxyTiers.isBackendAllowed(tier, backend)) {
-        // t/1463: record the tier context so a tier-restriction 403 is a one-line
-        // FR read instead of a server.ts → proxyTiers → runtimeConfig code trace.
-        getGlobalRecorder()?.record({
-          type: 'ai.error', component: 'ai-generate', level: 'warn',
-          message: `Backend '${backend}' not available on '${tier.level}' tier`,
-          data: { tier_level: tier.level, requested_backend: backend, allowed_backends: tier.allowedBackends },
-        });
-        res.writeHead(403);
-        res.end(JSON.stringify({ error: `Backend '${backend}' not available on your tier`, tier_level: tier.level, requested_backend: backend }));
-        return;
-      }
+      // Key injection: free tier → server FREE_TIER_GEMINI_KEY (503 if none); platform
+      // → server-side keys; BYOK → client key, with a free-tier Gemini fallback (t/945).
+      const keyResult = resolveExplicitAiKey(res, tier, clientKey, backend);
+      if (!keyResult.ok) return;
+      const explicitKey = keyResult.key;
 
-      // Rate limiting (per-IP sliding window for the free tier)
-      const rpmCheck = isFree
-        ? rateLimiter.checkRate(limitKey, tier.limits.requestsPerMinute, 60_000)
-        : rateLimiter.checkRequestRate(limitKey, tier.limits.requestsPerMinute);
-      if (!rpmCheck.allowed) {
-        // t/924: rate-limit rejections were silent server-side — log + record so the
-        // 429 is diagnosable (which limit, pool state, retry timing).
-        log.server.warn({ component: 'rate-limiter', type: 'requests_per_minute', limitKey, limit: rpmCheck.limit, current: rpmCheck.current, retryAfterMs: rpmCheck.retryAfterMs, backend }, 'AI request rate-limited (RPM)');
-        getGlobalRecorder()?.record({
-          type: 'ai.error', component: 'rate-limiter', level: 'warn',
-          message: `RPM limit reached (${rpmCheck.current}/${rpmCheck.limit})`,
-          data: { type: 'requests_per_minute', limitKey, limit: rpmCheck.limit, current: rpmCheck.current, retryAfterMs: rpmCheck.retryAfterMs, backend, tier: tier.level },
-        });
-        res.writeHead(429); res.end(JSON.stringify({ error: 'Rate limit exceeded', limitType: 'requests_per_minute', retryAfterMs: rpmCheck.retryAfterMs, limit: rpmCheck.limit, current: rpmCheck.current })); return;
-      }
-      const tokenCheck = rateLimiter.checkTokenLimit(limitKey, tier.limits.tokensPerDay);
-      if (!tokenCheck.allowed) {
-        log.server.warn({ component: 'rate-limiter', type: 'tokens_per_day', limitKey, limit: tokenCheck.limit, current: tokenCheck.current, backend }, 'AI request rate-limited (daily tokens)');
-        getGlobalRecorder()?.record({
-          type: 'ai.error', component: 'rate-limiter', level: 'warn',
-          message: `Daily token limit reached (${tokenCheck.current}/${tokenCheck.limit})`,
-          data: { type: 'tokens_per_day', limitKey, limit: tokenCheck.limit, current: tokenCheck.current, backend, tier: tier.level },
-        });
-        res.writeHead(429); res.end(JSON.stringify({ error: 'Daily token limit exceeded', limitType: 'tokens_per_day', limit: tokenCheck.limit, current: tokenCheck.current })); return;
-      }
-
-      // Key injection: free tier uses the server's FREE_TIER_GEMINI_KEY; platform
-      // users get server-side keys; BYOK users provide their own.
-      let explicitKey: string | string[] | undefined;
-      if (tier.serverProvidedKey) {
-        // t/846: FREE_TIER_GEMINI_KEY may be a comma-separated list; >1 key
-        // round-robins across server keys via callWithKeyRotation in generateText.
-        const freeKeys = proxyTiers.parseFreeTierKeys(process.env.FREE_TIER_GEMINI_KEY);
-        if (freeKeys.length === 0) { res.writeHead(503); res.end(JSON.stringify({ error: 'Free tier is not available' })); return; }
-        explicitKey = freeKeys.length === 1 ? freeKeys[0] : freeKeys;
-      } else {
-        explicitKey = tier.level === 'platform' ? undefined : (clientKey || undefined);
-        // t/945: a BYOK user with no key for the requested backend (e.g. Claude-only,
-        // hitting the Gemini-pinned BRIEF/CITE helper stages) falls back to the
-        // free-tier Gemini pool instead of a 422. Per-user rate limiting (limitKey =
-        // principal, not free:IP) still bounds it.
-        explicitKey = explicitKey ?? proxyTiers.byokGeminiFallbackKey(tier.level, backend, explicitKey);
-      }
-
-      // t/896: fail fast with a clear, actionable error when there is no usable key
-      // for the target backend — before the request reaches the AI adapter (which
-      // would otherwise surface an opaque upstream 401/403). Free tier
-      // (server-provided key) is exempt, and t/945 resolves a free-tier Gemini key
-      // above for Claude-only BYOK users. hasApiKey() only finds a *deployed*
-      // GEMINI_API_KEY/AI_API_KEY — prod sets neither (only FREE_TIER_GEMINI_KEY),
-      // so env-backed Gemini does NOT save a BYOK user here.
-      const haveExplicitKey = (typeof explicitKey === 'string' && explicitKey.length > 0)
-        || (Array.isArray(explicitKey) && explicitKey.length > 0);
-      const missingKey = missingApiKeyError({
-        backend,
-        displayName: BACKEND_DISPLAY[backend] ?? backend,
-        serverProvidedKey: !!tier.serverProvidedKey,
-        haveExplicitKey,
-        hasResolvedKey: haveExplicitKey || (!tier.serverProvidedKey && await hasApiKey(backend)),
-      });
-      if (missingKey) {
-        res.writeHead(422, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify(missingKey));
-        return;
-      }
+      // t/896: fail fast with a clear 422 when there's no usable key for the target
+      // backend — before the request reaches the AI adapter (opaque upstream 401/403).
+      // Free tier (server-provided) is exempt; t/945 resolved a BYOK Gemini fallback above.
+      if (await enforceKeyPresent(res, backend, tier, explicitKey)) return;
 
       // t/839: record the AI request/response on the happy path so the web-mode
       // retry timeline is visible in the flight recorder (mirrors lib/debate
@@ -222,53 +355,9 @@ export function registerAiRoutes(r: Router, _ctx: ServerCtx): void {
       };
 
       if (search) {
-        const result = await ai.generateTextWithSearchByUsage('server.search', { prompt }, effectiveModel ? { model: effectiveModel } : undefined, explicitKey);
-
-        getGlobalRecorder()?.record({
-          type: 'ai.response', component: 'ai-generate', level: 'info',
-          duration_ms: Date.now() - t0,
-          message: `generate+search success ${backend}/${requestModel}`,
-          data: { model: requestModel, backend, responseLength: result.text?.length ?? 0, search: true },
-        });
-
-        json(res, result);
+        json(res, await generateWithSearch(prompt, effectiveModel, explicitKey, { backend, requestModel, t0 }));
       } else {
-        let result: Awaited<ReturnType<typeof ai.generateText>>;
-        try {
-          result = await ai.generateTextByUsage('server.chat-response', { prompt }, usageOverrides, undefined, explicitKey);
-        } catch (genErr) {
-          // t/948: paid Gemini fallback for the free tier. When the entire free pool
-          // is rate-limited (upstream 429), retry once with the admin-registered paid
-          // key after a deliberate 3s throttle. The paid key never enters the
-          // round-robin pool; free keys recover on their own as cooldowns expire
-          // (design: docs/design/paid-gemini-fallback.md).
-          const paidKey = (ai.is429Error(genErr) && isFree) ? await getPaidGeminiFallbackKey() : null;
-          if (!paidKey) throw genErr; // non-free, non-429, or no paid key → outer 429 mapping records it
-          getGlobalRecorder()?.record({
-            type: 'ai.fallback', component: 'ai-generate', level: 'info',
-            message: 'Free-tier keys exhausted — waiting 3s before paid fallback',
-            data: { model: requestModel, backend, fallback: 'paid', delayMs: 3000, freeKeyCount: proxyTiers.parseFreeTierKeys(process.env.FREE_TIER_GEMINI_KEY).length },
-          });
-          // Throttle: caps paid-key throughput (~20/min) and gives free keys time to
-          // exit cooldown so the next request reverts to the free pool.
-          await new Promise(r => setTimeout(r, 3000));
-          try {
-            result = await ai.generateTextByUsage('server.chat-response:paid-fallback', { prompt }, usageOverrides, undefined, paidKey);
-            getGlobalRecorder()?.record({
-              type: 'ai.response', component: 'ai-generate', level: 'info', duration_ms: Date.now() - t0,
-              message: `Paid fallback succeeded for ${backend}/${requestModel}`,
-              data: { model: requestModel, backend, fallback: 'paid', delayMs: 3000, responseLength: result.text?.length ?? 0 },
-            });
-          } catch (fallbackErr) {
-            getGlobalRecorder()?.record({
-              type: 'ai.error', component: 'ai-generate', level: 'warn',
-              message: 'Paid fallback also failed',
-              data: { model: requestModel, backend, fallback: 'paid', delayMs: 3000 },
-              error: { name: (fallbackErr as Error).name ?? 'Error', message: String(fallbackErr), stack: (fallbackErr as Error).stack },
-            });
-            throw genErr; // both pools exhausted → outer catch maps to a 429 for the client
-          }
-        }
+        const result = await generateWithPaidFallback(prompt, usageOverrides, explicitKey, { isFree, backend, requestModel, t0 });
 
         getGlobalRecorder()?.record({
           type: 'ai.response', component: 'ai-generate', level: 'info',
@@ -277,60 +366,22 @@ export function registerAiRoutes(r: Router, _ctx: ServerCtx): void {
           data: { model: requestModel, backend, responseLength: result.text?.length ?? 0, usage: result.tokenUsage },
         });
 
-        if (result.tokenUsage) {
-          const milestone = rateLimiter.recordTokenUsage(limitKey, result.tokenUsage.inputTokens, result.tokenUsage.outputTokens, tier.limits.tokensPerDay);
-          if (milestone != null) {
-            // t/1132: surface the crossed daily-budget threshold (50/80/95) so the
-            // renderer's web-bridge post() can show a dismissable quota banner. The
-            // reset is the UTC-midnight boundary the daily token buckets key on.
-            res.setHeader('X-Token-Budget-Warning', String(milestone));
-            res.setHeader('X-Token-Budget-Resets', rateLimiter.nextDailyResetUtc());
-          }
-        }
-
+        applyTokenBudgetHeaders(res, result, limitKey, tier);
         json(res, { text: result.text, tokenUsage: result.tokenUsage });
       }
     } catch (err) {
-      // t/920: an upstream provider rate-limit (common when 3 opening statements
-      // fire concurrently on a single free-tier key) was collapsing into an opaque,
-      // non-retryable HTTP 500. Surface it as a retryable 429 with Retry-After so the
-      // debate flow can back off + retry instead of treating it as a fatal error.
-      // t/997: Gemini surfaces a too-long context window as RESOURCE_EXHAUSTED, which
-      // would otherwise be misread as a 429. It's a 400-class error (retrying won't
-      // help) — return context_too_long so the client shows the right message.
-      if (ai.isContextTooLongError(err)) {
-        log.server.warn({ component: 'ai-generate', model: model ?? 'default' }, 'AI generate input exceeds model context window');
-        getGlobalRecorder()?.record({
-          type: 'ai.error', component: 'ai-generate', level: 'warn',
-          message: 'AI generate input too long for model context window',
-          data: { model: model ?? 'default', source: 'context_overflow' },
-        });
-        res.writeHead(400, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: 'context_too_long', message: 'Input exceeds the model context window — try a shorter prompt or a model with a larger context window' }));
-        return;
-      }
-      if (ai.is429Error(err)) {
-        const retry = ai.retryAfterMs(err);
-        log.server.warn({ component: 'ai-generate', model: model ?? 'default', retryAfterMs: retry }, 'AI generate upstream rate-limited — returning 429');
-        getGlobalRecorder()?.record({
-          type: 'ai.error', component: 'ai-generate', level: 'warn',
-          message: 'AI generate upstream rate-limited',
-          data: { model: model ?? 'default', retryAfterMs: retry, source: 'upstream' },
-        });
-        res.setHeader('Retry-After', String(Math.max(1, Math.ceil(retry / 1000))));
-        res.writeHead(429, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: 'Upstream AI provider rate limit — retry shortly', limitType: 'upstream_rate_limit', retryAfterMs: retry, retryable: true }));
-        return;
-      }
+      const modelLabel = model ?? 'default';
+      if (respondIfContextTooLong(res, err, modelLabel)) return; // t/997 → context_too_long 400
+      if (respondIfUpstream429(res, err, modelLabel)) return;    // t/920 → retryable 429
       // t/1362: also log at error level via Pino so the 500 is visible in
       // `az containerapp logs show` — the FR record alone requires a browser-
       // triggered dump, which may be impossible if the UI is broken.
-      log.server.error({ component: 'ai-generate', model: model ?? 'default', err }, 'AI generate failed');
+      log.server.error({ component: 'ai-generate', model: modelLabel, err }, 'AI generate failed');
       getGlobalRecorder()?.record({
         type: 'system.error', component: 'ai-generate', level: 'error',
         message: `AI generate failed: ${String(err)}`,
         error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
-        data: { model: model ?? 'default', promptLength: prompt?.length },
+        data: { model: modelLabel, promptLength: prompt?.length },
       });
       error(res, String(err), 500, err);
     }
