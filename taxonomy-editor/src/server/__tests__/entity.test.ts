@@ -29,7 +29,10 @@ vi.mock('../../../../lib/flight-recorder/index.js', () => ({ getGlobalRecorder: 
 import type { Entity } from '../../../../lib/entities/types.js';
 import type { ServerCtx } from '../routes/context.js';
 import { createRouter, type Handler } from '../httpKit.js';
-import { registerEntityRoutes, resolveMergedInto } from '../routes/entity.js';
+import { registerEntityRoutes } from '../routes/entity.js';
+// t/1974: resolveMergedInto now lives in the shared lib (server + electron import it);
+// test the canonical copy directly.
+import { resolveMergedInto } from '../../../../lib/entities/entityResolve.js';
 
 // ── route harness ──
 async function invoke(rawRef: string): Promise<{ status: number; body: unknown }> {
