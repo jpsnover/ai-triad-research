@@ -3,6 +3,7 @@
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import * as os from 'node:os';
 import * as net from 'node:net';
 import { Dictionary } from './dictionary.js';
 import { RingBuffer } from './ringBuffer.js';
@@ -146,7 +147,7 @@ export class FlightRecorder {
   dumpToFile(filePath?: string): DumpResult {
     const events = this.buffer.drain();
     const resolvedPath = filePath ?? path.join(
-      this.config.dumpDir || '.',
+      this.resolveDumpDir(),
       `dump-${process.pid}-${new Date().toISOString().replace(/[:.]/g, '-')}.jsonl`,
     );
 
@@ -168,6 +169,21 @@ export class FlightRecorder {
       debate_id: ctx.active_debate_id as string | undefined,
       size_bytes: Buffer.byteLength(ndjson, 'utf-8'),
     };
+  }
+
+  /**
+   * Resolve the directory for an auto-named dump. Precedence:
+   * configured dumpDir → AI_TRIAD_RUNTIME_DIR → a private temp dir.
+   * The `'.'`/CWD default is deliberately avoided so a bare dumpToFile()
+   * never drops artifacts into the tree it runs from (t/2014). The temp
+   * fallback uses mkdtempSync (mode 0700, random suffix) rather than a
+   * predictable os.tmpdir() path so the dump filename can't be
+   * pre-created or symlinked by another local user (js/insecure-temporary-file).
+   */
+  private resolveDumpDir(): string {
+    const configured = this.config.dumpDir || process.env.AI_TRIAD_RUNTIME_DIR;
+    if (configured) return configured;
+    return fs.mkdtempSync(path.join(os.tmpdir(), 'flight-recorder-'));
   }
 
   // ── Summary (no I/O) ───────────────────────────────────────────
