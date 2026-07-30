@@ -36,6 +36,55 @@ interface PartProps {
   m: EntryDetailRouterModel;
 }
 
+type IntMeta = EntryDetailRouterProps['entry']['intervention_metadata'];
+type TopicAlignment = NonNullable<NonNullable<EntryDetailRouterProps['diag']>['topic_alignment']>;
+
+// Pure branch selection for the scope badge — extracted from EntryHeader's
+// topic-alignment IIFE (ADR-007) so both the component and this chain stay ≤15.
+function scopeBadgeState(
+  ta: TopicAlignment,
+  modRedirect: unknown,
+  modDrift: boolean,
+  hasDemotedRef: boolean,
+  intMeta: IntMeta,
+): { state: 'green' | 'amber' | 'red'; label: string; tip: string } {
+  let state: 'green' | 'amber' | 'red';
+  let label: string;
+  let tip: string;
+  if (!ta.topic_aligned || modRedirect) {
+    state = 'red'; label = modRedirect ? 'drift redirect' : 'off-scope'; tip = modRedirect ? `Moderator ${intMeta!.move} for drift` : 'Topic alignment failed after all retries';
+  } else if (ta.repaired) {
+    state = 'amber'; label = 'repaired'; tip = 'Off-scope draft repaired on retry';
+  } else if (modDrift || hasDemotedRef) {
+    state = 'amber'; label = 'drift noted'; tip = modDrift ? 'Moderator flagged drift concern' : 'References demoted taxonomy node';
+  } else {
+    state = 'green'; label = 'on-scope'; tip = 'All topic alignment checks passed';
+  }
+  return { state, label, tip };
+}
+
+// Scope/topic-alignment badge — extracted verbatim from EntryHeader's IIFE.
+function TopicAlignmentBadge({ entry, diag, meta }: Pick<EntryDetailRouterProps, 'entry' | 'diag' | 'meta'>) {
+  if (!diag?.topic_alignment) return null;
+  const ta = diag.topic_alignment;
+  const sft = (meta?.injection_manifest as Record<string, unknown> | undefined)?.scope_filter_trace as
+    { demoted?: { nodeId: string }[] } | undefined;
+  const demotedIds = new Set((sft?.demoted ?? []).map(d => d.nodeId));
+  const hasDemotedRef = (entry.taxonomy_refs ?? []).some(r => demotedIds.has(r.node_id));
+  const modTrace = meta?.moderator_trace as Record<string, unknown> | undefined;
+  const modDrift = modTrace?.drift_detected === true;
+  const intMeta = entry.intervention_metadata;
+  const modRedirect = modDrift && intMeta && ['REDIRECT', 'CHALLENGE'].includes(intMeta.move);
+  const { state, label, tip } = scopeBadgeState(ta, modRedirect, modDrift, hasDemotedRef, intMeta);
+  const colors = { green: 'var(--success)', amber: 'var(--warning, var(--warning))', red: 'var(--danger)' };
+  const bgs = { green: 'color-mix(in srgb, var(--success) 15%, transparent)', amber: 'color-mix(in srgb, var(--warning, var(--warning)) 15%, transparent)', red: 'color-mix(in srgb, var(--danger) 15%, transparent)' };
+  return (
+    <span title={tip} className="edr-scope-badge" style={{
+      background: bgs[state], color: colors[state],
+    }}>{label}</span>
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Entry header (statement badge, speaker, scope/repair badges, nav)
 // ---------------------------------------------------------------------------
@@ -72,36 +121,7 @@ export function EntryHeader({ p, m }: PartProps) {
         className="edr-copy-id-btn"
         title={`Copy turn_id for flight recorder correlation: ${entry.id}`}
       >{entry.id.slice(0, 8)}</button>
-      {diag?.topic_alignment && (() => {
-        const ta = diag.topic_alignment;
-        const sft = (meta?.injection_manifest as Record<string, unknown> | undefined)?.scope_filter_trace as
-          { demoted?: { nodeId: string }[] } | undefined;
-        const demotedIds = new Set((sft?.demoted ?? []).map(d => d.nodeId));
-        const hasDemotedRef = (entry.taxonomy_refs ?? []).some(r => demotedIds.has(r.node_id));
-        const modTrace = meta?.moderator_trace as Record<string, unknown> | undefined;
-        const modDrift = modTrace?.drift_detected === true;
-        const intMeta = entry.intervention_metadata;
-        const modRedirect = modDrift && intMeta && ['REDIRECT', 'CHALLENGE'].includes(intMeta.move);
-        let state: 'green' | 'amber' | 'red';
-        let label: string;
-        let tip: string;
-        if (!ta.topic_aligned || modRedirect) {
-          state = 'red'; label = modRedirect ? 'drift redirect' : 'off-scope'; tip = modRedirect ? `Moderator ${intMeta!.move} for drift` : 'Topic alignment failed after all retries';
-        } else if (ta.repaired) {
-          state = 'amber'; label = 'repaired'; tip = 'Off-scope draft repaired on retry';
-        } else if (modDrift || hasDemotedRef) {
-          state = 'amber'; label = 'drift noted'; tip = modDrift ? 'Moderator flagged drift concern' : 'References demoted taxonomy node';
-        } else {
-          state = 'green'; label = 'on-scope'; tip = 'All topic alignment checks passed';
-        }
-        const colors = { green: 'var(--success)', amber: 'var(--warning, var(--warning))', red: 'var(--danger)' };
-        const bgs = { green: 'color-mix(in srgb, var(--success) 15%, transparent)', amber: 'color-mix(in srgb, var(--warning, var(--warning)) 15%, transparent)', red: 'color-mix(in srgb, var(--danger) 15%, transparent)' };
-        return (
-          <span title={tip} className="edr-scope-badge" style={{
-            background: bgs[state], color: colors[state],
-          }}>{label}</span>
-        );
-      })()}
+      {diag?.topic_alignment && <TopicAlignmentBadge entry={entry} diag={diag} meta={meta} />}
       {diag?.entailment_repairs && diag.entailment_repairs.some(r => r.verdict !== 'entailed') && (() => {
         const repaired = diag.entailment_repairs!.filter(r => r.verdict !== 'entailed');
         return (
@@ -310,27 +330,22 @@ export function EntryTabBar({ p, m }: PartProps) {
 // Tab content router (per-activeTab pane)
 // ---------------------------------------------------------------------------
 
-export function EntryTabContent({ p, m }: PartProps) {
+// Tab panes are split into three cohesive groups (ADR-007) so each rendering
+// function stays ≤15 complexity. Only one branch renders at a time; the fragments
+// carry no wrapper DOM, so grouping is behavior-preserving.
+function EntryTabPanesPrimary({ p, m }: PartProps) {
   const {
     entry, entryIdx, diag, meta, debate, an, turnValTrail, perTurnUtilities,
     taxNodeMap, policyMap, allEdges, nodeWeights, nodeLabels,
-    selectedTaxRefId, setSelectedTaxRefId, selectedPolicyId, setSelectedPolicyId,
-    setOverviewTab, setTextCopyMenu, tabContentRef, searchQuery,
+    selectedTaxRefId, setSelectedTaxRefId, setOverviewTab,
   } = p;
   const {
-    activeTab, tabs, taxRefCount, precedingIntervention, interventionResponseField,
+    activeTab, taxRefCount, precedingIntervention, interventionResponseField,
     suppressedIntervention, entryErrors, modTrace, briefStage, briefAttempts,
-    planStage, planAttempts, draftStage, lookaheadDiag, citeStage, citeAttempts,
   } = m;
 
   return (
-    <div ref={tabContentRef} tabIndex={0} onContextMenu={(e) => {
-      const sel = window.getSelection()?.toString();
-      if (sel && sel.trim().length > 0) {
-        e.preventDefault();
-        setTextCopyMenu({ x: e.clientX, y: e.clientY, text: sel });
-      }
-    }} className="edr-tab-content" style={activeTab === 'tax-refs' ? { padding: '8px 10px' } : { padding: 0 }}>
+    <>
       {/* ══════════════ TAX-REFS TAB ══════════════ */}
       {activeTab === 'tax-refs' && (
         <TaxRefsTab
@@ -393,7 +408,22 @@ export function EntryTabContent({ p, m }: PartProps) {
           setSelectedTaxRefId={setSelectedTaxRefId}
         />
       )}
+    </>
+  );
+}
 
+function EntryTabPanesSecondary({ p, m }: PartProps) {
+  const {
+    entry, diag, meta, debate, an, turnValTrail,
+    taxNodeMap, policyMap, allEdges, nodeWeights,
+    selectedTaxRefId, setSelectedTaxRefId, selectedPolicyId, setSelectedPolicyId,
+  } = p;
+  const {
+    activeTab, planStage, planAttempts, draftStage, lookaheadDiag, citeStage, citeAttempts, briefStage,
+  } = m;
+
+  return (
+    <>
       {/* ══════════════ PLAN TAB ══════════════ */}
       {activeTab === 'plan' && planStage && (
         <PlanTab
@@ -450,7 +480,16 @@ export function EntryTabContent({ p, m }: PartProps) {
           setSelectedPolicyId={setSelectedPolicyId}
         />
       )}
+    </>
+  );
+}
 
+function EntryTabPanesTertiary({ p, m }: PartProps) {
+  const { entry, entryIdx, diag, meta, debate, an, nodeWeights, searchQuery } = p;
+  const { activeTab, tabs } = m;
+
+  return (
+    <>
       {/* ══════════════ CLAIMS TAB (delegated) ══════════════ */}
       {activeTab === 'claims' && (
         <div className="edr-tab-pane">
@@ -515,7 +554,25 @@ export function EntryTabContent({ p, m }: PartProps) {
           />
         </div>
       )}
+    </>
+  );
+}
 
+export function EntryTabContent({ p, m }: PartProps) {
+  const { setTextCopyMenu, tabContentRef } = p;
+  const { activeTab } = m;
+
+  return (
+    <div ref={tabContentRef} tabIndex={0} onContextMenu={(e) => {
+      const sel = window.getSelection()?.toString();
+      if (sel && sel.trim().length > 0) {
+        e.preventDefault();
+        setTextCopyMenu({ x: e.clientX, y: e.clientY, text: sel });
+      }
+    }} className="edr-tab-content" style={activeTab === 'tax-refs' ? { padding: '8px 10px' } : { padding: 0 }}>
+      <EntryTabPanesPrimary p={p} m={m} />
+      <EntryTabPanesSecondary p={p} m={m} />
+      <EntryTabPanesTertiary p={p} m={m} />
     </div>
   );
 }

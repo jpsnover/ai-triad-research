@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback, type RefObject } from 'react';
 import { api } from '@bridge';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import type { DebateSession, EntryDiagnostics, ArgumentNetworkNode, CommitmentStore, TurnValidationTrail } from '../../../types/debate';
@@ -27,6 +27,335 @@ function countMatchesInValue(value: unknown, term: string): number {
     return n;
   }
   return 0;
+}
+
+type TranscriptEntry = DebateSession['transcript'][number];
+type ArgumentNetwork = NonNullable<DebateSession['argument_network']>;
+
+// --- Taxonomy data loading (extracted from loadTaxonomyData for complexity) ---
+async function loadTaxNodesData(
+  signal: { cancelled: boolean },
+): Promise<{ nodeMap: Map<string, Record<string, unknown>>; labels: Map<string, string> } | null> {
+  try {
+    const files = await Promise.all([
+      api.loadTaxonomyFile('accelerationist').catch((err) => { getGlobalRecorder()?.record({ type: 'system.error', component: 'diagnostics-window', level: 'warn', message: 'Failed to load accelerationist taxonomy', error: { name: (err as Error).name ?? 'Error', message: String(err) } }); return null; }),
+      api.loadTaxonomyFile('safetyist').catch((err) => { getGlobalRecorder()?.record({ type: 'system.error', component: 'diagnostics-window', level: 'warn', message: 'Failed to load safetyist taxonomy', error: { name: (err as Error).name ?? 'Error', message: String(err) } }); return null; }),
+      api.loadTaxonomyFile('skeptic').catch((err) => { getGlobalRecorder()?.record({ type: 'system.error', component: 'diagnostics-window', level: 'warn', message: 'Failed to load skeptic taxonomy', error: { name: (err as Error).name ?? 'Error', message: String(err) } }); return null; }),
+      api.loadTaxonomyFile('situations').catch((err) => { getGlobalRecorder()?.record({ type: 'system.error', component: 'diagnostics-window', level: 'warn', message: 'Failed to load situations taxonomy', error: { name: (err as Error).name ?? 'Error', message: String(err) } }); return null; }),
+    ]);
+    if (signal.cancelled) return null;
+    const m = new Map<string, Record<string, unknown>>();
+    for (const f of files) {
+      const nodes = (f as { nodes?: Record<string, unknown>[] } | null)?.nodes;
+      if (!Array.isArray(nodes)) continue;
+      for (const n of nodes) {
+        const id = (n as { id?: string }).id;
+        if (typeof id === 'string') m.set(id, n);
+      }
+    }
+    const labels = new Map<string, string>();
+    for (const [id, n] of m) {
+      const label = (n as { label?: string }).label;
+      if (typeof label === 'string') labels.set(id, label);
+    }
+    return { nodeMap: m, labels };
+  } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error', component: 'diagnostics-window', level: 'warn',
+      message: 'Failed to load taxonomy files for node lookup',
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+    });
+    return null;
+  }
+}
+
+async function loadPolicyData(
+  signal: { cancelled: boolean },
+): Promise<Map<string, { id: string; action: string; source_povs: string[]; member_count: number }> | null> {
+  try {
+    const registryRaw = await api.loadPolicyRegistry() as { policies?: { id: string; action: string; source_povs: string[]; member_count: number }[] } | null;
+    const policies = registryRaw?.policies;
+    if (!signal.cancelled && Array.isArray(policies)) {
+      const pm = new Map<string, { id: string; action: string; source_povs: string[]; member_count: number }>();
+      for (const p of policies) pm.set(p.id, p);
+      return pm;
+    }
+    return null;
+  } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error', component: 'diagnostics-window', level: 'warn',
+      message: 'Failed to load policy registry',
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+    });
+    return null;
+  }
+}
+
+async function loadEdgesData(signal: { cancelled: boolean }): Promise<TaxRefEdge[] | null> {
+  try {
+    const raw = await api.loadEdges() as { edges?: TaxRefEdge[] } | null;
+    if (signal.cancelled) return null;
+    if (raw && Array.isArray(raw.edges)) return raw.edges;
+    return null;
+  } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error', component: 'diagnostics-window', level: 'warn',
+      message: 'Failed to load edges data',
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+    });
+    return null;
+  }
+}
+
+// --- Deep-link application (extracted from the deep-link effect for complexity) ---
+interface DeepLinkSetters {
+  setDebate: (d: DebateSession | null) => void;
+  setDeepLinkError: (s: string | null) => void;
+  setSelectedEntry: (s: string | null) => void;
+  setLocalOverride: (b: boolean) => void;
+  setOverviewTab: (t: OverviewTab) => void;
+  setEntryTab: (t: EntryTab) => void;
+}
+
+function applyDeepLinkEntry(session: DebateSession, entryParam: string | null, setters: DeepLinkSetters): void {
+  if (entryParam == null) return;
+  const idx = parseInt(entryParam, 10);
+  if (!isNaN(idx) && idx >= 0 && idx < session.transcript.length) {
+    setters.setSelectedEntry(session.transcript[idx].id);
+    setters.setLocalOverride(true);
+    setters.setOverviewTab('transcript');
+  } else {
+    getGlobalRecorder()?.record({
+      type: 'system.error', component: 'diagnostics-deep-link', level: 'warn',
+      message: `Deep-link entry index out of range: ${entryParam} (transcript has ${session.transcript.length} entries)`,
+    });
+  }
+}
+
+function applyDeepLinkTab(params: URLSearchParams, setEntryTab: (t: EntryTab) => void): void {
+  const tabParam = params.get('tab');
+  if (!tabParam) return;
+  const VALID_ENTRY_TABS: string[] = ['tax-refs', 'details', 'claims', 'evidence', 'citations', 'brief', 'plan', 'draft', 'lookahead', 'cite', 'moderator', 'exclusion', 'affect'];
+  if (VALID_ENTRY_TABS.includes(tabParam)) {
+    setEntryTab(tabParam as EntryTab);
+  }
+}
+
+function applyDeepLinkOverview(params: URLSearchParams, entryParam: string | null, setOverviewTab: (t: OverviewTab) => void): void {
+  const overviewParam = params.get('overviewTab');
+  if (overviewParam && !entryParam) {
+    const VALID_OVERVIEW_TABS: string[] = ['topic-scope', 'extraction', 'argument-network', 'commitments', 'transcript', 'convergence', 'reflections', 'gaps', 'grounding', 'lineage', 'adaptive', 'pov-progression', 'fr-context', 'prompt-diff', 'utility', 'exclusion-overview', 'emotional-register'];
+    if (VALID_OVERVIEW_TABS.includes(overviewParam)) {
+      setOverviewTab(overviewParam as OverviewTab);
+    }
+  }
+}
+
+async function applyDeepLink(
+  debateId: string,
+  params: URLSearchParams,
+  getCancelled: () => boolean,
+  setters: DeepLinkSetters,
+): Promise<void> {
+  const { setDebate, setDeepLinkError } = setters;
+  try {
+    const raw = await api.loadDebateSession(debateId);
+    if (getCancelled()) return;
+    if (!raw) {
+      setDebate(null);
+      setDeepLinkError(`Debate not found: ${debateId}`);
+      getGlobalRecorder()?.record({
+        type: 'system.error', component: 'diagnostics-deep-link', level: 'warn',
+        message: `Deep-link debate not found: ${debateId}`,
+      });
+      return;
+    }
+    const session = raw as DebateSession;
+    setDebate(session);
+
+    const entryParam = params.get('entry');
+    applyDeepLinkEntry(session, entryParam, setters);
+    applyDeepLinkTab(params, setters.setEntryTab);
+    applyDeepLinkOverview(params, entryParam, setters.setOverviewTab);
+  } catch (err) {
+    if (getCancelled()) return;
+    setDeepLinkError(`Failed to load debate: ${String(err)}`);
+    getGlobalRecorder()?.record({
+      type: 'system.error', component: 'diagnostics-deep-link', level: 'error',
+      message: `Failed to load deep-linked debate: ${debateId}`,
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+    });
+  }
+}
+
+// --- Search match counting (extracted from matchCount for complexity) ---
+function countAnMatches(an: ArgumentNetwork, sq: string): number {
+  let count = 0;
+  for (const n of an.nodes) count += countMatches(n.id, sq) + countMatches(n.text, sq) + countMatches(n.speaker, sq);
+  for (const e of an.edges) count += countMatches(e.source, sq) + countMatches(e.warrant || '', sq) + countMatches(e.scheme || '', sq);
+  return count;
+}
+
+function countDiagMatches(diag: EntryDiagnostics, sq: string): number {
+  let count = 0;
+  count += countMatches(diag.prompt || '', sq);
+  count += countMatches(diag.raw_response || '', sq);
+  count += countMatches(diag.taxonomy_context || '', sq);
+  count += countMatches(diag.commitment_context || '', sq);
+  if (diag.extracted_claims) {
+    for (const c of diag.extracted_claims.accepted) count += countMatches(c.text, sq);
+    for (const c of diag.extracted_claims.rejected) count += countMatches(c.text, sq);
+  }
+  const stages = (diag as unknown as Record<string, unknown>).stage_diagnostics as { work_product?: Record<string, unknown> }[] | undefined;
+  if (stages) {
+    for (const stage of stages) {
+      if (!stage.work_product) continue;
+      count += countMatchesInValue(stage.work_product, sq);
+    }
+  }
+  return count;
+}
+
+function computeMatchCount(
+  sq: string,
+  debate: DebateSession | null,
+  an: DebateSession['argument_network'],
+  diag: EntryDiagnostics | undefined,
+): number {
+  if (!sq || !debate) return 0;
+  let count = 0;
+  if (an) count += countAnMatches(an, sq);
+  for (const e of debate.transcript) count += countMatches(e.content, sq);
+  if (diag) count += countDiagMatches(diag, sq);
+  return count;
+}
+
+// --- Keyboard navigation (extracted from the keydown effect for complexity) ---
+interface KeydownCtx {
+  searchInputRef: RefObject<HTMLInputElement | null>;
+  entry: TranscriptEntry | null;
+  entryTab: EntryTab;
+  overviewTab: OverviewTab;
+  effectiveOverviewTab: OverviewTab;
+  debate: DebateSession | null;
+  an: DebateSession['argument_network'];
+  commitments: DebateSession['commitments'];
+  focusedNodeId: string | null;
+  setEntryTab: (t: EntryTab) => void;
+  setOverviewTab: (t: OverviewTab) => void;
+  setSelectedEntry: (id: string | null) => void;
+  setLocalOverride: (b: boolean) => void;
+  setFocusedNodeId: (id: string | null) => void;
+}
+
+function hasGaps(debate: DebateSession): boolean {
+  return !!(debate.taxonomy_gap_analysis || (debate.gap_injections && debate.gap_injections.length > 0) || (debate.cross_cutting_proposals && debate.cross_cutting_proposals.length > 0));
+}
+
+function isOverviewTabVisible(
+  id: OverviewTab,
+  debate: DebateSession,
+  an: DebateSession['argument_network'],
+  commitments: DebateSession['commitments'],
+): boolean {
+  if (id === 'topic-scope') return !!debate.topic?.scope;
+  if (id === 'argument-network' || id === 'utility') return !!(an && an.nodes.length > 0);
+  if (id === 'commitments') return !!(commitments && Object.keys(commitments).length > 0);
+  if (id === 'convergence') return !!(debate.convergence_signals && debate.convergence_signals.length > 0);
+  if (id === 'reflections') return debate.transcript.some(e => e.type === 'reflection');
+  if (id === 'gaps') return hasGaps(debate);
+  if (id === 'grounding') return debate.transcript.some(e => e.taxonomy_refs && e.taxonomy_refs.length > 0);
+  return true;
+}
+
+function handleTabNav(dir: number, ctx: KeydownCtx): void {
+  const { entry, entryTab, debate, an, commitments, setEntryTab, overviewTab, setOverviewTab } = ctx;
+  if (entry) {
+    const ENTRY_TABS: EntryTab[] = ['moderator', 'details', 'brief', 'plan', 'evidence', 'citations', 'draft', 'lookahead', 'cite', 'claims', 'exclusion', 'affect', 'tax-refs'];
+    const idx = ENTRY_TABS.indexOf(entryTab);
+    const next = idx + dir;
+    if (next >= 0 && next < ENTRY_TABS.length) setEntryTab(ENTRY_TABS[next]);
+  } else if (debate) {
+    const OVERVIEW_TABS: OverviewTab[] = ['topic-scope', 'argument-network', 'commitments', 'transcript', 'extraction', 'convergence', 'reflections', 'gaps', 'grounding', 'lineage', 'adaptive', 'pov-progression', 'fr-context', 'prompt-diff', 'utility', 'exclusion-overview', 'emotional-register'];
+    const visible = OVERVIEW_TABS.filter(id => isOverviewTabVisible(id, debate, an, commitments));
+    const idx = visible.indexOf(overviewTab);
+    const next = idx + dir;
+    if (next >= 0 && next < visible.length) setOverviewTab(visible[next]);
+  }
+}
+
+function focusAnNode(dir: number, an: ArgumentNetwork, focusedNodeId: string | null, setFocusedNodeId: (id: string | null) => void): void {
+  const nodeIds = an.nodes.map(n => n.id);
+  const curIdx = focusedNodeId ? nodeIds.indexOf(focusedNodeId) : -1;
+  if (curIdx < 0) {
+    setFocusedNodeId(nodeIds[dir === 1 ? 0 : nodeIds.length - 1]);
+  } else {
+    const nextIdx = curIdx + dir;
+    if (nextIdx >= 0 && nextIdx < nodeIds.length) setFocusedNodeId(nodeIds[nextIdx]);
+  }
+}
+
+function handleEntryNav(dir: number, ctx: KeydownCtx): void {
+  const { entry, effectiveOverviewTab, an, focusedNodeId, setFocusedNodeId, debate, setSelectedEntry, setLocalOverride } = ctx;
+  if (!debate) return;
+  if (!entry && effectiveOverviewTab === 'argument-network' && an && an.nodes.length > 0) {
+    focusAnNode(dir, an, focusedNodeId, setFocusedNodeId);
+    return;
+  }
+
+  if (!entry) {
+    if (dir === 1 && debate.transcript.length > 0) {
+      setSelectedEntry(debate.transcript[0].id);
+      setLocalOverride(true);
+    }
+    return;
+  }
+  const curIdx = debate.transcript.findIndex(t => t.id === entry.id);
+  const nextIdx = curIdx + dir;
+  if (nextIdx >= 0 && nextIdx < debate.transcript.length) {
+    setSelectedEntry(debate.transcript[nextIdx].id);
+    setLocalOverride(true);
+  }
+}
+
+function isSearchFocusKey(e: KeyboardEvent): boolean {
+  return (e.ctrlKey || e.metaKey) && e.key === 'f';
+}
+
+function isTypingTarget(e: KeyboardEvent): boolean {
+  const tag = (e.target as HTMLElement)?.tagName;
+  return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
+}
+
+function isTabNavKey(e: KeyboardEvent): boolean {
+  return e.key === 'ArrowLeft' || e.key === 'ArrowRight';
+}
+
+function isEntryNavKey(e: KeyboardEvent): boolean {
+  return e.key === 'ArrowUp' || e.key === 'ArrowDown' ||
+    e.key === 'p' || e.key === 'P' || e.key === 'n' || e.key === 'N';
+}
+
+function handleDiagnosticsKeydown(e: KeyboardEvent, ctx: KeydownCtx): void {
+  if (isSearchFocusKey(e)) {
+    e.preventDefault();
+    ctx.searchInputRef.current?.focus();
+    ctx.searchInputRef.current?.select();
+    return;
+  }
+  if (isTypingTarget(e)) return;
+
+  if (isTabNavKey(e)) {
+    e.preventDefault();
+    handleTabNav(e.key === 'ArrowRight' ? 1 : -1, ctx);
+    return;
+  }
+
+  if (isEntryNavKey(e)) {
+    if (!ctx.debate) return;
+    e.preventDefault();
+    handleEntryNav((e.key === 'ArrowDown' || e.key === 'n' || e.key === 'N') ? 1 : -1, ctx);
+  }
 }
 
 export function useDiagnosticsState(initialData?: Record<string, unknown>) {
@@ -106,63 +435,13 @@ export function useDiagnosticsState(initialData?: Record<string, unknown>) {
 
   // Load taxonomy, policy registry, and edges for node lookup
   const loadTaxonomyData = useCallback(async (signal: { cancelled: boolean }) => {
-    try {
-      const files = await Promise.all([
-        api.loadTaxonomyFile('accelerationist').catch((err) => { getGlobalRecorder()?.record({ type: 'system.error', component: 'diagnostics-window', level: 'warn', message: 'Failed to load accelerationist taxonomy', error: { name: (err as Error).name ?? 'Error', message: String(err) } }); return null; }),
-        api.loadTaxonomyFile('safetyist').catch((err) => { getGlobalRecorder()?.record({ type: 'system.error', component: 'diagnostics-window', level: 'warn', message: 'Failed to load safetyist taxonomy', error: { name: (err as Error).name ?? 'Error', message: String(err) } }); return null; }),
-        api.loadTaxonomyFile('skeptic').catch((err) => { getGlobalRecorder()?.record({ type: 'system.error', component: 'diagnostics-window', level: 'warn', message: 'Failed to load skeptic taxonomy', error: { name: (err as Error).name ?? 'Error', message: String(err) } }); return null; }),
-        api.loadTaxonomyFile('situations').catch((err) => { getGlobalRecorder()?.record({ type: 'system.error', component: 'diagnostics-window', level: 'warn', message: 'Failed to load situations taxonomy', error: { name: (err as Error).name ?? 'Error', message: String(err) } }); return null; }),
-      ]);
-      if (signal.cancelled) return;
-      const m = new Map<string, Record<string, unknown>>();
-      for (const f of files) {
-        const nodes = (f as { nodes?: Record<string, unknown>[] } | null)?.nodes;
-        if (!Array.isArray(nodes)) continue;
-        for (const n of nodes) {
-          const id = (n as { id?: string }).id;
-          if (typeof id === 'string') m.set(id, n);
-        }
-      }
-      setTaxNodeMap(m);
-      const labels = new Map<string, string>();
-      for (const [id, n] of m) {
-        const label = (n as { label?: string }).label;
-        if (typeof label === 'string') labels.set(id, label);
-      }
-      setNodeLabels(labels);
-    } catch (err) {
-      getGlobalRecorder()?.record({
-        type: 'system.error', component: 'diagnostics-window', level: 'warn',
-        message: 'Failed to load taxonomy files for node lookup',
-        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
-      });
-    }
-    try {
-      const registryRaw = await api.loadPolicyRegistry() as { policies?: { id: string; action: string; source_povs: string[]; member_count: number }[] } | null;
-      const policies = registryRaw?.policies;
-      if (!signal.cancelled && Array.isArray(policies)) {
-        const pm = new Map<string, { id: string; action: string; source_povs: string[]; member_count: number }>();
-        for (const p of policies) pm.set(p.id, p);
-        setPolicyMap(pm);
-      }
-    } catch (err) {
-      getGlobalRecorder()?.record({
-        type: 'system.error', component: 'diagnostics-window', level: 'warn',
-        message: 'Failed to load policy registry',
-        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
-      });
-    }
-    try {
-      const raw = await api.loadEdges() as { edges?: TaxRefEdge[] } | null;
-      if (signal.cancelled) return;
-      if (raw && Array.isArray(raw.edges)) setAllEdges(raw.edges);
-    } catch (err) {
-      getGlobalRecorder()?.record({
-        type: 'system.error', component: 'diagnostics-window', level: 'warn',
-        message: 'Failed to load edges data',
-        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
-      });
-    }
+    const tax = await loadTaxNodesData(signal);
+    if (signal.cancelled) return;
+    if (tax) { setTaxNodeMap(tax.nodeMap); setNodeLabels(tax.labels); }
+    const pm = await loadPolicyData(signal);
+    if (pm) setPolicyMap(pm);
+    const edges = await loadEdgesData(signal);
+    if (edges) setAllEdges(edges);
   }, []);
 
   // Initial load — no ref guard; the cancellation signal handles StrictMode double-invocation
@@ -214,62 +493,9 @@ export function useDiagnosticsState(initialData?: Record<string, unknown>) {
     const debateId = params.get('debateId');
     if (!debateId) return;
     let cancelled = false;
-    void (async () => {
-      try {
-        const raw = await api.loadDebateSession(debateId);
-        if (cancelled) return;
-        if (!raw) {
-          setDebate(null);
-          setDeepLinkError(`Debate not found: ${debateId}`);
-          getGlobalRecorder()?.record({
-            type: 'system.error', component: 'diagnostics-deep-link', level: 'warn',
-            message: `Deep-link debate not found: ${debateId}`,
-          });
-          return;
-        }
-        const session = raw as DebateSession;
-        setDebate(session);
-
-        const entryParam = params.get('entry');
-        if (entryParam != null) {
-          const idx = parseInt(entryParam, 10);
-          if (!isNaN(idx) && idx >= 0 && idx < session.transcript.length) {
-            setSelectedEntry(session.transcript[idx].id);
-            setLocalOverride(true);
-            setOverviewTab('transcript');
-          } else {
-            getGlobalRecorder()?.record({
-              type: 'system.error', component: 'diagnostics-deep-link', level: 'warn',
-              message: `Deep-link entry index out of range: ${entryParam} (transcript has ${session.transcript.length} entries)`,
-            });
-          }
-        }
-
-        const tabParam = params.get('tab');
-        if (tabParam) {
-          const VALID_ENTRY_TABS: string[] = ['tax-refs', 'details', 'claims', 'evidence', 'citations', 'brief', 'plan', 'draft', 'lookahead', 'cite', 'moderator', 'exclusion', 'affect'];
-          if (VALID_ENTRY_TABS.includes(tabParam)) {
-            setEntryTab(tabParam as EntryTab);
-          }
-        }
-
-        const overviewParam = params.get('overviewTab');
-        if (overviewParam && !entryParam) {
-          const VALID_OVERVIEW_TABS: string[] = ['topic-scope', 'extraction', 'argument-network', 'commitments', 'transcript', 'convergence', 'reflections', 'gaps', 'grounding', 'lineage', 'adaptive', 'pov-progression', 'fr-context', 'prompt-diff', 'utility', 'exclusion-overview', 'emotional-register'];
-          if (VALID_OVERVIEW_TABS.includes(overviewParam)) {
-            setOverviewTab(overviewParam as OverviewTab);
-          }
-        }
-      } catch (err) {
-        if (cancelled) return;
-        setDeepLinkError(`Failed to load debate: ${String(err)}`);
-        getGlobalRecorder()?.record({
-          type: 'system.error', component: 'diagnostics-deep-link', level: 'error',
-          message: `Failed to load deep-linked debate: ${debateId}`,
-          error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
-        });
-      }
-    })();
+    void applyDeepLink(debateId, params, () => cancelled, {
+      setDebate, setDeepLinkError, setSelectedEntry, setLocalOverride, setOverviewTab, setEntryTab,
+    });
     return () => { cancelled = true; };
   }, []);
 
@@ -416,106 +642,15 @@ export function useDiagnosticsState(initialData?: Record<string, unknown>) {
 
   const sq = searchQuery.trim();
 
-  const matchCount = useMemo(() => {
-    if (!sq || !debate) return 0;
-    let count = 0;
-    if (an) {
-      for (const n of an.nodes) count += countMatches(n.id, sq) + countMatches(n.text, sq) + countMatches(n.speaker, sq);
-      for (const e of an.edges) count += countMatches(e.source, sq) + countMatches(e.warrant || '', sq) + countMatches(e.scheme || '', sq);
-    }
-    for (const e of debate.transcript) count += countMatches(e.content, sq);
-    if (diag) {
-      count += countMatches(diag.prompt || '', sq);
-      count += countMatches(diag.raw_response || '', sq);
-      count += countMatches(diag.taxonomy_context || '', sq);
-      count += countMatches(diag.commitment_context || '', sq);
-      if (diag.extracted_claims) {
-        for (const c of diag.extracted_claims.accepted) count += countMatches(c.text, sq);
-        for (const c of diag.extracted_claims.rejected) count += countMatches(c.text, sq);
-      }
-      const stages = (diag as unknown as Record<string, unknown>).stage_diagnostics as { work_product?: Record<string, unknown> }[] | undefined;
-      if (stages) {
-        for (const stage of stages) {
-          if (!stage.work_product) continue;
-          count += countMatchesInValue(stage.work_product, sq);
-        }
-      }
-    }
-    return count;
-  }, [sq, debate, an, diag]);
+  const matchCount = useMemo(() => computeMatchCount(sq, debate, an, diag), [sq, debate, an, diag]);
 
   // Keyboard navigation
   useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
-        e.preventDefault();
-        searchInputRef.current?.focus();
-        searchInputRef.current?.select();
-        return;
-      }
-      const tag = (e.target as HTMLElement)?.tagName;
-      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
-
-      if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
-        e.preventDefault();
-        const dir = e.key === 'ArrowRight' ? 1 : -1;
-        if (entry) {
-          const ENTRY_TABS: EntryTab[] = ['moderator', 'details', 'brief', 'plan', 'evidence', 'citations', 'draft', 'lookahead', 'cite', 'claims', 'exclusion', 'affect', 'tax-refs'];
-          const idx = ENTRY_TABS.indexOf(entryTab);
-          const next = idx + dir;
-          if (next >= 0 && next < ENTRY_TABS.length) setEntryTab(ENTRY_TABS[next]);
-        } else if (debate) {
-          const OVERVIEW_TABS: OverviewTab[] = ['topic-scope', 'argument-network', 'commitments', 'transcript', 'extraction', 'convergence', 'reflections', 'gaps', 'grounding', 'lineage', 'adaptive', 'pov-progression', 'fr-context', 'prompt-diff', 'utility', 'exclusion-overview', 'emotional-register'];
-          const visible = OVERVIEW_TABS.filter(id => {
-            if (id === 'topic-scope') return !!debate.topic?.scope;
-            if (id === 'argument-network' || id === 'utility') return !!(an && an.nodes.length > 0);
-            if (id === 'commitments') return !!(commitments && Object.keys(commitments).length > 0);
-            if (id === 'convergence') return !!(debate.convergence_signals && debate.convergence_signals.length > 0);
-            if (id === 'reflections') return debate.transcript.some(e => e.type === 'reflection');
-            if (id === 'gaps') return !!(debate.taxonomy_gap_analysis || (debate.gap_injections && debate.gap_injections.length > 0) || (debate.cross_cutting_proposals && debate.cross_cutting_proposals.length > 0));
-            if (id === 'grounding') return debate.transcript.some(e => e.taxonomy_refs && e.taxonomy_refs.length > 0);
-            return true;
-          });
-          const idx = visible.indexOf(overviewTab);
-          const next = idx + dir;
-          if (next >= 0 && next < visible.length) setOverviewTab(visible[next]);
-        }
-        return;
-      }
-
-      if (e.key === 'ArrowUp' || e.key === 'ArrowDown' ||
-          e.key === 'p' || e.key === 'P' || e.key === 'n' || e.key === 'N') {
-        if (!debate) return;
-        e.preventDefault();
-        const dir = (e.key === 'ArrowDown' || e.key === 'n' || e.key === 'N') ? 1 : -1;
-
-        if (!entry && effectiveOverviewTab === 'argument-network' && an && an.nodes.length > 0) {
-          const nodeIds = an.nodes.map(n => n.id);
-          const curIdx = focusedNodeId ? nodeIds.indexOf(focusedNodeId) : -1;
-          if (curIdx < 0) {
-            setFocusedNodeId(nodeIds[dir === 1 ? 0 : nodeIds.length - 1]);
-          } else {
-            const nextIdx = curIdx + dir;
-            if (nextIdx >= 0 && nextIdx < nodeIds.length) setFocusedNodeId(nodeIds[nextIdx]);
-          }
-          return;
-        }
-
-        if (!entry) {
-          if (dir === 1 && debate.transcript.length > 0) {
-            setSelectedEntry(debate.transcript[0].id);
-            setLocalOverride(true);
-          }
-          return;
-        }
-        const curIdx = debate.transcript.findIndex(t => t.id === entry.id);
-        const nextIdx = curIdx + dir;
-        if (nextIdx >= 0 && nextIdx < debate.transcript.length) {
-          setSelectedEntry(debate.transcript[nextIdx].id);
-          setLocalOverride(true);
-        }
-      }
-    };
+    const handler = (e: KeyboardEvent) => handleDiagnosticsKeydown(e, {
+      searchInputRef, entry, entryTab, overviewTab, effectiveOverviewTab,
+      debate, an, commitments, focusedNodeId,
+      setEntryTab, setOverviewTab, setSelectedEntry, setLocalOverride, setFocusedNodeId,
+    });
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
   }, [debate, entry, entryTab, overviewTab, effectiveOverviewTab, an, commitments, focusedNodeId]);
