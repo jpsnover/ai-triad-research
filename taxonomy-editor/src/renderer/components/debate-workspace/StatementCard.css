@@ -201,27 +201,6 @@
   .debate-statement-body { transition: none; }
 }
 
-/* Selectable ID-token reference links in transcript text (t/1776).
-   Rendered as a <button> for keyboard accessibility, styled as an inline link. */
-.ref-link {
-  appearance: none;
-  background: none;
-  border: none;
-  padding: 0;
-  margin: 0;
-  font: inherit;
-  color: var(--accent);
-  cursor: pointer;
-  text-decoration: underline;
-  text-decoration-style: dotted;
-  text-underline-offset: 2px;
-}
-.ref-link:hover,
-.ref-link:focus-visible {
-  text-decoration-style: solid;
-  color: var(--accent-strong, var(--accent));
-}
-
 /* Fact-check `partially_accurate` verdict (t/1716) — a distinct amber-orange so it
    reads as "supported with a caveat", NOT the green clean-pass and NOT the amber
    `disputed`. styles.css is frozen, so the new verdict + discrepancy styles live here. */
