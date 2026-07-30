@@ -104,8 +104,19 @@ export function registerSourceHandlers(): void {
     try {
       const filePath = path.join(getDataRootPath(), 'calibration', 'greatest-hits.json');
       if (!fs.existsSync(filePath)) return null;
-      const data = JSON.parse(fs.readFileSync(filePath, 'utf-8')) as { node_ids?: string[] };
-      return { node_ids: data.node_ids ?? [] };
+      const data = JSON.parse(fs.readFileSync(filePath, 'utf-8')) as {
+        node_ids?: string[];
+        nodes?: { node_id?: string }[];
+      };
+      // Accept v1 (flat `node_ids`) and v2 (`nodes[].node_id`, t/2003 / DebateTool #241) — pull
+      // the ID list from whichever shape the file carries so exclusion survives the data-repo
+      // regen timing. A v2 file read as v1-only would silently return [] → exclusion no-ops,
+      // exactly the silent-degrade trap TL flagged (t/1998#2). Malformed v2 entries (no
+      // node_id) are dropped, never surfaced as undefined.
+      const nodeIds = data.node_ids
+        ?? data.nodes?.map((n) => n.node_id).filter((id): id is string => typeof id === 'string')
+        ?? [];
+      return { node_ids: nodeIds };
     } catch { /* telemetry — silent by design; missing/malformed → null, renderer degrades */ return null; }
   });
 

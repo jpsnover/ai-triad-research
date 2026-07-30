@@ -78,4 +78,27 @@ describe('load-greatest-hits IPC handler (t/1998)', () => {
     writeGreatestHits('{ not valid json');
     expect(invoke('load-greatest-hits')).toBeNull();
   });
+
+  // v2 forward-compat (t/2003 / DebateTool #241): the file bumped from flat `node_ids` to
+  // `nodes: [{ node_id, ... }]`. The handler extracts the ID list from either shape.
+  it('reads the v2 shape (nodes[].node_id) and returns { node_ids }', () => {
+    writeGreatestHits(JSON.stringify({
+      version: 2,
+      nodes: [
+        { pov: 'acc', bdi_category: 'beliefs', node_id: 'acc-beliefs-085', debate_count: 107, crux_link_count: 2 },
+        { pov: 'acc', bdi_category: 'beliefs', node_id: 'acc-beliefs-032', debate_count: 85, crux_link_count: 21 },
+      ],
+    }));
+    expect(invoke('load-greatest-hits')).toEqual({ node_ids: ['acc-beliefs-085', 'acc-beliefs-032'] });
+  });
+
+  it('drops v2 entries missing node_id (never surfaces undefined)', () => {
+    writeGreatestHits(JSON.stringify({ version: 2, nodes: [{ node_id: 'x' }, { debate_count: 5 }] }));
+    expect(invoke('load-greatest-hits')).toEqual({ node_ids: ['x'] });
+  });
+
+  it('prefers flat node_ids when a file carries both (v1 precedence)', () => {
+    writeGreatestHits(JSON.stringify({ version: 1, node_ids: ['v1-a'], nodes: [{ node_id: 'v2-b' }] }));
+    expect(invoke('load-greatest-hits')).toEqual({ node_ids: ['v1-a'] });
+  });
 });
