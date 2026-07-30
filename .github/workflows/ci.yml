@@ -182,6 +182,12 @@ jobs:
         run: npx tsc --noEmit -p tsconfig.main.json
 
       - name: Test
+        # Skip for taxonomy-editor: its "Test with coverage" step below already
+        # runs the full vitest suite (and enforces coverage thresholds), so the
+        # plain run was pure duplication (~3.5 min wasted per CI run, t/1988).
+        # Mutually exclusive with that step: taxonomy-editor → coverage-only;
+        # the other apps → plain run only (they have no coverage step).
+        if: matrix.app != 'taxonomy-editor'
         working-directory: ${{ matrix.app }}
         run: npm test --if-present
 
