@@ -1081,3 +1081,179 @@ describe('selectRelevantNodes — corpus coverage', () => {
     expect(diagnostics!.boostedNodeIds).toContain('acc-beliefs-003');
   });
 });
+
+// ── selectRelevantNodes — wellTested hardExclude re-entry regression (t/1981) ──
+
+describe('selectRelevantNodes — wellTested hardExclude', () => {
+  // Two distinct challenger camps so isReeligible() returns false when now=2026-07-30.
+  function makeWellTestedNode(id: string, category: Category): PovNode {
+    return {
+      id,
+      label: `Node ${id}`,
+      description: `Description for ${id}`,
+      category,
+      graph_attributes: {
+        debate_tested: {
+          tier: 'well_tested',
+          sort_key: 3.5,
+          engagements: 5,
+          challenges: 5,
+          held: 5,
+          weakened: 0,
+          revisions: [],
+          last_tested: '2026-07-29',
+          description_hash: 'abc',
+          record: [
+            {
+              debate_id: 'd1', date: '2026-07-10', pipeline_version: '1.0',
+              verdict: 'held',
+              strongest_attack_encountered: { claim_id: 'c1', strength: 0.8, scheme: 'ad_rem', challenger_camp: 'safetyist' },
+              claim_outcomes: { thrived: 1, survived: 0, died: 0 }, concession: null,
+            },
+            {
+              debate_id: 'd2', date: '2026-07-20', pipeline_version: '1.0',
+              verdict: 'held',
+              strongest_attack_encountered: { claim_id: 'c2', strength: 0.7, scheme: 'ad_rem', challenger_camp: 'skeptic' },
+              claim_outcomes: { thrived: 1, survived: 0, died: 0 }, concession: null,
+            },
+          ],
+        },
+      },
+    } as PovNode;
+  }
+
+  const NOW = new Date('2026-07-30');
+
+  it('excluded node does not re-enter via minPerCategory refill in a sparse category', () => {
+    // Beliefs has: wt-node (hardExcluded → score 0) + one below-threshold node.
+    // minPerCategory=2 triggers refill; buggy code would pick wt-node from sorted.
+    const nodes = [
+      makeWellTestedNode('acc-beliefs-wt', 'Beliefs'),
+      makeNode('acc-beliefs-001', 'Beliefs'),
+      makeNode('acc-desires-001', 'Desires'),
+      makeNode('acc-intentions-001', 'Intentions'),
+    ];
+    const scores = new Map([
+      ['acc-beliefs-wt', 0.70],
+      ['acc-beliefs-001', 0.40],  // below threshold — zero Beliefs nodes above threshold
+      ['acc-desires-001', 0.55],
+      ['acc-intentions-001', 0.55],
+    ]);
+
+    const result = selectRelevantNodes(nodes, scores, {
+      embeddingThreshold: 0.48,
+      minPerCategory: 2,
+      minPerPov: 0,
+      wellTested: { excludeWellTested: true, now: NOW },
+    });
+
+    const ids = result.map(r => r.node.id);
+    expect(ids).not.toContain('acc-beliefs-wt');
+    expect(ids).toContain('acc-beliefs-001');
+  });
+
+  it('excluded node does not re-enter via POV-diversity floor when POV is sparse', () => {
+    // saf has 1 above-threshold node + 1 excluded wt-node.
+    // minPerPov=2 triggers floor; buggy code would add wt-node to fill the deficit.
+    const nodes = [
+      makeNode('acc-beliefs-001', 'Beliefs'),
+      makeNode('acc-beliefs-002', 'Beliefs'),
+      makeNode('saf-beliefs-001', 'Beliefs'),
+      makeWellTestedNode('saf-beliefs-wt', 'Beliefs'),
+    ];
+    const scores = new Map([
+      ['acc-beliefs-001', 0.70],
+      ['acc-beliefs-002', 0.65],
+      ['saf-beliefs-001', 0.55],
+      ['saf-beliefs-wt', 0.80],  // high before hardExclude, 0 after
+    ]);
+
+    const result = selectRelevantNodes(nodes, scores, {
+      embeddingThreshold: 0.48,
+      minPerCategory: 0,
+      minPerPov: 2,
+      wellTested: { excludeWellTested: true, now: NOW },
+    });
+
+    const ids = result.map(r => r.node.id);
+    expect(ids).not.toContain('saf-beliefs-wt');
+    expect(ids).toContain('saf-beliefs-001');
+  });
+
+  it('downweight path (excludeWellTested: false) still allows refill re-entry', () => {
+    // Downweighted node stays in the candidate pool — only hardExclude removes it.
+    const nodes = [
+      makeWellTestedNode('acc-beliefs-wt', 'Beliefs'),
+      makeNode('acc-beliefs-001', 'Beliefs'),
+      makeNode('acc-desires-001', 'Desires'),
+      makeNode('acc-intentions-001', 'Intentions'),
+    ];
+    const scores = new Map([
+      ['acc-beliefs-wt', 0.80],  // 0.80 * 0.5 = 0.40 after downweight
+      ['acc-beliefs-001', 0.40],
+      ['acc-desires-001', 0.55],
+      ['acc-intentions-001', 0.55],
+    ]);
+
+    const result = selectRelevantNodes(nodes, scores, {
+      embeddingThreshold: 0.48,
+      minPerCategory: 2,
+      minPerPov: 0,
+      wellTested: { excludeWellTested: false, wellTestedMultiplier: 0.5, now: NOW },
+    });
+
+    // Still in pool at score 0.40 — refill picks it
+    expect(result.map(r => r.node.id)).toContain('acc-beliefs-wt');
+  });
+
+  it('re-eligible well-tested node is not excluded', () => {
+    // Only 1 challenger camp → isReeligible returns true → node stays in selection.
+    const reeligibleNode = {
+      id: 'acc-beliefs-reelig',
+      label: 'Reeligible node',
+      description: 'desc',
+      category: 'Beliefs' as Category,
+      graph_attributes: {
+        debate_tested: {
+          tier: 'well_tested',
+          sort_key: 3.5,
+          engagements: 5,
+          challenges: 5,
+          held: 5,
+          weakened: 0,
+          revisions: [],
+          last_tested: '2026-07-29',
+          description_hash: 'abc',
+          record: [
+            {
+              debate_id: 'd1', date: '2026-07-10', pipeline_version: '1.0',
+              verdict: 'held',
+              strongest_attack_encountered: { claim_id: 'c1', strength: 0.8, scheme: 'ad_rem', challenger_camp: 'safetyist' },
+              claim_outcomes: { thrived: 1, survived: 0, died: 0 }, concession: null,
+            },
+          ],
+        },
+      },
+    } as PovNode;
+
+    const nodes = [
+      reeligibleNode,
+      makeNode('acc-desires-001', 'Desires'),
+      makeNode('acc-intentions-001', 'Intentions'),
+    ];
+    const scores = new Map([
+      ['acc-beliefs-reelig', 0.60],
+      ['acc-desires-001', 0.55],
+      ['acc-intentions-001', 0.55],
+    ]);
+
+    const result = selectRelevantNodes(nodes, scores, {
+      embeddingThreshold: 0.48,
+      minPerCategory: 0,
+      minPerPov: 0,
+      wellTested: { excludeWellTested: true, now: NOW },
+    });
+
+    expect(result.map(r => r.node.id)).toContain('acc-beliefs-reelig');
+  });
+});
