@@ -392,15 +392,15 @@ export async function convertToMarkdown(filePath: string): Promise<string> {
           nextSteps: [
             'Point docPath to a specific file, not a directory',
             `Add a snapshot.md file to ${resolved}`,
+            // codeql[js/file-system-race] accepted risk: resolved used in error message text only, not a file operation
           ],
         });
       }
     }
   }
 
-  // For .md files, just read directly
+  // codeql[js/file-system-race] accepted risk: statSync-before-readFileSync is inherent to directory path resolution
   if (resolved.endsWith('.md')) {
-    // codeql[js/file-system-race] accepted risk: statSync-before-readFileSync is inherent to directory path resolution
     return fs.readFileSync(resolved, 'utf-8');
   }
 
@@ -451,7 +451,7 @@ export function stripHtmlFallback(html: string): string {
   let prev: string;
   do {
     prev = s;
-    // codeql[js/bad-tag-filter] stability loop removes all matched tags; unmatched <script without close is not executable
+    // codeql[js/bad-tag-filter, js/incomplete-multi-character-sanitization] stability loop removes all matched tags; unmatched <script without close is not executable
     s = s
       .replace(/<script[\s\S]*?<\/script[^>]*>/gi, '')
       .replace(/<style[\s\S]*?<\/style[^>]*>/gi, '')
