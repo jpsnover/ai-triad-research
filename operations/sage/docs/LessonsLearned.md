@@ -823,6 +823,7 @@ Institutional memory for failure patterns across the AI Triad Research project.
 - 2026-07-06 — Computational Linguist: same error on a newly created file. Fixed by `git add` then pathspec commit (p/7#26).
 - 2026-07-13 — Taxonomy Editor 2 (t/1563): `git commit -- <existing.tsx> <new-test.tsx>` failed on the untracked test file. Fixed by `git add -- <both>` then commit. Compounding: concurrent broad commit on shared main swept the working-tree .tsx (p/195#1).
 - 2026-07-26 — ServerAPI (t/1788, landed 95348dc8, p/79#13): `git commit -- <paths>` skipped untracked NEW files. Fixed by `git add` then `git commit -m "msg" -- <paths>`. Self-resolved. (Same incident also hit the flag-order trap.) 5th instance / 5 agents — still self-correcting.
+- 2026-07-30 — Server AI Proxy (t/2021, p/209#2): `git commit -- <paths>` including a NEW untracked file aborted "did not match any file(s)"; fixed by `git add` the untracked file first, then committing on a branch via `git switch -c` (branch-first — t/2009 now blocks detached-HEAD commits). **6th instance / 6 agents — still self-correcting.** Adjacent: the t/2009 detached-HEAD commit-guard fired correctly on the same land.
 
 **Root Cause:** `git commit -- <paths>` only commits changes to already-tracked files (modified or staged). Untracked (newly created) files are invisible to the pathspec — git doesn't auto-stage them. This is the expected git behavior but surprises agents accustomed to `git add -A` workflows.
 
