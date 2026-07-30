@@ -5,6 +5,7 @@ import fs from 'fs';
 import path from 'path';
 import { ActionableError } from './errors.js';
 import { loadCruxLinksFromAggregated } from './cruxLinkage.js';
+import { getGlobalRecorder } from '../flight-recorder/index.js';
 
 // ── Types ──────────────────────────────────────────────────────
 
@@ -137,6 +138,148 @@ export function loadCoverageMap(dataRoot: string): CorpusCoverageMap | null {
   } catch {
     return null;
   }
+}
+
+// ── Greatest-hits exclusion file ──────────────────────────
+
+export interface GreatestHitsFile {
+  version: 1;
+  generated_at: string;
+  node_count: number;
+  debate_count_threshold: number;
+  node_ids: string[];
+}
+
+const GREATEST_HITS_FILE = 'greatest-hits.json';
+
+export function greatestHitsPath(dataRoot: string): string {
+  return path.join(dataRoot, 'calibration', GREATEST_HITS_FILE);
+}
+
+/**
+ * Generate calibration/greatest-hits.json from the corpus coverage map.
+ * No-clobber by default: if the file already exists, throws ActionableError
+ * to protect hand-curation (pass { force: true } to overwrite).
+ * Node IDs are sorted by debate_count descending so the most overused appear first.
+ *
+ * CL binding condition self-cert: (1) flag-On + missing file → ActionableError at
+ * loadGreatestHitsFile call site; (2) this writer validates coverage map exists.
+ */
+export function generateGreatestHitsFile(
+  dataRoot: string,
+  options: { force?: boolean } = {},
+): void {
+  const coverageMap = loadCoverageMap(dataRoot);
+  if (!coverageMap) {
+    throw new ActionableError({
+      goal: 'Generate greatest-hits exclusion file from corpus coverage map',
+      problem: `corpus-coverage.json not found — cannot identify retread nodes`,
+      location: 'generateGreatestHitsFile',
+      nextSteps: [
+        'Run computeCorpusCoverage() and saveCoverageMap() first',
+        `Expected coverage map at: ${coveragePath(dataRoot)}`,
+      ],
+    });
+  }
+
+  const outPath = greatestHitsPath(dataRoot);
+  if (!options.force && fs.existsSync(outPath)) {
+    throw new ActionableError({
+      goal: 'Generate greatest-hits exclusion file',
+      problem: `greatest-hits.json already exists at ${outPath} — will not overwrite a hand-editable file without explicit force`,
+      location: 'generateGreatestHitsFile',
+      nextSteps: [
+        'Pass { force: true } to overwrite (discards any hand edits)',
+        `Or delete the file manually: ${outPath}`,
+        'Or keep the existing file if it reflects your curation',
+      ],
+    });
+  }
+
+  const retreads = Object.entries(coverageMap.node_stats)
+    .filter(([, stats]) => stats.retread_flag)
+    .sort((a, b) => b[1].debate_count - a[1].debate_count)
+    .map(([nodeId]) => nodeId);
+
+  const file: GreatestHitsFile = {
+    version: 1,
+    generated_at: new Date().toISOString(),
+    node_count: retreads.length,
+    debate_count_threshold: coverageMap.debate_count_threshold,
+    node_ids: retreads,
+  };
+
+  const dir = path.join(dataRoot, 'calibration');
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(outPath, JSON.stringify(file, null, 2) + '\n', 'utf-8');
+}
+
+/**
+ * Load calibration/greatest-hits.json and return a Set of node IDs to exclude.
+ * Returns null when the file does not exist (caller must enforce flag-On + missing → error).
+ * Parse/shape failures throw ActionableError.
+ * Unknown node IDs (not in knownNodeIds) are warned to the flight recorder and skipped.
+ */
+export function loadGreatestHitsFile(
+  dataRoot: string,
+  knownNodeIds?: Set<string>,
+): Set<string> | null {
+  const p = greatestHitsPath(dataRoot);
+  if (!fs.existsSync(p)) return null;
+
+  let raw: unknown;
+  try {
+    raw = JSON.parse(fs.readFileSync(p, 'utf-8'));
+  } catch (err) {
+    throw new ActionableError({
+      goal: 'Load greatest-hits exclusion file',
+      problem: `Failed to parse greatest-hits.json at ${p}: ${err instanceof Error ? err.message : err}`,
+      location: 'loadGreatestHitsFile',
+      nextSteps: [
+        'Validate the JSON with a linter',
+        `Re-generate via generateGreatestHitsFile({ force: true })`,
+      ],
+    });
+  }
+
+  if (
+    typeof raw !== 'object' || raw === null ||
+    (raw as Record<string, unknown>).version !== 1 ||
+    !Array.isArray((raw as Record<string, unknown>).node_ids) ||
+    !(raw as { node_ids: unknown[] }).node_ids.every((id) => typeof id === 'string')
+  ) {
+    throw new ActionableError({
+      goal: 'Load greatest-hits exclusion file',
+      problem: `greatest-hits.json at ${p} has unexpected shape — expected { version: 1, node_ids: string[] }`,
+      location: 'loadGreatestHitsFile',
+      nextSteps: [
+        'Check the file has not been corrupted',
+        `Re-generate via generateGreatestHitsFile({ force: true })`,
+      ],
+    });
+  }
+
+  const nodeIds = (raw as GreatestHitsFile).node_ids;
+  const exclusionSet = new Set<string>();
+  const unknownIds: string[] = [];
+
+  for (const id of nodeIds) {
+    if (knownNodeIds && !knownNodeIds.has(id)) {
+      unknownIds.push(id);
+    } else {
+      exclusionSet.add(id);
+    }
+  }
+
+  if (unknownIds.length > 0) {
+    getGlobalRecorder()?.record({
+      type: 'system.error', component: 'debate-engine', level: 'warn',
+      message: `greatest-hits.json: ${unknownIds.length} unknown node IDs ignored`,
+      data: { unknown_ids: unknownIds.slice(0, 20), total_unknown: unknownIds.length },
+    });
+  }
+
+  return exclusionSet;
 }
 
 // ── Helpers ────────────────────────────────────────────────────

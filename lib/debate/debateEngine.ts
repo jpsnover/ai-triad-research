@@ -986,6 +986,7 @@ export class DebateEngine {
       },
       model_tier: this.config.modelTier,
       protocol_id: this.config.protocolId ?? 'structured',
+      ...(this.config.excludeGreatestHits ? { exclude_greatest_hits: true } : {}),
       diagnostics: {
         enabled: true,
         entries: {},

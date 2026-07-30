@@ -320,6 +320,8 @@ export interface DebateSession {
   model_tier?: ModelTier;
   /** Debate protocol format. Absent in older debates (defaults to 'structured'). */
   protocol_id?: string;
+  /** Exclude greatest-hits (retread) nodes from selection for this debate (t/1438). Absent ⇒ false. */
+  exclude_greatest_hits?: boolean;
   /** Legacy config object from older saved debates. */
   config?: Record<string, unknown>;
   /** AI temperature for this debate (0.0-1.0). Absent uses system default. */

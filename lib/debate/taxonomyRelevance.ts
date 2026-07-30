@@ -47,23 +47,10 @@ export interface RelevanceOptions {
   minPerPov?: number;
   /** Branch-aware situation selection — boosts nodes in topic-relevant root categories. */
   situationBranchBoost?: SituationBranchBoostConfig;
-  /** Corpus coverage stats — downweights retread nodes and boosts low-coverage nodes (t/1278). */
-  corpusCoverage?: CorpusCoverageConfig;
+  /** Greatest-hits exclusion set — pre-filters retread nodes before scoring (t/1438). */
+  greatestHitsExclude?: Set<string>;
   /** Well-tested exclusion lever — downweights or excludes well_tested nodes (Phase 3, t/1587). */
   wellTested?: WellTestedConfig;
-}
-
-export interface CorpusCoverageConfig {
-  /** Node coverage stats from computeCorpusCoverage(). */
-  nodeStats: Record<string, { debate_count: number; crux_link_count: number; retread_flag: boolean }>;
-  /** Score multiplier for retread nodes (default 0.6). */
-  retreadMultiplier?: number;
-  /** Boost for low-coverage nodes above relevance floor (default 0.04). */
-  coverageBoost?: number;
-  /** debate_count below which a node is considered low-coverage (default 5). */
-  lowCoverageThreshold?: number;
-  /** Max low-coverage promotions to apply (default 8). */
-  maxCoveragePromotions?: number;
 }
 
 export interface SituationBranchBoostConfig {
@@ -113,11 +100,9 @@ export interface LineageBoostResult {
   promotedCount: number;
 }
 
-export interface CorpusCoverageResult {
-  downweightedNodeIds: string[];
-  boostedNodeIds: string[];
-  downweightedCount: number;
-  boostedCount: number;
+export interface GreatestHitsExcludeResult {
+  excludedNodeIds: string[];
+  excludedCount: number;
 }
 
 export interface WellTestedConfig {
@@ -249,55 +234,10 @@ export function selectRelevantNodes(
     _lineageBoostResult = { boostedNodeIds: boostedIds, promotedNodeIds: promotedIds, promotedCount: promotedIds.length };
   }
 
-  // Apply corpus coverage adjustments (t/1278)
-  let _corpusCoverageResult: CorpusCoverageResult | undefined;
-  if (opts.corpusCoverage) {
-    const cc = opts.corpusCoverage;
-    const retreadMult = cc.retreadMultiplier ?? 0.6;
-    const covBoost = cc.coverageBoost ?? 0.04;
-    const lowThresh = cc.lowCoverageThreshold ?? 5;
-    const maxPromos = cc.maxCoveragePromotions ?? 8;
-    const relevanceFloor = threshold * 0.5;
-
-    const downweightedIds: string[] = [];
-    const boostCandidates: { id: string; score: number }[] = [];
-
-    for (const node of povNodes) {
-      const stats = cc.nodeStats[node.id];
-      if (!stats) continue;
-
-      const current = effectiveScores.get(node.id) ?? 0;
-
-      // Downweight retreads (high debate_count, low crux links) — never touch fault-lines
-      if (stats.retread_flag) {
-        effectiveScores.set(node.id, current * retreadMult);
-        downweightedIds.push(node.id);
-      }
-
-      // Coverage-seeking boost for underexplored nodes above relevance floor
-      if (stats.debate_count < lowThresh && current >= relevanceFloor && !stats.retread_flag) {
-        boostCandidates.push({ id: node.id, score: current });
-      }
-    }
-
-    // Apply coverage boost, capped
-    boostCandidates.sort((a, b) => b.score - a.score);
-    const boostedIds: string[] = [];
-    for (let i = 0; i < Math.min(maxPromos, boostCandidates.length); i++) {
-      const { id } = boostCandidates[i];
-      effectiveScores.set(id, (effectiveScores.get(id) ?? 0) + covBoost);
-      boostedIds.push(id);
-    }
-
-    if (downweightedIds.length > 0 || boostedIds.length > 0) {
-      _corpusCoverageResult = {
-        downweightedNodeIds: downweightedIds,
-        boostedNodeIds: boostedIds,
-        downweightedCount: downweightedIds.length,
-        boostedCount: boostedIds.length,
-      };
-    }
-  }
+  // Pre-filter set: well-tested hard-excludes (t/1981 leak fix) + greatest-hits (t/1438).
+  // Building as a pre-filter ensures excluded nodes can't re-enter via minPerCategory refill
+  // or POV-diversity floor (the former score=0 approach had both leak paths).
+  const preExcludeSet = new Set<string>();
 
   // Apply well-tested exclusion lever (Phase 3, t/1587)
   let _wellTestedResult: WellTestedExclusionResult | undefined;
@@ -326,7 +266,7 @@ export function selectRelevantNodes(
 
       const current = effectiveScores.get(node.id) ?? 0;
       if (hardExclude) {
-        effectiveScores.set(node.id, 0);
+        preExcludeSet.add(node.id);
         excludedIds.push(node.id);
       } else {
         effectiveScores.set(node.id, current * mult);
@@ -345,14 +285,21 @@ export function selectRelevantNodes(
     }
   }
 
-  // Remove hardExcluded nodes from the candidate pool before grouping — score-0
-  // is insufficient because minPerCategory refill and POV-diversity floor pick by
-  // top-score regardless of threshold, so score-0 nodes can re-enter (t/1981).
-  const hardExcludedIds: Set<string> = _wellTestedResult?.excludedNodeIds?.length
-    ? new Set(_wellTestedResult.excludedNodeIds)
-    : new Set();
-  const candidateNodes = hardExcludedIds.size > 0
-    ? povNodes.filter(n => !hardExcludedIds.has(n.id))
+  // Apply greatest-hits exclusion (t/1438) — adds to preExcludeSet before grouping.
+  let _greatestHitsResult: GreatestHitsExcludeResult | undefined;
+  if (opts.greatestHitsExclude && opts.greatestHitsExclude.size > 0) {
+    const excludedNodeIds = povNodes
+      .filter(n => opts.greatestHitsExclude!.has(n.id))
+      .map(n => n.id);
+    for (const id of excludedNodeIds) preExcludeSet.add(id);
+    if (excludedNodeIds.length > 0) {
+      _greatestHitsResult = { excludedNodeIds, excludedCount: excludedNodeIds.length };
+    }
+  }
+
+  // Filter before grouping — excluded nodes cannot re-enter via minPerCategory or POV floor.
+  const activePovNodes = preExcludeSet.size > 0
+    ? povNodes.filter(n => !preExcludeSet.has(n.id))
     : povNodes;
 
   // Group by category
@@ -362,7 +309,7 @@ export function selectRelevantNodes(
     'Intentions': [],
   };
 
-  for (const node of candidateNodes) {
+  for (const node of activePovNodes) {
     const cat = node.category || 'Intentions';
     const score = effectiveScores.get(node.id) || 0;
     (groups[cat] ?? groups['Intentions']).push({ node, score });
@@ -394,7 +341,7 @@ export function selectRelevantNodes(
       const count = povCounts[pov];
       if (count >= minPov) continue;
       const deficit = minPov - count;
-      const candidates = candidateNodes
+      const candidates = activePovNodes
         .filter(n => n.id.startsWith(prefix) && !selectedIds.has(n.id))
         .map(n => ({ node: n, score: effectiveScores.get(n.id) || 0 }))
         .sort((a, b) => b.score - a.score);
@@ -437,8 +384,8 @@ export function selectRelevantNodes(
   if (_povDiversityResult) {
     (sliced as ScoredPovNode[] & { _povDiversity?: PovDiversityResult })._povDiversity = _povDiversityResult;
   }
-  if (_corpusCoverageResult) {
-    (sliced as ScoredPovNode[] & { _corpusCoverage?: CorpusCoverageResult })._corpusCoverage = _corpusCoverageResult;
+  if (_greatestHitsResult) {
+    (sliced as ScoredPovNode[] & { _greatestHits?: GreatestHitsExcludeResult })._greatestHits = _greatestHitsResult;
   }
   if (_wellTestedResult) {
     (sliced as ScoredPovNode[] & { _wellTested?: WellTestedExclusionResult })._wellTested = _wellTestedResult;

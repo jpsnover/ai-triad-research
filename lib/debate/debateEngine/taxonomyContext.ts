@@ -10,7 +10,8 @@ import { type TaxonomyContext, formatTaxonomyContext, computeInjectionManifest }
 import { resolveRepoRoot, resolveDataRoot, loadSituationStatements } from '../taxonomyLoader.js';
 import { scoreNodeRelevance, scoreNodesLexical, scoreNodesViaAN, selectRelevantNodes, selectRelevantSituationNodes, buildRelevanceQuery, computePolicymakerRelevanceBoost, type RelevanceOptions, type ANClaimEmbedding, type ScoredPovNode, filterByTopicConstraints } from '../taxonomyRelevance.js';
 import { formatRecentTranscript } from '../helpers.js';
-import { loadCoverageMap } from '../corpusCoverage.js';
+import { loadGreatestHitsFile } from '../corpusCoverage.js';
+import { ActionableError } from '../errors.js';
 import { filterByExclusionAbsolute, SCOPE_BOUNDARY_THRESHOLD } from '../exclusionGuard.js';
 import { getGlobalRecorder } from '../../flight-recorder/index.js';
 
@@ -262,30 +263,38 @@ export async function getRelevantTaxonomyContext(engine: DebateEngineInternals, 
     };
   }
 
-  // Load corpus coverage map when enabled (t/1438)
-  if (engine.config.enableCorpusCoverage) {
-    try {
-      const __dir = path.dirname(fileURLToPath(import.meta.url));
-      const repoRoot = resolveRepoRoot(__dir);
-      const dataRoot = resolveDataRoot(repoRoot);
-      const coverageMap = loadCoverageMap(dataRoot);
-      if (coverageMap) {
-        relevanceOpts.corpusCoverage = { nodeStats: coverageMap.node_stats };
-      }
-    } catch (err) {
-      getGlobalRecorder()?.record({ type: 'system.error', component: 'debate-engine', level: 'warn', debate_id: engine.session?.id, message: 'Corpus coverage map load failed — proceeding without', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
+  // Load greatest-hits exclusion set when enabled (t/1438).
+  // Flag-On + missing file = ActionableError (CL binding condition #1 self-cert).
+  if (engine.config.excludeGreatestHits) {
+    const __dir = path.dirname(fileURLToPath(import.meta.url));
+    const repoRoot = resolveRepoRoot(__dir);
+    const dataRoot = resolveDataRoot(repoRoot);
+    const knownNodeIds = new Set(ctx.povNodes.map(n => n.id));
+    const exclusionSet = loadGreatestHitsFile(dataRoot, knownNodeIds);
+    if (!exclusionSet) {
+      throw new ActionableError({
+        goal: 'Apply greatest-hits node exclusion for debate setup',
+        problem: 'excludeGreatestHits is enabled but calibration/greatest-hits.json is missing',
+        location: 'getRelevantTaxonomyContext',
+        nextSteps: [
+          'Generate the file: call generateGreatestHitsFile(dataRoot) from corpusCoverage.ts',
+          `Expected at: ${path.join(dataRoot, 'calibration', 'greatest-hits.json')}`,
+          'Or set excludeGreatestHits: false in the debate config to disable',
+        ],
+      });
     }
+    relevanceOpts.greatestHitsExclude = exclusionSet;
   }
 
   const scoredPovRaw = selectRelevantNodes(ctx.povNodes, scores, relevanceOpts);
 
-  // Log corpus coverage adjustments (t/1438)
-  const ccResult = (scoredPovRaw as ScoredPovNode[] & { _corpusCoverage?: { downweightedCount: number; boostedCount: number; downweightedNodeIds: string[]; boostedNodeIds: string[] } })._corpusCoverage;
-  if (ccResult && (ccResult.downweightedCount > 0 || ccResult.boostedCount > 0)) {
+  // Log greatest-hits exclusion (t/1438)
+  const ghResult = (scoredPovRaw as ScoredPovNode[] & { _greatestHits?: { excludedCount: number; excludedNodeIds: string[] } })._greatestHits;
+  if (ghResult && ghResult.excludedCount > 0) {
     getGlobalRecorder()?.record({
       type: 'turn.taxonomy_inject', component: 'debate-engine', level: 'info',
-      message: `Corpus coverage: ${ccResult.downweightedCount} retreads downweighted, ${ccResult.boostedCount} nodes boosted`,
-      data: ccResult,
+      message: `Greatest-hits exclusion: ${ghResult.excludedCount} nodes pre-filtered`,
+      data: ghResult,
     });
   }
 
