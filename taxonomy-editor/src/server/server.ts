@@ -43,6 +43,7 @@ import { isCaseStatus } from './support/types.js';
 import * as organizations from './organizations.js';
 import { isPov } from './organizations.js';
 import { json, error, param, query, getClientIp, createRouter, withEndpointTimeout, type Handler } from './httpKit.js';
+import { computeIsPublicPath } from './publicPaths.js';
 import { registerDebatesRoutes } from './routes/debates.js';
 import { registerSyncRoutes } from './routes/sync.js';
 import { registerAdminRoutes } from './routes/admin.js';
@@ -793,33 +794,10 @@ async function handleRequestInner(
   // catalog from ai-models.json. Contains no secrets — just labels + ids.
   // /api/sync/webhook/github is public: GitHub POSTs unauthenticated; the
   // handler does its own HMAC verification against GITHUB_WEBHOOK_SECRET.
-  const isPublicPath = urlPath === '/health'
-    || urlPath === '/healthz'
-    || urlPath === '/status'
-    || urlPath === '/api/models'
-    || urlPath === '/api/data/available'
-    || urlPath === '/api/auth/me'
-    || urlPath === '/api/auth/logout' // t/897: logout must work even for authed-but-unauthorized users
-    || urlPath.startsWith('/api/auth/fresh-login/') // t/1032: pre-auth fresh sign-in (clears stale cookies, then OAuth)
-    || urlPath === '/api/diagnostics/sw-state' // t/1128: pre-auth SW-state beacon from the login page
-    || urlPath === '/llms.txt' // t/1143: public llms.txt discovery file
-    || urlPath === '/api/config/client' // t/927: public client config subset (no secrets)
-    || urlPath === '/api/user/profile'
-    || urlPath === '/api/sync/webhook/github'
-    || urlPath === '/api/community/submit'
-    // t/1788: /api/public/* is a reserved auth-exempt namespace — public read-only POV node share; nothing else may be added under it without Server Auth sign-off.
-    || urlPath.startsWith('/api/public/')
-    // t/1789: /share/* serves the SPA shell to fully logged-out visitors (public
-    // POV share links). Static shell only (no /api/ dynamic surface); the public
-    // read data comes from /api/public/*. Reserved auth-exempt namespace — nothing
-    // added under it without Server Auth sign-off.
-    || urlPath.startsWith('/share/')
-    || urlPath.startsWith('/.auth/')
-    || urlPath.startsWith('/assets/')
-    || urlPath === '/manifest.webmanifest'
-    || urlPath === '/sw.js'
-    || urlPath.startsWith('/workbox-')
-    || urlPath.startsWith('/icons/');
+  // t/1910: the auth-exempt allowlist (15 exact + 7 prefix terms) moved verbatim to
+  // publicPaths.ts so it's testable in isolation; the exact-vs-prefix match-kind split
+  // is load-bearing and Server-Auth-reviewed (p/135#8) — do not add paths here.
+  const isPublicPath = computeIsPublicPath(urlPath);
   // AUTH_DISABLED='1' (default) = anonymous access, no login page.
   // AUTH_OPTIONAL='1' = show login page with anonymous option; sign-in
   //   unlocks platform-tier keys, anonymous users get lower limits + BYOK.
