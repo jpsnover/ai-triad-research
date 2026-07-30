@@ -1,13 +1,25 @@
 version: 2
+
+# ── Dependabot throttling (t/1991) ──────────────────────────────────────────
+# 12 ecosystems were previously ALL weekly with aggregate open-PR headroom ~59;
+# a 25-PR pile accumulated unnoticed because nothing throttled inflow and no
+# process doc drains it. Retuned so an untriaged week is VISIBLE (ecosystems pin
+# at low limits) instead of being silently absorbed. Aggregate headroom now ~27.
+#   - npm minor/patch are GROUPED (~one PR per dir per week); MAJOR bumps stay
+#     individual so each gets 1:1 review.
+#   - Low-churn ecosystems (github-actions, docker base images) moved to monthly.
+#   - Expected steady state with weekly triage: ~5-8 open dependabot PRs.
+# Change the limits here (not by manually closing PRs) if the pile reappears.
 updates:
+  # ── npm — grouped minor/patch, majors individual ──
   - package-ecosystem: npm
-    directory: /taxonomy-editor
+    directory: /taxonomy-editor  # largest app (most deps) — a little more headroom
     schedule:
       interval: weekly
     groups:
       minor-and-patch:
         update-types: [minor, patch]
-    open-pull-requests-limit: 10
+    open-pull-requests-limit: 5
 
   - package-ecosystem: npm
     directory: /workflow-app
@@ -16,7 +28,7 @@ updates:
     groups:
       minor-and-patch:
         update-types: [minor, patch]
-    open-pull-requests-limit: 5
+    open-pull-requests-limit: 2
 
   - package-ecosystem: npm
     directory: /poviewer
@@ -25,7 +37,7 @@ updates:
     groups:
       minor-and-patch:
         update-types: [minor, patch]
-    open-pull-requests-limit: 5
+    open-pull-requests-limit: 2
 
   - package-ecosystem: npm
     directory: /summary-viewer
@@ -34,20 +46,8 @@ updates:
     groups:
       minor-and-patch:
         update-types: [minor, patch]
-    open-pull-requests-limit: 5
+    open-pull-requests-limit: 2
 
-  - package-ecosystem: github-actions
-    directory: /
-    schedule:
-      interval: weekly
-    groups:
-      actions:
-        patterns: ["*"]
-    open-pull-requests-limit: 5
-
-  # ── Coverage completion (2026-07): the original config watched only the 4
-  # ── front-end apps + actions. Added below: the remaining npm manifests, and
-  # ── the pip + docker ecosystems that were previously UNWATCHED entirely.
   - package-ecosystem: npm
     directory: /
     schedule:
@@ -55,7 +55,7 @@ updates:
     groups:
       minor-and-patch:
         update-types: [minor, patch]
-    open-pull-requests-limit: 5
+    open-pull-requests-limit: 2
 
   - package-ecosystem: npm
     directory: /lib
@@ -64,7 +64,7 @@ updates:
     groups:
       minor-and-patch:
         update-types: [minor, patch]
-    open-pull-requests-limit: 5
+    open-pull-requests-limit: 2
 
   - package-ecosystem: npm
     directory: /lib/debate
@@ -73,7 +73,7 @@ updates:
     groups:
       minor-and-patch:
         update-types: [minor, patch]
-    open-pull-requests-limit: 5
+    open-pull-requests-limit: 2
 
   - package-ecosystem: npm
     directory: /deploy/azure/runner/function
@@ -82,29 +82,45 @@ updates:
     groups:
       minor-and-patch:
         update-types: [minor, patch]
-    open-pull-requests-limit: 5
+    open-pull-requests-limit: 2
 
-  # pip — the PowerShell module's Python helpers (scripts/requirements.txt)
+  # ── github-actions — monthly (actions rarely change; weekly was noise) ──
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    groups:
+      actions:
+        patterns: ["*"]
+    open-pull-requests-limit: 2
+
+  # ── pip — the PowerShell module's Python helpers (scripts/requirements.txt) ──
+  # Grouped: requirements.txt is one logical set (was ungrouped — each bump its
+  # own PR). No major-ignore (t/1989): the prior "5.x breaks the embedding
+  # pipeline" reason was disproved (5.6.1 is value-stable, bit-identical vectors);
+  # the python-embed-smoke CI gate now VALIDATES bumps (cosine vs a pinned
+  # reference — reds on real drift or a load/API break), so dependabot may propose
+  # majors and the gate decides. An ignore would only hide them.
   - package-ecosystem: pip
     directory: /scripts
     schedule:
       interval: weekly
-    open-pull-requests-limit: 3
-    # No ignore for sentence-transformers/transformers majors (t/1989): the prior
-    # "5.x breaks the embedding pipeline" reason was disproved (5.6.1 is value-stable,
-    # bit-identical vectors). An ignore only HIDES bumps; the `python-embed-smoke`
-    # gate now VALIDATES them (cosine vs a pinned reference — reds on real drift or a
-    # load/API break), so dependabot may propose majors and the gate decides.
+    groups:
+      pip-deps:
+        patterns: ["*"]
+    open-pull-requests-limit: 2
 
-  # docker — web image + azure base image
+  # ── docker — web image + azure base image. Monthly (base images update rarely).
+  # Left UNGROUPED deliberately: each directory tracks a SINGLE base image, so a
+  # group could never batch more than one PR (one image = one bump).
   - package-ecosystem: docker
     directory: /taxonomy-editor
     schedule:
-      interval: weekly
-    open-pull-requests-limit: 3
+      interval: monthly
+    open-pull-requests-limit: 2
 
   - package-ecosystem: docker
     directory: /deploy/azure
     schedule:
-      interval: weekly
-    open-pull-requests-limit: 3
+      interval: monthly
+    open-pull-requests-limit: 2
