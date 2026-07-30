@@ -88,8 +88,8 @@ export interface DebateConfig {
   enableInsularityIntervention?: boolean;
   /** Enable stagnation-gated diversity-injection round (t/1280). Off by default — experiment flag. */
   enableDiversityRound?: boolean;
-  /** Enable corpus-coverage anti-recurrence: downweight retread nodes, boost underexplored tail (t/1438). */
-  enableCorpusCoverage?: boolean;
+  /** Exclude greatest-hits (retread) nodes from debate node selection (t/1438). Requires calibration/greatest-hits.json. */
+  excludeGreatestHits?: boolean;
   /** Inject comp-linguist per-POV, per-BDI situation register-statements at setup (t/1450 experiment). Off by default. */
   enableSituationStatements?: boolean;
   /** Enable over-generate/select/rewrite pipeline: N=3 drafts, dedup, greedy top-K, rewrite, coherence gate (t/1581). */

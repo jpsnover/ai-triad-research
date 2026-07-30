@@ -2,7 +2,13 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { computeCorpusCoverage, saveCoverageMap, loadCoverageMap } from './corpusCoverage.js';
+import {
+  computeCorpusCoverage,
+  saveCoverageMap,
+  loadCoverageMap,
+  generateGreatestHitsFile,
+  loadGreatestHitsFile,
+} from './corpusCoverage.js';
 
 // ── Mock fns (module-level, survive across describes) ─────
 
@@ -236,5 +242,124 @@ describe('saveCoverageMap / loadCoverageMap', () => {
     });
 
     expect(loadCoverageMap('/data')).toBeNull();
+  });
+});
+
+describe('generateGreatestHitsFile', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('throws ActionableError when coverage map is missing', () => {
+    setupMocks({ existsSync: () => false });
+    expect(() => generateGreatestHitsFile('/data')).toThrow(/corpus-coverage.json not found/);
+  });
+
+  it('throws ActionableError (no-clobber) when greatest-hits.json already exists', () => {
+    const coverageMap = {
+      version: 1 as const,
+      last_updated: '2026-07-01T00:00:00Z',
+      debate_count_threshold: 20,
+      node_stats: {
+        'acc-beliefs-001': { debate_count: 25, crux_link_count: 0, retread_flag: true },
+      },
+    };
+    setupMocks({
+      existsSync: (p) => true,
+      readFileSync: () => JSON.stringify(coverageMap),
+    });
+    expect(() => generateGreatestHitsFile('/data')).toThrow(/already exists/);
+  });
+
+  it('with force:true, writes over existing greatest-hits.json', () => {
+    const coverageMap = {
+      version: 1 as const,
+      last_updated: '2026-07-01T00:00:00Z',
+      debate_count_threshold: 20,
+      node_stats: {
+        'acc-beliefs-001': { debate_count: 25, crux_link_count: 0, retread_flag: true },
+        'saf-desires-002': { debate_count: 3, crux_link_count: 0, retread_flag: false },
+      },
+    };
+    let written = '';
+    setupMocks({
+      existsSync: () => true,
+      readFileSync: () => JSON.stringify(coverageMap),
+      writeFileSync: (_p, content) => { written = content; },
+    });
+    generateGreatestHitsFile('/data', { force: true });
+    const parsed = JSON.parse(written);
+    expect(parsed.version).toBe(1);
+    expect(parsed.node_ids).toContain('acc-beliefs-001');
+    expect(parsed.node_ids).not.toContain('saf-desires-002');
+  });
+});
+
+describe('loadGreatestHitsFile', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('returns null when greatest-hits.json does not exist', () => {
+    setupMocks({ existsSync: () => false });
+    expect(loadGreatestHitsFile('/data')).toBeNull();
+  });
+
+  it('throws ActionableError on JSON parse failure', () => {
+    setupMocks({
+      existsSync: () => true,
+      readFileSync: () => 'not valid json {{{',
+    });
+    expect(() => loadGreatestHitsFile('/data')).toThrow(/Failed to parse greatest-hits.json/);
+  });
+
+  it('throws ActionableError on shape failure (wrong version)', () => {
+    setupMocks({
+      existsSync: () => true,
+      readFileSync: () => JSON.stringify({ version: 2, node_ids: ['acc-beliefs-001'] }),
+    });
+    expect(() => loadGreatestHitsFile('/data')).toThrow(/unexpected shape/);
+  });
+
+  it('throws ActionableError when node_ids contains non-strings', () => {
+    setupMocks({
+      existsSync: () => true,
+      readFileSync: () => JSON.stringify({ version: 1, node_ids: [123, 'acc-beliefs-001'] }),
+    });
+    expect(() => loadGreatestHitsFile('/data')).toThrow(/unexpected shape/);
+  });
+
+  it('happy path — returns Set of IDs from file', () => {
+    setupMocks({
+      existsSync: () => true,
+      readFileSync: () => JSON.stringify({
+        version: 1,
+        generated_at: '2026-07-01T00:00:00Z',
+        node_count: 2,
+        debate_count_threshold: 20,
+        node_ids: ['acc-beliefs-001', 'saf-desires-002'],
+      }),
+    });
+    const result = loadGreatestHitsFile('/data');
+    expect(result).not.toBeNull();
+    expect(result!.has('acc-beliefs-001')).toBe(true);
+    expect(result!.has('saf-desires-002')).toBe(true);
+  });
+
+  it('unknown node IDs are excluded from the Set when knownNodeIds provided', () => {
+    setupMocks({
+      existsSync: () => true,
+      readFileSync: () => JSON.stringify({
+        version: 1,
+        generated_at: '2026-07-01T00:00:00Z',
+        node_count: 2,
+        debate_count_threshold: 20,
+        node_ids: ['acc-beliefs-001', 'stale-node-xyz'],
+      }),
+    });
+    const known = new Set(['acc-beliefs-001']);
+    const result = loadGreatestHitsFile('/data', known);
+    expect(result!.has('acc-beliefs-001')).toBe(true);
+    expect(result!.has('stale-node-xyz')).toBe(false);
   });
 });
