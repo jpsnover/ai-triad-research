@@ -21,25 +21,21 @@ import { log } from '../logger.js';
 import { getConfig } from '../runtimeConfig.js';
 import { getGlobalRecorder } from '../../../../lib/flight-recorder/index.js';
 
-interface ProviderBindings {
-  [storageUserId: string]: string;
-}
+// On-disk shape: a JSON object of { storageUserId: idp }.
+type StoredBindings = Record<string, string>;
 
-// Property names that would reach Object.prototype if used as a dynamic map
-// key. A normalized storageUserId must never be one of these — using it as a
-// write target is a prototype-pollution vector (CodeQL js/remote-property-injection).
+// Property names that would reach Object.prototype if used as a dynamic key.
+// Kept as a defensive reject in checkProviderBinding even though the in-memory
+// store is a Map (whose set()/get() never touch the prototype chain).
 const FORBIDDEN_KEYS = new Set<string>(['__proto__', 'constructor', 'prototype']);
 function isForbiddenKey(key: string): boolean {
   return FORBIDDEN_KEYS.has(key);
 }
 
-// Bindings are held in a null-prototype object so a user-controlled key can
-// never resolve up the prototype chain on read, nor pollute it on write.
-function emptyBindings(): ProviderBindings {
-  return Object.create(null) as ProviderBindings;
-}
-
-let _cache: ProviderBindings | null = null;
+// Bindings live in a Map: a user-controlled key is only ever passed to
+// Map.set()/get() (method calls), never used as a dynamic object-property name
+// — which is the property-injection sink (CodeQL js/remote-property-injection).
+let _cache: Map<string, string> | null = null;
 let _cacheMtime = 0;
 let _lastLoadTime = 0;
 
@@ -47,17 +43,17 @@ function getBindingsPath(): string {
   return path.join(getDataRoot(), 'admin', 'provider_bindings.json');
 }
 
-function loadBindings(): ProviderBindings {
+function loadBindings(): Map<string, string> {
   const bindingsPath = getBindingsPath();
   try {
     const { content, mtimeMs } = readFileWithMtime(bindingsPath, _cache ? _cacheMtime : undefined);
-    if (content === null) return _cache ?? emptyBindings();
+    if (content === null) return _cache ?? new Map();
     const parsed = JSON.parse(content) as Record<string, unknown>;
-    // Rebuild into a null-prototype map, dropping any prototype-polluting or
-    // non-string entries a hand-edited bindings file could contain.
-    const clean = emptyBindings();
+    // Rebuild into a Map, dropping any prototype-polluting or non-string
+    // entries a hand-edited bindings file could contain.
+    const clean = new Map<string, string>();
     for (const [k, v] of Object.entries(parsed)) {
-      if (!isForbiddenKey(k) && typeof v === 'string') clean[k] = v;
+      if (!isForbiddenKey(k) && typeof v === 'string') clean.set(k, v);
     }
     _cache = clean;
     _cacheMtime = mtimeMs;
@@ -72,11 +68,11 @@ function loadBindings(): ProviderBindings {
         error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
     }
-    return emptyBindings();
+    return new Map();
   }
 }
 
-function getBindings(): ProviderBindings {
+function getBindings(): Map<string, string> {
   const now = Date.now();
   if (now - _lastLoadTime > getConfig().cache.defaultTtlMs) { // t/929: runtime-configurable (default 30_000)
     _lastLoadTime = now;
@@ -85,14 +81,15 @@ function getBindings(): ProviderBindings {
   return _cache ?? loadBindings();
 }
 
-function saveBindings(bindings: ProviderBindings): void {
+function saveBindings(bindings: Map<string, string>): void {
   const bindingsPath = getBindingsPath();
   const dir = path.dirname(bindingsPath);
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });
   }
-  fs.writeFileSync(bindingsPath, JSON.stringify(bindings, null, 2), 'utf-8');
-  _cache = Object.assign(emptyBindings(), bindings);
+  const serialized: StoredBindings = Object.fromEntries(bindings);
+  fs.writeFileSync(bindingsPath, JSON.stringify(serialized, null, 2), 'utf-8');
+  _cache = new Map(bindings);
   _cacheMtime = 0;
   _lastLoadTime = Date.now();
 }
@@ -113,9 +110,9 @@ export interface BindingResult {
  */
 export function checkProviderBinding(storageUserId: string, idp: string): BindingResult {
   if (!storageUserId || storageUserId === '_local') return { ok: true };
-  // Defensive: a normalized storageUserId must never be a prototype-polluting
-  // key. Reject rather than let it reach the dynamic write below
-  // (CodeQL js/remote-property-injection). Also guards the read that follows.
+  // Defensive: reject reserved keys outright. The Map store already keeps a
+  // user-controlled key off the object-property path (js/remote-property-injection),
+  // so this is belt-and-suspenders plus a clear operator signal.
   if (isForbiddenKey(storageUserId)) {
     log.server.warn({ storageUserId }, 'Provider binding: rejected reserved storageUserId key');
     getGlobalRecorder()?.record({
@@ -127,11 +124,11 @@ export function checkProviderBinding(storageUserId: string, idp: string): Bindin
   }
 
   const bindings = getBindings();
-  const bound = bindings[storageUserId];
+  const bound = bindings.get(storageUserId);
 
   if (!bound) {
     try {
-      bindings[storageUserId] = idp;
+      bindings.set(storageUserId, idp);
       saveBindings(bindings);
       log.server.info({ storageUserId, idp }, 'Provider binding created');
     } catch (err) {
