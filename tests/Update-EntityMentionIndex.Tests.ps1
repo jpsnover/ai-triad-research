@@ -29,8 +29,8 @@ Describe 'Update-EntityMentionIndex (t/1894 Phase 2-B)' -Tag 'unit' {
             entity_count    = 2
             last_modified   = '2026-07-28'
             entities        = @(
-                [ordered]@{ id = 'ent-001'; name = 'Apollo Project'; aliases = @('Apollo Program'); entity_type = 'event' }
-                [ordered]@{ id = 'ent-002'; name = 'Apollo'; aliases = $null; entity_type = 'event' }
+                [ordered]@{ id = 'ent-001'; name = 'Apollo Project'; aliases = @('Apollo Program'); entity_type = 'event'; status = 'approved' }
+                [ordered]@{ id = 'ent-002'; name = 'Apollo'; aliases = $null; entity_type = 'event'; status = 'approved' }
             )
         }
         ($entities | ConvertTo-Json -Depth 8) | Set-Content -LiteralPath $script:entPath -Encoding utf8NoBOM
@@ -99,8 +99,8 @@ Describe 'Update-EntityMentionIndex (t/1894 Phase 2-B)' -Tag 'unit' {
             $ents = [ordered]@{
                 _schema_version = '1.0.0'; _doc = 'test'; entity_count = 2; last_modified = '2026-07-28'
                 entities        = @(
-                    [ordered]@{ id = 'ent-010'; name = 'GPT-4o'; aliases = $null; entity_type = 'artifact' }
-                    [ordered]@{ id = 'ent-011'; name = 'o4-mini'; aliases = $null; entity_type = 'artifact' }
+                    [ordered]@{ id = 'ent-010'; name = 'GPT-4o'; aliases = $null; entity_type = 'artifact'; status = 'approved' }
+                    [ordered]@{ id = 'ent-011'; name = 'o4-mini'; aliases = $null; entity_type = 'artifact'; status = 'approved' }
                 )
             }
             ($ents | ConvertTo-Json -Depth 8) | Set-Content -LiteralPath $script:entPath -Encoding utf8NoBOM
@@ -251,6 +251,58 @@ Describe 'Update-EntityMentionIndex (t/1894 Phase 2-B)' -Tag 'unit' {
             New-Sei -Path $script:seiPath -Map @{ 'n1' = @{ facts = @(@{ claim = 'Apollo Project.'; doc_id = 'd1' }) } }
             Update-EntityMentionIndex -EntitiesPath $script:entPath -SourceEvidenceIndexPath $script:seiPath -PovPath @() -OutputPath $script:outPath -WhatIf | Out-Null
             Test-Path -LiteralPath $script:outPath | Should -BeFalse
+        }
+    }
+
+    Context 'Status filter (t/1982)' {
+        BeforeEach {
+            # One approved + one proposed entity, each with a distinct alias present in the text.
+            # Also a record with NO status field (must be treated as un-indexable).
+            $mixed = [ordered]@{
+                _schema_version = '1.0.0'; _doc = 'test'; entity_count = 3; last_modified = '2026-07-29'
+                entities        = @(
+                    [ordered]@{ id = 'ent-100'; name = 'Manhattan Project'; aliases = $null; entity_type = 'event'; status = 'approved' }
+                    [ordered]@{ id = 'ent-200'; name = 'Stargate'; aliases = $null; entity_type = 'event'; status = 'proposed' }
+                    [ordered]@{ id = 'ent-300'; name = 'Skunkworks'; aliases = $null; entity_type = 'event' }  # no status
+                )
+            }
+            ($mixed | ConvertTo-Json -Depth 8) | Set-Content -LiteralPath $script:entPath -Encoding utf8NoBOM
+            New-Sei -Path $script:seiPath -Map @{
+                'n1' = @{ facts = @(@{ claim = 'The Manhattan Project, Stargate, and Skunkworks all mattered.'; doc_id = 'd1' }) }
+            }
+        }
+
+        It 'Default indexes ONLY approved entities (proposed + status-less skipped)' {
+            $r = Update-EntityMentionIndex -EntitiesPath $script:entPath -SourceEvidenceIndexPath $script:seiPath -PovPath @() -OutputPath $script:outPath
+            $r.IndexedStatus | Should -Be @('approved')
+
+            $file = Get-Content -Raw -LiteralPath $script:outPath -Encoding utf8 | ConvertFrom-Json
+            $file.indexed_status | Should -Be @('approved')
+            $m = @($file.containers.'sei:n1'.mentions)
+            $m.Count | Should -Be 1
+            $m[0].entity_ref | Should -Be 'ent-100'
+        }
+
+        It '-Status proposed indexes ONLY the proposed entity' {
+            Update-EntityMentionIndex -EntitiesPath $script:entPath -SourceEvidenceIndexPath $script:seiPath -PovPath @() -OutputPath $script:outPath -Status proposed | Out-Null
+            $file = Get-Content -Raw -LiteralPath $script:outPath -Encoding utf8 | ConvertFrom-Json
+            $file.indexed_status | Should -Be @('proposed')
+            $m = @($file.containers.'sei:n1'.mentions)
+            $m.Count | Should -Be 1
+            $m[0].entity_ref | Should -Be 'ent-200'
+        }
+
+        It '-Status approved,proposed (the explicit preview) indexes both, and records both in the envelope' {
+            $r = Update-EntityMentionIndex -EntitiesPath $script:entPath -SourceEvidenceIndexPath $script:seiPath -PovPath @() -OutputPath $script:outPath -Status approved, proposed
+            ($r.IndexedStatus | Sort-Object) | Should -Be @('approved', 'proposed')
+
+            $file = Get-Content -Raw -LiteralPath $script:outPath -Encoding utf8 | ConvertFrom-Json
+            # indexed_status is sorted-unique in the envelope.
+            @($file.indexed_status) | Should -Be @('approved', 'proposed')
+            $refs = @($file.containers.'sei:n1'.mentions.entity_ref | Sort-Object)
+            $refs | Should -Be @('ent-100', 'ent-200')
+            # The status-less ent-300 is still excluded even under the widened preview.
+            $refs | Should -Not -Contain 'ent-300'
         }
     }
 
