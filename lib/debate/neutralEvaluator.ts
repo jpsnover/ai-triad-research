@@ -372,7 +372,7 @@ export async function runNeutralEvaluation(
   });
   const elapsedMs = Date.now() - startMs;
 
-  const rawText = stripCodeFences(result);
+  let rawText = stripCodeFences(result);
   let parsed: NeutralEvaluation;
   // Strict parse first (t/1846): a response that only parses after robust salvage
   // is a truncation/malformation signal — its content may be a plausible partial
@@ -382,37 +382,64 @@ export async function runNeutralEvaluation(
   } catch (strictErr) {
     getGlobalRecorder()?.record({
       type: 'system.error', component: 'neutral-evaluator', level: 'warn',
-      message: `Neutral evaluation (${checkpoint}) failed strict JSON parse — attempting salvage; result will be marked evaluation_invalid`,
+      message: `Neutral evaluation (${checkpoint}) failed strict JSON parse — retrying once before salvage (t/1875)`,
       error: { name: (strictErr as Error).name ?? 'Error', message: String(strictErr) },
     });
+    // Retry once (t/1875): most truncations are stochastic length overruns and clear
+    // on retry. Transport errors already have adapter-level retry; this targets
+    // parse failures only. diagnostics_raw_response reflects the final attempt.
     try {
-      const salvaged = parseJsonRobust(rawText);
-      if (!salvaged || typeof salvaged !== 'object' || Array.isArray(salvaged)) {
-        throw new Error(`salvage produced a non-object (${Array.isArray(salvaged) ? 'array' : typeof salvaged})`);
-      }
-      parsed = salvaged as NeutralEvaluation;
-      parsed.evaluation_invalid = true;
-      parsed.invalid_reason = 'parse_salvaged';
-    } catch (salvageErr) {
+      getGlobalRecorder()?.record({
+        type: 'ai.retry', component: 'neutral-evaluator', level: 'info',
+        message: `Neutral evaluation (${checkpoint}) retry attempt`,
+      });
+      const retryResult = await config.adapter.generateText(prompt, config.model, {
+        temperature: 0.2,
+        maxTokens: EVALUATOR_MAX_TOKENS,
+        responseSchema: evaluationSchema,
+      });
+      rawText = stripCodeFences(retryResult); // diagnostics: final attempt's response
+      parsed = JSON.parse(rawText) as NeutralEvaluation;
+      getGlobalRecorder()?.record({
+        type: 'system.info', component: 'neutral-evaluator', level: 'info',
+        message: `Neutral evaluation (${checkpoint}) retry succeeded`,
+      });
+    } catch (_retryErr) {
+      // Retry also failed — salvage the final raw response
       getGlobalRecorder()?.record({
         type: 'system.error', component: 'neutral-evaluator', level: 'warn',
-        message: `Neutral evaluation (${checkpoint}) unparseable even after salvage — returning invalid placeholder`,
-        error: { name: (salvageErr as Error).name ?? 'Error', message: String(salvageErr) },
+        message: `Neutral evaluation (${checkpoint}) retry failed — attempting salvage; result will be marked evaluation_invalid`,
+        error: { name: (_retryErr as Error).name ?? 'Error', message: String(_retryErr) },
       });
-      // Fallback: minimal placeholder for display; calibration treats it as absent.
-      parsed = {
-        checkpoint,
-        timestamp: new Date().toISOString(),
-        cruxes: [],
-        claims: [],
-        overall_assessment: {
-          strongest_unaddressed_claim_id: null,
-          debate_is_engaging_real_disagreement: true,
-          notes: `Evaluation parse error. Raw response length: ${rawText.length} chars.`,
-        },
-        evaluation_invalid: true,
-        invalid_reason: 'parse_failed',
-      };
+      try {
+        const salvaged = parseJsonRobust(rawText);
+        if (!salvaged || typeof salvaged !== 'object' || Array.isArray(salvaged)) {
+          throw new Error(`salvage produced a non-object (${Array.isArray(salvaged) ? 'array' : typeof salvaged})`);
+        }
+        parsed = salvaged as NeutralEvaluation;
+        parsed.evaluation_invalid = true;
+        parsed.invalid_reason = 'parse_salvaged';
+      } catch (salvageErr) {
+        getGlobalRecorder()?.record({
+          type: 'system.error', component: 'neutral-evaluator', level: 'warn',
+          message: `Neutral evaluation (${checkpoint}) unparseable even after salvage — returning invalid placeholder`,
+          error: { name: (salvageErr as Error).name ?? 'Error', message: String(salvageErr) },
+        });
+        // Fallback: minimal placeholder for display; calibration treats it as absent.
+        parsed = {
+          checkpoint,
+          timestamp: new Date().toISOString(),
+          cruxes: [],
+          claims: [],
+          overall_assessment: {
+            strongest_unaddressed_claim_id: null,
+            debate_is_engaging_real_disagreement: true,
+            notes: `Evaluation parse error. Raw response length: ${rawText.length} chars.`,
+          },
+          evaluation_invalid: true,
+          invalid_reason: 'parse_failed',
+        };
+      }
     }
   }
 
