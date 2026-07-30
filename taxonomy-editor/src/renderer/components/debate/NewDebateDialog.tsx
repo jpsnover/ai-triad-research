@@ -23,6 +23,7 @@ import { useTierInfo, isFreeTier, type TierInfo } from '../../hooks/useTierInfo'
 import { getClientConfig } from '../../lib/clientConfig';
 import { useGeminiOnboarding } from '../../hooks/useGeminiOnboarding';
 import { GeminiOnboardingModal } from '../settings/GeminiOnboardingModal';
+import { buildDebateOptions } from './newDebateOptions';
 
 // Ollama (local quantized models) cannot reliably produce structured JSON for debate pipelines.
 const DEBATE_EXCLUDED_BACKENDS = new Set(['ollama']);
@@ -167,19 +168,6 @@ function ConfigInfoModal({ onClose }: { onClose: () => void }) {
 // handleStart can early-abort (preserving the original `setCreating(false); return;`).
 const RESOLVE_FAILED = Symbol('resolve-failed');
 
-type CreateDebateOptions = {
-  title?: string;
-  evaluatorModel?: string;
-  pacing?: string;
-  useAdaptiveStaging?: boolean;
-  phaseBoundsOverride?: { maxConfrontationRounds?: number; maxArgumentationRounds?: number; maxConcludingRounds?: number };
-  speakerModels?: Record<string, string>;
-  modelTier?: 'basic' | 'advanced';
-  stepMode?: boolean;
-  stageModels?: { brief?: string; plan?: string; cite?: string };
-  background?: string;
-};
-
 async function fetchDebateUrlContent(sourceRef: string): Promise<string> {
   let finalContent: string;
   try {
@@ -241,38 +229,6 @@ function buildDebateSourceArgs(sourceType: DebateSourceType, sourceRef: string, 
 
 function computeDebateModelOverride(multiProvider: boolean, useCustomModel: boolean, customModel: string): string | undefined {
   return multiProvider ? undefined : (useCustomModel ? customModel : undefined);
-}
-
-function buildDebateOptions(p: {
-  debateTitle: string;
-  background: string;
-  evaluatorModel: string;
-  confrontationRounds: number;
-  argumentationRounds: number;
-  concludingRounds: number;
-  speakerModels: Record<string, string> | undefined;
-  multiProvider: boolean;
-  modelTier: 'basic' | 'advanced';
-  stepMode: boolean;
-  stageModels: { brief: string; plan: string; cite: string };
-}): CreateDebateOptions {
-  return {
-    title: p.debateTitle || undefined,
-    background: p.background.trim() || undefined,
-    evaluatorModel: p.evaluatorModel || undefined,
-    useAdaptiveStaging: true,
-    phaseBoundsOverride: {
-      maxConfrontationRounds: p.confrontationRounds,
-      maxArgumentationRounds: p.argumentationRounds,
-      maxConcludingRounds: p.concludingRounds,
-    },
-    speakerModels: p.speakerModels,
-    modelTier: p.multiProvider ? p.modelTier : undefined,
-    stepMode: p.stepMode || undefined,
-    stageModels: (p.stageModels.brief || p.stageModels.plan || p.stageModels.cite)
-      ? { ...(p.stageModels.brief && { brief: p.stageModels.brief }), ...(p.stageModels.plan && { plan: p.stageModels.plan }), ...(p.stageModels.cite && { cite: p.stageModels.cite }) }
-      : undefined,
-  };
 }
 
 function buildDebateCreatedData(p: {
@@ -714,6 +670,7 @@ interface DebateConfigColumnProps {
   argumentationRounds: number; setArgumentationRounds: (v: number) => void;
   concludingRounds: number; setConcludingRounds: (v: number) => void;
   stepMode: boolean; setStepMode: (v: boolean) => void;
+  excludeGreatestHits: boolean; setExcludeGreatestHits: (v: boolean) => void;
   showAdvanced: boolean; setShowAdvanced: (v: boolean) => void;
   temperature: number; setTemperature: (v: number) => void; temperatureLabel: string;
   evaluatorModel: string; setEvaluatorModel: (v: string) => void;
@@ -732,7 +689,7 @@ function DebateConfigColumn({
   backendsWithKeys, modelTier, setModelTier, excludedBackends, setExcludedBackends, activeBackends,
   dialecticalStyle, setDialecticalStyle, confrontationRounds, setConfrontationRounds,
   argumentationRounds, setArgumentationRounds, concludingRounds, setConcludingRounds,
-  stepMode, setStepMode, showAdvanced, setShowAdvanced, temperature, setTemperature, temperatureLabel,
+  stepMode, setStepMode, excludeGreatestHits, setExcludeGreatestHits, showAdvanced, setShowAdvanced, temperature, setTemperature, temperatureLabel,
   evaluatorModel, setEvaluatorModel, stageModelPreset, setStageModelPreset, stageModels, setStageModels,
   audience, setAudience, selected, toggle, userIsPover, setUserIsPover,
 }: DebateConfigColumnProps) {
@@ -878,6 +835,19 @@ function DebateConfigColumn({
       </label>
       <div className="ndd-step-help">
         Pause after each phase for manual review before advancing. You can also toggle this during a debate.
+      </div>
+
+      {/* Greatest-hits exclusion (t/1979) — hard exclusion of the hand-curated greatest-hits node list */}
+      <label className="ndd-model-toggle ndd-toggle-mt-10">
+        <input
+          type="checkbox"
+          checked={excludeGreatestHits}
+          onChange={() => setExcludeGreatestHits(!excludeGreatestHits)}
+        />
+        Exclude greatest-hits nodes
+      </label>
+      <div className="ndd-step-help">
+        When on, node selection skips the greatest-hits list (the hand-curated set of the taxonomy&apos;s most frequently used nodes), steering the debate toward less-covered arguments. Skipped nodes are left out entirely, not just ranked lower.
       </div>
 
       {/* Advanced toggle */}
@@ -1176,6 +1146,7 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
   const [modelTier, setModelTier] = useState<'basic' | 'advanced'>('basic');
   const [excludedBackends, setExcludedBackends] = useState<Set<string>>(new Set());
   const [stepMode, setStepMode] = useState(false);
+  const [excludeGreatestHits, setExcludeGreatestHits] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [stageModelPreset, setStageModelPreset] = useState<'same' | 'cost-optimized' | 'custom'>('same');
   const [stageModels, setStageModels] = useState<{ brief: string; plan: string; cite: string }>({ brief: '', plan: '', cite: '' });
@@ -1400,7 +1371,7 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
       protocolId,
       temperature,
       audience,
-      buildDebateOptions({ debateTitle, background, evaluatorModel, confrontationRounds, argumentationRounds, concludingRounds, speakerModels, multiProvider, modelTier, stepMode, stageModels }),
+      buildDebateOptions({ debateTitle, background, evaluatorModel, confrontationRounds, argumentationRounds, concludingRounds, speakerModels, multiProvider, modelTier, stepMode, excludeGreatestHits, stageModels }),
     );
     await loadDebate(id);
     const creationWeights = buildCreationWeights(confrontationRounds, argumentationRounds, concludingRounds);
@@ -1456,6 +1427,7 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
             argumentationRounds={argumentationRounds} setArgumentationRounds={setArgumentationRounds}
             concludingRounds={concludingRounds} setConcludingRounds={setConcludingRounds}
             stepMode={stepMode} setStepMode={setStepMode}
+            excludeGreatestHits={excludeGreatestHits} setExcludeGreatestHits={setExcludeGreatestHits}
             showAdvanced={showAdvanced} setShowAdvanced={setShowAdvanced}
             temperature={temperature} setTemperature={setTemperature} temperatureLabel={temperatureLabel}
             evaluatorModel={evaluatorModel} setEvaluatorModel={setEvaluatorModel}

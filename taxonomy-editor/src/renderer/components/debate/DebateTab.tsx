@@ -1077,7 +1077,7 @@ function DebateSourceSection({ debate }: { debate: DebateSession }) {
   );
 }
 
-function DebateConfigSection({ debate }: { debate: DebateSession }) {
+export function DebateConfigSection({ debate }: { debate: DebateSession }) {
   if (!(debate.audience || debate.debate_model || debate.protocol_id || debate.origin)) return null;
   return (
     <div className="debate-detail-section">
@@ -1118,6 +1118,10 @@ function DebateConfigSection({ debate }: { debate: DebateSession }) {
           <span>{debate.model_tier}</span>
         </div>
       )}
+      <div className="debate-detail-meta-row">
+        <span className="debate-detail-label">Greatest-hits exclusion:</span>
+        <span>{debate.exclude_greatest_hits ? 'On' : 'Off'}</span>
+      </div>
       {debate.speaker_models && Object.keys(debate.speaker_models).length > 0 && (
         <div className="debate-tab-speaker-models">
           <span className="debate-detail-label debate-tab-speaker-models-label">Speaker Models:</span>
