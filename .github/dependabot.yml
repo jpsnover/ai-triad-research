@@ -113,14 +113,27 @@ updates:
   # ── docker — web image + azure base image. Monthly (base images update rarely).
   # Left UNGROUPED deliberately: each directory tracks a SINGLE base image, so a
   # group could never batch more than one PR (one image = one bump).
+  # node MAJOR bumps are HELD (t/1990): Node 26 is a Current release (started
+  # 2026-05-05); native addons (onnxruntime-node prebuilts, node-pty) lag on
+  # Current, the baked ONNX model could fail to load, and prod should run LTS.
+  # REVISIT when Node 26 reaches Active LTS — 2026-10-28 (nodejs.org): drop the
+  # `node` semver-major ignore below and bump both docker dirs together
+  # (deploy/azure base image first, then taxonomy-editor). node minor/patch (22.x)
+  # still flow for security patches.
   - package-ecosystem: docker
     directory: /taxonomy-editor
     schedule:
       interval: monthly
     open-pull-requests-limit: 2
+    ignore:
+      - dependency-name: node
+        update-types: [version-update:semver-major]
 
   - package-ecosystem: docker
     directory: /deploy/azure
     schedule:
       interval: monthly
     open-pull-requests-limit: 2
+    ignore:
+      - dependency-name: node
+        update-types: [version-update:semver-major]
