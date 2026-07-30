@@ -2379,3 +2379,23 @@ Institutional memory for failure patterns across the AI Triad Research project.
 **Status:** Active — busy-main advancing-HEAD livelock (workflow-gate variant of #108); on-demand current-HEAD-gated dispatch is unsatisfiable on a high-velocity `main`. Also in memory (`reference_trivy_cve_remediation`).
 
 **Applies To:** All agents dispatching current-HEAD-CI-gated workflows (container.yml / Trivy rescan) on a busy `main`; anyone trying to force an on-demand app-image security rescan.
+
+---
+
+## #112 [Build] Green Required `ci-gate` ≠ All Checks Green — a Non-Required Check (CodeQL) Can Be RED While the Merge Gate Passes; Confirm Check-Run Conclusions Before Self-Merge
+
+**Pattern:** Branch protection requires a single context, `ci-gate`. **CodeQL runs as a SEPARATE, non-required check-run.** So a PR can show a **green `ci-gate`** (and `gh pr checks` can exit 0 for the required set) while **CodeQL is RED with a high-severity finding** — and self-merge proceeds, landing the vulnerability. "Required gate green + `gh`-checks-exit-0" describes only the REQUIRED subset, not all checks; a non-required security check failing is invisible to that signal.
+
+**Instances:**
+- 2026-07-30 — Shared Lib (t/2014, landed b815724b): a temp-file default `path.join(os.tmpdir(), '<predictable-name>')` tripped CodeQL **`js/insecure-temporary-file` (high sev)**. It **passed the sole required `ci-gate`** (CodeQL is a separate non-required check), so green-ci-gate + gh-checks-exit-0 wasn't sufficient — the finding surfaced only by reading the CodeQL check-run explicitly. **Code fix:** `fs.mkdtempSync` (randomized temp dir) instead of a predictable `os.tmpdir()`-joined name. **Process fix:** before self-merge, confirm the CodeQL check-run conclusion EXPLICITLY, and read a failing check's `output.title` rather than assuming it's a config stub.
+
+**Root Cause:** The merge gate (`ci-gate`) is a *subset* of a PR's checks by design; security scanners like CodeQL are intentionally non-required (advisory / can lag / run async). Treating "the required gate is green" as "all checks pass" is a gate-signal-integrity failure (**bookkeeping ≠ artifact**): the required-gate conclusion is a PROCESS signal that does not cover the security check's actual result. Compounded by assuming a red check is "just the config stub" instead of reading its `output.title` — so a real high-sev finding gets waved through. Same "the check that governs your code lives outside the gate you ran" shape as #94.
+
+**Prevention:**
+1. **Before self-merge, confirm ALL check-run conclusions, not just the required gate** — `gh pr checks <n>` (every check + conclusion) or `gh api repos/:owner/:repo/commits/<sha>/check-runs`. A green `ci-gate` with a red CodeQL is a landable vulnerability; don't equate "required gate green / `gh pr checks` exit 0" with "all checks green."
+2. **Read a failing check's `output.title`/summary — don't assume it's a benign stub.** CodeQL's title names the rule + severity (e.g. `js/insecure-temporary-file`, high); confirm before dismissing.
+3. **Temp files: use `fs.mkdtempSync(path.join(os.tmpdir(), prefix))` (randomized dir), never a predictable `path.join(os.tmpdir(), '<fixed-name>')`** — the predictable form is CodeQL `js/insecure-temporary-file` (high). A recurring CodeQL high worth knowing before you write the temp path.
+
+**Status:** Active — gate-coverage gap (required `ci-gate` ⊊ all checks) surfaced by a concrete CodeQL high (predictable temp file). Sibling of the escalated "Gate Signal Integrity" rule and the bookkeeping-≠-artifact genus; relates to #94. Self-merge is fleet-wide now, so confirming non-required security check-runs before merge is a general habit, not a one-off.
+
+**Applies To:** All agents self-merging PRs under the checks-only gate — especially confirming CodeQL/security check-runs; and anyone writing temp files in JS/TS.
