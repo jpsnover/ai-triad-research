@@ -13,7 +13,7 @@ import type { EntityRef } from '@lib/entities/types';
 import type { Mention } from '@lib/entities/mentionTypes';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { useDebateStore } from '../../hooks/useDebateStore';
-import { buildFieldSegments, type ContainerField, type ReconstructedContainer } from './mentionText';
+import { buildFieldSegments, type ContainerField, type MentionSegment, type ReconstructedContainer } from './mentionText';
 import './refLinkifyPlugin.css'; // MentionField hard-codes `.ref-link` without going through the plugin; this is the ONLY thing styling NodeDetail's mention links once the global leak is removed (t/1907, TL2 p/287#3)
 
 /**
@@ -48,6 +48,30 @@ function kindLabel(kind: EntityRef['kind']): string {
 }
 
 /**
+ * The single `.ref-link` treatment for a stored mention span (no per-kind color; kind via
+ * `data-ref-kind` + aria-label). Shared by `MentionField` and by `HighlightedField`'s
+ * read-only formatted render (t/1908), so both reading surfaces render byte-identical links.
+ * `stopPropagation` keeps a click inside the link from bubbling to a row/card handler.
+ */
+export function RefLinkButton({ text, refKind, onSelect }: {
+  text: string;
+  refKind: EntityRef['kind'];
+  onSelect: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      className="ref-link"
+      data-ref-kind={refKind}
+      aria-label={`${kindLabel(refKind)}: ${text} — open details`}
+      onClick={e => { e.stopPropagation(); onSelect(); }}
+    >
+      {text}
+    </button>
+  );
+}
+
+/**
  * Render one reconstructed field's text with its mentions linkified. Renders the field's
  * **NFC** text (`field.text`) so offsets stay valid; visually identical to the raw field
  * by canonical equivalence. A field with no mentions is a single plain text node.
@@ -61,40 +85,55 @@ export function MentionField({ field, mentions, onSelectRef }: {
   return (
     <>
       {segments.map((seg, i) => seg.ref
-        ? (
-          <button
-            key={i}
-            type="button"
-            className="ref-link"
-            data-ref-kind={seg.ref.kind}
-            aria-label={`${kindLabel(seg.ref.kind)}: ${seg.text} — open details`}
-            onClick={e => { e.stopPropagation(); onSelectRef(seg.ref!); }}
-          >
-            {seg.text}
-          </button>
-        )
+        ? <RefLinkButton key={i} text={seg.text} refKind={seg.ref.kind} onSelect={() => onSelectRef(seg.ref!)} />
         : <span key={i}>{seg.text}</span>)}
     </>
   );
 }
 
 /**
- * Ergonomic kit entry point for a reading surface: fetches the container's mentions and
- * returns a `renderField(fieldName, fallback)` that linkifies that reconstructed field
- * (or renders `fallback` when the field is absent). Clicks open the shared DetailPane via
- * the debate store's `setSelectedRef` — the same routing as inline ref-links. This is the
- * frozen kit API the per-owner surface integrations (SituationDetail, FactsPanel) reuse.
+ * Lower-level kit for a reading surface: one `useContainerMentions` fetch, exposing both a
+ * `renderField(fieldName, fallback)` (linkifies a reconstructed field, or `fallback` when
+ * absent) and a `segmentsFor(fieldName)` (the field's render segments — for callers that
+ * must interleave mentions with their own formatting, e.g. `HighlightedTextarea` composing
+ * search-highlight + bold ranges, t/1908). Clicks route through the shared `onSelectRef`
+ * (debate store `setSelectedRef` → DetailPane), the same routing as inline ref-links.
  */
-export function useMentionRenderer(
+export interface ContainerMentionKit {
+  mentions: Mention[];
+  onSelectRef: (ref: EntityRef) => void;
+  renderField: (fieldName: string, fallback: string) => ReactNode;
+  segmentsFor: (fieldName: string) => MentionSegment[];
+}
+
+export function useContainerMentionKit(
   containerId: string | null,
   container: ReconstructedContainer,
-): (fieldName: string, fallback: string) => ReactNode {
+): ContainerMentionKit {
   const mentions = useContainerMentions(containerId);
   const onSelectRef = useCallback((ref: EntityRef) => useDebateStore.getState().setSelectedRef(ref), []);
-  return useCallback((fieldName: string, fallback: string): ReactNode => {
+  const renderField = useCallback((fieldName: string, fallback: string): ReactNode => {
     const field = container.fields.find(f => f.name === fieldName);
     return field
       ? <MentionField field={field} mentions={mentions} onSelectRef={onSelectRef} />
       : fallback;
   }, [container, mentions, onSelectRef]);
+  const segmentsFor = useCallback((fieldName: string): MentionSegment[] => {
+    const field = container.fields.find(f => f.name === fieldName);
+    return field ? buildFieldSegments(field, mentions) : [];
+  }, [container, mentions]);
+  return { mentions, onSelectRef, renderField, segmentsFor };
+}
+
+/**
+ * Ergonomic kit entry point for a reading surface: returns a `renderField(fieldName,
+ * fallback)` that linkifies that reconstructed field. This is the frozen kit API the
+ * per-owner surface integrations (SituationDetail, FactsPanel) reuse — a thin wrapper over
+ * `useContainerMentionKit`.
+ */
+export function useMentionRenderer(
+  containerId: string | null,
+  container: ReconstructedContainer,
+): (fieldName: string, fallback: string) => ReactNode {
+  return useContainerMentionKit(containerId, container).renderField;
 }

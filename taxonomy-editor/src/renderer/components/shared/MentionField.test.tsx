@@ -17,7 +17,7 @@ vi.mock('@lib/flight-recorder/index', () => ({ getGlobalRecorder: () => ({ recor
 vi.mock('@bridge', () => ({ api: { getContainerMentions: vi.fn() } }));
 
 import { api } from '@bridge';
-import { MentionField, useContainerMentions, useMentionRenderer } from './MentionField';
+import { MentionField, RefLinkButton, useContainerMentionKit, useContainerMentions, useMentionRenderer } from './MentionField';
 import type { ContainerField, ReconstructedContainer } from './mentionText';
 
 const getMentions = api.getContainerMentions as unknown as ReturnType<typeof vi.fn>;
@@ -102,5 +102,47 @@ describe('useMentionRenderer', () => {
     }
     render(<Missing />);
     expect(screen.getByTestId('out')).toHaveTextContent('FALLBACK');
+  });
+});
+
+describe('RefLinkButton', () => {
+  it('renders a .ref-link button with kind metadata and routes clicks (stopping propagation)', async () => {
+    const onSelect = vi.fn();
+    const onRowClick = vi.fn();
+    const user = userEvent.setup();
+    render(
+      <div onClick={onRowClick}>
+        <RefLinkButton text="OpenAI" refKind="organization" onSelect={onSelect} />
+      </div>,
+    );
+    const btn = screen.getByRole('button', { name: 'Organization: OpenAI — open details' });
+    expect(btn).toHaveClass('ref-link');
+    expect(btn).toHaveAttribute('data-ref-kind', 'organization');
+    await user.click(btn);
+    expect(onSelect).toHaveBeenCalledTimes(1);
+    expect(onRowClick).not.toHaveBeenCalled(); // stopPropagation kept the click off the row
+  });
+});
+
+describe('useContainerMentionKit', () => {
+  const container: ReconstructedContainer = {
+    text: 'OpenAI builds AI',
+    fields: [{ name: 'description', text: 'OpenAI builds AI', start: 0 }],
+  };
+
+  it('segmentsFor returns linkable segments for a field once mentions load', async () => {
+    getMentions.mockResolvedValue({ text_sha256: 'x', extracted_at: 't', mentions: [mention] });
+    const { result } = renderHook(() => useContainerMentionKit('node:x', container));
+    await waitFor(() => expect(result.current.segmentsFor('description').some(s => s.ref)).toBe(true));
+    const segs = result.current.segmentsFor('description');
+    expect(segs[0]).toEqual({ text: 'OpenAI', ref: { kind: 'organization', id: 'org-001' } });
+    expect(segs[1]).toEqual({ text: ' builds AI' });
+  });
+
+  it('segmentsFor returns [] for an absent field, and renderField still linkifies', async () => {
+    getMentions.mockResolvedValue({ text_sha256: 'x', extracted_at: 't', mentions: [mention] });
+    const { result } = renderHook(() => useContainerMentionKit('node:x', container));
+    expect(result.current.segmentsFor('nope')).toEqual([]);
+    await waitFor(() => expect(result.current.segmentsFor('description').some(s => s.ref)).toBe(true));
   });
 });
