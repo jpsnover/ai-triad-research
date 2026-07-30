@@ -9,6 +9,99 @@ export interface LookaheadTabProps {
   lookaheadDiag: any;
 }
 
+// --- Strategic Assessment helpers (extracted verbatim, one per utility dimension) ---
+function assessPosition(r: any, posDelta: number, weakClaims: number): string[] {
+  const assessments: string[] = [];
+  if (posDelta < -0.03 && r.utility_before.position_strength > 0.7) {
+    assessments.push(`Position dilution: speaker had strong position (${r.utility_before.position_strength.toFixed(2)}) but new claims drag the average down${weakClaims > 0 ? ` — ${weakClaims} weak claim${weakClaims !== 1 ? 's' : ''} (< 0.4 strength) pulling the mean` : ''}.`);
+  } else if (posDelta < -0.03) {
+    assessments.push(`Position weakened: new claims undermine the speaker's existing arguments.`);
+  } else if (posDelta > 0.03) {
+    assessments.push(`Position strengthened: new claims reinforce the speaker's stance (+${posDelta.toFixed(3)}).`);
+  }
+  return assessments;
+}
+
+function assessAttack(r: any, atkDelta: number): string[] {
+  const assessments: string[] = [];
+  if (atkDelta < 0.001 && r.utility_before.attack_effectiveness < 0.3) {
+    assessments.push(`No offensive impact: claims are defensive — they reinforce the speaker's position but don't target opponent weak points.`);
+  } else if (atkDelta < 0.001 && r.utility_before.attack_effectiveness >= 0.3) {
+    assessments.push(`Attack plateau: speaker already has good attack coverage (${r.utility_before.attack_effectiveness.toFixed(2)}) and these claims don't extend it.`);
+  } else if (atkDelta > 0.05) {
+    assessments.push(`Strong offensive move: attacks landed on opponent nodes (+${atkDelta.toFixed(3)} effectiveness).`);
+  }
+  return assessments;
+}
+
+function assessCrux(r: any, crxDelta: number): string[] {
+  const assessments: string[] = [];
+  if (crxDelta < 0.001 && r.utility_before.crux_engagement >= 0.9) {
+    assessments.push(`Cruxes fully addressed: all identified cruxes already engaged — new claims don't open new territory.`);
+  } else if (crxDelta < 0.001 && r.utility_before.crux_engagement < 0.5) {
+    assessments.push(`Crux avoidance: ${((1 - r.utility_before.crux_engagement) * 100).toFixed(0)}% of cruxes unaddressed and these claims don't engage them.`);
+  } else if (crxDelta > 0.05) {
+    assessments.push(`Crux engagement improved: speaker addressed previously unengaged disagreement points.`);
+  }
+  return assessments;
+}
+
+function assessPattern(r: any, posDelta: number, atkDelta: number): string[] {
+  const assessments: string[] = [];
+  if (!r.pass && posDelta < 0 && atkDelta < 0.001) {
+    assessments.push(`Pattern: padding — speaker is adding volume without advancing the debate. Retry hint would push toward targeted attacks on opponent weak points or unresolved cruxes.`);
+  } else if (!r.pass && r.utility_delta >= 0 && r.utility_delta < r.threshold) {
+    assessments.push(`Pattern: marginal — claims add slight value but below the threshold for meaningful contribution. More specific, falsifiable claims would score higher.`);
+  } else if (r.pass && r.utility_delta > 0.05) {
+    assessments.push(`Pattern: strong move — claims meaningfully advance the speaker's position.`);
+  }
+  return assessments;
+}
+
+function buildStrategicAssessments(r: any): string[] {
+  const posDelta = r.utility_after.position_strength - r.utility_before.position_strength;
+  const atkDelta = r.utility_after.attack_effectiveness - r.utility_before.attack_effectiveness;
+  const crxDelta = r.utility_after.crux_engagement - r.utility_before.crux_engagement;
+  const claims = r.tentative_claims;
+  const weakClaims = claims.filter((c: any) => c.strength < 0.4).length;
+  const strongClaims = claims.filter((c: any) => c.strength >= 0.7).length;
+
+  const assessments: string[] = [];
+  assessments.push(...assessPosition(r, posDelta, weakClaims));
+  assessments.push(...assessAttack(r, atkDelta));
+  assessments.push(...assessCrux(r, crxDelta));
+  assessments.push(...assessPattern(r, posDelta, atkDelta));
+  return assessments;
+}
+
+// --- Utility Breakdown row helpers (extracted verbatim) ---
+function utilityHint(k: string, b: number, d: number): string {
+  return k === 'position_strength'
+    ? (d < -0.03 ? 'diluting' : d > 0.03 ? 'reinforcing' : 'stable')
+    : k === 'attack_effectiveness'
+    ? (d < 0.001 ? (b < 0.3 ? 'no attacks' : 'plateau') : 'attacks landed')
+    : k === 'crux_engagement'
+    ? (d < 0.001 ? (b >= 0.9 ? 'fully engaged' : 'avoiding cruxes') : 'engaging')
+    : '';
+}
+
+function utilityHintColor(hint: string): string {
+  return hint === 'diluting' || hint === 'no attacks' || hint === 'avoiding cruxes' ? 'var(--danger)'
+    : hint === 'stable' || hint === 'plateau' || hint === 'fully engaged' ? 'var(--text-muted)'
+    : 'var(--success)';
+}
+
+// --- Tentative claim metadata derivation (extracted verbatim) ---
+function deriveClaimMeta(c: any, pca: any, firstPca: any): { marginalDelta: any; reason: any; claimColor: string; label: string } {
+  const classification = pca?.classification;
+  const marginalDelta = pca?.marginal_delta;
+  const reason = firstPca?.analysis[classification === 'STRONG' ? 'strongFoundations' : 'avoidClaims']
+    ?.find((a: any) => a.text === c.text)?.reason;
+  const claimColor = classification === 'STRONG' ? 'var(--success)' : classification === 'WEAK' ? 'var(--danger)' : (c.strength >= 0.7 ? 'var(--success)' : c.strength >= 0.4 ? 'var(--warning)' : 'var(--danger)');
+  const label = classification ?? (c.strength >= 0.7 ? 'STRONG' : c.strength >= 0.4 ? 'MODERATE' : 'WEAK');
+  return { marginalDelta, reason, claimColor, label };
+}
+
 export function LookaheadTab(props: LookaheadTabProps) {
   const { lookaheadDiag } = props;
   return (
@@ -59,42 +152,7 @@ export function LookaheadTab(props: LookaheadTabProps) {
       {/* Strategic Assessment */}
       {(() => {
         const r = lookaheadDiag.first_attempt;
-        const posDelta = r.utility_after.position_strength - r.utility_before.position_strength;
-        const atkDelta = r.utility_after.attack_effectiveness - r.utility_before.attack_effectiveness;
-        const crxDelta = r.utility_after.crux_engagement - r.utility_before.crux_engagement;
-        const claims = r.tentative_claims;
-        const weakClaims = claims.filter((c: any) => c.strength < 0.4).length;
-        const strongClaims = claims.filter((c: any) => c.strength >= 0.7).length;
-
-        const assessments: string[] = [];
-        if (posDelta < -0.03 && r.utility_before.position_strength > 0.7) {
-          assessments.push(`Position dilution: speaker had strong position (${r.utility_before.position_strength.toFixed(2)}) but new claims drag the average down${weakClaims > 0 ? ` — ${weakClaims} weak claim${weakClaims !== 1 ? 's' : ''} (< 0.4 strength) pulling the mean` : ''}.`);
-        } else if (posDelta < -0.03) {
-          assessments.push(`Position weakened: new claims undermine the speaker's existing arguments.`);
-        } else if (posDelta > 0.03) {
-          assessments.push(`Position strengthened: new claims reinforce the speaker's stance (+${posDelta.toFixed(3)}).`);
-        }
-        if (atkDelta < 0.001 && r.utility_before.attack_effectiveness < 0.3) {
-          assessments.push(`No offensive impact: claims are defensive — they reinforce the speaker's position but don't target opponent weak points.`);
-        } else if (atkDelta < 0.001 && r.utility_before.attack_effectiveness >= 0.3) {
-          assessments.push(`Attack plateau: speaker already has good attack coverage (${r.utility_before.attack_effectiveness.toFixed(2)}) and these claims don't extend it.`);
-        } else if (atkDelta > 0.05) {
-          assessments.push(`Strong offensive move: attacks landed on opponent nodes (+${atkDelta.toFixed(3)} effectiveness).`);
-        }
-        if (crxDelta < 0.001 && r.utility_before.crux_engagement >= 0.9) {
-          assessments.push(`Cruxes fully addressed: all identified cruxes already engaged — new claims don't open new territory.`);
-        } else if (crxDelta < 0.001 && r.utility_before.crux_engagement < 0.5) {
-          assessments.push(`Crux avoidance: ${((1 - r.utility_before.crux_engagement) * 100).toFixed(0)}% of cruxes unaddressed and these claims don't engage them.`);
-        } else if (crxDelta > 0.05) {
-          assessments.push(`Crux engagement improved: speaker addressed previously unengaged disagreement points.`);
-        }
-        if (!r.pass && posDelta < 0 && atkDelta < 0.001) {
-          assessments.push(`Pattern: padding — speaker is adding volume without advancing the debate. Retry hint would push toward targeted attacks on opponent weak points or unresolved cruxes.`);
-        } else if (!r.pass && r.utility_delta >= 0 && r.utility_delta < r.threshold) {
-          assessments.push(`Pattern: marginal — claims add slight value but below the threshold for meaningful contribution. More specific, falsifiable claims would score higher.`);
-        } else if (r.pass && r.utility_delta > 0.05) {
-          assessments.push(`Pattern: strong move — claims meaningfully advance the speaker's position.`);
-        }
+        const assessments = buildStrategicAssessments(r);
 
         if (assessments.length === 0) return null;
         return (
@@ -127,16 +185,8 @@ export function LookaheadTab(props: LookaheadTabProps) {
               const b = lookaheadDiag.first_attempt.utility_before[k];
               const a = lookaheadDiag.first_attempt.utility_after[k];
               const d = a - b;
-              const hint = k === 'position_strength'
-                ? (d < -0.03 ? 'diluting' : d > 0.03 ? 'reinforcing' : 'stable')
-                : k === 'attack_effectiveness'
-                ? (d < 0.001 ? (b < 0.3 ? 'no attacks' : 'plateau') : 'attacks landed')
-                : k === 'crux_engagement'
-                ? (d < 0.001 ? (b >= 0.9 ? 'fully engaged' : 'avoiding cruxes') : 'engaging')
-                : '';
-              const hintColor = hint === 'diluting' || hint === 'no attacks' || hint === 'avoiding cruxes' ? 'var(--danger)'
-                : hint === 'stable' || hint === 'plateau' || hint === 'fully engaged' ? 'var(--text-muted)'
-                : 'var(--success)';
+              const hint = utilityHint(k, b, d);
+              const hintColor = utilityHintColor(hint);
               return (
                 // eslint-disable-next-line local/no-inline-style -- dynamic fontWeight for composite row
                 <tr key={k} style={{ borderBottom: '1px solid var(--border)', fontWeight: k === 'composite' ? 700 : 400 }}>
@@ -171,12 +221,7 @@ export function LookaheadTab(props: LookaheadTabProps) {
           </summary>
             {claims.map((c: any, i: number) => {
               const pca = firstPca?.perClaim[i];
-              const classification = pca?.classification;
-              const marginalDelta = pca?.marginal_delta;
-              const reason = firstPca?.analysis[classification === 'STRONG' ? 'strongFoundations' : 'avoidClaims']
-                ?.find((a: any) => a.text === c.text)?.reason;
-              const claimColor = classification === 'STRONG' ? 'var(--success)' : classification === 'WEAK' ? 'var(--danger)' : (c.strength >= 0.7 ? 'var(--success)' : c.strength >= 0.4 ? 'var(--warning)' : 'var(--danger)');
-              const label = classification ?? (c.strength >= 0.7 ? 'STRONG' : c.strength >= 0.4 ? 'MODERATE' : 'WEAK');
+              const { marginalDelta, reason, claimColor, label } = deriveClaimMeta(c, pca, firstPca);
               return (
                 // eslint-disable-next-line local/no-inline-style -- dynamic claimColor border
                 <div key={i} style={{ margin: '4px 0', paddingLeft: 8, borderLeft: `2px solid ${claimColor}40`, fontSize: '0.7rem' }}>

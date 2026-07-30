@@ -27,6 +27,149 @@ export const HINT_TARGET_STYLE: Record<string, { label: string; color: string; b
   judge: { label: 'QUALITY', color: 'var(--text-secondary)', bg: 'var(--bg-hover)' },
 };
 
+function AttemptDimensions({ v }: { v: TurnAttempt['validation'] }) {
+  return (
+    v.dimensions && (
+      <ScoreBreakdown dims={{
+        schema: v.dimensions.schema ?? { pass: true, issues: [] },
+        grounding: v.dimensions.grounding ?? { pass: true, issues: [] },
+        advancement: v.dimensions.advancement ?? { pass: true, signals: [] },
+        clarifies: v.dimensions.clarifies ?? { pass: true, signals: [] },
+      } as TurnValidationDimensions} processReward={v.process_reward ?? 0} judgeUsed={v.judge_used} />
+    )
+  );
+}
+
+function AttemptCaveats({ v }: { v: TurnAttempt['validation'] }) {
+  return (
+    (v.repairHints?.length ?? 0) > 0 && (
+      <>
+        <div className="tv-section-label">Caveats</div>
+        <ul className="tv-hint-list">
+          {v.repairHints.map((h, i) => {
+            const target = classifyHintTarget(h);
+            const ts = HINT_TARGET_STYLE[target];
+            return (
+              <li key={i} className="tv-mb3">
+                {/* eslint-disable-next-line local/no-inline-style -- dynamic color/bg from HINT_TARGET_STYLE */}
+                <span style={{
+                  display: 'inline-block', fontSize: 'var(--text-2xs)', fontWeight: 700,
+                  color: ts.color, background: ts.bg, padding: '1px 5px',
+                  borderRadius: 3, marginRight: 5, verticalAlign: 'middle',
+                }}>{ts.label}</span>
+                {humanizeSpeakerIds(h)}
+              </li>
+            );
+          })}
+        </ul>
+      </>
+    )
+  );
+}
+
+function AttemptClarifies({ v }: { v: TurnAttempt['validation'] }) {
+  return (
+    (v.clarifies_taxonomy?.length ?? 0) > 0 && (
+      <>
+        <div className="tv-section-label">Taxonomy clarification hints</div>
+        <ul className="tv-hint-list">
+          {v.clarifies_taxonomy.map((h, i) => (
+            <li key={i}>
+              <strong>{h.action}</strong>
+              {h.node_id ? ` ${h.node_id}` : h.label ? ` "${h.label}"` : ''}
+              {h.rationale ? ` — ${h.rationale}` : ''}
+            </li>
+          ))}
+        </ul>
+      </>
+    )
+  );
+}
+
+function AttemptHintEffectiveness({ a }: { a: TurnAttempt }) {
+  // Hint effectiveness tracking (retry attempts only)
+  return (
+    a.hint_effectiveness && a.hint_effectiveness.length > 0 && (
+      <>
+        <div className="tv-section-label-mt6">Hint Effectiveness</div>
+        <div className="tv-mt4">
+          {(() => {
+            const he = a.hint_effectiveness as Array<{
+              hint_text: string; category: string; source: string; specificity: string;
+              resolution: string; cited_fragment?: string; fragment_persists?: boolean;
+              pre_score: number; post_score?: number; score_delta?: number;
+            }>;
+            const fixed = he.filter(h => h.resolution === 'fixed').length;
+            const partial = he.filter(h => h.resolution === 'partially_fixed').length;
+            const ignored = he.filter(h => h.resolution === 'ignored').length;
+            const worse = he.filter(h => h.resolution === 'made_worse').length;
+            const resColors: Record<string, string> = {
+              fixed: 'var(--success)', partially_fixed: 'var(--warning)', ignored: 'var(--text-muted)', made_worse: 'var(--danger)', pending: 'var(--text-secondary)',
+            };
+            const specColors: Record<string, string> = {
+              concrete: 'var(--success)', structural: 'var(--text-secondary)', evaluative: 'var(--warning)',
+            };
+            return (
+              <>
+                <div className="tv-he-summary">
+                  <span className="tv-success-bold">Fixed: {fixed}</span>
+                  <span className="tv-warning-bold">Partial: {partial}</span>
+                  <span className="tv-muted-bold">Ignored: {ignored}</span>
+                  <span className="tv-danger-bold">Worse: {worse}</span>
+                  <span className="tv-muted">
+                    Score: {he[0]?.pre_score?.toFixed(2)} → {he[0]?.post_score?.toFixed(2)} ({(he[0]?.score_delta ?? 0) >= 0 ? '+' : ''}{he[0]?.score_delta?.toFixed(2)})
+                  </span>
+                </div>
+                {he.map((h, hi) => (
+                  // eslint-disable-next-line local/no-inline-style -- dynamic borderLeft color from resColors
+                  <div key={hi} style={{
+                    marginBottom: 4, padding: '4px 8px', borderRadius: 4, fontSize: 'var(--text-2xs)',
+                    borderLeft: `3px solid ${resColors[h.resolution] ?? 'var(--text-muted)'}`,
+                    background: 'var(--bg-subtle)',
+                  }}>
+                    <div className="tv-he-row-head">
+                      {/* eslint-disable-next-line local/no-inline-style -- dynamic color/bg from resColors */}
+                      <span style={{
+                        fontSize: 'var(--text-2xs)', fontWeight: 700, padding: '0 4px', borderRadius: 3,
+                        color: resColors[h.resolution] ?? 'var(--text-muted)',
+                        background: `${resColors[h.resolution] ?? 'var(--text-muted)'}18`,
+                      }}>{h.resolution.toUpperCase().replace('_', ' ')}</span>
+                      {/* eslint-disable-next-line local/no-inline-style -- dynamic color/bg from specColors */}
+                      <span style={{
+                        fontSize: 'var(--text-2xs)', padding: '0 4px', borderRadius: 3,
+                        color: specColors[h.specificity] ?? 'var(--text-muted)',
+                        background: `${specColors[h.specificity] ?? 'var(--text-muted)'}18`,
+                      }}>{h.specificity}</span>
+                      <span className="tv-muted-2xs">{h.source.replace('_', ' ')}</span>
+                    </div>
+                    <div>{humanizeSpeakerIds(h.hint_text)}</div>
+                    {h.cited_fragment && (
+                      <div className="tv-muted-2xs-mt2">
+                        Fragment: &ldquo;{humanizeSpeakerIds(h.cited_fragment)}&rdquo; {h.fragment_persists ? '— still present' : '— removed'}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </>
+            );
+          })()}
+        </div>
+      </>
+    )
+  );
+}
+
+function AttemptPromptDelta({ a }: { a: TurnAttempt }) {
+  return (
+    a.prompt_delta && (
+      <>
+        <div className="tv-section-label">Repair prompt delta</div>
+        <pre className="tv-prompt-delta">{a.prompt_delta}</pre>
+      </>
+    )
+  );
+}
+
 export function TurnValidationAttemptRow({ a }: { a: TurnAttempt }) {
   const [open, setOpen] = useState(false);
   const v = a.validation;
@@ -45,124 +188,11 @@ export function TurnValidationAttemptRow({ a }: { a: TurnAttempt }) {
       </div>
       {open && (
         <div className="tv-attempt-body">
-          {v.dimensions && (
-            <ScoreBreakdown dims={{
-              schema: v.dimensions.schema ?? { pass: true, issues: [] },
-              grounding: v.dimensions.grounding ?? { pass: true, issues: [] },
-              advancement: v.dimensions.advancement ?? { pass: true, signals: [] },
-              clarifies: v.dimensions.clarifies ?? { pass: true, signals: [] },
-            } as TurnValidationDimensions} processReward={v.process_reward ?? 0} judgeUsed={v.judge_used} />
-          )}
-          {(v.repairHints?.length ?? 0) > 0 && (
-            <>
-              <div className="tv-section-label">Caveats</div>
-              <ul className="tv-hint-list">
-                {v.repairHints.map((h, i) => {
-                  const target = classifyHintTarget(h);
-                  const ts = HINT_TARGET_STYLE[target];
-                  return (
-                    <li key={i} className="tv-mb3">
-                      {/* eslint-disable-next-line local/no-inline-style -- dynamic color/bg from HINT_TARGET_STYLE */}
-                      <span style={{
-                        display: 'inline-block', fontSize: 'var(--text-2xs)', fontWeight: 700,
-                        color: ts.color, background: ts.bg, padding: '1px 5px',
-                        borderRadius: 3, marginRight: 5, verticalAlign: 'middle',
-                      }}>{ts.label}</span>
-                      {humanizeSpeakerIds(h)}
-                    </li>
-                  );
-                })}
-              </ul>
-            </>
-          )}
-          {(v.clarifies_taxonomy?.length ?? 0) > 0 && (
-            <>
-              <div className="tv-section-label">Taxonomy clarification hints</div>
-              <ul className="tv-hint-list">
-                {v.clarifies_taxonomy.map((h, i) => (
-                  <li key={i}>
-                    <strong>{h.action}</strong>
-                    {h.node_id ? ` ${h.node_id}` : h.label ? ` "${h.label}"` : ''}
-                    {h.rationale ? ` — ${h.rationale}` : ''}
-                  </li>
-                ))}
-              </ul>
-            </>
-          )}
-          {/* Hint effectiveness tracking (retry attempts only) */}
-          {a.hint_effectiveness && a.hint_effectiveness.length > 0 && (
-            <>
-              <div className="tv-section-label-mt6">Hint Effectiveness</div>
-              <div className="tv-mt4">
-                {(() => {
-                  const he = a.hint_effectiveness as Array<{
-                    hint_text: string; category: string; source: string; specificity: string;
-                    resolution: string; cited_fragment?: string; fragment_persists?: boolean;
-                    pre_score: number; post_score?: number; score_delta?: number;
-                  }>;
-                  const fixed = he.filter(h => h.resolution === 'fixed').length;
-                  const partial = he.filter(h => h.resolution === 'partially_fixed').length;
-                  const ignored = he.filter(h => h.resolution === 'ignored').length;
-                  const worse = he.filter(h => h.resolution === 'made_worse').length;
-                  const resColors: Record<string, string> = {
-                    fixed: 'var(--success)', partially_fixed: 'var(--warning)', ignored: 'var(--text-muted)', made_worse: 'var(--danger)', pending: 'var(--text-secondary)',
-                  };
-                  const specColors: Record<string, string> = {
-                    concrete: 'var(--success)', structural: 'var(--text-secondary)', evaluative: 'var(--warning)',
-                  };
-                  return (
-                    <>
-                      <div className="tv-he-summary">
-                        <span className="tv-success-bold">Fixed: {fixed}</span>
-                        <span className="tv-warning-bold">Partial: {partial}</span>
-                        <span className="tv-muted-bold">Ignored: {ignored}</span>
-                        <span className="tv-danger-bold">Worse: {worse}</span>
-                        <span className="tv-muted">
-                          Score: {he[0]?.pre_score?.toFixed(2)} → {he[0]?.post_score?.toFixed(2)} ({(he[0]?.score_delta ?? 0) >= 0 ? '+' : ''}{he[0]?.score_delta?.toFixed(2)})
-                        </span>
-                      </div>
-                      {he.map((h, hi) => (
-                        // eslint-disable-next-line local/no-inline-style -- dynamic borderLeft color from resColors
-                        <div key={hi} style={{
-                          marginBottom: 4, padding: '4px 8px', borderRadius: 4, fontSize: 'var(--text-2xs)',
-                          borderLeft: `3px solid ${resColors[h.resolution] ?? 'var(--text-muted)'}`,
-                          background: 'var(--bg-subtle)',
-                        }}>
-                          <div className="tv-he-row-head">
-                            {/* eslint-disable-next-line local/no-inline-style -- dynamic color/bg from resColors */}
-                            <span style={{
-                              fontSize: 'var(--text-2xs)', fontWeight: 700, padding: '0 4px', borderRadius: 3,
-                              color: resColors[h.resolution] ?? 'var(--text-muted)',
-                              background: `${resColors[h.resolution] ?? 'var(--text-muted)'}18`,
-                            }}>{h.resolution.toUpperCase().replace('_', ' ')}</span>
-                            {/* eslint-disable-next-line local/no-inline-style -- dynamic color/bg from specColors */}
-                            <span style={{
-                              fontSize: 'var(--text-2xs)', padding: '0 4px', borderRadius: 3,
-                              color: specColors[h.specificity] ?? 'var(--text-muted)',
-                              background: `${specColors[h.specificity] ?? 'var(--text-muted)'}18`,
-                            }}>{h.specificity}</span>
-                            <span className="tv-muted-2xs">{h.source.replace('_', ' ')}</span>
-                          </div>
-                          <div>{humanizeSpeakerIds(h.hint_text)}</div>
-                          {h.cited_fragment && (
-                            <div className="tv-muted-2xs-mt2">
-                              Fragment: &ldquo;{humanizeSpeakerIds(h.cited_fragment)}&rdquo; {h.fragment_persists ? '— still present' : '— removed'}
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                    </>
-                  );
-                })()}
-              </div>
-            </>
-          )}
-          {a.prompt_delta && (
-            <>
-              <div className="tv-section-label">Repair prompt delta</div>
-              <pre className="tv-prompt-delta">{a.prompt_delta}</pre>
-            </>
-          )}
+          <AttemptDimensions v={v} />
+          <AttemptCaveats v={v} />
+          <AttemptClarifies v={v} />
+          <AttemptHintEffectiveness a={a} />
+          <AttemptPromptDelta a={a} />
         </div>
       )}
     </div>

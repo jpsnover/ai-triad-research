@@ -17,6 +17,61 @@ export interface PlanTabProps {
   setSelectedTaxRefId: (id: string | null) => void;
 }
 
+function PlanEmptyWarning({ planStage }: { planStage: any }) {
+  const show = !planStage.parse_error && planStage.work_product && Object.keys(planStage.work_product).length === 0;
+  if (!show) return null;
+  return (
+    <div className="plan-empty-warning">
+      No structured plan data — expand Raw Response below to inspect the model output.
+    </div>
+  );
+}
+
+type ArgStructItem = { point: string; evidence: string; taxonomy_anchor: string };
+
+function ArgumentStructureSection(props: {
+  items: unknown;
+  taxNodeMap: Map<string, Record<string, unknown>>;
+  selectedTaxRefId: string | null;
+  setSelectedTaxRefId: (id: string | null) => void;
+}) {
+  const { items, taxNodeMap, selectedTaxRefId, setSelectedTaxRefId } = props;
+  if (!(Array.isArray(items) && (items as ArgStructItem[]).length > 0)) return null;
+  return (
+    <details open><summary className="plan-section-summary">Argumentation Structure</summary>
+      {(items as ArgStructItem[]).map((s, i) => (
+        <div key={i} className="plan-arg">
+          <div className="plan-arg-point"><Highlight text={s.point} /></div>
+          {s.evidence && <div className="plan-detail-text"><Highlight text={s.evidence} /></div>}
+          {s.taxonomy_anchor && (
+            <div className="plan-mt3">
+              <span className="plan-muted-2xs">Anchor: </span>
+              <button
+                onClick={() => setSelectedTaxRefId(selectedTaxRefId === s.taxonomy_anchor ? null : s.taxonomy_anchor)}
+                className="plan-anchor-btn"
+              >{s.taxonomy_anchor}</button>
+              {(() => { const lbl = (taxNodeMap.get(s.taxonomy_anchor!) as TaxRefNode | undefined)?.label; return lbl ? <span className="plan-muted-2xs"> — {lbl}</span> : null; })()}
+            </div>
+          )}
+        </div>
+      ))}
+    </details>
+  );
+}
+
+function AnticipatedList({ items, title }: { items: unknown; title: string }) {
+  if (!(Array.isArray(items) && (items as string[]).length > 0)) return null;
+  return (
+    <details open><summary className="plan-section-summary">{title}</summary>
+      <ul className="plan-list">
+        {(items as string[]).map((r, i) => (
+          <li key={i}><Highlight text={r} /></li>
+        ))}
+      </ul>
+    </details>
+  );
+}
+
 export function PlanTab(props: PlanTabProps) {
   const { planStage, planAttempts, taxNodeMap, allEdges, selectedTaxRefId, setSelectedTaxRefId } = props;
   return (
@@ -35,11 +90,7 @@ export function PlanTab(props: PlanTabProps) {
         </div>
       )}
       {/* Empty work_product fallback */}
-      {!planStage.parse_error && planStage.work_product && Object.keys(planStage.work_product).length === 0 && (
-        <div className="plan-empty-warning">
-          No structured plan data — expand Raw Response below to inspect the model output.
-        </div>
-      )}
+      <PlanEmptyWarning planStage={planStage} />
       {/* Opponent Intelligence */}
       {(() => {
         const prompt = planStage.prompt ?? '';
@@ -138,26 +189,12 @@ export function PlanTab(props: PlanTabProps) {
         </details>
       )}
       {/* Argumentation Structure */}
-      {Array.isArray((planStage.work_product as Record<string, unknown>).argument_structure) && ((planStage.work_product as Record<string, unknown>).argument_structure as { point: string; evidence: string; taxonomy_anchor: string }[]).length > 0 && (
-        <details open><summary className="plan-section-summary">Argumentation Structure</summary>
-          {((planStage.work_product as Record<string, unknown>).argument_structure as { point: string; evidence: string; taxonomy_anchor: string }[]).map((s, i) => (
-            <div key={i} className="plan-arg">
-              <div className="plan-arg-point"><Highlight text={s.point} /></div>
-              {s.evidence && <div className="plan-detail-text"><Highlight text={s.evidence} /></div>}
-              {s.taxonomy_anchor && (
-                <div className="plan-mt3">
-                  <span className="plan-muted-2xs">Anchor: </span>
-                  <button
-                    onClick={() => setSelectedTaxRefId(selectedTaxRefId === s.taxonomy_anchor ? null : s.taxonomy_anchor)}
-                    className="plan-anchor-btn"
-                  >{s.taxonomy_anchor}</button>
-                  {(() => { const lbl = (taxNodeMap.get(s.taxonomy_anchor!) as TaxRefNode | undefined)?.label; return lbl ? <span className="plan-muted-2xs"> — {lbl}</span> : null; })()}
-                </div>
-              )}
-            </div>
-          ))}
-        </details>
-      )}
+      <ArgumentStructureSection
+        items={(planStage.work_product as Record<string, unknown>).argument_structure}
+        taxNodeMap={taxNodeMap}
+        selectedTaxRefId={selectedTaxRefId}
+        setSelectedTaxRefId={setSelectedTaxRefId}
+      />
       {/* Argument Sketch */}
       {!!(planStage.work_product as Record<string, unknown>).argument_sketch && (
         <details open><summary className="plan-section-summary">Argument Sketch</summary>
@@ -167,25 +204,9 @@ export function PlanTab(props: PlanTabProps) {
         </details>
       )}
       {/* Anticipated Responses */}
-      {Array.isArray((planStage.work_product as Record<string, unknown>).anticipated_responses) && ((planStage.work_product as Record<string, unknown>).anticipated_responses as string[]).length > 0 && (
-        <details open><summary className="plan-section-summary">Anticipated Responses</summary>
-          <ul className="plan-list">
-            {((planStage.work_product as Record<string, unknown>).anticipated_responses as string[]).map((r, i) => (
-              <li key={i}><Highlight text={r} /></li>
-            ))}
-          </ul>
-        </details>
-      )}
+      <AnticipatedList items={(planStage.work_product as Record<string, unknown>).anticipated_responses} title="Anticipated Responses" />
       {/* Anticipated Challenges */}
-      {Array.isArray((planStage.work_product as Record<string, unknown>).anticipated_challenges) && ((planStage.work_product as Record<string, unknown>).anticipated_challenges as string[]).length > 0 && (
-        <details open><summary className="plan-section-summary">Anticipated Challenges</summary>
-          <ul className="plan-list">
-            {((planStage.work_product as Record<string, unknown>).anticipated_challenges as string[]).map((r, i) => (
-              <li key={i}><Highlight text={r} /></li>
-            ))}
-          </ul>
-        </details>
-      )}
+      <AnticipatedList items={(planStage.work_product as Record<string, unknown>).anticipated_challenges} title="Anticipated Challenges" />
       {/* -- Per-attempt sections -- */}
       {planAttempts.length > 0 && planAttempts.map((attempt, ai) => {
         const isSingle = planAttempts.length === 1;

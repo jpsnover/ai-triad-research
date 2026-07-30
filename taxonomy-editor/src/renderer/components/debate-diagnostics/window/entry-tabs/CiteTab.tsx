@@ -25,79 +25,56 @@ export interface CiteTabProps {
   setSelectedPolicyId: (id: string | null) => void;
 }
 
-export function CiteTab(props: CiteTabProps) {
-  const { entry, debate, citeStage, citeAttempts, briefStage, turnValTrail, taxNodeMap, allEdges, policyMap, selectedTaxRefId, setSelectedTaxRefId, selectedPolicyId, setSelectedPolicyId } = props;
+interface CiteTaxRefsSectionProps {
+  citeStage: any;
+  entry: DebateSession['transcript'][number];
+  debate: DebateSession;
+  briefStage: any;
+  taxNodeMap: Map<string, Record<string, unknown>>;
+  allEdges: TaxRefEdge[];
+  selectedTaxRefId: string | null;
+  setSelectedTaxRefId: (id: string | null) => void;
+}
+
+function computeCiteTaxRefContext(
+  entry: DebateSession['transcript'][number],
+  debate: DebateSession,
+  briefStage: any,
+) {
+  const citeManifest = (entry.metadata as Record<string, unknown>)?.injection_manifest as {
+    lineage_boost?: { boostedNodeIds?: string[]; promotedNodeIds?: string[]; traditions?: string[] };
+  } | undefined;
+  const lb = citeManifest?.lineage_boost;
+  const boostedSet = new Set(lb?.boostedNodeIds ?? []);
+  const promotedSet = new Set(lb?.promotedNodeIds ?? []);
+  const boostTraditions = lb?.traditions
+    ?? debate.topic.critique?.lineage_frame?.flatMap((f: { traditions?: string[] }) => f.traditions ?? [])
+    ?? [];
+  const frameLabels = debate.topic.critique?.lineage_frame?.map((f: { label: string }) => f.label) ?? boostTraditions;
+  const briefNodes = new Set((() => {
+    const wp = briefStage?.work_product as Record<string, unknown> | undefined;
+    if (!wp) return [] as string[];
+    const fromGrounding = (arr: unknown): string[] => {
+      if (!Array.isArray(arr)) return [];
+      return (arr as { grounding?: { node_id: string }[] }[]).flatMap(x => Array.isArray(x.grounding) ? x.grounding.map(g => g.node_id) : []);
+    };
+    const nested = [
+      ...fromGrounding(wp.key_claims_to_address),
+      ...fromGrounding(wp.strongest_angles),
+      ...fromGrounding(wp.document_claims_to_engage),
+    ];
+    if (nested.length > 0) return nested;
+    return Array.isArray(wp.relevant_taxonomy_nodes)
+      ? (wp.relevant_taxonomy_nodes as { node_id: string }[]).map(n => n.node_id)
+      : [];
+  })());
+  return { boostedSet, promotedSet, boostTraditions, frameLabels, briefNodes };
+}
+
+function CiteTaxonomyRefsSection(props: CiteTaxRefsSectionProps) {
+  const { citeStage, entry, debate, briefStage, taxNodeMap, allEdges, selectedTaxRefId, setSelectedTaxRefId } = props;
+  const { boostedSet, promotedSet, boostTraditions, frameLabels, briefNodes } = computeCiteTaxRefContext(entry, debate, briefStage);
   return (
-    <div className="cit-root">
-      {/* -- Top section: header + content from final cite -- */}
-      <div className="cit-header">
-        <span className="cit-badge">CITE</span>
-        <span>{citeStage.model}</span>
-        <span>temp={citeStage.temperature}</span>
-        <span>{(citeStage.response_time_ms / 1000).toFixed(1)}s</span>
-        {typeof (citeStage.work_product as Record<string, unknown>).grounding_confidence === 'number' && (
-          // eslint-disable-next-line local/no-inline-style -- confidence-threshold-driven background
-          <span style={{ padding: '1px 6px', borderRadius: 3, background: (citeStage.work_product as Record<string, unknown>).grounding_confidence as number >= 0.7 ? 'color-mix(in srgb, var(--success) 20%, transparent)' : 'color-mix(in srgb, var(--warning) 20%, transparent)', fontSize: 'var(--text-2xs)' }}>
-            confidence: {((citeStage.work_product as Record<string, unknown>).grounding_confidence as number).toFixed(2)}
-          </span>
-        )}
-      </div>
-      {citeStage.parse_error && (
-        <div className="cit-parse-error">
-          <strong>Parse error:</strong> {citeStage.parse_error}
-        </div>
-      )}
-      {/* Moderator Directive (if present) */}
-      {(() => {
-        const wp = citeStage.work_product as Record<string, unknown>;
-        const drp = wp.directive_response_plan as string | undefined;
-        const dr = wp.directive_response as { directive: string; how_addressed: string } | undefined;
-        if (!drp && !dr) return null;
-        return (
-          <div className="cit-directive">
-            <div className="cit-directive-head">
-              <span className="cit-badge-2xs">MODERATOR DIRECTIVE</span>
-            </div>
-            {dr && (
-              <>
-                <div className="cit-mb4"><strong>Directive:</strong> <Highlight text={dr.directive} /></div>
-                <div><strong>How addressed:</strong> <Highlight text={dr.how_addressed} /></div>
-              </>
-            )}
-            {drp && !dr && <Highlight text={String(drp)} />}
-          </div>
-        );
-      })()}
-      {/* Taxonomy References */}
-      {Array.isArray((citeStage.work_product as Record<string, unknown>).taxonomy_refs) && (() => {
-        const citeManifest = (entry.metadata as Record<string, unknown>)?.injection_manifest as {
-          lineage_boost?: { boostedNodeIds?: string[]; promotedNodeIds?: string[]; traditions?: string[] };
-        } | undefined;
-        const lb = citeManifest?.lineage_boost;
-        const boostedSet = new Set(lb?.boostedNodeIds ?? []);
-        const promotedSet = new Set(lb?.promotedNodeIds ?? []);
-        const boostTraditions = lb?.traditions
-          ?? debate.topic.critique?.lineage_frame?.flatMap((f: { traditions?: string[] }) => f.traditions ?? [])
-          ?? [];
-        const frameLabels = debate.topic.critique?.lineage_frame?.map((f: { label: string }) => f.label) ?? boostTraditions;
-        const briefNodes = new Set((() => {
-          const wp = briefStage?.work_product as Record<string, unknown> | undefined;
-          if (!wp) return [] as string[];
-          const fromGrounding = (arr: unknown): string[] => {
-            if (!Array.isArray(arr)) return [];
-            return (arr as { grounding?: { node_id: string }[] }[]).flatMap(x => Array.isArray(x.grounding) ? x.grounding.map(g => g.node_id) : []);
-          };
-          const nested = [
-            ...fromGrounding(wp.key_claims_to_address),
-            ...fromGrounding(wp.strongest_angles),
-            ...fromGrounding(wp.document_claims_to_engage),
-          ];
-          if (nested.length > 0) return nested;
-          return Array.isArray(wp.relevant_taxonomy_nodes)
-            ? (wp.relevant_taxonomy_nodes as { node_id: string }[]).map(n => n.node_id)
-            : [];
-        })());
-        return (
         <details open><summary className="cit-summary">
           Taxonomy References
           {boostedSet.size > 0 && (
@@ -173,8 +150,134 @@ export function CiteTab(props: CiteTabProps) {
             );
           })()}
         </details>
+  );
+}
+
+interface CiteValScoreDetailProps {
+  turnScore: number;
+  dims: TurnValidationTrail['final']['dimensions'];
+  judgeUsed: boolean;
+}
+
+function computeCiteValidationBreakdown(turnScore: number, dims: TurnValidationTrail['final']['dimensions']) {
+  const stageA =
+    0.4 * (dims.schema.pass ? 1 : 0) +
+    0.3 * (dims.grounding.pass ? 1 : 0) +
+    0.2 * (dims.advancement.pass ? 1 : 0) +
+    0.1 * (dims.clarifies.pass ? 1 : 0);
+  const judgeQ = stageA > 0
+    ? Math.max(0, Math.min(1, (turnScore - 0.4 * stageA) / 0.6))
+    : 0.7;
+  return { stageA, judgeQ };
+}
+
+function CiteValidationScoreDetail(props: CiteValScoreDetailProps) {
+  const { turnScore, dims, judgeUsed } = props;
+  const { stageA, judgeQ } = computeCiteValidationBreakdown(turnScore, dims);
+  const mono = { fontFamily: 'monospace', fontSize: 'var(--text-2xs)' } as const;
+  const dimColor = (pass: boolean) => pass ? 'var(--success)' : 'var(--danger)';
+  return (
+                  <div className="cit-valscore-box">
+                    <div className="cit-valscore-title">
+                      Validation Score:{' '}
+                      {/* eslint-disable-next-line local/no-inline-style -- score-threshold-driven color */}
+                      <span style={{ ...mono, color: turnScore >= 0.7 ? 'var(--success)' : turnScore >= 0.5 ? 'var(--warning)' : 'var(--danger)' }}>
+                        {turnScore.toFixed(2)}
+                      </span>
+                    </div>
+                    <div className="cit-dims-row">
+                      {/* eslint-disable-next-line local/no-inline-style -- dimension-pass-driven color */}
+                      <span><span style={{ color: dimColor(dims.schema.pass) }}>{'●'}</span> schema {'×'}0.4 = <strong className="cit-mono">{(0.4 * (dims.schema.pass ? 1 : 0)).toFixed(2)}</strong></span>
+                      {/* eslint-disable-next-line local/no-inline-style -- dimension-pass-driven color */}
+                      <span><span style={{ color: dimColor(dims.grounding.pass) }}>{'●'}</span> grounding {'×'}0.3 = <strong className="cit-mono">{(0.3 * (dims.grounding.pass ? 1 : 0)).toFixed(2)}</strong></span>
+                      {/* eslint-disable-next-line local/no-inline-style -- dimension-pass-driven color */}
+                      <span><span style={{ color: dimColor(dims.advancement.pass) }}>{'●'}</span> advancement {'×'}0.2 = <strong className="cit-mono">{(0.2 * (dims.advancement.pass ? 1 : 0)).toFixed(2)}</strong></span>
+                      {/* eslint-disable-next-line local/no-inline-style -- dimension-pass-driven color */}
+                      <span><span style={{ color: dimColor(dims.clarifies.pass) }}>{'●'}</span> clarifies {'×'}0.1 = <strong className="cit-mono">{(0.1 * (dims.clarifies.pass ? 1 : 0)).toFixed(2)}</strong></span>
+                    </div>
+                    <div className="cit-breakdown">
+                      <span>Stage A: <strong className="cit-mono">{stageA.toFixed(2)}</strong> <span className="cit-muted">{'×'}0.4 = {(0.4 * stageA).toFixed(2)}</span></span>
+                      <span>Judge: <strong className="cit-mono">{judgeQ.toFixed(2)}</strong>{!judgeUsed && <span className="cit-muted"> (default)</span>} <span className="cit-muted">{'×'}0.6 = {(0.6 * judgeQ).toFixed(2)}</span></span>
+                      {/* eslint-disable-next-line local/no-inline-style -- score-threshold-driven color */}
+                      <span>Total: <strong style={{ ...mono, color: turnScore >= 0.7 ? 'var(--success)' : turnScore >= 0.5 ? 'var(--warning)' : 'var(--danger)' }}>{turnScore.toFixed(2)}</strong></span>
+                    </div>
+                  </div>
+  );
+}
+
+function CiteValidationScoreFallback(props: { valData: { pass: boolean; hints: string[] } | undefined }) {
+  const { valData } = props;
+  return (
+                <div className="cit-fallback-val">
+                  Validation Score:{' '}
+                  {valData ? (
+                    // eslint-disable-next-line local/no-inline-style -- pass-driven color
+                    <span style={{ color: valData.pass ? 'var(--success)' : 'var(--danger)' }}>
+                      {valData.pass ? 'Pass' : 'Fail'}
+                    </span>
+                  ) : (
+                    <span className="cit-muted">{'—'}</span>
+                  )}
+                </div>
+  );
+}
+
+export function CiteTab(props: CiteTabProps) {
+  const { entry, debate, citeStage, citeAttempts, briefStage, turnValTrail, taxNodeMap, allEdges, policyMap, selectedTaxRefId, setSelectedTaxRefId, selectedPolicyId, setSelectedPolicyId } = props;
+  return (
+    <div className="cit-root">
+      {/* -- Top section: header + content from final cite -- */}
+      <div className="cit-header">
+        <span className="cit-badge">CITE</span>
+        <span>{citeStage.model}</span>
+        <span>temp={citeStage.temperature}</span>
+        <span>{(citeStage.response_time_ms / 1000).toFixed(1)}s</span>
+        {typeof (citeStage.work_product as Record<string, unknown>).grounding_confidence === 'number' && (
+          // eslint-disable-next-line local/no-inline-style -- confidence-threshold-driven background
+          <span style={{ padding: '1px 6px', borderRadius: 3, background: (citeStage.work_product as Record<string, unknown>).grounding_confidence as number >= 0.7 ? 'color-mix(in srgb, var(--success) 20%, transparent)' : 'color-mix(in srgb, var(--warning) 20%, transparent)', fontSize: 'var(--text-2xs)' }}>
+            confidence: {((citeStage.work_product as Record<string, unknown>).grounding_confidence as number).toFixed(2)}
+          </span>
+        )}
+      </div>
+      {citeStage.parse_error && (
+        <div className="cit-parse-error">
+          <strong>Parse error:</strong> {citeStage.parse_error}
+        </div>
+      )}
+      {/* Moderator Directive (if present) */}
+      {(() => {
+        const wp = citeStage.work_product as Record<string, unknown>;
+        const drp = wp.directive_response_plan as string | undefined;
+        const dr = wp.directive_response as { directive: string; how_addressed: string } | undefined;
+        if (!drp && !dr) return null;
+        return (
+          <div className="cit-directive">
+            <div className="cit-directive-head">
+              <span className="cit-badge-2xs">MODERATOR DIRECTIVE</span>
+            </div>
+            {dr && (
+              <>
+                <div className="cit-mb4"><strong>Directive:</strong> <Highlight text={dr.directive} /></div>
+                <div><strong>How addressed:</strong> <Highlight text={dr.how_addressed} /></div>
+              </>
+            )}
+            {drp && !dr && <Highlight text={String(drp)} />}
+          </div>
         );
       })()}
+      {/* Taxonomy References */}
+      {Array.isArray((citeStage.work_product as Record<string, unknown>).taxonomy_refs) && (
+        <CiteTaxonomyRefsSection
+          citeStage={citeStage}
+          entry={entry}
+          debate={debate}
+          briefStage={briefStage}
+          taxNodeMap={taxNodeMap}
+          allEdges={allEdges}
+          selectedTaxRefId={selectedTaxRefId}
+          setSelectedTaxRefId={setSelectedTaxRefId}
+        />
+      )}
       {/* Move Annotations */}
       {Array.isArray((citeStage.work_product as Record<string, unknown>).move_annotations) && (
         <details open><summary className="cit-summary">Move Annotations</summary>
@@ -311,57 +414,9 @@ export function CiteTab(props: CiteTabProps) {
             {/* Validation Score */}
             {(() => {
               if (turnScore != null && dims) {
-                const stageA =
-                  0.4 * (dims.schema.pass ? 1 : 0) +
-                  0.3 * (dims.grounding.pass ? 1 : 0) +
-                  0.2 * (dims.advancement.pass ? 1 : 0) +
-                  0.1 * (dims.clarifies.pass ? 1 : 0);
-                const judgeQ = stageA > 0
-                  ? Math.max(0, Math.min(1, (turnScore - 0.4 * stageA) / 0.6))
-                  : 0.7;
-                const mono = { fontFamily: 'monospace', fontSize: 'var(--text-2xs)' } as const;
-                const dimColor = (pass: boolean) => pass ? 'var(--success)' : 'var(--danger)';
-                return (
-                  <div className="cit-valscore-box">
-                    <div className="cit-valscore-title">
-                      Validation Score:{' '}
-                      {/* eslint-disable-next-line local/no-inline-style -- score-threshold-driven color */}
-                      <span style={{ ...mono, color: turnScore >= 0.7 ? 'var(--success)' : turnScore >= 0.5 ? 'var(--warning)' : 'var(--danger)' }}>
-                        {turnScore.toFixed(2)}
-                      </span>
-                    </div>
-                    <div className="cit-dims-row">
-                      {/* eslint-disable-next-line local/no-inline-style -- dimension-pass-driven color */}
-                      <span><span style={{ color: dimColor(dims.schema.pass) }}>{'●'}</span> schema {'×'}0.4 = <strong className="cit-mono">{(0.4 * (dims.schema.pass ? 1 : 0)).toFixed(2)}</strong></span>
-                      {/* eslint-disable-next-line local/no-inline-style -- dimension-pass-driven color */}
-                      <span><span style={{ color: dimColor(dims.grounding.pass) }}>{'●'}</span> grounding {'×'}0.3 = <strong className="cit-mono">{(0.3 * (dims.grounding.pass ? 1 : 0)).toFixed(2)}</strong></span>
-                      {/* eslint-disable-next-line local/no-inline-style -- dimension-pass-driven color */}
-                      <span><span style={{ color: dimColor(dims.advancement.pass) }}>{'●'}</span> advancement {'×'}0.2 = <strong className="cit-mono">{(0.2 * (dims.advancement.pass ? 1 : 0)).toFixed(2)}</strong></span>
-                      {/* eslint-disable-next-line local/no-inline-style -- dimension-pass-driven color */}
-                      <span><span style={{ color: dimColor(dims.clarifies.pass) }}>{'●'}</span> clarifies {'×'}0.1 = <strong className="cit-mono">{(0.1 * (dims.clarifies.pass ? 1 : 0)).toFixed(2)}</strong></span>
-                    </div>
-                    <div className="cit-breakdown">
-                      <span>Stage A: <strong className="cit-mono">{stageA.toFixed(2)}</strong> <span className="cit-muted">{'×'}0.4 = {(0.4 * stageA).toFixed(2)}</span></span>
-                      <span>Judge: <strong className="cit-mono">{judgeQ.toFixed(2)}</strong>{!judgeUsed && <span className="cit-muted"> (default)</span>} <span className="cit-muted">{'×'}0.6 = {(0.6 * judgeQ).toFixed(2)}</span></span>
-                      {/* eslint-disable-next-line local/no-inline-style -- score-threshold-driven color */}
-                      <span>Total: <strong style={{ ...mono, color: turnScore >= 0.7 ? 'var(--success)' : turnScore >= 0.5 ? 'var(--warning)' : 'var(--danger)' }}>{turnScore.toFixed(2)}</strong></span>
-                    </div>
-                  </div>
-                );
+                return <CiteValidationScoreDetail turnScore={turnScore} dims={dims} judgeUsed={judgeUsed} />;
               }
-              return (
-                <div className="cit-fallback-val">
-                  Validation Score:{' '}
-                  {valData ? (
-                    // eslint-disable-next-line local/no-inline-style -- pass-driven color
-                    <span style={{ color: valData.pass ? 'var(--success)' : 'var(--danger)' }}>
-                      {valData.pass ? 'Pass' : 'Fail'}
-                    </span>
-                  ) : (
-                    <span className="cit-muted">{'—'}</span>
-                  )}
-                </div>
-              );
+              return <CiteValidationScoreFallback valData={valData} />;
             })()}
             {/* Validation Feedback */}
             {hints.length > 0 && (

@@ -36,6 +36,50 @@ const CATEGORY_LABELS: Record<AffectCategory, string> = {
   empathy: 'Empathy',
 };
 
+interface AppropriatenessPanelProps {
+  appropriateness: number | null;
+  profile: NonNullable<ReturnType<typeof computeAffectProfile>>;
+  phase: ReturnType<typeof getDebatePhase>;
+}
+
+function AppropriatenessPanel({ appropriateness, profile, phase }: AppropriatenessPanelProps) {
+  const approColor = appropriateness == null ? 'var(--text-muted)'
+    : appropriateness >= 0.7 ? 'var(--success)'
+    : appropriateness >= 0.4 ? 'var(--warning)'
+    : 'var(--danger)';
+
+  return (
+    <div style={{ padding: '10px 12px', borderRadius: 6, background: 'var(--bg-primary)', borderLeft: `3px solid ${approColor}` }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+        <span style={{ fontWeight: 600, fontSize: '0.72rem' }}>Phase Appropriateness</span>
+        <span style={{ fontSize: '0.85rem', fontWeight: 700, fontVariantNumeric: 'tabular-nums', color: approColor }}>
+          {appropriateness != null ? appropriateness.toFixed(3) : 'n/a'}
+        </span>
+        {appropriateness != null && appropriateness < 0.4 && profile.outrage > 0.5 && phase === 'concluding' && (
+          <span style={{
+            padding: '1px 6px', borderRadius: 3, fontSize: 'var(--text-2xs)', fontWeight: 600,
+            background: 'rgba(220,38,38,0.15)', color: 'var(--danger)',
+          }}>concluding outrage warning</span>
+        )}
+      </div>
+      {appropriateness != null && (
+        <div style={{ height: 8, background: 'var(--bg-secondary, #222)', borderRadius: 4, overflow: 'hidden' }}>
+          <div style={{
+            width: `${appropriateness * 100}%`,
+            height: '100%',
+            background: approColor,
+            borderRadius: 4,
+            transition: 'width 0.3s ease',
+          }} />
+        </div>
+      )}
+      <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', marginTop: 4 }}>
+        1.0 = on-baseline, 0.0 = {'≥'}35% mean deviation from {phase}-phase expected profile.
+      </div>
+    </div>
+  );
+}
+
 export function AffectTab({ entry, debate, entryIdx }: AffectTabProps) {
   const content = typeof entry.content === 'string' ? entry.content : '';
 
@@ -58,11 +102,6 @@ export function AffectTab({ entry, debate, entryIdx }: AffectTabProps) {
       </div>
     );
   }
-
-  const approColor = appropriateness == null ? 'var(--text-muted)'
-    : appropriateness >= 0.7 ? 'var(--success)'
-    : appropriateness >= 0.4 ? 'var(--warning)'
-    : 'var(--danger)';
 
   return (
     <div style={{ padding: '8px 10px', flex: 1, minHeight: 200, overflowY: 'auto' }}>
@@ -153,34 +192,7 @@ export function AffectTab({ entry, debate, entryIdx }: AffectTabProps) {
       </div>
 
       {/* Appropriateness */}
-      <div style={{ padding: '10px 12px', borderRadius: 6, background: 'var(--bg-primary)', borderLeft: `3px solid ${approColor}` }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-          <span style={{ fontWeight: 600, fontSize: '0.72rem' }}>Phase Appropriateness</span>
-          <span style={{ fontSize: '0.85rem', fontWeight: 700, fontVariantNumeric: 'tabular-nums', color: approColor }}>
-            {appropriateness != null ? appropriateness.toFixed(3) : 'n/a'}
-          </span>
-          {appropriateness != null && appropriateness < 0.4 && profile.outrage > 0.5 && phase === 'concluding' && (
-            <span style={{
-              padding: '1px 6px', borderRadius: 3, fontSize: 'var(--text-2xs)', fontWeight: 600,
-              background: 'rgba(220,38,38,0.15)', color: 'var(--danger)',
-            }}>concluding outrage warning</span>
-          )}
-        </div>
-        {appropriateness != null && (
-          <div style={{ height: 8, background: 'var(--bg-secondary, #222)', borderRadius: 4, overflow: 'hidden' }}>
-            <div style={{
-              width: `${appropriateness * 100}%`,
-              height: '100%',
-              background: approColor,
-              borderRadius: 4,
-              transition: 'width 0.3s ease',
-            }} />
-          </div>
-        )}
-        <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', marginTop: 4 }}>
-          1.0 = on-baseline, 0.0 = {'≥'}35% mean deviation from {phase}-phase expected profile.
-        </div>
-      </div>
+      <AppropriatenessPanel appropriateness={appropriateness} profile={profile} phase={phase} />
     </div>
   );
 }

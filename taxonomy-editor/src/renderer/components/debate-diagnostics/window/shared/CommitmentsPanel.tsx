@@ -16,6 +16,39 @@ function speakerLabel(speaker: string): string {
   return POVER_INFO[speaker as Exclude<SpeakerId, 'user'>]?.label || speaker;
 }
 
+// Mean strength of conceded claims (matched to AN nodes)
+function computeConcededMean(store: CommitmentStore, pov: string, nodes: ArgumentNetworkNode[]): number {
+  let concSum = 0, concCount = 0;
+  for (const text of store.conceded) {
+    const match = nodes.find(n => n.speaker === pov && (n.text === text || n.text.includes(text) || text.includes(n.text)));
+    if (match) { concSum += match.computed_strength ?? match.base_strength ?? 0.5; concCount++; }
+  }
+  return concCount > 0 ? concSum / concCount : 0.5;
+}
+
+// Mean strength of attack targets
+function computeAttackTargetMean(
+  pov: string,
+  nodesBySpeaker: Map<string, ArgumentNetworkNode[]>,
+  nodeMap: Map<string, ArgumentNetworkNode>,
+  edges: ArgumentNetworkEdge[],
+): number {
+  const speakerNodes = nodesBySpeaker.get(pov) ?? [];
+  const speakerNodeIds = new Set(speakerNodes.map(n => n.id));
+  const attackTargetIds = new Set<string>();
+  for (const e of edges) {
+    if (speakerNodeIds.has(e.source) && (e as { type?: string }).type === 'attacks') {
+      attackTargetIds.add(e.target);
+    }
+  }
+  let atkSum = 0, atkCount = 0;
+  for (const id of attackTargetIds) {
+    const n = nodeMap.get(id);
+    if (n) { atkSum += n.computed_strength ?? n.base_strength ?? 0.5; atkCount++; }
+  }
+  return atkCount > 0 ? atkSum / atkCount : 0.5;
+}
+
 export function CommitmentsPanel({ commitments, nodes, edges, onGoToNode }: {
   commitments: Record<string, CommitmentStore>;
   nodes: ArgumentNetworkNode[];
@@ -72,7 +105,7 @@ export function CommitmentsPanel({ commitments, nodes, edges, onGoToNode }: {
   // Compute concession asymmetry per speaker (mirrors calibrationLogger logic)
   const asymmetryByPov = useMemo(() => {
     const result: Record<string, number | null> = {};
-    const nodeMap = new Map(nodes.map(n => [n.id, n]));
+    const nodeMap = new Map<string, ArgumentNetworkNode>(nodes.map(n => [n.id, n]));
     const nodesBySpeaker = new Map<string, ArgumentNetworkNode[]>();
     for (const n of nodes) {
       if (!nodesBySpeaker.has(n.speaker)) nodesBySpeaker.set(n.speaker, []);
@@ -81,31 +114,8 @@ export function CommitmentsPanel({ commitments, nodes, edges, onGoToNode }: {
 
     for (const [pov, store] of Object.entries(commitments)) {
       if (store.conceded.length === 0) { result[pov] = null; continue; }
-
-      // Mean strength of conceded claims (matched to AN nodes)
-      let concSum = 0, concCount = 0;
-      for (const text of store.conceded) {
-        const match = nodes.find(n => n.speaker === pov && (n.text === text || n.text.includes(text) || text.includes(n.text)));
-        if (match) { concSum += match.computed_strength ?? match.base_strength ?? 0.5; concCount++; }
-      }
-      const concededMean = concCount > 0 ? concSum / concCount : 0.5;
-
-      // Mean strength of attack targets
-      const speakerNodes = nodesBySpeaker.get(pov) ?? [];
-      const speakerNodeIds = new Set(speakerNodes.map(n => n.id));
-      const attackTargetIds = new Set<string>();
-      for (const e of edges) {
-        if (speakerNodeIds.has(e.source) && (e as { type?: string }).type === 'attacks') {
-          attackTargetIds.add(e.target);
-        }
-      }
-      let atkSum = 0, atkCount = 0;
-      for (const id of attackTargetIds) {
-        const n = nodeMap.get(id);
-        if (n) { atkSum += n.computed_strength ?? n.base_strength ?? 0.5; atkCount++; }
-      }
-      const atkMean = atkCount > 0 ? atkSum / atkCount : 0.5;
-
+      const concededMean = computeConcededMean(store, pov, nodes);
+      const atkMean = computeAttackTargetMean(pov, nodesBySpeaker, nodeMap, edges);
       result[pov] = atkMean - concededMean;
     }
     return result;

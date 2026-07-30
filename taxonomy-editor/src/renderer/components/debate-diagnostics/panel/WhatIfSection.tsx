@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { useState, useMemo } from 'react';
+import type { Dispatch, SetStateAction } from 'react';
 import { useFlag } from '../../../hooks/useFeatureFlags';
 import { computeQbafStrengths } from '@lib/debate/qbaf';
 import type { QbafNode, QbafEdge } from '@lib/debate/qbaf';
@@ -87,67 +88,116 @@ export function WhatIfSection({ nodes, edges }: { nodes: ArgumentNetworkNode[]; 
 
       {active && (
         <div className="whatif-node-list">
-          {scoredNodes.map(n => {
-            const origBase = n.base_strength ?? 0.5;
-            const currentBase = overrides[n.id] ?? origBase;
-            const isOverridden = overrides[n.id] != null;
-            const origComputed = originalStrengths[n.id] ?? origBase;
-            const whatIfComputed = whatIfStrengths?.[n.id] ?? origComputed;
-            const delta = whatIfStrengths ? whatIfComputed - origComputed : 0;
-
-            return (
-              <div key={n.id} className={`whatif-node ${isOverridden ? 'whatif-node-modified' : ''}`}>
-                <div className="whatif-node-header">
-                  <span className="diag-an-id">{n.id}</span>
-                  <span className="diag-an-speaker">({speakerLabel(n.speaker)})</span>
-                  {isOverridden && (
-                    <button
-                      className="whatif-node-reset-btn"
-                      onClick={() => setOverrides(prev => { const next = { ...prev }; delete next[n.id]; return next; })}
-                      title="Reset this node"
-                    >
-                      x
-                    </button>
-                  )}
-                </div>
-                <div className="whatif-node-text">{n.text.slice(0, 100)}{n.text.length > 100 ? '...' : ''}</div>
-                <div className="whatif-slider-row">
-                  <span className="diag-k">Intrinsic:</span>
-                  <input
-                    type="range"
-                    min={0}
-                    max={1}
-                    step={0.05}
-                    value={currentBase}
-                    onChange={e => handleSliderChange(n.id, Number(e.target.value))}
-                    className="whatif-slider"
-                    title={`Intrinsic strength: ${currentBase.toFixed(2)} (original: ${origBase.toFixed(2)})`}
-                  />
-                  <span className="whatif-slider-value">{currentBase.toFixed(2)}</span>
-                  {isOverridden && (
-                    <span className="whatif-orig-value">(was {origBase.toFixed(2)})</span>
-                  )}
-                </div>
-                {whatIfStrengths && (
-                  <div className="whatif-result-row">
-                    <span className="diag-k">Dialectical:</span>
-                    <span className="diag-v">{origComputed.toFixed(2)}</span>
-                    <span className="diag-qbaf-arrow">{'→'}</span>
-                    <span className={`whatif-new-value ${Math.abs(delta) > 0.01 ? (delta > 0 ? 'whatif-up' : 'whatif-down') : ''}`}>
-                      {whatIfComputed.toFixed(2)}
-                    </span>
-                    {Math.abs(delta) > 0.01 && (
-                      <span className={`whatif-delta ${delta > 0 ? 'whatif-delta-up' : 'whatif-delta-down'}`}>
-                        {delta > 0 ? '↑' : '↓'} {delta > 0 ? '+' : ''}{delta.toFixed(2)}
-                      </span>
-                    )}
-                  </div>
-                )}
-              </div>
-            );
-          })}
+          {scoredNodes.map(n => (
+            <WhatIfNodeRow
+              key={n.id}
+              n={n}
+              overrides={overrides}
+              originalStrengths={originalStrengths}
+              whatIfStrengths={whatIfStrengths}
+              handleSliderChange={handleSliderChange}
+              setOverrides={setOverrides}
+            />
+          ))}
         </div>
       )}
     </CollapsibleSection>
+  );
+}
+
+/** Single node row within What-If Mode: intrinsic slider + dialectical result. */
+function WhatIfNodeRow({
+  n,
+  overrides,
+  originalStrengths,
+  whatIfStrengths,
+  handleSliderChange,
+  setOverrides,
+}: {
+  n: ArgumentNetworkNode;
+  overrides: Record<string, number>;
+  originalStrengths: Record<string, number>;
+  whatIfStrengths: Record<string, number> | null;
+  handleSliderChange: (nodeId: string, value: number) => void;
+  setOverrides: Dispatch<SetStateAction<Record<string, number>>>;
+}) {
+  const origBase = n.base_strength ?? 0.5;
+  const currentBase = overrides[n.id] ?? origBase;
+  const isOverridden = overrides[n.id] != null;
+  const origComputed = originalStrengths[n.id] ?? origBase;
+  const whatIfComputed = whatIfStrengths?.[n.id] ?? origComputed;
+  const delta = whatIfStrengths ? whatIfComputed - origComputed : 0;
+
+  return (
+    <div key={n.id} className={`whatif-node ${isOverridden ? 'whatif-node-modified' : ''}`}>
+      <div className="whatif-node-header">
+        <span className="diag-an-id">{n.id}</span>
+        <span className="diag-an-speaker">({speakerLabel(n.speaker)})</span>
+        {isOverridden && (
+          <button
+            className="whatif-node-reset-btn"
+            onClick={() => setOverrides(prev => { const next = { ...prev }; delete next[n.id]; return next; })}
+            title="Reset this node"
+          >
+            x
+          </button>
+        )}
+      </div>
+      <div className="whatif-node-text">{n.text.slice(0, 100)}{n.text.length > 100 ? '...' : ''}</div>
+      <div className="whatif-slider-row">
+        <span className="diag-k">Intrinsic:</span>
+        <input
+          type="range"
+          min={0}
+          max={1}
+          step={0.05}
+          value={currentBase}
+          onChange={e => handleSliderChange(n.id, Number(e.target.value))}
+          className="whatif-slider"
+          title={`Intrinsic strength: ${currentBase.toFixed(2)} (original: ${origBase.toFixed(2)})`}
+        />
+        <span className="whatif-slider-value">{currentBase.toFixed(2)}</span>
+        {isOverridden && (
+          <span className="whatif-orig-value">(was {origBase.toFixed(2)})</span>
+        )}
+      </div>
+      <WhatIfResultRow
+        whatIfStrengths={whatIfStrengths}
+        origComputed={origComputed}
+        whatIfComputed={whatIfComputed}
+        delta={delta}
+      />
+    </div>
+  );
+}
+
+/** Dialectical strength before/after row; hidden until counterfactual strengths exist. */
+function WhatIfResultRow({
+  whatIfStrengths,
+  origComputed,
+  whatIfComputed,
+  delta,
+}: {
+  whatIfStrengths: Record<string, number> | null;
+  origComputed: number;
+  whatIfComputed: number;
+  delta: number;
+}) {
+  return (
+    whatIfStrengths && (
+      <div className="whatif-result-row">
+        <span className="diag-k">Dialectical:</span>
+        <span className="diag-v">{origComputed.toFixed(2)}</span>
+        <span className="diag-qbaf-arrow">{'→'}</span>
+        <span className={`whatif-new-value ${Math.abs(delta) > 0.01 ? (delta > 0 ? 'whatif-up' : 'whatif-down') : ''}`}>
+          {whatIfComputed.toFixed(2)}
+        </span>
+        {Math.abs(delta) > 0.01 && (
+          <span className={`whatif-delta ${delta > 0 ? 'whatif-delta-up' : 'whatif-delta-down'}`}>
+            {delta > 0 ? '↑' : '↓'} {delta > 0 ? '+' : ''}{delta.toFixed(2)}
+          </span>
+        )}
+      </div>
+    )
   );
 }

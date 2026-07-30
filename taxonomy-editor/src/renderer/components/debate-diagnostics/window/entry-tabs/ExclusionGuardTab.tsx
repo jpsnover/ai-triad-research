@@ -46,127 +46,143 @@ function similarityColor(value: number): string {
 }
 
 export function ExclusionGuardTab({ diag }: ExclusionGuardTabProps) {
-  // --- Claim Extraction Guard ---
+  return (
+    <div style={{ padding: '8px 10px', flex: 1, minHeight: 200, overflowY: 'auto' }}>
+      {/* Section 1: Claim Extraction Guard */}
+      <ClaimExtractionGuardSection diag={diag} />
+
+      {/* Section 2: Draft Scope Check */}
+      <DraftScopeCheckSection diag={diag} />
+
+      {/* Section 3: Taxonomy Context Injection (future — t/489) */}
+      <TaxonomyInjectionSection diag={diag} />
+
+      {/* Section 4: Situation Injection (future — t/490) */}
+      <SituationInjectionSection diag={diag} />
+    </div>
+  );
+}
+
+function ClaimExtractionGuardSection({ diag }: ExclusionGuardTabProps) {
   const extTrace = diag?.extraction_trace as Record<string, unknown> | undefined;
   const exclusionGuard = extTrace?.exclusion_guard as ExclusionGuardData | undefined;
   const legacyViolations = extTrace?.exclusion_violations as ExclusionViolation[] | undefined;
 
-  // --- Draft Scope Check ---
+  return (
+    <Section title="Claim Extraction Guard" defaultOpen>
+      {exclusionGuard ? (
+        <>
+          <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginBottom: 6 }}>
+            Checked <strong>{exclusionGuard.checked}</strong> claims against{' '}
+            <strong>{exclusionGuard.refs_with_exclusion_vector}</strong> exclusion vectors
+            (threshold: {exclusionGuard.threshold.toFixed(2)})
+          </div>
+          {exclusionGuard.violations.length > 0 ? (
+            exclusionGuard.violations.map((v, i) => (
+              <ViolationItem key={i} violation={v} />
+            ))
+          ) : (
+            <AllClearBanner message={`All ${exclusionGuard.checked} claims within scope — 0 exclusion violations`} />
+          )}
+        </>
+      ) : legacyViolations && legacyViolations.length > 0 ? (
+        legacyViolations.map((v, i) => (
+          <ViolationItem key={i} violation={v} />
+        ))
+      ) : extTrace ? (
+        <AllClearBanner message="All claims within scope — 0 exclusion violations" />
+      ) : (
+        <NoDataMessage message="No exclusion guard data — extraction trace not available" />
+      )}
+    </Section>
+  );
+}
+
+function DraftScopeCheckSection({ diag }: ExclusionGuardTabProps) {
   const scopeDriftCheck = (diag as Record<string, unknown> | undefined)?.scope_drift_check as ScopeDriftCheckData | undefined;
   const legacyWarnings = (diag as Record<string, unknown> | undefined)?.scope_drift_warnings as ScopeDriftWarning[] | undefined;
 
   return (
-    <div style={{ padding: '8px 10px', flex: 1, minHeight: 200, overflowY: 'auto' }}>
-      {/* Section 1: Claim Extraction Guard */}
-      <Section title="Claim Extraction Guard" defaultOpen>
-        {exclusionGuard ? (
-          <>
-            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginBottom: 6 }}>
-              Checked <strong>{exclusionGuard.checked}</strong> claims against{' '}
-              <strong>{exclusionGuard.refs_with_exclusion_vector}</strong> exclusion vectors
-              (threshold: {exclusionGuard.threshold.toFixed(2)})
-            </div>
-            {exclusionGuard.violations.length > 0 ? (
-              exclusionGuard.violations.map((v, i) => (
-                <ViolationItem key={i} violation={v} />
-              ))
-            ) : (
-              <AllClearBanner message={`All ${exclusionGuard.checked} claims within scope — 0 exclusion violations`} />
-            )}
-          </>
-        ) : legacyViolations && legacyViolations.length > 0 ? (
-          legacyViolations.map((v, i) => (
-            <ViolationItem key={i} violation={v} />
-          ))
-        ) : extTrace ? (
-          <AllClearBanner message="All claims within scope — 0 exclusion violations" />
-        ) : (
-          <NoDataMessage message="No exclusion guard data — extraction trace not available" />
-        )}
-      </Section>
+    <Section title="Draft Scope Check" defaultOpen>
+      {scopeDriftCheck ? (
+        <>
+          <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginBottom: 6 }}>
+            Checked <strong>{scopeDriftCheck.refs_checked}</strong> refs,{' '}
+            <strong>{scopeDriftCheck.refs_with_exclusion_vector}</strong> with exclusion vectors
+            (threshold: {scopeDriftCheck.threshold.toFixed(2)})
+          </div>
+          {scopeDriftCheck.warnings.length > 0 ? (
+            scopeDriftCheck.warnings.map((w, i) => (
+              <WarningItem key={i} warning={w} />
+            ))
+          ) : (
+            <AllClearBanner message={`All ${scopeDriftCheck.refs_checked} refs within scope — 0 drift warnings`} />
+          )}
+        </>
+      ) : legacyWarnings && legacyWarnings.length > 0 ? (
+        legacyWarnings.map((w, i) => (
+          <WarningItem key={i} warning={w} />
+        ))
+      ) : diag ? (
+        <AllClearBanner message="No scope drift detected — 0 warnings" />
+      ) : (
+        <NoDataMessage message="No scope drift data — diagnostics not available for this entry" />
+      )}
+    </Section>
+  );
+}
 
-      {/* Section 2: Draft Scope Check */}
-      <Section title="Draft Scope Check" defaultOpen>
-        {scopeDriftCheck ? (
-          <>
-            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginBottom: 6 }}>
-              Checked <strong>{scopeDriftCheck.refs_checked}</strong> refs,{' '}
-              <strong>{scopeDriftCheck.refs_with_exclusion_vector}</strong> with exclusion vectors
-              (threshold: {scopeDriftCheck.threshold.toFixed(2)})
-            </div>
-            {scopeDriftCheck.warnings.length > 0 ? (
-              scopeDriftCheck.warnings.map((w, i) => (
-                <WarningItem key={i} warning={w} />
-              ))
-            ) : (
-              <AllClearBanner message={`All ${scopeDriftCheck.refs_checked} refs within scope — 0 drift warnings`} />
-            )}
-          </>
-        ) : legacyWarnings && legacyWarnings.length > 0 ? (
-          legacyWarnings.map((w, i) => (
-            <WarningItem key={i} warning={w} />
-          ))
-        ) : diag ? (
-          <AllClearBanner message="No scope drift detected — 0 warnings" />
-        ) : (
-          <NoDataMessage message="No scope drift data — diagnostics not available for this entry" />
-        )}
-      </Section>
+function TaxonomyInjectionSection({ diag }: ExclusionGuardTabProps) {
+  if (!(diag as Record<string, unknown> | undefined)?.taxonomy_injection_trace) return null;
+  const tit = (diag as Record<string, unknown>).taxonomy_injection_trace as {
+    considered: number; demoted: number;
+    demoted_nodes?: { node_id: string; exclusion_similarity: number }[];
+  };
+  return (
+    <Section title={`Taxonomy Context Injection — ${tit.considered} considered, ${tit.demoted} demoted`} defaultOpen>
+      {tit.demoted > 0 && tit.demoted_nodes ? (
+        tit.demoted_nodes.map((n, i) => (
+          <div key={i} style={{
+            padding: '4px 8px', marginBottom: 3, borderRadius: 4, fontSize: '0.7rem',
+            borderLeft: '3px solid var(--warning)', background: 'color-mix(in srgb, var(--warning) 6%, transparent)',
+          }}>
+            <span style={{ fontWeight: 600 }}>{n.node_id}</span>
+            <span style={{ marginLeft: 8, fontFamily: 'monospace', color: similarityColor(n.exclusion_similarity) }}>
+              {n.exclusion_similarity.toFixed(3)}
+            </span>
+          </div>
+        ))
+      ) : (
+        <AllClearBanner message={`All ${tit.considered} nodes passed exclusion filter`} />
+      )}
+    </Section>
+  );
+}
 
-      {/* Section 3: Taxonomy Context Injection (future — t/489) */}
-      {(diag as Record<string, unknown> | undefined)?.taxonomy_injection_trace ? (() => {
-        const tit = (diag as Record<string, unknown>).taxonomy_injection_trace as {
-          considered: number; demoted: number;
-          demoted_nodes?: { node_id: string; exclusion_similarity: number }[];
-        };
-        return (
-          <Section title={`Taxonomy Context Injection — ${tit.considered} considered, ${tit.demoted} demoted`} defaultOpen>
-            {tit.demoted > 0 && tit.demoted_nodes ? (
-              tit.demoted_nodes.map((n, i) => (
-                <div key={i} style={{
-                  padding: '4px 8px', marginBottom: 3, borderRadius: 4, fontSize: '0.7rem',
-                  borderLeft: '3px solid var(--warning)', background: 'color-mix(in srgb, var(--warning) 6%, transparent)',
-                }}>
-                  <span style={{ fontWeight: 600 }}>{n.node_id}</span>
-                  <span style={{ marginLeft: 8, fontFamily: 'monospace', color: similarityColor(n.exclusion_similarity) }}>
-                    {n.exclusion_similarity.toFixed(3)}
-                  </span>
-                </div>
-              ))
-            ) : (
-              <AllClearBanner message={`All ${tit.considered} nodes passed exclusion filter`} />
-            )}
-          </Section>
-        );
-      })() : null}
-
-      {/* Section 4: Situation Injection (future — t/490) */}
-      {(diag as Record<string, unknown> | undefined)?.situation_injection_trace ? (() => {
-        const sit = (diag as Record<string, unknown>).situation_injection_trace as {
-          considered: number; excluded: number;
-          excluded_situations?: { situation_id: string; exclusion_similarity: number }[];
-        };
-        return (
-          <Section title={`Situation Injection — ${sit.considered} considered, ${sit.excluded} excluded`} defaultOpen>
-            {sit.excluded > 0 && sit.excluded_situations ? (
-              sit.excluded_situations.map((s, i) => (
-                <div key={i} style={{
-                  padding: '4px 8px', marginBottom: 3, borderRadius: 4, fontSize: '0.7rem',
-                  borderLeft: '3px solid var(--warning)', background: 'color-mix(in srgb, var(--warning) 6%, transparent)',
-                }}>
-                  <span style={{ fontWeight: 600 }}>{s.situation_id}</span>
-                  <span style={{ marginLeft: 8, fontFamily: 'monospace', color: similarityColor(s.exclusion_similarity) }}>
-                    {s.exclusion_similarity.toFixed(3)}
-                  </span>
-                </div>
-              ))
-            ) : (
-              <AllClearBanner message={`All ${sit.considered} situations passed exclusion filter`} />
-            )}
-          </Section>
-        );
-      })() : null}
-    </div>
+function SituationInjectionSection({ diag }: ExclusionGuardTabProps) {
+  if (!(diag as Record<string, unknown> | undefined)?.situation_injection_trace) return null;
+  const sit = (diag as Record<string, unknown>).situation_injection_trace as {
+    considered: number; excluded: number;
+    excluded_situations?: { situation_id: string; exclusion_similarity: number }[];
+  };
+  return (
+    <Section title={`Situation Injection — ${sit.considered} considered, ${sit.excluded} excluded`} defaultOpen>
+      {sit.excluded > 0 && sit.excluded_situations ? (
+        sit.excluded_situations.map((s, i) => (
+          <div key={i} style={{
+            padding: '4px 8px', marginBottom: 3, borderRadius: 4, fontSize: '0.7rem',
+            borderLeft: '3px solid var(--warning)', background: 'color-mix(in srgb, var(--warning) 6%, transparent)',
+          }}>
+            <span style={{ fontWeight: 600 }}>{s.situation_id}</span>
+            <span style={{ marginLeft: 8, fontFamily: 'monospace', color: similarityColor(s.exclusion_similarity) }}>
+              {s.exclusion_similarity.toFixed(3)}
+            </span>
+          </div>
+        ))
+      ) : (
+        <AllClearBanner message={`All ${sit.considered} situations passed exclusion filter`} />
+      )}
+    </Section>
   );
 }
 

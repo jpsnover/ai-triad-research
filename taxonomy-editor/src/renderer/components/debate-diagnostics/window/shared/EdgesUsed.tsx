@@ -67,6 +67,44 @@ function EdgesUsedGroup({ edgeType, edges, selectedIdx, onSelect, nodeLabels }: 
   );
 }
 
+function EdgeDescriptions({ srcNode, tgtNode }: {
+  srcNode: TaxRefNode | undefined;
+  tgtNode: TaxRefNode | undefined;
+}) {
+  if (!(srcNode?.description || tgtNode?.description)) return null;
+  return (
+    <div style={{ display: 'flex', gap: 8, margin: '10px 0' }}>
+      {srcNode?.description && (
+        <div style={{ flex: 1, padding: '8px 10px', background: 'var(--bg-secondary)', borderRadius: 6, border: '1px solid var(--border)' }}>
+          <div style={{ fontSize: 'var(--text-2xs)', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 4, letterSpacing: '0.04em' }}>Source Description</div>
+          <div style={{ fontSize: '0.75rem', lineHeight: 1.5 }}>{srcNode.description as string}</div>
+        </div>
+      )}
+      {tgtNode?.description && (
+        <div style={{ flex: 1, padding: '8px 10px', background: 'var(--bg-secondary)', borderRadius: 6, border: '1px solid var(--border)' }}>
+          <div style={{ fontSize: 'var(--text-2xs)', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 4, letterSpacing: '0.04em' }}>Target Description</div>
+          <div style={{ fontSize: '0.75rem', lineHeight: 1.5 }}>{tgtNode.description as string}</div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function EdgeStatus({ status }: { status: string }) {
+  return (
+    <>
+      {status && status !== 'approved' && (
+        <span className={`edge-detail-status-badge status-${status}`}>
+          {status === 'rejected' ? '✗ ' : '● '}{status}
+        </span>
+      )}
+      {status === 'approved' && (
+        <span style={{ color: 'var(--success)', fontWeight: 600, fontSize: '0.75rem' }}>{'✓'} Approved</span>
+      )}
+    </>
+  );
+}
+
 export function EdgesUsedDetail({ edge, taxNodeMap, nodeLabels }: {
   edge: TaxRefEdge;
   taxNodeMap: Map<string, Record<string, unknown>>;
@@ -102,22 +140,7 @@ export function EdgesUsedDetail({ edge, taxNodeMap, nodeLabels }: {
       </div>
 
       {/* Source & Target descriptions */}
-      {(srcNode?.description || tgtNode?.description) && (
-        <div style={{ display: 'flex', gap: 8, margin: '10px 0' }}>
-          {srcNode?.description && (
-            <div style={{ flex: 1, padding: '8px 10px', background: 'var(--bg-secondary)', borderRadius: 6, border: '1px solid var(--border)' }}>
-              <div style={{ fontSize: 'var(--text-2xs)', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 4, letterSpacing: '0.04em' }}>Source Description</div>
-              <div style={{ fontSize: '0.75rem', lineHeight: 1.5 }}>{srcNode.description as string}</div>
-            </div>
-          )}
-          {tgtNode?.description && (
-            <div style={{ flex: 1, padding: '8px 10px', background: 'var(--bg-secondary)', borderRadius: 6, border: '1px solid var(--border)' }}>
-              <div style={{ fontSize: 'var(--text-2xs)', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 4, letterSpacing: '0.04em' }}>Target Description</div>
-              <div style={{ fontSize: '0.75rem', lineHeight: 1.5 }}>{tgtNode.description as string}</div>
-            </div>
-          )}
-        </div>
-      )}
+      <EdgeDescriptions srcNode={srcNode} tgtNode={tgtNode} />
 
       {/* Rationale */}
       {edge.rationale && (
@@ -134,14 +157,7 @@ export function EdgesUsedDetail({ edge, taxNodeMap, nodeLabels }: {
       </div>
 
       {/* Status */}
-      {edge.status && edge.status !== 'approved' && (
-        <span className={`edge-detail-status-badge status-${edge.status}`}>
-          {edge.status === 'rejected' ? '✗ ' : '● '}{edge.status}
-        </span>
-      )}
-      {edge.status === 'approved' && (
-        <span style={{ color: 'var(--success)', fontWeight: 600, fontSize: '0.75rem' }}>{'✓'} Approved</span>
-      )}
+      <EdgeStatus status={edge.status} />
 
       {/* Notes */}
       {edge.notes && (
