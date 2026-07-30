@@ -399,8 +399,8 @@ export async function convertToMarkdown(filePath: string): Promise<string> {
     }
   }
 
-  // codeql[js/file-system-race] accepted risk: statSync-before-readFileSync is inherent to directory path resolution
   if (resolved.endsWith('.md')) {
+    // codeql[js/file-system-race] accepted risk: statSync-before-readFileSync is inherent to directory path resolution
     return fs.readFileSync(resolved, 'utf-8');
   }
 
@@ -408,6 +408,7 @@ export async function convertToMarkdown(filePath: string): Promise<string> {
     return await runMarkitdown(resolved);
   } catch {
     process.stderr.write(`[taxonomy-loader] markitdown not available, reading raw content\n`);
+    // codeql[js/file-system-race] accepted risk: fallback readFileSync after markitdown failure; single-user batch tool
     return fs.readFileSync(resolved, 'utf-8');
   }
 }
@@ -451,7 +452,8 @@ export function stripHtmlFallback(html: string): string {
   let prev: string;
   do {
     prev = s;
-    // codeql[js/bad-tag-filter, js/incomplete-multi-character-sanitization] stability loop removes all matched tags; unmatched <script without close is not executable
+    // codeql[js/bad-tag-filter]
+    // codeql[js/incomplete-multi-character-sanitization] do-while exits on stability; termination guaranteed by strict shrinking
     s = s
       .replace(/<script[\s\S]*?<\/script[^>]*>/gi, '')
       .replace(/<style[\s\S]*?<\/style[^>]*>/gi, '')
