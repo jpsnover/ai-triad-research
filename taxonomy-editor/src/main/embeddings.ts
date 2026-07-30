@@ -526,16 +526,20 @@ function resolveApiModelId(friendlyId: string): string {
   // mtime guard when the file was statted but its contents failed to parse (t/1702).
   let configPath: string | undefined;
   let statMtime = 0;
+  let fd: number | undefined;
   try {
     configPath = findModelsConfig();
-    const stat = fs.statSync(configPath);
+    // Open ONE descriptor and fstat+read through it (js/file-system-race, t/2022): statting a
+    // path then reading the same path is a TOCTOU; operating on a single fd is race-free.
+    fd = fs.openSync(configPath, 'r');
+    const stat = fs.fstatSync(fd);
     statMtime = stat.mtimeMs;
     if (!_modelMapCache || stat.mtimeMs !== _modelMapMtime) {
       // Strip a leading UTF-8 BOM (EF BB BF) before parsing — ai-models.json has
       // been saved with one, which makes JSON.parse throw `Unexpected token` and,
       // without the mtime-guard fix below, re-failed on every generateText call
       // (t/1702). ﻿ is the BOM code point.
-      const raw = fs.readFileSync(configPath, 'utf-8').replace(/^﻿/, '');
+      const raw = fs.readFileSync(fd, 'utf-8').replace(/^﻿/, '');
       const config = JSON.parse(raw) as ModelRegistry;
       _modelMapCache = buildModelIdMap(config);
       _modelMapMtime = stat.mtimeMs;
@@ -555,11 +559,13 @@ function resolveApiModelId(friendlyId: string): string {
     if (!_modelMapCache) _modelMapCache = {};
     // Advance the mtime guard so a file that was found but failed to parse is not
     // re-read (and re-recorded) on every subsequent call — the flooding observed
-    // in t/1702. statMtime is 0 only when statSync itself threw (missing file), in
+    // in t/1702. statMtime is 0 only when openSync/fstatSync threw (missing file), in
     // which case we intentionally leave the guard so a later-created file is picked
     // up; a real edit to a broken file changes mtime and re-triggers a load.
     if (statMtime !== 0) _modelMapMtime = statMtime;
     console.error(`[model-map] FAILED to load model map: ${err instanceof Error ? err.message : err}`);
+  } finally {
+    if (fd !== undefined) fs.closeSync(fd);
   }
   return getApiModelId(_modelMapCache!, friendlyId);
 }

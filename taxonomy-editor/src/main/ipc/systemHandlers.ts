@@ -117,7 +117,8 @@ export function registerSystemHandlers(): void {
   ipcMain.handle('read-research-file', (_event, relativePath: string) => {
     const filePath = resolveResearchPath(relativePath);
     try {
-      if (!fs.existsSync(filePath)) return null;
+      // No existsSync guard (js/file-system-race, t/2022): stat/read directly and treat a
+      // missing file as null in the catch — avoids the check-then-use TOCTOU window.
       const stat = fs.statSync(filePath);
       if (stat.size > MAX_RESEARCH_FILE_SIZE) {
         throw new ActionableError({
@@ -131,6 +132,8 @@ export function registerSystemHandlers(): void {
       return JSON.parse(raw);
     } catch (err) {
       if (err instanceof ActionableError) throw err;
+      // Missing file → null quietly (matches the pre-fix existsSync behavior), no error noise.
+      if ((err as NodeJS.ErrnoException).code === 'ENOENT') return null;
       getGlobalRecorder()?.record({
         type: 'system.error',
         component: 'ipc-research-file',

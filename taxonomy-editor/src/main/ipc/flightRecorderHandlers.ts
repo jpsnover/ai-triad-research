@@ -10,6 +10,7 @@ import { app, ipcMain, BrowserWindow, shell } from 'electron';
 import fs from 'fs';
 import path from 'path';
 import { PROJECT_ROOT } from '../fileIO.js';
+import { getGlobalRecorder } from '../../../../lib/flight-recorder/index.js';
 
 export function registerFlightRecorderHandlers(): void {
   // ── Flight recorder: forward events from popup windows to main ──
@@ -93,27 +94,50 @@ export function registerFlightRecorderHandlers(): void {
   });
 
   ipcMain.handle('open-flight-recorder-viewer', (_event, dumpPath: string) => {
-    if (!fs.existsSync(dumpPath)) return;
+    // IPC input surface (t/2022, security-reviewer): confine the renderer-supplied path to the
+    // flight-recorder dump dir — mirror resolveResearchPath so a compromised renderer can't turn
+    // this into an arbitrary local-file-read primitive (read any file → embed in the generated
+    // viewer HTML → open it). basename() strips any directory; the only legitimate caller passes
+    // a path already inside this dir (the value dump-flight-recorder returned).
+    const dumpDir = path.join(app.getPath('userData'), 'flight-recorder');
+    const resolvedDump = path.resolve(dumpDir, path.basename(dumpPath));
+    if (!resolvedDump.startsWith(dumpDir + path.sep)) return;
 
     const viewerPath = path.join(PROJECT_ROOT, 'tools', 'flight-recorder-viewer.html');
-    if (!fs.existsSync(viewerPath)) {
-      // Fallback: open raw file if viewer HTML not found
-      void shell.openPath(dumpPath);
+    let dumpContent: string;
+    let viewerHtml: string;
+    try {
+      // Read directly rather than existsSync-then-read (js/file-system-race TOCTOU, t/2022). A
+      // missing dump or viewer template (ENOENT) falls back to opening the raw dump; any other
+      // read fault is recorded.
+      dumpContent = fs.readFileSync(resolvedDump, 'utf-8');
+      viewerHtml = fs.readFileSync(viewerPath, 'utf-8');
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code !== 'ENOENT') {
+        getGlobalRecorder()?.record({
+          type: 'system.error', component: 'ipc-flight-recorder-viewer', level: 'error',
+          message: 'Failed to read flight-recorder dump or viewer template',
+          error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+        });
+      }
+      void shell.openPath(resolvedDump);
       return;
     }
 
-    const dumpContent = fs.readFileSync(dumpPath, 'utf-8');
-    const viewerHtml = fs.readFileSync(viewerPath, 'utf-8');
-
-    // Escape for embedding in a JS template literal
+    // Escape dump content for a JS template literal AND neutralize an HTML `</script>` breakout:
+    // backtick/$ escaping does NOT stop an HTML parser from closing the <script> on a literal
+    // "</script>" in the content, so also escape '<' (t/2022, security-reviewer). Same for the
+    // filename below — JSON.stringify is a complete JS-string encoder but does not escape '<'.
     const escaped = dumpContent
       .replace(/\\/g, '\\\\')
       .replace(/`/g, '\\`')
-      .replace(/\$/g, '\\$');
+      .replace(/\$/g, '\\$')
+      .replace(/</g, '\\u003c');
+    const safeFilename = JSON.stringify(path.basename(resolvedDump)).replace(/</g, '\\u003c');
 
     const autoLoadScript = `<script>
 document.addEventListener('DOMContentLoaded', function() {
-  document.getElementById('fileName').textContent = '${path.basename(dumpPath).replace(/'/g, "\\'")}';
+  document.getElementById('fileName').textContent = ${safeFilename};
   parseNdjson(\`${escaped}\`);
 });
 </script>`;
