@@ -22,6 +22,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import type { IncomingMessage, ServerResponse } from 'http';
+import { computeIsPublicPath, PUBLIC_PATH_PREFIXES } from '../publicPaths.js';
 
 const { readTaxonomyFileMock, recordMock } = vi.hoisted(() => ({
   readTaxonomyFileMock: vi.fn(),
@@ -166,22 +167,17 @@ describe('GET /api/public/pov/:pov/node/:nodeId (t/1788)', () => {
 
   // ── (b) auth-bypass scope ──
   describe('auth-bypass scope (isPublicPath + route table)', () => {
-    // isPublicPath is inline in server.ts (which boots an HTTP server at import,
-    // so it is not import-safe). Anchor the assertion to the real source text —
-    // the same static-scan discipline extractRoutes uses — rather than a copy.
-    const serverSrc = fs.readFileSync(serverEntry, 'utf-8');
-    // Slice to the NEXT statement (not the first `;`) — the t/1788 exemption
-    // comment itself contains a semicolon, so a `;`-terminated slice would cut
-    // the block short before the clause it documents.
-    const blockStart = serverSrc.indexOf('const isPublicPath =');
-    const isPublicBlock = serverSrc.slice(blockStart, serverSrc.indexOf('const authDisabled', blockStart));
-
-    it('server.ts auth gate exempts the /api/public/ namespace', () => {
-      expect(isPublicBlock).toContain("urlPath.startsWith('/api/public/')");
+    // t/1910: isPublicPath moved from server.ts to the import-safe publicPaths.ts, so
+    // these assert the real predicate + registered prefix directly (stronger than the
+    // former source-text scan). The /api/public/ auth exemption is the t/1788 invariant.
+    it('the auth gate exempts the /api/public/ namespace', () => {
+      expect(PUBLIC_PATH_PREFIXES).toContain('/api/public/');
+      expect(computeIsPublicPath('/api/public/pov/acc-beliefs-001/node/acc-beliefs-001')).toBe(true);
     });
 
     it('the gated sibling /api/conflicts is NOT in the public exemption list', () => {
-      expect(isPublicBlock).not.toContain('/api/conflicts');
+      expect(computeIsPublicPath('/api/conflicts')).toBe(false);
+      expect(PUBLIC_PATH_PREFIXES).not.toContain('/api/conflicts');
     });
 
     it('predicate: /api/public/... is exempt, a gated path is not', () => {
