@@ -81,6 +81,84 @@ async function loadEntityRegistry(): Promise<Map<string, Entity> | null> {
   return fileIO.readEntityRegistry();
 }
 
+// ── /api/entity/:ref per-kind resolvers ──
+// Extracted from the route handler's dispatch switch (ADR-007) so each kind's
+// lookup is a small named step and the switch stays flat. Each returns the JSON
+// payload — the `{ ref, kind, record }` wrapper or notFound(ref).
+
+async function resolveOrgRef(ref: EntityRef): Promise<unknown> {
+  const org = await getOrganizationById(ref.id);
+  // Organization has NO merged_into — no tombstone chase here.
+  return org ? { ref, kind: 'organization', record: org } : notFound(ref);
+}
+
+async function resolvePolicyRef(ref: EntityRef): Promise<unknown> {
+  const registry = await fileIO.readPolicyRegistry();
+  const found = policiesOf(registry).find(p => p.id === ref.id);
+  return found ? { ref, kind: 'policy', record: found as unknown as PolicyAction } : notFound(ref);
+}
+
+async function resolveNodeRef(ref: EntityRef): Promise<unknown> {
+  const povFile = povFileForNodeId(ref.id);
+  if (!povFile) return notFound(ref);
+  const data = await fileIO.readTaxonomyFile(povFile);
+  const found = nodesOf(data).find(n => n.id === ref.id);
+  return found ? { ref, kind: 'node', record: found as unknown as PovNode } : notFound(ref);
+}
+
+async function resolveSituationRef(ref: EntityRef): Promise<unknown> {
+  // sit-* and cc-* both live in the situations file (readTaxonomyFile
+  // resolves situations.json → cross-cutting.json, whichever exists).
+  const data = await fileIO.readTaxonomyFile('situations');
+  const found = nodesOf(data).find(n => n.id === ref.id);
+  return found ? { ref, kind: 'situation', record: found as unknown as SituationNode } : notFound(ref);
+}
+
+async function resolveTermRef(ref: EntityRef): Promise<unknown> {
+  // Wire form is `term:<slug>`; slug maps to a ColloquialTerm by slugifying its
+  // colloquial_term. If two terms collide onto the same slug the mapping is
+  // ambiguous → not_found (refusal discipline; never guess a target).
+  const slug = ref.id.slice('term:'.length);
+  const colloquial = (await fileIO.loadDictionary()).colloquial as ColloquialTerm[];
+  const matches = colloquial.filter(t => slugifyTerm(t.colloquial_term ?? '') === slug);
+  return matches.length === 1 ? { ref, kind: 'term', record: matches[0] } : notFound(ref);
+}
+
+async function resolveEntityRegistryRef(ref: EntityRef): Promise<unknown> {
+  // t/1829: ent-* resolves via the entity registry (fileIO.readEntityRegistry,
+  // t/1807). resolveMergedInto follows a merge tombstone to the canonical record
+  // and stamps redirected_from. Absent store → registry is null → not_found
+  // (semantic held stable until entities.json is populated).
+  const registry = await loadEntityRegistry();
+  if (!registry) return notFound(ref);
+  const resolved = resolveMergedInto(ref.id, id => registry.get(id) ?? null, { maxDepth: MAX_MERGE_DEPTH });
+  if (!resolved) return notFound(ref);
+  // t/1964: normalize polymorphic aliases/source_refs before the detail/mention
+  // flow renders them — ent-034 "Claude" (the mention target) has aliases: null.
+  const record = normalizeEntity(resolved.record);
+  return resolved.redirectedFrom === undefined
+    ? { ref, kind: 'entity', record }
+    : { ref, redirected_from: resolved.redirectedFrom, kind: 'entity', record };
+}
+
+/** Dispatch an entity ref to its per-kind resolver, returning the JSON payload.
+ *  Exhaustive over EntityRefKind — the `never` default fails to COMPILE if a new
+ *  kind is added without a resolver (t/1786 fast-follow, TL). */
+async function resolveEntityByRef(ref: EntityRef): Promise<unknown> {
+  switch (ref.kind) {
+    case 'organization': return resolveOrgRef(ref);
+    case 'policy': return resolvePolicyRef(ref);
+    case 'node': return resolveNodeRef(ref);
+    case 'situation': return resolveSituationRef(ref);
+    case 'term': return resolveTermRef(ref);
+    case 'entity': return resolveEntityRegistryRef(ref);
+    default: {
+      const _exhaustive: never = ref;
+      throw new Error(`Unhandled entity ref kind: ${JSON.stringify(_exhaustive)}`);
+    }
+  }
+}
+
 export function registerEntityRoutes(r: Router, _ctx: ServerCtx): void {
   const { get } = r;
 
@@ -120,81 +198,7 @@ export function registerEntityRoutes(r: Router, _ctx: ServerCtx): void {
       // never be requested) → 400, not a not_found result.
       if (!ref) { error(res, `Malformed or unrecognized entity ref: "${raw}"`, 400); return; }
 
-      switch (ref.kind) {
-        case 'organization': {
-          const org = await getOrganizationById(ref.id);
-          // Organization has NO merged_into — no tombstone chase here.
-          json(res, org ? { ref, kind: 'organization', record: org } : notFound(ref));
-          return;
-        }
-
-        case 'policy': {
-          const registry = await fileIO.readPolicyRegistry();
-          const found = policiesOf(registry).find(p => p.id === ref.id);
-          json(res, found ? { ref, kind: 'policy', record: found as unknown as PolicyAction } : notFound(ref));
-          return;
-        }
-
-        case 'node': {
-          const povFile = povFileForNodeId(ref.id);
-          if (!povFile) { json(res, notFound(ref)); return; }
-          const data = await fileIO.readTaxonomyFile(povFile);
-          const found = nodesOf(data).find(n => n.id === ref.id);
-          json(res, found ? { ref, kind: 'node', record: found as unknown as PovNode } : notFound(ref));
-          return;
-        }
-
-        case 'situation': {
-          // sit-* and cc-* both live in the situations file (readTaxonomyFile
-          // resolves situations.json → cross-cutting.json, whichever exists).
-          const data = await fileIO.readTaxonomyFile('situations');
-          const found = nodesOf(data).find(n => n.id === ref.id);
-          json(res, found ? { ref, kind: 'situation', record: found as unknown as SituationNode } : notFound(ref));
-          return;
-        }
-
-        case 'term': {
-          // Wire form is `term:<slug>`; slug maps to a ColloquialTerm by slugifying
-          // its colloquial_term. If two terms collide onto the same slug the mapping
-          // is ambiguous → not_found (refusal discipline; never guess a target).
-          const slug = ref.id.slice('term:'.length);
-          const colloquial = (await fileIO.loadDictionary()).colloquial as ColloquialTerm[];
-          const matches = colloquial.filter(t => slugifyTerm(t.colloquial_term ?? '') === slug);
-          json(res, matches.length === 1 ? { ref, kind: 'term', record: matches[0] } : notFound(ref));
-          return;
-        }
-
-        case 'entity': {
-          // t/1829: ent-* resolves via the entity registry (fileIO.readEntityRegistry,
-          // t/1807). resolveMergedInto follows a merge tombstone to the canonical
-          // record and stamps redirected_from. Absent store → registry is null →
-          // not_found (semantic held stable until entities.json is populated).
-          const registry = await loadEntityRegistry();
-          if (!registry) { json(res, notFound(ref)); return; }
-          const resolved = resolveMergedInto(ref.id, id => registry.get(id) ?? null, { maxDepth: MAX_MERGE_DEPTH });
-          if (!resolved) { json(res, notFound(ref)); return; }
-          // t/1964: normalize polymorphic aliases/source_refs before the detail/mention
-          // flow renders them — ent-034 "Claude" (the mention target) has aliases: null.
-          const record = normalizeEntity(resolved.record);
-          json(
-            res,
-            resolved.redirectedFrom === undefined
-              ? { ref, kind: 'entity', record }
-              : { ref, redirected_from: resolved.redirectedFrom, kind: 'entity', record },
-          );
-          return;
-        }
-
-        default: {
-          // Exhaustiveness guard (t/1786 fast-follow, TL): every EntityRefKind has a
-          // case above. If the union grows, `ref` here stops being `never` and this
-          // assignment fails to COMPILE — forcing the new kind to be handled rather
-          // than silently falling through to a hung request. Unreachable today; the
-          // throw routes through the catch below (flight-recorder + 500) if it ever is.
-          const _exhaustive: never = ref;
-          throw new Error(`Unhandled entity ref kind: ${JSON.stringify(_exhaustive)}`);
-        }
-      }
+      json(res, await resolveEntityByRef(ref));
     } catch (err) {
       getGlobalRecorder()?.record({
         type: 'system.error', component: 'server', level: 'error',
