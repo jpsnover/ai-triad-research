@@ -142,12 +142,20 @@ export function loadCoverageMap(dataRoot: string): CorpusCoverageMap | null {
 
 // ── Greatest-hits exclusion file ──────────────────────────
 
+export interface GreatestHitsNode {
+  pov: string;
+  bdi_category: string;
+  node_id: string;
+  debate_count: number;
+  crux_link_count: number;
+}
+
 export interface GreatestHitsFile {
-  version: 1;
+  version: 2;
   generated_at: string;
-  node_count: number;
   debate_count_threshold: number;
-  node_ids: string[];
+  node_count: number;
+  nodes: GreatestHitsNode[];
 }
 
 const GREATEST_HITS_FILE = 'greatest-hits.json';
@@ -156,14 +164,25 @@ export function greatestHitsPath(dataRoot: string): string {
   return path.join(dataRoot, 'calibration', GREATEST_HITS_FILE);
 }
 
+const POV_ORDER = ['acc', 'saf', 'skp', 'cc'];
+const BDI_ORDER = ['Beliefs', 'Desires', 'Intentions'];
+
+function parsePovBdi(nodeId: string): { pov: string; bdi_category: string } {
+  const parts = nodeId.split('-');
+  const pov = parts[0] ?? 'unknown';
+  // Standard format: {pov}-{bdi}-{NNN} (3+ parts). Policy nodes: pol-{NNN} (2 parts).
+  const bdiRaw = parts.length >= 3 ? parts[1] : '';
+  const bdi_category = bdiRaw
+    ? bdiRaw.charAt(0).toUpperCase() + bdiRaw.slice(1)
+    : 'Policy';
+  return { pov, bdi_category };
+}
+
 /**
  * Generate calibration/greatest-hits.json from the corpus coverage map.
- * No-clobber by default: if the file already exists, throws ActionableError
- * to protect hand-curation (pass { force: true } to overwrite).
- * Node IDs are sorted by debate_count descending so the most overused appear first.
- *
- * CL binding condition self-cert: (1) flag-On + missing file → ActionableError at
- * loadGreatestHitsFile call site; (2) this writer validates coverage map exists.
+ * Seed: ALL nodes with debate_count >= threshold (no crux filter) — owner curates via hand-editing.
+ * Nodes organized POV → BDI category → debate_count descending with crux_link_count annotation.
+ * No-clobber: throws ActionableError if file exists and force is absent.
  */
 export function generateGreatestHitsFile(
   dataRoot: string,
@@ -173,7 +192,7 @@ export function generateGreatestHitsFile(
   if (!coverageMap) {
     throw new ActionableError({
       goal: 'Generate greatest-hits exclusion file from corpus coverage map',
-      problem: `corpus-coverage.json not found — cannot identify retread nodes`,
+      problem: `corpus-coverage.json not found — cannot identify heavy nodes`,
       location: 'generateGreatestHitsFile',
       nextSteps: [
         'Run computeCorpusCoverage() and saveCoverageMap() first',
@@ -196,17 +215,27 @@ export function generateGreatestHitsFile(
     });
   }
 
-  const retreads = Object.entries(coverageMap.node_stats)
-    .filter(([, stats]) => stats.retread_flag)
-    .sort((a, b) => b[1].debate_count - a[1].debate_count)
-    .map(([nodeId]) => nodeId);
+  // All heavy nodes — no crux filter. Owner sees crux_link_count and decides what to keep.
+  const heavyNodes: GreatestHitsNode[] = Object.entries(coverageMap.node_stats)
+    .filter(([, stats]) => stats.debate_count >= coverageMap.debate_count_threshold)
+    .map(([nodeId, stats]) => {
+      const { pov, bdi_category } = parsePovBdi(nodeId);
+      return { pov, bdi_category, node_id: nodeId, debate_count: stats.debate_count, crux_link_count: stats.crux_link_count };
+    })
+    .sort((a, b) => {
+      const povDiff = (POV_ORDER.indexOf(a.pov) + 1 || 9999) - (POV_ORDER.indexOf(b.pov) + 1 || 9999);
+      if (povDiff !== 0) return povDiff;
+      const bdiDiff = (BDI_ORDER.indexOf(a.bdi_category) + 1 || 9999) - (BDI_ORDER.indexOf(b.bdi_category) + 1 || 9999);
+      if (bdiDiff !== 0) return bdiDiff;
+      return b.debate_count - a.debate_count;
+    });
 
   const file: GreatestHitsFile = {
-    version: 1,
+    version: 2,
     generated_at: new Date().toISOString(),
-    node_count: retreads.length,
     debate_count_threshold: coverageMap.debate_count_threshold,
-    node_ids: retreads,
+    node_count: heavyNodes.length,
+    nodes: heavyNodes,
   };
 
   const dir = path.join(dataRoot, 'calibration');
@@ -242,15 +271,20 @@ export function loadGreatestHitsFile(
     });
   }
 
-  if (
-    typeof raw !== 'object' || raw === null ||
-    (raw as Record<string, unknown>).version !== 1 ||
-    !Array.isArray((raw as Record<string, unknown>).node_ids) ||
-    !(raw as { node_ids: unknown[] }).node_ids.every((id) => typeof id === 'string')
-  ) {
+  const r = raw as Record<string, unknown>;
+  const isV2 = r.version === 2 &&
+    Array.isArray(r.nodes) &&
+    (r.nodes as unknown[]).every(
+      (n) => typeof n === 'object' && n !== null && typeof (n as Record<string, unknown>).node_id === 'string',
+    );
+  const isV1 = r.version === 1 &&
+    Array.isArray(r.node_ids) &&
+    (r.node_ids as unknown[]).every((id) => typeof id === 'string');
+
+  if (!isV2 && !isV1) {
     throw new ActionableError({
       goal: 'Load greatest-hits exclusion file',
-      problem: `greatest-hits.json at ${p} has unexpected shape — expected { version: 1, node_ids: string[] }`,
+      problem: `greatest-hits.json at ${p} has unexpected shape — expected version 2 { nodes: [{node_id}] } or legacy version 1 { node_ids: string[] }`,
       location: 'loadGreatestHitsFile',
       nextSteps: [
         'Check the file has not been corrupted',
@@ -259,7 +293,9 @@ export function loadGreatestHitsFile(
     });
   }
 
-  const nodeIds = (raw as GreatestHitsFile).node_ids;
+  const nodeIds: string[] = isV2
+    ? (r.nodes as Array<{ node_id: string }>).map((n) => n.node_id)
+    : (r.node_ids as string[]);
   const exclusionSet = new Set<string>();
   const unknownIds: string[] = [];
 

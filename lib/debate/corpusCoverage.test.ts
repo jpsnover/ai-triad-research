@@ -271,7 +271,7 @@ describe('generateGreatestHitsFile', () => {
     expect(() => generateGreatestHitsFile('/data')).toThrow(/already exists/);
   });
 
-  it('with force:true, writes over existing greatest-hits.json', () => {
+  it('with force:true, writes v2 schema with all-heavy nodes (no crux filter)', () => {
     const coverageMap = {
       version: 1 as const,
       last_updated: '2026-07-01T00:00:00Z',
@@ -279,6 +279,8 @@ describe('generateGreatestHitsFile', () => {
       node_stats: {
         'acc-beliefs-001': { debate_count: 25, crux_link_count: 0, retread_flag: true },
         'saf-desires-002': { debate_count: 3, crux_link_count: 0, retread_flag: false },
+        // fault-line: crux_link_count >= 2 → NOT excluded from seed (no crux filter)
+        'skp-beliefs-003': { debate_count: 22, crux_link_count: 3, retread_flag: false },
       },
     };
     let written = '';
@@ -289,9 +291,17 @@ describe('generateGreatestHitsFile', () => {
     });
     generateGreatestHitsFile('/data', { force: true });
     const parsed = JSON.parse(written);
-    expect(parsed.version).toBe(1);
-    expect(parsed.node_ids).toContain('acc-beliefs-001');
-    expect(parsed.node_ids).not.toContain('saf-desires-002');
+    expect(parsed.version).toBe(2);
+    expect(Array.isArray(parsed.nodes)).toBe(true);
+    // All heavy nodes included (acc-001 d=25, skp-003 d=22); saf-002 excluded (d=3 < 20)
+    const nodeIds = parsed.nodes.map((n: { node_id: string }) => n.node_id);
+    expect(nodeIds).toContain('acc-beliefs-001');
+    expect(nodeIds).toContain('skp-beliefs-003');   // fault-line included — no crux filter
+    expect(nodeIds).not.toContain('saf-desires-002'); // below threshold
+    // Each entry has the required annotation fields
+    const acc = parsed.nodes.find((n: { node_id: string }) => n.node_id === 'acc-beliefs-001');
+    expect(acc).toMatchObject({ pov: 'acc', bdi_category: 'Beliefs', debate_count: 25, crux_link_count: 0 });
+    expect(parsed.node_count).toBe(2);
   });
 });
 
@@ -313,31 +323,34 @@ describe('loadGreatestHitsFile', () => {
     expect(() => loadGreatestHitsFile('/data')).toThrow(/Failed to parse greatest-hits.json/);
   });
 
-  it('throws ActionableError on shape failure (wrong version)', () => {
+  it('throws ActionableError on shape failure (unknown version)', () => {
     setupMocks({
       existsSync: () => true,
-      readFileSync: () => JSON.stringify({ version: 2, node_ids: ['acc-beliefs-001'] }),
+      readFileSync: () => JSON.stringify({ version: 99, data: [] }),
     });
     expect(() => loadGreatestHitsFile('/data')).toThrow(/unexpected shape/);
   });
 
-  it('throws ActionableError when node_ids contains non-strings', () => {
+  it('throws ActionableError when v2 nodes[] contains non-objects', () => {
     setupMocks({
       existsSync: () => true,
-      readFileSync: () => JSON.stringify({ version: 1, node_ids: [123, 'acc-beliefs-001'] }),
+      readFileSync: () => JSON.stringify({ version: 2, nodes: ['not-an-object'] }),
     });
     expect(() => loadGreatestHitsFile('/data')).toThrow(/unexpected shape/);
   });
 
-  it('happy path — returns Set of IDs from file', () => {
+  it('v2 happy path — returns Set of node_ids from nodes[]', () => {
     setupMocks({
       existsSync: () => true,
       readFileSync: () => JSON.stringify({
-        version: 1,
+        version: 2,
         generated_at: '2026-07-01T00:00:00Z',
-        node_count: 2,
         debate_count_threshold: 20,
-        node_ids: ['acc-beliefs-001', 'saf-desires-002'],
+        node_count: 2,
+        nodes: [
+          { pov: 'acc', bdi_category: 'Beliefs', node_id: 'acc-beliefs-001', debate_count: 25, crux_link_count: 0 },
+          { pov: 'saf', bdi_category: 'Desires', node_id: 'saf-desires-002', debate_count: 22, crux_link_count: 3 },
+        ],
       }),
     });
     const result = loadGreatestHitsFile('/data');
@@ -346,15 +359,34 @@ describe('loadGreatestHitsFile', () => {
     expect(result!.has('saf-desires-002')).toBe(true);
   });
 
-  it('unknown node IDs are excluded from the Set when knownNodeIds provided', () => {
+  it('v1 back-compat — returns Set from legacy node_ids[]', () => {
     setupMocks({
       existsSync: () => true,
       readFileSync: () => JSON.stringify({
         version: 1,
         generated_at: '2026-07-01T00:00:00Z',
-        node_count: 2,
+        node_count: 1,
         debate_count_threshold: 20,
-        node_ids: ['acc-beliefs-001', 'stale-node-xyz'],
+        node_ids: ['acc-beliefs-001'],
+      }),
+    });
+    const result = loadGreatestHitsFile('/data');
+    expect(result).not.toBeNull();
+    expect(result!.has('acc-beliefs-001')).toBe(true);
+  });
+
+  it('unknown node IDs are excluded from the Set when knownNodeIds provided', () => {
+    setupMocks({
+      existsSync: () => true,
+      readFileSync: () => JSON.stringify({
+        version: 2,
+        generated_at: '2026-07-01T00:00:00Z',
+        debate_count_threshold: 20,
+        node_count: 2,
+        nodes: [
+          { pov: 'acc', bdi_category: 'Beliefs', node_id: 'acc-beliefs-001', debate_count: 25, crux_link_count: 0 },
+          { pov: 'acc', bdi_category: 'Beliefs', node_id: 'stale-node-xyz', debate_count: 21, crux_link_count: 0 },
+        ],
       }),
     });
     const known = new Set(['acc-beliefs-001']);
