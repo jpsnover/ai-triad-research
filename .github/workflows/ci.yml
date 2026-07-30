@@ -53,7 +53,7 @@ jobs:
       schema: ${{ steps.filter.outputs.schema }}
       lib: ${{ steps.filter.outputs.lib }}
     steps:
-      - uses: dorny/paths-filter@fbd0ab8f3e69293af611ebaee6363fc25e6d187d  # v4.0.1
+      - uses: dorny/paths-filter@7b450fff21473bca461d4b92ce414b9d0420d706  # v4.0.2
         id: filter
         with:
           filters: |
@@ -90,10 +90,10 @@ jobs:
       (github.event_name != 'pull_request' || needs.changes.outputs.powershell == 'true')
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v6
 
       - name: Checkout data repo
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v6
         continue-on-error: true
         with:
           repository: jpsnover/ai-triad-data
@@ -139,10 +139,10 @@ jobs:
       matrix:
         app: [taxonomy-editor, poviewer, summary-viewer, workflow-app]
     steps:
-      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v6
 
       - name: Checkout data repo
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v6
         continue-on-error: true
         with:
           repository: jpsnover/ai-triad-data
@@ -153,7 +153,7 @@ jobs:
         run: ln -s "$GITHUB_WORKSPACE/ai-triad-data" ../ai-triad-data
         continue-on-error: true
 
-      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e  # v6
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v6
         with:
           node-version: '22'
           cache: 'npm'
@@ -231,9 +231,9 @@ jobs:
           - app: workflow-app
             baseline: ""
     steps:
-      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v6
 
-      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e  # v6
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v6
         with:
           node-version: '22'
           cache: 'npm'
@@ -265,7 +265,7 @@ jobs:
   quality-gates:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v6
         with:
           fetch-depth: 0
 
@@ -286,9 +286,9 @@ jobs:
       (github.event_name != 'pull_request' || needs.changes.outputs.lib == 'true')
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v6
 
-      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e  # v6
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v6
         with:
           node-version: '22'
           cache: 'npm'
@@ -307,7 +307,7 @@ jobs:
   commit-hygiene:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v6
         continue-on-error: true
         with:
           fetch-depth: 0
@@ -326,13 +326,13 @@ jobs:
   doc-accuracy:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v6
 
       - name: Check doc claims
         continue-on-error: true
         run: bash scripts/check-doc-claims.sh
 
-      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e  # v6
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v6
         with:
           node-version: '22'
           cache: 'npm'
@@ -369,10 +369,10 @@ jobs:
     env:
       GEMINI_API_KEY: ${{ secrets.FREE_TIER_GEMINI_KEY }}
     steps:
-      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v6
         continue-on-error: true
 
-      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e  # v6
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v6
         continue-on-error: true
         with:
           node-version: '22'
@@ -405,11 +405,11 @@ jobs:
       (github.event_name != 'pull_request' || needs.changes.outputs.schema == 'true')
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v6
         continue-on-error: true
 
       - name: Checkout data repo
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v6
         continue-on-error: true
         with:
           repository: jpsnover/ai-triad-data
@@ -420,7 +420,7 @@ jobs:
         run: ln -s "$GITHUB_WORKSPACE/ai-triad-data" ../ai-triad-data
         continue-on-error: true
 
-      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e  # v6
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v6
         continue-on-error: true
         with:
           node-version: '22'
@@ -442,7 +442,7 @@ jobs:
       !contains(needs.*.result, 'cancelled')
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v6
 
       - name: Free disk space
         run: |
@@ -450,13 +450,13 @@ jobs:
           df -h /
 
       - name: Lint Dockerfiles
-        uses: hadolint/hadolint-action@54c9adbab1582c2ef04b2016b760714a4bfde3cf  # v3.1.0
+        uses: hadolint/hadolint-action@2332a7b74a6de0dda2e2221d575162eba76ba5e5  # v3.3.0
         with:
           dockerfile: taxonomy-editor/Dockerfile
           failure-threshold: error
 
       - name: Lint base Dockerfile
-        uses: hadolint/hadolint-action@54c9adbab1582c2ef04b2016b760714a4bfde3cf  # v3.1.0
+        uses: hadolint/hadolint-action@2332a7b74a6de0dda2e2221d575162eba76ba5e5  # v3.3.0
         with:
           dockerfile: deploy/azure/Dockerfile.base
           failure-threshold: error
@@ -467,7 +467,7 @@ jobs:
           echo '{"generated":"none","commit":"none","empty":true}' > taxonomy-snapshot/snapshot-meta.json
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@d7f5e7f509e45cec5c76c4d5afdd7de93d0b3df5  # v4
+        uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c  # v4
 
       - name: Extract base image tag from Dockerfile
         id: base_tag
@@ -491,7 +491,7 @@ jobs:
           fi
 
       - name: Build app container image
-        uses: docker/build-push-action@f9f3042f7e2789586610d6e8b85c8f03e5195baf  # v7
+        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a  # v7
         with:
           context: .
           file: taxonomy-editor/Dockerfile
