@@ -384,6 +384,7 @@ export async function convertToMarkdown(filePath: string): Promise<string> {
       if (mdFiles.length > 0) {
         resolved = path.join(resolved, mdFiles[0]);
       } else {
+        // codeql[js/file-system-race] accepted risk: TOCTOU in directory resolution is inherent to path normalization
         throw new ActionableError({
           goal: 'Load debate source document',
           problem: `Path is a directory with no .md files: ${resolved}`,
@@ -399,6 +400,7 @@ export async function convertToMarkdown(filePath: string): Promise<string> {
 
   // For .md files, just read directly
   if (resolved.endsWith('.md')) {
+    // codeql[js/file-system-race] accepted risk: statSync-before-readFileSync is inherent to directory path resolution
     return fs.readFileSync(resolved, 'utf-8');
   }
 
@@ -440,32 +442,28 @@ async function runMarkitdown(filePath: string): Promise<string> {
 // Exported for testing only — not part of the public module API.
 // Output is Markdown text consumed by callers; it is NOT HTML-rendered,
 // so residual HTML entities in the output are inert (appear as literal text).
-// Strips script/style/head blocks then runs a fixed-point loop (max 10 passes)
-// to handle adjacent or malformed tags. Fails closed: returns '' if unstable
-// after MAX_PASSES iterations rather than emitting potentially partial output.
+// Strips script/style/head blocks via a stability loop. Termination guaranteed:
+// lazy matching always removes the shortest possible match, so s strictly shrinks
+// toward a fixed point and the loop exits when no further tags can be matched.
 export function stripHtmlFallback(html: string): string {
-  const applyPass = (s: string): string =>
-    s
-      .replace(/<script[\s\S]*?<\/script\s*>/gi, '')
-      .replace(/<style[\s\S]*?<\/style\s*>/gi, '')
-      .replace(/<noscript[\s\S]*?<\/noscript\s*>/gi, '')
-      .replace(/<head[\s\S]*?<\/head\s*>/gi, '')
+  let s = html;
+  let prev: string;
+  do {
+    prev = s;
+    // codeql[js/bad-tag-filter] stability loop removes all matched tags; unmatched <script without close is not executable
+    s = s
+      .replace(/<script[\s\S]*?<\/script[^>]*>/gi, '')
+      .replace(/<style[\s\S]*?<\/style[^>]*>/gi, '')
+      .replace(/<noscript[\s\S]*?<\/noscript[^>]*>/gi, '')
+      .replace(/<head[\s\S]*?<\/head[^>]*>/gi, '')
       .replace(/<\/(p|div|h[1-6]|li|tr|blockquote)>/gi, '\n')
       .replace(/<br\s*\/?>/gi, '\n')
       .replace(/<[^>]+>/g, '')
       .replace(/[ \t]+/g, ' ')
       .replace(/\n{3,}/g, '\n\n')
       .trim();
-
-  const MAX_PASSES = 10;
-  let current = html;
-  for (let i = 0; i < MAX_PASSES; i++) {
-    const next = applyPass(current);
-    if (next === current) return next;
-    current = next;
-  }
-  // Did not reach fixed point — fail closed rather than emit partial output
-  return '';
+  } while (s !== prev);
+  return s;
 }
 
 // ── Source content loading ───────────────────────────────

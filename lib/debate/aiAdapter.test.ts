@@ -718,10 +718,12 @@ describe('aiAdapter', () => {
       process.env.ANTHROPIC_API_KEY = 'claude-key';
 
       mockFetch.mockImplementation(async (url: string) => {
-        if (url.includes('generativelanguage.googleapis.com')) { // codeql[js/incomplete-url-substring-sanitization] test mock routing, not a security check
+        // codeql[js/incomplete-url-substring-sanitization] test mock routing, not a security check
+        if (url.includes('generativelanguage.googleapis.com')) {
           return freshResponse({ error: 'model not found' }, 404);
         }
-        if (url.includes('api.anthropic.com')) { // codeql[js/incomplete-url-substring-sanitization] test mock routing, not a security check
+        // codeql[js/incomplete-url-substring-sanitization] test mock routing, not a security check
+        if (url.includes('api.anthropic.com')) {
           return freshResponse(claudeOkBody('fallback response'), 200);
         }
         return freshResponse({ error: 'unknown' }, 500);
@@ -740,13 +742,16 @@ describe('aiAdapter', () => {
       process.env.GROQ_API_KEY = 'groq-key';
 
       mockFetch.mockImplementation(async (url: string) => {
-        if (url.includes('generativelanguage.googleapis.com')) { // codeql[js/incomplete-url-substring-sanitization] test mock routing, not a security check
+        // codeql[js/incomplete-url-substring-sanitization] test mock routing, not a security check
+        if (url.includes('generativelanguage.googleapis.com')) {
           return freshResponse({ error: 'model not found' }, 404);
         }
-        if (url.includes('api.anthropic.com')) { // codeql[js/incomplete-url-substring-sanitization] test mock routing, not a security check
+        // codeql[js/incomplete-url-substring-sanitization] test mock routing, not a security check
+        if (url.includes('api.anthropic.com')) {
           return freshResponse({ error: 'overloaded' }, 500);
         }
-        if (url.includes('api.groq.com')) { // codeql[js/incomplete-url-substring-sanitization] test mock routing, not a security check
+        // codeql[js/incomplete-url-substring-sanitization] test mock routing, not a security check
+        if (url.includes('api.groq.com')) {
           return freshResponse(groqOkBody('second fallback'), 200);
         }
         return freshResponse({ error: 'unknown' }, 500);
@@ -787,10 +792,12 @@ describe('aiAdapter', () => {
       const urls: string[] = [];
       mockFetch.mockImplementation(async (url: string) => {
         urls.push(url);
-        if (url.includes('generativelanguage.googleapis.com')) { // codeql[js/incomplete-url-substring-sanitization] test mock routing, not a security check
+        // codeql[js/incomplete-url-substring-sanitization] test mock routing, not a security check
+        if (url.includes('generativelanguage.googleapis.com')) {
           return freshResponse({ error: 'API key not valid' }, 401);
         }
-        if (url.includes('api.groq.com')) { // codeql[js/incomplete-url-substring-sanitization] test mock routing, not a security check
+        // codeql[js/incomplete-url-substring-sanitization] test mock routing, not a security check
+        if (url.includes('api.groq.com')) {
           return freshResponse(groqOkBody('groq fallback'), 200);
         }
         return freshResponse({ error: 'unknown' }, 500);
@@ -837,10 +844,12 @@ describe('aiAdapter', () => {
 
       let claudeCallCount = 0;
       mockFetch.mockImplementation(async (url: string) => {
-        if (url.includes('generativelanguage.googleapis.com')) { // codeql[js/incomplete-url-substring-sanitization] test mock routing, not a security check
+        // codeql[js/incomplete-url-substring-sanitization] test mock routing, not a security check
+        if (url.includes('generativelanguage.googleapis.com')) {
           return freshResponse({ error: 'not found' }, 404);
         }
-        if (url.includes('api.anthropic.com')) { // codeql[js/incomplete-url-substring-sanitization] test mock routing, not a security check
+        // codeql[js/incomplete-url-substring-sanitization] test mock routing, not a security check
+        if (url.includes('api.anthropic.com')) {
           claudeCallCount++;
           return freshResponse({ error: 'rate limited' }, 429);
         }

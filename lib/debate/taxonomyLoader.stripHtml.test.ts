@@ -21,15 +21,11 @@ describe('stripHtmlFallback (sec fix t/2018)', () => {
     expect(stripHtmlFallback(input)).toBe('');
   });
 
-  it('returns empty string when content does not converge within MAX_PASSES', () => {
-    // Pathological input that stays unstable: a string that keeps producing
-    // new tags after each strip. We verify the function does NOT hang and
-    // does NOT return partial output — it returns ''.
-    // (A simple static string always converges; we use a realistic upper bound.)
+  it('handles deeply nested script tags (convergence guaranteed by do-while)', () => {
+    // Lazy matching removes the innermost script-content first each pass;
+    // do-while exits when no further change occurs. All 12 levels converge to ''.
     const deeplyNested = '<script>'.repeat(12) + 'x' + '</script>'.repeat(12);
-    const result = stripHtmlFallback(deeplyNested);
-    // Either all stripped (empty) or fail-closed (empty) — never a partial
-    expect(result).toBe('');
+    expect(stripHtmlFallback(deeplyNested)).toBe('');
   });
 
   it('strips head and noscript blocks', () => {
