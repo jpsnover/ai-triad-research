@@ -45,6 +45,25 @@ function options() {
 }
 
 describe('EntityBrowserPanel', () => {
+  it('survives polymorphic aliases (array|null|string) and shows a bare-string alias in full (t/1884#4)', async () => {
+    // aliases is array(24)|null(32)|bare-string(22) in real data despite the string[] type.
+    // Exercises the row [0] read AND the search .some() path for null AND string.
+    listEntitiesMock.mockResolvedValue([
+      { id: 'ent-034', name: 'Claude', aliases: null as unknown as string[], entity_type: 'artifact', status: 'approved', confidence: 0.9, last_modified: '2026-02-01' },
+      { id: 'ent-071', name: 'GDPR', aliases: 'General Data Protection Regulation' as unknown as string[], entity_type: 'legislation', status: 'approved', confidence: 0.8, last_modified: '2026-02-01' },
+    ]);
+    const user = userEvent.setup();
+    render(<EntityBrowserPanel />);
+    expect(await screen.findByText('Claude')).toBeInTheDocument();
+    expect(options()).toHaveLength(2);
+    // a bare-string alias renders in FULL, not sliced to its first character ("also: G")
+    expect(screen.getByText('also: General Data Protection Regulation')).toBeInTheDocument();
+    // search over polymorphic aliases (the .some path) must not throw for null OR string
+    await user.type(screen.getByLabelText('Search entities'), 'protection');
+    expect(await screen.findByText('GDPR')).toBeInTheDocument();
+    expect(options()).toHaveLength(1);
+  });
+
   it('lists all entities and shows the total count', async () => {
     render(<EntityBrowserPanel />);
     expect(await screen.findByText('OpenAI')).toBeInTheDocument();

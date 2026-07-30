@@ -10,7 +10,8 @@
     "dev:electron": "wait-on http://localhost:5174 && electron .",
     "build:main": "tsc -p tsconfig.main.json",
     "licenses": "generate-license-file --input package.json --output THIRD-PARTY-NOTICES.txt --eol lf",
-    "build": "tsc -p tsconfig.main.json && vite build && npm run licenses"
+    "build": "tsc -p tsconfig.main.json && vite build && npm run licenses",
+    "lint": "eslint src/"
   },
   "dependencies": {
     "@google/genai": "^2.11.0",
@@ -26,8 +27,10 @@
     "@vitejs/plugin-react": "^6.0.3",
     "concurrently": "^10.0.3",
     "electron": "^43.1.1",
+    "eslint": "^10.7.0",
     "generate-license-file": "^4.2.1",
     "typescript": "^6.0.3",
+    "typescript-eslint": "^8.64.0",
     "vite": "^8.1.4",
     "wait-on": "^9.0.10"
   },

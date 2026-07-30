@@ -14,6 +14,7 @@ import type { Mention } from '@lib/entities/mentionTypes';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { useDebateStore } from '../../hooks/useDebateStore';
 import { buildFieldSegments, type ContainerField, type ReconstructedContainer } from './mentionText';
+import './refLinkifyPlugin.css'; // MentionField hard-codes `.ref-link` without going through the plugin; this is the ONLY thing styling NodeDetail's mention links once the global leak is removed (t/1907, TL2 p/287#3)
 
 /**
  * Fetch a container's stored mentions. Absence, an unwired desktop transport, or any

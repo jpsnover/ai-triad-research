@@ -7,6 +7,7 @@
  */
 import type { AppAPI } from './types';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
+import { ALL_API_KEY_BACKENDS } from '@lib/ai-client/types';
 import {
   tryInitLocalEmbedding,
   isLocalEmbeddingReady,
@@ -97,9 +98,9 @@ export const api: AppAPI = {
   hasApiKey: (backend) => window.electronAPI.hasApiKey(backend),
   getAvailableBackends: async () => {
     // Desktop has no community server; availability is local key presence.
-    const ALL_BACKENDS = ['gemini', 'claude', 'groq', 'openai', 'azure', 'deepseek', 'tavily', 'ollama'] as const;
+    // Backend list is the canonical exhaustive one (t/1956) — never hand-maintain here (t/1958).
     return Promise.all(
-      ALL_BACKENDS.map(async (id) => ({ id, available: await window.electronAPI.hasApiKey(id) })),
+      ALL_API_KEY_BACKENDS.map(async (id) => ({ id, available: await window.electronAPI.hasApiKey(id) })),
     );
   },
   getApiKeySummary: () => window.electronAPI.getApiKeySummary(),

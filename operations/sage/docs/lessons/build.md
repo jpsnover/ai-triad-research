@@ -1348,7 +1348,7 @@ Failure patterns related to builds, CI, tooling, environment, and git operations
 1. **Don't use `--auto`.** Wait for green, then issue the merge directly: `gh pr checks <n> --watch` (or a Monitor-tool poll ~30s) → `gh pr merge <n> --rebase --delete-branch`. This is exactly the `/land-from-worktree` step-4→5 sequence.
 2. If a fleet-wide "queue and walk away" is wanted, that's a repo-setting change (enable auto-merge) — an owner/DevOps decision, not a per-land workaround.
 
-**Status:** Resolved — self-correcting (the flag errors immediately). Single instance; recorded because the new PR-flow makes `gh pr merge` a routine step and `--auto` is a natural but wrong reach.
+**Status:** **SUPERSEDED / STALE (2026-07-29)** — auto-merge was **RE-ENABLED** in this repo; empirically confirmed (PowerShell #158 landed via `gh pr merge --auto`; TaxEditor p/6#29). This "disabled" failure mode no longer applies — retained for history. The current landing caveat is **#108** (`--auto` doesn't auto-update a BEHIND branch under the strict up-to-date rule). (Originally: Resolved/self-correcting flag error, single instance, recorded because the PR-flow makes `gh pr merge` routine.)
 
 **Applies To:** Any agent self-merging a PR under the checks-only PR-flow.
 
@@ -1371,3 +1371,44 @@ Failure patterns related to builds, CI, tooling, environment, and git operations
 **Status:** **Resolved** — TL fixed step 5 (p/8#121): it now **drops `--delete-branch`**, verifies `gh pr view <n> --json state` == `MERGED` (**not the exit code**), and deletes the remote branch by push, with the failure-mode note in the skill. Was the dangerous variant of the PR-flow defects — the `fatal` reads as failure → panic-retry → double-land. Root cause folded into the "validate a fleet-standard procedure end-to-end before mandating" process lesson.
 
 **Applies To:** Every worktree PR-flow lander — i.e. everyone using `/land-from-worktree` step 5.
+
+---
+
+## [Build] Running `verify` INSIDE a Landing Worktree Dirties the Tree → Rebase Aborts → `--force` Remove Orphans the Unpushed Commit
+
+**Pattern:** In a landing worktree, running the full `npm run verify` (or any build) writes build artifacts (`dist/`, `.tsbuildinfo`, `coverage/`) that **dirty the tree**. A subsequent `git rebase origin/main` then **aborts** ("cannot rebase: you have unstaged changes"). If you then `git worktree remove --force` to clean up, the force-remove **drops the detached-HEAD ref holding your unpushed commit** — orphaning it. The commit isn't destroyed (it survives in the object store until gc), but it's no longer reachable from any ref.
+
+**Instances:**
+- 2026-07-29 — Shared Lib (t/1960, p/5#17): full `npm run verify` inside the worktree wrote `dist`/`.tsbuildinfo`/`coverage` → `git rebase` aborted on unstaged changes → `git worktree remove --force` orphaned the unpushed commit. Recovered: the commit survived in the object store (`git cat-file -e <sha>`) → cherry-picked onto a fresh worktree off current origin → pushed. (Windows also gave "Permission denied" on the remove; `git worktree prune` cleared the stale ref — see #78 Facet C.)
+
+**Root Cause:** `verify`/build steps emit untracked+modified artifacts; `git rebase` refuses to run against a dirty tree; and `git worktree remove --force` deletes the worktree — including its detached-HEAD ref — regardless of whether that ref is the sole pointer to an unpushed commit. The three compound: verify dirties → rebase can't proceed → force-remove (to "clean up") discards the only ref to the work. Same family as #72 (verify dirties snapshots) and #78 (worktree-remove hazards); the commit is recoverable ONLY because git retains unreachable objects until gc.
+
+**Prevention:**
+1. **Push BEFORE running `verify` in a worktree** — land the commit to origin first, THEN verify (or verify on a throwaway copy). A pushed commit can't be orphaned. (This is also the #107-avoiding form of the #95/#96 "get it onto origin, verify the ref" discipline.)
+2. **If you must verify pre-push, clean build artifacts before rebase** — `git stash` or `git clean -fdx` the artifact dirs so the tree is clean, then rebase (pairs with #72: discard verify-dirtied artifacts before rebase/push).
+3. **Never `--force`-remove a worktree that holds an unpushed commit** — confirm `git rev-parse origin/main` contains your HEAD (the #95/#96 verify-on-origin check) BEFORE removing; otherwise detach + `git worktree prune`, don't force-destroy.
+4. **Recover an orphaned commit by SHA → cherry-pick:** `git cat-file -e <sha>` confirms it survives; `git cherry-pick <sha>` onto a fresh worktree off current origin, then push. `git reflog` / `git fsck --lost-found` finds the SHA if you don't have it.
+
+**Status:** Active — worktree-land cluster; compound of verify-dirties-tree (#72) + force-remove-drops-ref. A near-miss data loss (recovered). Reinforces: push before verify; never force-destroy a ref holding unpushed work; a commit orphaned off all refs is still recoverable by SHA until gc.
+
+**Applies To:** All agents running `verify`/builds inside a landing worktree before pushing.
+
+---
+
+## [Build] On Busy main, `gh pr merge` Bounces a BEHIND Branch (Strict "Up-to-Date" Rule) — `--auto` Does NOT Auto-Update; `update-branch` First
+
+**Pattern:** main's branch protection has the strict **"require branches to be up to date before merging"** rule. A PR that is **behind** origin/main — even when green and mergeable — is **rejected at merge time**: `gh pr merge <n> --rebase` (or `--squash`) bounces with *"head branch is not up to date with the base branch."* Critically, `gh pr merge --auto` does **NOT** fix this — auto-merge only *waits for required checks then merges*; it does **not** rebase/update a behind branch. So on a high-velocity main a behind branch keeps falling further behind and **never lands** on `--auto` alone.
+
+**Instances:**
+- 2026-07-29 — Taxonomy Editor (PR #153, p/6#26/#29) + PowerShell (PR #158, same session): `gh pr merge --rebase` bounced "head branch is not up to date" on a GREEN PR; recurred twice. Working recipe: **`gh pr update-branch`** (or rebase onto origin/main + `git push --force-with-lease`, which re-triggers CI), THEN `gh pr merge --auto` — auto-merge grabs the next green window once the branch is current. (Auto-merge IS enabled in this repo as of 2026-07-29 — empirically #158 landed via `--auto`; this supersedes the now-stale "#105 auto-merge disabled".)
+
+**Root Cause:** The strict up-to-date rule requires HEAD to contain the latest base commit before merge; a behind branch is blocked regardless of green checks. GitHub auto-merge *waits for and then merges* once required checks pass — it does not update the branch — so a behind branch under a busy main never satisfies the up-to-date requirement on its own. On fast-moving main this is a livelock: while you wait for a window, main advances and you fall further behind. `--auto` handles the *green-check* wait, not the *up-to-date* update.
+
+**Prevention:**
+1. **Get the branch up-to-date, THEN auto-merge:** `gh pr update-branch` (or rebase onto origin/main + `git push --force-with-lease`, re-triggering CI), then `gh pr merge --auto`.
+2. **Expect to re-update on busy main** — if main advances again before the green window, re-run `update-branch`. `--auto` won't do it for you.
+3. **A `gh pr merge --rebase`/`--squash` bounce with "head branch is not up to date" is the strict-rule signal to update first** — not a defect in your PR.
+
+**Status:** Active — main strict "require up-to-date branch" protection; auto-merge (re-enabled 2026-07-29) covers the green-check wait but not the up-to-date update. Supersedes #105 (auto-merge-disabled, now stale). Recurred twice same session (TaxEditor #153, PowerShell #158).
+
+**Applies To:** All agents landing PRs on main via `gh pr merge`, especially during high-velocity/busy-main periods.

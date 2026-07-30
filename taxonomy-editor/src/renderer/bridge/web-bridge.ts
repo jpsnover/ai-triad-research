@@ -9,6 +9,7 @@ import type { AppAPI, SourceDocumentResolution, DebateDelta } from './types';
 import { instrumentBridge } from './instrumentBridge';
 import { ActionableError } from '@lib/debate/errors';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
+import { ALL_API_KEY_BACKENDS } from '@lib/ai-client/types';
 import { encryptKeysForSharing, decryptKeysFromSharing } from '../utils/keyShareCrypto';
 import { resilientFetch, categorizeEndpoint, registerConnectionPoolProvider, type EndpointCategory } from './resilience';
 import { onQuotaMilestone } from '../hooks/useQuotaWarning';
@@ -851,8 +852,8 @@ const rawApi: AppAPI = {
     }
   },
   deleteAllApiKeys: async () => {
-    const ALL_BACKENDS = ['gemini', 'claude', 'groq', 'openai', 'azure', 'deepseek', 'tavily', 'ollama'] as const;
-    for (const b of ALL_BACKENDS) {
+    // Must cover every backend or "delete all" silently leaves keys behind (t/1958).
+    for (const b of ALL_API_KEY_BACKENDS) {
       sessionStorage.removeItem(`byok-${b}`);
     }
     sessionStorage.removeItem('byok-api-key');
@@ -871,16 +872,14 @@ const rawApi: AppAPI = {
     // Anonymous (BYOK) keys live in sessionStorage — the server can't see them,
     // so derive availability locally, mirroring hasApiKey's anonymous branch.
     if (await isAnonymous()) {
-      const ALL_BACKENDS = ['gemini', 'claude', 'groq', 'openai', 'azure', 'deepseek', 'tavily', 'ollama'] as const;
-      return ALL_BACKENDS.map((id) => ({ id, available: !!sessionStorage.getItem(`byok-${id}`) }));
+      return ALL_API_KEY_BACKENDS.map((id) => ({ id, available: !!sessionStorage.getItem(`byok-${id}`) }));
     }
     const res = await get<{ backends: { id: string; available: boolean; models?: string[]; reason?: string }[] }>('/api/backends/available')
       .catch(bridgeWarn('getAvailableBackends failed', { backends: [] }));
     return res.backends;
   },
   getApiKeySummary: async () => {
-    const ALL_BACKENDS = ['gemini', 'claude', 'groq', 'openai', 'azure', 'deepseek', 'tavily', 'ollama'] as const;
-    return ALL_BACKENDS.map((b) => {
+    return ALL_API_KEY_BACKENDS.map((b) => {
       const keys = readByokKeys(b);
       return {
         backend: b,
@@ -890,9 +889,8 @@ const rawApi: AppAPI = {
     });
   },
   exportKeysForSharing: async (passphrase) => {
-    const ALL_BACKENDS = ['gemini', 'claude', 'groq', 'openai', 'azure', 'deepseek', 'tavily', 'ollama'] as const;
     const keys: Record<string, string> = {};
-    for (const b of ALL_BACKENDS) {
+    for (const b of ALL_API_KEY_BACKENDS) {
       const stored = sessionStorage.getItem(`byok-${b}`);
       if (stored) keys[b] = stored;
     }

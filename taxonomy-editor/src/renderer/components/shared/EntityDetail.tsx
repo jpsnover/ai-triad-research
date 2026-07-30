@@ -11,6 +11,7 @@
 
 import type { Entity } from '@lib/entities/types';
 import { TypeBadge, ExternalLinkRow } from './DetailPrimitives';
+import { coerceStringArray } from './coerceStringArray';
 import './EntityDetail.css';
 
 const STATUS_LABEL: Record<Entity['status'], string> = {
@@ -46,6 +47,10 @@ function EntityProvenanceFooter({ discovered_by, confidence }: Pick<Entity, 'dis
 
 export function EntityDetail({ entity, redirectedFrom }: { entity: Entity; redirectedFrom?: string }) {
   const { name, entity_type, dolce_category, aliases, status, description, external_refs, source_refs, discovered_by, confidence } = entity;
+  // aliases + source_refs are both polymorphic in real data (array|string|null) despite
+  // their string[] types — coerce before render (t/1882#7 / t/1884#4).
+  const aliasesArr = coerceStringArray(aliases);
+  const sourceRefsArr = coerceStringArray(source_refs);
 
   return (
     <div className="entity-detail">
@@ -64,8 +69,8 @@ export function EntityDetail({ entity, redirectedFrom }: { entity: Entity; redir
           <TypeBadge type={entity_type} />
           <span className="ed-dolce-chip" title={dolce_category}>{humanizeDolce(dolce_category)}</span>
         </div>
-        {aliases.length > 0 && (
-          <div className="ed-aliases">also: {aliases.join(', ')}</div>
+        {aliasesArr.length > 0 && (
+          <div className="ed-aliases">also: {aliasesArr.join(', ')}</div>
         )}
         <div className="ed-status-row">
           <span className={`ed-status-pill ed-status-${status}`}>{STATUS_LABEL[status]}</span>
@@ -90,11 +95,11 @@ export function EntityDetail({ entity, redirectedFrom }: { entity: Entity; redir
       {/* Appears in — source docs. Non-interactive labeled chips in P1a: no doc/source
           viewer target exists yet (spec open-Q3), so they are deliberately not clickable
           and not focusable — wiring is a clean follow-up when a target lands. */}
-      {source_refs && source_refs.length > 0 && (
+      {sourceRefsArr.length > 0 && (
         <div>
           <h3 className="ed-section-h3">Appears in</h3>
           <div className="ed-source-chips">
-            {source_refs.map((ref, i) => (
+            {sourceRefsArr.map((ref, i) => (
               <span key={i} className="ed-source-chip" title={ref}>doc: {ref}</span>
             ))}
           </div>

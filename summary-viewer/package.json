@@ -11,7 +11,8 @@
     "build:main": "tsc -p tsconfig.main.json",
     "test": "vitest run",
     "licenses": "generate-license-file --input package.json --output THIRD-PARTY-NOTICES.txt --eol lf",
-    "build": "tsc -p tsconfig.main.json && vite build && npm run licenses"
+    "build": "tsc -p tsconfig.main.json && vite build && npm run licenses",
+    "lint": "eslint src/"
   },
   "dependencies": {
     "react": "^19.2.7",
@@ -27,8 +28,10 @@
     "@vitejs/plugin-react": "^6.0.3",
     "concurrently": "^10.0.3",
     "electron": "^43.1.1",
+    "eslint": "^10.7.0",
     "generate-license-file": "^4.2.1",
     "typescript": "^6.0.3",
+    "typescript-eslint": "^8.64.0",
     "vite": "^8.1.4",
     "vitest": "^4.1.10",
     "wait-on": "^9.0.10"
