@@ -145,8 +145,14 @@ export function createSourceOnDisk(meta: SourceMetadataOnDisk): void {
     'utf-8',
   );
   const snapshotPath = path.join(sourceDir, 'snapshot.md');
-  if (!fs.existsSync(snapshotPath)) {
-    fs.writeFileSync(snapshotPath, '', 'utf-8');
+  // Atomic exclusive create: the 'wx' flag fails with EEXIST if the file already
+  // exists, eliminating the check-then-write TOCTOU race that an existsSync guard
+  // introduces (CodeQL js/file-system-race). Preserves the original intent —
+  // create an empty snapshot only when one isn't already present, never clobber.
+  try {
+    fs.writeFileSync(snapshotPath, '', { flag: 'wx' });
+  } catch (err) {
+    if ((err as { code?: string }).code !== 'EEXIST') throw err;
   }
 }
 

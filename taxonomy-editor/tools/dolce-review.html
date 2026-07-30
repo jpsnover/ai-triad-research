@@ -388,7 +388,7 @@
       (p.issues || []).forEach(i => { severityCounts[i.severity] = (severityCounts[i.severity] || 0) + 1; });
       const pillsHtml = Object.entries(severityCounts)
         .sort((a, b) => (SEVERITY_ORDER[a[0]] ?? 3) - (SEVERITY_ORDER[b[0]] ?? 3))
-        .map(([sev, count]) => '<span class="severity-pill ' + sev + '">' + count + ' ' + sev + '</span>')
+        .map(([sev, count]) => '<span class="severity-pill ' + escHtml(sev) + '">' + count + ' ' + escHtml(sev) + '</span>')
         .join('');
 
       const statusClass = state.decision || p.status;
@@ -396,12 +396,12 @@
 
       card.innerHTML = '<div class="card-header">' +
         '<span class="card-toggle' + (isExpanded ? ' open' : '') + '">&#9654;</span>' +
-        '<span class="card-node-id">' + p.id + '</span>' +
+        '<span class="card-node-id">' + escHtml(p.id) + '</span>' +
         '<span class="card-label">' + escHtml(p.label || '') + '</span>' +
         '<div class="severity-pills">' + pillsHtml + '</div>' +
-        '<span class="card-status ' + statusClass + '">' + statusLabel + '</span>' +
+        '<span class="card-status ' + escHtml(statusClass) + '">' + escHtml(statusLabel) + '</span>' +
         '</div>' +
-        '<div class="card-body' + (isExpanded ? ' open' : '') + '" id="body-' + p.id + '">' +
+        '<div class="card-body' + (isExpanded ? ' open' : '') + '" id="body-' + escHtml(p.id) + '">' +
         renderCardBody(p, state) +
         '</div>';
 
