@@ -1434,3 +1434,23 @@ Failure patterns related to builds, CI, tooling, environment, and git operations
 **Status:** Active — source-vs-compiled path-resolution divergence; a dist-calibrated root helper mis-resolves under vitest's source context.
 
 **Applies To:** All agents writing vitest tests (especially co-located server/lib tests) that read repo-root or shared files via a runtime root helper.
+
+---
+
+## [Build] A Workflow Gated on "CI Green for the CURRENT main HEAD" Can't Be Dispatched On-Demand on a Busy main — the Gate Races the Advancing HEAD
+
+**Pattern:** `container.yml` (build + Trivy scan) is gated on `ci-gate` — it requires `ci.yml` to be GREEN for the **current `main` HEAD** before it runs. On a high-velocity `main`, an on-demand `gh workflow run container.yml` can **never win the race**: each dispatch resolves whatever HEAD is current *at dispatch time*, whose `ci.yml` is still **in-progress** (or `main` advances again before it finishes) → the gate reports `test-container not found / in_progress` and the run no-ops. The gate is **unsatisfiable on demand** because the precondition (current-HEAD CI green) is a moving target on a busy branch.
+
+**Instances:**
+- 2026-07-29 — Docker (t/2006, p/217#3): trying to force an on-demand **app-image Trivy rescan** to clear code-scanning alerts, repeated `gh workflow run container.yml` dispatches each hit `test-container not found/in_progress` — `main` advanced faster than any single HEAD's CI completed. **Consequence:** you **cannot** force an on-demand app-image rescan; the app-image code-scanning alerts **auto-clear only on the next `v*` tagged release build** (which pins a HEAD and runs the full gate). **Workaround:** dispatch `base-image.yml` (not current-HEAD-gated) to prove the suppression on the BASE image, and **report the app-image residual as auto-clearing on the next release** rather than chasing the gate.
+
+**Root Cause:** A "current-HEAD CI green" precondition is satisfiable only when `main` stays quiescent long enough for one HEAD's CI to finish before the next commit lands — false on a busy multi-role `main`. The dispatched workflow re-resolves `main` HEAD at run time, so it is always chasing a newer, still-building commit. Same **busy-main advancing-HEAD livelock** as #108 (`gh pr merge` on a behind branch never satisfies the strict up-to-date rule): mechanism differs (workflow-gate vs merge-gate) but the shape is identical — a per-HEAD precondition can't converge while HEAD keeps moving.
+
+**Prevention:**
+1. **Don't chase a current-HEAD-gated workflow on a busy `main` — it can't win.** For on-demand verification, dispatch a workflow that is NOT gated on the moving HEAD (e.g. `base-image.yml`), or pin a specific ref if the workflow supports it.
+2. **For an app-image scan/suppression, report the residual as auto-clearing on the next `v*` release** (which pins a HEAD and runs the full gate) — state it as expected behavior, not an open failure to chase.
+3. **Recognize the signature:** repeated dispatches reporting `<gate-job> not found / in_progress` on a busy branch = the gate is racing the advancing HEAD, not a broken workflow. Stop retrying; use the base-image / next-release path. (Sibling of #108.)
+
+**Status:** Active — busy-main advancing-HEAD livelock (workflow-gate variant of #108); on-demand current-HEAD-gated dispatch is unsatisfiable on a high-velocity `main`. Also in memory (`reference_trivy_cve_remediation`).
+
+**Applies To:** All agents dispatching current-HEAD-CI-gated workflows (container.yml / Trivy rescan) on a busy `main`; anyone trying to force an on-demand app-image security rescan.
