@@ -83,6 +83,7 @@ jobs:
           format: 'sarif'
           output: 'trivy-results.sarif'
           severity: 'CRITICAL,HIGH'
+          trivyignores: '.trivyignore'
           skip-setup-trivy: true
 
       - name: Upload Trivy scan results

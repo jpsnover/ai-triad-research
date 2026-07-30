@@ -1,0 +1,27 @@
+# Trivy vulnerability ignore file — AI Triad Research container images.
+# Scanned images: ghcr.io/jpsnover/ai-triad-base, ghcr.io/jpsnover/taxonomy-editor
+#
+# POLICY (t/2006): no silent suppression. Every entry MUST carry: the CVE, the
+# affected package, WHY it is ignored, and a concrete REVISIT trigger. Anything
+# with an available upstream fix must be patched (base rebuild), not ignored.
+# Last reviewed: 2026-07-30 (Docker).
+
+# ── perl-modules-5.36 (Debian bookworm) — NO UPSTREAM FIX AVAILABLE ─────────────
+# CVE-2026-13221  perl regex trie overflow (>65535 alternation branches)
+# CVE-2026-57433  Storable signed-integer overflow on crafted SX_HOOK deserialize
+#
+# Package:   perl-modules-5.36  (installed 5.36.0-7+deb12u3)
+# Fix state: Debian bookworm has published NO fixed version — Trivy reports an
+#            empty "Fixed Version" as of 2026-07-30. An `apt-get upgrade` base
+#            rebuild therefore cannot clear these (nothing to upgrade to).
+# Exposure:  perl is present only as a transitive dependency of git + pandoc in
+#            the base image. The Node/TS application does not invoke perl on
+#            untrusted input — there is no path that compiles an attacker-supplied
+#            regex or thaws an untrusted Storable blob. Exploitability in our
+#            context is negligible.
+# REVISIT:   drop each entry when Debian ships a fixed perl-modules-5.36
+#            (deb12u4+), OR when the node-26 / newer-Debian base lands
+#            (t/1990, ~2026-10-28) — whichever is first. Re-scan and remove any
+#            entry Trivy no longer reports.
+CVE-2026-13221
+CVE-2026-57433
