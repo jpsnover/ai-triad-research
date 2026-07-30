@@ -52,6 +52,7 @@ jobs:
       debate: ${{ steps.filter.outputs.debate }}
       schema: ${{ steps.filter.outputs.schema }}
       lib: ${{ steps.filter.outputs.lib }}
+      python: ${{ steps.filter.outputs.python }}
     steps:
       - uses: dorny/paths-filter@7b450fff21473bca461d4b92ce414b9d0420d706  # v4.0.2
         id: filter
@@ -81,6 +82,10 @@ jobs:
               - '.github/workflows/ci.yml'
             lib:
               - 'lib/**'
+              - '.github/workflows/ci.yml'
+            python:
+              - 'scripts/requirements*.txt'
+              - '.github/ci/**'
               - '.github/workflows/ci.yml'
 
   test-powershell:
@@ -557,6 +562,45 @@ jobs:
         if: always()
         run: docker rm -f smoke-test || true
 
+  # ── python-embed-smoke: validate the pip embedding stack (t/1989) ──────────
+  # The pip ecosystem (scripts/requirements.txt) was never installed or exercised
+  # in CI, so a dependency change could pass ci-gate with ZERO signal (#191). This
+  # installs the stack and asserts embedding VALUE stability — a fresh all-MiniLM-
+  # L6-v2 encode must stay cosine>=0.9999 vs a pinned reference (.github/ci/
+  # embed_reference.json), the property embeddings.json depends on. (Shape checks
+  # are version-stable and blind to numerical drift — see t/1989.) Paths-filtered
+  # so normal PRs skip it (skipped = OK through ci-gate). Two stages, split so
+  # failure modes stay distinguishable: a red on "Download models" is an HF/network
+  # outage; a red on the offline "Assert ... stability" is a REAL drift/incompat.
+  # NB: transformers is transitive (not in requirements.txt) so a paths-filter
+  # can't catch its bumps — the weekly embed-drift-weekly.yml workflow covers that.
+  python-embed-smoke:
+    needs: [changes]
+    if: >-
+      always() && !cancelled() &&
+      (github.event_name != 'pull_request' || needs.changes.outputs.python == 'true')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: scripts/requirements.txt
+      - name: Install Python deps (CPU-only torch to cut install weight)
+        working-directory: scripts
+        run: |
+          python -m pip install --upgrade pip
+          pip install torch --index-url https://download.pytorch.org/whl/cpu
+          pip install -r requirements.txt
+      - name: Download models (HF availability — a red HERE is infrastructure, not a dep break)
+        run: python .github/ci/fetch_embed_models.py
+      - name: Assert embedding + NLI value stability (offline — a red HERE is real drift/incompat)
+        env:
+          HF_HUB_OFFLINE: '1'
+          TRANSFORMERS_OFFLINE: '1'
+        run: python .github/ci/assert_embed_stability.py
+
   # ── ci-gate: the SINGLE required status context (t/1962) ──────────────────
   # Replaces the 6 individual code-check contexts in branch protection. Those get
   # SKIPPED by path-filtering on non-electron PRs (docs-only, PS-only); a skipped
@@ -572,9 +616,11 @@ jobs:
   # job IDs); lib-lint / dependency-audit / schema-validation are intentionally NOT
   # gated here (not required contexts today — separate decision). Add future
   # *required* jobs to `needs`; their path-filtered skips report OK.
+  # python-embed-smoke (t/1989) is gated here: it validates the pip embedding
+  # stack's value-stability, path-filtered to requirements/.github/ci changes, skip = OK.
   ci-gate:
     name: ci-gate
-    needs: [changes, test-powershell, test-electron, test-container]
+    needs: [changes, test-powershell, test-electron, test-container, python-embed-smoke]
     if: always()
     runs-on: ubuntu-latest
     steps:
