@@ -86,7 +86,19 @@ export function registerFlightRecorderHandlers(): void {
         fs.unlinkSync(remaining[i].path);
         totalSize -= remaining[i].size;
       }
-    } catch { /* telemetry — silent by design;  retention cleanup is best-effort */ }
+    } catch (err) {
+      // Retention pruning is best-effort — its failure does NOT fail the dump write — but a
+      // failed prune is a real operational fact (old dumps not reclaimed, disk budget can creep),
+      // so record it at warn level rather than swallowing it silently (t/2026). This isn't
+      // telemetry, so it doesn't qualify for the silent-by-design exception.
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'ipc-flight-recorder',
+        level: 'warn',
+        message: 'Flight-recorder dump retention cleanup failed — old dumps may not be pruned',
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+      });
+    }
 
     const filename = path.basename(filePath);
     console.log(`[flight-recorder] Dump written: ${filePath}`);
