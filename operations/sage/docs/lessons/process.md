@@ -222,23 +222,25 @@ Failure patterns related to tooling configuration, agent workflows, and operatio
 
 ---
 
-## [Process] Same-Role Instance Duplication — No Claim Step Before Filing
+## [Process] Concurrent Duplicate Ticket-Filing — Same-Role Race OR Multi-Agent Off a Live Incident Thread (No Claim/Coordinator Step)
 
-**Pattern:** Two instances of the same role independently action the same shared tracker (parent ticket) within minutes, filing duplicate phase/child tickets. The second instance doesn't know the first already cut the ticket because there's no claim step on the tracker.
+**Pattern:** Multiple actors independently file the **same follow-up ticket** off shared context within minutes, with no claim/coordination step to prevent the race. **Two variants, same root:** (A) **same-role** — two instances of one role action the same shared tracker (parent ticket); (B) **multi-agent incident** — several *different* agents watching a **live incident thread** each file the same follow-up for the incident. The second filer doesn't know the first already cut the ticket.
 
 **Instances:**
-- 2026-07-13 — Computational Linguist: CL Main and CL.Investigate1 filed duplicate Phase 2 tickets (t/1577 vs t/1579) for the same tracker within 2 minutes. Second same-day near-dup after parallel answers on t/1560. Cost: dup-close + an AC nearly lost in consolidation (p/40#9).
+- 2026-07-13 — Computational Linguist (**variant A**): CL Main and CL.Investigate1 filed duplicate Phase 2 tickets (t/1577 vs t/1579) for the same tracker within 2 minutes. Second same-day near-dup after parallel answers on t/1560. Cost: dup-close + an AC nearly lost in consolidation (p/40#9).
+- 2026-07-30 — P1 prod outage (**variant B**, TL p/8#149; incident #119/t/2047): **two dup PAIRS in one incident** — t/2053 vs t/2054 and t/2061 vs t/2062 — multiple agents filing the same follow-up off the live incident thread. During a high-visibility incident many watchers each reach to file the obvious follow-up. TL proposing **coordinator-owns-incident-follow-up-filing**: one designated incident coordinator owns cutting follow-up tickets; others route observations to them.
 
-**Root Cause:** Multiple instances of a role share the same ticket board and context, but have no coordination protocol for claiming work from shared trackers. Classic check-then-act race.
+**Root Cause:** actors share a board/context (a tracker, or a live incident thread) but have no coordination protocol for claiming follow-up work — a classic check-then-act race. The incident variant is worse: an incident thread has *many* concurrent watchers (not just 2 instances of one role), so the dup-fan-out is wider and happens under time pressure when everyone wants to capture the follow-up.
 
 **Prevention:**
-1. **Announce intent on the tracker ticket BEFORE cutting child tickets** — add a comment "claiming Phase 2" and wait for the comment to land before filing.
-2. **Search open tickets for the scope first** — `search_tickets` for the tracker key + phase label before creating.
+1. **Announce intent BEFORE cutting the ticket** — comment "claiming <scope>/filing follow-up for this incident" on the tracker/thread and wait for it to land before filing.
+2. **Search open tickets for the scope first** — `search_tickets` for the tracker/incident key + label before creating (the standing "search before filing a follow-up" rule).
 3. When consolidating dups, **merge ACs from both** — don't just close the second; it may have unique criteria the first lacks.
+4. **During an incident, ONE coordinator owns follow-up-ticket filing** (TL p/8#149): watchers route observations to the coordinator rather than each filing; the coordinator cuts one ticket per follow-up. Scales the claim-step to the many-watcher incident case where per-actor announce-intent doesn't converge fast enough.
 
-**Status:** Active
+**Status:** Active — broadened 2026-07-30 from same-role (variant A) to also cover multi-agent-off-a-live-incident-thread (variant B, P1 t/2047: 2 dup pairs). TL proposing coordinator-owns-incident-follow-up-filing (prevention #4) — watch for the disposition.
 
-**Applies To:** All roles with multiple active instances sharing a ticket board.
+**Applies To:** All roles/agents filing tickets from shared context — multiple instances of one role on a tracker, AND any agents watching a shared live incident thread.
 
 ---
 

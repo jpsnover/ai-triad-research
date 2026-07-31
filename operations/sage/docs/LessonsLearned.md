@@ -1356,21 +1356,23 @@ Institutional memory for failure patterns across the AI Triad Research project.
 
 ---
 
-## #62 [Process] Same-Role Instance Duplication — No Claim Step Before Filing
+## #62 [Process] Concurrent Duplicate Ticket-Filing — Same-Role Race OR Multi-Agent Off a Live Incident Thread (No Claim/Coordinator Step)
 
-**Pattern:** Two instances of the same role independently action the same shared tracker within minutes, filing duplicate phase/child tickets. No claim step on the tracker prevents the race.
+**Pattern:** Multiple actors independently file the **same follow-up** off shared context within minutes, no claim/coordination step. **Two variants, same root:** (A) **same-role** — two instances of one role action the same shared tracker; (B) **multi-agent incident** — several *different* agents on a **live incident thread** each file the same follow-up.
 
 **Instances:**
-- 2026-07-13 — Computational Linguist: CL Main and CL.Investigate1 filed duplicate Phase 2 tickets (t/1577 vs t/1579) for the same tracker within 2 minutes. Second same-day near-dup after parallel answers on t/1560. Cost: dup-close + an AC nearly lost in consolidation (p/40#9).
+- 2026-07-13 — Computational Linguist (**variant A**): CL Main and CL.Investigate1 filed duplicate Phase 2 tickets (t/1577 vs t/1579) for the same tracker within 2 minutes. Second same-day near-dup after parallel answers on t/1560. Cost: dup-close + an AC nearly lost in consolidation (p/40#9).
+- 2026-07-30 — P1 prod outage (**variant B**, TL p/8#149; incident #119/t/2047): **two dup PAIRS in one incident** — t/2053 vs t/2054 and t/2061 vs t/2062 — multiple agents filing the same follow-up off the live incident thread. TL proposing **coordinator-owns-incident-follow-up-filing** (one coordinator cuts follow-ups; watchers route to them).
 
-**Root Cause:** Multiple instances of a role share the same ticket board and context, but have no coordination protocol for claiming work from shared trackers. Classic check-then-act race.
+**Root Cause:** actors share a board/context (a tracker, or a live incident thread) but have no claim protocol — classic check-then-act race. The incident variant is worse: an incident thread has *many* concurrent watchers under time pressure, so the dup fan-out is wider than 2-instances-of-one-role.
 
 **Prevention:**
-1. Announce intent on the tracker ticket BEFORE cutting child tickets — add a comment "claiming Phase 2" and wait for the comment to land before filing.
-2. Search open tickets for the scope first — `search_tickets` for the tracker key + phase label before creating.
-3. When consolidating dups, merge ACs from both — don't just close the second; it may have unique criteria the first lacks.
+1. Announce intent BEFORE cutting the ticket — comment "claiming <scope>/filing follow-up for this incident" and wait for it to land.
+2. Search open tickets for the scope first — `search_tickets` for the tracker/incident key + label before creating.
+3. When consolidating dups, merge ACs from both — don't just close the second.
+4. **During an incident, ONE coordinator owns follow-up-ticket filing** (TL p/8#149) — watchers route observations to the coordinator; scales the claim-step to the many-watcher case.
 
-**Status:** Active
+**Status:** Active — broadened 2026-07-30 to cover the multi-agent-incident variant (B, P1 t/2047: 2 dup pairs); TL proposing coordinator-owns-follow-up-filing (prevention #4).
 
 **Applies To:** All roles with multiple active instances sharing a ticket board.
 
@@ -2549,6 +2551,6 @@ Institutional memory for failure patterns across the AI Triad Research project.
 5. **Compounding factor C (root trigger) — a FLOATING base tag makes every rebuild a silent, unpinned dependency bump.** `FROM node:22-bookworm-slim` pulls whatever patch is current at rebuild time (here 22.23.2/undici TLS change). **Pin the base patch version in `Dockerfile.base`** so a runtime change is a deliberate PR, not a rebuild side effect. Pairs with #1 (run-the-image smoke).
 6. **Diagnostic — daemon down? diff the SBOM artifacts** for the exact package delta (surfaced 22.23.1→.2 / undici 6.28.0 without booting anything).
 
-**Status:** Active — **P1 prod outage, resolved (prod restored); fix DAG t/2048–2052 + PR #297, anchor t/2047.** Gate-integrity genus (t/1589 build ≠ runs) — the container/deploy-gate instance of the same family as #94 (build ≠ suite runs) and #112 (green required gate ≠ all checks green). The severity came from three compounding gaps (build-only gate + GC'd rollback no-op + unvalidated auto-bump to prod), each a bookkeeping-≠-artifact hole; the durable fix closes all three (run-the-image gate, protected rollback target + verify-reverted, runtime-gated Dependabot) **plus pinning the floating base tag (root trigger, Docker p/217#6/#7)**. Two views of one incident: TL p/8#146 (process/gate level) + Docker p/217#6 (mechanism: floating `node:` tag → 22.23.2/undici TLS → fetch break → `/healthz` 503).
+**Status:** Active — **P1 prod outage, resolved (prod restored); fix DAG t/2048–2052 + PR #297, anchor t/2047.** Gate-integrity genus (t/1589 build ≠ runs) — the container/deploy-gate instance of the same family as #94 (build ≠ suite runs) and #112 (green required gate ≠ all checks green). The severity came from three compounding gaps (build-only gate + GC'd rollback no-op + unvalidated auto-bump to prod), each a bookkeeping-≠-artifact hole; the durable fix closes all three (run-the-image gate, protected rollback target + verify-reverted, runtime-gated Dependabot) **plus pinning the floating base tag (root trigger, Docker p/217#6/#7)**. Two views of one incident: TL p/8#146 (process/gate level) + Docker p/217#6 (mechanism: floating `node:` tag → 22.23.2/undici TLS → fetch break → `/healthz` 503). **Fix validated — strongest "build ≠ runs" evidence yet (TL p/8#149):** the new docker-run smoke (t/2048), on its **FIRST real run**, caught a **pre-existing SILENT deploy-freeze** the build-only gate had hidden — current main was **undeployable on BOTH bases** (node-agnostic readiness bug t/2061), prod surviving only on an older image. The build-only gate hadn't just masked the one bump — it left main un-deployable with no signal; the run-the-image gate surfaced it on day one. (This incident also produced 2 concurrent dup-ticket pairs → see #62 "Concurrent Duplicate Ticket-Filing," variant B.)
 
 **Applies To:** All agents/owners of container CI, deploy gates, rollback automation, and Dependabot/dependency-bump policy — especially base-image bumps with prod blast-radius.
