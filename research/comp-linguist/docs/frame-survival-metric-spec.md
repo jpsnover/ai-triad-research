@@ -65,6 +65,7 @@ Both parameters are calibration knobs, not truths. Neither may move except via t
 ## 5. Null and cutover policy
 
 - **Null** (never 0) when: `framing_choices` is absent or unparseable for the speaker (all pre-t/2043-fix sessions with shape drift; legacy sessions without persisted frame embeddings), the speaker has < 2 post-opening turns, or embeddings are unavailable/dimension-mismatched.
+- **Unmeasured turns:** Turns absent from the similarity series are unmeasured — excluded from numerator and denominator; the <2 minimum applies to measured turns.
 - **No backfill in v1.** Legacy rows stay null. (Backfill is technically sound, since MiniLM is local and deterministic, but a backfilled row would mix embed-at-debate-time and embed-at-backfill-time provenance; if ever done, it ships as a flagged batch with its own register note.)
 - **Cutover:** fields exist only for sessions at/after the implementing commit. First calibration run at that commit is the cutover; no trend may span it (vacuously true, since prior rows are null).
 

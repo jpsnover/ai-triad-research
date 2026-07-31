@@ -972,7 +972,9 @@ export async function runCrossRespondRound(engine: DebateEngineInternals, round:
             const s = d > 0 ? dot / d : 0;
             if (s > maxSim) maxSim = s;
           }
-          if (series[fi]) series[fi].sims[entry.id] = maxSim;
+          // Only write when ≥1 paragraph was actually compared — guards empty content and full dim-mismatch
+          const anyCompared = paraVecs.some(pv => pv.length === fv.length);
+          if (series[fi] && anyCompared) series[fi].sims[entry.id] = maxSim;
         }
       }
     } catch (err) {
