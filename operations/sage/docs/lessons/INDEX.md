@@ -3,13 +3,13 @@
 Institutional memory for failure patterns across the AI Triad Research project.
 Organized by category. Each file contains the full pattern details.
 
-**Last updated:** 2026-07-30 | **Total patterns:** 122 | **Resolved:** 21 | **Active:** 101
+**Last updated:** 2026-07-30 | **Total patterns:** 123 | **Resolved:** 21 | **Active:** 102
 
 ## Summary
 
 | Category | File | Patterns | Resolved | Active |
 |----------|------|----------|----------|--------|
-| Build | [build.md](build.md) | 74 | 10 | 64 |
+| Build | [build.md](build.md) | 75 | 10 | 65 |
 | PowerShell | [powershell.md](powershell.md) | 10 | 3 | 7 |
 | Data | [data.md](data.md) | 4 | 1 | 3 |
 | Type System | [type-system.md](type-system.md) | 4 | 0 | 4 |
@@ -32,7 +32,7 @@ Seven patterns crossed the 3-instance threshold (or were high-severity) and beca
 
 ## Quick Reference — Top Recurring Patterns
 
-- **Bookkeeping ≠ artifact (verify the outcome, not the status signal)** — cross-cutting genus, ≥5 patterns → [process.md](process.md)/[build.md](build.md). A status/lifecycle/exit signal describes the PROCESS, not the DELIVERABLE; verify the artifact at the object level. Members: **#69** (task-status/summary ≠ committed state; peer may have landed it), **#80** (hook "installed" ≠ guarding), **#84** + p/26#19 (wrapper "exit 0" / completion notification ≠ pass), **#86** ("task stopped" ≠ process killed — detached children survive), **#89** (subagent "completed" ≠ deliverables exist), **#90** (`verify | tail` pipe exit = tail's 0, not verify's — silent false-green), **#96** (a `git push` buried in a multi-step `&&` chain may never run — the chain's apparent success ≠ the ref moved; verify on origin, sibling of #95's timeout-killed push). Common fix: `Test-Path`/`git show HEAD:`/`git ls-remote`/re-run-the-check yourself; require pasted evidence, don't trust the signal.
+- **Bookkeeping ≠ artifact (verify the outcome, not the status signal)** — cross-cutting genus, ≥5 patterns → [process.md](process.md)/[build.md](build.md). A status/lifecycle/exit signal describes the PROCESS, not the DELIVERABLE; verify the artifact at the object level. Members: **#69** (task-status/summary ≠ committed state; peer may have landed it), **#80** (hook "installed" ≠ guarding), **#84** + p/26#19 (wrapper "exit 0" / completion notification ≠ pass), **#86** ("task stopped" ≠ process killed — detached children survive), **#89** (subagent "completed" ≠ deliverables exist), **#90** (`verify | tail` pipe exit = tail's 0, not verify's — silent false-green), **#96** (a `git push` buried in a multi-step `&&` chain may never run — the chain's apparent success ≠ the ref moved; verify on origin, sibling of #95's timeout-killed push), **#119** (**P1 prod outage** — a build-only container gate never RUNS the image, so a startup/`/healthz` crash passes green; "build ≠ runs" + GC'd-rollback-no-op + unvalidated Dependabot-base-bump-to-prod; t/1589 gate-integrity, sibling of #94/#112). Common fix: `Test-Path`/`git show HEAD:`/`git ls-remote`/**boot-the-image-and-hit-/healthz**/re-run-the-check yourself; require pasted evidence, don't trust the signal.
 - **Rule-exists-but-not-applied (point-of-use failure class)** — **class-total ≥12; 5 offenders, 2 tripping the per-offender trigger** → [process.md](process.md). Meta-tracker: NOT a coverage gap; rule is correct but doesn't fire at the moment of action. **Two TL triggers, whichever first (p/8#95/#97): (a) any offender's 4th instance → point-of-use hook for that offender (`.Count` guard model); (b) class-total ~6 across offenders → systemic review-habit/checklist/meta-hook.** **BOTH triggers fired + both offenders DISPOSITIONED (p/8#104→#109):** #4 direct-commit-to-shared-main (≥5) → HOOK (t/1780, crisp `branch==main` signal); #5 data-shape type-check (≥4) → RULE-ONLY (t/1810 — correct normalize-at-fetch pattern ≈ the violation, so a detector false-reds = dead gate; strengthened via TS union-types + naming variadic fields). **General criterion logged (TL p/8#109): the hook lever converts an offender ONLY when its violation is a crisp syntactic signal distinct from correct code — "detectable" = distinguishable-from-correct, not just greppable.** **Tag every new instance in process.md; keep both counters current.**
 - **Overlay repo (ogit)** — 7 instances, 4 agents → [build.md](build.md)
 - **Bash heredoc/quoting** — 10 instances, 7 agents → [build.md](build.md) (incl. `pwsh -File` over inline `-Command` for non-trivial PS, p/20#23)
