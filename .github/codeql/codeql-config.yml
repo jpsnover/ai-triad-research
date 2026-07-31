@@ -1,0 +1,24 @@
+# CodeQL configuration (t/2025).
+#
+# paths-ignore: exclude test/archive from the SCAN — these are not production attack
+# surface, and CodeQL flags test-fixture patterns (insecure-temporary-file,
+# incomplete-url-sanitization, shell-injection-from-environment, ...) in
+# *.test.ts / __tests__ that are pure noise — the fleet was scattering per-line
+# `// codeql[...]` suppressions across every scope's tests. One place removes ~24+
+# alerts fleet-wide and stops the per-line scatter.
+#
+# IMPORTANT (differential-gate interaction, t/2025): this excludes paths from the
+# SCAN — it does NOT weaken the differential PR check on PRODUCTION paths. Excluded
+# paths simply produce no alerts; a NEW alert introduced in production code still
+# fails the `CodeQL Analysis` check once it is a required differential gate.
+name: "AI Triad Research CodeQL config"
+
+queries:
+  - uses: security-extended
+
+paths-ignore:
+  - '**/*.test.ts'
+  - '**/*.test.tsx'
+  - '**/__tests__/**'
+  - '**/archive/**'
+  - '**/*_annotation_tool.html'
