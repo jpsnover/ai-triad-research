@@ -54,6 +54,34 @@ describe('normalizedRequestPath (t/2019 auth-gate path canonicalization)', () =>
     });
   });
 
+  // The encoding variants the TL called out (t/2019#5 condition 3) — each must resolve
+  // the SAME way at the gate and the router, so none reintroduces a parser differential.
+  describe('encoding-variant traversal (TL condition 3)', () => {
+    it('uppercase percent-encoding (%2E) resolves identically to lowercase → gated', () => {
+      const p = normalizedRequestPath(req('/api/public/%2E%2E/admin'));
+      expect(p).toBe('/api/admin');
+      expect(computeIsPublicPath(p)).toBe(false);
+    });
+
+    it('backslash traversal is normalized to forward-slash and resolves → gated', () => {
+      // new URL() converts '\' to '/' for special (http) schemes, so a backslash
+      // traversal escapes the public prefix at BOTH the gate and the router — the
+      // '\\' in this literal is a single backslash.
+      const p = normalizedRequestPath(req('/api/public/..\\admin'));
+      expect(p).toBe('/api/admin');
+      expect(computeIsPublicPath(p)).toBe(false);
+    });
+
+    it('double-encoding (%252e) does NOT over-resolve — stays literal, no differential', () => {
+      // %25 stays encoded (it is not '.'), so no dot-segment resolution happens: the
+      // path stays under /api/public/ at BOTH gate and router — consistent, no bypass.
+      // (The /api/public/ handler owns any further decoding within its own namespace.)
+      const p = normalizedRequestPath(req('/api/public/%252e%252e/admin'));
+      expect(p).toBe('/api/public/%252e%252e/admin');
+      expect(computeIsPublicPath(p)).toBe(true); // consistently public — reaches no /api/admin
+    });
+  });
+
   describe('fails secure on a malformed URL', () => {
     it('an unparseable URL returns the non-public, unroutable sentinel (never throws)', () => {
       const sentinel = normalizedRequestPath(req('//'));
