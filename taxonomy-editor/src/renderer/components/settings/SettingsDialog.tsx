@@ -10,6 +10,7 @@ import type { ColorScheme, AIBackend, AIModel } from '../../hooks/useTaxonomySto
 import { AI_BACKENDS, MODELS_BY_BACKEND, initAIModels } from '../../hooks/useTaxonomyStore';
 import { KeySharingDialog } from './KeySharingDialog';
 import { useDescriptionMode, type DescriptionMode } from '../shared/DescriptionToggle';
+import { backendSelectState, type BackendAvailabilityEntry } from '../shared/backendSelectState';
 import './SettingsDialog.css';
 
 interface SettingsDialogProps {
@@ -490,7 +491,10 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
   const [endpointInput, setEndpointInput] = useState('');
 
   const models = MODELS_BY_BACKEND[aiBackend] || [];
-  const [tierAvailable, setTierAvailable] = useState<Set<string> | null>(null);
+  // t/2036: per-backend availability keyed by id. `reason` distinguishes no_key (#2,
+  // BYOK-selectable) from tier_restricted (#3, honestly restricted) — replaces the
+  // lossy `tierAvailable` Set that conflated "no key" with "not on your tier".
+  const [availByReason, setAvailByReason] = useState<Record<string, BackendAvailabilityEntry>>({});
 
   useEffect(() => {
     void Promise.all(
@@ -501,7 +505,7 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
     ).then((results) => setHasKey(Object.fromEntries(results)))
       .catch((err) => { getGlobalRecorder()?.record({ type: 'system.error', component: 'settings-dialog', level: 'warn', message: 'hasApiKey check failed', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } }); });
     void api.getAvailableBackends()
-      .then(backends => setTierAvailable(new Set(backends.filter(b => b.available).map(b => b.id))))
+      .then(backends => setAvailByReason(Object.fromEntries(backends.map(b => [b.id, { available: b.available, reason: b.reason }]))))
       .catch((err) => { getGlobalRecorder()?.record({ type: 'system.error', component: 'settings-dialog', level: 'warn', message: 'Failed to load available backends', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } }); });
   }, [keySuccess, keyRefreshTrigger]);
 
@@ -593,10 +597,13 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
             onChange={(e) => setAIBackend(e.target.value as AIBackend)}
           >
             {AI_BACKENDS.map((b) => {
-              const blocked = tierAvailable && !tierAvailable.has(b.value);
+              // t/2036 3-state: has-key→plain; no-key-but-BYOK-permitted→selectable "(bring your
+              // own key)"; tier-forbidden (web anon/free)→disabled "(sign in to use)". Never
+              // disable merely for a missing key — that was the ADR-002-violating conflation.
+              const state = backendSelectState(availByReason[b.value], !!hasKey[b.value]);
               return (
-                <option key={b.value} value={b.value} disabled={!!blocked}>
-                  {b.label}{blocked ? ' (not on your tier)' : hasKey[b.value] ? '' : ' (no key)'}
+                <option key={b.value} value={b.value} disabled={!state.selectable}>
+                  {b.label}{state.suffix}
                 </option>
               );
             })}
