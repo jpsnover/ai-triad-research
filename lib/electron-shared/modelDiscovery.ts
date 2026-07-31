@@ -529,7 +529,8 @@ export async function refreshAIModels(deps: ModelDiscoveryDeps): Promise<Refresh
   //    default if it resolves, else drop that entry. Skip the "_comment" string key.
   if (config.debateTiers) {
     for (const [tier, tierValue] of Object.entries(config.debateTiers)) {
-      if (tier === '_comment' || typeof tierValue !== 'object') continue;
+      // `tierValue === null` guard: typeof null === 'object' (t/2039#3 null-tier nit).
+      if (tier === '_comment' || tierValue === null || typeof tierValue !== 'object') continue;
       for (const [backend, modelId] of Object.entries(tierValue)) {
         if (resolves(modelId)) continue;
         const repaired = config.defaults[backend];
@@ -563,6 +564,16 @@ export async function refreshAIModels(deps: ModelDiscoveryDeps): Promise<Refresh
     result.configWarning =
       `Refused to write ai-models.json — the refreshed registry is invalid (${reasons.join(' | ')}). The existing file is unchanged.`;
     console.warn(`[ModelDiscovery] REFUSED write: ${result.configWarning}`);
+    // t/2039#3: a refused write is a t/2038 corruption-class event — surface it in the
+    // flight recorder too (beyond console + the RefreshResult field) so a diagnostics
+    // dump captures which refs would have broken. Lists only ids/backends, no secrets.
+    getGlobalRecorder()?.record({
+      type: 'system.error',
+      component: 'model-discovery-refresh',
+      level: 'warn',
+      message: result.configWarning,
+      data: { dangling, chainless },
+    });
     return result;
   }
 
