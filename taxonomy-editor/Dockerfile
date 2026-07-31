@@ -80,8 +80,14 @@ LABEL org.opencontainers.image.source="https://github.com/jpsnover/ai-triad-rese
 LABEL org.opencontainers.image.description="AI Triad Taxonomy Editor"
 LABEL org.opencontainers.image.licenses="MIT"
 
-# Cache dir created at runtime by the app (GitHubAPIBackend)
+# Cache dir created at runtime by the app (GitHubAPIBackend).
+# TAXONOMY_CACHE_DIR MUST match AI_TRIAD_DATA_ROOT (t/2061): config.ts's cacheDir
+# defaults to ~/.cache/taxonomy (=/root/.cache/taxonomy in-container) when unset,
+# while getDataRoot() uses AI_TRIAD_DATA_ROOT — the mismatch makes toRepoPath()'s
+# startsWith(cacheDir) check fail, so isDataAvailable() is always false → /healthz
+# 503 → crash-loop (the P1 latent readiness bug, t/2047). Keep these two in sync.
 ENV AI_TRIAD_DATA_ROOT=/tmp/taxonomy-cache
+ENV TAXONOMY_CACHE_DIR=/tmp/taxonomy-cache
 ENV PORT=7862
 ENV NODE_ENV=production
 ENV PYTHONUNBUFFERED=1
