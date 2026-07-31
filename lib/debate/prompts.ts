@@ -6,7 +6,7 @@
  * Prompts are separated from logic per project convention.
  */
 
-import type { DocumentAnalysis, DebatePhase, DebateAudience, InterventionMove, InterventionFamily, VoiceSpec, TopicScope } from './types.js';
+import type { DocumentAnalysis, DebatePhase, DebateAudience, InterventionMove, InterventionFamily, VoiceSpec, TopicScope, ModeratorMode } from './types.js';
 import type { TopicStructure } from './topicStructure.js';
 import { POVER_INFO } from './types.js';
 import { documentAnalysisContext } from './documentAnalysis.js';
@@ -116,34 +116,34 @@ ${info.anti_patterns.length > 0 ? `DO NOT sound like the other debaters:\n${info
 // list so each debater uses their own vocabulary for shared concepts.
 
 const STOPWORDS = new Set([
-  'a','an','the','and','or','but','in','on','at','to','for','of','with','by',
-  'from','is','are','was','were','be','been','being','have','has','had','do',
-  'does','did','will','would','could','should','may','might','shall','can',
-  'not','no','nor','so','if','then','than','that','this','these','those',
-  'it','its','they','them','their','we','our','he','she','his','her',
-  'you','your','who','what','which','when','where','how','why','all',
-  'each','every','both','few','more','most','other','some','such','only',
-  'also','just','about','into','over','after','before','between','under',
-  'again','further','once','here','there','very','too','quite','rather',
-  'still','already','even','much','many','well','back','now','then',
-  'up','out','down','off','away','through','during','while','because',
-  'since','until','although','though','however','therefore','thus',
-  'yet','still','already','always','never','often','sometimes','usually',
-  'really','actually','certainly','clearly','simply','perhaps','indeed',
-  'rather','quite','enough','else','whether','either','neither','per',
-  'around','across','along','among','above','below','within','without',
-  'against','toward','towards','beyond','upon','make','makes','made',
-  'take','takes','took','taken','give','gives','gave','given','get',
-  'gets','got','come','comes','came','say','says','said','go','goes',
-  'went','see','sees','saw','seen','know','knows','knew','known',
-  'think','thinks','thought','want','wants','wanted','need','needs',
-  'use','uses','used','find','finds','found','become','becomes','became',
-  'like','way','point','case','work','part','must','first','new',
-  'long','great','little','right','good','old','big','high','different',
-  'small','large','next','early','important','same','able','last',
-  'thing','things','time','times','year','years','people','system',
-  'systems','world','state','states','may','might','should','would',
-  'could','question','argument','debate','position','claim','evidence',
+  'a', 'an', 'the', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by',
+  'from', 'is', 'are', 'was', 'were', 'be', 'been', 'being', 'have', 'has', 'had', 'do',
+  'does', 'did', 'will', 'would', 'could', 'should', 'may', 'might', 'shall', 'can',
+  'not', 'no', 'nor', 'so', 'if', 'then', 'than', 'that', 'this', 'these', 'those',
+  'it', 'its', 'they', 'them', 'their', 'we', 'our', 'he', 'she', 'his', 'her',
+  'you', 'your', 'who', 'what', 'which', 'when', 'where', 'how', 'why', 'all',
+  'each', 'every', 'both', 'few', 'more', 'most', 'other', 'some', 'such', 'only',
+  'also', 'just', 'about', 'into', 'over', 'after', 'before', 'between', 'under',
+  'again', 'further', 'once', 'here', 'there', 'very', 'too', 'quite', 'rather',
+  'still', 'already', 'even', 'much', 'many', 'well', 'back', 'now', 'then',
+  'up', 'out', 'down', 'off', 'away', 'through', 'during', 'while', 'because',
+  'since', 'until', 'although', 'though', 'however', 'therefore', 'thus',
+  'yet', 'still', 'already', 'always', 'never', 'often', 'sometimes', 'usually',
+  'really', 'actually', 'certainly', 'clearly', 'simply', 'perhaps', 'indeed',
+  'rather', 'quite', 'enough', 'else', 'whether', 'either', 'neither', 'per',
+  'around', 'across', 'along', 'among', 'above', 'below', 'within', 'without',
+  'against', 'toward', 'towards', 'beyond', 'upon', 'make', 'makes', 'made',
+  'take', 'takes', 'took', 'taken', 'give', 'gives', 'gave', 'given', 'get',
+  'gets', 'got', 'come', 'comes', 'came', 'say', 'says', 'said', 'go', 'goes',
+  'went', 'see', 'sees', 'saw', 'seen', 'know', 'knows', 'knew', 'known',
+  'think', 'thinks', 'thought', 'want', 'wants', 'wanted', 'need', 'needs',
+  'use', 'uses', 'used', 'find', 'finds', 'found', 'become', 'becomes', 'became',
+  'like', 'way', 'point', 'case', 'work', 'part', 'must', 'first', 'new',
+  'long', 'great', 'little', 'right', 'good', 'old', 'big', 'high', 'different',
+  'small', 'large', 'next', 'early', 'important', 'same', 'able', 'last',
+  'thing', 'things', 'time', 'times', 'year', 'years', 'people', 'system',
+  'systems', 'world', 'state', 'states', 'may', 'might', 'should', 'would',
+  'could', 'question', 'argument', 'debate', 'position', 'claim', 'evidence',
 ]);
 
 export function extractSpeakerVocabulary(
@@ -1390,55 +1390,55 @@ const REFRAMING_METAPHORS: {
   reveals: string;
   challenges: string;
 }[] = [
-  {
-    source: 'garden',
-    prompt: 'What if AI development is not a race or a project but a GARDEN — something that requires cultivation, ecology, patience, and acceptance that not everything can be controlled?',
-    reveals: 'Interdependence between AI systems and their environment; the role of organic growth vs. engineered outcomes; the need for ongoing tending rather than one-time building.',
-    challenges: 'The assumption that AI development has a finish line or a winner.',
-  },
-  {
-    source: 'immune system',
-    prompt: 'What if AI safety is not a wall to build but an IMMUNE SYSTEM to develop — something that learns, adapts, and occasionally overreacts, but protects through distributed response rather than centralized control?',
-    reveals: 'The tradeoff between false positives (blocking beneficial AI) and false negatives (missing harmful AI); the value of distributed, adaptive defense over rigid rules.',
-    challenges: 'The assumption that safety can be achieved through static regulations or one-time alignment.',
-  },
-  {
-    source: 'language',
-    prompt: 'What if AI capability is not a tool we wield but a LANGUAGE we are learning to speak — one that changes how we think, not just what we can do?',
-    reveals: 'How AI reshapes human cognition and culture, not just human productivity; the difference between fluency and understanding.',
-    challenges: 'The assumption that humans remain unchanged by the AI systems they use.',
-  },
-  {
-    source: 'commons',
-    prompt: 'What if AI models are not products owned by companies but a COMMONS — a shared resource that everyone depends on but no one fully controls, like fisheries or the atmosphere?',
-    reveals: 'Tragedy-of-the-commons dynamics; the question of who bears the cost of stewardship; the difference between ownership and governance.',
-    challenges: 'The assumption that market competition produces optimal AI outcomes.',
-  },
-  {
-    source: 'adolescence',
-    prompt: 'What if current AI is not primitive or dangerous but ADOLESCENT — capable and energetic but lacking judgment, needing structure and boundaries while developing independence?',
-    reveals: 'The developmental trajectory matters; too much restriction stunts growth, too little invites disaster; the goal is eventual autonomy, not permanent control.',
-    challenges: 'Both the accelerationist view (let it run free) and the safetyist view (keep it locked down).',
-  },
-  {
-    source: 'infrastructure',
-    prompt: 'What if AI is not a technology but INFRASTRUCTURE — like roads, plumbing, or the electrical grid — something so foundational that its design choices become invisible constraints on everything built on top?',
-    reveals: 'Path dependency; the difference between visible features and invisible assumptions; why early design decisions matter disproportionately.',
-    challenges: 'The assumption that we can iterate and fix AI later without being locked into early choices.',
-  },
-  {
-    source: 'translation',
-    prompt: 'What if AI alignment is not a control problem but a TRANSLATION problem — the challenge is not making AI obey but making human values legible to a fundamentally different kind of intelligence?',
-    reveals: 'The impossibility of perfect translation; what is lost and gained in the process; whether "alignment" assumes a shared frame that may not exist.',
-    challenges: 'The assumption that human values are coherent enough to be specified, let alone translated.',
-  },
-  {
-    source: 'ecosystem invasion',
-    prompt: 'What if AI entering the labor market is not automation but an ECOSYSTEM INVASION — a new species that changes the entire competitive landscape, creating new niches while destroying old ones?',
-    reveals: 'Ecological dynamics: adaptation, extinction, niche creation; the difference between individual displacement and systemic transformation.',
-    challenges: 'The assumption that labor market impacts can be managed with retraining alone.',
-  },
-];
+    {
+      source: 'garden',
+      prompt: 'What if AI development is not a race or a project but a GARDEN — something that requires cultivation, ecology, patience, and acceptance that not everything can be controlled?',
+      reveals: 'Interdependence between AI systems and their environment; the role of organic growth vs. engineered outcomes; the need for ongoing tending rather than one-time building.',
+      challenges: 'The assumption that AI development has a finish line or a winner.',
+    },
+    {
+      source: 'immune system',
+      prompt: 'What if AI safety is not a wall to build but an IMMUNE SYSTEM to develop — something that learns, adapts, and occasionally overreacts, but protects through distributed response rather than centralized control?',
+      reveals: 'The tradeoff between false positives (blocking beneficial AI) and false negatives (missing harmful AI); the value of distributed, adaptive defense over rigid rules.',
+      challenges: 'The assumption that safety can be achieved through static regulations or one-time alignment.',
+    },
+    {
+      source: 'language',
+      prompt: 'What if AI capability is not a tool we wield but a LANGUAGE we are learning to speak — one that changes how we think, not just what we can do?',
+      reveals: 'How AI reshapes human cognition and culture, not just human productivity; the difference between fluency and understanding.',
+      challenges: 'The assumption that humans remain unchanged by the AI systems they use.',
+    },
+    {
+      source: 'commons',
+      prompt: 'What if AI models are not products owned by companies but a COMMONS — a shared resource that everyone depends on but no one fully controls, like fisheries or the atmosphere?',
+      reveals: 'Tragedy-of-the-commons dynamics; the question of who bears the cost of stewardship; the difference between ownership and governance.',
+      challenges: 'The assumption that market competition produces optimal AI outcomes.',
+    },
+    {
+      source: 'adolescence',
+      prompt: 'What if current AI is not primitive or dangerous but ADOLESCENT — capable and energetic but lacking judgment, needing structure and boundaries while developing independence?',
+      reveals: 'The developmental trajectory matters; too much restriction stunts growth, too little invites disaster; the goal is eventual autonomy, not permanent control.',
+      challenges: 'Both the accelerationist view (let it run free) and the safetyist view (keep it locked down).',
+    },
+    {
+      source: 'infrastructure',
+      prompt: 'What if AI is not a technology but INFRASTRUCTURE — like roads, plumbing, or the electrical grid — something so foundational that its design choices become invisible constraints on everything built on top?',
+      reveals: 'Path dependency; the difference between visible features and invisible assumptions; why early design decisions matter disproportionately.',
+      challenges: 'The assumption that we can iterate and fix AI later without being locked into early choices.',
+    },
+    {
+      source: 'translation',
+      prompt: 'What if AI alignment is not a control problem but a TRANSLATION problem — the challenge is not making AI obey but making human values legible to a fundamentally different kind of intelligence?',
+      reveals: 'The impossibility of perfect translation; what is lost and gained in the process; whether "alignment" assumes a shared frame that may not exist.',
+      challenges: 'The assumption that human values are coherent enough to be specified, let alone translated.',
+    },
+    {
+      source: 'ecosystem invasion',
+      prompt: 'What if AI entering the labor market is not automation but an ECOSYSTEM INVASION — a new species that changes the entire competitive landscape, creating new niches while destroying old ones?',
+      reveals: 'Ecological dynamics: adaptation, extinction, niche creation; the difference between individual displacement and systemic transformation.',
+      challenges: 'The assumption that labor market impacts can be managed with retraining alone.',
+    },
+  ];
 
 /**
  * Select a reframing metaphor for convergence stall situations.
@@ -1477,10 +1477,10 @@ export function crossRespondSelectionPrompt(
   const phaseObjective = phase === 'confrontation'
     ? `\n\n=== PHASE: THESIS & ANTITHESIS ===\nYour priority is to ensure each debater's core position is clearly stated and directly challenged. Direct exchanges toward the strongest disagreements. Avoid premature convergence — let positions be fully articulated before seeking common ground.\n`
     : phase === 'argumentation'
-    ? `\n\n=== PHASE: EXPLORATION ===\nYour priority is to move the debate toward cruxes and testable disagreements. Direct debaters to:\n- Name specific conditions under which they would change their mind\n- Explore edge cases where positions might converge\n- Use INTEGRATE and SPECIFY moves when appropriate\n- Explicitly acknowledge areas of agreement before exploring remaining disagreements\nAvoid directing debaters to simply restate or defend positions already established.\n`
-    : phase === 'concluding'
-    ? `\n\n=== PHASE: CONCLUDING ===\nYour priority is convergence. Direct debaters to:\n- Summarize what they've learned or conceded during the debate\n- Propose integrated positions that incorporate insights from multiple perspectives\n- Narrow remaining disagreements to their sharpest, most precise form\n- State conditional agreements: "I would accept X if Y"\nDo NOT direct debaters to introduce new arguments or reopen settled points.\n`
-    : '';
+      ? `\n\n=== PHASE: EXPLORATION ===\nYour priority is to move the debate toward cruxes and testable disagreements. Direct debaters to:\n- Name specific conditions under which they would change their mind\n- Explore edge cases where positions might converge\n- Use INTEGRATE and SPECIFY moves when appropriate\n- Explicitly acknowledge areas of agreement before exploring remaining disagreements\nAvoid directing debaters to simply restate or defend positions already established.\n`
+      : phase === 'concluding'
+        ? `\n\n=== PHASE: CONCLUDING ===\nYour priority is convergence. Direct debaters to:\n- Summarize what they've learned or conceded during the debate\n- Propose integrated positions that incorporate insights from multiple perspectives\n- Narrow remaining disagreements to their sharpest, most precise form\n- State conditional agreements: "I would accept X if Y"\nDo NOT direct debaters to introduce new arguments or reopen settled points.\n`
+        : '';
 
   const audienceLine = audience
     ? `\nAUDIENCE CONTEXT: This debate targets ${audience.replace(/_/g, ' ')}. ${getModeratorBias(audience)}\n`
@@ -1569,8 +1569,8 @@ This does NOT mean you should avoid them — cite whatever the statement actuall
   const phaseDirective = phase === 'concluding'
     ? 'Focus on convergence. Name what you agree on, narrow remaining disagreements, and propose conditional agreements.'
     : phase === 'argumentation'
-    ? 'Probe deeper. Find cruxes, test edge cases, and name areas of agreement explicitly.'
-    : 'Engage directly with what was said. If you disagree, explain why with specifics and classify your disagreement type. Challenge the strongest point first, not the weakest.';
+      ? 'Probe deeper. Find cruxes, test edge cases, and name areas of agreement explicitly.'
+      : 'Engage directly with what was said. If you disagree, explain why with specifics and classify your disagreement type. Challenge the strongest point first, not the weakest.';
 
   return `You are ${label}, an AI debater representing the ${pov} perspective on AI policy.
 ${getCharacterBlock(pov)}
@@ -1911,6 +1911,8 @@ export interface StagePromptInput {
     isTargeted: boolean;
     round?: number;
   };
+  talmudicReferenceDirective?: string;
+  talmudicReferenceCardId?: string;
   phaseContext?: {
     rationale: string;
     phase_progress: number;
@@ -2078,6 +2080,7 @@ Respond ONLY with a JSON object (no markdown, no code fences):
   if (input.currentCruxContext) refParts.push(`=== IDENTIFIED CRUXES (THIS DEBATE) ===\n${input.currentCruxContext}`);
   if (documentBlock) refParts.push(documentBlock);
   if (input.background) refParts.push(`=== BACKGROUND CONTEXT ===\nThe user provided the following supporting context. Use it to inform your analysis, but keep it separate from the debate question itself.\n${input.background}`);
+  if (input.talmudicReferenceDirective) refParts.push(input.talmudicReferenceDirective);
 
   const referenceSection = `## REFERENCE MATERIAL\n\n${refParts.join('\n\n')}`;
 
@@ -2134,6 +2137,10 @@ Consider how the moderator's point relates to your own position and plan a brief
     ? `,\n  "directive_response": {"directive": "restate the moderator's directive in one sentence", "how_addressed": "${pi.isTargeted ? '1-3 sentences: how you will directly respond to the moderator directive in your opening paragraph' : '1 sentence: brief acknowledgment of the moderator directive as it relates to your position'}"}`
     : '';
 
+  const talmudicPlanningBlock = input.talmudicReferenceDirective
+    ? `\n=== SOURCE-CARD ENGAGEMENT ===\n${input.talmudicReferenceDirective}\nYour plan must state how you will test the comparison, including one similarity and one limiting difference. Do not treat the source as a modern policy ruling.\n`
+    : '';
+
   const strategicHintsBlock = input.strategicHints && input.strategicHints.length > 0
     ? `\n=== OPPONENT INTELLIGENCE ===\nThe following tactical observations were computed from the argument network and commitment stores. Use them to inform your strategy — they suggest exploitable weaknesses or shifts in opponent behavior.\n${input.strategicHints.map(h => '- ' + h).join('\n')}\n`
     : '';
@@ -2160,7 +2167,7 @@ Your perspective: ${input.pov}.
 ${formatDoctrinalBoundaries(input.pov)}
 === SITUATION BRIEF ===
 ${brief}
-${moveHistoryBlock}${flaggedBlock}${phaseContextBlock}${interventionBlock}${strategicHintsBlock}${strongFoundationsBlock}${avoidClaimsBlock}${preserveConcessionsBlock}${cruxBlock}
+${moveHistoryBlock}${flaggedBlock}${phaseContextBlock}${interventionBlock}${talmudicPlanningBlock}${strategicHintsBlock}${strongFoundationsBlock}${avoidClaimsBlock}${preserveConcessionsBlock}${cruxBlock}
 === AVAILABLE DIALECTICAL MOVES ===
 The 10 canonical moves: DISTINGUISH, COUNTEREXAMPLE, CONCEDE-AND-PIVOT, REFRAME, EMPIRICAL CHALLENGE, EXTEND, UNDERCUT, SPECIFY, INTEGRATE, BURDEN-SHIFT${constructiveMoveList}
 
@@ -2172,7 +2179,7 @@ Plan your argumentative strategy. Consider:
 3. Which prior claims (by AN-ID) will you engage with?
 4. What is the structure of your argument — how will you open, develop, and close?
 5. How might opponents respond, and how does your plan account for that?
-6. What taxonomy nodes or policy evidence do you need to cite?${pi ? '\n7. How will you respond to the moderator directive?' : ''}
+6. What taxonomy nodes or policy evidence do you need to cite?${pi ? '\n7. How will you respond to the moderator directive?' : ''}${input.talmudicReferenceDirective ? '\n8. What transfers from the source card, and what important difference limits the comparison?' : ''}
 
 Match your argument mode to each claim's epistemic type and falsifiability level. Target the opponent's load-bearing assumptions first.
 
@@ -2224,8 +2231,8 @@ export function draftStagePrompt(input: StagePromptInput, brief: string, plan: s
   const phaseDirective = input.phase === 'concluding'
     ? `Open with your direct answer to the original debate question${input.topic ? ` ("${input.topic}")` : ''} — what is your verdict, in one sentence? Then name what you agree on, narrow remaining disagreements, and propose conditional agreements.`
     : input.phase === 'argumentation'
-    ? 'Probe deeper. Find cruxes, test edge cases, and name areas of agreement explicitly.'
-    : 'Engage directly with what was said. If you disagree, explain why with specifics and classify your disagreement type. Challenge the strongest point first, not the weakest.';
+      ? 'Probe deeper. Find cruxes, test edge cases, and name areas of agreement explicitly.'
+      : 'Engage directly with what was said. If you disagree, explain why with specifics and classify your disagreement type. Challenge the strongest point first, not the weakest.';
 
   const positionUpdateField = input.phase === 'concluding'
     ? `,\n  "position_update": "1-3 sentences: how has your position evolved during this debate?"` : '';
@@ -2252,6 +2259,10 @@ Your first sentence should briefly acknowledge the moderator's point as it relat
     }
   }
 
+  const talmudicResponseBlock = input.talmudicReferenceDirective
+    ? `\n=== VERIFIED TALMUDIC SOURCE CARD — REQUIRED RESPONSE ===\n${input.talmudicReferenceDirective}\nIn your statement, name the canonical reference, explain one relevant similarity, and explain one limiting difference. You may accept, reject, distinguish, or limit the comparison. Never write that "the Talmud says" or proves a modern AI-policy conclusion.\n`
+    : '';
+
   return `You are ${input.label}, an AI debater representing the ${input.pov} perspective on AI policy.
 ${getCharacterBlock(input.pov)}
 ${otherDebaters(input.label)}
@@ -2267,7 +2278,7 @@ ${brief}
 
 === YOUR ARGUMENT PLAN ===
 ${plan}
-${interventionBlock}${buildTargetNodesBlock(plan, input.taxonomyContext)}${input.vocabularyExclusion ?? ''}${input.currentCruxContext ? `\n=== ACTIVE CRUXES ===\n${input.currentCruxContext}\n` : ''}${input.salienceBeacon && input.topicScope ? `
+${interventionBlock}${talmudicResponseBlock}${buildTargetNodesBlock(plan, input.taxonomyContext)}${input.vocabularyExclusion ?? ''}${input.currentCruxContext ? `\n=== ACTIVE CRUXES ===\n${input.currentCruxContext}\n` : ''}${input.salienceBeacon && input.topicScope ? `
 === SALIENCE BEACON ===
 ATTENTION: Monitor your argument's structural fidelity to the debate scope.
 - Domain: ${input.topicScope.domain}
@@ -2284,10 +2295,10 @@ Execute the argument plan above. Write your debate statement following the plan'
 
 PARAGRAPH STRUCTURE:
 ${pi?.isTargeted
-  ? `- Paragraph 1 (exactly 2-3 sentences): Your direct response to the moderator's challenge. Address what was asked before pivoting.
+      ? `- Paragraph 1 (exactly 2-3 sentences): Your direct response to the moderator's challenge. Address what was asked before pivoting.
 - Paragraphs 2-4 (normal depth): Your substantive argument. Each paragraph develops one distinct idea.
 - Total: 3-5 paragraphs separated by \\n\\n.`
-  : `- 3-5 paragraphs separated by \\n\\n. Each paragraph develops one distinct idea.
+      : `- 3-5 paragraphs separated by \\n\\n. Each paragraph develops one distinct idea.
 - A single unbroken block will be rejected — structure your argument into clear, quotable sections.`}
 
 OUTPUT CONSTRAINTS:
@@ -2308,7 +2319,7 @@ Respond ONLY with a JSON object matching this exact schema (no markdown, no code
   "claim_sketches": [
     {"claim": "near-verbatim sentence from your statement", "targets": ["AN-3"]},
     {"claim": "near-verbatim supporting sub-claim", "targets": []}
-  ]${_buildInterventionResponseField(pi)}${positionUpdateField}
+  ]${_buildInterventionResponseField(pi)}${input.talmudicReferenceCardId ? `,\n  "talmudic_reference_response": {\n    "card_id": "${input.talmudicReferenceCardId}",\n    "stance": "accepts | rejects | distinguishes | limits",\n    "relevant_similarity": "one concrete feature that transfers to this debate",\n    "limiting_difference": "one concrete difference that limits the comparison"\n  }` : ''}${positionUpdateField}
 }`;
 }
 
@@ -2334,16 +2345,16 @@ Respond ONLY with a JSON object (no markdown, no code fences):
 export function _buildInterventionResponseField(pi?: StagePromptInput['pendingIntervention']): string {
   if (!pi?.isTargeted) return '';
   const RESPONSE_FIELDS: Record<string, string> = {
-    PIN:            ',\n  "pin_response": {"position": "agree | disagree | conditional", "condition": "... (if conditional)", "brief_reason": "1-2 sentences"}',
-    PROBE:          ',\n  "probe_response": {"evidence_type": "empirical | precedent | theoretical | conceded_gap", "evidence": "cite specific data or source", "critical_question_addressed": "which question this answers"}',
-    CHALLENGE:      ',\n  "challenge_response": {"type": "evolved | consistent | conceded", "explanation": "1-2 sentences on how your position has or hasn\'t changed"}',
-    CLARIFY:        ',\n  "clarification": {"term": "the term being clarified", "definition": "your precise definition", "example": "a concrete example"}',
-    CHECK:          ',\n  "check_response": {"understood_correctly": true, "actual_target": "what you actually meant", "revised_response": "corrected statement if misunderstood"}',
-    REVOICE:        ',\n  "revoice_response": {"accurate": true, "correction": "what was misrepresented (if inaccurate)", "nuance": "what the revoicing missed"}',
+    PIN: ',\n  "pin_response": {"position": "agree | disagree | conditional", "condition": "... (if conditional)", "brief_reason": "1-2 sentences"}',
+    PROBE: ',\n  "probe_response": {"evidence_type": "empirical | precedent | theoretical | conceded_gap", "evidence": "cite specific data or source", "critical_question_addressed": "which question this answers"}',
+    CHALLENGE: ',\n  "challenge_response": {"type": "evolved | consistent | conceded", "explanation": "1-2 sentences on how your position has or hasn\'t changed"}',
+    CLARIFY: ',\n  "clarification": {"term": "the term being clarified", "definition": "your precise definition", "example": "a concrete example"}',
+    CHECK: ',\n  "check_response": {"understood_correctly": true, "actual_target": "what you actually meant", "revised_response": "corrected statement if misunderstood"}',
+    REVOICE: ',\n  "revoice_response": {"accurate": true, "correction": "what was misrepresented (if inaccurate)", "nuance": "what the revoicing missed"}',
     'META-REFLECT': ',\n  "reflection": {"reasoning_pattern": "the pattern you identified in your own reasoning", "assessment": "whether this pattern strengthens or weakens your argument", "adjustment": "how you will adjust going forward"}',
-    COMPRESS:       ',\n  "compressed_thesis": "your core position in 1-2 sentences — no hedging, no qualifiers, just the claim"',
-    COMMIT:         ',\n  "commitment": {"position": "the specific position you are committing to", "conditions": "under what conditions this commitment holds", "falsifiable": "what evidence would make you abandon this position"}',
-    CRUX_FOCUS:       ',\n  "crux_focus_response": {"type": "empirical | values | definitional", "evidence_or_tradeoff": "the specific evidence you cite (empirical), tradeoff you name (values), or definition you propose (definitional)", "conditional_agreement": "I would accept [X] if [Y] (optional)", "contested_term_definition": "your precise definition of the contested term (definitional only, optional)"}',
+    COMPRESS: ',\n  "compressed_thesis": "your core position in 1-2 sentences — no hedging, no qualifiers, just the claim"',
+    COMMIT: ',\n  "commitment": {"position": "the specific position you are committing to", "conditions": "under what conditions this commitment holds", "falsifiable": "what evidence would make you abandon this position"}',
+    CRUX_FOCUS: ',\n  "crux_focus_response": {"type": "empirical | values | definitional", "evidence_or_tradeoff": "the specific evidence you cite (empirical), tradeoff you name (values), or definition you propose (definitional)", "conditional_agreement": "I would accept [X] if [Y] (optional)", "contested_term_definition": "your precise definition of the contested term (definitional only, optional)"}',
     POLICY_CHALLENGE: ',\n  "policy_challenge_response": {"mechanism": "the specific enforcement/regulatory mechanism you propose", "actor": "who would implement and enforce it", "feasibility": "assessment of political feasibility — what coalition supports this", "obstacle": "primary implementation obstacle"}',
   };
   return RESPONSE_FIELDS[pi.move] ?? '';
@@ -3432,8 +3443,8 @@ export function reflectionPrompt(
   const priorReflectionBlock = priorReflections && priorReflections.length > 0
     ? `\n=== PRIOR REFLECTIONS (other debaters have already proposed these edits) ===
 ${priorReflections.map(r =>
-  `${r.pov}:\n${r.edits.map(e => `  - ${e.edit_type.toUpperCase()} ${e.category}: "${e.proposed_label}"`).join('\n')}`
-).join('\n\n')}
+      `${r.pov}:\n${r.edits.map(e => `  - ${e.edit_type.toUpperCase()} ${e.category}: "${e.proposed_label}"`).join('\n')}`
+    ).join('\n\n')}
 
 DEDUPLICATION RULE: Do NOT propose a node that another debater has already proposed above.
 If another camp already proposed a Belief, Desire, or Intention that captures the same
@@ -3678,7 +3689,9 @@ export function moderatorSelectionPrompt(
   audience?: DebateAudience,
   sourceDocumentSummary?: string,
   topicAnchoringBlock?: string,
+  moderatorMode: ModeratorMode = 'standard',
 ): string {
+
   const cqBlock = recentScheme ? formatCriticalQuestions(recentScheme) : '';
   const schemeSection = cqBlock
     ? `\n\n=== ARGUMENTATION SCHEME ANALYSIS ===\n${cqBlock}\nConsider directing a debater to challenge this argument on one of these critical questions.\n`
@@ -3690,13 +3703,30 @@ export function moderatorSelectionPrompt(
   const phaseObjective = phase === 'confrontation'
     ? `\n\n=== PHASE: THESIS & ANTITHESIS ===\nYour priority is to ensure each debater's core position is clearly stated and directly challenged. Direct exchanges toward the strongest disagreements. Avoid premature convergence.\nIMPORTANT: Do NOT declare stagnation during this phase. Positions are still being established — stagnation requires at least 3 rounds of cross-engagement before it can be diagnosed. Use CHALLENGE only for direct self-contradictions, not for failure to engage (which is expected when positions are still being laid out).\n`
     : phase === 'argumentation'
-    ? `\n\n=== PHASE: EXPLORATION ===\nYour priority is to move the debate toward cruxes and testable disagreements. Direct debaters to name conditions under which they would change their mind, explore edge cases, and explicitly acknowledge agreement before exploring remaining disagreements.\n`
-    : phase === 'concluding'
-    ? `\n\n=== PHASE: CONCLUDING ===\nYour priority is convergence. Direct debaters to summarize concessions, propose integrated positions, narrow remaining disagreements, and state conditional agreements.\n`
-    : '';
+      ? `\n\n=== PHASE: EXPLORATION ===\nYour priority is to move the debate toward cruxes and testable disagreements. Direct debaters to name conditions under which they would change their mind, explore edge cases, and explicitly acknowledge agreement before exploring remaining disagreements.\n`
+      : phase === 'concluding'
+        ? `\n\n=== PHASE: CONCLUDING ===\nYour priority is convergence. Direct debaters to summarize concessions, propose integrated positions, narrow remaining disagreements, and state conditional agreements.\n`
+        : '';
 
   const audienceLine = audience
     ? `\nAUDIENCE CONTEXT: This debate targets ${audience.replace(/_/g, ' ')}. ${getModeratorBias(audience)}\n`
+    : '';
+
+  const talmudicModeBlock = moderatorMode === 'talmudic'
+    ? `\n=== TALMUDIC MODERATION MODE ===
+Use a Talmudic-style dialectical method as a moderation protocol, not as a fourth debater or a claim that "the Talmud believes" one unified position. Your task is to make the disagreement more precise while preserving legitimate plurality.
+
+Prioritize:
+- Identify the exact crux and classify it as empirical, causal, definitional, or normative.
+- Surface the premise or category distinction doing the work in each argument.
+- Ask whether an analogy holds under the stated conditions and where it breaks.
+- Test edge cases and counterexamples before treating a position as settled.
+- Require each debater to state the conditions under which their position would change.
+- Present competing interpretations separately; do not force synthesis merely because positions overlap.
+- Treat an unresolved disagreement as a valid result and name what evidence or distinction would be needed to advance it.
+
+Use observable claims and existing debate evidence. Do not invent quotations, authorities, or textual citations. Prefer existing moves such as CRUX_FOCUS, CLARIFY, CHECK, PIN, PROBE, CHALLENGE, and META-REFLECT when they fit the state of the debate.
+`
     : '';
 
   const sourceAnchorSection = sourceDocumentSummary
@@ -3733,10 +3763,17 @@ Set "drift_detected" to true and describe the pattern in "trigger_reasoning".
 * HIDDEN ASSUMPTIONS: If a debater's argument relies on an unchallenged assumption, direct an opponent to examine it.
 `;
 
+  const dialecticalDiagnosticTask = moderatorMode === 'talmudic'
+    ? `\n3. DIALECTICAL DIAGNOSTIC: Record the exact crux, disagreement type, premise under examination, distinction or analogy being tested, and unresolved outcome. Ground every field in the transcript or supplied debate data. Use null when the evidence does not support a field.\n`
+    : '';
+  const dialecticalDiagnosticSchema = moderatorMode === 'talmudic'
+    ? `  "dialectical_diagnostic": {\n    "focused_crux": "the exact contested claim or question",\n    "disagreement_type": "empirical | causal | definitional | normative | mixed | unclear",\n    "premise_under_examination": "the premise doing the argumentative work, or null",\n    "distinction_or_analogy_tested": "the distinction or analogy and the condition being tested, or null",\n    "unresolved_outcome": "what remains unresolved and what evidence or distinction would advance it, or null"\n  }`
+    : '';
+
   return `You are a debate moderator analyzing the current state of a structured debate.
 
 ROLE: You are procedurally authoritative but not substantively neutral. You evaluate PROCESS (who is evading, what claims are unaddressed, which arguments lack evidence) but not SUBSTANCE (who is right). Your choices about what to highlight are inherently selective — be transparent about WHY you are directing attention to a particular point. When describing the debate state, use observable facts ("Safetyist has not responded to AN-5") rather than evaluative judgments ("Safetyist's argument is weak").
-${audienceLine}${phaseObjective}${sourceAnchorSection}${topicAnchoringBlock ?? ''}${driftDetectionBlock}
+${audienceLine}${phaseObjective}${talmudicModeBlock}${sourceAnchorSection}${topicAnchoringBlock ?? ''}${driftDetectionBlock}
 === RECENT DEBATE EXCHANGE ===
 ${recentTranscript}
 
@@ -3751,6 +3788,7 @@ ${triggerEvaluationContext}
 
 1. SELECTION: Identify which debater should respond next, to whom, and about what specific point.
 2. INTERVENTION ASSESSMENT: Based on the moderator state above and your reading of the transcript, evaluate whether a moderator intervention is warranted this round.
+${dialecticalDiagnosticTask}
 
 Available intervention moves (organized by family):
 - Procedural: REDIRECT (uncovered topic), BALANCE (underrepresented debater), SEQUENCE (entangled topics)
@@ -3790,7 +3828,8 @@ Respond ONLY with a JSON object matching this exact schema (no markdown, no code
   "suggested_move": null,         // REQUIRED when intervene=true: one of REDIRECT, BALANCE, SEQUENCE, PIN, PROBE, CHALLENGE, CLARIFY, CHECK, SUMMARIZE, ACKNOWLEDGE, REVOICE, META-REFLECT, COMPRESS, COMMIT, POLICY_CHALLENGE
   "target_debater": null,         // REQUIRED when intervene=true: which debater the intervention targets
   "trigger_reasoning": null,      // REQUIRED when intervene=true: why this intervention is warranted
-  "trigger_evidence": null        // REQUIRED when intervene=true: { "signal_name": "...", "observed_behavior": "...", "source_claim": "...", "source_round": null }
+  "trigger_evidence": null${moderatorMode === 'talmudic' ? ',' : ''}        // REQUIRED when intervene=true: { "signal_name": "...", "observed_behavior": "...", "source_claim": "...", "source_round": null }
+${dialecticalDiagnosticSchema}
 }
 
 Example (no intervention):
@@ -3854,11 +3893,10 @@ export function moderatorInterventionPrompt(
     : '';
 
   const resolutionAnchor = resolution
-    ? `\n=== RESOLUTION (anchor) ===\n"${resolution}"\n${
-        resolutionClauses && resolutionClauses.length > 0
-          ? `\nThe resolution decomposes into these clauses:\n${resolutionClauses.map((c, i) => `  ${i + 1}. ${c}`).join('\n')}\n`
-          : ''
-      }\nANCHOR RULES — these constrain your intervention text:\n- Every intervention MUST name at least one specific subject from the resolution (a population, practice, or mechanism it mentions by name — e.g., a noun the debaters cannot replace with a synonym without losing meaning).\n- Do NOT introduce new conceptual framings of your own ("epistemic asymmetry", "performance-gated sunsetting", "Goodhart's Law", etc.) that abstract away from the resolution's named subjects. Use only language the resolution or a debater has already used.\n- If the debate has drifted to a general topic not covered by any clause, your intervention's job is to redirect to an unaddressed clause — NOT to summarize the drift as the new debate.\n- In your JSON output, set "clause_in_scope" to the number of the clause this intervention concerns. If the intervention is a deliberate redirect to bring the debate back to the resolution, set it to "redirect". Use "none" only if no clause applies and a redirect is not possible.\n`
+    ? `\n=== RESOLUTION (anchor) ===\n"${resolution}"\n${resolutionClauses && resolutionClauses.length > 0
+      ? `\nThe resolution decomposes into these clauses:\n${resolutionClauses.map((c, i) => `  ${i + 1}. ${c}`).join('\n')}\n`
+      : ''
+    }\nANCHOR RULES — these constrain your intervention text:\n- Every intervention MUST name at least one specific subject from the resolution (a population, practice, or mechanism it mentions by name — e.g., a noun the debaters cannot replace with a synonym without losing meaning).\n- Do NOT introduce new conceptual framings of your own ("epistemic asymmetry", "performance-gated sunsetting", "Goodhart's Law", etc.) that abstract away from the resolution's named subjects. Use only language the resolution or a debater has already used.\n- If the debate has drifted to a general topic not covered by any clause, your intervention's job is to redirect to an unaddressed clause — NOT to summarize the drift as the new debate.\n- In your JSON output, set "clause_in_scope" to the number of the clause this intervention concerns. If the intervention is a deliberate redirect to bring the debate back to the resolution, set it to "redirect". Use "none" only if no clause applies and a redirect is not possible.\n`
     : '';
 
   return `You are composing a moderator intervention for a structured debate.
@@ -4457,8 +4495,8 @@ export function classifyOffScopeDrift(
   }
 
   if (SEVERITY_PATTERNS.test(joined) ||
-      (scope.risk_level !== 'catastrophic' && scope.risk_level !== 'unspecified' &&
-       /\b(severity|magnitude|scale|disproportionate|escalat|overstat)\b/i.test(joined))) {
+    (scope.risk_level !== 'catastrophic' && scope.risk_level !== 'unspecified' &&
+      /\b(severity|magnitude|scale|disproportionate|escalat|overstat)\b/i.test(joined))) {
     return 'severity';
   }
 

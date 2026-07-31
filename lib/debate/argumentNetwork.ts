@@ -17,6 +17,39 @@ import { fuzzyCorrectNodeId } from './nodeIdUtils.js';
 import { disambiguateTerms } from './vocabularyDisambiguation.js';
 import type { CampOrigin } from '../dictionary/types.js';
 import { getGlobalRecorder } from '../flight-recorder/index.js';
+import { ActionableError } from './errors.js';
+
+export function getNextArgumentNodeNumber(nodes: ReadonlyArray<Pick<ArgumentNetworkNode, 'id'>>): number {
+  let maxId = 0;
+  for (const node of nodes) {
+    const match = /^AN-(\d+)$/.exec(node.id);
+    if (match) maxId = Math.max(maxId, Number(match[1]));
+  }
+  return maxId + 1;
+}
+
+export function assertUniqueArgumentNodeIds(
+  nodes: ReadonlyArray<Pick<ArgumentNetworkNode, 'id'>>,
+  location = 'argumentNetwork.assertUniqueArgumentNodeIds',
+): void {
+  const seen = new Set<string>();
+  const duplicates = new Set<string>();
+  for (const node of nodes) {
+    if (seen.has(node.id)) duplicates.add(node.id);
+    seen.add(node.id);
+  }
+  if (duplicates.size > 0) {
+    throw new ActionableError({
+      goal: 'Use unambiguous argument claims during moderation',
+      problem: `Duplicate argument node IDs detected: ${[...duplicates].sort().join(', ')}`,
+      location,
+      nextSteps: [
+        'Regenerate the debate after applying the max-ID allocator fix',
+        'Do not use this session for source-grounded moderation',
+      ],
+    });
+  }
+}
 
 const SUPPORT_SCHEMES = Object.entries(MOVE_EDGE_MAP)
   .filter(([, v]) => v.edgeType === 'support')

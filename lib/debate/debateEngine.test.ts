@@ -6,6 +6,11 @@ import { DebateEngine, modelTierRank } from './debateEngine.js';
 import type { DebateConfig, DebateProgress, LifecycleStage } from './debateEngine.js';
 import type { AIAdapter, ExtendedAIAdapter, GenerateOptions } from './aiAdapter.js';
 import type { LoadedTaxonomy } from './taxonomyLoader.js';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { computeTalmudicCardChecksum } from './talmudicReferences.js';
+import type { TalmudicSourceCard } from './types.js';
 
 // ── Mock adapter ──────────────────────────────────────────
 
@@ -507,6 +512,122 @@ describe('Progress callbacks', () => {
 // ── Transcript management ────────────────────────────────
 
 describe('Transcript management', () => {
+  it('persists Talmudic dialectical diagnostics in the session and moderator trace', async () => {
+    const response = JSON.stringify({
+      statement: 'Mock response',
+      my_claims: [],
+      taxonomy_refs: [],
+      move_types: [],
+      claims: [],
+      areas_of_agreement: [],
+      areas_of_disagreement: [],
+      cruxes: [],
+      unresolved_questions: [],
+      summary: 'Mock',
+      responder: 'safetyist',
+      addressing: 'accelerationist',
+      focus_point: 'Test whether the precedent applies',
+      agreement_detected: false,
+      intervene: false,
+      dialectical_diagnostic: {
+        focused_crux: 'Whether the cited precedent applies to AI regulation',
+        disagreement_type: 'causal',
+        premise_under_examination: 'The same oversight mechanism causes the same outcome',
+        distinction_or_analogy_tested: 'Aviation certification versus AI deployment review',
+        unresolved_outcome: 'Comparable enforcement evidence is needed',
+      },
+      outcome: 'accept',
+      process_reward: 0.8,
+      flags: [],
+      clarifies_taxonomy: [],
+      overall_assessment: { notes: 'test' },
+    });
+    const adapter = createMockAdapter(Array.from({ length: 200 }, () => response));
+    const config = createDefaultConfig({ rounds: 1, moderatorMode: 'talmudic' });
+    const engine = new DebateEngine(config, adapter, createMinimalTaxonomy());
+
+    const session = await engine.run();
+
+    expect(session.dialectical_diagnostics).toHaveLength(1);
+    expect(session.dialectical_diagnostics?.[0]).toMatchObject({
+      round: 1,
+      moderator_mode: 'talmudic',
+      focused_crux: 'Whether the cited precedent applies to AI regulation',
+      disagreement_type: 'causal',
+      premise_under_examination: 'The same oversight mechanism causes the same outcome',
+      distinction_or_analogy_tested: 'Aviation certification versus AI deployment review',
+      unresolved_outcome: 'Comparable enforcement evidence is needed',
+    });
+    const moderatorEntry = session.transcript.find(entry => entry.id === session.dialectical_diagnostics?.[0].moderator_entry_id);
+    expect(moderatorEntry?.metadata?.moderator_trace).toMatchObject({
+      dialectical_diagnostic: session.dialectical_diagnostics?.[0]
+        ? {
+          focused_crux: session.dialectical_diagnostics[0].focused_crux,
+          disagreement_type: session.dialectical_diagnostics[0].disagreement_type,
+        }
+        : undefined,
+    });
+  });
+
+  it('persists a verified source card and the next debater engagement', async () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'talmudic-corpus-'));
+    try {
+      const sourceCard: TalmudicSourceCard = {
+        id: 'tm-001', ref: 'Mishnah Eduyot 1:5', sefaria_ref: 'Mishnah_Eduyot.1.5',
+        sefaria_url: 'https://www.sefaria.org/Mishnah_Eduyot.1.5', layer: 'mishnah',
+        themes: ['precedent', 'oversight', 'minority'], disagreement_types: ['causal'],
+        schemes: [], usage_types: ['procedural_parallel'],
+        interpretive_summary: 'Preserve minority positions for reconsideration.',
+        counter_reading: 'Preservation does not make a minority controlling.',
+        analogy_guardrails: ['Separate preservation from adoption.'], review_status: 'provisional',
+        source: { language: 'he', version_title: 'Torat Emet 357', license: 'Public Domain', text: 'מקור' },
+        translation: { language: 'en', version_title: 'Mishnah Yomit', license: 'CC-BY', text: 'Translation text.' },
+        excerpt: 'Translation text.', retrieved_at: '2026-07-13T00:00:00.000Z', checksum: '',
+      };
+      sourceCard.checksum = computeTalmudicCardChecksum(sourceCard);
+      const corpusPath = path.join(tempDir, 'pilot-v1.json');
+      fs.writeFileSync(corpusPath, JSON.stringify({
+        version: 1, name: 'Test pilot', review_status: 'provisional',
+        generated_at: '2026-07-13T00:00:00.000Z', cards: [sourceCard],
+      }));
+
+      const response = JSON.stringify({
+        statement: 'Mishnah Eduyot 1:5 preserves dissent, but a modern AI agency differs from a rabbinic court.',
+        turn_symbols: [], claim_sketches: [], key_assumptions: [], my_claims: [], taxonomy_refs: [], move_types: [], claims: [],
+        areas_of_agreement: [], areas_of_disagreement: [], cruxes: [], unresolved_questions: [], summary: 'Mock',
+        responder: 'safetyist', addressing: 'accelerationist', focus_point: 'Test whether precedent applies',
+        agreement_detected: false, intervene: false,
+        dialectical_diagnostic: {
+          focused_crux: 'Whether institutional precedent applies to AI oversight', disagreement_type: 'causal',
+          premise_under_examination: 'The same oversight mechanism causes the same outcome',
+          distinction_or_analogy_tested: 'Institutional precedent and AI oversight', unresolved_outcome: 'Evidence is needed',
+        },
+        talmudic_reference_response: {
+          card_id: 'tm-001', stance: 'distinguishes', relevant_similarity: 'Both preserve dissent.',
+          limiting_difference: 'An AI agency is not a rabbinic court.',
+        },
+        outcome: 'accept', process_reward: 0.8, flags: [], clarifies_taxonomy: [], overall_assessment: { notes: 'test' },
+      });
+      const adapter = createMockAdapter(Array.from({ length: 200 }, () => response));
+      const config = createDefaultConfig({
+        rounds: 1,
+        moderatorMode: 'talmudic',
+        talmudicReferences: { enabled: true, corpusPath, minScore: 0.3 },
+      });
+      const session = await new DebateEngine(config, adapter, createMinimalTaxonomy()).run();
+
+      const selection = session.dialectical_diagnostics?.[0].reference_selection;
+      expect(selection?.selected_card?.id).toBe('tm-001');
+      expect(selection?.response).toMatchObject({ card_id: 'tm-001', valid: true, stance: 'distinguishes' });
+      const moderatorEntry = session.transcript.find(entry => entry.id === selection?.moderator_entry_id);
+      expect(moderatorEntry?.content).toContain('TALMUDIC SOURCE CARD');
+      const responseEntry = session.transcript.find(entry => entry.id === selection?.responding_entry_id);
+      expect(responseEntry?.metadata?.talmudic_reference_response).toMatchObject({ valid: true });
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
   it('transcript entries have unique ids and timestamps', async () => {
     const responses: string[] = [];
     for (let i = 0; i < 200; i++) {
@@ -536,6 +657,7 @@ describe('Transcript management', () => {
       expect(entry.timestamp).toBeTruthy();
       expect(entry.id).toBeTruthy();
     }
+    expect(session.dialectical_diagnostics).toBeUndefined();
   });
 
   it('opening entries have type "opening"', async () => {

@@ -160,6 +160,9 @@ export interface TurnPipelineInput {
     directResponsePattern?: string;
     isTargeted: boolean;
   };
+  /** Verified source-card directive for this turn, when source-grounded moderation selected a card. */
+  talmudicReferenceDirective?: string;
+  talmudicReferenceCardId?: string;
   phaseContext?: {
     rationale: string;
     phase_progress: number;
@@ -286,6 +289,8 @@ function buildStageInput(input: TurnPipelineInput): StagePromptInput {
     documentAnalysis: input.documentAnalysis,
     audience: input.audience,
     pendingIntervention: input.pendingIntervention,
+    talmudicReferenceDirective: input.talmudicReferenceDirective,
+    talmudicReferenceCardId: input.talmudicReferenceCardId,
     phaseContext: input.phaseContext,
     strategicHints: input.strategicHints,
     strongFoundations: input.strongFoundations,
@@ -1735,6 +1740,9 @@ function extractDraftMeta(draft: DraftWorkProduct): PoverResponseMeta {
     ...(draft as Record<string, unknown>).reflection != null ? { reflection: (draft as Record<string, unknown>).reflection } : {},
     ...(draft as Record<string, unknown>).compressed_thesis != null ? { compressed_thesis: (draft as Record<string, unknown>).compressed_thesis } : {},
     ...(draft as Record<string, unknown>).commitment != null ? { commitment: (draft as Record<string, unknown>).commitment } : {},
+    ...(draft as Record<string, unknown>).talmudic_reference_response != null
+      ? { talmudic_reference_response: (draft as Record<string, unknown>).talmudic_reference_response as import('./types.js').TalmudicReferenceResponse }
+      : {},
   } as PoverResponseMeta;
 }
 
@@ -2555,6 +2563,7 @@ export function assemblePipelineResult(
       compressed_thesis: result.draft.compressed_thesis,
       commitment: result.draft.commitment,
       directive_response: result.plan?.directive_response,
+      talmudic_reference_response: result.draft.talmudic_reference_response as import('./types.js').TalmudicReferenceResponse | undefined,
     },
   };
 }

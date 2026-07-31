@@ -265,17 +265,17 @@ export interface TranscriptEntry {
   id: string;
   timestamp: string;
   type:
-    | 'clarification'
-    | 'answer'
-    | 'opening'
-    | 'statement'
-    | 'question'
-    | 'concluding'
-    | 'probing'
-    | 'fact-check'
-    | 'reflection'
-    | 'system'
-    | 'intervention';
+  | 'clarification'
+  | 'answer'
+  | 'opening'
+  | 'statement'
+  | 'question'
+  | 'concluding'
+  | 'probing'
+  | 'fact-check'
+  | 'reflection'
+  | 'system'
+  | 'intervention';
   speaker: SpeakerId | 'system' | 'moderator';
   content: string;
   taxonomy_refs: TaxonomyRef[];
@@ -315,6 +315,85 @@ export type DebateAudience =
   | 'industry_leaders'
   | 'academic_community'
   | 'general_public';
+
+/** Moderation strategy. Talmudic mode changes moderator questioning only; it is not a fourth POV agent. */
+export type ModeratorMode = 'standard' | 'talmudic';
+
+export type TalmudicReferenceUsage = 'analogy' | 'counterexample' | 'distinction' | 'procedural_parallel';
+
+export interface TalmudicReferencesConfig {
+  enabled: boolean;
+  corpusPath: string;
+  maxCandidates?: number;
+  maxReferencesPerRound?: number;
+  minScore?: number;
+}
+
+export interface TalmudicTextVersion {
+  language: string;
+  version_title: string;
+  license: string;
+  attribution?: string;
+  source_url?: string;
+  text: string;
+}
+
+export interface TalmudicSourceCard {
+  id: string;
+  ref: string;
+  sefaria_ref: string;
+  sefaria_url: string;
+  layer: 'mishnah' | 'bavli';
+  themes: string[];
+  disagreement_types: DialecticalDisagreementType[];
+  schemes: string[];
+  usage_types: TalmudicReferenceUsage[];
+  interpretive_summary: string;
+  counter_reading: string;
+  analogy_guardrails: string[];
+  review_status: 'provisional' | 'expert-reviewed';
+  source: TalmudicTextVersion;
+  translation: TalmudicTextVersion;
+  excerpt: string;
+  retrieved_at: string;
+  checksum: string;
+}
+
+export interface TalmudicCorpus {
+  version: 1;
+  name: string;
+  review_status: 'provisional' | 'expert-reviewed';
+  generated_at: string;
+  cards: TalmudicSourceCard[];
+}
+
+export interface TalmudicReferenceCandidate {
+  card_id: string;
+  ref: string;
+  score: number;
+  components: { text_tags: number; disagreement_type: number; scheme: number };
+}
+
+export interface TalmudicReferenceResponse {
+  card_id: string;
+  stance: 'accepts' | 'rejects' | 'distinguishes' | 'limits';
+  relevant_similarity: string;
+  limiting_difference: string;
+  valid: boolean;
+  warnings: string[];
+}
+
+export interface TalmudicReferenceSelection {
+  query: string;
+  candidates: TalmudicReferenceCandidate[];
+  selected_card?: TalmudicSourceCard;
+  usage_type?: TalmudicReferenceUsage;
+  rationale?: string;
+  no_match_reason?: string;
+  moderator_entry_id?: string;
+  responding_entry_id?: string;
+  response?: TalmudicReferenceResponse;
+}
 
 export const DEBATE_AUDIENCES: { id: DebateAudience; label: string }[] = [
   { id: 'policymakers', label: 'Policymakers' },
@@ -450,6 +529,8 @@ export interface DebateSession {
   app_version?: string;
   /** Target audience for tone, language, and concern prioritization. */
   audience?: DebateAudience;
+  /** Moderator strategy used for this session. Absent in legacy sessions (defaults to standard). */
+  moderator_mode?: ModeratorMode;
   phase: 'setup' | 'clarification' | 'edit-claims' | 'opening' | 'debate' | 'closed' | 'cancelled';
   topic: {
     original: string;
@@ -582,6 +663,15 @@ export interface DebateSession {
   metadata?: Record<string, unknown>;
   /** Active moderator state — tracks budget, cooldown, burden, health trajectory, and intervention history. */
   moderator_state?: ModeratorState;
+  /** Reviewable Phase 2 diagnostics emitted for Talmudic moderator rounds. */
+  dialectical_diagnostics?: PersistedDialecticalDiagnostic[];
+  /** Source-grounded Talmudic corpus identity for auditability. */
+  talmudic_references?: {
+    enabled: boolean;
+    corpus_name?: string;
+    corpus_path?: string;
+    corpus_version?: number;
+  };
   /** Adaptive staging diagnostics — signal telemetry, phase transitions, GC events. Present when useAdaptiveStaging is enabled. */
   adaptive_staging_diagnostics?: AdaptiveStagingDiagnostics;
   /** Last QBAF computation result metadata (oscillation detection, iteration count). */
@@ -772,10 +862,10 @@ export interface TurnValidationConfig {
 export type TurnValidationOutcome = 'pass' | 'retry' | 'accept_with_flag' | 'skipped';
 
 export interface TurnValidationDimensions {
-  schema:      { pass: boolean; issues: string[] };
-  grounding:   { pass: boolean; issues: string[] };
+  schema: { pass: boolean; issues: string[] };
+  grounding: { pass: boolean; issues: string[] };
   advancement: { pass: boolean; signals: string[] };
-  clarifies:   { pass: boolean; signals: string[] };
+  clarifies: { pass: boolean; signals: string[] };
 }
 
 export interface TaxonomyClarificationHint {
@@ -1335,6 +1425,7 @@ export interface DraftWorkProduct {
   reflection?: Record<string, unknown>;
   compressed_thesis?: string;
   commitment?: Record<string, unknown>;
+  talmudic_reference_response?: Omit<TalmudicReferenceResponse, 'valid' | 'warnings'>;
 }
 
 export interface CiteWorkProduct {
@@ -1424,13 +1515,13 @@ export interface ClaimExtractionTrace {
 
   /** Lifecycle outcome for the extraction call. */
   status:
-    | 'ok'                // at least one claim accepted
-    | 'no_new_nodes'      // extraction ran but zero accepted (all rejected or empty)
-    | 'adapter_error'     // underlying AI call threw
-    | 'parse_error'       // response received but JSON parse failed
-    | 'empty_response'    // AI returned 0 candidates
-    | 'truncated_response'// response body appears truncated
-    | 'skipped';          // extraction intentionally bypassed
+  | 'ok'                // at least one claim accepted
+  | 'no_new_nodes'      // extraction ran but zero accepted (all rejected or empty)
+  | 'adapter_error'     // underlying AI call threw
+  | 'parse_error'       // response received but JSON parse failed
+  | 'empty_response'    // AI returned 0 candidates
+  | 'truncated_response'// response body appears truncated
+  | 'skipped';          // extraction intentionally bypassed
   error_message?: string;
   attempt_count: number;
 
@@ -1953,6 +2044,34 @@ export interface SelectionResult {
     source_claim?: string;
     source_round?: number;
   };
+  dialectical_diagnostic?: DialecticalDiagnostic;
+}
+
+export type DialecticalDisagreementType =
+  | 'empirical'
+  | 'causal'
+  | 'definitional'
+  | 'normative'
+  | 'mixed'
+  | 'unclear';
+
+/** Structured review data emitted by Talmudic moderator selection. */
+export interface DialecticalDiagnostic {
+  focused_crux: string;
+  disagreement_type: DialecticalDisagreementType;
+  premise_under_examination: string | null;
+  distinction_or_analogy_tested: string | null;
+  unresolved_outcome: string | null;
+}
+
+/** Persisted session index entry linking a diagnostic to its moderator transcript entry. */
+export interface PersistedDialecticalDiagnostic extends DialecticalDiagnostic {
+  moderator_entry_id: string;
+  timestamp: string;
+  round: number;
+  phase: DebatePhase;
+  moderator_mode: 'talmudic';
+  reference_selection?: TalmudicReferenceSelection;
 }
 
 export interface EngineValidationResult {
@@ -1961,8 +2080,8 @@ export interface EngineValidationResult {
   validated_family: InterventionFamily;
   validated_target: SpeakerId;
   suppressed_reason?: 'budget_exhausted' | 'cooldown_active' | 'phase_mismatch'
-    | 'same_debater_consecutive' | 'prerequisite_override'
-    | 'engine_override';
+  | 'same_debater_consecutive' | 'prerequisite_override'
+  | 'engine_override';
   suppression_explanation?: string;
   prerequisite_applied?: string;
   burden_diagnostic?: {

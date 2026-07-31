@@ -48,6 +48,14 @@ interface CLIConfig {
   apiKey?: string;
   temperature?: number;
   audience?: string;
+  moderatorMode?: 'standard' | 'talmudic';
+  talmudicReferences?: {
+    enabled: boolean;
+    corpusPath: string;
+    maxCandidates?: number;
+    maxReferencesPerRound?: number;
+    minScore?: number;
+  };
   useAdaptiveStaging?: boolean;
   pacing?: 'tight' | 'moderate' | 'thorough';
   maxTotalRounds?: number;
@@ -149,10 +157,10 @@ function resolvePerturbationConfig(
   }
   return config.perturbation
     ? {
-        inject_at_turn: config.perturbation.inject_at_turn,
-        prompt: config.perturbation.prompt,
-        measure_recovery_window: config.perturbation.measure_recovery_window ?? 3,
-      }
+      inject_at_turn: config.perturbation.inject_at_turn,
+      prompt: config.perturbation.prompt,
+      measure_recovery_window: config.perturbation.measure_recovery_window ?? 3,
+    }
     : undefined;
 }
 
@@ -342,7 +350,8 @@ async function main(): Promise<void> {
   // Validate audience
   const validAudienceIds = DEBATE_AUDIENCES.map(a => a.id);
   const audience = config.audience
-    ? (validAudienceIds.includes(config.audience as DebateAudience) ? config.audience as DebateAudience : (() => { throw new ActionableError({
+    ? (validAudienceIds.includes(config.audience as DebateAudience) ? config.audience as DebateAudience : (() => {
+      throw new ActionableError({
         goal: 'Validate debate configuration',
         problem: `Unknown audience: ${config.audience}`,
         location: 'cli.main',
@@ -350,12 +359,48 @@ async function main(): Promise<void> {
           `Replace '${config.audience}' with one of: ${validAudienceIds.join(', ')}`,
           'Check the "audience" field in your config for typos',
         ],
-      }); })())
+      });
+    })())
     : undefined;
 
   const adapter = createCLIAdapter(repoRoot, config.apiKey);
   const model = config.model ?? process.env.AI_MODEL ?? 'gemini-2.5-flash';
   log(`Model: ${model}`);
+
+  const moderatorMode = config.moderatorMode ?? 'standard';
+  if (moderatorMode !== 'standard' && moderatorMode !== 'talmudic') {
+    throw new ActionableError({
+      goal: 'Validate debate configuration',
+      problem: `Unknown moderator mode: ${moderatorMode}`,
+      location: 'cli.main',
+      nextSteps: [
+        'Set "moderatorMode" to "standard" or "talmudic"',
+        'Remove the field to use standard moderation',
+      ],
+    });
+  }
+  const talmudicReferences = config.talmudicReferences
+    ? {
+      ...config.talmudicReferences,
+      corpusPath: path.resolve(repoRoot, config.talmudicReferences.corpusPath),
+    }
+    : undefined;
+  if (talmudicReferences?.enabled && moderatorMode !== 'talmudic') {
+    throw new ActionableError({
+      goal: 'Validate source-grounded moderation configuration',
+      problem: 'talmudicReferences.enabled requires moderatorMode to be "talmudic"',
+      location: 'cli.main',
+      nextSteps: [
+        'Set "moderatorMode": "talmudic"',
+        'Or set "talmudicReferences.enabled": false',
+      ],
+    });
+  }
+  if (talmudicReferences?.enabled) {
+    log(`Talmudic references: source-grounded (${talmudicReferences.corpusPath})`);
+  } else if (moderatorMode === 'talmudic') {
+    log('Talmudic references: method-only');
+  }
 
   // Build engine config
   const engineConfig: DebateConfig = {
@@ -380,6 +425,8 @@ async function main(): Promise<void> {
     },
     appVersion: (() => { try { return JSON.parse(fs.readFileSync(path.resolve(__dirname, '../../taxonomy-editor/package.json'), 'utf-8')).version; } catch { return undefined; } })(),
     audience,
+    moderatorMode,
+    talmudicReferences,
     vocabulary: vocab.standardized.length > 0
       ? { standardizedTerms: vocab.standardized as import('../dictionary/types.js').StandardizedTerm[], colloquialTerms: vocab.colloquial as import('../dictionary/types.js').ColloquialTerm[] }
       : undefined,
@@ -684,6 +731,11 @@ async function runCiGolden(): Promise<void> {
         rounds: config.rounds ?? 1,
         responseLength: (config.responseLength ?? 'brief') as 'brief' | 'medium' | 'detailed',
         turnValidation: { enabled: true },
+        moderatorMode: config.moderatorMode,
+        talmudicReferences: config.talmudicReferences ? {
+          ...config.talmudicReferences,
+          corpusPath: path.resolve(repoRoot, config.talmudicReferences.corpusPath),
+        } : undefined,
         vocabulary: vocab.standardized.length > 0
           ? { standardizedTerms: vocab.standardized as import('../dictionary/types.js').StandardizedTerm[], colloquialTerms: vocab.colloquial as import('../dictionary/types.js').ColloquialTerm[] }
           : undefined,
@@ -738,11 +790,13 @@ if (process.argv.includes('--ci-golden')) {
     process.exit(1);
   });
 } else {
-  main().catch(err => {
-    const msg = err instanceof Error ? err.message : String(err);
-    log(`FATAL: ${msg}`);
-    getGlobalRecorder()?.record({ type: 'system.error', component: 'cli', level: 'error', message: 'Fatal unhandled error', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
-    console.log(JSON.stringify({ success: false, error: msg }));
-    process.exit(1);
-  });
+  main()
+    .then(() => process.exit(0))
+    .catch(err => {
+      const msg = err instanceof Error ? err.message : String(err);
+      log(`FATAL: ${msg}`);
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'cli', level: 'error', message: 'Fatal unhandled error', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
+      console.log(JSON.stringify({ success: false, error: msg }));
+      process.exit(1);
+    });
 }

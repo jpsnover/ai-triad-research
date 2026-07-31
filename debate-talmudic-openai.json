@@ -1,0 +1,15 @@
+{
+    "topic": "Should advanced AI development be regulated like a public utility?",
+    "model": "openai-gpt-4o-mini",
+    "rounds": 1,
+    "responseLength": "brief",
+    "moderatorMode": "talmudic",
+    "talmudicReferences": {
+        "enabled": true,
+        "corpusPath": "./.local-data/talmudic-corpus/pilot-v1.json",
+        "maxCandidates": 3,
+        "maxReferencesPerRound": 1,
+        "minScore": 0.3
+    },
+    "outputDir": "./debates"
+}

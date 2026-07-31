@@ -68,6 +68,8 @@ import {
   factCheckToBaseStrength,
   computeClaimTaxonomyAttribution,
   sampleNodesForEntailment,
+  getNextArgumentNodeNumber,
+  assertUniqueArgumentNodeIds,
   type RawExtractedClaim,
 } from './argumentNetwork.js';
 import { computeQbafStrengths, computeQbafConvergence } from './qbaf.js';
@@ -838,6 +840,7 @@ Return ONLY JSON (no markdown, no code fences):
     }
 
     const overlapThreshold = (debaterClaims && debaterClaims.length > 0) ? 0.1 : 0.15;
+    assertUniqueArgumentNodeIds(an.nodes, 'ClaimExtractionPipeline.extractClaims');
     const claimsResult = processExtractedClaims(
       {
         claims,
@@ -848,7 +851,7 @@ Return ONLY JSON (no markdown, no code fences):
         turnNumber,
         existingNodes: an.nodes,
         existingEdgeCount: an.edges.length,
-        startNodeId: an.nodes.length + 1,
+        startNodeId: getNextArgumentNodeNumber(an.nodes),
         taxonomyEdges: this.ctx.taxonomy.edges?.edges,
         knownNodeIds: this.ctx.getKnownNodeIds(),
         activatedSituations: this.ctx.getActivatedSituations().length > 0 ? this.ctx.getActivatedSituations() : undefined,
@@ -862,6 +865,7 @@ Return ONLY JSON (no markdown, no code fences):
     );
 
     an.nodes.push(...claimsResult.newNodes);
+    assertUniqueArgumentNodeIds(an.nodes, 'ClaimExtractionPipeline.extractClaims.afterInsert');
     an.edges.push(...claimsResult.newEdges);
 
     // Entailment post-pass: BDI-category-aware sampling, detect-and-repair

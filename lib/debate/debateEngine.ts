@@ -40,6 +40,8 @@ import type {
   ProcessRewardEntry,
   TopicScope,
   EntailmentRepairEvent,
+  TalmudicCorpus,
+  TalmudicReferenceSelection,
 } from './types.js';
 import { POVER_INFO, getDebatePhase, POV_KEYS, type PovKey } from './types.js';
 import {
@@ -159,6 +161,13 @@ import type { TurnPipelineInput, OpeningPipelineInput } from './turnPipeline.js'
 import { TopicPipeline } from './topicPipeline.js';
 import { ClaimExtractionPipeline } from './claimExtractionPipeline.js';
 import { SynthesisPipeline } from './synthesisPipeline.js';
+import {
+  formatTalmudicSourceDirective,
+  loadTalmudicCorpus,
+  retrieveTalmudicReference,
+  validateTalmudicReferenceResponse,
+} from './talmudicReferences.js';
+import { assertUniqueArgumentNodeIds } from './argumentNetwork.js';
 
 // ── Model tier ranking (for maxModelId cap filtering) ────
 
@@ -210,6 +219,10 @@ export interface DebateConfig {
   appVersion?: string;
   /** Target audience for tone, language, and concern prioritization. */
   audience?: import('./types.js').DebateAudience;
+  /** Moderator strategy. Talmudic mode is method-only and does not add a debate agent. */
+  moderatorMode?: import('./types.js').ModeratorMode;
+  /** Optional verified local corpus for source-grounded Talmudic moderation. */
+  talmudicReferences?: import('./types.js').TalmudicReferencesConfig;
   /** Round at which to inject gap arguments (0 = disabled, default = ceil(totalRounds/2)+1). */
   gapInjectionRound?: number;
   /** How often (in rounds) to run the responsive gap check after the initial injection. Default: 3. */
@@ -368,6 +381,8 @@ export class DebateEngine {
   /** Extracted ClaimExtractionPipeline collaborator — owns claim extraction, drift tracking, gap injection, and post-debate analysis. */
   private _claimPipeline!: ClaimExtractionPipeline;
   private _synthesisPipeline!: SynthesisPipeline;
+  /** Validated source corpus loaded once at construction when references are enabled. */
+  private _talmudicCorpus: TalmudicCorpus | null = null;
 
   /** Get the set of hint keys currently suppressed for this debate. */
   private getSuppressedHints(): Set<string> {
@@ -406,7 +421,7 @@ export class DebateEngine {
 
   private seedExplorationSummary(summary: import('./explorationSummary.js').ExplorationSummary): void {
     if (summary.topic.final !== this.session.topic.final &&
-        summary.topic.original !== this.config.topic) {
+      summary.topic.original !== this.config.topic) {
       getGlobalRecorder()?.record({
         type: 'exploration_seeding', component: 'debate-engine', level: 'warn',
         debate_id: this.session?.id,
@@ -608,6 +623,20 @@ export class DebateEngine {
     }
 
     this.config = { ...config, stageModels: merged };
+    if (this.config.talmudicReferences?.enabled) {
+      if (this.config.moderatorMode !== 'talmudic') {
+        throw new ActionableError({
+          goal: 'Enable source-grounded Talmudic moderation',
+          problem: 'talmudicReferences.enabled requires moderatorMode to be talmudic',
+          location: 'DebateEngine.constructor',
+          nextSteps: [
+            'Set moderatorMode to "talmudic"',
+            'Or disable talmudicReferences for a standard debate',
+          ],
+        });
+      }
+      this._talmudicCorpus = loadTalmudicCorpus(this.config.talmudicReferences);
+    }
     this.adapter = adapter;
     this.taxonomy = taxonomy;
     this.applyExplorationConfigDefaults();
@@ -621,7 +650,7 @@ export class DebateEngine {
     if (!this.config.explorationSummary) return;
     const rc = this.config.explorationSummary.recommended_config;
     if (this.config.explorationSummary.topic.final !== this.config.topic &&
-        this.config.explorationSummary.topic.original !== this.config.topic) {
+      this.config.explorationSummary.topic.original !== this.config.topic) {
       return;
     }
     if (this.config.maxTotalRounds == null) {
@@ -699,7 +728,7 @@ export class DebateEngine {
     try {
       // Phase 0.5: Topic critique (free-form topics only, before clarification)
       if (this.config.enableWisdomEvaluation !== false &&
-          this.config.sourceType !== 'document' && this.config.sourceType !== 'url' && this.config.sourceType !== 'situations') {
+        this.config.sourceType !== 'document' && this.config.sourceType !== 'url' && this.config.sourceType !== 'situations') {
         await this._topicPipeline.runTopicCritique();
       }
 
@@ -1055,6 +1084,13 @@ export class DebateEngine {
       updated_at: now,
       app_version: this.config.appVersion,
       audience: this.config.audience,
+      moderator_mode: this.config.moderatorMode ?? 'standard',
+      talmudic_references: this._talmudicCorpus ? {
+        enabled: true,
+        corpus_name: this._talmudicCorpus.name,
+        corpus_path: path.resolve(this.config.talmudicReferences!.corpusPath),
+        corpus_version: this._talmudicCorpus.version,
+      } : { enabled: false },
       phase: 'setup',
       topic: {
         original: this.config.topic,
@@ -1421,14 +1457,14 @@ export class DebateEngine {
           continue;
         }
         getGlobalRecorder()?.record({
-            type: 'system.error',
-            component: 'debateEngine',
-            level: 'error',
-            debate_id: this.session?.id,
-            message: `Speaker ${speaker} model ${chain[i]} failed (no more fallbacks)`,
-            error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
-          });
-          throw err;
+          type: 'system.error',
+          component: 'debateEngine',
+          level: 'error',
+          debate_id: this.session?.id,
+          message: `Speaker ${speaker} model ${chain[i]} failed (no more fallbacks)`,
+          error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+        });
+        throw err;
       }
     }
     throw new Error(`All models failed for speaker ${speaker}`);
@@ -1698,8 +1734,8 @@ export class DebateEngine {
 
     // Post-hoc vocabulary disambiguation for debater statements
     if (this.config.vocabulary?.colloquialTerms &&
-        (full.type === 'opening' || full.type === 'statement') &&
-        full.speaker !== 'system' && full.speaker !== 'moderator' && full.speaker !== 'user') {
+      (full.type === 'opening' || full.type === 'statement') &&
+      full.speaker !== 'system' && full.speaker !== 'moderator' && full.speaker !== 'user') {
       const result = disambiguateTerms(
         full.content,
         full.speaker as CampOrigin,
@@ -2742,7 +2778,7 @@ export class DebateEngine {
       }
 
       if (this.config.enableProbing && this.config.probingInterval &&
-          round % this.config.probingInterval === 0 && round < this.config.rounds) {
+        round % this.config.probingInterval === 0 && round < this.config.rounds) {
         await this.runProbingQuestions(round);
       }
 
@@ -2817,8 +2853,8 @@ export class DebateEngine {
       // Compute scores for telemetry
       const coldStart = state.rounds_in_phase < (
         state.current_phase === 'confrontation' ? w.phase_bounds.min_confrontation_rounds
-        : state.current_phase === 'argumentation' ? w.phase_bounds.min_argumentation_rounds
-        : w.phase_bounds.min_concluding_rounds
+          : state.current_phase === 'argumentation' ? w.phase_bounds.min_argumentation_rounds
+            : w.phase_bounds.min_concluding_rounds
       );
       const satScore = computeSaturationScore(signals, ctx, coldStart);
       const convScore = computeConvergenceScore(ctx, coldStart);
@@ -2971,7 +3007,7 @@ export class DebateEngine {
       }
 
       if (this.config.enableProbing && this.config.probingInterval &&
-          round % this.config.probingInterval === 0 && !terminated) {
+        round % this.config.probingInterval === 0 && !terminated) {
         await this.runProbingQuestions(round);
       }
 
@@ -3021,6 +3057,7 @@ export class DebateEngine {
       totalRounds: this.config.rounds,
       model: moderatorModel,
       audience: this.config.audience,
+      moderatorMode: this.config.moderatorMode,
       sourceDocSummary,
       resolution: this.session.topic.final,
       resolutionClauses: this.session.topic.clauses,
@@ -3046,13 +3083,46 @@ export class DebateEngine {
 
     const { responder, focusPoint, addressing, agreementDetected, selectionResult,
       intervention: activeIntervention, interventionBriefInjection, healthScore, diagnostics } = modResult;
+    const dialecticalDiagnostic = this.config.moderatorMode === 'talmudic'
+      ? selectionResult.dialectical_diagnostic ?? {
+        focused_crux: focusPoint,
+        disagreement_type: 'unclear' as const,
+        premise_under_examination: null,
+        distinction_or_analogy_tested: null,
+        unresolved_outcome: null,
+      }
+      : null;
+
+    let referenceSelection: TalmudicReferenceSelection | undefined;
+    let talmudicDirective = '';
+    if (dialecticalDiagnostic && this._talmudicCorpus && (this.config.talmudicReferences?.maxReferencesPerRound ?? 1) > 0) {
+      assertUniqueArgumentNodeIds(this.session.argument_network?.nodes ?? [], 'DebateEngine.runCrossRespondRound');
+      const usedCardIds = new Set(
+        (this.session.dialectical_diagnostics ?? [])
+          .map(item => item.reference_selection?.selected_card?.id)
+          .filter((id): id is string => typeof id === 'string'),
+      );
+      referenceSelection = retrieveTalmudicReference({
+        corpus: this._talmudicCorpus,
+        resolution: this.session.topic.final,
+        diagnostic: dialecticalDiagnostic,
+        recentScheme: diagnostics.recentScheme,
+        usedCardIds,
+        maxCandidates: this.config.talmudicReferences?.maxCandidates,
+        minScore: this.config.talmudicReferences?.minScore,
+      });
+      talmudicDirective = formatTalmudicSourceDirective(
+        referenceSelection,
+        POVER_INFO[responder]?.label ?? responder,
+      );
+    }
 
     // Record moderator deliberation as a system entry with full diagnostics
     const an = this.session.argument_network;
     const modEntry = this.addEntry({
       type: 'system',
       speaker: 'system',
-      content: `[Round ${round}] Moderator: ${POVER_INFO[responder]?.label ?? responder} → ${addressing} on: ${focusPoint}${activeIntervention ? ` [${activeIntervention.move}]` : ''}`,
+      content: `[Round ${round}] Moderator: ${POVER_INFO[responder]?.label ?? responder} → ${addressing} on: ${focusPoint}${activeIntervention ? ` [${activeIntervention.move}]` : ''}${talmudicDirective ? `\n\n${talmudicDirective}` : ''}`,
       taxonomy_refs: [],
       metadata: {
         moderator_trace: {
@@ -3087,9 +3157,34 @@ export class DebateEngine {
           edge_context_length: diagnostics.edgeContextLength,
           an_context_length: diagnostics.anContextLength,
           qbaf_context_length: diagnostics.qbafContextLength,
+          dialectical_diagnostic: dialecticalDiagnostic,
+          talmudic_reference_selection: referenceSelection ?? null,
         },
       },
     });
+    if (dialecticalDiagnostic) {
+      this.session.dialectical_diagnostics ??= [];
+      this.session.dialectical_diagnostics.push({
+        moderator_entry_id: modEntry.id,
+        timestamp: modEntry.timestamp,
+        round,
+        phase,
+        moderator_mode: 'talmudic',
+        reference_selection: referenceSelection,
+        ...dialecticalDiagnostic,
+      });
+      if (referenceSelection) referenceSelection.moderator_entry_id = modEntry.id;
+      getGlobalRecorder()?.record({
+        type: 'debate.moderate',
+        component: 'dialectical-diagnostics',
+        level: 'info',
+        debate_id: this.session.id,
+        round,
+        phase,
+        message: `Dialectical diagnostic: ${dialecticalDiagnostic.focused_crux}`,
+        data: dialecticalDiagnostic as unknown as Record<string, unknown>,
+      });
+    }
     this.recordDiagnostic(modEntry.id, {
       prompt: diagnostics.selectionPrompt,
       raw_response: diagnostics.selectionResponse,
@@ -3133,13 +3228,13 @@ export class DebateEngine {
       : '';
     const concessionCandidateIds = concessionHint
       ? (concessionAN!.nodes
-          .filter(n => n.speaker !== responder)
-          .filter(n => (n.computed_strength ?? n.base_strength ?? 0) >= 0.65)
-          .filter(n => !concessionAN!.edges.some(e => e.type === 'attacks' && e.source && concessionAN!.nodes.find(x => x.id === e.source)?.speaker === responder && e.target === n.id))
-          .filter(n => !priorConceded.includes(n.id) && !priorConceded.includes(n.text))
-          .sort((a, b) => (b.computed_strength ?? 0) - (a.computed_strength ?? 0))
-          .slice(0, 2)
-          .map(n => n.id))
+        .filter(n => n.speaker !== responder)
+        .filter(n => (n.computed_strength ?? n.base_strength ?? 0) >= 0.65)
+        .filter(n => !concessionAN!.edges.some(e => e.type === 'attacks' && e.source && concessionAN!.nodes.find(x => x.id === e.source)?.speaker === responder && e.target === n.id))
+        .filter(n => !priorConceded.includes(n.id) && !priorConceded.includes(n.text))
+        .sort((a, b) => (b.computed_strength ?? 0) - (a.computed_strength ?? 0))
+        .slice(0, 2)
+        .map(n => n.id))
       : [];
     const updatedTranscript = formatRecentTranscript(this.session.transcript, 8, this.session.context_summaries);
 
@@ -3174,11 +3269,11 @@ export class DebateEngine {
     // Gather cross-POV node IDs for late-round citation diversity (Rec 3)
     const crossPovNodeIds = round >= 4
       ? Object.entries(taxMap)
-          .filter(([key]) => key !== info.pov && key !== 'policyRegistry')
-          .flatMap(([, file]) => file?.nodes?.map(n => n.id) ?? [])
-          .filter(id => !priorRefsEarly.includes(id))
-          .sort(() => Math.random() - 0.5)
-          .slice(0, 8)
+        .filter(([key]) => key !== info.pov && key !== 'policyRegistry')
+        .flatMap(([, file]) => file?.nodes?.map(n => n.id) ?? [])
+        .filter(id => !priorRefsEarly.includes(id))
+        .sort(() => Math.random() - 0.5)
+        .slice(0, 8)
       : undefined;
 
     // ── Insularity intervention (BEA RUE, t/1130) ──
@@ -3265,12 +3360,12 @@ export class DebateEngine {
     const anForHints = this.session.argument_network;
     const hintsResult = anForHints && this.session.commitments
       ? computeStrategicHints(
-          responder,
-          anForHints.nodes,
-          anForHints.edges,
-          this.session.commitments,
-          round,
-        )
+        responder,
+        anForHints.nodes,
+        anForHints.edges,
+        this.session.commitments,
+        round,
+      )
       : undefined;
     const strategicHints = hintsResult?.hints;
     if (hintsResult && hintsResult.dropped > 0) {
@@ -3322,6 +3417,8 @@ export class DebateEngine {
       sourceContent: this.session.document_analysis ? undefined : this.config.sourceContent,
       documentAnalysis: this.session.document_analysis,
       audience: this.config.audience,
+      talmudicReferenceDirective: talmudicDirective || undefined,
+      talmudicReferenceCardId: referenceSelection?.selected_card?.id,
       model: this.resolveModelForSpeaker(responder),
       briefModel: this.config.stageModels?.brief,
       planModel: this.config.stageModels?.plan,
@@ -3357,8 +3454,8 @@ export class DebateEngine {
           const w = loadProvisionalWeights();
           const coldStart = this._phaseState!.rounds_in_phase < (
             this._phaseState!.current_phase === 'confrontation' ? w.phase_bounds.min_confrontation_rounds
-            : this._phaseState!.current_phase === 'argumentation' ? w.phase_bounds.min_argumentation_rounds
-            : w.phase_bounds.min_concluding_rounds
+              : this._phaseState!.current_phase === 'argumentation' ? w.phase_bounds.min_argumentation_rounds
+                : w.phase_bounds.min_concluding_rounds
           );
           const satScore = this._signalRegistry
             ? computeSaturationScore(this._signalRegistry, this.buildSignalContext(round), coldStart) : 0;
@@ -3372,22 +3469,22 @@ export class DebateEngine {
 
     const envelopeGenerate = this.adapter.generate
       ? async (request: import('./cacheTypes.js').GenerateRequest, label: string) => {
-          await this.throttle();
-          this.progress('generating', undefined, label);
-          const start = Date.now();
-          try {
-            const resp = await this.adapter.generate!(request);
-            this.lastApiCallTime = Date.now();
-            this.apiCallCount++;
-            this.totalResponseTimeMs += Date.now() - start;
-            this.clearRateLimitBackoff();
-            return resp;
-          } catch (err) {
-            this.lastApiCallTime = Date.now();
-            if (this.isRateLimitError(err)) this.recordRateLimit();
-            throw err;
-          }
+        await this.throttle();
+        this.progress('generating', undefined, label);
+        const start = Date.now();
+        try {
+          const resp = await this.adapter.generate!(request);
+          this.lastApiCallTime = Date.now();
+          this.apiCallCount++;
+          this.totalResponseTimeMs += Date.now() - start;
+          this.clearRateLimitBackoff();
+          return resp;
+        } catch (err) {
+          this.lastApiCallTime = Date.now();
+          if (this.isRateLimitError(err)) this.recordRateLimit();
+          throw err;
         }
+      }
       : undefined;
 
     // ── Cross-respond with per-turn validation + retry loop ──
@@ -3451,6 +3548,15 @@ export class DebateEngine {
       return executeTurnWithRetry(retryInput, retryCallbacks);
     });
     const { statement, taxonomyRefs, meta, validation, attempts, pipelineResult } = turnResult;
+    if (referenceSelection?.selected_card) {
+      const response = validateTalmudicReferenceResponse(
+        meta.talmudic_reference_response,
+        referenceSelection,
+        statement,
+      );
+      meta.talmudic_reference_response = response;
+      referenceSelection.response = response;
+    }
     this.enrichTaxonomyRefs(taxonomyRefs);
 
     // Update per-speaker hint streaks for hopeless hint suppression.
@@ -3539,8 +3645,18 @@ export class DebateEngine {
         anticipated_responses: pipelineResult.plan.anticipated_responses?.length
           ? pipelineResult.plan.anticipated_responses : undefined,
         ignored_evidence_doc_ids: pipelineResult.ignoredEvidenceDocIds,
+        talmudic_reference_response: meta.talmudic_reference_response,
       },
     });
+    if (referenceSelection?.selected_card) {
+      referenceSelection.responding_entry_id = entry.id;
+      if (!referenceSelection.response?.valid) {
+        entry.caveats = [
+          ...(entry.caveats ?? []),
+          `[Talmudic reference] ${referenceSelection.response?.warnings.join('; ') || 'Structured engagement was not recorded'}`,
+        ];
+      }
+    }
 
     // Accumulate context manifest for taxonomy gap analysis
     this.accumulateContextManifest(round, responder, info.pov, taxonomyRefs.map(r => r.node_id));
@@ -3564,11 +3680,11 @@ export class DebateEngine {
       edges_used: responderEdgesUsed,
       topic_alignment: pipelineResult.topicAlignmentResult
         ? {
-            topic_aligned: pipelineResult.topicAlignmentResult.topic_aligned,
-            repaired: pipelineResult.topicAlignmentResult.repaired || undefined,
-            draft_attempt: (pipelineResult.topicAlignmentResult as Record<string, unknown>).draft_attempt as number | undefined,
-            scope_used: this.session.topic.scope ?? null,
-          }
+          topic_aligned: pipelineResult.topicAlignmentResult.topic_aligned,
+          repaired: pipelineResult.topicAlignmentResult.repaired || undefined,
+          draft_attempt: (pipelineResult.topicAlignmentResult as Record<string, unknown>).draft_attempt as number | undefined,
+          scope_used: this.session.topic.scope ?? null,
+        }
         : undefined,
       quality_gate: pipelineResult.qualityGateResult,
       scope_drift_warnings: scopeDriftWarnings,
@@ -3833,22 +3949,22 @@ export class DebateEngine {
       const boundStageGenerate = this.stageGenerate.bind(this);
       const envelopeGenerate = this.adapter.generate
         ? async (request: import('./cacheTypes.js').GenerateRequest, label: string) => {
-            await this.throttle();
-            this.progress('generating', undefined, label);
-            const start = Date.now();
-            try {
-              const resp = await this.adapter.generate!(request);
-              this.lastApiCallTime = Date.now();
-              this.apiCallCount++;
-              this.totalResponseTimeMs += Date.now() - start;
-              this.clearRateLimitBackoff();
-              return resp;
-            } catch (err) {
-              this.lastApiCallTime = Date.now();
-              if (this.isRateLimitError(err)) this.recordRateLimit();
-              throw err;
-            }
+          await this.throttle();
+          this.progress('generating', undefined, label);
+          const start = Date.now();
+          try {
+            const resp = await this.adapter.generate!(request);
+            this.lastApiCallTime = Date.now();
+            this.apiCallCount++;
+            this.totalResponseTimeMs += Date.now() - start;
+            this.clearRateLimitBackoff();
+            return resp;
+          } catch (err) {
+            this.lastApiCallTime = Date.now();
+            if (this.isRateLimitError(err)) this.recordRateLimit();
+            throw err;
           }
+        }
         : undefined;
 
       const knownIds = this.getKnownNodeIds();
