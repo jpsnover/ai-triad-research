@@ -3,6 +3,7 @@
 
 import crypto from 'crypto';
 import { getGlobalRecorder } from '../../../lib/flight-recorder/index.js';
+import { sanitizeText, type SanitizeWarning } from '../../../lib/sanitize/contentSanitizerCore.js';
 
 let _client: CommunityReviewClient | null = null;
 
@@ -111,13 +112,51 @@ function scanSensitive(obj: unknown, found = new Set<string>()): Set<string> {
   return found;
 }
 
-function stripSensitiveKeys(obj: unknown): unknown {
+// t/2032/t/2033: single source of truth for the secret-prefix screen — applied in BOTH the
+// object and array branches of stripSensitiveKeys, so the array branch can't ship without a
+// secret screen. Kept byte-identical to the server's community.ts SECRET_PREFIX_RE (t/2032) so
+// the two copies of this promote path (both publish to the same public 'community' blob) screen
+// identically.
+const SECRET_PREFIX_RE = /^(sk-|AIza|gsk_|key-|xai-|Bearer\s)/;
+
+// Observability hook for the pure lib sanitizer (t/2033). The desktop promote path injects a
+// flight-recorder onWarn rather than importing a logger (the lib core stays logger-agnostic;
+// the server wraps it with pino). NEVER logs content (secrets rule) — only the oversize-input
+// truncation fact. A throwing hook can't break sanitization (the core guards the call).
+const onSanitizeWarn = (w: SanitizeWarning): void => {
+  getGlobalRecorder()?.record({
+    type: 'system.error', component: 'community-review-io', level: 'warn',
+    message: `sanitizeText: input exceeded cap (${w.cap}) — truncated before sanitization`,
+    data: { reason: w.reason, originalLength: w.originalLength, cap: w.cap },
+  });
+};
+
+// Exported for direct regression testing (t/2033): the test must exercise THIS function, not
+// an inline replica — a replica is exactly how the array-branch bypass shipped untested.
+export function stripSensitiveKeys(obj: unknown): unknown {
   if (obj === null || typeof obj !== 'object') return obj;
-  if (Array.isArray(obj)) return obj.map(stripSensitiveKeys);
+  if (Array.isArray(obj)) {
+    // t/2033 (sibling of t/2032): array string elements have no key to omit, so screen each in
+    // PLACE — secret-prefix FIRST (redact to '' so a `sk-…` value can't leak, preserving array
+    // shape), else neutralize executable tags/schemes via the shared lib core; non-strings recurse.
+    // The prior `obj.map(stripSensitiveKeys)` sent string elements to the scalar early-return,
+    // bypassing both the secret screen AND sanitization (the stored-XSS / secret-leak bug).
+    return obj.map((v) => {
+      if (typeof v !== 'string') return stripSensitiveKeys(v);
+      if (SECRET_PREFIX_RE.test(v)) return '';
+      return sanitizeText(v, onSanitizeWarn);
+    });
+  }
   const result: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(obj as Record<string, unknown>)) {
     if (SENSITIVE_KEYS.has(key)) continue;
-    if (typeof value === 'string' && /^(sk-|AIza|gsk_|key-|xai-|Bearer\s)/.test(value)) continue;
+    if (typeof value === 'string') {
+      // Object property: secret-prefix → omit the whole key (there IS a key to drop); else
+      // XSS-sanitize the value (t/2033 parity — this branch previously stored strings verbatim).
+      if (SECRET_PREFIX_RE.test(value)) continue;
+      result[key] = sanitizeText(value, onSanitizeWarn);
+      continue;
+    }
     result[key] = stripSensitiveKeys(value);
   }
   return result;
