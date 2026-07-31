@@ -88,7 +88,10 @@ export function registerAiHandlers(): void {
 
   ipcMain.handle('update-node-embeddings', async (_event, nodes: NodeEmbeddingInput[]) => {
     try {
-      await updateNodeEmbeddings(nodes);
+      // Resolves { staleNodeIds } (empty = full success) — an embed OOM surfaces as stale ids,
+      // not a throw, so the renderer can flag the degradation (t/2060). Only a genuinely
+      // unexpected fault (e.g. file-write) reaches the catch below.
+      return await updateNodeEmbeddings(nodes);
     } catch (err) {
       getGlobalRecorder()?.record({
         type: 'system.error',
