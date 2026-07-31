@@ -43,3 +43,36 @@ for d in $dirs; do
     printf '%s\n' "$h" > "$marker"
   fi
 done
+
+# ── Native-module build assertion (t/2016) ───────────────────────────────────
+# `npm ci` exit 0 does NOT prove native addons built: taxonomy-editor's postinstall
+# is `@electron/rebuild || exit 0`, so a failed native build (missing VS Spectre
+# libs on the host; or winpty's GetCommitHash.bat returning 1 inside a LINKED
+# worktree) still exits 0 — leaving a silently broken integrated terminal. Verify
+# the actual node-pty .node binary; if missing, best-effort SEED it from the
+# primary checkout (rebuild-in-worktree fails), then WARN loudly if still absent.
+# Wrapped in set +e so this diagnostic can NEVER fail session start.
+case " $dirs " in
+  *" taxonomy-editor "*)
+    set +e
+    rel="taxonomy-editor/node_modules/node-pty/build/Release"
+    if [ -d "taxonomy-editor/node_modules/node-pty" ] && [ ! -f "$rel/pty.node" ]; then
+      echo "install-if-stale: taxonomy-editor node-pty native binary MISSING — attempting seed from primary checkout"
+      common=$(git rev-parse --git-common-dir 2>/dev/null)
+      primary=""
+      [ -n "$common" ] && primary=$(cd "$common/.." 2>/dev/null && pwd)
+      psrc="$primary/taxonomy-editor/node_modules/node-pty/build/Release"
+      here=$(cd "$rel" 2>/dev/null && pwd)
+      if [ -n "$primary" ] && [ -f "$psrc/pty.node" ] && [ "$psrc" != "$here" ]; then
+        mkdir -p "$rel" && cp "$psrc"/*.node "$rel"/ 2>/dev/null && echo "  seeded node-pty .node from $psrc"
+      fi
+    fi
+    if [ -d "taxonomy-editor/node_modules/node-pty" ] && [ ! -f "$rel/pty.node" ]; then
+      echo "  WARN install-if-stale: node-pty native binary still MISSING ($rel/pty.node)." >&2
+      echo "    Integrated terminal will fail. Rebuild in a LINKED worktree fails (winpty" >&2
+      echo "    GetCommitHash.bat); build node-pty in the PRIMARY checkout then re-run this," >&2
+      echo "    or install the VS MSVC Spectre-mitigated libs and rebuild there (t/2016)." >&2
+    fi
+    set -e
+    ;;
+esac
