@@ -112,3 +112,8 @@ After updating, run `Test-ModuleManifest -Path ./build/AITriad/AITriad.psd1` to 
 Two jobs on push/PR to main:
 1. **test-powershell** — Pester tests, module build, manifest validation
 2. **test-electron** — `npm ci`, TypeScript check, build (taxonomy-editor only)
+
+## Incident Response
+
+- **Live incident: claim follow-ups before filing.** Before `create_ticket` for a follow-up during an active incident, claim it on the incident anchor thread (or route through the incident coordinator) — prevents concurrent duplicate filings across roles (this bit twice: t/2053+t/2054, t/2061+t/2062).
+- The Technical Lead coordinates incidents (runs `/tl-incident-response`); the anchor ticket is the source of truth for status and follow-up claims.
