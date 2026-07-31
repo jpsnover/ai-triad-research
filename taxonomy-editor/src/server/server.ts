@@ -42,7 +42,7 @@ import { getErrorSummaryCached, type ErrorEntry } from './errorAggregation.js';
 import { isCaseStatus } from './support/types.js';
 import * as organizations from './organizations.js';
 import { isPov } from './organizations.js';
-import { json, error, param, query, getClientIp, createRouter, withEndpointTimeout, type Handler } from './httpKit.js';
+import { json, error, param, query, getClientIp, createRouter, withEndpointTimeout, normalizedRequestPath, type Handler } from './httpKit.js';
 import { computeIsPublicPath } from './publicPaths.js';
 import { registerDebatesRoutes } from './routes/debates.js';
 import { registerSyncRoutes } from './routes/sync.js';
@@ -789,7 +789,11 @@ async function handleRequestInner(
   }
 
   // Auth gate — only enforced when authorized-users.json exists
-  const urlPath = req.url?.split('?')[0] || '';
+  // t/2019 (js/user-controlled-bypass): derive the gate path from the SAME normalized
+  // pathname the router matches on (normalizedRequestPath) — not raw
+  // req.url.split('?') — so an encoded-traversal path can't read as a public prefix
+  // here (e.g. /api/public/%2e%2e/admin) while resolving elsewhere at the router.
+  const urlPath = normalizedRequestPath(req);
   // /api/models is public: lets the pre-auth renderer populate the model
   // catalog from ai-models.json. Contains no secrets — just labels + ids.
   // /api/sync/webhook/github is public: GitHub POSTs unauthenticated; the
@@ -952,16 +956,19 @@ async function handleRequestInner(
   const userCtx = { principalName: effectivePrincipal, idp: effectiveIdp, branchName: sessionBranch, storageUserId, isAnonymous: isAnon, anonymousSessionId };
   await runWithUser(userCtx, async () => {
 
-    const url = new URL(req.url!, 'http://localhost');
-    const route = matchRoute(req.method!, url.pathname);
+    // t/2019: same canonical parse as the auth gate above (normalizedRequestPath) —
+    // gate and router decide on the identical normalized path by construction, not two
+    // parses that happen to agree. Named reqPath to not shadow the gate's urlPath.
+    const reqPath = normalizedRequestPath(req);
+    const route = matchRoute(req.method!, reqPath);
 
     // M7: per-IP rate limit on API write methods (100/min) — basic DoS/abuse guard.
-    if (route && (req.method === 'POST' || req.method === 'PUT' || req.method === 'PATCH' || req.method === 'DELETE') && url.pathname.startsWith('/api/')) {
+    if (route && (req.method === 'POST' || req.method === 'PUT' || req.method === 'PATCH' || req.method === 'DELETE') && reqPath.startsWith('/api/')) {
       const wr = rateLimiter.checkRate(`write:${getClientIp(req)}`, 100, 60_000);
       if (!wr.allowed) {
         const retryAfter = Math.max(1, Math.ceil((wr.retryAfterMs ?? 60_000) / 1000));
         // t/925: write-rate 429s were silent — log so abuse/DoS spikes are visible.
-        log.server.warn({ component: 'rate-limiter', type: 'write_per_minute', method: req.method, path: url.pathname, retryAfter }, 'API write rate-limited');
+        log.server.warn({ component: 'rate-limiter', type: 'write_per_minute', method: req.method, path: reqPath, retryAfter }, 'API write rate-limited');
         res.setHeader('Retry-After', String(retryAfter));
         json(res, { error: 'rate_limited', message: 'Too many requests', retryAfter }, 429);
         return;
@@ -972,11 +979,11 @@ async function handleRequestInner(
       (res as any).__routePath = route.routePath;
       // t/810: validate user-provided path params at the routing layer (primary
       // gate) before the handler runs. Handlers keep assertSafe* as defense-in-depth.
-      const badParam = invalidRouteParam(route.routePath, url.pathname);
+      const badParam = invalidRouteParam(route.routePath, reqPath);
       if (badParam) {
         getGlobalRecorder()?.record({
           type: 'system.error', component: 'server', level: 'warn',
-          message: `Blocked invalid path parameter '${badParam}': ${req.method} ${url.pathname}`,
+          message: `Blocked invalid path parameter '${badParam}': ${req.method} ${reqPath}`,
         });
         json(res, { error: `Invalid path parameter: ${badParam}`, requestId: getRequestId() }, 400);
         return;
@@ -992,7 +999,7 @@ async function handleRequestInner(
           message: `Unhandled error in ${route.routePath}`,
           error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
         });
-        log.server.error({ err, method: req.method, path: url.pathname, route: route.routePath }, 'Error handling request');
+        log.server.error({ err, method: req.method, path: reqPath, route: route.routePath }, 'Error handling request');
         const status = (err as { statusCode?: number }).statusCode ?? 500;
         // M4: full detail is recorded/logged above; clients get a generic message
         // for server errors in production (the error string can carry file paths).
