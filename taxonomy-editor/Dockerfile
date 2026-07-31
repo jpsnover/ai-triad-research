@@ -69,7 +69,12 @@ COPY taxonomy-editor/package.json taxonomy-editor/package-lock.json ./
 RUN --mount=type=cache,target=/root/.npm npm ci --omit=dev
 
 # ── Stage 3: Runtime ──
-FROM ghcr.io/jpsnover/ai-triad-base:2026-07-30 AS runtime
+# Base HELD at :2026-07-20 — reverts Dependabot bump 0b33fc18 (:2026-07-20 → :2026-07-30).
+# The :2026-07-30 base broke the container readiness path: the app inits fully, then
+# readiness returns 503 → SIGTERM → crash-loop → P1 prod outage (t/2047). :2026-07-20 is
+# the known-good gemini base now serving prod. Do NOT bump until Docker fixes the base
+# regression AND a docker-run + GET /health pre-deploy smoke gate exists (t/2047 gaps #1/#4).
+FROM ghcr.io/jpsnover/ai-triad-base:2026-07-20 AS runtime
 
 LABEL org.opencontainers.image.source="https://github.com/jpsnover/ai-triad-research"
 LABEL org.opencontainers.image.description="AI Triad Taxonomy Editor"
