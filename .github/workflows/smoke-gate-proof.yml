@@ -1,0 +1,56 @@
+# ─── TEMPORARY gate-verification proof (t/2048) — REMOVE before merge ───
+# Auto-runs on push to the feature branch only. Proves the /healthz smoke gate
+# is EFFECTIVE per TL's AC (t/2048#1): it must PASS the known-good image and
+# FAIL the exact crash-looper that took down prod (t/2047). A gate whose failure
+# mode has never fired is assumed, not verified. This job is green ONLY if the
+# gate discriminates correctly. Scoped to this branch so it never runs on main;
+# deleted before the PR merges (the linked run is the durable evidence).
+
+name: Smoke Gate Proof (t2048, temp)
+
+on:
+  push:
+    branches: [chore/healthz-smoke-gate-t2048]
+
+permissions:
+  contents: read
+  packages: read
+
+env:
+  GOOD: ghcr.io/jpsnover/taxonomy-editor@sha256:efd068fe58cb27ec008c79ab5b6fb44932d42dd0a603712b9dd48d60a0c8fec6
+  BAD: ghcr.io/jpsnover/taxonomy-editor@sha256:da74e49928aba19f1fcbc07eadbaba79f44690edb5a0030c3c81613999ec2aab
+
+jobs:
+  proof:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Pull both fixtures
+        run: |
+          docker pull "$GOOD"
+          docker pull "$BAD"
+
+      - name: GOOD image (gemini, base :2026-07-20) must PASS
+        env:
+          IMAGE: ${{ env.GOOD }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: bash deploy/azure/smoke-healthz.sh
+
+      - name: BAD image (da74e499, base :2026-07-30 crash-looper) must FAIL
+        env:
+          IMAGE: ${{ env.BAD }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if bash deploy/azure/smoke-healthz.sh; then
+            echo "::error::Gate did NOT catch the t/2047 crash-looper (da74e499) — the gate is INEFFECTIVE."
+            exit 1
+          fi
+          echo "PROVEN: gate correctly REJECTED da74e499 (the image that crash-looped prod)."
