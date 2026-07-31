@@ -62,6 +62,8 @@ A ticket is **not Done** until all of the following are true:
 
 **Anti-pattern (from t/1221 audit):** Agent writes code → tests pass locally → marks ticket Done → never commits. The ticket looks shipped but the code exists only in one agent's working tree. If you cannot commit (e.g., blocked on a cross-scope dependency), mark the ticket as **blocked**, not Done.
 
+**CodeQL is a separate check — confirm it before self-merge (interim, t/2025):** `ci-gate` green + `gh pr checks` exit 0 does NOT mean CodeQL passed — `CodeQL Analysis` is a separate, currently-non-required check-run. Before self-merging, confirm the `CodeQL Analysis` check-run is green (not just `ci-gate`); for a **security-fix** PR, confirm the target alert is addressed AND the fix introduced no new high (a fix can add one and `gh pr checks --watch` still exits 0 — t/2023 #5460). This procedural stopgap is replaced by t/2025's structural required-differential CodeQL gate.
+
 ### Deviation Flagging Rule (owner-approved 2026-07-06)
 
 When an implementation deviates from a TL-approved design or an explicit review condition — different boundaries, substituted evidence, skipped verification named in an AC — state the deviation in your completion comment: "asked X, did Y, because Z." Unflagged deviations are treated as review failures even when the change is an improvement: a reviewer who must *detect* deviations pays more than the deviation saved. For contested or multi-deviation tickets, close with a deviation-ledger table (the t/1300#10 format).
