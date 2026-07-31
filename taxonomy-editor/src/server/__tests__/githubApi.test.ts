@@ -1698,3 +1698,54 @@ describe('GitHubAPIBackend — optional 404 log level', () => {
     backend.shutdown();
   });
 });
+
+// ═══════════════════════════════════════════════════════════════════════════
+// t/2053 regression: undici dispatcher ownership + data-load status
+// ═══════════════════════════════════════════════════════════════════════════
+
+describe('GitHubAPIBackend — undici dispatcher (t/2053)', () => {
+  it('passes explicit dispatcher on every fetch call', async () => {
+    await createBackend();
+
+    const calls = vi.mocked(globalThis.fetch).mock.calls;
+    expect(calls.length).toBeGreaterThan(0);
+    for (const [, init] of calls) {
+      expect((init as RequestInit & { dispatcher?: unknown }).dispatcher).toBeDefined();
+    }
+  });
+
+  it('reports ready status after successful initialization', async () => {
+    const backend = await createBackend();
+
+    expect(backend.getDataLoadStatus().status).toBe('ready');
+
+    backend.shutdown();
+  });
+
+  it('reports failed status and logs error when tree loads 0 blobs', async () => {
+    // Simulate undici 6.28.0 returning empty tree (the :07-30 prod failure mode)
+    apiHandlers.push((url) => {
+      if (url.includes('/git/trees/')) return { status: 200, body: { sha: TREE_SHA, truncated: false, tree: [] } };
+      return null as unknown as { status: number; body: unknown };
+    });
+
+    const { GitHubAPIBackend } = await import('../storage/githubAPIBackend');
+    const recorder = createTestRecorder();
+    const backend = new GitHubAPIBackend({
+      cacheDir: '/var/cache/taxonomy-test',
+      recorder,
+      pollIntervalMs: 999_999_999,
+      coherencyProbeRate: 0,
+    });
+    await backend.initialize();
+
+    const { status } = backend.getDataLoadStatus();
+    expect(status).toBe('failed');
+
+    // Error must surface in flight recorder (not swallowed at info-level)
+    const errorEvents = recorder.events.filter(e => e.level === 'error');
+    expect(errorEvents.length).toBeGreaterThan(0);
+
+    backend.shutdown();
+  });
+});

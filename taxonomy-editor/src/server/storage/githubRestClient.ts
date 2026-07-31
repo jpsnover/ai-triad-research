@@ -22,6 +22,7 @@
  */
 
 import crypto from 'crypto';
+import { Agent } from 'undici';
 import { type SyncCredentials } from '../security/githubAppAuth.js';
 import { getGlobalRecorder } from '../../../../lib/flight-recorder/index.js';
 import type { RecordInput } from '../../../../lib/flight-recorder/index.js';
@@ -38,6 +39,20 @@ const BACKOFF_JITTER_MS = 100;
 
 const CIRCUIT_FAILURE_THRESHOLD = 5;
 const CIRCUIT_PROBE_SCHEDULE_MS = [30_000, 60_000, 120_000, 300_000]; // 30s→1m→2m→5m cap
+
+// Explicit undici Agent: disables TLS session caching (maxCachedSessions:0) so the
+// CVE-2026-58040 session-reuse identity check in undici 6.28.0+ (node 22.23.2) cannot
+// silently break GitHub API connections on startup. Per-call dispatcher — does not affect
+// urlFetch.ts, healthProbe.ts, or other fetch sites. (t/2053)
+const githubAgent = new Agent({
+  connect: {
+    rejectUnauthorized: true,
+    maxCachedSessions: 0,
+  },
+  keepAliveTimeout: 4_000,
+  keepAliveMaxTimeout: 4_000,
+  maxRequestsPerClient: 100,
+});
 
 // ── Types ──────────────────────────────────────────────────────────────────
 export type CircuitState = 'closed' | 'open' | 'half-open';
@@ -112,7 +127,8 @@ export class GitHubRestClient {
           method,
           headers,
           body: body === undefined ? undefined : JSON.stringify(body),
-        });
+          dispatcher: githubAgent,
+        } as RequestInit);
 
         const durationMs = Date.now() - startMs;
         this.updateRateLimit(res.headers);
