@@ -16,9 +16,26 @@
  * comparison operators, or fenced code content structure.
  */
 
-const EXECUTABLE_TAGS = /<\/?(?:script|iframe|object|embed|style)\b[^>]*>/gi;
-const DANGEROUS_SCHEME = /\b(?:javascript|vbscript):/gi;
-const DATA_HTML = /\bdata:text\/html/gi;
+// t/2027 — control-char obfuscation hardening. Attackers split a dangerous
+// keyword with control characters the browser later elides (`java\tscript:`,
+// `javascript\0:`, `<scr\0ipt>`), slipping past a contiguous-literal match. An
+// optional CTRL class folded between every keyword letter neutralizes these;
+// because the whole obfuscated span is replaced, embedded control chars are
+// removed only inside the dangerous match — legit whitespace/newlines elsewhere
+// (markdown, code fences) are untouched. Set = C0 controls + DEL, NOT space:
+// 0x20 isn't stripped mid-scheme by browsers, so folding it would false-positive
+// on legit prose ("the java script docs"). TAB/CR/LF/NUL are the real live
+// vectors; the rest of C0+DEL is conservative, fail-safe over-inclusion. The
+// tag-name fold is likewise conservative (a spec tokenizer ends the tag name at
+// TAB/LF/FF/space rather than eliding it) — over-inclusive removal, still safe.
+const CTRL = '[\\x00-\\x1F\\x7F]*';
+const gap = (word: string): string => word.split('').join(CTRL);
+const EXECUTABLE_TAGS = new RegExp(
+  `</?(?:${['script', 'iframe', 'object', 'embed', 'style'].map(gap).join('|')})\\b[^>]*>`,
+  'gi',
+);
+const DANGEROUS_SCHEME = new RegExp(`\\b(?:${gap('javascript')}|${gap('vbscript')})${CTRL}:`, 'gi');
+const DATA_HTML = new RegExp(`\\b${gap('data')}${CTRL}:${CTRL}${gap('text')}${CTRL}/${CTRL}${gap('html')}`, 'gi');
 
 /**
  * Neutralize executable tags + dangerous URL schemes in a single string.
@@ -42,8 +59,11 @@ const DATA_HTML = /\bdata:text\/html/gi;
  * would let the loop return a possibly-unsanitized string, which is the very
  * defect this query flags).
  *
- * The three regexes are linear-time (single bounded `[^>]*`, fixed alternations,
- * literals) — no nested/overlapping unbounded quantifiers, so no ReDoS.
+ * Per-match linear: the folded `[\x00-\x1F\x7F]*` classes sit between distinct
+ * literals (no `X*X*` adjacency, no nested/overlapping unbounded quantifiers), so
+ * the control-char fold adds no ReDoS. (The tag `[^>]*` tail's O(n) per-position
+ * worst-case scan against pathological no-`>` input is tracked separately in
+ * t/2029 — pre-existing, unrelated to the fold.)
  */
 export function sanitizeUserText(s: string): string {
   let out = s;

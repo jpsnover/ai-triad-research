@@ -70,3 +70,36 @@ describe('sanitizeUserText — multi-pass bypass resistance (t/2023)', () => {
     expect(sanitizeUserText('a < b > c, and 1<2')).toBe('a < b > c, and 1<2');
   });
 });
+
+// t/2027: control chars that a browser later elides (TAB/CR/LF/NUL, etc.) split a
+// dangerous keyword past a contiguous-literal match. The folded CTRL class must
+// neutralize these — WITHOUT treating a plain space (which browsers do NOT strip
+// mid-scheme) as obfuscation.
+describe('sanitizeUserText — control-char obfuscation hardening (t/2027)', () => {
+  it('neutralizes control-char-split dangerous schemes', () => {
+    expect(sanitizeUserText('java\tscript:alert(1)')).toBe('blocked:alert(1)');
+    expect(sanitizeUserText('java\nscript:alert(1)')).toBe('blocked:alert(1)');
+    expect(sanitizeUserText('java\r\nscript:alert(1)')).toBe('blocked:alert(1)');
+    expect(sanitizeUserText('javascript\0:alert(1)')).toBe('blocked:alert(1)');
+    expect(sanitizeUserText('vb\tscript:msgbox')).toBe('blocked:msgbox');
+    // control char immediately before the colon
+    expect(sanitizeUserText('[x](javascript\t:alert(1))')).toBe('[x](blocked:alert(1))');
+  });
+
+  it('neutralizes control-char-split executable tags', () => {
+    expect(sanitizeUserText('a <scr\0ipt>alert(1)</scr\0ipt> b')).toBe('a alert(1) b');
+    expect(sanitizeUserText('<if\trame src=evil></if\trame>x')).toBe('x');
+  });
+
+  it('neutralizes obfuscated data:text/html', () => {
+    expect(sanitizeUserText('data\0:text/html,<b>')).toBe('data:blocked,<b>');
+    expect(sanitizeUserText('data:te\txt/html,x')).toBe('data:blocked,x');
+  });
+
+  it('does NOT treat a plain space as obfuscation (no false positives)', () => {
+    // U+0020 is not stripped mid-scheme by browsers, so "java script" prose that
+    // can never become a live javascript: URI must survive untouched.
+    expect(sanitizeUserText('the java script tutorial')).toBe('the java script tutorial');
+    expect(sanitizeUserText('read the vb script docs')).toBe('read the vb script docs');
+  });
+});
