@@ -281,4 +281,23 @@ describe('refreshAIModels — repair + guard (t/2039)', () => {
     expect(result.gemini).toBeDefined();
     expect(result.groq).toBeDefined();
   });
+
+  it('AC-b2 (t/2039#3): REFUSES when a RESOLVING default is chain-less (guard via findChainlessDefaults)', async () => {
+    // gpt-x is in models[] (resolves, so NOT dangling) but has no fallbackChain and no other
+    // openai model to repoint to — this exercises the chainless-only refuse path at the
+    // integration layer (AC-b covers the dangling path; validate.test.ts covers detection).
+    const cfg = clone(VALID_CONFIG);
+    cfg.backends.push({ id: 'openai', label: 'OpenAI' });
+    cfg.models.push({ id: 'gpt-x', apiModelId: 'gpt-x', label: 'GPT-X', backend: 'openai' });
+    cfg.defaults.openai = 'gpt-x';
+    const original = JSON.stringify(cfg);
+    fileContent = original;
+
+    const result = await refreshAIModels({ loadApiKey: () => null, repoRoot: '/fake' });
+
+    expect(result.written).toBe(false);
+    expect(result.configWarning).toContain('gpt-x');
+    expect(result.configWarning).toContain('has no fallbackChain');
+    expect(fileContent).toBe(original); // byte-for-byte untouched
+  });
 });

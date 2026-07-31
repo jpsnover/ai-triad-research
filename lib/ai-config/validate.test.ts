@@ -83,6 +83,13 @@ describe('findDanglingRefs', () => {
   it('tolerates absent optional surfaces', () => {
     expect(findDanglingRefs({ models: [], defaults: {} })).toEqual([]);
   });
+
+  it('tolerates a null tier value without throwing (typeof null === "object" guard, t/2039#3)', () => {
+    const r = cleanRegistry();
+    (r.debateTiers as Record<string, unknown>).broken = null;
+    expect(() => findDanglingRefs(r)).not.toThrow();
+    expect(findDanglingRefs(r)).toEqual([]);
+  });
 });
 
 describe('findChainlessDefaults', () => {

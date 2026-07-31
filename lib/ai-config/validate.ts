@@ -59,8 +59,10 @@ export function findDanglingRefs(registry: ValidatableRegistry): string[] {
   }
 
   for (const [tier, tierValue] of Object.entries(registry.debateTiers ?? {})) {
-    // Skip the "_comment" documentation key (a string, not a backend map).
-    if (tier === '_comment' || typeof tierValue !== 'object') continue;
+    // Skip the "_comment" documentation key (a string, not a backend map). The
+    // `tierValue === null` guard is load-bearing: typeof null === 'object', so a null
+    // tier would otherwise fall through to Object.values(null) and throw (t/2039#3).
+    if (tier === '_comment' || tierValue === null || typeof tierValue !== 'object') continue;
     for (const modelId of Object.values(tierValue)) {
       referenced.push(modelId);
     }
