@@ -118,3 +118,27 @@
   text-decoration: underline;
   cursor: pointer;
 }
+
+/* Refresh Models config-guard outcome (t/2041) */
+.settings-refresh-refused {
+  margin-bottom: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--warning);
+  border-radius: 4px;
+  color: var(--warning);
+  font-size: 0.82rem;
+}
+
+.settings-refresh-refused-reason {
+  margin-top: 4px;
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  white-space: pre-wrap;
+}
+
+.settings-refresh-repair {
+  margin-bottom: 8px;
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  font-style: italic;
+}
