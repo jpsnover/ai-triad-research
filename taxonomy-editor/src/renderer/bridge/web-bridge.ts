@@ -965,7 +965,10 @@ const rawApi: AppAPI = {
 
   // Embeddings & NLI
   computeEmbeddings: (texts, ids) => post('/api/embeddings/compute', { texts, ids }),
-  updateNodeEmbeddings: (nodes) => post('/api/embeddings/update-nodes', { nodes }).then(() => {}),
+  // Web transport: the server embedding backend (Python/Gemini) has no DirectML GPU-OOM failure
+  // mode, so nothing goes stale on this path → always [] (t/2060 staleNodeIds contract). If the
+  // server route later reports partial failures, thread them through here.
+  updateNodeEmbeddings: (nodes) => post('/api/embeddings/update-nodes', { nodes }).then(() => ({ staleNodeIds: [] as string[] })),
   computeQueryEmbedding: (text) => post('/api/embeddings/query', { text }),
   nliClassify: (pairs) => post('/api/nli/classify', { pairs }),
 

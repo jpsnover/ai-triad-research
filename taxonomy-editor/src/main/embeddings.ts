@@ -241,24 +241,55 @@ async function embedItems(items: { id: string; text: string }[]): Promise<Record
   });
 }
 
-export async function updateNodeEmbeddings(nodes: NodeEmbeddingInput[]): Promise<void> {
-  if (nodes.length === 0) return;
+/**
+ * Re-embed a set of nodes and update embeddings.json.
+ *
+ * Returns `{ staleNodeIds }` — the requested nodes whose embedding could NOT be refreshed this
+ * call (empty = full success). The renderer surfaces a non-blocking "embeddings stale" warning
+ * on any non-empty result so a failed embedding update can never masquerade as a clean save
+ * (t/2060, the false-success blocker; contract TL-approved t/2060#4). A DirectML GPU OOM in the
+ * embed pass no longer throws away the whole update — the affected nodes surface in staleNodeIds
+ * instead, and successfully-embedded nodes are still persisted (partial success).
+ */
+export async function updateNodeEmbeddings(nodes: NodeEmbeddingInput[]): Promise<{ staleNodeIds: string[] }> {
+  if (nodes.length === 0) return { staleNodeIds: [] };
 
   const filePath = io.getEmbeddingsPath();
   const items = nodes.map(n => ({ id: n.id, text: n.text }));
   console.log(`[embeddings] Updating ${nodes.length} node embeddings...`);
 
-  // Try ONNX native batch, fall back to Python subprocess (shared helper).
-  const vectors = await embedItems(items);
+  // Primary embeddings. A failure here (e.g. a DirectML GPU OOM, t/2060) must NOT throw away the
+  // whole update, or the renderer can't tell which nodes went stale — leave the failed ids out of
+  // `vectors` so they surface in staleNodeIds below, and record the failure (ADR-003).
+  let vectors: Record<string, number[]> = {};
+  try {
+    vectors = await embedItems(items);
+  } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error', component: 'embeddings', level: 'error',
+      message: 'updateNodeEmbeddings: embedding pass failed — affected nodes left stale',
+      data: { requested: nodes.length },
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+    });
+  }
 
-  // Generate exclusion vectors for nodes that have exclusionText
+  // Exclusion vectors are a SECONDARY signal — a failure here doesn't make a node's primary
+  // embedding stale, so it never contributes to staleNodeIds; skip + log (warn) and continue.
   const exclItems = nodes
     .filter(n => n.exclusionText)
     .map(n => ({ id: n.id, text: n.exclusionText! }));
   let exclVectors: Record<string, number[]> = {};
   if (exclItems.length > 0) {
     console.log(`[embeddings] Generating ${exclItems.length} exclusion vectors...`);
-    exclVectors = await embedItems(exclItems);
+    try {
+      exclVectors = await embedItems(exclItems);
+    } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error', component: 'embeddings', level: 'warn',
+        message: 'updateNodeEmbeddings: exclusion embedding pass failed — exclusion vectors skipped (primary embeddings unaffected)',
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+      });
+    }
   }
 
   // Read existing embeddings.json (fresh, not from cache)
@@ -277,8 +308,10 @@ export async function updateNodeEmbeddings(nodes: NodeEmbeddingInput[]): Promise
     };
   }
 
-  // Merge new vectors (with dimension validation)
+  // Merge new vectors (with dimension validation); track which requested nodes actually got a
+  // fresh vector persisted this call.
   const expectedDim = data.dimension || 384;
+  const written = new Set<string>();
   for (const node of nodes) {
     if (vectors[node.id]) {
       const vec = vectors[node.id];
@@ -295,16 +328,31 @@ export async function updateNodeEmbeddings(nodes: NodeEmbeddingInput[]): Promise
         vector: vec,
         exclusion_vector: (exclVec && exclVec.length === expectedDim) ? exclVec : null,
       };
+      written.add(node.id);
     }
   }
-  data.node_count = Object.keys(data.nodes).length;
 
-  // Write back
-  fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf-8');
-  console.log(`[embeddings] Updated embeddings.json (${data.node_count} total nodes)`);
+  // Only persist when we actually refreshed ≥1 vector — a total embed failure (all stale) must
+  // NOT rewrite the file (and a prior read-miss default-structure write would CLOBBER existing
+  // embeddings.json with an empty one, t/2060 data-loss guard).
+  if (written.size > 0) {
+    data.node_count = Object.keys(data.nodes).length;
+    fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf-8');
+    console.log(`[embeddings] Updated embeddings.json (${data.node_count} total nodes)`);
+    io.invalidateCache();
+  }
 
-  // Invalidate in-memory cache so next read picks up new data
-  io.invalidateCache();
+  // Any requested node without a freshly-persisted vector is STALE (its text changed but its
+  // stored vector wasn't refreshed) — the contract the renderer surfaces (t/2060).
+  const staleNodeIds = nodes.filter(n => !written.has(n.id)).map(n => n.id);
+  if (staleNodeIds.length > 0) {
+    getGlobalRecorder()?.record({
+      type: 'system.error', component: 'embeddings', level: 'warn',
+      message: 'updateNodeEmbeddings: some nodes left with stale embeddings',
+      data: { stale: staleNodeIds.length, requested: nodes.length },
+    });
+  }
+  return { staleNodeIds };
 }
 
 // ---------- NLI cross-encoder classification ----------
