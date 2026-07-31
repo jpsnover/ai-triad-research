@@ -1314,6 +1314,56 @@ describe('useTaxonomyStore', () => {
       useTaxonomyStore.getState().dismissSaveError();
       expect(useTaxonomyStore.getState().saveError).toBeNull();
     });
+
+    // t/2064: the post-save embedding refresh reports { staleNodeIds }; surface degradation
+    // via the embeddingsStale store flag (NOT saveError — the durable save already succeeded),
+    // instead of the old fire-and-forget swallow. The refresh is non-blocking, so flush a tick.
+    const flushRefresh = () => new Promise((r) => setTimeout(r, 0));
+
+    it('flags embeddingsStale when the refresh returns stale nodes; save stays clean (t/2064 AC)', async () => {
+      mockApi.updateNodeEmbeddings.mockResolvedValueOnce({ staleNodeIds: ['acc-beliefs-001'] });
+      useTaxonomyStore.setState({ accelerationist: makePovFile(), dirty: new Set(['accelerationist']) });
+
+      await useTaxonomyStore.getState().save();
+      await flushRefresh();
+
+      expect(mockApi.updateNodeEmbeddings).toHaveBeenCalled();
+      expect(useTaxonomyStore.getState().embeddingsStale).toBe(true);
+      expect(useTaxonomyStore.getState().staleEmbeddingNodeIds).toEqual(['acc-beliefs-001']);
+      expect(useTaxonomyStore.getState().saveError).toBeNull(); // durable save unaffected
+    });
+
+    it('clears embeddingsStale when the refresh reports full success (empty staleNodeIds)', async () => {
+      mockApi.updateNodeEmbeddings.mockResolvedValueOnce({ staleNodeIds: [] });
+      useTaxonomyStore.setState({
+        embeddingsStale: true, staleEmbeddingNodeIds: ['stale-prior'],
+        accelerationist: makePovFile(), dirty: new Set(['accelerationist']),
+      });
+
+      await useTaxonomyStore.getState().save();
+      await flushRefresh();
+
+      expect(useTaxonomyStore.getState().embeddingsStale).toBe(false);
+      expect(useTaxonomyStore.getState().staleEmbeddingNodeIds).toEqual([]);
+    });
+
+    it('flags embeddingsStale when the refresh rejects — no silent swallow (t/2064)', async () => {
+      mockApi.updateNodeEmbeddings.mockRejectedValueOnce(new Error('embed OOM'));
+      useTaxonomyStore.setState({ accelerationist: makePovFile(), dirty: new Set(['accelerationist']) });
+
+      await useTaxonomyStore.getState().save();
+      await flushRefresh();
+
+      expect(useTaxonomyStore.getState().embeddingsStale).toBe(true);
+      expect(useTaxonomyStore.getState().saveError).toBeNull(); // durable save still succeeded
+    });
+
+    it('dismissEmbeddingsStale clears the flag', () => {
+      useTaxonomyStore.setState({ embeddingsStale: true, staleEmbeddingNodeIds: ['x'] });
+      useTaxonomyStore.getState().dismissEmbeddingsStale();
+      expect(useTaxonomyStore.getState().embeddingsStale).toBe(false);
+      expect(useTaxonomyStore.getState().staleEmbeddingNodeIds).toEqual([]);
+    });
   });
 
   // ═══════════════════════════════════════════════
