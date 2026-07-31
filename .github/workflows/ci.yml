@@ -471,8 +471,27 @@ jobs:
           mkdir -p taxonomy-snapshot
           echo '{"generated":"none","commit":"none","empty":true}' > taxonomy-snapshot/snapshot-meta.json
 
+      # Best-effort pre-pull with retry: the docker-container driver bootstraps
+      # from moby/buildkit pulled off Docker Hub, which intermittently fails
+      # "deadline exceeded" at BOOT → false-red before any build runs (t/2065).
+      # Pre-pulling into the host image cache means the driver bootstrap reuses
+      # the cached image (no re-pull); the retry absorbs transient Hub timeouts.
+      # Non-fatal — if all retries fail, setup-buildx still attempts its own pull.
+      - name: Pre-pull buildkit image with retry (t/2065)
+        run: |
+          for i in 1 2 3; do
+            if docker pull moby/buildkit:buildx-stable-1; then break; fi
+            if [ "$i" -lt 3 ]; then
+              echo "buildkit pull attempt $i failed; retry in $((i * 10))s"; sleep $((i * 10))
+            else
+              echo "buildkit pre-pull failed after $i attempts; setup-buildx will attempt its own pull"
+            fi
+          done
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c  # v4
+        with:
+          driver-opts: image=moby/buildkit:buildx-stable-1
 
       - name: Extract base image tag from Dockerfile
         id: base_tag
