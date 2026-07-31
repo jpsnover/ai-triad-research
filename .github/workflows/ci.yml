@@ -504,17 +504,20 @@ jobs:
           load: true
           tags: ai-triad-test:ci
 
-      - name: Run container readiness smoke — /healthz in github-api mode (t/2048)
-        timeout-minutes: 8
+      - name: Run container liveness smoke — /healthz responds (t/2048)
+        timeout-minutes: 6
         env:
           IMAGE: ai-triad-test:ci
-          # jpsnover/ai-triad-data is PUBLIC, so the default token reads it — no
-          # App key needed. This HARD-GATES on /healthz (readiness = taxonomy data
-          # actually loaded via the github-api fetch). The previous smoke gated on
-          # /health (liveness) and only WARNED on /healthz 503 — exactly the hole
-          # that let the t/2047 crash-looper (served /health, /healthz stuck 503)
-          # pass green and reach prod. Proven RED on da74e499 / GREEN on efd068fe
-          # (t/2048#... proof run). Ready-poll window is co-located in the script.
+          # CI scope = LIVENESS: prove the container STARTS and /healthz ANSWERS
+          # (any HTTP code, incl. 503). A CI-built image bakes only a STUB
+          # taxonomy-snapshot, so it cannot reach real data-readiness — the
+          # /healthz==200 data-ready gate runs at the DEPLOY stage against a real
+          # env (t/2049), where da74e499 RED / efd068fe GREEN is the AC. This
+          # liveness check still catches boot crashes / server-never-listens —
+          # strictly better than the old build-only gate (t/2047 gap #1).
+          SMOKE_MODE: liveness
+          # Token still passed so the container inits its backend normally (the
+          # script requires it); liveness passes on the 503 a data-less start gives.
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: bash deploy/azure/smoke-healthz.sh
 

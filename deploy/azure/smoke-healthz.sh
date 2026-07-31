@@ -17,12 +17,25 @@ set -euo pipefail
 
 IMAGE="${IMAGE:?set IMAGE to the image ref to smoke}"
 
-# ── Gate tunables (co-located, per t/2048 Gate Co-Location) ─────────────────
+# ── Gate mode (co-located, per t/2048 Gate Co-Location) ─────────────────────
+# SMOKE_MODE selects what "healthy" means:
+#   liveness  — pass as soon as /healthz RESPONDS with any HTTP status (server
+#               is up + serving). Does NOT require data. This is the CI gate
+#               (ci.yml test-container): a CI-built image bakes only a STUB
+#               snapshot and cannot reach real data-readiness, so CI can only
+#               prove the container starts and answers. Catches boot crashes /
+#               port-never-listens — strictly better than the old build-only gate.
+#   readiness — pass only on /healthz==200 (taxonomy data actually loaded via the
+#               github-api fetch). This is the DEPLOY-stage gate (t/2049, real env
+#               + creds); it's what catches the t/2047 class (starts but never
+#               data-ready). da74e499 RED / efd068fe GREEN is its AC.
+SMOKE_MODE="${SMOKE_MODE:-readiness}"
+
 # READY_TIMEOUT covers real cold start: onnx model is baked, so startup is
-# app init + the github-api taxonomy fetch (public repo, a few MB). In the
-# t/2047 incident the replica reached ~full init well before its 80s SIGTERM,
-# so a healthy image is ready far inside this window; a never-ready replica
-# (the crash-loop) exhausts it and fails. Bounded + deterministic — no flake.
+# app init + (readiness) the github-api taxonomy fetch (public repo, a few MB).
+# In the t/2047 incident the replica reached ~full init well before its 80s
+# SIGTERM, so a healthy image passes far inside this window; a never-healthy
+# replica exhausts it and fails. Bounded + deterministic — no flake.
 READY_TIMEOUT="${READY_TIMEOUT:-180}"   # seconds
 POLL_INTERVAL="${POLL_INTERVAL:-5}"      # seconds
 PORT=7862
@@ -62,8 +75,10 @@ while (( SECONDS < deadline )); do
     exit 1
   fi
   code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 5 "$HEALTH_URL" || echo 000)
-  if [ "$code" = "200" ]; then
-    echo "READY: /healthz returned 200 after $(( SECONDS ))s."
+  # liveness: any HTTP status (code != 000) means the server answered → pass.
+  # readiness: only 200 (data loaded) counts.
+  if { [ "$SMOKE_MODE" = "liveness" ] && [ "$code" != "000" ]; } || [ "$code" = "200" ]; then
+    echo "HEALTHY (${SMOKE_MODE}): /healthz responded ${code} after $(( SECONDS ))s."
     echo "── /health detail ──"
     curl -s --max-time 5 "http://localhost:${PORT}/health" || true
     exit 0
@@ -75,5 +90,9 @@ while (( SECONDS < deadline )); do
   sleep "$POLL_INTERVAL"
 done
 
-echo "::error::/healthz never returned 200 within ${READY_TIMEOUT}s (last=${last}). Not ready — refusing to promote."
+if [ "$SMOKE_MODE" = "liveness" ]; then
+  echo "::error::/healthz never RESPONDED within ${READY_TIMEOUT}s (last=${last:-000}). Server never came up — refusing to promote."
+else
+  echo "::error::/healthz never returned 200 within ${READY_TIMEOUT}s (last=${last}). Not data-ready — refusing to promote."
+fi
 exit 1
