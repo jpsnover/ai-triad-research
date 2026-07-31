@@ -23,8 +23,12 @@ import { log } from '../logger.js';
 // `>`) costs O(n²) and can block the event loop (~1.6 s / 140 KB). The global
 // body limit is 50 MB and not every caller length-caps its fields
 // (`community.ts` sanitizes arbitrary content-map values), so the sanitizer must
-// self-defend. Truncating the INPUT bounds cost to O(CAP²) (~80 ms) while leaving
-// `[^>]*` unbounded — no per-tag length bound, hence no bypass. 32 KiB is 3.3× the
+// self-defend. Truncating the INPUT bounds the cost to a fixed worst case while
+// leaving `[^>]*` unbounded — no per-tag length bound, hence no bypass. At CAP the
+// worst case is the nested tag-reforming "onion" (~4681 `<style>`-reforming layers)
+// that drives the fixed-point loop through ~O(layers²) passes: empirically ~120 ms
+// (a single no-`>` scan is ~70 ms) — always ≪ the pre-fix multi-second blow-up.
+// 32 KiB is 3.3× the
 // largest existing caller field cap (feedback text ≤10 000 chars), so legitimate
 // single-field content never reaches it. Truncate-then-sanitize is fail-safe: the
 // sanitizer still runs on the kept prefix, so a tag split by the cut is inert text.

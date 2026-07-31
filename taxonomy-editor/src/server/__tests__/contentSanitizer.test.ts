@@ -177,4 +177,21 @@ describe('sanitizeUserText — input-size DoS backstop (t/2029)', () => {
       spy.mockRestore();
     }
   });
+
+  it('bounds the WORST within-CAP shape — a nested tag-reforming "onion"', () => {
+    // The no-`>` payload above exits the fixed-point loop after ONE pass. The
+    // empirically-worst within-CAP input is instead a matryoshka of the shortest
+    // tag name (`style`): `<st`×N + `yle>`×N reforms `<style>` at the junction and
+    // drives the do-while through ~N passes (O(N²) total work), not a single scan.
+    // At CAP (N≈4681) this is ~120 ms — the true worst case, still ≪ 2 s and the
+    // pre-fix multi-second blow-up. Pins the real bound, not just the single-scan one.
+    const N = Math.floor((CAP - 1) / 7); // 3 (`<st`) + 4 (`yle>`) chars per layer
+    const onion = '<st'.repeat(N) + 'yle>'.repeat(N);
+    expect(onion.length).toBeLessThanOrEqual(CAP);
+    const started = performance.now();
+    const out = sanitizeUserText(onion);
+    const elapsedMs = performance.now() - started;
+    expect(elapsedMs).toBeLessThan(2000);   // bounded — no quadratic-in-input blow-up
+    expect(out).not.toContain('<style');    // fully neutralized, nothing renders
+  });
 });
