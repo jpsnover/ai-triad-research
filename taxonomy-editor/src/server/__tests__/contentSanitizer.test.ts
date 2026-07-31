@@ -4,8 +4,12 @@
  * t/856 — conservative server-side content sanitization (XSS defense-in-depth).
  */
 
+import { performance } from 'perf_hooks';
 import { describe, it, expect, vi } from 'vitest';
-import { sanitizeUserText, sanitizeDeep, MAX_SANITIZE_INPUT } from '../security/contentSanitizer.js';
+import {
+  sanitizeUserText, sanitizeDeep, MAX_SANITIZE_INPUT,
+  withSanitizeBudget, SANITIZE_WALL_BUDGET_MS,
+} from '../security/contentSanitizer.js';
 import { log } from '../logger.js';
 
 describe('sanitizeUserText (t/856)', () => {
@@ -314,5 +318,106 @@ describe('sanitizeUserText — entity/numeric-ref canonicalization (t/2030)', ()
     const started = performance.now();
     sanitizeUserText('data:' + 'a'.repeat(20000)); // type run with no closing `/subtype`
     expect(performance.now() - started).toBeLessThan(500);
+  });
+});
+
+// t/2031: sanitizeUserText is per-call capped (t/2029), but a walk over MANY fields
+// (community.ts stripSensitiveKeys / sanitizeDeep) had no field-count cap → a crafted
+// multi-field body could block the event loop for minutes. A walk-scoped wall-time
+// budget (withSanitizeBudget) bounds the TOTAL work; past the deadline, remaining
+// fields drop to '' (fail-safe). Design t/2031#1, TL sign-off e/53#2, re-entrancy
+// condition e/53#2 (Q1), Server Community wrap sign-off e/53#3.
+describe('sanitize aggregate wall-time budget (t/2031)', () => {
+  // Pathological field: `<script`-repeat with NO `>`, sized JUST UNDER the 32 KiB cap
+  // (so it does NOT also trip the t/2029 truncation warn). The tag regex can't match
+  // (needs a literal `>`), so it sanitizes to a NON-EMPTY kept prefix at ~70 ms/field
+  // — non-empty is what distinguishes a PROCESSED field from one DROPPED to '' by the
+  // budget. 4600 × 7 = 32 200 chars < MAX_SANITIZE_INPUT (32 768).
+  const pathologicalField = (): string => '<script'.repeat(4600);
+
+  it('bounds total time for a many-pathological-field payload (AC: bounded, cap engages)', () => {
+    // 200 fields × ~70 ms ≈ ~14 s UNCAPPED; the 2 s wall budget caps it. Budget is
+    // wall-time, so the bound holds regardless of CI speed (slower CI just processes
+    // fewer fields before the deadline).
+    const payload: Record<string, string> = {};
+    for (let i = 0; i < 200; i++) payload[`f${i}`] = pathologicalField();
+    const warn = vi.spyOn(log.security, 'warn').mockImplementation((() => undefined) as never);
+    try {
+      const started = performance.now();
+      const out = sanitizeDeep(payload) as Record<string, string>;
+      const elapsed = performance.now() - started;
+      expect(elapsed).toBeLessThan(4000); // ≪ the ~14 s uncapped cost
+      const values = Object.values(out);
+      expect(values.some((v) => v === '')).toBe(true);   // cap engaged → tail fields dropped
+      expect(values.some((v) => v !== '')).toBe(true);   // early fields still processed
+      // Budget exhaustion logs exactly ONCE per walk (filter by message so an
+      // unrelated warn source could never mask a regression here).
+      const budgetWarns = warn.mock.calls.filter((c) => String(c[1]).includes('budget exhausted'));
+      expect(budgetWarns).toHaveLength(1);
+    } finally { warn.mockRestore(); }
+  });
+
+  it('does NOT truncate a large legit multi-field payload (AC: no regression)', () => {
+    // 400 legit fields, ~2 KB each (~800 KB aggregate). Legit text sanitizes in ~ms,
+    // so the walk never approaches the 2 s budget → every field is preserved verbatim.
+    const payload: Record<string, string> = {};
+    for (let i = 0; i < 400; i++) payload[`f${i}`] = `Legit comment #${i}: a < b && c > d, see [ref](https://x.test). `.repeat(30);
+    const warn = vi.spyOn(log.security, 'warn').mockImplementation((() => undefined) as never);
+    try {
+      const out = sanitizeDeep(payload) as Record<string, string>;
+      for (const [k, v] of Object.entries(payload)) expect(out[k]).toBe(v); // byte-for-byte
+      expect(warn).not.toHaveBeenCalled(); // budget never fired
+    } finally { warn.mockRestore(); }
+  });
+
+  it('re-entrancy: an outer wrap (community-style) composes with sanitizeDeep\'s self-wrap — ONE shared budget', () => {
+    // Server Community's coverage claim (e/53#3) rests on this: community.ts wraps
+    // stripSensitiveKeys, and any nested sanitizeDeep must NOT reseed a fresh budget.
+    // Drive the clock deterministically to prove the nested walk sees the OUTER,
+    // already-exhausted deadline (if it reseeded, its fresh deadline would be in the
+    // future and the fields would survive).
+    let t = 1000;
+    const nowSpy = vi.spyOn(performance, 'now').mockImplementation(() => t);
+    const warn = vi.spyOn(log.security, 'warn').mockImplementation((() => undefined) as never);
+    try {
+      withSanitizeBudget(() => {
+        // outer budget seeded at t=1000 → deadline = 1000 + SANITIZE_WALL_BUDGET_MS
+        expect(sanitizeUserText('hi javascript:x')).toBe('hi blocked:x'); // within budget
+        t = 1000 + SANITIZE_WALL_BUDGET_MS + 1; // jump PAST the outer deadline
+        // nested sanitizeDeep self-wraps; re-entrant guard → shares the outer (spent)
+        // budget → drops to '' rather than reseeding a fresh 2 s window.
+        expect(sanitizeDeep({ a: 'hello', b: { c: 'world' } })).toEqual({ a: '', b: { c: '' } });
+      });
+    } finally { nowSpy.mockRestore(); warn.mockRestore(); }
+  });
+
+  it('applies no budget OUTSIDE a withSanitizeBudget walk (bare callers unchanged)', () => {
+    // sanitizeUserText called with no active walk never drops, even if the clock has
+    // advanced far — the cap only exists within a walk (single-field callers like
+    // admin.ts are unaffected).
+    let t = 0;
+    const nowSpy = vi.spyOn(performance, 'now').mockImplementation(() => t);
+    try {
+      t = 10 * SANITIZE_WALL_BUDGET_MS; // way past any budget, but none is active
+      expect(sanitizeUserText('plain text with javascript:x')).toBe('plain text with blocked:x');
+    } finally { nowSpy.mockRestore(); }
+  });
+
+  it('withSanitizeBudget returns the fn result and is re-entrant (nested call does not reseed)', () => {
+    expect(withSanitizeBudget(() => 42)).toBe(42);
+    let t = 0;
+    const nowSpy = vi.spyOn(performance, 'now').mockImplementation(() => t);
+    try {
+      const seededDeadlines: number[] = [];
+      withSanitizeBudget(() => {
+        // Nested withSanitizeBudget must run inline under the SAME budget (no reseed):
+        // advancing the clock past the OUTER deadline drops fields even for work
+        // started via a nested wrap.
+        t = SANITIZE_WALL_BUDGET_MS + 1;
+        const inner = withSanitizeBudget(() => sanitizeUserText('x'));
+        seededDeadlines.push(inner.length);
+      });
+      expect(seededDeadlines).toEqual([0]); // dropped to '' → nested shared the spent budget
+    } finally { nowSpy.mockRestore(); }
   });
 });

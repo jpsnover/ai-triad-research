@@ -5,7 +5,7 @@ import crypto from 'crypto';
 import { resolveDataPath } from '../config.js';
 import { getUserContentBackend, assertSafeId } from '../storage/fileIO.js';
 import type { StorageBackend } from '../storage/storageBackend.js';
-import { sanitizeUserText } from '../security/contentSanitizer.js';
+import { sanitizeUserText, withSanitizeBudget } from '../security/contentSanitizer.js';
 import { getStorageUserId, isAnonymousUser } from '../security/userContext.js';
 import { log } from '../logger.js';
 import { getGlobalRecorder } from '../../../../lib/flight-recorder/index.js';
@@ -330,7 +330,14 @@ function stripOriginalId(meta: unknown): unknown {
 }
 
 function sanitizeForCommunity(data: unknown, submittedBy: string): unknown {
-  const d = stripSensitiveKeys(JSON.parse(JSON.stringify(data))) as Record<string, unknown>;
+  // t/2031: bound the ENTIRE recursive strip/sanitize walk under one wall-time
+  // budget so a many-field crafted submission can't amplify per-field sanitize cost
+  // into a multi-minute event-loop block (Server Community sign-off e/53#3; the
+  // budget is re-entrant-safe, so any nested sanitizeDeep composes rather than
+  // reseeding). Behavior-preserving: legit submissions finish in ~ms, far under budget.
+  const d = withSanitizeBudget(
+    () => stripSensitiveKeys(JSON.parse(JSON.stringify(data))),
+  ) as Record<string, unknown>;
   d.community_metadata = {
     submitted_by_display: submittedBy,
     submitted_at: new Date().toISOString(),
