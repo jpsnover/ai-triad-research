@@ -177,6 +177,28 @@ export async function runOpeningStatements(engine: DebateEngineInternals): Promi
       edges_used: openingEdgesUsed,
     });
 
+    // Embed framing_choices[].frame texts at opening finalization — t/2045
+    try {
+      const fc = pipelineResult.plan.framing_choices;
+      if (Array.isArray(fc) && fc.length > 0) {
+        const frames = fc
+          .filter(f => typeof f?.frame === 'string' && (f.frame as string).trim().length > 0)
+          .map(f => f.frame);
+        if (frames.length > 0) {
+          const { computeEmbeddings } = await import('../../../embeddings/onnxEmbedding.js');
+          const vecs = await computeEmbeddings(frames);
+          engine.session.frame_embeddings ??= {};
+          engine.session.frame_embeddings[poverId] = {
+            model: 'all-MiniLM-L6-v2',
+            dim: 384,
+            frames: frames.map((frame, i) => ({ frame, embedding: vecs[i] })),
+          };
+        }
+      }
+    } catch (err) {
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'debate-engine', level: 'warn', debate_id: engine.session?.id, message: 'Frame embedding failed — frame survival metrics will be null', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+    }
+
     // Extract claims synchronously
     const anNodesBefore2 = engine.session.argument_network!.nodes.length;
     await engine._claimPipeline.extractClaims(statement, poverId, entry.id, taxonomyRefs.map(r => r.node_id), meta.my_claims);

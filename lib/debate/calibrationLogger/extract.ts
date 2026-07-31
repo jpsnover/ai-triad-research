@@ -35,6 +35,7 @@ import {
   computePeerReferencing,
   computeLocalSufficiency,
   computeCruxSemanticDivergence,
+  computeFrameSurvivalMetrics,
 } from './extract-metrics.js';
 
 // ── Extraction logic ────────────────────────────────────────
@@ -832,5 +833,18 @@ export function extractCalibrationData(
       seeded_ineffective_situation_count: config.explorationSummary.ineffective_situations.length,
       seeded_an_node_count: config.explorationSummary.argument_sketch.nodes.length,
     } : {}),
+
+    // ── Frame survival (t/2045) ──
+    ...(() => {
+      const fs = computeFrameSurvivalMetrics(session, finalEval, an);
+      return {
+        frames_declared_per_speaker: Object.keys(fs.framesDeclaredPerSpeaker).length > 0 ? fs.framesDeclaredPerSpeaker : undefined,
+        frame_persistence_per_speaker: Object.keys(fs.framePersistencePerSpeaker).length > 0 ? fs.framePersistencePerSpeaker : undefined,
+        frame_engagement_per_speaker: Object.keys(fs.frameEngagementPerSpeaker).length > 0 ? fs.frameEngagementPerSpeaker : undefined,
+        frame_crux_alignment: fs.frameCruxAlignment,
+        frame_reframe_targeted_count: fs.frameReframeTargetedCount,
+        frame_survival: fs.frameSurvival,
+      };
+    })(),
   };
 }
