@@ -60,7 +60,13 @@ vi.mock('../security/userContext.js', () => ({
   getStorageUserId: () => currentUser,
   isAnonymousUser: () => false,
 }));
-vi.mock('../security/contentSanitizer.js', () => ({ sanitizeUserText: (s: unknown) => s }));
+vi.mock('../security/contentSanitizer.js', () => ({
+  sanitizeUserText: (s: unknown) => s,
+  // t/2031: community.ts now wraps its sanitize walk in withSanitizeBudget; the
+  // mock must expose it. Faithful stub — just runs the fn (the real one seeds an
+  // ALS budget, irrelevant to these GitHub-API fault assertions).
+  withSanitizeBudget: <T>(fn: () => T): T => fn(),
+}));
 vi.mock('../config.js', () => ({ resolveDataPath: (p: string) => p }));
 vi.mock('../runtimeConfig.js', () => ({
   getConfig: () => ({ community: { maxPendingPerUser: 20, globalPendingCap: 500 } }),
