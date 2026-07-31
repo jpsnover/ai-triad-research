@@ -1538,3 +1538,23 @@ Failure patterns related to builds, CI, tooling, environment, and git operations
 **Status:** Active — resource-leak-on-throw; an allocation outside the `try` escapes cleanup.
 
 **Applies To:** All agents writing resource-allocating async I/O (temp dirs, file handles, locks) with try/catch/finally cleanup.
+
+---
+
+## [Build] A Foreground `sleep`-Poll Loop (waiting for a PR merge / external state) Blows the 2-Minute Bash Cap — Use a Background Monitor + One Direct State Check
+
+**Pattern:** An inline foreground poll loop — `for i in $(seq 1 12); do gh pr view …; sleep 20; done` — waiting for an external state change (PR merge, CI run, deploy) runs for minutes and gets **killed at the Bash tool's 2-minute cap (exit 143)**. A foreground `sleep`-loop is structurally the wrong tool for a wait that can exceed 2m — it's guaranteed to time out.
+
+**Instances:**
+- 2026-07-30 — DevOps (p/26#25): a `for i in $(seq 1 12); do gh pr view; sleep 20; done` poll waiting for a PR merge **timed out (exit 143)** at the 2m cap; also violated the standing "never foreground loop-poll `gh`" rule. Fix: a **`run_in_background` monitor** (sanctioned — runs past 2m and re-invokes on completion) plus a **single direct `gh pr view <n> --json state` check** for a point-in-time answer.
+
+**Root Cause:** the Bash tool caps foreground commands at ~2 minutes; a sleep-poll loop is *designed* to run longer, so any wait > 2m hits the cap and SIGTERMs. Same **"foreground op > 120s → killed → background it"** genus as #78 (worktree-remove rm) and #95 (large push) — here the "long op" is an intentional wait loop. A background task is the sanctioned escape: it survives past 2m and notifies on exit; foreground polling never should.
+
+**Prevention:**
+1. **Never foreground-poll in a `sleep`-loop for external state (PR merge, CI, deploy).** Put the wait in a `run_in_background` monitor (survives past 2m, re-invokes on completion) and do a **single direct state check** (`gh pr view <n> --json state`) when you need a point-in-time answer.
+2. **If you must check inline, do ONE check, not a loop** — if it's not ready, background the wait rather than sleeping in the foreground.
+3. Genus rule: any foreground op that can exceed ~2m (huge-tree rm #78, large push #95, poll loops) belongs in the background; the foreground is for bounded-fast commands only.
+
+**Status:** Active — poll-loop variant of the "foreground long op > 120s Bash cap → background it" genus (#78/#95). Standing rule: never foreground loop-poll `gh`.
+
+**Applies To:** All agents waiting on external state (PR merge, CI, deploy) from the Bash tool.

@@ -3,13 +3,13 @@
 Institutional memory for failure patterns across the AI Triad Research project.
 Organized by category. Each file contains the full pattern details.
 
-**Last updated:** 2026-07-30 | **Total patterns:** 119 | **Resolved:** 21 | **Active:** 98
+**Last updated:** 2026-07-30 | **Total patterns:** 120 | **Resolved:** 21 | **Active:** 99
 
 ## Summary
 
 | Category | File | Patterns | Resolved | Active |
 |----------|------|----------|----------|--------|
-| Build | [build.md](build.md) | 71 | 10 | 61 |
+| Build | [build.md](build.md) | 72 | 10 | 62 |
 | PowerShell | [powershell.md](powershell.md) | 10 | 3 | 7 |
 | Data | [data.md](data.md) | 4 | 1 | 3 |
 | Type System | [type-system.md](type-system.md) | 4 | 0 | 4 |
@@ -40,7 +40,7 @@ Seven patterns crossed the 3-instance threshold (or were high-severity) and beca
 - **Push contention (multi-agent)** — 6 instances, 5 agents → [build.md](build.md) (**split by scale:** small commit-to-push contention is self-correcting/not escalating; the LARGE-divergence variant — p/9#36, local 46 ahead/origin 52 ahead — is a push-cadence-ceiling breach that hits out-of-scope conflicts and needs TL/DevOps)
 - **JSON schema assumptions / inspect-before-coding** — 12 instances, 3 agents → [data.md](data.md) (recurring; #82 rule-not-applied offender #5 — RULE-ONLY per t/1810, recording/rule alone isn't preventing it. The PRODUCTION manifestation shipped: extraction cmdlet char-explodes bare-string `aliases` 13/37 records, t/1830 — **in PowerShell** (`Invoke-EntityExtraction`), so the fix is PS-side coerce-at-read (shared helper + Pester fixture), NOT the TS-union strengthening which only covers TS surfaces; p/7#47/#49)
 - **PS strict mode + JSON** — 3 instances → [powershell.md](powershell.md)
-- **Foreground long git/fs op > 120s Bash default → gets killed → BACKGROUND it** — genus, #78 + #95 → [build.md](build.md). A foreground op that exceeds the 120s Bash-tool timeout is SIGTERM-killed (exit 143/128), often mid-work: **#78** `git worktree remove` rm-ing node_modules (→ prune + `branch -D` + background rm); **#95** `git push` of a large data-repo file set (→ `run_in_background`, then `git ls-remote`-verify the ref on origin before any dependent prune — a killed push leaves commit-landed/ref-absent, and a timeout-kill ≠ a broken remote). Verify the artifact, don't trust the killed command (bookkeeping ≠ artifact).
+- **Foreground long git/fs op > 120s Bash default → gets killed → BACKGROUND it** — genus, #78 + #95 + #116 → [build.md](build.md). (**#116**: a foreground `sleep`-poll loop waiting for a PR merge / external state blows the 2m cap → use a `run_in_background` monitor + one direct `gh pr view` check; never foreground loop-poll `gh`.) A foreground op that exceeds the 120s Bash-tool timeout is SIGTERM-killed (exit 143/128), often mid-work: **#78** `git worktree remove` rm-ing node_modules (→ prune + `branch -D` + background rm); **#95** `git push` of a large data-repo file set (→ `run_in_background`, then `git ls-remote`-verify the ref on origin before any dependent prune — a killed push leaves commit-landed/ref-absent, and a timeout-kill ≠ a broken remote). Verify the artifact, don't trust the killed command (bookkeeping ≠ artifact).
 - **Run the FULL suite before push (repo-wide lints live in OTHER files)** — #94 → [build.md](build.md) (a new test tripped `ModelLiteralLint` t/1858, which lives in a *different* test file; the single-changed-file local run passed, so main went **CI-red fleet-wide ~5h**, t/1899. Fixes: full `Invoke-Pester ./tests/` pre-push, never just the changed file — **CI is not first-pass validation**; AND a deliberately-invalid fixture must carry the gate's inline suppression marker on the same line (`# model-lint:allow`). Sibling of #88 keyless-verify — both are local≠CI divergences)
 - **`@().Count` over-counts null in METRIC code** — [powershell.md](powershell.md) (mirror of the strict-mode `.Count` guard: `@($null).Count == 1`, not 0. Safe as a crash guard, WRONG as a cited figure — inflated 67 vs true 35, t/1878/p/253#1. Same syntax whether null-safe or not → not cheaply hookable, rule-only; recount cited metrics from the artifact — "bookkeeping ≠ artifact")
 - **Pathspec skips untracked** — 6 instances, 6 agents → [build.md](build.md) (not escalating — self-correcting; +ServerAPI t/1788 p/79#13, +Server AI Proxy t/2021 p/209#2)
