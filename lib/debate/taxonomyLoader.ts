@@ -354,11 +354,18 @@ export function loadVocabulary(repoRoot: string): { standardized: unknown[]; col
  */
 export async function convertToMarkdown(filePath: string): Promise<string> {
   let resolved = path.resolve(filePath);
-  let stat: import('fs').Stats;
+
+  // openSync is the first file operation — no statSync precedes it,
+  // eliminating the check-then-use race (js/file-system-race, t/2001#8 fd-pattern).
+  let fd: number = -1;
+  let isDir = false;
   try {
-    stat = fs.statSync(resolved);
+    fd = fs.openSync(resolved, 'r');
+    isDir = fs.fstatSync(fd).isDirectory();
+    if (isDir) fs.closeSync(fd);
   } catch (err) {
-    if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+    const code = (err as NodeJS.ErrnoException).code;
+    if (code === 'ENOENT') {
       throw new ActionableError({
         goal: 'Load debate source document',
         problem: `File not found: ${resolved}`,
@@ -370,21 +377,22 @@ export async function convertToMarkdown(filePath: string): Promise<string> {
         ],
       });
     }
-    throw err;
+    if (code !== 'EISDIR') throw err;
+    isDir = true; // Windows: directory open throws EISDIR before fstatSync
   }
 
   // If path is a directory, look for snapshot.md or the first .md file inside
-  if (stat.isDirectory()) {
+  if (isDir) {
     const snapshot = path.join(resolved, 'snapshot.md');
     try {
-      fs.statSync(snapshot);
+      fd = fs.openSync(snapshot, 'r');
       resolved = snapshot;
     } catch {
       const mdFiles = fs.readdirSync(resolved).filter(f => f.endsWith('.md'));
       if (mdFiles.length > 0) {
         resolved = path.join(resolved, mdFiles[0]);
+        fd = fs.openSync(resolved, 'r');
       } else {
-        // codeql[js/file-system-race] accepted risk: TOCTOU in directory resolution is inherent to path normalization
         throw new ActionableError({
           goal: 'Load debate source document',
           problem: `Path is a directory with no .md files: ${resolved}`,
@@ -392,7 +400,6 @@ export async function convertToMarkdown(filePath: string): Promise<string> {
           nextSteps: [
             'Point docPath to a specific file, not a directory',
             `Add a snapshot.md file to ${resolved}`,
-            // codeql[js/file-system-race] accepted risk: resolved used in error message text only, not a file operation
           ],
         });
       }
@@ -400,7 +407,6 @@ export async function convertToMarkdown(filePath: string): Promise<string> {
   }
 
   if (resolved.endsWith('.md')) {
-    const fd = fs.openSync(resolved, 'r');
     try {
       return fs.readFileSync(fd, 'utf-8');
     } finally {
@@ -408,15 +414,16 @@ export async function convertToMarkdown(filePath: string): Promise<string> {
     }
   }
 
+  fs.closeSync(fd);
   try {
     return await runMarkitdown(resolved);
   } catch {
     process.stderr.write(`[taxonomy-loader] markitdown not available, reading raw content\n`);
-    const fd = fs.openSync(resolved, 'r');
+    const fallbackFd = fs.openSync(resolved, 'r');
     try {
-      return fs.readFileSync(fd, 'utf-8');
+      return fs.readFileSync(fallbackFd, 'utf-8');
     } finally {
-      fs.closeSync(fd);
+      fs.closeSync(fallbackFd);
     }
   }
 }
