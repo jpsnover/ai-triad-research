@@ -24,10 +24,62 @@
  * sanitizeUserText). Design: t/2030#1, TL sign-off e/52#2.
  */
 
+import { AsyncLocalStorage } from 'async_hooks';
+import { performance } from 'perf_hooks';
 import { decodeNamedCharacterReference } from 'decode-named-character-reference';
 import { decodeNumericCharacterReference } from 'micromark-util-decode-numeric-character-reference';
 import { ActionableError } from '../../../../lib/debate/errors.js';
 import { log } from '../logger.js';
+
+// t/2031 — aggregate sanitize-work budget (multi-field DoS amplification).
+// sanitizeUserText is per-CALL capped (t/2029, ~150 ms worst at 32 KiB), but a walk
+// that sanitizes many fields — community.ts `stripSensitiveKeys`, `sanitizeDeep` —
+// had no cap on field COUNT: ~1,600 crafted 32 KiB fields ≈ ~240 s of synchronous
+// event-loop block in one request. `withEndpointTimeout` can't preempt it (a
+// setTimeout only fires once the CPU-bound loop yields).
+//
+// Fix: a WALK-SCOPED wall-time budget. `withSanitizeBudget(fn)` seeds a deadline in
+// AsyncLocalStorage for the (synchronous) walk; once past it, `sanitizeUserText`
+// drops remaining fields to '' — fail-safe: never stores unsanitized content —
+// bounding total STRING-SANITIZE work (the O(n²)-prone part this targets) to
+// ~SANITIZE_WALL_BUDGET_MS regardless of field count/size. (The budget is checked at
+// string-leaf entry, so pure-structural object/array traversal with no string leaves
+// is not clipped by it — but that is O(field-count), already bounded by the request
+// body-size limit to low-single-digit seconds, not the O(n²) blow-up this addresses.)
+//
+// TIME, not bytes (TL e/53#2): legit content is cheap (~1 ms even at 32 KiB — the
+// O(n²) fold cost only fires on crafted `<script`-repeat / deep-entity fields), so a
+// byte cap tight enough to bound the attack would truncate legit large submissions;
+// a wall-time budget can't be reached by legit content yet bounds any crafted
+// distribution. ACCEPTED PROPERTY (TL e/53#2): output is therefore timing-dependent —
+// the identical submission could truncate under extreme concurrent load. Acceptable
+// because it is always FAIL-SAFE (truncated → '' → nothing unsanitized stored) and,
+// since legit content finishes in ~ms, only ever bites crafted payloads in practice.
+//
+// 2000 ms sits far below every applicable request timeout — the community promote
+// path (the live caller) has no `withEndpointTimeout`; the server sets no
+// `requestTimeout` (Node default ~300 s); other endpoints' `withEndpointTimeout` is
+// 35–50 s — so the budget always truncates BEFORE any endpoint timeout fires (TL
+// condition, e/53#2).
+export const SANITIZE_WALL_BUDGET_MS = 2000;
+
+interface SanitizeBudget { deadline: number; loggedTruncation: boolean; }
+const budgetAls = new AsyncLocalStorage<SanitizeBudget>();
+
+/**
+ * Run `fn` under a walk-scoped sanitize wall-time budget shared by every
+ * `sanitizeUserText` call inside it. Returns `fn`'s result (walks are synchronous).
+ *
+ * RE-ENTRANT-SAFE (TL Q1, load-bearing, e/53#2): if a budget is already active, run
+ * under the EXISTING one — never seed a fresh deadline. This is what lets
+ * `sanitizeDeep`'s self-wrap compose inside an outer caller wrap (community.ts's
+ * `withSanitizeBudget(() => stripSensitiveKeys(...))`) without resetting the
+ * aggregate cap mid-walk — which would reopen the DoS.
+ */
+export function withSanitizeBudget<T>(fn: () => T): T {
+  if (budgetAls.getStore()) return fn(); // already budgeted — compose, don't reseed
+  return budgetAls.run({ deadline: performance.now() + SANITIZE_WALL_BUDGET_MS, loggedTruncation: false }, fn);
+}
 
 // t/2029 — input-size cap (DoS backstop). The tag `[^>]*` tail scans O(n) per
 // starting position, so pathological input (`<script` repeated with no closing
@@ -220,6 +272,24 @@ function neutralize(s: string): string {
  * matches from the shadow back into the original. Design: t/2030#1, TL e/52#2.
  */
 export function sanitizeUserText(s: string): string {
+  // t/2031 aggregate budget: once the walk-scoped wall-time budget is spent, drop
+  // remaining fields to '' (fail-safe — never store unsanitized content). Checked at
+  // field ENTRY, so the field that overran runs to completion and only SUBSEQUENT
+  // fields are dropped (total overrun ≤ budget + one field's worst ~150 ms). No-op
+  // outside a withSanitizeBudget walk (single-field callers, tests) → unchanged.
+  const budget = budgetAls.getStore();
+  if (budget && performance.now() > budget.deadline) {
+    if (!budget.loggedTruncation) {
+      budget.loggedTruncation = true; // once per walk — no content (secrets rule)
+      try {
+        log.security.warn(
+          { budgetMs: SANITIZE_WALL_BUDGET_MS },
+          'sanitizeUserText: walk sanitize budget exhausted — remaining fields dropped',
+        );
+      } catch { /* telemetry — silent by design: logging must never break sanitization */ }
+    }
+    return '';
+  }
   let base = s;
   // t/2029 DoS backstop: truncate oversized input BEFORE the O(n²)-prone loops
   // (and before entity decode, so decode is length-bounded too).
@@ -239,13 +309,25 @@ export function sanitizeUserText(s: string): string {
   return cleaned === decoded ? base : cleaned;
 }
 
-/** Recursively sanitize every string in a JSON-like value (arrays/objects). */
+/**
+ * Recursively sanitize every string in a JSON-like value (arrays/objects).
+ *
+ * t/2031: the whole walk runs under ONE shared sanitize budget via the self-wrap
+ * below, so a deeply-nested / many-field value can't amplify per-field cost without
+ * bound. The re-entrant guard in withSanitizeBudget means a caller that already
+ * established a budget (community.ts's stripSensitiveKeys wrap) keeps its budget
+ * across a nested sanitizeDeep — the two compose instead of reseeding.
+ */
 export function sanitizeDeep<T>(value: T): T {
+  return withSanitizeBudget(() => sanitizeDeepInner(value));
+}
+
+function sanitizeDeepInner<T>(value: T): T {
   if (typeof value === 'string') return sanitizeUserText(value) as unknown as T;
-  if (Array.isArray(value)) return value.map(sanitizeDeep) as unknown as T;
+  if (Array.isArray(value)) return value.map(sanitizeDeepInner) as unknown as T;
   if (value && typeof value === 'object') {
     const out: Record<string, unknown> = {};
-    for (const [k, v] of Object.entries(value as Record<string, unknown>)) out[k] = sanitizeDeep(v);
+    for (const [k, v] of Object.entries(value as Record<string, unknown>)) out[k] = sanitizeDeepInner(v);
     return out as unknown as T;
   }
   return value;
