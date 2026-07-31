@@ -6,6 +6,7 @@ import { resolveDataPath } from '../config.js';
 import { getUserContentBackend, assertSafeId } from '../storage/fileIO.js';
 import type { StorageBackend } from '../storage/storageBackend.js';
 import { sanitizeUserText, withSanitizeBudget } from '../security/contentSanitizer.js';
+import { stripSensitiveKeys as stripSensitiveKeysCore } from '../../../../lib/sanitize/stripSensitiveKeys.js';
 import { getStorageUserId, isAnonymousUser } from '../security/userContext.js';
 import { log } from '../logger.js';
 import { getGlobalRecorder } from '../../../../lib/flight-recorder/index.js';
@@ -296,45 +297,15 @@ export async function listSubmissions(statusFilter?: string): Promise<unknown[]>
   return subs.sort((a, b) => b.submittedAt.localeCompare(a.submittedAt));
 }
 
-const SENSITIVE_KEYS = new Set([
-  'api_key', 'apiKey', 'api_keys', 'apiKeys',
-  'secret', 'token', 'password', 'credential', 'credentials',
-  'authorization', 'auth_token', 'access_token', 'refresh_token',
-  'private_key', 'privateKey',
-  'flight_recorder', 'debug', '_internal', 'diagnostics_state',
-]);
-
-// t/2032: single source of truth for the secret-prefix screen — used by BOTH the
-// object and array branches of stripSensitiveKeys. A single regex kills the drift
-// that let the array branch ship without a secret screen (two branches, one updated).
-const SECRET_PREFIX_RE = /^(sk-|AIza|gsk_|key-|xai-|Bearer\s)/;
-
-// Exported for direct regression testing (t/2032): the prior test used an inline
-// REPLICA of this logic, so its "handles arrays" case couldn't catch the real
-// function's array-branch bypass. Tests must exercise this function itself.
+// t/2037: the traversal + key-set + secret-prefix screen now live in the shared
+// lib/sanitize module (byte-identical logic, parity-verified across the server and
+// desktop copies before extraction). This is the server binding: inject the pino +
+// ALS-aware `sanitizeUserText` as the per-string sanitizer; the `withSanitizeBudget`
+// ALS wrap stays OUTSIDE the traversal (server-HTTP-only concern, t/2033#6). Kept as a
+// one-arg export so the t/2032 regression suite exercises the real server wiring
+// unchanged — a binding wrapper carries no traversal logic, so it can't drift.
 export function stripSensitiveKeys(obj: unknown): unknown {
-  if (obj === null || typeof obj !== 'object') return obj;
-  if (Array.isArray(obj)) {
-    // t/2032: array string elements have no key to omit, so screen each in place —
-    // secret-prefix FIRST (redact to '' so a `sk-…` value can't leak, preserving
-    // array shape), else neutralize executable tags/schemes. Non-strings recurse.
-    return obj.map((v) => {
-      if (typeof v !== 'string') return stripSensitiveKeys(v);
-      if (SECRET_PREFIX_RE.test(v)) return '';
-      return sanitizeUserText(v);
-    });
-  }
-  const result: Record<string, unknown> = {};
-  for (const [key, value] of Object.entries(obj as Record<string, unknown>)) {
-    if (SENSITIVE_KEYS.has(key)) continue;
-    if (typeof value === 'string') {
-      if (SECRET_PREFIX_RE.test(value)) continue;
-      result[key] = sanitizeUserText(value); // t/856: neutralize executable tags / schemes server-side
-      continue;
-    }
-    result[key] = stripSensitiveKeys(value);
-  }
-  return result;
+  return stripSensitiveKeysCore(obj, sanitizeUserText);
 }
 
 /** t/856: drop the pre-share private UUID from community_metadata before it's
