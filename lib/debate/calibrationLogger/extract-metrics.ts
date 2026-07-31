@@ -780,7 +780,7 @@ export function computeFrameSurvivalMetrics(
   framePersistencePerSpeaker: Record<string, number | null>;
   frameEngagementPerSpeaker: Record<string, number | null>;
   frameCruxAlignment: number | null;
-  frameReframeTargetedCount: number;
+  frameReframeTargetedCount: number | undefined;
   frameSurvival: number | null;
 } {
   const frameEmb = session.frame_embeddings;
