@@ -400,16 +400,24 @@ export async function convertToMarkdown(filePath: string): Promise<string> {
   }
 
   if (resolved.endsWith('.md')) {
-    // codeql[js/file-system-race] accepted risk: statSync-before-readFileSync is inherent to directory path resolution
-    return fs.readFileSync(resolved, 'utf-8');
+    const fd = fs.openSync(resolved, 'r');
+    try {
+      return fs.readFileSync(fd, 'utf-8');
+    } finally {
+      fs.closeSync(fd);
+    }
   }
 
   try {
     return await runMarkitdown(resolved);
   } catch {
     process.stderr.write(`[taxonomy-loader] markitdown not available, reading raw content\n`);
-    // codeql[js/file-system-race] accepted risk: fallback readFileSync after markitdown failure; single-user batch tool
-    return fs.readFileSync(resolved, 'utf-8');
+    const fd = fs.openSync(resolved, 'r');
+    try {
+      return fs.readFileSync(fd, 'utf-8');
+    } finally {
+      fs.closeSync(fd);
+    }
   }
 }
 
