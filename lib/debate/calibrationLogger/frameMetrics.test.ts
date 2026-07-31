@@ -140,7 +140,7 @@ describe('computeFrameSurvivalMetrics — null paths', () => {
     expect(r.framePersistencePerSpeaker).toEqual({});
     expect(r.frameEngagementPerSpeaker).toEqual({});
     expect(r.frameCruxAlignment).toBeNull();
-    expect(r.frameReframeTargetedCount).toBe(0);
+    expect(r.frameReframeTargetedCount).toBeUndefined();
     expect(r.frameSurvival).toBeNull();
   });
 
@@ -201,6 +201,26 @@ describe('computeFrameSurvivalMetrics — null paths', () => {
     const r = computeFrameSurvivalMetrics(session, undefined, emptyAn());
     expect(r.framePersistencePerSpeaker.acc).toBe(0); // 0/3 = 0.0 (NOT null — data present, frame just absent)
     expect(r.frameSurvival).toBe(0);
+  });
+
+  it('excludes unmeasured turns from persistence denominator (partial embed failure)', () => {
+    // e2 has no sims entry (embedding failed) — must not count in denominator
+    const transcript = [
+      { id: 'e1', type: 'statement', speaker: 'acc', content: '' },
+      { id: 'e2', type: 'statement', speaker: 'acc', content: '' }, // unmeasured
+      { id: 'e3', type: 'statement', speaker: 'acc', content: '' },
+    ];
+    const frame_embeddings = {
+      acc: { model: 'all-MiniLM-L6-v2', dim: 384, frames: [{ frame: 'f0', embedding: unitVec(384, 0) }] },
+    };
+    // e2 absent from sims (failed); e1, e3 both above threshold
+    const frame_similarity_series = {
+      acc: [{ frame: 'f0', sims: { e1: 0.8, e3: 0.7 } }],
+    };
+    const session = makeSession({ transcript: transcript as any, frame_embeddings, frame_similarity_series });
+    const r = computeFrameSurvivalMetrics(session, undefined, emptyAn());
+    // measured turns: e1, e3 → 2 present / 2 measured = 1.0 (not 2/3 = 0.667)
+    expect(r.framePersistencePerSpeaker.acc).toBeCloseTo(1.0, 6);
   });
 });
 
