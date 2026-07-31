@@ -115,8 +115,18 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      # Pre-pull buildkit with retry — see t/2065 (Docker Hub boot flake).
+      - name: Pre-pull buildkit image with retry (t/2065)
+        run: |
+          for i in 1 2 3; do
+            docker pull moby/buildkit:buildx-stable-1 && break
+            echo "buildkit pull attempt $i failed; retry in $((i * 10))s"; sleep $((i * 10))
+          done
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c  # v4
+        with:
+          driver-opts: image=moby/buildkit:buildx-stable-1
 
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f  # v4
