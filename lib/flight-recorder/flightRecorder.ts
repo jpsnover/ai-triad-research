@@ -155,6 +155,13 @@ export class FlightRecorder {
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 
     const { ndjson } = this.buildDump('explicit');
+    // CodeQL js/insecure-temporary-file (alert 4621) is a FALSE POSITIVE here.
+    // resolvedPath is either caller-supplied or lives INSIDE the mode-0700,
+    // random-suffix directory that resolveDumpDir() creates via mkdtempSync — a
+    // path an attacker can't predict, enter, or pre-create/symlink a target in.
+    // CodeQL flags the os.tmpdir()→writeFileSync flow without modelling
+    // mkdtempSync as the sanitizer it is (mitigation landed in t/2014). Dismissed
+    // false-positive on the main scan (t/2001 Wave-3, alert 4621).
     fs.writeFileSync(resolvedPath, ndjson, 'utf-8');
 
     const ctx = this.contextProvider();
