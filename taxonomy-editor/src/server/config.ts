@@ -298,10 +298,18 @@ export const STORAGE_MODE: StorageMode =
     ? process.env.STORAGE_MODE
     : (process.env.NODE_ENV === 'production' ? 'github-api' : 'filesystem');
 
-// Default to a user-private cache dir (not world-writable /tmp) to avoid
-// symlink-race vulnerabilities (CodeQL js/insecure-temporary-file).
-// Production always sets TAXONOMY_CACHE_DIR via environment.
-export const CACHE_DIR = process.env.TAXONOMY_CACHE_DIR || path.join(os.homedir(), '.cache', 'taxonomy');
+// t/2061: fall back to AI_TRIAD_DATA_ROOT (the same data root getDataRoot() uses)
+// before the homedir default. The container sets AI_TRIAD_DATA_ROOT but not
+// TAXONOMY_CACHE_DIR, so CACHE_DIR was defaulting to ~/.cache/taxonomy while the
+// data lived at AI_TRIAD_DATA_ROOT — toRepoPath() then couldn't strip the prefix,
+// listDirectory returned empty, and isDataAvailable was always false. Keying the
+// cache off the data root keeps the two aligned even if the Dockerfile drifts.
+// The final homedir default stays a user-private dir (not world-writable /tmp) to
+// avoid symlink-race vulns (CodeQL js/insecure-temporary-file); AI_TRIAD_DATA_ROOT
+// is an explicit operator-set env var (already resolved at line 80), not a
+// hardcoded tmp default, so this fallback does not reintroduce that concern.
+export const CACHE_DIR =
+  process.env.TAXONOMY_CACHE_DIR || process.env.AI_TRIAD_DATA_ROOT || path.join(os.homedir(), '.cache', 'taxonomy');
 
 // ── Server settings ──
 
