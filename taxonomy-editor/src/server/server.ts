@@ -44,6 +44,7 @@ import * as organizations from './organizations.js';
 import { isPov } from './organizations.js';
 import { json, error, param, query, getClientIp, createRouter, withEndpointTimeout, normalizedRequestPath, type Handler } from './httpKit.js';
 import { computeIsPublicPath } from './publicPaths.js';
+import { parseCookies } from './httpCookies.js';
 import { registerDebatesRoutes } from './routes/debates.js';
 import { registerSyncRoutes } from './routes/sync.js';
 import { registerAdminRoutes } from './routes/admin.js';
@@ -562,16 +563,8 @@ function getCorsOrigin(req: http.IncomingMessage): string {
   return ALLOWED_ORIGINS.includes(origin) ? origin : (ALLOWED_ORIGINS[0] ?? '');
 }
 
-function parseCookies(req: http.IncomingMessage): Record<string, string> {
-  const cookies: Record<string, string> = {};
-  const header = req.headers.cookie;
-  if (!header) return cookies;
-  for (const pair of header.split(';')) {
-    const [key, ...rest] = pair.trim().split('=');
-    if (key) cookies[key] = rest.join('=');
-  }
-  return cookies;
-}
+// parseCookies now lives in ./httpCookies.ts (t/2019) — shared with loginPage.ts and
+// prototype-pollution-safe.
 
 // ── Auth: file-based user allowlist ──
 // Reads authorized-users.json from the data volume (or repo root as fallback).
@@ -794,6 +787,14 @@ async function handleRequestInner(
   // req.url.split('?') — so an encoded-traversal path can't read as a public prefix
   // here (e.g. /api/public/%2e%2e/admin) while resolving elsewhere at the router.
   const urlPath = normalizedRequestPath(req);
+  // ACCEPTED RISK — CodeQL js/user-controlled-bypass on the urlPath-guarded auth
+  // branches below (alerts #4068/#5345/#4847/#4851, dismissed won't-fix; t/2019,
+  // t/2001#5, TL-approved p/87#164/#168): path-based auth inherently branches on a
+  // user-controlled request path, so the query fires by design and cannot be removed
+  // without removing path-based auth. The exploitable parser-differential IS closed —
+  // this gate and the router both decide on ONE canonical normalized path
+  // (normalizedRequestPath), and the allowlist (computeIsPublicPath) evaluated on that
+  // normalized path is the control. See t/2019#5/#10 for the full rationale.
   // /api/models is public: lets the pre-auth renderer populate the model
   // catalog from ai-models.json. Contains no secrets — just labels + ids.
   // /api/sync/webhook/github is public: GitHub POSTs unauthenticated; the
@@ -837,7 +838,7 @@ async function handleRequestInner(
   }
 
   // Clear anonymous cookies when user signs in via EasyAuth
-  if (principalName && parseCookies(req)['auth_anonymous'] === '1') {
+  if (principalName && parseCookies(req).get('auth_anonymous') === '1') {
     res.setHeader('Set-Cookie', [
       'auth_anonymous=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0',
       'anon_session_id=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0',
@@ -848,7 +849,7 @@ async function handleRequestInner(
     if (authOptional) {
       // Optional mode: show login page unless user signed in or chose anonymous
       if (!principalName) {
-        const isAnonymousSession = parseCookies(req)['auth_anonymous'] === '1';
+        const isAnonymousSession = parseCookies(req).get('auth_anonymous') === '1';
         if (!isAnonymousSession) {
           // t/1473: API clients can't act on an HTML login page — anonymous /api/*
           // calls (no auth_anonymous cookie) were getting 200 text/html, which the
@@ -952,7 +953,7 @@ async function handleRequestInner(
   // context — never the raw email/principal (PII).
   const reqCtx = getRequestContext();
   if (reqCtx) reqCtx.userId = storageUserId;
-  const anonymousSessionId = isAnon ? parseCookies(req)['anon_session_id'] : undefined;
+  const anonymousSessionId = isAnon ? parseCookies(req).get('anon_session_id') : undefined;
   const userCtx = { principalName: effectivePrincipal, idp: effectiveIdp, branchName: sessionBranch, storageUserId, isAnonymous: isAnon, anonymousSessionId };
   await runWithUser(userCtx, async () => {
 
@@ -1114,7 +1115,7 @@ function isWebSocketAuthorized(req: http.IncomingMessage): boolean {
   if (authOptional) {
     if (principalName) return true;
     const cookies = parseCookies(req);
-    return cookies['auth_anonymous'] === '1';
+    return cookies.get('auth_anonymous') === '1';
   }
 
   if (getAuthorizedUsers()) {
