@@ -4,6 +4,7 @@
 import crypto from 'crypto';
 import { getGlobalRecorder } from '../../../lib/flight-recorder/index.js';
 import { sanitizeText, type SanitizeWarning } from '../../../lib/sanitize/contentSanitizerCore.js';
+import { stripSensitiveKeys as stripSensitiveKeysShared, SENSITIVE_KEYS } from '../../../lib/sanitize/stripSensitiveKeys.js';
 
 let _client: CommunityReviewClient | null = null;
 
@@ -31,14 +32,6 @@ interface ReviewItem {
 }
 
 interface TranscriptEntry { speaker: string; content: string; type: string }
-
-const SENSITIVE_KEYS = new Set([
-  'api_key', 'apiKey', 'api_keys', 'apiKeys',
-  'secret', 'token', 'password', 'credential', 'credentials',
-  'authorization', 'auth_token', 'access_token', 'refresh_token',
-  'private_key', 'privateKey',
-  'flight_recorder', 'debug', '_internal', 'diagnostics_state',
-]);
 
 function asRecord(v: unknown): Record<string, unknown> {
   return v && typeof v === 'object' && !Array.isArray(v) ? v as Record<string, unknown> : {};
@@ -112,13 +105,6 @@ function scanSensitive(obj: unknown, found = new Set<string>()): Set<string> {
   return found;
 }
 
-// t/2032/t/2033: single source of truth for the secret-prefix screen — applied in BOTH the
-// object and array branches of stripSensitiveKeys, so the array branch can't ship without a
-// secret screen. Kept byte-identical to the server's community.ts SECRET_PREFIX_RE (t/2032) so
-// the two copies of this promote path (both publish to the same public 'community' blob) screen
-// identically.
-const SECRET_PREFIX_RE = /^(sk-|AIza|gsk_|key-|xai-|Bearer\s)/;
-
 // Observability hook for the pure lib sanitizer (t/2033). The desktop promote path injects a
 // flight-recorder onWarn rather than importing a logger (the lib core stays logger-agnostic;
 // the server wraps it with pino). NEVER logs content (secrets rule) — only the oversize-input
@@ -131,35 +117,14 @@ const onSanitizeWarn = (w: SanitizeWarning): void => {
   });
 };
 
-// Exported for direct regression testing (t/2033): the test must exercise THIS function, not
-// an inline replica — a replica is exactly how the array-branch bypass shipped untested.
+// Desktop binding of the shared community secret-strip traversal (t/2037): the lib helper — the
+// single source of the SENSITIVE_KEYS drop + SECRET_PREFIX_RE screen + array/object recursion,
+// shared byte-identically with the server copy — wired to the pure sanitizer + this module's
+// flight-recorder onWarn. The desktop skips the server's ALS budget (server-HTTP-only, t/2033#6).
+// Exported (1-arg) so the t/2033 regression test exercises the real desktop wiring end-to-end
+// (sanitizeText actually applied), and so sanitizeForCommunity's call site is unchanged.
 export function stripSensitiveKeys(obj: unknown): unknown {
-  if (obj === null || typeof obj !== 'object') return obj;
-  if (Array.isArray(obj)) {
-    // t/2033 (sibling of t/2032): array string elements have no key to omit, so screen each in
-    // PLACE — secret-prefix FIRST (redact to '' so a `sk-…` value can't leak, preserving array
-    // shape), else neutralize executable tags/schemes via the shared lib core; non-strings recurse.
-    // The prior `obj.map(stripSensitiveKeys)` sent string elements to the scalar early-return,
-    // bypassing both the secret screen AND sanitization (the stored-XSS / secret-leak bug).
-    return obj.map((v) => {
-      if (typeof v !== 'string') return stripSensitiveKeys(v);
-      if (SECRET_PREFIX_RE.test(v)) return '';
-      return sanitizeText(v, onSanitizeWarn);
-    });
-  }
-  const result: Record<string, unknown> = {};
-  for (const [key, value] of Object.entries(obj as Record<string, unknown>)) {
-    if (SENSITIVE_KEYS.has(key)) continue;
-    if (typeof value === 'string') {
-      // Object property: secret-prefix → omit the whole key (there IS a key to drop); else
-      // XSS-sanitize the value (t/2033 parity — this branch previously stored strings verbatim).
-      if (SECRET_PREFIX_RE.test(value)) continue;
-      result[key] = sanitizeText(value, onSanitizeWarn);
-      continue;
-    }
-    result[key] = stripSensitiveKeys(value);
-  }
-  return result;
+  return stripSensitiveKeysShared(obj, (v) => sanitizeText(v, onSanitizeWarn));
 }
 
 function sanitizeForCommunity(data: unknown, submittedBy: string): Record<string, unknown> {
