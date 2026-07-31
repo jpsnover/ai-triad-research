@@ -448,21 +448,29 @@ function configPath(): string {
 function loadConfig(): RuntimeConfig {
   const p = configPath();
   try {
-    const stat = fs.statSync(p);
-    if (_cache && stat.mtimeMs === _cacheMtime) return _cache;
-    const raw = JSON.parse(fs.readFileSync(p, 'utf-8'));
-    const { config, errors } = validateAndMerge(raw, DEFAULTS);
-    if (errors.length > 0) {
-      log.server.warn({ component: 'runtime-config', path: p, errorCount: errors.length, errors: errors.slice(0, 20) }, 'Runtime config loaded with validation issues');
-      getGlobalRecorder()?.record({
-        type: 'system.error', component: 'runtime-config', level: 'warn',
-        message: `Runtime config loaded with ${errors.length} validation issue(s)`,
-        data: { errors: errors.slice(0, 20) },
-      });
+    // t/2019 (js/file-system-race): stat and read the SAME fd, not the path twice —
+    // fstat(fd)+read(fd) can't race a swap/unlink between a path stat and a path read.
+    // openSync throws ENOENT (no override file) → the catch below degrades to defaults.
+    const fd = fs.openSync(p, 'r');
+    try {
+      const stat = fs.fstatSync(fd);
+      if (_cache && stat.mtimeMs === _cacheMtime) return _cache;
+      const raw = JSON.parse(fs.readFileSync(fd, 'utf-8'));
+      const { config, errors } = validateAndMerge(raw, DEFAULTS);
+      if (errors.length > 0) {
+        log.server.warn({ component: 'runtime-config', path: p, errorCount: errors.length, errors: errors.slice(0, 20) }, 'Runtime config loaded with validation issues');
+        getGlobalRecorder()?.record({
+          type: 'system.error', component: 'runtime-config', level: 'warn',
+          message: `Runtime config loaded with ${errors.length} validation issue(s)`,
+          data: { errors: errors.slice(0, 20) },
+        });
+      }
+      _cache = config;
+      _cacheMtime = stat.mtimeMs;
+      return _cache;
+    } finally {
+      fs.closeSync(fd);
     }
-    _cache = config;
-    _cacheMtime = stat.mtimeMs;
-    return _cache;
   } catch (err) {
     // ENOENT is the common, expected case (no override file → defaults). Anything
     // else (malformed JSON, permissions) is surfaced before degrading to defaults.
@@ -533,10 +541,16 @@ export interface ConfigState {
 export function getConfigState(): ConfigState {
   const p = configPath();
   try {
-    const stat = fs.statSync(p);
-    const raw = JSON.parse(fs.readFileSync(p, 'utf-8'));
-    const { config, errors } = validateAndMerge(raw, DEFAULTS);
-    return { config, defaults: getDefaults(), errors, fileExists: true, lastModified: new Date(stat.mtimeMs).toISOString() };
+    // t/2019 (js/file-system-race): fstat + read one fd, not two path operations.
+    const fd = fs.openSync(p, 'r');
+    try {
+      const stat = fs.fstatSync(fd);
+      const raw = JSON.parse(fs.readFileSync(fd, 'utf-8'));
+      const { config, errors } = validateAndMerge(raw, DEFAULTS);
+      return { config, defaults: getDefaults(), errors, fileExists: true, lastModified: new Date(stat.mtimeMs).toISOString() };
+    } finally {
+      fs.closeSync(fd);
+    }
   } catch (err) {
     if ((err as NodeJS.ErrnoException).code !== 'ENOENT') {
       getGlobalRecorder()?.record({
