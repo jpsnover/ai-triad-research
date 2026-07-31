@@ -141,6 +141,7 @@ export default defineConfig({
       '../../../lib/search/**/*.test.ts',
       '../../../lib/entities/**/*.test.ts',
       '../../../lib/sanitize/**/*.test.ts',
+      '../../../lib/ai-config/**/*.test.ts',
       '../../../lib/*.test.ts',
       // translation tests excluded — depend on ai-triad-data dictionary not available in CI
     ],
