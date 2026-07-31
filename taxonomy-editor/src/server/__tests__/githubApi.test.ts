@@ -263,7 +263,7 @@ function createTestRecorder(): FlightRecorder & { events: RecordInput[] } {
 async function createBackend(recorder?: FlightRecorder) {
   const { GitHubAPIBackend } = await import('../storage/githubAPIBackend');
   const backend = new GitHubAPIBackend({
-    cacheDir: '/tmp/test-cache',
+    cacheDir: '/var/cache/taxonomy-test', // non-tmpdir: breaks CodeQL /tmp taint flow (t/2020)
     recorder: recorder ?? createTestRecorder(),
     pollIntervalMs: 999_999_999, // disable polling in tests
     coherencyProbeRate: 0,        // disable coherency probes
@@ -1243,7 +1243,7 @@ describe('GitHubAPIBackend — chaos: missing credentials', () => {
 
     const { GitHubAPIBackend } = await import('../storage/githubAPIBackend');
     const backend = new GitHubAPIBackend({
-      cacheDir: '/tmp/test-cache-nocreds',
+      cacheDir: '/var/cache/taxonomy-test-nocreds', // non-tmpdir: breaks CodeQL /tmp taint flow (t/2020)
       pollIntervalMs: 999_999_999,
       coherencyProbeRate: 0,
     });
@@ -1521,7 +1521,7 @@ describe('GitHubAPIBackend — manifest mutex', () => {
     // Fire 3 concurrent reads — all cache misses
     const paths = Object.keys(fileContents);
     const results = await Promise.all(
-      paths.map(p => backend.readFile(`/tmp/test-cache/${p}`)),
+      paths.map(p => backend.readFile(`/var/cache/taxonomy-test/${p}`)),
     );
 
     // All reads should succeed
@@ -1578,7 +1578,7 @@ describe('GitHubAPIBackend — manifest mutex', () => {
     });
 
     await Promise.all(
-      paths.map(p => backend.readFile(`/tmp/test-cache/${p}`)),
+      paths.map(p => backend.readFile(`/var/cache/taxonomy-test/${p}`)),
     );
 
     // With the manifest mutex, writes should be serialized (max 1 at a time)
@@ -1596,7 +1596,7 @@ describe('GitHubAPIBackend — session overlay memory cap (t/727)', () => {
   async function cappedBackend(capBytes: number) {
     const { GitHubAPIBackend } = await import('../storage/githubAPIBackend');
     const b = new GitHubAPIBackend({
-      cacheDir: '/tmp/test-cache',
+      cacheDir: '/var/cache/taxonomy-test', // non-tmpdir: breaks CodeQL /tmp taint flow (t/2020)
       recorder: createTestRecorder(),
       pollIntervalMs: 999_999_999,
       coherencyProbeRate: 0,
