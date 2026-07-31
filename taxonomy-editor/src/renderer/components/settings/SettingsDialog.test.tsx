@@ -173,4 +173,45 @@ describe('SettingsDialog', () => {
     const gemini = within(backendSelect).getByRole('option', { name: 'Google Gemini' });
     expect(gemini).not.toBeDisabled();
   });
+
+  const cleanBackends = {
+    gemini: { ok: true, count: 3 }, claude: { ok: true, count: 2 }, groq: { ok: true, count: 1 },
+    openai: { ok: true, count: 1 }, deepseek: { ok: true, count: 1 }, ollama: { ok: true, count: 0 },
+  };
+
+  it('surfaces a refused write as a warning, not a green save (t/2041)', async () => {
+    const user = userEvent.setup();
+    mockApi.refreshAIModels.mockResolvedValueOnce({
+      ...cleanBackends, totalModels: 8,
+      written: false, configWarning: 'claude default "x" has no fallbackChain',
+    });
+    render(<SettingsDialog onClose={onClose} />);
+    await user.click(screen.getByText('Refresh Models'));
+    expect(await screen.findByText(/refused the write/i)).toBeInTheDocument();
+    expect(screen.getByText(/no fallbackChain/)).toBeInTheDocument();
+    expect(screen.getByText(/ai-models\.json unchanged/i)).toBeInTheDocument();
+    expect(screen.queryByText(/saved to ai-models\.json/i)).not.toBeInTheDocument();
+  });
+
+  it('shows a non-fatal repair note on a written success (t/2041)', async () => {
+    const user = userEvent.setup();
+    mockApi.refreshAIModels.mockResolvedValueOnce({
+      ...cleanBackends, totalModels: 8,
+      written: true, configWarning: 'pruned 1 dangling fallback target',
+    });
+    render(<SettingsDialog onClose={onClose} />);
+    await user.click(screen.getByText('Refresh Models'));
+    expect(await screen.findByText(/Repaired before saving/i)).toBeInTheDocument();
+    expect(screen.getByText(/saved to ai-models\.json/i)).toBeInTheDocument();
+    expect(screen.queryByText(/refused the write/i)).not.toBeInTheDocument();
+  });
+
+  it('shows normal success with no warning on a clean refresh (t/2041)', async () => {
+    const user = userEvent.setup();
+    render(<SettingsDialog onClose={onClose} />);
+    await user.click(screen.getByText('Refresh Models'));
+    expect(await screen.findByText(/saved to ai-models\.json/i)).toBeInTheDocument();
+    expect(screen.queryByText(/refused the write/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Repaired before saving/i)).not.toBeInTheDocument();
+  });
 });
