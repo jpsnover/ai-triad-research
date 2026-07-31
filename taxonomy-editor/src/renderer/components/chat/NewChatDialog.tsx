@@ -13,6 +13,7 @@ import type { SpeakerId } from '../../types/debate';
 import type { ChatMode } from '../../types/chat';
 import { CHAT_MODE_INFO } from '../../types/chat';
 import { AI_POVERS } from '@lib/debate/types';
+import { backendSelectState, type BackendAvailabilityEntry } from '../shared/backendSelectState';
 import './NewChatDialog.css';
 
 interface NewChatDialogProps {
@@ -39,7 +40,9 @@ export function NewChatDialog({ onClose }: NewChatDialogProps) {
   const availableModels = MODELS_BY_BACKEND[selectedBackend] || [];
   const [customModel, setCustomModel] = useState<string>(globalModel);
   const [keyStatus, setKeyStatus] = useState<Record<string, boolean>>({});
-  const [tierAvailable, setTierAvailable] = useState<Set<string> | null>(null);
+  // t/2036: per-backend availability with `reason` (no_key #2 vs tier_restricted #3),
+  // replacing the tierAvailable Set that conflated no-key with tier-blocked.
+  const [availByReason, setAvailByReason] = useState<Record<string, BackendAvailabilityEntry>>({});
   const { tier: tierInfo } = useTierInfo();
   const freeTier = isFreeTier(tierInfo);
 
@@ -54,7 +57,7 @@ export function NewChatDialog({ onClose }: NewChatDialogProps) {
     };
     void check();
     void api.getAvailableBackends()
-      .then(backends => setTierAvailable(new Set(backends.filter(b => b.available).map(b => b.id))))
+      .then(backends => setAvailByReason(Object.fromEntries(backends.map(b => [b.id, { available: b.available, reason: b.reason }]))))
       .catch((err) => { getGlobalRecorder()?.record({ type: 'system.error', component: 'new-chat-dialog', level: 'warn', message: 'Failed to load available backends', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } }); });
   }, []);
 
@@ -153,11 +156,21 @@ export function NewChatDialog({ onClose }: NewChatDialogProps) {
                   if (models.length > 0) setCustomModel(models[0].value);
                 }}
               >
-                {AI_BACKENDS.filter(b => !tierAvailable || tierAvailable.has(b.value)).map((b) => (
-                  <option key={b.value} value={b.value}>
-                    {b.label}{keyStatus[b.value] === false && !(freeTier && tierInfo?.allowedBackends.includes(b.value)) ? ' (no key)' : ''}
-                  </option>
-                ))}
+                {AI_BACKENDS.map((b) => {
+                  // t/2036: render every backend (no longer filter out non-tier ones).
+                  // Free-tier-pool backends are usable without a key (platform key), so
+                  // keep them plain+selectable; otherwise apply the 3-state helper
+                  // (no-key→"(bring your own key)"; tier-forbidden→disabled "(sign in to use)").
+                  const freeUsable = freeTier && !!tierInfo?.allowedBackends.includes(b.value);
+                  const state = freeUsable
+                    ? { selectable: true, suffix: '' }
+                    : backendSelectState(availByReason[b.value], keyStatus[b.value] === true);
+                  return (
+                    <option key={b.value} value={b.value} disabled={!state.selectable}>
+                      {b.label}{state.suffix}
+                    </option>
+                  );
+                })}
               </select>
               <select
                 className="new-chat-model-select"

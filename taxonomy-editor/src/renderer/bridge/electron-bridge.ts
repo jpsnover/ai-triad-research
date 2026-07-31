@@ -101,10 +101,16 @@ export const api: AppAPI = {
   deleteAllApiKeys: () => window.electronAPI.deleteAllApiKeys(),
   hasApiKey: (backend) => window.electronAPI.hasApiKey(backend),
   getAvailableBackends: async () => {
-    // Desktop has no community server; availability is local key presence.
+    // Desktop has no community server and NO tier — main-process generateText uses the
+    // user's own keys and never touches the proxy, so availability is purely local key
+    // presence. A keyless backend is therefore `no_key`, NEVER `tier_restricted`
+    // (t/2036: don't mislabel a missing key as tier-blocked, which used to disable it).
     // Backend list is the canonical exhaustive one (t/1956) — never hand-maintain here (t/1958).
     return Promise.all(
-      ALL_API_KEY_BACKENDS.map(async (id) => ({ id, available: await window.electronAPI.hasApiKey(id) })),
+      ALL_API_KEY_BACKENDS.map(async (id) => {
+        const available = await window.electronAPI.hasApiKey(id);
+        return available ? { id, available } : { id, available, reason: 'no_key' as const };
+      }),
     );
   },
   getApiKeySummary: () => window.electronAPI.getApiKeySummary(),

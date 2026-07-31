@@ -171,7 +171,7 @@ export interface AppAPI {
    * presence in anonymous (BYOK) and Electron modes. Used to gate multi-provider
    * debates so speakers are only assigned to usable backends.
    */
-  getAvailableBackends: () => Promise<{ id: string; available: boolean; models?: string[]; reason?: string }[]>;
+  getAvailableBackends: () => Promise<{ id: string; available: boolean; models?: string[]; reason?: 'tier_restricted' | 'no_key' }[]>;
   getApiKeySummary: () => Promise<{ backend: string; hasKey: boolean; maskedKey: string | null }[]>;
   exportKeysForSharing: (passphrase: string) => Promise<{ dataUrl: string; payloadText: string }>;
   importKeysFromSharing: (payload: { v: number; salt: string; iv: string; data: string; tag: string }, passphrase: string) => Promise<string[]>;

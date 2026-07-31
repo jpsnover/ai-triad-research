@@ -1,5 +1,5 @@
 ﻿import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 const { mockApi } = vi.hoisted(() => ({
@@ -53,6 +53,8 @@ vi.mock('../../hooks/useTaxonomyStore', () => ({
     { value: 'openai', label: 'OpenAI' },
     { value: 'deepseek', label: 'DeepSeek' },
     { value: 'ollama', label: 'Ollama' },
+    { value: 'azure', label: 'Azure OpenAI' },
+    { value: 'moonshot', label: 'Moonshot' },
   ],
   MODELS_BY_BACKEND: {
     gemini: [
@@ -64,6 +66,8 @@ vi.mock('../../hooks/useTaxonomyStore', () => ({
     openai: [{ value: 'gpt-4o', label: 'GPT-4o' }],
     deepseek: [{ value: 'deepseek-chat', label: 'DeepSeek Chat' }],
     ollama: [{ value: 'llama3', label: 'LLaMA 3' }],
+    azure: [{ value: 'gpt-4o-azure', label: 'GPT-4o (Azure)' }],
+    moonshot: [{ value: 'kimi-k2', label: 'Kimi K2' }],
   },
   initAIModels: vi.fn().mockResolvedValue(undefined),
 }));
@@ -149,5 +153,24 @@ describe('SettingsDialog', () => {
     await user.click(screen.getByText('Save'));
     expect(mockApi.addApiKey).toHaveBeenCalledWith('AIzaSyTestKey', 'gemini');
     expect(await screen.findByText(/key saved/i)).toBeInTheDocument();
+  });
+
+  it('de-conflates the 3 backend states — has-key plain, no-key selectable BYOK, tier-restricted honest (t/2036)', async () => {
+    mockApi.getAvailableBackends.mockResolvedValueOnce([
+      { id: 'gemini', available: true },                            // #1 has key + tier-ok
+      { id: 'moonshot', available: false, reason: 'no_key' },       // #2 BYOK-permitted, no key
+      { id: 'azure', available: false, reason: 'tier_restricted' }, // #3 tier forbids BYOK
+    ]);
+    render(<SettingsDialog onClose={onClose} />);
+    const backendSelect = screen.getAllByRole('combobox')[0];
+    // #3 — restricted + honest label, and (the bug) NOT disabled-away as "(not on your tier)"
+    const azure = await within(backendSelect).findByRole('option', { name: 'Azure OpenAI (sign in to use)' });
+    expect(azure).toBeDisabled();
+    // #2 — the key regression: a keyless BYOK-permitted backend stays SELECTABLE
+    const moonshot = within(backendSelect).getByRole('option', { name: 'Moonshot (bring your own key)' });
+    expect(moonshot).not.toBeDisabled();
+    // #1 — plain, no suffix
+    const gemini = within(backendSelect).getByRole('option', { name: 'Google Gemini' });
+    expect(gemini).not.toBeDisabled();
   });
 });

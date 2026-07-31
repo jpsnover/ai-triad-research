@@ -869,14 +869,23 @@ const rawApi: AppAPI = {
     return get(`/api/keys/has${backend ? `?backend=${backend}` : ''}`);
   },
   getAvailableBackends: async () => {
-    // Anonymous (BYOK) keys live in sessionStorage — the server can't see them,
-    // so derive availability locally, mirroring hasApiKey's anonymous branch.
-    if (await isAnonymous()) {
-      return ALL_API_KEY_BACKENDS.map((id) => ({ id, available: !!sessionStorage.getItem(`byok-${id}`) }));
-    }
-    const res = await get<{ backends: { id: string; available: boolean; models?: string[]; reason?: string }[] }>('/api/backends/available')
+    // The server computes the authoritative per-backend `reason` (tier_restricted vs
+    // no_key) from the caller's resolved tier — including for an anonymous caller
+    // (`/api/backends/available` has no auth gate; resolveTier('') → anonymous/free).
+    const res = await get<{ backends: { id: string; available: boolean; models?: string[]; reason?: 'tier_restricted' | 'no_key' }[] }>('/api/backends/available')
       .catch(bridgeWarn('getAvailableBackends failed', { backends: [] }));
-    return res.backends;
+    if (!(await isAnonymous())) return res.backends;
+    // Anonymous (BYOK) keys live in sessionStorage — the server can't see them, so it
+    // reports every in-tier backend as `no_key`. Overlay local key presence to flip
+    // those to available. Keep `tier_restricted` as-is: the server 403s those even with
+    // a key, so the honest unlock is signing in, not entering a key (t/2036, #3).
+    return res.backends.map((b) => {
+      if (b.reason === 'tier_restricted') return b;
+      const hasLocal = !!sessionStorage.getItem(`byok-${b.id}`);
+      return hasLocal
+        ? { id: b.id, available: true, models: b.models }
+        : { id: b.id, available: false, reason: 'no_key' as const };
+    });
   },
   getApiKeySummary: async () => {
     return ALL_API_KEY_BACKENDS.map((b) => {
