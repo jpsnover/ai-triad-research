@@ -812,26 +812,39 @@ export function computeFrameSurvivalMetrics(
       const ownIds = statementEntries.filter(e => e.speaker === speaker).map(e => e.id);
       const otherIds = statementEntries.filter(e => e.speaker !== speaker).map(e => e.id);
 
-      // Persistence (T_s): null when speaker has <2 post-opening turns
+      // Persistence (T_s): null when speaker has <2 post-opening turns.
+      // Denominator = measured turns only (entries present in fr.sims); unmeasured turns
+      // are excluded so partial embedding failure does not silently depress the metric.
       if (ownIds.length < 2) {
         framePersistencePerSpeaker[speaker] = null;
       } else {
-        const fracs = series.map(fr => {
-          const present = ownIds.filter(id => (fr.sims[id] ?? 0) >= FRAME_PRESENCE_THRESHOLD).length;
-          return present / ownIds.length;
-        });
-        framePersistencePerSpeaker[speaker] = fracs.reduce((a, b) => a + b, 0) / fracs.length;
+        const perFrame: number[] = [];
+        for (const fr of series) {
+          const measured = ownIds.filter(id => id in fr.sims);
+          if (measured.length === 0) continue;
+          const present = measured.filter(id => fr.sims[id] >= FRAME_PRESENCE_THRESHOLD).length;
+          perFrame.push(present / measured.length);
+        }
+        framePersistencePerSpeaker[speaker] = perFrame.length > 0
+          ? perFrame.reduce((a, b) => a + b, 0) / perFrame.length
+          : null;
       }
 
-      // Engagement (T_¬s): null when no other-speaker statement entries
+      // Engagement (T_¬s): null when no other-speaker statement entries.
+      // Same denominator-exclusion rule as persistence.
       if (otherIds.length === 0) {
         frameEngagementPerSpeaker[speaker] = null;
       } else {
-        const fracs = series.map(fr => {
-          const present = otherIds.filter(id => (fr.sims[id] ?? 0) >= FRAME_PRESENCE_THRESHOLD).length;
-          return present / otherIds.length;
-        });
-        frameEngagementPerSpeaker[speaker] = fracs.reduce((a, b) => a + b, 0) / fracs.length;
+        const perFrame: number[] = [];
+        for (const fr of series) {
+          const measured = otherIds.filter(id => id in fr.sims);
+          if (measured.length === 0) continue;
+          const present = measured.filter(id => fr.sims[id] >= FRAME_PRESENCE_THRESHOLD).length;
+          perFrame.push(present / measured.length);
+        }
+        frameEngagementPerSpeaker[speaker] = perFrame.length > 0
+          ? perFrame.reduce((a, b) => a + b, 0) / perFrame.length
+          : null;
       }
     }
   }
@@ -859,12 +872,14 @@ export function computeFrameSurvivalMetrics(
     }
   }
 
-  // frame_reframe_targeted_count: REFRAME edges whose target is frame-linked
+  // frame_reframe_targeted_count: REFRAME edges whose target is frame-linked.
+  // undefined (absent) when frame_embeddings is absent — legacy/pre-implementation sessions.
   const openingEntryIds = new Set(
     (session.transcript ?? []).filter(e => e.type === 'opening').map(e => e.id),
   );
-  let frameReframeTargetedCount = 0;
+  let frameReframeTargetedCount: number | undefined;
   if (frameEmb) {
+    frameReframeTargetedCount = 0;
     const anEdges = an?.edges ?? [];
     const anNodes = an?.nodes ?? [];
     for (const edge of anEdges) {
