@@ -408,7 +408,8 @@ export async function convertToMarkdown(filePath: string): Promise<string> {
  */
 export async function htmlToMarkdown(html: string): Promise<string> {
   const { tmpdir } = await import('os');
-  const tmpFile = path.join(tmpdir(), `aitriad-${Date.now()}.html`);
+  const tmpDir = fs.mkdtempSync(path.join(tmpdir(), 'aitriad-'));
+  const tmpFile = path.join(tmpDir, 'input.html');
   try {
     fs.writeFileSync(tmpFile, html, 'utf-8');
     return await runMarkitdown(tmpFile);
@@ -416,7 +417,7 @@ export async function htmlToMarkdown(html: string): Promise<string> {
     process.stderr.write(`[taxonomy-loader] markitdown not available, stripping HTML tags\n`);
     return stripHtmlFallback(html);
   } finally {
-    try { fs.unlinkSync(tmpFile); } catch { /* ignore */ }
+    try { fs.rmSync(tmpDir, { recursive: true }); } catch { /* ignore */ }
   }
 }
 
