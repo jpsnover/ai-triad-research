@@ -2,6 +2,10 @@
   "name": "@ai-triad/lib",
   "private": true,
   "type": "module",
+  "dependencies": {
+    "decode-named-character-reference": "^1.3.0",
+    "micromark-util-decode-numeric-character-reference": "^2.0.2"
+  },
   "devDependencies": {
     "@types/node": "^26.1.2",
     "eslint": "^10.8.0",
