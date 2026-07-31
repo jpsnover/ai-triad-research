@@ -387,6 +387,15 @@ export interface DebateSession {
   process_rewards?: ProcessRewardEntry[];
   /** Cached turn embeddings for semantic recycling detection. Keyed by transcript entry id. */
   turn_embeddings?: Record<string, number[]>;
+  /** Frame embeddings indexed by speaker, computed at opening finalization (t/2045). */
+  frame_embeddings?: Record<string, {
+    model: string;
+    dim: number;
+    frames: { frame: string; embedding: number[] }[];
+  }>;
+  /** Per-(frame,turn) raw cosine similarity series for frame survival metrics (t/2045).
+   * Keyed by frame-owner speaker; sims span ALL speakers' statement entries. */
+  frame_similarity_series?: Record<string, { frame: string; sims: Record<string, number> }[]>;
   /** Mid-debate gap injections — cross-cutting arguments surfaced by the "fourth voice" analyzer. */
   gap_injections?: GapInjection[];
   /** Cross-cutting node proposals — candidate situation nodes from areas of three-way agreement. */

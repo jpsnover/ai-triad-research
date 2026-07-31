@@ -573,6 +573,11 @@ export function computeLocalSufficiency(
  */
 export const CRUX_MATCH_SIMILARITY_THRESHOLD = 0.5;
 
+/** Frame co-presence gate: sim(frame, paragraph) ≥ threshold → frame is present in that turn (t/2045). */
+export const FRAME_PRESENCE_THRESHOLD = 0.50;
+/** Frame ↔ opening-claim-sketch link gate: cosine ≥ threshold → node is frame-linked for REFRAME counting (t/2045). */
+export const FRAME_LINK_THRESHOLD = 0.60;
+
 /** Coverage/match accounting for the semantic crux comparison — see schema.ts `crux_match_stats`. */
 export interface CruxMatchStats {
   engine_total: number;
@@ -586,7 +591,7 @@ export interface CruxMatchStats {
   match_threshold: number;
 }
 
-function cosineSim(a: number[], b: number[]): number | null {
+export function cosineSim(a: number[], b: number[]): number | null {
   // Different dims = different embedding spaces (e.g. MiniLM 384 vs Gemini 768) —
   // cosine across spaces is meaningless, so the pair is simply not comparable.
   if (a.length !== b.length || a.length === 0) return null;
@@ -751,5 +756,146 @@ export function computeConvergenceWithCensoring(
     metric_over_all: allValues.length > 0
       ? allValues.reduce((a, b) => a + b, 0) / allValues.length
       : null,
+  };
+}
+
+// ── Frame survival metric family (t/2045) ────────────────────────────────────
+
+/**
+ * Compute the frame-survival metric family from session diagnostics (t/2045).
+ *
+ * Construct boundary: measures topical persistence/spread (embedding co-presence) and
+ * contest events (structural REFRAME count) ONLY. Makes no claim about reframe *success*.
+ * All fields carry zero optimizer weight until human-validated (CRUX_AXIS_PARAMS treatment).
+ *
+ * Null policy: null (never 0) when framing_choices absent/unparseable for a speaker,
+ * speaker has <2 post-opening statement turns, or embeddings unavailable/mismatched.
+ */
+export function computeFrameSurvivalMetrics(
+  session: DebateSession,
+  finalEval: NeutralEvaluation | undefined,
+  an: ArgNetwork,
+): {
+  framesDeclaredPerSpeaker: Record<string, number>;
+  framePersistencePerSpeaker: Record<string, number | null>;
+  frameEngagementPerSpeaker: Record<string, number | null>;
+  frameCruxAlignment: number | null;
+  frameReframeTargetedCount: number;
+  frameSurvival: number | null;
+} {
+  const frameEmb = session.frame_embeddings;
+  const frameSeries = session.frame_similarity_series;
+
+  // frames_declared_per_speaker
+  const framesDeclaredPerSpeaker: Record<string, number> = {};
+  if (frameEmb) {
+    for (const [sp, data] of Object.entries(frameEmb)) {
+      framesDeclaredPerSpeaker[sp] = data.frames.length;
+    }
+  }
+
+  // T_s and T_¬s are post-opening statement-type entries only (spec §3)
+  const statementEntries = (session.transcript ?? []).filter(e => e.type === 'statement');
+
+  const framePersistencePerSpeaker: Record<string, number | null> = {};
+  const frameEngagementPerSpeaker: Record<string, number | null> = {};
+
+  if (frameEmb) {
+    for (const speaker of Object.keys(frameEmb)) {
+      const series = frameSeries?.[speaker];
+      if (!series || series.length === 0) {
+        framePersistencePerSpeaker[speaker] = null;
+        frameEngagementPerSpeaker[speaker] = null;
+        continue;
+      }
+
+      const ownIds = statementEntries.filter(e => e.speaker === speaker).map(e => e.id);
+      const otherIds = statementEntries.filter(e => e.speaker !== speaker).map(e => e.id);
+
+      // Persistence (T_s): null when speaker has <2 post-opening turns
+      if (ownIds.length < 2) {
+        framePersistencePerSpeaker[speaker] = null;
+      } else {
+        const fracs = series.map(fr => {
+          const present = ownIds.filter(id => (fr.sims[id] ?? 0) >= FRAME_PRESENCE_THRESHOLD).length;
+          return present / ownIds.length;
+        });
+        framePersistencePerSpeaker[speaker] = fracs.reduce((a, b) => a + b, 0) / fracs.length;
+      }
+
+      // Engagement (T_¬s): null when no other-speaker statement entries
+      if (otherIds.length === 0) {
+        frameEngagementPerSpeaker[speaker] = null;
+      } else {
+        const fracs = series.map(fr => {
+          const present = otherIds.filter(id => (fr.sims[id] ?? 0) >= FRAME_PRESENCE_THRESHOLD).length;
+          return present / otherIds.length;
+        });
+        frameEngagementPerSpeaker[speaker] = fracs.reduce((a, b) => a + b, 0) / fracs.length;
+      }
+    }
+  }
+
+  // frame_crux_alignment: fraction of evaluator cruxes aligned with any declared frame
+  let frameCruxAlignment: number | null = null;
+  if (finalEval && !finalEval.evaluation_invalid && finalEval.cruxes.length > 0 && frameEmb) {
+    const allFrameVecs: number[][] = [];
+    for (const data of Object.values(frameEmb)) {
+      for (const fr of data.frames) allFrameVecs.push(fr.embedding);
+    }
+    if (allFrameVecs.length > 0) {
+      let embeddable = 0;
+      let aligned = 0;
+      for (const crux of finalEval.cruxes) {
+        if (!Array.isArray(crux.embedding) || crux.embedding.length === 0) continue;
+        embeddable++;
+        const maxSim = allFrameVecs.reduce<number>((best, fv) => {
+          const sim = cosineSim(crux.embedding as number[], fv);
+          return sim !== null && sim > best ? sim : best;
+        }, 0);
+        if (maxSim >= FRAME_PRESENCE_THRESHOLD) aligned++;
+      }
+      if (embeddable > 0) frameCruxAlignment = aligned / embeddable;
+    }
+  }
+
+  // frame_reframe_targeted_count: REFRAME edges whose target is frame-linked
+  const openingEntryIds = new Set(
+    (session.transcript ?? []).filter(e => e.type === 'opening').map(e => e.id),
+  );
+  let frameReframeTargetedCount = 0;
+  if (frameEmb) {
+    const anEdges = an?.edges ?? [];
+    const anNodes = an?.nodes ?? [];
+    for (const edge of anEdges) {
+      if (edge.scheme !== 'REFRAME') continue;
+      const targetNode = anNodes.find(n => n.id === edge.target);
+      if (!targetNode) continue;
+      if (!openingEntryIds.has(targetNode.source_entry_id)) continue;
+      if (!Array.isArray(targetNode.embedding) || targetNode.embedding.length === 0) continue;
+      const speakerFrames = frameEmb[targetNode.speaker as string];
+      if (!speakerFrames) continue;
+      let linked = false;
+      for (const fr of speakerFrames.frames) {
+        const sim = cosineSim(fr.embedding, targetNode.embedding as number[]);
+        if (sim !== null && sim >= FRAME_LINK_THRESHOLD) { linked = true; break; }
+      }
+      if (linked) frameReframeTargetedCount++;
+    }
+  }
+
+  // frame_survival: unweighted mean of non-null persistence values
+  const persistVals = Object.values(framePersistencePerSpeaker).filter((v): v is number => v !== null);
+  const frameSurvival = persistVals.length > 0
+    ? persistVals.reduce((a, b) => a + b, 0) / persistVals.length
+    : null;
+
+  return {
+    framesDeclaredPerSpeaker,
+    framePersistencePerSpeaker,
+    frameEngagementPerSpeaker,
+    frameCruxAlignment,
+    frameReframeTargetedCount,
+    frameSurvival,
   };
 }

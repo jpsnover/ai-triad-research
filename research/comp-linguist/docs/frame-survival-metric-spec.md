@@ -42,7 +42,7 @@ The family makes **no claim to measure reframe *success***. "Persistence dropped
 
 All fields live in `CalibrationDataPoint` (`lib/debate/calibrationLogger/schema.ts`); computation in `lib/debate/calibrationLogger/extract-metrics.ts`. Per-turn similarity **series** are persisted in the session diagnostics only (curve = diagnostics; calibration row = scalars).
 
-Let `F_s` = speaker *s*'s declared frames; `T_s` = *s*'s post-opening turns; `T_¬s` = all other speakers' post-opening turns. For frame *f* and turn *t*: `sim(f, t) = max over paragraphs p∈t of cosine(embed(f), embed(p))`. A frame is **present** in a turn iff `sim(f, t) ≥ FRAME_PRESENCE_THRESHOLD`.
+Let `F_s` = speaker *s*'s declared frames; `T_s` = *s*'s post-opening turns; `T_¬s` = all other speakers' post-opening turns. Post-opening turns are `statement`-type transcript entries; opening and concluding entries are excluded from `T_s` and `T_¬s`. For frame *f* and turn *t*: `sim(f, t) = max over paragraphs p∈t of cosine(embed(f), embed(p))`. A frame is **present** in a turn iff `sim(f, t) ≥ FRAME_PRESENCE_THRESHOLD`.
 
 | Field | Type | Definition | Class |
 |---|---|---|---|

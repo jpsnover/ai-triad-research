@@ -951,6 +951,35 @@ export async function runCrossRespondRound(engine: DebateEngineInternals, round:
     },
   });
 
+  // Compute per-(frame,turn) cosine similarity series for frame survival metrics — t/2045
+  if (engine.session.frame_embeddings && Object.keys(engine.session.frame_embeddings).length > 0) {
+    try {
+      const { computeEmbeddings } = await import('../../../embeddings/onnxEmbedding.js');
+      const paras = entry.content.split(/\n\n+/).filter(p => p.trim().length > 0);
+      const paraVecs = paras.length > 0 ? await computeEmbeddings(paras) : [];
+      engine.session.frame_similarity_series ??= {};
+      for (const [speakerKey, frameData] of Object.entries(engine.session.frame_embeddings)) {
+        engine.session.frame_similarity_series[speakerKey] ??= frameData.frames.map(f => ({ frame: f.frame, sims: {} as Record<string, number> }));
+        const series = engine.session.frame_similarity_series[speakerKey];
+        for (let fi = 0; fi < frameData.frames.length; fi++) {
+          const fv = frameData.frames[fi].embedding;
+          let maxSim = 0;
+          for (const pv of paraVecs) {
+            if (pv.length !== fv.length) continue;
+            let dot = 0, na = 0, nb = 0;
+            for (let i = 0; i < fv.length; i++) { dot += fv[i] * pv[i]; na += fv[i] * fv[i]; nb += pv[i] * pv[i]; }
+            const d = Math.sqrt(na) * Math.sqrt(nb);
+            const s = d > 0 ? dot / d : 0;
+            if (s > maxSim) maxSim = s;
+          }
+          if (series[fi]) series[fi].sims[entry.id] = maxSim;
+        }
+      }
+    } catch (err) {
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'debate-engine', level: 'warn', debate_id: engine.session?.id, message: 'Frame similarity series update failed', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+    }
+  }
+
   // Accumulate context manifest for taxonomy gap analysis
   accumulateContextManifest(engine, round, responder, info.pov, taxonomyRefs.map(r => r.node_id));
 
