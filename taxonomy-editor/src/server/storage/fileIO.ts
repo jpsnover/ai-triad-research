@@ -167,6 +167,16 @@ export async function isDataAvailable(): Promise<boolean> {
   try {
     const files = await backend.listDirectory(taxDir);
     const hasData = files.some(f => f.endsWith('.json') && f !== 'embeddings.json' && f !== 'edges.json');
+    if (!hasData) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'file-io',
+        level: 'error',
+        message: `isDataAvailable: no taxonomy JSON found in ${taxDir} (${files.length} entries) — check TAXONOMY_CACHE_DIR vs AI_TRIAD_DATA_ROOT alignment`,
+        data: { taxDir, fileCount: files.length, sample: files.slice(0, 5) },
+      });
+      log.server.error({ taxDir, fileCount: files.length }, 'isDataAvailable: no taxonomy JSON — check TAXONOMY_CACHE_DIR vs AI_TRIAD_DATA_ROOT');
+    }
     log.server.debug({ taxDir, fileCount: files.length, hasData }, 'isDataAvailable check');
     return hasData;
   } catch (err) {
@@ -177,7 +187,7 @@ export async function isDataAvailable(): Promise<boolean> {
       message: 'Operation failed',
       error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
     });
-    log.server.debug({ taxDir, err: String(err) }, 'isDataAvailable error');
+    log.server.error({ taxDir, err: String(err) }, 'isDataAvailable error');
     return false;
   }
 }
