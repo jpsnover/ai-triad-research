@@ -104,3 +104,7 @@ See `deploy/azure/runbooks/` for procedures covering:
 | `deploy.ps1` | One-command deployment script |
 | `.env.template` | Azure deployment settings (no API keys) |
 | `runbooks/*.md` | Operational runbooks for failure modes |
+
+## Development workflow (post-cutover, 2026-07-31)
+
+Agent development uses **per-role git worktrees** (retire-shared-checkout cutover, t/2016). The shared `main` checkout is the deploy/ops hub only; feature work is branched from `origin/main` in a worktree and landed via PR self-merge on `ci-gate` + `CodeQL` green (t/2025). A pre-commit guard (`.githooks/pre-commit`, t/1926/t/2009) refuses direct commits to the shared `main` and detached-HEAD worktree commits.
