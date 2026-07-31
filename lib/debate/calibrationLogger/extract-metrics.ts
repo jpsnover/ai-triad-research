@@ -821,7 +821,7 @@ export function computeFrameSurvivalMetrics(
         const perFrame: number[] = [];
         for (const fr of series) {
           const measured = ownIds.filter(id => id in fr.sims);
-          if (measured.length === 0) continue;
+          if (measured.length < 2) continue; // own-turns: same <2 coarse-denominator rule as speaker level
           const present = measured.filter(id => fr.sims[id] >= FRAME_PRESENCE_THRESHOLD).length;
           perFrame.push(present / measured.length);
         }

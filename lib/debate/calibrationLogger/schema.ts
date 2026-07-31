@@ -454,7 +454,7 @@ export interface CalibrationDataPoint {
    */
   frame_engagement_per_speaker?: Record<string, number | null>;
   /**
-   * Fraction of evaluator cruxes whose max similarity to any declared frame ≥ FRAME_PRESENCE_THRESHOLD.
+   * Fraction of *embeddable* evaluator cruxes whose max similarity to any declared frame ≥ FRAME_PRESENCE_THRESHOLD.
    * Null when eval absent/invalid or no crux embeddings available. Stipulated.
    */
   frame_crux_alignment?: number | null;
