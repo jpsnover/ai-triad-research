@@ -14,8 +14,19 @@
  * neutralizes executable tag blocks (script/iframe/style/object/embed) and
  * dangerous URL schemes — it does not strip ordinary HTML-like text, `<`/`>`
  * comparison operators, or fenced code content structure.
+ *
+ * t/2030 — entity/numeric-char-ref canonicalization. CommonMark (react-markdown)
+ * decodes HTML entities and numeric character references in link destinations
+ * BEFORE the URL scheme is honored, so a literal-only matcher misses
+ * `javascript&colon;alert(1)` and `&#106;avascript:` — both reconstitute a live
+ * scheme at render. We defeat this by decoding refs into a SHADOW copy, matching
+ * against it, and rewriting only when the shadow reveals a threat (see
+ * sanitizeUserText). Design: t/2030#1, TL sign-off e/52#2.
  */
 
+import { decodeNamedCharacterReference } from 'decode-named-character-reference';
+import { decodeNumericCharacterReference } from 'micromark-util-decode-numeric-character-reference';
+import { ActionableError } from '../../../../lib/debate/errors.js';
 import { log } from '../logger.js';
 
 // t/2029 — input-size cap (DoS backstop). The tag `[^>]*` tail scans O(n) per
@@ -56,7 +67,94 @@ const EXECUTABLE_TAGS = new RegExp(
   'gi',
 );
 const DANGEROUS_SCHEME = new RegExp(`\\b(?:${gap('javascript')}|${gap('vbscript')})${CTRL}:`, 'gi');
-const DATA_HTML = new RegExp(`\\b${gap('data')}${CTRL}:${CTRL}${gap('text')}${CTRL}/${CTRL}${gap('html')}`, 'gi');
+// t/2030 (Finding B) — broadened from data:text/html to the whole executable-markup
+// media-type FAMILY (TL e/52#2, option b). `data:image/svg+xml`,
+// `application/xhtml+xml`, `application/xml`, `text/xml` and any future `*+xml`
+// subtype can all carry executable <script> when navigated/embedded. Rule: any
+// `data:` whose subtype ENDS IN `html` or `xml` — that captures html, xhtml,
+// xml, svg+xml, xhtml+xml, and future `foo+xml` in one shot. Non-markup media
+// (`image/png`, `application/json`, base64 blobs) never match, so legit inline
+// data URLs are untouched. The `data` keyword, `:`/`/` separators, media type,
+// and the `html`/`xml` core keep the t/2027 control-char fold; the optional
+// subtype prefix (`svg+`, `xhtml+`) is not folded — a control char there is an
+// exotic non-vector and folding a `*`-quantified run risks needless backtracking.
+const CTRL_TYPE = `(?:[a-z]${CTRL})+`;                    // media type, control-tolerant
+const DATA_SUBTYPE = `[a-z0-9.+-]*(?:${gap('html')}|${gap('xml')})`; // …ends html|xml
+const DATA_MARKUP = new RegExp(
+  `\\b${gap('data')}${CTRL}:${CTRL}${CTRL_TYPE}${CTRL}/${CTRL}${DATA_SUBTYPE}\\b`,
+  'gi',
+);
+
+// t/2030 — HTML character-reference candidate: named (`&colon`), decimal (`&#106`),
+// or hex (`&#x6a`). The trailing `;` is OPTIONAL: browsers/HTML decode many refs
+// without it, so decodeEntitiesFixedPoint decodes a liberal SUPERSET — anything a
+// current-or-future renderer might decode, we decode first. Over-decoding is free
+// here because sanitizeUserText only rewrites when a threat surfaces (clean inputs
+// are returned verbatim), so an over-eager decode never corrupts legit content.
+const ENTITY = /&(#[xX][0-9a-fA-F]+|#[0-9]+|[a-zA-Z][a-zA-Z0-9]*);?/g;
+
+/** Decode one matched character reference; returns the match VERBATIM if it is not
+ *  a real entity, or if it decodes to `<`/`>` (see below). */
+function decodeEntityRef(match: string, ref: string): string {
+  let decoded: string;
+  if (ref[0] === '#') {
+    // Use the renderer's OWN numeric decoder (micromark, same family react-markdown
+    // uses) rather than a hand-rolled table, for byte-for-byte parity: it maps
+    // out-of-range / surrogate / C0+C1 control / noncharacter code points to U+FFFD
+    // exactly as the renderer does, so our shadow never diverges from what renders
+    // (TL's load-bearing decode-identically-to-the-renderer decision, e/52#2).
+    decoded = ref[1] === 'x' || ref[1] === 'X'
+      ? decodeNumericCharacterReference(ref.slice(2), 16)
+      : decodeNumericCharacterReference(ref.slice(1), 10);
+  } else {
+    const named = decodeNamedCharacterReference(ref);
+    if (named === false) return match; // not a real named entity — leave verbatim
+    decoded = named;
+  }
+  // Leave `<`/`>`-producing refs ENCODED. Entity-decoded angle brackets are always
+  // inert character DATA — no renderer turns `&lt;script&gt;` into a live tag (that
+  // needs a LITERAL `<` in the source). Decoding them would only feed the tag
+  // matcher false positives and corrupt legit escaped-markup prose, with zero
+  // security gain; schemes never require `<`/`>`. (TL flag: t/2030 build refinement.)
+  if (decoded === '<' || decoded === '>') return match;
+  return decoded;
+}
+
+/**
+ * Decode HTML character references to a fixed point (collapses layered encodings
+ * like `&amp;colon;` → `&colon;` → `:`).
+ *
+ * Termination: every changing pass STRICTLY SHRINKS the string. Each entity span
+ * `&…;?` is ≥3 chars and decodes to ≤2 UTF-16 units — verified across all 2125
+ * named entities (worst source-vs-decoded margin is +2) and true for numeric refs
+ * (`&#…` ≥3 chars → 1 code point). So the loop runs at most `length` passes and
+ * the cap below is UNREACHABLE in practice. We nonetheless THROW past it (never a
+ * bounded value-return, which would reintroduce js/incomplete-multi-character-
+ * sanitization, t/2001#6): a hit means the shrink invariant was broken by a future
+ * edit, and returning a partially-decoded string could hide a live scheme.
+ */
+function decodeEntitiesFixedPoint(s: string): string {
+  let out = s;
+  let prev: string;
+  const cap = out.length + 1;
+  let iter = 0;
+  do {
+    prev = out;
+    out = out.replace(ENTITY, decodeEntityRef);
+    if (++iter > cap) {
+      throw new ActionableError({
+        goal: 'Canonicalize HTML character references before XSS scheme/tag matching',
+        problem: 'Entity decode did not converge within the shrink-invariant bound — a decode pass grew or oscillated the string.',
+        location: 'contentSanitizer.ts decodeEntitiesFixedPoint',
+        nextSteps: [
+          'Confirm ENTITY only matches spans that decode to a strictly shorter string',
+          'A newly added named entity decoding to ≥3 UTF-16 units would break the bound',
+        ],
+      });
+    }
+  } while (out !== prev);
+  return out;
+}
 
 /**
  * Neutralize executable tags + dangerous URL schemes in a single string.
@@ -84,33 +182,61 @@ const DATA_HTML = new RegExp(`\\b${gap('data')}${CTRL}:${CTRL}${gap('text')}${CT
  * literals (no `X*X*` adjacency, no nested/overlapping unbounded quantifiers), so
  * the control-char fold adds no ReDoS. The tag `[^>]*` tail's O(n) per-position
  * worst-case scan (pathological no-`>` input → O(n²)) is bounded by the
- * MAX_SANITIZE_INPUT truncation at the top of the function (t/2029).
+ * MAX_SANITIZE_INPUT truncation in sanitizeUserText (t/2029).
  */
-export function sanitizeUserText(s: string): string {
+function neutralize(s: string): string {
   let out = s;
-  // t/2029 DoS backstop: truncate oversized input BEFORE the O(n²)-prone loops.
-  // Best-effort log (never the content — secrets rule) so oversized input isn't
-  // invisible to ops; logging must never break sanitization, hence the try/catch.
-  if (out.length > MAX_SANITIZE_INPUT) {
-    try {
-      log.security.warn(
-        { originalLength: out.length, cap: MAX_SANITIZE_INPUT },
-        'sanitizeUserText: input exceeded cap — truncated before sanitization',
-      );
-    } catch { /* telemetry — silent by design: this catch wraps the logger itself, so it cannot log; sanitization must proceed regardless */ }
-    out = out.slice(0, MAX_SANITIZE_INPUT);
-  }
   let prev: string;
   // TERMINATION INVARIANT (nothing else bounds these loops — they exit ONLY on
   // stability, `out === prev`): every replacement below MUST strictly shrink the
   // string OR replace with an irreversible sentinel that can never re-match its
   // own pattern. Tag removal deletes chars; `javascript:`/`vbscript:` → `blocked:`
-  // and `data:text/html` → `data:blocked` are sentinels that don't re-match. A
-  // future rule that could GROW the string or oscillate would infinite-loop here.
+  // and the data-markup family → `data:blocked` are sentinels that don't re-match.
+  // A future rule that could GROW the string or oscillate would infinite-loop here.
   do { prev = out; out = out.replace(EXECUTABLE_TAGS, ''); } while (out !== prev);
   do { prev = out; out = out.replace(DANGEROUS_SCHEME, 'blocked:'); } while (out !== prev);
-  do { prev = out; out = out.replace(DATA_HTML, 'data:blocked'); } while (out !== prev);
+  do { prev = out; out = out.replace(DATA_MARKUP, 'data:blocked'); } while (out !== prev);
   return out;
+}
+
+/**
+ * Sanitize a single string.
+ *
+ * t/2030 — decode-into-shadow, rewrite-only-on-threat. We match against an
+ * entity-DECODED shadow (so `javascript&colon;` / `&#106;avascript:` are caught
+ * the way a renderer would realize them), but rewrite conservatively:
+ *   - decode a liberal superset of character references into `decoded`;
+ *   - run the neutralizers on `decoded`;
+ *   - if nothing matched (`cleaned === decoded`) the whole string is CLEAN → return
+ *     it BYTE-FOR-BYTE, so a threat-free field's legit `&amp;`/`&lt;`/`&copy;`/code
+ *     fences are never mangled;
+ *   - only genuinely-dangerous inputs are returned in canonicalized form.
+ * Granularity is whole-string, not per-match: a field that mixes a real threat with
+ * benign entities returns the decoded form, so those co-located benign entities are
+ * decoded too. That is directionally safe (over-decoding, never under) and round-trips
+ * invisibly through the renderer (CommonMark re-escapes a bare `&` on serialization);
+ * the `<`/`>` exclusion still protects escaped-markup structure even in that case.
+ * This preserves the module's narrow, fail-safe charter without position-mapping
+ * matches from the shadow back into the original. Design: t/2030#1, TL e/52#2.
+ */
+export function sanitizeUserText(s: string): string {
+  let base = s;
+  // t/2029 DoS backstop: truncate oversized input BEFORE the O(n²)-prone loops
+  // (and before entity decode, so decode is length-bounded too).
+  // Best-effort log (never the content — secrets rule) so oversized input isn't
+  // invisible to ops; logging must never break sanitization, hence the try/catch.
+  if (base.length > MAX_SANITIZE_INPUT) {
+    try {
+      log.security.warn(
+        { originalLength: base.length, cap: MAX_SANITIZE_INPUT },
+        'sanitizeUserText: input exceeded cap — truncated before sanitization',
+      );
+    } catch { /* telemetry — silent by design: this catch wraps the logger itself, so it cannot log; sanitization must proceed regardless */ }
+    base = base.slice(0, MAX_SANITIZE_INPUT);
+  }
+  const decoded = decodeEntitiesFixedPoint(base);
+  const cleaned = neutralize(decoded);
+  return cleaned === decoded ? base : cleaned;
 }
 
 /** Recursively sanitize every string in a JSON-like value (arrays/objects). */

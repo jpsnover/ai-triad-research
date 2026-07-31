@@ -195,3 +195,124 @@ describe('sanitizeUserText — input-size DoS backstop (t/2029)', () => {
     expect(out).not.toContain('<style');    // fully neutralized, nothing renders
   });
 });
+
+// t/2030: the matchers operate on literal chars, but CommonMark (react-markdown)
+// decodes HTML entities / numeric char refs in link destinations BEFORE the scheme
+// is honored — so `javascript&colon;` and `&#106;avascript:` slip past a literal
+// matcher yet render a live scheme. We match against an entity-DECODED shadow and
+// rewrite only when it reveals a threat, so clean content is returned byte-for-byte.
+// Design t/2030#1, TL sign-off e/52#2.
+describe('sanitizeUserText — entity/numeric-ref canonicalization (t/2030)', () => {
+  it('neutralizes a named-entity-encoded scheme separator (Finding A)', () => {
+    expect(sanitizeUserText('[x](javascript&colon;alert(1))')).toBe('[x](blocked:alert(1))');
+    expect(sanitizeUserText('vbscript&colon;msgbox')).toBe('blocked:msgbox'); // colon reconstituted then blocked
+  });
+
+  it('neutralizes numeric-char-ref-encoded keyword letters (decimal + hex)', () => {
+    expect(sanitizeUserText('&#106;avascript:alert(1)')).toBe('blocked:alert(1)'); // &#106; = j
+    expect(sanitizeUserText('&#x6a;avascript:alert(1)')).toBe('blocked:alert(1)'); // hex lower x
+    expect(sanitizeUserText('&#X6A;avascript:alert(1)')).toBe('blocked:alert(1)'); // hex upper X
+    expect(sanitizeUserText('&#0000106;avascript:x')).toBe('blocked:x');           // leading zeros
+  });
+
+  it('decodes semicolon-less DECIMAL refs; hex greedily consumes hex digits (browser parity)', () => {
+    // Decimal `&#106` stops at the non-digit 'a', so `&#106avascript:` → j+avascript
+    // → javascript: → blocked (a real semicolon-less vector).
+    expect(sanitizeUserText('&#106avascript:x')).toBe('blocked:x');
+    // Hex is different: 'a' IS a hex digit, so a browser (and we) consume `&#x6aa…`
+    // as ONE ref — `&#x6aavascript` never reconstitutes `javascript:`. That non-match
+    // is correct browser-parity behavior, so the hex vector needs its `;` delimiter:
+    expect(sanitizeUserText('&#x6a;avascript:x')).toBe('blocked:x');
+  });
+
+  it('collapses LAYERED / double-encoded entities to a fixed point', () => {
+    expect(sanitizeUserText('[x](javascript&amp;colon;alert(1))')).toBe('[x](blocked:alert(1))'); // &amp;colon; → &colon; → :
+    expect(sanitizeUserText('javascript&amp;#58;x')).toBe('blocked:x');                            // &amp;#58; → &#58; → :
+    expect(sanitizeUserText('javascript&amp;amp;colon;x')).toBe('blocked:x');                      // triple layer
+  });
+
+  it('neutralizes a vbscript scheme with an entity-encoded letter', () => {
+    expect(sanitizeUserText('vb&#115;cript:msgbox')).toBe('blocked:msgbox'); // &#115; = s
+  });
+
+  it('broadens data: coverage to the executable-markup media-type family (Finding B, TL option b)', () => {
+    expect(sanitizeUserText('[x](data:image/svg+xml;base64,PHN2Zz4=)')).toBe('[x](data:blocked;base64,PHN2Zz4=)');
+    expect(sanitizeUserText('data:application/xhtml+xml,<html/>')).toBe('data:blocked,<html/>');
+    expect(sanitizeUserText('data:application/xml,<x/>')).toBe('data:blocked,<x/>');
+    expect(sanitizeUserText('data:text/xml,<x/>')).toBe('data:blocked,<x/>');
+  });
+
+  it('leaves legit (non-markup) data: media types untouched', () => {
+    expect(sanitizeUserText('![img](data:image/png;base64,iVBORw0KG)')).toBe('![img](data:image/png;base64,iVBORw0KG)');
+    expect(sanitizeUserText('data:application/json,{}')).toBe('data:application/json,{}');
+  });
+
+  it('NO regression: legit HTML entities in prose/code are returned BYTE-FOR-BYTE', () => {
+    // Rewrite-only-on-threat: a clean input (no scheme/tag in its decoded shadow) is
+    // returned verbatim — legit entities are NEVER decoded/mangled in storage.
+    for (const s of [
+      'Tom &amp; Jerry',            // ampersand entity
+      'compare a &lt; b &gt; c',    // angle-bracket entities (also stay ENCODED)
+      '&copy; 2026 BKC',            // copyright
+      'use `&lt;script&gt;` carefully in docs', // escaped-markup documentation must survive
+      'ticket &#35;106 filed',      // numeric ref for '#'
+      'Jack &amp Jill',             // semicolon-less legit entity — still verbatim
+      'the &nbsp; spacer',
+    ]) {
+      expect(sanitizeUserText(s)).toBe(s);
+    }
+  });
+
+  it('does NOT strip entity-encoded angle brackets as tags (correctness refinement)', () => {
+    // `&lt;script&gt;` is inert character data in every renderer (a live tag needs a
+    // LITERAL `<`), so decoding+stripping it would corrupt legit content for zero
+    // security gain. It must pass through unchanged.
+    expect(sanitizeUserText('&lt;script&gt;alert(1)&lt;/script&gt;')).toBe('&lt;script&gt;alert(1)&lt;/script&gt;');
+    expect(sanitizeUserText('&#60;script&#62;x')).toBe('&#60;script&#62;x'); // numeric `<`/`>` likewise
+  });
+
+  it('is idempotent on entity-obfuscated inputs', () => {
+    for (const s of ['[x](javascript&colon;alert(1))', '&#106;avascript:x', 'data:image/svg+xml,<svg/>']) {
+      const once = sanitizeUserText(s);
+      expect(sanitizeUserText(once)).toBe(once);
+    }
+  });
+
+  it('handles entity + control-char obfuscation combined', () => {
+    // Entity-encoded letter AND a control-char split in the same scheme.
+    expect(sanitizeUserText('&#106;ava\tscript:x')).toBe('blocked:x');
+  });
+
+  it('sanitizeDeep applies entity canonicalization through nested structures', () => {
+    const input = { a: '[x](javascript&colon;go)', b: ['data:image/svg+xml,z', { c: 'Tom &amp; Jerry' }] };
+    expect(sanitizeDeep(input)).toEqual({
+      a: '[x](blocked:go)',
+      b: ['data:blocked,z', { c: 'Tom &amp; Jerry' }], // clean nested string stays verbatim
+    });
+  });
+
+  it('whole-string granularity: a field mixing a threat with benign entities is canonicalized', () => {
+    // When the SAME field carries a real threat, the returned form is the decoded
+    // shadow, so co-located benign entities decode too (`&amp;` → `&`). Directionally
+    // safe (over-decode) and round-trips through the renderer; documented behavior.
+    expect(sanitizeUserText('Tom &amp; Jerry — also javascript&colon;alert(1)'))
+      .toBe('Tom & Jerry — also blocked:alert(1)');
+  });
+
+  it('numeric decode matches the renderer: C1/control code points → U+FFFD, not a scheme', () => {
+    // &#133; (NEL, U+0085) is a C1 control; the renderer's own numeric decoder maps it
+    // to U+FFFD, so the decoded shadow is `java␦script:` — U+FFFD is not in the CTRL
+    // fold class, so no `javascript:` reconstitutes. The input is therefore treated as
+    // clean and returned VERBATIM (decode parity with react-markdown, nothing to
+    // exploit — and no over-strip of the benign input).
+    expect(sanitizeUserText('java&#133;script:alert(1)')).toBe('java&#133;script:alert(1)');
+  });
+
+  it('DATA_MARKUP has no catastrophic backtracking on a long non-matching subtype', () => {
+    // Guards the `(?:[a-z]CTRL)+` / `[a-z0-9.+-]*(html|xml)` shape against ReDoS,
+    // mirroring the t/2029 EXECUTABLE_TAGS "onion" perf pin.
+    const started = performance.now();
+    sanitizeUserText('data:' + 'a'.repeat(20000)); // type run with no closing `/subtype`
+    expect(performance.now() - started).toBeLessThan(500);
+  });
+});
