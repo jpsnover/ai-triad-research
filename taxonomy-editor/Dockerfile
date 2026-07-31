@@ -27,6 +27,14 @@ COPY lib/ ./lib/
 WORKDIR /build/taxonomy-editor
 RUN --mount=type=cache,target=/root/.npm npm ci
 
+# Install shared-lib deps too (t/2035): lib/ is a self-contained package with its
+# own package.json, and the sanitizer core's renderer-parity decoders must resolve
+# from lib/node_modules during build:server (tsc). Mirrors the test-electron CI job
+# (ci.yml "Install shared lib dependencies"). Without this, build:container's tsc
+# fails TS2307 on the lib/ core's decoder imports.
+WORKDIR /build/lib
+RUN --mount=type=cache,target=/root/.npm npm ci
+
 # Copy source and build
 WORKDIR /build
 COPY taxonomy-editor/src/ ./taxonomy-editor/src/
