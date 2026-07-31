@@ -856,6 +856,22 @@ export const createDebateReflectionSlice: StateCreator<DebateStore, [], [], Deba
       return { ok: false, error: 'All proposed edge targets no longer exist — cannot create an unconnected node.' };
     }
 
+    // t/2055: the edges file MUST be loaded before we create the node. loadEdges() is
+    // lazy — triggered on turn generation (debatePhaseSlice) or the Related Edges panel —
+    // so a RESUMED debate opened straight to reflections (no new turns) never triggered it:
+    // edgesFile stayed null and the proposal's edges were silently dropped AFTER the node
+    // was already created. Load it here and bail BEFORE createProposalNode, so a load
+    // failure never leaves a node persisted without its edges (AC3).
+    let currentEdgesFile = useTaxonomyStore.getState().edgesFile;
+    if (!currentEdgesFile) {
+      await useTaxonomyStore.getState().loadEdges();
+      currentEdgesFile = useTaxonomyStore.getState().edgesFile;
+    }
+    if (!currentEdgesFile) {
+      getGlobalRecorder()?.record({ type: 'state.error', component: 'reflection-proposal', level: 'error', message: 'applyReflectionProposal.result', data: { ok: false, error: 'edges file not loaded', pover, proposalIndex } });
+      return { ok: false, error: 'Edges file not loaded — cannot persist proposed edges.' };
+    }
+
     const createResult = await createProposalNode(povKey, proposal, taxStore, get, pover, proposalIndex);
     if (!createResult.ok) return { ok: false, error: createResult.error };
     const newId = createResult.nodeId;
@@ -864,11 +880,7 @@ export const createDebateReflectionSlice: StateCreator<DebateStore, [], [], Deba
     // endpoint (new_node_role). Persist them together with the node in ONE save() call — both
     // the pov file (marked dirty by createPovNode/updatePovNode) and the edges file are
     // written in the same save, so there is never an orphaned node on disk (t/1725 AC2).
-    const currentEdgesFile = useTaxonomyStore.getState().edgesFile;
-    if (!currentEdgesFile) {
-      getGlobalRecorder()?.record({ type: 'state.error', component: 'reflection-proposal', level: 'error', message: 'applyReflectionProposal.result', data: { ok: false, error: 'edges file not loaded', pover, proposalIndex } });
-      return { ok: false, error: 'Edges file not loaded — cannot persist proposed edges.' };
-    }
+    // `currentEdgesFile` was loaded + null-checked above, before node creation (t/2055).
     const newEdges: Edge[] = liveEdges.map(pe => {
       const confidence = typeof pe.confidence === 'number' ? pe.confidence : 0.7;
       return {
