@@ -480,8 +480,12 @@ jobs:
       - name: Pre-pull buildkit image with retry (t/2065)
         run: |
           for i in 1 2 3; do
-            docker pull moby/buildkit:buildx-stable-1 && break
-            echo "buildkit pull attempt $i failed; retry in $((i * 10))s"; sleep $((i * 10))
+            if docker pull moby/buildkit:buildx-stable-1; then break; fi
+            if [ "$i" -lt 3 ]; then
+              echo "buildkit pull attempt $i failed; retry in $((i * 10))s"; sleep $((i * 10))
+            else
+              echo "buildkit pre-pull failed after $i attempts; setup-buildx will attempt its own pull"
+            fi
           done
 
       - name: Set up Docker Buildx
