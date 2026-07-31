@@ -97,6 +97,13 @@ done
 if [ "$SMOKE_MODE" = "liveness" ]; then
   echo "::error::/healthz never RESPONDED within ${READY_TIMEOUT}s (last=${last:-000}). Server never came up — refusing to promote."
 else
+  # Readiness discrimination (container still up here — trap cleanup runs after):
+  # is the data-load path reachable FROM this container? Distinguishes
+  # "CI can't complete the github fetch" from "a real readiness/code bug".
+  echo "── readiness discrimination ──"
+  echo "  app /api/data/available: $(curl -s --max-time 5 "http://localhost:${PORT}/api/data/available" || echo '<no response>')"
+  docker exec "$NAME" sh -c 'curl -s -o /dev/null -w "  in-container github contents(taxonomy/Origin) HTTP=%{http_code}\n" --max-time 8 -H "Authorization: Bearer $GITHUB_TOKEN" "https://api.github.com/repos/$GITHUB_REPO/contents/taxonomy/Origin?ref=main"' 2>&1 || echo "  (in-container github probe could not run)"
+  echo "  ⇒ github HTTP=200 means CI CAN fetch the data (points at a real readiness/code bug); non-200 means CI-can't-fetch (readiness gate → deploy stage)."
   echo "::error::/healthz never returned 200 within ${READY_TIMEOUT}s (last=${last}). Not data-ready — refusing to promote."
 fi
 exit 1
