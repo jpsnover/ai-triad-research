@@ -74,7 +74,11 @@ while (( SECONDS < deadline )); do
     echo "::error::Container exited before becoming ready (crash signature)."
     exit 1
   fi
-  code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 5 "$HEALTH_URL" || echo 000)
+  # curl prints the http_code ("000" on connection failure) and may exit non-zero;
+  # `|| true` keeps set -e happy WITHOUT appending a second token (the earlier
+  # `|| echo 000` concatenated to "000000", which liveness wrongly read as "responded").
+  code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 5 "$HEALTH_URL" || true)
+  code=${code:-000}
   # liveness: any HTTP status (code != 000) means the server answered → pass.
   # readiness: only 200 (data loaded) counts.
   if { [ "$SMOKE_MODE" = "liveness" ] && [ "$code" != "000" ]; } || [ "$code" = "200" ]; then
