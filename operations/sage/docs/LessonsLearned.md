@@ -2484,3 +2484,23 @@ Institutional memory for failure patterns across the AI Triad Research project.
 **Status:** Active — poll-loop variant of the "foreground long op > 120s Bash cap → background it" genus (#78/#95). Standing rule: never foreground loop-poll `gh`.
 
 **Applies To:** All agents waiting on external state (PR merge, CI, deploy) from the Bash tool.
+
+---
+
+## #117 [Build] A Green (Differential) CodeQL PR Check ≠ a PRE-EXISTING Alert Is Fixed — Verify a Fix on the Post-Merge MAIN SAST Scan, Not the PR Check or Branch-Ref Query
+
+**Pattern:** CodeQL's PR check-run is DIFFERENTIAL — it fails only on NEW alerts the PR introduces and passes (green) regardless of whether the PR's intended fix actually cleared a **pre-existing** alert. So a green CodeQL check does NOT confirm a pre-existing alert is resolved. Worse, the PR/branch-ref alerts query (`code-scanning/alerts` filtered to the PR's ref) returns **empty unreliably**, which reads as "no alerts → cleared" and misleads you into reporting a fix landed when it hasn't. The authoritative signal is the **post-merge MAIN-branch SAST scan** (the full re-scan that re-evaluates the whole backlog).
+
+**Instances:**
+- 2026-07-30 — ServerAPI (t/2019): reported a pre-existing CodeQL alert "cleared" based on a **green PR check + an empty branch-ref alerts query** — but the differential check only gated NEW alerts, and the branch-ref query was unreliably-empty. The fix's real effect had to be confirmed on the **post-merge MAIN SAST scan**. Also hit: the code-scanning **dismiss API caps `dismissed_comment` at 280 chars (HTTP 422 over)** → keep terse, reference the ticket.
+
+**Root Cause:** differential CodeQL (the t/2025 / #112 design — fail on NEW alerts only, not the ~108-alert backlog) is calibrated to NOT block on pre-existing alerts, so by design a green check says nothing about them. The branch-ref alerts API is ref-scoped / eventually-consistent and returns empty spuriously. Confirming a pre-existing-alert fix therefore requires the full MAIN scan (re-evaluates the backlog), not the PR-scoped differential signal. Flip side of #112: **#112** = a green required gate hides a NEW alert; **#117** = a green differential check falsely implies a PRE-EXISTING alert is fixed. Both stem from "the CodeQL PR signal is new-only/differential."
+
+**Prevention:**
+1. **To confirm a fix cleared a PRE-EXISTING CodeQL alert, verify on the POST-MERGE MAIN SAST scan** — NOT the PR check-run (green = no new alerts, says nothing about the backlog) and NOT the branch-ref alerts query (returns empty unreliably).
+2. **Don't report a pre-existing alert "cleared" from a green PR check or an empty branch-ref query.** Wait for main's scan, or the alert's state flipping to `fixed`/`dismissed` on the MAIN-ref query.
+3. **Dismissing a code-scanning alert: `dismissed_comment` caps at 280 chars** (HTTP 422 over) — keep it terse and reference the ticket.
+
+**Status:** Active — flip side of #112 (a green differential CodeQL check says nothing about the pre-existing backlog); high-relevance to Wave-2's backlog-clearing (t/2001, 83 pre-existing highs). Ties to the t/2025 differential-mode gate.
+
+**Applies To:** All agents clearing/dismissing pre-existing CodeQL alerts (Wave-2 security work) — verify fixes on the MAIN scan; keep dismiss comments ≤280 chars.
