@@ -4,8 +4,9 @@
  * t/856 — conservative server-side content sanitization (XSS defense-in-depth).
  */
 
-import { describe, it, expect } from 'vitest';
-import { sanitizeUserText, sanitizeDeep } from '../security/contentSanitizer.js';
+import { describe, it, expect, vi } from 'vitest';
+import { sanitizeUserText, sanitizeDeep, MAX_SANITIZE_INPUT } from '../security/contentSanitizer.js';
+import { log } from '../logger.js';
 
 describe('sanitizeUserText (t/856)', () => {
   it('strips executable tag blocks', () => {
@@ -101,5 +102,96 @@ describe('sanitizeUserText — control-char obfuscation hardening (t/2027)', () 
     // can never become a live javascript: URI must survive untouched.
     expect(sanitizeUserText('the java script tutorial')).toBe('the java script tutorial');
     expect(sanitizeUserText('read the vb script docs')).toBe('read the vb script docs');
+  });
+});
+
+// t/2029: the tag `[^>]*` tail makes pathological `<script`-repeat input (no
+// closing `>`) O(n²). A MAX_SANITIZE_INPUT truncation before the loops bounds the
+// cost while keeping `[^>]*` unbounded (no per-tag bound → no bypass).
+const CAP = MAX_SANITIZE_INPUT; // single source of truth
+
+describe('sanitizeUserText — input-size DoS backstop (t/2029)', () => {
+  it('bounds the pathological no-`>` payload instead of O(n²) blow-up', () => {
+    const payload = '<script'.repeat(50000); // ~350 KB, no `>` anywhere
+    const started = performance.now();
+    const out = sanitizeUserText(payload);
+    const elapsedMs = performance.now() - started;
+    // Pre-fix this is 10 s+; the generous 2 s bound cleanly proves the quadratic
+    // blow-up is gone without CI-timing flake.
+    expect(elapsedMs).toBeLessThan(2000);
+    // Input is truncated to the cap before sanitizing (nothing to strip, so the
+    // kept prefix passes through unchanged).
+    expect(out.length).toBeLessThanOrEqual(CAP);
+    expect(out.length).toBeLessThan(payload.length);
+  });
+
+  it('cost is independent of input size (cap, not merely faster)', () => {
+    // A ~5 MB payload — ~15× the 350 KB case — must NOT be ~15× slower. Because
+    // truncation is O(CAP) regardless of n, both cases pay only the CAP-bounded
+    // scan; pre-fix a 5 MB pathological input would run for hours.
+    const huge = '<script'.repeat(750000); // ~5.25 MB, no `>`
+    const started = performance.now();
+    sanitizeUserText(huge);
+    const elapsedMs = performance.now() - started;
+    expect(elapsedMs).toBeLessThan(500); // size-independent → still ~CAP² (~80 ms)
+  });
+
+  it('a dangerous tag straddling the cap boundary is inert, not smuggled', () => {
+    // The closing `>` lands BEYOND the cap, so the kept prefix ends in an
+    // unterminated `<script src=x` fragment with no `>` — EXECUTABLE_TAGS requires
+    // a literal `>` to match, and an unclosed start-tag at EOF is inert per the
+    // HTML5 tokenizer. No `>` survives in the kept prefix, so nothing renders.
+    const out = sanitizeUserText('A'.repeat(CAP - 4) + '<script src=x>alert(1)</script>');
+    expect(out).not.toContain('>');
+    expect(out.length).toBeLessThanOrEqual(CAP);
+  });
+
+  it('still strips a dangerous construct that sits within the first CAP chars', () => {
+    // Script tag at the very start (well within CAP), followed by CAP+ of padding.
+    const out = sanitizeUserText('<script>alert(1)</script>' + 'A'.repeat(CAP + 5000));
+    expect(out).not.toContain('<script');
+    expect(out.startsWith('alert(1)')).toBe(true);
+  });
+
+  it('logs a best-effort warning (no raw content) when truncating', () => {
+    const spy = vi.spyOn(log.security, 'warn').mockImplementation((() => undefined) as never);
+    try {
+      sanitizeUserText('x'.repeat(CAP + 1));
+      expect(spy).toHaveBeenCalledTimes(1);
+      const [meta] = spy.mock.calls[0] as [Record<string, unknown>, string];
+      expect(meta).toMatchObject({ originalLength: CAP + 1, cap: CAP });
+      // The raw content must never be logged (secrets rule).
+      expect(JSON.stringify(spy.mock.calls[0])).not.toContain('xxxxx');
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  it('leaves at-or-under-CAP input completely untouched (no regression)', () => {
+    const spy = vi.spyOn(log.security, 'warn').mockImplementation((() => undefined) as never);
+    try {
+      expect(sanitizeUserText('a normal comment')).toBe('a normal comment');
+      expect(sanitizeUserText('X'.repeat(CAP))).toBe('X'.repeat(CAP));
+      expect(spy).not.toHaveBeenCalled(); // exactly CAP does not trip the guard
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  it('bounds the WORST within-CAP shape — a nested tag-reforming "onion"', () => {
+    // The no-`>` payload above exits the fixed-point loop after ONE pass. The
+    // empirically-worst within-CAP input is instead a matryoshka of the shortest
+    // tag name (`style`): `<st`×N + `yle>`×N reforms `<style>` at the junction and
+    // drives the do-while through ~N passes (O(N²) total work), not a single scan.
+    // At CAP (N≈4681) this is ~120 ms — the true worst case, still ≪ 2 s and the
+    // pre-fix multi-second blow-up. Pins the real bound, not just the single-scan one.
+    const N = Math.floor((CAP - 1) / 7); // 3 (`<st`) + 4 (`yle>`) chars per layer
+    const onion = '<st'.repeat(N) + 'yle>'.repeat(N);
+    expect(onion.length).toBeLessThanOrEqual(CAP);
+    const started = performance.now();
+    const out = sanitizeUserText(onion);
+    const elapsedMs = performance.now() - started;
+    expect(elapsedMs).toBeLessThan(2000);   // bounded — no quadratic-in-input blow-up
+    expect(out).not.toContain('<style');    // fully neutralized, nothing renders
   });
 });

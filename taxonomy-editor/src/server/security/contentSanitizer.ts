@@ -16,6 +16,27 @@
  * comparison operators, or fenced code content structure.
  */
 
+import { log } from '../logger.js';
+
+// t/2029 — input-size cap (DoS backstop). The tag `[^>]*` tail scans O(n) per
+// starting position, so pathological input (`<script` repeated with no closing
+// `>`) costs O(n²) and can block the event loop (~1.6 s / 140 KB). The global
+// body limit is 50 MB and not every caller length-caps its fields
+// (`community.ts` sanitizes arbitrary content-map values), so the sanitizer must
+// self-defend. Truncating the INPUT bounds the cost to a fixed worst case while
+// leaving `[^>]*` unbounded — no per-tag length bound, hence no bypass. At CAP the
+// worst case is the nested tag-reforming "onion" (~4681 `<style>`-reforming layers)
+// that drives the fixed-point loop through ~O(layers²) passes: empirically ~120 ms
+// (a single no-`>` scan is ~70 ms) — always ≪ the pre-fix multi-second blow-up.
+// 32 KiB is 3.3× the
+// largest existing caller field cap (feedback text ≤10 000 chars), so legitimate
+// single-field content never reaches it. Truncate-then-sanitize is fail-safe: the
+// sanitizer still runs on the kept prefix, so a tag split by the cut is inert text.
+// (Slice is by UTF-16 code unit; a surrogate pair split at the boundary leaves a
+// lone surrogate — still inert text, a cosmetic data wrinkle, never a bypass.)
+// Exported for a single source of truth in the boundary tests.
+export const MAX_SANITIZE_INPUT = 32 * 1024;
+
 // t/2027 — control-char obfuscation hardening. Attackers split a dangerous
 // keyword with control characters the browser later elides (`java\tscript:`,
 // `javascript\0:`, `<scr\0ipt>`), slipping past a contiguous-literal match. An
@@ -61,12 +82,24 @@ const DATA_HTML = new RegExp(`\\b${gap('data')}${CTRL}:${CTRL}${gap('text')}${CT
  *
  * Per-match linear: the folded `[\x00-\x1F\x7F]*` classes sit between distinct
  * literals (no `X*X*` adjacency, no nested/overlapping unbounded quantifiers), so
- * the control-char fold adds no ReDoS. (The tag `[^>]*` tail's O(n) per-position
- * worst-case scan against pathological no-`>` input is tracked separately in
- * t/2029 — pre-existing, unrelated to the fold.)
+ * the control-char fold adds no ReDoS. The tag `[^>]*` tail's O(n) per-position
+ * worst-case scan (pathological no-`>` input → O(n²)) is bounded by the
+ * MAX_SANITIZE_INPUT truncation at the top of the function (t/2029).
  */
 export function sanitizeUserText(s: string): string {
   let out = s;
+  // t/2029 DoS backstop: truncate oversized input BEFORE the O(n²)-prone loops.
+  // Best-effort log (never the content — secrets rule) so oversized input isn't
+  // invisible to ops; logging must never break sanitization, hence the try/catch.
+  if (out.length > MAX_SANITIZE_INPUT) {
+    try {
+      log.security.warn(
+        { originalLength: out.length, cap: MAX_SANITIZE_INPUT },
+        'sanitizeUserText: input exceeded cap — truncated before sanitization',
+      );
+    } catch { /* telemetry — silent by design: this catch wraps the logger itself, so it cannot log; sanitization must proceed regardless */ }
+    out = out.slice(0, MAX_SANITIZE_INPUT);
+  }
   let prev: string;
   // TERMINATION INVARIANT (nothing else bounds these loops — they exit ONLY on
   // stability, `out === prev`): every replacement below MUST strictly shrink the
