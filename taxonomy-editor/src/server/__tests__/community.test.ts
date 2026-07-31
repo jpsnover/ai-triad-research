@@ -4,35 +4,13 @@
 // @vitest-environment node
 
 import { describe, it, expect } from 'vitest';
+// t/2032: import the REAL stripSensitiveKeys. The prior test defined an inline
+// replica, so its "handles arrays" case exercised the replica's logic — not the
+// production function — and could never have caught the array-branch bypass this
+// ticket fixes. Testing the real export also runs the real sanitizeUserText.
+import { stripSensitiveKeys } from '../community/community';
 
-// Import the module to access stripSensitiveKeys via sanitizeForCommunity
-// Since stripSensitiveKeys is not exported, we test it through the public interface
-// by dynamically importing the module internals
 describe('community sanitization', () => {
-  // We can't directly test the private function, so we'll test it by importing
-  // the module and using Function constructor to access the logic
-  // Instead, let's test the patterns directly
-
-  const SENSITIVE_KEYS = new Set([
-    'api_key', 'apiKey', 'api_keys', 'apiKeys',
-    'secret', 'token', 'password', 'credential', 'credentials',
-    'authorization', 'auth_token', 'access_token', 'refresh_token',
-    'private_key', 'privateKey',
-    'flight_recorder', 'debug', '_internal', 'diagnostics_state',
-  ]);
-
-  function stripSensitiveKeys(obj: unknown): unknown {
-    if (obj === null || typeof obj !== 'object') return obj;
-    if (Array.isArray(obj)) return obj.map(stripSensitiveKeys);
-    const result: Record<string, unknown> = {};
-    for (const [key, value] of Object.entries(obj as Record<string, unknown>)) {
-      if (SENSITIVE_KEYS.has(key)) continue;
-      if (typeof value === 'string' && /^(sk-|AIza|gsk_|key-|xai-|Bearer\s)/.test(value)) continue;
-      result[key] = stripSensitiveKeys(value);
-    }
-    return result;
-  }
-
   it('strips top-level sensitive keys', () => {
     const input = {
       id: 'test-123',
@@ -89,7 +67,7 @@ describe('community sanitization', () => {
     expect(result).not.toHaveProperty('groqKey');
   });
 
-  it('handles arrays correctly', () => {
+  it('handles arrays-of-objects correctly', () => {
     const input = {
       transcript: [
         { speaker: 'user', content: 'Hello', apiKey: 'leaked' },
@@ -103,6 +81,38 @@ describe('community sanitization', () => {
     expect(transcript[0].speaker).toBe('user');
     expect(transcript[1]).not.toHaveProperty('password');
     expect(transcript[1].speaker).toBe('bot');
+  });
+
+  // t/2032 — array-of-STRINGS elements must be sanitized, not passed verbatim.
+  // The prior array branch (`obj.map(stripSensitiveKeys)`) returned string
+  // elements unchanged: stored XSS + secret leak into public community storage.
+  it('sanitizes executable tags in array-of-strings elements', () => {
+    const input = { tags: ['<script>alert(1)</script>', 'ok'] };
+    const result = stripSensitiveKeys(input) as Record<string, unknown>;
+    const tags = result.tags as string[];
+    expect(tags).toHaveLength(2);
+    expect(tags[0]).not.toContain('<script'); // executable tag neutralized
+    expect(tags[1]).toBe('ok');               // legit element untouched
+  });
+
+  it('redacts secret-prefixed array-of-strings elements to empty string', () => {
+    const input = { keys: ['sk-LEAKED', 'AIzaLEAKED', 'gsk_LEAKED', 'normal'] };
+    const result = stripSensitiveKeys(input) as Record<string, unknown>;
+    const keys = result.keys as string[];
+    // Array shape preserved (positional), secret values gone (redacted to '').
+    expect(keys).toHaveLength(4);
+    expect(keys[0]).toBe('');
+    expect(keys[1]).toBe('');
+    expect(keys[2]).toBe('');
+    expect(keys[3]).toBe('normal');
+  });
+
+  it('sanitizes strings nested in arrays-within-arrays', () => {
+    const input = { nested: [['<iframe src=x>', 'sk-DEEP']] };
+    const result = stripSensitiveKeys(input) as Record<string, unknown>;
+    const inner = (result.nested as string[][])[0];
+    expect(inner[0]).not.toContain('<iframe');
+    expect(inner[1]).toBe(''); // secret redacted at any array depth
   });
 
   it('preserves null and primitive values', () => {

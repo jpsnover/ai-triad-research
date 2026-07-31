@@ -304,14 +304,31 @@ const SENSITIVE_KEYS = new Set([
   'flight_recorder', 'debug', '_internal', 'diagnostics_state',
 ]);
 
-function stripSensitiveKeys(obj: unknown): unknown {
+// t/2032: single source of truth for the secret-prefix screen — used by BOTH the
+// object and array branches of stripSensitiveKeys. A single regex kills the drift
+// that let the array branch ship without a secret screen (two branches, one updated).
+const SECRET_PREFIX_RE = /^(sk-|AIza|gsk_|key-|xai-|Bearer\s)/;
+
+// Exported for direct regression testing (t/2032): the prior test used an inline
+// REPLICA of this logic, so its "handles arrays" case couldn't catch the real
+// function's array-branch bypass. Tests must exercise this function itself.
+export function stripSensitiveKeys(obj: unknown): unknown {
   if (obj === null || typeof obj !== 'object') return obj;
-  if (Array.isArray(obj)) return obj.map(stripSensitiveKeys);
+  if (Array.isArray(obj)) {
+    // t/2032: array string elements have no key to omit, so screen each in place —
+    // secret-prefix FIRST (redact to '' so a `sk-…` value can't leak, preserving
+    // array shape), else neutralize executable tags/schemes. Non-strings recurse.
+    return obj.map((v) => {
+      if (typeof v !== 'string') return stripSensitiveKeys(v);
+      if (SECRET_PREFIX_RE.test(v)) return '';
+      return sanitizeUserText(v);
+    });
+  }
   const result: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(obj as Record<string, unknown>)) {
     if (SENSITIVE_KEYS.has(key)) continue;
     if (typeof value === 'string') {
-      if (/^(sk-|AIza|gsk_|key-|xai-|Bearer\s)/.test(value)) continue;
+      if (SECRET_PREFIX_RE.test(value)) continue;
       result[key] = sanitizeUserText(value); // t/856: neutralize executable tags / schemes server-side
       continue;
     }
