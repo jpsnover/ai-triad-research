@@ -787,6 +787,14 @@ async function handleRequestInner(
   // req.url.split('?') — so an encoded-traversal path can't read as a public prefix
   // here (e.g. /api/public/%2e%2e/admin) while resolving elsewhere at the router.
   const urlPath = normalizedRequestPath(req);
+  // ACCEPTED RISK — CodeQL js/user-controlled-bypass on the urlPath-guarded auth
+  // branches below (alerts #4068/#5345/#4847/#4851, dismissed won't-fix; t/2019,
+  // t/2001#5, TL-approved p/87#164/#168): path-based auth inherently branches on a
+  // user-controlled request path, so the query fires by design and cannot be removed
+  // without removing path-based auth. The exploitable parser-differential IS closed —
+  // this gate and the router both decide on ONE canonical normalized path
+  // (normalizedRequestPath), and the allowlist (computeIsPublicPath) evaluated on that
+  // normalized path is the control. See t/2019#5/#10 for the full rationale.
   // /api/models is public: lets the pre-auth renderer populate the model
   // catalog from ai-models.json. Contains no secrets — just labels + ids.
   // /api/sync/webhook/github is public: GitHub POSTs unauthenticated; the
