@@ -103,6 +103,11 @@ export interface TaxonomyDataSlice {
   validationErrors: ValidationErrors;
   saveError: string | null;
   loadError: string | null;
+  // t/2064: the post-save embedding refresh degraded (non-empty staleNodeIds, or the call
+  // rejected). Surfaced as a coarse non-blocking banner — NOT a saveError, since the durable
+  // file-save itself succeeded; only similarity/related-node results may be temporarily stale.
+  embeddingsStale: boolean;
+  staleEmbeddingNodeIds: string[];
   integrityIssues: ValidationIssue[];
   fixIntegrityErrors: () => void;
   loading: boolean;
@@ -122,6 +127,7 @@ export interface TaxonomyDataSlice {
   loadAll: (force?: boolean) => Promise<void>;
   save: () => Promise<void>;
   dismissSaveError: () => void;
+  dismissEmbeddingsStale: () => void;
 
   updatePovNode: (pov: Pov, nodeId: string, updates: Partial<PovNode>, editSource?: { source: TextEditSource; debateId?: string; reason?: string }) => void;
   createPovNode: (pov: Pov, category: Category) => string;
@@ -187,6 +193,8 @@ export const createTaxonomyDataSlice: StateCreator<TaxonomyStore, [], [], Taxono
   validationErrors: {},
   saveError: null,
   loadError: null,
+  embeddingsStale: false,
+  staleEmbeddingNodeIds: [],
   integrityIssues: [],
   loading: false,
   backgroundLoading: false,
@@ -315,6 +323,7 @@ export const createTaxonomyDataSlice: StateCreator<TaxonomyStore, [], [], Taxono
   },
 
   dismissSaveError: () => set({ saveError: null, integrityIssues: [] }),
+  dismissEmbeddingsStale: () => set({ embeddingsStale: false, staleEmbeddingNodeIds: [] }),
 
   fixIntegrityErrors: () => {
     const state = get();
@@ -547,10 +556,25 @@ export const createTaxonomyDataSlice: StateCreator<TaxonomyStore, [], [], Taxono
           // Positive marker that the post-save embedding phase started — distinct from
           // save.completed (file write), pairs with save.embedding-refresh-failed (t/1710).
           getGlobalRecorder()?.record({ type: 'state.change', component: 'taxonomy-store', level: 'info', message: 'save.embedding-refresh-dispatched', data: { node_count: nodesToEmbed.length } });
-          api.updateNodeEmbeddings(nodesToEmbed).catch((err) => {
-            getGlobalRecorder()?.record({ type: 'system.error', component: 'taxonomy-store', level: 'warn', message: 'Failed to update node embeddings after save', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
-            console.warn('[save] Failed to update embeddings:', err);
-          });
+          // t/2064: consume the resolved { staleNodeIds } instead of swallowing the outcome.
+          // Non-blocking (per TL): the durable file-save already succeeded above — any degradation
+          // is surfaced via the embeddingsStale store flag (a coarse banner), never as saveError.
+          api.updateNodeEmbeddings(nodesToEmbed)
+            .then((result) => {
+              const stale = result?.staleNodeIds ?? [];
+              if (stale.length > 0) {
+                getGlobalRecorder()?.record({ type: 'state.change', component: 'taxonomy-store', level: 'warn', message: 'save.embedding-refresh-stale', data: { stale_count: stale.length, node_count: nodesToEmbed.length } });
+                set({ embeddingsStale: true, staleEmbeddingNodeIds: stale });
+              } else if (get().embeddingsStale) {
+                set({ embeddingsStale: false, staleEmbeddingNodeIds: [] }); // full success clears prior degradation
+              }
+            })
+            .catch((err) => {
+              // Reject: cannot confirm the refresh — degrade (flag) rather than swallow (t/2064).
+              getGlobalRecorder()?.record({ type: 'system.error', component: 'taxonomy-store', level: 'warn', message: 'Failed to update node embeddings after save', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
+              console.warn('[save] Failed to update embeddings:', err);
+              set({ embeddingsStale: true, staleEmbeddingNodeIds: nodesToEmbed.map(n => n.id) });
+            });
         }
       } catch (embedErr) {
         // Non-fatal: the save already succeeded. Surface as a warning, never as saveError.
