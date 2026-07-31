@@ -1,5 +1,0 @@
-**Date:** 2026-07-20
-**Working on:** t/1654 (task) — New cmdlet `Test-TaxonomyDirContents`: pre-embedding validation that flags TAXONOMY_DIR JSON files whose `nodes` field is a dict/null/scalar (would crash embed_taxonomy.py `_load_taxonomy_nodes`, the t/1652 crash). Follow-up to t/1652 diagnosis.
-**Status:** Done. Cmdlet + manifest + psm1 export + tests committed `6db133aa`; catalog row committed separately. Mirrors embed_taxonomy.py SKIP_FILES + `embeddings-` prefix skip. Classification: missing `nodes` key=Safe, null/dict/scalar=Unsafe, list-of-objects=Safe, empty list=Safe, parse error=Safe(warn). 7 Pester tests (taxonomy tag) pass on committed code. Followed /add-ps-cmdlet.
-**Key context:** ConvertFrom-Json dict-vs-list trap — a JSON object becomes `[PSCustomObject]`, so type-check PSCustomObject BEFORE `[IEnumerable]` or a dict is misclassified as a 1-element list. Catalog tables live in `docs/cmdlet-reference.md` (MAIN repo), NOT the overlay AGENTS.md.
-**Next:** Pick next unblocked ticket. Sibling of t/1652 / t/1653 / t/1644.

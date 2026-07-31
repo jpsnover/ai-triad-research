@@ -155,3 +155,8 @@ taxonomy-proposal-*.json
 taxonomy-proposal-session.json
 q0-candidates.json
 taxonomy/proposals/
+
+# Per-role session notes — untracked pre-cutover (t/2011): under the persistent-
+# worktree model each tracked LAST_SESSION.md would be a per-session PR. Notes
+# live locally per worktree; disposable (acceptably lost on a hub re-clone).
+LAST_SESSION.md
