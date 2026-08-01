@@ -30,7 +30,7 @@ export async function generateViaMoonshot(
       body: JSON.stringify({
         model: apiModelId,
         messages,
-        temperature: opts.temperature ?? 0.7,
+        temperature: opts.fixedTemperature ?? opts.temperature ?? 0.7,
         max_tokens: opts.maxTokens ?? 8192,
         ...(opts.jsonMode ? {
           response_format: { type: 'json_object' },
