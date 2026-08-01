@@ -290,10 +290,10 @@ export function createCLIAdapter(repoRoot: string, explicitApiKey?: string): Ext
   }
 
   async function doGenerateText(prompt: string, model: string, options?: GenerateOptions): Promise<string> {
-    const { apiModelId, backend } = resolveModel(registry, model);
+    const { apiModelId, backend, fixedTemperature } = resolveModel(registry, model);
     const apiKey = resolveApiKey(backend, explicitApiKey);
     const timeoutMs = options?.timeoutMs ?? getDefaultTimeout(model);
-    const opts = { ...options, timeoutMs };
+    const opts = { ...options, timeoutMs, fixedTemperature };
 
     const t0 = performance.now();
     getGlobalRecorder()?.record({
@@ -361,7 +361,7 @@ export function createCLIAdapter(repoRoot: string, explicitApiKey?: string): Ext
       process.stderr.write(`[cascade] ${backend}/${apiModelId} failed, trying ${fb.backend}/${fb.apiModelId}\n`);
       try {
         const fbTimeoutMs = getDefaultTimeout(fbModel);
-        const fbOpts = { ...opts, timeoutMs: fbTimeoutMs };
+        const fbOpts = { ...opts, timeoutMs: fbTimeoutMs, fixedTemperature: fb.fixedTemperature };
         const fbResult = await callWithTimeout(
           (signal) => withRetry(
             () => callProvider(signalFetch(fetch, signal), fb.backend, prompt, fb.apiModelId, fbKey, fbOpts),
@@ -390,9 +390,9 @@ export function createCLIAdapter(repoRoot: string, explicitApiKey?: string): Ext
   }
 
   async function doGenerate(request: GenerateRequest): Promise<GenerateResponse> {
-    const { apiModelId, backend } = resolveModel(registry, request.model);
+    const { apiModelId, backend, fixedTemperature } = resolveModel(registry, request.model);
     const apiKey = resolveApiKey(backend, explicitApiKey);
-    const resolvedReq = { ...request, model: apiModelId };
+    const resolvedReq = { ...request, model: apiModelId, options: { ...request.options, fixedTemperature } };
 
     const t0 = performance.now();
     getGlobalRecorder()?.record({
