@@ -71,3 +71,24 @@ Failure patterns related to external APIs, HTTP handling, and authentication.
 - **(2) Behavioral — minimal, debate-local. TL ruled (p/8#75)** a ONE-line rule in **lib/debate/AGENTS.md** that must NOT restate ADR-001; **DebateTool landed it (p/70#5, overlay 31e0eeb):** the recovery-vs-silent-loss bullet — *a recovery that returns a sentinel (null/empty/default) while discarding a non-empty payload is a silent lossy failure, not recovery — record discarded bytes + surface.* The point-of-use hook stays the primary defense; the rule earns its keep only because hooks fire on enumerated sites, and this genus broadening signals enumeration will chase the tail.
 
 **Applies To:** All AI backend/provider integration code — server `aiBackends.ts`, PS key-test cmdlets (`Test-AIApiKey`), debate-engine adapters, and any UsageID call site that surfaces provider errors.
+
+---
+
+## [API] A Model CLASS Can Carry a Hard Request-Param Constraint (Reasoning Models Require `temperature=1`) — a One-Size Request Silently HTTP-400s Every Call; Encode It in the Registry
+
+**Pattern:** Some model classes reject request params that are fine for other models — notably **reasoning models require `temperature=1`** (any other value is a hard error). A provider layer that sends one default temperature to every model **HTTP-400s on EVERY call** to such a model — not intermittently, not degraded: 100% failure, silent until someone reads the 400 body. The constraint is per-model-CLASS, so it can't be a global default; it must be declared per model.
+
+**Instances:**
+- 2026-08-01 — Diagnostics (t/2068, fixed `04052430`, PR #315, p/9#48): **kimi-k3** (a reasoning model) was **silently HTTP-400-ing on every call** because the provider sent a non-1 temperature. Fix: a **registry-driven `fixedTemperature` field in `ai-models.json`**, honored in the provider (send the model's fixed temperature when declared, else the normal default). Follow-ups: **t/2069** (better next-steps on a 400 — the error was silent/uninformative), **t/2070** (audit groq/deepseek reasoning models — the same constraint likely applies).
+
+**Root Cause:** request-param validity is **model-class-specific**, but a provider layer tends to build one request shape for all models. Reasoning models pin `temperature=1`; sending anything else is rejected outright (400), so the failure is total for that model and invisible to any test that doesn't exercise it live (keyless CI never calls it — ties to #88). Encoding the constraint per-model in the single-source registry (`ai-models.json`) is the fix; hardcoding a temperature per call, or assuming all models accept the same params, is the bug. Same "coupling lives in the registry" family as the AI-backend coupling-sites lesson (t/1932).
+
+**Prevention:**
+1. **Declare per-model request-param constraints in the registry (`ai-models.json`), honor them in the provider** — e.g. `fixedTemperature` for reasoning models; the provider sends the declared value, else the default. Don't hardcode one temperature (or any param) for all models.
+2. **When adding a reasoning model, check its fixed-param requirements FIRST** (temperature=1 is common for reasoning models across vendors — groq/deepseek included, t/2070). A new reasoning model without its `fixedTemperature` declared will 400 100% of the time.
+3. **A 100%-failure HTTP 400 on one model but not others = a per-model request-param mismatch** — read the 400 body (it names the rejected param), don't assume a key/auth problem. (t/2069 improves the 400's next-steps so this is obvious.)
+4. **Live-exercise a newly-added model** — a keyless/mocked CI never sends the real request, so a param-constraint 400 only shows on a live call (sibling of #88 keys-present divergence). Smoke one real call per new model.
+
+**Status:** Active — fixed for kimi-k3 (registry `fixedTemperature`, `04052430`); **t/2070 audits groq/deepseek reasoning models** for the same constraint (likely more instances coming), **t/2069** improves the 400 diagnostics. Registry-as-single-source-of-model-constraints — same family as the AI-backend coupling-sites lesson (run ALL ai-models tests on a backend/model add).
+
+**Applies To:** All agents adding or configuring AI models (especially reasoning models) in `ai-models.json` / the provider layer — declare fixed request-param constraints in the registry, live-smoke each new model.

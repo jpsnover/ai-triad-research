@@ -3,7 +3,7 @@
 Institutional memory for failure patterns across the AI Triad Research project.
 Organized by category. Each file contains the full pattern details.
 
-**Last updated:** 2026-07-30 | **Total patterns:** 123 | **Resolved:** 21 | **Active:** 102
+**Last updated:** 2026-08-01 | **Total patterns:** 124 | **Resolved:** 21 | **Active:** 103
 
 ## Summary
 
@@ -14,7 +14,7 @@ Organized by category. Each file contains the full pattern details.
 | Data | [data.md](data.md) | 4 | 1 | 3 |
 | Type System | [type-system.md](type-system.md) | 4 | 0 | 4 |
 | Process | [process.md](process.md) | 25 | 7 | 18 |
-| API | [api.md](api.md) | 3 | 0 | 3 |
+| API | [api.md](api.md) | 4 | 0 | 4 |
 | Design | [design.md](design.md) | 2 | 0 | 2 |
 
 ## AGENTS.md Rules (Escalated from Sage)
