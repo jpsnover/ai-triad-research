@@ -11,6 +11,9 @@ export interface ModelEntry {
   apiModelId: string;
   label: string;
   backend: string;
+  /** Reasoning models that reject arbitrary temperature (e.g. moonshot kimi-k3, which
+   *  only accepts 1) — when set, the provider MUST send exactly this value (t/2068). */
+  fixedTemperature?: number;
 }
 
 export interface ModelPricing {
@@ -43,9 +46,9 @@ export function resolveBackend(model: string): BackendId {
   return 'gemini';
 }
 
-export function resolveModel(registry: ModelRegistry, friendlyId: string): { apiModelId: string; backend: string } {
+export function resolveModel(registry: ModelRegistry, friendlyId: string): { apiModelId: string; backend: string; fixedTemperature?: number } {
   const entry = registry.models.find(m => m.id === friendlyId);
-  if (entry) return { apiModelId: entry.apiModelId, backend: entry.backend };
+  if (entry) return { apiModelId: entry.apiModelId, backend: entry.backend, fixedTemperature: entry.fixedTemperature };
   if (friendlyId.startsWith('gemini')) return { apiModelId: friendlyId, backend: 'gemini' };
   if (friendlyId.startsWith('claude')) return { apiModelId: friendlyId, backend: 'claude' };
   if (friendlyId.startsWith('groq')) return { apiModelId: friendlyId, backend: 'groq' };

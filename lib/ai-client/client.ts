@@ -64,9 +64,15 @@ export function createAIClient(
           nextSteps: ['Increase the budget cap', 'Start a new session to reset the budget', 'Switch to a cheaper model'],
         });
       }
-      const { apiModelId, backend } = resolveModel(registry, model);
+      const { apiModelId, backend, fixedTemperature } = resolveModel(registry, model);
       const apiKey = await deps.resolveApiKey(backend);
-      const effectiveOpts = { ...opts, timeoutMs: opts?.timeoutMs ?? getDefaultTimeout(model) };
+      // Registry-driven per-model temperature constraint (t/2068): the model's
+      // fixedTemperature (if any) overrides the caller's temperature so providers send it.
+      const effectiveOpts = {
+        ...opts,
+        timeoutMs: opts?.timeoutMs ?? getDefaultTimeout(model),
+        ...(fixedTemperature != null ? { fixedTemperature } : {}),
+      };
       const t0 = performance.now();
       const result = await withRetry(
         () => callProvider(deps.fetch, backend, prompt, apiModelId, apiKey, effectiveOpts),

@@ -40,6 +40,26 @@ const TEST_REGISTRY: ModelRegistry = {
   },
 };
 
+describe('resolveModel — fixedTemperature (t/2068)', () => {
+  const reg: ModelRegistry = {
+    backends: [{ id: 'moonshot', label: 'Moonshot' }, { id: 'gemini', label: 'Gemini' }],
+    models: [
+      { id: 'moonshot-kimi-k3', apiModelId: 'kimi-k3', label: 'Kimi K3', backend: 'moonshot', fixedTemperature: 1 },
+      { id: 'gemini-2.5-flash', apiModelId: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash', backend: 'gemini' },
+    ],
+  };
+
+  it('surfaces fixedTemperature from a registry entry', () => {
+    expect(resolveModel(reg, 'moonshot-kimi-k3')).toMatchObject({
+      apiModelId: 'kimi-k3', backend: 'moonshot', fixedTemperature: 1,
+    });
+  });
+
+  it('leaves fixedTemperature undefined for an entry without it', () => {
+    expect(resolveModel(reg, 'gemini-2.5-flash').fixedTemperature).toBeUndefined();
+  });
+});
+
 describe('getModelCapabilities', () => {
   it('returns backend defaults for a model with no overrides', () => {
     const caps = getModelCapabilities(TEST_REGISTRY, 'gemini-2.5-flash');

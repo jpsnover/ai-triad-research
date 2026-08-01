@@ -30,6 +30,10 @@ export interface GenerateOptions {
   purpose?: string;
   /** Maximum accumulated cost (USD) before subsequent calls throw a budget-exceeded error. */
   maxCostUsd?: number;
+  /** Provider MUST send exactly this temperature, overriding `temperature`. Set from the
+   *  registry (ModelEntry.fixedTemperature) for reasoning models that reject arbitrary
+   *  values, e.g. moonshot kimi-k3 which only accepts 1 (t/2068). */
+  fixedTemperature?: number;
 }
 
 export interface ProviderResult {
