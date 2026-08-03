@@ -12,6 +12,7 @@ import {
   resolveModel,
   getDefaultTimeout,
   buildModelEntryMap,
+  buildModelIdMap,
 } from './registry.js';
 import type { ModelRegistry } from './registry.js';
 
@@ -84,17 +85,46 @@ describe('buildModelEntryMap (t/2107)', () => {
     expect(map['gemini-2.5-flash']?.apiModelId).toBe('gemini-2.5-flash');
   });
 
-  it('-latest alias resolves to highest-versioned entry and carries its attributes', () => {
+  it('synthesized -latest alias points at the highest-versioned entry', () => {
+    // gemini-2.5-flash and gemini-2.0-flash both parse to family gemini-flash;
+    // 2.5 > 2.0, so gemini-flash-latest should point at the 2.5 entry.
+    const map = buildModelEntryMap(reg);
+    expect(map['gemini-flash-latest']?.apiModelId).toBe('gemini-2.5-flash');
+    expect(map['gemini-flash-latest']?.id).toBe('gemini-2.5-flash');
+  });
+
+  it('synthesized -latest alias carries fixedTemperature from the source entry', () => {
+    // Use gemini-format IDs which parseVersionedModelId matches.
+    // gemini-2.5-flash (fixedTemperature: 1) wins over 2.0; alias must carry the constraint.
     const reg2: ModelRegistry = {
-      backends: [{ id: 'moonshot', label: 'Moonshot' }],
+      backends: [{ id: 'gemini', label: 'Gemini' }],
       models: [
-        { id: 'moonshot-kimi-1', apiModelId: 'kimi-1', label: 'Kimi 1', backend: 'moonshot', fixedTemperature: 1 },
-        { id: 'moonshot-kimi-2', apiModelId: 'kimi-2', label: 'Kimi 2', backend: 'moonshot', fixedTemperature: 1 },
+        { id: 'gemini-2.0-flash', apiModelId: 'gemini-2.0-flash', label: 'Flash 2.0', backend: 'gemini' },
+        { id: 'gemini-2.5-flash', apiModelId: 'gemini-2.5-flash', label: 'Flash 2.5', backend: 'gemini', fixedTemperature: 1 },
       ],
     };
     const map = buildModelEntryMap(reg2);
-    // No -latest aliases for these (parseVersionedModelId won't match), but explicit entries present
-    expect(map['moonshot-kimi-2']?.apiModelId).toBe('kimi-2');
+    expect(map['gemini-flash-latest']?.apiModelId).toBe('gemini-2.5-flash');
+    expect(map['gemini-flash-latest']?.fixedTemperature).toBe(1);
+  });
+
+  it('explicit *-latest in models[] wins over synthesized alias (collision guard)', () => {
+    const reg3: ModelRegistry = {
+      backends: [{ id: 'gemini', label: 'Gemini' }],
+      models: [
+        { id: 'gemini-flash-latest', apiModelId: 'gemini-2.5-flash-pinned', label: 'Pinned', backend: 'gemini' },
+        { id: 'gemini-2.5-flash', apiModelId: 'gemini-2.5-flash', label: 'Flash 2.5', backend: 'gemini' },
+        { id: 'gemini-2.0-flash', apiModelId: 'gemini-2.0-flash', label: 'Flash 2.0', backend: 'gemini' },
+      ],
+    };
+    const map = buildModelEntryMap(reg3);
+    expect(map['gemini-flash-latest']?.apiModelId).toBe('gemini-2.5-flash-pinned');
+  });
+
+  it('key set matches buildModelIdMap exactly (parity contract)', () => {
+    const entryKeys = new Set(Object.keys(buildModelEntryMap(reg)));
+    const idKeys = new Set(Object.keys(buildModelIdMap(reg)));
+    expect(entryKeys).toEqual(idKeys);
   });
 });
 
