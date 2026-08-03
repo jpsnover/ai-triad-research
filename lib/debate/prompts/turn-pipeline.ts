@@ -82,6 +82,10 @@ export interface StagePromptInput {
   useBackgroundPrompt?: boolean;
   /** Decomposed topic structure — when present, BRIEF uses labeled sections for proposition/premises/scope. */
   topicStructure?: TopicStructure;
+  /** Formatted Talmudic source card directive to inject into the Draft prompt. */
+  talmudicReferenceDirective?: string;
+  /** Card id the debater must respond to in talmudic_reference_response. */
+  talmudicReferenceCardId?: string;
 }
 
 function formatTopicBlock(topic: string, structure?: TopicStructure): string {
@@ -373,6 +377,13 @@ export function draftStagePrompt(input: StagePromptInput, brief: string, plan: s
   const positionUpdateField = input.phase === 'concluding'
     ? `,\n  "position_update": "1-3 sentences: how has your position evolved during this debate?"` : '';
 
+  const talmudicDirectiveSection = input.talmudicReferenceDirective
+    ? `\n=== TALMUDIC SOURCE REFERENCE ===\n${input.talmudicReferenceDirective}\n`
+    : '';
+  const talmudicResponseField = input.talmudicReferenceCardId
+    ? `,\n  "talmudic_reference_response": {\n    "card_id": "${input.talmudicReferenceCardId}",\n    "stance": "accepts|rejects|distinguishes|limits",\n    "relevant_similarity": "one shared principle or pattern",\n    "limiting_difference": "one key difference that limits the analogy"\n  }`
+    : '';
+
   // Build intervention response block for the Draft prompt
   let interventionBlock = '';
   const pi = input.pendingIntervention;
@@ -410,7 +421,7 @@ ${brief}
 
 === YOUR ARGUMENT PLAN ===
 ${plan}
-${interventionBlock}${buildTargetNodesBlock(plan, input.taxonomyContext)}${input.vocabularyExclusion ?? ''}${input.currentCruxContext ? `\n=== ACTIVE CRUXES ===\n${input.currentCruxContext}\n` : ''}${input.salienceBeacon && input.topicScope ? `
+${interventionBlock}${talmudicDirectiveSection}${buildTargetNodesBlock(plan, input.taxonomyContext)}${input.vocabularyExclusion ?? ''}${input.currentCruxContext ? `\n=== ACTIVE CRUXES ===\n${input.currentCruxContext}\n` : ''}${input.salienceBeacon && input.topicScope ? `
 === SALIENCE BEACON ===
 ATTENTION: Monitor your argument's structural fidelity to the debate scope.
 - Domain: ${input.topicScope.domain}
@@ -451,7 +462,7 @@ Respond ONLY with a JSON object matching this exact schema (no markdown, no code
   "claim_sketches": [
     {"claim": "near-verbatim sentence from your statement", "targets": ["AN-3"]},
     {"claim": "near-verbatim supporting sub-claim", "targets": []}
-  ]${_buildInterventionResponseField(pi)}${positionUpdateField}
+  ]${_buildInterventionResponseField(pi)}${positionUpdateField}${talmudicResponseField}
 }`;
 }
 

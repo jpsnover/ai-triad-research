@@ -169,3 +169,29 @@ export function normalizeMoves(rawMoves: string[], minConfidence = 0.5): {
   normalized.push(...seen.values());
   return { normalized, rejected };
 }
+
+export function getNextArgumentNodeNumber(nodes: ReadonlyArray<{ id: string }>): number {
+  let max = 0;
+  for (const node of nodes) {
+    const match = /^AN-(\d+)$/.exec(node.id);
+    if (match) max = Math.max(max, parseInt(match[1], 10));
+  }
+  return max + 1;
+}
+
+import { ActionableError } from '../errors.js';
+
+export function assertUniqueArgumentNodeIds(nodes: ReadonlyArray<{ id: string }>): void {
+  const seen = new Set<string>();
+  for (const node of nodes) {
+    if (seen.has(node.id)) {
+      throw new ActionableError({
+        goal: 'Build an argument network with unique node identifiers',
+        problem: `Duplicate argument node id detected: ${node.id}`,
+        location: 'argumentNetwork.assertUniqueArgumentNodeIds',
+        nextSteps: ['Ensure each node receives a unique AN-N identifier before moderation begins'],
+      });
+    }
+    seen.add(node.id);
+  }
+}

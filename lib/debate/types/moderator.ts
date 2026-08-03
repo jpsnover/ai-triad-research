@@ -206,6 +206,7 @@ export interface SelectionResult {
     source_claim?: string;
     source_round?: number;
   };
+  dialectical_diagnostic?: DialecticalDiagnostic;
 }
 
 export interface EngineValidationResult {
@@ -359,9 +360,11 @@ export interface DialecticalDiagnostic {
 export interface TalmudicReferencesConfig {
   enabled: boolean;
   corpusPath: string;
+  minScore?: number;
 }
 
 export interface TalmudicSourceCardEdition {
+  language?: string;
   version_title: string;
   license: string;
   text: string;
@@ -372,6 +375,7 @@ export interface TalmudicSourceCard {
   ref: string;
   sefaria_ref: string;
   sefaria_url: string;
+  layer?: string;
   excerpt: string;
   checksum: string;
   source: TalmudicSourceCardEdition;
@@ -383,6 +387,8 @@ export interface TalmudicSourceCard {
   schemes: string[];
   usage_types: string[];
   analogy_guardrails: string[];
+  review_status?: string;
+  retrieved_at?: string;
 }
 
 export interface TalmudicCorpus {
@@ -414,4 +420,21 @@ export interface TalmudicReferenceResponse {
   limiting_difference: string;
   valid: boolean;
   warnings: string[];
+}
+
+export interface DialecticalDiagnosticRecord {
+  round: number;
+  moderator_mode: string;
+  moderator_entry_id: string;
+  focused_crux: string;
+  disagreement_type: DialecticalDisagreementType;
+  premise_under_examination: string | null;
+  distinction_or_analogy_tested: string | null;
+  unresolved_outcome: string | null;
+  reference_selection?: {
+    selected_card?: TalmudicSourceCard;
+    response?: TalmudicReferenceResponse;
+    moderator_entry_id?: string;
+    responding_entry_id?: string;
+  };
 }

@@ -32,6 +32,8 @@ import { getCommitmentContext, getEstablishedPointsContext } from '../context.js
 import { injectPerturbation } from '../perturbation.js';
 import { shouldTriggerDiversityRound, runDiversityRound } from './diversityInjection.js';
 import { runProbingQuestions } from './probingQuestions.js';
+import { retrieveTalmudicReference, formatTalmudicSourceDirective, validateTalmudicReferenceResponse } from '../../talmudicReferences.js';
+import type { TalmudicReferenceSelection } from '../../types.js';
 
 // ── Phase: Cross-respond round ─────────────────────────────
 
@@ -375,6 +377,7 @@ export async function runCrossRespondRound(engine: DebateEngineInternals, round:
       ? Object.fromEntries(engine.session.argument_network.nodes.map(n => [n.id, n.text]))
       : undefined,
     nodeEmbeddings: engine.taxonomy.embeddings as Record<string, { vector: number[] }> | undefined,
+    moderatorMode: engine.config.moderatorMode as import('../../types.js').ModeratorMode | undefined,
   };
 
   const modResult = await runModeratorSelection(selectionInput, selectionCallbacks);
@@ -433,6 +436,16 @@ export async function runCrossRespondRound(engine: DebateEngineInternals, round:
     response_time_ms: diagnostics.selectionElapsed,
     edges_used: diagnostics.edgesUsed as { source: string; target: string; type: string; confidence: number }[] | undefined,
   });
+
+  // ── Talmudic dialectical state ────────────────────────
+  const dialecticalDiag = selectionResult.dialectical_diagnostic;
+  let _talmudicSelection: TalmudicReferenceSelection | undefined;
+  let _talmudicCardEntryId: string | undefined;
+
+  if (dialecticalDiag) {
+    const modTrace = (modEntry.metadata as Record<string, unknown>)?.moderator_trace as Record<string, unknown> | undefined;
+    if (modTrace) modTrace.dialectical_diagnostic = dialecticalDiag;
+  }
 
   if ((selectionResult.intervene ?? false) && !activeIntervention && !modResult.engineValidation?.suppressed_reason) {
     getGlobalRecorder()?.record({
@@ -706,6 +719,30 @@ export async function runCrossRespondRound(engine: DebateEngineInternals, round:
     } : {}),
   };
 
+  // ── Talmudic source card injection (requires pipelineInput + info to be defined) ──
+  if (dialecticalDiag && engine._talmudicCorpus) {
+    const usedCardIds = new Set<string>(
+      (engine.session.dialectical_diagnostics ?? [])
+        .map(d => d.reference_selection?.selected_card?.id)
+        .filter((id): id is string => !!id)
+    );
+    _talmudicSelection = retrieveTalmudicReference({
+      corpus: engine._talmudicCorpus,
+      resolution: engine.session.topic.final,
+      diagnostic: dialecticalDiag,
+      recentScheme: diagnostics.recentScheme ?? null,
+      usedCardIds,
+      minScore: engine.config.talmudicReferences?.minScore,
+    });
+    if (_talmudicSelection.selected_card) {
+      const directive = formatTalmudicSourceDirective(_talmudicSelection, info.label);
+      const cardEntry = engine.addEntry({ type: 'system', speaker: 'system', content: directive, taxonomy_refs: [] });
+      _talmudicCardEntryId = cardEntry.id;
+      pipelineInput.talmudicReferenceDirective = directive;
+      pipelineInput.talmudicReferenceCardId = _talmudicSelection.selected_card.id;
+    }
+  }
+
   const envelopeGenerate = engine.adapter.generate
     ? async (request: import('../../cacheTypes.js').GenerateRequest, label: string) => {
         await engine.throttle();
@@ -950,6 +987,36 @@ export async function runCrossRespondRound(engine: DebateEngineInternals, round:
       ignored_evidence_doc_ids: pipelineResult.ignoredEvidenceDocIds,
     },
   });
+
+  // ── Talmudic reference response + dialectical diagnostic record ──
+  if (dialecticalDiag) {
+    let referenceSelection: import('../../types.js').DialecticalDiagnosticRecord['reference_selection'];
+    if (_talmudicSelection?.selected_card) {
+      const rawResponse = pipelineResult.draft.talmudic_reference_response;
+      const validatedResponse = validateTalmudicReferenceResponse(rawResponse, _talmudicSelection, statement);
+      (entry.metadata as Record<string, unknown>).talmudic_reference_response = validatedResponse;
+      referenceSelection = {
+        selected_card: _talmudicSelection.selected_card,
+        response: validatedResponse,
+        moderator_entry_id: _talmudicCardEntryId,
+        responding_entry_id: entry.id,
+      };
+    } else if (_talmudicSelection) {
+      referenceSelection = { selected_card: undefined };
+    }
+    engine.session.dialectical_diagnostics ??= [];
+    engine.session.dialectical_diagnostics.push({
+      round,
+      moderator_mode: engine.config.moderatorMode ?? 'talmudic',
+      moderator_entry_id: modEntry.id,
+      focused_crux: dialecticalDiag.focused_crux,
+      disagreement_type: dialecticalDiag.disagreement_type,
+      premise_under_examination: dialecticalDiag.premise_under_examination,
+      distinction_or_analogy_tested: dialecticalDiag.distinction_or_analogy_tested,
+      unresolved_outcome: dialecticalDiag.unresolved_outcome,
+      reference_selection: referenceSelection,
+    });
+  }
 
   // Compute per-(frame,turn) cosine similarity series for frame survival metrics — t/2045
   if (engine.session.frame_embeddings && Object.keys(engine.session.frame_embeddings).length > 0) {
