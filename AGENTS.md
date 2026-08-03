@@ -99,11 +99,11 @@ All unrecoverable errors must use `New-ActionableError` (PowerShell) or `Actiona
 
 ## Token Efficiency
 
-- **Batch ToolSearch** — fetch all needed schemas in one call: `select:tool1,tool2,tool3`. Never fetch one at a time.
-- **Ping over email** — use pings for status updates and single-question exchanges; reserve email for requirements and multi-stakeholder decisions.
-- **Suppress verbose output** — pass `verbose:false` and `include_ids:false` on all MCP list/create calls unless IDs or full detail are specifically needed.
-- **Don't re-read AGENTS.md** — it is already injected as `claudeMd` every session.
-- **Reference, don't inline** — use `t/KEY`, `e/N`, `d/<slug>` in comments and emails rather than copying ticket/doc content.
+- Batch ToolSearch: always fetch all needed schemas in one call (select:t1,t2,t3)
+- Prefer ping over email for status updates and single-question exchanges
+- Use verbose:false and include_ids:false on all MCP list/create calls unless IDs are needed
+- Do not re-read AGENTS.md — it is already injected as claudeMd
+- Keep ticket comments and email bodies concise; reference entities (t/KEY) instead of inlining content
 
 ## Version Update Checklist
 
