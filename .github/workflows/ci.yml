@@ -115,8 +115,12 @@ jobs:
             #   deploy/azure/Dockerfile.base — pulled-or-built + hadolint'd here
             #   deploy/azure/smoke-healthz.sh — the readiness smoke this job runs
             # (taxonomy-snapshot/ is STUBBED in-job, so it is NOT a repo input.)
+            # '.dockerignore' governs what every COPY actually copies from the
+            # root build context (context: .), so a .dockerignore-only edit can
+            # change the image — it must trigger the build (t/2094 review, TL2).
             container:
               - 'taxonomy-editor/**'
+              - '.dockerignore'
               - 'lib/**'
               - 'scripts/**'
               - 'taxonomy/schemas/**'
