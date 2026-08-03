@@ -74,6 +74,9 @@ export interface BackendAvailability {
  * backends that 403 at generation time. tier_restricted takes precedence over
  * no_key (a missing key is moot if the tier forbids the backend).
  */
+// Narrow structural type is load-bearing: backendAvailability.test.ts passes {}
+// (no backends/models) to exercise the empty-registry path. Narrowing to ModelRegistry
+// would require a fully-populated object and break that test.
 export function computeAvailableBackends(
   registry: { backends?: { id: string }[]; models?: { id: string; backend: string }[] },
   allowedBackends: string[],
