@@ -28,7 +28,7 @@ export async function generateViaZai(
       body: JSON.stringify({
         model: apiModelId,
         messages,
-        temperature: opts.temperature ?? 0.7,
+        temperature: opts.fixedTemperature ?? opts.temperature ?? 0.7,
         max_tokens: opts.maxTokens ?? 16384,
         ...(opts.responseSchema ? {
           response_format: {
