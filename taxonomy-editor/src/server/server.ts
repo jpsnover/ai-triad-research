@@ -913,8 +913,8 @@ function clearAnonCookiesOnSignin(req: http.IncomingMessage, res: http.ServerRes
   // Clear anonymous cookies when user signs in via EasyAuth
   if (principalName && parseCookies(req).get('auth_anonymous') === '1') {
     res.setHeader('Set-Cookie', [
-      'auth_anonymous=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0',
-      'anon_session_id=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0',
+      'auth_anonymous=; Path=/; HttpOnly; SameSite=Lax; Secure; Max-Age=0',
+      'anon_session_id=; Path=/; HttpOnly; SameSite=Lax; Secure; Max-Age=0',
     ]);
   }
 }
