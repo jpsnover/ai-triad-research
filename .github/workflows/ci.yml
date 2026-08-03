@@ -601,7 +601,7 @@ jobs:
           tags: ai-triad-test:ci
 
       - name: Replace with crash-loop image (gate-proof only — t/2067)
-        if: github.ref == 'refs/heads/test/gate-verify-t2067'
+        if: github.head_ref == 'test/gate-verify-t2067'
         run: |
           # Override the built image with one that exits immediately — proves the
           # liveness gate catches crash-loop containers (t/2067 RED verification).
