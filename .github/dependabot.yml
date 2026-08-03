@@ -128,11 +128,6 @@ updates:
     ignore:
       - dependency-name: node
         update-types: [version-update:semver-major]
-      # ai-triad-base HELD (t/2047): the 2026-07-30 bump (0b33fc18) crash-looped prod
-      # (readiness regression, full init then 503→SIGTERM). Do NOT auto-bump until the
-      # base regression is fixed AND a docker-run/GET-/health pre-deploy smoke gate
-      # exists to catch runtime crashes before traffic (t/2047 gaps #1/#4).
-      - dependency-name: "jpsnover/ai-triad-base"
 
   - package-ecosystem: docker
     directory: /deploy/azure
