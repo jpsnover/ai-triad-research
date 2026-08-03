@@ -20,18 +20,21 @@ git rev-parse --is-inside-work-tree >/dev/null 2>&1 || { echo "ff-redetach: not 
 
 git fetch origin >&2 || { echo "ff-redetach: fetch failed — resolve network/auth and retry (nothing changed)" >&2; exit 2; }
 
-# Dirty tree (staged, unstaged, or untracked) → refuse; re-detaching would discard it.
-if [ -n "$(git status --porcelain)" ]; then
+# Dirty tree check — use the smarter classifier (t/2066) to distinguish real WIP
+# from phantom/stale/zero-byte artifacts so a pull-behind or shell-junk file does
+# not block a legitimate re-detach. fetch already ran above, so origin/main is current.
+REPO_ROOT=$(git rev-parse --show-toplevel 2>/dev/null) || exit 2
+sh "$REPO_ROOT/.githooks/check-hub-clean.sh" || {
   cat >&2 <<'MSG'
 
-  ✖ ff-redetach REFUSED: the worktree is DIRTY (uncommitted / untracked work).
+  ✖ ff-redetach REFUSED: REAL WIP in the worktree (see classification above).
     Re-detaching would discard it. Land or stash first, then re-run:
       git switch -c <type>/<slug>-t<ticket>   # name the branch → commit → land via PR
       #  or:  git stash push -u -m "wip <ticket>"   (recover later: git stash pop)
     (refuse-when-dirty playbook, ADR §3a — this helper never discards.)
 MSG
   exit 1
-fi
+}
 
 # Ahead of origin/main (local commits not yet on origin) → refuse; would orphan them.
 ahead=$(git rev-list --count origin/main..HEAD 2>/dev/null || echo unknown)

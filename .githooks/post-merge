@@ -1,0 +1,14 @@
+#!/bin/sh
+# ─────────────────────────────────────────────────────────────────────────────
+# post-merge — warn about dirty-hub state after a pull/merge (t/2066).
+#
+# Runs automatically after `git pull` (fetch + merge) and `git merge`.
+# Advisory only: post-merge hooks cannot abort a completed merge, so this
+# never blocks — it warns so the agent can triage before the next ff-redetach.
+#
+# The smarter check-hub-clean discriminator (see that script's header) catches
+# zero-byte junk, phantom modifications, staleness, and real WIP — the blanket
+# `git status --porcelain` warning would fire on every pull from a stale branch.
+# ─────────────────────────────────────────────────────────────────────────────
+REPO_ROOT=$(git rev-parse --show-toplevel 2>/dev/null) || exit 0
+sh "$REPO_ROOT/.githooks/check-hub-clean.sh" --advisory
