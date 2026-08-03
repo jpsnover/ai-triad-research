@@ -840,7 +840,7 @@ export const createDebateReflectionSlice: StateCreator<DebateStore, [], [], Deba
     const { reflections } = get();
     const reflection = reflections.find(r => r.pover === pover);
     const proposal = reflection?.new_item_proposals?.[proposalIndex];
-    getGlobalRecorder()?.record({ type: 'state.change', component: 'reflection-proposal', level: 'info', message: 'applyReflectionProposal.called', data: { pover, proposalIndex, category: proposal?.category, edgeCount: proposal?.proposed_edges.length } });
+    getGlobalRecorder()?.record({ type: 'state.change', component: 'reflection-proposal', level: 'info', message: 'applyReflectionProposal.start', data: { pover, proposalIndex, category: proposal?.category, edgeCount: proposal?.proposed_edges.length, edgesFileLoaded: !!useTaxonomyStore.getState().edgesFile } });
     if (!reflection || !proposal) { getGlobalRecorder()?.record({ type: 'state.error', component: 'reflection-proposal', level: 'warn', message: 'applyReflectionProposal.result', data: { ok: false, error: 'Proposal not found', pover, proposalIndex } }); return { ok: false, error: 'Proposal not found' }; }
 
     const taxStore = useTaxonomyStore.getState();
