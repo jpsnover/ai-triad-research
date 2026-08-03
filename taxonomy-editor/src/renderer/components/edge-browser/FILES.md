@@ -1,6 +1,6 @@
 # EdgeBrowser — File Inventory
 
-Reference inventory of `taxonomy-editor/src/renderer/components/edge-browser/`. Behavioral conventions live in [AGENTS.md](./AGENTS.md).
+Reference inventory of `taxonomy-editor/src/renderer/components/edge-browser/`. Behavioral conventions live in `AGENTS.md`.
 
 | File | Purpose |
 |------|---------|

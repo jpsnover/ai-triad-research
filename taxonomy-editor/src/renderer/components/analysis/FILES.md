@@ -2,7 +2,7 @@
 
 Reference inventory of the analysis/dashboard components in this scope
 (`taxonomy-editor/src/renderer/components/analysis/`). Behavioral norms live in
-[AGENTS.md](./AGENTS.md).
+`AGENTS.md`.
 
 | File | Purpose |
 |------|---------|

@@ -2,7 +2,7 @@
 
 Core-layer files owned by **ServerAPI Main** (the HTTP/wiring layer). Cluster
 modules (auth/keys, storage, AI proxy, community/admin) belong to the sub-roles —
-see the Sub-roles table in [AGENTS.md](./AGENTS.md).
+see the Sub-roles table in `AGENTS.md`.
 
 | File | Purpose |
 |------|---------|

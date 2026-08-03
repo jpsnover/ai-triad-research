@@ -1,6 +1,6 @@
 # DebateUI — File Inventory
 
-Reference inventory for the DebateUI scope (`components/debate/`). Behavioral norms — including the "Not in Scope — route, don't build" container-vs-workspace boundary — live in [AGENTS.md](./AGENTS.md).
+Reference inventory for the DebateUI scope (`components/debate/`). Behavioral norms — including the "Not in Scope — route, don't build" container-vs-workspace boundary — live in `AGENTS.md`.
 
 ## Key Files
 
