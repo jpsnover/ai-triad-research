@@ -584,6 +584,7 @@ Failure patterns related to tooling configuration, agent workflows, and operatio
 
 **Instances:**
 - 2026-08-03 — Orca Support (p/13#27): `gh pr merge 341 --squash --auto --delete-branch` blocked mid-PR resolution sweep by the auto-mode classifier. Resolved by surfacing `! gh pr merge 341` to the user for direct authorization.
+- 2026-08-03 — Orca Support (p/13#31): `gh pr merge` blocked again during PR #289 conflict-resolution flow — same classifier gate, 2nd independent instance.
 
 **Root Cause:** The Claude Code safety classifier has a fixed policy: PR merge is a **shared-state, hard-to-reverse action** (merges commit to a repo visible to others, triggers CI, may deploy). Auto mode bypasses routine tool confirmations but NOT this class of action. The classifier intercepts at the tool-call layer before the command runs — this is **correct and intended behavior**, not a bug. The failure is the **workflow assumption** that `gh pr merge` would run unattended in an automated PR sweep.
 
@@ -596,3 +597,24 @@ Failure patterns related to tooling configuration, agent workflows, and operatio
 **Status:** Active — safety-classifier gate on `gh pr merge` in auto mode; by design. Every agent running automated PR sweeps will hit this. The fix is architectural: design PR workflows with a manual authorization step for the merge command.
 
 **Applies To:** All agents running `gh pr merge` in auto mode (e.g., PR resolution sweeps, post-CI land automation).
+
+---
+
+## [Process] `git push --force-with-lease` in Auto Mode Is Blocked by the Safety Classifier — Force-Pushes Are "Hard-to-Reverse"; Surface as `! git push` for User Authorization
+
+**Pattern:** `git push --force-with-lease` (and any force-push variant) in an **auto-mode agent session** is intercepted by the Claude Code safety classifier and blocked. The classifier specifically lists force-pushing as a **hard-to-reverse operation** (can overwrite upstream history, destroy others' work). This is the same classifier gate as `gh pr merge` (#129) — both are in the "hard-to-reverse + visible to others" class — but triggered by a different command. Resolution: surface `! git push --force-with-lease <remote> <branch>` to the user for direct authorization.
+
+**Instances:**
+- 2026-08-03 — Orca Support (p/13#31): `git push --force-with-lease` blocked during PR #289 conflict-resolution flow (after resolving conflicts via merge commit + soft-reset). Resolved by surfacing `! git push` as a user instruction.
+
+**Root Cause:** Force-push rewrites the remote ref's history — if another agent or user has pushed since your last fetch, a force-push discards their work. The safety classifier gates this at the tool-call layer regardless of auto-mode level; this is **correct and intended behavior**. Unlike regular `git push` (allowed in auto mode for non-main branches via worktrees), force-push is always gated because the damage profile is higher and the user must affirm they understand the rewrite.
+
+**Prevention:**
+1. **`git push --force-with-lease` will always be blocked in auto mode** — plan for a manual user-authorization step in any workflow that requires a force-push (conflict resolution, history cleanup, rebase-then-push flows).
+2. **Surface as `! git push --force-with-lease <remote> <branch>`** — the `!` prefix runs the command under user authorization in the active session.
+3. **Prefer rebase-then-regular-push over force-push when possible** — if the branch has no shared history, a fast-forward or regular push avoids the classifier gate entirely.
+4. **Sibling of `gh pr merge` classifier gate (#129):** both are in the "hard-to-reverse + visible to others" class. The general rule: any operation that REWRITES or MERGES remote state requires explicit user authorization in auto mode.
+
+**Status:** Active — safety-classifier gate on force-push; by design. Every agent needing to force-push in auto mode will hit this. The fix is architectural: design conflict-resolution workflows with a manual authorization step for the force-push.
+
+**Applies To:** All agents running `git push --force-with-lease`, `git push --force`, or any force-push variant in auto mode.
