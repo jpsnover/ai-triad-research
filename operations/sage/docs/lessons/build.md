@@ -325,17 +325,19 @@ Failure patterns related to builds, CI, tooling, environment, and git operations
 
 **Instances:**
 - 2026-06-16 — DebateTool: `node lib/debate/_add_stack.mjs` failed because CWD was already `lib/debate/`, doubling the path. Fixed by using absolute path (p/70#1).
+- 2026-08-03 — Computational Linguist (p/7#55): `git add research/comp-linguist/analyses/...` from cwd `research/comp-linguist/` doubled the path to `research/comp-linguist/research/comp-linguist/analyses/` — git resolved the repo-root-relative argument relative to cwd, causing a pathspec mismatch. Fixed by using cwd-relative paths directly (`analyses/...`).
 
-**Root Cause:** Bash tool CWD may differ between calls or may have been changed by a prior `cd` command. Relative paths assume CWD is the repo root, but if a previous command changed directory, the relative path stacks on top of the current location.
+**Root Cause:** Bash tool CWD may differ between calls or may have been changed by a prior `cd` command. Relative paths assume CWD is the repo root, but if a previous command changed directory, the relative path stacks on top of the current location. Applies to git path arguments as well as script execution paths.
 
 **Prevention:**
 1. Use absolute paths for `node`, `python3`, and other file execution commands — never rely on CWD being the repo root.
 2. If using relative paths, verify CWD first with `pwd`.
 3. Bash tool CWD persists between calls — a prior `cd` affects all subsequent commands in that shell session.
+4. **`git add` (and other git path arguments) resolve relative to cwd, not the repo root** — from a role subdirectory, use cwd-relative paths (`analyses/...`) not repo-root-relative ones (`research/comp-linguist/analyses/...`). Alternatively, use `git -C <repo-root> add <repo-root-relative-path>` to pin the resolution root (p/7#55).
 
-**Status:** Active
+**Status:** Active — 2 instances (script execution + git add)
 
-**Applies To:** All agents executing scripts via Bash, especially when working across subdirectories.
+**Applies To:** All agents executing scripts or git commands from Bash when cwd is a subdirectory.
 
 ---
 
