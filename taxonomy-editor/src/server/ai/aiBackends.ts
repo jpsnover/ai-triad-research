@@ -36,7 +36,7 @@ import {
   resolveBackend,
   callProvider,
   withRetry,
-  buildModelIdMap,
+  buildModelEntryMap,
   getApiModelId as getApiModelIdFromMap,
   getDefaultTimeout,
   withTimeout,
@@ -45,6 +45,8 @@ import {
   DEFAULT_MODEL,
   getUsage,
   renderTemplate,
+  type ModelEntry,
+  type ModelRegistry,
   type UsageConfig,
   type GenerateOptions,
   type ProviderResult,
@@ -65,11 +67,6 @@ export interface BackendAvailability {
   reason?: 'no_key' | 'tier_restricted' | 'rate_limited';
 }
 
-interface ModelRegistry {
-  backends?: { id: string }[];
-  models?: { id: string; backend: string }[];
-}
-
 /**
  * Pure computation behind GET /api/backends/available (t/772): a backend is
  * available only when BOTH a key exists for it AND it's authorized for the
@@ -78,7 +75,7 @@ interface ModelRegistry {
  * no_key (a missing key is moot if the tier forbids the backend).
  */
 export function computeAvailableBackends(
-  registry: ModelRegistry,
+  registry: { backends?: { id: string }[]; models?: { id: string; backend: string }[] },
   allowedBackends: string[],
   keyPresence: Record<string, boolean>,
 ): BackendAvailability[] {
@@ -118,22 +115,22 @@ export interface GenerateTextProgress {
 
 // ── Model ID mapping (mtime-cached) ──
 
-let _modelMapCache: Record<string, string> | null = null;
+let _modelEntryCache: Record<string, ModelEntry> | null = null;
 let _fallbackChainCache: Record<string, string[]> | null = null;
 let _defaultsCache: Record<string, string> | null = null;
 let _modelConfigMtime = 0;
 
-function loadModelConfig(): { modelMap: Record<string, string>; fallbackChains: Record<string, string[]>; defaults: Record<string, string> } {
+function loadModelConfig(): { entryMap: Record<string, ModelEntry>; fallbackChains: Record<string, string[]>; defaults: Record<string, string> } {
   try {
     const configPath = path.join(getProjectRoot(), 'ai-models.json');
-    const { content: raw, mtimeMs } = readFileWithMtime(configPath, _modelMapCache ? _modelConfigMtime : undefined);
+    const { content: raw, mtimeMs } = readFileWithMtime(configPath, _modelEntryCache ? _modelConfigMtime : undefined);
     if (raw !== null) {
-      const registry = JSON.parse(raw) as { models: { id: string; apiModelId?: string }[]; fallbackChains?: Record<string, string[]>; defaults?: Record<string, string> };
-      _modelMapCache = buildModelIdMap(registry as { models: { id: string; apiModelId: string; label: string; backend: string }[]; backends: [] });
+      const registry = JSON.parse(raw) as ModelRegistry;
+      _modelEntryCache = buildModelEntryMap(registry);
       _fallbackChainCache = registry.fallbackChains ?? {};
       _defaultsCache = registry.defaults ?? {};
       _modelConfigMtime = mtimeMs;
-      log.api.debug({ models: Object.keys(_modelMapCache!).length, chains: Object.keys(_fallbackChainCache!).length }, 'Reloaded model config');
+      log.api.debug({ models: Object.keys(_modelEntryCache!).length, chains: Object.keys(_fallbackChainCache!).length }, 'Reloaded model config');
     }
   } catch (err) {
     getGlobalRecorder()?.record({
@@ -144,15 +141,16 @@ function loadModelConfig(): { modelMap: Record<string, string>; fallbackChains: 
       error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
     });
     log.api.warn({ err }, 'Failed to load model config');
-    if (!_modelMapCache) _modelMapCache = {};
+    if (!_modelEntryCache) _modelEntryCache = {};
     if (!_fallbackChainCache) _fallbackChainCache = {};
     if (!_defaultsCache) _defaultsCache = {};
   }
-  return { modelMap: _modelMapCache!, fallbackChains: _fallbackChainCache!, defaults: _defaultsCache! };
+  return { entryMap: _modelEntryCache!, fallbackChains: _fallbackChainCache!, defaults: _defaultsCache! };
 }
 
 function loadModelMap(): Record<string, string> {
-  return loadModelConfig().modelMap;
+  const { entryMap } = loadModelConfig();
+  return Object.fromEntries(Object.entries(entryMap).map(([k, v]) => [k, v.apiModelId]));
 }
 
 function getFallbackChain(modelId: string): string[] {
@@ -321,15 +319,20 @@ function normalizeExplicitKeys(explicitApiKey: string | string[] | undefined): s
 }
 
 // Per-attempt generation options: explicit temperature > debate override > 0.7;
-// explicit timeout > backend default.
+// explicit timeout > backend default. entryMap is the full model registry keyed by
+// friendly id — fixedTemperature is resolved for currentModel on each attempt so
+// fallback models get their own value, not the primary's (t/2108).
 function buildGenerateOptions(
   options: { temperature?: number } | undefined,
   timeoutMs: number | undefined,
   currentModel: string,
+  entryMap: Record<string, ModelEntry>,
 ): GenerateOptions {
+  const entry = entryMap[currentModel];
   return {
     temperature: options?.temperature ?? _debateTemperature ?? 0.7,
     timeoutMs: timeoutMs ?? getDefaultTimeout(currentModel),
+    ...(entry?.fixedTemperature != null ? { fixedTemperature: entry.fixedTemperature } : {}),
   };
 }
 
@@ -356,6 +359,7 @@ export async function generateText(
   const resolved = model || DEFAULT_MODEL;
   const explicitKeys = normalizeExplicitKeys(explicitApiKey);
   const modelsToTry = buildModelsToTry(resolved, explicitKeys !== undefined);
+  const entryMap = loadModelConfig().entryMap;
 
   let lastError: unknown;
   for (let mi = 0; mi < modelsToTry.length; mi++) {
@@ -375,7 +379,7 @@ export async function generateText(
     }
 
     const apiModel = getApiModelId(currentModel);
-    const opts = buildGenerateOptions(options, timeoutMs, currentModel);
+    const opts = buildGenerateOptions(options, timeoutMs, currentModel, entryMap);
 
     const runWithRetry = (apiKey: string) => withRetry(
       () => callProvider(fetch, backend, prompt, apiModel, apiKey, opts),
