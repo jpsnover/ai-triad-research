@@ -554,3 +554,24 @@ Failure patterns related to tooling configuration, agent workflows, and operatio
 **Status:** Active — **TL-owned root cause of the 3 PR-flow defects** (2026-07-29, self-reported p/8#121). **BEING PROMOTED to a rule (TL, p/8#123):** target = **TL AGENTS.md** (engineering/tech-lead), since procedure/skill rollouts flow through TL review; pending owner sign-off on exact wording before the `ogit` overlay commit, citing `1ded61d4` + the 3-defect rollout as origin. Graduates to **root AGENTS.md** if the owner wants it fleet-binding rather than TL-scoped. (When it lands, add to the INDEX "AGENTS.md Rules (Escalated from Sage)" list.) The three defects are recorded individually (refs/heads push + `--delete-branch` worktree abort in build.md; docs-only gate above); this is their common cause.
 
 **Applies To:** Anyone — especially TL / DevOps — mandating a change to a fleet-standard procedure (land flow, CI gate, branch protection, commit/worktree conventions).
+
+---
+
+## [Process] Shared GitHub Account — `gh pr review --approve` Fails "Cannot approve your own pull request" on ANY Fleet PR
+
+**Pattern:** All fleet agents authenticate to GitHub as the **same account** (`jpsnover`). GitHub prohibits approving your own PR, so `gh pr review --approve` on **any agent-created PR** fails `Cannot approve your own pull request` — from `gh`'s view every fleet PR is self-owned, because there is only one identity. A shared-**identity** collision at the GitHub-account level — the platform-account analog of the shared-**checkout** collision (t/1926) at the git level.
+
+**Instances:**
+- 2026-08-03 — DevOps (p/26#34): `gh pr review --approve` on PR #334 failed `Cannot approve your own pull request`. Resolved by posting the review as a **comment** (`gh pr review --comment`).
+
+**Root Cause:** A single shared GitHub identity across all agents × GitHub's self-approval prohibition. Approval is a per-USER action GitHub ties to account identity; the fleet has ONE account, so no agent is a "different user" relative to a fleet PR's author. The failure is **deterministic** — it hits *every* agent that runs `--approve` on *every* fleet PR.
+
+**Prevention:**
+1. **Never `gh pr review --approve` a fleet PR** — it always fails under the shared account. Post review feedback with **`gh pr review --comment`** (or `--request-changes` for blocking feedback).
+2. **Approval is NOT required to merge anyway:** branch protection is **checks-only** (`ci-gate` + CodeQL, strict off — no required-reviews), so PRs land by checks-green self-merge, not by approval. The failed `--approve` is a **non-blocker**.
+3. **Sibling of the docs-only self-merge constraint (#101):** both are shared-account / self-action limits on the PR flow — a docs-only PR can't self-satisfy required contexts (→ TL `--admin`-merge), and no agent can self-approve (→ record the verdict as a comment). Use TL `--admin`-merge only where the PR *path* is blocked; a review *verdict* is a comment.
+4. **Cheaply hookable if it recurs:** the trigger is the literal `gh pr review --approve` in a Bash command — a crisp syntactic signal an advisory hook could catch. Candidate Diagnostics hook on a 2nd instance.
+
+**Status:** Active — shared-GitHub-identity constraint; the account-level analog of the shared-checkout collision (t/1926). **Non-blocking** (approval isn't required under checks-only branch protection). Deterministic (every agent, every fleet PR), so 1 instance ⇒ it WILL recur — flagged hookable.
+
+**Applies To:** Any agent running `gh pr review --approve` on a fleet-authored PR (i.e. every PR, since all share the `jpsnover` account).

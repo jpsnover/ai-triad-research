@@ -3,7 +3,7 @@
 Institutional memory for failure patterns across the AI Triad Research project.
 Organized by category. Each file contains the full pattern details.
 
-**Last updated:** 2026-08-01 | **Total patterns:** 126 | **Resolved:** 21 | **Active:** 105
+**Last updated:** 2026-08-03 | **Total patterns:** 127 | **Resolved:** 21 | **Active:** 106
 
 ## Summary
 
@@ -13,7 +13,7 @@ Organized by category. Each file contains the full pattern details.
 | PowerShell | [powershell.md](powershell.md) | 10 | 3 | 7 |
 | Data | [data.md](data.md) | 4 | 1 | 3 |
 | Type System | [type-system.md](type-system.md) | 4 | 0 | 4 |
-| Process | [process.md](process.md) | 25 | 7 | 18 |
+| Process | [process.md](process.md) | 26 | 7 | 19 |
 | API | [api.md](api.md) | 4 | 0 | 4 |
 | Design | [design.md](design.md) | 2 | 0 | 2 |
 
@@ -53,4 +53,5 @@ Seven patterns crossed the 3-instance threshold (or were high-severity) and beca
 - **Catch-body extraction trips ADR-003 flight-recorder rule** — 2 instances, 2 roles (t/1848 fan-out), **6+ roles still exposed** → [build.md](build.md) (position-based AST rule: `record()` must stay LITERALLY in the `catch`; fix = keep record inline, extract only the non-recording tail. Self-correcting at lint, not a #82 escalation. **Durable lever TAKEN (TL p/8#116):** fix idiom embedded in the rule's lint message, filed t/1927+t/1928. TE2 broadcast prevention on t/1848#11. **Drift smell:** rule is 2 byte-identical copies (lib + taxonomy-editor) referenced by 3 eslint.config.mjs — TL noted single-shared-rule dedup as separate low-pri follow-up; realized failure would land here if copies ever diverge)
 - **Adding an Nth variant to a shared enum/config touches more than the obvious files** — 1 instance (TL t/1932 Moonshot backend) → [process.md](process.md) (decomposition-completeness + verify-scope: a new backend id broke main in 3 non-adapter coupling sites the DAG missed — keys.ts probe, config.ts Record exhaustiveness (tsc), registry resolver — plus a hand-picked test subset that skipped the broken test. Fix: enumerate the coupling GRAPH not the feature files; run ALL referencing tests; make coupling maps exhaustive so tsc detects them. Durable fix = TL's `/add-ai-backend` checklist playbook. Also refreshed **#90** with the `git push | tail` facet — pipe swallowed a non-ff reject, `&&` teardown stranded the commit)
 - **main PR-flow convention (2026-07-29) — two coupled lessons** → [process.md](process.md) (**A. `enforce_admins=false` ⇒ not a hard block**: direct push to main SUCCEEDS + bypasses checks for admin identities → PR-flow is a TL-enforced CONVENTION, routine direct-push = flagged violation; land via green-PR self-merge; decision = keep convention + tool-layer push-guard t/1926 not `enforce_admins=true`. **B. docs-only PRs can't self-merge**: path-filtered CI leaves required contexts unreported → `mergeStateStatus=BLOCKED`; 3 roles in one hour (PowerShell #134, CL majority-of-lands, Sage lessons-docs); fix APPROVED = always-run aggregate `ci-gate` job as the single required context (t/1962, DevOps high; PowerShell drafts, DevOps lands ci.yml+contexts swap); interim parked PRs admin-merge-authorized as the "PR-path-blocked-by-config-defect" exception, docs need TL `--admin`-merge until it lands. Detached-HEAD push needs `HEAD:refs/heads/<branch>` — build.md)
+- **Shared GitHub account ⇒ can't self-approve a PR** — 1 instance (DevOps PR #334, p/26#34) → [process.md](process.md) (#123: all agents auth as `jpsnover`, so `gh pr review --approve` fails "Cannot approve your own pull request" on ANY fleet PR — account-level analog of the shared-checkout collision t/1926, sibling of the docs-only self-merge #101. **Non-blocking**: checks-only branch protection needs no approval → post the review as a `--comment`. Deterministic ⇒ cheaply hookable on the literal `--approve`.)
 - **Validate a fleet-standard procedure end-to-end before mandating it** — 1 compound instance (main PR-flow rollout, e/49) → [process.md](process.md) (**3 defects in one hour** because the revised `/land-from-worktree` was broadcast before a real validation land: refs/heads push, docs-only self-merge gate, `--delete-branch` worktree abort. Fix: dry-run one real PR through EVERY step first; broadcast citing the validating PR; else label PROVISIONAL. TL-owned root cause p/8#121; verify-the-artifact-not-the-plan applied to process rollout)
