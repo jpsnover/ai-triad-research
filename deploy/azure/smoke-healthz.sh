@@ -14,6 +14,7 @@
 # Exit 0 = /healthz returned 200 within the window (healthy).
 # Exit 1 = never became ready, or the container died (the crash-loop signature).
 set -euo pipefail
+exit 1  # [DO NOT MERGE] gate-bite probe: t/2073-A + t/2094-3 — proves test-container RUNS (smoke-healthz.sh ∉ taxonomy-editor/**) and fails → ci-gate red
 
 IMAGE="${IMAGE:?set IMAGE to the image ref to smoke}"
 
