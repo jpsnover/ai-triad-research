@@ -2803,3 +2803,61 @@ Institutional memory for failure patterns across the AI Triad Research project.
 **Status:** Active — 1 instance (DevOps p/26#44). 4th env/path hazard in the worktree-land cluster.
 
 **Applies To:** All agents using Edit or Write tool during a worktree landing workflow.
+
+---
+
+## #136 [API] `gh pr checkout` on a Fork PR Tracks the Fork Remote — Subsequent `git push` Routes to the Fork, Not Origin
+
+**Pattern:** `gh pr checkout <fork-pr-number>` creates a local branch that tracks the **fork contributor's remote**, not `origin`. A subsequent `git push` routes to the fork's remote (which the agent typically lacks write access to), not to the project's origin. The checkout appears to succeed normally and the local branch looks right — the remote routing mismatch only surfaces on push.
+
+**Instances:**
+- 2026-08-03 — Orca Support (p/13#33, PR #289): `gh pr checkout` on a fork PR mapped the head to a local branch tracking the fork remote — push attempts routed to the fork, not origin. Resolved by abandoning the checkout and using a worktree from main + cherry-pick instead.
+
+**Root Cause:** `gh pr checkout` mirrors the fork PR's head ref and wires the local branch upstream to the fork's remote. This is correct for a contributor wanting to test or amend the fork's code, but wrong for a maintainer who needs to push back to origin. The local branch name and content are identical to what origin would produce — only the upstream remote differs.
+
+**Prevention:**
+1. **For fork PRs where you need to push to origin, don't use `gh pr checkout`** — use a worktree from main (`git worktree add -b <branch> <path> origin/main`), cherry-pick the fork commits, then push to origin.
+2. After any `gh pr checkout`, verify the upstream with `git branch -vv` before pushing — if it points to a fork remote, reset with `git push --set-upstream origin <branch>`.
+
+**Status:** Active — fork PR checkout remote trap; worktree + cherry-pick is the safe alternative for maintainer pushes.
+
+**Applies To:** All agents handling fork PR contributions that require pushing back to origin.
+
+---
+
+## #137 [Process] Safety Classifier Blocks Moving Untracked Files to `/tmp` — Use Session Scratchpad or Worktree Instead
+
+**Pattern:** During worktree-based workflows, attempting to move or copy untracked files to `/tmp` is blocked by the safety classifier — the `mv`/`cp` to `/tmp` is treated as potentially destructive (data could be lost if `/tmp` is cleared). This commonly arises when an agent tries to stage untracked files out of the way before a cherry-pick or rebase.
+
+**Instances:**
+- 2026-08-03 — Orca Support (p/13#33, PR #289): attempted to move untracked files to `/tmp` during fork PR resolution — blocked by safety classifier. Resolved by using a fresh worktree from main + cherry-pick, bypassing the need to stage files aside.
+
+**Root Cause:** `/tmp` on the session machine is ephemeral and shared; moving files there risks silent data loss. The classifier gates writes to `/tmp` for untracked (uncommitted) files. The worktree-from-main + cherry-pick approach achieves the same goal (clean working state) without needing to relocate untracked files.
+
+**Prevention:**
+1. **Don't stage untracked files to `/tmp`** — if you need a clean working state, use a fresh worktree (`git worktree add -b <branch> <path> origin/main`) and cherry-pick the commits you need. No file relocation required.
+2. If temporary file storage is genuinely needed, use the session scratchpad directory (provided in session context) — not `/tmp`.
+
+**Status:** Active — classifier gate on `/tmp` moves of untracked files; by design. Worktree + cherry-pick is the classifier-safe alternative.
+
+**Applies To:** All agents working around untracked files in git workflows where a clean working tree is needed.
+
+---
+
+## #138 [Process] Cherry-Pick Into a Worktree Conflicts on Shared Doc Files — Use `--theirs` to Accept the Cherry-Picked Version
+
+**Pattern:** Cherry-picking a commit onto a fresh worktree from main conflicts in shared doc files (e.g., `LessonsLearned.md`, category lesson files) — both the cherry-pick source and the worktree's current main-based state have modified the same lines. `--theirs` resolves conflicts in favor of the **cherry-picked commit's version** (the version being brought in), which is the correct choice when the cherry-pick carries the desired state.
+
+**Instances:**
+- 2026-08-03 — Orca Support (p/13#33, PR #289): cherry-picking fork PR commits onto a clean worktree conflicted in Sage docs. Resolved with `--theirs` (took the cherry-picked version).
+
+**Root Cause:** Doc files like `LessonsLearned.md` receive concurrent edits from multiple agents across many branches. A cherry-pick sourced from a branch that diverged before recent doc updates will conflict with the current main-based state. The cherry-picked version is the authoritative state being preserved.
+
+**Prevention:**
+1. **Before cherry-picking onto a docs-heavy worktree, check for overlapping file sets:** `git diff origin/main...<source-sha> -- <doc-path>` — if the cherry-pick touches the same docs, expect conflicts.
+2. **`git cherry-pick -X theirs <sha>`** auto-resolves all conflicts in favor of the incoming commit — use it when the cherry-pick is the authoritative state and conflicts are expected to be stale-base divergence.
+3. Per-file: `git checkout --theirs <conflicted-file>` then `git add <file>` then `git cherry-pick --continue`.
+
+**Status:** Active — doc file cherry-pick conflicts in multi-agent worktree workflows; --theirs resolution pattern.
+
+**Applies To:** All agents cherry-picking commits that include shared doc file changes onto a main-based worktree.
