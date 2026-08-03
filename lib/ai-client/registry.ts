@@ -85,6 +85,50 @@ function parseVersionedModelId(id: string): { family: string; version: number } 
   return null;
 }
 
+/**
+ * Non-lossy alternative to {@link buildModelIdMap}.
+ *
+ * Returns the full `ModelEntry` for every friendly model id the registry
+ * exposes, including per-model attributes (fixedTemperature, backend, label, …).
+ * Keyed identically to `buildModelIdMap`: explicit model ids from models[],
+ * plus synthesized `*-latest` aliases pointing at the highest-versioned entry
+ * in each family (so the alias entry carries that entry's fixedTemperature,
+ * not a synthetic undefined).
+ *
+ * No internal caching — call contract is identical to buildModelIdMap.
+ * Callers are responsible for caching (cache the map, not the registry).
+ *
+ * Migration: `buildModelIdMap(r)[id]` → `buildModelEntryMap(r)[id]?.apiModelId`
+ */
+export function buildModelEntryMap(registry: ModelRegistry): Record<string, ModelEntry> {
+  const map: Record<string, ModelEntry> = {};
+  for (const m of registry.models) {
+    map[m.id] = m;
+  }
+
+  const families = new Map<string, { entry: ModelEntry; version: number }[]>();
+  for (const m of registry.models) {
+    const parsed = parseVersionedModelId(m.id);
+    if (!parsed) continue;
+    const latestKey = `${parsed.family}-latest`;
+    if (map[latestKey]) continue;
+    if (!families.has(latestKey)) families.set(latestKey, []);
+    families.get(latestKey)!.push({ entry: m, version: parsed.version });
+  }
+  for (const [alias, members] of families) {
+    if (map[alias]) continue;
+    members.sort((a, b) => b.version - a.version);
+    map[alias] = members[0].entry;
+  }
+
+  return map;
+}
+
+/**
+ * @deprecated Use {@link buildModelEntryMap} instead — this projection discards
+ * per-model attributes (fixedTemperature, …) and cannot carry them to callers.
+ * Three breakages traced to this lossy shape: t/2083, t/2068, t/2104.
+ */
 export function buildModelIdMap(registry: ModelRegistry): Record<string, string> {
   const map: Record<string, string> = {};
   for (const m of registry.models) {
