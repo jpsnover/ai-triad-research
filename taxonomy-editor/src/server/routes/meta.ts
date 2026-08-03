@@ -64,6 +64,10 @@ export function registerMetaRoutes(r: Router, ctx: ServerCtx): void {
     const dataRoot = fileIO.getDataRootPath();
     const dataAvailable = await fileIO.isDataAvailable();
     if (dataAvailable) {
+      // Reset the readiness-log throttle so a later re-failure (a flapping
+      // replica: failed → healthy → failed) re-logs instead of being swallowed
+      // by the sentinel still reading its pre-recovery state (Quality t/2059#5).
+      lastReadinessState = null;
       json(res, { status: 'healthy', dataRoot });
       return;
     }
