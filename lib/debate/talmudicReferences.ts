@@ -152,6 +152,19 @@ export function loadTalmudicCorpus(config: TalmudicReferencesConfig): TalmudicCo
   }
 }
 
+export function initTalmudicCorpusFromConfig(config: { moderatorMode?: string; talmudicReferences?: TalmudicReferencesConfig }): TalmudicCorpus | null {
+  if (!config.talmudicReferences?.enabled) return null;
+  if (config.moderatorMode !== 'talmudic') {
+    throw new ActionableError({
+      goal: 'Enable source-grounded Talmudic moderation',
+      problem: 'talmudicReferences.enabled requires moderatorMode to be talmudic',
+      location: 'DebateEngine.constructor',
+      nextSteps: ['Set moderatorMode to "talmudic"', 'Or disable talmudicReferences for a standard debate'],
+    });
+  }
+  return loadTalmudicCorpus(config.talmudicReferences);
+}
+
 function tokens(text: string): Set<string> {
   return new Set(
     text.toLowerCase().match(/[a-z0-9]+/g)

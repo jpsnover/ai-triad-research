@@ -41,7 +41,6 @@ import type {
   TopicScope,
   EntailmentRepairEvent,
   TalmudicCorpus,
-  TalmudicReferenceSelection,
 } from './types.js';
 import { POVER_INFO, getDebatePhase, POV_KEYS, type PovKey } from './types.js';
 import {
@@ -174,13 +173,7 @@ import { runFixedCrossRespond, runAdaptiveCrossRespond } from './debateEngine/ph
 import { _rescoreSituations } from './debateEngine/adaptiveStaging.js';
 export { modelTierRank } from './debateEngine/modelResolution.js';
 export type { DebateConfig, DebateProgress, LifecycleStage } from './debateEngine/internals.js';
-import {
-  formatTalmudicSourceDirective,
-  loadTalmudicCorpus,
-  retrieveTalmudicReference,
-  validateTalmudicReferenceResponse,
-} from './talmudicReferences.js';
-import { assertUniqueArgumentNodeIds } from './argumentNetwork.js';
+import { initTalmudicCorpusFromConfig } from './talmudicReferences.js';
 
 // ── Engine ────────────────────────────────────────────────
 
@@ -252,19 +245,13 @@ export class DebateEngine {
   private _policyIds: Set<string> | null = null;
   /** Active moderator state — tracks budget, cooldown, burden, and intervention history. */
   private _moderatorState: ModeratorState | null = null;
-  /** Adaptive staging: phase transition config. */
   private _adaptiveConfig: PhaseTransitionConfig | null = null;
-  /** Adaptive staging: mutable phase state. */
   private _phaseState: PhaseState | null = null;
-  /** Adaptive staging: signal registry. */
   private _signalRegistry: Signal[] | null = null;
-  /** Adaptive staging: diagnostics accumulator. */
   private _adaptiveDiagnostics: AdaptiveStagingDiagnostics | null = null;
   /** Cached doctrinal boundary embeddings (computed once at debate setup). */
   private _boundaryEmbeddings: BoundaryEmbeddings | null = null;
-  /** Adaptive staging: per-signal historical values for moving averages. */
   private _signalHistory: Map<string, { round: number; value: number }[]> = new Map();
-  /** Adaptive staging: peak tracker for engagement ratio and claims per round. */
   private _peakTrackers: Map<string, number> = new Map();
   /** Debate-wide hint failure streaks for hopeless hint suppression.
    *  Tracked globally (not per-speaker) because hint suppressibility is a model
@@ -290,7 +277,6 @@ export class DebateEngine {
   /** Extracted ClaimExtractionPipeline collaborator — owns claim extraction, drift tracking, gap injection, and post-debate analysis. */
   private _claimPipeline!: ClaimExtractionPipeline;
   private _synthesisPipeline!: SynthesisPipeline;
-  /** Validated source corpus loaded once at construction when references are enabled. */
   private _talmudicCorpus: TalmudicCorpus | null = null;
 
   /**
@@ -409,20 +395,7 @@ export class DebateEngine {
     }
 
     this.config = { ...config, stageModels: merged };
-    if (this.config.talmudicReferences?.enabled) {
-      if (this.config.moderatorMode !== 'talmudic') {
-        throw new ActionableError({
-          goal: 'Enable source-grounded Talmudic moderation',
-          problem: 'talmudicReferences.enabled requires moderatorMode to be talmudic',
-          location: 'DebateEngine.constructor',
-          nextSteps: [
-            'Set moderatorMode to "talmudic"',
-            'Or disable talmudicReferences for a standard debate',
-          ],
-        });
-      }
-      this._talmudicCorpus = loadTalmudicCorpus(this.config.talmudicReferences);
-    }
+    this._talmudicCorpus = initTalmudicCorpusFromConfig(this.config);
     this.adapter = adapter;
     this.taxonomy = taxonomy;
     applyExplorationConfigDefaults(this._internal);
@@ -981,12 +954,7 @@ export class DebateEngine {
       app_version: this.config.appVersion,
       audience: this.config.audience,
       moderator_mode: this.config.moderatorMode ?? 'standard',
-      talmudic_references: this._talmudicCorpus ? {
-        enabled: true,
-        corpus_name: this._talmudicCorpus.name,
-        corpus_path: path.resolve(this.config.talmudicReferences!.corpusPath),
-        corpus_version: this._talmudicCorpus.version,
-      } : { enabled: false },
+      talmudic_references: this._talmudicCorpus ? { enabled: true, corpus_name: this._talmudicCorpus.name, corpus_path: path.resolve(this.config.talmudicReferences!.corpusPath), corpus_version: this._talmudicCorpus.version } : { enabled: false },
       phase: 'setup',
       topic: {
         original: this.config.topic,
