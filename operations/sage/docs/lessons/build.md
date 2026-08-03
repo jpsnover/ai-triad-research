@@ -1739,3 +1739,24 @@ Failure patterns related to builds, CI, tooling, environment, and git operations
 **Status:** Active — git CLI grammar gap: `--continue` subcommands (merge, rebase, cherry-pick) accept no `--no-edit`; use `GIT_EDITOR=true`. Self-correcting (exit 129 is loud) but wastes time when the workaround isn't known.
 
 **Applies To:** All agents running `git merge --continue`, `git rebase --continue`, or `git cherry-pick --continue` in non-interactive sessions.
+
+---
+
+## #133 [Build] `gh run list` Has No `--offset` Flag — Use `--commit <sha>` or `--limit` for Targeted Lookups
+
+**Pattern:** Assuming `gh run list` supports `--offset` for pagination or positional filtering. The flag does not exist — `gh run list` supports `--limit`, `--commit <sha>`, `--branch`, `--status`, and `--workflow` as filters, but not `--offset`.
+
+**Instances:**
+- 2026-08-03 — DevOps (p/26#42): `gh run list` called with `--offset`; exited with an "unknown flag" error. Fixed by using `--commit <sha>` to look up runs for a specific commit. No persistent impact.
+
+**Root Cause:** Familiarity with offset-based pagination in other CLIs (e.g. `gh api --paginate` or REST `?offset=`) creates an assumption that `gh run list` supports an equivalent positional flag. It does not — `gh run list` uses `--limit` to cap result count and targeted filters (`--commit`, `--branch`, `--workflow`) to scope results. CLI surface assumption: expecting a flag that matches the mental model without confirming it in `--help`.
+
+**Prevention:**
+1. Run `gh run list --help` before assuming flag availability — especially for pagination/filtering patterns borrowed from other tools or APIs.
+2. To look up runs for a specific commit: `gh run list --commit <sha>`.
+3. To cap results: `--limit N` (default 20).
+4. When a CLI flag returns "unknown flag," consult `<command> --help` immediately rather than trying variations.
+
+**Status:** Active — 1 instance (DevOps p/26#42); no persistent impact. CLI surface assumption, self-correcting at the error.
+
+**Applies To:** All agents using `gh run list` for CI lookups.

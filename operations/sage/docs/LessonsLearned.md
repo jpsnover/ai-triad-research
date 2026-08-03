@@ -2010,7 +2010,7 @@ Institutional memory for failure patterns across the AI Triad Research project.
 **Instances:**
 - 2026-07-28 — Sage (this session): shared local `main` (at Sage's last commit `20c32334`) was hard-reset to `origin/main` (reflog `HEAD@{0}: reset: moving to origin/main`), wiping ~30 local-only Sage doc commits (`e6daccc7`..`20c32334`) plus other agents' local-only commits (te `t/1849`, debate fixes, CL `t/1826`). **Caught by object-level verification** — injected "your docs reverted" reminders showed a Total-83 working tree, but `git log`/`git status -sb`/`git reflog`/`git cat-file` proved HEAD had been reset and the commits were dangling-but-intact. **Recovered** with `git checkout 20c32334 -- <my scope>` → one recommit (`e8ddad72`, Total-83→93). No loss.
 - 2026-07-29 — t/2004 (TL p/8#127→#130, follow-on reconcile of the same divergence): local main unchanged since t/1768 (still `c7fd7487`); origin was ALREADY a superset of Sage's lessons — **verified by CONTENT, not commit presence** (the t/1768 recovery was a content-MERGE into `86914922`, so its source commits stay unique-by-patch-id in `origin..main`/`git cherry` though content is upstream; TL's initial `git cherry`=0 gate wouldn't converge). All 22 local-only commits confirmed content-on-origin (5 patch-identical via `git cherry -`, 2 docs-spec 0-unique-lines). **Realign DEFERRED anyway** — the shared tree held **138 modified + 227 untracked in-flight files** (active t/1671 + greatest-hits) a hard-reset would obliterate. **Commit-safe ≠ tree-safe.**
-- 2026-07-31 — t/2008 (retire-shared-checkout migration; TL p/8#162): the **deferred t/2004 realign finally executed** during the cutover — the pattern's first *successful-application* instance, not a recovery. The shared hub was **assumed a clean fast-forward but was diverged (22 local-only commits)**; the hard-reset was gated on **prevention #6** — **all 22 confirmed content-present on origin at the object level (not commit-presence) BEFORE the reset ran** — so the cutover was **content-lossless**. This is **H3 (verify-before-irreversible-step) + H2 (object-level confirm-on-origin) combined** (t/2081 tally). Per-role `wt-<role>` worktrees are now the dev model; the shared checkout is the deploy/ops hub. Validates #6/#7 — object-level content-verification before a destructive realign is what prevents the wipe.
+- 2026-07-31 — t/2008 (retire-shared-checkout migration; TL p/8#162): the **deferred t/2004 realign finally executed** during the cutover — the pattern's first *successful-application* instance, not a recovery. The shared hub was **assumed a clean fast-forward but was diverged (22 local-only commits)**; the hard-reset was gated on **prevention #6** — **all 22 confirmed content-present on origin at the object level (not commit-presence) BEFORE the reset ran** — so the cutover was **content-lossless**. This is **H3 (verify-before-irreversible-step) + H2 (object-level confirm-on-origin) combined** (t/2081 tally). Per-task `wt-<task>` worktrees are the landing model (not per-role — Orca has no per-role working-directory concept; role AGENTS.md/`.orca/` are overlay-tracked so they're absent from any worktree); the shared checkout is the deploy/ops hub. Validates #6/#7 — object-level content-verification before a destructive realign is what prevents the wipe.
 
 **Root Cause:** The shared local `main` is a shared, un-pushed staging area; local-only commits live only there until synced. Hard-resetting it to origin (the correct owner-gated fix for a large divergence) atomically discards every un-synced commit. Git doesn't delete objects, so they persist in the reflog — but the working tree/HEAD stop showing them, reading as "reverted/lost." Same object-level-vs-inference discipline as #69 and Git Forensics (#44/#54/#55).
 
@@ -2754,3 +2754,24 @@ Institutional memory for failure patterns across the AI Triad Research project.
 **Status:** Active — safety-classifier gate on force-push; by design. Every agent needing to force-push in auto mode will hit this. The fix is architectural: design conflict-resolution workflows with a manual authorization step for the force-push.
 
 **Applies To:** All agents running `git push --force-with-lease`, `git push --force`, or any force-push variant in auto mode.
+
+---
+
+## #133 [Build] `gh run list` Has No `--offset` Flag — Use `--commit <sha>` or `--limit` for Targeted Lookups
+
+**Pattern:** Assuming `gh run list` supports `--offset` for pagination or positional filtering. The flag does not exist — `gh run list` supports `--limit`, `--commit <sha>`, `--branch`, `--status`, and `--workflow` as filters, but not `--offset`.
+
+**Instances:**
+- 2026-08-03 — DevOps (p/26#42): `gh run list` called with `--offset`; exited with an "unknown flag" error. Fixed by using `--commit <sha>` to look up runs for a specific commit. No persistent impact.
+
+**Root Cause:** Familiarity with offset-based pagination in other CLIs (e.g. `gh api --paginate` or REST `?offset=`) creates an assumption that `gh run list` supports an equivalent positional flag. It does not — `gh run list` uses `--limit` to cap result count and targeted filters (`--commit`, `--branch`, `--workflow`) to scope results. CLI surface assumption: expecting a flag that matches the mental model without confirming it in `--help`.
+
+**Prevention:**
+1. Run `gh run list --help` before assuming flag availability — especially for pagination/filtering patterns borrowed from other tools or APIs.
+2. To look up runs for a specific commit: `gh run list --commit <sha>`.
+3. To cap results: `--limit N` (default 20).
+4. When a CLI flag returns "unknown flag," consult `<command> --help` immediately rather than trying variations.
+
+**Status:** Active — 1 instance (DevOps p/26#42); no persistent impact. CLI surface assumption, self-correcting at the error.
+
+**Applies To:** All agents using `gh run list` for CI lookups.
