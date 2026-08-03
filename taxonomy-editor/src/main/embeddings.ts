@@ -31,8 +31,7 @@ import {
   getDefaultTimeout,
   GEMINI_BASE,
   GEMINI_SAFETY_SETTINGS,
-  buildModelIdMap,
-  getApiModelId,
+  buildModelEntryMap,
   callProvider,
   withRetry,
   SERVER_RETRY_CONFIG,
@@ -40,7 +39,7 @@ import {
   DEFAULT_MODEL,
 } from '../../../lib/ai-client/index.js';
 import type { GenerateOptions, RateLimitType as SharedRateLimitType, FetchFn } from '../../../lib/ai-client/index.js';
-import type { ModelRegistry } from '../../../lib/ai-client/index.js';
+import type { ModelEntry, ModelRegistry } from '../../../lib/ai-client/index.js';
 
 // ── Electron net.fetch wrapper ──
 // Electron's net.fetch requires Buffer.from for string bodies in some cases.
@@ -565,11 +564,11 @@ function findModelsConfig(): string {
   return candidates[0];
 }
 
-// Cache the model ID map, reload when ai-models.json changes
-let _modelMapCache: Record<string, string> | null = null;
+// Cache the full model entry map (non-lossy — carries fixedTemperature etc.), reload when ai-models.json changes
+let _modelMapCache: Record<string, ModelEntry> | null = null;
 let _modelMapMtime = 0;
 
-function resolveApiModelId(friendlyId: string): string {
+function resolveModelEntry(friendlyId: string): ModelEntry | undefined {
   // Hoisted so the catch can name the file it failed on (t/1704) and advance the
   // mtime guard when the file was statted but its contents failed to parse (t/1702).
   let configPath: string | undefined;
@@ -589,7 +588,7 @@ function resolveApiModelId(friendlyId: string): string {
       // (t/1702). ﻿ is the BOM code point.
       const raw = fs.readFileSync(fd, 'utf-8').replace(/^﻿/, '');
       const config = JSON.parse(raw) as ModelRegistry;
-      _modelMapCache = buildModelIdMap(config);
+      _modelMapCache = buildModelEntryMap(config);
       _modelMapMtime = stat.mtimeMs;
       console.log(`[model-map] Loaded ${Object.keys(_modelMapCache!).length} mappings from ${configPath}`);
     }
@@ -604,7 +603,7 @@ function resolveApiModelId(friendlyId: string): string {
       data: { configPath },
       error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
     });
-    if (!_modelMapCache) _modelMapCache = {};
+    if (!_modelMapCache) _modelMapCache = {} as Record<string, ModelEntry>;
     // Advance the mtime guard so a file that was found but failed to parse is not
     // re-read (and re-recorded) on every subsequent call — the flooding observed
     // in t/1702. statMtime is 0 only when openSync/fstatSync threw (missing file), in
@@ -615,7 +614,12 @@ function resolveApiModelId(friendlyId: string): string {
   } finally {
     if (fd !== undefined) fs.closeSync(fd);
   }
-  return getApiModelId(_modelMapCache!, friendlyId);
+  return _modelMapCache?.[friendlyId];
+}
+
+/** Return a fixedTemperature override for GenerateOptions when the entry requires one. */
+function fixedTempOverride(entry: ModelEntry | undefined): { fixedTemperature?: number } {
+  return entry?.fixedTemperature != null ? { fixedTemperature: entry.fixedTemperature } : {};
 }
 
 let _lastLoggedModel: string | null = null;
@@ -638,7 +642,8 @@ export async function generateText(
 ): Promise<string> {
   const friendlyModel = model || DEFAULT_MODEL;
   const backend = resolveBackend(friendlyModel);
-  const resolvedModel = resolveApiModelId(friendlyModel);
+  const entry = resolveModelEntry(friendlyModel);
+  const resolvedModel = entry?.apiModelId ?? friendlyModel;
 
   const apiKey = backend === 'ollama' ? 'ollama-local' : loadApiKey(backend);
   const keySource = backend === 'ollama' ? 'local (no key needed)' : apiKey ? 'Electron encrypted store' : '(not found)';
@@ -669,6 +674,7 @@ export async function generateText(
   const opts: GenerateOptions = {
     temperature: temperature ?? _debateTemperature ?? 0.7,
     timeoutMs: timeoutMs ?? getDefaultTimeout(friendlyModel),
+    ...fixedTempOverride(entry),
   };
 
   const providerFn = backend === 'deepseek'
@@ -754,7 +760,8 @@ export async function generateChatStream(
 ): Promise<string> {
   const friendlyModel = model || DEFAULT_MODEL;
   const backend = resolveBackend(friendlyModel);
-  const resolvedModel = resolveApiModelId(friendlyModel);
+  const entry = resolveModelEntry(friendlyModel);
+  const resolvedModel = entry?.apiModelId ?? friendlyModel;
 
   const apiKey = backend === 'ollama' ? 'ollama-local' : loadApiKey(backend);
   if (!apiKey) {
@@ -778,6 +785,7 @@ export async function generateChatStream(
     const opts: GenerateOptions = {
       temperature: temperature ?? 0.7,
       timeoutMs: getDefaultTimeout(friendlyModel),
+      ...fixedTempOverride(entry),
     };
     const providerResult = backend === 'deepseek'
       ? await generateViaDeepSeekStream(electronFetch, prompt, resolvedModel, apiKey, opts, onChunk)
@@ -995,7 +1003,7 @@ export async function generateTextWithSearch(
     ],
   });
 
-  const apiModel = resolveApiModelId(resolvedModel);
+  const apiModel = resolveModelEntry(resolvedModel)?.apiModelId ?? resolvedModel;
   const url = `${GEMINI_BASE}/${apiModel}:generateContent?key=${apiKey}`;
 
   console.log(`[AI] Grounded search: ${resolvedModel} with google_search tool`);
