@@ -17,6 +17,23 @@ const OK = { choices: [{ message: { content: 'hi' } }], usage: { total_tokens: 3
 const opts = (o: Partial<GenerateOptions> = {}): GenerateOptions => ({ timeoutMs: 30_000, ...o });
 const bodyOf = (fetchFn: ReturnType<typeof vi.fn>) => JSON.parse(fetchFn.mock.calls[0][1].body);
 
+describe('generateViaMoonshot — 400 temperature-error next steps (t/2069)', () => {
+  it('surfaces fixedTemperature guidance when the 400 body mentions temperature', async () => {
+    const body = { error: { message: 'invalid temperature: only 1 is allowed for this model' } };
+    const fetchFn = mockFetch(400, body);
+    await expect(generateViaMoonshot(fetchFn, 'p', 'kimi-k3', 'key', opts())).rejects.toMatchObject({
+      nextSteps: expect.arrayContaining([expect.stringContaining('fixedTemperature')]),
+    });
+  });
+
+  it('falls back to generic next steps for non-temperature 400s', async () => {
+    const fetchFn = mockFetch(400, { error: { message: 'invalid api key' } });
+    await expect(generateViaMoonshot(fetchFn, 'p', 'kimi-k3', 'key', opts())).rejects.toMatchObject({
+      nextSteps: expect.arrayContaining([expect.stringContaining('API key')]),
+    });
+  });
+});
+
 describe('generateViaMoonshot — temperature enforcement (t/2068)', () => {
   it('sends fixedTemperature verbatim, overriding a caller temperature (kimi-k3 needs exactly 1)', async () => {
     const fetchFn = mockFetch(200, OK);
