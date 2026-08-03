@@ -54,6 +54,7 @@ jobs:
       schema: ${{ steps.filter.outputs.schema }}
       lib: ${{ steps.filter.outputs.lib }}
       python: ${{ steps.filter.outputs.python }}
+      container: ${{ steps.filter.outputs.container }}
     steps:
       - uses: dorny/paths-filter@7b450fff21473bca461d4b92ce414b9d0420d706  # v4.0.2
         id: filter
@@ -98,6 +99,33 @@ jobs:
             python:
               - 'scripts/requirements*.txt'
               - '.github/ci/**'
+              - '.github/workflows/ci.yml'
+            # 'container' gates test-container (t/2094). SOUNDNESS: ci-gate treats
+            # a SKIPPED gated job as satisfied, so this list must cover EVERYTHING
+            # the container build reads, or a container-affecting change skips the
+            # build and false-greens (the t/2025 shape). Derived from the actual
+            # COPY set of taxonomy-editor/Dockerfile (builder+prod-deps+runtime
+            # stages) + the base Dockerfile + the readiness smoke:
+            #   taxonomy-editor/**  — Dockerfile, src, tsconfig*, vite.config,
+            #                         scripts, package*.json, pty-broker.py
+            #   lib/**              — COPY lib/ (server build input)
+            #   ai-models.json, ai-usages.json, .aitriad.json, CHANGELOG.md — COPY'd
+            #   taxonomy/schemas/** — COPY taxonomy/schemas/
+            #   scripts/**          — COPY scripts/ into the runtime image
+            #   deploy/azure/Dockerfile.base — pulled-or-built + hadolint'd here
+            #   deploy/azure/smoke-healthz.sh — the readiness smoke this job runs
+            # (taxonomy-snapshot/ is STUBBED in-job, so it is NOT a repo input.)
+            container:
+              - 'taxonomy-editor/**'
+              - 'lib/**'
+              - 'scripts/**'
+              - 'taxonomy/schemas/**'
+              - 'ai-models.json'
+              - 'ai-usages.json'
+              - '.aitriad.json'
+              - 'CHANGELOG.md'
+              - 'deploy/azure/Dockerfile.base'
+              - 'deploy/azure/smoke-healthz.sh'
               - '.github/workflows/ci.yml'
 
   test-powershell:
@@ -478,9 +506,18 @@ jobs:
   # reds the gate. The only cost is a wasted container build on a PR whose tests
   # already failed — free on this public repo's runner minutes, the tradeoff the
   # ticket sanctions (wall-time over redundant compute).
+  #
+  # PATHS-FILTERED (t/2094): gated on the `container` filter so docs-only / PS-doc
+  # PRs (which touch none of the image's COPY inputs) SKIP the ~270s build — the
+  # largest relative win on the PR class the fleet files most. skipped == OK
+  # through ci-gate. SOUNDNESS: the `container` filter (in `changes` above) must
+  # cover every input the image build reads, or a container-affecting change
+  # skips the build and false-greens (t/2025 shape) — see that filter's comment.
   test-container:
     needs: [changes]
-    if: always() && !cancelled()
+    if: >-
+      always() && !cancelled() &&
+      (github.event_name != 'pull_request' || needs.changes.outputs.container == 'true')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v6
