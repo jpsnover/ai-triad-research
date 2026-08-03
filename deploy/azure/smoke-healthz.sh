@@ -30,6 +30,14 @@ IMAGE="${IMAGE:?set IMAGE to the image ref to smoke}"
 #               + creds); it's what catches the t/2047 class (starts but never
 #               data-ready). da74e499 RED / efd068fe GREEN is its AC.
 SMOKE_MODE="${SMOKE_MODE:-readiness}"
+# GITHUB_TOKEN is only required in readiness mode (github-api data-load fetch).
+# In liveness mode no external fetch is needed — default to empty so the script
+# doesn't abort when called without it (e.g. CI liveness gate, t/2067).
+GITHUB_TOKEN="${GITHUB_TOKEN:-}"
+if [ "${SMOKE_MODE}" = "readiness" ] && [ -z "${GITHUB_TOKEN}" ]; then
+  echo "::error::GITHUB_TOKEN required for SMOKE_MODE=readiness (public read is enough)"
+  exit 1
+fi
 
 # READY_TIMEOUT covers real cold start: onnx model is baked, so startup is
 # app init + (readiness) the github-api taxonomy fetch (public repo, a few MB).
@@ -60,7 +68,7 @@ docker run -d --name "$NAME" -p "${PORT}:${PORT}" \
   -e NODE_ENV=production \
   -e STORAGE_MODE=github-api \
   -e GITHUB_REPO="${GITHUB_REPO:-jpsnover/ai-triad-data}" \
-  -e GITHUB_TOKEN="${GITHUB_TOKEN:?set GITHUB_TOKEN (public read is enough)}" \
+  -e GITHUB_TOKEN="${GITHUB_TOKEN}" \
   -e AI_TRIAD_DATA_ROOT=/tmp/taxonomy-cache \
   -e AUTH_DISABLED=1 \
   -e PORT="${PORT}" \
