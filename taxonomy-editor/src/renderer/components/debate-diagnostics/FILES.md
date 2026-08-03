@@ -1,6 +1,6 @@
 # DebateDiagnostics — File Inventory
 
-Directory map for `taxonomy-editor/src/renderer/components/debate-diagnostics/`. Reference only — behavioral norms live in [AGENTS.md](./AGENTS.md).
+Directory map for `taxonomy-editor/src/renderer/components/debate-diagnostics/`. Reference only — behavioral norms live in `AGENTS.md`.
 
 ```
 debate-diagnostics/

@@ -1,7 +1,7 @@
 # ElectronMain — File Inventory
 
 Reference inventory of the Electron main-process files in `taxonomy-editor/src/main/`.
-Behavioral norms live in [AGENTS.md](./AGENTS.md); this file is discovery only.
+Behavioral norms live in `AGENTS.md`; this file is discovery only.
 
 | File | Purpose |
 |------|---------|

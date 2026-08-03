@@ -1,6 +1,6 @@
 # Sync — File Inventory
 
-Reference inventory for the Sync role's scope (`taxonomy-editor/src/renderer/components/sync/`). Behavioral norms and conventions live in [AGENTS.md](./AGENTS.md).
+Reference inventory for the Sync role's scope (`taxonomy-editor/src/renderer/components/sync/`). Behavioral norms and conventions live in `AGENTS.md`.
 
 | File | Purpose |
 |------|---------|
