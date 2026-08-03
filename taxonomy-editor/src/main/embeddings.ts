@@ -31,7 +31,6 @@ import {
   getDefaultTimeout,
   GEMINI_BASE,
   GEMINI_SAFETY_SETTINGS,
-  buildModelEntryMap,
   callProvider,
   withRetry,
   SERVER_RETRY_CONFIG,
@@ -39,7 +38,8 @@ import {
   DEFAULT_MODEL,
 } from '../../../lib/ai-client/index.js';
 import type { GenerateOptions, RateLimitType as SharedRateLimitType, FetchFn } from '../../../lib/ai-client/index.js';
-import type { ModelEntry, ModelRegistry } from '../../../lib/ai-client/index.js';
+import type { ModelEntry } from '../../../lib/ai-client/index.js';
+import { resolveModelEntry as resolveModelEntryFromCache } from './modelConfigCache.js';
 
 // ── Electron net.fetch wrapper ──
 // Electron's net.fetch requires Buffer.from for string bodies in some cases.
@@ -550,7 +550,7 @@ export interface GenerateTextProgress {
 
 type AIBackend = 'gemini' | 'claude' | 'groq' | 'openai' | 'ollama';
 
-// ── API model ID mapping — loaded from ai-models.json via shared buildModelIdMap ──
+// ── API model ID mapping — cache logic extracted to modelConfigCache.ts (testable without electron) ──
 
 /** Find ai-models.json — may be at PROJECT_ROOT or one level up (when PROJECT_ROOT is taxonomy-editor/) */
 function findModelsConfig(): string {
@@ -564,57 +564,8 @@ function findModelsConfig(): string {
   return candidates[0];
 }
 
-// Cache the full model entry map (non-lossy — carries fixedTemperature etc.), reload when ai-models.json changes
-let _modelMapCache: Record<string, ModelEntry> | null = null;
-let _modelMapMtime = 0;
-
 function resolveModelEntry(friendlyId: string): ModelEntry | undefined {
-  // Hoisted so the catch can name the file it failed on (t/1704) and advance the
-  // mtime guard when the file was statted but its contents failed to parse (t/1702).
-  let configPath: string | undefined;
-  let statMtime = 0;
-  let fd: number | undefined;
-  try {
-    configPath = findModelsConfig();
-    // Open ONE descriptor and fstat+read through it (js/file-system-race, t/2022): statting a
-    // path then reading the same path is a TOCTOU; operating on a single fd is race-free.
-    fd = fs.openSync(configPath, 'r');
-    const stat = fs.fstatSync(fd);
-    statMtime = stat.mtimeMs;
-    if (!_modelMapCache || stat.mtimeMs !== _modelMapMtime) {
-      // Strip a leading UTF-8 BOM (EF BB BF) before parsing — ai-models.json has
-      // been saved with one, which makes JSON.parse throw `Unexpected token` and,
-      // without the mtime-guard fix below, re-failed on every generateText call
-      // (t/1702). ﻿ is the BOM code point.
-      const raw = fs.readFileSync(fd, 'utf-8').replace(/^﻿/, '');
-      const config = JSON.parse(raw) as ModelRegistry;
-      _modelMapCache = buildModelEntryMap(config);
-      _modelMapMtime = stat.mtimeMs;
-      console.log(`[model-map] Loaded ${Object.keys(_modelMapCache!).length} mappings from ${configPath}`);
-    }
-  } catch (err) {
-    getGlobalRecorder()?.record({
-      type: 'system.error',
-      component: 'embeddings',
-      level: 'error',
-      message: 'Operation failed',
-      // Name the file being parsed so the recorder error is self-describing —
-      // the BOM SyntaxError previously gave no hint which file failed (t/1704).
-      data: { configPath },
-      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
-    });
-    if (!_modelMapCache) _modelMapCache = {} as Record<string, ModelEntry>;
-    // Advance the mtime guard so a file that was found but failed to parse is not
-    // re-read (and re-recorded) on every subsequent call — the flooding observed
-    // in t/1702. statMtime is 0 only when openSync/fstatSync threw (missing file), in
-    // which case we intentionally leave the guard so a later-created file is picked
-    // up; a real edit to a broken file changes mtime and re-triggers a load.
-    if (statMtime !== 0) _modelMapMtime = statMtime;
-    console.error(`[model-map] FAILED to load model map: ${err instanceof Error ? err.message : err}`);
-  } finally {
-    if (fd !== undefined) fs.closeSync(fd);
-  }
-  return _modelMapCache?.[friendlyId];
+  return resolveModelEntryFromCache(findModelsConfig(), friendlyId);
 }
 
 /** Return a fixedTemperature override for GenerateOptions when the entry requires one. */
