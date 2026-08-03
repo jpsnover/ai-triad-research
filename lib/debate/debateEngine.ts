@@ -40,6 +40,8 @@ import type {
   ProcessRewardEntry,
   TopicScope,
   EntailmentRepairEvent,
+  TalmudicCorpus,
+  TalmudicReferenceSelection,
 } from './types.js';
 import { POVER_INFO, getDebatePhase, POV_KEYS, type PovKey } from './types.js';
 import {
@@ -172,6 +174,13 @@ import { runFixedCrossRespond, runAdaptiveCrossRespond } from './debateEngine/ph
 import { _rescoreSituations } from './debateEngine/adaptiveStaging.js';
 export { modelTierRank } from './debateEngine/modelResolution.js';
 export type { DebateConfig, DebateProgress, LifecycleStage } from './debateEngine/internals.js';
+import {
+  formatTalmudicSourceDirective,
+  loadTalmudicCorpus,
+  retrieveTalmudicReference,
+  validateTalmudicReferenceResponse,
+} from './talmudicReferences.js';
+import { assertUniqueArgumentNodeIds } from './argumentNetwork.js';
 
 // ── Engine ────────────────────────────────────────────────
 
@@ -281,6 +290,8 @@ export class DebateEngine {
   /** Extracted ClaimExtractionPipeline collaborator — owns claim extraction, drift tracking, gap injection, and post-debate analysis. */
   private _claimPipeline!: ClaimExtractionPipeline;
   private _synthesisPipeline!: SynthesisPipeline;
+  /** Validated source corpus loaded once at construction when references are enabled. */
+  private _talmudicCorpus: TalmudicCorpus | null = null;
 
   /**
    * t/1781: pending evidence-verification promises. verifyPreciseClaims populates
@@ -398,6 +409,20 @@ export class DebateEngine {
     }
 
     this.config = { ...config, stageModels: merged };
+    if (this.config.talmudicReferences?.enabled) {
+      if (this.config.moderatorMode !== 'talmudic') {
+        throw new ActionableError({
+          goal: 'Enable source-grounded Talmudic moderation',
+          problem: 'talmudicReferences.enabled requires moderatorMode to be talmudic',
+          location: 'DebateEngine.constructor',
+          nextSteps: [
+            'Set moderatorMode to "talmudic"',
+            'Or disable talmudicReferences for a standard debate',
+          ],
+        });
+      }
+      this._talmudicCorpus = loadTalmudicCorpus(this.config.talmudicReferences);
+    }
     this.adapter = adapter;
     this.taxonomy = taxonomy;
     applyExplorationConfigDefaults(this._internal);
@@ -442,7 +467,7 @@ export class DebateEngine {
     try {
       // Phase 0.5: Topic critique (free-form topics only, before clarification)
       if (this.config.enableWisdomEvaluation !== false &&
-          this.config.sourceType !== 'document' && this.config.sourceType !== 'url' && this.config.sourceType !== 'situations') {
+        this.config.sourceType !== 'document' && this.config.sourceType !== 'url' && this.config.sourceType !== 'situations') {
         await this._topicPipeline.runTopicCritique();
       }
 
@@ -955,6 +980,13 @@ export class DebateEngine {
       updated_at: now,
       app_version: this.config.appVersion,
       audience: this.config.audience,
+      moderator_mode: this.config.moderatorMode ?? 'standard',
+      talmudic_references: this._talmudicCorpus ? {
+        enabled: true,
+        corpus_name: this._talmudicCorpus.name,
+        corpus_path: path.resolve(this.config.talmudicReferences!.corpusPath),
+        corpus_version: this._talmudicCorpus.version,
+      } : { enabled: false },
       phase: 'setup',
       topic: {
         original: this.config.topic,
@@ -1218,14 +1250,14 @@ export class DebateEngine {
           continue;
         }
         getGlobalRecorder()?.record({
-            type: 'system.error',
-            component: 'debateEngine',
-            level: 'error',
-            debate_id: this.session?.id,
-            message: `Speaker ${speaker} model ${chain[i]} failed (no more fallbacks)`,
-            error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
-          });
-          throw err;
+          type: 'system.error',
+          component: 'debateEngine',
+          level: 'error',
+          debate_id: this.session?.id,
+          message: `Speaker ${speaker} model ${chain[i]} failed (no more fallbacks)`,
+          error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+        });
+        throw err;
       }
     }
     throw new Error(`All models failed for speaker ${speaker}`);
@@ -1409,8 +1441,8 @@ export class DebateEngine {
 
     // Post-hoc vocabulary disambiguation for debater statements
     if (this.config.vocabulary?.colloquialTerms &&
-        (full.type === 'opening' || full.type === 'statement') &&
-        full.speaker !== 'system' && full.speaker !== 'moderator' && full.speaker !== 'user') {
+      (full.type === 'opening' || full.type === 'statement') &&
+      full.speaker !== 'system' && full.speaker !== 'moderator' && full.speaker !== 'user') {
       const result = disambiguateTerms(
         full.content,
         full.speaker as CampOrigin,
