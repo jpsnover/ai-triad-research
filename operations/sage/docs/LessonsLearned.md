@@ -2581,3 +2581,43 @@ Institutional memory for failure patterns across the AI Triad Research project.
 **Status:** Active — **3 instances now** (kimi-k3 t/2068 + t/2083; groq/deepseek via the t/2070 audit). The registry `fixedTemperature` field (t/2068, `04052430`) is necessary but **not sufficient** — the recurring **`?? default` fallback smell** (t/2083) means a per-model constraint leaks back unless EVERY provider call path threads the registry value (prevention #5). t/2069 improves the 400 diagnostics; t/2070 audits the other reasoning models. Registry-as-single-source-of-model-constraints — same family as the AI-backend coupling-sites lesson.
 
 **Applies To:** All agents adding or configuring AI models (especially reasoning models) in `ai-models.json` / the provider layer — declare fixed request-param constraints in the registry, thread them through EVERY defaulting call site, live-smoke each new model.
+
+---
+
+## #121 [Build] `gh pr checks` Exits Non-Zero (8) When a Check Is PENDING — Not a Failure; Re-Poll, Don't Abort
+
+**Pattern:** `gh pr checks <n>` returns a **tri-state exit code**: `0` = all passed, `1` = a check FAILED, **`8` = one or more checks still PENDING/queued**. So a green-so-far PR with one slow check still running (e.g. `test-container`) exits **8** — non-zero, but nothing failed. A caller that branches on "non-zero = failure" conflates *pending* with *failed* and may wrongly abort a land.
+
+**Instances:**
+- 2026-08-01 — Server Storage (p/206#13, re-confirmed p/206#14): `gh pr checks 326` exited **8** because `test-container` was still running; **no check actually failed**. Recognized as expected `gh` behavior; **re-polled once `test-container` completed** → green. (Two reports same session — the exit-8 = pending semantics catch people.)
+
+**Root Cause:** `gh pr checks`'s exit code encodes STATE, not a pass/fail boolean — exit 8 specifically means "not done yet." Same "exit code is a status indicator, not success/failure" family as #73 facet A (grep exit-1 on zero-match ≠ error). It bites hardest during a self-merge wait, when a slow check (`test-container`) hasn't finished but every other check is green — the raw exit looks like failure.
+
+**Prevention:**
+1. **Don't read `gh pr checks` non-zero as "failed" — distinguish exit `8` (PENDING → re-poll) from exit `1` (FAILED → stop).** Branch on the specific code, or better, on the actual per-check state.
+2. **Parse the per-check state, not just the exit code** — `gh pr checks <n> --json name,state,conclusion --jq '...'` gives real states (`IN_PROGRESS`/`QUEUED` vs `FAILURE`); the raw exit code alone can't tell pending from failed to a naive branch.
+3. **On a self-merge wait, exit 8 = "not done, re-poll"** — re-run once the pending check completes (or use a background monitor, #116); don't abort the land.
+
+**Status:** Active — `gh pr checks` tri-state exit-code semantics (0 pass / 1 fail / 8 pending); "exit code ≠ pass/fail boolean" family (#73A). Self-correcting once recognized. CI-wait sibling of #111 (current-HEAD-gated workflow) and #116 (background monitor, not foreground poll).
+
+**Applies To:** All agents polling `gh pr checks` while waiting on PR checks (self-merge / land waits).
+
+---
+
+## #122 [Build] A Subprocess-Per-File Bash Loop Over the Whole Tree Times Out on Git Bash/Windows — Use Parameter Expansion, Not `$(cmd)` Per Item
+
+**Pattern:** A bash loop that spawns a subprocess PER FILE — e.g. `$(dirname "$f")` (or `$(basename)`, `$(echo | sed)`) inside a loop over `git ls-files` (~thousands of files) — spawns tens of thousands of subprocesses. On **Git Bash/Windows, process spawn is pathologically slow** (fork/exec emulation), so the loop **blows the 2-minute Bash-tool timeout (exit 143)** on a few-thousand-file tree. The same loop is fast on Linux (cheap fork) — a **Windows-specific perf cliff**, invisible in Linux CI.
+
+**Instances:**
+- 2026-08-01 — DevOps (t/2091, p/26#31): a CI script built a tracked-dir set via a **`$(dirname)` subshell loop over `git ls-files` (~3k files)** → tens of thousands of subprocess spawns → **timed out (>2 min)** on Git Bash/Windows. Fixed with **pure-bash ancestor extraction via parameter expansion** — `while [[ $d == */* ]]; do d=${d%/*}; done` (zero subprocesses) → **47s**.
+
+**Root Cause:** each `$(...)` / backtick command substitution **forks a subprocess**; on Windows Git Bash, fork/exec is emulated and ~orders of magnitude slower than native, so N-thousand spawns dominate wall-clock. Bash **parameter expansion** (`${d%/*}` = dirname, `${f##*/}` = basename, `${f%.*}` = strip-ext) does the same string ops **in-process** — zero spawns. Ties to the "foreground op > 120s Bash-tool cap → SIGTERM" genus (#78/#95/#116), but here the cost is **spawn-count**, not a single slow op or I/O.
+
+**Prevention:**
+1. **Never spawn a subprocess per file when iterating the whole tree in bash** — replace `$(dirname "$f")` → `${f%/*}`, `$(basename "$f")` → `${f##*/}`, `$(echo "$x" | sed …)` → parameter expansion (`${x//a/b}`, `${x%suffix}`, `${x#prefix}`). Parameter expansion is in-process; command substitution forks.
+2. **On Git Bash/Windows, subprocess spawn is the bottleneck, not the work** — a loop fine on Linux CI can blow the 2m Bash-tool cap on win32 purely from spawn count. Count `$(...)`-per-iteration × tree size before running a whole-tree loop.
+3. **If you genuinely need an external tool per item, batch it** — feed all items to ONE `xargs`/`awk`/`sed` invocation instead of one spawn per item.
+
+**Status:** Active — Windows Git-Bash subprocess-spawn perf cliff; a whole-tree per-file `$(cmd)` loop times out (spawn-count-bound). Sibling of the "foreground op > 120s Bash cap" genus (#78/#95/#116) — same 2m-timeout symptom, root cause = subprocess spawns, not a single slow op.
+
+**Applies To:** All agents writing bash loops over `git ls-files` / large file sets on Windows Git Bash — use parameter expansion; batch external tools.

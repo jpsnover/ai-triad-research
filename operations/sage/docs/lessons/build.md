@@ -1630,3 +1630,43 @@ Failure patterns related to builds, CI, tooling, environment, and git operations
 **Status:** Active — **P1 prod outage, resolved (prod restored); fix DAG t/2048–2052 + PR #297, anchor t/2047.** Gate-integrity genus (t/1589 build ≠ runs) — the container/deploy-gate instance of the same family as #94 (build ≠ suite runs) and #112 (green required gate ≠ all checks green). The severity came from three compounding gaps (build-only gate + GC'd rollback no-op + unvalidated auto-bump to prod), each a bookkeeping-≠-artifact hole; the durable fix closes all three (run-the-image gate, protected rollback target + verify-reverted, runtime-gated Dependabot) **plus base-tag pinning as hygiene**. **ROOT CAUSE CORRECTED (TL p/8#152, t/2053#12/#13/#15):** actual cause = **t/2061 (a `CACHE_DIR`/readiness code bug after healthy `efd068fe`)**; the **base-image bump / undici-TLS mechanism was a CONFOUND** (both variables changed good→bad; a single-variable A/B showed `:07-30` = `/healthz` 200 without the undici fix), undici retained only as unproven defense-in-depth. The build≠runs + gate-integrity lessons are UNAFFECTED (the primary pattern was never the specific mechanism). **Shared over-attribution, not an individual lapse (TL p/8#155, systems-not-blame):** the whole chain — TL (built the t/2053 gate on it), DevOps, Server Storage, and Sage — all ran with the undici attribution; a scary CVE anchored everyone at once. The lesson is structural (prevention #7: mark mechanisms hypothesized until single-variable-isolated), not "someone should have been more careful." The correction landed fast and cleanly — the system working. **Fix validated — strongest "build ≠ runs" evidence yet (TL p/8#149):** the new docker-run smoke (t/2048), on its **FIRST real run**, caught a **pre-existing SILENT deploy-freeze** the build-only gate had been hiding — current main was **undeployable on BOTH bases** (a node-agnostic readiness bug, t/2061), prod surviving only on an older image. The build-only gate wasn't just masking the one Dependabot bump — it had left main un-deployable with no signal; the run-the-image gate surfaced it on day one. (This incident also produced 2 concurrent dup-ticket pairs → see the "Concurrent Duplicate Ticket-Filing" process pattern, variant B.)
 
 **Applies To:** All agents/owners of container CI, deploy gates, rollback automation, and Dependabot/dependency-bump policy — especially base-image bumps with prod blast-radius.
+
+---
+
+## [Build] `gh pr checks` Exits Non-Zero (8) When a Check Is PENDING — Not a Failure; Re-Poll, Don't Abort
+
+**Pattern:** `gh pr checks <n>` returns a **tri-state exit code**: `0` = all passed, `1` = a check FAILED, **`8` = one or more checks still PENDING/queued**. So a green-so-far PR with one slow check still running (e.g. `test-container`) exits **8** — non-zero, but nothing failed. A caller that branches on "non-zero = failure" conflates *pending* with *failed* and may wrongly abort a land.
+
+**Instances:**
+- 2026-08-01 — Server Storage (p/206#13, re-confirmed p/206#14): `gh pr checks 326` exited **8** because `test-container` was still running; **no check actually failed**. Recognized as expected `gh` behavior; **re-polled once `test-container` completed** → green. (Two reports same session — the exit-8 = pending semantics catch people.)
+
+**Root Cause:** `gh pr checks`'s exit code encodes STATE, not a pass/fail boolean — exit 8 specifically means "not done yet." Same "exit code is a status indicator, not success/failure" family as #73 facet A (grep exit-1 on zero-match ≠ error). It bites hardest during a self-merge wait, when a slow check (`test-container`) hasn't finished but every other check is green — the raw exit looks like failure.
+
+**Prevention:**
+1. **Don't read `gh pr checks` non-zero as "failed" — distinguish exit `8` (PENDING → re-poll) from exit `1` (FAILED → stop).** Branch on the specific code, or better, on the actual per-check state.
+2. **Parse the per-check state, not just the exit code** — `gh pr checks <n> --json name,state,conclusion --jq '...'` gives real states (`IN_PROGRESS`/`QUEUED` vs `FAILURE`); the raw exit code alone can't tell pending from failed to a naive branch.
+3. **On a self-merge wait, exit 8 = "not done, re-poll"** — re-run once the pending check completes (or use a background monitor, #116); don't abort the land.
+
+**Status:** Active — `gh pr checks` tri-state exit-code semantics (0 pass / 1 fail / 8 pending); "exit code ≠ pass/fail boolean" family (#73A). Self-correcting once recognized. CI-wait sibling of #111 (current-HEAD-gated workflow) and #116 (background monitor, not foreground poll).
+
+**Applies To:** All agents polling `gh pr checks` while waiting on PR checks (self-merge / land waits).
+
+---
+
+## [Build] A Subprocess-Per-File Bash Loop Over the Whole Tree Times Out on Git Bash/Windows — Use Parameter Expansion, Not `$(cmd)` Per Item
+
+**Pattern:** A bash loop that spawns a subprocess PER FILE — e.g. `$(dirname "$f")` (or `$(basename)`, `$(echo | sed)`) inside a loop over `git ls-files` (~thousands of files) — spawns tens of thousands of subprocesses. On **Git Bash/Windows, process spawn is pathologically slow** (fork/exec emulation), so the loop **blows the 2-minute Bash-tool timeout (exit 143)** on a few-thousand-file tree. The same loop is fast on Linux (cheap fork) — a **Windows-specific perf cliff**, invisible in Linux CI.
+
+**Instances:**
+- 2026-08-01 — DevOps (t/2091, p/26#31): a CI script built a tracked-dir set via a **`$(dirname)` subshell loop over `git ls-files` (~3k files)** → tens of thousands of subprocess spawns → **timed out (>2 min)** on Git Bash/Windows. Fixed with **pure-bash ancestor extraction via parameter expansion** — `while [[ $d == */* ]]; do d=${d%/*}; done` (zero subprocesses) → **47s**.
+
+**Root Cause:** each `$(...)` / backtick command substitution **forks a subprocess**; on Windows Git Bash, fork/exec is emulated and ~orders of magnitude slower than native, so N-thousand spawns dominate wall-clock. Bash **parameter expansion** (`${d%/*}` = dirname, `${f##*/}` = basename, `${f%.*}` = strip-ext) does the same string ops **in-process** — zero spawns. Ties to the "foreground op > 120s Bash-tool cap → SIGTERM" genus (#78/#95/#116), but here the cost is **spawn-count**, not a single slow op or I/O.
+
+**Prevention:**
+1. **Never spawn a subprocess per file when iterating the whole tree in bash** — replace `$(dirname "$f")` → `${f%/*}`, `$(basename "$f")` → `${f##*/}`, `$(echo "$x" | sed …)` → parameter expansion (`${x//a/b}`, `${x%suffix}`, `${x#prefix}`). Parameter expansion is in-process; command substitution forks.
+2. **On Git Bash/Windows, subprocess spawn is the bottleneck, not the work** — a loop fine on Linux CI can blow the 2m Bash-tool cap on win32 purely from spawn count. Count `$(...)`-per-iteration × tree size before running a whole-tree loop.
+3. **If you genuinely need an external tool per item, batch it** — feed all items to ONE `xargs`/`awk`/`sed` invocation instead of one spawn per item.
+
+**Status:** Active — Windows Git-Bash subprocess-spawn perf cliff; a whole-tree per-file `$(cmd)` loop times out (spawn-count-bound). Sibling of the "foreground op > 120s Bash cap" genus (#78/#95/#116) — same 2m-timeout symptom, root cause = subprocess spawns, not a single slow op.
+
+**Applies To:** All agents writing bash loops over `git ls-files` / large file sets on Windows Git Bash — use parameter expansion; batch external tools.
