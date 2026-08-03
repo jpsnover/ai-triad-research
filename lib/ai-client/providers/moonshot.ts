@@ -52,11 +52,17 @@ export async function generateViaMoonshot(
     });
   }
   if (!response.ok) {
+    const isTemperatureError = response.status === 400 && /temperature/i.test(bodyText);
     throw new ActionableError({
       goal: 'Generate text via Moonshot',
       problem: `Moonshot API error ${response.status}: ${bodyText.slice(0, 500)}`,
       location: 'ai-client.generateViaMoonshot',
-      nextSteps: ['Check your API key', 'Verify the model ID', 'Try a different model'],
+      nextSteps: isTemperatureError
+        ? [
+            'This model requires fixedTemperature=1 — check the model entry in ai-models.json',
+            'Ensure the fixedTemperature field is set and is being passed through opts',
+          ]
+        : ['Check your API key', 'Verify the model ID', 'Try a different model'],
     });
   }
 
