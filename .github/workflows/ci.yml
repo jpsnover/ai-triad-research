@@ -600,19 +600,19 @@ jobs:
           load: true
           tags: ai-triad-test:ci
 
-      - name: Run container readiness smoke — /healthz==200 (t/2048)
+      - name: Run container liveness smoke — server starts + answers (t/2048, t/2067)
         timeout-minutes: 8
         env:
           IMAGE: ai-triad-test:ci
-          # READINESS: pass ONLY on a real /healthz==200 (taxonomy data loaded via
-          # the github-api fetch). A clean single curl capture means a
-          # connection-refused ("000") can never pass — the gate-integrity trap
-          # that this whole incident (t/2047) is about. On a 503 timeout the script
-          # runs an in-container github-reachability probe to discriminate
-          # "CI-can't-fetch" (→ readiness gate moves to the deploy stage, t/2049)
-          # from a real current-main readiness bug.
-          SMOKE_MODE: readiness
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # LIVENESS: pass as soon as /healthz RESPONDS with any HTTP status (not
+          # "000" = connection refused). CI builds bake only a stub snapshot and
+          # run without real github-api creds — they can prove the container boots
+          # and listens, not that it loaded data. Zero external-service dependency
+          # → no github-reachability flake in the required PR gate (t/2067).
+          # Readiness (data loaded via github-api fetch) is enforced pre-traffic at
+          # the deploy stage by t/2049 (real env + creds) — catches the t/2047
+          # class without coupling the required PR gate to api.github.com.
+          SMOKE_MODE: liveness
         run: bash deploy/azure/smoke-healthz.sh
 
       - name: Cleanup
