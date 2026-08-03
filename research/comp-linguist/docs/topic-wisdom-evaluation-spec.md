@@ -4,7 +4,7 @@
 
 This spec adds a **topic wisdom evaluation** step to the debate setup flow, inserted between topic refinement and clause decomposition. It scores candidate topics across 10 dimensions -- 5 deterministic and 5 LLM-assessed -- and triggers an LLM-powered reframing pass when the score falls below threshold.
 
-Grounded in [wisdom-generating-topics.md](./wisdom-generating-topics.md). Implementation owned by Shared Lib.
+Grounded in [wisdom-generating-topics.md](../analyses/wisdom-generating-topics.md). Implementation owned by Shared Lib.
 
 ---
 

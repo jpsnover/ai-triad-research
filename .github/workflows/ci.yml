@@ -2,8 +2,9 @@
 # What:  Runs all quality gates: Pester tests with coverage, ESLint + TypeScript
 #        checks for all 4 Electron apps (matrix), and a container smoke test.
 # Before: Triggers automatically on push/PR to main. No manual setup needed.
-# After:  All checks must pass before merging. The test-container job depends on
-#         test-powershell and test-electron completing successfully.
+# After:  All checks must pass before merging. test-container runs in PARALLEL
+#         with the test matrix (it reuses no test artifact — t/2073); the
+#         always-runs ci-gate job is what blocks the merge on any red gated job.
 #
 # ── continue-on-error flip taxonomy ──
 # FLIPPED — enforcing now (continue-on-error removed):
@@ -462,12 +463,24 @@ jobs:
         continue-on-error: true
         run: node scripts/validate-schemas.mjs
 
+  # ── test-container: build+readiness-smoke, PARALLELIZED off the test jobs (t/2073) ──
+  # WAS `needs: [test-powershell, test-electron]` with a `!contains(failure)`
+  # guard — i.e. the container build waited for the ENTIRE test matrix before
+  # starting, purely as a fail-fast "don't build on red" gate, NOT a data
+  # dependency (the Dockerfile does its own `npm ci`/build and reuses no artifact
+  # from those jobs — verified t/2073). That serialization put container
+  # (~250s) *after* the long-pole test-electron/taxonomy-editor (~420s), so the
+  # merge-gating critical path was electron+container in series (~11–12.5 min).
+  # Decoupling it to `needs: [changes]` runs it CONCURRENTLY, collapsing the path
+  # to max(electron, container) ≈ electron alone — ~35% off the full-fat path.
+  # Coverage is UNCHANGED: `ci-gate` (below) lists test-container in its own
+  # `needs` and independently blocks on its failure, so a red container still
+  # reds the gate. The only cost is a wasted container build on a PR whose tests
+  # already failed — free on this public repo's runner minutes, the tradeoff the
+  # ticket sanctions (wall-time over redundant compute).
   test-container:
-    needs: [test-powershell, test-electron]
-    if: >-
-      always() &&
-      !contains(needs.*.result, 'failure') &&
-      !contains(needs.*.result, 'cancelled')
+    needs: [changes]
+    if: always() && !cancelled()
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v6

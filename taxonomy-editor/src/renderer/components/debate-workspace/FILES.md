@@ -1,6 +1,6 @@
 # DebateWorkspace — File Inventory
 
-Reference inventory for the DebateWorkspace scope. Behavioral norms live in [AGENTS.md](./AGENTS.md).
+Reference inventory for the DebateWorkspace scope. Behavioral norms live in `AGENTS.md`.
 
 ## Components (`debate-workspace/`)
 

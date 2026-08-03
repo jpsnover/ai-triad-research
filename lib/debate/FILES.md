@@ -1,6 +1,6 @@
 # DebateTool — File Inventory
 
-Reference index of the key modules in `lib/debate/` (the debate engine core). **Reference only** — behavioral norms, conventions, and testing/parent-role guidance live in [AGENTS.md](./AGENTS.md). This index drifts as the tree evolves; it is also discoverable via directory listing, `resolve_owner`, and `REPO_MAP.md`.
+Reference index of the key modules in `lib/debate/` (the debate engine core). **Reference only** — behavioral norms, conventions, and testing/parent-role guidance live in `AGENTS.md`. This index drifts as the tree evolves; it is also discoverable via directory listing, `resolve_owner`, and `REPO_MAP.md`.
 
 ## Key Modules
 

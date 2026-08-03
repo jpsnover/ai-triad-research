@@ -343,4 +343,4 @@ When all three conditions hold, the debate becomes a structured search for the b
 ---
 
 *Drafted: 2026-05-21 | Computational Linguist | AI Triad Research*
-*Related: [epistemic-infrastructure-framing.md](./epistemic-infrastructure-framing.md), [calibration-methodology.md](./calibration-methodology.md), [consensus-detection-spec.md](./consensus-detection-spec.md)*
+*Related: [epistemic-infrastructure-framing.md](./epistemic-infrastructure-framing.md), [calibration-methodology.md](../docs/calibration-methodology.md), [consensus-detection-spec.md](../docs/consensus-detection-spec.md)*
