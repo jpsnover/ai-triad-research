@@ -90,6 +90,9 @@ ENV TAXONOMY_CACHE_DIR=/tmp/taxonomy-cache
 ENV PORT=7862
 ENV NODE_ENV=production
 ENV PYTHONUNBUFFERED=1
+# PYTHONUTF8=1: PEP 540 UTF-8 Mode — forces UTF-8 for stdio AND open() on all platforms.
+# Prevents UnicodeEncodeError/DecodeError on non-ASCII from pty-broker.py (t/2046).
+ENV PYTHONUTF8=1
 
 WORKDIR /app
 
