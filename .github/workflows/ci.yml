@@ -348,6 +348,18 @@ jobs:
         continue-on-error: true
         run: bash scripts/check-doc-claims.sh
 
+      # Doc-link check (t/2091): links in main-repo-tracked docs must resolve
+      # against `git ls-files`, not the on-disk working tree — a public doc
+      # linking an overlay-only path (t/2089) 404s for public-repo viewers.
+      # Advisory (continue-on-error) like the claims-lint; remove to enforce.
+      - name: Doc link self-test (t/2091 regression)
+        continue-on-error: true
+        run: bash .github/scripts/check-doc-links.sh --self-test
+
+      - name: Check doc links (main-repo presence)
+        continue-on-error: true
+        run: bash .github/scripts/check-doc-links.sh
+
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v6
         with:
           node-version: '22'
