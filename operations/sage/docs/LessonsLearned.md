@@ -2137,6 +2137,7 @@ Institutional memory for failure patterns across the AI Triad Research project.
 
 **Instances:**
 - 2026-07-29 — Technical Lead (t/1932 Moonshot backend; detail t/1932#1): the DAG covered the 3 adapters (aiAdapter/aiBackends/AIEnrich) but missed 3 non-adapter coupling sites — `routes/keys.ts` `KEY_VALIDATION_PROBES` (keysValidation.test.ts red), `config.ts` `ENV_KEY_NAMES`/`AIBackend` exhaustiveness (server tsc TS2741, blocks everyone), `registry.ts` `resolveBackend` (silent misroute moonshot→gemini). Compounded: config-land verify grepped `keysValidation.test.ts` but ran only `configInvariant`+`modelDiscovery` — a subset skipping the broken test. Green via t/1944+probe `66325245`; routing t/1945.
+- 2026-08-03 — Shared Lib (p/5#21): `usageRegistry.test.ts` `listUsages` asserted `toHaveLength(3)` — a hardcoded literal count. Adding a 4th entry (`moonshot.test` to `TEST_USAGES`) caused the assertion to fail ("expected 4, received 3"). **Coupling site type: hardcoded length/count assertion** — invisible to tsc (runtime check, not an exhaustiveness map) and to a grep of the enum/type name (the bare `3` has no syntactic tie to the registry). Fix: bump assertion to 4 (p/5#21).
 
 **Root Cause:** A shared enum/config is a fan-out coupling point — every exhaustiveness-checked map, probe table, and resolver keyed on it is an implicit dependency, enforced only if that check is compiled/run. The author reasons from the *feature* ("add an adapter") not the *coupling graph* ("what is keyed on this id?"), so coupling sites in other scopes fall outside the DAG; a hand-picked test subset then hides the breaks pre-land.
 
@@ -2145,8 +2146,9 @@ Institutional memory for failure patterns across the AI Triad Research project.
 2. **A shared-config change must run ALL referencing tests — never a hand-picked subset.** If you grep for referencing tests, *run the ones you find*; prefer full `npm run verify` for any shared-surface change.
 3. Make coupling maps **exhaustive at compile time** (`Record<Enum,T>` not `Partial<…>`; `switch` + `never` default) so `tsc` becomes the coupling detector.
 4. Durable fix for a recurring multi-site addition: a **checklist playbook**. TL is authoring `/add-ai-backend` (7 config sections + keys.ts probe + config.ts ENV_KEY_NAMES/type + registry resolveBackend + 3 adapters) — the concrete instance of this rule.
+5. **Hardcoded length/count assertions in tests are runtime coupling sites invisible to tsc and to a type-name grep.** When adding an entry to any array/registry, grep test files for `toHaveLength`, `.length`, `toBe(N)` patterns over the collection — a bare literal count has no syntactic tie to the enum/registry name (p/5#21).
 
-**Status:** Active — decomposition-completeness (coupling graph vs feature files) + verify-scope (all referencing tests vs subset). TL self-reported (t/1932#1); durable fix = `/add-ai-backend` playbook (being filed). Watch the same shape on other shared enums (POV camps `acc/saf/skp/cc`, BDI categories, `pol-*` registry).
+**Status:** Active — 2 instances. Decomposition-completeness (coupling graph vs feature files) + verify-scope (all referencing tests vs subset); and hardcoded count assertions as a runtime coupling site (p/5#21, added 2026-08-03). TL self-reported (t/1932#1); durable fix = `/add-ai-backend` playbook (being filed). Watch the same shape on other shared enums (POV camps `acc/saf/skp/cc`, BDI categories, `pol-*` registry).
 
 **Applies To:** Any role decomposing/landing a change that adds a member to a shared enumeration/config consumed across multiple files or scopes.
 
