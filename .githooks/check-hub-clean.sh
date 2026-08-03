@@ -17,13 +17,21 @@
 #               modification not explained by phantom/stale logic
 #
 # Usage:
-#   check-hub-clean.sh            # exits 1 if real WIP; 0 if only junk/phantom/stale
+#   check-hub-clean.sh            # exits 1 if WIP or STALE; 0 if only junk/phantom
 #   check-hub-clean.sh --advisory # always exits 0 (warn-only; for post-merge hook)
 #
 # Exit codes:
-#   0 — no real WIP (may have ZERO-BYTE/PHANTOM/STALE entries — see stderr)
-#   1 — real WIP found (ff-redetach must refuse; manual triage required)
-#   2 — git introspection error (caller should fail-open)
+#   0 — safe to proceed: only ZERO-BYTE/PHANTOM (no local changes; ff-redetach may run)
+#   1 — refuse: WIP or STALE found (ff-redetach must not proceed — never-discard, t/2009)
+#   2 — git introspection error (ff-redetach fails closed — do NOT fail-open; the comment
+#        in the original header was wrong: a broken guard must not unblock a destructive op)
+#
+# Why STALE causes exit 1 (TL review t/2066#14): a tracked modification that appears in
+# git status --porcelain necessarily has a working-tree or index change relative to HEAD.
+# HEAD-staleness and local edits are independent — the ancestry check confirms staleness
+# but never verifies the worktree is expendable. PHANTOM is safe precisely because it is
+# a content test (git diff --quiet origin/main); STALE has no such content test.
+# STALE remains useful as an advisory label in --advisory (post-merge) mode.
 # ─────────────────────────────────────────────────────────────────────────────
 set -e
 
@@ -128,5 +136,9 @@ fi
 [ "$has_output" = "1" ] && printf "\n" >&2
 
 [ "$ADVISORY" = "1" ] && exit 0
-[ -n "$wip_list" ] && exit 1
+# STALE causes exit 1 alongside WIP — only PHANTOM + ZERO-BYTE are safe to proceed over
+# (see header: staleness and local edits are independent; ancestry test is not a content test)
+if [ -n "$wip_list" ] || [ -n "$stale" ]; then
+  exit 1
+fi
 exit 0
