@@ -1,7 +1,7 @@
 # Dependency Policy
 
 **Status:** Active
-**Last reviewed:** 2026-06-22
+**Last reviewed:** 2026-08-03
 **Owner:** Technical Lead
 
 This policy governs third-party dependency selection, license compliance, and vulnerability response for the AI Triad Research project. It turns the SBOM (`THIRD-PARTY-NOTICES.txt`) from documentation into governance.
@@ -71,6 +71,38 @@ Response time starts when the vulnerability is reported (Dependabot alert, `npm 
 2. **Weekly audit** (`npm audit` + `pip-audit`) per maintenance schedule — Tech Lead triages, routes to owning agent
 3. **Critical/High**: Tech Lead creates a ticket immediately, assigns to owning agent, sets due date per SLA
 4. **Medium/Low**: Batch into maintenance tickets, address in the next cycle
+
+## Code Scanning Alert Triage
+
+GitHub's Security → Code scanning tab holds two unrelated queues under one number. Triage them separately; the combined total is not a meaningful metric.
+
+| Queue | Tool | Owner | What it means |
+|---|---|---|---|
+| Source SAST | CodeQL | Tech Lead | A finding in code we wrote. Each one is individually actionable. |
+| Container CVE | Trivy | DevOps | A CVE in a base-image or npm-global layer. Remediated by bumping the image, not by editing our code. |
+
+**Count Trivy by unique CVE ID, never by alert count.** Every image build re-files the same findings against the image ref and the prior alerts do not auto-close, so the alert count inflates without any change in real exposure. As of 2026-08-03 the queue held 1,066 Trivy alerts covering 263 unique CVEs — a ~4x multiplier. Any SLA written against the alert count is unmeetable by construction.
+
+### SLA Applicability
+
+The Vulnerability Response SLA above applies to the **Trivy** queue by CVE severity, exactly as it does to Dependabot alerts.
+
+For the **CodeQL** queue the SLA is different, because CodeQL severity measures query confidence rather than exploitability:
+
+| CodeQL severity | Requirement |
+|---|---|
+| Critical / High | Fix or dismiss within 7 days. The CI gate blocks new high+ findings on a PR, so anything at this level on `main` means the gate was bypassed — investigate that too. |
+| Medium / Low / Note | **Verdict** within 30 days, not necessarily a fix. A written "by design, here's why" closes the SLA. |
+
+The distinction matters: the `codeql.yml` CI gate is **differential** — only *new* high+ findings fail a PR. Nothing in the medium backlog blocks anything, so the backlog only shrinks if someone works this schedule. It does not self-clear.
+
+### Dismissal Rules
+
+1. **Every dismissal carries a written justification** in `dismissed_comment` — source, sink, and why the flow is safe. "Looks fine" is not a justification. This is the Gate Co-Location rule: the reasoning lives at the alert, not in ticket history.
+2. **Production code is confirmed by its owning agent before dismissal.** Route the alert to the owner, get the source/sink analysis on a ticket, then dismiss citing it. The TL does not dismiss production-code alerts on inspection alone.
+3. **Analysis scripts and dev tooling** (`research/*/scripts/`, `taxonomy-editor/tools/`) may be dismissed as `won't fix` directly — not shipped surface. Say so in the comment.
+4. **Never dismiss to make a number go down.** An alert that is real and unfixed stays open with a ticket reference.
+5. Dismissing requires code-scanning write permission, which the agent fleet does not currently hold — agents supply the justification, a human or the TL applies it.
 
 ## New Dependency Evaluation
 
