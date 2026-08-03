@@ -58,10 +58,19 @@ jobs:
         id: filter
         with:
           filters: |
+            # 'ai-models.json' is in powershell/electron/debate because the AI
+            # registry completeness gates run inside those job families (t/2090):
+            # powershell -> Test-AIModelsConfig + ModelLiteralLint (Pester);
+            # electron   -> keysValidation/resolveApiModelId/configInvariant/
+            #               modelDiscovery (taxonomy-editor vitest);
+            # debate     -> aiAdapter reads it at runtime for the golden evals.
+            # A pure ai-models.json edit used to match NO filter and skip all
+            # three, so its own gates never ran in CI (data-only PR ungated).
             powershell:
               - 'scripts/**'
               - 'tests/**'
               - 'lib/**'
+              - 'ai-models.json'
               - '.github/workflows/ci.yml'
             electron:
               - 'taxonomy-editor/**'
@@ -69,11 +78,13 @@ jobs:
               - 'summary-viewer/**'
               - 'workflow-app/**'
               - 'lib/**'
+              - 'ai-models.json'
               - '.github/workflows/ci.yml'
             debate:
               - 'lib/debate/**'
               - 'evals/**'
               - 'ai-usages.json'
+              - 'ai-models.json'
               - '.github/workflows/ci.yml'
             schema:
               - 'taxonomy/schemas/**'
