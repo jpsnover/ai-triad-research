@@ -148,6 +148,28 @@ if (-not (Test-Path $bicepFile)) {
     throw "Bicep template not found at $bicepFile"
 }
 
+# ── Capture current active revisions for traffic pin (t/2049) ──
+# In activeRevisionsMode 'Multiple' with no ingress.traffic block, a full Bicep
+# apply promotes the LATEST revision to 100% before any readiness check — the
+# t/2047 bypass. Capture each app's current active revision BEFORE the apply and
+# pass both as traffic pins so Bicep holds 100% on the known-good revision.
+# $ErrorActionPreference='Stop' (above) ensures an az failure aborts rather than
+# passing a silent empty pin — empty is only correct for a genuine first deploy.
+Write-Step 'Capturing current active revisions for traffic pin'
+$moduleRoot = Join-Path $PSScriptRoot '..\..\scripts\AITriad\AITriad.psm1'
+Import-Module $moduleRoot -Force
+
+function Get-ActiveRevisionPin {
+    param([string]$App)
+    $Active = @(Get-ContainerAppRevision -Mode Active -AppName $App -ResourceGroup $ResourceGroup)
+    if ($Active.Count -eq 0) { return '' }
+    return (@($Active | Sort-Object -Property TrafficWeight -Descending)[0]).Name
+}
+$ProdPin    = Get-ActiveRevisionPin -App 'taxonomy-editor'
+$StagingPin = Get-ActiveRevisionPin -App 'taxonomy-editor-staging'
+Write-OK "Prod pin / rollback target: '$ProdPin'"
+Write-OK "Staging pin target:         '$StagingPin'"
+
 $deployParams = @("containerImage=$ContainerImage")
 if ($GoogleClientId)                { $deployParams += "googleClientId=$GoogleClientId" }
 if ($GoogleClientSecret)            { $deployParams += "googleClientSecret=$GoogleClientSecret" }
@@ -160,6 +182,8 @@ if ($GitHubAppInstallationId)       { $deployParams += "githubAppInstallationId=
 if ($GitHubAppPrivateKeySecretName) { $deployParams += "githubAppPrivateKeySecretName=$GitHubAppPrivateKeySecretName" }
 if ($GitHubWebhookSecret)           { $deployParams += "githubWebhookSecret=$GitHubWebhookSecret" }
 if ($BudgetAlertEmail)              { $deployParams += "budgetAlertEmail=$BudgetAlertEmail" }
+$deployParams += "trafficPinRevisionName=$ProdPin"
+$deployParams += "trafficPinRevisionNameStaging=$StagingPin"
 
 $deployResult = az deployment group create `
     --resource-group $ResourceGroup `

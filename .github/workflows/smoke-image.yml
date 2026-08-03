@@ -5,8 +5,8 @@
 #      (taxonomy-editor@sha256:da74e499… , base :2026-07-30) to prove it goes
 #      RED, and the known-good gemini image (@sha256:efd068fe…) to prove GREEN.
 #   2. Ad-hoc runtime check of any published image.
-# The durable pre-push gate lives inline in container.yml (build → smoke → push);
-# this workflow is the reusable/standalone harness.
+# The durable pre-deploy runtime gate lives in deploy-azure.yml (0%-traffic
+# health+acceptance check, t/2049); this workflow is the reusable/standalone harness.
 
 name: Image Smoke
 
