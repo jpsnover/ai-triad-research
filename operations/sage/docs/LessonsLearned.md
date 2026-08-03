@@ -2690,3 +2690,24 @@ Institutional memory for failure patterns across the AI Triad Research project.
 **Status:** Active — safety-classifier gate on `gh pr merge` in auto mode; by design. Every agent running automated PR sweeps will hit this. The fix is architectural: design PR workflows with a manual authorization step for the merge command, not a workaround to bypass the classifier.
 
 **Applies To:** All agents running `gh pr merge` in auto mode (e.g., PR resolution sweeps, post-CI land automation).
+
+---
+
+## #130 [Build] A Staleness Check (Ancestry-Only) Is NOT a Cleanliness Check — STALE ≠ No Uncommitted Edits; Test Both Dimensions Independently Before an Overwrite
+
+**Pattern:** A worktree classification script (`check-hub-clean.sh`) categorized a worktree as STALE when its HEAD was an ancestor of `origin/main` — but **never tested whether the working tree had uncommitted edits**. Downstream code treated STALE as "safe to overwrite" and proceeded with `ff-redetach`, destroying the uncommitted work. Root cause: **staleness** (commit ancestry relative to origin) and **cleanliness** (presence of uncommitted changes) are **orthogonal, independent conditions**. A worktree can be simultaneously STALE *and* dirty. A single-dimension ancestry probe does not answer the safety question.
+
+**Instances:**
+- 2026-08-03 — DevOps (t/2066#14, bdf14727): `check-hub-clean.sh` classified a worktree STALE (HEAD is ancestor of origin/main), but the worktree had uncommitted edits to the same files being overwritten. `ff-redetach` proceeded on the STALE classification → **work destroyed**. Fix: STALE now exits 1 (same as WIP); only PHANTOM and ZERO-BYTE classifications are safe to proceed over.
+
+**Root Cause:** The STALE classification checked *one dimension* of "is this worktree safe to overwrite?": commit ancestry. It never checked the *orthogonal dimension*: working tree state (`git status --porcelain`). The two conditions are independent — a worktree behind origin (STALE) can still have local WIP. Treating the result of a partial probe as a complete safety predicate is a **classification completeness failure**: the gate measured the wrong (or insufficient) signal for the decision it was gating.
+
+**Prevention:**
+1. **Any overwrite safety predicate must test ALL dimensions that can independently carry unsafe state.** For a worktree: (a) commit ancestry *and* (b) working tree cleanliness are independent — both must pass for a safe overwrite. One-of-two is insufficient.
+2. **Conservative default: treat any classification that doesn't positively confirm BOTH clean AND current as unsafe.** STALE + dirty = unsafe; STALE + clean = debatable; only PHANTOM (worktree gone) and ZERO-BYTE (no real content) are unambiguously safe to overwrite without a working tree check.
+3. **"Can I overwrite this?" is a conjunction, not a disjunction.** `safe = (no uncommitted edits) AND (ancestry position is acceptable)` — both must hold. Never short-circuit on one.
+4. **Sibling of the bookkeeping≠artifact genus** (#84/#90/#96): a status signal (STALE classification) described the process (commit position) but not the deliverable (working tree content). The safe check is always at the object/content level (`git status --porcelain`), not the lifecycle/classification level.
+
+**Status:** Active — classification completeness failure; fixed in `check-hub-clean.sh` (bdf14727) by making STALE exit 1 (same as WIP). The underlying principle applies to any multi-dimensional safety check: test every independent dimension that can carry risk.
+
+**Applies To:** All agents writing or using worktree-state classification scripts; any code that gates a destructive/overwrite action on a single-dimension safety probe.

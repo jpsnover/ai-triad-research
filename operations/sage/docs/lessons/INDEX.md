@@ -3,13 +3,13 @@
 Institutional memory for failure patterns across the AI Triad Research project.
 Organized by category. Each file contains the full pattern details.
 
-**Last updated:** 2026-08-03 | **Total patterns:** 129 | **Resolved:** 21 | **Active:** 108
+**Last updated:** 2026-08-03 | **Total patterns:** 130 | **Resolved:** 21 | **Active:** 109
 
 ## Summary
 
 | Category | File | Patterns | Resolved | Active |
 |----------|------|----------|----------|--------|
-| Build | [build.md](build.md) | 78 | 10 | 68 |
+| Build | [build.md](build.md) | 79 | 10 | 69 |
 | PowerShell | [powershell.md](powershell.md) | 10 | 3 | 7 |
 | Data | [data.md](data.md) | 4 | 1 | 3 |
 | Type System | [type-system.md](type-system.md) | 4 | 0 | 4 |
@@ -56,3 +56,4 @@ Seven patterns crossed the 3-instance threshold (or were high-severity) and beca
 - **Shared GitHub account ⇒ can't self-approve a PR** — 1 instance (DevOps PR #334, p/26#34) → [process.md](process.md) (#123: all agents auth as `jpsnover`, so `gh pr review --approve` fails "Cannot approve your own pull request" on ANY fleet PR — account-level analog of the shared-checkout collision t/1926, sibling of the docs-only self-merge #101. **Non-blocking**: checks-only branch protection needs no approval → post the review as a `--comment`. Deterministic ⇒ cheaply hookable on the literal `--approve`.)
 - **`gh pr merge` in auto mode blocked by safety classifier** — 1 instance (Orca Support p/13#27) → [process.md](process.md) (#129: the safety classifier treats `gh pr merge` as hard-to-reverse + visible to others → blocked in auto mode regardless of autonomy level. **By design**, not a bug. Fix: surface `! gh pr merge <N>` to the user for direct authorization — `!` prefix runs in the session under user auth. Do NOT retry the Bash call. Sibling of the push-authorization pattern.)
 - **Validate a fleet-standard procedure end-to-end before mandating it** — 1 compound instance (main PR-flow rollout, e/49) → [process.md](process.md) (**3 defects in one hour** because the revised `/land-from-worktree` was broadcast before a real validation land: refs/heads push, docs-only self-merge gate, `--delete-branch` worktree abort. Fix: dry-run one real PR through EVERY step first; broadcast citing the validating PR; else label PROVISIONAL. TL-owned root cause p/8#121; verify-the-artifact-not-the-plan applied to process rollout)
+- **Staleness ≠ cleanliness — single-dimension probe gates a multi-dimension safety decision** — 1 instance (DevOps t/2066#14) → [build.md](build.md) (#130: `check-hub-clean.sh` classified worktree STALE on ancestry alone; working tree had uncommitted edits; `ff-redetach` destroyed work. Staleness (commit position) and cleanliness (working tree state) are **orthogonal** — both must pass for a safe overwrite. STALE now exits 1; only PHANTOM + ZERO-BYTE are safe to proceed over. Sibling of the bookkeeping≠artifact genus.)
