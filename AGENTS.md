@@ -65,6 +65,10 @@ Configured in `ai-models.json` (single source of truth for PS and Electron). Bac
 
 When writing, editing, or executing code containing special shell characters (template literals, nested quotes, apostrophes, backticks, `$` variables, f-strings), **always use Edit/Write tools** instead of Bash `sed`, `awk`, or heredocs. When running Python/PowerShell scripts that contain quotes or f-strings, write the script to a temp file with the `Write` tool and execute it, rather than inlining in a heredoc or `bash -c`. Shell escaping is the #1 source of silent corruption bugs.
 
+## Git Forensics on the Bash Tool
+
+On some Windows agents, MSYS path conversion mangles the `<path>` half of a git colon-revspec (`git show <ref>:<path>`, `cat-file`, `rev-parse <ref>:<path>`) — a **valid** ref then reports a spurious `unknown revision or path`, masquerading as a missing commit/file. It is environment-dependent (varies by Git-for-Windows install; confirmed on ≥2 agents, not reproduced on others), so don't dismiss a peer's report as "just their config." Discriminator: valid ref + `unknown revision` = suspect MSYS, not a real absence. Fix: prefix `MSYS_NO_PATHCONV=1`, or run the git command via the PowerShell tool.
+
 ## Error Handling Convention
 
 All unrecoverable errors must use `New-ActionableError` (PowerShell) or `ActionableError` (TypeScript) with four fields: **Goal**, **Problem**, **Location**, **Next Steps**. Never use bare `throw "message"`. Prefer recovery (retry, fallback, partial results) over failure. See `docs/error-handling.md`.
