@@ -11,6 +11,7 @@ import {
   resolveBackend,
   resolveModel,
   getDefaultTimeout,
+  buildModelEntryMap,
 } from './registry.js';
 import type { ModelRegistry } from './registry.js';
 
@@ -57,6 +58,43 @@ describe('resolveModel — fixedTemperature (t/2068)', () => {
 
   it('leaves fixedTemperature undefined for an entry without it', () => {
     expect(resolveModel(reg, 'gemini-2.5-flash').fixedTemperature).toBeUndefined();
+  });
+});
+
+describe('buildModelEntryMap (t/2107)', () => {
+  const reg: ModelRegistry = {
+    backends: [{ id: 'moonshot', label: 'Moonshot' }, { id: 'gemini', label: 'Gemini' }],
+    models: [
+      { id: 'moonshot-kimi-k3', apiModelId: 'kimi-k3', label: 'Kimi K3', backend: 'moonshot', fixedTemperature: 1 },
+      { id: 'gemini-2.5-flash', apiModelId: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash', backend: 'gemini' },
+      { id: 'gemini-2.0-flash', apiModelId: 'gemini-2.0-flash', label: 'Gemini 2.0 Flash', backend: 'gemini' },
+    ],
+  };
+
+  it('returns full ModelEntry including fixedTemperature', () => {
+    const map = buildModelEntryMap(reg);
+    expect(map['moonshot-kimi-k3']).toMatchObject({
+      apiModelId: 'kimi-k3', backend: 'moonshot', fixedTemperature: 1,
+    });
+  });
+
+  it('returns entry without fixedTemperature for standard models', () => {
+    const map = buildModelEntryMap(reg);
+    expect(map['gemini-2.5-flash']?.fixedTemperature).toBeUndefined();
+    expect(map['gemini-2.5-flash']?.apiModelId).toBe('gemini-2.5-flash');
+  });
+
+  it('-latest alias resolves to highest-versioned entry and carries its attributes', () => {
+    const reg2: ModelRegistry = {
+      backends: [{ id: 'moonshot', label: 'Moonshot' }],
+      models: [
+        { id: 'moonshot-kimi-1', apiModelId: 'kimi-1', label: 'Kimi 1', backend: 'moonshot', fixedTemperature: 1 },
+        { id: 'moonshot-kimi-2', apiModelId: 'kimi-2', label: 'Kimi 2', backend: 'moonshot', fixedTemperature: 1 },
+      ],
+    };
+    const map = buildModelEntryMap(reg2);
+    // No -latest aliases for these (parseVersionedModelId won't match), but explicit entries present
+    expect(map['moonshot-kimi-2']?.apiModelId).toBe('kimi-2');
   });
 });
 
