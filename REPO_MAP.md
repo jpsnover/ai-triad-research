@@ -428,5 +428,3 @@ Auto-generated from import graph. Files ranked by import count within each direc
 - **types.ts** (2) — CaseStatus, CasePriority, Attachment, CaseResponse, SupportCaseSystemInfo +7 more
 - **supportStore.ts** (1) — attachmentBlobPath, createCase, getCase, listCasesForUser, listAllCases +6 more
 
-
-<!-- CI gate proof (t/2093): [dead-link-sentinel](./nonexistent-for-ci-gate-test.md) -->
