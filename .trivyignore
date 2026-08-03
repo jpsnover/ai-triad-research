@@ -25,3 +25,12 @@
 #            entry Trivy no longer reports.
 CVE-2026-13221
 CVE-2026-57433
+
+# ── CVE-2026-8376 — perl-modules-5.36, 32-bit regex only; no fix available ──────
+# Package:   perl-modules-5.36 (Debian bookworm)
+# Fix state: no upstream fix; Fixed Version empty as of 2026-08-03.
+# Exposure:  32-bit integer overflow in regex engine — not reachable on x86_64.
+#            Container runs x86_64 only; this path is not exploitable.
+# REVISIT:   drop when Debian ships a fixed perl-modules-5.36 or the node-26 base
+#            lands (t/1990, ~2026-10-28); re-scan and remove if cleared.
+CVE-2026-8376  # perl-modules-5.36, 32-bit regex only; no fix available; container is x86_64
