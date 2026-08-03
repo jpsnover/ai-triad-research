@@ -1,7 +1,10 @@
 # ─── Deploy to Azure ───
-# What:  Blue-green production deployment to Azure Container Apps via Bicep.
+# What:  Blue-green PRODUCTION deployment to Azure Container Apps via Bicep.
 #        Deploys new revision at 0% traffic, health checks, then shifts to 100%.
 #        Auto-rollback on health failure.
+# Environments: production ONLY. Staging deploys are handled automatically by
+#        deploy-staging.yml (triggered via workflow_run on container.yml success).
+#        Dispatching with environment=staging is explicitly rejected.
 # Before: Container image must exist in GHCR (run Container Image workflow first).
 #         Requires AZURE_* OIDC secrets and OAuth secrets configured.
 # After:  Verify the app is healthy at the production URL. Check Azure Log Analytics
@@ -13,13 +16,12 @@ on:
   workflow_dispatch:
     inputs:
       environment:
-        description: 'Deployment environment'
+        description: 'Deployment environment (production only — staging auto-deploys via deploy-staging.yml)'
         required: true
         default: 'production'
         type: choice
         options:
           - production
-          - staging
       image_tag:
         description: 'Image tag to deploy (e.g., 0.8.0). Leave empty for latest tagged version.'
         required: false
@@ -58,6 +60,12 @@ jobs:
     outputs:
       tag: ${{ steps.resolve_tag.outputs.tag }}
     steps:
+      - name: Reject staging dispatches
+        if: inputs.environment == 'staging'
+        run: |
+          echo "::error::This workflow is production-only. Staging deploys are handled automatically by deploy-staging.yml (triggered via workflow_run on container.yml success). Do not dispatch deploy-azure.yml with environment=staging."
+          exit 1
+
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v6
 
       - name: Resolve image tag
