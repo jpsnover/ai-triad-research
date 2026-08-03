@@ -97,6 +97,14 @@ When writing, editing, or executing code containing special shell characters (te
 
 All unrecoverable errors must use `New-ActionableError` (PowerShell) or `ActionableError` (TypeScript) with four fields: **Goal**, **Problem**, **Location**, **Next Steps**. Never use bare `throw "message"`. Prefer recovery (retry, fallback, partial results) over failure. See `docs/error-handling.md`.
 
+## Token Efficiency
+
+- **Batch ToolSearch** — fetch all needed schemas in one call: `select:tool1,tool2,tool3`. Never fetch one at a time.
+- **Ping over email** — use pings for status updates and single-question exchanges; reserve email for requirements and multi-stakeholder decisions.
+- **Suppress verbose output** — pass `verbose:false` and `include_ids:false` on all MCP list/create calls unless IDs or full detail are specifically needed.
+- **Don't re-read AGENTS.md** — it is already injected as `claudeMd` every session.
+- **Reference, don't inline** — use `t/KEY`, `e/N`, `d/<slug>` in comments and emails rather than copying ticket/doc content.
+
 ## Version Update Checklist
 
 When bumping the module version, verify that **all** of the following files are updated consistently:
