@@ -600,6 +600,13 @@ jobs:
           load: true
           tags: ai-triad-test:ci
 
+      - name: Replace with crash-loop image (gate-proof only — t/2067)
+        if: github.ref == 'refs/heads/test/gate-verify-t2067'
+        run: |
+          # Override the built image with one that exits immediately — proves the
+          # liveness gate catches crash-loop containers (t/2067 RED verification).
+          printf 'FROM busybox\nCMD ["sh","-c","exit 1"]' | docker build -t ai-triad-test:ci -
+
       - name: Run container liveness smoke — server starts + answers (t/2048, t/2067)
         timeout-minutes: 8
         env:
