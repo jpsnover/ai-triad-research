@@ -1675,3 +1675,23 @@ Failure patterns related to builds, CI, tooling, environment, and git operations
 **Status:** Active — Windows Git-Bash subprocess-spawn perf cliff; a whole-tree per-file `$(cmd)` loop times out (spawn-count-bound). Sibling of the "foreground op > 120s Bash cap" genus (#78/#95/#116) — same 2m-timeout symptom, root cause = subprocess spawns, not a single slow op.
 
 **Applies To:** All agents writing bash loops over `git ls-files` / large file sets on Windows Git Bash — use parameter expansion; batch external tools.
+
+---
+
+## [Build] `git worktree add ../wt-<name>` Creates the Worktree at the REPO's Parent Level — Not the User Home; Always Run `git worktree list` Before First Bash Access
+
+**Pattern:** A worktree added at `../wt-<name>` resolves relative to the **repository root** (`C:/Users/jsnov/repos/ai-triad-research/`), landing at `C:/Users/jsnov/repos/wt-<name>` — the `repos/` sibling directory. If the agent's mental map flattens the path depth (assumed home/repo, not home/repos/repo), the resulting absolute path is one level shallower than the actual. In the Bash tool's POSIX view, that's `/c/Users/jsnov/repos/wt-<name>`, not `/c/Users/jsnov/wt-<name>`. Running `ls` or any Bash command on the incorrectly-assembled path fails with `No such file or directory`.
+
+**Instances:**
+- 2026-08-03 — DevOps (t/2067, p/26#38): ran `ls /c/Users/jsnov/wt-2067/` — assumed `../wt-2067` from the repo resolves at home level, but the actual path was `C:/Users/jsnov/repos/wt-2067` = `/c/Users/jsnov/repos/wt-2067`. Fixed by running `git worktree list` to confirm the real path.
+
+**Root Cause:** The repo lives at `C:/Users/jsnov/repos/ai-triad-research/` — two levels below home (`home/repos/repo`), not one (`home/repo`). `../wt-<name>` from the repo root goes up one level to `C:/Users/jsnov/repos/`, landing the worktree there, not at the user home directory. This is a **mental-model mismatch** (wrong path depth), distinct from MSYS path mangling (#73 facet B) — here the path is assembled incorrectly before any tool sees it. The Bash tool reports `No such file or directory` on the wrong POSIX path, which looks like a missing worktree when the worktree exists at the correct path.
+
+**Prevention:**
+1. **Run `git worktree list` BEFORE first Bash access to a worktree** — it returns the canonical absolute path; never reconstruct the path by prepending the assumed home directory + a relative spec.
+2. On this machine: repo = `C:/Users/jsnov/repos/ai-triad-research/`; sibling worktrees land at `C:/Users/jsnov/repos/wt-<name>` = `/c/Users/jsnov/repos/wt-<name>` in POSIX. NOT `/c/Users/jsnov/wt-<name>`.
+3. Companion to the MSYS colon-revspec/path trap (#73 facet B): both produce a wrong absolute path for a git resource. #73B = MSYS mangles a correct path; #128 = a wrong path is assembled from an incorrect mental model. The fix for both: **verify the actual path before access** rather than reconstructing from memory.
+
+**Status:** Active — worktree-land path-depth assumption hazard. Third env/path hazard in the worktree-land cluster (#77 `npm ci` empty package dir, #78 node_modules rm timeout, #128 path-depth mismatch). `git worktree list` is the one-stop oracle for canonical worktree paths.
+
+**Applies To:** All agents using the Bash tool to access a worktree by absolute POSIX path.
