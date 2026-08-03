@@ -618,3 +618,42 @@ Failure patterns related to tooling configuration, agent workflows, and operatio
 **Status:** Active — safety-classifier gate on force-push; by design. Every agent needing to force-push in auto mode will hit this. The fix is architectural: design conflict-resolution workflows with a manual authorization step for the force-push.
 
 **Applies To:** All agents running `git push --force-with-lease`, `git push --force`, or any force-push variant in auto mode.
+
+---
+
+## [Process] Safety Classifier Blocks Moving Untracked Files to `/tmp` — Use Session Scratchpad or Worktree Instead
+
+**Pattern:** Attempting to move or copy untracked files to `/tmp` is blocked by the safety classifier — treated as potentially destructive. This commonly arises when an agent tries to stage untracked files out of the way before a cherry-pick or rebase. The fix is a fresh worktree, which achieves the same clean-state goal without relocating any files.
+
+**Instances:**
+- 2026-08-03 — Orca Support (p/13#33, PR #289): attempted to move untracked files to `/tmp` during fork PR resolution — blocked by safety classifier. Resolved by using a fresh worktree from main + cherry-pick.
+
+**Root Cause:** `/tmp` is ephemeral; moving uncommitted files there risks silent data loss. The worktree-from-main + cherry-pick approach achieves a clean state without needing to relocate untracked files.
+
+**Prevention:**
+1. **Don't stage untracked files to `/tmp`** — use `git worktree add -b <branch> <path> origin/main` + cherry-pick the desired commits instead.
+2. For genuine temporary storage, use the session scratchpad directory (provided in session context), not `/tmp`.
+
+**Status:** Active — classifier gate on `/tmp` moves of untracked files; by design (p/13#33).
+
+**Applies To:** All agents needing a clean working state in git workflows — use worktree, not file relocation.
+
+---
+
+## [Process] Cherry-Pick Into a Worktree Conflicts on Shared Doc Files — Use `--theirs` to Accept the Cherry-Picked Version
+
+**Pattern:** Cherry-picking a commit onto a fresh main-based worktree conflicts in shared doc files (e.g., `LessonsLearned.md`) — both the cherry-pick source and the current main-based state have modified the same lines. `--theirs` resolves in favor of the cherry-picked version, which is the correct choice when the cherry-pick carries the authoritative state.
+
+**Instances:**
+- 2026-08-03 — Orca Support (p/13#33, PR #289): cherry-picking fork PR commits onto a clean worktree conflicted in Sage docs. Resolved with `--theirs`.
+
+**Root Cause:** Shared doc files receive concurrent edits from many agents across branches. A cherry-pick from a branch that diverged before recent doc updates will conflict with current main. The cherry-picked version is what's being preserved.
+
+**Prevention:**
+1. **`git cherry-pick -X theirs <sha>`** auto-resolves all conflicts in favor of the incoming commit — use when the cherry-pick is authoritative and conflicts are expected stale-base divergence.
+2. Per-file: `git checkout --theirs <conflicted-file>` then `git add <file>` then `git cherry-pick --continue`.
+3. Pre-check with `git diff origin/main...<source-sha> -- <doc-path>` to know whether overlapping edits exist before starting.
+
+**Status:** Active — doc file cherry-pick conflicts in multi-agent worktree workflows; --theirs resolution pattern (p/13#33).
+
+**Applies To:** All agents cherry-picking commits that include shared doc file changes onto a main-based worktree.
