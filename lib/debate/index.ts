@@ -74,6 +74,7 @@ export * from './beliefTracking.js';
 // lookaheadGate.ts excluded — imports calibrationLogger which uses node:fs/path. Import directly.
 export * from './agentUtility.js';
 export * from './citationResolution.js';
+export * from './talmudicReferences.js';
 export * from './topicCritique.js';
 // schemas.ts deliberately excluded from barrel — it imports zod.
 // cli.ts deliberately excluded from barrel — it is the CLI entry point.

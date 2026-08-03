@@ -42,7 +42,6 @@ Institutional memory for failure patterns across the AI Triad Research project.
 - 2026-06-17 — DebateUI: `@'...'@` in Bash tool leaked a literal `@` into a commit subject on shared branch. Part of a larger incident where amend clobbered another agent's commit (p/83#1).
 - 2026-07-15 — Computational Linguist (t/1586): inline PowerShell in Bash heredoc with backtick-escaped variables hit "unexpected EOF while looking for matching backtick" — twice in the same session. Fixed by writing script to temp file with Write tool (p/7#30).
 - 2026-07-17 — PowerShell (t/1712, p/20#23): an inline `pwsh -Command` containing a PowerShell `-split "`n"` (backtick-n) plus nested single/double quotes broke **bash's own parser** (`unexpected EOF while looking for matching quote`) before pwsh ran at all. Fixed by writing the PS snippet to a temp `.ps1` and running `pwsh -File` — the ADR-004 remedy. Reinforces that once inlined PS carries backtick escapes AND nested quotes, `-File` beats fighting the quoting.
-- 2026-08-03 — Computational Linguist (p/7#53): inline Python in a `bash -c` heredoc during a prose-measurement session contained **backtick characters** (used in the Python code itself). Bash interpreted them as command substitution delimiters → `unexpected EOF` parse error. Fixed by switching to the **PowerShell tool with a `@'...'@` here-string** — the PowerShell tool parses the here-string natively, so backticks are literal; no bash parser involved. Alternative: Write tool → temp `.py` file → Bash execute (prevention #1).
 
 **Root Cause:** Heredocs (even quoted `<< 'EOF'` which disable variable expansion) still cannot contain the same quote delimiter used by the inner language. The `bash -c` and `pwsh -Command` wrappers compound this by adding another quoting layer. Additionally, PowerShell-specific syntax (`@'...'@` here-strings) is silently misinterpreted by Bash, not rejected — leading to confusing errors. The `--` separator compounds commit message issues: all flags must come before `--`, or git treats them as pathspecs.
 
@@ -2010,7 +2009,7 @@ Institutional memory for failure patterns across the AI Triad Research project.
 **Instances:**
 - 2026-07-28 — Sage (this session): shared local `main` (at Sage's last commit `20c32334`) was hard-reset to `origin/main` (reflog `HEAD@{0}: reset: moving to origin/main`), wiping ~30 local-only Sage doc commits (`e6daccc7`..`20c32334`) plus other agents' local-only commits (te `t/1849`, debate fixes, CL `t/1826`). **Caught by object-level verification** — injected "your docs reverted" reminders showed a Total-83 working tree, but `git log`/`git status -sb`/`git reflog`/`git cat-file` proved HEAD had been reset and the commits were dangling-but-intact. **Recovered** with `git checkout 20c32334 -- <my scope>` → one recommit (`e8ddad72`, Total-83→93). No loss.
 - 2026-07-29 — t/2004 (TL p/8#127→#130, follow-on reconcile of the same divergence): local main unchanged since t/1768 (still `c7fd7487`); origin was ALREADY a superset of Sage's lessons — **verified by CONTENT, not commit presence** (the t/1768 recovery was a content-MERGE into `86914922`, so its source commits stay unique-by-patch-id in `origin..main`/`git cherry` though content is upstream; TL's initial `git cherry`=0 gate wouldn't converge). All 22 local-only commits confirmed content-on-origin (5 patch-identical via `git cherry -`, 2 docs-spec 0-unique-lines). **Realign DEFERRED anyway** — the shared tree held **138 modified + 227 untracked in-flight files** (active t/1671 + greatest-hits) a hard-reset would obliterate. **Commit-safe ≠ tree-safe.**
-- 2026-07-31 — t/2008 (retire-shared-checkout migration; TL p/8#162): the **deferred t/2004 realign finally executed** during the cutover — the pattern's first *successful-application* instance, not a recovery. The shared hub was **assumed a clean fast-forward but was diverged (22 local-only commits)**; the hard-reset was gated on **prevention #6** — **all 22 confirmed content-present on origin at the object level (not commit-presence) BEFORE the reset ran** — so the cutover was **content-lossless**. This is **H3 (verify-before-irreversible-step) + H2 (object-level confirm-on-origin) combined** (t/2081 tally). Per-task `wt-<task>` worktrees are the landing model (not per-role — Orca has no per-role working-directory concept; role AGENTS.md/`.orca/` are overlay-tracked so they're absent from any worktree); the shared checkout is where every role's session is rooted — it is a shared working tree, not a deploy-only hub. Validates #6/#7 — object-level content-verification before a destructive realign is what prevents the wipe.
+- 2026-07-31 — t/2008 (retire-shared-checkout migration; TL p/8#162): the **deferred t/2004 realign finally executed** during the cutover — the pattern's first *successful-application* instance, not a recovery. The shared hub was **assumed a clean fast-forward but was diverged (22 local-only commits)**; the hard-reset was gated on **prevention #6** — **all 22 confirmed content-present on origin at the object level (not commit-presence) BEFORE the reset ran** — so the cutover was **content-lossless**. This is **H3 (verify-before-irreversible-step) + H2 (object-level confirm-on-origin) combined** (t/2081 tally). Per-role `wt-<role>` worktrees are now the dev model; the shared checkout is the deploy/ops hub. Validates #6/#7 — object-level content-verification before a destructive realign is what prevents the wipe.
 
 **Root Cause:** The shared local `main` is a shared, un-pushed staging area; local-only commits live only there until synced. Hard-resetting it to origin (the correct owner-gated fix for a large divergence) atomically discards every un-synced commit. Git doesn't delete objects, so they persist in the reflog — but the working tree/HEAD stop showing them, reading as "reverted/lost." Same object-level-vs-inference discipline as #69 and Git Forensics (#44/#54/#55).
 
@@ -2575,7 +2574,6 @@ Institutional memory for failure patterns across the AI Triad Research project.
 **Instances:**
 - 2026-08-01 — Diagnostics (t/2068, fixed `04052430`, PR #315, p/9#48): **kimi-k3** (a reasoning model) was **silently HTTP-400-ing on every call** because the provider sent a non-1 temperature. Fix: a **registry-driven `fixedTemperature` field in `ai-models.json`**, honored in the provider (send the model's fixed temperature when declared, else the normal default). Follow-ups: **t/2069** (better next-steps on a 400 — the error was silent/uninformative), **t/2070** (audit groq/deepseek reasoning models — the same constraint likely applies).
 - 2026-08-01 — Diagnostics (t/2083, p/9#51): **new instance — kimi-k3 still rejects `temperature != 1` in production**, and **t/2070's audit confirmed the same in groq/deepseek reasoning models.** Recurring root-cause SMELL: **the `?? default` fallback in providers** — `temperature ?? defaultTemperature` silently supplies a non-1 default wherever the per-model `fixedTemperature` isn't threaded to that call, re-introducing the 400. The registry field (t/2068) is necessary but not sufficient: every `param ?? default` site is a place the constraint gets silently overridden.
-- 2026-08-03 — Technical Lead (t/2104, t/2104#1; fix t/2107→t/2104+t/2108): **3rd deployment recurrence** — `fixedTemperature` not reaching providers. **Detection wrinkle (t/2104#1):** two of four broken call sites (`aiBackends.ts:325`, `usageRegistry.ts:103`) were **invisible to a grep for the attribute name** — they resolve through `buildModelIdMap`, a lossy `Record<string,string>` projection that drops attribute names; the constraint name appears nowhere at those call sites. The other two sites were found by attribute grep; the accessor-masked ones required **grepping the lossy accessor** (`buildModelIdMap`) to surface. See prevention #6.
 
 **Root Cause:** request-param validity is **model-class-specific**, but a provider layer tends to build one request shape for all models. Reasoning models pin `temperature=1`; sending anything else is rejected outright (400), so the failure is total for that model and invisible to any test that doesn't exercise it live (keyless CI never calls it — ties to #88). Encoding the constraint per-model in the single-source registry (`ai-models.json`) is the fix; hardcoding a temperature per call, or assuming all models accept the same params, is the bug. Same "coupling lives in the registry" family as the AI-backend coupling-sites lesson (t/1932). **Recurring smell (Diagnostics t/2083): the `?? default` fallback** — `temperature ?? defaultTemperature` at a provider call site silently substitutes a non-1 default whenever the model's `fixedTemperature` wasn't threaded to that site; the registry field only holds if EVERY call path reads it.
 
@@ -2585,9 +2583,8 @@ Institutional memory for failure patterns across the AI Triad Research project.
 3. **A 100%-failure HTTP 400 on one model but not others = a per-model request-param mismatch** — read the 400 body (it names the rejected param), don't assume a key/auth problem. (t/2069 improves the 400's next-steps so this is obvious.)
 4. **Live-exercise a newly-added model** — a keyless/mocked CI never sends the real request, so a param-constraint 400 only shows on a live call (sibling of #88 keys-present divergence). Smoke one real call per new model.
 5. **Audit every `param ?? default` / `param || default` site in the provider** (Diagnostics t/2083) — each is a place a per-model constraint (`fixedTemperature`) gets silently overridden if the registry value wasn't threaded to that call. Grep the provider for the defaulting sites; the registry field is only as good as the paths that read it. A defaulting fallback for a hard-constrained param is the smell.
-6. **When an attribute flows through a lossy `Record<string,string>` projection (e.g. `buildModelIdMap`), grep the accessor, not the attribute name, to find all call sites.** Grepping `fixedTemperature` misses any site that reaches the attribute via a map projection that drops the name; grepping `buildModelIdMap` surfaces them (t/2104, TL p/8#172). A coverage audit is complete only when both direct-attribute AND accessor-path sites are checked.
 
-**Status:** Active — **4 instances now** (kimi-k3 t/2068 + t/2083; groq/deepseek via the t/2070 audit; TL t/2104 deployment). The registry `fixedTemperature` field is necessary but **not sufficient** — the recurring **`?? default` fallback smell** (t/2083, prevention #5) AND the **lossy-projection detection gap** (t/2104, prevention #6): when attribute access flows through a `Record<string,string>` projection (`buildModelIdMap`), grepping the attribute name misses hidden call sites — grep the accessor. t/2069 improves 400 diagnostics; t/2070 audits reasoning models; t/2107+t/2108 decompose the t/2104 fix.
+**Status:** Active — **3 instances now** (kimi-k3 t/2068 + t/2083; groq/deepseek via the t/2070 audit). The registry `fixedTemperature` field (t/2068, `04052430`) is necessary but **not sufficient** — the recurring **`?? default` fallback smell** (t/2083) means a per-model constraint leaks back unless EVERY provider call path threads the registry value (prevention #5). t/2069 improves the 400 diagnostics; t/2070 audits the other reasoning models. Registry-as-single-source-of-model-constraints — same family as the AI-backend coupling-sites lesson.
 
 **Applies To:** All agents adding or configuring AI models (especially reasoning models) in `ai-models.json` / the provider layer — declare fixed request-param constraints in the registry, thread them through EVERY defaulting call site, live-smoke each new model.
 
@@ -2671,130 +2668,3 @@ Institutional memory for failure patterns across the AI Triad Research project.
 **Status:** Active — worktree-land path-depth assumption hazard. Third env/path hazard in the worktree-land cluster (#77 `npm ci` empty package dir, #78 node_modules rm timeout, #128 path-depth mismatch). `git worktree list` is the one-stop oracle for canonical worktree paths.
 
 **Applies To:** All agents using the Bash tool to access a worktree by absolute POSIX path.
-
----
-
-## #129 [Process] `gh pr merge` in Auto Mode Is Blocked by the Safety Classifier — PR Merges Require Explicit User Authorization; Surface the Command for Direct `!` Execution
-
-**Pattern:** `gh pr merge <N> --squash --auto --delete-branch` (or any `gh pr merge` variant) in an **auto-mode agent session** is intercepted by the Claude Code safety classifier and blocked mid-sweep. The classifier treats PR merges as **hard-to-reverse + visible to others** — a category that requires explicit user confirmation regardless of auto-mode level. The agent cannot unblock itself; the action must be surfaced to the user as a `! gh pr merge <N>` command for direct authorization in the session.
-
-**Instances:**
-- 2026-08-03 — Orca Support (p/13#27): `gh pr merge 341 --squash --auto --delete-branch` blocked mid-PR resolution sweep by the auto-mode classifier. Resolved by surfacing `! gh pr merge 341` to the user for direct authorization.
-- 2026-08-03 — Orca Support (p/13#31): `gh pr merge` blocked again during PR #289 conflict-resolution flow — same classifier gate, 2nd independent instance confirming the pattern is consistent across PR workflows, not session-specific.
-
-**Root Cause:** The Claude Code safety classifier has a fixed policy: PR merge is a **shared-state, hard-to-reverse action** (merges commit to a repo visible to others, triggers CI, may deploy). Auto mode bypasses routine tool confirmations but NOT this class of action. The classifier intercepts at the tool-call layer before the command runs — this is **correct and intended behavior**, not a bug. The failure is the **workflow assumption** that `gh pr merge` would run unattended in an automated PR sweep.
-
-**Prevention:**
-1. **Never assume `gh pr merge` will run unattended in auto mode** — it always requires an explicit user authorization event. Plan for a manual authorization step in any PR-resolution workflow.
-2. **Surface the command as `! gh pr merge <N> --squash --delete-branch`** — the `!` prefix runs the command in the active session under user authorization; this is the correct resolution path.
-3. **Do NOT retry the same `gh pr merge` call** — the classifier will block it again. Only a human-authorized execution unblocks the action.
-4. **Sibling of the push-authorization pattern**: `git push` to shared remotes is similarly treated as requiring user oversight. Both `git push` and `gh pr merge` are in the "visible to others / hard to reverse" class.
-
-**Status:** Active — safety-classifier gate on `gh pr merge` in auto mode; by design. Every agent running automated PR sweeps will hit this. The fix is architectural: design PR workflows with a manual authorization step for the merge command, not a workaround to bypass the classifier.
-
-**Applies To:** All agents running `gh pr merge` in auto mode (e.g., PR resolution sweeps, post-CI land automation).
-
----
-
-## #130 [Build] A Staleness Check (Ancestry-Only) Is NOT a Cleanliness Check — STALE ≠ No Uncommitted Edits; Test Both Dimensions Independently Before an Overwrite
-
-**Pattern:** A worktree classification script (`check-hub-clean.sh`) categorized a worktree as STALE when its HEAD was an ancestor of `origin/main` — but **never tested whether the working tree had uncommitted edits**. Downstream code treated STALE as "safe to overwrite" and proceeded with `ff-redetach`, destroying the uncommitted work. Root cause: **staleness** (commit ancestry relative to origin) and **cleanliness** (presence of uncommitted changes) are **orthogonal, independent conditions**. A worktree can be simultaneously STALE *and* dirty. A single-dimension ancestry probe does not answer the safety question.
-
-**Instances:**
-- 2026-08-03 — DevOps (t/2066#14, bdf14727): `check-hub-clean.sh` classified a worktree STALE (HEAD is ancestor of origin/main), but the worktree had uncommitted edits to the same files being overwritten. `ff-redetach` proceeded on the STALE classification → **work destroyed**. Fix: STALE now exits 1 (same as WIP); only PHANTOM and ZERO-BYTE classifications are safe to proceed over.
-
-**Root Cause:** The STALE classification checked *one dimension* of "is this worktree safe to overwrite?": commit ancestry. It never checked the *orthogonal dimension*: working tree state (`git status --porcelain`). The two conditions are independent — a worktree behind origin (STALE) can still have local WIP. Treating the result of a partial probe as a complete safety predicate is a **classification completeness failure**: the gate measured the wrong (or insufficient) signal for the decision it was gating.
-
-**Prevention:**
-1. **Any overwrite safety predicate must test ALL dimensions that can independently carry unsafe state.** For a worktree: (a) commit ancestry *and* (b) working tree cleanliness are independent — both must pass for a safe overwrite. One-of-two is insufficient.
-2. **Conservative default: treat any classification that doesn't positively confirm BOTH clean AND current as unsafe.** STALE + dirty = unsafe; STALE + clean = debatable; only PHANTOM (worktree gone) and ZERO-BYTE (no real content) are unambiguously safe to overwrite without a working tree check.
-3. **"Can I overwrite this?" is a conjunction, not a disjunction.** `safe = (no uncommitted edits) AND (ancestry position is acceptable)` — both must hold. Never short-circuit on one.
-4. **Sibling of the bookkeeping≠artifact genus** (#84/#90/#96): a status signal (STALE classification) described the process (commit position) but not the deliverable (working tree content). The safe check is always at the object/content level (`git status --porcelain`), not the lifecycle/classification level.
-
-**Status:** Active — classification completeness failure; fixed in `check-hub-clean.sh` (bdf14727) by making STALE exit 1 (same as WIP). The underlying principle applies to any multi-dimensional safety check: test every independent dimension that can carry risk.
-
-**Applies To:** All agents writing or using worktree-state classification scripts; any code that gates a destructive/overwrite action on a single-dimension safety probe.
-
----
-
-## #131 [Build] `git merge --continue` Accepts No Arguments — `--no-edit` Is a `git commit` Flag; Bypass the Editor with `GIT_EDITOR=true`
-
-**Pattern:** `git merge --continue --no-edit` exits **129** (usage error) — `--no-edit` is not a valid flag for `git merge --continue`. Unlike `git commit --no-edit` (which skips the editor for an existing message), `git merge --continue` accepts **no arguments at all**. The flag bleeds from the `git commit` mental model into `git merge --continue`, where it is simply illegal. To bypass the editor non-interactively, set `GIT_EDITOR=true` — the `true` command always exits 0 without opening anything, so git treats it as a silent no-op editor.
-
-**Instances:**
-- 2026-08-03 — Orca Support (p/13#29): `git merge --continue --no-edit` during a conflict-resolution flow exited 129. Resolved by `GIT_EDITOR=true git merge --continue`.
-
-**Root Cause:** `git commit` and `git merge --continue` share the "continue a pending operation" concept but have different argument grammars. `git commit --no-edit` is a first-class flag; `git merge --continue` internally invokes `git commit` but exposes NO pass-through flags to the caller. Mental-model bleed from `git commit` syntax into the `git merge --continue` invocation.
-
-**Prevention:**
-1. **`git merge --continue` takes no flags** — run it bare: `git merge --continue`. Any argument causes a 129 usage error.
-2. **To suppress the editor non-interactively:** `GIT_EDITOR=true git merge --continue` — the `true` binary exits 0 immediately without prompting; git accepts it as a valid editor invocation and proceeds with the auto-generated merge commit message.
-3. **Other non-interactive merge alternatives:** `git merge --no-edit` (on the INITIAL merge, not `--continue`) or `git -c core.editor=true merge --continue` are equivalent to the `GIT_EDITOR=true` form.
-4. **Related**: `git rebase --continue` also accepts no `--no-edit`; same `GIT_EDITOR=true` technique applies. The pattern is: `--continue` subcommands of git operations route through their own commit path and don't accept commit-level flags directly.
-
-**Status:** Active — git CLI grammar gap: `--continue` subcommands (merge, rebase, cherry-pick) accept no `--no-edit`; use `GIT_EDITOR=true`. Self-correcting (exit 129 is loud) but wastes time when the workaround isn't known.
-
-**Applies To:** All agents running `git merge --continue`, `git rebase --continue`, or `git cherry-pick --continue` in non-interactive sessions.
-
----
-
-## #132 [Process] `git push --force-with-lease` in Auto Mode Is Blocked by the Safety Classifier — Force-Pushes Are "Hard-to-Reverse"; Surface as `! git push` for User Authorization
-
-**Pattern:** `git push --force-with-lease` (and any force-push variant) in an **auto-mode agent session** is intercepted by the Claude Code safety classifier and blocked. The classifier specifically lists force-pushing as a **hard-to-reverse operation** (can overwrite upstream history, destroy others' work). This is the same classifier gate as `gh pr merge` (#129) — both are in the "hard-to-reverse + visible to others" class — but triggered by a different command. Resolution: surface `! git push --force-with-lease <remote> <branch>` to the user for direct authorization.
-
-**Instances:**
-- 2026-08-03 — Orca Support (p/13#31): `git push --force-with-lease` blocked during PR #289 conflict-resolution flow (after resolving conflicts via merge commit + soft-reset). Resolved by surfacing `! git push` as a user instruction.
-
-**Root Cause:** Force-push rewrites the remote ref's history — if another agent or user has pushed since your last fetch, a force-push discards their work. The safety classifier gates this at the tool-call layer regardless of auto-mode level; this is **correct and intended behavior**. Unlike regular `git push` (allowed in auto mode for non-main branches via worktrees), force-push is always gated because the damage profile is higher and the user must affirm they understand the rewrite.
-
-**Prevention:**
-1. **`git push --force-with-lease` will always be blocked in auto mode** — plan for a manual user-authorization step in any workflow that requires a force-push (conflict resolution, history cleanup, rebase-then-push flows).
-2. **Surface as `! git push --force-with-lease <remote> <branch>`** — the `!` prefix runs the command under user authorization in the active session.
-3. **Prefer rebase-then-regular-push over force-push when possible** — if the branch has no shared history, a fast-forward or regular push avoids the classifier gate entirely.
-4. **Sibling of `gh pr merge` classifier gate (#129):** both are in the "hard-to-reverse + visible to others" class. The general rule: any operation that REWRITES or MERGES remote state requires explicit user authorization in auto mode.
-
-**Status:** Active — safety-classifier gate on force-push; by design. Every agent needing to force-push in auto mode will hit this. The fix is architectural: design conflict-resolution workflows with a manual authorization step for the force-push.
-
-**Applies To:** All agents running `git push --force-with-lease`, `git push --force`, or any force-push variant in auto mode.
-
----
-
-## #133 [Build] `gh run list` Has No `--offset` Flag — Use `--commit <sha>` or `--limit` for Targeted Lookups
-
-**Pattern:** Assuming `gh run list` supports `--offset` for pagination or positional filtering. The flag does not exist — `gh run list` supports `--limit`, `--commit <sha>`, `--branch`, `--status`, and `--workflow` as filters, but not `--offset`.
-
-**Instances:**
-- 2026-08-03 — DevOps (p/26#42): `gh run list` called with `--offset`; exited with an "unknown flag" error. Fixed by using `--commit <sha>` to look up runs for a specific commit. No persistent impact.
-
-**Root Cause:** Familiarity with offset-based pagination in other CLIs (e.g. `gh api --paginate` or REST `?offset=`) creates an assumption that `gh run list` supports an equivalent positional flag. It does not — `gh run list` uses `--limit` to cap result count and targeted filters (`--commit`, `--branch`, `--workflow`) to scope results. CLI surface assumption: expecting a flag that matches the mental model without confirming it in `--help`.
-
-**Prevention:**
-1. Run `gh run list --help` before assuming flag availability — especially for pagination/filtering patterns borrowed from other tools or APIs.
-2. To look up runs for a specific commit: `gh run list --commit <sha>`.
-3. To cap results: `--limit N` (default 20).
-4. When a CLI flag returns "unknown flag," consult `<command> --help` immediately rather than trying variations.
-
-**Status:** Active — 1 instance (DevOps p/26#42); no persistent impact. CLI surface assumption, self-correcting at the error.
-
-**Applies To:** All agents using `gh run list` for CI lookups.
-
----
-
-## #134 [Build] Edit/Write Tool Applied to Main-Checkout Path During Worktree Workflow — Edit Lands in Wrong Tree, `git add` Finds Nothing Staged
-
-**Pattern:** During a worktree workflow, the Edit or Write tool is called with the absolute path of the file in the main checkout (e.g. `C:\repos\ai-triad-research\<scope>\<file>`) rather than the worktree path (e.g. `C:\repos\ai-triad-research\operations\wt-<name>\<scope>\<file>`). The edit succeeds silently — it modifies the file in the shared tree — but `git add` in the worktree finds nothing staged because the changed file is not under the worktree root.
-
-**Instances:**
-- 2026-08-03 — DevOps (p/26#44): Edit tool inferred `file_path` from scope/context knowledge without confirming the active worktree root first. `git add` found nothing staged. Fixed by re-applying the edit to the correct worktree absolute path.
-
-**Root Cause:** The Edit/Write tools take an absolute path and do not validate it against the active worktree. Agents know their scope's canonical path (e.g. `operations/devops/`) and naturally infer `file_path` by prepending the repo root they know from context — but in a worktree, the root is different. Without explicitly confirming the worktree root via `git worktree list`, the inferred path silently targets the shared checkout instead. Distinct from #128 (Bash tool `ls` on wrong POSIX path due to depth miscount) — here the failure is a wrong absolute path to Edit/Write.
-
-**Prevention:**
-1. **At the start of every worktree workflow, record the worktree's absolute root** from `git worktree list` output (or the `git worktree add` output line `HEAD is now at …`).
-2. **All Edit/Write calls must use paths prefixed with the worktree root** — never with the main-checkout repo root, even if the scope's relative path is well-known.
-3. **Confirm before first Edit:** `git worktree list | grep <branch-name>` gives the canonical absolute path.
-4. Sibling of #128 — both produce an edit-to-wrong-tree; #128 affects Bash tool path access, #134 affects Edit/Write tool file_path.
-
-**Status:** Active — 1 instance (DevOps p/26#44). 4th env/path hazard in the worktree-land cluster.
-
-**Applies To:** All agents using Edit or Write tool during a worktree landing workflow.
