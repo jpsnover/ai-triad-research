@@ -9,8 +9,9 @@
 # ── continue-on-error flip taxonomy ──
 # FLIPPED — enforcing now (continue-on-error removed):
 #   quality-gates (t/1292; .ts/.tsx LOC moved to ESLint max-lines per ADR-007, t/1692)
+#   doc-accuracy  doc-link steps (t/2093; repo at zero dead links after t/2092)
 # FLIP-PENDING (remove continue-on-error to enforce):
-#   doc-accuracy  (t/1324)
+#   doc-accuracy  doc-claims + REPO_MAP steps (t/1324)
 # NEVER-FLIP (annotation-only by design — continue-on-error stays permanently):
 #   debate-eval        — nondeterministic AI scores, signal not gate (t/1329)
 #   commit-hygiene     — visibility not friction, never fails CI (t/1319)
@@ -384,13 +385,11 @@ jobs:
       # Doc-link check (t/2091): links in main-repo-tracked docs must resolve
       # against `git ls-files`, not the on-disk working tree — a public doc
       # linking an overlay-only path (t/2089) 404s for public-repo viewers.
-      # Advisory (continue-on-error) like the claims-lint; remove to enforce.
+      # ENFORCING (t/2093): repo at zero dead links after t/2092; gate is now hard.
       - name: Doc link self-test (t/2091 regression)
-        continue-on-error: true
         run: bash .github/scripts/check-doc-links.sh --self-test
 
       - name: Check doc links (main-repo presence)
-        continue-on-error: true
         run: bash .github/scripts/check-doc-links.sh
 
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v6
