@@ -98,6 +98,13 @@ function parseVersionedModelId(id: string): { family: string; version: number } 
  * No internal caching — call contract is identical to buildModelIdMap.
  * Callers are responsible for caching (cache the map, not the registry).
  *
+ * **Mutation hazard**: returned entries are shared references into the registry — treat them as
+ * read-only; do not mutate. A synthesized `*-latest` alias and its source id share the same
+ * object, so mutating through one mutates the other.
+ *
+ * **Alias `.id` field**: for a synthesized `*-latest` alias, `entry.id` is the *concrete* model id
+ * (e.g. `gemini-flash-latest` → `.id === 'gemini-2.5-flash'`), not the alias key.
+ *
  * Migration: `buildModelIdMap(r)[id]` → `buildModelEntryMap(r)[id]?.apiModelId`
  */
 export function buildModelEntryMap(registry: ModelRegistry): Record<string, ModelEntry> {

@@ -121,10 +121,31 @@ describe('buildModelEntryMap (t/2107)', () => {
     expect(map['gemini-flash-latest']?.apiModelId).toBe('gemini-2.5-flash-pinned');
   });
 
-  it('key set matches buildModelIdMap exactly (parity contract)', () => {
-    const entryKeys = new Set(Object.keys(buildModelEntryMap(reg)));
-    const idKeys = new Set(Object.keys(buildModelIdMap(reg)));
-    expect(entryKeys).toEqual(idKeys);
+  it.each([
+    ['simple', reg],
+    [
+      'collision guard (explicit *-latest wins)',
+      {
+        backends: [{ id: 'gemini', label: 'Gemini' }],
+        models: [
+          { id: 'gemini-flash-latest', apiModelId: 'gemini-2.5-flash-pinned', label: 'Pinned', backend: 'gemini' },
+          { id: 'gemini-2.5-flash', apiModelId: 'gemini-2.5-flash', label: 'Flash 2.5', backend: 'gemini' },
+          { id: 'gemini-2.0-flash', apiModelId: 'gemini-2.0-flash', label: 'Flash 2.0', backend: 'gemini' },
+        ],
+      } as ModelRegistry,
+    ],
+    [
+      'unparseable ids (no aliases synthesized)',
+      {
+        backends: [{ id: 'ollama', label: 'Ollama' }],
+        models: [
+          { id: 'ollama-gemma', apiModelId: 'gemma:7b', label: 'Gemma', backend: 'ollama' },
+          { id: 'ollama-llama3', apiModelId: 'llama3:8b', label: 'Llama', backend: 'ollama' },
+        ],
+      } as ModelRegistry,
+    ],
+  ])('key set matches buildModelIdMap exactly — %s (parity contract)', (_name, r) => {
+    expect(new Set(Object.keys(buildModelEntryMap(r)))).toEqual(new Set(Object.keys(buildModelIdMap(r))));
   });
 });
 
