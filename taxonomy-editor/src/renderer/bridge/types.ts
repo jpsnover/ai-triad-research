@@ -101,7 +101,17 @@ export type ContainerMentions = _ContainerMentions;
 
 export interface OrgFilters { type?: string; pov?: string }
 
+export type ViewMode = 'simple' | 'advanced';
+
+export interface UserPreferences {
+  viewMode: ViewMode;
+}
+
 export interface AppAPI {
+  // --- User preferences ---
+  getPreferences: () => Promise<UserPreferences | null>;
+  setPreferences: (prefs: UserPreferences) => Promise<void>;
+
   // --- Taxonomy directories ---
   getTaxonomyDirs: () => Promise<string[]>;
   getActiveTaxonomyDir: () => Promise<string>;

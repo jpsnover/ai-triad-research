@@ -5,7 +5,7 @@
  * Electron bridge — delegates every AppAPI method to window.electronAPI (IPC).
  * Used when the app runs inside Electron (desktop mode).
  */
-import type { AppAPI } from './types';
+import type { AppAPI, UserPreferences } from './types';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { ALL_API_KEY_BACKENDS } from '@lib/ai-client/types';
 import {
@@ -24,6 +24,13 @@ void tryInitLocalEmbedding();
 const localDiagCallbacks = new Set<(state: unknown) => void>();
 
 export const api: AppAPI = {
+  // User preferences — delegates to IPC (get-preferences / set-preferences) once
+  // ElectronMain handler lands (t/2118). Graceful-degrade until then.
+  getPreferences: (): Promise<UserPreferences | null> =>
+    window.electronAPI.getPreferences?.() ?? Promise.resolve(null),
+  setPreferences: (prefs: UserPreferences): Promise<void> =>
+    window.electronAPI.setPreferences?.(prefs) ?? Promise.resolve(),
+
   // Taxonomy directories
   getTaxonomyDirs: () => window.electronAPI.getTaxonomyDirs(),
   getActiveTaxonomyDir: () => window.electronAPI.getActiveTaxonomyDir(),
