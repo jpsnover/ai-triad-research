@@ -227,7 +227,7 @@ jobs:
 
       - name: Lint
         working-directory: ${{ matrix.app }}
-        run: pnpm run lint --if-present
+        run: pnpm run --if-present lint
 
       - name: TypeScript check (main)
         working-directory: ${{ matrix.app }}
