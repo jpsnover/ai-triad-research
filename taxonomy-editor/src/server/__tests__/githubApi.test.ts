@@ -12,6 +12,8 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { Agent } from 'undici';
+import { assertUndiciMajorInvariant } from '../storage/githubRestClient.js';
 import type { FlightRecorder, RecordInput } from '../../../../lib/flight-recorder/index';
 
 // ── Mock setup ──────────────────────────────────────────────────────────
@@ -1710,7 +1712,7 @@ describe('GitHubAPIBackend — undici dispatcher (t/2053)', () => {
     const calls = vi.mocked(globalThis.fetch).mock.calls;
     expect(calls.length).toBeGreaterThan(0);
     for (const [, init] of calls) {
-      expect((init as RequestInit & { dispatcher?: unknown }).dispatcher).toBeDefined();
+      expect((init as RequestInit & { dispatcher?: unknown }).dispatcher).toBeInstanceOf(Agent);
     }
   });
 
@@ -1747,5 +1749,32 @@ describe('GitHubAPIBackend — undici dispatcher (t/2053)', () => {
     expect(errorEvents.length).toBeGreaterThan(0);
 
     backend.shutdown();
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+// t/2113: undici major-version invariant — gate fires from both directions
+// ═══════════════════════════════════════════════════════════════════════════
+
+describe('assertUndiciMajorInvariant', () => {
+  it('passes when userland and bundled majors match', () => {
+    expect(() => assertUndiciMajorInvariant('6.28.0', '6.21.0')).not.toThrow();
+    expect(() => assertUndiciMajorInvariant('7.0.0', '7.24.4')).not.toThrow();
+  });
+
+  it('throws when bundled major is ahead of userland (node base-image bumped without package.json update)', () => {
+    expect(() => assertUndiciMajorInvariant('6.28.0', '7.24.4')).toThrow(/undici major-version skew/);
+    expect(() => assertUndiciMajorInvariant('6.28.0', '7.24.4')).toThrow(/6\.28\.0/);
+    expect(() => assertUndiciMajorInvariant('6.28.0', '7.24.4')).toThrow(/7\.24\.4/);
+  });
+
+  it('throws when userland major is ahead of bundled (Dependabot bump without node base-image update)', () => {
+    expect(() => assertUndiciMajorInvariant('8.9.0', '6.21.0')).toThrow(/undici major-version skew/);
+    expect(() => assertUndiciMajorInvariant('8.9.0', '6.21.0')).toThrow(/8\.9\.0/);
+    expect(() => assertUndiciMajorInvariant('8.9.0', '6.21.0')).toThrow(/6\.21\.0/);
+  });
+
+  it('passes when bundled version is undefined (node <22 without bundled undici)', () => {
+    expect(() => assertUndiciMajorInvariant('6.28.0', undefined)).not.toThrow();
   });
 });
