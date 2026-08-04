@@ -46,6 +46,7 @@ import {
   offScopeRepairHint,
   topicScopeExtractionPrompt,
   improveDebateTopicPrompt,
+  draftQualityCheckPrompt,
 } from './prompts.js';
 import type { OpeningStagePromptInput, StagePromptInput, SituationDebateInput } from './prompts.js';
 import type { TopicScope } from './types.js';
@@ -1504,5 +1505,36 @@ describe('improveDebateTopicPrompt', () => {
     const result = improveDebateTopicPrompt('test');
     expect(result).toContain('ONLY the improved topic');
     expect(result).toContain('no preamble');
+  });
+});
+
+// ── draftQualityCheckPrompt — planned moves block ────────────────────────────
+
+describe('draftQualityCheckPrompt — planned moves', () => {
+  const DRAFT = 'The real issue is not speed of deployment but the framing of risk itself.';
+  const SPEAKER = 'Prometheus';
+  const POV = 'accelerationist';
+
+  it('includes PLANNED MOVES block with "Do NOT flag" directive when plannedMoves provided', () => {
+    const result = draftQualityCheckPrompt(
+      DRAFT,
+      undefined,
+      SPEAKER,
+      POV,
+      'cross',
+      3,
+      [{ move: 'REFRAME', target: 'safetyist', detail: 'Reframe risk discourse from harm-prevention to opportunity cost' }],
+    );
+    expect(result).toContain('PLANNED MOVES');
+    expect(result).toContain('REFRAME');
+    expect(result).toContain('Do NOT flag');
+    // Directive must orient corrections toward HOW, not WHETHER
+    expect(result).toContain('HOW a move is executed');
+  });
+
+  it('omits PLANNED MOVES block when no plannedMoves supplied', () => {
+    const result = draftQualityCheckPrompt(DRAFT, undefined, SPEAKER, POV, 'cross', 3);
+    expect(result).not.toContain('PLANNED MOVES');
+    expect(result).not.toContain('Do NOT flag');
   });
 });
