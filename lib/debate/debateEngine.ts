@@ -83,6 +83,8 @@ import { extractClaimsPrompt, classifyClaimsPrompt, formatArgumentNetworkContext
 import { embedDoctrinalBoundaries, computeDoctrinalAnchoring, checkThresholdAnomalies, type BoundaryEmbeddings, type DoctrinalAnchoringConfig } from './doctrinalAnchoring.js';
 import { extractCalibrationData, appendCalibrationLog, readCalibrationLog } from './calibrationLogger.js';
 import { DEFAULT_ATTACK_WEIGHTS } from './qbaf.js';
+import { DEFAULT_AI_TIMEOUT_MS, DEFAULT_RELEVANCE_THRESHOLD } from './constants.js';
+import { DEFAULT_TEMPERATURE } from '../ai-client/defaults.js';
 import { computeStrategicHints } from './strategicHints.js';
 import { evaluateLookahead, type LookaheadDiagnostics } from './lookaheadGate.js';
 import { runOvergenPipeline, type OvergenDiagnostics } from './overgenPipeline.js';
@@ -359,7 +361,7 @@ export class DebateEngine {
     try {
       const text = await this.adapter.generateText(prompt, model, {
         temperature: temperature ?? 0,
-        timeoutMs: timeoutMs ?? 120_000,
+        timeoutMs: timeoutMs ?? DEFAULT_AI_TIMEOUT_MS,
         signal: this.config.signal,
       });
       this.lastApiCallTime = Date.now();
@@ -644,8 +646,8 @@ export class DebateEngine {
       const weights = loadProvisionalWeights();
       const dataPoint = extractCalibrationData(this.session, 'local', {
         argumentationExitThreshold: weights.thresholds.argumentation_exit,
-        relevanceThreshold: 0.45, // TODO: read from config when externalized
-        draftTemperature: 0.7,
+        relevanceThreshold: DEFAULT_RELEVANCE_THRESHOLD,
+        draftTemperature: DEFAULT_TEMPERATURE,
         attackWeights: [DEFAULT_ATTACK_WEIGHTS.rebut, DEFAULT_ATTACK_WEIGHTS.undercut, DEFAULT_ATTACK_WEIGHTS.undermine],
         argumentativeSaturationWeights: weights.argumentative_saturation,
         explorationSummary: this.config.explorationSummary,
@@ -1109,7 +1111,7 @@ export class DebateEngine {
     this.progress('generating', undefined, label);
     const start = Date.now();
     try {
-      const text = await this.adapter.generateText(prompt, model, { ...options, timeoutMs: options.timeoutMs ?? 120_000 });
+      const text = await this.adapter.generateText(prompt, model, { ...options, timeoutMs: options.timeoutMs ?? DEFAULT_AI_TIMEOUT_MS });
       this.lastApiCallTime = Date.now();
       this.apiCallCount++;
       this.totalResponseTimeMs += Date.now() - start;
@@ -1128,8 +1130,8 @@ export class DebateEngine {
     const start = Date.now();
     try {
       const text = await this.adapter.generateText(prompt, this.config.model, {
-        temperature: this.config.temperature ?? 0.7,
-        timeoutMs: timeoutMs ?? 120_000,
+        temperature: this.config.temperature ?? DEFAULT_TEMPERATURE,
+        timeoutMs: timeoutMs ?? DEFAULT_AI_TIMEOUT_MS,
         signal: this.config.signal,
       });
       const elapsed = Date.now() - start;
@@ -1239,7 +1241,7 @@ export class DebateEngine {
     try {
       const text = await this.adapter.generateText(prompt, evalModel, {
         temperature: 0,
-        timeoutMs: timeoutMs ?? 120_000,
+        timeoutMs: timeoutMs ?? DEFAULT_AI_TIMEOUT_MS,
         signal: this.config.signal,
       });
       const elapsed = Date.now() - start;
