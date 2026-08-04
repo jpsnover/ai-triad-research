@@ -671,6 +671,12 @@ export async function generateText(
     timeoutMs: timeoutMs ?? getDefaultTimeout(friendlyModel),
   };
 
+  getGlobalRecorder()?.record({
+    type: 'ai.request', component: 'embeddings', level: 'info',
+    message: `generateText ${backend}/${resolvedModel}`,
+    data: { backend, model: resolvedModel, temperature: opts.temperature, ...(opts.fixedTemperature != null ? { fixedTemperature: opts.fixedTemperature } : {}) },
+  });
+
   const providerFn = backend === 'deepseek'
     ? () => generateViaDeepSeekStream(electronFetch, prompt, resolvedModel, apiKey, opts)
     : () => callProvider(electronFetch, backend, prompt, resolvedModel, apiKey, opts);

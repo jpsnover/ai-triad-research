@@ -139,7 +139,7 @@ export function instrumentBridge(raw: AppAPI): AppAPI {
         component: recorder.intern('component', 'bridge') as string | number,
         level: 'debug',
         message: `bridge.${key}`,
-        data: { method: key, category, arg_count: args.length, args: summarizeArgs(args, key) },
+        data: { method: key, category, arg_count: args.length, args: summarizeArgs(args, key), ...(key === 'generateText' && args[3] !== undefined ? { temperature: args[3] } : {}) },
       });
 
       let result: unknown;
