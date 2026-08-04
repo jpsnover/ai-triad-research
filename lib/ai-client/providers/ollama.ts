@@ -4,6 +4,7 @@
 import { ActionableError } from '../../debate/errors.js';
 import { withTimeout } from '../retry.js';
 import type { FetchFn, GenerateOptions, ProviderResult } from '../types.js';
+import { DEFAULT_TEMPERATURE } from '../defaults.js';
 
 export const OLLAMA_BASE = 'http://localhost:11434';
 
@@ -40,7 +41,7 @@ export async function generateViaOllama(
   const reqBody: Record<string, unknown> = {
     model: apiModelId,
     messages,
-    temperature: opts.temperature ?? 0.7,
+    temperature: opts.temperature ?? DEFAULT_TEMPERATURE,
     max_tokens: opts.maxTokens ?? 8192,
   };
 

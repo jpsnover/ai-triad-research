@@ -4,6 +4,7 @@
 import { ActionableError } from '../../debate/errors.js';
 import { withTimeout } from '../retry.js';
 import type { FetchFn, GenerateOptions, ProviderResult } from '../types.js';
+import { DEFAULT_TEMPERATURE } from '../defaults.js';
 
 function resolveEndpoint(): string {
   const endpoint = process.env.AZURE_OPENAI_ENDPOINT;
@@ -41,7 +42,7 @@ export async function generateViaAzure(
 
   const reqBody: Record<string, unknown> = {
     messages,
-    temperature: opts.temperature ?? 0.7,
+    temperature: opts.temperature ?? DEFAULT_TEMPERATURE,
     max_tokens: opts.maxTokens ?? 8192,
   };
   if (opts.jsonMode) {

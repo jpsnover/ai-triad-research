@@ -4,6 +4,7 @@
 import { ActionableError } from '../../debate/errors.js';
 import { withTimeout } from '../retry.js';
 import type { FetchFn, GenerateOptions, ProviderResult } from '../types.js';
+import { DEFAULT_TEMPERATURE } from '../defaults.js';
 
 export async function generateViaGroq(
   fetchFn: FetchFn,
@@ -28,7 +29,7 @@ export async function generateViaGroq(
       body: JSON.stringify({
         model: apiModelId,
         messages,
-        temperature: opts.fixedTemperature ?? opts.temperature ?? 0.7,
+        temperature: opts.fixedTemperature ?? opts.temperature ?? DEFAULT_TEMPERATURE,
         max_tokens: opts.maxTokens ?? 8192,
         ...(opts.responseSchema ? {
           response_format: {

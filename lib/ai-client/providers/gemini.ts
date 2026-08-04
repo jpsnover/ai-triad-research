@@ -4,6 +4,7 @@
 import { ActionableError } from '../../debate/errors.js';
 import { withTimeout } from '../retry.js';
 import type { FetchFn, GenerateOptions, ProviderResult, ToolCall } from '../types.js';
+import { DEFAULT_TEMPERATURE } from '../defaults.js';
 
 export const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
 
@@ -55,7 +56,7 @@ export async function generateViaGemini(
   const timeoutMs = opts.timeoutMs!;
 
   const genConfig: Record<string, unknown> = {
-    temperature: opts.temperature ?? 0.7,
+    temperature: opts.temperature ?? DEFAULT_TEMPERATURE,
     maxOutputTokens: opts.maxTokens ?? 16384,
   };
   if (opts.jsonMode || opts.responseSchema) {
