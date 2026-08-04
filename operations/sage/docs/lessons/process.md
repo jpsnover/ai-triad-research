@@ -57,14 +57,16 @@ Failure patterns related to tooling configuration, agent workflows, and operatio
 - 2026-07-17 — Diagnostics (during triage, p/9#28; **re-hit same day, p/9#34** — identical `(Get-Item $file).Length` idiom): ran `$var = ...; (Get-Item $var).Length` (a PowerShell file-size check) in the Bash tool (POSIX sh); Bash rejected it immediately. Fixed by switching to the PowerShell tool. Tell: `$var = ...` assignment with no `export`, a `;`-chained statement, and `.Length` property access on a cmdlet result are all PowerShell, not sh. File-size/`Get-Item`/`Get-ChildItem` checks belong in the PowerShell tool. **Same agent hit the identical mistake twice in one day → the shared lesson isn't sticking during triage; a per-agent memory ("file ops = PowerShell tool") is the durable fix, not another archive entry.**
 - 2026-07-26 — PowerShell 2 (p/228#1): `node require('/c/Users/.../file.json')` (a **git-bash `/c/...` msys path**) threw MODULE_NOT_FOUND. `node` is a legitimate Bash-tool program, but its **win32 runtime doesn't resolve msys `/c/...` paths** — git-bash only rewrites them for some contexts, not inside a JS string passed to `require`. Fixed by reading the JSON via the PowerShell tool with a native `C:\...` path. Tell: the wrong-tool axis isn't just *syntax* — it's also **path format**; a native win32 program invoked from Bash needs a native `C:\...` (or repo-relative) path, not `/c/...`.
 - 2026-07-28 — Taxonomy Editor 2 (**`/tmp` mount variant**, p/195#5): `node -e "require('/tmp/x.json')"` failed MODULE_NOT_FOUND — Node's win32 runtime can't resolve **git-bash's `/tmp` mount** (it's a virtual msys mount, not a real Windows path), and `> /tmp/…` redirects write to a location Node can't then `require`. Fix: for any **Node-consumed temp file, use the session scratchpad's absolute Windows path**, not `/tmp`. Generalizes the p/228#1 lesson: `/tmp` and `/c/...` are both git-bash-only paths that native `node` can't see — the scratchpad Windows path is the temp-file route that works in both tools.
+- 2026-08-03 — Shared Lib (p/5#23): **`cd C:\...` path in Bash (POSIX sh)** — Windows backslash paths are not valid POSIX paths; Bash interprets `\` as escape sequences and silently fails with "No such file or directory". Fixed by switching to the PowerShell tool for all git/shell ops.
 
-**Root Cause:** Agents have access to both Bash and PowerShell tools. PowerShell cmdlets (`Get-ChildItem`, `Get-Item`, `Invoke-Pester`, `Select-Object`, etc.), `$var = ...` assignment, `.Property` access, and `;`-chained statements only work in the PowerShell tool. Unix commands (`ls`, `grep`, `cat`, `stat -c%s`) only work in Bash (on Windows/Git Bash). **A second axis is path format:** git-bash presents `/c/Users/...` msys paths, but native win32 programs (`node`, and anything not msys-aware) resolve `C:\...` — an msys path handed to `node require`/`fs` fails as MODULE_NOT_FOUND / ENOENT.
+**Root Cause:** Agents have access to both Bash and PowerShell tools. PowerShell cmdlets (`Get-ChildItem`, `Get-Item`, `Invoke-Pester`, `Select-Object`, etc.), `$var = ...` assignment, `.Property` access, and `;`-chained statements only work in the PowerShell tool. Unix commands (`ls`, `grep`, `cat`, `stat -c%s`) only work in Bash (on Windows/Git Bash). **A second axis is path format:** git-bash presents `/c/Users/...` msys paths, but native win32 programs (`node`, and anything not msys-aware) resolve `C:\...` — an msys path handed to `node require`/`fs` fails as MODULE_NOT_FOUND / ENOENT. **A third axis:** Windows backslash paths (`C:\...`) given directly to Bash fail silently — Bash treats `\` as escape characters.
 
 **Prevention:**
 1. Use PowerShell tool for: cmdlets (`Get-*`, `Set-*`, `Invoke-*`), `$env:` variables, `$var = ...` assignment, `.Property` access on results, pipeline operators with objects. File-size checks: `(Get-Item $p).Length`.
 2. Use Bash tool for: Unix commands, `git`, `npm`, `node`, `python3`, shell scripts. File-size in Bash: `stat -c%s <file>` or `wc -c < <file>`.
 3. When in doubt, check if the command uses a Verb-Noun cmdlet, `$var =` assignment, or `.Property` access — if yes, it's PowerShell.
 4. **Path format:** when a native win32 program (`node`, etc.) needs a filesystem path, give it a native `C:\...` or repo-relative path — NOT a git-bash `/c/...` msys path OR a git-bash mount like **`/tmp`** (both fail as MODULE_NOT_FOUND/ENOENT — `/tmp` is a virtual msys mount Node can't resolve, and `> /tmp/…` redirects land where Node can't `require`). **For any Node-consumed temp file, write it to the session scratchpad's absolute Windows path, not `/tmp`.** For reading a JSON/data file on win32, the PowerShell tool with a native path is the reliable route.
+5. **Don't use Windows backslash paths (`C:\...`) directly in the Bash tool** — Bash (POSIX sh) treats `\` as escape characters and silently mangles the path. Use the PowerShell tool for any operation that needs a `C:\...` path, or convert to a git-bash `/c/...` form (only valid for msys-aware tools) (p/5#23).
 
 **Status:** Active
 
@@ -222,23 +224,25 @@ Failure patterns related to tooling configuration, agent workflows, and operatio
 
 ---
 
-## [Process] Same-Role Instance Duplication — No Claim Step Before Filing
+## [Process] Concurrent Duplicate Ticket-Filing — Same-Role Race OR Multi-Agent Off a Live Incident Thread (No Claim/Coordinator Step)
 
-**Pattern:** Two instances of the same role independently action the same shared tracker (parent ticket) within minutes, filing duplicate phase/child tickets. The second instance doesn't know the first already cut the ticket because there's no claim step on the tracker.
+**Pattern:** Multiple actors independently file the **same follow-up ticket** off shared context within minutes, with no claim/coordination step to prevent the race. **Two variants, same root:** (A) **same-role** — two instances of one role action the same shared tracker (parent ticket); (B) **multi-agent incident** — several *different* agents watching a **live incident thread** each file the same follow-up for the incident. The second filer doesn't know the first already cut the ticket.
 
 **Instances:**
-- 2026-07-13 — Computational Linguist: CL Main and CL.Investigate1 filed duplicate Phase 2 tickets (t/1577 vs t/1579) for the same tracker within 2 minutes. Second same-day near-dup after parallel answers on t/1560. Cost: dup-close + an AC nearly lost in consolidation (p/40#9).
+- 2026-07-13 — Computational Linguist (**variant A**): CL Main and CL.Investigate1 filed duplicate Phase 2 tickets (t/1577 vs t/1579) for the same tracker within 2 minutes. Second same-day near-dup after parallel answers on t/1560. Cost: dup-close + an AC nearly lost in consolidation (p/40#9).
+- 2026-07-30 — P1 prod outage (**variant B**, TL p/8#149; incident #119/t/2047): **two dup PAIRS in one incident** — t/2053 vs t/2054 and t/2061 vs t/2062 — multiple agents filing the same follow-up off the live incident thread. During a high-visibility incident many watchers each reach to file the obvious follow-up. TL proposing **coordinator-owns-incident-follow-up-filing**: one designated incident coordinator owns cutting follow-up tickets; others route observations to them.
 
-**Root Cause:** Multiple instances of a role share the same ticket board and context, but have no coordination protocol for claiming work from shared trackers. Classic check-then-act race.
+**Root Cause:** actors share a board/context (a tracker, or a live incident thread) but have no coordination protocol for claiming follow-up work — a classic check-then-act race. The incident variant is worse: an incident thread has *many* concurrent watchers (not just 2 instances of one role), so the dup-fan-out is wider and happens under time pressure when everyone wants to capture the follow-up.
 
 **Prevention:**
-1. **Announce intent on the tracker ticket BEFORE cutting child tickets** — add a comment "claiming Phase 2" and wait for the comment to land before filing.
-2. **Search open tickets for the scope first** — `search_tickets` for the tracker key + phase label before creating.
+1. **Announce intent BEFORE cutting the ticket** — comment "claiming <scope>/filing follow-up for this incident" on the tracker/thread and wait for it to land before filing.
+2. **Search open tickets for the scope first** — `search_tickets` for the tracker/incident key + label before creating (the standing "search before filing a follow-up" rule).
 3. When consolidating dups, **merge ACs from both** — don't just close the second; it may have unique criteria the first lacks.
+4. **During an incident, ONE coordinator owns follow-up-ticket filing** (TL p/8#149): watchers route observations to the coordinator rather than each filing; the coordinator cuts one ticket per follow-up. Scales the claim-step to the many-watcher incident case where per-actor announce-intent doesn't converge fast enough.
 
-**Status:** Active
+**Status:** Active — broadened 2026-07-30 from same-role (variant A) to also cover multi-agent-off-a-live-incident-thread (variant B, P1 t/2047: 2 dup pairs). TL proposing coordinator-owns-incident-follow-up-filing (prevention #4) — watch for the disposition.
 
-**Applies To:** All roles with multiple active instances sharing a ticket board.
+**Applies To:** All roles/agents filing tickets from shared context — multiple instances of one role on a tracker, AND any agents watching a shared live incident thread.
 
 ---
 
@@ -309,7 +313,7 @@ Failure patterns related to tooling configuration, agent workflows, and operatio
 4. **When rule-only, strengthen the rule's reach by other real gates, not a noisy hook** — e.g. TS union-types so `tsc` (the real gate) catches the shape mismatch, and name the specific variadic fields in the rule (t/1810#1). Where it stays rule-only, the honest record is "rule is the only defense; recall is the residual risk."
 
 **Status:** Active — **BOTH triggers fired 2026-07-26; both offenders now have concrete dispositions (TL, p/8#104):**
-- **Offender #4** (direct-commit-to-shared-main, ≥5) → hook **already spec'd as t/1780** (In Review with Diagnostics; Gate-Verification + owner-go gated). No new spec needed; the #5 data point reinforced its priority. Cleanly hookable (greppable). Sibling context: same behavior drove the large-divergence push failure (p/9#36).
+- **Offender #4** (direct-commit-to-shared-main, ≥5) → hook **already spec'd as t/1780** (In Review with Diagnostics; Gate-Verification + owner-go gated). No new spec needed; the #5 data point reinforced its priority. Cleanly hookable (greppable). Sibling context: same behavior drove the large-divergence push failure (p/9#36). **CONFIRMED FIRING in the field (2026-07-30):** the pre-commit push-guard (t/1926/t/1780 family) blocked a DIRECT `git commit` to shared main — DebateTool skipped worktree-land for a "trivial single-file fix" and the hook refused it, forcing the `/land-from-worktree` PR flow (t/2028, p/234#6). This both proves the hook works AND enforces the **"trivial change still needs worktree-land"** rule (the carve-out is now dead — the hook admits no trivial exception). Offender #4 = hook-converted.
 - **Offender #5** (data-shape type-check, ≥4) → **RULE-ONLY, no hook (t/1810 decided, TL p/8#109).** The spike measured the false-red surface — `graph_attributes` 514 reads/132 files, `interpretations` 213/76 — and found the correct normalize-at-fetch pattern leaves most reads legitimately guard-free, so a read-without-coercion detector false-reds on correct code (dead gate, #20/#46). Strengthened by TS union-types (tsc = the real gate) + naming the variadic fields in the rule. This validated the general criterion now in prevention #3 (hook only when violation ≠ correct syntactically).
 - Class-total ≥12; **both offenders dispositioned.** Net outcome: of the two per-offender-trigger offenders, one earned a hook (#4, crisp signal) and one stayed rule-only (#5, violation≈correct) — exactly the discrimination the crisp-syntactic-signal criterion predicts. **Sage standing action:** keep tagging new distinct offenders + both counters; watch t/1780 (In Review).
 
@@ -416,7 +420,7 @@ Failure patterns related to tooling configuration, agent workflows, and operatio
 3. **Never gate a push/land on an eyeballed tail** — the tail shows output, not verdict; check the actual exit code.
 4. Same family as #84 — whenever a wrapper/pipe sits between you and a command's exit, the exit you see is the wrapper's; go to the source.
 
-**Status:** Active — exit-code-laundering (pipe) variant of the false-green genus (#20/#46) and the bookkeeping-≠-artifact family (#84 sibling). Surfaced t/1829 (detail t/1829#2).
+**Status:** Active — exit-code-laundering (pipe) variant of the false-green genus (#20/#46) and the bookkeeping-≠-artifact family (#84 sibling). Surfaced t/1829 (detail t/1829#2). **Now advisory-guarded** by the workspace rule `exit-code-literacy-guard` (2026-08-03, t/2081; covers the `| tail` / `&&…PASS‖FAIL` / `grep -c` / `gh pr checks` exit-code-literacy family #73A/#84/#90/#96/#121) — non-blocking context nudge, firing observed live (Sage, 2026-08-03), systematic verification deferred per t/1625.
 
 **Applies To:** All agents gating a push/land on `verify`/test output that is piped (`| tail`/`| grep`/`| head`).
 
@@ -450,6 +454,7 @@ Failure patterns related to tooling configuration, agent workflows, and operatio
 **Instances:**
 - 2026-07-28 — Sage (this session): shared local `main` (at Sage's last commit `20c32334`) was hard-reset to `origin/main` (reflog `HEAD@{0}: reset: moving to origin/main`), wiping ~30 local-only Sage doc commits (`e6daccc7`..`20c32334`: #82 dispositions + the PS-not-TS correction, #87–#92, #78 timeout, flag-order 6th/7th, /tmp, bc/awk) **plus other agents' local-only commits** interleaved in the reflog (te `t/1849` refactors, debate fixes, CL `t/1826`). **Caught by object-level verification** — the injected "your docs reverted" reminders showed a Total-83 working tree, but `git log`/`git status -sb`/`git reflog`/`git cat-file` proved HEAD had been reset and the commits were dangling-but-intact. **Recovered** with `git checkout 20c32334 -- operations/sage/docs/ operations/sage/LAST_SESSION.md` (restore my exclusive scope's final state) → one recommit (`e8ddad72`, Total-83→93). No loss.
 - 2026-07-29 — t/2004 (TL p/8#127→#130, follow-on reconcile of the same divergence): local main unchanged since t/1768 (still `c7fd7487`); origin was ALREADY a superset of Sage's lessons — **verified by CONTENT, not commit presence** (the t/1768 recovery was a content-MERGE into `86914922`, so its source commits stay unique-by-patch-id in `origin..main`/`git cherry` though the content is upstream; TL's initial `git cherry`=0 gate wouldn't have converged). All 22 local-only commits confirmed content-on-origin (5 patch-identical via `git cherry -`, 2 docs-spec 0-unique-lines). **Realign DEFERRED anyway** — the shared tree held **138 modified + 227 untracked in-flight files** (active t/1671 + greatest-hits) that a hard-reset would obliterate. **Commit-safe ≠ tree-safe.**
+- 2026-07-31 — t/2008 (retire-shared-checkout migration; TL p/8#162): the **deferred t/2004 realign finally executed** during the cutover — the pattern's first *successful-application* instance, not a recovery. The shared hub was **assumed a clean fast-forward but was diverged (22 local-only commits)**; the hard-reset was gated on **prevention #6** — **all 22 confirmed content-present on origin at the object level (not commit-presence) BEFORE the reset ran** — so the cutover was **content-lossless**. This is **H3 (verify-before-irreversible-step) + H2 (object-level confirm-on-origin) combined** (t/2081 tally). Per-role `wt-<role>` worktrees are now the dev model; the shared checkout is the deploy/ops hub. Validates #6/#7 — object-level content-verification before a destructive realign is what prevents the wipe.
 
 **Root Cause:** The shared local `main` is a shared, un-pushed staging area; local-only commits live *only* there until TL/DevOps sync them to origin. Hard-resetting it to origin (the correct owner-gated fix for a large divergence) atomically discards every un-synced commit. Git doesn't delete objects, so they persist in the reflog — but the working tree/HEAD stop showing them, which reads as "my work was reverted/lost." Same object-level-vs-inference discipline as #69 and Git Forensics (#44/#54/#55): a changed working tree is not evidence of what's committed or recoverable.
 
@@ -462,7 +467,7 @@ Failure patterns related to tooling configuration, agent workflows, and operatio
 6. **Verify reconcile completeness by CONTENT, not by `origin..main` commit presence.** A recovery done by content-MERGE (re-authoring into a new commit) rather than `cherry-pick` leaves the source branch's commits unique-by-patch-id — `git log origin..main` / `git cherry` keep listing them though the content is fully upstream. Confirm supersession with **`git cherry -` (patch-equivalence)** + a **line-level content diff** of the scoped files; do NOT gate the realign on `origin..main`/`git cherry` reaching 0 (it won't for content-merged work — you'd wait forever or force-align). (t/2004: content-verify showed origin ⊇ local; the `cherry`=0 gate was a false blocker.)
 7. **Commit-level safety is necessary but NOT sufficient — a hard-reset realign also destroys the shared tree's UNCOMMITTED work.** Even when every local-only commit's content is on origin, `git reset --hard` obliterates the shared working tree's **modified + untracked** files (t/2004: 138 modified + 227 untracked in-flight, incl. active t/1671 + greatest-hits). Gate the realign on a **quiescent-tree window** (coordinated, no in-flight edits) — or **defer**: a benign, content-safe divergence with *new* divergence blocked (t/1926 hook) is safe to leave indefinitely. "All commits are on origin" ≠ "safe to hard-reset now."
 
-**Status:** Active — recovery playbook; **validated the session's object-level discipline**. **Key correction (TL e/46):** the t/1768 realign was a *backed-up* pointer move — **nothing was lost**, and all 173 local-main-only commits are on a durable remote branch `origin/backup/t1768-local-main-20c32334` (no ~30-day pressure). Recovery = find your commits on that branch → `/land-from-worktree` the un-upstreamed ones (**no-ops if already upstream**, so safe to just try). Sage recovered its scope and **landed to origin** (`e771400f`, Total 94) — verified against the backup branch; t/1872 Sage check-in complete. Scale is smaller than raw content-diff implies (over-counts docs origin superseded). Do NOT recommit to local main (the `t/1780` direct-commit-to-main hook now warns on it). **t/2004 follow-up (TL p/8#130):** a later reconcile of the same divergence confirmed origin ⊇ local by content (all 22 commits content-on-origin) but was **DEFERRED** — the shared tree had 138 modified + 227 untracked in-flight files a hard-reset would obliterate (prevention #7: commit-safe ≠ tree-safe). Benign divergence + new-divergence blocked (t/1926 hook) → safe to leave; realign awaits a quiescent-tree window (owner's call).
+**Status:** Active — recovery playbook; **validated the session's object-level discipline**. **Key correction (TL e/46):** the t/1768 realign was a *backed-up* pointer move — **nothing was lost**, and all 173 local-main-only commits are on a durable remote branch `origin/backup/t1768-local-main-20c32334` (no ~30-day pressure). Recovery = find your commits on that branch → `/land-from-worktree` the un-upstreamed ones (**no-ops if already upstream**, so safe to just try). Sage recovered its scope and **landed to origin** (`e771400f`, Total 94) — verified against the backup branch; t/1872 Sage check-in complete. Scale is smaller than raw content-diff implies (over-counts docs origin superseded). Do NOT recommit to local main (the `t/1780` direct-commit-to-main hook now warns on it). **t/2004 follow-up (TL p/8#130):** a later reconcile of the same divergence confirmed origin ⊇ local by content (all 22 commits content-on-origin) but was **DEFERRED** — the shared tree had 138 modified + 227 untracked in-flight files a hard-reset would obliterate (prevention #7: commit-safe ≠ tree-safe). Benign divergence + new-divergence blocked (t/1926 hook) → safe to leave; realign awaits a quiescent-tree window (owner's call). **t/2008 (2026-07-31, TL p/8#162):** that window arrived — the realign **executed content-lossless** during the retire-shared-checkout migration. The hub (wrongly assumed a clean fast-forward) was diverged by 22 local-only commits, all confirmed content-on-origin at the object level *before* the hard-reset (prevention #6 honored). The pattern now has a **successful-application** instance — H3 (verify-before-irreversible) + H2 (object-level confirm-on-origin), t/2081 tally — not only a recovery playbook. **Point-of-use enforcement (2026-08-03, t/2081):** the workspace rule `verify-head-on-origin-before-teardown` now guards prevention #6/#7 + the H2 post-push HEAD-on-origin sub-gate (verify before an irreversible worktree teardown). Gate-logic-tested; live-firing **unverified** per t/1625 (a created hook ≠ a proven-firing hook — #80/#82).
 
 **Applies To:** All agents whose work lives on the shared local `main` until synced — i.e. everyone who commits but doesn't push.
 
@@ -474,6 +479,7 @@ Failure patterns related to tooling configuration, agent workflows, and operatio
 
 **Instances:**
 - 2026-07-29 — Technical Lead (t/1932 Moonshot/Kimi K3 backend add; detail t/1932#1): the DAG covered the **3 adapter files** (aiAdapter/aiBackends/AIEnrich) but missed **3 non-adapter coupling sites**, each a separate break in a separate scope — (1) `routes/keys.ts` `KEY_VALIDATION_PROBES` (no probe → `keysValidation.test.ts` red), (2) `config.ts` `ENV_KEY_NAMES` / `AIBackend` exhaustiveness (non-exhaustive `Record` → server `tsc` `TS2741` red, blocking everyone), (3) `registry.ts` `resolveBackend` (missing case → silent misroute moonshot→gemini). Compounded: the config-land verify **grepped `keysValidation.test.ts` but ran only `configInvariant`+`modelDiscovery`** — a hand-picked subset that skipped the very test the change broke. Green-main via t/1944 (tsc) + probe fix (`66325245`); routing correctness t/1945.
+- 2026-08-03 — Shared Lib (p/5#21): `usageRegistry.test.ts` `listUsages` asserted `toHaveLength(3)` — a hardcoded literal count. Adding a 4th entry (`moonshot.test` to `TEST_USAGES`) caused the assertion to fail ("expected 4, received 3"). **Coupling site type: hardcoded length/count assertion** — invisible to tsc (runtime check, not an exhaustiveness map) and to a grep of the enum/type name (the bare `3` has no syntactic tie to the registry). Fix: bump assertion to 4 (p/5#21).
 
 **Root Cause:** A shared enum/config is a **fan-out coupling point**: every exhaustiveness-checked map, probe table, and resolver keyed on it is an implicit dependency that the type-checker (for `Record`) or a *specific* test (for probe/resolver) enforces — but only if that check is actually compiled/run. The decomposition author reasons from the *feature* ("add an adapter") rather than from the *coupling graph* ("what is keyed on this id?"), so coupling sites in other scopes fall outside the ticket DAG. Running a chosen-by-hand test subset then fails to surface the breaks before land.
 
@@ -482,8 +488,9 @@ Failure patterns related to tooling configuration, agent workflows, and operatio
 2. **A change to a shared config must run ALL tests that reference it — never a hand-picked subset.** If you grep for referencing tests (e.g. `keysValidation.test.ts`), you must *run* the ones you find, not a different chosen pair. Prefer the full `npm run verify` over cherry-picked suites for any shared-surface change.
 3. **Lean on exhaustiveness at compile time:** a `Record<Enum, T>` (not `Partial<Record<…>>`) or a `switch` with a `never`-typed default forces `tsc` to flag a missing case — make coupling maps exhaustive so the type-checker becomes the coupling detector.
 4. **Durable fix for a recurring multi-site addition: a checklist playbook** that enumerates every site the addition touches, so the next add is one self-certifiable pattern, not a multi-role scavenger hunt. TL is authoring **`/add-ai-backend`** (7 config sections + `keys.ts` probe + `config.ts` `ENV_KEY_NAMES`/type + `registry.ts` `resolveBackend` + 3 adapters) — the concrete instance of this general rule.
+5. **Hardcoded length/count assertions in tests are runtime coupling sites not caught by tsc or by a type-name grep.** When adding an entry to any array/registry, grep the test files for `toHaveLength`, `.length`, `toBe(N)` patterns over the collection — a bare literal count is a hidden coupling site (p/5#21).
 
-**Status:** Active — root cause is decomposition-completeness (coupling graph vs feature files) + verify-scope (all referencing tests vs a subset). TL self-reported (t/1932#1); durable fix = the `/add-ai-backend` playbook (being filed). Watch for the same shape on other shared enums (POV camps `acc/saf/skp/cc`, BDI categories, `pol-*` registry).
+**Status:** Active — 2 instances. Root cause: decomposition-completeness (coupling graph vs feature files) + verify-scope (all referencing tests vs a subset); and hardcoded count assertions as a runtime coupling site (p/5#21, added 2026-08-03). TL self-reported (t/1932#1); durable fix = the `/add-ai-backend` playbook (being filed). Watch for the same shape on other shared enums (POV camps `acc/saf/skp/cc`, BDI categories, `pol-*` registry).
 
 **Applies To:** Any role decomposing or landing a change that adds a member to a shared enumeration/config consumed across multiple files or scopes.
 
@@ -551,3 +558,106 @@ Failure patterns related to tooling configuration, agent workflows, and operatio
 **Status:** Active — **TL-owned root cause of the 3 PR-flow defects** (2026-07-29, self-reported p/8#121). **BEING PROMOTED to a rule (TL, p/8#123):** target = **TL AGENTS.md** (engineering/tech-lead), since procedure/skill rollouts flow through TL review; pending owner sign-off on exact wording before the `ogit` overlay commit, citing `1ded61d4` + the 3-defect rollout as origin. Graduates to **root AGENTS.md** if the owner wants it fleet-binding rather than TL-scoped. (When it lands, add to the INDEX "AGENTS.md Rules (Escalated from Sage)" list.) The three defects are recorded individually (refs/heads push + `--delete-branch` worktree abort in build.md; docs-only gate above); this is their common cause.
 
 **Applies To:** Anyone — especially TL / DevOps — mandating a change to a fleet-standard procedure (land flow, CI gate, branch protection, commit/worktree conventions).
+
+---
+
+## [Process] Shared GitHub Account — `gh pr review --approve` Fails "Cannot approve your own pull request" on ANY Fleet PR
+
+**Pattern:** All fleet agents authenticate to GitHub as the **same account** (`jpsnover`). GitHub prohibits approving your own PR, so `gh pr review --approve` on **any agent-created PR** fails `Cannot approve your own pull request` — from `gh`'s view every fleet PR is self-owned, because there is only one identity. A shared-**identity** collision at the GitHub-account level — the platform-account analog of the shared-**checkout** collision (t/1926) at the git level.
+
+**Instances:**
+- 2026-08-03 — DevOps (p/26#34): `gh pr review --approve` on PR #334 failed `Cannot approve your own pull request`. Resolved by posting the review as a **comment** (`gh pr review --comment`).
+
+**Root Cause:** A single shared GitHub identity across all agents × GitHub's self-approval prohibition. Approval is a per-USER action GitHub ties to account identity; the fleet has ONE account, so no agent is a "different user" relative to a fleet PR's author. The failure is **deterministic** — it hits *every* agent that runs `--approve` on *every* fleet PR.
+
+**Prevention:**
+1. **Never `gh pr review --approve` a fleet PR** — it always fails under the shared account. Post review feedback with **`gh pr review --comment`** (or `--request-changes` for blocking feedback).
+2. **Approval is NOT required to merge anyway:** branch protection is **checks-only** (`ci-gate` + CodeQL, strict off — no required-reviews), so PRs land by checks-green self-merge, not by approval. The failed `--approve` is a **non-blocker**.
+3. **Sibling of the docs-only self-merge constraint (#101):** both are shared-account / self-action limits on the PR flow — a docs-only PR can't self-satisfy required contexts (→ TL `--admin`-merge), and no agent can self-approve (→ record the verdict as a comment). Use TL `--admin`-merge only where the PR *path* is blocked; a review *verdict* is a comment.
+4. **Cheaply hookable if it recurs:** the trigger is the literal `gh pr review --approve` in a Bash command — a crisp syntactic signal an advisory hook could catch. Candidate Diagnostics hook on a 2nd instance.
+
+**Status:** Active — shared-GitHub-identity constraint; the account-level analog of the shared-checkout collision (t/1926). **Non-blocking** (approval isn't required under checks-only branch protection). Deterministic (every agent, every fleet PR), so 1 instance ⇒ it WILL recur — flagged hookable.
+
+**Applies To:** Any agent running `gh pr review --approve` on a fleet-authored PR (i.e. every PR, since all share the `jpsnover` account).
+
+---
+
+## [Process] `gh pr merge` in Auto Mode Is Blocked by the Safety Classifier — PR Merges Require Explicit User Authorization; Surface the Command for Direct `!` Execution
+
+**Pattern:** `gh pr merge <N> --squash --auto --delete-branch` (or any `gh pr merge` variant) in an **auto-mode agent session** is intercepted by the Claude Code safety classifier and blocked mid-sweep. The classifier treats PR merges as **hard-to-reverse + visible to others** — a category that requires explicit user confirmation regardless of auto-mode level. The agent cannot unblock itself; the action must be surfaced to the user as a `! gh pr merge <N>` command for direct authorization in the session.
+
+**Instances:**
+- 2026-08-03 — Orca Support (p/13#27): `gh pr merge 341 --squash --auto --delete-branch` blocked mid-PR resolution sweep by the auto-mode classifier. Resolved by surfacing `! gh pr merge 341` to the user for direct authorization.
+- 2026-08-03 — Orca Support (p/13#31): `gh pr merge` blocked again during PR #289 conflict-resolution flow — same classifier gate, 2nd independent instance.
+
+**Root Cause:** The Claude Code safety classifier has a fixed policy: PR merge is a **shared-state, hard-to-reverse action** (merges commit to a repo visible to others, triggers CI, may deploy). Auto mode bypasses routine tool confirmations but NOT this class of action. The classifier intercepts at the tool-call layer before the command runs — this is **correct and intended behavior**, not a bug. The failure is the **workflow assumption** that `gh pr merge` would run unattended in an automated PR sweep.
+
+**Prevention:**
+1. **Never assume `gh pr merge` will run unattended in auto mode** — it always requires an explicit user authorization event. Plan for a manual authorization step in any PR-resolution workflow.
+2. **Surface the command as `! gh pr merge <N> --squash --delete-branch`** — the `!` prefix runs the command in the active session under user authorization; this is the correct resolution path.
+3. **Do NOT retry the same `gh pr merge` call** — the classifier will block it again. Only a human-authorized execution unblocks the action.
+4. **Sibling of the push-authorization pattern**: `git push` to shared remotes is similarly treated as requiring user oversight. Both `git push` and `gh pr merge` are in the "visible to others / hard to reverse" class.
+
+**Status:** Active — safety-classifier gate on `gh pr merge` in auto mode; by design. Every agent running automated PR sweeps will hit this. The fix is architectural: design PR workflows with a manual authorization step for the merge command.
+
+**Applies To:** All agents running `gh pr merge` in auto mode (e.g., PR resolution sweeps, post-CI land automation).
+
+---
+
+## [Process] `git push --force-with-lease` in Auto Mode Is Blocked by the Safety Classifier — Force-Pushes Are "Hard-to-Reverse"; Surface as `! git push` for User Authorization
+
+**Pattern:** `git push --force-with-lease` (and any force-push variant) in an **auto-mode agent session** is intercepted by the Claude Code safety classifier and blocked. The classifier specifically lists force-pushing as a **hard-to-reverse operation** (can overwrite upstream history, destroy others' work). This is the same classifier gate as `gh pr merge` (#129) — both are in the "hard-to-reverse + visible to others" class — but triggered by a different command. Resolution: surface `! git push --force-with-lease <remote> <branch>` to the user for direct authorization.
+
+**Instances:**
+- 2026-08-03 — Orca Support (p/13#31): `git push --force-with-lease` blocked during PR #289 conflict-resolution flow (after resolving conflicts via merge commit + soft-reset). Resolved by surfacing `! git push` as a user instruction.
+
+**Root Cause:** Force-push rewrites the remote ref's history — if another agent or user has pushed since your last fetch, a force-push discards their work. The safety classifier gates this at the tool-call layer regardless of auto-mode level; this is **correct and intended behavior**. Unlike regular `git push` (allowed in auto mode for non-main branches via worktrees), force-push is always gated because the damage profile is higher and the user must affirm they understand the rewrite.
+
+**Prevention:**
+1. **`git push --force-with-lease` will always be blocked in auto mode** — plan for a manual user-authorization step in any workflow that requires a force-push (conflict resolution, history cleanup, rebase-then-push flows).
+2. **Surface as `! git push --force-with-lease <remote> <branch>`** — the `!` prefix runs the command under user authorization in the active session.
+3. **Prefer rebase-then-regular-push over force-push when possible** — if the branch has no shared history, a fast-forward or regular push avoids the classifier gate entirely.
+4. **Sibling of `gh pr merge` classifier gate (#129):** both are in the "hard-to-reverse + visible to others" class. The general rule: any operation that REWRITES or MERGES remote state requires explicit user authorization in auto mode.
+
+**Status:** Active — safety-classifier gate on force-push; by design. Every agent needing to force-push in auto mode will hit this. The fix is architectural: design conflict-resolution workflows with a manual authorization step for the force-push.
+
+**Applies To:** All agents running `git push --force-with-lease`, `git push --force`, or any force-push variant in auto mode.
+
+---
+
+## [Process] Safety Classifier Blocks Moving Untracked Files to `/tmp` — Use Session Scratchpad or Worktree Instead
+
+**Pattern:** Attempting to move or copy untracked files to `/tmp` is blocked by the safety classifier — treated as potentially destructive. This commonly arises when an agent tries to stage untracked files out of the way before a cherry-pick or rebase. The fix is a fresh worktree, which achieves the same clean-state goal without relocating any files.
+
+**Instances:**
+- 2026-08-03 — Orca Support (p/13#33, PR #289): attempted to move untracked files to `/tmp` during fork PR resolution — blocked by safety classifier. Resolved by using a fresh worktree from main + cherry-pick.
+
+**Root Cause:** `/tmp` is ephemeral; moving uncommitted files there risks silent data loss. The worktree-from-main + cherry-pick approach achieves a clean state without needing to relocate untracked files.
+
+**Prevention:**
+1. **Don't stage untracked files to `/tmp`** — use `git worktree add -b <branch> <path> origin/main` + cherry-pick the desired commits instead.
+2. For genuine temporary storage, use the session scratchpad directory (provided in session context), not `/tmp`.
+
+**Status:** Active — classifier gate on `/tmp` moves of untracked files; by design (p/13#33).
+
+**Applies To:** All agents needing a clean working state in git workflows — use worktree, not file relocation.
+
+---
+
+## [Process] Cherry-Pick Into a Worktree Conflicts on Shared Doc Files — Use `--theirs` to Accept the Cherry-Picked Version
+
+**Pattern:** Cherry-picking a commit onto a fresh main-based worktree conflicts in shared doc files (e.g., `LessonsLearned.md`) — both the cherry-pick source and the current main-based state have modified the same lines. `--theirs` resolves in favor of the cherry-picked version, which is the correct choice when the cherry-pick carries the authoritative state.
+
+**Instances:**
+- 2026-08-03 — Orca Support (p/13#33, PR #289): cherry-picking fork PR commits onto a clean worktree conflicted in Sage docs. Resolved with `--theirs`.
+
+**Root Cause:** Shared doc files receive concurrent edits from many agents across branches. A cherry-pick from a branch that diverged before recent doc updates will conflict with current main. The cherry-picked version is what's being preserved.
+
+**Prevention:**
+1. **`git cherry-pick -X theirs <sha>`** auto-resolves all conflicts in favor of the incoming commit — use when the cherry-pick is authoritative and conflicts are expected stale-base divergence.
+2. Per-file: `git checkout --theirs <conflicted-file>` then `git add <file>` then `git cherry-pick --continue`.
+3. Pre-check with `git diff origin/main...<source-sha> -- <doc-path>` to know whether overlapping edits exist before starting.
+
+**Status:** Active — doc file cherry-pick conflicts in multi-agent worktree workflows; --theirs resolution pattern (p/13#33).
+
+**Applies To:** All agents cherry-picking commits that include shared doc file changes onto a main-based worktree.

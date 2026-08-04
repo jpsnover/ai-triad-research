@@ -121,6 +121,10 @@ export interface DebateConfig {
   onSnapshot?: (session: DebateSession, trigger: 'round_complete' | 'error') => void;
   /** UsageID call dependencies. When present, eligible call sites use `callByUsage()` from the usage registry instead of direct adapter calls. */
   usageDeps?: import('../../ai-client/usageRegistry.js').UsageCallDeps;
+  /** Moderation mode. 'talmudic' enables dialectical examination with source cards. Default: 'standard'. */
+  moderatorMode?: string;
+  /** Talmudic reference corpus config — requires moderatorMode 'talmudic'. */
+  talmudicReferences?: import('../types.js').TalmudicReferencesConfig;
 }
 
 export interface DebateProgress {
@@ -158,6 +162,9 @@ export interface DebateEngineInternals {
   _contextManifests: import('../taxonomyGapAnalysis.js').ContextManifestEntry[];
   _situationScoreAdjustments: Map<string, number> | null;
   _nodeLabelMap?: Map<string, string>;
+
+  // ── Talmudic corpus ──
+  _talmudicCorpus: import('../types.js').TalmudicCorpus | null;
 
   // ── moderator / adaptive-staging state ──
   _midpointEvalDone: boolean;

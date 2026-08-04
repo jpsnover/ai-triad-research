@@ -24,6 +24,12 @@ import { log } from '../logger.js';
 import * as fileIO from '../storage/fileIO.js';
 import * as ai from '../ai/aiBackends.js';
 
+/** Converts a git SSH remote URL to HTTPS. Non-SSH URLs are returned unchanged. */
+export function convertSshToHttps(remoteUrl: string): string {
+  if (!remoteUrl.startsWith('git@github.com:')) return remoteUrl;
+  return remoteUrl.replace('git@github.com:', 'https://github.com/');
+}
+
 export function registerDataRoutes(r: Router, ctx: ServerCtx): void {
   const { get, post } = r;
   const { serverRecorder } = ctx;
@@ -180,7 +186,7 @@ export function registerDataRoutes(r: Router, ctx: ServerCtx): void {
 
       // If remote is SSH, convert to HTTPS for public repo access without keys
       if (remoteUrl.startsWith('git@github.com:')) {
-        const httpsUrl = remoteUrl.replace('git@github.com:', 'https://github.com/').replace(/\.git$/, '.git');
+        const httpsUrl = convertSshToHttps(remoteUrl);
         log.dataPull.info({ httpsUrl }, 'Converting SSH remote to HTTPS');
         await runGit(['remote', 'set-url', 'origin', httpsUrl]);
       }

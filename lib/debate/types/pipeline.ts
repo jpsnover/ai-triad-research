@@ -165,7 +165,7 @@ export interface OpeningPlanWorkProduct {
   strategic_goal: string;
   core_thesis: string;
   argument_structure: { point: string; evidence: string; taxonomy_anchor: string }[];
-  framing_choices: string;
+  framing_choices: { frame: string; why: string }[];
   anticipated_challenges: string[];
   target_nodes?: string[];
 }

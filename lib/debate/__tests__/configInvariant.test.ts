@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import path from 'path';
+import { findDanglingRefs, findChainlessDefaults } from '../../ai-config/validate.js';
 
 // ── Config-invariant gate (t/1628 AC3) ──────────────────────────────
 //
@@ -31,89 +32,11 @@ interface ModelRegistry {
   fallbackChains: Record<string, string[]>;
 }
 
-// ── Dangling-friendlyId invariant (t/1729; TL design t/1706) ────────────
-//
-// Self-cert: /add-test (pure test extension of this file — no new public API,
-// no production code, no schema change). Scope implemented is the FULL set the
-// TL designed MINUS fallbackChain *keys* (see the scope note on
-// findDanglingRefs below and the deviation recorded there).
-//
-// Every friendlyId a model is SELECTED by or FAILED-OVER to must resolve to a
-// real `models[]` entry. The friendlyId lives on `models[].id` — ai-models.json
-// has no separate `friendlyId` field; `defaults`, `debateTiers`, and
-// `fallbackChains` all reference models by that `id`. A reference that resolves
-// to nothing is a silent misconfiguration: at runtime the model lookup returns
-// undefined and the call fails (or, for a failover target, the failover is a
-// no-op — the exact t/1628 failure class this file guards).
-//
-// KNOWN_VERBATIM — documented exempt friendlyIds (Gate Co-Location, t/1589):
-//   - 'deepseek-chat' is the one genuine friendlyId == real-provider-model-id
-//     case: it is used verbatim as a DeepSeek API model id and as a failover
-//     target/chain, but has no synthetic `models[]` entry of its own. This is
-//     intentional, not a dangling ref, so it is the sole exemption.
-// NOT exempt: azure (t/1727 gave azure real models[] entries), and
-// claude-opus-4-8 / deepseek-reasoner — see the scope note for why they need
-// no exemption under this (value-scoped) invariant.
-const KNOWN_VERBATIM = new Set<string>(['deepseek-chat']);
-
-/**
- * Return every referenced friendlyId that does NOT resolve to a `models[]`
- * entry, excluding the KNOWN_VERBATIM exempt-set. `[]` means the config is
- * internally consistent. Shared by the real-config test and the broken-fixture
- * test so both exercise identical resolution logic.
- *
- * Scope (value-scoped): references collected from
- *   - `defaults.*`                     (selection values)
- *   - `debateTiers.{tier}.{backend}`   (selection values; the "_comment"
- *                                       string key is skipped — it is not a
- *                                       backend->model map)
- *   - `fallbackChains` string[] VALUES (failover targets)
- *
- * DEVIATION from the t/1706 design, recorded at point of use: the design also
- * named fallbackChain *keys*. On the committed ai-models.json HEAD two keys are
- * legitimately orphan — `claude-opus-4-8` and `deepseek-reasoner` have a chain
- * (and pricing) defined but no `models[]` entry on this commit (opus-4-8's
- * entry lands with the in-flight model-registry migration; reasoner is legacy).
- * An orphan chain KEY is inert — it is never a selection value and never a
- * failover target, so it cannot cause the runtime failure this gate targets.
- * Checking keys would make the gate RED on origin for these two inert entries;
- * checking VALUES keeps it green while still catching every runtime-affecting
- * dangle. Crucially this leaves claude-opus-4-8 / deepseek-reasoner genuinely
- * NOT exempt: if either is ever wired as a default / tier / failover value
- * without a models[] entry, this function still flags it.
- */
-export function findDanglingRefs(registry: ModelRegistry): string[] {
-  const modelIds = new Set(registry.models.map((m) => m.id));
-  const referenced: string[] = [];
-
-  for (const modelId of Object.values(registry.defaults ?? {})) {
-    referenced.push(modelId);
-  }
-
-  for (const [tier, tierValue] of Object.entries(registry.debateTiers ?? {})) {
-    // Skip the "_comment" documentation key (a string, not a backend map).
-    if (tier === '_comment' || typeof tierValue !== 'object') continue;
-    for (const modelId of Object.values(tierValue)) {
-      referenced.push(modelId);
-    }
-  }
-
-  for (const chain of Object.values(registry.fallbackChains ?? {})) {
-    for (const modelId of chain) referenced.push(modelId);
-  }
-
-  return [...new Set(referenced)]
-    .filter((id) => !modelIds.has(id) && !KNOWN_VERBATIM.has(id))
-    .sort();
-}
-
-// Backends exempt from the fallback-chain requirement, with the rationale
-// co-located at point of use (gate-metadata co-location, t/1589):
-//   - ollama runs a LOCAL model. There is no cloud provider to fail over to;
-//     a failover chain would point at a backend the user may not have keys
-//     for, defeating the "offline / local-only" contract. Local-model outage
-//     is surfaced directly, not masked by a remote fallback.
-const CHAIN_EXEMPT_BACKENDS = new Set(['ollama']);
+// ── Dangling-friendlyId invariant + chainless-default guard ─────────
+// (t/1729 / t/1628; TL design t/1706 / t/2038) — implementation extracted
+// to lib/ai-config/validate.ts (t/2039); imported above (t/2040 dedup).
+// Deviation rationale (orphan chain-KEY not checked), KNOWN_VERBATIM, and
+// CHAIN_EXEMPT_BACKENDS rationale all live in validate.ts JSDoc.
 
 describe('ai-models.json config invariants (t/1628)', () => {
   const registry: ModelRegistry = JSON.parse(
@@ -121,17 +44,7 @@ describe('ai-models.json config invariants (t/1628)', () => {
   );
 
   it('every non-exempt default model has a non-empty fallbackChain', () => {
-    const offenders: string[] = [];
-
-    for (const [backend, modelId] of Object.entries(registry.defaults)) {
-      if (CHAIN_EXEMPT_BACKENDS.has(backend)) continue;
-
-      const chain = registry.fallbackChains?.[modelId];
-      if (!Array.isArray(chain) || chain.length === 0) {
-        offenders.push(`${backend} default "${modelId}" has no fallbackChain`);
-      }
-    }
-
+    const offenders = findChainlessDefaults(registry);
     expect(offenders, offenders.join('; ')).toEqual([]);
   });
 

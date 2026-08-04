@@ -206,6 +206,7 @@ export interface SelectionResult {
     source_claim?: string;
     source_round?: number;
   };
+  dialectical_diagnostic?: DialecticalDiagnostic;
 }
 
 export interface EngineValidationResult {
@@ -339,5 +340,101 @@ export interface InterventionResponseFields {
     evidence_or_tradeoff: string;
     conditional_agreement?: string;
     contested_term_definition?: string;
+  };
+}
+
+// ── Talmudic Moderator types ───────────────────────────
+
+export type ModeratorMode = 'standard' | 'talmudic';
+
+export type DialecticalDisagreementType = 'empirical' | 'causal' | 'definitional' | 'normative' | 'mixed' | 'unclear';
+
+export interface DialecticalDiagnostic {
+  focused_crux: string;
+  disagreement_type: DialecticalDisagreementType;
+  premise_under_examination: string | null;
+  distinction_or_analogy_tested: string | null;
+  unresolved_outcome: string | null;
+}
+
+export interface TalmudicReferencesConfig {
+  enabled: boolean;
+  corpusPath: string;
+  minScore?: number;
+}
+
+export interface TalmudicSourceCardEdition {
+  language?: string;
+  version_title: string;
+  license: string;
+  text: string;
+}
+
+export interface TalmudicSourceCard {
+  id: string;
+  ref: string;
+  sefaria_ref: string;
+  sefaria_url: string;
+  layer?: string;
+  excerpt: string;
+  checksum: string;
+  source: TalmudicSourceCardEdition;
+  translation: TalmudicSourceCardEdition;
+  themes: string[];
+  interpretive_summary: string;
+  counter_reading: string;
+  disagreement_types: string[];
+  schemes: string[];
+  usage_types: string[];
+  analogy_guardrails: string[];
+  review_status?: string;
+  retrieved_at?: string;
+}
+
+export interface TalmudicCorpus {
+  version: 1;
+  name: string;
+  cards: TalmudicSourceCard[];
+}
+
+export interface TalmudicReferenceCandidate {
+  card_id: string;
+  ref: string;
+  score: number;
+  components: { text_tags: number; disagreement_type: number; scheme: number };
+}
+
+export interface TalmudicReferenceSelection {
+  query: string;
+  candidates: TalmudicReferenceCandidate[];
+  selected_card?: TalmudicSourceCard;
+  usage_type?: string;
+  rationale?: string;
+  no_match_reason?: string;
+}
+
+export interface TalmudicReferenceResponse {
+  card_id: string;
+  stance: 'accepts' | 'rejects' | 'distinguishes' | 'limits';
+  relevant_similarity: string;
+  limiting_difference: string;
+  valid: boolean;
+  warnings: string[];
+}
+
+export interface DialecticalDiagnosticRecord {
+  round: number;
+  moderator_mode: string;
+  moderator_entry_id: string;
+  focused_crux: string;
+  disagreement_type: DialecticalDisagreementType;
+  premise_under_examination: string | null;
+  distinction_or_analogy_tested: string | null;
+  unresolved_outcome: string | null;
+  reference_selection?: {
+    selected_card?: TalmudicSourceCard;
+    response?: TalmudicReferenceResponse;
+    moderator_entry_id?: string;
+    responding_entry_id?: string;
   };
 }

@@ -263,7 +263,7 @@ function createTestRecorder(): FlightRecorder & { events: RecordInput[] } {
 async function createBackend(recorder?: FlightRecorder) {
   const { GitHubAPIBackend } = await import('../storage/githubAPIBackend');
   const backend = new GitHubAPIBackend({
-    cacheDir: '/tmp/test-cache',
+    cacheDir: '/var/cache/taxonomy-test', // non-tmpdir: breaks CodeQL /tmp taint flow (t/2020)
     recorder: recorder ?? createTestRecorder(),
     pollIntervalMs: 999_999_999, // disable polling in tests
     coherencyProbeRate: 0,        // disable coherency probes
@@ -1243,7 +1243,7 @@ describe('GitHubAPIBackend — chaos: missing credentials', () => {
 
     const { GitHubAPIBackend } = await import('../storage/githubAPIBackend');
     const backend = new GitHubAPIBackend({
-      cacheDir: '/tmp/test-cache-nocreds',
+      cacheDir: '/var/cache/taxonomy-test-nocreds', // non-tmpdir: breaks CodeQL /tmp taint flow (t/2020)
       pollIntervalMs: 999_999_999,
       coherencyProbeRate: 0,
     });
@@ -1521,7 +1521,7 @@ describe('GitHubAPIBackend — manifest mutex', () => {
     // Fire 3 concurrent reads — all cache misses
     const paths = Object.keys(fileContents);
     const results = await Promise.all(
-      paths.map(p => backend.readFile(`/tmp/test-cache/${p}`)),
+      paths.map(p => backend.readFile(`/var/cache/taxonomy-test/${p}`)),
     );
 
     // All reads should succeed
@@ -1546,7 +1546,7 @@ describe('GitHubAPIBackend — manifest mutex', () => {
     let maxConcurrentWrites = 0;
     mockWriteFile.mockImplementation(async (filePath) => {
       const fp = typeof filePath === 'string' ? filePath : String(filePath);
-      if (fp.endsWith('manifest.json.tmp')) {
+      if (fp.includes('manifest.json.tmp')) {
         activeWrites++;
         maxConcurrentWrites = Math.max(maxConcurrentWrites, activeWrites);
         // Simulate I/O delay to widen the race window
@@ -1578,7 +1578,7 @@ describe('GitHubAPIBackend — manifest mutex', () => {
     });
 
     await Promise.all(
-      paths.map(p => backend.readFile(`/tmp/test-cache/${p}`)),
+      paths.map(p => backend.readFile(`/var/cache/taxonomy-test/${p}`)),
     );
 
     // With the manifest mutex, writes should be serialized (max 1 at a time)
@@ -1596,7 +1596,7 @@ describe('GitHubAPIBackend — session overlay memory cap (t/727)', () => {
   async function cappedBackend(capBytes: number) {
     const { GitHubAPIBackend } = await import('../storage/githubAPIBackend');
     const b = new GitHubAPIBackend({
-      cacheDir: '/tmp/test-cache',
+      cacheDir: '/var/cache/taxonomy-test', // non-tmpdir: breaks CodeQL /tmp taint flow (t/2020)
       recorder: createTestRecorder(),
       pollIntervalMs: 999_999_999,
       coherencyProbeRate: 0,
@@ -1694,6 +1694,57 @@ describe('GitHubAPIBackend — optional 404 log level', () => {
       e => e.type === 'github.api.error' && e.data?.status === 404,
     );
     expect(errorEvents).toHaveLength(0);
+
+    backend.shutdown();
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+// t/2053 regression: undici dispatcher ownership + data-load status
+// ═══════════════════════════════════════════════════════════════════════════
+
+describe('GitHubAPIBackend — undici dispatcher (t/2053)', () => {
+  it('passes explicit dispatcher on every fetch call', async () => {
+    await createBackend();
+
+    const calls = vi.mocked(globalThis.fetch).mock.calls;
+    expect(calls.length).toBeGreaterThan(0);
+    for (const [, init] of calls) {
+      expect((init as RequestInit & { dispatcher?: unknown }).dispatcher).toBeDefined();
+    }
+  });
+
+  it('reports ready status after successful initialization', async () => {
+    const backend = await createBackend();
+
+    expect(backend.getDataLoadStatus().status).toBe('ready');
+
+    backend.shutdown();
+  });
+
+  it('reports failed status and logs error when tree loads 0 blobs', async () => {
+    // Simulate undici 6.28.0 returning empty tree (the :07-30 prod failure mode)
+    apiHandlers.push((url) => {
+      if (url.includes('/git/trees/')) return { status: 200, body: { sha: TREE_SHA, truncated: false, tree: [] } };
+      return null as unknown as { status: number; body: unknown };
+    });
+
+    const { GitHubAPIBackend } = await import('../storage/githubAPIBackend');
+    const recorder = createTestRecorder();
+    const backend = new GitHubAPIBackend({
+      cacheDir: '/var/cache/taxonomy-test',
+      recorder,
+      pollIntervalMs: 999_999_999,
+      coherencyProbeRate: 0,
+    });
+    await backend.initialize();
+
+    const { status } = backend.getDataLoadStatus();
+    expect(status).toBe('failed');
+
+    // Error must surface in flight recorder (not swallowed at info-level)
+    const errorEvents = recorder.events.filter(e => e.level === 'error');
+    expect(errorEvents.length).toBeGreaterThan(0);
 
     backend.shutdown();
   });

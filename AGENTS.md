@@ -8,34 +8,12 @@ AI Triad Research — multi-perspective research platform for AI policy/safety l
 
 ## Build & Test Commands
 
-```powershell
-# Load the PowerShell module (required before using any cmdlet)
-Import-Module ./scripts/AITriad/AITriad.psm1
+Build and test commands are role-specific — see the owning subtree's `AGENTS.md` (they load automatically when you work in that scope):
 
-# Run all Pester tests
-Invoke-Pester ./tests/
-
-# Run a single Pester test by name
-Invoke-Pester ./tests/ -FullNameFilter '*test name pattern*'
-
-# Build distributable module
-./scripts/Build-Module.ps1 -Clean
-
-# Validate built manifest
-Test-ModuleManifest -Path ./build/AITriad/AITriad.psd1
-```
-
-```bash
-# Taxonomy Editor (Electron + React)
-cd taxonomy-editor && npm ci && npm test        # run vitest suite
-cd taxonomy-editor && npm run test:watch         # watch mode
-cd taxonomy-editor && npm run dev                # dev server (port 5173)
-cd taxonomy-editor && npx tsc --noEmit -p tsconfig.main.json  # type check
-
-# POViewer / Summary Viewer (no test suites yet)
-cd poviewer && npm ci && npm run dev             # port 5174
-cd summary-viewer && npm ci && npm run dev       # port 5175
-```
+- **PowerShell module / Pester / manifest** → `scripts/AGENTS.md`
+- **Taxonomy Editor / poviewer / summary-viewer (npm, vitest, tsc)** → `taxonomy-editor/AGENTS.md`
+- **Debate engine (vitest)** → `lib/debate/AGENTS.md`
+- **CI pipeline (`ci.yml` jobs)** → `operations/devops/AGENTS.md`
 
 ## Architecture
 
@@ -49,9 +27,19 @@ Orca config files (`.orca.yaml`, `AGENTS.md`, `.orca/` directory) live in a **se
 
 - **`git` commands** operate on the main project repo
 - **`ogit` commands** (alias for `git --git-dir=.orca-git --work-tree=.`) operate on the overlay
-- **Never `git add` or `git commit`** files tracked by the overlay: `.orca.yaml`, `AGENTS.md`, `.orca/`, `.orca-gitignore`
-- If you need to update AGENTS.md, edit it normally but commit via `ogit`, not `git`
+- **Never `git add` or `git commit`** files tracked by the overlay: `.orca.yaml`, `.orca/`, `.orca-gitignore`, and every **nested** `AGENTS.md`
 - Run `ogit` from the repo root — `.orca-git` is not visible from subdirectories
+- A **new** nested `AGENTS.md` needs `ogit add -f` — the overlay whitelist alone does not stage it
+
+**Which repo owns an `AGENTS.md`? Don't recall it — ask (t/2080):**
+
+```
+sh .githooks/agent-file-owner.sh --path <file>    # → main | overlay | NEITHER
+```
+
+The rule is a predicate, not a list: a file is **main-repo-tracked iff a public-repo consumer needs it without the overlay**. Today that is exactly two files — this root `AGENTS.md` (commit it with **`git`**, not `ogit`) and `operations/devops/azure/AGENTS.md`. Every other `AGENTS.md` is overlay-only.
+
+The two sets are **disjoint by construction**: the code repo's allowlist lives in `.gitignore`, the matching re-exclusions in `.orca-gitignore`. Both `AGENTS.md` above were previously tracked in *both* repos and had silently diverged. The pre-commit hook runs `agent-file-owner.sh --audit` on every commit and **refuses** one that re-creates a double-track — or that leaves a nested `AGENTS.md` tracked by **neither** repo, the state that left two role files with a single unbacked copy on one machine.
 
 ### Shared-Checkout Commit Guard (git pre-commit hook)
 
@@ -63,19 +51,13 @@ git config core.hooksPath .githooks
 
 The hook is self-documenting (see its header comment). Owner / emergency override: `git commit --no-verify`.
 
-### PowerShell Module (`scripts/AITriad/`)
+### Subsystem Map
 
-40+ cmdlets in `Public/`, internal helpers in `Private/`, AI prompt templates in `Prompts/`. Module manifest: `AITriad.psd1` (v0.8.0). Companion modules loaded alongside: `AIEnrich.psm1` (multi-backend AI abstraction with streaming, retry, token tracking) and `DocConverters.psm1` (PDF/DOCX/HTML to Markdown via pandoc/gs).
+Detailed conventions and build/test commands live in each subtree's `AGENTS.md` (loaded when you work in that scope). This is the orientation map only.
 
-### Electron Apps (3 independent apps, each Vite + React 19 + Electron 35 + TypeScript)
-
-- **taxonomy-editor/** — Main editing UI for the taxonomy graph. Includes integrated Edge Browser. Uses Zustand for state, Zod for validation.
-- **poviewer/** — POV analysis viewer. Uses pdfjs-dist and Google GenAI SDK.
-- **summary-viewer/** — Summary browser.
-
-### Debate Engine (`lib/debate/`, 22 TypeScript files)
-
-Three-agent BDI debate system. Characters: Accelerationist (accelerationist), Safetyist (safetyist), Skeptic (skeptic). Entry points: `Show-TriadDialogue` (PowerShell) or `npm run debate` (CLI via tsx). `aiAdapter.ts` abstracts multi-backend AI calls; `prompts.ts` has 27+ prompt templates.
+- **PowerShell module** (`scripts/AITriad/`) — 40+ cmdlets (Public/Private split), AI prompt templates in `Prompts/`, companion `AIEnrich.psm1` (multi-backend AI abstraction) + `DocConverters.psm1` (doc→Markdown). → `scripts/AGENTS.md`
+- **Electron apps** — 3 independent apps, each Vite + React 19 + Electron 35 + TypeScript: **taxonomy-editor/** (main editing UI; Zustand + Zod), **poviewer/** (POV analysis; pdfjs-dist), **summary-viewer/**. → `taxonomy-editor/AGENTS.md`
+- **Debate engine** (`lib/debate/`) — three-agent BDI system (Accelerationist / Safetyist / Skeptic). Entry points: `Show-TriadDialogue` (PowerShell) or `npm run debate` (CLI). `aiAdapter.ts` abstracts multi-backend AI calls. → `lib/debate/AGENTS.md`
 
 ### Taxonomy Model
 
@@ -87,28 +69,29 @@ Four POV camps with BDI categories (Beliefs, Desires, Intentions). Node IDs: `{p
 
 Configured in `ai-models.json` (single source of truth for PS and Electron). Backends: Google Gemini (free tier), Anthropic Claude, Groq (free tier). Keys via `Register-AIBackend` or env vars (`GEMINI_API_KEY`, `ANTHROPIC_API_KEY`, `GROQ_API_KEY`, `AI_API_KEY` fallback).
 
-**Before landing any `ai-models.json` edit, run `npm run verify:config`.** The registry's completeness gates live in other packages' test suites (taxonomy-editor vitest + the `tests/` Pester suite), so a root-config edit gets no local signal that it must satisfy them — that is how an incomplete registry edit went red in CI (t/1933). `scripts/Verify-Config.ps1` runs all six registry gates in one command and exits non-zero (naming the failing gate) if any fails: `Test-AIModelsConfig.Tests.ps1`, `ModelLiteralLint.Tests.ps1` (Pester), and `keysValidation`, `resolveApiModelId`, `configInvariant`, `modelDiscovery` (vitest, delegated to taxonomy-editor). Requires `pwsh` + `taxonomy-editor/node_modules` (`npm ci` there once).
+**Before landing any `ai-models.json` edit, run `npm run verify:config`** — it runs all six registry-completeness gates (whose signal lives in other packages' suites) in one command and exits non-zero naming the failing gate; skipping it is how an incomplete edit went red in CI (t/1933). Adding a backend? Follow the `/add-ai-backend` playbook — it enumerates every coupling site.
 
 ## Shell Quoting Rule
 
 When writing, editing, or executing code containing special shell characters (template literals, nested quotes, apostrophes, backticks, `$` variables, f-strings), **always use Edit/Write tools** instead of Bash `sed`, `awk`, or heredocs. When running Python/PowerShell scripts that contain quotes or f-strings, write the script to a temp file with the `Write` tool and execute it, rather than inlining in a heredoc or `bash -c`. Shell escaping is the #1 source of silent corruption bugs.
 
+## Git Forensics on the Bash Tool
+
+On some Windows agents, MSYS path conversion mangles the `<path>` half of a git colon-revspec (`git show <ref>:<path>`, `cat-file`, `rev-parse <ref>:<path>`) — a **valid** ref then reports a spurious `unknown revision or path`, masquerading as a missing commit/file. It is environment-dependent (varies by Git-for-Windows install; confirmed on ≥2 agents, not reproduced on others), so don't dismiss a peer's report as "just their config." Discriminator: valid ref + `unknown revision` = suspect MSYS, not a real absence. Fix: prefix `MSYS_NO_PATHCONV=1`, or run the git command via the PowerShell tool.
+
 ## Error Handling Convention
 
 All unrecoverable errors must use `New-ActionableError` (PowerShell) or `ActionableError` (TypeScript) with four fields: **Goal**, **Problem**, **Location**, **Next Steps**. Never use bare `throw "message"`. Prefer recovery (retry, fallback, partial results) over failure. See `docs/error-handling.md`.
 
-## Version Update Checklist
+## Token Efficiency
 
-When bumping the module version, verify that **all** of the following files are updated consistently:
+- Batch ToolSearch: always fetch all needed schemas in one call (select:t1,t2,t3)
+- Prefer ping over email for status updates and single-question exchanges
+- Use verbose:false and include_ids:false on all MCP list/create calls unless IDs are needed
+- Do not re-read AGENTS.md — it is already injected as claudeMd
+- Keep ticket comments and email bodies concise; reference entities (t/KEY) instead of inlining content
 
-1. `scripts/AITriad/AITriad.psd1` — source manifest (`ModuleVersion`)
-2. `build/AITriad/AITriad.psd1` — built manifest (rebuilt via `Build-Module.ps1 -Clean`)
-3. `CLAUDE.md` — the version mentioned in the Architecture / PowerShell Module section
+## Incident Response
 
-After updating, run `Test-ModuleManifest -Path ./build/AITriad/AITriad.psd1` to confirm the build is coherent. Never publish to PSGallery without rebuilding first — the build manifest must match the source manifest.
-
-## CI Pipeline (`.github/workflows/ci.yml`)
-
-Two jobs on push/PR to main:
-1. **test-powershell** — Pester tests, module build, manifest validation
-2. **test-electron** — `npm ci`, TypeScript check, build (taxonomy-editor only)
+- **Live incident: claim follow-ups before filing.** Before `create_ticket` for a follow-up during an active incident, claim it on the incident anchor thread (or route through the incident coordinator) — prevents concurrent duplicate filings across roles (this bit twice: t/2053+t/2054, t/2061+t/2062).
+- The Technical Lead coordinates incidents (runs `/tl-incident-response`); the anchor ticket is the source of truth for status and follow-up claims.

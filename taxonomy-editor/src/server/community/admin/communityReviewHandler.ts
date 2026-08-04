@@ -11,6 +11,7 @@
  */
 
 import { listSubmissions, approveSubmission, rejectSubmission } from '../community.js';
+import { SENSITIVE_KEYS } from '../../../../../lib/sanitize/stripSensitiveKeys.js';
 import type { ReviewAction, ReviewDomainHandler, ReviewItem } from './types.js';
 
 const DOMAIN = 'community';
@@ -52,16 +53,9 @@ function titleOf(data: unknown): string {
   return extractString(d.title) || extractString(d.topic) || '(untitled)';
 }
 
-// Sensitive keys stripped by community.ts → sanitizeForCommunity on promote.
-// Mirrored here ONLY to preview what will be removed; community.ts remains the
-// authoritative stripper. Keep roughly in sync.
-const SENSITIVE_KEYS = new Set([
-  'api_key', 'apiKey', 'api_keys', 'apiKeys',
-  'secret', 'token', 'password', 'credential', 'credentials',
-  'authorization', 'auth_token', 'access_token', 'refresh_token',
-  'private_key', 'privateKey',
-  'flight_recorder', 'debug', '_internal', 'diagnostics_state',
-]);
+// t/2071: the sensitive-key set is the shared lib/sanitize source of truth (imported
+// above) — scanSensitive() previews which of THOSE keys appear, so the admin "what
+// will be stripped" view can never drift from what community.ts actually strips.
 
 /** Which sensitive keys actually appear anywhere in the submission data. */
 function scanSensitive(obj: unknown, found = new Set<string>()): Set<string> {

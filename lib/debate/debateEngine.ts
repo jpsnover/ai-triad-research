@@ -40,6 +40,7 @@ import type {
   ProcessRewardEntry,
   TopicScope,
   EntailmentRepairEvent,
+  TalmudicCorpus,
 } from './types.js';
 import { POVER_INFO, getDebatePhase, POV_KEYS, type PovKey } from './types.js';
 import {
@@ -172,6 +173,7 @@ import { runFixedCrossRespond, runAdaptiveCrossRespond } from './debateEngine/ph
 import { _rescoreSituations } from './debateEngine/adaptiveStaging.js';
 export { modelTierRank } from './debateEngine/modelResolution.js';
 export type { DebateConfig, DebateProgress, LifecycleStage } from './debateEngine/internals.js';
+import { initTalmudicCorpusFromConfig } from './talmudicReferences.js';
 
 // ── Engine ────────────────────────────────────────────────
 
@@ -243,19 +245,13 @@ export class DebateEngine {
   private _policyIds: Set<string> | null = null;
   /** Active moderator state — tracks budget, cooldown, burden, and intervention history. */
   private _moderatorState: ModeratorState | null = null;
-  /** Adaptive staging: phase transition config. */
   private _adaptiveConfig: PhaseTransitionConfig | null = null;
-  /** Adaptive staging: mutable phase state. */
   private _phaseState: PhaseState | null = null;
-  /** Adaptive staging: signal registry. */
   private _signalRegistry: Signal[] | null = null;
-  /** Adaptive staging: diagnostics accumulator. */
   private _adaptiveDiagnostics: AdaptiveStagingDiagnostics | null = null;
   /** Cached doctrinal boundary embeddings (computed once at debate setup). */
   private _boundaryEmbeddings: BoundaryEmbeddings | null = null;
-  /** Adaptive staging: per-signal historical values for moving averages. */
   private _signalHistory: Map<string, { round: number; value: number }[]> = new Map();
-  /** Adaptive staging: peak tracker for engagement ratio and claims per round. */
   private _peakTrackers: Map<string, number> = new Map();
   /** Debate-wide hint failure streaks for hopeless hint suppression.
    *  Tracked globally (not per-speaker) because hint suppressibility is a model
@@ -281,6 +277,7 @@ export class DebateEngine {
   /** Extracted ClaimExtractionPipeline collaborator — owns claim extraction, drift tracking, gap injection, and post-debate analysis. */
   private _claimPipeline!: ClaimExtractionPipeline;
   private _synthesisPipeline!: SynthesisPipeline;
+  private _talmudicCorpus: TalmudicCorpus | null = null;
 
   /**
    * t/1781: pending evidence-verification promises. verifyPreciseClaims populates
@@ -398,6 +395,7 @@ export class DebateEngine {
     }
 
     this.config = { ...config, stageModels: merged };
+    this._talmudicCorpus = initTalmudicCorpusFromConfig(this.config);
     this.adapter = adapter;
     this.taxonomy = taxonomy;
     applyExplorationConfigDefaults(this._internal);
@@ -442,7 +440,7 @@ export class DebateEngine {
     try {
       // Phase 0.5: Topic critique (free-form topics only, before clarification)
       if (this.config.enableWisdomEvaluation !== false &&
-          this.config.sourceType !== 'document' && this.config.sourceType !== 'url' && this.config.sourceType !== 'situations') {
+        this.config.sourceType !== 'document' && this.config.sourceType !== 'url' && this.config.sourceType !== 'situations') {
         await this._topicPipeline.runTopicCritique();
       }
 
@@ -955,6 +953,8 @@ export class DebateEngine {
       updated_at: now,
       app_version: this.config.appVersion,
       audience: this.config.audience,
+      moderator_mode: this.config.moderatorMode ?? 'standard',
+      talmudic_references: this._talmudicCorpus ? { enabled: true, corpus_name: this._talmudicCorpus.name, corpus_path: path.resolve(this.config.talmudicReferences!.corpusPath), corpus_version: this._talmudicCorpus.version } : { enabled: false },
       phase: 'setup',
       topic: {
         original: this.config.topic,
@@ -1218,14 +1218,14 @@ export class DebateEngine {
           continue;
         }
         getGlobalRecorder()?.record({
-            type: 'system.error',
-            component: 'debateEngine',
-            level: 'error',
-            debate_id: this.session?.id,
-            message: `Speaker ${speaker} model ${chain[i]} failed (no more fallbacks)`,
-            error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
-          });
-          throw err;
+          type: 'system.error',
+          component: 'debateEngine',
+          level: 'error',
+          debate_id: this.session?.id,
+          message: `Speaker ${speaker} model ${chain[i]} failed (no more fallbacks)`,
+          error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+        });
+        throw err;
       }
     }
     throw new Error(`All models failed for speaker ${speaker}`);
@@ -1409,8 +1409,8 @@ export class DebateEngine {
 
     // Post-hoc vocabulary disambiguation for debater statements
     if (this.config.vocabulary?.colloquialTerms &&
-        (full.type === 'opening' || full.type === 'statement') &&
-        full.speaker !== 'system' && full.speaker !== 'moderator' && full.speaker !== 'user') {
+      (full.type === 'opening' || full.type === 'statement') &&
+      full.speaker !== 'system' && full.speaker !== 'moderator' && full.speaker !== 'user') {
       const result = disambiguateTerms(
         full.content,
         full.speaker as CampOrigin,

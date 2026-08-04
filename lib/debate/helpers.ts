@@ -514,6 +514,7 @@ export interface PoverResponseMeta {
   compressed_thesis?: string;
   commitment?: Record<string, unknown>;
   directive_response?: { directive: string; how_addressed: string };
+  talmudic_reference_response?: import('./types.js').TalmudicReferenceResponse;
 }
 
 /** Try to parse JSON, with repair fallback for LLM formatting issues */

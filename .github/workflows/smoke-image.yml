@@ -1,0 +1,46 @@
+# ─── Image Smoke ───
+# Runs deploy/azure/smoke-healthz.sh against an arbitrary image ref: docker run
+# it prod-like and poll /healthz. Two uses:
+#   1. Gate-verification proof for t/2048 — run against the crash-looper
+#      (taxonomy-editor@sha256:da74e499… , base :2026-07-30) to prove it goes
+#      RED, and the known-good gemini image (@sha256:efd068fe…) to prove GREEN.
+#   2. Ad-hoc runtime check of any published image.
+# The durable pre-deploy runtime gate lives in deploy-azure.yml (0%-traffic
+# health+acceptance check, t/2049); this workflow is the reusable/standalone harness.
+
+name: Image Smoke
+
+on:
+  workflow_dispatch:
+    inputs:
+      image:
+        description: 'Image ref to smoke (tag or @sha256 digest)'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  packages: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Pull image
+        run: docker pull "${{ inputs.image }}"
+
+      - name: Smoke /healthz
+        env:
+          IMAGE: ${{ inputs.image }}
+          # Public read of jpsnover/ai-triad-data — the default token suffices.
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: bash deploy/azure/smoke-healthz.sh

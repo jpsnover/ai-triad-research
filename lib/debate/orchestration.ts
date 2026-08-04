@@ -24,6 +24,7 @@ import type {
   InterventionMove,
   DebatePhase,
   DebateAudience,
+  ModeratorMode,
   GapInjection,
   UnansweredClaimEntry,
   TurnPipelineResult,
@@ -34,6 +35,7 @@ import type {
   HintEffectiveness,
   HintSpecificity,
   HintSource,
+  DialecticalDiagnostic,
 } from './types.js';
 
 import {
@@ -112,6 +114,8 @@ export interface ModeratorSelectionInput {
   totalRounds: number;
   model: string;
   audience?: DebateAudience;
+  /** Moderator strategy; absent means standard behavior. */
+  moderatorMode?: ModeratorMode;
   sourceDocSummary?: string;
   /** Final resolution text — used to anchor the moderator's interventions
    *  to the resolution's specific subjects rather than abstractions. */
@@ -180,6 +184,36 @@ export interface ModeratorSelectionResult {
   selectionParseError?: unknown;
   /** True if agreement was detected and a system entry was added */
   earlyReturn: boolean;
+}
+
+const DIALECTICAL_DISAGREEMENT_TYPES = new Set<DialecticalDiagnostic['disagreement_type']>([
+  'empirical', 'causal', 'definitional', 'normative', 'mixed', 'unclear',
+]);
+
+/** Normalize untrusted moderator JSON into a complete, reviewable diagnostic. */
+export function parseDialecticalDiagnostic(raw: unknown, fallbackCrux: string): DialecticalDiagnostic {
+  const value = raw && typeof raw === 'object' ? raw as Record<string, unknown> : {};
+  const optionalText = (candidate: unknown): string | null => {
+    if (typeof candidate !== 'string') return null;
+    const trimmed = candidate.trim();
+    return trimmed.length > 0 ? trimmed.slice(0, 2_000) : null;
+  };
+  const focusedCrux = optionalText(value.focused_crux)
+    ?? (fallbackCrux.trim() || 'No focused crux identified');
+  const rawType = typeof value.disagreement_type === 'string'
+    ? value.disagreement_type.trim().toLowerCase()
+    : 'unclear';
+  const disagreementType = DIALECTICAL_DISAGREEMENT_TYPES.has(rawType as DialecticalDiagnostic['disagreement_type'])
+    ? rawType as DialecticalDiagnostic['disagreement_type']
+    : 'unclear';
+
+  return {
+    focused_crux: focusedCrux.slice(0, 2_000),
+    disagreement_type: disagreementType,
+    premise_under_examination: optionalText(value.premise_under_examination),
+    distinction_or_analogy_tested: optionalText(value.distinction_or_analogy_tested),
+    unresolved_outcome: optionalText(value.unresolved_outcome),
+  };
 }
 
 // ── Shared Helper: Build Moderator Context ──────────────
@@ -281,7 +315,7 @@ export async function runModeratorSelection(
 ): Promise<ModeratorSelectionResult> {
   const {
     round, phase, activePovers, totalRounds, model,
-    audience, sourceDocSummary, resolution, resolutionClauses,
+    audience, moderatorMode, sourceDocSummary, resolution, resolutionClauses,
     topicDriftState, transcript, contextSummaries,
     argumentNetwork: an, convergenceSignals, unansweredLedger,
     gapInjections, commitments, existingModState, poverInfo,
@@ -333,9 +367,9 @@ export async function runModeratorSelection(
   const { text: edgeContext, edges_used: edgesUsed } = callbacks.formatEdgeContext(activeLabels);
   const anContext = (an && an.nodes.length > 0)
     ? formatArgumentNetworkContext(
-        an.nodes.map(n => ({ id: n.id, text: n.text, speaker: poverInfo[n.speaker]?.label || n.speaker })),
-        an.edges,
-      )
+      an.nodes.map(n => ({ id: n.id, text: n.text, speaker: poverInfo[n.speaker]?.label || n.speaker })),
+      an.edges,
+    )
     : '';
   const qbafContext = an ? buildQbafContext(an, poverInfo) : '';
   const ledgerHint = formatUnansweredClaimsHint(unansweredLedger ?? [], round);
@@ -595,6 +629,7 @@ export async function runModeratorSelection(
       recentScheme ?? undefined, metaphorReframe, phase, audience,
       sourceDocSummary,
       topicAnchoringBlock,
+      moderatorMode,
     );
 
     const selectionStart = Date.now();
@@ -675,6 +710,9 @@ export async function runModeratorSelection(
         target_debater: labelMap[String(parsed.target_debater ?? '').toLowerCase()] ?? undefined,
         trigger_reasoning: parsed.trigger_reasoning as string | undefined,
         trigger_evidence: parsed.trigger_evidence as SelectionResult['trigger_evidence'] | undefined,
+        dialectical_diagnostic: moderatorMode === 'talmudic'
+          ? parseDialecticalDiagnostic(parsed.dialectical_diagnostic, focusPoint)
+          : undefined,
       };
 
       if (agreementDetected) {
@@ -1005,7 +1043,7 @@ export async function executeTurnWithRetry(
 
   let currentInputHints: string[] | undefined; // hints that triggered the current attempt
 
-  for (;;) {
+  for (; ;) {
     // Check if citation bank validation passed (no warnings after scrub)
     const draftDiagForCitation = pipelineResult.stage_diagnostics.find(s => s.stage === 'draft');
     const citationRes = (draftDiagForCitation as Record<string, unknown> | undefined)?.citation_resolution as
@@ -1362,10 +1400,10 @@ const SKIPPED_VALIDATION: TurnValidation = {
   outcome: 'skipped',
   process_reward: 1,
   dimensions: {
-    schema:      { pass: true, issues: [] },
-    grounding:   { pass: true, issues: [] },
+    schema: { pass: true, issues: [] },
+    grounding: { pass: true, issues: [] },
     advancement: { pass: true, signals: [] },
-    clarifies:   { pass: true, signals: [] },
+    clarifies: { pass: true, signals: [] },
   },
   repairHints: [],
   clarifies_taxonomy: [],

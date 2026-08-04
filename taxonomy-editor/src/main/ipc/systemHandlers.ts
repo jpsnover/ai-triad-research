@@ -116,9 +116,15 @@ export function registerSystemHandlers(): void {
 
   ipcMain.handle('read-research-file', (_event, relativePath: string) => {
     const filePath = resolveResearchPath(relativePath);
+    let fd: number | undefined;
     try {
-      if (!fs.existsSync(filePath)) return null;
-      const stat = fs.statSync(filePath);
+      // Open ONE descriptor and fstat+read through it (js/file-system-race, t/2022): statting a
+      // path then reading the same path is a TOCTOU; a single fd is race-free. Dropping the
+      // existsSync guard alone was insufficient — the residual statSync→readFileSync kept the
+      // alert open (#5401), so this mirrors the embeddings fd fix. A missing file (openSync
+      // ENOENT) is treated as null in the catch.
+      fd = fs.openSync(filePath, 'r');
+      const stat = fs.fstatSync(fd);
       if (stat.size > MAX_RESEARCH_FILE_SIZE) {
         throw new ActionableError({
           goal: 'Read research file',
@@ -127,10 +133,12 @@ export function registerSystemHandlers(): void {
           nextSteps: ['Use a smaller file or process it in chunks'],
         });
       }
-      const raw = fs.readFileSync(filePath, 'utf-8');
+      const raw = fs.readFileSync(fd, 'utf-8');
       return JSON.parse(raw);
     } catch (err) {
       if (err instanceof ActionableError) throw err;
+      // Missing file → null quietly (matches the pre-fix existsSync behavior), no error noise.
+      if ((err as NodeJS.ErrnoException).code === 'ENOENT') return null;
       getGlobalRecorder()?.record({
         type: 'system.error',
         component: 'ipc-research-file',
@@ -139,6 +147,8 @@ export function registerSystemHandlers(): void {
         error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
       return null;
+    } finally {
+      if (fd !== undefined) fs.closeSync(fd);
     }
   });
 

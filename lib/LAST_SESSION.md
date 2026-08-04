@@ -1,5 +1,0 @@
-**Date:** 2026-07-20
-**Working on:** t/1651 — harden onnxEmbedding.ts to offline + fp32 contract (unblocks t/1641 container ML-stack removal, closes Server AI Proxy's t/1643 half).
-**Status:** DONE. Committed `61260804`; verify green on committed code; equivalence gate PASS (cosine=1.000000 vs stored pol-* corpus). SHA handed to Server AI Proxy (p/207#5).
-**Key context:** Approach A (harden onnxruntime-node in place, TL t/1641#10) — fp32 model.onnx module-wide, AI_TRIAD_ONNX_MODEL_DIR baked-dir override with files-present short-circuit, ActionableError+flight-recorder on missing/load-fail, MAX_SEQ_LENGTH 128→256. pol-* corpus vectors are single-field individually-normalized = corpus-native equivalence target (no Python re-run). Electron importers delegate to shared module (no separate quantized pin).
-**Next:** Pick up next unblocked ticket. Server AI Proxy owns routing hosted updateNodeEmbeddings/computeQueryEmbedding + closing t/1643; DevOps owns baking the flat model dir (t/1642) — respond if they ping on the contract.

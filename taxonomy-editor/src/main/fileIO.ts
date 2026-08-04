@@ -344,12 +344,20 @@ export function loadSyntheticEmbeddings(): Record<string, { pov: string; vectors
 
 export function updateSyntheticEmbeddings(nodeId: string, pov: string, vectors: number[][]): void {
   const synDir = path.join(activeTaxonomyDir, 'synthetic');
-  if (!fs.existsSync(synDir)) fs.mkdirSync(synDir, { recursive: true });
+  // mkdirSync({recursive:true}) is idempotent — no existsSync guard (js/file-system-race, t/2022).
+  fs.mkdirSync(synDir, { recursive: true });
   const filePath = path.join(synDir, 'synthetic_embeddings.json');
   let file: { model: string; dimension: number; node_count: number; nodes: Record<string, { pov: string; vectors: number[][] }> };
-  if (fs.existsSync(filePath)) {
+  try {
+    // Read directly rather than existsSync-then-read (TOCTOU, t/2022). Missing file (ENOENT) =
+    // first write → start from the default; a CORRUPT existing file must rethrow, never silently
+    // default-and-overwrite (which would clobber recoverable data).
     file = parseJsonFile(filePath) as typeof file;
-  } else {
+  } catch (err) {
+    /* telemetry — silent by design: ENOENT = no file yet (first write, a normal case, not an
+       error); any other error is a genuine parse failure that parseJsonFile already recorded
+       before throwing, so it is rethrown here with no duplicate record. */
+    if ((err as NodeJS.ErrnoException).code !== 'ENOENT') throw err;
     file = { model: 'all-MiniLM-L6-v2', dimension: 384, node_count: 0, nodes: {} };
   }
   file.nodes[nodeId] = { pov, vectors };

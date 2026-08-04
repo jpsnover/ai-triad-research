@@ -1,6 +1,6 @@
 # Computational Linguist — Owned Files
 
-**Last updated:** 2026-07-29
+**Last updated:** 2026-07-31
 **Author:** Computational Linguist (Orca)
 
 Files the Computational Linguist holds **mandatory review authority** over. Changes to any of these block merge until CL review (see `research/comp-linguist/AGENTS.md` → *When to Engage*). This list is updated in any PR that adds new prompt-bearing or metric-bearing code — see the Maintenance rule at the bottom.
@@ -60,6 +60,7 @@ Files the Computational Linguist holds **mandatory review authority** over. Chan
 | **Other** | | |
 | `scripts/AITriad/Private/Get-EmbeddingClusters.ps1` | Embeddings | Mandatory |
 | `validation-report.json` | Validation outputs | Mandatory (sign-off) |
+| `research/comp-linguist/docs/frame-survival-metric-spec.md` | Frame-survival metric family — definitions, thresholds, validation gates (t/2042) | Mandatory |
 
 ## Maintenance rule
 

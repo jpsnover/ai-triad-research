@@ -74,6 +74,12 @@ const EMBEDDING_DIM = 384;
 // equivalence check.
 const MAX_SEQ_LENGTH = 256;
 
+// t/2060 — cap the per-`session.run` batch so peak DML VRAM is bounded. A single large
+// run builds one massive GPU tensor that OOMs DirectML (8007000E) even for a few hundred
+// nodes; chunking splits it into bounded forward passes. 32 per TL ruling (t/2060#4) —
+// halve if a live DML host still OOMs with chunking in place.
+const CHUNK_SIZE = 32;
+
 // ── State ─────────────────────────────────────────────
 
 let _ort: OrtModule | null = null;
@@ -83,6 +89,9 @@ let _initPromise: Promise<void> | null = null;
 let _modelDir: string | null = null;
 let _offline = false; // true when the model dir came from MODEL_DIR_ENV — authoritative, never fetch
 let _selectedEP: string = 'none';
+// t/2060 — set once a non-CPU EP OOMs during inference; pins CPU for the process lifetime
+// so init() re-selects CPU and no subsequent call re-OOMs (and re-recreates). Non-null = why.
+let _forcedCpuReason: string | null = null;
 
 // ── WordPiece Tokenizer ───────────────────────────────
 
@@ -376,7 +385,12 @@ async function init(): Promise<void> {
   const backendNames = backends.map(b => b.name);
   let executionProviders: string[];
 
-  if (backendNames.includes('openvino')) {
+  if (_forcedCpuReason) {
+    // t/2060 — a prior non-CPU EP OOM'd during inference; stay pinned to CPU for the
+    // rest of the process so we don't re-OOM. Slower but correct.
+    executionProviders = ['cpu'];
+    _selectedEP = 'cpu';
+  } else if (backendNames.includes('openvino')) {
     executionProviders = ['openvino', 'cpu'];
     _selectedEP = 'openvino';
   } else if (backendNames.includes('dml')) {
@@ -496,22 +510,89 @@ export async function computeEmbedding(text: string): Promise<number[]> {
   return results[0];
 }
 
+/** DirectML / OpenVINO GPU out-of-memory signature (t/2060), matched on the thrown message. */
+function isGpuOom(err: unknown): boolean {
+  const msg = err instanceof Error ? err.message : String(err);
+  return /8007000E|E_OUTOFMEMORY|not enough memory/i.test(msg);
+}
+
+/**
+ * Recreate the inference session pinned to the CPU EP after a GPU OOM (t/2060). Releases
+ * the faulted session and re-inits; `_forcedCpuReason` (set by the caller) makes init()
+ * select `['cpu']`, so this — and every subsequent call for the process lifetime — runs
+ * on CPU and can't re-OOM.
+ */
+async function recreateSessionOnCpu(): Promise<void> {
+  try {
+    await _session?.release();
+  } catch {
+    /* telemetry — silent by design: releasing an already-faulted GPU session may itself
+       throw; the recreate below is what matters, and the OOM is recorded by the caller. */
+  }
+  _session = null;
+  _initPromise = null;
+  await ensureReady();
+}
+
+/**
+ * Run one chunk's inference, falling back from a GPU EP to CPU on an OOM (t/2060).
+ * onnxruntime does NOT gracefully fall a failing op back to CPU — a mid-inference DML
+ * OOM (8007000E) throws — so catch it, pin CPU for the process, recreate the session on
+ * CPU, and retry ONCE. A non-OOM error, an OOM already on CPU, or a CPU-retry failure is
+ * terminal (no further fallback). Generalized to ANY non-CPU EP (dml/openvino) per TL t/2060#4.
+ */
+async function runInferenceWithCpuFallback(
+  feeds: Record<string, OrtTensor>,
+): Promise<Record<string, OrtTensor>> {
+  try {
+    return await _session!.run(feeds);
+  } catch (err) {
+    if (!isGpuOom(err) || _selectedEP === 'cpu') throw err;
+    const prevEP = _selectedEP;
+    getGlobalRecorder()?.record({
+      type: 'system.error',
+      component: 'onnx-embedding',
+      level: 'warn',
+      message: `${prevEP} EP hit a GPU OOM (8007000E) during inference — pinning CPU for the process and retrying`,
+      data: { prevEP, chunkSize: CHUNK_SIZE },
+    });
+    console.warn(`[onnxEmbedding] ${prevEP} EP GPU OOM — recreating session on CPU and retrying (slower but correct)`);
+    _forcedCpuReason = `${prevEP} EP GPU OOM (8007000E) during inference`;
+    await recreateSessionOnCpu();
+    return await _session!.run(feeds); // retry once on CPU; a further failure is terminal
+  }
+}
+
 /**
  * Compute 384-dim embeddings for a batch of texts.
- * Processes all texts in a single forward pass for efficiency.
+ *
+ * The batch is processed in sub-batches of CHUNK_SIZE (t/2060): a single large
+ * `session.run` builds one massive GPU tensor that OOMs DirectML (8007000E) even for a
+ * few hundred nodes, so chunking bounds peak VRAM per forward pass. Results are
+ * concatenated in the original input order. Each chunk's run carries a GPU→CPU OOM
+ * fallback (see runInferenceWithCpuFallback).
  */
 export async function computeEmbeddings(texts: string[]): Promise<number[][]> {
   await ensureReady();
   if (texts.length === 0) return [];
 
+  const results: number[][] = [];
+  for (let start = 0; start < texts.length; start += CHUNK_SIZE) {
+    const chunkResults = await computeChunk(texts.slice(start, start + CHUNK_SIZE));
+    results.push(...chunkResults);
+  }
+  return results;
+}
+
+/** Embed a single sub-batch (≤ CHUNK_SIZE texts) in one forward pass. */
+async function computeChunk(texts: string[]): Promise<number[][]> {
   const ort = _ort!;
-  const session = _session!;
   const tokenizer = _tokenizer!;
 
   const batchSize = texts.length;
   const seqLen = MAX_SEQ_LENGTH;
 
-  // Tokenize all texts
+  // Tokenize all texts in the chunk
   const allInputIds = new BigInt64Array(batchSize * seqLen);
   const allAttentionMask = new BigInt64Array(batchSize * seqLen);
   const allTokenTypeIds = new BigInt64Array(batchSize * seqLen);
@@ -535,8 +616,8 @@ export async function computeEmbeddings(texts: string[]): Promise<number[][]> {
     token_type_ids: new ort.Tensor('int64', allTokenTypeIds, [batchSize, seqLen]),
   };
 
-  // Run inference
-  const output = await session.run(feeds);
+  // Run inference (GPU→CPU OOM fallback per t/2060)
+  const output = await runInferenceWithCpuFallback(feeds);
 
   // Extract last_hidden_state (or the first output)
   const outputKey = Object.keys(output)[0];
@@ -544,7 +625,7 @@ export async function computeEmbeddings(texts: string[]): Promise<number[][]> {
   const hiddenData = hiddenState.data as Float32Array;
   const hiddenSize = hiddenState.dims[hiddenState.dims.length - 1];
 
-  // Mean pool + normalize each item in the batch
+  // Mean pool + normalize each item in the chunk
   const results: number[][] = [];
   for (let b = 0; b < batchSize; b++) {
     const offset = b * seqLen * hiddenSize;

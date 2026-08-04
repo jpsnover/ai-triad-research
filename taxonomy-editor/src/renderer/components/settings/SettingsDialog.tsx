@@ -4,12 +4,13 @@
 import { useState, useEffect, useCallback } from 'react';
 import { api } from '@bridge';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
-import type { RefreshResult } from '@lib/electron-shared/modelDiscovery';
+import type { RefreshResult, BackendResult } from '@lib/electron-shared/modelDiscovery';
 import { useTaxonomyStore } from '../../hooks/useTaxonomyStore';
 import type { ColorScheme, AIBackend, AIModel } from '../../hooks/useTaxonomyStore';
 import { AI_BACKENDS, MODELS_BY_BACKEND, initAIModels } from '../../hooks/useTaxonomyStore';
 import { KeySharingDialog } from './KeySharingDialog';
 import { useDescriptionMode, type DescriptionMode } from '../shared/DescriptionToggle';
+import { backendSelectState, type BackendAvailabilityEntry } from '../shared/backendSelectState';
 import './SettingsDialog.css';
 
 interface SettingsDialogProps {
@@ -340,24 +341,52 @@ function TestKeysButton({ hasKey }: { hasKey: Record<string, boolean> }) {
   );
 }
 
+// t/2039 froze two new top-level RefreshResult fields the config-guard write path
+// returns: `written` (false ⇒ the guard refused to persist) and `configWarning`
+// (refusal reason when !written; optional non-fatal repair note when written). Read
+// them through a tolerant view so this compiles both before AND after the shared type
+// gains them — t/2041 lands first, then t/2039 (see t/2041#1). Missing `written`
+// (pre-t/2039 runtime) reads as legacy success.
+type RefreshOutcome = RefreshResult & { written?: boolean; configWarning?: string };
+
 function RefreshModelsResult({ result, error }: { result: RefreshResult | null; error: string | null }) {
+  const outcome = result as RefreshOutcome | null;
+  const refused = outcome?.written === false;
+  const repairNote = outcome && outcome.written !== false ? outcome.configWarning : undefined;
+  // Robust to non-backend top-level keys (totalModels/written/configWarning): only
+  // entries whose value is a BackendResult object render as per-backend rows, so new
+  // scalar fields never misrender as bogus "failed" backends.
+  const backendRows = outcome
+    ? Object.entries(outcome).filter(
+        (e): e is [string, BackendResult] =>
+          typeof e[1] === 'object' && e[1] !== null && 'ok' in e[1],
+      )
+    : [];
   return (
     <>
-      {result && (
+      {outcome && (
         <div className="settings-refresh-result">
-          {(Object.keys(result) as (keyof RefreshResult)[])
-            .filter((b): b is Exclude<keyof RefreshResult, 'totalModels'> => b !== 'totalModels')
-            .map((b) => {
-            const r = result[b];
-            return (
-              <div key={b} className={`settings-refresh-line ${r.ok ? '' : 'settings-refresh-warn'}`}>
-                <span className="settings-refresh-backend">{b}</span>
-                <span>{r.ok ? `${r.count} models` : r.error || 'failed'}</span>
-              </div>
-            );
-          })}
+          {refused && (
+            <div className="settings-refresh-refused" role="alert">
+              <strong>Models not saved — the config guard refused the write.</strong>
+              {outcome.configWarning && (
+                <div className="settings-refresh-refused-reason">{outcome.configWarning}</div>
+              )}
+            </div>
+          )}
+          {repairNote && (
+            <div className="settings-refresh-repair">Repaired before saving: {repairNote}</div>
+          )}
+          {backendRows.map(([b, r]) => (
+            <div key={b} className={`settings-refresh-line ${r.ok ? '' : 'settings-refresh-warn'}`}>
+              <span className="settings-refresh-backend">{b}</span>
+              <span>{r.ok ? `${r.count} models` : r.error || 'failed'}</span>
+            </div>
+          ))}
           <div className="settings-refresh-total">
-            Total: {result.totalModels} models saved to ai-models.json
+            {refused
+              ? `${outcome.totalModels} models discovered — not saved (ai-models.json unchanged)`
+              : `Total: ${outcome.totalModels} models saved to ai-models.json`}
           </div>
         </div>
       )}
@@ -490,7 +519,10 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
   const [endpointInput, setEndpointInput] = useState('');
 
   const models = MODELS_BY_BACKEND[aiBackend] || [];
-  const [tierAvailable, setTierAvailable] = useState<Set<string> | null>(null);
+  // t/2036: per-backend availability keyed by id. `reason` distinguishes no_key (#2,
+  // BYOK-selectable) from tier_restricted (#3, honestly restricted) — replaces the
+  // lossy `tierAvailable` Set that conflated "no key" with "not on your tier".
+  const [availByReason, setAvailByReason] = useState<Record<string, BackendAvailabilityEntry>>({});
 
   useEffect(() => {
     void Promise.all(
@@ -501,7 +533,7 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
     ).then((results) => setHasKey(Object.fromEntries(results)))
       .catch((err) => { getGlobalRecorder()?.record({ type: 'system.error', component: 'settings-dialog', level: 'warn', message: 'hasApiKey check failed', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } }); });
     void api.getAvailableBackends()
-      .then(backends => setTierAvailable(new Set(backends.filter(b => b.available).map(b => b.id))))
+      .then(backends => setAvailByReason(Object.fromEntries(backends.map(b => [b.id, { available: b.available, reason: b.reason }]))))
       .catch((err) => { getGlobalRecorder()?.record({ type: 'system.error', component: 'settings-dialog', level: 'warn', message: 'Failed to load available backends', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } }); });
   }, [keySuccess, keyRefreshTrigger]);
 
@@ -593,10 +625,13 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
             onChange={(e) => setAIBackend(e.target.value as AIBackend)}
           >
             {AI_BACKENDS.map((b) => {
-              const blocked = tierAvailable && !tierAvailable.has(b.value);
+              // t/2036 3-state: has-key→plain; no-key-but-BYOK-permitted→selectable "(bring your
+              // own key)"; tier-forbidden (web anon/free)→disabled "(sign in to use)". Never
+              // disable merely for a missing key — that was the ADR-002-violating conflation.
+              const state = backendSelectState(availByReason[b.value], !!hasKey[b.value]);
               return (
-                <option key={b.value} value={b.value} disabled={!!blocked}>
-                  {b.label}{blocked ? ' (not on your tier)' : hasKey[b.value] ? '' : ' (no key)'}
+                <option key={b.value} value={b.value} disabled={!state.selectable}>
+                  {b.label}{state.suffix}
                 </option>
               );
             })}

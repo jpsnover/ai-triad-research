@@ -5,7 +5,8 @@ import crypto from 'crypto';
 import { resolveDataPath } from '../config.js';
 import { getUserContentBackend, assertSafeId } from '../storage/fileIO.js';
 import type { StorageBackend } from '../storage/storageBackend.js';
-import { sanitizeUserText } from '../security/contentSanitizer.js';
+import { sanitizeUserText, withSanitizeBudget } from '../security/contentSanitizer.js';
+import { stripSensitiveKeys as stripSensitiveKeysCore } from '../../../../lib/sanitize/stripSensitiveKeys.js';
 import { getStorageUserId, isAnonymousUser } from '../security/userContext.js';
 import { log } from '../logger.js';
 import { getGlobalRecorder } from '../../../../lib/flight-recorder/index.js';
@@ -296,28 +297,15 @@ export async function listSubmissions(statusFilter?: string): Promise<unknown[]>
   return subs.sort((a, b) => b.submittedAt.localeCompare(a.submittedAt));
 }
 
-const SENSITIVE_KEYS = new Set([
-  'api_key', 'apiKey', 'api_keys', 'apiKeys',
-  'secret', 'token', 'password', 'credential', 'credentials',
-  'authorization', 'auth_token', 'access_token', 'refresh_token',
-  'private_key', 'privateKey',
-  'flight_recorder', 'debug', '_internal', 'diagnostics_state',
-]);
-
-function stripSensitiveKeys(obj: unknown): unknown {
-  if (obj === null || typeof obj !== 'object') return obj;
-  if (Array.isArray(obj)) return obj.map(stripSensitiveKeys);
-  const result: Record<string, unknown> = {};
-  for (const [key, value] of Object.entries(obj as Record<string, unknown>)) {
-    if (SENSITIVE_KEYS.has(key)) continue;
-    if (typeof value === 'string') {
-      if (/^(sk-|AIza|gsk_|key-|xai-|Bearer\s)/.test(value)) continue;
-      result[key] = sanitizeUserText(value); // t/856: neutralize executable tags / schemes server-side
-      continue;
-    }
-    result[key] = stripSensitiveKeys(value);
-  }
-  return result;
+// t/2037: the traversal + key-set + secret-prefix screen now live in the shared
+// lib/sanitize module (byte-identical logic, parity-verified across the server and
+// desktop copies before extraction). This is the server binding: inject the pino +
+// ALS-aware `sanitizeUserText` as the per-string sanitizer; the `withSanitizeBudget`
+// ALS wrap stays OUTSIDE the traversal (server-HTTP-only concern, t/2033#6). Kept as a
+// one-arg export so the t/2032 regression suite exercises the real server wiring
+// unchanged — a binding wrapper carries no traversal logic, so it can't drift.
+export function stripSensitiveKeys(obj: unknown): unknown {
+  return stripSensitiveKeysCore(obj, sanitizeUserText);
 }
 
 /** t/856: drop the pre-share private UUID from community_metadata before it's
@@ -330,7 +318,14 @@ function stripOriginalId(meta: unknown): unknown {
 }
 
 function sanitizeForCommunity(data: unknown, submittedBy: string): unknown {
-  const d = stripSensitiveKeys(JSON.parse(JSON.stringify(data))) as Record<string, unknown>;
+  // t/2031: bound the ENTIRE recursive strip/sanitize walk under one wall-time
+  // budget so a many-field crafted submission can't amplify per-field sanitize cost
+  // into a multi-minute event-loop block (Server Community sign-off e/53#3; the
+  // budget is re-entrant-safe, so any nested sanitizeDeep composes rather than
+  // reseeding). Behavior-preserving: legit submissions finish in ~ms, far under budget.
+  const d = withSanitizeBudget(
+    () => stripSensitiveKeys(JSON.parse(JSON.stringify(data))),
+  ) as Record<string, unknown>;
   d.community_metadata = {
     submitted_by_display: submittedBy,
     submitted_at: new Date().toISOString(),

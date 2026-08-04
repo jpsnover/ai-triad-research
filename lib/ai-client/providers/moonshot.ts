@@ -30,7 +30,7 @@ export async function generateViaMoonshot(
       body: JSON.stringify({
         model: apiModelId,
         messages,
-        temperature: opts.temperature ?? 0.7,
+        temperature: opts.fixedTemperature ?? opts.temperature ?? 0.7,
         max_tokens: opts.maxTokens ?? 8192,
         ...(opts.jsonMode ? {
           response_format: { type: 'json_object' },
@@ -52,11 +52,17 @@ export async function generateViaMoonshot(
     });
   }
   if (!response.ok) {
+    const isTemperatureError = /temperature/i.test(bodyText);
     throw new ActionableError({
       goal: 'Generate text via Moonshot',
       problem: `Moonshot API error ${response.status}: ${bodyText.slice(0, 500)}`,
       location: 'ai-client.generateViaMoonshot',
-      nextSteps: ['Check your API key', 'Verify the model ID', 'Try a different model'],
+      nextSteps: isTemperatureError
+        ? [
+            'This model requires a fixed temperature — add `"fixedTemperature": 1` to its entry in ai-models.json',
+            'Or switch to a different model that accepts variable temperature',
+          ]
+        : ['Check your API key', 'Verify the model ID', 'Try a different model'],
     });
   }
 

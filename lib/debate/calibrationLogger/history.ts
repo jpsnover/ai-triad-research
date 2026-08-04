@@ -167,9 +167,7 @@ export function appendParameterHistory(
 
   const histPath = path.join(calibDir, 'parameter-history.json');
   let history: ParameterHistoryEntry[] = [];
-  if (fs.existsSync(histPath)) {
-    try { history = JSON.parse(fs.readFileSync(histPath, 'utf-8')); } catch { /* fresh */ }
-  }
+  try { history = JSON.parse(fs.readFileSync(histPath, 'utf-8')); } catch { /* fresh start */ }
 
   history.push(entry);
   fs.writeFileSync(histPath, JSON.stringify(history, null, 2) + '\n', 'utf-8');

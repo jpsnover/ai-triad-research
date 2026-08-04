@@ -150,7 +150,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   computeEmbeddings: (texts: string[], ids?: string[]): Promise<{ vectors: number[][] }> =>
     ipcRenderer.invoke('compute-embeddings', texts, ids),
 
-  updateNodeEmbeddings: (nodes: { id: string; text: string; pov: string; exclusionText?: string }[]): Promise<void> =>
+  updateNodeEmbeddings: (nodes: { id: string; text: string; pov: string; exclusionText?: string }[]): Promise<{ staleNodeIds: string[] }> =>
     ipcRenderer.invoke('update-node-embeddings', nodes),
 
   computeQueryEmbedding: (text: string): Promise<{ vector: number[] }> =>

@@ -232,6 +232,7 @@ async function main(): Promise<void> {
     // ── Write back ────────────────────────────────────
     if (!dryRun) {
       const json = JSON.stringify(data, null, 2) + '\n';
+      // codeql[js/file-system-race] accepted risk: TOCTOU inherent to read-process-write in single-user batch tools
       fs.writeFileSync(filePath, json, 'utf-8');
       console.log(`  Written: ${filePath}`);
     }

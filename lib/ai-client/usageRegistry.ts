@@ -98,7 +98,7 @@ export async function callByUsage(
     ? renderTemplate(config.messageTemplate, values)
     : config.message ?? '';
 
-  const { apiModelId, backend } = resolveModel(models, config.model);
+  const { apiModelId, backend, fixedTemperature } = resolveModel(models, config.model);
 
   const opts: GenerateOptions = {
     temperature: config.temperature,
@@ -108,6 +108,7 @@ export async function callByUsage(
     responseSchema: config.responseSchema,
     systemMessage,
     tools: config.tools,
+    ...(fixedTemperature != null ? { fixedTemperature } : {}),
   };
 
   getGlobalRecorder()?.record({

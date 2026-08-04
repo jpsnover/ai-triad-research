@@ -171,7 +171,7 @@ export interface AppAPI {
    * presence in anonymous (BYOK) and Electron modes. Used to gate multi-provider
    * debates so speakers are only assigned to usable backends.
    */
-  getAvailableBackends: () => Promise<{ id: string; available: boolean; models?: string[]; reason?: string }[]>;
+  getAvailableBackends: () => Promise<{ id: string; available: boolean; models?: string[]; reason?: 'tier_restricted' | 'no_key' }[]>;
   getApiKeySummary: () => Promise<{ backend: string; hasKey: boolean; maskedKey: string | null }[]>;
   exportKeysForSharing: (passphrase: string) => Promise<{ dataUrl: string; payloadText: string }>;
   importKeysFromSharing: (payload: { v: number; salt: string; iv: string; data: string; tag: string }, passphrase: string) => Promise<string[]>;
@@ -195,7 +195,10 @@ export interface AppAPI {
 
   // --- Embeddings & NLI ---
   computeEmbeddings: (texts: string[], ids?: string[]) => Promise<{ vectors: number[][] }>;
-  updateNodeEmbeddings: (nodes: { id: string; text: string; pov: string; exclusionText?: string }[]) => Promise<void>;
+  // Resolves { staleNodeIds } — requested nodes whose embedding couldn't be refreshed (empty =
+  // full success). Consumers surface a non-blocking "embeddings stale" warning on non-empty
+  // (t/2060). Electron computes it; the web transport returns [] (server backend doesn't DML-OOM).
+  updateNodeEmbeddings: (nodes: { id: string; text: string; pov: string; exclusionText?: string }[]) => Promise<{ staleNodeIds: string[] }>;
   computeQueryEmbedding: (text: string) => Promise<{ vector: number[] }>;
   nliClassify: (pairs: Array<{ text_a: string; text_b: string }>) => Promise<{
     results: Array<{

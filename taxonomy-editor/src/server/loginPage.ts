@@ -6,29 +6,15 @@
 // core HTTP file under budget. This module has NO routes, so it does not touch
 // the routeTable snapshot — server.ts's request pipeline imports these back.
 //
-// loginPageHeaders calls parseCookies; that helper stays in server.ts (used by
-// the request pipeline), so — since importing from server.ts would boot the HTTP
-// server on import — parseCookies is duplicated here as a pure mirror (it depends
-// only on the request headers and holds no state), exactly like routes/ai.ts.
+// loginPageHeaders calls parseCookies, now shared from ./httpCookies.ts (t/2019) —
+// it was duplicated here because importing from server.ts boots the HTTP server.
 // SW_HEAL_SCRIPT and escapeHtml are used only within this module, so they stay
 // module-private.
 
 import http from 'http';
 import crypto from 'crypto';
 import { hasEasyAuthSessionCookie, expiredAuthCookies } from './security/accessControl.js';
-
-// Pure mirror of the server.ts parseCookies helper (used by loginPageHeaders).
-// Depends only on the request headers; holds no state.
-function parseCookies(req: http.IncomingMessage): Record<string, string> {
-  const cookies: Record<string, string> = {};
-  const header = req.headers.cookie;
-  if (!header) return cookies;
-  for (const pair of header.split(';')) {
-    const [key, ...rest] = pair.trim().split('=');
-    if (key) cookies[key] = rest.join('=');
-  }
-  return cookies;
-}
+import { parseCookies } from './httpCookies.js';
 
 // t/940: a stale Easy Auth cookie (AppServiceAuthSession present but no valid
 // principal) makes the OAuth redirect loop back to the login page. Whenever we
@@ -36,7 +22,7 @@ function parseCookies(req: http.IncomingMessage): Record<string, string> {
 // clean state — the auto-clear half of AC#1 (the page also offers a manual link).
 export function loginPageHeaders(req: http.IncomingMessage): http.OutgoingHttpHeaders {
   const headers: http.OutgoingHttpHeaders = { 'Content-Type': 'text/html' };
-  const cookieNames = Object.keys(parseCookies(req));
+  const cookieNames = [...parseCookies(req).keys()];
   if (hasEasyAuthSessionCookie(cookieNames)) {
     headers['Set-Cookie'] = expiredAuthCookies(cookieNames);
   }

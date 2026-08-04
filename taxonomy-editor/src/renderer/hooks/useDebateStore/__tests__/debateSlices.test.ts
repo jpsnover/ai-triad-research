@@ -967,6 +967,43 @@ describe('Synthesis slice: propose_new apply (t/1773, ruling B)', () => {
     expect(useDebateStore.getState().newItemProposalStatus['accelerationist#0']).toBeUndefined();
   });
 
+  it('resumed debate (edges never lazy-loaded): loads edges on demand, then persists node + edges (t/2055 AC1)', async () => {
+    mockTaxonomyState.saveError = null;
+    mockTaxonomyState.accelerationist.nodes = [{ id: 'acc-B-001' }];
+    mockTaxonomyState.edgesFile = null; // resumed debate w/ no new turns: neither lazy-load trigger fired
+    // loadEdges populates the file on demand, mirroring the real lazy load.
+    mockTaxonomyState.loadEdges.mockImplementationOnce(async () => { mockTaxonomyState.edgesFile = { edges: [] }; });
+    useDebateStore.setState({ reflections: makeProposalReflections() as any, newItemProposalStatus: {}, activeDebateId: 'debate-1' });
+
+    const result = await useDebateStore.getState().applyReflectionProposal('accelerationist', 0);
+
+    expect(mockTaxonomyState.loadEdges).toHaveBeenCalled();
+    expect(result).toMatchObject({ ok: true, createdNodeId: 'new-node-id' });
+    expect(mockTaxonomyState.createPovNode).toHaveBeenCalledWith('accelerationist', 'Beliefs');
+    const edgeCall = vi.mocked(useTaxonomyStore.setState).mock.calls
+      .map(c => c[0] as { edgesFile?: { edges: unknown[] } })
+      .find(arg => arg && arg.edgesFile);
+    expect(edgeCall!.edgesFile!.edges).toHaveLength(1);
+    expect(useDebateStore.getState().newItemProposalStatus['accelerationist#0']).toBe('approved');
+  });
+
+  it('load failure leaves NO partial node — guard runs before node creation (t/2055 AC3)', async () => {
+    mockTaxonomyState.saveError = null;
+    mockTaxonomyState.accelerationist.nodes = [{ id: 'acc-B-001' }];
+    mockTaxonomyState.edgesFile = null; // loadEdges (default no-op mock) fails to populate it
+    useDebateStore.setState({ reflections: makeProposalReflections() as any, newItemProposalStatus: {}, activeDebateId: 'debate-1' });
+
+    const result = await useDebateStore.getState().applyReflectionProposal('accelerationist', 0);
+
+    expect(mockTaxonomyState.loadEdges).toHaveBeenCalled();
+    expect(result.ok).toBe(false);
+    expect(result.error).toContain('Edges file not loaded');
+    // Guard bailed BEFORE createProposalNode → no node created, no save, nothing approved.
+    expect(mockTaxonomyState.createPovNode).not.toHaveBeenCalled();
+    expect(mockTaxonomyState.save).not.toHaveBeenCalled();
+    expect(useDebateStore.getState().newItemProposalStatus['accelerationist#0']).toBeUndefined();
+  });
+
   it('dismissReflectionProposal marks the proposal dismissed without touching the taxonomy', () => {
     useDebateStore.setState({ reflections: makeProposalReflections() as any, newItemProposalStatus: {} });
 

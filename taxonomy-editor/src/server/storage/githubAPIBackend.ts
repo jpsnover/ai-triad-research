@@ -134,6 +134,10 @@ export class GitHubAPIBackend implements StorageBackend {
   private cachedCreds: SyncCredentials | null = null;
   private credsExpiresAt = 0;
 
+  // Data-load state — exposed via getDataLoadStatus() for /healthz (t/2053, t/2059)
+  private _dataLoadStatus: 'loading' | 'ready' | 'failed' = 'loading';
+  private _dataLoadError: string | null = null;
+
   constructor(config: GitHubAPIBackendConfig) {
     this.cacheDir = config.cacheDir;
     this.recorder = config.recorder ?? null;
@@ -189,8 +193,22 @@ export class GitHubAPIBackend implements StorageBackend {
         message: 'Cache manifest matches main HEAD — serving from cache',
         data: { sha: mainSha, fileCount: Object.keys(this.manifest.files).length },
       });
+      this._dataLoadStatus = 'ready';
     } else {
-      await this.fetchRepoTree(mainSha);
+      const loaded = await this.fetchRepoTree(mainSha);
+      if (loaded) {
+        this._dataLoadStatus = 'ready';
+      } else {
+        this._dataLoadStatus = 'failed';
+        this._dataLoadError = 'GitHub API data load failed during initialization — check credentials and network';
+        this.recordEvent({
+          type: 'github.api.error',
+          component: 'github-api',
+          level: 'error',
+          message: 'initialize: data load failed — /healthz will report 503 until recovery',
+          data: { sha: mainSha },
+        });
+      }
       if (this.manifest && mainSha) {
         await this.invalidateChangedFiles(this.manifest.lastCommitSha, mainSha);
       }
@@ -1226,7 +1244,7 @@ export class GitHubAPIBackend implements StorageBackend {
     if (!this.manifest) return;
 
     const manifestPath = path.join(this.cacheDir, MANIFEST_FILE);
-    const tmpPath = manifestPath + '.tmp';
+    const tmpPath = manifestPath + '.tmp.' + crypto.randomBytes(8).toString('hex');
     const content = JSON.stringify(this.manifest, null, 2);
 
     await fs.writeFile(tmpPath, content, 'utf-8');
@@ -1281,7 +1299,7 @@ export class GitHubAPIBackend implements StorageBackend {
     const diskPath = path.join(this.cacheDir, repoPath);
     await fs.mkdir(path.dirname(diskPath), { recursive: true });
 
-    const tmpPath = diskPath + '.tmp';
+    const tmpPath = diskPath + '.tmp.' + crypto.randomBytes(8).toString('hex');
     await fs.writeFile(tmpPath, content, 'utf-8');
     await this.renameWithRetry(tmpPath, diskPath);
 
@@ -1313,7 +1331,7 @@ export class GitHubAPIBackend implements StorageBackend {
     const diskPath = path.join(this.cacheDir, repoPath);
     await fs.mkdir(path.dirname(diskPath), { recursive: true });
 
-    const tmpPath = diskPath + '.tmp';
+    const tmpPath = diskPath + '.tmp.' + crypto.randomBytes(8).toString('hex');
     await fs.writeFile(tmpPath, content);
     await this.renameWithRetry(tmpPath, diskPath);
 
@@ -1499,16 +1517,16 @@ export class GitHubAPIBackend implements StorageBackend {
 
   // ── Repo tree ──────────────────────────────────────────────────────────
 
-  private async fetchRepoTree(commitSha: string): Promise<void> {
-    if (!commitSha) return;
+  private async fetchRepoTree(commitSha: string): Promise<boolean> {
+    if (!commitSha) return false;
 
     const creds = await this.getCredsCached();
-    if (!creds) return;
+    if (!creds) return false;
 
     // Get the tree SHA from the commit
     const commitResp = await this.rest.request(creds, 'GET',
       `/repos/${creds.repo}/git/commits/${commitSha}`);
-    if (!commitResp.ok) return;
+    if (!commitResp.ok) return false;
 
     const treeSha = (commitResp.data as { tree: { sha: string } }).tree.sha;
     const entries = await this.getTree(treeSha, true);
@@ -1520,6 +1538,36 @@ export class GitHubAPIBackend implements StorageBackend {
       }
     }
     this.treeSha = treeSha;
+
+    // Zero blobs = undici session-reuse returning stale/empty response (t/2053).
+    // A valid taxonomy repo always has files — treat 0 as a load failure and
+    // log at error-level so ops has a signal instead of a silent /healthz 503.
+    if (this.repoTree.size === 0) {
+      this.recordEvent({
+        type: 'github.api.error',
+        component: 'github-api',
+        level: 'error',
+        message: 'fetchRepoTree: 0 blobs loaded — data-load failed (check GitHub API response and undici version)',
+        data: { commitSha, treeSha },
+      });
+      return false;
+    }
+
+    this.recordEvent({
+      type: 'cache.hit',
+      component: 'cache',
+      level: 'info',
+      message: `fetchRepoTree: cache warmed ${this.repoTree.size} blobs`,
+      data: { commitSha, treeSha, count: this.repoTree.size },
+    });
+    return true;
+  }
+
+  /** Data-load status for /healthz surfacing (t/2059 renders this). */
+  getDataLoadStatus(): { status: 'loading' | 'ready' | 'failed'; error?: string } {
+    return this._dataLoadError
+      ? { status: this._dataLoadStatus, error: this._dataLoadError }
+      : { status: this._dataLoadStatus };
   }
 
   // ── Polling ────────────────────────────────────────────────────────────

@@ -73,7 +73,8 @@
       "id": "moonshot-kimi-k3",
       "apiModelId": "kimi-k3",
       "label": "Kimi K3",
-      "backend": "moonshot"
+      "backend": "moonshot",
+      "fixedTemperature": 1
     },
     {
       "id": "gemini-3.6-flash",

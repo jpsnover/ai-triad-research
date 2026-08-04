@@ -256,12 +256,14 @@ async function main(): Promise<void> {
   if (!dryRun) {
     // Write updated situations with interpretation_divergence
     const sitJson = JSON.stringify(sitData, null, 2) + '\n';
+    // codeql[js/file-system-race] accepted risk: TOCTOU inherent to read-process-write in single-user batch tools
     fs.writeFileSync(sitPath, sitJson, 'utf-8');
     console.log(`Written: ${sitPath}`);
 
     // Write interpretation embeddings
     interpEmbs.node_count = Object.keys(interpEmbs.nodes).length;
     const embJson = JSON.stringify(interpEmbs, null, 2) + '\n';
+    // codeql[js/file-system-race] accepted risk: TOCTOU inherent to read-process-write in single-user batch tools
     fs.writeFileSync(interpEmbPath, embJson, 'utf-8');
     console.log(`Written: ${interpEmbPath}`);
 

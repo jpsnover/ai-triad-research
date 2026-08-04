@@ -1,5 +1,0 @@
-**Date:** 2026-07-20
-**Working on:** t/1639 — surface degraded-save UX when durable debate-save falls back / fails (closeout: verify, /review-ts, deviation flag, comment, Done).
-**Status:** Complete. Committed 859e38bf (2 files, +94/-2); verify green on committed code (5330 tests pass, vite build ✓); ticket marked Done.
-**Key context:** Electron IPC strips ActionableError's structured fields — sessionSlice discriminates a durable total-loss on two stable `.message` markers (debateIO Location line + preserved-copy wording) and recomputes at-risk turns locally from the transcript (`type==='statement'||'opening'`), NOT scraped. Recovered copy-fallback is void-returning / not renderer-observable — flagged as a follow-up (needs a new ElectronMain return-value signal).
-**Next:** t/1637 stays BLOCKED (design approved t/1637#2, waiting on t/1634 to land on origin/main — `git grep DebateDelta HEAD -- lib/debate/` still empty). Next session: re-check queue; if t/1634 landed, start t/1637 build per t/1637#1 design + #2 condition (install the snapshot-you-SENT + in-flight-edit test).

@@ -42,10 +42,17 @@ let _lastLoadTime = 0;
 
 function loadQuotaConfig(): QuotaConfig {
   const configPath = path.join(getDataRoot(), 'admin', 'quotas.json');
+  // t/2023 (CodeQL js/file-system-race): stat the path then read the path
+  // re-resolves it between check and use (TOCTOU). Open ONE descriptor and do
+  // both fstat (for the mtime cache) and read on that same fd — the fd is bound
+  // to a single inode, so there is no path re-resolution to race. closeSync in
+  // finally so the cache-hit early-return can't leak the descriptor.
+  let fd: number | undefined;
   try {
-    const stat = fs.statSync(configPath);
+    fd = fs.openSync(configPath, 'r');
+    const stat = fs.fstatSync(fd);
     if (_cache && stat.mtimeMs === _cacheMtime) return _cache;
-    const data = JSON.parse(fs.readFileSync(configPath, 'utf-8')) as Partial<QuotaConfig>;
+    const data = JSON.parse(fs.readFileSync(fd, 'utf-8')) as Partial<QuotaConfig>;
     _cache = {
       defaults: { ...runtimeQuotaDefaults(), ...data.defaults },
       elevated: data.elevated ?? [],
@@ -62,6 +69,8 @@ function loadQuotaConfig(): QuotaConfig {
       error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
     });
     return { defaults: runtimeQuotaDefaults(), elevated: [] };
+  } finally {
+    if (fd !== undefined) fs.closeSync(fd);
   }
 }
 

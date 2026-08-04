@@ -438,4 +438,34 @@ export interface CalibrationDataPoint {
    * Same extraction point as argumentative_saturation_at_transition. Null when no telemetry.
    */
   convergence_score_at_termination?: number | null;
+
+  // ── Frame survival (frame_survival metric family, t/2045) ──
+  /** Count of parseable declared frames per speaker. Observation. */
+  frames_declared_per_speaker?: Record<string, number>;
+  /**
+   * Mean over f∈F_s of (fraction of T_s where f is present at FRAME_PRESENCE_THRESHOLD).
+   * Null when framing_choices absent/unparseable, speaker has <2 post-opening turns,
+   * or embeddings unavailable. Stipulated.
+   */
+  frame_persistence_per_speaker?: Record<string, number | null>;
+  /**
+   * Mean over f∈F_s of (fraction of T_¬s where f is present at FRAME_PRESENCE_THRESHOLD).
+   * Null same conditions as frame_persistence_per_speaker. Stipulated.
+   */
+  frame_engagement_per_speaker?: Record<string, number | null>;
+  /**
+   * Fraction of *embeddable* evaluator cruxes whose max similarity to any declared frame ≥ FRAME_PRESENCE_THRESHOLD.
+   * Null when eval absent/invalid or no crux embeddings available. Stipulated.
+   */
+  frame_crux_alignment?: number | null;
+  /**
+   * Count of validated REFRAME moves whose target AN node is frame-linked (cosine ≥ FRAME_LINK_THRESHOLD).
+   * Stipulated (threshold-conditional count). Zero when no REFRAME edges exist.
+   */
+  frame_reframe_targeted_count?: number;
+  /**
+   * Headline: unweighted mean of non-null frame_persistence_per_speaker values.
+   * Null when all speakers have null persistence. Stipulated.
+   */
+  frame_survival?: number | null;
 }

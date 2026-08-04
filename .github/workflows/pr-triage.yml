@@ -1,0 +1,316 @@
+# ─── PR Backlog Triage ────────────────────────────────────────────────────────
+# What:  Weekly hygiene pass over the open PR backlog.
+#        1. Closes superseded bot PRs (older bump of the same dep).
+#        2. Closes conflicting bot PRs — EXCEPT security-labeled ones (digest instead).
+#        3. Re-triggers stranded fleet PRs (green checks but stuck/behind).
+#        4. Posts a digest of everything remaining that needs a human decision.
+# When:  Monday 09:00 UTC (cron) or manually (workflow_dispatch, dry_run=true default).
+#        The schedule trigger is ALWAYS dry until observation runs validate (t/2075).
+# Fleet PRs are NEVER closed — only re-triggered or surfaced. (t/2075)
+
+name: PR triage
+
+on:
+  schedule:
+    - cron: '0 9 * * 1'  # Monday 09:00 UTC
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run — report only, no destructive actions'
+        type: boolean
+        default: true
+
+permissions:
+  contents: write       # updateBranch
+  pull-requests: write  # close + comment
+  actions: write        # rerequestSuite fallback (silent 403 without this)
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  triage:
+    runs-on: ubuntu-latest
+    steps:
+      - name: PR triage
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3  # v9
+        with:
+          script: |
+            // ── 0. Dry-run resolution ──────────────────────────────────────────────
+            // Schedule ALWAYS runs dry — inputs don't exist on cron trigger so
+            // reading inputs.dry_run on a schedule silently returns undefined → false,
+            // which would execute LIVE. Resolve explicitly by eventName.
+            const dryRun = context.eventName === 'schedule'
+              ? true
+              : (context.payload.inputs?.dry_run === 'true');
+
+            core.info(`PR triage — trigger=${context.eventName}, dryRun=${dryRun}`);
+
+            const owner = context.repo.owner;
+            const repo  = context.repo.repo;
+
+            // ── 1. Semver helpers ──────────────────────────────────────────────────
+            // Numeric comparison — "9.0.0" < "10.0.0" correctly.
+            function parseSemver(v) {
+              const m = String(v).match(/^(\d+)\.(\d+)\.(\d+)/);
+              return m ? [parseInt(m[1]), parseInt(m[2]), parseInt(m[3])] : null;
+            }
+            function semverGt(a, b) {
+              for (let i = 0; i < 3; i++) {
+                if (a[i] > b[i]) return true;
+                if (a[i] < b[i]) return false;
+              }
+              return false;
+            }
+
+            // ── 2. Fetch all open PRs (paginated) ─────────────────────────────────
+            const allPRs = await github.paginate(github.rest.pulls.list, {
+              owner, repo, state: 'open', per_page: 100,
+            });
+            core.info(`Open PRs: ${allPRs.length}`);
+
+            // ── 3. Classify PRs ────────────────────────────────────────────────────
+            // github-actions[bot] is only used as a git commit identity in this
+            // repo (cluster-conflicts.yml commits directly; it does NOT open PRs).
+            // Keeping it in BOT_LOGINS as a safe guard in case that changes.
+            const BOT_LOGINS = new Set(['dependabot[bot]', 'github-actions[bot]']);
+            const botPRs   = allPRs.filter(pr => BOT_LOGINS.has(pr.user.login));
+            const fleetPRs = allPRs.filter(pr => !BOT_LOGINS.has(pr.user.login));
+            core.info(`Bot: ${botPRs.length}, Fleet: ${fleetPRs.length}`);
+
+            // ── 4. Title parser (strict fail-safe) ────────────────────────────────
+            // Only matches the exact Dependabot single-package format:
+            //   "Bump <dep> from <old> to <new> in <dir>"
+            // Grouped updates ("Bump the npm group…"), security-suffix variants,
+            // and root-dir PRs (no "in <dir>") do NOT match → never closed.
+            const BUMP_RE = /^Bump (.+) from (\S+) to (\S+) in (.+)$/;
+
+            function parseTitle(title) {
+              const m = title.match(BUMP_RE);
+              if (!m) return null;
+              const [, dep, fromVer, toVer, dir] = m;
+              const toSemver = parseSemver(toVer);
+              if (!toSemver) return null;  // non-semver "to" → don't close
+              return { dep, fromVer, toVer, toSemver, dir };
+            }
+
+            // ── 5. Process bot PRs ────────────────────────────────────────────────
+            const closedPRs  = [];
+            const digestItems = [];
+
+            // 5a. Group by (dep, dir) — keep highest semver "to", close the rest
+            const groups = new Map();
+            for (const pr of botPRs) {
+              const parsed = parseTitle(pr.title);
+              if (!parsed) {
+                digestItems.push({ pr, reason: 'Unparseable title — skipped auto-close, needs review' });
+                continue;
+              }
+              const key = `${parsed.dep}::${parsed.dir}`;
+              if (!groups.has(key)) groups.set(key, []);
+              groups.get(key).push({ pr, parsed });
+            }
+
+            for (const [, entries] of groups) {
+              if (entries.length <= 1) continue;
+
+              // Numeric semver — find the highest "to" version
+              let best = entries[0];
+              for (const e of entries.slice(1)) {
+                if (semverGt(e.parsed.toSemver, best.parsed.toSemver)) best = e;
+              }
+
+              for (const e of entries) {
+                if (e === best) continue;
+                const reason = `Superseded by #${best.pr.number} (${best.parsed.dep} → ${best.parsed.toVer})`;
+                if (!dryRun) {
+                  await github.rest.issues.createComment({
+                    owner, repo, issue_number: e.pr.number,
+                    body: `Closing as superseded: ${reason}.`,
+                  });
+                  await github.rest.pulls.update({
+                    owner, repo, pull_number: e.pr.number, state: 'closed',
+                  });
+                }
+                closedPRs.push({ pr: e.pr, reason });
+                core.info(`${dryRun ? '[DRY]' : '[LIVE]'} Close #${e.pr.number}: ${reason}`);
+              }
+            }
+
+            // 5b. Conflicting bot PRs — exempt security-labeled ones
+            const handledNums = new Set(closedPRs.map(c => c.pr.number));
+            const digestNums  = new Set(digestItems.map(d => d.pr.number));
+
+            for (const pr of botPRs) {
+              if (handledNums.has(pr.number) || digestNums.has(pr.number)) continue;
+
+              // Fetch full PR for mergeable state (not available in list response)
+              const { data: full } = await github.rest.pulls.get({
+                owner, repo, pull_number: pr.number,
+              });
+
+              // null = GitHub still computing; skip rather than risk a false close
+              if (full.mergeable !== false) continue;
+
+              // Security-labeled → NEVER auto-close, always digest
+              const labels = pr.labels.map(l => l.name.toLowerCase());
+              if (labels.includes('security')) {
+                digestItems.push({ pr, reason: 'Conflicting + security-labeled — needs human review' });
+                digestNums.add(pr.number);
+                continue;
+              }
+
+              const reason = 'Conflicting with main (no security label)';
+              if (!dryRun) {
+                await github.rest.issues.createComment({
+                  owner, repo, issue_number: pr.number,
+                  body: 'Closing: PR conflicts with main. A newer Dependabot update will cover this dependency.',
+                });
+                await github.rest.pulls.update({
+                  owner, repo, pull_number: pr.number, state: 'closed',
+                });
+              }
+              closedPRs.push({ pr, reason });
+              handledNums.add(pr.number);
+              core.info(`${dryRun ? '[DRY]' : '[LIVE]'} Close #${pr.number}: ${reason}`);
+            }
+
+            // ── 6. Re-trigger stranded fleet PRs ─────────────────────────────────
+            // Fleet PRs are NEVER closed — only re-triggered or surfaced.
+            const retriggeredPRs = [];
+
+            for (const pr of fleetPRs) {
+              if (pr.draft) continue;
+
+              // Get check runs for this PR's head SHA
+              const { data: checksData } = await github.rest.checks.listForRef({
+                owner, repo, ref: pr.head.sha, per_page: 100,
+              });
+
+              // Keep the most recent result per check name
+              const byName = {};
+              for (const c of checksData.check_runs) {
+                const prev = byName[c.name];
+                if (!prev || new Date(c.started_at) > new Date(prev.started_at)) {
+                  byName[c.name] = c;
+                }
+              }
+
+              const ciGate = byName['ci-gate'];
+              const codeQL = byName['CodeQL'];
+
+              // Case A: Both required checks green — branch may be behind main
+              const isGreen = ciGate?.conclusion === 'success' && codeQL?.conclusion === 'success';
+              if (isGreen) {
+                const { data: full } = await github.rest.pulls.get({
+                  owner, repo, pull_number: pr.number,
+                });
+                if (full.mergeable_state === 'behind') {
+                  if (!dryRun) {
+                    try {
+                      await github.rest.pulls.updateBranch({
+                        owner, repo, pull_number: pr.number,
+                      });
+                    } catch (e) {
+                      core.warning(`update-branch #${pr.number}: ${e.message}`);
+                      digestItems.push({ pr, reason: `Green but update-branch failed: ${e.message}` });
+                      continue;
+                    }
+                  }
+                  retriggeredPRs.push({ pr, action: 'update-branch (was behind main)' });
+                  core.info(`${dryRun ? '[DRY]' : '[LIVE]'} update-branch #${pr.number}`);
+                  continue;
+                }
+                // Green + not behind → already in queue, just slow — digest
+                digestItems.push({ pr, reason: 'Checks green, not behind main — auto-merge pending or stuck in queue' });
+                continue;
+              }
+
+              // Case B: ci-gate never ran — rerequest all check suites
+              if (!ciGate) {
+                if (!dryRun) {
+                  const { data: suitesData } = await github.rest.checks.listSuitesForRef({
+                    owner, repo, ref: pr.head.sha,
+                  });
+                  for (const suite of suitesData.check_suites) {
+                    try {
+                      await github.rest.checks.rerequestSuite({
+                        owner, repo, check_suite_id: suite.id,
+                      });
+                    } catch (e) {
+                      core.warning(`rerequestSuite ${suite.id} on #${pr.number}: ${e.message}`);
+                    }
+                  }
+                }
+                retriggeredPRs.push({ pr, action: 'rerequest-suite (ci-gate never ran)' });
+                core.info(`${dryRun ? '[DRY]' : '[LIVE]'} rerequest-suite #${pr.number}`);
+                continue;
+              }
+
+              // Case C: checks exist but not all green — let digest explain
+            }
+
+            // ── 7. Digest — everything remaining ─────────────────────────────────
+            const allHandled = new Set([
+              ...closedPRs.map(c => c.pr.number),
+              ...retriggeredPRs.map(r => r.pr.number),
+              ...digestItems.map(d => d.pr.number),
+            ]);
+
+            for (const pr of allPRs) {
+              if (allHandled.has(pr.number)) continue;
+
+              const { data: checksData } = await github.rest.checks.listForRef({
+                owner, repo, ref: pr.head.sha, per_page: 100,
+              });
+              const byName2 = {};
+              for (const c of checksData.check_runs) byName2[c.name] = c;
+
+              let reason = 'Needs human/TL decision';
+              if (pr.draft) {
+                reason = 'Draft — awaiting author';
+              } else if (byName2['ci-gate']?.conclusion === 'failure') {
+                reason = `ci-gate failing — ${pr.html_url}/checks`;
+              } else if (byName2['ci-gate']?.status === 'in_progress') {
+                reason = 'ci-gate still running';
+              } else if (!byName2['ci-gate']) {
+                reason = 'ci-gate missing — checks never triggered';
+              } else if (byName2['CodeQL']?.conclusion === 'failure') {
+                reason = 'CodeQL failing';
+              } else if (byName2['CodeQL']?.status === 'in_progress') {
+                reason = 'CodeQL still running';
+              } else if (!byName2['CodeQL']) {
+                reason = 'CodeQL check absent';
+              }
+
+              digestItems.push({ pr, reason });
+            }
+
+            // ── 8. Job summary ────────────────────────────────────────────────────
+            const runDate = new Date().toISOString().slice(0, 10);
+            const mode    = dryRun ? 'DRY RUN' : 'LIVE';
+
+            const toRow = ({ pr, reason }) => [`#${pr.number}`, pr.title.slice(0, 80), reason ?? ''];
+            const header3 = (cells) => cells.map(data => ({ data, header: true }));
+
+            await core.summary
+              .addHeading(`PR Triage — ${mode} — ${runDate}`, 2)
+              .addRaw(dryRun ? '> ⚠️ Dry run — no destructive actions taken.\n\n' : '')
+              .addHeading(`Closed (${closedPRs.length})`, 3)
+              .addTable([
+                header3(['PR', 'Title', 'Reason']),
+                ...(closedPRs.length ? closedPRs.map(toRow) : [['—', '—', '—']]),
+              ])
+              .addHeading(`Re-triggered (${retriggeredPRs.length})`, 3)
+              .addTable([
+                header3(['PR', 'Title', 'Action']),
+                ...(retriggeredPRs.length ? retriggeredPRs.map(({ pr, action }) => [`#${pr.number}`, pr.title.slice(0, 80), action]) : [['—', '—', '—']]),
+              ])
+              .addHeading(`Digest — needs attention (${digestItems.length})`, 3)
+              .addTable([
+                header3(['PR', 'Title', 'Stuck reason']),
+                ...(digestItems.length ? digestItems.map(toRow) : [['—', 'No items', '']]),
+              ])
+              .write();
+
+            core.info(`Done — closed:${closedPRs.length} retriggered:${retriggeredPRs.length} digest:${digestItems.length}`);

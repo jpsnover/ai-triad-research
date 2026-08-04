@@ -51,6 +51,7 @@ research/comp-linguist/_confusable_neighbors.json
 scripts/AITriad/Provider/obj/
 
 # Data — lives in ai-triad-data repo (see .aitriad.json)
+/.local-data/
 /taxonomy/Origin/
 /sources/
 /summaries/
@@ -98,6 +99,24 @@ roles/
 AGENTS.md
 CLAUDE.md
 GEMINI.md
+
+# ── The AGENTS.md this repo DOES track, stated explicitly (t/2080) ───────────
+# Rule: an AGENTS.md is tracked HERE iff a public-repo consumer needs it WITHOUT
+# the private Orca overlay. Everything else lives in the overlay (.orca-git).
+#
+# Before these lines, tracking happened only via `git add -f`, so the set was
+# implied by commit history rather than declared — and the overlay's own
+# whitelist (`!**/AGENTS.md`, unconditional) had no way to know what this repo
+# had claimed. Every `add -f` silently produced a file tracked in BOTH repos,
+# free to diverge; root AGENTS.md did exactly that. Declaring the set here and
+# re-excluding the same two paths in `.orca-gitignore` makes the two tracking
+# sets disjoint by construction.
+#
+# Adding a path here publishes that file. Do it only with the matching
+# `.orca-gitignore` re-exclusion, or you re-create the double-track.
+# `.githooks/agent-file-owner.sh --audit` fails if the two lists drift apart.
+!/AGENTS.md
+!/operations/devops/azure/AGENTS.md
 
 # Orca: local overrides (personal, not shared)
 AGENTS.local.md
@@ -155,3 +174,8 @@ taxonomy-proposal-*.json
 taxonomy-proposal-session.json
 q0-candidates.json
 taxonomy/proposals/
+
+# Per-role session notes — untracked pre-cutover (t/2011): under the persistent-
+# worktree model each tracked LAST_SESSION.md would be a per-session PR. Notes
+# live locally per worktree; disposable (acceptably lost on a hub re-clone).
+LAST_SESSION.md

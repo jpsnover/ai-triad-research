@@ -7,7 +7,7 @@
 # (see deploy/azure/Dockerfile.base)
 
 # ── Stage 1: Build ──
-FROM node:22-bookworm-slim AS builder
+FROM node:22.23.2-bookworm-slim AS builder
 
 WORKDIR /build
 
@@ -25,6 +25,14 @@ COPY lib/ ./lib/
 
 # Install Node deps (including devDependencies for build)
 WORKDIR /build/taxonomy-editor
+RUN --mount=type=cache,target=/root/.npm npm ci
+
+# Install shared-lib deps too (t/2035): lib/ is a self-contained package with its
+# own package.json, and the sanitizer core's renderer-parity decoders must resolve
+# from lib/node_modules during build:server (tsc). Mirrors the test-electron CI job
+# (ci.yml "Install shared lib dependencies"). Without this, build:container's tsc
+# fails TS2307 on the lib/ core's decoder imports.
+WORKDIR /build/lib
 RUN --mount=type=cache,target=/root/.npm npm ci
 
 # Copy source and build
@@ -45,7 +53,7 @@ WORKDIR /build/taxonomy-editor
 RUN npm run build:container
 
 # ── Stage 2: Production dependencies (with build tools for native modules) ──
-FROM node:22-bookworm-slim AS prod-deps
+FROM node:22.23.2-bookworm-slim AS prod-deps
 
 # node-pty requires make/g++/python3 for compilation when prebuilds
 # are unavailable. The runtime base image is intentionally slim (no
@@ -61,17 +69,30 @@ COPY taxonomy-editor/package.json taxonomy-editor/package-lock.json ./
 RUN --mount=type=cache,target=/root/.npm npm ci --omit=dev
 
 # ── Stage 3: Runtime ──
+# CI smoke = liveness-only (any HTTP status passes; t/2067). Data-readiness proven at staging
+# (deploy-staging.yml Test-TaxEditorHealth /healthz). :2026-07-30 exonerated in t/2047 — root
+# cause was t/2061 (isDataAvailable path mismatch, app-side), not the base. Gate base bumps on
+# staging /healthz, not CI green.
 FROM ghcr.io/jpsnover/ai-triad-base:2026-07-30 AS runtime
 
 LABEL org.opencontainers.image.source="https://github.com/jpsnover/ai-triad-research"
 LABEL org.opencontainers.image.description="AI Triad Taxonomy Editor"
 LABEL org.opencontainers.image.licenses="MIT"
 
-# Cache dir created at runtime by the app (GitHubAPIBackend)
+# Cache dir created at runtime by the app (GitHubAPIBackend).
+# TAXONOMY_CACHE_DIR MUST match AI_TRIAD_DATA_ROOT (t/2061): config.ts's cacheDir
+# defaults to ~/.cache/taxonomy (=/root/.cache/taxonomy in-container) when unset,
+# while getDataRoot() uses AI_TRIAD_DATA_ROOT — the mismatch makes toRepoPath()'s
+# startsWith(cacheDir) check fail, so isDataAvailable() is always false → /healthz
+# 503 → crash-loop (the P1 latent readiness bug, t/2047). Keep these two in sync.
 ENV AI_TRIAD_DATA_ROOT=/tmp/taxonomy-cache
+ENV TAXONOMY_CACHE_DIR=/tmp/taxonomy-cache
 ENV PORT=7862
 ENV NODE_ENV=production
 ENV PYTHONUNBUFFERED=1
+# PYTHONUTF8=1: PEP 540 UTF-8 Mode — forces UTF-8 for stdio AND open() on all platforms.
+# Prevents UnicodeEncodeError/DecodeError on non-ASCII from pty-broker.py (t/2046).
+ENV PYTHONUTF8=1
 
 WORKDIR /app
 

@@ -1227,6 +1227,40 @@ describe('moderatorSelectionPrompt', () => {
     const result = moderatorSelectionPrompt(TRANSCRIPT, ACTIVE_POVERS, '', '', undefined, undefined, undefined, undefined, 'Paper summary');
     expectContains(result, 'SOURCE DOCUMENT ANCHOR', 'Paper summary');
   });
+
+  it('keeps standard mode free of Talmudic instructions by default', () => {
+    const result = moderatorSelectionPrompt(TRANSCRIPT, ACTIVE_POVERS, '', '');
+    expect(result).not.toContain('TALMUDIC MODERATION MODE');
+    expect(result).not.toContain('"dialectical_diagnostic"');
+  });
+
+  it('adds dialectical guidance without creating a Talmudic debater', () => {
+    const result = moderatorSelectionPrompt(
+      TRANSCRIPT,
+      ACTIVE_POVERS,
+      '',
+      '',
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      'talmudic',
+    );
+    expectContains(
+      result,
+      'TALMUDIC MODERATION MODE',
+      'not as a fourth debater',
+      'Identify the exact crux',
+      'preserving legitimate plurality',
+      'Do not invent quotations',
+      '"dialectical_diagnostic"',
+      '"premise_under_examination"',
+      '"distinction_or_analogy_tested"',
+      '"unresolved_outcome"',
+    );
+  });
 });
 
 describe('moderatorInterventionPrompt', () => {

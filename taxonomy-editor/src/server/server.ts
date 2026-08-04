@@ -35,6 +35,7 @@ import {
 import { GitHubAPIBackend } from './storage/githubAPIBackend.js';
 import { SessionBranchManager } from './storage/sessionBranchManager.js';
 import { runWithUser, getCurrentUserId, setSessionBranchName, deriveStorageUserId } from './security/userContext.js';
+import type { UserContext } from './security/userContext.js';
 import { isAuthDisabledAllowed, isPathWithinDir, isTerminalAccessAllowed, isAnonAllowedRoute, invalidRouteParam, missingApiKeyError, anonymousSessionCookies, resolveTestPersonaOverride } from './security/accessControl.js';
 import { sanitizeUserText } from './security/contentSanitizer.js';
 import { getRollbackStatus } from './rollbackStatus.js';
@@ -42,8 +43,9 @@ import { getErrorSummaryCached, type ErrorEntry } from './errorAggregation.js';
 import { isCaseStatus } from './support/types.js';
 import * as organizations from './organizations.js';
 import { isPov } from './organizations.js';
-import { json, error, param, query, getClientIp, createRouter, withEndpointTimeout, type Handler } from './httpKit.js';
+import { json, error, param, query, getClientIp, createRouter, withEndpointTimeout, normalizedRequestPath, type Handler } from './httpKit.js';
 import { computeIsPublicPath } from './publicPaths.js';
+import { parseCookies } from './httpCookies.js';
 import { registerDebatesRoutes } from './routes/debates.js';
 import { registerSyncRoutes } from './routes/sync.js';
 import { registerAdminRoutes } from './routes/admin.js';
@@ -562,16 +564,8 @@ function getCorsOrigin(req: http.IncomingMessage): string {
   return ALLOWED_ORIGINS.includes(origin) ? origin : (ALLOWED_ORIGINS[0] ?? '');
 }
 
-function parseCookies(req: http.IncomingMessage): Record<string, string> {
-  const cookies: Record<string, string> = {};
-  const header = req.headers.cookie;
-  if (!header) return cookies;
-  for (const pair of header.split(';')) {
-    const [key, ...rest] = pair.trim().split('=');
-    if (key) cookies[key] = rest.join('=');
-  }
-  return cookies;
-}
+// parseCookies now lives in ./httpCookies.ts (t/2019) — shared with loginPage.ts and
+// prototype-pollution-safe.
 
 // ── Auth: file-based user allowlist ──
 // Reads authorized-users.json from the data volume (or repo root as fallback).
@@ -691,6 +685,93 @@ async function handleRequestInner(
   requestId: string,
   requestStart: number,
 ) {
+  logRequestCompletionOnFinish(req, res, requestId, requestStart);
+  applyResponseSecurityHeaders(req, res);
+
+  if (req.method === 'OPTIONS') { res.writeHead(204); res.end(); return; }
+
+  const identity = resolvePrincipalIdentity(req, res);
+  if (!identity) return;
+  const { principalName, idp } = identity;
+
+  // Auth gate — only enforced when authorized-users.json exists
+  // t/2019 (js/user-controlled-bypass): derive the gate path from the SAME normalized
+  // pathname the router matches on (normalizedRequestPath) — not raw
+  // req.url.split('?') — so an encoded-traversal path can't read as a public prefix
+  // here (e.g. /api/public/%2e%2e/admin) while resolving elsewhere at the router.
+  const urlPath = normalizedRequestPath(req);
+  // ACCEPTED RISK — CodeQL js/user-controlled-bypass on the urlPath-guarded auth
+  // branches below AND on the top-level gate `if (!isPublicPath && !authDisabled)`
+  // (alerts #4068/#5345/#4847/#4851/#5483, dismissed won't-fix; t/2019,
+  // t/2001#5, TL-approved p/87#164/#168/#172): path-based auth inherently branches on a
+  // user-controlled request path, so the query fires by design and cannot be removed
+  // without removing path-based auth. The exploitable parser-differential IS closed —
+  // this gate and the router both decide on ONE canonical normalized path
+  // (normalizedRequestPath), and the allowlist (computeIsPublicPath) evaluated on that
+  // normalized path is the control. See t/2019#5/#10 for the full rationale.
+  // /api/models is public: lets the pre-auth renderer populate the model
+  // catalog from ai-models.json. Contains no secrets — just labels + ids.
+  // /api/sync/webhook/github is public: GitHub POSTs unauthenticated; the
+  // handler does its own HMAC verification against GITHUB_WEBHOOK_SECRET.
+  // t/1910: the auth-exempt allowlist (15 exact + 7 prefix terms) moved verbatim to
+  // publicPaths.ts so it's testable in isolation; the exact-vs-prefix match-kind split
+  // is load-bearing and Server-Auth-reviewed (p/135#8) — do not add paths here.
+  const isPublicPath = computeIsPublicPath(urlPath);
+  // AUTH_DISABLED='1' (default) = anonymous access, no login page.
+  // AUTH_OPTIONAL='1' = show login page with anonymous option; sign-in
+  //   unlocks platform-tier keys, anonymous users get lower limits + BYOK.
+  // Neither = required auth (must sign in + be in authorized-users.json).
+  const authDisabled = process.env.AUTH_DISABLED === '1';
+  const authOptional = process.env.AUTH_OPTIONAL === '1';
+
+  if (handleAnonAuthEndpoints(req, res, urlPath, authOptional)) return;
+
+  clearAnonCookiesOnSignin(req, res, principalName);
+
+  const authGateCtx: AuthGateCtx = { urlPath, isPublicPath, authDisabled, authOptional, principalName, idp };
+  if (enforceAuthGate(req, res, authGateCtx)) return;
+  if (enforceAnonRouteGuard(req, res, authGateCtx)) return;
+
+  // Run the remainder of request handling inside a user context so that
+  // getCurrentUserId() inside getApiKey()/storeApiKey() sees the caller.
+  // Unauthenticated paths (local dev, kill-switch, public endpoints) fall
+  // back to '_local' — which keyStore ignores in local-file mode.
+  const userCtx = await resolveRequestUserContext(req, res, principalName, idp);
+  if (!userCtx) return;
+  await runWithUser(userCtx, async () => {
+
+    // t/2019: same canonical parse as the auth gate above (normalizedRequestPath) —
+    // gate and router decide on the identical normalized path by construction, not two
+    // parses that happen to agree. Named reqPath to not shadow the gate's urlPath.
+    const reqPath = normalizedRequestPath(req);
+    const route = matchRoute(req.method!, reqPath);
+
+    if (enforceWriteRateLimit(req, res, route, reqPath)) return;
+
+    if (route) {
+      await dispatchMatchedRoute(req, res, route, reqPath);
+      return;
+    }
+
+    // Static file serving (SPA)
+    if (req.method === 'GET') {
+      if (serveStatic(req, res)) return;
+    }
+
+    res.writeHead(404);
+    res.end('Not Found');
+  });
+}
+
+// Request-pipeline helpers (t/1910: handleRequestInner complexity decomposition).
+// Each block below was MOVED VERBATIM out of handleRequestInner — same order, same
+// early-returns, same match-kinds. Helpers that can end the response return `true`
+// (caller must `return`); `false` means "fall through". Server-Auth reviewed the
+// auth-gate extraction (p/135#8-9): exact `===` matches stay exact, `.startsWith`
+// prefixes stay prefixes — never promote one to the other.
+
+/** Request-completion logging: registers the res.on('finish') handler (t/1022 anomaly warn). */
+function logRequestCompletionOnFinish(req: http.IncomingMessage, res: http.ServerResponse, requestId: string, requestStart: number): void {
   // Log request completion when response finishes
   res.on('finish', () => {
     const duration = Date.now() - requestStart;
@@ -725,7 +806,10 @@ async function handleRequestInner(
       });
     }
   });
+}
 
+/** S10/L8/L9/L11: security + CORS headers applied to every response. */
+function applyResponseSecurityHeaders(req: http.IncomingMessage, res: http.ServerResponse): void {
   // S10: Security headers on all responses
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-Frame-Options', 'DENY');
@@ -759,9 +843,11 @@ async function handleRequestInner(
   // (same-origin reads them anyway; this covers proxied/cross-origin topologies).
   res.setHeader('Access-Control-Expose-Headers', 'X-Token-Budget-Warning, X-Token-Budget-Resets');
   if (ALLOWED_ORIGINS) res.setHeader('Vary', 'Origin');
+}
 
-  if (req.method === 'OPTIONS') { res.writeHead(204); res.end(); return; }
-
+/** Resolve the caller principal from Easy Auth headers + dev/staging X-Test-Persona
+ *  override (t/1125). Returns null when it already sent a 401 — the caller must return. */
+function resolvePrincipalIdentity(req: http.IncomingMessage, res: http.ServerResponse): { principalName: string; idp: string } | null {
   // S9: Only read Easy Auth headers when Azure auth is confirmed via env var.
   let principalName = AZURE_AUTH_ENABLED
     ? (req.headers['x-ms-client-principal-name'] as string) || ''
@@ -777,7 +863,7 @@ async function handleRequestInner(
   if (personaOverride && 'error' in personaOverride) {
     res.writeHead(401, { 'Content-Type': 'application/json', 'X-Auth-Reason': personaOverride.error });
     res.end(JSON.stringify({ error: 'Invalid test persona', reason: personaOverride.error }));
-    return;
+    return null;
   }
   if (personaOverride) {
     principalName = personaOverride.principalName;
@@ -787,6 +873,8 @@ async function handleRequestInner(
       'Test-persona override applied (dev/staging Easy Auth short-circuit)',
     );
   }
+  return { principalName, idp };
+}
 
   // Auth gate — only enforced when authorized-users.json exists
   const urlPath = req.url?.split('?')[0] || '';
@@ -805,6 +893,9 @@ async function handleRequestInner(
   const authDisabled = process.env.AUTH_DISABLED === '1';
   const authOptional = process.env.AUTH_OPTIONAL === '1';
 
+/** The two anonymous-session establishment endpoints (t/1483). Returns true when handled
+ *  (cookies set + responded). Must run before the auth gate — the caller has no session yet. */
+function handleAnonAuthEndpoints(req: http.IncomingMessage, res: http.ServerResponse, urlPath: string, authOptional: boolean): boolean {
   // /.auth/anonymous — sets a session cookie and redirects to the app (browser
   // link on the login page). POST /api/auth/anonymous below is the JSON sibling.
   if (urlPath === '/.auth/anonymous' && authOptional) {
@@ -813,7 +904,7 @@ async function handleRequestInner(
       'Set-Cookie': anonymousSessionCookies(() => crypto.randomUUID()),
     });
     res.end();
-    return;
+    return true;
   }
 
   // POST /api/auth/anonymous — JSON sibling of GET /.auth/anonymous (t/1483,
@@ -829,96 +920,131 @@ async function handleRequestInner(
       'Set-Cookie': anonymousSessionCookies(() => crypto.randomUUID()),
     });
     res.end(JSON.stringify({ ok: true, anonymous: true }));
-    return;
+    return true;
   }
+  return false;
+}
 
+/** Clear anonymous cookies when a user signs in via EasyAuth. */
+function clearAnonCookiesOnSignin(req: http.IncomingMessage, res: http.ServerResponse, principalName: string): void {
   // Clear anonymous cookies when user signs in via EasyAuth
-  if (principalName && parseCookies(req)['auth_anonymous'] === '1') {
+  if (principalName && parseCookies(req).get('auth_anonymous') === '1') {
     res.setHeader('Set-Cookie', [
       'auth_anonymous=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0',
       'anon_session_id=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0',
     ]);
   }
+}
 
-  if (!isPublicPath && !authDisabled) {
-    if (authOptional) {
-      // Optional mode: show login page unless user signed in or chose anonymous
-      if (!principalName) {
-        const isAnonymousSession = parseCookies(req)['auth_anonymous'] === '1';
-        if (!isAnonymousSession) {
-          // t/1473: API clients can't act on an HTML login page — anonymous /api/*
-          // calls (no auth_anonymous cookie) were getting 200 text/html, which the
-          // client mis-parsed as "corrupted data" and got permanently stuck. Return
-          // a structured 401 so the client can re-establish an anonymous session and
-          // retry (client recovery is the child ticket). Mirrors the required-mode
-          // /api/ check (t/763) but 401 (a session CAN be established here) not 403.
-          // t/1501: skip 401 for routes that don't need a session — isAnonAllowedRoute
-          // and freeTierRoute are designed for truly cookie-less anonymous access.
-          if (urlPath.startsWith('/api/')) {
-            const m = req.method || 'GET';
-            const freeTier = m === 'POST'
-              && (urlPath === '/api/ai/generate' || urlPath === '/api/embeddings/compute' || urlPath === '/api/embeddings/query')
-              && proxyTiers.freeTierEnabled();
-            if (!freeTier && !isAnonAllowedRoute(m, urlPath)) {
-              recordAuthDenied('no_session', m, urlPath);
-              res.writeHead(401, { 'Content-Type': 'application/json', 'X-Auth-Reason': 'no_session' });
-              res.end(JSON.stringify({ error: 'Anonymous session required', reason: 'no_session' }));
-              return;
-            }
-          }
-          res.writeHead(200, loginPageHeaders(req));
-          res.end(buildLoginPage(true));
-          return;
-        }
-      }
-    } else if (getAuthorizedUsers()) {
-      // Required mode: must sign in and be in the allowlist
-      if (!principalName) {
-        // API clients can't act on an HTML login page — return a structured 403
-        // with a machine-readable reason (t/763). Browser routes keep the login
-        // page so the sign-in flow is unchanged.
-        if (urlPath.startsWith('/api/')) {
-          recordAuthDenied('no_auth_header', req.method || 'GET', urlPath);
-          res.writeHead(403, { 'Content-Type': 'application/json', 'X-Auth-Reason': 'no_auth_header' });
-          res.end(JSON.stringify({ error: 'Sign in required', reason: 'no_auth_header' }));
-          return;
-        }
-        res.writeHead(200, loginPageHeaders(req));
-        res.end(buildLoginPage(false));
-        return;
-      }
+/** Read-mostly context shared by the auth-gate helpers. */
+interface AuthGateCtx {
+  urlPath: string;
+  isPublicPath: boolean;
+  authDisabled: boolean;
+  authOptional: boolean;
+  principalName: string;
+  idp: string;
+}
 
-      if (!isUserAuthorized(principalName, idp)) {
-        recordAuthDenied('user_not_in_allowlist', req.method || 'GET', urlPath);
-        // Browser-facing forbidden page; reason exposed via header for triage.
-        res.writeHead(403, { 'Content-Type': 'text/html', 'X-Auth-Reason': 'user_not_in_allowlist' });
-        res.end(FORBIDDEN_PAGE(principalName));
-        return;
-      }
+/** Free tier (t/793): keyless POSTs to the three AI/embeddings paths when configured.
+ *  Exact-match (===) is load-bearing (Server-Auth p/135#8) — never widen to a prefix.
+ *  Extracted verbatim from the two identical call sites. */
+function isFreeTierRoute(method: string, urlPath: string): boolean {
+  return method === 'POST'
+    && (urlPath === '/api/ai/generate' || urlPath === '/api/embeddings/compute' || urlPath === '/api/embeddings/query')
+    && proxyTiers.freeTierEnabled();
+}
+
+/** AUTH_OPTIONAL mode gate: show login page / 401 unless signed in or anonymous. */
+function enforceOptionalAuthGate(req: http.IncomingMessage, res: http.ServerResponse, ctx: AuthGateCtx): boolean {
+  const { principalName, urlPath } = ctx;
+  // Optional mode: show login page unless user signed in or chose anonymous
+  if (principalName) return false;
+  const isAnonymousSession = parseCookies(req).get('auth_anonymous') === '1';
+  if (isAnonymousSession) return false;
+  // t/1473: API clients can't act on an HTML login page — anonymous /api/*
+  // calls (no auth_anonymous cookie) were getting 200 text/html, which the
+  // client mis-parsed as "corrupted data" and got permanently stuck. Return
+  // a structured 401 so the client can re-establish an anonymous session and
+  // retry (client recovery is the child ticket). Mirrors the required-mode
+  // /api/ check (t/763) but 401 (a session CAN be established here) not 403.
+  // t/1501: skip 401 for routes that don't need a session — isAnonAllowedRoute
+  // and freeTierRoute are designed for truly cookie-less anonymous access.
+  if (urlPath.startsWith('/api/')) {
+    const m = req.method || 'GET';
+    if (!isFreeTierRoute(m, urlPath) && !isAnonAllowedRoute(m, urlPath)) {
+      recordAuthDenied('no_session', m, urlPath);
+      res.writeHead(401, { 'Content-Type': 'application/json', 'X-Auth-Reason': 'no_session' });
+      res.end(JSON.stringify({ error: 'Anonymous session required', reason: 'no_session' }));
+      return true;
     }
   }
+  res.writeHead(200, loginPageHeaders(req));
+  res.end(buildLoginPage(true));
+  return true;
+}
 
+/** Required-auth mode gate: must sign in and be in the allowlist. */
+function enforceRequiredAuthGate(req: http.IncomingMessage, res: http.ServerResponse, ctx: AuthGateCtx): boolean {
+  const { principalName, idp, urlPath } = ctx;
+  // Required mode: must sign in and be in the allowlist
+  if (!principalName) {
+    // API clients can't act on an HTML login page — return a structured 403
+    // with a machine-readable reason (t/763). Browser routes keep the login
+    // page so the sign-in flow is unchanged.
+    if (urlPath.startsWith('/api/')) {
+      recordAuthDenied('no_auth_header', req.method || 'GET', urlPath);
+      res.writeHead(403, { 'Content-Type': 'application/json', 'X-Auth-Reason': 'no_auth_header' });
+      res.end(JSON.stringify({ error: 'Sign in required', reason: 'no_auth_header' }));
+      return true;
+    }
+    res.writeHead(200, loginPageHeaders(req));
+    res.end(buildLoginPage(false));
+    return true;
+  }
+
+  if (!isUserAuthorized(principalName, idp)) {
+    recordAuthDenied('user_not_in_allowlist', req.method || 'GET', urlPath);
+    // Browser-facing forbidden page; reason exposed via header for triage.
+    res.writeHead(403, { 'Content-Type': 'text/html', 'X-Auth-Reason': 'user_not_in_allowlist' });
+    res.end(FORBIDDEN_PAGE(principalName));
+    return true;
+  }
+  return false;
+}
+
+/** Auth gate. Same control flow as before: public / kill-switch paths fall through;
+ *  AUTH_OPTIONAL takes the optional gate; else the required gate runs iff authorized-users.json
+ *  is present (original `else if (getAuthorizedUsers())`). Returns true when a response was sent. */
+function enforceAuthGate(req: http.IncomingMessage, res: http.ServerResponse, ctx: AuthGateCtx): boolean {
+  if (ctx.isPublicPath || ctx.authDisabled) return false;
+  if (ctx.authOptional) return enforceOptionalAuthGate(req, res, ctx);
+  if (getAuthorizedUsers()) return enforceRequiredAuthGate(req, res, ctx);
+  return false;
+}
+
+/** Anonymous route guard: in AUTH_OPTIONAL mode, block AI + write routes. */
+function enforceAnonRouteGuard(req: http.IncomingMessage, res: http.ServerResponse, ctx: AuthGateCtx): boolean {
+  const { authOptional, principalName, isPublicPath, urlPath } = ctx;
   // Anonymous route guard: in AUTH_OPTIONAL mode, block AI + write routes
   if (authOptional && !principalName && !isPublicPath) {
     const method = req.method || 'GET';
     // Free tier (t/793): when configured, keyless users may reach AI generation;
     // the handler enforces the free-tier model pin, per-IP limits, and key. Inert
     // until FREE_TIER_GEMINI_KEY is set, so the AI block otherwise stands.
-    const freeTierRoute = method === 'POST'
-      && (urlPath === '/api/ai/generate' || urlPath === '/api/embeddings/compute' || urlPath === '/api/embeddings/query')
-      && proxyTiers.freeTierEnabled();
-    if (!freeTierRoute && !isAnonAllowedRoute(method, urlPath)) {
+    if (!isFreeTierRoute(method, urlPath) && !isAnonAllowedRoute(method, urlPath)) {
       recordAuthDenied('anon_route_blocked', method, urlPath);
       res.writeHead(403, { 'Content-Type': 'application/json', 'X-Auth-Reason': 'anon_route_blocked' });
       res.end(JSON.stringify({ error: 'Sign in required', reason: 'anon_route_blocked', detail: 'AI features and editing require authentication. Sign in at /.auth/login/github to unlock full access.' }));
-      return;
+      return true;
     }
   }
+  return false;
+}
 
-  // Run the remainder of request handling inside a user context so that
-  // getCurrentUserId() inside getApiKey()/storeApiKey() sees the caller.
-  // Unauthenticated paths (local dev, kill-switch, public endpoints) fall
-  // back to '_local' — which keyStore ignores in local-file mode.
+/** Resolve the per-request user context (session branch, storage id, anon session).
+ *  Returns null when it already sent a 403 (cross-provider binding mismatch) — caller returns. */
+async function resolveRequestUserContext(req: http.IncomingMessage, res: http.ServerResponse, principalName: string, idp: string): Promise<UserContext | null> {
   // Resolve session branch for the ALS context (if any).
   // Reads start with the active branch (or undefined → 'main').
   // Writes call ensureSessionBranch() which updates the ALS mid-request.
@@ -940,7 +1066,7 @@ async function handleRequestInner(
         error: 'provider_mismatch',
         message: `This account is bound to a different identity provider (${binding.boundTo}). Sign in with your original provider.`,
       }, 403);
-      return;
+      return null;
     }
   }
 
@@ -948,70 +1074,61 @@ async function handleRequestInner(
   // context — never the raw email/principal (PII).
   const reqCtx = getRequestContext();
   if (reqCtx) reqCtx.userId = storageUserId;
-  const anonymousSessionId = isAnon ? parseCookies(req)['anon_session_id'] : undefined;
-  const userCtx = { principalName: effectivePrincipal, idp: effectiveIdp, branchName: sessionBranch, storageUserId, isAnonymous: isAnon, anonymousSessionId };
-  await runWithUser(userCtx, async () => {
+  const anonymousSessionId = isAnon ? parseCookies(req).get('anon_session_id') : undefined;
+  return { principalName: effectivePrincipal, idp: effectiveIdp, branchName: sessionBranch, storageUserId, isAnonymous: isAnon, anonymousSessionId };
+}
 
-    const url = new URL(req.url!, 'http://localhost');
-    const route = matchRoute(req.method!, url.pathname);
-
-    // M7: per-IP rate limit on API write methods (100/min) — basic DoS/abuse guard.
-    if (route && (req.method === 'POST' || req.method === 'PUT' || req.method === 'PATCH' || req.method === 'DELETE') && url.pathname.startsWith('/api/')) {
-      const wr = rateLimiter.checkRate(`write:${getClientIp(req)}`, 100, 60_000);
-      if (!wr.allowed) {
-        const retryAfter = Math.max(1, Math.ceil((wr.retryAfterMs ?? 60_000) / 1000));
-        // t/925: write-rate 429s were silent — log so abuse/DoS spikes are visible.
-        log.server.warn({ component: 'rate-limiter', type: 'write_per_minute', method: req.method, path: url.pathname, retryAfter }, 'API write rate-limited');
-        res.setHeader('Retry-After', String(retryAfter));
-        json(res, { error: 'rate_limited', message: 'Too many requests', retryAfter }, 429);
-        return;
-      }
+/** M7: per-IP rate limit on API write methods (100/min). Returns true when 429-limited. */
+function enforceWriteRateLimit(req: http.IncomingMessage, res: http.ServerResponse, route: ReturnType<typeof matchRoute>, reqPath: string): boolean {
+  // M7: per-IP rate limit on API write methods (100/min) — basic DoS/abuse guard.
+  if (route && (req.method === 'POST' || req.method === 'PUT' || req.method === 'PATCH' || req.method === 'DELETE') && reqPath.startsWith('/api/')) {
+    const wr = rateLimiter.checkRate(`write:${getClientIp(req)}`, 100, 60_000);
+    if (!wr.allowed) {
+      const retryAfter = Math.max(1, Math.ceil((wr.retryAfterMs ?? 60_000) / 1000));
+      // t/925: write-rate 429s were silent — log so abuse/DoS spikes are visible.
+      log.server.warn({ component: 'rate-limiter', type: 'write_per_minute', method: req.method, path: reqPath, retryAfter }, 'API write rate-limited');
+      res.setHeader('Retry-After', String(retryAfter));
+      json(res, { error: 'rate_limited', message: 'Too many requests', retryAfter }, 429);
+      return true;
     }
+  }
+  return false;
+}
 
-    if (route) {
-      (res as any).__routePath = route.routePath;
-      // t/810: validate user-provided path params at the routing layer (primary
-      // gate) before the handler runs. Handlers keep assertSafe* as defense-in-depth.
-      const badParam = invalidRouteParam(route.routePath, url.pathname);
-      if (badParam) {
-        getGlobalRecorder()?.record({
-          type: 'system.error', component: 'server', level: 'warn',
-          message: `Blocked invalid path parameter '${badParam}': ${req.method} ${url.pathname}`,
-        });
-        json(res, { error: `Invalid path parameter: ${badParam}`, requestId: getRequestId() }, 400);
-        return;
-      }
-      try {
-        const body = ['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method!) ? await readBody(req) : {};
-        await route.handler(req, res, body);
-      } catch (err) {
-        getGlobalRecorder()?.record({
-          type: 'system.error',
-          component: route.routePath,
-          level: 'error',
-          message: `Unhandled error in ${route.routePath}`,
-          error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
-        });
-        log.server.error({ err, method: req.method, path: url.pathname, route: route.routePath }, 'Error handling request');
-        const status = (err as { statusCode?: number }).statusCode ?? 500;
-        // M4: full detail is recorded/logged above; clients get a generic message
-        // for server errors in production (the error string can carry file paths).
-        const clientError = (status >= 500 && process.env.NODE_ENV === 'production') ? 'Internal server error' : String(err);
-        const payload: Record<string, unknown> = { error: clientError };
-        if ((err as { quotaInfo?: unknown }).quotaInfo) payload.quotaInfo = (err as { quotaInfo: unknown }).quotaInfo;
-        json(res, payload, status);
-      }
-      return;
-    }
-
-    // Static file serving (SPA)
-    if (req.method === 'GET') {
-      if (serveStatic(req, res)) return;
-    }
-
-    res.writeHead(404);
-    res.end('Not Found');
-  });
+/** Dispatch a matched route: param validation, body read, handler, error mapping. */
+async function dispatchMatchedRoute(req: http.IncomingMessage, res: http.ServerResponse, route: NonNullable<ReturnType<typeof matchRoute>>, reqPath: string): Promise<void> {
+  (res as any).__routePath = route.routePath;
+  // t/810: validate user-provided path params at the routing layer (primary
+  // gate) before the handler runs. Handlers keep assertSafe* as defense-in-depth.
+  const badParam = invalidRouteParam(route.routePath, reqPath);
+  if (badParam) {
+    getGlobalRecorder()?.record({
+      type: 'system.error', component: 'server', level: 'warn',
+      message: `Blocked invalid path parameter '${badParam}': ${req.method} ${reqPath}`,
+    });
+    json(res, { error: `Invalid path parameter: ${badParam}`, requestId: getRequestId() }, 400);
+    return;
+  }
+  try {
+    const body = ['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method!) ? await readBody(req) : {};
+    await route.handler(req, res, body);
+  } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error',
+      component: route.routePath,
+      level: 'error',
+      message: `Unhandled error in ${route.routePath}`,
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+    });
+    log.server.error({ err, method: req.method, path: reqPath, route: route.routePath }, 'Error handling request');
+    const status = (err as { statusCode?: number }).statusCode ?? 500;
+    // M4: full detail is recorded/logged above; clients get a generic message
+    // for server errors in production (the error string can carry file paths).
+    const clientError = (status >= 500 && process.env.NODE_ENV === 'production') ? 'Internal server error' : String(err);
+    const payload: Record<string, unknown> = { error: clientError };
+    if ((err as { quotaInfo?: unknown }).quotaInfo) payload.quotaInfo = (err as { quotaInfo: unknown }).quotaInfo;
+    json(res, payload, status);
+  }
 }
 
 // ── WebSocket: Terminal ──
@@ -1107,7 +1224,7 @@ function isWebSocketAuthorized(req: http.IncomingMessage): boolean {
   if (authOptional) {
     if (principalName) return true;
     const cookies = parseCookies(req);
-    return cookies['auth_anonymous'] === '1';
+    return cookies.get('auth_anonymous') === '1';
   }
 
   if (getAuthorizedUsers()) {

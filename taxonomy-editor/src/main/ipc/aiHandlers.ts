@@ -13,10 +13,10 @@ import { PROJECT_ROOT, getDataRootPath } from '../fileIO.js';
 import { computeEmbeddings, computeQueryEmbedding, generateText, generateTextWithSearch, generateChatStream, updateNodeEmbeddings, classifyNli, setDebateTemperature, getEmbeddingInfo } from '../embeddings.js';
 import type { ChatMessage, NodeEmbeddingInput, NliPair } from '../embeddings.js';
 import { refreshAIModels } from '../modelDiscovery.js';
-import { diagnosePythonEmbeddings } from '../diagnosePython.js';
 import { ActionableError } from '../../../../lib/debate/errors.js';
 import { getGlobalRecorder } from '../../../../lib/flight-recorder/index.js';
 import { DEFAULT_TEMPERATURE } from '../../../../lib/ai-client/index.js';
+import { buildEmbeddingFailureError } from '../embeddingErrors.js';
 
 export function registerAiHandlers(): void {
   ipcMain.handle('load-ai-models', () => {
@@ -55,19 +55,13 @@ export function registerAiHandlers(): void {
         message: 'Operation failed',
         error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
-      const msg = err instanceof Error ? err.message : String(err);
-      console.error('[IPC] compute-embeddings failed:', msg);
-      const diagnosis = diagnosePythonEmbeddings();
-      throw new ActionableError({
-        goal: 'Compute text embeddings for taxonomy nodes',
-        problem: `Embedding computation failed: ${msg}. ${diagnosis}`,
-        location: 'ipcHandlers.computeEmbeddings',
-        nextSteps: [
-          'Verify Python is installed and accessible on PATH',
-          'Run "pip install sentence-transformers" to install the embedding model',
-          'Check the console log for detailed Python diagnostics',
-        ],
-      });
+      console.error('[IPC] compute-embeddings failed:', err instanceof Error ? err.message : String(err));
+      throw buildEmbeddingFailureError(
+        'Compute text embeddings for taxonomy nodes',
+        'ipcHandlers.computeEmbeddings',
+        'Embedding computation failed',
+        err,
+      );
     }
   });
 
@@ -82,25 +76,22 @@ export function registerAiHandlers(): void {
         message: 'Operation failed',
         error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
-      const msg = err instanceof Error ? err.message : String(err);
-      console.error('[IPC] compute-query-embedding failed:', msg);
-      const diagnosis = diagnosePythonEmbeddings();
-      throw new ActionableError({
-        goal: 'Compute embedding for a search query',
-        problem: `Query embedding failed: ${msg}. ${diagnosis}`,
-        location: 'ipcHandlers.computeQueryEmbedding',
-        nextSteps: [
-          'Verify Python is installed and accessible on PATH',
-          'Run "pip install sentence-transformers" to install the embedding model',
-          'Check the console log for detailed Python diagnostics',
-        ],
-      });
+      console.error('[IPC] compute-query-embedding failed:', err instanceof Error ? err.message : String(err));
+      throw buildEmbeddingFailureError(
+        'Compute embedding for a search query',
+        'ipcHandlers.computeQueryEmbedding',
+        'Query embedding failed',
+        err,
+      );
     }
   });
 
   ipcMain.handle('update-node-embeddings', async (_event, nodes: NodeEmbeddingInput[]) => {
     try {
-      await updateNodeEmbeddings(nodes);
+      // Resolves { staleNodeIds } (empty = full success) — an embed OOM surfaces as stale ids,
+      // not a throw, so the renderer can flag the degradation (t/2060). Only a genuinely
+      // unexpected fault (e.g. file-write) reaches the catch below.
+      return await updateNodeEmbeddings(nodes);
     } catch (err) {
       getGlobalRecorder()?.record({
         type: 'system.error',
@@ -109,19 +100,13 @@ export function registerAiHandlers(): void {
         message: 'Operation failed',
         error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
-      const msg = err instanceof Error ? err.message : String(err);
-      console.error('[IPC] update-node-embeddings failed:', msg);
-      const diagnosis = diagnosePythonEmbeddings();
-      throw new ActionableError({
-        goal: `Update embeddings for ${nodes.length} taxonomy node(s)`,
-        problem: `Embedding update failed: ${msg}. ${diagnosis}`,
-        location: 'ipcHandlers.updateNodeEmbeddings',
-        nextSteps: [
-          'Verify Python is installed and accessible on PATH',
-          'Run "pip install sentence-transformers" to install the embedding model',
-          'Check the console log for detailed Python diagnostics',
-        ],
-      });
+      console.error('[IPC] update-node-embeddings failed:', err instanceof Error ? err.message : String(err));
+      throw buildEmbeddingFailureError(
+        `Update embeddings for ${nodes.length} taxonomy node(s)`,
+        'ipcHandlers.updateNodeEmbeddings',
+        'Embedding update failed',
+        err,
+      );
     }
   });
 

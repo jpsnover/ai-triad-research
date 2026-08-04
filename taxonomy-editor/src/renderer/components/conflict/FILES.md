@@ -1,6 +1,6 @@
 # Conflict — File Inventory
 
-Reference inventory for the conflict detection/resolution UI. Behavioral norms and conventions live in [AGENTS.md](./AGENTS.md).
+Reference inventory for the conflict detection/resolution UI. Behavioral norms and conventions live in `AGENTS.md`.
 
 | File | Purpose |
 |------|---------|
