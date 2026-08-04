@@ -35,6 +35,7 @@ import { EditConflictBadge, type NodeConflict } from '../conflict/edit-conflicts
 import { triggerPovNodeRegeneration } from '../../utils/regeneratePlainDescription';
 import { generateAphorism } from '../../utils/regenerateAphorism';
 import { useDescriptionMode, resolveDescription, DescriptionToggle } from '../shared/DescriptionToggle';
+import { usePreferencesStore } from '../../store/preferencesStore';
 import { EmptyState } from '../shared/EmptyState';
 import { OverflowMenu, type OverflowMenuEntry } from '../shared/OverflowMenu';
 import { CopyLinkButton } from '../shared/CopyLinkButton';
@@ -122,10 +123,18 @@ function getNodeAphorism(node: PovNode): string | undefined {
 
 export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, onRelated, chipDepth = 0, conflict, resolveUrl }: NodeDetailProps) {
   const { updatePovNode, deletePovNode, movePovNodeCategory, movePovNode, validationErrors, getAllNodeIds, getAllConflictIds, runAttributeFilter, showAttributeInfo, navigateToLineage, setToolbarPanel, selectedEdge, relatedNodeId, loadEdges, edgesFile, setSelectedNodeId, getLabelForId, aggregatedCruxes, showCruxDetail, conflicts } = useTaxonomyStore();
+  const { viewMode } = usePreferencesStore(state => ({ viewMode: state.viewMode }));
   const [descMode, setDescMode] = useDescriptionMode();
   const [showDelete, setShowDelete] = useState(false);
   const [activeTab, setActiveTab] = useState<NodeDetailTabId>('content');
   const [expandedLineage, setExpandedLineage] = useState<string | null>(null);
+
+  // Reset to a visible tab when switching to Simple (which hides most tabs).
+  useEffect(() => {
+    if (viewMode === 'simple' && activeTab !== 'content' && activeTab !== 'related') {
+      setActiveTab('content');
+    }
+  }, [viewMode]);
   const [showDtDrilldown, setShowDtDrilldown] = useState(false);
   const [relatedSplitPct, setRelatedSplitPct] = useState(40);
   const splitContainerRef = useRef<HTMLDivElement>(null);
@@ -422,6 +431,7 @@ export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, onRela
         cruxCount={cruxCount}
         factCount={factCount}
         editHistoryLength={getEditHistoryLength(node)}
+        viewMode={viewMode}
       />
 
       {/* Tab content */}
@@ -690,9 +700,10 @@ interface NodeDetailTabBarProps {
   cruxCount: number;
   factCount: number;
   editHistoryLength: number | undefined;
+  viewMode: 'simple' | 'advanced';
 }
 
-function NodeDetailTabBar({ activeTab, setActiveTab, conflictCount, cruxCount, factCount, editHistoryLength }: NodeDetailTabBarProps) {
+function NodeDetailTabBar({ activeTab, setActiveTab, conflictCount, cruxCount, factCount, editHistoryLength, viewMode }: NodeDetailTabBarProps) {
   return (
     <div className="node-detail-tabs">
       <button
@@ -702,59 +713,61 @@ function NodeDetailTabBar({ activeTab, setActiveTab, conflictCount, cruxCount, f
         Content
       </button>
       <button
-        className={`node-detail-tab ${activeTab === 'attributes' ? 'node-detail-tab-active' : ''}`}
-        onClick={() => setActiveTab('attributes')}
-      >
-        Attributes
-      </button>
-      <button
         className={`node-detail-tab ${activeTab === 'related' ? 'node-detail-tab-active' : ''}`}
         onClick={() => setActiveTab('related')}
       >
         Related
       </button>
-      <button
-        className={`node-detail-tab ${activeTab === 'conflicts' ? 'node-detail-tab-active' : ''}`}
-        onClick={() => setActiveTab('conflicts')}
-      >
-        Conflicts{conflictCount > 0 ? ` (${conflictCount})` : ''}
-      </button>
-      <button
-        className={`node-detail-tab ${activeTab === 'cruxes' ? 'node-detail-tab-active' : ''}`}
-        onClick={() => setActiveTab('cruxes')}
-      >
-        Cruxes{cruxCount > 0 ? ` (${cruxCount})` : ''}
-      </button>
-      <button
-        className={`node-detail-tab ${activeTab === 'phrases' ? 'node-detail-tab-active' : ''}`}
-        onClick={() => setActiveTab('phrases')}
-      >
-        Phrases
-      </button>
-      <button
-        className={`node-detail-tab ${activeTab === 'sources' ? 'node-detail-tab-active' : ''}`}
-        onClick={() => setActiveTab('sources')}
-      >
-        Sources
-      </button>
-      <button
-        className={`node-detail-tab ${activeTab === 'facts' ? 'node-detail-tab-active' : ''}`}
-        onClick={() => setActiveTab('facts')}
-      >
-        Facts{factCount > 0 ? ` (${factCount})` : ''}
-      </button>
-      <button
-        className={`node-detail-tab ${activeTab === 'research' ? 'node-detail-tab-active' : ''}`}
-        onClick={() => setActiveTab('research')}
-      >
-        Research
-      </button>
-      <button
-        className={`node-detail-tab ${activeTab === 'history' ? 'node-detail-tab-active' : ''}`}
-        onClick={() => setActiveTab('history')}
-      >
-        History{editHistoryLength ? ` (${editHistoryLength})` : ''}
-      </button>
+      {viewMode === 'advanced' && <>
+        <button
+          className={`node-detail-tab ${activeTab === 'attributes' ? 'node-detail-tab-active' : ''}`}
+          onClick={() => setActiveTab('attributes')}
+        >
+          Attributes
+        </button>
+        <button
+          className={`node-detail-tab ${activeTab === 'conflicts' ? 'node-detail-tab-active' : ''}`}
+          onClick={() => setActiveTab('conflicts')}
+        >
+          Conflicts{conflictCount > 0 ? ` (${conflictCount})` : ''}
+        </button>
+        <button
+          className={`node-detail-tab ${activeTab === 'cruxes' ? 'node-detail-tab-active' : ''}`}
+          onClick={() => setActiveTab('cruxes')}
+        >
+          Cruxes{cruxCount > 0 ? ` (${cruxCount})` : ''}
+        </button>
+        <button
+          className={`node-detail-tab ${activeTab === 'phrases' ? 'node-detail-tab-active' : ''}`}
+          onClick={() => setActiveTab('phrases')}
+        >
+          Phrases
+        </button>
+        <button
+          className={`node-detail-tab ${activeTab === 'sources' ? 'node-detail-tab-active' : ''}`}
+          onClick={() => setActiveTab('sources')}
+        >
+          Sources
+        </button>
+        <button
+          className={`node-detail-tab ${activeTab === 'facts' ? 'node-detail-tab-active' : ''}`}
+          onClick={() => setActiveTab('facts')}
+        >
+          Facts{factCount > 0 ? ` (${factCount})` : ''}
+        </button>
+        <button
+          className={`node-detail-tab ${activeTab === 'research' ? 'node-detail-tab-active' : ''}`}
+          onClick={() => setActiveTab('research')}
+        >
+          Research
+        </button>
+        <button
+          className={`node-detail-tab ${activeTab === 'history' ? 'node-detail-tab-active' : ''}`}
+          onClick={() => setActiveTab('history')}
+        >
+          History{editHistoryLength ? ` (${editHistoryLength})` : ''}
+        </button>
+      </>}
     </div>
   );
 }
@@ -818,6 +831,8 @@ interface DescriptionSectionProps {
 }
 
 function DescriptionSection({ pov, node, readOnly, err, descMode, setDescMode, maybeRegenAphorism, update, updatePovNode, renderMentionField, descriptionMention }: DescriptionSectionProps) {
+  const { viewMode } = usePreferencesStore(state => ({ viewMode: state.viewMode }));
+  const effectiveDescMode = viewMode === 'simple' ? 'plain' as const : descMode;
   return (
     <div className={`form-group ${err('description') ? 'has-error' : ''}`}>
       <div className="description-header">
@@ -825,9 +840,9 @@ function DescriptionSection({ pov, node, readOnly, err, descMode, setDescMode, m
           Description
           <FieldHelp text={`Genus-differentia format:\n"${CATEGORY_SINGULAR[node.category]} within [POV] discourse that [differentia].\nEncompasses: ...\nExcludes: ..."\nEncompasses and Excludes must each start on a new line.`} />
         </label>
-        <DescriptionToggle mode={descMode} onToggle={setDescMode} hasPlainDescription={!!node.plain_description} />
+        {viewMode === 'advanced' && <DescriptionToggle mode={descMode} onToggle={setDescMode} hasPlainDescription={!!node.plain_description} />}
       </div>
-      {descMode === 'formal' ? (
+      {effectiveDescMode === 'formal' ? (
         <div className="prose" onBlur={maybeRegenAphorism}>
           <HighlightedTextarea
             value={node.description}

@@ -4,7 +4,7 @@
 import { useState, useEffect, useRef, Fragment } from 'react';
 import {
   Search, LayoutGrid, MessageSquare, MessageCircle, ArrowLeft,
-  Ellipsis, CircleHelp, Star,
+  Ellipsis, CircleHelp, Star, Layers,
   RefreshCw, Settings, User, Users, Shield, LogOut,
 } from 'lucide-react';
 import { useTaxonomyStore } from '../../hooks/useTaxonomyStore';
@@ -17,6 +17,7 @@ import { useFlag } from '../../hooks/useFeatureFlags';
 import { useTierInfo } from '../../hooks/useTierInfo';
 import { FeedbackPopover } from './FeedbackPopover';
 import { NAV_ITEMS, getVisibleNavItems, getSecondaryByGroup, type NavItem, type NavAction } from '../../data/navConfig';
+import { usePreferencesStore } from '../../store/preferencesStore';
 import './Toolbar.css';
 
 type ToolbarPanel = 'search' | 'related' | 'attrFilter' | 'attrInfo' | 'lineage' | 'prompts' | 'console' | 'fallacy' | 'edges' | 'policyAlignment' | 'policyDashboard' | 'vocabulary' | 'calibration';
@@ -224,6 +225,7 @@ export function Toolbar() {
     return false;
   };
   const moreHasActive = secondaryGroups.flatMap(g => g.items).some(i => isNavItemActive(i));
+  const { viewMode, setViewMode } = usePreferencesStore(state => ({ viewMode: state.viewMode, setViewMode: state.setViewMode }));
 
   // Escape key navigates back
   useEffect(() => {
@@ -334,8 +336,16 @@ export function Toolbar() {
         </button>
       </div>
       <div className="toolbar-bottom">
-        {/* Other Tools */}
-        <div className="toolbar-more-wrap" ref={moreRef}>
+        <button
+          className={`toolbar-icon${viewMode === 'advanced' ? ' toolbar-icon-active' : ''}`}
+          onClick={() => void setViewMode(viewMode === 'simple' ? 'advanced' : 'simple')}
+          aria-label={viewMode === 'simple' ? 'Switch to Advanced view' : 'Switch to Simple view'}
+          data-tooltip={viewMode === 'simple' ? 'Switch to Advanced view' : 'Switch to Simple view'}
+        >
+          <Layers size={20} />
+        </button>
+        {/* Other Tools — hidden in Simple view */}
+        {viewMode === 'advanced' && <div className="toolbar-more-wrap" ref={moreRef}>
           <button
             className={`toolbar-icon${moreHasActive || showMore ? ' toolbar-icon-active' : ''}`}
             onClick={() => setShowMore(v => !v)}
@@ -363,7 +373,7 @@ export function Toolbar() {
               ))}
             </div>
           )}
-        </div>
+        </div>}
         <div className="toolbar-separator" />
         <button
           className="toolbar-icon"

@@ -5,6 +5,7 @@ import type { Organization, OrganizationEdge } from '@lib/organizations/types';
 import type { EntityDetail, EntitySummary, EntityListQuery } from '@lib/entities/types';
 import type { ContainerMentions } from '@lib/entities/mentionTypes';
 import type { EdgesFile } from '@lib/debate/taxonomyTypes';
+import type { UserPreferences } from '../bridge/types';
 
 export interface ElectronAPI {
   processVersions: Record<string, string | undefined>;
@@ -258,6 +259,11 @@ export interface ElectronAPI {
   // Container mentions (t/1901). Optional — wired by the container-mentions IPC handler
   // (ElectronMain, t/1903). Until then undefined and the bridge fails loud.
   getContainerMentions?: (id: string) => Promise<ContainerMentions | null>;
+
+  // User preferences (t/2117). Optional — wired by ElectronMain in t/2118.
+  // Until then the bridge degrades gracefully (returns null / no-ops).
+  getPreferences?: () => Promise<UserPreferences | null>;
+  setPreferences?: (prefs: UserPreferences) => Promise<void>;
 
   // Deep-link URL
   getWebAppUrl?: () => Promise<string | null>;
