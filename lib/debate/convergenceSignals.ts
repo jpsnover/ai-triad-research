@@ -18,8 +18,9 @@ import type { MoveAnnotation } from './helpers.js';
 import { computeQbafStrengths } from './qbaf.js';
 import type { QbafNode, QbafEdge } from './qbaf.js';
 import { cosineSimilarity } from './taxonomyRelevance.js';
+import { SEMANTIC_RECYCLING_THRESHOLD } from './constants.js';
 
-export const SEMANTIC_RECYCLING_THRESHOLD = 0.85;
+export { SEMANTIC_RECYCLING_THRESHOLD };
 export const ARCO_DRIFT_THRESHOLD = 0.5;
 /** Below this max-clause-similarity, the turn is considered to engage with
  *  no clause of the resolution — i.e., a candidate for redirect. */

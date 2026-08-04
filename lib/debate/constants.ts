@@ -2,3 +2,12 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 export const DOC_TRUNCATION_LIMIT = 50_000;
+
+/** Cosine similarity threshold for detecting semantic recycling across debate turns. */
+export const SEMANTIC_RECYCLING_THRESHOLD = 0.85;
+
+/** Cosine similarity threshold for deduplicating attack moves in the argument network. */
+export const ATTACK_DEDUP_THRESHOLD = 0.85;
+
+/** Polarity score threshold for classifying a crux as resolved (support or attack direction). */
+export const POLARITY_RESOLVED_THRESHOLD = 0.85;

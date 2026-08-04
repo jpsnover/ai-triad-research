@@ -21,8 +21,10 @@ import type { WeightHistoryEntry } from './taxonomyTypes.js';
 
 // ── Configuration ───────────────────────────────────────
 
+import { ATTACK_DEDUP_THRESHOLD } from './constants.js';
+
 export const TOPIC_DEDUP_THRESHOLD = 0.80;
-export const ATTACK_DEDUP_THRESHOLD = 0.85;
+export { ATTACK_DEDUP_THRESHOLD };
 
 // ── Index types ─────────────────────────────────────────
 

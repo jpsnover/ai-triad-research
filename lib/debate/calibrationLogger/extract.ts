@@ -18,6 +18,7 @@ import { computeSourceAuthority } from '../sourceAuthority.js';
 import type { DocMetaMap } from '../evidenceFromSummaries.js';
 import { PROMPT_VERSION } from '../prompts.js';
 import { DEFAULT_ATTACK_WEIGHTS } from '../qbaf.js';
+import { POLARITY_RESOLVED_THRESHOLD, SEMANTIC_RECYCLING_THRESHOLD, ATTACK_DEDUP_THRESHOLD } from '../constants.js';
 import { computeAgentUtility } from '../agentUtility.js';
 import type { AgentUtility } from '../agentUtility.js';
 import { computeOperationalClosure } from '../operationalClosure.js';
@@ -439,19 +440,19 @@ export function extractCalibrationData(
     crux_match_stats: cruxMatchStats,
     crux_undecided_rate: cruxUndecidedRate,
     counterfactual_type_distribution: cfTypeDist,
-    polarity_resolved_threshold: config.polarityResolvedThreshold ?? 0.85,
+    polarity_resolved_threshold: config.polarityResolvedThreshold ?? POLARITY_RESOLVED_THRESHOLD,
 
     relevance_score_variance: relevanceVariance,
     max_nodes_cap: config.maxNodesCap ?? 50,
 
     recycling_novelty_agreement: recyclingAgreement,
-    semantic_recycling_threshold: config.semanticRecyclingThreshold ?? 0.85,
+    semantic_recycling_threshold: config.semanticRecyclingThreshold ?? SEMANTIC_RECYCLING_THRESHOLD,
 
     taxonomy_mapped_ratio: taxonomyMappedRatio,
     cluster_min_similarity: config.clusterMinSimilarity ?? 0.55,
 
     near_miss_duplicate_count: nearMissDups,
-    duplicate_similarity_threshold: config.duplicateSimilarityThreshold ?? 0.85,
+    duplicate_similarity_threshold: config.duplicateSimilarityThreshold ?? ATTACK_DEDUP_THRESHOLD,
 
     borderline_claim_survival_rate: borderlineSurvival,
     fire_confidence_threshold: config.fireConfidenceThreshold ?? 0.7,
