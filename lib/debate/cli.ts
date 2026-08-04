@@ -18,7 +18,7 @@ import type { DebateConfig } from './debateEngine.js';
 import type { DebateSourceType, SpeakerId, DebateAudience } from './types.js';
 import { POVER_INFO, DEBATE_AUDIENCES, POV_KEYS } from './types.js';
 import { formatSituationDebateContext } from './prompts.js';
-import { FlightRecorder, getGlobalRecorder, setGlobalRecorder } from '../flight-recorder/index.js';
+import { FlightRecorder, getGlobalRecorder, setGlobalRecorder, RECORDER_CAPACITY_DEFAULT } from '../flight-recorder/index.js';
 import { generateSlug, formatDebateMarkdown, buildDiagnosticsOutput, buildHarvestOutput } from './formatters.js';
 import { ActionableError } from './errors.js';
 import { runExploreFirstPipeline } from './explorationPreset.js';
@@ -336,7 +336,7 @@ async function main(): Promise<void> {
 
   // Initialize flight recorder + named pipe listener
   if (!getGlobalRecorder()) {
-    const recorder = new FlightRecorder({ capacity: 5000, dumpOnError: true });
+    const recorder = new FlightRecorder({ capacity: RECORDER_CAPACITY_DEFAULT, dumpOnError: true });
     recorder.intern('component', 'cli');
     recorder.intern('component', 'ai-adapter');
     recorder.intern('component', 'debate-engine');
