@@ -410,7 +410,7 @@ function Start-LegacyElectronMode {
         Write-Warn "Node modules not installed in taxonomy-editor/."
         $Choice = $Host.UI.PromptForChoice(
             'Missing Node Modules',
-            "Run 'npm install' in the taxonomy-editor directory?",
+            "Run 'pnpm install' in the taxonomy-editor directory?",
             @('&Yes', '&No'),
             0
         )
@@ -418,9 +418,9 @@ function Start-LegacyElectronMode {
             Write-Step 'Installing Node modules'
             Push-Location $AppDir
             try {
-                npm install
+                pnpm install
                 if ($LASTEXITCODE -ne 0) {
-                    Write-Fail "npm install failed (exit code $LASTEXITCODE)."
+                    Write-Fail "pnpm install failed (exit code $LASTEXITCODE)."
                     return
                 }
                 Write-OK 'Node modules installed.'

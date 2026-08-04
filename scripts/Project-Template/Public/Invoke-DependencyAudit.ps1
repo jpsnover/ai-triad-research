@@ -61,7 +61,7 @@ function Invoke-DependencyAudit {
                 Write-Warning "Failed to parse npm audit output: $_"
             }
         } else {
-            Write-Warning 'npm: node_modules not found. Run npm ci first.'
+            Write-Warning 'npm: node_modules not found. Run pnpm install first.'
         }
     }
 

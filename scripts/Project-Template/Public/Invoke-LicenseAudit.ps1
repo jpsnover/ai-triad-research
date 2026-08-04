@@ -48,7 +48,7 @@ function Invoke-LicenseAudit {
             -Goal 'Run license audit' `
             -Problem 'No package.json found' `
             -Location 'Invoke-LicenseAudit' `
-            -NextSteps @('Pass -AppDir pointing to a directory with package.json', 'Run npm ci first') -Throw
+            -NextSteps @('Pass -AppDir pointing to a directory with package.json', 'Run pnpm install first') -Throw
     }
 
     Write-Output "Auditing licenses in: $AppDir"
@@ -70,7 +70,7 @@ function Invoke-LicenseAudit {
     try { $packages = $raw | ConvertFrom-Json } catch { Write-Warning "Failed to parse license data: $_" }
 
     if (-not $packages) {
-        Write-Warning 'Could not parse license data. Run npm ci and try again.'
+        Write-Warning 'Could not parse license data. Run pnpm install and try again.'
         return
     }
 

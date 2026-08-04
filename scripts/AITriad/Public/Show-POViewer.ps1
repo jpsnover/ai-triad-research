@@ -47,16 +47,16 @@ function Show-POViewer {
     try {
         $NodeModules = Join-Path $AppDir 'node_modules'
         if (-not (Test-Path $NodeModules)) {
-            Write-Warn "node_modules/ not found — running npm install first"
-            npm install
+            Write-Warn "node_modules/ not found — running pnpm install first"
+            pnpm install
             if ($LASTEXITCODE -ne 0) {
-                Write-Fail "npm install failed (exit code $LASTEXITCODE) in $AppDir"
+                Write-Fail "pnpm install failed (exit code $LASTEXITCODE) in $AppDir"
                 return
             }
         }
         npm run dev
         if ($LASTEXITCODE -ne 0) {
-            Write-Fail "npm run dev failed (exit code $LASTEXITCODE). Try: cd $AppDir && npm install && npm run dev"
+            Write-Fail "npm run dev failed (exit code $LASTEXITCODE). Try: cd $AppDir && pnpm install && npm run dev"
         }
     }
     finally { Pop-Location }
