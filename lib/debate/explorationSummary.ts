@@ -8,6 +8,7 @@ import type {
   ArgumentNetworkNode,
   ArgumentNetworkEdge,
 } from './types.js';
+import { DEFAULT_TEMPERATURE } from './constants.js';
 
 // ── ExplorationSummary Interface ─────────────────────────
 
@@ -88,7 +89,6 @@ export interface ExplorationSummary {
 // ── Constants ────────────────────────────────────────────
 
 const AN_NODE_LIMIT = 20;
-const DEFAULT_TEMPERATURE = 0.7;
 const MIN_ROUNDS = 6;
 const MAX_ROUNDS = 20;
 const MIN_SITUATION_CAP = 5;
