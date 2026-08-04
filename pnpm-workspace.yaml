@@ -5,3 +5,13 @@ packages:
   - poviewer
   - summary-viewer
   - workflow-app
+
+onlyBuiltDependencies:
+  - "@google/genai"
+  - electron
+  - electron-winstaller
+  - esbuild
+  - node-pty
+  - onnxruntime-node
+  - protobufjs
+  - sharp
