@@ -24,8 +24,10 @@ import { registerMentionHandlers } from './ipc/mentionHandlers.js';
 import { registerFlightRecorderHandlers } from './ipc/flightRecorderHandlers.js';
 import { registerCommunityHandlers } from './ipc/communityHandlers.js';
 import { registerSystemHandlers } from './ipc/systemHandlers.js';
+import { registerPrefsHandlers } from './ipc/prefsHandlers.js';
 
 export function registerIpcHandlers(): void {
+  registerPrefsHandlers();
   registerTaxonomyHandlers();
   registerSourceHandlers();
   registerAiHandlers();
