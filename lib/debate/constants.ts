@@ -17,3 +17,5 @@ export const DEFAULT_AI_TIMEOUT_MS = 120_000;
 
 /** Default relevance threshold for taxonomy node selection during debate turns. */
 export const DEFAULT_RELEVANCE_THRESHOLD = 0.45;
+
+export { DEFAULT_TEMPERATURE } from '../ai-client/defaults.js';
