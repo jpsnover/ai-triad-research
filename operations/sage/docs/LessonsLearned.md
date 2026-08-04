@@ -2861,3 +2861,24 @@ Institutional memory for failure patterns across the AI Triad Research project.
 **Status:** Active — doc file cherry-pick conflicts in multi-agent worktree workflows; --theirs resolution pattern.
 
 **Applies To:** All agents cherry-picking commits that include shared doc file changes onto a main-based worktree.
+
+---
+
+## #139 [Build] `git commit -- <pathspec>` Commits Working-Tree Content, Silently Discarding a Staged `git rm --cached`
+
+**Pattern:** `git commit -m "..." -- <pathspec>` commits the **working-tree content** of the named paths, bypassing the staged index for those paths. If `git rm --cached <file>` has been staged (marking the file for removal), a subsequent pathspec commit silently discards that staged removal and re-commits the file from the working tree. The commit succeeds with a plausible file count and no error — it reads as done when the intended removal never happened.
+
+**Instances:**
+- 2026-08-03 — TL (t/2080, p/8#175, commit 9468557): `ogit commit -- <path>` after a staged `git rm --cached` silently re-committed the overlay file instead of removing it. Caught by inspecting the commit; corrected in 00a1cc0.
+
+**Root Cause:** `git commit -- <pathspec>` snapshots **working-tree content** directly for the named paths, overriding the staged index for those paths. This design allows committing without a prior `git add`, but it is **incompatible with `git rm --cached`** — the staged removal is overridden by the working tree snapshot. The explicit-pathspec commit habit (ADR-005, designed to prevent sweeping peers' staged files) becomes a trap when the intent is a staged removal: the pathspec form re-takes the working tree instead of honoring the staged state.
+
+**Prevention:**
+1. **Never pair `git rm --cached` with a pathspec commit** — they are semantically incompatible. `git rm --cached` stages a removal; `git commit -- <path>` discards that staged state in favor of the working tree.
+2. To remove a file from index tracking: `git rm --cached <file>`, verify with `git diff --cached` (confirm the removal appears), then commit **bare** (no pathspec): `git commit -m "..."`. The bare commit honors the full staged index, including removals.
+3. **Use `git diff --cached` as the pre-commit gate** — if it shows exactly your intended changes (and only your paths), a bare commit is safe. The pathspec guard (ADR-005) is for shared working trees where peers may have staged files; `git diff --cached` confirms whether bare is safe.
+4. **Inspect `git show --stat HEAD` after any `rm --cached` + commit** — a plausible success message is insufficient; confirm the removal actually appears in the commit's file list.
+
+**Applies To:** All agents staging a `git rm --cached` before a pathspec commit (ADR-005 habit).
+
+**Status:** Active — single instance; sharp incompatibility between the pathspec commit habit and staged-removal operations.
