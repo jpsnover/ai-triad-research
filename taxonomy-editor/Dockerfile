@@ -19,13 +19,15 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     apt-get update && apt-get install -y --no-install-recommends \
     python3 make g++
 
+RUN npm install -g pnpm@11.20.0
+
 # Copy dependency manifests first (Docker layer caching)
-COPY taxonomy-editor/package.json taxonomy-editor/package-lock.json ./taxonomy-editor/
+COPY taxonomy-editor/package.json taxonomy-editor/pnpm-lock.yaml ./taxonomy-editor/
 COPY lib/ ./lib/
 
 # Install Node deps (including devDependencies for build)
 WORKDIR /build/taxonomy-editor
-RUN --mount=type=cache,target=/root/.npm npm ci
+RUN --mount=type=cache,target=/root/.local/share/pnpm/store pnpm install --frozen-lockfile
 
 # Install shared-lib deps too (t/2035): lib/ is a self-contained package with its
 # own package.json, and the sanitizer core's renderer-parity decoders must resolve
@@ -33,7 +35,7 @@ RUN --mount=type=cache,target=/root/.npm npm ci
 # (ci.yml "Install shared lib dependencies"). Without this, build:container's tsc
 # fails TS2307 on the lib/ core's decoder imports.
 WORKDIR /build/lib
-RUN --mount=type=cache,target=/root/.npm npm ci
+RUN --mount=type=cache,target=/root/.local/share/pnpm/store pnpm install --frozen-lockfile
 
 # Copy source and build
 WORKDIR /build
@@ -64,9 +66,11 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     apt-get update && apt-get install -y --no-install-recommends \
     python3 make g++
 
+RUN npm install -g pnpm@11.20.0
+
 WORKDIR /deps
-COPY taxonomy-editor/package.json taxonomy-editor/package-lock.json ./
-RUN --mount=type=cache,target=/root/.npm npm ci --omit=dev
+COPY taxonomy-editor/package.json taxonomy-editor/pnpm-lock.yaml ./
+RUN --mount=type=cache,target=/root/.local/share/pnpm/store pnpm install --prod --frozen-lockfile
 
 # ── Stage 3: Runtime ──
 # CI smoke = liveness-only (any HTTP status passes; t/2067). Data-readiness proven at staging
@@ -99,7 +103,7 @@ WORKDIR /app
 # ── Layers ordered by change frequency (least → most) ──
 
 # 1. Node production dependencies (pre-compiled in prod-deps stage)
-COPY --chown=aitriad:aitriad taxonomy-editor/package.json taxonomy-editor/package-lock.json ./
+COPY --chown=aitriad:aitriad taxonomy-editor/package.json taxonomy-editor/pnpm-lock.yaml ./
 COPY --from=prod-deps --chown=aitriad:aitriad /deps/node_modules ./node_modules/
 
 # 2. Stable config and scripts (change occasionally)
