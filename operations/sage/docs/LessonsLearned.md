@@ -338,6 +338,8 @@ Institutional memory for failure patterns across the AI Triad Research project.
 4. Force UTF-8 globally: set `PYTHONUTF8=1` or `PYTHONIOENCODING=utf-8` env var, or invoke with `python -X utf8`.
 5. Prefer a written-to-file analysis script over a `python -c` one-liner (avoids the console-encoding exposure), and read doc text via the Read tool rather than printing raw non-ASCII content to stdout.
 
+**Status:** Resolved — `PYTHONUTF8=1` set fleet-wide (t/2046, PR #385, p/26#48, 2026-08-03): Windows User env var + `ci.yml` `python-embed-smoke` env + hard-fail assertion + both Dockerfiles. Point-of-environment guarantee now active. Pattern closed after 7 instances.
+
 **Applies To:** All agents writing Python that reads/writes text files or prints Unicode, especially on Windows.
 
 ---
@@ -691,14 +693,16 @@ Institutional memory for failure patterns across the AI Triad Research project.
 - 2026-07-17 — Diagnostics (during triage, p/9#28; **re-hit same day, p/9#34** — identical `(Get-Item $file).Length` idiom): ran `$var = ...; (Get-Item $var).Length` (a PowerShell file-size check) in the Bash tool (POSIX sh); Bash rejected it immediately. Fixed by switching to the PowerShell tool. Tell: `$var = ...` assignment with no `export`, a `;`-chained statement, and `.Length` property access on a cmdlet result are all PowerShell, not sh. File-size/`Get-Item`/`Get-ChildItem` checks belong in the PowerShell tool. **Same agent hit the identical mistake twice in one day → the shared lesson isn't sticking during triage; a per-agent memory ("file ops = PowerShell tool") is the durable fix, not another archive entry.**
 - 2026-07-26 — PowerShell 2 (p/228#1): `node require('/c/Users/.../file.json')` (a **git-bash `/c/...` msys path**) threw MODULE_NOT_FOUND — `node`'s win32 runtime doesn't resolve msys paths. Fixed by reading the JSON via the PowerShell tool with a native `C:\...` path. Tell: the wrong-tool axis isn't just *syntax* — it's also **path format**; a native win32 program invoked from Bash needs a native `C:\...` (or repo-relative) path, not `/c/...`.
 - 2026-07-28 — Taxonomy Editor 2 (**`/tmp` mount variant**, p/195#5): `node -e "require('/tmp/x.json')"` failed MODULE_NOT_FOUND — Node's win32 runtime can't resolve git-bash's **`/tmp` mount** (virtual msys mount, not a real Windows path), and `> /tmp/…` redirects write where Node can't `require`. Fix: for any **Node-consumed temp file, use the session scratchpad's absolute Windows path**, not `/tmp`. Generalizes p/228#1: `/tmp` and `/c/...` are both git-bash-only paths native `node` can't see.
+- 2026-08-03 — Shared Lib (p/5#23): **`cd C:\...` path in Bash (POSIX sh)** — Windows backslash paths are not valid POSIX paths; Bash interprets `\` as escape sequences and silently fails with "No such file or directory". Fixed by switching to the PowerShell tool for all git/shell ops.
 
-**Root Cause:** Agents have access to both Bash and PowerShell tools. PowerShell cmdlets (`Get-ChildItem`, `Get-Item`, `Invoke-Pester`, `Select-Object`, etc.), `$var = ...` assignment, `.Property` access, and `;`-chained statements only work in the PowerShell tool. Unix commands (`ls`, `grep`, `cat`, `stat -c%s`) only work in Bash (on Windows/Git Bash). **A second axis is path format:** git-bash presents `/c/Users/...` msys paths, but native win32 programs (`node`, and anything not msys-aware) resolve `C:\...` — an msys path handed to `node require`/`fs` fails as MODULE_NOT_FOUND / ENOENT.
+**Root Cause:** Agents have access to both Bash and PowerShell tools. PowerShell cmdlets (`Get-ChildItem`, `Get-Item`, `Invoke-Pester`, `Select-Object`, etc.), `$var = ...` assignment, `.Property` access, and `;`-chained statements only work in the PowerShell tool. Unix commands (`ls`, `grep`, `cat`, `stat -c%s`) only work in Bash (on Windows/Git Bash). **A second axis is path format:** git-bash presents `/c/Users/...` msys paths, but native win32 programs (`node`, and anything not msys-aware) resolve `C:\...` — an msys path handed to `node require`/`fs` fails as MODULE_NOT_FOUND / ENOENT. **A third axis:** Windows backslash paths (`C:\...`) given directly to Bash fail silently — Bash treats `\` as escape characters.
 
 **Prevention:**
 1. Use PowerShell tool for: cmdlets (`Get-*`, `Set-*`, `Invoke-*`), `$env:` variables, `$var = ...` assignment, `.Property` access on results, pipeline operators with objects. File-size checks: `(Get-Item $p).Length`.
 2. Use Bash tool for: Unix commands, `git`, `npm`, `node`, `python3`, shell scripts. File-size in Bash: `stat -c%s <file>` or `wc -c < <file>`.
 3. When in doubt, check if the command uses a Verb-Noun cmdlet, `$var =` assignment, or `.Property` access — if yes, it's PowerShell.
 4. **Path format:** when a native win32 program (`node`, etc.) needs a filesystem path, give it a native `C:\...` or repo-relative path — NOT a git-bash `/c/...` msys path OR a mount like **`/tmp`** (both fail as MODULE_NOT_FOUND/ENOENT; `/tmp` is a virtual msys mount Node can't resolve, and `> /tmp/…` redirects land where Node can't `require`). **For any Node-consumed temp file, use the session scratchpad's absolute Windows path, not `/tmp`.** For reading a JSON/data file on win32, the PowerShell tool with a native path is the reliable route.
+5. **Don't use Windows backslash paths (`C:\...`) directly in the Bash tool** — Bash (POSIX sh) treats `\` as escape characters and silently mangles the path. Use the PowerShell tool for any operation that needs a `C:\...` path, or convert to a git-bash `/c/...` form (only valid for msys-aware tools) (p/5#23).
 
 **Applies To:** All agents on this Windows dev environment with dual shell access.
 
@@ -710,15 +714,17 @@ Institutional memory for failure patterns across the AI Triad Research project.
 
 **Instances:**
 - 2026-06-16 — DebateTool: `node lib/debate/_add_stack.mjs` failed because CWD was already `lib/debate/`, doubling the path. Fixed by using absolute path (p/70#1).
+- 2026-08-03 — Computational Linguist (p/7#55): `git add research/comp-linguist/analyses/...` from cwd `research/comp-linguist/` doubled the path to `research/comp-linguist/research/comp-linguist/analyses/` — git resolved the repo-root-relative argument relative to cwd, causing a pathspec mismatch. Fixed by using cwd-relative paths directly (`analyses/...`).
 
-**Root Cause:** Bash tool CWD may differ between calls or may have been changed by a prior `cd` command. Relative paths assume CWD is the repo root, but if a previous command changed directory, the relative path stacks on top of the current location.
+**Root Cause:** Bash tool CWD may differ between calls or may have been changed by a prior `cd` command. Relative paths assume CWD is the repo root, but if a previous command changed directory, the relative path stacks on top of the current location. Applies to git path arguments as well as script execution paths.
 
 **Prevention:**
 1. Use absolute paths for `node`, `python3`, and other file execution commands — never rely on CWD being the repo root.
 2. If using relative paths, verify CWD first with `pwd`.
 3. Bash tool CWD persists between calls — a prior `cd` affects all subsequent commands in that shell session.
+4. **`git add` (and other git path arguments) resolve relative to cwd, not the repo root** — from a role subdirectory, use cwd-relative paths (`analyses/...`) not repo-root-relative ones (`research/comp-linguist/analyses/...`). Alternatively, use `git -C <repo-root> add <repo-root-relative-path>` to pin the resolution root (p/7#55).
 
-**Applies To:** All agents executing scripts via Bash, especially when working across subdirectories.
+**Applies To:** All agents executing scripts or git commands from Bash when cwd is a subdirectory.
 
 ---
 
@@ -2136,6 +2142,7 @@ Institutional memory for failure patterns across the AI Triad Research project.
 
 **Instances:**
 - 2026-07-29 — Technical Lead (t/1932 Moonshot backend; detail t/1932#1): the DAG covered the 3 adapters (aiAdapter/aiBackends/AIEnrich) but missed 3 non-adapter coupling sites — `routes/keys.ts` `KEY_VALIDATION_PROBES` (keysValidation.test.ts red), `config.ts` `ENV_KEY_NAMES`/`AIBackend` exhaustiveness (server tsc TS2741, blocks everyone), `registry.ts` `resolveBackend` (silent misroute moonshot→gemini). Compounded: config-land verify grepped `keysValidation.test.ts` but ran only `configInvariant`+`modelDiscovery` — a subset skipping the broken test. Green via t/1944+probe `66325245`; routing t/1945.
+- 2026-08-03 — Shared Lib (p/5#21): `usageRegistry.test.ts` `listUsages` asserted `toHaveLength(3)` — a hardcoded literal count. Adding a 4th entry (`moonshot.test` to `TEST_USAGES`) caused the assertion to fail ("expected 4, received 3"). **Coupling site type: hardcoded length/count assertion** — invisible to tsc (runtime check, not an exhaustiveness map) and to a grep of the enum/type name (the bare `3` has no syntactic tie to the registry). Fix: bump assertion to 4 (p/5#21).
 
 **Root Cause:** A shared enum/config is a fan-out coupling point — every exhaustiveness-checked map, probe table, and resolver keyed on it is an implicit dependency, enforced only if that check is compiled/run. The author reasons from the *feature* ("add an adapter") not the *coupling graph* ("what is keyed on this id?"), so coupling sites in other scopes fall outside the DAG; a hand-picked test subset then hides the breaks pre-land.
 
@@ -2144,8 +2151,9 @@ Institutional memory for failure patterns across the AI Triad Research project.
 2. **A shared-config change must run ALL referencing tests — never a hand-picked subset.** If you grep for referencing tests, *run the ones you find*; prefer full `npm run verify` for any shared-surface change.
 3. Make coupling maps **exhaustive at compile time** (`Record<Enum,T>` not `Partial<…>`; `switch` + `never` default) so `tsc` becomes the coupling detector.
 4. Durable fix for a recurring multi-site addition: a **checklist playbook**. TL is authoring `/add-ai-backend` (7 config sections + keys.ts probe + config.ts ENV_KEY_NAMES/type + registry resolveBackend + 3 adapters) — the concrete instance of this rule.
+5. **Hardcoded length/count assertions in tests are runtime coupling sites invisible to tsc and to a type-name grep.** When adding an entry to any array/registry, grep test files for `toHaveLength`, `.length`, `toBe(N)` patterns over the collection — a bare literal count has no syntactic tie to the enum/registry name (p/5#21).
 
-**Status:** Active — decomposition-completeness (coupling graph vs feature files) + verify-scope (all referencing tests vs subset). TL self-reported (t/1932#1); durable fix = `/add-ai-backend` playbook (being filed). Watch the same shape on other shared enums (POV camps `acc/saf/skp/cc`, BDI categories, `pol-*` registry).
+**Status:** Active — 2 instances. Decomposition-completeness (coupling graph vs feature files) + verify-scope (all referencing tests vs subset); and hardcoded count assertions as a runtime coupling site (p/5#21, added 2026-08-03). TL self-reported (t/1932#1); durable fix = `/add-ai-backend` playbook (being filed). Watch the same shape on other shared enums (POV camps `acc/saf/skp/cc`, BDI categories, `pol-*` registry).
 
 **Applies To:** Any role decomposing/landing a change that adds a member to a shared enumeration/config consumed across multiple files or scopes.
 
@@ -2505,16 +2513,18 @@ Institutional memory for failure patterns across the AI Triad Research project.
 **Pattern:** CodeQL's PR check-run is DIFFERENTIAL — it fails only on NEW alerts the PR introduces and passes (green) regardless of whether the PR's intended fix actually cleared a **pre-existing** alert. So a green CodeQL check does NOT confirm a pre-existing alert is resolved. Worse, the PR/branch-ref alerts query (`code-scanning/alerts` filtered to the PR's ref) returns **empty unreliably**, which reads as "no alerts → cleared" and misleads you into reporting a fix landed when it hasn't. The authoritative signal is the **post-merge MAIN-branch SAST scan** (the full re-scan that re-evaluates the whole backlog).
 
 **Instances:**
-- 2026-07-30 — ServerAPI (t/2019): reported a pre-existing CodeQL alert "cleared" based on a **green PR check + an empty branch-ref alerts query** — but the differential check only gated NEW alerts, and the branch-ref query was unreliably-empty. The fix's real effect had to be confirmed on the **post-merge MAIN SAST scan**. Also hit: the code-scanning **dismiss API caps `dismissed_comment` at 280 chars (HTTP 422 over)** → keep terse, reference the ticket.
+- 2026-07-30 — ServerAPI (t/2019): reported a pre-existing CodeQL alert "cleared" based on a **green PR check + an empty branch-ref alerts query** — but the differential check only gated NEW alerts, and the branch-ref query was unreliably-empty. The fix's real effect had to be confirmed on the **post-merge MAIN SAST scan**. Also hit: the code-scanning **dismiss API caps `dismissed_comment` at 280 chars (HTTP 422 over)** — discovered here.
+- 2026-08-03 — Technical Lead (p/8#173, t/2110): wrote a dismissal comment at normal ticket-comment length — the API 422d "Only 280 characters are allowed." Fix: keep the comment to a tweet-length summary (verdict + guard reference); put the full reasoning on the ticket.
+- 2026-08-03 — Tech Lead 2 (p/253#5/#7, t/2100): bulk CodeQL dismissal script 422d when `dismissed_comment` exceeded 280 chars. **Root cause differs from instance 1:** the cap was already documented (prevention #3 above), but filed under a *verification* lesson a bulk-dismissal author would never navigate to — a **findability failure, not a knowledge failure**. Durable fix: landing dismissal rules in `docs/security/dependency-policy.md` § Dismissal Rules (TL2 PR #380) where dismissal work gets written.
 
-**Root Cause:** differential CodeQL (the t/2025 / #112 design — fail on NEW alerts only, not the ~108-alert backlog) is calibrated to NOT block on pre-existing alerts, so by design a green check says nothing about them. The branch-ref alerts API is ref-scoped / eventually-consistent and returns empty spuriously. Confirming a pre-existing-alert fix therefore requires the full MAIN scan (re-evaluates the backlog), not the PR-scoped differential signal. Flip side of #112: **#112** = a green required gate hides a NEW alert; **#117** = a green differential check falsely implies a PRE-EXISTING alert is fixed. Both stem from "the CodeQL PR signal is new-only/differential."
+**Root Cause:** differential CodeQL (the t/2025 / #112 design — fail on NEW alerts only, not the ~108-alert backlog) is calibrated to NOT block on pre-existing alerts, so by design a green check says nothing about them. The branch-ref alerts API is ref-scoped / eventually-consistent and returns empty spuriously. Confirming a pre-existing-alert fix therefore requires the full MAIN scan (re-evaluates the backlog), not the PR-scoped differential signal. Flip side of #112: **#112** = a green required gate hides a NEW alert; **#117** = a green differential check falsely implies a PRE-EXISTING alert is fixed. Both stem from "the CodeQL PR signal is new-only/differential." The 280-char `dismissed_comment` sub-finding also has a **findability root cause**: correct guidance filed under the wrong lesson heading is effectively absent for the author who needs it.
 
 **Prevention:**
 1. **To confirm a fix cleared a PRE-EXISTING CodeQL alert, verify on the POST-MERGE MAIN SAST scan** — NOT the PR check-run (green = no new alerts, says nothing about the backlog) and NOT the branch-ref alerts query (returns empty unreliably). **Confirm the SPECIFIC alert's state on main:** `gh api repos/:owner/:repo/code-scanning/alerts/<n> --jq .state` → must read `fixed` or `dismissed` (TL t/2001#11).
 2. **Don't report a pre-existing alert "cleared" from a green PR check or an empty branch-ref query.** Wait for main's scan, or the alert's state flipping to `fixed`/`dismissed` on the MAIN-ref query.
-3. **Dismissing a code-scanning alert: `dismissed_comment` caps at 280 chars** (HTTP 422 over) — keep it terse and reference the ticket.
+3. **Dismissing a code-scanning alert: `dismissed_comment` caps at 280 chars** (HTTP 422 over, undocumented in the error body) — format: verdict + enforcing guard + ticket ref; put full source/sink analysis in a **co-located code comment** (tickets get archived; code stays co-located with the dismissal). Canonical rules now in `docs/security/dependency-policy.md` § Dismissal Rules (p/253#5, t/2100).
 
-**Status:** Active — flip side of #112 (a green differential CodeQL check says nothing about the pre-existing backlog); high-relevance to Wave-2's backlog-clearing (t/2001, 83 pre-existing highs). Ties to the t/2025 differential-mode gate. **DISPOSITIONED (TL p/8#142):** sharpened into durable Wave-2 guidance at **t/2001#11** (amending #3) — a pre-existing high is "fixed" ONLY when the post-merge MAIN scan shows `fixed`/`dismissed`, never inferred from a green differential PR check or the flaky branch-ref query; confirm the specific alert via `gh api …/alerts/<n> --jq .state`. 280-char `dismissed_comment` full rationale in a co-located code comment (API comment = terse pointer). Generalizes ServerAPI's self-correction into a rule for the remaining fixes (t/2018 especially).
+**Status:** Active — 2 instances. Flip side of #112 (a green differential CodeQL check says nothing about the pre-existing backlog); high-relevance to Wave-2's backlog-clearing (t/2001). Ties to the t/2025 differential-mode gate. **DISPOSITIONED (TL p/8#142):** sharpened into durable Wave-2 guidance at **t/2001#11**. 280-char `dismissed_comment` cap now in `docs/security/dependency-policy.md` § Dismissal Rules — canonical location for dismissal authors (TL2 PR #380, p/253#7).
 
 **Applies To:** All agents clearing/dismissing pre-existing CodeQL alerts (Wave-2 security work) — verify fixes on the MAIN scan; keep dismiss comments ≤280 chars.
 
@@ -2657,14 +2667,222 @@ Institutional memory for failure patterns across the AI Triad Research project.
 
 **Instances:**
 - 2026-08-03 — DevOps (t/2067, p/26#38): ran `ls /c/Users/jsnov/wt-2067/` — assumed `../wt-2067` from the repo resolves at home level, but the actual path was `C:/Users/jsnov/repos/wt-2067` = `/c/Users/jsnov/repos/wt-2067`. Fixed by running `git worktree list` to confirm the real path.
+- 2026-08-03 — ElectronMain (p/98#13, t/2111): `cd /c/.../wt-t2111` immediately after `git worktree add ../wt-t2111` — "No such file." Compounding factor: **Bash tool resets cwd between invocations**, so the cwd for the `cd` call was the repo root regardless of any prior `cd`. The agent constructed the POSIX path from memory rather than reading `git worktree list`. Fixed by running `git worktree list` and using the canonical absolute path `/c/Users/jsnov/repos/wt-t2111`.
 
-**Root Cause:** The repo lives at `C:/Users/jsnov/repos/ai-triad-research/` — two levels below home (`home/repos/repo`), not one (`home/repo`). `../wt-<name>` from the repo root goes up one level to `C:/Users/jsnov/repos/`, landing the worktree there, not at the user home directory. This is a **mental-model mismatch** (wrong path depth), distinct from MSYS path mangling (#73 facet B) — here the path is assembled incorrectly before any tool sees it. The Bash tool reports `No such file or directory` on the wrong POSIX path, which looks like a missing worktree when the worktree exists at the correct path.
+**Root Cause:** The repo lives at `C:/Users/jsnov/repos/ai-triad-research/` — two levels below home (`home/repos/repo`), not one (`home/repo`). `../wt-<name>` from the repo root goes up one level to `C:/Users/jsnov/repos/`, landing the worktree there, not at the user home directory. This is a **mental-model mismatch** (wrong path depth), distinct from MSYS path mangling (#73 facet B) — here the path is assembled incorrectly before any tool sees it. **Compounding factor (instance 2):** the Bash tool resets cwd to the repo root between invocations, so any relative path like `../wt-<name>` re-anchors to the repo root on every call — you cannot rely on a prior `cd` persisting to the next Bash call.
 
 **Prevention:**
 1. **Run `git worktree list` BEFORE first Bash access to a worktree** — it returns the canonical absolute path; never reconstruct the path by prepending the assumed home directory + a relative spec.
 2. On this machine: repo = `C:/Users/jsnov/repos/ai-triad-research/`; sibling worktrees land at `C:/Users/jsnov/repos/wt-<name>` = `/c/Users/jsnov/repos/wt-<name>` in POSIX. NOT `/c/Users/jsnov/wt-<name>`.
 3. Companion to the MSYS colon-revspec/path trap (#73 facet B): both produce a wrong absolute path for a git resource. #73B = MSYS mangles a correct path; #128 = a wrong path is assembled from an incorrect mental model. The fix for both: **verify the actual path before access** rather than reconstructing from memory.
+4. **Bash tool cwd resets to the repo root between invocations** — relative paths (`../wt-<name>`) re-anchor on every call; don't assume a prior `cd` carried over. Use absolute paths from `git worktree list` output.
 
-**Status:** Active — worktree-land path-depth assumption hazard. Third env/path hazard in the worktree-land cluster (#77 `npm ci` empty package dir, #78 node_modules rm timeout, #128 path-depth mismatch). `git worktree list` is the one-stop oracle for canonical worktree paths.
+**Status:** Active — 2 instances. Worktree-land path-depth assumption hazard; cwd-reset compounds it. Third env/path hazard in the worktree-land cluster (#77 `npm ci` empty package dir, #78 node_modules rm timeout, #128 path-depth mismatch). `git worktree list` is the one-stop oracle for canonical worktree paths.
 
 **Applies To:** All agents using the Bash tool to access a worktree by absolute POSIX path.
+
+---
+
+## #129 [Process] `gh pr merge` in Auto Mode Is Blocked by the Safety Classifier — PR Merges Require Explicit User Authorization; Surface the Command for Direct `!` Execution
+
+**Pattern:** `gh pr merge <N> --squash --auto --delete-branch` (or any `gh pr merge` variant) in an **auto-mode agent session** is intercepted by the Claude Code safety classifier and blocked mid-sweep. The classifier treats PR merges as **hard-to-reverse + visible to others** — a category that requires explicit user confirmation regardless of auto-mode level. The agent cannot unblock itself; the action must be surfaced to the user as a `! gh pr merge <N>` command for direct authorization in the session.
+
+**Instances:**
+- 2026-08-03 — Orca Support (p/13#27): `gh pr merge 341 --squash --auto --delete-branch` blocked mid-PR resolution sweep by the auto-mode classifier. Resolved by surfacing `! gh pr merge 341` to the user for direct authorization.
+- 2026-08-03 — Orca Support (p/13#31): `gh pr merge` blocked again during PR #289 conflict-resolution flow — same classifier gate, 2nd independent instance confirming the pattern is consistent across PR workflows, not session-specific.
+
+**Root Cause:** The Claude Code safety classifier has a fixed policy: PR merge is a **shared-state, hard-to-reverse action** (merges commit to a repo visible to others, triggers CI, may deploy). Auto mode bypasses routine tool confirmations but NOT this class of action. The classifier intercepts at the tool-call layer before the command runs — this is **correct and intended behavior**, not a bug. The failure is the **workflow assumption** that `gh pr merge` would run unattended in an automated PR sweep.
+
+**Prevention:**
+1. **Never assume `gh pr merge` will run unattended in auto mode** — it always requires an explicit user authorization event. Plan for a manual authorization step in any PR-resolution workflow.
+2. **Surface the command as `! gh pr merge <N> --squash --delete-branch`** — the `!` prefix runs the command in the active session under user authorization; this is the correct resolution path.
+3. **Do NOT retry the same `gh pr merge` call** — the classifier will block it again. Only a human-authorized execution unblocks the action.
+4. **Sibling of the push-authorization pattern**: `git push` to shared remotes is similarly treated as requiring user oversight. Both `git push` and `gh pr merge` are in the "visible to others / hard to reverse" class.
+
+**Status:** Active — safety-classifier gate on `gh pr merge` in auto mode; by design. Every agent running automated PR sweeps will hit this. The fix is architectural: design PR workflows with a manual authorization step for the merge command, not a workaround to bypass the classifier.
+
+**Applies To:** All agents running `gh pr merge` in auto mode (e.g., PR resolution sweeps, post-CI land automation).
+
+---
+
+## #130 [Build] A Staleness Check (Ancestry-Only) Is NOT a Cleanliness Check — STALE ≠ No Uncommitted Edits; Test Both Dimensions Independently Before an Overwrite
+
+**Pattern:** A worktree classification script (`check-hub-clean.sh`) categorized a worktree as STALE when its HEAD was an ancestor of `origin/main` — but **never tested whether the working tree had uncommitted edits**. Downstream code treated STALE as "safe to overwrite" and proceeded with `ff-redetach`, destroying the uncommitted work. Root cause: **staleness** (commit ancestry relative to origin) and **cleanliness** (presence of uncommitted changes) are **orthogonal, independent conditions**. A worktree can be simultaneously STALE *and* dirty. A single-dimension ancestry probe does not answer the safety question.
+
+**Instances:**
+- 2026-08-03 — DevOps (t/2066#14, bdf14727): `check-hub-clean.sh` classified a worktree STALE (HEAD is ancestor of origin/main), but the worktree had uncommitted edits to the same files being overwritten. `ff-redetach` proceeded on the STALE classification → **work destroyed**. Fix: STALE now exits 1 (same as WIP); only PHANTOM and ZERO-BYTE classifications are safe to proceed over.
+
+**Root Cause:** The STALE classification checked *one dimension* of "is this worktree safe to overwrite?": commit ancestry. It never checked the *orthogonal dimension*: working tree state (`git status --porcelain`). The two conditions are independent — a worktree behind origin (STALE) can still have local WIP. Treating the result of a partial probe as a complete safety predicate is a **classification completeness failure**: the gate measured the wrong (or insufficient) signal for the decision it was gating.
+
+**Prevention:**
+1. **Any overwrite safety predicate must test ALL dimensions that can independently carry unsafe state.** For a worktree: (a) commit ancestry *and* (b) working tree cleanliness are independent — both must pass for a safe overwrite. One-of-two is insufficient.
+2. **Conservative default: treat any classification that doesn't positively confirm BOTH clean AND current as unsafe.** STALE + dirty = unsafe; STALE + clean = debatable; only PHANTOM (worktree gone) and ZERO-BYTE (no real content) are unambiguously safe to overwrite without a working tree check.
+3. **"Can I overwrite this?" is a conjunction, not a disjunction.** `safe = (no uncommitted edits) AND (ancestry position is acceptable)` — both must hold. Never short-circuit on one.
+4. **Sibling of the bookkeeping≠artifact genus** (#84/#90/#96): a status signal (STALE classification) described the process (commit position) but not the deliverable (working tree content). The safe check is always at the object/content level (`git status --porcelain`), not the lifecycle/classification level.
+
+**Status:** Active — classification completeness failure; fixed in `check-hub-clean.sh` (bdf14727) by making STALE exit 1 (same as WIP). The underlying principle applies to any multi-dimensional safety check: test every independent dimension that can carry risk.
+
+**Applies To:** All agents writing or using worktree-state classification scripts; any code that gates a destructive/overwrite action on a single-dimension safety probe.
+
+---
+
+## #131 [Build] `git merge --continue` Accepts No Arguments — `--no-edit` Is a `git commit` Flag; Bypass the Editor with `GIT_EDITOR=true`
+
+**Pattern:** `git merge --continue --no-edit` exits **129** (usage error) — `--no-edit` is not a valid flag for `git merge --continue`. Unlike `git commit --no-edit` (which skips the editor for an existing message), `git merge --continue` accepts **no arguments at all**. The flag bleeds from the `git commit` mental model into `git merge --continue`, where it is simply illegal. To bypass the editor non-interactively, set `GIT_EDITOR=true` — the `true` command always exits 0 without opening anything, so git treats it as a silent no-op editor.
+
+**Instances:**
+- 2026-08-03 — Orca Support (p/13#29): `git merge --continue --no-edit` during a conflict-resolution flow exited 129. Resolved by `GIT_EDITOR=true git merge --continue`.
+
+**Root Cause:** `git commit` and `git merge --continue` share the "continue a pending operation" concept but have different argument grammars. `git commit --no-edit` is a first-class flag; `git merge --continue` internally invokes `git commit` but exposes NO pass-through flags to the caller. Mental-model bleed from `git commit` syntax into the `git merge --continue` invocation.
+
+**Prevention:**
+1. **`git merge --continue` takes no flags** — run it bare: `git merge --continue`. Any argument causes a 129 usage error.
+2. **To suppress the editor non-interactively:** `GIT_EDITOR=true git merge --continue` — the `true` binary exits 0 immediately without prompting; git accepts it as a valid editor invocation and proceeds with the auto-generated merge commit message.
+3. **Other non-interactive merge alternatives:** `git merge --no-edit` (on the INITIAL merge, not `--continue`) or `git -c core.editor=true merge --continue` are equivalent to the `GIT_EDITOR=true` form.
+4. **Related**: `git rebase --continue` also accepts no `--no-edit`; same `GIT_EDITOR=true` technique applies. The pattern is: `--continue` subcommands of git operations route through their own commit path and don't accept commit-level flags directly.
+
+**Status:** Active — git CLI grammar gap: `--continue` subcommands (merge, rebase, cherry-pick) accept no `--no-edit`; use `GIT_EDITOR=true`. Self-correcting (exit 129 is loud) but wastes time when the workaround isn't known.
+
+**Applies To:** All agents running `git merge --continue`, `git rebase --continue`, or `git cherry-pick --continue` in non-interactive sessions.
+
+---
+
+## #132 [Process] `git push --force-with-lease` in Auto Mode Is Blocked by the Safety Classifier — Force-Pushes Are "Hard-to-Reverse"; Surface as `! git push` for User Authorization
+
+**Pattern:** `git push --force-with-lease` (and any force-push variant) in an **auto-mode agent session** is intercepted by the Claude Code safety classifier and blocked. The classifier specifically lists force-pushing as a **hard-to-reverse operation** (can overwrite upstream history, destroy others' work). This is the same classifier gate as `gh pr merge` (#129) — both are in the "hard-to-reverse + visible to others" class — but triggered by a different command. Resolution: surface `! git push --force-with-lease <remote> <branch>` to the user for direct authorization.
+
+**Instances:**
+- 2026-08-03 — Orca Support (p/13#31): `git push --force-with-lease` blocked during PR #289 conflict-resolution flow (after resolving conflicts via merge commit + soft-reset). Resolved by surfacing `! git push` as a user instruction.
+
+**Root Cause:** Force-push rewrites the remote ref's history — if another agent or user has pushed since your last fetch, a force-push discards their work. The safety classifier gates this at the tool-call layer regardless of auto-mode level; this is **correct and intended behavior**. Unlike regular `git push` (allowed in auto mode for non-main branches via worktrees), force-push is always gated because the damage profile is higher and the user must affirm they understand the rewrite.
+
+**Prevention:**
+1. **`git push --force-with-lease` will always be blocked in auto mode** — plan for a manual user-authorization step in any workflow that requires a force-push (conflict resolution, history cleanup, rebase-then-push flows).
+2. **Surface as `! git push --force-with-lease <remote> <branch>`** — the `!` prefix runs the command under user authorization in the active session.
+3. **Prefer rebase-then-regular-push over force-push when possible** — if the branch has no shared history, a fast-forward or regular push avoids the classifier gate entirely.
+4. **Sibling of `gh pr merge` classifier gate (#129):** both are in the "hard-to-reverse + visible to others" class. The general rule: any operation that REWRITES or MERGES remote state requires explicit user authorization in auto mode.
+
+**Status:** Active — safety-classifier gate on force-push; by design. Every agent needing to force-push in auto mode will hit this. The fix is architectural: design conflict-resolution workflows with a manual authorization step for the force-push.
+
+**Applies To:** All agents running `git push --force-with-lease`, `git push --force`, or any force-push variant in auto mode.
+
+---
+
+## #133 [Build] `gh run list` Has No `--offset` Flag — Use `--commit <sha>` or `--limit` for Targeted Lookups
+
+**Pattern:** Assuming `gh run list` supports `--offset` for pagination or positional filtering. The flag does not exist — `gh run list` supports `--limit`, `--commit <sha>`, `--branch`, `--status`, and `--workflow` as filters, but not `--offset`.
+
+**Instances:**
+- 2026-08-03 — DevOps (p/26#42): `gh run list` called with `--offset`; exited with an "unknown flag" error. Fixed by using `--commit <sha>` to look up runs for a specific commit. No persistent impact.
+
+**Root Cause:** Familiarity with offset-based pagination in other CLIs (e.g. `gh api --paginate` or REST `?offset=`) creates an assumption that `gh run list` supports an equivalent positional flag. It does not — `gh run list` uses `--limit` to cap result count and targeted filters (`--commit`, `--branch`, `--workflow`) to scope results. CLI surface assumption: expecting a flag that matches the mental model without confirming it in `--help`.
+
+**Prevention:**
+1. Run `gh run list --help` before assuming flag availability — especially for pagination/filtering patterns borrowed from other tools or APIs.
+2. To look up runs for a specific commit: `gh run list --commit <sha>`.
+3. To cap results: `--limit N` (default 20).
+4. When a CLI flag returns "unknown flag," consult `<command> --help` immediately rather than trying variations.
+
+**Status:** Active — 1 instance (DevOps p/26#42); no persistent impact. CLI surface assumption, self-correcting at the error.
+
+**Applies To:** All agents using `gh run list` for CI lookups.
+
+---
+
+## #134 [Build] Edit/Write Tool Applied to Main-Checkout Path During Worktree Workflow — Edit Lands in Wrong Tree, `git add` Finds Nothing Staged
+
+**Pattern:** During a worktree workflow, the Edit or Write tool is called with the absolute path of the file in the main checkout (e.g. `C:\repos\ai-triad-research\<scope>\<file>`) rather than the worktree path (e.g. `C:\repos\ai-triad-research\operations\wt-<name>\<scope>\<file>`). The edit succeeds silently — it modifies the file in the shared tree — but `git add` in the worktree finds nothing staged because the changed file is not under the worktree root.
+
+**Instances:**
+- 2026-08-03 — DevOps (p/26#44): Edit tool inferred `file_path` from scope/context knowledge without confirming the active worktree root first. `git add` found nothing staged. Fixed by re-applying the edit to the correct worktree absolute path.
+
+**Root Cause:** The Edit/Write tools take an absolute path and do not validate it against the active worktree. Agents know their scope's canonical path (e.g. `operations/devops/`) and naturally infer `file_path` by prepending the repo root they know from context — but in a worktree, the root is different. Without explicitly confirming the worktree root via `git worktree list`, the inferred path silently targets the shared checkout instead. Distinct from #128 (Bash tool `ls` on wrong POSIX path due to depth miscount) — here the failure is a wrong absolute path to Edit/Write.
+
+**Prevention:**
+1. **At the start of every worktree workflow, record the worktree's absolute root** from `git worktree list` output (or the `git worktree add` output line `HEAD is now at …`).
+2. **All Edit/Write calls must use paths prefixed with the worktree root** — never with the main-checkout repo root, even if the scope's relative path is well-known.
+3. **Confirm before first Edit:** `git worktree list | grep <branch-name>` gives the canonical absolute path.
+4. Sibling of #128 — both produce an edit-to-wrong-tree; #128 affects Bash tool path access, #134 affects Edit/Write tool file_path.
+
+**Status:** Active — 1 instance (DevOps p/26#44). 4th env/path hazard in the worktree-land cluster.
+
+**Applies To:** All agents using Edit or Write tool during a worktree landing workflow.
+
+---
+
+## #136 [API] `gh pr checkout` on a Fork PR Tracks the Fork Remote — Subsequent `git push` Routes to the Fork, Not Origin
+
+**Pattern:** `gh pr checkout <fork-pr-number>` creates a local branch that tracks the **fork contributor's remote**, not `origin`. A subsequent `git push` routes to the fork's remote (which the agent typically lacks write access to), not to the project's origin. The checkout appears to succeed normally and the local branch looks right — the remote routing mismatch only surfaces on push.
+
+**Instances:**
+- 2026-08-03 — Orca Support (p/13#33, PR #289): `gh pr checkout` on a fork PR mapped the head to a local branch tracking the fork remote — push attempts routed to the fork, not origin. Resolved by abandoning the checkout and using a worktree from main + cherry-pick instead.
+
+**Root Cause:** `gh pr checkout` mirrors the fork PR's head ref and wires the local branch upstream to the fork's remote. This is correct for a contributor wanting to test or amend the fork's code, but wrong for a maintainer who needs to push back to origin. The local branch name and content are identical to what origin would produce — only the upstream remote differs.
+
+**Prevention:**
+1. **For fork PRs where you need to push to origin, don't use `gh pr checkout`** — use a worktree from main (`git worktree add -b <branch> <path> origin/main`), cherry-pick the fork commits, then push to origin.
+2. After any `gh pr checkout`, verify the upstream with `git branch -vv` before pushing — if it points to a fork remote, reset with `git push --set-upstream origin <branch>`.
+
+**Status:** Active — fork PR checkout remote trap; worktree + cherry-pick is the safe alternative for maintainer pushes.
+
+**Applies To:** All agents handling fork PR contributions that require pushing back to origin.
+
+---
+
+## #137 [Process] Safety Classifier Blocks Moving Untracked Files to `/tmp` — Use Session Scratchpad or Worktree Instead
+
+**Pattern:** During worktree-based workflows, attempting to move or copy untracked files to `/tmp` is blocked by the safety classifier — the `mv`/`cp` to `/tmp` is treated as potentially destructive (data could be lost if `/tmp` is cleared). This commonly arises when an agent tries to stage untracked files out of the way before a cherry-pick or rebase.
+
+**Instances:**
+- 2026-08-03 — Orca Support (p/13#33, PR #289): attempted to move untracked files to `/tmp` during fork PR resolution — blocked by safety classifier. Resolved by using a fresh worktree from main + cherry-pick, bypassing the need to stage files aside.
+
+**Root Cause:** `/tmp` on the session machine is ephemeral and shared; moving files there risks silent data loss. The classifier gates writes to `/tmp` for untracked (uncommitted) files. The worktree-from-main + cherry-pick approach achieves the same goal (clean working state) without needing to relocate untracked files.
+
+**Prevention:**
+1. **Don't stage untracked files to `/tmp`** — if you need a clean working state, use a fresh worktree (`git worktree add -b <branch> <path> origin/main`) and cherry-pick the commits you need. No file relocation required.
+2. If temporary file storage is genuinely needed, use the session scratchpad directory (provided in session context) — not `/tmp`.
+
+**Status:** Active — classifier gate on `/tmp` moves of untracked files; by design. Worktree + cherry-pick is the classifier-safe alternative.
+
+**Applies To:** All agents working around untracked files in git workflows where a clean working tree is needed.
+
+---
+
+## #138 [Process] Cherry-Pick Into a Worktree Conflicts on Shared Doc Files — Use `--theirs` to Accept the Cherry-Picked Version
+
+**Pattern:** Cherry-picking a commit onto a fresh worktree from main conflicts in shared doc files (e.g., `LessonsLearned.md`, category lesson files) — both the cherry-pick source and the worktree's current main-based state have modified the same lines. `--theirs` resolves conflicts in favor of the **cherry-picked commit's version** (the version being brought in), which is the correct choice when the cherry-pick carries the desired state.
+
+**Instances:**
+- 2026-08-03 — Orca Support (p/13#33, PR #289): cherry-picking fork PR commits onto a clean worktree conflicted in Sage docs. Resolved with `--theirs` (took the cherry-picked version).
+
+**Root Cause:** Doc files like `LessonsLearned.md` receive concurrent edits from multiple agents across many branches. A cherry-pick sourced from a branch that diverged before recent doc updates will conflict with the current main-based state. The cherry-picked version is the authoritative state being preserved.
+
+**Prevention:**
+1. **Before cherry-picking onto a docs-heavy worktree, check for overlapping file sets:** `git diff origin/main...<source-sha> -- <doc-path>` — if the cherry-pick touches the same docs, expect conflicts.
+2. **`git cherry-pick -X theirs <sha>`** auto-resolves all conflicts in favor of the incoming commit — use it when the cherry-pick is the authoritative state and conflicts are expected to be stale-base divergence.
+3. Per-file: `git checkout --theirs <conflicted-file>` then `git add <file>` then `git cherry-pick --continue`.
+
+**Status:** Active — doc file cherry-pick conflicts in multi-agent worktree workflows; --theirs resolution pattern.
+
+**Applies To:** All agents cherry-picking commits that include shared doc file changes onto a main-based worktree.
+
+---
+
+## #139 [Build] `git commit -- <pathspec>` Commits Working-Tree Content, Silently Discarding a Staged `git rm --cached`
+
+**Pattern:** `git commit -m "..." -- <pathspec>` commits the **working-tree content** of the named paths, bypassing the staged index for those paths. If `git rm --cached <file>` has been staged (marking the file for removal), a subsequent pathspec commit silently discards that staged removal and re-commits the file from the working tree. The commit succeeds with a plausible file count and no error — it reads as done when the intended removal never happened.
+
+**Instances:**
+- 2026-08-03 — TL (t/2080, p/8#175, commit 9468557): `ogit commit -- <path>` after a staged `git rm --cached` silently re-committed the overlay file instead of removing it. Caught by inspecting the commit; corrected in 00a1cc0.
+
+**Root Cause:** `git commit -- <pathspec>` snapshots **working-tree content** directly for the named paths, overriding the staged index for those paths. This design allows committing without a prior `git add`, but it is **incompatible with `git rm --cached`** — the staged removal is overridden by the working tree snapshot. The explicit-pathspec commit habit (ADR-005, designed to prevent sweeping peers' staged files) becomes a trap when the intent is a staged removal: the pathspec form re-takes the working tree instead of honoring the staged state.
+
+**Prevention:**
+1. **Never pair `git rm --cached` with a pathspec commit** — they are semantically incompatible. `git rm --cached` stages a removal; `git commit -- <path>` discards that staged state in favor of the working tree.
+2. To remove a file from index tracking: `git rm --cached <file>`, verify with `git diff --cached` (confirm the removal appears), then commit **bare** (no pathspec): `git commit -m "..."`. The bare commit honors the full staged index, including removals.
+3. **Use `git diff --cached` as the pre-commit gate** — if it shows exactly your intended changes (and only your paths), a bare commit is safe. The pathspec guard (ADR-005) is for shared working trees where peers may have staged files; `git diff --cached` confirms whether bare is safe.
+4. **Inspect `git show --stat HEAD` after any `rm --cached` + commit** — a plausible success message is insufficient; confirm the removal actually appears in the commit's file list.
+
+**Applies To:** All agents staging a `git rm --cached` before a pathspec commit (ADR-005 habit).
+
+**Status:** Active — single instance; sharp incompatibility between the pathspec commit habit and staged-removal operations.

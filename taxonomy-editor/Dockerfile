@@ -7,7 +7,7 @@
 # (see deploy/azure/Dockerfile.base)
 
 # ── Stage 1: Build ──
-FROM node:22-bookworm-slim AS builder
+FROM node:22.23.2-bookworm-slim AS builder
 
 WORKDIR /build
 
@@ -53,7 +53,7 @@ WORKDIR /build/taxonomy-editor
 RUN npm run build:container
 
 # ── Stage 2: Production dependencies (with build tools for native modules) ──
-FROM node:22-bookworm-slim AS prod-deps
+FROM node:22.23.2-bookworm-slim AS prod-deps
 
 # node-pty requires make/g++/python3 for compilation when prebuilds
 # are unavailable. The runtime base image is intentionally slim (no
@@ -90,6 +90,9 @@ ENV TAXONOMY_CACHE_DIR=/tmp/taxonomy-cache
 ENV PORT=7862
 ENV NODE_ENV=production
 ENV PYTHONUNBUFFERED=1
+# PYTHONUTF8=1: PEP 540 UTF-8 Mode — forces UTF-8 for stdio AND open() on all platforms.
+# Prevents UnicodeEncodeError/DecodeError on non-ASCII from pty-broker.py (t/2046).
+ENV PYTHONUTF8=1
 
 WORKDIR /app
 
