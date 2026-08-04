@@ -5,6 +5,7 @@ import { useEffect, useState, useRef } from 'react';
 import { useCommunityStore, type CommunityChat, type CommunityDebate } from '../../hooks/useCommunityStore';
 import { useFlag } from '../../hooks/useFeatureFlags';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
+import { TOAST_DURATION_INFO, TOAST_DURATION_ERROR } from '../../constants';
 
 type Tab = 'chats' | 'debates';
 
@@ -140,7 +141,7 @@ export function CommunityLibrary() {
 
   useEffect(() => { void fetchChats(); void fetchDebates(); }, []);
 
-  const showToast = (text: string, type: 'info' | 'error' = 'info', durationMs = 3000) => {
+  const showToast = (text: string, type: 'info' | 'error' = 'info', durationMs = TOAST_DURATION_INFO) => {
     setToastMsg({ text, type });
     setTimeout(() => setToastMsg(null), durationMs);
   };
@@ -151,7 +152,7 @@ export function CommunityLibrary() {
       showToast('Copied to your library!');
     } catch (err) {
       getGlobalRecorder()?.record({ type: 'system.error', component: 'CommunityLibrary', level: 'error', message: 'Failed to copy community item', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
-      showToast(`Error: ${err instanceof Error ? err.message : String(err)}`, 'error', 5000);
+      showToast(`Error: ${err instanceof Error ? err.message : String(err)}`, 'error', TOAST_DURATION_ERROR);
     }
   };
 
@@ -161,7 +162,7 @@ export function CommunityLibrary() {
       showToast('Removed from community library.');
     } catch (err) {
       getGlobalRecorder()?.record({ type: 'system.error', component: 'CommunityLibrary', level: 'error', message: 'Failed to remove community item', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
-      showToast(`Removal failed: ${err instanceof Error ? err.message : String(err)}`, 'error', 5000);
+      showToast(`Removal failed: ${err instanceof Error ? err.message : String(err)}`, 'error', TOAST_DURATION_ERROR);
     }
   };
 
