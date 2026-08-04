@@ -671,6 +671,32 @@ jobs:
           TRANSFORMERS_OFFLINE: '1'
         run: python .github/ci/assert_embed_stability.py
 
+  # ── dependency-coverage: build-path coverage check (t/2077) ────────────────
+  # Parses taxonomy-editor/Dockerfile to derive which local packages are compiled
+  # into the container but NOT installed by the prod-deps stage. Fails if any
+  # runtime dep of those packages is absent from the production stage's installed
+  # set — catching the class of gap that was previously caught only by test-container
+  # going red (too late). No npm install needed; pure JSON + Dockerfile analysis.
+  # Paths-filtered to container + lib changes (the two triggers for a gap):
+  #   container — Dockerfile or taxonomy-editor/package.json changed
+  #   lib       — lib/package.json changed (new dep may create a gap)
+  # Skipped on unrelated PRs (docs-only, PS-only); skip = OK through ci-gate.
+  dependency-coverage:
+    needs: [changes]
+    if: >-
+      always() && !cancelled() &&
+      (github.event_name != 'pull_request' ||
+       needs.changes.outputs.container == 'true' ||
+       needs.changes.outputs.lib == 'true')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v6
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v6
+        with:
+          node-version: '22'
+      - name: Build-path dependency coverage check
+        run: node scripts/ci-audit-build-paths.mjs
+
   # ── ci-gate: the SINGLE required status context (t/1962) ──────────────────
   # Replaces the 6 individual code-check contexts in branch protection. Those get
   # SKIPPED by path-filtering on non-electron PRs (docs-only, PS-only); a skipped
@@ -686,11 +712,13 @@ jobs:
   # job IDs); lib-lint / dependency-audit / schema-validation are intentionally NOT
   # gated here (not required contexts today — separate decision). Add future
   # *required* jobs to `needs`; their path-filtered skips report OK.
-  # python-embed-smoke (t/1989) is gated here: it validates the pip embedding
-  # stack's value-stability, path-filtered to requirements/.github/ci changes, skip = OK.
+  # python-embed-smoke (t/1989) is gated here: validates pip embedding stack value-
+  # stability, path-filtered to requirements/.github/ci changes, skip = OK.
+  # dependency-coverage (t/2077) is gated here: build-path dep coverage check,
+  # path-filtered to container/lib changes, skip = OK.
   ci-gate:
     name: ci-gate
-    needs: [changes, test-powershell, test-electron, test-container, python-embed-smoke]
+    needs: [changes, test-powershell, test-electron, test-container, python-embed-smoke, dependency-coverage]
     if: always()
     runs-on: ubuntu-latest
     steps:
