@@ -339,6 +339,8 @@ Institutional memory for failure patterns across the AI Triad Research project.
 4. Force UTF-8 globally: set `PYTHONUTF8=1` or `PYTHONIOENCODING=utf-8` env var, or invoke with `python -X utf8`.
 5. Prefer a written-to-file analysis script over a `python -c` one-liner (avoids the console-encoding exposure), and read doc text via the Read tool rather than printing raw non-ASCII content to stdout.
 
+**Status:** Resolved — `PYTHONUTF8=1` set fleet-wide (t/2046, PR #385, p/26#48, 2026-08-03): Windows User env var + `ci.yml` `python-embed-smoke` env + hard-fail assertion + both Dockerfiles. Point-of-environment guarantee now active. Pattern closed after 7 instances.
+
 **Applies To:** All agents writing Python that reads/writes text files or prints Unicode, especially on Windows.
 
 ---
