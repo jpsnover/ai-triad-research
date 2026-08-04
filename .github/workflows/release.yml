@@ -133,27 +133,30 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v6
 
+      - uses: pnpm/action-setup@v4
+        with:
+          version: '11.20.0'
+
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v6
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
-          cache-dependency-path: taxonomy-editor/package-lock.json
+          cache: 'pnpm'
+          cache-dependency-path: 'pnpm-lock.yaml'
 
       - name: Apply resolved version to package.json
         working-directory: taxonomy-editor
         run: npm version "$RELEASE_VERSION" --no-git-tag-version --allow-same-version
 
       - name: Install dependencies
-        working-directory: taxonomy-editor
-        run: npm ci
+        run: pnpm install --frozen-lockfile
 
       - name: Build app
         working-directory: taxonomy-editor
-        run: npm run build
+        run: pnpm run build
 
       - name: Package for macOS
         working-directory: taxonomy-editor
-        run: npx electron-builder --mac
+        run: pnpm exec electron-builder --mac
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -172,27 +175,30 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v6
 
+      - uses: pnpm/action-setup@v4
+        with:
+          version: '11.20.0'
+
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v6
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
-          cache-dependency-path: taxonomy-editor/package-lock.json
+          cache: 'pnpm'
+          cache-dependency-path: 'pnpm-lock.yaml'
 
       - name: Apply resolved version to package.json
         working-directory: taxonomy-editor
         run: npm version "$env:RELEASE_VERSION" --no-git-tag-version --allow-same-version
 
       - name: Install dependencies
-        working-directory: taxonomy-editor
-        run: npm ci
+        run: pnpm install --frozen-lockfile
 
       - name: Build app
         working-directory: taxonomy-editor
-        run: npm run build
+        run: pnpm run build
 
       - name: Package for Windows
         working-directory: taxonomy-editor
-        run: npx electron-builder --win
+        run: pnpm exec electron-builder --win
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -211,27 +217,30 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v6
 
+      - uses: pnpm/action-setup@v4
+        with:
+          version: '11.20.0'
+
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v6
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
-          cache-dependency-path: taxonomy-editor/package-lock.json
+          cache: 'pnpm'
+          cache-dependency-path: 'pnpm-lock.yaml'
 
       - name: Apply resolved version to package.json
         working-directory: taxonomy-editor
         run: npm version "$RELEASE_VERSION" --no-git-tag-version --allow-same-version
 
       - name: Install dependencies
-        working-directory: taxonomy-editor
-        run: npm ci
+        run: pnpm install --frozen-lockfile
 
       - name: Build app
         working-directory: taxonomy-editor
-        run: npm run build
+        run: pnpm run build
 
       - name: Package for Linux
         working-directory: taxonomy-editor
-        run: npx electron-builder --linux
+        run: pnpm exec electron-builder --linux
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

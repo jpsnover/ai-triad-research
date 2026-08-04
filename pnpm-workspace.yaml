@@ -1,0 +1,16 @@
+packages:
+  - taxonomy-editor
+  - lib
+  - lib/debate
+  - poviewer
+  - summary-viewer
+  - workflow-app
+
+allowBuilds:
+  '@google/genai': true
+  electron-winstaller: true
+  esbuild: true
+  node-pty: true
+  onnxruntime-node: true
+  protobufjs: true
+  sharp: true

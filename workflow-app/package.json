@@ -1,6 +1,7 @@
 {
   "name": "ai-triad-workflow",
   "version": "1.0.0",
+  "packageManager": "pnpm@11.20.0",
   "description": "Visual pipeline runner for AI Triad document ingestion and taxonomy workflow",
   "main": "dist/main/main.js",
   "scripts": {
