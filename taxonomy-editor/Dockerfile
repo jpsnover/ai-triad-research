@@ -22,9 +22,9 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
 RUN npm install -g pnpm@11.20.0
 
 # Copy dependency manifests first (Docker layer caching)
-# pnpm-workspace.yaml + root pnpm-lock.yaml provide the workspace root at /build so
-# allowBuilds applies; without them builder gets ERR_PNPM_IGNORED_BUILDS for node-pty etc.
-COPY pnpm-workspace.yaml pnpm-lock.yaml ./
+# pnpm-workspace.yaml + root pnpm-lock.yaml establish the workspace root at /build so
+# allowBuilds applies; root package.json carries @types/node (needed by build:container tsc).
+COPY pnpm-workspace.yaml pnpm-lock.yaml package.json ./
 COPY taxonomy-editor/package.json taxonomy-editor/pnpm-lock.yaml ./taxonomy-editor/
 COPY lib/ ./lib/
 
