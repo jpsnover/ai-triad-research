@@ -241,7 +241,7 @@ jobs:
         # the other apps → plain run only (they have no coverage step).
         if: matrix.app != 'taxonomy-editor'
         working-directory: ${{ matrix.app }}
-        run: pnpm test --if-present
+        run: pnpm run --if-present test
 
       - name: Test with coverage
         if: matrix.app == 'taxonomy-editor'
