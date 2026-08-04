@@ -51,6 +51,7 @@ research/comp-linguist/_confusable_neighbors.json
 scripts/AITriad/Provider/obj/
 
 # Data — lives in ai-triad-data repo (see .aitriad.json)
+/.local-data/
 /taxonomy/Origin/
 /sources/
 /summaries/

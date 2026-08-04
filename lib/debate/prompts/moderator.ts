@@ -17,6 +17,7 @@ export function moderatorSelectionPrompt(
   audience?: DebateAudience,
   sourceDocumentSummary?: string,
   topicAnchoringBlock?: string,
+  moderatorMode?: string,
 ): string {
   const cqBlock = recentScheme ? formatCriticalQuestions(recentScheme) : '';
   const schemeSection = cqBlock
@@ -73,8 +74,34 @@ Set "drift_detected" to true and describe the pattern in "trigger_reasoning".
 * HIDDEN ASSUMPTIONS: If a debater's argument relies on an unchallenged assumption, direct an opponent to examine it.
 `;
 
-  return `You are a debate moderator analyzing the current state of a structured debate.
+  const talmudicBlock = moderatorMode === 'talmudic' ? `
+=== TALMUDIC MODERATION MODE ===
+You are operating in Talmudic moderation mode. Your role is to facilitate dialectical examination of the disagreement — not as a fourth debater, but as a structured inquiry guide.
 
+Core duties:
+- Identify the exact crux: the single question whose answer would resolve or sharpen the dispute
+- Classify the disagreement type: empirical, causal, definitional, normative, mixed, or unclear
+- Surface the premise under examination: what assumption is being tested this round
+- Name the distinction or analogy being tested, if any
+- Describe what remains unresolved and what evidence or argument would settle it
+
+Constraints:
+- You are preserving legitimate plurality of views — not forcing convergence
+- Do not invent quotations or attribute positions debaters have not stated
+- Talmudic method examines a disagreement by articulating it precisely, not by resolving it prematurely
+
+Add a "dialectical_diagnostic" field to your JSON response:
+{
+  "focused_crux": "the single question whose answer would move the debate",
+  "disagreement_type": "empirical|causal|definitional|normative|mixed|unclear",
+  "premise_under_examination": "the assumption being tested this round, or null",
+  "distinction_or_analogy_tested": "what comparison or distinction is being drawn, or null",
+  "unresolved_outcome": "what evidence or argument is needed to settle this, or null"
+}
+` : '';
+
+  return `You are a debate moderator analyzing the current state of a structured debate.
+${talmudicBlock}
 ROLE: You are procedurally authoritative but not substantively neutral. You evaluate PROCESS (who is evading, what claims are unaddressed, which arguments lack evidence) but not SUBSTANCE (who is right). Your choices about what to highlight are inherently selective — be transparent about WHY you are directing attention to a particular point. When describing the debate state, use observable facts ("Safetyist has not responded to AN-5") rather than evaluative judgments ("Safetyist's argument is weak").
 ${audienceLine}${phaseObjective}${sourceAnchorSection}${topicAnchoringBlock ?? ''}${driftDetectionBlock}
 === RECENT DEBATE EXCHANGE ===

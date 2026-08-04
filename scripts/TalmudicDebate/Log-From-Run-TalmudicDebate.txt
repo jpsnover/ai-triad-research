@@ -1,0 +1,1098 @@
+.\Invoke-TalmudicReferenceExperiment.ps1
+
+Pair 1/3 — method-only
+warning: The following paths are not up to date and were left despite sparse patterns:
+        calibration/core/calibration-log.jsonl
+        calibration/users/local/calibration-log.jsonl
+
+After fixing the above paths, you may want to run `git sparse-checkout reapply`.
+AI_TRIAD_DATA_ROOT=D:\mygit\ai-triad-research\.local-data\ai-triad-data
+OPENAI_API_KEY is set (value hidden)
+Running Talmudic debate config: D:\mygit\ai-triad-research\.local-data\talmudic-experiments\talmudic-reference-20260713-160058\pair-1-method-only.json
+Talmudic reference mode: method-only
+[debate-cli] Repo root: D:\mygit\ai-triad-research
+[debate-cli] Loading taxonomy...
+[debate-cli] Loaded: 172 acc, 299 saf, 314 skp, 413 sit nodes
+[debate-cli] Vocabulary: 0 standardized, 0 colloquial terms
+[debate-cli] Model: openai-gpt-4o-mini
+[debate-cli] Talmudic references: method-only
+[debate-cli] Starting debate: "Should advanced AI development be regulated like a public utility?..." with accelerationist, safetyist, skeptic, 1 rounds
+Python was not found; run without arguments to install from the Microsoft Store, or disable this shortcut from Settings > Apps > Advanced app settings > App execution aliases.
+[embedding] ONNX and Python unavailable, falling back to Gemini API (dimension mismatch with taxonomy — attribution accuracy may degrade)
+[onnxEmbedding] Using dml EP (available: cpu, dml, webgpu)
+2026-07-13 12:01:11.1977709 [W:onnxruntime:, session_state.cc:1367 onnxruntime::VerifyEachNodeIsAssignedToAnEp] Some nodes were not assigned to the preferred execution providers which may or may not have an negative impact on performance. e.g. ORT explicitly assigns shape related ops to CPU to improve perf.
+2026-07-13 12:01:11.2117307 [W:onnxruntime:, session_state.cc:1369 onnxruntime::VerifyEachNodeIsAssignedToAnEp] Rerunning with verbose output on a non-minimal build will show node assignments.
+[onnxEmbedding] Model loaded in 2130ms (384d, quantized, EP=dml)
+[ai-adapter] ONNX embedding ready — subprocess cold-starts eliminated
+[doctrinal.threshold-anomaly] Only 0 Beliefs anchored (<3) — threshold may be too high
+[doctrinal.threshold-anomaly] Only 2 Beliefs anchored (<3) — threshold may be too high
+[doctrinal] safetyist: 2/144 Beliefs anchored, 2 floor-applied
+[doctrinal] skeptic: 14/217 Beliefs anchored, 3 floor-applied
+[debate-cli] [setup] Evaluating topic quality
+[debate-cli] [generating] Topic critique
+[usage] {"ts":"2026-07-13T16:01:25.751Z","backend":"openai","model":"gpt-4o-mini","latencyMs":12338,"promptTokens":1045,"completionTokens":652,"cachedTokens":0,"totalTokens":1697}
+[debate-cli] [setup] Topic quality: fair (9/20)
+[debate-cli] [setup] Reframing topic for productive disagreement
+[debate-cli] [setup] Topic reframed: Reverted: structural score regressed after reframing
+[debate-cli] [setup] Extracting topic scope
+[debate-cli] [generating] Topic scope extraction
+[usage] {"ts":"2026-07-13T16:01:30.713Z","backend":"openai","model":"gpt-4o-mini","latencyMs":4925,"promptTokens":1631,"completionTokens":342,"cachedTokens":0,"totalTokens":1973}
+[debate-cli] [setup] Topic scope extracted (explicit, 4 off-scope, 4 drift sigs)
+[debate-cli] [opening] skeptic: Skeptic preparing opening statement
+[debate-cli] [opening] skeptic: Skeptic is briefing...
+[debate-cli] [generating] Skeptic opening brief
+[usage] {"ts":"2026-07-13T16:01:38.569Z","backend":"openai","model":"gpt-4o-mini","latencyMs":7819,"promptTokens":5768,"completionTokens":419,"cachedTokens":0,"totalTokens":6187}
+[debate-cli] [opening] skeptic: Skeptic is planning...
+[debate-cli] [generating] Skeptic opening plan
+[usage] {"ts":"2026-07-13T16:01:46.669Z","backend":"openai","model":"gpt-4o-mini","latencyMs":8099,"promptTokens":2632,"completionTokens":391,"cachedTokens":0,"totalTokens":3023}
+[debate-cli] [opening] skeptic: Skeptic is drafting...
+[debate-cli] [generating] Skeptic opening draft
+[usage] {"ts":"2026-07-13T16:01:53.299Z","backend":"openai","model":"gpt-4o-mini","latencyMs":6629,"promptTokens":3887,"completionTokens":470,"cachedTokens":0,"totalTokens":4357}
+[debate-cli] [opening] skeptic: Skeptic is citing...
+[debate-cli] [generating] Skeptic opening cite
+[usage] {"ts":"2026-07-13T16:02:00.188Z","backend":"openai","model":"gpt-4o-mini","latencyMs":6887,"promptTokens":6737,"completionTokens":321,"cachedTokens":0,"totalTokens":7058}
+[debate-cli] [generating] Claim extraction
+[usage] {"ts":"2026-07-13T16:02:06.894Z","backend":"openai","model":"gpt-4o-mini","latencyMs":6702,"promptTokens":2812,"completionTokens":283,"cachedTokens":0,"totalTokens":3095}
+[usage] {"ts":"2026-07-13T16:02:16.994Z","backend":"openai","model":"gpt-4o-mini","latencyMs":10022,"promptTokens":533,"completionTokens":152,"cachedTokens":0,"totalTokens":685}
+[debate-cli] [opening] accelerationist: Accelerationist preparing opening statement
+[debate-cli] [opening] accelerationist: Accelerationist is briefing...
+[debate-cli] [generating] Accelerationist opening brief
+[usage] {"ts":"2026-07-13T16:02:27.333Z","backend":"openai","model":"gpt-4o-mini","latencyMs":10265,"promptTokens":7041,"completionTokens":624,"cachedTokens":0,"totalTokens":7665}
+[debate-cli] [opening] accelerationist: Accelerationist is planning...
+[debate-cli] [generating] Accelerationist opening plan
+[usage] {"ts":"2026-07-13T16:02:32.547Z","backend":"openai","model":"gpt-4o-mini","latencyMs":5213,"promptTokens":2929,"completionTokens":348,"cachedTokens":0,"totalTokens":3277}
+[debate-cli] [opening] accelerationist: Accelerationist is drafting...
+[debate-cli] [generating] Accelerationist opening draft
+[usage] {"ts":"2026-07-13T16:02:42.258Z","backend":"openai","model":"gpt-4o-mini","latencyMs":9711,"promptTokens":4280,"completionTokens":496,"cachedTokens":0,"totalTokens":4776}
+[debate-cli] [opening] accelerationist: Accelerationist is citing...
+[debate-cli] [generating] Accelerationist opening cite
+[usage] {"ts":"2026-07-13T16:02:53.756Z","backend":"openai","model":"gpt-4o-mini","latencyMs":11498,"promptTokens":8105,"completionTokens":324,"cachedTokens":0,"totalTokens":8429}
+[debate-cli] [generating] Claim extraction
+[usage] {"ts":"2026-07-13T16:02:59.145Z","backend":"openai","model":"gpt-4o-mini","latencyMs":5387,"promptTokens":2887,"completionTokens":436,"cachedTokens":0,"totalTokens":3323}
+[usage] {"ts":"2026-07-13T16:03:01.952Z","backend":"openai","model":"gpt-4o-mini","latencyMs":2766,"promptTokens":553,"completionTokens":145,"cachedTokens":0,"totalTokens":698}
+[debate-cli] [opening] safetyist: Safetyist preparing opening statement
+[debate-cli] [opening] safetyist: Safetyist is briefing...
+[debate-cli] [generating] Safetyist opening brief
+[usage] {"ts":"2026-07-13T16:03:07.053Z","backend":"openai","model":"gpt-4o-mini","latencyMs":1703,"promptTokens":811,"completionTokens":58,"cachedTokens":0,"totalTokens":869}
+[usage] {"ts":"2026-07-13T16:03:10.453Z","backend":"openai","model":"gpt-4o-mini","latencyMs":8424,"promptTokens":6525,"completionTokens":566,"cachedTokens":0,"totalTokens":7091}
+[debate-cli] [opening] safetyist: Safetyist is planning...
+[debate-cli] [generating] Safetyist opening plan
+[usage] {"ts":"2026-07-13T16:03:17.002Z","backend":"openai","model":"gpt-4o-mini","latencyMs":6548,"promptTokens":3077,"completionTokens":355,"cachedTokens":0,"totalTokens":3432}
+[debate-cli] [opening] safetyist: Safetyist is drafting...
+[debate-cli] [generating] Safetyist opening draft
+[usage] {"ts":"2026-07-13T16:03:25.875Z","backend":"openai","model":"gpt-4o-mini","latencyMs":8873,"promptTokens":4436,"completionTokens":560,"cachedTokens":0,"totalTokens":4996}
+[debate-cli] [opening] safetyist: Safetyist is citing...
+[debate-cli] [generating] Safetyist opening cite
+[usage] {"ts":"2026-07-13T16:03:32.192Z","backend":"openai","model":"gpt-4o-mini","latencyMs":6316,"promptTokens":7513,"completionTokens":333,"cachedTokens":0,"totalTokens":7846}
+[debate-cli] [generating] Claim extraction
+[usage] {"ts":"2026-07-13T16:03:37.313Z","backend":"openai","model":"gpt-4o-mini","latencyMs":5119,"promptTokens":2987,"completionTokens":369,"cachedTokens":0,"totalTokens":3356}
+[usage] {"ts":"2026-07-13T16:03:39.782Z","backend":"openai","model":"gpt-4o-mini","latencyMs":2424,"promptTokens":617,"completionTokens":116,"cachedTokens":0,"totalTokens":733}
+[debate-cli] [evaluation] Neutral evaluation: baseline
+[usage] {"ts":"2026-07-13T16:03:42.614Z","backend":"openai","model":"gpt-4o-mini","latencyMs":2188,"promptTokens":1134,"completionTokens":69,"cachedTokens":0,"totalTokens":1203}
+[usage] {"ts":"2026-07-13T16:03:51.457Z","backend":"openai","model":"gpt-4o-mini","latencyMs":11627,"promptTokens":1859,"completionTokens":525,"cachedTokens":0,"totalTokens":2384}
+[debate-cli] [debate] Cross-respond round 1/1 [confrontation]
+[debate-cli] [generating] Round 1: Moderator selection
+[usage] {"ts":"2026-07-13T16:03:55.892Z","backend":"openai","model":"gpt-4o-mini","latencyMs":4421,"promptTokens":4702,"completionTokens":285,"cachedTokens":0,"totalTokens":4987}
+[debate-cli] [debate] skeptic: Skeptic responding (round 1)
+[orchestration] *** executeTurnWithRetry ENTERED for skeptic round 1 ***
+[debate-cli] [generating] skeptic: Skeptic is briefing...
+[debate-cli] [generating] Skeptic brief
+[usage] {"ts":"2026-07-13T16:04:05.270Z","backend":"openai","model":"gpt-4o-mini","latencyMs":9275,"promptTokens":8377,"completionTokens":354,"cachedTokens":0,"totalTokens":8731}
+[pipeline] Brief ID removed (unknown): saf-intentions-069
+[debate-cli] [generating] skeptic: Skeptic is planning...
+[debate-cli] [generating] Skeptic plan
+[usage] {"ts":"2026-07-13T16:04:15.369Z","backend":"openai","model":"gpt-4o-mini","latencyMs":10109,"promptTokens":9205,"completionTokens":255,"cachedTokens":0,"totalTokens":9460}
+[debate-cli] [generating] skeptic: Skeptic is drafting...
+[debate-cli] [generating] Skeptic draft
+[usage] {"ts":"2026-07-13T16:04:26.798Z","backend":"openai","model":"gpt-4o-mini","latencyMs":11424,"promptTokens":9904,"completionTokens":693,"cachedTokens":0,"totalTokens":10597}
+[debate-cli] [generating] skeptic: Skeptic is quality-checking draft...
+[debate-cli] [generating] Skeptic draft-quality-check
+[usage] {"ts":"2026-07-13T16:04:27.518Z","backend":"gemini","model":"gemini-3.1-flash-lite","latencyMs":718,"promptTokens":1088,"completionTokens":36,"totalTokens":1124}
+[debate-cli] [generating] skeptic: Skeptic is citing...
+[debate-cli] [generating] Skeptic cite
+[usage] {"ts":"2026-07-13T16:04:32.721Z","backend":"openai","model":"gpt-4o-mini","latencyMs":5202,"promptTokens":7594,"completionTokens":337,"cachedTokens":0,"totalTokens":7931}
+[pipeline] Cite validation errors (attempt 0), retrying: Unknown taxonomy node_id: acc-beliefs-003. Use only nodes from your taxonomy context.
+[debate-cli] [generating] skeptic: Skeptic is citing (retry 1)...
+[debate-cli] [generating] Skeptic cite
+[usage] {"ts":"2026-07-13T16:04:38.857Z","backend":"openai","model":"gpt-4o-mini","latencyMs":6135,"promptTokens":7638,"completionTokens":349,"cachedTokens":0,"totalTokens":7987}
+[pipeline] Removed 1 invalid node ID(s): acc-beliefs-001
+[debate-cli] [generating] turn-validator judge (skeptic r1)
+[usage] {"ts":"2026-07-13T16:04:45.100Z","backend":"claude","model":"claude-haiku-4-5-20251001","latencyMs":6239,"promptTokens":2176,"completionTokens":479,"totalTokens":2655}
+[debate-cli] [generating] Claim extraction
+[usage] {"ts":"2026-07-13T16:04:54.718Z","backend":"openai","model":"gpt-4o-mini","latencyMs":9604,"promptTokens":3074,"completionTokens":504,"cachedTokens":0,"totalTokens":3578}
+[debate-cli] [generating] Entailment check
+[usage] {"ts":"2026-07-13T16:04:56.325Z","backend":"openai","model":"gpt-4o-mini","latencyMs":1605,"promptTokens":779,"completionTokens":46,"cachedTokens":0,"totalTokens":825}
+[debate-cli] [generating] Entailment check
+[usage] {"ts":"2026-07-13T16:04:57.826Z","backend":"openai","model":"gpt-4o-mini","latencyMs":1501,"promptTokens":776,"completionTokens":38,"cachedTokens":0,"totalTokens":814}
+[debate-cli] [evaluation] Neutral evaluation: midpoint
+[usage] {"ts":"2026-07-13T16:05:00.840Z","backend":"openai","model":"gpt-4o-mini","latencyMs":2908,"promptTokens":658,"completionTokens":187,"cachedTokens":0,"totalTokens":845}
+[usage] {"ts":"2026-07-13T16:05:12.275Z","backend":"openai","model":"gpt-4o-mini","latencyMs":14341,"promptTokens":2393,"completionTokens":773,"cachedTokens":0,"totalTokens":3166}
+[debate-cli] [snapshot] Wrote round_complete recovery file: D:\mygit\ai-triad-research\debates\talmudic-reference-20260713-160058-pair1-method-only-partial.json
+[debate-cli] [concluding] Generating synthesis
+[debate-cli] [concluding] Phase 1/3: Extracting agreements and disagreements
+[debate-cli] [evaluation] Neutral evaluation: final
+[debate-cli] [generating] Synthesis Phase 1: Extract
+[usage] {"ts":"2026-07-13T16:05:20.201Z","backend":"openai","model":"gpt-4o-mini","latencyMs":7900,"promptTokens":2377,"completionTokens":681,"cachedTokens":0,"totalTokens":3058}
+[usage] {"ts":"2026-07-13T16:05:22.998Z","backend":"openai","model":"gpt-4o-mini","latencyMs":10696,"promptTokens":3256,"completionTokens":680,"cachedTokens":0,"totalTokens":3936}
+[debate-cli] [concluding] Phase 2/3: Building argument map
+[debate-cli] [generating] Synthesis Phase 2: Map
+[usage] {"ts":"2026-07-13T16:05:34.612Z","backend":"openai","model":"gpt-4o-mini","latencyMs":11614,"promptTokens":3531,"completionTokens":886,"cachedTokens":0,"totalTokens":4417}
+[debate-cli] [concluding] Phase 3/3: Evaluating preferences
+[debate-cli] [generating] Synthesis Phase 3: Evaluate
+[usage] {"ts":"2026-07-13T16:05:43.323Z","backend":"openai","model":"gpt-4o-mini","latencyMs":8710,"promptTokens":1714,"completionTokens":614,"cachedTokens":0,"totalTokens":2328}
+[debate-cli] [generating] Missing arguments pass
+[usage] {"ts":"2026-07-13T16:05:51.437Z","backend":"openai","model":"gpt-4o-mini","latencyMs":8112,"promptTokens":3239,"completionTokens":507,"cachedTokens":0,"totalTokens":3746}
+[debate-cli] [generating] Taxonomy refinement pass
+[usage] {"ts":"2026-07-13T16:05:58.869Z","backend":"openai","model":"gpt-4o-mini","latencyMs":7430,"promptTokens":2953,"completionTokens":542,"cachedTokens":0,"totalTokens":3495}
+[debate-cli] [generating] Extraction coverage
+[usage] {"ts":"2026-07-13T16:06:06.240Z","backend":"openai","model":"gpt-4o-mini","latencyMs":7329,"promptTokens":828,"completionTokens":532,"cachedTokens":0,"totalTokens":1360}
+[debate-cli] [generating] Extraction coverage
+[usage] {"ts":"2026-07-13T16:06:11.972Z","backend":"openai","model":"gpt-4o-mini","latencyMs":5732,"promptTokens":636,"completionTokens":367,"cachedTokens":0,"totalTokens":1003}
+[debate-cli] Wrote debate JSON (atomic): D:\mygit\ai-triad-research\debates\talmudic-reference-20260713-160058-pair1-method-only-debate.json
+[debate-cli] Wrote debate markdown: D:\mygit\ai-triad-research\debates\talmudic-reference-20260713-160058-pair1-method-only-debate.md
+[debate-cli] Wrote diagnostics: D:\mygit\ai-triad-research\debates\talmudic-reference-20260713-160058-pair1-method-only-diagnostics.json
+[debate-cli] Wrote harvest: D:\mygit\ai-triad-research\debates\talmudic-reference-20260713-160058-pair1-method-only-harvest.json
+[debate-cli] Calibration data logged to D:\mygit\ai-triad-research/calibration/users/local/calibration-log.jsonl
+[debate-cli] Flight recorder: 139 events → D:\mygit\ai-triad-research\debates\talmudic-reference-20260713-160058-pair1-method-only-flight-recorder.jsonl
+{
+  "success": true,
+  "debateId": "8405a078-f274-4a27-a301-bf3aa622f53b",
+  "name": "Talmudic reference experiment pair 1 — method-only",
+  "slug": "talmudic-reference-20260713-160058-pair1-method-only",
+  "topic": "Should advanced AI development be regulated like a public utility?",
+  "files": {
+    "debate": "D:\\mygit\\ai-triad-research\\debates\\talmudic-reference-20260713-160058-pair1-method-only-debate.json",
+    "transcript": "D:\\mygit\\ai-triad-research\\debates\\talmudic-reference-20260713-160058-pair1-method-only-debate.json",
+    "diagnostics": "D:\\mygit\\ai-triad-research\\debates\\talmudic-reference-20260713-160058-pair1-method-only-diagnostics.json",
+    "harvest": "D:\\mygit\\ai-triad-research\\debates\\talmudic-reference-20260713-160058-pair1-method-only-harvest.json",
+    "markdown": "D:\\mygit\\ai-triad-research\\debates\\talmudic-reference-20260713-160058-pair1-method-only-debate.md"
+  },
+  "stats": {
+    "rounds": 1,
+    "entries": 12,
+    "apiCalls": 37,
+    "totalTimeMs": 311294,
+    "claimsAccepted": 7,
+    "claimsRejected": 2
+  }
+}
+Talmudic debate completed successfully.
+
+Pair 1/3 — source-grounded
+warning: The following paths are not up to date and were left despite sparse patterns:
+        calibration/core/calibration-log.jsonl
+        calibration/users/local/calibration-log.jsonl
+
+After fixing the above paths, you may want to run `git sparse-checkout reapply`.
+AI_TRIAD_DATA_ROOT=D:\mygit\ai-triad-research\.local-data\ai-triad-data
+OPENAI_API_KEY is set (value hidden)
+Running Talmudic debate config: D:\mygit\ai-triad-research\.local-data\talmudic-experiments\talmudic-reference-20260713-160058\pair-1-source-grounded.json
+Talmudic reference mode: source-grounded (D:\mygit\ai-triad-research\.local-data\talmudic-corpus\pilot-v1.json)
+[debate-cli] Repo root: D:\mygit\ai-triad-research
+[debate-cli] Loading taxonomy...
+[debate-cli] Loaded: 172 acc, 299 saf, 314 skp, 413 sit nodes
+[debate-cli] Vocabulary: 0 standardized, 0 colloquial terms
+[debate-cli] Model: openai-gpt-4o-mini
+[debate-cli] Talmudic references: source-grounded (D:\mygit\ai-triad-research\.local-data\talmudic-corpus\pilot-v1.json)
+[debate-cli] Starting debate: "Should advanced AI development be regulated like a public utility?..." with accelerationist, safetyist, skeptic, 1 rounds
+Python was not found; run without arguments to install from the Microsoft Store, or disable this shortcut from Settings > Apps > Advanced app settings > App execution aliases.
+[embedding] ONNX and Python unavailable, falling back to Gemini API (dimension mismatch with taxonomy — attribution accuracy may degrade)
+[onnxEmbedding] Using dml EP (available: cpu, dml, webgpu)
+2026-07-13 12:06:17.1091849 [W:onnxruntime:, session_state.cc:1367 onnxruntime::VerifyEachNodeIsAssignedToAnEp] Some nodes were not assigned to the preferred execution providers which may or may not have an negative impact on performance. e.g. ORT explicitly assigns shape related ops to CPU to improve perf.
+2026-07-13 12:06:17.1278171 [W:onnxruntime:, session_state.cc:1369 onnxruntime::VerifyEachNodeIsAssignedToAnEp] Rerunning with verbose output on a non-minimal build will show node assignments.
+[onnxEmbedding] Model loaded in 707ms (384d, quantized, EP=dml)
+[ai-adapter] ONNX embedding ready — subprocess cold-starts eliminated
+[doctrinal.threshold-anomaly] Only 0 Beliefs anchored (<3) — threshold may be too high
+[doctrinal.threshold-anomaly] Only 2 Beliefs anchored (<3) — threshold may be too high
+[doctrinal] safetyist: 2/144 Beliefs anchored, 2 floor-applied
+[doctrinal] skeptic: 14/217 Beliefs anchored, 3 floor-applied
+[debate-cli] [setup] Evaluating topic quality
+[debate-cli] [generating] Topic critique
+[usage] {"ts":"2026-07-13T16:06:23.818Z","backend":"openai","model":"gpt-4o-mini","latencyMs":5690,"promptTokens":1045,"completionTokens":530,"cachedTokens":0,"totalTokens":1575}
+[debate-cli] [setup] Topic quality: fair (9/20)
+[debate-cli] [setup] Reframing topic for productive disagreement
+[debate-cli] [setup] Topic reframed: Reframed topic applied (structural: 3 → 3)
+[debate-cli] [setup] Extracting topic scope
+[debate-cli] [generating] Topic scope extraction
+[usage] {"ts":"2026-07-13T16:06:35.483Z","backend":"openai","model":"gpt-4o-mini","latencyMs":11630,"promptTokens":1604,"completionTokens":361,"cachedTokens":0,"totalTokens":1965}
+[debate-cli] [setup] Topic scope extracted (explicit, 5 off-scope, 4 drift sigs)
+[debate-cli] [opening] safetyist: Safetyist preparing opening statement
+[debate-cli] [opening] safetyist: Safetyist is briefing...
+[debate-cli] [generating] Safetyist opening brief
+[usage] {"ts":"2026-07-13T16:06:45.867Z","backend":"openai","model":"gpt-4o-mini","latencyMs":10339,"promptTokens":6063,"completionTokens":648,"cachedTokens":0,"totalTokens":6711}
+[debate-cli] [opening] safetyist: Safetyist is planning...
+[debate-cli] [generating] Safetyist opening plan
+[usage] {"ts":"2026-07-13T16:06:51.784Z","backend":"openai","model":"gpt-4o-mini","latencyMs":5915,"promptTokens":3078,"completionTokens":314,"cachedTokens":0,"totalTokens":3392}
+[debate-cli] [opening] safetyist: Safetyist is drafting...
+[debate-cli] [generating] Safetyist opening draft
+[usage] {"ts":"2026-07-13T16:07:02.289Z","backend":"openai","model":"gpt-4o-mini","latencyMs":10504,"promptTokens":4280,"completionTokens":411,"cachedTokens":0,"totalTokens":4691}
+[debate-cli] [opening] safetyist: Safetyist is citing...
+[debate-cli] [generating] Safetyist opening cite
+[usage] {"ts":"2026-07-13T16:07:06.340Z","backend":"openai","model":"gpt-4o-mini","latencyMs":4048,"promptTokens":7147,"completionTokens":312,"cachedTokens":0,"totalTokens":7459}
+[debate-cli] [generating] Claim extraction
+[usage] {"ts":"2026-07-13T16:07:11.277Z","backend":"openai","model":"gpt-4o-mini","latencyMs":4933,"promptTokens":2759,"completionTokens":290,"cachedTokens":0,"totalTokens":3049}
+[debate-cli] [generating] Entailment check
+[usage] {"ts":"2026-07-13T16:07:12.542Z","backend":"openai","model":"gpt-4o-mini","latencyMs":1259,"promptTokens":598,"completionTokens":37,"cachedTokens":0,"totalTokens":635}
+[usage] {"ts":"2026-07-13T16:07:15.078Z","backend":"openai","model":"gpt-4o-mini","latencyMs":2455,"promptTokens":478,"completionTokens":153,"cachedTokens":0,"totalTokens":631}
+[debate-cli] [opening] accelerationist: Accelerationist preparing opening statement
+[debate-cli] [opening] accelerationist: Accelerationist is briefing...
+[debate-cli] [generating] Accelerationist opening brief
+[usage] {"ts":"2026-07-13T16:07:16.516Z","backend":"openai","model":"gpt-4o-mini","latencyMs":1521,"promptTokens":1174,"completionTokens":63,"cachedTokens":0,"totalTokens":1237}
+[usage] {"ts":"2026-07-13T16:07:26.111Z","backend":"openai","model":"gpt-4o-mini","latencyMs":10941,"promptTokens":6283,"completionTokens":740,"cachedTokens":0,"totalTokens":7023}
+[debate-cli] [opening] accelerationist: Accelerationist is planning...
+[debate-cli] [generating] Accelerationist opening plan
+[usage] {"ts":"2026-07-13T16:07:30.573Z","backend":"openai","model":"gpt-4o-mini","latencyMs":4462,"promptTokens":3000,"completionTokens":345,"cachedTokens":0,"totalTokens":3345}
+[debate-cli] [opening] accelerationist: Accelerationist is drafting...
+[debate-cli] [generating] Accelerationist opening draft
+[usage] {"ts":"2026-07-13T16:07:36.755Z","backend":"openai","model":"gpt-4o-mini","latencyMs":6181,"promptTokens":4323,"completionTokens":486,"cachedTokens":0,"totalTokens":4809}
+[debate-cli] [opening] accelerationist: Accelerationist is citing...
+[debate-cli] [generating] Accelerationist opening cite
+[usage] {"ts":"2026-07-13T16:07:41.675Z","backend":"openai","model":"gpt-4o-mini","latencyMs":4919,"promptTokens":7395,"completionTokens":332,"cachedTokens":0,"totalTokens":7727}
+[debate-cli] [generating] Claim extraction
+[usage] {"ts":"2026-07-13T16:07:49.691Z","backend":"openai","model":"gpt-4o-mini","latencyMs":8014,"promptTokens":2896,"completionTokens":443,"cachedTokens":0,"totalTokens":3339}
+[debate-cli] [generating] Entailment check
+[usage] {"ts":"2026-07-13T16:07:53.748Z","backend":"openai","model":"gpt-4o-mini","latencyMs":4055,"promptTokens":685,"completionTokens":40,"cachedTokens":0,"totalTokens":725}
+[usage] {"ts":"2026-07-13T16:07:58.669Z","backend":"openai","model":"gpt-4o-mini","latencyMs":4882,"promptTokens":557,"completionTokens":179,"cachedTokens":0,"totalTokens":736}
+[debate-cli] [opening] skeptic: Skeptic preparing opening statement
+[debate-cli] [opening] skeptic: Skeptic is briefing...
+[debate-cli] [generating] Skeptic opening brief
+[usage] {"ts":"2026-07-13T16:08:07.287Z","backend":"openai","model":"gpt-4o-mini","latencyMs":8528,"promptTokens":5748,"completionTokens":530,"cachedTokens":0,"totalTokens":6278}
+[debate-cli] [opening] skeptic: Skeptic is planning...
+[debate-cli] [generating] Skeptic opening plan
+[usage] {"ts":"2026-07-13T16:08:13.211Z","backend":"openai","model":"gpt-4o-mini","latencyMs":5924,"promptTokens":2830,"completionTokens":375,"cachedTokens":0,"totalTokens":3205}
+[debate-cli] [opening] skeptic: Skeptic is drafting...
+[debate-cli] [generating] Skeptic opening draft
+[usage] {"ts":"2026-07-13T16:08:20.060Z","backend":"openai","model":"gpt-4o-mini","latencyMs":6847,"promptTokens":4185,"completionTokens":494,"cachedTokens":0,"totalTokens":4679}
+[debate-cli] [opening] skeptic: Skeptic is citing...
+[debate-cli] [generating] Skeptic opening cite
+[usage] {"ts":"2026-07-13T16:08:25.859Z","backend":"openai","model":"gpt-4o-mini","latencyMs":5799,"promptTokens":6635,"completionTokens":310,"cachedTokens":0,"totalTokens":6945}
+[debate-cli] [generating] Claim extraction
+[usage] {"ts":"2026-07-13T16:08:30.981Z","backend":"openai","model":"gpt-4o-mini","latencyMs":5120,"promptTokens":2917,"completionTokens":368,"cachedTokens":0,"totalTokens":3285}
+[usage] {"ts":"2026-07-13T16:08:33.815Z","backend":"openai","model":"gpt-4o-mini","latencyMs":2749,"promptTokens":557,"completionTokens":173,"cachedTokens":0,"totalTokens":730}
+[debate-cli] [evaluation] Neutral evaluation: baseline
+[usage] {"ts":"2026-07-13T16:08:41.979Z","backend":"openai","model":"gpt-4o-mini","latencyMs":8111,"promptTokens":1766,"completionTokens":633,"cachedTokens":0,"totalTokens":2399}
+[debate-cli] [debate] Cross-respond round 1/1 [confrontation]
+[debate-cli] [generating] Round 1: Moderator selection
+[usage] {"ts":"2026-07-13T16:08:49.508Z","backend":"openai","model":"gpt-4o-mini","latencyMs":7509,"promptTokens":4538,"completionTokens":371,"cachedTokens":0,"totalTokens":4909}
+[debate-cli] [debate] safetyist: Safetyist responding (round 1)
+[orchestration] *** executeTurnWithRetry ENTERED for safetyist round 1 ***
+[debate-cli] [generating] safetyist: Safetyist is briefing...
+[debate-cli] [generating] Safetyist brief
+[usage] {"ts":"2026-07-13T16:08:54.959Z","backend":"openai","model":"gpt-4o-mini","latencyMs":5290,"promptTokens":7503,"completionTokens":329,"cachedTokens":0,"totalTokens":7832}
+[pipeline] Brief ID correction: skp-desires-075 → sit-075
+[debate-cli] [generating] safetyist: Safetyist is planning...
+[debate-cli] [generating] Safetyist plan
+[usage] {"ts":"2026-07-13T16:09:04.783Z","backend":"openai","model":"gpt-4o-mini","latencyMs":9823,"promptTokens":8610,"completionTokens":235,"cachedTokens":0,"totalTokens":8845}
+[debate-cli] [generating] safetyist: Safetyist is drafting...
+[debate-cli] [generating] Safetyist draft
+[usage] {"ts":"2026-07-13T16:09:13.601Z","backend":"openai","model":"gpt-4o-mini","latencyMs":8811,"promptTokens":9262,"completionTokens":524,"cachedTokens":0,"totalTokens":9786}
+[debate-cli] [generating] Safetyist micro-fix(specificity)
+[usage] {"ts":"2026-07-13T16:09:24.529Z","backend":"openai","model":"gpt-4o-mini","latencyMs":10927,"promptTokens":635,"completionTokens":643,"cachedTokens":0,"totalTokens":1278}
+[pipeline] Micro-fix(specificity) succeeded in 10926ms — skipping full retry
+[pipeline] Auto-split single paragraph into 4 paragraphs
+[debate-cli] [generating] safetyist: Safetyist is quality-checking draft...
+[debate-cli] [generating] Safetyist draft-quality-check
+[usage] {"ts":"2026-07-13T16:09:25.332Z","backend":"gemini","model":"gemini-3.1-flash-lite","latencyMs":800,"promptTokens":1035,"completionTokens":57,"totalTokens":1092}
+[pipeline] Draft quality pre-check failed: Lacks a specific, testable prediction regarding AI regulation or its effects.
+[debate-cli] [generating] Safetyist draft (quality retry)
+[usage] {"ts":"2026-07-13T16:09:35.486Z","backend":"openai","model":"gpt-4o-mini","latencyMs":10152,"promptTokens":9490,"completionTokens":549,"cachedTokens":0,"totalTokens":10039}
+[pipeline] Draft quality retry produced new draft
+[debate-cli] [generating] Safetyist draft-quality-recheck
+[usage] {"ts":"2026-07-13T16:09:36.228Z","backend":"gemini","model":"gemini-3.1-flash-lite","latencyMs":742,"promptTokens":971,"completionTokens":56,"totalTokens":1027}
+[debate-cli] [generating] safetyist: Safetyist is citing...
+[debate-cli] [generating] Safetyist cite
+[usage] {"ts":"2026-07-13T16:09:46.175Z","backend":"openai","model":"gpt-4o-mini","latencyMs":9945,"promptTokens":6618,"completionTokens":411,"cachedTokens":0,"totalTokens":7029}
+[debate-cli] [generating] turn-validator judge (safetyist r1)
+[usage] {"ts":"2026-07-13T16:09:52.474Z","backend":"claude","model":"claude-haiku-4-5-20251001","latencyMs":6297,"promptTokens":2135,"completionTokens":456,"totalTokens":2591}
+[debate-cli] [generating] Claim extraction
+[usage] {"ts":"2026-07-13T16:09:57.198Z","backend":"openai","model":"gpt-4o-mini","latencyMs":4708,"promptTokens":2962,"completionTokens":371,"cachedTokens":0,"totalTokens":3333}
+[debate-cli] [evaluation] Neutral evaluation: midpoint
+[usage] {"ts":"2026-07-13T16:10:00.480Z","backend":"openai","model":"gpt-4o-mini","latencyMs":3217,"promptTokens":541,"completionTokens":153,"cachedTokens":0,"totalTokens":694}
+[usage] {"ts":"2026-07-13T16:10:02.284Z","backend":"openai","model":"gpt-4o-mini","latencyMs":1808,"promptTokens":980,"completionTokens":73,"cachedTokens":0,"totalTokens":1053}
+[usage] {"ts":"2026-07-13T16:10:04.722Z","backend":"openai","model":"gpt-4o-mini","latencyMs":7456,"promptTokens":2127,"completionTokens":652,"cachedTokens":0,"totalTokens":2779}
+[debate-cli] [snapshot] Wrote round_complete recovery file: D:\mygit\ai-triad-research\debates\talmudic-reference-20260713-160058-pair1-source-grounded-partial.json
+[debate-cli] [concluding] Generating synthesis
+[debate-cli] [concluding] Phase 1/3: Extracting agreements and disagreements
+[debate-cli] [evaluation] Neutral evaluation: final
+[debate-cli] [generating] Synthesis Phase 1: Extract
+[usage] {"ts":"2026-07-13T16:10:10.623Z","backend":"openai","model":"gpt-4o-mini","latencyMs":5884,"promptTokens":3117,"completionTokens":474,"cachedTokens":0,"totalTokens":3591}
+[debate-cli] [concluding] Phase 2/3: Building argument map
+[debate-cli] [generating] Synthesis Phase 2: Map
+[usage] {"ts":"2026-07-13T16:10:14.771Z","backend":"openai","model":"gpt-4o-mini","latencyMs":10033,"promptTokens":2172,"completionTokens":780,"cachedTokens":0,"totalTokens":2952}
+[usage] {"ts":"2026-07-13T16:10:26.168Z","backend":"openai","model":"gpt-4o-mini","latencyMs":15544,"promptTokens":3368,"completionTokens":1058,"cachedTokens":0,"totalTokens":4426}
+[debate-cli] [concluding] Phase 3/3: Evaluating preferences
+[debate-cli] [generating] Synthesis Phase 3: Evaluate
+[usage] {"ts":"2026-07-13T16:10:39.065Z","backend":"openai","model":"gpt-4o-mini","latencyMs":12896,"promptTokens":1845,"completionTokens":779,"cachedTokens":0,"totalTokens":2624}
+[debate-cli] [generating] Missing arguments pass
+[usage] {"ts":"2026-07-13T16:10:45.021Z","backend":"openai","model":"gpt-4o-mini","latencyMs":5955,"promptTokens":3145,"completionTokens":413,"cachedTokens":0,"totalTokens":3558}
+[debate-cli] [generating] Taxonomy refinement pass
+[usage] {"ts":"2026-07-13T16:10:54.296Z","backend":"openai","model":"gpt-4o-mini","latencyMs":9273,"promptTokens":2965,"completionTokens":568,"cachedTokens":0,"totalTokens":3533}
+[debate-cli] [generating] Extraction coverage
+[usage] {"ts":"2026-07-13T16:11:00.683Z","backend":"openai","model":"gpt-4o-mini","latencyMs":6355,"promptTokens":689,"completionTokens":472,"cachedTokens":0,"totalTokens":1161}
+[debate-cli] [generating] Extraction coverage
+[usage] {"ts":"2026-07-13T16:11:06.180Z","backend":"openai","model":"gpt-4o-mini","latencyMs":5496,"promptTokens":617,"completionTokens":325,"cachedTokens":0,"totalTokens":942}
+[debate-cli] [generating] Extraction coverage
+[usage] {"ts":"2026-07-13T16:11:12.347Z","backend":"openai","model":"gpt-4o-mini","latencyMs":6166,"promptTokens":752,"completionTokens":427,"cachedTokens":0,"totalTokens":1179}
+[debate-cli] [generating] Extraction coverage
+[usage] {"ts":"2026-07-13T16:11:16.317Z","backend":"openai","model":"gpt-4o-mini","latencyMs":3970,"promptTokens":567,"completionTokens":279,"cachedTokens":0,"totalTokens":846}
+[debate-cli] Wrote debate JSON (atomic): D:\mygit\ai-triad-research\debates\talmudic-reference-20260713-160058-pair1-source-grounded-debate.json
+[debate-cli] Wrote debate markdown: D:\mygit\ai-triad-research\debates\talmudic-reference-20260713-160058-pair1-source-grounded-debate.md
+[debate-cli] Wrote diagnostics: D:\mygit\ai-triad-research\debates\talmudic-reference-20260713-160058-pair1-source-grounded-diagnostics.json
+[debate-cli] Wrote harvest: D:\mygit\ai-triad-research\debates\talmudic-reference-20260713-160058-pair1-source-grounded-harvest.json
+[debate-cli] Calibration data logged to D:\mygit\ai-triad-research/calibration/users/local/calibration-log.jsonl
+[debate-cli] Flight recorder: 149 events → D:\mygit\ai-triad-research\debates\talmudic-reference-20260713-160058-pair1-source-grounded-flight-recorder.jsonl
+{
+  "success": true,
+  "debateId": "06c50118-a3b2-4b04-a756-026acd1b086b",
+  "name": "Talmudic reference experiment pair 1 — source-grounded",
+  "slug": "talmudic-reference-20260713-160058-pair1-source-grounded",
+  "topic": "Under what conditions should advanced AI development be regulated like a public utility, and how might this regulation impact innovation versus public safety?",
+  "files": {
+    "debate": "D:\\mygit\\ai-triad-research\\debates\\talmudic-reference-20260713-160058-pair1-source-grounded-debate.json",
+    "transcript": "D:\\mygit\\ai-triad-research\\debates\\talmudic-reference-20260713-160058-pair1-source-grounded-debate.json",
+    "diagnostics": "D:\\mygit\\ai-triad-research\\debates\\talmudic-reference-20260713-160058-pair1-source-grounded-diagnostics.json",
+    "harvest": "D:\\mygit\\ai-triad-research\\debates\\talmudic-reference-20260713-160058-pair1-source-grounded-harvest.json",
+    "markdown": "D:\\mygit\\ai-triad-research\\debates\\talmudic-reference-20260713-160058-pair1-source-grounded-debate.md"
+  },
+  "stats": {
+    "rounds": 1,
+    "entries": 12,
+    "apiCalls": 39,
+    "totalTimeMs": 302258,
+    "claimsAccepted": 6,
+    "claimsRejected": 2
+  }
+}
+Talmudic debate completed successfully.
+
+Pair 2/3 — method-only
+warning: The following paths are not up to date and were left despite sparse patterns:
+        calibration/core/calibration-log.jsonl
+        calibration/users/local/calibration-log.jsonl
+
+After fixing the above paths, you may want to run `git sparse-checkout reapply`.
+AI_TRIAD_DATA_ROOT=D:\mygit\ai-triad-research\.local-data\ai-triad-data
+OPENAI_API_KEY is set (value hidden)
+Running Talmudic debate config: D:\mygit\ai-triad-research\.local-data\talmudic-experiments\talmudic-reference-20260713-160058\pair-2-method-only.json
+Talmudic reference mode: method-only
+[debate-cli] Repo root: D:\mygit\ai-triad-research
+[debate-cli] Loading taxonomy...
+[debate-cli] Loaded: 172 acc, 299 saf, 314 skp, 413 sit nodes
+[debate-cli] Vocabulary: 0 standardized, 0 colloquial terms
+[debate-cli] Model: openai-gpt-4o-mini
+[debate-cli] Talmudic references: method-only
+[debate-cli] Starting debate: "Should advanced AI development be regulated like a public utility?..." with accelerationist, safetyist, skeptic, 1 rounds
+Python was not found; run without arguments to install from the Microsoft Store, or disable this shortcut from Settings > Apps > Advanced app settings > App execution aliases.
+[embedding] ONNX and Python unavailable, falling back to Gemini API (dimension mismatch with taxonomy — attribution accuracy may degrade)
+[onnxEmbedding] Using dml EP (available: cpu, dml, webgpu)
+2026-07-13 12:11:21.4833316 [W:onnxruntime:, session_state.cc:1367 onnxruntime::VerifyEachNodeIsAssignedToAnEp] Some nodes were not assigned to the preferred execution providers which may or may not have an negative impact on performance. e.g. ORT explicitly assigns shape related ops to CPU to improve perf.
+2026-07-13 12:11:21.5026428 [W:onnxruntime:, session_state.cc:1369 onnxruntime::VerifyEachNodeIsAssignedToAnEp] Rerunning with verbose output on a non-minimal build will show node assignments.
+[onnxEmbedding] Model loaded in 867ms (384d, quantized, EP=dml)
+[ai-adapter] ONNX embedding ready — subprocess cold-starts eliminated
+[doctrinal.threshold-anomaly] Only 0 Beliefs anchored (<3) — threshold may be too high
+[doctrinal.threshold-anomaly] Only 2 Beliefs anchored (<3) — threshold may be too high
+[doctrinal] safetyist: 2/144 Beliefs anchored, 2 floor-applied
+[doctrinal] skeptic: 14/217 Beliefs anchored, 3 floor-applied
+[debate-cli] [setup] Evaluating topic quality
+[debate-cli] [generating] Topic critique
+[usage] {"ts":"2026-07-13T16:11:29.459Z","backend":"openai","model":"gpt-4o-mini","latencyMs":6784,"promptTokens":1045,"completionTokens":487,"cachedTokens":0,"totalTokens":1532}
+[debate-cli] [setup] Topic quality: fair (8/20)
+[debate-cli] [setup] Reframing topic for productive disagreement
+[debate-cli] [setup] Topic reframed: Reframed topic applied (structural: 3 → 3)
+[debate-cli] [setup] Extracting topic scope
+[debate-cli] [generating] Topic scope extraction
+[usage] {"ts":"2026-07-13T16:11:34.330Z","backend":"openai","model":"gpt-4o-mini","latencyMs":4822,"promptTokens":1611,"completionTokens":391,"cachedTokens":0,"totalTokens":2002}
+[debate-cli] [setup] Topic scope extracted (inferred, 4 off-scope, 4 drift sigs)
+[debate-cli] [opening] safetyist: Safetyist preparing opening statement
+[debate-cli] [opening] safetyist: Safetyist is briefing...
+[debate-cli] [generating] Safetyist opening brief
+[usage] {"ts":"2026-07-13T16:11:49.282Z","backend":"openai","model":"gpt-4o-mini","latencyMs":14904,"promptTokens":5171,"completionTokens":695,"cachedTokens":0,"totalTokens":5866}
+[debate-cli] [opening] safetyist: Safetyist is planning...
+[debate-cli] [generating] Safetyist opening plan
+[usage] {"ts":"2026-07-13T16:11:52.911Z","backend":"openai","model":"gpt-4o-mini","latencyMs":3628,"promptTokens":3130,"completionTokens":339,"cachedTokens":0,"totalTokens":3469}
+[debate-cli] [opening] safetyist: Safetyist is drafting...
+[debate-cli] [generating] Safetyist opening draft
+[usage] {"ts":"2026-07-13T16:12:04.493Z","backend":"openai","model":"gpt-4o-mini","latencyMs":11581,"promptTokens":4337,"completionTokens":516,"cachedTokens":0,"totalTokens":4853}
+[debate-cli] [opening] safetyist: Safetyist is citing...
+[debate-cli] [generating] Safetyist opening cite
+[usage] {"ts":"2026-07-13T16:12:08.456Z","backend":"openai","model":"gpt-4o-mini","latencyMs":3960,"promptTokens":6375,"completionTokens":288,"cachedTokens":0,"totalTokens":6663}
+[debate-cli] [generating] Claim extraction
+[usage] {"ts":"2026-07-13T16:12:12.808Z","backend":"openai","model":"gpt-4o-mini","latencyMs":4347,"promptTokens":2851,"completionTokens":334,"cachedTokens":0,"totalTokens":3185}
+[debate-cli] [generating] Entailment check
+[usage] {"ts":"2026-07-13T16:12:13.857Z","backend":"openai","model":"gpt-4o-mini","latencyMs":1043,"promptTokens":689,"completionTokens":36,"cachedTokens":0,"totalTokens":725}
+[usage] {"ts":"2026-07-13T16:12:16.688Z","backend":"openai","model":"gpt-4o-mini","latencyMs":2755,"promptTokens":569,"completionTokens":160,"cachedTokens":0,"totalTokens":729}
+[debate-cli] [opening] accelerationist: Accelerationist preparing opening statement
+[debate-cli] [opening] accelerationist: Accelerationist is briefing...
+[debate-cli] [generating] Accelerationist opening brief
+[usage] {"ts":"2026-07-13T16:12:31.592Z","backend":"openai","model":"gpt-4o-mini","latencyMs":14810,"promptTokens":5988,"completionTokens":732,"cachedTokens":0,"totalTokens":6720}
+[debate-cli] [opening] accelerationist: Accelerationist is planning...
+[debate-cli] [generating] Accelerationist opening plan
+[usage] {"ts":"2026-07-13T16:12:37.013Z","backend":"openai","model":"gpt-4o-mini","latencyMs":5421,"promptTokens":3024,"completionTokens":396,"cachedTokens":0,"totalTokens":3420}
+[debate-cli] [opening] accelerationist: Accelerationist is drafting...
+[debate-cli] [generating] Accelerationist opening draft
+[usage] {"ts":"2026-07-13T16:12:44.126Z","backend":"openai","model":"gpt-4o-mini","latencyMs":7113,"promptTokens":4398,"completionTokens":571,"cachedTokens":0,"totalTokens":4969}
+[debate-cli] [opening] accelerationist: Accelerationist is citing...
+[debate-cli] [generating] Accelerationist opening cite
+[usage] {"ts":"2026-07-13T16:12:47.936Z","backend":"openai","model":"gpt-4o-mini","latencyMs":3809,"promptTokens":7196,"completionTokens":347,"cachedTokens":0,"totalTokens":7543}
+[debate-cli] [generating] Claim extraction
+[usage] {"ts":"2026-07-13T16:12:52.500Z","backend":"openai","model":"gpt-4o-mini","latencyMs":4563,"promptTokens":2965,"completionTokens":384,"cachedTokens":0,"totalTokens":3349}
+[debate-cli] [generating] Entailment check
+[usage] {"ts":"2026-07-13T16:12:54.512Z","backend":"openai","model":"gpt-4o-mini","latencyMs":2011,"promptTokens":745,"completionTokens":44,"cachedTokens":0,"totalTokens":789}
+[usage] {"ts":"2026-07-13T16:12:56.589Z","backend":"openai","model":"gpt-4o-mini","latencyMs":2033,"promptTokens":626,"completionTokens":132,"cachedTokens":0,"totalTokens":758}
+[debate-cli] [opening] skeptic: Skeptic preparing opening statement
+[debate-cli] [opening] skeptic: Skeptic is briefing...
+[debate-cli] [generating] Skeptic opening brief
+[usage] {"ts":"2026-07-13T16:13:00.160Z","backend":"openai","model":"gpt-4o-mini","latencyMs":1811,"promptTokens":2620,"completionTokens":84,"cachedTokens":0,"totalTokens":2704}
+[usage] {"ts":"2026-07-13T16:13:07.095Z","backend":"openai","model":"gpt-4o-mini","latencyMs":10414,"promptTokens":5334,"completionTokens":624,"cachedTokens":0,"totalTokens":5958}
+[debate-cli] [opening] skeptic: Skeptic is planning...
+[debate-cli] [generating] Skeptic opening plan
+[usage] {"ts":"2026-07-13T16:13:12.188Z","backend":"openai","model":"gpt-4o-mini","latencyMs":5092,"promptTokens":2959,"completionTokens":371,"cachedTokens":0,"totalTokens":3330}
+[debate-cli] [opening] skeptic: Skeptic is drafting...
+[debate-cli] [generating] Skeptic opening draft
+[usage] {"ts":"2026-07-13T16:13:21.739Z","backend":"openai","model":"gpt-4o-mini","latencyMs":9551,"promptTokens":4310,"completionTokens":523,"cachedTokens":0,"totalTokens":4833}
+[debate-cli] [opening] skeptic: Skeptic is citing...
+[debate-cli] [generating] Skeptic opening cite
+[usage] {"ts":"2026-07-13T16:13:28.265Z","backend":"openai","model":"gpt-4o-mini","latencyMs":6525,"promptTokens":6334,"completionTokens":315,"cachedTokens":0,"totalTokens":6649}
+[debate-cli] [generating] Claim extraction
+[usage] {"ts":"2026-07-13T16:13:35.743Z","backend":"openai","model":"gpt-4o-mini","latencyMs":7477,"promptTokens":2937,"completionTokens":550,"cachedTokens":0,"totalTokens":3487}
+[debate-cli] [generating] Entailment check
+[usage] {"ts":"2026-07-13T16:13:38.086Z","backend":"openai","model":"gpt-4o-mini","latencyMs":2340,"promptTokens":689,"completionTokens":39,"cachedTokens":0,"totalTokens":728}
+[debate-cli] [generating] Entailment check
+[usage] {"ts":"2026-07-13T16:13:39.255Z","backend":"openai","model":"gpt-4o-mini","latencyMs":1169,"promptTokens":690,"completionTokens":34,"cachedTokens":0,"totalTokens":724}
+[usage] {"ts":"2026-07-13T16:13:43.263Z","backend":"openai","model":"gpt-4o-mini","latencyMs":3899,"promptTokens":572,"completionTokens":178,"cachedTokens":0,"totalTokens":750}
+[debate-cli] [evaluation] Neutral evaluation: baseline
+[usage] {"ts":"2026-07-13T16:13:49.981Z","backend":"openai","model":"gpt-4o-mini","latencyMs":6664,"promptTokens":1967,"completionTokens":516,"cachedTokens":0,"totalTokens":2483}
+[debate-cli] [debate] Cross-respond round 1/1 [confrontation]
+[debate-cli] [generating] Round 1: Moderator selection
+[usage] {"ts":"2026-07-13T16:13:53.929Z","backend":"openai","model":"gpt-4o-mini","latencyMs":3931,"promptTokens":4846,"completionTokens":349,"cachedTokens":0,"totalTokens":5195}
+[debate-cli] [debate] accelerationist: Accelerationist responding (round 1)
+[orchestration] *** executeTurnWithRetry ENTERED for accelerationist round 1 ***
+[debate-cli] [generating] accelerationist: Accelerationist is briefing...
+[debate-cli] [generating] Accelerationist brief
+[usage] {"ts":"2026-07-13T16:13:58.629Z","backend":"openai","model":"gpt-4o-mini","latencyMs":4526,"promptTokens":7063,"completionTokens":348,"cachedTokens":0,"totalTokens":7411}
+[debate-cli] [generating] accelerationist: Accelerationist is planning...
+[debate-cli] [generating] Accelerationist plan
+[usage] {"ts":"2026-07-13T16:14:05.394Z","backend":"openai","model":"gpt-4o-mini","latencyMs":6763,"promptTokens":7811,"completionTokens":250,"cachedTokens":0,"totalTokens":8061}
+[debate-cli] [generating] accelerationist: Accelerationist is drafting...
+[debate-cli] [generating] Accelerationist draft
+[usage] {"ts":"2026-07-13T16:14:12.021Z","backend":"openai","model":"gpt-4o-mini","latencyMs":6622,"promptTokens":8438,"completionTokens":569,"cachedTokens":0,"totalTokens":9007}
+[debate-cli] [generating] accelerationist: Accelerationist is quality-checking draft...
+[debate-cli] [generating] Accelerationist draft-quality-check
+[usage] {"ts":"2026-07-13T16:14:12.958Z","backend":"gemini","model":"gemini-3.1-flash-lite","latencyMs":935,"promptTokens":1014,"completionTokens":56,"totalTokens":1070}
+[pipeline] Draft quality pre-check failed: Lacks specific, testable predictions regarding AI regulation outcomes or timelines.
+[debate-cli] [generating] Accelerationist draft (quality retry)
+[usage] {"ts":"2026-07-13T16:14:30.498Z","backend":"openai","model":"gpt-4o-mini","latencyMs":17538,"promptTokens":8665,"completionTokens":576,"cachedTokens":0,"totalTokens":9241}
+[pipeline] Draft quality retry produced new draft
+[debate-cli] [generating] Accelerationist draft-quality-recheck
+[usage] {"ts":"2026-07-13T16:14:31.226Z","backend":"gemini","model":"gemini-3.1-flash-lite","latencyMs":728,"promptTokens":997,"completionTokens":36,"totalTokens":1033}
+[debate-cli] [generating] accelerationist: Accelerationist is citing...
+[debate-cli] [generating] Accelerationist cite
+[usage] {"ts":"2026-07-13T16:14:37.431Z","backend":"openai","model":"gpt-4o-mini","latencyMs":6208,"promptTokens":6009,"completionTokens":332,"cachedTokens":0,"totalTokens":6341}
+[debate-cli] [generating] turn-validator judge (accelerationist r1)
+[usage] {"ts":"2026-07-13T16:14:43.085Z","backend":"claude","model":"claude-haiku-4-5-20251001","latencyMs":5650,"promptTokens":2069,"completionTokens":459,"totalTokens":2528}
+[debate-cli] [generating] Claim extraction
+[usage] {"ts":"2026-07-13T16:14:50.007Z","backend":"openai","model":"gpt-4o-mini","latencyMs":6899,"promptTokens":2992,"completionTokens":537,"cachedTokens":0,"totalTokens":3529}
+[debate-cli] [generating] Entailment check
+[usage] {"ts":"2026-07-13T16:14:52.229Z","backend":"openai","model":"gpt-4o-mini","latencyMs":2217,"promptTokens":661,"completionTokens":46,"cachedTokens":0,"totalTokens":707}
+[debate-cli] [evaluation] Neutral evaluation: midpoint
+[usage] {"ts":"2026-07-13T16:14:56.720Z","backend":"openai","model":"gpt-4o-mini","latencyMs":1997,"promptTokens":1152,"completionTokens":94,"cachedTokens":0,"totalTokens":1246}
+[usage] {"ts":"2026-07-13T16:14:58.122Z","backend":"openai","model":"gpt-4o-mini","latencyMs":5802,"promptTokens":530,"completionTokens":180,"cachedTokens":0,"totalTokens":710}
+[usage] {"ts":"2026-07-13T16:14:58.944Z","backend":"openai","model":"gpt-4o-mini","latencyMs":6620,"promptTokens":2313,"completionTokens":569,"cachedTokens":0,"totalTokens":2882}
+[debate-cli] [snapshot] Wrote round_complete recovery file: D:\mygit\ai-triad-research\debates\talmudic-reference-20260713-160058-pair2-method-only-partial.json
+[debate-cli] [concluding] Generating synthesis
+[debate-cli] [concluding] Phase 1/3: Extracting agreements and disagreements
+[debate-cli] [evaluation] Neutral evaluation: final
+[debate-cli] [generating] Synthesis Phase 1: Extract
+[usage] {"ts":"2026-07-13T16:15:04.841Z","backend":"openai","model":"gpt-4o-mini","latencyMs":1723,"promptTokens":2168,"completionTokens":79,"cachedTokens":0,"totalTokens":2247}
+[usage] {"ts":"2026-07-13T16:15:07.992Z","backend":"openai","model":"gpt-4o-mini","latencyMs":9030,"promptTokens":3277,"completionTokens":718,"cachedTokens":0,"totalTokens":3995}
+[debate-cli] [concluding] Phase 2/3: Building argument map
+[debate-cli] [generating] Synthesis Phase 2: Map
+[usage] {"ts":"2026-07-13T16:15:10.166Z","backend":"openai","model":"gpt-4o-mini","latencyMs":11205,"promptTokens":2378,"completionTokens":759,"cachedTokens":0,"totalTokens":3137}
+[usage] {"ts":"2026-07-13T16:15:19.639Z","backend":"openai","model":"gpt-4o-mini","latencyMs":11646,"promptTokens":3594,"completionTokens":839,"cachedTokens":0,"totalTokens":4433}
+[debate-cli] [concluding] Phase 3/3: Evaluating preferences
+[debate-cli] [generating] Synthesis Phase 3: Evaluate
+[usage] {"ts":"2026-07-13T16:15:25.862Z","backend":"openai","model":"gpt-4o-mini","latencyMs":6222,"promptTokens":1713,"completionTokens":531,"cachedTokens":0,"totalTokens":2244}
+[debate-cli] [generating] Missing arguments pass
+[usage] {"ts":"2026-07-13T16:15:30.906Z","backend":"openai","model":"gpt-4o-mini","latencyMs":5042,"promptTokens":3215,"completionTokens":386,"cachedTokens":0,"totalTokens":3601}
+[debate-cli] [generating] Taxonomy refinement pass
+[usage] {"ts":"2026-07-13T16:15:39.389Z","backend":"openai","model":"gpt-4o-mini","latencyMs":8489,"promptTokens":2991,"completionTokens":578,"cachedTokens":0,"totalTokens":3569}
+[debate-cli] [generating] Extraction coverage
+[usage] {"ts":"2026-07-13T16:15:46.609Z","backend":"openai","model":"gpt-4o-mini","latencyMs":7087,"promptTokens":782,"completionTokens":427,"cachedTokens":0,"totalTokens":1209}
+[debate-cli] [generating] Extraction coverage
+[usage] {"ts":"2026-07-13T16:15:53.156Z","backend":"openai","model":"gpt-4o-mini","latencyMs":6546,"promptTokens":587,"completionTokens":284,"cachedTokens":0,"totalTokens":871}
+[debate-cli] Wrote debate JSON (atomic): D:\mygit\ai-triad-research\debates\talmudic-reference-20260713-160058-pair2-method-only-debate.json
+[debate-cli] Wrote debate markdown: D:\mygit\ai-triad-research\debates\talmudic-reference-20260713-160058-pair2-method-only-debate.md
+[debate-cli] Wrote diagnostics: D:\mygit\ai-triad-research\debates\talmudic-reference-20260713-160058-pair2-method-only-diagnostics.json
+[debate-cli] Wrote harvest: D:\mygit\ai-triad-research\debates\talmudic-reference-20260713-160058-pair2-method-only-harvest.json
+[debate-cli] Calibration data logged to D:\mygit\ai-triad-research/calibration/users/local/calibration-log.jsonl
+[debate-cli] Flight recorder: 152 events → D:\mygit\ai-triad-research\debates\talmudic-reference-20260713-160058-pair2-method-only-flight-recorder.jsonl
+{
+  "success": true,
+  "debateId": "4adf0e5b-17b4-4f34-9fc4-e7628376a055",
+  "name": "Talmudic reference experiment pair 2 — method-only",
+  "slug": "talmudic-reference-20260713-160058-pair2-method-only",
+  "topic": "Under what specific conditions should various stakeholders, including developers, governments, and users, regulate advanced AI development like a public utility to ensure safety and innovation?",
+  "files": {
+    "debate": "D:\\mygit\\ai-triad-research\\debates\\talmudic-reference-20260713-160058-pair2-method-only-debate.json",
+    "transcript": "D:\\mygit\\ai-triad-research\\debates\\talmudic-reference-20260713-160058-pair2-method-only-debate.json",
+    "diagnostics": "D:\\mygit\\ai-triad-research\\debates\\talmudic-reference-20260713-160058-pair2-method-only-diagnostics.json",
+    "harvest": "D:\\mygit\\ai-triad-research\\debates\\talmudic-reference-20260713-160058-pair2-method-only-harvest.json",
+    "markdown": "D:\\mygit\\ai-triad-research\\debates\\talmudic-reference-20260713-160058-pair2-method-only-debate.md"
+  },
+  "stats": {
+    "rounds": 1,
+    "entries": 13,
+    "apiCalls": 41,
+    "totalTimeMs": 274875,
+    "claimsAccepted": 9,
+    "claimsRejected": 1
+  }
+}
+Talmudic debate completed successfully.
+
+Pair 2/3 — source-grounded
+warning: The following paths are not up to date and were left despite sparse patterns:
+        calibration/core/calibration-log.jsonl
+        calibration/users/local/calibration-log.jsonl
+
+After fixing the above paths, you may want to run `git sparse-checkout reapply`.
+AI_TRIAD_DATA_ROOT=D:\mygit\ai-triad-research\.local-data\ai-triad-data
+OPENAI_API_KEY is set (value hidden)
+Running Talmudic debate config: D:\mygit\ai-triad-research\.local-data\talmudic-experiments\talmudic-reference-20260713-160058\pair-2-source-grounded.json
+Talmudic reference mode: source-grounded (D:\mygit\ai-triad-research\.local-data\talmudic-corpus\pilot-v1.json)
+[debate-cli] Repo root: D:\mygit\ai-triad-research
+[debate-cli] Loading taxonomy...
+[debate-cli] Loaded: 172 acc, 299 saf, 314 skp, 413 sit nodes
+[debate-cli] Vocabulary: 0 standardized, 0 colloquial terms
+[debate-cli] Model: openai-gpt-4o-mini
+[debate-cli] Talmudic references: source-grounded (D:\mygit\ai-triad-research\.local-data\talmudic-corpus\pilot-v1.json)
+[debate-cli] Starting debate: "Should advanced AI development be regulated like a public utility?..." with accelerationist, safetyist, skeptic, 1 rounds
+Python was not found; run without arguments to install from the Microsoft Store, or disable this shortcut from Settings > Apps > Advanced app settings > App execution aliases.
+[embedding] ONNX and Python unavailable, falling back to Gemini API (dimension mismatch with taxonomy — attribution accuracy may degrade)
+[onnxEmbedding] Using dml EP (available: cpu, dml, webgpu)
+2026-07-13 12:16:11.2638495 [W:onnxruntime:, session_state.cc:1367 onnxruntime::VerifyEachNodeIsAssignedToAnEp] Some nodes were not assigned to the preferred execution providers which may or may not have an negative impact on performance. e.g. ORT explicitly assigns shape related ops to CPU to improve perf.
+2026-07-13 12:16:11.2790971 [W:onnxruntime:, session_state.cc:1369 onnxruntime::VerifyEachNodeIsAssignedToAnEp] Rerunning with verbose output on a non-minimal build will show node assignments.
+[onnxEmbedding] Model loaded in 725ms (384d, quantized, EP=dml)
+[ai-adapter] ONNX embedding ready — subprocess cold-starts eliminated
+[doctrinal.threshold-anomaly] Only 0 Beliefs anchored (<3) — threshold may be too high
+[doctrinal.threshold-anomaly] Only 2 Beliefs anchored (<3) — threshold may be too high
+[doctrinal] safetyist: 2/144 Beliefs anchored, 2 floor-applied
+[doctrinal] skeptic: 14/217 Beliefs anchored, 3 floor-applied
+[debate-cli] [setup] Evaluating topic quality
+[debate-cli] [generating] Topic critique
+[usage] {"ts":"2026-07-13T16:16:19.525Z","backend":"openai","model":"gpt-4o-mini","latencyMs":7292,"promptTokens":1045,"completionTokens":621,"cachedTokens":0,"totalTokens":1666}
+[debate-cli] [setup] Topic quality: fair (8/20)
+[debate-cli] [setup] Reframing topic for productive disagreement
+[debate-cli] [setup] Topic reframed: Reverted: structural score regressed after reframing
+[debate-cli] [setup] Extracting topic scope
+[debate-cli] [generating] Topic scope extraction
+[usage] {"ts":"2026-07-13T16:16:25.647Z","backend":"openai","model":"gpt-4o-mini","latencyMs":6082,"promptTokens":1590,"completionTokens":345,"cachedTokens":0,"totalTokens":1935}
+[debate-cli] [setup] Topic scope extracted (inferred, 4 off-scope, 4 drift sigs)
+[debate-cli] [opening] safetyist: Safetyist preparing opening statement
+[debate-cli] [opening] safetyist: Safetyist is briefing...
+[debate-cli] [generating] Safetyist opening brief
+[usage] {"ts":"2026-07-13T16:16:42.792Z","backend":"openai","model":"gpt-4o-mini","latencyMs":17101,"promptTokens":5934,"completionTokens":589,"cachedTokens":0,"totalTokens":6523}
+[debate-cli] [opening] safetyist: Safetyist is planning...
+[debate-cli] [generating] Safetyist opening plan
+[usage] {"ts":"2026-07-13T16:16:48.482Z","backend":"openai","model":"gpt-4o-mini","latencyMs":5688,"promptTokens":3024,"completionTokens":345,"cachedTokens":0,"totalTokens":3369}
+[debate-cli] [opening] safetyist: Safetyist is drafting...
+[debate-cli] [generating] Safetyist opening draft
+[usage] {"ts":"2026-07-13T16:16:56.449Z","backend":"openai","model":"gpt-4o-mini","latencyMs":7967,"promptTokens":4258,"completionTokens":491,"cachedTokens":0,"totalTokens":4749}
+[debate-cli] [opening] safetyist: Safetyist is citing...
+[debate-cli] [generating] Safetyist opening cite
+[usage] {"ts":"2026-07-13T16:17:00.658Z","backend":"openai","model":"gpt-4o-mini","latencyMs":4206,"promptTokens":7085,"completionTokens":308,"cachedTokens":0,"totalTokens":7393}
+[debate-cli] [generating] Claim extraction
+[usage] {"ts":"2026-07-13T16:17:08.519Z","backend":"openai","model":"gpt-4o-mini","latencyMs":7863,"promptTokens":2835,"completionTokens":443,"cachedTokens":0,"totalTokens":3278}
+[debate-cli] [generating] Entailment check
+[usage] {"ts":"2026-07-13T16:17:09.649Z","backend":"openai","model":"gpt-4o-mini","latencyMs":1125,"promptTokens":672,"completionTokens":34,"cachedTokens":0,"totalTokens":706}
+[debate-cli] [generating] Entailment check
+[usage] {"ts":"2026-07-13T16:17:11.122Z","backend":"openai","model":"gpt-4o-mini","latencyMs":1472,"promptTokens":666,"completionTokens":39,"cachedTokens":0,"totalTokens":705}
+[usage] {"ts":"2026-07-13T16:17:13.407Z","backend":"openai","model":"gpt-4o-mini","latencyMs":2160,"promptTokens":537,"completionTokens":142,"cachedTokens":0,"totalTokens":679}
+[debate-cli] [opening] accelerationist: Accelerationist preparing opening statement
+[debate-cli] [opening] accelerationist: Accelerationist is briefing...
+[debate-cli] [generating] Accelerationist opening brief
+[usage] {"ts":"2026-07-13T16:17:17.152Z","backend":"openai","model":"gpt-4o-mini","latencyMs":2007,"promptTokens":1184,"completionTokens":76,"cachedTokens":0,"totalTokens":1260}
+[usage] {"ts":"2026-07-13T16:17:23.027Z","backend":"openai","model":"gpt-4o-mini","latencyMs":9511,"promptTokens":6646,"completionTokens":652,"cachedTokens":0,"totalTokens":7298}
+[debate-cli] [opening] accelerationist: Accelerationist is planning...
+[debate-cli] [generating] Accelerationist opening plan
+[usage] {"ts":"2026-07-13T16:17:27.547Z","backend":"openai","model":"gpt-4o-mini","latencyMs":4519,"promptTokens":2953,"completionTokens":315,"cachedTokens":0,"totalTokens":3268}
+[debate-cli] [opening] accelerationist: Accelerationist is drafting...
+[debate-cli] [generating] Accelerationist opening draft
+[usage] {"ts":"2026-07-13T16:17:35.728Z","backend":"openai","model":"gpt-4o-mini","latencyMs":8181,"promptTokens":4271,"completionTokens":609,"cachedTokens":0,"totalTokens":4880}
+[debate-cli] [opening] accelerationist: Accelerationist is citing...
+[debate-cli] [generating] Accelerationist opening cite
+[usage] {"ts":"2026-07-13T16:17:39.889Z","backend":"openai","model":"gpt-4o-mini","latencyMs":4160,"promptTokens":7817,"completionTokens":291,"cachedTokens":0,"totalTokens":8108}
+[debate-cli] [generating] Claim extraction
+[usage] {"ts":"2026-07-13T16:17:48.906Z","backend":"openai","model":"gpt-4o-mini","latencyMs":9015,"promptTokens":3050,"completionTokens":494,"cachedTokens":0,"totalTokens":3544}
+[usage] {"ts":"2026-07-13T16:17:51.665Z","backend":"openai","model":"gpt-4o-mini","latencyMs":2703,"promptTokens":673,"completionTokens":172,"cachedTokens":0,"totalTokens":845}
+[debate-cli] [opening] skeptic: Skeptic preparing opening statement
+[debate-cli] [opening] skeptic: Skeptic is briefing...
+[debate-cli] [generating] Skeptic opening brief
+[usage] {"ts":"2026-07-13T16:17:54.393Z","backend":"openai","model":"gpt-4o-mini","latencyMs":1597,"promptTokens":1055,"completionTokens":72,"cachedTokens":0,"totalTokens":1127}
+[usage] {"ts":"2026-07-13T16:18:02.283Z","backend":"openai","model":"gpt-4o-mini","latencyMs":10507,"promptTokens":5847,"completionTokens":858,"cachedTokens":0,"totalTokens":6705}
+[debate-cli] [opening] skeptic: Skeptic is planning...
+[debate-cli] [generating] Skeptic opening plan
+[usage] {"ts":"2026-07-13T16:18:08.940Z","backend":"openai","model":"gpt-4o-mini","latencyMs":6648,"promptTokens":3172,"completionTokens":356,"cachedTokens":0,"totalTokens":3528}
+[debate-cli] [opening] skeptic: Skeptic is drafting...
+[debate-cli] [generating] Skeptic opening draft
+[usage] {"ts":"2026-07-13T16:18:17.065Z","backend":"openai","model":"gpt-4o-mini","latencyMs":8124,"promptTokens":4508,"completionTokens":444,"cachedTokens":0,"totalTokens":4952}
+[debate-cli] [opening] skeptic: Skeptic is citing...
+[debate-cli] [generating] Skeptic opening cite
+[usage] {"ts":"2026-07-13T16:18:29.960Z","backend":"openai","model":"gpt-4o-mini","latencyMs":12894,"promptTokens":7016,"completionTokens":306,"cachedTokens":0,"totalTokens":7322}
+[debate-cli] [generating] Claim extraction
+[usage] {"ts":"2026-07-13T16:18:37.680Z","backend":"openai","model":"gpt-4o-mini","latencyMs":7716,"promptTokens":2905,"completionTokens":550,"cachedTokens":0,"totalTokens":3455}
+[debate-cli] [generating] Entailment check
+[usage] {"ts":"2026-07-13T16:18:38.932Z","backend":"openai","model":"gpt-4o-mini","latencyMs":1247,"promptTokens":601,"completionTokens":44,"cachedTokens":0,"totalTokens":645}
+[usage] {"ts":"2026-07-13T16:18:40.868Z","backend":"openai","model":"gpt-4o-mini","latencyMs":1831,"promptTokens":477,"completionTokens":151,"cachedTokens":0,"totalTokens":628}
+[debate-cli] [evaluation] Neutral evaluation: baseline
+[usage] {"ts":"2026-07-13T16:18:44.680Z","backend":"openai","model":"gpt-4o-mini","latencyMs":1933,"promptTokens":1848,"completionTokens":69,"cachedTokens":0,"totalTokens":1917}
+[usage] {"ts":"2026-07-13T16:18:48.218Z","backend":"openai","model":"gpt-4o-mini","latencyMs":7273,"promptTokens":1921,"completionTokens":582,"cachedTokens":0,"totalTokens":2503}
+[debate-cli] [debate] Cross-respond round 1/1 [confrontation]
+[debate-cli] [generating] Round 1: Moderator selection
+[usage] {"ts":"2026-07-13T16:18:53.942Z","backend":"openai","model":"gpt-4o-mini","latencyMs":5704,"promptTokens":4979,"completionTokens":343,"cachedTokens":0,"totalTokens":5322}
+[debate-cli] [debate] safetyist: Safetyist responding (round 1)
+[orchestration] *** executeTurnWithRetry ENTERED for safetyist round 1 ***
+[debate-cli] [generating] safetyist: Safetyist is briefing...
+[debate-cli] [generating] Safetyist brief
+[usage] {"ts":"2026-07-13T16:19:00.906Z","backend":"openai","model":"gpt-4o-mini","latencyMs":6678,"promptTokens":7807,"completionTokens":390,"cachedTokens":0,"totalTokens":8197}
+[pipeline] Brief ID removed (unknown): acc-beliefs-003
+[debate-cli] [generating] safetyist: Safetyist is planning...
+[debate-cli] [generating] Safetyist plan
+[usage] {"ts":"2026-07-13T16:19:03.957Z","backend":"openai","model":"gpt-4o-mini","latencyMs":3048,"promptTokens":8863,"completionTokens":255,"cachedTokens":0,"totalTokens":9118}
+[debate-cli] [generating] safetyist: Safetyist is drafting...
+[debate-cli] [generating] Safetyist draft
+[usage] {"ts":"2026-07-13T16:19:14.820Z","backend":"openai","model":"gpt-4o-mini","latencyMs":10852,"promptTokens":9537,"completionTokens":565,"cachedTokens":0,"totalTokens":10102}
+[debate-cli] [generating] safetyist: Safetyist is quality-checking draft...
+[debate-cli] [generating] Safetyist draft-quality-check
+[usage] {"ts":"2026-07-13T16:19:15.524Z","backend":"gemini","model":"gemini-3.1-flash-lite","latencyMs":702,"promptTokens":979,"completionTokens":36,"totalTokens":1015}
+[debate-cli] [generating] safetyist: Safetyist is citing...
+[debate-cli] [generating] Safetyist cite
+[usage] {"ts":"2026-07-13T16:19:20.319Z","backend":"openai","model":"gpt-4o-mini","latencyMs":4793,"promptTokens":6878,"completionTokens":370,"cachedTokens":0,"totalTokens":7248}
+[debate-cli] [generating] turn-validator judge (safetyist r1)
+[usage] {"ts":"2026-07-13T16:19:26.940Z","backend":"claude","model":"claude-haiku-4-5-20251001","latencyMs":6616,"promptTokens":2114,"completionTokens":486,"totalTokens":2600}
+[debate-cli] [generating] Claim extraction
+[usage] {"ts":"2026-07-13T16:19:37.413Z","backend":"openai","model":"gpt-4o-mini","latencyMs":10450,"promptTokens":3022,"completionTokens":616,"cachedTokens":0,"totalTokens":3638}
+[debate-cli] [evaluation] Neutral evaluation: midpoint
+[usage] {"ts":"2026-07-13T16:19:40.791Z","backend":"openai","model":"gpt-4o-mini","latencyMs":3256,"promptTokens":527,"completionTokens":153,"cachedTokens":0,"totalTokens":680}
+[usage] {"ts":"2026-07-13T16:19:44.908Z","backend":"openai","model":"gpt-4o-mini","latencyMs":7371,"promptTokens":2325,"completionTokens":602,"cachedTokens":0,"totalTokens":2927}
+[debate-cli] [snapshot] Wrote round_complete recovery file: D:\mygit\ai-triad-research\debates\talmudic-reference-20260713-160058-pair2-source-grounded-partial.json
+[debate-cli] [concluding] Generating synthesis
+[debate-cli] [concluding] Phase 1/3: Extracting agreements and disagreements
+[debate-cli] [evaluation] Neutral evaluation: final
+[debate-cli] [generating] Synthesis Phase 1: Extract
+[usage] {"ts":"2026-07-13T16:19:55.426Z","backend":"openai","model":"gpt-4o-mini","latencyMs":10477,"promptTokens":3162,"completionTokens":640,"cachedTokens":0,"totalTokens":3802}
+[debate-cli] [concluding] Phase 2/3: Building argument map
+[debate-cli] [generating] Synthesis Phase 2: Map
+[usage] {"ts":"2026-07-13T16:19:56.453Z","backend":"openai","model":"gpt-4o-mini","latencyMs":11514,"promptTokens":2309,"completionTokens":826,"cachedTokens":0,"totalTokens":3135}
+[usage] {"ts":"2026-07-13T16:20:08.093Z","backend":"openai","model":"gpt-4o-mini","latencyMs":12666,"promptTokens":3407,"completionTokens":1035,"cachedTokens":0,"totalTokens":4442}
+[debate-cli] [concluding] Phase 3/3: Evaluating preferences
+[debate-cli] [generating] Synthesis Phase 3: Evaluate
+[usage] {"ts":"2026-07-13T16:20:14.367Z","backend":"openai","model":"gpt-4o-mini","latencyMs":6273,"promptTokens":1785,"completionTokens":597,"cachedTokens":0,"totalTokens":2382}
+[debate-cli] [generating] Missing arguments pass
+[usage] {"ts":"2026-07-13T16:20:22.399Z","backend":"openai","model":"gpt-4o-mini","latencyMs":8029,"promptTokens":3207,"completionTokens":381,"cachedTokens":0,"totalTokens":3588}
+[debate-cli] [generating] Taxonomy refinement pass
+[usage] {"ts":"2026-07-13T16:20:34.128Z","backend":"openai","model":"gpt-4o-mini","latencyMs":11728,"promptTokens":3059,"completionTokens":958,"cachedTokens":0,"totalTokens":4017}
+[debate-cli] Wrote debate JSON (atomic): D:\mygit\ai-triad-research\debates\talmudic-reference-20260713-160058-pair2-source-grounded-debate.json
+[debate-cli] Wrote debate markdown: D:\mygit\ai-triad-research\debates\talmudic-reference-20260713-160058-pair2-source-grounded-debate.md
+[debate-cli] Wrote diagnostics: D:\mygit\ai-triad-research\debates\talmudic-reference-20260713-160058-pair2-source-grounded-diagnostics.json
+[debate-cli] Wrote harvest: D:\mygit\ai-triad-research\debates\talmudic-reference-20260713-160058-pair2-source-grounded-harvest.json
+[debate-cli] Calibration data logged to D:\mygit\ai-triad-research/calibration/users/local/calibration-log.jsonl
+[debate-cli] Flight recorder: 134 events → D:\mygit\ai-triad-research\debates\talmudic-reference-20260713-160058-pair2-source-grounded-flight-recorder.jsonl
+{
+  "success": true,
+  "debateId": "961129b5-1324-4253-a81f-c77c77166c60",
+  "name": "Talmudic reference experiment pair 2 — source-grounded",
+  "slug": "talmudic-reference-20260713-160058-pair2-source-grounded",
+  "topic": "Should advanced AI development be regulated like a public utility?",
+  "files": {
+    "debate": "D:\\mygit\\ai-triad-research\\debates\\talmudic-reference-20260713-160058-pair2-source-grounded-debate.json",
+    "transcript": "D:\\mygit\\ai-triad-research\\debates\\talmudic-reference-20260713-160058-pair2-source-grounded-debate.json",
+    "diagnostics": "D:\\mygit\\ai-triad-research\\debates\\talmudic-reference-20260713-160058-pair2-source-grounded-diagnostics.json",
+    "harvest": "D:\\mygit\\ai-triad-research\\debates\\talmudic-reference-20260713-160058-pair2-source-grounded-harvest.json",
+    "markdown": "D:\\mygit\\ai-triad-research\\debates\\talmudic-reference-20260713-160058-pair2-source-grounded-debate.md"
+  },
+  "stats": {
+    "rounds": 1,
+    "entries": 13,
+    "apiCalls": 37,
+    "totalTimeMs": 266977,
+    "claimsAccepted": 8,
+    "claimsRejected": 3
+  }
+}
+Talmudic debate completed successfully.
+
+Pair 3/3 — method-only
+warning: The following paths are not up to date and were left despite sparse patterns:
+        calibration/core/calibration-log.jsonl
+        calibration/users/local/calibration-log.jsonl
+
+After fixing the above paths, you may want to run `git sparse-checkout reapply`.
+AI_TRIAD_DATA_ROOT=D:\mygit\ai-triad-research\.local-data\ai-triad-data
+OPENAI_API_KEY is set (value hidden)
+Running Talmudic debate config: D:\mygit\ai-triad-research\.local-data\talmudic-experiments\talmudic-reference-20260713-160058\pair-3-method-only.json
+Talmudic reference mode: method-only
+[debate-cli] Repo root: D:\mygit\ai-triad-research
+[debate-cli] Loading taxonomy...
+[debate-cli] Loaded: 172 acc, 299 saf, 314 skp, 413 sit nodes
+[debate-cli] Vocabulary: 0 standardized, 0 colloquial terms
+[debate-cli] Model: openai-gpt-4o-mini
+[debate-cli] Talmudic references: method-only
+[debate-cli] Starting debate: "Should advanced AI development be regulated like a public utility?..." with accelerationist, safetyist, skeptic, 1 rounds
+Python was not found; run without arguments to install from the Microsoft Store, or disable this shortcut from Settings > Apps > Advanced app settings > App execution aliases.
+[embedding] ONNX and Python unavailable, falling back to Gemini API (dimension mismatch with taxonomy — attribution accuracy may degrade)
+[onnxEmbedding] Using dml EP (available: cpu, dml, webgpu)
+2026-07-13 12:20:40.8330052 [W:onnxruntime:, session_state.cc:1367 onnxruntime::VerifyEachNodeIsAssignedToAnEp] Some nodes were not assigned to the preferred execution providers which may or may not have an negative impact on performance. e.g. ORT explicitly assigns shape related ops to CPU to improve perf.
+2026-07-13 12:20:40.8518212 [W:onnxruntime:, session_state.cc:1369 onnxruntime::VerifyEachNodeIsAssignedToAnEp] Rerunning with verbose output on a non-minimal build will show node assignments.
+[onnxEmbedding] Model loaded in 767ms (384d, quantized, EP=dml)
+[ai-adapter] ONNX embedding ready — subprocess cold-starts eliminated
+[doctrinal.threshold-anomaly] Only 0 Beliefs anchored (<3) — threshold may be too high
+[doctrinal.threshold-anomaly] Only 2 Beliefs anchored (<3) — threshold may be too high
+[doctrinal] safetyist: 2/144 Beliefs anchored, 2 floor-applied
+[doctrinal] skeptic: 14/217 Beliefs anchored, 3 floor-applied
+[debate-cli] [setup] Evaluating topic quality
+[debate-cli] [generating] Topic critique
+[usage] {"ts":"2026-07-13T16:20:51.605Z","backend":"openai","model":"gpt-4o-mini","latencyMs":9635,"promptTokens":1045,"completionTokens":538,"cachedTokens":0,"totalTokens":1583}
+[debate-cli] [setup] Topic quality: fair (8/20)
+[debate-cli] [setup] Reframing topic for productive disagreement
+[debate-cli] [setup] Topic reframed: Reverted: structural score regressed after reframing
+[debate-cli] [setup] Extracting topic scope
+[debate-cli] [generating] Topic scope extraction
+[usage] {"ts":"2026-07-13T16:20:56.162Z","backend":"openai","model":"gpt-4o-mini","latencyMs":4490,"promptTokens":1625,"completionTokens":353,"cachedTokens":0,"totalTokens":1978}
+[debate-cli] [setup] Topic scope extracted (explicit, 5 off-scope, 3 drift sigs)
+[debate-cli] [opening] accelerationist: Accelerationist preparing opening statement
+[debate-cli] [opening] accelerationist: Accelerationist is briefing...
+[debate-cli] [generating] Accelerationist opening brief
+[usage] {"ts":"2026-07-13T16:21:08.569Z","backend":"openai","model":"gpt-4o-mini","latencyMs":12342,"promptTokens":6059,"completionTokens":447,"cachedTokens":0,"totalTokens":6506}
+[debate-cli] [opening] accelerationist: Accelerationist is planning...
+[debate-cli] [generating] Accelerationist opening plan
+[usage] {"ts":"2026-07-13T16:21:14.423Z","backend":"openai","model":"gpt-4o-mini","latencyMs":5851,"promptTokens":2631,"completionTokens":363,"cachedTokens":0,"totalTokens":2994}
+[debate-cli] [opening] accelerationist: Accelerationist is drafting...
+[debate-cli] [generating] Accelerationist opening draft
+[usage] {"ts":"2026-07-13T16:21:19.796Z","backend":"openai","model":"gpt-4o-mini","latencyMs":5371,"promptTokens":3881,"completionTokens":375,"cachedTokens":0,"totalTokens":4256}
+[debate-cli] [opening] accelerationist: Accelerationist is citing...
+[debate-cli] [generating] Accelerationist opening cite
+[usage] {"ts":"2026-07-13T16:21:24.100Z","backend":"openai","model":"gpt-4o-mini","latencyMs":4300,"promptTokens":6955,"completionTokens":325,"cachedTokens":0,"totalTokens":7280}
+[debate-cli] [generating] Claim extraction
+[usage] {"ts":"2026-07-13T16:21:35.421Z","backend":"openai","model":"gpt-4o-mini","latencyMs":11279,"promptTokens":2716,"completionTokens":560,"cachedTokens":0,"totalTokens":3276}
+[usage] {"ts":"2026-07-13T16:21:38.092Z","backend":"openai","model":"gpt-4o-mini","latencyMs":2532,"promptTokens":416,"completionTokens":181,"cachedTokens":0,"totalTokens":597}
+[debate-cli] [opening] skeptic: Skeptic preparing opening statement
+[debate-cli] [opening] skeptic: Skeptic is briefing...
+[debate-cli] [generating] Skeptic opening brief
+[usage] {"ts":"2026-07-13T16:21:41.433Z","backend":"openai","model":"gpt-4o-mini","latencyMs":1764,"promptTokens":2288,"completionTokens":81,"cachedTokens":0,"totalTokens":2369}
+[usage] {"ts":"2026-07-13T16:21:45.200Z","backend":"openai","model":"gpt-4o-mini","latencyMs":1572,"promptTokens":751,"completionTokens":76,"cachedTokens":0,"totalTokens":827}
+[usage] {"ts":"2026-07-13T16:21:48.726Z","backend":"openai","model":"gpt-4o-mini","latencyMs":10474,"promptTokens":4527,"completionTokens":723,"cachedTokens":0,"totalTokens":5250}
+[debate-cli] [opening] skeptic: Skeptic is planning...
+[debate-cli] [generating] Skeptic opening plan
+[usage] {"ts":"2026-07-13T16:21:53.167Z","backend":"openai","model":"gpt-4o-mini","latencyMs":4440,"promptTokens":3042,"completionTokens":304,"cachedTokens":0,"totalTokens":3346}
+[debate-cli] [opening] skeptic: Skeptic is drafting...
+[debate-cli] [generating] Skeptic opening draft
+[usage] {"ts":"2026-07-13T16:21:58.638Z","backend":"openai","model":"gpt-4o-mini","latencyMs":5471,"promptTokens":4351,"completionTokens":462,"cachedTokens":0,"totalTokens":4813}
+[debate-cli] [opening] skeptic: Skeptic is citing...
+[debate-cli] [generating] Skeptic opening cite
+[usage] {"ts":"2026-07-13T16:22:04.066Z","backend":"openai","model":"gpt-4o-mini","latencyMs":5427,"promptTokens":5577,"completionTokens":319,"cachedTokens":0,"totalTokens":5896}
+[debate-cli] [generating] Claim extraction
+[usage] {"ts":"2026-07-13T16:22:12.573Z","backend":"openai","model":"gpt-4o-mini","latencyMs":8504,"promptTokens":2875,"completionTokens":448,"cachedTokens":0,"totalTokens":3323}
+[usage] {"ts":"2026-07-13T16:22:15.229Z","backend":"openai","model":"gpt-4o-mini","latencyMs":2612,"promptTokens":519,"completionTokens":152,"cachedTokens":0,"totalTokens":671}
+[debate-cli] [opening] safetyist: Safetyist preparing opening statement
+[debate-cli] [opening] safetyist: Safetyist is briefing...
+[debate-cli] [generating] Safetyist opening brief
+[usage] {"ts":"2026-07-13T16:22:16.380Z","backend":"openai","model":"gpt-4o-mini","latencyMs":1677,"promptTokens":1926,"completionTokens":77,"cachedTokens":0,"totalTokens":2003}
+[usage] {"ts":"2026-07-13T16:22:25.786Z","backend":"openai","model":"gpt-4o-mini","latencyMs":10451,"promptTokens":5832,"completionTokens":758,"cachedTokens":0,"totalTokens":6590}
+[debate-cli] [opening] safetyist: Safetyist is planning...
+[debate-cli] [generating] Safetyist opening plan
+[usage] {"ts":"2026-07-13T16:22:31.241Z","backend":"openai","model":"gpt-4o-mini","latencyMs":5454,"promptTokens":3307,"completionTokens":357,"cachedTokens":0,"totalTokens":3664}
+[debate-cli] [opening] safetyist: Safetyist is drafting...
+[debate-cli] [generating] Safetyist opening draft
+[usage] {"ts":"2026-07-13T16:22:37.720Z","backend":"openai","model":"gpt-4o-mini","latencyMs":6478,"promptTokens":4669,"completionTokens":469,"cachedTokens":0,"totalTokens":5138}
+[debate-cli] [opening] safetyist: Safetyist is citing...
+[debate-cli] [generating] Safetyist opening cite
+[usage] {"ts":"2026-07-13T16:22:41.975Z","backend":"openai","model":"gpt-4o-mini","latencyMs":4252,"promptTokens":6957,"completionTokens":317,"cachedTokens":0,"totalTokens":7274}
+[debate-cli] [generating] Claim extraction
+[usage] {"ts":"2026-07-13T16:22:53.858Z","backend":"openai","model":"gpt-4o-mini","latencyMs":11882,"promptTokens":2908,"completionTokens":668,"cachedTokens":0,"totalTokens":3576}
+[debate-cli] [generating] Entailment check
+[usage] {"ts":"2026-07-13T16:22:55.172Z","backend":"openai","model":"gpt-4o-mini","latencyMs":1312,"promptTokens":614,"completionTokens":48,"cachedTokens":0,"totalTokens":662}
+[debate-cli] [generating] Entailment check
+[usage] {"ts":"2026-07-13T16:22:56.123Z","backend":"openai","model":"gpt-4o-mini","latencyMs":950,"promptTokens":611,"completionTokens":33,"cachedTokens":0,"totalTokens":644}
+[usage] {"ts":"2026-07-13T16:22:59.059Z","backend":"openai","model":"gpt-4o-mini","latencyMs":2831,"promptTokens":483,"completionTokens":160,"cachedTokens":0,"totalTokens":643}
+[debate-cli] [evaluation] Neutral evaluation: baseline
+[usage] {"ts":"2026-07-13T16:23:07.571Z","backend":"openai","model":"gpt-4o-mini","latencyMs":8438,"promptTokens":1725,"completionTokens":706,"cachedTokens":0,"totalTokens":2431}
+[debate-cli] [debate] Cross-respond round 1/1 [confrontation]
+[debate-cli] [generating] Round 1: Moderator selection
+[usage] {"ts":"2026-07-13T16:23:10.747Z","backend":"openai","model":"gpt-4o-mini","latencyMs":3155,"promptTokens":4685,"completionTokens":273,"cachedTokens":0,"totalTokens":4958}
+[debate-cli] [debate] accelerationist: Accelerationist responding (round 1)
+[orchestration] *** executeTurnWithRetry ENTERED for accelerationist round 1 ***
+[debate-cli] [generating] accelerationist: Accelerationist is briefing...
+[debate-cli] [generating] Accelerationist brief
+[usage] {"ts":"2026-07-13T16:23:15.706Z","backend":"openai","model":"gpt-4o-mini","latencyMs":4741,"promptTokens":8190,"completionTokens":327,"cachedTokens":0,"totalTokens":8517}
+[debate-cli] [generating] accelerationist: Accelerationist is planning...
+[debate-cli] [generating] Accelerationist plan
+[usage] {"ts":"2026-07-13T16:23:20.080Z","backend":"openai","model":"gpt-4o-mini","latencyMs":4372,"promptTokens":9086,"completionTokens":264,"cachedTokens":0,"totalTokens":9350}
+[debate-cli] [generating] accelerationist: Accelerationist is drafting...
+[debate-cli] [generating] Accelerationist draft
+[usage] {"ts":"2026-07-13T16:23:28.898Z","backend":"openai","model":"gpt-4o-mini","latencyMs":8813,"promptTokens":9786,"completionTokens":658,"cachedTokens":0,"totalTokens":10444}
+[debate-cli] [generating] accelerationist: Accelerationist is quality-checking draft...
+[debate-cli] [generating] Accelerationist draft-quality-check
+[usage] {"ts":"2026-07-13T16:23:29.650Z","backend":"gemini","model":"gemini-3.1-flash-lite","latencyMs":750,"promptTokens":1099,"completionTokens":36,"totalTokens":1135}
+[debate-cli] [generating] accelerationist: Accelerationist is citing...
+[debate-cli] [generating] Accelerationist cite
+[usage] {"ts":"2026-07-13T16:23:33.460Z","backend":"openai","model":"gpt-4o-mini","latencyMs":3809,"promptTokens":7436,"completionTokens":302,"cachedTokens":0,"totalTokens":7738}
+[debate-cli] [generating] turn-validator judge (accelerationist r1)
+[usage] {"ts":"2026-07-13T16:23:40.685Z","backend":"claude","model":"claude-haiku-4-5-20251001","latencyMs":7221,"promptTokens":2180,"completionTokens":539,"totalTokens":2719}
+[debate-cli] [generating] Claim extraction
+[usage] {"ts":"2026-07-13T16:23:49.590Z","backend":"openai","model":"gpt-4o-mini","latencyMs":8885,"promptTokens":3136,"completionTokens":645,"cachedTokens":0,"totalTokens":3781}
+[debate-cli] [generating] Entailment check
+[usage] {"ts":"2026-07-13T16:23:50.772Z","backend":"openai","model":"gpt-4o-mini","latencyMs":1177,"promptTokens":765,"completionTokens":43,"cachedTokens":0,"totalTokens":808}
+[debate-cli] [evaluation] Neutral evaluation: midpoint
+[usage] {"ts":"2026-07-13T16:23:53.155Z","backend":"openai","model":"gpt-4o-mini","latencyMs":2282,"promptTokens":645,"completionTokens":145,"cachedTokens":0,"totalTokens":790}
+[usage] {"ts":"2026-07-13T16:23:59.827Z","backend":"openai","model":"gpt-4o-mini","latencyMs":8952,"promptTokens":2186,"completionTokens":499,"cachedTokens":0,"totalTokens":2685}
+[debate-cli] [snapshot] Wrote round_complete recovery file: D:\mygit\ai-triad-research\debates\talmudic-reference-20260713-160058-pair3-method-only-partial.json
+[debate-cli] [concluding] Generating synthesis
+[debate-cli] [concluding] Phase 1/3: Extracting agreements and disagreements
+[debate-cli] [evaluation] Neutral evaluation: final
+[debate-cli] [generating] Synthesis Phase 1: Extract
+[usage] {"ts":"2026-07-13T16:24:11.618Z","backend":"openai","model":"gpt-4o-mini","latencyMs":11763,"promptTokens":2170,"completionTokens":898,"cachedTokens":0,"totalTokens":3068}
+[usage] {"ts":"2026-07-13T16:24:26.193Z","backend":"openai","model":"gpt-4o-mini","latencyMs":26338,"promptTokens":3083,"completionTokens":478,"cachedTokens":0,"totalTokens":3561}
+[debate-cli] [concluding] Phase 2/3: Building argument map
+[debate-cli] [generating] Synthesis Phase 2: Map
+[usage] {"ts":"2026-07-13T16:24:36.804Z","backend":"openai","model":"gpt-4o-mini","latencyMs":10610,"promptTokens":3316,"completionTokens":757,"cachedTokens":0,"totalTokens":4073}
+[debate-cli] [concluding] Phase 3/3: Evaluating preferences
+[debate-cli] [generating] Synthesis Phase 3: Evaluate
+[usage] {"ts":"2026-07-13T16:24:48.429Z","backend":"openai","model":"gpt-4o-mini","latencyMs":11624,"promptTokens":1636,"completionTokens":575,"cachedTokens":0,"totalTokens":2211}
+[debate-cli] [generating] Missing arguments pass
+[usage] {"ts":"2026-07-13T16:24:56.343Z","backend":"openai","model":"gpt-4o-mini","latencyMs":7912,"promptTokens":3145,"completionTokens":488,"cachedTokens":0,"totalTokens":3633}
+[debate-cli] [generating] Taxonomy refinement pass
+[usage] {"ts":"2026-07-13T16:25:04.636Z","backend":"openai","model":"gpt-4o-mini","latencyMs":8291,"promptTokens":3162,"completionTokens":733,"cachedTokens":0,"totalTokens":3895}
+[debate-cli] Wrote debate JSON (atomic): D:\mygit\ai-triad-research\debates\talmudic-reference-20260713-160058-pair3-method-only-debate.json
+[debate-cli] Wrote debate markdown: D:\mygit\ai-triad-research\debates\talmudic-reference-20260713-160058-pair3-method-only-debate.md
+[debate-cli] Wrote diagnostics: D:\mygit\ai-triad-research\debates\talmudic-reference-20260713-160058-pair3-method-only-diagnostics.json
+[debate-cli] Wrote harvest: D:\mygit\ai-triad-research\debates\talmudic-reference-20260713-160058-pair3-method-only-harvest.json
+[debate-cli] Calibration data logged to D:\mygit\ai-triad-research/calibration/users/local/calibration-log.jsonl
+[debate-cli] Flight recorder: 141 events → D:\mygit\ai-triad-research\debates\talmudic-reference-20260713-160058-pair3-method-only-flight-recorder.jsonl
+{
+  "success": true,
+  "debateId": "cd74bc58-fc84-4a2c-9a1c-1c5794f3a378",
+  "name": "Talmudic reference experiment pair 3 — method-only",
+  "slug": "talmudic-reference-20260713-160058-pair3-method-only",
+  "topic": "Should advanced AI development be regulated like a public utility?",
+  "files": {
+    "debate": "D:\\mygit\\ai-triad-research\\debates\\talmudic-reference-20260713-160058-pair3-method-only-debate.json",
+    "transcript": "D:\\mygit\\ai-triad-research\\debates\\talmudic-reference-20260713-160058-pair3-method-only-debate.json",
+    "diagnostics": "D:\\mygit\\ai-triad-research\\debates\\talmudic-reference-20260713-160058-pair3-method-only-diagnostics.json",
+    "harvest": "D:\\mygit\\ai-triad-research\\debates\\talmudic-reference-20260713-160058-pair3-method-only-harvest.json",
+    "markdown": "D:\\mygit\\ai-triad-research\\debates\\talmudic-reference-20260713-160058-pair3-method-only-debate.md"
+  },
+  "stats": {
+    "rounds": 1,
+    "entries": 13,
+    "apiCalls": 37,
+    "totalTimeMs": 267502,
+    "claimsAccepted": 10,
+    "claimsRejected": 1
+  }
+}
+Talmudic debate completed successfully.
+
+Pair 3/3 — source-grounded
+warning: The following paths are not up to date and were left despite sparse patterns:
+        calibration/core/calibration-log.jsonl
+        calibration/users/local/calibration-log.jsonl
+
+After fixing the above paths, you may want to run `git sparse-checkout reapply`.
+AI_TRIAD_DATA_ROOT=D:\mygit\ai-triad-research\.local-data\ai-triad-data
+OPENAI_API_KEY is set (value hidden)
+Running Talmudic debate config: D:\mygit\ai-triad-research\.local-data\talmudic-experiments\talmudic-reference-20260713-160058\pair-3-source-grounded.json
+Talmudic reference mode: source-grounded (D:\mygit\ai-triad-research\.local-data\talmudic-corpus\pilot-v1.json)
+[debate-cli] Repo root: D:\mygit\ai-triad-research
+[debate-cli] Loading taxonomy...
+[debate-cli] Loaded: 172 acc, 299 saf, 314 skp, 413 sit nodes
+[debate-cli] Vocabulary: 0 standardized, 0 colloquial terms
+[debate-cli] Model: openai-gpt-4o-mini
+[debate-cli] Talmudic references: source-grounded (D:\mygit\ai-triad-research\.local-data\talmudic-corpus\pilot-v1.json)
+[debate-cli] Starting debate: "Should advanced AI development be regulated like a public utility?..." with accelerationist, safetyist, skeptic, 1 rounds
+Python was not found; run without arguments to install from the Microsoft Store, or disable this shortcut from Settings > Apps > Advanced app settings > App execution aliases.
+[embedding] ONNX and Python unavailable, falling back to Gemini API (dimension mismatch with taxonomy — attribution accuracy may degrade)
+[onnxEmbedding] Using dml EP (available: cpu, dml, webgpu)
+2026-07-13 12:25:08.5830014 [W:onnxruntime:, session_state.cc:1367 onnxruntime::VerifyEachNodeIsAssignedToAnEp] Some nodes were not assigned to the preferred execution providers which may or may not have an negative impact on performance. e.g. ORT explicitly assigns shape related ops to CPU to improve perf.
+2026-07-13 12:25:08.5965357 [W:onnxruntime:, session_state.cc:1369 onnxruntime::VerifyEachNodeIsAssignedToAnEp] Rerunning with verbose output on a non-minimal build will show node assignments.
+[onnxEmbedding] Model loaded in 515ms (384d, quantized, EP=dml)
+[ai-adapter] ONNX embedding ready — subprocess cold-starts eliminated
+[doctrinal.threshold-anomaly] Only 0 Beliefs anchored (<3) — threshold may be too high
+[doctrinal.threshold-anomaly] Only 2 Beliefs anchored (<3) — threshold may be too high
+[doctrinal] safetyist: 2/144 Beliefs anchored, 2 floor-applied
+[doctrinal] skeptic: 14/217 Beliefs anchored, 3 floor-applied
+[debate-cli] [setup] Evaluating topic quality
+[debate-cli] [generating] Topic critique
+[usage] {"ts":"2026-07-13T16:25:16.908Z","backend":"openai","model":"gpt-4o-mini","latencyMs":7517,"promptTokens":1045,"completionTokens":527,"cachedTokens":0,"totalTokens":1572}
+[debate-cli] [setup] Topic quality: fair (10/20)
+[debate-cli] [setup] Extracting topic scope
+[debate-cli] [generating] Topic scope extraction
+[usage] {"ts":"2026-07-13T16:25:27.037Z","backend":"openai","model":"gpt-4o-mini","latencyMs":10127,"promptTokens":1622,"completionTokens":359,"cachedTokens":0,"totalTokens":1981}
+[debate-cli] [setup] Topic scope extracted (explicit, 4 off-scope, 3 drift sigs)
+[debate-cli] [opening] safetyist: Safetyist preparing opening statement
+[debate-cli] [opening] safetyist: Safetyist is briefing...
+[debate-cli] [generating] Safetyist opening brief
+[usage] {"ts":"2026-07-13T16:25:32.577Z","backend":"openai","model":"gpt-4o-mini","latencyMs":5500,"promptTokens":5934,"completionTokens":487,"cachedTokens":0,"totalTokens":6421}
+[debate-cli] [opening] safetyist: Safetyist is planning...
+[debate-cli] [generating] Safetyist opening plan
+[usage] {"ts":"2026-07-13T16:25:37.839Z","backend":"openai","model":"gpt-4o-mini","latencyMs":5261,"promptTokens":2932,"completionTokens":323,"cachedTokens":0,"totalTokens":3255}
+[debate-cli] [opening] safetyist: Safetyist is drafting...
+[debate-cli] [generating] Safetyist opening draft
+[usage] {"ts":"2026-07-13T16:25:44.552Z","backend":"openai","model":"gpt-4o-mini","latencyMs":6712,"promptTokens":4119,"completionTokens":467,"cachedTokens":0,"totalTokens":4586}
+[debate-cli] [opening] safetyist: Safetyist is citing...
+[debate-cli] [generating] Safetyist opening cite
+[usage] {"ts":"2026-07-13T16:25:49.574Z","backend":"openai","model":"gpt-4o-mini","latencyMs":5020,"promptTokens":6902,"completionTokens":326,"cachedTokens":0,"totalTokens":7228}
+[debate-cli] [generating] Claim extraction
+[usage] {"ts":"2026-07-13T16:25:54.396Z","backend":"openai","model":"gpt-4o-mini","latencyMs":4816,"promptTokens":2808,"completionTokens":301,"cachedTokens":0,"totalTokens":3109}
+[debate-engine] [WARNING] Parsing claim extraction response for Safetyist: Cannot parse JSON after all repair attempts (strip fences, repair quotes/newlines, extract braces).
+Input preview: {"claims":[{"text":"The aviation industry offers a critical historical case.","attribution_text":"A Belief within regulatory discourse that historical examples from the aviation industry illustrate th
+This usually means the AI returned malformed or truncated output. Retry the operation or try a different model.. Recovery: Skipping — argument network will be incomplete for this turn
+[debate-cli] [warning] [WARNING] Parsing claim extraction response for Safetyist: Cannot parse JSON after all repair attempts (strip fences, repair quotes/newlines, extract braces).
+Input preview: {"claims":[{"text":"The aviation industry offers a critical historical case.","attribution_text":"A Belief within regulatory discourse that historical examples from the aviation industry illustrate th
+This usually means the AI returned malformed or truncated output. Retry the operation or try a different model.. Recovery: Skipping — argument network will be incomplete for this turn
+[usage] {"ts":"2026-07-13T16:25:57.286Z","backend":"openai","model":"gpt-4o-mini","latencyMs":2884,"promptTokens":541,"completionTokens":180,"cachedTokens":0,"totalTokens":721}
+[debate-cli] [opening] accelerationist: Accelerationist preparing opening statement
+[debate-cli] [opening] accelerationist: Accelerationist is briefing...
+[debate-cli] [generating] Accelerationist opening brief
+[usage] {"ts":"2026-07-13T16:26:07.712Z","backend":"openai","model":"gpt-4o-mini","latencyMs":10395,"promptTokens":6008,"completionTokens":725,"cachedTokens":0,"totalTokens":6733}
+[debate-cli] [opening] accelerationist: Accelerationist is planning...
+[debate-cli] [generating] Accelerationist opening plan
+[usage] {"ts":"2026-07-13T16:26:12.394Z","backend":"openai","model":"gpt-4o-mini","latencyMs":4682,"promptTokens":3025,"completionTokens":367,"cachedTokens":0,"totalTokens":3392}
+[debate-cli] [opening] accelerationist: Accelerationist is drafting...
+[debate-cli] [generating] Accelerationist opening draft
+[usage] {"ts":"2026-07-13T16:26:20.625Z","backend":"openai","model":"gpt-4o-mini","latencyMs":8230,"promptTokens":4382,"completionTokens":600,"cachedTokens":0,"totalTokens":4982}
+[debate-cli] [opening] accelerationist: Accelerationist is citing...
+[debate-cli] [generating] Accelerationist opening cite
+[usage] {"ts":"2026-07-13T16:26:34.576Z","backend":"openai","model":"gpt-4o-mini","latencyMs":13951,"promptTokens":7267,"completionTokens":318,"cachedTokens":0,"totalTokens":7585}
+[debate-cli] [generating] Claim extraction
+[usage] {"ts":"2026-07-13T16:26:55.967Z","backend":"openai","model":"gpt-4o-mini","latencyMs":21389,"promptTokens":2937,"completionTokens":1262,"cachedTokens":0,"totalTokens":4199}
+[usage] {"ts":"2026-07-13T16:26:58.512Z","backend":"openai","model":"gpt-4o-mini","latencyMs":2415,"promptTokens":634,"completionTokens":137,"cachedTokens":0,"totalTokens":771}
+[debate-cli] [opening] skeptic: Skeptic preparing opening statement
+[debate-cli] [opening] skeptic: Skeptic is briefing...
+[debate-cli] [generating] Skeptic opening brief
+[usage] {"ts":"2026-07-13T16:27:01.745Z","backend":"openai","model":"gpt-4o-mini","latencyMs":1990,"promptTokens":3421,"completionTokens":80,"cachedTokens":0,"totalTokens":3501}
+[usage] {"ts":"2026-07-13T16:27:05.199Z","backend":"openai","model":"gpt-4o-mini","latencyMs":6548,"promptTokens":5925,"completionTokens":696,"cachedTokens":0,"totalTokens":6621}
+[debate-cli] [opening] skeptic: Skeptic is planning...
+[debate-cli] [generating] Skeptic opening plan
+[usage] {"ts":"2026-07-13T16:27:10.600Z","backend":"openai","model":"gpt-4o-mini","latencyMs":5400,"promptTokens":3021,"completionTokens":342,"cachedTokens":0,"totalTokens":3363}
+[debate-cli] [opening] skeptic: Skeptic is drafting...
+[debate-cli] [generating] Skeptic opening draft
+[usage] {"ts":"2026-07-13T16:27:18.445Z","backend":"openai","model":"gpt-4o-mini","latencyMs":7844,"promptTokens":4368,"completionTokens":637,"cachedTokens":0,"totalTokens":5005}
+[debate-cli] [opening] skeptic: Skeptic is citing...
+[debate-cli] [generating] Skeptic opening cite
+[usage] {"ts":"2026-07-13T16:27:35.914Z","backend":"openai","model":"gpt-4o-mini","latencyMs":17469,"promptTokens":7126,"completionTokens":374,"cachedTokens":0,"totalTokens":7500}
+[debate-cli] [generating] Claim extraction
+[usage] {"ts":"2026-07-13T16:27:49.351Z","backend":"openai","model":"gpt-4o-mini","latencyMs":13434,"promptTokens":3094,"completionTokens":653,"cachedTokens":0,"totalTokens":3747}
+[usage] {"ts":"2026-07-13T16:27:53.472Z","backend":"openai","model":"gpt-4o-mini","latencyMs":4038,"promptTokens":643,"completionTokens":172,"cachedTokens":0,"totalTokens":815}
+[debate-cli] [evaluation] Neutral evaluation: baseline
+[usage] {"ts":"2026-07-13T16:27:53.551Z","backend":"openai","model":"gpt-4o-mini","latencyMs":1893,"promptTokens":1107,"completionTokens":69,"cachedTokens":0,"totalTokens":1176}
+[usage] {"ts":"2026-07-13T16:28:05.192Z","backend":"openai","model":"gpt-4o-mini","latencyMs":11683,"promptTokens":1996,"completionTokens":876,"cachedTokens":0,"totalTokens":2872}
+[debate-cli] [debate] Cross-respond round 1/1 [confrontation]
+[debate-cli] [generating] Round 1: Moderator selection
+[usage] {"ts":"2026-07-13T16:28:08.848Z","backend":"openai","model":"gpt-4o-mini","latencyMs":3638,"promptTokens":4877,"completionTokens":254,"cachedTokens":0,"totalTokens":5131}
+[debate-cli] [debate] safetyist: Safetyist responding (round 1)
+[orchestration] *** executeTurnWithRetry ENTERED for safetyist round 1 ***
+[debate-cli] [generating] safetyist: Safetyist is briefing...
+[debate-cli] [generating] Safetyist brief
+[usage] {"ts":"2026-07-13T16:28:26.159Z","backend":"openai","model":"gpt-4o-mini","latencyMs":17134,"promptTokens":7726,"completionTokens":350,"cachedTokens":0,"totalTokens":8076}
+[pipeline] Brief ID removed (unknown): acc-beliefs-003
+[debate-cli] [generating] safetyist: Safetyist is planning...
+[debate-cli] [generating] Safetyist plan
+[usage] {"ts":"2026-07-13T16:28:30.040Z","backend":"openai","model":"gpt-4o-mini","latencyMs":3880,"promptTokens":8546,"completionTokens":287,"cachedTokens":0,"totalTokens":8833}
+[debate-cli] [generating] safetyist: Safetyist is drafting...
+[debate-cli] [generating] Safetyist draft
+[usage] {"ts":"2026-07-13T16:28:38.928Z","backend":"openai","model":"gpt-4o-mini","latencyMs":8881,"promptTokens":9367,"completionTokens":591,"cachedTokens":0,"totalTokens":9958}
+[debate-cli] [generating] Safetyist micro-fix(specificity)
+[usage] {"ts":"2026-07-13T16:28:48.541Z","backend":"openai","model":"gpt-4o-mini","latencyMs":9611,"promptTokens":711,"completionTokens":660,"cachedTokens":0,"totalTokens":1371}
+[pipeline] Micro-fix(specificity) succeeded in 9612ms — skipping full retry
+[pipeline] Auto-split single paragraph into 4 paragraphs
+[debate-cli] [generating] safetyist: Safetyist is quality-checking draft...
+[debate-cli] [generating] Safetyist draft-quality-check
+[usage] {"ts":"2026-07-13T16:28:49.486Z","backend":"gemini","model":"gemini-3.1-flash-lite","latencyMs":943,"promptTokens":1118,"completionTokens":55,"totalTokens":1173}
+[pipeline] Draft quality pre-check failed: Lacks a specific, testable prediction regarding AI regulation outcomes.
+[debate-cli] [generating] Safetyist draft (quality retry)
+[usage] {"ts":"2026-07-13T16:29:23.553Z","backend":"openai","model":"gpt-4o-mini","latencyMs":34065,"promptTokens":9593,"completionTokens":642,"cachedTokens":0,"totalTokens":10235}
+[pipeline] Draft quality retry produced new draft
+[debate-cli] [generating] Safetyist draft-quality-recheck
+[usage] {"ts":"2026-07-13T16:29:24.342Z","backend":"gemini","model":"gemini-3.1-flash-lite","latencyMs":789,"promptTokens":1108,"completionTokens":36,"totalTokens":1144}
+[debate-cli] [generating] safetyist: Safetyist is citing...
+[debate-cli] [generating] Safetyist cite
+[usage] {"ts":"2026-07-13T16:29:30.833Z","backend":"openai","model":"gpt-4o-mini","latencyMs":6490,"promptTokens":6769,"completionTokens":311,"cachedTokens":0,"totalTokens":7080}
+[pipeline] Cite validation errors (attempt 0), retrying: Unknown taxonomy node_id: acc-beliefs-003. Use only nodes from your taxonomy context.
+[debate-cli] [generating] safetyist: Safetyist is citing (retry 1)...
+[debate-cli] [generating] Safetyist cite
+[usage] {"ts":"2026-07-13T16:29:37.231Z","backend":"openai","model":"gpt-4o-mini","latencyMs":6396,"promptTokens":6813,"completionTokens":341,"cachedTokens":0,"totalTokens":7154}
+[debate-cli] [generating] turn-validator judge (safetyist r1)
+[usage] {"ts":"2026-07-13T16:29:43.947Z","backend":"claude","model":"claude-haiku-4-5-20251001","latencyMs":6713,"promptTokens":2227,"completionTokens":526,"totalTokens":2753}
+[debate-cli] [generating] Claim extraction
+[usage] {"ts":"2026-07-13T16:29:53.456Z","backend":"openai","model":"gpt-4o-mini","latencyMs":9495,"promptTokens":3116,"completionTokens":660,"cachedTokens":0,"totalTokens":3776}
+[debate-cli] [generating] Entailment check
+[usage] {"ts":"2026-07-13T16:29:55.030Z","backend":"openai","model":"gpt-4o-mini","latencyMs":1568,"promptTokens":741,"completionTokens":48,"cachedTokens":0,"totalTokens":789}
+[debate-cli] [generating] Entailment check
+[usage] {"ts":"2026-07-13T16:29:56.499Z","backend":"openai","model":"gpt-4o-mini","latencyMs":1468,"promptTokens":749,"completionTokens":38,"cachedTokens":0,"totalTokens":787}
+[debate-cli] [evaluation] Neutral evaluation: midpoint
+[usage] {"ts":"2026-07-13T16:29:59.446Z","backend":"openai","model":"gpt-4o-mini","latencyMs":2808,"promptTokens":617,"completionTokens":178,"cachedTokens":0,"totalTokens":795}
+[usage] {"ts":"2026-07-13T16:30:03.821Z","backend":"openai","model":"gpt-4o-mini","latencyMs":7179,"promptTokens":2490,"completionTokens":580,"cachedTokens":0,"totalTokens":3070}
+[debate-cli] [snapshot] Wrote round_complete recovery file: D:\mygit\ai-triad-research\debates\talmudic-reference-20260713-160058-pair3-source-grounded-partial.json
+[debate-cli] [concluding] Generating synthesis
+[debate-cli] [concluding] Phase 1/3: Extracting agreements and disagreements
+[debate-cli] [evaluation] Neutral evaluation: final
+[debate-cli] [generating] Synthesis Phase 1: Extract
+[usage] {"ts":"2026-07-13T16:30:05.034Z","backend":"openai","model":"gpt-4o-mini","latencyMs":1622,"promptTokens":2418,"completionTokens":64,"cachedTokens":0,"totalTokens":2482}
+[usage] {"ts":"2026-07-13T16:30:09.767Z","backend":"openai","model":"gpt-4o-mini","latencyMs":1668,"promptTokens":1209,"completionTokens":58,"cachedTokens":0,"totalTokens":1267}
+[usage] {"ts":"2026-07-13T16:30:12.110Z","backend":"openai","model":"gpt-4o-mini","latencyMs":8258,"promptTokens":3358,"completionTokens":622,"cachedTokens":0,"totalTokens":3980}
+[debate-cli] [concluding] Phase 2/3: Building argument map
+[debate-cli] [generating] Synthesis Phase 2: Map
+[usage] {"ts":"2026-07-13T16:30:15.419Z","backend":"openai","model":"gpt-4o-mini","latencyMs":11567,"promptTokens":2474,"completionTokens":715,"cachedTokens":0,"totalTokens":3189}
+[usage] {"ts":"2026-07-13T16:30:24.555Z","backend":"openai","model":"gpt-4o-mini","latencyMs":12444,"promptTokens":3603,"completionTokens":923,"cachedTokens":0,"totalTokens":4526}
+[debate-cli] [concluding] Phase 3/3: Evaluating preferences
+[debate-cli] [generating] Synthesis Phase 3: Evaluate
+[usage] {"ts":"2026-07-13T16:30:29.565Z","backend":"openai","model":"gpt-4o-mini","latencyMs":5010,"promptTokens":1724,"completionTokens":419,"cachedTokens":0,"totalTokens":2143}
+[debate-cli] [generating] Missing arguments pass
+[usage] {"ts":"2026-07-13T16:30:36.195Z","backend":"openai","model":"gpt-4o-mini","latencyMs":6629,"promptTokens":3075,"completionTokens":480,"cachedTokens":0,"totalTokens":3555}
+[debate-cli] [generating] Taxonomy refinement pass
+[usage] {"ts":"2026-07-13T16:30:43.787Z","backend":"openai","model":"gpt-4o-mini","latencyMs":7591,"promptTokens":3128,"completionTokens":741,"cachedTokens":0,"totalTokens":3869}
+[debate-cli] Wrote debate JSON (atomic): D:\mygit\ai-triad-research\debates\talmudic-reference-20260713-160058-pair3-source-grounded-debate.json
+[debate-cli] Wrote debate markdown: D:\mygit\ai-triad-research\debates\talmudic-reference-20260713-160058-pair3-source-grounded-debate.md
+[debate-cli] Wrote diagnostics: D:\mygit\ai-triad-research\debates\talmudic-reference-20260713-160058-pair3-source-grounded-diagnostics.json
+[debate-cli] Wrote harvest: D:\mygit\ai-triad-research\debates\talmudic-reference-20260713-160058-pair3-source-grounded-harvest.json
+[debate-cli] Calibration data logged to D:\mygit\ai-triad-research/calibration/users/local/calibration-log.jsonl
+[debate-cli] Flight recorder: 154 events → D:\mygit\ai-triad-research\debates\talmudic-reference-20260713-160058-pair3-source-grounded-flight-recorder.jsonl
+{
+  "success": true,
+  "debateId": "2006d179-7474-4973-8ffc-fe8210026d8d",
+  "name": "Talmudic reference experiment pair 3 — source-grounded",
+  "slug": "talmudic-reference-20260713-160058-pair3-source-grounded",
+  "topic": "Should advanced AI development be regulated like a public utility?",
+  "files": {
+    "debate": "D:\\mygit\\ai-triad-research\\debates\\talmudic-reference-20260713-160058-pair3-source-grounded-debate.json",
+    "transcript": "D:\\mygit\\ai-triad-research\\debates\\talmudic-reference-20260713-160058-pair3-source-grounded-debate.json",
+    "diagnostics": "D:\\mygit\\ai-triad-research\\debates\\talmudic-reference-20260713-160058-pair3-source-grounded-diagnostics.json",
+    "harvest": "D:\\mygit\\ai-triad-research\\debates\\talmudic-reference-20260713-160058-pair3-source-grounded-harvest.json",
+    "markdown": "D:\\mygit\\ai-triad-research\\debates\\talmudic-reference-20260713-160058-pair3-source-grounded-debate.md"
+  },
+  "stats": {
+    "rounds": 1,
+    "entries": 14,
+    "apiCalls": 40,
+    "totalTimeMs": 337653,
+    "claimsAccepted": 9,
+    "claimsRejected": 3
+  }
+}
+Talmudic debate completed successfully.
+
+Completed 3 matched pair(s).
+Experiment manifest: D:\mygit\ai-triad-research\.local-data\talmudic-experiments\talmudic-reference-20260713-160058\experiment-results.json
+Pair 1:
+  Method-only:     D:\mygit\ai-triad-research\debates\talmudic-reference-20260713-160058-pair1-method-only-debate.json
+  Source-grounded: D:\mygit\ai-triad-research\debates\talmudic-reference-20260713-160058-pair1-source-grounded-debate.json
+  Review: .\scripts\TalmudicDebate\Review-TalmudicDebate.ps1 -Path 'D:\mygit\ai-triad-research\debates\talmudic-reference-20260713-160058-pair1-source-grounded-debate.json' -BaselinePath 'D:\mygit\ai-triad-research\debates\talmudic-reference-20260713-160058-pair1-method-only-debate.json'
+Pair 2:
+  Method-only:     D:\mygit\ai-triad-research\debates\talmudic-reference-20260713-160058-pair2-method-only-debate.json
+  Source-grounded: D:\mygit\ai-triad-research\debates\talmudic-reference-20260713-160058-pair2-source-grounded-debate.json
+  Review: .\scripts\TalmudicDebate\Review-TalmudicDebate.ps1 -Path 'D:\mygit\ai-triad-research\debates\talmudic-reference-20260713-160058-pair2-source-grounded-debate.json' -BaselinePath 'D:\mygit\ai-triad-research\debates\talmudic-reference-20260713-160058-pair2-method-only-debate.json'
+Pair 3:
+  Method-only:     D:\mygit\ai-triad-research\debates\talmudic-reference-20260713-160058-pair3-method-only-debate.json
+  Source-grounded: D:\mygit\ai-triad-research\debates\talmudic-reference-20260713-160058-pair3-source-grounded-debate.json
+  Review: .\scripts\TalmudicDebate\Review-TalmudicDebate.ps1 -Path 'D:\mygit\ai-triad-research\debates\talmudic-reference-20260713-160058-pair3-source-grounded-debate.json' -BaselinePath 'D:\mygit\ai-triad-research\debates\talmudic-reference-20260713-160058-pair3-method-only-debate.json'

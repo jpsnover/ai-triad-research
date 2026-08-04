@@ -2,7 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { describe, it, expect, vi } from 'vitest';
-import { runModeratorSelection, executeTurnWithRetry } from './orchestration.js';
+import { runModeratorSelection, executeTurnWithRetry, parseDialecticalDiagnostic } from './orchestration.js';
 import type {
   ModeratorSelectionInput,
   ModeratorSelectionCallbacks,
@@ -175,6 +175,62 @@ function makeBaseTurnRetryCallbacks(
 // ═══════════════════════════════════════════════════════════
 
 describe('runModeratorSelection', () => {
+  it('normalizes complete Talmudic dialectical diagnostics', () => {
+    expect(parseDialecticalDiagnostic({
+      focused_crux: 'Whether oversight or capture caused the failure',
+      disagreement_type: 'CAUSAL',
+      premise_under_examination: 'More rules necessarily produce more safety',
+      distinction_or_analogy_tested: 'Regulatory capture versus effective oversight',
+      unresolved_outcome: 'Independent evidence about enforcement quality is needed',
+    }, 'fallback')).toEqual({
+      focused_crux: 'Whether oversight or capture caused the failure',
+      disagreement_type: 'causal',
+      premise_under_examination: 'More rules necessarily produce more safety',
+      distinction_or_analogy_tested: 'Regulatory capture versus effective oversight',
+      unresolved_outcome: 'Independent evidence about enforcement quality is needed',
+    });
+  });
+
+  it('uses safe fallbacks for incomplete Talmudic diagnostics', () => {
+    expect(parseDialecticalDiagnostic({ disagreement_type: 'invented-type' }, '  Fallback crux  ')).toEqual({
+      focused_crux: 'Fallback crux',
+      disagreement_type: 'unclear',
+      premise_under_examination: null,
+      distinction_or_analogy_tested: null,
+      unresolved_outcome: null,
+    });
+  });
+
+  it('returns parsed diagnostics from a Talmudic moderator selection', async () => {
+    const input = makeBaseModeratorInput({
+      moderatorMode: 'talmudic',
+      transcript: [makeTranscriptEntry({ speaker: 'accelerationist' })],
+    });
+    const callbacks = makeBaseModeratorCallbacks(JSON.stringify({
+      responder: 'safetyist',
+      addressing: 'accelerationist',
+      focus_point: 'Test the regulatory analogy',
+      agreement_detected: false,
+      dialectical_diagnostic: {
+        focused_crux: 'Whether aviation regulation is analogous to AI regulation',
+        disagreement_type: 'definitional',
+        premise_under_examination: 'Both industries have comparable failure modes',
+        distinction_or_analogy_tested: 'Aviation certification versus AI deployment review',
+        unresolved_outcome: 'Comparable enforcement evidence is still needed',
+      },
+    }));
+
+    const result = await runModeratorSelection(input, callbacks);
+
+    expect(result.selectionResult.dialectical_diagnostic).toEqual({
+      focused_crux: 'Whether aviation regulation is analogous to AI regulation',
+      disagreement_type: 'definitional',
+      premise_under_examination: 'Both industries have comparable failure modes',
+      distinction_or_analogy_tested: 'Aviation certification versus AI deployment review',
+      unresolved_outcome: 'Comparable enforcement evidence is still needed',
+    });
+  });
+
   it('returns valid result with modState and healthScore when AI returns valid JSON', async () => {
     // Give accelerationist the last statement so the fallback alternation won't pick it,
     // and the AI response for 'safetyist' will be honoured.

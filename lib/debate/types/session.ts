@@ -25,6 +25,7 @@ import type {
   TaxonomySuggestion,
   ModeratorState,
   InterventionMetadata,
+  DialecticalDiagnosticRecord,
 } from './moderator.js';
 import type { PovKey } from './synthesis.js';
 import type { CanonicalEdgeType, Category } from '../taxonomyTypes.js';
@@ -466,6 +467,8 @@ export interface DebateSession {
   }>;
   /** Human-gated taxonomy evolution proposals from post-debate reflection (machine proposes, human disposes). */
   reflection_proposals?: ReflectionProposal[];
+  /** Per-round Talmudic dialectical diagnostics — populated when moderatorMode is 'talmudic'. */
+  dialectical_diagnostics?: DialecticalDiagnosticRecord[];
   /**
    * Provenance carrier for source-authority scoring (t/1769). Maps source-id →
    * { title, resolved_url?, provenance_label? }. Stamped at debate-run / save time
