@@ -11,3 +11,9 @@ export const ATTACK_DEDUP_THRESHOLD = 0.85;
 
 /** Polarity score threshold for classifying a crux as resolved (support or attack direction). */
 export const POLARITY_RESOLVED_THRESHOLD = 0.85;
+
+/** Default timeout (ms) for AI generation calls in the debate engine. */
+export const DEFAULT_AI_TIMEOUT_MS = 120_000;
+
+/** Default relevance threshold for taxonomy node selection during debate turns. */
+export const DEFAULT_RELEVANCE_THRESHOLD = 0.45;

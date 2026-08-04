@@ -25,6 +25,7 @@ import { runModeratorSelection, executeTurnWithRetry, type ModeratorSelectionCal
 import { pruneSessionData, pruneModeratorState } from '../../sessionPruning.js';
 import { getGlobalRecorder } from '../../../flight-recorder/index.js';
 import { runTurnPipeline, assemblePipelineResult, type TurnPipelineInput } from '../../turnPipeline.js';
+import { DEFAULT_TEMPERATURE } from '../../../ai-client/defaults.js';
 import { resolveStageModel, resolveModelForSpeaker, recordRateLimit, clearRateLimitBackoff, isRateLimitError } from '../modelResolution.js';
 import { _rescoreSituations, buildSignalContext, recordSignalHistory, updatePeakTracker, accumulateContextManifest } from '../adaptiveStaging.js';
 import { enrichTaxonomyRefs, getRelevantTaxonomyContext, formatDebaterEdgeContext, formatModeratorEdgeContext, routeTurnValidatorHints } from '../taxonomyContext.js';
@@ -336,7 +337,7 @@ export async function runCrossRespondRound(engine: DebateEngineInternals, round:
 
   const moderatorModel = resolveStageModel(engine, 'moderator');
   const selectionCallbacks: ModeratorSelectionCallbacks = {
-    generate: async (prompt, _model, options, label) => engine.generateWithModel(prompt, label, moderatorModel, options?.timeoutMs, engine.config.temperature ?? 0.7),
+    generate: async (prompt, _model, options, label) => engine.generateWithModel(prompt, label, moderatorModel, options?.timeoutMs, engine.config.temperature ?? DEFAULT_TEMPERATURE),
     addEntry: (entry) => engine.addEntry(entry).id,
     progress: (ph, speaker, message) => engine.progress(ph, speaker, message),
     warn: (context, err, recovery) => engine.warn(context, err, recovery),
@@ -834,7 +835,7 @@ export async function runCrossRespondRound(engine: DebateEngineInternals, round:
       const draftDiagnostic = pipelineResult.stage_diagnostics.find(s => s.stage === 'draft');
       const draftPromptText = draftDiagnostic?.prompt;
       const draftModel = engine.config.stageModels?.draft ?? resolveModelForSpeaker(engine, responder);
-      const draftTemp = engine.config.temperature ?? 0.7;
+      const draftTemp = engine.config.temperature ?? DEFAULT_TEMPERATURE;
 
       if (draftPromptText) {
         const embedFn = engine.config.embedFn;
