@@ -296,17 +296,17 @@ function Invoke-DependencyCheck {
             else {
                 DWarn "$App — node_modules missing"
                 if ($IsInstallMode -and $Fix -and $HasNode) {
-                    DFix "Running npm install in $App..."
+                    DFix "Running pnpm install in $App..."
                     Push-Location $AppDir
                     try {
-                        npm install 2>&1 | Out-Null
-                        if ($LASTEXITCODE -eq 0) { $Ctx.Fixed++; DPass "$App — npm install succeeded" }
-                        else { DFail "$App — npm install failed (exit code $LASTEXITCODE)" }
+                        pnpm install 2>&1 | Out-Null
+                        if ($LASTEXITCODE -eq 0) { $Ctx.Fixed++; DPass "$App — pnpm install succeeded" }
+                        else { DFail "$App — pnpm install failed (exit code $LASTEXITCODE)" }
                     }
-                    catch { DFail "$App — npm install failed: $_" }
+                    catch { DFail "$App — pnpm install failed: $_" }
                     finally { Pop-Location }
                 }
-                else { DSkip "Run 'npm install' in $App/" }
+                else { DSkip "Run 'pnpm install' in $App/" }
             }
         }
     }

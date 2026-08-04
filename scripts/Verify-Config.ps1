@@ -122,7 +122,7 @@ if (-not (Test-Path (Join-Path $TaxEditor 'node_modules'))) {
     # would trigger the module-load taxonomy scan this command has no need for).
     Write-Host '  FAIL vitest — taxonomy-editor/node_modules is missing.' -ForegroundColor Red
     Write-Host '        Goal:  run the vitest registry gates' -ForegroundColor DarkYellow
-    Write-Host "        Fix:   run 'npm ci' in $TaxEditor, then re-run verify:config" -ForegroundColor DarkYellow
+    Write-Host "        Fix:   run 'pnpm install' in $TaxEditor, then re-run verify:config" -ForegroundColor DarkYellow
     $Results['vitest:collection (4 files)'] = $false
     $Results['vitest:run'] = $false
 }

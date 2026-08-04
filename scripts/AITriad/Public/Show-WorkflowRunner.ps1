@@ -83,15 +83,15 @@ function Show-WorkflowRunner {
         Write-Host '[workflow] Installing node modules...' -ForegroundColor Cyan
         Push-Location $AppDir
         try {
-            npm install
+            pnpm install
             if ($LASTEXITCODE -ne 0) {
                 throw (New-ActionableError `
                     -Goal 'Install Workflow Runner dependencies' `
-                    -Problem "npm install failed (exit code $LASTEXITCODE)" `
+                    -Problem "pnpm install failed (exit code $LASTEXITCODE)" `
                     -Location 'Show-WorkflowRunner' `
                     -NextSteps @(
                         "cd $AppDir"
-                        'npm install'
+                        'pnpm install'
                     ))
             }
             Write-Host '[workflow] Node modules installed.' -ForegroundColor Green
