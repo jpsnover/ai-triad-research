@@ -13,7 +13,7 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { Agent } from 'undici';
-import { assertUndiciMajorInvariant } from '../storage/githubRestClient.js';
+import { assertUndiciMajorInvariant } from '../storage/undiciInvariant.js';
 import type { FlightRecorder, RecordInput } from '../../../../lib/flight-recorder/index';
 
 // ── Mock setup ──────────────────────────────────────────────────────────
