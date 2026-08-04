@@ -14,8 +14,7 @@ import type {
 import { detectCruxNodes } from './phaseTransitions.js';
 import { getGlobalRecorder } from '../flight-recorder/index.js';
 import { ActionableError } from './errors.js';
-
-const POLARITY_RESOLVED_THRESHOLD = 0.85;
+import { POLARITY_RESOLVED_THRESHOLD } from './constants.js';
 const STRENGTH_CONCESSION_THRESHOLD = 0.3;
 const IRREDUCIBLE_STABLE_TURNS = 3;
 const POLARITY_STABILITY_EPSILON = 0.05;

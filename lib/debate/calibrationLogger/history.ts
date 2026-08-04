@@ -12,6 +12,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { DEFAULT_TEMPERATURE } from '../../ai-client/defaults.js';
 import { DEFAULT_ATTACK_WEIGHTS } from '../qbaf.js';
+import { POLARITY_RESOLVED_THRESHOLD, SEMANTIC_RECYCLING_THRESHOLD, ATTACK_DEDUP_THRESHOLD } from '../constants.js';
 
 // ── Parameter snapshots & history ────────────────────────────
 
@@ -88,11 +89,11 @@ export function captureSnapshot(weightsPath?: string): ParameterSnapshot {
     },
     recent_window: 8,
     gc_trigger: weights?.network?.gc_trigger ?? 175,
-    polarity_resolved: 0.85,
+    polarity_resolved: POLARITY_RESOLVED_THRESHOLD,
     max_nodes_cap: 50,
-    semantic_recycling_threshold: 0.85,
+    semantic_recycling_threshold: SEMANTIC_RECYCLING_THRESHOLD,
     cluster_min_similarity: 0.55,
-    duplicate_similarity_threshold: 0.85,
+    duplicate_similarity_threshold: ATTACK_DEDUP_THRESHOLD,
     fire_confidence_threshold: 0.7,
     cohesion_clear_theme: 0.60,
     kp_divisor: 500,
