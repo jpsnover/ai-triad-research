@@ -1,0 +1,7 @@
+packages:
+  - taxonomy-editor
+  - lib
+  - lib/debate
+  - poviewer
+  - summary-viewer
+  - workflow-app

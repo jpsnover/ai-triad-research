@@ -131,6 +131,9 @@ jobs:
               - 'CHANGELOG.md'
               - 'deploy/azure/Dockerfile.base'
               - 'deploy/azure/smoke-healthz.sh'
+              - 'pnpm-lock.yaml'
+              - 'pnpm-workspace.yaml'
+              - '.npmrc'
               - '.github/workflows/ci.yml'
 
   test-powershell:
@@ -203,19 +206,18 @@ jobs:
         run: ln -s "$GITHUB_WORKSPACE/ai-triad-data" ../ai-triad-data
         continue-on-error: true
 
+      - uses: pnpm/action-setup@v4
+        with:
+          version: '11.20.0'
+
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v6
         with:
           node-version: '22'
-          cache: 'npm'
-          cache-dependency-path: '*/package-lock.json'
+          cache: 'pnpm'
+          cache-dependency-path: 'pnpm-lock.yaml'
 
       - name: Install dependencies
-        working-directory: ${{ matrix.app }}
-        run: npm ci
-
-      - name: Install shared lib dependencies
-        working-directory: lib
-        run: npm ci
+        run: pnpm install --frozen-lockfile
 
       # NOTE: dependency audit + provenance moved OUT of this job into the
       # standalone `dependency-audit` job below (t/1800). They used to sit here
@@ -225,11 +227,11 @@ jobs:
 
       - name: Lint
         working-directory: ${{ matrix.app }}
-        run: npm run lint --if-present
+        run: pnpm run lint --if-present
 
       - name: TypeScript check (main)
         working-directory: ${{ matrix.app }}
-        run: npx tsc --noEmit -p tsconfig.main.json
+        run: pnpm exec tsc --noEmit -p tsconfig.main.json
 
       - name: Test
         # Skip for taxonomy-editor: its "Test with coverage" step below already
@@ -239,17 +241,17 @@ jobs:
         # the other apps → plain run only (they have no coverage step).
         if: matrix.app != 'taxonomy-editor'
         working-directory: ${{ matrix.app }}
-        run: npm test --if-present
+        run: pnpm test --if-present
 
       - name: Test with coverage
         if: matrix.app == 'taxonomy-editor'
         working-directory: ${{ matrix.app }}
-        run: npx vitest run --coverage
+        run: pnpm exec vitest run --coverage
 
       - name: Build
         if: matrix.app == 'taxonomy-editor'
         working-directory: ${{ matrix.app }}
-        run: npm run build
+        run: pnpm run build
 
   # ── Dependency audit: standalone security gate (t/1800) ──
   # SPLIT OUT of test-electron so a security-audit failure can never skip Test
@@ -283,15 +285,18 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v6
 
+      - uses: pnpm/action-setup@v4
+        with:
+          version: '11.20.0'
+
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v6
         with:
           node-version: '22'
-          cache: 'npm'
-          cache-dependency-path: '*/package-lock.json'
+          cache: 'pnpm'
+          cache-dependency-path: 'pnpm-lock.yaml'
 
       - name: Install dependencies (lockfile for audit)
-        working-directory: ${{ matrix.app }}
-        run: npm ci --ignore-scripts
+        run: pnpm install --frozen-lockfile --ignore-scripts
 
       - name: Audit production dependencies (real gate; baselines co-located above)
         working-directory: ${{ matrix.app }}
@@ -300,9 +305,8 @@ jobs:
         run: node ../.github/scripts/ci-audit.mjs .
 
       - name: Verify package provenance signatures
-        working-directory: ${{ matrix.app }}
         continue-on-error: true
-        run: npm audit signatures
+        run: pnpm audit
 
   # ── Quality gates: 5MB byte-guard + CSS LOC ceiling (t/1292, B-408; ADR-007) ──
   # ENFORCING (t/1692): .ts/.tsx LOC is now owned by ESLint max-lines, co-located
@@ -338,19 +342,22 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v6
 
+      - uses: pnpm/action-setup@v4
+        with:
+          version: '11.20.0'
+
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v6
         with:
           node-version: '22'
-          cache: 'npm'
-          cache-dependency-path: '*/package-lock.json'
+          cache: 'pnpm'
+          cache-dependency-path: 'pnpm-lock.yaml'
 
       - name: Install lib dependencies
-        working-directory: lib
-        run: npm ci
+        run: pnpm install --frozen-lockfile
 
       - name: Lint (errors gate; warnings advisory — see header)
         working-directory: lib
-        run: npm run lint
+        run: pnpm run lint
 
   # ── Commit hygiene: flags anonymous / undersized commit subjects (t/1319) ──
   # Annotation-only by design — never flips (t/1319). Visibility, not friction.
@@ -392,16 +399,20 @@ jobs:
       - name: Check doc links (main-repo presence)
         run: bash .github/scripts/check-doc-links.sh
 
+      - uses: pnpm/action-setup@v4
+        with:
+          version: '11.20.0'
+
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v6
         with:
           node-version: '22'
-          cache: 'npm'
-          cache-dependency-path: '*/package-lock.json'
+          cache: 'pnpm'
+          cache-dependency-path: 'pnpm-lock.yaml'
 
       - name: Check REPO_MAP freshness
         continue-on-error: true
         run: |
-          cd taxonomy-editor && npm ci --ignore-scripts > /dev/null 2>&1
+          pnpm install --frozen-lockfile --ignore-scripts > /dev/null 2>&1
           node scripts/depgraph.mjs --repomap > /tmp/repomap-fresh.md
           cd ..
           DRIFT=$(diff REPO_MAP.md /tmp/repomap-fresh.md | wc -l || echo "0")
@@ -432,6 +443,11 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v6
         continue-on-error: true
 
+      - uses: pnpm/action-setup@v4
+        continue-on-error: true
+        with:
+          version: '11.20.0'
+
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v6
         continue-on-error: true
         with:
@@ -447,13 +463,13 @@ jobs:
         # job must carry continue-on-error or a failure here hard-gates CI via
         # the container build's ci-gate (bug found on Tier 2's first live run).
         continue-on-error: true
-        run: npm ci --ignore-scripts && cd lib && npm ci --ignore-scripts
+        run: pnpm install --frozen-lockfile --ignore-scripts
 
       - name: Run golden debate evals (Tier 2)
         if: env.GEMINI_API_KEY != ''
         continue-on-error: true
         timeout-minutes: 10
-        run: npx tsx lib/debate/cli.ts --ci-golden
+        run: pnpm exec tsx lib/debate/cli.ts --ci-golden
 
   # ── Schema validation (t/1338) ──
   # Validates taxonomy data files against JSON Schemas using ajv.
@@ -480,6 +496,11 @@ jobs:
         run: ln -s "$GITHUB_WORKSPACE/ai-triad-data" ../ai-triad-data
         continue-on-error: true
 
+      - uses: pnpm/action-setup@v4
+        continue-on-error: true
+        with:
+          version: '11.20.0'
+
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v6
         continue-on-error: true
         with:
@@ -488,7 +509,7 @@ jobs:
       - name: Install dependencies (ajv)
         # Never-flip job — every step must carry continue-on-error (t/1329 lesson).
         continue-on-error: true
-        run: npm ci --ignore-scripts
+        run: pnpm install --frozen-lockfile --ignore-scripts
 
       - name: Validate schemas
         continue-on-error: true
@@ -498,7 +519,7 @@ jobs:
   # WAS `needs: [test-powershell, test-electron]` with a `!contains(failure)`
   # guard — i.e. the container build waited for the ENTIRE test matrix before
   # starting, purely as a fail-fast "don't build on red" gate, NOT a data
-  # dependency (the Dockerfile does its own `npm ci`/build and reuses no artifact
+  # dependency (the Dockerfile does its own `pnpm install`/build and reuses no artifact
   # from those jobs — verified t/2073). That serialization put container
   # (~250s) *after* the long-pole test-electron/taxonomy-editor (~420s), so the
   # merge-gating critical path was electron+container in series (~11–12.5 min).
