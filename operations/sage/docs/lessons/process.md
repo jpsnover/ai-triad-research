@@ -477,6 +477,7 @@ Failure patterns related to tooling configuration, agent workflows, and operatio
 
 **Instances:**
 - 2026-07-29 — Technical Lead (t/1932 Moonshot/Kimi K3 backend add; detail t/1932#1): the DAG covered the **3 adapter files** (aiAdapter/aiBackends/AIEnrich) but missed **3 non-adapter coupling sites**, each a separate break in a separate scope — (1) `routes/keys.ts` `KEY_VALIDATION_PROBES` (no probe → `keysValidation.test.ts` red), (2) `config.ts` `ENV_KEY_NAMES` / `AIBackend` exhaustiveness (non-exhaustive `Record` → server `tsc` `TS2741` red, blocking everyone), (3) `registry.ts` `resolveBackend` (missing case → silent misroute moonshot→gemini). Compounded: the config-land verify **grepped `keysValidation.test.ts` but ran only `configInvariant`+`modelDiscovery`** — a hand-picked subset that skipped the very test the change broke. Green-main via t/1944 (tsc) + probe fix (`66325245`); routing correctness t/1945.
+- 2026-08-03 — Shared Lib (p/5#21): `usageRegistry.test.ts` `listUsages` asserted `toHaveLength(3)` — a hardcoded literal count. Adding a 4th entry (`moonshot.test` to `TEST_USAGES`) caused the assertion to fail ("expected 4, received 3"). **Coupling site type: hardcoded length/count assertion** — invisible to tsc (runtime check, not an exhaustiveness map) and to a grep of the enum/type name (the bare `3` has no syntactic tie to the registry). Fix: bump assertion to 4 (p/5#21).
 
 **Root Cause:** A shared enum/config is a **fan-out coupling point**: every exhaustiveness-checked map, probe table, and resolver keyed on it is an implicit dependency that the type-checker (for `Record`) or a *specific* test (for probe/resolver) enforces — but only if that check is actually compiled/run. The decomposition author reasons from the *feature* ("add an adapter") rather than from the *coupling graph* ("what is keyed on this id?"), so coupling sites in other scopes fall outside the ticket DAG. Running a chosen-by-hand test subset then fails to surface the breaks before land.
 
@@ -485,8 +486,9 @@ Failure patterns related to tooling configuration, agent workflows, and operatio
 2. **A change to a shared config must run ALL tests that reference it — never a hand-picked subset.** If you grep for referencing tests (e.g. `keysValidation.test.ts`), you must *run* the ones you find, not a different chosen pair. Prefer the full `npm run verify` over cherry-picked suites for any shared-surface change.
 3. **Lean on exhaustiveness at compile time:** a `Record<Enum, T>` (not `Partial<Record<…>>`) or a `switch` with a `never`-typed default forces `tsc` to flag a missing case — make coupling maps exhaustive so the type-checker becomes the coupling detector.
 4. **Durable fix for a recurring multi-site addition: a checklist playbook** that enumerates every site the addition touches, so the next add is one self-certifiable pattern, not a multi-role scavenger hunt. TL is authoring **`/add-ai-backend`** (7 config sections + `keys.ts` probe + `config.ts` `ENV_KEY_NAMES`/type + `registry.ts` `resolveBackend` + 3 adapters) — the concrete instance of this general rule.
+5. **Hardcoded length/count assertions in tests are runtime coupling sites not caught by tsc or by a type-name grep.** When adding an entry to any array/registry, grep the test files for `toHaveLength`, `.length`, `toBe(N)` patterns over the collection — a bare literal count is a hidden coupling site (p/5#21).
 
-**Status:** Active — root cause is decomposition-completeness (coupling graph vs feature files) + verify-scope (all referencing tests vs a subset). TL self-reported (t/1932#1); durable fix = the `/add-ai-backend` playbook (being filed). Watch for the same shape on other shared enums (POV camps `acc/saf/skp/cc`, BDI categories, `pol-*` registry).
+**Status:** Active — 2 instances. Root cause: decomposition-completeness (coupling graph vs feature files) + verify-scope (all referencing tests vs a subset); and hardcoded count assertions as a runtime coupling site (p/5#21, added 2026-08-03). TL self-reported (t/1932#1); durable fix = the `/add-ai-backend` playbook (being filed). Watch for the same shape on other shared enums (POV camps `acc/saf/skp/cc`, BDI categories, `pol-*` registry).
 
 **Applies To:** Any role decomposing or landing a change that adds a member to a shared enumeration/config consumed across multiple files or scopes.
 
@@ -575,3 +577,85 @@ Failure patterns related to tooling configuration, agent workflows, and operatio
 **Status:** Active — shared-GitHub-identity constraint; the account-level analog of the shared-checkout collision (t/1926). **Non-blocking** (approval isn't required under checks-only branch protection). Deterministic (every agent, every fleet PR), so 1 instance ⇒ it WILL recur — flagged hookable.
 
 **Applies To:** Any agent running `gh pr review --approve` on a fleet-authored PR (i.e. every PR, since all share the `jpsnover` account).
+
+---
+
+## [Process] `gh pr merge` in Auto Mode Is Blocked by the Safety Classifier — PR Merges Require Explicit User Authorization; Surface the Command for Direct `!` Execution
+
+**Pattern:** `gh pr merge <N> --squash --auto --delete-branch` (or any `gh pr merge` variant) in an **auto-mode agent session** is intercepted by the Claude Code safety classifier and blocked mid-sweep. The classifier treats PR merges as **hard-to-reverse + visible to others** — a category that requires explicit user confirmation regardless of auto-mode level. The agent cannot unblock itself; the action must be surfaced to the user as a `! gh pr merge <N>` command for direct authorization in the session.
+
+**Instances:**
+- 2026-08-03 — Orca Support (p/13#27): `gh pr merge 341 --squash --auto --delete-branch` blocked mid-PR resolution sweep by the auto-mode classifier. Resolved by surfacing `! gh pr merge 341` to the user for direct authorization.
+- 2026-08-03 — Orca Support (p/13#31): `gh pr merge` blocked again during PR #289 conflict-resolution flow — same classifier gate, 2nd independent instance.
+
+**Root Cause:** The Claude Code safety classifier has a fixed policy: PR merge is a **shared-state, hard-to-reverse action** (merges commit to a repo visible to others, triggers CI, may deploy). Auto mode bypasses routine tool confirmations but NOT this class of action. The classifier intercepts at the tool-call layer before the command runs — this is **correct and intended behavior**, not a bug. The failure is the **workflow assumption** that `gh pr merge` would run unattended in an automated PR sweep.
+
+**Prevention:**
+1. **Never assume `gh pr merge` will run unattended in auto mode** — it always requires an explicit user authorization event. Plan for a manual authorization step in any PR-resolution workflow.
+2. **Surface the command as `! gh pr merge <N> --squash --delete-branch`** — the `!` prefix runs the command in the active session under user authorization; this is the correct resolution path.
+3. **Do NOT retry the same `gh pr merge` call** — the classifier will block it again. Only a human-authorized execution unblocks the action.
+4. **Sibling of the push-authorization pattern**: `git push` to shared remotes is similarly treated as requiring user oversight. Both `git push` and `gh pr merge` are in the "visible to others / hard to reverse" class.
+
+**Status:** Active — safety-classifier gate on `gh pr merge` in auto mode; by design. Every agent running automated PR sweeps will hit this. The fix is architectural: design PR workflows with a manual authorization step for the merge command.
+
+**Applies To:** All agents running `gh pr merge` in auto mode (e.g., PR resolution sweeps, post-CI land automation).
+
+---
+
+## [Process] `git push --force-with-lease` in Auto Mode Is Blocked by the Safety Classifier — Force-Pushes Are "Hard-to-Reverse"; Surface as `! git push` for User Authorization
+
+**Pattern:** `git push --force-with-lease` (and any force-push variant) in an **auto-mode agent session** is intercepted by the Claude Code safety classifier and blocked. The classifier specifically lists force-pushing as a **hard-to-reverse operation** (can overwrite upstream history, destroy others' work). This is the same classifier gate as `gh pr merge` (#129) — both are in the "hard-to-reverse + visible to others" class — but triggered by a different command. Resolution: surface `! git push --force-with-lease <remote> <branch>` to the user for direct authorization.
+
+**Instances:**
+- 2026-08-03 — Orca Support (p/13#31): `git push --force-with-lease` blocked during PR #289 conflict-resolution flow (after resolving conflicts via merge commit + soft-reset). Resolved by surfacing `! git push` as a user instruction.
+
+**Root Cause:** Force-push rewrites the remote ref's history — if another agent or user has pushed since your last fetch, a force-push discards their work. The safety classifier gates this at the tool-call layer regardless of auto-mode level; this is **correct and intended behavior**. Unlike regular `git push` (allowed in auto mode for non-main branches via worktrees), force-push is always gated because the damage profile is higher and the user must affirm they understand the rewrite.
+
+**Prevention:**
+1. **`git push --force-with-lease` will always be blocked in auto mode** — plan for a manual user-authorization step in any workflow that requires a force-push (conflict resolution, history cleanup, rebase-then-push flows).
+2. **Surface as `! git push --force-with-lease <remote> <branch>`** — the `!` prefix runs the command under user authorization in the active session.
+3. **Prefer rebase-then-regular-push over force-push when possible** — if the branch has no shared history, a fast-forward or regular push avoids the classifier gate entirely.
+4. **Sibling of `gh pr merge` classifier gate (#129):** both are in the "hard-to-reverse + visible to others" class. The general rule: any operation that REWRITES or MERGES remote state requires explicit user authorization in auto mode.
+
+**Status:** Active — safety-classifier gate on force-push; by design. Every agent needing to force-push in auto mode will hit this. The fix is architectural: design conflict-resolution workflows with a manual authorization step for the force-push.
+
+**Applies To:** All agents running `git push --force-with-lease`, `git push --force`, or any force-push variant in auto mode.
+
+---
+
+## [Process] Safety Classifier Blocks Moving Untracked Files to `/tmp` — Use Session Scratchpad or Worktree Instead
+
+**Pattern:** Attempting to move or copy untracked files to `/tmp` is blocked by the safety classifier — treated as potentially destructive. This commonly arises when an agent tries to stage untracked files out of the way before a cherry-pick or rebase. The fix is a fresh worktree, which achieves the same clean-state goal without relocating any files.
+
+**Instances:**
+- 2026-08-03 — Orca Support (p/13#33, PR #289): attempted to move untracked files to `/tmp` during fork PR resolution — blocked by safety classifier. Resolved by using a fresh worktree from main + cherry-pick.
+
+**Root Cause:** `/tmp` is ephemeral; moving uncommitted files there risks silent data loss. The worktree-from-main + cherry-pick approach achieves a clean state without needing to relocate untracked files.
+
+**Prevention:**
+1. **Don't stage untracked files to `/tmp`** — use `git worktree add -b <branch> <path> origin/main` + cherry-pick the desired commits instead.
+2. For genuine temporary storage, use the session scratchpad directory (provided in session context), not `/tmp`.
+
+**Status:** Active — classifier gate on `/tmp` moves of untracked files; by design (p/13#33).
+
+**Applies To:** All agents needing a clean working state in git workflows — use worktree, not file relocation.
+
+---
+
+## [Process] Cherry-Pick Into a Worktree Conflicts on Shared Doc Files — Use `--theirs` to Accept the Cherry-Picked Version
+
+**Pattern:** Cherry-picking a commit onto a fresh main-based worktree conflicts in shared doc files (e.g., `LessonsLearned.md`) — both the cherry-pick source and the current main-based state have modified the same lines. `--theirs` resolves in favor of the cherry-picked version, which is the correct choice when the cherry-pick carries the authoritative state.
+
+**Instances:**
+- 2026-08-03 — Orca Support (p/13#33, PR #289): cherry-picking fork PR commits onto a clean worktree conflicted in Sage docs. Resolved with `--theirs`.
+
+**Root Cause:** Shared doc files receive concurrent edits from many agents across branches. A cherry-pick from a branch that diverged before recent doc updates will conflict with current main. The cherry-picked version is what's being preserved.
+
+**Prevention:**
+1. **`git cherry-pick -X theirs <sha>`** auto-resolves all conflicts in favor of the incoming commit — use when the cherry-pick is authoritative and conflicts are expected stale-base divergence.
+2. Per-file: `git checkout --theirs <conflicted-file>` then `git add <file>` then `git cherry-pick --continue`.
+3. Pre-check with `git diff origin/main...<source-sha> -- <doc-path>` to know whether overlapping edits exist before starting.
+
+**Status:** Active — doc file cherry-pick conflicts in multi-agent worktree workflows; --theirs resolution pattern (p/13#33).
+
+**Applies To:** All agents cherry-picking commits that include shared doc file changes onto a main-based worktree.

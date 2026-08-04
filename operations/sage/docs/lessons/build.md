@@ -311,7 +311,7 @@ Failure patterns related to builds, CI, tooling, environment, and git operations
 4. Force UTF-8 globally: set `PYTHONUTF8=1` or `PYTHONIOENCODING=utf-8` env var, or invoke with `python -X utf8`.
 5. Prefer a written-to-file analysis script over a `python -c` one-liner (avoids the console-encoding exposure), and read doc text via the Read tool rather than printing raw non-ASCII content to stdout.
 
-**Status:** Active — **7 instances, 2 agents (CL ×5 + TL ×2).** Self-correcting (crashes loudly, data intact, rerun fixes) — but **recurring despite documented prevention = a rule-not-applied signal (#82-shaped).** The 7th (p/7#51) is the key data point: it was a **FILE-SCRIPT, not `python -c`**, so the "prefer file-scripts over `-c`" behavioral lever (prevention #5) is **insufficient** — a file-script still hits a cp1252 console unless it forces UTF-8 up front. **ESCALATION ACCEPTED → DevOps t/2046 (TL p/8#145):** the clean systemic lever is a **global env default — set `PYTHONUTF8=1` (or `PYTHONIOENCODING=utf-8`) workspace-wide** (Orca env setting / shell profile), so NO script needs to remember; converts a point-of-use rule into a point-of-environment guarantee. TL routed it to **DevOps as t/2046 (environment-management scope)** with **gate-verification ACs** (prove `utf8_mode` active + demonstrate the failure case now passes — not just "set it") and **deliberately did NOT author an AGENTS.md rule** — a point-of-use rule can't close a point-of-environment bug (the same memory-dependent lever that already failed 7×). Awaiting t/2046 resolution to close the pattern. Until it lands, the durable habit stands: **force UTF-8 up front (`sys.stdout.reconfigure` / `-X utf8` / the env var), file-script or not; don't `print()` raw non-ASCII to a cp1252 stdout.**
+**Status:** Resolved — **t/2046 landed 2026-08-03 (PR #385, p/26#48).** `PYTHONUTF8=1` set fleet-wide in three layers: (1) Windows User env var (host), (2) `ci.yml` `python-embed-smoke` job env + hard-fail assertion step, (3) `ENV PYTHONUTF8=1` in both Dockerfiles. Point-of-environment guarantee now active — no individual script needs to remember `sys.stdout.reconfigure` or `-X utf8`. Prevention rules #1–5 remain valid for scripts running outside the fleet environment. Pattern closed after 7 instances across 2 agents (CL ×5 + TL ×2).
 
 **Applies To:** All agents writing Python that reads/writes text files or prints Unicode, especially on Windows.
 
@@ -323,17 +323,19 @@ Failure patterns related to builds, CI, tooling, environment, and git operations
 
 **Instances:**
 - 2026-06-16 — DebateTool: `node lib/debate/_add_stack.mjs` failed because CWD was already `lib/debate/`, doubling the path. Fixed by using absolute path (p/70#1).
+- 2026-08-03 — Computational Linguist (p/7#55): `git add research/comp-linguist/analyses/...` from cwd `research/comp-linguist/` doubled the path to `research/comp-linguist/research/comp-linguist/analyses/` — git resolved the repo-root-relative argument relative to cwd, causing a pathspec mismatch. Fixed by using cwd-relative paths directly (`analyses/...`).
 
-**Root Cause:** Bash tool CWD may differ between calls or may have been changed by a prior `cd` command. Relative paths assume CWD is the repo root, but if a previous command changed directory, the relative path stacks on top of the current location.
+**Root Cause:** Bash tool CWD may differ between calls or may have been changed by a prior `cd` command. Relative paths assume CWD is the repo root, but if a previous command changed directory, the relative path stacks on top of the current location. Applies to git path arguments as well as script execution paths.
 
 **Prevention:**
 1. Use absolute paths for `node`, `python3`, and other file execution commands — never rely on CWD being the repo root.
 2. If using relative paths, verify CWD first with `pwd`.
 3. Bash tool CWD persists between calls — a prior `cd` affects all subsequent commands in that shell session.
+4. **`git add` (and other git path arguments) resolve relative to cwd, not the repo root** — from a role subdirectory, use cwd-relative paths (`analyses/...`) not repo-root-relative ones (`research/comp-linguist/analyses/...`). Alternatively, use `git -C <repo-root> add <repo-root-relative-path>` to pin the resolution root (p/7#55).
 
-**Status:** Active
+**Status:** Active — 2 instances (script execution + git add)
 
-**Applies To:** All agents executing scripts via Bash, especially when working across subdirectories.
+**Applies To:** All agents executing scripts or git commands from Bash when cwd is a subdirectory.
 
 ---
 
@@ -466,6 +468,27 @@ Failure patterns related to builds, CI, tooling, environment, and git operations
 **Status:** Active
 
 **Applies To:** All agents using pathspec commits (especially on shared branches where `git commit -- <paths>` is required by ADR-005).
+
+---
+
+## [Build] `git commit -- <pathspec>` Commits Working-Tree Content, Silently Discarding a Staged `git rm --cached`
+
+**Pattern:** `git commit -m "..." -- <pathspec>` commits the **working-tree content** of the named paths, bypassing the staged index for those paths. If `git rm --cached <file>` has been staged (marking the file for removal), a subsequent pathspec commit silently discards that staged removal and re-commits the file from the working tree. The commit succeeds with a plausible file count and no error — it reads as done when the intended removal never happened.
+
+**Instances:**
+- 2026-08-03 — TL (t/2080, p/8#175, commit 9468557): `ogit commit -- <path>` after a staged `git rm --cached` silently re-committed the overlay file instead of removing it. Caught by inspecting the commit; corrected in 00a1cc0.
+
+**Root Cause:** `git commit -- <pathspec>` snapshots **working-tree content** directly for the named paths, overriding the staged index for those paths. This design allows committing without a prior `git add`, but it is **incompatible with `git rm --cached`** — the staged removal is overridden by the working tree snapshot. The explicit-pathspec commit habit (ADR-005, designed to prevent sweeping peers' staged files) becomes a trap when the intent is a staged removal: the pathspec form re-takes the working tree instead of honoring the staged state.
+
+**Prevention:**
+1. **Never pair `git rm --cached` with a pathspec commit** — they are semantically incompatible. `git rm --cached` stages a removal; `git commit -- <path>` discards that staged state in favor of the working tree.
+2. To remove a file from index tracking: `git rm --cached <file>`, verify with `git diff --cached` (confirm the removal appears), then commit **bare** (no pathspec): `git commit -m "..."`. The bare commit honors the full staged index, including removals.
+3. **Use `git diff --cached` as the pre-commit gate** — if it shows exactly your intended changes (and only your paths), a bare commit is safe. The pathspec guard (ADR-005) is for shared working trees where peers may have staged files; `git diff --cached` confirms whether bare is safe.
+4. **Inspect `git show --stat HEAD` after any `rm --cached` + commit** — a plausible success message is insufficient; confirm the removal actually appears in the commit's file list.
+
+**Applies To:** All agents staging a `git rm --cached` before a pathspec commit (ADR-005 habit).
+
+**Status:** Active — single instance; sharp incompatibility between the pathspec commit habit and staged-removal operations.
 
 ---
 
@@ -1576,16 +1599,17 @@ Failure patterns related to builds, CI, tooling, environment, and git operations
 **Pattern:** CodeQL's PR check-run is DIFFERENTIAL — it fails only on NEW alerts the PR introduces and passes (green) regardless of whether the PR's intended fix actually cleared a **pre-existing** alert. So a green CodeQL check does NOT confirm a pre-existing alert is resolved. Worse, the PR/branch-ref alerts query (`code-scanning/alerts` filtered to the PR's ref) returns **empty unreliably**, which reads as "no alerts → cleared" and misleads you into reporting a fix landed when it hasn't. The authoritative signal is the **post-merge MAIN-branch SAST scan** (the full re-scan that re-evaluates the whole backlog).
 
 **Instances:**
-- 2026-07-30 — ServerAPI (t/2019): reported a pre-existing CodeQL alert "cleared" based on a **green PR check + an empty branch-ref alerts query** — but the differential check only gated NEW alerts, and the branch-ref query was unreliably-empty. The fix's real effect had to be confirmed on the **post-merge MAIN SAST scan**. Also hit: the code-scanning **dismiss API caps `dismissed_comment` at 280 chars (HTTP 422 over)** → keep terse, reference the ticket.
+- 2026-07-30 — ServerAPI (t/2019): reported a pre-existing CodeQL alert "cleared" based on a **green PR check + an empty branch-ref alerts query** — but the differential check only gated NEW alerts, and the branch-ref query was unreliably-empty. The fix's real effect had to be confirmed on the **post-merge MAIN SAST scan**. Also hit: the code-scanning **dismiss API caps `dismissed_comment` at 280 chars (HTTP 422 over)** — discovered here.
+- 2026-08-03 — Tech Lead 2 (p/253#5/#7, t/2100): bulk CodeQL dismissal script 422d when `dismissed_comment` exceeded 280 chars. **Root cause differs from instance 1:** the cap was already documented (prevention #3 above), but filed under a *verification* lesson a bulk-dismissal author would never navigate to — a **findability failure, not a knowledge failure**. Durable fix: landing dismissal rules in `docs/security/dependency-policy.md` § Dismissal Rules (TL2 PR #380) where dismissal work gets written.
 
-**Root Cause:** differential CodeQL (the t/2025 / #112 design — fail on NEW alerts only, not the ~108-alert backlog) is calibrated to NOT block on pre-existing alerts, so by design a green check says nothing about them. The branch-ref alerts API is ref-scoped / eventually-consistent and returns empty spuriously. Confirming a pre-existing-alert fix therefore requires the full MAIN scan (re-evaluates the backlog), not the PR-scoped differential signal. Flip side of #112: **#112** = a green required gate hides a NEW alert; **#117** = a green differential check falsely implies a PRE-EXISTING alert is fixed. Both stem from "the CodeQL PR signal is new-only/differential."
+**Root Cause:** differential CodeQL (the t/2025 / #112 design — fail on NEW alerts only, not the ~108-alert backlog) is calibrated to NOT block on pre-existing alerts, so by design a green check says nothing about them. The branch-ref alerts API is ref-scoped / eventually-consistent and returns empty spuriously. Confirming a pre-existing-alert fix therefore requires the full MAIN scan (re-evaluates the backlog), not the PR-scoped differential signal. Flip side of #112: **#112** = a green required gate hides a NEW alert; **#117** = a green differential check falsely implies a PRE-EXISTING alert is fixed. Both stem from "the CodeQL PR signal is new-only/differential." The 280-char `dismissed_comment` sub-finding also has a **findability root cause**: correct guidance filed under the wrong lesson heading is effectively absent for the author who needs it.
 
 **Prevention:**
 1. **To confirm a fix cleared a PRE-EXISTING CodeQL alert, verify on the POST-MERGE MAIN SAST scan** — NOT the PR check-run (green = no new alerts, says nothing about the backlog) and NOT the branch-ref alerts query (returns empty unreliably). **Confirm the SPECIFIC alert's state on main:** `gh api repos/:owner/:repo/code-scanning/alerts/<n> --jq .state` → must read `fixed` or `dismissed` (TL t/2001#11).
 2. **Don't report a pre-existing alert "cleared" from a green PR check or an empty branch-ref query.** Wait for main's scan, or the alert's state flipping to `fixed`/`dismissed` on the MAIN-ref query.
-3. **Dismissing a code-scanning alert: `dismissed_comment` caps at 280 chars** (HTTP 422 over) — keep it terse and reference the ticket.
+3. **Dismissing a code-scanning alert: `dismissed_comment` caps at 280 chars** (HTTP 422 over, undocumented in the error body) — format: verdict + enforcing guard + ticket ref; put full source/sink analysis in a **co-located code comment** (tickets get archived; code stays co-located with the dismissal). Canonical rules now in `docs/security/dependency-policy.md` § Dismissal Rules (p/253#5, t/2100).
 
-**Status:** Active — flip side of #112 (a green differential CodeQL check says nothing about the pre-existing backlog); high-relevance to Wave-2's backlog-clearing (t/2001, 83 pre-existing highs). Ties to the t/2025 differential-mode gate. **DISPOSITIONED (TL p/8#142):** sharpened into durable Wave-2 guidance at **t/2001#11** (amending #3) — a pre-existing high is "fixed" ONLY when the post-merge MAIN scan shows `fixed`/`dismissed`, never inferred from a green differential PR check or the flaky branch-ref query; confirm the specific alert via `gh api …/alerts/<n> --jq .state`. The 280-char `dismissed_comment` full rationale lives in a co-located code comment, the API comment being a terse pointer. Generalizes ServerAPI's self-correction into a rule for the remaining fixes (t/2018 especially).
+**Status:** Active — 2 instances. Flip side of #112 (a green differential CodeQL check says nothing about the pre-existing backlog); high-relevance to Wave-2's backlog-clearing (t/2001). Ties to the t/2025 differential-mode gate. **DISPOSITIONED (TL p/8#142):** sharpened into durable Wave-2 guidance at **t/2001#11**. 280-char `dismissed_comment` cap now in `docs/security/dependency-policy.md` § Dismissal Rules — canonical location for dismissal authors (TL2 PR #380, p/253#7).
 
 **Applies To:** All agents clearing/dismissing pre-existing CodeQL alerts (Wave-2 security work) — verify fixes on the MAIN scan; keep dismiss comments ≤280 chars.
 
@@ -1684,14 +1708,16 @@ Failure patterns related to builds, CI, tooling, environment, and git operations
 
 **Instances:**
 - 2026-08-03 — DevOps (t/2067, p/26#38): ran `ls /c/Users/jsnov/wt-2067/` — assumed `../wt-2067` from the repo resolves at home level, but the actual path was `C:/Users/jsnov/repos/wt-2067` = `/c/Users/jsnov/repos/wt-2067`. Fixed by running `git worktree list` to confirm the real path.
+- 2026-08-03 — ElectronMain (p/98#13, t/2111): `cd /c/.../wt-t2111` immediately after `git worktree add ../wt-t2111` — "No such file." Compounding factor: **Bash tool resets cwd between invocations**, so the cwd for the `cd` call was the repo root regardless of any prior `cd`. The agent constructed the POSIX path from memory rather than reading `git worktree list`. Fixed by running `git worktree list` and using the canonical absolute path `/c/Users/jsnov/repos/wt-t2111`.
 
-**Root Cause:** The repo lives at `C:/Users/jsnov/repos/ai-triad-research/` — two levels below home (`home/repos/repo`), not one (`home/repo`). `../wt-<name>` from the repo root goes up one level to `C:/Users/jsnov/repos/`, landing the worktree there, not at the user home directory. This is a **mental-model mismatch** (wrong path depth), distinct from MSYS path mangling (#73 facet B) — here the path is assembled incorrectly before any tool sees it. The Bash tool reports `No such file or directory` on the wrong POSIX path, which looks like a missing worktree when the worktree exists at the correct path.
+**Root Cause:** The repo lives at `C:/Users/jsnov/repos/ai-triad-research/` — two levels below home (`home/repos/repo`), not one (`home/repo`). `../wt-<name>` from the repo root goes up one level to `C:/Users/jsnov/repos/`, landing the worktree there, not at the user home directory. This is a **mental-model mismatch** (wrong path depth), distinct from MSYS path mangling (#73 facet B) — here the path is assembled incorrectly before any tool sees it. The Bash tool reports `No such file or directory` on the wrong POSIX path, which looks like a missing worktree when the worktree exists at the correct path. **Compounding factor (instance 2):** the Bash tool resets cwd to the repo root between invocations, so any relative path like `../wt-<name>` re-anchors to the repo root on every call — you cannot rely on a prior `cd` persisting to the next Bash call.
 
 **Prevention:**
 1. **Run `git worktree list` BEFORE first Bash access to a worktree** — it returns the canonical absolute path; never reconstruct the path by prepending the assumed home directory + a relative spec.
 2. On this machine: repo = `C:/Users/jsnov/repos/ai-triad-research/`; sibling worktrees land at `C:/Users/jsnov/repos/wt-<name>` = `/c/Users/jsnov/repos/wt-<name>` in POSIX. NOT `/c/Users/jsnov/wt-<name>`.
 3. Companion to the MSYS colon-revspec/path trap (#73 facet B): both produce a wrong absolute path for a git resource. #73B = MSYS mangles a correct path; #128 = a wrong path is assembled from an incorrect mental model. The fix for both: **verify the actual path before access** rather than reconstructing from memory.
+4. **Bash tool cwd resets to the repo root between invocations** — relative paths (`../wt-<name>`) re-anchor on every call; don't assume a prior `cd` carried over. Use absolute paths from `git worktree list` output.
 
-**Status:** Active — worktree-land path-depth assumption hazard. Third env/path hazard in the worktree-land cluster (#77 `npm ci` empty package dir, #78 node_modules rm timeout, #128 path-depth mismatch). `git worktree list` is the one-stop oracle for canonical worktree paths.
+**Status:** Active — 2 instances. Worktree-land path-depth assumption hazard; cwd-reset compounds it. Third env/path hazard in the worktree-land cluster (#77 `npm ci` empty package dir, #78 node_modules rm timeout, #128 path-depth mismatch). `git worktree list` is the one-stop oracle for canonical worktree paths.
 
 **Applies To:** All agents using the Bash tool to access a worktree by absolute POSIX path.

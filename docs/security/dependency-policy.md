@@ -98,11 +98,12 @@ The distinction matters: the `codeql.yml` CI gate is **differential** — only *
 
 ### Dismissal Rules
 
-1. **Every dismissal carries a written justification** in `dismissed_comment` — source, sink, and why the flow is safe. "Looks fine" is not a justification. This is the Gate Co-Location rule: the reasoning lives at the alert, not in ticket history.
-2. **Production code is confirmed by its owning agent before dismissal.** Route the alert to the owner, get the source/sink analysis on a ticket, then dismiss citing it. The TL does not dismiss production-code alerts on inspection alone.
-3. **Analysis scripts and dev tooling** (`research/*/scripts/`, `taxonomy-editor/tools/`) may be dismissed as `won't fix` directly — not shipped surface. Say so in the comment.
-4. **Never dismiss to make a number go down.** An alert that is real and unfixed stays open with a ticket reference.
-5. Dismissing requires code-scanning write permission, which the agent fleet does not currently hold — agents supply the justification, a human or the TL applies it.
+1. **Every dismissal carries a written justification** in `dismissed_comment` — source, sink, and why the flow is safe. "Looks fine" is not a justification.
+2. **`dismissed_comment` is capped at 280 characters.** Over that, the API returns HTTP 422 and the cap is not named in the error body. Write: *verdict + the specific enforcing guard + ticket ref* — e.g. "By design. Path guarded by `assertSafePov` (fileIO.ts:92-100). Analysis: t/2100#1." The full source/sink analysis goes on the ticket, or in a code comment beside the flagged line. Prefer the code comment for by-design verdicts: tickets are archived, the code is where the next reader already is.
+3. **Production code is confirmed by its owning agent before dismissal.** Route the alert to the owner, get the source/sink analysis on a ticket, then dismiss citing it. The TL does not dismiss production-code alerts on inspection alone.
+4. **Analysis scripts and dev tooling** (`research/*/scripts/`, `taxonomy-editor/tools/`) may be dismissed as `won't fix` directly — not shipped surface. Say so in the comment. This exemption does **not** extend to scripts that run in CI: something executing on a GitHub-hosted runner with repo credentials gets an owner's read, not a triage-pass assumption.
+5. **Never dismiss to make a number go down.** An alert that is real and unfixed stays open with a ticket reference.
+6. **Who can apply a dismissal:** the Technical Lead role holds code-scanning write (`Bash(gh api -X PATCH .../code-scanning/alerts/*)`, role-scoped, granted 2026-08-03). No other role inherits it. Other agents supply the justification on a ticket; TL applies it.
 
 ## New Dependency Evaluation
 

@@ -25,6 +25,37 @@
 # Documented in root AGENTS.md so a fresh clone re-enables enforcement.
 # ─────────────────────────────────────────────────────────────────────────────
 
+# ── AGENTS.md tracking audit (t/2080) ────────────────────────────────────────
+# Runs FIRST and on EVERY commit, before the branch logic below returns early —
+# this guards WHAT you are committing, not WHERE, so a worktree commit on a named
+# branch (which exits 0 below) must still be checked.
+#
+# Guards two failures the branch rules cannot see: a file tracked in BOTH the code
+# repo and the overlay (free to diverge — root AGENTS.md did), and a role
+# AGENTS.md tracked by NEITHER (existing in one place on one machine; two were
+# found that way, recovered at overlay 01d782f).
+#
+# Only exit 1 blocks. Exit 2 (internal error) and a missing script both ALLOW the
+# commit, matching this hook's fail-OPEN rule: a broken guard must never block
+# legitimate work. Skipped entirely when the private overlay is absent, since the
+# audit cannot see the overlay's tracking set from a public checkout.
+if [ -f "$(git rev-parse --show-toplevel 2>/dev/null)/.githooks/agent-file-owner.sh" ]; then
+  QUIET=1 sh "$(git rev-parse --show-toplevel)/.githooks/agent-file-owner.sh" --audit
+  if [ $? -eq 1 ]; then
+    cat >&2 <<'MSG'
+
+  ✖ BLOCKED: AGENTS.md tracking is ambiguous (t/2080). Details above.
+
+  Query one file's home:
+    sh .githooks/agent-file-owner.sh --path <file>
+
+  Owner / emergency override (bypasses this hook):
+    git commit --no-verify
+MSG
+    exit 1
+  fi
+fi
+
 # Normalize BOTH paths through `cd && pwd` so the comparison is format-stable on
 # Git-for-Windows (where --absolute-git-dir yields `C:/…` but a relative dir cd's
 # to `/c/…`). Mixing the two styles would read the main checkout as a worktree and
