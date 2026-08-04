@@ -1,6 +1,5 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
-
 /**
  * Pure debate orchestration engine — no UI, Zustand, or Electron dependencies.
  * Runs a full structured debate using the AIAdapter interface.
@@ -83,8 +82,7 @@ import { extractClaimsPrompt, classifyClaimsPrompt, formatArgumentNetworkContext
 import { embedDoctrinalBoundaries, computeDoctrinalAnchoring, checkThresholdAnomalies, type BoundaryEmbeddings, type DoctrinalAnchoringConfig } from './doctrinalAnchoring.js';
 import { extractCalibrationData, appendCalibrationLog, readCalibrationLog } from './calibrationLogger.js';
 import { DEFAULT_ATTACK_WEIGHTS } from './qbaf.js';
-import { DEFAULT_AI_TIMEOUT_MS, DEFAULT_RELEVANCE_THRESHOLD } from './constants.js';
-import { DEFAULT_TEMPERATURE } from '../ai-client/defaults.js';
+import { DEFAULT_AI_TIMEOUT_MS, DEFAULT_RELEVANCE_THRESHOLD, DEFAULT_TEMPERATURE } from './constants.js';
 import { computeStrategicHints } from './strategicHints.js';
 import { evaluateLookahead, type LookaheadDiagnostics } from './lookaheadGate.js';
 import { runOvergenPipeline, type OvergenDiagnostics } from './overgenPipeline.js';
