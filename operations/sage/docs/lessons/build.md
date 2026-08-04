@@ -1742,3 +1742,23 @@ Failure patterns related to builds, CI, tooling, environment, and git operations
 **Applies To:** All agents and humans tagging releases (`v*`) when the `main` tip is a Dependabot auto-merge commit.
 
 **Status:** Active — single instance; structural fix pending (t/2102). Same ci-gate family as the advancing-HEAD livelock; root cause is structural, not a timing race.
+
+---
+
+## [Build] Pinned Base Image Date-Tag Deleted from GHCR Between CI and Container Build — "Tag Not Found"
+
+**Pattern:** A container build references a pinned `ai-triad-base` date-tag (e.g. `:2026-07-30`) in the Dockerfile. The tag exists at CI-run time. By the time the release container build runs (triggered by a `v*` tag), new `ai-triad-base` versions have been published, GHCR's GC has deleted the old date-tag, and the build fails "Base image tag '2026-07-30' not found in GHCR." The Dockerfile's pinned reference has gone stale between CI and the actual container build.
+
+**Instances:**
+- 2026-08-04 — DevOps (p/26#55): `v0.13.8` container build failed "Base image tag '2026-07-30' not found in GHCR." The date-tag existed at CI time but was GC'd when new `ai-triad-base` versions were published after lifting a Dependabot hold (batch of queued publishes accelerated GC of older tags). Fixed by PR #409 bumping base to `:2026-08-04`.
+
+**Root Cause:** GHCR's retention policy GCs older package versions when new ones are published. A Dockerfile pinned to a specific date-tag can silently become stale — CI passes (tag still exists at check time), but the subsequent container build (e.g. triggered by a `v*` release tag hours or days later) fails because the tag no longer exists. Batch publishing (multiple queued bumps releasing at once) accelerates the GC window unpredictably.
+
+**Prevention:**
+1. **Before tagging a release, verify the pinned base image tag still exists:** `gh api /orgs/jpsnover/packages/container/ai-triad-base/versions --jq '.[].metadata.container.tags[]'` — confirm the date-tag in `Dockerfile.base` appears in the output.
+2. **Keep the base-image pin recent.** An old date-tag is more vulnerable to GC. Regular base-image bumps shrink the window between pin age and deletion.
+3. **Bundle base-image tag verification into the pre-tag checklist** alongside the CI-run check (#140 prevention #1).
+
+**Applies To:** All agents tagging releases when the Dockerfile references a pinned `ai-triad-base` date-tag, especially after a batch of Dependabot or base-image bumps.
+
+**Status:** Active — single instance. Pairs with #140 (Dependabot merge commit CI gap) as the two release-tagging hazards surfaced 2026-08-04.
