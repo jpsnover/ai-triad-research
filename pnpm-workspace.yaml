@@ -6,12 +6,11 @@ packages:
   - summary-viewer
   - workflow-app
 
-onlyBuiltDependencies:
-  - "@google/genai"
-  - electron
-  - electron-winstaller
-  - esbuild
-  - node-pty
-  - onnxruntime-node
-  - protobufjs
-  - sharp
+allowBuilds:
+  '@google/genai': true
+  electron-winstaller: true
+  esbuild: true
+  node-pty: true
+  onnxruntime-node: true
+  protobufjs: true
+  sharp: true
