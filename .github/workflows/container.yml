@@ -19,6 +19,10 @@ on:
         required: false
         default: 'true'
         type: boolean
+      sha:
+        description: 'Commit SHA to build (must have CI-green status). Leave blank to use dispatched ref HEAD — racy at fleet commit rate.'
+        required: false
+        type: string
 
 permissions:
   contents: read
@@ -39,15 +43,16 @@ jobs:
       - name: Verify container-relevant CI passed for this commit
         env:
           GH_TOKEN: ${{ github.token }}
+          TARGET_SHA: ${{ inputs.sha || github.sha }}
         run: |
-          echo "Checking CI status for ${{ github.sha }}..."
+          echo "Checking CI status for ${TARGET_SHA}..."
 
           # Get the latest CI run for this commit
-          RUN_ID=$(gh api "repos/${{ github.repository }}/actions/workflows/ci.yml/runs?head_sha=${{ github.sha }}&per_page=1" \
+          RUN_ID=$(gh api "repos/${{ github.repository }}/actions/workflows/ci.yml/runs?head_sha=${TARGET_SHA}&per_page=1" \
             --jq '.workflow_runs[0].id // empty' 2>/dev/null || echo "")
 
           if [ -z "$RUN_ID" ]; then
-            echo "::error::No CI run found for commit ${{ github.sha }}. Push to main to trigger CI first."
+            echo "::error::No CI run found for commit ${TARGET_SHA}. Push to main to trigger CI first."
             exit 1
           fi
 
@@ -74,7 +79,7 @@ jobs:
               exit 1
             fi
           done
-          echo "Container-relevant CI passed for this commit"
+          echo "Container-relevant CI passed for ${TARGET_SHA}"
 
   build-and-push:
     needs: [ci-gate]
@@ -89,6 +94,8 @@ jobs:
           df -h /
 
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v6
+        with:
+          ref: ${{ inputs.sha || github.sha }}
 
       - name: Lint Dockerfile
         uses: hadolint/hadolint-action@2332a7b74a6de0dda2e2221d575162eba76ba5e5  # v3.3.0
@@ -264,6 +271,8 @@ jobs:
       (github.event_name == 'push' || inputs.push == 'true')
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v6
+        with:
+          ref: ${{ inputs.sha || github.sha }}
 
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f  # v4
