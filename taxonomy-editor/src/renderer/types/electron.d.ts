@@ -264,6 +264,11 @@ export interface ElectronAPI {
   // (ElectronMain, t/1903). Until then undefined and the bridge fails loud.
   getContainerMentions?: (id: string) => Promise<ContainerMentions | null>;
 
+  // User preferences (t/2117). Optional — wired by ElectronMain in t/2118.
+  // Until then the bridge degrades gracefully (returns null / no-ops).
+  getPreferences?: () => Promise<UserPreferences | null>;
+  setPreferences?: (prefs: UserPreferences) => Promise<void>;
+
   // Deep-link URL
   getWebAppUrl?: () => Promise<string | null>;
 }
