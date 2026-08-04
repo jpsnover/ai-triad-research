@@ -704,70 +704,32 @@ interface NodeDetailTabBarProps {
 }
 
 function NodeDetailTabBar({ activeTab, setActiveTab, conflictCount, cruxCount, factCount, editHistoryLength, viewMode }: NodeDetailTabBarProps) {
+  // Content + Related always show; the rest are Advanced-only (t/2120).
+  const tabs: { id: NodeDetailTabId; label: string; advanced?: boolean }[] = [
+    { id: 'content', label: 'Content' },
+    { id: 'related', label: 'Related' },
+    { id: 'attributes', label: 'Attributes', advanced: true },
+    { id: 'conflicts', label: `Conflicts${conflictCount > 0 ? ` (${conflictCount})` : ''}`, advanced: true },
+    { id: 'cruxes', label: `Cruxes${cruxCount > 0 ? ` (${cruxCount})` : ''}`, advanced: true },
+    { id: 'phrases', label: 'Phrases', advanced: true },
+    { id: 'sources', label: 'Sources', advanced: true },
+    { id: 'facts', label: `Facts${factCount > 0 ? ` (${factCount})` : ''}`, advanced: true },
+    { id: 'research', label: 'Research', advanced: true },
+    { id: 'history', label: `History${editHistoryLength ? ` (${editHistoryLength})` : ''}`, advanced: true },
+  ];
   return (
     <div className="node-detail-tabs">
-      <button
-        className={`node-detail-tab ${activeTab === 'content' ? 'node-detail-tab-active' : ''}`}
-        onClick={() => setActiveTab('content')}
-      >
-        Content
-      </button>
-      <button
-        className={`node-detail-tab ${activeTab === 'related' ? 'node-detail-tab-active' : ''}`}
-        onClick={() => setActiveTab('related')}
-      >
-        Related
-      </button>
-      {viewMode === 'advanced' && <>
-        <button
-          className={`node-detail-tab ${activeTab === 'attributes' ? 'node-detail-tab-active' : ''}`}
-          onClick={() => setActiveTab('attributes')}
-        >
-          Attributes
-        </button>
-        <button
-          className={`node-detail-tab ${activeTab === 'conflicts' ? 'node-detail-tab-active' : ''}`}
-          onClick={() => setActiveTab('conflicts')}
-        >
-          Conflicts{conflictCount > 0 ? ` (${conflictCount})` : ''}
-        </button>
-        <button
-          className={`node-detail-tab ${activeTab === 'cruxes' ? 'node-detail-tab-active' : ''}`}
-          onClick={() => setActiveTab('cruxes')}
-        >
-          Cruxes{cruxCount > 0 ? ` (${cruxCount})` : ''}
-        </button>
-        <button
-          className={`node-detail-tab ${activeTab === 'phrases' ? 'node-detail-tab-active' : ''}`}
-          onClick={() => setActiveTab('phrases')}
-        >
-          Phrases
-        </button>
-        <button
-          className={`node-detail-tab ${activeTab === 'sources' ? 'node-detail-tab-active' : ''}`}
-          onClick={() => setActiveTab('sources')}
-        >
-          Sources
-        </button>
-        <button
-          className={`node-detail-tab ${activeTab === 'facts' ? 'node-detail-tab-active' : ''}`}
-          onClick={() => setActiveTab('facts')}
-        >
-          Facts{factCount > 0 ? ` (${factCount})` : ''}
-        </button>
-        <button
-          className={`node-detail-tab ${activeTab === 'research' ? 'node-detail-tab-active' : ''}`}
-          onClick={() => setActiveTab('research')}
-        >
-          Research
-        </button>
-        <button
-          className={`node-detail-tab ${activeTab === 'history' ? 'node-detail-tab-active' : ''}`}
-          onClick={() => setActiveTab('history')}
-        >
-          History{editHistoryLength ? ` (${editHistoryLength})` : ''}
-        </button>
-      </>}
+      {tabs
+        .filter(tab => !tab.advanced || viewMode === 'advanced')
+        .map(tab => (
+          <button
+            key={tab.id}
+            className={`node-detail-tab ${activeTab === tab.id ? 'node-detail-tab-active' : ''}`}
+            onClick={() => setActiveTab(tab.id)}
+          >
+            {tab.label}
+          </button>
+        ))}
     </div>
   );
 }
