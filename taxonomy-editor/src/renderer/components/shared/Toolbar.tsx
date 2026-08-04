@@ -225,7 +225,8 @@ export function Toolbar() {
     return false;
   };
   const moreHasActive = secondaryGroups.flatMap(g => g.items).some(i => isNavItemActive(i));
-  const { viewMode, setViewMode } = usePreferencesStore(state => ({ viewMode: state.viewMode, setViewMode: state.setViewMode }));
+  const viewMode = usePreferencesStore(state => state.viewMode);
+  const setViewMode = usePreferencesStore(state => state.setViewMode);
 
   // Escape key navigates back
   useEffect(() => {

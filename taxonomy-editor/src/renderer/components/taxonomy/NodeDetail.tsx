@@ -123,7 +123,7 @@ function getNodeAphorism(node: PovNode): string | undefined {
 
 export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, onRelated, chipDepth = 0, conflict, resolveUrl }: NodeDetailProps) {
   const { updatePovNode, deletePovNode, movePovNodeCategory, movePovNode, validationErrors, getAllNodeIds, getAllConflictIds, runAttributeFilter, showAttributeInfo, navigateToLineage, setToolbarPanel, selectedEdge, relatedNodeId, loadEdges, edgesFile, setSelectedNodeId, getLabelForId, aggregatedCruxes, showCruxDetail, conflicts } = useTaxonomyStore();
-  const { viewMode } = usePreferencesStore(state => ({ viewMode: state.viewMode }));
+  const viewMode = usePreferencesStore(state => state.viewMode);
   const [descMode, setDescMode] = useDescriptionMode();
   const [showDelete, setShowDelete] = useState(false);
   const [activeTab, setActiveTab] = useState<NodeDetailTabId>('content');
@@ -793,7 +793,7 @@ interface DescriptionSectionProps {
 }
 
 function DescriptionSection({ pov, node, readOnly, err, descMode, setDescMode, maybeRegenAphorism, update, updatePovNode, renderMentionField, descriptionMention }: DescriptionSectionProps) {
-  const { viewMode } = usePreferencesStore(state => ({ viewMode: state.viewMode }));
+  const viewMode = usePreferencesStore(state => state.viewMode);
   const effectiveDescMode = viewMode === 'simple' ? 'plain' as const : descMode;
   return (
     <div className={`form-group ${err('description') ? 'has-error' : ''}`}>
