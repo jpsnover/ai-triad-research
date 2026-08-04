@@ -5,7 +5,7 @@
  * Web bridge — implements AppAPI via REST and WebSocket calls to the server.
  * Used when the app runs in a browser served by the container.
  */
-import type { AppAPI, SourceDocumentResolution, DebateDelta } from './types';
+import type { AppAPI, SourceDocumentResolution, DebateDelta, UserPreferences } from './types';
 import { instrumentBridge } from './instrumentBridge';
 import { ActionableError } from '@lib/debate/errors';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
@@ -740,6 +740,10 @@ if (import.meta.hot) {
 // ── The bridge ──
 
 const rawApi: AppAPI = {
+  // User preferences
+  getPreferences: () => get<UserPreferences | null>('/api/preferences').catch(() => null),
+  setPreferences: (prefs: UserPreferences) => put('/api/preferences', prefs, { idempotent: true }).then(() => {}),
+
   // Taxonomy directories
   getTaxonomyDirs: () => get('/api/taxonomy-dirs'),
   getActiveTaxonomyDir: () => get('/api/taxonomy-dir/active'),

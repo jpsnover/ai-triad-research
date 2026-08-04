@@ -11,6 +11,7 @@
  */
 
 import { FlightRecorder, setGlobalRecorder, getGlobalRecorder } from '@lib/flight-recorder/index';
+import { RECORDER_CAPACITY_DEFAULT } from '@lib/flight-recorder/constants';
 import type { RecordInput, TriggerType } from '@lib/flight-recorder/types';
 import { api } from '@bridge';
 import { getClientConfig } from './clientConfig';
@@ -402,7 +403,7 @@ export function initFlightRecorder(): FlightRecorder {
     }
   }
 
-  const recorder = new FlightRecorder({ capacity: 5000, dumpOnError: true });
+  const recorder = new FlightRecorder({ capacity: RECORDER_CAPACITY_DEFAULT, dumpOnError: true });
   setGlobalRecorder(recorder);
 
   // Register known dictionary entries
@@ -451,7 +452,7 @@ export function initFlightRecorder(): FlightRecorder {
     component: recorder.intern('component', 'flight-recorder') as string | number,
     level: 'info',
     message: 'Flight recorder initialized',
-    data: { capacity: 5000, window: windowId, load_generation: loadGeneration },
+    data: { capacity: RECORDER_CAPACITY_DEFAULT, window: windowId, load_generation: loadGeneration },
   });
 
   // ── HMR lifecycle events (dev-only) ──

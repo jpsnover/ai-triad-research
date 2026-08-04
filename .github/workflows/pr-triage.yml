@@ -37,11 +37,10 @@ jobs:
         with:
           script: |
             // ── 0. Dry-run resolution ──────────────────────────────────────────────
-            // Schedule ALWAYS runs dry — inputs don't exist on cron trigger so
-            // reading inputs.dry_run on a schedule silently returns undefined → false,
-            // which would execute LIVE. Resolve explicitly by eventName.
+            // Schedule runs LIVE — observation runs validated (t/2075#5, TL approved).
+            // Dispatch default remains dry_run=true (safe for manual runs).
             const dryRun = context.eventName === 'schedule'
-              ? true
+              ? false
               : (context.payload.inputs?.dry_run === 'true');
 
             core.info(`PR triage — trigger=${context.eventName}, dryRun=${dryRun}`);
@@ -226,24 +225,25 @@ jobs:
                 continue;
               }
 
-              // Case B: ci-gate never ran — rerequest all check suites
+              // Case B: ci-gate never ran — dispatch ci.yml on the PR branch.
+              // rerequestSuite always 403s with GITHUB_TOKEN (t/2115); workflow_dispatch
+              // with actions:write works and targets the branch directly.
               if (!ciGate) {
                 if (!dryRun) {
-                  const { data: suitesData } = await github.rest.checks.listSuitesForRef({
-                    owner, repo, ref: pr.head.sha,
-                  });
-                  for (const suite of suitesData.check_suites) {
-                    try {
-                      await github.rest.checks.rerequestSuite({
-                        owner, repo, check_suite_id: suite.id,
-                      });
-                    } catch (e) {
-                      core.warning(`rerequestSuite ${suite.id} on #${pr.number}: ${e.message}`);
-                    }
+                  try {
+                    await github.rest.actions.createWorkflowDispatch({
+                      owner, repo,
+                      workflow_id: 'ci.yml',
+                      ref: pr.head.ref,
+                    });
+                  } catch (e) {
+                    core.warning(`workflow-dispatch ci.yml on #${pr.number} (${pr.head.ref}): ${e.message}`);
+                    digestItems.push({ pr, reason: `ci-gate absent — workflow dispatch failed: ${e.message}` });
+                    continue;
                   }
                 }
-                retriggeredPRs.push({ pr, action: 'rerequest-suite (ci-gate never ran)' });
-                core.info(`${dryRun ? '[DRY]' : '[LIVE]'} rerequest-suite #${pr.number}`);
+                retriggeredPRs.push({ pr, action: `workflow-dispatch ci.yml on ${pr.head.ref} (ci-gate never ran)` });
+                core.info(`${dryRun ? '[DRY]' : '[LIVE]'} workflow-dispatch ci.yml #${pr.number} (${pr.head.ref})`);
                 continue;
               }
 

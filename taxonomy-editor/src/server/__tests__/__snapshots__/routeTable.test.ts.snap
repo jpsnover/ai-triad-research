@@ -192,6 +192,8 @@ exports[`server.ts route table (t/1295 — zero-behaviour-change guard) > ordere
   "GET /api/analytics/query",
   "POST /focus-node",
   "POST /debug/events",
+  "GET /api/preferences",
+  "PUT /api/preferences",
 ]
 `;
 
@@ -274,6 +276,7 @@ exports[`server.ts route table (t/1295 — zero-behaviour-change guard) > route 
   "GET /api/organizations/by-topic/:topicRef",
   "GET /api/policy-registry",
   "GET /api/policy-source-index",
+  "GET /api/preferences",
   "GET /api/proposals",
   "GET /api/proxy/tier",
   "GET /api/proxy/usage",
@@ -384,6 +387,7 @@ exports[`server.ts route table (t/1295 — zero-behaviour-change guard) > route 
   "PUT /api/edges/bulk-status",
   "PUT /api/edges/status",
   "PUT /api/edges/swap",
+  "PUT /api/preferences",
   "PUT /api/proposals/:filename",
   "PUT /api/taxonomy-dir/active",
   "PUT /api/taxonomy/:pov",

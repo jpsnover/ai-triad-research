@@ -27,6 +27,7 @@ import { LineageDetailView } from '../shared/LineageDetailView';
 import type { DebateSession } from '../../types/debate';
 import { POVER_INFO } from '@lib/debate/types';
 import { ParameterHistoryPanel } from '../analysis/ParameterHistoryPanel';
+import { usePreferencesStore } from '../../store/preferencesStore';
 import { api, isElectronMode } from '@bridge';
 import { trackExport } from '../../lib/analyticsEmitter';
 import './DebateTab.css';
@@ -917,6 +918,7 @@ function DebateDetailSummary({
   // Calibration is an admin/power-user tool — show only for admins (t/1036).
   // Desktop (Electron) owners are admin-equivalent; web requires the admin flag.
   const showAdminControls = isElectronMode() || useFlag('permission-admin-features');
+  const viewMode = usePreferencesStore(s => s.viewMode);
   const topic = debate.topic.final || debate.topic.refined || debate.topic.original;
 
   const handleShare = useCallback(async () => {
@@ -968,7 +970,7 @@ function DebateDetailSummary({
         </div>
         <div className="debate-tab-spacer" />
         <ExportDropdown onExport={onExport} />
-        {showAdminControls && (
+        {showAdminControls && viewMode !== 'simple' && (
           <button className="btn" onClick={() => setShowCalibration(!showCalibration)}>
             Calibration
           </button>
@@ -979,7 +981,7 @@ function DebateDetailSummary({
         {exportStatus && <span className="debate-detail-export-status">{exportStatus}</span>}
       </div>
 
-      {showCalibration && (
+      {showCalibration && viewMode !== 'simple' && (
         <ParameterHistoryPanel onClose={() => setShowCalibration(false)} />
       )}
 
@@ -997,23 +999,25 @@ function DebateDetailSummary({
       </div>
 
       <div className="debate-detail-grid">
-        <DebateStatsSection debate={debate} />
+        {viewMode !== 'simple' && <DebateStatsSection debate={debate} />}
 
-        <div className="debate-detail-section">
-          <h3>Timestamps</h3>
-          <div className="debate-detail-meta-row">
-            <span className="debate-detail-label">Created:</span>
-            <span>{formatDateLong(debate.created_at)}</span>
+        {viewMode !== 'simple' && (
+          <div className="debate-detail-section">
+            <h3>Timestamps</h3>
+            <div className="debate-detail-meta-row">
+              <span className="debate-detail-label">Created:</span>
+              <span>{formatDateLong(debate.created_at)}</span>
+            </div>
+            <div className="debate-detail-meta-row">
+              <span className="debate-detail-label">Updated:</span>
+              <span>{formatDateLong(debate.updated_at)}</span>
+            </div>
           </div>
-          <div className="debate-detail-meta-row">
-            <span className="debate-detail-label">Updated:</span>
-            <span>{formatDateLong(debate.updated_at)}</span>
-          </div>
-        </div>
+        )}
 
-        <DebateSourceSection debate={debate} />
+        {viewMode !== 'simple' && <DebateSourceSection debate={debate} />}
 
-        <DebateConfigSection debate={debate} />
+        {viewMode !== 'simple' && <DebateConfigSection debate={debate} />}
       </div>
     </div>
   );

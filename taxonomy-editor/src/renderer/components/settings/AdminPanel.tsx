@@ -10,6 +10,7 @@ import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { useShallow } from 'zustand/react/shallow';
 import { AdminErrorsTab } from './AdminErrorsTab';
 import { UsageBrowserTab } from './UsageBrowserTab';
+import { TOAST_DURATION_SUCCESS, TOAST_DURATION_INFO } from '../../constants';
 import './AdminPanel.css';
 
 type AdminTab = 'submissions' | 'enrichment' | 'errors' | 'usages';
@@ -112,7 +113,7 @@ function EnrichmentRepairSection() {
     }
     setRepairMsg(`Repair complete: ${ok} succeeded, ${fail} failed`);
     setRepairing(false);
-    setTimeout(() => setRepairMsg(null), 5000);
+    setTimeout(() => setRepairMsg(null), TOAST_DURATION_SUCCESS);
   }, [retryEnrichment]);
 
   return (
@@ -188,7 +189,7 @@ export function AdminPanel() {
       getGlobalRecorder()?.record({ type: 'system.error', component: 'AdminPanel', level: 'error', message: 'Failed to approve submission', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
       setMsg(`Error: ${err instanceof Error ? err.message : String(err)}`);
     }
-    setTimeout(() => setMsg(null), 3000);
+    setTimeout(() => setMsg(null), TOAST_DURATION_INFO);
   };
 
   const handleReject = async (id: string) => {
@@ -200,7 +201,7 @@ export function AdminPanel() {
       getGlobalRecorder()?.record({ type: 'system.error', component: 'AdminPanel', level: 'error', message: 'Failed to reject submission', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
       setMsg(`Error: ${err instanceof Error ? err.message : String(err)}`);
     }
-    setTimeout(() => setMsg(null), 3000);
+    setTimeout(() => setMsg(null), TOAST_DURATION_INFO);
   };
 
   const handleBack = () => { window.location.hash = '#community'; };
