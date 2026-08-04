@@ -3,6 +3,7 @@
 
 import { create } from 'zustand';
 import type { ViewMode, UserPreferences } from '../bridge/types';
+import { getGlobalRecorder } from '@lib/flight-recorder/index';
 
 interface PreferencesState {
   viewMode: ViewMode;
@@ -19,7 +20,9 @@ export const usePreferencesStore = create<PreferencesState>()((set) => ({
     try {
       const { api } = await import('../bridge/index');
       await api.setPreferences({ viewMode: mode });
-    } catch { /* best-effort — local state already updated */ }
+    } catch (err) {
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'preferencesStore', level: 'error', message: 'Failed to persist view mode preference', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
+    }
   },
 
   hydrate: async () => {
@@ -29,7 +32,9 @@ export const usePreferencesStore = create<PreferencesState>()((set) => ({
       if (prefs?.viewMode) {
         set({ viewMode: prefs.viewMode });
       }
-    } catch { /* default 'simple' stands on error */ }
+    } catch (err) {
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'preferencesStore', level: 'error', message: 'Failed to hydrate preferences from bridge', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
+    }
   },
 }));
 
