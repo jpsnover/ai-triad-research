@@ -373,7 +373,7 @@ async function _fetchSM(url: string): Promise<_SM | null> {
     if (!r.ok) { _smCache.set(key, null); return null; }
     const sm = await r.json() as _SM;
     _smCache.set(key, sm); return sm;
-  } catch { _smCache.set(key, null); return null; }
+  } catch { /* telemetry — silent by design: source map fetch failures must not affect app */ _smCache.set(key, null); return null; }
 }
 
 function _smResolve(sm: _SM, gl: number, gc: number): string | null {
