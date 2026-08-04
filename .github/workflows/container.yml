@@ -252,3 +252,35 @@ jobs:
       - name: Image size report
         if: success()
         run: docker images ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }} --format "table {{.Repository}}\t{{.Tag}}\t{{.Size}}"
+
+  smoke-published:
+    needs: [build-and-push]
+    runs-on: ubuntu-latest
+    # Only runs when the image was actually pushed to GHCR.
+    # A no-push dispatch (push=false) skips this job; the workflow still
+    # succeeds so deploy-staging.yml is not spuriously blocked.
+    if: |
+      needs.build-and-push.result == 'success' &&
+      (github.event_name == 'push' || inputs.push == 'true')
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v6
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f  # v4
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Pull published image by digest
+        run: |
+          IMAGE="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ needs.build-and-push.outputs.digest }}"
+          echo "Pulling $IMAGE"
+          docker pull "$IMAGE"
+
+      - name: Readiness smoke against published image
+        env:
+          IMAGE: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ needs.build-and-push.outputs.digest }}
+          SMOKE_MODE: readiness
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: bash deploy/azure/smoke-healthz.sh
