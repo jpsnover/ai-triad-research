@@ -37,11 +37,10 @@ jobs:
         with:
           script: |
             // ── 0. Dry-run resolution ──────────────────────────────────────────────
-            // Schedule ALWAYS runs dry — inputs don't exist on cron trigger so
-            // reading inputs.dry_run on a schedule silently returns undefined → false,
-            // which would execute LIVE. Resolve explicitly by eventName.
+            // Schedule runs LIVE — observation runs validated (t/2075#5, TL approved).
+            // Dispatch default remains dry_run=true (safe for manual runs).
             const dryRun = context.eventName === 'schedule'
-              ? true
+              ? false
               : (context.payload.inputs?.dry_run === 'true');
 
             core.info(`PR triage — trigger=${context.eventName}, dryRun=${dryRun}`);
