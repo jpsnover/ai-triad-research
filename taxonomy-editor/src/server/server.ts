@@ -66,6 +66,7 @@ import { registerDiagnosticsRoutes } from './routes/diagnostics.js';
 import { registerSupportRoutes } from './routes/support.js';
 import { registerSourcesRoutes } from './routes/sources.js';
 import { registerSessionRoutes } from './routes/session.js';
+import { registerPreferencesRoutes } from './routes/preferences.js';
 import { buildLoginPage, FORBIDDEN_PAGE, SW_HEAL_SCRIPT_CSP_HASH, loginPageHeaders } from './loginPage.js';
 import type { ServerCtx } from './routes/context.js';
 import { listFlags, setFlag, deleteFlag, type FlagDef } from './featureFlags.js';
@@ -440,6 +441,11 @@ registerSyncRoutes(router, serverCtx);
 // file pipeline, to preserve snapshot order). /focus-node broadcasts via the new
 // ctx.broadcastEvent (broadcastEvent stays in server.ts with the WebSocket set).
 registerSessionRoutes(router, serverCtx);
+
+// ── User preferences (t/2119) ──
+// GET /api/preferences + PUT /api/preferences — per-user JSON file storage for
+// the web build. Brand-new paths — no collision.
+registerPreferencesRoutes(router, serverCtx);
 
 // ── Static file serving ──
 
