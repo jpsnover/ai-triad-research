@@ -69,13 +69,20 @@ const TEST_USAGES: Record<string, UsageConfig> = {
     message: 'Fixed prompt text',
     tags: ['enrichment'],
   },
+  'moonshot.test': {
+    description: 'Usage targeting a fixedTemperature model',
+    model: 'moonshot-kimi-k3',
+    message: 'Test prompt',
+    temperature: 0.7,
+  },
 };
 
 const TEST_MODELS = {
-  backends: [{ id: 'gemini', label: 'Gemini' }],
+  backends: [{ id: 'gemini', label: 'Gemini' }, { id: 'moonshot', label: 'Moonshot' }],
   models: [
     { id: 'gemini-2.5-flash', apiModelId: 'gemini-2.5-flash', label: 'Flash', backend: 'gemini' },
     { id: 'claude-sonnet-4-6', apiModelId: 'claude-sonnet-4-6', label: 'Sonnet', backend: 'claude' },
+    { id: 'moonshot-kimi-k3', apiModelId: 'kimi-k3', label: 'Kimi K3', backend: 'moonshot', fixedTemperature: 1 },
   ],
 };
 
@@ -134,7 +141,7 @@ describe('listUsages', () => {
 
   it('returns all entries when no tag filter', () => {
     const all = listUsages('/repo');
-    expect(all).toHaveLength(3);
+    expect(all).toHaveLength(4);
     expect(all.map(e => e.id)).toContain('enrichment.test');
     expect(all.map(e => e.id)).toContain('debate.brief');
   });
@@ -222,6 +229,16 @@ describe('callByUsage', () => {
     const [, backend, , apiModelId] = mockCallProvider.mock.calls[0];
     expect(backend).toBe('claude');
     expect(apiModelId).toBe('claude-sonnet-4-6');
+  });
+
+  it('carries fixedTemperature from registry entry to provider opts (t/2107)', async () => {
+    const deps = makeDeps();
+    await callByUsage('moonshot.test', {}, deps);
+
+    const [, backend, , apiModelId, , opts] = mockCallProvider.mock.calls[0];
+    expect(backend).toBe('moonshot');
+    expect(apiModelId).toBe('kimi-k3');
+    expect(opts.fixedTemperature).toBe(1);
   });
 
   it('throws ActionableError for unknown UsageID', async () => {

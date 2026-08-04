@@ -28,7 +28,7 @@ export async function generateViaDeepSeek(
       body: JSON.stringify({
         model: apiModelId,
         messages,
-        temperature: opts.temperature ?? 0.7,
+        temperature: opts.fixedTemperature ?? opts.temperature ?? 0.7,
         max_tokens: opts.maxTokens ?? 8192,
         ...(opts.jsonMode ? {
           response_format: { type: 'json_object' },
@@ -115,7 +115,7 @@ export async function generateViaDeepSeekStream(
       body: JSON.stringify({
         model: apiModelId,
         messages,
-        temperature: opts.temperature ?? 0.7,
+        temperature: opts.fixedTemperature ?? opts.temperature ?? 0.7,
         max_tokens: opts.maxTokens ?? 8192,
         stream: true,
         stream_options: { include_usage: true },

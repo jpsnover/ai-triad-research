@@ -104,3 +104,7 @@ See `deploy/azure/runbooks/` for procedures covering:
 | `deploy.ps1` | One-command deployment script |
 | `.env.template` | Azure deployment settings (no API keys) |
 | `runbooks/*.md` | Operational runbooks for failure modes |
+
+## Development workflow (post-cutover, 2026-07-31)
+
+Agent development is rooted at the **shared `main` checkout** — role `AGENTS.md` and `.orca/` are overlay-tracked and do not exist in any worktree, so every agent session runs from the hub (t/2096). `wt-*` worktrees are **per-task landing/isolation trees**, not role homes: feature work is branched from `origin/main`, landed via PR self-merge on `ci-gate` + `CodeQL` green (t/2025), and the worktree sits detached at `origin/main` between tasks. A pre-commit guard (`.githooks/pre-commit`, t/1926/t/2009) refuses direct commits to the shared `main` and detached-HEAD worktree commits.

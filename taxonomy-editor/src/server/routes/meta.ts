@@ -14,6 +14,7 @@ import path from 'path';
 import type { Router } from '../httpKit.js';
 import type { ServerCtx } from './context.js';
 import { json, error } from '../httpKit.js';
+import { classifyDataUnavailable, type ReadinessState } from './readiness.js';
 import { getGlobalRecorder } from '../../../../lib/flight-recorder/index.js';
 import { getProjectRoot, getDataRoot, hasApiKey, STORAGE_MODE } from '../config.js';
 import { getConfig } from '../runtimeConfig.js';
@@ -22,6 +23,26 @@ import * as community from '../community/community.js';
 import * as fileIO from '../storage/fileIO.js';
 import { log } from '../logger.js';
 import { LLMS_TXT } from '../llmsTxt.js';
+
+// t/2059: throttle the readiness log to state transitions. ACA probes /healthz
+// every few seconds, so logging every not-ready probe would spam the log. Emit
+// once when the state flips — error for `failed`, info for `warming` — so the
+// server log names the state without drowning it.
+let lastReadinessState: ReadinessState['state'] | null = null;
+
+function logReadinessTransition(readiness: ReadinessState, dataRoot: string): void {
+  if (readiness.state === lastReadinessState) return;
+  lastReadinessState = readiness.state;
+  if (readiness.state === 'failed') {
+    log.server.error({ dataRoot, reason: readiness.reason }, 'Readiness: data-load failed');
+    getGlobalRecorder()?.record({
+      type: 'system.error', component: 'healthz', level: 'error',
+      message: 'Readiness: data-load failed', data: { reason: readiness.reason },
+    });
+  } else {
+    log.server.info({ dataRoot, reason: readiness.reason }, 'Readiness: warming (data load in progress)');
+  }
+}
 
 export function registerMetaRoutes(r: Router, ctx: ServerCtx): void {
   const { get, put } = r;
@@ -40,12 +61,23 @@ export function registerMetaRoutes(r: Router, ctx: ServerCtx): void {
   });
 
   get('/healthz', async (_req, res) => {
+    const dataRoot = fileIO.getDataRootPath();
     const dataAvailable = await fileIO.isDataAvailable();
     if (dataAvailable) {
-      json(res, { status: 'healthy', dataRoot: fileIO.getDataRootPath() });
-    } else {
-      json(res, { status: 'unhealthy', reason: 'taxonomy data not found', dataRoot: fileIO.getDataRootPath() }, 503);
+      // Reset the readiness-log throttle so a later re-failure (a flapping
+      // replica: failed → healthy → failed) re-logs instead of being swallowed
+      // by the sentinel still reading its pre-recovery state (Quality t/2059#5).
+      lastReadinessState = null;
+      json(res, { status: 'healthy', dataRoot });
+      return;
     }
+    // Not ready → still 503 (readiness semantics unchanged), but name WHY so a
+    // permanent data-load failure is distinguishable from a normal cold-start
+    // warm-up, in both the body and the server log (t/2059). `state` is
+    // 'warming' | 'failed'; on 'failed', `reason` carries the underlying cause.
+    const readiness = classifyDataUnavailable(ctx, process.uptime());
+    logReadinessTransition(readiness, dataRoot);
+    json(res, { status: 'unhealthy', state: readiness.state, reason: readiness.reason, dataRoot }, 503);
   });
 
   get('/health', async (_req, res) => {

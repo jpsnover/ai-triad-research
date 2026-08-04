@@ -105,7 +105,7 @@ export interface ElectronAPI {
 
   // Embeddings & NLI
   computeEmbeddings: (texts: string[], ids?: string[]) => Promise<{ vectors: number[][] }>;
-  updateNodeEmbeddings: (nodes: { id: string; text: string; pov: string; exclusionText?: string }[]) => Promise<void>;
+  updateNodeEmbeddings: (nodes: { id: string; text: string; pov: string; exclusionText?: string }[]) => Promise<{ staleNodeIds: string[] }>;
   computeQueryEmbedding: (text: string) => Promise<{ vector: number[] }>;
   nliClassify: (pairs: Array<{ text_a: string; text_b: string }>) => Promise<{ results: Array<{ nli_label: string; nli_entailment: number; nli_neutral: number; nli_contradiction: number; margin: number }> }>;
 

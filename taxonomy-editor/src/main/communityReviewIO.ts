@@ -3,6 +3,8 @@
 
 import crypto from 'crypto';
 import { getGlobalRecorder } from '../../../lib/flight-recorder/index.js';
+import { sanitizeText, type SanitizeWarning } from '../../../lib/sanitize/contentSanitizerCore.js';
+import { stripSensitiveKeys as stripSensitiveKeysShared, SENSITIVE_KEYS } from '../../../lib/sanitize/stripSensitiveKeys.js';
 
 let _client: CommunityReviewClient | null = null;
 
@@ -30,14 +32,6 @@ interface ReviewItem {
 }
 
 interface TranscriptEntry { speaker: string; content: string; type: string }
-
-const SENSITIVE_KEYS = new Set([
-  'api_key', 'apiKey', 'api_keys', 'apiKeys',
-  'secret', 'token', 'password', 'credential', 'credentials',
-  'authorization', 'auth_token', 'access_token', 'refresh_token',
-  'private_key', 'privateKey',
-  'flight_recorder', 'debug', '_internal', 'diagnostics_state',
-]);
 
 function asRecord(v: unknown): Record<string, unknown> {
   return v && typeof v === 'object' && !Array.isArray(v) ? v as Record<string, unknown> : {};
@@ -111,16 +105,26 @@ function scanSensitive(obj: unknown, found = new Set<string>()): Set<string> {
   return found;
 }
 
-function stripSensitiveKeys(obj: unknown): unknown {
-  if (obj === null || typeof obj !== 'object') return obj;
-  if (Array.isArray(obj)) return obj.map(stripSensitiveKeys);
-  const result: Record<string, unknown> = {};
-  for (const [key, value] of Object.entries(obj as Record<string, unknown>)) {
-    if (SENSITIVE_KEYS.has(key)) continue;
-    if (typeof value === 'string' && /^(sk-|AIza|gsk_|key-|xai-|Bearer\s)/.test(value)) continue;
-    result[key] = stripSensitiveKeys(value);
-  }
-  return result;
+// Observability hook for the pure lib sanitizer (t/2033). The desktop promote path injects a
+// flight-recorder onWarn rather than importing a logger (the lib core stays logger-agnostic;
+// the server wraps it with pino). NEVER logs content (secrets rule) — only the oversize-input
+// truncation fact. A throwing hook can't break sanitization (the core guards the call).
+const onSanitizeWarn = (w: SanitizeWarning): void => {
+  getGlobalRecorder()?.record({
+    type: 'system.error', component: 'community-review-io', level: 'warn',
+    message: `sanitizeText: input exceeded cap (${w.cap}) — truncated before sanitization`,
+    data: { reason: w.reason, originalLength: w.originalLength, cap: w.cap },
+  });
+};
+
+// Desktop binding of the shared community secret-strip traversal (t/2037): the lib helper — the
+// single source of the SENSITIVE_KEYS drop + SECRET_PREFIX_RE screen + array/object recursion,
+// shared byte-identically with the server copy — wired to the pure sanitizer + this module's
+// flight-recorder onWarn. The desktop skips the server's ALS budget (server-HTTP-only, t/2033#6).
+// Exported (1-arg) so the t/2033 regression test exercises the real desktop wiring end-to-end
+// (sanitizeText actually applied), and so sanitizeForCommunity's call site is unchanged.
+export function stripSensitiveKeys(obj: unknown): unknown {
+  return stripSensitiveKeysShared(obj, (v) => sanitizeText(v, onSanitizeWarn));
 }
 
 function sanitizeForCommunity(data: unknown, submittedBy: string): Record<string, unknown> {

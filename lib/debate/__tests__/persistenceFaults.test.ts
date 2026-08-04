@@ -105,6 +105,7 @@ describe('atomicWriteSync under storage faults', () => {
   });
 
   it('preserves original file when rename fails', () => {
+    // codeql[js/insecure-temporary-file] intentional tmpdir usage in test setup
     fs.writeFileSync(testFile, '{"original":true}', 'utf-8');
 
     const spy = vi.spyOn(fs, 'renameSync').mockImplementation(() => {
@@ -181,6 +182,7 @@ describe('corrupt partial JSON on resume', () => {
 
   it('JSON.parse throws on corrupt checkpoint with clear error', () => {
     const _profile = STORAGE_FAULT_PROFILES.corruptPartialJson;
+    // codeql[js/insecure-temporary-file] intentional tmpdir usage in test setup
     fs.writeFileSync(partialFile, '{broken json content!!!', 'utf-8');
 
     let caught: unknown;
@@ -194,6 +196,7 @@ describe('corrupt partial JSON on resume', () => {
   });
 
   it('wrapping corrupt checkpoint in ActionableError provides next steps', () => {
+    // codeql[js/insecure-temporary-file] intentional tmpdir usage in test setup
     fs.writeFileSync(partialFile, '{truncated: tru', 'utf-8');
 
     let caught: unknown;

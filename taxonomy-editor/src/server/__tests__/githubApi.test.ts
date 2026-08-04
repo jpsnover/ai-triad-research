@@ -12,6 +12,8 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { Agent } from 'undici';
+import { assertUndiciMajorInvariant } from '../storage/undiciInvariant.js';
 import type { FlightRecorder, RecordInput } from '../../../../lib/flight-recorder/index';
 
 // ── Mock setup ──────────────────────────────────────────────────────────
@@ -263,7 +265,7 @@ function createTestRecorder(): FlightRecorder & { events: RecordInput[] } {
 async function createBackend(recorder?: FlightRecorder) {
   const { GitHubAPIBackend } = await import('../storage/githubAPIBackend');
   const backend = new GitHubAPIBackend({
-    cacheDir: '/tmp/test-cache',
+    cacheDir: '/var/cache/taxonomy-test', // non-tmpdir: breaks CodeQL /tmp taint flow (t/2020)
     recorder: recorder ?? createTestRecorder(),
     pollIntervalMs: 999_999_999, // disable polling in tests
     coherencyProbeRate: 0,        // disable coherency probes
@@ -1243,7 +1245,7 @@ describe('GitHubAPIBackend — chaos: missing credentials', () => {
 
     const { GitHubAPIBackend } = await import('../storage/githubAPIBackend');
     const backend = new GitHubAPIBackend({
-      cacheDir: '/tmp/test-cache-nocreds',
+      cacheDir: '/var/cache/taxonomy-test-nocreds', // non-tmpdir: breaks CodeQL /tmp taint flow (t/2020)
       pollIntervalMs: 999_999_999,
       coherencyProbeRate: 0,
     });
@@ -1521,7 +1523,7 @@ describe('GitHubAPIBackend — manifest mutex', () => {
     // Fire 3 concurrent reads — all cache misses
     const paths = Object.keys(fileContents);
     const results = await Promise.all(
-      paths.map(p => backend.readFile(`/tmp/test-cache/${p}`)),
+      paths.map(p => backend.readFile(`/var/cache/taxonomy-test/${p}`)),
     );
 
     // All reads should succeed
@@ -1578,7 +1580,7 @@ describe('GitHubAPIBackend — manifest mutex', () => {
     });
 
     await Promise.all(
-      paths.map(p => backend.readFile(`/tmp/test-cache/${p}`)),
+      paths.map(p => backend.readFile(`/var/cache/taxonomy-test/${p}`)),
     );
 
     // With the manifest mutex, writes should be serialized (max 1 at a time)
@@ -1596,7 +1598,7 @@ describe('GitHubAPIBackend — session overlay memory cap (t/727)', () => {
   async function cappedBackend(capBytes: number) {
     const { GitHubAPIBackend } = await import('../storage/githubAPIBackend');
     const b = new GitHubAPIBackend({
-      cacheDir: '/tmp/test-cache',
+      cacheDir: '/var/cache/taxonomy-test', // non-tmpdir: breaks CodeQL /tmp taint flow (t/2020)
       recorder: createTestRecorder(),
       pollIntervalMs: 999_999_999,
       coherencyProbeRate: 0,
@@ -1696,5 +1698,83 @@ describe('GitHubAPIBackend — optional 404 log level', () => {
     expect(errorEvents).toHaveLength(0);
 
     backend.shutdown();
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+// t/2053 regression: undici dispatcher ownership + data-load status
+// ═══════════════════════════════════════════════════════════════════════════
+
+describe('GitHubAPIBackend — undici dispatcher (t/2053)', () => {
+  it('passes explicit dispatcher on every fetch call', async () => {
+    await createBackend();
+
+    const calls = vi.mocked(globalThis.fetch).mock.calls;
+    expect(calls.length).toBeGreaterThan(0);
+    for (const [, init] of calls) {
+      expect((init as RequestInit & { dispatcher?: unknown }).dispatcher).toBeInstanceOf(Agent);
+    }
+  });
+
+  it('reports ready status after successful initialization', async () => {
+    const backend = await createBackend();
+
+    expect(backend.getDataLoadStatus().status).toBe('ready');
+
+    backend.shutdown();
+  });
+
+  it('reports failed status and logs error when tree loads 0 blobs', async () => {
+    // Simulate undici 6.28.0 returning empty tree (the :07-30 prod failure mode)
+    apiHandlers.push((url) => {
+      if (url.includes('/git/trees/')) return { status: 200, body: { sha: TREE_SHA, truncated: false, tree: [] } };
+      return null as unknown as { status: number; body: unknown };
+    });
+
+    const { GitHubAPIBackend } = await import('../storage/githubAPIBackend');
+    const recorder = createTestRecorder();
+    const backend = new GitHubAPIBackend({
+      cacheDir: '/var/cache/taxonomy-test',
+      recorder,
+      pollIntervalMs: 999_999_999,
+      coherencyProbeRate: 0,
+    });
+    await backend.initialize();
+
+    const { status } = backend.getDataLoadStatus();
+    expect(status).toBe('failed');
+
+    // Error must surface in flight recorder (not swallowed at info-level)
+    const errorEvents = recorder.events.filter(e => e.level === 'error');
+    expect(errorEvents.length).toBeGreaterThan(0);
+
+    backend.shutdown();
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+// t/2113: undici major-version invariant — gate fires from both directions
+// ═══════════════════════════════════════════════════════════════════════════
+
+describe('assertUndiciMajorInvariant', () => {
+  it('passes when userland and bundled majors match', () => {
+    expect(() => assertUndiciMajorInvariant('6.28.0', '6.21.0')).not.toThrow();
+    expect(() => assertUndiciMajorInvariant('7.0.0', '7.24.4')).not.toThrow();
+  });
+
+  it('throws when bundled major is ahead of userland (node base-image bumped without package.json update)', () => {
+    expect(() => assertUndiciMajorInvariant('6.28.0', '7.24.4')).toThrow(/undici major-version skew/);
+    expect(() => assertUndiciMajorInvariant('6.28.0', '7.24.4')).toThrow(/6\.28\.0/);
+    expect(() => assertUndiciMajorInvariant('6.28.0', '7.24.4')).toThrow(/7\.24\.4/);
+  });
+
+  it('throws when userland major is ahead of bundled (Dependabot bump without node base-image update)', () => {
+    expect(() => assertUndiciMajorInvariant('8.9.0', '6.21.0')).toThrow(/undici major-version skew/);
+    expect(() => assertUndiciMajorInvariant('8.9.0', '6.21.0')).toThrow(/8\.9\.0/);
+    expect(() => assertUndiciMajorInvariant('8.9.0', '6.21.0')).toThrow(/6\.21\.0/);
+  });
+
+  it('passes when bundled version is undefined (node <22 without bundled undici)', () => {
+    expect(() => assertUndiciMajorInvariant('6.28.0', undefined)).not.toThrow();
   });
 });

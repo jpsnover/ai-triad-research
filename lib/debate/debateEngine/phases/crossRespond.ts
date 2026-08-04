@@ -32,6 +32,8 @@ import { getCommitmentContext, getEstablishedPointsContext } from '../context.js
 import { injectPerturbation } from '../perturbation.js';
 import { shouldTriggerDiversityRound, runDiversityRound } from './diversityInjection.js';
 import { runProbingQuestions } from './probingQuestions.js';
+import { retrieveTalmudicReference, formatTalmudicSourceDirective, validateTalmudicReferenceResponse } from '../../talmudicReferences.js';
+import type { TalmudicReferenceSelection } from '../../types.js';
 
 // ── Phase: Cross-respond round ─────────────────────────────
 
@@ -375,6 +377,7 @@ export async function runCrossRespondRound(engine: DebateEngineInternals, round:
       ? Object.fromEntries(engine.session.argument_network.nodes.map(n => [n.id, n.text]))
       : undefined,
     nodeEmbeddings: engine.taxonomy.embeddings as Record<string, { vector: number[] }> | undefined,
+    moderatorMode: engine.config.moderatorMode as import('../../types.js').ModeratorMode | undefined,
   };
 
   const modResult = await runModeratorSelection(selectionInput, selectionCallbacks);
@@ -433,6 +436,16 @@ export async function runCrossRespondRound(engine: DebateEngineInternals, round:
     response_time_ms: diagnostics.selectionElapsed,
     edges_used: diagnostics.edgesUsed as { source: string; target: string; type: string; confidence: number }[] | undefined,
   });
+
+  // ── Talmudic dialectical state ────────────────────────
+  const dialecticalDiag = selectionResult.dialectical_diagnostic;
+  let _talmudicSelection: TalmudicReferenceSelection | undefined;
+  let _talmudicCardEntryId: string | undefined;
+
+  if (dialecticalDiag) {
+    const modTrace = (modEntry.metadata as Record<string, unknown>)?.moderator_trace as Record<string, unknown> | undefined;
+    if (modTrace) modTrace.dialectical_diagnostic = dialecticalDiag;
+  }
 
   if ((selectionResult.intervene ?? false) && !activeIntervention && !modResult.engineValidation?.suppressed_reason) {
     getGlobalRecorder()?.record({
@@ -706,6 +719,30 @@ export async function runCrossRespondRound(engine: DebateEngineInternals, round:
     } : {}),
   };
 
+  // ── Talmudic source card injection (requires pipelineInput + info to be defined) ──
+  if (dialecticalDiag && engine._talmudicCorpus) {
+    const usedCardIds = new Set<string>(
+      (engine.session.dialectical_diagnostics ?? [])
+        .map(d => d.reference_selection?.selected_card?.id)
+        .filter((id): id is string => !!id)
+    );
+    _talmudicSelection = retrieveTalmudicReference({
+      corpus: engine._talmudicCorpus,
+      resolution: engine.session.topic.final,
+      diagnostic: dialecticalDiag,
+      recentScheme: diagnostics.recentScheme ?? null,
+      usedCardIds,
+      minScore: engine.config.talmudicReferences?.minScore,
+    });
+    if (_talmudicSelection.selected_card) {
+      const directive = formatTalmudicSourceDirective(_talmudicSelection, info.label);
+      const cardEntry = engine.addEntry({ type: 'system', speaker: 'system', content: directive, taxonomy_refs: [] });
+      _talmudicCardEntryId = cardEntry.id;
+      pipelineInput.talmudicReferenceDirective = directive;
+      pipelineInput.talmudicReferenceCardId = _talmudicSelection.selected_card.id;
+    }
+  }
+
   const envelopeGenerate = engine.adapter.generate
     ? async (request: import('../../cacheTypes.js').GenerateRequest, label: string) => {
         await engine.throttle();
@@ -950,6 +987,67 @@ export async function runCrossRespondRound(engine: DebateEngineInternals, round:
       ignored_evidence_doc_ids: pipelineResult.ignoredEvidenceDocIds,
     },
   });
+
+  // ── Talmudic reference response + dialectical diagnostic record ──
+  if (dialecticalDiag) {
+    let referenceSelection: import('../../types.js').DialecticalDiagnosticRecord['reference_selection'];
+    if (_talmudicSelection?.selected_card) {
+      const rawResponse = pipelineResult.draft.talmudic_reference_response;
+      const validatedResponse = validateTalmudicReferenceResponse(rawResponse, _talmudicSelection, statement);
+      (entry.metadata as Record<string, unknown>).talmudic_reference_response = validatedResponse;
+      referenceSelection = {
+        selected_card: _talmudicSelection.selected_card,
+        response: validatedResponse,
+        moderator_entry_id: _talmudicCardEntryId,
+        responding_entry_id: entry.id,
+      };
+    } else if (_talmudicSelection) {
+      referenceSelection = { selected_card: undefined };
+    }
+    engine.session.dialectical_diagnostics ??= [];
+    engine.session.dialectical_diagnostics.push({
+      round,
+      moderator_mode: engine.config.moderatorMode ?? 'talmudic',
+      moderator_entry_id: modEntry.id,
+      focused_crux: dialecticalDiag.focused_crux,
+      disagreement_type: dialecticalDiag.disagreement_type,
+      premise_under_examination: dialecticalDiag.premise_under_examination,
+      distinction_or_analogy_tested: dialecticalDiag.distinction_or_analogy_tested,
+      unresolved_outcome: dialecticalDiag.unresolved_outcome,
+      reference_selection: referenceSelection,
+    });
+  }
+
+  // Compute per-(frame,turn) cosine similarity series for frame survival metrics — t/2045
+  if (engine.session.frame_embeddings && Object.keys(engine.session.frame_embeddings).length > 0) {
+    try {
+      const { computeEmbeddings } = await import('../../../embeddings/onnxEmbedding.js');
+      const paras = entry.content.split(/\n\n+/).filter(p => p.trim().length > 0);
+      const paraVecs = paras.length > 0 ? await computeEmbeddings(paras) : [];
+      engine.session.frame_similarity_series ??= {};
+      for (const [speakerKey, frameData] of Object.entries(engine.session.frame_embeddings)) {
+        engine.session.frame_similarity_series[speakerKey] ??= frameData.frames.map(f => ({ frame: f.frame, sims: {} as Record<string, number> }));
+        const series = engine.session.frame_similarity_series[speakerKey];
+        for (let fi = 0; fi < frameData.frames.length; fi++) {
+          const fv = frameData.frames[fi].embedding;
+          let maxSim = 0;
+          for (const pv of paraVecs) {
+            if (pv.length !== fv.length) continue;
+            let dot = 0, na = 0, nb = 0;
+            for (let i = 0; i < fv.length; i++) { dot += fv[i] * pv[i]; na += fv[i] * fv[i]; nb += pv[i] * pv[i]; }
+            const d = Math.sqrt(na) * Math.sqrt(nb);
+            const s = d > 0 ? dot / d : 0;
+            if (s > maxSim) maxSim = s;
+          }
+          // Only write when ≥1 paragraph was actually compared — guards empty content and full dim-mismatch
+          const anyCompared = paraVecs.some(pv => pv.length === fv.length);
+          if (series[fi] && anyCompared) series[fi].sims[entry.id] = maxSim;
+        }
+      }
+    } catch (err) {
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'debate-engine', level: 'warn', debate_id: engine.session?.id, message: 'Frame similarity series update failed', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+    }
+  }
 
   // Accumulate context manifest for taxonomy gap analysis
   accumulateContextManifest(engine, round, responder, info.pov, taxonomyRefs.map(r => r.node_id));

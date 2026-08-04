@@ -25,6 +25,88 @@
 # Documented in root AGENTS.md so a fresh clone re-enables enforcement.
 # ─────────────────────────────────────────────────────────────────────────────
 
+# ── AGENTS.md tracking audit (t/2080) ────────────────────────────────────────
+# Runs FIRST and on EVERY commit, before the branch logic below returns early —
+# this guards WHAT you are committing, not WHERE, so a worktree commit on a named
+# branch (which exits 0 below) must still be checked.
+#
+# Guards two failures the branch rules cannot see: a file tracked in BOTH the code
+# repo and the overlay (free to diverge — root AGENTS.md did), and a role
+# AGENTS.md tracked by NEITHER (existing in one place on one machine; two were
+# found that way, recovered at overlay 01d782f).
+#
+# Only exit 1 blocks. Exit 2 (internal error) and a missing script both ALLOW the
+# commit, matching this hook's fail-OPEN rule: a broken guard must never block
+# legitimate work. Skipped entirely when the private overlay is absent, since the
+# audit cannot see the overlay's tracking set from a public checkout.
+if [ -f "$(git rev-parse --show-toplevel 2>/dev/null)/.githooks/agent-file-owner.sh" ]; then
+  QUIET=1 sh "$(git rev-parse --show-toplevel)/.githooks/agent-file-owner.sh" --audit
+  if [ $? -eq 1 ]; then
+    cat >&2 <<'MSG'
+
+  ✖ BLOCKED: AGENTS.md tracking is ambiguous (t/2080). Details above.
+
+  Query one file's home:
+    sh .githooks/agent-file-owner.sh --path <file>
+
+  Owner / emergency override (bypasses this hook):
+    git commit --no-verify
+MSG
+    exit 1
+  fi
+fi
+
+# ── Junk-file detection (t/2112) ─────────────────────────────────────────────
+# Shell-quoting accidents write command fragments as untracked filenames (e.g.
+# "120s", "24", "{,", "m.id"). These pollute `git status`, can trip glob-based
+# tooling, and make real WIP hard to spot. This check warns (non-blocking) so
+# agents clean up without needing to hand-inspect every dirty-file entry.
+#
+# Patterns flagged (heuristics; false positives acceptable — non-blocking):
+#   1. Single-char basename before first dot  → e.g. m.id, e.level
+#   2. Name begins with a digit              → e.g. 120s, 24, 0, 30s
+#   3. Name contains shell metacharacters    → e.g. {,  `,  c.name)  string[]
+#
+# Exemptions (co-located here, not in ticket history):
+#   - Paths under node_modules/ (legitimate extensionless binaries: LICENSE, tsc)
+#   - Paths under .agents/ (overlay-managed directories)
+#   - Trailing-slash entries (directories, not files)
+#   - Any file with more than one dot-separated segment AND basename > 1 char
+#     is skipped as likely legitimate (e.g. package-lock.json, .gitignore).
+#
+# Runs on EVERY commit (not just main) so worktree commits also benefit.
+# Fail-OPEN: any error in the detection skips the warning.
+_toplevel=$(git rev-parse --show-toplevel 2>/dev/null) || _toplevel="."
+_junk=$(
+  git -C "$_toplevel" status --porcelain 2>/dev/null \
+    | grep '^?? ' | sed 's|^?? ||' \
+    | grep -v '/node_modules' | grep -v '/\.agents/' | grep -v '/$' \
+    | while IFS= read -r _f; do
+        _name=$(basename "$_f")
+        _base="${_name%%.*}"
+        # Rule 1: 1-char basename with extension (e.g. m.id, e.level)
+        if [ "${#_base}" -eq 1 ] && [ "$_name" != "$_base" ]; then
+          printf '%s\n' "$_f"; continue
+        fi
+        # Rule 2: no extension, starts with digit (e.g. 120s, 24, 0)
+        if [ "$_name" = "$_base" ]; then
+          case "$_name" in [0-9]*) printf '%s\n' "$_f"; continue ;; esac
+        fi
+        # Rule 3: shell metacharacters anywhere in the name
+        case "$_name" in
+          *[\`\{\}\(\)\,\[\]]*) printf '%s\n' "$_f" ;;
+        esac
+      done
+) 2>/dev/null
+if [ -n "$_junk" ]; then
+  printf >&2 '\n  ⚠ WARNING: untracked junk-pattern files detected (t/2112).\n'
+  printf >&2 '  These look like shell-quoting accident artifacts — verify and remove:\n'
+  printf '%s\n' "$_junk" | while IFS= read -r _f; do
+    printf >&2 "    rm -- '%s'\n" "$_f"
+  done
+  printf >&2 '  See Shell Quoting Rule in root AGENTS.md. (Non-blocking — commit proceeds.)\n\n'
+fi
+
 # Normalize BOTH paths through `cd && pwd` so the comparison is format-stable on
 # Git-for-Windows (where --absolute-git-dir yields `C:/…` but a relative dir cd's
 # to `/c/…`). Mixing the two styles would read the main checkout as a worktree and

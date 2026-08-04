@@ -123,15 +123,23 @@ function auditPath(): string { return path.join(getDataRoot(), 'admin', 'feature
 function loadConfig(): FlagsConfig {
   const p = flagsPath();
   try {
-    const stat = fs.statSync(p);
-    if (_cache && stat.mtimeMs === _cacheMtime) return _cache;
-    const data = JSON.parse(fs.readFileSync(p, 'utf-8')) as Partial<FlagsConfig>;
-    // Seed flags are the baseline — file overrides take precedence, but new
-    // seeds appear automatically without requiring a file rewrite.
-    _cache = { flags: { ...SEED_FLAGS, ...(data.flags ?? {}) } };
-    _cacheMtime = stat.mtimeMs;
-    log.server.debug({ path: p, count: Object.keys(_cache.flags).length }, 'Loaded feature flags');
-    return _cache;
+    // t/2019 (js/file-system-race): fstat + read the SAME fd, not the path twice —
+    // no swap/unlink can slip between the mtime check and the read. openSync throws
+    // ENOENT (no flags file) → the catch below degrades to the committed seed baseline.
+    const fd = fs.openSync(p, 'r');
+    try {
+      const stat = fs.fstatSync(fd);
+      if (_cache && stat.mtimeMs === _cacheMtime) return _cache;
+      const data = JSON.parse(fs.readFileSync(fd, 'utf-8')) as Partial<FlagsConfig>;
+      // Seed flags are the baseline — file overrides take precedence, but new
+      // seeds appear automatically without requiring a file rewrite.
+      _cache = { flags: { ...SEED_FLAGS, ...(data.flags ?? {}) } };
+      _cacheMtime = stat.mtimeMs;
+      log.server.debug({ path: p, count: Object.keys(_cache.flags).length }, 'Loaded feature flags');
+      return _cache;
+    } finally {
+      fs.closeSync(fd);
+    }
   } catch (err) {
     const code = (err as NodeJS.ErrnoException).code;
     if (code !== 'ENOENT') {

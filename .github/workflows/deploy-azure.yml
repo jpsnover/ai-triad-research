@@ -1,7 +1,10 @@
 # ─── Deploy to Azure ───
-# What:  Blue-green production deployment to Azure Container Apps via Bicep.
+# What:  Blue-green PRODUCTION deployment to Azure Container Apps via Bicep.
 #        Deploys new revision at 0% traffic, health checks, then shifts to 100%.
 #        Auto-rollback on health failure.
+# Environments: production ONLY. Staging deploys are handled automatically by
+#        deploy-staging.yml (triggered via workflow_run on container.yml success).
+#        Dispatching with environment=staging is explicitly rejected.
 # Before: Container image must exist in GHCR (run Container Image workflow first).
 #         Requires AZURE_* OIDC secrets and OAuth secrets configured.
 # After:  Verify the app is healthy at the production URL. Check Azure Log Analytics
@@ -13,13 +16,12 @@ on:
   workflow_dispatch:
     inputs:
       environment:
-        description: 'Deployment environment'
+        description: 'Deployment environment (production only — staging auto-deploys via deploy-staging.yml)'
         required: true
         default: 'production'
         type: choice
         options:
           - production
-          - staging
       image_tag:
         description: 'Image tag to deploy (e.g., 0.8.0). Leave empty for latest tagged version.'
         required: false
@@ -58,6 +60,12 @@ jobs:
     outputs:
       tag: ${{ steps.resolve_tag.outputs.tag }}
     steps:
+      - name: Reject staging dispatches
+        if: inputs.environment == 'staging'
+        run: |
+          echo "::error::This workflow is production-only. Staging deploys are handled automatically by deploy-staging.yml (triggered via workflow_run on container.yml success). Do not dispatch deploy-azure.yml with environment=staging."
+          exit 1
+
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v6
 
       - name: Resolve image tag
@@ -166,6 +174,38 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
+      - name: Capture current active revisions (traffic-pin + rollback targets)
+        id: current_revision
+        shell: pwsh
+        run: |
+          # t/2049 + t/2047 landmine: main.bicep defines BOTH the prod and staging
+          # apps, so EVERY apply reconciles BOTH. Capture each app's CURRENT ACTIVE
+          # revision BEFORE the apply and pass both as ingress traffic pins, so the
+          # apply holds traffic on the known-good revision (never auto-promoting a
+          # new one) — for both apps, regardless of which environment we deploy.
+          # The prod capture doubles as the rollback target.
+          $ErrorActionPreference = 'Stop'   # abort on az failure — never pass a
+                                            # silent empty pin when capture itself
+                                            # failed (t/2049#6). Empty is passed ONLY
+                                            # when there is verifiably no active
+                                            # revision (genuine first/only deploy).
+          Import-Module ./scripts/AITriad/AITriad.psm1 -Force
+          function Get-ActivePin {
+            param([string]$App, [string]$Rg)
+            $Active = @(Get-ContainerAppRevision -Mode Active -AppName $App -ResourceGroup $Rg)
+            if ($Active.Count -eq 0) { return '' }
+            # Steady state = exactly one revision at >0% traffic. If a prior deploy
+            # left a split, pin the highest-weight revision.
+            $Top = @($Active | Sort-Object -Property TrafficWeight -Descending)[0]
+            return $Top.Name
+          }
+          $ProdRev    = Get-ActivePin -App '${{ env.CONTAINER_APP_NAME }}'         -Rg '${{ env.RESOURCE_GROUP }}'
+          $StagingRev = Get-ActivePin -App '${{ env.CONTAINER_APP_NAME }}-staging' -Rg '${{ env.RESOURCE_GROUP }}'
+          Add-Content -Path $env:GITHUB_OUTPUT -Value "revision=$ProdRev"
+          Add-Content -Path $env:GITHUB_OUTPUT -Value "staging_revision=$StagingRev"
+          Write-Host "Prod pin / rollback target: '$ProdRev'"
+          Write-Host "Staging pin target:         '$StagingRev'"
+
       - name: Preview Bicep changes (what-if)
         run: |
           echo "Previewing infrastructure changes..."
@@ -174,6 +214,8 @@ jobs:
             --template-file deploy/azure/main.bicep \
             --parameters \
               containerImage=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.resolve_tag.outputs.tag }} \
+              trafficPinRevisionName=${{ steps.current_revision.outputs.revision }} \
+              trafficPinRevisionNameStaging=${{ steps.current_revision.outputs.staging_revision }} \
               googleClientId=${{ secrets.GOOGLE_CLIENT_ID }} \
               googleClientSecret=${{ secrets.GOOGLE_CLIENT_SECRET }} \
               githubClientId=${{ secrets.GH_OAUTH_CLIENT_ID }} \
@@ -236,28 +278,33 @@ jobs:
             freeTierGeminiKey=${{ secrets.FREE_TIER_GEMINI_KEY }}
             geminiPaidKey=${{ secrets.GEMINI_PAID_KEY }}
             budgetAlertEmail=${{ vars.ALERT_EMAIL }}
+            trafficPinRevisionName=${{ steps.current_revision.outputs.revision }}
+            trafficPinRevisionNameStaging=${{ steps.current_revision.outputs.staging_revision }}
 
-      - name: Get current active revision
-        id: current_revision
-        shell: pwsh
-        run: |
-          Import-Module ./scripts/AITriad/AITriad.psm1 -Force
-          $Rev = Get-ContainerAppRevision -Mode Active `
-            -AppName '${{ env.CONTAINER_APP_NAME }}' `
-            -ResourceGroup '${{ env.RESOURCE_GROUP }}'
-          $RevName = if ($Rev) { $Rev.Name } else { '' }
-          Add-Content -Path $env:GITHUB_OUTPUT -Value "revision=$RevName"
-          Write-Host "Current active revision: $RevName"
+      # NOTE: the current active revision is now captured BEFORE the Bicep apply
+      # (see "Capture current active revisions" above) so it can be passed as the
+      # traffic pin. steps.current_revision.outputs.revision remains the rollback
+      # target below — and, with the pin, that revision holds 100% throughout the
+      # deploy, so it can never drop to 0% / go stale / be GC'd mid-deploy (t/2047).
 
       - name: Cleanup stale revisions
         shell: pwsh
         run: |
           Import-Module ./scripts/AITriad/AITriad.psm1 -Force
           Write-Host "Deactivating stale revisions to free resources..."
+          # t/2050: NEVER deactivate the captured rollback target. With the t/2049
+          # pin it stays at 100% (not stale) so it should never appear here, but we
+          # guard explicitly so no reorder or transient split can strand the
+          # rollback target the way t/2047 did.
+          $Protected = @('${{ steps.current_revision.outputs.revision }}') | Where-Object { $_ }
           $Stale = @(Get-ContainerAppRevision -Mode Stale `
             -AppName '${{ env.CONTAINER_APP_NAME }}' `
             -ResourceGroup '${{ env.RESOURCE_GROUP }}')
           foreach ($Rev in $Stale) {
+            if ($Protected -contains $Rev.Name) {
+              Write-Host "Skipping protected rollback target: $($Rev.Name)"
+              continue
+            }
             Disable-ContainerAppRevision -RevisionName $Rev.Name `
               -AppName '${{ env.CONTAINER_APP_NAME }}' `
               -ResourceGroup '${{ env.RESOURCE_GROUP }}'

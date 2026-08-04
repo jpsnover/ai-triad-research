@@ -77,6 +77,18 @@ export default tseslint.config(
       'local/no-inline-style': 'warn',
     },
   },
+  // ── Block A-storage: ban module-level throw-capable calls in server/storage (t/2113, t/2114) ──
+  {
+    files: ['src/server/storage/**/*.ts'],
+    ignores: TEST_GLOBS,
+    rules: {
+      'no-restricted-syntax': ['error', {
+        selector: 'Program > ExpressionStatement > CallExpression',
+        message:
+          'Module-level call expressions are banned in server/storage — they fire at import time and can crash Vitest collection or the container on startup. Move invariant checks into a constructor or explicit init function. See undiciInvariant.ts + GitHubRestClient constructor as the canonical pattern. (t/2113, t/2114)',
+      }],
+    },
+  },
   // ── Block B: LOC budget for test source (syntactic parse; tests are outside the
   //    tsconfig project). Deliberately NOT the async/FR rules — un-ignoring tests only
   //    to enforce the ceiling, not to surface pre-existing test violations as gate noise. ──

@@ -56,10 +56,14 @@ function loadConflicts() {
 // ── Compute embeddings + clustering in Python ───────────────────
 
 function embedAndCluster(texts, ids, maxClusters) {
-  const tmpDir = os.tmpdir();
-  const inputFile = path.join(tmpDir, 'conflict-cluster-input.json');
-  const outputFile = path.join(tmpDir, 'conflict-cluster-output.json');
-  const scriptFile = path.join(tmpDir, 'conflict-cluster.py');
+  // Create a private, randomly-named temp dir (0700) rather than writing
+  // predictable filenames into the shared os.tmpdir() — the latter lets another
+  // local user pre-create/symlink these paths and hijack what Python executes
+  // (CodeQL js/insecure-temporary-file). mkdtempSync gives an unguessable dir.
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'conflict-cluster-'));
+  const inputFile = path.join(tmpDir, 'input.json');
+  const outputFile = path.join(tmpDir, 'output.json');
+  const scriptFile = path.join(tmpDir, 'cluster.py');
 
   fs.writeFileSync(inputFile, JSON.stringify({ texts, ids, max_clusters: maxClusters }));
   fs.writeFileSync(scriptFile, `
@@ -133,10 +137,8 @@ print("Done.")
 
   const result = JSON.parse(fs.readFileSync(outputFile, 'utf-8'));
 
-  // Cleanup
-  try { fs.unlinkSync(inputFile); } catch { /* ignore */ }
-  try { fs.unlinkSync(outputFile); } catch { /* ignore */ }
-  try { fs.unlinkSync(scriptFile); } catch { /* ignore */ }
+  // Cleanup — remove the private temp dir and everything in it.
+  try { fs.rmSync(tmpDir, { recursive: true, force: true }); } catch { /* ignore */ }
 
   return result;
 }

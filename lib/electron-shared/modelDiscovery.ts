@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import { ActionableError } from '../debate/errors.js';
 import { getGlobalRecorder } from '../flight-recorder/index.js';
+import { findDanglingRefs, findChainlessDefaults, KNOWN_VERBATIM, CHAIN_EXEMPT_BACKENDS } from '../ai-config/validate.js';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -16,6 +17,13 @@ export interface AIModelsConfig {
   backends: { id: string; label: string }[];
   models: ModelEntry[];
   defaults: Record<string, string>;
+  // Runtime-affecting model-id reference surfaces. Previously omitted from this
+  // type — they survived only by JSON round-trip through load/saveModelConfig.
+  // Made type-visible (t/2039) so the refresh repair pass + guard can operate on
+  // them. `debateTiers` carries a leading "_comment" string key alongside the
+  // per-tier backend maps.
+  debateTiers?: Record<string, string | Record<string, string>>;
+  fallbackChains?: Record<string, string[]>;
   lastRefreshed: string | null;
 }
 
@@ -33,6 +41,14 @@ export interface RefreshResult {
   deepseek: BackendResult;
   ollama:   BackendResult;
   totalModels: number;
+  // t/2039 validate-before-write guard outcome (consumed by the Settings panel,
+  // t/2041). `written` is false iff the guard REFUSED to persist because the
+  // repaired registry would still be invalid — in that case ai-models.json is
+  // left byte-untouched. `configWarning` is present iff there is something to
+  // report: the refusal reason when !written, or a non-fatal note when repairs
+  // were applied on the successful-write path.
+  written: boolean;
+  configWarning?: string;
 }
 
 export interface ModelDiscoveryDeps {
@@ -451,6 +467,7 @@ export async function refreshAIModels(deps: ModelDiscoveryDeps): Promise<Refresh
     deepseek: { ok: false, count: 0 },
     ollama:   { ok: false, count: 0 },
     totalModels: 0,
+    written: false,
   };
 
   const existingClaude = config.models.filter(m => m.backend === 'claude');
@@ -471,20 +488,103 @@ export async function refreshAIModels(deps: ModelDiscoveryDeps): Promise<Refresh
   const probed = new Set<string>(ALL_BACKENDS);
   const preserved = config.models.filter(m => !probed.has(m.backend));
   config.models = [...preserved, ...newModels];
-  config.lastRefreshed = new Date().toISOString();
+  // ── Repair pass (t/2039) ──────────────────────────────────────────────────────
+  // Extend the merge repair from defaults-only to ALL runtime model-id reference
+  // surfaces, on the merged in-memory config, BEFORE the validate-before-write guard.
+  const resolves = (id: string): boolean =>
+    config.models.some(m => m.id === id) || KNOWN_VERBATIM.has(id);
+  const repairs: string[] = [];
 
-  // Repoint only genuinely dangling defaults, checked against the full merged set (not
-  // just the re-probed models) so a surviving non-probed backend's default is never
-  // falsely rewritten.
+  // 1. fallbackChains VALUES: prune failover targets that no longer resolve. A dead
+  //    target is already a no-op, so pruning is strictly a repair (KNOWN_VERBATIM kept).
+  if (config.fallbackChains) {
+    for (const [key, chain] of Object.entries(config.fallbackChains)) {
+      const kept = chain.filter(resolves);
+      if (kept.length !== chain.length) {
+        config.fallbackChains[key] = kept;
+        repairs.push(`pruned ${chain.length - kept.length} dangling fallbackChains["${key}"] target(s)`);
+      }
+    }
+  }
+
+  // 2. defaults: repoint a dangling default to a surviving same-backend model that
+  //    ITSELF has a non-empty chain (chain-exempt backend → any surviving same-backend
+  //    model). Never silently repoint to a chain-less model — that just relocates the
+  //    invariant break; the guard below refuses instead. Checked against the full merged
+  //    set so a surviving non-probed backend's default is never falsely rewritten.
   for (const [backend, defaultId] of Object.entries(config.defaults)) {
-    if (!config.models.some(m => m.id === defaultId)) {
-      const first = config.models.find(m => m.backend === backend);
-      if (first) config.defaults[backend] = first.id;
+    if (resolves(defaultId)) continue;
+    const candidates = config.models.filter(m => m.backend === backend);
+    const pick = CHAIN_EXEMPT_BACKENDS.has(backend)
+      ? candidates[0]
+      : candidates.find(m => (config.fallbackChains?.[m.id]?.length ?? 0) > 0);
+    if (pick) {
+      config.defaults[backend] = pick.id;
+      repairs.push(`repointed dangling default["${backend}"] -> ${pick.id}`);
+    }
+    // else: leave dangling — the guard refuses the write below.
+  }
+
+  // 3. debateTiers VALUES: repoint a dangling {tier}.{backend} to the repaired backend
+  //    default if it resolves, else drop that entry. Skip the "_comment" string key.
+  if (config.debateTiers) {
+    for (const [tier, tierValue] of Object.entries(config.debateTiers)) {
+      // `tierValue === null` guard: typeof null === 'object' (t/2039#3 null-tier nit).
+      if (tier === '_comment' || tierValue === null || typeof tierValue !== 'object') continue;
+      for (const [backend, modelId] of Object.entries(tierValue)) {
+        if (resolves(modelId)) continue;
+        const repaired = config.defaults[backend];
+        if (repaired && resolves(repaired)) {
+          tierValue[backend] = repaired;
+          repairs.push(`repointed dangling debateTiers.${tier}.${backend} -> ${repaired}`);
+        } else {
+          delete tierValue[backend];
+          repairs.push(`dropped dangling debateTiers.${tier}.${backend}`);
+        }
+      }
     }
   }
 
   result.totalModels = config.models.length;
+
+  // ── Validate-before-write guard (t/2039) ───────────────────────────────────────
+  // Run the invariants IN-PROCESS on the repaired registry (TL t/2038#1: the pure
+  // invariant fns, NOT a shell-out to the 6-gate verify:config runner). If anything
+  // still dangles or a live non-exempt default is chain-less, REFUSE to write — leave
+  // ai-models.json byte-untouched and report why. Never persist a known-invalid
+  // registry (the t/2038 corruption class). Per-backend results above are already
+  // populated (discovery ran) so a refuse still reports "discovered, not saved".
+  const dangling = findDanglingRefs(config);
+  const chainless = findChainlessDefaults(config);
+  if (dangling.length > 0 || chainless.length > 0) {
+    const reasons: string[] = [];
+    if (dangling.length > 0) reasons.push(`dangling refs: ${dangling.join(', ')}`);
+    if (chainless.length > 0) reasons.push(chainless.join('; '));
+    result.written = false;
+    result.configWarning =
+      `Refused to write ai-models.json — the refreshed registry is invalid (${reasons.join(' | ')}). The existing file is unchanged.`;
+    console.warn(`[ModelDiscovery] REFUSED write: ${result.configWarning}`);
+    // t/2039#3: a refused write is a t/2038 corruption-class event — surface it in the
+    // flight recorder too (beyond console + the RefreshResult field) so a diagnostics
+    // dump captures which refs would have broken. Lists only ids/backends, no secrets.
+    getGlobalRecorder()?.record({
+      type: 'system.error',
+      component: 'model-discovery-refresh',
+      level: 'warn',
+      message: result.configWarning,
+      data: { dangling, chainless },
+    });
+    return result;
+  }
+
+  // Clean (or fully repaired): persist. Bump lastRefreshed only on the write path so a
+  // refused refresh leaves the on-disk timestamp untouched too.
+  config.lastRefreshed = new Date().toISOString();
   saveModelConfig(deps.repoRoot, config);
+  result.written = true;
+  if (repairs.length > 0) {
+    result.configWarning = `Refresh repaired config before writing: ${repairs.join('; ')}.`;
+  }
   console.log(`[ModelDiscovery] Saved ${newModels.length} models to ai-models.json`);
 
   return result;

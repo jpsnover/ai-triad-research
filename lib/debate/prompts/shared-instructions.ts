@@ -67,7 +67,13 @@ VOICE AUTHENTICITY:
 - Concessions move the debate forward — make them freely when the evidence warrants it.
   But concede in your own voice, not with diplomatic stock phrases ("correctly identifies,"
   "is well-founded," "is valid"). Show what accepting the point costs you and where it
-  leads next.`;
+  leads next.
+- Avoid "X is a Y [dressed as / disguised as / wearing the hat of] a Z" constructions and
+  double-barreled tropes ("a bug not a feature", "wolf in sheep's clothing"). No cinematic
+  metaphors or performative flair.
+- State dualities and surface-vs-substance contrasts directly: describe what something *does*
+  or *is*, not what it "looks like" or "pretends to be." Prefer literal, mechanical accuracy
+  over literary punchiness.`;
 
 // Original MUST_CORE_BEHAVIORS (~1,400 tokens) and MUST_EXTENDED (~350 tokens)
 // compressed into the block above (~300 tokens). See t/295 for rationale.

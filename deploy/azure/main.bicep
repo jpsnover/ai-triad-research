@@ -31,6 +31,26 @@ param containerImage string = 'ghcr.io/jpsnover/taxonomy-editor:latest'
 @description('Unique suffix for globally unique resource names')
 param uniqueSuffix string = uniqueString(resourceGroup().id)
 
+// ── Traffic pin (t/2049 — pre-traffic canary/health gate) ──
+// In activeRevisionsMode 'Multiple' with NO ingress.traffic block, a full Bicep
+// apply reconciles traffic and promotes the LATEST revision to 100% — before the
+// deploy workflow's readiness gate ever runs (the t/2047 bypass). Worse: this
+// template defines BOTH the prod and staging apps, so EVERY apply reconciles
+// BOTH — a staging-intent deploy would silently wipe a manual prod rollback pin
+// and re-promote prod's latest (t/2049#6 landmine). To close this, each app's
+// ingress pins 100% traffic to an explicit, already-live revision. The deploy
+// workflow and deploy.ps1 capture each app's CURRENT ACTIVE revision and pass it
+// here, so a newly-created revision starts at 0% and is promoted only after
+// /healthz readiness + acceptance + persona gates pass. Empty = genuine
+// first/only deploy -> latest gets 100% (safe; there is nothing to hold).
+// NEVER pass empty as a silent fallback when the capture step FAILED — the
+// capture must abort instead (t/2049#6).
+@description('Full name of the revision to hold 100% PROD ingress traffic on during a Bicep apply (e.g. "taxonomy-editor--restore-gem"). Empty = first/only deploy (latest gets 100%).')
+param trafficPinRevisionName string = ''
+
+@description('Full name of the revision to hold 100% STAGING ingress traffic on during a Bicep apply. Empty = first/only staging deploy (latest gets 100%).')
+param trafficPinRevisionNameStaging string = ''
+
 // ── Resource Tags ──
 var tags = {
   project: 'ai-triad-research'
@@ -419,11 +439,22 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
     managedEnvironmentId: containerAppEnv.id
     configuration: {
       activeRevisionsMode: 'Multiple'
+      // t/2050: retain recent inactive revisions so a rollback / forensic target
+      // survives ACA garbage collection. The t/2047 outage's auto-rollback was a
+      // no-op because the prior good revision had been GC'd. 10 keeps roughly a
+      // sprint of history at negligible cost (inactive revisions run no replicas).
+      maxInactiveRevisions: 10
       ingress: {
         external: true
         targetPort: 7862
         transport: 'auto' // supports both HTTP and WebSocket
         allowInsecure: false
+        // t/2049: hold 100% traffic on an explicit, already-live revision so this
+        // apply never auto-promotes a new one (see the trafficPinRevisionName
+        // param header). Empty pin -> latest@100 (first/only deploy).
+        traffic: empty(trafficPinRevisionName)
+          ? [ { latestRevision: true, weight: 100 } ]
+          : [ { revisionName: trafficPinRevisionName, weight: 100 } ]
       }
       secrets: oauthSecrets
     }
@@ -517,11 +548,18 @@ resource containerAppStaging 'Microsoft.App/containerApps@2024-03-01' = {
     managedEnvironmentId: containerAppEnv.id
     configuration: {
       activeRevisionsMode: 'Multiple'
+      // t/2050: retain recent inactive revisions (see prod app comment).
+      maxInactiveRevisions: 10
       ingress: {
         external: true
         targetPort: 7862
         transport: 'auto'
         allowInsecure: false
+        // t/2049: hold 100% staging traffic on an explicit live revision so a
+        // Bicep apply never auto-promotes a new one. Empty -> latest@100.
+        traffic: empty(trafficPinRevisionNameStaging)
+          ? [ { latestRevision: true, weight: 100 } ]
+          : [ { revisionName: trafficPinRevisionNameStaging, weight: 100 } ]
       }
       secrets: oauthSecrets
     }

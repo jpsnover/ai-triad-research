@@ -31,8 +31,6 @@ import {
   getDefaultTimeout,
   GEMINI_BASE,
   GEMINI_SAFETY_SETTINGS,
-  buildModelIdMap,
-  getApiModelId,
   callProvider,
   withRetry,
   SERVER_RETRY_CONFIG,
@@ -40,7 +38,8 @@ import {
   DEFAULT_MODEL,
 } from '../../../lib/ai-client/index.js';
 import type { GenerateOptions, RateLimitType as SharedRateLimitType, FetchFn } from '../../../lib/ai-client/index.js';
-import type { ModelRegistry } from '../../../lib/ai-client/index.js';
+import type { ModelEntry } from '../../../lib/ai-client/index.js';
+import { resolveModelEntry as resolveModelEntryFromCache } from './modelConfigCache.js';
 
 // ── Electron net.fetch wrapper ──
 // Electron's net.fetch requires Buffer.from for string bodies in some cases.
@@ -241,24 +240,55 @@ async function embedItems(items: { id: string; text: string }[]): Promise<Record
   });
 }
 
-export async function updateNodeEmbeddings(nodes: NodeEmbeddingInput[]): Promise<void> {
-  if (nodes.length === 0) return;
+/**
+ * Re-embed a set of nodes and update embeddings.json.
+ *
+ * Returns `{ staleNodeIds }` — the requested nodes whose embedding could NOT be refreshed this
+ * call (empty = full success). The renderer surfaces a non-blocking "embeddings stale" warning
+ * on any non-empty result so a failed embedding update can never masquerade as a clean save
+ * (t/2060, the false-success blocker; contract TL-approved t/2060#4). A DirectML GPU OOM in the
+ * embed pass no longer throws away the whole update — the affected nodes surface in staleNodeIds
+ * instead, and successfully-embedded nodes are still persisted (partial success).
+ */
+export async function updateNodeEmbeddings(nodes: NodeEmbeddingInput[]): Promise<{ staleNodeIds: string[] }> {
+  if (nodes.length === 0) return { staleNodeIds: [] };
 
   const filePath = io.getEmbeddingsPath();
   const items = nodes.map(n => ({ id: n.id, text: n.text }));
   console.log(`[embeddings] Updating ${nodes.length} node embeddings...`);
 
-  // Try ONNX native batch, fall back to Python subprocess (shared helper).
-  const vectors = await embedItems(items);
+  // Primary embeddings. A failure here (e.g. a DirectML GPU OOM, t/2060) must NOT throw away the
+  // whole update, or the renderer can't tell which nodes went stale — leave the failed ids out of
+  // `vectors` so they surface in staleNodeIds below, and record the failure (ADR-003).
+  let vectors: Record<string, number[]> = {};
+  try {
+    vectors = await embedItems(items);
+  } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error', component: 'embeddings', level: 'error',
+      message: 'updateNodeEmbeddings: embedding pass failed — affected nodes left stale',
+      data: { requested: nodes.length },
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+    });
+  }
 
-  // Generate exclusion vectors for nodes that have exclusionText
+  // Exclusion vectors are a SECONDARY signal — a failure here doesn't make a node's primary
+  // embedding stale, so it never contributes to staleNodeIds; skip + log (warn) and continue.
   const exclItems = nodes
     .filter(n => n.exclusionText)
     .map(n => ({ id: n.id, text: n.exclusionText! }));
   let exclVectors: Record<string, number[]> = {};
   if (exclItems.length > 0) {
     console.log(`[embeddings] Generating ${exclItems.length} exclusion vectors...`);
-    exclVectors = await embedItems(exclItems);
+    try {
+      exclVectors = await embedItems(exclItems);
+    } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error', component: 'embeddings', level: 'warn',
+        message: 'updateNodeEmbeddings: exclusion embedding pass failed — exclusion vectors skipped (primary embeddings unaffected)',
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+      });
+    }
   }
 
   // Read existing embeddings.json (fresh, not from cache)
@@ -277,8 +307,10 @@ export async function updateNodeEmbeddings(nodes: NodeEmbeddingInput[]): Promise
     };
   }
 
-  // Merge new vectors (with dimension validation)
+  // Merge new vectors (with dimension validation); track which requested nodes actually got a
+  // fresh vector persisted this call.
   const expectedDim = data.dimension || 384;
+  const written = new Set<string>();
   for (const node of nodes) {
     if (vectors[node.id]) {
       const vec = vectors[node.id];
@@ -295,16 +327,31 @@ export async function updateNodeEmbeddings(nodes: NodeEmbeddingInput[]): Promise
         vector: vec,
         exclusion_vector: (exclVec && exclVec.length === expectedDim) ? exclVec : null,
       };
+      written.add(node.id);
     }
   }
-  data.node_count = Object.keys(data.nodes).length;
 
-  // Write back
-  fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf-8');
-  console.log(`[embeddings] Updated embeddings.json (${data.node_count} total nodes)`);
+  // Only persist when we actually refreshed ≥1 vector — a total embed failure (all stale) must
+  // NOT rewrite the file (and a prior read-miss default-structure write would CLOBBER existing
+  // embeddings.json with an empty one, t/2060 data-loss guard).
+  if (written.size > 0) {
+    data.node_count = Object.keys(data.nodes).length;
+    fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf-8');
+    console.log(`[embeddings] Updated embeddings.json (${data.node_count} total nodes)`);
+    io.invalidateCache();
+  }
 
-  // Invalidate in-memory cache so next read picks up new data
-  io.invalidateCache();
+  // Any requested node without a freshly-persisted vector is STALE (its text changed but its
+  // stored vector wasn't refreshed) — the contract the renderer surfaces (t/2060).
+  const staleNodeIds = nodes.filter(n => !written.has(n.id)).map(n => n.id);
+  if (staleNodeIds.length > 0) {
+    getGlobalRecorder()?.record({
+      type: 'system.error', component: 'embeddings', level: 'warn',
+      message: 'updateNodeEmbeddings: some nodes left with stale embeddings',
+      data: { stale: staleNodeIds.length, requested: nodes.length },
+    });
+  }
+  return { staleNodeIds };
 }
 
 // ---------- NLI cross-encoder classification ----------
@@ -503,7 +550,7 @@ export interface GenerateTextProgress {
 
 type AIBackend = 'gemini' | 'claude' | 'groq' | 'openai' | 'ollama';
 
-// ── API model ID mapping — loaded from ai-models.json via shared buildModelIdMap ──
+// ── API model ID mapping — cache logic extracted to modelConfigCache.ts (testable without electron) ──
 
 /** Find ai-models.json — may be at PROJECT_ROOT or one level up (when PROJECT_ROOT is taxonomy-editor/) */
 function findModelsConfig(): string {
@@ -517,57 +564,13 @@ function findModelsConfig(): string {
   return candidates[0];
 }
 
-// Cache the model ID map, reload when ai-models.json changes
-let _modelMapCache: Record<string, string> | null = null;
-let _modelMapMtime = 0;
+function resolveModelEntry(friendlyId: string): ModelEntry | undefined {
+  return resolveModelEntryFromCache(findModelsConfig(), friendlyId);
+}
 
-function resolveApiModelId(friendlyId: string): string {
-  // Hoisted so the catch can name the file it failed on (t/1704) and advance the
-  // mtime guard when the file was statted but its contents failed to parse (t/1702).
-  let configPath: string | undefined;
-  let statMtime = 0;
-  let fd: number | undefined;
-  try {
-    configPath = findModelsConfig();
-    // Open ONE descriptor and fstat+read through it (js/file-system-race, t/2022): statting a
-    // path then reading the same path is a TOCTOU; operating on a single fd is race-free.
-    fd = fs.openSync(configPath, 'r');
-    const stat = fs.fstatSync(fd);
-    statMtime = stat.mtimeMs;
-    if (!_modelMapCache || stat.mtimeMs !== _modelMapMtime) {
-      // Strip a leading UTF-8 BOM (EF BB BF) before parsing — ai-models.json has
-      // been saved with one, which makes JSON.parse throw `Unexpected token` and,
-      // without the mtime-guard fix below, re-failed on every generateText call
-      // (t/1702). ﻿ is the BOM code point.
-      const raw = fs.readFileSync(fd, 'utf-8').replace(/^﻿/, '');
-      const config = JSON.parse(raw) as ModelRegistry;
-      _modelMapCache = buildModelIdMap(config);
-      _modelMapMtime = stat.mtimeMs;
-      console.log(`[model-map] Loaded ${Object.keys(_modelMapCache!).length} mappings from ${configPath}`);
-    }
-  } catch (err) {
-    getGlobalRecorder()?.record({
-      type: 'system.error',
-      component: 'embeddings',
-      level: 'error',
-      message: 'Operation failed',
-      // Name the file being parsed so the recorder error is self-describing —
-      // the BOM SyntaxError previously gave no hint which file failed (t/1704).
-      data: { configPath },
-      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
-    });
-    if (!_modelMapCache) _modelMapCache = {};
-    // Advance the mtime guard so a file that was found but failed to parse is not
-    // re-read (and re-recorded) on every subsequent call — the flooding observed
-    // in t/1702. statMtime is 0 only when openSync/fstatSync threw (missing file), in
-    // which case we intentionally leave the guard so a later-created file is picked
-    // up; a real edit to a broken file changes mtime and re-triggers a load.
-    if (statMtime !== 0) _modelMapMtime = statMtime;
-    console.error(`[model-map] FAILED to load model map: ${err instanceof Error ? err.message : err}`);
-  } finally {
-    if (fd !== undefined) fs.closeSync(fd);
-  }
-  return getApiModelId(_modelMapCache!, friendlyId);
+/** Return a fixedTemperature override for GenerateOptions when the entry requires one. */
+function fixedTempOverride(entry: ModelEntry | undefined): { fixedTemperature?: number } {
+  return entry?.fixedTemperature != null ? { fixedTemperature: entry.fixedTemperature } : {};
 }
 
 let _lastLoggedModel: string | null = null;
@@ -590,7 +593,8 @@ export async function generateText(
 ): Promise<string> {
   const friendlyModel = model || DEFAULT_MODEL;
   const backend = resolveBackend(friendlyModel);
-  const resolvedModel = resolveApiModelId(friendlyModel);
+  const entry = resolveModelEntry(friendlyModel);
+  const resolvedModel = entry?.apiModelId ?? friendlyModel;
 
   const apiKey = backend === 'ollama' ? 'ollama-local' : loadApiKey(backend);
   const keySource = backend === 'ollama' ? 'local (no key needed)' : apiKey ? 'Electron encrypted store' : '(not found)';
@@ -621,6 +625,7 @@ export async function generateText(
   const opts: GenerateOptions = {
     temperature: temperature ?? _debateTemperature ?? 0.7,
     timeoutMs: timeoutMs ?? getDefaultTimeout(friendlyModel),
+    ...fixedTempOverride(entry),
   };
 
   const providerFn = backend === 'deepseek'
@@ -706,7 +711,8 @@ export async function generateChatStream(
 ): Promise<string> {
   const friendlyModel = model || DEFAULT_MODEL;
   const backend = resolveBackend(friendlyModel);
-  const resolvedModel = resolveApiModelId(friendlyModel);
+  const entry = resolveModelEntry(friendlyModel);
+  const resolvedModel = entry?.apiModelId ?? friendlyModel;
 
   const apiKey = backend === 'ollama' ? 'ollama-local' : loadApiKey(backend);
   if (!apiKey) {
@@ -730,6 +736,7 @@ export async function generateChatStream(
     const opts: GenerateOptions = {
       temperature: temperature ?? 0.7,
       timeoutMs: getDefaultTimeout(friendlyModel),
+      ...fixedTempOverride(entry),
     };
     const providerResult = backend === 'deepseek'
       ? await generateViaDeepSeekStream(electronFetch, prompt, resolvedModel, apiKey, opts, onChunk)
@@ -947,7 +954,7 @@ export async function generateTextWithSearch(
     ],
   });
 
-  const apiModel = resolveApiModelId(resolvedModel);
+  const apiModel = resolveModelEntry(resolvedModel)?.apiModelId ?? resolvedModel;
   const url = `${GEMINI_BASE}/${apiModel}:generateContent?key=${apiKey}`;
 
   console.log(`[AI] Grounded search: ${resolvedModel} with google_search tool`);

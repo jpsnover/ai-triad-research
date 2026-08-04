@@ -71,3 +71,45 @@ Failure patterns related to external APIs, HTTP handling, and authentication.
 - **(2) Behavioral — minimal, debate-local. TL ruled (p/8#75)** a ONE-line rule in **lib/debate/AGENTS.md** that must NOT restate ADR-001; **DebateTool landed it (p/70#5, overlay 31e0eeb):** the recovery-vs-silent-loss bullet — *a recovery that returns a sentinel (null/empty/default) while discarding a non-empty payload is a silent lossy failure, not recovery — record discarded bytes + surface.* The point-of-use hook stays the primary defense; the rule earns its keep only because hooks fire on enumerated sites, and this genus broadening signals enumeration will chase the tail.
 
 **Applies To:** All AI backend/provider integration code — server `aiBackends.ts`, PS key-test cmdlets (`Test-AIApiKey`), debate-engine adapters, and any UsageID call site that surfaces provider errors.
+
+---
+
+## [API] A Model CLASS Can Carry a Hard Request-Param Constraint (Reasoning Models Require `temperature=1`) — a One-Size Request Silently HTTP-400s Every Call; Encode It in the Registry
+
+**Pattern:** Some model classes reject request params that are fine for other models — notably **reasoning models require `temperature=1`** (any other value is a hard error). A provider layer that sends one default temperature to every model **HTTP-400s on EVERY call** to such a model — not intermittently, not degraded: 100% failure, silent until someone reads the 400 body. The constraint is per-model-CLASS, so it can't be a global default; it must be declared per model.
+
+**Instances:**
+- 2026-08-01 — Diagnostics (t/2068, fixed `04052430`, PR #315, p/9#48): **kimi-k3** (a reasoning model) was **silently HTTP-400-ing on every call** because the provider sent a non-1 temperature. Fix: a **registry-driven `fixedTemperature` field in `ai-models.json`**, honored in the provider (send the model's fixed temperature when declared, else the normal default). Follow-ups: **t/2069** (better next-steps on a 400 — the error was silent/uninformative), **t/2070** (audit groq/deepseek reasoning models — the same constraint likely applies).
+- 2026-08-01 — Diagnostics (t/2083, p/9#51): **new instance — kimi-k3 (moonshot) still rejects `temperature != 1` in production**, and **t/2070's audit confirmed the same in groq/deepseek reasoning models.** The recurring root-cause SMELL Diagnostics named: **the `?? default` fallback in providers** — a `temperature ?? defaultTemperature` (nullish-coalescing / `|| default`) silently supplies a non-1 default whenever the per-model `fixedTemperature` isn't threaded to that call site, re-introducing the 400. So the registry field (t/2068) is necessary but not sufficient: **every `param ?? default` site in the provider is a place the per-model constraint gets silently overridden.** request-param validity is **model-class-specific**, but a provider layer tends to build one request shape for all models. Reasoning models pin `temperature=1`; sending anything else is rejected outright (400), so the failure is total for that model and invisible to any test that doesn't exercise it live (keyless CI never calls it — ties to #88). Encoding the constraint per-model in the single-source registry (`ai-models.json`) is the fix; hardcoding a temperature per call, or assuming all models accept the same params, is the bug. Same "coupling lives in the registry" family as the AI-backend coupling-sites lesson (t/1932). **Recurring smell (Diagnostics t/2083): the `?? default` fallback.** `temperature ?? defaultTemperature` (or `|| default`) at a provider call site silently substitutes a non-1 default whenever the model's `fixedTemperature` wasn't threaded to THAT site — so the registry field only holds if EVERY call path reads it. A defaulting fallback is exactly where a per-model hard constraint leaks back to the wrong value.
+- 2026-08-03 — Technical Lead (t/2104, t/2104#1; fix t/2107→t/2104+t/2108): **3rd deployment recurrence** — `fixedTemperature` not reaching providers. **Detection wrinkle (t/2104#1):** two of four broken call sites (`aiBackends.ts:325`, `usageRegistry.ts:103`) were **invisible to a grep for the attribute name** — they resolve through `buildModelIdMap`, a lossy `Record<string,string>` projection that drops attribute names; the constraint name appears nowhere at those call sites. The other two sites were found by attribute grep; the accessor-masked ones required **grepping the lossy accessor** (`buildModelIdMap`) to surface. See prevention #6.
+
+**Prevention:**
+1. **Declare per-model request-param constraints in the registry (`ai-models.json`), honor them in the provider** — e.g. `fixedTemperature` for reasoning models; the provider sends the declared value, else the default. Don't hardcode one temperature (or any param) for all models.
+2. **When adding a reasoning model, check its fixed-param requirements FIRST** (temperature=1 is common for reasoning models across vendors — groq/deepseek included, t/2070). A new reasoning model without its `fixedTemperature` declared will 400 100% of the time.
+3. **A 100%-failure HTTP 400 on one model but not others = a per-model request-param mismatch** — read the 400 body (it names the rejected param), don't assume a key/auth problem. (t/2069 improves the 400's next-steps so this is obvious.)
+4. **Live-exercise a newly-added model** — a keyless/mocked CI never sends the real request, so a param-constraint 400 only shows on a live call (sibling of #88 keys-present divergence). Smoke one real call per new model.
+5. **Audit every `param ?? default` / `param || default` site in the provider** (Diagnostics t/2083) — each is a place a per-model constraint (`fixedTemperature`) gets silently overridden if the registry value wasn't threaded to that call. Grep the provider for the defaulting sites and confirm each honors the model's `fixedTemperature` before falling back; the registry field is only as good as the paths that read it. A defaulting fallback for a hard-constrained param is the smell.
+6. **When an attribute flows through a lossy `Record<string,string>` projection (e.g. `buildModelIdMap`), grep the accessor, not the attribute name, to find all call sites.** Grepping `fixedTemperature` misses any site that reaches the attribute via a map projection that drops the name; grepping `buildModelIdMap` surfaces them (t/2104, TL p/8#172). A coverage audit is complete only when both direct-attribute AND accessor-path sites are checked.
+
+**Status:** Active — **4 instances now** (kimi-k3 t/2068 + t/2083; groq/deepseek via the t/2070 audit; TL t/2104 deployment). The registry `fixedTemperature` field is necessary but **not sufficient** — the recurring **`?? default` fallback smell** (t/2083, prevention #5) AND the **lossy-projection detection gap** (t/2104, prevention #6): when attribute access flows through a `Record<string,string>` projection (`buildModelIdMap`), grepping the attribute name misses hidden call sites — grep the accessor. t/2069 improves 400 diagnostics; t/2070 audits reasoning models; t/2107+t/2108 decompose the t/2104 fix. Registry-as-single-source-of-model-constraints — same family as the AI-backend coupling-sites lesson (run ALL ai-models tests on a backend/model add).
+
+**Applies To:** All agents adding or configuring AI models (especially reasoning models) in `ai-models.json` / the provider layer — declare fixed request-param constraints in the registry, thread them through EVERY defaulting call site, live-smoke each new model.
+
+---
+
+## [API] `gh pr checkout` on a Fork PR Tracks the Fork Remote — Subsequent `git push` Routes to the Fork, Not Origin
+
+**Pattern:** `gh pr checkout <fork-pr-number>` creates a local branch that tracks the **fork contributor's remote**, not `origin`. A subsequent `git push` routes to the fork's remote, not to the project's origin. The checkout appears to succeed — the local branch name and content look right — but the remote routing mismatch only surfaces on push.
+
+**Instances:**
+- 2026-08-03 — Orca Support (p/13#33, PR #289): `gh pr checkout` on a fork PR mapped the head to a local branch tracking the fork remote — push attempts routed to the fork, not origin. Resolved by abandoning the checkout and using a worktree from main + cherry-pick instead.
+
+**Root Cause:** `gh pr checkout` mirrors the fork PR's head ref and wires the local branch upstream to the fork's remote. This is correct for contributors, wrong for maintainers needing to push to origin.
+
+**Prevention:**
+1. **For fork PRs where you need to push to origin, don't use `gh pr checkout`** — use `git worktree add -b <branch> <path> origin/main` + cherry-pick the fork commits + push to origin.
+2. After any `gh pr checkout`, verify the upstream with `git branch -vv` before pushing; if it points to a fork remote, reset with `git push --set-upstream origin <branch>`.
+
+**Status:** Active — fork PR checkout remote trap (p/13#33); worktree + cherry-pick is the safe alternative.
+
+**Applies To:** All agents handling fork PR contributions that require pushing back to origin.

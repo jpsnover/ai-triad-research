@@ -7,7 +7,7 @@ httpx>=0.28.1
 
 # HTML to Markdown conversion
 markdownify>=1.2.3
-trafilatura>=2.1.0
+trafilatura>=2.2.0
 
 # PDF text extraction
 pypdf>=6.14.2
@@ -20,7 +20,7 @@ python-slugify>=8.0.4
 waybackpy>=3.0.6
 
 # AI API clients (install whichever you use)
-anthropic>=0.120.0
+anthropic>=0.120.2
 # google-generativeai>=0.7
 
 # Git inspection
@@ -39,4 +39,4 @@ gitpython>=3.1.57
 sentence-transformers>=5.6.1
 
 # Document conversion (PDF, DOCX, PPTX, XLSX, HTML, images → Markdown)
-markitdown[all]>=0.1.6
+markitdown[all]>=0.1.7
