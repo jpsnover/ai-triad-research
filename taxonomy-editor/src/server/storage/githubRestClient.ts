@@ -22,11 +22,14 @@
  */
 
 import crypto from 'crypto';
+import { createRequire } from 'module';
 import { Agent } from 'undici';
 import { type SyncCredentials } from '../security/githubAppAuth.js';
 import { getGlobalRecorder } from '../../../../lib/flight-recorder/index.js';
 import type { RecordInput } from '../../../../lib/flight-recorder/index.js';
 import { getRequestId } from '../logger.js';
+import { assertUndiciMajorInvariant } from './undiciInvariant.js';
+export { assertUndiciMajorInvariant } from './undiciInvariant.js';
 
 // ── Transport constants (moved with the transport) ─────────────────────────
 const GITHUB_API = 'https://api.github.com';
@@ -102,7 +105,12 @@ export class GitHubRestClient {
   private circuitOpenedAt = 0;
   private probeIndex = 0;
 
-  constructor(private readonly deps: GitHubRestClientDeps) {}
+  constructor(private readonly deps: GitHubRestClientDeps) {
+    assertUndiciMajorInvariant(
+      (createRequire(import.meta.url)('undici/package.json') as { version: string }).version,
+      process.versions.undici,
+    );
+  }
 
   async request(
     creds: SyncCredentials,
