@@ -20,6 +20,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getEmbeddingInfo: (): Promise<{ backend: string; execution_provider?: string; calibration_version?: number }> =>
     ipcRenderer.invoke('get-embedding-info'),
 
+  // User preferences (t/2118)
+  getPreferences: (): Promise<unknown> =>
+    ipcRenderer.invoke('get-preferences'),
+  setPreferences: (prefs: unknown): Promise<void> =>
+    ipcRenderer.invoke('set-preferences', prefs),
+
   getTaxonomyDirs: (): Promise<string[]> =>
     ipcRenderer.invoke('get-taxonomy-dirs'),
 

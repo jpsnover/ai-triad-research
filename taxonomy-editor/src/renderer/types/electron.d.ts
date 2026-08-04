@@ -5,11 +5,16 @@ import type { Organization, OrganizationEdge } from '@lib/organizations/types';
 import type { EntityDetail, EntitySummary, EntityListQuery } from '@lib/entities/types';
 import type { ContainerMentions } from '@lib/entities/mentionTypes';
 import type { EdgesFile } from '@lib/debate/taxonomyTypes';
+import type { UserPreferences } from '../bridge/types';
 
 export interface ElectronAPI {
   processVersions: Record<string, string | undefined>;
   osRelease: string;
   getEmbeddingInfo: () => Promise<{ backend: string; execution_provider?: string; calibration_version?: number }>;
+
+  // User preferences (t/2118) — optional until handler confirmed present
+  getPreferences?: () => Promise<UserPreferences | null>;
+  setPreferences?: (prefs: UserPreferences) => Promise<void>;
 
   // Taxonomy directories
   getTaxonomyDirs: () => Promise<string[]>;
