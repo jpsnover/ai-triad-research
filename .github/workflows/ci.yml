@@ -636,6 +636,11 @@ jobs:
       always() && !cancelled() &&
       (github.event_name != 'pull_request' || needs.changes.outputs.python == 'true')
     runs-on: ubuntu-latest
+    # PYTHONUTF8=1: PEP 540 UTF-8 Mode — forces UTF-8 for stdio AND open() on win32.
+    # Recurring 7× on the win32 fleet for non-ASCII (em-dashes, arrows, etc.) — t/2046.
+    # Harmless on Linux (already UTF-8) but keeps CI/local behaviour uniform.
+    env:
+      PYTHONUTF8: '1'
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v6
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
@@ -643,6 +648,15 @@ jobs:
           python-version: '3.12'
           cache: pip
           cache-dependency-path: scripts/requirements.txt
+      - name: Assert PYTHONUTF8=1 is active (t/2046 — a bare export can silently be absent)
+        run: |
+          python -c "
+          import sys
+          assert sys.flags.utf8_mode == 1, f'utf8_mode={sys.flags.utf8_mode} expected 1'
+          assert sys.stdout.encoding.lower() == 'utf-8', f'stdout={sys.stdout.encoding}'
+          assert sys.getfilesystemencoding().lower() == 'utf-8', f'fs={sys.getfilesystemencoding()}'
+          print('PYTHONUTF8 assertion OK:', sys.flags.utf8_mode, sys.stdout.encoding, sys.getfilesystemencoding())
+          "
       - name: Install Python deps (CPU-only torch to cut install weight)
         working-directory: scripts
         run: |

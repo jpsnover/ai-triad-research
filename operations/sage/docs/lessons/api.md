@@ -94,3 +94,22 @@ Failure patterns related to external APIs, HTTP handling, and authentication.
 **Status:** Active — **4 instances now** (kimi-k3 t/2068 + t/2083; groq/deepseek via the t/2070 audit; TL t/2104 deployment). The registry `fixedTemperature` field is necessary but **not sufficient** — the recurring **`?? default` fallback smell** (t/2083, prevention #5) AND the **lossy-projection detection gap** (t/2104, prevention #6): when attribute access flows through a `Record<string,string>` projection (`buildModelIdMap`), grepping the attribute name misses hidden call sites — grep the accessor. t/2069 improves 400 diagnostics; t/2070 audits reasoning models; t/2107+t/2108 decompose the t/2104 fix. Registry-as-single-source-of-model-constraints — same family as the AI-backend coupling-sites lesson (run ALL ai-models tests on a backend/model add).
 
 **Applies To:** All agents adding or configuring AI models (especially reasoning models) in `ai-models.json` / the provider layer — declare fixed request-param constraints in the registry, thread them through EVERY defaulting call site, live-smoke each new model.
+
+---
+
+## [API] `gh pr checkout` on a Fork PR Tracks the Fork Remote — Subsequent `git push` Routes to the Fork, Not Origin
+
+**Pattern:** `gh pr checkout <fork-pr-number>` creates a local branch that tracks the **fork contributor's remote**, not `origin`. A subsequent `git push` routes to the fork's remote, not to the project's origin. The checkout appears to succeed — the local branch name and content look right — but the remote routing mismatch only surfaces on push.
+
+**Instances:**
+- 2026-08-03 — Orca Support (p/13#33, PR #289): `gh pr checkout` on a fork PR mapped the head to a local branch tracking the fork remote — push attempts routed to the fork, not origin. Resolved by abandoning the checkout and using a worktree from main + cherry-pick instead.
+
+**Root Cause:** `gh pr checkout` mirrors the fork PR's head ref and wires the local branch upstream to the fork's remote. This is correct for contributors, wrong for maintainers needing to push to origin.
+
+**Prevention:**
+1. **For fork PRs where you need to push to origin, don't use `gh pr checkout`** — use `git worktree add -b <branch> <path> origin/main` + cherry-pick the fork commits + push to origin.
+2. After any `gh pr checkout`, verify the upstream with `git branch -vv` before pushing; if it points to a fork remote, reset with `git push --set-upstream origin <branch>`.
+
+**Status:** Active — fork PR checkout remote trap (p/13#33); worktree + cherry-pick is the safe alternative.
+
+**Applies To:** All agents handling fork PR contributions that require pushing back to origin.

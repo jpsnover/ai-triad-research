@@ -4,7 +4,7 @@
 
 Epistemic infrastructure is the set of structures, conventions, and tools that shape how communities produce, test, and transmit knowledge. Writing systems, the scientific method, double-entry bookkeeping, common law precedent, and peer review all qualify. None of them contain knowledge. They create the conditions under which knowledge becomes wisdom.
 
-The AI Rosetta Stone attempts to provide epistemic infrastructure for multi-perspective policy analysis. Its purpose is not to store information about AI policy (a database could do that) or to generate arguments (a chatbot could do that). Its purpose is to provide the structural conditions, specifically engineered relevance and salience, under which the wisdom embedded in AI policy discourse becomes accessible, testable, and actionable.
+The AI Rosetta Stone attempts to provide epistemic infrastructure for multi-perspective policy analysis. Its purpose is not to store information about AI policy (a database could do that) or to generate arguments (a chatbot could do that). Its purpose is to engineer relevance and salience: the structural conditions under which the wisdom embedded in AI policy discourse becomes accessible, testable, and actionable.
 
 ---
 
@@ -178,11 +178,11 @@ The AI Rosetta Stone aspires to a lineage of epistemic infrastructure:
 | **Peer review** | Adversarial scrutiny | Validated findings |
 | **AI Rosetta Stone** *(aspirant)* | Multi-perspectival relevance and salience | Structured, tested disagreement |
 
-Each entry shares a property. None contains wisdom; each creates the conditions under which wisdom can emerge. The table must be read honestly, though, because membership is not conferred by structural resemblance. Every prior entry became infrastructure through adoption by a community of practice over generations; adoption is constitutive, not incidental. By that standard the AI Rosetta Stone is not yet a member. It is a research prototype serving a single researcher, and its row is an aspiration whose entry fee, itemized in the boundary section, is validated instruments, crux correspondence with real discourse, and a community that finds its structures worth adopting. What the table legitimately claims is narrower and still worth claiming. The kind of thing this system is trying to become has precedent, and the precedents specify what earning membership requires.
+Each entry shares a property. None contains wisdom; each creates the conditions under which wisdom can emerge. Membership is not conferred by structural resemblance, though. Every prior entry became infrastructure through adoption by a community of practice over generations; adoption is constitutive, not incidental. By that standard the AI Rosetta Stone is not yet a member. It is a research prototype serving a single researcher, and its row is an aspiration whose entry fee, itemized in the boundary section, is validated instruments, crux correspondence with real discourse, and a community that finds its structures worth adopting. What the table legitimately claims is narrower and still worth claiming. The kind of thing this system is trying to become has precedent, and the precedents specify what earning membership requires.
 
 ---
 
-## The Claim, Precisely
+## The Claim
 
 The AI Rosetta Stone is epistemic infrastructure that:
 
