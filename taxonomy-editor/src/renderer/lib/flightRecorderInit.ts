@@ -341,6 +341,74 @@ function getStores() {
   return _stores;
 }
 
+// ── Source-map resolution for component_stack (DEV-only) ──────────────────
+// Inline VLQ decoder avoids bundling source-map-js into the renderer.
+// Only runs in import.meta.env.DEV — stripped from prod builds by Vite tree-shaking.
+
+const _SM_B64 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+
+function _vlqDecode(str: string): number[] {
+  const out: number[] = [];
+  let v = 0, s = 0;
+  for (const ch of str) {
+    const d = _SM_B64.indexOf(ch);
+    if (d < 0) break;
+    v += (d & 31) << s; s += 5;
+    if (!(d & 32)) { out.push(v & 1 ? -(v >> 1) : v >> 1); v = 0; s = 0; }
+  }
+  return out;
+}
+
+interface _SM { sources: string[]; mappings: string }
+const _smCache = new Map<string, _SM | null>();
+
+async function _fetchSM(url: string): Promise<_SM | null> {
+  if (!import.meta.env.DEV) return null; // tree-shaking backup — callers already guard, but belt-and-suspenders
+  const parsed = new URL(url, location.href);
+  if (parsed.origin !== location.origin) return null; // same-origin only: prevents outbound fetches in Electron dev
+  const key = parsed.pathname; // pathname as cache key — matches u.path from vite:beforeUpdate for invalidation
+  if (_smCache.has(key)) return _smCache.get(key) ?? null;
+  try {
+    const r = await fetch(`${key}.map`); // bare fetch approved: flightRecorderInit must work when bridge is broken
+    if (!r.ok) { _smCache.set(key, null); return null; }
+    const sm = await r.json() as _SM;
+    _smCache.set(key, sm); return sm;
+  } catch { _smCache.set(key, null); return null; }
+}
+
+function _smResolve(sm: _SM, gl: number, gc: number): string | null {
+  const segs = sm.mappings.split(';')[gl]?.split(',') ?? [];
+  let si = 0, sl = 0, sc = 0, col = 0;
+  let best: { si: number; sl: number; sc: number } | null = null;
+  for (const seg of segs) {
+    if (!seg) continue;
+    const f = _vlqDecode(seg);
+    if (f.length < 4) continue;
+    col += f[0]; si += f[1]; sl += f[2]; sc += f[3];
+    if (col <= gc) best = { si, sl, sc };
+    if (col > gc) break;
+  }
+  if (!best) return null;
+  const raw = sm.sources[best.si];
+  if (!raw) return null;
+  const src = raw.replace(/^.*?[/\\]src[/\\]/, 'src/').replace(/\\/g, '/');
+  return `${src}:${best.sl + 1}:${best.sc + 1}`;
+}
+
+async function _resolveStack(stack: string): Promise<string> {
+  const lines = stack.split('\n');
+  const out: string[] = [];
+  for (const line of lines) {
+    const m = line.match(/at\s+(\S+)\s+\(?(https?:\/\/[^)\s]+):(\d+):(\d+)\)?/);
+    if (!m) { out.push(line); continue; }
+    const sm = await _fetchSM(m[2]).catch(() => null);
+    if (!sm) { out.push(line); continue; }
+    const pos = _smResolve(sm, +m[3] - 1, +m[4] - 1);
+    out.push(pos ? `    at ${m[1]} (${pos})` : line);
+  }
+  return out.join('\n');
+}
+
 export function initFlightRecorder(): FlightRecorder {
   if (initialized) return getGlobalRecorder()!;
   initialized = true;
@@ -369,14 +437,21 @@ export function initFlightRecorder(): FlightRecorder {
 
       // Set up error boundary hook for popup — forward crash event to main window's recorder
       (globalThis as unknown as { __onErrorBoundaryCatch: (err: Error, stack?: string) => void }).__onErrorBoundaryCatch = (error, componentStack) => {
-        shim.record({
-          type: 'system.error',
-          component: 'react-error-boundary',
-          level: 'fatal',
-          message: error.message,
-          error: { name: error.name, message: error.message, stack: error.stack?.slice(0, 500) },
-          data: componentStack ? { component_stack: componentStack.slice(0, 1000) } : undefined,
-        });
+        void (async () => {
+          const resolved = import.meta.env.DEV && componentStack
+            ? await _resolveStack(componentStack).catch(() => undefined)
+            : undefined;
+          shim.record({
+            type: 'system.error',
+            component: 'react-error-boundary',
+            level: 'fatal',
+            message: error.message,
+            error: { name: error.name, message: error.message, stack: error.stack?.slice(0, 500) },
+            data: componentStack
+              ? { component_stack: componentStack.slice(0, 1000), ...(resolved !== undefined ? { component_stack_resolved: resolved.slice(0, 1000) } : {}) }
+              : undefined,
+          });
+        })();
       };
 
       // Set up manual dump trigger for popup — request main window to dump
@@ -458,6 +533,8 @@ export function initFlightRecorder(): FlightRecorder {
   // ── HMR lifecycle events (dev-only) ──
   if (import.meta.hot) {
     import.meta.hot.on('vite:beforeUpdate', (payload: { type: string; updates: Array<{ type: string; path: string; acceptedPath: string; timestamp: number }> }) => {
+      // Invalidate cached source maps for updated files so next resolution fetches fresh maps
+      for (const u of payload.updates) _smCache.delete(u.path.replace(/\?.*$/, ''));
       recorder.record({
         type: 'lifecycle',
         component: 'hmr',
@@ -844,50 +921,59 @@ export function dumpOnReactError(
   const recorder = getGlobalRecorder();
   if (!recorder) return;
 
-  // Snapshot store state for crash diagnosis — only runs on error, no perf impact on normal renders
-  let stateSnapshot: Record<string, unknown> | undefined;
-  try {
-    const stores = getStores();
-    if (stores) {
-      const taxState = (stores.useTaxonomyStore as { getState: () => Record<string, unknown> }).getState();
-      const debateState = (stores.useDebateStore as { getState: () => Record<string, unknown> }).getState();
-      const debate = debateState.activeDebate as Record<string, unknown> | null;
-      stateSnapshot = {
-        active_tab: taxState.activeTab ?? null,
-        toolbar_panel: taxState.toolbarPanel ?? null,
-        selected_node_id: taxState.selectedNodeId ?? null,
-        search_mode: taxState.findMode ?? null,
-        search_query: (taxState.findQuery as string)?.slice(0, 200) || null,
-        debate_phase: debate?.phase ?? null,
-        debate_generating: !!debateState.debateGenerating,
-        dirty_files: [...((taxState.dirty as Set<string>) ?? [])],
-      };
-    }
-  } catch { /* flight recorder init — silent by design (store may be corrupted) */ }
-
-  const data: Record<string, unknown> = {
-    ...(componentStack ? { component_stack: componentStack.slice(0, 1000) } : {}),
-    ...(stateSnapshot ? { state_snapshot: stateSnapshot } : {}),
-  };
-
-  recorder.record({
-    type: 'system.error',
-    component: 'react-error-boundary',
-    level: 'fatal',
-    message: error.message,
-    error: { name: error.name, message: error.message, stack: error.stack?.slice(0, 500) },
-    data: Object.keys(data).length > 0 ? data : undefined,
-  });
-
-  // Error boundary dumps bypass cooldown — highest-priority trigger
+  // Track immediately — error boundary dumps bypass cooldown
   recordDump();
-  void persistDump(recorder, 'error_boundary', {
-    name: error.name, message: error.message, stack: error.stack?.slice(0, 500),
-  }, Object.keys(data).length > 0 ? data : undefined);
 
-  // Report to server for aggregation
-  api.reportError(
-    { name: error.name, message: error.message, stack: error.stack?.slice(0, 2000), componentStack: componentStack?.slice(0, 1000) },
-    { trigger: 'error_boundary', url: location.href, deploymentMode: getDeploymentMode() },
-  ).catch(() => { /* telemetry — silent by design: error reporting failures must not cascade */ });
+  void (async () => {
+    // Snapshot store state for crash diagnosis — only runs on error, no perf impact on normal renders
+    let stateSnapshot: Record<string, unknown> | undefined;
+    try {
+      const stores = getStores();
+      if (stores) {
+        const taxState = (stores.useTaxonomyStore as { getState: () => Record<string, unknown> }).getState();
+        const debateState = (stores.useDebateStore as { getState: () => Record<string, unknown> }).getState();
+        const debate = debateState.activeDebate as Record<string, unknown> | null;
+        stateSnapshot = {
+          active_tab: taxState.activeTab ?? null,
+          toolbar_panel: taxState.toolbarPanel ?? null,
+          selected_node_id: taxState.selectedNodeId ?? null,
+          search_mode: taxState.findMode ?? null,
+          search_query: (taxState.findQuery as string)?.slice(0, 200) || null,
+          debate_phase: debate?.phase ?? null,
+          debate_generating: !!debateState.debateGenerating,
+          dirty_files: [...((taxState.dirty as Set<string>) ?? [])],
+        };
+      }
+    } catch { /* flight recorder init — silent by design (store may be corrupted) */ }
+
+    // DEV-only: resolve bundle positions in component_stack to source coordinates
+    const resolvedStack = import.meta.env.DEV && componentStack
+      ? await _resolveStack(componentStack).catch(() => undefined)
+      : undefined;
+
+    const data: Record<string, unknown> = {
+      ...(componentStack ? { component_stack: componentStack.slice(0, 1000) } : {}),
+      ...(resolvedStack !== undefined ? { component_stack_resolved: resolvedStack.slice(0, 1000) } : {}),
+      ...(stateSnapshot ? { state_snapshot: stateSnapshot } : {}),
+    };
+
+    recorder.record({
+      type: 'system.error',
+      component: 'react-error-boundary',
+      level: 'fatal',
+      message: error.message,
+      error: { name: error.name, message: error.message, stack: error.stack?.slice(0, 500) },
+      data: Object.keys(data).length > 0 ? data : undefined,
+    });
+
+    void persistDump(recorder, 'error_boundary', {
+      name: error.name, message: error.message, stack: error.stack?.slice(0, 500),
+    }, Object.keys(data).length > 0 ? data : undefined);
+
+    // Report to server for aggregation
+    api.reportError(
+      { name: error.name, message: error.message, stack: error.stack?.slice(0, 2000), componentStack: componentStack?.slice(0, 1000) },
+      { trigger: 'error_boundary', url: location.href, deploymentMode: getDeploymentMode() },
+    ).catch(() => { /* telemetry — silent by design: error reporting failures must not cascade */ });
+  })();
 }
