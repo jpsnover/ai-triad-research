@@ -9,6 +9,7 @@
     "name": "Jeffrey Snover",
     "email": "jsnover13@gmail.com"
   },
+  "engines": { "node": ">=22 <23" },
   "main": "dist/main/taxonomy-editor/src/main/main.js",
   "scripts": {
     "dev": "npm run build:main && concurrently \"npm run dev:vite\" \"npm run dev:electron\"",
