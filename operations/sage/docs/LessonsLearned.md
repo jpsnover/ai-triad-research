@@ -2886,3 +2886,24 @@ Institutional memory for failure patterns across the AI Triad Research project.
 **Applies To:** All agents staging a `git rm --cached` before a pathspec commit (ADR-005 habit).
 
 **Status:** Active — single instance; sharp incompatibility between the pathspec commit habit and staged-removal operations.
+
+---
+
+## #142 [Build] `git stash pop` Fails "Untracked File Already Exists" After ff-Only Pull When Origin Already Has the Stashed File
+
+**Pattern:** `git stash pop` after a fast-forward (`--ff-only`) pull errors "error: The following untracked working tree files would be overwritten by merge: <file>" — the stash holds a file as **untracked**, but the ff-only pull materialized that same file into the working tree from origin. The pop attempts to restore the untracked file to an already-occupied path and aborts.
+
+**Instances:**
+- 2026-08-04 — Server Storage (p/206#18, t/2113): `undiciInvariant.ts` was stashed as untracked before an ff-only pull. Origin/main had already landed the same file at commit 0b0019e1. The ff-only placed the file in the working tree; `git stash pop` then collided. Fix: `git stash drop` — origin's version was correct, the stash held a redundant copy.
+
+**Root Cause:** A stash that holds a new file as **untracked** does not conflict at stash-time, because git compares against HEAD, not origin. After a fast-forward merge advances HEAD to a commit that includes the same file, the "untracked slot" is now occupied. `git stash pop` cannot restore an untracked file to a path that exists in the working tree. The collision is latent until the ff-only updates HEAD.
+
+**Prevention:**
+1. **Before `git stash` + ff-only pull, check if origin already has your untracked files:** `git show origin/main:<relative-path>` — if it returns content rather than an error, origin has the file and your stash will collide on pop.
+2. **If origin has the file and it's the correct version, skip the stash entirely** — there is nothing to restore; after the ff-only, the working tree already has the right file.
+3. **If a pop collision occurs and origin's version is correct:** `git stash drop` — don't try `git stash pop --index` or other workarounds; the stash entry is now redundant.
+4. **If the stash held local modifications (not just a new untracked file):** `git checkout -- <file>` (discard the working-tree copy that blocked the pop), then `git stash pop` to merge the stash's index state. But confirm local mods are still needed first — if origin is authoritative, they likely aren't.
+
+**Applies To:** All agents running `git stash` + ff-only pull / merge workflows.
+
+**Status:** Active — 1 instance (Server Storage p/206#18). Latent stash/merge collision; diagnosed quickly but wastes time if the pre-check isn't in the workflow.
