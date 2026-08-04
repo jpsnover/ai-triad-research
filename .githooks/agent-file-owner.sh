@@ -49,7 +49,7 @@ set -u
 MAIN_OWNED='AGENTS.md
 operations/devops/azure/AGENTS.md'
 
-root=$(git rev-parse --show-toplevel 2>/dev/null) || {
+root=$(cd "$(git rev-parse --show-toplevel 2>/dev/null)" 2>/dev/null && pwd) || {
   echo "agent-file-owner: not inside a git work tree" >&2; exit 2; }
 
 overlay_dir="$root/.orca-git"
