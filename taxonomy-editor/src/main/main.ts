@@ -7,7 +7,7 @@ import fs from 'fs';
 import http from 'http';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { FlightRecorder, setGlobalRecorder, getGlobalRecorder } from '../../../lib/flight-recorder/index.js';
+import { FlightRecorder, setGlobalRecorder, getGlobalRecorder, RECORDER_CAPACITY_SECONDARY } from '../../../lib/flight-recorder/index.js';
 import { migrateToSingleKey } from './apiKeyStore.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -290,7 +290,7 @@ if (process.argv.includes('--debug-cdp') || process.env.DEBUG_CDP === '1') {
 void app.whenReady().then(() => {
   console.log('[main] app.whenReady fired');
 
-  const mainRecorder = new FlightRecorder({ capacity: 2000, dumpOnError: true });
+  const mainRecorder = new FlightRecorder({ capacity: RECORDER_CAPACITY_SECONDARY, dumpOnError: true });
   setGlobalRecorder(mainRecorder);
 
   // Forward main-process recorder events to the main window's renderer recorder so the
