@@ -23,6 +23,7 @@ export type {
   ErrorCategory,
 } from './types.js';
 export { DEFAULT_CONFIG } from './types.js';
+export { RECORDER_CAPACITY_DEFAULT, RECORDER_CAPACITY_SECONDARY } from './constants.js';
 
 // ── Global singleton ─────────────────────────────────────────────────────
 
