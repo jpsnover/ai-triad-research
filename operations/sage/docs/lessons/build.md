@@ -1722,3 +1722,23 @@ Failure patterns related to builds, CI, tooling, environment, and git operations
 **Status:** Active — 2 instances. Worktree-land path-depth assumption hazard; cwd-reset compounds it. Third env/path hazard in the worktree-land cluster (#77 `npm ci` empty package dir, #78 node_modules rm timeout, #128 path-depth mismatch). `git worktree list` is the one-stop oracle for canonical worktree paths.
 
 **Applies To:** All agents using the Bash tool to access a worktree by absolute POSIX path.
+
+---
+
+## [Build] Dependabot Merge Commit Has No CI Run — ci-gate Rejects Tag with "No CI Run Found"
+
+**Pattern:** When tagging a release at a Dependabot merge commit (the current `main` HEAD), the ci-gate fails "No CI run found" for that SHA. GitHub Actions runs CI on the PR head commit — the last commit of the Dependabot PR before auto-merge — but NOT on the merge commit created on `main`. The merge commit's SHA is invisible to the CI run lookup; the ci-gate correctly rejects it.
+
+**Instances:**
+- 2026-08-04 — DevOps (p/26#53, t/2102): `v0.13.7` tagged at a Dependabot merge commit; container ci-gate failed "No CI run found". Resolution: tag at a regular (non-Dependabot-merge) commit with a known CI run. Structural fix tracked at t/2102.
+
+**Root Cause:** GitHub triggers CI on the branch HEAD at push time — for a Dependabot PR, that's the last commit before merge. When the PR is auto-merged with a merge commit, GitHub creates a new merge commit SHA on `main` with no associated workflow run. The ci-gate's SHA→CI-run lookup returns empty for this SHA — not because CI failed, but because no run was ever triggered at that SHA. Distinct from the advancing-HEAD livelock on on-demand `container.yml` dispatch — here the issue is structural: merge commits never receive their own CI run.
+
+**Prevention:**
+1. **Before tagging, run `gh run list --commit <sha> --status success`** — if empty, that SHA has no CI run and is not a safe tag target.
+2. **Dependabot merge commits are not safe tag targets.** Check `git log --oneline -3 origin/main` before tagging; if the tip is a Dependabot merge (message "Merge pull request … Bump …"), tag at the previous regular commit or wait for the next non-Dependabot commit.
+3. **Structural fix pending: t/2102** — ci-gate should resolve Dependabot merge commits to their parent's CI run. Until it lands, tag manually at non-Dependabot commits.
+
+**Applies To:** All agents and humans tagging releases (`v*`) when the `main` tip is a Dependabot auto-merge commit.
+
+**Status:** Active — single instance; structural fix pending (t/2102). Same ci-gate family as the advancing-HEAD livelock; root cause is structural, not a timing race.
