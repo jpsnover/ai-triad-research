@@ -66,7 +66,7 @@ export default defineConfig({
     })] : []),
   ],
   root: 'src/renderer',
-  base: './',
+  base: isWeb ? '/' : './',
   define: {
     // Expose build target to renderer code
     'import.meta.env.VITE_TARGET': JSON.stringify(process.env.VITE_TARGET || 'electron'),
