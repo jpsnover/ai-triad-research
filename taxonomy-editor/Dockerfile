@@ -22,7 +22,6 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
 RUN npm install -g pnpm@11.20.0
 
 # Copy dependency manifests first (Docker layer caching)
-COPY pnpm-workspace.yaml ./
 COPY taxonomy-editor/package.json taxonomy-editor/pnpm-lock.yaml ./taxonomy-editor/
 COPY lib/ ./lib/
 
@@ -71,6 +70,16 @@ RUN npm install -g pnpm@11.20.0
 
 WORKDIR /deps
 COPY taxonomy-editor/package.json taxonomy-editor/pnpm-lock.yaml ./
+# pnpm ignores dependency build scripts unless approved. The native modules the
+# server needs (node-pty for the PTY broker, onnxruntime-node, sharp, protobufjs)
+# are approved via `allowBuilds:` in the root pnpm-workspace.yaml — copy it so the
+# --prod install compiles them. Without electron (a devDep) present here, the
+# postinstall electron-rebuild no-ops (|| exit 0), so node-pty would otherwise be
+# left unbuilt and `--frozen-lockfile` fails with ERR_PNPM_IGNORED_BUILDS.
+# The file's packages: globs don't resolve in this standalone context and are
+# harmlessly ignored (the standalone lockfile's single `.` importer still matches).
+# NOTE: the builder stage must NOT copy this — a workspace file there makes pnpm
+# demand a root lockfile that isn't present (ERR_PNPM_NO_LOCKFILE).
 COPY pnpm-workspace.yaml ./
 RUN --mount=type=cache,target=/root/.local/share/pnpm/store pnpm install --prod --frozen-lockfile
 
