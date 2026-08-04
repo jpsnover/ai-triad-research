@@ -4,6 +4,7 @@
 import { ActionableError } from '../../debate/errors.js';
 import { withTimeout } from '../retry.js';
 import type { FetchFn, GenerateOptions, ProviderResult } from '../types.js';
+import { DEFAULT_TEMPERATURE } from '../defaults.js';
 
 const MOONSHOT_BASE = 'https://api.moonshot.ai/v1';
 
@@ -30,7 +31,7 @@ export async function generateViaMoonshot(
       body: JSON.stringify({
         model: apiModelId,
         messages,
-        temperature: opts.fixedTemperature ?? opts.temperature ?? 0.7,
+        temperature: opts.fixedTemperature ?? opts.temperature ?? DEFAULT_TEMPERATURE,
         max_tokens: opts.maxTokens ?? 8192,
         ...(opts.jsonMode ? {
           response_format: { type: 'json_object' },
