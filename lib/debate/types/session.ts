@@ -270,6 +270,8 @@ export interface DebateSession {
   app_version?: string;
   /** Target audience for tone, language, and concern prioritization. */
   audience?: DebateAudience;
+  /** Moderator mode used for this session ('standard' | 'talmudic'). Optional for back-compat with pre-Talmudic sessions. */
+  moderator_mode?: string;
   phase: 'setup' | 'clarification' | 'edit-claims' | 'opening' | 'debate' | 'closed' | 'cancelled';
   topic: {
     original: string;
