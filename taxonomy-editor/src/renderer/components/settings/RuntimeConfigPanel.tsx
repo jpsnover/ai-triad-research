@@ -7,6 +7,7 @@ import {
   type RuntimeConfig, type ConfigState,
 } from '../../hooks/useRuntimeConfigStore';
 import { isElectronMode } from '@bridge';
+import { TOAST_DURATION_INFO } from '../../constants';
 import './RuntimeConfigPanel.css';
 
 // ── Field metadata ──
@@ -431,7 +432,7 @@ export function RuntimeConfigPanel() {
 
   useEffect(() => {
     if (!saveSuccess) return;
-    const t = setTimeout(() => setSaveSuccess(false), 3000);
+    const t = setTimeout(() => setSaveSuccess(false), TOAST_DURATION_INFO);
     return () => clearTimeout(t);
   }, [saveSuccess]);
 

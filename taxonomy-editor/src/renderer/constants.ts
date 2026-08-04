@@ -2,4 +2,6 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 export const TOAST_DURATION_SUCCESS = 5000;
+export const TOAST_DURATION_ERROR = 3000;
+export const TOAST_DURATION_INFO = 3000;
 export const TOAST_DURATION_FEEDBACK = 3000;

@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '@bridge';
 import type { SupportCaseSummary, SupportCaseDetail } from '../../bridge/types';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
+import { TOAST_DURATION_INFO } from '../../constants';
 import './SupportAdminPanel.css';
 
 const STATUS_OPTIONS = ['all', 'open', 'in-progress', 'resolved', 'closed'] as const;
@@ -134,7 +135,7 @@ export function SupportAdminPanel() {
       await api.respondToSupportCase(expandedId, responseText.trim());
       setResponseText('');
       setResponseSuccess('Response sent');
-      setTimeout(() => setResponseSuccess(null), 3000);
+      setTimeout(() => setResponseSuccess(null), TOAST_DURATION_INFO);
       void loadDetail(expandedId);
     } catch (err) {
       getGlobalRecorder()?.record({
