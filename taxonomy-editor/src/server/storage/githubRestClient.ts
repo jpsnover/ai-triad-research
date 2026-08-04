@@ -22,11 +22,39 @@
  */
 
 import crypto from 'crypto';
+import { createRequire } from 'module';
 import { Agent } from 'undici';
 import { type SyncCredentials } from '../security/githubAppAuth.js';
 import { getGlobalRecorder } from '../../../../lib/flight-recorder/index.js';
 import type { RecordInput } from '../../../../lib/flight-recorder/index.js';
 import { getRequestId } from '../logger.js';
+
+// Invariant guard: the Agent below is constructed from userland undici and passed as
+// dispatcher: to Node's built-in fetch. This only works correctly when the userland
+// major equals the node-bundled major — mismatched majors cause fetch to silently
+// ignore the dispatcher, re-enabling TLS session caching (CVE-2026-58040, t/2053).
+// Exported for testing both throw directions without process manipulation. (t/2113)
+export function assertUndiciMajorInvariant(
+  userlandVersion: string,
+  bundledVersion: string | undefined,
+): void {
+  if (!bundledVersion) return; // node <22 has no bundled undici — skip
+  const userlandMajor = parseInt(userlandVersion.split('.')[0], 10);
+  const bundledMajor = parseInt(bundledVersion.split('.')[0], 10);
+  if (userlandMajor !== bundledMajor) {
+    throw new Error(
+      `undici major-version skew: userland ${userlandVersion} vs node built-in ${bundledVersion}. ` +
+      `The GitHub dispatcher passes an undici.Agent as dispatcher: to Node's built-in fetch — ` +
+      `mismatched majors cause fetch to silently ignore the dispatcher and fall back to TLS ` +
+      `session caching (CVE-2026-58040 condition). Pin undici in package.json to match the ` +
+      `node base-image's bundled major. (t/2053, t/2113)`,
+    );
+  }
+}
+assertUndiciMajorInvariant(
+  (createRequire(import.meta.url)('undici/package.json') as { version: string }).version,
+  process.versions.undici,
+);
 
 // ── Transport constants (moved with the transport) ─────────────────────────
 const GITHUB_API = 'https://api.github.com';
