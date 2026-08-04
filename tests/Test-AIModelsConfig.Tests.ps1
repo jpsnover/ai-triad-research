@@ -146,6 +146,38 @@ Describe 'Test-AIModelsConfig' -Tag 'config' {
         ($usageWarnings.Detail -join ' ') | Should -Not -Match 'gemini-3\.5-flash' -Because 'the valid usage model resolves and must not warn'
     }
 
+    It 'reports UnknownAdapter and DanglingModelBackend for a fake backend entry (t/2097)' {
+        # FAKE_BAD_BACKEND is declared in backends[] but has no client.ts switch case → UnknownAdapter.
+        # UNDECLARED_BACKEND is not in backends[] at all → DanglingModelBackend.
+        $json = @'
+{
+  "backends": [
+    { "id": "gemini",           "label": "Gemini" },
+    { "id": "FAKE_BAD_BACKEND", "label": "Fake"   }
+  ],
+  "models": [
+    { "id": "gemini-3.5-flash",  "apiModelId": "gemini-3.5-flash", "backend": "gemini"               },
+    { "id": "fake-model",        "apiModelId": "fake-model-api",   "backend": "FAKE_BAD_BACKEND"      },
+    { "id": "dangling-model",    "apiModelId": "dangling-api",     "backend": "UNDECLARED_BACKEND"    }
+  ]
+}
+'@
+        $path = Join-Path $TestDrive 'fake-backend.json'
+        [System.IO.File]::WriteAllBytes($path, [System.Text.Encoding]::UTF8.GetBytes($json))
+        $result = Test-AIModelsConfig -Path $path -WarningAction SilentlyContinue
+
+        $result.Pass | Should -BeFalse -Because 'UnknownAdapter and DanglingModelBackend are Error-severity and must fail Pass'
+        $checks = @($result.Issues.Check)
+        $checks | Should -Contain 'UnknownAdapter'       -Because 'FAKE_BAD_BACKEND has no switch case in client.ts callProvider'
+        $checks | Should -Contain 'DanglingModelBackend' -Because 'dangling-model references UNDECLARED_BACKEND which is not in backends[].id'
+
+        @($result.Issues | Where-Object { $_.Check -eq 'UnknownAdapter' })[0].Severity       | Should -Be 'Error'
+        @($result.Issues | Where-Object { $_.Check -eq 'DanglingModelBackend' })[0].Severity  | Should -Be 'Error'
+
+        ($result.Issues | Where-Object { $_.Detail -match "'gemini'" -and $_.Check -in @('UnknownAdapter','DanglingModelBackend') }) |
+            Should -BeNullOrEmpty -Because 'gemini is a known adapter and must not be flagged'
+    }
+
     It 'does not check usages when no sibling ai-usages.json exists (skip-if-absent)' {
         $json = @'
 { "models": [ { "id": "gemini-3.5-flash", "apiModelId": "gemini-3.5-flash", "backend": "gemini" } ] }

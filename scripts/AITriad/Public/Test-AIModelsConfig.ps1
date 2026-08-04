@@ -99,7 +99,33 @@ function Test-AIModelsConfig {
         return [PSCustomObject]@{ Path = $Path; Pass = $false; Issues = @($Issues) }
     }
 
-    $Models = if ($Cfg.PSObject.Properties['models']) { @($Cfg.models) } else { @() }
+    $Models   = if ($Cfg.PSObject.Properties['models'])   { @($Cfg.models) }   else { @() }
+    $Backends = if ($Cfg.PSObject.Properties['backends']) { @($Cfg.backends) } else { @() }
+
+    # ── Check A: UnknownAdapter — each backends[].id must match a callProvider switch case ──
+    # Parse switch cases from client.ts so the check stays current when new adapters are added.
+    $ClientTsPath = Join-Path $script:RepoRoot 'lib/ai-client/client.ts'
+    $KnownAdapters = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::Ordinal)
+    $AdapterSetValid = $false
+    if (Test-Path $ClientTsPath) {
+        $ClientTs = Get-Content $ClientTsPath -Raw
+        [regex]::Matches($ClientTs, "case '(\w+)':") | ForEach-Object { [void]$KnownAdapters.Add($_.Groups[1].Value) }
+        [void]$KnownAdapters.Add('gemini')  # default case — no explicit switch arm
+        $AdapterSetValid = $true
+    }
+
+    $BackendIds = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::Ordinal)
+    $BackendIdx = 0
+    foreach ($B in $Backends) {
+        $BId = if ($B.PSObject.Properties['id']) { [string]$B.id } else { '' }
+        if (-not [string]::IsNullOrWhiteSpace($BId)) {
+            [void]$BackendIds.Add($BId)
+            if ($AdapterSetValid -and -not $KnownAdapters.Contains($BId)) {
+                Add-Issue 'Error' 'UnknownAdapter' "backends[$BackendIdx] ($BId)" "Backend id '$BId' has no matching switch case in lib/ai-client/client.ts callProvider — requests will silently fall through to the gemini default."
+            }
+        }
+        $BackendIdx++
+    }
 
     # Backends whose real provider API model names legitimately carry the vendor
     # name as a prefix (gemini-2.5-flash, claude-opus-4-6, deepseek-chat). For
@@ -120,6 +146,11 @@ function Test-AIModelsConfig {
         if ([string]::IsNullOrWhiteSpace($Id))      { Add-Issue 'Error' 'IncompleteModel' $Where 'Missing/empty id.' }
         if ([string]::IsNullOrWhiteSpace($ApiId))   { Add-Issue 'Error' 'IncompleteModel' $Where 'Missing/empty apiModelId.' }
         if ([string]::IsNullOrWhiteSpace($Backend)) { Add-Issue 'Error' 'IncompleteModel' $Where 'Missing/empty backend.' }
+
+        # ── Check B: DanglingModelBackend — models[].backend must be in backends[].id ──
+        if ($Backend -and $BackendIds.Count -gt 0 -and -not $BackendIds.Contains($Backend)) {
+            Add-Issue 'Error' 'DanglingModelBackend' $Where "Backend '$Backend' is not declared in backends[].id — likely a typo."
+        }
 
         if ($Id) { $ModelIds.Add($Id) }
 
