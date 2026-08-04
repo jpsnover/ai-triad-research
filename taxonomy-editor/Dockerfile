@@ -22,6 +22,7 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
 RUN npm install -g pnpm@11.20.0
 
 # Copy dependency manifests first (Docker layer caching)
+COPY pnpm-workspace.yaml ./
 COPY taxonomy-editor/package.json taxonomy-editor/pnpm-lock.yaml ./taxonomy-editor/
 COPY lib/ ./lib/
 
@@ -70,6 +71,7 @@ RUN npm install -g pnpm@11.20.0
 
 WORKDIR /deps
 COPY taxonomy-editor/package.json taxonomy-editor/pnpm-lock.yaml ./
+COPY pnpm-workspace.yaml ./
 RUN --mount=type=cache,target=/root/.local/share/pnpm/store pnpm install --prod --frozen-lockfile
 
 # ── Stage 3: Runtime ──
