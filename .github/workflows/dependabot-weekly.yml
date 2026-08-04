@@ -1,17 +1,14 @@
 # ─── Dependabot Weekly ───
-# What:  Weekly schedule that finds all open Dependabot PRs where the ci-gate
-#        check has passed, merges them, builds a fresh container image, and
-#        deploys to Azure production.
+# What:  Weekly schedule that finds all open Dependabot PRs where both the
+#        ci-gate and CodeQL checks have passed, merges them, then triggers a
+#        fresh container image build. Does NOT auto-deploy to production —
+#        production deploy remains a manual owner-triggered step (p/247).
 # When:  Mondays at 09:00 UTC (after the weekend Dependabot batch). Also
 #        triggerable via workflow_dispatch with an optional dry_run mode.
-# Gate:  Only merges PRs where the ci-gate required check is SUCCESS.
+# Gate:  Only merges PRs where BOTH ci-gate AND CodeQL Analysis are SUCCESS.
 #        PRs with pending or failed checks are skipped (not touched).
-# After: Monitor the triggered Container Image and Deploy to Azure workflow
-#        runs in the Actions tab. The deploy targets production with
-#        auth_mode=optional and uses the latest image tag.
-# Note:  Deploy is intentionally kept as a triggered workflow_dispatch rather
-#        than inlined — deploy-azure.yml owns its own OIDC credentials, rollback
-#        logic, and blue-green health checks. This workflow is only the trigger.
+# After: Monitor the triggered Container Image workflow run in the Actions tab.
+#        When satisfied, manually trigger deploy-azure.yml for production.
 
 name: Dependabot Weekly
 
@@ -21,7 +18,7 @@ on:
   workflow_dispatch:
     inputs:
       dry_run:
-        description: 'List PRs without merging or deploying'
+        description: 'List PRs without merging or building'
         required: false
         default: false
         type: boolean
@@ -72,19 +69,27 @@ jobs:
             NUMBER=$(echo "$PR" | jq -r '.number')
             TITLE=$(echo "$PR" | jq -r '.title')
 
-            # Look for the ci-gate check in the rollup
+            # Require both ci-gate AND CodeQL to be SUCCESS.
+            # ci-gate alone is not sufficient — CodeQL is a required check
+            # and a ci-gate-only gate re-opens the gap closed in t/2025.
             CI_STATE=$(echo "$PR" | jq -r '
               .statusCheckRollup
               | map(select(.name == "ci-gate"))
               | if length > 0 then .[0].state else "NOT_FOUND" end
             ')
+            CODEQL_STATE=$(echo "$PR" | jq -r '
+              .statusCheckRollup
+              | map(select(.name == "CodeQL Analysis"))
+              | if length > 0 then .[0].state else "NOT_FOUND" end
+            ')
 
             echo ""
             echo "PR #$NUMBER: $TITLE"
-            echo "  ci-gate: $CI_STATE"
+            echo "  ci-gate:       $CI_STATE"
+            echo "  CodeQL:        $CODEQL_STATE"
 
-            if [ "$CI_STATE" != "SUCCESS" ]; then
-              echo "  → Skipping (ci-gate not SUCCESS)"
+            if [ "$CI_STATE" != "SUCCESS" ] || [ "$CODEQL_STATE" != "SUCCESS" ]; then
+              echo "  → Skipping (both ci-gate and CodeQL must be SUCCESS)"
               continue
             fi
 
@@ -109,6 +114,7 @@ jobs:
 
   # ── Step 2: Build a fresh container image ──────────────────────────────────
   # Skipped when no PRs were merged or in dry-run mode.
+  # Production deploy is NOT triggered here — run deploy-azure.yml manually.
   build-image:
     needs: [merge-prs]
     if: needs.merge-prs.outputs.merged_count > 0 && inputs.dry_run != true
@@ -153,28 +159,9 @@ jobs:
           gh run watch "$RUN_ID" --exit-status
           echo "Container build completed successfully."
 
-  # ── Step 3: Deploy to Azure production ─────────────────────────────────────
-  # Only runs after a successful container build.
-  deploy:
-    needs: [merge-prs, build-image]
-    if: needs.merge-prs.outputs.merged_count > 0 && inputs.dry_run != true
-    runs-on: ubuntu-latest
-    steps:
-      - name: Trigger Azure production deploy
+      - name: Summary
         run: |
-          echo "Triggering deploy-azure.yml (production, latest image, auth_mode=optional)..."
-          gh workflow run deploy-azure.yml \
-            --repo "${{ github.repository }}" \
-            --ref main \
-            --field environment=production \
-            --field image_tag= \
-            --field auth_mode=optional
-
-          echo ""
-          echo "Deploy workflow triggered. Monitor at:"
-          echo "  https://github.com/${{ github.repository }}/actions/workflows/deploy-azure.yml"
-          echo ""
           echo "=== Dependabot Weekly summary ==="
           echo "  PRs merged:      ${{ needs.merge-prs.outputs.merged_count }}"
-          echo "  Container build: triggered (production push)"
-          echo "  Azure deploy:    triggered (production, optional auth)"
+          echo "  Container build: triggered and completed"
+          echo "  Production:      NOT auto-deployed — trigger deploy-azure.yml manually when ready"
