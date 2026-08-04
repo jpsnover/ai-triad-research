@@ -27,9 +27,19 @@ Orca config files (`.orca.yaml`, `AGENTS.md`, `.orca/` directory) live in a **se
 
 - **`git` commands** operate on the main project repo
 - **`ogit` commands** (alias for `git --git-dir=.orca-git --work-tree=.`) operate on the overlay
-- **Never `git add` or `git commit`** files tracked by the overlay: `.orca.yaml`, `AGENTS.md`, `.orca/`, `.orca-gitignore`
-- If you need to update AGENTS.md, edit it normally but commit via `ogit`, not `git`
+- **Never `git add` or `git commit`** files tracked by the overlay: `.orca.yaml`, `.orca/`, `.orca-gitignore`, and every **nested** `AGENTS.md`
 - Run `ogit` from the repo root — `.orca-git` is not visible from subdirectories
+- A **new** nested `AGENTS.md` needs `ogit add -f` — the overlay whitelist alone does not stage it
+
+**Which repo owns an `AGENTS.md`? Don't recall it — ask (t/2080):**
+
+```
+sh .githooks/agent-file-owner.sh --path <file>    # → main | overlay | NEITHER
+```
+
+The rule is a predicate, not a list: a file is **main-repo-tracked iff a public-repo consumer needs it without the overlay**. Today that is exactly two files — this root `AGENTS.md` (commit it with **`git`**, not `ogit`) and `operations/devops/azure/AGENTS.md`. Every other `AGENTS.md` is overlay-only.
+
+The two sets are **disjoint by construction**: the code repo's allowlist lives in `.gitignore`, the matching re-exclusions in `.orca-gitignore`. Both `AGENTS.md` above were previously tracked in *both* repos and had silently diverged. The pre-commit hook runs `agent-file-owner.sh --audit` on every commit and **refuses** one that re-creates a double-track — or that leaves a nested `AGENTS.md` tracked by **neither** repo, the state that left two role files with a single unbacked copy on one machine.
 
 ### Shared-Checkout Commit Guard (git pre-commit hook)
 
