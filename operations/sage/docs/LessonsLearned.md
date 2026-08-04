@@ -2892,40 +2892,21 @@ Institutional memory for failure patterns across the AI Triad Research project.
 
 ---
 
-## #140 [Build] Dependabot Merge Commit Has No CI Run — ci-gate Rejects Tag with "No CI Run Found"
+## #142 [Build] `git stash pop` Fails "Untracked File Already Exists" After ff-Only Pull When Origin Already Has the Stashed File
 
-**Pattern:** When tagging a release at a Dependabot merge commit (the current `main` HEAD), the ci-gate fails "No CI run found" for that SHA. GitHub Actions runs CI on the PR head commit — the last commit of the Dependabot PR before auto-merge — but NOT on the merge commit created on `main`. The merge commit's SHA is invisible to the CI run lookup; the ci-gate correctly rejects it.
-
-**Instances:**
-- 2026-08-04 — DevOps (p/26#53, t/2102): `v0.13.7` tagged at a Dependabot merge commit; container ci-gate failed "No CI run found". Resolution: tag at a regular (non-Dependabot-merge) commit with a known CI run. Structural fix tracked at t/2102.
-
-**Root Cause:** GitHub triggers CI on the branch HEAD at push time — for a Dependabot PR, that's the last commit before merge. When the PR is auto-merged with a merge commit, GitHub creates a new merge commit SHA on `main` with no associated workflow run. The ci-gate's SHA→CI-run lookup returns empty for this SHA — not because CI failed, but because no run was ever triggered at that SHA. Distinct from the advancing-HEAD livelock on on-demand `container.yml` dispatch — here the issue is structural: merge commits never receive their own CI run.
-
-**Prevention:**
-1. **Before tagging, run `gh run list --commit <sha> --status success`** — if empty, that SHA has no CI run and is not a safe tag target.
-2. **Dependabot merge commits are not safe tag targets.** Check `git log --oneline -3 origin/main` before tagging; if the tip is a Dependabot merge (message "Merge pull request … Bump …"), tag at the previous regular commit or wait for the next non-Dependabot commit.
-3. **Structural fix pending: t/2102** — ci-gate should resolve Dependabot merge commits to their parent's CI run. Until it lands, tag manually at non-Dependabot commits.
-
-**Applies To:** All agents and humans tagging releases (`v*`) when the `main` tip is a Dependabot auto-merge commit.
-
-**Status:** Active — single instance; structural fix pending (t/2102). Same ci-gate family as the advancing-HEAD livelock; root cause is structural, not a timing race.
-
----
-
-## #141 [Build] Pinned Base Image Date-Tag Deleted from GHCR Between CI and Container Build — "Tag Not Found"
-
-**Pattern:** A container build references a pinned `ai-triad-base` date-tag (e.g. `:2026-07-30`) in the Dockerfile. The tag exists at CI-run time. By the time the release container build runs (triggered by a `v*` tag), new `ai-triad-base` versions have been published, GHCR's GC has deleted the old date-tag, and the build fails "Base image tag '2026-07-30' not found in GHCR." The Dockerfile's pinned reference has gone stale between CI and the actual container build.
+**Pattern:** `git stash pop` after a fast-forward (`--ff-only`) pull errors "error: The following untracked working tree files would be overwritten by merge: <file>" — the stash holds a file as **untracked**, but the ff-only pull materialized that same file into the working tree from origin. The pop attempts to restore the untracked file to an already-occupied path and aborts.
 
 **Instances:**
-- 2026-08-04 — DevOps (p/26#55): `v0.13.8` container build failed "Base image tag '2026-07-30' not found in GHCR." The date-tag existed at CI time but was GC'd when new `ai-triad-base` versions were published after lifting a Dependabot hold (queued bumps triggered a batch of publishes, accelerating GC of older tags). Fixed by PR #409 bumping base to `:2026-08-04`.
+- 2026-08-04 — Server Storage (p/206#18, t/2113): `undiciInvariant.ts` was stashed as untracked before an ff-only pull. Origin/main had already landed the same file at commit 0b0019e1. The ff-only placed the file in the working tree; `git stash pop` then collided. Fix: `git stash drop` — origin's version was correct, the stash held a redundant copy.
 
-**Root Cause:** GHCR's retention policy GCs older package versions when new ones are published. A Dockerfile pinned to a specific date-tag can silently become stale — CI passes (tag still exists at check time), but the subsequent container build (e.g. triggered by a `v*` release tag hours or days later) fails because the tag no longer exists. Batch publishing (multiple queued bumps releasing at once) accelerates the GC window unpredictably.
+**Root Cause:** A stash that holds a new file as **untracked** does not conflict at stash-time, because git compares against HEAD, not origin. After a fast-forward merge advances HEAD to a commit that includes the same file, the "untracked slot" is now occupied. `git stash pop` cannot restore an untracked file to a path that exists in the working tree. The collision is latent until the ff-only updates HEAD.
 
 **Prevention:**
-1. **Before tagging a release, verify the pinned base image tag still exists:** `gh api /orgs/jpsnover/packages/container/ai-triad-base/versions --jq '.[].metadata.container.tags[]'` — confirm the date-tag in `Dockerfile.base` appears in the output.
-2. **Keep the base-image pin recent.** An old date-tag is more vulnerable to GC. Regular base-image bumps (or Dependabot) shrink the window between pin age and deletion.
-3. **Bundle base-image tag verification into the pre-tag checklist** alongside the CI-run check (#140 prevention #1).
+1. **Before `git stash` + ff-only pull, check if origin already has your untracked files:** `git show origin/main:<relative-path>` — if it returns content rather than an error, origin has the file and your stash will collide on pop.
+2. **If origin has the file and it's the correct version, skip the stash entirely** — there is nothing to restore; after the ff-only, the working tree already has the right file.
+3. **If a pop collision occurs and origin's version is correct:** `git stash drop` — don't try `git stash pop --index` or other workarounds; the stash entry is now redundant.
+4. **If the stash held local modifications (not just a new untracked file):** `git checkout -- <file>` (discard the working-tree copy that blocked the pop), then `git stash pop` to merge the stash's index state. But confirm local mods are still needed first — if origin is authoritative, they likely aren't.
 
-**Applies To:** All agents tagging releases when the Dockerfile references a pinned `ai-triad-base` date-tag, especially after a batch of Dependabot or base-image bumps.
+**Applies To:** All agents running `git stash` + ff-only pull / merge workflows.
 
-**Status:** Active — single instance. Pairs with #140 (Dependabot merge commit CI gap) as the two release-tagging hazards surfaced 2026-08-04.
+**Status:** Active — 1 instance (Server Storage p/206#18). Latent stash/merge collision; diagnosed quickly but wastes time if the pre-check isn't in the workflow.
