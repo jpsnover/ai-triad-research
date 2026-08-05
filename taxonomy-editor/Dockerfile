@@ -28,15 +28,22 @@ COPY pnpm-workspace.yaml pnpm-lock.yaml package.json ./
 COPY taxonomy-editor/package.json taxonomy-editor/pnpm-lock.yaml ./taxonomy-editor/
 COPY lib/ ./lib/
 
-# Install Node deps. --ignore-scripts skips electron download + electron-rebuild postinstall;
-# the binary isn't needed for tsc/vite compilation (builder stage is discarded anyway).
+# Install Node deps (including devDependencies for build)
+# Use isolated linker (not hoisted) so the .pnpm/ virtual store is created — required for
+# `pnpm licenses list` (called by `npm run licenses` in build:container). The prod-deps stage
+# still uses hoisted linker (from .npmrc) for native-module compatibility.
 WORKDIR /build/taxonomy-editor
-RUN --mount=type=cache,target=/root/.local/share/pnpm/store pnpm install --frozen-lockfile --ignore-scripts
+RUN --mount=type=cache,target=/root/.local/share/pnpm/store pnpm install --frozen-lockfile --config.node-linker=isolated
 
-# Install shared-lib deps too (t/2035). --ignore-scripts prevents postinstall scripts
-# (e.g. electron-rebuild) from firing; builder stage is discarded anyway.
+# Install shared-lib deps too (t/2035): lib/ is a self-contained package with its
+# own package.json, and the sanitizer core's renderer-parity decoders must resolve
+# from lib/node_modules during build:server (tsc). Mirrors the test-electron CI job
+# (ci.yml "Install shared lib dependencies"). Without this, build:container's tsc
+# fails TS2307 on the lib/ core's decoder imports.
+# Use isolated linker to match the taxonomy-editor install above — mixed linkers across
+# workspace packages corrupt the virtual store, breaking `pnpm licenses list`.
 WORKDIR /build/lib
-RUN --mount=type=cache,target=/root/.local/share/pnpm/store pnpm install --frozen-lockfile --ignore-scripts
+RUN --mount=type=cache,target=/root/.local/share/pnpm/store pnpm install --frozen-lockfile --config.node-linker=isolated
 
 # Copy source and build
 WORKDIR /build
@@ -53,7 +60,9 @@ COPY CHANGELOG.md ./
 COPY taxonomy/schemas/ ./taxonomy/schemas/
 
 WORKDIR /build/taxonomy-editor
-RUN npm run build:container
+# Cache mount required: `pnpm licenses list` (called by npm run licenses inside
+# build:container) reads package index files from the pnpm store.
+RUN --mount=type=cache,target=/root/.local/share/pnpm/store npm run build:container
 
 # ── Stage 2: Production dependencies (with build tools for native modules) ──
 FROM node:22.23.2-bookworm-slim AS prod-deps
@@ -77,7 +86,7 @@ COPY taxonomy-editor/package.json taxonomy-editor/pnpm-lock.yaml ./
 # modules MUST actually compile here — do NOT add --ignore-scripts. Verified in CI:
 # node-pty builds via node-gyp and the --prod install exits 0. electron (a devDep) is
 # absent, so the electron-rebuild postinstall no-ops (|| exit 0) without failing.
-COPY pnpm-workspace.yaml .npmrc ./
+COPY pnpm-workspace.yaml ./
 RUN --mount=type=cache,target=/root/.local/share/pnpm/store pnpm install --prod --frozen-lockfile
 
 # ── Stage 3: Runtime ──
