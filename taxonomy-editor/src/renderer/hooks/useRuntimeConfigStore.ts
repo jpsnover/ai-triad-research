@@ -98,7 +98,7 @@ export interface ConfigState {
 
 // Paths come from UI components derived from the fixed RuntimeConfig schema, not from
 // untrusted user input — these segments are therefore not currently reachable in practice.
-// The guard is retained as a defence-in-depth measure (CodeQL alert 4927).
+// Guards are colocated with each property write (CodeQL #4927 — js/prototype-pollution-utility).
 const DANGEROUS_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
 
 export function getNestedValue(obj: unknown, path: string): unknown {
@@ -112,7 +112,6 @@ export function getNestedValue(obj: unknown, path: string): unknown {
 
 export function setNestedValue(obj: Record<string, unknown>, path: string, value: unknown): void {
   const parts = path.split('.');
-  if (parts.some(p => DANGEROUS_KEYS.has(p))) return;
   let cur = obj;
   for (let i = 0; i < parts.length - 1; i++) {
     const key = parts[i];
