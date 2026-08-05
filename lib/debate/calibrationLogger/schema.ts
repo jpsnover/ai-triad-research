@@ -212,8 +212,10 @@ export interface CalibrationDataPoint {
   situation_nodes_injected: number;
   /** Number of situation nodes actually referenced in taxonomy_refs */
   situation_nodes_referenced: number;
-  /** Fraction of neutral evaluator cruxes that align with injected situation nodes (by word overlap) */
+  /** Fraction of neutral evaluator cruxes that share vocabulary with injected situation nodes (word-overlap proxy; not a measure of substantive engagement) */
   situation_crux_alignment: number | null;
+  /** Fraction of injected situation nodes actually referenced by debaters in taxonomy_refs; null when no situations injected */
+  situation_reference_rate: number | null;
   /** Max situation nodes cap used */
   situation_max_nodes: number;
 

@@ -473,7 +473,8 @@ export function extractCalibrationData(
     situation_nodes_injected: sitNodesInjected,
     situation_nodes_referenced: sitNodesReferenced,
     situation_crux_alignment: sitCruxAlignment,
-    situation_max_nodes: config.situationMaxNodes ?? 8,
+    situation_reference_rate: sitNodesInjected > 0 ? sitNodesReferenced / sitNodesInjected : null,
+    situation_max_nodes: config.explorationSummary?.recommended_config?.situation_cap ?? config.situationMaxNodes ?? 8,
 
     agent_utilities: agentUtilities,
     low_value_claims_rejected: lowValueRejected,
