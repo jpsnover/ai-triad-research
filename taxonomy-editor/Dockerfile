@@ -111,9 +111,10 @@ RUN --mount=type=cache,target=/root/.local/share/pnpm/store pnpm install --prod 
 # ── Stage 3: Runtime ──
 # CI smoke = liveness-only (any HTTP status passes; t/2067). Data-readiness proven at staging
 # (deploy-staging.yml Test-TaxEditorHealth /healthz). :2026-07-30 was exonerated in t/2047 —
-# root cause was t/2061 (isDataAvailable path mismatch, app-side). Bumped to :2026-08-04 because
-# :2026-07-30 was removed from GHCR; gate base bumps on staging /healthz, not CI green.
-FROM ghcr.io/jpsnover/ai-triad-base:2026-08-04 AS runtime
+# root cause was t/2061 (isDataAvailable path mismatch, app-side). Bumped to :2026-08-05 to
+# pull in Debian/Python security patches clearing ~25 Python runtime CVE rules (t/2157).
+# Gate base bumps on staging /healthz, not CI green.
+FROM ghcr.io/jpsnover/ai-triad-base:2026-08-05 AS runtime
 
 LABEL org.opencontainers.image.source="https://github.com/jpsnover/ai-triad-research"
 LABEL org.opencontainers.image.description="AI Triad Taxonomy Editor"
