@@ -443,6 +443,47 @@ export async function runNeutralEvaluation(
     }
   }
 
+  // Empty-cruxes retry (t/2153): a valid-JSON response with cruxes:[] is a model
+  // capacity saturation signal on long debates — the lite model exhausts its effective
+  // window before identifying cruxes, yet the JSON parses cleanly (no parse-fail retry
+  // triggers). Retry once so calibration extraction gets a populated crux suite.
+  // If the retry also returns [] the debate may genuinely be crux-free; accept it
+  // without marking invalid (calibration still reads null via cruxes.length > 0 gate).
+  if (!parsed.evaluation_invalid && Array.isArray(parsed.cruxes) && parsed.cruxes.length === 0) {
+    getGlobalRecorder()?.record({
+      type: 'system.info', component: 'neutral-evaluator', level: 'warn',
+      message: `Neutral evaluation (${checkpoint}) valid parse returned 0 cruxes — retrying once (t/2153)`,
+    });
+    try {
+      const emptyCruxRetryResult = await config.adapter.generateText(prompt, config.model, {
+        temperature: 0.2,
+        maxTokens: EVALUATOR_MAX_TOKENS,
+        responseSchema: evaluationSchema,
+      });
+      const retryRaw = stripCodeFences(emptyCruxRetryResult);
+      const retryParsed = JSON.parse(retryRaw) as NeutralEvaluation;
+      if (Array.isArray(retryParsed.cruxes) && retryParsed.cruxes.length > 0) {
+        parsed = retryParsed;
+        rawText = retryRaw;
+        getGlobalRecorder()?.record({
+          type: 'system.info', component: 'neutral-evaluator', level: 'info',
+          message: `Neutral evaluation (${checkpoint}) empty-cruxes retry recovered ${retryParsed.cruxes.length} cruxes`,
+        });
+      } else {
+        getGlobalRecorder()?.record({
+          type: 'system.info', component: 'neutral-evaluator', level: 'info',
+          message: `Neutral evaluation (${checkpoint}) empty-cruxes retry also returned 0 cruxes — accepting as crux-free`,
+        });
+      }
+    } catch (emptyCruxRetryErr) {
+      getGlobalRecorder()?.record({
+        type: 'system.error', component: 'neutral-evaluator', level: 'warn',
+        message: `Neutral evaluation (${checkpoint}) empty-cruxes retry failed to parse — keeping original 0-crux result`,
+        error: { name: (emptyCruxRetryErr as Error).name ?? 'Error', message: String(emptyCruxRetryErr) },
+      });
+    }
+  }
+
   // Ensure checkpoint and timestamp are set correctly regardless of AI output
   parsed.checkpoint = checkpoint;
   parsed.timestamp = new Date().toISOString();

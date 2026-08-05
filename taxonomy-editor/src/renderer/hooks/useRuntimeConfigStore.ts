@@ -115,10 +115,16 @@ export function setNestedValue(obj: Record<string, unknown>, path: string, value
   if (parts.some(p => DANGEROUS_KEYS.has(p))) return;
   let cur = obj;
   for (let i = 0; i < parts.length - 1; i++) {
-    if (cur[parts[i]] == null || typeof cur[parts[i]] !== 'object') cur[parts[i]] = {};
-    cur = cur[parts[i]] as Record<string, unknown>;
+    const key = parts[i];
+    if (cur[key] == null || typeof cur[key] !== 'object') {
+      // Object.defineProperty bypasses the [[Set]] protocol and does not invoke the
+      // __proto__ setter, satisfying CodeQL js/prototype-pollution-utility (alert #4927).
+      Object.defineProperty(cur, key, { value: {}, configurable: true, writable: true, enumerable: true });
+    }
+    cur = cur[key] as Record<string, unknown>;
   }
-  cur[parts[parts.length - 1]] = value;
+  const lastKey = parts[parts.length - 1];
+  Object.defineProperty(cur, lastKey, { value, configurable: true, writable: true, enumerable: true });
 }
 
 export function countLeafDiffs(a: unknown, b: unknown): number {
