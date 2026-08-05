@@ -16,7 +16,7 @@ Rules:
 8. Use active voice when possible.
 9. Return ONLY the rewritten text — no labels, no explanation.`;
 
-export const VERNACULAR_MODEL = 'gemini-flash-lite-latest';
+export const VERNACULAR_MODEL = DEFAULT_MODEL;
 export const VERNACULAR_TEMPERATURE = 0.2;
 export const VERNACULAR_TIMEOUT = 15_000;
 export const VERNACULAR_VERSION = 'flash-lite:v1';
