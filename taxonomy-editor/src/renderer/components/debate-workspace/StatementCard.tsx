@@ -588,7 +588,6 @@ function StatementTierPills({ entry, activeTier, setEntryDisplayTier, vocabResol
               title={TIER_TITLES[tier]}
             >
               {TIER_LABELS[tier]}
-              {isActive && isOverridden && <span className="debate-mode-override-dot" aria-hidden="true" />}
             </button>
           );
         })}
