@@ -25,6 +25,10 @@ RUN npm install -g pnpm@11.20.0
 # pnpm-workspace.yaml + root pnpm-lock.yaml establish the workspace root at /build so
 # allowBuilds applies; root package.json carries @types/node (needed by build:container tsc).
 COPY pnpm-workspace.yaml pnpm-lock.yaml package.json ./
+# .npmrc sets nodeLinker=hoisted — required so pnpm hoists transitive deps (e.g.
+# workbox-window, unist-util-visit) to root node_modules/ where Vite can find them.
+# Without it pnpm uses strict isolation and the renderer build fails to resolve them.
+COPY .npmrc ./
 COPY taxonomy-editor/package.json taxonomy-editor/pnpm-lock.yaml ./taxonomy-editor/
 COPY lib/ ./lib/
 
@@ -79,7 +83,7 @@ COPY taxonomy-editor/package.json taxonomy-editor/pnpm-lock.yaml ./
 # modules MUST actually compile here — do NOT add --ignore-scripts. Verified in CI:
 # node-pty builds via node-gyp and the --prod install exits 0. electron (a devDep) is
 # absent, so the electron-rebuild postinstall no-ops (|| exit 0) without failing.
-COPY pnpm-workspace.yaml ./
+COPY pnpm-workspace.yaml .npmrc ./
 RUN --mount=type=cache,target=/root/.local/share/pnpm/store pnpm install --prod --frozen-lockfile
 
 # ── Stage 3: Runtime ──
