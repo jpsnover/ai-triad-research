@@ -25,8 +25,8 @@ function EdgeMetrics({ confidence, weight }: { confidence: number; weight?: numb
   const cPct = Math.round(confidence * 100);
   const wPct = weight != null ? Math.round(weight * 100) : null;
   const title = wPct != null
-    ? `w=${wPct}% (relationship strength)  c=${cPct}% (existence confidence)`
-    : `c=${cPct}% (existence confidence)`;
+    ? `w=${wPct}% Weight: how strongly this relationship is asserted (logical/rhetorical force)\nc=${cPct}% Confidence: how certain the annotator/system is that this edge is correct`
+    : `c=${cPct}% Confidence: how certain the annotator/system is that this edge is correct`;
   return (
     <span className="related-confidence" title={title}>
       {wPct != null && <span className="related-wc-tag">w{wPct}</span>}

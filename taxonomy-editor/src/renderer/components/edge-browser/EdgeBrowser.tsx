@@ -270,7 +270,7 @@ function EbList({ edges, selectedIdx, splitPct, onSelect, onStatusUpdate }: {
           </div>
           <div className="eb-row-sub">
             <span className="eb-row-ids">{edge.source} → {edge.target}</span>
-            <span className="eb-row-conf" title="w=weight, c=confidence">{edge.weight != null ? `w${Math.round(edge.weight * 100)} ` : ''}c{Math.round(edge.confidence * 100)}</span>
+            <span className="eb-row-conf" title="w = Weight: how strongly this relationship is asserted (logical/rhetorical force)&#10;c = Confidence: how certain the annotator/system is that this edge is correct">{edge.weight != null ? `w${Math.round(edge.weight * 100)} ` : ''}c{Math.round(edge.confidence * 100)}</span>
             {edge.status !== 'approved' && <span className={`eb-row-status status-${edge.status}`}>{edge.status}</span>}
             {edge.status === 'proposed' && (
               <span className="eb-row-actions">
