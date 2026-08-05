@@ -2930,3 +2930,24 @@ Institutional memory for failure patterns across the AI Triad Research project.
 **Applies To:** All agents opening stacked PRs or using a feature branch as `--base` in `gh pr create`.
 
 **Status:** Active — 1 instance (Debate Tool 2, p/234#10). Self-correcting (push + retry), but the pre-check prevents the wasted round-trip.
+
+---
+
+## #144 [Build] Unit Fixtures All Fully Populated — Real-Data Crash on Sparsely-Present Optional Field
+
+**Pattern:** A function is implemented and tested against fixtures where every node has the optional field present. Unit tests pass. On real data, a small fraction of records lack the field — the function calls `.length` (or any method) on `undefined` and FATAL-crashes. The crash only surfaces when the function runs against the live dataset; mocks and unit fixtures gave false confidence because they never exercised the sparse-population case.
+
+**Instances:**
+- 2026-08-05 — Computational Linguist (t/2169, p/7#57): `computeBdiEntropy` called `.length` on `linked_nodes` — present on 433/436 situation nodes, absent on 3. All unit fixtures included `linked_nodes`, so tests passed. First real debate triggered FATAL crash. Fixed by `?? []` null guard + a new unit case with a node missing `linked_nodes`. Caught early because CL ran one verification debate before scaling the batch.
+
+**Root Cause:** Unit test fixtures are authored to exercise the function's logic, not to model the distribution of the production dataset. An optional field that happens to be in every fixture can be absent in real data without any test ever noticing. TypeScript's static types give additional false confidence: a non-null type annotation reflects the *expected* schema, not the *actual* data — runtime data from JSON files or external sources can violate the type at the boundary.
+
+**Prevention:**
+1. **For any field accessed with `.length`, `.map`, `.filter`, or similar array/string methods, guard against `undefined`:** `(node.linked_nodes ?? []).length` — cheap, silent, correct.
+2. **Include at least one fixture where each optional array/object field is absent** — the sparse case is the one that crashes and the one that's always missing from hand-authored fixtures.
+3. **Run one real-data smoke before scaling a batch** — a single debate / single pipeline run against live data catches distribution-dependent crashes that unit tests cannot. This is cheap relative to diagnosing a mid-batch FATAL.
+4. **At JSON read boundaries, normalize optional fields to their zero value:** coerce `node.linked_nodes` to `[]` at the point of deserialization rather than guarding at every call site (mirrors the "normalize at fetch" pattern for type-varying fields).
+
+**Applies To:** All agents writing functions over project-data nodes (situations, beliefs, edges) where optional array/object fields may be sparsely populated in real data.
+
+**Status:** Active — 1 instance (CL p/7#57, t/2169). Caught quickly by running one real-data smoke; the systematic fix is sparse-field fixtures + normalize-at-fetch.
