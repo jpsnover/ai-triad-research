@@ -1,6 +1,8 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
+import { DEFAULT_MODEL } from '@lib/ai-client/defaults';
+
 const SYSTEM_PROMPT = `You rewrite academic ontological descriptions into plain language that a high school student could understand.
 
 Rules:
