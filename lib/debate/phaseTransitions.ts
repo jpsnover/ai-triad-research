@@ -51,6 +51,35 @@ interface ProvisionalWeights {
   evaluator?: { model: string; version: number };
 }
 
+// Exported so the parity test can compare the hardcoded values directly against
+// calibration-config.json without going through the filesystem read path (t/2186).
+export const PROVISIONAL_WEIGHTS_FALLBACK: ProvisionalWeights = {
+  schema_version: 1,
+  argumentative_saturation: {
+    recycling_pressure: 0.01, crux_maturity: 0.28, concession_plateau: 0.01,
+    engagement_fatigue: 0.01, pragmatic_convergence: 0.33, scheme_stagnation: 0.36,
+  },
+  convergence: {
+    qbaf_agreement_density: 0.35, position_stability: 0.25,
+    irreducible_disagreement_ratio: 0.25, concluding_pragmatic_signal: 0.15,
+  },
+  thresholds: { argumentation_exit: 0.72, concluding_exit: 0.70, confidence_floor: 0.40, crux_semantic_novelty: 0.70 },
+  phase_bounds: {
+    min_confrontation_rounds: 1, max_confrontation_rounds: 2,
+    min_argumentation_rounds: 2, max_argumentation_rounds: 2,
+    min_concluding_rounds: 1, max_concluding_rounds: 1,
+    max_total_rounds_default: 10, max_regressions: 2, regression_ratchet: 0.10,
+  },
+  pacing_presets: {
+    tight: { maxTotalRounds: 4, argumentationExit: 0.62, concludingExit: 0.60 },
+    moderate: { maxTotalRounds: 10, argumentationExit: 0.72, concludingExit: 0.70 },
+    thorough: { maxTotalRounds: 8, argumentationExit: 0.80, concludingExit: 0.80 },
+  },
+  network: { gc_trigger: 175, gc_target: 150, hard_cap: 200 },
+  budget: { soft_multiplier: 8, hard_multiplier: 15, max_soft_multiplier: 10 },
+  evaluator: { model: 'gemini-3.5-flash-lite', version: 1 },
+};
+
 let _cachedWeights: ProvisionalWeights | null = null;
 
 export function loadProvisionalWeights(debateDir?: string): ProvisionalWeights {
@@ -88,32 +117,7 @@ export function loadProvisionalWeights(debateDir?: string): ProvisionalWeights {
   // Hardcoded fallback — must stay byte-for-byte equal to calibration-config.json so the
   // browser (which cannot read files) uses the same values as the server. Drift is gated by
   // the parity test in phaseTransitions.test.ts (t/2186).
-  _cachedWeights = {
-    schema_version: 1,
-    argumentative_saturation: {
-      recycling_pressure: 0.01, crux_maturity: 0.28, concession_plateau: 0.01,
-      engagement_fatigue: 0.01, pragmatic_convergence: 0.33, scheme_stagnation: 0.36,
-    },
-    convergence: {
-      qbaf_agreement_density: 0.35, position_stability: 0.25,
-      irreducible_disagreement_ratio: 0.25, concluding_pragmatic_signal: 0.15,
-    },
-    thresholds: { argumentation_exit: 0.72, concluding_exit: 0.70, confidence_floor: 0.40, crux_semantic_novelty: 0.70 },
-    phase_bounds: {
-      min_confrontation_rounds: 1, max_confrontation_rounds: 2,
-      min_argumentation_rounds: 2, max_argumentation_rounds: 2,
-      min_concluding_rounds: 1, max_concluding_rounds: 1,
-      max_total_rounds_default: 10, max_regressions: 2, regression_ratchet: 0.10,
-    },
-    pacing_presets: {
-      tight: { maxTotalRounds: 4, argumentationExit: 0.62, concludingExit: 0.60 },
-      moderate: { maxTotalRounds: 10, argumentationExit: 0.72, concludingExit: 0.70 },
-      thorough: { maxTotalRounds: 8, argumentationExit: 0.80, concludingExit: 0.80 },
-    },
-    network: { gc_trigger: 175, gc_target: 150, hard_cap: 200 },
-    budget: { soft_multiplier: 8, hard_multiplier: 15, max_soft_multiplier: 10 },
-    evaluator: { model: 'gemini-3.5-flash-lite', version: 1 },
-  };
+  _cachedWeights = PROVISIONAL_WEIGHTS_FALLBACK;
   return _cachedWeights;
 }
 
