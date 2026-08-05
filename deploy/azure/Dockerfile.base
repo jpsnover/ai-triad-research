@@ -33,6 +33,10 @@ LABEL org.opencontainers.image.licenses="MIT"
 # CI Trivy scan to confirm clearance — pin after first successful scan. (t/2174)
 # hadolint ignore=DL3016
 RUN npm install -g npm@latest
+# ip-address 10.3.1 fixes CVE-2026-69192 (HIGH). npm@latest bundles 10.2.0;
+# upgrade explicitly within npm's own bundle until npm ships 10.3.1+. (t/2177)
+# hadolint ignore=DL3016
+RUN cd /usr/local/lib/node_modules/npm && npm install ip-address@10.3.1
 
 # System dependencies (runtime only — build tools like make/g++ live in the app
 # Dockerfile's builder stage, not here).
