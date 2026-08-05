@@ -4,7 +4,7 @@
 import type { DebateEngineInternals } from './internals.js';
 import { type ArgumentNetworkEdge, type SignalContext } from '../types.js';
 import { detectCruxNodes } from '../phaseTransitions.js';
-import { type SituationNode } from '../taxonomyTypes.js';
+import { type SituationNode, type Category } from '../taxonomyTypes.js';
 import { reScoreSituationsForCruxesDetailed } from '../taxonomyRelevance.js';
 import { computeTaxonomyGapAnalysis } from '../taxonomyGapAnalysis.js';
 
@@ -23,6 +23,13 @@ export function _rescoreSituations(engine: DebateEngineInternals): void {
     engine.session.transcript.flatMap(e => e.taxonomy_refs).map(r => r.node_id).filter(id => id.startsWith('sit-')),
   );
 
+  const nodeCategoryLookup = new Map<string, Category>();
+  for (const pov of ['accelerationist', 'safetyist', 'skeptic'] as const) {
+    for (const node of engine.taxonomy[pov].nodes) {
+      nodeCategoryLookup.set(node.id, node.category);
+    }
+  }
+
   const rescoreResult = reScoreSituationsForCruxesDetailed({
     situationNodes: sitNodes,
     cruxes: engine.session.crux_tracker,
@@ -31,6 +38,7 @@ export function _rescoreSituations(engine: DebateEngineInternals): void {
     injectedSitIds,
     referencedSitIds,
     edges: engine.taxonomy.edges?.edges,
+    nodeCategoryLookup,
   });
   engine._situationScoreAdjustments = rescoreResult.adjustments;
   // Persist components for calibration logging (last-write-wins per node across rounds).

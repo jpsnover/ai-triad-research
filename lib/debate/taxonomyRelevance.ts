@@ -7,7 +7,7 @@
  * for each debater's prompt.
  */
 
-import type { PovNode, SituationNode } from './taxonomyTypes.js';
+import type { PovNode, SituationNode, Category } from './taxonomyTypes.js';
 import { cosineSimilarity } from '../embeddings/similarity.js';
 import type { TrackedCrux, ArgumentNetworkNode } from './types.js';
 import { stripExcludes } from './helpers.js';
@@ -726,6 +726,8 @@ import {
   computeDiversityComponent,
   computeMidDebateFreshness,
   computeInterpretsBoost,
+  computeBdiEntropy,
+  computeConflictOpenness,
   type SituationScoreComponents,
 } from './situationScoring.js';
 
@@ -745,6 +747,8 @@ export interface SituationReScoreInput {
   referencedSitIds: ReadonlySet<string>;
   /** Taxonomy edges — used for INTERPRETS boost scoring. */
   edges?: readonly { source: string; target: string; type: string; status?: string }[];
+  /** Category lookup for all POV nodes — required to compute bdi_entropy per situation. */
+  nodeCategoryLookup: ReadonlyMap<string, Category>;
 }
 
 export interface SituationReScoreResult {
@@ -809,8 +813,8 @@ export function reScoreSituationsForCruxesDetailed(input: SituationReScoreInput)
       relevance,
       diversity,
       freshness,
-      bdi_entropy: 0, // not computed in mid-debate context
-      conflict_openness: 0, // not computed in mid-debate context
+      bdi_entropy: computeBdiEntropy(sit.linked_nodes, input.nodeCategoryLookup),
+      conflict_openness: computeConflictOpenness(sit.conflict_ids, new Set()),
     };
     components.set(sit.id, comp);
 
