@@ -2,11 +2,10 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { describe, it, expect, beforeEach } from 'vitest';
-import calibrationConfigJson from './calibration-config.json';
+import { readFileSync } from 'fs';
 import {
   loadProvisionalWeights,
   resetWeightsCache,
-  PROVISIONAL_WEIGHTS_FALLBACK,
   initPhaseState,
   validatePhaseState,
   validateAdaptiveConfig,
@@ -1453,19 +1452,24 @@ describe('max-rounds concluding starvation (t/1256)', () => {
 });
 
 // ── Budget parity gate (t/2186) ───────────────────────────────
-// Compares the exported TS constant directly against the JSON — bypasses the filesystem
-// read path in loadProvisionalWeights() so this gate catches hardcoded drift in any env.
+// Asserts that the hardcoded browser fallback in loadProvisionalWeights() stays byte-for-byte
+// equal to the budget block in calibration-config.json. If either side drifts, this test fails.
 describe('calibration-config.json budget parity', () => {
+  beforeEach(() => resetWeightsCache());
+
   it('hardcoded budget fallback deep-equals calibration-config.json budget block', () => {
-    const { budget: jsonBudget } = calibrationConfigJson as unknown as { budget: Record<string, number> };
-    expect(PROVISIONAL_WEIGHTS_FALLBACK.budget).toEqual(jsonBudget);
+    const raw = readFileSync(new URL('./calibration-config.json', import.meta.url), 'utf-8');
+    const { budget: jsonBudget } = JSON.parse(raw) as { budget: Record<string, number> };
+    const fallback = loadProvisionalWeights();
+    expect(fallback.budget).toEqual(jsonBudget);
   });
 });
 
 // ── Relevance parity gate (t/2187) ───────────────────────────
 describe('calibration-config.json relevance parity', () => {
   it('hardcoded relevance thresholds match calibration-config.json relevance block', () => {
-    const { relevance: jsonRelevance } = calibrationConfigJson as unknown as {
+    const raw = readFileSync(new URL('./calibration-config.json', import.meta.url), 'utf-8');
+    const { relevance: jsonRelevance } = JSON.parse(raw) as {
       relevance: { embedding_threshold: number; lexical_threshold: number };
     };
     expect(PROVISIONAL_WEIGHTS_FALLBACK.relevance?.embedding_threshold).toBe(jsonRelevance.embedding_threshold);

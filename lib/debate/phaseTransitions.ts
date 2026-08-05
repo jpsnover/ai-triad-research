@@ -87,7 +87,6 @@ export const PROVISIONAL_WEIGHTS_FALLBACK: ProvisionalWeights = {
   evaluator: { model: 'gemini-3.5-flash-lite', version: 1 },
   relevance: { embedding_threshold: 0.48, lexical_threshold: 0.22 },
 };
-
 let _cachedWeights: ProvisionalWeights | null = null;
 
 export function loadProvisionalWeights(debateDir?: string): ProvisionalWeights {
