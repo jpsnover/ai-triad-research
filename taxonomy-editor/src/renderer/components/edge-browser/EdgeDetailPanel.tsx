@@ -250,10 +250,15 @@ export function EdgeDetailPanel({ width }: EdgeDetailPanelProps) {
 
         {/* Weight & Confidence */}
         <div className="edge-detail-section">
-          <div className="edge-detail-section-label" title="Weight: how strong the relationship is. Confidence: how certain the edge exists.">Weight &amp; Confidence</div>
+          <div className="edge-detail-section-label">Weight &amp; Confidence</div>
           {wPct != null && (
             <div className="edge-detail-confidence" style={{ marginBottom: 4 }}>
-              <span className="edge-detail-wc-label">w</span>
+              <span
+                className="edge-detail-wc-label"
+                tabIndex={0}
+                title="Weight: how strongly this edge relationship is asserted — a measure of the logical or rhetorical force connecting source to target node within the POV camp's argument structure."
+                aria-label="Weight: how strongly this edge relationship is asserted — a measure of the logical or rhetorical force connecting source to target node within the POV camp's argument structure."
+              >w</span>
               <div className="edge-detail-confidence-track">
                 <div className="edge-detail-confidence-fill edge-detail-weight-fill" style={{ width: `${wPct}%` }} />
               </div>
@@ -261,7 +266,12 @@ export function EdgeDetailPanel({ width }: EdgeDetailPanelProps) {
             </div>
           )}
           <div className="edge-detail-confidence">
-            <span className="edge-detail-wc-label">c</span>
+            <span
+              className="edge-detail-wc-label"
+              tabIndex={0}
+              title="Confidence: how certain the annotator/system is that this edge is correct — reflects evidentiary support or annotation reliability, not the claim's truth."
+              aria-label="Confidence: how certain the annotator/system is that this edge is correct — reflects evidentiary support or annotation reliability, not the claim's truth."
+            >c</span>
             <div className="edge-detail-confidence-track">
               <div className="edge-detail-confidence-fill" style={{ width: `${pct}%` }} />
             </div>
