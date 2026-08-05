@@ -2,8 +2,8 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { describe, it, expect } from 'vitest';
-import { selectRelevantNodes, selectRelevantSituationNodes, buildSituationRootLookup, scoreNodeRelevanceMeanTopN, cosineSimilarity, computePolicymakerRelevanceBoost, filterByTopicConstraints } from './taxonomyRelevance.js';
-import type { LineageBoostConfig, LineageBoostResult, BranchBoostResult, RelevanceOptions, ScoredPovNode, ScoredSituationNode, PovDiversityResult } from './taxonomyRelevance.js';
+import { selectRelevantNodes, selectRelevantSituationNodes, buildSituationRootLookup, scoreNodeRelevanceMeanTopN, cosineSimilarity, computePolicymakerRelevanceBoost, filterByTopicConstraints, reScoreSituationsForCruxesDetailed } from './taxonomyRelevance.js';
+import type { LineageBoostConfig, LineageBoostResult, BranchBoostResult, RelevanceOptions, ScoredPovNode, ScoredSituationNode, PovDiversityResult, SituationReScoreInput } from './taxonomyRelevance.js';
 import type { TopicScope } from './types.js';
 import type { PovNode, Category, SituationNode } from './taxonomyTypes.js';
 
@@ -1210,5 +1210,82 @@ describe('selectRelevantNodes — wellTested hardExclude', () => {
     });
 
     expect(result.map(r => r.node.id)).toContain('acc-beliefs-reelig');
+  });
+});
+
+describe('reScoreSituationsForCruxesDetailed — bdi_entropy computation', () => {
+  function makeSit(id: string, linkedNodes: string[], conflictIds: string[] = []): SituationNode {
+    return {
+      id,
+      label: id,
+      description: 'test',
+      interpretations: { accelerationist: 'acc', safetyist: 'saf', skeptic: 'skp' },
+      linked_nodes: linkedNodes,
+      conflict_ids: conflictIds,
+    } as SituationNode;
+  }
+
+  it('produces non-zero bdi_entropy when linked nodes span multiple BDI categories', () => {
+    const nodeCategoryLookup = new Map<string, Category>([
+      ['acc-b-001', 'Beliefs'],
+      ['acc-d-001', 'Desires'],
+      ['acc-i-001', 'Intentions'],
+    ]);
+    const result = reScoreSituationsForCruxesDetailed({
+      situationNodes: [makeSit('sit-001', ['acc-b-001', 'acc-d-001', 'acc-i-001'])],
+      cruxes: [],
+      anNodes: [],
+      nodeEmbeddings: {},
+      injectedSitIds: new Set(),
+      referencedSitIds: new Set(),
+      nodeCategoryLookup,
+    });
+    const components = result.components.get('sit-001');
+    expect(components).toBeDefined();
+    // Equal spread across all 3 BDI categories → normalized entropy = 1.0
+    expect(components!.bdi_entropy).toBeCloseTo(1.0, 5);
+  });
+
+  it('produces zero bdi_entropy when all linked nodes share one BDI category', () => {
+    const nodeCategoryLookup = new Map<string, Category>([
+      ['acc-b-001', 'Beliefs'],
+      ['acc-b-002', 'Beliefs'],
+    ]);
+    const result = reScoreSituationsForCruxesDetailed({
+      situationNodes: [makeSit('sit-002', ['acc-b-001', 'acc-b-002'])],
+      cruxes: [],
+      anNodes: [],
+      nodeEmbeddings: {},
+      injectedSitIds: new Set(),
+      referencedSitIds: new Set(),
+      nodeCategoryLookup,
+    });
+    const components = result.components.get('sit-002');
+    expect(components).toBeDefined();
+    expect(components!.bdi_entropy).toBe(0);
+  });
+
+  it('bdi_entropy varies across situations with different BDI distributions', () => {
+    const nodeCategoryLookup = new Map<string, Category>([
+      ['acc-b-001', 'Beliefs'],
+      ['acc-d-001', 'Desires'],
+      ['acc-i-001', 'Intentions'],
+      ['saf-b-001', 'Beliefs'],
+    ]);
+    const sitMixed = makeSit('sit-mixed', ['acc-b-001', 'acc-d-001', 'acc-i-001']);
+    const sitSingle = makeSit('sit-single', ['saf-b-001']);
+    const result = reScoreSituationsForCruxesDetailed({
+      situationNodes: [sitMixed, sitSingle],
+      cruxes: [],
+      anNodes: [],
+      nodeEmbeddings: {},
+      injectedSitIds: new Set(),
+      referencedSitIds: new Set(),
+      nodeCategoryLookup,
+    });
+    expect(result.components.get('sit-mixed')!.bdi_entropy).toBeGreaterThan(
+      result.components.get('sit-single')!.bdi_entropy,
+    );
+    expect(result.components.get('sit-single')!.bdi_entropy).toBe(0);
   });
 });
