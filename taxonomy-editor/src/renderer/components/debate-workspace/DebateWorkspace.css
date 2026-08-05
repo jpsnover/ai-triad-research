@@ -49,3 +49,82 @@
   border-left: 1px solid var(--border-color);
   background: var(--bg-primary);
 }
+
+/* ─── Two-mode segmented controls (t/2172) ─────────────────────────────── */
+
+.debate-mode-group {
+  display: inline-flex;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.debate-mode-seg {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  font-size: var(--text-2xs);
+  font-weight: 600;
+  padding: 1px 6px;
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  transition: background 0.1s, color 0.1s;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  white-space: nowrap;
+}
+
+.debate-mode-seg:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.debate-mode-seg-active {
+  background: var(--focus-ring);
+  color: #fff;
+}
+
+.debate-mode-seg-active:hover {
+  background: var(--focus-ring);
+  color: #fff;
+}
+
+.debate-mode-separator {
+  display: inline-block;
+  width: 1px;
+  height: 14px;
+  background: var(--border-color);
+  flex-shrink: 0;
+}
+
+.debate-mode-override-dot {
+  display: inline-block;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: currentColor;
+  flex-shrink: 0;
+  opacity: 0.75;
+}
+
+.debate-mode-match-global {
+  background: none;
+  border: none;
+  color: var(--focus-ring);
+  font-size: var(--text-2xs);
+  cursor: pointer;
+  padding: 0 2px;
+  opacity: 0.8;
+  white-space: nowrap;
+}
+.debate-mode-match-global:hover {
+  opacity: 1;
+  text-decoration: underline;
+}
+
+.debate-tier-global .debate-mode-group {
+  font-size: inherit;
+}
