@@ -9008,15 +9008,17 @@ a.vocab-term,
 
 /* ─── Detail Tier Pills (DT-3) ────────────────────────── */
 
+/* Outer row — holds Mode group + separator + Sub-option group (+ optional match-global btn) */
 .debate-tier-pills {
   display: inline-flex;
-  gap: 1px;
+  align-items: center;
+  gap: 4px;
   margin-left: 8px;
-  background: var(--border);
-  border-radius: var(--radius-sm);
-  overflow: hidden;
+  flex-wrap: wrap;           /* sub-option group wraps below ~360px (AC10) */
 }
 
+
+/* Legacy pill classes kept for any remaining usages (e.g. detail-dropdown fallback) */
 .debate-tier-pill {
   background: var(--bg-primary);
   border: none;
@@ -9036,13 +9038,13 @@ a.vocab-term,
 }
 
 .debate-tier-pill-active {
-  background: var(--accent, #3b82f6);
+  background: var(--focus-ring);   /* was: var(--accent, #3b82f6) — undefined token, always blue */
   color: #fff;
 }
 
 .debate-detail-dropdown {
   background: var(--bg-primary);
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-color);
   color: var(--text-muted);
   font-size: var(--text-2xs);
   font-weight: 600;
@@ -9058,14 +9060,14 @@ a.vocab-term,
   color: var(--text-primary);
 }
 .debate-detail-dropdown:focus {
-  outline: 1px solid var(--accent, #3b82f6);
+  outline: 1px solid var(--focus-ring);
 }
 
 .debate-tier-truncated {
   display: inline-block;
   margin-top: 4px;
   font-size: var(--text-xs);
-  color: var(--accent, #3b82f6);
+  color: var(--focus-ring);
   cursor: pointer;
   opacity: 0.8;
 }
@@ -9076,9 +9078,6 @@ a.vocab-term,
 
 .debate-tier-global {
   font-size: var(--text-2xs);
-}
-.debate-tier-global .debate-tier-pill {
-  padding: 1px 6px;
 }
 
 .debate-diagnose-btn {

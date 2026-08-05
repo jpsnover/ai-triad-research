@@ -15,6 +15,7 @@ import { computeCoverageMap, computeStrengthWeightedCoverage } from '@lib/debate
 import type { CoverageMap, StrengthWeightedCoverage } from '@lib/debate/coverageTracker';
 import {
   speakerLabel, speakerColor, nodeIdToTab, focusMainWindowNode, countOccurrences, renderedOffsetOf,
+  META_TIERS, TIER_LABELS,
 } from './utils';
 import type { AdaptivePhase } from './utils';
 import { CommentCreationPopover } from '../chat/CommentCreationPopover';
@@ -371,6 +372,123 @@ type CommentStoreState = ReturnType<typeof useCommentStore.getState>;
 type ActiveDebateSession = NonNullable<DWStore['activeDebate']>;
 type ActiveTranscriptEntry = ActiveDebateSession['transcript'][number];
 
+type GlobalTextTier = 'brief' | 'medium' | 'detailed';
+type GlobalAnalysisTier = 'reasoning' | 'claims' | 'convergence';
+const GLOBAL_TEXT_TIERS: GlobalTextTier[] = ['brief', 'medium', 'detailed'];
+const GLOBAL_ANALYSIS_TIERS: GlobalAnalysisTier[] = ['reasoning', 'claims', 'convergence'];
+const GLOBAL_TIER_TITLES: Record<string, string> = {
+  brief: 'Set all turns to brief (2–3 sentences)', medium: 'Set all turns to medium (key points)',
+  detailed: 'Set all turns to full content', reasoning: 'Show brief, plan & BDI (replaces text)',
+  claims: 'Show argument network claims', convergence: 'Show convergence diagnostics',
+};
+const GLOBAL_MODE_IDS = [{ id: 'text', label: 'Text' }, { id: 'analysis', label: 'Analysis' }] as const;
+
+function GlobalModeControl({ defaultTier, setDefaultTier }: {
+  defaultTier: DWStore['responseLength'];
+  setDefaultTier: DWStore['setResponseLength'];
+}) {
+  const activeMode = META_TIERS.has(defaultTier) ? 'analysis' : 'text';
+  const [lastText, setLastText] = useState<GlobalTextTier>(
+    activeMode === 'text' ? (defaultTier as GlobalTextTier) : 'detailed'
+  );
+  const [lastAnalysis, setLastAnalysis] = useState<GlobalAnalysisTier>(
+    activeMode === 'analysis' ? (defaultTier as GlobalAnalysisTier) : 'reasoning'
+  );
+
+  useEffect(() => {
+    if (META_TIERS.has(defaultTier)) setLastAnalysis(defaultTier as GlobalAnalysisTier);
+    else setLastText(defaultTier as GlobalTextTier);
+  }, [defaultTier]);
+
+  const subTiers = activeMode === 'text' ? GLOBAL_TEXT_TIERS : GLOBAL_ANALYSIS_TIERS;
+  const modeRefs = useRef<(HTMLButtonElement | null)[]>([]);
+  const subRefs = useRef<(HTMLButtonElement | null)[]>([]);
+
+  const handleModeSelect = useCallback((mode: 'text' | 'analysis') => {
+    if (mode === activeMode) return;
+    setDefaultTier(mode === 'text' ? lastText : lastAnalysis);
+  }, [activeMode, lastText, lastAnalysis, setDefaultTier]);
+
+  const handleSubSelect = useCallback((tier: string) => {
+    setDefaultTier(tier as GlobalTextTier | GlobalAnalysisTier);
+    if (activeMode === 'text') setLastText(tier as GlobalTextTier);
+    else setLastAnalysis(tier as GlobalAnalysisTier);
+  }, [activeMode, setDefaultTier]);
+
+  const handleModeKey = useCallback((e: { key: string; preventDefault(): void }, idx: number) => {
+    let next = idx;
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') next = (idx + 1) % 2;
+    else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') next = (idx - 1 + 2) % 2;
+    else if (e.key === 'Home') next = 0;
+    else if (e.key === 'End') next = 1;
+    else return;
+    e.preventDefault();
+    handleModeSelect(GLOBAL_MODE_IDS[next].id);
+    requestAnimationFrame(() => modeRefs.current[next]?.focus());
+  }, [handleModeSelect]);
+
+  const handleSubKey = useCallback((e: { key: string; preventDefault(): void }, idx: number) => {
+    const len = subTiers.length;
+    let next = idx;
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') next = (idx + 1) % len;
+    else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') next = (idx - 1 + len) % len;
+    else if (e.key === 'Home') next = 0;
+    else if (e.key === 'End') next = len - 1;
+    else return;
+    e.preventDefault();
+    handleSubSelect(subTiers[next]);
+    requestAnimationFrame(() => subRefs.current[next]?.focus());
+  }, [subTiers, handleSubSelect]);
+
+  return (
+    <span className="debate-tier-global" style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center' }}>
+      <span role="radiogroup" aria-label="View mode" className="debate-mode-group">
+        {GLOBAL_MODE_IDS.map(({ id, label }, i) => (
+          <button
+            key={id}
+            ref={el => { modeRefs.current[i] = el; }}
+            type="button"
+            role="radio"
+            aria-checked={activeMode === id}
+            tabIndex={activeMode === id ? 0 : -1}
+            className={`debate-mode-seg${activeMode === id ? ' debate-mode-seg-active' : ''}`}
+            onClick={() => handleModeSelect(id)}
+            onKeyDown={(e) => handleModeKey(e, i)}
+          >
+            {label}
+          </button>
+        ))}
+      </span>
+      <span className="debate-mode-separator" aria-hidden="true" />
+      <span
+        role="radiogroup"
+        aria-label={activeMode === 'text' ? 'Text detail level' : 'Analysis view'}
+        className="debate-mode-group"
+      >
+        {subTiers.map((tier, i) => {
+          const isActive = defaultTier === tier;
+          return (
+            <button
+              key={tier}
+              ref={el => { subRefs.current[i] = el; }}
+              type="button"
+              role="radio"
+              aria-checked={isActive}
+              tabIndex={isActive ? 0 : -1}
+              className={`debate-mode-seg${isActive ? ' debate-mode-seg-active' : ''}`}
+              onClick={() => handleSubSelect(tier)}
+              onKeyDown={(e) => handleSubKey(e, i)}
+              title={GLOBAL_TIER_TITLES[tier]}
+            >
+              {TIER_LABELS[tier]}
+            </button>
+          );
+        })}
+      </span>
+    </span>
+  );
+}
+
 function DebateToolbar({
   activeDebate, isExploration, isCrossCutting, onShowCCDetails,
   commentSidebarOpen, toggleCommentSidebar, commentsFile,
@@ -431,18 +549,7 @@ function DebateToolbar({
       >
         {diagnosticsEnabled ? 'Diagnostics ON' : 'Diagnostics'}
       </button>
-      <span className="debate-tier-global" style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 2 }}>
-        {(['brief', 'medium', 'detailed', 'reasoning', 'claims', 'convergence'] as const).map(tier => (
-          <button
-            key={tier}
-            className={`debate-tier-pill${defaultTier === tier ? ' debate-tier-pill-active' : ''}`}
-            onClick={() => setDefaultTier(tier)}
-            title={tier === 'brief' ? 'Set all turns to brief (2-3 sentences)' : tier === 'medium' ? 'Set all turns to medium (key points)' : tier === 'detailed' ? 'Set all turns to full content' : tier === 'reasoning' ? 'Show brief, plan & BDI (replaces text)' : tier === 'claims' ? 'Show argument network claims' : 'Show convergence diagnostics'}
-          >
-            {tier === 'brief' ? 'Brief' : tier === 'medium' ? 'Med' : tier === 'detailed' ? 'Detail' : tier === 'reasoning' ? 'Plan' : tier === 'claims' ? 'Claims' : 'Conv'}
-          </button>
-        ))}
-      </span>
+      <GlobalModeControl defaultTier={defaultTier} setDefaultTier={setDefaultTier} />
     </div>
   );
 }
