@@ -220,8 +220,11 @@ export interface CalibrationDataPoint {
   situation_max_nodes: number;
   /**
    * Per-injected-situation component scores from the final mid-debate re-scoring snapshot
-   * (last-write-wins — not averaged across rounds). bdi_entropy and conflict_openness are
-   * always 0 in mid-debate context. composite = weightedSituationScore(components, MID_DEBATE_WEIGHTS).
+   * (last-write-wins — not averaged across rounds). bdi_entropy = normalized Shannon entropy
+   * of the situation's linked taxonomy nodes across B/D/I categories. conflict_openness =
+   * fraction of linked conflict_ids not in the resolved set; in mid-debate context the
+   * resolved set is empty, so conflict_openness is 1.0 for situations with any conflict links
+   * and 0.0 for those without. composite = weightedSituationScore(components, MID_DEBATE_WEIGHTS).
    * Null when adaptive staging did not run or no situations were scored.
    */
   situation_component_scores: Array<{

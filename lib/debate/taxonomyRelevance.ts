@@ -7,7 +7,7 @@
  * for each debater's prompt.
  */
 
-import type { PovNode, SituationNode } from './taxonomyTypes.js';
+import type { PovNode, SituationNode, Category } from './taxonomyTypes.js';
 import { cosineSimilarity } from '../embeddings/similarity.js';
 import type { TrackedCrux, ArgumentNetworkNode } from './types.js';
 import { stripExcludes } from './helpers.js';
@@ -726,6 +726,8 @@ import {
   computeDiversityComponent,
   computeMidDebateFreshness,
   computeInterpretsBoost,
+  computeBdiEntropy,
+  computeConflictOpenness,
   type SituationScoreComponents,
 } from './situationScoring.js';
 
@@ -733,6 +735,8 @@ import {
 const DIVERSITY_BONUS = 0.15;
 /** Penalty for previously-injected but never-referenced situations. */
 const STALE_PENALTY = -0.20;
+const EMPTY_CATEGORY_MAP: ReadonlyMap<string, Category> = new Map();
+const EMPTY_CONFLICT_SET: ReadonlySet<string> = new Set();
 
 export interface SituationReScoreInput {
   situationNodes: readonly SituationNode[];
@@ -745,6 +749,14 @@ export interface SituationReScoreInput {
   referencedSitIds: ReadonlySet<string>;
   /** Taxonomy edges — used for INTERPRETS boost scoring. */
   edges?: readonly { source: string; target: string; type: string; status?: string }[];
+  /** Node ID → BDI category lookup for bdi_entropy computation. Built from all POV nodes. */
+  nodeCategoryLookup?: ReadonlyMap<string, Category>;
+  /**
+   * Set of conflict IDs that are resolved — used by conflict_openness computation.
+   * In mid-debate context, conflict resolution data is unavailable; callers pass an empty
+   * set so all linked conflicts are treated as open (produces binary 0/1 variance).
+   */
+  resolvedConflictIds?: ReadonlySet<string>;
 }
 
 export interface SituationReScoreResult {
@@ -809,8 +821,8 @@ export function reScoreSituationsForCruxesDetailed(input: SituationReScoreInput)
       relevance,
       diversity,
       freshness,
-      bdi_entropy: 0, // not computed in mid-debate context
-      conflict_openness: 0, // not computed in mid-debate context
+      bdi_entropy: computeBdiEntropy(sit.linked_nodes, input.nodeCategoryLookup ?? EMPTY_CATEGORY_MAP),
+      conflict_openness: computeConflictOpenness(sit.conflict_ids, input.resolvedConflictIds ?? EMPTY_CONFLICT_SET),
     };
     components.set(sit.id, comp);
 

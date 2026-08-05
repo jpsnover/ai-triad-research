@@ -23,6 +23,14 @@ export function _rescoreSituations(engine: DebateEngineInternals): void {
     engine.session.transcript.flatMap(e => e.taxonomy_refs).map(r => r.node_id).filter(id => id.startsWith('sit-')),
   );
 
+  const nodeCategoryLookup = new Map(
+    [
+      ...engine.taxonomy.accelerationist.nodes,
+      ...engine.taxonomy.safetyist.nodes,
+      ...engine.taxonomy.skeptic.nodes,
+    ].map(n => [n.id, n.category]),
+  );
+
   const rescoreResult = reScoreSituationsForCruxesDetailed({
     situationNodes: sitNodes,
     cruxes: engine.session.crux_tracker,
@@ -31,6 +39,7 @@ export function _rescoreSituations(engine: DebateEngineInternals): void {
     injectedSitIds,
     referencedSitIds,
     edges: engine.taxonomy.edges?.edges,
+    nodeCategoryLookup,
   });
   engine._situationScoreAdjustments = rescoreResult.adjustments;
   // Persist components for calibration logging (last-write-wins per node across rounds).

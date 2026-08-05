@@ -2,7 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { describe, it, expect } from 'vitest';
-import { selectRelevantNodes, selectRelevantSituationNodes, buildSituationRootLookup, scoreNodeRelevanceMeanTopN, cosineSimilarity, computePolicymakerRelevanceBoost, filterByTopicConstraints } from './taxonomyRelevance.js';
+import { selectRelevantNodes, selectRelevantSituationNodes, buildSituationRootLookup, scoreNodeRelevanceMeanTopN, cosineSimilarity, computePolicymakerRelevanceBoost, filterByTopicConstraints, reScoreSituationsForCruxesDetailed } from './taxonomyRelevance.js';
 import type { LineageBoostConfig, LineageBoostResult, BranchBoostResult, RelevanceOptions, ScoredPovNode, ScoredSituationNode, PovDiversityResult } from './taxonomyRelevance.js';
 import type { TopicScope } from './types.js';
 import type { PovNode, Category, SituationNode } from './taxonomyTypes.js';
@@ -1210,5 +1210,92 @@ describe('selectRelevantNodes — wellTested hardExclude', () => {
     });
 
     expect(result.map(r => r.node.id)).toContain('acc-beliefs-reelig');
+  });
+});
+
+// ── reScoreSituationsForCruxesDetailed — bdi_entropy + conflict_openness (t/2169) ──
+
+describe('reScoreSituationsForCruxesDetailed — bdi_entropy and conflict_openness', () => {
+  function makeSit(id: string, linkedNodes: string[], conflictIds: string[]): SituationNode {
+    return {
+      id, label: `Sit ${id}`, description: '', parent_id: null,
+      interpretations: { accelerationist: 'a', safetyist: 'b', skeptic: 'c' },
+      linked_nodes: linkedNodes,
+      conflict_ids: conflictIds,
+    };
+  }
+
+  const BASE_INPUT = {
+    cruxes: [],
+    anNodes: [],
+    nodeEmbeddings: {},
+    injectedSitIds: new Set<string>(),
+    referencedSitIds: new Set<string>(),
+  };
+
+  it('computes non-zero bdi_entropy when nodeCategoryLookup is provided with mixed categories', () => {
+    const sit = makeSit('sit-001', ['acc-beliefs-001', 'saf-desires-001', 'skp-intentions-001'], []);
+    const lookup = new Map<string, Category>([
+      ['acc-beliefs-001', 'Beliefs'],
+      ['saf-desires-001', 'Desires'],
+      ['skp-intentions-001', 'Intentions'],
+    ]);
+    const result = reScoreSituationsForCruxesDetailed({
+      ...BASE_INPUT,
+      situationNodes: [sit],
+      nodeCategoryLookup: lookup,
+    });
+    const comp = result.components.get('sit-001')!;
+    expect(comp.bdi_entropy).toBeCloseTo(1.0); // even spread → max entropy
+  });
+
+  it('computes zero bdi_entropy for single-category nodes', () => {
+    const sit = makeSit('sit-001', ['acc-beliefs-001', 'acc-beliefs-002'], []);
+    const lookup = new Map<string, Category>([
+      ['acc-beliefs-001', 'Beliefs'],
+      ['acc-beliefs-002', 'Beliefs'],
+    ]);
+    const result = reScoreSituationsForCruxesDetailed({
+      ...BASE_INPUT,
+      situationNodes: [sit],
+      nodeCategoryLookup: lookup,
+    });
+    expect(result.components.get('sit-001')!.bdi_entropy).toBeCloseTo(0);
+  });
+
+  it('falls back to zero bdi_entropy when nodeCategoryLookup is absent', () => {
+    const sit = makeSit('sit-001', ['acc-beliefs-001'], []);
+    const result = reScoreSituationsForCruxesDetailed({ ...BASE_INPUT, situationNodes: [sit] });
+    expect(result.components.get('sit-001')!.bdi_entropy).toBe(0);
+  });
+
+  it('computes conflict_openness = 1.0 for situations with conflict_ids when resolved set is empty', () => {
+    const sit = makeSit('sit-001', [], ['conflict-001', 'conflict-002']);
+    const result = reScoreSituationsForCruxesDetailed({ ...BASE_INPUT, situationNodes: [sit] });
+    expect(result.components.get('sit-001')!.conflict_openness).toBeCloseTo(1.0);
+  });
+
+  it('computes conflict_openness = 0 for situations with no conflict_ids', () => {
+    const sit = makeSit('sit-001', [], []);
+    const result = reScoreSituationsForCruxesDetailed({ ...BASE_INPUT, situationNodes: [sit] });
+    expect(result.components.get('sit-001')!.conflict_openness).toBe(0);
+  });
+
+  it('produces varying bdi_entropy across multiple situations', () => {
+    const sits = [
+      makeSit('sit-001', ['a', 'b', 'c'], []),
+      makeSit('sit-002', ['a', 'a'], []),
+    ];
+    const lookup = new Map<string, Category>([
+      ['a', 'Beliefs'], ['b', 'Desires'], ['c', 'Intentions'],
+    ]);
+    const result = reScoreSituationsForCruxesDetailed({
+      ...BASE_INPUT,
+      situationNodes: sits,
+      nodeCategoryLookup: lookup,
+    });
+    const e1 = result.components.get('sit-001')!.bdi_entropy;
+    const e2 = result.components.get('sit-002')!.bdi_entropy;
+    expect(e1).toBeGreaterThan(e2); // mixed > single-category
   });
 });
