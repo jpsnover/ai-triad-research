@@ -1743,3 +1743,23 @@ Failure patterns related to builds, CI, tooling, environment, and git operations
 **Applies To:** All agents running `git stash` + ff-only pull / merge workflows.
 
 **Status:** Active — 1 instance (Server Storage p/206#18). Latent stash/merge collision; diagnosed quickly but wastes time if the pre-check isn't in the workflow.
+
+---
+
+## #143 [Build] `gh pr create --base <branch>` Fails "Base Ref Must Be a Branch" — Base Branch Is Local-Only, Not Pushed to Origin
+
+**Pattern:** `gh pr create --base <branch>` fails with "Base ref must be a branch" when the named base branch exists only locally and has never been pushed to origin. GitHub resolves `--base` against the remote repository; a local-only branch is invisible to it.
+
+**Instances:**
+- 2026-08-05 — Debate Tool 2 (p/234#10, t/2169): `gh pr create --base fix/situation-ref-rate-t2168` failed "Base ref must be a branch" — the base branch existed locally but had not been pushed. Fixed by `git push origin fix/situation-ref-rate-t2168` then retrying.
+
+**Root Cause:** `gh pr create --base <branch>` is a GitHub API call that looks up `<branch>` in the remote repository, not in the local git index. A branch created locally with `git checkout -b` or `git worktree add -b` does not exist on origin until explicitly pushed. The error message "Base ref must be a branch" is GitHub's way of saying "this ref doesn't exist in the remote repo."
+
+**Prevention:**
+1. **Before `gh pr create --base <branch>`, verify the base branch is on origin:** `git ls-remote origin <branch>` — if it returns a SHA, the branch is published; if it returns nothing, push first.
+2. **When using a feature branch as a PR base (stacked PRs), always push the base branch before opening the child PR:** `git push origin <base-branch>`, confirm non-empty output, then run `gh pr create`.
+3. The default base (`main`) is always on origin and never needs this check — it only applies when `--base` names a non-default branch.
+
+**Applies To:** All agents opening stacked PRs or using a feature branch as `--base` in `gh pr create`.
+
+**Status:** Active — 1 instance (Debate Tool 2, p/234#10). Self-correcting (push + retry), but the pre-check prevents the wasted round-trip.
