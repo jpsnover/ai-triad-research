@@ -23,6 +23,7 @@ import {
   NON_APPROVED_EDGE_CONFIDENCE_FILTER,
   EDGE_CONTEXT_TOP_N,
 } from '../debateConfig.js';
+import { loadProvisionalWeights } from '../phaseTransitions.js';
 
 export function getNodeLabelMap(engine: DebateEngineInternals): Map<string, string> {
   if (engine._nodeLabelMap) return engine._nodeLabelMap;
@@ -238,8 +239,8 @@ export async function getRelevantTaxonomyContext(engine: DebateEngineInternals, 
 
   const relevanceOpts: RelevanceOptions = {
     scoringMode,
-    embeddingThreshold: 0.48,
-    lexicalThreshold: 0.22,
+    embeddingThreshold: loadProvisionalWeights().relevance!.embedding_threshold,
+    lexicalThreshold: loadProvisionalWeights().relevance!.lexical_threshold,
     minPerCategory: parseInt(process.env.TAXONOMY_MIN_PER_BDI || '') || TAXONOMY_MIN_NODES_PER_BDI_DEFAULT,
     maxTotal: parseInt(process.env.TAXONOMY_MAX_NODES || '') || TAXONOMY_MAX_POV_NODES_DEFAULT,
     nodeEmbeddings: roundFocusVector ? engine.taxonomy.embeddings as Record<string, { pov: string; vector: number[]; exclusion_vector?: number[] }> : undefined,
