@@ -196,16 +196,17 @@ vi.mock('./OpeningPanel', () => ({
 vi.mock('./TaxonomyRefs', () => ({
   CoverageBadge: () => <div data-testid="coverage-badge" />,
 }));
-vi.mock('./utils', () => ({
-  speakerLabel: (s: string) => s.charAt(0).toUpperCase() + s.slice(1),
-  speakerColor: () => 'red',
-  nodeIdToTab: () => ({ tab: 'beliefs', colorVar: 'var(--color-acc)' }),
-  focusMainWindowNode: vi.fn(),
-  countOccurrences: () => 0,
-  ADAPTIVE_PHASES: ['confrontation', 'argumentation', 'concluding'],
-  ADAPTIVE_PHASE_LABELS: { confrontation: 'Confrontation', argumentation: 'Argumentation', concluding: 'Concluding' },
-  ADAPTIVE_PHASE_COLORS: { confrontation: '#ef4444', argumentation: '#f59e0b', concluding: '#22c55e' },
-}));
+vi.mock('./utils', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('./utils')>();
+  return {
+    ...actual,
+    speakerLabel: (s: string) => s.charAt(0).toUpperCase() + s.slice(1),
+    speakerColor: () => 'red',
+    nodeIdToTab: () => ({ tab: 'beliefs', colorVar: 'var(--color-acc)' }),
+    focusMainWindowNode: vi.fn(),
+    countOccurrences: () => 0,
+  };
+});
 
 // ── Test fixture ──────────────────────────────────────────────
 
@@ -290,25 +291,29 @@ describe('toolbar', () => {
     expect(screen.getByText('Comments (0)')).toBeInTheDocument();
   });
 
-  it('renders tier pills — Brief, Med, Detail', () => {
+  it('renders two-mode control with Text/Analysis mode group and text sub-options', () => {
     render(<DebateWorkspace />);
+    expect(screen.getByText('Text')).toBeInTheDocument();
+    expect(screen.getByText('Analysis')).toBeInTheDocument();
     expect(screen.getByText('Brief')).toBeInTheDocument();
-    expect(screen.getByText('Med')).toBeInTheDocument();
-    expect(screen.getByText('Detail')).toBeInTheDocument();
+    expect(screen.getByText('Medium')).toBeInTheDocument();
+    expect(screen.getByText('Detailed')).toBeInTheDocument();
   });
 
-  it('renders all six tier pills', () => {
+  it('renders five mode segments in text mode (2 mode + 3 sub-options)', () => {
     const { container } = render(<DebateWorkspace />);
-    const pills = container.querySelectorAll('.debate-tier-pill');
-    expect(pills.length).toBe(6);
+    const segs = container.querySelectorAll('.debate-mode-seg');
+    expect(segs.length).toBe(5);
   });
 
-  it('marks the active tier pill', () => {
+  it('marks Text mode and active sub-option as active', () => {
     mockStore.responseLength = 'brief';
     const { container } = render(<DebateWorkspace />);
-    const activePills = container.querySelectorAll('.debate-tier-pill-active');
-    expect(activePills.length).toBe(1);
-    expect(activePills[0].textContent).toBe('Brief');
+    const activeSegs = container.querySelectorAll('.debate-mode-seg-active');
+    expect(activeSegs.length).toBe(2);
+    const activeTexts = Array.from(activeSegs).map((el) => el.textContent);
+    expect(activeTexts).toContain('Text');
+    expect(activeTexts).toContain('Brief');
   });
 
   it('does not render Export button when onExport prop is not provided', () => {

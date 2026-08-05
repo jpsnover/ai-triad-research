@@ -73,7 +73,7 @@ export interface ConfigSlice {
   // Actions
   setResponseLength: (length: 'claims' | 'brief' | 'medium' | 'detailed' | 'reasoning' | 'convergence') => void;
   setAudience: (audience: DebateAudience) => void;
-  setEntryDisplayTier: (entryId: string, tier: 'claims' | 'brief' | 'medium' | 'detailed' | 'reasoning' | 'convergence' | 'terms' | 'lineage') => void;
+  setEntryDisplayTier: (entryId: string, tier: 'claims' | 'brief' | 'medium' | 'detailed' | 'reasoning' | 'convergence' | 'terms' | 'lineage' | undefined) => void;
   setOpeningOrder: (order: Exclude<SpeakerId, 'user'>[]) => void;
   setInitialCrossRespondRounds: (n: number) => void;
   clearWarnings: () => void;

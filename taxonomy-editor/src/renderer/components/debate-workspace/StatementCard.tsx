@@ -15,6 +15,7 @@ import { getDebateMarkdownComponents, type VocabResolution } from '../../utils/v
 import {
   speakerLabel, speakerColor, pctFmt, focusMainWindowNode,
   fixMarkdownLinks, stripLeadingHeadings,
+  META_TIERS, TIER_LABELS,
 } from './utils';
 import type { AnchorHTMLAttributes, HTMLAttributes } from 'react';
 import { parseEntityRef } from '@lib/entities/types';
@@ -430,12 +431,6 @@ function resolveDisplayContent(entry: TranscriptEntry, activeTier: string, isSub
   return { displayContent: stripLeadingHeadings(entry.content), isTruncated: false };
 }
 
-const META_TIERS = new Set(['reasoning', 'terms', 'lineage', 'claims', 'convergence']);
-
-const TIER_LABELS: Record<string, string> = {
-  brief: 'Brief', medium: 'Med', detailed: 'Detail', reasoning: 'Plan',
-  claims: 'Claims', terms: 'Terms', lineage: 'Lineage', convergence: 'Conv',
-};
 const TIER_TITLES: Record<string, string> = {
   brief: '2-3 sentences', medium: '1-2 paragraphs', detailed: 'Full response',
   reasoning: 'Brief, plan & BDI (replaces text)', claims: 'Argument network claims',
@@ -473,54 +468,141 @@ function StatementModelBadge({ entry, activeDebate }: { entry: TranscriptEntry; 
   );
 }
 
-function StatementTierPills({ entry, activeTier, detailDropdown, setEntryDisplayTier, vocabResolutions, hasLineageRefs }: {
+type TextTier = 'brief' | 'medium' | 'detailed';
+type AnalysisTier = 'reasoning' | 'terms' | 'lineage' | 'claims' | 'convergence';
+const TEXT_TIERS: TextTier[] = ['brief', 'medium', 'detailed'];
+const MODE_IDS = [{ id: 'text', label: 'Text' }, { id: 'analysis', label: 'Analysis' }] as const;
+
+function StatementTierPills({ entry, activeTier, setEntryDisplayTier, vocabResolutions, hasLineageRefs }: {
   entry: TranscriptEntry;
   activeTier: string;
-  detailDropdown: boolean;
   setEntryDisplayTier: SetEntryDisplayTier;
   vocabResolutions: VocabResolution[] | undefined;
   hasLineageRefs: boolean;
 }) {
+  const activeMode = META_TIERS.has(activeTier) ? 'analysis' : 'text';
+
+  const [lastText, setLastText] = useState<TextTier>(
+    activeMode === 'text' ? (activeTier as TextTier) : 'detailed'
+  );
+  const [lastAnalysis, setLastAnalysis] = useState<AnalysisTier>(
+    activeMode === 'analysis' ? (activeTier as AnalysisTier) : 'reasoning'
+  );
+
+  // Sync per-card memory when tier changes externally (global default reset, override clear).
+  useEffect(() => {
+    if (META_TIERS.has(activeTier)) setLastAnalysis(activeTier as AnalysisTier);
+    else setLastText(activeTier as TextTier);
+  }, [activeTier]);
+
+  const analysisOptions = useMemo<AnalysisTier[]>(
+    () => (['reasoning', 'terms', 'lineage', 'claims', 'convergence'] as AnalysisTier[]).filter(t => {
+      if (t === 'terms') return !!(vocabResolutions && vocabResolutions.length > 0);
+      if (t === 'lineage') return hasLineageRefs;
+      return true;
+    }),
+    [vocabResolutions, hasLineageRefs],
+  );
+
+  const subTiers = activeMode === 'text' ? TEXT_TIERS : analysisOptions;
+  const isOverridden = entry.display_tier != null;
+
+  const modeRefs = useRef<(HTMLButtonElement | null)[]>([]);
+  const subRefs = useRef<(HTMLButtonElement | null)[]>([]);
+
+  const handleModeSelect = useCallback((mode: 'text' | 'analysis') => {
+    if (mode === activeMode) return;
+    setEntryDisplayTier(entry.id, mode === 'text' ? lastText : lastAnalysis);
+  }, [activeMode, lastText, lastAnalysis, entry.id, setEntryDisplayTier]);
+
+  const handleSubSelect = useCallback((tier: string) => {
+    setEntryDisplayTier(entry.id, tier as TextTier | AnalysisTier);
+    if (activeMode === 'text') setLastText(tier as TextTier);
+    else setLastAnalysis(tier as AnalysisTier);
+  }, [activeMode, entry.id, setEntryDisplayTier]);
+
+  const handleModeKey = useCallback((e: { key: string; preventDefault(): void }, idx: number) => {
+    let next = idx;
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') next = (idx + 1) % 2;
+    else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') next = (idx - 1 + 2) % 2;
+    else if (e.key === 'Home') next = 0;
+    else if (e.key === 'End') next = 1;
+    else return;
+    e.preventDefault();
+    handleModeSelect(MODE_IDS[next].id);
+    requestAnimationFrame(() => modeRefs.current[next]?.focus());
+  }, [handleModeSelect]);
+
+  const handleSubKey = useCallback((e: { key: string; preventDefault(): void }, idx: number) => {
+    const len = subTiers.length;
+    let next = idx;
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') next = (idx + 1) % len;
+    else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') next = (idx - 1 + len) % len;
+    else if (e.key === 'Home') next = 0;
+    else if (e.key === 'End') next = len - 1;
+    else return;
+    e.preventDefault();
+    handleSubSelect(subTiers[next]);
+    requestAnimationFrame(() => subRefs.current[next]?.focus());
+  }, [subTiers, handleSubSelect]);
+
   return (
     <span className="debate-tier-pills">
-      {detailDropdown ? (
-        <select
-          className="debate-detail-dropdown"
-          value={(['brief', 'medium', 'detailed'] as const).includes(activeTier as 'brief' | 'medium' | 'detailed') ? activeTier : 'detailed'}
-          onChange={(e) => { e.stopPropagation(); setEntryDisplayTier(entry.id, e.target.value as 'brief' | 'medium' | 'detailed'); }}
+      <span role="radiogroup" aria-label="View mode" className="debate-mode-group">
+        {MODE_IDS.map(({ id, label }, i) => (
+          <button
+            key={id}
+            ref={el => { modeRefs.current[i] = el; }}
+            type="button"
+            role="radio"
+            aria-checked={activeMode === id}
+            tabIndex={activeMode === id ? 0 : -1}
+            className={`debate-mode-seg${activeMode === id ? ' debate-mode-seg-active' : ''}`}
+            onClick={(e) => { e.stopPropagation(); handleModeSelect(id); }}
+            onKeyDown={(e) => handleModeKey(e, i)}
+          >
+            {label}
+          </button>
+        ))}
+      </span>
+      <span className="debate-mode-separator" aria-hidden="true" />
+      <span
+        role="radiogroup"
+        aria-label={activeMode === 'text' ? 'Text detail level' : 'Analysis view'}
+        className="debate-mode-group"
+      >
+        {subTiers.map((tier, i) => {
+          const isActive = activeTier === tier;
+          return (
+            <button
+              key={tier}
+              ref={el => { subRefs.current[i] = el; }}
+              type="button"
+              role="radio"
+              aria-checked={isActive}
+              tabIndex={isActive ? 0 : -1}
+              className={`debate-mode-seg${isActive ? ' debate-mode-seg-active' : ''}${isActive && isOverridden ? ' debate-mode-seg-overridden' : ''}`}
+              aria-label={`${TIER_LABELS[tier]}${isActive && isOverridden ? ', overrides global default' : ''}`}
+              onClick={(e) => { e.stopPropagation(); handleSubSelect(tier); }}
+              onKeyDown={(e) => handleSubKey(e, i)}
+              title={TIER_TITLES[tier]}
+            >
+              {TIER_LABELS[tier]}
+              {isActive && isOverridden && <span className="debate-mode-override-dot" aria-hidden="true" />}
+            </button>
+          );
+        })}
+      </span>
+      {isOverridden && (
+        <button
+          type="button"
+          className="debate-mode-match-global"
+          onClick={(e) => { e.stopPropagation(); setEntryDisplayTier(entry.id, undefined); }}
+          title="Clear override — revert to global default"
         >
-          <option value="brief">Brief</option>
-          <option value="medium">Medium</option>
-          <option value="detailed">Full</option>
-        </select>
-      ) : (
-        (['brief', 'medium', 'detailed'] as const).map(tier => (
-          <button
-            key={tier}
-            className={`debate-tier-pill${activeTier === tier ? ' debate-tier-pill-active' : ''}`}
-            onClick={(e) => { e.stopPropagation(); setEntryDisplayTier(entry.id, tier); }}
-            title={TIER_TITLES[tier]}
-          >
-            {TIER_LABELS[tier]}
-          </button>
-        ))
+          ↺ match global
+        </button>
       )}
-      {(['reasoning', 'terms', 'lineage', 'claims', 'convergence'] as const).map(tier => {
-        if (tier === 'terms' && !(vocabResolutions && vocabResolutions.length > 0)) return null;
-        if (tier === 'lineage' && !hasLineageRefs) return null;
-        const isSpecial = (tier === 'terms' || tier === 'lineage') && activeTier !== tier;
-        return (
-          <button
-            key={tier}
-            className={`debate-tier-pill${activeTier === tier ? ' debate-tier-pill-active' : ''}`}
-            onClick={(e) => { e.stopPropagation(); setEntryDisplayTier(entry.id, tier); }}
-            title={TIER_TITLES[tier]}
-            style={isSpecial ? { color: 'rgb(168, 85, 247)' } : undefined}
-          >
-            {TIER_LABELS[tier]}
-          </button>
-        );
-      })}
     </span>
   );
 }
@@ -554,7 +636,7 @@ function StatementDeleteActions({ entryIndex, totalEntries, deleteConfirm, setDe
 
 function StatementCardHeader({
   entry, statementId, camp, color, activeDebate, anNodeId,
-  showTierPills, detailDropdown, activeTier, setEntryDisplayTier, vocabResolutions, hasLineageRefs,
+  showTierPills, activeTier, setEntryDisplayTier, vocabResolutions, hasLineageRefs,
   qbafEnabled, netDelta, isPover, diagnosticsEnabled, toggleDiagnostics, selectDiagEntry,
   entryIndex, totalEntries, deleteConfirm, setDeleteConfirm,
 }: {
@@ -565,7 +647,6 @@ function StatementCardHeader({
   activeDebate: ActiveDebateT;
   anNodeId: string | null;
   showTierPills: boolean;
-  detailDropdown: boolean;
   activeTier: string;
   setEntryDisplayTier: SetEntryDisplayTier;
   vocabResolutions: VocabResolution[] | undefined;
@@ -605,7 +686,6 @@ function StatementCardHeader({
         <StatementTierPills
           entry={entry}
           activeTier={activeTier}
-          detailDropdown={detailDropdown}
           setEntryDisplayTier={setEntryDisplayTier}
           vocabResolutions={vocabResolutions}
           hasLineageRefs={hasLineageRefs}
@@ -838,7 +918,6 @@ export function StatementCard({ entry, statementId, findQuery = '', matchOffset 
   const selectDiagEntry = useDebateStore(s => s.selectDiagEntry);
   const deleteTranscriptEntries = useDebateStore(s => s.deleteTranscriptEntries);
   const qbafEnabled = useFlag('release-qbaf-analysis');
-  const detailDropdown = useFlag('debate-detail-dropdown');
   const [deleteConfirm, setDeleteConfirm] = useState<'single' | 'after' | null>(null);
   const [showSymbolTooltips, setShowSymbolTooltips] = useState(false);
   const anNodeId = findAnNodeId(activeDebate, entry.id);
@@ -941,7 +1020,6 @@ export function StatementCard({ entry, statementId, findQuery = '', matchOffset 
         activeDebate={activeDebate}
         anNodeId={anNodeId}
         showTierPills={showTierPills}
-        detailDropdown={detailDropdown}
         activeTier={activeTier}
         setEntryDisplayTier={setEntryDisplayTier}
         vocabResolutions={vocabResolutions}
