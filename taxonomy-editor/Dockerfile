@@ -60,14 +60,20 @@ COPY CHANGELOG.md ./
 COPY taxonomy/schemas/ ./taxonomy/schemas/
 
 WORKDIR /build/taxonomy-editor
-# Cache mount required: pnpm store not in image layer — `pnpm licenses list` (called by
-# npm run licenses inside build:container) reads package index files from the store.
+# Cache mount required: pnpm store not in image layer — `pnpm licenses list` reads
+# package index files from the store.
 # rm pnpm-workspace.yaml: in workspace mode pnpm licenses list enumerates ALL workspace
 # packages from the root lockfile including workflow-app deps (@google/genai etc.) that
 # are NOT installed in this stage → ERR_PNPM_MISSING_PACKAGE_INDEX_FILE. Without the
-# workspace marker, pnpm falls back to the standalone taxonomy-editor/pnpm-lock.yaml.
+# workspace marker pnpm falls back to the standalone taxonomy-editor/pnpm-lock.yaml.
+# symlink .pnpm: packages were installed into the workspace virtual store at
+# /build/node_modules/.pnpm, but after removing pnpm-workspace.yaml, generate-license-file
+# looks for package.json files under the standalone path
+# /build/taxonomy-editor/node_modules/.pnpm. Symlink bridges the two locations.
 RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
-    rm /build/pnpm-workspace.yaml && npm run build:container
+    rm /build/pnpm-workspace.yaml && \
+    ln -sf /build/node_modules/.pnpm /build/taxonomy-editor/node_modules/.pnpm && \
+    npm run build:container
 
 # ── Stage 2: Production dependencies (with build tools for native modules) ──
 FROM node:22.23.2-bookworm-slim AS prod-deps
