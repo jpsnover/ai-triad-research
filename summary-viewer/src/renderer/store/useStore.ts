@@ -8,6 +8,7 @@ import { rankBySimilarity } from '../utils/similarity';
 import { mapErrorToUserMessage } from '../utils/errorMessages';
 import type { SemanticResult } from '../utils/similarity';
 import { buildPotentialEdgesSystemPrompt, buildPotentialEdgesUserPrompt } from '../prompts/potentialEdges';
+import { SEMANTIC_DEDUP_THRESHOLD } from '../constants';
 import { buildHierarchyPlacementUserPrompt, buildAttributeExtractionUserPrompt, buildEdgeDiscoveryUserPrompt } from '../prompts/userPromptBuilders';
 import type { AIBackend, AIModel } from './aiModels';
 import { getStoredBackend, getStoredModel, storeBackend, storeModel, DEFAULT_MODELS } from './aiModels';
@@ -253,7 +254,7 @@ export const useStore = create<SummaryViewerState>((set, get) => ({
       if (cache.size > 0) {
         const queryText = `${label}: ${description}`;
         const queryVector = await window.electronAPI.computeQueryEmbedding(queryText);
-        const matches = rankBySimilarity(queryVector, cache, 0.85, 1);
+        const matches = rankBySimilarity(queryVector, cache, SEMANTIC_DEDUP_THRESHOLD, 1);
         if (matches.length > 0) {
           const match = matches[0];
           const taxonomy = get().taxonomy;
