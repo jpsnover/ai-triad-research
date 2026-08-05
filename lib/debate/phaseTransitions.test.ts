@@ -6,6 +6,7 @@ import calibrationConfigJson from './calibration-config.json';
 import {
   loadProvisionalWeights,
   resetWeightsCache,
+  PROVISIONAL_WEIGHTS_FALLBACK,
   initPhaseState,
   validatePhaseState,
   validateAdaptiveConfig,
@@ -1460,15 +1461,12 @@ describe('max-rounds concluding starvation (t/1256)', () => {
 =======
 
 // ── Budget parity gate (t/2186) ───────────────────────────────
-// Asserts that the hardcoded browser fallback in loadProvisionalWeights() stays byte-for-byte
-// equal to the budget block in calibration-config.json. If either side drifts, this test fails.
+// Compares the exported TS constant directly against the JSON — bypasses the filesystem
+// read path in loadProvisionalWeights() so this gate catches hardcoded drift in any env.
 describe('calibration-config.json budget parity', () => {
-  beforeEach(() => resetWeightsCache());
-
   it('hardcoded budget fallback deep-equals calibration-config.json budget block', () => {
-    const fallback = loadProvisionalWeights();
     const { budget: jsonBudget } = calibrationConfigJson as unknown as { budget: Record<string, number> };
-    expect(fallback.budget).toEqual(jsonBudget);
+    expect(PROVISIONAL_WEIGHTS_FALLBACK.budget).toEqual(jsonBudget);
   });
 });
 >>>>>>> 6d52a82a (fix(debate): use static JSON import in budget parity test (jsdom compat))
