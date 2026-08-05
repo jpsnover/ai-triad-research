@@ -231,8 +231,7 @@ export function computeSituationAlignment(
   session: DebateSession,
   finalEval: NeutralEvaluation | undefined,
 ): { sitNodesInjected: number; sitNodesReferenced: number; sitCruxAlignment: number | null } {
-  let sitNodesInjected = 0;
-  let sitNodesReferenced = 0;
+  // Pass 1: collect all injected situation node IDs
   const injectedSitIds = new Set<string>();
   for (const entry of session.transcript) {
     const manifest = (entry.metadata as Record<string, unknown>)?.injection_manifest as {
@@ -241,13 +240,18 @@ export function computeSituationAlignment(
     if (manifest?.situationNodeIds) {
       for (const id of manifest.situationNodeIds) injectedSitIds.add(id);
     }
+  }
+  // Pass 2: count distinct injected sit IDs referenced across the transcript
+  const referencedInjected = new Set<string>();
+  for (const entry of session.transcript) {
     for (const ref of entry.taxonomy_refs ?? []) {
-      if (typeof ref.node_id === 'string' && ref.node_id.startsWith('sit-')) {
-        sitNodesReferenced++;
+      if (typeof ref.node_id === 'string' && injectedSitIds.has(ref.node_id)) {
+        referencedInjected.add(ref.node_id);
       }
     }
   }
-  sitNodesInjected = injectedSitIds.size;
+  const sitNodesInjected = injectedSitIds.size;
+  const sitNodesReferenced = referencedInjected.size;
 
   // Situation-crux alignment: do the neutral evaluator's cruxes match injected situation nodes?
   // Uses word overlap between crux descriptions and situation node labels/descriptions.

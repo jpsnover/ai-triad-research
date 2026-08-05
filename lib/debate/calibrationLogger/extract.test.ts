@@ -5,7 +5,7 @@ import { describe, it, expect } from 'vitest';
 import type { DebateSession } from '../types.js';
 import { extractCalibrationData } from './extract.js';
 import type { CalibrationDataPoint } from './schema.js';
-import { computeConvergenceWithCensoring } from './extract-metrics.js';
+import { computeConvergenceWithCensoring, computeSituationAlignment } from './extract-metrics.js';
 
 // ── Minimal session factory ───────────────────────────────────────────────────
 
@@ -240,5 +240,74 @@ describe('computeConvergenceWithCensoring', () => {
     // denominator = 1 completed + 1 censored = 2 (unknown excluded)
     expect(result.censoring_rate).toBeCloseTo(1 / 2);
     expect(result.n_unknown).toBe(1);
+  });
+});
+
+// ── computeSituationAlignment (t/2168) ───────────────────────────────────────
+
+function makeTranscriptEntry(opts: {
+  situationNodeIds?: string[];
+  taxonomyRefs?: { node_id: string }[];
+}): unknown {
+  return {
+    type: 'statement',
+    speaker: 'accelerationist',
+    content: 'test',
+    taxonomy_refs: opts.taxonomyRefs ?? [],
+    metadata: opts.situationNodeIds
+      ? { injection_manifest: { situationNodeIds: opts.situationNodeIds } }
+      : {},
+  };
+}
+
+describe('computeSituationAlignment', () => {
+  it('multi-turn repeated reference of same sit- ID counts as 1 — rate never exceeds 1', () => {
+    // sit-001 injected once; referenced in 3 separate turns
+    const session = makeSession({
+      transcript: [
+        makeTranscriptEntry({ situationNodeIds: ['sit-001'], taxonomyRefs: [{ node_id: 'sit-001' }] }),
+        makeTranscriptEntry({ taxonomyRefs: [{ node_id: 'sit-001' }] }),
+        makeTranscriptEntry({ taxonomyRefs: [{ node_id: 'sit-001' }] }),
+      ],
+    });
+    const result = computeSituationAlignment(session, undefined);
+    expect(result.sitNodesInjected).toBe(1);
+    expect(result.sitNodesReferenced).toBe(1);  // distinct, not per-occurrence
+    // rate = 1/1 = 1.0, not 3.0
+  });
+
+  it('non-injected sit- ref does not inflate sitNodesReferenced', () => {
+    // sit-001 injected; sit-999 referenced but never injected
+    const session = makeSession({
+      transcript: [
+        makeTranscriptEntry({ situationNodeIds: ['sit-001'] }),
+        makeTranscriptEntry({ taxonomyRefs: [{ node_id: 'sit-999' }, { node_id: 'sit-001' }] }),
+      ],
+    });
+    const result = computeSituationAlignment(session, undefined);
+    expect(result.sitNodesInjected).toBe(1);
+    expect(result.sitNodesReferenced).toBe(1);  // sit-999 excluded, sit-001 counted once
+  });
+
+  it('zero injected → sitNodesReferenced is 0 and cruxAlignment is null', () => {
+    const session = makeSession({
+      transcript: [makeTranscriptEntry({ taxonomyRefs: [{ node_id: 'sit-001' }] })],
+    });
+    const result = computeSituationAlignment(session, undefined);
+    expect(result.sitNodesInjected).toBe(0);
+    expect(result.sitNodesReferenced).toBe(0);
+    expect(result.sitCruxAlignment).toBeNull();
+  });
+
+  it('two injected, one referenced → rate 0.5', () => {
+    const session = makeSession({
+      transcript: [
+        makeTranscriptEntry({ situationNodeIds: ['sit-001', 'sit-002'] }),
+        makeTranscriptEntry({ taxonomyRefs: [{ node_id: 'sit-001' }] }),
+      ],
+    });
+    const result = computeSituationAlignment(session, undefined);
+    expect(result.sitNodesInjected).toBe(2);
+    expect(result.sitNodesReferenced).toBe(1);
   });
 });
