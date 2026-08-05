@@ -333,6 +333,9 @@ importers:
       wait-on:
         specifier: ^9.1.0
         version: 9.1.0(debug@4.4.3(supports-color@10.2.2))(supports-color@10.2.2)
+      workbox-window:
+        specifier: ^7.4.1
+        version: 7.4.1
 
   workflow-app:
     dependencies:
