@@ -13,6 +13,7 @@ overrides:
   fast-xml-parser: ">=5.10.1"
   ip-address: ">=10.3.1"
   uuid: ">=11.1.1"
+  "@opentelemetry/core": ">=2.8.0"
 
 allowBuilds:
   '@google/genai': true
