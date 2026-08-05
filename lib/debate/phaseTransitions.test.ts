@@ -2,6 +2,9 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { describe, it, expect, beforeEach } from 'vitest';
+import { readFileSync } from 'fs';
+import { fileURLToPath } from 'url';
+import path from 'path';
 import {
   loadProvisionalWeights,
   resetWeightsCache,
@@ -172,6 +175,13 @@ describe('loadProvisionalWeights', () => {
     expect(w.pacing_presets).toHaveProperty('tight');
     expect(w.pacing_presets).toHaveProperty('moderate');
     expect(w.pacing_presets).toHaveProperty('thorough');
+  });
+
+  it('budget fallback matches calibration-config.json budget block (parity gate)', () => {
+    const configPath = path.resolve(path.dirname(fileURLToPath(import.meta.url)), 'calibration-config.json');
+    const config = JSON.parse(readFileSync(configPath, 'utf-8')) as { budget: Record<string, number> };
+    const w = loadProvisionalWeights();
+    expect(w.budget).toEqual(config.budget);
   });
 });
 

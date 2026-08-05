@@ -110,7 +110,7 @@ export function loadProvisionalWeights(debateDir?: string): ProvisionalWeights {
       thorough: { maxTotalRounds: 8, argumentationExit: 0.80, concludingExit: 0.80 },
     },
     network: { gc_trigger: 175, gc_target: 150, hard_cap: 200 },
-    budget: { soft_multiplier: 6, hard_multiplier: 10, max_soft_multiplier: 8 },
+    budget: { soft_multiplier: 8, hard_multiplier: 15, max_soft_multiplier: 10 },
     evaluator: { model: 'gemini-3.5-flash-lite', version: 1 },
   };
   return _cachedWeights;
