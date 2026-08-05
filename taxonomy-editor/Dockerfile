@@ -62,18 +62,26 @@ COPY taxonomy/schemas/ ./taxonomy/schemas/
 WORKDIR /build/taxonomy-editor
 # Cache mount required: pnpm store not in image layer — `pnpm licenses list` reads
 # package index files from the store.
-# rm pnpm-workspace.yaml: in workspace mode pnpm licenses list enumerates ALL workspace
-# packages from the root lockfile including workflow-app deps (@google/genai etc.) that
-# are NOT installed in this stage → ERR_PNPM_MISSING_PACKAGE_INDEX_FILE. Without the
-# workspace marker pnpm falls back to the standalone taxonomy-editor/pnpm-lock.yaml.
-# symlink .pnpm: packages were installed into the workspace virtual store at
-# /build/node_modules/.pnpm, but after removing pnpm-workspace.yaml, generate-license-file
-# looks for package.json files under the standalone path
-# /build/taxonomy-editor/node_modules/.pnpm. Symlink bridges the two locations.
+# pnpm shim: in workspace mode, `pnpm licenses list --prod` (called by generate-license-file)
+# enumerates ALL workspace packages including workflow-app's @google/genai, @modelcontextprotocol/sdk
+# etc. that are NOT installed in this stage → ERR_PNPM_MISSING_PACKAGE_INDEX_FILE.
+# Deleting pnpm-workspace.yaml triggers a different failure: workspace vs standalone lockfiles
+# resolve some packages to different versions (e.g. @azure-rest/core-client 2.8.0 vs 2.6.0)
+# so generate-license-file looks for a version that doesn't exist in the virtual store.
+# Fix: intercept the `pnpm licenses list` call via a PATH shim that appends
+# --filter taxonomy-editor, scoping the listing to only installed packages.
+# The workspace virtual store paths remain valid (no workspace marker deleted).
 RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
-    rm /build/pnpm-workspace.yaml && \
-    ln -sf /build/node_modules/.pnpm /build/taxonomy-editor/node_modules/.pnpm && \
-    npm run build:container
+    REAL_PNPM="$(which pnpm)" && \
+    printf '%s\n' '#!/bin/sh' \
+        "REAL_PNPM=${REAL_PNPM}" \
+        'if [ "$1" = "licenses" ]; then' \
+        '  exec "$REAL_PNPM" "$@" --filter taxonomy-editor' \
+        'else' \
+        '  exec "$REAL_PNPM" "$@"' \
+        'fi' > /tmp/pnpm && \
+    chmod +x /tmp/pnpm && \
+    PATH="/tmp:$PATH" npm run build:container
 
 # ── Stage 2: Production dependencies (with build tools for native modules) ──
 FROM node:22.23.2-bookworm-slim AS prod-deps
