@@ -436,6 +436,7 @@ export async function htmlToMarkdown(html: string): Promise<string> {
   const tmpDir = fs.mkdtempSync(path.join(tmpdir(), 'aitriad-'));
   const tmpFile = path.join(tmpDir, 'input.html');
   try {
+    // codeql[js/http-to-file-access] intentional: network HTML written to an app-generated mkdtempSync path for markitdown conversion; path is not user-controlled
     fs.writeFileSync(tmpFile, html, 'utf-8');
     return await runMarkitdown(tmpFile);
   } catch {
@@ -491,6 +492,7 @@ export async function loadSourceContent(filePath: string): Promise<string> {
 }
 
 export async function fetchUrlContent(url: string): Promise<string> {
+  // codeql[js/file-access-to-http] intentional: URL sourced from operator CLI config file, not untrusted network input; no SSRF risk
   const response = await fetch(url);
   if (!response.ok) {
     throw new ActionableError({
