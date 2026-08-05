@@ -2,12 +2,11 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { describe, it, expect, beforeEach } from 'vitest';
-import { readFileSync } from 'fs';
-import { fileURLToPath } from 'url';
-import path from 'path';
+import calibrationConfigJson from './calibration-config.json';
 import {
   loadProvisionalWeights,
   resetWeightsCache,
+  PROVISIONAL_WEIGHTS_FALLBACK,
   initPhaseState,
   validatePhaseState,
   validateAdaptiveConfig,
@@ -175,13 +174,6 @@ describe('loadProvisionalWeights', () => {
     expect(w.pacing_presets).toHaveProperty('tight');
     expect(w.pacing_presets).toHaveProperty('moderate');
     expect(w.pacing_presets).toHaveProperty('thorough');
-  });
-
-  it('budget fallback matches calibration-config.json budget block (parity gate)', () => {
-    const configPath = path.resolve(path.dirname(fileURLToPath(import.meta.url)), 'calibration-config.json');
-    const config = JSON.parse(readFileSync(configPath, 'utf-8')) as { budget: Record<string, number> };
-    const w = loadProvisionalWeights();
-    expect(w.budget).toEqual(config.budget);
   });
 });
 
@@ -1457,5 +1449,15 @@ describe('max-rounds concluding starvation (t/1256)', () => {
     });
     const result = evaluatePhaseTransition(state, ctx, signals, config);
     expect(result.action).toBe('terminate');
+  });
+});
+
+// ── Budget parity gate (t/2186) ───────────────────────────────
+// Compares the exported TS constant directly against the JSON — bypasses the filesystem
+// read path in loadProvisionalWeights() so this gate catches hardcoded drift in any env.
+describe('calibration-config.json budget parity', () => {
+  it('hardcoded budget fallback deep-equals calibration-config.json budget block', () => {
+    const { budget: jsonBudget } = calibrationConfigJson as unknown as { budget: Record<string, number> };
+    expect(PROVISIONAL_WEIGHTS_FALLBACK.budget).toEqual(jsonBudget);
   });
 });
