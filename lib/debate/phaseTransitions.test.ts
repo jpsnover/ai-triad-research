@@ -2,9 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { describe, it, expect, beforeEach } from 'vitest';
-import { readFileSync } from 'fs';
-import { fileURLToPath } from 'url';
-import path from 'path';
+import calibrationConfigJson from './calibration-config.json';
 import {
   loadProvisionalWeights,
   resetWeightsCache,
@@ -178,10 +176,9 @@ describe('loadProvisionalWeights', () => {
   });
 
   it('budget fallback matches calibration-config.json budget block (parity gate)', () => {
-    const configPath = path.resolve(path.dirname(fileURLToPath(import.meta.url)), 'calibration-config.json');
-    const config = JSON.parse(readFileSync(configPath, 'utf-8')) as { budget: Record<string, number> };
     const w = loadProvisionalWeights();
-    expect(w.budget).toEqual(config.budget);
+    const { budget: jsonBudget } = calibrationConfigJson as unknown as { budget: Record<string, number> };
+    expect(w.budget).toEqual(jsonBudget);
   });
 });
 
@@ -1459,3 +1456,19 @@ describe('max-rounds concluding starvation (t/1256)', () => {
     expect(result.action).toBe('terminate');
   });
 });
+<<<<<<< HEAD
+=======
+
+// ── Budget parity gate (t/2186) ───────────────────────────────
+// Asserts that the hardcoded browser fallback in loadProvisionalWeights() stays byte-for-byte
+// equal to the budget block in calibration-config.json. If either side drifts, this test fails.
+describe('calibration-config.json budget parity', () => {
+  beforeEach(() => resetWeightsCache());
+
+  it('hardcoded budget fallback deep-equals calibration-config.json budget block', () => {
+    const fallback = loadProvisionalWeights();
+    const { budget: jsonBudget } = calibrationConfigJson as unknown as { budget: Record<string, number> };
+    expect(fallback.budget).toEqual(jsonBudget);
+  });
+});
+>>>>>>> 6d52a82a (fix(debate): use static JSON import in budget parity test (jsdom compat))
