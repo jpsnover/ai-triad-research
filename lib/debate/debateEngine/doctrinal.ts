@@ -6,6 +6,7 @@ import { type ExtendedAIAdapter } from '../aiAdapter.js';
 import { POVER_INFO, type PovKey } from '../types.js';
 import { embedDoctrinalBoundaries, computeDoctrinalAnchoring, checkThresholdAnomalies } from '../doctrinalAnchoring.js';
 import { getGlobalRecorder } from '../../flight-recorder/index.js';
+import { DOCTRINAL_HARDCODED_BOUNDARY_WEIGHT, DOCTRINAL_SOFTCODED_BOUNDARY_WEIGHT } from '../debateConfig.js';
 
 // ── Doctrinal boundary embedding + anchoring (t/114) ─────
 
@@ -16,8 +17,6 @@ export async function setupDoctrinalAnchoring(engine: DebateEngineInternals): Pr
   // Collect boundary strings per active POV, separated by type
   const boundaries: Record<string, string[]> = {};
   const boundaryWeights: Record<string, number[]> = {};
-  const HARDCODED_WEIGHT = 1.0;
-  const SOFTCODED_WEIGHT = 0.7;
   for (const pover of engine.config.activePovers) {
     const info = POVER_INFO[pover];
     if (!info?.boundaries) continue;
@@ -26,8 +25,8 @@ export async function setupDoctrinalAnchoring(engine: DebateEngineInternals): Pr
     if (allBoundaries.length === 0) continue;
     boundaries[info.pov] = allBoundaries;
     boundaryWeights[info.pov] = [
-      ...hardcoded.map(() => HARDCODED_WEIGHT),
-      ...softcoded.map(() => SOFTCODED_WEIGHT),
+      ...hardcoded.map(() => DOCTRINAL_HARDCODED_BOUNDARY_WEIGHT),
+      ...softcoded.map(() => DOCTRINAL_SOFTCODED_BOUNDARY_WEIGHT),
     ];
   }
   if (Object.keys(boundaries).length === 0) return;

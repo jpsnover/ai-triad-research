@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import type { DebateEngineInternals } from './internals.js';
+import { PROCESS_REWARD_SIGNAL_HISTORY_DEPTH } from '../debateConfig.js';
 import { type ArgumentNetworkEdge, type SignalContext } from '../types.js';
 import { detectCruxNodes } from '../phaseTransitions.js';
 import { type SituationNode, type Category } from '../taxonomyTypes.js';
@@ -148,7 +149,7 @@ export function buildSignalContext(engine: DebateEngineInternals, round: number)
       },
     },
 
-    processRewards: (engine.session.process_rewards ?? []).slice(-12).map(pr => ({
+    processRewards: (engine.session.process_rewards ?? []).slice(-PROCESS_REWARD_SIGNAL_HISTORY_DEPTH).map(pr => ({
       round: pr.round, score: pr.score,
     })),
 
