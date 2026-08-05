@@ -4,7 +4,7 @@
 # POLICY (t/2006): no silent suppression. Every entry MUST carry: the CVE, the
 # affected package, WHY it is ignored, and a concrete REVISIT trigger. Anything
 # with an available upstream fix must be patched (base rebuild), not ignored.
-# Last reviewed: 2026-07-30 (Docker).
+# Last reviewed: 2026-08-05 (Docker).
 
 # ── perl-modules-5.36 (Debian bookworm) — NO UPSTREAM FIX AVAILABLE ─────────────
 # CVE-2026-13221  perl regex trie overflow (>65535 alternation branches)
@@ -34,3 +34,33 @@ CVE-2026-57433
 # REVISIT:   drop when Debian ships a fixed perl-modules-5.36 or the node-26 base
 #            lands (t/1990, ~2026-10-28); re-scan and remove if cleared.
 CVE-2026-8376  # perl-modules-5.36, 32-bit regex only; no fix available; container is x86_64
+
+# ── perl (all sub-packages, Debian bookworm) — NO UPSTREAM FIX AVAILABLE ────────
+# CVE-2026-57432  perl use-after-free in regexp engine (distinct from CVE-2026-57433)
+# CVE-2026-7017   perl integer underflow in sprintf (note severity)
+#
+# Packages:  perl, perl-base, libperl5.36, perl-modules-5.36 (bookworm 5.36.0-7+deb12u3)
+# Fix state: Debian bookworm has published NO fixed version for either CVE as of
+#            2026-08-05 (Fixed Version field empty in Trivy). `apt-get upgrade`
+#            in the :2026-08-05 base rebuild did not clear these. (t/2158)
+# Exposure:  perl is present only as a transitive dependency of git + pandoc in the
+#            base image. The application does not invoke perl directly or on
+#            untrusted input — no attacker-controlled path reaches the regexp engine
+#            or sprintf code paths that trigger these bugs.
+# REVISIT:   drop when Debian ships a fixed perl (deb12u4+) or the node-26 /
+#            newer-Debian base lands (t/1990, ~2026-10-28). Re-scan and remove.
+CVE-2026-57432
+CVE-2026-7017
+
+# ── util-linux (Debian bookworm) — NO UPSTREAM FIX AVAILABLE ────────────────────
+# CVE-2026-13595  util-linux mount privilege-escalation via crafted fstab (warning)
+#
+# Packages:  util-linux, util-linux-extra (bookworm)
+# Fix state: Debian bookworm has published NO fixed version as of 2026-08-05.
+# Exposure:  Container runs as non-root user (aitriad). The vulnerable mount code
+#            paths require CAP_SYS_ADMIN or root. The image drops all capabilities
+#            (drop-all-caps, no-new-privileges) and is not deployed with privileged
+#            mode, so this attack vector is not reachable in our runtime.
+# REVISIT:   drop when Debian ships a fixed util-linux for bookworm or the
+#            node-26 / newer-Debian base lands (t/1990, ~2026-10-28). Re-scan.
+CVE-2026-13595
