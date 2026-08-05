@@ -30,6 +30,20 @@ import { resolveStageModel, resolveModelForSpeaker, recordRateLimit, clearRateLi
 import { _rescoreSituations, buildSignalContext, recordSignalHistory, updatePeakTracker, accumulateContextManifest } from '../adaptiveStaging.js';
 import { enrichTaxonomyRefs, getRelevantTaxonomyContext, formatDebaterEdgeContext, formatModeratorEdgeContext, routeTurnValidatorHints } from '../taxonomyContext.js';
 import { getCommitmentContext, getEstablishedPointsContext } from '../context.js';
+import {
+  MIDPOINT_NEUTRAL_EVAL_ROUND_CAP,
+  COMPRESSION_TRIGGER_TRANSCRIPT_LENGTH,
+  SOURCE_DOC_SUMMARY_CHAR_LIMIT,
+  CONCESSION_CANDIDATE_MIN_QBAF_STRENGTH,
+  RECENT_TRANSCRIPT_WINDOW_TURNS,
+  PRIOR_MOVES_DIVERSITY_WINDOW,
+  CROSS_POV_CITATION_ACTIVATION_ROUND,
+  CROSS_POV_NODE_DIVERSITY_LIMIT,
+  INSULARITY_INTERVENTION_COOLDOWN_ROUNDS,
+  INSULARITY_INTERVENTION_PER_SPEAKER_CAP,
+  JUDGE_TIMEOUT_MS,
+  OVERGEN_TRANSCRIPT_WINDOW_TURNS,
+} from '../../debateConfig.js';
 import { injectPerturbation } from '../perturbation.js';
 import { shouldTriggerDiversityRound, runDiversityRound } from './diversityInjection.js';
 import { runProbingQuestions } from './probingQuestions.js';
@@ -39,7 +53,7 @@ import type { TalmudicReferenceSelection } from '../../types.js';
 // ── Phase: Cross-respond round ─────────────────────────────
 
 export async function runFixedCrossRespond(engine: DebateEngineInternals): Promise<void> {
-  const midpointRound = Math.min(3, Math.ceil(engine.config.rounds / 2));
+  const midpointRound = Math.min(MIDPOINT_NEUTRAL_EVAL_ROUND_CAP, Math.ceil(engine.config.rounds / 2));
   const w = loadProvisionalWeights();
   let gcRan = false;
 
@@ -83,7 +97,7 @@ export async function runFixedCrossRespond(engine: DebateEngineInternals): Promi
       await runProbingQuestions(engine, round);
     }
 
-    if (engine.session.transcript.length >= 12) {
+    if (engine.session.transcript.length >= COMPRESSION_TRIGGER_TRANSCRIPT_LENGTH) {
       await engine._synthesisPipeline.compressContext();
     }
 
@@ -107,7 +121,7 @@ export async function runAdaptiveCrossRespond(engine: DebateEngineInternals): Pr
   let currentPhaseStartRound = 1;
   let currentPhaseExitReason = '';
 
-  const midpointRound = Math.min(3, Math.ceil(config.maxTotalRounds / 2));
+  const midpointRound = Math.min(MIDPOINT_NEUTRAL_EVAL_ROUND_CAP, Math.ceil(config.maxTotalRounds / 2));
 
   while (!terminated) {
     engine.checkAborted();
@@ -314,7 +328,7 @@ export async function runAdaptiveCrossRespond(engine: DebateEngineInternals): Pr
       await runProbingQuestions(engine, round);
     }
 
-    if (engine.session.transcript.length >= 12) {
+    if (engine.session.transcript.length >= COMPRESSION_TRIGGER_TRANSCRIPT_LENGTH) {
       await engine._synthesisPipeline.compressContext();
     }
 
@@ -333,7 +347,7 @@ export async function runCrossRespondRound(engine: DebateEngineInternals, round:
   engine.checkAborted();
 
   const sourceDocSummary = engine.session.document_analysis?.claims_summary
-    ?? (engine.session.source_content ? engine.session.source_content.slice(0, 2000) : undefined);
+    ?? (engine.session.source_content ? engine.session.source_content.slice(0, SOURCE_DOC_SUMMARY_CHAR_LIMIT) : undefined);
 
   const moderatorModel = resolveStageModel(engine, 'moderator');
   const selectionCallbacks: ModeratorSelectionCallbacks = {
@@ -484,14 +498,14 @@ export async function runCrossRespondRound(engine: DebateEngineInternals, round:
   const concessionCandidateIds = concessionHint
     ? (concessionAN!.nodes
         .filter(n => n.speaker !== responder)
-        .filter(n => (n.computed_strength ?? n.base_strength ?? 0) >= 0.65)
+        .filter(n => (n.computed_strength ?? n.base_strength ?? 0) >= CONCESSION_CANDIDATE_MIN_QBAF_STRENGTH)
         .filter(n => !concessionAN!.edges.some(e => e.type === 'attacks' && e.source && concessionAN!.nodes.find(x => x.id === e.source)?.speaker === responder && e.target === n.id))
         .filter(n => !priorConceded.includes(n.id) && !priorConceded.includes(n.text))
         .sort((a, b) => (b.computed_strength ?? 0) - (a.computed_strength ?? 0))
         .slice(0, 2)
         .map(n => n.id))
     : [];
-  const updatedTranscript = formatRecentTranscript(engine.session.transcript, 8, engine.session.context_summaries);
+  const updatedTranscript = formatRecentTranscript(engine.session.transcript, RECENT_TRANSCRIPT_WINDOW_TURNS, engine.session.context_summaries);
 
   // Collect this debater's prior move_types for diversity enforcement
   const debaterTurns = engine.session.transcript
@@ -500,7 +514,7 @@ export async function runCrossRespondRound(engine: DebateEngineInternals, round:
     .filter(e => e.metadata)
     .flatMap(e => ((e.metadata as Record<string, unknown>)?.move_types as (string | import('../../helpers.js').MoveAnnotation)[]) ?? [])
     .map(m => getMoveName(m))
-    .slice(-6); // Last 3 turns × ~2 moves each
+    .slice(-PRIOR_MOVES_DIVERSITY_WINDOW); // Last 3 turns × ~2 moves each
 
   // Count turns since this debater last used a CONCEDE move
   let turnsSinceLastConcession = debaterTurns.length; // default: never conceded
@@ -522,13 +536,13 @@ export async function runCrossRespondRound(engine: DebateEngineInternals, round:
   ];
 
   // Gather cross-POV node IDs for late-round citation diversity (Rec 3)
-  const crossPovNodeIds = round >= 4
+  const crossPovNodeIds = round >= CROSS_POV_CITATION_ACTIVATION_ROUND
     ? Object.entries(taxMap)
         .filter(([key]) => key !== info.pov && key !== 'policyRegistry')
         .flatMap(([, file]) => file?.nodes?.map(n => n.id) ?? [])
         .filter(id => !priorRefsEarly.includes(id))
         .sort(() => Math.random() - 0.5)
-        .slice(0, 8)
+        .slice(0, CROSS_POV_NODE_DIVERSITY_LIMIT)
     : undefined;
 
   // ── Insularity intervention (BEA RUE, t/1130) ──
@@ -549,8 +563,8 @@ export async function runCrossRespondRound(engine: DebateEngineInternals, round:
       const lastRoundForSpeaker = speakerInterventions.length > 0
         ? Math.max(...speakerInterventions.map(i => i.round))
         : -Infinity;
-      const cooldownOk = round - lastRoundForSpeaker >= 2;
-      const capOk = speakerInterventions.length < 2;
+      const cooldownOk = round - lastRoundForSpeaker >= INSULARITY_INTERVENTION_COOLDOWN_ROUNDS;
+      const capOk = speakerInterventions.length < INSULARITY_INTERVENTION_PER_SPEAKER_CAP;
 
       if (cooldownOk && capOk) {
         const allCampNodes = Object.entries(
@@ -786,9 +800,9 @@ export async function runCrossRespondRound(engine: DebateEngineInternals, round:
       preCheckGenerate,
     ),
     assembleResult: (result) => assemblePipelineResult(result, knownIds),
-    callJudge: (p, l) => engine.generateWithModel(p, l, vConfig.judgeModel, 20000),
+    callJudge: (p, l) => engine.generateWithModel(p, l, vConfig.judgeModel, JUDGE_TIMEOUT_MS),
     callJudgeFallback: engine.config.model !== vConfig.judgeModel
-      ? (p, l) => engine.generateWithModel(p, l, engine.config.model, 20000)
+      ? (p, l) => engine.generateWithModel(p, l, engine.config.model, JUDGE_TIMEOUT_MS)
       : undefined,
   };
 
@@ -869,7 +883,7 @@ export async function runCrossRespondRound(engine: DebateEngineInternals, round:
             label: poverInfo.label,
             pov: poverInfo.pov,
             topic: engine.session.topic.final,
-            recentTranscript: formatRecentTranscript(engine.session.transcript, 6, engine.session.context_summaries),
+            recentTranscript: formatRecentTranscript(engine.session.transcript, OVERGEN_TRANSCRIPT_WINDOW_TURNS, engine.session.context_summaries),
             audience: engine.config.audience,
             currentCruxContext: engine.session.crux_tracker?.length
               ? engine.session.crux_tracker.map(c => `- ${c.description} [${c.state}]`).join('\n')

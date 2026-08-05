@@ -11,6 +11,12 @@ import { runTurnPipeline, assemblePipelineResult, type TurnPipelineInput } from 
 import { resolveModelForSpeaker, recordRateLimit, clearRateLimitBackoff, isRateLimitError } from '../modelResolution.js';
 import { enrichTaxonomyRefs, getRelevantTaxonomyContext, formatDebaterEdgeContext } from '../taxonomyContext.js';
 import { getCommitmentContext, getEstablishedPointsContext } from '../context.js';
+import {
+  DIVERSITY_MIN_ACTIVATION_ROUND,
+  DIVERSITY_REPETITION_RATE_THRESHOLD,
+  PRIOR_MOVES_DIVERSITY_WINDOW,
+  JUDGE_TIMEOUT_MS,
+} from '../../debateConfig.js';
 
 // ── Diversity-injection round (t/1280) ─────────────────────
 
@@ -18,7 +24,7 @@ export function shouldTriggerDiversityRound(engine: DebateEngineInternals, round
   if (!engine.config.enableDiversityRound) return false;
   if (phase !== 'argumentation') return false;
   if (engine.session.diversity_round_fired != null) return false;
-  if (round < 3) return false;
+  if (round < DIVERSITY_MIN_ACTIVATION_ROUND) return false;
 
   const signals = engine.session.convergence_signals ?? [];
   const recentSignals = signals.filter(s => s.round >= round - 1);
@@ -27,7 +33,7 @@ export function shouldTriggerDiversityRound(engine: DebateEngineInternals, round
     s => s.argument_redundancy?.semantically_recycled === true,
   ).length;
   const repetitionRate = recycledCount / recentSignals.length;
-  if (repetitionRate < 0.5) return false;
+  if (repetitionRate < DIVERSITY_REPETITION_RATE_THRESHOLD) return false;
 
   const diag = engine.session.diagnostics;
   if (!diag) return false;
@@ -91,7 +97,7 @@ export async function runDiversityRound(engine: DebateEngineInternals, round: nu
       .filter(e => e.metadata)
       .flatMap(e => ((e.metadata as Record<string, unknown>)?.move_types as (string | import('../../helpers.js').MoveAnnotation)[]) ?? [])
       .map(m => getMoveName(m))
-      .slice(-6);
+      .slice(-PRIOR_MOVES_DIVERSITY_WINDOW);
     let turnsSinceLastConcession = debaterTurns.length;
     for (let i = debaterTurns.length - 1; i >= 0; i--) {
       const moves = ((debaterTurns[i].metadata as Record<string, unknown>)?.move_types as (string | import('../../helpers.js').MoveAnnotation)[]) ?? [];
@@ -185,7 +191,7 @@ export async function runDiversityRound(engine: DebateEngineInternals, round: nu
         preCheckGenerate,
       ),
       assembleResult: (result) => assemblePipelineResult(result, knownIds),
-      callJudge: (p, l) => engine.generateWithModel(p, l, vConfig.judgeModel, 20000),
+      callJudge: (p, l) => engine.generateWithModel(p, l, vConfig.judgeModel, JUDGE_TIMEOUT_MS),
       callJudgeFallback: engine.config.model !== vConfig.judgeModel
         ? (p, l) => engine.generateWithModel(p, l, engine.config.model, 20000)
         : undefined,

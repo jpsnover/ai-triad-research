@@ -3,6 +3,14 @@
 
 import type { DebateEngineInternals } from './internals.js';
 import { getGlobalRecorder } from '../../flight-recorder/index.js';
+import {
+  EXPLORATION_EFFECTIVE_SITUATION_BOOST,
+  EXPLORATION_INEFFECTIVE_SITUATION_PENALTY,
+  EXPLORATION_SEEDING_RECOMMENDATION_SLICE,
+  EXPLORATION_ROUNDS_CLAMP,
+  EXPLORATION_EXIT_THRESHOLD_CLAMP,
+  EXPLORATION_TEMPERATURE_CLAMP,
+} from '../debateConfig.js';
 
 export function seedExplorationSummary(engine: DebateEngineInternals, summary: import('../explorationSummary.js').ExplorationSummary): void {
   if (summary.topic.final !== engine.session.topic.final &&
@@ -34,10 +42,10 @@ export function seedExplorationSummary(engine: DebateEngineInternals, summary: i
 
   // Step 2: Situation pre-filtering — store boost/penalty factors
   for (const sit of summary.effective_situations) {
-    engine._explorationBoosts.set(sit.id, 0.15);
+    engine._explorationBoosts.set(sit.id, EXPLORATION_EFFECTIVE_SITUATION_BOOST);
   }
   for (const sit of summary.ineffective_situations) {
-    engine._explorationBoosts.set(sit.id, -0.10);
+    engine._explorationBoosts.set(sit.id, EXPLORATION_INEFFECTIVE_SITUATION_PENALTY);
   }
   if (engine._explorationBoosts.size > 0) {
     getGlobalRecorder()?.record({
@@ -55,7 +63,7 @@ export function seedExplorationSummary(engine: DebateEngineInternals, summary: i
   // Step 3: AN priming — format argument sketch for Brief prompt injection
   const topNodes = [...summary.argument_sketch.nodes]
     .sort((a, b) => b.computed_strength - a.computed_strength)
-    .slice(0, 10);
+    .slice(0, EXPLORATION_SEEDING_RECOMMENDATION_SLICE);
   const primingParts: string[] = [];
   if (topNodes.length > 0) {
     const nodeLines = topNodes.map(
@@ -119,16 +127,16 @@ export function applyExplorationConfigDefaults(engine: DebateEngineInternals): v
     return;
   }
   if (engine.config.maxTotalRounds == null) {
-    engine.config.maxTotalRounds = Math.min(20, Math.max(6, rc.max_rounds));
+    engine.config.maxTotalRounds = Math.min(EXPLORATION_ROUNDS_CLAMP[1], Math.max(EXPLORATION_ROUNDS_CLAMP[0], rc.max_rounds));
   }
   if (engine.config.argumentationExitThreshold == null) {
-    engine.config.argumentationExitThreshold = Math.min(0.9, Math.max(0.4, rc.argumentation_exit_threshold));
+    engine.config.argumentationExitThreshold = Math.min(EXPLORATION_EXIT_THRESHOLD_CLAMP[1], Math.max(EXPLORATION_EXIT_THRESHOLD_CLAMP[0], rc.argumentation_exit_threshold));
   }
   if (engine.config.concludingExitThreshold == null) {
-    engine.config.concludingExitThreshold = Math.min(0.9, Math.max(0.4, rc.concluding_exit_threshold));
+    engine.config.concludingExitThreshold = Math.min(EXPLORATION_EXIT_THRESHOLD_CLAMP[1], Math.max(EXPLORATION_EXIT_THRESHOLD_CLAMP[0], rc.concluding_exit_threshold));
   }
   if (engine.config.temperature == null) {
-    engine.config.temperature = Math.min(1.0, Math.max(0.3, rc.temperature));
+    engine.config.temperature = Math.min(EXPLORATION_TEMPERATURE_CLAMP[1], Math.max(EXPLORATION_TEMPERATURE_CLAMP[0], rc.temperature));
   }
   if (engine.config.pacing == null) {
     engine.config.pacing = rc.pacing;
