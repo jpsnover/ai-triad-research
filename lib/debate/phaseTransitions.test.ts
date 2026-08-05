@@ -6,6 +6,7 @@ import { readFileSync } from 'fs';
 import {
   loadProvisionalWeights,
   resetWeightsCache,
+  PROVISIONAL_WEIGHTS_FALLBACK,
   initPhaseState,
   validatePhaseState,
   validateAdaptiveConfig,
@@ -1454,12 +1455,19 @@ describe('max-rounds concluding starvation (t/1256)', () => {
 // ── Budget parity gate (t/2186) ───────────────────────────────
 // Asserts that the hardcoded browser fallback in loadProvisionalWeights() stays byte-for-byte
 // equal to the budget block in calibration-config.json. If either side drifts, this test fails.
-// Skipped in non-file-scheme environments (e.g. vite/jsdom) where import.meta.url is not file:.
-describe.skipIf(!import.meta.url.startsWith('file:'))('calibration-config.json budget parity', () => {
+// ERR_INVALID_URL_SCHEME is caught and returns early (skip) in vite/jsdom environments where
+// import.meta.url resolves to a non-file URL at test execution time; all other errors re-throw.
+describe('calibration-config.json budget parity', () => {
   beforeEach(() => resetWeightsCache());
 
   it('hardcoded budget fallback deep-equals calibration-config.json budget block', () => {
-    const raw = readFileSync(new URL('./calibration-config.json', import.meta.url), 'utf-8');
+    let raw: string;
+    try {
+      raw = readFileSync(new URL('./calibration-config.json', import.meta.url), 'utf-8');
+    } catch (e) {
+      if ((e as NodeJS.ErrnoException).code === 'ERR_INVALID_URL_SCHEME') return;
+      throw e;
+    }
     const { budget: jsonBudget } = JSON.parse(raw) as { budget: Record<string, number> };
     const fallback = loadProvisionalWeights();
     expect(fallback.budget).toEqual(jsonBudget);
