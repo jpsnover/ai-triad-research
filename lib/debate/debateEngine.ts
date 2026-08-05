@@ -82,7 +82,7 @@ import { extractClaimsPrompt, classifyClaimsPrompt, formatArgumentNetworkContext
 import { embedDoctrinalBoundaries, computeDoctrinalAnchoring, checkThresholdAnomalies, type BoundaryEmbeddings, type DoctrinalAnchoringConfig } from './doctrinalAnchoring.js';
 import { extractCalibrationData, appendCalibrationLog, readCalibrationLog } from './calibrationLogger.js';
 import { DEFAULT_ATTACK_WEIGHTS } from './qbaf.js';
-import { DEFAULT_AI_TIMEOUT_MS, DEFAULT_RELEVANCE_THRESHOLD, DEFAULT_TEMPERATURE } from './constants.js';
+import { DEFAULT_AI_TIMEOUT_MS, DEFAULT_RELEVANCE_THRESHOLD } from './constants.js';
 import { computeStrategicHints } from './strategicHints.js';
 import { evaluateLookahead, type LookaheadDiagnostics } from './lookaheadGate.js';
 import { runOvergenPipeline, type OvergenDiagnostics } from './overgenPipeline.js';
@@ -157,8 +157,8 @@ import type { ModeratorSelectionCallbacks, ModeratorSelectionInput, TurnRetryCal
 import { pruneSessionData, pruneModeratorState } from './sessionPruning.js';
 import { getGlobalRecorder } from '../flight-recorder/index.js';
 import { callByUsage } from '../ai-client/usageRegistry.js';
-import { runTurnPipeline, assemblePipelineResult, runOpeningPipeline, assembleOpeningPipelineResult, getOpeningRepairHints } from './turnPipeline.js';
-import type { TurnPipelineInput, OpeningPipelineInput } from './turnPipeline.js';
+import { DEFAULT_TEMPERATURE } from '../ai-client/defaults.js';
+import { runTurnPipeline, assemblePipelineResult, runOpeningPipeline, assembleOpeningPipelineResult, getOpeningRepairHints, type TurnPipelineInput, type OpeningPipelineInput } from './turnPipeline.js';
 import { TopicPipeline } from './topicPipeline.js';
 import { ClaimExtractionPipeline } from './claimExtractionPipeline.js';
 import { SynthesisPipeline } from './synthesisPipeline.js';
