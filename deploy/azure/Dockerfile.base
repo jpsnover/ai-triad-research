@@ -35,8 +35,15 @@ LABEL org.opencontainers.image.licenses="MIT"
 RUN npm install -g npm@latest
 # ip-address 10.3.1 fixes CVE-2026-69192 (HIGH). npm@latest bundles 10.2.0;
 # upgrade explicitly within npm's own bundle until npm ships 10.3.1+. (t/2177)
-# hadolint ignore=DL3016
-RUN cd /usr/local/lib/node_modules/npm && npm install ip-address@10.3.1
+# Use npm pack + direct extraction instead of `npm install` inside the npm package
+# dir — the latter triggers resolution of @npmcli/docs@^1.0.0 (non-existent on
+# the registry), causing a 404 build failure. npm pack fetches only the tarball.
+RUN npm pack ip-address@10.3.1 --pack-destination /tmp \
+    && rm -rf /usr/local/lib/node_modules/npm/node_modules/ip-address \
+    && mkdir -p /usr/local/lib/node_modules/npm/node_modules/ip-address \
+    && tar -xzf /tmp/ip-address-10.3.1.tgz --strip-components=1 \
+         -C /usr/local/lib/node_modules/npm/node_modules/ip-address \
+    && rm /tmp/ip-address-10.3.1.tgz
 
 # System dependencies (runtime only — build tools like make/g++ live in the app
 # Dockerfile's builder stage, not here).
