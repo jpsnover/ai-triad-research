@@ -19,6 +19,7 @@ import type { DocMetaMap } from '../evidenceFromSummaries.js';
 import { PROMPT_VERSION } from '../prompts.js';
 import { DEFAULT_ATTACK_WEIGHTS } from '../qbaf.js';
 import { POLARITY_RESOLVED_THRESHOLD, SEMANTIC_RECYCLING_THRESHOLD, ATTACK_DEDUP_THRESHOLD } from '../constants.js';
+import { DEFAULT_TEMPERATURE } from '../../ai-client/defaults.js';
 import { computeAgentUtility } from '../agentUtility.js';
 import type { AgentUtility } from '../agentUtility.js';
 import { computeOperationalClosure } from '../operationalClosure.js';
@@ -421,7 +422,7 @@ export function extractCalibrationData(
 
     structural_error_rate: totalTurns > 0 ? structuralErrors / totalTurns : 0,
     repetition_rate: totalTurns > 0 ? repetitionWarnings / totalTurns : 0,
-    draft_temperature: config.draftTemperature ?? 0.7,
+    draft_temperature: config.draftTemperature ?? DEFAULT_TEMPERATURE,
 
     argumentative_saturation_signals_at_transition: signalsAtTransition,
     argumentative_saturation_weights: config.argumentativeSaturationWeights ?? {

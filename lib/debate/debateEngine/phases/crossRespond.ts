@@ -25,7 +25,7 @@ import { runModeratorSelection, executeTurnWithRetry, type ModeratorSelectionCal
 import { pruneSessionData, pruneModeratorState } from '../../sessionPruning.js';
 import { getGlobalRecorder } from '../../../flight-recorder/index.js';
 import { runTurnPipeline, assemblePipelineResult, type TurnPipelineInput } from '../../turnPipeline.js';
-import { DEFAULT_TEMPERATURE } from '../../constants.js';
+import { DEFAULT_TEMPERATURE } from '../../../ai-client/defaults.js';
 import { resolveStageModel, resolveModelForSpeaker, recordRateLimit, clearRateLimitBackoff, isRateLimitError } from '../modelResolution.js';
 import { _rescoreSituations, buildSignalContext, recordSignalHistory, updatePeakTracker, accumulateContextManifest } from '../adaptiveStaging.js';
 import { enrichTaxonomyRefs, getRelevantTaxonomyContext, formatDebaterEdgeContext, formatModeratorEdgeContext, routeTurnValidatorHints } from '../taxonomyContext.js';
