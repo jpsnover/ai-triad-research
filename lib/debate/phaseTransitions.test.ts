@@ -2,7 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { describe, it, expect, beforeEach } from 'vitest';
-import { readFileSync } from 'fs';
+import calibrationConfigJson from './calibration-config.json';
 import {
   loadProvisionalWeights,
   resetWeightsCache,
@@ -1458,9 +1458,8 @@ describe('calibration-config.json budget parity', () => {
   beforeEach(() => resetWeightsCache());
 
   it('hardcoded budget fallback deep-equals calibration-config.json budget block', () => {
-    const raw = readFileSync(new URL('./calibration-config.json', import.meta.url), 'utf-8');
-    const { budget: jsonBudget } = JSON.parse(raw) as { budget: Record<string, number> };
     const fallback = loadProvisionalWeights();
+    const { budget: jsonBudget } = calibrationConfigJson as unknown as { budget: Record<string, number> };
     expect(fallback.budget).toEqual(jsonBudget);
   });
 });
