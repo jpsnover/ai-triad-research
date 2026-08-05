@@ -32,17 +32,16 @@ COPY .npmrc ./
 COPY taxonomy-editor/package.json taxonomy-editor/pnpm-lock.yaml ./taxonomy-editor/
 COPY lib/ ./lib/
 
-# Install Node deps (including devDependencies for build)
+# Install Node deps. --ignore-scripts skips electron download + electron-rebuild postinstall;
+# the binary isn't needed for tsc/vite compilation (builder stage is discarded anyway).
 WORKDIR /build/taxonomy-editor
-RUN --mount=type=cache,target=/root/.local/share/pnpm/store pnpm install --frozen-lockfile
+RUN --mount=type=cache,target=/root/.local/share/pnpm/store pnpm install --frozen-lockfile --ignore-scripts
 
-# Install shared-lib deps too (t/2035): lib/ is a self-contained package with its
-# own package.json, and the sanitizer core's renderer-parity decoders must resolve
-# from lib/node_modules during build:server (tsc). Mirrors the test-electron CI job
-# (ci.yml "Install shared lib dependencies"). Without this, build:container's tsc
-# fails TS2307 on the lib/ core's decoder imports.
+# Install shared-lib deps too (t/2035). --ignore-scripts also prevents taxonomy-editor's
+# postinstall (electron-rebuild) from firing during this workspace-mode lib install, since
+# pnpm workspace mode runs all workspace members' postinstalls when hoisting.
 WORKDIR /build/lib
-RUN --mount=type=cache,target=/root/.local/share/pnpm/store pnpm install --frozen-lockfile
+RUN --mount=type=cache,target=/root/.local/share/pnpm/store pnpm install --frozen-lockfile --ignore-scripts
 
 # Copy source and build
 WORKDIR /build
