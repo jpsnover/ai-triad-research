@@ -44,6 +44,14 @@ RUN npm pack ip-address@10.3.1 --pack-destination /tmp \
     && tar -xzf /tmp/ip-address-10.3.1.tgz --strip-components=1 \
          -C /usr/local/lib/node_modules/npm/node_modules/ip-address \
     && rm /tmp/ip-address-10.3.1.tgz
+# brace-expansion 5.0.9 fixes CVE-2026-69152 (HIGH). npm@latest bundles 5.0.7;
+# same npm pack + direct extraction pattern as ip-address above. (t/2173)
+RUN npm pack brace-expansion@5.0.9 --pack-destination /tmp \
+    && rm -rf /usr/local/lib/node_modules/npm/node_modules/brace-expansion \
+    && mkdir -p /usr/local/lib/node_modules/npm/node_modules/brace-expansion \
+    && tar -xzf /tmp/brace-expansion-5.0.9.tgz --strip-components=1 \
+         -C /usr/local/lib/node_modules/npm/node_modules/brace-expansion \
+    && rm /tmp/brace-expansion-5.0.9.tgz
 
 # System dependencies (runtime only — build tools like make/g++ live in the app
 # Dockerfile's builder stage, not here).
