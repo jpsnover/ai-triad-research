@@ -218,6 +218,22 @@ export interface CalibrationDataPoint {
   situation_reference_rate: number | null;
   /** Max situation nodes cap used */
   situation_max_nodes: number;
+  /**
+   * Per-injected-situation component scores from the final mid-debate re-scoring snapshot
+   * (last-write-wins — not averaged across rounds). bdi_entropy and conflict_openness are
+   * always 0 in mid-debate context. composite = weightedSituationScore(components, MID_DEBATE_WEIGHTS).
+   * Null when adaptive staging did not run or no situations were scored.
+   */
+  situation_component_scores: Array<{
+    node_id: string;
+    composite: number;
+    referenced: boolean;
+    relevance: number;
+    diversity: number;
+    freshness: number;
+    bdi_entropy: number;
+    conflict_openness: number;
+  }> | null;
 
   // ── Per-claim drift / sycophancy ──
   /** Whether the per-claim sycophancy guard fired during this debate */

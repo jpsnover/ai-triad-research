@@ -19,6 +19,7 @@ import type { DocMetaMap } from '../evidenceFromSummaries.js';
 import { PROMPT_VERSION } from '../prompts.js';
 import { DEFAULT_ATTACK_WEIGHTS } from '../qbaf.js';
 import { POLARITY_RESOLVED_THRESHOLD, SEMANTIC_RECYCLING_THRESHOLD, ATTACK_DEDUP_THRESHOLD } from '../constants.js';
+import { weightedSituationScore, MID_DEBATE_WEIGHTS } from '../situationScoring.js';
 import { DEFAULT_TEMPERATURE } from '../../ai-client/defaults.js';
 import { computeAgentUtility } from '../agentUtility.js';
 import type { AgentUtility } from '../agentUtility.js';
@@ -475,6 +476,23 @@ export function extractCalibrationData(
     situation_crux_alignment: sitCruxAlignment,
     situation_reference_rate: sitNodesInjected > 0 ? sitNodesReferenced / sitNodesInjected : null,
     situation_max_nodes: config.explorationSummary?.recommended_config?.situation_cap ?? config.situationMaxNodes ?? 8,
+    situation_component_scores: (() => {
+      const scoreMap = session.situation_score_map;
+      if (!scoreMap || Object.keys(scoreMap).length === 0) return null;
+      const referencedSitIds = new Set(
+        session.transcript.flatMap(e => e.taxonomy_refs ?? []).map(r => r.node_id).filter(id => id.startsWith('sit-')),
+      );
+      return Object.entries(scoreMap).map(([node_id, comp]) => ({
+        node_id,
+        composite: weightedSituationScore(comp, MID_DEBATE_WEIGHTS),
+        referenced: referencedSitIds.has(node_id),
+        relevance: comp.relevance,
+        diversity: comp.diversity,
+        freshness: comp.freshness,
+        bdi_entropy: comp.bdi_entropy,
+        conflict_openness: comp.conflict_openness,
+      }));
+    })(),
 
     agent_utilities: agentUtilities,
     low_value_claims_rejected: lowValueRejected,

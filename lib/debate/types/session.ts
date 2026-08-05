@@ -461,6 +461,8 @@ export interface DebateSession {
   };
   /** Round at which a diversity-injection round fired (max 1 per debate). Absent if never triggered. */
   diversity_round_fired?: number;
+  /** Per-situation component scores from mid-debate re-scoring (last-write-wins across rounds). Populated when adaptive staging re-scores situations. Only includes scored situation nodes. */
+  situation_score_map?: Record<string, import('../situationScoring.js').SituationScoreComponents>;
   /** Crux-to-situation promotion candidates with BDI-enriched drafts (populated post-debate). */
   promotion_candidates?: Array<{
     crux_id: string;

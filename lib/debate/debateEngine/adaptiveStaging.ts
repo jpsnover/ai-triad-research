@@ -5,7 +5,7 @@ import type { DebateEngineInternals } from './internals.js';
 import { type ArgumentNetworkEdge, type SignalContext } from '../types.js';
 import { detectCruxNodes } from '../phaseTransitions.js';
 import { type SituationNode } from '../taxonomyTypes.js';
-import { reScoreSituationsForCruxes } from '../taxonomyRelevance.js';
+import { reScoreSituationsForCruxesDetailed } from '../taxonomyRelevance.js';
 import { computeTaxonomyGapAnalysis } from '../taxonomyGapAnalysis.js';
 
 /** Re-score situations against emerging cruxes at phase transitions. */
@@ -23,7 +23,7 @@ export function _rescoreSituations(engine: DebateEngineInternals): void {
     engine.session.transcript.flatMap(e => e.taxonomy_refs).map(r => r.node_id).filter(id => id.startsWith('sit-')),
   );
 
-  engine._situationScoreAdjustments = reScoreSituationsForCruxes({
+  const rescoreResult = reScoreSituationsForCruxesDetailed({
     situationNodes: sitNodes,
     cruxes: engine.session.crux_tracker,
     anNodes: anForRescore.nodes,
@@ -32,6 +32,10 @@ export function _rescoreSituations(engine: DebateEngineInternals): void {
     referencedSitIds,
     edges: engine.taxonomy.edges?.edges,
   });
+  engine._situationScoreAdjustments = rescoreResult.adjustments;
+  // Persist components for calibration logging (last-write-wins per node across rounds).
+  const prevMap = engine.session.situation_score_map ?? {};
+  engine.session.situation_score_map = { ...prevMap, ...Object.fromEntries(rescoreResult.components) };
 }
 
 // ── Adaptive staging helpers ─────────────────────────────
