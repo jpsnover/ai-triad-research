@@ -1454,7 +1454,8 @@ describe('max-rounds concluding starvation (t/1256)', () => {
 // ── Budget parity gate (t/2186) ───────────────────────────────
 // Asserts that the hardcoded browser fallback in loadProvisionalWeights() stays byte-for-byte
 // equal to the budget block in calibration-config.json. If either side drifts, this test fails.
-describe('calibration-config.json budget parity', () => {
+// Skipped in non-file-scheme environments (e.g. vite/jsdom) where import.meta.url is not file:.
+describe.skipIf(!import.meta.url.startsWith('file:'))('calibration-config.json budget parity', () => {
   beforeEach(() => resetWeightsCache());
 
   it('hardcoded budget fallback deep-equals calibration-config.json budget block', () => {
