@@ -391,10 +391,17 @@ export function formatTaxonomyContext(ctx: TaxonomyContext, pov: string, maxNode
       }
     } else {
       // Flat fallback — no hierarchy data
-      let sortedSit = ctx.situationNodes;
-      if (hasScores) {
-        sortedSit = [...ctx.situationNodes].sort((a, b) => (ctx.nodeScores!.get(b.id) ?? 0) - (ctx.nodeScores!.get(a.id) ?? 0) || a.id.localeCompare(b.id));
+      let sortedSit: SituationNode[] = hasScores
+        ? [...ctx.situationNodes].sort((a, b) => (ctx.nodeScores!.get(b.id) ?? 0) - (ctx.nodeScores!.get(a.id) ?? 0) || a.id.localeCompare(b.id))
+        : [...ctx.situationNodes];
+      // Lost-in-the-Middle ordering: #1 first, #2 last, #3 second, #4 second-to-last…
+      const litm: SituationNode[] = new Array(sortedSit.length);
+      let lo = 0, hi = sortedSit.length;
+      for (let i = 0; i < sortedSit.length; i++) {
+        if (i % 2 === 0) litm[lo++] = sortedSit[i];
+        else litm[--hi] = sortedSit[i];
       }
+      sortedSit = litm;
       for (let i = 0; i < sortedSit.length; i++) {
         _renderSituationNode(lines, sortedSit[i], i < SIT_PRIMARY, pov, otherPovs, sitStatements, injectedStatementIds);
       }
