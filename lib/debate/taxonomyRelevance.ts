@@ -13,6 +13,7 @@ import type { TrackedCrux, ArgumentNetworkNode } from './types.js';
 import { stripExcludes } from './helpers.js';
 import { filterByExclusionRatio, type ExclusionFilterResult } from './exclusionGuard.js';
 import { POV_PREFIXES } from './nodeIdUtils.js';
+import { loadProvisionalWeights } from './phaseTransitions.js';
 import { WELL_TESTED_EXCLUSION, isReeligible } from './debateTested.js';
 
 export interface NodeRelevanceScore {
@@ -176,15 +177,15 @@ export function scoreNodeRelevanceMeanTopN(
 export function selectRelevantNodes(
   povNodes: PovNode[],
   scores: Map<string, number>,
-  thresholdOrOpts: number | RelevanceOptions = 0.48,
+  thresholdOrOpts: number | RelevanceOptions = loadProvisionalWeights().relevance!.embedding_threshold,
   minPerCategory: number = 3,
   maxTotal?: number,
 ): ScoredPovNode[] {
   const opts = typeof thresholdOrOpts === 'number' ? { threshold: thresholdOrOpts } : thresholdOrOpts;
   const threshold = opts.threshold ?? (
     opts.scoringMode === 'lexical'
-      ? (opts.lexicalThreshold ?? 0.22)
-      : (opts.embeddingThreshold ?? 0.48)
+      ? (opts.lexicalThreshold ?? loadProvisionalWeights().relevance!.lexical_threshold)
+      : (opts.embeddingThreshold ?? loadProvisionalWeights().relevance!.embedding_threshold)
   );
   minPerCategory = opts.minPerCategory ?? minPerCategory;
   maxTotal = opts.maxTotal ?? maxTotal;
@@ -443,15 +444,15 @@ export function buildSituationRootLookup(
 export function selectRelevantSituationNodes(
   situationNodes: SituationNode[],
   scores: Map<string, number>,
-  thresholdOrOpts: number | RelevanceOptions = 0.48,
+  thresholdOrOpts: number | RelevanceOptions = loadProvisionalWeights().relevance!.embedding_threshold,
   min: number = 3,
   max: number = 15,
 ): ScoredSituationNode[] {
   const opts = typeof thresholdOrOpts === 'number' ? { threshold: thresholdOrOpts } : thresholdOrOpts;
   const threshold = opts.threshold ?? (
     opts.scoringMode === 'lexical'
-      ? (opts.lexicalThreshold ?? 0.22)
-      : (opts.embeddingThreshold ?? 0.48)
+      ? (opts.lexicalThreshold ?? loadProvisionalWeights().relevance!.lexical_threshold)
+      : (opts.embeddingThreshold ?? loadProvisionalWeights().relevance!.embedding_threshold)
   );
 
   // Branch boosting: identify top root categories and boost their descendants

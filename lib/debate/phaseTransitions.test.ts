@@ -1461,3 +1461,14 @@ describe('calibration-config.json budget parity', () => {
     expect(PROVISIONAL_WEIGHTS_FALLBACK.budget).toEqual(jsonBudget);
   });
 });
+
+// ── Relevance parity gate (t/2187) ───────────────────────────
+describe('calibration-config.json relevance parity', () => {
+  it('hardcoded relevance thresholds match calibration-config.json relevance block', () => {
+    const { relevance: jsonRelevance } = calibrationConfigJson as unknown as {
+      relevance: { embedding_threshold: number; lexical_threshold: number };
+    };
+    expect(PROVISIONAL_WEIGHTS_FALLBACK.relevance?.embedding_threshold).toBe(jsonRelevance.embedding_threshold);
+    expect(PROVISIONAL_WEIGHTS_FALLBACK.relevance?.lexical_threshold).toBe(jsonRelevance.lexical_threshold);
+  });
+});

@@ -49,6 +49,13 @@ interface ProvisionalWeights {
   crux_detection?: { min_base_strength: number; min_cross_pov_attackers: number; min_total_cross_pov_edges: number };
   /** Pinned neutral-evaluator model — calibration invariant (t/1846). */
   evaluator?: { model: string; version: number };
+  /** Calibration-coupled relevance thresholds (t/2187). Required fields mirror calibration-config.json. */
+  relevance?: {
+    embedding_threshold: number;
+    lexical_threshold: number;
+    adaptation_enabled?: boolean;
+    adaptation_history?: Array<{ from: number; to: number; timestamp: string; rationale?: string }>;
+  };
 }
 
 // Exported so the parity test can compare the hardcoded values directly against
@@ -78,6 +85,7 @@ export const PROVISIONAL_WEIGHTS_FALLBACK: ProvisionalWeights = {
   network: { gc_trigger: 175, gc_target: 150, hard_cap: 200 },
   budget: { soft_multiplier: 8, hard_multiplier: 15, max_soft_multiplier: 10 },
   evaluator: { model: 'gemini-3.5-flash-lite', version: 1 },
+  relevance: { embedding_threshold: 0.48, lexical_threshold: 0.22 },
 };
 
 let _cachedWeights: ProvisionalWeights | null = null;
