@@ -813,8 +813,8 @@ export function reScoreSituationsForCruxesDetailed(input: SituationReScoreInput)
       relevance,
       diversity,
       freshness,
-      bdi_entropy: computeBdiEntropy(sit.linked_nodes, input.nodeCategoryLookup),
-      conflict_openness: computeConflictOpenness(sit.conflict_ids, new Set()),
+      bdi_entropy: computeBdiEntropy(sit.linked_nodes ?? [], input.nodeCategoryLookup),
+      conflict_openness: computeConflictOpenness(sit.conflict_ids ?? [], new Set()),
     };
     components.set(sit.id, comp);
 
