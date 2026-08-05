@@ -999,7 +999,7 @@ export function buildSignalTelemetry(
     signals: signalValues,
     composite: {
       argumentative_saturation_score: state.current_phase !== 'concluding' ? satScore : null,
-      convergence_score: state.current_phase === 'concluding' ? convScore : null,
+      convergence_score: convScore,
     },
     confidence: { extraction: extractionConf, stability: stabilityConf, global: globalConf },
     predicate_result: result,

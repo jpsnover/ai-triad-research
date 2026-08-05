@@ -1227,7 +1227,7 @@ describe('buildSignalTelemetry', () => {
     expect(record.network_size).toBe(10);
   });
 
-  it('fills argumentative_saturation_score for non-synthesis phase', () => {
+  it('fills both composite scores for non-concluding phase', () => {
     const state = makePhaseState({ current_phase: 'argumentation' });
     const ctx = makeSignalContext();
     const signals = buildSignalRegistry();
@@ -1237,7 +1237,7 @@ describe('buildSignalTelemetry', () => {
     };
     const record = buildSignalTelemetry(state, ctx, signals, result, 0.5, 50);
     expect(record.composite.argumentative_saturation_score).not.toBeNull();
-    expect(record.composite.convergence_score).toBeNull();
+    expect(record.composite.convergence_score).not.toBeNull();
   });
 
   it('fills convergence_score for synthesis phase', () => {
