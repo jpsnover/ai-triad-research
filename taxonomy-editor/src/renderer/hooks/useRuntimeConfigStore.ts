@@ -112,6 +112,7 @@ export function getNestedValue(obj: unknown, path: string): unknown {
 
 export function setNestedValue(obj: Record<string, unknown>, path: string, value: unknown): void {
   const parts = path.split('.');
+  if (parts.some(p => DANGEROUS_KEYS.has(p))) return;
   let cur = obj;
   for (let i = 0; i < parts.length - 1; i++) {
     const key = parts[i];
