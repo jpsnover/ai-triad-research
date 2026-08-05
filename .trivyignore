@@ -64,3 +64,172 @@ CVE-2026-7017
 # REVISIT:   drop when Debian ships a fixed util-linux for bookworm or the
 #            node-26 / newer-Debian base lands (t/1990, ~2026-10-28). Re-scan.
 CVE-2026-13595
+
+# ── python3.11-venv (Debian bookworm) — NO UPSTREAM FIX AVAILABLE ───────────────
+# CVE-2026-15308  python3.11-venv arbitrary code execution via crafted venv (error)
+# CVE-2026-11940  python3.11-venv privilege escalation in venv activation (error)
+# CVE-2026-11972  python3.11-venv path traversal in venv pip integration (warning)
+# CVE-2026-0864   python3.11-venv insecure temp file in venv creation (warning)
+# CVE-2026-6879   python3.11-venv integer overflow in bytecode compiler (note)
+#
+# Package:   python3-venv / python3.11-venv (installed 3.11.2-6+deb12u8)
+# Fix state: Debian bookworm has published NO fixed version for any of these CVEs
+#            as of 2026-08-05 (Fixed Version empty in Trivy).
+# Exposure:  python3-venv is installed only to support pty-broker.py (the PTY
+#            subprocess broker for the terminal UI). It does not process untrusted
+#            user input or create venvs on behalf of external callers. The venv
+#            attack surfaces (crafted pip packages, path traversal, activation
+#            scripts) are not reachable in our deployment.
+# REVISIT:   drop when Debian ships a fixed python3.11-venv for bookworm (deb12u9+),
+#            OR when the node-26 / newer-Debian base lands (t/1990, ~2026-10-28).
+CVE-2026-15308
+CVE-2026-11940
+CVE-2026-11972
+CVE-2026-0864
+CVE-2026-6879
+
+# ── python3-pip-whl (Debian bookworm) — NO UPSTREAM FIX AVAILABLE ───────────────
+# CVE-2026-13346  pip arbitrary package install via malicious index URL (warning)
+#
+# Package:   python3-pip-whl (installed 23.0.1+dfsg-1)
+# Fix state: Debian bookworm has published NO fixed version as of 2026-08-05.
+# Exposure:  pip is present as a transitive dep of python3-venv. The application
+#            does not invoke pip at runtime or use it to install packages from
+#            external sources — no attacker-controlled index URL is reachable.
+# REVISIT:   drop when Debian ships a fixed python3-pip-whl for bookworm, or the
+#            node-26 / newer-Debian base lands (t/1990, ~2026-10-28).
+CVE-2026-13346
+
+# ── libtiff6 (Debian bookworm) — NO UPSTREAM FIX AVAILABLE ──────────────────────
+# CVE-2026-12912  libtiff out-of-bounds read in TIFFReadDirectory (error)
+#
+# Package:   libtiff6 (installed 4.5.0-6+deb12u4)
+# Fix state: Debian bookworm has published NO fixed version as of 2026-08-05.
+# Exposure:  libtiff6 is a transitive dep of poppler-utils (PDF rendering).
+#            The application uses poppler only for server-side PDF text extraction
+#            on user-supplied academic papers; however, the vulnerable TIFFReadDirectory
+#            path is not invoked by our PDF pipeline (we parse text, not TIFF images
+#            embedded in PDFs). Practical exploitability is negligible.
+# REVISIT:   drop when Debian ships a fixed libtiff6 for bookworm, or the node-26
+#            / newer-Debian base lands (t/1990, ~2026-10-28).
+CVE-2026-12912
+
+# ── libcurl4 (Debian bookworm) — NO UPSTREAM FIX AVAILABLE ──────────────────────
+# CVE-2026-8924   libcurl SSRF via crafted URL redirect (warning)
+# CVE-2026-8932   libcurl cookie-jar information disclosure (warning)
+# CVE-2026-9547   libcurl integer overflow in chunked-encoding (note)
+#
+# Package:   libcurl4 (installed 7.88.1-10+deb12u15)
+# Fix state: Debian bookworm has published NO fixed version for any of these CVEs
+#            as of 2026-08-05 (Fixed Version empty in Trivy).
+# Exposure:  libcurl4 is present as a transitive dep of git. The application does
+#            not use libcurl directly at runtime; all outbound HTTP is via Node.js
+#            undici or the fetch API. git operations in the container are internal
+#            (clone at build time only). Cookie-jar and SSRF paths are not reachable.
+# REVISIT:   drop when Debian ships a fixed libcurl4 for bookworm (deb12u16+), or
+#            the node-26 / newer-Debian base lands (t/1990, ~2026-10-28).
+CVE-2026-8924
+CVE-2026-8932
+CVE-2026-9547
+
+# ── libnghttp2-14 (Debian bookworm) — NO UPSTREAM FIX AVAILABLE ─────────────────
+# CVE-2026-58055  nghttp2 HTTP/2 CONTINUATION frame DoS (warning)
+#
+# Package:   libnghttp2-14 (installed 1.52.0-1+deb12u3)
+# Fix state: Debian bookworm has published NO fixed version as of 2026-08-05.
+# Exposure:  libnghttp2-14 is a transitive dep of libcurl4 (itself a git dep).
+#            The application does not expose an HTTP/2 server and does not process
+#            attacker-controlled CONTINUATION frames. Not reachable in our deployment.
+# REVISIT:   drop when Debian ships a fixed libnghttp2-14, or the node-26 base lands.
+CVE-2026-58055
+
+# ── libp11-kit0 (Debian bookworm) — NO UPSTREAM FIX AVAILABLE ───────────────────
+# CVE-2026-13757  p11-kit PKCS#11 module path traversal (warning)
+#
+# Package:   libp11-kit0 (installed 0.24.1-2)
+# Fix state: Debian bookworm has published NO fixed version as of 2026-08-05.
+# Exposure:  libp11-kit0 is a transitive dep of the TLS stack. The application
+#            does not load PKCS#11 modules or use p11-kit APIs directly. The path
+#            traversal requires a privileged PKCS#11 module registration — not
+#            possible in our non-root, no-new-privileges container.
+# REVISIT:   drop when Debian ships a fix, or the node-26 base lands.
+CVE-2026-13757
+
+# ── libssh2-1 (Debian bookworm) — NO UPSTREAM FIX AVAILABLE ─────────────────────
+# CVE-2026-66032  libssh2 use-after-free in key exchange (warning)
+# CVE-2026-66033  libssh2 heap overflow in SCP path parsing (warning)
+# CVE-2026-66034  libssh2 integer overflow in SFTP (warning)
+# CVE-2026-66035  libssh2 null-deref in channel close (warning)
+#
+# Package:   libssh2-1 (Debian bookworm)
+# Fix state: Debian bookworm has published NO fixed version for any of these CVEs
+#            as of 2026-08-05 (Fixed Version empty in Trivy).
+# Exposure:  libssh2-1 is a transitive dep of libcurl4 (git dep). The application
+#            does not make SSH connections at runtime — git operations are HTTPS only.
+#            The libssh2 code paths are unreachable in our deployment.
+# REVISIT:   drop when Debian ships a fixed libssh2-1, or the node-26 base lands.
+CVE-2026-66032
+CVE-2026-66033
+CVE-2026-66034
+CVE-2026-66035
+
+# ── libsqlite3-0 (Debian bookworm) — NO UPSTREAM FIX AVAILABLE ──────────────────
+# CVE-2026-50812  SQLite use-after-free in window function (warning)
+# CVE-2026-50813  SQLite integer overflow in FTS5 tokenizer (warning)
+#
+# Package:   libsqlite3-0 (installed 3.40.1-2+deb12u2)
+# Fix state: Debian bookworm has published NO fixed version as of 2026-08-05.
+# Exposure:  libsqlite3-0 is a transitive dep of Python. The application does not
+#            use SQLite directly — all persistent state is in Azure Blob Storage.
+#            No attacker-controlled SQL is executed.
+# REVISIT:   drop when Debian ships a fixed libsqlite3-0, or the node-26 base lands.
+CVE-2026-50812
+CVE-2026-50813
+
+# ── libnss3 (Debian bookworm) — NO UPSTREAM FIX AVAILABLE ───────────────────────
+# CVE-2026-16389  NSS memory corruption in RSA-PSS signature verification (warning)
+#
+# Package:   libnss3 (installed 2:3.87.1-1+deb12u3)
+# Fix state: Debian bookworm has published NO fixed version as of 2026-08-05.
+# Exposure:  libnss3 is a transitive dep of the TLS/crypto stack. The container
+#            does not perform RSA-PSS verification on attacker-controlled inputs.
+# REVISIT:   drop when Debian ships a fixed libnss3, or the node-26 base lands.
+CVE-2026-16389
+
+# ── tar (Debian bookworm, OS package) — NO UPSTREAM FIX AVAILABLE ────────────────
+# NB: distinct from the npm "tar" package — these affect the OS-level GNU tar binary.
+# CVE-2026-18477  GNU tar path traversal in --extract with crafted archive (warning)
+# CVE-2026-18508  GNU tar symlink attack in --extract (warning)
+#
+# Package:   tar (installed 1.34+dfsg-1.2+deb12u1)
+# Fix state: Debian bookworm has published NO fixed version as of 2026-08-05.
+# Exposure:  The GNU tar binary is present in the image but the application does
+#            not extract untrusted archives at runtime. Archive extraction only
+#            occurs at image build time (controlled inputs). Runtime tar invocations
+#            from attacker-controlled paths are not possible.
+# REVISIT:   drop when Debian ships a fixed GNU tar, or the node-26 base lands.
+CVE-2026-18477
+CVE-2026-18508
+
+# ── diffutils (Debian bookworm) — NO UPSTREAM FIX AVAILABLE ─────────────────────
+# CVE-2026-53910  diff integer overflow on crafted input (note)
+#
+# Package:   diffutils (installed 1:3.8-4)
+# Fix state: Debian bookworm has published NO fixed version as of 2026-08-05.
+# Exposure:  diffutils is present as a transitive dep of git. The application does
+#            not invoke diff on attacker-controlled input at runtime.
+# REVISIT:   drop when Debian ships a fix, or the node-26 base lands.
+CVE-2026-53910
+
+# ── coreutils (Debian bookworm) — NO UPSTREAM FIX AVAILABLE ─────────────────────
+# CVE-2026-56391  coreutils cp race condition via crafted symlinks (note)
+# CVE-2026-56392  coreutils mv TOCTOU on crafted destination path (note)
+#
+# Package:   coreutils (installed 9.1-1)
+# Fix state: Debian bookworm has published NO fixed version as of 2026-08-05.
+# Exposure:  coreutils is a base OS package. The application does not invoke cp/mv
+#            on attacker-controlled paths at runtime. Container runs as non-root with
+#            no-new-privileges, limiting the symlink attack surface further.
+# REVISIT:   drop when Debian ships a fix, or the node-26 base lands.
+CVE-2026-56391
+CVE-2026-56392

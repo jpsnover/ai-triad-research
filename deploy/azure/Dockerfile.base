@@ -26,6 +26,14 @@ LABEL org.opencontainers.image.source="https://github.com/jpsnover/ai-triad-rese
 LABEL org.opencontainers.image.description="AI Triad Research — base image with Node 22 and baked ONNX embedding model"
 LABEL org.opencontainers.image.licenses="MIT"
 
+# Upgrade bundled npm to pull in security fixes for CVEs in npm's own deps
+# (tar CRITICAL CVE-2026-59873/59874, brace-expansion CVE-2026-69152/14257/13149,
+# ip-address CVE-2026-69192, sigstore CVE-2026-48815). Node 22 ships npm 10.x;
+# npm 11.x bundles patched versions of all these. Not pinned to exact patch to allow
+# CI Trivy scan to confirm clearance — pin after first successful scan. (t/2174)
+# hadolint ignore=DL3016
+RUN npm install -g npm@latest
+
 # System dependencies (runtime only — build tools like make/g++ live in the app
 # Dockerfile's builder stage, not here).
 # hadolint ignore=DL3008,DL3009
