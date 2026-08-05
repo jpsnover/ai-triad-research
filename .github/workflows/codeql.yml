@@ -26,6 +26,7 @@ on:
   schedule:
     # Weekly scan — catches new CVE patterns even without code changes
     - cron: '0 6 * * 1'
+  workflow_dispatch:
 
 permissions:
   contents: read
