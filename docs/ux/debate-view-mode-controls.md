@@ -2,7 +2,7 @@
 
 **Last updated:** 2026-08-05
 **Author:** Design (Orca)
-**Status:** Approved — all decisions recorded (p/351#6); ready to implement
+**Status:** Shipped (t/2172, PR #471) — Design signed off on all 10 ACs (t/2172#3); §6/§7 override-marker color corrected to `#fff` post-review
 **Requested by:** Jeffrey (p/351)
 **Implements:** redesign of the debate statement / global view-mode button row into a two-mode model
 
@@ -110,7 +110,8 @@ Scope of the memory:
 
 ### Per-statement ↔ global relationship (make the override legible)
 - Global sets the default; a per-statement pick overrides just that card (existing semantics — keep exactly).
-- **New affordance (ships in this pass — p/351#6 Q5):** when a statement's committed tier differs from the global default (i.e. `entry.display_tier != null`), mark the per-statement control as *overridden* — a subtle dot/underline on the active segment (color `var(--focus-ring)`) plus a small **"↺ match global"** control that calls `setEntryDisplayTier(entry.id, undefined)` to clear the override and fall back to the global default. Today there is no way to revert a single card to the global default; this closes that gap.
+- **New affordance (ships in this pass — p/351#6 Q5):** when a statement's committed tier differs from the global default (i.e. `entry.display_tier != null`), mark the per-statement control as *overridden* — a subtle dot on the active segment plus a small **"↺ match global"** control that calls `setEntryDisplayTier(entry.id, undefined)` to clear the override and fall back to the global default. Today there is no way to revert a single card to the global default; this closes that gap.
+  - **Marker color — corrected (design review t/2172):** the overridden segment is *also* the active (filled) segment, whose background is `var(--focus-ring)`. A `var(--focus-ring)`-colored dot on that fill is invisible. The override dot must **contrast the active fill** — use `#fff` (the active segment's own text color, guaranteed AA-legible on the fill in all four themes), rendered as a 3px dot after the label (e.g. `.debate-mode-seg-overridden::after`).
 
 ## 7. Visual design (four-theme, token-driven)
 
@@ -125,7 +126,7 @@ Extend the existing `.debate-tier-pill` look into a segmented control. **Fix the
 | Selected segment bg | `var(--focus-ring)` | theme accent that IS defined: light `#3b82f6`, dark `#60a5fa`, bkc `#4d7a8b`, harvard `#A51C30` |
 | Selected segment text | `#fff` | verify contrast per theme; harvard `#A51C30` on white text = AA ✓ |
 | Mode vs sub-option separator | `1px var(--border-color)` | |
-| Override marker (§6) | `var(--focus-ring)` | 3px dot after the active per-statement segment label |
+| Override marker (§6) | `#fff` | 3px dot after the active per-statement segment label. **Not** `var(--focus-ring)` — that equals the active-segment fill and renders invisible (design review t/2172). `#fff` = the active segment's text color, AA-legible on the fill in all four themes. |
 | Radius | `var(--radius-sm)` | matches current pills |
 | Size | `padding: 1px 6px`, `font-size: var(--text-2xs)`, `font-weight: 600`, uppercase `letter-spacing: 0.03em` | keep the current dense pill metrics; toolbar is space-constrained |
 
