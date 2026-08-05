@@ -3,8 +3,6 @@
 
 import { describe, it, expect, beforeEach } from 'vitest';
 import { readFileSync } from 'fs';
-import { fileURLToPath } from 'url';
-import path from 'path';
 import {
   loadProvisionalWeights,
   resetWeightsCache,
@@ -175,13 +173,6 @@ describe('loadProvisionalWeights', () => {
     expect(w.pacing_presets).toHaveProperty('tight');
     expect(w.pacing_presets).toHaveProperty('moderate');
     expect(w.pacing_presets).toHaveProperty('thorough');
-  });
-
-  it('budget fallback matches calibration-config.json budget block (parity gate)', () => {
-    const configPath = path.resolve(path.dirname(fileURLToPath(import.meta.url)), 'calibration-config.json');
-    const config = JSON.parse(readFileSync(configPath, 'utf-8')) as { budget: Record<string, number> };
-    const w = loadProvisionalWeights();
-    expect(w.budget).toEqual(config.budget);
   });
 });
 
@@ -1457,5 +1448,19 @@ describe('max-rounds concluding starvation (t/1256)', () => {
     });
     const result = evaluatePhaseTransition(state, ctx, signals, config);
     expect(result.action).toBe('terminate');
+  });
+});
+
+// ── Budget parity gate (t/2186) ───────────────────────────────
+// Asserts that the hardcoded browser fallback in loadProvisionalWeights() stays byte-for-byte
+// equal to the budget block in calibration-config.json. If either side drifts, this test fails.
+describe('calibration-config.json budget parity', () => {
+  beforeEach(() => resetWeightsCache());
+
+  it('hardcoded budget fallback deep-equals calibration-config.json budget block', () => {
+    const raw = readFileSync(new URL('./calibration-config.json', import.meta.url), 'utf-8');
+    const { budget: jsonBudget } = JSON.parse(raw) as { budget: Record<string, number> };
+    const fallback = loadProvisionalWeights();
+    expect(fallback.budget).toEqual(jsonBudget);
   });
 });

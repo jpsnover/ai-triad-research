@@ -85,8 +85,9 @@ export function loadProvisionalWeights(debateDir?: string): ProvisionalWeights {
     } catch { /* not in Node.js environment — fall through to defaults */ }
   }
 
-  // Hardcoded fallback — mirrors calibration-config.json so the browser
-  // (which cannot read files) uses the same values as the server.
+  // Hardcoded fallback — must stay byte-for-byte equal to calibration-config.json so the
+  // browser (which cannot read files) uses the same values as the server. Drift is gated by
+  // the parity test in phaseTransitions.test.ts (t/2186).
   _cachedWeights = {
     schema_version: 1,
     argumentative_saturation: {
