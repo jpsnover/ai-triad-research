@@ -25,10 +25,6 @@ RUN npm install -g pnpm@11.20.0
 # pnpm-workspace.yaml + root pnpm-lock.yaml establish the workspace root at /build so
 # allowBuilds applies; root package.json carries @types/node (needed by build:container tsc).
 COPY pnpm-workspace.yaml pnpm-lock.yaml package.json ./
-# .npmrc sets nodeLinker=hoisted — required so pnpm hoists transitive deps (e.g.
-# workbox-window, unist-util-visit) to root node_modules/ where Vite can find them.
-# Without it pnpm uses strict isolation and the renderer build fails to resolve them.
-COPY .npmrc ./
 COPY taxonomy-editor/package.json taxonomy-editor/pnpm-lock.yaml ./taxonomy-editor/
 COPY lib/ ./lib/
 
@@ -37,9 +33,8 @@ COPY lib/ ./lib/
 WORKDIR /build/taxonomy-editor
 RUN --mount=type=cache,target=/root/.local/share/pnpm/store pnpm install --frozen-lockfile --ignore-scripts
 
-# Install shared-lib deps too (t/2035). --ignore-scripts also prevents taxonomy-editor's
-# postinstall (electron-rebuild) from firing during this workspace-mode lib install, since
-# pnpm workspace mode runs all workspace members' postinstalls when hoisting.
+# Install shared-lib deps too (t/2035). --ignore-scripts prevents postinstall scripts
+# (e.g. electron-rebuild) from firing; builder stage is discarded anyway.
 WORKDIR /build/lib
 RUN --mount=type=cache,target=/root/.local/share/pnpm/store pnpm install --frozen-lockfile --ignore-scripts
 
