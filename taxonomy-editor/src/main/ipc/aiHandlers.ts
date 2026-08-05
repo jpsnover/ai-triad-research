@@ -16,6 +16,7 @@ import { refreshAIModels } from '../modelDiscovery.js';
 import { ActionableError } from '../../../../lib/debate/errors.js';
 import { getGlobalRecorder } from '../../../../lib/flight-recorder/index.js';
 import { DEFAULT_TEMPERATURE } from '../../../../lib/ai-client/index.js';
+import { DEFAULT_RELEVANCE_THRESHOLD } from '../../../../lib/debate/constants.js';
 import { buildEmbeddingFailureError } from '../embeddingErrors.js';
 
 export function registerAiHandlers(): void {
@@ -230,7 +231,7 @@ export function registerAiHandlers(): void {
 
       const current = {
         exploration_exit: (weights?.thresholds as Record<string, number>)?.exploration_exit ?? 0.65,
-        relevance_threshold: 0.45,
+        relevance_threshold: DEFAULT_RELEVANCE_THRESHOLD,
         attack_weights: [1.0, 1.1, 1.2],
         draft_temperature: DEFAULT_TEMPERATURE,
         saturation_weights: (weights?.saturation as Record<string, number>) ?? {
