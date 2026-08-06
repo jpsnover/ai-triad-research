@@ -1,0 +1,35 @@
+/* t/2210 — brief-timeout model-switch dialog */
+
+.brief-timeout-dialog {
+  max-width: 420px;
+}
+
+.brief-timeout-dialog-title {
+  margin: 0 0 8px;
+  font-size: 1rem;
+}
+
+.brief-timeout-dialog-desc {
+  margin: 0 0 16px;
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.brief-timeout-dialog-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.brief-timeout-dialog-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.brief-timeout-dialog-label {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}

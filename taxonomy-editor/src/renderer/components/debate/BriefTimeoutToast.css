@@ -1,0 +1,44 @@
+/* t/2210 — brief-timeout toast */
+
+.brief-timeout-toast {
+  position: fixed;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 9000;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: var(--bg-elevated, var(--bg-secondary));
+  border: 1px solid var(--warning, var(--border-color));
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
+  max-width: 480px;
+  width: max-content;
+  font-size: 0.85rem;
+}
+
+.brief-timeout-toast-msg {
+  margin: 0;
+  color: var(--text-primary);
+  line-height: 1.4;
+}
+
+.brief-timeout-toast-attempt {
+  color: var(--text-secondary);
+}
+
+.brief-timeout-toast-model {
+  font-size: 0.8em;
+  background: var(--bg-secondary);
+  padding: 1px 4px;
+  border-radius: 3px;
+  border: 1px solid var(--border-color);
+}
+
+.brief-timeout-toast-actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
