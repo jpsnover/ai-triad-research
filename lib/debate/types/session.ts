@@ -272,6 +272,8 @@ export interface DebateSession {
   audience?: DebateAudience;
   /** Moderator mode used for this session ('standard' | 'talmudic'). Optional for back-compat with pre-Talmudic sessions. */
   moderator_mode?: string;
+  /** Talmudic reference corpus attached to this session, if any. */
+  talmudic_references?: { enabled: boolean; corpus_name?: string; corpus_path?: string; corpus_version?: string | number };
   phase: 'setup' | 'clarification' | 'edit-claims' | 'opening' | 'debate' | 'closed' | 'cancelled';
   topic: {
     original: string;
