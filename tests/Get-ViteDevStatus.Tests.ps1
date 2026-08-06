@@ -37,19 +37,14 @@ Describe 'Get-ViteDevStatus' -Tag 'health' {
             Mock Get-CimInstance {
                 [PSCustomObject]@{
                     Name        = 'node.exe'
-                    CommandLine = '"C:\Program Files\nodejs\node.exe" "C:\repos\main\taxonomy-editor\node_modules\.bin\vite"'
+                    CommandLine = '"C:\repos\main\taxonomy-editor\node_modules\.bin\vite"'
                 }
             }
-            Mock Invoke-WebRequest {
-                param($Uri)
-                [PSCustomObject]@{ StatusCode = 200 }
+            Mock Get-ViteHttpStatus { 200 }
+            Mock Get-ViteGitRoot   { 'C:\repos\main' }
+            Mock Get-ViteWorktreeList {
+                @('worktree C:\repos\main', 'HEAD abc123', 'branch refs/heads/main')
             }
-
-            # stub git calls to avoid hitting real filesystem
-            Mock git { 'C:\repos\main' } -ParameterFilter { $args -contains 'rev-parse' }
-            Mock git {
-                'worktree C:\repos\main'
-            } -ParameterFilter { $args -contains 'list' }
 
             $r = Get-ViteDevStatus -Port 5173
             $r.GetType().Name | Should -Be 'ViteDevStatus'
@@ -64,18 +59,19 @@ Describe 'Get-ViteDevStatus' -Tag 'health' {
     It 'Sets IsOrphanedWorktree=$true when workdir not in git worktree list' {
         InModuleScope AITriad {
             Mock Get-ViteListeningPid { 9999 }
-            # Quoted path so Trim('"') strips cleanly; wt-2196 root is guaranteed to exist
             Mock Get-CimInstance {
                 [PSCustomObject]@{
                     Name        = 'node.exe'
-                    CommandLine = '"C:\Users\jsnov\repos\wt-2196\node_modules\.bin\vite"'
+                    CommandLine = '"C:\repos\orphan\node_modules\.bin\vite"'
                 }
             }
-            Mock Invoke-WebRequest { [PSCustomObject]@{ StatusCode = 200 } }
-            # rev-parse resolves to an orphan path distinct from anything in the worktree list
-            Mock git { 'C:\repos\orphan-unregistered' } -ParameterFilter { $args -contains 'rev-parse' }
-            # worktree list contains only main — not the orphan path
-            Mock git { 'worktree C:\repos\main-only' } -ParameterFilter { $args -contains 'list' }
+            Mock Get-ViteHttpStatus { 200 }
+            # rev-parse resolves to an orphan path not in the worktree list
+            Mock Get-ViteGitRoot { 'C:\repos\orphan-unregistered' }
+            # worktree list contains only main — the orphan path is absent
+            Mock Get-ViteWorktreeList {
+                @('worktree C:\repos\main-only', 'HEAD abc123', 'branch refs/heads/main')
+            }
 
             $r = Get-ViteDevStatus -Port 5173
             $r.IsOrphanedWorktree   | Should -Be $true
