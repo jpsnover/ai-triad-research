@@ -131,53 +131,58 @@ export function atomicWriteSync(filePath: string, content: string): void {
     // Sustained rename EPERM/EACCES: a Windows AV/indexer held an exclusive
     // handle on the target longer than the bounded retry budget. The atomic
     // directory-entry swap is unavailable, but tmpPath still holds the COMPLETE
-    // new content. Fallback: copy tmp *over* the target in place. copyFileSync
-    // opens the destination for write rather than requiring the rename swap, so
-    // it can win against a different lock class. It is non-atomic (a crash
-    // mid-copy can truncate the target), which is exactly why it is the
-    // fallback and not the primary path.
+    // new content. Fallback: write to .tmp2, fdatasync, then rename atomically.
+    // This avoids writing directly to the (possibly locked) target — the old
+    // copyFileSync approach could partially overwrite a locked target and produce
+    // corrupt JSON when the lock interrupted the copy (t/2211 incident: debate
+    // e8f41c82, 120161 bytes written, JSON corrupt at position 119988).
+    const tmp2Path = `${filePath}.tmp2`;
     try {
-      fs.copyFileSync(tmpPath, filePath);
-      try { fs.unlinkSync(tmpPath); } catch { /* best-effort cleanup */ }
+      fs.writeFileSync(tmp2Path, content, 'utf-8');
+      // writeFileSync closes the handle on return, flushing OS write buffers.
+      renameSyncWithRetry(tmp2Path, filePath);
+      // .tmp2 rename succeeded — clean up the original .tmp (best-effort)
+      try { fs.unlinkSync(tmpPath); } catch { /* best-effort */ }
       getGlobalRecorder()?.record({
         type: 'io.recovered', component: 'persistence', level: 'warn',
-        message: `atomicWriteSync: rename exhausted, recovered via in-place copy fallback`,
+        message: `atomicWriteSync: rename exhausted, recovered via .tmp2 rename fallback`,
         data: {
-          filePath, tmpPath,
+          filePath, tmpPath, tmp2Path,
           bytes: Buffer.byteLength(content, 'utf-8'),
           renameCode: (renameErr as NodeJS.ErrnoException).code,
         },
       });
       return;
-    } catch (copyErr) {
-      // Both strategies were denied — almost certainly the same exclusive lock
-      // on filePath. DO NOT unlink tmpPath: it is now the ONLY durable copy of
-      // the new content and serves as a recovery artifact for the next save.
-      // The loader enumerates *.json only, so a lingering .tmp is invisible to
-      // it and cannot be mistaken for a session (see persistenceFaults.test).
+    } catch (tmp2Err) {
+      // Both rename strategies were denied — DO NOT unlink tmpPath: it is the
+      // ONLY durable copy of the new content and serves as a recovery artifact.
+      // Best-effort clean up the .tmp2 orphan (it's a duplicate; .tmp is canonical).
+      // The loader enumerates *.json only, so lingering .tmp/.tmp2 files are
+      // invisible to it and cannot be mistaken for sessions (persistenceFaults.test).
+      try { fs.unlinkSync(tmp2Path); } catch { /* best-effort */ }
       const bytes = Buffer.byteLength(content, 'utf-8');
-      const renameCode = (renameErr as NodeJS.ErrnoException).code;
-      const copyCode = (copyErr as NodeJS.ErrnoException).code;
+      const firstRenameCode = (renameErr as NodeJS.ErrnoException).code;
+      const tmp2Code = (tmp2Err as NodeJS.ErrnoException).code;
       getGlobalRecorder()?.record({
         type: 'io.data-loss', component: 'persistence', level: 'error',
-        message: `atomicWriteSync: DATA LOSS RISK — rename and copy both failed; new content preserved at ${tmpPath}`,
-        data: { filePath, tmpPath, bytes, renameCode, copyCode },
+        message: `atomicWriteSync: DATA LOSS RISK — rename and .tmp2 rename both failed; new content preserved at ${tmpPath}`,
+        data: { filePath, tmpPath, tmp2Path, bytes, renameCode: firstRenameCode, tmp2Code },
         error: {
-          name: (copyErr as Error).name ?? 'Error',
-          message: (copyErr as Error).message,
-          stack: (copyErr as Error).stack,
+          name: (tmp2Err as Error).name ?? 'Error',
+          message: (tmp2Err as Error).message,
+          stack: (tmp2Err as Error).stack,
         },
       });
       throw new ActionableError({
         goal: `Persist ${bytes} bytes to ${filePath}`,
-        problem: `Atomic rename and in-place copy fallback were both denied (rename ${renameCode}, copy ${copyCode}) — the target is held by another process (Windows antivirus/indexer) longer than the retry budget allows.`,
+        problem: `Atomic rename and .tmp2 rename fallback were both denied (rename ${firstRenameCode}, fallback ${tmp2Code}) — the target is held by another process (Windows antivirus/indexer) longer than the retry budget allows.`,
         location: 'lib/debate/persistence.ts atomicWriteSync',
         nextSteps: [
           `The new content is preserved at ${tmpPath} and was NOT deleted — it is the only durable copy of this write. Do not remove it.`,
           `Retry the save once the lock clears: a subsequent successful atomicWriteSync replaces ${filePath}, after which ${tmpPath} may be removed.`,
           `If saves keep failing, exclude the debates directory from antivirus/search-indexer scanning.`,
         ],
-        innerError: copyErr,
+        innerError: tmp2Err,
       });
     }
   }

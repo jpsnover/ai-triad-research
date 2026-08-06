@@ -34,6 +34,7 @@ function cleanup(...paths: string[]): void {
   for (const p of paths) {
     try { fs.unlinkSync(p); } catch { /* ignore */ }
     try { fs.unlinkSync(`${p}.tmp`); } catch { /* ignore */ }
+    try { fs.unlinkSync(`${p}.tmp2`); } catch { /* ignore */ }
   }
 }
 
@@ -389,21 +390,27 @@ describe('atomicWriteSync EPERM retry (t/1271)', () => {
     expect(JSON.parse(fs.readFileSync(testFile, 'utf-8'))).toEqual({ recovered: true });
   });
 
-  it('recovers via copy fallback after rename retries are exhausted (t/1627)', { timeout: 10_000 }, () => {
-    // renameSync is denied forever (sustained AV/indexer lock), but copyFileSync
-    // is left real: the tmp still holds the full payload, so the copy fallback
-    // persists it in place. The write succeeds — no throw, no lost snapshot.
+  it('recovers via .tmp2 rename fallback when first rename is exhausted (t/1627, t/2211)', { timeout: 10_000 }, () => {
+    // renameSync is denied for the first 8 calls (1 initial + 7 retries for .tmp→target),
+    // then succeeds on call 9 (.tmp2→target). The write succeeds — no throw, no corruption.
     const captured = installCaptureRecorder();
-    const renameSpy = vi.spyOn(fs, 'renameSync').mockImplementation(() => {
-      throw makeStorageError('EPERM', 'operation not permitted');
+    let callCount = 0;
+    const origRename = fs.renameSync;
+    const renameSpy = vi.spyOn(fs, 'renameSync').mockImplementation((...args: Parameters<typeof fs.renameSync>) => {
+      callCount++;
+      if (callCount <= 8) throw makeStorageError('EPERM', 'operation not permitted');
+      renameSpy.mockRestore();
+      return origRename(...args);
     });
 
     expect(() => atomicWriteSync(testFile, '{"data":true}')).not.toThrow();
-    // 1 initial + 7 retries = 8 rename attempts, all denied, before falling back.
-    expect(renameSpy).toHaveBeenCalledTimes(8);
-    // Copy fallback landed the payload at the real target and cleaned up the tmp.
+    // 8 denied attempts for .tmp→target, then 1 successful attempt for .tmp2→target.
+    expect(callCount).toBe(9);
+    // .tmp2 rename landed the payload at the real target.
     expect(JSON.parse(fs.readFileSync(testFile, 'utf-8'))).toEqual({ data: true });
+    // Both temp files cleaned up.
     expect(fs.existsSync(`${testFile}.tmp`)).toBe(false);
+    expect(fs.existsSync(`${testFile}.tmp2`)).toBe(false);
     // AC3: a recovery is recorded distinctly from a data-loss.
     const recovered = captured.filter(e => e.type === 'io.recovered');
     expect(recovered).toHaveLength(1);
@@ -434,13 +441,12 @@ describe('atomicWriteSync durable copy fallback (t/1627)', () => {
 
   afterEach(() => { vi.restoreAllMocks(); cleanup(testFile); });
 
-  it('throws ActionableError naming tmpPath and PRESERVES the tmp when rename and copy both fail', { timeout: 10_000 }, () => {
+  it('throws ActionableError naming tmpPath and PRESERVES the tmp when both renames fail (t/2211)', { timeout: 20_000 }, () => {
+    // renameSync is denied forever — both .tmp→target and .tmp2→target renames fail.
+    // No copyFileSync involved: the .tmp2 path avoids in-place writes to the locked target.
     const captured = installCaptureRecorder();
     const tmpFile = `${testFile}.tmp`;
     vi.spyOn(fs, 'renameSync').mockImplementation(() => {
-      throw makeStorageError('EPERM', 'operation not permitted');
-    });
-    vi.spyOn(fs, 'copyFileSync').mockImplementation(() => {
       throw makeStorageError('EPERM', 'operation not permitted');
     });
 
@@ -457,35 +463,33 @@ describe('atomicWriteSync durable copy fallback (t/1627)', () => {
     expect(ae.problem).toContain('EPERM');
     expect(`${ae.goal} ${ae.nextSteps.join(' ')}`).toContain(tmpFile);
 
-    // The tmp artifact is the sole durable copy — it must NOT be unlinked, and
+    // The .tmp artifact is the sole durable copy — it must NOT be unlinked, and
     // it must still hold the complete new content for recovery.
     expect(fs.existsSync(tmpFile)).toBe(true);
     expect(JSON.parse(fs.readFileSync(tmpFile, 'utf-8'))).toEqual({ turn: 42 });
+    // .tmp2 is a duplicate — best-effort cleaned up (no longer needed alongside .tmp).
+    expect(fs.existsSync(`${testFile}.tmp2`)).toBe(false);
 
     // AC3: a data-loss event is recorded, distinct from io.recovered, and it
     // names tmpPath so diagnostics can find the preserved payload.
     const dataLoss = captured.filter(e => e.type === 'io.data-loss');
     expect(dataLoss).toHaveLength(1);
-    expect(dataLoss[0].data).toMatchObject({ filePath: testFile, tmpPath: tmpFile, renameCode: 'EPERM', copyCode: 'EPERM' });
+    expect(dataLoss[0].data).toMatchObject({ filePath: testFile, tmpPath: tmpFile, renameCode: 'EPERM', tmp2Code: 'EPERM' });
     expect(dataLoss[0].message).toContain(tmpFile);
     expect(captured.some(e => e.type === 'io.recovered')).toBe(false);
   });
 
-  it('AC4: the next successful save re-persists the dropped snapshot', { timeout: 10_000 }, () => {
+  it('AC4: the next successful save re-persists the dropped snapshot (t/2211)', { timeout: 20_000 }, () => {
     const tmpFile = `${testFile}.tmp`;
-    // First save: both rename and copy denied → throws, tmp preserved.
+    // First save: both renames denied → throws, .tmp preserved.
     const renameSpy = vi.spyOn(fs, 'renameSync').mockImplementation(() => {
-      throw makeStorageError('EPERM', 'operation not permitted');
-    });
-    const copySpy = vi.spyOn(fs, 'copyFileSync').mockImplementation(() => {
       throw makeStorageError('EPERM', 'operation not permitted');
     });
     expect(() => atomicWriteSync(testFile, '{"turn":42}')).toThrow(ActionableError);
     expect(fs.existsSync(testFile)).toBe(false);
 
-    // Lock clears: restore real fs, then save the full snapshot again.
+    // Lock clears: restore real renameSync, then save the full snapshot again.
     renameSpy.mockRestore();
-    copySpy.mockRestore();
     atomicWriteSync(testFile, '{"turn":42}');
 
     // The previously dropped snapshot is now durably persisted at the target,
