@@ -39,6 +39,7 @@ const { mockApi, mockTaxonomyState, mockPromptConfigState } = vi.hoisted(() => {
   };
 
   const mockTaxonomyState = {
+    geminiModel: 'gemini-flash-lite-latest' as string,
     accelerationist: { nodes: [] as unknown[] },
     safetyist: { nodes: [] as unknown[] },
     skeptic: { nodes: [] as unknown[] },

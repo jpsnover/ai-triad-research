@@ -185,8 +185,8 @@ describe('Config slice: getConfiguredModel behavior', () => {
     expect(call[1]).toBe('gemini-2.0-pro');
   });
 
-  it('falls back to localStorage model when debateModel is null', async () => {
-    localStorageMock.getItem.mockReturnValue('gemini-2.5-flash');
+  it('falls back to global AI settings model when debateModel is null', async () => {
+    mockTaxonomyState.geminiModel = 'gemini-2.5-flash';
     useDebateStore.setState({ activeDebate: makeSession() as any, debateModel: null });
     mockApi.generateText.mockResolvedValue({ text: '{"questions":["Q1"]}' });
 
@@ -196,8 +196,8 @@ describe('Config slice: getConfiguredModel behavior', () => {
     expect(call[1]).toBe('gemini-2.5-flash');
   });
 
-  it('falls back to default when localStorage is empty', async () => {
-    localStorageMock.getItem.mockReturnValue(null);
+  it('falls back to DEFAULT_MODEL when global AI settings model is empty', async () => {
+    mockTaxonomyState.geminiModel = '';
     useDebateStore.setState({ activeDebate: makeSession() as any, debateModel: null });
     mockApi.generateText.mockResolvedValue({ text: '{"questions":["Q1"]}' });
 
@@ -222,6 +222,32 @@ describe('Config slice: getConfiguredModel behavior', () => {
     expect(transcript[0].display_tier).toBeUndefined();
     expect(transcript[1].display_tier).toBeUndefined();
     expect(useDebateStore.getState().responseLength).toBe('claims');
+  });
+});
+
+// ── P5-1b. Session Slice — createDebate model resolution (t/2213) ──
+
+describe('Session slice: createDebate model resolution', () => {
+  it('uses explicit debateModel override when provided', async () => {
+    mockTaxonomyState.geminiModel = 'gemini-flash-lite-latest';
+    await useDebateStore.getState().createDebate('Topic', ['accelerationist', 'safetyist'], false, 'topic', '', '', 'moonshot-kimi-k3');
+    expect(useDebateStore.getState().debateModel).toBe('moonshot-kimi-k3');
+  });
+
+  it('derives model from global AI settings (not prior run state) when no override', async () => {
+    mockTaxonomyState.geminiModel = 'gemini-2.5-pro';
+    await useDebateStore.getState().createDebate('Topic', ['accelerationist', 'safetyist'], false);
+    expect(useDebateStore.getState().debateModel).toBe('gemini-2.5-pro');
+  });
+
+  it('AC3: new debate uses updated global model, not prior debate model', async () => {
+    mockTaxonomyState.geminiModel = 'moonshot-kimi-k3';
+    await useDebateStore.getState().createDebate('First debate', ['accelerationist', 'safetyist'], false, 'topic', '', '', 'moonshot-kimi-k3');
+    expect(useDebateStore.getState().debateModel).toBe('moonshot-kimi-k3');
+
+    mockTaxonomyState.geminiModel = 'gemini-2.5-flash';
+    await useDebateStore.getState().createDebate('Second debate', ['accelerationist', 'safetyist'], false);
+    expect(useDebateStore.getState().debateModel).toBe('gemini-2.5-flash');
   });
 });
 
