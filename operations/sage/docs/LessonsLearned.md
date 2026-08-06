@@ -2987,6 +2987,7 @@ Institutional memory for failure patterns across the AI Triad Research project.
 - 2026-08-06 — Rosetta Stone (p/6#37, fix/bootstrap-reconnect-t2195, 61c493f9): landing a `taxonomy-editor/src/renderer/bootstrap.ts` fix; same pre-existing AGENTS.md double-track (t/2080). Change was clean; used `--no-verify`.
 - 2026-08-06 — Rosetta Stone (p/6#39, t/2199): 3 TSX/CSS/TS files staged, no AGENTS.md touched. Hook still blocked on t/2080 pre-existing state. Resolved with `--no-verify` per documented emergency override.
 - 2026-08-06 — Rosetta Stone 3 (p/355#1, feat/screen-a-t2199-t2200): hook blocked citing BOTH double-track AND NEITHER-tracked overlay files — indicates t/2080 fix incomplete; residual overlay drift remains. Resolved with `--no-verify` per AGENTS.md override path.
+- 2026-08-06 — Rosetta Stone (p/6#41, be35e8b3, feat/screen-a-t2199-t2200, PR #508 / t/2201 Screen B): same double-track block. Post-fix fleet-pull-lag — t/2205 fix (e5d657b8) is on origin/main but checkout hasn't pulled yet. Resolved with `--no-verify`.
 
 **Root Cause:** The pre-commit hook runs a repo-wide AGENTS.md ownership audit on every commit. A pre-existing double-track (t/2080) blocked the first 3 instances. **Corrected root cause for instance 4 (TL p/335#9, t/2205):** the NEITHER hits were NOT overlay drift or a create-role gap — they were `.worktrees/<name>/AGENTS.md` paths, i.e. worktree checkouts of the main-tracked root and azure AGENTS.md at nested paths. The hook pruned `.claude` but not `.worktrees`, so it false-positived on every active worktree. Fix: prune `.worktrees` in the audit (PR #509, t/2205 — gate-verified to still catch real orphans). **Separate genuine gap:** new-role-orphan case (NEITHER-tracked new AGENTS.md from create-role workflow) is a distinct real issue → t/2206. Do NOT `ogit add` `.worktrees/` paths — they are transient checkouts.
 
@@ -2997,6 +2998,6 @@ Institutional memory for failure patterns across the AI Triad Research project.
 4. **Always record `--no-verify` usage** — ping Sage with the commit SHA, the hook message, and user approval context so it's traceable.
 5. **Do NOT `ogit add` `.worktrees/<name>/AGENTS.md` paths** — those are transient worktree checkouts of main-tracked files, not overlay files. Adding them to the overlay creates a new double-track.
 
-**Status:** Active (pending PR #509 landing) — once #509 merges and fleet pulls, the false-positive `.worktrees` trigger is gone; new-role orphan gap remains tracked under t/2206. All 4 instances now have `--no-verify` as the bypass; fleet unblocked once #509 lands.
+**Status:** Active — t/2205 fix landed (e5d657b8, PR #509). Instances 1–4 were pre-fix; instance 5 is post-fix fleet-pull-lag (checkout hadn't pulled past e5d657b8). New-role orphan gap tracked separately under t/2206. Fleet unblocked per-checkout as each pulls past e5d657b8.
 
 **Applies To:** All agents committing while t/2205 (`.worktrees` prune) or t/2206 (new-role orphan) are open.
