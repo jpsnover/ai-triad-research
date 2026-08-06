@@ -47,15 +47,28 @@ function speakerLabel(speakerId: string): string {
   return info?.label ?? speakerId;
 }
 
-// Type guard for the pending bridge additions (Rosetta Stone e/62).
-// Returns the extended api once the methods are present; null otherwise.
-function briefTimeoutBridge(): {
+type BriefTimeoutBridge = {
   onBriefTimeout: (cb: (e: BriefTimeoutEvent) => void) => () => void;
   onBriefRetriesExhausted: (cb: (e: BriefRetriesExhaustedEvent) => void) => () => void;
-} | null {
+};
+
+// Type guard for the bridge additions (Rosetta Stone e/62 + ElectronMain preload).
+// The renderer-side wrapper exists in api once Rosetta Stone lands, but calling it
+// delegates to window.electronAPI which requires the preload to be wired too.
+// Guard at the preload layer to avoid a "is not a function" crash in the interim.
+function briefTimeoutBridge(): BriefTimeoutBridge | null {
+  const electronAPI = (window as unknown as Record<string, unknown>)['electronAPI'] as Record<string, unknown> | undefined;
+  if (electronAPI) {
+    // Electron mode: require the preload to actually expose both handlers
+    if (typeof electronAPI['onBriefTimeout'] === 'function' && typeof electronAPI['onBriefRetriesExhausted'] === 'function') {
+      return api as unknown as BriefTimeoutBridge;
+    }
+    return null; // preload not yet wired — no-op until ElectronMain lands it
+  }
+  // Web mode: check api directly (web-bridge stubs land via t/2218)
   const a = api as unknown as Record<string, unknown>;
   if (typeof a['onBriefTimeout'] === 'function' && typeof a['onBriefRetriesExhausted'] === 'function') {
-    return api as unknown as ReturnType<typeof briefTimeoutBridge>;
+    return api as unknown as BriefTimeoutBridge;
   }
   return null;
 }
