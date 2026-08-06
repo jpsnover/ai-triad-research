@@ -738,7 +738,7 @@
   color: var(--text-secondary);
   cursor: pointer;
   font-size: var(--text-sm);
-  min-height: 36px;
+  min-height: 44px;
   padding: var(--sp-2) var(--sp-3);
   text-align: left;
 }
@@ -847,6 +847,40 @@
   color: var(--text-secondary);
   font-size: var(--text-xs);
   margin: var(--sp-1) 0 0;
+}
+
+/* Custom model two-level picker */
+.ndd-custom-model-row {
+  align-items: flex-end;
+  display: flex;
+  gap: var(--sp-2);
+}
+
+.ndd-custom-model-field {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+}
+
+.ndd-refresh-btn {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color, rgba(255, 255, 255, 0.15));
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  cursor: pointer;
+  flex-shrink: 0;
+  font-size: var(--text-sm);
+  padding: var(--sp-2) var(--sp-3);
+  white-space: nowrap;
+}
+
+.ndd-refresh-btn:hover:not(:disabled) {
+  color: var(--text-primary);
+}
+
+.ndd-refresh-btn:disabled {
+  cursor: default;
+  opacity: 0.5;
 }
 
 /* Toggle rows (step mode, multi-provider, etc.) */
@@ -1031,4 +1065,92 @@
   color: var(--error, #ef4444);
   font-size: var(--text-xs);
   margin-top: var(--sp-1);
+}
+
+/* Visibility helper for mobile sub-sheet show/hide (t/2203) */
+.ndd-hidden {
+  display: none !important;
+}
+
+/* ── Mobile (<640 px) — full-height sheet + sub-sheet nav (t/2203) ───────────── */
+
+@media (max-width: 640px) {
+  /* Screen A — full-height sheet */
+  .ndd-dialog {
+    border-radius: 0;
+    height: 100%;
+    margin: 0;
+    max-height: 100%;
+    max-width: 100%;
+    width: 100%;
+  }
+
+  /* Preset cards — stack vertically */
+  .ndd-preset-group {
+    flex-direction: column;
+  }
+
+  .ndd-preset-card {
+    flex: none;
+    min-height: 56px;
+  }
+
+  /* Start debate — pinned full-width at bottom */
+  .ndd-footer-actions {
+    flex-wrap: wrap;
+  }
+
+  .ndd-footer-right {
+    flex: 1 1 100%;
+    margin-left: 0;
+  }
+
+  .ndd-start-group {
+    flex: 1;
+  }
+
+  .ndd-start-group .ndd-start-btn {
+    flex: 1;
+  }
+
+  /* Screen B — full-height sheet */
+  .ndd-settings-dialog {
+    border-radius: 0;
+    height: 100%;
+    max-height: 100%;
+    max-width: 100%;
+    width: 100%;
+  }
+
+  /* Screen B nav — full-width tappable rows (sub-sheet list) */
+  .ndd-settings-nav {
+    border-right: none;
+    overflow-y: visible;
+    padding: var(--sp-2);
+    width: 100%;
+  }
+
+  .ndd-settings-nav-item {
+    padding: var(--sp-3) var(--sp-4);
+    width: 100%;
+  }
+
+  /* Screen B sub-sheet — back button */
+  .ndd-mobile-back-btn {
+    align-items: center;
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    display: flex;
+    font-size: var(--text-sm);
+    gap: var(--sp-2);
+    margin-bottom: var(--sp-3);
+    min-height: 44px;
+    padding: 0;
+  }
+
+  .ndd-mobile-back-btn:hover {
+    color: var(--text-primary);
+  }
 }
