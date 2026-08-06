@@ -120,7 +120,7 @@ async function waitForDevServer(timeoutMs: number): Promise<boolean> {
       const res = await fetch(location.href, { method: 'HEAD', cache: 'no-store' });
       if (res.ok) return true;
     } catch {
-      // still unreachable — keep polling
+      /* telemetry — silent by design */ // bootstrap.ts pre-dates module init; getGlobalRecorder unavailable
     }
     await new Promise<void>((r) => setTimeout(r, 400));
   }
