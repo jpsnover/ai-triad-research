@@ -131,7 +131,7 @@ export function atomicWriteSync(filePath: string, content: string): void {
     // Sustained rename EPERM/EACCES: a Windows AV/indexer held an exclusive
     // handle on the target longer than the bounded retry budget. The atomic
     // directory-entry swap is unavailable, but tmpPath still holds the COMPLETE
-    // new content. Fallback: write to .tmp2, fdatasync, then rename atomically.
+    // new content. Fallback: write to .tmp2, then rename atomically.
     // This avoids writing directly to the (possibly locked) target — the old
     // copyFileSync approach could partially overwrite a locked target and produce
     // corrupt JSON when the lock interrupted the copy (t/2211 incident: debate
