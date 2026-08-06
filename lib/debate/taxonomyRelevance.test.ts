@@ -1289,3 +1289,77 @@ describe('reScoreSituationsForCruxesDetailed — bdi_entropy computation', () =>
     expect(result.components.get('sit-single')!.bdi_entropy).toBe(0);
   });
 });
+
+describe('reScoreSituationsForCruxesDetailed — diversity component (t/2193)', () => {
+  function makeSitWithType(id: string, disagreement_type?: SituationNode['disagreement_type']): SituationNode {
+    return {
+      id,
+      label: id,
+      description: 'test',
+      interpretations: { accelerationist: 'acc', safetyist: 'saf', skeptic: 'skp' },
+      linked_nodes: [],
+      conflict_ids: [],
+      disagreement_type,
+    } as SituationNode;
+  }
+
+  const BASE_INPUT = {
+    cruxes: [],
+    anNodes: [],
+    nodeEmbeddings: {},
+    referencedSitIds: new Set<string>(),
+    nodeCategoryLookup: new Map(),
+  } as const;
+
+  it('turn-1 (empty injectedSitIds): all situations get diversity = 1', () => {
+    const sits = [
+      makeSitWithType('sit-a', 'definitional'),
+      makeSitWithType('sit-b', 'definitional'),
+      makeSitWithType('sit-c', 'interpretive'),
+    ];
+    const result = reScoreSituationsForCruxesDetailed({
+      ...BASE_INPUT,
+      situationNodes: sits,
+      injectedSitIds: new Set(),
+    });
+    for (const sit of sits) {
+      expect(result.components.get(sit.id)!.diversity).toBe(1);
+    }
+  });
+
+  it('mid-debate: nodes whose type is already injected get diversity = 0, novel types get 1', () => {
+    // sit-a ('definitional') was already injected → its type is present → diversity = 0
+    // sit-b ('interpretive') has a novel type → diversity = 1
+    // sit-c ('definitional') same type as sit-a → diversity = 0
+    const sits = [
+      makeSitWithType('sit-a', 'definitional'),
+      makeSitWithType('sit-b', 'interpretive'),
+      makeSitWithType('sit-c', 'definitional'),
+    ];
+    const result = reScoreSituationsForCruxesDetailed({
+      ...BASE_INPUT,
+      situationNodes: sits,
+      injectedSitIds: new Set(['sit-a']),
+    });
+    expect(result.components.get('sit-a')!.diversity).toBe(0);
+    expect(result.components.get('sit-b')!.diversity).toBe(1);
+    expect(result.components.get('sit-c')!.diversity).toBe(0);
+  });
+
+  it('regression (t/2193): diversity variance is non-zero when injectedSitIds ⊊ candidate types', () => {
+    // Pre-fix: typePresence was built from ALL nodes, so has() was always true → all diversity = 0.
+    // Post-fix: only injected nodes contribute → at least one node must get diversity = 1.
+    const sits = [
+      makeSitWithType('sit-injected', 'structural'),
+      makeSitWithType('sit-novel', 'interpretive'),
+    ];
+    const result = reScoreSituationsForCruxesDetailed({
+      ...BASE_INPUT,
+      situationNodes: sits,
+      injectedSitIds: new Set(['sit-injected']),
+    });
+    const diversities = sits.map(s => result.components.get(s.id)!.diversity);
+    const allZero = diversities.every(d => d === 0);
+    expect(allZero).toBe(false);
+  });
+});

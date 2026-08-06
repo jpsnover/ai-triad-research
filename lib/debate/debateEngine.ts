@@ -1488,7 +1488,6 @@ export class DebateEngine {
   }
 
   // ── Early return (stopAfterStage) ──────────────────────────
-
   private earlyReturn(startTime: number): DebateSession {
     this.session.updated_at = nowISO();
     if (this.session.diagnostics) {
