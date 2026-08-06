@@ -2954,3 +2954,49 @@ Institutional memory for failure patterns across the AI Triad Research project.
 **Applies To:** All agents writing functions over project-data nodes (situations, beliefs, edges) where optional array/object fields may be sparsely populated in real data.
 
 **Status:** Active — 1 instance (CL p/7#57, t/2169). Caught quickly by running one real-data smoke; the systematic fix is sparse-field fixtures + normalize-at-fetch.
+
+---
+
+## #145 [Build] `git push origin <remote-branch>` in a Worktree Pushes the Stale Same-Named Local Branch, Not the Worktree HEAD
+
+**Pattern:** In a worktree where the local branch name differs from the PR's remote target branch, `git push origin <remote-branch-name>` resolves the source from the **shared local ref namespace** — finding a same-named branch in the main checkout — and pushes that stale branch instead of the current worktree HEAD. Worktrees share the local ref namespace; only HEAD is worktree-local.
+
+**Instances:**
+- 2026-08-04 — DevOps (p/26#63, wt-2137-fix): worktree branch `fix/pnpm-container-t2137`, PR target `feat/pnpm-migration-t2137`. `git push origin feat/pnpm-migration-t2137` found the stale same-named branch in the main checkout and pushed that. Rejected non-fast-forward. Fix: `git push origin fix/pnpm-container-t2137:feat/pnpm-migration-t2137`.
+
+**Root Cause:** Worktrees share the local ref namespace; only HEAD is worktree-local. `git push origin <ref>` without an explicit source refspec resolves `<ref>` against `refs/heads/<ref>` globally — which may match a stale branch in the main checkout, not the worktree HEAD.
+
+**Prevention:**
+1. **In a worktree where your branch name ≠ the PR target branch, always use explicit refspec:** `git push origin <current-wt-branch>:<remote-target-branch>`. Never use bare `git push origin <remote-target-branch>`.
+2. **Verify with `git branch --show-current` in the worktree** before pushing — if it differs from the remote target, explicit refspec is required.
+3. Use `git push --dry-run origin <refspec>` to confirm the push source before sending.
+4. Companion to #77/#78/#128 worktree-land path hazards — worktree-land has multiple name/path mismatch traps; explicit refspec is required for branch-name-mismatch cases.
+
+**Applies To:** All agents pushing from a worktree where the worktree branch name differs from the PR remote target branch.
+
+**Status:** Active — 1 instance (DevOps, p/26#63). Silent wrong-branch push; high damage potential if the push succeeds non-FFW.
+
+---
+
+## #146 [Process] Pre-Commit Hook Blocks on Pre-Existing Known Divergence Unrelated to Current Change — `--no-verify` With User Approval Is the Correct Path
+
+**Pattern:** The pre-commit hook audits AGENTS.md ownership on every commit — not just commits touching AGENTS.md files. A pre-existing double-track divergence (e.g., t/2080) blocks ALL commits until resolved, regardless of the committing agent's scope. The hook message explicitly states the override is expected for this known state. Correct resolution: `git commit --no-verify` with user approval.
+
+**Instances:**
+- 2026-08-04 — Debate Tool 2 (p/234#8): landing a `lib/debate` fix; pre-commit hook blocked on the pre-existing AGENTS.md double-track divergence from t/2080 (not caused by the change). Hook confirmed override expected. User approved; landed with `--no-verify`.
+- 2026-08-06 — Rosetta Stone (p/6#37, fix/bootstrap-reconnect-t2195, 61c493f9): landing a `taxonomy-editor/src/renderer/bootstrap.ts` fix; same pre-existing AGENTS.md double-track (t/2080). Change was clean; used `--no-verify`.
+- 2026-08-06 — Rosetta Stone (p/6#39, t/2199): 3 TSX/CSS/TS files staged, no AGENTS.md touched. Hook still blocked on t/2080 pre-existing state. Resolved with `--no-verify` per documented emergency override.
+- 2026-08-06 — Rosetta Stone 3 (p/355#1, feat/screen-a-t2199-t2200): hook blocked citing BOTH double-track AND NEITHER-tracked overlay files — indicates t/2080 fix incomplete; residual overlay drift remains. Resolved with `--no-verify` per AGENTS.md override path.
+
+**Root Cause:** The pre-commit hook runs a repo-wide AGENTS.md ownership audit on every commit. A pre-existing double-track (t/2080) blocked the first 3 instances. **Corrected root cause for instance 4 (TL p/335#9, t/2205):** the NEITHER hits were NOT overlay drift or a create-role gap — they were `.worktrees/<name>/AGENTS.md` paths, i.e. worktree checkouts of the main-tracked root and azure AGENTS.md at nested paths. The hook pruned `.claude` but not `.worktrees`, so it false-positived on every active worktree. Fix: prune `.worktrees` in the audit (PR #509, t/2205 — gate-verified to still catch real orphans). **Separate genuine gap:** new-role-orphan case (NEITHER-tracked new AGENTS.md from create-role workflow) is a distinct real issue → t/2206. Do NOT `ogit add` `.worktrees/` paths — they are transient checkouts.
+
+**Prevention:**
+1. **When the pre-commit hook blocks and the message references a known open issue, read the hook output carefully** — it will state whether `--no-verify` is expected. If yes, obtain user approval and proceed.
+2. **Do not attempt to fix the divergence as a side effect of an unrelated commit** — conflates issues and risks out-of-scope changes.
+3. **`--no-verify` is a temporary bypass** — the root ticket (t/2080 / t/2205 / t/2206) owns the permanent fix.
+4. **Always record `--no-verify` usage** — ping Sage with the commit SHA, the hook message, and user approval context so it's traceable.
+5. **Do NOT `ogit add` `.worktrees/<name>/AGENTS.md` paths** — those are transient worktree checkouts of main-tracked files, not overlay files. Adding them to the overlay creates a new double-track.
+
+**Status:** Active (pending PR #509 landing) — once #509 merges and fleet pulls, the false-positive `.worktrees` trigger is gone; new-role orphan gap remains tracked under t/2206. All 4 instances now have `--no-verify` as the bypass; fleet unblocked once #509 lands.
+
+**Applies To:** All agents committing while t/2205 (`.worktrees` prune) or t/2206 (new-role orphan) are open.

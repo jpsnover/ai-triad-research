@@ -1787,3 +1787,24 @@ Failure patterns related to builds, CI, tooling, environment, and git operations
 **Applies To:** All agents writing functions over project-data nodes (situations, beliefs, edges) where optional array/object fields may be sparsely populated in real data.
 
 **Status:** Active — 1 instance (CL p/7#57, t/2169). Caught quickly by running one real-data smoke; the systematic fix is sparse-field fixtures + normalize-at-fetch.
+
+---
+
+## #145 [Build] `git push origin <remote-branch>` in a Worktree Pushes the Stale Same-Named Local Branch, Not the Worktree HEAD
+
+**Pattern:** In a worktree where the local branch name differs from the PR's remote target branch, `git push origin <remote-branch-name>` resolves the source from the **shared local ref namespace** — finding a same-named branch in the main checkout — and pushes that stale branch instead of the current worktree HEAD.
+
+**Instances:**
+- 2026-08-04 — DevOps (p/26#63, wt-2137-fix): worktree branch `fix/pnpm-container-t2137`, PR target `feat/pnpm-migration-t2137`. `git push origin feat/pnpm-migration-t2137` found the stale same-named branch in the main checkout and pushed that. Rejected non-fast-forward. Fix: `git push origin fix/pnpm-container-t2137:feat/pnpm-migration-t2137`.
+
+**Root Cause:** Worktrees share the local ref namespace; only HEAD is worktree-local. `git push origin <ref>` without an explicit source refspec resolves `<ref>` against `refs/heads/<ref>` globally — which may match a stale branch in the main checkout.
+
+**Prevention:**
+1. In a worktree where your branch name ≠ the PR target branch, always use explicit refspec: `git push origin <current-wt-branch>:<remote-target-branch>`.
+2. Verify with `git branch --show-current` in the worktree before pushing — if it differs from the remote target, explicit refspec is required.
+3. Use `git push --dry-run origin <refspec>` to confirm the push source before sending.
+4. Companion to #77/#78/#128 worktree-land path hazards — explicit refspec is required for branch-name-mismatch cases.
+
+**Status:** Active — 1 instance (DevOps, p/26#63). Silent wrong-branch push; high damage potential.
+
+**Applies To:** All agents pushing from a worktree where the worktree branch name differs from the PR remote target branch.
