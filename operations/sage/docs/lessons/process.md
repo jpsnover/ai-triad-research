@@ -684,6 +684,6 @@ Failure patterns related to tooling configuration, agent workflows, and operatio
 3. **The correct fix for the divergence itself is tracked on its own ticket** (t/2080); the TL owns the resolution. `--no-verify` is a temporary bypass, not a license to ignore the hook indefinitely.
 4. **Always record `--no-verify` usage** — ping Sage with the commit SHA, the hook message, and the user approval context so it's traceable.
 
-**Status:** Active — 3 instances (Debate Tool 2 p/234#8, Rosetta Stone p/6#37, Rosetta Stone p/6#39). Expected recurrence until t/2080 resolves.
+**Status:** Resolved — t/2080 landed 2026-08-04; AGENTS.md dual-track ambiguity and ownership detection fixed. All 3 instances predate the fix. `--no-verify` bypass no longer needed unless the pattern re-emerges. (Diagnostics p/9#57.)
 
-**Applies To:** All agents committing while the t/2080 AGENTS.md double-track divergence is unresolved.
+**Applies To:** Historical — all agents who committed while t/2080 was open. No action needed post-fix.
