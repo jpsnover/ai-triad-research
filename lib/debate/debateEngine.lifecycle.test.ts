@@ -1075,8 +1075,7 @@ describe('Finalization', () => {
 
 describe('Adaptive staging initialization', () => {
   it('accepts phaseBoundsOverride in DebateConfig and preserves it on the engine config (t/2197)', () => {
-    // _adaptiveConfig is built inside run(); this test verifies the field is accepted
-    // on DebateConfig and stored, so run() can wire it into PhaseTransitionConfig.
+    // _adaptiveConfig is built inside run(); verify the field survives to engine.config so run() can wire it.
     const override = { maxArgumentationRounds: 8, maxConcludingRounds: 2 };
     const config = createDefaultConfig({ useAdaptiveStaging: true, phaseBoundsOverride: override });
     const engine = new DebateEngine(config, createMockAdapter(), createMinimalTaxonomy());
