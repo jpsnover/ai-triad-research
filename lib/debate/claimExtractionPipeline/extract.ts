@@ -99,6 +99,13 @@ export async function extractClaims(
     trace.response_time_ms = Date.now() - extractStart;
     ctx.recordDiagnostic(entryId, { extraction_trace: trace });
     updateExtractionSummary(ctx, trace);
+    // Stamp failure onto entry so adaptive-staging confidence gate gets a real signal.
+    const entryOnErr = ctx.session.transcript.find(e => e.id === entryId);
+    if (entryOnErr) {
+      if (!entryOnErr.metadata) entryOnErr.metadata = {};
+      (entryOnErr.metadata as Record<string, unknown>).claim_extraction_status = 'parse_error';
+      (entryOnErr.metadata as Record<string, unknown>).extracted_claims_accepted = 0;
+    }
     ctx.warn(`Claim extraction for ${POVER_INFO[speaker].label}`, err, 'Skipping — argument network will be incomplete for this turn');
     return;
   }
@@ -579,6 +586,19 @@ export async function extractClaims(
   });
 
   updateExtractionSummary(ctx, trace);
+
+  // Stamp extraction results onto the entry so the adaptive-staging confidence
+  // gate reads actual extraction quality each round (t/2208).
+  const entryOnSuccess = ctx.session.transcript.find(e => e.id === entryId);
+  if (entryOnSuccess) {
+    if (!entryOnSuccess.metadata) entryOnSuccess.metadata = {};
+    const confStatus: 'ok' | 'truncated' | 'parse_error' =
+      (trace.status === 'ok' || trace.status === 'no_new_nodes') ? 'ok'
+      : trace.status === 'truncated_response' ? 'truncated'
+      : 'parse_error';
+    (entryOnSuccess.metadata as Record<string, unknown>).claim_extraction_status = confStatus;
+    (entryOnSuccess.metadata as Record<string, unknown>).extracted_claims_accepted = trace.candidates_accepted;
+  }
 
   // Update unanswered claims ledger
   ctx.session.unanswered_claims_ledger = updateUnansweredLedger(
