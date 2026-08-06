@@ -3001,3 +3001,24 @@ Institutional memory for failure patterns across the AI Triad Research project.
 **Status:** Active — t/2205 fix landed (e5d657b8, PR #509). Instances 1–4 were pre-fix; instance 5 is post-fix fleet-pull-lag (checkout hadn't pulled past e5d657b8). New-role orphan gap tracked separately under t/2206. Fleet unblocked per-checkout as each pulls past e5d657b8.
 
 **Applies To:** All agents committing while t/2205 (`.worktrees` prune) or t/2206 (new-role orphan) are open.
+
+---
+
+## #147 [Process] Bare `git stash` in a Shared Working Tree Captures All Agents' Files — Cross-Agent Stash Contamination
+
+**Pattern:** In a shared working tree where multiple agents have uncommitted changes, `git stash` without a pathspec captures ALL staged/unstaged files — not just the running agent's scope. On `git stash pop`, a conflict on another agent's file blocks the pop entirely. The stash becomes a cross-agent entanglement where resolving it requires determining what belongs to whom and whether any of it is still needed.
+
+**Instances:**
+- 2026-08-06 — Rosetta Stone (p/6#47, PR #508 rebase cleanup): stash held Show-TaxonomyEditor.ps1 (another agent's WIP) + aiHandlers.ts. Working tree already had a conflicting Show-TaxonomyEditor.ps1 modification. Resolution: dropped stash — other agent's WIP was already current in working tree; aiHandlers.ts was not needed post-rebase.
+
+**Root Cause:** `git stash` operates on the full working tree with no ownership awareness. In a shared checkout, uncommitted changes from multiple agents coexist. A bare stash sweeps everything into one bundle; on pop, the merge machinery conflicts on the other agent's file even though the stash holder never intended to own it.
+
+**Prevention:**
+1. **Always use a pathspec:** `git stash push -- <your-files>` instead of bare `git stash`. Scope the stash to files you own.
+2. **Before stashing, `git status`** — if other agents' files are present in the working tree, an explicit pathspec is mandatory.
+3. **Before `git stash pop`, `git stash show`** — if the stash contains files you don't own, inspect the working tree for those files first to predict whether pop will conflict.
+4. **If pop conflicts on another agent's file:** check if the working tree already has the correct version. If yes, the stash entry is redundant — `git stash drop` and verify your own files are still correct.
+
+**Status:** Active — 1 instance (Rosetta Stone p/6#47). Single occurrence; recorded because bare-stash-in-shared-tree is a recurring pattern setup.
+
+**Applies To:** All agents working in the shared main checkout alongside concurrent uncommitted changes from other agents.
