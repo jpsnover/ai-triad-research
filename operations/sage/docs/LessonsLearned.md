@@ -2954,3 +2954,46 @@ Institutional memory for failure patterns across the AI Triad Research project.
 **Applies To:** All agents writing functions over project-data nodes (situations, beliefs, edges) where optional array/object fields may be sparsely populated in real data.
 
 **Status:** Active — 1 instance (CL p/7#57, t/2169). Caught quickly by running one real-data smoke; the systematic fix is sparse-field fixtures + normalize-at-fetch.
+
+---
+
+## #145 [Build] `git push origin <remote-branch>` in a Worktree Pushes the Stale Same-Named Local Branch, Not the Worktree HEAD
+
+**Pattern:** In a worktree where the local branch name differs from the PR's remote target branch, `git push origin <remote-branch-name>` resolves the source from the **shared local ref namespace** — finding a same-named branch in the main checkout — and pushes that stale branch instead of the current worktree HEAD. Worktrees share the local ref namespace; only HEAD is worktree-local.
+
+**Instances:**
+- 2026-08-04 — DevOps (p/26#63, wt-2137-fix): worktree branch `fix/pnpm-container-t2137`, PR target `feat/pnpm-migration-t2137`. `git push origin feat/pnpm-migration-t2137` found the stale same-named branch in the main checkout and pushed that. Rejected non-fast-forward. Fix: `git push origin fix/pnpm-container-t2137:feat/pnpm-migration-t2137`.
+
+**Root Cause:** Worktrees share the local ref namespace; only HEAD is worktree-local. `git push origin <ref>` without an explicit source refspec resolves `<ref>` against `refs/heads/<ref>` globally — which may match a stale branch in the main checkout, not the worktree HEAD.
+
+**Prevention:**
+1. **In a worktree where your branch name ≠ the PR target branch, always use explicit refspec:** `git push origin <current-wt-branch>:<remote-target-branch>`. Never use bare `git push origin <remote-target-branch>`.
+2. **Verify with `git branch --show-current` in the worktree** before pushing — if it differs from the remote target, explicit refspec is required.
+3. Use `git push --dry-run origin <refspec>` to confirm the push source before sending.
+4. Companion to #77/#78/#128 worktree-land path hazards — worktree-land has multiple name/path mismatch traps; explicit refspec is required for branch-name-mismatch cases.
+
+**Applies To:** All agents pushing from a worktree where the worktree branch name differs from the PR remote target branch.
+
+**Status:** Active — 1 instance (DevOps, p/26#63). Silent wrong-branch push; high damage potential if the push succeeds non-FFW.
+
+---
+
+## #146 [Process] Pre-Commit Hook Blocks on Pre-Existing Known Divergence Unrelated to Current Change — `--no-verify` With User Approval Is the Correct Path
+
+**Pattern:** The pre-commit hook audits AGENTS.md ownership on every commit — not just commits touching AGENTS.md files. A pre-existing double-track divergence (e.g., t/2080) blocks ALL commits until resolved, regardless of the committing agent's scope. The hook message explicitly states the override is expected for this known state. Correct resolution: `git commit --no-verify` with user approval.
+
+**Instances:**
+- 2026-08-04 — Debate Tool 2 (p/234#8): landing a `lib/debate` fix; pre-commit hook blocked on the pre-existing AGENTS.md double-track divergence from t/2080 (not caused by the change). Hook confirmed override expected. User approved; landed with `--no-verify`.
+- 2026-08-06 — Rosetta Stone (p/6#37, fix/bootstrap-reconnect-t2195, 61c493f9): landing a `taxonomy-editor/src/renderer/bootstrap.ts` fix; same pre-existing AGENTS.md double-track (t/2080). Change was clean; used `--no-verify`.
+
+**Root Cause:** The pre-commit hook runs a repo-wide AGENTS.md ownership audit on every commit. A pre-existing violation (t/2080: file tracked in both repos) will block all commits until resolved, regardless of the committing agent's scope. The hook is self-documenting about this: when the known divergence is the cause, the message confirms `--no-verify` is the expected bypass.
+
+**Prevention:**
+1. **When the pre-commit hook blocks and the message references a known open issue (e.g., t/2080), read the hook output carefully** — it will state whether `--no-verify` is expected for this state. If yes, obtain user approval and proceed.
+2. **Do not attempt to fix the divergence as a side effect of an unrelated commit** — that conflates two issues, risks sweeping in changes outside your scope, and delays your primary work.
+3. **The correct fix for the divergence itself is tracked on its own ticket** (t/2080); the TL owns the resolution. `--no-verify` is a temporary bypass, not a license to ignore the hook indefinitely.
+4. **Always record `--no-verify` usage** — ping Sage with the commit SHA, the hook message, and the user approval context so it's traceable.
+
+**Status:** Active — 2 instances (Debate Tool 2 p/234#8 + Rosetta Stone p/6#37). Expected recurrence until t/2080 resolves the AGENTS.md double-track.
+
+**Applies To:** All agents committing while the t/2080 AGENTS.md double-track divergence is unresolved.
