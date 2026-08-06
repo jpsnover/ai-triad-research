@@ -677,14 +677,15 @@ Failure patterns related to tooling configuration, agent workflows, and operatio
 - 2026-08-06 — Rosetta Stone (p/6#39, t/2199): 3 TSX/CSS/TS files staged, no AGENTS.md touched. Hook still blocked on t/2080 pre-existing state. Resolved with `--no-verify` per documented emergency override.
 - 2026-08-06 — Rosetta Stone 3 (p/355#1, feat/screen-a-t2199-t2200): hook blocked citing BOTH double-track AND NEITHER-tracked overlay files — post-fix instance; indicates t/2080 fix incomplete, residual overlay drift remains. Resolved with `--no-verify` per AGENTS.md override path.
 
-**Root Cause:** The pre-commit hook runs a repo-wide AGENTS.md ownership audit on every commit. A pre-existing violation (double-track or NEITHER-tracked) will block all commits until fully resolved, regardless of the committing agent's scope. The hook is self-documenting: when the divergence is the cause, the message confirms `--no-verify` is the expected bypass. **Deeper root cause (Diagnostics p/9#60, p/334#12):** the `create-role` workflow has no mandatory `ogit add -f` step — newly created AGENTS.md files are left NEITHER-tracked, which trips the audit. Follow-up child of t/2080 recommended by Diagnostics to close the workflow gap.
+**Root Cause:** The pre-commit hook runs a repo-wide AGENTS.md ownership audit on every commit. A pre-existing double-track (t/2080) blocked the first 3 instances. **Corrected root cause for instance 4 (TL p/335#9, t/2205):** the NEITHER hits were `.worktrees/<name>/AGENTS.md` paths — worktree checkouts of main-tracked files, not overlay drift. The hook pruned `.claude` but not `.worktrees`, causing a false-positive on every active worktree. Fix: prune `.worktrees` in the audit (PR #509, t/2205). **Separate genuine gap:** new-role-orphan case → t/2206. Do NOT `ogit add` `.worktrees/` paths — they are transient checkouts.
 
 **Prevention:**
-1. **When the pre-commit hook blocks and the message references a known open issue (e.g., t/2080), read the hook output carefully** — it will state whether `--no-verify` is expected for this state. If yes, obtain user approval and proceed.
-2. **Do not attempt to fix the divergence as a side effect of an unrelated commit** — that conflates two issues, risks sweeping in changes outside your scope, and delays your primary work.
-3. **The correct fix for the divergence itself is tracked on its own ticket** (t/2080); the TL owns the resolution. `--no-verify` is a temporary bypass, not a license to ignore the hook indefinitely.
-4. **Always record `--no-verify` usage** — ping Sage with the commit SHA, the hook message, and the user approval context so it's traceable.
+1. **When the pre-commit hook blocks, read the output carefully** — it will state whether `--no-verify` is expected. If yes, obtain user approval and proceed.
+2. **Do not fix the divergence as a side effect of an unrelated commit** — conflates issues and risks out-of-scope changes.
+3. **`--no-verify` is a temporary bypass** — the root ticket (t/2205 / t/2206) owns the permanent fix.
+4. **Always record `--no-verify` usage** — ping Sage with the commit SHA, hook message, and user approval so it's traceable.
+5. **Do NOT `ogit add` `.worktrees/<name>/AGENTS.md`** — transient checkouts of main-tracked files; adding them creates a new double-track.
 
-**Status:** Active — 4 instances; t/2080 fix landed 2026-08-04 but 4th instance (p/355#1, post-fix) shows residual NEITHER-tracked overlay drift still blocking commits. Escalated back to TL. Pattern remains active until the hook reports clean.
+**Status:** Active (pending PR #509 / t/2205 landing) — once merged and fleet pulls, the `.worktrees` false-positive is gone; new-role orphan gap tracked under t/2206.
 
-**Applies To:** All agents committing while overlay AGENTS.md drift exists — check hook output carefully on every block.
+**Applies To:** All agents committing while t/2205 or t/2206 are open.
