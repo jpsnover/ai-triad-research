@@ -233,3 +233,122 @@ CVE-2026-53910
 # REVISIT:   drop when Debian ships a fix, or the node-26 base lands.
 CVE-2026-56391
 CVE-2026-56392
+
+# ── curl / libcurl4 (Debian bookworm) — Wave 3; NO UPSTREAM FIX AVAILABLE ────────
+# Error-severity:
+#   CVE-2026-8286   curl TLS config mismatch (error; ai-triad-base #5247/#5263/#5272)
+#   CVE-2026-12064  curl SSH host verification bypass (error; #5246/#5262/#5271)
+#   CVE-2026-8927   curl proxy auth info disclosure (error; #5244/#5260/#5269)
+# Warning-severity:
+#   CVE-2026-10536  libcurl use-after-free DoS (warning; #5245/#5261/#5270)
+#   CVE-2026-11856  curl Digest auth header reuse info disclosure (warning; #5243/#5259/#5268)
+#   CVE-2026-8458   libcurl wrong connection reuse (warning; #5248/#5264/#5273)
+#
+# Package:   curl + libcurl4 (bookworm 7.88.1-10+deb12u15)
+# Fix state: Debian bookworm has published NO fixed version for any of these CVEs
+#            as of 2026-08-06 (Fixed Version empty in Trivy; consistent with the
+#            libcurl4 CVEs already baselined: CVE-2026-8924/8932/9547).
+# Exposure:  curl is installed in the base image but used ONLY at image build time
+#            (RUN curl -fSL … to download ONNX model files). The application does
+#            NOT invoke curl at runtime — all outbound HTTP uses Node.js undici/fetch.
+#            TLS mismatch, SSH bypass, proxy auth disclosure, and wrong connection
+#            reuse are not reachable in our runtime. SSH variant (12064) is moot:
+#            the container makes no SSH connections.
+# REVISIT:   drop each entry when Debian ships a fixed libcurl4/curl for bookworm
+#            (deb12u16+), OR when the node-26 / newer-Debian base lands
+#            (t/1990, ~2026-10-28). Re-scan and remove any entry Trivy no longer reports.
+CVE-2026-8286
+CVE-2026-12064
+CVE-2026-8927
+CVE-2026-10536
+CVE-2026-11856
+CVE-2026-8458
+
+# ── acl (Debian bookworm) — NO UPSTREAM FIX AVAILABLE ───────────────────────────
+# CVE-2026-54369  acl symlink traversal privilege escalation (error; ai-triad-base #5255)
+# CVE-2026-54370  acl TOCTOU symlink traversal (warning; #5256, taxonomy-editor #5201)
+#
+# Package:   acl (bookworm, transitive dep of git)
+# Fix state: Debian bookworm has published NO fixed version as of 2026-08-06.
+# Exposure:  acl is present only as a transitive dependency of git. The application
+#            does not invoke setfacl/getfacl or any acl API on untrusted paths at
+#            runtime. The privilege-escalation vector (symlink traversal to elevate)
+#            requires elevated permissions; the container runs as non-root (aitriad)
+#            with no-new-privileges, making exploitation not achievable in our runtime.
+# REVISIT:   drop when Debian ships a fixed acl for bookworm, or the node-26 base
+#            lands (t/1990, ~2026-10-28). Re-scan and remove.
+CVE-2026-54369
+CVE-2026-54370
+
+# ── attr (Debian bookworm) — NO UPSTREAM FIX AVAILABLE ──────────────────────────
+# CVE-2026-54371  attr symlink traversal (warning; ai-triad-base #5257, taxonomy-editor #5202)
+#
+# Package:   attr (bookworm, transitive dep of acl/git)
+# Fix state: Debian bookworm has published NO fixed version as of 2026-08-06.
+# Exposure:  attr is present only as a transitive dep of acl (itself a git dep).
+#            The application does not invoke getfattr/setfattr or xattr APIs on
+#            untrusted paths. Container runs as non-root with no-new-privileges.
+# REVISIT:   drop when Debian ships a fix, or the node-26 base lands (t/1990).
+CVE-2026-54371
+
+# ── gzip (Debian bookworm) — NO UPSTREAM FIX AVAILABLE ──────────────────────────
+# CVE-2026-41992  gzip global buffer overflow in LZH decompressor (error; #5254)
+# CVE-2026-41991  gzip insecure temp file in gzexe (warning; #5253)
+#
+# Package:   gzip (bookworm base package)
+# Fix state: Debian bookworm has published NO fixed version for either CVE as of
+#            2026-08-06.
+# Exposure:  The application does not decompress LZH archives at runtime — gzip is
+#            a base OS package but Node.js handles all file I/O, not gzip. gzexe
+#            (the insecure temp file CVE) is a shell utility not invoked by the
+#            application. Neither attack surface is reachable.
+# REVISIT:   drop when Debian ships a fixed gzip for bookworm, or the node-26 base
+#            lands (t/1990, ~2026-10-28). Re-scan and remove.
+CVE-2026-41992
+CVE-2026-41991
+
+# ── GnuPG (Debian bookworm) — NO UPSTREAM FIX AVAILABLE ─────────────────────────
+# CVE-2026-57062  GnuPG incorrect crypto message parsing (note; ai-triad-base #5252)
+#
+# Package:   gnupg (bookworm, transitive dep of apt/git)
+# Fix state: Debian bookworm has published NO fixed version as of 2026-08-06.
+# Exposure:  GnuPG is a transitive dep of the package manager toolchain. The
+#            application does not parse GPG messages or invoke gpg on untrusted input
+#            at runtime. The vulnerable crypto parsing path is not reachable.
+# REVISIT:   drop when Debian ships a fix, or the node-26 base lands (t/1990).
+CVE-2026-57062
+
+# ── undici (bundled in npm, wave 3) — NO UPSTREAM FIX IN CURRENT npm BUNDLE ─────
+# CVE-2026-16729  undici request smuggling via malformed header (warning; #5505)
+# CVE-2026-16728  undici SSRF via redirect to internal addr (warning; #5504)
+# CVE-2026-15157  undici timing side-channel on auth header (warning; #5503)
+#
+# Package:   undici (bundled in npm internal modules, not Node.js runtime undici)
+# Fix state: The npm@latest bundle as of 2026-08-06 ships an undici version
+#            affected by these CVEs. No npm release bundles a patched undici yet.
+# Exposure:  npm's bundled undici is used ONLY by npm itself for registry HTTP calls.
+#            The container does not run npm at runtime — npm is invoked only at image
+#            build time. The application uses Node.js's own undici (via fetch API) for
+#            runtime HTTP; that copy is not affected by these alerts. Request smuggling,
+#            SSRF, and timing attacks against npm's internal registry client are not
+#            reachable in the deployed container.
+# REVISIT:   drop when npm ships a release bundling a patched undici that clears
+#            these CVEs; rebuild the base image after that npm update. Re-scan.
+CVE-2026-16729
+CVE-2026-16728
+CVE-2026-15157
+
+# ── tar (bundled in npm, wave 3) — NO UPSTREAM FIX IN CURRENT npm BUNDLE ─────────
+# GHSA-r292-9mhp-454m  tar uncontrolled recursion DoS on deeply-nested paths (#5435)
+#
+# Package:   tar (bundled in npm internal modules)
+# Fix state: npm@latest as of 2026-08-06 bundles a tar version affected by this
+#            advisory. No npm release with a patched tar is available yet.
+# Exposure:  npm's bundled tar is used only by npm itself for package tarball
+#            extraction — invoked at image BUILD TIME only, not at runtime. The
+#            application does not unpack npm tarballs at runtime. An attacker-
+#            controlled deeply-nested archive reaching npm's tar is not possible
+#            in the deployed container.
+# REVISIT:   drop when npm ships a release bundling a patched tar; rebuild base
+#            image after the npm update. Re-scan and remove.
+GHSA-r292-9mhp-454m
