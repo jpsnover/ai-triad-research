@@ -624,12 +624,16 @@ async function main(): Promise<void> {
   // Log calibration data point (non-blocking)
   try {
     const { extractCalibrationData, appendCalibrationLog } = await import('./calibrationLogger.js');
-    const dataRoot = path.dirname(outputDir); // outputDir is .../debates, data root is parent
+    // When outputDir is explicitly configured, write the cal log inside it so
+    // experimental/isolated runs don't contaminate the main data-root log (t/2216).
+    // path.dirname(outputDir) would still land in the main data root when the
+    // scratch dir is a direct child of it (e.g. ../ai-triad-data/debates-t2192).
+    const calDataRoot = config.outputDir != null ? outputDir : dataRoot;
     const dataPoint = extractCalibrationData(session, 'local', {
       explorationSummary: engineConfig.explorationSummary,
     });
-    appendCalibrationLog(dataPoint, dataRoot);
-    log(`Calibration data logged to ${dataRoot}/calibration/users/${dataPoint.origin || 'local'}/calibration-log.jsonl`);
+    appendCalibrationLog(dataPoint, calDataRoot);
+    log(`Calibration data logged to ${calDataRoot}/calibration/users/${dataPoint.origin || 'local'}/calibration-log.jsonl`);
   } catch (err) {
     getGlobalRecorder()?.record({ type: 'system.error', component: 'cli', level: 'warn', message: 'Calibration logging failed', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
     log(`Calibration logging failed (non-critical): ${err instanceof Error ? err.message : err}`);
