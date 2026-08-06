@@ -18,6 +18,20 @@ import type { StageGenerateFn, StageProgressFn } from './types.js';
 
 // ── Opening pipeline ──────────────────────────────────
 
+const DEFAULT_BRIEF_TIMEOUT_MS = 60_000;
+const DEFAULT_BRIEF_MAX_RETRIES = 3;
+
+function isBriefTimeout(err: unknown): boolean {
+  if (err instanceof DOMException && err.name === 'AbortError') return true;
+  const msg = err instanceof Error ? err.message : String(err);
+  return msg.includes('timed out') || msg.includes('AbortError') || msg.includes('The operation was aborted');
+}
+
+export type BriefEventFn = (
+  phase: 'brief.timeout' | 'brief.retrying' | 'brief.retries_exhausted',
+  data: { agent: string; attempt: number; maxRetries: number; elapsedMs: number },
+) => void;
+
 export interface OpeningPipelineInput {
   label: string;
   pov: string;
@@ -42,12 +56,17 @@ export interface OpeningPipelineInput {
   repairHints?: string[];
   /** Available POV node IDs for CITE validation (unknown node detection). */
   availablePovNodeIds?: string[];
+  /** Timeout per brief-stage AI call (ms). Default: 60,000. */
+  briefTimeoutMs?: number;
+  /** Max brief-stage timeout retries. Default: 3. */
+  briefMaxRetries?: number;
 }
 
 export async function runOpeningPipeline(
   input: OpeningPipelineInput,
   generate: StageGenerateFn,
   onProgress?: StageProgressFn,
+  onBriefEvent?: BriefEventFn,
 ): Promise<OpeningPipelineResult> {
   const temps = {
     ...DEFAULT_STAGE_TEMPERATURES,
@@ -74,20 +93,47 @@ export async function runOpeningPipeline(
   const stageDiags: StageDiagnostics[] = [];
   const pipelineStart = Date.now();
 
-  // ── Stage 1: BRIEF (with parse-failure retry) ──
+  // ── Stage 1: BRIEF (with parse-failure retry and configurable timeout retry) ──
   const isOpeningOuterRetry = (input.repairHints?.length ?? 0) > 0;
   const MAX_OPENING_RETRIES = isOpeningOuterRetry ? 0 : 1;
+  const briefTimeoutMs = input.briefTimeoutMs ?? DEFAULT_BRIEF_TIMEOUT_MS;
+  const briefMaxRetries = input.briefMaxRetries ?? DEFAULT_BRIEF_MAX_RETRIES;
   let brief: OpeningBriefWorkProduct | undefined;
   let briefJson = '';
-  let t0: number;
-  let elapsed: number;
+  let t0: number = Date.now();
+  let elapsed: number = 0;
   for (let briefAttempt = 0; briefAttempt <= MAX_OPENING_RETRIES; briefAttempt++) {
     onProgress?.('brief', `${input.label} is briefing${briefAttempt > 0 ? ` (retry ${briefAttempt})` : ''}...`);
     const briefPrompt = briefOpeningStagePrompt(stageInput);
-    t0 = Date.now();
-    const briefRaw = await generate(
-      briefPrompt, oBriefModel, { temperature: temps.brief_temperature }, `${input.label} opening brief`,
-    );
+    let briefRaw!: string;
+    for (let tout = 0; tout <= briefMaxRetries; tout++) {
+      t0 = Date.now();
+      try {
+        briefRaw = await generate(
+          briefPrompt, oBriefModel,
+          { temperature: temps.brief_temperature, timeoutMs: briefTimeoutMs },
+          `${input.label} opening brief`,
+        );
+        break;
+      } catch (err) {
+        if (isBriefTimeout(err)) {
+          const elapsedMs = Date.now() - t0;
+          const evData = { agent: input.label, attempt: tout, maxRetries: briefMaxRetries, elapsedMs };
+          onBriefEvent?.('brief.timeout', evData);
+          getGlobalRecorder()?.record({
+            type: 'ai.error', component: 'turn-pipeline', level: 'warn', speaker: input.label,
+            message: `Opening brief timed out after ${Math.round(elapsedMs / 1000)}s (attempt ${tout + 1}/${briefMaxRetries + 1})`,
+            data: evData,
+          });
+          if (tout < briefMaxRetries) {
+            onBriefEvent?.('brief.retrying', { ...evData, attempt: tout + 1 });
+            continue;
+          }
+          onBriefEvent?.('brief.retries_exhausted', evData);
+        }
+        throw err;
+      }
+    }
     elapsed = Date.now() - t0;
     const briefParsed = parseStageResponse<OpeningBriefWorkProduct>(briefRaw, 'brief');
     stageDiags.push({

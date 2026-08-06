@@ -954,7 +954,7 @@ export class DebateEngine {
       app_version: this.config.appVersion,
       audience: this.config.audience,
       moderator_mode: this.config.moderatorMode ?? 'standard',
-      talmudic_references: this._talmudicCorpus ? { enabled: true, corpus_name: this._talmudicCorpus.name, corpus_path: path.resolve(this.config.talmudicReferences!.corpusPath), corpus_version: this._talmudicCorpus.version } : { enabled: false },
+      talmudic_references: this._talmudicCorpus ? { enabled: true, corpus_name: this._talmudicCorpus.name, corpus_path: path.resolve(this.config.talmudicReferences!.corpusPath), corpus_version: String(this._talmudicCorpus.version) } : { enabled: false },
       phase: 'setup',
       topic: {
         original: this.config.topic,
@@ -1264,6 +1264,10 @@ export class DebateEngine {
       totalRounds: this.config.rounds,
       message: message ?? phase,
     });
+  }
+
+  briefProgress(phase: string, speaker: string | undefined, message: string, brief: import('./debateEngine/internals.js').DebateProgress['brief']): void {
+    this.onProgress?.({ phase, speaker, totalRounds: this.config.rounds, message, brief });
   }
 
   private emitSnapshot(trigger: 'round_complete' | 'error'): void {

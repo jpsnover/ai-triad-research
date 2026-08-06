@@ -101,6 +101,8 @@ export async function runOpeningStatements(engine: DebateEngineInternals): Promi
       citeModel: engine.config.stageModels?.cite,
       userSeedClaims: userSeeds.length > 0 ? userSeeds : undefined,
       availablePovNodeIds: [...engine.getKnownNodeIds()],
+      briefTimeoutMs: engine.config.briefTimeoutMs,
+      briefMaxRetries: engine.config.briefMaxRetries,
       ...(engine.config.temperature != null ? {
         stageTemperatures: {
           brief_temperature: engine.config.temperature,
@@ -119,12 +121,22 @@ export async function runOpeningStatements(engine: DebateEngineInternals): Promi
       round: 0,
       turn_index: engine.session.transcript.length,
     });
+    const onBriefEvent: import('../../turnPipeline.js').BriefEventFn = (phase, data) => {
+      const msg = phase === 'brief.timeout'
+        ? `${data.agent} brief timed out after ${Math.round(data.elapsedMs / 1000)}s (attempt ${data.attempt + 1}/${data.maxRetries + 1})`
+        : phase === 'brief.retrying'
+        ? `${data.agent} brief retrying (attempt ${data.attempt + 1}/${data.maxRetries + 1})`
+        : `${data.agent} brief retries exhausted after ${data.attempt + 1} attempts`;
+      engine.briefProgress(phase, poverId, msg, data);
+    };
+
     let pipelineResult = await engine.executeWithModelFailover(poverId, async (model) => {
       const input = { ...pipelineInput, model };
       let result = await runOpeningPipeline(
         input,
         engine.stageGenerate.bind(engine),
         (_stage, label) => engine.progress('opening', poverId, label),
+        onBriefEvent,
       );
 
       const repairHints = getOpeningRepairHints(result);
@@ -135,6 +147,7 @@ export async function runOpeningStatements(engine: DebateEngineInternals): Promi
             { ...input, repairHints },
             engine.stageGenerate.bind(engine),
             (_stage, label) => engine.progress('opening', poverId, label),
+            onBriefEvent,
           );
         } catch (err) {
           getGlobalRecorder()?.record({ type: 'system.error', component: 'debate-engine', level: 'warn', debate_id: engine.session?.id, message: 'Opening retry failed', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });

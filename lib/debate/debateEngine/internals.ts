@@ -74,6 +74,10 @@ export interface DebateConfig {
   stopAfterStage?: LifecycleStage;
   /** Minimum delay (ms) between consecutive API calls. 0 = no throttle (default). Recommended: 500-1000 for free-tier APIs. */
   throttleMs?: number;
+  /** Timeout per brief-stage AI call (ms). Default: 60,000. Overrides the backend default for the brief stage only, enabling faster retries on slow models. */
+  briefTimeoutMs?: number;
+  /** Max brief-stage timeout retries before aborting the opening. Default: 3. */
+  briefMaxRetries?: number;
   /** Perturbation testing config — inject adversarial prompt at a specific turn for resilience evaluation. Evaluation/benchmark only. */
   perturbation?: import('../types.js').PerturbationConfig;
   /** Run topic wisdom scoring at setup. Default: true. */
@@ -137,6 +141,8 @@ export interface DebateProgress {
   message: string;
   /** Present when phase is 'retry' — retry attempt details. */
   retry?: { attempt: number; maxRetries: number; backoffSeconds: number };
+  /** Present when phase is 'brief.timeout', 'brief.retrying', or 'brief.retries_exhausted'. */
+  brief?: { agent: string; attempt: number; maxRetries: number; elapsedMs: number };
 }
 
 /**
@@ -205,6 +211,7 @@ export interface DebateEngineInternals {
 
   // ── helper methods that remain on the orchestrator ──
   progress(phase: string, speaker?: string, message?: string, round?: number): void;
+  briefProgress(phase: string, speaker: string | undefined, message: string, brief: NonNullable<DebateProgress['brief']>): void;
   warn(operation: string, error: unknown, recovery: string): void;
   checkAborted(): void;
   emitSnapshot(trigger: 'round_complete' | 'error'): void;
