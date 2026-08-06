@@ -2985,6 +2985,7 @@ Institutional memory for failure patterns across the AI Triad Research project.
 **Instances:**
 - 2026-08-04 — Debate Tool 2 (p/234#8): landing a `lib/debate` fix; pre-commit hook blocked on the pre-existing AGENTS.md double-track divergence from t/2080 (not caused by the change). Hook confirmed override expected. User approved; landed with `--no-verify`.
 - 2026-08-06 — Rosetta Stone (p/6#37, fix/bootstrap-reconnect-t2195, 61c493f9): landing a `taxonomy-editor/src/renderer/bootstrap.ts` fix; same pre-existing AGENTS.md double-track (t/2080). Change was clean; used `--no-verify`.
+- 2026-08-06 — Rosetta Stone (p/6#39, t/2199): 3 TSX/CSS/TS files staged, no AGENTS.md touched. Hook still blocked on t/2080 pre-existing state. Resolved with `--no-verify` per documented emergency override.
 
 **Root Cause:** The pre-commit hook runs a repo-wide AGENTS.md ownership audit on every commit. A pre-existing violation (t/2080: file tracked in both repos) will block all commits until resolved, regardless of the committing agent's scope. The hook is self-documenting about this: when the known divergence is the cause, the message confirms `--no-verify` is the expected bypass.
 
@@ -2994,6 +2995,6 @@ Institutional memory for failure patterns across the AI Triad Research project.
 3. **The correct fix for the divergence itself is tracked on its own ticket** (t/2080); the TL owns the resolution. `--no-verify` is a temporary bypass, not a license to ignore the hook indefinitely.
 4. **Always record `--no-verify` usage** — ping Sage with the commit SHA, the hook message, and the user approval context so it's traceable.
 
-**Status:** Active — 2 instances (Debate Tool 2 p/234#8 + Rosetta Stone p/6#37). Expected recurrence until t/2080 resolves the AGENTS.md double-track.
+**Status:** Active — 3 instances (Debate Tool 2 p/234#8, Rosetta Stone p/6#37, Rosetta Stone p/6#39). Expected recurrence until t/2080 resolves.
 
 **Applies To:** All agents committing while the t/2080 AGENTS.md double-track divergence is unresolved.
