@@ -1,6 +1,7 @@
 # syntax=docker/dockerfile:1.7
 
 # AI Triad Base Image — heavy system dependencies, rebuilt monthly.
+# Last rebuild forced: 2026-08-06 (Wave 3 CVE remediation, t/2190)
 #
 # Contains: Node 22, system packages, a build-time-baked flat ONNX embedding
 # model (all-MiniLM-L6-v2, read in-process via onnxruntime-node), and the
