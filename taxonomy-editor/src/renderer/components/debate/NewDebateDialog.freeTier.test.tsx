@@ -86,7 +86,7 @@ const byokTier = {
 const { NewDebateDialog } = await import('./NewDebateDialog');
 
 async function fillTopicAndStart() {
-  const topic = await screen.findByPlaceholderText(/what should we debate/i);
+  const topic = await screen.findByPlaceholderText(/what should the ai debate/i);
   fireEvent.change(topic, { target: { value: 'Should we pause frontier training?' } });
   const startBtn = screen.getByRole('button', { name: /start debate/i });
   await waitFor(() => expect(startBtn).not.toBeDisabled());

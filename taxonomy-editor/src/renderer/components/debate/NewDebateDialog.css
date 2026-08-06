@@ -798,3 +798,237 @@
 .ndd-settings-audience-select {
   margin-top: var(--sp-5);
 }
+
+/* ── Screen B — full settings dialog (t/2201) ──────────────────────────────── */
+
+/* Nav dot — marks sections with non-preset values */
+.ndd-settings-nav-item {
+  position: relative;
+}
+
+.ndd-nav-dot {
+  background: var(--focus-ring, #3b82f6);
+  border-radius: 50%;
+  display: inline-block;
+  height: 6px;
+  margin-left: var(--sp-2);
+  vertical-align: middle;
+  width: 6px;
+}
+
+/* Footer layout — reset/save-preset left, cancel/apply right */
+.ndd-settings-footer {
+  align-items: center;
+}
+
+.ndd-reset-btn {
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+}
+
+.ndd-save-preset-btn {
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  margin-left: var(--sp-1);
+}
+
+.ndd-settings-footer-right {
+  display: flex;
+  gap: var(--sp-2);
+  margin-left: auto;
+}
+
+/* Section field wrapper */
+.ndd-settings-field {
+  margin-top: var(--sp-4);
+}
+
+.ndd-settings-field-hint {
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+  margin: var(--sp-1) 0 0;
+}
+
+/* Toggle rows (step mode, multi-provider, etc.) */
+.ndd-settings-toggle-row {
+  align-items: flex-start;
+  cursor: pointer;
+  display: flex;
+  gap: var(--sp-3);
+  margin-top: var(--sp-4);
+  min-height: 44px;
+}
+
+.ndd-settings-toggle-row input[type="checkbox"] {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.ndd-settings-toggle-row > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.ndd-toggle-name {
+  font-size: var(--text-md);
+  font-weight: 500;
+}
+
+/* Dialectical style radio cards */
+.ndd-style-options {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  margin-top: var(--sp-2);
+}
+
+.ndd-style-option {
+  border: 1px solid var(--border-color, rgba(255, 255, 255, 0.15));
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--sp-3);
+  transition: border-color 0.1s;
+}
+
+.ndd-style-option.active {
+  border-color: var(--focus-ring, #3b82f6);
+  border-width: 2px;
+  padding: calc(var(--sp-3) - 1px);
+}
+
+.ndd-style-label {
+  font-size: var(--text-md);
+  font-weight: 500;
+}
+
+.ndd-style-desc {
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+}
+
+/* Rounds per phase grid */
+.ndd-rounds-grid {
+  display: grid;
+  gap: var(--sp-3);
+  grid-template-columns: repeat(3, 1fr);
+  margin-top: var(--sp-2);
+}
+
+.ndd-rounds-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+}
+
+.ndd-rounds-label {
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+  font-weight: 500;
+}
+
+.ndd-rounds-input {
+  text-align: center;
+  width: 100%;
+}
+
+/* Model tier chips */
+.ndd-tier-chips {
+  display: flex;
+  gap: var(--sp-2);
+  margin-top: var(--sp-2);
+}
+
+.ndd-tier-chip {
+  background: none;
+  border: 1px solid var(--border-color, rgba(255, 255, 255, 0.15));
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: var(--text-sm);
+  min-height: 36px;
+  padding: var(--sp-1) var(--sp-4);
+  transition: border-color 0.1s;
+}
+
+.ndd-tier-chip.active {
+  border-color: var(--focus-ring, #3b82f6);
+  border-width: 2px;
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+/* Backend chips (multi-provider) */
+.ndd-backend-chip {
+  align-items: center;
+  background: none;
+  border: 1px solid var(--border-color, rgba(255, 255, 255, 0.15));
+  border-radius: 9999px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  display: inline-flex;
+  font-size: var(--text-xs);
+  gap: var(--sp-1);
+  padding: 3px 12px;
+  transition: border-color 0.1s;
+}
+
+.ndd-backend-chip.active {
+  background: var(--bg-tertiary);
+  border-color: var(--focus-ring, #3b82f6);
+  color: var(--text-primary);
+}
+
+.ndd-backend-nokey {
+  color: var(--warning, #f59e0b);
+  font-weight: 700;
+}
+
+/* Save as preset modal */
+.ndd-save-preset-overlay {
+  align-items: center;
+  background: rgba(0, 0, 0, 0.6);
+  bottom: 0;
+  display: flex;
+  justify-content: center;
+  left: 0;
+  position: fixed;
+  right: 0;
+  top: 0;
+  z-index: 300;
+}
+
+.ndd-save-preset-modal {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color, rgba(255, 255, 255, 0.15));
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  max-width: 95vw;
+  padding: var(--sp-6);
+  width: 360px;
+}
+
+.ndd-save-preset-title {
+  font-size: var(--text-lg);
+  font-weight: 600;
+  margin: 0;
+}
+
+.ndd-save-preset-actions {
+  display: flex;
+  gap: var(--sp-2);
+  justify-content: flex-end;
+}
+
+/* hint-error (debater validation) */
+.ndd-hint-error {
+  color: var(--error, #ef4444);
+  font-size: var(--text-xs);
+  margin-top: var(--sp-1);
+}
