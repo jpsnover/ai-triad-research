@@ -11,6 +11,7 @@ import { resolveModelForSpeaker } from '../modelResolution.js';
 import { accumulateContextManifest } from '../adaptiveStaging.js';
 import { enrichTaxonomyRefs, getRelevantTaxonomyContext, formatDebaterEdgeContext } from '../taxonomyContext.js';
 import { getCommitmentContext, getEstablishedPointsContext } from '../context.js';
+import { EMBEDDING_DIM } from '../../constants.js';
 
 // ── Phase: Opening statements ──────────────────────────────
 
@@ -190,7 +191,7 @@ export async function runOpeningStatements(engine: DebateEngineInternals): Promi
           engine.session.frame_embeddings ??= {};
           engine.session.frame_embeddings[poverId] = {
             model: 'all-MiniLM-L6-v2',
-            dim: 384,
+            dim: EMBEDDING_DIM,
             frames: frames.map((frame, i) => ({ frame, embedding: vecs[i] })),
           };
         }

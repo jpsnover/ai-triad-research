@@ -190,6 +190,20 @@ export function renderedOffsetOf(container: HTMLElement, node: Node, offset: num
   return preRange.toString().length;
 }
 
+// ── Tier metadata (shared across StatementCard + DebateWorkspace) ────────────
+
+/** Tiers that render a structured analysis view (not prose text). Used to derive
+ *  the active "mode" (Text vs Analysis) without a second store field. */
+export const META_TIERS = new Set(['reasoning', 'terms', 'lineage', 'claims', 'convergence']);
+
+/** Human-readable labels for every tier — single source of truth for both
+ *  per-statement controls and the global toolbar (consolidates the previously
+ *  duplicated maps; labels updated: Med→Medium, Detail→Detailed per t/2172). */
+export const TIER_LABELS: Record<string, string> = {
+  brief: 'Brief', medium: 'Medium', detailed: 'Detailed', reasoning: 'Plan',
+  claims: 'Claims', terms: 'Terms', lineage: 'Lineage', convergence: 'Conv',
+};
+
 // ── Find-in-debate helpers ────────────────────────────────
 
 export function countOccurrences(text: string, query: string): number {

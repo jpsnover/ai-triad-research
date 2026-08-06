@@ -7,12 +7,13 @@
  * for each debater's prompt.
  */
 
-import type { PovNode, SituationNode } from './taxonomyTypes.js';
+import type { PovNode, SituationNode, Category } from './taxonomyTypes.js';
 import { cosineSimilarity } from '../embeddings/similarity.js';
 import type { TrackedCrux, ArgumentNetworkNode } from './types.js';
 import { stripExcludes } from './helpers.js';
 import { filterByExclusionRatio, type ExclusionFilterResult } from './exclusionGuard.js';
 import { POV_PREFIXES } from './nodeIdUtils.js';
+import { loadProvisionalWeights } from './phaseTransitions.js';
 import { WELL_TESTED_EXCLUSION, isReeligible } from './debateTested.js';
 
 export interface NodeRelevanceScore {
@@ -176,15 +177,15 @@ export function scoreNodeRelevanceMeanTopN(
 export function selectRelevantNodes(
   povNodes: PovNode[],
   scores: Map<string, number>,
-  thresholdOrOpts: number | RelevanceOptions = 0.48,
+  thresholdOrOpts: number | RelevanceOptions = loadProvisionalWeights().relevance!.embedding_threshold,
   minPerCategory: number = 3,
   maxTotal?: number,
 ): ScoredPovNode[] {
   const opts = typeof thresholdOrOpts === 'number' ? { threshold: thresholdOrOpts } : thresholdOrOpts;
   const threshold = opts.threshold ?? (
     opts.scoringMode === 'lexical'
-      ? (opts.lexicalThreshold ?? 0.22)
-      : (opts.embeddingThreshold ?? 0.48)
+      ? (opts.lexicalThreshold ?? loadProvisionalWeights().relevance!.lexical_threshold)
+      : (opts.embeddingThreshold ?? loadProvisionalWeights().relevance!.embedding_threshold)
   );
   minPerCategory = opts.minPerCategory ?? minPerCategory;
   maxTotal = opts.maxTotal ?? maxTotal;
@@ -443,15 +444,15 @@ export function buildSituationRootLookup(
 export function selectRelevantSituationNodes(
   situationNodes: SituationNode[],
   scores: Map<string, number>,
-  thresholdOrOpts: number | RelevanceOptions = 0.48,
+  thresholdOrOpts: number | RelevanceOptions = loadProvisionalWeights().relevance!.embedding_threshold,
   min: number = 3,
   max: number = 15,
 ): ScoredSituationNode[] {
   const opts = typeof thresholdOrOpts === 'number' ? { threshold: thresholdOrOpts } : thresholdOrOpts;
   const threshold = opts.threshold ?? (
     opts.scoringMode === 'lexical'
-      ? (opts.lexicalThreshold ?? 0.22)
-      : (opts.embeddingThreshold ?? 0.48)
+      ? (opts.lexicalThreshold ?? loadProvisionalWeights().relevance!.lexical_threshold)
+      : (opts.embeddingThreshold ?? loadProvisionalWeights().relevance!.embedding_threshold)
   );
 
   // Branch boosting: identify top root categories and boost their descendants
@@ -726,6 +727,8 @@ import {
   computeDiversityComponent,
   computeMidDebateFreshness,
   computeInterpretsBoost,
+  computeBdiEntropy,
+  computeConflictOpenness,
   type SituationScoreComponents,
 } from './situationScoring.js';
 
@@ -745,6 +748,8 @@ export interface SituationReScoreInput {
   referencedSitIds: ReadonlySet<string>;
   /** Taxonomy edges — used for INTERPRETS boost scoring. */
   edges?: readonly { source: string; target: string; type: string; status?: string }[];
+  /** Category lookup for all POV nodes — required to compute bdi_entropy per situation. */
+  nodeCategoryLookup: ReadonlyMap<string, Category>;
 }
 
 export interface SituationReScoreResult {
@@ -792,10 +797,12 @@ export function reScoreSituationsForCruxesDetailed(input: SituationReScoreInput)
     }
   }
 
-  // Count existing disagreement types for diversity bonus
+  // Count disagreement types already injected (not full candidate pool) for diversity bonus.
+  // A candidate whose type is not yet injected scores 1; using the full pool made has() always
+  // true and returned 0 for every node (t/2193).
   const typePresence = new Set<string>();
   for (const sit of input.situationNodes) {
-    if (sit.disagreement_type) typePresence.add(sit.disagreement_type);
+    if (input.injectedSitIds.has(sit.id) && sit.disagreement_type) typePresence.add(sit.disagreement_type);
   }
 
   for (const sit of input.situationNodes) {
@@ -809,8 +816,8 @@ export function reScoreSituationsForCruxesDetailed(input: SituationReScoreInput)
       relevance,
       diversity,
       freshness,
-      bdi_entropy: 0, // not computed in mid-debate context
-      conflict_openness: 0, // not computed in mid-debate context
+      bdi_entropy: computeBdiEntropy(sit.linked_nodes ?? [], input.nodeCategoryLookup),
+      conflict_openness: computeConflictOpenness(sit.conflict_ids ?? [], new Set()),
     };
     components.set(sit.id, comp);
 

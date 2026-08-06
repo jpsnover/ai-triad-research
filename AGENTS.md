@@ -31,6 +31,12 @@ Orca config files (`.orca.yaml`, `AGENTS.md`, `.orca/` directory) live in a **se
 - Run `ogit` from the repo root — `.orca-git` is not visible from subdirectories
 - A **new** nested `AGENTS.md` needs `ogit add -f` — the overlay whitelist alone does not stage it
 
+**Creating a role/instance?** After `create_role`/`create_instance`, the generated nested `AGENTS.md` is tracked by **neither** repo until you overlay-track it — do this **before** your next commit:
+
+1. `ogit add -f <new-role>/AGENTS.md`  (the overlay whitelist alone does not stage a *new* nested file — t/1971)
+2. `sh .githooks/agent-file-owner.sh --audit`  → expect **clean**
+3. Commit normally. **Never** `--no-verify` past the audit — that strands the file with no backing repo (F3 orphan; Pattern #146). If the audit instead flags a `.worktrees/<name>/AGENTS.md`, that is a worktree checkout of a main-tracked file — do **not** ogit-add it (t/2205).
+
 **Which repo owns an `AGENTS.md`? Don't recall it — ask (t/2080):**
 
 ```

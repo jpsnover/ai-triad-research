@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { describe, it, expect, beforeEach } from 'vitest';
+import { readFileSync } from 'fs';
 import {
   loadProvisionalWeights,
   resetWeightsCache,
@@ -1227,7 +1228,7 @@ describe('buildSignalTelemetry', () => {
     expect(record.network_size).toBe(10);
   });
 
-  it('fills argumentative_saturation_score for non-synthesis phase', () => {
+  it('fills both composite scores for non-concluding phase', () => {
     const state = makePhaseState({ current_phase: 'argumentation' });
     const ctx = makeSignalContext();
     const signals = buildSignalRegistry();
@@ -1237,7 +1238,7 @@ describe('buildSignalTelemetry', () => {
     };
     const record = buildSignalTelemetry(state, ctx, signals, result, 0.5, 50);
     expect(record.composite.argumentative_saturation_score).not.toBeNull();
-    expect(record.composite.convergence_score).toBeNull();
+    expect(record.composite.convergence_score).not.toBeNull();
   });
 
   it('fills convergence_score for synthesis phase', () => {
@@ -1447,5 +1448,27 @@ describe('max-rounds concluding starvation (t/1256)', () => {
     });
     const result = evaluatePhaseTransition(state, ctx, signals, config);
     expect(result.action).toBe('terminate');
+  });
+});
+
+// ── Budget parity gate (t/2186) ───────────────────────────────
+// Asserts that the hardcoded browser fallback in loadProvisionalWeights() stays byte-for-byte
+// equal to the budget block in calibration-config.json. If either side drifts, this test fails.
+// ERR_INVALID_URL_SCHEME is caught and returns early (skip) in vite/jsdom environments where
+// import.meta.url resolves to a non-file URL at test execution time; all other errors re-throw.
+describe('calibration-config.json budget parity', () => {
+  beforeEach(() => resetWeightsCache());
+
+  it('hardcoded budget fallback deep-equals calibration-config.json budget block', () => {
+    let raw: string;
+    try {
+      raw = readFileSync(new URL('./calibration-config.json', import.meta.url), 'utf-8');
+    } catch (e) {
+      if ((e as NodeJS.ErrnoException).code === 'ERR_INVALID_URL_SCHEME') return;
+      throw e;
+    }
+    const { budget: jsonBudget } = JSON.parse(raw) as { budget: Record<string, number> };
+    const fallback = loadProvisionalWeights();
+    expect(fallback.budget).toEqual(jsonBudget);
   });
 });

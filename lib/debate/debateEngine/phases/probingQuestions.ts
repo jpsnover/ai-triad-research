@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import type { DebateEngineInternals } from '../internals.js';
+import { PROBING_UNREFERENCED_NODES_CAP, PROBING_TRANSCRIPT_WINDOW_TURNS, PROBING_UNCOVERED_CLAIMS_LIMIT } from '../../debateConfig.js';
 import { POV_KEYS } from '../../types.js';
 import { probingQuestionsPrompt } from '../../prompts.js';
 import { parseJsonRobust, formatRecentTranscript } from '../../helpers.js';
@@ -23,13 +24,13 @@ export async function runProbingQuestions(engine: DebateEngineInternals, round: 
   for (const pov of POV_KEYS) {
     const nodes = engine.taxonomy[pov]?.nodes ?? [];
     for (const n of nodes) {
-      if (!referencedIds.has(n.id) && unreferencedNodes.length < 20) {
+      if (!referencedIds.has(n.id) && unreferencedNodes.length < PROBING_UNREFERENCED_NODES_CAP) {
         unreferencedNodes.push(`[${n.id}] ${n.label}: ${n.description.slice(0, 100)}`);
       }
     }
   }
 
-  const transcript = formatRecentTranscript(engine.session.transcript, 50, engine.session.context_summaries);
+  const transcript = formatRecentTranscript(engine.session.transcript, PROBING_TRANSCRIPT_WINDOW_TURNS, engine.session.context_summaries);
   const hasSourceDoc = engine.config.sourceType === 'document' || engine.config.sourceType === 'url';
 
   // CT-4/CT-11: Compute uncovered document claims, sorted by QBAF strength weight (load-bearing first)
@@ -50,7 +51,7 @@ export async function runProbingQuestions(engine: DebateEngineInternals, round: 
             const text = documentClaims.find(dc => dc.id === c.claimId)?.text ?? c.claimId;
             return `[${c.claimId}] ${text}`;
           })
-          .slice(0, 10);
+          .slice(0, PROBING_UNCOVERED_CLAIMS_LIMIT);
       } catch (err) {
         getGlobalRecorder()?.record({ type: 'system.error', component: 'debate-engine', level: 'warn', debate_id: engine.session?.id, message: 'Probing coverage computation failed', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
       }

@@ -83,6 +83,7 @@ import { embedDoctrinalBoundaries, computeDoctrinalAnchoring, checkThresholdAnom
 import { extractCalibrationData, appendCalibrationLog, readCalibrationLog } from './calibrationLogger.js';
 import { DEFAULT_ATTACK_WEIGHTS } from './qbaf.js';
 import { DEFAULT_AI_TIMEOUT_MS, DEFAULT_RELEVANCE_THRESHOLD } from './constants.js';
+import { CLAIM_VERIFY_SETTLE_TIMEOUT_MS, EVALUATOR_TEMPERATURE, SUMMARIZATION_TEMPERATURE, SUMMARIZATION_MAX_TOKENS, SUMMARIZATION_TIMEOUT_MS } from './debateConfig.js';
 import { computeStrategicHints } from './strategicHints.js';
 import { evaluateLookahead, type LookaheadDiagnostics } from './lookaheadGate.js';
 import { runOvergenPipeline, type OvergenDiagnostics } from './overgenPipeline.js';
@@ -625,7 +626,6 @@ export class DebateEngine {
       // `_internal` accessor), so this gate continues to await them. Any future work that adds
       // post-completion async ordering (e.g. t/1767 entity/mention-metadata extraction) must
       // enqueue here and settle at this same point — do not scatter the ordering contract.
-      const CLAIM_VERIFY_SETTLE_TIMEOUT_MS = 30_000;
       if (this._pendingClaimVerifications.length > 0) {
         const settled = await Promise.race([
           Promise.allSettled(this._pendingClaimVerifications).then(() => true),
@@ -1041,6 +1041,7 @@ export class DebateEngine {
         argumentationExitThreshold: this.config.argumentationExitThreshold ?? preset.argumentationExit,
         concludingExitThreshold: this.config.concludingExitThreshold ?? preset.concludingExit,
         allowEarlyTermination: this.config.allowEarlyTermination ?? true,
+        phaseBoundsOverride: this.config.phaseBoundsOverride,
       };
       this._phaseState = initPhaseState(this._adaptiveConfig);
       this._signalRegistry = buildSignalRegistry();
@@ -1238,7 +1239,7 @@ export class DebateEngine {
     const start = Date.now();
     try {
       const text = await this.adapter.generateText(prompt, evalModel, {
-        temperature: 0,
+        temperature: EVALUATOR_TEMPERATURE,
         timeoutMs: timeoutMs ?? DEFAULT_AI_TIMEOUT_MS,
         signal: this.config.signal,
       });
@@ -1370,9 +1371,9 @@ export class DebateEngine {
       const speaker = (POVER_INFO as Record<string, { label: string }>)[entry.speaker]?.label ?? entry.speaker;
       const prompt = entrySummarizationPrompt(entry.content, speaker);
       const raw = await this.adapter.generateText(prompt, resolveStageModel(this._internal, 'summary'), {
-        temperature: 0.3, // Low temp for faithful summarization
-        maxTokens: 500,
-        timeoutMs: 15000,
+        temperature: SUMMARIZATION_TEMPERATURE,
+        maxTokens: SUMMARIZATION_MAX_TOKENS,
+        timeoutMs: SUMMARIZATION_TIMEOUT_MS,
       });
       this.apiCallCount++;
 
@@ -1487,7 +1488,6 @@ export class DebateEngine {
   }
 
   // ── Early return (stopAfterStage) ──────────────────────────
-
   private earlyReturn(startTime: number): DebateSession {
     this.session.updated_at = nowISO();
     if (this.session.diagnostics) {

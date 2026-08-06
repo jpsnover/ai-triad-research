@@ -68,11 +68,14 @@ main_tracked()    { git -C "$root" ls-files -- '*AGENTS.md' 'AGENTS.md' 2>/dev/n
 overlay_tracked() { [ "$have_overlay" -eq 1 ] || return 0
                     ogit ls-files -- '*AGENTS.md' 'AGENTS.md' 2>/dev/null | sort -u; }
 
-# Prune the expensive/irrelevant trees. `.claude` holds linked worktrees, whose
-# AGENTS.md are checkouts of the same tracked paths and would double-count.
+# Prune the expensive/irrelevant trees. `.claude` and `.worktrees` both hold
+# linked worktrees, whose AGENTS.md are checkouts of the same tracked paths —
+# walking them double-counts and false-positives as tracked-by-neither at their
+# nested paths (t/2080 recurrence: fleet uses BOTH worktree roots). Adding a
+# third worktree location must be reflected here.
 on_disk() {
   ( cd "$root" && find . \
-      \( -name node_modules -o -name .git -o -name .orca-git -o -name .claude \
+      \( -name node_modules -o -name .git -o -name .orca-git -o -name .claude -o -name .worktrees \
          -o -name dist -o -name build -o -name out \) -prune \
       -o -name AGENTS.md -print 2>/dev/null ) | sed 's|^\./||' | sort -u
 }

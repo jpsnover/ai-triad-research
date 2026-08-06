@@ -1722,16 +1722,18 @@ Institutional memory for failure patterns across the AI Triad Research project.
 - 2026-07-28 — DebateDiagnostics (p/245#1): `git worktree remove <wt>` **timed out at 2min** synchronously `rm -rf`-ing the worktree's large `node_modules` (Windows/AV). Resolved by detaching git metadata fast, then backgrounding the delete: `git worktree prune` + `git branch -D <branch>`, then `rm -rf <wt-dir>` as a backgrounded task. (Facet B — supersedes the `--force` remedy for deps-installed worktrees.)
 - 2026-07-29 — Chat (p/270#1): `git worktree remove` **timed out at 2min** on a **double-`npm ci`'d** worktree (root **and** `taxonomy-editor/` → tens of thousands of node_modules files). git had already marked it **`prunable`**, so a backgrounded `rm -rf` + `git worktree prune` finished cleanup with **no `branch -D` needed**. 3rd instance — Facet B; the double-`npm ci` is the amplifier.
 - 2026-07-29 — Server Storage (t/1921 Batch B/C, p/206#5): `git worktree remove --force` failed **"`.git` does not exist"** — the OS/AV had already deleted the physical worktree dir, leaving only a stale administrative ref. Resolved with **`git worktree prune`**. (Facet C — the delete already happened out-of-band; `prune` is the whole fix, `remove` is the wrong verb.)
+- 2026-08-05 — DebateTool (p/70#14, t/2186): worktree at `C:/Users/jsnov/repos/wt-2186` had its **`.git` file silently disappear** — the directory still contained `lib/` and `node_modules/` content but no git metadata. Git commands had worked during the active rebase session; by next use the worktree was dead ("not a git repository"). Pushed from the main repo instead. (Facet E — `.git` file gone, content intact; distinct from Facet C where the whole dir was deleted.) Likely cause: OS/AV or a cleanup process selectively deleted the small `.git` pointer file while leaving larger content dirs alone.
 
-**Root Cause:** (A) `git worktree remove` aborts on untracked files, and an in-worktree `npm ci` always leaves a large untracked `node_modules`. (B) `--force` clears the refusal but does the deletion **synchronously in the foreground**, and unlinking tens of thousands of small files is pathologically slow on Windows (each hits AV/indexing), blowing the 2-minute timeout. (C) Once the physical dir is already gone, `remove` fails ("`.git` does not exist") — only the stale ref remains, which `prune` clears. The through-line: `remove` couples git-metadata detach (instant) with the physical delete (slow, or possibly already done); decouple them — `prune` owns the ref, a backgrounded `rm -rf` owns the files. Companion to #77 and the Windows Junction pattern.
+**Root Cause:** (A) `git worktree remove` aborts on untracked files, and an in-worktree `npm ci` always leaves a large untracked `node_modules`. (B) `--force` clears the refusal but does the deletion **synchronously in the foreground**, and unlinking tens of thousands of small files is pathologically slow on Windows (each hits AV/indexing), blowing the 2-minute timeout. (C) Once the physical dir is already gone, `remove` fails ("`.git` does not exist") — only the stale ref remains, which `prune` clears. (E) The `.git` file in a linked worktree is a small plain-text pointer file (`gitdir: /path/to/.git/worktrees/...`) — unlike the main repo's `.git` directory, it's just one file that AV/OS cleanup processes may selectively delete while leaving larger content dirs (`lib/`, `node_modules/`) intact. When it's gone, the directory is no longer a git repository from any tool's perspective, but the content survives. The through-line: `remove` couples git-metadata detach (instant) with the physical delete (slow, or possibly already done); decouple them — `prune` owns the ref, a backgrounded `rm -rf` owns the files. Companion to #77 and the Windows Junction pattern.
 
 **Prevention:**
 1. **For a deps-installed worktree, don't `git worktree remove` — detach fast, delete in the background** (DebateDiagnostics, p/245#1): `git worktree prune` + `git branch -D <branch>` (instant), then `rm -rf <wt-dir>` **backgrounded**. Avoids BOTH the refusal (A) and the foreground-rm timeout (B). If git already reports the worktree **`prunable`**, backgrounded `rm -rf` + `git worktree prune` alone suffices (skip `branch -D`, Chat p/270#1). A land that builds **both** root and `taxonomy-editor/` leaves **two** node_modules trees — double the delete.
 2. **`git worktree remove --force` is the fallback only for small/no-deps worktrees** — where the synchronous rm is fast. With a full `node_modules` on Windows it times out; use #1.
 3. **remove/rm only after your commit is pushed** — confirm the work is on `origin/main`; the sole casualty is `node_modules`. Never remove with uncommitted deliverable work.
 4. `git worktree prune` also clears stale administrative refs (same follow-up as the Junction pattern).
+5. **(Facet E) Verify the `.git` file exists before starting work in an existing worktree:** `Test-Path <wt>\.git` (PowerShell) or `ls <wt>/.git` — if absent, the worktree is dead; push from the main repo using the branch name, then `git worktree prune` to clear the stale ref.
 
-**Status:** Active — worktree-land cluster; `/land-from-worktree` step-8 guidance updated from "`remove --force`" to "**prune + `branch -D` + background rm**" for deps-installed worktrees (supersedes the earlier `--force` wording; both refusal + timeout covered). Handed to TL for the owner-gated batch.
+**Status:** Active — worktree-land cluster; `/land-from-worktree` step-8 guidance updated from "`remove --force`" to "**prune + `branch -D` + background rm**" for deps-installed worktrees (supersedes the earlier `--force` wording; both refusal + timeout covered). Handed to TL for the owner-gated batch. **Facet E added 2026-08-05 (DebateTool p/70#14):** `.git` pointer file silently deleted by OS/AV mid-session; worktree content survives but git is blind to it — push from main repo, then `git worktree prune`.
 
 **Applies To:** All agents using the worktree landing procedure with an in-worktree `npm ci` — i.e. every deps-installing land.
 
@@ -2293,6 +2295,7 @@ Institutional memory for failure patterns across the AI Triad Research project.
 - 2026-07-30 — Server Storage (t/2020, p/206#9): **2nd instance** — `gh pr merge <n> --squash --delete-branch` from a worktree hit the SAME "fatal: 'main' is already used by worktree". Confirms it's **intrinsic to `--delete-branch` from a worktree, independent of the skill's step-5 fix** — recurs on any DIRECT invocation, not via the fixed `/land-from-worktree`. Fixed a different way: **ran `gh pr merge` from the MAIN REPO PATH** (hub holds main → local checkout succeeds; prevention #4). (Also: when the safety classifier blocks the command, hand it to the user.)
 - 2026-07-30 — Server Storage (t/2020, p/206#11): **3rd instance — a NEW facet that qualifies prevention #4.** `gh pr merge --squash --delete-branch` run **from the main repo path**: the GitHub merge succeeded but the **local branch-delete** failed **"cannot delete branch used by worktree"** — a worktree still held the HEAD branch. Running from the main repo path fixes the *checkout-main* conflict but NOT this one (`git branch -D <head>` is blocked while a worktree holds that head). Fix: **`git worktree remove <path>` FIRST, then `git branch -D <head>`**. Same root family (gh's post-merge LOCAL cleanup vs one-branch-per-worktree), at the branch-delete step rather than the checkout step.
 - 2026-08-03 — DevOps (p/26#36): **4th instance, 3rd independent agent — confirms facet 2 / prevention #5.** `gh pr merge --delete-branch` exited 1 with **both** "**already merged**" (the PR had **auto-merged** before the command ran) **and** "cannot delete branch used by worktree" (a worktree still held the branch ref). Resolved by **`git worktree remove --force` FIRST**, then the branch delete succeeds — **order matters** (prevention #5). The "already merged" signature reinforces bookkeeping-≠-artifact: exit 1 was *entirely* post-merge cleanup — the merge was already DONE, so an exit-1 panic-retry would be wrong. 3rd agent to hit facet 2 (ElectronMain + Server Storage + DevOps).
+- 2026-08-05 — ServerAPI (p/79#25, t/2180): **5th instance, 4th independent agent.** PR #486 branch checked out in `.claude/worktrees/default-model-t2180` (IDE-managed worktree) — `gh pr merge --delete-branch` exited 1, local branch-delete blocked by the active worktree. Correctly identified: PR confirmed MERGED (`mergedAt` set); exit 1 is cosmetic post-merge cleanup, worktree owner's responsibility. Same facet 2 as p/206#11 + p/26#36.
 
 **Root Cause:** `--delete-branch` cleans up the merged head branch locally too, and gh switches the working copy to the base branch (`git checkout main`) to do so. Git's one-branch-per-worktree rule blocks checking out `main` while the primary worktree has it → `fatal`. The remote merge + branch delete already happened via the API; only the local checkout/cleanup fails. Bookkeeping-≠-artifact family — the exit code describes post-success cleanup, not the merge.
 
@@ -2303,7 +2306,7 @@ Institutional memory for failure patterns across the AI Triad Research project.
 4. **Or run `gh pr merge` from the MAIN REPO PATH, not a worktree** (Server Storage p/206#9): the hub holds `main`, so gh's post-merge local `checkout main` succeeds — no checkout-conflict. **Caveat (p/206#11): NOT a full escape** — if a worktree still holds the PR's HEAD branch, `--delete-branch`'s local `git branch -D <head>` then fails "cannot delete branch used by worktree." (If a safety classifier blocks the command, ask the user to run it.)
 5. **Fully-safe order: `git worktree remove <path>` FIRST, then merge/delete** — clears BOTH facets (checkout-main + branch-used-by-worktree). Simplest: drop `--delete-branch` (prevention #1), remove the worktree, delete the branch by hand.
 
-**Status:** **Skill-path RESOLVED; direct-invocation ACTIVE (recurred 2026-07-30).** TL fixed step 5 (p/8#121): drops `--delete-branch`, verifies `gh pr view <n> --json state` == `MERGED` (not the exit code), deletes the remote branch by push. **But the failure is intrinsic to `--delete-branch` from a worktree** — Server Storage re-hit it with a DIRECT `gh pr merge --squash --delete-branch` (t/2020), bypassing the fixed skill; any direct invocation from a worktree re-triggers it (fix: drop `--delete-branch`, or run from the main repo path — prevention #4). **3rd instance (p/206#11) surfaced a 2nd facet:** even from the main repo path, `--delete-branch`'s LOCAL branch-delete fails "cannot delete branch used by worktree" if a worktree holds the head → fully-safe order is `git worktree remove` FIRST, then merge/delete (prevention #5). Was the dangerous PR-flow variant (fatal → panic-retry → double-land). **4th instance (DevOps p/26#36, 2026-08-03) — 3rd independent agent confirms prevention #5** (worktree-remove-first) and adds the "**already merged**" signature (an auto-merged PR whose `--delete-branch` cleanup still exit-1s on the held branch) — reinforcing that exit 1 is post-merge cleanup, not a failed merge. Root cause folded into the "validate a fleet-standard procedure end-to-end before mandating" process lesson.
+**Status:** **Skill-path RESOLVED; direct-invocation ACTIVE (recurred 2026-07-30).** TL fixed step 5 (p/8#121): drops `--delete-branch`, verifies `gh pr view <n> --json state` == `MERGED` (not the exit code), deletes the remote branch by push. **But the failure is intrinsic to `--delete-branch` from a worktree** — Server Storage re-hit it with a DIRECT `gh pr merge --squash --delete-branch` (t/2020), bypassing the fixed skill; any direct invocation from a worktree re-triggers it (fix: drop `--delete-branch`, or run from the main repo path — prevention #4). **3rd instance (p/206#11) surfaced a 2nd facet:** even from the main repo path, `--delete-branch`'s LOCAL branch-delete fails "cannot delete branch used by worktree" if a worktree holds the head → fully-safe order is `git worktree remove` FIRST, then merge/delete (prevention #5). Was the dangerous PR-flow variant (fatal → panic-retry → double-land). **4th instance (DevOps p/26#36, 2026-08-03) — 3rd independent agent confirms prevention #5** (worktree-remove-first) and adds the "**already merged**" signature (an auto-merged PR whose `--delete-branch` cleanup still exit-1s on the held branch) — reinforcing that exit 1 is post-merge cleanup, not a failed merge. Root cause folded into the "validate a fleet-standard procedure end-to-end before mandating" process lesson. **5th instance (ServerAPI p/79#25, 2026-08-05) — 4th independent agent; IDE-managed worktree (`.claude/worktrees/`) holds the branch, same outcome.** Correctly handled: check `mergedAt`, treat exit 1 as cosmetic, hand cleanup to the worktree owner.
 
 **Applies To:** Every worktree PR-flow lander — i.e. everyone using `/land-from-worktree` step 5.
 
@@ -2910,3 +2913,91 @@ Institutional memory for failure patterns across the AI Triad Research project.
 **Applies To:** All agents running `git stash` + ff-only pull / merge workflows.
 
 **Status:** Active — 1 instance (Server Storage p/206#18). Latent stash/merge collision; diagnosed quickly but wastes time if the pre-check isn't in the workflow.
+
+---
+
+## #143 [Build] `gh pr create --base <branch>` Fails "Base Ref Must Be a Branch" — Base Branch Is Local-Only, Not Pushed to Origin
+
+**Pattern:** `gh pr create --base <branch>` fails with "Base ref must be a branch" when the named base branch exists only locally and has never been pushed to origin. GitHub resolves `--base` against the remote repository; a local-only branch is invisible to it.
+
+**Instances:**
+- 2026-08-05 — Debate Tool 2 (p/234#10, t/2169): `gh pr create --base fix/situation-ref-rate-t2168` failed "Base ref must be a branch" — the base branch existed locally but had not been pushed. Fixed by `git push origin fix/situation-ref-rate-t2168` then retrying.
+
+**Root Cause:** `gh pr create --base <branch>` is a GitHub API call that looks up `<branch>` in the remote repository, not in the local git index. A branch created locally with `git checkout -b` or `git worktree add -b` does not exist on origin until explicitly pushed. The error message "Base ref must be a branch" is GitHub's way of saying "this ref doesn't exist in the remote repo."
+
+**Prevention:**
+1. **Before `gh pr create --base <branch>`, verify the base branch is on origin:** `git ls-remote origin <branch>` — if it returns a SHA, the branch is published; if it returns nothing, push first.
+2. **When using a feature branch as a PR base (stacked PRs), always push the base branch before opening the child PR:** `git push origin <base-branch>`, confirm non-empty output, then run `gh pr create`.
+3. The default base (`main`) is always on origin and never needs this check — it only applies when `--base` names a non-default branch.
+
+**Applies To:** All agents opening stacked PRs or using a feature branch as `--base` in `gh pr create`.
+
+**Status:** Active — 1 instance (Debate Tool 2, p/234#10). Self-correcting (push + retry), but the pre-check prevents the wasted round-trip.
+
+---
+
+## #144 [Build] Unit Fixtures All Fully Populated — Real-Data Crash on Sparsely-Present Optional Field
+
+**Pattern:** A function is implemented and tested against fixtures where every node has the optional field present. Unit tests pass. On real data, a small fraction of records lack the field — the function calls `.length` (or any method) on `undefined` and FATAL-crashes. The crash only surfaces when the function runs against the live dataset; mocks and unit fixtures gave false confidence because they never exercised the sparse-population case.
+
+**Instances:**
+- 2026-08-05 — Computational Linguist (t/2169, p/7#57): `computeBdiEntropy` called `.length` on `linked_nodes` — present on 433/436 situation nodes, absent on 3. All unit fixtures included `linked_nodes`, so tests passed. First real debate triggered FATAL crash. Fixed by `?? []` null guard + a new unit case with a node missing `linked_nodes`. Caught early because CL ran one verification debate before scaling the batch.
+
+**Root Cause:** Unit test fixtures are authored to exercise the function's logic, not to model the distribution of the production dataset. An optional field that happens to be in every fixture can be absent in real data without any test ever noticing. TypeScript's static types give additional false confidence: a non-null type annotation reflects the *expected* schema, not the *actual* data — runtime data from JSON files or external sources can violate the type at the boundary.
+
+**Prevention:**
+1. **For any field accessed with `.length`, `.map`, `.filter`, or similar array/string methods, guard against `undefined`:** `(node.linked_nodes ?? []).length` — cheap, silent, correct.
+2. **Include at least one fixture where each optional array/object field is absent** — the sparse case is the one that crashes and the one that's always missing from hand-authored fixtures.
+3. **Run one real-data smoke before scaling a batch** — a single debate / single pipeline run against live data catches distribution-dependent crashes that unit tests cannot. This is cheap relative to diagnosing a mid-batch FATAL.
+4. **At JSON read boundaries, normalize optional fields to their zero value:** coerce `node.linked_nodes` to `[]` at the point of deserialization rather than guarding at every call site (mirrors the "normalize at fetch" pattern for type-varying fields).
+
+**Applies To:** All agents writing functions over project-data nodes (situations, beliefs, edges) where optional array/object fields may be sparsely populated in real data.
+
+**Status:** Active — 1 instance (CL p/7#57, t/2169). Caught quickly by running one real-data smoke; the systematic fix is sparse-field fixtures + normalize-at-fetch.
+
+---
+
+## #145 [Build] `git push origin <remote-branch>` in a Worktree Pushes the Stale Same-Named Local Branch, Not the Worktree HEAD
+
+**Pattern:** In a worktree where the local branch name differs from the PR's remote target branch, `git push origin <remote-branch-name>` resolves the source from the **shared local ref namespace** — finding a same-named branch in the main checkout — and pushes that stale branch instead of the current worktree HEAD. Worktrees share the local ref namespace; only HEAD is worktree-local.
+
+**Instances:**
+- 2026-08-04 — DevOps (p/26#63, wt-2137-fix): worktree branch `fix/pnpm-container-t2137`, PR target `feat/pnpm-migration-t2137`. `git push origin feat/pnpm-migration-t2137` found the stale same-named branch in the main checkout and pushed that. Rejected non-fast-forward. Fix: `git push origin fix/pnpm-container-t2137:feat/pnpm-migration-t2137`.
+
+**Root Cause:** Worktrees share the local ref namespace; only HEAD is worktree-local. `git push origin <ref>` without an explicit source refspec resolves `<ref>` against `refs/heads/<ref>` globally — which may match a stale branch in the main checkout, not the worktree HEAD.
+
+**Prevention:**
+1. **In a worktree where your branch name ≠ the PR target branch, always use explicit refspec:** `git push origin <current-wt-branch>:<remote-target-branch>`. Never use bare `git push origin <remote-target-branch>`.
+2. **Verify with `git branch --show-current` in the worktree** before pushing — if it differs from the remote target, explicit refspec is required.
+3. Use `git push --dry-run origin <refspec>` to confirm the push source before sending.
+4. Companion to #77/#78/#128 worktree-land path hazards — worktree-land has multiple name/path mismatch traps; explicit refspec is required for branch-name-mismatch cases.
+
+**Applies To:** All agents pushing from a worktree where the worktree branch name differs from the PR remote target branch.
+
+**Status:** Active — 1 instance (DevOps, p/26#63). Silent wrong-branch push; high damage potential if the push succeeds non-FFW.
+
+---
+
+## #146 [Process] Pre-Commit Hook Blocks on Pre-Existing Known Divergence Unrelated to Current Change — `--no-verify` With User Approval Is the Correct Path
+
+**Pattern:** The pre-commit hook audits AGENTS.md ownership on every commit — not just commits touching AGENTS.md files. A pre-existing double-track divergence (e.g., t/2080) blocks ALL commits until resolved, regardless of the committing agent's scope. The hook message explicitly states the override is expected for this known state. Correct resolution: `git commit --no-verify` with user approval.
+
+**Instances:**
+- 2026-08-04 — Debate Tool 2 (p/234#8): landing a `lib/debate` fix; pre-commit hook blocked on the pre-existing AGENTS.md double-track divergence from t/2080 (not caused by the change). Hook confirmed override expected. User approved; landed with `--no-verify`.
+- 2026-08-06 — Rosetta Stone (p/6#37, fix/bootstrap-reconnect-t2195, 61c493f9): landing a `taxonomy-editor/src/renderer/bootstrap.ts` fix; same pre-existing AGENTS.md double-track (t/2080). Change was clean; used `--no-verify`.
+- 2026-08-06 — Rosetta Stone (p/6#39, t/2199): 3 TSX/CSS/TS files staged, no AGENTS.md touched. Hook still blocked on t/2080 pre-existing state. Resolved with `--no-verify` per documented emergency override.
+- 2026-08-06 — Rosetta Stone 3 (p/355#1, feat/screen-a-t2199-t2200): hook blocked citing BOTH double-track AND NEITHER-tracked overlay files — indicates t/2080 fix incomplete; residual overlay drift remains. Resolved with `--no-verify` per AGENTS.md override path.
+- 2026-08-06 — Rosetta Stone (p/6#41, be35e8b3, feat/screen-a-t2199-t2200, PR #508 / t/2201 Screen B): same double-track block. Post-fix fleet-pull-lag — t/2205 fix (e5d657b8) is on origin/main but checkout hasn't pulled yet. Resolved with `--no-verify`.
+
+**Root Cause:** The pre-commit hook runs a repo-wide AGENTS.md ownership audit on every commit. A pre-existing double-track (t/2080) blocked the first 3 instances. **Corrected root cause for instance 4 (TL p/335#9, t/2205):** the NEITHER hits were NOT overlay drift or a create-role gap — they were `.worktrees/<name>/AGENTS.md` paths, i.e. worktree checkouts of the main-tracked root and azure AGENTS.md at nested paths. The hook pruned `.claude` but not `.worktrees`, so it false-positived on every active worktree. Fix: prune `.worktrees` in the audit (PR #509, t/2205 — gate-verified to still catch real orphans). **Separate genuine gap:** new-role-orphan case (NEITHER-tracked new AGENTS.md from create-role workflow) is a distinct real issue → t/2206. Do NOT `ogit add` `.worktrees/` paths — they are transient checkouts.
+
+**Prevention:**
+1. **When the pre-commit hook blocks and the message references a known open issue, read the hook output carefully** — it will state whether `--no-verify` is expected. If yes, obtain user approval and proceed.
+2. **Do not attempt to fix the divergence as a side effect of an unrelated commit** — conflates issues and risks out-of-scope changes.
+3. **`--no-verify` is a temporary bypass** — the root ticket (t/2080 / t/2205 / t/2206) owns the permanent fix.
+4. **Always record `--no-verify` usage** — ping Sage with the commit SHA, the hook message, and user approval context so it's traceable.
+5. **Do NOT `ogit add` `.worktrees/<name>/AGENTS.md` paths** — those are transient worktree checkouts of main-tracked files, not overlay files. Adding them to the overlay creates a new double-track.
+
+**Status:** Active — t/2205 fix landed (e5d657b8, PR #509). Instances 1–4 were pre-fix; instance 5 is post-fix fleet-pull-lag (checkout hadn't pulled past e5d657b8). New-role orphan gap tracked separately under t/2206. Fleet unblocked per-checkout as each pulls past e5d657b8.
+
+**Applies To:** All agents committing while t/2205 (`.worktrees` prune) or t/2206 (new-role orphan) are open.

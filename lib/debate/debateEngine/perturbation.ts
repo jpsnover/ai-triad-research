@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import type { DebateEngineInternals } from './internals.js';
+import { PERTURBATION_ARCO_BASELINE } from '../debateConfig.js';
 
 // ── Perturbation testing (HDE B2) ─────────────────────
 
@@ -34,7 +35,7 @@ export function computePerturbationResult(engine: DebateEngineInternals): void {
 
   const preArco = preSignals.length > 0
     ? preSignals.reduce((sum, s) => sum + s.arco!.turn_similarity, 0) / preSignals.length
-    : 0.5; // Default baseline if no pre-injection ArCo available
+    : PERTURBATION_ARCO_BASELINE;
   const postArco = postSignals.length > 0
     ? postSignals.reduce((sum, s) => sum + s.arco!.turn_similarity, 0) / postSignals.length
     : 0;

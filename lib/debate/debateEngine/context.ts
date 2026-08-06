@@ -4,6 +4,7 @@
 import type { DebateEngineInternals } from './internals.js';
 import { type SpeakerId, POVER_INFO } from '../types.js';
 import { formatCommitments, formatEstablishedPoints } from '../argumentNetwork.js';
+import { ESTABLISHED_POINTS_LIMIT } from '../debateConfig.js';
 
 // ── Commitment context ─────────────────────────────────────
 
@@ -30,5 +31,5 @@ export function getEstablishedPointsContext(engine: DebateEngineInternals, pover
     speaker: POVER_INFO[n.speaker as Exclude<SpeakerId, 'user'>]?.label ?? n.speaker,
   }));
 
-  return formatEstablishedPoints(allNodes, POVER_INFO[poverId].label, 14, an.edges.filter(e => e.type !== 'revoice_of') as { source: string; target: string; type: 'supports' | 'attacks' }[]);
+  return formatEstablishedPoints(allNodes, POVER_INFO[poverId].label, ESTABLISHED_POINTS_LIMIT, an.edges.filter(e => e.type !== 'revoice_of') as { source: string; target: string; type: 'supports' | 'attacks' }[]);
 }

@@ -22,7 +22,7 @@ export type ColorScheme = 'light' | 'dark' | 'bkc' | 'harvard' | 'system';
 export type AIBackend = 'gemini' | 'claude' | 'groq' | 'openai' | 'deepseek' | 'azure' | 'ollama' | 'zai';
 
 export type GeminiModel =
-  | 'gemini-flash-lite-latest'
+  | typeof DEFAULT_MODEL
   | 'gemini-3-flash-preview'
   | 'gemini-3.1-pro-preview'
   | 'gemini-2.5-flash'

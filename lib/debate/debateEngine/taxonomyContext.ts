@@ -14,6 +14,16 @@ import { loadGreatestHitsFile } from '../corpusCoverage.js';
 import { ActionableError } from '../errors.js';
 import { filterByExclusionAbsolute, SCOPE_BOUNDARY_THRESHOLD } from '../exclusionGuard.js';
 import { getGlobalRecorder } from '../../flight-recorder/index.js';
+import {
+  TOPIC_SCORE_FLOOR_MULTIPLIER,
+  RECENT_CITATION_PENALTY_MULTIPLIER,
+  TAXONOMY_MIN_NODES_PER_BDI_DEFAULT,
+  TAXONOMY_MAX_POV_NODES_DEFAULT,
+  LINEAGE_BOOST_INCREMENT,
+  NON_APPROVED_EDGE_CONFIDENCE_FILTER,
+  EDGE_CONTEXT_TOP_N,
+} from '../debateConfig.js';
+import { loadProvisionalWeights } from '../phaseTransitions.js';
 
 export function getNodeLabelMap(engine: DebateEngineInternals): Map<string, string> {
   if (engine._nodeLabelMap) return engine._nodeLabelMap;
@@ -185,7 +195,7 @@ export async function getRelevantTaxonomyContext(engine: DebateEngineInternals, 
     const allIds = new Set([...anScores.keys(), ...(topicScores?.keys() ?? [])]);
     for (const id of allIds) {
       const anScore = anScores.get(id) ?? 0;
-      const topicFloor = (topicScores?.get(id) ?? 0) * 0.5;
+      const topicFloor = (topicScores?.get(id) ?? 0) * TOPIC_SCORE_FLOOR_MULTIPLIER;
       scores.set(id, Math.max(anScore, topicFloor));
     }
   } else if (hasEmbeddings && adapter.computeQueryEmbedding) {
@@ -215,7 +225,7 @@ export async function getRelevantTaxonomyContext(engine: DebateEngineInternals, 
   if (priorRefs.length > 0) {
     const recent = new Set(priorRefs);
     for (const [id, score] of scores) {
-      if (recent.has(id)) scores.set(id, score * 0.55);
+      if (recent.has(id)) scores.set(id, score * RECENT_CITATION_PENALTY_MULTIPLIER);
     }
   }
 
@@ -229,10 +239,10 @@ export async function getRelevantTaxonomyContext(engine: DebateEngineInternals, 
 
   const relevanceOpts: RelevanceOptions = {
     scoringMode,
-    embeddingThreshold: 0.48,
-    lexicalThreshold: 0.22,
-    minPerCategory: parseInt(process.env.TAXONOMY_MIN_PER_BDI || '') || 3,
-    maxTotal: parseInt(process.env.TAXONOMY_MAX_NODES || '') || 12,
+    embeddingThreshold: loadProvisionalWeights().relevance!.embedding_threshold,
+    lexicalThreshold: loadProvisionalWeights().relevance!.lexical_threshold,
+    minPerCategory: parseInt(process.env.TAXONOMY_MIN_PER_BDI || '') || TAXONOMY_MIN_NODES_PER_BDI_DEFAULT,
+    maxTotal: parseInt(process.env.TAXONOMY_MAX_NODES || '') || TAXONOMY_MAX_POV_NODES_DEFAULT,
     nodeEmbeddings: roundFocusVector ? engine.taxonomy.embeddings as Record<string, { pov: string; vector: number[]; exclusion_vector?: number[] }> : undefined,
     queryVector: roundFocusVector ?? undefined,
   };
@@ -257,7 +267,7 @@ export async function getRelevantTaxonomyContext(engine: DebateEngineInternals, 
     }
     relevanceOpts.lineageBoost = {
       traditions: lineageFrame.map(f => f.cluster_id),
-      boost: 0.08,
+      boost: LINEAGE_BOOST_INCREMENT,
       lineageByNode,
       nameToCluster,
     };
@@ -460,7 +470,7 @@ export function formatDebaterEdgeContext(engine: DebateEngineInternals, debaterP
 
   const relevantEdges = engine.taxonomy.edges.edges.filter(e => {
     if (!signalTypes.has(e.type)) return false;
-    if (e.status !== 'approved' && e.confidence < 0.75) return false;
+    if (e.status !== 'approved' && e.confidence < NON_APPROVED_EDGE_CONFIDENCE_FILTER) return false;
     const srcIsMine = e.source.startsWith(myPrefix);
     const tgtIsMine = e.target.startsWith(myPrefix);
     const srcIsOther = otherPrefixes.some(p => e.source.startsWith(p));
@@ -470,7 +480,7 @@ export function formatDebaterEdgeContext(engine: DebateEngineInternals, debaterP
 
   if (relevantEdges.length === 0) return { text: '', edges_used: [] };
 
-  const top = relevantEdges.sort((a, b) => b.confidence - a.confidence).slice(0, 15);
+  const top = relevantEdges.sort((a, b) => b.confidence - a.confidence).slice(0, EDGE_CONTEXT_TOP_N);
   const lines = [
     '',
     '=== KNOWN TENSIONS WITH OPPOSING POSITIONS ===',
@@ -497,7 +507,7 @@ export function formatModeratorEdgeContext(engine: DebateEngineInternals): { tex
 
   const relevantEdges = engine.taxonomy.edges.edges.filter(e => {
     if (!signalTypes.has(e.type)) return false;
-    if (e.status !== 'approved' && e.confidence < 0.75) return false;
+    if (e.status !== 'approved' && e.confidence < NON_APPROVED_EDGE_CONFIDENCE_FILTER) return false;
     const srcPrefix = activePrefixes.find(p => e.source.startsWith(p));
     const tgtPrefix = activePrefixes.find(p => e.target.startsWith(p));
     return srcPrefix && tgtPrefix && srcPrefix !== tgtPrefix;
@@ -505,7 +515,7 @@ export function formatModeratorEdgeContext(engine: DebateEngineInternals): { tex
 
   if (relevantEdges.length === 0) return { text: '', edges_used: [] };
 
-  const top = relevantEdges.sort((a, b) => b.confidence - a.confidence).slice(0, 15);
+  const top = relevantEdges.sort((a, b) => b.confidence - a.confidence).slice(0, EDGE_CONTEXT_TOP_N);
   const lines = ['', '=== KNOWN TENSIONS BETWEEN POSITIONS ==='];
   for (const e of top) {
     lines.push(`${e.source} ${e.type} ${e.target} (confidence: ${e.confidence.toFixed(2)})`);

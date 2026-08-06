@@ -47,6 +47,7 @@ interface ProvisionalWeights {
   network: Record<string, number>;
   budget: Record<string, number>;
   crux_detection?: { min_base_strength: number; min_cross_pov_attackers: number; min_total_cross_pov_edges: number };
+  relevance?: { embedding_threshold: number; lexical_threshold: number; min_per_category: number; max_pov_nodes: number; max_desires: number; max_situations: number; adaptation_enabled: boolean; adaptation_history: unknown[] };
   /** Pinned neutral-evaluator model — calibration invariant (t/1846). */
   evaluator?: { model: string; version: number };
 }
@@ -85,8 +86,9 @@ export function loadProvisionalWeights(debateDir?: string): ProvisionalWeights {
     } catch { /* not in Node.js environment — fall through to defaults */ }
   }
 
-  // Hardcoded fallback — mirrors calibration-config.json so the browser
-  // (which cannot read files) uses the same values as the server.
+  // Hardcoded fallback — must stay byte-for-byte equal to calibration-config.json so the
+  // browser (which cannot read files) uses the same values as the server. Drift is gated by
+  // the parity test in phaseTransitions.test.ts (t/2186).
   _cachedWeights = {
     schema_version: 1,
     argumentative_saturation: {
@@ -110,7 +112,12 @@ export function loadProvisionalWeights(debateDir?: string): ProvisionalWeights {
       thorough: { maxTotalRounds: 8, argumentationExit: 0.80, concludingExit: 0.80 },
     },
     network: { gc_trigger: 175, gc_target: 150, hard_cap: 200 },
-    budget: { soft_multiplier: 6, hard_multiplier: 10, max_soft_multiplier: 8 },
+    budget: { soft_multiplier: 8, hard_multiplier: 15, max_soft_multiplier: 10 },
+    relevance: {
+      embedding_threshold: 0.48, lexical_threshold: 0.22, min_per_category: 3,
+      max_pov_nodes: 35, max_desires: 5, max_situations: 8,
+      adaptation_enabled: true, adaptation_history: [],
+    },
     evaluator: { model: 'gemini-3.5-flash-lite', version: 1 },
   };
   return _cachedWeights;
@@ -999,7 +1006,7 @@ export function buildSignalTelemetry(
     signals: signalValues,
     composite: {
       argumentative_saturation_score: state.current_phase !== 'concluding' ? satScore : null,
-      convergence_score: state.current_phase === 'concluding' ? convScore : null,
+      convergence_score: convScore,
     },
     confidence: { extraction: extractionConf, stability: stabilityConf, global: globalConf },
     predicate_result: result,

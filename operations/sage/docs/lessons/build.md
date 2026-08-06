@@ -905,16 +905,19 @@ Failure patterns related to builds, CI, tooling, environment, and git operations
 - 2026-07-28 — DebateDiagnostics (p/245#1): `git worktree remove <wt>` **timed out at 2min** — it synchronously `rm -rf`s the worktree's large `node_modules` (slow on Windows/AV). Resolved by **detaching git metadata fast, then backgrounding the physical delete**: `git worktree prune` + `git branch -D <branch>`, then `rm -rf <wt-dir>` as a backgrounded task. (Facet B — supersedes the `--force` remedy for deps-installed worktrees.)
 - 2026-07-29 — Chat (p/270#1): `git worktree remove` **timed out at 2min** on a **double-`npm ci`'d** worktree (root **and** `taxonomy-editor/` → *tens of thousands* of node_modules files — the Windows worst case). git had already marked the worktree **`prunable`**, so a **backgrounded `rm -rf` + `git worktree prune`** finished cleanup with **no `branch -D` needed**. 3rd instance — Facet B recurrence; the **double-`npm ci` is the amplifier** (two `node_modules` trees to delete). Confirms the prevention: never foreground-`remove` a deps-installed worktree.
 - 2026-07-29 — Server Storage (t/1921 Batch B/C, p/206#5): `git worktree remove --force` failed **"`.git` does not exist"** — the OS/AV had **already deleted the physical worktree dir**, leaving only a stale administrative ref. Resolved with **`git worktree prune`**. (**Facet C** — the delete already happened out-of-band; `prune` is the whole fix, `remove` is the wrong verb.)
+- 2026-08-05 — DebateTool (p/70#14, t/2186): worktree at `C:/Users/jsnov/repos/wt-2186` had its **`.git` file silently disappear** — the directory still contained `lib/` and `node_modules/` content but no git metadata. Git commands had worked during the active rebase session; by next use the worktree was dead ("not a git repository"). Pushed from the main repo instead. (**Facet E** — `.git` pointer file gone, content intact; distinct from Facet C where the whole dir was deleted.) Likely cause: OS/AV or a cleanup process selectively deleted the small `.git` pointer file while leaving larger content dirs alone.
 
-**Root Cause:** `git worktree remove` (A) is conservative — it aborts on untracked files, and an in-worktree `npm ci` (required by `/land-from-worktree` step 2) always leaves a large untracked `node_modules`. Adding `--force` clears the refusal but (B) `remove` does the `node_modules` deletion **synchronously in the foreground**, and deleting tens of thousands of small files is pathologically slow on Windows (each unlink hits AV/indexing), so it blows the 2-minute tool timeout. (C) Once the physical dir is **already gone** (OS/AV deleted it), `remove` fails "`.git` does not exist" — only the stale ref remains, which `prune` clears. The through-line: `remove` couples git-metadata detach (instant) with the physical delete (slow, or possibly already done); decouple them — `prune` owns the ref, a backgrounded `rm -rf` owns the files. Companion to #77 (same in-worktree `npm ci`) and the Windows Junction pattern.
+**Root Cause:** (A) `git worktree remove` is conservative — it aborts on untracked files, and an in-worktree `npm ci` always leaves a large untracked `node_modules`. Adding `--force` clears the refusal but (B) `remove` does the `node_modules` deletion **synchronously in the foreground**, and deleting tens of thousands of small files is pathologically slow on Windows (each unlink hits AV/indexing), so it blows the 2-minute tool timeout. (C) Once the physical dir is **already gone** (OS/AV deleted it), `remove` fails "`.git` does not exist" — only the stale ref remains, which `prune` clears. (E) The `.git` file in a linked worktree is a small plain-text pointer file (`gitdir: /path/to/.git/worktrees/...`) — unlike the main repo's `.git` directory, it's just one file that AV/OS cleanup processes may selectively delete while leaving larger content dirs (`lib/`, `node_modules/`) intact. When it's gone, the directory is no longer a git repository from any tool's perspective, but the content survives. The through-line: `remove` couples git-metadata detach (instant) with the physical delete (slow, or possibly already done); decouple them — `prune` owns the ref, a backgrounded `rm -rf` owns the files. Companion to #77 (same in-worktree `npm ci`) and the Windows Junction pattern.
+
 
 **Prevention:**
 1. **For a deps-installed worktree, don't `git worktree remove` at all — detach fast, delete in the background** (DebateDiagnostics, p/245#1): `git worktree prune` + `git branch -D <branch>` (instant, frees the git metadata + branch), then `rm -rf <wt-dir>` as a **backgrounded** task. This avoids BOTH the refusal (A) and the foreground-rm timeout (B). **If git already reports the worktree `prunable`** (its branch is gone/detached — check `git worktree list`), a backgrounded `rm -rf <wt-dir>` + `git worktree prune` alone suffices; skip `branch -D` (Chat, p/270#1). Note a `/land-from-worktree` that builds **both** root and `taxonomy-editor/` leaves **two** `node_modules` trees — double the delete, so foreground `remove` is doubly certain to time out.
 2. **`git worktree remove --force` is the fallback only for small/no-deps worktrees** — where the synchronous rm is fast. With a full `node_modules` on Windows it will time out; use #1 instead.
 3. **`--force`/rm is only safe after your commit is pushed** — confirm the worktree's work is on `origin/main` before removing; the sole casualty is `node_modules`. Never remove with uncommitted deliverable work in the worktree.
 4. `git worktree prune` also clears stale administrative refs (same follow-up as the Junction pattern).
+5. **(Facet E) Verify the `.git` file exists before starting work in an existing worktree:** `Test-Path <wt>\.git` (PowerShell) or `ls <wt>/.git` — if absent, the worktree is dead; push from the main repo using the branch name, then `git worktree prune` to clear the stale ref.
 
-**Status:** Active — worktree-land cluster; the `/land-from-worktree` step-8 guidance updated from "`remove --force`" to "**prune + `branch -D` + background rm**" for deps-installed worktrees (supersedes the earlier `--force` wording; both refusal and timeout now covered). Handed to TL for the owner-gated batch.
+**Status:** Active — worktree-land cluster; the `/land-from-worktree` step-8 guidance updated from "`remove --force`" to "**prune + `branch -D` + background rm**" for deps-installed worktrees (supersedes the earlier `--force` wording; both refusal and timeout now covered). Handed to TL for the owner-gated batch. **Facet E added 2026-08-05 (DebateTool p/70#14):** `.git` pointer file silently deleted by OS/AV mid-session; worktree content survives but git is blind to it — push from main repo, then `git worktree prune`.
 
 **Applies To:** All agents cleaning up a worktree that ran an in-worktree `npm ci` on Windows — i.e. every deps-installing land.
 
@@ -1406,7 +1409,7 @@ Failure patterns related to builds, CI, tooling, environment, and git operations
 4. **Or run `gh pr merge` from the MAIN REPO PATH, not a worktree** (Server Storage p/206#9): the hub/primary checkout holds `main`, so gh's post-merge local `checkout main` succeeds — no checkout-conflict. **Caveat (p/206#11): this is NOT a full escape** — if a worktree still has the PR's HEAD branch checked out, `--delete-branch`'s local `git branch -D <head>` then fails "cannot delete branch used by worktree." So from the main repo path, `--delete-branch` works only once no worktree holds the head branch. (If a safety classifier blocks the `gh pr merge` command, ask the user to run it manually.)
 5. **The fully-safe order: `git worktree remove <path>` FIRST, then merge/delete.** Remove the worktree holding the head branch before `--delete-branch` (or before a manual `git branch -D <head>`). This clears BOTH facets — the checkout-main conflict and the branch-used-by-worktree conflict. Simplest rule: drop `--delete-branch` entirely (prevention #1), remove the worktree, then delete the branch by hand.
 
-**Status:** **Skill-path RESOLVED; direct-invocation ACTIVE (recurred 2026-07-30).** TL fixed step 5 (p/8#121): it drops `--delete-branch`, verifies `gh pr view <n> --json state` == `MERGED` (**not the exit code**), and deletes the remote branch by push. **But the failure is intrinsic to `--delete-branch` from a worktree** — Server Storage re-hit it with a DIRECT `gh pr merge --squash --delete-branch` (t/2020, p/206#9), bypassing the fixed skill. So any direct invocation from a worktree re-triggers it; fix by dropping `--delete-branch` (prevention #1/#3) OR running from the main repo path (prevention #4). **3rd instance (p/206#11) surfaced a 2nd facet:** even from the main repo path, `--delete-branch`'s LOCAL branch-delete fails "cannot delete branch used by worktree" if a worktree still holds the head branch → the fully-safe order is `git worktree remove` FIRST, then merge/delete (prevention #5). Was the dangerous variant of the PR-flow defects — the `fatal` reads as failure → panic-retry → double-land. **4th instance (DevOps p/26#36, 2026-08-03) — 3rd independent agent confirms prevention #5** (worktree-remove-first) and adds the "**already merged**" signature (an auto-merged PR whose `--delete-branch` cleanup still exit-1s on the held branch) — reinforcing that exit 1 is post-merge cleanup, not a failed merge. Root cause folded into the "validate a fleet-standard procedure end-to-end before mandating" process lesson.
+**Status:** **Skill-path RESOLVED; direct-invocation ACTIVE (recurred 2026-07-30).** TL fixed step 5 (p/8#121): it drops `--delete-branch`, verifies `gh pr view <n> --json state` == `MERGED` (**not the exit code**), and deletes the remote branch by push. **But the failure is intrinsic to `--delete-branch` from a worktree** — Server Storage re-hit it with a DIRECT `gh pr merge --squash --delete-branch` (t/2020, p/206#9), bypassing the fixed skill. So any direct invocation from a worktree re-triggers it; fix by dropping `--delete-branch` (prevention #1/#3) OR running from the main repo path (prevention #4). **3rd instance (p/206#11) surfaced a 2nd facet:** even from the main repo path, `--delete-branch`'s LOCAL branch-delete fails "cannot delete branch used by worktree" if a worktree still holds the head branch → the fully-safe order is `git worktree remove` FIRST, then merge/delete (prevention #5). Was the dangerous variant of the PR-flow defects — the `fatal` reads as failure → panic-retry → double-land. **4th instance (DevOps p/26#36, 2026-08-03) — 3rd independent agent confirms prevention #5** (worktree-remove-first) and adds the "**already merged**" signature (an auto-merged PR whose `--delete-branch` cleanup still exit-1s on the held branch) — reinforcing that exit 1 is post-merge cleanup, not a failed merge. Root cause folded into the "validate a fleet-standard procedure end-to-end before mandating" process lesson. **5th instance (ServerAPI p/79#25, 2026-08-05) — 4th independent agent; IDE-managed worktree (`.claude/worktrees/`) holds the branch, same outcome.** Correctly handled: check `mergedAt`, treat exit 1 as cosmetic, hand cleanup to the worktree owner.
 
 **Applies To:** Every worktree PR-flow lander — i.e. everyone using `/land-from-worktree` step 5.
 
@@ -1743,3 +1746,65 @@ Failure patterns related to builds, CI, tooling, environment, and git operations
 **Applies To:** All agents running `git stash` + ff-only pull / merge workflows.
 
 **Status:** Active — 1 instance (Server Storage p/206#18). Latent stash/merge collision; diagnosed quickly but wastes time if the pre-check isn't in the workflow.
+
+---
+
+## #143 [Build] `gh pr create --base <branch>` Fails "Base Ref Must Be a Branch" — Base Branch Is Local-Only, Not Pushed to Origin
+
+**Pattern:** `gh pr create --base <branch>` fails with "Base ref must be a branch" when the named base branch exists only locally and has never been pushed to origin. GitHub resolves `--base` against the remote repository; a local-only branch is invisible to it.
+
+**Instances:**
+- 2026-08-05 — Debate Tool 2 (p/234#10, t/2169): `gh pr create --base fix/situation-ref-rate-t2168` failed "Base ref must be a branch" — the base branch existed locally but had not been pushed. Fixed by `git push origin fix/situation-ref-rate-t2168` then retrying.
+
+**Root Cause:** `gh pr create --base <branch>` is a GitHub API call that looks up `<branch>` in the remote repository, not in the local git index. A branch created locally with `git checkout -b` or `git worktree add -b` does not exist on origin until explicitly pushed. The error message "Base ref must be a branch" is GitHub's way of saying "this ref doesn't exist in the remote repo."
+
+**Prevention:**
+1. **Before `gh pr create --base <branch>`, verify the base branch is on origin:** `git ls-remote origin <branch>` — if it returns a SHA, the branch is published; if it returns nothing, push first.
+2. **When using a feature branch as a PR base (stacked PRs), always push the base branch before opening the child PR:** `git push origin <base-branch>`, confirm non-empty output, then run `gh pr create`.
+3. The default base (`main`) is always on origin and never needs this check — it only applies when `--base` names a non-default branch.
+
+**Applies To:** All agents opening stacked PRs or using a feature branch as `--base` in `gh pr create`.
+
+**Status:** Active — 1 instance (Debate Tool 2, p/234#10). Self-correcting (push + retry), but the pre-check prevents the wasted round-trip.
+
+---
+
+## #144 [Build] Unit Fixtures All Fully Populated — Real-Data Crash on Sparsely-Present Optional Field
+
+**Pattern:** A function is implemented and tested against fixtures where every node has the optional field present. Unit tests pass. On real data, a small fraction of records lack the field — the function calls `.length` (or any method) on `undefined` and FATAL-crashes. The crash only surfaces when the function runs against the live dataset; mocks and unit fixtures gave false confidence because they never exercised the sparse-population case.
+
+**Instances:**
+- 2026-08-05 — Computational Linguist (t/2169, p/7#57): `computeBdiEntropy` called `.length` on `linked_nodes` — present on 433/436 situation nodes, absent on 3. All unit fixtures included `linked_nodes`, so tests passed. First real debate triggered FATAL crash. Fixed by `?? []` null guard + a new unit case with a node missing `linked_nodes`. Caught early because CL ran one verification debate before scaling the batch.
+
+**Root Cause:** Unit test fixtures are authored to exercise the function's logic, not to model the distribution of the production dataset. An optional field that happens to be in every fixture can be absent in real data without any test ever noticing. TypeScript's static types give additional false confidence: a non-null type annotation reflects the *expected* schema, not the *actual* data — runtime data from JSON files or external sources can violate the type at the boundary.
+
+**Prevention:**
+1. **For any field accessed with `.length`, `.map`, `.filter`, or similar array/string methods, guard against `undefined`:** `(node.linked_nodes ?? []).length` — cheap, silent, correct.
+2. **Include at least one fixture where each optional array/object field is absent** — the sparse case is the one that crashes and the one that's always missing from hand-authored fixtures.
+3. **Run one real-data smoke before scaling a batch** — a single debate / single pipeline run against live data catches distribution-dependent crashes that unit tests cannot. This is cheap relative to diagnosing a mid-batch FATAL.
+4. **At JSON read boundaries, normalize optional fields to their zero value:** coerce `node.linked_nodes` to `[]` at the point of deserialization rather than guarding at every call site (mirrors the "normalize at fetch" pattern for type-varying fields).
+
+**Applies To:** All agents writing functions over project-data nodes (situations, beliefs, edges) where optional array/object fields may be sparsely populated in real data.
+
+**Status:** Active — 1 instance (CL p/7#57, t/2169). Caught quickly by running one real-data smoke; the systematic fix is sparse-field fixtures + normalize-at-fetch.
+
+---
+
+## #145 [Build] `git push origin <remote-branch>` in a Worktree Pushes the Stale Same-Named Local Branch, Not the Worktree HEAD
+
+**Pattern:** In a worktree where the local branch name differs from the PR's remote target branch, `git push origin <remote-branch-name>` resolves the source from the **shared local ref namespace** — finding a same-named branch in the main checkout — and pushes that stale branch instead of the current worktree HEAD.
+
+**Instances:**
+- 2026-08-04 — DevOps (p/26#63, wt-2137-fix): worktree branch `fix/pnpm-container-t2137`, PR target `feat/pnpm-migration-t2137`. `git push origin feat/pnpm-migration-t2137` found the stale same-named branch in the main checkout and pushed that. Rejected non-fast-forward. Fix: `git push origin fix/pnpm-container-t2137:feat/pnpm-migration-t2137`.
+
+**Root Cause:** Worktrees share the local ref namespace; only HEAD is worktree-local. `git push origin <ref>` without an explicit source refspec resolves `<ref>` against `refs/heads/<ref>` globally — which may match a stale branch in the main checkout.
+
+**Prevention:**
+1. In a worktree where your branch name ≠ the PR target branch, always use explicit refspec: `git push origin <current-wt-branch>:<remote-target-branch>`.
+2. Verify with `git branch --show-current` in the worktree before pushing — if it differs from the remote target, explicit refspec is required.
+3. Use `git push --dry-run origin <refspec>` to confirm the push source before sending.
+4. Companion to #77/#78/#128 worktree-land path hazards — explicit refspec is required for branch-name-mismatch cases.
+
+**Status:** Active — 1 instance (DevOps, p/26#63). Silent wrong-branch push; high damage potential.
+
+**Applies To:** All agents pushing from a worktree where the worktree branch name differs from the PR remote target branch.

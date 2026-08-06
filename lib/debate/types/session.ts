@@ -272,8 +272,10 @@ export interface DebateSession {
   audience?: DebateAudience;
   /** Moderator mode used for this session ('standard' | 'talmudic'). Optional for back-compat with pre-Talmudic sessions. */
   moderator_mode?: string;
-  /** Talmudic reference corpus attached to this session, if any. */
-  talmudic_references?: { enabled: boolean; corpus_name?: string; corpus_path?: string; corpus_version?: string | number };
+  /** Talmudic corpus metadata stamped at session creation — present when moderatorMode is 'talmudic' and a corpus was loaded. */
+  talmudic_references?:
+    | { enabled: true; corpus_name: string; corpus_path: string; corpus_version: string }
+    | { enabled: false };
   phase: 'setup' | 'clarification' | 'edit-claims' | 'opening' | 'debate' | 'closed' | 'cancelled';
   topic: {
     original: string;
@@ -463,6 +465,8 @@ export interface DebateSession {
   };
   /** Round at which a diversity-injection round fired (max 1 per debate). Absent if never triggered. */
   diversity_round_fired?: number;
+  /** Per-situation component scores from mid-debate re-scoring (last-write-wins across rounds). Populated when adaptive staging re-scores situations. Only includes scored situation nodes. */
+  situation_score_map?: Record<string, import('../situationScoring.js').SituationScoreComponents>;
   /** Crux-to-situation promotion candidates with BDI-enriched drafts (populated post-debate). */
   promotion_candidates?: Array<{
     crux_id: string;

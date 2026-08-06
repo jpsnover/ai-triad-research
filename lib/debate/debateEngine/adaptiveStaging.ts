@@ -2,10 +2,11 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import type { DebateEngineInternals } from './internals.js';
+import { PROCESS_REWARD_SIGNAL_HISTORY_DEPTH } from '../debateConfig.js';
 import { type ArgumentNetworkEdge, type SignalContext } from '../types.js';
 import { detectCruxNodes } from '../phaseTransitions.js';
-import { type SituationNode } from '../taxonomyTypes.js';
-import { reScoreSituationsForCruxes } from '../taxonomyRelevance.js';
+import { type SituationNode, type Category } from '../taxonomyTypes.js';
+import { reScoreSituationsForCruxesDetailed } from '../taxonomyRelevance.js';
 import { computeTaxonomyGapAnalysis } from '../taxonomyGapAnalysis.js';
 
 /** Re-score situations against emerging cruxes at phase transitions. */
@@ -23,7 +24,14 @@ export function _rescoreSituations(engine: DebateEngineInternals): void {
     engine.session.transcript.flatMap(e => e.taxonomy_refs).map(r => r.node_id).filter(id => id.startsWith('sit-')),
   );
 
-  engine._situationScoreAdjustments = reScoreSituationsForCruxes({
+  const nodeCategoryLookup = new Map<string, Category>();
+  for (const pov of ['accelerationist', 'safetyist', 'skeptic'] as const) {
+    for (const node of engine.taxonomy[pov].nodes) {
+      nodeCategoryLookup.set(node.id, node.category);
+    }
+  }
+
+  const rescoreResult = reScoreSituationsForCruxesDetailed({
     situationNodes: sitNodes,
     cruxes: engine.session.crux_tracker,
     anNodes: anForRescore.nodes,
@@ -31,7 +39,12 @@ export function _rescoreSituations(engine: DebateEngineInternals): void {
     injectedSitIds,
     referencedSitIds,
     edges: engine.taxonomy.edges?.edges,
+    nodeCategoryLookup,
   });
+  engine._situationScoreAdjustments = rescoreResult.adjustments;
+  // Persist components for calibration logging (last-write-wins per node across rounds).
+  const prevMap = engine.session.situation_score_map ?? {};
+  engine.session.situation_score_map = { ...prevMap, ...Object.fromEntries(rescoreResult.components) };
 }
 
 // ── Adaptive staging helpers ─────────────────────────────
@@ -136,7 +149,7 @@ export function buildSignalContext(engine: DebateEngineInternals, round: number)
       },
     },
 
-    processRewards: (engine.session.process_rewards ?? []).slice(-12).map(pr => ({
+    processRewards: (engine.session.process_rewards ?? []).slice(-PROCESS_REWARD_SIGNAL_HISTORY_DEPTH).map(pr => ({
       round: pr.round, score: pr.score,
     })),
 

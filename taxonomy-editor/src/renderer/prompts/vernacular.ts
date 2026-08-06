@@ -1,6 +1,8 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
+import { DEFAULT_MODEL } from '@lib/ai-client/defaults';
+
 const SYSTEM_PROMPT = `You rewrite academic ontological descriptions into plain language that a high school student could understand.
 
 Rules:
@@ -14,7 +16,7 @@ Rules:
 8. Use active voice when possible.
 9. Return ONLY the rewritten text — no labels, no explanation.`;
 
-export const VERNACULAR_MODEL = 'gemini-flash-lite-latest';
+export const VERNACULAR_MODEL = DEFAULT_MODEL;
 export const VERNACULAR_TEMPERATURE = 0.2;
 export const VERNACULAR_TIMEOUT = 15_000;
 export const VERNACULAR_VERSION = 'flash-lite:v1';
