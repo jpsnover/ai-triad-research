@@ -2986,8 +2986,9 @@ Institutional memory for failure patterns across the AI Triad Research project.
 - 2026-08-04 — Debate Tool 2 (p/234#8): landing a `lib/debate` fix; pre-commit hook blocked on the pre-existing AGENTS.md double-track divergence from t/2080 (not caused by the change). Hook confirmed override expected. User approved; landed with `--no-verify`.
 - 2026-08-06 — Rosetta Stone (p/6#37, fix/bootstrap-reconnect-t2195, 61c493f9): landing a `taxonomy-editor/src/renderer/bootstrap.ts` fix; same pre-existing AGENTS.md double-track (t/2080). Change was clean; used `--no-verify`.
 - 2026-08-06 — Rosetta Stone (p/6#39, t/2199): 3 TSX/CSS/TS files staged, no AGENTS.md touched. Hook still blocked on t/2080 pre-existing state. Resolved with `--no-verify` per documented emergency override.
+- 2026-08-06 — Rosetta Stone 3 (p/355#1, feat/screen-a-t2199-t2200): hook blocked citing BOTH double-track AND NEITHER-tracked overlay files — indicates t/2080 fix incomplete; residual overlay drift remains. Resolved with `--no-verify` per AGENTS.md override path.
 
-**Root Cause:** The pre-commit hook runs a repo-wide AGENTS.md ownership audit on every commit. A pre-existing violation (t/2080: file tracked in both repos) will block all commits until resolved, regardless of the committing agent's scope. The hook is self-documenting about this: when the known divergence is the cause, the message confirms `--no-verify` is the expected bypass.
+**Root Cause:** The pre-commit hook runs a repo-wide AGENTS.md ownership audit on every commit. A pre-existing violation (t/2080: file tracked in both repos, or NEITHER-tracked) will block all commits until fully resolved, regardless of the committing agent's scope. The hook is self-documenting about this: when the known divergence is the cause, the message confirms `--no-verify` is the expected bypass. The 4th instance (post t/2080 landing) indicates the fix was incomplete — residual NEITHER-tracked overlay files remain.
 
 **Prevention:**
 1. **When the pre-commit hook blocks and the message references a known open issue (e.g., t/2080), read the hook output carefully** — it will state whether `--no-verify` is expected for this state. If yes, obtain user approval and proceed.
@@ -2995,6 +2996,6 @@ Institutional memory for failure patterns across the AI Triad Research project.
 3. **The correct fix for the divergence itself is tracked on its own ticket** (t/2080); the TL owns the resolution. `--no-verify` is a temporary bypass, not a license to ignore the hook indefinitely.
 4. **Always record `--no-verify` usage** — ping Sage with the commit SHA, the hook message, and the user approval context so it's traceable.
 
-**Status:** Resolved — t/2080 landed 2026-08-04; AGENTS.md dual-track ambiguity and ownership detection fixed. All 3 instances predate the fix. `--no-verify` bypass no longer needed unless the pattern re-emerges. (Diagnostics p/9#57.)
+**Status:** Active — 4 instances; t/2080 fix landed 2026-08-04 but 4th instance (p/355#1, post-fix) shows residual NEITHER-tracked overlay drift still blocking commits. Escalated back to TL (p/335). Pattern remains active until the hook reports clean on all overlay files.
 
-**Applies To:** Historical — all agents who committed while t/2080 was open. No action needed post-fix.
+**Applies To:** All agents committing while overlay AGENTS.md drift exists — check hook output carefully on every block.
