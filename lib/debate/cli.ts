@@ -60,6 +60,7 @@ interface CLIConfig {
   pacing?: 'tight' | 'moderate' | 'thorough';
   maxTotalRounds?: number;
   allowEarlyTermination?: boolean;
+  phaseBoundsOverride?: { maxConfrontationRounds?: number; maxArgumentationRounds?: number; maxConcludingRounds?: number };
   throttleMs?: number;
   perturbation?: {
     inject_at_turn: number;
@@ -435,6 +436,7 @@ async function main(): Promise<void> {
     pacing: config.pacing,
     maxTotalRounds: config.maxTotalRounds,
     allowEarlyTermination: config.allowEarlyTermination,
+    phaseBoundsOverride: config.phaseBoundsOverride,
     throttleMs: config.throttleMs,
     perturbation: resolvePerturbationConfig(config, perturbationPrompt, perturbationTurn),
     salienceBeacon: config.salienceBeacon,
