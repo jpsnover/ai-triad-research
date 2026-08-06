@@ -9,18 +9,16 @@ import { useTaxonomyStore, MODELS_BY_BACKEND, AI_BACKENDS, DEBATE_TIERS, FALLBAC
 import type { AIBackend } from '../../hooks/useTaxonomyStore';
 import { POVER_INFO, DEBATE_AUDIENCES } from '../../types/debate';
 import type { SpeakerId, DebateSourceType, DebateAudience } from '../../types/debate';
-import type { SituationNode } from '@lib/debate/taxonomyTypes';
 import { DEBATE_PROTOCOLS } from '../../data/debateProtocols';
 import { AI_POVERS } from '@lib/debate/types';
 import { CampGlyph, povToCamp } from '../shared/CampGlyph';
 import './NewDebateDialog.css';
-import { improveDebateTopicPrompt } from '@lib/debate/prompts';
+import { generateDebateTitlePrompt } from '../../prompts/newDebateDialog';
 import { api } from '@bridge';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { loadProvisionalWeights } from '@lib/debate/phaseTransitions';
 import { resolveMultiProviderModels } from '@lib/ai-client/modelRouter';
 import { useTierInfo, isFreeTier, type TierInfo } from '../../hooks/useTierInfo';
-import { getClientConfig } from '../../lib/clientConfig';
 import { useGeminiOnboarding } from '../../hooks/useGeminiOnboarding';
 import { GeminiOnboardingModal } from '../settings/GeminiOnboardingModal';
 import { buildDebateOptions } from './newDebateOptions';
@@ -168,31 +166,6 @@ function ConfigInfoModal({ onClose }: { onClose: () => void }) {
 // handleStart can early-abort (preserving the original `setCreating(false); return;`).
 const RESOLVE_FAILED = Symbol('resolve-failed');
 
-async function fetchDebateUrlContent(sourceRef: string): Promise<string> {
-  let finalContent: string;
-  try {
-    const result = await api.fetchUrlContent(sourceRef.trim());
-    if (result.error) {
-      finalContent = `[Failed to fetch URL content: ${result.error}]`;
-    } else {
-      finalContent = result.content;
-      if (finalContent.length > 100000) {
-        finalContent = finalContent.slice(0, 100000) + '\n\n[Content truncated at 100,000 characters]';
-      }
-    }
-  } catch (err) {
-    getGlobalRecorder()?.record({
-      type: 'system.error',
-      component: 'new-debate-dialog',
-      level: 'error',
-      message: 'failed to fetch URL content for debate source',
-      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
-    });
-    finalContent = `[Failed to fetch URL content: ${err}]`;
-  }
-  return finalContent;
-}
-
 // Resolve per-speaker models for multi-provider mode; RESOLVE_FAILED on failure (records ADR-003).
 function resolveDebateSpeakerModels(
   modelTier: 'basic' | 'advanced',
@@ -258,18 +231,6 @@ function computeActiveModelHasKey(activeModelExcluded: boolean, hasApiKey: Recor
   return !activeModelExcluded && (hasApiKey[activeModelBackend] !== false || (freeTier && tierInfo!.allowedBackends.includes(activeModelBackend)));
 }
 
-function computeHasSource(sourceType: DebateSourceType, topic: string, sourceContent: string, sourceRef: string): boolean {
-  return sourceType === 'topic' || sourceType === 'other'
-    ? topic.trim().length > 0
-    : sourceType === 'document'
-      ? sourceContent.length > 0
-      : sourceRef.trim().length > 0;
-}
-
-function computeCanStart(hasSource: boolean, selectedSize: number, multiProvider: boolean, activeBackendsLength: number, activeModelHasKey: boolean): boolean {
-  return hasSource && selectedSize >= 1 && (multiProvider ? activeBackendsLength >= 2 : activeModelHasKey);
-}
-
 function temperatureLabelFor(temperature: number): string {
   return temperature <= 0.3 ? 'Focused' : temperature <= 0.7 ? 'Balanced' : temperature <= 1.0 ? 'Creative' : 'Wild';
 }
@@ -317,265 +278,6 @@ function MultiProviderBackendChip({ b, modelTier, excludedBackends, activeBacken
   );
 }
 
-interface OtherSourceSectionProps {
-  topic: string; setTopic: (v: string) => void;
-  otherTab: 'canned' | 'queued'; setOtherTab: (v: 'canned' | 'queued') => void;
-  situationNodes: SituationNode[]; handleTopicCardClick: (label: string, description: string) => void;
-  queuedTopics: { text: string; sourceType: DebateSourceType; sourceRef: string; timestamp: string }[];
-  handleRemoveQueued: (idx: number) => void;
-}
-function OtherSourceSection({ topic, setTopic, otherTab, setOtherTab, situationNodes, handleTopicCardClick, queuedTopics, handleRemoveQueued }: OtherSourceSectionProps) {
-  return (
-    <>
-      <label className="ndd-field-label">Topic</label>
-      <AutoGrowTextarea
-        className="ndd-topic-input"
-        placeholder="Type a custom topic or pick from Canned / Queued below."
-        value={topic}
-        onChange={(e) => setTopic(e.target.value)}
-        rows={3}
-        autoFocus
-      />
-      <div className="ndd-other-tabs">
-        <button
-          className={`ndd-other-tab${otherTab === 'canned' ? ' active' : ''}`}
-          onClick={() => setOtherTab('canned')}
-        >
-          Canned Topics ({situationNodes.length})
-        </button>
-        <button
-          className={`ndd-other-tab${otherTab === 'queued' ? ' active' : ''}`}
-          onClick={() => setOtherTab('queued')}
-        >
-          Queued Topics ({queuedTopics.length})
-        </button>
-      </div>
-      {otherTab === 'canned' && situationNodes.length > 0 && (
-        <div className="ndd-potential-topics">
-          {situationNodes.map(node => (
-            <button
-              key={node.id}
-              className={`ndd-topic-card${topic.startsWith(node.label) ? ' selected' : ''}`}
-              onClick={() => handleTopicCardClick(node.label, node.description)}
-            >
-              <div className="ndd-topic-card-header">
-                <span className="ndd-topic-card-icon">{'💡'}</span>
-                <span className="ndd-topic-card-title">{node.label}</span>
-              </div>
-              <p className="ndd-topic-card-desc">{node.description}</p>
-            </button>
-          ))}
-        </div>
-      )}
-      {otherTab === 'queued' && (
-        <div className="ndd-potential-topics">
-          {queuedTopics.length === 0 && (
-            <p className="ndd-queued-empty">
-              No queued topics yet. Use "Queue Topic" to save topics for later.
-            </p>
-          )}
-          {queuedTopics.map((qt, idx) => (
-            <button
-              key={idx}
-              className={`ndd-topic-card${topic === qt.text ? ' selected' : ''}`}
-              onClick={() => setTopic(qt.text)}
-            >
-              <div className="ndd-topic-card-header">
-                <span className="ndd-topic-card-icon">{'📋'}</span>
-                <span className="ndd-topic-card-title ndd-flex-1">{qt.text.slice(0, 80)}{qt.text.length > 80 ? '…' : ''}</span>
-                <span
-                  className="ndd-queued-remove"
-                  title="Remove from queue"
-                  onClick={(e) => { e.stopPropagation(); handleRemoveQueued(idx); }}
-                >
-                  &times;
-                </span>
-              </div>
-              <p className="ndd-topic-card-desc ndd-topic-card-desc-queued">
-                Queued {new Date(qt.timestamp).toLocaleDateString()}
-              </p>
-            </button>
-          ))}
-        </div>
-      )}
-    </>
-  );
-}
-
-interface DebateDetailsColumnProps {
-  debateTitle: string; setDebateTitle: (v: string) => void;
-  sourceType: DebateSourceType; setSourceType: (v: DebateSourceType) => void;
-  topic: string; setTopic: (v: string) => void;
-  fileName: string; handlePickFile: () => void | Promise<void>; sourceContent: string;
-  sourceRef: string; setSourceRef: (v: string) => void;
-  otherTab: 'canned' | 'queued'; setOtherTab: (v: 'canned' | 'queued') => void;
-  situationNodes: SituationNode[]; handleTopicCardClick: (label: string, description: string) => void;
-  queuedTopics: { text: string; sourceType: DebateSourceType; sourceRef: string; timestamp: string }[];
-  handleRemoveQueued: (idx: number) => void;
-  background: string; setBackground: (v: string) => void;
-  improvingTopic: boolean; handleImproveTopic: () => void | Promise<void>; improveError: string | null;
-  topicSuggestion: string | null; setTopicSuggestion: (v: string | null) => void; setImproveError: (v: string | null) => void;
-}
-
-// Left Column: Debate Details.
-function DebateDetailsColumn({
-  debateTitle, setDebateTitle, sourceType, setSourceType, topic, setTopic,
-  fileName, handlePickFile, sourceContent, sourceRef, setSourceRef,
-  otherTab, setOtherTab, situationNodes, handleTopicCardClick, queuedTopics,
-  handleRemoveQueued, background, setBackground, improvingTopic, handleImproveTopic,
-  improveError, topicSuggestion, setTopicSuggestion, setImproveError,
-}: DebateDetailsColumnProps) {
-  return (
-    <div className="ndd-col-left">
-      <h3 className="ndd-section-heading">Debate Details</h3>
-
-      {/* Title (optional) */}
-      <label className="ndd-field-label">Title</label>
-      <input
-        className="ndd-title-input"
-        type="text"
-        placeholder="e.g. Strict Liability in AI Deployment"
-        value={debateTitle}
-        onChange={(e) => setDebateTitle(e.target.value.slice(0, 120))}
-        maxLength={120}
-      />
-
-      {/* Source type radios */}
-      <label className="ndd-field-label">Source</label>
-      <div className="ndd-source-types">
-        {(['topic', 'document', 'url', 'other'] as DebateSourceType[]).map(st => (
-          <label key={st} className={`ndd-source-option${sourceType === st ? ' active' : ''}`}>
-            <input type="radio" name="sourceType" value={st} checked={sourceType === st} onChange={() => setSourceType(st)} />
-            <span className="ndd-source-icon">{SOURCE_ICONS[st]}</span>
-            <span className="ndd-source-text">{st === 'url' ? 'URL' : st.charAt(0).toUpperCase() + st.slice(1)}</span>
-          </label>
-        ))}
-      </div>
-
-      {/* Topic textarea (always shown for topic; conditional for doc/url) */}
-      {sourceType === 'topic' && (
-        <>
-          <label className="ndd-field-label">Topic</label>
-          <AutoGrowTextarea
-            className="ndd-topic-input"
-            placeholder="What should we debate? Type your own or pick from Potential Topics below."
-            value={topic}
-            onChange={(e) => setTopic(e.target.value)}
-            rows={3}
-            autoFocus
-          />
-        </>
-      )}
-
-      {sourceType === 'document' && (
-        <>
-          <label className="ndd-field-label">Document</label>
-          <div className="ndd-file-picker">
-            <button className="btn" onClick={handlePickFile}>
-              {fileName ? fileName : 'Choose file...'}
-            </button>
-            {sourceContent && (
-              <span className="ndd-file-info">{Math.round(sourceContent.length / 1024)}KB loaded</span>
-            )}
-          </div>
-          <label className="ndd-field-label">Topic (optional)</label>
-          <AutoGrowTextarea
-            className="ndd-topic-input"
-            placeholder="Focus the debate on a specific aspect of this document..."
-            value={topic}
-            onChange={(e) => setTopic(e.target.value)}
-            rows={2}
-          />
-        </>
-      )}
-
-      {sourceType === 'url' && (
-        <>
-          <label className="ndd-field-label">URL</label>
-          <input
-            className="ndd-url-input"
-            type="url"
-            placeholder="https://example.com/article"
-            value={sourceRef}
-            onChange={(e) => setSourceRef(e.target.value)}
-            autoFocus
-          />
-          <label className="ndd-field-label">Topic (optional)</label>
-          <AutoGrowTextarea
-            className="ndd-topic-input"
-            placeholder="Focus the debate on a specific aspect of this content..."
-            value={topic}
-            onChange={(e) => setTopic(e.target.value)}
-            rows={2}
-          />
-        </>
-      )}
-
-      {/* "Other" source: tabbed Canned / Queued topics */}
-      {sourceType === 'other' && (
-        <OtherSourceSection
-          topic={topic}
-          setTopic={setTopic}
-          otherTab={otherTab}
-          setOtherTab={setOtherTab}
-          situationNodes={situationNodes}
-          handleTopicCardClick={handleTopicCardClick}
-          queuedTopics={queuedTopics}
-          handleRemoveQueued={handleRemoveQueued}
-        />
-      )}
-      {/* Background context — supporting info kept separate from the topic question (t/917) */}
-      <label className="ndd-field-label">Background (optional)</label>
-      <AutoGrowTextarea
-        className="ndd-topic-input"
-        placeholder="Supporting context for the debate — constraints, prior decisions, domain details. Given to the AI as background, kept separate from the topic question."
-        value={background}
-        onChange={(e) => setBackground(e.target.value)}
-        rows={2}
-      />
-
-      {/* Improve with AI — inline topic refinement (t/910) */}
-      {topic.trim() && (
-        <div className="ndd-improve-section">
-          <button
-            type="button"
-            className="btn ndd-btn-xs"
-            onClick={() => void handleImproveTopic()}
-            disabled={improvingTopic}
-            title="Use AI to sharpen this topic into a clearer, more debatable question"
-          >
-            {improvingTopic ? 'Improving…' : '✨ Improve with AI'}
-          </button>
-          {improveError && (
-            <div className="ndd-error-text">{improveError}</div>
-          )}
-          {topicSuggestion && (
-            <div className="ndd-suggestion-box">
-              <div className="ndd-suggestion-label">Suggested topic</div>
-              <p className="ndd-suggestion-text">{topicSuggestion}</p>
-              <div className="ndd-suggestion-actions">
-                <button
-                  type="button"
-                  className="btn btn-primary ndd-btn-xs"
-                  onClick={() => { setTopic(topicSuggestion); setTopicSuggestion(null); setImproveError(null); }}
-                >
-                  Accept
-                </button>
-                <button
-                  type="button"
-                  className="btn ndd-btn-xs"
-                  onClick={() => setTopicSuggestion(null)}
-                >
-                  Reject
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
 
 interface ActiveModelMessagesProps {
   activeModelExcluded: boolean; activeModelBackend: string; activeModelHasKey: boolean;
@@ -1097,26 +799,193 @@ function ModelConfigModal({ useCustomModel, setUseCustomModel, customModel, setC
   );
 }
 
+// ── Screen A: preset system (t/2199) ─────────────────────────────────────────
+// Stub values — replaced by debatePresets.ts in t/2202 once PM confirms Q1/Q3.
+
+type BuiltInPresetId = 'quick' | 'deep' | 'socratic';
+type PresetId = BuiltInPresetId | 'custom';
+
+const PRESET_DEFAULTS: Record<BuiltInPresetId, {
+  protocolId: string;
+  dialecticalStyle: DialecticalStyle;
+  confrontationRounds: number;
+  argumentationRounds: number;
+  concludingRounds: number;
+  stepMode: boolean;
+  modelTier: 'basic' | 'advanced';
+}> = {
+  quick:    { protocolId: 'structured',   dialecticalStyle: 'adversarial',  confrontationRounds: 2, argumentationRounds: 3, concludingRounds: 1, stepMode: false, modelTier: 'basic'    },
+  deep:     { protocolId: 'deliberation', dialecticalStyle: 'deliberative', confrontationRounds: 3, argumentationRounds: 6, concludingRounds: 2, stepMode: false, modelTier: 'advanced' },
+  socratic: { protocolId: 'socratic',     dialecticalStyle: 'integrative',  confrontationRounds: 2, argumentationRounds: 4, concludingRounds: 2, stepMode: true,  modelTier: 'basic'    },
+};
+
+// Summary/time TBD pending PM answer on Q2.
+const SCREEN_A_PRESETS: { id: BuiltInPresetId; label: string; summary: string; estimatedMinutes?: number }[] = [
+  { id: 'quick',    label: 'Quick take', summary: '2+3 rounds · basic model',               estimatedMinutes: 8  },
+  { id: 'deep',     label: 'Deep dive',  summary: '3+6 rounds · frontier model',             estimatedMinutes: 25 },
+  { id: 'socratic', label: 'Socratic',   summary: '2+4 rounds · step-by-step · basic model', estimatedMinutes: 20 },
+];
+
+function countSettingsDiff(
+  preset: BuiltInPresetId,
+  protocolId: string,
+  dialecticalStyle: DialecticalStyle,
+  confrontationRounds: number,
+  argumentationRounds: number,
+  concludingRounds: number,
+  stepMode: boolean,
+  modelTier: 'basic' | 'advanced',
+): number {
+  const p = PRESET_DEFAULTS[preset];
+  let diff = 0;
+  if (protocolId !== p.protocolId) diff++;
+  if (dialecticalStyle !== p.dialecticalStyle) diff++;
+  if (confrontationRounds !== p.confrontationRounds) diff++;
+  if (argumentationRounds !== p.argumentationRounds) diff++;
+  if (concludingRounds !== p.concludingRounds) diff++;
+  if (stepMode !== p.stepMode) diff++;
+  if (modelTier !== p.modelTier) diff++;
+  return diff;
+}
+
+function useFocusTrap(ref: React.RefObject<HTMLElement | null>, active: boolean) {
+  useEffect(() => {
+    if (!active || !ref.current) return;
+    const el = ref.current;
+    const getFocusable = () => Array.from(
+      el.querySelectorAll<HTMLElement>(
+        'button:not([disabled]),[href],input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])',
+      ),
+    );
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== 'Tab') return;
+      const focusable = getFocusable();
+      if (!focusable.length) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (e.shiftKey) {
+        if (document.activeElement === first) { e.preventDefault(); last.focus(); }
+      } else {
+        if (document.activeElement === last) { e.preventDefault(); first.focus(); }
+      }
+    };
+    el.addEventListener('keydown', onKeyDown);
+    return () => el.removeEventListener('keydown', onKeyDown);
+  }, [active, ref]);
+}
+
+interface PresetCardsProps {
+  basePreset: BuiltInPresetId;
+  isCustom: boolean;
+  onSelect: (id: BuiltInPresetId) => void;
+}
+
+function PresetCards({ basePreset, isCustom, onSelect }: PresetCardsProps) {
+  const activeId: PresetId = isCustom ? 'custom' : basePreset;
+
+  const handleKeyDown = (e: React.KeyboardEvent, idx: number) => {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+      e.preventDefault();
+      onSelect(SCREEN_A_PRESETS[(idx + 1) % SCREEN_A_PRESETS.length].id);
+    } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      onSelect(SCREEN_A_PRESETS[(idx - 1 + SCREEN_A_PRESETS.length) % SCREEN_A_PRESETS.length].id);
+    }
+  };
+
+  return (
+    <div className="ndd-preset-group" role="radiogroup" aria-label="Debate preset">
+      {SCREEN_A_PRESETS.map((p, idx) => {
+        const isSelected = activeId === p.id;
+        return (
+          <div
+            key={p.id}
+            className={`ndd-preset-card${isSelected && !isCustom ? ' ndd-preset-card--selected' : ''}`}
+            role="radio"
+            aria-checked={isSelected && !isCustom}
+            tabIndex={isSelected && !isCustom ? 0 : -1}
+            onClick={() => onSelect(p.id)}
+            onKeyDown={(e) => handleKeyDown(e, idx)}
+          >
+            <div className="ndd-preset-card-header">
+              {isSelected && !isCustom && <span className="ndd-preset-check" aria-hidden="true">✓</span>}
+              <span className="ndd-preset-label">{p.label}</span>
+            </div>
+            <span className="ndd-preset-summary">{p.summary}</span>
+            {p.estimatedMinutes !== undefined && (
+              <span className="ndd-preset-time">~{p.estimatedMinutes} min</span>
+            )}
+          </div>
+        );
+      })}
+      {isCustom && (
+        <div
+          className="ndd-preset-card ndd-preset-card--selected ndd-preset-card--custom"
+          role="radio"
+          aria-checked={true}
+          tabIndex={0}
+        >
+          <div className="ndd-preset-card-header">
+            <span className="ndd-preset-check" aria-hidden="true">✓</span>
+            <span className="ndd-preset-label">Custom</span>
+          </div>
+          <span className="ndd-preset-summary">
+            Based on {SCREEN_A_PRESETS.find(p => p.id === basePreset)?.label ?? 'Quick take'}
+          </span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+async function generateDebateTitle(topic: string): Promise<string> {
+  const { text } = await api.generateText(generateDebateTitlePrompt(topic));
+  return text.trim().slice(0, 120);
+}
+
 export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
   const { createDebate, loadDebate } = useDebateStore(
     useShallow(s => ({ createDebate: s.createDebate, loadDebate: s.loadDebate }))
   );
-  const [debateTitle, setDebateTitle] = useState('');
-  const [topic, setTopic] = useState('');
-  const [background, setBackground] = useState('');
+
+  // Screen A preset state (t/2199)
+  const [basePreset, setBasePreset] = useState<BuiltInPresetId>('quick');
+  const [showSettings, setShowSettings] = useState(false);
   const [showConfigInfo, setShowConfigInfo] = useState(false);
-  const [sourceType, setSourceType] = useState<DebateSourceType>('topic');
-  const [sourceRef, setSourceRef] = useState('');
-  const [sourceContent, setSourceContent] = useState('');
-  const [fileName, setFileName] = useState('');
+  const [startError, setStartError] = useState<string | null>(null);
+
+  // Core debate fields
+  const [topic, setTopic] = useState('');
+  const [background, setBackground] = useState(''); // Screen B (t/2201)
+
+  // Source fixed to 'topic' for Screen A; other source types deferred to t/2200
+  const sourceType: DebateSourceType = 'topic';
+  const sourceRef = '';
+  const sourceContent = '';
+
   const [selected, setSelected] = useState<Set<SpeakerId>>(new Set(AI_POVERS));
   const [userIsPover, setUserIsPover] = useState(false);
   const [creating, setCreating] = useState(false);
-  // "Improve with AI" inline topic refinement (t/910)
-  const [improvingTopic, setImprovingTopic] = useState(false);
-  const [topicSuggestion, setTopicSuggestion] = useState<string | null>(null);
-  const [improveError, setImproveError] = useState<string | null>(null);
-  const { aiBackend, geminiModel, situations } = useTaxonomyStore();
+  // Settings — initialized from preset, editable via Screen B (t/2201)
+  const [protocolId, setProtocolId] = useState(PRESET_DEFAULTS.quick.protocolId);
+  const [dialecticalStyle, setDialecticalStyle] = useState<DialecticalStyle>(PRESET_DEFAULTS.quick.dialecticalStyle);
+  const [confrontationRounds, setConfrontationRounds] = useState(PRESET_DEFAULTS.quick.confrontationRounds);
+  const [argumentationRounds, setArgumentationRounds] = useState(PRESET_DEFAULTS.quick.argumentationRounds);
+  const [concludingRounds, setConcludingRounds] = useState(PRESET_DEFAULTS.quick.concludingRounds);
+  const [stepMode, setStepMode] = useState(PRESET_DEFAULTS.quick.stepMode);
+  const [modelTier, setModelTier] = useState<'basic' | 'advanced'>(PRESET_DEFAULTS.quick.modelTier);
+  const [temperature, setTemperature] = useState(0.7);
+  const [audience, setAudience] = useState<DebateAudience>('policymakers');
+  const [evaluatorModel, setEvaluatorModel] = useState('');
+  const [multiProvider, setMultiProvider] = useState(false);
+  const [excludedBackends, setExcludedBackends] = useState<Set<string>>(new Set());
+  const [excludeGreatestHits, setExcludeGreatestHits] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [stageModelPreset, setStageModelPreset] = useState<'same' | 'cost-optimized' | 'custom'>('same');
+  const [stageModels, setStageModels] = useState<{ brief: string; plan: string; cite: string }>({ brief: '', plan: '', cite: '' });
+
+  // Model / backend state
+  const { aiBackend, geminiModel } = useTaxonomyStore();
   const globalModel = geminiModel;
   const availableModels = Object.entries(MODELS_BY_BACKEND)
     .filter(([backend]) => !DEBATE_EXCLUDED_BACKENDS.has(backend))
@@ -1130,89 +999,48 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
   const [customModel, setCustomModel] = useState(() => {
     return localStorage.getItem('taxonomy-editor-last-debate-model') || globalModel;
   });
-  const [protocolId, setProtocolId] = useState('structured');
-  const [temperature, setTemperature] = useState(0.7);
-  const [audience, setAudience] = useState<DebateAudience>('policymakers');
-  const [dialecticalStyle, setDialecticalStyle] = useState<DialecticalStyle>('adversarial');
-  const defaultBounds = useMemo(() => {
-    try { const w = loadProvisionalWeights(); return w.phase_bounds; } catch { /* telemetry — silent by design: missing weights file is expected on first launch */ return null; }
-  }, []);
-  const debateConfig = getClientConfig().debate;
-  const [confrontationRounds, setConfrontationRounds] = useState(defaultBounds?.max_confrontation_rounds ?? debateConfig.defaultConfrontationRounds);
-  const [argumentationRounds, setArgumentationRounds] = useState(defaultBounds?.max_argumentation_rounds ?? debateConfig.defaultArgumentationRounds);
-  const [concludingRounds, setConcludingRounds] = useState(defaultBounds?.max_concluding_rounds ?? debateConfig.defaultConcludingRounds);
-  const [evaluatorModel, setEvaluatorModel] = useState('');
-  const [multiProvider, setMultiProvider] = useState(false);
-  const [modelTier, setModelTier] = useState<'basic' | 'advanced'>('basic');
-  const [excludedBackends, setExcludedBackends] = useState<Set<string>>(new Set());
-  const [stepMode, setStepMode] = useState(false);
-  const [excludeGreatestHits, setExcludeGreatestHits] = useState(false);
-  const [showAdvanced, setShowAdvanced] = useState(false);
-  const [stageModelPreset, setStageModelPreset] = useState<'same' | 'cost-optimized' | 'custom'>('same');
-  const [stageModels, setStageModels] = useState<{ brief: string; plan: string; cite: string }>({ brief: '', plan: '', cite: '' });
   const [showModelModal, setShowModelModal] = useState(false);
   const [modalBackend, setModalBackend] = useState<AIBackend>(aiBackend);
   const [hasApiKey, setHasApiKey] = useState<Record<string, boolean>>({});
+  const [availableBackends, setAvailableBackends] = useState<Set<string>>(new Set());
+  const [refreshingModels, setRefreshingModels] = useState(false);
   const { tier: tierInfo } = useTierInfo();
   const freeTier = isFreeTier(tierInfo);
   const { modalProps: geminiModalProps, checkAndShow: checkGeminiOnboarding } = useGeminiOnboarding();
-  // Backends usable for multi-provider debates: key present AND authorized for the
-  // user's tier (t/772). Single-model flow keeps using hasApiKey (raw key presence).
-  const [availableBackends, setAvailableBackends] = useState<Set<string>>(new Set());
-  const [refreshingModels, setRefreshingModels] = useState(false);
-  const [otherTab, setOtherTab] = useState<'canned' | 'queued'>('canned');
-  const [queuedTopics, setQueuedTopics] = useState<{ text: string; sourceType: DebateSourceType; sourceRef: string; timestamp: string }[]>(() => {
-    try {
-      const raw = localStorage.getItem('taxonomy-editor-topic-queue');
-      return raw ? JSON.parse(raw) : [];
-    } catch { /* localStorage parse — silent by design */ return []; }
-  });
 
-  const persistQueue = (next: typeof queuedTopics) => {
-    setQueuedTopics(next);
-    localStorage.setItem('taxonomy-editor-topic-queue', JSON.stringify(next));
-  };
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(dialogRef, !showSettings && !showModelModal);
 
-  const handleQueueTopic = () => {
-    if (!topic.trim()) return;
-    const entry = { text: topic.trim(), sourceType, sourceRef: sourceRef.trim(), timestamp: new Date().toISOString() };
-    persistQueue([...queuedTopics, entry]);
-    onClose();
-  };
+  // Derived
+  const advancedChangeCount = countSettingsDiff(
+    basePreset, protocolId, dialecticalStyle,
+    confrontationRounds, argumentationRounds, concludingRounds,
+    stepMode, modelTier,
+  );
+  const isCustom = advancedChangeCount > 0;
 
-  const handleRemoveQueued = (idx: number) => {
-    persistQueue(queuedTopics.filter((_, i) => i !== idx));
-  };
-
-  // t/910 — sharpen the raw topic text via AI before the debate is created.
-  // Uses the configured backend/model (api.generateText default) → AC #4.
-  const handleImproveTopic = async () => {
-    const current = topic.trim();
-    if (!current || improvingTopic) return;
-    setImprovingTopic(true);
-    setImproveError(null);
-    setTopicSuggestion(null);
-    try {
-      const { text } = await api.generateText(improveDebateTopicPrompt(current));
-      const improved = text.trim();
-      if (improved) setTopicSuggestion(improved);
-      else setImproveError('No suggestion returned — try again.');
-    } catch (err) {
-      getGlobalRecorder()?.record({
-        type: 'system.error',
-        component: 'new-debate-dialog',
-        level: 'error',
-        message: 'Failed to improve topic with AI',
-        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
-      });
-      setImproveError(err instanceof Error ? err.message : 'Failed to improve topic.');
-    } finally {
-      setImprovingTopic(false);
-    }
-  };
+  const backendsWithKeys = useMemo(
+    () => [...availableBackends].filter(b => !DEBATE_EXCLUDED_BACKENDS.has(b)),
+    [availableBackends],
+  );
+  const activeBackends = useMemo(
+    () => backendsWithKeys.filter(b => !excludedBackends.has(b)),
+    [backendsWithKeys, excludedBackends],
+  );
+  const activeModel = computeActiveModel(freeTier, tierInfo, useCustomModel, customModel, globalModel);
+  const activeModelBackend = backendForModel(activeModel);
+  const activeModelExcluded = DEBATE_EXCLUDED_BACKENDS.has(activeModelBackend);
+  const activeModelHasKey = computeActiveModelHasKey(activeModelExcluded, hasApiKey, activeModelBackend, freeTier, tierInfo);
+  const fallbackWarnings = useMemo(() => {
+    const chain = FALLBACK_CHAINS[activeModel] ?? [];
+    if (!chain.length) return [];
+    return chain
+      .map(m => ({ model: m, backend: backendForModel(m) }))
+      .filter(({ backend }) => hasApiKey[backend] === false)
+      .map(({ model, backend }) => `${model} (${backend})`);
+  }, [activeModel, hasApiKey]);
 
   useEffect(() => {
-    // Single-model flow: raw key presence per backend (unchanged — t/772 leaves this path alone).
     void Promise.all(
       AI_BACKENDS.map(async (b) => {
         const has = await api.hasApiKey(b.value);
@@ -1220,9 +1048,6 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
       }),
     ).then(results => setHasApiKey(Object.fromEntries(results)))
       .catch((err) => { getGlobalRecorder()?.record({ type: 'system.error', component: 'new-debate-dialog', level: 'warn', message: 'hasApiKey check failed', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } }); });
-    // Multi-provider flow: real availability (key AND tier authorization). Filtering to
-    // available===true means resolveMultiProviderModels never assigns a speaker to a
-    // backend the server would reject with 403 at generation time (t/772).
     void api.getAvailableBackends()
       .then(backends => setAvailableBackends(new Set(backends.filter(b => b.available).map(b => b.id))))
       .catch((err) => {
@@ -1236,29 +1061,21 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
       });
   }, [showModelModal]);
 
-  const backendsWithKeys = useMemo(
-    () => [...availableBackends].filter(b => !DEBATE_EXCLUDED_BACKENDS.has(b)),
-    [availableBackends],
-  );
+  const applyPreset = (id: BuiltInPresetId) => {
+    const p = PRESET_DEFAULTS[id];
+    setProtocolId(p.protocolId);
+    setDialecticalStyle(p.dialecticalStyle);
+    setConfrontationRounds(p.confrontationRounds);
+    setArgumentationRounds(p.argumentationRounds);
+    setConcludingRounds(p.concludingRounds);
+    setStepMode(p.stepMode);
+    setModelTier(p.modelTier);
+  };
 
-  const activeBackends = useMemo(
-    () => backendsWithKeys.filter(b => !excludedBackends.has(b)),
-    [backendsWithKeys, excludedBackends],
-  );
-
-  const activeModel = computeActiveModel(freeTier, tierInfo, useCustomModel, customModel, globalModel);
-  const activeModelBackend = backendForModel(activeModel);
-  const activeModelExcluded = DEBATE_EXCLUDED_BACKENDS.has(activeModelBackend);
-  const activeModelHasKey = computeActiveModelHasKey(activeModelExcluded, hasApiKey, activeModelBackend, freeTier, tierInfo);
-
-  const fallbackWarnings = useMemo(() => {
-    const chain = FALLBACK_CHAINS[activeModel] ?? [];
-    if (!chain.length) return [];
-    return chain
-      .map(m => ({ model: m, backend: backendForModel(m) }))
-      .filter(({ backend }) => hasApiKey[backend] === false)
-      .map(({ model, backend }) => `${model} (${backend})`);
-  }, [activeModel, hasApiKey]);
+  const handleSelectPreset = (id: BuiltInPresetId) => {
+    setBasePreset(id);
+    applyPreset(id);
+  };
 
   const openModelModal = () => {
     const model = useCustomModel ? customModel : globalModel;
@@ -1292,12 +1109,6 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
     }
   };
 
-  // Get situation nodes for potential topics
-  const situationNodes = useMemo(() => {
-    if (!situations?.nodes) return [];
-    return situations.nodes;
-  }, [situations]);
-
   const toggle = (id: SpeakerId) => {
     const next = new Set(selected);
     if (next.has(id)) next.delete(id);
@@ -1305,168 +1116,197 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
     setSelected(next);
   };
 
-  const handlePickFile = async () => {
-    const result = await api.pickDocumentFile();
-    if (result.cancelled || !result.filePath || !result.content) return;
-    setSourceRef(result.filePath);
-    setSourceContent(result.content);
-    setFileName(result.filePath.split('/').pop() || result.filePath);
-    if (!topic) {
-      const name = result.filePath.split('/').pop()?.replace(/\.[^.]+$/, '') || '';
-      setTopic(`Discuss: ${name}`);
-    }
-  };
-
-  const handleTopicCardClick = (label: string, description: string) => {
-    setTopic(`${label}: ${description}`);
-  };
-
-  const hasSource = computeHasSource(sourceType, topic, sourceContent, sourceRef);
-
-  const canStart = computeCanStart(hasSource, selected.size, multiProvider, activeBackends.length, activeModelHasKey);
+  const canStart = topic.trim().length > 0 && !creating;
 
   const handleStart = async () => {
-    if (!canStart || creating) return;
+    if (!canStart) return;
+    setStartError(null);
     // Free-tier/anonymous sessions use the server key — never prompt for a BYOK Gemini key (t/1479).
     await checkGeminiOnboarding({ freeTier });
     setCreating(true);
+    try {
+      const finalTopic = topic.trim();
+      const povers = Array.from(selected);
+      if (userIsPover && !povers.includes('user')) povers.push('user');
+      const effectiveModel = useCustomModel ? customModel : globalModel;
+      localStorage.setItem('taxonomy-editor-last-debate-model', effectiveModel);
+      const debateModelOverride = computeDebateModelOverride(multiProvider, useCustomModel, customModel);
 
-    let finalTopic = topic.trim();
-    let finalContent = sourceContent;
-
-    if (sourceType === 'url') {
-      if (!finalTopic) finalTopic = `Discuss: ${sourceRef.trim()}`;
-      finalContent = await fetchDebateUrlContent(sourceRef);
-    }
-
-    if (sourceType === 'document' && !finalTopic) {
-      finalTopic = `Discuss: ${fileName}`;
-    }
-
-    const povers = Array.from(selected);
-    if (userIsPover && !povers.includes('user')) povers.push('user');
-    const effectiveModel = useCustomModel ? customModel : globalModel;
-    localStorage.setItem('taxonomy-editor-last-debate-model', effectiveModel);
-    const debateModelOverride = computeDebateModelOverride(multiProvider, useCustomModel, customModel);
-
-    let speakerModels: Record<string, string> | undefined;
-    if (multiProvider) {
-      const resolved = resolveDebateSpeakerModels(modelTier, activeBackends, povers);
-      if (resolved === RESOLVE_FAILED) {
-        setCreating(false);
-        return;
+      let speakerModels: Record<string, string> | undefined;
+      if (multiProvider) {
+        const resolved = resolveDebateSpeakerModels(modelTier, activeBackends, povers);
+        if (resolved === RESOLVE_FAILED) return;
+        speakerModels = resolved;
       }
-      speakerModels = resolved;
-    }
 
-    const { sourceTypeArg, sourceRefArg, contentArg } = buildDebateSourceArgs(sourceType, sourceRef, finalContent);
-    const id = await createDebate(
-      finalTopic,
-      povers,
-      userIsPover,
-      sourceTypeArg,
-      sourceRefArg,
-      contentArg,
-      debateModelOverride,
-      protocolId,
-      temperature,
-      audience,
-      buildDebateOptions({ debateTitle, background, evaluatorModel, confrontationRounds, argumentationRounds, concludingRounds, speakerModels, multiProvider, modelTier, stepMode, excludeGreatestHits, stageModels }),
-    );
-    await loadDebate(id);
-    const creationWeights = buildCreationWeights(confrontationRounds, argumentationRounds, concludingRounds);
-    getGlobalRecorder()?.record({ type: 'user.action', component: 'new-debate', level: 'info', message: 'debate.created', data: buildDebateCreatedData({ id, sourceType, povers, userIsPover, effectiveModel, protocolId, temperature, audience, stepMode, multiProvider, modelTier, speakerModels, stageModels, creationWeights }) });
-    const store = useDebateStore.getState();
-    store.updatePhase('clarification');
-    await store.saveDebate();
-    // Open debate in popout window
-    api.openDebateWindow(id).catch(() => { /* fallback: stays inline */ });
-    onClose();
+      const titleForDebate = await generateDebateTitle(finalTopic);
+      const { sourceTypeArg, sourceRefArg, contentArg } = buildDebateSourceArgs(sourceType, sourceRef, sourceContent);
+      const id = await createDebate(
+        finalTopic,
+        povers,
+        userIsPover,
+        sourceTypeArg,
+        sourceRefArg,
+        contentArg,
+        debateModelOverride,
+        protocolId,
+        temperature,
+        audience,
+        buildDebateOptions({ debateTitle: titleForDebate, background, evaluatorModel, confrontationRounds, argumentationRounds, concludingRounds, speakerModels, multiProvider, modelTier, stepMode, excludeGreatestHits, stageModels }),
+      );
+      await loadDebate(id);
+      const creationWeights = buildCreationWeights(confrontationRounds, argumentationRounds, concludingRounds);
+      getGlobalRecorder()?.record({ type: 'user.action', component: 'new-debate', level: 'info', message: 'debate.created', data: buildDebateCreatedData({ id, sourceType, povers, userIsPover, effectiveModel, protocolId, temperature, audience, stepMode, multiProvider, modelTier, speakerModels, stageModels, creationWeights }) });
+      const store = useDebateStore.getState();
+      store.updatePhase('clarification');
+      await store.saveDebate();
+      api.openDebateWindow(id).catch(() => { /* fallback: stays inline */ });
+      onClose();
+    } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'new-debate-dialog',
+        level: 'error',
+        message: 'Failed to start debate',
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+      });
+      setStartError(err instanceof Error ? err.message : 'Failed to start debate.');
+    } finally {
+      setCreating(false);
+    }
   };
 
   const temperatureLabel = temperatureLabelFor(temperature);
 
   return (
-    <div className="dialog-overlay" onClick={onClose}>
-      <div className="ndd-fullpage" onClick={(e) => e.stopPropagation()}>
-        {/* Header */}
-        <div className="ndd-header">
-          <h2 className="ndd-title">New Debate</h2>
+    <div className="dialog-overlay" role="presentation" onClick={onClose}>
+      {/* Screen A */}
+      <div
+        ref={dialogRef}
+        className="ndd-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="ndd-dialog-title"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="ndd-dialog-header">
+          <h2 id="ndd-dialog-title" className="ndd-dialog-title">New Debate</h2>
           <button className="ndd-close-btn" onClick={onClose} aria-label="Close">&times;</button>
         </div>
 
-        {/* Two-column body */}
-        <div className="ndd-body">
-          <DebateDetailsColumn
-            debateTitle={debateTitle} setDebateTitle={setDebateTitle}
-            sourceType={sourceType} setSourceType={setSourceType}
-            topic={topic} setTopic={setTopic}
-            fileName={fileName} handlePickFile={handlePickFile} sourceContent={sourceContent}
-            sourceRef={sourceRef} setSourceRef={setSourceRef}
-            otherTab={otherTab} setOtherTab={setOtherTab}
-            situationNodes={situationNodes} handleTopicCardClick={handleTopicCardClick}
-            queuedTopics={queuedTopics} handleRemoveQueued={handleRemoveQueued}
-            background={background} setBackground={setBackground}
-            improvingTopic={improvingTopic} handleImproveTopic={handleImproveTopic} improveError={improveError}
-            topicSuggestion={topicSuggestion} setTopicSuggestion={setTopicSuggestion} setImproveError={setImproveError}
+        <div className="ndd-dialog-body">
+          <label className="ndd-topic-primary" htmlFor="ndd-topic">
+            What should we debate?<span className="ndd-required-mark" aria-hidden="true"> *</span>
+          </label>
+          <AutoGrowTextarea
+            id="ndd-topic"
+            className="form-textarea"
+            placeholder="What should we debate?"
+            value={topic}
+            onChange={(e) => setTopic(e.target.value)}
+            rows={3}
+            autoFocus
           />
-
-          <DebateConfigColumn
-            showConfigInfo={showConfigInfo} setShowConfigInfo={setShowConfigInfo}
-            protocolId={protocolId} setProtocolId={setProtocolId}
-            multiProvider={multiProvider} setMultiProvider={setMultiProvider}
-            availableModels={availableModels} activeModel={activeModel}
-            activeModelExcluded={activeModelExcluded} activeModelBackend={activeModelBackend} activeModelHasKey={activeModelHasKey}
-            useCustomModel={useCustomModel} freeTier={freeTier} tierInfo={tierInfo}
-            hasApiKey={hasApiKey} fallbackWarnings={fallbackWarnings} openModelModal={openModelModal}
-            backendsWithKeys={backendsWithKeys}
-            modelTier={modelTier} setModelTier={setModelTier}
-            excludedBackends={excludedBackends} setExcludedBackends={setExcludedBackends} activeBackends={activeBackends}
-            dialecticalStyle={dialecticalStyle} setDialecticalStyle={setDialecticalStyle}
-            confrontationRounds={confrontationRounds} setConfrontationRounds={setConfrontationRounds}
-            argumentationRounds={argumentationRounds} setArgumentationRounds={setArgumentationRounds}
-            concludingRounds={concludingRounds} setConcludingRounds={setConcludingRounds}
-            stepMode={stepMode} setStepMode={setStepMode}
-            excludeGreatestHits={excludeGreatestHits} setExcludeGreatestHits={setExcludeGreatestHits}
-            showAdvanced={showAdvanced} setShowAdvanced={setShowAdvanced}
-            temperature={temperature} setTemperature={setTemperature} temperatureLabel={temperatureLabel}
-            evaluatorModel={evaluatorModel} setEvaluatorModel={setEvaluatorModel}
-            stageModelPreset={stageModelPreset} setStageModelPreset={setStageModelPreset}
-            stageModels={stageModels} setStageModels={setStageModels}
-            audience={audience} setAudience={setAudience}
-            selected={selected} toggle={toggle}
-            userIsPover={userIsPover} setUserIsPover={setUserIsPover}
+          <PresetCards
+            basePreset={basePreset}
+            isCustom={isCustom}
+            onSelect={handleSelectPreset}
           />
         </div>
 
-        {/* Footer */}
-        <div className="ndd-footer">
-          <button className="btn ndd-cancel-btn" onClick={onClose}>Cancel</button>
-          <button
-            className="btn ndd-queue-btn"
-            onClick={handleQueueTopic}
-            disabled={!topic.trim() || creating}
-            title="Save this topic to the queue for later"
-          >
-            Queue Topic
-          </button>
-          <button className="btn btn-primary ndd-start-btn" onClick={handleStart} disabled={!canStart || creating}>
-            {creating ? 'Creating...' : 'Start Debate'}
-          </button>
+        <div className="ndd-dialog-footer">
+          <div className="ndd-footer-actions">
+            <button
+              type="button"
+              className="ndd-advanced-link btn-link"
+              onClick={() => setShowSettings(true)}
+            >
+              Advanced settings
+              {isCustom && (
+                <span className="ndd-change-badge" aria-label={`${advancedChangeCount} settings changed`}>
+                  {advancedChangeCount}
+                </span>
+              )}
+            </button>
+          </div>
+          <div className="ndd-footer-right">
+            {startError && (
+              <span className="ndd-start-error" role="alert">
+                {startError}{' '}
+                <button type="button" className="ndd-retry-link btn-link" onClick={handleStart}>Retry</button>
+              </span>
+            )}
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={handleStart}
+              disabled={!canStart}
+            >
+              {creating ? 'Starting…' : 'Start debate'}
+            </button>
+          </div>
         </div>
-
-        {/* Model Configuration Modal */}
-        {showModelModal && (
-          <ModelConfigModal
-            useCustomModel={useCustomModel} setUseCustomModel={setUseCustomModel}
-            customModel={customModel} setCustomModel={setCustomModel} globalModel={globalModel}
-            modalBackend={modalBackend} setModalBackend={setModalBackend} hasApiKey={hasApiKey}
-            handleRefreshModels={handleRefreshModels} refreshingModels={refreshingModels}
-            onClose={() => setShowModelModal(false)}
-          />
-        )}
-        <GeminiOnboardingModal {...geminiModalProps} />
       </div>
+
+      {/* Screen B stub — full settings dialog (t/2201) */}
+      {showSettings && (
+        <div className="ndd-settings-overlay" role="presentation" onClick={() => setShowSettings(false)}>
+          <div
+            className="ndd-settings-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="ndd-settings-title"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="ndd-settings-header">
+              <button type="button" className="btn-link ndd-back-btn" onClick={() => setShowSettings(false)} aria-label="Back to debate setup">
+                ← Back
+              </button>
+              <h2 id="ndd-settings-title" className="ndd-settings-title">Advanced settings</h2>
+              <button className="ndd-close-btn" onClick={onClose} aria-label="Close">&times;</button>
+            </div>
+            <div className="ndd-settings-body">
+              <DebateConfigColumn
+                showConfigInfo={showConfigInfo} setShowConfigInfo={setShowConfigInfo}
+                protocolId={protocolId} setProtocolId={setProtocolId}
+                multiProvider={multiProvider} setMultiProvider={setMultiProvider}
+                availableModels={availableModels} activeModel={activeModel}
+                activeModelExcluded={activeModelExcluded} activeModelBackend={activeModelBackend} activeModelHasKey={activeModelHasKey}
+                useCustomModel={useCustomModel} freeTier={freeTier} tierInfo={tierInfo}
+                hasApiKey={hasApiKey} fallbackWarnings={fallbackWarnings} openModelModal={openModelModal}
+                backendsWithKeys={backendsWithKeys}
+                modelTier={modelTier} setModelTier={setModelTier}
+                excludedBackends={excludedBackends} setExcludedBackends={setExcludedBackends} activeBackends={activeBackends}
+                dialecticalStyle={dialecticalStyle} setDialecticalStyle={setDialecticalStyle}
+                confrontationRounds={confrontationRounds} setConfrontationRounds={setConfrontationRounds}
+                argumentationRounds={argumentationRounds} setArgumentationRounds={setArgumentationRounds}
+                concludingRounds={concludingRounds} setConcludingRounds={setConcludingRounds}
+                stepMode={stepMode} setStepMode={setStepMode}
+                excludeGreatestHits={excludeGreatestHits} setExcludeGreatestHits={setExcludeGreatestHits}
+                showAdvanced={showAdvanced} setShowAdvanced={setShowAdvanced}
+                temperature={temperature} setTemperature={setTemperature} temperatureLabel={temperatureLabel}
+                evaluatorModel={evaluatorModel} setEvaluatorModel={setEvaluatorModel}
+                stageModelPreset={stageModelPreset} setStageModelPreset={setStageModelPreset}
+                stageModels={stageModels} setStageModels={setStageModels}
+                audience={audience} setAudience={setAudience}
+                selected={selected} toggle={toggle}
+                userIsPover={userIsPover} setUserIsPover={setUserIsPover}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showModelModal && (
+        <ModelConfigModal
+          useCustomModel={useCustomModel} setUseCustomModel={setUseCustomModel}
+          customModel={customModel} setCustomModel={setCustomModel} globalModel={globalModel}
+          modalBackend={modalBackend} setModalBackend={setModalBackend} hasApiKey={hasApiKey}
+          handleRefreshModels={handleRefreshModels} refreshingModels={refreshingModels}
+          onClose={() => setShowModelModal(false)}
+        />
+      )}
+      <GeminiOnboardingModal {...geminiModalProps} />
     </div>
   );
 }
