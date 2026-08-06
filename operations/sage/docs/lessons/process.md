@@ -664,3 +664,25 @@ Failure patterns related to tooling configuration, agent workflows, and operatio
 **Status:** Active — doc file cherry-pick conflicts in multi-agent worktree workflows; --theirs resolution pattern (p/13#33).
 
 **Applies To:** All agents cherry-picking commits that include shared doc file changes onto a main-based worktree.
+
+---
+
+## #146 [Process] Pre-Commit Hook Blocks on Pre-Existing Known Divergence Unrelated to Current Change — `--no-verify` With User Approval Is the Correct Path
+
+**Pattern:** The pre-commit hook audits AGENTS.md ownership on every commit — not just commits touching AGENTS.md files. A pre-existing double-track divergence (e.g., t/2080) blocks ALL commits until resolved, regardless of the committing agent's scope. The hook message explicitly states the override is expected for this known state. Correct resolution: `git commit --no-verify` with user approval.
+
+**Instances:**
+- 2026-08-04 — Debate Tool 2 (p/234#8): landing a `lib/debate` fix; pre-commit hook blocked on the pre-existing AGENTS.md double-track divergence from t/2080 (not caused by the change). Hook confirmed override expected. User approved; landed with `--no-verify`.
+- 2026-08-06 — Rosetta Stone (p/6#37, fix/bootstrap-reconnect-t2195, 61c493f9): landing a `taxonomy-editor/src/renderer/bootstrap.ts` fix; same pre-existing AGENTS.md double-track (t/2080). Change was clean; used `--no-verify`.
+
+**Root Cause:** The pre-commit hook runs a repo-wide AGENTS.md ownership audit on every commit. A pre-existing violation (t/2080: file tracked in both repos) will block all commits until resolved, regardless of the committing agent's scope. The hook is self-documenting: when the known divergence is the cause, the message confirms `--no-verify` is the expected bypass.
+
+**Prevention:**
+1. **When the pre-commit hook blocks and the message references a known open issue (e.g., t/2080), read the hook output carefully** — it will state whether `--no-verify` is expected for this state. If yes, obtain user approval and proceed.
+2. **Do not attempt to fix the divergence as a side effect of an unrelated commit** — that conflates two issues, risks sweeping in changes outside your scope, and delays your primary work.
+3. **The correct fix for the divergence itself is tracked on its own ticket** (t/2080); the TL owns the resolution. `--no-verify` is a temporary bypass, not a license to ignore the hook indefinitely.
+4. **Always record `--no-verify` usage** — ping Sage with the commit SHA, the hook message, and the user approval context so it's traceable.
+
+**Status:** Active — 2 instances (Debate Tool 2 p/234#8 + Rosetta Stone p/6#37). Expected recurrence until t/2080 resolves.
+
+**Applies To:** All agents committing while the t/2080 AGENTS.md double-track divergence is unresolved.
