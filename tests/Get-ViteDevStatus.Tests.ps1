@@ -34,7 +34,7 @@ Describe 'Get-ViteDevStatus' -Tag 'health' {
     It 'Returns ViteDevStatus object with populated fields on happy path' {
         InModuleScope AITriad {
             Mock Get-ViteListeningPid { 9999 }
-            Mock Get-CimInstance {
+            Mock Get-ViteCimProcess {
                 [PSCustomObject]@{
                     Name        = 'node.exe'
                     CommandLine = '"C:\repos\main\taxonomy-editor\node_modules\.bin\vite"'
@@ -59,7 +59,7 @@ Describe 'Get-ViteDevStatus' -Tag 'health' {
     It 'Sets IsOrphanedWorktree=$true when workdir not in git worktree list' {
         InModuleScope AITriad {
             Mock Get-ViteListeningPid { 9999 }
-            Mock Get-CimInstance {
+            Mock Get-ViteCimProcess {
                 [PSCustomObject]@{
                     Name        = 'node.exe'
                     CommandLine = '"C:\repos\orphan\node_modules\.bin\vite"'

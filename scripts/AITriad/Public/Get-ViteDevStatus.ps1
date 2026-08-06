@@ -33,6 +33,12 @@ function Get-ViteWorktreeList {
     if ($out) { [string[]]$out } else { $null }
 }
 
+function Get-ViteCimProcess {
+    param([int]$ProcessId)
+    # Get-CimInstance is Windows-only; isolated here so tests can mock on Linux CI
+    Get-CimInstance Win32_Process -Filter "ProcessId = $ProcessId" -ErrorAction SilentlyContinue
+}
+
 function Get-ViteDevStatus {
     <#
     .SYNOPSIS
@@ -88,8 +94,7 @@ function Get-ViteDevStatus {
     $Result.ProcessId = $ListeningPid
 
     # ── Step 2: process info via CIM ───────────────────────────────────────────
-    $CimProc = Get-CimInstance Win32_Process -Filter "ProcessId = $ListeningPid" `
-        -ErrorAction SilentlyContinue
+    $CimProc = Get-ViteCimProcess -ProcessId $ListeningPid
     if ($CimProc) {
         $Result.ProcessName = [string]$CimProc.Name
         $CmdLine = if ($CimProc.PSObject.Properties['CommandLine'] -and $CimProc.CommandLine) {
