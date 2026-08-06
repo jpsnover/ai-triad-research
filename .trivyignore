@@ -352,3 +352,412 @@ CVE-2026-15157
 # REVISIT:   drop when npm ships a release bundling a patched tar; rebuild base
 #            image after the npm update. Re-scan and remove.
 GHSA-r292-9mhp-454m
+
+# ==============================================================================
+# Wave 4 — Bulk OS CVE suppression (t/2194, 2026-08-06)
+# All entries below: fix exists upstream but is NOT yet backported to
+# debian:bookworm stable repos. The Dockerfile runs apt-get upgrade -y at every
+# build, so any Debian-available fix is applied automatically. These entries
+# suppress the remaining alerts until Debian ships the backport.
+# Policy: t/2006 — CVE + package + justification + REVISIT trigger required.
+# ==============================================================================
+
+# -- bash (GNU Bourne-Again Shell) -- fix not backported to debian:bookworm
+# node:22-bookworm-slim base; apt-get upgrade -y at build time installs all available Debian
+# security updates. These CVEs have no debian:bookworm package fix available yet.
+# REVISIT: when Debian issues a security update for bash or image removes the package.
+TEMP-0841856-B18BAF  # bash: [Privilege escalation possible to other user than root]
+
+# -- coreutils (GNU core utilities) -- fix not backported to debian:bookworm
+# node:22-bookworm-slim base; apt-get upgrade -y at build time installs all available Debian
+# security updates. These CVEs have no debian:bookworm package fix available yet.
+# REVISIT: when Debian issues a security update for coreutils or image removes the package.
+CVE-2016-2781  # coreutils: coreutils: Non-privileged session can escape to the parent session in chroot
+CVE-2017-18018  # coreutils: coreutils: race condition vulnerability in chown and chgrp
+CVE-2025-5278  # coreutils: coreutils: Heap Buffer Under-Read in GNU Coreutils sort via Key Specification
+
+# -- git-man (Git version control) -- fix not backported to debian:bookworm
+# node:22-bookworm-slim base; apt-get upgrade -y at build time installs all available Debian
+# security updates. These CVEs have no debian:bookworm package fix available yet.
+# REVISIT: when Debian issues a security update for git-man or image removes the package.
+CVE-2018-1000021  # git-man: git: client prints server-sent ANSI escape codes to the terminal, allowing fo...
+CVE-2022-24975  # git-man: git: The --mirror option for git leaks secret for deleted content, aka the "G...
+CVE-2024-52005  # git-man: git: The sideband payload is passed unfiltered to the terminal in git
+
+# -- gpgv/gnupg2 (GnuPG signature verification) -- fix not backported to debian:bookworm
+# node:22-bookworm-slim base; apt-get upgrade -y at build time installs all available Debian
+# security updates. These CVEs have no debian:bookworm package fix available yet.
+# REVISIT: when Debian issues a security update for gpgv or image removes the package.
+CVE-2022-3219  # gpgv: gnupg: denial of service issue (resource consumption) using compressed packets
+CVE-2025-30258  # gpgv: gnupg: verification DoS due to a malicious subkey in the keyring
+CVE-2025-68972  # gpgv: gnupg: GnuPG: Signature bypass via form feed character in signed messages
+
+# -- libapt-pkg6.0 (APT package management library) -- fix not backported to debian:bookworm
+# node:22-bookworm-slim base; apt-get upgrade -y at build time installs all available Debian
+# security updates. These CVEs have no debian:bookworm package fix available yet.
+# REVISIT: when Debian issues a security update for libapt-pkg6.0 or image removes the package.
+CVE-2011-3374  # libapt-pkg6.0: It was found that apt-key in apt, all versions, do not correctly valid ...
+
+# -- libbz2-1.0 (bzip2 compression) -- fix not backported to debian:bookworm
+# node:22-bookworm-slim base; apt-get upgrade -y at build time installs all available Debian
+# security updates. These CVEs have no debian:bookworm package fix available yet.
+# REVISIT: when Debian issues a security update for libbz2-1.0 or image removes the package.
+CVE-2026-42250  # libbz2-1.0: bzip2: bzip2: Denial of Service in bzip2recover via a specially crafted file
+
+# -- libc6/glibc (GNU C library) -- fix not backported to debian:bookworm
+# node:22-bookworm-slim base; apt-get upgrade -y at build time installs all available Debian
+# security updates. These CVEs have no debian:bookworm package fix available yet.
+# REVISIT: when Debian issues a security update for libc6 or image removes the package.
+CVE-2010-4756  # libc6: glibc: glob implementation can cause excessive CPU and memory consumption due...
+CVE-2018-20796  # libc6: glibc: uncontrolled recursion in function check_dst_limits_calc_pos_1 in posi...
+CVE-2019-1010022  # libc6: glibc: stack guard protection bypass
+CVE-2019-1010023  # libc6: glibc: running ldd on malicious ELF leads to code execution because of wrong ...
+CVE-2019-1010024  # libc6: glibc: ASLR bypass using cache of thread stack and heap
+CVE-2019-1010025  # libc6: glibc: information disclosure of heap addresses of pthread_created thread
+CVE-2019-9192  # libc6: glibc: uncontrolled recursion in function check_dst_limits_calc_pos_1 in posi...
+CVE-2026-5435  # libc6: glibc: glibc: Out-of-bounds write via TSIG record processing
+CVE-2026-5450  # libc6: glibc: glibc: Heap Buffer Overflow in `scanf` with `%mc` format specifier and...
+CVE-2026-5928  # libc6: glibc: glibc: Information disclosure or denial of service via ungetwc functio...
+CVE-2026-6238  # libc6: glibc: glibc: Application crash or uninitialized memory read via crafted DNS ...
+
+# -- libcairo2 (Cairo 2D graphics library) -- fix not backported to debian:bookworm
+# node:22-bookworm-slim base; apt-get upgrade -y at build time installs all available Debian
+# security updates. These CVEs have no debian:bookworm package fix available yet.
+# REVISIT: when Debian issues a security update for libcairo2 or image removes the package.
+CVE-2017-7475  # libcairo2: cairo: NULL pointer dereference with a crafted font file
+CVE-2018-18064  # libcairo2: cairo: Stack-based buffer overflow via parsing of crafted WebKitGTK+ document
+CVE-2019-6461  # libcairo2: cairo: assertion problem in _cairo_arc_in_direction in cairo-arc.c
+CVE-2019-6462  # libcairo2: cairo: infinite loop in the function _arc_error_normalized in the file cairo-...
+CVE-2025-50422  # libcairo2: poppler: Poppler crash on malformed input
+
+# -- libcurl4 (curl HTTP library) -- fix not backported to debian:bookworm
+# node:22-bookworm-slim base; apt-get upgrade -y at build time installs all available Debian
+# security updates. These CVEs have no debian:bookworm package fix available yet.
+# REVISIT: when Debian issues a security update for libcurl4 or image removes the package.
+CVE-2024-2379  # libcurl4: curl: QUIC certificate check bypass with wolfSSL
+CVE-2025-0725  # libcurl4: libcurl: Buffer Overflow in libcurl via zlib Integer Overflow
+CVE-2025-10966  # libcurl4: curl: Curl missing SFTP host verification with wolfSSH backend
+CVE-2025-14017  # libcurl4: curl: curl: Security bypass due to global TLS option changes in multi-threade...
+CVE-2025-15079  # libcurl4: curl: Host verification bypass during SSH transfers
+CVE-2025-15224  # libcurl4: curl: libssh key passphrase bypass without agent set
+CVE-2026-1965  # libcurl4: curl: curl: Authentication bypass due to incorrect connection reuse with Nego...
+CVE-2026-4873  # libcurl4: curl: curl: Information disclosure due to incorrect TLS connection reuse
+CVE-2026-5545  # libcurl4: curl: libcurl: Authentication bypass due to incorrect HTTP Negotiate connecti...
+CVE-2026-6253  # libcurl4: curl: curl: Proxy credential disclosure via redirects to unauthenticated proxies
+CVE-2026-6276  # libcurl4: curl: libcurl: Information disclosure due to cookie leak when reusing connect...
+CVE-2026-6429  # libcurl4: curl: libcurl: Credential leak via reused proxy connection during HTTP redirects
+
+# -- libexpat1 (XML parser) -- fix not backported to debian:bookworm
+# node:22-bookworm-slim base; apt-get upgrade -y at build time installs all available Debian
+# security updates. These CVEs have no debian:bookworm package fix available yet.
+# REVISIT: when Debian issues a security update for libexpat1 or image removes the package.
+CVE-2023-52426  # libexpat1: expat: recursive XML entity expansion vulnerability
+CVE-2024-28757  # libexpat1: expat: XML Entity Expansion
+CVE-2025-59375  # libexpat1: firefox: thunderbird: expat: libexpat in Expat allows attackers to trigger la...
+CVE-2025-66382  # libexpat1: libexpat: libexpat: Denial of service via crafted file processing
+CVE-2026-24515  # libexpat1: libexpat: libexpat null pointer dereference
+CVE-2026-25210  # libexpat1: libexpat: libexpat: Information disclosure and data integrity issues due to i...
+CVE-2026-32776  # libexpat1: libexpat: libexpat: Denial of Service due to NULL pointer dereference
+CVE-2026-32777  # libexpat1: libexpat: libexpat: Denial of Service via infinite loop in DTD content parsing
+CVE-2026-32778  # libexpat1: libexpat: libexpat: Denial of Service via NULL pointer dereference after out-...
+CVE-2026-41080  # libexpat1: libexpat: expat: libexpat: Denial of Service via hash flooding with crafted XML
+CVE-2026-45186  # libexpat1: libexpat: denial of service via crafted XML input
+CVE-2026-50219  # libexpat1: expat: libexpat: Use-after-free vulnerability due to improper handler call de...
+CVE-2026-56131  # libexpat1: libexpat: libexpat: Use-after-free vulnerability due to insufficient handler ...
+CVE-2026-56132  # libexpat1: expat: libexpat: Arbitrary Code Execution via Heap-based Buffer Overflow
+CVE-2026-56403  # libexpat1: libexpat: libexpat: Arbitrary code execution due to integer overflow in store...
+CVE-2026-56404  # libexpat1: libexpat: libexpat: Arbitrary Code Execution via integer overflow in addBinding
+CVE-2026-56405  # libexpat1: libexpat: libexpat: Information disclosure and arbitrary code execution via i...
+CVE-2026-56406  # libexpat1: libexpat: libexpat: Arbitrary code execution via integer overflow in XML_Pars...
+CVE-2026-56407  # libexpat1: libexpat: libexpat: Arbitrary code execution due to integer overflow
+CVE-2026-56408  # libexpat1: libexpat before 2.8.2 has an integer overflow in copyString.
+CVE-2026-56409  # libexpat1: xmlwf in libexpat before 2.8.2 has an integer overflow for the output ...
+CVE-2026-56410  # libexpat1: libexpat: libexpat: Integer overflow in xmlwf can lead to information disclos...
+CVE-2026-56411  # libexpat1: expat: libexpat: Integer Overflow Vulnerability Leading to Information Disclo...
+CVE-2026-56412  # libexpat1: libexpat: libexpat: Use-after-free vulnerability due to improper handling of ...
+
+# -- libgcrypt20 (GnuPG cryptographic library) -- fix not backported to debian:bookworm
+# node:22-bookworm-slim base; apt-get upgrade -y at build time installs all available Debian
+# security updates. These CVEs have no debian:bookworm package fix available yet.
+# REVISIT: when Debian issues a security update for libgcrypt20 or image removes the package.
+CVE-2018-6829  # libgcrypt20: libgcrypt: ElGamal implementation doesn't have semantic security due to incor...
+CVE-2024-2236  # libgcrypt20: libgcrypt: vulnerable to Marvin Attack
+
+# -- libgnutls30 (GnuTLS TLS library) -- fix not backported to debian:bookworm
+# node:22-bookworm-slim base; apt-get upgrade -y at build time installs all available Debian
+# security updates. These CVEs have no debian:bookworm package fix available yet.
+# REVISIT: when Debian issues a security update for libgnutls30 or image removes the package.
+CVE-2011-3389  # libgnutls30: HTTPS: block-wise chosen-plaintext attack against SSL/TLS (BEAST)
+
+# -- libjbig0 (JBIG image compression) -- fix not backported to debian:bookworm
+# node:22-bookworm-slim base; apt-get upgrade -y at build time installs all available Debian
+# security updates. These CVEs have no debian:bookworm package fix available yet.
+# REVISIT: when Debian issues a security update for libjbig0 or image removes the package.
+CVE-2017-9937  # libjbig0: libtiff: memory malloc failure in tif_jbig.c could cause DOS.
+
+# -- libkrb5support0/krb5 (Kerberos 5) -- fix not backported to debian:bookworm
+# node:22-bookworm-slim base; apt-get upgrade -y at build time installs all available Debian
+# security updates. These CVEs have no debian:bookworm package fix available yet.
+# REVISIT: when Debian issues a security update for libkrb5support0 or image removes the package.
+CVE-2018-5709  # libkrb5support0: krb5: integer overflow in dbentry->n_key_data in kadmin/dbutil/dump.c
+CVE-2024-26458  # libkrb5support0: krb5: Memory leak at /krb5/src/lib/rpc/pmap_rmt.c
+CVE-2024-26461  # libkrb5support0: krb5: Memory leak at /krb5/src/lib/gssapi/krb5/k5sealv3.c
+CVE-2026-11850  # libkrb5support0: krb5: krb5: integer underflow in berval2tl_data() leads to heap out-of-bounds...
+
+# -- liblcms2-2 (Little CMS color management) -- fix not backported to debian:bookworm
+# node:22-bookworm-slim base; apt-get upgrade -y at build time installs all available Debian
+# security updates. These CVEs have no debian:bookworm package fix available yet.
+# REVISIT: when Debian issues a security update for liblcms2-2 or image removes the package.
+CVE-2025-29070  # liblcms2-2: A heap buffer overflow vulnerability has been identified in thesmooth2 ...
+
+# -- libldap-2.5-0 (OpenLDAP client library) -- fix not backported to debian:bookworm
+# node:22-bookworm-slim base; apt-get upgrade -y at build time installs all available Debian
+# security updates. These CVEs have no debian:bookworm package fix available yet.
+# REVISIT: when Debian issues a security update for libldap-2.5-0 or image removes the package.
+CVE-2015-3276  # libldap-2.5-0: openldap: incorrect multi-keyword mode cipherstring parsing
+CVE-2017-14159  # libldap-2.5-0: openldap: Privilege escalation via PID file manipulation
+CVE-2017-17740  # libldap-2.5-0: openldap: contrib/slapd-modules/nops/nops.c attempts to free stack buffer all...
+CVE-2020-15719  # libldap-2.5-0: openldap: Certificate validation incorrectly matches name against CN-ID
+CVE-2023-2953  # libldap-2.5-0: openldap: null pointer dereference in ber_memalloc_x function
+CVE-2026-22185  # libldap-2.5-0: OpenLDAP: OpenLDAP LMDB: Denial of Service and Information Disclosure via Hea...
+
+# -- libnss3 (Mozilla NSS crypto library) -- fix not backported to debian:bookworm
+# node:22-bookworm-slim base; apt-get upgrade -y at build time installs all available Debian
+# security updates. These CVEs have no debian:bookworm package fix available yet.
+# REVISIT: when Debian issues a security update for libnss3 or image removes the package.
+CVE-2017-11695  # libnss3: nss: Heap-buffer-overflow in alloc_segs
+CVE-2017-11696  # libnss3: nss: Heap-buffer-overflow in __hash_open
+CVE-2017-11697  # libnss3: nss: Floating Point Exception in __hash_open
+CVE-2017-11698  # libnss3: nss: Heap-buffer-overflow in __get_page
+CVE-2023-5388  # libnss3: nss: timing attack against RSA decryption
+CVE-2023-6135  # libnss3: nss: vulnerable to Minerva side-channel information leak
+CVE-2024-7531  # libnss3: mozilla: nss: PK11_Encrypt using CKM_CHACHA20 can reveal plaintext on Intel S...
+
+# -- libopenjp2-7 (OpenJPEG2 JPEG 2000 codec) -- fix not backported to debian:bookworm
+# node:22-bookworm-slim base; apt-get upgrade -y at build time installs all available Debian
+# security updates. These CVEs have no debian:bookworm package fix available yet.
+# REVISIT: when Debian issues a security update for libopenjp2-7 or image removes the package.
+CVE-2016-10505  # libopenjp2-7: openjpeg: NULL pointer dereference in imagetopnm function in convert.c
+CVE-2016-9113  # libopenjp2-7: openjpeg2: Multiple security issues
+CVE-2016-9114  # libopenjp2-7: openjpeg2: Multiple security issues
+CVE-2016-9115  # libopenjp2-7: openjpeg2: Multiple security issues
+CVE-2016-9116  # libopenjp2-7: openjpeg2: Multiple security issues
+CVE-2016-9117  # libopenjp2-7: openjpeg2: Multiple security issues
+CVE-2016-9580  # libopenjp2-7: openjpeg2: Integer overflow in tiftoimage causes heap buffer overflow
+CVE-2016-9581  # libopenjp2-7: openjpeg2: Infinite loop in tiftoimage resulting into heap buffer overflow in...
+CVE-2018-16376  # libopenjp2-7: openjpeg: Heap-based buffer overflow in function t2_encode_packet in src/lib/...
+CVE-2019-6988  # libopenjp2-7: openjpeg: DoS via memory exhaustion in opj_decompress
+CVE-2023-39327  # libopenjp2-7: openjpeg: Malicious files can cause the program to enter a large loop
+CVE-2023-39328  # libopenjp2-7: openjpeg: denail of service via crafted image file
+CVE-2023-39329  # libopenjp2-7: openjpeg: Resource exhaustion will occur in the opj_t1_decode_cblks function ...
+
+# -- libpam0g (PAM authentication library) -- fix not backported to debian:bookworm
+# node:22-bookworm-slim base; apt-get upgrade -y at build time installs all available Debian
+# security updates. These CVEs have no debian:bookworm package fix available yet.
+# REVISIT: when Debian issues a security update for libpam0g or image removes the package.
+CVE-2024-10041  # libpam0g: pam: libpam: Libpam vulnerable to read hashed password
+CVE-2026-54411  # libpam0g: linux-pam: Plaintext password recovery via timing discrepancy in pam_userdb m...
+
+# -- libpixman-1-0 (pixel manipulation library) -- fix not backported to debian:bookworm
+# node:22-bookworm-slim base; apt-get upgrade -y at build time installs all available Debian
+# security updates. These CVEs have no debian:bookworm package fix available yet.
+# REVISIT: when Debian issues a security update for libpixman-1-0 or image removes the package.
+CVE-2023-37769  # libpixman-1-0: stress-test master commit e4c878 was discovered to contain a FPE vulne ...
+
+# -- libpng16-16 (PNG image library) -- fix not backported to debian:bookworm
+# node:22-bookworm-slim base; apt-get upgrade -y at build time installs all available Debian
+# security updates. These CVEs have no debian:bookworm package fix available yet.
+# REVISIT: when Debian issues a security update for libpng16-16 or image removes the package.
+CVE-2021-4214  # libpng16-16: libpng: hardcoded value leads to heap-overflow
+CVE-2025-28162  # libpng16-16: libpng: libpng: Denial of Service via buffer overflow in pngimage utility
+CVE-2025-28164  # libpng16-16: libpng: libpng: Denial of Service via buffer overflow in png_create_read_stru...
+CVE-2026-3713  # libpng16-16: libpng: libpng: Heap-based buffer overflow in pnm2png allows information disc...
+
+# -- libsqlite3-0 (SQLite) -- fix not backported to debian:bookworm
+# node:22-bookworm-slim base; apt-get upgrade -y at build time installs all available Debian
+# security updates. These CVEs have no debian:bookworm package fix available yet.
+# REVISIT: when Debian issues a security update for libsqlite3-0 or image removes the package.
+CVE-2021-45346  # libsqlite3-0: sqlite: crafted SQL query allows a malicious user to obtain sensitive informa...
+CVE-2025-29088  # libsqlite3-0: sqlite: Denial of Service in SQLite
+CVE-2025-70873  # libsqlite3-0: sqlite: SQLite: Information Disclosure via Crafted ZIP File
+CVE-2025-7458  # libsqlite3-0: sqlite: SQLite integer overflow
+CVE-2025-7709  # libsqlite3-0: An integer overflow exists in the FTS5 https://sqlite.org/fts5.html e ...
+CVE-2026-11822  # libsqlite3-0: SQLite before 3.53.2 contains memory corruption vulnerabilities in the ...
+CVE-2026-11824  # libsqlite3-0: SQLite before 3.53.2 contains a heap-based buffer overflow vulnerabili ...
+
+# -- libssh2-1 (SSH2 client library) -- fix not backported to debian:bookworm
+# node:22-bookworm-slim base; apt-get upgrade -y at build time installs all available Debian
+# security updates. These CVEs have no debian:bookworm package fix available yet.
+# REVISIT: when Debian issues a security update for libssh2-1 or image removes the package.
+CVE-2025-15661  # libssh2-1: libssh2: libssh2: Information disclosure and denial of service via crafted SF...
+CVE-2026-55199  # libssh2-1: libssh2: libssh2: Denial of Service via crafted SSH_MSG_EXT_INFO message
+CVE-2026-55200  # libssh2-1: libssh2: libssh2 - Out-of-Bounds Write via Unchecked packet_length in transpo...
+CVE-2026-7598  # libssh2-1: libssh2: integer overflow via large username or password arguments
+
+# -- libstdc++6 (GNU C++ standard library) -- fix not backported to debian:bookworm
+# node:22-bookworm-slim base; apt-get upgrade -y at build time installs all available Debian
+# security updates. These CVEs have no debian:bookworm package fix available yet.
+# REVISIT: when Debian issues a security update for libstdc++6 or image removes the package.
+CVE-2022-27943  # libstdc++6: binutils: libiberty/rust-demangle.c in GNU GCC 11.2 allows stack exhaustion i...
+
+# -- libtasn1-6 (ASN.1 parser library) -- fix not backported to debian:bookworm
+# node:22-bookworm-slim base; apt-get upgrade -y at build time installs all available Debian
+# security updates. These CVEs have no debian:bookworm package fix available yet.
+# REVISIT: when Debian issues a security update for libtasn1-6 or image removes the package.
+CVE-2025-13151  # libtasn1-6: libtasn1: libtasn1: Denial of Service via stack-based buffer overflow in asn1...
+
+# -- libtiff6 (TIFF image library) -- fix not backported to debian:bookworm
+# node:22-bookworm-slim base; apt-get upgrade -y at build time installs all available Debian
+# security updates. These CVEs have no debian:bookworm package fix available yet.
+# REVISIT: when Debian issues a security update for libtiff6 or image removes the package.
+CVE-2017-16232  # libtiff6: libtiff: Memory leaks in tif_open.c, tif_lzw.c, and tif_aux.c
+CVE-2018-10126  # libtiff6: libtiff: NULL pointer dereference in the jpeg_fdct_16x16 function in jfdctint.c
+CVE-2022-1210  # libtiff6: tiff: Malicious file leads to a denial of service in TIFF File Handler
+CVE-2023-1916  # libtiff6: libtiff: out-of-bounds read in extractImageSection() in tools/tiffcrop.c
+CVE-2023-3164  # libtiff6: libtiff: heap-buffer-overflow in extractImageSection()
+CVE-2023-52355  # libtiff6: libtiff: TIFFRasterScanlineSize64 produce too-big size and could cause OOM
+CVE-2023-6228  # libtiff6: libtiff: heap-based buffer overflow in cpStripToTile() in tools/tiffcp.c
+CVE-2023-6277  # libtiff6: libtiff: Out-of-memory in TIFFOpen via a craft file
+CVE-2024-13978  # libtiff6: libtiff: LibTIFF Null Pointer Dereference
+CVE-2025-61143  # libtiff6: libtiff: libtiff: Denial of Service via NULL pointer dereference in tif_open.c
+CVE-2025-61144  # libtiff6: libtiff: libtiff: Denial of Service via buffer overflow
+CVE-2025-61145  # libtiff6: libtiff: libtiff: Denial of service via double free in tiffcrop.c
+CVE-2025-8176  # libtiff6: libtiff: LibTIFF Use-After-Free Vulnerability
+CVE-2025-8177  # libtiff6: libtiff: LibTIFF Buffer Overflow
+CVE-2025-8534  # libtiff6: libtiff: Libtiff Null Pointer Dereference Vulnerability
+CVE-2025-8851  # libtiff6: libtiff: LibTIFF Stack-based buffer overflow
+CVE-2025-8961  # libtiff6: libtiff: LibTIFF memory corruption
+CVE-2025-9165  # libtiff6: libtiff: LibTIFF memory leak
+CVE-2026-36849  # libtiff6: [Denial of Service via large SamplesPerPixel tag]
+
+# -- libudev1/systemd (udev device manager) -- fix not backported to debian:bookworm
+# node:22-bookworm-slim base; apt-get upgrade -y at build time installs all available Debian
+# security updates. These CVEs have no debian:bookworm package fix available yet.
+# REVISIT: when Debian issues a security update for libudev1 or image removes the package.
+CVE-2013-4392  # libudev1: systemd: TOCTOU race condition when updating file permissions and SELinux sec...
+CVE-2023-31437  # libudev1: An issue was discovered in systemd 253. An attacker can modify a seale ...
+CVE-2023-31438  # libudev1: An issue was discovered in systemd 253. An attacker can truncate a sea ...
+CVE-2023-31439  # libudev1: An issue was discovered in systemd 253. An attacker can modify the con ...
+CVE-2026-40228  # libudev1: systemd: systemd-journald: Unintended output to user terminals via logger com...
+
+# -- ncurses (terminal handling library) -- fix not backported to debian:bookworm
+# node:22-bookworm-slim base; apt-get upgrade -y at build time installs all available Debian
+# security updates. These CVEs have no debian:bookworm package fix available yet.
+# REVISIT: when Debian issues a security update for ncurses-bin or image removes the package.
+CVE-2023-50495  # ncurses-bin: ncurses: segmentation fault via _nc_wrap_entry()
+CVE-2025-6141  # ncurses-bin: gnu-ncurses: ncurses Stack Buffer Overflow
+CVE-2025-69720  # ncurses-bin: ncurses: ncurses: Buffer overflow vulnerability may lead to arbitrary code ex...
+
+# -- openssl (TLS/SSL toolkit) -- fix not backported to debian:bookworm
+# node:22-bookworm-slim base; apt-get upgrade -y at build time installs all available Debian
+# security updates. These CVEs have no debian:bookworm package fix available yet.
+# REVISIT: when Debian issues a security update for openssl or image removes the package.
+CVE-2025-27587  # openssl: OpenSSL 3.0.0 through 3.3.2 on the PowerPC architecture is vulnerable ...
+CVE-2026-42767  # openssl: openssl: NULL Pointer Dereference in CRMF EncryptedValue Decryption
+
+# -- pandoc-data (Pandoc document converter) -- fix not backported to debian:bookworm
+# node:22-bookworm-slim base; apt-get upgrade -y at build time installs all available Debian
+# security updates. These CVEs have no debian:bookworm package fix available yet.
+# REVISIT: when Debian issues a security update for pandoc-data or image removes the package.
+CVE-2025-51591  # pandoc-data: pandoc: Server-Side Request Forgery in Pandoc
+
+# -- passwd/shadow (user account management) -- fix not backported to debian:bookworm
+# node:22-bookworm-slim base; apt-get upgrade -y at build time installs all available Debian
+# security updates. These CVEs have no debian:bookworm package fix available yet.
+# REVISIT: when Debian issues a security update for passwd or image removes the package.
+CVE-2007-5686  # passwd: initscripts in rPath Linux 1 sets insecure permissions for the /var/lo ...
+CVE-2024-56433  # passwd: shadow-utils: Default subordinate ID configuration in /etc/login.defs could l...
+TEMP-0628843-DBAD28  # passwd: [more related to CVE-2005-4890]
+
+# -- perl-modules-5.36 (Perl runtime modules) -- fix not backported to debian:bookworm
+# node:22-bookworm-slim base; apt-get upgrade -y at build time installs all available Debian
+# security updates. These CVEs have no debian:bookworm package fix available yet.
+# REVISIT: when Debian issues a security update for perl-modules-5.36 or image removes the package.
+CVE-2011-4116  # perl-modules-5.36: perl: File:: Temp insecure temporary file handling
+CVE-2023-31486  # perl-modules-5.36: http-tiny: perl: insecure TLS cert default
+CVE-2025-15649  # perl-modules-5.36: perl-IO-Compress: perl-IO-Compress: Denial of Service via malformed DOS date ...
+CVE-2026-12087  # perl-modules-5.36: perl-Socket: perl-Socket: Information Disclosure due to Out-of-Bounds Read
+CVE-2026-42496  # perl-modules-5.36: perl-archive-tar: perl-archive-tar: Path traversal via crafted symlinks allow...
+CVE-2026-42497  # perl-modules-5.36: perl-Archive-Tar: perl-Archive-Tar: Arbitrary file modification via crafted h...
+CVE-2026-48959  # perl-modules-5.36: perl-IO-Compress: perl-IO-Compress: CPU exhaustion via per-byte read loop in ...
+CVE-2026-48961  # perl-modules-5.36: perl-IO-Compress: IO::Compress: Denial of Service in zipdetails CLI tool via ...
+CVE-2026-48962  # perl-modules-5.36: perl-IO-Compress: perl-IO-Compress: Arbitrary code execution via attacker-con...
+CVE-2026-7010  # perl-modules-5.36: HTTP::Tiny versions before 0.093 for Perl do not validate CRLF in HTTP ...
+CVE-2026-9538  # perl-modules-5.36: perl-Archive-Tar: perl-Archive-Tar: Denial of Service via crafted tar header ...
+
+# -- poppler-utils (PDF rendering library) -- fix not backported to debian:bookworm
+# node:22-bookworm-slim base; apt-get upgrade -y at build time installs all available Debian
+# security updates. These CVEs have no debian:bookworm package fix available yet.
+# REVISIT: when Debian issues a security update for poppler-utils or image removes the package.
+CVE-2013-4472  # poppler-utils: xpdf: insecure temporary file
+CVE-2017-2814  # poppler-utils: poppler: Heap-buffer overflow in DCTStream::readScan()
+CVE-2017-2818  # poppler-utils: poppler: Heap-buffer overflow in the image rendering functionality
+CVE-2017-2820  # poppler-utils: poppler: Integer overflow in the JPEG 2000 image parsing functionality
+CVE-2017-9083  # poppler-utils: poppler: Null pointer dereference in the JPXStream::readUByte function
+CVE-2019-9543  # poppler-utils: poppler: recursive function call in JBIG2Stream::readGenericBitmap() in JBIG2...
+CVE-2019-9545  # poppler-utils: poppler: recursive function call in JBIG2Stream::readTextRegion() in JBIG2Str...
+CVE-2022-24106  # poppler-utils: In Xpdf prior to 4.04, the DCT (JPEG) decoder was incorrectly allowing ...
+
+# -- python3-pip-whl (pip wheel) -- fix not backported to debian:bookworm
+# node:22-bookworm-slim base; apt-get upgrade -y at build time installs all available Debian
+# security updates. These CVEs have no debian:bookworm package fix available yet.
+# REVISIT: when Debian issues a security update for python3-pip-whl or image removes the package.
+CVE-2023-5752  # python3-pip-whl: pip: Mercurial configuration injectable in repo revision when installing via pip
+CVE-2025-8869  # python3-pip-whl: pip: pip missing checks on symbolic link extraction
+CVE-2026-1703  # python3-pip-whl: pip: pip: Information disclosure via path traversal when installing crafted w...
+CVE-2026-3219  # python3-pip-whl: pip: pip: Incorrect file installation due to improper archive handling
+CVE-2026-6357  # python3-pip-whl: pip: pip: Arbitrary code execution or information disclosure via malicious wh...
+CVE-2026-8643  # python3-pip-whl: python-pip: Path traversal via malicious entry point name in pip wheel instal...
+
+# -- python3.11-venv (Python venv) -- fix not backported to debian:bookworm
+# node:22-bookworm-slim base; apt-get upgrade -y at build time installs all available Debian
+# security updates. These CVEs have no debian:bookworm package fix available yet.
+# REVISIT: when Debian issues a security update for python3.11-venv or image removes the package.
+CVE-2025-12781  # python3.11-venv: cpython: base64.b64decode() always accepts "+/" characters, despite setting a...
+CVE-2025-15366  # python3.11-venv: cpython: IMAP command injection in user-controlled commands
+CVE-2025-15367  # python3.11-venv: cpython: POP3 command injection in user-controlled commands
+CVE-2025-69534  # python3.11-venv: python-markdown: denial of service via malformed HTML-like sequences
+CVE-2026-12003  # python3.11-venv: To allow builds of Python to be run from an in-tree layout (rather tha ...
+CVE-2026-1502  # python3.11-venv: python: Python: HTTP header injection via CR/LF in proxy tunnel headers
+CVE-2026-3276  # python3.11-venv: python: Python unicodedata: Denial of Service due to excessive CPU consumption
+CVE-2026-3446  # python3.11-venv: python: Python base64: Incomplete data decoding due to premature stop at padding
+CVE-2026-3479  # python3.11-venv: python: Python pkgutil.get_data(): Path Traversal via improper resource argum...
+CVE-2026-3644  # python3.11-venv: cpython: Incomplete control character validation in http.cookies
+CVE-2026-6019  # python3.11-venv: python: Python: Cross-Site Scripting (XSS) vulnerability in http.cookies module
+CVE-2026-7210  # python3.11-venv: python: expat: Python/Expat: Denial of Service via crafted XML document
+CVE-2026-8328  # python3.11-venv: The ftpcp() function in Lib/ftplib.py was not updated when CVE-2021-4 ...
+CVE-2026-9669  # python3.11-venv: python: Python: Denial of Service via out-of-bounds write in BZ2 decompression
+
+# -- sysvinit-utils (SysV init utilities) -- fix not backported to debian:bookworm
+# node:22-bookworm-slim base; apt-get upgrade -y at build time installs all available Debian
+# security updates. These CVEs have no debian:bookworm package fix available yet.
+# REVISIT: when Debian issues a security update for sysvinit-utils or image removes the package.
+TEMP-0517018-A83CE6  # sysvinit-utils: [sysvinit: no-root option in expert installer exposes locally exploitable sec...
+
+# -- tar (GNU tar archiver, OS package) -- fix not backported to debian:bookworm
+# node:22-bookworm-slim base; apt-get upgrade -y at build time installs all available Debian
+# security updates. These CVEs have no debian:bookworm package fix available yet.
+# REVISIT: when Debian issues a security update for tar or image removes the package.
+CVE-2005-2541  # tar: tar: does not properly warn the user when extracting setuid or setgid files
+CVE-2026-5704  # tar: tar: tar: Hidden file injection via crafted archives
+TEMP-0290435-0B57B5  # tar: [tar's rmt command may have undesired side effects]
+
+# -- util-linux-extra (Linux utilities) -- fix not backported to debian:bookworm
+# node:22-bookworm-slim base; apt-get upgrade -y at build time installs all available Debian
+# security updates. These CVEs have no debian:bookworm package fix available yet.
+# REVISIT: when Debian issues a security update for util-linux-extra or image removes the package.
+CVE-2022-0563  # util-linux-extra: util-linux: partial disclosure of arbitrary files in chfn and chsh when compi...
+CVE-2025-14104  # util-linux-extra: util-linux: util-linux: Heap buffer overread in setpwnam() when processing 25...
+CVE-2026-27456  # util-linux-extra: util-linux: TOCTOU in the mount program when setting up loop devices
+CVE-2026-3184  # util-linux-extra: util-linux: util-linux: Access control bypass due to improper hostname canoni...
+CVE-2026-53613  # util-linux-extra: [Local Privilege Escalation via TOCTOU in mount(8) - Target Path Redirection]
+CVE-2026-53615  # util-linux-extra: [Integer Overflow or Wraparound in libblkid/src/partitions/dos.c]
+
+# -- zlib1g (zlib compression library) -- fix not backported to debian:bookworm
+# node:22-bookworm-slim base; apt-get upgrade -y at build time installs all available Debian
+# security updates. These CVEs have no debian:bookworm package fix available yet.
+# REVISIT: when Debian issues a security update for zlib1g or image removes the package.
+CVE-2023-45853  # zlib1g: zlib: integer overflow and resultant heap-based buffer overflow in zipOpenNew...
+CVE-2026-27171  # zlib1g: zlib: zlib: Denial of Service via infinite loop in CRC32 combine functions
+
+
