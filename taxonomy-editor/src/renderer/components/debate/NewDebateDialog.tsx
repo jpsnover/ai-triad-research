@@ -525,7 +525,7 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
 
   // Queue (overflow menu)
   const [queuedTopics, setQueuedTopics] = useState<{ text: string; sourceType: DebateSourceType; sourceRef: string; timestamp: string }[]>(() => {
-    try { const raw = localStorage.getItem('taxonomy-editor-topic-queue'); return raw ? JSON.parse(raw) : []; } catch { return []; }
+    try { const raw = localStorage.getItem('taxonomy-editor-topic-queue'); return raw ? JSON.parse(raw) : []; } catch { /* telemetry — silent by design */ return []; }
   });
 
   // UI state
@@ -703,7 +703,7 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
       try {
         const generatedTitle = await generateDebateTitle(finalTopic);
         setTitleAnnouncement(`Debate titled: ${generatedTitle}`);
-      } catch { /* title generation failure is non-fatal */ }
+      } catch { /* telemetry — silent by design */ }
 
       onClose();
     } catch (err) {
@@ -747,7 +747,6 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
                 rows={3}
                 maxHeight={144}
                 placeholder="What should the AI debate?"
-                // eslint-disable-next-line jsx-a11y/no-autofocus
                 autoFocus
                 aria-required="true"
               />
@@ -789,7 +788,6 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
                     }}
                     onBlur={() => { if (!sourceRef.trim()) handleRevertToTopic(); }}
                     placeholder="https://…"
-                    // eslint-disable-next-line jsx-a11y/no-autofocus
                     autoFocus
                   />
                 )}
@@ -869,7 +867,6 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
                   onBlur={() => { if (!background.trim()) setActiveAdder('none'); }}
                   rows={3}
                   placeholder="Additional context for the debaters…"
-                  // eslint-disable-next-line jsx-a11y/no-autofocus
                   autoFocus
                 />
                 {background && (
