@@ -432,6 +432,15 @@ function Start-LegacyElectronMode {
         }
     }
 
+    # Clear any stale process on port 5173 (vite dev server port) before launching
+    $staleConn = Get-NetTCPConnection -LocalPort 5173 -State Listen -ErrorAction SilentlyContinue
+    if ($staleConn) {
+        $stalePid = $staleConn.OwningProcess | Select-Object -First 1
+        Write-Info "Port 5173 in use by PID $stalePid — stopping stale dev server"
+        Stop-Process -Id $stalePid -Force -ErrorAction SilentlyContinue
+        Start-Sleep -Milliseconds 500
+    }
+
     # Launch
     Push-Location $AppDir
     try {

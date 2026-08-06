@@ -62,7 +62,7 @@ overlay_dir="$root/.orca-git"
 have_overlay=0
 [ -d "$overlay_dir" ] && have_overlay=1
 
-ogit() { git --git-dir="$overlay_dir" --work-tree="$root" -C "$root" "$@"; }
+ogit() { GIT_INDEX_FILE="$overlay_dir/index" git --git-dir="$overlay_dir" --work-tree="$root" -C "$root" "$@"; }
 
 main_tracked()    { git -C "$root" ls-files -- '*AGENTS.md' 'AGENTS.md' 2>/dev/null | sort -u; }
 overlay_tracked() { [ "$have_overlay" -eq 1 ] || return 0
