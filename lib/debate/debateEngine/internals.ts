@@ -64,6 +64,8 @@ export interface DebateConfig {
   concludingExitThreshold?: number;
   /** Allow early termination on health collapse. Default: true when adaptive staging is on. */
   allowEarlyTermination?: boolean;
+  /** Per-phase max-round overrides — passed into PhaseTransitionConfig so phaseTransitions.ts applies them. */
+  phaseBoundsOverride?: import('../types/phase.js').PhaseBoundsOverride;
   /** AbortSignal for external cancellation. When aborted, the engine stops at the next checkpoint. */
   signal?: AbortSignal;
   /** Model cost-tier ceiling for the failover chain. When set, `buildFailoverChain` filters out models with a higher tier rank than this model. Prevents cheap-run cost escalation via fallback. */

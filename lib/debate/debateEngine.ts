@@ -1041,6 +1041,7 @@ export class DebateEngine {
         argumentationExitThreshold: this.config.argumentationExitThreshold ?? preset.argumentationExit,
         concludingExitThreshold: this.config.concludingExitThreshold ?? preset.concludingExit,
         allowEarlyTermination: this.config.allowEarlyTermination ?? true,
+        phaseBoundsOverride: this.config.phaseBoundsOverride,
       };
       this._phaseState = initPhaseState(this._adaptiveConfig);
       this._signalRegistry = buildSignalRegistry();
