@@ -5,7 +5,7 @@ import { useState, useMemo, useEffect, useRef, useLayoutEffect } from 'react';
 import type { TextareaHTMLAttributes, RefObject } from 'react';
 import { useDebateStore } from '../../hooks/useDebateStore';
 import { useShallow } from 'zustand/react/shallow';
-import { useTaxonomyStore, AI_BACKENDS, DEBATE_TIERS, FALLBACK_CHAINS, backendForModel } from '../../hooks/useTaxonomyStore';
+import { useTaxonomyStore, AI_BACKENDS, MODELS_BY_BACKEND, DEBATE_TIERS, FALLBACK_CHAINS, backendForModel, initAIModels, type AIBackend } from '../../hooks/useTaxonomyStore';
 import { POVER_INFO, DEBATE_AUDIENCES } from '../../types/debate';
 import type { SpeakerId, DebateSourceType, DebateAudience } from '../../types/debate';
 import { DEBATE_PROTOCOLS } from '../../data/debateProtocols';
@@ -482,6 +482,8 @@ function DebateSettingsDialog({
   const [localExcludedBackends, setLocalExcludedBackends] = useState(() => new Set(initExcludedBackends));
   const [localUseCustomModel, setLocalUseCustomModel] = useState(initUseCustomModel);
   const [localCustomModel, setLocalCustomModel] = useState(initCustomModel);
+  const [localCustomFamily, setLocalCustomFamily] = useState<AIBackend>(() => backendForModel(initCustomModel));
+  const [refreshing, setRefreshing] = useState(false);
   // Sourcing
   const [localExcludeGreatestHits, setLocalExcludeGreatestHits] = useState(initExcludeGreatestHits);
   // Material
@@ -799,14 +801,47 @@ function DebateSettingsDialog({
                       </div>
                     </label>
                     {localUseCustomModel && (
-                      <div className="ndd-settings-field" style={{ marginTop: 'var(--sp-2)' }}>
-                        <input
-                          className="ndd-input"
-                          type="text"
-                          placeholder={globalModel}
-                          value={localCustomModel}
-                          onChange={e => setLocalCustomModel(e.target.value)}
-                        />
+                      <div style={{ marginTop: 'var(--sp-2)' }}>
+                        <div className="ndd-custom-model-row">
+                          <div className="ndd-custom-model-field">
+                            <label className="ndd-settings-field-hint">Model family</label>
+                            <select
+                              className="ndd-input"
+                              value={localCustomFamily}
+                              onChange={e => {
+                                const fam = e.target.value as AIBackend;
+                                setLocalCustomFamily(fam);
+                                setLocalCustomModel(MODELS_BY_BACKEND[fam]?.[0]?.value ?? localCustomModel);
+                              }}
+                            >
+                              {AI_BACKENDS.map(b => (
+                                <option key={b.value} value={b.value}>{b.label}</option>
+                              ))}
+                            </select>
+                          </div>
+                          <button
+                            type="button"
+                            className="ndd-refresh-btn"
+                            disabled={refreshing}
+                            onClick={async () => {
+                              setRefreshing(true);
+                              try { await api.refreshAIModels(); await initAIModels(); } catch { /* telemetry — silent by design */ }
+                              setRefreshing(false);
+                            }}
+                          >{refreshing ? 'Refreshing…' : 'Refresh models'}</button>
+                        </div>
+                        <div className="ndd-custom-model-field" style={{ marginTop: 'var(--sp-2)' }}>
+                          <label className="ndd-settings-field-hint">Model</label>
+                          <select
+                            className="ndd-input"
+                            value={localCustomModel}
+                            onChange={e => setLocalCustomModel(e.target.value)}
+                          >
+                            {(MODELS_BY_BACKEND[localCustomFamily] ?? []).map(m => (
+                              <option key={m.value} value={m.value}>{m.label}</option>
+                            ))}
+                          </select>
+                        </div>
                       </div>
                     )}
                     {!localUseCustomModel && (

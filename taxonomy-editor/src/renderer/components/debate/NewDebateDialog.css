@@ -849,6 +849,40 @@
   margin: var(--sp-1) 0 0;
 }
 
+/* Custom model two-level picker */
+.ndd-custom-model-row {
+  align-items: flex-end;
+  display: flex;
+  gap: var(--sp-2);
+}
+
+.ndd-custom-model-field {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+}
+
+.ndd-refresh-btn {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color, rgba(255, 255, 255, 0.15));
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  cursor: pointer;
+  flex-shrink: 0;
+  font-size: var(--text-sm);
+  padding: var(--sp-2) var(--sp-3);
+  white-space: nowrap;
+}
+
+.ndd-refresh-btn:hover:not(:disabled) {
+  color: var(--text-primary);
+}
+
+.ndd-refresh-btn:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
 /* Toggle rows (step mode, multi-provider, etc.) */
 .ndd-settings-toggle-row {
   align-items: flex-start;
