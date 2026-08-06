@@ -72,7 +72,7 @@ export function buildSignalContext(engine: DebateEngineInternals, round: number)
         round,
         speaker: e.speaker,
         text: e.content,
-        extraction_status: lastAttempt?.validation?.outcome ?? 'unknown',
+        extraction_status: (meta?.claim_extraction_status as 'ok' | 'truncated' | 'parse_error') ?? 'ok',
         claims_accepted: (meta?.extracted_claims_accepted as number) ?? 0,
         claims_rejected: (meta?.extracted_claims_rejected as number) ?? 0,
         category_validity_ratio: 1.0,

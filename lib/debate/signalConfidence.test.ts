@@ -208,3 +208,38 @@ describe('isConfidenceDeferred', () => {
     expect(isConfidenceDeferred(globalConf)).toBe(true);
   });
 });
+
+// ── Regression: t/2208 — extraction_conf pinned at 0.200 ────────────────────
+// Root cause: adaptiveStaging fed TurnValidationOutcome ('pass'/'retry'/…) to
+// computeExtractionConfidence, which only accepts 'ok'/'truncated'/'parse_error'.
+// Every unrecognised value hit the default branch → statusScore=0, claimsAccepted=0
+// → 0.5·0 + 0.3·0 + 0.2·1 = 0.200 every round, always below the 0.40 floor.
+// Fix: extractClaims stamps claim_extraction_status ('ok'|'truncated'|'parse_error')
+// onto entry metadata; buildSignalContext reads that field instead of outcome.
+
+describe('regression t/2208 – extraction_conf above floor when extraction succeeds', () => {
+  it('ok status with ≥2 accepted claims clears the confidence floor', () => {
+    // Reproduces the all-defaults case that was pinned at 0.200 pre-fix.
+    const extractionConf = computeExtractionConfidence('ok', 2, 1.0);
+    // 0.5·1 + 0.3·min(1, 2/2) + 0.2·1 = 1.0
+    expect(extractionConf).toBeGreaterThan(DEFAULT_CONFIDENCE_FLOOR);
+  });
+
+  it('TurnValidationOutcome values are NOT accepted as extraction status', () => {
+    // Any TurnValidationOutcome ('pass','retry','accept_with_flag','skipped') falls
+    // to the default branch → statusScore 0. Confidence must stay below the floor
+    // when claims are also 0 (the pre-fix all-defaults scenario).
+    for (const wrongEnum of ['pass', 'retry', 'accept_with_flag', 'skipped']) {
+      const conf = computeExtractionConfidence(wrongEnum, 0, 1.0);
+      // 0.5·0 + 0.3·0 + 0.2·1 = 0.200 < 0.40 floor
+      expect(isConfidenceDeferred(conf)).toBe(true);
+    }
+  });
+
+  it('ok status with 0 claims (no_new_nodes case) still clears the floor', () => {
+    // no_new_nodes extraction maps to 'ok' — extraction ran fine, just no novel claims.
+    const extractionConf = computeExtractionConfidence('ok', 0, 1.0);
+    // 0.5·1 + 0.3·0 + 0.2·1 = 0.7
+    expect(extractionConf).toBeGreaterThan(DEFAULT_CONFIDENCE_FLOOR);
+  });
+});
