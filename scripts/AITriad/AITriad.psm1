@@ -546,6 +546,21 @@ class OrganizationEdgeIntegrityReport {
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
+class ViteDevStatus {
+    [int]     $Port
+    [bool]    $Listening
+    [int]     $ProcessId
+    [string]  $ProcessName
+    [string]  $WorkingDirectory
+    [bool]    $IsMainRepo
+    [bool]    $IsRegisteredWorktree
+    [bool]    $IsOrphanedWorktree
+    [int]     $RootHttpStatus
+    [int]     $IndexHttpStatus
+    [string]  $Summary
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Module-scoped taxonomy store
 # ─────────────────────────────────────────────────────────────────────────────
 $script:TaxonomyData = @{}
@@ -901,6 +916,8 @@ Export-ModuleMember -Function @(
     'Get-EntityReport'
     # t/1894 — Entity ontology Phase 2-B: batch mention indexer (entity_mentions.json)
     'Update-EntityMentionIndex'
+    # t/2196 — Vite dev server diagnostic
+    'Get-ViteDevStatus'
 ) -Alias @(
     'Import-Document'
     'TaxonomyEditor'

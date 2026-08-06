@@ -204,6 +204,8 @@
         'Get-EntityReport'
         # t/1894 — Entity ontology Phase 2-B: batch mention indexer (entity_mentions.json)
         'Update-EntityMentionIndex'
+        # t/2196 — Vite dev server diagnostic
+        'Get-ViteDevStatus'
     )
 
     # Aliases exported from this module
