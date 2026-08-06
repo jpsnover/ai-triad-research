@@ -797,10 +797,12 @@ export function reScoreSituationsForCruxesDetailed(input: SituationReScoreInput)
     }
   }
 
-  // Count existing disagreement types for diversity bonus
+  // Count disagreement types already injected (not full candidate pool) for diversity bonus.
+  // A candidate whose type is not yet injected scores 1; using the full pool made has() always
+  // true and returned 0 for every node (t/2193).
   const typePresence = new Set<string>();
   for (const sit of input.situationNodes) {
-    if (sit.disagreement_type) typePresence.add(sit.disagreement_type);
+    if (input.injectedSitIds.has(sit.id) && sit.disagreement_type) typePresence.add(sit.disagreement_type);
   }
 
   for (const sit of input.situationNodes) {
