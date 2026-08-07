@@ -1,0 +1,94 @@
+/* Copyright (c) 2026 Jeffrey Snover. All rights reserved. */
+/* CommitmentsPanel — co-located styles (prefix: commit-panel-) */
+
+.commit-panel-root {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  position: relative;
+}
+
+.commit-panel-pov-row {
+  margin-bottom: 8px;
+}
+
+.commit-panel-pov-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 2px;
+}
+
+.commit-panel-pov-label {
+  font-size: 0.8rem;
+}
+
+.commit-panel-cats-row {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  margin-bottom: 2px;
+}
+
+/* Static base for category buttons — dynamic background/color/opacity/cursor stay inline */
+.commit-panel-cat-btn {
+  padding: 2px 8px;
+  border-radius: 10px;
+  border: none;
+  font-size: var(--text-2xs);
+  font-weight: 600;
+}
+
+/* Static base for expanded list — dynamic borderLeft/background stay inline */
+.commit-panel-expanded-list {
+  margin: 2px 0 4px 8px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.7rem;
+}
+
+/* Static base for item rows — dynamic borderBottom stays inline */
+.commit-panel-item-row {
+  padding: 2px 0;
+  cursor: context-menu;
+}
+
+.commit-panel-node-badge {
+  padding: 0 4px;
+  border-radius: 3px;
+  margin-right: 4px;
+  background: color-mix(in srgb, var(--color-saf) 12%, transparent);
+  color: var(--color-saf);
+  font-size: var(--text-2xs);
+  font-weight: 700;
+  font-family: var(--font-mono);
+}
+
+/* Static base for context menu — dynamic left/top stay inline */
+.commit-panel-ctx-menu {
+  position: fixed;
+  z-index: 9999;
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+  padding: 4px 0;
+  min-width: 140px;
+  font-size: 0.72rem;
+}
+
+.commit-panel-ctx-btn {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 5px 12px;
+  border: none;
+  background: transparent;
+  color: var(--text-primary);
+  cursor: pointer;
+  font-size: 0.72rem;
+}
+
+.commit-panel-ctx-btn:hover {
+  background: color-mix(in srgb, var(--color-saf) 10%, transparent);
+}

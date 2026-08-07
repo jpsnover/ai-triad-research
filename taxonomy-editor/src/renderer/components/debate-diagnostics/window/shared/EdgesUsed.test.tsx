@@ -239,7 +239,7 @@ describe('EdgesUsedGrouped', () => {
     const user = userEvent.setup();
     render(<EdgesUsedGrouped edges={edges} allEdges={allEdges} taxNodeMap={emptyTaxMap} nodeLabels={nodeLabels} />);
     const edgeCards = screen.getAllByText('c90');
-    await user.click(edgeCards[0].closest('[style*="cursor: pointer"]')!);
+    await user.click(edgeCards[0].closest('.related-edge-card')!);
     expect(screen.getByText('SOURCE')).toBeInTheDocument();
     expect(screen.getByText('TARGET')).toBeInTheDocument();
   });

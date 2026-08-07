@@ -6,6 +6,7 @@ import type { CommitmentStore, ArgumentNetworkNode, ArgumentNetworkEdge } from '
 import { POVER_INFO } from '../../../../types/debate';
 import type { SpeakerId } from '../../../../types/debate';
 import { bandColor, RISK_BANDS } from '../../../../lib/bandColor';
+import './CommitmentsPanel.css';
 
 // NOTE: speakerLabel and AifBadge stay in DiagnosticsWindow.tsx (parent).
 // This component uses a local copy of speakerLabel to remain self-contained.
@@ -123,16 +124,17 @@ export function CommitmentsPanel({ commitments, nodes, edges, onGoToNode }: {
   }, [commitments, nodes, edges]);
 
   return (
-    <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', position: 'relative' }}>
+    <div className="commit-panel-root">
       {Object.entries(commitments).map(([pov, store]) => (
-        <div key={pov} style={{ marginBottom: 8 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 2 }}>
-            <strong style={{ fontSize: '0.8rem' }}>{speakerLabel(pov)}</strong>
+        <div key={pov} className="commit-panel-pov-row">
+          <div className="commit-panel-pov-header">
+            <strong className="commit-panel-pov-label">{speakerLabel(pov)}</strong>
             {asymmetryByPov[pov] != null && (() => {
               const a = asymmetryByPov[pov]!;
               const color = bandColor(Math.abs(a), RISK_BANDS);
               const label = Math.abs(a) > 0.3 ? 'high' : Math.abs(a) > 0.15 ? 'moderate' : 'balanced';
               return (
+                // eslint-disable-next-line local/no-inline-style -- score-driven color from bandColor
                 <span
                   title={`Concession asymmetry: ${a.toFixed(3)}\nAttack target strength minus conceded claim strength.\nHigh asymmetry = conceding weak claims while pressing strong ones.`}
                   style={{ fontSize: 'var(--text-2xs)', padding: '1px 6px', borderRadius: 10, background: `${color}15`, color, fontWeight: 600 }}
@@ -142,17 +144,18 @@ export function CommitmentsPanel({ commitments, nodes, edges, onGoToNode }: {
               );
             })()}
           </div>
-          <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 2 }}>
+          <div className="commit-panel-cats-row">
             {categories.map(cat => {
               const items = store[cat.key];
               const isOpen = expanded[pov] === cat.key;
               return (
+                // eslint-disable-next-line local/no-inline-style -- open-state and item-count drive background, color, opacity, and cursor
                 <button
                   key={cat.key}
                   onClick={() => items.length > 0 && toggle(pov, cat.key)}
+                  className="commit-panel-cat-btn"
                   style={{
-                    padding: '2px 8px', borderRadius: 10, border: 'none',
-                    fontSize: 'var(--text-2xs)', fontWeight: 600, cursor: items.length > 0 ? 'pointer' : 'default',
+                    cursor: items.length > 0 ? 'pointer' : 'default',
                     background: isOpen ? cat.color : `${cat.color}18`,
                     color: isOpen ? '#fff' : cat.color,
                     opacity: items.length === 0 ? 0.4 : 1,
@@ -168,25 +171,23 @@ export function CommitmentsPanel({ commitments, nodes, edges, onGoToNode }: {
             const items = store[cat.key];
             if (items.length === 0) return null;
             return (
-              <div style={{
-                margin: '2px 0 4px 8px', padding: '4px 8px', borderRadius: 4,
+              // eslint-disable-next-line local/no-inline-style -- category color drives borderLeft and background
+              <div className="commit-panel-expanded-list" style={{
                 borderLeft: `3px solid ${cat.color}`,
-                background: `${cat.color}08`, fontSize: '0.7rem',
+                background: `${cat.color}08`,
               }}>
                 {items.map((item, i) => {
                   const nodeId = findNodeId(item);
                   return (
+                    // eslint-disable-next-line local/no-inline-style -- index-driven border bottom
                     <div
                       key={i}
                       onContextMenu={(e) => handleContextMenu(e, item)}
-                      style={{ padding: '2px 0', borderBottom: i < items.length - 1 ? '1px solid var(--border-subtle)' : 'none', cursor: 'context-menu' }}
+                      className="commit-panel-item-row"
+                      style={{ borderBottom: i < items.length - 1 ? '1px solid var(--border-subtle)' : 'none' }}
                     >
                       {nodeId && (
-                        <span style={{
-                          padding: '0 4px', borderRadius: 3, marginRight: 4,
-                          background: 'color-mix(in srgb, var(--color-saf) 12%, transparent)', color: 'var(--color-saf)',
-                          fontSize: 'var(--text-2xs)', fontWeight: 700, fontFamily: 'var(--font-mono)',
-                        }}>{nodeId}</span>
+                        <span className="commit-panel-node-badge">{nodeId}</span>
                       )}
                       {item}
                     </div>
@@ -198,32 +199,16 @@ export function CommitmentsPanel({ commitments, nodes, edges, onGoToNode }: {
         </div>
       ))}
       {ctxMenu && (
-        <div style={{
-          position: 'fixed', left: ctxMenu.x, top: ctxMenu.y, zIndex: 9999,
-          background: 'var(--bg-primary)', border: '1px solid var(--border)',
-          borderRadius: 6, boxShadow: '0 4px 12px rgba(0,0,0,0.25)',
-          padding: '4px 0', minWidth: 140, fontSize: '0.72rem',
-        }}>
+        // eslint-disable-next-line local/no-inline-style -- cursor position drives left and top
+        <div className="commit-panel-ctx-menu" style={{ left: ctxMenu.x, top: ctxMenu.y }}>
           <button
             onClick={() => { void navigator.clipboard.writeText(ctxMenu.text); setCtxMenu(null); }}
-            style={{
-              display: 'block', width: '100%', textAlign: 'left',
-              padding: '5px 12px', border: 'none', background: 'transparent',
-              color: 'var(--text-primary)', cursor: 'pointer', fontSize: '0.72rem',
-            }}
-            onMouseEnter={e => (e.currentTarget.style.background = 'color-mix(in srgb, var(--color-saf) 10%, transparent)')}
-            onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+            className="commit-panel-ctx-btn"
           >Copy</button>
           {ctxMenu.nodeId && (
             <button
               onClick={() => { onGoToNode(ctxMenu.nodeId!); setCtxMenu(null); }}
-              style={{
-                display: 'block', width: '100%', textAlign: 'left',
-                padding: '5px 12px', border: 'none', background: 'transparent',
-                color: 'var(--text-primary)', cursor: 'pointer', fontSize: '0.72rem',
-              }}
-              onMouseEnter={e => (e.currentTarget.style.background = 'color-mix(in srgb, var(--color-saf) 10%, transparent)')}
-              onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+              className="commit-panel-ctx-btn"
             >Go to {ctxMenu.nodeId}</button>
           )}
         </div>
