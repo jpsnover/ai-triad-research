@@ -1,6 +1,7 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
+import './DiagnosticsChatSidebar.css';
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import type { DebateSession } from '../../../types/debate';
 import { POVER_INFO } from '../../../types/debate';
@@ -24,6 +25,7 @@ interface ChatMessage {
   role: 'user' | 'assistant' | 'system';
   content: string;
   timestamp: string;
+  isError?: boolean;
   navigation?: NavigateCommand;
   suggestions?: string[];
 }
@@ -667,6 +669,17 @@ function ChatEmptyState({ isWeb }: { isWeb: boolean }) {
 }
 
 function MessageBubble({ msg, onNavigate }: { msg: ChatMessage; onNavigate: (cmd: NavigateCommand) => void }) {
+  if (msg.isError) {
+    return (
+      <div className="dchat-error-bubble">
+        <div className="dchat-error-label">
+          <span aria-hidden="true">⚠</span>
+          <span>Error</span>
+        </div>
+        <div style={{ whiteSpace: 'pre-wrap' }}>{msg.content.replace(/^Error:\s*/i, '')}</div>
+      </div>
+    );
+  }
   return (
     <div
       style={{
@@ -1088,8 +1101,9 @@ export function DiagnosticsChatSidebar({ debate, selectedEntry, currentTab, onNa
       setMessages(prev => [...prev, {
         id: crypto.randomUUID(),
         role: 'assistant',
-        content: `Error: ${err instanceof Error ? err.message : String(err)}`,
+        content: err instanceof Error ? err.message : String(err),
         timestamp: new Date().toISOString(),
+        isError: true,
       }]);
     } finally {
       runCleanups(cleanups);
