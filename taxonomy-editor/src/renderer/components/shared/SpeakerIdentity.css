@@ -1,0 +1,74 @@
+/* Copyright (c) 2026 Jeffrey Snover. All rights reserved. */
+/* Licensed under the MIT License. See LICENSE file in the project root. */
+
+/*
+ * Shared speaker identity (t/2242). One component, three shapes — each matching
+ * what its surface renders today, so adoption is a swap rather than a restyle.
+ */
+
+.speaker-identity {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.speaker-identity-glyph-wrap {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.speaker-identity-glyph {
+  flex-shrink: 0;
+}
+
+.speaker-identity-label {
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── inline: transcript header ── */
+
+.speaker-identity-inline .speaker-identity-label {
+  font-size: var(--text-sm);
+}
+
+/* ── avatar: chat bubble — glyph in a tinted circle ── */
+
+.speaker-identity-avatar {
+  gap: 8px;
+}
+
+.speaker-identity-avatar .speaker-identity-glyph-wrap {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  justify-content: center;
+  background: color-mix(in srgb, currentColor 15%, transparent);
+}
+
+.speaker-identity-avatar .speaker-identity-label {
+  font-size: var(--text-sm);
+}
+
+/* ── badge: diagnostics exchange — solid fill, label reversed out ── */
+
+.speaker-identity-badge {
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-tertiary);
+}
+
+.speaker-identity-badge .speaker-identity-label {
+  font-size: var(--text-2xs);
+  font-weight: 700;
+  color: #fff;
+}
+
+.speaker-identity-badge .speaker-identity-glyph {
+  color: #fff;
+}
