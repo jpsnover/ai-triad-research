@@ -39,9 +39,15 @@ function throwHttpError(status: number, err: ActionableError): never {
 
 function nextStepsForStatus(status: number, responseText: string): string[] {
   if (status === 403) {
-    let reason: string | undefined;
-    try { reason = (JSON.parse(responseText) as Record<string, unknown>).error as string; } catch { /* telemetry — silent by design */ }
-    if (reason) return [reason, 'Check your API key tier supports this backend'];
+    try {
+      const body = JSON.parse(responseText) as Record<string, unknown>;
+      if (body.reason === 'anon_route_blocked') {
+        const detail = typeof body.detail === 'string' ? body.detail : 'Sign in with GitHub at /.auth/login/github';
+        return [detail];
+      }
+      const error = typeof body.error === 'string' ? body.error : undefined;
+      if (error) return [error, 'Check your API key tier supports this backend'];
+    } catch { /* telemetry — silent by design */ }
     return ['Verify your authentication', 'Check your API key tier supports this backend'];
   }
   return ['Check the server is running', 'Verify your authentication'];
