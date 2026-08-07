@@ -7,6 +7,8 @@
 // DebateExchangeRich's segmentation regex, so this table is now the source of
 // truth for them (TL e/67#4).
 
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 
@@ -137,5 +139,37 @@ describe('SpeakerIdentity rendering', () => {
 
     rerender(<SpeakerIdentity speaker="skeptic" title="Turn 4 — Skeptic" />);
     expect(container.querySelector('.speaker-identity')).toHaveAttribute('title', 'Turn 4 — Skeptic');
+  });
+});
+
+// t/2263 — the filled badge reverses white over the camp fill, which is light
+// in the dark + bkc palettes, failing WCAG AA (2.39–3.18:1). jsdom doesn't apply
+// the imported CSS, so assert the theme override that reverses label + glyph to
+// --bg-primary in exactly those two themes (5.18–7.42:1), leaving light/harvard
+// on white.
+describe('SpeakerIdentity — filled-badge contrast override (t/2263)', () => {
+  const css = readFileSync(join(import.meta.dirname, 'SpeakerIdentity.css'), 'utf8');
+
+  it.each(['dark', 'bkc'] as const)(
+    'reverses the filled badge label + glyph to --bg-primary in %s',
+    (theme) => {
+      for (const part of ['label', 'glyph']) {
+        const rule = new RegExp(
+          `\\[data-theme="${theme}"\\]\\s+\\.speaker-identity-badge-filled\\s+\\.speaker-identity-${part}\\b`,
+        );
+        expect(css).toMatch(rule);
+      }
+    },
+  );
+
+  it('sets the override color to var(--bg-primary)', () => {
+    const block = css.slice(css.indexOf('[data-theme="dark"] .speaker-identity-badge-filled'));
+    expect(block).toMatch(/color:\s*var\(--bg-primary\)/);
+  });
+
+  it('leaves the base filled-badge rule on white for light + harvard', () => {
+    // The unconditional `#fff` rule (no [data-theme] prefix) still governs the
+    // dark-fill themes; only dark + bkc override it.
+    expect(css).toMatch(/\.speaker-identity-badge-filled \.speaker-identity-label,\n\s*\.speaker-identity-badge-filled \.speaker-identity-glyph \{\n\s*color: #fff;/);
   });
 });
