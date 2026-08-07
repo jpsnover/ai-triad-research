@@ -80,3 +80,17 @@
 .speaker-identity-badge-filled .speaker-identity-glyph {
   color: #fff;
 }
+
+/*
+ * ...but in the dark and bkc themes the camp fills (--color-acc/saf/skp) are
+ * LIGHT, so white-on-fill fails AA (6/12 combos, 2.39–3.18:1). Reverse out to
+ * --bg-primary instead there — a dark foreground on the light fill — which lands
+ * every failing combo at 5.18–7.42:1. light/harvard keep #fff (their fills are
+ * dark: 5.08–7.48:1). Verified against all 12 theme×camp combos (t/2263).
+ */
+[data-theme="dark"] .speaker-identity-badge-filled .speaker-identity-label,
+[data-theme="dark"] .speaker-identity-badge-filled .speaker-identity-glyph,
+[data-theme="bkc"] .speaker-identity-badge-filled .speaker-identity-label,
+[data-theme="bkc"] .speaker-identity-badge-filled .speaker-identity-glyph {
+  color: var(--bg-primary);
+}
