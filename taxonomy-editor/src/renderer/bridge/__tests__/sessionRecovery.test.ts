@@ -194,3 +194,34 @@ describe('auth-wall recovery — HTTP 200 + text/html login page (t/1840)', () =
     expect(mockGlobalFetch).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('403 anon_route_blocked error message (t/2232)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockGlobalFetch.mockResolvedValue(mockResponse(200));
+  });
+
+  it('surfaces the server detail string when reason is anon_route_blocked', async () => {
+    mockResilientFetch.mockResolvedValue(
+      mockResponse(403, { reason: 'anon_route_blocked', detail: 'Sign in at /.auth/login/github to unlock full access.' }),
+    );
+
+    const { bridgeGet } = await import('../web-bridge');
+    const err = await bridgeGet('/api/debates').catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(Error);
+    const nextSteps = (err as { nextSteps?: string[] }).nextSteps ?? [];
+    expect(nextSteps).toContain('Sign in at /.auth/login/github to unlock full access.');
+    expect(nextSteps.join(' ')).not.toContain('API key');
+  });
+
+  it('falls back to generic auth message when reason is absent', async () => {
+    mockResilientFetch.mockResolvedValue(
+      mockResponse(403, { error: 'Forbidden' }),
+    );
+
+    const { bridgeGet } = await import('../web-bridge');
+    const err = await bridgeGet('/api/debates').catch((e: unknown) => e);
+    const nextSteps = (err as { nextSteps?: string[] }).nextSteps ?? [];
+    expect(nextSteps.join(' ')).toContain('API key');
+  });
+});
