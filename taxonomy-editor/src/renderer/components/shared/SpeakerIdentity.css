@@ -1,0 +1,34 @@
+/* SpeakerIdentity — shared speaker identity component (t/2242) */
+
+.si-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border-left: 3px solid transparent;
+  padding-left: 6px;
+  font-weight: 600;
+  font-size: 0.82rem;
+  line-height: 1.4;
+}
+
+.si-avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: color-mix(in srgb, currentColor 15%, transparent);
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+.si-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-weight: 700;
+  font-size: 0.72rem;
+  color: #fff;
+  white-space: nowrap;
+}
