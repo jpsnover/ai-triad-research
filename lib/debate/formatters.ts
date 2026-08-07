@@ -366,6 +366,10 @@ export function buildHarvestOutput(
   getNodeLabel: (id: string) => string | null,
   allNodeIds: Set<string>,
 ): object {
+  const degradedTurnIds = session.transcript
+    .filter(e => e.degraded)
+    .map(e => e.id);
+
   return {
     debate_id: session.id,
     debate_title: session.title,
@@ -374,5 +378,6 @@ export function buildHarvestOutput(
     debate_refs: extractDebateRefCandidates(session, getNodeLabel),
     verdicts: extractVerdictCandidates(session),
     concepts: extractConceptCandidates(session, allNodeIds),
+    degraded_turn_ids: degradedTurnIds.length > 0 ? degradedTurnIds : undefined,
   };
 }

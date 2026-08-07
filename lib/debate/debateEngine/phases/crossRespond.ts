@@ -1001,6 +1001,7 @@ export async function runCrossRespondRound(engine: DebateEngineInternals, round:
         ? pipelineResult.plan.anticipated_responses : undefined,
       ignored_evidence_doc_ids: pipelineResult.ignoredEvidenceDocIds,
     },
+    degraded: pipelineResult.degraded_turn,
   });
 
   // ── Talmudic reference response + dialectical diagnostic record ──
