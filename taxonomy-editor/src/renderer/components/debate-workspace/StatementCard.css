@@ -53,6 +53,17 @@
   max-width: none;
 }
 
+/*
+ * Readable measure for debate prose (t/2240, DEBATE_CHAT_REDESIGN). Chat already
+ * caps its AI markdown at 68ch (ChatWorkspace.css); the debate surface — longer
+ * sessions, denser text — was the one left unconstrained. Same value so the two
+ * surfaces read as one system. `.debate-redesign` lands on the card root only
+ * when the flag is on, so the flag-off measure stays `none`.
+ */
+.debate-statement.debate-redesign .debate-statement-content.prose {
+  max-width: 68ch;
+}
+
 /* Model badge — hoisted from inline */
 .debate-model-badge {
   font-size: var(--text-2xs);

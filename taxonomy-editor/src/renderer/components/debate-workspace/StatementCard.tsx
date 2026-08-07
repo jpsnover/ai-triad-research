@@ -1013,6 +1013,9 @@ export function StatementCard({ entry, statementId, findQuery = '', matchOffset 
   const selectDiagEntry = useDebateStore(s => s.selectDiagEntry);
   const deleteTranscriptEntries = useDebateStore(s => s.deleteTranscriptEntries);
   const qbafEnabled = useFlag('release-qbaf-analysis');
+  // Gates the collapse toggle (t/2241) and doubles as the scoping hook for
+  // redesign-only styling (t/2240 prose measure) — CSS can't read a flag, so it
+  // becomes `.debate-redesign` on the card root.
   const chatRedesign = useFlag('DEBATE_CHAT_REDESIGN');
   // Per-card collapse (t/2241) — deliberately local, not persisted to the debate
   // store: it is a reading aid for the current scroll session, not debate state.
@@ -1116,7 +1119,7 @@ export function StatementCard({ entry, statementId, findQuery = '', matchOffset 
 
   return (
     <div
-      className={`debate-statement debate-speaker-${entry.speaker} debate-type-${entry.type}${isCollapsed ? ' debate-statement-collapsed' : ''}`}
+      className={`debate-statement debate-speaker-${entry.speaker} debate-type-${entry.type}${chatRedesign ? ' debate-redesign' : ''}${isCollapsed ? ' debate-statement-collapsed' : ''}`}
       data-entry-id={entry.id}
       data-is-pover={isPover ? 'true' : 'false'}
     >
