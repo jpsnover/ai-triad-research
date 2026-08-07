@@ -56,7 +56,7 @@ export async function generateTextWithProgress(
   set: (partial: any) => void,
   timeoutMs?: number,
 ): Promise<{ text: string }> {
-  set({ debateActivity: activity, debateProgress: null });
+  set({ debateGeneratingStartedAt: Date.now(), debateActivity: activity, debateProgress: null });
   const unsubscribe = api.onGenerateTextProgress((progress: Record<string, unknown>) => {
     set({ debateProgress: normalizeProgress(progress) });
   });
@@ -65,7 +65,7 @@ export async function generateTextWithProgress(
     return result;
   } finally {
     unsubscribe();
-    set({ debateProgress: null, debateActivity: null });
+    set({ debateProgress: null, debateActivity: null, debateGeneratingStartedAt: null });
   }
 }
 
@@ -206,7 +206,7 @@ export function makeStageGenerate(
   model: string,
 ): (prompt: string, callModel: string, options: { temperature?: number; timeoutMs?: number }, label: string) => Promise<string> {
   return async (prompt, callModel, options, label) => {
-    set({ debateActivity: label, debateProgress: null });
+    set({ debateGeneratingStartedAt: Date.now(), debateActivity: label, debateProgress: null });
     const unsubscribe = api.onGenerateTextProgress((progress: Record<string, unknown>) => {
       set({ debateProgress: normalizeProgress(progress) });
     });
@@ -215,7 +215,7 @@ export function makeStageGenerate(
       return result.text;
     } finally {
       unsubscribe();
-      set({ debateProgress: null, debateActivity: null });
+      set({ debateProgress: null, debateActivity: null, debateGeneratingStartedAt: null });
     }
   };
 }
