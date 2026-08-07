@@ -1,8 +1,16 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import {
+import { describe, it, expect, vi } from 'vitest';
+
+// Pin the REAL './utils'. Several sibling test files in this directory call
+// vi.mock('./utils', () => ({ speakerLabel: capitalize, ... })). Under CI worker
+// parallelism that per-file mock can mutate the shared module namespace *between*
+// two assertions in this file — the t/2256 flake had speakerLabel('user') resolve
+// real ('You') but speakerLabel('unknown') resolve to a leaked capitalizer
+// ('Unknown'). importActual bypasses the mock registry, so these tests always
+// exercise the real implementations regardless of sibling scheduling.
+const {
   speakerLabel,
   speakerColor,
   STRENGTH_BAND,
@@ -12,7 +20,7 @@ import {
   stripLeadingHeadings,
   fixMarkdownLinks,
   nodeIdToTab,
-} from './utils';
+} = await vi.importActual<typeof import('./utils')>('./utils');
 
 // ── Mocks ────────────────────────────────────────────────────
 
