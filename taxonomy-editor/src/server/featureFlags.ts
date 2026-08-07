@@ -108,6 +108,12 @@ const SEED_FLAGS: Record<string, FlagDef> = {
     created_at: '2026-06-26T00:00:00.000Z', updated_at: '2026-06-26T00:00:00.000Z',
     created_by: 'seed',
   },
+  'DEBATE_CHAT_REDESIGN': {
+    name: 'DEBATE_CHAT_REDESIGN', enabled: false, scope: 'global',
+    description: 'Gate new debate chat UX (t/2235); toggleable via admin flag CRUD',
+    created_at: '2026-08-07T00:00:00.000Z', updated_at: '2026-08-07T00:00:00.000Z',
+    created_by: 'seed',
+  },
 };
 
 // ── Config loading (mtime cache, quotas.ts pattern) ──
