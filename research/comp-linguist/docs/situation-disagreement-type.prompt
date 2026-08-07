@@ -1,0 +1,78 @@
+You classify the TYPE of cross-POV disagreement a policy "situation" turns on.
+
+You are given a situation's description and how up to three points of view —
+accelerationist, safetyist, skeptic — interpret it. Each interpretation may be a
+short paragraph or a BDI decomposition (belief / desire / intention / summary). One
+or more POVs may be absent.
+
+Answer ONE question: at what LEVEL do the POVs actually disagree about this situation?
+
+Choose exactly one label:
+
+- definitional — the POVs assign different MEANINGS to the central concept; they are
+  effectively disputing what the thing IS. The dispute would dissolve if they first
+  agreed on a shared definition. Rare — it requires a real definitional fork, not
+  merely different emphasis.
+- interpretive — the POVs share a working definition of the concept and disagree
+  about IMPLICATIONS: what follows, how much it matters, what should be done. This is
+  the most common case for AI-policy situations.
+- structural — the POVs organize the issue under INCOMPATIBLE foundational frames; at
+  least one POV rejects another's framing as the wrong lens, not merely reaching a
+  different conclusion inside a shared frame.
+
+Decision order — apply strictly:
+1. Definitional first. Only if the POVs genuinely mean different things by the central
+   concept (so they are, in effect, talking about different objects).
+2. Structural next. Only if they share the concept's meaning but at least one POV
+   rejects the FRAMING the situation is posed in and reframes it under a competing
+   foundational lens.
+3. Interpretive by default. If they name the same object under a shared frame and
+   diverge only on implications / desirability / urgency / prescribed action.
+
+Dominant-axis rule (decisive): label the axis the PRIMARY disagreement turns on, not
+the most extreme single POV move. Skeptics in particular often reframe ("wrong
+question") while the other two POVs are having an interpretive dispute. If two POVs
+share a frame and split on implications while a third reframes, the primary axis is
+interpretive — acknowledge the reframe in the rationale but do NOT promote to
+structural on the strength of one voice. Promote to structural ONLY when the framing
+conflict itself is what the situation is about.
+
+Confidence:
+- 0.85-1.0 — all present POVs point clearly to one level; the rubric test is unambiguous.
+- 0.6-0.84 — the level is clear but one POV is borderline (e.g. a reframe that is
+  arguably dominant).
+- below 0.6 — genuinely torn between two levels; still return the better label.
+
+Insufficient signal: if the interpretations are absent, single-POV, or too thin to
+judge the LEVEL of the disagreement (not merely terse), return "insufficient" with low
+confidence rather than guessing. Do not fabricate a disagreement the text does not
+support.
+
+Worked examples (illustrative — NOT drawn from the evaluation set):
+
+1) Description: whether "open source" AI meaningfully exists once frontier models need
+   datacenter-scale compute to run.
+   accelerationist: open weights democratize access and accelerate progress.
+   safetyist: "open" denotes nothing real when only a few actors can deploy at scale.
+   skeptic: the term names a marketing posture, not a property of the system.
+   -> { "disagreement_type": "definitional", "confidence": 0.82, "rationale": "POVs dispute what 'open source' even denotes for frontier models — a fork in the concept's meaning." }
+
+2) Description: whether to pause frontier training pending stronger evaluations.
+   accelerationist: a pause cedes ground to less careful actors; keep momentum.
+   safetyist: the downside risk warrants a hold until evals mature.
+   skeptic: pause debates distract from who controls compute.
+   -> { "disagreement_type": "interpretive", "confidence": 0.88, "rationale": "acc and saf share the concept and split on the right response; the skeptic reframe is present but non-dominant." }
+
+3) Description: AI risk as ordinary externality management vs discontinuous existential threat.
+   accelerationist: a normal technology governed by existing mechanisms.
+   safetyist: a discontinuity ordinary governance cannot contain.
+   -> { "disagreement_type": "structural", "confidence": 0.90, "rationale": "The dispute is which foundational frame — normal-technology vs discontinuity — organizes the issue at all." }
+
+SITUATION
+Description: {{description}}
+Accelerationist: {{acc_interpretation}}
+Safetyist: {{saf_interpretation}}
+Skeptic: {{skp_interpretation}}
+
+Return ONLY a JSON object — no markdown fences, no commentary:
+{ "disagreement_type": "definitional|interpretive|structural|insufficient", "confidence": 0.0-1.0, "rationale": "<= 25 words" }
