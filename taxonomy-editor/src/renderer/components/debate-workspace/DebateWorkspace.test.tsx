@@ -180,9 +180,17 @@ vi.mock('./StatementCard', () => ({
 vi.mock('./DebateActionBar', () => ({
   PhaseProgressBar: () => <div data-testid="phase-progress" />,
   SessionPhaseStepper: () => <div data-testid="session-stepper" />,
+  UnifiedPhaseIndicator: ({ adaptive }: any) => (
+    <div data-testid="unified-phase-indicator" data-has-adaptive={adaptive ? 'yes' : 'no'} />
+  ),
   ProgressIndicator: () => <div data-testid="progress-indicator" />,
   DebaterToggles: () => <div data-testid="debater-toggles" />,
   DebateActions: () => <div data-testid="debate-actions" />,
+}));
+// Controllable feature-flag mock (default: all flags off — preserves existing flag-off tests).
+const mockFlags: Record<string, boolean> = {};
+vi.mock('../../hooks/useFeatureFlags', () => ({
+  useFlag: (name: string) => mockFlags[name] ?? false,
 }));
 vi.mock('./ClarificationPanel', () => ({
   ClarificationActions: () => <div data-testid="clarification-actions" />,
@@ -451,6 +459,46 @@ describe('phase routing', () => {
     });
     render(<DebateWorkspace />);
     expect(screen.getByTestId('phase-progress')).toBeInTheDocument();
+  });
+
+  describe('DEBATE_CHAT_REDESIGN on — unified phase indicator (t/2238)', () => {
+    beforeEach(() => { mockFlags.DEBATE_CHAT_REDESIGN = true; });
+    afterEach(() => { delete mockFlags.DEBATE_CHAT_REDESIGN; });
+
+    it('replaces the stacked stepper + progress bar with a single unified indicator', () => {
+      mockStore.activeDebate = makeDebate({
+        phase: 'debate',
+        adaptive_staging: { enabled: true, current_phase: 'confrontation', phase_progress: 0.5, rounds_in_phase: 3, approaching_transition: false },
+      });
+      render(<DebateWorkspace />);
+      expect(screen.getByTestId('unified-phase-indicator')).toBeInTheDocument();
+      expect(screen.queryByTestId('session-stepper')).toBeNull();
+      expect(screen.queryByTestId('phase-progress')).toBeNull();
+    });
+
+    it('nests adaptive staging into the unified indicator during the debate phase', () => {
+      mockStore.activeDebate = makeDebate({
+        phase: 'debate',
+        adaptive_staging: { enabled: true, current_phase: 'argumentation', phase_progress: 0.6, rounds_in_phase: 2, approaching_transition: true },
+      });
+      render(<DebateWorkspace />);
+      expect(screen.getByTestId('unified-phase-indicator')).toHaveAttribute('data-has-adaptive', 'yes');
+    });
+
+    it('omits the adaptive sub-track when staging is disabled', () => {
+      mockStore.activeDebate = makeDebate({ phase: 'debate' });
+      render(<DebateWorkspace />);
+      expect(screen.getByTestId('unified-phase-indicator')).toHaveAttribute('data-has-adaptive', 'no');
+    });
+
+    it('hides the unified indicator when the debate is closed (t/1027 parity)', () => {
+      mockStore.activeDebate = makeDebate({
+        phase: 'closed',
+        adaptive_staging: { enabled: true, current_phase: 'concluding', phase_progress: 1, rounds_in_phase: 4, approaching_transition: false },
+      });
+      render(<DebateWorkspace />);
+      expect(screen.queryByTestId('unified-phase-indicator')).toBeNull();
+    });
   });
 
   it('renders ClaimsEditor in edit-claims phase', () => {

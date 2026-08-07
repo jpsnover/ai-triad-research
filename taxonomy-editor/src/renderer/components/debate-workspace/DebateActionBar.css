@@ -1,0 +1,182 @@
+/* Copyright (c) 2026 Jeffrey Snover. All rights reserved. */
+/* Licensed under the MIT License. See LICENSE file in the project root. */
+
+/*
+ * Unified phase indicator (t/2238, DEBATE_CHAT_REDESIGN). One coordinated widget
+ * that nests the adaptive sub-phase track inside the active "Debate" session step,
+ * replacing the two independent stacked bars behind the flag.
+ */
+
+.unified-phase-indicator {
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.unified-phase-steps {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  flex-wrap: wrap;
+}
+
+.unified-phase-step {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.unified-phase-dot {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 2px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--text-2xs);
+  font-weight: 700;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+
+.unified-phase-step.active .unified-phase-dot {
+  border-color: var(--focus-ring);
+  background: var(--focus-ring);
+  color: #fff;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--focus-ring) 20%, transparent);
+}
+
+.unified-phase-step.completed .unified-phase-dot {
+  border-color: var(--success);
+  background: var(--success);
+  color: #fff;
+}
+
+.unified-phase-label {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.unified-phase-step.active .unified-phase-label {
+  color: var(--text-primary);
+}
+
+.unified-phase-step.completed .unified-phase-label {
+  color: var(--success);
+}
+
+.unified-phase-line {
+  width: 24px;
+  height: 2px;
+  background: var(--border-color);
+  margin: 0 4px;
+  flex-shrink: 0;
+  transition: background 0.25s ease;
+}
+
+.unified-phase-line.completed {
+  background: var(--success);
+}
+
+/* ── Nested adaptive sub-track ── */
+
+/*
+ * The sub-track belongs to the active "Debate" step; the connector below ties
+ * the indented row back to that step so the nesting reads structurally.
+ */
+.unified-phase-subtrack {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+  margin-left: 10px;
+  padding-left: 14px;
+  border-left: 2px solid var(--border-color);
+}
+
+.unified-phase-subcaption {
+  font-size: var(--text-2xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.unified-phase-subsegments {
+  display: flex;
+  gap: 3px;
+  height: 20px;
+  flex: 1;
+  max-width: 360px;
+}
+
+.unified-phase-subseg {
+  flex: 1;
+  position: relative;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.unified-phase-subseg.completed {
+  opacity: 0.6;
+}
+
+.unified-phase-subfill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 100%;
+  opacity: 0.2;
+  transition: width 0.4s ease;
+}
+
+.unified-phase-subseg.active .unified-phase-subfill {
+  opacity: 0.25;
+}
+
+.unified-phase-subseg.completed .unified-phase-subfill {
+  opacity: 0.15;
+}
+
+.unified-phase-sublabel {
+  position: relative;
+  z-index: 1;
+  font-size: var(--text-2xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.unified-phase-subseg.active .unified-phase-sublabel {
+  color: var(--text-primary);
+}
+
+.unified-phase-subhint {
+  font-size: var(--text-2xs);
+  font-weight: 600;
+  color: var(--success);
+  white-space: nowrap;
+  animation: phase-hint-pulse 2s ease-in-out infinite;
+}
+
+.unified-phase-subrationale {
+  font-size: var(--text-2xs);
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}

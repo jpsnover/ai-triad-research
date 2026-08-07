@@ -34,7 +34,8 @@ import { useUserProfile } from '../../hooks/useAuthStatus';
 import { CommunityShareBanner } from '../shared/CommunityShareBanner';
 import { CoverageBadge } from './TaxonomyRefs';
 import { StatementCard, ProbingCard, FactCheckCard, EntryDeleteControls, HighlightedText, PhaseHairline } from './StatementCard';
-import { PhaseProgressBar, SessionPhaseStepper, DebaterToggles, DebateActions } from './DebateActionBar';
+import { DebaterToggles, DebateActions } from './DebateActionBar';
+import { DebatePhaseIndicators } from './DebatePhaseIndicators';
 import { StatementProgressIndicator } from './StatementProgressIndicator';
 import { ClarificationActions, ClaimsEditor, RefinedTopicEditor, TopicScoreComparison } from './ClarificationPanel';
 import { OpeningActions } from './OpeningPanel';
@@ -637,34 +638,7 @@ function DebatePhaseHeader({ activeDebate, isDebatePhase, isOpeningPhase }: {
 }) {
   return (
     <>
-      {/* Session phase stepper — always visible once debate has started */}
-      {activeDebate.phase !== 'setup' && activeDebate.phase !== 'closed' && (
-        <SessionPhaseStepper
-          phase={activeDebate.phase}
-          roundCount={activeDebate.transcript.filter(e => e.type === 'statement' || e.type === 'opening').length}
-        />
-      )}
-
-      {/* Adaptive phase progress bar — shown during debate phase when adaptive staging is enabled */}
-      {isDebatePhase && activeDebate.phase !== 'closed' && (activeDebate as any).adaptive_staging?.enabled && (() => {
-        const staging = (activeDebate as any).adaptive_staging as {
-          enabled: boolean;
-          current_phase: AdaptivePhase;
-          phase_progress: number;
-          rounds_in_phase: number;
-          approaching_transition: boolean;
-          rationale?: string;
-        };
-        return (
-          <PhaseProgressBar
-            currentPhase={staging.current_phase || 'confrontation'}
-            phaseProgress={staging.phase_progress || 0}
-            roundsInPhase={staging.rounds_in_phase || 0}
-            approachingTransition={staging.approaching_transition || false}
-            rationale={staging.rationale}
-          />
-        );
-      })()}
+      <DebatePhaseIndicators activeDebate={activeDebate} isDebatePhase={isDebatePhase} />
 
       {/* Debater toggle pills */}
       {(isDebatePhase || isOpeningPhase) && (
