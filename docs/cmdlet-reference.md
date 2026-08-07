@@ -107,6 +107,8 @@ Get-Help <CmdletName> -Full                     # full docs for any cmdlet
 | `Get-FreeTierStatus` | Live free-tier budget/usage report (live config + token consumption) |
 | `Test-AzureHealth` | Azure infra status |
 | `Test-GitHubHealth` | GitHub platform + CI status |
+| `Test-AIApiKey` | Probe AI backend auth endpoints (no tokens consumed) — confirm a key is present and accepted before running jobs |
+| `Test-AIBackendHealth` | Full completion round-trip probe per backend — use before a debate run to surface degraded/unreachable models (t/2212) |
 | `Get-ContainerAppRevision` | Query ACA revisions by mode (Active/Stale/Fqdn) — replaces raw `az containerapp revision` calls (t/1498) |
 | `New-ContainerAppRevision` | Blue-green: deploy a new ACA revision at 0% traffic; returns real `RevisionName` for the promotion chain (t/1500 Phase 3) |
 | `Set-ContainerAppTraffic` | Shift traffic to a named revision with retry — call BEFORE `Disable-ContainerAppRevision` in rollback (t/1500 Phase 3) |
