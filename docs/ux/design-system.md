@@ -63,7 +63,8 @@ All colors are CSS custom properties on `:root` scoped by `data-theme`.
 | Token | Usage |
 |---|---|
 | `--danger` | Destructive actions, errors (#ef4444 / #C53B4A) |
-| `--success` | Confirmations, positive actions (#22c55e / #2D6A4F) |
+| `--success` | **Fill** color — button/badge/checkmark backgrounds (#22c55e / #2D6A4F). Do NOT use as text on `--bg-primary`: ~1.8:1 in light, fails AA. Use `--success-text` for foreground green. |
+| `--success-text` | **Foreground** success green — AA-safe as text on `--bg-primary` per theme (light #15803d ~5:1; dark #22c55e; bkc #00ff4c; harvard #2D6A4F). Only light needed a new value; dark/bkc reuse their bright fill (dark bg), harvard its forest green. Mirrors the `--warning` per-theme precedent. Added t/2260 (e/70 Finding 2). |
 | `--warning` | Flag verdicts, mid-range score bands (light #a16207, dark #f59e0b, bkc #d9a441, harvard #8B6508 — all ≥4.5:1 vs `--bg-secondary`; added t/1386) |
 | `--focus-ring` | Focus indicators (#3b82f6 / #A51C30) |
 
