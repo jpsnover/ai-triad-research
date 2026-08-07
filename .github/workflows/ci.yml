@@ -261,6 +261,39 @@ jobs:
         working-directory: ${{ matrix.app }}
         run: pnpm run build
 
+  # ── renderer-tsc: renderer type-check gate (t/2252) ──
+  # CI ran `tsc --noEmit -p tsconfig.main.json` for main-process code but NEVER
+  # ran renderer tsc — a renderer import error / unresolved module passes all CI
+  # checks and reaches main undetected. Root cause of t/2250 broken-main: PR #556
+  # imported a not-yet-landed lib/bandColor path; CI went green and the PR merged.
+  # check-renderer-tsc.sh calls `tsc -p tsconfig.json --noEmit` and compares
+  # error count against quality-gates.json tsc_error_ceilings (ceiling currently 0).
+  # Path-filtered to `electron` changes — docs/PS-only PRs skip (OK in ci-gate).
+  renderer-tsc:
+    needs: [changes]
+    if: >-
+      always() && !cancelled() &&
+      (github.event_name != 'pull_request' || needs.changes.outputs.electron == 'true')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v6
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: '11.20.0'
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v6
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+          cache-dependency-path: 'pnpm-lock.yaml'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Renderer type-check
+        run: bash taxonomy-editor/scripts/check-renderer-tsc.sh
+
   # ── Dependency audit: standalone security gate (t/1800) ──
   # SPLIT OUT of test-electron so a security-audit failure can never skip Test
   # again (the t/1800 false-green: audit sat before Test with no
@@ -777,7 +810,7 @@ jobs:
   # path-filtered to lib changes, skip = OK.
   ci-gate:
     name: ci-gate
-    needs: [changes, test-powershell, test-electron, test-container, python-embed-smoke, dependency-coverage, lockfile-overrides-check, lib-lint]
+    needs: [changes, test-powershell, test-electron, test-container, python-embed-smoke, dependency-coverage, lockfile-overrides-check, lib-lint, renderer-tsc]
     if: always()
     runs-on: ubuntu-latest
     steps:
