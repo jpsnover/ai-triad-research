@@ -7,6 +7,8 @@ import { DEFAULT_MODEL } from '@lib/ai-client/defaults';
 import { POVER_INFO } from '../../types/debate';
 import type { SpeakerId, DebateSession, TurnAttempt } from '../../types/debate';
 import type { CitationResolutionDiagnostics } from '@lib/debate/citationResolution.js';
+import { resolveSpeaker } from '../shared/SpeakerIdentity';
+import { useFlag } from '../../hooks/useFeatureFlags';
 
 export type DiffViewMode = 'prompts' | 'responses';
 
@@ -289,6 +291,7 @@ export function PromptDiffTree({ debate, focusedEntryId, onSelectNode, selectedN
     new Set(focusedEntryId ? [focusedEntryId] : [])
   );
   const [expandedStages, setExpandedStages] = useState<Set<string>>(new Set());
+  const chatRedesign = useFlag('DEBATE_CHAT_REDESIGN');
 
   const toggleEntry = useCallback((id: string) => {
     setExpandedEntries(prev => {
@@ -429,7 +432,7 @@ export function PromptDiffTree({ debate, focusedEntryId, onSelectNode, selectedN
                 {hasPrompts ? (isExpanded ? '▼' : '▶') : '·'}
               </span>
               <span className="pdt-fw-600">S{idx + 1}</span>
-              <span>{speakerLabel(entry.speaker)}</span>
+              <span>{chatRedesign ? resolveSpeaker(entry.speaker).label : speakerLabel(entry.speaker)}</span>
               <span className="pdt-muted-2xs">({entry.type})</span>
               {totalRuns > 1 && (
                 <span className="pdt-muted-2xs">
