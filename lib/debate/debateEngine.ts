@@ -1266,6 +1266,10 @@ export class DebateEngine {
     });
   }
 
+  briefProgress(phase: string, speaker: string | undefined, message: string, brief: import('./debateEngine/internals.js').DebateProgress['brief']): void {
+    this.onProgress?.({ phase, speaker, totalRounds: this.config.rounds, message, brief });
+  }
+
   private emitSnapshot(trigger: 'round_complete' | 'error'): void {
     try {
       this.config.onSnapshot?.(this.session, trigger);
