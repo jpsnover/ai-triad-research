@@ -145,15 +145,19 @@ CVE-2026-58055
 
 # ── libp11-kit0 (Debian bookworm) — NO UPSTREAM FIX AVAILABLE ───────────────────
 # CVE-2026-13757  p11-kit PKCS#11 module path traversal (warning)
+# CVE-2026-18938  p11-kit RPC integer overflow → heap OOB write, DoS (note; 32-bit only)
 #
 # Package:   libp11-kit0 (installed 0.24.1-2)
-# Fix state: Debian bookworm has published NO fixed version as of 2026-08-05.
+# Fix state: Debian bookworm has published NO fixed version for either CVE.
 # Exposure:  libp11-kit0 is a transitive dep of the TLS stack. The application
 #            does not load PKCS#11 modules or use p11-kit APIs directly. The path
 #            traversal requires a privileged PKCS#11 module registration — not
 #            possible in our non-root, no-new-privileges container.
+#            CVE-2026-18938 is additionally only exploitable on 32-bit systems;
+#            our container runs amd64.
 # REVISIT:   drop when Debian ships a fix, or the node-26 base lands.
 CVE-2026-13757
+CVE-2026-18938
 
 # ── libssh2-1 (Debian bookworm) — NO UPSTREAM FIX AVAILABLE ─────────────────────
 # CVE-2026-66032  libssh2 use-after-free in key exchange (warning)
