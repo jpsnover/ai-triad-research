@@ -18,7 +18,7 @@
         - tests/ModelLiteralLint.Tests.ps1      -Model literals name registered models
       vitest (delegated to taxonomy-editor's suite):
         - taxonomy-editor/src/server/__tests__/keysValidation.test.ts   KEY_VALIDATION_PROBES completeness
-        - taxonomy-editor/src/main/__tests__/resolveApiModelId.test.ts  id->apiId map
+        - taxonomy-editor/src/main/__tests__/modelConfigCache.test.ts   id->apiId map
         - lib/debate/__tests__/configInvariant.test.ts                  fallbackChain / default invariants
         - lib/electron-shared/modelDiscovery.test.ts                    model discovery
 
@@ -56,7 +56,7 @@ $TaxEditor  = Join-Path $RepoRoot 'taxonomy-editor'
 # collision (a stray same-named test elsewhere would list under a different path).
 $VitestGates = [ordered]@{
     'keysValidation'   = 'server/__tests__/keysValidation.test.ts'
-    'resolveApiModelId' = 'main/__tests__/resolveApiModelId.test.ts'
+    'modelConfigCache'  = 'main/__tests__/modelConfigCache.test.ts'
     'configInvariant'  = 'lib/debate/__tests__/configInvariant.test.ts'
     'modelDiscovery'   = 'lib/electron-shared/modelDiscovery.test.ts'
 }
