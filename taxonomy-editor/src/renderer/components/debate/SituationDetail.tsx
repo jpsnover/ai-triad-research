@@ -25,7 +25,14 @@ import { api } from '@bridge';
 import { triggerSituationNodeRegeneration } from '../../utils/regeneratePlainDescription';
 import { useDescriptionMode, DescriptionToggle, type DescriptionMode } from '../shared/DescriptionToggle';
 import { StakeholderSection } from '../organizations/StakeholderSection';
+import { bandColor, type BandEntry } from '../../lib/bandColor';
 import './SituationDetail.css';
+
+const DIVERGENCE_SCORE_BANDS: readonly BandEntry[] = [
+  { threshold: 0.40, color: '#22c55e' },
+  { threshold: 0.20, color: '#f59e0b' },
+  { threshold: 0,    color: '#ef4444' },
+];
 
 interface SituationDetailProps {
   node: SituationNode;
@@ -38,6 +45,10 @@ interface SituationDetailProps {
 
 type SitTab = 'overview' | 'attributes' | 'accelerationist' | 'safetyist' | 'skeptic' | 'debate' | 'sources' | 'research';
 type SitPov = 'accelerationist' | 'safetyist' | 'skeptic';
+
+function isPovTab(tab: SitTab): boolean {
+  return tab === 'accelerationist' || tab === 'safetyist' || tab === 'skeptic';
+}
 
 type ErrFn = (field: string) => string | undefined;
 type UpdateFn = (updates: Partial<SituationNode>) => void;
@@ -289,7 +300,7 @@ function SitOverviewTab({
 
       {node.interpretation_divergence != null && (() => {
         const div = node.interpretation_divergence;
-        const color = div > 0.40 ? '#22c55e' : div >= 0.20 ? '#f59e0b' : '#ef4444';
+        const color = bandColor(div, DIVERGENCE_SCORE_BANDS);
         const label = div > 0.40 ? 'High divergence' : div >= 0.20 ? 'Moderate divergence' : 'Low divergence';
         return (
           <div className="form-group">
@@ -755,7 +766,7 @@ export function SituationDetail({ node, readOnly, onPin, onRelated, onDebate, ch
           <SituationDebatePanel node={node} onLaunched={() => {}} />
         )}
 
-        {(activeTab === 'accelerationist' || activeTab === 'safetyist' || activeTab === 'skeptic') && (
+        {isPovTab(activeTab) && (
           <SitPovTab
             node={node}
             activeTab={activeTab}
