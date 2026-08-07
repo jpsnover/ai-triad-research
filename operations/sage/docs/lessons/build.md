@@ -1876,16 +1876,16 @@ Failure patterns related to builds, CI, tooling, environment, and git operations
 **Pattern:** `vi.mock('./utils', ...)` in one test file leaks into another file's execution under CI worker parallelism. Passes locally and in full coverage runs; fails in CI on a subset of assertions. Tell: two assertions on the same function giving mutually-impossible results → cross-file mock mutation, not a logic error.
 
 **Instances:**
-- 2026-08-07 — DebateWorkspace (p/124#5–6, t/2256, PR #580): `speakerLabel('user')→'You'` passed but `speakerLabel('unknown')→'Unknown'` failed. Sibling mocked `./utils` with `capitalize`; under CI parallelism that mock overlapped with the other file's assertions. Fix: `vi.importActual('./utils')`.
+- 2026-08-07 — DebateWorkspace (p/124#5–8, t/2256, PR #580): `speakerLabel('user')→'You'` passed but `speakerLabel('unknown')→'Unknown'` failed. Sibling mocked `./utils` with `capitalize`; CI parallelism overlapped the mock with the other file's assertions. `vi.importActual` was tried and failed — contamination propagated UP the re-export chain (`./utils → speakerHelpers → SpeakerIdentity`), poisoning even a direct `resolveSpeaker` assertion. Fix: dropped the wrapper test, tested logic at the isolated leaf module (`./utils`) directly.
 
-**Root Cause:** `vi.mock()` patches the module registry globally within a worker. Under CI's higher worker concurrency, a mock-setup in one file overlaps with assertions in another file importing the same module path. Low local worker count eliminates the timing window.
+**Root Cause:** `vi.mock()` patches the module registry globally within a worker. Under CI's higher worker concurrency, a mock-setup in one file overlaps with assertions in another file importing the same module path. `vi.importActual` does NOT escape this when the module is accessed via a re-export chain — the mock is applied at the registry level before `importActual` resolves.
 
 **Prevention:**
 1. Tell: mutually-impossible results from one function in one file → look for sibling `vi.mock()` calls on that module.
-2. Use `vi.importActual('./module')` in the file-under-test to bypass any concurrent mock.
+2. **`vi.importActual` fails when contamination propagates through a re-export chain.** Test the logic at its isolated leaf module, not through re-exported wrappers. A wrapper that only re-exports doesn't need its own unit test.
 3. Add `afterEach(() => vi.restoreAllMocks())` in files that call `vi.mock()` on shared modules.
 4. Reproduce locally: `vitest run --pool=threads --poolOptions.threads.maxThreads=8`.
 
-**Status:** Active — 1 instance (DebateWorkspace p/124, t/2256).
+**Status:** Active — 1 instance (DebateWorkspace p/124, t/2256). `vi.importActual` insufficient when re-export chains are involved.
 
 **Applies To:** All agents writing vitest tests that mock shared sibling modules.
