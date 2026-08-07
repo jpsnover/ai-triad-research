@@ -114,15 +114,10 @@ describe('runTurnPipeline plan-stage parse-failure retry (t/2228)', () => {
     expect(callCount()).toBe(4);
   });
 
-  it('throws ActionableError after exhausting all plan parse retries (MAX_STAGE_RETRIES+1 = 4 attempts)', async () => {
+  it('degrades the turn after exhausting all plan parse retries (MAX_STAGE_RETRIES+1 = 4 attempts) (t/2229)', async () => {
     const { generate, callCount } = makeRetryingGenerate('plan', 999, '');
-    try {
-      await runTurnPipeline(makeBaseInput(), generate);
-      expect.unreachable('should have thrown');
-    } catch (err) {
-      expect(err).toBeInstanceOf(ActionableError);
-      expect((err as ActionableError).problem).toMatch(/Plan stage failed to parse after 4 attempt\(s\)/);
-    }
+    const result = await runTurnPipeline(makeBaseInput(), generate);
+    expect(result.degraded_turn).toBe(true);
     expect(callCount()).toBe(4);
   });
 });
@@ -137,9 +132,10 @@ describe('runTurnPipeline brief-stage parse-failure retry (t/2228)', () => {
     expect(callCount()).toBe(2);
   });
 
-  it('throws ActionableError after exhausting all brief parse retries', async () => {
+  it('degrades the turn after exhausting all brief parse retries (t/2229)', async () => {
     const { generate, callCount } = makeRetryingGenerate('brief', 999, '');
-    await expect(runTurnPipeline(makeBaseInput(), generate)).rejects.toBeInstanceOf(ActionableError);
+    const result = await runTurnPipeline(makeBaseInput(), generate);
+    expect(result.degraded_turn).toBe(true);
     expect(callCount()).toBe(4);
   });
 });

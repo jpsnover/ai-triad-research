@@ -400,7 +400,7 @@ describe('Brief stage parse-failure retry', () => {
     expect(briefDiags[1].parse_error).toBeUndefined();
   });
 
-  it('throws after all brief retries exhausted', async () => {
+  it('degrades the turn after all brief retries exhausted (t/2229)', async () => {
     const generate = vi.fn(async (_prompt: string, _model: string, _options: unknown, label: string) => {
       if (label.includes('brief')) return 'not valid json';
       if (label.includes('plan')) return JSON.stringify(VALID_PLAN);
@@ -409,11 +409,11 @@ describe('Brief stage parse-failure retry', () => {
       return '{}';
     }) as unknown as StageGenerateFn;
 
-    await expect(runTurnPipeline(makeBaseInput(), generate))
-      .rejects.toThrow(/Brief stage failed to parse after 4 attempt/);
+    const result = await runTurnPipeline(makeBaseInput(), generate);
+    expect(result.degraded_turn).toBe(true);
   });
 
-  it('skips brief retry during outer retry (repairHints present)', async () => {
+  it('degrades after 1 attempt when repairHints present (MAX_STAGE_RETRIES=0) (t/2229)', async () => {
     let briefCallCount = 0;
     const generate = vi.fn(async (_prompt: string, _model: string, _options: unknown, label: string) => {
       if (label.includes('brief')) {
@@ -423,8 +423,8 @@ describe('Brief stage parse-failure retry', () => {
       return '{}';
     }) as unknown as StageGenerateFn;
 
-    await expect(runTurnPipeline(makeBaseInput({ repairHints: ['fix something'] }), generate))
-      .rejects.toThrow(/Brief stage failed to parse/);
+    const result = await runTurnPipeline(makeBaseInput({ repairHints: ['fix something'] }), generate);
+    expect(result.degraded_turn).toBe(true);
     expect(briefCallCount).toBe(1);
   });
 });

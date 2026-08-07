@@ -112,6 +112,8 @@ export interface TranscriptEntry {
    *  Surfaced to readers as "Caveats" alongside the statement. */
   caveats?: string[];
   model?: string;
+  /** True when this turn's brief or plan parse retries were exhausted and degraded gracefully (t/2229). */
+  degraded?: boolean;
 }
 
 export type ModelTier = 'basic' | 'advanced';

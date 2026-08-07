@@ -257,6 +257,7 @@ export async function runDiversityRound(engine: DebateEngineInternals, round: nu
         diversity_round: true,
         extracted_claims_accepted: (meta as Record<string, unknown>).extracted_claims_accepted ?? 0,
       },
+      degraded: pipelineResult.degraded_turn,
     });
 
     engine.checkAborted();

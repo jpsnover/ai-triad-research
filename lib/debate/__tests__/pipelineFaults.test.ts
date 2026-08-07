@@ -4,7 +4,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { runTurnPipeline } from '../turnPipeline.js';
 import type { TurnPipelineInput, StageGenerateFn } from '../turnPipeline.js';
-import { ActionableError } from '../errors.js';
 
 // ── Shared helpers ──────────────────────────────────────
 
@@ -119,64 +118,54 @@ function makeThrowingGenerate(
 // ── Test 1: BRIEF stage AI failure ──────────────────────
 
 describe('pipeline fault: BRIEF stage AI failure', () => {
-  it('throws ActionableError immediately when brief generation fails', async () => {
+  it('degrades the turn (not throw) when brief parse exhausts after retries (t/2229)', async () => {
     const generate = makeGenerate([
       ['brief', '{broken json with no structure'],
     ]);
 
-    await expect(
-      runTurnPipeline(makeBaseInput(), generate),
-    ).rejects.toThrow(ActionableError);
-
-    await expect(
-      runTurnPipeline(makeBaseInput(), generate),
-    ).rejects.toThrow(/Brief stage failed to parse/);
+    const result = await runTurnPipeline(makeBaseInput(), generate);
+    expect(result.degraded_turn).toBe(true);
+    const briefDiags = result.stage_diagnostics.filter(d => d.stage === 'brief');
+    expect((briefDiags[briefDiags.length - 1] as Record<string, unknown>).degraded).toBe(true);
   });
 
-  it('does not run downstream stages after brief failure', async () => {
+  it('still runs downstream stages after brief exhaustion (degrade path) (t/2229)', async () => {
     const generate = makeGenerate([
       ['brief', '{broken'],
     ]);
 
-    try {
-      await runTurnPipeline(makeBaseInput(), generate);
-    } catch {
-      // expected
-    }
+    const result = await runTurnPipeline(makeBaseInput(), generate);
+    expect(result.degraded_turn).toBe(true);
 
     const calls = (generate as ReturnType<typeof vi.fn>).mock.calls;
     const labels = calls.map((c: unknown[]) => c[3] as string);
-    expect(labels.some((l: string) => l.includes('plan'))).toBe(false);
-    expect(labels.some((l: string) => l.includes('draft'))).toBe(false);
-    expect(labels.some((l: string) => l.includes('cite'))).toBe(false);
+    // After brief exhaustion, pipeline continues: plan, draft, and cite should run
+    expect(labels.some((l: string) => l.includes('draft'))).toBe(true);
+    expect(labels.some((l: string) => l.includes('cite'))).toBe(true);
   });
 });
 
 // ── Test 2: PLAN stage parse failure ────────────────────
 
 describe('pipeline fault: PLAN stage parse failure', () => {
-  it('throws ActionableError when plan parsing fails after retries', async () => {
+  it('degrades the turn (not throw) when plan parse exhausts after retries (t/2229)', async () => {
     const generate = makeGenerate([
       ['plan', 'not valid json at all {{{'],
     ]);
 
-    await expect(
-      runTurnPipeline(makeBaseInput(), generate),
-    ).rejects.toThrow(ActionableError);
+    const result = await runTurnPipeline(makeBaseInput(), generate);
+    expect(result.degraded_turn).toBe(true);
   });
 
-  it('includes stage name in the error', async () => {
+  it('marks the last plan stage_diagnostic with degraded: true on exhaustion (t/2229)', async () => {
     const generate = makeGenerate([
       ['plan', '<<<corrupt>>>'],
     ]);
 
-    try {
-      await runTurnPipeline(makeBaseInput(), generate);
-      expect.unreachable('should have thrown');
-    } catch (err) {
-      expect(err).toBeInstanceOf(ActionableError);
-      expect((err as ActionableError).problem).toMatch(/[Pp]lan/i);
-    }
+    const result = await runTurnPipeline(makeBaseInput(), generate);
+    expect(result.degraded_turn).toBe(true);
+    const planDiags = result.stage_diagnostics.filter(d => d.stage === 'plan');
+    expect((planDiags[planDiags.length - 1] as Record<string, unknown>).degraded).toBe(true);
   });
 });
 
@@ -340,24 +329,20 @@ describe('pipeline fault: draft quality pre-check failure', () => {
 // ── Test 8: Orchestration-level retry (repairHints) ─────
 
 describe('pipeline fault: orchestration-level retry with repairHints', () => {
-  it('reduces MAX_STAGE_RETRIES to 0 when repairHints are provided', async () => {
+  it('reduces MAX_STAGE_RETRIES to 0 when repairHints are provided — degrades after 1 attempt (t/2229)', async () => {
     const generate = makeGenerate([
       ['brief', '{broken json'],
     ]);
 
-    try {
-      await runTurnPipeline(
-        makeBaseInput({ repairHints: ['Fix the draft statement to be more specific'] }),
-        generate,
-      );
-      expect.unreachable('should have thrown');
-    } catch (err) {
-      expect(err).toBeInstanceOf(ActionableError);
-    }
+    const result = await runTurnPipeline(
+      makeBaseInput({ repairHints: ['Fix the draft statement to be more specific'] }),
+      generate,
+    );
+    expect(result.degraded_turn).toBe(true);
 
     const calls = (generate as ReturnType<typeof vi.fn>).mock.calls;
     const briefCalls = calls.filter((c: unknown[]) => (c[3] as string).includes('brief'));
-    // With repairHints (outer retry), MAX_STAGE_RETRIES = 0, so only 1 brief attempt
+    // With repairHints (outer retry), MAX_STAGE_RETRIES = 0, so only 1 brief attempt before degrading
     expect(briefCalls.length).toBe(1);
   });
 

@@ -41,6 +41,8 @@ export interface StageDiagnostics {
   input_tokens?: number;
   /** Output tokens produced by this stage's API call (from CacheUsage). */
   output_tokens?: number;
+  /** True when this stage's parse retries were exhausted and the turn was degraded gracefully (t/2229). */
+  degraded?: true;
 }
 
 /** Per-component char counts for prompt growth forensics (t/221). */
@@ -149,6 +151,8 @@ export interface TurnPipelineResult {
     repair_outcome?: 'fixed' | 'partial' | 'unchanged';
   };
   final_text?: string;
+  /** True when brief or plan parse retries were exhausted and the turn degraded gracefully (t/2229). */
+  degraded_turn?: boolean;
 }
 
 // ── Opening pipeline types ───────────────────────────

@@ -48,6 +48,7 @@ export async function runTurnPipeline(
   const pipelineStart = Date.now();
   const isOuterRetry = (input.repairHints?.length ?? 0) > 0;
   const MAX_STAGE_RETRIES = isOuterRetry ? 0 : 3;
+  let degradedTurn = false;
 
   // Per-component char counts for prompt growth forensics (t/221)
   const hintsChars =
@@ -120,12 +121,20 @@ export async function runTurnPipeline(
           console.log(`[pipeline] Brief parse failed (attempt ${briefAttempt}), retrying: ${briefParsed.error}`);
           continue;
         }
-        throw new ActionableError({
-          goal: 'Run debate turn pipeline',
-          problem: `Brief stage failed to parse after ${briefAttempt + 1} attempt(s) — downstream stages would operate on empty context. ${briefParsed.error}`,
-          location: 'turnPipeline.runPipeline',
-          nextSteps: ['Check the AI model response quality', 'Try a different model'],
+        // Retries exhausted — degrade the turn rather than aborting the debate (t/2229).
+        getGlobalRecorder()?.record({
+          type: 'turn.repair', component: 'turn-pipeline', level: 'warn',
+          speaker: input.label,
+          message: `BRIEF exhausted after ${briefAttempt + 1} attempt(s) — degrading turn`,
+          data: { stage: 'brief', attempt: briefAttempt, error: briefParsed.error },
         });
+        console.log(`[pipeline] Brief stage exhausted after ${briefAttempt + 1} attempt(s) — degrading turn`);
+        const lastBriefDiag = stageDiags[stageDiags.length - 1];
+        (lastBriefDiag as Record<string, unknown>).degraded = true;
+        brief = briefParsed.product;
+        briefJson = '{}';
+        degradedTurn = true;
+        break;
       }
       brief = tagProvenance(briefParsed.product, {
         pipeline_run: isOuterRetry ? 1 : 0,
@@ -242,12 +251,20 @@ export async function runTurnPipeline(
           console.log(`[pipeline] Plan parse failed (attempt ${planAttempt}), retrying: ${planParsed.error}`);
           continue;
         }
-        throw new ActionableError({
-          goal: 'Run debate turn pipeline',
-          problem: `Plan stage failed to parse after ${planAttempt + 1} attempt(s) — downstream stages would operate on empty context. ${planParsed.error}`,
-          location: 'turnPipeline.runPipeline',
-          nextSteps: ['Check the AI model response quality', 'Try a different model'],
+        // Retries exhausted — degrade the turn rather than aborting the debate (t/2229).
+        getGlobalRecorder()?.record({
+          type: 'turn.repair', component: 'turn-pipeline', level: 'warn',
+          speaker: input.label,
+          message: `PLAN exhausted after ${planAttempt + 1} attempt(s) — degrading turn`,
+          data: { stage: 'plan', attempt: planAttempt, error: planParsed.error },
         });
+        console.log(`[pipeline] Plan stage exhausted after ${planAttempt + 1} attempt(s) — degrading turn`);
+        const lastPlanDiag = stageDiags[stageDiags.length - 1];
+        (lastPlanDiag as Record<string, unknown>).degraded = true;
+        plan = planParsed.product;
+        planJson = '{}';
+        degradedTurn = true;
+        break;
       }
 
       // Validate plan
@@ -1400,5 +1417,6 @@ export async function runTurnPipeline(
     total_time_ms: Date.now() - pipelineStart,
     topicAlignmentResult,
     qualityGateResult,
+    degraded_turn: degradedTurn || undefined,
   };
 }
