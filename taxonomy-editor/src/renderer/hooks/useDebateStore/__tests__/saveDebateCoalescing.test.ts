@@ -269,4 +269,22 @@ describe('saveDebate degraded-save surfacing (t/1639)', () => {
     expect(errorEvents.length).toBe(1);
     expect(errorEvents[0].data).toMatchObject({ save_degraded: false });
   });
+
+  it.each([401, 402, 403])('HTTP %i on saveDebateSession sets save_degraded with at-risk message (t/2231)', async (httpStatus) => {
+    const httpErr = Object.assign(new Error('Forbidden'), { httpStatus });
+    mockSaveDebateSession.mockRejectedValueOnce(httpErr);
+    store.setState({ activeDebate: makeDebateWithTurns() as unknown as DebateStore['activeDebate'] });
+
+    await store.getState().saveDebate('auth-fail');
+
+    const err = store.getState().debateError ?? '';
+    expect(err).toContain(`HTTP ${httpStatus}`);
+    expect(err).toContain('at risk of being lost');
+    expect(err).toContain('3 turns');
+    expect(err).not.toContain('recovery copy');
+
+    const errorEvents = mockRecords.filter(r => r.type === 'state.error');
+    expect(errorEvents.length).toBe(1);
+    expect(errorEvents[0].data).toMatchObject({ save_degraded: true, at_risk_turns: 3 });
+  });
 });
