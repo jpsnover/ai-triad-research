@@ -1432,6 +1432,9 @@ export function FactCheckCard({ entry, statementId, findQuery = '', matchOffset 
   const activeDebate = useDebateStore(s => s.activeDebate);
   const [showWebEvidence, setShowWebEvidence] = useState(false);
   const factCheck = entry.metadata?.fact_check as FactCheckMeta | undefined;
+  // Same scoping hook as StatementCard — carries the 95ch prose measure (t/2240)
+  // onto fact-check panels so both surfaces read as one system.
+  const chatRedesign = useFlag('DEBATE_CHAT_REDESIGN');
 
   const verdictClass = factCheck?.verdict
     ? `debate-fact-check-${factCheck.verdict}`
@@ -1441,7 +1444,7 @@ export function FactCheckCard({ entry, statementId, findQuery = '', matchOffset 
   const hasWebEvidence = !!(factCheck?.web_search_used || factCheck?.web_search_evidence || citations.length > 0);
 
   return (
-    <div className={`debate-statement debate-type-fact-check debate-speaker-system ${verdictClass}`}>
+    <div className={`debate-statement debate-type-fact-check debate-speaker-system ${verdictClass}${chatRedesign ? ' debate-redesign' : ''}`}>
       <FactCheckHeader
         statementId={statementId}
         factCheck={factCheck}
