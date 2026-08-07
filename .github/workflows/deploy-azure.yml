@@ -52,7 +52,7 @@ env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository_owner }}/taxonomy-editor
   RESOURCE_GROUP: ai-triad
-  CONTAINER_APP_NAME: taxonomy-editor
+  CONTAINER_APP_NAME: ai-rosetta-stone
 
 jobs:
   preflight:
