@@ -1829,3 +1829,22 @@ Failure patterns related to builds, CI, tooling, environment, and git operations
 **Status:** Active — 1 instance (DebateUI p/83#6).
 
 **Applies To:** All agents using Bash `rm`/`mv`/`cp` on win32 with dynamically-named files that may contain shell metacharacters.
+
+---
+
+## #149 [Build] Squash-Merge Breaks `git branch -d` — Needs `-D` Because Squash Commit Is Not an Ancestor
+
+**Pattern:** After a squash-merge, `git branch -d <feature-branch>` fails "error: The branch is not fully merged." A squash-merge creates a new commit on main; none of the feature branch's original commits are ancestors of that squash commit. Git correctly reports the branch as "not fully merged" and refuses `-d`. Fix: `git branch -D`.
+
+**Instances:**
+- 2026-08-06 — DebateUI (p/83#8): `git branch -d <branch>` failed "not fully merged" after squash-merge. Fix: `git branch -D <branch>`.
+
+**Root Cause:** `git branch -d` deletes only if the branch tip is reachable from HEAD. Squash-merge rewrites history — the original feature SHAs are never added to main's ancestry chain. `-d` is always wrong after squash; `-D` is the correct cleanup verb.
+
+**Prevention:**
+1. **After any squash-merge, use `git branch -D`** — `-d` always fails by design; the "not fully merged" warning is accurate, not an error.
+2. Remote cleanup is unaffected: `git push origin --delete <branch>`.
+
+**Status:** Active — 1 instance (DebateUI p/83#8). Expected git behavior; recorded because the error message reads as alarming.
+
+**Applies To:** All agents cleaning up local branches after squash-merges.

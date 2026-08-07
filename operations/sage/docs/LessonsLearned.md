@@ -2296,6 +2296,7 @@ Institutional memory for failure patterns across the AI Triad Research project.
 - 2026-07-30 — Server Storage (t/2020, p/206#11): **3rd instance — a NEW facet that qualifies prevention #4.** `gh pr merge --squash --delete-branch` run **from the main repo path**: the GitHub merge succeeded but the **local branch-delete** failed **"cannot delete branch used by worktree"** — a worktree still held the HEAD branch. Running from the main repo path fixes the *checkout-main* conflict but NOT this one (`git branch -D <head>` is blocked while a worktree holds that head). Fix: **`git worktree remove <path>` FIRST, then `git branch -D <head>`**. Same root family (gh's post-merge LOCAL cleanup vs one-branch-per-worktree), at the branch-delete step rather than the checkout step.
 - 2026-08-03 — DevOps (p/26#36): **4th instance, 3rd independent agent — confirms facet 2 / prevention #5.** `gh pr merge --delete-branch` exited 1 with **both** "**already merged**" (the PR had **auto-merged** before the command ran) **and** "cannot delete branch used by worktree" (a worktree still held the branch ref). Resolved by **`git worktree remove --force` FIRST**, then the branch delete succeeds — **order matters** (prevention #5). The "already merged" signature reinforces bookkeeping-≠-artifact: exit 1 was *entirely* post-merge cleanup — the merge was already DONE, so an exit-1 panic-retry would be wrong. 3rd agent to hit facet 2 (ElectronMain + Server Storage + DevOps).
 - 2026-08-05 — ServerAPI (p/79#25, t/2180): **5th instance, 4th independent agent.** PR #486 branch checked out in `.claude/worktrees/default-model-t2180` (IDE-managed worktree) — `gh pr merge --delete-branch` exited 1, local branch-delete blocked by the active worktree. Correctly identified: PR confirmed MERGED (`mergedAt` set); exit 1 is cosmetic post-merge cleanup, worktree owner's responsibility. Same facet 2 as p/206#11 + p/26#36.
+- 2026-08-06 — DebateUI (p/83#8): **6th instance, 5th independent agent.** `gh pr merge --squash --delete-branch` failed when `main` was checked out in another worktree. Workaround: called the GitHub API directly — `gh api repos/:owner/:repo/pulls/N/merge -X PUT -f merge_method=squash` — which executes the merge server-side with no local checkout/cleanup step at all.
 
 **Root Cause:** `--delete-branch` cleans up the merged head branch locally too, and gh switches the working copy to the base branch (`git checkout main`) to do so. Git's one-branch-per-worktree rule blocks checking out `main` while the primary worktree has it → `fatal`. The remote merge + branch delete already happened via the API; only the local checkout/cleanup fails. Bookkeeping-≠-artifact family — the exit code describes post-success cleanup, not the merge.
 
@@ -2305,6 +2306,7 @@ Institutional memory for failure patterns across the AI Triad Research project.
 3. `/land-from-worktree` step 5 should drop `--delete-branch` (or gate it to non-worktree runs) — the skill runs from a worktree by definition. Flagged to TL.
 4. **Or run `gh pr merge` from the MAIN REPO PATH, not a worktree** (Server Storage p/206#9): the hub holds `main`, so gh's post-merge local `checkout main` succeeds — no checkout-conflict. **Caveat (p/206#11): NOT a full escape** — if a worktree still holds the PR's HEAD branch, `--delete-branch`'s local `git branch -D <head>` then fails "cannot delete branch used by worktree." (If a safety classifier blocks the command, ask the user to run it.)
 5. **Fully-safe order: `git worktree remove <path>` FIRST, then merge/delete** — clears BOTH facets (checkout-main + branch-used-by-worktree). Simplest: drop `--delete-branch` (prevention #1), remove the worktree, delete the branch by hand.
+6. **Direct API escape hatch:** `gh api repos/:owner/:repo/pulls/N/merge -X PUT -f merge_method=squash` (or `rebase`/`merge`) — calls the GitHub merge API directly with no local checkout or branch-delete step; bypasses all worktree conflicts entirely. Then clean up branches manually.
 
 **Status:** **Skill-path RESOLVED; direct-invocation ACTIVE (recurred 2026-07-30).** TL fixed step 5 (p/8#121): drops `--delete-branch`, verifies `gh pr view <n> --json state` == `MERGED` (not the exit code), deletes the remote branch by push. **But the failure is intrinsic to `--delete-branch` from a worktree** — Server Storage re-hit it with a DIRECT `gh pr merge --squash --delete-branch` (t/2020), bypassing the fixed skill; any direct invocation from a worktree re-triggers it (fix: drop `--delete-branch`, or run from the main repo path — prevention #4). **3rd instance (p/206#11) surfaced a 2nd facet:** even from the main repo path, `--delete-branch`'s LOCAL branch-delete fails "cannot delete branch used by worktree" if a worktree holds the head → fully-safe order is `git worktree remove` FIRST, then merge/delete (prevention #5). Was the dangerous PR-flow variant (fatal → panic-retry → double-land). **4th instance (DevOps p/26#36, 2026-08-03) — 3rd independent agent confirms prevention #5** (worktree-remove-first) and adds the "**already merged**" signature (an auto-merged PR whose `--delete-branch` cleanup still exit-1s on the held branch) — reinforcing that exit 1 is post-merge cleanup, not a failed merge. Root cause folded into the "validate a fleet-standard procedure end-to-end before mandating" process lesson. **5th instance (ServerAPI p/79#25, 2026-08-05) — 4th independent agent; IDE-managed worktree (`.claude/worktrees/`) holds the branch, same outcome.** Correctly handled: check `mergedAt`, treat exit 1 as cosmetic, hand cleanup to the worktree owner.
 
@@ -2610,8 +2612,11 @@ Institutional memory for failure patterns across the AI Triad Research project.
 
 **Pattern:** `gh pr checks <n>` returns a **tri-state exit code**: `0` = all passed, `1` = a check FAILED, **`8` = one or more checks still PENDING/queued**. So a green-so-far PR with one slow check still running (e.g. `test-container`) exits **8** — non-zero, but nothing failed. A caller that branches on "non-zero = failure" conflates *pending* with *failed* and may wrongly abort a land.
 
+**Facet B — `--watch` false-green:** `gh pr checks <n> --watch` can exit `0` while some jobs still show **"pending 0"** — meaning those jobs have been scheduled but their individual check-runs haven't registered yet. `--watch` polls the currently-known checks and exits as soon as they all pass; it doesn't wait for checks that haven't appeared yet. Result: a confident-looking green that precedes real results.
+
 **Instances:**
 - 2026-08-01 — Server Storage (p/206#13, re-confirmed p/206#14): `gh pr checks 326` exited **8** because `test-container` was still running; **no check actually failed**. Recognized as expected `gh` behavior; **re-polled once `test-container` completed** → green. (Two reports same session — the exit-8 = pending semantics catch people.)
+- 2026-08-06 — DebateUI (p/83#8, Facet B): `gh pr checks <n> --watch` exited **0** while `test-electron` jobs still showed **"pending 0"** — the checks hadn't been registered yet. `--watch` saw no failing checks and exited; later the real job results arrived. False-green signal on a PR that wasn't fully checked.
 
 **Root Cause:** `gh pr checks`'s exit code encodes STATE, not a pass/fail boolean — exit 8 specifically means "not done yet." Same "exit code is a status indicator, not success/failure" family as #73 facet A (grep exit-1 on zero-match ≠ error). It bites hardest during a self-merge wait, when a slow check (`test-container`) hasn't finished but every other check is green — the raw exit looks like failure. **Now covered** by the `exit-code-literacy-guard` workspace rule (2026-08-03, t/2081) — the exit-8=pending branch of the exit-code-literacy family; advisory (non-blocking). **Firing OBSERVED live on THIS branch — TL saw it correctly flag exit-8=pending (not failed) on `gh pr checks 334` during the PR #334 CodeQL wait (p/8#166)** — the 2nd of two independent live firings (Sage's `grep -c` #73A branch was the 1st); systematic verification deferred per t/1625.
 
@@ -2619,6 +2624,7 @@ Institutional memory for failure patterns across the AI Triad Research project.
 1. **Don't read `gh pr checks` non-zero as "failed" — distinguish exit `8` (PENDING → re-poll) from exit `1` (FAILED → stop).** Branch on the specific code, or better, on the actual per-check state.
 2. **Parse the per-check state, not just the exit code** — `gh pr checks <n> --json name,state,conclusion --jq '...'` gives real states (`IN_PROGRESS`/`QUEUED` vs `FAILURE`); the raw exit code alone can't tell pending from failed to a naive branch.
 3. **On a self-merge wait, exit 8 = "not done, re-poll"** — re-run once the pending check completes (or use a background monitor, #116); don't abort the land.
+4. **Facet B — `--watch` false-green:** after `--watch` exits 0, verify with a bare `gh pr checks <n>` (no `--watch`) to confirm all jobs have actually completed with conclusions. If any show "pending 0" or blank conclusion, `--watch` exited prematurely — wait and re-check.
 
 **Status:** Active — `gh pr checks` tri-state exit-code semantics (0 pass / 1 fail / 8 pending); "exit code ≠ pass/fail boolean" family (#73A). Self-correcting once recognized. CI-wait sibling of #111 (current-HEAD-gated workflow) and #116 (background monitor, not foreground poll).
 
@@ -3043,3 +3049,23 @@ Institutional memory for failure patterns across the AI Triad Research project.
 **Status:** Active — 1 instance (DebateUI p/83#6).
 
 **Applies To:** All agents using Bash `rm`/`mv`/`cp` with dynamically-named files on win32 that may contain shell metacharacters.
+
+---
+
+## #149 [Build] Squash-Merge Breaks `git branch -d` — Needs `-D` Because Squash Commit Is Not an Ancestor
+
+**Pattern:** After a squash-merge, `git branch -d <feature-branch>` fails "error: The branch is not fully merged." Git's safety check for `-d` verifies that the branch's tip is reachable from the target (usually `main`). A squash-merge creates a **new commit** on main containing the squashed changes — but none of the feature branch's original commits are ancestors of that new squash commit. Git correctly reports the branch as "not fully merged" and refuses `-d`. Fix: `git branch -D` (force-delete, bypasses the ancestry check).
+
+**Instances:**
+- 2026-08-06 — DebateUI (p/83#8): `git branch -d <branch>` failed "not fully merged" after a squash-merge. Fix: `git branch -D <branch>`.
+
+**Root Cause:** `git branch -d` uses reachability to determine safety — it deletes only if the branch tip is an ancestor of HEAD (or the upstream). Squash-merge rewrites history: the feature commits are squashed into one new commit; the original SHAs from the feature branch are never added to main's ancestry chain. This is by design, but it means `-d` is always wrong after squash — `-D` is the correct cleanup verb.
+
+**Prevention:**
+1. **After any squash-merge, always use `git branch -D <branch>` for local cleanup** — `-d` will always fail; the warning is expected, not an error.
+2. **For remote cleanup:** `git push origin --delete <branch>` (unaffected by squash semantics; GitHub tracks merge state separately).
+3. This is expected behavior, not a bug — `-d`'s "not fully merged" message is accurate in a strict ancestry sense; `-D` is the intentional override.
+
+**Status:** Active — 1 instance (DebateUI p/83#8). Expected git behavior; recorded because the error message reads as alarming.
+
+**Applies To:** All agents cleaning up local branches after squash-merges.
