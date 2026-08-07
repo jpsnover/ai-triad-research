@@ -9,11 +9,10 @@ const { mockApi } = vi.hoisted(() => {
     loadChatSession: vi.fn(),
     saveChatSession: vi.fn().mockResolvedValue(undefined),
     deleteChatSession: vi.fn().mockResolvedValue(undefined),
-    generateText: vi.fn().mockResolvedValue({ text: '{"response":"hello","taxonomy_refs":[]}' }),
-    onGenerateTextProgress: vi.fn().mockReturnValue(() => {}),
     setDebateTemperature: vi.fn().mockResolvedValue(undefined),
     hasApiKey: vi.fn().mockResolvedValue(true),
-    startChatStream: vi.fn().mockResolvedValue('streamed-text'),
+    startChatStream: vi.fn().mockResolvedValue('{"response":"hello","taxonomy_refs":[]}'),
+    onChatStreamChunk: vi.fn().mockReturnValue(() => {}),
     trackEvent: vi.fn(),
   };
   return { mockApi };
@@ -84,7 +83,7 @@ describe('useChatStore', () => {
       chatLoading: false,
       chatGenerating: false,
       chatError: null,
-      chatProgress: null,
+      chatStreamingText: null,
       chatActivity: null,
       chatModel: null,
     });
@@ -211,7 +210,6 @@ describe('useChatStore', () => {
 
       await useChatStore.getState().sendMessage('duplicate request');
 
-      expect(mockApi.generateText).not.toHaveBeenCalled();
       expect(mockApi.startChatStream).not.toHaveBeenCalled();
     });
 
@@ -223,8 +221,59 @@ describe('useChatStore', () => {
 
       await useChatStore.getState().generateOpening();
 
-      expect(mockApi.generateText).not.toHaveBeenCalled();
       expect(mockApi.startChatStream).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('streaming (t/2251)', () => {
+    it('transcript entry content equals concatenated stream chunks', async () => {
+      const chunks = ['Hello', ', ', 'world', '!'];
+      let chunkCb: ((chunk: string) => void) | null = null;
+
+      mockApi.onChatStreamChunk.mockImplementationOnce((cb: (chunk: string) => void) => {
+        chunkCb = cb;
+        return () => { chunkCb = null; };
+      });
+      mockApi.startChatStream.mockImplementationOnce(async () => {
+        chunks.forEach(c => chunkCb?.(c));
+        return chunks.join('');
+      });
+      mockApi.listChatSessions.mockResolvedValueOnce([]);
+
+      useChatStore.setState({
+        activeChat: makeChatSession({
+          transcript: [{ id: 'e1', timestamp: '2026-01-01T00:00:00Z', speaker: 'accelerationist', content: 'Opening', taxonomy_refs: [] }],
+        }) as never,
+      });
+
+      await useChatStore.getState().sendMessage('follow-up');
+
+      const state = useChatStore.getState();
+      const lastEntry = state.activeChat!.transcript[state.activeChat!.transcript.length - 1];
+      expect(lastEntry.content).toBe(chunks.join(''));
+      expect(state.chatStreamingText).toBeNull();
+      expect(state.chatGenerating).toBe(false);
+    });
+
+    it('chatStreamingText is cleared on error', async () => {
+      mockApi.onChatStreamChunk.mockImplementationOnce((cb: (chunk: string) => void) => {
+        cb('partial');
+        return () => {};
+      });
+      mockApi.startChatStream.mockRejectedValueOnce(new Error('stream failed'));
+      mockApi.listChatSessions.mockResolvedValue([]);
+
+      useChatStore.setState({
+        activeChat: makeChatSession({
+          transcript: [{ id: 'e1', timestamp: '2026-01-01T00:00:00Z', speaker: 'accelerationist', content: 'Hi', taxonomy_refs: [] }],
+        }) as never,
+      });
+
+      await useChatStore.getState().sendMessage('test');
+
+      const state = useChatStore.getState();
+      expect(state.chatStreamingText).toBeNull();
+      expect(state.chatError).toContain('Response failed');
     });
   });
 });
