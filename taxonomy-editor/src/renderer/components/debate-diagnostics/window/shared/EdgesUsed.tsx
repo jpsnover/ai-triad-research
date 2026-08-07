@@ -4,6 +4,7 @@
 import { useState, useMemo } from 'react';
 import { nodeIdColor, truncateLabel } from './constants';
 import type { TaxRefEdge, TaxRefNode } from '../../../taxonomy/TaxonomyRefDetail';
+import './EdgesUsed.css';
 
 // NOTE: AifBadge stays in DiagnosticsWindow.tsx (parent) — not used by these components directly.
 // NOTE: speakerLabel stays in DiagnosticsWindow.tsx (parent) — not used by these components directly.
@@ -45,13 +46,14 @@ function EdgesUsedGroup({ edgeType, edges, selectedIdx, onSelect, nodeLabels }: 
             key={i}
             className={`related-edge-card${isSelected ? ' related-edge-selected' : ''}`}
             onClick={() => onSelect(isSelected ? null : key)}
-            style={{ cursor: 'pointer' }}
           >
             <div className="related-edge-header">
+              {/* eslint-disable-next-line local/no-inline-style -- node-id-driven color */}
               <span className="related-edge-label-primary" style={{ color: edgeNodeColor(e.source) }}>
                 {srcLabel ? truncateLabel(srcLabel, 20) : e.source}
               </span>
-              <span style={{ color: 'var(--text-muted)', fontSize: 'var(--text-2xs)', textTransform: 'uppercase', fontWeight: 600, letterSpacing: '0.03em' }}>{edgeType.replace(/_/g, ' ')}</span>
+              <span className="eu-edge-type-label">{edgeType.replace(/_/g, ' ')}</span>
+              {/* eslint-disable-next-line local/no-inline-style -- node-id-driven color */}
               <span className="related-edge-label-primary" style={{ color: edgeNodeColor(e.target) }}>
                 {tgtLabel ? truncateLabel(tgtLabel, 20) : e.target}
               </span>
@@ -73,17 +75,17 @@ function EdgeDescriptions({ srcNode, tgtNode }: {
 }) {
   if (!(srcNode?.description || tgtNode?.description)) return null;
   return (
-    <div style={{ display: 'flex', gap: 8, margin: '10px 0' }}>
+    <div className="eu-edge-descriptions">
       {srcNode?.description && (
-        <div style={{ flex: 1, padding: '8px 10px', background: 'var(--bg-secondary)', borderRadius: 6, border: '1px solid var(--border)' }}>
-          <div style={{ fontSize: 'var(--text-2xs)', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 4, letterSpacing: '0.04em' }}>Source Description</div>
-          <div style={{ fontSize: '0.75rem', lineHeight: 1.5 }}>{srcNode.description as string}</div>
+        <div className="eu-edge-desc-box">
+          <div className="eu-edge-desc-heading">Source Description</div>
+          <div className="eu-edge-desc-content">{srcNode.description as string}</div>
         </div>
       )}
       {tgtNode?.description && (
-        <div style={{ flex: 1, padding: '8px 10px', background: 'var(--bg-secondary)', borderRadius: 6, border: '1px solid var(--border)' }}>
-          <div style={{ fontSize: 'var(--text-2xs)', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 4, letterSpacing: '0.04em' }}>Target Description</div>
-          <div style={{ fontSize: '0.75rem', lineHeight: 1.5 }}>{tgtNode.description as string}</div>
+        <div className="eu-edge-desc-box">
+          <div className="eu-edge-desc-heading">Target Description</div>
+          <div className="eu-edge-desc-content">{tgtNode.description as string}</div>
         </div>
       )}
     </div>
@@ -99,7 +101,7 @@ function EdgeStatus({ status }: { status: string }) {
         </span>
       )}
       {status === 'approved' && (
-        <span style={{ color: 'var(--success)', fontWeight: 600, fontSize: '0.75rem' }}>{'✓'} Approved</span>
+        <span className="eu-edge-status-approved">{'✓'} Approved</span>
       )}
     </>
   );
@@ -117,7 +119,7 @@ export function EdgesUsedDetail({ edge, taxNodeMap, nodeLabels }: {
   const pct = Math.round(edge.confidence * 100);
 
   return (
-    <div style={{ fontSize: '0.78rem' }}>
+    <div className="eu-detail-root">
       {/* Edge type banner */}
       <div className="edge-detail-type-banner">
         <span className="edge-detail-type-name">{edge.type.replace(/_/g, ' ')}</span>
@@ -128,12 +130,14 @@ export function EdgesUsedDetail({ edge, taxNodeMap, nodeLabels }: {
       <div className="edge-detail-endpoints">
         <div className="edge-detail-endpoint">
           <div className="edge-detail-endpoint-role">SOURCE</div>
+          {/* eslint-disable-next-line local/no-inline-style -- node-id-driven color */}
           <div className="edge-detail-endpoint-label" style={{ color: edgeNodeColor(edge.source) }}>{srcLabel}</div>
           <div className="edge-detail-endpoint-id">{edge.source}</div>
         </div>
         <div className="edge-detail-arrow">{edge.bidirectional ? '↔' : '→'}</div>
         <div className="edge-detail-endpoint">
           <div className="edge-detail-endpoint-role">TARGET</div>
+          {/* eslint-disable-next-line local/no-inline-style -- node-id-driven color */}
           <div className="edge-detail-endpoint-label" style={{ color: edgeNodeColor(edge.target) }}>{tgtLabel}</div>
           <div className="edge-detail-endpoint-id">{edge.target}</div>
         </div>
@@ -146,12 +150,12 @@ export function EdgesUsedDetail({ edge, taxNodeMap, nodeLabels }: {
       {edge.rationale && (
         <div className="edge-detail-section">
           <div className="edge-detail-section-label">RATIONALE</div>
-          <div style={{ fontSize: '0.78rem', lineHeight: 1.55 }}>{edge.rationale}</div>
+          <div className="eu-detail-rationale">{edge.rationale}</div>
         </div>
       )}
 
       {/* Confidence & Strength */}
-      <div style={{ display: 'flex', gap: 24, alignItems: 'center', margin: '10px 0', fontSize: '0.78rem' }}>
+      <div className="eu-detail-confidence-row">
         <span>Confidence: {pct}%</span>
         {edge.strength && <span>Strength: {edge.strength}</span>}
       </div>
@@ -161,9 +165,9 @@ export function EdgesUsedDetail({ edge, taxNodeMap, nodeLabels }: {
 
       {/* Notes */}
       {edge.notes && (
-        <div className="edge-detail-section" style={{ marginTop: 10 }}>
+        <div className="edge-detail-section eu-detail-notes-section">
           <div className="edge-detail-section-label">Notes</div>
-          <div style={{ fontSize: '0.75rem' }}>{edge.notes}</div>
+          <div className="eu-detail-notes-content">{edge.notes}</div>
         </div>
       )}
     </div>
@@ -202,21 +206,21 @@ export function EdgesUsedGrouped({ edges, allEdges, taxNodeMap, nodeLabels }: {
   }, [selectedIdx, edges]);
 
   return (
-    <div style={{ display: 'flex', gap: 8, minHeight: 200 }}>
+    <div className="eu-grouped-root">
       {/* Left: edge list */}
-      <div style={{ flex: '1 1 45%', maxHeight: 400, overflowY: 'auto' }}>
+      <div className="eu-grouped-left">
         {Array.from(grouped.entries()).map(([type, edgeList]) => (
           <EdgesUsedGroup key={type} edgeType={type} edges={edgeList} selectedIdx={selectedIdx} onSelect={setSelectedIdx} nodeLabels={nodeLabels} />
         ))}
       </div>
       {/* Right: edge detail */}
-      <div style={{ flex: '1 1 55%', maxHeight: 400, overflowY: 'auto', borderLeft: '1px solid var(--border)', paddingLeft: 10 }}>
+      <div className="eu-grouped-right">
         {selectedEdge ? (
           <EdgesUsedDetail edge={selectedEdge} taxNodeMap={taxNodeMap} nodeLabels={nodeLabels} />
         ) : selectedUsed ? (
           <EdgesUsedDetail edge={{ ...selectedUsed, bidirectional: false, rationale: '', status: '', weight: undefined, strength: undefined, notes: undefined }} taxNodeMap={taxNodeMap} nodeLabels={nodeLabels} />
         ) : (
-          <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem', padding: '20px 8px', textAlign: 'center' }}>Select an edge to view details</div>
+          <div className="eu-grouped-empty">Select an edge to view details</div>
         )}
       </div>
     </div>

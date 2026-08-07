@@ -1,0 +1,239 @@
+/* Copyright (c) 2026 Jeffrey Snover. All rights reserved. */
+/* ModeratorTab — co-located styles (prefix: mod-tab-) */
+
+.mod-tab-section {
+  margin-bottom: 12px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+}
+
+.mod-tab-heading {
+  font-weight: 700;
+  font-size: var(--text-2xs);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-acc);
+  margin-bottom: 6px;
+}
+
+.mod-tab-decision-row {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  font-size: 0.75rem;
+  align-items: center;
+}
+
+.mod-tab-decision-selected {
+  color: var(--color-acc);
+  font-weight: 700;
+}
+
+.mod-tab-decision-reason {
+  padding: 1px 6px;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--color-acc) 15%, transparent);
+  color: var(--color-acc);
+  font-size: var(--text-2xs);
+  font-weight: 600;
+}
+
+.mod-tab-decision-excluded {
+  color: var(--text-muted);
+  font-size: 0.7rem;
+}
+
+.mod-tab-decision-focus {
+  margin-top: 6px;
+  font-size: 0.75rem;
+}
+
+.mod-tab-candidates-flex {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+/* Static base for CandidateCard — dynamic background/border/fontWeight stay inline */
+.mod-tab-candidate-card {
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 0.72rem;
+}
+
+.mod-tab-candidate-meta {
+  font-size: var(--text-2xs);
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.mod-tab-candidate-qbaf {
+  margin-left: 6px;
+  cursor: default;
+  border-bottom: 1px dotted var(--text-muted);
+}
+
+.mod-tab-candidate-no-qbaf {
+  margin-left: 6px;
+  font-style: italic;
+  cursor: default;
+}
+
+.mod-tab-debate-state-conv {
+  font-size: 0.72rem;
+  margin-bottom: 4px;
+}
+
+.mod-tab-tooltip-trigger {
+  cursor: default;
+  border-bottom: 1px dotted var(--text-muted);
+}
+
+.mod-tab-conv-triggered {
+  color: var(--success);
+  margin-left: 6px;
+  font-weight: 700;
+}
+
+.mod-tab-commitment-list {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  font-size: 0.7rem;
+}
+
+.mod-tab-commitment-entry {
+  padding: 4px 8px;
+  border-radius: 4px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+}
+
+.mod-tab-commitment-name {
+  font-weight: 600;
+  margin-bottom: 2px;
+}
+
+.mod-tab-commitment-stats {
+  display: flex;
+  gap: 8px;
+  font-size: var(--text-2xs);
+  color: var(--text-muted);
+}
+
+.mod-tab-metrics-row {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  font-size: 0.72rem;
+  margin-bottom: 6px;
+}
+
+/* Static base for health score value — dynamic color stays inline */
+.mod-tab-health-value {
+  font-weight: 700;
+}
+
+.mod-tab-health-chip {
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  cursor: default;
+}
+
+.mod-tab-health-components-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: var(--text-2xs);
+  margin-bottom: 6px;
+}
+
+.mod-tab-burden-row {
+  font-size: var(--text-2xs);
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+
+/* Static base for InterventionBox — dynamic background/border stay inline */
+.mod-tab-intervention-box {
+  margin-top: 4px;
+  padding: 6px 8px;
+  border-radius: 4px;
+}
+
+/* Static base for intervention title — dynamic color stays inline */
+.mod-tab-intervention-title {
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.mod-tab-intervention-inner {
+  font-size: var(--text-2xs);
+  margin-top: 4px;
+}
+
+.mod-tab-suppression-reason {
+  font-size: 0.7rem;
+  color: var(--warning);
+  margin-top: 3px;
+}
+
+.mod-tab-suppression-tooltip {
+  cursor: default;
+  border-bottom: 1px dotted var(--warning);
+}
+
+.mod-tab-trigger-evidence {
+  font-size: var(--text-2xs);
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.mod-tab-prompt-details {
+  margin-bottom: 4px;
+}
+
+.mod-tab-prompt-summary {
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.72rem;
+  color: var(--text-primary);
+  padding: 3px 0;
+}
+
+.mod-tab-prompt-char-count {
+  margin-left: 6px;
+  font-size: var(--text-2xs);
+  color: var(--text-muted);
+  font-weight: 400;
+}
+
+.mod-tab-prompt-pre {
+  font-size: var(--text-2xs);
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 300px;
+  overflow: auto;
+  margin: 4px 0 8px;
+  padding: 6px 8px;
+  background: var(--bg-primary);
+  border-radius: 4px;
+  border: 1px solid var(--border);
+}
+
+.mod-tab-response-pre {
+  font-size: 0.7rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 200px;
+  overflow: auto;
+  margin: 0;
+  padding: 6px 8px;
+  background: var(--bg-primary);
+  border-radius: 4px;
+  border: 1px solid var(--border);
+}

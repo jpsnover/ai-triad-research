@@ -1,0 +1,96 @@
+/* Copyright (c) 2026 Jeffrey Snover. All rights reserved. */
+/* EdgesUsed — co-located styles (prefix: eu-) */
+
+.eu-edge-type-label {
+  color: var(--text-muted);
+  font-size: var(--text-2xs);
+  text-transform: uppercase;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+}
+
+.eu-edge-descriptions {
+  display: flex;
+  gap: 8px;
+  margin: 10px 0;
+}
+
+.eu-edge-desc-box {
+  flex: 1;
+  padding: 8px 10px;
+  background: var(--bg-secondary);
+  border-radius: 6px;
+  border: 1px solid var(--border);
+}
+
+.eu-edge-desc-heading {
+  font-size: var(--text-2xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+  letter-spacing: 0.04em;
+}
+
+.eu-edge-desc-content {
+  font-size: 0.75rem;
+  line-height: 1.5;
+}
+
+.eu-edge-status-approved {
+  color: var(--success);
+  font-weight: 600;
+  font-size: 0.75rem;
+}
+
+.eu-detail-root {
+  font-size: 0.78rem;
+}
+
+.eu-detail-rationale {
+  font-size: 0.78rem;
+  line-height: 1.55;
+}
+
+.eu-detail-confidence-row {
+  display: flex;
+  gap: 24px;
+  align-items: center;
+  margin: 10px 0;
+  font-size: 0.78rem;
+}
+
+.eu-detail-notes-section {
+  margin-top: 10px;
+}
+
+.eu-detail-notes-content {
+  font-size: 0.75rem;
+}
+
+.eu-grouped-root {
+  display: flex;
+  gap: 8px;
+  min-height: 200px;
+}
+
+.eu-grouped-left {
+  flex: 1 1 45%;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.eu-grouped-right {
+  flex: 1 1 55%;
+  max-height: 400px;
+  overflow-y: auto;
+  border-left: 1px solid var(--border);
+  padding-left: 10px;
+}
+
+.eu-grouped-empty {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  padding: 20px 8px;
+  text-align: center;
+}

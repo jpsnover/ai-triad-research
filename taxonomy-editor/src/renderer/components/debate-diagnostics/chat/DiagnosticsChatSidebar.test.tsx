@@ -337,14 +337,14 @@ describe('DiagnosticsChatSidebar', () => {
   describe('resize handle (drag-to-resize)', () => {
     it('renders a drag handle with col-resize cursor when the sidebar is open', () => {
       render(<DiagnosticsChatSidebar {...defaultProps} embedded />);
-      // The resize handle is the only element with an inline col-resize cursor.
-      const handle = document.querySelector('[style*="col-resize"]') as HTMLElement | null;
+      // The resize handle is identified by its CSS class (cursor is defined in DiagnosticsChatSidebar.css).
+      const handle = document.querySelector('.diag-chat-resize-handle') as HTMLElement | null;
       expect(handle).not.toBeNull();
     });
 
     it('sets body cursor to col-resize on drag start and restores it on mouseup', () => {
       render(<DiagnosticsChatSidebar {...defaultProps} embedded />);
-      const handle = document.querySelector('[style*="col-resize"]') as HTMLElement;
+      const handle = document.querySelector('.diag-chat-resize-handle') as HTMLElement;
 
       fireEvent.mouseDown(handle, { clientX: 500 });
       expect(document.body.style.cursor).toBe('col-resize');
@@ -355,7 +355,7 @@ describe('DiagnosticsChatSidebar', () => {
 
     it('disables text selection on drag start and restores it on mouseup', () => {
       render(<DiagnosticsChatSidebar {...defaultProps} embedded />);
-      const handle = document.querySelector('[style*="col-resize"]') as HTMLElement;
+      const handle = document.querySelector('.diag-chat-resize-handle') as HTMLElement;
 
       fireEvent.mouseDown(handle, { clientX: 500 });
       expect(document.body.style.userSelect).toBe('none');
@@ -366,7 +366,7 @@ describe('DiagnosticsChatSidebar', () => {
 
     it('clamps width to the minimum (240 px) when dragging far right', () => {
       render(<DiagnosticsChatSidebar {...defaultProps} embedded />);
-      const handle = document.querySelector('[style*="col-resize"]') as HTMLElement;
+      const handle = document.querySelector('.diag-chat-resize-handle') as HTMLElement;
 
       // dragStartX = 100, width = 360 initially.
       // Moving to clientX = 700 → delta = 100 - 700 = -600 → width = 360 - 600 = -240 → clamped to 240.
@@ -379,7 +379,7 @@ describe('DiagnosticsChatSidebar', () => {
 
     it('clamps width to the maximum (800 px) when dragging far left', () => {
       render(<DiagnosticsChatSidebar {...defaultProps} embedded />);
-      const handle = document.querySelector('[style*="col-resize"]') as HTMLElement;
+      const handle = document.querySelector('.diag-chat-resize-handle') as HTMLElement;
 
       // dragStartX = 900, width = 360 initially.
       // Moving to clientX = 100 → delta = 900 - 100 = 800 → width = 360 + 800 = 1160 → clamped to 800.

@@ -13,6 +13,7 @@ import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { remarkColorizePov } from '../../../utils/colorizePovPlugin';
+import './DiagnosticsChatSidebar.css';
 
 export interface NavigateCommand {
   entry?: string;
@@ -592,14 +593,7 @@ function CollapsedToggleButton({ onOpen }: { onOpen: () => void }) {
     <button
       onClick={onOpen}
       title="Open Debate Chat (Ctrl+Shift+D)"
-      style={{
-        position: 'fixed', right: 12, bottom: 12, zIndex: 1000,
-        width: 44, height: 44, borderRadius: '50%',
-        background: 'var(--warning)', border: 'none', cursor: 'pointer',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
-        fontSize: '1.2rem', color: '#000',
-      }}
+      className="diag-chat-toggle-btn"
     >
       ?
     </button>
@@ -613,32 +607,24 @@ function ChatHeader({ model, hasMessages, onClear, onClose }: {
   onClose: () => void;
 }) {
   return (
-    <div style={{
-      display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px',
-      borderBottom: '1px solid var(--border)', background: 'var(--bg-secondary)',
-    }}>
-      <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--warning)' }}>
+    <div className="diag-chat-header">
+      <span className="diag-chat-header-title">
         Debate Chat
       </span>
-      <span style={{
-        fontSize: 'var(--text-2xs)', color: 'var(--text-muted)',
-        padding: '1px 6px', borderRadius: 4,
-        background: 'rgba(255,255,255,0.06)', border: '1px solid var(--border)',
-        flex: 1,
-      }}>
+      <span className="diag-chat-header-model">
         {model}
       </span>
       {hasMessages && (
         <button
           onClick={onClear}
           title="Clear chat (Ctrl+L)"
-          style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '0.7rem' }}
+          className="diag-chat-header-clear"
         >Clear</button>
       )}
       <button
         onClick={onClose}
         title="Close chat (Esc)"
-        style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '0.85rem', lineHeight: 1 }}
+        className="diag-chat-header-close"
       >&times;</button>
     </div>
   );
@@ -646,18 +632,18 @@ function ChatHeader({ model, hasMessages, onClear, onClose }: {
 
 function ChatEmptyState({ isWeb }: { isWeb: boolean }) {
   return isWeb ? (
-    <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem', padding: '24px 12px', textAlign: 'center' }}>
+    <div className="diag-chat-empty-web">
       Debate Chat is available in the desktop app.
       <br /><br />
-      <span style={{ fontSize: 'var(--text-2xs)' }}>
+      <span className="diag-chat-empty-note">
         AI-powered chat requires direct API access which is not supported in the web viewer.
       </span>
     </div>
   ) : (
-    <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem', padding: '12px 0', textAlign: 'center' }}>
+    <div className="diag-chat-empty">
       Ask questions about the debate.
       <br /><br />
-      <span style={{ fontSize: 'var(--text-2xs)' }}>
+      <span className="diag-chat-empty-note">
         Try: "Show me the brief for S21"
         <br />"Which debater conceded the most?"
         <br />"What's the strongest attack chain?"
@@ -670,10 +656,8 @@ function ChatEmptyState({ isWeb }: { isWeb: boolean }) {
 
 function NavFooter({ navigation, onNavigate }: { navigation: NavigateCommand; onNavigate: (cmd: NavigateCommand) => void }) {
   return (
-    <div style={{
-      marginTop: 4, paddingTop: 4, borderTop: '1px solid var(--border)',
-      fontSize: 'var(--text-2xs)', color: 'var(--warning)', cursor: 'pointer',
-    }}
+    <div
+      className="diag-chat-nav-footer"
       onClick={() => onNavigate(navigation)}
     >
       Navigated to {navigation.entry ?? 'overview'}{navigation.tab ? ` → ${navigation.tab}` : ''}{navigation.overviewTab ? ` → ${navigation.overviewTab}` : ''}
@@ -684,21 +668,12 @@ function NavFooter({ navigation, onNavigate }: { navigation: NavigateCommand; on
 function SuggestionsBar({ suggestions, onSuggestionClick }: { suggestions: string[]; onSuggestionClick: (s: string) => void }) {
   if (!suggestions.length) return null;
   return (
-    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, padding: '4px 0' }}>
+    <div className="diag-chat-suggestions">
       {suggestions.map((s, i) => (
         <button
           key={i}
           onClick={() => onSuggestionClick(s)}
-          style={{
-            padding: '3px 8px', borderRadius: 12,
-            fontSize: 'var(--text-2xs)', cursor: 'pointer',
-            background: 'color-mix(in srgb, var(--warning) 8%, transparent)',
-            color: 'var(--warning)',
-            border: '1px solid color-mix(in srgb, var(--warning) 20%, transparent)',
-            transition: 'background 0.15s',
-          }}
-          onMouseEnter={e => (e.currentTarget.style.background = 'color-mix(in srgb, var(--warning) 18%, transparent)')}
-          onMouseLeave={e => (e.currentTarget.style.background = 'color-mix(in srgb, var(--warning) 8%, transparent)')}
+          className="diag-chat-suggestion-btn"
         >
           {s}
         </button>
@@ -721,10 +696,7 @@ function ChatScrollArea({
   messagesEndRef: React.RefObject<HTMLDivElement | null>;
 }) {
   return (
-    <div style={{
-      flex: 1, overflowY: 'auto', padding: '8px 12px',
-      display: 'flex', flexDirection: 'column', gap: 8,
-    }}>
+    <div className="diag-chat-scroll-area">
       {messages.length === 0 && !generating && (
         <ChatEmptyState isWeb={isWeb} />
       )}
@@ -738,7 +710,7 @@ function ChatScrollArea({
             footer={msg.navigation ? <NavFooter navigation={msg.navigation} onNavigate={onNavigate} /> : undefined}
           >
             {msg.isError || msg.role !== 'assistant' ? (
-              <div style={{ whiteSpace: 'pre-wrap' }}>{displayContent}</div>
+              <div className="diag-chat-pre-wrap">{displayContent}</div>
             ) : (
               <div className="diag-chat-markdown">
                 <Markdown remarkPlugins={[remarkGfm, remarkColorizePov]}>{displayContent}</Markdown>
@@ -776,11 +748,8 @@ function ChatInputBar({
   onSend: () => void;
 }) {
   return (
-    <div style={{
-      padding: '8px 12px', borderTop: '1px solid var(--border)',
-      background: 'var(--bg-secondary)',
-    }}>
-      <div style={{ display: 'flex', gap: 6 }}>
+    <div className="diag-chat-input-bar">
+      <div className="diag-chat-input-row">
         <textarea
           ref={inputRef}
           value={input}
@@ -789,33 +758,21 @@ function ChatInputBar({
           placeholder={isWeb ? 'Chat available in desktop app' : debate ? 'Ask about the debate... (/ for commands)' : 'Waiting for debate data...'}
           disabled={isWeb || !debate || generating}
           rows={2}
-          style={{
-            flex: 1, resize: 'none',
-            padding: '6px 8px', borderRadius: 6,
-            fontSize: '0.75rem',
-            background: 'var(--bg-primary)',
-            color: 'var(--text-primary)',
-            border: '1px solid var(--border)',
-            outline: 'none',
-            fontFamily: 'inherit',
-          }}
+          className="diag-chat-textarea"
         />
+        {/* eslint-disable-next-line local/no-inline-style -- can-send state drives background, color, and cursor */}
         <button
           onClick={onSend}
           disabled={isWeb || !input.trim() || !debate || generating}
+          className="diag-chat-send-btn"
           style={{
-            padding: '0 12px', borderRadius: 6,
             background: canSend ? 'var(--warning)' : 'var(--bg-tertiary)',
             color: canSend ? '#000' : 'var(--text-muted)',
-            border: 'none', cursor: canSend ? 'pointer' : 'not-allowed',
-            fontWeight: 600, fontSize: '0.75rem',
+            cursor: canSend ? 'pointer' : 'not-allowed',
           }}
         >Send</button>
       </div>
-      <div style={{
-        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-        fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', marginTop: 4,
-      }}>
+      <div className="diag-chat-footer-bar">
         <span>~{contextTokens.toLocaleString()} tokens in context</span>
         <span>Enter send | Ctrl+L clear</span>
       </div>
@@ -1168,10 +1125,7 @@ export function DiagnosticsChatSidebar({ debate, selectedEntry, currentTab, onNa
   const handleHeaderClose = () => { if (embedded && onClose) onClose(); else setOpen(false); };
 
   const chatContent = (
-    <div className="diag-chat-sidebar" style={{
-      width: '100%', height: '100%', display: 'flex', flexDirection: 'column',
-      background: 'var(--bg-primary, var(--bg-secondary))',
-    }}>
+    <div className="diag-chat-sidebar">
       {/* Header */}
       <ChatHeader
         model={getModel()}
@@ -1217,20 +1171,13 @@ export function DiagnosticsChatSidebar({ debate, selectedEntry, currentTab, onNa
   }
 
   return (
-    <div style={{
-      width, display: 'flex', flexShrink: 0, position: 'relative',
-    }}>
+    // eslint-disable-next-line local/no-inline-style -- drag-state drives width
+    <div className="diag-chat-outer" style={{ width }}>
       <div
         onMouseDown={onResizeStart}
-        style={{
-          width: 5, cursor: 'col-resize', flexShrink: 0,
-          background: 'var(--border)',
-          transition: 'background 0.15s',
-        }}
-        onMouseEnter={e => (e.currentTarget.style.background = 'var(--warning)')}
-        onMouseLeave={e => { if (!dragging.current) e.currentTarget.style.background = 'var(--border)'; }}
+        className="diag-chat-resize-handle"
       />
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+      <div className="diag-chat-inner">
         {chatContent}
       </div>
     </div>
