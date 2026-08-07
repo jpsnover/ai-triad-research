@@ -275,24 +275,35 @@ async function persistDebateToServer(activeDebate: DebateSession, saveDiag: Save
 }
 
 /**
- * Classify a save failure and build the user-facing error state (t/1639). Distinguishes
- * a DURABLE-SAVE LOSS (debateIO/t/1638 total-loss: rename + copy both failed, a .tmp
- * recovery copy was preserved) from an ordinary save error. Electron IPC strips the
- * enriched ActionableError's structured fields, but its composed `.message` survives
- * with stable markers; the at-risk count is recomputed locally from the transcript
- * using debateIO's exact filter rather than string-scraped.
+ * Classify a save failure and build the user-facing error state (t/1639, t/2231).
+ * Distinguishes two durable-save-loss classes:
+ *   1. HTTP 401/402/403 — auth or quota failure; the server rejected the write
+ *      permanently until the user fixes their credentials or account.
+ *   2. Disk total-loss (debateIO/t/1638) — rename + copy both failed, a .tmp
+ *      recovery copy was preserved. Electron IPC strips the enriched
+ *      ActionableError's structured fields, but the composed `.message` survives
+ *      with stable markers.
+ * The at-risk count is recomputed locally from the transcript (not string-scraped).
  */
 function computeSaveErrorState(err: unknown, activeDebate: DebateSession): { isDurableSaveLoss: boolean; atRiskTurns: number; debateError: string } {
   const rawMessage = String((err as Error)?.message ?? '');
-  const isDurableSaveLoss =
+  const httpStatus = (err as { httpStatus?: number }).httpStatus;
+  const isAuthQuotaFailure = httpStatus === 401 || httpStatus === 402 || httpStatus === 403;
+  const isDiskLoss =
     rawMessage.includes('taxonomy-editor/src/main/debateIO.ts saveDebateSession') &&
     (rawMessage.includes('only durable copy') || rawMessage.includes('at risk of being lost'));
+  const isDurableSaveLoss = isAuthQuotaFailure || isDiskLoss;
   const atRiskTurns = activeDebate.transcript.filter(
     (t) => t.type === 'statement' || t.type === 'opening',
   ).length;
-  const debateError = isDurableSaveLoss
-    ? `Save failed: this debate couldn't be written to disk — a file lock (often antivirus or a file indexer) is holding the file. ${atRiskTurns} ${atRiskTurns === 1 ? 'turn is' : 'turns are'} at risk. A recovery copy was preserved on disk; retry the save once the lock clears, and don't close the app before it succeeds.`
-    : mapErrorToUserMessage(err);
+  let debateError: string;
+  if (isAuthQuotaFailure) {
+    debateError = `Save failed: the server rejected this save (HTTP ${httpStatus}). ${atRiskTurns} ${atRiskTurns === 1 ? 'turn is' : 'turns are'} at risk of being lost. Check your API key and account status in Settings.`;
+  } else if (isDiskLoss) {
+    debateError = `Save failed: this debate couldn't be written to disk — a file lock (often antivirus or a file indexer) is holding the file. ${atRiskTurns} ${atRiskTurns === 1 ? 'turn is' : 'turns are'} at risk. A recovery copy was preserved on disk; retry the save once the lock clears, and don't close the app before it succeeds.`;
+  } else {
+    debateError = mapErrorToUserMessage(err);
+  }
   return { isDurableSaveLoss, atRiskTurns, debateError };
 }
 
