@@ -1,0 +1,25 @@
+/* DiagnosticsChatSidebar — co-located styles (prefix: dchat-) */
+
+.dchat-error-bubble {
+  align-self: flex-start;
+  max-width: 90%;
+  padding: 6px 10px;
+  border-radius: 8px;
+  font-size: 0.75rem;
+  line-height: 1.4;
+  background: color-mix(in srgb, var(--danger, #ef4444) 12%, transparent);
+  color: var(--text-primary, var(--border-color));
+  border: 1px solid color-mix(in srgb, var(--danger, #ef4444) 30%, transparent);
+  user-select: text;
+  cursor: text;
+}
+
+.dchat-error-label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--danger, #ef4444);
+  margin-bottom: 3px;
+}
