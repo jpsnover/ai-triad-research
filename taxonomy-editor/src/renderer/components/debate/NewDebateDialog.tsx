@@ -19,6 +19,7 @@ import { loadProvisionalWeights } from '@lib/debate/phaseTransitions';
 import { resolveMultiProviderModels } from '@lib/ai-client/modelRouter';
 import { useTierInfo, isFreeTier, type TierInfo } from '../../hooks/useTierInfo';
 import { useGeminiOnboarding } from '../../hooks/useGeminiOnboarding';
+import { useAuthStatus } from '../../hooks/useAuthStatus';
 import { GeminiOnboardingModal } from '../settings/GeminiOnboardingModal';
 import { buildDebateOptions } from './newDebateOptions';
 
@@ -959,6 +960,8 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
   const [availableBackends, setAvailableBackends] = useState<Set<string>>(new Set());
   const { tier: tierInfo } = useTierInfo();
   const freeTier = isFreeTier(tierInfo);
+  const auth = useAuthStatus();
+  const isAnonymous = auth?.anonymous === true;
   const { modalProps: geminiModalProps, checkAndShow: checkGeminiOnboarding } = useGeminiOnboarding();
 
   // Queue (overflow menu)
@@ -1125,6 +1128,10 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
 
   const handleStart = async () => {
     if (!canStart || creating) return;
+    if (isAnonymous && activeAdder === 'source' && sourceType === 'url') {
+      setStartError('Sign in to use URL sources.');
+      return;
+    }
     await checkGeminiOnboarding({ freeTier });
     setCreating(true);
     setStartError(null);
@@ -1239,11 +1246,21 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
                   <button
                     type="button"
                     className={`ndd-source-tab${sourceType === 'url' ? ' active' : ''}`}
-                    onClick={() => setSourceType('url')}
+                    onClick={() => !isAnonymous && setSourceType('url')}
+                    disabled={isAnonymous}
+                    title={isAnonymous ? 'Sign in to use URL sources' : undefined}
                   >
                     URL
                   </button>
                 </div>
+                {isAnonymous && (
+                  <p className="ndd-warning-text">
+                    URL fetching requires sign-in.{' '}
+                    <a href="/api/auth/fresh-login/github">Sign in with GitHub</a>
+                    {' or '}
+                    <a href="/api/auth/fresh-login/google">Google</a>.
+                  </p>
+                )}
                 {sourceType === 'document' && (
                   <div className="ndd-file-pick-row">
                     <button type="button" className="btn btn-sm" onClick={handlePickFile}>Pick file…</button>
@@ -1361,7 +1378,7 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
               <button
                 type="button"
                 className="ndd-adder-btn"
-                onClick={() => { setSourceType('url'); setActiveAdder('source'); }}
+                onClick={() => { setSourceType(isAnonymous ? 'document' : 'url'); setActiveAdder('source'); }}
               >
                 + Use a document or URL
               </button>
