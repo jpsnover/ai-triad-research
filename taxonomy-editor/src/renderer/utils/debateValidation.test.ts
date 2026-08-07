@@ -156,27 +156,26 @@ describe('validateTurn — judge fallback (gap 11.5)', () => {
   });
 });
 
-// ── Gap 11.6: Pipeline aborts on Brief/Plan parse failure ──
+// ── Gap 11.6: Pipeline degrades on Brief/Plan parse exhaustion (t/2229) ──
 
-describe('runTurnPipeline — early abort (gap 11.6)', () => {
-  it('throws when brief stage returns unparseable response', async () => {
+describe('runTurnPipeline — graceful degradation on parse exhaustion (gap 11.6)', () => {
+  it('degrades (not throws) when brief stage returns unparseable response after retries', async () => {
     const generate = async () => 'NOT JSON';
-    await expect(
-      runTurnPipeline(
-        {
-          label: 'test', pov: 'safetyist', personality: 'test', topic: 'test',
-          taxonomyContext: '', commitmentContext: '', establishedPoints: '',
-          edgeContext: '', concessionHint: '', recentTranscript: '',
-          focusPoint: '', addressing: 'all', phase: 'argumentation',
-          priorMoves: [], priorRefs: [], availablePovNodeIds: [],
-          model: 'test-model',
-        },
-        generate,
-      ),
-    ).rejects.toThrow('Brief stage failed to parse');
+    const result = await runTurnPipeline(
+      {
+        label: 'test', pov: 'safetyist', personality: 'test', topic: 'test',
+        taxonomyContext: '', commitmentContext: '', establishedPoints: '',
+        edgeContext: '', concessionHint: '', recentTranscript: '',
+        focusPoint: '', addressing: 'all', phase: 'argumentation',
+        priorMoves: [], priorRefs: [], availablePovNodeIds: [],
+        model: 'test-model',
+      },
+      generate,
+    );
+    expect(result.degraded_turn).toBe(true);
   });
 
-  it('throws when plan stage returns unparseable response', async () => {
+  it('degrades (not throws) when plan stage returns unparseable response after retries', async () => {
     let callCount = 0;
     const generate = async () => {
       callCount++;
@@ -194,19 +193,18 @@ describe('runTurnPipeline — early abort (gap 11.6)', () => {
       // Plan fails
       return '<<TRUNCATED';
     };
-    await expect(
-      runTurnPipeline(
-        {
-          label: 'test', pov: 'safetyist', personality: 'test', topic: 'test',
-          taxonomyContext: '', commitmentContext: '', establishedPoints: '',
-          edgeContext: '', concessionHint: '', recentTranscript: '',
-          focusPoint: '', addressing: 'all', phase: 'argumentation',
-          priorMoves: [], priorRefs: [], availablePovNodeIds: [],
-          model: 'test-model',
-        },
-        generate,
-      ),
-    ).rejects.toThrow('Plan stage failed to parse');
+    const result = await runTurnPipeline(
+      {
+        label: 'test', pov: 'safetyist', personality: 'test', topic: 'test',
+        taxonomyContext: '', commitmentContext: '', establishedPoints: '',
+        edgeContext: '', concessionHint: '', recentTranscript: '',
+        focusPoint: '', addressing: 'all', phase: 'argumentation',
+        priorMoves: [], priorRefs: [], availablePovNodeIds: [],
+        model: 'test-model',
+      },
+      generate,
+    );
+    expect(result.degraded_turn).toBe(true);
   });
 });
 
