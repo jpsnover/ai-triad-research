@@ -45,6 +45,7 @@ All colors are CSS custom properties on `:root` scoped by `data-theme`.
 |---|---|
 | `--bg-primary` | Main content background |
 | `--bg-secondary` | Alternate rows, subtle sections |
+| `--bg-tertiary` | Neutral chip/inset surface, one step past `--bg-secondary` toward `--border-color` (midpoint: light #edf1f6, dark #2b3544, bkc #3b2d3c, harvard #e5e0d8; ~40 sites; defined t/2261, e/70 Finding 3) |
 | `--bg-panel` | Panel backgrounds, dividers |
 | `--bg-input` | Input field backgrounds |
 | `--bg-hover` | Hover states |
