@@ -410,7 +410,7 @@ describe('Brief stage parse-failure retry', () => {
     }) as unknown as StageGenerateFn;
 
     await expect(runTurnPipeline(makeBaseInput(), generate))
-      .rejects.toThrow(/Brief stage failed to parse after 2 attempt/);
+      .rejects.toThrow(/Brief stage failed to parse after 4 attempt/);
   });
 
   it('skips brief retry during outer retry (repairHints present)', async () => {

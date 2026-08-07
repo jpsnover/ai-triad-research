@@ -95,7 +95,7 @@ export async function runOpeningPipeline(
 
   // ── Stage 1: BRIEF (with parse-failure retry and configurable timeout retry) ──
   const isOpeningOuterRetry = (input.repairHints?.length ?? 0) > 0;
-  const MAX_OPENING_RETRIES = isOpeningOuterRetry ? 0 : 1;
+  const MAX_OPENING_RETRIES = isOpeningOuterRetry ? 0 : 3;
   const briefTimeoutMs = input.briefTimeoutMs ?? DEFAULT_BRIEF_TIMEOUT_MS;
   const briefMaxRetries = input.briefMaxRetries ?? DEFAULT_BRIEF_MAX_RETRIES;
   let brief: OpeningBriefWorkProduct | undefined;
@@ -169,34 +169,50 @@ export async function runOpeningPipeline(
     break;
   }
 
-  // ── Stage 2: PLAN ──
-  onProgress?.('plan', `${input.label} is planning...`);
-  const planPromptText = planOpeningStagePrompt(stageInput, briefJson);
-  t0 = Date.now();
-  const planRaw = await generate(
-    planPromptText, oPlanModel, { temperature: temps.plan_temperature }, `${input.label} opening plan`,
-  );
-  elapsed = Date.now() - t0;
-  const planParsed = parseStageResponse<OpeningPlanWorkProduct>(planRaw, 'plan');
-  stageDiags.push({
-    stage: 'plan', prompt: planPromptText, raw_response: planRaw,
-    model: oPlanModel, temperature: temps.plan_temperature,
-    response_time_ms: elapsed, work_product: planParsed.product as unknown as Record<string, unknown>,
-    parse_error: planParsed.error,
-  });
-  if (planParsed.error) {
-    throw new ActionableError({
-      goal: 'Run opening statement pipeline',
-      problem: `Plan stage failed to parse — downstream stages would operate on empty context. ${planParsed.error}`,
-      location: 'turnPipeline.runOpeningPipeline',
-      nextSteps: ['Check the AI model response quality', 'Try a different model'],
+  // ── Stage 2: PLAN (with parse-failure retry, mirrors runTurn.ts plan stage) ──
+  let plan: OpeningPlanWorkProduct | undefined;
+  let planJson = '';
+  for (let planAttempt = 0; planAttempt <= MAX_OPENING_RETRIES; planAttempt++) {
+    onProgress?.('plan', `${input.label} is planning${planAttempt > 0 ? ` (retry ${planAttempt})` : ''}...`);
+    const planPromptText = planOpeningStagePrompt(stageInput, briefJson);
+    t0 = Date.now();
+    const planRaw = await generate(
+      planPromptText, oPlanModel, { temperature: temps.plan_temperature }, `${input.label} opening plan`,
+    );
+    elapsed = Date.now() - t0;
+    const planParsed = parseStageResponse<OpeningPlanWorkProduct>(planRaw, 'plan');
+    stageDiags.push({
+      stage: 'plan', prompt: planPromptText, raw_response: planRaw,
+      model: oPlanModel, temperature: temps.plan_temperature,
+      response_time_ms: elapsed, work_product: planParsed.product as unknown as Record<string, unknown>,
+      parse_error: planParsed.error,
+      retry_trigger: planAttempt > 0 ? 'stage-retry' : 'initial',
     });
+    if (planParsed.error) {
+      if (planAttempt < MAX_OPENING_RETRIES) {
+        getGlobalRecorder()?.record({
+          type: 'turn.repair', component: 'turn-pipeline', level: 'warn',
+          speaker: input.label,
+          message: `Opening PLAN parse failed (attempt ${planAttempt}), retrying`,
+          data: { stage: 'plan', attempt: planAttempt, error: planParsed.error },
+        });
+        console.log(`[pipeline] Opening plan parse failed (attempt ${planAttempt}), retrying: ${planParsed.error}`);
+        continue;
+      }
+      throw new ActionableError({
+        goal: 'Run opening statement pipeline',
+        problem: `Plan stage failed to parse after ${planAttempt + 1} attempt(s) — downstream stages would operate on empty context. ${planParsed.error}`,
+        location: 'turnPipeline.runOpeningPipeline',
+        nextSteps: ['Check the AI model response quality', 'Try a different model'],
+      });
+    }
+    plan = tagProvenance(planParsed.product, {
+      pipeline_run: 0, stage: 'plan', attempt: planAttempt,
+      model: oPlanModel, timestamp: new Date().toISOString(),
+    });
+    planJson = toPromptJson(plan);
+    break;
   }
-  const plan = tagProvenance(planParsed.product, {
-    pipeline_run: 0, stage: 'plan', attempt: 0,
-    model: oPlanModel, timestamp: new Date().toISOString(),
-  });
-  const planJson = toPromptJson(plan);
 
   // ── Stage 3: DRAFT ──
   onProgress?.('draft', `${input.label} is drafting...`);
@@ -290,7 +306,7 @@ export async function runOpeningPipeline(
 
   return {
     brief: brief!,
-    plan,
+    plan: plan!,
     draft,
     cite,
     stage_diagnostics: stageDiags,

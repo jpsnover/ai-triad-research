@@ -47,7 +47,7 @@ export async function runTurnPipeline(
   const stageDiags: StageDiagnostics[] = [];
   const pipelineStart = Date.now();
   const isOuterRetry = (input.repairHints?.length ?? 0) > 0;
-  const MAX_STAGE_RETRIES = isOuterRetry ? 0 : 1;
+  const MAX_STAGE_RETRIES = isOuterRetry ? 0 : 3;
 
   // Per-component char counts for prompt growth forensics (t/221)
   const hintsChars =
@@ -232,9 +232,19 @@ export async function runTurnPipeline(
         output_tokens: planUsage?.outputTokens,
       });
       if (planParsed.error) {
+        if (planAttempt < MAX_STAGE_RETRIES) {
+          getGlobalRecorder()?.record({
+            type: 'turn.repair', component: 'turn-pipeline', level: 'warn',
+            speaker: input.label,
+            message: `PLAN parse failed (attempt ${planAttempt}), retrying`,
+            data: { stage: 'plan', attempt: planAttempt, error: planParsed.error },
+          });
+          console.log(`[pipeline] Plan parse failed (attempt ${planAttempt}), retrying: ${planParsed.error}`);
+          continue;
+        }
         throw new ActionableError({
           goal: 'Run debate turn pipeline',
-          problem: `Plan stage failed to parse — downstream stages would operate on empty context. ${planParsed.error}`,
+          problem: `Plan stage failed to parse after ${planAttempt + 1} attempt(s) — downstream stages would operate on empty context. ${planParsed.error}`,
           location: 'turnPipeline.runPipeline',
           nextSteps: ['Check the AI model response quality', 'Try a different model'],
         });
