@@ -800,6 +800,53 @@ describe('appendCalibrationLog synthetic routing (t/1770)', () => {
   });
 });
 
+describe('appendCalibrationLog isolation: outputDir as calDataRoot (t/2216)', () => {
+  // Regression gate: when an isolated outputDir is used as the cal data root, the log
+  // must land inside it — not in any sibling directory (which is where path.dirname
+  // of a child-of-data-root path would land, contaminating the main cal log).
+
+  it('writes calibration log inside calDataRoot when calDataRoot IS outputDir', () => {
+    const mainDataRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'calib-main-'));
+    const outputDir = path.join(mainDataRoot, 'debates-t2216-scratch');
+    fs.mkdirSync(outputDir, { recursive: true });
+    try {
+      const dp = extractCalibrationData(makeMinimalSession(), 'local');
+      // This mirrors what cli.ts does post-fix: pass outputDir as calDataRoot
+      appendCalibrationLog(dp, outputDir);
+
+      // Log is inside outputDir
+      const isolatedCore = path.join(outputDir, 'calibration', 'core', 'calibration-log.jsonl');
+      expect(fs.existsSync(isolatedCore)).toBe(true);
+
+      // Main data root calibration dir is untouched
+      const mainCore = path.join(mainDataRoot, 'calibration', 'core', 'calibration-log.jsonl');
+      expect(fs.existsSync(mainCore)).toBe(false);
+    } finally {
+      fs.rmSync(mainDataRoot, { recursive: true, force: true });
+    }
+  });
+
+  it('main cal log line count is unchanged when isolated run uses outputDir as calDataRoot', () => {
+    const mainDataRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'calib-linecount-'));
+    const outputDir = path.join(mainDataRoot, 'debates-experiment');
+    fs.mkdirSync(outputDir, { recursive: true });
+    // Seed one real row in the main log
+    const seedDp = extractCalibrationData(makeMinimalSession(), 'local');
+    appendCalibrationLog(seedDp, mainDataRoot);
+    const mainCore = path.join(mainDataRoot, 'calibration', 'core', 'calibration-log.jsonl');
+    const linesBefore = fs.readFileSync(mainCore, 'utf-8').trim().split('\n').filter(Boolean).length;
+    try {
+      // Isolated run — passes outputDir, not mainDataRoot
+      const dp = extractCalibrationData(makeMinimalSession(), 'local');
+      appendCalibrationLog(dp, outputDir);
+      const linesAfter = fs.readFileSync(mainCore, 'utf-8').trim().split('\n').filter(Boolean).length;
+      expect(linesAfter).toBe(linesBefore);
+    } finally {
+      fs.rmSync(mainDataRoot, { recursive: true, force: true });
+    }
+  });
+});
+
 describe('extractCalibrationData source_authority from session.doc_meta (t/1769)', () => {
   // Anti-recurrence gate: before t/1769, source-authority calibration only worked
   // when the caller passed config.docMeta (the in-process engine path). The
