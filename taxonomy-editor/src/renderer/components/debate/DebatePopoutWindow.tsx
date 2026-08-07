@@ -87,7 +87,6 @@ export function DebatePopoutWindow() {
       if (!cancelled) setReady(true);
     }).catch(err => {
       if (!cancelled) {
-        console.error('[DebatePopout] Failed to load taxonomy:', err);
         getGlobalRecorder()?.record({ type: 'state.error', component: 'debatePopout', level: 'warn', message: 'Failed to load taxonomy in popout — non-fatal', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
         setReady(true);
       }
@@ -97,12 +96,9 @@ export function DebatePopoutWindow() {
 
   // Listen for debate ID from main process (Electron) or parse from URL hash (web)
   useEffect(() => {
-    console.log('[DebatePopout] Setting up debate ID listener, hash:', window.location.hash);
-
     // Web mode: parse debate ID from hash query string
     const target = parseDebateHash(window.location.hash);
     if (target) {
-      console.log('[DebatePopout] Web mode — loading debate from hash:', target.id, target.community ? '(community)' : '');
       setLoadTarget(target);
       void runLoad(target.id, target.community);
     }
@@ -111,7 +107,6 @@ export function DebatePopoutWindow() {
     // Also check if the main process already sent the ID before we mounted
     // (can happen with the bootstrap indirection — did-finish-load fires before React mounts)
     const unsub = api.onDebateWindowLoad((debateId: string) => {
-      console.log('[DebatePopout] Received debate-window-load IPC:', debateId);
       setLoadTarget({ id: debateId, community: false });
       void runLoad(debateId, false);
     });
