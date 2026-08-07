@@ -1,27 +1,21 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-import type { SpeakerId, TranscriptEntry, TaxonomyRef } from '../../types/debate';
+import type { TranscriptEntry, TaxonomyRef } from '../../types/debate';
 import { useTaxonomyStore } from '../../hooks/useTaxonomyStore';
-import { resolveSpeaker } from '../shared/SpeakerIdentity';
+import { speakerLabel } from './speakerHelpers';
 import { api } from '@bridge';
 import { nodePovFromId } from '@lib/debate/nodeIdUtils';
 import type { TabId } from '../../types/taxonomy';
 
 // ── Speaker helpers ──────────────────────────────────────
-// Thin delegates to the single speaker resolver (t/2256). resolveSpeaker is the
-// sole reader of the debater label/color lookup — behavior here is preserved for
-// every input these signatures allow (the three POVs plus system/user/document/
-// moderator); resolveSpeaker's additional persona-alias acceptance is unreachable
-// through these narrowed types, so no call site is silently widened.
-
-export function speakerLabel(speaker: SpeakerId | 'system' | 'document' | 'moderator'): string {
-  return resolveSpeaker(speaker).label;
-}
-
-export function speakerColor(speaker: SpeakerId | 'system' | 'document' | 'moderator'): string | undefined {
-  return resolveSpeaker(speaker).color;
-}
+// Defined in ./speakerHelpers (thin delegates to the shared resolveSpeaker, t/2256).
+// Re-exported here so existing callers importing from './utils' are unaffected; the
+// separate module keeps them out of reach of sibling test files that vi.mock('./utils').
+// Use the direct `export ... from` form: an `import { speakerColor }` that is only
+// re-exported (never called locally) gets elided under isolatedModules, which left
+// utils.speakerColor undefined (t/2256). speakerLabel is imported above for local use.
+export { speakerLabel, speakerColor } from './speakerHelpers';
 
 // ── Policy action lookup ──────────────────────────────────
 

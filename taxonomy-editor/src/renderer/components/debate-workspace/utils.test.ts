@@ -2,17 +2,15 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { describe, it, expect, vi } from 'vitest';
-
-// Pin the REAL './utils'. Several sibling test files in this directory call
-// vi.mock('./utils', () => ({ speakerLabel: capitalize, ... })). Under CI worker
-// parallelism that per-file mock can mutate the shared module namespace *between*
-// two assertions in this file — the t/2256 flake had speakerLabel('user') resolve
-// real ('You') but speakerLabel('unknown') resolve to a leaked capitalizer
-// ('Unknown'). importActual bypasses the mock registry, so these tests always
-// exercise the real implementations regardless of sibling scheduling.
-const {
-  speakerLabel,
-  speakerColor,
+// speakerLabel/speakerColor are imported from './speakerHelpers', NOT './utils'.
+// Many sibling test files in this directory call vi.mock('./utils', () => ({
+// speakerLabel: capitalize, ... })); under CI's threads pool that mock can bleed
+// into the shared './utils' namespace mid-run and flaked these assertions (t/2256 —
+// speakerLabel('user')→'You' passed while speakerLabel('unknown')→'Unknown' failed
+// in the same file). './speakerHelpers' is never mocked, so importing the helpers
+// from their own module is immune; './utils' re-exports them for production callers.
+import { speakerLabel, speakerColor } from './speakerHelpers';
+import {
   STRENGTH_BAND,
   pctFmt,
   groundingLabel,
@@ -20,7 +18,7 @@ const {
   stripLeadingHeadings,
   fixMarkdownLinks,
   nodeIdToTab,
-} = await vi.importActual<typeof import('./utils')>('./utils');
+} from './utils';
 
 // ── Mocks ────────────────────────────────────────────────────
 
