@@ -371,8 +371,12 @@ export const api: AppAPI = {
   onBriefRetriesExhausted: (cb) => window.electronAPI.onBriefRetriesExhausted(cb),
   captureScreenshot: (opts) => window.electronAPI.captureScreenshot(opts),
 
-  // Feature flags — single-user desktop, no server flags
-  getFlags: () => Promise.resolve({}),
+  // Feature flags — desktop has no server. Source DEBATE_CHAT_REDESIGN from a
+  // build-time env var (VITE_DEBATE_CHAT_REDESIGN) for local testing; default
+  // false → existing UX intact. (t/2235)
+  getFlags: () => Promise.resolve({
+    DEBATE_CHAT_REDESIGN: import.meta.env.VITE_DEBATE_CHAT_REDESIGN === 'true',
+  }),
 
   // UsageID registry — stub (desktop has no server-side usage registry)
   getUsageRegistry: () => Promise.resolve({}),
