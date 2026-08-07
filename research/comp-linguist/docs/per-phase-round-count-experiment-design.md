@@ -3,7 +3,7 @@
 **Ticket:** t/2192
 **Author:** Computational Linguist (CL.Investigate1)
 **Date:** 2026-08-06
-**Status:** Design — pilot-gated; full run pending owner budget GO and harness prerequisite (D1)
+**Status:** Design RE-VALIDATED (pilot re-run passed, 2026-08-07 — see §9b). §2 fencepost sweep is GO as written. Launch gated on two remaining preconditions: t/2219 (cal-log engine-path isolation) landing + owner budget GO.
 
 ## Goal
 
@@ -316,6 +316,56 @@ phases should exit on saturation/convergence/caps rather than the escalation lad
 re-run the §5 pilot to confirm caps/signals bind; (3) if they do, proceed with the §2 per-phase-max
 sweep; only if caps *still* don't dominate length do we repurpose the factors to the confidence
 floor/escalation + `maxTotalRounds`. Do not rewrite §2 until the pilot re-run says so.
+
+## 9b. Pilot RE-RUN (2026-08-07) — DESIGN RE-VALIDATED; §9a verdict REVERSED
+
+t/2208 landed and fixed the `extraction_conf`-pinned-0.200 wiring bug that §9a root-caused. The §5
+pilot was re-run on the post-t/2208 build (6/6 clean, T3 topic, isolated `outputDir`). **All three §5
+gates pass, deterministically** — full table on t/2192#8:
+
+| gate | result |
+|---|---|
+| (a) per-phase cap controls phase length | **PASS.** arg1 group → **2** argumentation rounds (all 3), arg4 group → **8** (all 3). Binds exactly as `cap × activePovsCount` (s=2): argMax 1→2, 4→8. This is the precise reversal of §9a, where argMax 1 and 4 both ran ~6 rounds under confidence-domination. |
+| (b) metrics non-null | **PASS.** `convergence_score_at_termination`, `crux_addressed_ratio`, `termination_reason` all 6/6 non-null. (`censoring_rate` is a cross-run computation, not a per-row field.) |
+| (c) `maxTotalRounds:18` does not bind | **PASS.** 0/6 terminated `max_iterations` — all 6 hit `situation_cap` before the 18-turn budget (arg1 total 8 turns, arg4 total 14). |
+
+Per §9a's own sequence step 3 ("if caps bind, proceed with the §2 per-phase-max sweep"), the
+condition is met: **the confidence gate no longer pre-empts the cap check, phases exit on the
+per-phase cap, and §2 is viable as written.** §9a's "DESIGN INVALIDATED" verdict is superseded. No
+rewrite of §2 is needed. The 6 pilot runs bank toward the argumentation fencepost cells (arg1/arg4 at
+n=3 each; screening wants n=6).
+
+**Cell-definition note carried into §2 (already consistent with §0.1 + the §2 table header):** phase
+length = `cap × activePovsCount`. The primary sweep pins POV=2 (§3), so all T1/T2/T3 cells share s=2
+and remain cross-comparable; "argumentation max = 4" means an 8-round phase throughout. The ×s
+scaling only becomes a comparability hazard for the **deferred** POV-count factor (§7) — not the
+primary sweep.
+
+**Harness blocker — §9a issue #1 is NOT fixed, re-filed as t/2219 (replaces the old note).** §9a said
+`outputDir` doesn't isolate the cal log; t/2216/PR #518 was meant to fix that but fixed **only the CLI
+writer** (`cli.ts:631`). The **debate engine writes a second cal-log row** (`debateEngine.ts:662`)
+using the resolved main `dataRoot`, ignoring `outputDir`. So each isolated pilot run wrote its row
+twice — once isolated (CLI, correct), once to the main log (engine, leak); all 6 leaked and were
+scrubbed by debate_id (backed up, 0 residual). **t/2219 (DebateTool, high) must land before the §2
+sweep** — otherwise every one of the 40–180 Phase-A/B/C cells silently contaminates the main CL metric
+windows and needs a manual scrub. This supersedes §9's "harness prerequisite (D1)" as the active
+blocker (D1 itself landed at `398f3b0`, confirmed by the re-run's clean override plumbing).
+
+**§2 go/no-go (CL.Investigate1, 2026-08-07): GO on the design. Launch of Phase A gated on two
+preconditions — (1) t/2219 landed + regression-tested (AC1–3), and (2) owner budget GO per §9
+(Phase A is 40–180 data-dependent runs at thorough-scale, many hours of wall-clock).** Neither is a
+design defect; both are execution gates. Do not launch a single Phase-A cell until both clear.
+
+**Precondition status (2026-08-07):**
+- **(1) CLEARED — t/2219 landed (PR #531, CI green).** Engine now calls `appendCalibrationLog` with
+  `config.calibrationDataRoot` when set; `cli.ts` wires it from `outputDir`. **Empirical isolation
+  check is folded into the first Phase-A cell** (not paid as a separate run): capture the main
+  cal-log line count (`core/` + `users/local/`) immediately before and after cell 1; if it moves, the
+  batch halts and the leak is re-filed before any further cell. Justified by the t/2216→t/2219
+  incomplete-fix precedent — trust the land, but verify isolation once, cheaply, on live data.
+- **(2) PENDING — owner budget GO requested.** Ask scoped to **Phase A only** (~30 runs beyond the 6
+  banked pilot runs); Phases B/C escalate only if screening shows a phase is sensitive, and I report
+  back at each phase boundary before spending B/C compute. Least-commitment, most-informative ask.
 
 ## 10. Cross-references
 
