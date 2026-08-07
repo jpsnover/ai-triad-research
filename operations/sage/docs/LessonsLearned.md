@@ -3022,3 +3022,24 @@ Institutional memory for failure patterns across the AI Triad Research project.
 **Status:** Active — 1 instance (Rosetta Stone p/6#47). Single occurrence; recorded because bare-stash-in-shared-tree is a recurring pattern setup.
 
 **Applies To:** All agents working in the shared main checkout alongside concurrent uncommitted changes from other agents.
+
+---
+
+## #148 [Build] Bash Double-Quoting Does Not Prevent `$(...)` / `%` Expansion in Filenames — Use PowerShell `Remove-Item` on win32
+
+**Pattern:** On Windows MSYS bash, filenames containing `$(`, `)`, or `%` characters expand inside double-quoted strings — `rm "file$(expr)"` triggers command substitution for `expr` before `rm` runs. The filename is never passed literally; bash evaluates the special chars regardless of double quotes. Result: the wrong path is removed, or the command errors with an unexpected substitution.
+
+**Instances:**
+- 2026-08-06 — DebateUI (p/83#6): `rm` on filenames containing `$(`, `)`, `%` — bash expanded them despite double-quoting. Fix: PowerShell `Remove-Item` with a literal string array, which treats all characters as literal with no shell expansion.
+
+**Root Cause:** In bash, double quotes suppress word-splitting and glob expansion but do NOT prevent command substitution (`$(...)`) or variable expansion (`$var`, `%VAR%`). On MSYS bash on Windows, `%VAR%` can also expand in some contexts. A filename containing these chars must be passed via a mechanism with no expansion layer — PowerShell single-quoted strings or `Remove-Item` with an array.
+
+**Prevention:**
+1. **On win32, use the PowerShell tool for `rm`/`del` when filenames may contain `$(`, `)`, `$`, or `%`** — `Remove-Item -LiteralPath 'file$(expr)'` or pass as an array; single quotes in PowerShell are always literal.
+2. **In bash, single quotes suppress command substitution** — `rm 'file$(expr)'` is safe, but single quotes cannot span across variable interpolation, making them error-prone for dynamic filenames.
+3. **When constructing dynamic filenames in bash, use `printf '%s' "$var"` or `$'...'` quoting** and test with `echo` first to see what the shell actually expands.
+4. **Companion to ADR-004 / Shell Quoting Rule** — special chars in file _content_ use Edit/Write tools; special chars in file _names_ at deletion time require PowerShell.
+
+**Status:** Active — 1 instance (DebateUI p/83#6).
+
+**Applies To:** All agents using Bash `rm`/`mv`/`cp` with dynamically-named files on win32 that may contain shell metacharacters.

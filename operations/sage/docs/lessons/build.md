@@ -1808,3 +1808,24 @@ Failure patterns related to builds, CI, tooling, environment, and git operations
 **Status:** Active — 1 instance (DevOps, p/26#63). Silent wrong-branch push; high damage potential.
 
 **Applies To:** All agents pushing from a worktree where the worktree branch name differs from the PR remote target branch.
+
+---
+
+## #148 [Build] Bash Double-Quoting Does Not Prevent `$(...)` / `%` Expansion in Filenames — Use PowerShell `Remove-Item` on win32
+
+**Pattern:** On Windows MSYS bash, filenames containing `$(`, `)`, or `%` characters expand inside double-quoted strings — `rm "file$(expr)"` triggers command substitution for `expr` before `rm` runs. The filename is never passed literally. Result: wrong path removed or command errors on unexpected substitution.
+
+**Instances:**
+- 2026-08-06 — DebateUI (p/83#6): `rm` on filenames with `$(`, `)`, `%` — bash expanded them despite double-quoting. Fix: PowerShell `Remove-Item` with a literal string array.
+
+**Root Cause:** In bash, double quotes suppress word-splitting and glob expansion but NOT command substitution (`$(...)`) or variable expansion. A filename containing these chars must reach the filesystem layer via a mechanism with no expansion — PowerShell single-quoted strings or `Remove-Item -LiteralPath`.
+
+**Prevention:**
+1. **On win32, use PowerShell `Remove-Item -LiteralPath`** (or an array argument) for filenames that may contain `$(`, `)`, `$`, or `%`.
+2. In bash, single quotes ARE safe for literal filenames — `rm 'file$(expr)'` — but can't span variable interpolation; risky for dynamic filenames.
+3. Test with `echo` before `rm` to see what bash actually expands.
+4. **Companion to ADR-004 / Shell Quoting Rule** — special chars in file _content_ use Edit/Write tools; special chars in file _names_ at deletion time require PowerShell.
+
+**Status:** Active — 1 instance (DebateUI p/83#6).
+
+**Applies To:** All agents using Bash `rm`/`mv`/`cp` on win32 with dynamically-named files that may contain shell metacharacters.
