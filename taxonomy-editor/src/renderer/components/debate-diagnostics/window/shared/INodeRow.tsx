@@ -3,6 +3,8 @@
 
 import './INodeRow.css';
 import { useState, useEffect, useMemo, useRef } from 'react';
+import { useFlag } from '../../../../hooks/useFeatureFlags';
+import { resolveSpeaker } from '../../../shared/SpeakerIdentity';
 import type { ArgumentNetworkNode, ArgumentNetworkEdge } from '../../../../types/debate';
 import { POVER_INFO } from '../../../../types/debate';
 import type { SpeakerId } from '../../../../types/debate';
@@ -179,7 +181,8 @@ function IdStatementCell({ node, statementId, searchQuery, onGotoEntry }: {
 
 /** Col 2: Speaker label with descriptive tooltip. */
 function SpeakerCell({ node }: { node: ArgumentNetworkNode }) {
-  const label = speakerLabel(node.speaker);
+  const chatRedesign = useFlag('DEBATE_CHAT_REDESIGN');
+  const label = chatRedesign ? resolveSpeaker(node.speaker).label : speakerLabel(node.speaker);
   const desc: Record<string, string> = {
     Accelerationist: 'Accelerationist — advocates rapid AI development',
     Safetyist: 'Safetyist — prioritizes AI safety and alignment',
@@ -350,10 +353,11 @@ function DebaterBlock({ expanded, sourceNode, onGotoEntry, stmtIdByEntry, search
   searchQuery?: string;
   gotoClassName: string;
 }) {
+  const chatRedesign = useFlag('DEBATE_CHAT_REDESIGN');
   if (!(expanded && sourceNode)) return null;
   return (
     <div className="inr-debater-block">
-      <span className="inr-text-muted">Debater:</span> <strong>{speakerLabel(sourceNode.speaker)}</strong>
+      <span className="inr-text-muted">Debater:</span> <strong>{chatRedesign ? resolveSpeaker(sourceNode.speaker).label : speakerLabel(sourceNode.speaker)}</strong>
       {onGotoEntry && sourceNode.source_entry_id && (
         <button
           onClick={() => onGotoEntry(sourceNode.source_entry_id)}

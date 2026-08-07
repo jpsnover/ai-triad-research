@@ -3,8 +3,11 @@
 
 import { useMemo } from 'react';
 import { debaterColor } from './constants';
+import { useFlag } from '../../../../hooks/useFeatureFlags';
+import { SpeakerIdentity } from '../../../shared/SpeakerIdentity';
 
 export function DebateExchangeRich({ content }: { content: string }) {
+  const chatRedesign = useFlag('DEBATE_CHAT_REDESIGN');
   const segments = useMemo(() => {
     const speakerRe = /^(Accelerationist|Safetyist|Skeptic|Prometheus|Sentinel|Cassandra)\s*(\[[^\]]*\])?:\s*/gm;
     const matches: { index: number; end: number; speaker: string; tag?: string }[] = [];
@@ -35,12 +38,13 @@ export function DebateExchangeRich({ content }: { content: string }) {
         <div key={i} style={{ marginBottom: 8 }}>
           {seg.speaker && (
             <div style={{ marginBottom: 3 }}>
-              <span style={{
-                display: 'inline-block', padding: '2px 8px', borderRadius: 4, fontWeight: 700, fontSize: '0.72rem',
-                color: '#fff', background: debaterColor(seg.speaker),
-              }}>
-                {seg.speaker}
-              </span>
+              {chatRedesign
+                ? <SpeakerIdentity speaker={seg.speaker} variant="badge" />
+                : <span style={{
+                    display: 'inline-block', padding: '2px 8px', borderRadius: 4, fontWeight: 700, fontSize: '0.72rem',
+                    color: '#fff', background: debaterColor(seg.speaker),
+                  }}>{seg.speaker}</span>
+              }
               {seg.tag && (
                 <span style={{ marginLeft: 6, fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', fontStyle: 'italic' }}>{seg.tag}</span>
               )}
