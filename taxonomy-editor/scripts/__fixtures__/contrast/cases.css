@@ -1,0 +1,61 @@
+/* Fixture cases for the contrast checker's self-test (t/2264).
+   Each block reproduces one shape from the real t/2234 defect corpus. */
+
+/* PASS — white on a dark fill (same block). */
+.fx-ok-same-block {
+  background: var(--fill-dark);
+  color: #fff;
+}
+
+/* FAIL — white on a light fill (same block). Shape of the phase-indicator glyphs. */
+.fx-fail-same-block {
+  background: var(--fill-light);
+  color: #fff;
+}
+
+/* FAIL — fill on the ancestor, text on a descendant. Shape of the badge defects;
+   a checker matching only same-block pairs misses this entirely. */
+.fx-ancestor {
+  background: var(--fill-light);
+}
+.fx-ancestor .fx-child {
+  color: #fff;
+}
+
+/* PASS — theme-scoped override inverts the glyph where the fill is light.
+   The override must cover EVERY theme whose fill is light: `:root` seeds all
+   four, so leaving bkc/harvard out reproduces the original defect there. That
+   is precisely the mistake the shipped fixes had to avoid. */
+.fx-scoped {
+  background: var(--fill-light);
+  color: #fff;
+}
+[data-theme="light"] .fx-scoped,
+[data-theme="bkc"] .fx-scoped,
+[data-theme="harvard"] .fx-scoped {
+  color: #111827;
+}
+[data-theme="dark"] .fx-scoped {
+  color: var(--bg-primary);
+}
+
+/* UNRESOLVABLE — fill token defined nowhere. Shape of the white-on-`--bg-tertiary`
+   defect: must be reported, never silently treated as "no background". */
+.fx-undefined-fill {
+  background: var(--fx-does-not-exist);
+  color: #fff;
+}
+
+/* FAIL — fill supplied at runtime via inline style, declared to the checker.
+   Shape of the filled-badge defect, invisible to CSS-only analysis. */
+/* contrast-fill: var(--fill-light), var(--fill-dark) */
+.fx-annotated .fx-label {
+  color: #fff;
+}
+
+/* PASS — translucent fill composited over the page surface, not compared raw.
+   Without alpha compositing this reads as a 1:1 false positive. */
+.fx-alpha {
+  background: rgba(184, 78, 19, 0.12);
+  color: #6b3a10;
+}
