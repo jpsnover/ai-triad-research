@@ -8,6 +8,8 @@ import type { CitationResolutionDiagnostics } from '@lib/debate/citationResoluti
 import { POVER_INFO } from '../../types/debate';
 import type { SpeakerId } from '../../types/debate';
 import { humanizeSpeakerIds } from '../../utils/humanizeSpeakers';
+import { resolveSpeaker } from '../shared/SpeakerIdentity';
+import { useFlag } from '../../hooks/useFeatureFlags';
 import './PromptDiffPane.css';
 
 const STAGE_COLORS: Record<string, string> = {
@@ -913,6 +915,7 @@ function PaneHeader({ node, viewMode, pane, stats, isReference, paneIndex, preSc
   onClose: () => void;
   stageColor: string;
 }) {
+  const chatRedesign = useFlag('DEBATE_CHAT_REDESIGN');
   return (
     <div className="pdp-header">
       {node.kind === 'tool-call' ? (
@@ -925,7 +928,7 @@ function PaneHeader({ node, viewMode, pane, stats, isReference, paneIndex, preSc
         <StageBadges node={node} viewMode={viewMode} stageColor={stageColor} />
       )}
       <span className="pdp-muted">
-        S{node.entryIndex + 1} {speakerLabel(node.speaker)}
+        S{node.entryIndex + 1} {chatRedesign ? resolveSpeaker(node.speaker).label : speakerLabel(node.speaker)}
       </span>
       <span className="pdp-2xs-muted">
         ({pane.lines.filter(l => l.type !== 'ghost').length} lines)

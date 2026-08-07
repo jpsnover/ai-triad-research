@@ -26,8 +26,10 @@ import { useGeminiOnboarding } from '../../hooks/useGeminiOnboarding';
 import { useTierInfo, isFreeTier } from '../../hooks/useTierInfo';
 import { GeminiOnboardingModal } from '../settings/GeminiOnboardingModal';
 import { CampGlyph, povToCamp } from '../shared/CampGlyph';
+import { SpeakerIdentity } from '../shared/SpeakerIdentity';
 import { EmptyState } from '../shared/EmptyState';
 import { ThinkingIndicator, MessageBubble, StreamingBubble } from '../shared/ChatBubble';
+import { useFlag } from '../../hooks/useFeatureFlags';
 import './ChatWorkspace.css';
 
 // ── Helpers ──────────────────────────────────────────────
@@ -161,14 +163,17 @@ function ChatMessage({ entry, selectedRef, onSelectRef }: { entry: ChatEntry; se
   const isUser = entry.speaker === 'user';
   const camp = povToCamp(entry.speaker);
   const mdComponents = useMemo(() => ({ span: makeRefLinkSpan(onSelectRef) }), [onSelectRef]);
+  const chatRedesign = useFlag('DEBATE_CHAT_REDESIGN');
 
   return (
     <div className={`chat-message chat-speaker-${entry.speaker}${isUser ? ' chat-message-user' : ''}`}>
-      {camp && (
-        <div className={`chat-message-avatar camp-${camp}`}>
-          <CampGlyph camp={camp} size={14} />
-        </div>
-      )}
+      {chatRedesign
+        ? <SpeakerIdentity variant="avatar" speaker={entry.speaker} />
+        : (camp && (
+          <div className={`chat-message-avatar camp-${camp}`}>
+            <CampGlyph camp={camp} size={14} />
+          </div>
+        ))}
       <div className="chat-message-body">
         <div className="chat-message-header">
           <span className={`chat-message-speaker${camp ? ` camp-speaker-${camp}` : ''}`}>
