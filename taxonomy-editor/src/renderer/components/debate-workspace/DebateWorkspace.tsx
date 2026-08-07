@@ -137,7 +137,6 @@ function ShareToCommunityButton({ debate }: { debate: { id: string; topic: strin
       const reason = raw.replace(/^(Error:\s*)+/i, '').replace(/^Error invoking remote method '[^']+': /i, '');
       setShareError(reason || 'Unknown error');
       setShareState('error');
-      setTimeout(() => { setShareState('idle'); setShareError(null); }, 4000);
     }
   };
 
@@ -166,6 +165,11 @@ function ShareToCommunityButton({ debate }: { debate: { id: string; topic: strin
           title={shareError}
         >
           {'Failed: ' + shareError}
+          <button
+            onClick={() => { setShareState('idle'); setShareError(null); }}
+            style={{ marginLeft: 4, background: 'none', border: 'none', cursor: 'pointer', color: 'inherit', padding: 0, fontSize: 'inherit' }}
+            aria-label="Dismiss error"
+          >✕</button>
         </span>
       )}
     </span>
