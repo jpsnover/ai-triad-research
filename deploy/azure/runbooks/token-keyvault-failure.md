@@ -18,7 +18,7 @@
 
 2. **Check managed identity assignment:**
    ```bash
-   az containerapp show --name taxonomy-editor -g ai-triad --query "identity"
+   az containerapp show --name ai-rosetta-stone -g ai-triad --query "identity"
    ```
    Should show `type: SystemAssigned` with a `principalId`.
 
@@ -40,8 +40,8 @@
 6. **Force token refresh:**
    ```bash
    # Restart the container to clear cached token
-   ACTIVE=$(az containerapp revision list --name taxonomy-editor -g ai-triad --query "[?properties.trafficWeight > \`0\`].name | [0]" -o tsv)
-   az containerapp revision restart --name taxonomy-editor -g ai-triad --revision "$ACTIVE"
+   ACTIVE=$(az containerapp revision list --name ai-rosetta-stone -g ai-triad --query "[?properties.trafficWeight > \`0\`].name | [0]" -o tsv)
+   az containerapp revision restart --name ai-rosetta-stone -g ai-triad --revision "$ACTIVE"
    ```
 
 ## Prevention

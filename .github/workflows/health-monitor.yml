@@ -18,7 +18,7 @@ permissions:
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-  APP_URL: https://taxonomy-editor.yellowbush-aeda037d.eastus.azurecontainerapps.io
+  APP_URL: https://ai-rosetta-stone.yellowbush-aeda037d.eastus.azurecontainerapps.io
 
 jobs:
   health-check:
@@ -82,7 +82,7 @@ jobs:
               await github.rest.issues.create({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
-                title: `Health check failure: taxonomy-editor unreachable`,
+                title: `Health check failure: ai-rosetta-stone unreachable`,
                 body: [
                   `## Health Check Alert`,
                   ``,
@@ -95,8 +95,8 @@ jobs:
                   `### Troubleshooting`,
                   ``,
                   '```bash',
-                  `az containerapp show --name taxonomy-editor -g ai-triad --query "properties.runningStatus"`,
-                  `az containerapp logs show --name taxonomy-editor -g ai-triad --type console`,
+                  `az containerapp show --name ai-rosetta-stone -g ai-triad --query "properties.runningStatus"`,
+                  `az containerapp logs show --name ai-rosetta-stone -g ai-triad --type console`,
                   '```',
                   ``,
                   `Close this issue once the app is back online.`

@@ -65,7 +65,7 @@ After deploying, add GitHub login (zero code change):
 
 ```bash
 az containerapp auth update \
-  --name taxonomy-editor \
+  --name ai-rosetta-stone \
   --resource-group ai-triad \
   --enabled-providers GitHub \
   --github-client-id <your-github-oauth-app-id> \

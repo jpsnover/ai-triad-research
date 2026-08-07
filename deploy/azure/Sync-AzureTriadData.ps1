@@ -14,7 +14,7 @@
     and pull latest data from GitHub into the Azure-mounted data volume.
 .PARAMETER ServerUrl
     Base URL of the Azure-hosted Taxonomy Editor.
-    Default: https://taxonomy-editor.yellowbush-aeda037d.eastus.azurecontainerapps.io
+    Default: https://ai-rosetta-stone.yellowbush-aeda037d.eastus.azurecontainerapps.io
 .PARAMETER AdminKey
     Admin API key matching ADMIN_API_KEY on the server. Falls back to
     $env:AITRIAD_ADMIN_KEY if not specified.
@@ -43,7 +43,7 @@
 
 [CmdletBinding()]
 param(
-    [string]$ServerUrl = 'https://taxonomy-editor.yellowbush-aeda037d.eastus.azurecontainerapps.io',
+    [string]$ServerUrl = 'https://ai-rosetta-stone.yellowbush-aeda037d.eastus.azurecontainerapps.io',
 
     [string]$AdminKey,
 
@@ -129,7 +129,7 @@ if (-not $resolvedKey) {
     Write-Host ''
     Write-Host '  The key must match ADMIN_API_KEY on the Azure container.' -ForegroundColor White
     Write-Host '  Set it with:' -ForegroundColor Yellow
-    Write-Host '    az containerapp update --name taxonomy-editor -g ai-triad \' -ForegroundColor Yellow
+    Write-Host '    az containerapp update --name ai-rosetta-stone -g ai-triad \' -ForegroundColor Yellow
     Write-Host '      --set-env-vars "ADMIN_API_KEY=<your-secret-key>"' -ForegroundColor Yellow
     exit 1
 }

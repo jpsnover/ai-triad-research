@@ -22,8 +22,8 @@
 
 3. **If UI is unreachable, restart the container:**
    ```bash
-   ACTIVE=$(az containerapp revision list --name taxonomy-editor -g ai-triad --query "[?properties.trafficWeight > \`0\`].name | [0]" -o tsv)
-   az containerapp revision restart --name taxonomy-editor -g ai-triad --revision "$ACTIVE"
+   ACTIVE=$(az containerapp revision list --name ai-rosetta-stone -g ai-triad --query "[?properties.trafficWeight > \`0\`].name | [0]" -o tsv)
+   az containerapp revision restart --name ai-rosetta-stone -g ai-triad --revision "$ACTIVE"
    ```
    Restarting clears `/tmp/taxonomy-cache/` and forces a full cold-start fetch.
 

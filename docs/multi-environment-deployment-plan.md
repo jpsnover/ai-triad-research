@@ -6,7 +6,7 @@ The AI Triad project currently has a single Azure Container Apps deployment. We 
 
 ## Current State
 
-- **Single deployment**: `taxonomy-editor.yellowbush-aeda037d.eastus.azurecontainerapps.io`
+- **Single deployment**: `ai-rosetta-stone.yellowbush-aeda037d.eastus.azurecontainerapps.io`
 - **Single Azure Files share**: `/data` (10 GB) with taxonomy, debates, summaries
 - **Single data repo**: `jpsnover/ai-triad-data` on GitHub (main branch)
 - **Git sync exists** (`gitRepoStore.ts`): per-user session branches, commit-on-write, PR creation, rebase conflict resolution — but only Phase 1-2 are implemented

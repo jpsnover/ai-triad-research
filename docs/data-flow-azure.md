@@ -216,15 +216,15 @@ GitHub (ai-triad-data, main branch)
 
 ```bash
 # 1. Check health endpoint
-curl https://taxonomy-editor.yellowbush-aeda037d.eastus.azurecontainerapps.io/healthz
+curl https://ai-rosetta-stone.yellowbush-aeda037d.eastus.azurecontainerapps.io/healthz
 # Expected: {"status":"healthy","dataRoot":"/data"}
 
 # 2. Check data availability
-curl https://taxonomy-editor.yellowbush-aeda037d.eastus.azurecontainerapps.io/api/data/available
+curl https://ai-rosetta-stone.yellowbush-aeda037d.eastus.azurecontainerapps.io/api/data/available
 # Expected: true
 
 # 3. Check copy status (during startup)
-curl https://taxonomy-editor.yellowbush-aeda037d.eastus.azurecontainerapps.io/status
+curl https://ai-rosetta-stone.yellowbush-aeda037d.eastus.azurecontainerapps.io/status
 # Expected: {"state":"complete"} or progress details
 ```
 
@@ -232,11 +232,11 @@ curl https://taxonomy-editor.yellowbush-aeda037d.eastus.azurecontainerapps.io/st
 
 ```bash
 # 4. Check what git revision the app is running from (NOTE: POST, not GET)
-curl -X POST https://taxonomy-editor.yellowbush-aeda037d.eastus.azurecontainerapps.io/api/data/check-updates
+curl -X POST https://ai-rosetta-stone.yellowbush-aeda037d.eastus.azurecontainerapps.io/api/data/check-updates
 # Shows local HEAD vs origin/main — are they the same?
 
 # 5. Check sync status (uncommitted local changes)
-curl https://taxonomy-editor.yellowbush-aeda037d.eastus.azurecontainerapps.io/api/sync/status
+curl https://ai-rosetta-stone.yellowbush-aeda037d.eastus.azurecontainerapps.io/api/sync/status
 # Shows count of files changed locally but not committed
 ```
 
@@ -265,18 +265,18 @@ Debates save to `{dataRoot}/debates/` on every action (turn, phase transition, r
 
 ```bash
 # List debates via API
-curl https://taxonomy-editor.yellowbush-aeda037d.eastus.azurecontainerapps.io/api/debates
+curl https://ai-rosetta-stone.yellowbush-aeda037d.eastus.azurecontainerapps.io/api/debates
 ```
 
 ### Container Logs (for deeper diagnosis)
 
 ```bash
 # Console logs (app output)
-az containerapp logs show --name taxonomy-editor -g ai-triad \
+az containerapp logs show --name ai-rosetta-stone -g ai-triad \
   --type console --tail 100
 
 # System events (probes, OOM, restarts)
-az containerapp logs show --name taxonomy-editor -g ai-triad \
+az containerapp logs show --name ai-rosetta-stone -g ai-triad \
   --type system --tail 50
 ```
 

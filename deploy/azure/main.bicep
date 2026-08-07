@@ -429,7 +429,7 @@ var containerEnv = paidTierEnabled
   : envWithFreeTier
 
 resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
-  name: 'taxonomy-editor'
+  name: 'ai-rosetta-stone'
   location: location
   tags: tags
   identity: {
@@ -461,7 +461,7 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
     template: {
       containers: [
         {
-          name: 'taxonomy-editor'
+          name: 'ai-rosetta-stone'
           image: containerImage
           resources: {
             cpu: json('1.0')
@@ -538,7 +538,7 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
 // runs independently so a bad staging deploy cannot affect production.
 
 resource containerAppStaging 'Microsoft.App/containerApps@2024-03-01' = {
-  name: 'taxonomy-editor-staging'
+  name: 'ai-rosetta-stone-staging'
   location: location
   tags: union(tags, { environment: 'staging' })
   identity: {
@@ -566,7 +566,7 @@ resource containerAppStaging 'Microsoft.App/containerApps@2024-03-01' = {
     template: {
       containers: [
         {
-          name: 'taxonomy-editor'
+          name: 'ai-rosetta-stone'
           image: containerImage
           resources: {
             cpu: json('0.25')
