@@ -17,6 +17,7 @@ import { useTierInfo } from '../../hooks/useTierInfo';
 import { isElectronMode } from '@bridge';
 import { useFlag } from '../../hooks/useFeatureFlags';
 import { triggerManualDump } from '../../lib/flightRecorderInit';
+import { bandColor, BUDGET_BANDS } from '../../lib/bandColor';
 
 export function ProgressIndicator() {
   const { debateActivity, debateProgress } = useDebateStore(
@@ -41,9 +42,6 @@ export function ProgressIndicator() {
   );
 }
 
-const BUDGET_WARN_THRESHOLD = 0.8;
-const BUDGET_URGENT_THRESHOLD = 0.95;
-
 function formatResetTime(resetsAt: string): string {
   const ms = new Date(resetsAt).getTime() - Date.now();
   if (ms <= 0) return 'resets soon';
@@ -63,10 +61,11 @@ export function TokenBudgetIndicator() {
   if (pct < 0.01) return null;
   const remaining = Math.max(0, tokensPerDay - tokensToday);
   const remainingK = remaining >= 1000 ? `${Math.round(remaining / 1000)}k` : String(remaining);
-  const isUrgent = pct >= BUDGET_URGENT_THRESHOLD;
-  const isWarning = pct >= BUDGET_WARN_THRESHOLD;
+  const level = bandColor(pct, BUDGET_BANDS);
+  const isUrgent = level === 'urgent';
+  const isWarning = level === 'warning';
   const resetLabel = resetsAt ? formatResetTime(resetsAt) : '';
-  const levelClass = isUrgent ? ' urgent' : isWarning ? ' warning' : '';
+  const levelClass = level ? ` ${level}` : '';
   return (
     <div className={`token-budget-indicator${levelClass}`}>
       {isUrgent ? (
