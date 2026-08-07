@@ -32,3 +32,10 @@ export const BUDGET_BANDS: readonly BandEntry[] = [
   { threshold: 0.8,  color: 'warning' },
   { threshold: 0,    color: '' },
 ];
+
+/** Interpretation-divergence score (SituationDetail). */
+export const DIVERGENCE_BANDS: readonly BandEntry[] = [
+  { threshold: 0.40, color: '#22c55e' },
+  { threshold: 0.20, color: '#f59e0b' },
+  { threshold: 0,    color: '#ef4444' },
+];
