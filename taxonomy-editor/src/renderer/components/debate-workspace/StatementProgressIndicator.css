@@ -1,0 +1,72 @@
+.stmt-progress {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 1.5rem;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  padding: 4px 0;
+}
+
+/* Spinner icon — CSS-only rotating ring */
+.stmt-progress-spinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid var(--border-color);
+  border-top-color: var(--text-secondary);
+  animation: stmt-spin 0.9s linear infinite;
+  flex-shrink: 0;
+}
+
+@keyframes stmt-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Error icon — simple ⚠ shape via CSS */
+.stmt-progress-icon--error {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  position: relative;
+}
+
+.stmt-progress-icon--error::before {
+  content: '⚠';
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  line-height: 1;
+  color: var(--color-warning, #d97706);
+}
+
+.stmt-progress--error {
+  color: var(--color-warning, #d97706);
+}
+
+.stmt-progress-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-style: italic;
+}
+
+.stmt-progress-timer {
+  font-variant-numeric: tabular-nums;
+  font-style: normal;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  padding: 1px 6px;
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  flex-shrink: 0;
+  letter-spacing: 0.5px;
+}

@@ -34,7 +34,8 @@ import { useUserProfile } from '../../hooks/useAuthStatus';
 import { CommunityShareBanner } from '../shared/CommunityShareBanner';
 import { CoverageBadge } from './TaxonomyRefs';
 import { StatementCard, ProbingCard, FactCheckCard, EntryDeleteControls, HighlightedText, PhaseHairline } from './StatementCard';
-import { PhaseProgressBar, SessionPhaseStepper, ProgressIndicator, DebaterToggles, DebateActions } from './DebateActionBar';
+import { PhaseProgressBar, SessionPhaseStepper, DebaterToggles, DebateActions } from './DebateActionBar';
+import { StatementProgressIndicator } from './StatementProgressIndicator';
 import { ClarificationActions, ClaimsEditor, RefinedTopicEditor, TopicScoreComparison } from './ClarificationPanel';
 import { OpeningActions } from './OpeningPanel';
 import { ExplorationSummaryCard } from './ExplorationSummaryCard';
@@ -805,10 +806,7 @@ function DebateTranscriptColumn({
             </span>
             <span className="debate-statement-type">thinking...</span>
           </div>
-          <ProgressIndicator />
-          <div className="debate-generating-dots">
-            <span /><span /><span />
-          </div>
+          <StatementProgressIndicator />
         </div>
       )}
       <div ref={transcriptEndRef} />
