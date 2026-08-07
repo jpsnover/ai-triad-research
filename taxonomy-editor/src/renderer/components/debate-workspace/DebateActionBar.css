@@ -190,7 +190,7 @@
 .unified-phase-subhint {
   font-size: var(--text-2xs);
   font-weight: 600;
-  color: var(--success);
+  color: var(--success-text); /* was --success (fill green, ~2.3:1 AA fail on light); AA text token (t/2260) */
   white-space: nowrap;
   animation: phase-hint-pulse 2s ease-in-out infinite;
 }
