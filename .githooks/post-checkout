@@ -1,0 +1,68 @@
+#!/bin/sh
+# ─────────────────────────────────────────────────────────────────────────────
+# post-checkout — warn when the SHARED `main` checkout leaves `main` (t/2209).
+#
+# WHY: the fleet shares one `main` checkout. Agents keep switching it ONTO feature
+# branches and doing feature work on the shared tree instead of an isolated
+# worktree (t/1926 genus). That strands unpushed commits on the shared local
+# branch and turns the next `git add -A` into a cross-role sweep landmine. The
+# pre-commit hook guards the COMMIT (refuses direct-main and detached-HEAD-in-
+# worktree commits) but explicitly ALLOWS a non-`main` branch on the shared
+# checkout — so nothing flags the CHECKOUT itself. This hook closes that gap with
+# an immediate nudge the moment HEAD leaves `main` on the shared tree.
+#
+# SCOPE (co-located here per the Gate Co-Location rule, t/1589 — NOT in a ticket):
+#   • Fires only on BRANCH checkouts ($3 == 1), never file checkouts ($3 == 0).
+#   • Warns ONLY on the shared checkout (git-dir == git-common-dir). Linked
+#     worktrees (git-dir != git-common-dir) are the CORRECT home for feature work
+#     and stay SILENT — warning there would be noise on every legitimate land.
+#   • Silent on `main` and on a detached HEAD (the pre-commit hook owns the
+#     detached-HEAD-commit case, t/2009).
+#   • Non-blocking by construction: post-checkout cannot veto a checkout and its
+#     exit code is ignored by git. This hook always `exit 0` (advisory only).
+#   • Fail-OPEN: any git introspection error skips the warning — a broken guard
+#     must never disrupt a checkout.
+#
+# ACTIVATION (one-time, per checkout — git does not auto-run committed hooks):
+#   git config core.hooksPath .githooks
+# Documented in root AGENTS.md so a fresh clone re-enables enforcement.
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Arg $3 is the checkout flag: 1 = branch checkout, 0 = file checkout. Only a
+# branch checkout can move HEAD off `main`, so skip everything else.
+[ "$3" = "1" ] || exit 0
+
+# Normalize BOTH paths through `cd && pwd` so the comparison is format-stable on
+# Git-for-Windows (where --git-dir yields `C:/…` but --git-common-dir can cd to
+# `/c/…`). Mixing the two styles would read the shared checkout as a worktree and
+# silently fail open. (Same idiom as pre-commit, L110-116.)
+gd=$(cd "$(git rev-parse --git-dir 2>/dev/null)" 2>/dev/null && pwd) || exit 0
+cdir=$(cd "$(git rev-parse --git-common-dir 2>/dev/null)" 2>/dev/null && pwd) || exit 0
+[ -n "$gd" ] && [ -n "$cdir" ] || exit 0
+
+# Linked worktree → the correct place for feature work. Stay silent.
+[ "$gd" = "$cdir" ] || exit 0
+
+# Detached HEAD → not a named-branch checkout; the pre-commit hook owns that case.
+branch=$(git symbolic-ref -q --short HEAD 2>/dev/null) || exit 0
+
+# On `main` → the shared checkout is where it belongs. Silent.
+[ "$branch" = "main" ] && exit 0
+
+# Shared checkout is now on a feature branch. Nudge toward a worktree.
+cat >&2 <<MSG
+
+  ⚠ The shared \`main\` checkout is now on '$branch' (t/2209, t/1926 genus).
+    Feature work belongs in an ISOLATED WORKTREE, not the shared tree —
+    leaving the shared checkout on a feature branch strands unpushed commits
+    and turns the next \`git add -A\` into a cross-role sweep landmine.
+
+  Return the shared tree to \`main\` and branch in a worktree instead:
+    git switch main
+    git worktree add -b $branch ../wt-<ticket> origin/main
+
+  (Advisory only — the checkout is not blocked.)
+
+MSG
+
+exit 0

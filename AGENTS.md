@@ -57,6 +57,8 @@ git config core.hooksPath .githooks
 
 The hook is self-documenting (see its header comment). Owner / emergency override: `git commit --no-verify`.
 
+**Feature work is worktree-only; the shared checkout stays on `main`.** A companion `.githooks/post-checkout` hook **warns** (advisory, non-blocking) the moment the shared tree's HEAD leaves `main` for a feature branch — pointing you to `git worktree add -b <branch>` instead (t/2209). It is silent inside linked worktrees (the correct home for feature work) and on `main`. Don't do feature work on the shared tree: it strands unpushed commits and turns the next `git add -A` into a cross-role sweep.
+
 ### Subsystem Map
 
 Detailed conventions and build/test commands live in each subtree's `AGENTS.md` (loaded when you work in that scope). This is the orientation map only.
