@@ -14,6 +14,9 @@ import { markAsPopout } from '../../hooks/useDebateStore/shared/guards';
 import { useTaxonomyStore } from '../../hooks/useTaxonomyStore';
 import { DebateWorkspace } from '../debate-workspace';
 import { parseDebateHash, shouldShowLoadError, type DebateLoadTarget } from './popoutLoad';
+import { useBriefTimeoutEvents } from './useBriefTimeoutEvents';
+import { BriefTimeoutToast } from './BriefTimeoutToast';
+import { BriefTimeoutDialog } from './BriefTimeoutDialog';
 import './DebatePopoutWindow.css';
 
 export function DebatePopoutWindow() {
@@ -21,6 +24,8 @@ export function DebatePopoutWindow() {
   const [ready, setReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const activeDebateId = useDebateStore(s => s.activeDebateId);
+  const { toastData, dialogData, dismissToast, dismissDialog, retryWithModel, promoteToDiag } =
+    useBriefTimeoutEvents(activeDebateId);
   const debateError = useDebateStore(s => s.debateError);
   // Remember what to (re)load so the error screen's "Try Again" can re-attempt it (t/941).
   const [loadTarget, setLoadTarget] = useState<DebateLoadTarget | null>(null);
@@ -161,6 +166,25 @@ export function DebatePopoutWindow() {
   return (
     <div className="debate-popout-shell">
       <DebateWorkspace />
+      {toastData && (
+        <BriefTimeoutToast
+          speakerLabel={toastData.speakerLabel}
+          attempt={toastData.attempt}
+          maxAttempts={toastData.maxAttempts}
+          currentModel={toastData.currentModel}
+          onSwitchModel={promoteToDiag}
+          onDismiss={dismissToast}
+        />
+      )}
+      {dialogData && (
+        <BriefTimeoutDialog
+          speakerLabel={dialogData.speakerLabel}
+          totalAttempts={dialogData.totalAttempts}
+          currentModel={dialogData.currentModel}
+          onRetry={retryWithModel}
+          onAbort={dismissDialog}
+        />
+      )}
     </div>
   );
 }

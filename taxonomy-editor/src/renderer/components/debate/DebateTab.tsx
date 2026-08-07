@@ -30,6 +30,9 @@ import { ParameterHistoryPanel } from '../analysis/ParameterHistoryPanel';
 import { usePreferencesStore } from '../../store/preferencesStore';
 import { api, isElectronMode } from '@bridge';
 import { trackExport } from '../../lib/analyticsEmitter';
+import { useBriefTimeoutEvents } from './useBriefTimeoutEvents';
+import { BriefTimeoutToast } from './BriefTimeoutToast';
+import { BriefTimeoutDialog } from './BriefTimeoutDialog';
 import './DebateTab.css';
 
 // Prop-type aliases derived from the hooks/stores so the extracted presentational
@@ -151,6 +154,8 @@ export function DebateTab() {
       activeDebateId: s.activeDebateId, activeDebate: s.activeDebate, loadDebate: s.loadDebate, deleteDebate: s.deleteDebate, renameDebate: s.renameDebate,
     }))
   );
+  const { toastData, dialogData, dismissToast, dismissDialog, retryWithModel, promoteToDiag } =
+    useBriefTimeoutEvents(activeDebateId);
   const [exportStatus, setExportStatus] = useState<string | null>(null);
   const [pendingExportFormat, setPendingExportFormat] = useState<string | null>(null);
   const [selectedPromptEntry, setSelectedPromptEntry] = useState<PromptCatalogEntry | null>(PROMPT_CATALOG[0]);
@@ -393,6 +398,25 @@ export function DebateTab() {
           setEditMode={setEditMode}
           setSelectedIds={setSelectedIds}
           deleteDebate={deleteDebate}
+        />
+      )}
+      {toastData && (
+        <BriefTimeoutToast
+          speakerLabel={toastData.speakerLabel}
+          attempt={toastData.attempt}
+          maxAttempts={toastData.maxAttempts}
+          currentModel={toastData.currentModel}
+          onSwitchModel={promoteToDiag}
+          onDismiss={dismissToast}
+        />
+      )}
+      {dialogData && (
+        <BriefTimeoutDialog
+          speakerLabel={dialogData.speakerLabel}
+          totalAttempts={dialogData.totalAttempts}
+          currentModel={dialogData.currentModel}
+          onRetry={retryWithModel}
+          onAbort={dismissDialog}
         />
       )}
     </div>
