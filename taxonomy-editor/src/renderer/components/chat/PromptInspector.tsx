@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { PROMPT_CATALOG, type PromptCatalogEntry, type PromptGroup, type DataSourceId } from '../../data/promptCatalog';
 import { useDebateStore } from '../../hooks/useDebateStore';
@@ -139,8 +139,6 @@ function resolveConfig(s: { sessionOverrides: Record<string, number | boolean | 
 }
 
 function SettingsControls({ promptId, group }: { promptId: string; group: PromptGroup }) {
-  const _sc = useRef(0); _sc.current++;
-  console.error(`[SettingsControls] render #${_sc.current} promptId=${promptId}`);
   const temperature = usePromptConfigStore(s =>
     (resolveConfig(s, `temperature.${promptId}`) as number | undefined)
     ?? resolveConfig(s, 'temperature.debate') as number
@@ -423,12 +421,6 @@ function PreviewSection({
 }
 
 export function PromptInspector() {
-  const _renderCount = useRef(0);
-  _renderCount.current++;
-  console.error(`[PromptInspector] render #${_renderCount.current}`);
-  if (_renderCount.current > 100) {
-    throw new Error(`LOOP: PromptInspector rendered ${_renderCount.current} times. This is the infinite loop.`);
-  }
   const [selectedId, setSelectedId] = useState<string>(PROMPT_CATALOG[0]?.id ?? '');
   const [showTemplate, setShowTemplate] = useState(false);
   const [showDiff, setShowDiff] = useState(false);
