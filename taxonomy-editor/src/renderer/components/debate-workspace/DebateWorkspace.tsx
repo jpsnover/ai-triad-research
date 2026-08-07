@@ -41,6 +41,8 @@ import { ClarificationActions, ClaimsEditor, RefinedTopicEditor, TopicScoreCompa
 import { OpeningActions } from './OpeningPanel';
 import { ExplorationSummaryCard } from './ExplorationSummaryCard';
 import { EmptyState } from '../shared/EmptyState';
+import { TranscriptOutline } from './TranscriptOutline';
+import { useFlag } from '../../hooks/useFeatureFlags';
 import './DebateWorkspace.css';
 
 // ── Phase 7: Context menu state ──────────────────────────
@@ -727,6 +729,7 @@ function TranscriptEntryRow({
     <Fragment>
       {hairline}
       <div
+        id={`debate-entry-${entry.id}`}
         className={`debate-entry-wrapper${diagnosticsEnabled && selectedDiagEntry === entry.id ? ' diag-selected' : ''}`}
         onClick={diagnosticsEnabled ? () => selectDiagEntry(entry.id) : undefined}
       >
@@ -1355,6 +1358,7 @@ export function DebateWorkspace({ onExport, exportStatus }: {
   const isClarificationPhase = activeDebate.phase === 'clarification' || activeDebate.phase === 'setup';
   const isEditClaimsPhase = activeDebate.phase === 'edit-claims';
   const isOpeningPhase = activeDebate.phase === 'opening';
+  const chatRedesign = useFlag('DEBATE_CHAT_REDESIGN');
   const isDebatePhase = activeDebate.phase === 'debate'
     || activeDebate.phase === 'closed'
     || activeDebate.adaptive_staging?.phase_state?.current_phase != null;
@@ -1365,6 +1369,7 @@ export function DebateWorkspace({ onExport, exportStatus }: {
 
   return (
     <div className="debate-workspace-row" data-phase={isClarificationPhase ? 'setup' : undefined}>
+    {chatRedesign && <TranscriptOutline transcript={activeDebate.transcript} />}
     <div className="debate-workspace">
       {/* Fixed toolbar — always visible */}
       <DebateToolbar
