@@ -54,14 +54,27 @@
 }
 
 /*
- * Readable measure for debate prose (t/2240, DEBATE_CHAT_REDESIGN). Chat already
- * caps its AI markdown at 68ch (ChatWorkspace.css); the debate surface — longer
- * sessions, denser text — was the one left unconstrained. Same value so the two
- * surfaces read as one system. `.debate-redesign` lands on the card root only
- * when the flag is on, so the flag-off measure stays `none`.
+ * Readable measure for debate prose (t/2240, DEBATE_CHAT_REDESIGN). Chat caps
+ * its AI markdown at 68ch (ChatWorkspace.css); the debate surface — longer
+ * sessions, denser text — was the one left unconstrained. Widened to 95ch so
+ * the transcript fills more of the window while still capping line length for
+ * readability (the 68ch measure left too much empty space beside the text on
+ * wide windows). `.debate-redesign` lands on the card root only when the flag
+ * is on, so the flag-off measure stays `none`.
  */
 .debate-statement.debate-redesign .debate-statement-content.prose {
-  max-width: 68ch;
+  max-width: 95ch;
+}
+
+/*
+ * Same 95ch readable measure for fact-check panels. FactCheckCard is a separate
+ * component from StatementCard and its text containers aren't `.prose`, so the rule
+ * above doesn't reach them — cap them directly so both surfaces read as one system.
+ * Flag-gated via `.debate-redesign` on the card root, so flag-off stays full-width.
+ */
+.debate-statement.debate-type-fact-check.debate-redesign .debate-statement-content,
+.debate-statement.debate-type-fact-check.debate-redesign .debate-fact-check-web-evidence-body {
+  max-width: 95ch;
 }
 
 /* Model badge — hoisted from inline */
