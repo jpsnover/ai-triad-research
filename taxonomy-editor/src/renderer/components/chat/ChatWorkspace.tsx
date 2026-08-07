@@ -394,6 +394,11 @@ function ShareResult({ shareState, shareError, onDismiss }: {
       {shareState === 'error' && shareError && (
         <div className="chat-share-error">
           {'Failed: ' + shareError}
+          <button
+            onClick={onDismiss}
+            style={{ marginLeft: 4, background: 'none', border: 'none', cursor: 'pointer', color: 'inherit', padding: 0, fontSize: 'inherit' }}
+            aria-label="Dismiss error"
+          >✕</button>
         </div>
       )}
     </>
@@ -524,7 +529,6 @@ export function ChatWorkspace() {
       const msg = err instanceof Error ? err.message : String(err);
       setShareError(msg);
       setShareState('error');
-      setTimeout(() => { setShareState('idle'); setShareError(null); }, 4000);
     }
   }, [activeChat]);
 
