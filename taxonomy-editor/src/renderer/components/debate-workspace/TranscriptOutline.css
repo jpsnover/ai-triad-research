@@ -1,0 +1,77 @@
+/* Copyright (c) 2026 Jeffrey Snover. All rights reserved. */
+/* Licensed under the MIT License. See LICENSE file in the project root. */
+
+/*
+ * Structural transcript navigator (t/2239, DEBATE_CHAT_REDESIGN). Persistent
+ * left rail listing phase sections and rounds; clicking scrolls the transcript.
+ * Read-only view over existing state.
+ */
+
+.transcript-outline {
+  flex: 0 0 160px;
+  align-self: stretch;
+  overflow-y: auto;
+  border-right: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+  padding: 8px 0;
+  font-size: var(--text-xs);
+}
+
+.transcript-outline-title {
+  padding: 4px 12px 8px;
+  font-size: var(--text-2xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-secondary);
+}
+
+.transcript-outline-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.transcript-outline-item {
+  margin: 0;
+}
+
+.transcript-outline-link {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px 12px;
+  color: var(--text-primary);
+  font: inherit;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  border-left: 2px solid transparent;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.transcript-outline-link:hover {
+  background: color-mix(in srgb, var(--focus-ring) 12%, transparent);
+  border-left-color: var(--focus-ring);
+}
+
+.transcript-outline-link:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: -2px;
+}
+
+.transcript-outline-section .transcript-outline-link {
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  color: var(--text-secondary);
+  margin-top: 4px;
+}
+
+.transcript-outline-round .transcript-outline-link {
+  padding-left: 24px;
+  color: var(--text-primary);
+}
