@@ -427,6 +427,11 @@ export interface AppAPI {
   onTerminalData: (callback: (data: string) => void) => () => void;
   onTerminalExit: (callback: () => void) => () => void;
 
+  // --- Brief-timeout events (t/2218) ---
+  // Electron: IPC from ElectronMain preload. Web: browser-local bus in web-bridge.ts.
+  onBriefTimeout: (callback: (e: { debateId: string; speaker: string; attempt: number; maxAttempts: number; currentModel: string }) => void) => () => void;
+  onBriefRetriesExhausted: (callback: (e: { debateId: string; speaker: string; totalAttempts: number; currentModel: string }) => void) => () => void;
+
   // --- Screenshot capture ---
   captureScreenshot: (opts?: { width?: number; height?: number; defaultName?: string }) => Promise<{ cancelled: boolean; filePath?: string }>;
 
