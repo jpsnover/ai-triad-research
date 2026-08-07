@@ -18,6 +18,7 @@ import { isElectronMode } from '@bridge';
 import { useFlag } from '../../hooks/useFeatureFlags';
 import { triggerManualDump } from '../../lib/flightRecorderInit';
 import { bandColor, BUDGET_BANDS } from '../../lib/bandColor';
+import './DebateActionBar.css';
 
 export function ProgressIndicator() {
   const { debateActivity, debateProgress } = useDebateStore(
@@ -158,6 +159,103 @@ export function SessionPhaseStepper({ phase, roundCount }: { phase: string; roun
           </div>
         );
       })}
+    </div>
+  );
+}
+
+/**
+ * Adaptive sub-phase track, nested under the "Debate" session step in the
+ * unified indicator (t/2238). Same data as {@link PhaseProgressBar} but rendered
+ * as a compact secondary row so both dimensions read as one widget.
+ */
+function UnifiedAdaptiveSubTrack({ currentPhase, phaseProgress, roundsInPhase, approachingTransition, rationale }: {
+  currentPhase: AdaptivePhase;
+  phaseProgress: number;
+  roundsInPhase: number;
+  approachingTransition: boolean;
+  rationale?: string;
+}) {
+  const currentIdx = ADAPTIVE_PHASES.indexOf(currentPhase);
+
+  return (
+    <div className="unified-phase-subtrack" title={rationale || `${ADAPTIVE_PHASE_LABELS[currentPhase]} stage, round ${roundsInPhase}`}>
+      <span className="unified-phase-subcaption">Stage</span>
+      <div className="unified-phase-subsegments">
+        {ADAPTIVE_PHASES.map((phase, idx) => {
+          const isActive = idx === currentIdx;
+          const isCompleted = idx < currentIdx;
+          const fillPct = isCompleted ? 100 : isActive ? Math.min(100, phaseProgress * 100) : 0;
+
+          return (
+            <div
+              key={phase}
+              className={`unified-phase-subseg${isActive ? ' active' : ''}${isCompleted ? ' completed' : ''}`}
+              title={`${ADAPTIVE_PHASE_LABELS[phase]}${isActive ? ` — ${Math.round(phaseProgress * 100)}% (round ${roundsInPhase})` : ''}`}
+            >
+              <div className="unified-phase-subfill" style={{ width: `${fillPct}%`, background: ADAPTIVE_PHASE_COLORS[phase] }} />
+              <span className="unified-phase-sublabel">{ADAPTIVE_PHASE_LABELS[phase]}</span>
+            </div>
+          );
+        })}
+      </div>
+      {approachingTransition && (
+        <span className="unified-phase-subhint">Approaching transition</span>
+      )}
+      {rationale && (
+        <span className="unified-phase-subrationale" title={rationale}>
+          {rationale.length > 80 ? rationale.slice(0, 77) + '...' : rationale}
+        </span>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Single coordinated phase indicator (t/2238, DEBATE_CHAT_REDESIGN). Reconciles
+ * the two previously-stacked scales — session phase (Refine → Opening → Debate →
+ * Complete) and adaptive sub-phase (Confrontation → Argumentation → Concluding) —
+ * by nesting the adaptive stages *inside* the active "Debate" step, so a
+ * researcher reads one widget instead of two unrelated progress bars. The
+ * flag-off path still renders {@link SessionPhaseStepper} + {@link PhaseProgressBar}.
+ */
+export function UnifiedPhaseIndicator({ phase, roundCount, adaptive }: {
+  phase: string;
+  roundCount: number;
+  adaptive?: {
+    currentPhase: AdaptivePhase;
+    phaseProgress: number;
+    roundsInPhase: number;
+    approachingTransition: boolean;
+    rationale?: string;
+  };
+}) {
+  const stepIdx = SESSION_STEPS.findIndex(s => s.key === phase);
+  const activeIdx = stepIdx >= 0 ? stepIdx : (phase === 'setup' || phase === 'edit-claims' ? 0 : -1);
+  const showSubTrack = !!adaptive && phase === 'debate';
+
+  return (
+    <div className="unified-phase-indicator">
+      <div className="unified-phase-steps">
+        {SESSION_STEPS.map((step, idx) => {
+          const completed = idx < activeIdx || phase === 'closed';
+          const active = idx === activeIdx && phase !== 'closed';
+          const hasSubTrack = active && step.key === 'debate' && showSubTrack;
+          return (
+            <div
+              key={step.key}
+              className={`unified-phase-step${completed ? ' completed' : ''}${active ? ' active' : ''}${hasSubTrack ? ' has-subtrack' : ''}`}
+            >
+              <div className="unified-phase-dot">{completed ? '✓' : idx + 1}</div>
+              <span className="unified-phase-label">
+                {step.label}
+                {active && step.key === 'debate' && roundCount > 0 ? ` (${roundCount})` : ''}
+              </span>
+              {idx < SESSION_STEPS.length - 1 && <div className={`unified-phase-line${completed ? ' completed' : ''}`} />}
+            </div>
+          );
+        })}
+      </div>
+      {showSubTrack && adaptive && <UnifiedAdaptiveSubTrack {...adaptive} />}
     </div>
   );
 }
