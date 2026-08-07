@@ -633,11 +633,37 @@ function StatementDeleteActions({ entryIndex, totalEntries, deleteConfirm, setDe
   );
 }
 
+/**
+ * Collapse chevron (t/2241, DEBATE_CHAT_REDESIGN). Skimming past turns already
+ * read is otherwise impossible — the tier system re-summarizes content but never
+ * hides it. A native <button> keeps Enter/Space working without key handlers.
+ */
+function StatementCollapseToggle({ collapsed, onToggle, entryId }: {
+  collapsed: boolean;
+  onToggle: () => void;
+  entryId: string;
+}) {
+  return (
+    <button
+      type="button"
+      className="debate-statement-collapse-btn"
+      onClick={(e) => { e.stopPropagation(); onToggle(); }}
+      aria-expanded={!collapsed}
+      aria-controls={`debate-statement-body-${entryId}`}
+      aria-label={collapsed ? 'Expand this turn' : 'Collapse this turn'}
+      title={collapsed ? 'Expand this turn' : 'Collapse this turn'}
+    >
+      {collapsed ? '▸' : '▾'}
+    </button>
+  );
+}
+
 function StatementCardHeader({
   entry, statementId, camp, color, activeDebate, anNodeId,
   showTierPills, activeTier, setEntryDisplayTier, vocabResolutions, hasLineageRefs,
   qbafEnabled, netDelta, isPover, diagnosticsEnabled, toggleDiagnostics, selectDiagEntry,
   entryIndex, totalEntries, deleteConfirm, setDeleteConfirm,
+  collapsible, collapsed, onToggleCollapse, collapsedSummary,
 }: {
   entry: TranscriptEntry;
   statementId?: string;
@@ -660,9 +686,16 @@ function StatementCardHeader({
   totalEntries?: number;
   deleteConfirm: 'single' | 'after' | null;
   setDeleteConfirm: (v: 'single' | 'after' | null) => void;
+  collapsible: boolean;
+  collapsed: boolean;
+  onToggleCollapse: () => void;
+  collapsedSummary: string;
 }) {
   return (
     <div className="debate-statement-header">
+      {collapsible && (
+        <StatementCollapseToggle collapsed={collapsed} onToggle={onToggleCollapse} entryId={entry.id} />
+      )}
       {camp && <CampGlyph camp={camp} size={16} />}
       <span className="debate-statement-speaker" style={color ? { color } : undefined}>
         {speakerLabel(entry.speaker)}
@@ -676,6 +709,67 @@ function StatementCardHeader({
           {statementId}
         </span>
       )}
+      {collapsed ? (
+        <span className="debate-statement-collapsed-summary">{collapsedSummary}</span>
+      ) : (
+        <StatementCardHeaderDetail
+          entry={entry}
+          activeDebate={activeDebate}
+          anNodeId={anNodeId}
+          showTierPills={showTierPills}
+          activeTier={activeTier}
+          setEntryDisplayTier={setEntryDisplayTier}
+          vocabResolutions={vocabResolutions}
+          hasLineageRefs={hasLineageRefs}
+          qbafEnabled={qbafEnabled}
+          netDelta={netDelta}
+          isPover={isPover}
+          diagnosticsEnabled={diagnosticsEnabled}
+          toggleDiagnostics={toggleDiagnostics}
+          selectDiagEntry={selectDiagEntry}
+          entryIndex={entryIndex}
+          totalEntries={totalEntries}
+          deleteConfirm={deleteConfirm}
+          setDeleteConfirm={setDeleteConfirm}
+        />
+      )}
+    </div>
+  );
+}
+
+/**
+ * Everything in the card header past the speaker identity. Split out so a
+ * collapsed card (t/2241) can render identity-only without duplicating the row,
+ * and so the header stays under the complexity ceiling. Rendered output is
+ * unchanged from before the split.
+ */
+function StatementCardHeaderDetail({
+  entry, activeDebate, anNodeId, showTierPills, activeTier, setEntryDisplayTier,
+  vocabResolutions, hasLineageRefs, qbafEnabled, netDelta, isPover,
+  diagnosticsEnabled, toggleDiagnostics, selectDiagEntry,
+  entryIndex, totalEntries, deleteConfirm, setDeleteConfirm,
+}: {
+  entry: TranscriptEntry;
+  activeDebate: ActiveDebateT;
+  anNodeId: string | null;
+  showTierPills: boolean;
+  activeTier: string;
+  setEntryDisplayTier: SetEntryDisplayTier;
+  vocabResolutions: VocabResolution[] | undefined;
+  hasLineageRefs: boolean;
+  qbafEnabled: boolean;
+  netDelta: number | undefined;
+  isPover: boolean;
+  diagnosticsEnabled: boolean;
+  toggleDiagnostics: () => void;
+  selectDiagEntry: ReturnType<typeof useDebateStore.getState>['selectDiagEntry'];
+  entryIndex?: number;
+  totalEntries?: number;
+  deleteConfirm: 'single' | 'after' | null;
+  setDeleteConfirm: (v: 'single' | 'after' | null) => void;
+}) {
+  return (
+    <>
       <StatementModelBadge entry={entry} activeDebate={activeDebate} />
       <span className="debate-statement-type">
         {entry.type}
@@ -712,7 +806,7 @@ function StatementCardHeader({
         </button>
       )}
       <StatementDeleteActions entryIndex={entryIndex} totalEntries={totalEntries} deleteConfirm={deleteConfirm} setDeleteConfirm={setDeleteConfirm} />
-    </div>
+    </>
   );
 }
 
@@ -797,7 +891,7 @@ function StatementBody({
   setEntryDisplayTier: SetEntryDisplayTier;
 }) {
   return (
-    <div className={`debate-statement-body${isMetaView ? ' meta-view' : ''}`} ref={bodyRef}>
+    <div className={`debate-statement-body${isMetaView ? ' meta-view' : ''}`} ref={bodyRef} id={`debate-statement-body-${entry.id}`}>
       <div key={flipKey} ref={innerRef} className={`debate-flip-inner${flipping ? ' flipping' : ''}`} onAnimationEnd={handleFlipEnd}>
       {isMetaView && <div className="debate-meta-mode-label">{TIER_LABELS[displayedTier]?.toUpperCase()}</div>}
       {displayedTier === 'terms' && vocabResolutions && vocabResolutions.length > 0 ? (
@@ -917,6 +1011,11 @@ export function StatementCard({ entry, statementId, findQuery = '', matchOffset 
   const selectDiagEntry = useDebateStore(s => s.selectDiagEntry);
   const deleteTranscriptEntries = useDebateStore(s => s.deleteTranscriptEntries);
   const qbafEnabled = useFlag('release-qbaf-analysis');
+  const chatRedesign = useFlag('DEBATE_CHAT_REDESIGN');
+  // Per-card collapse (t/2241) — deliberately local, not persisted to the debate
+  // store: it is a reading aid for the current scroll session, not debate state.
+  const [collapsed, setCollapsed] = useState(false);
+  const toggleCollapsed = useCallback(() => setCollapsed(c => !c), []);
   const [deleteConfirm, setDeleteConfirm] = useState<'single' | 'after' | null>(null);
   const [showSymbolTooltips, setShowSymbolTooltips] = useState(false);
   const anNodeId = findAnNodeId(activeDebate, entry.id);
@@ -987,6 +1086,14 @@ export function StatementCard({ entry, statementId, findQuery = '', matchOffset 
   const isMetaView = META_TIERS.has(displayedTier);
   const { displayContent, isTruncated } = resolveDisplayContent(entry, displayedTier, isSubstantive);
 
+  // Collapsed cards show a word count so a long turn is still distinguishable
+  // from a one-liner when skimming (t/2241).
+  const collapsedSummary = useMemo(() => {
+    const words = entry.content.trim().split(/\s+/).filter(Boolean).length;
+    return `collapsed · ${words} ${words === 1 ? 'word' : 'words'}`;
+  }, [entry.content]);
+  const isCollapsed = chatRedesign && collapsed;
+
   // Memoize the rendered statement body into a reconciliation-stable subtree so
   // CommentOverlay's imperatively-injected [data-comment-highlight] spans survive
   // comment-only re-renders (HLD t/1683#1, Decision 2 — t/1694). A stable element
@@ -1007,7 +1114,7 @@ export function StatementCard({ entry, statementId, findQuery = '', matchOffset 
 
   return (
     <div
-      className={`debate-statement debate-speaker-${entry.speaker} debate-type-${entry.type}`}
+      className={`debate-statement debate-speaker-${entry.speaker} debate-type-${entry.type}${isCollapsed ? ' debate-statement-collapsed' : ''}`}
       data-entry-id={entry.id}
       data-is-pover={isPover ? 'true' : 'false'}
     >
@@ -1033,35 +1140,43 @@ export function StatementCard({ entry, statementId, findQuery = '', matchOffset 
         totalEntries={totalEntries}
         deleteConfirm={deleteConfirm}
         setDeleteConfirm={setDeleteConfirm}
+        collapsible={chatRedesign}
+        collapsed={isCollapsed}
+        onToggleCollapse={toggleCollapsed}
+        collapsedSummary={collapsedSummary}
       />
-      <StatementDeleteConfirm
-        entry={entry}
-        activeDebate={activeDebate}
-        deleteConfirm={deleteConfirm}
-        setDeleteConfirm={setDeleteConfirm}
-        deleteTranscriptEntries={deleteTranscriptEntries}
-        entryIndex={entryIndex}
-        totalEntries={totalEntries}
-      />
-      <StatementTurnSymbols turnSymbols={turnSymbols} showSymbolTooltips={showSymbolTooltips} setShowSymbolTooltips={setShowSymbolTooltips} />
-      <StatementBody
-        entry={entry}
-        activeDebate={activeDebate}
-        displayedTier={displayedTier}
-        isMetaView={isMetaView}
-        flipKey={flipKey}
-        flipping={flipping}
-        handleFlipEnd={handleFlipEnd}
-        bodyRef={bodyRef}
-        innerRef={innerRef}
-        contentRef={contentRef}
-        vocabResolutions={vocabResolutions}
-        meta={meta}
-        renderedStatementBody={renderedStatementBody}
-        isTruncated={isTruncated}
-        setEntryDisplayTier={setEntryDisplayTier}
-      />
-      <StatementFooter entry={entry} activeDebate={activeDebate} activeTier={activeTier} debateGenerating={debateGenerating} askQuestion={askQuestion} />
+      {!isCollapsed && (
+        <>
+          <StatementDeleteConfirm
+            entry={entry}
+            activeDebate={activeDebate}
+            deleteConfirm={deleteConfirm}
+            setDeleteConfirm={setDeleteConfirm}
+            deleteTranscriptEntries={deleteTranscriptEntries}
+            entryIndex={entryIndex}
+            totalEntries={totalEntries}
+          />
+          <StatementTurnSymbols turnSymbols={turnSymbols} showSymbolTooltips={showSymbolTooltips} setShowSymbolTooltips={setShowSymbolTooltips} />
+          <StatementBody
+            entry={entry}
+            activeDebate={activeDebate}
+            displayedTier={displayedTier}
+            isMetaView={isMetaView}
+            flipKey={flipKey}
+            flipping={flipping}
+            handleFlipEnd={handleFlipEnd}
+            bodyRef={bodyRef}
+            innerRef={innerRef}
+            contentRef={contentRef}
+            vocabResolutions={vocabResolutions}
+            meta={meta}
+            renderedStatementBody={renderedStatementBody}
+            isTruncated={isTruncated}
+            setEntryDisplayTier={setEntryDisplayTier}
+          />
+          <StatementFooter entry={entry} activeDebate={activeDebate} activeTier={activeTier} debateGenerating={debateGenerating} askQuestion={askQuestion} />
+        </>
+      )}
     </div>
   );
 }

@@ -259,3 +259,47 @@
 .debate-fact-check-severity-major .debate-fact-check-discrepancy-dimension {
   background: rgba(239, 68, 68, 0.15);
 }
+
+/* ── Per-turn collapse (t/2241, DEBATE_CHAT_REDESIGN) ── */
+
+/*
+ * Chevron sits at the head of the identity row. A collapsed card keeps the same
+ * left-border accent so the speaker is still readable in a scan of the rail.
+ */
+.debate-statement-collapse-btn {
+  background: none;
+  border: none;
+  padding: 0 2px;
+  margin: 0;
+  cursor: pointer;
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+  line-height: 1;
+  flex-shrink: 0;
+  border-radius: var(--radius-sm);
+}
+
+.debate-statement-collapse-btn:hover {
+  color: var(--text-primary);
+}
+
+.debate-statement-collapse-btn:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
+}
+
+.debate-statement-collapsed {
+  padding-top: var(--sp-2);
+  padding-bottom: var(--sp-2);
+}
+
+.debate-statement-collapsed .debate-statement-header {
+  margin-bottom: 0;
+}
+
+.debate-statement-collapsed-summary {
+  font-size: var(--text-2xs);
+  color: var(--text-secondary);
+  font-style: italic;
+  white-space: nowrap;
+}
