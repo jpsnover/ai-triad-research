@@ -715,6 +715,16 @@ const diagCallbacks = new Set<(state: unknown) => void>();
 const diagClosedCallbacks = new Set<() => void>();
 const reExtractCallbacks = new Set<(entryId: string) => void>();
 
+// Brief-timeout browser-local event bus (web-only; Electron path uses IPC from ElectronMain).
+// Types mirror AppAPI inline shapes in types.ts — NOT imported from useBriefTimeoutEvents.ts
+// (that file imports @bridge, which would create a circular dep). (t/2218)
+type BriefTimeoutPayload = { debateId: string; speaker: string; attempt: number; maxAttempts: number; currentModel: string };
+type BriefExhaustedPayload = { debateId: string; speaker: string; totalAttempts: number; currentModel: string };
+const briefTimeoutCbs = new Set<(e: BriefTimeoutPayload) => void>();
+const briefExhaustedCbs = new Set<(e: BriefExhaustedPayload) => void>();
+export function emitBriefTimeout(e: BriefTimeoutPayload): void { briefTimeoutCbs.forEach(cb => cb(e)); }
+export function emitBriefRetriesExhausted(e: BriefExhaustedPayload): void { briefExhaustedCbs.forEach(cb => cb(e)); }
+
 // Receive diagnostics state from the main tab (or from this tab if inline)
 const diagChannelHandler = (event: MessageEvent) => {
   const msg = event.data as { type: string; payload?: unknown; entryId?: string };
@@ -1409,6 +1419,10 @@ const rawApi: AppAPI = {
     });
     if (!res.ok) throw new Error(`DELETE community item failed: HTTP ${res.status}`);
   },
+
+  // Brief-timeout browser-local subscriptions (t/2218). Electron path goes via IPC in preload.
+  onBriefTimeout: (cb) => { briefTimeoutCbs.add(cb); return () => briefTimeoutCbs.delete(cb); },
+  onBriefRetriesExhausted: (cb) => { briefExhaustedCbs.add(cb); return () => briefExhaustedCbs.delete(cb); },
 };
 
 export const api = instrumentBridge(rawApi);
