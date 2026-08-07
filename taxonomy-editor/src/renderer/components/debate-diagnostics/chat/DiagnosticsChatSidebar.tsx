@@ -1,8 +1,8 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-import './DiagnosticsChatSidebar.css';
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { MessageBubble, ThinkingIndicator, StreamingBubble } from '../../shared/ChatBubble';
 import type { DebateSession } from '../../../types/debate';
 import { POVER_INFO } from '../../../types/debate';
 import { POV_META, type PovMetaKey } from '@lib/electron-shared/povMeta';
@@ -668,80 +668,15 @@ function ChatEmptyState({ isWeb }: { isWeb: boolean }) {
   );
 }
 
-function MessageBubble({ msg, onNavigate }: { msg: ChatMessage; onNavigate: (cmd: NavigateCommand) => void }) {
-  if (msg.isError) {
-    return (
-      <div className="dchat-error-bubble">
-        <div className="dchat-error-label">
-          <span aria-hidden="true">⚠</span>
-          <span>Error</span>
-        </div>
-        <div style={{ whiteSpace: 'pre-wrap' }}>{msg.content.replace(/^Error:\s*/i, '')}</div>
-      </div>
-    );
-  }
+function NavFooter({ navigation, onNavigate }: { navigation: NavigateCommand; onNavigate: (cmd: NavigateCommand) => void }) {
   return (
-    <div
-      style={{
-        alignSelf: msg.role === 'user' ? 'flex-end' : 'flex-start',
-        maxWidth: '90%',
-        padding: '6px 10px',
-        borderRadius: 8,
-        fontSize: '0.75rem',
-        lineHeight: 1.4,
-        background: msg.role === 'user' ? 'color-mix(in srgb, var(--warning) 15%, transparent)' : 'var(--bg-tertiary, rgba(255,255,255,0.05))',
-        color: 'var(--text-primary, var(--border-color))',
-        border: msg.role === 'user' ? '1px solid color-mix(in srgb, var(--warning) 30%, transparent)' : '1px solid var(--border)',
-        userSelect: 'text',
-        cursor: 'text',
-      }}
+    <div style={{
+      marginTop: 4, paddingTop: 4, borderTop: '1px solid var(--border)',
+      fontSize: 'var(--text-2xs)', color: 'var(--warning)', cursor: 'pointer',
+    }}
+      onClick={() => onNavigate(navigation)}
     >
-      {msg.role === 'assistant' ? (
-        <div className="diag-chat-markdown">
-          <Markdown remarkPlugins={[remarkGfm, remarkColorizePov]}>{msg.content}</Markdown>
-        </div>
-      ) : (
-        <div style={{ whiteSpace: 'pre-wrap' }}>{msg.content}</div>
-      )}
-      {msg.navigation && (
-        <div style={{
-          marginTop: 4, paddingTop: 4, borderTop: '1px solid var(--border)',
-          fontSize: 'var(--text-2xs)', color: 'var(--warning)', cursor: 'pointer',
-        }}
-          onClick={() => msg.navigation && onNavigate(msg.navigation)}
-        >
-          Navigated to {msg.navigation.entry ?? 'overview'}{msg.navigation.tab ? ` → ${msg.navigation.tab}` : ''}{msg.navigation.overviewTab ? ` → ${msg.navigation.overviewTab}` : ''}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function StreamingBubble({ streamingText }: { streamingText: string }) {
-  return (
-    <div style={{
-      alignSelf: 'flex-start', maxWidth: '90%',
-      padding: '6px 10px', borderRadius: 8,
-      fontSize: '0.75rem', lineHeight: 1.4,
-      background: 'var(--bg-tertiary, rgba(255,255,255,0.05))',
-      color: 'var(--text-primary, var(--border-color))',
-      border: '1px solid var(--border)',
-      userSelect: 'text', cursor: 'text',
-    }}>
-      <div className="diag-chat-markdown">
-        <Markdown remarkPlugins={[remarkGfm, remarkColorizePov]}>{streamingText}</Markdown>
-      </div>
-    </div>
-  );
-}
-
-function ThinkingIndicator({ activity }: { activity: string | null }) {
-  return (
-    <div style={{
-      alignSelf: 'flex-start', padding: '6px 10px', borderRadius: 8,
-      fontSize: '0.7rem', color: 'var(--text-muted)', fontStyle: 'italic',
-    }}>
-      {activity || 'Thinking...'}
+      Navigated to {navigation.entry ?? 'overview'}{navigation.tab ? ` → ${navigation.tab}` : ''}{navigation.overviewTab ? ` → ${navigation.overviewTab}` : ''}
     </div>
   );
 }
@@ -793,11 +728,27 @@ function ChatScrollArea({
       {messages.length === 0 && !generating && (
         <ChatEmptyState isWeb={isWeb} />
       )}
-      {messages.filter(m => m.role !== 'system').map(msg => (
-        <MessageBubble key={msg.id} msg={msg} onNavigate={onNavigate} />
-      ))}
+      {messages.filter(m => m.role !== 'system').map(msg => {
+        const displayContent = msg.isError ? msg.content.replace(/^Error:\s*/i, '') : msg.content;
+        return (
+          <MessageBubble
+            key={msg.id}
+            role={msg.role as 'user' | 'assistant'}
+            isError={msg.isError}
+            footer={msg.navigation ? <NavFooter navigation={msg.navigation} onNavigate={onNavigate} /> : undefined}
+          >
+            {msg.isError || msg.role !== 'assistant' ? (
+              <div style={{ whiteSpace: 'pre-wrap' }}>{displayContent}</div>
+            ) : (
+              <div className="diag-chat-markdown">
+                <Markdown remarkPlugins={[remarkGfm, remarkColorizePov]}>{displayContent}</Markdown>
+              </div>
+            )}
+          </MessageBubble>
+        );
+      })}
       {generating && streamingText && (
-        <StreamingBubble streamingText={streamingText} />
+        <StreamingBubble content={streamingText} mdClassName="diag-chat-markdown" />
       )}
       {generating && !streamingText && (
         <ThinkingIndicator activity={activity} />

@@ -1,6 +1,6 @@
-/* DiagnosticsChatSidebar — co-located styles (prefix: dchat-) */
+/* Shared chat bubble styles (prefix: chat-bubble-) */
 
-.dchat-error-bubble {
+.chat-bubble-error {
   align-self: flex-start;
   max-width: 90%;
   padding: 6px 10px;
@@ -14,7 +14,7 @@
   cursor: text;
 }
 
-.dchat-error-label {
+.chat-bubble-error-label {
   display: flex;
   align-items: center;
   gap: 4px;
