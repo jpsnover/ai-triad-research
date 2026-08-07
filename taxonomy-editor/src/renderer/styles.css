@@ -23,7 +23,7 @@
 
   /* Surfaces */
   --bg-primary: #ffffff;
-  --bg-secondary: #f8fafc;
+  --bg-secondary: #f8fafc; --bg-tertiary: #edf1f6; /* tertiary surface, between secondary & border (t/2261); paired to hold styles.css LOC flat */
   --bg-panel: #e2e8f0;
   --bg-input: #ffffff;
   --bg-hover: #f1f5f9;
@@ -45,7 +45,7 @@
 
   /* Semantic */
   --danger: #ef4444;
-  --success: #22c55e;
+  --success: #22c55e; --success-text: #15803d; /* AA green TEXT on --bg-primary; --success stays fill (t/2260) */
   --warning: #a16207;
   --focus-ring: #3b82f6;
 
@@ -82,7 +82,7 @@
 
   /* Surfaces */
   --bg-primary: #111827;
-  --bg-secondary: #1f2937;
+  --bg-secondary: #1f2937; --bg-tertiary: #2b3544; /* tertiary surface (t/2261) */
   --bg-panel: #293548;
   --bg-input: #111827;
   --bg-hover: #374151;
@@ -104,7 +104,7 @@
 
   /* Semantic */
   --danger: #ef4444;
-  --success: #22c55e;
+  --success: #22c55e; --success-text: #22c55e; /* reuses fill; AA on dark bg (t/2260) */
   --warning: #f59e0b;
   --focus-ring: #60a5fa;
 
@@ -141,7 +141,7 @@
 
   /* Surfaces */
   --bg-primary: #1f1f1f;
-  --bg-secondary: #281f29;
+  --bg-secondary: #281f29; --bg-tertiary: #3b2d3c; /* tertiary surface (t/2261) */
   --bg-panel: #311632;
   --bg-input: #202020;
   --bg-hover: #3d2a3e;
@@ -163,7 +163,7 @@
 
   /* Semantic */
   --danger: #fb2c36;
-  --success: #00ff4c;
+  --success: #00ff4c; --success-text: #00ff4c; /* reuses fill; AA on dark bg (t/2260) */
   --warning: #d9a441;
   --focus-ring: #4d7a8b;
 
@@ -198,7 +198,7 @@
 
   /* Surfaces */
   --bg-primary: #FAF8F5;
-  --bg-secondary: #F3F0EB;
+  --bg-secondary: #F3F0EB; --bg-tertiary: #e5e0d8; /* tertiary surface (t/2261) */
   --bg-panel: #E5DFD6;
   --bg-input: #FFFFFF;
   --bg-hover: #EDE8E0;
@@ -220,7 +220,7 @@
 
   /* Semantic */
   --danger: #C53B4A;
-  --success: #2D6A4F;
+  --success: #2D6A4F; --success-text: #2D6A4F; /* reuses forest green; already AA (t/2260) */
   --warning: #8B6508;
   --focus-ring: #A51C30;
 
@@ -9942,7 +9942,7 @@ a.vocab-term,
   margin-top: 3px;
   font-size: var(--text-2xs);
   font-weight: 600;
-  color: #10b981;
+  color: var(--success-text); /* was #10b981 (~2.6:1 AA fail on light); now theme-aware (t/2260) */
   animation: phase-hint-pulse 2s ease-in-out infinite;
 }
 @keyframes phase-hint-pulse {
