@@ -17,6 +17,8 @@ import {
   fixMarkdownLinks, stripLeadingHeadings,
   META_TIERS, TIER_LABELS,
 } from './utils';
+import { bandColor as computeBandColor } from '../../lib/bandColor';
+import type { BandEntry } from '../../lib/bandColor';
 import type { AnchorHTMLAttributes, HTMLAttributes } from 'react';
 import { parseEntityRef } from '@lib/entities/types';
 import type { FactVerdict, FactDiscrepancy } from '@lib/debate/types';
@@ -105,12 +107,12 @@ function ConvBadge({ text, color }: { text: string; color: string }) {
   return <span className="convergence-badge" style={{ color }}>{text}</span>;
 }
 
-function bandBadge(value: number, bands: [number, string, string][]): ReactNode {
-  for (const [threshold, label, color] of bands) {
-    if (value >= threshold) return <ConvBadge text={label} color={color} />;
-  }
-  const fallback = bands[bands.length - 1];
-  return <ConvBadge text={fallback[1]} color={fallback[2]} />;
+type LabeledBand = BandEntry & { label: string };
+
+function bandBadge(value: number, bands: readonly LabeledBand[]): ReactNode {
+  const color = computeBandColor(value, bands);
+  const label = (bands.find(b => value >= b.threshold) ?? bands.at(-1))!.label;
+  return <ConvBadge text={label} color={color} />;
 }
 
 function ConvCell({ label, span, children }: { label: string; span?: boolean; children: ReactNode }) {
@@ -135,7 +137,7 @@ function PolarityCell({ md }: { md: ConvergenceSignals['move_polarity'] }) {
       <span style={{ color: '#ef4444' }}>{md?.confrontational ?? 0}C</span>{' / '}
       <span style={{ color: '#22c55e' }}>{md?.collaborative ?? 0}S</span>
       {' = '}<strong>{pctFmt(md?.ratio ?? 0)}</strong>
-      {bandBadge(md?.ratio ?? 0, [[0.5, 'cooperative', '#22c55e'], [0, 'confrontational', '#ef4444']])}
+      {bandBadge(md?.ratio ?? 0, [{ threshold: 0.5, label: 'cooperative', color: '#22c55e' }, { threshold: 0, label: 'confrontational', color: '#ef4444' }])}
     </ConvCell>
   );
 }
@@ -146,7 +148,7 @@ function EngagementCell({ ed }: { ed: ConvergenceSignals['dialectical_engagement
   return (
     <ConvCell label="Dialectical Engagement">
       {edTargeted}/{edTotal} targeted = <strong>{pctFmt(ed?.ratio ?? 0)}</strong>
-      {bandBadge(ed?.ratio ?? 0, [[0.7, 'deep', '#22c55e'], [0.4, 'moderate', '#f59e0b'], [0, 'standalone', '#ef4444']])}
+      {bandBadge(ed?.ratio ?? 0, [{ threshold: 0.7, label: 'deep', color: '#22c55e' }, { threshold: 0.4, label: 'moderate', color: '#f59e0b' }, { threshold: 0, label: 'standalone', color: '#ef4444' }])}
     </ConvCell>
   );
 }
@@ -158,7 +160,7 @@ function RedundancyCell({ rr }: { rr: ConvergenceSignals['argument_redundancy'] 
       avg <strong>{pctFmt(rr?.avg_self_overlap ?? 0)}</strong>, max <strong>{pctFmt(rrMaxOverlap)}</strong>
       {rr?.semantic_max_similarity != null && <>, sem <strong>{pctFmt(rr.semantic_max_similarity)}</strong></>}
       {rr?.semantically_recycled ? <ConvBadge text="semantic repeat" color="#ef4444" />
-        : bandBadge(rrMaxOverlap, [[0.5, 'repeating', '#f59e0b'], [0, 'fresh', '#22c55e']])}
+        : bandBadge(rrMaxOverlap, [{ threshold: 0.5, label: 'repeating', color: '#f59e0b' }, { threshold: 0, label: 'fresh', color: '#22c55e' }])}
     </ConvCell>
   );
 }
@@ -168,7 +170,7 @@ function CounterargCell({ so }: { so: ConvergenceSignals['dominant_counterargume
     <ConvCell label="Dominant Counterargument">
       {so ? (
         <>{so.node_id} str={so.strength?.toFixed(2)}
-          {bandBadge(so.strength ?? 0, [[0.7, 'strong', '#ef4444'], [0.5, 'moderate', '#f59e0b'], [0, 'weak', '#22c55e']])}
+          {bandBadge(so.strength ?? 0, [{ threshold: 0.7, label: 'strong', color: '#ef4444' }, { threshold: 0.5, label: 'moderate', color: '#f59e0b' }, { threshold: 0, label: 'weak', color: '#22c55e' }])}
         </>
       ) : <span style={{ color: 'var(--text-muted)' }}>none</span>}
     </ConvCell>
@@ -192,7 +194,7 @@ function DriftCell({ pd }: { pd: ConvergenceSignals['position_drift'] }) {
   return (
     <ConvCell label="Position Drift">
       opening: <strong>{pctFmt(pdOverlap)}</strong>, drift: <strong>{pctFmt(pd?.drift ?? 0)}</strong>
-      {bandBadge(pdOverlap, [[0.6, 'anchored', '#f59e0b'], [0.3, 'evolved', '#22c55e'], [0, 'shifted', '#3b82f6']])}
+      {bandBadge(pdOverlap, [{ threshold: 0.6, label: 'anchored', color: '#f59e0b' }, { threshold: 0.3, label: 'evolved', color: '#22c55e' }, { threshold: 0, label: 'shifted', color: '#3b82f6' }])}
     </ConvCell>
   );
 }

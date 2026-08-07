@@ -17,6 +17,8 @@ import { useTierInfo } from '../../hooks/useTierInfo';
 import { isElectronMode } from '@bridge';
 import { useFlag } from '../../hooks/useFeatureFlags';
 import { triggerManualDump } from '../../lib/flightRecorderInit';
+import { bandColor, BUDGET_BANDS } from '../../lib/bandColor';
+import './DebateActionBar.css';
 
 export function ProgressIndicator() {
   const { debateActivity, debateProgress } = useDebateStore(
@@ -41,8 +43,6 @@ export function ProgressIndicator() {
   );
 }
 
-const BUDGET_WARN_THRESHOLD = 0.8;
-const BUDGET_URGENT_THRESHOLD = 0.95;
 
 function formatResetTime(resetsAt: string): string {
   const ms = new Date(resetsAt).getTime() - Date.now();
@@ -63,10 +63,11 @@ export function TokenBudgetIndicator() {
   if (pct < 0.01) return null;
   const remaining = Math.max(0, tokensPerDay - tokensToday);
   const remainingK = remaining >= 1000 ? `${Math.round(remaining / 1000)}k` : String(remaining);
-  const isUrgent = pct >= BUDGET_URGENT_THRESHOLD;
-  const isWarning = pct >= BUDGET_WARN_THRESHOLD;
+  const level = bandColor(pct, BUDGET_BANDS);
+  const isUrgent = level === 'urgent';
+  const isWarning = level === 'warning';
   const resetLabel = resetsAt ? formatResetTime(resetsAt) : '';
-  const levelClass = isUrgent ? ' urgent' : isWarning ? ' warning' : '';
+  const levelClass = level ? ` ${level}` : '';
   return (
     <div className={`token-budget-indicator${levelClass}`}>
       {isUrgent ? (
@@ -159,6 +160,93 @@ export function SessionPhaseStepper({ phase, roundCount }: { phase: string; roun
           </div>
         );
       })}
+    </div>
+  );
+}
+
+/**
+ * Adaptive sub-phase track, nested under the "Debate" session step in the
+ * unified indicator (t/2238). Same data as {@link PhaseProgressBar} but rendered
+ * as a compact secondary row so both dimensions read as one widget.
+ */
+function UnifiedAdaptiveSubTrack({ currentPhase, phaseProgress, roundsInPhase, approachingTransition, rationale }: {
+  currentPhase: AdaptivePhase;
+  phaseProgress: number;
+  roundsInPhase: number;
+  approachingTransition: boolean;
+  rationale?: string;
+}) {
+  const currentIdx = ADAPTIVE_PHASES.indexOf(currentPhase);
+  return (
+    <div className="unified-phase-subtrack" title={rationale || `${ADAPTIVE_PHASE_LABELS[currentPhase]} — round ${roundsInPhase}`}>
+      <span className="unified-phase-subcaption">Debate stage</span>
+      <div className="unified-phase-subsegments">
+        {ADAPTIVE_PHASES.map((phase, idx) => {
+          const isActive = idx === currentIdx;
+          const isCompleted = idx < currentIdx;
+          const fillPct = isCompleted ? 100 : isActive ? Math.min(100, phaseProgress * 100) : 0;
+          return (
+            <div
+              key={phase}
+              className={`unified-phase-subseg${isActive ? ' active' : ''}${isCompleted ? ' completed' : ''}`}
+              title={`${ADAPTIVE_PHASE_LABELS[phase]}${isActive ? ` — ${Math.round(phaseProgress * 100)}% (round ${roundsInPhase})` : ''}`}
+            >
+              {/* eslint-disable-next-line local/no-inline-style -- fill width + per-phase color are runtime values (mirrors PhaseProgressBar) */}
+              <div className="unified-phase-subfill" style={{ width: `${fillPct}%`, background: ADAPTIVE_PHASE_COLORS[phase] }} />
+              <span className="unified-phase-sublabel">{ADAPTIVE_PHASE_LABELS[phase]}</span>
+            </div>
+          );
+        })}
+      </div>
+      {approachingTransition && (
+        <span className="unified-phase-subhint">Approaching transition</span>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Single coordinated phase indicator (t/2238, DEBATE_CHAT_REDESIGN). Reconciles
+ * the session stepper (Refine → Opening → Debate → Complete) and the adaptive
+ * sub-phase bar by nesting the adaptive stages inside the active "Debate" step,
+ * so a researcher reads one widget instead of two unrelated scales. The flag-off
+ * path still renders {@link SessionPhaseStepper} + {@link PhaseProgressBar}.
+ */
+export function UnifiedPhaseIndicator({ phase, roundCount, adaptive }: {
+  phase: string;
+  roundCount: number;
+  adaptive?: {
+    currentPhase: AdaptivePhase;
+    phaseProgress: number;
+    roundsInPhase: number;
+    approachingTransition: boolean;
+    rationale?: string;
+  };
+}) {
+  const stepIdx = SESSION_STEPS.findIndex(s => s.key === phase);
+  const activeIdx = stepIdx >= 0 ? stepIdx : (phase === 'setup' || phase === 'edit-claims' ? 0 : -1);
+
+  return (
+    <div className="unified-phase-indicator">
+      <div className="unified-phase-steps">
+        {SESSION_STEPS.map((step, idx) => {
+          const completed = idx < activeIdx || phase === 'closed';
+          const active = idx === activeIdx && phase !== 'closed';
+          return (
+            <div key={step.key} className={`unified-phase-step${completed ? ' completed' : ''}${active ? ' active' : ''}`}>
+              <div className="unified-phase-dot">{completed ? '✓' : idx + 1}</div>
+              <span className="unified-phase-label">
+                {step.label}
+                {active && step.key === 'debate' && roundCount > 0 ? ` (${roundCount})` : ''}
+              </span>
+              {idx < SESSION_STEPS.length - 1 && <div className={`unified-phase-line${completed ? ' completed' : ''}`} />}
+            </div>
+          );
+        })}
+      </div>
+      {adaptive && phase === 'debate' && (
+        <UnifiedAdaptiveSubTrack {...adaptive} />
+      )}
     </div>
   );
 }
