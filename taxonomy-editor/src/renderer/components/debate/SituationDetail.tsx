@@ -25,14 +25,8 @@ import { api } from '@bridge';
 import { triggerSituationNodeRegeneration } from '../../utils/regeneratePlainDescription';
 import { useDescriptionMode, DescriptionToggle, type DescriptionMode } from '../shared/DescriptionToggle';
 import { StakeholderSection } from '../organizations/StakeholderSection';
-import { bandColor, type BandEntry } from '../../lib/bandColor';
+import { bandColor, DIVERGENCE_BANDS } from '../../lib/bandColor';
 import './SituationDetail.css';
-
-const DIVERGENCE_SCORE_BANDS: readonly BandEntry[] = [
-  { threshold: 0.40, color: '#22c55e' },
-  { threshold: 0.20, color: '#f59e0b' },
-  { threshold: 0,    color: '#ef4444' },
-];
 
 interface SituationDetailProps {
   node: SituationNode;
@@ -300,7 +294,7 @@ function SitOverviewTab({
 
       {node.interpretation_divergence != null && (() => {
         const div = node.interpretation_divergence;
-        const color = bandColor(div, DIVERGENCE_SCORE_BANDS);
+        const color = bandColor(div, DIVERGENCE_BANDS);
         const label = div > 0.40 ? 'High divergence' : div >= 0.20 ? 'Moderate divergence' : 'Low divergence';
         return (
           <div className="form-group">
