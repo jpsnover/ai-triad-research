@@ -109,8 +109,8 @@ const SEED_FLAGS: Record<string, FlagDef> = {
     created_by: 'seed',
   },
   'DEBATE_CHAT_REDESIGN': {
-    name: 'DEBATE_CHAT_REDESIGN', enabled: false, scope: 'global',
-    description: 'Gate new debate chat UX (t/2235); toggleable via admin flag CRUD',
+    name: 'DEBATE_CHAT_REDESIGN', enabled: true, scope: 'global',
+    description: 'Gate new debate chat UX — ON by default (t/2258 rollout)',
     created_at: '2026-08-07T00:00:00.000Z', updated_at: '2026-08-07T00:00:00.000Z',
     created_by: 'seed',
   },
