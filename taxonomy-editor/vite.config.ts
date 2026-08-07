@@ -5,9 +5,11 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 import { execSync } from 'child_process';
+import { createRequire } from 'module';
 import fs from 'fs';
 import path from 'path';
 
+const require = createRequire(import.meta.url);
 const isWeb = process.env.VITE_TARGET === 'web';
 
 function getGitVersion(): string {
