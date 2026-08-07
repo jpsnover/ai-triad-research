@@ -659,7 +659,7 @@ export class DebateEngine {
       const __engineDir = path.dirname(fileURLToPath(import.meta.url));
       const repoRoot = resolveRepoRoot(__engineDir);
       const dataRoot = resolveDataRoot(repoRoot);
-      appendCalibrationLog(dataPoint, dataRoot);
+      appendCalibrationLog(dataPoint, this.config.calibrationDataRoot ?? dataRoot);
 
       // Post-debate adaptive threshold write-back
       this._claimPipeline.runPostDebateCalibration(dataRoot);
