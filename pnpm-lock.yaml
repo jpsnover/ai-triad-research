@@ -12,6 +12,7 @@ overrides:
   ip-address: '>=10.3.1'
   uuid: '>=11.1.1'
   '@opentelemetry/core': '>=2.8.0'
+  js-yaml: '>=4.3.1'
 
 importers:
 
