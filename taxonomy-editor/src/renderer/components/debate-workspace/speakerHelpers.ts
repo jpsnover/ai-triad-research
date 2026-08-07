@@ -14,6 +14,12 @@ import { resolveSpeaker } from '../shared/SpeakerIdentity';
 // These live in their own module (re-exported by ./utils) so debate-workspace test
 // files that vi.mock('./utils') to stub labels cannot bleed a stubbed speakerLabel
 // into utils.test.ts under CI's threads pool (t/2256).
+//
+// Not directly unit-tested: any test that imports these delegates pulls in the
+// ./utils re-export chain, and a sibling's vi.mock('./utils') then contaminates the
+// resolver up that chain under CI's threads pool (t/2256 — it flaked even a direct
+// resolveSpeaker assertion). The label/color contract is instead fully covered where
+// it actually lives: resolveSpeaker in ../shared/SpeakerIdentity.test.tsx.
 
 export function speakerLabel(speaker: SpeakerId | 'system' | 'document' | 'moderator'): string {
   return resolveSpeaker(speaker).label;
