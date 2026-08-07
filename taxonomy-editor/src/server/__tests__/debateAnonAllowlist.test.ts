@@ -44,6 +44,7 @@ const ANON_ALLOWED_ROUTES: Array<{ method: string; path: string; desc: string }>
   { method: 'POST', path: '/api/chats', desc: 'create chat (user content, t/1501)' },
   { method: 'PUT', path: '/api/debates', desc: 'save debate (user content)' },
   { method: 'PUT', path: '/api/debates/abc-123', desc: 'update debate (user content)' },
+  { method: 'PATCH', path: '/api/debates/abc-123', desc: 'save debate delta (saveDebateDelta, t/2230)' },
   { method: 'DELETE', path: '/api/debates/abc-123', desc: 'delete own debate' },
 
   // --- Safe POSTs ---

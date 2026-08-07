@@ -283,6 +283,17 @@ describe('isAnonAllowedRoute (t/763 anon_route_blocked classification)', () => {
     expect(isAnonAllowedRoute('PUT', '/api/chats')).toBe(true);
     expect(isAnonAllowedRoute('DELETE', '/api/chats/xyz')).toBe(true);
   });
+  it('allows anonymous PATCH to own debate (saveDebateDelta, t/2230)', () => {
+    expect(isAnonAllowedRoute('PATCH', '/api/debates/abc-123')).toBe(true);
+    expect(isAnonAllowedRoute('PATCH', '/api/debates/some-other-id')).toBe(true);
+  });
+  it('PATCH anon guard is exact-segment: blocks chats and debate sub-paths (t/2230 Q4)', () => {
+    // Must not silently inherit anon write access via the broad user-content prefix.
+    expect(isAnonAllowedRoute('PATCH', '/api/chats/abc')).toBe(false);
+    expect(isAnonAllowedRoute('PATCH', '/api/debates/abc/comments')).toBe(false);
+    expect(isAnonAllowedRoute('PATCH', '/api/debates/abc/news-report')).toBe(false);
+    expect(isAnonAllowedRoute('PATCH', '/api/debates')).toBe(false);
+  });
   it('blocks other writes', () => {
     expect(isAnonAllowedRoute('PUT', '/api/taxonomy/accelerationist')).toBe(false);
     expect(isAnonAllowedRoute('DELETE', '/api/conflicts/c1')).toBe(false);
