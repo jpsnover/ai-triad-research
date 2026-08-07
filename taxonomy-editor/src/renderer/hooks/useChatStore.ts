@@ -45,21 +45,22 @@ function getConfiguredModel(): string {
   }
 }
 
-async function generateTextWithProgress(
-  prompt: string,
+async function streamChatWithProgress(
+  systemInstruction: string,
+  messages: { role: 'user' | 'model'; content: string }[],
   model: string,
+  temperature: number,
   activity: string,
   set: (partial: Partial<ChatStore>) => void,
-): Promise<{ text: string }> {
-  set({ chatActivity: activity, chatProgress: null });
-  const unsubscribe = api.onGenerateTextProgress((progress) => {
-    set({ chatProgress: progress as ChatStore['chatProgress'] });
-  });
+  onChunk: (chunk: string) => void,
+): Promise<string> {
+  set({ chatActivity: activity, chatStreamingText: null });
+  const unsubChunk = api.onChatStreamChunk(onChunk);
   try {
-    return await api.generateText(prompt, model);
+    return await api.startChatStream(systemInstruction, messages, model, temperature);
   } finally {
-    unsubscribe();
-    set({ chatProgress: null, chatActivity: null });
+    unsubChunk();
+    set({ chatStreamingText: null, chatActivity: null });
   }
 }
 
@@ -130,7 +131,7 @@ interface ChatStore {
   chatLoading: boolean;
   chatGenerating: boolean;
   chatError: string | null;
-  chatProgress: { attempt: number; maxRetries: number; backoffSeconds?: number; limitType?: string; limitMessage?: string } | null;
+  chatStreamingText: string | null;
   chatActivity: string | null;
   chatModel: string | null;
 
@@ -142,6 +143,7 @@ interface ChatStore {
   renameChat: (id: string, newTitle: string) => Promise<void>;
   changeMode: (mode: ChatMode) => Promise<void>;
   saveChat: () => Promise<void>;
+  appendStreamingText: (chunk: string) => void;
   sendMessage: (message: string) => Promise<void>;
   generateOpening: () => Promise<void>;
 }
@@ -154,7 +156,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
   chatLoading: false,
   chatGenerating: false,
   chatError: null,
-  chatProgress: null,
+  chatStreamingText: null,
   chatActivity: null,
   chatModel: null,
 
@@ -267,36 +269,43 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     await api.saveChatSession(updated);
   },
 
+  appendStreamingText: (chunk) => {
+    set((state) => ({ chatStreamingText: (state.chatStreamingText ?? '') + chunk }));
+  },
+
   generateOpening: async () => {
     const { activeChat, saveChat, chatGenerating } = get();
     if (!activeChat || activeChat.transcript.length > 0 || chatGenerating) return;
 
     const isStillValid = createChatGuard(get);
-    set({ chatGenerating: true, chatError: null });
+    set({ chatGenerating: true, chatError: null, chatStreamingText: null });
 
     try {
       const info = POVER_INFO[activeChat.pover];
       const ctx = getTaxonomyContext(info.pov);
       const taxonomyBlock = formatTaxonomyContext(ctx, info.pov, undefined, CHAT_CONTEXT_CONFIG);
       const model = getConfiguredModel();
+      const temperature = CHAT_MODE_TEMPERATURE[activeChat.mode];
 
-      // Set per-mode temperature before generating
-      await api.setDebateTemperature(CHAT_MODE_TEMPERATURE[activeChat.mode]);
-
-      const systemBlock = chatSystemPrompt(
+      const systemInstruction = chatSystemPrompt(
         info.label, info.pov, info.personality,
         activeChat.mode, activeChat.topic, taxonomyBlock,
       );
-      const userBlock = chatOpeningPrompt(activeChat.mode, activeChat.topic);
-      const prompt = `${systemBlock}\n\n${userBlock}`;
+      const userContent = chatOpeningPrompt(activeChat.mode, activeChat.topic);
 
-      const result = await generateTextWithProgress(
-        prompt, model, `${info.label} is thinking...`, set,
+      const fullText = await streamChatWithProgress(
+        systemInstruction,
+        [{ role: 'user', content: userContent }],
+        model,
+        temperature,
+        `${info.label} is thinking...`,
+        set,
+        (chunk) => get().appendStreamingText(chunk),
       );
 
       if (!isStillValid()) return;
 
-      const { response, taxonomyRefs } = parseChatResponse(result.text);
+      const { response, taxonomyRefs } = parseChatResponse(fullText);
 
       const entry: ChatEntry = {
         id: generateId(),
@@ -319,7 +328,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       set({ sessions: sessions as ChatSessionSummary[] });
     } catch (err) {
       getGlobalRecorder()?.record({ type: 'system.error', component: 'chat-store', level: 'error', message: 'Failed to generate opening message', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
-      set({ chatError: `Failed to start conversation: ${mapErrorToUserMessage(err)}` });
+      set({ chatError: `Failed to start conversation: ${mapErrorToUserMessage(err)}`, chatStreamingText: null });
     } finally {
       set({ chatGenerating: false });
     }
@@ -330,7 +339,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     if (!activeChat || !message.trim() || chatGenerating) return;
 
     const isStillValid = createChatGuard(get);
-    set({ chatGenerating: true, chatError: null });
+    set({ chatGenerating: true, chatError: null, chatStreamingText: null });
 
     // Add user message to transcript
     const userEntry: ChatEntry = {
@@ -366,11 +375,9 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       const ctx = getTaxonomyContext(info.pov);
       const taxonomyBlock = formatTaxonomyContext(ctx, info.pov, undefined, CHAT_CONTEXT_CONFIG);
       const model = getConfiguredModel();
+      const temperature = CHAT_MODE_TEMPERATURE[activeChat.mode];
 
-      // Set per-mode temperature before generating
-      await api.setDebateTemperature(CHAT_MODE_TEMPERATURE[activeChat.mode]);
-
-      const systemBlock = chatSystemPrompt(
+      const systemInstruction = chatSystemPrompt(
         info.label, info.pov, info.personality,
         activeChat.mode, activeChat.topic, taxonomyBlock,
       );
@@ -386,16 +393,21 @@ export const useChatStore = create<ChatStore>((set, get) => ({
           return firstSentence.trim();
         })
         .filter(Boolean);
-      const userBlock = chatContinuationPrompt(message.trim(), transcriptText, priorClaims);
-      const prompt = `${systemBlock}\n\n${userBlock}`;
+      const userContent = chatContinuationPrompt(message.trim(), transcriptText, priorClaims);
 
-      const result = await generateTextWithProgress(
-        prompt, model, `${info.label} is thinking...`, set,
+      const fullText = await streamChatWithProgress(
+        systemInstruction,
+        [{ role: 'user', content: userContent }],
+        model,
+        temperature,
+        `${info.label} is thinking...`,
+        set,
+        (chunk) => get().appendStreamingText(chunk),
       );
 
       if (!isStillValid()) return;
 
-      const { response, taxonomyRefs } = parseChatResponse(result.text);
+      const { response, taxonomyRefs } = parseChatResponse(fullText);
 
       const poverEntry: ChatEntry = {
         id: generateId(),
@@ -419,7 +431,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     } catch (err) {
       if (!isStillValid()) return;
       getGlobalRecorder()?.record({ type: 'system.error', component: 'chat-store', level: 'error', message: 'Failed to send chat message', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
-      set({ chatError: `Response failed: ${mapErrorToUserMessage(err)}` });
+      set({ chatError: `Response failed: ${mapErrorToUserMessage(err)}`, chatStreamingText: null });
     } finally {
       set({ chatGenerating: false });
     }

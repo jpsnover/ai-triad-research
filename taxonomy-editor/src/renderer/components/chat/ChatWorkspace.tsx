@@ -27,7 +27,7 @@ import { useTierInfo, isFreeTier } from '../../hooks/useTierInfo';
 import { GeminiOnboardingModal } from '../settings/GeminiOnboardingModal';
 import { CampGlyph, povToCamp } from '../shared/CampGlyph';
 import { EmptyState } from '../shared/EmptyState';
-import { ThinkingIndicator, MessageBubble } from '../shared/ChatBubble';
+import { ThinkingIndicator, MessageBubble, StreamingBubble } from '../shared/ChatBubble';
 import './ChatWorkspace.css';
 
 // ── Helpers ──────────────────────────────────────────────
@@ -187,7 +187,7 @@ function ChatMessage({ entry, selectedRef, onSelectRef }: { entry: ChatEntry; se
 // ── Progress indicator ───────────────────────────────────
 
 function ProgressIndicator() {
-  const { chatProgress, chatActivity } = useChatStore();
+  const chatActivity = useChatStore(s => s.chatActivity);
 
   if (!chatActivity) return null;
 
@@ -197,12 +197,6 @@ function ProgressIndicator() {
         <span>{chatActivity}</span>
         <span className="dot-animation" />
       </span>
-      {chatProgress && chatProgress.attempt > 1 && (
-        <span className="chat-generating-retry">
-          Retry {chatProgress.attempt}/{chatProgress.maxRetries}
-          {chatProgress.backoffSeconds ? ` (${chatProgress.backoffSeconds}s)` : ''}
-        </span>
-      )}
     </ThinkingIndicator>
   );
 }
@@ -414,9 +408,10 @@ function ChatTranscript({ activeChat, chatGenerating, chatActivity, selectedRef,
   onSelectRef: (ref: EntityRef | null) => void;
   transcriptEndRef: React.RefObject<HTMLDivElement | null>;
 }) {
+  const chatStreamingText = useChatStore(s => s.chatStreamingText);
   return (
     <div className="chat-transcript">
-      {activeChat.transcript.length === 0 && chatGenerating ? (
+      {activeChat.transcript.length === 0 && chatGenerating && chatStreamingText == null ? (
         <div className="chat-generating-hero">
           <div className="chat-generating-spinner" />
           <span>{chatActivity || 'Preparing conversation...'}</span>
@@ -426,7 +421,15 @@ function ChatTranscript({ activeChat, chatGenerating, chatActivity, selectedRef,
           {activeChat.transcript.map((entry) => (
             <ChatMessage key={entry.id} entry={entry} selectedRef={selectedRef} onSelectRef={onSelectRef} />
           ))}
-          <ProgressIndicator />
+          {chatStreamingText != null ? (
+            <div className="chat-message">
+              <div className="chat-message-body">
+                <StreamingBubble content={chatStreamingText} className="chat-message-content markdown-body prose" />
+              </div>
+            </div>
+          ) : (
+            <ProgressIndicator />
+          )}
         </>
       )}
       <div ref={transcriptEndRef} />
