@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-import { DIMENSION_LABELS } from './constants';
+import { DIMENSION_LABELS, RATING_COLORS } from './constants';
 import type { StructuralScore, FrameScore } from '@lib/debate/topicCritique';
 
 export function RadarChart({ structural, frame }: { structural: StructuralScore; frame: FrameScore | null }) {
@@ -57,7 +57,7 @@ export function RadarChart({ structural, frame }: { structural: StructuralScore;
       {/* Data points */}
       {dataPts.map((p, i) => (
         <circle key={i} cx={p.x} cy={p.y} r={2.5}
-          fill={dimensions[i].value === 0 ? '#dc2626' : dimensions[i].value === 1 ? '#d97706' : '#16a34a'}
+          fill={([RATING_COLORS.weak, RATING_COLORS.fair, RATING_COLORS.strong] as string[])[dimensions[i].value] ?? RATING_COLORS.strong}
         />
       ))}
       {/* Labels */}

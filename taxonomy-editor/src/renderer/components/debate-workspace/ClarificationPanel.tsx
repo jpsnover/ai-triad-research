@@ -1020,21 +1020,21 @@ export function TopicScoreComparison() {
   const old = activeDebate.topic.critique as TopicCritique;
   const neu = activeDebate.topic.refined_critique as TopicCritique;
   const delta = neu.composite_score - old.composite_score;
-  const deltaColor = delta > 0 ? '#16a34a' : delta < 0 ? '#dc2626' : 'var(--text-muted)';
+  const deltaColor = delta > 0 ? RATING_COLORS.strong : delta < 0 ? RATING_COLORS.weak : 'var(--text-muted)';
 
   const structuralKeys = ['crux_density', 'evidence_coverage', 'bdi_heterogeneity', 'abstraction_level', 'situation_activation'] as const;
   const frameKeys = ['conditionality', 'mechanism', 'stakeholder', 'tension', 'scope'] as const;
 
   const scoreCell = (val: number, max: number) => (
     // eslint-disable-next-line local/no-inline-style -- dynamic color keyed on score value
-    <span className="cp-score-cell" style={{ color: val === 0 ? '#dc2626' : val === max ? '#16a34a' : '#d97706' }}>{val}/{max}</span>
+    <span className="cp-score-cell" style={{ color: val === 0 ? RATING_COLORS.weak : val === max ? RATING_COLORS.strong : RATING_COLORS.fair }}>{val}/{max}</span>
   );
 
   const deltaCell = (oldVal: number, newVal: number) => {
     const d = newVal - oldVal;
     if (d === 0) return <span className="cp-delta-neutral">—</span>;
     // eslint-disable-next-line local/no-inline-style -- dynamic color keyed on delta sign
-    return <span className="cp-score-cell" style={{ color: d > 0 ? '#16a34a' : '#dc2626' }}>{d > 0 ? '+' : ''}{d}</span>;
+    return <span className="cp-score-cell" style={{ color: d > 0 ? RATING_COLORS.strong : RATING_COLORS.weak }}>{d > 0 ? '+' : ''}{d}</span>;
   };
 
   return (
