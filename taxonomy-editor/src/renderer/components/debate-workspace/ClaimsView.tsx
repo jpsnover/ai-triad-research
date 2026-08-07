@@ -6,15 +6,12 @@ import type { ArgumentNetworkNode, ArgumentNetworkEdge, TranscriptEntry } from '
 import { computeQbafStrengths } from '@lib/debate/qbaf';
 import type { QbafNode, QbafEdge } from '@lib/debate/qbaf';
 import { speakerLabel, STRENGTH_BAND, getNodeLabel } from './utils';
+import { bandColor as computeBandColor, CONFIDENCE_BANDS } from '../../lib/bandColor';
 import './ClaimsView.css';
 
 const ATTACK_TYPE_WEIGHTS: Record<string, number> = { rebut: 1.0, undercut: 1.05, undermine: 1.1 };
 
 type ClaimAttribution = NonNullable<ArgumentNetworkNode['claim_taxonomy_attribution']>;
-
-function bandColorFor(computed: number): string {
-  return computed >= 0.8 ? '#22c55e' : computed >= 0.5 ? '#3b82f6' : computed >= 0.3 ? '#f59e0b' : '#ef4444';
-}
 
 function bdiLabelFor(node: ArgumentNetworkNode): string {
   return node.bdi_category === 'belief' ? 'Belief' : node.bdi_category === 'desire' ? 'Desire' : node.bdi_category === 'intention' ? 'Intention' : '';
@@ -55,7 +52,11 @@ function UnattributedBadge({ reason }: { reason: string }) {
 
 function AttributedBadge({ attr }: { attr: ClaimAttribution }) {
   const conf = attr.attribution_confidence;
-  const confColor = conf >= 0.7 ? '#22c55e' : conf >= 0.5 ? '#3b82f6' : '#f59e0b';
+  const confColor = computeBandColor(conf, [
+    { threshold: 0.7, color: '#22c55e' },
+    { threshold: 0.5, color: '#3b82f6' },
+    { threshold: 0,   color: '#f59e0b' },
+  ]);
   const secCount = attr.secondary_refs?.length ?? 0;
   const attrTip = `Attributed to ${attr.primary_ref} (confidence: ${conf.toFixed(2)})\n${getNodeLabel(attr.primary_ref)}${secCount > 0 ? `\n\n${secCount} secondary ref${secCount !== 1 ? 's' : ''}: ${attr.secondary_refs!.map((s: { node_id: string; similarity: number }) => `${s.node_id} (${s.similarity.toFixed(2)})`).join(', ')}` : ''}`;
   return (
@@ -186,7 +187,7 @@ export function ClaimNodeRow({ node, attacks, supports, allNodes, strengthMap, s
   const computed = strengthMap.get(node.id) ?? node.computed_strength ?? base;
   const delta = computed - base;
   const band = STRENGTH_BAND(computed);
-  const bandColor = bandColorFor(computed);
+  const bandColor = computeBandColor(computed, CONFIDENCE_BANDS);
   const bdiLabel = bdiLabelFor(node);
 
   return (
