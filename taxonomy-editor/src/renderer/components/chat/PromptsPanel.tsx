@@ -33,7 +33,6 @@ export function PromptsPanel({ onSelectPrompt, onInspectorToggle }: PromptsPanel
   const [panelTab, setPanelTab] = useState<PromptsPanelTab>('catalog');
 
   const switchTab = (tab: PromptsPanelTab) => {
-    console.error(`[PromptsPanel] switchTab: ${tab}`);
     setPanelTab(tab);
     onInspectorToggle?.(tab === 'inspector');
   };
