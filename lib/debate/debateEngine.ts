@@ -655,7 +655,6 @@ export class DebateEngine {
       if (this._overgenCoherenceGateMiss) {
         dataPoint.coherence_gate_miss = true;
       }
-      // Resolve data root — env var or .aitriad.json fallback
       const __engineDir = path.dirname(fileURLToPath(import.meta.url));
       const repoRoot = resolveRepoRoot(__engineDir);
       const dataRoot = resolveDataRoot(repoRoot);
@@ -801,11 +800,7 @@ export class DebateEngine {
 
   // ── Resume from checkpoint ──────────────────────────────
 
-  /**
-   * Resume a debate from a crash-recovery checkpoint. Runs only the
-   * missing tail: synthesis (if not already present) and all post-synthesis
-   * passes. Returns a complete session ready for output.
-   */
+  /** Resume from checkpoint — runs only the missing tail: synthesis + post-synthesis passes. */
   static async resume(
     checkpoint: DebateSession,
     config: DebateConfig,
