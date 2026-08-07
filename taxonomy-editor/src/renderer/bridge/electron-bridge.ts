@@ -367,6 +367,8 @@ export const api: AppAPI = {
   focusNodeInMainWindow: (nodeId) => window.electronAPI.focusNodeInMainWindow(nodeId),
   onTerminalData: (cb) => window.electronAPI.onTerminalData(cb),
   onTerminalExit: (cb) => window.electronAPI.onTerminalExit(cb),
+  onBriefTimeout: (cb) => window.electronAPI.onBriefTimeout(cb),
+  onBriefRetriesExhausted: (cb) => window.electronAPI.onBriefRetriesExhausted(cb),
   captureScreenshot: (opts) => window.electronAPI.captureScreenshot(opts),
 
   // Feature flags — single-user desktop, no server flags
