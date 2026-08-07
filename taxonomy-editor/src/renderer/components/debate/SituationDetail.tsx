@@ -46,7 +46,7 @@ interface SituationDetailProps {
 type SitTab = 'overview' | 'attributes' | 'accelerationist' | 'safetyist' | 'skeptic' | 'debate' | 'sources' | 'research';
 type SitPov = 'accelerationist' | 'safetyist' | 'skeptic';
 
-function isPovTab(tab: SitTab): boolean {
+function isPovTab(tab: SitTab): tab is SitPov {
   return tab === 'accelerationist' || tab === 'safetyist' || tab === 'skeptic';
 }
 
