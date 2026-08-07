@@ -1829,3 +1829,42 @@ Failure patterns related to builds, CI, tooling, environment, and git operations
 **Status:** Active — 1 instance (DebateUI p/83#6).
 
 **Applies To:** All agents using Bash `rm`/`mv`/`cp` on win32 with dynamically-named files that may contain shell metacharacters.
+
+---
+
+## #149 [Build] Squash-Merge Breaks `git branch -d` — Needs `-D` Because Squash Commit Is Not an Ancestor
+
+**Pattern:** After a squash-merge, `git branch -d <feature-branch>` fails "not fully merged." Squash creates a new commit — none of the feature branch's original SHAs are ancestors. Use `git branch -D`.
+
+**Instances:**
+- 2026-08-06 — DebateUI (p/83#8): `git branch -d <branch>` failed after squash-merge. Fix: `git branch -D`.
+
+**Root Cause:** `git branch -d` requires the tip to be reachable from HEAD. Squash rewrites history; original SHAs never enter main's ancestry.
+
+**Prevention:**
+1. After squash-merge, always use `git branch -D` — `-d` always fails by design.
+2. Remote cleanup: `git push origin --delete <branch>` (unaffected by squash).
+
+**Status:** Active — 1 instance (DebateUI p/83#8).
+
+**Applies To:** All agents cleaning up local branches after squash-merges.
+
+---
+
+## #150 [Build] Consumer PR Lands Before Its Shared-Utility Dependency — Cross-Ticket Import Ordering Breaks main
+
+**Pattern:** A consumer lands before its utility dependency is on main. Works in the author's branch (both changes present), breaks origin/main once the consumer merges standalone. Renderer TSC CI gap lets it pass green.
+
+**Instances:**
+- 2026-08-06 — TL incident (p/335#13): t/2250 (consumer of `lib/bandColor`) landed before t/2236 (`bandColor` utility). Renderer import broke origin/main. Reverted PR #561. Passed CI because renderer tsc not in ci.yml.
+
+**Root Cause:** Cross-ticket import dependencies are unenforced. The renderer TSC CI gap silenced the broken import.
+
+**Prevention:**
+1. Before landing, verify dependency is on origin/main: `git show origin/main:<path>` must return content.
+2. Land dependency ticket before consumer ticket.
+3. Run `check-renderer-tsc.sh` locally until t/2252 lands.
+
+**Status:** Active — 1 instance (TL p/335#13). Renderer TSC CI fix: t/2252.
+
+**Applies To:** All agents landing PRs that import new shared utilities.
