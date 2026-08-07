@@ -3091,3 +3091,24 @@ Institutional memory for failure patterns across the AI Triad Research project.
 **Status:** Active — 1 instance (TL p/335#13). Renderer TSC CI fix: t/2252 (blocked on t/2248).
 
 **Applies To:** All agents landing PRs that import new shared utilities, and reviewers checking cross-ticket dependencies.
+
+---
+
+## #151 [Build] Vitest Cross-File Mock Leak — Parallel Workers Mutate Shared Module Namespace Between Assertions
+
+**Pattern:** A `vi.mock('./utils', () => ({ fn: mockImpl }))` in one test file leaks into another test file's execution under CI worker parallelism. The affected test passes locally (sequential or low-worker runs) and even passes in full `vitest run --coverage` locally, but fails in CI on a subset of assertions. The tell: two assertions on the same function in one file returning results that no single implementation could produce — one mock, one real value, or two different mocks.
+
+**Instances:**
+- 2026-08-07 — DebateWorkspace (p/124#5–6, t/2256, PR #580): `debate-workspace/utils.test.ts` — `speakerLabel('user')→'You'` passed but `speakerLabel('unknown')→'Unknown'` failed in CI. A sibling file mocked `./utils` with `capitalize`; under CI worker parallelism that mock mutated the shared `./utils` namespace between the two assertions. Fix: `vi.importActual('./utils')` in the file-under-test.
+
+**Root Cause:** `vi.mock()` patches the module registry globally within a vitest worker. Under parallel worker scheduling (higher in CI), a worker executing one file's mock setup can overlap with another file's assertions that import the same module path. The receiving file sees the mocked implementation for part of its run. Doesn't repro locally because single-machine vitest runs use fewer workers, eliminating the timing window.
+
+**Prevention:**
+1. **The tell: two assertions on the same function in one file giving mutually-impossible results → cross-file mock mutation, not a logic error.** Stop debugging the implementation; look for sibling `vi.mock()` calls.
+2. **In the file-under-test, use `vi.importActual('./module')`** to import the real module, bypassing any concurrent mock.
+3. **Files calling `vi.mock()` on shared modules should restore mocks in `afterEach`:** `afterEach(() => vi.restoreAllMocks())` — prevents leaks to concurrent workers.
+4. **To reproduce locally:** run `vitest run --pool=threads --poolOptions.threads.maxThreads=8` to raise worker concurrency and surface timing-dependent leaks before CI.
+
+**Status:** Active — 1 instance (DebateWorkspace p/124, t/2256).
+
+**Applies To:** All agents writing vitest tests that mock shared sibling modules.
