@@ -1,88 +1,141 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-import { describe, it, expect } from 'vitest';
-import { render } from '@testing-library/react';
-import { resolveSpeaker, SpeakerIdentity } from './SpeakerIdentity';
+// t/2242 — `resolveSpeaker` is the single speaker lookup replacing 3+ scattered
+// label/color copies and the diagnostics `debaterColor` map. The alias cases
+// matter most: `Prometheus`/`Sentinel`/`Cassandra` previously existed only in
+// DebateExchangeRich's segmentation regex, so this table is now the source of
+// truth for them (TL e/67#4).
 
-describe('resolveSpeaker', () => {
-  it('resolves canonical camp IDs', () => {
-    expect(resolveSpeaker('accelerationist')).toEqual({ label: 'Accelerationist', camp: 'acc', color: 'var(--color-acc)' });
-    expect(resolveSpeaker('safetyist')).toEqual({ label: 'Safetyist', camp: 'saf', color: 'var(--color-saf)' });
-    expect(resolveSpeaker('skeptic')).toEqual({ label: 'Skeptic', camp: 'skp', color: 'var(--color-skp)' });
+import { describe, it, expect, vi } from 'vitest';
+import { render, screen } from '@testing-library/react';
+
+vi.mock('../../types/debate', () => ({
+  POVER_INFO: {
+    accelerationist: { label: 'Accelerationist', color: 'var(--color-acc)' },
+    safetyist: { label: 'Safetyist', color: 'var(--color-saf)' },
+    skeptic: { label: 'Skeptic', color: 'var(--color-skp)' },
+  },
+}));
+
+import { SpeakerIdentity, resolveSpeaker } from './SpeakerIdentity';
+
+describe('resolveSpeaker — POV speakers', () => {
+  it.each([
+    ['accelerationist', 'Accelerationist', 'acc'],
+    ['safetyist', 'Safetyist', 'saf'],
+    ['skeptic', 'Skeptic', 'skp'],
+  ])('resolves %s to its label, color, and camp', (id, label, camp) => {
+    const r = resolveSpeaker(id);
+    expect(r).toMatchObject({ id, label, camp });
+    expect(r.color).toBeTruthy();
   });
 
-  it('resolves legacy persona aliases case-insensitively', () => {
-    expect(resolveSpeaker('Prometheus').camp).toBe('acc');
-    expect(resolveSpeaker('prometheus').camp).toBe('acc');
-    expect(resolveSpeaker('Sentinel').camp).toBe('saf');
-    expect(resolveSpeaker('CASSANDRA').camp).toBe('skp');
-  });
-
-  it('resolves fixed speakers', () => {
-    expect(resolveSpeaker('user')).toEqual({ label: 'You', camp: undefined, color: undefined });
-    expect(resolveSpeaker('moderator')).toEqual({ label: 'Moderator', camp: undefined, color: 'var(--color-moderator, #8b5cf6)' });
-    expect(resolveSpeaker('system')).toEqual({ label: 'System', camp: undefined, color: undefined });
-    expect(resolveSpeaker('document')).toEqual({ label: 'Document', camp: undefined, color: undefined });
-  });
-
-  it('falls back to the raw string for unknown speakers', () => {
-    expect(resolveSpeaker('unknown-bot')).toEqual({ label: 'unknown-bot', camp: undefined, color: undefined });
-    expect(resolveSpeaker('')).toEqual({ label: '', camp: undefined, color: undefined });
-  });
-
-  it('all three camps return distinct colors', () => {
-    const colors = ['accelerationist', 'safetyist', 'skeptic'].map(s => resolveSpeaker(s).color);
-    expect(new Set(colors).size).toBe(3);
-  });
-});
-
-describe('SpeakerIdentity — inline variant (default)', () => {
-  it('renders the resolved label', () => {
-    const { getByText } = render(<SpeakerIdentity speaker="accelerationist" />);
-    expect(getByText('Accelerationist')).toBeInTheDocument();
-  });
-
-  it('resolves legacy alias and renders camp label', () => {
-    const { getByText } = render(<SpeakerIdentity speaker="Prometheus" />);
-    expect(getByText('Accelerationist')).toBeInTheDocument();
-  });
-
-  it('applies si-inline class and camp modifier', () => {
-    const { container } = render(<SpeakerIdentity speaker="safetyist" />);
-    const el = container.firstChild as HTMLElement;
-    expect(el.className).toContain('si-inline');
-    expect(el.className).toContain('si-camp-saf');
-  });
-
-  it('forwards custom className', () => {
-    const { container } = render(<SpeakerIdentity speaker="skeptic" className="custom" />);
-    expect((container.firstChild as HTMLElement).className).toContain('custom');
+  it('accepts a display label, not just the canonical id', () => {
+    expect(resolveSpeaker('Safetyist')).toMatchObject({ id: 'safetyist', label: 'Safetyist', camp: 'saf' });
   });
 });
 
-describe('SpeakerIdentity — badge variant', () => {
-  it('applies si-badge class', () => {
+describe('resolveSpeaker — persona aliases (the regex this replaces)', () => {
+  it.each([
+    ['Prometheus', 'accelerationist', 'acc'],
+    ['Sentinel', 'safetyist', 'saf'],
+    ['Cassandra', 'skeptic', 'skp'],
+  ])('maps %s to its camp', (alias, id, camp) => {
+    expect(resolveSpeaker(alias)).toMatchObject({ id, camp });
+  });
+
+  it('is case- and whitespace-insensitive', () => {
+    expect(resolveSpeaker('  pROMETHEUS ')).toMatchObject({ id: 'accelerationist', camp: 'acc' });
+  });
+});
+
+describe('resolveSpeaker — non-POV participants', () => {
+  it.each([
+    ['user', 'You'],
+    ['system', 'System'],
+    ['document', 'Document'],
+    ['moderator', 'Moderator'],
+  ])('labels %s as %s', (id, label) => {
+    expect(resolveSpeaker(id)).toMatchObject({ id, label });
+  });
+
+  it('gives none of them a camp, so no glyph is implied', () => {
+    for (const id of ['user', 'system', 'document', 'moderator']) {
+      expect(resolveSpeaker(id).camp).toBeUndefined();
+    }
+  });
+
+  it('colors only the moderator', () => {
+    expect(resolveSpeaker('moderator').color).toContain('--color-moderator');
+    expect(resolveSpeaker('user').color).toBeUndefined();
+    expect(resolveSpeaker('system').color).toBeUndefined();
+  });
+});
+
+describe('resolveSpeaker — unknown speakers', () => {
+  it('degrades to a titlecased label with NO color, never a fake camp accent', () => {
+    const r = resolveSpeaker('nemesis');
+    expect(r.label).toBe('Nemesis');
+    expect(r.color).toBeUndefined();
+    expect(r.camp).toBeUndefined();
+  });
+});
+
+describe('SpeakerIdentity rendering', () => {
+  it('renders glyph + label for a POV speaker', () => {
+    const { container } = render(<SpeakerIdentity speaker="accelerationist" />);
+    expect(screen.getByText('Accelerationist')).toBeInTheDocument();
+    expect(container.querySelector('svg')).toBeTruthy();
+  });
+
+  it('omits the glyph for a speaker with no camp', () => {
+    const { container } = render(<SpeakerIdentity speaker="moderator" />);
+    expect(screen.getByText('Moderator')).toBeInTheDocument();
+    expect(container.querySelector('svg')).toBeNull();
+  });
+
+  it('supports a glyph-only render', () => {
+    const { container } = render(<SpeakerIdentity speaker="skeptic" showLabel={false} />);
+    expect(screen.queryByText('Skeptic')).toBeNull();
+    expect(container.querySelector('svg')).toBeTruthy();
+  });
+
+  it.each(['inline', 'avatar', 'badge'] as const)('carries the %s variant and camp classes', (variant) => {
+    const { container } = render(<SpeakerIdentity speaker="safetyist" variant={variant} />);
+    const root = container.querySelector('.speaker-identity') as HTMLElement;
+    expect(root.classList.contains(`speaker-identity-${variant}`)).toBe(true);
+    expect(root.classList.contains('camp-saf')).toBe(true);
+  });
+
+  it('fills the badge with the accent, since its label reverses out to white', () => {
     const { container } = render(<SpeakerIdentity speaker="safetyist" variant="badge" />);
-    expect(container.querySelector('.si-badge')).toBeInTheDocument();
+    const root = container.querySelector('.speaker-identity-badge') as HTMLElement;
+    expect(root.style.background).toBeTruthy();
+    expect(root.classList.contains('speaker-identity-badge-filled')).toBe(true);
   });
 
-  it('uses camp color as background', () => {
-    const { container } = render(<SpeakerIdentity speaker="safetyist" variant="badge" />);
-    const el = container.querySelector('.si-badge') as HTMLElement;
-    expect(el.style.background).toBe('var(--color-saf)');
-  });
-});
-
-describe('SpeakerIdentity — avatar variant', () => {
-  it('applies si-avatar class', () => {
-    const { container } = render(<SpeakerIdentity speaker="skeptic" variant="avatar" />);
-    expect(container.querySelector('.si-avatar')).toBeInTheDocument();
+  // Legibility guard (TL e/67#7): white-on-white. An unknown speaker gets no
+  // accent fill, so the badge keeps its `--bg-tertiary` background — reversing
+  // the label out to white there would make it invisible in the light themes.
+  it('does NOT reverse an unfilled badge to white, so an unknown speaker stays legible', () => {
+    const { container } = render(<SpeakerIdentity speaker="nemesis" variant="badge" />);
+    const root = container.querySelector('.speaker-identity-badge') as HTMLElement;
+    expect(root.style.background).toBeFalsy();
+    expect(root.classList.contains('speaker-identity-badge-filled')).toBe(false);
+    expect(screen.getByText('Nemesis')).toBeInTheDocument();
   });
 
-  it('sets aria-label to the resolved label', () => {
-    const { container } = render(<SpeakerIdentity speaker="skeptic" variant="avatar" />);
-    const el = container.querySelector('.si-avatar') as HTMLElement;
-    expect(el.getAttribute('aria-label')).toBe('Skeptic');
+  it('resolves an alias end-to-end so a segmented transcript name renders correctly', () => {
+    render(<SpeakerIdentity speaker="Cassandra" variant="badge" />);
+    expect(screen.getByText('Skeptic')).toBeInTheDocument();
+  });
+
+  it('defaults its tooltip to the resolved label and lets a caller override', () => {
+    const { rerender, container } = render(<SpeakerIdentity speaker="skeptic" />);
+    expect(container.querySelector('.speaker-identity')).toHaveAttribute('title', 'Skeptic');
+
+    rerender(<SpeakerIdentity speaker="skeptic" title="Turn 4 — Skeptic" />);
+    expect(container.querySelector('.speaker-identity')).toHaveAttribute('title', 'Turn 4 — Skeptic');
   });
 });
