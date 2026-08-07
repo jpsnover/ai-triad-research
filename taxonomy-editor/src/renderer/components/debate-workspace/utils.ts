@@ -1,29 +1,26 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-import { POVER_INFO } from '../../types/debate';
 import type { SpeakerId, TranscriptEntry, TaxonomyRef } from '../../types/debate';
 import { useTaxonomyStore } from '../../hooks/useTaxonomyStore';
+import { resolveSpeaker } from '../shared/SpeakerIdentity';
 import { api } from '@bridge';
 import { nodePovFromId } from '@lib/debate/nodeIdUtils';
 import type { TabId } from '../../types/taxonomy';
 
 // ── Speaker helpers ──────────────────────────────────────
+// Thin delegates to the single speaker resolver (t/2256). resolveSpeaker is the
+// sole reader of the debater label/color lookup — behavior here is preserved for
+// every input these signatures allow (the three POVs plus system/user/document/
+// moderator); resolveSpeaker's additional persona-alias acceptance is unreachable
+// through these narrowed types, so no call site is silently widened.
 
 export function speakerLabel(speaker: SpeakerId | 'system' | 'document' | 'moderator'): string {
-  if (speaker === 'system') return 'System';
-  if (speaker === 'moderator') return 'Moderator';
-  if (speaker === 'user') return 'You';
-  if (speaker === 'document') return 'Document';
-  const info = POVER_INFO[speaker as Exclude<SpeakerId, 'user'>];
-  return info ? info.label : speaker;
+  return resolveSpeaker(speaker).label;
 }
 
 export function speakerColor(speaker: SpeakerId | 'system' | 'document' | 'moderator'): string | undefined {
-  if (speaker === 'system' || speaker === 'user' || speaker === 'document') return undefined;
-  if (speaker === 'moderator') return 'var(--color-moderator, #8b5cf6)';
-  const info = POVER_INFO[speaker as Exclude<SpeakerId, 'user'>];
-  return info?.color;
+  return resolveSpeaker(speaker).color;
 }
 
 // ── Policy action lookup ──────────────────────────────────

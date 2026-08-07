@@ -40,14 +40,9 @@ vi.mock('../../hooks/useTaxonomyStore', () => ({
   },
 }));
 
-// POVER_INFO mock — must export same shape utils.ts reads from '../../types/debate'
-vi.mock('../../types/debate', () => ({
-  POVER_INFO: {
-    accelerationist: { label: 'Accelerationist', color: 'var(--color-acc)' },
-    safetyist: { label: 'Safetyist', color: 'var(--color-saf)' },
-    skeptic: { label: 'Skeptic', color: 'var(--color-skp)' },
-  },
-}));
+// speakerLabel/speakerColor delegate to resolveSpeaker (t/2256); the assertions
+// below pin the behavior-preserving contract per call site. resolveSpeaker owns
+// the label/color values (hardcoded camp maps), so no POVER_INFO mock is needed.
 
 // ── speakerLabel ─────────────────────────────────────────────
 
