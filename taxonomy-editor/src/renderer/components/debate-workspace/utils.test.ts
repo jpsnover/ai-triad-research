@@ -2,14 +2,12 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { describe, it, expect, vi } from 'vitest';
-// speakerLabel/speakerColor are imported from './speakerHelpers', NOT './utils'.
-// Many sibling test files in this directory call vi.mock('./utils', () => ({
-// speakerLabel: capitalize, ... })); under CI's threads pool that mock can bleed
-// into the shared './utils' namespace mid-run and flaked these assertions (t/2256 —
-// speakerLabel('user')→'You' passed while speakerLabel('unknown')→'Unknown' failed
-// in the same file). './speakerHelpers' is never mocked, so importing the helpers
-// from their own module is immune; './utils' re-exports them for production callers.
-import { speakerLabel, speakerColor } from './speakerHelpers';
+// speakerLabel/speakerColor are exercised in ./speakerHelpers.test.ts, NOT here.
+// They live in ./speakerHelpers (re-exported by ./utils); a test file that imports
+// them alongside ./utils pulled a sibling's vi.mock('./utils') into its graph and,
+// under CI's threads pool, resolved the re-exported speakerLabel to that mock's
+// capitalizer (t/2256). Keeping them in a file whose graph never touches ./utils
+// makes them immune, so this file imports only the non-speaker ./utils helpers.
 import {
   STRENGTH_BAND,
   pctFmt,
@@ -46,78 +44,7 @@ vi.mock('../../hooks/useTaxonomyStore', () => ({
   },
 }));
 
-// speakerLabel/speakerColor delegate to resolveSpeaker (t/2256); the assertions
-// below pin the behavior-preserving contract per call site. resolveSpeaker owns
-// the label/color values (hardcoded camp maps), so no POVER_INFO mock is needed.
-
-// ── speakerLabel ─────────────────────────────────────────────
-
-describe('speakerLabel', () => {
-  it('returns "System" for system speaker', () => {
-    expect(speakerLabel('system')).toBe('System');
-  });
-
-  it('returns "Moderator" for moderator speaker', () => {
-    expect(speakerLabel('moderator')).toBe('Moderator');
-  });
-
-  it('returns "You" for user speaker', () => {
-    expect(speakerLabel('user')).toBe('You');
-  });
-
-  it('returns "Document" for document speaker', () => {
-    expect(speakerLabel('document')).toBe('Document');
-  });
-
-  it('returns the POVER_INFO label for accelerationist', () => {
-    expect(speakerLabel('accelerationist')).toBe('Accelerationist');
-  });
-
-  it('returns the POVER_INFO label for safetyist', () => {
-    expect(speakerLabel('safetyist')).toBe('Safetyist');
-  });
-
-  it('returns the POVER_INFO label for skeptic', () => {
-    expect(speakerLabel('skeptic')).toBe('Skeptic');
-  });
-
-  it('falls back to the raw speaker string when POVER_INFO has no entry', () => {
-    // 'unknown' is not in the mock POVER_INFO
-    expect(speakerLabel('unknown' as never)).toBe('unknown');
-  });
-});
-
-// ── speakerColor ─────────────────────────────────────────────
-
-describe('speakerColor', () => {
-  it('returns undefined for system', () => {
-    expect(speakerColor('system')).toBeUndefined();
-  });
-
-  it('returns undefined for user', () => {
-    expect(speakerColor('user')).toBeUndefined();
-  });
-
-  it('returns undefined for document', () => {
-    expect(speakerColor('document')).toBeUndefined();
-  });
-
-  it('returns the moderator CSS variable for moderator', () => {
-    expect(speakerColor('moderator')).toBe('var(--color-moderator, #8b5cf6)');
-  });
-
-  it('returns the POVER_INFO color for accelerationist', () => {
-    expect(speakerColor('accelerationist')).toBe('var(--color-acc)');
-  });
-
-  it('returns the POVER_INFO color for safetyist', () => {
-    expect(speakerColor('safetyist')).toBe('var(--color-saf)');
-  });
-
-  it('returns the POVER_INFO color for skeptic', () => {
-    expect(speakerColor('skeptic')).toBe('var(--color-skp)');
-  });
-});
+// speakerLabel / speakerColor tests live in ./speakerHelpers.test.ts (t/2256).
 
 // ── STRENGTH_BAND ────────────────────────────────────────────
 
