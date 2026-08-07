@@ -59,6 +59,8 @@ The hook is self-documenting (see its header comment). Owner / emergency overrid
 
 **Feature work is worktree-only; the shared checkout stays on `main`.** A companion `.githooks/post-checkout` hook **warns** (advisory, non-blocking) the moment the shared tree's HEAD leaves `main` for a feature branch — pointing you to `git worktree add -b <branch>` instead (t/2209). It is silent inside linked worktrees (the correct home for feature work) and on `main`. Don't do feature work on the shared tree: it strands unpushed commits and turns the next `git add -A` into a cross-role sweep.
 
+**Your shell cwd resets to the shared checkout between tool calls (t/2222).** Creating a worktree is **not enough** — the Bash/PowerShell tool returns your shell to the shared tree after every command, so any command that relies on a *previous* `cd` actually runs against the shared `main`. Always `cd` into your worktree **in the same command**: `cd .worktrees/<name> && <cmd>`. Combined with a Shell Quoting Rule slip (below), a mis-quoted command run with the shared tree as cwd word-splits code fragments into **0-byte junk files** scattered across every role's scope — the t/2222 incident sprayed ~35 such files (`lib/debate/setTimeout(r`, `taxonomy-editor/.../r.node_id)`, a file literally named `'`). They are never committed, so no pre-commit guard catches them; they clutter `git status` and risk a `git add -A` sweep. Prevention is behavioral: same-command `cd`, and never paste multi-line JS/TS/PS into the shell — write it to a file and execute (see **Shell Quoting Rule**).
+
 ### Subsystem Map
 
 Detailed conventions and build/test commands live in each subtree's `AGENTS.md` (loaded when you work in that scope). This is the orientation map only.
