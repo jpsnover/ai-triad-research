@@ -134,12 +134,16 @@ interface VariantProps {
 
 /**
  * Solid-fill pill (diagnostics exchange). The accent travels as a background
- * rather than `currentColor` because the label reverses out to white on top.
+ * rather than `currentColor` because the label reverses out to white on top —
+ * but only when there IS a fill. An unknown speaker resolves to no color, and
+ * white-on-`--bg-tertiary` would be invisible in the light themes, so the
+ * `-filled` modifier gates the reversal (TL flagged this in e/67#7).
  */
 function SpeakerBadge({ resolved: { label, color, camp }, rootClass, size, showLabel, title }: VariantProps) {
+  const className = color ? `${rootClass} speaker-identity-badge-filled` : rootClass;
   return (
     /* eslint-disable-next-line local/no-inline-style -- accent is per-speaker data (POVER_INFO), not a static token */
-    <span className={rootClass} style={color ? { background: color } : undefined} title={title ?? label}>
+    <span className={className} style={color ? { background: color } : undefined} title={title ?? label}>
       {camp && <CampGlyph camp={camp} size={size} className="speaker-identity-glyph" />}
       {showLabel && <span className="speaker-identity-label">{label}</span>}
     </span>

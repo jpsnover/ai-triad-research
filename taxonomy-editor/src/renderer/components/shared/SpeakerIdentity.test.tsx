@@ -112,6 +112,18 @@ describe('SpeakerIdentity rendering', () => {
     const { container } = render(<SpeakerIdentity speaker="safetyist" variant="badge" />);
     const root = container.querySelector('.speaker-identity-badge') as HTMLElement;
     expect(root.style.background).toBeTruthy();
+    expect(root.classList.contains('speaker-identity-badge-filled')).toBe(true);
+  });
+
+  // Legibility guard (TL e/67#7): white-on-white. An unknown speaker gets no
+  // accent fill, so the badge keeps its `--bg-tertiary` background — reversing
+  // the label out to white there would make it invisible in the light themes.
+  it('does NOT reverse an unfilled badge to white, so an unknown speaker stays legible', () => {
+    const { container } = render(<SpeakerIdentity speaker="nemesis" variant="badge" />);
+    const root = container.querySelector('.speaker-identity-badge') as HTMLElement;
+    expect(root.style.background).toBeFalsy();
+    expect(root.classList.contains('speaker-identity-badge-filled')).toBe(false);
+    expect(screen.getByText('Nemesis')).toBeInTheDocument();
   });
 
   it('resolves an alias end-to-end so a segmented transcript name renders correctly', () => {

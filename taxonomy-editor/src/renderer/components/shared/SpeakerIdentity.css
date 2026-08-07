@@ -66,9 +66,17 @@
 .speaker-identity-badge .speaker-identity-label {
   font-size: var(--text-2xs);
   font-weight: 700;
-  color: #fff;
+  color: var(--text-primary);
 }
 
-.speaker-identity-badge .speaker-identity-glyph {
+/*
+ * White reverses out ONLY over a real accent fill. An unknown speaker gets no
+ * fill (resolveSpeaker returns no color), so an unconditional `#fff` here would
+ * print white on `--bg-tertiary` — invisible in the light/harvard/bkc themes.
+ * TL asked us to verify exactly this when endorsing the #888 → no-color change
+ * (e/67#7).
+ */
+.speaker-identity-badge-filled .speaker-identity-label,
+.speaker-identity-badge-filled .speaker-identity-glyph {
   color: #fff;
 }
