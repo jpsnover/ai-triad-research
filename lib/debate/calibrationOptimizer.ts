@@ -27,7 +27,7 @@ import {
   replicationGateByConfig,
 } from './calibrationLogger.js';
 import { PINNED_EVALUATOR_MODEL } from './neutralEvaluator.js';
-import { PROVISIONAL_WEIGHTS_FALLBACK } from './phaseTransitions.js';
+import { loadProvisionalWeights } from './phaseTransitions.js';
 import * as fs from 'fs';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
@@ -239,11 +239,11 @@ export function applyRelevanceThresholdAdaptation(
       return { applied: false, reason: 'adaptation_enabled is false (manual override)' };
     }
 
-    const oldValue = weights.relevance?.embedding_threshold ?? PROVISIONAL_WEIGHTS_FALLBACK.relevance!.embedding_threshold;
+    const oldValue = weights.relevance?.embedding_threshold ?? loadProvisionalWeights().relevance!.embedding_threshold;
     if (oldValue === newValue) {
       return { applied: false, reason: 'file already at recommended value' };
     }
-    if (!weights.relevance) weights.relevance = { ...PROVISIONAL_WEIGHTS_FALLBACK.relevance! };
+    if (!weights.relevance) weights.relevance = { ...loadProvisionalWeights().relevance! };
     weights.relevance.embedding_threshold = newValue;
 
     // Record adjustment metadata

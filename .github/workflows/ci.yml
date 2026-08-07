@@ -334,13 +334,17 @@ jobs:
       - name: Check quality gates
         run: bash scripts/check-quality-gates.sh
 
-  # ── lib lint: ESLint for the shared lib (max-lines ADR-007 + async-safety) ──
+  # ── lib lint + typecheck: ESLint + tsc for the shared lib ──
   # lib is NOT a test-electron matrix app, so its `eslint .` runs nowhere else in
   # CI — without this job t/1685's max-lines gate is local-only (t/1692). Plain
   # `npm run lint`, NO --max-warnings=0: only ESLint ERRORS gate (hard-fail
   # max-lines + async-safety rules). The ADR-007 soft-warn LOC tier (t/1695,
   # warn@1000/1500) and pre-existing unused-disable warnings are advisory by
   # design; gating on them would re-introduce gate noise (t/1692#1, t/1695).
+  # TypeScript check added (t/2217): `lib/debate/tsconfig.json` covers lib/debate
+  # + its lib deps (ai-client, dictionary, flight-recorder). A dangling ESM import
+  # in calibrationOptimizer.ts passed CI green because tsc was never run for lib.
+  # lib-lint is now in ci-gate so tsc errors block merges.
   lib-lint:
     needs: [changes]
     if: >-
@@ -366,6 +370,10 @@ jobs:
       - name: Lint (errors gate; warnings advisory — see header)
         working-directory: lib
         run: pnpm run lint
+
+      - name: TypeScript check — lib/debate (t/2217)
+        working-directory: lib
+        run: pnpm exec tsc --noEmit -p debate/tsconfig.json
 
   # ── Commit hygiene: flags anonymous / undersized commit subjects (t/1319) ──
   # Annotation-only by design — never flips (t/1319). Visibility, not friction.
@@ -758,16 +766,18 @@ jobs:
   # sound because the path-filter is sound, so a FAILED `changes` job — which would
   # wrongly SKIP the code jobs — must fail the gate too, else untested code
   # false-greens. Scope = exact parity with the pre-t/1962 required-6 (the 3 code
-  # job IDs); lib-lint / dependency-audit / schema-validation are intentionally NOT
-  # gated here (not required contexts today — separate decision). Add future
-  # *required* jobs to `needs`; their path-filtered skips report OK.
+  # job IDs); dependency-audit / schema-validation are intentionally NOT gated here
+  # (not required contexts today — separate decision). Add future *required* jobs
+  # to `needs`; their path-filtered skips report OK.
   # python-embed-smoke (t/1989) is gated here: validates pip embedding stack value-
   # stability, path-filtered to requirements/.github/ci changes, skip = OK.
   # dependency-coverage (t/2077) is gated here: build-path dep coverage check,
   # path-filtered to container/lib changes, skip = OK.
+  # lib-lint (t/2217) is gated here: ESLint errors + tsc for shared lib;
+  # path-filtered to lib changes, skip = OK.
   ci-gate:
     name: ci-gate
-    needs: [changes, test-powershell, test-electron, test-container, python-embed-smoke, dependency-coverage, lockfile-overrides-check]
+    needs: [changes, test-powershell, test-electron, test-container, python-embed-smoke, dependency-coverage, lockfile-overrides-check, lib-lint]
     if: always()
     runs-on: ubuntu-latest
     steps:

@@ -954,7 +954,7 @@ export class DebateEngine {
       app_version: this.config.appVersion,
       audience: this.config.audience,
       moderator_mode: this.config.moderatorMode ?? 'standard',
-      talmudic_references: this._talmudicCorpus ? { enabled: true, corpus_name: this._talmudicCorpus.name, corpus_path: path.resolve(this.config.talmudicReferences!.corpusPath), corpus_version: this._talmudicCorpus.version } : { enabled: false },
+      talmudic_references: this._talmudicCorpus ? { enabled: true, corpus_name: this._talmudicCorpus.name, corpus_path: path.resolve(this.config.talmudicReferences!.corpusPath), corpus_version: String(this._talmudicCorpus.version) } : { enabled: false },
       phase: 'setup',
       topic: {
         original: this.config.topic,
