@@ -466,6 +466,9 @@ async function main(): Promise<void> {
     });
   }
 
+  // Mirror the CLI's cal-log isolation into the engine so both write paths use the same root (t/2219).
+  engineConfig.calibrationDataRoot = config.outputDir != null ? outputDir : dataRoot;
+
   const partialPath = path.join(outputDir, `${slug}-partial.json`);
   engineConfig.onSnapshot = (session, trigger) => {
     fs.writeFileSync(partialPath, JSON.stringify(session, null, 2), 'utf-8');

@@ -78,6 +78,9 @@ export interface DebateConfig {
   briefTimeoutMs?: number;
   /** Max brief-stage timeout retries before aborting the opening. Default: 3. */
   briefMaxRetries?: number;
+  /** When set, calibration log writes go here instead of the resolved system data root.
+   *  Prevents isolated experiment runs from contaminating the main calibration log (t/2219). */
+  calibrationDataRoot?: string;
   /** Perturbation testing config — inject adversarial prompt at a specific turn for resilience evaluation. Evaluation/benchmark only. */
   perturbation?: import('../types.js').PerturbationConfig;
   /** Run topic wisdom scoring at setup. Default: true. */
