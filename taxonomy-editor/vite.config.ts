@@ -73,7 +73,7 @@ export default defineConfig({
     __APP_VERSION__: JSON.stringify(getGitVersion()),
     __BUILD_DATE__: JSON.stringify(new Date().toISOString()),
     __CHANGELOG_MD__: JSON.stringify(
-      fs.readFileSync(path.resolve(__dirname, '../CHANGELOG.md'), 'utf-8')
+      fs.readFileSync(path.resolve(import.meta.dirname, '../CHANGELOG.md'), 'utf-8')
     ),
     __COMPONENT_VERSIONS__: JSON.stringify({
       react: require('react/package.json').version,
@@ -85,24 +85,24 @@ export default defineConfig({
   resolve: {
     alias: {
       '@bridge': isWeb
-        ? path.resolve(__dirname, 'src/renderer/bridge/web-bridge.ts')
-        : path.resolve(__dirname, 'src/renderer/bridge/index.ts'),
-      '@renderer': path.resolve(__dirname, 'src/renderer'),
-      '@lib/debate': path.resolve(__dirname, '../lib/debate'),
-      '@lib/dictionary': path.resolve(__dirname, '../lib/dictionary'),
-      '@lib/translation': path.resolve(__dirname, '../lib/translation'),
-      '@lib/flight-recorder': path.resolve(__dirname, '../lib/flight-recorder'),
-      '@lib/diff': path.resolve(__dirname, '../lib/diff'),
-      '@lib/ai-client': path.resolve(__dirname, '../lib/ai-client'),
-      '@lib/electron-shared': path.resolve(__dirname, '../lib/electron-shared'),
-      '@lib/embeddings': path.resolve(__dirname, '../lib/embeddings'),
-      '@lib/chat': path.resolve(__dirname, '../lib/chat'),
-      '@lib/organizations': path.resolve(__dirname, '../lib/organizations'),
-      '@lib/entities': path.resolve(__dirname, '../lib/entities'),
-      '@lib/policy': path.resolve(__dirname, '../lib/policy'),
+        ? path.resolve(import.meta.dirname, 'src/renderer/bridge/web-bridge.ts')
+        : path.resolve(import.meta.dirname, 'src/renderer/bridge/index.ts'),
+      '@renderer': path.resolve(import.meta.dirname, 'src/renderer'),
+      '@lib/debate': path.resolve(import.meta.dirname, '../lib/debate'),
+      '@lib/dictionary': path.resolve(import.meta.dirname, '../lib/dictionary'),
+      '@lib/translation': path.resolve(import.meta.dirname, '../lib/translation'),
+      '@lib/flight-recorder': path.resolve(import.meta.dirname, '../lib/flight-recorder'),
+      '@lib/diff': path.resolve(import.meta.dirname, '../lib/diff'),
+      '@lib/ai-client': path.resolve(import.meta.dirname, '../lib/ai-client'),
+      '@lib/electron-shared': path.resolve(import.meta.dirname, '../lib/electron-shared'),
+      '@lib/embeddings': path.resolve(import.meta.dirname, '../lib/embeddings'),
+      '@lib/chat': path.resolve(import.meta.dirname, '../lib/chat'),
+      '@lib/organizations': path.resolve(import.meta.dirname, '../lib/organizations'),
+      '@lib/entities': path.resolve(import.meta.dirname, '../lib/entities'),
+      '@lib/policy': path.resolve(import.meta.dirname, '../lib/policy'),
       // Allow lib/ files to resolve packages from taxonomy-editor's node_modules
-      'zod': path.resolve(__dirname, 'node_modules/zod'),
-      'jszip': path.resolve(__dirname, 'node_modules/jszip'),
+      'zod': path.resolve(import.meta.dirname, 'node_modules/zod'),
+      'jszip': path.resolve(import.meta.dirname, 'node_modules/jszip'),
     },
     // Ensure shared lib files (lib/electron-shared/) resolve React from this project
     dedupe: ['react', 'react-dom'],
@@ -169,7 +169,7 @@ export default defineConfig({
     port: 5173,
     strictPort: true,
     fs: {
-      allow: [path.resolve(__dirname, '..')],
+      allow: [path.resolve(import.meta.dirname, '..')],
     },
     // In web mode, proxy API + WebSocket traffic to the local server (port 7862)
     // so the web bridge's /api/* and /ws/* calls resolve. Ignored in electron mode.
