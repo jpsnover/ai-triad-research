@@ -5,6 +5,7 @@ import { useState, useEffect, useMemo } from 'react';
 import type { CommitmentStore, ArgumentNetworkNode, ArgumentNetworkEdge } from '../../../../types/debate';
 import { POVER_INFO } from '../../../../types/debate';
 import type { SpeakerId } from '../../../../types/debate';
+import { bandColor, RISK_BANDS } from '../../../../lib/bandColor';
 
 // NOTE: speakerLabel and AifBadge stay in DiagnosticsWindow.tsx (parent).
 // This component uses a local copy of speakerLabel to remain self-contained.
@@ -129,7 +130,7 @@ export function CommitmentsPanel({ commitments, nodes, edges, onGoToNode }: {
             <strong style={{ fontSize: '0.8rem' }}>{speakerLabel(pov)}</strong>
             {asymmetryByPov[pov] != null && (() => {
               const a = asymmetryByPov[pov]!;
-              const color = Math.abs(a) > 0.3 ? 'var(--danger)' : Math.abs(a) > 0.15 ? 'var(--warning)' : 'var(--success)';
+              const color = bandColor(Math.abs(a), RISK_BANDS);
               const label = Math.abs(a) > 0.3 ? 'high' : Math.abs(a) > 0.15 ? 'moderate' : 'balanced';
               return (
                 <span

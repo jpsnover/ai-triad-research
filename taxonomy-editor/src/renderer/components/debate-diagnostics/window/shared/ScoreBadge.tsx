@@ -2,18 +2,20 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import './ScoreBadge.css';
+import { bandColor } from '../../../../lib/bandColor';
+import type { BandEntry } from '../../../../lib/bandColor';
+
+const SCORE_BANDS: readonly BandEntry[] = [
+  { threshold: 0.7, color: 'score-badge--success' },
+  { threshold: 0.4, color: 'score-badge--warning' },
+  { threshold: 0,   color: 'score-badge--danger' },
+];
 
 interface ScoreBadgeProps {
   value: number;
   label: string;
   tooltip?: string;
   compact?: boolean;
-}
-
-function bandClass(value: number): string {
-  if (value >= 0.7) return 'score-badge--success';
-  if (value >= 0.4) return 'score-badge--warning';
-  return 'score-badge--danger';
 }
 
 export function ScoreBadge({ value, label, tooltip, compact = false }: ScoreBadgeProps) {
@@ -23,7 +25,7 @@ export function ScoreBadge({ value, label, tooltip, compact = false }: ScoreBadg
 
   return (
     <span
-      className={`score-badge ${bandClass(clamped)}`}
+      className={`score-badge ${bandColor(clamped, SCORE_BANDS)}`}
       title={tooltip ?? `${humanize(label)}: ${clamped.toFixed(2)} (0–1 scale)`}
     >
       <span className="score-badge-label">{displayLabel}</span>
