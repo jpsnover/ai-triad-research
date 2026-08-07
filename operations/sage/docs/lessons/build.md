@@ -1868,3 +1868,24 @@ Failure patterns related to builds, CI, tooling, environment, and git operations
 **Status:** Active — 1 instance (TL p/335#13). Renderer TSC CI fix: t/2252.
 
 **Applies To:** All agents landing PRs that import new shared utilities.
+
+---
+
+## #151 [Build] Vitest Cross-File Mock Leak — Parallel Workers Mutate Shared Module Namespace Between Assertions
+
+**Pattern:** `vi.mock('./utils', ...)` in one test file leaks into another file's execution under CI worker parallelism. Passes locally and in full coverage runs; fails in CI on a subset of assertions. Tell: two assertions on the same function giving mutually-impossible results → cross-file mock mutation, not a logic error.
+
+**Instances:**
+- 2026-08-07 — DebateWorkspace (p/124#5–6, t/2256, PR #580): `speakerLabel('user')→'You'` passed but `speakerLabel('unknown')→'Unknown'` failed. Sibling mocked `./utils` with `capitalize`; under CI parallelism that mock overlapped with the other file's assertions. Fix: `vi.importActual('./utils')`.
+
+**Root Cause:** `vi.mock()` patches the module registry globally within a worker. Under CI's higher worker concurrency, a mock-setup in one file overlaps with assertions in another file importing the same module path. Low local worker count eliminates the timing window.
+
+**Prevention:**
+1. Tell: mutually-impossible results from one function in one file → look for sibling `vi.mock()` calls on that module.
+2. Use `vi.importActual('./module')` in the file-under-test to bypass any concurrent mock.
+3. Add `afterEach(() => vi.restoreAllMocks())` in files that call `vi.mock()` on shared modules.
+4. Reproduce locally: `vitest run --pool=threads --poolOptions.threads.maxThreads=8`.
+
+**Status:** Active — 1 instance (DebateWorkspace p/124, t/2256).
+
+**Applies To:** All agents writing vitest tests that mock shared sibling modules.
