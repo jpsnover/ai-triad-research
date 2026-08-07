@@ -47,10 +47,33 @@
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--focus-ring) 20%, transparent);
 }
 
+/*
+ * Dark's `--focus-ring` is a light blue (#60a5fa), where the white step numeral
+ * lands at ~2.5:1. Dark-on-light-blue gives ~6.7:1. The predecessor dodged this
+ * by using `var(--accent, #3b82f6)` — but `--accent` is undefined app-wide, so
+ * it silently pinned one fixed blue in every theme; the token here is real, and
+ * only dark needs the glyph inverted.
+ */
+[data-theme="dark"] .unified-phase-step.active .unified-phase-dot {
+  color: var(--bg-primary);
+}
+
 .unified-phase-step.completed .unified-phase-dot {
   border-color: var(--success);
   background: var(--success);
   color: #fff;
+}
+
+/*
+ * bkc's `--success` is neon (#00ff4c, luminance 0.72), so the white checkmark
+ * above lands at ~1.4:1 — effectively invisible. Dark-on-neon instead gives
+ * ~12:1. The other three themes keep the white glyph, which their darker greens
+ * carry. Caught auditing the flag-on path before DEBATE_CHAT_REDESIGN defaults
+ * ON (t/2257); the theme-aware token is otherwise an improvement over the
+ * hardcoded #10b981 this replaced — it is only bkc that inverts.
+ */
+[data-theme="bkc"] .unified-phase-step.completed .unified-phase-dot {
+  color: #1f1f1f;
 }
 
 .unified-phase-label {
