@@ -27,6 +27,7 @@ import { useTierInfo, isFreeTier } from '../../hooks/useTierInfo';
 import { GeminiOnboardingModal } from '../settings/GeminiOnboardingModal';
 import { CampGlyph, povToCamp } from '../shared/CampGlyph';
 import { EmptyState } from '../shared/EmptyState';
+import { ThinkingIndicator, MessageBubble } from '../shared/ChatBubble';
 import './ChatWorkspace.css';
 
 // ── Helpers ──────────────────────────────────────────────
@@ -174,9 +175,9 @@ function ChatMessage({ entry, selectedRef, onSelectRef }: { entry: ChatEntry; se
             {speakerLabel(entry.speaker)}
           </span>
         </div>
-        <div className="chat-message-content markdown-body prose">
+        <MessageBubble role={isUser ? 'user' : 'assistant'} className="chat-message-content markdown-body prose">
           <Markdown remarkPlugins={[remarkGfm, remarkColorizePov, remarkLinkifyRefs]} components={mdComponents}>{entry.content}</Markdown>
-        </div>
+        </MessageBubble>
         <TaxonomyRefsSection refs={entry.taxonomy_refs} selectedRef={selectedRef} onSelectRef={onSelectRef} />
       </div>
     </div>
@@ -191,7 +192,7 @@ function ProgressIndicator() {
   if (!chatActivity) return null;
 
   return (
-    <div className="chat-generating">
+    <ThinkingIndicator className="chat-generating">
       <span className="chat-generating-dots">
         <span>{chatActivity}</span>
         <span className="dot-animation" />
@@ -202,7 +203,7 @@ function ProgressIndicator() {
           {chatProgress.backoffSeconds ? ` (${chatProgress.backoffSeconds}s)` : ''}
         </span>
       )}
-    </div>
+    </ThinkingIndicator>
   );
 }
 
