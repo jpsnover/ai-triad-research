@@ -15,8 +15,9 @@ import { POVER_INFO, AI_POVERS } from '../../../types/debate';
 import type { TopicScope, TopicScopeRiskLevel } from '@lib/debate/types';
 import type { PovNode, CrossCuttingNode as SituationNode } from '../../../types/taxonomy';
 import type { StandardizedTerm, ColloquialTerm } from '@lib/dictionary/types';
-import type { OpeningPipelineInput } from '@lib/debate/turnPipeline';
-import { api } from '@bridge';
+import type { OpeningPipelineInput, BriefEventFn } from '@lib/debate/turnPipeline';
+import { api, isElectronMode } from '@bridge';
+import { emitBriefTimeout, emitBriefRetriesExhausted } from '../../../bridge/web-bridge';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { generateId, nowISO, parseAIJson, parsePoverResponse, formatRecentTranscript } from '@lib/debate/helpers';
 import { formatTaxonomyContext } from '../../../utils/taxonomyContext';
@@ -946,10 +947,20 @@ export const createClarificationSlice: StateCreator<DebateStore, [], [], Clarifi
           background: activeDebate.topic?.background || undefined,
         };
 
+        // Web-only: Electron routes brief-timeout events via IPC from ElectronMain.
+        const onBriefEvent: BriefEventFn | undefined = isElectronMode() ? undefined : (phase, data) => {
+          if (phase === 'brief.timeout' || phase === 'brief.retrying') {
+            emitBriefTimeout({ debateId: activeDebate.id, speaker: data.agent, attempt: data.attempt, maxAttempts: data.maxRetries, currentModel: '' });
+          } else if (phase === 'brief.retries_exhausted') {
+            emitBriefRetriesExhausted({ debateId: activeDebate.id, speaker: data.agent, totalAttempts: data.attempt, currentModel: '' });
+          }
+        };
+
         let pipelineResult = await runOpeningPipeline(
           pipelineInput,
           stageGenerate,
           (_stage, label) => set({ debateActivity: label }),
+          onBriefEvent,
         );
         if (!isStillValid()) {
           console.warn(`[debate-store] Debate state changed after ${info.label} opening pipeline — remaining speakers will be skipped. activeDebateId: ${get().activeDebateId}, aborted: ${_abortController?.signal.aborted}`);
@@ -968,6 +979,7 @@ export const createClarificationSlice: StateCreator<DebateStore, [], [], Clarifi
               { ...pipelineInput, repairHints: openingRepairHints },
               stageGenerate,
               (_stage, label) => set({ debateActivity: label }),
+              onBriefEvent,
             );
           } catch (err) {
             getGlobalRecorder()?.record({
