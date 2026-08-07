@@ -371,11 +371,11 @@ export const api: AppAPI = {
   onBriefRetriesExhausted: (cb) => window.electronAPI.onBriefRetriesExhausted(cb),
   captureScreenshot: (opts) => window.electronAPI.captureScreenshot(opts),
 
-  // Feature flags — desktop has no server. Source DEBATE_CHAT_REDESIGN from a
-  // build-time env var (VITE_DEBATE_CHAT_REDESIGN) for local testing; default
-  // false → existing UX intact. (t/2235)
+  // Feature flags — desktop has no server. DEBATE_CHAT_REDESIGN defaults ON for
+  // the local/Electron build (t/2257); opt out with VITE_DEBATE_CHAT_REDESIGN=false.
+  // Web/server default is separate (companion Azure ticket, gated on t/2243).
   getFlags: () => Promise.resolve({
-    DEBATE_CHAT_REDESIGN: import.meta.env.VITE_DEBATE_CHAT_REDESIGN === 'true',
+    DEBATE_CHAT_REDESIGN: import.meta.env.VITE_DEBATE_CHAT_REDESIGN !== 'false',
   }),
 
   // UsageID registry — stub (desktop has no server-side usage registry)
