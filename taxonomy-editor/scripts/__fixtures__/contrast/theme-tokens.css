@@ -1,0 +1,15 @@
+/* Fixture theme palette for the contrast checker's self-test (t/2264).
+   Mirrors the shape of styles.css: a :root base plus per-theme overrides. */
+
+:root,
+[data-theme="light"] {
+  --bg-primary: #ffffff;
+  --fill-dark: #b84e13;   /* dark fill  → white text passes */
+  --fill-light: #22c55e;  /* light fill → white text fails  */
+}
+
+[data-theme="dark"] {
+  --bg-primary: #111827;
+  --fill-dark: #a35012;
+  --fill-light: #60a5fa;
+}
