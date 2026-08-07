@@ -273,6 +273,8 @@ function isAnonBlockedRoute(urlPath: string): boolean {
 
 // Anonymous users can save/delete their own ephemeral chats and debates.
 // Matches both '/api/debates' (create/save) and '/api/debates/{id}' (update/delete).
+// NOTE: this is used only for POST/PUT/DELETE — PATCH has its own narrow check below
+// (t/2230) to prevent future sub-paths from silently inheriting anon write access.
 function isAnonUserContentRoute(urlPath: string): boolean {
   return urlPath === '/api/chats' || urlPath.startsWith('/api/chats/')
     || urlPath === '/api/debates' || urlPath.startsWith('/api/debates/');
@@ -310,6 +312,11 @@ export function isAnonAllowedRoute(method: string, urlPath: string): boolean {
 
   const isMutation = method === 'POST' || method === 'PUT' || method === 'DELETE';
   if (isMutation && isAnonUserContentRoute(urlPath)) return true;
+
+  // PATCH is allowed only for debate delta saves on a specific debate id (t/2230).
+  // Deliberately not routed through isAnonUserContentRoute — that prefix match would
+  // silently grant anon PATCH to /api/chats/:id and future debate sub-paths.
+  if (method === 'PATCH') return /^\/api\/debates\/[^/]+$/.test(urlPath);
 
   if (method === 'PUT' || method === 'DELETE') return false;
 

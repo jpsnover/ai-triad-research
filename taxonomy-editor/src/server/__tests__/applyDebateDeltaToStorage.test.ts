@@ -163,4 +163,24 @@ describe('applyDebateDeltaToStorage (t/1635)', () => {
       userContext.runWithUser(anonCtx, () => fileIO.applyDebateDeltaToStorage(delta)),
     ).rejects.toMatchObject({ statusCode: 409, code: 'version_conflict', currentVersion: 4 });
   });
+
+  it('IDOR guard: session B cannot PATCH a debate created by session A (t/2230)', async () => {
+    const sessA = { ...anonCtx, anonymousSessionId: 'sess-idor-a' };
+    const sessB = { ...anonCtx, anonymousSessionId: 'sess-idor-b' };
+
+    // Session A seeds a debate at version 2.
+    await userContext.runWithUser(sessA, () =>
+      fileIO.saveDebateSession({ id: 'idor-debate', title: 'Owned by A', _saveVersion: 2 }));
+
+    // Session B attempts to PATCH the same debate ID — must not find it.
+    const delta = makeDelta({ debateId: 'idor-debate', baseVersion: 2 });
+    await expect(
+      userContext.runWithUser(sessB, () => fileIO.applyDebateDeltaToStorage(delta)),
+    ).rejects.toMatchObject({ statusCode: 409, code: 'version_conflict', currentVersion: null });
+
+    // Session A's debate is untouched.
+    const reloaded = await userContext.runWithUser(sessA, () =>
+      fileIO.loadDebateSession('idor-debate')) as { _saveVersion: number };
+    expect(reloaded._saveVersion).toBe(2);
+  });
 });

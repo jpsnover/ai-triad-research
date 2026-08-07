@@ -15,7 +15,8 @@ import { json, error, param } from '../httpKit.js';
 import { getGlobalRecorder } from '../../../../lib/flight-recorder/index.js';
 import * as fileIO from '../storage/fileIO.js';
 import * as ai from '../ai/aiBackends.js';
-import { getStorageUserId } from '../security/userContext.js';
+import { getStorageUserId, getAnonymousSessionId } from '../security/userContext.js';
+import * as rateLimiter from '../security/rateLimiter.js';
 import { getDataRoot } from '../config.js';
 import type { DebateDelta } from '../../../../lib/debate/types.js';
 
@@ -27,6 +28,7 @@ import type { DebateDelta } from '../../../../lib/debate/types.js';
 // slow-save diagnostic FR log that feeds the Server Storage blob-timeout ticket (t/1469).
 const inFlightDebateSaves = new Set<string>();
 const SLOW_DEBATE_SAVE_MS = 5_000;
+const ANON_DEBATE_SAVE_RPM = 30;
 
 /** Append a calibration data point when the saved debate has a concluding entry.
  *  Never blocks/aborts the save — a failure is recorded to the flight recorder. */
@@ -176,6 +178,15 @@ export function registerDebatesRoutes(r: Router, _ctx: ServerCtx): void {
       res.writeHead(409, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ error: 'save_in_progress', message: 'A save for this debate is already in progress; your newest changes will be saved on the next attempt.' }));
       return;
+    }
+    const anonSessionId = getAnonymousSessionId();
+    if (anonSessionId) {
+      const r = rateLimiter.checkRate(`anon-debate-save:${anonSessionId}`, ANON_DEBATE_SAVE_RPM, 60_000);
+      if (!r.allowed) {
+        const retryAfter = Math.max(1, Math.ceil((r.retryAfterMs ?? 60_000) / 1000));
+        res.setHeader('Retry-After', String(retryAfter));
+        return json(res, { error: 'rate_limited', message: 'Too many requests', retryAfter }, 429);
+      }
     }
     inFlightDebateSaves.add(saveKey);
     const startedAt = Date.now();
