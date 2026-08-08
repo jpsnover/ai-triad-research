@@ -497,12 +497,10 @@ export function SituationsTab() {
     }
   }, []);
 
-  if (!situations) {
-    return <div className="detail-panel-empty">No situations data loaded</div>;
-  }
+  const selectedNode = situations?.nodes.find(n => n.id === selectedNodeId) || null;
 
-  const selectedNode = situations.nodes.find(n => n.id === selectedNodeId) || null;
-
+  // Hooks must precede the `if (!situations)` early return (rules-of-hooks, t/2299).
+  // selectedNode was already `... || null`, so hoisting it does not change its type.
   const handleFallacyNodeSelect = useCallback((nodeId: string, pov: string) => {
     // Map pov to tab and navigate
     const tabMap: Record<string, string> = {
@@ -519,6 +517,21 @@ export function SituationsTab() {
     }
   }, [setActiveTab, setSelectedNodeId]);
 
+  const createSituationDebate = useDebateStore(s => s.createSituationDebate);
+  const handleDebate = useCallback(async () => {
+    if (!selectedNode) return;
+    try {
+      await createSituationDebate(selectedNode.id);
+      setActiveTab('debate');
+    } catch (err) {
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'situations-tab', level: 'error', message: 'Failed to create situation debate', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
+    }
+  }, [selectedNode, createSituationDebate, setActiveTab]);
+
+  if (!situations) {
+    return <div className="detail-panel-empty">No situations data loaded</div>;
+  }
+
   const handlePin = () => {
     if (selectedNode) {
       pinAtDepth(0, {
@@ -533,17 +546,6 @@ export function SituationsTab() {
       showRelatedEdges(selectedNode.id);
     }
   };
-
-  const createSituationDebate = useDebateStore(s => s.createSituationDebate);
-  const handleDebate = useCallback(async () => {
-    if (!selectedNode) return;
-    try {
-      await createSituationDebate(selectedNode.id);
-      setActiveTab('debate');
-    } catch (err) {
-      getGlobalRecorder()?.record({ type: 'system.error', component: 'situations-tab', level: 'error', message: 'Failed to create situation debate', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
-    }
-  }, [selectedNode, createSituationDebate, setActiveTab]);
 
   // Search preview rendered via shared SearchPreview component
 

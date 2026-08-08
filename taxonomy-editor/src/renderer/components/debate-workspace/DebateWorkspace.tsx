@@ -1294,6 +1294,9 @@ export function DebateWorkspace({ onExport, exportStatus }: {
   const { coverageMap, strengthWeighted } = useDebateCoverage(activeDebate);
   const { contextMenu, setContextMenu, commentPopover, setCommentPopover, handleContextMenu } = useDebateSelectionMenu(activeDebate, defaultTier);
 
+  // useFlag is a hook — hoist above the early returns below (rules-of-hooks, t/2299).
+  const chatRedesign = useFlag('DEBATE_CHAT_REDESIGN');
+
   if (debateLoading) {
     return <div className="debate-workspace-loading">Loading debate...</div>;
   }
@@ -1305,7 +1308,6 @@ export function DebateWorkspace({ onExport, exportStatus }: {
   const isClarificationPhase = activeDebate.phase === 'clarification' || activeDebate.phase === 'setup';
   const isEditClaimsPhase = activeDebate.phase === 'edit-claims';
   const isOpeningPhase = activeDebate.phase === 'opening';
-  const chatRedesign = useFlag('DEBATE_CHAT_REDESIGN');
   const isDebatePhase = activeDebate.phase === 'debate'
     || activeDebate.phase === 'closed'
     || activeDebate.adaptive_staging?.phase_state?.current_phase != null;

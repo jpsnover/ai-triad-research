@@ -10,6 +10,7 @@
 // (t/1976 warn→error, after t/1929 wired the rule to actually run here).
 
 import tseslint from 'typescript-eslint';
+import reactHooks from 'eslint-plugin-react-hooks';
 import requireFlightRecorderInCatch from '../lib/eslint-rules/require-flight-recorder-in-catch.js';
 
 const localPlugin = {
@@ -24,9 +25,14 @@ export default tseslint.config(
     languageOptions: {
       parser: tseslint.parser,
     },
-    plugins: { local: localPlugin },
+    plugins: { local: localPlugin, 'react-hooks': reactHooks },
     rules: {
       'local/require-flight-recorder-in-catch': 'error',
+      // rules-of-hooks (ERROR) — catches conditional/looped/nested hook calls at lint
+      // time, the class that crashed the debate popup in taxonomy-editor (t/2298). Kept
+      // at full parity across all three renderer apps (t/2299). exhaustive-deps is left
+      // off deliberately to avoid warning noise; rules-of-hooks alone covers the crash class.
+      'react-hooks/rules-of-hooks': 'error',
     },
   },
   {

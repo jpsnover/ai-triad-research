@@ -16,6 +16,7 @@
 //     ceiling and risk hard failures — hard-gate only (TL ruling, t/1691#2).
 
 import tseslint from 'typescript-eslint';
+import reactHooks from 'eslint-plugin-react-hooks';
 import requireFlightRecorderInCatch from '../lib/eslint-rules/require-flight-recorder-in-catch.js';
 import noUnmanagedModuleResources from './eslint-rules/no-unmanaged-module-resources.js';
 import noInlineStyle from './eslint-rules/no-inline-style.js';
@@ -43,7 +44,7 @@ export default tseslint.config(
     files: ['src/**/*.ts', 'src/**/*.tsx'],
     ignores: TEST_GLOBS,
     extends: [tseslint.configs.base],
-    plugins: { local: localPlugin },
+    plugins: { local: localPlugin, 'react-hooks': reactHooks },
     languageOptions: {
       parserOptions: {
         projectService: true,
@@ -51,6 +52,15 @@ export default tseslint.config(
       },
     },
     rules: {
+      // rules-of-hooks (ERROR) — catches conditional/looped/nested hook calls at lint
+      // time. A conditional hook (`isElectronMode() || useFlag(...)`) shipped to main and
+      // crashed the debate popup with "Rendered fewer hooks than expected" (t/2298); this
+      // gate is what would have blocked it. Hard-gate because the class is a guaranteed
+      // runtime crash, not a style nit (t/2299).
+      'react-hooks/rules-of-hooks': 'error',
+      // exhaustive-deps is deliberately NOT enabled: as a 'warn' it would count against
+      // `npm run verify`'s --max-warnings ceiling (see header note), and as an 'error' it
+      // would flood the pre-existing tree. rules-of-hooks alone covers the crash class.
       '@typescript-eslint/no-floating-promises': 'error',
       '@typescript-eslint/no-misused-promises': ['error', {
         checksVoidReturn: { attributes: false },

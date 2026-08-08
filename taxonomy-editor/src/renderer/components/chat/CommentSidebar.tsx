@@ -15,6 +15,15 @@ export function CommentSidebar() {
   } = useCommentStore();
   const username = useUsernameStore(s => s.username);
 
+  // Hook must precede the `if (!commentsFile) return null` early return (rules-of-hooks,
+  // t/2299). The callback does not depend on commentsFile.
+  const handleNavigateToHighlight = useCallback((comment: Comment) => {
+    focusComment(comment.id);
+    // Scroll to the highlight in the transcript
+    const el = document.querySelector(`[data-comment-highlight="${comment.id}"]`);
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, [focusComment]);
+
   if (!commentsFile) return null;
 
   const totalCount = commentsFile.comments?.length ?? 0;
@@ -24,13 +33,6 @@ export function CommentSidebar() {
   );
   const filterCount = activeFilterCount();
   const authors = getUniqueAuthors();
-
-  const handleNavigateToHighlight = useCallback((comment: Comment) => {
-    focusComment(comment.id);
-    // Scroll to the highlight in the transcript
-    const el = document.querySelector(`[data-comment-highlight="${comment.id}"]`);
-    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-  }, [focusComment]);
 
   return (
     <div className="comment-sidebar">
