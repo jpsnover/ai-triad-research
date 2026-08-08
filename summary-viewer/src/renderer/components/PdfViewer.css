@@ -41,6 +41,13 @@
   flex: 1;
 }
 
+.pdf-toolbar-divider {
+  width: 1px;
+  height: 18px;
+  background: var(--border-color);
+  margin: 0 2px;
+}
+
 .pdf-zoom-btn {
   width: 24px;
   height: 24px;
@@ -136,7 +143,11 @@
   text-align: initial;
   inset: 0;
   overflow: hidden;
-  opacity: 0.25;
+  /* opacity:1 (not the pdf.js-default 0.25): the spans are color:transparent so
+     no text renders regardless, but a low layer opacity would dim the search
+     highlight <mark> backgrounds (parent opacity can't be escaped by children),
+     making them nearly invisible over the canvas (t/2292). */
+  opacity: 1;
   line-height: 1;
   -webkit-text-size-adjust: none;
   -moz-text-size-adjust: none;
