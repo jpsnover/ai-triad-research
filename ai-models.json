@@ -95,6 +95,18 @@
       "backend": "gemini"
     },
     {
+      "id": "claude-opus-5",
+      "apiModelId": "claude-opus-5",
+      "label": "Opus 5 (alias)",
+      "backend": "claude"
+    },
+    {
+      "id": "claude-sonnet-5",
+      "apiModelId": "claude-sonnet-5",
+      "label": "Sonnet 5 (alias)",
+      "backend": "claude"
+    },
+    {
       "id": "claude-opus-4-8",
       "apiModelId": "claude-opus-4-8",
       "label": "Opus 4.8 (alias)",
@@ -738,6 +750,14 @@
       "gemini-3.1-pro-preview",
       "gemini-3.6-flash"
     ],
+    "claude-opus-5": [
+      "claude-sonnet-4-6",
+      "gemini-3.1-pro-preview"
+    ],
+    "claude-sonnet-5": [
+      "claude-haiku-4-5",
+      "gemini-3.6-flash"
+    ],
     "claude-opus-4-8": [
       "claude-sonnet-4-6",
       "gemini-3.1-pro-preview"
@@ -1010,6 +1030,16 @@
       "inputPer1M": 0.1,
       "outputPer1M": 0.4,
       "cachedInputPer1M": 0.025
+    },
+    "claude-opus-5": {
+      "inputPer1M": 5,
+      "outputPer1M": 25,
+      "cachedInputPer1M": 0.5
+    },
+    "claude-sonnet-5": {
+      "inputPer1M": 3,
+      "outputPer1M": 15,
+      "cachedInputPer1M": 0.3
     },
     "claude-opus-4-8": {
       "inputPer1M": 5,
