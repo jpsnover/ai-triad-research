@@ -18,15 +18,22 @@
 }
 
 /* ──────────────────────────────────────────────
-   Column sizing — Title is the flex column
+   Column sizing — Title auto-fits at ≤1023px (model hidden, fewer fixed cols);
+   capped at 35% on desktop only so it doesn't absorb all excess width.
+   col-actions widened to 11.5rem for Share button (t/2311).
 ────────────────────────────────────────────── */
 .debate-table colgroup .col-title   { width: auto; }
-.debate-table colgroup .col-status  { width: 7rem; }
-.debate-table colgroup .col-date    { width: 9rem; }
-.debate-table colgroup .col-turns   { width: 4rem; }
-.debate-table colgroup .col-model   { width: 10rem; }
-.debate-table colgroup .col-actions { width: 10rem; }
+.debate-table colgroup .col-status  { width: 6rem; }
+.debate-table colgroup .col-date    { width: 7.5rem; }
+.debate-table colgroup .col-turns   { width: 3.5rem; }
+.debate-table colgroup .col-model   { width: 9rem; }
+.debate-table colgroup .col-actions { width: 11.5rem; }
 .debate-table colgroup .col-cb      { width: 2rem; }
+
+@media (min-width: 1024px) {
+  /* Desktop only: cap title column so it doesn't grow to fill all excess space */
+  .debate-table colgroup .col-title { width: 35%; }
+}
 
 /* ──────────────────────────────────────────────
    Header
@@ -393,5 +400,15 @@
 
 .debate-tab-table-mode .list-panel.debate-session-list {
   /* Override the inline `style.width` set by useResizablePanel */
+  flex: 1;
+}
+
+/* Tablet band (768–1023px): tablet-mode sets width:30%/max-width:320px on the list panel
+   which overrides flex:1 via specificity. When table-mode is also active, release
+   that cap so the panel fills the full two-column container. */
+.two-column.tablet-mode.debate-tab-table-mode .list-panel.debate-session-list {
+  width: auto !important;
+  min-width: 0 !important;
+  max-width: none !important;
   flex: 1;
 }
