@@ -241,8 +241,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
 
   // Debate popout window
-  openDebateWindow: (debateId: string): Promise<void> => ipcRenderer.invoke('open-debate-window', debateId),
-  closeDebateWindow: (): Promise<void> => ipcRenderer.invoke('close-debate-window'),
+  openDebateWindow: (debateId: string): Promise<{ atCap: true } | void> => ipcRenderer.invoke('open-debate-window', debateId),
+  closeDebateWindow: (debateId: string): Promise<void> => ipcRenderer.invoke('close-debate-window', debateId),
   onDebateWindowLoad: (callback: (debateId: string) => void) => {
     // Stop buffering — the React component is now listening directly.
     _debateBufferActive = false;
@@ -261,8 +261,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
       _debateBufferActive = true;
     };
   },
-  onDebatePopoutClosed: (callback: () => void) => {
-    const listener = () => callback();
+  onDebatePopoutClosed: (callback: (debateId: string) => void) => {
+    const listener = (_event: Electron.IpcRendererEvent, debateId: string) => callback(debateId);
     ipcRenderer.on('debate-popout-closed', listener);
     return () => { ipcRenderer.removeListener('debate-popout-closed', listener); };
   },

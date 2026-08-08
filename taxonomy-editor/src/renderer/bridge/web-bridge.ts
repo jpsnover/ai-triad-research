@@ -1278,7 +1278,7 @@ const rawApi: AppAPI = {
   openDebateWindow: async (debateId) => {
     openAppWindow(`debate-window?id=${encodeURIComponent(debateId)}`);
   },
-  closeDebateWindow: async () => { /* no-op in web mode */ },
+  closeDebateWindow: async (_debateId: string) => { /* no-op in web mode */ },
 
   getCliFileArg: async () => null, // No CLI mode in browser
 
