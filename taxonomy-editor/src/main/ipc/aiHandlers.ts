@@ -112,7 +112,20 @@ export function registerAiHandlers(): void {
   });
 
   ipcMain.handle('nli-classify', async (_event, pairs: NliPair[]) => {
-    return { results: await classifyNli(pairs) };
+    const t0 = Date.now();
+    getGlobalRecorder()?.record({ type: 'system.info', component: 'ipc-handlers', level: 'info', message: `nli-classify start: ${pairs.length} pairs` });
+    try {
+      const results = await classifyNli(pairs);
+      getGlobalRecorder()?.record({ type: 'system.info', component: 'ipc-handlers', level: 'info', message: `nli-classify ok: ${results.length} results in ${Date.now() - t0}ms`, data: { duration_ms: Date.now() - t0, result_count: results.length } });
+      return { results };
+    } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error', component: 'ipc-handlers', level: 'error',
+        message: `nli-classify failed after ${Date.now() - t0}ms`,
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+      });
+      throw err;
+    }
   });
 
   ipcMain.handle('generate-text', async (event, prompt: string, model?: string, timeoutMs?: number, temperature?: number) => {
