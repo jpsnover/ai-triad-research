@@ -52,25 +52,29 @@
 
 /* ─── Two-mode segmented controls (t/2172) ─────────────────────────────── */
 
+/* Mode toggle — neutral segmented control (t/2274 §13, owner design). The track
+   is a subtle inset; the SELECTED segment is a raised light pill (NO accent fill),
+   so the mode toggle reads as a different control type than the value dropdown. */
 .debate-mode-group {
   display: inline-flex;
   background: var(--bg-secondary);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-sm);
-  overflow: hidden;
+  padding: 2px;
+  gap: 2px;
 }
 
 .debate-mode-seg {
   background: transparent;
-  border: none;
+  border: 1px solid transparent;   /* reserve the pill border so selection doesn't shift layout */
+  border-radius: var(--radius-sm);
   color: var(--text-secondary);
   font-size: var(--text-2xs);
   font-weight: 600;
-  padding: 1px 6px;
+  padding: 1px 8px;
   cursor: pointer;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-  transition: background 0.1s, color 0.1s;
+  letter-spacing: 0;
+  transition: background 0.1s, color 0.1s, box-shadow 0.1s;
   display: inline-flex;
   align-items: center;
   gap: 2px;
@@ -78,18 +82,17 @@
 }
 
 .debate-mode-seg:hover {
-  background: var(--bg-hover);
   color: var(--text-primary);
 }
 
-.debate-mode-seg-active {
-  background: var(--focus-ring);
-  color: #fff;
-}
-
+/* Selected = raised neutral pill, NOT an accent fill (the change that makes the
+   two groups read as different control types). */
+.debate-mode-seg-active,
 .debate-mode-seg-active:hover {
-  background: var(--focus-ring);
-  color: #fff;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  border-color: var(--border-color);
+  box-shadow: var(--shadow-1);
 }
 
 .debate-mode-separator {
@@ -130,4 +133,41 @@
 
 .debate-tier-global .debate-mode-group {
   font-size: inherit;
+}
+
+/* Value selector — dropdown button + menu (t/2274 §13, owner design), replacing
+   the old inline value pills. A native <select> styled as the button = keyboard
+   access for free (open/navigate/select, Esc closes, focus returns). Reuses the
+   .debate-detail-dropdown base; these tweaks give title-case labels + the override
+   affordance. */
+.debate-value-dropdown-wrap {
+  display: inline-flex;
+  align-items: center;
+}
+.debate-value-dropdown {
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--text-primary);
+  height: auto;
+  padding: 1px 4px;
+}
+/* Per-statement override marker on the dropdown button (value differs from the
+   global default) — a --focus-ring dot; "Match global default" (last menu item)
+   clears it. */
+.debate-value-override-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--focus-ring);
+  display: inline-block;
+  margin-left: 4px;
+  flex-shrink: 0;
+}
+
+/* Spacing between the mode toggle and the value dropdown (the old 1px divider is
+   dropped per the owner mock). Overrides the Rosetta-owned styles.css base
+   (.debate-tier-pills gap:4px); element+class specificity wins regardless of
+   stylesheet order. */
+span.debate-tier-pills {
+  gap: 8px;
 }

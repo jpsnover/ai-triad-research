@@ -510,7 +510,6 @@ function StatementTierPills({ entry, activeTier, setEntryDisplayTier, vocabResol
   const isOverridden = entry.display_tier != null;
 
   const modeRefs = useRef<(HTMLButtonElement | null)[]>([]);
-  const subRefs = useRef<(HTMLButtonElement | null)[]>([]);
 
   const handleModeSelect = useCallback((mode: 'text' | 'analysis') => {
     if (mode === activeMode) return;
@@ -535,19 +534,6 @@ function StatementTierPills({ entry, activeTier, setEntryDisplayTier, vocabResol
     requestAnimationFrame(() => modeRefs.current[next]?.focus());
   }, [handleModeSelect]);
 
-  const handleSubKey = useCallback((e: { key: string; preventDefault(): void }, idx: number) => {
-    const len = subTiers.length;
-    let next = idx;
-    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') next = (idx + 1) % len;
-    else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') next = (idx - 1 + len) % len;
-    else if (e.key === 'Home') next = 0;
-    else if (e.key === 'End') next = len - 1;
-    else return;
-    e.preventDefault();
-    handleSubSelect(subTiers[next]);
-    requestAnimationFrame(() => subRefs.current[next]?.focus());
-  }, [subTiers, handleSubSelect]);
-
   return (
     <span className="debate-tier-pills">
       <span role="radiogroup" aria-label="View mode" className="debate-mode-group">
@@ -567,43 +553,36 @@ function StatementTierPills({ entry, activeTier, setEntryDisplayTier, vocabResol
           </button>
         ))}
       </span>
-      <span className="debate-mode-separator" aria-hidden="true" />
-      <span
-        role="radiogroup"
-        aria-label={activeMode === 'text' ? 'Text detail level' : 'Analysis view'}
-        className="debate-mode-group"
-      >
-        {subTiers.map((tier, i) => {
-          const isActive = activeTier === tier;
-          return (
-            <button
-              key={tier}
-              ref={el => { subRefs.current[i] = el; }}
-              type="button"
-              role="radio"
-              aria-checked={isActive}
-              tabIndex={isActive ? 0 : -1}
-              className={`debate-mode-seg${isActive ? ' debate-mode-seg-active' : ''}${isActive && isOverridden ? ' debate-mode-seg-overridden' : ''}`}
-              aria-label={`${TIER_LABELS[tier]}${isActive && isOverridden ? ', overrides global default' : ''}`}
-              onClick={(e) => { e.stopPropagation(); handleSubSelect(tier); }}
-              onKeyDown={(e) => handleSubKey(e, i)}
-              title={TIER_TITLES[tier]}
-            >
-              {TIER_LABELS[tier]}
-            </button>
-          );
-        })}
-      </span>
-      {isOverridden && (
-        <button
-          type="button"
-          className="debate-mode-match-global"
-          onClick={(e) => { e.stopPropagation(); setEntryDisplayTier(entry.id, undefined); }}
-          title="Clear override — revert to global default"
+      {/* Value selector — native <select> styled as a dropdown button (t/2274 §13).
+          Native gives keyboard access for free (open/navigate/select, Esc closes,
+          focus returns). Override → dot on the button + "Match global default" item. */}
+      <span className="debate-value-dropdown-wrap">
+        <select
+          className="debate-detail-dropdown debate-value-dropdown"
+          aria-label={activeMode === 'text' ? 'Text detail level' : 'Analysis view'}
+          value={activeTier}
+          title={TIER_TITLES[activeTier]}
+          onClick={(e) => e.stopPropagation()}
+          onChange={(e) => {
+            e.stopPropagation();
+            const v = e.target.value;
+            if (v === '__match_global__') setEntryDisplayTier(entry.id, undefined);
+            else handleSubSelect(v);
+          }}
         >
-          ↺ match global
-        </button>
-      )}
+          {subTiers.map(tier => (
+            <option key={tier} value={tier}>{TIER_LABELS[tier]}</option>
+          ))}
+          {isOverridden && <option value="__match_global__">Match global default</option>}
+        </select>
+        {isOverridden && (
+          <span
+            className="debate-value-override-dot"
+            title="Overrides global default"
+            aria-label="Overrides global default"
+          />
+        )}
+      </span>
     </span>
   );
 }
