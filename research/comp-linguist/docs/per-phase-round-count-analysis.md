@@ -92,6 +92,41 @@ quality-per-cost frontier is therefore **flat**, and its knee is the **floor**.
 
 ---
 
+## 3a. Stronger-model probe (attempted, INFEASIBLE under run constraints — 2026-08-08)
+
+To test caveat (2) — "is the flat null real, or is `gemini-3.5-flash-lite` just too weak to
+*use* extra argumentation rounds?" — a one-variable probe was attempted: **swap only the
+debater model to a stronger tier, keep the evaluator pinned at `gemini-3.5-flash-lite`**
+(t/1846, so the measuring instrument and thus comparability to §2 are preserved), on the
+argumentation fenceposts (arg1 vs arg4, n=3 each). Owner-approved.
+
+**Outcome: no usable data — the probe is infeasible on this run harness, for two compounding
+reasons, one of which is itself a finding:**
+
+1. **Wall-clock.** Both `claude-opus-4-8` and `claude-sonnet-4-6` produce far longer debates
+   than flash-lite — long turns (~4.5k chars) and many more rounds. flash-lite's arg1 cell
+   finalized in ~500s; sonnet's arg1 reached **32 turns and had not finalized at the 2400s
+   timeout** (~75s/turn). Opus was similar-or-worse. Debates this long do not complete inside
+   the background-task survival window on the shared machine (the same reaping that dogged the
+   §2 batch), so neither model banked a clean pair. opus completed 1 arg1 run; sonnet 0.
+2. **Possible confound (the finding).** flash-lite debates terminated early on the **per-phase
+   `situation_cap`** (the manipulated knob). The sonnet arg1 partial reached ~16 rounds —
+   approaching the global `maxTotalRounds:18` backstop — suggesting a stronger model may run to
+   the **global round budget rather than the per-phase cap**, in which case arg1 and arg4 would
+   both run ~18 rounds and the fencepost manipulation would not bind. If so, the §2 design would
+   need the global backstop raised (and cost re-scoped) before a strong-model round sweep could
+   even be *run*, let alone interpreted.
+
+**Disposition (owner decision, 2026-08-08): stop the probe; the flash-lite NULL stands as the
+recommendation.** The stronger-model question is therefore **open, not answered** — the §2 null
+is established for `gemini-3.5-flash-lite` (the pinned production debater for this work) and is
+the correct basis for the current recommendation, but it has **not** been shown to generalize to
+stronger debaters. Re-opening it would require a run environment where 30–45-min debates
+complete reliably, plus a design fix for the cap-vs-backstop binding (raise `maxTotalRounds` so
+the per-phase cap is provably the binding constraint under a strong model, as §3/§0 require).
+Probe scripts retained: `experiments/t2192-round-count/` (`t2192_opus_probe.py`,
+`t2192_sonnet_probe.py`).
+
 ## 4. Recommendation
 
 **No phase benefits from more rounds than the current bounds.** Concretely (cap units;
