@@ -58,6 +58,7 @@ describe('saveDebate', () => {
 
     expect(mockApi.saveDebateSession).toHaveBeenCalledWith(
       expect.objectContaining({ id: 'session-1' }),
+      expect.any(String),
     );
   });
 
