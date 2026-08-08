@@ -29,16 +29,23 @@ for (const block of blocks) {
   const textMatch = block.split(/contains? the following license:\n/i);
   const licenseText = (textMatch[1] || '').trim();
 
-  // Detect license type from first line of license text
+  // Detect license type by scanning the license text for canonical signatures.
+  // (First-line-only detection misclassified everything as "Unknown" for LICENSE
+  // files that open with a copyright line — e.g. "Apache License" puts "Version
+  // 2.0" on the second line, and most MIT files start with "Copyright (c) ...".)
+  const head = licenseText.slice(0, 600); // signatures always appear near the top
   const firstLine = licenseText.split('\n')[0].trim();
   let licenseType = 'Unknown';
-  if (/MIT/i.test(firstLine)) licenseType = 'MIT';
-  else if (/Apache.*2/i.test(firstLine)) licenseType = 'Apache-2.0';
-  else if (/BSD.*3/i.test(firstLine)) licenseType = 'BSD-3-Clause';
-  else if (/BSD.*2/i.test(firstLine)) licenseType = 'BSD-2-Clause';
-  else if (/ISC/i.test(firstLine)) licenseType = 'ISC';
-  else if (/0BSD/i.test(firstLine)) licenseType = '0BSD';
-  else if (firstLine.length < 40) licenseType = firstLine || 'Unknown';
+  if (/\bApache License\b/i.test(head) && /Version 2\.0/i.test(head)) licenseType = 'Apache-2.0';
+  else if (/\bMIT License\b/i.test(head)) licenseType = 'MIT';
+  else if (/Permission is hereby granted, free of charge/i.test(head)) licenseType = 'MIT';
+  else if (/Redistribution and use in source and binary forms/i.test(head) && /Neither the name/i.test(licenseText)) licenseType = 'BSD-3-Clause';
+  else if (/Redistribution and use in source and binary forms/i.test(head)) licenseType = 'BSD-2-Clause';
+  else if (/\bISC License\b/i.test(head) || /Permission to use, copy, modify, and(\/or)? distribute/i.test(head)) licenseType = 'ISC';
+  else if (/\bBlueOak Model License\b/i.test(head)) licenseType = 'BlueOak-1.0.0';
+  else if (/\bMozilla Public License\b/i.test(head)) licenseType = 'MPL-2.0';
+  else if (/\bMIT\b/i.test(firstLine)) licenseType = 'MIT';
+  else if (firstLine.length < 40 && !/^copyright/i.test(firstLine)) licenseType = firstLine || 'Unknown';
 
   entries.push({ packages, licenseType, licenseText });
 }
