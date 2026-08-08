@@ -410,7 +410,6 @@ function GlobalModeControl({ defaultTier, setDefaultTier }: {
 
   const subTiers = activeMode === 'text' ? GLOBAL_TEXT_TIERS : GLOBAL_ANALYSIS_TIERS;
   const modeRefs = useRef<(HTMLButtonElement | null)[]>([]);
-  const subRefs = useRef<(HTMLButtonElement | null)[]>([]);
 
   const handleModeSelect = useCallback((mode: 'text' | 'analysis') => {
     if (mode === activeMode) return;
@@ -435,21 +434,8 @@ function GlobalModeControl({ defaultTier, setDefaultTier }: {
     requestAnimationFrame(() => modeRefs.current[next]?.focus());
   }, [handleModeSelect]);
 
-  const handleSubKey = useCallback((e: { key: string; preventDefault(): void }, idx: number) => {
-    const len = subTiers.length;
-    let next = idx;
-    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') next = (idx + 1) % len;
-    else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') next = (idx - 1 + len) % len;
-    else if (e.key === 'Home') next = 0;
-    else if (e.key === 'End') next = len - 1;
-    else return;
-    e.preventDefault();
-    handleSubSelect(subTiers[next]);
-    requestAnimationFrame(() => subRefs.current[next]?.focus());
-  }, [subTiers, handleSubSelect]);
-
   return (
-    <span className="debate-tier-global" style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center' }}>
+    <span className="debate-tier-global" style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
       <span role="radiogroup" aria-label="View mode" className="debate-mode-group">
         {GLOBAL_MODE_IDS.map(({ id, label }, i) => (
           <button
@@ -467,32 +453,19 @@ function GlobalModeControl({ defaultTier, setDefaultTier }: {
           </button>
         ))}
       </span>
-      <span className="debate-mode-separator" aria-hidden="true" />
-      <span
-        role="radiogroup"
+      {/* Value selector — native <select> dropdown (t/2274 §13). Global control has
+          no per-statement override, so no dot / match-global item here. */}
+      <select
+        className="debate-detail-dropdown debate-value-dropdown"
         aria-label={activeMode === 'text' ? 'Text detail level' : 'Analysis view'}
-        className="debate-mode-group"
+        value={defaultTier}
+        title={GLOBAL_TIER_TITLES[defaultTier]}
+        onChange={(e) => handleSubSelect(e.target.value)}
       >
-        {subTiers.map((tier, i) => {
-          const isActive = defaultTier === tier;
-          return (
-            <button
-              key={tier}
-              ref={el => { subRefs.current[i] = el; }}
-              type="button"
-              role="radio"
-              aria-checked={isActive}
-              tabIndex={isActive ? 0 : -1}
-              className={`debate-mode-seg${isActive ? ' debate-mode-seg-active' : ''}`}
-              onClick={() => handleSubSelect(tier)}
-              onKeyDown={(e) => handleSubKey(e, i)}
-              title={GLOBAL_TIER_TITLES[tier]}
-            >
-              {TIER_LABELS[tier]}
-            </button>
-          );
-        })}
-      </span>
+        {subTiers.map(tier => (
+          <option key={tier} value={tier}>{TIER_LABELS[tier]}</option>
+        ))}
+      </select>
     </span>
   );
 }

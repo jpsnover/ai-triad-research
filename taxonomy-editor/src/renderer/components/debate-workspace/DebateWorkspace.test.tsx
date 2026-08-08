@@ -308,20 +308,25 @@ describe('toolbar', () => {
     expect(screen.getByText('Detailed')).toBeInTheDocument();
   });
 
-  it('renders five mode segments in text mode (2 mode + 3 sub-options)', () => {
+  it('renders 2 mode segments + a value dropdown with the text-tier options (t/2274 §13)', () => {
     const { container } = render(<DebateWorkspace />);
-    const segs = container.querySelectorAll('.debate-mode-seg');
-    expect(segs.length).toBe(5);
+    // Mode toggle = 2 neutral segments; value selector is now a <select>, not pills.
+    expect(container.querySelectorAll('.debate-mode-seg').length).toBe(2);
+    const select = container.querySelector('select.debate-value-dropdown') as HTMLSelectElement;
+    expect(select).toBeTruthy();
+    const opts = Array.from(select.querySelectorAll('option')).map((o) => o.textContent);
+    expect(opts).toEqual(['Brief', 'Medium', 'Detailed']);
   });
 
-  it('marks Text mode and active sub-option as active', () => {
+  it('marks Text mode active and reflects the current value in the dropdown (t/2274 §13)', () => {
     mockStore.responseLength = 'brief';
     const { container } = render(<DebateWorkspace />);
+    // Only the mode toggle carries an active segment now (no accent-filled value pill).
     const activeSegs = container.querySelectorAll('.debate-mode-seg-active');
-    expect(activeSegs.length).toBe(2);
-    const activeTexts = Array.from(activeSegs).map((el) => el.textContent);
-    expect(activeTexts).toContain('Text');
-    expect(activeTexts).toContain('Brief');
+    expect(activeSegs.length).toBe(1);
+    expect(activeSegs[0].textContent).toBe('Text');
+    const select = container.querySelector('select.debate-value-dropdown') as HTMLSelectElement;
+    expect(select.value).toBe('brief');
   });
 
   it('does not render Export button when onExport prop is not provided', () => {
