@@ -785,7 +785,11 @@ export function DebateActions({ showParamHistory, setShowParamHistory, showEvalu
   const [showNewsReport, setShowNewsReport] = useState(false);
   const [crossRespondTurns, setCrossRespondTurns] = useState(1);
   const inputRef = useRef<HTMLInputElement>(null);
-  const showAdminControls = isElectronMode() || useFlag('permission-admin-features');
+  // useFlag is a React hook — call it unconditionally, above any early return.
+  // isElectronMode() is a plain function and can stay in the `||`; only the hook must be unconditional.
+  // A conditional hook here crashed the popup with "Rendered fewer hooks than expected" (t/2298).
+  const adminFlag = useFlag('permission-admin-features');
+  const showAdminControls = isElectronMode() || adminFlag;
   const { isAdaptive, isStepMode, currentAdaptivePhase } = deriveAdaptiveState(activeDebate);
 
   if (!activeDebate) return null;
