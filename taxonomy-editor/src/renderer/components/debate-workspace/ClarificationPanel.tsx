@@ -956,7 +956,7 @@ export function RefinedTopicEditor() {
   const handleSave = async () => {
     updateTopic({ final: editText.trim() });
     setEditing(false);
-    await saveDebate();
+    await saveDebate('ClarificationPanel:editTopic');
   };
 
   const handleCancel = () => {

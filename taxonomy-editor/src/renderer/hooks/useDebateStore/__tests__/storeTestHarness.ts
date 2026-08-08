@@ -367,6 +367,7 @@ function resetStore(): void {
     activeDebateId: null,
     activeDebate: null,
     debateLoading: false,
+    _loadInFlight: {},
     debateGenerating: null,
     debateError: null,
     responseLength: 'detailed',

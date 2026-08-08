@@ -33,6 +33,7 @@ import type { CampOrigin, StandardizedTerm, ColloquialTerm } from '@lib/dictiona
 import { resetDoctrinalAnchoringCache } from '../shared/taxonomyContext';
 import { resetNeutralMapping } from '../shared/neutralCheckpoint';
 import { resetSignalHistory, resetGapInjectionCount, setGapInjectionCount } from '../shared/diagnostics';
+import { isStateAhead } from '../shared/phaseOrder';
 
 declare const __APP_VERSION__: string;
 
@@ -49,6 +50,12 @@ export interface SessionSlice {
   createConflictDebate: (claimId: string) => Promise<string>;
   loadDebate: (id: string) => Promise<void>;
   loadDebateFromData: (raw: unknown, opts?: { readOnly?: boolean }) => void;
+  // Concurrent-load coalescing (t/2326): loads of the same debate id in flight at
+  // once share ONE promise, so a debate window that mounts N hooks fires the IPC —
+  // and applies the loaded snapshot — exactly once. Mirrors the save-coalescing
+  // (_saveInFlight/_saveDirty) below. Keyed by debate id; entries are cleared when
+  // their load settles.
+  _loadInFlight: Record<string, Promise<void>>;
   deleteDebate: (id: string) => Promise<void>;
   renameDebate: (id: string, newTitle: string) => Promise<void>;
   closeDebate: () => void;
@@ -57,7 +64,11 @@ export interface SessionSlice {
   togglePover: (poverId: SpeakerId) => Promise<void>;
   updatePhase: (phase: DebateSession['phase']) => void;
   updateTopic: (topic: Partial<DebateSession['topic']>) => void;
-  saveDebate: (caller?: string) => Promise<void>;
+  // `caller` is required (t/2326): a diagnostic label naming the trigger of every
+  // save. Making it mandatory kills the `caller:"unknown"` blind spot that hid a
+  // regressed-state save in the d1c7f7b6 incident — tsc now flags any save site
+  // that omits it.
+  saveDebate: (caller: string) => Promise<void>;
   _saveInFlight: boolean;
   _saveDirty: boolean;
   // Snapshot-diff dirty tracking for incremental (delta) save on web (t/1637).
@@ -185,13 +196,13 @@ function rebuildOverviewDiagnostics(activeDebate: DebateSession): void {
 }
 
 /** Assemble the flight-recorder save-diagnostics payload for a debate. */
-function buildSaveDiag(activeDebate: DebateSession, caller?: string) {
+function buildSaveDiag(activeDebate: DebateSession, caller: string) {
   const payloadBytes = JSON.stringify(activeDebate).length;
   const turnCount = activeDebate.transcript.length;
   const nodeCount = (activeDebate as unknown as Record<string, unknown>).argument_network
     ? ((activeDebate as unknown as Record<string, { nodes?: unknown[] }>).argument_network?.nodes?.length ?? 0)
     : 0;
-  return { phase: activeDebate.phase, transcript_length: turnCount, caller: caller ?? 'unknown', payload_bytes: payloadBytes, turn_count: turnCount, node_count: nodeCount };
+  return { phase: activeDebate.phase, transcript_length: turnCount, caller, payload_bytes: payloadBytes, turn_count: turnCount, node_count: nodeCount };
 }
 type SaveDiag = ReturnType<typeof buildSaveDiag>;
 
@@ -315,6 +326,7 @@ export const createSessionSlice: StateCreator<DebateStore, [], [], SessionSlice>
   debateLoading: false,
   _saveInFlight: false,
   _saveDirty: false,
+  _loadInFlight: {},
   _lastSyncedVersion: null,
   _lastSyncedSnapshot: null,
 
@@ -523,106 +535,142 @@ export const createSessionSlice: StateCreator<DebateStore, [], [], SessionSlice>
   },
 
   loadDebate: async (id) => {
-    resetDoctrinalAnchoringCache();
-    resetSignalHistory();
-    resetGapInjectionCount();
-    resetNeutralMapping();
-    set({ debateLoading: true, debateError: null, debateWarnings: [], newsReport: null, newsReportLoading: false, newsReportError: null });
-    try {
-      const raw = await api.loadDebateSession(id);
-      const session = raw as DebateSession;
-      session.active_povers = normalizeActivePovers(session.active_povers);
-      for (const entry of session.transcript) {
-        entry.speaker = migrateSpeakerId(entry.speaker) as SpeakerId;
-      }
-      if (session.opening_order) {
-        session.opening_order = session.opening_order.map(s => migrateSpeakerId(s)) as typeof session.opening_order;
-      }
-      if (session.argument_network?.nodes) {
-        for (const node of session.argument_network.nodes) {
-          node.speaker = migrateSpeakerId(node.speaker) as typeof node.speaker;
+    // t/2326: coalesce concurrent loads of the same debate id to a single in-flight
+    // request. On debate-window open several hooks mount and each fires loadDebate;
+    // without this, the 2nd/3rd load resolves with a now-stale disk snapshot and
+    // re-applies it over interrupted-turn recovery, regressing phase/transcript
+    // (incident d1c7f7b6). Sharing one promise means the IPC fires — and the snapshot
+    // applies — exactly once. Mirrors the save-coalescing (_saveInFlight) below.
+    const existing = get()._loadInFlight[id];
+    if (existing !== undefined) {
+      getGlobalRecorder()?.record({ type: 'state.load-coalesced', component: 'debate-store', level: 'info', debate_id: id, message: 'Load coalesced — sharing in-flight request' });
+      return existing;
+    }
+    const runLoad = async (): Promise<void> => {
+      resetDoctrinalAnchoringCache();
+      resetSignalHistory();
+      resetGapInjectionCount();
+      resetNeutralMapping();
+      set({ debateLoading: true, debateError: null, debateWarnings: [], newsReport: null, newsReportLoading: false, newsReportError: null });
+      try {
+        const raw = await api.loadDebateSession(id);
+        const session = raw as DebateSession;
+        session.active_povers = normalizeActivePovers(session.active_povers);
+        for (const entry of session.transcript) {
+          entry.speaker = migrateSpeakerId(entry.speaker) as SpeakerId;
         }
-      }
+        if (session.opening_order) {
+          session.opening_order = session.opening_order.map(s => migrateSpeakerId(s)) as typeof session.opening_order;
+        }
+        if (session.argument_network?.nodes) {
+          for (const node of session.argument_network.nodes) {
+            node.speaker = migrateSpeakerId(node.speaker) as typeof node.speaker;
+          }
+        }
 
-      for (const entry of session.transcript) {
-        if (entry.type === 'concluding' && entry.metadata?.synthesis) {
-          const synthesis = entry.metadata.synthesis as { areas_of_disagreement?: { bdi_layer?: string }[] };
-          if (Array.isArray(synthesis.areas_of_disagreement)) {
-            for (const d of synthesis.areas_of_disagreement) {
-              if (d.bdi_layer) {
-                d.bdi_layer = normalizeBdiLayer(d.bdi_layer as Parameters<typeof normalizeBdiLayer>[0]);
+        for (const entry of session.transcript) {
+          if (entry.type === 'concluding' && entry.metadata?.synthesis) {
+            const synthesis = entry.metadata.synthesis as { areas_of_disagreement?: { bdi_layer?: string }[] };
+            if (Array.isArray(synthesis.areas_of_disagreement)) {
+              for (const d of synthesis.areas_of_disagreement) {
+                if (d.bdi_layer) {
+                  d.bdi_layer = normalizeBdiLayer(d.bdi_layer as Parameters<typeof normalizeBdiLayer>[0]);
+                }
               }
             }
           }
         }
-      }
-      const runId = generateId();
-      session.run_id = runId;
-      set({ activeDebateId: id, activeDebate: session, debateLoading: false, debateModel: session.debate_model || null, debateTemperature: session.debate_temperature ?? null, audience: session.audience ?? 'policymakers', openingOrder: session.opening_order ?? [], selectedDiagEntry: null, _lastSyncedVersion: session._saveVersion ?? 0, _lastSyncedSnapshot: structuredClone(session) });
-      setActiveDebateId(id);
-      setGapInjectionCount(session.gap_injections?.length ?? 0);
-      if (!get().vocabularyTerms) {
-        api.loadDictionary().then(dict => {
-          if (dict.standardized.length > 0 && get().activeDebateId === id) {
-            set({ vocabularyTerms: { standardized: dict.standardized as StandardizedTerm[], colloquial: dict.colloquial as ColloquialTerm[] } });
-          }
-        }).catch((err: unknown) => {
-          getGlobalRecorder()?.record({ type: 'system.error', debate_id: id, component: 'debate-store', level: 'warn', message: 'Dictionary load failed on debate resume (non-critical)', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
-        });
-      }
-      usePromptConfigStore.getState().loadSessionConfig(
-        (session as unknown as Record<string, unknown>).prompt_config as Record<string, number | boolean | string> | undefined
-      );
-      api.setDebateTemperature(session.debate_temperature ?? null).catch((err: unknown) => { getGlobalRecorder()?.record({ type: 'system.error', component: 'debate-store', level: 'warn', message: 'setDebateTemperature failed (non-critical)', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } }); });
-      try { api.sendDiagnosticsState({ debate: session, selectedEntry: null }); } catch (e) { getGlobalRecorder()?.record({ type: 'system.error', debate_id: id, component: 'debate-store', level: 'warn', message: 'Diagnostics broadcast to popout failed (loadDebate)', error: { name: (e as Error).name ?? 'Error', message: String(e), stack: (e as Error).stack } }); }
-      getGlobalRecorder()?.setEventContext({ debate_id: id, run_id: runId });
-      getGlobalRecorder()?.record({ type: 'state.load', component: 'debate-store', level: 'info', debate_id: id, run_id: runId, message: 'Debate loaded', data: { phase: session.phase, transcript_length: session.transcript.length, an_nodes: (session as unknown as Record<string, unknown>).argument_network ? ((session as unknown as Record<string, unknown>).argument_network as { nodes?: unknown[] }).nodes?.length ?? 0 : 0 } });
-      getGlobalRecorder()?.record({ type: 'debate.phase', component: 'debate-store', level: 'info', debate_id: id, run_id: runId, message: 'debate.start', data: { phase: session.phase, topic: session.topic.final, povers: session.active_povers, protocol: session.protocol_id, model: session.debate_model, transcript_length: session.transcript.length, resumed: true } });
-
-      if (session.interrupted_turn) {
-        const resumeSpeaker = session.interrupted_turn.speaker as SpeakerId;
-        const speakerLabel = POVER_INFO[session.interrupted_turn.speaker as Exclude<SpeakerId, 'user'>]?.label ?? session.interrupted_turn.speaker;
-        getGlobalRecorder()?.record({ type: 'lifecycle', component: 'debate-store', level: 'info', debate_id: id, message: 'Interrupted turn detected on load', data: session.interrupted_turn });
-        get().addTranscriptEntry({
-          type: 'system',
-          speaker: 'system',
-          content: `[Recovered] ${speakerLabel}'s turn was interrupted when the window closed (round ${session.interrupted_turn.round}, ${session.interrupted_turn.phase} phase). Auto-resuming…`,
-          taxonomy_refs: [],
-          metadata: { interrupted_turn_recovery: true, ...session.interrupted_turn },
-        });
-        const fresh = get().activeDebate;
-        if (fresh) {
-          const { interrupted_turn: _, ...cleaned } = fresh;
-          set({ activeDebate: cleaned as DebateSession });
+        // t/2326 load-guard: if the in-memory state is already AHEAD of this loaded
+        // snapshot (later phase or longer transcript), refuse to apply it — a stale
+        // disk read must not clobber interrupted-turn recovery or live generation.
+        // Load-side analog of the t/194 state-guard; shares isStateAhead so the two
+        // stay consistent. Coalescing kills the concurrent-burst case; this also
+        // covers a single load that resolves after in-memory advanced.
+        const inMemory = get().activeDebate;
+        if (inMemory && inMemory.id === id && isStateAhead(inMemory, session)) {
+          getGlobalRecorder()?.record({ type: 'state.load-guard', component: 'debate-store', level: 'warn', debate_id: id, message: 'Load skipped — in-memory state is ahead of loaded snapshot', data: { current_phase: inMemory.phase, loaded_phase: session.phase, current_transcript: inMemory.transcript.length, loaded_transcript: session.transcript.length } });
+          set({ debateLoading: false });
+          return;
         }
-        void get().saveDebate('loadDebate:interrupted_turn_recovery');
-        setTimeout(() => {
-          const s = get();
-          if (s.activeDebateId === id && !s.debateGenerating) {
-            getGlobalRecorder()?.record({ type: 'lifecycle', component: 'debate-store', level: 'info', debate_id: id, message: 'Auto-resuming after interrupted turn recovery' });
-            // Engage the generating indicator up front so the Continue button is
-            // disabled during crossRespond's ramp-up (edge load + moderator
-            // selection); crossRespond otherwise sets debateGenerating too late,
-            // leaving Continue live long enough for a click to double-fire the
-            // resumed round (t/1656). crossRespond owns the flag from here and
-            // clears it on completion/error.
-            set({ debateGenerating: resumeSpeaker, debateActivity: `${speakerLabel} is resuming…`, debateStepStartedAt: Date.now() });
-            void s.crossRespond().finally(() => {
-              // Safety net: if crossRespond bailed before taking ownership of the
-              // indicator (no activeDebate, driver-claim denied, <2 debaters), our
-              // sentinel is still set — clear it so the indicator isn't stuck on.
-              if (get().debateGenerating === resumeSpeaker) {
-                set({ debateGenerating: null, debateActivity: null });
-              }
-            });
-          } else {
-            getGlobalRecorder()?.record({ type: 'lifecycle', component: 'debate-store', level: 'info', debate_id: id, message: 'Loop not auto-resumed', data: { reason: s.activeDebateId !== id ? 'debate_switched' : 'already_generating', activeDebateId: s.activeDebateId, debateGenerating: s.debateGenerating } });
+        const runId = generateId();
+        session.run_id = runId;
+        set({ activeDebateId: id, activeDebate: session, debateLoading: false, debateModel: session.debate_model || null, debateTemperature: session.debate_temperature ?? null, audience: session.audience ?? 'policymakers', openingOrder: session.opening_order ?? [], selectedDiagEntry: null, _lastSyncedVersion: session._saveVersion ?? 0, _lastSyncedSnapshot: structuredClone(session) });
+        setActiveDebateId(id);
+        setGapInjectionCount(session.gap_injections?.length ?? 0);
+        if (!get().vocabularyTerms) {
+          api.loadDictionary().then(dict => {
+            if (dict.standardized.length > 0 && get().activeDebateId === id) {
+              set({ vocabularyTerms: { standardized: dict.standardized as StandardizedTerm[], colloquial: dict.colloquial as ColloquialTerm[] } });
+            }
+          }).catch((err: unknown) => {
+            getGlobalRecorder()?.record({ type: 'system.error', debate_id: id, component: 'debate-store', level: 'warn', message: 'Dictionary load failed on debate resume (non-critical)', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
+          });
+        }
+        usePromptConfigStore.getState().loadSessionConfig(
+          (session as unknown as Record<string, unknown>).prompt_config as Record<string, number | boolean | string> | undefined
+        );
+        api.setDebateTemperature(session.debate_temperature ?? null).catch((err: unknown) => { getGlobalRecorder()?.record({ type: 'system.error', component: 'debate-store', level: 'warn', message: 'setDebateTemperature failed (non-critical)', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } }); });
+        try { api.sendDiagnosticsState({ debate: session, selectedEntry: null }); } catch (e) { getGlobalRecorder()?.record({ type: 'system.error', debate_id: id, component: 'debate-store', level: 'warn', message: 'Diagnostics broadcast to popout failed (loadDebate)', error: { name: (e as Error).name ?? 'Error', message: String(e), stack: (e as Error).stack } }); }
+        getGlobalRecorder()?.setEventContext({ debate_id: id, run_id: runId });
+        getGlobalRecorder()?.record({ type: 'state.load', component: 'debate-store', level: 'info', debate_id: id, run_id: runId, message: 'Debate loaded', data: { phase: session.phase, transcript_length: session.transcript.length, an_nodes: (session as unknown as Record<string, unknown>).argument_network ? ((session as unknown as Record<string, unknown>).argument_network as { nodes?: unknown[] }).nodes?.length ?? 0 : 0 } });
+        getGlobalRecorder()?.record({ type: 'debate.phase', component: 'debate-store', level: 'info', debate_id: id, run_id: runId, message: 'debate.start', data: { phase: session.phase, topic: session.topic.final, povers: session.active_povers, protocol: session.protocol_id, model: session.debate_model, transcript_length: session.transcript.length, resumed: true } });
+
+        if (session.interrupted_turn) {
+          const resumeSpeaker = session.interrupted_turn.speaker as SpeakerId;
+          const speakerLabel = POVER_INFO[session.interrupted_turn.speaker as Exclude<SpeakerId, 'user'>]?.label ?? session.interrupted_turn.speaker;
+          getGlobalRecorder()?.record({ type: 'lifecycle', component: 'debate-store', level: 'info', debate_id: id, message: 'Interrupted turn detected on load', data: session.interrupted_turn });
+          get().addTranscriptEntry({
+            type: 'system',
+            speaker: 'system',
+            content: `[Recovered] ${speakerLabel}'s turn was interrupted when the window closed (round ${session.interrupted_turn.round}, ${session.interrupted_turn.phase} phase). Auto-resuming…`,
+            taxonomy_refs: [],
+            metadata: { interrupted_turn_recovery: true, ...session.interrupted_turn },
+          });
+          const fresh = get().activeDebate;
+          if (fresh) {
+            const { interrupted_turn: _, ...cleaned } = fresh;
+            set({ activeDebate: cleaned as DebateSession });
           }
-        }, 100);
+          void get().saveDebate('loadDebate:interrupted_turn_recovery');
+          setTimeout(() => {
+            const s = get();
+            if (s.activeDebateId === id && !s.debateGenerating) {
+              getGlobalRecorder()?.record({ type: 'lifecycle', component: 'debate-store', level: 'info', debate_id: id, message: 'Auto-resuming after interrupted turn recovery' });
+              // Engage the generating indicator up front so the Continue button is
+              // disabled during crossRespond's ramp-up (edge load + moderator
+              // selection); crossRespond otherwise sets debateGenerating too late,
+              // leaving Continue live long enough for a click to double-fire the
+              // resumed round (t/1656). crossRespond owns the flag from here and
+              // clears it on completion/error.
+              set({ debateGenerating: resumeSpeaker, debateActivity: `${speakerLabel} is resuming…`, debateStepStartedAt: Date.now() });
+              void s.crossRespond().finally(() => {
+                // Safety net: if crossRespond bailed before taking ownership of the
+                // indicator (no activeDebate, driver-claim denied, <2 debaters), our
+                // sentinel is still set — clear it so the indicator isn't stuck on.
+                if (get().debateGenerating === resumeSpeaker) {
+                  set({ debateGenerating: null, debateActivity: null });
+                }
+              });
+            } else {
+              getGlobalRecorder()?.record({ type: 'lifecycle', component: 'debate-store', level: 'info', debate_id: id, message: 'Loop not auto-resumed', data: { reason: s.activeDebateId !== id ? 'debate_switched' : 'already_generating', activeDebateId: s.activeDebateId, debateGenerating: s.debateGenerating } });
+            }
+          }, 100);
+        }
+      } catch (err) {
+        getGlobalRecorder()?.record({ type: 'state.error', component: 'debate-store', level: 'error', debate_id: id, message: 'Failed to load debate', error: { name: 'LoadError', message: String(err), stack: (err as Error).stack } });
+        set({ debateLoading: false, debateError: mapErrorToUserMessage(err) });
       }
-    } catch (err) {
-      getGlobalRecorder()?.record({ type: 'state.error', component: 'debate-store', level: 'error', debate_id: id, message: 'Failed to load debate', error: { name: 'LoadError', message: String(err), stack: (err as Error).stack } });
-      set({ debateLoading: false, debateError: mapErrorToUserMessage(err) });
+    };
+    const promise = runLoad();
+    set((state) => ({ _loadInFlight: { ...state._loadInFlight, [id]: promise } }));
+    try {
+      await promise;
+    } finally {
+      set((state) => {
+        const next = { ...state._loadInFlight };
+        delete next[id];
+        return { _loadInFlight: next };
+      });
     }
   },
 
@@ -922,13 +970,13 @@ export const createSessionSlice: StateCreator<DebateStore, [], [], SessionSlice>
     await saveDebate('setDebatePhase');
   },
 
-  saveDebate: async (caller?: string) => {
+  saveDebate: async (caller: string) => {
     const { activeDebate, _saveInFlight } = get();
     if (!activeDebate) return;
 
     if (_saveInFlight) {
       set({ _saveDirty: true });
-      getGlobalRecorder()?.record({ type: 'state.save-coalesced', component: 'debate-store', level: 'info', debate_id: activeDebate.id, message: `Save coalesced (in-flight), caller: ${caller ?? 'unknown'}` });
+      getGlobalRecorder()?.record({ type: 'state.save-coalesced', component: 'debate-store', level: 'info', debate_id: activeDebate.id, message: `Save coalesced (in-flight), caller: ${caller}` });
       return;
     }
 
@@ -959,7 +1007,7 @@ export const createSessionSlice: StateCreator<DebateStore, [], [], SessionSlice>
         // user is told their debate is at risk — see computeSaveErrorState. record()
         // stays inline here per ADR-003.
         const { isDurableSaveLoss, atRiskTurns, debateError } = computeSaveErrorState(err, activeDebate);
-        getGlobalRecorder()?.record({ type: 'state.error', component: 'debate-store', level: 'error', debate_id: activeDebate.id, message: isDurableSaveLoss ? 'Durable debate save failed — recovery copy preserved' : 'Failed to save debate', error: { name: isDurableSaveLoss ? 'DurableSaveError' : 'SaveError', message: String(err), stack: (err as Error).stack }, data: { caller: caller ?? 'unknown', payload_bytes: JSON.stringify(activeDebate).length, turn_count: activeDebate.transcript.length, save_degraded: isDurableSaveLoss, at_risk_turns: atRiskTurns } });
+        getGlobalRecorder()?.record({ type: 'state.error', component: 'debate-store', level: 'error', debate_id: activeDebate.id, message: isDurableSaveLoss ? 'Durable debate save failed — recovery copy preserved' : 'Failed to save debate', error: { name: isDurableSaveLoss ? 'DurableSaveError' : 'SaveError', message: String(err), stack: (err as Error).stack }, data: { caller, payload_bytes: JSON.stringify(activeDebate).length, turn_count: activeDebate.transcript.length, save_degraded: isDurableSaveLoss, at_risk_turns: atRiskTurns } });
         set({ debateError });
       }
     } finally {

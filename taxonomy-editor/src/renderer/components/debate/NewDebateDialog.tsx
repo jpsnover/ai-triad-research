@@ -1176,7 +1176,7 @@ export function NewDebateDialog({ onClose, onAtCap }: NewDebateDialogProps) {
       getGlobalRecorder()?.record({ type: 'user.action', component: 'new-debate', level: 'info', message: 'debate.created', data: buildDebateCreatedData({ id, sourceType: sourceTypeArg, povers, userIsPover, effectiveModel, protocolId, temperature, audience, stepMode, multiProvider, modelTier, speakerModels, stageModels, creationWeights }) });
       const store = useDebateStore.getState();
       store.updatePhase('clarification');
-      await store.saveDebate();
+      await store.saveDebate('NewDebateDialog:create');
       const popoutResult = await api.openDebateWindow(id).catch((err: Error) => {
         getGlobalRecorder()?.record({ type: 'system.error', component: 'new-debate-dialog', level: 'warn', message: 'Failed to open debate popout window', error: { name: err.name ?? 'Error', message: String(err), stack: err.stack } });
         return undefined;

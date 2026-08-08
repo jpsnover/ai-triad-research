@@ -61,6 +61,8 @@ export type EventType =
   | 'state.save'
   | 'state.save-coalesced'
   | 'state.load'
+  | 'state.load-coalesced'
+  | 'state.load-guard'
   | 'state.error'
   | 'state.init'
   // Chat
