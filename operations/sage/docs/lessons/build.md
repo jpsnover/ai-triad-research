@@ -1889,3 +1889,43 @@ Failure patterns related to builds, CI, tooling, environment, and git operations
 **Status:** Active — 1 instance (DebateWorkspace p/124, t/2256). `vi.importActual` insufficient when re-export chains are involved.
 
 **Applies To:** All agents writing vitest tests that mock shared sibling modules.
+
+---
+
+## #152 [Build] Rules-of-Hooks Violation Lands Green — No `react-hooks/rules-of-hooks` ESLint Gate in CI → Runtime Crash
+
+**Pattern:** Conditional hook call passes TypeScript + vitest but crashes at runtime ("Rendered fewer hooks than expected"). No `react-hooks/rules-of-hooks` ESLint rule in CI — hooks rule violations are static analysis issues, not type errors.
+
+**Instances:**
+- 2026-08-08 — TL (p/335#15): `DebateActionBar.tsx:788` commit `63ad30a8` — `isElectronMode() || useFlag(...)` crashed debate popup. Crash: t/2298. ESLint gate: t/2299.
+
+**Root Cause:** TypeScript doesn't enforce hooks call-order invariants. Vitest doesn't exercise enough render paths. Only `react-hooks/rules-of-hooks` (ESLint) or a full integration test catches this class.
+
+**Prevention:**
+1. Tell: "Rendered fewer hooks than expected" → look for `&&`, `||`, ternary, or early-return wrapping a `use*` call.
+2. Until t/2299 lands, manually verify no `use*` call is inside a conditional before landing a component change.
+3. Fix: call the hook unconditionally; conditionalize behavior on its return value.
+
+**Status:** Active — 1 instance (TL p/335#15). ESLint gate: t/2299.
+
+**Applies To:** All agents writing or reviewing React component code.
+
+---
+
+## #153 [Build] Error Boundary Suppresses Flight Recorder Events — Crash Invisible in FR Dump
+
+**Pattern:** A React error boundary catches a runtime crash and emits an FR dump, but no FR error event appears — crash is invisible in the dump. Diagnosed only from a screenshot.
+
+**Instances:**
+- 2026-08-08 — TL (p/335#15): rules-of-hooks crash in `DebateActionBar.tsx` → error boundary dumped FR with no error event. FR gap fix: t/2297.
+
+**Root Cause:** Error boundaries intercept via `componentDidCatch` before the error reaches `window.onerror` — the flight recorder's uncaught-error listener never fires.
+
+**Prevention:**
+1. Clean FR dump + visibly broken app → suspect error boundary intercept.
+2. Cross-reference screenshots/visual evidence when the dump shows no errors but behavior is wrong.
+3. Until t/2297 lands, check the React component tree above the broken component, not just the FR dump.
+
+**Status:** Active — 1 instance (TL p/335#15). FR forwarding fix: t/2297.
+
+**Applies To:** All agents diagnosing crashes via flight recorder in apps with React error boundaries.

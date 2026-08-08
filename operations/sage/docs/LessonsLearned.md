@@ -3114,3 +3114,43 @@ Institutional memory for failure patterns across the AI Triad Research project.
 **Status:** Active — 1 instance (DebateWorkspace p/124, t/2256). `vi.importActual` is insufficient when re-export chains are involved; test at the leaf.
 
 **Applies To:** All agents writing vitest tests that mock shared sibling modules.
+
+---
+
+## #152 [Build] Rules-of-Hooks Violation Lands Green — No `react-hooks/rules-of-hooks` ESLint Gate in CI → Runtime Crash
+
+**Pattern:** A conditional hook call (`isElectronMode() || useFlag(...)`) passed TypeScript, vitest, and all other CI gates, then crashed at runtime: "Rendered fewer hooks than expected." Root cause: no `react-hooks/rules-of-hooks` ESLint rule in CI — the violation is a static analysis issue, not a type error or test failure. React requires every `use*` hook to be called unconditionally on every render; a short-circuit `||` that skips a hook on some renders violates this invariant at runtime.
+
+**Instances:**
+- 2026-08-08 — TL (p/335#15): `DebateActionBar.tsx:788`, commit `63ad30a8` — conditional hook `isElectronMode() || useFlag(...)` crashed the debate popup. Crash fix: t/2298. ESLint gate: t/2299.
+
+**Root Cause:** TypeScript does not enforce React's hooks rules (call order must be identical on every render). Vitest unit tests don't exercise enough render paths to trigger the ordering violation. Only a hooks-aware static analysis rule (`react-hooks/rules-of-hooks`) or a full integration test catches this class. Without the ESLint gate in CI, the violation compiles and passes all checks.
+
+**Prevention:**
+1. **Tell:** "Rendered fewer hooks than expected" at runtime → look for a conditional, `&&`, `||`, ternary, or early-return that wraps a `use*` call.
+2. Until t/2299 lands (`react-hooks/rules-of-hooks` ESLint gate), manually verify before landing any component change: no `use*` call appears inside a conditional branch.
+3. The fix is always to call the hook unconditionally and conditionalize the behavior inside it or based on its return value.
+
+**Status:** Active — 1 instance (TL p/335#15, t/2298 crash, t/2299 gate). ESLint gate (t/2299) will make this class pre-merge-detectable.
+
+**Applies To:** All agents writing or reviewing React component code.
+
+---
+
+## #153 [Build] Error Boundary Suppresses Flight Recorder Events — Crash Invisible in FR Dump
+
+**Pattern:** A React error boundary catches a runtime crash and emits an FR dump, but no FR error event appears in the dump — the crash is invisible to the flight recorder. The only observable signal is a broken UI (diagnosed from a screenshot). Root cause: the error boundary intercepts the error before the flight recorder's uncaught-error listener fires; the boundary swallows it without forwarding to `window.onerror` / the FR error channel.
+
+**Instances:**
+- 2026-08-08 — TL (p/335#15): rules-of-hooks crash in `DebateActionBar.tsx` → error boundary dumped FR with no error event. Crash diagnosed from screenshot only. FR gap fix: t/2297.
+
+**Root Cause:** React error boundaries call `componentDidCatch`/`getDerivedStateFromError` and render a fallback — the error never propagates to the unhandled-error path that the flight recorder monitors. The FR dump is technically complete (no events to record), but its apparent cleanliness is misleading.
+
+**Prevention:**
+1. **When an FR dump appears clean but the app is visibly broken, suspect an error boundary intercept** — the crash was caught before FR saw it.
+2. FR diagnosis must cross-reference visual evidence (screenshots, user reports) when the dump shows no errors but behavior is wrong.
+3. Until t/2297 lands, error boundary investigation requires reading the React component tree above the broken component, not just the FR dump.
+
+**Status:** Active — 1 instance (TL p/335#15, t/2297 FR gap fix). Error boundary → FR forwarding fix: t/2297.
+
+**Applies To:** All agents diagnosing crashes via flight recorder in apps with React error boundaries.
