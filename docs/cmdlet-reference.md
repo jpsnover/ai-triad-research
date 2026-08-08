@@ -122,6 +122,7 @@ Get-Help <CmdletName> -Full                     # full docs for any cmdlet
 | `Get-LatestFlightRecorderDump` | Find the most recent *non-stub* flight recorder dump (>10KB) for triage — skips the tiny startup/shutdown stubs that can be newer than the real dump (t/1712) |
 | `Get-AICostReport` | Token/cost usage report |
 | `Get-ViteDevStatus` | Vite dev server diagnostic — port owner, working dir, HTTP health, main/worktree/orphan classification (t/2196) |
+| `Get-DebateSessionState` | Read phase, transcript length, run_id, and updated_at from a debate JSON on disk — one-liner for interrupted-turn recovery diagnosis (t/2330) |
 
 ### Config
 | Cmdlet | Use when |
