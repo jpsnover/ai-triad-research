@@ -10,12 +10,15 @@ import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { ALL_API_KEY_BACKENDS } from '@lib/ai-client/types';
 import {
   tryInitLocalEmbedding,
+  notifyBridgeFallback,
   isLocalEmbeddingReady,
   localComputeEmbedding,
   localComputeEmbeddings,
 } from '../utils/localEmbedding';
 
-// Fire-and-forget: start local embedding init on module load
+// Fire-and-forget: start local embedding init on module load.
+// Bridge is always available in Electron, so WASM-init-failed is harmless noise.
+notifyBridgeFallback();
 void tryInitLocalEmbedding();
 
 // Same-window diagnostics callbacks for the in-app drawer (mobile/narrow).

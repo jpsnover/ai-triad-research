@@ -1058,7 +1058,8 @@ export function StatementCard({ entry, statementId, findQuery = '', matchOffset 
     clearTimeout(midpointTimerRef.current);
 
     const isTextToText = !META_TIERS.has(prevTier) && !META_TIERS.has(activeTier);
-    if (isTextToText || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    const isAnalysisToAnalysis = META_TIERS.has(prevTier) && META_TIERS.has(activeTier);
+    if (isTextToText || isAnalysisToAnalysis || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
       setDisplayedTier(activeTier);
       return;
     }

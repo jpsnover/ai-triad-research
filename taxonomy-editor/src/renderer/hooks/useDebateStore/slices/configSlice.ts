@@ -16,6 +16,7 @@ export interface ConfigSlice {
   // Generation state
   debateGenerating: SpeakerId | null;
   debateGeneratingStartedAt: number | null;
+  debateStepStartedAt: number | null;
   debateError: string | null;
   debateProgress: { attempt: number; maxRetries: number; backoffSeconds?: number; limitType?: string; limitMessage?: string; phase?: string } | null;
   debateActivity: string | null;
@@ -93,6 +94,7 @@ export interface ConfigSlice {
 export const createConfigSlice: StateCreator<DebateStore, [], [], ConfigSlice> = (set, get) => ({
   debateGenerating: null,
   debateGeneratingStartedAt: null,
+  debateStepStartedAt: null,
   debateError: null,
   debateProgress: null,
   debateActivity: null,
@@ -159,7 +161,7 @@ export const createConfigSlice: StateCreator<DebateStore, [], [], ConfigSlice> =
   cancelDebate: () => {
     const debateId = get().activeDebateId;
     cancelAndResetAbort();
-    set({ debateGenerating: null, debateGeneratingStartedAt: null, debateActivity: null });
+    set({ debateGenerating: null, debateGeneratingStartedAt: null, debateStepStartedAt: null, debateActivity: null });
     if (debateId) {
       getGlobalRecorder()?.record({ type: 'debate.lifecycle', component: 'debate-store', level: 'info', debate_id: debateId, message: 'debate.ended', data: { reason: 'cancelled' } });
       trackDebateAbandon(debateId, 'cancelled');
@@ -201,7 +203,16 @@ export const createConfigSlice: StateCreator<DebateStore, [], [], ConfigSlice> =
   setDiagPopoutOpen: (open) => set({ diagPopoutOpen: open }),
   inspectNode: (nodeId) => set({ inspectedNodeId: nodeId }),
   setSelectedRef: (ref) => set({ selectedRef: ref }),
-  setGenerating: (pover) => set({ debateGenerating: pover, debateGeneratingStartedAt: pover !== null ? Date.now() : null }),
+  setGenerating: (pover) => {
+    const { debateStepStartedAt } = get();
+    set({
+      debateGenerating: pover,
+      debateGeneratingStartedAt: pover !== null ? Date.now() : null,
+      // Step-scoped timer: set once when a step begins, cleared when it ends.
+      // Per-phase generateTextWithProgress calls don't reset this.
+      debateStepStartedAt: pover !== null ? (debateStepStartedAt ?? Date.now()) : null,
+    });
+  },
   setError: (error) => set({ debateError: error, debateRetryAction: error ? get().debateRetryAction : null, dailyLimitPaused: error ? get().dailyLimitPaused : false }),
   setErrorWithRetry: (error, retryAction) => set({ debateError: error, debateRetryAction: retryAction }),
 });
