@@ -541,9 +541,9 @@ export default function DocumentPane() {
 
   // PDF mode — render the real PDF viewer instead of the Markdown shadow.
   // Falls through to the Markdown render below when pdfData is null (no raw
-  // PDF, still loading, or fetch failed). Find/Similar/verbatim-highlight are
-  // Markdown-only in Phase 1 (t/2291); the excerpt banner is kept since it
-  // doesn't depend on the rendered document DOM.
+  // PDF, still loading, or fetch failed). PdfViewer owns its own Find/Similar
+  // search + verbatim highlight over the pdf.js text layer (t/2292); the
+  // excerpt banner is kept for context alongside the in-document highlight.
   if (isPdfSource && pdfData) {
     return (
       <>
@@ -561,7 +561,7 @@ export default function DocumentPane() {
             )}
           </div>
         )}
-        <PdfViewer data={pdfData} />
+        <PdfViewer data={pdfData} verbatim={keyPointData?.verbatim} />
       </>
     );
   }
