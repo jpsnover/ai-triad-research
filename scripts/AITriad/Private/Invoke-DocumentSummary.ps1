@@ -836,6 +836,24 @@ function Finalize-Summary {
         Write-Host "  │  ⚠ $Warn" -ForegroundColor Yellow
     }
 
+    # -- Retrieval confidence pass (t/2288) ------------------------------------
+    # Runs after hallucinated-ID nulling so only valid assignments get scored.
+    if ($script:CachedEmbeddings -and $script:CachedEmbeddings.Count -gt 0) {
+        $AllKpsForConf = [System.Collections.Generic.List[object]]::new()
+        foreach ($Camp in $Camps) {
+            $CampDataConf = $SummaryObject.pov_summaries.$Camp
+            if (-not $CampDataConf -or -not (Has-Field $CampDataConf 'key_points')) { continue }
+            $kpListConf = Get-Field $CampDataConf 'key_points'
+            if ($kpListConf) {
+                foreach ($kp in @($kpListConf)) { [void]$AllKpsForConf.Add($kp) }
+            }
+        }
+        if ($AllKpsForConf.Count -gt 0) {
+            Invoke-RetrievalConfidencePass -KeyPoints $AllKpsForConf.ToArray() `
+                -Threshold $script:RetrievalConfidenceThreshold
+        }
+    }
+
     $SoProps = $SummaryObject.PSObject.Properties
     if ($SoProps['factual_claims'] -and $null -ne $SummaryObject.factual_claims) { $FactualClaims = $SummaryObject.factual_claims } else { $FactualClaims = @() }
     if ($SoProps['unmapped_concepts'] -and $null -ne $SummaryObject.unmapped_concepts) { $UnmappedConcs = $SummaryObject.unmapped_concepts } else { $UnmappedConcs = @() }
