@@ -66,9 +66,19 @@ function saveIndex(index: DebateIndex): void {
 function extractSummary(data: Record<string, unknown>): DebateSessionSummary {
   const transcript = Array.isArray(data.transcript) ? data.transcript : [];
   const topic = data.topic as { final?: string; original?: string } | undefined;
+  const rawTitle = data.title;
+  const titleStr = typeof rawTitle === 'string' ? rawTitle : undefined;
+  if (rawTitle !== undefined && rawTitle !== null && typeof rawTitle !== 'string') {
+    // `as string` cast (t/2334) silences TS but doesn't coerce at runtime — log so FR shows the corruption
+    getGlobalRecorder()?.record({
+      type: 'system.error', component: 'debateIO', level: 'warn',
+      message: 'extractSummary: title is not a string — falling back to topic (t/2334)',
+      data: { id: data.id as string, title_type: typeof rawTitle, title_keys: Object.keys(rawTitle as object) },
+    });
+  }
   return {
     id: data.id as string,
-    title: (data.title as string) || topic?.final || topic?.original || 'Untitled',
+    title: titleStr || topic?.final || topic?.original || 'Untitled',
     created_at: data.created_at as string,
     updated_at: data.updated_at as string,
     phase: data.phase as string,

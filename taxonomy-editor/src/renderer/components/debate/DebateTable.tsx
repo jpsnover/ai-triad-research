@@ -251,6 +251,14 @@ export function DebateTableRow({
 }: DebateTableRowProps) {
   const isRenaming = renamingId === s.id;
   const colSpan = editMode ? 7 : 6;
+  // Defensive guard: extractSummary may return title as {final,original} if debateIO.ts is
+  // invoked before the t/2334 fix is present on disk. Coerce to string so React never sees
+  // an object. The main-process FR log in debateIO.ts captures the corruption event.
+  const rawTitle: unknown = s.title;
+  const safeTitle = typeof rawTitle === 'string' ? rawTitle
+    : (rawTitle as { final?: string; original?: string })?.final
+      ?? (rawTitle as { final?: string; original?: string })?.original
+      ?? 'Untitled';
 
   const handleRowClick = useCallback(() => {
     if (editMode) {
@@ -276,11 +284,11 @@ export function DebateTableRow({
     // Double-click title cell to rename (only when not in edit-mode bulk flow)
     e.stopPropagation();
     setRenamingId(s.id);
-    setRenameValue(s.title);
+    setRenameValue(safeTitle);
   }, [s, setRenamingId, setRenameValue]);
 
   const commitRename = useCallback(() => {
-    if (renameValue.trim() && renameValue.trim() !== s.title) {
+    if (renameValue.trim() && renameValue.trim() !== safeTitle) {
       void onRename(s.id, renameValue.trim());
     }
     setRenamingId(null);
@@ -301,7 +309,7 @@ export function DebateTableRow({
         <td className="col-cb" onClick={e => e.stopPropagation()}>
           <input
             type="checkbox"
-            aria-label={`Select ${s.title}`}
+            aria-label={`Select ${safeTitle}`}
             checked={isSelected}
             onChange={() => onToggleSelect(s.id)}
           />
@@ -330,10 +338,10 @@ export function DebateTableRow({
         ) : (
           <div
             className="debate-table-title-text"
-            title={s.title}
+            title={safeTitle}
             onDoubleClick={!editMode ? handleDoubleClick : undefined}
           >
-            {s.title}
+            {safeTitle}
           </div>
         )}
         {/* Model shown as secondary line on tablet (col hidden) */}
@@ -372,8 +380,8 @@ export function DebateTableRow({
               type="button"
               className="debate-table-action-btn"
               title="Rename"
-              aria-label={`Rename "${s.title}"`}
-              onClick={() => { setRenamingId(s.id); setRenameValue(s.title); }}
+              aria-label={`Rename "${safeTitle}"`}
+              onClick={() => { setRenamingId(s.id); setRenameValue(safeTitle); }}
             >
               &#9998;
             </button>
@@ -381,7 +389,7 @@ export function DebateTableRow({
               type="button"
               className="debate-table-action-btn"
               title="Move up"
-              aria-label={`Move "${s.title}" up`}
+              aria-label={`Move "${safeTitle}" up`}
               disabled={idx === 0}
               onClick={() => onMoveSession(s.id, 'up')}
             >
@@ -391,7 +399,7 @@ export function DebateTableRow({
               type="button"
               className="debate-table-action-btn"
               title="Move down"
-              aria-label={`Move "${s.title}" down`}
+              aria-label={`Move "${safeTitle}" down`}
               disabled={idx === totalRows - 1}
               onClick={() => onMoveSession(s.id, 'down')}
             >
@@ -404,7 +412,7 @@ export function DebateTableRow({
               type="button"
               className="debate-table-action-btn primary"
               title="Open in popout window"
-              aria-label={`Open "${s.title}" in window`}
+              aria-label={`Open "${safeTitle}" in window`}
               onClick={() => onOpen(s.id)}
             >
               Open
@@ -414,7 +422,7 @@ export function DebateTableRow({
               type="button"
               className="debate-table-action-btn"
               title="Share to community"
-              aria-label={`Share "${s.title}" to community`}
+              aria-label={`Share "${safeTitle}" to community`}
               onClick={() => onShare(s)}
             >
               Share
