@@ -1,0 +1,76 @@
+========================================================================================
+t/2192 PHASE-A SCREENING — n=6 per fencepost (2 POVs, T3 topic, gemini-3.5-flash-lite)
+========================================================================================
+
+### conf1 (conf cap=1)   (n=6)
+  manipulated-phase rounds: [2, 2, 2, 2, 2, 2]  (should be constant = cap x2)
+  termination_reason: {'situation_cap': 6}
+  convergence_at_termination: median=0.239 IQR=[0.218,0.246] MAD=0.014 range=[0.211,0.311]
+  cost total_api_calls:       median=110 IQR=[109,115] range=[103,116]
+  [corrob] crux_addressed_ratio median=1.000 IQR=[1.000,1.000]
+  [corrob] situation_crux_alignment median=1.000
+  [guardrail] repetition_rate median=0.000 | claims_forgotten_rate median=0.372
+
+### conf3 (conf cap=3)   (n=6)
+  manipulated-phase rounds: [6, 6, 6, 6, 6, 6]  (should be constant = cap x2)
+  termination_reason: {'situation_cap': 6}
+  convergence_at_termination: median=0.241 IQR=[0.235,0.245] MAD=0.005 range=[0.229,0.248]
+  cost total_api_calls:       median=154 IQR=[149,155] range=[149,157]
+  [corrob] crux_addressed_ratio median=1.000 IQR=[0.500,1.000]
+  [corrob] situation_crux_alignment median=1.000
+  [guardrail] repetition_rate median=0.000 | claims_forgotten_rate median=0.362
+
+### arg1 (arg cap=1)   (n=6)
+  manipulated-phase rounds: [2, 2, 2, 2, 2, 2]  (should be constant = cap x2)
+  termination_reason: {'situation_cap': 6}
+  convergence_at_termination: median=0.241 IQR=[0.238,0.246] MAD=0.004 range=[0.221,0.248]
+  cost total_api_calls:       median=112 IQR=[109,113] range=[105,119]
+  [corrob] crux_addressed_ratio median=1.000 IQR=[1.000,1.000]
+  [corrob] situation_crux_alignment median=1.000
+  [guardrail] repetition_rate median=0.000 | claims_forgotten_rate median=0.327
+
+### arg4 (arg cap=4)   (n=6)
+  manipulated-phase rounds: [8, 8, 8, 8, 8, 8]  (should be constant = cap x2)
+  termination_reason: {'situation_cap': 6}
+  convergence_at_termination: median=0.289 IQR=[0.239,0.332] MAD=0.044 range=[0.237,0.333]
+  cost total_api_calls:       median=178 IQR=[173,180] range=[172,181]
+  [corrob] crux_addressed_ratio median=1.000 IQR=[1.000,1.000]
+  [corrob] situation_crux_alignment median=1.000
+  [guardrail] repetition_rate median=0.000 | claims_forgotten_rate median=0.339
+
+### conc1 (conc cap=1)   (n=6)
+  manipulated-phase rounds: [2, 2, 2, 2, 2, 2]  (should be constant = cap x2)
+  termination_reason: {'situation_cap': 6}
+  convergence_at_termination: median=0.242 IQR=[0.237,0.246] MAD=0.004 range=[0.231,0.270]
+  cost total_api_calls:       median=134 IQR=[133,138] range=[127,147]
+  [corrob] crux_addressed_ratio median=1.000 IQR=[1.000,1.000]
+  [corrob] situation_crux_alignment median=1.000
+  [guardrail] repetition_rate median=0.000 | claims_forgotten_rate median=0.359
+
+### conc2 (conc cap=2)   (n=6)
+  manipulated-phase rounds: [2, 4, 4, 4, 2, 4]  (should be constant = cap x2)
+  termination_reason: {'situation_cap': 6}
+  convergence_at_termination: median=0.244 IQR=[0.236,0.315] MAD=0.008 range=[0.236,0.353]
+  cost total_api_calls:       median=144 IQR=[139,152] range=[136,170]
+  [corrob] crux_addressed_ratio median=1.000 IQR=[1.000,1.000]
+  [corrob] situation_crux_alignment median=1.000
+  [guardrail] repetition_rate median=0.000 | claims_forgotten_rate median=0.344
+
+========================================================================================
+PER-PHASE SENSITIVITY VERDICTS (design §2: INSENSITIVE if IQRs overlap AND |Δmedian conv| < 0.05)
+========================================================================================
+
+Confrontation: conf1 vs conf3
+  convergence median: 0.239 -> 0.241  (Δ=+0.001); IQRs overlap=True
+  cost median: 110 -> 154 api calls (Δ=+44)
+  VERDICT: INSENSITIVE — recommend the CHEAPER bound  (|Δconv|<0.05 & IQRs overlap)
+
+Argumentation: arg1 vs arg4
+  convergence median: 0.241 -> 0.289  (Δ=+0.048); IQRs overlap=True
+  cost median: 112 -> 178 api calls (Δ=+67)
+  VERDICT: INSENSITIVE — recommend the CHEAPER bound  (|Δconv|<0.05 & IQRs overlap)
+
+Concluding: conc1 vs conc2
+  convergence median: 0.242 -> 0.244  (Δ=+0.002); IQRs overlap=True
+  cost median: 134 -> 144 api calls (Δ=+10)
+  VERDICT: INSENSITIVE — recommend the CHEAPER bound  (|Δconv|<0.05 & IQRs overlap)
