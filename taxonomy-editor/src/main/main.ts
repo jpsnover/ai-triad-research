@@ -283,8 +283,9 @@ process.on('unhandledRejection', (reason) => {
 });
 
 if (process.argv.includes('--debug-cdp') || process.env.DEBUG_CDP === '1') {
-  app.commandLine.appendSwitch('remote-debugging-port', '9222');
-  console.log('[main] CDP enabled on port 9222 (--debug-cdp)');
+  // Port 9223 avoids conflict with VS Code/Orca which occupies 9222 by default.
+  app.commandLine.appendSwitch('remote-debugging-port', '9223');
+  console.log('[main] CDP enabled on port 9223 (--debug-cdp)');
 }
 
 void app.whenReady().then(() => {
