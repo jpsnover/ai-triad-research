@@ -2,8 +2,9 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import fs from 'fs';
+import os from 'os';
 import path from 'path';
-import { execFile } from 'child_process';
+import { execFile, type ExecFileException } from 'child_process';
 import { loadApiKey } from './apiKeyStore.js';
 import { net } from 'electron';
 import { PROJECT_ROOT, resolveDataPath } from './fileIO.js';
@@ -373,14 +374,35 @@ export interface NliResult {
   [key: string]: unknown;
 }
 
+const NLI_BATCH_SIZE = 500;
+const NLI_LOW_MEMORY_THRESHOLD = 2 * 1024 ** 3; // 2 GB
+
 /**
  * Classify text pairs as entailment, neutral, or contradiction using the
  * local NLI cross-encoder (cross-encoder/nli-deberta-v3-small).
- * Calls embed_taxonomy.py nli-classify via stdin/stdout.
+ * Batches into chunks of NLI_BATCH_SIZE to bound peak memory usage.
  */
 export async function classifyNli(pairs: NliPair[]): Promise<NliResult[]> {
   if (pairs.length === 0) return [];
 
+  if (pairs.length > NLI_BATCH_SIZE && os.freemem() < NLI_LOW_MEMORY_THRESHOLD) {
+    console.warn(`[nli-classify] Low available RAM (${Math.round(os.freemem() / 1024 ** 2)} MB) for ${pairs.length} pairs — may OOM`);
+    getGlobalRecorder()?.record({
+      type: 'system.error', component: 'embeddings', level: 'warn',
+      message: `nli-classify: low RAM (${Math.round(os.freemem() / 1024 ** 2)} MB) for ${pairs.length} pairs`,
+    });
+  }
+
+  const results: NliResult[] = [];
+  for (let i = 0; i < pairs.length; i += NLI_BATCH_SIZE) {
+    const batch = pairs.slice(i, i + NLI_BATCH_SIZE);
+    const batchResults = await classifyNliBatch(batch);
+    results.push(...batchResults);
+  }
+  return results;
+}
+
+async function classifyNliBatch(pairs: NliPair[]): Promise<NliResult[]> {
   const inputJson = JSON.stringify(pairs);
 
   return new Promise((resolve, reject) => {
@@ -390,20 +412,38 @@ export async function classifyNli(pairs: NliPair[]): Promise<NliResult[]> {
       { timeout: 120_000, maxBuffer: 50 * 1024 * 1024 },
       (err, stdout, stderr) => {
         if (err) {
-          reject(new Error(`NLI classification failed: ${err.message}\n${stderr}`));
+          const combined = `${stderr || ''}${stdout || ''}`.toLowerCase();
+          const isLikelyOom = combined.includes('memory') || combined.includes('killed') ||
+            (err as ExecFileException).signal === 'SIGKILL';
+          getGlobalRecorder()?.record({
+            type: 'system.error', component: 'embeddings', level: 'error',
+            message: `nli-classify subprocess failed for ${pairs.length} pairs`,
+            data: { stderr, exitCode: (err as ExecFileException).code, signal: (err as ExecFileException).signal },
+          });
+          reject(new ActionableError({
+            goal: `Classify ${pairs.length} text pairs with NLI cross-encoder`,
+            problem: `Python subprocess exited non-zero.${stderr ? ` Stderr: ${stderr.trim()}` : ' (no stderr — process may have been killed)'}`,
+            location: 'embeddings.classifyNliBatch',
+            nextSteps: isLikelyOom
+              ? ['Insufficient memory — close other applications and retry', 'Classification runs in batches of 500; reduce total pair count if OOM persists']
+              : ['Check Python environment has cross-encoder/nli-deberta-v3-small installed', 'Run embed_taxonomy.py nli-classify manually to see the full traceback'],
+          }));
           return;
         }
         try {
           resolve(JSON.parse(stdout) as NliResult[]);
         } catch (parseErr) {
           getGlobalRecorder()?.record({
-            type: 'system.error',
-            component: 'embeddings',
-            level: 'error',
-            message: 'Operation failed',
+            type: 'system.error', component: 'embeddings', level: 'error',
+            message: 'Failed to parse NLI output',
             error: { name: (parseErr as Error).name ?? 'Error', message: String(parseErr), stack: (parseErr as Error).stack },
           });
-          reject(new Error(`Failed to parse NLI output: ${parseErr}`));
+          reject(new ActionableError({
+            goal: `Parse NLI output for ${pairs.length} pairs`,
+            problem: `JSON parse failed: ${parseErr}${stderr ? `\nStderr: ${stderr.trim()}` : ''}`,
+            location: 'embeddings.classifyNliBatch',
+            nextSteps: ['Check that embed_taxonomy.py outputs valid JSON to stdout', 'Run embed_taxonomy.py nli-classify manually to diagnose'],
+          }));
         }
       },
     );
