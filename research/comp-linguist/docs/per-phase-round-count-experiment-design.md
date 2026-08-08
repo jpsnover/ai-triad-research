@@ -3,7 +3,7 @@
 **Ticket:** t/2192
 **Author:** Computational Linguist (CL.Investigate1)
 **Date:** 2026-08-06
-**Status:** Design RE-VALIDATED (pilot re-run passed, 2026-08-07 — see §9b). §2 fencepost sweep is GO as written. Launch gated on two remaining preconditions: t/2219 (cal-log engine-path isolation) landing + owner budget GO.
+**Status:** COMPLETE (2026-08-08). Phase-A fencepost screen ran (30/30, isolation clean); **result is a NULL** — round budget does not detectably affect convergence in any phase; current bounds defensible, cost-optimal is the floor. Analysis + recommendation: [`per-phase-round-count-analysis.md`](per-phase-round-count-analysis.md). No Phase-B/C warranted. (History: design re-validated after the t/2208 pilot re-run — §9b; engine prereqs t/2208 + t/2228 + #531 landed.)
 
 ## Goal
 
