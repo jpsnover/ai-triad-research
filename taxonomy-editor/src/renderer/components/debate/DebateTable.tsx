@@ -158,6 +158,12 @@ function StatusPill({ phase }: { phase: string | undefined }) {
 // SortHeader
 // ──────────────────────────────────────────────
 
+/** Returns the aria-sort value for a <th> — must be placed on the th, not the button. */
+function getSortAttr(col: SortColumn, sort: SortState): 'ascending' | 'descending' | 'none' {
+  if (sort.col !== col) return 'none';
+  return sort.dir === 'asc' ? 'ascending' : 'descending';
+}
+
 function SortHeader({
   label, col, sort, onSort,
 }: {
@@ -167,9 +173,6 @@ function SortHeader({
   onSort: (col: SortColumn) => void;
 }) {
   const active = sort.col === col;
-  const ariaSortVal = active
-    ? (sort.dir === 'asc' ? 'ascending' : 'descending')
-    : 'none';
   const indicator = active
     ? (sort.dir === 'asc' ? ' ▲' : ' ▼')
     : '';
@@ -177,7 +180,6 @@ function SortHeader({
     <button
       type="button"
       className="debate-table-sort-btn"
-      aria-sort={ariaSortVal as 'none' | 'ascending' | 'descending'}
       onClick={() => onSort(col)}
     >
       {label}
@@ -587,19 +589,19 @@ function MyTable(props: DebateTableMyProps & { sort: SortState; onSort: (col: So
         <thead>
           <tr>
             {editMode && <th scope="col" className="col-cb" aria-label="Select row" />}
-            <th scope="col" className="col-title">
+            <th scope="col" className="col-title" aria-sort={getSortAttr('title', sort)}>
               <SortHeader label="Title" col="title" sort={sort} onSort={onSort} />
             </th>
-            <th scope="col" className="col-status">
+            <th scope="col" className="col-status" aria-sort={getSortAttr('status', sort)}>
               <SortHeader label="Status" col="status" sort={sort} onSort={onSort} />
             </th>
-            <th scope="col" className="col-date">
+            <th scope="col" className="col-date" aria-sort={getSortAttr('date', sort)}>
               <SortHeader label="Date" col="date" sort={sort} onSort={onSort} />
             </th>
-            <th scope="col" className="col-turns">
+            <th scope="col" className="col-turns" aria-sort={getSortAttr('turns', sort)}>
               <SortHeader label="Turns" col="turns" sort={sort} onSort={onSort} />
             </th>
-            <th scope="col" className="col-model">
+            <th scope="col" className="col-model" aria-sort={getSortAttr('model', sort)}>
               <SortHeader label="Model" col="model" sort={sort} onSort={onSort} />
             </th>
             <th scope="col" className="col-actions">
@@ -680,19 +682,19 @@ function CommunityTable(
         <CommunityColGroup />
         <thead>
           <tr>
-            <th scope="col" className="col-title">
+            <th scope="col" className="col-title" aria-sort={getSortAttr('title', sort)}>
               <SortHeader label="Title" col="title" sort={sort} onSort={onSort} />
             </th>
-            <th scope="col" className="col-status">
+            <th scope="col" className="col-status" aria-sort={getSortAttr('status', sort)}>
               <SortHeader label="Status" col="status" sort={sort} onSort={onSort} />
             </th>
-            <th scope="col" className="col-date">
+            <th scope="col" className="col-date" aria-sort={getSortAttr('date', sort)}>
               <SortHeader label="Date" col="date" sort={sort} onSort={onSort} />
             </th>
-            <th scope="col" className="col-turns">
+            <th scope="col" className="col-turns" aria-sort={getSortAttr('turns', sort)}>
               <SortHeader label="Turns" col="turns" sort={sort} onSort={onSort} />
             </th>
-            <th scope="col" className="col-model">
+            <th scope="col" className="col-model" aria-sort={getSortAttr('model', sort)}>
               <SortHeader label="Model" col="model" sort={sort} onSort={onSort} />
             </th>
             <th scope="col" className="col-actions">
