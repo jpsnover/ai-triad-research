@@ -1004,7 +1004,11 @@ export function StatementCard({ entry, statementId, findQuery = '', matchOffset 
   const isPover = entry.speaker !== 'system' && entry.speaker !== 'user';
   const camp = isPover ? povToCamp(entry.speaker) : undefined;
   const activeDebate = useDebateStore(s => s.activeDebate);
-  const defaultTier = useDebateStore(s => s.responseLength);
+  // Display-tier fallback is the (unpersisted) defaultDisplayTier, NOT responseLength
+  // (t/2269 Option 2 / t/2282): responseLength governs generation verbosity only, so a
+  // fresh debate renders at Medium by default without shortening what the model writes.
+  // Per-entry entry.display_tier still wins below.
+  const defaultTier = useDebateStore(s => s.defaultDisplayTier);
   const setEntryDisplayTier = useDebateStore(s => s.setEntryDisplayTier);
   const askQuestion = useDebateStore(s => s.askQuestion);
   const debateGenerating = useDebateStore(s => s.debateGenerating);
