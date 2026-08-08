@@ -25,11 +25,13 @@ All colors are CSS custom properties on `:root` scoped by `data-theme`.
 
 | Token | Light | Dark | BKC | Harvard | Usage |
 |---|---|---|---|---|---|
-| `--color-acc` | #16a34a | #2ecc71 | #4d7a8b | #2D6A4F | Accelerationist |
-| `--color-saf` | #dc2626 | #e74c3c | #7c101c | #A51C30 | Safetyist |
-| `--color-skp` | #ca8a04 | #f1c40f | #a349a4 | #B8860B | Skeptic |
+| `--color-acc` | #b84e13 | #e89450 | #cc7e45 | #a35012 | Accelerationist (orange/rust) |
+| `--color-saf` | #2b5fad | #7da3d6 | #6d94c2 | #275498 | Safetyist (blue) |
+| `--color-skp` | #7b4fa6 | #a888c8 | #a882be | #6d4595 | Skeptic (purple) |
 | `--color-sit` | #7c3aed | #9b59b6 | #09465b | #5B2C87 | Situations |
 | `--color-conflicts` | #64748b | #95a5a6 | #7a6a82 | #6B705C | Conflicts |
+
+**Source of truth:** POV values above are transcribed from `taxonomy-editor/src/renderer/styles.css` (`:root` = light, then `[data-theme="dark"|"bkc"|"harvard"]`). The POV palette was revamped from the original green/red/gold to orange/blue/purple; this table was corrected to match on 2026-08-08 (t/2293 review, verified live + against source). If you change a POV token, update this row in the same PR.
 
 ### BDI Category Colors
 
