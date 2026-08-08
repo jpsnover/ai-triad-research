@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { bridgeGet } from '../../bridge/web-bridge';
 import type { StandardizedTerm, ColloquialTerm, LintViolation, CampOrigin, CoinageStatus } from '@lib/dictionary';
@@ -32,7 +32,14 @@ export function VocabularyPanel() {
   const [expandedTerm, setExpandedTerm] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // A useRef guard survives React 19 Strict Mode's dev double-invoke of mount
+  // effects, so the dictionary is loaded once rather than twice (t/2300, sibling
+  // of t/2296). Low impact here — loadDictionary is an idempotent local read —
+  // but the redundant fetch is avoided and the pattern matches NewsReportModal.
+  const loadStartedRef = useRef(false);
   useEffect(() => {
+    if (loadStartedRef.current) return;
+    loadStartedRef.current = true;
     void loadDictionary();
   }, []);
 
