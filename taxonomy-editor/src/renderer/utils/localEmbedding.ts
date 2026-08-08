@@ -113,11 +113,17 @@ async function doInit(): Promise<boolean> {
       // Bridge fallback active → WASM failure is harmless noise, so suppress the
       // console warn (the flight recorder still captures it at debug for diagnostics).
       if (!_hasBridgeFallback) console.warn('[localEmbedding] WASM init failed:', err);
+      // Reclassified system.error → lifecycle (t/2295): with the bridge fallback
+      // active (ONNX/DML is the live path in Electron) this WASM failure is an
+      // expected fallback, not a real error. Emitting it as `type: system.error`
+      // made triage grep for `type:system.error` surface expected noise. The
+      // `level` (debug when harmless, warn when it actually degrades to no backend)
+      // still carries severity.
       getGlobalRecorder()?.record({
-        type: 'system.error',
+        type: 'lifecycle',
         component: 'localEmbedding',
         level: wasmFailLevel,
-        message: 'WASM init failed',
+        message: _hasBridgeFallback ? 'WASM init skipped (ONNX active)' : 'WASM init failed',
         error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
     }
