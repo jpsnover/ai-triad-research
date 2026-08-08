@@ -573,6 +573,8 @@ $script:TaxonomyCacheLastCheck = $null  # UTC time of last staleness check (cool
 # Provisional threshold (0.45) — calibrate against SAF-167 repro case and a
 # good-vs-bad attribution distribution before treating this as a tuned gate.
 $script:RetrievalConfidenceThreshold = 0.45
+# CL-owned: veto when sim(kp, excludes_text) - sim(kp, core_text) > this margin (0.0 = any positive margin).
+$script:ExcludesVetoMargin = 0.0
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Load ai-models.json — single source of truth for backend/model lists

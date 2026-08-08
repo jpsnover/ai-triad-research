@@ -854,6 +854,24 @@ function Finalize-Summary {
         }
     }
 
+    # -- Excludes-veto pass (t/2286) ------------------------------------------
+    # Runs after confidence pass so retrieval_low_confidence is already present.
+    if ($script:TaxonomyData -and $script:TaxonomyData.Count -gt 0) {
+        $AllKpsForVeto = [System.Collections.Generic.List[object]]::new()
+        foreach ($Camp in $Camps) {
+            $CampDataVeto = $SummaryObject.pov_summaries.$Camp
+            if (-not $CampDataVeto -or -not (Has-Field $CampDataVeto 'key_points')) { continue }
+            $kpListVeto = Get-Field $CampDataVeto 'key_points'
+            if ($kpListVeto) { foreach ($kp in @($kpListVeto)) { [void]$AllKpsForVeto.Add($kp) } }
+        }
+        if ($AllKpsForVeto.Count -gt 0) {
+            $VetoStats = Invoke-ExcludesVetoPass -KeyPoints $AllKpsForVeto.ToArray()
+            if ($VetoStats.VetoCount -gt 0 -or $VetoStats.AmbiguousCount -gt 0) {
+                Write-Host "  │  excludes-veto: $($VetoStats.VetoCount) vetoed, $($VetoStats.AmbiguousCount) ambiguous" -ForegroundColor DarkYellow
+            }
+        }
+    }
+
     $SoProps = $SummaryObject.PSObject.Properties
     if ($SoProps['factual_claims'] -and $null -ne $SummaryObject.factual_claims) { $FactualClaims = $SummaryObject.factual_claims } else { $FactualClaims = @() }
     if ($SoProps['unmapped_concepts'] -and $null -ne $SummaryObject.unmapped_concepts) { $UnmappedConcs = $SummaryObject.unmapped_concepts } else { $UnmappedConcs = @() }
