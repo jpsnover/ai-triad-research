@@ -207,6 +207,8 @@
         'Update-EntityMentionIndex'
         # t/2196 — Vite dev server diagnostic
         'Get-ViteDevStatus'
+        # t/2330 — Debate session state diagnostic
+        'Get-DebateSessionState'
     )
 
     # Aliases exported from this module
