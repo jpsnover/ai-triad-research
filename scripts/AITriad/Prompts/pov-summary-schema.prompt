@@ -5,6 +5,7 @@
         {
           "stance": "<strongly_aligned | aligned | neutral | opposed | strongly_opposed | not_applicable>",
           "taxonomy_node_id": "<node id from taxonomy, e.g. acc-desires-001, OR null if no match>",
+          "mechanism_type": "<For Intentions: product_mandate | incident_investigation | liability_regime | disclosure_requirement | capability_prohibition | governance_body | market_mechanism | research_investment | standard_setting | deployment_restriction | other. For Beliefs and Desires: null>",
           "category": "Desires",
           "point": "<3-6 sentences: (1) state what the document claims, (2) explain the evidence/reasoning/mechanism it uses, (3) connect to this POV's goals or concerns, (4) note caveats — Accelerationist lens>",
           "verbatim": "<string OR array of strings: 1-5 contiguous sentences quoted EXACTLY, or 2-4 non-contiguous spans as an array>",
@@ -28,6 +29,7 @@
         {
           "stance": "...",
           "taxonomy_node_id": "...",
+          "mechanism_type": "<product_mandate | incident_investigation | liability_regime | disclosure_requirement | capability_prohibition | governance_body | market_mechanism | research_investment | standard_setting | deployment_restriction | other>",
           "category": "Intentions",
           "point": "...",
           "verbatim": "<string or string[]>",
@@ -42,6 +44,7 @@
         {
           "stance": "<strongly_aligned | aligned | neutral | opposed | strongly_opposed | not_applicable>",
           "taxonomy_node_id": "<node id, e.g. saf-desires-001, OR null if no match>",
+          "mechanism_type": "<For Intentions: product_mandate | incident_investigation | liability_regime | disclosure_requirement | capability_prohibition | governance_body | market_mechanism | research_investment | standard_setting | deployment_restriction | other. For Beliefs and Desires: null>",
           "category": "<Desires | Beliefs | Intentions>",
           "point": "<3-6 sentences: position, evidence/reasoning, POV implications, caveats — Safetyist lens>",
           "verbatim": "<string or string[]>",
@@ -58,6 +61,7 @@
         {
           "stance": "<strongly_aligned | aligned | neutral | opposed | strongly_opposed | not_applicable>",
           "taxonomy_node_id": "<node id, e.g. skp-desires-001, OR null if no match>",
+          "mechanism_type": "<For Intentions: product_mandate | incident_investigation | liability_regime | disclosure_requirement | capability_prohibition | governance_body | market_mechanism | research_investment | standard_setting | deployment_restriction | other. For Beliefs and Desires: null>",
           "category": "<Desires | Beliefs | Intentions>",
           "point": "<3-6 sentences: position, evidence/reasoning, POV implications, caveats — Skeptic lens>",
           "verbatim": "<string or string[]>",

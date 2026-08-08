@@ -134,6 +134,30 @@ ATTRIBUTION TEXT (required for every key_point):
   4. Resolve pronouns, decode metaphors, name the policy domain explicitly
   5. 40-80 words. Do not add claims not in the original.
 
+MECHANISM TYPE (required for Intentions; null for Beliefs and Desires):
+  For every Intentions key_point, classify the policy mechanism the document invokes
+  using the closed vocabulary below. Prevents vocabulary-collision misfires between
+  nodes that share policy language but describe different intervention types.
+
+  Vocabulary:
+    product_mandate        — platform design requirements imposed by regulatory/judicial action
+    incident_investigation — post-hoc forensic review of AI failures by an independent body
+    liability_regime       — legal accountability and damages frameworks for AI-caused harms
+    disclosure_requirement — transparency, audit, or reporting mandates
+    capability_prohibition — banning or restricting specific AI capabilities or applications
+    governance_body        — creation of institutional oversight bodies or regulatory agencies
+    market_mechanism       — economic incentives, taxes, subsidies, or market-structure interventions
+    research_investment    — directing funding or capacity toward scientific inquiry
+    standard_setting       — technical benchmarks, certification frameworks, or interoperability standards
+    deployment_restriction — conditions on when, where, or for whom AI may be deployed
+    other                  — note the mechanism type in the point field
+
+  Key discriminator: "requiring Meta to maintain private-by-default settings" → product_mandate
+  (a court-ordered product design requirement, not a new governance body or post-hoc investigation).
+  "Creating an independent NTSB-style board" → governance_body (the BODY, not a specific investigation).
+
+  For Beliefs and Desires: set mechanism_type to null.
+
 SALIENCE DEFINITION — what makes a point worth extracting:
   A span is salient if it expresses or bears on a belief, desire, or intention
   that one of the three POV camps would endorse, contest, or need to account for.
