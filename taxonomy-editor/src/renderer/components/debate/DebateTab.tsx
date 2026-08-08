@@ -350,7 +350,11 @@ export function DebateTab() {
   // Condition 3 (t/2305 web path): openDebateWindow already has a working web-bridge
   // impl (openAppWindow(`debate-window?id=…`)) — no stub to fix, confirmed in web-bridge.ts.
   const handleRowOpen = useCallback((id: string) => {
-    api.openDebateWindow(id).catch((err: Error) => {
+    api.openDebateWindow(id).then((result) => {
+      if (result && result.atCap) {
+        setQuotaError('Close a debate window — max 5 open');
+      }
+    }).catch((err: Error) => {
       getGlobalRecorder()?.record({
         type: 'system.error',
         component: 'debate-tab',
@@ -478,7 +482,10 @@ export function DebateTab() {
         </div>
       )}
       {showNewDialog && (
-        <NewDebateDialog onClose={() => setShowNewDialog(false)} />
+        <NewDebateDialog
+          onClose={() => setShowNewDialog(false)}
+          onAtCap={() => setQuotaError('Close a debate window — max 5 open')}
+        />
       )}
       {pendingExportFormat && (
         <ExportOptionsDialog
