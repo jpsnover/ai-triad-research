@@ -8134,24 +8134,6 @@ body {
 }
 .debate-chat-fab:hover { transform: scale(1.08); box-shadow: var(--shadow-2); }
 .debate-chat-fab.active { background: var(--text-secondary, #666); }
-.debate-dump-inline {
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  border: 1px solid var(--border);
-  background: var(--bg-secondary);
-  color: var(--text-muted);
-  font-size: var(--text-xs);
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: background 0.15s;
-  line-height: 1;
-  flex-shrink: 0;
-  margin-right: 4px;
-}
-.debate-dump-inline:hover { background: var(--bg-tertiary); color: var(--text-primary); }
 .debate-workspace {
   display: flex;
   flex-direction: column;
@@ -8653,21 +8635,6 @@ body {
 .diag-suggestion-qualify { background: color-mix(in srgb, var(--danger) 15%, transparent); color: var(--danger); }
 .diag-suggestion-retire { background: color-mix(in srgb, var(--text-muted) 15%, transparent); color: var(--text-muted); }
 .diag-suggestion-new_node { background: color-mix(in srgb, var(--success) 15%, transparent); color: var(--success); }
-
-.debate-turns-select {
-  padding: 5px 4px;
-  border: 1px solid var(--border);
-  border-left: none;
-  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
-  background: var(--bg-secondary);
-  color: var(--text-primary);
-  font-size: var(--text-xs);
-  cursor: pointer;
-}
-.debate-turns-select:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
 
 /* ─── Debater Toggles ────────────────────────────────── */
 .debate-debater-toggles {
@@ -9514,14 +9481,6 @@ a.vocab-term,
   color: var(--text-primary);
 }
 
-/* ─── Debate Action Buttons (Synthesize/Probe) ────────── */
-
-.debate-synthesis-btn,
-.debate-probe-btn {
-  font-size: var(--text-xs);
-  padding: 4px 10px;
-}
-
 /* ─── Debate Action Bar ───────────────────────────────── */
 
 .debate-action-bar {
@@ -9655,22 +9614,6 @@ a.vocab-term,
   gap: 8px;
 }
 
-.debate-action-bar-secondary {
-  display: flex;
-  gap: 6px;
-  margin-top: 6px;
-  align-items: center;
-}
-
-.debate-reflections-btn {
-  color: var(--text-primary);
-  border-color: #8b5cf6 !important;
-}
-
-.debate-reflections-btn:hover:not(:disabled) {
-  background: rgba(139, 92, 246, 0.1) !important;
-}
-
 .debate-opening-order {
   display: flex;
   align-items: center;
@@ -9790,44 +9733,6 @@ a.vocab-term,
   color: var(--text-primary);
   font-size: var(--text-xs);
   flex-shrink: 0;
-}
-
-.debate-send-btn {
-  white-space: nowrap;
-}
-
-.debate-cross-btn {
-  white-space: nowrap;
-  font-size: var(--text-sm);
-}
-
-.debate-continue-btn {
-  white-space: nowrap;
-  font-size: var(--text-sm);
-  background: var(--bg-secondary);
-  border: 1px solid #3b82f6;
-  color: #3b82f6;
-  font-weight: 600;
-}
-.debate-continue-btn:hover:not(:disabled) {
-  background: rgba(59, 130, 246, 0.1);
-}
-
-/* ─── Step mode toggle ─── */
-.debate-step-toggle {
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  background: var(--bg-secondary);
-  color: var(--text-muted);
-  cursor: pointer;
-}
-.debate-step-toggle.active {
-  border-color: #f59e0b;
-  color: #f59e0b;
-  font-weight: 600;
-}
-.debate-step-toggle:hover:not(:disabled) {
-  background: var(--bg-hover);
 }
 
 /* ─── Step mode phase selector ─── */
@@ -11529,10 +11434,6 @@ a.vocab-term,
   font-size: var(--text-md);
   color: var(--text-primary);
 }
-.debate-harvest-btn {
-  background: color-mix(in srgb, var(--accent) 15%, var(--bg-secondary));
-}
-
 .debate-audience-select {
   font-size: var(--text-sm);
   padding: 4px 6px;
