@@ -3161,3 +3161,23 @@ Institutional memory for failure patterns across the AI Triad Research project.
 **Status:** Active — 1 instance (TL p/335#15, t/2297 FR gap fix). Error boundary → FR forwarding fix: t/2297.
 
 **Applies To:** All agents diagnosing crashes via flight recorder in apps with React error boundaries.
+
+---
+
+## #154 [Build] Node 24 + Git Bash `stdio:inherit` + pnpm Child Process Crashes with STATUS_STACK_BUFFER_OVERRUN (Exit 3221226505) on Windows
+
+**Pattern:** A Node script that spawns a `pnpm install` child process with `stdio:inherit` exits with code 3221226505 (`0xC0000409` = Windows `STATUS_STACK_BUFFER_OVERRUN`) when run via the Bash tool. The crash is dependency-set-specific — only triggered for certain lockfile states (observed: electron dep in taxonomy-editor/package.json); the same script succeeds for other lockfile contexts in the same session. The crash is silent (no error message beyond the exit code). Running the equivalent steps via the PowerShell tool succeeds.
+
+**Instances:**
+- 2026-08-08 — DevOps (p/26#67): `scripts/sync-standalone-lockfile.mjs` crashed with exit 3221226505 on the dep-654 worktree (electron dep) but succeeded for dep-655/dep-656. Workaround: replicated the script's temp-dir + `pnpm install --lockfile-only` steps manually via PowerShell tool, copied result back.
+
+**Root Cause:** `STATUS_STACK_BUFFER_OVERRUN` is a Windows security mitigation — the OS kills a process when a stack-buffer overrun (stack canary check failure) is detected. Suspected cause: Node 24 + Git Bash (MSYS) `stdio:inherit` triggers a code path in the pnpm child process that overruns its stack for specific dependency sets (electron in particular has native rebuild steps). The combination of Bash tool's MSYS runtime + `stdio:inherit` pipe semantics + Node 24's changed stdio handling may produce incompatible fd/handle state in the child process.
+
+**Prevention:**
+1. **Tell:** unexplained exit 3221226505 (or `0xC0000409`) from a Node/pnpm command in the Bash tool → suspect Node 24 + MSYS + stdio:inherit incompatibility, not a script logic error.
+2. **Workaround:** run the same command or equivalent steps via the PowerShell tool — native win32 stdio handles replace the MSYS fd bridge, avoiding the crash.
+3. **Dependency-specific:** if the crash is intermittent across lockfile states, focus on electron or other native deps in the package.json — these trigger native rebuild steps that are more likely to hit the incompatible stdio path.
+
+**Status:** Active — 1 instance (DevOps p/26#67). Root cause unconfirmed (suspected Node 24 + MSYS + stdio:inherit); workaround is reliable (PowerShell tool).
+
+**Applies To:** All agents running Node scripts that spawn pnpm child processes with stdio:inherit via the Bash tool on Windows.

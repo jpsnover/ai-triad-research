@@ -1929,3 +1929,23 @@ Failure patterns related to builds, CI, tooling, environment, and git operations
 **Status:** Active — 1 instance (TL p/335#15). FR forwarding fix: t/2297.
 
 **Applies To:** All agents diagnosing crashes via flight recorder in apps with React error boundaries.
+
+---
+
+## #154 [Build] Node 24 + Git Bash `stdio:inherit` + pnpm Child Process Crashes with STATUS_STACK_BUFFER_OVERRUN (Exit 3221226505) on Windows
+
+**Pattern:** A Node script spawning `pnpm install` with `stdio:inherit` exits 3221226505 (`STATUS_STACK_BUFFER_OVERRUN`) via the Bash tool. Dependency-specific (electron dep triggers it); same script succeeds via PowerShell tool.
+
+**Instances:**
+- 2026-08-08 — DevOps (p/26#67): `sync-standalone-lockfile.mjs` crashed on dep-654 (electron dep) but succeeded for dep-655/dep-656. Fix: replicated script steps via PowerShell tool.
+
+**Root Cause:** Windows security mitigation kills the process on stack-buffer overrun (stack canary failure). Suspected: Node 24 + MSYS `stdio:inherit` fd/handle incompatibility triggers a stack overrun in the pnpm child for electron-dep lockfile states.
+
+**Prevention:**
+1. Tell: exit 3221226505 / `0xC0000409` from a Bash-tool Node/pnpm command → suspect Node 24 + MSYS stdio:inherit incompatibility.
+2. Workaround: run the same steps via PowerShell tool — native win32 stdio handles avoid the crash.
+3. If intermittent across lockfile states, focus on native deps (electron) as the trigger.
+
+**Status:** Active — 1 instance (DevOps p/26#67). Workaround reliable (PowerShell tool).
+
+**Applies To:** All agents running Node scripts that spawn pnpm child processes with stdio:inherit via the Bash tool on Windows.
