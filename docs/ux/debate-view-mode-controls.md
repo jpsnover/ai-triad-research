@@ -193,62 +193,43 @@ No animation changes required; the redesign rides the existing seam.
 
 ## 13. Mode vs value visual distinction (t/2274)
 
-**Problem (shipped state).** Both segmented groups share `.debate-mode-group` + `.debate-mode-seg-active`, so the **Mode toggle** and the **value pills** render identically — same `--bg-secondary` track, same solid `var(--focus-ring)` selection fill. In the header they read as one flat five-pill row (`TEXT · ANALYSIS · BRIEF · MEDIUM · DETAILED`), and a filled `TEXT` looks like the same kind of thing as a filled `MEDIUM`. Users can't tell the first group *switches families* and the second *picks a value within the family*.
+**Owner-directed design (2026-08-08).** The owner provided the target mock below (archived at `docs/ux/assets/debate-view-mode-controls-t2274.png`). It resolves the "flat five-pill row" with two genuinely different control types — a **neutral segmented toggle** for the mode and a **dropdown** for the value. Implement THIS. It supersedes the earlier underline-tabs proposal (noted at the end) and the in-flight underline-tabs build (t/2278 — pivoted).
 
-**Decision — make them two different control archetypes, so only one group carries a filled selection.** The mode toggle stays the loud, primary "switch"; the value selector becomes a lighter, underlined "tabs" treatment. This removes the second competing blue fill entirely — the eye immediately separates "the filled box = mode" from "the underlined text = value." Applies to **both** control sites (per-statement `StatementTierPills` and global `GlobalModeControl`) for one consistent language.
+![Mode toggle + value dropdown — owner target](assets/debate-view-mode-controls-t2274.png)
 
-**Markup change (both sites).** The two group `<span>`s currently share `className="debate-mode-group"`. Add a modifier so they can diverge:
-- Mode group → `class="debate-mode-group debate-mode-group--mode"`
-- Value group → `class="debate-mode-group debate-mode-group--value"`
+**1. Mode toggle → neutral segmented control** (`[ Text | Analysis ]`)
+- Track: `background: var(--bg-secondary)`, `1px solid var(--border-color)`, `--radius-sm`.
+- **Selected** segment: raised light pill — `background: var(--bg-primary)`, `1px solid var(--border-color)`, subtle shadow (e.g. `0 1px 2px rgba(0,0,0,.08)`), `color: var(--text-primary)`, weight 600.
+- **Unselected** segment: transparent, `color: var(--text-secondary)`.
+- **No accent fill.** The neutral raised-pill selection is what removes the "both groups look identical" problem — it replaces the solid `var(--focus-ring)` fill the mode toggle uses today.
 
-**CSS (deltas against `DebateWorkspace.css`).**
+**2. Value selector → dropdown button + menu** (replaces the inline value pills entirely)
+- **Button:** current value label + caret `▾`. `background: var(--bg-primary)`, `1px solid var(--border-color)`, `--radius-sm`, `color: var(--text-primary)`, `--text-2xs`. Label reflects the current value of the active mode.
+- **Menu (open):** popover directly below the button — `background: var(--bg-primary)`, `1px solid var(--border-color)`, `--radius-sm`, elevation shadow; one row per value, `color: var(--text-primary)`, hover `background: var(--bg-hover)`; the current value marked (leading check or bold).
+- **Options = the active mode's values:** Text → Brief / Medium / Detailed; Analysis → Plan / Terms / Claims / Conv (+ Lineage when `hasLineageRefs`, per §5). The global control's Analysis set stays Plan / Claims / Conv.
 
-```css
-/* Mode toggle: unchanged — stays a solid segmented control (the "switch").
-   .debate-mode-group--mode keeps the --bg-secondary track + --border-color
-   border; its active seg keeps the solid var(--focus-ring) fill + #fff text. */
+**Layout:** `[ Text | Analysis ]   [ Detailed ▾ ]   …` — mode toggle, gap, value dropdown, then the existing `…`/overflow controls on the right (matches the mock).
 
-/* Value selector: drop the box, become underlined tabs (the lighter treatment). */
-.debate-mode-group--value {
-  background: transparent;      /* was --bg-secondary */
-  border: none;                 /* was 1px --border-color */
-  border-radius: 0;
-  gap: 2px;
-}
-.debate-mode-group--value .debate-mode-seg {
-  padding: 1px 4px 2px;         /* room for the underline */
-  border-bottom: 2px solid transparent;
-}
-.debate-mode-group--value .debate-mode-seg-active,
-.debate-mode-group--value .debate-mode-seg-active:hover {
-  background: transparent;      /* NO fill — the key change */
-  color: var(--text-primary);
-  border-bottom-color: var(--focus-ring);   /* selection = underline */
-}
-.debate-mode-group--value .debate-mode-seg:hover {
-  background: transparent;
-  color: var(--text-primary);
-}
+**Override + match-global (per-statement):** when the card's value differs from the global default, mark the dropdown button as overridden — a `var(--focus-ring)` dot after the label — and offer **"Match global default"** as the last item in the value menu, clearing via `setEntryDisplayTier(entry.id, undefined)`.
 
-/* Override marker: the active value seg is no longer filled, so the #fff dot
-   would vanish. Recolor it to the accent so it reads on --bg-primary. */
-.debate-mode-group--value .debate-mode-seg-overridden::after {
-  background: var(--focus-ring);   /* was #fff */
-}
-```
+**Both control sites:** same treatment for per-statement (`StatementTierPills`, `StatementCard.tsx`) and global (`GlobalModeControl`, `DebateWorkspace.tsx`). CSS in the co-located `DebateWorkspace.css`.
 
-**Separation.** Bump the inter-group spacing on `.debate-tier-pills` (`gap: 4px` → `gap: 10px`). Keep `.debate-mode-separator` (1px × 14px `--border-color`) between the groups — the boxed-vs-open contrast plus the wider gap is enough; do not add a heavier rule.
+**Accessibility:**
+- Mode toggle keeps the shipped a11y — `role="radiogroup"`/`radio`, roving tabindex, Arrow/Home/End.
+- Value dropdown: prefer a **native `<select>`** styled as the button (accessible for free) — the app already had a `debate-detail-dropdown` `<select>` before the two-mode work removed it; reuse that styling. If a custom menu is used instead, it MUST have: open on Enter/Space/Down, arrow-key navigation, Enter to select, **Esc to close with focus returning to the button**, `aria-expanded` + `aria-activedescendant`.
 
-**Contrast (all four themes, AA).**
-- Mode active — `#fff` on `var(--focus-ring)`: unchanged, already AA (light #3b82f6, dark #60a5fa, bkc #4d7a8b, harvard #A51C30).
-- Value active — `--text-primary` on `--bg-primary`: the app's primary text pairing, always AA. The 2px underline is `--focus-ring` (a UI indicator needing ≥3:1 vs `--bg-primary`, met in all four themes).
-- Value inactive — `--text-secondary` on `--bg-primary`: the existing muted pairing.
+**Contrast (AA, all four themes) — tokens only, no hard-coded hex:**
+- Mode selected `--text-primary` on `--bg-primary` (the raised pill) ✓; unselected `--text-secondary` on `--bg-secondary` ✓.
+- Dropdown button/menu `--text-primary` on `--bg-primary` ✓; hover `--bg-hover`.
+- Override dot `--focus-ring` on `--bg-primary` (UI indicator ≥3:1, met in all four themes).
 
-**Alternative considered (lower-churn, not recommended).** Keep both as boxed segmented controls but give the value-active a *tinted* fill — `background: color-mix(in srgb, var(--focus-ring) 18%, var(--bg-primary)); color: var(--text-primary)` — so mode = bold accent, value = pale accent. Same hue, different weight. Less unmistakable than the box-vs-underline split (both still read as "filled pills"), and `color-mix` tinting must be re-checked per theme. Prefer the underline treatment unless implementation wants to avoid the markup change.
+**Menu-label colors:** the mock shows some value labels tinted — treat as incidental rendering. Implement menu rows as neutral `--text-primary` with standard hover/selected treatment; do not add per-item color unless the owner requests it.
 
-**Acceptance (this section).**
-1. Mode toggle and value selector are visually distinct at a glance — mode = filled segmented box, value = underlined tabs; only the mode group carries a solid fill.
+**Acceptance (this section):**
+1. Mode = neutral segmented control (raised selected pill, **no** blue/accent fill); value = dropdown button + menu; the two read as clearly different control types (matches the mock).
 2. Applied to both per-statement and global controls; consistent with `.debate-redesign`.
-3. Selection obvious in both groups; all states meet AA in light + dark (+ bkc + harvard).
-4. Colors via tokens only (`--focus-ring`, `--text-primary/secondary`, `--bg-*`) — no hard-coded hex.
-5. Override dot remains visible on the new underlined value treatment (recolored to `--focus-ring`).
+3. Value dropdown fully keyboard-accessible (open / navigate / select, **Esc closes, focus returns**); mode-toggle a11y unchanged.
+4. Colors via tokens only; AA in light + dark + bkc + harvard.
+5. Per-statement override indicated on the dropdown button + "Match global default" available.
+
+*Superseded direction: the earlier underline-tabs proposal (value pills carrying a `--focus-ring` underline) — replaced by the owner's segmented-toggle + dropdown design above.*
