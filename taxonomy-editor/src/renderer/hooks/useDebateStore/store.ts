@@ -106,9 +106,9 @@ if (typeof window !== 'undefined') {
           timestamp: new Date().toISOString(),
         },
       };
-      void api.saveDebateSession(session);
+      void api.saveDebateSession(session, 'beforeunload:interrupted-turn');
     } else {
-      void api.saveDebateSession(state.activeDebate);
+      void api.saveDebateSession(state.activeDebate, 'beforeunload');
     }
   });
 }

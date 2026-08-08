@@ -409,8 +409,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   loadDebateSession: (id: string): Promise<unknown> =>
     ipcRenderer.invoke('load-debate-session', id),
 
-  saveDebateSession: (session: unknown): Promise<void> =>
-    ipcRenderer.invoke('save-debate-session', session),
+  saveDebateSession: (session: unknown, caller: string): Promise<void> =>
+    ipcRenderer.invoke('save-debate-session', session, caller),
 
   deleteDebateSession: (id: string): Promise<void> =>
     ipcRenderer.invoke('delete-debate-session', id),

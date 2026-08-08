@@ -241,7 +241,7 @@ export interface AppAPI {
   listDebateSessions: () => Promise<unknown[]>;
   listDebateSessionsMeta: () => Promise<unknown[]>;
   loadDebateSession: (id: string) => Promise<unknown>;
-  saveDebateSession: (session: unknown) => Promise<void>;
+  saveDebateSession: (session: unknown, caller: string) => Promise<void>;
   /** Incremental save (web-only optimization; Electron delegates to a full save).
    *  Sends only the surfaces that changed since the last synced version. The server
    *  accepts the delta only if `delta.baseVersion` matches the stored `_saveVersion`

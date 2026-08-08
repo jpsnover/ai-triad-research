@@ -66,7 +66,7 @@ describe('saveDebateSession enriches total-loss ActionableError (t/1638)', () =>
     };
 
     let caught: unknown;
-    try { saveDebateSession(session); } catch (e) { caught = e; }
+    try { saveDebateSession(session, 'test'); } catch (e) { caught = e; }
 
     expect(caught).toBeInstanceOf(ActionableError);
     const ae = caught as ActionableError;
@@ -100,7 +100,7 @@ describe('saveDebateSession enriches total-loss ActionableError (t/1638)', () =>
     const session = { id: 'deb-min' }; // no run_id, no transcript
 
     let caught: unknown;
-    try { saveDebateSession(session); } catch (e) { caught = e; }
+    try { saveDebateSession(session, 'test'); } catch (e) { caught = e; }
 
     expect(caught).toBeInstanceOf(ActionableError);
     const ae = caught as ActionableError;

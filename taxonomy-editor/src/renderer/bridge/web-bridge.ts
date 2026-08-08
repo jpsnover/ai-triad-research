@@ -1004,7 +1004,7 @@ const rawApi: AppAPI = {
   listDebateSessions: () => get('/api/debates'),
   listDebateSessionsMeta: () => get('/api/debates/list'),
   loadDebateSession: (id) => get(`/api/debates/${encodeURIComponent(id)}`),
-  saveDebateSession: (session) => put('/api/debates', session, { timeoutMs: DEBATE_SAVE_TIMEOUT_MS }).then(() => {}),
+  saveDebateSession: (session, _caller) => put('/api/debates', session, { timeoutMs: DEBATE_SAVE_TIMEOUT_MS }).then(() => {}),
   saveDebateDelta: (delta) => patchDebateDelta(delta),
   deleteDebateSession: (id) => del(`/api/debates/${encodeURIComponent(id)}`).then(() => {}),
   loadDebateComments: (id) => get(`/api/debates/${encodeURIComponent(id)}/comments`),
