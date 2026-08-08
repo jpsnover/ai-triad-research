@@ -6,12 +6,15 @@
 
 <#
 .SYNOPSIS
-    Tests for the situation BDI-decomposition compliance check added to
-    Test-OntologyCompliance under t/1312. Wording approved by CL at t/1312#2.
+    Gate tests for the situation BDI-decomposition compliance check in
+    Test-OntologyCompliance (t/1312, wording approved by CL at t/1312#2).
 .NOTES
-    Live-data baseline may shift as t/1306 backfill lands. Update the
-    128/283 numbers when that happens — that's the intended way this
-    regression trip-wire records backfill progress.
+    These tests verify the *check logic* — presence, CL-approved wording, Detail
+    shape, and (fixture-based) correct classification of non-decomposed nodes.
+    They do NOT assert the live-corpus NNN/NNN count: that live-data baseline was
+    moved to tests/data-compliance/ (t/2332) so a situations-data change can no
+    longer red this required merge gate. See the data-compliance suite for the
+    live count trip-wire.
 #>
 
 BeforeAll {
@@ -40,6 +43,7 @@ Describe 'Situation BDI-decomposition compliance check (t/1312)' -Tag 'taxonomy'
     It 'The Detail line has the CL-approved shape (pass/total accounting)' {
         # Both pass and fail states share the "$Pass / $NonDep non-deprecated" prefix.
         # Fail-state breakdown (non-decomposed / missing) only appears when status=='fail'.
+        # Shape only — no exact count — so live-corpus drift can't break this gate.
         $script:BdiCheck.Detail | Should -Match '\d+ / \d+ non-deprecated situations'
         if ($script:BdiCheck.Status -eq 'fail') {
             $script:BdiCheck.Detail | Should -Match 'belief \+ desire \+ intention'
@@ -65,39 +69,91 @@ Describe 'Situation BDI-decomposition compliance check (t/1312)' -Tag 'taxonomy'
             $script:BdiCheck.Fix | Should -Match 'Invoke-AIByUsage'
         }
     }
+}
 
-    It 'Live-data baseline: 440 / 440 non-deprecated situations pass, 1 exempt (post-t/2323 backfill)' {
-        # Trip-wire updated after CL's t/1306 backfill merged (CL sign-off p/23#62,
-        # data-repo commit f202ddd2). Situation corpus is now fully BDI-decomposed;
-        # the 1 exempt node uses the [DEPRECATED] description prefix per CL's Q1 answer.
-        # Baseline bumped 411->412 for t/1655: corpus grew by one net compliant
-        # non-deprecated situation (CL-confirmed via live Test-OntologyCompliance).
-        # Baseline bumped 412->435 for t/1805: the workflow-app v1.0.0 pipeline wrote
-        # 23 new situations (sit-448..470) un-enriched (pre-decomposition string/empty
-        # interpretations). The trip-wire fired correctly; the 23 were decomposed via
-        # enrichment.situation-bdi-decomposition (existing narrative preserved) and
-        # merged with CL sign-off. Creation-path gap tracked separately (t/1805 step 2).
-        # Baseline bumped 435->440 for t/2323: 5 new situations (sit-471..475) added
-        # with flat-string interpretations; decomposed via enrichment.situation-bdi-decomposition.
-        $script:BdiCheck.Status | Should -Be 'pass'
-        $script:BdiCheck.Detail | Should -Match '440 / 440'
-        $script:BdiCheck.Detail | Should -Match '1 exempt via \[DEPRECATED\] prefix'
+Describe 'Situation BDI-decomposition classification logic (fixture-based, t/2332)' -Tag 'taxonomy' {
+    # The live-data NNN/NNN baseline moved to tests/data-compliance/ so it no longer
+    # gates code merges. This suite keeps the *logic* covered in the required gate by
+    # driving the extracted Private helper (Test-SituationBdiDecomposition) with a
+    # synthetic fixture — decoupled from live corpus size. Fixture is JSON parsed via
+    # ConvertFrom-Json so node shape matches production (situations.json) exactly.
+
+    BeforeAll {
+        $script:FixtureJson = @'
+{
+  "nodes": [
+    {
+      "id": "sit-fixture-pass",
+      "description": "A situation that is fully decomposed across all three POVs.",
+      "interpretations": {
+        "accelerationist": { "belief": "b", "desire": "d", "intention": "i" },
+        "safetyist":       { "belief": "b", "desire": "d", "intention": "i" },
+        "skeptic":         { "belief": "b", "desire": "d", "intention": "i" }
+      }
+    },
+    {
+      "id": "sit-fixture-flatstring",
+      "description": "A situation with legacy flat-string interpretations.",
+      "interpretations": {
+        "accelerationist": "accelerationists welcome this",
+        "safetyist":       "safetyists worry about this",
+        "skeptic":         "skeptics doubt this"
+      }
+    },
+    {
+      "id": "sit-fixture-missingblock",
+      "description": "A situation with no interpretations block at all."
+    },
+    {
+      "id": "sit-fixture-partialbdi",
+      "description": "A situation where one POV is missing the intention field.",
+      "interpretations": {
+        "accelerationist": { "belief": "b", "desire": "d", "intention": "i" },
+        "safetyist":       { "belief": "b", "desire": "d" },
+        "skeptic":         { "belief": "b", "desire": "d", "intention": "i" }
+      }
+    },
+    {
+      "id": "sit-fixture-deprecated",
+      "description": "[DEPRECATED] superseded situation, exempt from the check.",
+      "interpretations": {}
+    }
+  ]
+}
+'@
+        $script:Fixture = $script:FixtureJson | ConvertFrom-Json
+        $script:Result = InModuleScope AITriad -Parameters @{ Nodes = $script:Fixture.nodes } {
+            param($Nodes)
+            Test-SituationBdiDecomposition -Node $Nodes
+        }
     }
 
-    It 'Deprecation is signalled by the [DEPRECATED] description prefix (CL Q1 answer)' {
-        # Verify the fixture we ran against carries at least one [DEPRECATED] situation
-        # so the exemption path was exercised.
-        InModuleScope AITriad {
-            $tax = Get-TaxonomyDir
-            $sitPath = Join-Path $tax 'situations.json'
-            Test-Path $sitPath | Should -Be $true
-            $sit = Get-Content -Raw -Path $sitPath -Encoding utf8 | ConvertFrom-Json
-            $deprecated = @($sit.nodes | Where-Object {
-                $_.PSObject.Properties['description'] -and
-                ([string]$_.description).TrimStart().StartsWith('[DEPRECATED]')
-            })
-            $deprecated.Count | Should -BeGreaterThan 0
-        }
+    It 'Counts the fully-decomposed situation as passing' {
+        $script:Result.Pass | Should -Be 1
+    }
+
+    It 'Flags the legacy flat-string interpretation as non-decomposed' {
+        $script:Result.NonDecomposedIds | Should -Contain 'sit-fixture-flatstring'
+    }
+
+    It 'Flags a POV missing the intention field as non-decomposed' {
+        $script:Result.NonDecomposedIds | Should -Contain 'sit-fixture-partialbdi'
+        $script:Result.NonDecomposed | Should -Be 2
+    }
+
+    It 'Flags the missing interpretations block as empty' {
+        $script:Result.EmptyIds | Should -Contain 'sit-fixture-missingblock'
+        $script:Result.Empty | Should -Be 1
+    }
+
+    It 'Exempts the [DEPRECATED]-prefixed situation from the non-deprecated set' {
+        $script:Result.Deprecated | Should -Be 1
+        # 5 nodes total, 1 deprecated → 4 non-deprecated evaluated
+        $script:Result.NonDeprecated | Should -Be 4
+    }
+
+    It 'Reports total failures = non-decomposed + empty' {
+        $script:Result.Fail | Should -Be 3
     }
 }
 

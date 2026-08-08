@@ -379,67 +379,24 @@ function Test-OntologyCompliance {
     # Every non-deprecated situation must carry a proper interpretations block where
     # {accelerationist, safetyist, skeptic} each have non-empty belief + desire +
     # intention. Deprecation is signalled by a description that starts with '[DEPRECATED]'.
-    $SitPass = 0
-    $SitEmpty = 0
-    $SitNonDecomposed = 0
-    $SitNonDep = 0
-    $SitDeprecated = 0
-    $SitNonDecomposedIds = [System.Collections.Generic.List[string]]::new()
-    $SitEmptyIds        = [System.Collections.Generic.List[string]]::new()
-    foreach ($Entry in $AllNodes.Values) {
-        if ($Entry.POV -ne 'situations') { continue }
-        $N = $Entry.Node
-
-        # Exemption: [DEPRECATED] description prefix (CL confirmed t/1312#2)
-        $Desc = if ($N.PSObject.Properties['description']) { [string]$N.description } else { '' }
-        if ($Desc.TrimStart().StartsWith('[DEPRECATED]')) {
-            $SitDeprecated++
-            continue
-        }
-        $SitNonDep++
-
-        $Interps = if ($N.PSObject.Properties['interpretations']) { $N.interpretations } else { $null }
-
-        # 'empty': block missing/null, or all three POV entries are falsy/blank
-        $HasAnyPov = $false
-        if ($Interps) {
-            foreach ($Pov in 'accelerationist','safetyist','skeptic') {
-                if ($Interps.PSObject.Properties[$Pov]) {
-                    $Val = $Interps.$Pov
-                    if ($Val) { $HasAnyPov = $true; break }
-                }
-            }
-        }
-        if (-not $HasAnyPov) {
-            $SitEmpty++
-            if ($SitEmptyIds.Count -lt 10) { $SitEmptyIds.Add([string]$N.id) }
-            continue
-        }
-
-        # Full-BDI: each POV entry must be a dict with non-empty belief/desire/intention
-        $AllOk = $true
-        foreach ($Pov in 'accelerationist','safetyist','skeptic') {
-            if (-not $Interps.PSObject.Properties[$Pov]) { $AllOk = $false; break }
-            $P = $Interps.$Pov
-            # Reject strings (legacy flat text) — must be a nested object
-            if ($P -is [string]) { $AllOk = $false; break }
-            if (-not $P -or -not $P.PSObject.Properties['belief'] -or -not $P.PSObject.Properties['desire'] -or -not $P.PSObject.Properties['intention']) {
-                $AllOk = $false; break
-            }
-            $B = if ($P.belief)    { [string]$P.belief    } else { '' }
-            $D = if ($P.desire)    { [string]$P.desire    } else { '' }
-            $I = if ($P.intention) { [string]$P.intention } else { '' }
-            if (-not $B.Trim() -or -not $D.Trim() -or -not $I.Trim()) { $AllOk = $false; break }
-        }
-        if ($AllOk) {
-            $SitPass++
-        } else {
-            $SitNonDecomposed++
-            if ($SitNonDecomposedIds.Count -lt 10) { $SitNonDecomposedIds.Add([string]$N.id) }
-        }
+    # Classification logic extracted to the Private helper Test-SituationBdiDecomposition
+    # (t/2332) so it can be unit-tested against synthetic fixtures independent of the live
+    # corpus — the live-data NNN/NNN baseline now lives in the data-triggered compliance
+    # job (tests/data-compliance/), not this required gate. CL-approved Detail wording
+    # (t/1312#2) stays here, below.
+    $SitNodes = foreach ($Entry in $AllNodes.Values) {
+        if ($Entry.POV -eq 'situations') { $Entry.Node }
     }
+    $SitResult = Test-SituationBdiDecomposition -Node @($SitNodes)
+    $SitPass             = $SitResult.Pass
+    $SitNonDep           = $SitResult.NonDeprecated
+    $SitDeprecated       = $SitResult.Deprecated
+    $SitNonDecomposed    = $SitResult.NonDecomposed
+    $SitEmpty            = $SitResult.Empty
+    $SitNonDecomposedIds = @($SitResult.NonDecomposedIds)
+    $SitEmptyIds         = @($SitResult.EmptyIds)
 
-    $SitFail = $SitNonDecomposed + $SitEmpty
+    $SitFail = $SitResult.Fail
     if ($SitFail -eq 0) {
         Add-Check -Category 'BDI' `
             -Check   'Situation interpretations: per-POV BDI decomposition' `
