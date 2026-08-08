@@ -96,6 +96,54 @@ const GA_BADGE_COLORS: Record<string, string> = {
 
 function fmtVal(v: string) { return v.replace(/_/g, ' '); }
 
+function NodeChipMeta({ kp, isWarning, warningTooltip, onOverride, taxonomy }: {
+  kp: KeyPoint;
+  isWarning: boolean;
+  warningTooltip: string;
+  onOverride: (nodeId: string) => void;
+  taxonomy: Record<string, TaxonomyNode>;
+}) {
+  const [candidatesOpen, setCandidatesOpen] = useState(false);
+  const hasCandidates = (kp.taxonomy_node_candidates?.length ?? 0) > 0;
+
+  return (
+    <>
+      {kp.retrieval_confidence !== undefined && (
+        <span
+          className="kp-confidence-badge"
+          title={isWarning ? warningTooltip : undefined}
+        >
+          {Math.round(kp.retrieval_confidence * 100)}%
+        </span>
+      )}
+      {hasCandidates && (
+        <button
+          className="kp-candidates-toggle"
+          onClick={(e) => { e.stopPropagation(); setCandidatesOpen(v => !v); }}
+          title={candidatesOpen ? 'Hide alternatives' : 'Show alternative nodes'}
+        >
+          {candidatesOpen ? '▴' : '▾'} alts
+        </button>
+      )}
+      {candidatesOpen && (
+        <div className="kp-candidates-list">
+          {(kp.taxonomy_node_candidates ?? []).slice(0, 3).map(c => (
+            <button
+              key={c.id}
+              className="kp-candidate-btn"
+              onClick={(e) => { e.stopPropagation(); onOverride(c.id); setCandidatesOpen(false); }}
+            >
+              <span className="kp-candidate-score">{Math.round(c.score * 100)}%</span>
+              <span className="kp-candidate-id">{c.id}</span>
+              <span className="kp-candidate-label">{taxonomy[c.id]?.label ?? c.label}</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </>
+  );
+}
+
 function GaBadge({ value }: { value: string }) {
   const c = GA_BADGE_COLORS[value] || '#475569';
   return <span className="ga-sv-badge" style={{ borderColor: c, color: c }}>{fmtVal(value)}</span>;
@@ -624,6 +672,11 @@ export default function KeyPointsPane() {
   const [unmappedCollapsedPovs, setUnmappedCollapsedPovs] = useState<Set<string>>(new Set());
   const [visibleDescs, setVisibleDescs] = useState<Set<string>>(new Set());
   const [visibleAttrs, setVisibleAttrs] = useState<Set<string>>(new Set());
+  const [overrides, setOverrides] = useState<Map<string, string>>(() => new Map());
+
+  const handleOverride = useCallback((key: string, nodeId: string) => {
+    setOverrides(prev => new Map(prev).set(key, nodeId));
+  }, []);
 
   const toggleDesc = (key: string) => {
     setVisibleDescs(prev => {
@@ -909,9 +962,13 @@ export default function KeyPointsPane() {
                       selectedKeyPoint?.pov === pov &&
                       selectedKeyPoint?.index === gp.index;
 
-                    const taxNode = gp.keyPoint.taxonomy_node_id
-                      ? taxonomy[gp.keyPoint.taxonomy_node_id]
-                      : null;
+                    const overrideKey = `${gp.docId}-${pov}-${gp.index}`;
+                    const effectiveNodeId = overrides.get(overrideKey) ?? gp.keyPoint.taxonomy_node_id;
+                    const taxNode = effectiveNodeId ? taxonomy[effectiveNodeId] : null;
+                    const hasCandidates = (gp.keyPoint.taxonomy_node_candidates?.length ?? 0) > 0;
+                    const isWarning = gp.keyPoint.retrieval_low_confidence === true ||
+                      (!effectiveNodeId && hasCandidates);
+                    const warningTooltip = gp.keyPoint.veto_reason ?? 'Low retrieval confidence \u2014 verify this mapping';
 
                     return (
                       <div
@@ -920,35 +977,49 @@ export default function KeyPointsPane() {
                         onClick={() => selectKeyPoint(gp.docId, pov, gp.index)}
                         onContextMenu={(e) => handleCardContextMenu(e, gp.keyPoint.taxonomy_node_id)}
                       >
-                        {taxNode && (() => {
+                        {(effectiveNodeId || hasCandidates) && (() => {
                           const attrKey = `pov-${gp.docId}-${pov}-${gp.index}`;
                           const showAttrs = visibleAttrs.has(attrKey);
                           return (
-                            <div className="kp-taxonomy">
-                              <span className="kp-taxonomy-id">{taxNode.id}</span>
-                              <span className="kp-taxonomy-label">{taxNode.label}</span>
-                              {taxNode.graph_attributes && (
-                                <button
-                                  className="kp-desc-toggle"
-                                  onClick={(e) => { e.stopPropagation(); toggleAttrs(attrKey); }}
-                                  title={showAttrs ? 'Hide graph attributes' : 'Show graph attributes'}
-                                >
-                                  {showAttrs ? '\u25B4' : '\u25BE'} attrs
-                                </button>
+                            <div className={`kp-taxonomy${isWarning ? ' kp-chip-warning' : ''}`}>
+                              {!effectiveNodeId && hasCandidates && (
+                                <span className="kp-unassigned-chip" title={warningTooltip}>Unassigned</span>
                               )}
-                              <div className="kp-taxonomy-desc">{taxNode.description}</div>
-                              {showAttrs && taxNode.graph_attributes && (
+                              {taxNode && (
+                                <>
+                                  <span className="kp-taxonomy-id">{taxNode.id}</span>
+                                  <span className="kp-taxonomy-label">{taxNode.label}</span>
+                                  {taxNode.graph_attributes && (
+                                    <button
+                                      className="kp-desc-toggle"
+                                      onClick={(e) => { e.stopPropagation(); toggleAttrs(attrKey); }}
+                                      title={showAttrs ? 'Hide graph attributes' : 'Show graph attributes'}
+                                    >
+                                      {showAttrs ? '\u25B4' : '\u25BE'} attrs
+                                    </button>
+                                  )}
+                                </>
+                              )}
+                              {!taxNode && effectiveNodeId && (
+                                <>
+                                  <span className="kp-taxonomy-id">{effectiveNodeId}</span>
+                                  <span className="kp-taxonomy-label kp-taxonomy-unknown">Unknown node</span>
+                                </>
+                              )}
+                              <NodeChipMeta
+                                kp={gp.keyPoint}
+                                isWarning={isWarning}
+                                warningTooltip={warningTooltip}
+                                onOverride={(nodeId) => handleOverride(overrideKey, nodeId)}
+                                taxonomy={taxonomy}
+                              />
+                              {taxNode && <div className="kp-taxonomy-desc">{taxNode.description}</div>}
+                              {showAttrs && taxNode?.graph_attributes && (
                                 <GraphAttrBlock attrs={taxNode.graph_attributes} />
                               )}
                             </div>
                           );
                         })()}
-                        {!taxNode && gp.keyPoint.taxonomy_node_id && (
-                          <div className="kp-taxonomy">
-                            <span className="kp-taxonomy-id">{gp.keyPoint.taxonomy_node_id}</span>
-                            <span className="kp-taxonomy-label kp-taxonomy-unknown">Unknown node</span>
-                          </div>
-                        )}
 
                         <div className="kp-stance-row">
                           <span className="kp-stance-label">Stance:</span>
@@ -1018,6 +1089,14 @@ export default function KeyPointsPane() {
                                 selectedKeyPoint?.pov === pt.pov &&
                                 selectedKeyPoint?.index === pt.index;
 
+                              const docOverrideKey = `${dg.docId}-${pt.pov}-${pt.index}`;
+                              const docEffectiveNodeId = overrides.get(docOverrideKey) ?? pt.keyPoint.taxonomy_node_id;
+                              const docTaxNode = docEffectiveNodeId ? taxonomy[docEffectiveNodeId] : null;
+                              const docHasCandidates = (pt.keyPoint.taxonomy_node_candidates?.length ?? 0) > 0;
+                              const docIsWarning = pt.keyPoint.retrieval_low_confidence === true ||
+                                (!docEffectiveNodeId && docHasCandidates);
+                              const docWarningTooltip = pt.keyPoint.veto_reason ?? 'Low retrieval confidence \u2014 verify this mapping';
+
                               return (
                                 <div
                                   key={`${dg.docId}-${pt.pov}-${pt.index}`}
@@ -1035,57 +1114,71 @@ export default function KeyPointsPane() {
                                     <span className={`kp-stance-value kp-stance--${pt.stance}`}>
                                       {STANCE_LABELS[pt.stance] || pt.stance}
                                     </span>
-                                    {pt.taxNode && (
-                                      <span className="kp-node-label" title={pt.taxNode.id}>
-                                        {pt.taxNode.label}
+                                    {docTaxNode && (
+                                      <span className="kp-node-label" title={docTaxNode.id}>
+                                        {docTaxNode.label}
                                       </span>
                                     )}
                                   </div>
 
                                   <div className="key-point-text">{pt.keyPoint.point}</div>
 
-                                  {pt.taxNode && (() => {
+                                  {(docEffectiveNodeId || docHasCandidates) && (() => {
                                     const descKey = `${dg.docId}-${pt.pov}-${pt.index}`;
                                     const attrKey = `doc-${dg.docId}-${pt.pov}-${pt.index}`;
                                     const showDesc = visibleDescs.has(descKey);
                                     const showAttrs = visibleAttrs.has(attrKey);
                                     return (
-                                      <div className="kp-taxonomy">
-                                        <span className="kp-taxonomy-id">{pt.taxNode.id}</span>
-                                        <span className="kp-taxonomy-label">{pt.taxNode.label}</span>
-                                        {pt.taxNode.description && (
-                                          <button
-                                            className="kp-desc-toggle"
-                                            onClick={(e) => { e.stopPropagation(); toggleDesc(descKey); }}
-                                            title={showDesc ? 'Hide description' : 'Show description'}
-                                          >
-                                            {showDesc ? '\u25B4' : '\u25BE'} desc
-                                          </button>
+                                      <div className={`kp-taxonomy${docIsWarning ? ' kp-chip-warning' : ''}`}>
+                                        {!docEffectiveNodeId && docHasCandidates && (
+                                          <span className="kp-unassigned-chip" title={docWarningTooltip}>Unassigned</span>
                                         )}
-                                        {pt.taxNode.graph_attributes && (
-                                          <button
-                                            className="kp-desc-toggle"
-                                            onClick={(e) => { e.stopPropagation(); toggleAttrs(attrKey); }}
-                                            title={showAttrs ? 'Hide graph attributes' : 'Show graph attributes'}
-                                          >
-                                            {showAttrs ? '\u25B4' : '\u25BE'} attrs
-                                          </button>
+                                        {docTaxNode && (
+                                          <>
+                                            <span className="kp-taxonomy-id">{docTaxNode.id}</span>
+                                            <span className="kp-taxonomy-label">{docTaxNode.label}</span>
+                                            {docTaxNode.description && (
+                                              <button
+                                                className="kp-desc-toggle"
+                                                onClick={(e) => { e.stopPropagation(); toggleDesc(descKey); }}
+                                                title={showDesc ? 'Hide description' : 'Show description'}
+                                              >
+                                                {showDesc ? '\u25B4' : '\u25BE'} desc
+                                              </button>
+                                            )}
+                                            {docTaxNode.graph_attributes && (
+                                              <button
+                                                className="kp-desc-toggle"
+                                                onClick={(e) => { e.stopPropagation(); toggleAttrs(attrKey); }}
+                                                title={showAttrs ? 'Hide graph attributes' : 'Show graph attributes'}
+                                              >
+                                                {showAttrs ? '\u25B4' : '\u25BE'} attrs
+                                              </button>
+                                            )}
+                                          </>
                                         )}
-                                        {showDesc && pt.taxNode.description && (
-                                          <div className="kp-taxonomy-desc">{pt.taxNode.description}</div>
+                                        {!docTaxNode && docEffectiveNodeId && (
+                                          <>
+                                            <span className="kp-taxonomy-id">{docEffectiveNodeId}</span>
+                                            <span className="kp-taxonomy-label kp-taxonomy-unknown">Unknown node</span>
+                                          </>
                                         )}
-                                        {showAttrs && pt.taxNode.graph_attributes && (
-                                          <GraphAttrBlock attrs={pt.taxNode.graph_attributes} />
+                                        <NodeChipMeta
+                                          kp={pt.keyPoint}
+                                          isWarning={docIsWarning}
+                                          warningTooltip={docWarningTooltip}
+                                          onOverride={(nodeId) => handleOverride(docOverrideKey, nodeId)}
+                                          taxonomy={taxonomy}
+                                        />
+                                        {docTaxNode && showDesc && docTaxNode.description && (
+                                          <div className="kp-taxonomy-desc">{docTaxNode.description}</div>
+                                        )}
+                                        {showAttrs && docTaxNode?.graph_attributes && (
+                                          <GraphAttrBlock attrs={docTaxNode.graph_attributes} />
                                         )}
                                       </div>
                                     );
                                   })()}
-                                  {!pt.taxNode && pt.keyPoint.taxonomy_node_id && (
-                                    <div className="kp-taxonomy">
-                                      <span className="kp-taxonomy-id">{pt.keyPoint.taxonomy_node_id}</span>
-                                      <span className="kp-taxonomy-label kp-taxonomy-unknown">Unknown node</span>
-                                    </div>
-                                  )}
 
                                   <div className="key-point-meta">
                                     <span
