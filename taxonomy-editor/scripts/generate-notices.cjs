@@ -44,12 +44,18 @@ function readLicenseText(pkgDir, spdx) {
       .sort((a, b) => a.length - b.length || a.localeCompare(b));
     for (const f of exact) {
       const full = path.join(pkgDir, f);
+      // Single fd (open → fstat → read → close) so the is-file check and the
+      // read act on the same handle — no TOCTOU race (js/file-system-race).
+      let fd;
       try {
-        if (fs.statSync(full).isFile()) {
-          const txt = fs.readFileSync(full, 'utf-8').replace(/\r\n/g, '\n').trim();
+        fd = fs.openSync(full, 'r');
+        if (fs.fstatSync(fd).isFile()) {
+          const txt = fs.readFileSync(fd, 'utf-8').replace(/\r\n/g, '\n').trim();
           if (txt) return txt;
         }
-      } catch { /* unreadable — try next */ }
+      } catch { /* unreadable — try next */ } finally {
+        if (fd !== undefined) { try { fs.closeSync(fd); } catch { /* already closed */ } }
+      }
     }
   } catch { /* dir gone — fall through */ }
   // No license file shipped: fall back to the SPDX identifier so the package is
