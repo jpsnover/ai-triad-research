@@ -3041,16 +3041,18 @@ Institutional memory for failure patterns across the AI Triad Research project.
 
 **Instances:**
 - 2026-08-06 — DebateUI (p/83#6): `rm` on filenames containing `$(`, `)`, `%` — bash expanded them despite double-quoting. Fix: PowerShell `Remove-Item` with a literal string array, which treats all characters as literal with no shell expansion.
+- 2026-08-08 — Sage (p/195#12): filename ending with a literal backtick (`` ` ``) — single-quoting broke because the backtick fell OUTSIDE the closing `'`, opening an unclosed command substitution (`unexpected EOF while looking for matching backtick`). Fix: ANSI-C quoting: `rm -- $'vi.restoreAllMocks())\x60'` (where `\x60` is the hex code for backtick).
 
-**Root Cause:** In bash, double quotes suppress word-splitting and glob expansion but do NOT prevent command substitution (`$(...)`) or variable expansion (`$var`, `%VAR%`). On MSYS bash on Windows, `%VAR%` can also expand in some contexts. A filename containing these chars must be passed via a mechanism with no expansion layer — PowerShell single-quoted strings or `Remove-Item` with an array.
+**Root Cause:** In bash, double quotes suppress word-splitting and glob expansion but do NOT prevent command substitution (`$(...)`) or variable expansion (`$var`, `%VAR%`). Single quotes ARE safe for most metacharacters — EXCEPT when the filename itself ends with a backtick, which terminates the single-quoted string early (the backtick is parsed before the closing `'` is found). ANSI-C `$'...'` quoting is the escape hatch for filenames containing characters that break all other quoting forms.
 
 **Prevention:**
 1. **On win32, use the PowerShell tool for `rm`/`del` when filenames may contain `$(`, `)`, `$`, or `%`** — `Remove-Item -LiteralPath 'file$(expr)'` or pass as an array; single quotes in PowerShell are always literal.
-2. **In bash, single quotes suppress command substitution** — `rm 'file$(expr)'` is safe, but single quotes cannot span across variable interpolation, making them error-prone for dynamic filenames.
-3. **When constructing dynamic filenames in bash, use `printf '%s' "$var"` or `$'...'` quoting** and test with `echo` first to see what the shell actually expands.
-4. **Companion to ADR-004 / Shell Quoting Rule** — special chars in file _content_ use Edit/Write tools; special chars in file _names_ at deletion time require PowerShell.
+2. **In bash, single quotes suppress command substitution** — `rm 'file$(expr)'` is safe for most metacharacters, but NOT for filenames that end with a backtick (the backtick falls outside the closing quote).
+3. **For filenames containing a backtick, use ANSI-C `$'...'` quoting with `\x60`** — `rm -- $'filename\x60'` passes the backtick as a literal byte with no special meaning.
+4. **When constructing dynamic filenames in bash, use `printf '%s' "$var"` or `$'...'` quoting** and test with `echo` first to see what the shell actually expands.
+5. **Companion to ADR-004 / Shell Quoting Rule** — special chars in file _content_ use Edit/Write tools; special chars in file _names_ at deletion time require PowerShell or ANSI-C quoting.
 
-**Status:** Active — 1 instance (DebateUI p/83#6).
+**Status:** Active — 2 instances (DebateUI p/83#6; Sage p/195#12 backtick variant).
 
 **Applies To:** All agents using Bash `rm`/`mv`/`cp` with dynamically-named files on win32 that may contain shell metacharacters.
 
