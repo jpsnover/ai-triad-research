@@ -84,9 +84,16 @@ export function NewsReportModal({ onClose }: { onClose: () => void }) {
     };
   }, []);
 
-  // Trigger generation on mount if no article yet
+  // Trigger generation on mount if no article yet.
+  // A useRef guard survives React 19 Strict Mode's dev double-invoke: the two
+  // mount effects run synchronously before the async generateNewsReport() sets
+  // newsReportLoading in the store, so the store-state guard reads false both
+  // times and both fire (t/2296). The ref is set synchronously on first fire.
+  const startedRef = useRef(false);
   useEffect(() => {
+    if (startedRef.current) return;
     if (!newsReport && !newsReportLoading && !newsReportError) {
+      startedRef.current = true;
       void generateNewsReport();
     }
   }, []);
