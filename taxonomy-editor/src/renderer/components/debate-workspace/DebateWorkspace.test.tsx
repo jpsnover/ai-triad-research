@@ -2,7 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, within } from '@testing-library/react';
 import { DebateWorkspace } from './DebateWorkspace';
 
 // ── Store mocks ───────────────────────────────────────────────
@@ -584,9 +584,11 @@ describe('transcript rendering', () => {
     mockStore.activeDebate = makeDebate();
     mockStore.debateGenerating = 'accelerationist';
     render(<DebateWorkspace />);
+    // Scope to the generating indicator: the header's DEBATERS strip (t/2293) also
+    // renders POV names, so an unscoped getByText('Accelerationist') is ambiguous.
     // speakerLabel mock: 'accelerationist' → 'Accelerationist'
-    expect(screen.getByText('Accelerationist')).toBeInTheDocument();
-    expect(screen.getByText('thinking...')).toBeInTheDocument();
+    const indicator = screen.getByText('thinking...').closest('.debate-generating') as HTMLElement;
+    expect(within(indicator).getByText('Accelerationist')).toBeInTheDocument();
   });
 
   it('does not show generating indicator when debateGenerating is null', () => {
