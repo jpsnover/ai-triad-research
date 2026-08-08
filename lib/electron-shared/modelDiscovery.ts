@@ -184,8 +184,46 @@ export async function discoverGroqModels(apiKey: string): Promise<ModelEntry[]> 
     });
 }
 
-// ── Anthropic: probe candidate model IDs ───────────────────────────────────────
+// ── Anthropic: live /v1/models catalog + candidate-probe fallback ──────────────
 
+interface AnthropicModelInfo {
+  id: string;
+  display_name: string;
+  type: string;
+}
+
+const CLAUDE_EXCLUDE_RE = /image|embed|tts|audio/i;
+
+function claudeFriendlyId(apiModelId: string): string {
+  return apiModelId
+    .replace(/-\d{8}$/, '')
+    .replace(/^claude-3-5-/, 'claude-3.5-');
+}
+
+export function curateClaudeModels(rawModels: AnthropicModelInfo[]): ModelEntry[] {
+  const entries = rawModels
+    .filter(m => m.id.startsWith('claude-'))
+    .filter(m => !CLAUDE_EXCLUDE_RE.test(m.id))
+    .map(m => ({
+      id: claudeFriendlyId(m.id),
+      apiModelId: m.id,
+      label: m.display_name || m.id,
+      backend: 'claude',
+    }));
+
+  // Dedup: two IDs that share a friendlyId (e.g. alias + dated version) → keep
+  // the longer apiModelId (dated/specific wins over the alias).
+  const seen = new Map<string, ModelEntry>();
+  for (const m of entries) {
+    const existing = seen.get(m.id);
+    if (!existing || m.apiModelId.length > existing.apiModelId.length) {
+      seen.set(m.id, m);
+    }
+  }
+  return [...seen.values()];
+}
+
+// Probe list: fallback when the live catalog is unreachable.
 const CLAUDE_CANDIDATES: { apiModelId: string; label: string }[] = [
   { apiModelId: 'claude-opus-5',                  label: 'Opus 5 (alias)' },
   { apiModelId: 'claude-sonnet-5',                label: 'Sonnet 5 (alias)' },
@@ -206,8 +244,8 @@ const CLAUDE_CANDIDATES: { apiModelId: string; label: string }[] = [
   { apiModelId: 'claude-opus-4-6',                label: 'Opus 4.6 (alias)' },
 ];
 
-export async function discoverClaudeModels(apiKey: string): Promise<ModelEntry[]> {
-  console.log(`[ModelDiscovery] Probing ${CLAUDE_CANDIDATES.length} Claude model candidates...`);
+async function probeClaudeCandidates(apiKey: string): Promise<ModelEntry[]> {
+  console.log(`[ModelDiscovery] Claude catalog unavailable — probing ${CLAUDE_CANDIDATES.length} candidates...`);
   const results: ModelEntry[] = [];
 
   const probeModel = async (candidate: typeof CLAUDE_CANDIDATES[0]): Promise<boolean> => {
@@ -247,10 +285,7 @@ export async function discoverClaudeModels(apiKey: string): Promise<ModelEntry[]
     const probes = await Promise.all(batch.map(c => probeModel(c).then(valid => ({ ...c, valid }))));
     for (const p of probes) {
       if (p.valid) {
-        const friendlyId = p.apiModelId
-          .replace(/-\d{8}$/, '')
-          .replace(/^claude-3-5-/, 'claude-3.5-');
-        results.push({ id: friendlyId, apiModelId: p.apiModelId, label: p.label, backend: 'claude' });
+        results.push({ id: claudeFriendlyId(p.apiModelId), apiModelId: p.apiModelId, label: p.label, backend: 'claude' });
       }
     }
   }
@@ -263,6 +298,40 @@ export async function discoverClaudeModels(apiKey: string): Promise<ModelEntry[]
     }
   }
   return [...seen.values()];
+}
+
+export async function discoverClaudeModels(apiKey: string): Promise<ModelEntry[]> {
+  try {
+    const resp = await fetch('https://api.anthropic.com/v1/models', {
+      headers: {
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+      },
+    });
+    if (resp.ok) {
+      const json = await resp.json() as { data: AnthropicModelInfo[] };
+      const models = curateClaudeModels(json.data ?? []);
+      if (models.length > 0) {
+        console.log(`[ModelDiscovery] Claude: ${models.length} models via /v1/models catalog`);
+        return models;
+      }
+      console.warn('[ModelDiscovery] Claude /v1/models returned empty list; falling back to probe');
+    } else {
+      const body = await resp.text();
+      console.warn(`[ModelDiscovery] Claude /v1/models HTTP ${resp.status}: ${body.slice(0, 100)}; falling back to probe`);
+    }
+  } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error',
+      component: 'model-discovery',
+      level: 'error',
+      message: 'Claude /v1/models catalog fetch failed',
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+    });
+    console.warn('[ModelDiscovery] Claude /v1/models failed; falling back to probe:', err);
+  }
+
+  return probeClaudeCandidates(apiKey);
 }
 
 export function getKnownClaudeModels(): ModelEntry[] {

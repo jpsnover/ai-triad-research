@@ -9,7 +9,7 @@ vi.mock('fs', () => ({
   },
 }));
 
-import { curateGeminiModels, refreshAIModels } from './modelDiscovery.js';
+import { curateGeminiModels, curateClaudeModels, discoverClaudeModels, refreshAIModels } from './modelDiscovery.js';
 
 function model(name: string, displayName: string, methods = ['generateContent']) {
   return { name: `models/${name}`, displayName, supportedGenerationMethods: methods };
@@ -299,5 +299,123 @@ describe('refreshAIModels — repair + guard (t/2039)', () => {
     expect(result.configWarning).toContain('gpt-x');
     expect(result.configWarning).toContain('has no fallbackChain');
     expect(fileContent).toBe(original); // byte-for-byte untouched
+  });
+});
+
+// ── curateClaudeModels ─────────────────────────────────────────────────────────
+
+function claudeModel(id: string, display_name = '') {
+  return { id, display_name: display_name || id, type: 'model' };
+}
+
+describe('curateClaudeModels', () => {
+  it('filters to claude-* models only', () => {
+    const result = curateClaudeModels([
+      claudeModel('claude-sonnet-4-6', 'Claude Sonnet 4.6'),
+      claudeModel('gpt-4o', 'GPT-4o'),
+      claudeModel('gemini-2.5-flash', 'Gemini 2.5 Flash'),
+    ]);
+    expect(result).toHaveLength(1);
+    expect(result[0].apiModelId).toBe('claude-sonnet-4-6');
+  });
+
+  it('strips 8-digit date suffix from friendlyId', () => {
+    const result = curateClaudeModels([
+      claudeModel('claude-sonnet-4-6-20250514', 'Claude Sonnet 4.6'),
+    ]);
+    expect(result[0].id).toBe('claude-sonnet-4-6');
+    expect(result[0].apiModelId).toBe('claude-sonnet-4-6-20250514');
+  });
+
+  it('applies claude-3-5 → claude-3.5 prefix transform', () => {
+    const result = curateClaudeModels([
+      claudeModel('claude-3-5-sonnet-20241022', 'Claude 3.5 Sonnet'),
+    ]);
+    expect(result[0].id).toBe('claude-3.5-sonnet');
+  });
+
+  it('deduplicates alias + dated variant, keeping longer apiModelId', () => {
+    const result = curateClaudeModels([
+      claudeModel('claude-sonnet-4-6', 'Sonnet 4.6 alias'),
+      claudeModel('claude-sonnet-4-6-20250514', 'Sonnet 4.6'),
+    ]);
+    expect(result).toHaveLength(1);
+    expect(result[0].apiModelId).toBe('claude-sonnet-4-6-20250514');
+    expect(result[0].id).toBe('claude-sonnet-4-6');
+  });
+
+  it('excludes image/embed/tts/audio variants', () => {
+    const result = curateClaudeModels([
+      claudeModel('claude-image-gen-1'),
+      claudeModel('claude-embed-v1'),
+      claudeModel('claude-tts-1'),
+      claudeModel('claude-audio-v1'),
+      claudeModel('claude-sonnet-4-6', 'Claude Sonnet 4.6'),
+    ]);
+    expect(result).toHaveLength(1);
+    expect(result[0].apiModelId).toBe('claude-sonnet-4-6');
+  });
+
+  it('sets backend to claude on all entries', () => {
+    const result = curateClaudeModels([
+      claudeModel('claude-sonnet-4-6', 'Claude Sonnet 4.6'),
+      claudeModel('claude-haiku-4-5-20251001', 'Claude Haiku 4.5'),
+    ]);
+    for (const m of result) {
+      expect(m.backend).toBe('claude');
+    }
+  });
+
+  it('uses display_name as label', () => {
+    const result = curateClaudeModels([claudeModel('claude-opus-4-8', 'Claude Opus 4.8')]);
+    expect(result[0].label).toBe('Claude Opus 4.8');
+  });
+
+  it('returns empty array when no models match', () => {
+    expect(curateClaudeModels([claudeModel('gpt-4'), claudeModel('gemini-2.5')])).toEqual([]);
+  });
+});
+
+// ── discoverClaudeModels: catalog path ────────────────────────────────────────
+
+describe('discoverClaudeModels — live catalog', () => {
+  afterEach(() => { vi.unstubAllGlobals(); });
+
+  it('returns curated models from /v1/models on success', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => ({
+      ok: true,
+      json: async () => ({
+        data: [
+          { id: 'claude-sonnet-4-6-20250514', display_name: 'Claude Sonnet 4.6', type: 'model' },
+          { id: 'claude-haiku-4-5-20251001',  display_name: 'Claude Haiku 4.5',  type: 'model' },
+        ],
+      }),
+    })));
+
+    const result = await discoverClaudeModels('test-key');
+    expect(result).toHaveLength(2);
+    expect(result.map(m => m.id).sort()).toEqual(['claude-haiku-4-5', 'claude-sonnet-4-6']);
+    expect(result.every(m => m.backend === 'claude')).toBe(true);
+  });
+
+  it('falls back to probe list on non-ok catalog response', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => {
+      if ((url as string).includes('/v1/models')) {
+        return { ok: false, status: 403, text: async () => 'forbidden' };
+      }
+      // probe calls also fail (no real network)
+      throw new Error('no network');
+    }));
+
+    const result = await discoverClaudeModels('test-key');
+    // Probe falls through with no valid models — result is empty (not an error).
+    expect(Array.isArray(result)).toBe(true);
+  });
+
+  it('falls back to probe list on catalog network error', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => { throw new Error('network error'); }));
+
+    const result = await discoverClaudeModels('test-key');
+    expect(Array.isArray(result)).toBe(true);
   });
 });
