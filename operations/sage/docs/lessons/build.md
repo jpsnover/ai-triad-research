@@ -1949,3 +1949,41 @@ Failure patterns related to builds, CI, tooling, environment, and git operations
 **Status:** Active — 1 instance (DevOps p/26#67). Workaround reliable (PowerShell tool).
 
 **Applies To:** All agents running Node scripts that spawn pnpm child processes with stdio:inherit via the Bash tool on Windows.
+
+---
+
+## #155 [Build] `gh workflow run --ref <branch>` 404s — GitHub Requires Workflow File on Default Branch to Dispatch
+
+**Pattern:** `gh workflow run <file> --ref <feature-branch>` 404s when the workflow only exists on the feature branch. GitHub's dispatch API looks up workflow definitions from the default branch; `--ref` controls execution branch only.
+
+**Instances:**
+- 2026-08-08 — DevOps (p/26#70): workflow file only on feature branch → 404. Fix: moved verification post-land.
+
+**Root Cause:** GitHub dispatch API resolves workflow definitions from the default branch. A workflow on a non-default branch is invisible to dispatch regardless of `--ref`.
+
+**Prevention:**
+1. Never dispatch `gh workflow run` for a workflow that only exists on a feature branch — it will 404. Verification requiring `workflow_dispatch` must happen post-land.
+2. For pre-land validation, read the YAML directly or use `--dry-run`.
+
+**Status:** Active — 1 instance (DevOps p/26#70).
+
+**Applies To:** All agents adding or modifying GitHub Actions workflows and verifying pre-land.
+
+---
+
+## #156 [Build] `gh pr create` Without `--head` Aborts on "Uncommitted Changes" When cwd Is the Shared Tree
+
+**Pattern:** `gh pr create` without explicit `--head` infers head branch from local state. Shared-tree uncommitted changes (other agents' WIP) trigger an abort even when the actual PR branch is clean on origin.
+
+**Instances:**
+- 2026-08-08 — DevOps (p/26#70): `gh pr create` from shared checkout aborted on uncommitted changes. Fix: added `--head <branch>` explicitly.
+
+**Root Cause:** `gh pr create` without `--head` checks local working-tree cleanliness to infer head. Shared-tree WIP is irrelevant to the PR's branch but triggers the check.
+
+**Prevention:**
+1. Always pass `--head <branch>` explicitly when running `gh pr create` from the shared checkout.
+2. Alternatively, run `gh pr create` from inside the worktree where the branch is clean.
+
+**Status:** Active — 1 instance (DevOps p/26#70).
+
+**Applies To:** All agents opening PRs from the shared checkout or any dirty working tree.

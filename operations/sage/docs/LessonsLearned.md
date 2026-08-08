@@ -3181,3 +3181,41 @@ Institutional memory for failure patterns across the AI Triad Research project.
 **Status:** Active — 1 instance (DevOps p/26#67). Root cause unconfirmed (suspected Node 24 + MSYS + stdio:inherit); workaround is reliable (PowerShell tool).
 
 **Applies To:** All agents running Node scripts that spawn pnpm child processes with stdio:inherit via the Bash tool on Windows.
+
+---
+
+## #155 [Build] `gh workflow run --ref <branch>` 404s — GitHub Requires Workflow File on Default Branch to Dispatch
+
+**Pattern:** `gh workflow run <file> --ref <feature-branch>` returns a 404 when the workflow file only exists on the feature branch. GitHub's workflow dispatch API looks up the workflow definition from the repository's default branch (main) — a workflow file that only exists on a non-default branch is invisible to the API regardless of `--ref`.
+
+**Instances:**
+- 2026-08-08 — DevOps (p/26#70): `gh workflow run <file> --ref <feature-branch>` 404'd — the workflow file only existed on the feature branch. Fix: moved verification to post-land (after the PR merged to main).
+
+**Root Cause:** GitHub's workflow dispatch endpoint requires the workflow to be registered on the default branch. `--ref` controls which branch the triggered run executes on, but does not make the API aware of workflows that only exist on that branch.
+
+**Prevention:**
+1. **Never dispatch `gh workflow run` to verify a workflow that only exists on a feature branch** — it will 404. Verification requiring `workflow_dispatch` must happen post-land.
+2. For pre-land workflow validation, read the YAML directly or use `--dry-run`; dispatching is only possible once the file is on main.
+
+**Status:** Active — 1 instance (DevOps p/26#70).
+
+**Applies To:** All agents adding or modifying GitHub Actions workflows and verifying them pre-land.
+
+---
+
+## #156 [Build] `gh pr create` Without `--head` Aborts on "Uncommitted Changes" When cwd Is the Shared Tree
+
+**Pattern:** `gh pr create` without an explicit `--head <branch>` inspects the local working tree to determine the PR's head branch. When run from the shared checkout (which may have uncommitted changes from other agents), GitHub CLI sees the dirty tree and aborts. The PR is for a clean branch on origin — the shared-tree dirt is irrelevant, but the CLI doesn't know that.
+
+**Instances:**
+- 2026-08-08 — DevOps (p/26#70): `gh pr create` run from the shared checkout without `--head` aborted on uncommitted changes (other agents' WIP in the shared tree). Fix: added `--head <branch>` explicitly.
+
+**Root Cause:** `gh pr create` without `--head` infers the head branch from the current local state — current branch + working tree cleanliness. The shared tree's uncommitted changes (belonging to other agents) trigger the "uncommitted changes" check even though the PR's actual branch is clean on origin.
+
+**Prevention:**
+1. **Always pass `--head <branch>` explicitly with `gh pr create` when running from the shared checkout** — never let the CLI infer from local state.
+2. Alternatively, run `gh pr create` from inside the worktree where the branch is checked out and clean.
+
+**Status:** Active — 1 instance (DevOps p/26#70).
+
+**Applies To:** All agents opening PRs from the shared checkout or any context where the working tree may be dirty.
