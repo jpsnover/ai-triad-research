@@ -437,21 +437,30 @@ export function initFlightRecorder(): FlightRecorder {
 
       // Set up error boundary hook for popup — forward crash event to main window's recorder
       (globalThis as unknown as { __onErrorBoundaryCatch: (err: Error, stack?: string) => void }).__onErrorBoundaryCatch = (error, componentStack) => {
-        void (async () => {
-          const resolved = import.meta.env.DEV && componentStack
-            ? await _resolveStack(componentStack).catch(() => undefined)
-            : undefined;
-          shim.record({
-            type: 'system.error',
-            component: 'react-error-boundary',
-            level: 'fatal',
-            message: error.message,
-            error: { name: error.name, message: error.message, stack: error.stack?.slice(0, 500) },
-            data: componentStack
-              ? { component_stack: componentStack.slice(0, 1000), ...(resolved !== undefined ? { component_stack_resolved: resolved.slice(0, 1000) } : {}) }
-              : undefined,
-          });
-        })();
+        // Forward the crash SYNCHRONOUSLY first (t/2297) so it reaches the main
+        // recorder before the user can click "Dump Log" — the popup's dump pulls
+        // from the main buffer, so a late (post-await) forward could miss the dump.
+        shim.record({
+          type: 'system.error',
+          component: 'react-error-boundary',
+          level: 'fatal',
+          message: error.message,
+          error: { name: error.name, message: error.message, stack: error.stack?.slice(0, 500) },
+          data: componentStack ? { component_stack: componentStack.slice(0, 1000) } : undefined,
+        });
+        // DEV-only: resolve bundle positions to source coordinates and forward as a
+        // follow-up enrichment (lifecycle, not a second crash) once resolution completes.
+        if (import.meta.env.DEV && componentStack) {
+          void _resolveStack(componentStack).then(resolved => {
+            shim.record({
+              type: 'lifecycle',
+              component: 'react-error-boundary',
+              level: 'debug',
+              message: `Resolved component stack for: ${error.message}`,
+              data: { component_stack_resolved: resolved.slice(0, 1000) },
+            });
+          }).catch(() => { /* source-map resolution is best-effort */ });
+        }
       };
 
       // Set up manual dump trigger for popup — request main window to dump
@@ -912,6 +921,34 @@ export async function triggerManualDump(): Promise<void> {
 }
 
 /**
+ * Snapshot store state for crash diagnosis. Synchronous getState reads only, so
+ * safe to run inline in the error path; only runs on error, no perf impact on
+ * normal renders. Returns undefined if stores are unavailable or corrupted.
+ */
+function snapshotStoresForCrash(): Record<string, unknown> | undefined {
+  try {
+    const stores = getStores();
+    if (!stores) return undefined;
+    const taxState = (stores.useTaxonomyStore as { getState: () => Record<string, unknown> }).getState();
+    const debateState = (stores.useDebateStore as { getState: () => Record<string, unknown> }).getState();
+    const debate = debateState.activeDebate as Record<string, unknown> | null;
+    return {
+      active_tab: taxState.activeTab ?? null,
+      toolbar_panel: taxState.toolbarPanel ?? null,
+      selected_node_id: taxState.selectedNodeId ?? null,
+      search_mode: taxState.findMode ?? null,
+      search_query: (taxState.findQuery as string)?.slice(0, 200) || null,
+      debate_phase: debate?.phase ?? null,
+      debate_generating: !!debateState.debateGenerating,
+      dirty_files: [...((taxState.dirty as Set<string>) ?? [])],
+    };
+  } catch {
+    /* flight recorder init — silent by design (store may be corrupted) */
+    return undefined;
+  }
+}
+
+/**
  * Called from ErrorBoundary.componentDidCatch to dump on React render errors.
  */
 export function dumpOnReactError(
@@ -924,51 +961,42 @@ export function dumpOnReactError(
   // Track immediately — error boundary dumps bypass cooldown
   recordDump();
 
-  void (async () => {
-    // Snapshot store state for crash diagnosis — only runs on error, no perf impact on normal renders
-    let stateSnapshot: Record<string, unknown> | undefined;
-    try {
-      const stores = getStores();
-      if (stores) {
-        const taxState = (stores.useTaxonomyStore as { getState: () => Record<string, unknown> }).getState();
-        const debateState = (stores.useDebateStore as { getState: () => Record<string, unknown> }).getState();
-        const debate = debateState.activeDebate as Record<string, unknown> | null;
-        stateSnapshot = {
-          active_tab: taxState.activeTab ?? null,
-          toolbar_panel: taxState.toolbarPanel ?? null,
-          selected_node_id: taxState.selectedNodeId ?? null,
-          search_mode: taxState.findMode ?? null,
-          search_query: (taxState.findQuery as string)?.slice(0, 200) || null,
-          debate_phase: debate?.phase ?? null,
-          debate_generating: !!debateState.debateGenerating,
-          dirty_files: [...((taxState.dirty as Set<string>) ?? [])],
-        };
-      }
-    } catch { /* flight recorder init — silent by design (store may be corrupted) */ }
+  const stateSnapshot = snapshotStoresForCrash();
 
+  const baseData: Record<string, unknown> = {
+    ...(componentStack ? { component_stack: componentStack.slice(0, 1000) } : {}),
+    ...(stateSnapshot ? { state_snapshot: stateSnapshot } : {}),
+  };
+
+  // Record the crash SYNCHRONOUSLY, before any async work (t/2297). This guarantees
+  // the crash lands in the ring buffer the instant the boundary fires — so a dump
+  // that follows (auto or via the "Dump Log" button) can never be missing the very
+  // error that triggered it. The DEV-only source-map resolution below is best-effort
+  // enrichment for the dump's trigger context; it must not gate the buffered event.
+  recorder.record({
+    type: 'system.error',
+    component: 'react-error-boundary',
+    level: 'fatal',
+    message: error.message,
+    error: { name: error.name, message: error.message, stack: error.stack?.slice(0, 500) },
+    data: Object.keys(baseData).length > 0 ? baseData : undefined,
+  });
+
+  void (async () => {
     // DEV-only: resolve bundle positions in component_stack to source coordinates
+    // for the dump's trigger context (the buffered event above already stands alone).
     const resolvedStack = import.meta.env.DEV && componentStack
       ? await _resolveStack(componentStack).catch(() => undefined)
       : undefined;
 
-    const data: Record<string, unknown> = {
-      ...(componentStack ? { component_stack: componentStack.slice(0, 1000) } : {}),
+    const dumpContext: Record<string, unknown> = {
+      ...baseData,
       ...(resolvedStack !== undefined ? { component_stack_resolved: resolvedStack.slice(0, 1000) } : {}),
-      ...(stateSnapshot ? { state_snapshot: stateSnapshot } : {}),
     };
-
-    recorder.record({
-      type: 'system.error',
-      component: 'react-error-boundary',
-      level: 'fatal',
-      message: error.message,
-      error: { name: error.name, message: error.message, stack: error.stack?.slice(0, 500) },
-      data: Object.keys(data).length > 0 ? data : undefined,
-    });
 
     void persistDump(recorder, 'error_boundary', {
       name: error.name, message: error.message, stack: error.stack?.slice(0, 500),
-    }, Object.keys(data).length > 0 ? data : undefined);
+    }, Object.keys(dumpContext).length > 0 ? dumpContext : undefined);
 
     // Report to server for aggregation
     api.reportError(
