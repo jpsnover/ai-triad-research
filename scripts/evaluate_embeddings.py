@@ -10,8 +10,10 @@ Subcommands
 -----------
   compare-models    Encoder ablation: compare MRR across embedding models.
   rerank-baseline   Cross-encoder reranking on top-K bi-encoder candidates.
+  rerank            Live per-query cross-encoder scoring for re-ranking (stdin/stdout).
 
-Used by Compare-EmbeddingModel and Test-RerankerBaseline PowerShell cmdlets.
+Used by Compare-EmbeddingModel, Test-RerankerBaseline, and (rerank)
+Get-RelevantTaxonomyNodes -CrossEncoderRerank PowerShell cmdlets.
 """
 
 import argparse
@@ -28,6 +30,18 @@ _SKIP_FILES = {
     "lineage_categories.json", "_archived_edges.json",
     "interpretation_embeddings.json",
 }
+# Maximum stdin buffer (50 MB) — mirrors embed_taxonomy.py; prevents resource
+# exhaustion from piped input on the live `rerank` path.
+_MAX_STDIN_BYTES = 50 * 1024 * 1024
+
+
+def _sigmoid(x: float) -> float:
+    """Numerically stable logistic sigmoid, 1/(1+e^-x), overflow-safe both tails."""
+    if x >= 0:
+        z = np.exp(-x)
+        return float(1.0 / (1.0 + z))
+    z = np.exp(x)
+    return float(z / (1.0 + z))
 
 
 def _resolve_taxonomy_dir(override=None):
@@ -333,6 +347,55 @@ def cmd_rerank_baseline(args):
     json.dump(output, sys.stdout, indent=2)
 
 
+def cmd_rerank(args):
+    """Score (query, candidate) pairs with a cross-encoder for live re-ranking.
+
+    Reads a single JSON object from stdin:
+        {"query": "...",
+         "candidates": [{"id": "acc-beliefs-001", "text": "Label. Description"}, ...],
+         "reranker_model": "cross-encoder/ms-marco-MiniLM-L-6-v2"}   # optional
+
+    Writes a JSON array to stdout, sorted by score descending:
+        [{"id": "...", "score": <sigmoid(logit) 0-1>, "raw": <logit>}, ...]
+
+    `score` is sigmoid(logit): a stable, per-pair, set-independent 0-1 display
+    scale (endorsed over min-max, which is set-dependent — its top is ~1.0 even
+    when every candidate is poor, killing the low-confidence signal; t/2287#5).
+    It is a DISPLAY scale, NOT a probability; a confidence gate on this scale
+    needs its own calibration — the bi-encoder 0.45 threshold is invalid here.
+    `raw` is the underlying logit, retained for diagnostics. Only JSON goes to
+    stdout; all progress/diagnostic logging goes to stderr.
+    """
+    raw = sys.stdin.read(_MAX_STDIN_BYTES)
+    payload = json.loads(raw) if raw.strip() else {}
+    query = payload.get("query", "")
+    candidates = payload.get("candidates", []) or []
+    if not query or not candidates:
+        json.dump([], sys.stdout)
+        return
+
+    from sentence_transformers import CrossEncoder
+
+    model_name = payload.get("reranker_model") or args.reranker_model
+    print(f"Loading cross-encoder: {model_name}...", file=sys.stderr)
+    reranker = CrossEncoder(model_name, trust_remote_code=False)
+
+    pairs = [(query, c.get("text", "")) for c in candidates]
+    print(f"Scoring {len(pairs)} (query, candidate) pairs...", file=sys.stderr)
+    logits = reranker.predict(pairs)
+
+    results = []
+    for c, logit in zip(candidates, logits):
+        lf = float(logit)
+        results.append({
+            "id": c.get("id", ""),
+            "score": round(_sigmoid(lf), 6),
+            "raw": round(lf, 6),
+        })
+    results.sort(key=lambda r: r["score"], reverse=True)
+    json.dump(results, sys.stdout)
+
+
 def main():
     parser = argparse.ArgumentParser(description="Evaluate embedding quality for taxonomy attribution.")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -356,11 +419,23 @@ def main():
         help="Cross-encoder model for reranking",
     )
 
+    rr = sub.add_parser(
+        "rerank",
+        help="Live per-query cross-encoder scoring (stdin JSON {query, candidates[]} -> [{id, score, raw}])",
+    )
+    rr.add_argument(
+        "--reranker-model",
+        default="cross-encoder/ms-marco-MiniLM-L-6-v2",
+        help="Cross-encoder model (stdin 'reranker_model' overrides this)",
+    )
+
     args = parser.parse_args()
     if args.command == "compare-models":
         cmd_compare_models(args)
     elif args.command == "rerank-baseline":
         cmd_rerank_baseline(args)
+    elif args.command == "rerank":
+        cmd_rerank(args)
 
 
 if __name__ == "__main__":

@@ -94,7 +94,10 @@ function Invoke-POVSummary {
         [ArgumentCompleter({ param($cmd, $param, $word) $script:ValidModelIds | Where-Object { $_ -like "$word*" } })]
         [string]$ModelEscalation = "gemini-2.5-flash",
 
-        [int]$RagMaxTotal = 300
+        [int]$RagMaxTotal = 300,
+
+        # Cross-encoder re-ranking of RAG candidates (t/2287). Default OFF.
+        [switch]$CrossEncoderRerank
     )
 
     Set-StrictMode -Version Latest
@@ -297,7 +300,8 @@ function Invoke-POVSummary {
         -FullTaxonomy:$FullTaxonomy `
         -IterativeExtraction:$IterativeExtraction `
         -AutoFire:$AutoFire `
-        -RagMaxTotal           $RagMaxTotal
+        -RagMaxTotal           $RagMaxTotal `
+        -CrossEncoderRerank:$CrossEncoderRerank
 
     if (-not $pipelineResult.Success) {
         Write-Fail "Pipeline failed: $($pipelineResult.Error)"
