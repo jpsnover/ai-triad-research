@@ -26,6 +26,21 @@ void tryInitLocalEmbedding();
 // When the drawer is used instead, we also deliver to local callbacks.
 const localDiagCallbacks = new Set<(state: unknown) => void>();
 
+// Brief-timeout renderer-local event bus (t/2307). The debate pipeline runs in
+// THIS renderer window and the toast/dialog render in the SAME window, so emit
+// and consume share a module-local Set — no main-process IPC round-trip. Mirrors
+// web-bridge's bus so `@bridge` exposes an aligned channel in both builds. The old
+// 'brief-timeout' IPC channel was unfeedable (main never sees a renderer-side
+// timeout) and had zero senders — it is retired in favour of this local bus.
+// Types mirror the AppAPI inline shapes; NOT imported from useBriefTimeoutEvents.ts
+// (that file imports @bridge, which would create a circular dep).
+type BriefTimeoutPayload = { debateId: string; speaker: string; attempt: number; maxAttempts: number; currentModel: string };
+type BriefExhaustedPayload = { debateId: string; speaker: string; totalAttempts: number; currentModel: string };
+const briefTimeoutCbs = new Set<(e: BriefTimeoutPayload) => void>();
+const briefExhaustedCbs = new Set<(e: BriefExhaustedPayload) => void>();
+export function emitBriefTimeout(e: BriefTimeoutPayload): void { briefTimeoutCbs.forEach(cb => cb(e)); }
+export function emitBriefRetriesExhausted(e: BriefExhaustedPayload): void { briefExhaustedCbs.forEach(cb => cb(e)); }
+
 export const api: AppAPI = {
   // User preferences — delegates to IPC (get-preferences / set-preferences) once
   // ElectronMain handler lands (t/2118). Graceful-degrade until then.
@@ -370,8 +385,9 @@ export const api: AppAPI = {
   focusNodeInMainWindow: (nodeId) => window.electronAPI.focusNodeInMainWindow(nodeId),
   onTerminalData: (cb) => window.electronAPI.onTerminalData(cb),
   onTerminalExit: (cb) => window.electronAPI.onTerminalExit(cb),
-  onBriefTimeout: (cb) => window.electronAPI.onBriefTimeout(cb),
-  onBriefRetriesExhausted: (cb) => window.electronAPI.onBriefRetriesExhausted(cb),
+  // Renderer-local bus (t/2307) — see emitBriefTimeout above. Was a dead IPC channel.
+  onBriefTimeout: (cb) => { briefTimeoutCbs.add(cb); return () => briefTimeoutCbs.delete(cb); },
+  onBriefRetriesExhausted: (cb) => { briefExhaustedCbs.add(cb); return () => briefExhaustedCbs.delete(cb); },
   captureScreenshot: (opts) => window.electronAPI.captureScreenshot(opts),
 
   // Feature flags — desktop has no server. DEBATE_CHAT_REDESIGN defaults ON for

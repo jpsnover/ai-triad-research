@@ -52,20 +52,11 @@ type BriefTimeoutBridge = {
   onBriefRetriesExhausted: (cb: (e: BriefRetriesExhaustedEvent) => void) => () => void;
 };
 
-// Type guard for the bridge additions (Rosetta Stone e/62 + ElectronMain preload).
-// The renderer-side wrapper exists in api once Rosetta Stone lands, but calling it
-// delegates to window.electronAPI which requires the preload to be wired too.
-// Guard at the preload layer to avoid a "is not a function" crash in the interim.
+// Both bridges expose onBriefTimeout / onBriefRetriesExhausted directly on `api`,
+// each feeding its own renderer-local event bus (t/2307: web-bridge and
+// electron-bridge are aligned via @bridge — no IPC, no electronAPI dependency).
+// Confirm the @bridge api provides both before subscribing.
 function briefTimeoutBridge(): BriefTimeoutBridge | null {
-  const electronAPI = (window as unknown as Record<string, unknown>)['electronAPI'] as Record<string, unknown> | undefined;
-  if (electronAPI) {
-    // Electron mode: require the preload to actually expose both handlers
-    if (typeof electronAPI['onBriefTimeout'] === 'function' && typeof electronAPI['onBriefRetriesExhausted'] === 'function') {
-      return api as unknown as BriefTimeoutBridge;
-    }
-    return null; // preload not yet wired — no-op until ElectronMain lands it
-  }
-  // Web mode: check api directly (web-bridge stubs land via t/2218)
   const a = api as unknown as Record<string, unknown>;
   if (typeof a['onBriefTimeout'] === 'function' && typeof a['onBriefRetriesExhausted'] === 'function') {
     return api as unknown as BriefTimeoutBridge;
