@@ -742,26 +742,6 @@ function DebateTranscriptColumn({
   );
 }
 
-function RerunInsightsSlot({ isExploration, activeDebate, explorationSummary, extractAndSeedFromDebate }: {
-  isExploration: boolean;
-  activeDebate: ActiveDebateSession;
-  explorationSummary: DWStore['explorationSummary'];
-  extractAndSeedFromDebate: DWStore['extractAndSeedFromDebate'];
-}) {
-  if (isExploration || activeDebate.phase !== 'closed' || explorationSummary) return null;
-  return (
-    <div className="debate-rerun-insights">
-      <button
-        className="btn btn-explore"
-        onClick={() => void extractAndSeedFromDebate(activeDebate.id)}
-        title="Extract insights from this debate and use them to seed a new, better debate"
-      >
-        Rerun with Insights
-      </button>
-    </div>
-  );
-}
-
 function PhaseActionBar({
   showRemoteOverlay, activeDebate, isClarificationPhase, isEditClaimsPhase, isOpeningPhase, isDebatePhase, isExplorationClosed,
   showParamHistory, setShowParamHistory, showEvaluation, setShowEvaluation,
@@ -801,15 +781,13 @@ function NeutralEvalSlot({ showEvaluation, activeDebate }: { showEvaluation: boo
 }
 
 function DebateActionRegion({
-  activeDebate, isExploration, isExplorationClosed, explorationSummary, extractAndSeedFromDebate,
+  activeDebate, isExplorationClosed, explorationSummary,
   showRemoteOverlay, isClarificationPhase, isEditClaimsPhase, isOpeningPhase, isDebatePhase,
   showParamHistory, setShowParamHistory, showEvaluation, setShowEvaluation,
 }: {
   activeDebate: ActiveDebateSession;
-  isExploration: boolean;
   isExplorationClosed: boolean;
   explorationSummary: DWStore['explorationSummary'];
-  extractAndSeedFromDebate: DWStore['extractAndSeedFromDebate'];
   showRemoteOverlay: boolean;
   isClarificationPhase: boolean;
   isEditClaimsPhase: boolean;
@@ -824,13 +802,6 @@ function DebateActionRegion({
     <>
       {/* Exploration summary card — shown when exploration debate closes */}
       {isExplorationClosed && explorationSummary && <ExplorationSummaryCard />}
-
-      <RerunInsightsSlot
-        isExploration={isExploration}
-        activeDebate={activeDebate}
-        explorationSummary={explorationSummary}
-        extractAndSeedFromDebate={extractAndSeedFromDebate}
-      />
 
       <PhaseActionBar
         showRemoteOverlay={showRemoteOverlay}
@@ -1248,7 +1219,7 @@ export function DebateWorkspace({ onExport, exportStatus }: {
     diagPopoutOpen, setDiagPopoutOpen, defaultTier, setDefaultTier,
     driverIsRemote,
     selectedRef, setSelectedRef,
-    explorationSummary, extractExplorationSummary, extractAndSeedFromDebate,
+    explorationSummary, extractExplorationSummary,
   } = useDebateStore(
     useShallow(s => ({
       activeDebate: s.activeDebate, debateLoading: s.debateLoading, debateError: s.debateError, debateGenerating: s.debateGenerating,
@@ -1260,7 +1231,6 @@ export function DebateWorkspace({ onExport, exportStatus }: {
       selectedRef: s.selectedRef, setSelectedRef: s.setSelectedRef,
       explorationSummary: s.explorationSummary,
       extractExplorationSummary: s.extractExplorationSummary,
-      extractAndSeedFromDebate: s.extractAndSeedFromDebate,
     }))
   );
   const { runSemanticSearch, setFindQuery: setStoreFindQuery, setFindMode: setStoreFindMode, setToolbarPanel } = useTaxonomyStore();
@@ -1385,10 +1355,8 @@ export function DebateWorkspace({ onExport, exportStatus }: {
 
       <DebateActionRegion
         activeDebate={activeDebate}
-        isExploration={isExploration}
         isExplorationClosed={isExplorationClosed}
         explorationSummary={explorationSummary}
-        extractAndSeedFromDebate={extractAndSeedFromDebate}
         showRemoteOverlay={showRemoteOverlay}
         isClarificationPhase={isClarificationPhase}
         isEditClaimsPhase={isEditClaimsPhase}
