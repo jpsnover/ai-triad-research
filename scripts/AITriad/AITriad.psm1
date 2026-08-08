@@ -709,22 +709,6 @@ Set-Alias -Name 'Workflow'             -Value 'Show-WorkflowRunner'    -Scope Gl
 # ─────────────────────────────────────────────────────────────────────────────
 # Deprecation wrappers — old cmdlet names delegate to new names
 # ─────────────────────────────────────────────────────────────────────────────
-function Find-CrossCuttingCandidates {
-    <#
-    .SYNOPSIS
-        DEPRECATED: Use Find-SituationCandidates instead.
-    #>
-    [CmdletBinding()]
-    param()
-
-    Write-Warning (New-ActionableError -Goal 'run Find-CrossCuttingCandidates' `
-        -Problem 'Find-CrossCuttingCandidates was renamed in the Situations migration' `
-        -Location 'AITriad module' `
-        -NextSteps 'Use Find-SituationCandidates instead' `
-        -PassThru)
-
-    Find-SituationCandidates @PSBoundParameters
-}
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Export public surface
@@ -792,6 +776,7 @@ Export-ModuleMember -Function @(
     'Repair-UnmappedConcepts'
     'Invoke-AITDebate'
     'Resume-AITDebate'
+    'Convert-DebateToAudio'
     'Convert-MD2PDF'
     'Show-Markdown'
     'Show-DebateDiagnostics'
