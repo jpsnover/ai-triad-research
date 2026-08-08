@@ -665,6 +665,8 @@ function ToolsMenu({
   requestSynthesis,
   requestProbingQuestions,
   requestReflections,
+  canRerunInsights,
+  onRerunInsights,
 }: {
   disableAnalysis: boolean;
   isClosed: boolean;
@@ -681,6 +683,8 @@ function ToolsMenu({
   requestSynthesis: () => void | Promise<void>;
   requestProbingQuestions: () => void | Promise<void>;
   requestReflections: () => void | Promise<void>;
+  canRerunInsights: boolean;
+  onRerunInsights: () => void | Promise<void>;
 }) {
   const [open, setOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -698,6 +702,11 @@ function ToolsMenu({
   items.push({ kind: 'divider', key: 'div-1' });
   items.push({ kind: 'item', key: 'synthesize', label: 'Synthesize', title: hasSynthesis ? 'Synthesis already generated' : 'Generate a synthesis of agreements, disagreements, and open questions', disabled: disableAnalysis || hasSynthesis, onSelect: () => void requestSynthesis() });
   items.push({ kind: 'item', key: 'probe', label: 'Probe', title: 'Get AI-suggested probing questions to deepen the debate', disabled: disableAnalysis || isClosed, onSelect: () => void requestProbingQuestions() });
+  // Relocated from the floating inline button below the transcript (t/2308). Shown only
+  // under its original eligibility: closed, non-exploration debate with no exploration summary.
+  if (canRerunInsights) {
+    items.push({ kind: 'item', key: 'rerun-insights', label: 'Rerun with Insights', title: 'Extract insights from this debate and use them to seed a new, better debate', disabled: disableAnalysis, onSelect: () => void onRerunInsights() });
+  }
   if (showAdminControls) {
     items.push({ kind: 'divider', key: 'div-2' });
     items.push({ kind: 'item', key: 'dump', label: 'Export flight recorder', title: 'Export flight recorder (Ctrl+Alt+D)', onSelect: () => { void triggerManualDump(); } });
@@ -773,8 +782,8 @@ function DebateModals({
 }
 
 export function DebateActions({ showParamHistory, setShowParamHistory, showEvaluation, setShowEvaluation }: { showParamHistory: boolean; setShowParamHistory: (v: boolean) => void; showEvaluation: boolean; setShowEvaluation: (v: boolean) => void }) {
-  const { activeDebate, debateGenerating, debateError, debateRetryAction, dailyLimitPaused, askQuestion, crossRespond, requestSynthesis, requestProbingQuestions, requestReflections, toggleStepMode, setDebatePhase, setError, audience, setAudience } = useDebateStore(
-    useShallow(s => ({ activeDebate: s.activeDebate, debateGenerating: s.debateGenerating, debateError: s.debateError, debateRetryAction: s.debateRetryAction, dailyLimitPaused: s.dailyLimitPaused, askQuestion: s.askQuestion, crossRespond: s.crossRespond, requestSynthesis: s.requestSynthesis, requestProbingQuestions: s.requestProbingQuestions, requestReflections: s.requestReflections, toggleStepMode: s.toggleStepMode, setDebatePhase: s.setDebatePhase, setError: s.setError, audience: s.audience, setAudience: s.setAudience }))
+  const { activeDebate, debateGenerating, debateError, debateRetryAction, dailyLimitPaused, askQuestion, crossRespond, requestSynthesis, requestProbingQuestions, requestReflections, toggleStepMode, setDebatePhase, setError, audience, setAudience, explorationSummary, extractAndSeedFromDebate } = useDebateStore(
+    useShallow(s => ({ activeDebate: s.activeDebate, debateGenerating: s.debateGenerating, debateError: s.debateError, debateRetryAction: s.debateRetryAction, dailyLimitPaused: s.dailyLimitPaused, askQuestion: s.askQuestion, crossRespond: s.crossRespond, requestSynthesis: s.requestSynthesis, requestProbingQuestions: s.requestProbingQuestions, requestReflections: s.requestReflections, toggleStepMode: s.toggleStepMode, setDebatePhase: s.setDebatePhase, setError: s.setError, audience: s.audience, setAudience: s.setAudience, explorationSummary: s.explorationSummary, extractAndSeedFromDebate: s.extractAndSeedFromDebate }))
   );
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
@@ -800,6 +809,8 @@ export function DebateActions({ showParamHistory, setShowParamHistory, showEvalu
   const isSocratic = (activeDebate.active_povers ?? []).filter(p => p !== 'user').length < 2;
   const hasSynthesis = activeDebate.transcript.some(e => e.type === 'concluding');
   const hasEvaluations = !!activeDebate.neutral_evaluations?.length;
+  // Same eligibility the removed inline RerunInsightsSlot used (t/2308).
+  const canRerunInsights = isClosed && activeDebate.protocol_id !== 'exploration' && !explorationSummary;
 
   const mentionOptions = AI_MENTION_OPTIONS.filter(o => activeDebate.active_povers.includes(o.id as SpeakerId));
 
@@ -943,6 +954,8 @@ export function DebateActions({ showParamHistory, setShowParamHistory, showEvalu
               requestSynthesis={requestSynthesis}
               requestProbingQuestions={requestProbingQuestions}
               requestReflections={requestReflections}
+              canRerunInsights={canRerunInsights}
+              onRerunInsights={() => extractAndSeedFromDebate(activeDebate.id)}
             />
             <AudienceSelect audience={audience} setAudience={setAudience} disabled={disableAnalysis || isClosed} />
           </div>
