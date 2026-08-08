@@ -294,6 +294,31 @@ jobs:
       - name: Renderer type-check
         run: bash taxonomy-editor/scripts/check-renderer-tsc.sh
 
+  # ── contrast-check: static token-contrast ratchet gate (t/2264) ──
+  # Catches text reversed out over a tokenized fill that is light in some themes —
+  # the defect class vitest/jsdom is structurally blind to (applies no stylesheet).
+  # Four live defects (t/2234) were all this shape; all found by hand only.
+  # check-contrast.sh reads styles.css live (not a snapshot) and compares total
+  # findings against quality-gates.json contrast_ceilings (ceiling 314 on landing,
+  # ratchets down as pre-existing findings are fixed). Every new violation is a
+  # hard failure immediately. No pnpm install needed — zero node_modules deps.
+  # Path-filtered to `electron` changes (CSS lives under taxonomy-editor/).
+  contrast-check:
+    needs: [changes]
+    if: >-
+      always() && !cancelled() &&
+      (github.event_name != 'pull_request' || needs.changes.outputs.electron == 'true')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v6
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v6
+        with:
+          node-version: '22'
+
+      - name: Static token-contrast check
+        run: bash taxonomy-editor/scripts/check-contrast.sh
+
   # ── Dependency audit: standalone security gate (t/1800) ──
   # SPLIT OUT of test-electron so a security-audit failure can never skip Test
   # again (the t/1800 false-green: audit sat before Test with no
@@ -808,9 +833,11 @@ jobs:
   # path-filtered to container/lib changes, skip = OK.
   # lib-lint (t/2217) is gated here: ESLint errors + tsc for shared lib;
   # path-filtered to lib changes, skip = OK.
+  # contrast-check (t/2264) is gated here: static token-contrast ratchet,
+  # path-filtered to electron changes, skip = OK.
   ci-gate:
     name: ci-gate
-    needs: [changes, test-powershell, test-electron, test-container, python-embed-smoke, dependency-coverage, lockfile-overrides-check, lib-lint, renderer-tsc]
+    needs: [changes, test-powershell, test-electron, test-container, python-embed-smoke, dependency-coverage, lockfile-overrides-check, lib-lint, renderer-tsc, contrast-check]
     if: always()
     runs-on: ubuntu-latest
     steps:
