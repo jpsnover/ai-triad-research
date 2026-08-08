@@ -1,0 +1,100 @@
+{
+  "$fixture": "saf-167-repro",
+  "ticket": "t/2294",
+  "epic": "t/2285",
+  "author": "Computational Linguist",
+  "created": "2026-08-08",
+  "revised": "2026-08-08 (v2 — reclassified case_1 after PS2 empirical retrieval, t/2287#7)",
+  "purpose": "Single shared ground-truth fixture for the retrieval-quality bundle (t/2285). Consumed by t/2288 (retrieval_confidence), t/2286 (Excludes-veto), the LLM-selection/mechanism-decomposition improvement, and the CL delta / low-confidence calibration. NOTE (v2): case_1 is NOT a cross-encoder-rerank (t/2287) repro — see empirical_findings. Do NOT fork per-consumer copies — extend this file.",
+
+  "IMPORTANT_scoping_finding": "case_1 (observed New Mexico v. Meta misfire) is a CONFIDENCE-FLAG + LLM-SELECTION error, NOT a rerank error and NOT an excludes-boundary error. The run used doc-level RAG (40 candidate nodes injected on the whole document; model_info.taxonomy_nodes=40, taxonomy_filter='rag', extraction_mode='fire'). saf-167 entered the 40-node set because the DOCUMENT is about platform accountability / litigation / transparency / incident evidence — vocabulary that overlaps saf-167 ('independent investigation', 'forensic review', 'accountability'). The LLM (gemini-3.5-flash-lite) then mis-selected saf-167 for a sub-point about youth product mandates, where it does not fit. Cross-encoder rerank (t/2287) cannot fix this: (a) saf-167 is absent from the bi-encoder top-80 of the key_point itself, so it is not in the per-key_point candidate slice rerank would reorder; (b) even given the candidates, ms-marco prefers saf-171/saf-222, not the CL-judged home. The robust corrective signal is the CONFIDENCE GATE (t/2288): saf-167's low bi-encoder cosine to the key_point flags the assignment, and the per-key_point top-3 candidates surface the genuinely-close youth-protection nodes for override (t/2289). This case is MITIGATED (flag + surface + manual override), not auto-corrected.",
+
+  "empirical_findings": {
+    "source": "PS2 retrieval run, t/2287#7 (Get-RelevantTaxonomyNodes, -POV safetyist -MaxTotal 80 -Threshold 0, bi-encoder vs -CrossEncoderRerank)",
+    "run_metadata": "summaries/why-new-mexico-v-meta-matters-2026.json model_info: model=gemini-3.5-flash-lite, temperature=0.1, extraction_mode=fire, taxonomy_filter=rag, taxonomy_nodes=40 (doc-level RAG, NOT full-taxonomy, NOT per-key_point).",
+    "per_field_bi_encoder": {
+      "attribution_text": { "bi_encoder_top1": "saf-171", "saf_167_rank": ">80 (absent)", "saf_104_rank": 4, "rerank_effect_on_saf104": "4 -> 7 (worse)" },
+      "canonical_proposition": { "bi_encoder_top1": "saf-beliefs-106", "saf_167_rank": ">80 (absent)", "saf_104_rank": 40, "rerank_effect_on_saf104": "unchanged" },
+      "verbatim_excerpt": { "bi_encoder_top1": "saf-171", "saf_167_rank": ">80 (absent)", "saf_104_rank": 2, "rerank_effect_on_saf104": "2 -> 14 (worse)" }
+    },
+    "conclusions": [
+      "saf-167 is not a per-key_point bi-encoder candidate — it was retrieved at the DOCUMENT level, then LLM-selected. Rerank operates on the candidate slice and structurally cannot demote a node that isn't in it.",
+      "The 'correct node' is a contested youth-protection FAMILY (saf-171 / saf-104 / saf-222), not a single node. Retrieval and ms-marco favor saf-171; the v1 assertion of saf-104 as the sole correct home was too narrow.",
+      "For this case the bundle MITIGATES (t/2288 flag + candidates + t/2289 override), it does not auto-correct."
+    ]
+  },
+
+  "nodes": {
+    "saf-intentions-167": {
+      "label": "Creating an NTSB-Style Body for AI Safety Incidents",
+      "in_scope_core": "An Intention within safetyist discourse that mandates independent, third-party forensic investigation of AI safety incidents to eliminate conflicts of interest and verify system architecture. Encompasses: independent investigation bodies, forensic review of internal model weights, cross-sectoral safety learning, decoupling incident reporting from liability.",
+      "excludes_clause": "internal corporate audits, self-reporting mechanisms managed by the developing firm, software-only behavioral telemetry.",
+      "source": "taxonomy/Origin/safetyist.json (node id saf-intentions-167)",
+      "note": "in_scope_core = description text before 'Excludes:'; excludes_clause = text after. Used by the veto (t/2286) two-span relative-margin test."
+    },
+    "youth_protection_family": {
+      "note": "The contested correct-home set for case_1. Retrieval/ms-marco favor saf-intentions-171; saf-intentions-104 and -222 are also defensible. The point of the fixture is NOT to assert one winner but that saf-167 is clearly WRONG and these are the genuinely-close alternatives the confidence gate should surface for override.",
+      "members": {
+        "saf-intentions-171": "Protecting Young People Through Joint School-Family-Government Action (bi-encoder top-1 on attribution_text and verbatim; ms-marco favored)",
+        "saf-intentions-104": "Mandate Child Protection Across the Entire AI Lifecycle (child-rights-by-design; v1's asserted home)",
+        "saf-intentions-222": "youth-protection node also surfaced by ms-marco (label per taxonomy)"
+      }
+    }
+  },
+
+  "cases": [
+    {
+      "id": "case_1_new_mexico_v_meta",
+      "provenance": "observed",
+      "provenance_evidence": "summaries/why-new-mexico-v-meta-matters-2026.json — safetyist.key_points[] entry with taxonomy_node_id 'saf-intentions-167'. Real pipeline assignment, human-inspectable.",
+      "query_provenance": "IMPORTANT: canonical_proposition / attribution_text / verbatim are the LLM's post-hoc key_point fields (OUTPUTS of extraction), NOT the retrieval query. The actual RAG query was the source document (doc-level, 40-node injection). These fields are retained as the natural inputs for the t/2288 confidence computation and per-key_point candidate surfacing.",
+      "query": {
+        "canonical_proposition": "Constrain high-risk technology platforms by imposing binding operational mandates and design restrictions through judicial enforcement.",
+        "attribution_text": "An Intention within safetyist discourse that regulatory and judicial authorities impose binding design and operational mandates on technology platforms to prevent youth harm. Encompasses: mandatory safety features, product design restrictions, legal enforceability.",
+        "verbatim_excerpt": "Specifically, in New Mexico he required that Meta: Maintain private by default settings for all under-18 users... Prevent under-18 users from appearing in the recommendation algorithms of unconnected adults... Enforce a 1-strike policy for adult users who engage in child sexual exploitation..."
+      },
+      "wrong_node_id": "saf-intentions-167",
+      "correct_node": { "type": "contested_family", "members": ["saf-intentions-171", "saf-intentions-104", "saf-intentions-222"], "retrieval_favored": "saf-intentions-171" },
+      "error_type": ["vocabulary_collision", "llm_selection_from_broad_candidate_set"],
+      "exercises": ["t/2288", "llm_selection_mechanism_decomposition", "delta_calibration"],
+      "NOT_a_repro_for": "t/2287 cross-encoder rerank — wrong node is not in the per-key_point bi-encoder candidate slice (empirical_findings).",
+      "expectations": {
+        "retrieval_confidence_on_saf167": "LOW — saf-167 is absent from the key_point's bi-encoder top-80, so cosine(key_point, saf-167) is well below the 0.45 bi-encoder gate. The confidence gate MUST flag this assignment. (PS to record the exact cosine when wiring t/2288.)",
+        "taxonomy_node_candidates": "per-key_point top-3 must surface the youth-protection family (saf-171 rank ~1-2, saf-104 rank ~2-4 on attribution/verbatim) — these are the override targets for t/2289.",
+        "auto_correction": "NOT expected. Correct home is contested; the bundle surfaces candidates for human override, it does not auto-replace.",
+        "excludes_veto_on_saf167": "MUST NOT FIRE — query does not match saf-167's excluded set; this is not an excludes-boundary case.",
+        "excludes_veto_on_youth_family": "MUST NOT FIRE — negative test; a correct youth-protection assignment must survive the veto."
+      },
+      "notes": "The summary records extraction_confidence 0.95 — the LLM's self-reported confidence, a DIFFERENT instrument from retrieval_confidence (t/2288). High extraction confidence on a low-retrieval-confidence node is exactly the divergence the confidence gate exists to surface."
+    },
+    {
+      "id": "case_2_saf167_excludes_boundary",
+      "provenance": "constructed",
+      "provenance_evidence": "Constructed by CL to exercise the Excludes-veto positive path — no observed instance found in-repo. Content authored to land in saf-167's excluded set while staying topically near its in-scope core (AI incident investigation).",
+      "query": {
+        "canonical_proposition": "AI developers should investigate their own safety incidents through internal corporate audits and self-reporting, using software-only behavioral telemetry to review model behavior.",
+        "attribution_text": "An Intention within safetyist discourse that the developing firm investigates AI safety incidents via internal corporate audit, firm-managed self-reporting, and software-only behavioral telemetry.",
+        "verbatim_excerpt": "The company will run an internal audit of the incident and self-report findings, relying on behavioral telemetry from the deployed software to reconstruct what happened."
+      },
+      "wrong_node_id": "saf-intentions-167",
+      "correct_node": null,
+      "correct_node_basis": "Out-of-scope for saf-167 by its own Excludes clause. Correct disposition: veto -> null -> human review.",
+      "error_type": ["excludes_boundary"],
+      "exercises": ["t/2286"],
+      "expectations": {
+        "bi_encoder_top1": "plausibly saf-intentions-167 — content is topically about AI-incident investigation, so bi-encoder is expected to rank saf-167 highly (the trap the veto exists to catch)",
+        "excludes_veto_on_saf167": "MUST FIRE — sim(query, excludes_clause) > sim(query, in_scope_core) by margin delta; the assignment is nulled and surfaced for review",
+        "retrieval_low_confidence": "true after veto-null"
+      },
+      "notes": "The POSITIVE veto fixture t/2286's AC needs. t/2286 landed (PR #620) with synthetic mechanism vectors; this case is the real-content check to re-point the epic veto AC to."
+    }
+  ],
+
+  "consumer_map": {
+    "t/2288_retrieval_confidence": "case_1 (PRIMARY) — retrieval_confidence on the saf-167 assignment must read low (below gate); per-key_point candidates must surface the youth-protection family. This is the case's real home.",
+    "t/2286_excludes_veto": "case_2 positive (veto MUST fire) + case_1 negative (veto MUST NOT fire on saf-167 or on a correct youth node).",
+    "t/2287_cross_encoder_rerank": "NOT exercised by case_1 (wrong node not in the per-key_point candidate slice). Land t/2287 mechanics against a synthetic reorder fixture; the epic real-repro AC does not run through rerank for this case.",
+    "llm_selection_mechanism_decomposition": "case_1 — the error is the LLM picking a semantically-distant node from a broad doc-level candidate set. This is the improvement (t/2285 #5, mechanism_type) most relevant to auto-reducing recurrence; case_1 is its motivating instance.",
+    "cl_delta_calibration": "case_2 anchors the veto margin delta near-miss set; case_1 anchors the low-confidence gate (bi-encoder scale)."
+  }
+}
