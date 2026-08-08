@@ -107,8 +107,8 @@ export interface ElectronAPI {
   onChatStreamError: (callback: (error: string) => void) => () => void;
   setDebateTemperature: (temp: number | null) => Promise<void>;
   onGenerateTextProgress: (callback: (progress: { attempt: number; maxRetries: number; backoffSeconds: number; limitType: string; limitMessage: string }) => void) => () => void;
-  onBriefTimeout: (callback: (e: { debateId: string; speaker: string; attempt: number; maxAttempts: number; currentModel: string }) => void) => () => void;
-  onBriefRetriesExhausted: (callback: (e: { debateId: string; speaker: string; totalAttempts: number; currentModel: string }) => void) => () => void;
+  // onBriefTimeout / onBriefRetriesExhausted removed (t/2307) — brief-timeout now
+  // uses a renderer-local bus in electron-bridge, not an IPC channel on electronAPI.
 
   // Embeddings & NLI
   computeEmbeddings: (texts: string[], ids?: string[]) => Promise<{ vectors: number[][] }>;

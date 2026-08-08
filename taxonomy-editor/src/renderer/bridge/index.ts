@@ -14,6 +14,11 @@ import { instrumentBridge } from './instrumentBridge';
 export const api = instrumentBridge(rawApi);
 export type { AppAPI } from './types';
 
+// Brief-timeout emit surface (t/2307) — routed through @bridge so each build feeds
+// its own renderer-local bus. Web resolves @bridge → web-bridge (its own emitters);
+// Electron resolves @bridge → this file (electron-bridge's emitters).
+export { emitBriefTimeout, emitBriefRetriesExhausted } from './electron-bridge';
+
 export function setActiveDebateId(_id: string | null): void { /* no-op in Electron — no server logs to correlate */ }
 
 export function isElectronMode(): boolean {

@@ -16,8 +16,7 @@ import type { TopicScope, TopicScopeRiskLevel } from '@lib/debate/types';
 import type { PovNode, CrossCuttingNode as SituationNode } from '../../../types/taxonomy';
 import type { StandardizedTerm, ColloquialTerm } from '@lib/dictionary/types';
 import type { OpeningPipelineInput, BriefEventFn } from '@lib/debate/turnPipeline';
-import { api, isElectronMode } from '@bridge';
-import { emitBriefTimeout, emitBriefRetriesExhausted } from '../../../bridge/web-bridge';
+import { api, emitBriefTimeout, emitBriefRetriesExhausted } from '@bridge';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { generateId, nowISO, parseAIJson, parsePoverResponse, formatRecentTranscript } from '@lib/debate/helpers';
 import { formatTaxonomyContext } from '../../../utils/taxonomyContext';
@@ -959,8 +958,11 @@ export const createClarificationSlice: StateCreator<DebateStore, [], [], Clarifi
           background: activeDebate.topic?.background || undefined,
         };
 
-        // Web-only: Electron routes brief-timeout events via IPC from ElectronMain.
-        const onBriefEvent: BriefEventFn | undefined = isElectronMode() ? undefined : (phase, data) => {
+        // Emit on the renderer-local brief-timeout bus (t/2307). Both builds: the
+        // opening pipeline runs in this renderer, so emit and the same-window toast
+        // consumer share @bridge's bus — no IPC. Previously web-only; the Electron
+        // path routed through an unfed IPC channel and never fired.
+        const onBriefEvent: BriefEventFn = (phase, data) => {
           if (phase === 'brief.timeout' || phase === 'brief.retrying') {
             emitBriefTimeout({ debateId: activeDebate.id, speaker: data.agent, attempt: data.attempt, maxAttempts: data.maxRetries, currentModel: '' });
           } else if (phase === 'brief.retries_exhausted') {

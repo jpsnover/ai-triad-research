@@ -315,17 +315,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
     return () => { ipcRenderer.removeListener('generate-text-progress', listener); };
   },
 
-  onBriefTimeout: (callback: (e: { debateId: string; speaker: string; attempt: number; maxAttempts: number; currentModel: string }) => void) => {
-    const listener = (_event: Electron.IpcRendererEvent, e: { debateId: string; speaker: string; attempt: number; maxAttempts: number; currentModel: string }) => callback(e);
-    ipcRenderer.on('brief-timeout', listener);
-    return () => { ipcRenderer.removeListener('brief-timeout', listener); };
-  },
-
-  onBriefRetriesExhausted: (callback: (e: { debateId: string; speaker: string; totalAttempts: number; currentModel: string }) => void) => {
-    const listener = (_event: Electron.IpcRendererEvent, e: { debateId: string; speaker: string; totalAttempts: number; currentModel: string }) => callback(e);
-    ipcRenderer.on('brief-retries-exhausted', listener);
-    return () => { ipcRenderer.removeListener('brief-retries-exhausted', listener); };
-  },
+  // Brief-timeout events moved to a renderer-local bus (t/2307). The opening
+  // pipeline runs in the renderer and the toast renders in the same window, so
+  // main never produced these events — the 'brief-timeout' / 'brief-retries-exhausted'
+  // IPC channels had zero senders. Removed to eliminate the dead listener.
 
   onReloadTaxonomy: (callback: () => void) => {
     const listener = () => callback();
