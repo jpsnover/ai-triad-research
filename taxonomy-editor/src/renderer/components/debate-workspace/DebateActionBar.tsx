@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-import { useState, useRef, type RefObject } from 'react';
+import { useState, useRef, useEffect, type RefObject } from 'react';
 import { useDebateStore } from '../../hooks/useDebateStore';
 import { useShallow } from 'zustand/react/shallow';
 import { POVER_INFO, DEBATE_AUDIENCES } from '../../types/debate';
@@ -386,7 +386,6 @@ function DebateInputBar({
   mentionIndex,
   onInputChange,
   onKeyDown,
-  onSend,
   onBlurClose,
   onInsertMention,
 }: {
@@ -398,50 +397,151 @@ function DebateInputBar({
   mentionIndex: number;
   onInputChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onKeyDown: (e: React.KeyboardEvent) => void;
-  onSend: () => void | Promise<void>;
   onBlurClose: () => void;
   onInsertMention: (label: string) => void;
 }) {
+  // Send moved to the composer controls row (t/2283); this is input + @mention only.
   return (
-    <>
-      <div className="debate-input-wrapper">
-        <input
-          ref={inputRef}
-          className="debate-input"
-          type="text"
-          placeholder="Ask a question (@Safetyist to target)..."
-          value={input}
-          onChange={onInputChange}
-          onKeyDown={onKeyDown}
-          onBlur={onBlurClose}
-          disabled={disableAnalysis}
-        />
-        {mentionOpen && mentionOptions.length > 0 && (
-          <div className="debate-mention-dropdown">
-            {mentionOptions.map((opt, i) => (
-              <div
-                key={opt.id}
-                className={`debate-mention-item${i === mentionIndex ? ' selected' : ''}`}
-                onMouseDown={(e) => { e.preventDefault(); onInsertMention(opt.label); }}
-              >
-                <span style={{ color: opt.color, fontWeight: 600 }}>{opt.label}</span>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-      <button
-        className="btn btn-primary debate-send-btn"
-        onClick={onSend}
-        disabled={!input.trim() || disableAnalysis}
-      >
-        Send
-      </button>
-    </>
+    <div className="debate-input-wrapper">
+      <input
+        ref={inputRef}
+        className="debate-input"
+        type="text"
+        placeholder="Ask the debater… (@Safetyist to target)"
+        value={input}
+        onChange={onInputChange}
+        onKeyDown={onKeyDown}
+        onBlur={onBlurClose}
+        disabled={disableAnalysis}
+      />
+      {mentionOpen && mentionOptions.length > 0 && (
+        <div className="debate-mention-dropdown">
+          {mentionOptions.map((opt, i) => (
+            <div
+              key={opt.id}
+              className={`debate-mention-item${i === mentionIndex ? ' selected' : ''}`}
+              onMouseDown={(e) => { e.preventDefault(); onInsertMention(opt.label); }}
+            >
+              <span style={{ color: opt.color, fontWeight: 600 }}>{opt.label}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 
-function CrossRespondControls({
+type MenuEntry =
+  | { kind: 'divider'; key: string }
+  | { kind: 'item'; key: string; label: string; onSelect: () => void; disabled?: boolean; checked?: boolean; title?: string };
+
+/** Shared open-on-keyboard handler for a menu trigger button (Down / Enter / Space). */
+function menuTriggerKeys(setOpen: (v: boolean) => void) {
+  return (e: React.KeyboardEvent) => {
+    if (e.key === 'ArrowDown' || e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      setOpen(true);
+    }
+  };
+}
+
+/**
+ * Custom popup menu (t/2283) — shared by the Tools menu and the Continue split
+ * button. Actions carry per-item disabled/toggle/divider state, so a native
+ * <select> won't do. a11y: role="menu"; arrow-nav skips disabled items; Enter/Space
+ * activate; Esc closes and returns focus to the trigger; click-outside closes.
+ */
+function ActionMenu({ items, onClose, triggerRef, className }: {
+  items: MenuEntry[];
+  onClose: () => void;
+  triggerRef: RefObject<HTMLButtonElement | null>;
+  className?: string;
+}) {
+  const menuRef = useRef<HTMLDivElement>(null);
+  const itemRefs = useRef<(HTMLButtonElement | null)[]>([]);
+  const enabledIdx = items
+    .map((it, i) => (it.kind === 'item' && !it.disabled ? i : -1))
+    .filter(i => i >= 0);
+
+  // Focus the first enabled item when the menu opens (mount === open). Intentionally
+  // runs once on mount — enabledIdx is derived fresh each render but we only want the
+  // initial focus, not a re-focus on every keystroke.
+  const firstEnabled = enabledIdx[0];
+  useEffect(() => {
+    if (firstEnabled != null) itemRefs.current[firstEnabled]?.focus();
+  }, [firstEnabled]);
+
+  // Click-outside closes (ignoring the trigger, whose own onClick toggles).
+  useEffect(() => {
+    const onDocDown = (e: MouseEvent) => {
+      const t = e.target as Node;
+      if (menuRef.current?.contains(t) || triggerRef.current?.contains(t)) return;
+      onClose();
+    };
+    document.addEventListener('mousedown', onDocDown);
+    return () => document.removeEventListener('mousedown', onDocDown);
+  }, [onClose, triggerRef]);
+
+  const focusAt = (pos: number) => {
+    const n = enabledIdx.length;
+    if (n === 0) return;
+    itemRefs.current[enabledIdx[((pos % n) + n) % n]]?.focus();
+  };
+  const currentPos = () => enabledIdx.findIndex(i => itemRefs.current[i] === document.activeElement);
+
+  const onKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Escape') { e.preventDefault(); onClose(); triggerRef.current?.focus(); }
+    else if (e.key === 'ArrowDown') { e.preventDefault(); focusAt(currentPos() + 1); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); focusAt(currentPos() - 1); }
+    else if (e.key === 'Home') { e.preventDefault(); focusAt(0); }
+    else if (e.key === 'End') { e.preventDefault(); focusAt(enabledIdx.length - 1); }
+    else if (e.key === 'Tab') { onClose(); }
+  };
+
+  const activate = (it: Extract<MenuEntry, { kind: 'item' }>) => {
+    if (it.disabled) return;
+    it.onSelect();
+    onClose();
+    triggerRef.current?.focus();
+  };
+
+  return (
+    <div ref={menuRef} className={`debate-tools-menu${className ? ` ${className}` : ''}`} role="menu" onKeyDown={onKeyDown}>
+      {items.map((it, i) =>
+        it.kind === 'divider' ? (
+          <div key={it.key} className="debate-tools-menu-divider" role="separator" />
+        ) : (
+          <button
+            key={it.key}
+            ref={el => { itemRefs.current[i] = el; }}
+            type="button"
+            role={it.checked !== undefined ? 'menuitemcheckbox' : 'menuitem'}
+            aria-checked={it.checked !== undefined ? it.checked : undefined}
+            aria-disabled={it.disabled || undefined}
+            tabIndex={-1}
+            className={`debate-tools-menu-item${it.disabled ? ' disabled' : ''}${it.checked ? ' checked' : ''}`}
+            title={it.title}
+            onClick={() => activate(it)}
+          >
+            {it.checked !== undefined && (
+              <span className="debate-tools-menu-check" aria-hidden="true">{it.checked ? '✓' : ''}</span>
+            )}
+            <span className="debate-tools-menu-label">{it.label}</span>
+          </button>
+        )
+      )}
+    </div>
+  );
+}
+
+/**
+ * Continue split button (t/2283 §5.1) — primary cross-respond/step action plus a
+ * caret opening a small menu that keeps the active turns (non-adaptive) or
+ * Auto/Step mode (adaptive) visible on the button. Primary color is
+ * `var(--focus-ring)` LOCALLY (TL-approved, t/2283 Q3) — NOT the app-wide
+ * `.btn-primary` token.
+ */
+function ContinueButton({
   isAdaptive,
   isStepMode,
   disableAnalysis,
@@ -458,48 +558,59 @@ function CrossRespondControls({
   onToggleStepMode: () => void | Promise<void>;
   setCrossRespondTurns: (n: number) => void;
 }) {
-  return isAdaptive ? (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+  const [open, setOpen] = useState(false);
+  const caretRef = useRef<HTMLButtonElement>(null);
+
+  const label = isAdaptive ? (isStepMode ? 'Step' : 'Continue') : `Cross-Respond ×${crossRespondTurns}`;
+  const primaryTitle = isAdaptive
+    ? (isStepMode ? 'Run one debate round' : 'Let the debate engine select the next speaker and run to completion')
+    : `Run ${crossRespondTurns} cross-respond round${crossRespondTurns > 1 ? 's' : ''}`;
+
+  const items: MenuEntry[] = isAdaptive
+    ? [
+        { kind: 'item', key: 'auto', label: 'Auto', title: 'Switch to auto mode (run all stages)', checked: !isStepMode, onSelect: () => { if (isStepMode) void onToggleStepMode(); } },
+        { kind: 'item', key: 'step', label: 'Step', title: 'Switch to step mode (1 round at a time, manual phase control)', checked: isStepMode, onSelect: () => { if (!isStepMode) void onToggleStepMode(); } },
+      ]
+    : [1, 2, 3, 6, 9, 12, 15, 18, 21].map(n => ({
+        kind: 'item' as const,
+        key: `turns-${n}`,
+        label: `${n} round${n > 1 ? 's' : ''}`,
+        checked: n === crossRespondTurns,
+        onSelect: () => setCrossRespondTurns(n),
+      }));
+
+  return (
+    <div className="debate-continue-split">
       <button
-        className="btn debate-continue-btn"
-        onClick={onCrossRespond}
+        type="button"
+        className="debate-continue-primary"
+        onClick={() => void onCrossRespond()}
         disabled={disableAnalysis}
-        title={isStepMode ? 'Run one debate round' : 'Let the debate engine select the next speaker and run to completion'}
+        title={primaryTitle}
       >
-        {isStepMode ? 'Step' : 'Continue'}
+        {label}
       </button>
       <button
-        className={`btn btn-sm debate-step-toggle${isStepMode ? ' active' : ''}`}
-        onClick={() => void onToggleStepMode()}
+        ref={caretRef}
+        type="button"
+        className="debate-continue-caret"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-label="Change continue mode"
+        onClick={() => setOpen(o => !o)}
+        onKeyDown={menuTriggerKeys(setOpen)}
         disabled={disableAnalysis}
-        title={isStepMode ? 'Switch to auto mode (run all stages)' : 'Switch to step mode (1 round at a time, manual phase control)'}
-        style={{ fontSize: 'var(--text-2xs)', padding: '2px 6px' }}
       >
-        {isStepMode ? 'Step' : 'Auto'}
+        ▾
       </button>
-    </div>
-  ) : (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 0 }}>
-      <button
-        className="btn debate-cross-btn"
-        onClick={onCrossRespond}
-        disabled={disableAnalysis}
-        title={`Run ${crossRespondTurns} cross-respond round${crossRespondTurns > 1 ? 's' : ''}`}
-        style={{ borderTopRightRadius: 0, borderBottomRightRadius: 0 }}
-      >
-        Cross-Respond
-      </button>
-      <select
-        className="debate-turns-select"
-        value={crossRespondTurns}
-        onChange={(e) => setCrossRespondTurns(parseInt(e.target.value, 10))}
-        disabled={disableAnalysis}
-        title="Number of cross-respond rounds"
-      >
-        {[1, 2, 3, 6, 9, 12, 15, 18, 21].map(n => (
-          <option key={n} value={n}>{n}</option>
-        ))}
-      </select>
+      {open && (
+        <ActionMenu
+          items={items}
+          onClose={() => setOpen(false)}
+          triggerRef={caretRef}
+          className="debate-tools-menu-up debate-continue-menu"
+        />
+      )}
     </div>
   );
 }
@@ -532,10 +643,18 @@ function StepPhaseSelector({
   );
 }
 
-function SecondaryActionBar({
+/**
+ * Tools menu (t/2283 §3) — all secondary actions relocated into one `Tools ▾`
+ * popup, in mockup order, each preserving its handler / enabled rule / tooltip
+ * verbatim (relocation + grouping only, no behavior change). Admin-only items
+ * (Harvest, Calibration, Export flight recorder) are hidden when !showAdminControls.
+ */
+function ToolsMenu({
   disableAnalysis,
   isClosed,
   showAdminControls,
+  hasSynthesis,
+  hasEvaluations,
   showEvaluation,
   setShowEvaluation,
   showParamHistory,
@@ -543,10 +662,15 @@ function SecondaryActionBar({
   setShowHarvest,
   setShowReflections,
   setShowNewsReport,
+  requestSynthesis,
+  requestProbingQuestions,
+  requestReflections,
 }: {
   disableAnalysis: boolean;
   isClosed: boolean;
   showAdminControls: boolean;
+  hasSynthesis: boolean;
+  hasEvaluations: boolean;
   showEvaluation: boolean;
   setShowEvaluation: (v: boolean) => void;
   showParamHistory: boolean;
@@ -554,87 +678,63 @@ function SecondaryActionBar({
   setShowHarvest: (v: boolean) => void;
   setShowReflections: (v: boolean) => void;
   setShowNewsReport: (v: boolean) => void;
+  requestSynthesis: () => void | Promise<void>;
+  requestProbingQuestions: () => void | Promise<void>;
+  requestReflections: () => void | Promise<void>;
 }) {
-  const { activeDebate, requestSynthesis, requestProbingQuestions, requestReflections, audience, setAudience } = useDebateStore(
-    useShallow(s => ({ activeDebate: s.activeDebate, requestSynthesis: s.requestSynthesis, requestProbingQuestions: s.requestProbingQuestions, requestReflections: s.requestReflections, audience: s.audience, setAudience: s.setAudience }))
-  );
-  const hasSynthesis = activeDebate?.transcript.some(e => e.type === 'concluding') || false;
-  const hasEvaluations = !!activeDebate?.neutral_evaluations?.length;
-  const disabled = disableAnalysis || isClosed;
+  const [open, setOpen] = useState(false);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+
+  const items: MenuEntry[] = [];
+  if (showAdminControls) {
+    items.push({ kind: 'item', key: 'harvest', label: 'Harvest', title: 'Harvest debate findings into the taxonomy', disabled: disableAnalysis || !hasSynthesis, onSelect: () => setShowHarvest(true) });
+  }
+  items.push({ kind: 'item', key: 'reflections', label: 'Reflections', title: 'Each debater reflects on the debate and proposes taxonomy edits', disabled: disableAnalysis, onSelect: () => { setShowReflections(true); void requestReflections(); } });
+  items.push({ kind: 'item', key: 'news', label: 'News report', title: hasSynthesis ? 'Generate a news-style article from this debate' : 'Synthesis required before generating news report', disabled: disableAnalysis || !hasSynthesis, onSelect: () => setShowNewsReport(true) });
+  items.push({ kind: 'item', key: 'evaluation', label: 'Evaluation', title: 'Show/hide independent evaluation of claims and cruxes', disabled: !hasEvaluations, checked: showEvaluation, onSelect: () => setShowEvaluation(!showEvaluation) });
+  if (showAdminControls) {
+    items.push({ kind: 'item', key: 'calibration', label: 'Calibration', title: 'View calibration parameter history and current values', checked: showParamHistory, onSelect: () => setShowParamHistory(!showParamHistory) });
+  }
+  items.push({ kind: 'divider', key: 'div-1' });
+  items.push({ kind: 'item', key: 'synthesize', label: 'Synthesize', title: hasSynthesis ? 'Synthesis already generated' : 'Generate a synthesis of agreements, disagreements, and open questions', disabled: disableAnalysis || hasSynthesis, onSelect: () => void requestSynthesis() });
+  items.push({ kind: 'item', key: 'probe', label: 'Probe', title: 'Get AI-suggested probing questions to deepen the debate', disabled: disableAnalysis || isClosed, onSelect: () => void requestProbingQuestions() });
+  if (showAdminControls) {
+    items.push({ kind: 'divider', key: 'div-2' });
+    items.push({ kind: 'item', key: 'dump', label: 'Export flight recorder', title: 'Export flight recorder (Ctrl+Alt+D)', onSelect: () => { void triggerManualDump(); } });
+  }
 
   return (
-    <div className="debate-action-bar-secondary">
+    <div className="debate-tools">
       <button
-        className="btn debate-synthesis-btn"
-        onClick={() => void requestSynthesis()}
-        disabled={disableAnalysis || hasSynthesis}
-        title={hasSynthesis ? 'Synthesis already generated' : 'Generate a synthesis of agreements, disagreements, and open questions'}
+        ref={triggerRef}
+        type="button"
+        className="debate-tools-trigger"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        onClick={() => setOpen(o => !o)}
+        onKeyDown={menuTriggerKeys(setOpen)}
       >
-        Synthesize
+        Tools <span className="debate-caret" aria-hidden="true">▾</span>
       </button>
-      <button
-        className="btn debate-probe-btn"
-        onClick={() => void requestProbingQuestions()}
-        disabled={disableAnalysis || isClosed}
-        title="Get AI-suggested probing questions to deepen the debate"
-      >
-        Probe
-      </button>
-      {showAdminControls && (
-        <button
-          className="btn debate-harvest-btn"
-          onClick={() => setShowHarvest(true)}
-          disabled={disableAnalysis || !hasSynthesis}
-          title="Harvest debate findings into the taxonomy"
-        >
-          Harvest
-        </button>
+      {open && (
+        <ActionMenu items={items} onClose={() => setOpen(false)} triggerRef={triggerRef} className="debate-tools-menu-up" />
       )}
-      <button
-        className="btn debate-reflections-btn"
-        onClick={() => { setShowReflections(true); void requestReflections(); }}
-        disabled={disableAnalysis}
-        title="Each debater reflects on the debate and proposes taxonomy edits"
-      >
-        Reflections
-      </button>
-      <button
-        className="btn"
-        onClick={() => setShowNewsReport(true)}
-        disabled={disableAnalysis || !hasSynthesis}
-        title={hasSynthesis ? 'Generate a news-style article from this debate' : 'Synthesis required before generating news report'}
-      >
-        News Report
-      </button>
-      <button
-        className={`btn${showEvaluation ? ' active' : ''}`}
-        onClick={() => setShowEvaluation(!showEvaluation)}
-        disabled={!hasEvaluations}
-        title="Show/hide independent evaluation of claims and cruxes"
-      >
-        Evaluation
-      </button>
-      {showAdminControls && (
-        <button
-          className="btn"
-          onClick={() => setShowParamHistory(!showParamHistory)}
-          title="View calibration parameter history and current values"
-          style={{ fontSize: 'var(--text-2xs)' }}
-        >
-          Calibration
-        </button>
-      )}
-      <div style={{ flex: 1 }} />
-      <button
-        className="debate-dump-inline"
-        onClick={triggerManualDump}
-        title="Export flight recorder (Ctrl+Alt+D)"
-        aria-label="Export flight recorder"
-      >
-        ↓
-      </button>
+    </div>
+  );
+}
+
+/** `For [audience ▾]` — static label + the existing audience <select> (t/2283 §4). */
+function AudienceSelect({ audience, setAudience, disabled }: {
+  audience: DebateAudience;
+  setAudience: (a: DebateAudience) => void;
+  disabled: boolean;
+}) {
+  return (
+    <span className="debate-audience">
+      <span className="debate-audience-label">For</span>
       <select
         className="debate-audience-select"
+        aria-label="Audience"
         value={audience}
         onChange={(e) => setAudience(e.target.value as DebateAudience)}
         disabled={disabled}
@@ -644,7 +744,7 @@ function SecondaryActionBar({
           <option key={a.id} value={a.id}>{a.label}</option>
         ))}
       </select>
-    </div>
+    </span>
   );
 }
 
@@ -673,8 +773,8 @@ function DebateModals({
 }
 
 export function DebateActions({ showParamHistory, setShowParamHistory, showEvaluation, setShowEvaluation }: { showParamHistory: boolean; setShowParamHistory: (v: boolean) => void; showEvaluation: boolean; setShowEvaluation: (v: boolean) => void }) {
-  const { activeDebate, debateGenerating, debateError, debateRetryAction, dailyLimitPaused, askQuestion, crossRespond, requestSynthesis, requestProbingQuestions, requestReflections, toggleStepMode, setDebatePhase, setError } = useDebateStore(
-    useShallow(s => ({ activeDebate: s.activeDebate, debateGenerating: s.debateGenerating, debateError: s.debateError, debateRetryAction: s.debateRetryAction, dailyLimitPaused: s.dailyLimitPaused, askQuestion: s.askQuestion, crossRespond: s.crossRespond, requestSynthesis: s.requestSynthesis, requestProbingQuestions: s.requestProbingQuestions, requestReflections: s.requestReflections, toggleStepMode: s.toggleStepMode, setDebatePhase: s.setDebatePhase, setError: s.setError }))
+  const { activeDebate, debateGenerating, debateError, debateRetryAction, dailyLimitPaused, askQuestion, crossRespond, requestSynthesis, requestProbingQuestions, requestReflections, toggleStepMode, setDebatePhase, setError, audience, setAudience } = useDebateStore(
+    useShallow(s => ({ activeDebate: s.activeDebate, debateGenerating: s.debateGenerating, debateError: s.debateError, debateRetryAction: s.debateRetryAction, dailyLimitPaused: s.dailyLimitPaused, askQuestion: s.askQuestion, crossRespond: s.crossRespond, requestSynthesis: s.requestSynthesis, requestProbingQuestions: s.requestProbingQuestions, requestReflections: s.requestReflections, toggleStepMode: s.toggleStepMode, setDebatePhase: s.setDebatePhase, setError: s.setError, audience: s.audience, setAudience: s.setAudience }))
   );
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
@@ -694,6 +794,8 @@ export function DebateActions({ showParamHistory, setShowParamHistory, showEvalu
   const isClosed = activeDebate.phase === 'closed';
   const disableAnalysis = isGenerating || sending;
   const isSocratic = (activeDebate.active_povers ?? []).filter(p => p !== 'user').length < 2;
+  const hasSynthesis = activeDebate.transcript.some(e => e.type === 'concluding');
+  const hasEvaluations = !!activeDebate.neutral_evaluations?.length;
 
   const mentionOptions = AI_MENTION_OPTIONS.filter(o => activeDebate.active_povers.includes(o.id as SpeakerId));
 
@@ -798,7 +900,15 @@ export function DebateActions({ showParamHistory, setShowParamHistory, showEvalu
         />
       )}
       <TokenBudgetIndicator />
-      <div className="debate-action-bar-inner">
+      {/* Step-phase selector stays a thin row ABOVE the composer in step mode (t/2283 §5.2). */}
+      {isStepMode && (
+        <StepPhaseSelector
+          currentAdaptivePhase={currentAdaptivePhase}
+          disableAnalysis={disableAnalysis}
+          onSetPhase={setDebatePhase}
+        />
+      )}
+      <div className="debate-composer">
         <DebateInputBar
           inputRef={inputRef}
           input={input}
@@ -808,41 +918,53 @@ export function DebateActions({ showParamHistory, setShowParamHistory, showEvalu
           mentionIndex={mentionIndex}
           onInputChange={handleInputChange}
           onKeyDown={handleKeyDown}
-          onSend={handleSend}
           onBlurClose={() => setTimeout(() => setMentionOpen(false), 150)}
           onInsertMention={insertMention}
         />
-        {!isSocratic && (
-          <CrossRespondControls
-            isAdaptive={isAdaptive}
-            isStepMode={isStepMode}
-            disableAnalysis={disableAnalysis}
-            crossRespondTurns={crossRespondTurns}
-            onCrossRespond={handleCrossRespond}
-            onToggleStepMode={toggleStepMode}
-            setCrossRespondTurns={setCrossRespondTurns}
-          />
-        )}
+        <div className="debate-composer-controls">
+          <div className="debate-composer-left">
+            <ToolsMenu
+              disableAnalysis={disableAnalysis}
+              isClosed={isClosed}
+              showAdminControls={showAdminControls}
+              hasSynthesis={hasSynthesis}
+              hasEvaluations={hasEvaluations}
+              showEvaluation={showEvaluation}
+              setShowEvaluation={setShowEvaluation}
+              showParamHistory={showParamHistory}
+              setShowParamHistory={setShowParamHistory}
+              setShowHarvest={setShowHarvest}
+              setShowReflections={setShowReflections}
+              setShowNewsReport={setShowNewsReport}
+              requestSynthesis={requestSynthesis}
+              requestProbingQuestions={requestProbingQuestions}
+              requestReflections={requestReflections}
+            />
+            <AudienceSelect audience={audience} setAudience={setAudience} disabled={disableAnalysis || isClosed} />
+          </div>
+          <div className="debate-composer-right">
+            <button
+              type="button"
+              className="debate-composer-send"
+              onClick={() => void handleSend()}
+              disabled={!input.trim() || disableAnalysis}
+            >
+              Send
+            </button>
+            {!isSocratic && (
+              <ContinueButton
+                isAdaptive={isAdaptive}
+                isStepMode={isStepMode}
+                disableAnalysis={disableAnalysis}
+                crossRespondTurns={crossRespondTurns}
+                onCrossRespond={handleCrossRespond}
+                onToggleStepMode={toggleStepMode}
+                setCrossRespondTurns={setCrossRespondTurns}
+              />
+            )}
+          </div>
+        </div>
       </div>
-      {isStepMode && (
-        <StepPhaseSelector
-          currentAdaptivePhase={currentAdaptivePhase}
-          disableAnalysis={disableAnalysis}
-          onSetPhase={setDebatePhase}
-        />
-      )}
-      <SecondaryActionBar
-        disableAnalysis={disableAnalysis}
-        isClosed={isClosed}
-        showAdminControls={showAdminControls}
-        showEvaluation={showEvaluation}
-        setShowEvaluation={setShowEvaluation}
-        showParamHistory={showParamHistory}
-        setShowParamHistory={setShowParamHistory}
-        setShowHarvest={setShowHarvest}
-        setShowReflections={setShowReflections}
-        setShowNewsReport={setShowNewsReport}
-      />
       {isGenerating && (
         <div className="debate-action-hint">
           {speakerLabel(debateGenerating)} is responding...
