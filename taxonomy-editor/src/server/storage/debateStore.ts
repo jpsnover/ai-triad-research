@@ -182,7 +182,7 @@ export async function getDebatesQuotaStatus(): Promise<QuotaCheckResult> {
   return checkQuota('debates', files.length);
 }
 
-export async function saveDebateSession(session: unknown): Promise<void> {
+export async function saveDebateSession(session: unknown, caller: string): Promise<void> {
   const s = session as { id: string; title?: string; topic?: { final?: string; original?: string }; created_at?: string; updated_at?: string; phase?: string };
   assertSafeId(s.id, 'debate id');
   if (isAnonymousUser()) { const a = getAnonStore(); if (a) await a.store.saveDebate(a.sessionId, session); return; }
@@ -200,6 +200,7 @@ export async function saveDebateSession(session: unknown): Promise<void> {
     log.server.warn({ debateId: s.id, errorMessage }, 'Debate session serialized with sanitizing replacer — non-serializable fields stripped');
   }
   await backend.writeFile(debatePath, json);
+  log.server.info({ caller, debateId: s.id }, 'Debate session saved');
   // Maintain the lightweight index
   void upsertDebateIndex({
     id: s.id,

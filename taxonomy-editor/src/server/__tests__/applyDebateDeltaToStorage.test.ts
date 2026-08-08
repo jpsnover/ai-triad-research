@@ -90,7 +90,7 @@ describe('applyDebateDeltaToStorage (t/1635)', () => {
 
   // Seed a stored debate via the normal save path so the on-disk shape matches prod.
   async function seed(session: Record<string, unknown>): Promise<void> {
-    await userContext.runWithUser(ctx, () => fileIO.saveDebateSession(session));
+    await userContext.runWithUser(ctx, () => fileIO.saveDebateSession(session, 'test'));
   }
 
   it('exact version match: merges, bumps _saveVersion, writes, returns { newVersion }', async () => {
@@ -139,7 +139,7 @@ describe('applyDebateDeltaToStorage (t/1635)', () => {
   it('anonymous path: merges and mirrors back into the anon store', async () => {
     // Seed through the anon store via the normal save path.
     await userContext.runWithUser(anonCtx, () =>
-      fileIO.saveDebateSession({ id: 'ad1', title: 'A', phase: 'rounds', _saveVersion: 1 }));
+      fileIO.saveDebateSession({ id: 'ad1', title: 'A', phase: 'rounds', _saveVersion: 1 }, 'test'));
 
     const delta = makeDelta({ debateId: 'ad1', baseVersion: 1, changedFields: { phase: 'synthesis' } });
     const result = await userContext.runWithUser(anonCtx, () => fileIO.applyDebateDeltaToStorage(delta));
@@ -156,7 +156,7 @@ describe('applyDebateDeltaToStorage (t/1635)', () => {
 
   it('anonymous stale baseVersion: throws 409 carrying currentVersion', async () => {
     await userContext.runWithUser(anonCtx, () =>
-      fileIO.saveDebateSession({ id: 'ad2', title: 'A2', _saveVersion: 4 }));
+      fileIO.saveDebateSession({ id: 'ad2', title: 'A2', _saveVersion: 4 }, 'test'));
     const delta = makeDelta({ debateId: 'ad2', baseVersion: 1 });
 
     await expect(
@@ -170,7 +170,7 @@ describe('applyDebateDeltaToStorage (t/1635)', () => {
 
     // Session A seeds a debate at version 2.
     await userContext.runWithUser(sessA, () =>
-      fileIO.saveDebateSession({ id: 'idor-debate', title: 'Owned by A', _saveVersion: 2 }));
+      fileIO.saveDebateSession({ id: 'idor-debate', title: 'Owned by A', _saveVersion: 2 }, 'test'));
 
     // Session B attempts to PATCH the same debate ID — must not find it.
     const delta = makeDelta({ debateId: 'idor-debate', baseVersion: 2 });

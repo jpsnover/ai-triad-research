@@ -57,7 +57,7 @@ describe('dual-backend routing (t/698)', () => {
   });
 
   it('routes debate saves to the user-content backend, not taxonomy', async () => {
-    await userContext.runWithUser(ctx, () => fileIO.saveDebateSession({ id: 'd1', title: 'D' }));
+    await userContext.runWithUser(ctx, () => fileIO.saveDebateSession({ id: 'd1', title: 'D' }, 'test'));
     expect(uc.has('debate-d1.json')).toBe(true);
     expect(tax.has('debate-d1.json')).toBe(false);
   });
@@ -81,7 +81,7 @@ describe('dual-backend routing (t/698)', () => {
   });
 
   it('debate read round-trips through the user-content backend', async () => {
-    await userContext.runWithUser(ctx, () => fileIO.saveDebateSession({ id: 'd2', title: 'Two' }));
+    await userContext.runWithUser(ctx, () => fileIO.saveDebateSession({ id: 'd2', title: 'Two' }, 'test'));
     const loaded = await userContext.runWithUser(ctx, () => fileIO.loadDebateSession('d2')) as { id: string };
     expect(loaded.id).toBe('d2');
   });
@@ -92,7 +92,7 @@ describe('dual-backend routing (t/698)', () => {
     fileIO.setUserContentBackend(undefined as unknown as StorageBackend);
     // getUserContentBackend() returns the taxonomy backend when unset.
     expect(fileIO.getUserContentBackend()).toBe(single);
-    await userContext.runWithUser(ctx, () => fileIO.saveDebateSession({ id: 'd3', title: 'Three' }));
+    await userContext.runWithUser(ctx, () => fileIO.saveDebateSession({ id: 'd3', title: 'Three' }, 'test'));
     expect(single.has('debate-d3.json')).toBe(true);
   });
 });
