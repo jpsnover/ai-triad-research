@@ -478,18 +478,27 @@ function NodeItem({ node, isSelected, onSelect, score, indent, relationship, isM
       {node.graph_attributes?.aphorism && (
         <div className="node-item-aphorism">{node.graph_attributes.aphorism}</div>
       )}
-      <div className="node-item-id">
-        {node.id}
-        {relationship && <span className="node-item-rel">{REL_LABELS[relationship] || relationship}</span>}
-        {score !== undefined && <span className="node-item-score">{Math.round(score * 100)}%</span>}
-        {priorityValue && <span className="node-item-priority">{priorityValue.label}</span>}
-        {/* Beliefs always show the chip (legacy: "Untested" when no record); Desire/Intention
-            nodes show it only once they carry a debate_tested record — see t/1661. Situations
-            never reach NodeItem (node is PovNode), so BDI-only gating is implicit. */}
-        {showDebateTestedChip && (node.category === 'Beliefs' || !!node.graph_attributes?.debate_tested) && (
-          <DebateTestedChip record={node.graph_attributes?.debate_tested} description={node.description} compact />
-        )}
-      </div>
+      {/* Raw node.id removed from end-user view per t/2317. Class name kept ('node-item-id')
+          to reuse existing styles.css layout; the row now carries only relationship + metric
+          chips. Guarded so it never renders an empty line in sort modes with no metadata. */}
+      {(() => {
+        // Beliefs always show the chip (legacy: "Untested" when no record); Desire/Intention
+        // nodes show it only once they carry a debate_tested record — see t/1661. Situations
+        // never reach NodeItem (node is PovNode), so BDI-only gating is implicit.
+        const showChip = showDebateTestedChip && (node.category === 'Beliefs' || !!node.graph_attributes?.debate_tested);
+        const hasMeta = !!relationship || score !== undefined || !!priorityValue || showChip;
+        if (!hasMeta) return null;
+        return (
+          <div className="node-item-id">
+            {relationship && <span className="node-item-rel">{REL_LABELS[relationship] || relationship}</span>}
+            {score !== undefined && <span className="node-item-score">{Math.round(score * 100)}%</span>}
+            {priorityValue && <span className="node-item-priority">{priorityValue.label}</span>}
+            {showChip && (
+              <DebateTestedChip record={node.graph_attributes?.debate_tested} description={node.description} compact />
+            )}
+          </div>
+        );
+      })()}
     </div>
   );
 }
