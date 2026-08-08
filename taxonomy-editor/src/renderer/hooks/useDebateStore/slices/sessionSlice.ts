@@ -606,7 +606,7 @@ export const createSessionSlice: StateCreator<DebateStore, [], [], SessionSlice>
             // leaving Continue live long enough for a click to double-fire the
             // resumed round (t/1656). crossRespond owns the flag from here and
             // clears it on completion/error.
-            set({ debateGenerating: resumeSpeaker, debateActivity: `${speakerLabel} is resuming…` });
+            set({ debateGenerating: resumeSpeaker, debateActivity: `${speakerLabel} is resuming…`, debateStepStartedAt: Date.now() });
             void s.crossRespond().finally(() => {
               // Safety net: if crossRespond bailed before taking ownership of the
               // indicator (no activeDebate, driver-claim denied, <2 debaters), our

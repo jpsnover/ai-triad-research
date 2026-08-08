@@ -144,7 +144,7 @@ export const createDebateLoopSlice: StateCreator<DebateStore, [], [], DebateLoop
 
     // Generate responses sequentially so each sees prior responses
     for (const poverId of respondingPovers) {
-      set({ debateGenerating: poverId });
+      set({ debateGenerating: poverId, debateStepStartedAt: Date.now() });
 
       const info = POVER_INFO[poverId];
       const currentTranscriptForRelevance = formatRecentTranscript(get().activeDebate!.transcript, 4, get().activeDebate!.context_summaries);

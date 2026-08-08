@@ -81,6 +81,7 @@ export interface ConfigSlice {
 
   // Actions
   setResponseLength: (length: 'claims' | 'brief' | 'medium' | 'detailed' | 'reasoning' | 'convergence') => void;
+  setDefaultDisplayTier: (tier: 'claims' | 'brief' | 'medium' | 'detailed' | 'reasoning' | 'convergence') => void;
   setAudience: (audience: DebateAudience) => void;
   setEntryDisplayTier: (entryId: string, tier: 'claims' | 'brief' | 'medium' | 'detailed' | 'reasoning' | 'convergence' | 'terms' | 'lineage' | undefined) => void;
   setOpeningOrder: (order: Exclude<SpeakerId, 'user'>[]) => void;
@@ -135,6 +136,24 @@ export const createConfigSlice: StateCreator<DebateStore, [], [], ConfigSlice> =
 
   setResponseLength: (length) => {
     set({ responseLength: length });
+    const debate = get().activeDebate;
+    if (debate) {
+      let changed = false;
+      for (const entry of debate.transcript) {
+        if (entry.display_tier) {
+          entry.display_tier = undefined;
+          changed = true;
+        }
+      }
+      if (changed) set({ activeDebate: { ...debate } });
+    }
+  },
+  // Sets the default *display* tier for statements (the header Text/Analysis control,
+  // t/2269) — distinct from responseLength (generation verbosity). Clears per-entry
+  // display_tier overrides so every statement snaps to the new default, mirroring
+  // setResponseLength. StatementCard renders `entry.display_tier ?? defaultDisplayTier`.
+  setDefaultDisplayTier: (tier) => {
+    set({ defaultDisplayTier: tier });
     const debate = get().activeDebate;
     if (debate) {
       let changed = false;

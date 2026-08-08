@@ -619,7 +619,7 @@ export const createDebateReflectionSlice: StateCreator<DebateStore, [], [], Deba
       const info = POVER_INFO[pover];
       if (!info) continue;
 
-      set({ debateGenerating: pover as SpeakerId });
+      set({ debateGenerating: pover as SpeakerId, debateStepStartedAt: Date.now() });
 
       const taxState = useTaxonomyStore.getState();
       const povKey = info.pov as 'accelerationist' | 'safetyist' | 'skeptic';

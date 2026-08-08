@@ -142,7 +142,7 @@ export const createDebatePhaseSlice: StateCreator<DebateStore, [], [], DebatePha
     if (await runPostTerminationTurn(activeDebate, aiPovers, topic, model, get, set, isStillValid, addTranscriptEntry, saveDebate)) return;
 
     // Step 1: Active moderator — delegate to shared orchestration
-    set({ debateGenerating: 'system' as SpeakerId, debateActivity: 'Moderator selection...' });
+    set({ debateGenerating: 'system' as SpeakerId, debateActivity: 'Moderator selection...', debateStepStartedAt: Date.now() });
 
     const { crossRespondRound, phase, totalRoundsForPhase } = computeRoundAndPhase(activeDebate, aiPovers, get, set);
 
@@ -1123,7 +1123,7 @@ async function runPostTerminationTurn(activeDebate: DebateSession, aiPovers: _Ai
   const phase = 'concluding';
   const focusPoint = 'Give your final statement on this debate.';
   const addressingLabel = 'all';
-  set({ debateGenerating: responderPover, debateActivity: `${POVER_INFO[responderPover].label} is preparing...` });
+  set({ debateGenerating: responderPover, debateActivity: `${POVER_INFO[responderPover].label} is preparing...`, debateStepStartedAt: Date.now() });
 
   const info = POVER_INFO[responderPover];
   const currentTranscript = formatRecentTranscript(get().activeDebate!.transcript, 8, get().activeDebate!.context_summaries);
@@ -1167,7 +1167,7 @@ async function runPostTerminationTurn(activeDebate: DebateSession, aiPovers: _Ai
 
 async function buildTurnPipelineContext(responderPover: _ModResult['responder'], activeDebate: DebateSession, topic: string, model: string, intervention: _ModResult['intervention'], interventionBriefInjection: _ModResult['interventionBriefInjection'], focusPoint: _ModResult['focusPoint'], addressingLabel: _ModResult['addressing'], phase: DebatePhase, get: _Get, set: _Set) {
     // Step 2: Generate the cross-response
-    set({ debateGenerating: responderPover, debateActivity: `${POVER_INFO[responderPover].label} is preparing...` });
+    set({ debateGenerating: responderPover, debateActivity: `${POVER_INFO[responderPover].label} is preparing...`, debateStepStartedAt: Date.now() });
 
     const info = POVER_INFO[responderPover];
     const currentTranscript = formatRecentTranscript(get().activeDebate!.transcript, 8, get().activeDebate!.context_summaries);
