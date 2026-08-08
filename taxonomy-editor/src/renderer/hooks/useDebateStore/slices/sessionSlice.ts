@@ -759,7 +759,7 @@ export const createSessionSlice: StateCreator<DebateStore, [], [], SessionSlice>
       session.active_povers = normalizeActivePovers(session.active_povers);
       session.title = newTitle;
       session.updated_at = nowISO();
-      await api.saveDebateSession(session);
+      await api.saveDebateSession(session, 'renameDebate');
       if (get().activeDebateId === id) {
         set({ activeDebate: session });
       }
