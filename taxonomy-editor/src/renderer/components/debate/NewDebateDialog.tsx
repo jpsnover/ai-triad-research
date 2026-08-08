@@ -35,6 +35,7 @@ const STYLE_PRESETS: { id: DialecticalStyle; label: string; desc: string }[] = [
 
 interface NewDebateDialogProps {
   onClose: () => void;
+  onAtCap?: () => void;
 }
 
 const AUDIENCE_DESCRIPTIONS: Record<string, string> = {
@@ -907,7 +908,7 @@ function DebateSettingsDialog({
 
 // ── Main dialog ───────────────────────────────────────────────────────────────
 
-export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
+export function NewDebateDialog({ onClose, onAtCap }: NewDebateDialogProps) {
   const { createDebate, loadDebate } = useDebateStore(
     useShallow(s => ({ createDebate: s.createDebate, loadDebate: s.loadDebate }))
   );
@@ -1176,7 +1177,8 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
       const store = useDebateStore.getState();
       store.updatePhase('clarification');
       await store.saveDebate();
-      api.openDebateWindow(id).catch(() => { /* fallback: stays inline */ });
+      const popoutResult = await api.openDebateWindow(id).catch(() => undefined);
+      if (popoutResult && popoutResult.atCap) onAtCap?.();
 
       // Generate title via model call (Q5 resolved); announce for screen readers
       try {
