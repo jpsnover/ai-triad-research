@@ -122,14 +122,14 @@ const PRESET_DEFAULTS: Record<BuiltInPresetId, {
   confrontationRounds: number; argumentationRounds: number; concludingRounds: number;
   stepMode: boolean; modelTier: 'basic' | 'advanced';
 }> = {
-  quick:    { protocolId: 'structured',   dialecticalStyle: 'adversarial',  confrontationRounds: 2, argumentationRounds: 3, concludingRounds: 1, stepMode: false, modelTier: 'basic'    },
-  deep:     { protocolId: 'deliberation', dialecticalStyle: 'deliberative', confrontationRounds: 3, argumentationRounds: 6, concludingRounds: 2, stepMode: false, modelTier: 'advanced' },
+  quick:    { protocolId: 'structured',   dialecticalStyle: 'adversarial',  confrontationRounds: 1, argumentationRounds: 1, concludingRounds: 1, stepMode: false, modelTier: 'basic'    },
+  deep:     { protocolId: 'deliberation', dialecticalStyle: 'deliberative', confrontationRounds: 1, argumentationRounds: 3, concludingRounds: 1, stepMode: false, modelTier: 'advanced' },
   socratic: { protocolId: 'socratic',     dialecticalStyle: 'integrative',  confrontationRounds: 2, argumentationRounds: 4, concludingRounds: 2, stepMode: true,  modelTier: 'basic'    },
 };
 
 const SCREEN_A_PRESETS: { id: BuiltInPresetId; label: string; summary: string; estimatedMinutes?: number }[] = [
-  { id: 'quick',    label: 'Quick take', summary: '2+3 rounds · basic model',                 estimatedMinutes: 8  },
-  { id: 'deep',     label: 'Deep dive',  summary: '3+6 rounds · frontier model',               estimatedMinutes: 25 },
+  { id: 'quick',    label: 'Quick take', summary: '1+1 rounds · basic model',                 estimatedMinutes: 4  },
+  { id: 'deep',     label: 'Deep dive',  summary: '1+3 rounds · frontier model',               estimatedMinutes: 12 },
   { id: 'socratic', label: 'Socratic',   summary: '2+4 rounds · step-by-step · basic model',   estimatedMinutes: 20 },
 ];
 
