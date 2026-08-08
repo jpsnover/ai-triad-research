@@ -66,7 +66,7 @@ Describe 'Situation BDI-decomposition compliance check (t/1312)' -Tag 'taxonomy'
         }
     }
 
-    It 'Live-data baseline: 435 / 435 non-deprecated situations pass, 1 exempt (post-t/1805 backfill)' {
+    It 'Live-data baseline: 440 / 440 non-deprecated situations pass, 1 exempt (post-t/2323 backfill)' {
         # Trip-wire updated after CL's t/1306 backfill merged (CL sign-off p/23#62,
         # data-repo commit f202ddd2). Situation corpus is now fully BDI-decomposed;
         # the 1 exempt node uses the [DEPRECATED] description prefix per CL's Q1 answer.
@@ -77,8 +77,10 @@ Describe 'Situation BDI-decomposition compliance check (t/1312)' -Tag 'taxonomy'
         # interpretations). The trip-wire fired correctly; the 23 were decomposed via
         # enrichment.situation-bdi-decomposition (existing narrative preserved) and
         # merged with CL sign-off. Creation-path gap tracked separately (t/1805 step 2).
+        # Baseline bumped 435->440 for t/2323: 5 new situations (sit-471..475) added
+        # with flat-string interpretations; decomposed via enrichment.situation-bdi-decomposition.
         $script:BdiCheck.Status | Should -Be 'pass'
-        $script:BdiCheck.Detail | Should -Match '435 / 435'
+        $script:BdiCheck.Detail | Should -Match '440 / 440'
         $script:BdiCheck.Detail | Should -Match '1 exempt via \[DEPRECATED\] prefix'
     }
 
