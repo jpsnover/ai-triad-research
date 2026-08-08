@@ -352,10 +352,13 @@ function buildNameToCluster(mapping: ReturnType<typeof getLineageMapping>): Reco
   return nameToCluster;
 }
 
-/** Build relevance-selection options, applying a lineage-tradition boost when a frame + lineage data are available. */
-function buildRelevanceOptions(threshold: number, debate: ReturnType<typeof useDebateStore.getState>['activeDebate'], allPovNodes: PovNode[]): RelevanceOptions {
-  const relevanceOpts: RelevanceOptions = { threshold, minPerCategory: 3, maxTotal: 35 };
-  const lineageFrame = debate?.topic?.critique?.lineage_frame;
+/**
+ * Emit the per-turn lineage boost-check diagnostic. A topic-specific lineage frame is only
+ * computed during topic critique, so for URL/document/situations debates no frame is ever
+ * produced and the check has nothing to report — suppress it there as pure noise (t/2271).
+ */
+function recordLineageBoostCheck(lineageFrame: { cluster_id: string }[] | undefined, frameExpected: boolean): void {
+  if (!frameExpected && !(lineageFrame && lineageFrame.length > 0)) return;
   getGlobalRecorder()?.record({
     type: 'lineage.boost-check',
     component: 'debate-store',
@@ -365,8 +368,16 @@ function buildRelevanceOptions(threshold: number, debate: ReturnType<typeof useD
       has_lineage_frame: !!lineageFrame,
       frame_count: lineageFrame?.length ?? 0,
       lineage_data_loaded: isLineageDataLoaded(),
+      frame_expected: frameExpected,
     },
   });
+}
+
+/** Build relevance-selection options, applying a lineage-tradition boost when a frame + lineage data are available. */
+function buildRelevanceOptions(threshold: number, debate: ReturnType<typeof useDebateStore.getState>['activeDebate'], allPovNodes: PovNode[]): RelevanceOptions {
+  const relevanceOpts: RelevanceOptions = { threshold, minPerCategory: 3, maxTotal: 35 };
+  const lineageFrame = debate?.topic?.critique?.lineage_frame;
+  recordLineageBoostCheck(lineageFrame, debate?.source_type === 'topic');
   if (lineageFrame && lineageFrame.length > 0 && isLineageDataLoaded()) {
     const mapping = getLineageMapping();
     const lineageByNode = buildLineageByNode(allPovNodes);
