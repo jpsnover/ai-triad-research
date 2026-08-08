@@ -6,7 +6,6 @@ import { api } from '@bridge';
 import { useDebateStore } from '../../hooks/useDebateStore';
 import { useShallow } from 'zustand/react/shallow';
 import { useTaxonomyStore } from '../../hooks/useTaxonomyStore';
-import { DEBATE_AUDIENCES } from '../../types/debate';
 import type { SpeakerId } from '../../types/debate';
 import { DebateSourceViewer } from '../debate/DebateSourceViewer';
 import { NeutralEvaluationPanel } from '../analysis/NeutralEvaluationPanel';
@@ -32,7 +31,7 @@ import { initDebatePopoutCloseHandler } from '../../hooks/useDebateStore/shared/
 import { useCommunityStore } from '../../hooks/useCommunityStore';
 import { useUserProfile } from '../../hooks/useAuthStatus';
 import { CommunityShareBanner } from '../shared/CommunityShareBanner';
-import { CoverageBadge } from './TaxonomyRefs';
+import { DebateHeader } from './DebateHeader';
 import { StatementCard, ProbingCard, FactCheckCard, EntryDeleteControls, HighlightedText, PhaseHairline } from './StatementCard';
 import { DebaterToggles, DebateActions } from './DebateActionBar';
 import { DebatePhaseIndicators } from './DebatePhaseIndicators';
@@ -474,7 +473,7 @@ function DebateToolbar({
   activeDebate, isExploration, isCrossCutting, onShowCCDetails,
   commentSidebarOpen, toggleCommentSidebar, commentsFile,
   exportStatus, onExport, diagnosticsEnabled, toggleDiagnostics,
-  defaultTier, setDefaultTier,
+  defaultTier, setDefaultTier, headerVariant = false,
 }: {
   activeDebate: ActiveDebateSession;
   isExploration: boolean;
@@ -489,12 +488,18 @@ function DebateToolbar({
   toggleDiagnostics: () => void;
   defaultTier: DWStore['responseLength'];
   setDefaultTier: DWStore['setResponseLength'];
+  // When true, renders as the action cluster inside the redesigned header's Band 1
+  // (t/2293): the standalone title span is dropped (the header h2 carries the topic)
+  // and the frozen `.debate-toolbar` bar chrome is neutralized via `.debate-hdr-actions`.
+  headerVariant?: boolean;
 }) {
   return (
-    <div className="debate-toolbar">
-      <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)', userSelect: 'all', marginRight: 8, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 300 }} title={`${activeDebate.title} — ${activeDebate.id}`}>
-        {activeDebate.title || activeDebate.id.slice(0, 12)}
-      </span>
+    <div className={`debate-toolbar${headerVariant ? ' debate-hdr-actions' : ''}`}>
+      {!headerVariant && (
+        <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)', userSelect: 'all', marginRight: 8, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 300 }} title={`${activeDebate.title} — ${activeDebate.id}`}>
+          {activeDebate.title || activeDebate.id.slice(0, 12)}
+        </span>
+      )}
       {isExploration && (
         <span className="debate-exploration-badge" title="Exploration run — quick discovery with a cheap model">
           Exploration
@@ -575,37 +580,6 @@ function RemoteDriverOverlay({ show }: { show: boolean }) {
     }}>
       <span style={{ fontSize: '1.1rem' }}>&#8599;</span>
       <span>Debate running in popout window. Controls are disabled here until the popout is closed.</span>
-    </div>
-  );
-}
-
-function DebateTopicInfo({ activeDebate, coverageMap, strengthWeighted }: {
-  activeDebate: ActiveDebateSession;
-  coverageMap: CoverageMap | null;
-  strengthWeighted: StrengthWeightedCoverage | null;
-}) {
-  return (
-    <div className="debate-topic-info" style={{ flexDirection: 'column', alignItems: 'flex-start' }}>
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
-        <span className="debate-phase-indicator">
-          {PHASE_TITLES[activeDebate.phase] || activeDebate.phase}
-        </span>
-        <span className="debate-timestamp" title={activeDebate.created_at}>
-          {new Date(activeDebate.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}{' '}
-          {new Date(activeDebate.created_at).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}
-        </span>
-        {activeDebate.audience && (
-          <span className="debate-audience-badge">
-            {DEBATE_AUDIENCES.find(a => a.id === activeDebate.audience)?.label ?? activeDebate.audience}
-          </span>
-        )}
-        {activeDebate.debate_model && (
-          <span className="debate-model-badge">{activeDebate.debate_model}</span>
-        )}
-        <code style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', userSelect: 'all', cursor: 'text' }} title="Debate ID — click to select">{activeDebate.id}</code>
-        {coverageMap && <CoverageBadge coverageMap={coverageMap} strengthWeighted={strengthWeighted} />}
-      </div>
-      <span className="debate-topic-text">{activeDebate.topic.final}</span>
     </div>
   );
 }
@@ -1344,21 +1318,31 @@ export function DebateWorkspace({ onExport, exportStatus }: {
     <div className="debate-workspace-row" data-phase={isClarificationPhase ? 'setup' : undefined}>
     {chatRedesign && <TranscriptOutline transcript={activeDebate.transcript} />}
     <div className="debate-workspace">
-      {/* Fixed toolbar — always visible */}
-      <DebateToolbar
+      {/* Fixed header — always visible (t/2293): title+source, status, DEBATERS strip,
+          with the action controls anchored top-right in Band 1. */}
+      <DebateHeader
         activeDebate={activeDebate}
-        isExploration={isExploration}
-        isCrossCutting={isCrossCutting}
-        onShowCCDetails={() => setShowCCDetails(true)}
-        commentSidebarOpen={commentSidebarOpen}
-        toggleCommentSidebar={toggleCommentSidebar}
-        commentsFile={commentsFile}
-        exportStatus={exportStatus}
-        onExport={onExport}
-        diagnosticsEnabled={diagnosticsEnabled}
-        toggleDiagnostics={toggleDiagnostics}
-        defaultTier={defaultTier}
-        setDefaultTier={setDefaultTier}
+        coverageMap={coverageMap}
+        strengthWeighted={strengthWeighted}
+        phaseLabel={PHASE_TITLES[activeDebate.phase] || activeDebate.phase}
+        actions={
+          <DebateToolbar
+            activeDebate={activeDebate}
+            headerVariant
+            isExploration={isExploration}
+            isCrossCutting={isCrossCutting}
+            onShowCCDetails={() => setShowCCDetails(true)}
+            commentSidebarOpen={commentSidebarOpen}
+            toggleCommentSidebar={toggleCommentSidebar}
+            commentsFile={commentsFile}
+            exportStatus={exportStatus}
+            onExport={onExport}
+            diagnosticsEnabled={diagnosticsEnabled}
+            toggleDiagnostics={toggleDiagnostics}
+            defaultTier={defaultTier}
+            setDefaultTier={setDefaultTier}
+          />
+        }
       />
 
       {/* Cross-cutting context dialog */}
@@ -1380,9 +1364,9 @@ export function DebateWorkspace({ onExport, exportStatus }: {
       {/* Remote driver overlay — popout window is driving this debate */}
       <RemoteDriverOverlay show={showRemoteOverlay} />
 
-      {/* Scrollable content: topic, debaters, transcript */}
+      {/* Scrollable content: debaters, transcript (the topic/metadata header is now
+          the fixed DebateHeader above, t/2293) */}
       <div className="debate-scroll-content" onContextMenu={handleContextMenu}>
-        <DebateTopicInfo activeDebate={activeDebate} coverageMap={coverageMap} strengthWeighted={strengthWeighted} />
         <DebatePhaseHeader activeDebate={activeDebate} isDebatePhase={isDebatePhase} isOpeningPhase={isOpeningPhase} />
         <DebateTranscriptColumn
           activeDebate={activeDebate}
