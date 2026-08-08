@@ -391,8 +391,8 @@ const GLOBAL_TIER_TITLES: Record<string, string> = {
 const GLOBAL_MODE_IDS = [{ id: 'text', label: 'Text' }, { id: 'analysis', label: 'Analysis' }] as const;
 
 function GlobalModeControl({ defaultTier, setDefaultTier }: {
-  defaultTier: DWStore['responseLength'];
-  setDefaultTier: DWStore['setResponseLength'];
+  defaultTier: DWStore['defaultDisplayTier'];
+  setDefaultTier: DWStore['setDefaultDisplayTier'];
 }) {
   const activeMode = META_TIERS.has(defaultTier) ? 'analysis' : 'text';
   const [lastText, setLastText] = useState<GlobalTextTier>(
@@ -486,8 +486,8 @@ function DebateToolbar({
   onExport?: (format: string) => void;
   diagnosticsEnabled: boolean;
   toggleDiagnostics: () => void;
-  defaultTier: DWStore['responseLength'];
-  setDefaultTier: DWStore['setResponseLength'];
+  defaultTier: DWStore['defaultDisplayTier'];
+  setDefaultTier: DWStore['setDefaultDisplayTier'];
   // When true, renders as the action cluster inside the redesigned header's Band 1
   // (t/2293): the standalone title span is dropped (the header h2 carries the topic)
   // and the frozen `.debate-toolbar` bar chrome is neutralized via `.debate-hdr-actions`.
@@ -1143,7 +1143,7 @@ function computeSelectionAnchor(
   selection: Selection,
   entry: ActiveTranscriptEntry,
   selectedText: string,
-  defaultTier: DWStore['responseLength'],
+  defaultTier: DWStore['defaultDisplayTier'],
 ): { startOffset: number; endOffset: number; tier: DetailTier } {
   const isSub = ['opening', 'statement', 'fact-check', 'cross_respond'].includes(entry.type);
   const tier: DetailTier = isSub ? ((entry as any).display_tier ?? defaultTier ?? 'detailed') : 'detailed';
@@ -1165,7 +1165,7 @@ function computeSelectionAnchor(
   return { startOffset, endOffset, tier };
 }
 
-function useDebateSelectionMenu(activeDebate: DWStore['activeDebate'], defaultTier: DWStore['responseLength']) {
+function useDebateSelectionMenu(activeDebate: DWStore['activeDebate'], defaultTier: DWStore['defaultDisplayTier']) {
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const [commentPopover, setCommentPopover] = useState<CommentPopoverState | null>(null);
 
@@ -1226,7 +1226,10 @@ export function DebateWorkspace({ onExport, exportStatus }: {
       runClarification: s.runClarification, runOpeningStatements: s.runOpeningStatements, saveDebate: s.saveDebate, compressOldTranscript: s.compressOldTranscript,
       diagnosticsEnabled: s.diagnosticsEnabled, toggleDiagnostics: s.toggleDiagnostics, selectedDiagEntry: s.selectedDiagEntry, selectDiagEntry: s.selectDiagEntry,
       diagPopoutOpen: s.diagPopoutOpen, setDiagPopoutOpen: s.setDiagPopoutOpen,
-      defaultTier: s.responseLength, setDefaultTier: s.setResponseLength,
+      // Header Text/Analysis control + statement display fallback bind to the
+      // display tier (defaultDisplayTier, default Medium), NOT responseLength
+      // (generation verbosity, default Detailed) — t/2318.
+      defaultTier: s.defaultDisplayTier, setDefaultTier: s.setDefaultDisplayTier,
       driverIsRemote: s.driverIsRemote,
       selectedRef: s.selectedRef, setSelectedRef: s.setSelectedRef,
       explorationSummary: s.explorationSummary,

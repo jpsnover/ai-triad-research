@@ -246,7 +246,7 @@ export const createClarificationSlice: StateCreator<DebateStore, [], [], Clarifi
     const model = getConfiguredModel();
     const topic = activeDebate.topic.final;
 
-    set({ debateGenerating: 'system' as SpeakerId });
+    set({ debateGenerating: 'system' as SpeakerId, debateStepStartedAt: Date.now() });
     const lineageCtx = buildLineageContext();
     const prompt = activeDebate.source_type === 'situations'
       ? situationClarificationPrompt(topic, activeDebate.source_content, activeDebate.audience, lineageCtx)
@@ -601,7 +601,7 @@ export const createClarificationSlice: StateCreator<DebateStore, [], [], Clarifi
     // Runs here so it executes whether the user submitted answers or skipped clarification
     if (activeDebate && !activeDebate.document_analysis &&
         (activeDebate.source_type === 'document' || activeDebate.source_type === 'url')) {
-      set({ debateGenerating: 'system' as SpeakerId });
+      set({ debateGenerating: 'system' as SpeakerId, debateStepStartedAt: Date.now() });
       const model = getConfiguredModel();
       newAbortController();
       const isStillValid = createDebateGuard(get);
@@ -901,7 +901,7 @@ export const createClarificationSlice: StateCreator<DebateStore, [], [], Clarifi
         continue;
       }
 
-      set({ debateGenerating: poverId });
+      set({ debateGenerating: poverId, debateStepStartedAt: Date.now() });
       const info = POVER_INFO[poverId];
 
       try {

@@ -224,6 +224,33 @@ describe('Config slice: getConfiguredModel behavior', () => {
     expect(useDebateStore.getState().responseLength).toBe('claims');
   });
 
+  it('setDefaultDisplayTier sets the display default and clears overrides without touching responseLength (t/2318)', () => {
+    const session = makeSession({
+      transcript: [
+        { id: 'e1', timestamp: 't', type: 'statement', speaker: 'accelerationist', content: 'X', taxonomy_refs: [], display_tier: 'brief' },
+      ],
+    });
+    useDebateStore.setState({ activeDebate: session as any, defaultDisplayTier: 'detailed', responseLength: 'detailed' });
+
+    useDebateStore.getState().setDefaultDisplayTier('medium');
+
+    expect(useDebateStore.getState().defaultDisplayTier).toBe('medium');
+    // The header control targets the display tier only — generation verbosity is untouched.
+    expect(useDebateStore.getState().responseLength).toBe('detailed');
+    expect(useDebateStore.getState().activeDebate!.transcript[0].display_tier).toBeUndefined();
+  });
+
+  it('stamps debateStepStartedAt when a production generation action starts, not only setGenerating (t/2319)', async () => {
+    useDebateStore.setState({ activeDebate: makeSession() as any, debateStepStartedAt: null });
+    mockApi.generateText.mockResolvedValue({ text: '{"questions":["Q1"]}' });
+
+    await useDebateStore.getState().runClarification();
+
+    // runClarification sets debateGenerating at step start; the fix stamps the step
+    // timer there so StatementProgressIndicator counts up instead of sticking at 0:00.
+    expect(useDebateStore.getState().debateStepStartedAt).not.toBeNull();
+  });
+
   // t/2269 (TL Option 2): the debate-step view default is Medium, but that must NOT
   // shorten generation. defaultDisplayTier (view fallback) and responseLength
   // (generation verbosity) are independent store fields — guard against re-coupling.
