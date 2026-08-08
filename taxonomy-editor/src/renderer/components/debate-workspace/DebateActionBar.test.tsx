@@ -2,8 +2,9 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { describe, it, expect, vi, afterEach } from 'vitest';
+import { useRef } from 'react';
 import { render, screen } from '@testing-library/react';
-import { ProgressIndicator, PhaseProgressBar, DebaterToggles, TokenBudgetIndicator } from './DebateActionBar';
+import { ProgressIndicator, PhaseProgressBar, DebaterToggles, TokenBudgetIndicator, DebateActions } from './DebateActionBar';
 
 // ── Mocks ────────────────────────────────────────────────────
 
@@ -86,12 +87,20 @@ vi.mock('../../hooks/useTierInfo', () => ({
   useTierInfo: () => mockTierInfo,
 }));
 
+// isElectronMode is controllable so the t/2298 regression test can vary it across renders.
+const bridgeState = vi.hoisted(() => ({ electron: true }));
 vi.mock('@bridge', () => ({
-  isElectronMode: () => true,
+  isElectronMode: () => bridgeState.electron,
 }));
 
+// Real useFlag wraps a Zustand selector — i.e. it consumes a React hook.
+// The mock must too, otherwise calling it conditionally (the t/2298 bug) is
+// invisible to React's hook counter and the regression can't be reproduced.
 vi.mock('../../hooks/useFeatureFlags', () => ({
-  useFlag: () => false,
+  useFlag: () => {
+    useRef(null);
+    return false;
+  },
 }));
 
 afterEach(() => { vi.clearAllMocks(); });
@@ -301,5 +310,65 @@ describe('TokenBudgetIndicator', () => {
     };
     render(<TokenBudgetIndicator />);
     expect(screen.getByText(/resets in 2h \d+m/)).toBeInTheDocument();
+  });
+});
+
+// ── DebateActions — hook-count stability (t/2298 regression) ─────────
+//
+// `useFlag('permission-admin-features')` was called conditionally as the RHS of
+// `isElectronMode() || useFlag(...)`. When isElectronMode() flips between renders
+// of the same fiber, the hook count changed and React crashed the debate popup
+// with "Rendered fewer/more hooks than expected". The test varies isElectronMode()
+// across a rerender of the SAME instance — the only way to catch a re-introduction.
+
+describe('DebateActions — hook-count stability (t/2298)', () => {
+  const noop = () => {};
+  const actionsProps = {
+    showParamHistory: false,
+    setShowParamHistory: noop,
+    showEvaluation: false,
+    setShowEvaluation: noop,
+  };
+
+  afterEach(() => {
+    bridgeState.electron = true;
+  });
+
+  const primeStore = () => {
+    mockStore.activeDebate = {
+      phase: 'active',
+      active_povers: ['accelerationist', 'safetyist'],
+      transcript: [],
+      neutral_evaluations: [],
+    };
+    mockStore.debateGenerating = null;
+    mockStore.debateError = null;
+    mockStore.debateRetryAction = null;
+    mockStore.dailyLimitPaused = false;
+    mockStore.toggleStepMode = vi.fn();
+    mockStore.setDebatePhase = vi.fn();
+    mockStore.setError = vi.fn();
+  };
+
+  it('keeps a stable hook count when isElectronMode() flips across renders', () => {
+    primeStore();
+
+    // First render short-circuits the old `||` (Electron true → useFlag skipped).
+    bridgeState.electron = true;
+    const { rerender } = render(<DebateActions {...actionsProps} />);
+
+    // Flip to web: the old code would now CALL useFlag → hook count changes → crash.
+    bridgeState.electron = false;
+    expect(() => rerender(<DebateActions {...actionsProps} />)).not.toThrow();
+
+    // Flip back for good measure — count must stay stable in both directions.
+    bridgeState.electron = true;
+    expect(() => rerender(<DebateActions {...actionsProps} />)).not.toThrow();
+  });
+
+  it('mounts without crashing in the web build (isElectronMode() false)', () => {
+    primeStore();
+    bridgeState.electron = false;
+    expect(() => render(<DebateActions {...actionsProps} />)).not.toThrow();
   });
 });
