@@ -25,7 +25,7 @@ console.log('[main] fileIO import OK');
 let mainWindow: BrowserWindow | null = null;
 let diagWindow: BrowserWindow | null = null;
 let povProgWindow: BrowserWindow | null = null;
-let debateWindow: BrowserWindow | null = null;
+const debateWindows = new Map<string, BrowserWindow>();
 let promptDiffWindow: BrowserWindow | null = null;
 let chatWindow: BrowserWindow | null = null;
 let diffWindow: BrowserWindow | null = null;
@@ -603,18 +603,27 @@ void app.whenReady().then(() => {
     });
   });
 
-  // Debate popout window
+  // Debate popout windows (Map-based, up to 5 simultaneous)
   ipcMain.handle('open-debate-window', (_event, debateId: string) => {
-    if (debateWindow && !debateWindow.isDestroyed()) {
-      // Reuse existing window — send the new debate ID
-      debateWindow.webContents.send('debate-window-load', debateId);
-      if (debateWindow.isMinimized()) debateWindow.restore();
-      debateWindow.show();
-      debateWindow.focus();
+    // Per-id dedup: focus existing window for this debateId (never counts against cap)
+    const existing = debateWindows.get(debateId);
+    if (existing && !existing.isDestroyed()) {
+      if (existing.isMinimized()) existing.restore();
+      existing.show();
+      existing.focus();
       return;
     }
+    // Prune stale destroyed entries before cap check
+    for (const [id, w] of debateWindows.entries()) {
+      if (w.isDestroyed()) debateWindows.delete(id);
+    }
+    if (debateWindows.size >= 5) {
+      return { atCap: true };
+    }
+    const offset = debateWindows.size * 30;
     const preloadPath = path.join(__dirname, 'preload.cjs');
-    debateWindow = new BrowserWindow({
+    const win = new BrowserWindow({
+      ...(offset > 0 ? { x: offset, y: offset } : {}),
       width: 1100,
       height: 800,
       minWidth: 700,
@@ -628,23 +637,24 @@ void app.whenReady().then(() => {
         sandbox: true,
       },
     });
-    hardenWindow(debateWindow);
+    hardenWindow(win);
+    debateWindows.set(debateId, win);
     const debateHash = `debate-window?id=${encodeURIComponent(debateId)}`;
     const isDev = !app.isPackaged;
     if (isDev) {
-      void debateWindow.loadURL(`http://localhost:5173#${debateHash}`);
+      void win.loadURL(`http://localhost:5173#${debateHash}`);
     } else {
-      void debateWindow.loadFile(path.join(PROJECT_ROOT, 'taxonomy-editor/dist/renderer/index.html'), { hash: debateHash });
+      void win.loadFile(path.join(PROJECT_ROOT, 'taxonomy-editor/dist/renderer/index.html'), { hash: debateHash });
     }
     // Send debate ID on every load (initial + HMR reload)
-    debateWindow.webContents.on('did-finish-load', () => {
+    win.webContents.on('did-finish-load', () => {
       console.log('[Main] debate-window did-finish-load, sending debate ID:', debateId);
-      debateWindow?.webContents.send('debate-window-load', debateId);
+      if (!win.isDestroyed()) win.webContents.send('debate-window-load', debateId);
     });
-    debateWindow.on('closed', () => {
-      debateWindow = null;
+    win.on('closed', () => {
+      debateWindows.delete(debateId);
       if (mainWindow && !mainWindow.isDestroyed()) {
-        mainWindow.webContents.send('debate-popout-closed');
+        mainWindow.webContents.send('debate-popout-closed', debateId);
       }
     });
   });
@@ -654,9 +664,10 @@ void app.whenReady().then(() => {
     sendFocusNode(nodeId);
   });
 
-  ipcMain.handle('close-debate-window', () => {
-    if (debateWindow && !debateWindow.isDestroyed()) {
-      debateWindow.close();
+  ipcMain.handle('close-debate-window', (_event, debateId: string) => {
+    const win = debateWindows.get(debateId);
+    if (win && !win.isDestroyed()) {
+      win.close();
     }
   });
 });

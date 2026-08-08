@@ -330,7 +330,7 @@ export const api: AppAPI = {
 
   // Debate popout
   openDebateWindow: (id) => window.electronAPI.openDebateWindow(id),
-  closeDebateWindow: () => window.electronAPI.closeDebateWindow(),
+  closeDebateWindow: (debateId) => window.electronAPI.closeDebateWindow(debateId),
   getCliFileArg: () => window.electronAPI.getCliFileArg(),
 
   // Terminal

@@ -374,8 +374,8 @@ export interface AppAPI {
   openPromptDiffWindow: (debateId: string, entryId: string) => Promise<void>;
 
   // --- Debate popout ---
-  openDebateWindow: (debateId: string) => Promise<void>;
-  closeDebateWindow: () => Promise<void>;
+  openDebateWindow: (debateId: string) => Promise<{ atCap: true } | void>;
+  closeDebateWindow: (debateId: string) => Promise<void>;
   getCliFileArg: () => Promise<{ type: string; path: string; data?: unknown; error?: string } | null>;
 
   // --- Terminal ---
@@ -412,7 +412,7 @@ export interface AppAPI {
   requestReExtractClaims: (entryId: string) => void;
   onReExtractClaims: (callback: (entryId: string) => void) => () => void;
   onDebateWindowLoad: (callback: (debateId: string) => void) => () => void;
-  onDebatePopoutClosed: (callback: () => void) => () => void;
+  onDebatePopoutClosed: (callback: (debateId: string) => void) => () => void;
   onGenerateTextProgress: (callback: (progress: {
     attempt: number;
     maxRetries: number;
