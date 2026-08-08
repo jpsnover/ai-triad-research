@@ -926,6 +926,8 @@ Export-ModuleMember -Function @(
     'Get-ViteDevStatus'
     # t/2330 — Debate session state diagnostic
     'Get-DebateSessionState'
+    # t/2335 — Debate index field-type integrity check
+    'Test-DebateIndexIntegrity'
 ) -Alias @(
     'Import-Document'
     'TaxonomyEditor'
