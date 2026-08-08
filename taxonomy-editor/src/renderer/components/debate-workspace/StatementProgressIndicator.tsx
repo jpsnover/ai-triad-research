@@ -11,11 +11,11 @@ function formatElapsed(ms: number): string {
 }
 
 export function StatementProgressIndicator() {
-  const { debateGenerating, debateActivity, debateGeneratingStartedAt, debateError } = useDebateStore(
+  const { debateGenerating, debateActivity, debateStepStartedAt, debateError } = useDebateStore(
     useShallow(s => ({
       debateGenerating: s.debateGenerating,
       debateActivity: s.debateActivity,
-      debateGeneratingStartedAt: s.debateGeneratingStartedAt,
+      debateStepStartedAt: s.debateStepStartedAt,
       debateError: s.debateError,
     }))
   );
@@ -24,10 +24,10 @@ export function StatementProgressIndicator() {
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
-    if (debateGenerating && debateGeneratingStartedAt !== null) {
-      setElapsed(Date.now() - debateGeneratingStartedAt);
+    if (debateGenerating && debateStepStartedAt !== null) {
+      setElapsed(Date.now() - debateStepStartedAt);
       intervalRef.current = setInterval(() => {
-        setElapsed(Date.now() - (debateGeneratingStartedAt as number));
+        setElapsed(Date.now() - (debateStepStartedAt as number));
       }, 1000);
     } else {
       if (intervalRef.current !== null) {
@@ -41,7 +41,7 @@ export function StatementProgressIndicator() {
         intervalRef.current = null;
       }
     };
-  }, [debateGenerating, debateGeneratingStartedAt]);
+  }, [debateGenerating, debateStepStartedAt]);
 
   // TL note 1: clear interval immediately when error occurs — don't wait for unmount
   useEffect(() => {

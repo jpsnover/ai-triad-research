@@ -225,6 +225,56 @@ describe('Config slice: getConfiguredModel behavior', () => {
   });
 });
 
+// ── Config Slice — per-step debate timer (t/2266) ──
+// A single step (one speaker turn) fans out into multiple generation phases, each
+// calling setGenerating. The step-scoped debateStepStartedAt must be set once when
+// the step begins and NOT be overwritten by later phases (the t/2266 bug), so the
+// StatementProgressIndicator elapsed timer increments monotonically instead of
+// resetting to 0 mid-step. Fake timers keep the timestamp assertions deterministic.
+
+describe('Config slice: per-step timer (debateStepStartedAt) — t/2266', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+    useDebateStore.setState({ debateGenerating: null, debateGeneratingStartedAt: null, debateStepStartedAt: null });
+  });
+
+  it('sets debateStepStartedAt once per step and never overwrites it across phases', () => {
+    useDebateStore.setState({ debateGenerating: null, debateGeneratingStartedAt: null, debateStepStartedAt: null });
+    vi.useFakeTimers();
+    vi.setSystemTime(1_000);
+    const { setGenerating } = useDebateStore.getState();
+
+    // Phase 1 of the step begins — the step marker is stamped.
+    setGenerating('accelerationist');
+    expect(useDebateStore.getState().debateStepStartedAt).toBe(1_000);
+
+    // A later generation phase within the SAME step calls setGenerating again.
+    vi.setSystemTime(5_000);
+    setGenerating('safetyist');
+    // The per-phase marker advances…
+    expect(useDebateStore.getState().debateGeneratingStartedAt).toBe(5_000);
+    // …but the step-scoped marker must stay put (the fix).
+    expect(useDebateStore.getState().debateStepStartedAt).toBe(1_000);
+  });
+
+  it('clears the step marker at step end and starts fresh for the next step', () => {
+    useDebateStore.setState({ debateGenerating: null, debateGeneratingStartedAt: null, debateStepStartedAt: null });
+    vi.useFakeTimers();
+    vi.setSystemTime(1_000);
+    const { setGenerating } = useDebateStore.getState();
+
+    setGenerating('accelerationist');
+    expect(useDebateStore.getState().debateStepStartedAt).toBe(1_000);
+
+    setGenerating(null); // step ends → marker cleared
+    expect(useDebateStore.getState().debateStepStartedAt).toBeNull();
+
+    vi.setSystemTime(9_000);
+    setGenerating('skeptic'); // next step begins → fresh marker
+    expect(useDebateStore.getState().debateStepStartedAt).toBe(9_000);
+  });
+});
+
 // ── P5-1b. Session Slice — createDebate model resolution (t/2213) ──
 
 describe('Session slice: createDebate model resolution', () => {

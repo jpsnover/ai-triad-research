@@ -22,6 +22,14 @@ let _pipeline: Pipeline | null = null;
 let _initPromise: Promise<boolean> | null = null;
 let _backend: 'webnn' | 'wasm' | 'none' = 'none';
 let _ready = false;
+// Set by the caller when a bridge/server-side embedding fallback is active.
+// When true, WASM-init-failed is harmless noise and logged at debug, not warn.
+let _hasBridgeFallback = false;
+
+/** Call before tryInitLocalEmbedding when a bridge/ONNX fallback is available. */
+export function notifyBridgeFallback(): void {
+  _hasBridgeFallback = true;
+}
 
 /** Return the active backend ('webnn', 'wasm', or 'none'). */
 export function getLocalEmbeddingBackend(): string {
@@ -101,11 +109,14 @@ async function doInit(): Promise<boolean> {
       });
       return true;
     } catch (err) {
-      console.warn('[localEmbedding] WASM init failed:', err);
+      const wasmFailLevel = _hasBridgeFallback ? 'debug' : 'warn';
+      // Bridge fallback active → WASM failure is harmless noise, so suppress the
+      // console warn (the flight recorder still captures it at debug for diagnostics).
+      if (!_hasBridgeFallback) console.warn('[localEmbedding] WASM init failed:', err);
       getGlobalRecorder()?.record({
         type: 'system.error',
         component: 'localEmbedding',
-        level: 'warn',
+        level: wasmFailLevel,
         message: 'WASM init failed',
         error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
