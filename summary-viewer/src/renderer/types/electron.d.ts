@@ -28,6 +28,7 @@ export interface ElectronAPI {
   discoverSources: () => Promise<unknown[]>;
   loadSummary: (docId: string) => Promise<unknown>;
   loadSnapshot: (sourceId: string) => Promise<string>;
+  getPdfBytes: (sourceId: string) => Promise<ArrayBuffer | null>;
   loadTaxonomy: () => Promise<unknown>;
   loadPolicyRegistry: () => Promise<unknown>;
   addTaxonomyNode: (req: AddTaxonomyNodeRequest) => Promise<AddTaxonomyNodeResult>;

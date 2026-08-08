@@ -1,0 +1,159 @@
+/* Copyright (c) 2026 Jeffrey Snover. All rights reserved. */
+/* Licensed under the MIT License. See LICENSE file in the project root. */
+
+/* PDF viewer (pane 3) — ported from poviewer's pdf styles, trimmed to the
+   subset this viewer uses (no point chips, no context menu, no highlight).
+   All tokens resolve against summary-viewer's :root. The `spin` keyframe is
+   defined once in styles.css and reused here. */
+
+.pdf-viewer {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.pdf-viewer-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px var(--pane-padding);
+  border-bottom: 1px solid var(--border-color);
+  background: var(--bg-card);
+  flex-shrink: 0;
+}
+
+.pdf-viewer-badge {
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+  background: rgba(231, 76, 60, 0.12);
+  color: var(--color-saf);
+  text-transform: uppercase;
+}
+
+.pdf-viewer-info {
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+}
+
+.pdf-toolbar-spacer {
+  flex: 1;
+}
+
+.pdf-zoom-btn {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-input);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-size: var(--font-size-lg);
+  font-family: var(--font-sans);
+  cursor: pointer;
+  line-height: 1;
+  padding: 0;
+  transition: all 0.1s;
+}
+
+.pdf-zoom-btn:hover {
+  color: var(--text-bright);
+  border-color: var(--text-muted);
+}
+
+.pdf-scale-label {
+  font-size: var(--font-size-xs);
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  min-width: 36px;
+  text-align: center;
+}
+
+.pdf-scroll-container {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 0;
+  background: var(--bg-app);
+}
+
+.pdf-page-wrapper {
+  background: white;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+  flex-shrink: 0;
+}
+
+.pdf-page-canvas {
+  display: block;
+}
+
+.pdf-page-number {
+  text-align: center;
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+  padding: 4px 0 2px;
+}
+
+.pdf-page-loading {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: var(--font-size-sm);
+  color: var(--text-muted);
+}
+
+.pdf-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  height: 100%;
+  color: var(--text-secondary);
+}
+
+.spinner-ring {
+  width: 32px;
+  height: 32px;
+  border: 3px solid var(--border-color);
+  border-top-color: var(--color-acc);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+/* pdf.js text layer — transparent, absolutely-positioned spans over the canvas
+   so text is selectable/copyable. Positioning CSS is token-free and copied
+   verbatim from the pdf.js reference viewer. */
+.textLayer {
+  position: absolute;
+  text-align: initial;
+  inset: 0;
+  overflow: hidden;
+  opacity: 0.25;
+  line-height: 1;
+  -webkit-text-size-adjust: none;
+  -moz-text-size-adjust: none;
+  text-size-adjust: none;
+  forced-color-adjust: none;
+  transform-origin: 0 0;
+  z-index: 2;
+}
+
+.textLayer :is(span, br) {
+  color: transparent;
+  position: absolute;
+  white-space: pre;
+  cursor: text;
+  transform-origin: 0% 0%;
+}
+
+.textLayer span::selection {
+  background: rgba(59, 130, 246, 0.35);
+}

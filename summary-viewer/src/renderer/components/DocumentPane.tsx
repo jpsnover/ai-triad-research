@@ -8,6 +8,7 @@ import remarkGfm from 'remark-gfm';
 import { useStore } from '../store/useStore';
 import { buildSearchRegex, type SearchMode } from '../utils/searchRegex';
 import { cosineSimilarity } from '../utils/similarity';
+import PdfViewer from './PdfViewer';
 
 export default function DocumentPane() {
   const selectedKeyPoint = useStore(s => s.selectedKeyPoint);
@@ -32,6 +33,9 @@ export default function DocumentPane() {
     index: number; text: string; score: number; el: HTMLElement;
   }>>([]);
 
+  // ── PDF mode state (Phase 1, t/2291) ──────────────────────────────
+  const [pdfData, setPdfData] = useState<ArrayBuffer | null>(null);
+
   const keyPointData = useMemo(() => {
     if (!selectedKeyPoint) return null;
     const summary = summaries[selectedKeyPoint.docId];
@@ -42,6 +46,31 @@ export default function DocumentPane() {
 
   const snapshotText = selectedKeyPoint ? snapshots[selectedKeyPoint.docId] || '' : '';
   const source = selectedKeyPoint ? sources.find(s => s.id === selectedKeyPoint.docId) : null;
+  const isPdfSource = source?.sourceType === 'pdf';
+
+  // ── Fetch raw PDF bytes for pdf-type sources; null → Markdown fallback ──
+  // (no raw PDF on disk, fetch error, or non-pdf type all leave pdfData null).
+  useEffect(() => {
+    if (!selectedKeyPoint || !isPdfSource) {
+      setPdfData(null);
+      return;
+    }
+    let cancelled = false;
+    setPdfData(null);
+    window.electronAPI.getPdfBytes(selectedKeyPoint.docId)
+      .then(bytes => { if (!cancelled) setPdfData(bytes); })
+      .catch(err => {
+        getGlobalRecorder()?.record({
+          type: 'system.error',
+          component: 'document-pane',
+          level: 'error',
+          message: 'getPdfBytes failed',
+          error: { name: (err as Error).name ?? 'Error', message: String(err) },
+        });
+        if (!cancelled) setPdfData(null);
+      });
+    return () => { cancelled = true; };
+  }, [selectedKeyPoint, isPdfSource]);
 
   // Find and highlight the verbatim quote in the snapshot
   const renderedContent = useMemo(() => {
@@ -506,6 +535,33 @@ export default function DocumentPane() {
             Click a key point, claim, or concept to view its source document
           </div>
         </div>
+      </>
+    );
+  }
+
+  // PDF mode — render the real PDF viewer instead of the Markdown shadow.
+  // Falls through to the Markdown render below when pdfData is null (no raw
+  // PDF, still loading, or fetch failed). Find/Similar/verbatim-highlight are
+  // Markdown-only in Phase 1 (t/2291); the excerpt banner is kept since it
+  // doesn't depend on the rendered document DOM.
+  if (isPdfSource && pdfData) {
+    return (
+      <>
+        <div className="pane-header">
+          <h2>{source?.title || selectedKeyPoint.docId}</h2>
+        </div>
+        {keyPointData && (
+          <div className="excerpt-banner">
+            <div className="excerpt-banner-label">Excerpt Context</div>
+            <div className="excerpt-banner-context">{keyPointData.excerpt_context}</div>
+            {keyPointData.verbatim && (
+              <div className="excerpt-banner-quote">
+                &ldquo;{keyPointData.verbatim}&rdquo;
+              </div>
+            )}
+          </div>
+        )}
+        <PdfViewer data={pdfData} />
       </>
     );
   }
