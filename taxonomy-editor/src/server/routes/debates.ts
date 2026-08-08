@@ -139,7 +139,7 @@ export function registerDebatesRoutes(r: Router, _ctx: ServerCtx): void {
       // t/700: user content (debates/chats/community) lives in Azure Blob, keyed by
       // storageUserId — no GitHub session branch needed. Closing the github-api
       // rollback window (authorized e/19#28).
-      await fileIO.saveDebateSession(body);
+      await fileIO.saveDebateSession(body, 'PUT /api/debates');
 
       await logCalibrationIfComplete(body);
       recordSlowSaveIfNeeded(debateId, body, startedAt);

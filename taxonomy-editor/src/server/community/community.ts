@@ -407,7 +407,7 @@ export async function copyFromCommunity(type: 'chats' | 'debates', communityId: 
   if (type === 'chats') {
     await saveChatSession(copy);
   } else {
-    await saveDebateSession(copy);
+    await saveDebateSession(copy, 'community-fork');
   }
 
   return { newId: copy.id as string };

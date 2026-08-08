@@ -128,14 +128,14 @@ describe('Multi-user data isolation (integration)', () => {
       await fileIO.saveDebateSession({
         id: 'debate-1', title: 'Alice Debate', phase: 'completed',
         created_at: '2026-01-01', updated_at: '2026-01-01', transcript: [],
-      });
+      }, 'test');
     });
 
     await userContext.runWithUser(userB, async () => {
       await fileIO.saveDebateSession({
         id: 'debate-2', title: 'Bob Debate', phase: 'completed',
         created_at: '2026-01-02', updated_at: '2026-01-02', transcript: [],
-      });
+      }, 'test');
     });
 
     const aliceDebates = await userContext.runWithUser(userA, () => fileIO.listDebateSessions());
