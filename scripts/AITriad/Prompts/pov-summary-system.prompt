@@ -195,6 +195,77 @@ ATTRIBUTION TEXT (required for every key_point):
     Encompasses: emergent capabilities at scale, evaluation methodology
     limitations, unpredictable performance phase transitions."
 
+MECHANISM TYPE (required for Intentions; null for Beliefs and Desires):
+  For every Intentions key_point, classify the policy mechanism the document invokes
+  using the closed vocabulary below. This field enables pre-filtering of taxonomy
+  candidates by mechanism class, preventing vocabulary-collision misfires between
+  nodes that share policy language but describe different intervention types.
+
+  Vocabulary:
+    product_mandate        — platform or product design requirements imposed by
+                             regulatory, judicial, or legislative action (e.g.,
+                             private-by-default settings ordered by a court, mandatory
+                             content-moderation policies, CSAM enforcement requirements)
+    incident_investigation — post-hoc forensic review of AI failures or harms by an
+                             independent body (e.g., investigation of a specific incident
+                             after it occurs; NOT the standing body that conducts them)
+    liability_regime       — legal accountability and damages frameworks that assign
+                             responsibility for AI-caused harms (e.g., strict product
+                             liability for AI systems, tort reform, insurance mandates)
+    disclosure_requirement — transparency, audit, or reporting mandates (e.g.,
+                             algorithmic impact assessments, model cards, third-party
+                             audits, mandatory red-teaming disclosure)
+    capability_prohibition — banning or restricting specific AI capabilities or
+                             applications (e.g., facial recognition bans in public
+                             spaces, moratorium on autonomous lethal weapons)
+    governance_body        — creation of institutional oversight bodies, regulatory
+                             agencies, or advisory committees (e.g., an AI Safety
+                             Board, an NTSB-style standing investigation authority,
+                             the EU AI Office)
+    market_mechanism       — economic incentives, taxes, subsidies, or market-structure
+                             interventions (e.g., compute taxation, R&D subsidies,
+                             antitrust enforcement against AI monopolies)
+    research_investment    — directing funding or institutional capacity toward
+                             scientific inquiry (e.g., government AI safety research
+                             mandates, NSF alignment programs, interpretability funding)
+    standard_setting       — technical benchmarks, certification frameworks, or
+                             interoperability standards (e.g., ISO AI risk standards,
+                             safety evaluation requirements, model certification)
+    deployment_restriction — conditions on when, where, or for whom AI may be deployed
+                             (e.g., age-gating, sectoral restrictions on high-risk uses,
+                             phased rollout requirements)
+    other                  — use when none of the above fit; briefly note the mechanism
+                             type in the point field so reviewers can extend the vocabulary
+
+  DISCRIMINATING EXAMPLES — the most common conflation to avoid:
+
+    "Requiring Meta to maintain private-by-default settings for under-18 users and
+    enforce a 1-strike policy for adult users who engage in child sexual exploitation"
+      → mechanism_type: "product_mandate"
+      Reasoning: a court is imposing specific product design and enforcement requirements
+      on an existing platform. No new institution is created; no incident is reviewed
+      after the fact.
+      NOT "governance_body" — no oversight institution is being established
+      NOT "incident_investigation" — this is ex ante (before harm), not post-hoc review
+
+    "Creating an independent board with subpoena power to forensically investigate
+    AI safety incidents, decouple reporting from liability, and publish findings"
+      → mechanism_type: "governance_body"
+      Reasoning: the document proposes establishing a standing institutional body.
+      NOT "product_mandate" — no platform design requirement is imposed
+      NOT "incident_investigation" — the document proposes the BODY; the body
+      conducts investigations later
+
+    "Mandating third-party audits of high-risk AI systems before deployment"
+      → mechanism_type: "disclosure_requirement"
+      Reasoning: audits are transparency instruments, not institution-creation or bans.
+      NOT "governance_body" — auditors are third parties; no new government body created
+      NOT "capability_prohibition" — deployment is permitted after audit, not banned
+
+  For Beliefs and Desires: set mechanism_type to null. The field classifies mechanistic
+  strategies only, not empirical claims about the world or normative commitments about
+  desired outcomes.
+
 EXAMPLE KEY POINTS:
 
   Beliefs example:
