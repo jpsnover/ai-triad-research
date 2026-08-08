@@ -459,7 +459,7 @@ function buildInjectionManifest(
 
 /** Emit the situation interpretation-divergence summary — surfaces interpretation alignment at debate setup. */
 function recordSituationDivergence(filteredCC: SituationNode[], allCCNodes: SituationNode[]): void {
-  const withDiv = filteredCC.filter(n => n.interpretation_divergence != null);
+  const withDiv = filteredCC.filter(n => n.interpretation_divergence != null && !isNaN(n.interpretation_divergence!));
   if (withDiv.length > 0) {
     const high = withDiv.filter(n => n.interpretation_divergence! > 0.40).length;
     const medium = withDiv.filter(n => n.interpretation_divergence! >= 0.20 && n.interpretation_divergence! <= 0.40).length;
