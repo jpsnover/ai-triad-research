@@ -68,7 +68,7 @@ function extractSummary(data: Record<string, unknown>): DebateSessionSummary {
   const topic = data.topic as { final?: string; original?: string } | undefined;
   return {
     id: data.id as string,
-    title: (data.title || data.topic || 'Untitled') as string,
+    title: (data.title as string) || topic?.final || topic?.original || 'Untitled',
     created_at: data.created_at as string,
     updated_at: data.updated_at as string,
     phase: data.phase as string,
