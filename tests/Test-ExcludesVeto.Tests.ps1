@@ -134,7 +134,7 @@ Describe 'Invoke-ExcludesVetoPass' -Tag 'retrieval' {
             }
             Invoke-ExcludesVetoPass -KeyPoints @($kp)
             $kp.taxonomy_node_id | Should -Be 'acc-bel-001'
-            Assert-MockCalled Invoke-BatchEmbedVeto -Times 0
+            Should -Invoke Invoke-BatchEmbedVeto -Times 0 -Exactly
         }
     }
 
@@ -191,7 +191,7 @@ Describe 'Invoke-ExcludesVetoPass' -Tag 'retrieval' {
             Mock Invoke-BatchEmbedVeto { return @{} }
             $kp = [PSCustomObject]@{ taxonomy_node_id = $null; attribution_text = 'some text' }
             { Invoke-ExcludesVetoPass -KeyPoints @($kp) } | Should -Not -Throw
-            Assert-MockCalled Invoke-BatchEmbedVeto -Times 0
+            Should -Invoke Invoke-BatchEmbedVeto -Times 0 -Exactly
         }
     }
 
