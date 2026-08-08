@@ -1,0 +1,102 @@
+# ─── SituationBDI Compliance (Live Data) ───
+# What:  Runs the live-data SituationBDI ontology compliance check against the
+#        ai-triad-data corpus on a daily schedule and on demand. Hard-failing:
+#        a regression creates a GitHub issue assigned to the data/PS owner.
+#
+# Why decoupled from test-powershell (t/2331, t/2324#1):
+#   The 435/435 SituationBDI assertion is a DATA-corpus completeness check.
+#   Placing it in the required code-merge gate means a situation added without
+#   BDI decomposition blocks EVERY unrelated code PR (t/2323 fleet-wide block).
+#   Code gates must test code logic; data-state gates must fire on data changes.
+#
+# Coverage model (replacement, not removal):
+#   - This job: daily backstop + on-demand — catches regressions within 24h
+#   - Write-time prevention (t/2332): data pipeline validates BDI at commit time
+#   - Fixture logic test (tests/): stays in the required gate, tests the CHECK
+#     itself (not the corpus) — decoupled from live corpus size
+#
+# GATE-SIGNAL INTEGRITY: intentionally NOT in ci-gate and NOT a required PR
+# context. Failure creates a GitHub issue (explicit, owner-assigned) rather
+# than relying on GitHub's scheduled-failure email, which goes to the workflow
+# author and is easily filtered/missed (TL condition, t/2331#3).
+#
+# Test location: tests/data-compliance/ (coordinated with t/2332, p/227#5)
+#   ExcludePath in test-powershell gate mirrors this path — see ci.yml.
+
+name: SituationBDI Compliance (Live Data)
+
+on:
+  schedule:
+    - cron: '0 6 * * *'  # daily 06:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write  # for gh issue create on failure alert
+
+jobs:
+  situation-bdi-compliance:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v6
+
+      - name: Checkout data repo
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v6
+        with:
+          repository: jpsnover/ai-triad-data
+          path: ai-triad-data
+          fetch-depth: 1
+
+      - name: Symlink data repo to expected location
+        run: ln -s "$GITHUB_WORKSPACE/ai-triad-data" ../ai-triad-data
+
+      - name: Install Pester
+        shell: pwsh
+        run: Install-Module Pester -Force -Scope CurrentUser
+
+      - name: Run SituationBDI live-data compliance check
+        shell: pwsh
+        run: |
+          $config = New-PesterConfiguration
+          $config.Run.Path = './tests/data-compliance/'
+          $config.Output.Verbosity = 'Detailed'
+          $config.Run.Exit = $true
+          Invoke-Pester -Configuration $config
+
+      # Explicit alerting — creates/updates a GitHub issue on failure so the
+      # data/PS owner is reliably notified. Default scheduled-failure emails
+      # go to the workflow author only and are easily filtered (t/2331#3).
+      - name: Alert on regression — create GitHub issue
+        if: failure()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TITLE="SituationBDI compliance regression $(date -u +%Y-%m-%d)"
+          BODY="Scheduled SituationBDI live-data compliance check failed.
+
+          A situation may have been added to ai-triad-data without BDI decomposition.
+
+          **Action:** check ai-triad-data for situations missing per-POV BDI nodes.
+          Write-time prevention: t/2332 (PS data pipeline validation).
+
+          Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+
+          # Create label if absent (idempotent)
+          gh label create "data-compliance" --color "#e4e669" \
+            --description "Data corpus compliance regression" 2>/dev/null || true
+
+          # Reopen/comment on existing open issue, or create new one
+          EXISTING=$(gh issue list --label "data-compliance" --state open \
+            --search "SituationBDI compliance regression" \
+            --json number --jq '.[0].number' 2>/dev/null || echo "")
+
+          if [ -n "$EXISTING" ]; then
+            gh issue comment "$EXISTING" --body "$BODY"
+            gh issue reopen "$EXISTING" 2>/dev/null || true
+          else
+            gh issue create \
+              --title "$TITLE" \
+              --body "$BODY" \
+              --label "data-compliance" \
+              --assignee jpsnover
+          fi
