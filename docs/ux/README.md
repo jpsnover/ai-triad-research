@@ -1,6 +1,6 @@
 # UX Specs Index
 
-**Last updated:** 2026-07-28
+**Last updated:** 2026-08-08
 **Author:** Design (Orca)
 
 Active UX specs in `docs/ux/`. Design owns these; coding agents reference them during implementation. Add a row when a new spec lands (this index replaces the inline inventory that used to live in the Design role AGENTS.md).
@@ -22,5 +22,6 @@ Active UX specs in `docs/ux/`. Design owns these; coding agents reference them d
 | `entity-mentions-detail.md` | Inline entity mentions + entity/term detail renderers + entity browser tool (rendering half of the entity ontology; t/1766/t/1767) |
 | `debate-view-mode-controls.md` | Two-mode (Text / Analysis) redesign of the debate statement + global view-mode button row (p/351) |
 | `debate-action-bar-redesign.md` | Debate window bottom bar → clean composer + `Tools ▾` menu consolidating secondary actions (t/2279) |
+| `debate-header-redesign.md` | Debate window header → title+source / status+metadata / per-POV DEBATERS strip; POV bars keep acc/saf/skp colors (t/2293) |
 | `regenerate-phrases-toggle.md` | Opt-in phrase regeneration on reflection edits (t/611, done) |
 | `design-system.md` | Design system reference (living document) |
