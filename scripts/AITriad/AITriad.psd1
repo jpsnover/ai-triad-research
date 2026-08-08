@@ -98,6 +98,7 @@
         'Measure-DebateQuality'
         'Invoke-DebateAB'
         'Show-OSSLicenses'
+        'Get-AICostReport'
         'Get-FlightRecorderDump'
         'Get-LatestFlightRecorderDump'
         'Get-AzureFlightRecorder'
