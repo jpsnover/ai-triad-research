@@ -159,8 +159,7 @@ async function main(): Promise<void> {
   const idToPov = new Map<string, { sitId: string; pov: string }>();
 
   for (const sit of situations) {
-    const cached = interpEmbs.nodes[sit.id];
-    if (cached && POVS.every(p => Array.isArray((cached as unknown as Record<string, unknown>)[p]))) {
+    if (interpEmbs.nodes[sit.id]) {
       skippedCount++;
       continue;
     }
@@ -205,9 +204,13 @@ async function main(): Promise<void> {
       console.warn(`  [${sit.id}] Missing embeddings — skipping divergence computation`);
       continue;
     }
-    const missingPovs = POVS.filter(p => !Array.isArray((embs as unknown as Record<string, unknown>)[p]));
+
+    // Guard: a partially-populated cache entry (e.g. from an interrupted run or a partial
+    // batch-encode result) would pass the !embs check but crash cosineSimilarity with
+    // undefined input.  Skip and warn instead of throwing.
+    const missingPovs = (['accelerationist', 'safetyist', 'skeptic'] as const).filter(p => !embs[p]?.length);
     if (missingPovs.length > 0) {
-      console.warn(`  [${sit.id}] Incomplete cached embeddings (missing: ${missingPovs.join(', ')}) — re-run to fix`);
+      console.warn(`  [${sit.id}] Partial embeddings (missing: ${missingPovs.join(', ')}) — skipping divergence computation`);
       continue;
     }
 
