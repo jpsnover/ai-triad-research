@@ -23,5 +23,6 @@ Active UX specs in `docs/ux/`. Design owns these; coding agents reference them d
 | `debate-view-mode-controls.md` | Two-mode (Text / Analysis) redesign of the debate statement + global view-mode button row (p/351) |
 | `debate-action-bar-redesign.md` | Debate window bottom bar → clean composer + `Tools ▾` menu consolidating secondary actions (t/2279) |
 | `debate-header-redesign.md` | Debate window header → title+source / status+metadata / per-POV DEBATERS strip; POV bars keep acc/saf/skp colors (t/2293) |
+| `debate-list-tables.md` | My/Community debate tabs → full-width tables (Title/Status/Date/Turns/Model/Actions); Title wraps, per-row Open/Export/Share|Copy controls (t/2305) |
 | `regenerate-phrases-toggle.md` | Opt-in phrase regeneration on reflection edits (t/611, done) |
 | `design-system.md` | Design system reference (living document) |
