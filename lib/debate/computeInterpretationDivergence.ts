@@ -159,7 +159,8 @@ async function main(): Promise<void> {
   const idToPov = new Map<string, { sitId: string; pov: string }>();
 
   for (const sit of situations) {
-    if (interpEmbs.nodes[sit.id]) {
+    const cached = interpEmbs.nodes[sit.id];
+    if (cached && POVS.every(p => Array.isArray((cached as unknown as Record<string, unknown>)[p]))) {
       skippedCount++;
       continue;
     }
@@ -202,6 +203,11 @@ async function main(): Promise<void> {
     const embs = interpEmbs.nodes[sit.id];
     if (!embs) {
       console.warn(`  [${sit.id}] Missing embeddings — skipping divergence computation`);
+      continue;
+    }
+    const missingPovs = POVS.filter(p => !Array.isArray((embs as unknown as Record<string, unknown>)[p]));
+    if (missingPovs.length > 0) {
+      console.warn(`  [${sit.id}] Incomplete cached embeddings (missing: ${missingPovs.join(', ')}) — re-run to fix`);
       continue;
     }
 
