@@ -21,6 +21,26 @@ function poverTurnCount(activeDebate: ActiveDebateSession, pover: string): numbe
   return activeDebate.transcript.filter(e => e.speaker === pover && TURN_ENTRY_TYPES.has(e.type)).length;
 }
 
+/** Humanize a URL for display: drop the scheme + leading `www.` and any trailing slash. */
+export function humanizeUrl(s: string): string {
+  return s.replace(/^https?:\/\/(www\.)?/i, '').replace(/\/+$/, '');
+}
+
+/** Derive the header's display title + source subtitle (t/2293 review). Some debates
+ *  have a raw-URL `topic.final` like "Discuss: https://www.…/foo" which would make the
+ *  h2 and the source line show the same URL twice. Strip a leading "Discuss:", humanize
+ *  a bare-URL topic, and suppress the source line when it would merely repeat the title. */
+export function deriveHeaderTitle(topicFinal: string, sourceRef: string | null | undefined): {
+  displayTitle: string; sourceDisplay: string | null;
+} {
+  const stripped = (topicFinal ?? '').replace(/^\s*discuss:\s*/i, '').trim();
+  const titleIsUrl = /^https?:\/\//i.test(stripped);
+  const displayTitle = (titleIsUrl ? humanizeUrl(stripped) : stripped) || (topicFinal ?? '');
+  if (!sourceRef) return { displayTitle, sourceDisplay: null };
+  const humanSource = humanizeUrl(sourceRef);
+  return { displayTitle, sourceDisplay: humanSource === displayTitle ? null : humanSource };
+}
+
 /** Redesigned debate window header (t/2293) — three bands: title+source, status+
  *  metadata, and a per-POV DEBATERS strip. Rendered in the fixed header slot so the
  *  action controls stay always-visible (no scroll regression). The action cluster and
@@ -38,6 +58,7 @@ export function DebateHeader({
   // POVs actually present, in canonical acc → saf → skp order; falls back to all three
   // if the session doesn't declare active_povers (spec §edge cases).
   const presentPovers = AI_POVERS.filter(p => (activeDebate.active_povers ?? AI_POVERS).includes(p));
+  const { displayTitle, sourceDisplay } = deriveHeaderTitle(activeDebate.topic.final, activeDebate.source_ref);
   const created = new Date(activeDebate.created_at);
   const audienceLabel = activeDebate.audience
     ? (DEBATE_AUDIENCES.find(a => a.id === activeDebate.audience)?.label ?? activeDebate.audience)
@@ -48,9 +69,9 @@ export function DebateHeader({
       {/* Band 1 — title + source, action controls right */}
       <div className="debate-hdr-band debate-hdr-band1">
         <div className="debate-hdr-title-block">
-          <h2 className="debate-hdr-title" title={activeDebate.topic.final}>{activeDebate.topic.final}</h2>
-          {activeDebate.source_ref && (
-            <span className="debate-hdr-source" title={activeDebate.source_ref}>{activeDebate.source_ref}</span>
+          <h2 className="debate-hdr-title" title={activeDebate.topic.final}>{displayTitle}</h2>
+          {sourceDisplay && (
+            <span className="debate-hdr-source" title={activeDebate.source_ref ?? undefined}>{sourceDisplay}</span>
           )}
         </div>
         {actions}
@@ -59,7 +80,7 @@ export function DebateHeader({
       {/* Band 2 — status pills left, muted metadata right */}
       <div className="debate-hdr-band debate-hdr-band2">
         <div className="debate-hdr-status">
-          <span className="debate-phase-indicator">
+          <span className="debate-hdr-phase">
             <span className="debate-hdr-status-dot" aria-hidden="true" />
             {phaseLabel}
           </span>
