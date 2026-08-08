@@ -1363,3 +1363,35 @@ describe('reScoreSituationsForCruxesDetailed — diversity component (t/2193)', 
     expect(allZero).toBe(false);
   });
 });
+
+// ── cosineSimilarity degenerate-embedding guard (t/2277) ──────────────
+// Confirms that cosineSimilarity is safe for inputs that would result from
+// partial or zero-valued embeddings, so computeDivergence never emits NaN.
+describe('cosineSimilarity — degenerate-embedding cases', () => {
+  it('returns 0 for empty arrays (length = 0)', () => {
+    expect(cosineSimilarity([], [])).toBe(0);
+  });
+
+  it('returns 0 for mismatched lengths', () => {
+    expect(cosineSimilarity([1, 0], [1, 0, 0])).toBe(0);
+  });
+
+  it('returns 0 for zero vectors (zero denominator)', () => {
+    expect(cosineSimilarity([0, 0, 0], [0, 0, 0])).toBe(0);
+  });
+
+  it('returns a finite value in [0, 1] for NaN-valued embedding entries', () => {
+    // A corrupt embedding with NaN components — cosineSimilarity must not propagate NaN.
+    // NaN > 0 is false, so denom guard returns 0.
+    const nanVec = [NaN, NaN, NaN];
+    const normalVec = [1, 0, 0];
+    const result = cosineSimilarity(nanVec, normalVec);
+    expect(isFinite(result)).toBe(true);
+    expect(result).toBeGreaterThanOrEqual(0);
+  });
+
+  it('returns a valid similarity for identical unit vectors', () => {
+    const v = [1, 0, 0];
+    expect(cosineSimilarity(v, v)).toBeCloseTo(1, 5);
+  });
+});
