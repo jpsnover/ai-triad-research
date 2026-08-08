@@ -49,8 +49,10 @@ function Invoke-ProposalApply {
 
     switch ($Proposal.action) {
         'NEW' {
-            # Validate node ID format + category consistency
-            try { Test-PovNodeId -Id $Proposal.suggested_id -Category $Proposal.category } catch {
+            # Validate node ID format + category consistency. $null = suppresses
+            # Test-PovNodeId's $true return so it doesn't pollute the function's
+            # result-object output stream (t/2332 pipeline hygiene).
+            try { $null = Test-PovNodeId -Id $Proposal.suggested_id -Category $Proposal.category } catch {
                 return [PSCustomObject]@{ Success = $false; Error = $_.Exception.Message }
             }
 
@@ -94,6 +96,22 @@ function Invoke-ProposalApply {
             # t/1550 — generate aphorism on create. Fail-open (Set-NodeAphorism
             # skips situations/pillars and returns without mutating on AI failure).
             Set-NodeAphorism -Node $NodeObj -Pov $Proposal.pov -Reason 'proposal-NEW'
+
+            # t/2332 — write-time BDI-decomposition enforcement for new situations.
+            # A cross-cutting node is minted with empty interpretations above; decompose
+            # it into per-POV BDI at creation so a non-compliant situation is never
+            # committed (the sit-471..475 / t/2323 regression). FAIL-CLOSED (TL t/2332#4):
+            # on persistent enrichment failure, skip this single proposal (additive) rather
+            # than commit an empty-interpretation node. The scheduled trip-wire is a
+            # backstop, not the primary guard.
+            if ($IsCrossCutting) {
+                try {
+                    Set-SituationBdiInterpretation -Node $NodeObj
+                }
+                catch {
+                    return [PSCustomObject]@{ Success = $false; Error = $_.Exception.Message }
+                }
+            }
             $Raw.nodes += $NodeObj
         }
 
