@@ -18,7 +18,7 @@ type OutlineItem = {
   key: string;
   label: string;
   targetEntryId: string;
-  kind: 'section' | 'round';
+  kind: 'section' | 'round' | 'factcheck';
 };
 
 const DEBATE_TYPES = new Set(['statement', 'cross_respond']);
@@ -35,6 +35,10 @@ function buildOutline(transcript: readonly OutlineTranscriptEntry[]): OutlineIte
   let section: 'opening' | 'debate' | 'synthesis' | null = null;
   let roundSpeakers = new Set<string>();
   let roundNum = 0;
+  // Fact-checks are collected across the whole pass and emitted as a single
+  // grouped section appended at the end (t/2275) — so they stay grouped and
+  // sort after Synthesis even when interleaved among debate turns.
+  const factChecks: OutlineTranscriptEntry[] = [];
 
   for (const entry of transcript) {
     const t = entry.type;
@@ -64,10 +68,23 @@ function buildOutline(transcript: readonly OutlineTranscriptEntry[]): OutlineIte
         section = 'synthesis';
         items.push({ key: `sec-synthesis-${entry.id}`, label: 'Synthesis', targetEntryId: entry.id, kind: 'section' });
       }
+    } else if (t === 'fact-check') {
+      factChecks.push(entry);
     }
-    // Other types (probing, fact-check, clarification, system, question) are
-    // not outline anchors; they stay inline in the transcript.
+    // Other types (probing, clarification, system, question) are not outline
+    // anchors; they stay inline in the transcript.
   }
+
+  // Grouped "Fact Check" section appended last, with a numbered sub-item per
+  // fact-check anchoring to its entry. Omitted entirely when there are none.
+  if (factChecks.length > 0) {
+    const first = factChecks[0];
+    items.push({ key: `sec-factcheck-${first.id}`, label: 'Fact Check', targetEntryId: first.id, kind: 'section' });
+    factChecks.forEach((fc, i) => {
+      items.push({ key: `factcheck-${i + 1}-${fc.id}`, label: `Fact Check ${i + 1}`, targetEntryId: fc.id, kind: 'factcheck' });
+    });
+  }
+
   return items;
 }
 

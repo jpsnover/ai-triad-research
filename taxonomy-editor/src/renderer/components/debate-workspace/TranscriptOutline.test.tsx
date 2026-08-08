@@ -64,4 +64,55 @@ describe('TranscriptOutline', () => {
     const rounds = screen.getAllByRole('button').map(b => b.textContent).filter(t => t?.startsWith('Round'));
     expect(rounds).toEqual(['Round 1', 'Round 1']);
   });
+
+  it('adds a grouped "Fact Check" section with numbered sub-items when fact-checks exist (t/2275)', () => {
+    const transcript: OutlineTranscriptEntry[] = [
+      entry('o1', 'opening', 'acc'),
+      entry('y1', 'synthesis', 'acc'),
+      entry('f1', 'fact-check', 'system'),
+      entry('f2', 'fact-check', 'system'),
+    ];
+    render(<TranscriptOutline transcript={transcript} />);
+    const labels = screen.getAllByRole('button').map(b => b.textContent);
+    expect(labels).toEqual(['Opening Statements', 'Synthesis', 'Fact Check', 'Fact Check 1', 'Fact Check 2']);
+  });
+
+  it('renders no "Fact Check" section when the debate has zero fact-checks (t/2275)', () => {
+    const transcript: OutlineTranscriptEntry[] = [
+      entry('o1', 'opening', 'acc'),
+      entry('y1', 'synthesis', 'acc'),
+    ];
+    render(<TranscriptOutline transcript={transcript} />);
+    const labels = screen.getAllByRole('button').map(b => b.textContent);
+    expect(labels.some(l => l?.startsWith('Fact Check'))).toBe(false);
+  });
+
+  it('groups fact-checks after Synthesis even when interleaved among debate turns (t/2275)', () => {
+    const transcript: OutlineTranscriptEntry[] = [
+      entry('d1', 'statement', 'acc'),
+      entry('f1', 'fact-check', 'system'), // interleaved mid-debate
+      entry('d2', 'statement', 'saf'),
+      entry('y1', 'synthesis', 'acc'),
+      entry('f2', 'fact-check', 'system'),
+    ];
+    render(<TranscriptOutline transcript={transcript} />);
+    const labels = screen.getAllByRole('button').map(b => b.textContent);
+    // Fact Check section is appended last, after Synthesis, despite f1 being interleaved.
+    expect(labels).toEqual(['Cross-Examination', 'Round 1', 'Synthesis', 'Fact Check', 'Fact Check 1', 'Fact Check 2']);
+  });
+
+  it('anchors a fact-check sub-item to its transcript entry id (t/2275)', () => {
+    const scrollIntoView = vi.fn();
+    const getById = vi.spyOn(document, 'getElementById').mockReturnValue({ scrollIntoView } as unknown as HTMLElement);
+    const transcript: OutlineTranscriptEntry[] = [
+      entry('y1', 'synthesis', 'acc'),
+      entry('f1', 'fact-check', 'system'),
+      entry('f2', 'fact-check', 'system'),
+    ];
+    render(<TranscriptOutline transcript={transcript} />);
+    fireEvent.click(screen.getByText('Fact Check 2'));
+    expect(getById).toHaveBeenCalledWith('debate-entry-f2');
+    expect(scrollIntoView).toHaveBeenCalledWith({ behavior: 'smooth', block: 'start' });
+    getById.mockRestore();
+  });
 });

@@ -71,7 +71,8 @@
   margin-top: 4px;
 }
 
-.transcript-outline-round .transcript-outline-link {
+.transcript-outline-round .transcript-outline-link,
+.transcript-outline-factcheck .transcript-outline-link {
   padding-left: 24px;
   color: var(--text-primary);
 }
