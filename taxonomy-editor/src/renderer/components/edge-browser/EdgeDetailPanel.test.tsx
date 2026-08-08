@@ -103,8 +103,8 @@ describe('EdgeDetailPanel (t/1009)', () => {
 
     render(<EdgeDetailPanel />);
 
-    // Falls back to an em-dash and records the failure to the flight recorder.
-    expect(await screen.findByText('—')).toBeDefined();
+    // Falls back to the empty-state placeholder and records the failure to the flight recorder.
+    expect(await screen.findByText(/No rationale recorded/)).toBeDefined();
     expect(record).toHaveBeenCalled();
   });
 });

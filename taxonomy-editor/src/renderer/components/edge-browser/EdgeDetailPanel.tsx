@@ -140,7 +140,7 @@ function RationaleSection({ rationale, loading, clamped, onToggleClamp }: {
           )}
         </>
       ) : (
-        <div className="edge-detail-rationale" style={{ color: 'var(--text-muted)' }}>&mdash;</div>
+        <div className="edge-detail-rationale" style={{ color: 'var(--text-secondary)', fontStyle: 'italic' }}>No rationale recorded for this edge.</div>
       )}
     </div>
   );
