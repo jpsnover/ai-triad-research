@@ -351,31 +351,31 @@ describe('phase routing', () => {
   it('shows "Topic Refinement" phase title for clarification phase', () => {
     mockStore.activeDebate = makeDebate({ phase: 'clarification' });
     const { container } = render(<DebateWorkspace />);
-    expect(container.querySelector('.debate-phase-indicator')?.textContent).toBe('Topic Refinement');
+    expect(container.querySelector('.debate-hdr-phase')?.textContent).toBe('Topic Refinement');
   });
 
   it('shows "Opening Statements" phase title for opening phase', () => {
     mockStore.activeDebate = makeDebate({ phase: 'opening' });
     const { container } = render(<DebateWorkspace />);
-    expect(container.querySelector('.debate-phase-indicator')?.textContent).toBe('Opening Statements');
+    expect(container.querySelector('.debate-hdr-phase')?.textContent).toBe('Opening Statements');
   });
 
   it('shows "Debate" phase title for debate phase', () => {
     mockStore.activeDebate = makeDebate({ phase: 'debate' });
     const { container } = render(<DebateWorkspace />);
-    expect(container.querySelector('.debate-phase-indicator')?.textContent).toBe('Debate');
+    expect(container.querySelector('.debate-hdr-phase')?.textContent).toBe('Debate');
   });
 
   it('shows "Debate Closed" phase title for closed phase', () => {
     mockStore.activeDebate = makeDebate({ phase: 'closed' });
     const { container } = render(<DebateWorkspace />);
-    expect(container.querySelector('.debate-phase-indicator')?.textContent).toBe('Debate Closed');
+    expect(container.querySelector('.debate-hdr-phase')?.textContent).toBe('Debate Closed');
   });
 
   it('shows "Setting up..." phase title for setup phase', () => {
     mockStore.activeDebate = makeDebate({ phase: 'setup' });
     const { container } = render(<DebateWorkspace />);
-    expect(container.querySelector('.debate-phase-indicator')?.textContent).toBe('Setting up...');
+    expect(container.querySelector('.debate-hdr-phase')?.textContent).toBe('Setting up...');
   });
 
   it('renders ClarificationActions in clarification phase when no substantive transcript entries', () => {

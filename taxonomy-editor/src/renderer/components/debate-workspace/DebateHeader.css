@@ -81,6 +81,22 @@
   font-size: 0.72rem;
   color: var(--text-muted);
 }
+/* Phase pill — neutral chip per spec (t/2293 review): text-secondary on bg-tertiary,
+   which meets AA in all 4 themes. NOT the shared .debate-phase-indicator (focus-ring
+   blue, fails AA in light/bkc). The ● dot uses currentColor so it stays neutral too. */
+.debate-hdr-phase {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
 .debate-hdr-status-dot {
   width: 6px;
   height: 6px;
