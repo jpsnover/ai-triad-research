@@ -11,6 +11,10 @@
  *      (stripHtmlFallback: single-pass entity decode before tag stripping)
  *  - js/insecure-temporary-file (anonymousSessionStore: private mkdtemp base dir)
  *  - js/insecure-temporary-file (githubAPIBackend: randomised .tmp suffix)
+ *
+ * LOCAL-ONLY FAILURE MODE (t/2281): GitHubAPIBackend tests fail with "undici major-version skew"
+ * when local Node is outside the required range (package.json engines: ">=22 <23"). CI uses
+ * node:22.23.2 (Dockerfile) which bundles undici 6.x matching the userland pin. Fix: use Node 22.x.
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
