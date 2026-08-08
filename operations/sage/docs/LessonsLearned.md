@@ -3061,22 +3061,24 @@ Institutional memory for failure patterns across the AI Triad Research project.
 
 ---
 
-## #149 [Build] Squash-Merge Breaks `git branch -d` — Needs `-D` Because Squash Commit Is Not an Ancestor
+## #149 [Build] Squash- or Rebase-Merge Breaks `git branch -d` — Needs `-D` Because Merged SHAs Are Not Ancestors
 
-**Pattern:** After a squash-merge, `git branch -d <feature-branch>` fails "error: The branch is not fully merged." A squash-merge creates a new commit on main containing the squashed changes — but none of the feature branch's original commits are ancestors of that new squash commit. Git correctly reports the branch as "not fully merged" and refuses `-d`. Fix: `git branch -D`.
+**Pattern:** After a squash- or rebase-merge, `git branch -d <feature-branch>` fails "error: The branch is not fully merged." Both merge strategies rewrite history: squash creates a single new commit; rebase replays each commit with new SHAs. Either way, the original feature branch tip is not a reachable ancestor of any commit on main, so git correctly refuses `-d`. Fix: `git branch -D`.
 
 **Instances:**
 - 2026-08-06 — DebateUI (p/83#8): `git branch -d <branch>` failed "not fully merged" after squash-merge. Fix: `git branch -D <branch>`.
+- 2026-08-08 — ElectronMain (p/98#15): `git branch -d <branch>` failed after rebase-merge (SHA diverged — replayed commits on main have different SHAs than the original branch tip). Fix: `git branch -D`.
 
-**Root Cause:** `git branch -d` deletes only if the branch tip is reachable from HEAD. Squash-merge rewrites history — the original feature SHAs are never added to main's ancestry chain. `-d` is always wrong after squash; `-D` is the correct cleanup verb.
+**Root Cause:** `git branch -d` deletes only if the branch tip is reachable from HEAD. Squash rewrites history into one new commit; rebase replays commits with new SHAs. Neither preserves the original branch tip SHA in main's ancestry chain, so `-d` always fails. `-D` is the correct cleanup verb for both.
 
 **Prevention:**
-1. **After any squash-merge, always use `git branch -D`** — `-d` always fails by design; the "not fully merged" warning is accurate, not an error.
-2. Remote cleanup is unaffected: `git push origin --delete <branch>`.
+1. **After any squash- or rebase-merge, always use `git branch -D`** — `-d` always fails by design; the "not fully merged" warning is accurate, not an error.
+2. **Remote cleanup:** `git push origin --delete <branch>` — but skip it if GitHub auto-deleted the branch on merge (exit "ref does not exist" = not a failure; the branch is already gone).
+3. **Worktree-remove idempotency:** if the worktree was already removed on a first attempt and a chained cleanup step fails, don't retry `git worktree remove` — verify state with `git worktree list` and proceed to the next step.
 
-**Status:** Active — 1 instance (DebateUI p/83#8). Expected git behavior; recorded because the error message reads as alarming.
+**Status:** Active — 2 instances (DebateUI p/83#8 squash; ElectronMain p/98#15 rebase). Expected git behavior; recorded because the error message reads as alarming.
 
-**Applies To:** All agents cleaning up local branches after squash-merges.
+**Applies To:** All agents cleaning up local branches after squash- or rebase-merges.
 
 ---
 
