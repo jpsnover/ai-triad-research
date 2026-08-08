@@ -1,0 +1,397 @@
+/* DebateTable.css — debate session list as semantic tables (t/2305) */
+/* Tokens only — no hard-coded colors */
+
+/* ──────────────────────────────────────────────
+   Container
+────────────────────────────────────────────── */
+.debate-table-wrap {
+  flex: 1;
+  overflow: auto;
+  min-height: 0;
+  padding-bottom: 1rem;
+}
+
+.debate-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+/* ──────────────────────────────────────────────
+   Column sizing — Title is the flex column
+────────────────────────────────────────────── */
+.debate-table colgroup .col-title   { width: auto; }
+.debate-table colgroup .col-status  { width: 7rem; }
+.debate-table colgroup .col-date    { width: 9rem; }
+.debate-table colgroup .col-turns   { width: 4rem; }
+.debate-table colgroup .col-model   { width: 10rem; }
+.debate-table colgroup .col-actions { width: 10rem; }
+.debate-table colgroup .col-cb      { width: 2rem; }
+
+/* ──────────────────────────────────────────────
+   Header
+────────────────────────────────────────────── */
+.debate-table thead th {
+  padding: 0.5rem 0.75rem;
+  text-align: left;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border-color);
+  white-space: nowrap;
+  user-select: none;
+}
+
+.debate-table thead th.col-turns,
+.debate-table thead th.col-actions {
+  text-align: right;
+}
+
+.debate-table-sort-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3em;
+}
+
+.debate-table-sort-btn:hover {
+  color: var(--text-primary);
+}
+
+.debate-table-sort-btn:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+.debate-table-sort-indicator {
+  font-size: 0.65em;
+  opacity: 0.7;
+}
+
+/* ──────────────────────────────────────────────
+   Rows
+────────────────────────────────────────────── */
+.debate-table tbody tr {
+  border-bottom: 1px solid var(--border-color);
+  transition: background 0.1s;
+}
+
+.debate-table tbody tr:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: -2px;
+}
+
+.debate-table tbody tr:hover {
+  background: var(--bg-hover);
+}
+
+/* Selected row: left accent bar + aria-current */
+.debate-table tbody tr.selected,
+.debate-table tbody tr[aria-current="true"] {
+  background: var(--bg-hover);
+  box-shadow: inset 3px 0 0 var(--focus-ring);
+}
+
+.debate-table tbody tr.bulk-selected {
+  background: var(--bg-hover);
+}
+
+/* ──────────────────────────────────────────────
+   Cells
+────────────────────────────────────────────── */
+.debate-table tbody td {
+  padding: 0.55rem 0.75rem;
+  vertical-align: middle;
+  color: var(--text-primary);
+  font-size: 0.875rem;
+}
+
+/* Title cell wraps up to 3 lines */
+.debate-table td.col-title {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  vertical-align: top;
+}
+
+.debate-table-title-text {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
+  line-height: 1.4;
+}
+
+.debate-table-title-secondary {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-top: 0.2rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.debate-table-rename-input {
+  width: 100%;
+  font: inherit;
+  font-size: 0.875rem;
+  padding: 0.15rem 0.25rem;
+  border: 1px solid var(--border-color);
+  border-radius: 3px;
+  background: transparent;
+  color: var(--text-primary);
+}
+
+.debate-table-rename-input:focus {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 0;
+}
+
+/* Status cell */
+.debate-table td.col-status {
+  white-space: nowrap;
+}
+
+/* Date / Model cells */
+.debate-table td.col-date,
+.debate-table td.col-model {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--text-muted);
+  font-size: 0.8125rem;
+}
+
+/* Turns cell — numeric alignment */
+.debate-table td.col-turns {
+  white-space: nowrap;
+  text-align: right;
+  color: var(--text-muted);
+  font-size: 0.8125rem;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Actions cell */
+.debate-table td.col-actions {
+  white-space: nowrap;
+  text-align: right;
+}
+
+/* Checkbox cell */
+.debate-table td.col-cb {
+  text-align: center;
+}
+
+/* ──────────────────────────────────────────────
+   Status pill — AA-safe neutral pattern
+   (var(--text-secondary) on var(--bg-tertiary))
+────────────────────────────────────────────── */
+.debate-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3em;
+  padding: 0.15em 0.55em;
+  border-radius: 10px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  background: var(--bg-tertiary);
+  white-space: nowrap;
+}
+
+.debate-status-pill-dot {
+  display: inline-block;
+  width: 0.45em;
+  height: 0.45em;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.7;
+  flex-shrink: 0;
+}
+
+/* ──────────────────────────────────────────────
+   Action buttons
+────────────────────────────────────────────── */
+.debate-table-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  justify-content: flex-end;
+}
+
+.debate-table-action-btn {
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  cursor: pointer;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+  transition: color 0.1s, border-color 0.1s, background 0.1s;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25em;
+}
+
+.debate-table-action-btn:hover {
+  color: var(--text-primary);
+  border-color: var(--border-color);
+  background: var(--bg-hover);
+}
+
+.debate-table-action-btn:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.debate-table-action-btn.primary {
+  color: var(--text-primary);
+  border-color: var(--border-color);
+}
+
+.debate-table-action-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Export dropdown sizing inside table cells */
+.debate-table .export-dropdown .btn {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.75rem;
+}
+
+/* Share/copy status inline */
+.debate-table-row-status {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+  max-width: 8rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ──────────────────────────────────────────────
+   Empty / loading states (full-width colspan rows)
+────────────────────────────────────────────── */
+.debate-table-empty-cell {
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 0.875rem;
+  padding: 2.5rem 1rem;
+}
+
+/* ──────────────────────────────────────────────
+   Responsive: tablet (≤ 960px) — hide Model column
+────────────────────────────────────────────── */
+@media (max-width: 960px) {
+  .debate-table .col-model,
+  .debate-table td.col-model,
+  .debate-table th.col-model {
+    display: none;
+  }
+
+  /* Show model value as secondary line in title cell */
+  .debate-table-title-secondary {
+    display: block;
+  }
+}
+
+@media (min-width: 961px) {
+  /* Hide secondary line on desktop — model has its own column */
+  .debate-table-title-secondary.model-secondary {
+    display: none;
+  }
+}
+
+/* ──────────────────────────────────────────────
+   Responsive: phone (≤ 600px) — card fallback
+────────────────────────────────────────────── */
+@media (max-width: 600px) {
+  .debate-table,
+  .debate-table thead,
+  .debate-table tbody,
+  .debate-table tr,
+  .debate-table th,
+  .debate-table td {
+    display: block;
+  }
+
+  /* Visually hide header (screen-reader captions remain) */
+  .debate-table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+  }
+
+  .debate-table tbody tr {
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    margin-bottom: 0.75rem;
+    padding: 0.5rem 0.75rem;
+  }
+
+  .debate-table tbody tr.selected {
+    box-shadow: 0 0 0 2px var(--focus-ring);
+  }
+
+  .debate-table tbody td {
+    padding: 0.2rem 0;
+    border: none;
+  }
+
+  .debate-table td.col-status,
+  .debate-table td.col-date,
+  .debate-table td.col-turns,
+  .debate-table td.col-model {
+    display: inline;
+    padding-right: 0.5rem;
+  }
+
+  .debate-table td.col-actions {
+    text-align: left;
+    padding-top: 0.4rem;
+  }
+
+  .debate-table td.col-cb {
+    display: inline;
+    padding-right: 0.5rem;
+  }
+}
+
+/* ──────────────────────────────────────────────
+   Reduced motion
+────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .debate-table tbody tr,
+  .debate-table-action-btn {
+    transition: none;
+  }
+}
+
+/* ──────────────────────────────────────────────
+   Full-width list panel (table mode — no inline detail)
+────────────────────────────────────────────── */
+.debate-tab-table-mode .list-panel {
+  width: 100% !important;
+  max-width: 100%;
+}
+
+.debate-tab-table-mode .list-panel.debate-session-list {
+  /* Override the inline `style.width` set by useResizablePanel */
+  flex: 1;
+}

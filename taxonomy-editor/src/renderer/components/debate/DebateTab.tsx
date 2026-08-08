@@ -30,9 +30,12 @@ import { ParameterHistoryPanel } from '../analysis/ParameterHistoryPanel';
 import { usePreferencesStore } from '../../store/preferencesStore';
 import { api, isElectronMode } from '@bridge';
 import { trackExport } from '../../lib/analyticsEmitter';
-import { useBriefTimeoutEvents } from './useBriefTimeoutEvents';
-import { BriefTimeoutToast } from './BriefTimeoutToast';
-import { BriefTimeoutDialog } from './BriefTimeoutDialog';
+// Condition 1 (t/2305): useBriefTimeoutEvents + toast/dialog removed from DebateTab.
+// DebatePopoutWindow already mounts its own useBriefTimeoutEvents — the correct home.
+// activeDebateId is never set in table mode (no loadDebate on row click) → events
+// would match every debate (guard always falsy), producing orphan toasts here.
+import { DebateTable } from './DebateTable';
+import type { SessionRowData } from './DebateTable';
 import './DebateTab.css';
 
 // Prop-type aliases derived from the hooks/stores so the extracted presentational
@@ -84,6 +87,11 @@ interface DebateListProps {
   copyItem: CopyDebateFn;
   loadSessions: () => Promise<void>;
   auth: AuthStatus;
+  // Table-mode action handlers (t/2305)
+  onRowOpen: (id: string) => void;
+  onRowExport: (session: SessionRowData, format: string) => void;
+  onRowShare: (session: SessionRowData) => Promise<void>;
+  onRowCommunityExport: (cd: CommunityDebate, format: string) => void;
 }
 
 // Shared prop bag for the right (detail) pane subtree.
@@ -154,10 +162,11 @@ export function DebateTab() {
       activeDebateId: s.activeDebateId, activeDebate: s.activeDebate, loadDebate: s.loadDebate, deleteDebate: s.deleteDebate, renameDebate: s.renameDebate,
     }))
   );
-  const { toastData, dialogData, dismissToast, dismissDialog, retryWithModel, promoteToDiag } =
-    useBriefTimeoutEvents(activeDebateId);
   const [exportStatus, setExportStatus] = useState<string | null>(null);
   const [pendingExportFormat, setPendingExportFormat] = useState<string | null>(null);
+  // Condition 2 (t/2305): tracks which row session triggered a pdf/markdown export
+  // (so ExportOptionsDialog can load + export the correct session, not activeDebate).
+  const [pendingExportSession, setPendingExportSession] = useState<SessionRowData | null>(null);
   const [selectedPromptEntry, setSelectedPromptEntry] = useState<PromptCatalogEntry | null>(PROMPT_CATALOG[0]);
   const [promptInspectorActive, setPromptInspectorActive] = useState(false);
   const { toolbarPanel } = useTaxonomyStore();
@@ -290,20 +299,26 @@ export function DebateTab() {
     }
   };
 
+  // Condition 2 (t/2305): runExport accepts explicit `session` so table rows can pass
+  // their own data directly — `activeDebate` from the store is not loaded on row click,
+  // so falling back to it would produce a no-op for per-row Export/Share actions.
   const runExport = useCallback(async (
     format: string,
     exportOptions?: { includeTaxonomyRefs?: boolean; includeReasoning?: boolean },
+    session?: unknown,
   ) => {
-    if (!activeDebate) return;
+    const target = session ?? activeDebate;
+    if (!target) return;
+    const targetId = (target as { id?: string }).id ?? '';
     try {
       const result = await api.exportDebateToFile(
-        activeDebate,
+        target,
         format as 'json' | 'markdown' | 'text' | 'pdf' | 'package',
         exportOptions,
       );
       if (!result.cancelled && result.filePath) {
         setExportStatus(`Exported to ${result.filePath}`);
-        trackExport(format, activeDebate.id);
+        trackExport(format, targetId);
         setTimeout(() => setExportStatus(null), 4000);
       }
     } catch (err) {
@@ -319,14 +334,86 @@ export function DebateTab() {
     }
   }, [activeDebate]);
 
+  // Phone / DebateWorkspace inline export path (activeDebate is set via handleSelect).
   const handleExport = (format: string = 'json') => {
     if (!activeDebate) return;
     if (format === 'markdown' || format === 'pdf') {
       setPendingExportFormat(format);
+      setPendingExportSession(null); // activeDebate path — no pendingExportSession
       return;
     }
     void runExport(format);
   };
+
+  // ── Table row handlers (t/2305) ──────────────────────────────────────────────
+
+  // Condition 3 (t/2305 web path): openDebateWindow already has a working web-bridge
+  // impl (openAppWindow(`debate-window?id=…`)) — no stub to fix, confirmed in web-bridge.ts.
+  const handleRowOpen = useCallback((id: string) => {
+    api.openDebateWindow(id).catch((err: Error) => {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'debate-tab',
+        level: 'warn',
+        message: 'Failed to open debate popout window',
+        error: { name: err.name ?? 'Error', message: String(err), stack: err.stack },
+      });
+    });
+  }, []);
+
+  // Per-row export — loads full session on demand so the main process has transcript
+  // data for markdown/pdf formatters (summary alone is insufficient for rich formats).
+  const handleRowExport = useCallback(async (session: SessionRowData, format: string) => {
+    if (format === 'markdown' || format === 'pdf') {
+      // Need options dialog first; stash session so onConfirm can use it.
+      setPendingExportFormat(format);
+      setPendingExportSession(session);
+      return;
+    }
+    try {
+      const full = await api.loadDebateSession(session.id);
+      await runExport(format, undefined, full);
+    } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'debate-tab',
+        level: 'error',
+        message: 'Row export: failed to load full session',
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+      });
+      setExportStatus(`Export failed: ${err}`);
+      setTimeout(() => setExportStatus(null), 4000);
+    }
+  }, [runExport]);
+
+  // Per-row share (My tab) — loads full session, then submits to community.
+  const handleRowShare = useCallback(async (session: SessionRowData): Promise<void> => {
+    const full = await api.loadDebateSession(session.id);
+    await api.submitToCommunity('debate', full);
+  }, []);
+
+  // Per-row export for community debates.
+  const handleRowCommunityExport = useCallback(async (cd: CommunityDebate, format: string) => {
+    if (format === 'markdown' || format === 'pdf') {
+      setPendingExportFormat(format);
+      setPendingExportSession({ id: cd.id, title: cd.title, updated_at: cd.updated_at, phase: cd.phase ?? '', created_at: cd.updated_at });
+      return;
+    }
+    try {
+      const full = await api.loadCommunityDebateSession(cd.id);
+      await runExport(format, undefined, full);
+    } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'debate-tab',
+        level: 'error',
+        message: 'Community row export: failed to load session',
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+      });
+      setExportStatus(`Export failed: ${err}`);
+      setTimeout(() => setExportStatus(null), 4000);
+    }
+  }, [runExport]);
 
   const listProps: DebateListProps = {
     width, listView, setListView, editMode, setEditMode, sessions, sessionsLoading,
@@ -336,6 +423,10 @@ export function DebateTab() {
     loadDebate, renamingId, setRenamingId, renameValue, setRenameValue, renameDebate,
     handleSelect, moveSession, selectedCommunityDebate, setSelectedCommunityDebate, nav,
     copyingId, setCopyingId, copyItem, loadSessions, auth,
+    onRowOpen: handleRowOpen,
+    onRowExport: (s, fmt) => { void handleRowExport(s, fmt); },
+    onRowShare: handleRowShare,
+    onRowCommunityExport: (cd, fmt) => { void handleRowCommunityExport(cd, fmt); },
   };
 
   const rightPaneProps: DebateRightPaneProps = {
@@ -345,8 +436,18 @@ export function DebateTab() {
     exportStatus, handleNewDebate,
   };
 
+  // Table mode: no toolbarPanel active and not phone — list is full-width, no inline detail.
+  // Phone still gets the right pane for DebateWorkspace navigation (Condition 3).
+  const isTableMode = !toolbarPanel && !isPhone;
+
   return (
-    <div className={`two-column${isPhone ? ' phone-mode' : ''}${isTablet ? ' tablet-mode' : ''}${(isPhone ? nav.current.view !== 'list' : !!activeDebateId) && !toolbarPanel ? ' has-selection' : ''}`}>
+    <div className={[
+      'two-column',
+      isPhone ? 'phone-mode' : '',
+      isTablet ? 'tablet-mode' : '',
+      (isPhone ? nav.current.view !== 'list' : false) && !toolbarPanel ? 'has-selection' : '',
+      isTableMode ? 'debate-tab-table-mode' : '',
+    ].filter(Boolean).join(' ')}>
       {/* Left pane: Session list OR toolbar panel (Search, Prompts, etc.) */}
       {toolbarPanel ? (
         <ToolbarLeftPanel
@@ -364,11 +465,11 @@ export function DebateTab() {
           <span className="pane-collapsed-label">Debates</span>
         </div>
       ) : (
-        <DebateListPanel {...listProps} />
+        <DebateListPanel {...listProps} fullWidth={isTableMode} />
       )}
 
-      {/* Right pane: context-dependent */}
-      <DebateRightPane {...rightPaneProps} />
+      {/* Right pane: toolbar detail or phone workspace — hidden in desktop table mode */}
+      {!isTableMode && <DebateRightPane {...rightPaneProps} />}
 
       {quotaError && (
         <div className="debate-error debate-tab-quota-error">
@@ -382,11 +483,26 @@ export function DebateTab() {
       {pendingExportFormat && (
         <ExportOptionsDialog
           format={pendingExportFormat}
-          onCancel={() => setPendingExportFormat(null)}
+          onCancel={() => { setPendingExportFormat(null); setPendingExportSession(null); }}
           onConfirm={(opts) => {
             const fmt = pendingExportFormat;
+            const rowSession = pendingExportSession;
             setPendingExportFormat(null);
-            void runExport(fmt, opts);
+            setPendingExportSession(null);
+            if (rowSession) {
+              // Table row export — load full session then export.
+              // (activeDebate is not set in table mode; Condition 2)
+              api.loadDebateSession(rowSession.id).then(full => {
+                void runExport(fmt, opts, full);
+              }).catch((err: Error) => {
+                getGlobalRecorder()?.record({ type: 'system.error', component: 'debate-tab', level: 'error', message: 'Row pdf/md export: failed to load session', error: { name: err.name ?? 'Error', message: String(err), stack: err.stack } });
+                setExportStatus(`Export failed: ${err}`);
+                setTimeout(() => setExportStatus(null), 4000);
+              });
+            } else {
+              // Phone / detail-pane path — activeDebate is already loaded.
+              void runExport(fmt, opts);
+            }
           }}
         />
       )}
@@ -400,25 +516,8 @@ export function DebateTab() {
           deleteDebate={deleteDebate}
         />
       )}
-      {toastData && (
-        <BriefTimeoutToast
-          speakerLabel={toastData.speakerLabel}
-          attempt={toastData.attempt}
-          maxAttempts={toastData.maxAttempts}
-          currentModel={toastData.currentModel}
-          onSwitchModel={promoteToDiag}
-          onDismiss={dismissToast}
-        />
-      )}
-      {dialogData && (
-        <BriefTimeoutDialog
-          speakerLabel={dialogData.speakerLabel}
-          totalAttempts={dialogData.totalAttempts}
-          currentModel={dialogData.currentModel}
-          onRetry={retryWithModel}
-          onAbort={dismissDialog}
-        />
-      )}
+      {/* BriefTimeoutToast + BriefTimeoutDialog removed (Condition 1, t/2305).
+          DebatePopoutWindow already mounts its own copies — the correct home. */}
     </div>
   );
 }
@@ -456,11 +555,11 @@ function ToolbarLeftPanel({
 
 // ── Debate list panel (My / Community switch) ──
 
-function DebateListPanel(props: DebateListProps) {
-  const { width, listView, setListView, sessions, communityDebates, exitEditMode } = props;
+function DebateListPanel(props: DebateListProps & { fullWidth?: boolean }) {
+  const { width, listView, setListView, sessions, communityDebates, exitEditMode, fullWidth } = props;
   return (
-    // eslint-disable-next-line local/no-inline-style -- dynamic: resizable panel width
-    <div className="list-panel debate-session-list" style={{ width }}>
+    // eslint-disable-next-line local/no-inline-style -- dynamic: resizable panel width, omitted in fullWidth/table mode
+    <div className="list-panel debate-session-list" style={fullWidth ? undefined : { width }}>
       <div className="list-panel-header">
         <h2>Debates</h2>
         <DebateListHeaderActions {...props} />
@@ -523,11 +622,15 @@ function DebateListHeaderActions(props: DebateListProps) {
 function DebateMyList(props: DebateListProps) {
   const {
     sessions, sessionsLoading, editMode, searchQuery, setSearchQuery,
-    filteredSessions, activeDebateId, loadDebate,
+    filteredSessions, activeDebateId, selectedIds, setSelectedIds,
+    renamingId, setRenamingId, renameValue, setRenameValue, renameDebate,
+    moveSession, handleSelect, nav,
+    onRowOpen, onRowExport, onRowShare,
   } = props;
+  const isPhone = nav.isActive;
   return (
     <>
-      {sessions.length > 0 && !editMode && (
+      {sessions.length > 0 && (
         <div className="debate-tab-search-wrap">
           <input
             type="text"
@@ -538,249 +641,104 @@ function DebateMyList(props: DebateListProps) {
           />
         </div>
       )}
-      <div
-        className="list-panel-items debate-tab-list-items"
-        tabIndex={0}
-        onKeyDown={(e) => {
-          if (editMode || filteredSessions.length === 0) return;
-          if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
-          e.preventDefault();
-          const currentIdx = filteredSessions.findIndex(s => s.id === activeDebateId);
-          const nextIdx = e.key === 'ArrowUp'
-            ? Math.max(0, currentIdx - 1)
-            : Math.min(filteredSessions.length - 1, currentIdx + 1);
-          if (nextIdx !== currentIdx && filteredSessions[nextIdx]) {
-            void loadDebate(filteredSessions[nextIdx].id);
-            const container = e.currentTarget;
-            const items = container.querySelectorAll('.debate-session-item');
-            items[nextIdx]?.scrollIntoView({ block: 'nearest' });
-          }
-        }}
-      >
-        {sessionsLoading && sessions.length === 0 && (
-          <div className="debate-session-empty">Loading...</div>
-        )}
-        {!sessionsLoading && sessions.length === 0 && (
-          <div className="debate-session-empty">
-            No debates yet.
-            <br />
-            Click <strong>+ New</strong> to start one.
-          </div>
-        )}
-        {searchQuery && filteredSessions.length === 0 && sessions.length > 0 && (
-          <div className="debate-session-empty">No debates match &ldquo;{searchQuery}&rdquo;</div>
-        )}
-        {filteredSessions.map((s, idx) => (
-          <DebateSessionListItem
-            {...props}
-            key={s.id}
-            s={s}
-            idx={idx}
-            filteredSessionsLength={filteredSessions.length}
-          />
-        ))}
-      </div>
+      <DebateTable
+        variant="my"
+        rows={filteredSessions}
+        loading={sessionsLoading}
+        searchQuery={searchQuery}
+        editMode={editMode}
+        selectedIds={selectedIds}
+        onToggleSelect={(id) => setSelectedIds(prev => {
+          const next = new Set(prev);
+          next.has(id) ? next.delete(id) : next.add(id);
+          return next;
+        })}
+        renamingId={renamingId}
+        setRenamingId={setRenamingId}
+        renameValue={renameValue}
+        setRenameValue={setRenameValue}
+        onRename={renameDebate}
+        onMoveSession={moveSession}
+        onOpen={onRowOpen}
+        onExport={onRowExport}
+        onShare={onRowShare}
+        onPhoneSelect={handleSelect}
+        isPhone={isPhone}
+        activeDebateId={activeDebateId}
+        totalCount={sessions.length}
+      />
     </>
-  );
-}
-
-function DebateSessionListItem(props: DebateListProps & { s: SessionSummary; idx: number; filteredSessionsLength: number }) {
-  const {
-    s, idx, activeDebateId, editMode, selectedIds, setSelectedIds, renamingId, setRenamingId,
-    renameValue, setRenameValue, renameDebate, handleSelect, moveSession, filteredSessionsLength, setEditMode,
-  } = props;
-  return (
-    <div
-      className={`debate-session-item ${s.id === activeDebateId ? 'selected' : ''}${editMode && selectedIds.has(s.id) ? ' bulk-selected' : ''}`}
-      onClick={editMode ? () => setSelectedIds(prev => {
-        const next = new Set(prev);
-        next.has(s.id) ? next.delete(s.id) : next.add(s.id);
-        return next;
-      }) : () => handleSelect(s)}
-    >
-      {editMode && (
-        <input
-          type="checkbox"
-          className="bulk-select-checkbox"
-          checked={selectedIds.has(s.id)}
-          onChange={() => setSelectedIds(prev => {
-            const next = new Set(prev);
-            next.has(s.id) ? next.delete(s.id) : next.add(s.id);
-            return next;
-          })}
-        />
-      )}
-      {renamingId === s.id ? (
-        <input
-          className="debate-session-item-rename"
-          value={renameValue}
-          onChange={(e) => setRenameValue(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && renameValue.trim()) {
-              e.stopPropagation();
-              void renameDebate(s.id, renameValue.trim());
-              setRenamingId(null);
-            } else if (e.key === 'Escape') {
-              setRenamingId(null);
-            }
-          }}
-          onBlur={() => {
-            if (renameValue.trim() && renameValue.trim() !== s.title) {
-              void renameDebate(s.id, renameValue.trim());
-            }
-            setRenamingId(null);
-          }}
-          onClick={(e) => e.stopPropagation()}
-          autoFocus
-        />
-      ) : (
-        <div
-          className="debate-session-item-title"
-          onDoubleClick={editMode ? undefined : (e) => { e.stopPropagation(); setRenamingId(s.id); setRenameValue(s.title); }}
-          title={editMode ? s.title : 'Double-click to rename'}
-        >
-          {s.title}
-        </div>
-      )}
-      <div className="debate-session-item-meta">
-        <span className={`debate-phase-badge phase-${s.phase}`}>
-          {PHASE_LABELS[s.phase] || s.phase}
-        </span>
-        {s.model && <span className="debate-session-item-model">{s.model}</span>}
-      </div>
-      <div className="debate-session-item-meta">
-        {s.turn_count != null && <span className="debate-session-item-turns">{s.turn_count} turn{s.turn_count !== 1 ? 's' : ''}</span>}
-        <span className="debate-session-item-date">{formatDate(s.updated_at)}</span>
-      </div>
-      {editMode ? (
-        <div className="debate-session-item-edit-actions" onClick={e => e.stopPropagation()}>
-          <button
-            className="debate-edit-btn"
-            onClick={() => { setRenamingId(s.id); setRenameValue(s.title); }}
-            title="Rename"
-          >
-            &#9998;
-          </button>
-          <button
-            className="debate-edit-btn"
-            onClick={() => moveSession(s.id, 'up')}
-            disabled={idx === 0}
-            title="Move up"
-          >
-            &#9650;
-          </button>
-          <button
-            className="debate-edit-btn"
-            onClick={() => moveSession(s.id, 'down')}
-            disabled={idx === filteredSessionsLength - 1}
-            title="Move down"
-          >
-            &#9660;
-          </button>
-        </div>
-      ) : (
-        <button
-          className="debate-session-item-delete"
-          title="Delete debate"
-          onClick={(e) => { e.stopPropagation(); setEditMode(true); setSelectedIds(new Set([s.id])); }}
-        >
-          ×
-        </button>
-      )}
-    </div>
   );
 }
 
 function DebateCommunityList(props: DebateListProps) {
   const {
-    communityDebates, communityLoading, searchQuery, setSearchQuery, filteredCommunityDebates,
+    communityDebates, communityLoading, searchQuery, setSearchQuery,
+    filteredCommunityDebates, selectedCommunityDebate, setSelectedCommunityDebate,
+    copyingId, setCopyingId, copyItem, loadSessions, auth, nav,
+    onRowOpen, onRowCommunityExport,
   } = props;
+  const isPhone = nav.isActive;
+
+  // Electron mode: community debates not supported — show notice as empty state.
+  if (!communityLoading && communityDebates.length === 0 && isElectronMode()) {
+    return (
+      <div className="debate-session-empty">
+        Community debates are only available in the web app — open it in your browser to browse and search shared debates.
+      </div>
+    );
+  }
+
+  const handleCopy = async (cd: CommunityDebate): Promise<void> => {
+    setCopyingId(cd.id);
+    try {
+      await copyItem('debates', cd.id);
+      void loadSessions();
+    } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'debate-tab',
+        level: 'error',
+        message: 'Failed to copy community debate',
+        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      });
+    } finally {
+      setCopyingId(null);
+    }
+  };
+
   return (
     <>
-    {communityDebates.length > 0 && (
-      <div className="debate-tab-search-wrap">
-        <input
-          type="text"
-          placeholder="Search community debates..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="debate-tab-search-input"
-        />
-      </div>
-    )}
-    <div className="list-panel-items">
-      {communityLoading && communityDebates.length === 0 && (
-        <div className="debate-session-empty">Loading community debates...</div>
-      )}
-      {!communityLoading && communityDebates.length === 0 && (
-        <div className="debate-session-empty">
-          {isElectronMode()
-            ? 'Community debates are only available in the web app — open it in your browser to browse and search shared debates.'
-            : 'No community debates available yet.'}
+      {communityDebates.length > 0 && (
+        <div className="debate-tab-search-wrap">
+          <input
+            type="text"
+            placeholder="Search community debates..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="debate-tab-search-input"
+          />
         </div>
       )}
-      {searchQuery && filteredCommunityDebates.length === 0 && communityDebates.length > 0 && (
-        <div className="debate-session-empty">No community debates match &ldquo;{searchQuery}&rdquo;</div>
-      )}
-      {filteredCommunityDebates.map((cd) => (
-        <CommunityListItem {...props} key={cd.id} cd={cd} />
-      ))}
-    </div>
+      <DebateTable
+        variant="community"
+        rows={filteredCommunityDebates}
+        loading={communityLoading}
+        searchQuery={searchQuery}
+        selectedId={selectedCommunityDebate?.id ?? null}
+        onOpen={onRowOpen}
+        onExport={onRowCommunityExport}
+        onCopy={handleCopy}
+        copyingId={copyingId}
+        auth={auth}
+        onPhoneSelect={(cd) => {
+          setSelectedCommunityDebate(cd);
+          if (nav.isActive) nav.push({ view: 'detail', id: cd.id });
+        }}
+        isPhone={isPhone}
+        totalCount={communityDebates.length}
+      />
     </>
-  );
-}
-
-function CommunityListItem(props: DebateListProps & { cd: CommunityDebate }) {
-  const {
-    cd, selectedCommunityDebate, setSelectedCommunityDebate, nav,
-    copyingId, setCopyingId, copyItem, loadSessions, auth,
-  } = props;
-  return (
-    <div
-      className={`debate-session-item${selectedCommunityDebate?.id === cd.id ? ' selected' : ''}`}
-      onClick={() => { setSelectedCommunityDebate(cd); if (nav.isActive) nav.push({ view: 'detail', id: cd.id }); }}
-    >
-      <div className="debate-session-item-title">{cd.title}</div>
-      <div className="debate-session-item-meta">
-        {cd.phase && (
-          <span className={`debate-phase-badge phase-${cd.phase}`}>
-            {PHASE_LABELS[cd.phase] || cd.phase}
-          </span>
-        )}
-        {cd.community_metadata?.submitted_by_display && (
-          <span className="debate-session-item-model">{cd.community_metadata.submitted_by_display}</span>
-        )}
-      </div>
-      <div className="debate-session-item-meta">
-        <span className="debate-session-item-date">{formatDate(cd.updated_at)}</span>
-        {!auth?.anonymous && (
-        <button
-          className="btn btn-sm debate-tab-copy-btn"
-          disabled={copyingId === cd.id}
-          onClick={async (e) => {
-            e.stopPropagation();
-            setCopyingId(cd.id);
-            try {
-              await copyItem('debates', cd.id);
-              void loadSessions();
-            } catch (err) {
-              getGlobalRecorder()?.record({
-                type: 'system.error',
-                component: 'debate-tab',
-                level: 'error',
-                message: 'Failed to copy community debate',
-                error: { name: (err as Error).name ?? 'Error', message: String(err) },
-              });
-            } finally {
-              setCopyingId(null);
-            }
-          }}
-        >
-          {copyingId === cd.id ? 'Copying...' : 'Copy to My'}
-        </button>
-        )}
-      </div>
-    </div>
   );
 }
 
