@@ -23,6 +23,13 @@ export interface ConfigSlice {
 
   // Config
   responseLength: 'claims' | 'brief' | 'medium' | 'detailed' | 'reasoning' | 'convergence';
+  // Default *display* tier for debate steps, decoupled from responseLength (t/2269, TL Option 2).
+  // responseLength shapes generation verbosity (the `length` arg into the debater prompts, so it
+  // sets how much the model writes); this only sets the view fallback — StatementCard renders
+  // `entry.display_tier ?? defaultDisplayTier`. Kept separate so the default view can be Medium
+  // without shortening what gets generated (which would make the Detailed tier no longer detailed).
+  // Unpersisted, like responseLength.
+  defaultDisplayTier: 'claims' | 'brief' | 'medium' | 'detailed' | 'reasoning' | 'convergence';
   audience: DebateAudience;
   debateModel: string | null;
   debateTemperature: number | null;
@@ -99,6 +106,7 @@ export const createConfigSlice: StateCreator<DebateStore, [], [], ConfigSlice> =
   debateProgress: null,
   debateActivity: null,
   responseLength: 'detailed',
+  defaultDisplayTier: 'medium',
   audience: 'policymakers' as DebateAudience,
   debateModel: null,
   debateTemperature: null,

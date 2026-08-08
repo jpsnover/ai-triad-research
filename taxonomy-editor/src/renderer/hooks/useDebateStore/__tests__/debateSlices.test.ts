@@ -223,6 +223,17 @@ describe('Config slice: getConfiguredModel behavior', () => {
     expect(transcript[1].display_tier).toBeUndefined();
     expect(useDebateStore.getState().responseLength).toBe('claims');
   });
+
+  // t/2269 (TL Option 2): the debate-step view default is Medium, but that must NOT
+  // shorten generation. defaultDisplayTier (view fallback) and responseLength
+  // (generation verbosity) are independent store fields — guard against re-coupling.
+  it('defaults defaultDisplayTier to medium while responseLength stays detailed (t/2269)', () => {
+    useDebateStore.setState({ responseLength: 'detailed', defaultDisplayTier: 'medium' });
+    // Changing generation length must not move the view default…
+    useDebateStore.getState().setResponseLength('brief');
+    expect(useDebateStore.getState().responseLength).toBe('brief');
+    expect(useDebateStore.getState().defaultDisplayTier).toBe('medium');
+  });
 });
 
 // ── Config Slice — per-step debate timer (t/2266) ──
