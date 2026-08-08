@@ -254,7 +254,7 @@ export function DebateTableRow({
   // Defensive guard: extractSummary may return title as {final,original} if debateIO.ts is
   // invoked before the t/2334 fix is present on disk. Coerce to string so React never sees
   // an object. The main-process FR log in debateIO.ts captures the corruption event.
-  const rawTitle: unknown = safeTitle;
+  const rawTitle: unknown = s.title;
   const safeTitle = typeof rawTitle === 'string' ? rawTitle
     : (rawTitle as { final?: string; original?: string })?.final
       ?? (rawTitle as { final?: string; original?: string })?.original
