@@ -47,6 +47,8 @@
   --focus-ring: #60a5fa;
   --success: #22c55e;
   --danger: #ef4444;
+  --color-warning: #b45309;
+  --color-warning-bg: rgba(180, 83, 9, 0.08);
 
   /* POV Highlight Backgrounds (light) */
   --bg-acc: rgba(39, 174, 96, 0.13);
@@ -80,6 +82,8 @@
   --focus-ring: #60a5fa;
   --success: #22c55e;
   --danger: #ef4444;
+  --color-warning: #fbbf24;
+  --color-warning-bg: rgba(251, 191, 36, 0.12);
 
   --bg-acc: rgba(39, 174, 96, 0.18);
   --bg-saf: rgba(231, 76, 60, 0.18);
@@ -112,6 +116,8 @@
   --focus-ring: #4d7a8b;
   --success: #00ff4c;
   --danger: #fb2c36;
+  --color-warning: #f59e0b;
+  --color-warning-bg: rgba(245, 158, 11, 0.12);
 
   /* POV camp colors — use BKC gradient anchors */
   --color-acc: #4d7a8b;
@@ -2603,4 +2609,91 @@ body {
   padding-top: 4px;
   font-weight: 600;
   color: var(--text-primary);
+}
+
+/* === Retrieval Confidence & Candidate Chip === */
+
+.kp-chip-warning {
+  border: 1px solid var(--color-warning) !important;
+  background: var(--color-warning-bg) !important;
+  border-radius: var(--radius-sm);
+  padding: 2px 4px;
+}
+
+.kp-confidence-badge {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  color: var(--text-secondary);
+  margin-left: 6px;
+}
+
+.kp-chip-warning .kp-confidence-badge {
+  color: var(--color-warning);
+}
+
+.kp-unassigned-chip {
+  font-style: italic;
+  color: var(--color-warning);
+  font-size: var(--font-size-xs);
+}
+
+.kp-candidates-toggle {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: var(--font-size-xs);
+  color: var(--text-secondary);
+  padding: 0 4px;
+  margin-left: 4px;
+  line-height: 1;
+}
+
+.kp-candidates-toggle:hover {
+  color: var(--text-primary);
+}
+
+.kp-candidates-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 4px;
+}
+
+.kp-candidate-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  padding: 2px 6px;
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+}
+
+.kp-candidate-btn:hover {
+  background: var(--bg-hover);
+  border-color: var(--border-color);
+}
+
+.kp-candidate-score {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+
+.kp-candidate-id {
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.kp-candidate-label {
+  font-size: var(--font-size-xs);
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }

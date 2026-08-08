@@ -27,6 +27,10 @@ export interface KeyPoint {
   verbatim?: string;
   excerpt_context: string;
   stance: string;
+  retrieval_confidence?: number;
+  retrieval_low_confidence?: boolean;
+  taxonomy_node_candidates?: Array<{ id: string; label: string; score: number }>;
+  veto_reason?: string;
 }
 
 export interface PovSummary {
