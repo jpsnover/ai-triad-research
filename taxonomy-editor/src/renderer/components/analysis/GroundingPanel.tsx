@@ -174,18 +174,19 @@ export function GroundingPanel({ debate }: { debate: DebateSession }) {
 
   const selectedDetails = selectedNodeId ? detailMap.get(selectedNodeId) ?? [] : [];
 
+  // Hook must precede the `if (rows.length === 0)` early return (rules-of-hooks, t/2299).
+  // Compute lineage effectiveness from injection manifests (same logic as calibrationLogger).
+  const lineageEffectiveness = useMemo(
+    () => computeLineageEffectiveness(debate.transcript),
+    [debate.transcript],
+  );
+
   if (rows.length === 0) {
     return <div className="grounding-empty">No taxonomy references found in this debate.</div>;
   }
 
   const sortArrow = (col: typeof sortCol) => sortCol === col ? (sortAsc ? ' ▲' : ' ▼') : '';
   const statementsWithRefs = debate.transcript.filter(e => e.taxonomy_refs?.length > 0).length;
-
-  // Compute lineage effectiveness from injection manifests (same logic as calibrationLogger)
-  const lineageEffectiveness = useMemo(
-    () => computeLineageEffectiveness(debate.transcript),
-    [debate.transcript],
-  );
 
   return (
     <div className="grounding-root">

@@ -417,14 +417,9 @@ export function ConvergenceSignalsPanel({ debate }: Props) {
     return signals.filter(s => s.speaker === filterSpeaker);
   }, [signals, filterSpeaker]);
 
-  if (signals.length === 0) {
-    return (
-      <div className="conv-empty">
-        No convergence signals recorded yet. Signals are computed after each claim extraction during debate turns.
-      </div>
-    );
-  }
-
+  // Hooks must precede the `if (signals.length === 0)` early return (rules-of-hooks,
+  // t/2299). All of these compute from `filtered`/`selectedIdx`/`debate`, which are
+  // available above the guard; behavior is unchanged.
   const selected = selectedIdx !== null ? filtered[selectedIdx] : null;
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -469,6 +464,14 @@ export function ConvergenceSignalsPanel({ debate }: Props) {
       return { scheme: e.scheme ?? 'supports', sourceText: sourceNode?.text ?? '', targetText: targetNode?.text ?? '', targetId: e.target, sourceId: e.source };
     });
   }, [selected, debate.argument_network]);
+
+  if (signals.length === 0) {
+    return (
+      <div className="conv-empty">
+        No convergence signals recorded yet. Signals are computed after each claim extraction during debate turns.
+      </div>
+    );
+  }
 
   return (
     <div ref={containerRef} tabIndex={0} className="csig-container">

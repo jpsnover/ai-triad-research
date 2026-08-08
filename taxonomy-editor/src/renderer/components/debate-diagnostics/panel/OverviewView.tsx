@@ -51,13 +51,15 @@ function StrengthTimeline({ timeline, nodes, onSelectClaim }: {
 }) {
   const [hoveredClaim, setHoveredClaim] = useState<string | null>(null);
   const qbafEnabled = useFlag('release-qbaf-analysis');
-  if (!qbafEnabled || timeline.length === 0) return null;
 
+  // Hook must precede the early return (rules-of-hooks, t/2299); claimIds derives from timeline.
   const claimIds = useMemo(() => {
     const ids = new Set<string>();
     for (const snap of timeline) for (const id of Object.keys(snap.strengths)) ids.add(id);
     return [...ids];
   }, [timeline]);
+
+  if (!qbafEnabled || timeline.length === 0) return null;
 
   const maxTurn = Math.max(...timeline.map(t => t.turn));
   const plotW = TIMELINE_W - TIMELINE_PAD.left - TIMELINE_PAD.right;
@@ -1008,18 +1010,15 @@ export function OverviewView() {
   const { activeDebate, askQuestion, debateGenerating } = useDebateStore(
     useShallow(s => ({ activeDebate: s.activeDebate, askQuestion: s.askQuestion, debateGenerating: s.debateGenerating }))
   );
-  if (!activeDebate) return null;
-
-  const an = activeDebate.argument_network;
-  const commitments = activeDebate.commitments;
-  const diag = activeDebate.diagnostics;
-  const timeline = activeDebate.qbaf_timeline;
-
+  // Hooks must precede the `if (!activeDebate)` early return (rules-of-hooks, t/2299).
+  // Both memos read activeDebate via optional chaining so they are null-safe above the
+  // guard; the non-null `an`/`timeline`/etc. locals are still derived below the guard.
   const coverageMap = useMemo<CoverageMap | null>(() => {
-    if (!activeDebate?.document_analysis?.i_nodes?.length) return null;
-    const anNodes = activeDebate.argument_network?.nodes ?? [];
+    const iNodes = activeDebate?.document_analysis?.i_nodes;
+    if (!iNodes?.length) return null;
+    const anNodes = activeDebate?.argument_network?.nodes ?? [];
     if (anNodes.length === 0) return null;
-    const documentClaims = activeDebate.document_analysis.i_nodes.map(n => ({ id: n.id, text: n.text }));
+    const documentClaims = iNodes.map(n => ({ id: n.id, text: n.text }));
     try {
       return computeCoverageMap(anNodes, documentClaims);
     } catch (err) {
@@ -1035,6 +1034,7 @@ export function OverviewView() {
   }, [activeDebate?.argument_network?.nodes, activeDebate?.document_analysis?.i_nodes]);
 
   const strengthWeighted = useMemo<StrengthWeightedCoverage | null>(() => {
+    const an = activeDebate?.argument_network;
     if (!coverageMap || !an || an.nodes.length === 0) return null;
     try {
       return computeStrengthWeightedCoverage(coverageMap, an.nodes, an.edges);
@@ -1048,7 +1048,14 @@ export function OverviewView() {
       });
       return null;
     }
-  }, [coverageMap, an]);
+  }, [coverageMap, activeDebate?.argument_network]);
+
+  if (!activeDebate) return null;
+
+  const an = activeDebate.argument_network;
+  const commitments = activeDebate.commitments;
+  const diag = activeDebate.diagnostics;
+  const timeline = activeDebate.qbaf_timeline;
 
   const topicScope = activeDebate.topic?.scope as TopicScope | undefined;
 

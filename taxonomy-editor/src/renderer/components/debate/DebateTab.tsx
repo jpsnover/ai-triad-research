@@ -941,7 +941,10 @@ function DebateDetailSummary({
   const [shareStatus, setShareStatus] = useState<string | null>(null);
   // Calibration is an admin/power-user tool — show only for admins (t/1036).
   // Desktop (Electron) owners are admin-equivalent; web requires the admin flag.
-  const showAdminControls = isElectronMode() || useFlag('permission-admin-features');
+  // useFlag is a hook — call it unconditionally, never inside the `||` short-circuit
+  // (rules-of-hooks, t/2299); a conditional call crashed the debate popup (t/2298).
+  const adminFlag = useFlag('permission-admin-features');
+  const showAdminControls = isElectronMode() || adminFlag;
   const viewMode = usePreferencesStore(s => s.viewMode);
   const topic = debate.topic.final || debate.topic.refined || debate.topic.original;
 

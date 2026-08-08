@@ -145,18 +145,18 @@ export function ExplorationSummaryCard() {
   const [starting, setStarting] = useState(false);
 
   const summary = explorationSummary;
-  if (!summary) return null;
 
-  const isEmpty = summary.cruxes.length === 0
-    && summary.effective_situations.length === 0
-    && summary.argument_sketch.nodes.length === 0;
-
+  // Hooks must precede the `if (!summary) return null` early return (rules-of-hooks,
+  // t/2299). The internal `if (!summary) return` guards are behavior-neutral — these
+  // callbacks are only invoked after render, which only happens when summary is set.
   const handleRemoveCrux = useCallback((index: number) => {
+    if (!summary) return;
     const updated = { ...summary, cruxes: summary.cruxes.filter((_, i) => i !== index) };
     updateExplorationSummary(updated);
   }, [summary, updateExplorationSummary]);
 
   const handleToggleSituation = useCallback((id: string, currentlyEffective: boolean) => {
+    if (!summary) return;
     if (currentlyEffective) {
       const situation = summary.effective_situations.find(s => s.id === id);
       if (!situation) return;
@@ -177,11 +177,18 @@ export function ExplorationSummaryCard() {
   }, [summary, updateExplorationSummary]);
 
   const handleConfigChange = useCallback((updates: Partial<ExplorationSummary['recommended_config']>) => {
+    if (!summary) return;
     updateExplorationSummary({
       ...summary,
       recommended_config: { ...summary.recommended_config, ...updates },
     });
   }, [summary, updateExplorationSummary]);
+
+  if (!summary) return null;
+
+  const isEmpty = summary.cruxes.length === 0
+    && summary.effective_situations.length === 0
+    && summary.argument_sketch.nodes.length === 0;
 
   const handleStartProduction = async () => {
     setStarting(true);
