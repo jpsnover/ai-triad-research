@@ -171,10 +171,14 @@ describe('NodeTree', () => {
     expect(screen.getByText(/Safety beliefs/)).toBeDefined();
   });
 
-  it('displays node IDs alongside labels', () => {
+  it('shows labels but hides raw node IDs in list rows (t/2317)', () => {
     render(<NodeTree nodes={NODES} selectedNodeId={null} onSelect={vi.fn()} />);
-    expect(screen.getByText('acc-B-001')).toBeDefined();
-    expect(screen.getByText('acc-D-001')).toBeDefined();
+    // Human-readable labels are shown...
+    expect(screen.getByText('Open dev is safe')).toBeDefined();
+    expect(screen.getByText('Maximize progress')).toBeDefined();
+    // ...but the raw node IDs are no longer rendered for end users.
+    expect(screen.queryByText('acc-B-001')).toBeNull();
+    expect(screen.queryByText('acc-D-001')).toBeNull();
   });
 });
 
