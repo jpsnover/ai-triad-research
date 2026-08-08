@@ -82,7 +82,7 @@ describe('saveDebate doc_meta stamping (t/1779)', () => {
     });
     store.setState({ activeDebate: makeSession(['doc1']) as unknown as DebateStore['activeDebate'] });
 
-    await store.getState().saveDebate();
+    await store.getState().saveDebate('test');
 
     expect(docMetaOf(store)).toEqual({
       doc1: { title: 'Doc One', resolved_url: 'https://example/1', provenance_label: 'arXiv 2023' },
@@ -96,7 +96,7 @@ describe('saveDebate doc_meta stamping (t/1779)', () => {
     mockLoadDocTitles.mockResolvedValue({ doc1: { title: 'Doc One' } });
     store.setState({ activeDebate: makeSession(null) as unknown as DebateStore['activeDebate'] });
 
-    await store.getState().saveDebate();
+    await store.getState().saveDebate('test');
 
     expect(docMetaOf(store)).toBeUndefined();
   });

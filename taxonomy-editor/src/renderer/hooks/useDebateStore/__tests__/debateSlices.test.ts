@@ -54,7 +54,7 @@ describe('saveDebate', () => {
   it('saves current activeDebate via IPC', async () => {
     useDebateStore.setState({ activeDebate: makeSession() as any });
 
-    await useDebateStore.getState().saveDebate();
+    await useDebateStore.getState().saveDebate('test');
 
     expect(mockApi.saveDebateSession).toHaveBeenCalledWith(
       expect.objectContaining({ id: 'session-1' }),
@@ -67,7 +67,7 @@ describe('saveDebate', () => {
       sessions: [{ id: 'session-1', title: 'Old Title', updated_at: 'old', phase: 'setup' }],
     });
 
-    await useDebateStore.getState().saveDebate();
+    await useDebateStore.getState().saveDebate('test');
 
     const sessions = useDebateStore.getState().sessions;
     expect(sessions[0].title).toBe('Updated Title');

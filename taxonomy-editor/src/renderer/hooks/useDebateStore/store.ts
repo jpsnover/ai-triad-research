@@ -15,6 +15,7 @@ import { createDebateReflectionSlice } from './slices/debateReflectionSlice';
 import { createExplorationSlice } from './slices/explorationSlice';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { api } from '@bridge';
+import { PHASE_ORDER } from './shared/phaseOrder';
 
 export const useDebateStore = create<DebateStore>()((...a) => ({
   ...createConfigSlice(...a),
@@ -112,9 +113,9 @@ if (typeof window !== 'undefined') {
   });
 }
 
-// State-clobber detection (t/194)
-const PHASE_ORDER: Record<string, number> = { setup: 0, clarification: 1, 'edit-claims': 2, opening: 3, debate: 4, closed: 5 };
-
+// State-clobber detection (t/194). PHASE_ORDER is shared with the t/2326 load-guard
+// (sessionSlice.loadDebate) via ./shared/phaseOrder so both guards order phases
+// identically.
 useDebateStore.subscribe((state, prev) => {
   const curr = state.activeDebate;
   const old = prev.activeDebate;

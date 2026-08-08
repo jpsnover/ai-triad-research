@@ -100,7 +100,7 @@ export function SituationDebatePanel({ node, onLaunched }: SituationDebatePanelP
       const session = store.activeDebate;
       if (session) {
         applySituationDebateConfig(session, { effectiveModel, pacing, useAdaptiveStaging, temperature, audience, protocolId });
-        await store.saveDebate();
+        await store.saveDebate('SituationDebatePanel:applyConfig');
       }
 
       setActiveTab('debate');

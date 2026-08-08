@@ -997,7 +997,7 @@ function useDebateWorkspaceEffects({
     if (!activeDebate) return;
     if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
     autoSaveTimer.current = setTimeout(() => {
-      void saveDebate();
+      void saveDebate('DebateWorkspace:autoSave');
     }, 2000);
     return () => {
       if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);

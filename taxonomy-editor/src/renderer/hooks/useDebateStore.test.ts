@@ -936,13 +936,13 @@ describe('Error handling', () => {
       useDebateStore.setState({ activeDebate: makeSession() as any });
       mockApi.saveDebateSession.mockRejectedValueOnce(new Error('Disk full'));
 
-      await useDebateStore.getState().saveDebate();
+      await useDebateStore.getState().saveDebate('test');
 
       expect(useDebateStore.getState().debateError).toBeTruthy();
     });
 
     it('does nothing when activeDebate is null', async () => {
-      await useDebateStore.getState().saveDebate();
+      await useDebateStore.getState().saveDebate('test');
       expect(mockApi.saveDebateSession).not.toHaveBeenCalled();
     });
   });
