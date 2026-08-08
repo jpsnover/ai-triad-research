@@ -20,6 +20,7 @@ import {
   updateNodeFields,
   persistEdges,
   getNodesByPovCategory,
+  readRawPdfBytes,
   PROJECT_ROOT,
 } from './fileIO';
 import type { AddTaxonomyNodeRequest } from './fileIO';
@@ -112,6 +113,15 @@ export function registerIpcHandlers(): void {
 
   validatedHandle('clipboard-write-text', oneString, (_event, text) => {
     clipboard.writeText(text);
+  });
+
+  // Ships the raw PDF for a source to the sandboxed renderer as an ArrayBuffer
+  // (pane 3 real-PDF viewer). Returns null when the source has no raw PDF —
+  // the renderer falls back to the Markdown snapshot. Mirrors poviewer.
+  validatedHandle('get-pdf-bytes', oneString, (_event, sourceId) => {
+    const buf = readRawPdfBytes(sourceId);
+    if (!buf) return null;
+    return buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength);
   });
 
   // === Optional / string + optional string ===

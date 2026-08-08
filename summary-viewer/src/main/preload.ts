@@ -22,6 +22,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   loadSnapshot: (sourceId: string): Promise<string> =>
     ipcRenderer.invoke('load-snapshot', sourceId),
 
+  getPdfBytes: (sourceId: string): Promise<ArrayBuffer | null> =>
+    ipcRenderer.invoke('get-pdf-bytes', sourceId),
+
   loadTaxonomy: (): Promise<unknown> =>
     ipcRenderer.invoke('load-taxonomy'),
 

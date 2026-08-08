@@ -739,3 +739,22 @@ export function readSnapshot(sourceId: string): string {
   }
   return fs.readFileSync(filePath, 'utf-8');
 }
+
+// === Raw PDF resolution (mirrors poviewer/src/main/fileIO.ts) ===
+// The renderer is sandboxed (no fs), so the raw PDF is read here and shipped
+// over IPC as bytes. Sources store the original document under <id>/raw/*.pdf.
+
+export function findRawPdfPath(sourceId: string): string | null {
+  const rawDir = path.join(SOURCES_DIR, sourceId, 'raw');
+  if (!fs.existsSync(rawDir)) return null;
+  const files = fs.readdirSync(rawDir);
+  const pdf = files.find(f => f.toLowerCase().endsWith('.pdf'));
+  if (!pdf) return null;
+  return path.join(rawDir, pdf);
+}
+
+export function readRawPdfBytes(sourceId: string): Buffer | null {
+  const pdfPath = findRawPdfPath(sourceId);
+  if (!pdfPath) return null;
+  return fs.readFileSync(pdfPath);
+}

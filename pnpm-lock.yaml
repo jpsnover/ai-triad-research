@@ -131,6 +131,9 @@ importers:
 
   summary-viewer:
     dependencies:
+      pdfjs-dist:
+        specifier: ^6.2.108
+        version: 6.2.108
       react:
         specifier: ^19.2.8
         version: 19.2.8
