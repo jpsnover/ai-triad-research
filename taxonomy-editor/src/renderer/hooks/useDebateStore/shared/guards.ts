@@ -108,8 +108,12 @@ export function markAsPopout(): void {
   _driverChannel?.postMessage({ type: 'claim', windowId: _windowId });
 }
 
-export function initDebatePopoutCloseHandler(api: { onDebatePopoutClosed: (cb: () => void) => () => void }): () => void {
-  return api.onDebatePopoutClosed(() => {
+export function initDebatePopoutCloseHandler(api: { onDebatePopoutClosed: (cb: (debateId: string) => void) => () => void }): () => void {
+  return api.onDebatePopoutClosed((debateId) => {
+    // Multi-window (t/2310): only reclaim the driver + reload when the popout that closed
+    // was driving THIS window's active debate. A different debate's popout closing must not
+    // clobber the displayed debate's driver/reload state now that N popouts can be open.
+    if (debateId !== useDebateStore.getState().activeDebateId) return;
     useDebateStore.setState({ driverIsRemote: false });
     reloadActiveDebateFromStorage();
   });
