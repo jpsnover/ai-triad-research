@@ -9,6 +9,11 @@
  * Tests GitHubAPIBackend and SessionBranchManager against mocked GitHub APIs
  * to validate: session lifecycle, batch commits, PR creation, cache behavior,
  * circuit breaker, rate limit handling, and concurrent mutation safety.
+ *
+ * LOCAL-ONLY FAILURE MODE (t/2281): if these tests fail with "undici major-version skew",
+ * your local Node is outside the required range (package.json engines: ">=22 <23").
+ * CI uses node:22.23.2 (Dockerfile) which bundles undici 6.x matching the userland pin.
+ * Fix: switch to Node 22.x via nvm/fnm. This is not a test or code defect.
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';

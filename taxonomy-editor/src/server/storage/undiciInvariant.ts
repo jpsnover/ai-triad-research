@@ -19,8 +19,10 @@ export function assertUndiciMajorInvariant(
       `undici major-version skew: userland ${userlandVersion} vs node built-in ${bundledVersion}. ` +
       `The GitHub dispatcher passes an undici.Agent as dispatcher: to Node's built-in fetch — ` +
       `mismatched majors cause fetch to silently ignore the dispatcher and fall back to TLS ` +
-      `session caching (CVE-2026-58040 condition). Pin undici in package.json to match the ` +
-      `node base-image's bundled major. (t/2053, t/2113)`,
+      `session caching (CVE-2026-58040 condition). ` +
+      `LOCAL-ONLY: CI uses node:22.23.2 (Dockerfile) which bundles undici 6.x matching the ` +
+      `userland pin. Your local Node (${bundledVersion.split('.')[0]}.x) is outside the required ` +
+      `range — switch to Node 22.x (see package.json engines: ">=22 <23") via nvm/fnm. (t/2053, t/2113, t/2281)`,
     );
   }
 }
