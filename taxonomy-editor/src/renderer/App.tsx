@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-import { useEffect, useState, lazy, Suspense } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import './App.css';
 import { api } from '@bridge';
 import { nodePovFromId } from '@lib/debate/nodeIdUtils';
@@ -23,6 +23,7 @@ import { StartupProgressScreen } from './components/shared/StartupProgressScreen
 import { initClientConfig } from './lib/clientConfig';
 import { initFlightRecorder } from './lib/flightRecorderInit';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
+import { recordingLazy } from './utils/recordingLazy';
 import { initAnalytics } from './lib/analyticsEmitter';
 import { useBreakpoint } from './hooks/useBreakpoint';
 import { useIsTouchDevice } from './hooks/useIsTouchDevice';
@@ -41,30 +42,30 @@ import { DiagnosticsDrawer } from './components/shared/DiagnosticsDrawer';
 import { GlobalDetailPaneHost } from './components/shared/GlobalDetailPaneHost';
 
 // Lazy-loaded tab components — only fetched when their tab is selected
-const SituationsTab = lazy(() => import('./components/debate/SituationsTab').then(m => ({ default: m.SituationsTab })));
-const ConflictsTab = lazy(() => import('./components/conflict/ConflictsTab').then(m => ({ default: m.ConflictsTab })));
-const DebateTab = lazy(() => import('./components/debate/DebateTab').then(m => ({ default: m.DebateTab })));
-const ChatTab = lazy(() => import('./components/chat/ChatTab').then(m => ({ default: m.ChatTab })));
-const SummariesTab = lazy(() => import('./components/analysis/SummariesTab').then(m => ({ default: m.SummariesTab })));
-const CruxesTab = lazy(() => import('./components/debate/CruxesTab').then(m => ({ default: m.CruxesTab })));
-const ValidationTab = lazy(() => import('./components/taxonomy/ValidationTab').then(m => ({ default: m.ValidationTab })));
-const OrganizationsTab = lazy(() => import('./components/organizations/OrganizationsTab').then(m => ({ default: m.OrganizationsTab })));
+const SituationsTab = recordingLazy(() => import('./components/debate/SituationsTab').then(m => ({ default: m.SituationsTab })));
+const ConflictsTab = recordingLazy(() => import('./components/conflict/ConflictsTab').then(m => ({ default: m.ConflictsTab })));
+const DebateTab = recordingLazy(() => import('./components/debate/DebateTab').then(m => ({ default: m.DebateTab })));
+const ChatTab = recordingLazy(() => import('./components/chat/ChatTab').then(m => ({ default: m.ChatTab })));
+const SummariesTab = recordingLazy(() => import('./components/analysis/SummariesTab').then(m => ({ default: m.SummariesTab })));
+const CruxesTab = recordingLazy(() => import('./components/debate/CruxesTab').then(m => ({ default: m.CruxesTab })));
+const ValidationTab = recordingLazy(() => import('./components/taxonomy/ValidationTab').then(m => ({ default: m.ValidationTab })));
+const OrganizationsTab = recordingLazy(() => import('./components/organizations/OrganizationsTab').then(m => ({ default: m.OrganizationsTab })));
 
 // Lazy-loaded window/panel components — separate Electron windows or hash routes
-const DiagnosticsWindow = lazy(() => import('./components/debate-diagnostics').then(m => ({ default: m.DiagnosticsWindow })));
-const PovProgressionWindow = lazy(() => import('./components/PovProgression/PovProgressionWindow').then(m => ({ default: m.PovProgressionWindow })));
-const DebatePopoutWindow = lazy(() => import('./components/debate/DebatePopoutWindow').then(m => ({ default: m.DebatePopoutWindow })));
-const ChatWindow = lazy(() => import('./components/chat/ChatWindow').then(m => ({ default: m.ChatWindow })));
-const PromptDiffWindow = lazy(() => import('./components/chat/PromptDiffWindow').then(m => ({ default: m.PromptDiffWindow })));
-const DiffWindow = lazy(() => import('./components/shared/DiffWindow').then(m => ({ default: m.DiffWindow })));
-const HarvestDialog = lazy(() => import('./components/shared/HarvestDialog').then(m => ({ default: m.HarvestDialog })));
-const AnalyticsDashboard = lazy(() => import('./components/analysis/AnalyticsDashboard').then(m => ({ default: m.AnalyticsDashboard })));
-const CommunityLibrary = lazy(() => import('./components/community/CommunityLibrary').then(m => ({ default: m.CommunityLibrary })));
-const AdminPanel = lazy(() => import('./components/settings/AdminPanel').then(m => ({ default: m.AdminPanel })));
-const AdminReviewPanel = lazy(() => import('./components/settings/AdminReviewPanel').then(m => ({ default: m.AdminReviewPanel })));
+const DiagnosticsWindow = recordingLazy(() => import('./components/debate-diagnostics').then(m => ({ default: m.DiagnosticsWindow })));
+const PovProgressionWindow = recordingLazy(() => import('./components/PovProgression/PovProgressionWindow').then(m => ({ default: m.PovProgressionWindow })));
+const DebatePopoutWindow = recordingLazy(() => import('./components/debate/DebatePopoutWindow').then(m => ({ default: m.DebatePopoutWindow })));
+const ChatWindow = recordingLazy(() => import('./components/chat/ChatWindow').then(m => ({ default: m.ChatWindow })));
+const PromptDiffWindow = recordingLazy(() => import('./components/chat/PromptDiffWindow').then(m => ({ default: m.PromptDiffWindow })));
+const DiffWindow = recordingLazy(() => import('./components/shared/DiffWindow').then(m => ({ default: m.DiffWindow })));
+const HarvestDialog = recordingLazy(() => import('./components/shared/HarvestDialog').then(m => ({ default: m.HarvestDialog })));
+const AnalyticsDashboard = recordingLazy(() => import('./components/analysis/AnalyticsDashboard').then(m => ({ default: m.AnalyticsDashboard })));
+const CommunityLibrary = recordingLazy(() => import('./components/community/CommunityLibrary').then(m => ({ default: m.CommunityLibrary })));
+const AdminPanel = recordingLazy(() => import('./components/settings/AdminPanel').then(m => ({ default: m.AdminPanel })));
+const AdminReviewPanel = recordingLazy(() => import('./components/settings/AdminReviewPanel').then(m => ({ default: m.AdminReviewPanel })));
 
 const UpdatePrompt = import.meta.env.VITE_TARGET === 'web'
-  ? lazy(() => import('./components/shared/UpdatePrompt').then(m => ({ default: m.UpdatePrompt })))
+  ? recordingLazy(() => import('./components/shared/UpdatePrompt').then(m => ({ default: m.UpdatePrompt })))
   : null;
 
 const THEME_COLORS: Record<string, string> = {
