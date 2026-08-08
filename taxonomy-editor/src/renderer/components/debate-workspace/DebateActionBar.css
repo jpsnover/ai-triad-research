@@ -203,3 +203,175 @@
   white-space: nowrap;
   min-width: 0;
 }
+
+/* ─── Composer redesign (t/2283) ───────────────────────────────────────────
+   Bottom bar becomes a single composer card: full-width input on top; controls
+   row below (left: Tools ▾ + For [audience ▾]; right: Send + Continue). Token-only,
+   AA across four themes. Relocation + grouping only — no behavior change. */
+.debate-composer {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 8px 16px;
+  padding: 10px 12px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-1);
+}
+
+.debate-composer .debate-input-wrapper {
+  position: relative;
+  width: 100%;
+}
+.debate-composer .debate-input {
+  width: 100%;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+  padding: 4px 2px;
+}
+.debate-composer .debate-input::placeholder { color: var(--text-muted); }
+
+.debate-composer-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.debate-composer-left,
+.debate-composer-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Tools trigger + audience select share the neutral outlined-control look. */
+.debate-tools-trigger,
+.debate-audience-select {
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-size: var(--text-2xs);
+  font-weight: 600;
+  padding: 3px 8px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.debate-tools-trigger { display: inline-flex; align-items: center; gap: 4px; }
+.debate-tools-trigger:hover,
+.debate-audience-select:hover { background: var(--bg-hover); }
+.debate-tools-trigger:focus-visible,
+.debate-audience-select:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
+.debate-caret { font-size: 0.7em; color: var(--text-secondary); }
+
+.debate-tools { position: relative; display: inline-flex; }
+
+.debate-audience { display: inline-flex; align-items: center; gap: 6px; }
+.debate-audience-label { color: var(--text-secondary); font-size: var(--text-2xs); }
+
+/* Popup menu (Tools + Continue caret share this). */
+.debate-tools-menu {
+  position: absolute;
+  z-index: 50;
+  min-width: 190px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-1);
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+}
+/* Opens upward from a bottom-anchored trigger (composer sits at the window bottom). */
+.debate-tools-menu-up { bottom: calc(100% + 4px); left: 0; }
+.debate-continue-menu { left: auto; right: 0; min-width: 150px; }
+
+.debate-tools-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-size: var(--text-xs);
+  padding: 6px 8px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.debate-tools-menu-item:hover:not(.disabled),
+.debate-tools-menu-item:focus {
+  background: var(--bg-hover);
+  outline: none;
+}
+.debate-tools-menu-item.disabled {
+  color: var(--text-muted);
+  cursor: not-allowed;
+}
+.debate-tools-menu-item.checked { font-weight: 600; }
+.debate-tools-menu-check {
+  width: 12px;
+  flex-shrink: 0;
+  display: inline-flex;
+  justify-content: center;
+  color: var(--focus-ring);
+}
+.debate-tools-menu-label { flex: 1; }
+.debate-tools-menu-divider {
+  height: 1px;
+  background: var(--border-color);
+  margin: 4px 2px;
+}
+
+/* Send — secondary/text button (was btn-primary). */
+.debate-composer-send {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  padding: 4px 10px;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+}
+.debate-composer-send:hover:not(:disabled) { color: var(--text-primary); }
+.debate-composer-send:disabled { color: var(--text-muted); cursor: not-allowed; }
+.debate-composer-send:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
+
+/* Continue split button — primary accent LOCAL to this button (t/2283 Q3,
+   TL-approved): var(--focus-ring) + #fff. Deliberately NOT the app-wide
+   .btn-primary token (which the design system lists as green --success). */
+.debate-continue-split { position: relative; display: inline-flex; }
+.debate-continue-primary,
+.debate-continue-caret {
+  background: var(--focus-ring);
+  color: #fff;
+  border: none;
+  font-weight: 700;
+  cursor: pointer;
+}
+.debate-continue-primary {
+  font-size: var(--text-sm);
+  padding: 5px 14px;
+  border-radius: var(--radius-sm) 0 0 var(--radius-sm);
+}
+.debate-continue-caret {
+  font-size: 0.7em;
+  padding: 5px 7px;
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  /* subtle split seam using the button's own #fff (the sanctioned Continue color) */
+  border-left: 1px solid color-mix(in srgb, #fff 30%, transparent);
+}
+.debate-continue-primary:hover:not(:disabled),
+.debate-continue-caret:hover:not(:disabled) { filter: brightness(1.07); }
+.debate-continue-primary:disabled,
+.debate-continue-caret:disabled { opacity: 0.5; cursor: not-allowed; }
+.debate-continue-primary:focus-visible,
+.debate-continue-caret:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
