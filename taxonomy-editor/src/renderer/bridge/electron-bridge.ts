@@ -197,7 +197,7 @@ export const api: AppAPI = {
   listDebateSessions: () => window.electronAPI.listDebateSessions(),
   listDebateSessionsMeta: () => window.electronAPI.listDebateSessions(), // Electron mode: local fs is fast, reuse full list
   loadDebateSession: (id) => window.electronAPI.loadDebateSession(id),
-  saveDebateSession: (s) => window.electronAPI.saveDebateSession(s),
+  saveDebateSession: (s, caller) => window.electronAPI.saveDebateSession(s, caller),
   // Electron has no incremental save path — the local fs write is already cheap,
   // so `saveDebateDelta` exists only to keep `AppAPI` total. The store gates on
   // `isElectronMode()` and always routes Electron saves through the full

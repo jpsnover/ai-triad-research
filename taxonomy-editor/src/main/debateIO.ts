@@ -211,7 +211,7 @@ function embedCalibrationIfCompleted(session: unknown): void {
   } catch { /* telemetry — silent by design;  calibration logging never blocks save */ }
 }
 
-export function saveDebateSession(session: unknown): void {
+export function saveDebateSession(session: unknown, caller: string): void {
   ensureDebatesDir();
   const data = session as { id: string };
   if (!data.id || typeof data.id !== 'string') {
@@ -267,6 +267,12 @@ export function saveDebateSession(session: unknown): void {
   } catch (err) {
     getGlobalRecorder()?.record({ type: 'system.error', component: 'debateIO', level: 'warn', message: 'Debate index update after save failed', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
   }
+
+  getGlobalRecorder()?.record({
+    type: 'state.save', component: 'debateIO', level: 'info',
+    message: 'Debate saved',
+    data: { debate_id: data.id, caller, save_mode: 'electron-main' },
+  });
 }
 
 export function deleteDebateSession(id: string): void {

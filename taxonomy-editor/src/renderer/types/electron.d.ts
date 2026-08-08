@@ -119,7 +119,7 @@ export interface ElectronAPI {
   // Debate sessions
   listDebateSessions: () => Promise<unknown[]>;
   loadDebateSession: (id: string) => Promise<unknown>;
-  saveDebateSession: (session: unknown) => Promise<void>;
+  saveDebateSession: (session: unknown, caller: string) => Promise<void>;
   deleteDebateSession: (id: string) => Promise<void>;
   exportDebateToFile: (session: unknown, format?: string, exportOptions?: { includeTaxonomyRefs?: boolean; includeReasoning?: boolean }) => Promise<{ cancelled: boolean; filePath?: string }>;
   loadDebateComments: (debateId: string) => Promise<unknown>;

@@ -37,8 +37,8 @@ export function registerDebateHandlers(): void {
     return loadDebateSession(id);
   });
 
-  ipcMain.handle('save-debate-session', (_event, session: unknown) => {
-    saveDebateSession(session);
+  ipcMain.handle('save-debate-session', (_event, session: unknown, caller: string) => {
+    saveDebateSession(session, caller);
   });
 
   ipcMain.handle('delete-debate-session', (_event, id: string) => {

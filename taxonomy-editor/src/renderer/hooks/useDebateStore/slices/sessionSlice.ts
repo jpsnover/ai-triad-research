@@ -239,7 +239,7 @@ async function persistDebateToServer(activeDebate: DebateSession, saveDiag: Save
     const nextVersion = baseVersion + 1;
     activeDebate._saveVersion = nextVersion;
     const sent = structuredClone(activeDebate);
-    await api.saveDebateSession(activeDebate);
+    await api.saveDebateSession(activeDebate, saveDiag.caller);
     set({ _lastSyncedSnapshot: sent, _lastSyncedVersion: nextVersion });
     recordSaved('full', nextVersion);
   };
@@ -247,7 +247,7 @@ async function persistDebateToServer(activeDebate: DebateSession, saveDiag: Save
   if (isElectronMode()) {
     // Electron desktop: local full-save, no version bookkeeping (deltas are
     // a web-only optimization).
-    await api.saveDebateSession(activeDebate);
+    await api.saveDebateSession(activeDebate, saveDiag.caller);
     recordSaved('electron');
   } else if (_lastSyncedVersion === null || _lastSyncedSnapshot === null) {
     // Web, first save of a freshly-created (never-synced) session.
@@ -408,7 +408,7 @@ export const createSessionSlice: StateCreator<DebateStore, [], [], SessionSlice>
         : undefined,
       origin: { mode: 'gui' },
     };
-    await api.saveDebateSession(session);
+    await api.saveDebateSession(session, 'createDebate');
     api.trackEvent('debate_start', 'debate', { topic: session.title, protocol: protocolId || 'structured' });
     trackDebateStart(id, session.title, protocolId || 'structured');
     const aiPoversForOrder = AI_POVERS.filter(p => povers.includes(p));
