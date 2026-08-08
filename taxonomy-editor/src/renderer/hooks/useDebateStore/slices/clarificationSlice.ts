@@ -570,17 +570,29 @@ export const createClarificationSlice: StateCreator<DebateStore, [], [], Clarifi
       const lineageDataLoaded = isLineageDataLoaded();
       const frameComputed = !!lineageFrame && lineageFrame.length > 0;
       const boostWillBeApplied = frameComputed && lineageDataLoaded;
+      // A topic-specific lineage frame is only computed during topic critique. URL/document/
+      // situations debates run no critique, so having no frame is expected — not a
+      // misconfiguration. Reserve the warn for topic debates that should have a frame but
+      // don't (data unloaded or empty distribution); everything else is info (t/2271).
+      const frameExpected = activeDebate.source_type === 'topic';
+      const expectedNoFrame = !frameExpected && !frameComputed;
       getGlobalRecorder()?.record({
         type: 'lineage.pipeline-status',
         component: 'debate-store',
-        level: boostWillBeApplied ? 'info' : 'warn',
+        level: boostWillBeApplied || expectedNoFrame ? 'info' : 'warn',
         debate_id: activeDebate.id,
-        message: boostWillBeApplied ? 'Lineage pipeline ready' : 'Lineage pipeline incomplete',
+        message: boostWillBeApplied
+          ? 'Lineage pipeline ready'
+          : expectedNoFrame
+            ? 'Lineage pipeline: no topic-specific frame (expected for URL/document/situations debate)'
+            : 'Lineage pipeline incomplete',
         data: {
           lineage_data_loaded: lineageDataLoaded,
           lineage_frame_computed: frameComputed,
+          lineage_frame_expected: frameExpected,
           lineage_frame_traditions: lineageFrame?.map((f: { cluster_id: string; label?: string }) => f.label ?? f.cluster_id) ?? [],
           boost_configured: boostWillBeApplied,
+          source_type: activeDebate.source_type,
           code_path: 'useDebateStore',
         },
       });
