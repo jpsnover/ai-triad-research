@@ -73,7 +73,6 @@
  * Flag-gated via `.debate-redesign` on the card root, so flag-off stays full-width.
  */
 .debate-statement.debate-type-fact-check.debate-redesign .debate-statement-content,
-.debate-statement.debate-type-fact-check.debate-redesign .debate-fact-check-web-evidence-body,
 .debate-redesign .debate-fact-check-web-evidence-body {
   max-width: 95ch;
 }
