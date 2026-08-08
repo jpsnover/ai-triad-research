@@ -570,6 +570,9 @@ $script:EmbeddingsTimestamp = $null      # LastWriteTime of embeddings.json
 $script:CachedSyntheticVectors = $null   # Lazy-loaded (multi-vector synthetic embeddings)
 $script:SyntheticTimestamp = $null       # LastWriteTime of synthetic_embeddings.json
 $script:TaxonomyCacheLastCheck = $null  # UTC time of last staleness check (cooldown)
+# Provisional threshold (0.45) — calibrate against SAF-167 repro case and a
+# good-vs-bad attribution distribution before treating this as a tuned gate.
+$script:RetrievalConfidenceThreshold = 0.45
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Load ai-models.json — single source of truth for backend/model lists
