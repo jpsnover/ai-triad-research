@@ -48,6 +48,10 @@ function Invoke-SummaryPipeline {
         Enable two-stage FIRE sniff.
     .PARAMETER TaxonomyJsonOverride
         Pre-computed taxonomy JSON (for chunked pipeline passing parent-level taxonomy).
+    .PARAMETER CrossEncoderRerank
+        Cross-encoder re-rank the RAG candidates (t/2287). Forwarded to
+        Get-RelevantTaxonomyNodes. Default OFF; no effect when -FullTaxonomy or
+        -TaxonomyJsonOverride bypass RAG.
     #>
     [CmdletBinding()]
     param(
@@ -64,7 +68,8 @@ function Invoke-SummaryPipeline {
         [switch]$IterativeExtraction,
         [switch]$AutoFire,
         [string]$TaxonomyJsonOverride = '',
-        [int]$RagMaxTotal = 300
+        [int]$RagMaxTotal = 300,
+        [switch]$CrossEncoderRerank
     )
 
     Set-StrictMode -Version Latest
@@ -107,7 +112,8 @@ function Invoke-SummaryPipeline {
             $AllPovs = @('accelerationist', 'safetyist', 'skeptic')
             $TaxonomyJson = Get-RelevantTaxonomyNodes -Query $QueryText `
                 -MaxTotal $RagMaxTotal -MinPerCategory 3 `
-                -POV $AllPovs -IncludeSituations -Format context
+                -POV $AllPovs -IncludeSituations -Format context `
+                -CrossEncoderRerank:$CrossEncoderRerank
             Write-Verbose "Pipeline: RAG selected ~$([int]($TaxonomyJson.Length / 4)) tokens of taxonomy"
         }
         catch {

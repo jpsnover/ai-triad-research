@@ -41,8 +41,24 @@ function Get-RelevantTaxonomyNodes {
         (all-MiniLM-L6-v2) as the cached taxonomy embeddings.
     .PARAMETER ApiKey
         Deprecated — ignored. No API key required; embeddings are computed locally.
+    .PARAMETER CrossEncoderRerank
+        After bi-encoder top-K retrieval, re-score the top-$RerankTopN (query, node)
+        pairs with a cross-encoder and re-sort by that score. Cross-encoders catch
+        vocabulary-collision mismatches the bi-encoder cosine misses (epic t/2285).
+        Default OFF. On any failure (Python/model unavailable, subprocess error) the
+        pass warns and keeps the bi-encoder ranking — it never throws. When on, each
+        reranked node's Score is the cross-encoder sigmoid score (a display 0–1 scale,
+        NOT the bi-encoder cosine and NOT cross-comparable with a rerank-off score).
+    .PARAMETER RerankTopN
+        Number of top bi-encoder candidates to re-rank when -CrossEncoderRerank is
+        set. Default: 10. Nodes beyond this keep their bi-encoder order.
+    .PARAMETER RerankerModel
+        Cross-encoder model for re-ranking. Default: cross-encoder/ms-marco-MiniLM-L-6-v2.
     .EXAMPLE
         Get-RelevantTaxonomyNodes -Query "AI regulation and liability frameworks"
+    .EXAMPLE
+        # Cross-encoder re-ranking of the top-10 bi-encoder candidates
+        Get-RelevantTaxonomyNodes -Query $DocText -CrossEncoderRerank
     .EXAMPLE
         Get-RelevantTaxonomyNodes -Query $DocText -MaxTotal 40 -Format context
     .EXAMPLE
@@ -107,7 +123,15 @@ function Get-RelevantTaxonomyNodes {
         # Pre-computed query embedding. When supplied (e.g. callers that batch
         # many chunk queries in one embed subprocess), the per-call encode
         # subprocess is skipped entirely — avoids a ~6s cold model load per call.
-        [double[]]$QueryVector = @()
+        [double[]]$QueryVector = @(),
+
+        # Cross-encoder re-ranking (t/2287). Default OFF; see comment-based help.
+        [switch]$CrossEncoderRerank,
+
+        [ValidateRange(1, 100)]
+        [int]$RerankTopN = 10,
+
+        [string]$RerankerModel = 'cross-encoder/ms-marco-MiniLM-L-6-v2'
     )
 
     Set-StrictMode -Version Latest
@@ -346,6 +370,8 @@ function Get-RelevantTaxonomyNodes {
             desires_selected       = ($CatCounts['Desires'] ?? 0)
             intentions_selected    = ($CatCounts['Intentions'] ?? 0)
             synthetic_nodes_scored = $SynScoredCount
+            rerank_applied         = $false  # set true below if cross-encoder rerank ran
+            rerank_top1_delta      = 0        # bi-encoder rank the new #1 climbed from (rank-overturn signal, t/2287#5)
         }
 
     # ── Look up full node data ────────────────────────────────────────────────
@@ -365,6 +391,73 @@ function Get-RelevantTaxonomyNodes {
             $Obj = ConvertTo-TaxonomyNode -PovKey $S.POV -Node $NodeData -Score $S.Similarity
             $Results.Add($Obj)
         }
+    }
+
+    # ── Optional cross-encoder re-ranking (t/2287) ────────────────────────────
+    # After bi-encoder top-K retrieval, re-score the top-$RerankTopN (query, node)
+    # pairs with a cross-encoder and re-sort. Catches vocabulary-collision
+    # mismatches the bi-encoder misses (epic t/2285). Default OFF. The scoring
+    # subprocess is isolated in Invoke-RerankScoring, which NEVER throws and
+    # returns $null on any failure — so we degrade to the bi-encoder ranking.
+    if ($CrossEncoderRerank -and $Results.Count -gt 0) {
+      # Defensive: rerank must NEVER break core retrieval — any error here degrades
+      # to the bi-encoder ranking. $Results is only reassigned after the reorder
+      # succeeds, so a throw leaves the bi-encoder order intact.
+      try {
+        $RerankN = [Math]::Min($RerankTopN, $Results.Count)
+        $TopSlice = @($Results[0..($RerankN - 1)])
+        # Preserve bi-encoder order for the rerank_top1_delta diagnostic (CL t/2287#5)
+        $BiEncoderOrder = @($TopSlice | ForEach-Object { $_.Id })
+
+        $Candidates = @($TopSlice | ForEach-Object {
+            if ($_.Description) { $Text = "$($_.Label). $($_.Description)" } else { $Text = $_.Label }
+            [PSCustomObject]@{ id = $_.Id; text = $Text }
+        })
+        $Scored = Invoke-RerankScoring -Query $QueryText -Candidates $Candidates -RerankerModel $RerankerModel
+
+        if ($null -eq $Scored -or @($Scored).Count -eq 0) {
+            Write-Warning "Cross-encoder rerank unavailable — keeping bi-encoder ranking."
+        }
+        else {
+            $Scored = @($Scored)
+            $ScoreMap = @{}
+            foreach ($S in $Scored) { $ScoreMap[$S.id] = $S }
+            $NodeById = @{}
+            foreach ($N in $TopSlice) { $NodeById[$N.Id] = $N }
+
+            # Reorder the reranked slice by cross-encoder score desc; overwrite each
+            # node's Score with the CE sigmoid score (the surfaced confidence).
+            $RerankedNodes = [System.Collections.Generic.List[PSObject]]::new()
+            foreach ($S in @($Scored | Sort-Object { $_.score } -Descending)) {
+                if ($NodeById.ContainsKey($S.id)) {
+                    $Node = $NodeById[$S.id]
+                    $Node.Score = [Math]::Round([double]$S.score, 6)
+                    $RerankedNodes.Add($Node)
+                }
+            }
+            # Any slice node the scorer didn't return keeps its place at the slice tail
+            foreach ($N in $TopSlice) {
+                if (-not $ScoreMap.ContainsKey($N.Id)) { $RerankedNodes.Add($N) }
+            }
+            # Tail beyond the reranked slice keeps bi-encoder order
+            if ($Results.Count -gt $RerankN) { $Tail = @($Results[$RerankN..($Results.Count - 1)]) } else { $Tail = @() }
+            $Results = [System.Collections.Generic.List[PSObject]]::new()
+            foreach ($N in $RerankedNodes) { $Results.Add($N) }
+            foreach ($N in $Tail) { $Results.Add($N) }
+
+            # rerank_top1_delta = how far the new #1 climbed from its bi-encoder
+            # position (0 = unchanged). This rank-overturn is the divergence
+            # diagnostic the epic monitors (CL t/2287#5).
+            $RerankTop1Delta = [Math]::Max(0, $BiEncoderOrder.IndexOf($RerankedNodes[0].Id))
+            if (Test-Path variable:script:LastRAGMetrics) {
+                $script:LastRAGMetrics.flags['rerank_applied'] = $true
+                $script:LastRAGMetrics.flags['rerank_top1_delta'] = $RerankTop1Delta
+            }
+        }
+      }
+      catch {
+          Write-Warning "Cross-encoder rerank error: $($_.Exception.Message). Keeping bi-encoder ranking."
+      }
     }
 
     # ── Format output ─────────────────────────────────────────────────────────
