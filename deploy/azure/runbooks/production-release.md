@@ -78,8 +78,8 @@
 
 2. Check production health:
    ```bash
-   curl -s https://ai-rosetta-stone.yellowbush-aeda037d.eastus.azurecontainerapps.io/health | python -m json.tool
-   curl -s https://ai-rosetta-stone.yellowbush-aeda037d.eastus.azurecontainerapps.io/healthz
+   curl -s https://taxonomy-editor.yellowbush-aeda037d.eastus.azurecontainerapps.io/health | python -m json.tool
+   curl -s https://taxonomy-editor.yellowbush-aeda037d.eastus.azurecontainerapps.io/healthz
    ```
 
 3. Or use the PowerShell diagnostics:
@@ -97,7 +97,7 @@
 
 5. Scan flight-recorder logs for startup errors:
    ```bash
-   az containerapp logs show --name ai-rosetta-stone -g ai-triad --type console --tail 50
+   az containerapp logs show --name taxonomy-editor -g ai-triad --type console --tail 50
    ```
 
 ## Rollback
@@ -106,19 +106,19 @@ If post-deploy issues are found after traffic shift:
 
 1. List revisions and identify the previous good one:
    ```bash
-   az containerapp revision list --name ai-rosetta-stone -g ai-triad \
+   az containerapp revision list --name taxonomy-editor -g ai-triad \
      --query "[?properties.active].{name:name, traffic:properties.trafficWeight, created:properties.createdTime}" -o table
    ```
 
 2. Shift traffic back to the previous revision:
    ```bash
-   az containerapp ingress traffic set --name ai-rosetta-stone -g ai-triad \
+   az containerapp ingress traffic set --name taxonomy-editor -g ai-triad \
      --revision-weight "<previous-revision>=100"
    ```
 
 3. Deactivate the broken revision:
    ```bash
-   az containerapp revision deactivate --name ai-rosetta-stone -g ai-triad \
+   az containerapp revision deactivate --name taxonomy-editor -g ai-triad \
      --revision "<broken-revision>"
    ```
 
@@ -155,8 +155,8 @@ All alerts route to the `ag-aitriad-restart-alert` action group, which emails `A
 
 ### Response Steps
 
-1. **ImagePullBackOff alert:** Check GHCR package visibility (`ghcr.io/jpsnover/taxonomy-editor` must be public). Verify `registries` is empty on the container app (`az containerapp show --name ai-rosetta-stone -g ai-triad --query 'properties.configuration.registries'`). If a credential was re-added, remove it and create a new revision.
-2. **Restart loop alert:** Check container logs (`az containerapp logs show --name ai-rosetta-stone -g ai-triad --type console`). May indicate app crash, OOM, or bad deploy. Rollback to previous revision if needed.
+1. **ImagePullBackOff alert:** Check GHCR package visibility (`ghcr.io/jpsnover/taxonomy-editor` must be public). Verify `registries` is empty on the container app (`az containerapp show --name taxonomy-editor -g ai-triad --query 'properties.configuration.registries'`). If a credential was re-added, remove it and create a new revision.
+2. **Restart loop alert:** Check container logs (`az containerapp logs show --name taxonomy-editor -g ai-triad --type console`). May indicate app crash, OOM, or bad deploy. Rollback to previous revision if needed.
 3. **Health check issue:** Run `Invoke-TaxEditorSmokeTest -Detailed` for full diagnosis. Check Azure status page for platform outages.
 
 ## Registry Auth (GHCR)
