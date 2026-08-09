@@ -9,6 +9,9 @@
 // store yields null — not the user's debate blob.
 
 import { describe, it, expect } from 'vitest';
+import fs from 'fs';
+import os from 'os';
+import path from 'path';
 import * as community from '../community/community.js';
 
 describe('t/2368 — /api/community/debates/:id IDOR guard', () => {
@@ -23,6 +26,25 @@ describe('t/2368 — /api/community/debates/:id IDOR guard', () => {
   it('a second distinct private id also yields null (storage isolation is unconditional)', async () => {
     const result = await community.loadCommunityItem('debates', 'idor-test-user-scoped-id-2');
     expect(result).toBeNull();
+  });
+
+  it('a debate planted outside communityDebatesDir is NOT visible through the community endpoint', async () => {
+    // Planted-blob case: the file exists on disk (at a non-community path that
+    // simulates user-scoped storage) but loadCommunityItem reads only from
+    // communityDebatesDir() — a fixed, non-user-scoped directory. The file is
+    // structurally invisible to the community endpoint regardless of its content.
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'idor-test-'));
+    const plantedId = 'idor-planted-user-only';
+    fs.writeFileSync(
+      path.join(tmpDir, `debate-${plantedId}.json`),
+      JSON.stringify({ id: plantedId, title: 'Private Debate', phase: 'complete' }),
+    );
+    try {
+      const result = await community.loadCommunityItem('debates', plantedId);
+      expect(result).toBeNull();
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    }
   });
 
   it('path traversal in id is rejected before any storage lookup', async () => {
