@@ -5,7 +5,7 @@ import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { useBreakpoint } from '../../hooks/useBreakpoint';
 import { useMobileNav } from '../../hooks/useMobileNav';
-import type { Pov, Category, PovNode } from '../../types/taxonomy';
+import type { Pov, PovNode } from '../../types/taxonomy';
 import { PROMPT_CATALOG, type PromptCatalogEntry } from '../../data/promptCatalog';
 import { useTaxonomyStore } from '../../hooks/useTaxonomyStore';
 import { useKeyboardNav } from '../../hooks/useKeyboardNav';
@@ -17,7 +17,6 @@ import type { DebateTestedTier } from '../../bridge/types';
 import './PovTab.css';
 import { NodeDetail } from './NodeDetail';
 import { SituationDetail } from '../debate/SituationDetail';
-import { NewNodeDialog } from '../shared/NewNodeDialog';
 import { PinnedPanel } from '../shared/PinnedPanel';
 import { SearchPreview } from '../edge-browser/SearchPreview';
 import { AnalysisPanel } from '../analysis/AnalysisPanel';
@@ -421,7 +420,7 @@ function step2NeedsAuth(steps: RecoveryStep[]): boolean {
 
 export function PovTab({ pov }: PovTabProps) {
   const {
-    selectedNodeId, setSelectedNodeId, createPovNode, pinnedStack, pinAtDepth,
+    selectedNodeId, setSelectedNodeId, pinnedStack, pinAtDepth,
     similarResults, similarLoading, similarError,
     runAnalyzeDistinction, analysisResult, analysisLoading, analysisError, clearAnalysis,
     navigateToSearchRelated,
@@ -464,7 +463,6 @@ export function PovTab({ pov }: PovTabProps) {
     }
   }, [syncStatus.main_updated_available, nodeConflicts.enabled, nodeConflicts.refresh]);
 
-  const [showNewDialog, setShowNewDialog] = useState(false);
   const [showSoulDoc, setShowSoulDoc] = useState(false);
   const [sortMode, setSortMode] = useState<SortMode>('label');
   const [dtTierFilter, setDtTierFilter] = useState<DebateTestedTier | 'all'>('all');
@@ -669,11 +667,6 @@ export function PovTab({ pov }: PovTabProps) {
 
   const selectedNode = file ? file.nodes.find(n => n.id === selectedNodeId) || null : null;
 
-  const handleCreate = (category: Category) => {
-    createPovNode(pov, category);
-    setShowNewDialog(false);
-  };
-
   const handlePin = () => {
     if (selectedNode) {
       pinAtDepth(0, {
@@ -815,8 +808,7 @@ export function PovTab({ pov }: PovTabProps) {
         <div className="list-panel" ref={listPanelRef} style={{ width }}>
           <div className="list-panel-header">
             <div className="list-panel-header-title">
-              <button className="btn btn-sm btn-ghost" onClick={() => setShowSoulDoc(true)} title="Soul document">&#x1f4dc;</button>
-              <h2>{pov}</h2>
+              <button className="btn btn-sm btn-ghost" onClick={() => setShowSoulDoc(true)} title="Soul document" aria-label="Soul document">&#x1f4dc;</button>
             </div>
             <div className="list-panel-header-actions">
               <select
@@ -832,9 +824,6 @@ export function PovTab({ pov }: PovTabProps) {
                 <option value="debate_tested">Sort: Debate-Tested (least)</option>
                 <option value="debate_tested_desc">Sort: Debate-Tested (most)</option>
               </select>
-              <button className="btn btn-sm" onClick={() => setShowNewDialog(true)}>
-                + New
-              </button>
               <button className="pane-collapse-btn" onClick={() => setListCollapsed(true)} title="Collapse">&lsaquo;</button>
             </div>
           </div>
@@ -974,12 +963,6 @@ export function PovTab({ pov }: PovTabProps) {
             />
           </div>
         </>
-      )}
-      {showNewDialog && (
-        <NewNodeDialog
-          onConfirm={handleCreate}
-          onCancel={() => setShowNewDialog(false)}
-        />
       )}
       {isPhone && (
         <div
