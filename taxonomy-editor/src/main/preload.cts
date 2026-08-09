@@ -241,7 +241,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
 
   // Debate popout window
-  openDebateWindow: (debateId: string): Promise<{ atCap: true } | void> => ipcRenderer.invoke('open-debate-window', debateId),
+  openDebateWindow: (debateId: string, source?: unknown): Promise<{ atCap: true } | void> => ipcRenderer.invoke('open-debate-window', debateId, source),
   closeDebateWindow: (debateId: string): Promise<void> => ipcRenderer.invoke('close-debate-window', debateId),
   onDebateWindowLoad: (callback: (debateId: string) => void) => {
     // Stop buffering — the React component is now listening directly.
