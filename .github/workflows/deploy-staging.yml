@@ -1,6 +1,9 @@
 # ─── Auto-Deploy to Staging ───
 # What:  Automatically deploys to the staging container app after a successful
 #        Container Image build. No manual trigger needed.
+#        Blue-green pattern: new revision at 0% traffic, smoke-tested against
+#        the revision FQDN, traffic promoted only on full pass. Prior revision
+#        stays at 100% on failure — zero downtime. (t/2376)
 # Before: Fires automatically when the Container Image workflow completes
 #         successfully. Requires AZURE_* OIDC secrets.
 # After:  Verify staging health at the staging URL. Use staging to validate
@@ -57,7 +60,26 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Deploy new revision to staging
+      - name: Capture current active revision (rollback target)
+        id: current_revision
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Import-Module ./scripts/AITriad/AITriad.psm1 -Force
+          $Active = @(Get-ContainerAppRevision -Mode Active `
+            -AppName '${{ env.CONTAINER_APP_NAME }}' `
+            -ResourceGroup '${{ env.RESOURCE_GROUP }}')
+          if ($Active.Count -eq 0) {
+            Add-Content -Path $env:GITHUB_OUTPUT -Value "revision="
+            Write-Host "No active revision — first deploy to staging"
+          } else {
+            $Top = @($Active | Sort-Object -Property TrafficWeight -Descending)[0]
+            Add-Content -Path $env:GITHUB_OUTPUT -Value "revision=$($Top.Name)"
+            Write-Host "Prior revision (rollback target): '$($Top.Name)'"
+          }
+
+      - name: Deploy new revision to staging (0% traffic)
+        id: new_revision
         shell: pwsh
         run: |
           Import-Module ./scripts/AITriad/AITriad.psm1 -Force
@@ -69,27 +91,100 @@ jobs:
             -AppName '${{ env.CONTAINER_APP_NAME }}' `
             -ResourceGroup '${{ env.RESOURCE_GROUP }}'
           Write-Host "New revision: $($Result.RevisionName)"
+          Add-Content -Path $env:GITHUB_OUTPUT -Value "revision=$($Result.RevisionName)"
 
-      - name: Verify staging health
+      - name: Smoke test new revision (pre-traffic gate)
+        id: smoke
         shell: pwsh
         run: |
-          $AppFqdn = az containerapp show `
-            --name ${{ env.CONTAINER_APP_NAME }} `
-            --resource-group ${{ env.RESOURCE_GROUP }} `
-            --query "properties.configuration.ingress.fqdn" -o tsv
-          $AppUrl = "https://$AppFqdn"
-          Write-Host "Staging URL: $AppUrl"
-
           Import-Module ./scripts/AITriad/AITriad.psm1 -Force
-          # 18 attempts x 10s = 3 min, matching the prior curl loop's budget.
-          # Widening note (t/1495): this now also requires /healthz (taxonomy
-          # data available), which the old /health-only check did not — a
-          # deliberate tightening, not a silent behavior change.
-          $Result = Test-TaxEditorHealth -BaseUrl $AppUrl -MaxAttempts 18 -RetryIntervalSec 10
-          if ($Result.Healthy) {
-            Write-Host "Staging health check passed!"
+
+          # Get the revision-specific FQDN so we test the 0%-traffic revision directly,
+          # not the active revision that currently holds 100% traffic. (t/2376)
+          $RevInfo = Get-ContainerAppRevision -Mode Fqdn `
+            -RevisionName '${{ steps.new_revision.outputs.revision }}' `
+            -AppName '${{ env.CONTAINER_APP_NAME }}' `
+            -ResourceGroup '${{ env.RESOURCE_GROUP }}'
+          $RevFqdn = if ($RevInfo) { $RevInfo.Fqdn } else { $null }
+
+          if ([string]::IsNullOrWhiteSpace($RevFqdn)) {
+            $AppFqdn = az containerapp show `
+              --name ${{ env.CONTAINER_APP_NAME }} `
+              --resource-group ${{ env.RESOURCE_GROUP }} `
+              --query "properties.configuration.ingress.fqdn" -o tsv
+            $BaseUrl = "https://$AppFqdn"
+            Write-Host "::warning::No revision FQDN available — falling back to app URL (may route to existing active revision)"
           } else {
-            Write-Host "::error::Staging health check failed after 3 minutes"
-            $Result.Checks | Format-Table -AutoSize
+            $BaseUrl = "https://$RevFqdn"
+          }
+          Write-Host "Smoke testing revision at: $BaseUrl"
+          Add-Content -Path $env:GITHUB_OUTPUT -Value "base_url=$BaseUrl"
+
+          # Health gate: wait for server up + data loaded before running the full smoke.
+          # 18 attempts x 10s = 3 min cold-start budget.
+          $Health = Test-TaxEditorHealth -BaseUrl $BaseUrl -MaxAttempts 18 -RetryIntervalSec 10
+          if (-not $Health.Healthy) {
+            Write-Host "::error::Health check failed on new staging revision — NOT promoting traffic"
+            $Health.Checks | Format-Table -AutoSize
             exit 1
           }
+          Write-Host "Health gate passed"
+
+          # Full smoke: all 6 endpoint categories (mandatory pre-traffic gate, t/2376).
+          Write-Host "=== Full smoke test against 0%-traffic revision: $BaseUrl ==="
+          $SmokeResult = Invoke-TaxEditorSmokeTest -BaseUrl $BaseUrl -Detailed
+          if (-not $SmokeResult.OverallPass) {
+            Write-Host "::error::Smoke test failed on new staging revision — NOT promoting traffic"
+            Write-Host "  Health: $(if ($SmokeResult.HealthOk) { 'OK' } else { 'FAIL' })"
+            Write-Host "  Azure:  $(if ($SmokeResult.AzureOk) { 'OK' } else { 'FAIL' })"
+            Write-Host "  GitHub: $(if ($SmokeResult.GitHubOk) { 'OK' } else { 'FAIL' })"
+            Write-Host "  Endpoints: $($SmokeResult.EndpointsPassed)/$($SmokeResult.EndpointsTotal) passed"
+            if ($SmokeResult.FailedEndpoints.Count -gt 0) {
+              $SmokeResult.FailedEndpoints | Format-Table Endpoint, Status, Error -AutoSize
+            }
+            exit 1
+          }
+          Write-Host "Smoke test passed — all categories healthy ($($SmokeResult.EndpointsPassed)/$($SmokeResult.EndpointsTotal) endpoints)"
+          Add-Content -Path $env:GITHUB_OUTPUT -Value "passed=true"
+
+      - name: Promote traffic to new revision
+        if: steps.smoke.outputs.passed == 'true'
+        shell: pwsh
+        run: |
+          Import-Module ./scripts/AITriad/AITriad.psm1 -Force
+          Write-Host "Promoting staging traffic to ${{ steps.new_revision.outputs.revision }}..."
+          $Result = Set-ContainerAppTraffic `
+            -RevisionName '${{ steps.new_revision.outputs.revision }}' `
+            -AppName '${{ env.CONTAINER_APP_NAME }}' `
+            -ResourceGroup '${{ env.RESOURCE_GROUP }}' `
+            -MaxAttempts 3 `
+            -RetryIntervalSec 10
+          Write-Host "Staging traffic promoted to ${{ steps.new_revision.outputs.revision }}"
+
+      - name: Re-authenticate before rollback
+        if: always() && failure() && steps.current_revision.outputs.revision != ''
+        uses: azure/login@532459ea530d8321f2fb9bb10d1e0bcf23869a43  # v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Keep prior revision at 100% on smoke failure
+        if: always() && failure() && steps.current_revision.outputs.revision != ''
+        shell: pwsh
+        run: |
+          Import-Module ./scripts/AITriad/AITriad.psm1 -Force
+          Write-Host "::warning::Smoke failed — restoring prior revision: ${{ steps.current_revision.outputs.revision }}"
+          Set-ContainerAppTraffic `
+            -RevisionName '${{ steps.current_revision.outputs.revision }}' `
+            -AppName '${{ env.CONTAINER_APP_NAME }}' `
+            -ResourceGroup '${{ env.RESOURCE_GROUP }}' `
+            -MaxAttempts 3 `
+            -RetryIntervalSec 10
+          if ('${{ steps.new_revision.outputs.revision }}') {
+            Disable-ContainerAppRevision `
+              -RevisionName '${{ steps.new_revision.outputs.revision }}' `
+              -AppName '${{ env.CONTAINER_APP_NAME }}' `
+              -ResourceGroup '${{ env.RESOURCE_GROUP }}'
+          }
+          Write-Host "Prior revision restored. No downtime."

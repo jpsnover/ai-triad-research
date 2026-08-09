@@ -815,6 +815,71 @@ jobs:
       - name: Build-path dependency coverage check
         run: node scripts/ci-audit-build-paths.mjs
 
+  # ── test-server-prod-config: NODE_ENV=production server variant (t/2377) ──────
+  # t/723 (2026-06-20): NODE_ENV=production caused ALLOWED_ORIGINS=[] (not null),
+  # getCorsOrigin() returned undefined, Node.js 22 setHeader() threw on every
+  # request for ~4 weeks. Dev CI passes with different env defaults, masking the
+  # crash. This job catches that class of bug: build the server, start it with
+  # prod-like env vars, assert /healthz responds (fast-fail if the server
+  # crashes on startup), then run the server test suite under those env vars.
+  # Path-filtered to container changes (server code lives in taxonomy-editor);
+  # skip = OK through ci-gate. NOT run on docs-only / PS-only PRs.
+  test-server-prod-config:
+    needs: [changes]
+    if: >-
+      always() && !cancelled() &&
+      (github.event_name != 'pull_request' || needs.changes.outputs.container == 'true')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v6
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: '11.20.0'
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v6
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+          cache-dependency-path: 'pnpm-lock.yaml'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build server
+        working-directory: taxonomy-editor
+        run: pnpm run build:server
+
+      - name: Server startup health check (NODE_ENV=production, ALLOWED_ORIGINS=empty)
+        working-directory: taxonomy-editor
+        env:
+          NODE_ENV: production
+          ALLOWED_ORIGINS: ''
+          PORT: '3001'
+        run: |
+          node dist/server/taxonomy-editor/src/server/server.js &
+          SERVER_PID=$!
+          echo "Server PID: $SERVER_PID — waiting for http://localhost:3001/healthz..."
+          for i in $(seq 1 30); do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:3001/healthz || echo "000")
+            if [ "$STATUS" != "000" ]; then
+              echo "Server responded to /healthz with HTTP $STATUS — startup OK under NODE_ENV=production"
+              kill $SERVER_PID 2>/dev/null || true
+              exit 0
+            fi
+            sleep 2
+          done
+          kill $SERVER_PID 2>/dev/null || true
+          echo "::error::Server did not respond to GET /healthz within 60s under NODE_ENV=production ALLOWED_ORIGINS='' — t/723 scenario (server crash on startup or all requests)"
+          exit 1
+
+      - name: Run server test suite (NODE_ENV=production)
+        working-directory: taxonomy-editor
+        env:
+          NODE_ENV: production
+          ALLOWED_ORIGINS: ''
+        run: pnpm exec vitest run src/server/
+
   # ── ci-gate: the SINGLE required status context (t/1962) ──────────────────
   # Replaces the 6 individual code-check contexts in branch protection. Those get
   # SKIPPED by path-filtering on non-electron PRs (docs-only, PS-only); a skipped
@@ -838,9 +903,11 @@ jobs:
   # path-filtered to lib changes, skip = OK.
   # contrast-check (t/2264) is gated here: static token-contrast ratchet,
   # path-filtered to electron changes, skip = OK.
+  # test-server-prod-config (t/2377) is gated here: NODE_ENV=production server
+  # startup health check + test suite; path-filtered to container changes, skip = OK.
   ci-gate:
     name: ci-gate
-    needs: [changes, test-powershell, test-electron, test-container, python-embed-smoke, dependency-coverage, lockfile-overrides-check, lib-lint, renderer-tsc, contrast-check]
+    needs: [changes, test-powershell, test-electron, test-container, python-embed-smoke, dependency-coverage, lockfile-overrides-check, lib-lint, renderer-tsc, contrast-check, test-server-prod-config]
     if: always()
     runs-on: ubuntu-latest
     steps:
