@@ -329,6 +329,19 @@ vi.mock('@lib/debate/vocabularyContext', () => ({
   formatVocabularyContext: vi.fn().mockReturnValue(''),
 }));
 
+// Defensive embedder stub (t/2354): the real renderer embedder (onnxruntime + MiniLM)
+// is only reached via the real electron-bridge, which is mocked above — but stub it
+// directly too so no code path can load the model (the CI "embed OOM" / "Embedding
+// unavailable" flake) even if a future change imports it here. Deterministic, no model load.
+vi.mock('../utils/localEmbedding', () => ({
+  tryInitLocalEmbedding: vi.fn().mockResolvedValue(false),
+  isLocalEmbeddingReady: vi.fn().mockReturnValue(false),
+  getLocalEmbeddingBackend: vi.fn().mockReturnValue('mock'),
+  notifyBridgeFallback: vi.fn(),
+  localComputeEmbedding: vi.fn().mockResolvedValue([]),
+  localComputeEmbeddings: vi.fn().mockResolvedValue([]),
+}));
+
 // Global __APP_VERSION__
 vi.stubGlobal('__APP_VERSION__', '0.7.4');
 
@@ -342,6 +355,20 @@ const localStorageMock = {
   key: vi.fn(),
 };
 vi.stubGlobal('localStorage', localStorageMock);
+
+// ── Hermeticity guard (t/2354) ──────────────────────────────
+// Block the raw network so these unit tests can NEVER make a live AI call. The AI
+// boundaries are mocked above (@bridge, orchestration, turnPipeline, …), but this
+// is the fail-fast backstop: any un-mocked or cross-file-bled path that tries to
+// hit the network throws loudly HERE (attributed to this suite) instead of a
+// nondeterministic live Gemini 429 in CI — so the isolation can't silently regress.
+// Plain throwing functions (not vi.fn) so vi.clearAllMocks can't strip the guard.
+const blockNetwork = (what: string) => () => {
+  throw new Error(`[t/2354 hermeticity guard] ${what} is blocked in unit tests — mock the AI/embedding boundary instead of making a live call`);
+};
+vi.stubGlobal('fetch', blockNetwork('fetch'));
+vi.stubGlobal('WebSocket', blockNetwork('WebSocket'));
+vi.stubGlobal('XMLHttpRequest', blockNetwork('XMLHttpRequest'));
 
 // ── Import the store under test ─────────────────────────────
 
@@ -1537,6 +1564,16 @@ describe('Reflection edits', () => {
         expect.objectContaining({ source: 'debate_reflection' }),
       );
     });
+  });
+});
+
+// ── hermeticity guard self-check (t/2354) ───────────────────
+// Fails if the network guard is ever removed, so the keyless/no-live-AI isolation
+// can't silently regress into the CI 429/embed-OOM flake.
+describe('hermeticity guard (t/2354)', () => {
+  it('blocks fetch so no live AI call can happen in this suite', () => {
+    expect(() => (globalThis as unknown as { fetch: (u: string) => unknown }).fetch('https://example.test'))
+      .toThrow(/hermeticity guard/);
   });
 });
 
