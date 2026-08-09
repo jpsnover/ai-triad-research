@@ -6,20 +6,14 @@ import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { useTaxonomyStore, initAIModels } from '../../hooks/useTaxonomyStore';
 import { useChatStore } from '../../hooks/useChatStore';
 import { initDebateSessions } from '../../hooks/useDebateStore';
+import { usePopoutTheme } from '../../hooks/usePopoutTheme';
 import { parseHashParams } from '../../lib/parseHash';
 import { ChatTab } from './ChatTab';
 import './ChatWindow.css';
 
 export function ChatWindow() {
   const [ready, setReady] = useState(false);
-
-  useEffect(() => {
-    const root = document.documentElement;
-    if (!root.getAttribute('data-theme')) {
-      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-      root.setAttribute('data-theme', prefersDark ? 'dark' : 'light');
-    }
-  }, []);
+  usePopoutTheme();
 
   useEffect(() => {
     let cancelled = false;
