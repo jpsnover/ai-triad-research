@@ -971,8 +971,13 @@ export const createSessionSlice: StateCreator<DebateStore, [], [], SessionSlice>
   },
 
   saveDebate: async (caller: string) => {
-    const { activeDebate, _saveInFlight } = get();
+    const { activeDebate, _saveInFlight, communityReadOnly } = get();
     if (!activeDebate) return;
+    // t/2401: authoritative read-only guard for ALL callers. A read-only community debate
+    // must never PUT to the personal endpoint. The store.ts auto-save subscriber has its own
+    // guard, but component-level callers (the DebateWorkspace auto-save timer, ClarificationPanel)
+    // bypass the subscriber — so the single source of truth lives here in the action.
+    if (communityReadOnly) return;
 
     if (_saveInFlight) {
       set({ _saveDirty: true });
