@@ -717,13 +717,18 @@ export const createSessionSlice: StateCreator<DebateStore, [], [], SessionSlice>
       audience: session.audience ?? 'policymakers',
       openingOrder: session.opening_order ?? [],
       selectedDiagEntry: null,
-      communityReadOnly: opts?.readOnly ?? false,
+      // Fail-safe default (t/2399 TL#6.3): loadDebateFromData is the raw-data load entry, and its
+      // only caller today is the community popout (readOnly:true). A future caller that omits
+      // readOnly is loading data of unknown provenance — default to read-only so it can never
+      // silently become editable + auto-save over foreign/community content (store.ts autosave
+      // guard keys off communityReadOnly). Personal loads go through loadDebate, not this path.
+      communityReadOnly: opts?.readOnly ?? true,
       _lastSyncedVersion: session._saveVersion ?? 0,
       _lastSyncedSnapshot: structuredClone(session),
     });
     setGapInjectionCount(session.gap_injections?.length ?? 0);
     getGlobalRecorder()?.setEventContext({ debate_id: session.id, run_id: runId });
-    getGlobalRecorder()?.record({ type: 'state.load', component: 'debate-store', level: 'info', debate_id: session.id, run_id: runId, message: 'Debate loaded from data', data: { phase: session.phase, transcript_length: session.transcript.length, readOnly: opts?.readOnly ?? false } });
+    getGlobalRecorder()?.record({ type: 'state.load', component: 'debate-store', level: 'info', debate_id: session.id, run_id: runId, message: 'Debate loaded from data', data: { phase: session.phase, transcript_length: session.transcript.length, readOnly: opts?.readOnly ?? true } });
   },
 
   deleteDebate: async (id) => {
