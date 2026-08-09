@@ -8,7 +8,7 @@
 # Env-var override lets ops re-point cmdlets at a staging revision without
 # editing code (e.g., $env:TAXEDITOR_BASE_URL = 'https://taxonomy-editor--stg.-.io').
 
-$script:TaxEditorBaseUrlDefault = 'https://ai-rosetta-stone.yellowbush-aeda037d.eastus.azurecontainerapps.io'
+$script:TaxEditorBaseUrlDefault = 'https://taxonomy-editor.yellowbush-aeda037d.eastus.azurecontainerapps.io'
 
 function Get-TaxEditorBaseUrl {
     <#
@@ -23,7 +23,7 @@ function Get-TaxEditorBaseUrl {
         Trailing slash is stripped so consumers can safely do "$BaseUrl/api/foo".
     .EXAMPLE
         Get-TaxEditorBaseUrl
-        # https://ai-rosetta-stone.yellowbush-aeda037d.eastus.azurecontainerapps.io
+        # https://taxonomy-editor.yellowbush-aeda037d.eastus.azurecontainerapps.io
 
         $env:TAXEDITOR_BASE_URL = 'https://taxonomy-editor--staging.eastus.azurecontainerapps.io'
         Get-TaxEditorBaseUrl

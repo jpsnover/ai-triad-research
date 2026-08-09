@@ -11,8 +11,8 @@ doc is the one-time setup needed to actually turn it on.
 | Field | Value |
 |---|---|
 | GitHub App name | `ai-triad-sync` (or similar — must be globally unique) |
-| Homepage URL | `https://ai-rosetta-stone.yellowbush-aeda037d.eastus.azurecontainerapps.io` |
-| Webhook URL | `https://ai-rosetta-stone.yellowbush-aeda037d.eastus.azurecontainerapps.io/api/sync/webhook/github` |
+| Homepage URL | `https://taxonomy-editor.yellowbush-aeda037d.eastus.azurecontainerapps.io` |
+| Webhook URL | `https://taxonomy-editor.yellowbush-aeda037d.eastus.azurecontainerapps.io/api/sync/webhook/github` |
 | Webhook secret | generate with `openssl rand -hex 32` — save this, we need it below |
 | Callback URL | (leave blank) |
 | Expire user authorization tokens | leave default |

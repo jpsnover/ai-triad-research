@@ -23,16 +23,16 @@
    ```
 3. **If burst from container scaling:** Check replica count — multiple instances share the rate limit
    ```bash
-   az containerapp revision list --name ai-rosetta-stone -g ai-triad --query "[?properties.active].{name:name, replicas:properties.replicas}" -o table
+   az containerapp revision list --name taxonomy-editor -g ai-triad --query "[?properties.active].{name:name, replicas:properties.replicas}" -o table
    ```
 4. **Immediate mitigation:** Scale to 0 temporarily to stop polling storm:
    ```bash
-   az containerapp update --name ai-rosetta-stone -g ai-triad --min-replicas 0 --max-replicas 0
+   az containerapp update --name taxonomy-editor -g ai-triad --min-replicas 0 --max-replicas 0
    ```
 5. **Wait for reset:** Rate limit resets hourly. Check `github.rateLimit.resetsAt` on `/health`.
 6. **Restore:** Scale back up:
    ```bash
-   az containerapp update --name ai-rosetta-stone -g ai-triad --min-replicas 1 --max-replicas 5
+   az containerapp update --name taxonomy-editor -g ai-triad --min-replicas 1 --max-replicas 5
    ```
 
 ## Prevention

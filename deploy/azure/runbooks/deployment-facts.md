@@ -8,11 +8,11 @@ This is the single source of truth for the deployment's identity facts. The DevO
 
 | Fact | Value |
 |---|---|
-| Container App | `ai-rosetta-stone` |
+| Container App | `taxonomy-editor` |
 | Resource Group | `ai-triad` |
 | Region | East US |
 | ACA Environment | `cae-aitriad` (Consumption plan) |
-| App URL | https://ai-rosetta-stone.yellowbush-aeda037d.eastus.azurecontainerapps.io |
+| App URL | https://taxonomy-editor.yellowbush-aeda037d.eastus.azurecontainerapps.io |
 | Env domain suffix | `yellowbush-aeda037d.eastus.azurecontainerapps.io` |
 | Container Image | `ghcr.io/jpsnover/taxonomy-editor:latest` — **GHCR, not Azure Container Registry** |
 | Storage Account / File Share | `staitriadkvwl3nywge4iw` / `taxonomy-data` |
@@ -25,10 +25,10 @@ This is the single source of truth for the deployment's identity facts. The DevO
 
 | Fact | Value |
 |---|---|
-| Container App | `ai-rosetta-stone-staging` |
+| Container App | `taxonomy-editor-staging` |
 | Resource Group | `ai-triad` |
 | Region | East US |
-| App URL | https://ai-rosetta-stone-staging.yellowbush-aeda037d.eastus.azurecontainerapps.io |
+| App URL | https://taxonomy-editor-staging.yellowbush-aeda037d.eastus.azurecontainerapps.io |
 
 ## Re-verify
 
