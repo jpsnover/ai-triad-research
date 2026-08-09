@@ -3,6 +3,12 @@
 **Author:** Computational Linguist · **Date:** 2026-08-09 · **Ticket:** t/2392 (CL investigation → design; **do NOT implement**, TL-gated per t/2381#7)
 **Provenance:** empirical, **observed** (real production summaries, `../ai-triad-data/summaries/*.json`). Harnesses committed alongside (`classify_noise.py`, `verify_attr.py`, `mode_crosstab.py`). Single-rater hand-labeling (n=50), per t/2306/t/2294 caveat.
 
+## DISPOSITION — CLOSED, no guard (TL ruling, t/2392#1 reply, p/349#32, 2026-08-09)
+
+**Ruled by Technical Lead:** both levers are **NO-GO**. (1) The cosine-cutoff extraction guard is dead — the tail is ~42% real content, the same non-separability as t/2381. (2) A maintained deterministic structural pre-filter is **not** justified: the ~0.6–0.9% true noise is too small and marginal (a subset of the already-redundant t/2288 flags), and structural detectors carry their own false-positive risk. **t/2392 is closed as "characterized — no guard."** This also closes the retrieval-quality program: option A(b) shipped; every other lever is NO-GO with documented rationale.
+
+**Do not re-litigate.** Revisit only if this noise causes a **concrete downstream harm** — if that is observed, flag it (new ticket referencing this doc), do not silently reopen a guard.
+
 ## TL;DR — the ticket's premise does not survive measurement
 
 The side-finding was framed as "~2.67% of key_points are **overwhelmingly non-content fragments** (math/OCR/table/PII)." Measured against the full flagged population:
@@ -69,7 +75,7 @@ Auto-classifier lower bound agreed (21.5% clear-noise at `<0.30`, decaying to 9.
 3. **De-scope the "downstream flag pollution" motivation** — empirically absent (tail is no-`attribution_text`; M5/t2288/OOS skip those). Re-anchor the justification on corpus-hygiene of wrong assignments if the work proceeds.
 4. **Off-topic-but-real** is a separate relevance-gate concern — route to the extraction-prompt owner, not this filter.
 
-**Decision requested:** proceed with the narrow structural pre-filter (rec 2) on the corpus-hygiene rationale, or close t/2392 as "characterized — no guard warranted at this yield"? Either is defensible; the yield is small and the cosine lever is dead.
+**Decision (TL, 2026-08-09):** neither guard ships — see DISPOSITION at top. Closed as "characterized — no guard." The narrow pre-filter (rec 2) was judged too small/marginal to maintain given structural detectors' own false-positive risk.
 
 ## Limitations
 
