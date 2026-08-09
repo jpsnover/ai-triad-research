@@ -23,6 +23,7 @@ import { PromptDetailPanel } from '../chat/PromptsPanel';
 import type { PromptCatalogEntry } from '../../data/promptCatalog';
 import { PROMPT_CATALOG } from '../../data/promptCatalog';
 import { ToolbarPaneRenderer, isFullWidthPanel, PhoneToolClose } from '../shared/ToolbarPaneRenderer';
+import { TheoryLink } from '../shared';
 import { LineageDetailView } from '../shared/LineageDetailView';
 import type { DebateSession } from '../../types/debate';
 import { POVER_INFO } from '@lib/debate/types';
@@ -617,6 +618,7 @@ function DebateListHeaderActions(props: DebateListProps) {
           <button className="btn btn-sm" onClick={handleNewDebate}>
             + New
           </button>
+          <TheoryLink url="https://github.com/jpsnover/ai-triad-research/blob/main/docs/theory-of-success.md" label="Help: theory of success" />
           <button className="pane-collapse-btn" onClick={() => setListCollapsed(true)} title="Collapse" aria-label="Collapse panel">&lsaquo;</button>
         </>
       ) : (
