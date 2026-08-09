@@ -52,14 +52,17 @@ function matchesSearch(e: EntitySummary, q: string): boolean {
   );
 }
 
+/** Null-safe locale compare — real data can carry null in string-typed fields (t/2389, cf. the t/2385 title crash). */
+const cmpStr = (a?: string | null, b?: string | null): number => (a ?? '').localeCompare(b ?? '');
+
 function compareEntities(a: EntitySummary, b: EntitySummary, sort: SortKey): number {
   switch (sort) {
-    case 'type': return a.entity_type.localeCompare(b.entity_type) || a.name.localeCompare(b.name);
-    case 'status': return a.status.localeCompare(b.status) || a.name.localeCompare(b.name);
-    case 'confidence': return (b.confidence ?? -1) - (a.confidence ?? -1) || a.name.localeCompare(b.name);
-    case 'modified': return (b.last_modified ?? '').localeCompare(a.last_modified ?? '') || a.name.localeCompare(b.name);
+    case 'type': return cmpStr(a.entity_type, b.entity_type) || cmpStr(a.name, b.name);
+    case 'status': return cmpStr(a.status, b.status) || cmpStr(a.name, b.name);
+    case 'confidence': return (b.confidence ?? -1) - (a.confidence ?? -1) || cmpStr(a.name, b.name);
+    case 'modified': return cmpStr(b.last_modified, a.last_modified) || cmpStr(a.name, b.name);
     case 'name':
-    default: return a.name.localeCompare(b.name);
+    default: return cmpStr(a.name, b.name);
   }
 }
 
