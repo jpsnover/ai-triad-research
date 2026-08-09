@@ -58,3 +58,13 @@ Synthetic-mean runs ~0.05–0.07 above base (augmentation lift). **No separation
 ## Limitation
 
 n = 2 named cases (the ACs' required targets) + 14 controls. Both named cases fail the premise decisively; a broader observed out-of-scope sample would strengthen a general "no absolute ceiling works" claim but is not required to reject the 0.30 ceiling against its own motivating set.
+
+## Addendum — corpus-wide flag-population scan (TL follow-up; `t2381_corpus_scan.py`, `corpus_scan_output.txt`)
+
+TL asked, before shipping even flag-only: does the guard's Arm A (`top-1 < 0.30`) fire on any real key_points that M5-v1 (t/2357) + t/2371 don't already cover? Scanned **all 10,972 assigned key_points** (POV-filtered base top-1).
+
+- **Distribution:** min 0.056 · p5 0.334 · median 0.552 · max 0.976. `top-1 < 0.30` = **293 (2.67%)** (`<0.35` 6.7%, `<0.40` 13.7%).
+- **Population is NOT out-of-scope:** the 293 are dominated by **extraction-quality noise** — math/proof notation MiniLM can't embed, OCR/whitespace-garbled spans, table/finding-ID rows, PII/injection conversational excerpts — plus a minority of **weakly-embedded genuinely in-scope claims (false positives)**. Genuine "in-scope position, no taxonomy home" ≈ 0 (the two named cases score ~0.64 and never fire).
+- **Redundant with t/2288:** `retrieval_confidence` = cosine(attribution, *assigned* node); the assigned node is in the POV set, so `assigned ≤ top-1 < 0.30 < 0.45` ⇒ **every one of the 293 is already flagged by the shipped t/2288 low-confidence gate.** Flag-only surfaces nothing new.
+
+**Ruling (TL, t/2381#7): t/2370 = FULL NO-GO** — neither actuation nor flag-only ships; a safe-but-redundant gate is dead weight. The misfire class decomposes with no residual (retrieval-fixable → M5-v1; taxonomy gaps → t/2371; **extraction-noise → t/2392**, the real lever surfaced underneath this guard).
