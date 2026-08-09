@@ -20,7 +20,7 @@ on:
         default: 'true'
         type: boolean
       sha:
-        description: 'Commit SHA to build (must have CI-green status). Leave blank to use dispatched ref HEAD — racy at fleet commit rate.'
+        description: 'Commit SHA to build (must have CI-green status). Full 40-char SHA required — short SHAs are auto-expanded via API. Leave blank to use dispatched ref HEAD — racy at fleet commit rate.'
         required: false
         type: string
 
@@ -46,6 +46,17 @@ jobs:
           TARGET_SHA: ${{ inputs.sha || github.sha }}
         run: |
           echo "Checking CI status for ${TARGET_SHA}..."
+
+          # Normalize short SHA to full 40-char SHA (GitHub head_sha filter requires full SHA)
+          if [ ${#TARGET_SHA} -lt 40 ]; then
+            FULL_SHA=$(gh api "repos/${{ github.repository }}/commits/${TARGET_SHA}" --jq '.sha' 2>/dev/null || echo "")
+            if [ -z "$FULL_SHA" ]; then
+              echo "::error::Cannot resolve '${TARGET_SHA}' to a commit. Check the SHA and try again."
+              exit 1
+            fi
+            echo "Expanded short SHA ${TARGET_SHA} → ${FULL_SHA}"
+            TARGET_SHA="$FULL_SHA"
+          fi
 
           # Get the latest CI run for this commit
           RUN_ID=$(gh api "repos/${{ github.repository }}/actions/workflows/ci.yml/runs?head_sha=${TARGET_SHA}&per_page=1" \
