@@ -814,7 +814,10 @@ export function PovTab({ pov }: PovTabProps) {
         // eslint-disable-next-line local/no-inline-style -- width is a user-resized panel size from useResizablePanel
         <div className="list-panel" ref={listPanelRef} style={{ width }}>
           <div className="list-panel-header">
-            <h2>{pov}</h2>
+            <div className="list-panel-header-title">
+              <button className="btn btn-sm btn-ghost" onClick={() => setShowSoulDoc(true)} title="Soul document">&#x1f4dc;</button>
+              <h2>{pov}</h2>
+            </div>
             <div className="list-panel-header-actions">
               <select
                 className="sort-select"
@@ -832,7 +835,6 @@ export function PovTab({ pov }: PovTabProps) {
               <button className="btn btn-sm" onClick={() => setShowNewDialog(true)}>
                 + New
               </button>
-              <button className="btn btn-sm btn-ghost" onClick={() => setShowSoulDoc(true)} title="Soul document">&#x1f4dc;</button>
               <button className="pane-collapse-btn" onClick={() => setListCollapsed(true)} title="Collapse">&lsaquo;</button>
             </div>
           </div>
