@@ -11,6 +11,7 @@ import { useEffect, useState } from 'react';
 import './PovProgressionWindow.css';
 import { api } from '@bridge';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
+import { usePopoutTheme } from '../../hooks/usePopoutTheme';
 import type { DebateSession } from '../../types/debate';
 import { PovProgressionView } from './PovProgressionView';
 
@@ -18,14 +19,8 @@ export function PovProgressionWindow() {
   const [debate, setDebate] = useState<DebateSession | null>(null);
   const [nodeLabels, setNodeLabels] = useState<Map<string, string>>(new Map());
 
-  // Apply theme — popouts don't go through MainApp which sets data-theme
-  useEffect(() => {
-    const root = document.documentElement;
-    if (!root.getAttribute('data-theme')) {
-      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-      root.setAttribute('data-theme', prefersDark ? 'dark' : 'light');
-    }
-  }, []);
+  // Apply the selected theme + live-update — popouts don't go through MainApp (t/2338).
+  usePopoutTheme();
 
   // Subscribe to diagnostics state — same payload structure
   useEffect(() => {
