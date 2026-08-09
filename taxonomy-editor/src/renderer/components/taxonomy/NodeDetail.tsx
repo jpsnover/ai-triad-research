@@ -12,6 +12,7 @@ import { DeleteConfirmDialog } from '../shared/DeleteConfirmDialog';
 import { HighlightedTextarea } from '../shared/HighlightedField';
 import { TypeaheadSelect } from '../shared/TypeaheadSelect';
 import { FieldHelp } from '../shared/FieldHelp';
+import { TheoryLink } from '../shared/TheoryLink';
 import { LinkedChip } from '../shared/LinkedChip';
 import { GraphAttributesPanel } from './GraphAttributesPanel';
 import { RelatedEdgesPanel } from '../edge-browser/RelatedEdgesPanel';
@@ -399,6 +400,11 @@ export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, onRela
             <FieldHelp text={BDI_GUIDANCE[node.category]} />
           </span>
           <span className="nd-header-id">{node.id}</span>
+          <TheoryLink
+            url="https://github.com/jpsnover/ai-triad-research/blob/main/docs/taxonomy-ontology-guide.md"
+            label="Help: taxonomy ontology guide"
+            size={14}
+          />
           <EditConflictBadge conflict={conflict} resolveUrl={resolveUrl} />
         </div>
 
@@ -579,6 +585,10 @@ function NodeDetailHeaderTop({ pov, node, readOnly, err, update, maybeRegenAphor
         )}
       </div>
       <div className="nd-header-actions">
+        <TheoryLink
+          url="https://github.com/jpsnover/ai-triad-research/blob/main/research/comp-linguist/analyses/epistemic-infrastructure-framing.md"
+          label="Help: epistemic infrastructure framing"
+        />
         {nodeTypeFromId(node.id) === 'pov' && (
           <CopyLinkButton hash={publicPovSharePath(node.id)} title="Copy public link" />
         )}
