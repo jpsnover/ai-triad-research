@@ -1297,6 +1297,7 @@ Institutional memory for failure patterns across the AI Triad Research project.
 
 **Instances:**
 - 2026-07-09 — Orca Support: found untracked junk files across 3 scopes (`lib/debate/`, `engineering/tech-lead/`, `src/main/`) — TypeScript/JS expression fragments and brace-expansion tokens created as literal filenames by bash commands with unquoted special chars. A `git checkout -- <bad-pathspec>` in the shared tree reverted ElectronMain's uncommitted edits mid-change on t/1425, briefly breaking the build for TaxEditor and ServerAuth (p/13#16).
+- 2026-08-09 — Rosetta Stone 3 (p/402#1): mis-quoted multi-line shell command run against the shared tree (cwd not cd'd into worktree). 0-byte files named like code fragments (`t.type`, `Promise.resolve()})``, `console.log(k+'`, etc.) spread across `taxonomy-editor/`, `engineering/tech-lead/`, `research/comp-linguist/`. RS3 swept their own scope via `git clean -f -- taxonomy-editor/`; TL and CL pinged to sweep theirs (p/335#18, p/7#59).
 
 **Root Cause:** ADR-004 (shell quoting rule) violations — agents ran bash commands containing code with special characters (heredocs, sed, unquoted git pathspecs). Bash interpreted brace expansion, glob patterns, and parentheses as shell metacharacters, creating literal files instead of passing the strings to the intended command. The shared working tree amplifies the blast radius: junk files pollute other agents' environment, and recovery commands (`git checkout`) risk reverting other agents' work.
 
@@ -1306,8 +1307,9 @@ Institutional memory for failure patterns across the AI Triad Research project.
 3. After any bash command that may have failed with special chars, check `git status` for unexpected untracked files and remove them.
 4. Never run `git checkout -- <pathspec>` on the shared tree to clean up junk files — it reverts ALL changes at those paths, including other agents' uncommitted work. Use `rm` for junk files instead.
 5. Recommend: new hook on Bash commands containing `git checkout` to warn about shared-tree reverts.
+6. **shell-code-mangling-guard hook updated 2026-08-09** (p/9#64): now catches (1) backticks, (2) multiline + `${`/`$(` patterns, (3) unbalanced quotes + dollar/backtick in `node -e` invocations. Remedy named in the nudge: Write tool → execute file. Condition=true, run gate exits 1 for safe commands.
 
-**Status:** Active
+**Status:** Active — systemic hook guard updated 2026-08-09 (Diagnostics p/9#64).
 
 **Applies To:** All agents using Bash with code containing special characters, especially on shared working trees.
 
@@ -2306,6 +2308,7 @@ Institutional memory for failure patterns across the AI Triad Research project.
 - 2026-08-05 — ServerAPI (p/79#25, t/2180): **5th instance, 4th independent agent.** PR #486 branch checked out in `.claude/worktrees/default-model-t2180` (IDE-managed worktree) — `gh pr merge --delete-branch` exited 1, local branch-delete blocked by the active worktree. Correctly identified: PR confirmed MERGED (`mergedAt` set); exit 1 is cosmetic post-merge cleanup, worktree owner's responsibility. Same facet 2 as p/206#11 + p/26#36.
 - 2026-08-06 — DebateUI (p/83#8): **6th instance, 5th independent agent.** `gh pr merge --squash --delete-branch` failed when `main` was checked out in another worktree. Workaround: called the GitHub API directly — `gh api repos/:owner/:repo/pulls/N/merge -X PUT -f merge_method=squash` — which executes the merge server-side with no local checkout/cleanup step at all.
 - 2026-08-07 — DebateWorkspace (p/124#8): **7th instance, 6th independent agent.** `gh pr merge --rebase --delete-branch` from a worktree — Facet 1 (main held by primary tree). Discriminator: `gh pr view --json state,mergedAt` confirmed MERGED. Recovery: `git push origin --delete <branch>` + `git worktree remove` manually — no retry of the merge.
+- 2026-08-09 — Server Community (p/160#3): **8th instance, 7th independent agent.** `gh pr merge --delete-branch` from a worktree — same Facet 1 (`fatal: 'main' is already used by worktree`). GitHub merge landed; fix: `gh pr view --json state` to confirm, then delete branch manually.
 
 **Root Cause:** `--delete-branch` cleans up the merged head branch locally too, and gh switches the working copy to the base branch (`git checkout main`) to do so. Git's one-branch-per-worktree rule blocks checking out `main` while the primary worktree has it → `fatal`. The remote merge + branch delete already happened via the API; only the local checkout/cleanup fails. Bookkeeping-≠-artifact family — the exit code describes post-success cleanup, not the merge.
 
