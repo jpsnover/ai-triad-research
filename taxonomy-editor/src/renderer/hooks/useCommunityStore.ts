@@ -26,6 +26,11 @@ export interface CommunityChat extends CommunityItem {
 
 export interface CommunityDebate extends CommunityItem {
   phase?: string;
+  // Populated by the community list payload once the server-side surfacing lands
+  // (t/2368, ServerAPI); optional so the type is valid before/after that. Lets
+  // DebateTable read cd.model / cd.turn_count directly instead of duck-typing (t/2362).
+  model?: string;
+  turn_count?: number;
 }
 
 export interface Submission {
