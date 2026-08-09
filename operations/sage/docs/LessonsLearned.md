@@ -1297,6 +1297,7 @@ Institutional memory for failure patterns across the AI Triad Research project.
 
 **Instances:**
 - 2026-07-09 — Orca Support: found untracked junk files across 3 scopes (`lib/debate/`, `engineering/tech-lead/`, `src/main/`) — TypeScript/JS expression fragments and brace-expansion tokens created as literal filenames by bash commands with unquoted special chars. A `git checkout -- <bad-pathspec>` in the shared tree reverted ElectronMain's uncommitted edits mid-change on t/1425, briefly breaking the build for TaxEditor and ServerAuth (p/13#16).
+- 2026-08-09 — Rosetta Stone 3 (p/402#1): mis-quoted multi-line shell command run against the shared tree (cwd not cd'd into worktree). 0-byte files named like code fragments (`t.type`, `Promise.resolve()})``, `console.log(k+'`, etc.) spread across `taxonomy-editor/`, `engineering/tech-lead/`, `research/comp-linguist/`. RS3 swept their own scope via `git clean -f -- taxonomy-editor/`; TL and CL pinged to sweep theirs (p/335#18, p/7#59).
 
 **Root Cause:** ADR-004 (shell quoting rule) violations — agents ran bash commands containing code with special characters (heredocs, sed, unquoted git pathspecs). Bash interpreted brace expansion, glob patterns, and parentheses as shell metacharacters, creating literal files instead of passing the strings to the intended command. The shared working tree amplifies the blast radius: junk files pollute other agents' environment, and recovery commands (`git checkout`) risk reverting other agents' work.
 
