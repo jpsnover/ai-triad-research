@@ -23,7 +23,6 @@ function makeStore(overrides: Record<string, unknown> = {}) {
     skeptic: { nodes: [] },
     situations: { nodes: [] },
     policyRegistry: [],
-    edgesFile: null,
     setToolbarPanel: vi.fn(),
     ...overrides,
   };
@@ -128,22 +127,6 @@ describe('PolicyAlignmentPanel', () => {
 
     fireEvent.click(header);
     expect(screen.queryByText('Accelerate via pol-001')).toBeNull();
-  });
-
-  it('shows edge summary (contradicts/complements/tensions) when edgesFile has matching edges', () => {
-    storeValue = makeStoreWithPolicies();
-    storeValue.edgesFile = {
-      edges: [
-        { source: 'pol-001', target: 'other', type: 'CONTRADICTS' },
-        { source: 'pol-001', target: 'other2', type: 'COMPLEMENTS' },
-      ],
-    };
-    render(<PolicyAlignmentPanel />);
-
-    fireEvent.click(screen.getByText('pol-001').closest('button')!);
-
-    expect(screen.getByText('1 contradicts')).toBeInTheDocument();
-    expect(screen.getByText('1 complements')).toBeInTheDocument();
   });
 
   it('calls setToolbarPanel(null) when Close is clicked', () => {

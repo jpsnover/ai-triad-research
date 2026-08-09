@@ -4,7 +4,7 @@
 import { useState, useMemo } from 'react';
 import { POV_META, type PovMetaKey } from '@lib/electron-shared/povMeta';
 import { useTaxonomyStore } from '../../hooks/useTaxonomyStore';
-import type { Pov, EdgesFile } from '../../types/taxonomy';
+import type { Pov } from '../../types/taxonomy';
 
 interface PolicyUsage {
   nodeId: string;
@@ -17,27 +17,13 @@ interface SharedPolicy {
   action: string;
   povs: string[];
   usages: PolicyUsage[];
-  edgeSummary: { contradicts: number; complements: number; tensions: number };
 }
 
-// Count edges touching a policy id, bucketed by edge type.
-function countPolicyEdges(edgesFile: EdgesFile | null, polId: string): SharedPolicy['edgeSummary'] {
-  let contradicts = 0, complements = 0, tensions = 0;
-  if (edgesFile) {
-    for (const edge of edgesFile.edges) {
-      if (edge.source !== polId && edge.target !== polId) continue;
-      if (edge.type === 'CONTRADICTS') contradicts++;
-      else if (edge.type === 'COMPLEMENTS') complements++;
-      else if (edge.type === 'TENSION_WITH') tensions++;
-    }
-  }
-  return { contradicts, complements, tensions };
-}
 
 export function PolicyAlignmentPanel() {
   const {
     accelerationist, safetyist, skeptic, situations,
-    policyRegistry, edgesFile, setToolbarPanel,
+    policyRegistry, setToolbarPanel,
   } = useTaxonomyStore();
   const [filter, setFilter] = useState<'cross-pov' | 'all-shared'>('cross-pov');
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -76,12 +62,11 @@ export function PolicyAlignmentPanel() {
         action: reg.action,
         povs,
         usages,
-        edgeSummary: countPolicyEdges(edgesFile, polId),
       });
     }
 
     return result.sort((a, b) => b.povs.length - a.povs.length || b.usages.length - a.usages.length);
-  }, [accelerationist, safetyist, skeptic, situations, policyRegistry, edgesFile]);
+  }, [accelerationist, safetyist, skeptic, situations, policyRegistry]);
 
   const filtered = useMemo(() => {
     let list = sharedPolicies;
@@ -152,13 +137,6 @@ export function PolicyAlignmentPanel() {
 
               {isExpanded && (
                 <div className="policy-alignment-detail">
-                  {pol.edgeSummary.contradicts + pol.edgeSummary.complements + pol.edgeSummary.tensions > 0 && (
-                    <div className="policy-alignment-edges">
-                      {pol.edgeSummary.contradicts > 0 && <span className="ga-policy-edge-contradicts">{pol.edgeSummary.contradicts} contradicts</span>}
-                      {pol.edgeSummary.complements > 0 && <span className="ga-policy-edge-complements">{pol.edgeSummary.complements} complements</span>}
-                      {pol.edgeSummary.tensions > 0 && <span className="ga-policy-edge-tension">{pol.edgeSummary.tensions} tensions</span>}
-                    </div>
-                  )}
                   <div className="policy-alignment-framings">
                     {pol.usages.map((u, i) => (
                       <div key={i} className="policy-alignment-framing">
