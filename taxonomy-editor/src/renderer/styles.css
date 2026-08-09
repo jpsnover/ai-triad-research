@@ -31,7 +31,7 @@
   /* Text */
   --text-primary: #1e293b;
   --text-secondary: #475569;
-  --text-muted: #94a3b8;
+  --text-muted: #64748b;  /* was #94a3b8 — slate-400 = 2.56:1, below WCAG 1.4.11 non-text floor for help icons (t/2358) */
   --border-color: #e2e8f0;
 
   /* Category detail backgrounds */
