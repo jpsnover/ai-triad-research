@@ -50,7 +50,7 @@ function Invoke-Mechanism5RetrievalPass {
     foreach ($Item in $KeyPointItems) {
         $kp  = $Item.KeyPoint
         $Pov = [string]$Item.POV
-        if (-not $kp.taxonomy_node_id) { continue }
+        if (-not ($kp.PSObject.Properties['taxonomy_node_id'] -and $kp.taxonomy_node_id)) { continue }
 
         # Condition 1: low retrieval confidence (set by Invoke-RetrievalConfidencePass)
         $IsLowConf = $kp.PSObject.Properties['retrieval_low_confidence'] -and $kp.retrieval_low_confidence
