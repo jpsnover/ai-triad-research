@@ -3,7 +3,8 @@
 
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import { CommunityTableRow } from './DebateTable';
+import { CommunityTableRow, applySortMy, applySortCommunity } from './DebateTable';
+import type { SessionRowData } from './DebateTable';
 import type { CommunityDebate } from '../../hooks/useCommunityStore';
 
 function makeRow(overrides: Partial<CommunityDebate> = {}): CommunityDebate {
@@ -35,6 +36,77 @@ function renderRow(cd: CommunityDebate) {
     </table>,
   );
 }
+
+// ── Sort null-title regression (t/2385) ──────────────────────────────────────
+
+function makeSession(overrides: Partial<SessionRowData> = {}): SessionRowData {
+  return {
+    id: 's1',
+    title: 'Normal debate',
+    created_at: '2026-01-01T00:00:00Z',
+    updated_at: '2026-01-01T00:00:00Z',
+    phase: 'complete',
+    ...overrides,
+  };
+}
+
+function makeCommunityDebate(overrides: Partial<CommunityDebate> = {}): CommunityDebate {
+  return {
+    id: 'c1',
+    title: 'Community debate',
+    created_at: '2026-01-01T00:00:00Z',
+    updated_at: '2026-01-01T00:00:00Z',
+    ...overrides,
+  } as CommunityDebate;
+}
+
+describe('applySortMy — null/undefined title (t/2385)', () => {
+  const sort = { col: 'title' as const, dir: 'asc' as const };
+
+  it('does not throw when a session has a null title', () => {
+    const rows = [
+      makeSession({ id: 's1', title: 'Gamma' }),
+      makeSession({ id: 's2', title: null as unknown as string }),
+      makeSession({ id: 's3', title: 'Alpha' }),
+    ];
+    expect(() => applySortMy(rows, sort)).not.toThrow();
+  });
+
+  it('sorts null titles as empty string (before non-empty)', () => {
+    const rows = [
+      makeSession({ id: 's1', title: 'Beta' }),
+      makeSession({ id: 's2', title: null as unknown as string }),
+    ];
+    const result = applySortMy(rows, sort);
+    expect(result[0].id).toBe('s2');
+    expect(result[1].id).toBe('s1');
+  });
+});
+
+describe('applySortCommunity — null/undefined title (t/2385)', () => {
+  const sort = { col: 'title' as const, dir: 'asc' as const };
+
+  it('does not throw when a community debate has a null title', () => {
+    const rows = [
+      makeCommunityDebate({ id: 'c1', title: 'Zeta' }),
+      makeCommunityDebate({ id: 'c2', title: null as unknown as string }),
+      makeCommunityDebate({ id: 'c3', title: 'Alpha' }),
+    ];
+    expect(() => applySortCommunity(rows, sort)).not.toThrow();
+  });
+
+  it('sorts null titles as empty string (before non-empty)', () => {
+    const rows = [
+      makeCommunityDebate({ id: 'c1', title: 'Beta' }),
+      makeCommunityDebate({ id: 'c2', title: null as unknown as string }),
+    ];
+    const result = applySortCommunity(rows, sort);
+    expect(result[0].id).toBe('c2');
+    expect(result[1].id).toBe('c1');
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 describe('CommunityTableRow — TURNS and MODEL field mapping (t/2362)', () => {
   it('renders turn_count when present', () => {
