@@ -24,6 +24,8 @@ export interface SessionRowData {
   topic_text?: string;
   model?: string;
   turn_count?: number;
+  /** True when this row represents a community debate — drives onConfirm to call loadCommunityDebateSession (t/2400). */
+  community?: boolean;
 }
 
 export type AuthStatus = { anonymous?: boolean } | null | undefined;
