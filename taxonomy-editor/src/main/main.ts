@@ -607,6 +607,7 @@ void app.whenReady().then(() => {
 
   // Debate popout windows (Map-based, up to 5 simultaneous)
   ipcMain.handle('open-debate-window', (_event, debateId: string, source?: string) => {
+    getGlobalRecorder()?.record({ type: 'user.action', component: 'openDebateWindow', level: 'info', message: 'open-debate-window', data: { debateId, source: source ?? 'personal' } });
     // Per-id dedup: focus existing window for this debateId (never counts against cap)
     const existing = debateWindows.get(debateId);
     if (existing && !existing.isDestroyed()) {
