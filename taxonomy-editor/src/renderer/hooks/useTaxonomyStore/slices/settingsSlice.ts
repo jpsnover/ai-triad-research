@@ -6,6 +6,7 @@ import type { TaxonomyStore } from '../types';
 import { api } from '@bridge';
 import { DEFAULT_MODEL } from '@lib/ai-client/defaults';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
+import { applyThemeToRoot, getStoredTheme, THEME_STORAGE_KEY } from '../../../utils/theme';
 
 /**
  * Default Community Library server — the Azure Container Apps production deployment.
@@ -226,25 +227,12 @@ export function backendForModel(model: string): AIBackend {
   return 'gemini';
 }
 
-function getStoredTheme(): ColorScheme {
-  try {
-    const stored = localStorage.getItem('taxonomy-editor-theme');
-    if (stored === 'light' || stored === 'dark' || stored === 'bkc' || stored === 'harvard' || stored === 'system') return stored;
-  } catch (err) {
-    getGlobalRecorder()?.record({ type: 'system.error', component: 'taxonomy-store', level: 'warn', message: 'Failed to read stored theme from localStorage', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
-  }
-  return 'harvard';
-}
-
+// Theme resolution core moved to utils/theme.ts (t/2338) so the popout path
+// (usePopoutTheme) and this main-window path share one resolver and can't fork.
+// applyTheme here = shared applyThemeToRoot + the main-window-only localStorage persist.
 function applyTheme(scheme: ColorScheme) {
-  const root = document.documentElement;
-  if (scheme === 'system') {
-    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    root.setAttribute('data-theme', prefersDark ? 'dark' : 'light');
-  } else {
-    root.setAttribute('data-theme', scheme);
-  }
-  try { localStorage.setItem('taxonomy-editor-theme', scheme); } catch (err) {
+  applyThemeToRoot(scheme);
+  try { localStorage.setItem(THEME_STORAGE_KEY, scheme); } catch (err) {
     getGlobalRecorder()?.record({ type: 'system.error', component: 'taxonomy-store', level: 'warn', message: 'Failed to persist theme to localStorage', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
   }
 }
