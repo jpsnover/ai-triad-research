@@ -491,7 +491,7 @@ export function SummariesTab() {
     const sorted = [...result].sort((a, b) => {
       let cmp: number;
       if (sortField === 'title') {
-        cmp = a.title.localeCompare(b.title);
+        cmp = (a.title ?? '').localeCompare(b.title ?? '');
       } else {
         const av = a[sortField] || '';
         const bv = b[sortField] || '';
