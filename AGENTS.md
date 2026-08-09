@@ -117,3 +117,14 @@ All unrecoverable errors must use `New-ActionableError` (PowerShell) or `Actiona
 
 - **Live incident: claim follow-ups before filing.** Before `create_ticket` for a follow-up during an active incident, claim it on the incident anchor thread (or route through the incident coordinator) — prevents concurrent duplicate filings across roles (this bit twice: t/2053+t/2054, t/2061+t/2062).
 - The Technical Lead coordinates incidents (runs `/tl-incident-response`); the anchor ticket is the source of truth for status and follow-up claims.
+
+### Prevention-per-incident: every diagnosis files observability AND prevention (t/2379)
+
+Every incident diagnosis produces **two** kinds of follow-up, not one:
+
+1. **Observability** — make it *diagnosable* next time (the flight-recorder field / log line / metric the diagnosis wished it had had).
+2. **Prevention** — make it *not recur*: the gate, test, or guard that would have caught it before prod.
+
+**A diagnosis that files only observability tickets is incomplete.** Map each incident to a **failure class** (see `docs/CodeReview/failure-classes.md`) and file the prevention that closes that class's gap *for this surface*. Rationale: quality coverage is point-in-time — each gate was sufficient when written; without a prevention ticket per incident, coverage lags system growth and the next prod bug finds the gap, not a gate.
+
+**Gate-touching prevention tickets** (a new/changed CI step, deploy gate, verify script, or config validation) route to **Main (TL)** for Gate Verification: proven with **both arms** (a deliberate failure fires the gate; the clean case passes with zero noise), reliable enough to block prod (a flaky blocking gate is the *next* incident), and config co-located at point of use. See the *Gate signal integrity* rules under **Code Review & Quality** (the tech-lead scope's `AGENTS.md`).
