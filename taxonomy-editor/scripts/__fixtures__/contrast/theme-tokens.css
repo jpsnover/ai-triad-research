@@ -13,3 +13,17 @@
   --fill-dark: #a35012;
   --fill-light: #60a5fa;
 }
+
+/* t/2372: selectors that live in the stylesFile itself. In default mode the
+   stylesFile is normally excluded — but an ANNOTATED selector must still be
+   evaluated (a deliberate "check this control"), while an unannotated one stays
+   opt-in (--all). These two pin that distinction. */
+/* contrast-nontext */
+.fx-styles-annotated {
+  background: transparent;
+  color: #94a3b8;   /* 2.56:1 on #fff → flagged at the 3:1 floor, even in default mode */
+}
+.fx-styles-unannotated {
+  background: var(--fill-light);
+  color: #ffffff;   /* fails, but excluded in default mode; only surfaces under --all */
+}
