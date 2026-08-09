@@ -390,7 +390,6 @@ export function NodeTree({ nodes, selectedNodeId, onSelect, pov, sortMode = 'id'
                             onSelect={onSelect}
                             score={similarScores?.get(child.id)}
                             indent
-                            relationship={child.parent_relationship}
                             conflict={conflicts?.get(child.id)}
                             resolveUrl={resolveUrl}
                           />
@@ -419,12 +418,6 @@ export function NodeTree({ nodes, selectedNodeId, onSelect, pov, sortMode = 'id'
   );
 }
 
-const REL_LABELS: Record<string, string> = {
-  is_a: 'is a',
-  part_of: 'part of',
-  specializes: 'specializes',
-};
-
 function getPriorityDisplay(node: PovNode): { label: string; value: number } | undefined {
   if (node.category === 'Desires' && node.priority != null) {
     return { label: `P${node.priority}`, value: node.priority };
@@ -435,13 +428,12 @@ function getPriorityDisplay(node: PovNode): { label: string; value: number } | u
   return undefined;
 }
 
-function NodeItem({ node, isSelected, onSelect, score, indent, relationship, isMisfit, priorityValue, conflict, resolveUrl, showDebateTestedChip }: {
+function NodeItem({ node, isSelected, onSelect, score, indent, isMisfit, priorityValue, conflict, resolveUrl, showDebateTestedChip }: {
   node: PovNode;
   isSelected: boolean;
   onSelect: (id: string) => void;
   score?: number;
   indent?: boolean;
-  relationship?: string | null;
   isMisfit?: boolean;
   priorityValue?: { label: string; value: number };
   conflict?: NodeConflict;
@@ -486,11 +478,10 @@ function NodeItem({ node, isSelected, onSelect, score, indent, relationship, isM
         // nodes show it only once they carry a debate_tested record — see t/1661. Situations
         // never reach NodeItem (node is PovNode), so BDI-only gating is implicit.
         const showChip = showDebateTestedChip && (node.category === 'Beliefs' || !!node.graph_attributes?.debate_tested);
-        const hasMeta = !!relationship || score !== undefined || !!priorityValue || showChip;
+        const hasMeta = score !== undefined || !!priorityValue || showChip;
         if (!hasMeta) return null;
         return (
           <div className="node-item-id">
-            {relationship && <span className="node-item-rel">{REL_LABELS[relationship] || relationship}</span>}
             {score !== undefined && <span className="node-item-score">{Math.round(score * 100)}%</span>}
             {priorityValue && <span className="node-item-priority">{priorityValue.label}</span>}
             {showChip && (
