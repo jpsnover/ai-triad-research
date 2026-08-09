@@ -99,3 +99,29 @@ describe('token-contrast checker — no false positives', () => {
     assert.equal(contrastOn('.fx-nontext-pass:hover').length, 0);
   });
 });
+
+describe('token-contrast checker — annotated selectors in the stylesFile (t/2372)', () => {
+  // CI runs the gate without --all, which excludes the stylesFile. An annotated
+  // selector there (e.g. .field-help-btn) must still be evaluated; an unannotated
+  // one must stay opt-in. `result` above is a default (no --all) run.
+  it('evaluates an ANNOTATED selector defined in the stylesFile in default mode', () => {
+    assert.ok(contrastOn('.fx-styles-annotated').length > 0, 'annotated stylesFile selector must be checked in default mode');
+    assert.ok(contrastOn('.fx-styles-annotated').every((f) => f.required === 3.0), 'scored at its non-text floor');
+  });
+
+  it('still EXCLUDES an unannotated stylesFile selector in default mode', () => {
+    assert.equal(contrastOn('.fx-styles-unannotated').length, 0, 'unannotated stylesFile rules stay opt-in (--all)');
+  });
+
+  it('includes the unannotated stylesFile selector only under --all', () => {
+    const allRun = check({
+      rendererDir: FIXTURES,
+      stylesFile: join(FIXTURES, 'theme-tokens.css'),
+      all: true,
+    });
+    assert.ok(
+      allRun.findings.some((f) => f.kind === 'contrast' && f.selector === '.fx-styles-unannotated'),
+      '--all must scan every stylesFile rule',
+    );
+  });
+});

@@ -345,13 +345,31 @@ export function check({
   const findings = [];
   const undefinedTokens = new Map();
 
-  const files = cssFiles(rendererDir).filter((f) => all || f !== stylesFile);
+  // Always scan every file. styles.css is normally excluded by default (scanning
+  // all of it surfaces ~hundreds of noisy pre-existing findings → opt-in via --all),
+  // but a selector carrying an explicit annotation (contrast-fill / contrast-nontext)
+  // is a deliberate "check this control" statement, so THOSE are evaluated even in
+  // the stylesFile without --all. Unannotated stylesFile rules stay opt-in (t/2372).
+  const files = cssFiles(rendererDir);
 
   for (const file of files) {
     const css = readFileSync(file, 'utf8');
     const annotations = extractAnnotations(css);
     const nonTextSel = extractNonText(css);
     const rules = parseRules(css);
+
+    // In default mode the stylesFile contributes ONLY its annotated selectors.
+    const annotatedOnly = !all && file === stylesFile;
+    const isAnnotated = (b) => {
+      const control = b.replace(/::?[\w-]+(\([^)]*\))?/g, '').trim();
+      if (nonTextSel.has(b) || (control && nonTextSel.has(control))) return true;
+      return annotations.some((a) =>
+        a.selectors.some((s) => {
+          const sb = splitThemeScope(s).base;
+          return sb === b || sb === control;
+        }),
+      );
+    };
 
     // base selector -> theme ('*' for unscoped) -> decls
     const index = new Map();
@@ -375,6 +393,7 @@ export function check({
     for (const [base, slot] of index) {
       const hasColorAnywhere = Object.values(slot).some((d) => d.color);
       if (!hasColorAnywhere) continue;
+      if (annotatedOnly && !isAnnotated(base)) continue;
 
       for (const theme of THEMES) {
         const tokens = themeTokens[theme];
