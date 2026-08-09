@@ -13,6 +13,7 @@ import { countMatches } from './helpers';
 import type { OverviewTab, EntryTab, UtilitySnapshot } from './types';
 import { UTILITY_WEIGHTS } from './types';
 import { parseHashParams } from '../../../lib/parseHash';
+import { usePopoutTheme } from '../../../hooks/usePopoutTheme';
 
 function countMatchesInValue(value: unknown, term: string): number {
   if (typeof value === 'string') return countMatches(value, term);
@@ -459,14 +460,7 @@ export function useDiagnosticsState(initialData?: Record<string, unknown>) {
     });
   }, [loadTaxonomyData]);
 
-  // Apply theme
-  useEffect(() => {
-    const root = document.documentElement;
-    if (!root.getAttribute('data-theme')) {
-      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-      root.setAttribute('data-theme', prefersDark ? 'dark' : 'light');
-    }
-  }, []);
+  usePopoutTheme();
 
   // IPC state updates from main window
   useEffect(() => {
