@@ -873,10 +873,13 @@ jobs:
           echo "::error::Server did not respond to GET /healthz within 60s under NODE_ENV=production ALLOWED_ORIGINS='' — t/723 scenario (server crash on startup or all requests)"
           exit 1
 
-      - name: Run server test suite (NODE_ENV=production)
+      - name: Run server test suite (ALLOWED_ORIGINS=empty, production CORS config)
         working-directory: taxonomy-editor
         env:
-          NODE_ENV: production
+          # NODE_ENV intentionally omitted: vite-node/jsdom fails to resolve node: built-ins
+          # under production mode (10 suites FAIL). The startup health check above already
+          # validates the NODE_ENV=production crash scenario (t/2377). Here we only need
+          # ALLOWED_ORIGINS='' to catch the getCorsOrigin() empty-array → undefined regression.
           ALLOWED_ORIGINS: ''
         run: pnpm exec vitest run src/server/
 
