@@ -132,8 +132,8 @@ function applySortCommunity(rows: CommunityDebate[], sort: SortState): Community
       case 'title':  return mul * a.title.localeCompare(b.title);
       case 'status': return mul * (a.phase ?? '').localeCompare(b.phase ?? '');
       case 'date':   return mul * (new Date(a.updated_at).getTime() - new Date(b.updated_at).getTime());
-      case 'turns':  return 0; // CommunityDebate may not have turn_count
-      case 'model':  return 0;
+      case 'turns':  return mul * ((a.turn_count ?? 0) - (b.turn_count ?? 0));
+      case 'model':  return mul * (a.model ?? '').localeCompare(b.model ?? '');
       default:       return 0;
     }
   });
@@ -506,16 +506,12 @@ export function CommunityTableRow({
 
       {/* Turns */}
       <td className="col-turns">
-        {'turn_count' in cd && (cd as { turn_count?: number }).turn_count != null
-          ? (cd as { turn_count?: number }).turn_count
-          : '—'}
+        {cd.turn_count != null ? cd.turn_count : '—'}
       </td>
 
       {/* Model */}
       <td className="col-model">
-        {'model' in cd && typeof (cd as { model?: string }).model === 'string'
-          ? (cd as { model?: string }).model || '—'
-          : '—'}
+        {cd.model || '—'}
       </td>
 
       {/* Actions */}
