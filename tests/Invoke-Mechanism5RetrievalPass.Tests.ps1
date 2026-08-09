@@ -7,10 +7,10 @@
 .SYNOPSIS
     Tests for Invoke-Mechanism5RetrievalPass (t/2357).
 .DESCRIPTION
-    Covers: v1 safety claim (taxonomy_node_id never mutated), flag criteria
-    (retrieval_low_confidence OR absent from candidates), query-text fallback
+    Covers: safety claim (taxonomy_node_id never mutated), margin trigger
+    ((top1_score - assigned_score) > MarginThreshold), query-text fallback
     (attribution_text -> verbatim), and graceful degradation (no embeddings,
-    batch-encode failure, kp missing taxonomy_node_id under StrictMode).
+    missing candidates/confidence fields, batch-encode failure, StrictMode guard).
 #>
 
 BeforeAll {
@@ -23,20 +23,23 @@ BeforeAll {
         # 3-dimensional unit vector along the given axis index.
         function script:M5-Vec { param([int]$Axis) $v = [double[]]@(0.0,0.0,0.0); $v[$Axis] = 1.0; $v }
 
-        # Minimal key_point with commonly-needed fields.
+        # Minimal key_point with margin-trigger fields.
+        # Top1Score / AssignedScore control whether the margin fires (> MarginThreshold = 0.06).
         function script:M5-KP {
             param(
-                [string]$NodeId      = 'acc-beliefs-001',
-                [string]$Attribution = 'some attribution text',
-                [string]$Verbatim    = '',
-                [bool]  $LowConf     = $false,
-                [object[]]$Candidates = @()
+                [string]$NodeId        = 'acc-beliefs-001',
+                [string]$Attribution   = 'some attribution text',
+                [string]$Verbatim      = '',
+                [double]$Top1Score     = 0.9,   # taxonomy_node_candidates[0].score
+                [double]$AssignedScore = 0.2,   # retrieval_confidence (margin = 0.7 > 0.06 → fires)
+                [string]$Top1Id        = 'acc-beliefs-002'
             )
+            $Cand = [PSCustomObject]@{ id = $Top1Id; score = $Top1Score; label = 'Top Node' }
             [PSCustomObject]@{
                 taxonomy_node_id         = $NodeId
                 attribution_text         = $Attribution
-                retrieval_low_confidence  = $LowConf
-                taxonomy_node_candidates  = $Candidates
+                retrieval_confidence     = $AssignedScore
+                taxonomy_node_candidates = @($Cand)
             }
         }
 
@@ -64,94 +67,113 @@ BeforeAll {
 
 Describe 'Invoke-Mechanism5RetrievalPass' -Tag 'mechanism5','retrieval' {
 
-    # ── v1 safety: taxonomy_node_id is NEVER mutated ───────────────────────────
+    # ── safety: taxonomy_node_id is NEVER mutated ──────────────────────────────
 
-    Context 'v1 safety — taxonomy_node_id never modified' {
+    Context 'Safety — taxonomy_node_id never modified' {
 
-        It 'Does not mutate taxonomy_node_id on a flagged key_point (low confidence)' {
+        It 'Does not mutate taxonomy_node_id on a margin-triggered key_point' {
             InModuleScope AITriad {
                 $vm = M5-SetFakeState -Pov 'acc'
                 Mock Invoke-BatchEmbedAttribution { $vm }
 
-                $kp = M5-KP -NodeId 'acc-beliefs-001' -LowConf $true
+                # margin = 0.9 - 0.2 = 0.7 > 0.06 → fires
+                $kp = M5-KP -NodeId 'acc-beliefs-001' -Top1Score 0.9 -AssignedScore 0.2
                 Invoke-Mechanism5RetrievalPass -KeyPointItems @(@{ KeyPoint = $kp; POV = 'accelerationist' })
 
                 $kp.taxonomy_node_id | Should -Be 'acc-beliefs-001' `
-                    -Because 'v1 flag+surface must never replace the assigned node'
+                    -Because 'flag+surface must never replace the assigned node'
             }
         }
 
-        It 'Does not mutate taxonomy_node_id when assigned node is absent from candidates' {
+        It 'Does not mutate taxonomy_node_id when a clearly better candidate exists' {
             InModuleScope AITriad {
                 $vm = M5-SetFakeState -Pov 'acc'
                 Mock Invoke-BatchEmbedAttribution { $vm }
 
-                $Cands = @([PSCustomObject]@{ id = 'acc-beliefs-002'; score = 0.9 })
-                $kp = M5-KP -NodeId 'acc-beliefs-001' -LowConf $false -Candidates $Cands
+                # large margin — a strong alternative is available
+                $kp = M5-KP -NodeId 'acc-beliefs-001' -Top1Score 0.95 -AssignedScore 0.10 -Top1Id 'acc-beliefs-002'
                 Invoke-Mechanism5RetrievalPass -KeyPointItems @(@{ KeyPoint = $kp; POV = 'accelerationist' })
 
                 $kp.taxonomy_node_id | Should -Be 'acc-beliefs-001' `
-                    -Because 'v1 must not auto-correct even when a better candidate exists'
+                    -Because 'auto-correct is cancelled; must never replace the assigned node'
             }
         }
     }
 
-    # ── flag criteria ──────────────────────────────────────────────────────────
+    # ── margin trigger ─────────────────────────────────────────────────────────
 
-    Context 'Flag criteria' {
+    Context 'Margin trigger' {
 
-        It 'Sets mechanism5_flag when retrieval_low_confidence is true' {
+        It 'Sets mechanism5_flag when (top1_score - assigned_score) exceeds MarginThreshold' {
             InModuleScope AITriad {
                 $vm = M5-SetFakeState -Pov 'acc'
                 Mock Invoke-BatchEmbedAttribution { $vm }
 
-                $kp = M5-KP -NodeId 'acc-beliefs-001' -LowConf $true
+                # margin = 0.9 - 0.2 = 0.7 > 0.06 (default threshold)
+                $kp = M5-KP -NodeId 'acc-beliefs-001' -Top1Score 0.9 -AssignedScore 0.2
                 Invoke-Mechanism5RetrievalPass -KeyPointItems @(@{ KeyPoint = $kp; POV = 'accelerationist' })
 
-                $kp.mechanism5_flag | Should -BeTrue -Because 'low confidence satisfies condition 1'
+                $kp.mechanism5_flag | Should -BeTrue -Because 'margin 0.7 exceeds threshold 0.06'
             }
         }
 
-        It 'Sets mechanism5_flag when assigned node is absent from taxonomy_node_candidates' {
+        It 'Sets mechanism5_flag even when assigned_score is high (high-conf misfire case)' {
             InModuleScope AITriad {
                 $vm = M5-SetFakeState -Pov 'acc'
                 Mock Invoke-BatchEmbedAttribution { $vm }
 
-                $Cands = @([PSCustomObject]@{ id = 'acc-beliefs-002'; score = 0.9 })
-                $kp = M5-KP -NodeId 'acc-beliefs-001' -LowConf $false -Candidates $Cands
+                # high confidence but top-1 dominates — the real-world misfire pattern
+                $kp = M5-KP -NodeId 'acc-beliefs-001' -Top1Score 0.92 -AssignedScore 0.80
                 Invoke-Mechanism5RetrievalPass -KeyPointItems @(@{ KeyPoint = $kp; POV = 'accelerationist' })
 
-                $kp.mechanism5_flag | Should -BeTrue -Because 'absent from candidates satisfies condition 2'
+                $kp.mechanism5_flag | Should -BeTrue -Because 'margin 0.12 > 0.06; high conf should not suppress flag'
             }
         }
 
-        It 'Does NOT flag when confidence is good and assigned node is in candidates' {
+        It 'Does NOT flag when margin is at or below MarginThreshold' {
             InModuleScope AITriad {
                 $script:CachedEmbeddings = @{ 'acc-beliefs-001' = M5-Vec 0 }
                 $script:TaxonomyData = @{}
-                Mock Invoke-BatchEmbedAttribution { @{} }
 
-                $Cands = @([PSCustomObject]@{ id = 'acc-beliefs-001'; score = 0.8 })
-                $kp = M5-KP -NodeId 'acc-beliefs-001' -LowConf $false -Candidates $Cands
+                # margin = 0.8 - 0.78 = 0.02 ≤ 0.06 → no flag (near-tie)
+                $kp = M5-KP -NodeId 'acc-beliefs-001' -Top1Score 0.80 -AssignedScore 0.78
                 Invoke-Mechanism5RetrievalPass -KeyPointItems @(@{ KeyPoint = $kp; POV = 'accelerationist' })
 
                 $kp.PSObject.Properties['mechanism5_flag'] | Should -BeNullOrEmpty `
-                    -Because 'neither condition is met; key_point must not be flagged'
+                    -Because 'near-tie (margin 0.02 ≤ 0.06) must not be flagged'
             }
         }
 
-        It 'Surfaces mechanism5_candidates (top-3) on a flagged key_point' {
+        It 'Surfaces mechanism5_candidates (top-3 POV-filtered) on a flagged key_point' {
             InModuleScope AITriad {
                 $vm = M5-SetFakeState -Pov 'acc'
                 Mock Invoke-BatchEmbedAttribution { $vm }
 
-                $kp = M5-KP -NodeId 'acc-beliefs-001' -LowConf $true
+                $kp = M5-KP -NodeId 'acc-beliefs-001' -Top1Score 0.9 -AssignedScore 0.2
                 Invoke-Mechanism5RetrievalPass -KeyPointItems @(@{ KeyPoint = $kp; POV = 'accelerationist' })
 
                 $kp.PSObject.Properties['mechanism5_candidates'] | Should -Not -BeNullOrEmpty
                 @($kp.mechanism5_candidates).Count | Should -BeLessOrEqual 3
                 $kp.mechanism5_candidates[0].PSObject.Properties['id']    | Should -Not -BeNullOrEmpty
                 $kp.mechanism5_candidates[0].PSObject.Properties['score'] | Should -Not -BeNullOrEmpty
+            }
+        }
+
+        It 'Accepts custom MarginThreshold parameter' {
+            InModuleScope AITriad {
+                $script:CachedEmbeddings = @{ 'acc-beliefs-001' = M5-Vec 0 }
+                $script:TaxonomyData = @{}
+
+                # margin = 0.80 - 0.78 = 0.02; fires at threshold 0.01, not at 0.06
+                $kp = M5-KP -NodeId 'acc-beliefs-001' -Top1Score 0.80 -AssignedScore 0.78
+                Invoke-Mechanism5RetrievalPass -KeyPointItems @(@{ KeyPoint = $kp; POV = 'accelerationist' }) -MarginThreshold 0.06
+                $kp.PSObject.Properties['mechanism5_flag'] | Should -BeNullOrEmpty -Because 'margin 0.02 ≤ 0.06'
+
+                $kp2 = M5-KP -NodeId 'acc-beliefs-001' -Top1Score 0.80 -AssignedScore 0.78
+                $vm2 = M5-SetFakeState -Pov 'acc'
+                Mock Invoke-BatchEmbedAttribution { $vm2 }
+                Invoke-Mechanism5RetrievalPass -KeyPointItems @(@{ KeyPoint = $kp2; POV = 'accelerationist' }) -MarginThreshold 0.01
+                $kp2.mechanism5_flag | Should -BeTrue -Because 'margin 0.02 > custom threshold 0.01'
             }
         }
     }
@@ -173,8 +195,8 @@ Describe 'Invoke-Mechanism5RetrievalPass' -Tag 'mechanism5','retrieval' {
                     taxonomy_node_id         = 'acc-beliefs-001'
                     attribution_text         = 'the attribution'
                     verbatim                 = 'the verbatim'
-                    retrieval_low_confidence  = $true
-                    taxonomy_node_candidates  = @()
+                    retrieval_confidence     = 0.2
+                    taxonomy_node_candidates = @([PSCustomObject]@{ id = 'acc-beliefs-002'; score = 0.9; label = '' })
                 }
                 Invoke-Mechanism5RetrievalPass -KeyPointItems @(@{ KeyPoint = $kp; POV = 'accelerationist' })
 
@@ -195,8 +217,8 @@ Describe 'Invoke-Mechanism5RetrievalPass' -Tag 'mechanism5','retrieval' {
                 $kp = [PSCustomObject]@{
                     taxonomy_node_id         = 'acc-beliefs-001'
                     verbatim                 = 'only verbatim here'
-                    retrieval_low_confidence  = $true
-                    taxonomy_node_candidates  = @()
+                    retrieval_confidence     = 0.2
+                    taxonomy_node_candidates = @([PSCustomObject]@{ id = 'acc-beliefs-002'; score = 0.9; label = '' })
                 }
                 Invoke-Mechanism5RetrievalPass -KeyPointItems @(@{ KeyPoint = $kp; POV = 'accelerationist' })
 
@@ -205,7 +227,7 @@ Describe 'Invoke-Mechanism5RetrievalPass' -Tag 'mechanism5','retrieval' {
             }
         }
 
-        It 'Skips a flagged key_point when both attribution_text and verbatim are absent' {
+        It 'Skips a margin-triggered key_point when both attribution_text and verbatim are absent' {
             InModuleScope AITriad {
                 $script:CachedEmbeddings = @{ 'acc-beliefs-001' = M5-Vec 0 }
                 $script:TaxonomyData = @{}
@@ -214,8 +236,8 @@ Describe 'Invoke-Mechanism5RetrievalPass' -Tag 'mechanism5','retrieval' {
 
                 $kp = [PSCustomObject]@{
                     taxonomy_node_id         = 'acc-beliefs-001'
-                    retrieval_low_confidence  = $true
-                    taxonomy_node_candidates  = @()
+                    retrieval_confidence     = 0.2
+                    taxonomy_node_candidates = @([PSCustomObject]@{ id = 'acc-beliefs-002'; score = 0.9; label = '' })
                 }
                 Invoke-Mechanism5RetrievalPass -KeyPointItems @(@{ KeyPoint = $kp; POV = 'accelerationist' })
 
@@ -234,7 +256,7 @@ Describe 'Invoke-Mechanism5RetrievalPass' -Tag 'mechanism5','retrieval' {
             InModuleScope AITriad {
                 $script:CachedEmbeddings = @{}
 
-                $kp = M5-KP -NodeId 'acc-beliefs-001' -LowConf $true
+                $kp = M5-KP -NodeId 'acc-beliefs-001' -Top1Score 0.9 -AssignedScore 0.2
                 { Invoke-Mechanism5RetrievalPass -KeyPointItems @(@{ KeyPoint = $kp; POV = 'accelerationist' }) } |
                     Should -Not -Throw
 
@@ -247,9 +269,43 @@ Describe 'Invoke-Mechanism5RetrievalPass' -Tag 'mechanism5','retrieval' {
             InModuleScope AITriad {
                 $script:CachedEmbeddings = $null
 
-                $kp = M5-KP -NodeId 'acc-beliefs-001' -LowConf $true
+                $kp = M5-KP -NodeId 'acc-beliefs-001' -Top1Score 0.9 -AssignedScore 0.2
                 { Invoke-Mechanism5RetrievalPass -KeyPointItems @(@{ KeyPoint = $kp; POV = 'accelerationist' }) } |
                     Should -Not -Throw
+            }
+        }
+
+        It 'Does not throw when taxonomy_node_candidates is absent — skips margin check' {
+            InModuleScope AITriad {
+                $script:CachedEmbeddings = @{ 'acc-beliefs-001' = M5-Vec 0 }
+                $script:TaxonomyData = @{}
+
+                $kp = [PSCustomObject]@{
+                    taxonomy_node_id     = 'acc-beliefs-001'
+                    attribution_text     = 'text'
+                    retrieval_confidence = 0.2
+                }
+                { Invoke-Mechanism5RetrievalPass -KeyPointItems @(@{ KeyPoint = $kp; POV = 'accelerationist' }) } |
+                    Should -Not -Throw
+                $kp.PSObject.Properties['mechanism5_flag'] | Should -BeNullOrEmpty `
+                    -Because 'missing candidates means top1_score is unknown; must skip'
+            }
+        }
+
+        It 'Does not throw when retrieval_confidence is absent — skips margin check' {
+            InModuleScope AITriad {
+                $script:CachedEmbeddings = @{ 'acc-beliefs-001' = M5-Vec 0 }
+                $script:TaxonomyData = @{}
+
+                $kp = [PSCustomObject]@{
+                    taxonomy_node_id         = 'acc-beliefs-001'
+                    attribution_text         = 'text'
+                    taxonomy_node_candidates = @([PSCustomObject]@{ id = 'acc-beliefs-002'; score = 0.9; label = '' })
+                }
+                { Invoke-Mechanism5RetrievalPass -KeyPointItems @(@{ KeyPoint = $kp; POV = 'accelerationist' }) } |
+                    Should -Not -Throw
+                $kp.PSObject.Properties['mechanism5_flag'] | Should -BeNullOrEmpty `
+                    -Because 'missing retrieval_confidence means assigned_score unknown; must skip'
             }
         }
 
@@ -259,7 +315,8 @@ Describe 'Invoke-Mechanism5RetrievalPass' -Tag 'mechanism5','retrieval' {
                 $script:TaxonomyData = @{}
                 Mock Invoke-BatchEmbedAttribution { $null }
 
-                $kp = M5-KP -NodeId 'acc-beliefs-001' -LowConf $true
+                # margin = 0.9 - 0.2 = 0.7 > 0.06 → reaches batch-encode
+                $kp = M5-KP -NodeId 'acc-beliefs-001' -Top1Score 0.9 -AssignedScore 0.2
                 { Invoke-Mechanism5RetrievalPass -KeyPointItems @(@{ KeyPoint = $kp; POV = 'accelerationist' }) } |
                     Should -Not -Throw
 
@@ -272,7 +329,7 @@ Describe 'Invoke-Mechanism5RetrievalPass' -Tag 'mechanism5','retrieval' {
             InModuleScope AITriad {
                 $script:CachedEmbeddings = @{ 'acc-beliefs-001' = M5-Vec 0 }
 
-                $kp = [PSCustomObject]@{ attribution_text = 'text'; retrieval_low_confidence = $true }
+                $kp = [PSCustomObject]@{ attribution_text = 'text'; retrieval_confidence = 0.2 }
                 { Invoke-Mechanism5RetrievalPass -KeyPointItems @(@{ KeyPoint = $kp; POV = 'accelerationist' }) } |
                     Should -Not -Throw -Because 'missing taxonomy_node_id must be skipped, not throw under StrictMode'
             }
