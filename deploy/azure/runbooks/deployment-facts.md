@@ -1,6 +1,6 @@
 # Deployment Facts — Canonical Source of Truth
 
-**Owner:** DevOps. **Last verified:** 2026-07-27 against Azure via `az containerapp list` / `az containerapp env list` (see [Re-verify](#re-verify)).
+**Owner:** DevOps. **Last verified:** 2026-08-09 against Azure via `az containerapp list` / `az containerapp env list` (see [Re-verify](#re-verify)).
 
 This is the single source of truth for the deployment's identity facts. The DevOps, Azure, and Docker `AGENTS.md` files **link here — they must not restate these values inline** (inline copies drift out of sync; that drift was the t/1735 bug).
 
@@ -8,11 +8,11 @@ This is the single source of truth for the deployment's identity facts. The DevO
 
 | Fact | Value |
 |---|---|
-| Container App | `ai-rosetta-stone` |
+| Container App | `taxonomy-editor` |
 | Resource Group | `ai-triad` |
 | Region | East US |
 | ACA Environment | `cae-aitriad` (Consumption plan) |
-| App URL | https://ai-rosetta-stone.yellowbush-aeda037d.eastus.azurecontainerapps.io |
+| App URL | https://taxonomy-editor.yellowbush-aeda037d.eastus.azurecontainerapps.io |
 | Env domain suffix | `yellowbush-aeda037d.eastus.azurecontainerapps.io` |
 | Container Image | `ghcr.io/jpsnover/taxonomy-editor:latest` — **GHCR, not Azure Container Registry** |
 | Storage Account / File Share | `staitriadkvwl3nywge4iw` / `taxonomy-data` |
@@ -25,10 +25,10 @@ This is the single source of truth for the deployment's identity facts. The DevO
 
 | Fact | Value |
 |---|---|
-| Container App | `ai-rosetta-stone-staging` |
+| Container App | `taxonomy-editor-staging` |
 | Resource Group | `ai-triad` |
 | Region | East US |
-| App URL | https://ai-rosetta-stone-staging.yellowbush-aeda037d.eastus.azurecontainerapps.io |
+| App URL | https://taxonomy-editor-staging.yellowbush-aeda037d.eastus.azurecontainerapps.io |
 
 ## Re-verify
 
