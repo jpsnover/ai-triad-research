@@ -1307,8 +1307,9 @@ Institutional memory for failure patterns across the AI Triad Research project.
 3. After any bash command that may have failed with special chars, check `git status` for unexpected untracked files and remove them.
 4. Never run `git checkout -- <pathspec>` on the shared tree to clean up junk files — it reverts ALL changes at those paths, including other agents' uncommitted work. Use `rm` for junk files instead.
 5. Recommend: new hook on Bash commands containing `git checkout` to warn about shared-tree reverts.
+6. **shell-code-mangling-guard hook updated 2026-08-09** (p/9#64): now catches (1) backticks, (2) multiline + `${`/`$(` patterns, (3) unbalanced quotes + dollar/backtick in `node -e` invocations. Remedy named in the nudge: Write tool → execute file. Condition=true, run gate exits 1 for safe commands.
 
-**Status:** Active
+**Status:** Active — systemic hook guard updated 2026-08-09 (Diagnostics p/9#64).
 
 **Applies To:** All agents using Bash with code containing special characters, especially on shared working trees.
 
