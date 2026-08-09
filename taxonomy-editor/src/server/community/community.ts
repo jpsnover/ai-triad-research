@@ -132,6 +132,7 @@ interface CommunityChatEntry {
 interface CommunityDebateEntry {
   id: unknown; title: string; created_at: string; updated_at: string;
   phase: string; community_metadata: unknown;
+  model?: string; turn_count?: number;
 }
 
 export async function listCommunityChats(): Promise<unknown[]> {
@@ -163,6 +164,10 @@ export async function listCommunityDebates(): Promise<unknown[]> {
       updated_at: parsed.updated_at || parsed.created_at || '',
       phase: parsed.phase || 'unknown',
       community_metadata: stripOriginalId(parsed.community_metadata || null), // t/856
+      model: typeof parsed.debate_model === 'string' ? parsed.debate_model : undefined,
+      turn_count: Array.isArray(parsed.transcript)
+        ? parsed.transcript.filter((t: { type: string }) => t.type === 'statement' || t.type === 'opening').length
+        : undefined,
     }),
   });
   return [...items].sort((a, b) => (b.updated_at || '').localeCompare(a.updated_at || ''));
