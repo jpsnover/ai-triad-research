@@ -9,6 +9,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { FlightRecorder, setGlobalRecorder, getGlobalRecorder, RECORDER_CAPACITY_SECONDARY } from '../../../lib/flight-recorder/index.js';
 import { migrateToSingleKey } from './apiKeyStore.js';
+import { buildDebateHash } from './debateWindowUtils.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -605,7 +606,8 @@ void app.whenReady().then(() => {
   });
 
   // Debate popout windows (Map-based, up to 5 simultaneous)
-  ipcMain.handle('open-debate-window', (_event, debateId: string) => {
+  ipcMain.handle('open-debate-window', (_event, debateId: string, source?: string) => {
+    getGlobalRecorder()?.record({ type: 'user.action', component: 'openDebateWindow', level: 'info', message: 'open-debate-window', data: { debateId, source: source ?? 'personal' } });
     // Per-id dedup: focus existing window for this debateId (never counts against cap)
     const existing = debateWindows.get(debateId);
     if (existing && !existing.isDestroyed()) {
@@ -640,7 +642,7 @@ void app.whenReady().then(() => {
     });
     hardenWindow(win);
     debateWindows.set(debateId, win);
-    const debateHash = `debate-window?id=${encodeURIComponent(debateId)}`;
+    const debateHash = buildDebateHash(debateId, source);
     const isDev = !app.isPackaged;
     if (isDev) {
       void win.loadURL(`http://localhost:5173#${debateHash}`);
