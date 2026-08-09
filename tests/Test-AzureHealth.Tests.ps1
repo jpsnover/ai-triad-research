@@ -2,8 +2,8 @@
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 BeforeAll {
-    $ModulePath = Join-Path $PSScriptRoot '../AITriad.psm1'
-    Import-Module $ModulePath -Force
+    $ModulePath = Join-Path $PSScriptRoot '..' 'scripts' 'AITriad' 'AITriad.psm1'
+    Import-Module $ModulePath -Force -WarningAction SilentlyContinue
 }
 
 Describe 'Test-AzureHealth -CheckConfig' {
