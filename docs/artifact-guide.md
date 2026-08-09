@@ -350,7 +350,7 @@ The key design insight is that the same policy can be referenced by multiple nod
 
 - **Central registry**: `taxonomy/Origin/policy_actions.json` — the single source of truth for all ~1,547 policies with their `id`, `action`, `source_povs`, and `member_count`
 - **On taxonomy nodes**: `node.graph_attributes.policy_actions[]` — array of `{ policy_id, action, framing }` objects linking the node to specific policies with node-specific framing
-- **Policy-to-policy edges**: `taxonomy/Origin/edges.json` — ~452 edges typed CONTRADICTS, COMPLEMENTS, or TENSION_WITH between policies
+- **No policy-to-policy edges**: policy relations are *not* modeled as edges. `taxonomy/Origin/edges.json` (~33,621 edges) holds only node-to-node taxonomy edges across the 8 canonical types (SUPPORTS, CONTRADICTS, ASSUMES, WEAKENS, RESPONDS_TO, TENSION_WITH, INTERPRETS, CONVERGES_WITH). Each policy's association to POV nodes is carried on the node via `graph_attributes.policy_actions[]`. *(An experimental set of ~452 NLI-derived policy-to-policy edges existed historically but was removed in the t/1310 canonical-8 consolidation.)*
 - **Policy embeddings**: `taxonomy/Origin/embeddings.json` — 384-dimensional vectors (all-MiniLM-L6-v2) for policy text, enabling semantic similarity search
 
 ### How They Are Used in Debates
@@ -385,7 +385,7 @@ Debaters then include `policy_refs` in their output — linking their arguments 
 
 Intellectual lineage identifies the philosophical traditions, schools of thought, research programs, and intellectual movements that inform a taxonomy node's position. They are the "intellectual DNA" of a node — connecting a specific claim about AI policy to the broader tradition of thought that produced it.
 
-The system catalogs 331 distinct lineage values organized into 10 root categories:
+The system catalogs 2,207 mapped lineage-value variants organized into 11 Level-1 families (10 substantive plus an `uncategorized` catch-all) and 55 Level-2 clusters:
 
 | Category | Examples |
 |----------|----------|
@@ -399,8 +399,9 @@ The system catalogs 331 distinct lineage values organized into 10 root categorie
 | Formal & Mathematical Sciences | Game theory, systems theory, cybernetics, decision theory |
 | Risk, Security & Resilience | Cybersecurity, biosecurity, safety engineering |
 | Philosophy & Epistemology | Ontology, phenomenology, epistemology, logic |
+| Uncategorized *(catch-all)* | Lineage values not yet mapped to a substantive family |
 
-Each lineage entry in the catalog has: a display label, a 2-3 sentence summary, an example of how it appears in taxonomy nodes, a frequency description (which POVs use it most), and reference links (Wikipedia, Stanford Encyclopedia, etc.).
+Each catalogued lineage entry carries a `description`, a `category`, and a source `url` (validated via a `url_status` check).
 
 ### When They Are Created
 
@@ -411,13 +412,13 @@ Each lineage entry in the catalog has: a display label, a 2-3 sentence summary, 
 2. Case-insensitive match
 3. Canonicalized match (strip parentheses, trailing commas, collapse whitespace, lowercase)
 
-This resolves ~500 raw variants to 579 canonical entries without mutating the source data.
+This canonicalization collapses raw lineage strings to 579 canonical entries without mutating the source data.
 
 ### Where They Are Stored
 
 - **On taxonomy nodes**: `node.graph_attributes.intellectual_lineage: string[]` — an array of free-form strings
-- **In the catalog**: `taxonomy-editor/src/renderer/data/intellectualLineageInfo.ts` — ~1.5 MB file with 331 entries, each containing label, summary, example, frequency, and reference links
-- **In the lookup layer**: `lineageLookup.ts` (canonicalization) and `lineageCategories.ts` (10-category classification with regex-based pattern matching)
+- **In the enrichment data (data repo)**: rich per-entry metadata is served asynchronously from `../ai-triad-data/calibration/core/lineage-enrichments.json` (~3.97 MB, 3,402 entries; fields `url`, `description`, `url_status`, `category`) via the `loadLineageInfo` bridge (`/api/lineage-info`). The category taxonomy lives in `taxonomy/Origin/lineage_categories.json` (11 L1 families / 55 L2 clusters).
+- **In the lookup layer**: `lineageLookup.ts` (canonicalization to 579 canonical entries) and `lineageCategories.ts` (11-family classification with regex-based pattern matching)
 
 ### How They Are Used in Debates
 
@@ -436,7 +437,7 @@ The debate prompt instructions specify three argumentative uses of lineage:
 ### Where They Surface in the UI
 
 - **Node Detail**: Lineage values shown as interactive chips. Click to expand inline detail (summary, example, links). Right-click to open the full Attribute Info panel.
-- **Lineage Panel** (toolbar): Searchable, browsable catalog of all 331 lineage entries grouped by category, with collapse/expand and keyboard navigation.
+- **Lineage Panel** (toolbar): Searchable, browsable catalog of all catalogued lineage entries grouped by family, with collapse/expand and keyboard navigation.
 - **Attribute Info Panel**: Full detail view for a single lineage entry with "See Also" section listing related lineages in the same category (ranked by token overlap).
 - **POV Tab detail pane**: Selected lineage entry shown with full metadata: label, category badge, summary, example, frequency, external reference links, and "See Also" section.
 - **Graph Attributes Panel**: Read-only display of lineage values with badge click to filter nodes.
