@@ -107,6 +107,23 @@ function Invoke-TaxEditorSmokeTest {
     }
     Write-Host ''
 
+    # t/2374 — anonymous community pass: re-runs Community endpoints as an anon user
+    # to catch auth-scope contract bugs (t/2368: listed items must be loadable by the
+    # listing user). Included in the default run so staging always exercises anon paths.
+    Write-Host '=== Anon Community Endpoints ===' -ForegroundColor Cyan
+    $AnonEndpoints = @(Test-TaxEditorEndpoints -BaseUrl $BaseUrl -TimeoutSec $TimeoutSec `
+        -Category Community -UserType Anonymous)
+
+    foreach ($Ep in $AnonEndpoints) {
+        $Icon = if ($Ep.Pass) { '[PASS]' } else { '[FAIL]' }
+        $Color = if ($Ep.Pass) { 'Green' } else { 'Red' }
+        Write-Host "  $Icon [anon] $($Ep.Endpoint) — $($Ep.Status) $($Ep.Ms)ms" -ForegroundColor $Color
+        if (-not $Ep.Pass -and $Ep.Error) {
+            Write-Host "        $($Ep.Error)" -ForegroundColor DarkRed
+        }
+    }
+    Write-Host ''
+
     # ── Phase 3: Azure infrastructure ───────────────────────────────────
     Write-Host '=== Azure Infrastructure ===' -ForegroundColor Cyan
     $Azure = Test-AzureHealth -BaseUrl $BaseUrl -TimeoutSec $TimeoutSec
@@ -130,7 +147,7 @@ function Invoke-TaxEditorSmokeTest {
     Write-Host ''
 
     # ── Summary ──────────────────────────────────────────────────────────
-    $AllResults = $Endpoints
+    $AllResults = @($Endpoints) + @($AnonEndpoints)
     $Passed = @($AllResults | Where-Object { $_.Pass }).Count
     $Failed = @($AllResults | Where-Object { -not $_.Pass }).Count
     $Total = $AllResults.Count

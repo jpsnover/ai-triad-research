@@ -61,7 +61,11 @@ function Test-TaxEditorEndpoints {
         [string]$Category,
 
         [Parameter()]
-        [switch]$AnonymousSession
+        [switch]$AnonymousSession,
+
+        [Parameter()]
+        [ValidateSet('Authenticated', 'Anonymous', 'Admin')]
+        [string]$UserType = 'Authenticated'
     )
 
     Set-StrictMode -Version Latest
@@ -113,12 +117,14 @@ function Test-TaxEditorEndpoints {
         $Endpoints = @($Endpoints | Where-Object { $_.Cat -eq $Category })
     }
 
-    # Anonymous session establishment (t/1500 Phase 3, TL note 1).
+    # Anonymous session establishment (t/1500 Phase 3, TL note 1; -UserType t/2374).
+    # -AnonymousSession is the legacy switch; -UserType Anonymous is the new param.
     $Session = $null
-    if ($AnonymousSession) {
+    $UseAnon = $AnonymousSession -or ($UserType -eq 'Anonymous')
+    if ($UseAnon) {
         $Session = New-AnonymousWebSession -BaseUrl $BaseUrl -TimeoutSec $TimeoutSec
         if (-not $Session) {
-            Write-Warning "AnonymousSession: /.auth/anonymous did not establish a session at $BaseUrl; proceeding unauthenticated."
+            Write-Warning "Anonymous session: /.auth/anonymous did not establish a session at $BaseUrl; proceeding unauthenticated."
         }
     }
 
@@ -210,6 +216,37 @@ function Test-TaxEditorEndpoints {
         $Result.NodeCount   = $NodeCount
         $Result.Error       = $Check.Error
         $Results.Add($Result)
+    }
+
+    # -- List→load contract tests (t/2374) ----------------------------------------
+    # Runs when the category scope includes Community or Debate endpoints. Catches
+    # cross-endpoint contract violations: a listed item that 404s on load is a bug
+    # (t/2368 scenario: list community as anon → attempt load → expect 200).
+    $RunCommunityContract = -not $Category -or $Category -eq 'Community'
+    $RunDebateContract    = -not $Category -or $Category -eq 'Debate'
+
+    if ($RunCommunityContract) {
+        Write-Verbose "Running list→load contract test for Community debates..."
+        $Results.Add((Invoke-ListLoadContractTest `
+            -BaseUrl      $BaseUrl `
+            -ListPath     '/api/community/debates' `
+            -LoadTemplate '/api/community/debates/{id}' `
+            -Category     'Community' `
+            -Description  'Community debate list→load contract (t/2374)' `
+            -Session      $Session `
+            -TimeoutSec   $TimeoutSec))
+    }
+
+    if ($RunDebateContract) {
+        Write-Verbose "Running list→load contract test for user debates..."
+        $Results.Add((Invoke-ListLoadContractTest `
+            -BaseUrl      $BaseUrl `
+            -ListPath     '/api/debates/list' `
+            -LoadTemplate '/api/debates/{id}' `
+            -Category     'Debate' `
+            -Description  'User debate list→load contract (t/2374)' `
+            -Session      $Session `
+            -TimeoutSec   $TimeoutSec))
     }
 
     @($Results)
