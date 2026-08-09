@@ -157,6 +157,22 @@ function Get-RelevantTaxonomyNodes {
         Write-Verbose "Cached $($script:CachedEmbeddings.Count) embedding vectors"
     }
 
+    # ── Build pillar-node exclusion set (t/2369, lazy, invalidated with TaxonomyData) ──
+    if ($null -eq $script:PillarNodeIds) {
+        $PillarIds = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+        foreach ($PovVal in $script:TaxonomyData.Values) {
+            if (-not $PovVal.PSObject.Properties['nodes']) { continue }
+            foreach ($N in @($PovVal.nodes)) {
+                if ($N.PSObject.Properties['description'] -and
+                    $N.description -match '(?i)^\s*a thematic pillar\b') {
+                    [void]$PillarIds.Add([string]$N.id)
+                }
+            }
+        }
+        $script:PillarNodeIds = $PillarIds
+        Write-Verbose "Pillar-node exclusion set: $($PillarIds.Count) nodes excluded from candidate scoring"
+    }
+
     # ── Load synthetic multi-vector embeddings (optional, cached) ────────────
     if (-not $script:CachedSyntheticVectors) {
         $SynPath = Join-Path (Get-TaxonomyDir) 'synthetic/synthetic_embeddings.json'
@@ -260,6 +276,7 @@ function Get-RelevantTaxonomyNodes {
 
         if ($NodePov -eq 'situations' -and -not $IncludeSituations) { continue }
         if ($PovFilter -and -not $PovFilter.Contains($NodePov)) { continue }
+        if ($script:PillarNodeIds -and $script:PillarNodeIds.Contains($NodeId)) { continue }  # t/2369
 
         # Mean-of-top-N scoring (synthetic multi-vector) or single-vector fallback
         if ($script:CachedSyntheticVectors -and $script:CachedSyntheticVectors.ContainsKey($NodeId)) {

@@ -570,6 +570,7 @@ $script:EmbeddingsTimestamp = $null      # LastWriteTime of embeddings.json
 $script:CachedSyntheticVectors = $null   # Lazy-loaded (multi-vector synthetic embeddings)
 $script:SyntheticTimestamp = $null       # LastWriteTime of synthetic_embeddings.json
 $script:TaxonomyCacheLastCheck = $null  # UTC time of last staleness check (cooldown)
+$script:PillarNodeIds = $null           # Lazy-built by Get-RelevantTaxonomyNodes from taxonomy descriptions (t/2369)
 # Provisional threshold (0.45) — calibrate against SAF-167 repro case and a
 # good-vs-bad attribution distribution before treating this as a tuned gate.
 $script:RetrievalConfidenceThreshold = 0.45

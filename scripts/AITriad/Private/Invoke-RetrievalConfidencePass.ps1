@@ -134,6 +134,7 @@ function Invoke-RetrievalConfidencePass {
         # Score every cached node against the query vector
         $Scores = [System.Collections.Generic.List[PSObject]]::new()
         foreach ($NodeId in $script:CachedEmbeddings.Keys) {
+            if ($script:PillarNodeIds -and $script:PillarNodeIds.Contains($NodeId)) { continue }  # t/2369
             $NodeVec = [double[]]$script:CachedEmbeddings[$NodeId]
             if ($NodeVec.Count -ne $Dim) { continue }
             $Dot = 0.0; $NNormSq = 0.0
