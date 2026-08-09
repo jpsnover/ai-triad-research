@@ -4,8 +4,9 @@
 // DebateTable — shared semantic table for My and Community debate lists (t/2305).
 // Replaces DebateMyList / DebateCommunityList card layouts with full-width tables.
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import type { CommunityDebate } from '../../hooks/useCommunityStore';
+import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { ExportDropdown } from './ExportDropdown';
 import './DebateTable.css';
 
@@ -555,14 +556,35 @@ export function DebateTable(props: DebateTableProps) {
 
   const [sort, setSort] = useState<SortState>({ col: defaultSortCol, dir: defaultSortDir });
 
+  useEffect(() => {
+    if (defaultSortCol) {
+      getGlobalRecorder()?.record({
+        type: 'user.action',
+        component: 'DebateTable',
+        level: 'info',
+        message: 'sort-default',
+        data: { col: defaultSortCol, dir: defaultSortDir, row_count: props.rows.length, variant: props.variant },
+      });
+    }
+  }, []); // mount-only: record which default sort fired so FR captures it on crash
+
   const handleSort = useCallback((col: SortColumn) => {
     setSort(prev => {
-      if (prev.col !== col) return { col, dir: 'asc' };
-      if (prev.dir === 'asc') return { col, dir: 'desc' };
-      if (prev.dir === 'desc') return { col: null, dir: 'none' }; // clear sort
-      return { col, dir: 'asc' };
+      let next: SortState;
+      if (prev.col !== col) next = { col, dir: 'asc' };
+      else if (prev.dir === 'asc') next = { col, dir: 'desc' };
+      else if (prev.dir === 'desc') next = { col: null, dir: 'none' }; // clear sort
+      else next = { col, dir: 'asc' };
+      getGlobalRecorder()?.record({
+        type: 'user.action',
+        component: 'DebateTable',
+        level: 'info',
+        message: 'sort-click',
+        data: { col: next.col, dir: next.dir, row_count: props.rows.length, variant: props.variant },
+      });
+      return next;
     });
-  }, []);
+  }, [props.rows.length, props.variant]);
 
   if (props.variant === 'my') {
     return <MyTable {...props} sort={sort} onSort={handleSort} />;
