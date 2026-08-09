@@ -8,43 +8,72 @@
 // reach user-scoped blob paths, so a private debate ID absent from the community
 // store yields null — not the user's debate blob.
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
+import type { StorageBackend } from '../storage/storageBackend.js';
+import * as fileIO from '../storage/fileIO.js';
 import * as community from '../community/community.js';
+import * as userContext from '../security/userContext.js';
+
+class MemoryBackend implements StorageBackend {
+  files = new Map<string, string>();
+  private norm(p: string) { return p.replace(/\\/g, '/'); }
+  async readFile(p: string): Promise<string | null> { return this.files.get(this.norm(p)) ?? null; }
+  async writeFile(p: string, c: string): Promise<void> { this.files.set(this.norm(p), c); }
+  async listDirectory(d: string): Promise<string[]> {
+    const prefix = this.norm(d) + '/';
+    const out = new Set<string>();
+    for (const k of this.files.keys()) if (k.startsWith(prefix)) out.add(k.slice(prefix.length).split('/')[0]);
+    return [...out];
+  }
+  async deleteFile(p: string): Promise<void> { this.files.delete(this.norm(p)); }
+  async fileExists(p: string): Promise<boolean> { return this.files.has(this.norm(p)); }
+  async readBinaryFile(): Promise<Buffer | null> { return null; }
+  async writeBinaryFile(): Promise<void> { /* stub */ }
+}
+
+const userCtx = { principalName: 'alice', idp: 'github', storageUserId: 'alice', isAnonymous: false };
+let dataRoot: string;
+let tax: MemoryBackend;
+let uc: MemoryBackend;
 
 describe('t/2368 — /api/community/debates/:id IDOR guard', () => {
-  it('a debate id absent from the community store returns null (not a user blob)', async () => {
-    // Private debates live in user-scoped storage; the community endpoint calls
-    // loadCommunityItem which reads only from community/debates/. Missing → null,
-    // which the route maps to {found:false}@200 — never a fallback to user storage.
-    const result = await community.loadCommunityItem('debates', 'idor-test-private-only');
-    expect(result).toBeNull();
+  beforeAll(() => {
+    process.env.AI_TRIAD_DATA_ROOT = fs.mkdtempSync(path.join(os.tmpdir(), 'idor-test-'));
+    dataRoot = process.env.AI_TRIAD_DATA_ROOT;
+  });
+  afterAll(() => {
+    fs.rmSync(dataRoot, { recursive: true, force: true });
+    delete process.env.AI_TRIAD_DATA_ROOT;
+  });
+  beforeEach(() => {
+    tax = new MemoryBackend();
+    uc = new MemoryBackend();
+    fileIO.setTaxonomyBackend(tax);
+    fileIO.setUserContentBackend(uc);
   });
 
-  it('a second distinct private id also yields null (storage isolation is unconditional)', async () => {
-    const result = await community.loadCommunityItem('debates', 'idor-test-user-scoped-id-2');
-    expect(result).toBeNull();
-  });
-
-  it('a debate planted outside communityDebatesDir is NOT visible through the community endpoint', async () => {
-    // Planted-blob case: the file exists on disk (at a non-community path that
-    // simulates user-scoped storage) but loadCommunityItem reads only from
-    // communityDebatesDir() — a fixed, non-user-scoped directory. The file is
-    // structurally invisible to the community endpoint regardless of its content.
-    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'idor-test-'));
-    const plantedId = 'idor-planted-user-only';
-    fs.writeFileSync(
-      path.join(tmpDir, `debate-${plantedId}.json`),
-      JSON.stringify({ id: plantedId, title: 'Private Debate', phase: 'complete' }),
+  it('a debate planted in user-scoped storage is NOT visible through the community endpoint', async () => {
+    // Plant a real debate in the user-content backend (same path loadDebateSession uses).
+    // The community endpoint calls loadCommunityItem which reads only from
+    // communityDebatesDir() — a structurally disjoint path. The blob exists but the
+    // community endpoint cannot see it → null → {found:false}@200.
+    await userContext.runWithUser(userCtx, () =>
+      fileIO.saveDebateSession({ id: 'idor-planted', title: 'Private Debate', phase: 'complete' }, 'test'),
     );
-    try {
-      const result = await community.loadCommunityItem('debates', plantedId);
-      expect(result).toBeNull();
-    } finally {
-      fs.rmSync(tmpDir, { recursive: true, force: true });
-    }
+    // Confirm the debate IS in user storage (positive control — proves the plant worked).
+    const userLoaded = await userContext.runWithUser(userCtx, () => fileIO.loadDebateSession('idor-planted'));
+    expect(userLoaded).toBeTruthy();
+    // Now assert the community endpoint cannot reach it.
+    const communityResult = await community.loadCommunityItem('debates', 'idor-planted');
+    expect(communityResult).toBeNull();
+  });
+
+  it('a debate id absent from both stores returns null', async () => {
+    const result = await community.loadCommunityItem('debates', 'idor-test-completely-absent');
+    expect(result).toBeNull();
   });
 
   it('path traversal in id is rejected before any storage lookup', async () => {
