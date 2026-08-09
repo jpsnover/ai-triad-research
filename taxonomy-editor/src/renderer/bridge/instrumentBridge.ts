@@ -110,6 +110,25 @@ const SKIP = new Set([
   'adminReviewStats', 'adminReviewConfigured',
 ]);
 
+/**
+ * Bridge methods where a specific HTTP status is an EXPECTED, non-error outcome —
+ * the caller handles it gracefully (e.g. returns a default). Such rejections are
+ * recorded at `debug` instead of `error`, so flight-recorder dumps aren't polluted
+ * by a false alarm on every session, while ADR-003 is honored (the event is still
+ * recorded; only the LEVEL drops). Keep this narrow and PER-METHOD: a blanket
+ * status downgrade would mask a real authorization bug on some other call
+ * (TL optionality-aware condition, t/1339 / t/1340).
+ */
+const EXPECTED_STATUS: Record<string, ReadonlySet<number>> = {
+  // 403 for non-admin/anonymous users; App.tsx catches it and returns '' (t/2395).
+  getDataRoot: new Set([403]),
+};
+
+/** True when `httpStatus` is a known non-error outcome for `method` (see EXPECTED_STATUS). */
+function isExpectedStatus(method: string, httpStatus: number | undefined): boolean {
+  return httpStatus !== undefined && (EXPECTED_STATUS[method]?.has(httpStatus) ?? false);
+}
+
 /** Categorize bridge methods for the recorder. */
 function inferCategory(method: string): string {
   if (method.startsWith('generate') || method.startsWith('startChat') || method === 'nliClassify') return 'ai';
@@ -160,11 +179,12 @@ export function instrumentBridge(raw: AppAPI): AppAPI {
         const httpStatus = typeof (err as { httpStatus?: unknown }).httpStatus === 'number'
           ? (err as { httpStatus: number }).httpStatus
           : undefined;
+        const expected = !isAI && isExpectedStatus(key, httpStatus);
         getGlobalRecorder()?.record({
           type: isAI ? 'ai.error' : 'system.error',
           component: recorder?.intern('component', 'bridge') as string | number,
-          level: 'error',
-          message: `bridge.${key} failed (sync)`,
+          level: expected ? 'debug' : 'error',
+          message: expected ? `bridge.${key} expected ${httpStatus} (sync)` : `bridge.${key} failed (sync)`,
           duration_ms,
           error: normalizeError(err),
           data: { method: key, category, ...(httpStatus !== undefined && { http_status: httpStatus }) },
@@ -204,11 +224,12 @@ export function instrumentBridge(raw: AppAPI): AppAPI {
           const httpStatus = typeof (err as { httpStatus?: unknown }).httpStatus === 'number'
             ? (err as { httpStatus: number }).httpStatus
             : undefined;
+          const expected = !isAI && isExpectedStatus(key, httpStatus);
           recorder?.record({
             type: isAI ? 'ai.error' : 'system.error',
             component: recorder.intern('component', 'bridge') as string | number,
-            level: 'error',
-            message: `bridge.${key} failed`,
+            level: expected ? 'debug' : 'error',
+            message: expected ? `bridge.${key} expected ${httpStatus}` : `bridge.${key} failed`,
             duration_ms,
             error: normalizeError(err),
             data: { method: key, category, ...(httpStatus !== undefined && { http_status: httpStatus }) },
