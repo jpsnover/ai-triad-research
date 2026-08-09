@@ -344,7 +344,7 @@ export const api: AppAPI = {
   openPromptDiffWindow: (debateId, entryId) => window.electronAPI.openPromptDiffWindow(debateId, entryId),
 
   // Debate popout
-  openDebateWindow: (id) => window.electronAPI.openDebateWindow(id),
+  openDebateWindow: (id, source) => window.electronAPI.openDebateWindow(id, source),
   closeDebateWindow: (debateId) => window.electronAPI.closeDebateWindow(debateId),
   getCliFileArg: () => window.electronAPI.getCliFileArg(),
 

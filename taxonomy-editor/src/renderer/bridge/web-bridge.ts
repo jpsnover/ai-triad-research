@@ -1262,8 +1262,8 @@ const rawApi: AppAPI = {
     openAppWindow(`prompt-diff-window?debateId=${encodeURIComponent(debateId)}&entryId=${encodeURIComponent(entryId)}`);
   },
   // Debate popout — in web mode, open in a new browser tab (mobile: in-page navigation)
-  openDebateWindow: async (debateId) => {
-    openAppWindow(`debate-window?id=${encodeURIComponent(debateId)}`);
+  openDebateWindow: async (debateId, source) => {
+    openAppWindow(`debate-window?id=${encodeURIComponent(debateId)}${source ? `&source=${encodeURIComponent(source)}` : ''}`);
   },
   closeDebateWindow: async (_debateId: string) => { /* no-op in web mode */ },
 

@@ -182,7 +182,7 @@ export interface ElectronAPI {
   onDiagnosticsPopoutClosed: (callback: () => void) => () => void;
 
   // Debate popout
-  openDebateWindow: (debateId: string) => Promise<{ atCap: true } | void>;
+  openDebateWindow: (debateId: string, source?: string) => Promise<{ atCap: true } | void>;
   closeDebateWindow: (debateId: string) => Promise<void>;
   getCliFileArg: () => Promise<{ type: string; path: string; data?: unknown; error?: string } | null>;
   onDebateWindowLoad: (callback: (debateId: string) => void) => () => void;
