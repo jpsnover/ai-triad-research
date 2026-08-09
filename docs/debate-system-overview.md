@@ -2,7 +2,7 @@
 
 **Status:** Current as of 2026-04-30.
 
-**Source of truth:** `lib/debate/` (32 TypeScript files). Taxonomy Editor re-exports via `@lib/debate/*`. Entry points: `DebateEngine.run()` (programmatic), `lib/debate/cli.ts` (CLI via `npx tsx`), `Invoke-AITDebate` (PowerShell cmdlet).
+**Source of truth:** `lib/debate/` (129 non-test TypeScript files). Taxonomy Editor re-exports via `@lib/debate/*`. Entry points: `DebateEngine.run()` (programmatic), `lib/debate/cli.ts` (CLI via `npx tsx`), `Invoke-AITDebate` (PowerShell cmdlet).
 
 ## Purpose
 
@@ -218,7 +218,7 @@ Displayed in Diagnostics → "Context Usage Analysis". Enables data-driven cap a
 
 ### Situation Interpretations
 
-All 133 situation nodes carry BDI-decomposed interpretations per POV:
+All 441 situation nodes carry BDI-decomposed interpretations per POV:
 ```json
 {
   "accelerationist": {
@@ -793,7 +793,7 @@ Implementation: `reflectionPrompt` in `lib/debate/prompts.ts`.
 
 The debate system's three agents each argue from a fixed taxonomy — the taxonomy *is* the identity. This creates a real constraint: the argument space is bounded by the combined content of the three taxonomies. Arguments that cut across perspectives, compromise positions, or gaps in any taxonomy's coverage will not surface through the agents alone.
 
-The system already contains partial mitigations: the Missing Arguments Pass identifies strong unmade arguments post-debate, Reflections give each agent a meta-cognitive pass over taxonomy gaps, and the 133 situation nodes capture shared concepts with per-POV interpretations. Three new features close the remaining gaps.
+The system already contains partial mitigations: the Missing Arguments Pass identifies strong unmade arguments post-debate, Reflections give each agent a meta-cognitive pass over taxonomy gaps, and the 441 situation nodes capture shared concepts with per-POV interpretations. Three new features close the remaining gaps.
 
 ### Mid-Debate Gap Injection ("Fourth Voice")
 
@@ -818,7 +818,7 @@ The gap arguments enter the transcript as system entries. The moderator is steer
 
 ### Cross-Cutting Node Promotion
 
-**Problem:** The 133 situation nodes are manually curated and do not grow from debate findings. When all three POVs agree on something during a debate, that agreement is recorded in the synthesis but does not feed back into the taxonomy's shared concepts.
+**Problem:** The 441 situation nodes are manually curated and do not grow from debate findings. When all three POVs agree on something during a debate, that agreement is recorded in the synthesis but does not feed back into the taxonomy's shared concepts.
 
 **Mechanism:** After synthesis phase 1 (which produces `areas_of_agreement`), the system filters for agreement points where all three POVs concur. For each three-way agreement, an LLM determines whether it maps to an existing situation node or warrants a new one. New proposals include BDI-decomposed interpretations per POV — even agreements have nuanced per-POV reasons.
 
@@ -1081,7 +1081,7 @@ Five interventions address LLM-specific debate failure modes. All are non-blocki
 
 ## Automated Parameter Calibration
 
-The debate system contains 100+ hardcoded numeric parameters. Ten are identified as highest-impact and calibrated automatically via post-debate data logging and offline optimization.
+The debate system contains 100+ hardcoded numeric parameters. Fifteen are identified as highest-impact and calibrated automatically via post-debate data logging and offline optimization.
 
 ### Calibration Data Flow
 
