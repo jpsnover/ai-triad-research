@@ -4,80 +4,87 @@
 function Invoke-Mechanism5RetrievalPass {
     <#
     .SYNOPSIS
-        Per-key_point re-retrieval pass (Mechanism #5, t/2357) — flag + surface.
+        Per-key_point re-retrieval pass (Mechanism #5, t/2357) — margin-triggered flag + surface.
     .DESCRIPTION
-        After Invoke-RetrievalConfidencePass has scored every key_point, this pass
-        identifies the ones where the existing assignment is likely a vocabulary-collision
-        misfire and surfaces per-key_point top-3 candidates so the t/2289 override path
-        can act on them.
+        After Invoke-RetrievalConfidencePass has scored every key_point, this pass identifies
+        assignments where a better candidate exists and surfaces per-key_point top-3 POV-filtered
+        candidates for the t/2289 override path.
 
-        A key_point is flagged when EITHER:
-          (1) retrieval_low_confidence = $true  (confidence < 0.45, from t/2288), OR
-          (2) the assigned node is absent from the per-key_point attribution_text top-3
-              (taxonomy_node_candidates doesn't include the assigned node_id).
+        A key_point is flagged when:
+          (top1_score − assigned_score) > MarginThreshold  (default 0.06, calibrated by CL t/2357)
 
-        For flagged key_points, the query is attribution_text (primary) / verbatim
-        (fallback) — NOT canonical_proposition (over-abstracted; Arm-1 finding).
+        where top1_score = taxonomy_node_candidates[0].score (per-key_point max, from t/2288 pass)
+        and   assigned_score = retrieval_confidence (cosine of assigned node, from t/2288 pass).
 
-        Scoring is done in-memory against $script:CachedEmbeddings (already loaded by
-        Get-RelevantTaxonomyNodes earlier in the same pipeline run), POV-filtered.
-        All queries are batch-embedded in a single Python subprocess to avoid cold
-        model-load cost per key_point.
+        ALL key_points are evaluated — high-confidence misfires are the primary target (real
+        misfires typically have good assigned-node confidence but a clearly dominant alternative).
+        A conf-gated pre-filter would miss them entirely.
 
-        Sets two new fields on each flagged key_point:
+        Query for POV-filtered surfacing: attribution_text (primary) / verbatim (fallback).
+        All flagged queries are batch-embedded in one Python subprocess.
+
+        Sets on each flagged key_point:
           mechanism5_flag       = $true
-          mechanism5_candidates = top-3 [PSCustomObject]@{id; label; score} per POV
+          mechanism5_candidates = top-3 [PSCustomObject]@{id; label; score} filtered to key_point's POV
 
-        v1 ships flag→surface only; auto-correct (replace taxonomy_node_id when the
-        top-1 beats the assigned node by a conservative margin) is a fast-follow (t/2357).
+        Auto-correct is cancelled (no safe band identified; near-synonyms regress). t/2357.
         Degrades gracefully — never throws, never modifies other fields on failure.
     .PARAMETER KeyPointItems
         Array of hashtables @{KeyPoint=<PSObject>; POV='accelerationist'|'safetyist'|'skeptic'}.
+    .PARAMETER MarginThreshold
+        Surface when top1_score exceeds assigned_score by more than this value.
+        Default 0.06 — calibrated from t/2341 adjudication study (CL, t/2357#8).
+        Registered: metric-provenance-register keypoint_surfacing_margin (provisional).
     #>
     [CmdletBinding()]
     param(
-        [object[]]$KeyPointItems
+        [object[]]$KeyPointItems,
+        [double]$MarginThreshold = 0.06
     )
 
-    # Guard: embeddings and taxonomy must be loaded (Get-RelevantTaxonomyNodes runs earlier)
+    # Guard: embeddings must be loaded (Get-RelevantTaxonomyNodes always runs first)
     if (-not $script:CachedEmbeddings -or $script:CachedEmbeddings.Count -eq 0) {
         Write-Verbose 'Invoke-Mechanism5RetrievalPass: CachedEmbeddings not loaded — skipping'
         return
     }
 
-    # Identify flagged key_points and build per-item query text
+    # Evaluate ALL key_points for the margin condition (high-conf misfires won't fire on a
+    # conf-gated pre-filter). Build query text only for those that exceed the threshold.
     $Flagged = [System.Collections.Generic.List[hashtable]]::new()
     foreach ($Item in $KeyPointItems) {
         $kp  = $Item.KeyPoint
         $Pov = [string]$Item.POV
         if (-not ($kp.PSObject.Properties['taxonomy_node_id'] -and $kp.taxonomy_node_id)) { continue }
 
-        # Condition 1: low retrieval confidence (set by Invoke-RetrievalConfidencePass)
-        $IsLowConf = $kp.PSObject.Properties['retrieval_low_confidence'] -and $kp.retrieval_low_confidence
-
-        # Condition 2: assigned node absent from attribution_text top-3 candidates
-        $IsAbsent = $true
+        # top1_score from the t/2288 candidates list ([0] is the per-key_point max)
+        $Top1Score = $null
         if ($kp.PSObject.Properties['taxonomy_node_candidates'] -and $kp.taxonomy_node_candidates) {
-            foreach ($Cand in @($kp.taxonomy_node_candidates)) {
-                if ($Cand.PSObject.Properties['id'] -and $Cand.id -eq $kp.taxonomy_node_id) {
-                    $IsAbsent = $false
-                    break
-                }
+            $Cands = @($kp.taxonomy_node_candidates)
+            if ($Cands.Count -gt 0 -and $Cands[0].PSObject.Properties['score']) {
+                $Top1Score = [double]$Cands[0].score
             }
         }
+        if ($null -eq $Top1Score) { continue }
 
-        if (-not $IsLowConf -and -not $IsAbsent) { continue }
+        # assigned_score = retrieval_confidence (cosine of assigned node, same scoring pass)
+        $AssignedScore = $null
+        if ($kp.PSObject.Properties['retrieval_confidence'] -and
+            $null -ne $kp.retrieval_confidence) {
+            $AssignedScore = [double]$kp.retrieval_confidence
+        }
+        if ($null -eq $AssignedScore) { continue }
 
-        # Query: attribution_text (primary) / verbatim (fallback)
+        if (($Top1Score - $AssignedScore) -le $MarginThreshold) { continue }
+
+        # Query: attribution_text (primary) / verbatim (fallback) — NOT canonical_proposition
         $QueryText = $null
-        if ($kp.PSObject.Properties['attribution_text'] -and -not [string]::IsNullOrWhiteSpace($kp.attribution_text)) {
+        if ($kp.PSObject.Properties['attribution_text'] -and
+            -not [string]::IsNullOrWhiteSpace($kp.attribution_text)) {
             $QueryText = [string]$kp.attribution_text
-        } elseif ($kp.PSObject.Properties['verbatim'] -and -not [string]::IsNullOrWhiteSpace($kp.verbatim)) {
-            if ($kp.verbatim -is [array]) {
-                $QueryText = $kp.verbatim -join ' '
-            } else {
-                $QueryText = [string]$kp.verbatim
-            }
+        } elseif ($kp.PSObject.Properties['verbatim'] -and
+                  -not [string]::IsNullOrWhiteSpace($kp.verbatim)) {
+            if ($kp.verbatim -is [array]) { $QueryText = $kp.verbatim -join ' ' }
+            else                          { $QueryText = [string]$kp.verbatim }
         }
         if ([string]::IsNullOrWhiteSpace($QueryText)) { continue }
 
@@ -91,9 +98,9 @@ function Invoke-Mechanism5RetrievalPass {
 
     if ($Flagged.Count -eq 0) { return }
 
-    Write-Verbose "Mechanism5: $($Flagged.Count) key_points flagged for per-key_point re-retrieval"
+    Write-Verbose "Mechanism5: $($Flagged.Count) key_point(s) exceed margin $MarginThreshold — surfacing POV candidates"
 
-    # Batch-embed all queries in one subprocess
+    # Batch-embed all flagged queries in one subprocess
     $EmbedItems = [System.Collections.Generic.List[hashtable]]::new()
     foreach ($F in $Flagged) {
         $EmbedItems.Add(@{ EmbedId = $F.EmbedId; Text = $F.Query })
@@ -131,7 +138,7 @@ function Invoke-Mechanism5RetrievalPass {
     if ($null -eq $SampleVec) { return }
     $Dim = $SampleVec.Count
 
-    $FlaggedCount = 0
+    $SurfacedCount = 0
     foreach ($F in $Flagged) {
         $kp      = $F.KeyPoint
         $EmbedId = $F.EmbedId
@@ -147,7 +154,7 @@ function Invoke-Mechanism5RetrievalPass {
         $QNorm = [Math]::Sqrt($QNormSq)
         if ($QNorm -eq 0) { continue }
 
-        # Score nodes filtered to this POV
+        # Score nodes filtered to this key_point's POV
         $PovPrefix = if ($PovPrefixMap.ContainsKey($Pov)) { $PovPrefixMap[$Pov] } else { $null }
         $Scores = [System.Collections.Generic.List[PSObject]]::new()
         foreach ($NodeId in $script:CachedEmbeddings.Keys) {
@@ -176,10 +183,10 @@ function Invoke-Mechanism5RetrievalPass {
 
         Set-KeyPointField $kp 'mechanism5_flag'       $true
         Set-KeyPointField $kp 'mechanism5_candidates' $Top3
-        $FlaggedCount++
+        $SurfacedCount++
     }
 
-    if ($FlaggedCount -gt 0) {
-        Write-Host "  │  mechanism5: $FlaggedCount key_point(s) flagged + surfaced" -ForegroundColor DarkCyan
+    if ($SurfacedCount -gt 0) {
+        Write-Host "  │  mechanism5: $SurfacedCount key_point(s) flagged + surfaced" -ForegroundColor DarkCyan
     }
 }
