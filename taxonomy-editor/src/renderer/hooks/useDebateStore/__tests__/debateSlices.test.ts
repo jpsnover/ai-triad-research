@@ -1129,3 +1129,13 @@ describe('Synthesis slice: propose_new apply (t/1773, ruling B)', () => {
   });
 });
 
+// ── hermeticity guard self-check (t/2354) ───────────────────
+// Fails if the harness network guard is ever removed, so the keyless/no-live-AI
+// isolation can't silently regress into the CI 429/embed-OOM flake.
+describe('hermeticity guard (t/2354)', () => {
+  it('blocks fetch so no live AI call can happen in this suite', () => {
+    expect(() => (globalThis as unknown as { fetch: (u: string) => unknown }).fetch('https://example.test'))
+      .toThrow(/hermeticity guard/);
+  });
+});
+
