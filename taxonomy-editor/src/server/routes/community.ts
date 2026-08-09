@@ -90,7 +90,10 @@ export function registerCommunityRoutes(r: Router, ctx: ServerCtx): void {
   });
 
   get('/api/community/debates', async (_req, res) => {
-    try { json(res, await community.listCommunityDebates()); }
+    try {
+      const entries = await community.listCommunityDebates() as Record<string, unknown>[];
+      json(res, entries.map(e => ({ ...e, source: 'community' })));
+    }
     catch (err) {
       getGlobalRecorder()?.record({
         type: 'system.error',
