@@ -86,6 +86,12 @@ export default defineConfig({
   },
   resolve: {
     alias: {
+      // Electron build omits vite-plugin-pwa (web-only), so the plugin never
+      // provides `virtual:pwa-register/react`. UpdatePrompt.tsx imports it, and
+      // rolldown intermittently fails to resolve the unprovided virtual module
+      // during the electron build (t/2356). Alias it to a deterministic stub so
+      // resolution never races. Web build keeps the real plugin-provided module.
+      ...(isWeb ? {} : { 'virtual:pwa-register/react': path.resolve(import.meta.dirname, 'src/renderer/lib/pwaRegisterStub.ts') }),
       '@bridge': isWeb
         ? path.resolve(import.meta.dirname, 'src/renderer/bridge/web-bridge.ts')
         : path.resolve(import.meta.dirname, 'src/renderer/bridge/index.ts'),
