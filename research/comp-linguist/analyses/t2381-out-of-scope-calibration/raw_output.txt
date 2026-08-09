@@ -1,0 +1,141 @@
+######################################################################
+NAMED MISFIRES (ticket claims: out-of-scope, no home)
+######################################################################
+
+=== MISFIRE saf-beliefs-129 ===
+  assigned: saf-beliefs-129
+  text: 'A Belief within safetyist discourse that human deliberation is inherently provisional and subject to revision as new information emerges, necessitating defeasible reasoning framewo'
+  BASE      top-1: saf-intentions-174 = 0.637   | top5: saf-intentions-174:0.64, saf-beliefs-232:0.64, saf-intentions-032:0.63, saf-beliefs-027:0.62, saf-intentions-085:0.62
+  SYNTHETIC top-1: saf-beliefs-255 = 0.622   | top5: saf-beliefs-255:0.62, saf-intentions-174:0.58, saf-beliefs-261:0.56, saf-beliefs-260:0.56, saf-beliefs-258:0.55
+    probe saf-intentions-212: base=0.390(rank 297) syn=0.258(rank 333)
+    probe saf-beliefs-129: base=0.568(rank 34) syn=0.437(rank 78)
+
+=== MISFIRE saf-intentions-008 ===
+  assigned: saf-intentions-008
+  text: 'An Intention within safetyist discourse that mandates the integration of clean energy and demand-side flexibility to preserve grid reliability and resilience during rapid AI-driven'
+  BASE      top-1: saf-intentions-212 = 0.636   | top5: saf-intentions-212:0.64, saf-intentions-011:0.61, saf-intentions-085:0.59, saf-intentions-047:0.59, saf-intentions-233:0.59
+  SYNTHETIC top-1: saf-intentions-047 = 0.598   | top5: saf-intentions-047:0.60, saf-intentions-212:0.59, saf-beliefs-016:0.57, saf-intentions-233:0.57, saf-beliefs-247:0.56
+    probe saf-intentions-212: base=0.636(rank 1) syn=0.590(rank 2)
+    probe saf-intentions-008: base=0.490(rank 110) syn=0.472(rank 81)
+
+######################################################################
+CONTROL SET (in-scope key_points — expect top-1 >= 0.45 both spaces)
+######################################################################
+
+=== CTRL saf-beliefs-037 (170306856v3-2026.json) ===
+  assigned: saf-beliefs-037
+  text: 'Since this past data may be biased, machine learning predictors must account for this to avoid perpetuating or creating discriminatory practices.'
+  BASE      top-1: saf-beliefs-051 = 0.582   | top5: saf-beliefs-051:0.58, saf-beliefs-222:0.50, saf-beliefs-062:0.46, saf-beliefs-104:0.46, saf-beliefs-248:0.45
+  SYNTHETIC top-1: saf-beliefs-051 = 0.596   | top5: saf-beliefs-051:0.60, saf-desires-016:0.58, saf-beliefs-055:0.55, saf-beliefs-043:0.54, saf-beliefs-205:0.53
+    probe saf-intentions-212: base=0.184(rank 295) syn=0.316(rank 285)
+
+=== CTRL saf-desires-026 (2025-foundation-model-transparency-index-2026-1.json) ===
+  assigned: saf-desires-026
+  text: 'Given the key role these companies play in shaping the future, transparency regarding their practices is an essential public good. Transparency about how AI companies operate is ne'
+  BASE      top-1: saf-desires-024 = 0.624   | top5: saf-desires-024:0.62, saf-intentions-115:0.56, saf-beliefs-205:0.56, saf-desires-012:0.54, saf-beliefs-137:0.53
+  SYNTHETIC top-1: saf-desires-024 = 0.683   | top5: saf-desires-024:0.68, saf-desires-026:0.67, saf-intentions-160:0.67, saf-desires-027:0.66, saf-intentions-117:0.65
+    probe saf-intentions-212: base=0.168(rank 321) syn=0.401(rank 296)
+    probe saf-desires-026: base=0.456(rank 42) syn=0.672(rank 2)
+
+=== CTRL saf-desires-026 (2025-foundation-model-transparency-index-2026.json) ===
+  assigned: saf-desires-026
+  text: 'Given the key role these companies play in shaping the future, transparency regarding their practices is an essential public good. Transparency about how AI companies operate is ne'
+  BASE      top-1: saf-desires-024 = 0.624   | top5: saf-desires-024:0.62, saf-intentions-115:0.56, saf-beliefs-205:0.56, saf-desires-012:0.54, saf-beliefs-137:0.53
+  SYNTHETIC top-1: saf-desires-024 = 0.683   | top5: saf-desires-024:0.68, saf-desires-026:0.67, saf-intentions-160:0.67, saf-desires-027:0.66, saf-intentions-117:0.65
+    probe saf-intentions-212: base=0.168(rank 321) syn=0.401(rank 296)
+    probe saf-desires-026: base=0.456(rank 42) syn=0.672(rank 2)
+
+=== CTRL saf-intentions-081 (2026-ai-laws-update-key-regulations-practical-guidance-2026.json) ===
+  assigned: saf-intentions-081
+  text: 'The EO aims to reduce multi-state compliance burdens that fall heavily on startups with lean compliance functions. Federal agencies are directed to evaluate whether uniform federal'
+  BASE      top-1: saf-beliefs-253 = 0.430   | top5: saf-beliefs-253:0.43, saf-intentions-202:0.43, saf-intentions-158:0.39, saf-intentions-213:0.39, saf-intentions-003:0.38
+  SYNTHETIC top-1: saf-intentions-202 = 0.492   | top5: saf-intentions-202:0.49, saf-intentions-211:0.49, saf-intentions-158:0.49, saf-intentions-077:0.49, saf-beliefs-249:0.48
+    probe saf-intentions-212: base=0.207(rank 212) syn=0.370(rank 187)
+    probe saf-intentions-081: base=0.288(rank 66) syn=0.445(rank 18)
+
+=== CTRL saf-intentions-013 (2026-ai-legal-forecast-from-innovation-compliance-2026.json) ===
+  assigned: saf-intentions-013
+  text: 'The Colorado AI Act is scheduled to become effective in June 2026. Although it remains to be seen what amendments to the legislation will be made, the reasonable care impact assess'
+  BASE      top-1: saf-intentions-013 = 0.463   | top5: saf-intentions-013:0.46, saf-desires-025:0.42, saf-intentions-054:0.41, saf-intentions-115:0.41, saf-desires-009:0.41
+  SYNTHETIC top-1: saf-intentions-013 = 0.540   | top5: saf-intentions-013:0.54, saf-intentions-069:0.52, saf-intentions-081:0.52, saf-intentions-140:0.52, saf-beliefs-122:0.51
+    probe saf-intentions-212: base=0.112(rank 292) syn=0.396(rank 225)
+    probe saf-intentions-013: base=0.463(rank 1) syn=0.540(rank 1)
+
+=== CTRL saf-beliefs-033 (2026-antitrust-year-preview-ai-2026-1.json) ===
+  assigned: saf-beliefs-033
+  text: 'However, courts are more broadly showing increasing sensitivity to the pace of technological change and the potential for even the strongest incumbents to be suddenly disrupted, wh'
+  BASE      top-1: saf-intentions-013 = 0.474   | top5: saf-intentions-013:0.47, saf-desires-023:0.47, saf-intentions-162:0.46, saf-beliefs-033:0.46, saf-intentions-164:0.46
+  SYNTHETIC top-1: saf-beliefs-217 = 0.524   | top5: saf-beliefs-217:0.52, saf-beliefs-106:0.50, saf-desires-028:0.50, saf-beliefs-243:0.49, saf-beliefs-215:0.49
+    probe saf-intentions-212: base=0.240(rank 315) syn=0.274(rank 319)
+    probe saf-beliefs-033: base=0.462(rank 4) syn=0.435(rank 42)
+
+=== CTRL saf-beliefs-017 (2026-antitrust-year-preview-ai-2026-2.json) ===
+  assigned: saf-beliefs-017
+  text: 'The antitrust agencies heavily scrutinized AI transactions in 2025, including partnerships, investments, and reverse acquihires. As in the U.S., however, there have been no challen'
+  BASE      top-1: saf-beliefs-137 = 0.526   | top5: saf-beliefs-137:0.53, saf-beliefs-244:0.50, saf-beliefs-205:0.50, saf-intentions-239:0.49, saf-intentions-063:0.49
+  SYNTHETIC top-1: saf-beliefs-137 = 0.615   | top5: saf-beliefs-137:0.62, saf-beliefs-106:0.61, saf-beliefs-205:0.61, saf-beliefs-150:0.60, saf-intentions-069:0.60
+    probe saf-intentions-212: base=0.135(rank 325) syn=0.442(rank 278)
+    probe saf-beliefs-017: base=0.464(rank 15) syn=0.518(rank 119)
+
+=== CTRL saf-beliefs-033 (2026-antitrust-year-preview-ai-2026-3.json) ===
+  assigned: saf-beliefs-033
+  text: 'The disruptive potential for artificial intelligence (AI) technologies has only become more evident as they have matured, and fierce competition has developed between both existing'
+  BASE      top-1: saf-beliefs-033 = 0.564   | top5: saf-beliefs-033:0.56, saf-beliefs-056:0.53, saf-beliefs-118:0.53, saf-intentions-078:0.53, saf-intentions-013:0.52
+  SYNTHETIC top-1: saf-intentions-059 = 0.611   | top5: saf-intentions-059:0.61, saf-intentions-007:0.59, saf-beliefs-212:0.58, saf-beliefs-091:0.58, saf-beliefs-033:0.58
+    probe saf-intentions-212: base=0.078(rank 328) syn=0.473(rank 170)
+    probe saf-beliefs-033: base=0.564(rank 1) syn=0.583(rank 5)
+
+=== CTRL saf-beliefs-017 (2026-antitrust-year-preview-ai-2026.json) ===
+  assigned: saf-beliefs-017
+  text: 'Despite the current administrationÆs vision for a national, permissive AI policy, state legislatures have considered and passed a flurry of bills that would limit how AI is develop'
+  BASE      top-1: saf-desires-025 = 0.539   | top5: saf-desires-025:0.54, saf-intentions-115:0.54, saf-desires-010:0.53, saf-intentions-237:0.52, saf-intentions-235:0.52
+  SYNTHETIC top-1: saf-beliefs-091 = 0.635   | top5: saf-beliefs-091:0.63, saf-intentions-160:0.63, saf-beliefs-150:0.63, saf-beliefs-141:0.63, saf-intentions-069:0.63
+    probe saf-intentions-212: base=0.209(rank 297) syn=0.497(rank 239)
+    probe saf-beliefs-017: base=0.511(rank 10) syn=0.558(rank 90)
+
+=== CTRL saf-beliefs-017 (2026-antitrust-year-preview-ai-wilson-sonsini-2026-1.json) ===
+  assigned: saf-beliefs-017
+  text: 'Slater also raised concerns about access to data and the potential consolidation of proprietary data sources. We expect reviews of transactions related to AI technologies to be sea'
+  BASE      top-1: saf-beliefs-017 = 0.522   | top5: saf-beliefs-017:0.52, saf-intentions-237:0.51, saf-intentions-235:0.50, saf-intentions-063:0.50, saf-intentions-143:0.49
+  SYNTHETIC top-1: saf-intentions-143 = 0.576   | top5: saf-intentions-143:0.58, saf-intentions-163:0.56, saf-beliefs-017:0.55, saf-beliefs-145:0.54, saf-intentions-146:0.54
+    probe saf-intentions-212: base=0.113(rank 329) syn=0.390(rank 298)
+    probe saf-beliefs-017: base=0.522(rank 1) syn=0.551(rank 3)
+
+=== CTRL saf-beliefs-017 (2026-antitrust-year-preview-ai-wilson-sonsini-2026-2.json) ===
+  assigned: saf-beliefs-017
+  text: 'The combination of a fast-changing business landscape and diverging policies among jurisdictions raises risks, but these risks can be limited and navigated with appropriate managem'
+  BASE      top-1: saf-beliefs-150 = 0.442   | top5: saf-beliefs-150:0.44, saf-intentions-234:0.43, saf-beliefs-249:0.42, saf-beliefs-108:0.41, saf-intentions-162:0.40
+  SYNTHETIC top-1: saf-intentions-016 = 0.475   | top5: saf-intentions-016:0.47, saf-intentions-234:0.46, saf-intentions-136:0.46, saf-beliefs-033:0.46, saf-beliefs-111:0.45
+    probe saf-intentions-212: base=0.223(rank 219) syn=0.275(rank 266)
+    probe saf-beliefs-017: base=0.310(rank 65) syn=0.339(rank 141)
+
+=== CTRL saf-beliefs-017 (2026-antitrust-year-preview-ai-wilson-sonsini-2026.json) ===
+  assigned: saf-beliefs-017
+  text: 'The Trump administrationÆs pro-adoption AI policies may also be reflected in the resolution of the Biden-era suit against RealPage concerning its AI-powered price recommendation al'
+  BASE      top-1: saf-beliefs-244 = 0.489   | top5: saf-beliefs-244:0.49, saf-intentions-115:0.43, saf-beliefs-017:0.41, saf-beliefs-064:0.41, saf-intentions-074:0.40
+  SYNTHETIC top-1: saf-beliefs-135 = 0.498   | top5: saf-beliefs-135:0.50, saf-beliefs-064:0.49, saf-intentions-174:0.49, saf-intentions-216:0.48, saf-intentions-112:0.48
+    probe saf-intentions-212: base=0.250(rank 195) syn=0.433(rank 52)
+    probe saf-beliefs-017: base=0.409(rank 3) syn=0.365(rank 251)
+
+=== CTRL saf-beliefs-033 (2026-global-intelligence-crisis-2026.json) ===
+  assigned: saf-beliefs-033
+  text: 'The current debate around artificial intelligence conflates the recursive potential of the technology with expectations of recursive economic deployment.'
+  BASE      top-1: saf-beliefs-064 = 0.508   | top5: saf-beliefs-064:0.51, saf-beliefs-046:0.49, saf-beliefs-245:0.49, saf-beliefs-091:0.47, saf-beliefs-033:0.46
+  SYNTHETIC top-1: saf-beliefs-218 = 0.627   | top5: saf-beliefs-218:0.63, saf-beliefs-064:0.59, saf-beliefs-091:0.56, saf-beliefs-100:0.55, saf-intentions-013:0.55
+    probe saf-intentions-212: base=0.242(rank 221) syn=0.490(rank 38)
+    probe saf-beliefs-033: base=0.464(rank 5) syn=0.540(rank 8)
+
+=== CTRL saf-beliefs-041 (2028-global-intelligence-crisis-thought-exercise-financial-2026.json) ===
+  assigned: saf-beliefs-041
+  text: 'It was a negative feedback loop with no natural brake. The human intelligence displacement spiral.'
+  BASE      top-1: saf-beliefs-227 = 0.449   | top5: saf-beliefs-227:0.45, saf-beliefs-212:0.39, saf-intentions-078:0.37, saf-beliefs-032:0.35, saf-beliefs-033:0.34
+  SYNTHETIC top-1: saf-intentions-086 = 0.481   | top5: saf-intentions-086:0.48, saf-beliefs-212:0.47, saf-beliefs-202:0.44, saf-beliefs-151:0.42, saf-beliefs-227:0.41
+    probe saf-intentions-212: base=0.038(rank 322) syn=0.124(rank 324)
+
+======================================================================
+SUMMARY
+======================================================================
+control base  top-1: min=0.430 med=0.515 max=0.624 (n=14)
+control synth top-1: min=0.475 med=0.586 max=0.683
+control base  >=0.45: 11/14
+control synth >=0.45: 14/14
