@@ -11,6 +11,7 @@ import { api } from '@bridge';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { useDebateStore } from '../../hooks/useDebateStore';
 import { markAsPopout } from '../../hooks/useDebateStore/shared/guards';
+import { usePopoutTheme } from '../../hooks/usePopoutTheme';
 import { useTaxonomyStore } from '../../hooks/useTaxonomyStore';
 import { DebateWorkspace } from '../debate-workspace';
 import { parseDebateHash, shouldShowLoadError, type DebateLoadTarget } from './popoutLoad';
@@ -20,6 +21,7 @@ import { BriefTimeoutDialog } from './BriefTimeoutDialog';
 import './DebatePopoutWindow.css';
 
 export function DebatePopoutWindow() {
+  usePopoutTheme();
   useEffect(() => { markAsPopout(); }, []);
   const [ready, setReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -69,15 +71,6 @@ export function DebatePopoutWindow() {
   const handleDismiss = useCallback(() => {
     setError(null);
     useDebateStore.getState().setError(null);
-  }, []);
-
-  // Apply theme — popouts don't go through MainApp which sets data-theme
-  useEffect(() => {
-    const root = document.documentElement;
-    if (!root.getAttribute('data-theme')) {
-      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-      root.setAttribute('data-theme', prefersDark ? 'dark' : 'light');
-    }
   }, []);
 
   // Initialize taxonomy store (needed for debate context lookups)
