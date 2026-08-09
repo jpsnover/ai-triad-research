@@ -41,6 +41,17 @@ jobs:
           dockerfile: deploy/azure/Dockerfile.base
           failure-threshold: error
 
+      - name: Verify digest-pinned FROM lines
+        run: |
+          UNPINNED=$(grep -E '^FROM\s' deploy/azure/Dockerfile.base | grep -v '@sha256:' || true)
+          if [ -n "$UNPINNED" ]; then
+            echo "::error::Non-digest-pinned FROM lines found in deploy/azure/Dockerfile.base:"
+            echo "$UNPINNED"
+            echo "All base images must use the form: FROM image:tag@sha256:<digest>"
+            exit 1
+          fi
+          echo "All FROM lines are digest-pinned."
+
       - name: Set up QEMU
         uses: docker/setup-qemu-action@96fe6ef7f33517b61c61be40b68a1882f3264fb8  # v4
 

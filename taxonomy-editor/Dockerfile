@@ -7,7 +7,7 @@
 # (see deploy/azure/Dockerfile.base)
 
 # ── Stage 1: Build ──
-FROM node:22.23.2-bookworm-slim AS builder
+FROM node:22.23.2-bookworm-slim@sha256:d649c27dae7ba0137b3cef5dd75baa422c08dc3d9e3fc0c23dfb172dc3cc6436 AS builder
 
 WORKDIR /build
 
@@ -84,7 +84,7 @@ RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
     PATH="/tmp:$PATH" npm run build:container
 
 # ── Stage 2: Production dependencies (with build tools for native modules) ──
-FROM node:22.23.2-bookworm-slim AS prod-deps
+FROM node:22.23.2-bookworm-slim@sha256:d649c27dae7ba0137b3cef5dd75baa422c08dc3d9e3fc0c23dfb172dc3cc6436 AS prod-deps
 
 # node-pty requires make/g++/python3 for compilation when prebuilds
 # are unavailable. The runtime base image is intentionally slim (no
@@ -114,7 +114,7 @@ RUN --mount=type=cache,target=/root/.local/share/pnpm/store pnpm install --prod 
 # root cause was t/2061 (isDataAvailable path mismatch, app-side). Bumped to :2026-08-05 to
 # pull in Debian/Python security patches clearing ~25 Python runtime CVE rules (t/2157).
 # Gate base bumps on staging /healthz, not CI green.
-FROM ghcr.io/jpsnover/ai-triad-base:2026-08-05 AS runtime
+FROM ghcr.io/jpsnover/ai-triad-base:2026-08-05@sha256:a4cca2a1bd85b7a3f83826e9ba937efbf54d84032225b84c3e82624efcfcd780 AS runtime
 
 LABEL org.opencontainers.image.source="https://github.com/jpsnover/ai-triad-research"
 LABEL org.opencontainers.image.description="AI Triad Taxonomy Editor"
