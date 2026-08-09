@@ -36,6 +36,7 @@ import { QuotaBanner } from './components/shared/QuotaBanner';
 import { EmbeddingsStaleBanner } from './components/shared/EmbeddingsStaleBanner';
 import { pullDataTracked } from './utils/syncApi';
 import { useFeatureFlagStore, useFlag } from './hooks/useFeatureFlags';
+import { useTheoryLinkHotkey } from './hooks/useTheoryLinkHotkey';
 import { PrecacheToast } from './components/shared/PrecacheToast';
 import { usePrecache } from './hooks/usePrecache';
 import { DiagnosticsDrawer } from './components/shared/DiagnosticsDrawer';
@@ -174,6 +175,10 @@ export function App() {
   }, []);
 
   useEffect(() => { void useFeatureFlagStore.getState().refresh(); }, []);
+
+  // F1-to-nearest TheoryLink — registered before the popout early-returns so it
+  // covers the main app and every window mode App renders (t/2343).
+  useTheoryLinkHotkey();
 
   // If this window was opened as a diagnostics popout, render only that
   if (hash === '#diagnostics-window') {

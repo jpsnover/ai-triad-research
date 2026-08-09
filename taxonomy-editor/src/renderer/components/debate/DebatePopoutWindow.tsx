@@ -12,6 +12,7 @@ import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { useDebateStore } from '../../hooks/useDebateStore';
 import { markAsPopout } from '../../hooks/useDebateStore/shared/guards';
 import { usePopoutTheme } from '../../hooks/usePopoutTheme';
+import { useTheoryLinkHotkey } from '../../hooks/useTheoryLinkHotkey';
 import { useTaxonomyStore } from '../../hooks/useTaxonomyStore';
 import { DebateWorkspace } from '../debate-workspace';
 import { parseDebateHash, shouldShowLoadError, type DebateLoadTarget } from './popoutLoad';
@@ -22,6 +23,7 @@ import './DebatePopoutWindow.css';
 
 export function DebatePopoutWindow() {
   usePopoutTheme();
+  useTheoryLinkHotkey(); // F1-to-nearest must work in the popout document too (t/2343)
   useEffect(() => { markAsPopout(); }, []);
   const [ready, setReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
