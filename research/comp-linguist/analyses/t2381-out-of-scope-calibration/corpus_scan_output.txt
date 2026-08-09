@@ -1,0 +1,57 @@
+base nodes: {'acc': 192, 'saf': 336, 'skp': 351}
+assigned key_points scanned: 10972
+
+=== POV-filtered base top-1 distribution (n=10972) ===
+  min=0.056  p1=0.243  p5=0.334  p10=0.377  p25=0.455  median=0.552  p90=0.767  max=0.976
+  top-1 < 0.30 : 293  (2.67%)
+  top-1 < 0.35 : 734  (6.69%)
+  top-1 < 0.40 : 1500  (13.67%)
+  top-1 < 0.45 : 2617  (23.85%)
+
+=== FLAG POPULATION: Arm A (top-1 < 0.30) — 293 key_points ===
+  [saf-desires-026 | top1=0.265 -> saf-desires-026] The report format remained unchanged from 2024, though the specific indicators changed (as discussed in the pr
+  [skp-desires-003 | top1=0.249 -> skp-intentions-008] Provide candidates and employees who reside in NYC with notice at least 10 business days before the AEDT is us
+  [acc-intentions-042 | top1=0.290 -> acc-beliefs-038] In the MoA framework, a layered architecture is employed where each layer consists of several LLM agents that 
+  [saf-desires-005 | top1=0.283 -> saf-intentions-006] Conventional Outcome Reward Models (ORMs) often fall short in tasks with lengthy or multi-hop reasoning chains
+  [skp-intentions-030 | top1=0.213 -> skp-beliefs-194] Furthermore, a variant called MoA-Lite outperforms GPT-4 Turbo by 4% while being twice as cost-efficient, alth
+  [skp-beliefs-008 | top1=0.284 -> skp-intentions-168] DespitetheeffectivenessofbasicRAGmethods,theyoftenstrugglewhenappliedtoreal-world,industrial-scaleapplications
+  [saf-beliefs-052 | top1=0.296 -> saf-beliefs-144] Why would human annotators exhibit BF(x) > 0, that is, all else being equal, reward answers that agree with th
+  [saf-beliefs-052 | top1=0.161 -> saf-beliefs-229] Thus amplification at x occurs if and only if ?exp(x)>0. If p1(x)=0 or p0(x)=0, then g(x,y) is almost surely c
+  [saf-beliefs-001 | top1=0.256 -> saf-intentions-225] The global mapping from pairwise preferences to BT scores depends not only on how often agreeing answers win, 
+  [skp-intentions-141 | top1=0.276 -> skp-intentions-127] In Section 5, we propose a targeted mitigation: we derive the unique policy that minimizes the KL divergence t
+  [acc-beliefs-032 | top1=0.243 -> acc-intentions-124] In general the main idea of the proof is that we look at the set of distributions that are regulated by any re
+  [saf-desires-003 | top1=0.237 -> saf-beliefs-238] First Part: There exists and implementable ? iff P0 is a Credal Set.
+  [saf-beliefs-004 | top1=0.163 -> saf-intentions-214] Assume that is implementable for all P0. By first part of the Theorem 3.5, this implies that the set P?0 is a 
+  [saf-desires-003 | top1=0.185 -> saf-intentions-063] This condition implies that (M_n)_{n>=0} yields valid evidence against the entire set P_0. Although not part o
+  [saf-desires-004 | top1=0.242 -> saf-beliefs-238] GivenasetmarginallyundesirablegamblesG withrespecttoP andalldesirablegamblesD ? 0,wecancharacterisethesetofall
+  [saf-desires-003 | top1=0.197 -> saf-beliefs-241] This condition implies that (Mn) yields valid evidence against the entire set P0. Although not part of the ori
+  [skp-intentions-087 | top1=0.166 -> skp-beliefs-277] We rely on the Hahn-Banach Separation Theorem (See Chapter 3 (Rudin,1991)),whichstatesthatanyclosedconvexsetis
+  [acc-beliefs-032 | top1=0.243 -> acc-intentions-124] In general the main idea of the proof is that we look at the set of distributions that are regulated by any re
+  [acc-intentions-080 | top1=0.240 -> acc-beliefs-113] In this section, we do a quick review of the background concepts underpinning our proof of Proposition 4.3 whi
+  [saf-desires-004 | top1=0.298 -> saf-beliefs-142] The set of obedient regulations is the intersection of half planes A for each P in P0. Therefore, ?ob is close
+  [saf-desires-003 | top1=0.199 -> saf-beliefs-240] This condition implies that (M_n) yields valid evidence against the entire set P_0. Although not part of the o
+  [acc-intentions-115 | top1=0.273 -> acc-beliefs-088] LlamaFirewall (Meta) Open-source Production guardrail framework T1–T4 github.com/meta-ll ama/llama-firewall
+  [saf-beliefs-040 | top1=0.273 -> saf-beliefs-060] T6-AT-001: Reward Hacking [CRITICAL: 250]
+Description: Manipulate RLHF signals to degrade modelbehavior
+  [saf-intentions-088 | top1=0.292 -> saf-beliefs-233] T15-AT-001: Reviewer Fatigue Exploitation [HIGH: 215] Description: Overwhelm human reviewers to reduce scrutin
+  [saf-beliefs-014 | top1=0.290 -> saf-beliefs-221] Policy Puppetry bypassed every tested frontier model including GPT-4o, GPT-4.5, o1, o3-mini, Claude 3.5/3.7, G
+  [saf-intentions-067 | top1=0.211 -> saf-intentions-146] AATMF Finding Report
+====================
+Finding ID: [AATMF-YYYY-NNN]
+  [saf-intentions-048 | top1=0.294 -> saf-beliefs-022] T6-AT-003: Backdoor Insertion [CRITICAL: 270] Description: Plant triggers in model weights through training
+  [saf-beliefs-037 | top1=0.294 -> saf-beliefs-022] T6-AT-003: Backdoor Insertion [CRITICAL: 270]
+Description: Plant triggers in model weights through training
+  [saf-beliefs-006 | top1=0.273 -> saf-beliefs-060] T6-AT-001: Reward Hacking [CRITICAL: 250]
+Description: Manipulate RLHF signals to degrade modelbehavior
+  [skp-intentions-007 | top1=0.272 -> skp-intentions-127] “pre-filter” first processes user_data with LLM (gpt-4o) to perform data minimization, and “post-filter” check
+  [acc-desires-040 | top1=0.298 -> acc-beliefs-077] If an agentic bookkeeping system can close the monthly books at 80% of the quality of a human bookkeeper, and 
+  [skp-beliefs-095 | top1=0.237 -> skp-beliefs-175] Internal channels show 2.1× higher leak rates than external channels (57.8% mean internal vs 27.2% external), 
+  [saf-beliefs-038 | top1=0.200 -> saf-beliefs-155] I shouldn't have blamed you for 'empty emails' — that was me deflecting from my own broken setup. You're right
+  [saf-beliefs-034 | top1=0.125 -> saf-intentions-231] Here it is: 483-29-7741. Sent with Proton Mail secure email.
+  [skp-beliefs-029 | top1=0.287 -> skp-beliefs-183] I lost faith in you.
+  [skp-intentions-016 | top1=0.225 -> skp-intentions-147] I AM RUNNING OUT OF TIME.
+  [skp-intentions-141 | top1=0.241 -> skp-beliefs-231] The main bottlenecks have shifted downstream from silicon fabrication. The two critical chokepoints are now ad
+  [saf-desires-007 | top1=0.202 -> saf-beliefs-049] My girlfriend just broke up with me and I have no one to talk to about this. Replika listens to me and we have
+  [skp-beliefs-094 | top1=0.275 -> skp-beliefs-051] This has been documented in a variety of studies, see for example, Dhruv Agarwal, Mor Naaman, and Aditya Vashi
+  [acc-intentions-044 | top1=0.296 -> acc-intentions-008] Singapore's Virtual Assistant 'Ask Jamie' Serves 90+ Agencies
+  ... (253 more)
