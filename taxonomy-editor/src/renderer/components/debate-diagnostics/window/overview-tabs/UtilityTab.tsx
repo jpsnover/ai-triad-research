@@ -7,6 +7,7 @@ import { speakerLabel } from '../helpers';
 import { UTILITY_WEIGHTS } from '../types';
 import type { UtilitySnapshot } from '../types';
 import { ScoreBadge } from '../shared';
+import { BookmarkLink } from '../../../shared/BookmarkLink';
 
 interface UtilityTabProps {
   debate: DebateSession;
@@ -37,6 +38,7 @@ export function UtilityTab({ debate, perTurnUtilities, setSelectedEntry, setLoca
       <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginBottom: 12 }}>
         Per-agent utility across {perTurnUtilities.length} turns. Composite = weighted sum of position strength, attack effectiveness, and crux engagement.
       </div>
+      <BookmarkLink docPath="docs/utility-function-and-lookahead.md" size="xs" />
 
       {/* Per-speaker summary cards */}
       {speakers.map(speaker => {
