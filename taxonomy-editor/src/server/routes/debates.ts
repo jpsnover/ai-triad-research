@@ -14,6 +14,7 @@ import type { ServerResponse } from 'http';
 import { json, error, param } from '../httpKit.js';
 import { getGlobalRecorder } from '../../../../lib/flight-recorder/index.js';
 import * as fileIO from '../storage/fileIO.js';
+import * as community from '../community/community.js';
 import * as ai from '../ai/aiBackends.js';
 import { getStorageUserId, getAnonymousSessionId } from '../security/userContext.js';
 import * as rateLimiter from '../security/rateLimiter.js';
@@ -115,10 +116,13 @@ export function registerDebatesRoutes(r: Router, _ctx: ServerCtx): void {
   });
 
   get('/api/debates/:id', async (req, res) => {
-    try { json(res, await fileIO.loadDebateSession(param(req, 'id', '/api/debates/:id'))); }
+    const id = param(req, 'id', '/api/debates/:id');
+    try { json(res, await fileIO.loadDebateSession(id)); }
     catch (err) {
       getGlobalRecorder()?.record({ type: 'system.error', component: 'debates', level: 'warn', message: 'Failed to load debate session', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
-      error(res, String(err), 404, err, { storageUserId: getStorageUserId() });
+      let owned_by = 'unknown';
+      try { if (await community.loadCommunityItem('debates', id)) owned_by = 'community'; } catch { /* telemetry — silent by design */ }
+      error(res, String(err), 404, err, { storageUserId: getStorageUserId(), owned_by });
     }
   });
 
