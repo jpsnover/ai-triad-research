@@ -19,13 +19,20 @@ const {
   mockLoadDebate: vi.fn().mockResolvedValue(undefined),
   mockLoadDebateFromData: vi.fn(),
   mockLoadAll: vi.fn().mockResolvedValue(undefined),
-  mockOnDebateWindowLoad: vi.fn().mockReturnValue(() => {}),
+  mockOnDebateWindowLoad: vi.fn(),
 }));
+
+// Captured IPC callback — populated when DebatePopoutWindow registers its onDebateWindowLoad listener.
+let capturedDebateWindowLoadCb: ((debateId: string) => void) | null = null;
 
 vi.mock('@bridge', () => ({
   api: {
     loadCommunityDebateSession: mockLoadCommunityDebateSession,
-    onDebateWindowLoad: mockOnDebateWindowLoad,
+    onDebateWindowLoad: (cb: (debateId: string) => void) => {
+      capturedDebateWindowLoadCb = cb;
+      mockOnDebateWindowLoad(cb);
+      return () => { capturedDebateWindowLoadCb = null; };
+    },
   },
 }));
 
@@ -81,12 +88,14 @@ function setHash(hash: string) {
 describe('DebatePopoutWindow — runLoad routing (t/2399)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    capturedDebateWindowLoadCb = null;
     mockLoadCommunityDebateSession.mockResolvedValue({ id: 'abc-123', found: true });
     mockLoadAll.mockResolvedValue(undefined);
-    mockOnDebateWindowLoad.mockReturnValue(() => {});
   });
 
-  it('calls loadCommunityDebateSession — not loadDebate — when source=community', async () => {
+  // ── Hash (web) path ───────────────────────────────────────────────────────────
+
+  it('calls loadCommunityDebateSession — not loadDebate — when source=community in hash', async () => {
     setHash('#/debate?id=abc-123&source=community');
     render(<DebatePopoutWindow />);
     await waitFor(() => {
@@ -95,9 +104,40 @@ describe('DebatePopoutWindow — runLoad routing (t/2399)', () => {
     expect(mockLoadDebate).not.toHaveBeenCalled();
   });
 
-  it('calls loadDebate — not loadCommunityDebateSession — for personal debates', async () => {
+  it('calls loadDebate — not loadCommunityDebateSession — for personal debates in hash', async () => {
     setHash('#/debate?id=abc-123');
     render(<DebatePopoutWindow />);
+    await waitFor(() => {
+      expect(mockLoadDebate).toHaveBeenCalledWith('abc-123');
+    });
+    expect(mockLoadCommunityDebateSession).not.toHaveBeenCalled();
+  });
+
+  // ── IPC (Electron) path ───────────────────────────────────────────────────────
+
+  it('reads community from hash when IPC fires — calls loadCommunityDebateSession (t/2399)', async () => {
+    // Hash was set by buildDebateHash before the popout mounted; IPC fires after.
+    setHash('#/debate?id=abc-123&source=community');
+    render(<DebatePopoutWindow />);
+    // Clear the hash-path call so we can isolate the IPC call below.
+    await waitFor(() => expect(mockLoadCommunityDebateSession).toHaveBeenCalled());
+    vi.clearAllMocks();
+
+    // IPC fires (Electron bootstrap indirection — did-finish-load before React mounts).
+    capturedDebateWindowLoadCb?.('abc-123');
+    await waitFor(() => {
+      expect(mockLoadCommunityDebateSession).toHaveBeenCalledWith('abc-123');
+    });
+    expect(mockLoadDebate).not.toHaveBeenCalled();
+  });
+
+  it('calls loadDebate when IPC fires and hash has no source (personal debate)', async () => {
+    setHash('#/debate?id=abc-123');
+    render(<DebatePopoutWindow />);
+    await waitFor(() => expect(mockLoadDebate).toHaveBeenCalled());
+    vi.clearAllMocks();
+
+    capturedDebateWindowLoadCb?.('abc-123');
     await waitFor(() => {
       expect(mockLoadDebate).toHaveBeenCalledWith('abc-123');
     });
