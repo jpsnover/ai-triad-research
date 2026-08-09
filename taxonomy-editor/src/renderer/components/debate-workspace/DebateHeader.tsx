@@ -7,6 +7,7 @@ import { DEBATE_AUDIENCES, POVER_INFO } from '../../types/debate';
 import { AI_POVERS } from '@lib/debate/types';
 import type { CoverageMap, StrengthWeightedCoverage } from '@lib/debate/coverageTracker';
 import { CoverageBadge } from './TaxonomyRefs';
+import { TheoryLink } from '../shared/TheoryLink';
 import './DebateHeader.css';
 
 type DWStore = ReturnType<typeof useDebateStore.getState>;
@@ -69,7 +70,14 @@ export function DebateHeader({
       {/* Band 1 — title + source, action controls right */}
       <div className="debate-hdr-band debate-hdr-band1">
         <div className="debate-hdr-title-block">
-          <h2 className="debate-hdr-title" title={activeDebate.topic.final}>{displayTitle}</h2>
+          <div className="debate-hdr-title-row">
+            <h2 className="debate-hdr-title" title={activeDebate.topic.final}>{displayTitle}</h2>
+            <TheoryLink
+              url="https://github.com/jpsnover/ai-triad-research/blob/main/docs/debate-system-overview.md"
+              label="Help: debate system overview"
+              className="debate-hdr-theory-link"
+            />
+          </div>
           {sourceDisplay && (
             <span className="debate-hdr-source" title={activeDebate.source_ref ?? undefined}>{sourceDisplay}</span>
           )}

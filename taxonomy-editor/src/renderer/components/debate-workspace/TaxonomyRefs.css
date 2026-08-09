@@ -235,3 +235,15 @@
 .taxrefs-node-sit {
   color: var(--color-sit);
 }
+
+/* TheoryLink help icons (t/2347). Footer (g): the .debate-taxonomy-refs row is
+   flex, so margin-left:auto parks the icon at the right end beside Explain/Caveats.
+   Summary (f): small gap after the BRIEF/PLAN label. */
+.taxrefs-refs-help {
+  margin-left: auto;
+  vertical-align: middle;
+}
+.taxrefs-section-help {
+  margin-left: 6px;
+  vertical-align: middle;
+}

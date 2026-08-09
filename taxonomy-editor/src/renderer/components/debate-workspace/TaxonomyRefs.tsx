@@ -15,7 +15,14 @@ import {
 import type { PolicyRefEntry } from './utils';
 import { useTaxonomyStore } from '../../hooks/useTaxonomyStore';
 import { TaxonomyRefDetail, type TaxRefNode } from '../taxonomy/TaxonomyRefDetail';
+import { TheoryLink } from '../shared/TheoryLink';
 import './TaxonomyRefs.css';
+
+// Prevents a TheoryLink click inside a <summary> from toggling its parent <details>
+// (t/2347 mount f) — keeps the summary natively interactive, no stopPropagation wrapper.
+function suppressDetailsToggleForHelp(e: React.MouseEvent) {
+  if ((e.target as HTMLElement).closest('.theory-link')) e.preventDefault();
+}
 
 export function CoverageBadge({ coverageMap, strengthWeighted }: { coverageMap: CoverageMap; strengthWeighted?: StrengthWeightedCoverage | null }) {
   const { stats } = coverageMap;
@@ -154,6 +161,12 @@ function RefsHeader({ entry, explainCopied, onExplain, onToggleCaveats }: {
           Caveats ({entry.caveats.length})
         </button>
       )}
+      <TheoryLink
+        url="https://github.com/jpsnover/ai-triad-research/blob/main/docs/citation-diagnostics-design.md"
+        label="Help: citation diagnostics design"
+        size={14}
+        className="taxrefs-refs-help"
+      />
     </div>
   );
 }
@@ -161,7 +174,15 @@ function RefsHeader({ entry, explainCopied, onExplain, onToggleCaveats }: {
 function BriefSection({ briefStage }: { briefStage: { work_product: Record<string, unknown> } }) {
   return (
     <details open className="debate-reasoning-section">
-      <summary className="debate-reasoning-section-title taxrefs-section-brief">BRIEF</summary>
+      <summary className="debate-reasoning-section-title taxrefs-section-brief" onClick={suppressDetailsToggleForHelp}>
+        BRIEF
+        <TheoryLink
+          url="https://github.com/jpsnover/ai-triad-research/blob/main/docs/artifact-guide.md"
+          label="Help: artifact guide"
+          size={14}
+          className="taxrefs-section-help"
+        />
+      </summary>
       <div className="debate-reasoning-section-body">
         {(briefStage.work_product as Record<string, unknown>).situation_assessment
           ? <p className="taxrefs-brief-text">{String((briefStage.work_product as Record<string, unknown>).situation_assessment)}</p>
@@ -328,7 +349,15 @@ function PlanSection({ planStage, selectedPlanNodeId, setSelectedPlanNodeId }: {
 }) {
   return (
     <details open className="debate-reasoning-section">
-      <summary className="debate-reasoning-section-title taxrefs-section-plan">PLAN</summary>
+      <summary className="debate-reasoning-section-title taxrefs-section-plan" onClick={suppressDetailsToggleForHelp}>
+        PLAN
+        <TheoryLink
+          url="https://github.com/jpsnover/ai-triad-research/blob/main/docs/artifact-guide.md"
+          label="Help: artifact guide"
+          size={14}
+          className="taxrefs-section-help"
+        />
+      </summary>
       <div className="debate-reasoning-section-body">
         <PlanBody planStage={planStage} selectedPlanNodeId={selectedPlanNodeId} setSelectedPlanNodeId={setSelectedPlanNodeId} />
       </div>
