@@ -61,6 +61,18 @@ The hook is self-documenting (see its header comment). Owner / emergency overrid
 
 **Your shell cwd resets to the shared checkout between tool calls (t/2222).** Creating a worktree is **not enough** — the Bash/PowerShell tool returns your shell to the shared tree after every command, so any command that relies on a *previous* `cd` actually runs against the shared `main`. Always `cd` into your worktree **in the same command**: `cd .worktrees/<name> && <cmd>`. Combined with a Shell Quoting Rule slip (below), a mis-quoted command run with the shared tree as cwd word-splits code fragments into **0-byte junk files** scattered across every role's scope — the t/2222 incident sprayed ~35 such files (`lib/debate/setTimeout(r`, `taxonomy-editor/.../r.node_id)`, a file literally named `'`). They are never committed, so no pre-commit guard catches them; they clutter `git status` and risk a `git add -A` sweep. Prevention is behavioral: same-command `cd`, and never paste multi-line JS/TS/PS into the shell — write it to a file and execute (see **Shell Quoting Rule**).
 
+### Pre-Self-Merge Verification (confirm head + CI-on-that-head)
+
+Before `gh pr merge`, confirm the merge lands the commit you intend, with checks that ran on **that** commit. Two incidents landed the wrong/incomplete commit: a stale PR-head squash-merged on a predecessor's green checks (#710 — the pushed fix never shipped), and a merge that raced an unresolved decision (#701).
+
+Confirm all three first:
+
+1. **Head matches your push.** `gh pr view <N> --json headRefOid` MUST equal your latest pushed commit SHA. GitHub's PR-head ref can lag a fresh push by minutes — if it doesn't match, re-push (or `git push --force-with-lease`) and wait for the head to advance. Never merge against a stale head.
+2. **CI ran on that exact OID.** `gh run list --commit <headRefOid>` is green — **not** a predecessor's run. A green check attached to an older commit does not vouch for the new one.
+3. **No open decision/hold** on the PR you haven't cleared.
+
+A squash-merge of a stale head ships the *old* content on the *old* commit's green — the fix you pushed never lands. Verify; don't assume the PR reflects your last push. The advisory `pre-self-merge-verify` Instant Feedback hook nudges this on every `gh pr merge`; this rule is the contract.
+
 ### Subsystem Map
 
 Detailed conventions and build/test commands live in each subtree's `AGENTS.md` (loaded when you work in that scope). This is the orientation map only.
