@@ -70,6 +70,8 @@ function Invoke-OutOfScopeGuardPass {
         if ($Top1Score -ge $Ceiling) { continue }  # Strong enough best candidate → not OOS
 
         # Arm C: false-positive guard — no rescue candidate at or above good_alternative_floor
+        # Defensive re-read: candidates are sorted descending by M5, so if top-1 < 0.30 all are < 0.45
+        # and this never fires in practice. Retained so actuation stays correct if sort order ever changes.
         $Cands = @($kp.mechanism5_candidates)
         $HasRescue = @($Cands | Where-Object {
             $_.PSObject.Properties['score'] -and [double]$_.score -ge $GoodAlternativeFloor
