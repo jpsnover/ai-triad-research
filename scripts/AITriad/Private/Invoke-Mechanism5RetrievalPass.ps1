@@ -159,6 +159,7 @@ function Invoke-Mechanism5RetrievalPass {
         $Scores = [System.Collections.Generic.List[PSObject]]::new()
         foreach ($NodeId in $script:CachedEmbeddings.Keys) {
             if ($PovPrefix -and -not $NodeId.StartsWith($PovPrefix)) { continue }
+            if ($script:PillarNodeIds -and $script:PillarNodeIds.Contains($NodeId)) { continue }  # t/2369
             $NodeVec = [double[]]$script:CachedEmbeddings[$NodeId]
             if ($NodeVec.Count -ne $Dim) { continue }
 

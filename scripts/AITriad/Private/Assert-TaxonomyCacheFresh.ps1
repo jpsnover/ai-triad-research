@@ -49,6 +49,7 @@ function Assert-TaxonomyCacheFresh {
         Write-Verbose 'Taxonomy cache stale — reloading from disk'
         $script:TaxonomyData = @{}
         $script:TaxonomyFileTimestamps = @{}
+        $script:PillarNodeIds = $null  # invalidated with TaxonomyData; rebuilt lazily on next scoring call (t/2369)
 
         foreach ($File in Get-ChildItem -Path $TaxDir -Filter '*.json' -File) {
             if ($File.Name -in 'embeddings.json', 'edges.json', 'policy_actions.json',
