@@ -5,6 +5,7 @@ import React from 'react';
 import type { EntryDiagnostics } from '../../../../types/debate';
 import { Highlight } from '../helpers';
 import './CitationsTab.css';
+import { BookmarkLink } from '../../../shared';
 
 interface CitationResolutionDiag {
   path: 'tool-calling' | 'bank-scrub';
@@ -304,6 +305,7 @@ export function CitationsTab({ diag, searchQuery }: CitationsTabProps) {
 
   return (
     <div className="ctn-root">
+      <BookmarkLink docPath="docs/citation-resolution-design.md" size="xs" />
       <SummaryCards citationResDiag={citationResDiag} />
       <MatchedCitations citationResDiag={citationResDiag} />
       <FabricatedCitations citationResDiag={citationResDiag} />

@@ -17,6 +17,7 @@ import { DiagSearchContext, SearchBar, speakerLabel } from './helpers';
 import { OverviewTabRouter } from './OverviewTabRouter';
 import { EntryDetailRouter } from './EntryDetailRouter';
 import { CopyLinkButton } from '../../shared/CopyLinkButton';
+import { BookmarkLink } from '../../shared';
 import type { OverviewTab } from './types';
 import type { DebateSession } from '../../../types/debate';
 import type { RefObject } from 'react';
@@ -321,6 +322,7 @@ function DiagnosticsHeader({
       >
         {showHelp ? 'Close Help' : 'Help'}
       </button>
+      <BookmarkLink docPath="docs/debate-diagnostics-field-guide.md" size="xs" />
     </div>
   );
 }
