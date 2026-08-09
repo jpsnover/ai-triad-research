@@ -1,0 +1,87 @@
+# ─── Nudge: Container Build Needed ───────────────────────────────────────────
+# What:  Fires after CI completes on main when server files changed but no
+#        container build has been dispatched for that commit. Prevents the
+#        "fix is live on main but undeployed" gap (t/2382, e/84 prevention).
+# When:  workflow_run [CI] completed success on main.
+# Signal: GitHub Actions summary warning + ::warning:: annotation — non-blocking.
+# Not covered: automatic dispatch (intentional — production release is manual).
+
+name: Nudge — Container Build Needed
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  nudge:
+    runs-on: ubuntu-latest
+    if: github.event.workflow_run.conclusion == 'success'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v6
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          fetch-depth: 2
+
+      - name: Check for server file changes
+        id: server_changed
+        run: |
+          SHA="${{ github.event.workflow_run.head_sha }}"
+          # Use HEAD~1 diff. fetch-depth:2 guarantees the parent is available.
+          # On the very first commit (no parent) git diff exits non-zero; treat as changed.
+          if git diff --quiet HEAD~1 -- taxonomy-editor/src/server/ 2>/dev/null; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "No server files changed — nothing to nudge."
+          else
+            CHANGED_FILES=$(git diff --name-only HEAD~1 -- taxonomy-editor/src/server/ 2>/dev/null | head -10)
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            echo "Server files changed:"
+            echo "$CHANGED_FILES"
+          fi
+
+      - name: Check for existing container build at this SHA
+        id: build_exists
+        if: steps.server_changed.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          SHA="${{ github.event.workflow_run.head_sha }}"
+          COUNT=$(gh api \
+            "repos/${{ github.repository }}/actions/workflows/container.yml/runs?head_sha=${SHA}&per_page=5" \
+            --jq '.total_count // 0' 2>/dev/null || echo "0")
+          echo "count=$COUNT" >> "$GITHUB_OUTPUT"
+          echo "Container builds for $SHA: $COUNT"
+
+      - name: Emit nudge — container build needed
+        if: steps.server_changed.outputs.changed == 'true' && steps.build_exists.outputs.count == '0'
+        run: |
+          SHA="${{ github.event.workflow_run.head_sha }}"
+          SHORT="${SHA:0:7}"
+          CHANGED=$(git diff --name-only HEAD~1 -- taxonomy-editor/src/server/ 2>/dev/null | head -5 | sed 's/^/  - /')
+
+          echo "::warning::Server files changed on main ($SHORT) but no container image built. Dispatch: gh workflow run container.yml --ref main"
+
+          {
+            echo "## ⚠ Container Build Needed"
+            echo ""
+            echo "Server files changed on \`main\` at \`$SHORT\` but **no container image has been built** for this commit."
+            echo "A deployed fix requires: build → staging smoke → prod dispatch."
+            echo ""
+            echo "**Changed server files:**"
+            echo "$CHANGED"
+            echo ""
+            echo "**Dispatch the build:**"
+            echo '```'
+            echo "gh workflow run container.yml --ref main"
+            echo '```'
+            echo ""
+            echo "_This nudge fires when \`taxonomy-editor/src/server/\` changes land on main without a container build. It does not fire on docs-only, PS-only, or renderer-only changes._"
+          } >> "$GITHUB_STEP_SUMMARY"
