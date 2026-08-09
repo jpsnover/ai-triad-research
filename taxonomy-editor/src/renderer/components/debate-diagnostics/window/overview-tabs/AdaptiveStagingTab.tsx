@@ -4,7 +4,7 @@
 import React from 'react';
 import type { DebateSession } from '../../../../types/debate';
 import './AdaptiveStagingTab.css';
-import { BookmarkLink } from '../../../shared';
+import { BookmarkLink } from '../../../shared/BookmarkLink';
 
 interface AdaptiveStagingDiagnostics {
   phases: { phase: string; rounds: number[]; exit_reason: string }[];

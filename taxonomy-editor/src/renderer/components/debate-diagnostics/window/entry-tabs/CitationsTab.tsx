@@ -5,7 +5,7 @@ import React from 'react';
 import type { EntryDiagnostics } from '../../../../types/debate';
 import { Highlight } from '../helpers';
 import './CitationsTab.css';
-import { BookmarkLink } from '../../../shared';
+import { BookmarkLink } from '../../../shared/BookmarkLink';
 
 interface CitationResolutionDiag {
   path: 'tool-calling' | 'bank-scrub';

@@ -4,7 +4,7 @@
 import React from 'react';
 import { Highlight, CopyButton } from '../helpers';
 import './LookaheadTab.css';
-import { BookmarkLink } from '../../../shared';
+import { BookmarkLink } from '../../../shared/BookmarkLink';
 
 export interface LookaheadTabProps {
   lookaheadDiag: any;

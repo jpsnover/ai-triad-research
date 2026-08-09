@@ -4,7 +4,7 @@
 import React from 'react';
 import { Section } from '../helpers';
 import type { EntryDiagnostics } from '../../../../types/debate';
-import { BookmarkLink } from '../../../shared';
+import { BookmarkLink } from '../../../shared/BookmarkLink';
 
 interface ExclusionViolation {
   claim_id: string;

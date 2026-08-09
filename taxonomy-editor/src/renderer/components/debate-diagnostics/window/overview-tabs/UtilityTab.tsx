@@ -7,7 +7,7 @@ import { speakerLabel } from '../helpers';
 import { UTILITY_WEIGHTS } from '../types';
 import type { UtilitySnapshot } from '../types';
 import { ScoreBadge } from '../shared';
-import { BookmarkLink } from '../../../shared';
+import { BookmarkLink } from '../../../shared/BookmarkLink';
 
 interface UtilityTabProps {
   debate: DebateSession;

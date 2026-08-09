@@ -9,7 +9,7 @@ import { useShallow } from 'zustand/react/shallow';
 import { EntryView } from './EntryView';
 import { OverviewView } from './OverviewView';
 import './DiagnosticsPanel.css';
-import { BookmarkLink } from '../../shared';
+import { BookmarkLink } from '../../shared/BookmarkLink';
 
 export function DiagnosticsPanel() {
   const { selectedDiagEntry, selectDiagEntry, activeDebate } = useDebateStore(

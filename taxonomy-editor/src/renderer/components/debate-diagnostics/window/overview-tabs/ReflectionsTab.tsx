@@ -4,7 +4,7 @@
 import React from 'react';
 import { POVER_INFO } from '../../../../types/debate';
 import type { DebateSession } from '../../../../types/debate';
-import { BookmarkLink } from '../../../shared';
+import { BookmarkLink } from '../../../shared/BookmarkLink';
 
 interface ReflectionEdit {
   edit_type: string;

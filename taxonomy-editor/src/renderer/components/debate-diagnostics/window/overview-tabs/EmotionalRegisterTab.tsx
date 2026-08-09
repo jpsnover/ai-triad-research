@@ -14,7 +14,7 @@ import {
   type AffectProfile,
 } from '@lib/debate/affectSignals';
 import { getDebatePhase } from '@lib/debate/types';
-import { BookmarkLink } from '../../../shared';
+import { BookmarkLink } from '../../../shared/BookmarkLink';
 
 interface EmotionalRegisterTabProps {
   debate: DebateSession;

@@ -11,7 +11,7 @@ import type { SpeakerId } from '../../../../types/debate';
 import { explainNodeStrength } from '../../../../utils/qbafExplain';
 import { SUB_SCORE_TIPS, BELIEF_KEYS } from './constants';
 import { ScoreBadge } from './ScoreBadge';
-import { BookmarkLink } from '../../../shared';
+import { BookmarkLink } from '../../../shared/BookmarkLink';
 
 // NOTE: speakerLabel stays in DiagnosticsWindow.tsx (parent). A local copy is provided here
 // for self-contained compilation. When integrating, pass speakerLabel as a prop or import

@@ -8,7 +8,7 @@ import { computeQbafStrengths } from '@lib/debate/qbaf';
 import type { QbafNode, QbafEdge } from '@lib/debate/qbaf';
 import type { ArgumentNetworkNode, ArgumentNetworkEdge } from '../../../types/debate';
 import { CollapsibleSection, speakerLabel } from './helpers';
-import { BookmarkLink } from '../../shared';
+import { BookmarkLink } from '../../shared/BookmarkLink';
 
 /** What-If Mode (D-Q6): counterfactual strength propagation via DF-QuAD. */
 export function WhatIfSection({ nodes, edges }: { nodes: ArgumentNetworkNode[]; edges: ArgumentNetworkEdge[] }) {

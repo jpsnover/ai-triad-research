@@ -9,7 +9,7 @@ import { computeQbafStrengths } from '@lib/debate/qbaf';
 import type { QbafNode, QbafEdge } from '@lib/debate/qbaf';
 import { useTaxonomyStore } from '../../../../hooks/useTaxonomyStore';
 import { INodeRow } from '../shared';
-import { BookmarkLink } from '../../../shared';
+import { BookmarkLink } from '../../../shared/BookmarkLink';
 import { Highlight, speakerLabel } from '../helpers';
 import type { OverviewTab } from '../types';
 
