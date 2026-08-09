@@ -47,6 +47,16 @@ describe('token-contrast checker — detection', () => {
     assert.ok(hits.length > 0, 'expected at least one finding');
     assert.ok([...result.undefinedTokens.keys()].includes('--fx-does-not-exist'));
   });
+
+  it('evaluates a transparent-fill non-text control against the page surface at 3:1 (t/2359)', () => {
+    // Gap 1: a `background: transparent` control was silently skipped (resolveColor
+    // → null → continue), hiding it from the gate. It must fall through to the page
+    // surface and be scored at the 3:1 non-text floor (Gap 2).
+    const hits = contrastOn('.fx-nontext-fail');
+    assert.ok(hits.length > 0, 'a transparent-fill control must be evaluated, not skipped');
+    assert.ok(hits.every((f) => f.required === 3.0), 'non-text controls score at the 3:1 floor');
+    assert.ok(hits.every((f) => f.ratio < 3.0), 'flagged only below 3:1');
+  });
 });
 
 describe('token-contrast checker — no false positives', () => {
@@ -70,5 +80,22 @@ describe('token-contrast checker — no false positives', () => {
       hits.every((f) => f.ratio !== 1),
       'a translucent fill must be flattened onto the surface before comparison',
     );
+  });
+
+  it('passes a non-text control at 3.68:1 that would fail the 4.5 text threshold (t/2359)', () => {
+    // Proves the 3:1 non-text floor is applied, not the 4.5 text threshold.
+    assert.equal(contrastOn('.fx-nontext-pass').length, 0);
+  });
+
+  it('does not audit an un-annotated transparent TEXT control against the page surface (t/2359)', () => {
+    // Flood guard: without the marker, a transparent control stays part of the
+    // opt-in --include-page-bg audit (its 3.68:1 < 4.5 would otherwise flag it).
+    assert.equal(contrastOn('.fx-transparent-text').length, 0);
+  });
+
+  it("applies the non-text floor to a control's :hover via pseudo-strip (t/2359)", () => {
+    // Same control, not a broadened selector. Opaque fill → always evaluated;
+    // 3.68:1 fails 4.5 in every theme, so 0 findings proves the 3:1 floor was used.
+    assert.equal(contrastOn('.fx-nontext-pass:hover').length, 0);
   });
 });

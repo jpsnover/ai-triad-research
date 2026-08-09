@@ -28,6 +28,7 @@ const STYLES = join(RENDERER, 'styles.css');
 
 const AA_NORMAL = 4.5;
 const AA_LARGE = 3.0; // >=24px, or >=18.66px bold
+const NONTEXT = 3.0; // WCAG 1.4.11 — graphical objects / non-text controls (t/2359)
 const ROOT_FONT_PX = 16;
 
 // ── WCAG math (same as check-camp-contrast.mjs) ──────────────
@@ -58,6 +59,24 @@ function extractAnnotations(css) {
     anns.push({ selectors, fills: m[1].split(',').map((s) => s.trim()) });
   }
   return anns;
+}
+
+/**
+ * Harvest bare `/* contrast-nontext *\/` markers (t/2359). A marked selector is a
+ * graphical/non-text control (icon glyph, SVG stroke, border-only affordance) and
+ * is scored at the WCAG 1.4.11 3:1 floor instead of the 4.5/3.0 text thresholds.
+ * Boolean marker, parsed parallel to contrast-fill. Returns base selectors.
+ */
+function extractNonText(css) {
+  const set = new Set();
+  const re = /\/\*\s*contrast-nontext\s*\*\/\s*([^{]+?)\s*\{/g;
+  let m;
+  while ((m = re.exec(css)) !== null) {
+    for (const s of m[1].split(',').map((x) => x.trim()).filter(Boolean)) {
+      set.add(splitThemeScope(s).base);
+    }
+  }
+  return set;
 }
 
 function parseRules(css) {
@@ -331,6 +350,7 @@ export function check({
   for (const file of files) {
     const css = readFileSync(file, 'utf8');
     const annotations = extractAnnotations(css);
+    const nonTextSel = extractNonText(css);
     const rules = parseRules(css);
 
     // base selector -> theme ('*' for unscoped) -> decls
@@ -373,6 +393,13 @@ export function check({
         }
         if (!fg) continue;
 
+        // Non-text controls (icon glyph / SVG stroke / border ring) are scored at
+        // the WCAG 1.4.11 3:1 floor, not the text thresholds. The marker sits on the
+        // resting rule; strip pseudo-classes so :hover/:focus-visible states of the
+        // SAME control inherit it (not a broadening to other selectors) (t/2359).
+        const controlBase = base.replace(/::?[\w-]+(\([^)]*\))?/g, '').trim();
+        const isNonText = nonTextSel.has(base) || (!!controlBase && nonTextSel.has(controlBase));
+
         // Background: own rule, else nearest ancestor, else the page surface.
         const backgrounds = [];
         const ann = annotations.find((a) =>
@@ -381,26 +408,44 @@ export function check({
         if (ann) {
           for (const f of ann.fills) backgrounds.push({ value: f, from: 'annotation' });
         } else {
+          let sawTransparent = false;
           for (const cand of ancestorCandidates(base)) {
             const d = declsFor(cand, theme);
             const bg = d?.background || d?.['background-color'];
-            if (bg) {
-              backgrounds.push({ value: bg, from: cand });
-              break;
-            }
+            if (!bg) continue;
+            // `transparent`/`none` carry no color — see-through, so keep walking
+            // UP the chain instead of stopping here. Stopping at the first
+            // transparent fill is exactly what hid transparent-fill controls
+            // (the help icons) from the gate (t/2359).
+            const norm = bg.trim().toLowerCase();
+            if (norm === 'transparent' || norm === 'none') { sawTransparent = true; continue; }
+            backgrounds.push({ value: bg, from: cand });
+            break;
           }
-          // No explicit fill anywhere up the chain. Falling back to the page
-          // surface turns this into a general "is all text AA?" audit — ~2400
-          // mostly pre-existing findings, which is a report, not a gate. The
-          // defect class this exists to stop is text reversed out over a FILL,
-          // so page-background pairs are opt-in.
           if (!backgrounds.length) {
-            if (!includePageBg) continue;
-            backgrounds.push({ value: 'var(--bg-primary)', from: 'page default' });
+            // An explicit `background: transparent` up the chain is a positive
+            // statement that the page surface shows through, so evaluate against
+            // it even without --include-page-bg (distinct from "no fill declared
+            // anywhere", which stays the opt-in broad audit below). NOTE: assuming
+            // var(--bg-primary) here is optimistic — a transparent control shown
+            // only over a darker panel could pass against the page yet fail there;
+            // fine for the current set (.field-help-btn/.theory-link sit on the
+            // page surface). Scope the fall-through to non-text-annotated controls
+            // (or the opt-in broad audit) — evaluating EVERY transparent text
+            // control against the page surface floods the gate with the same ~2400
+            // page-bg findings the includePageBg flag deliberately gates off. (t/2359)
+            if (sawTransparent && (isNonText || includePageBg)) {
+              backgrounds.push({ value: 'var(--bg-primary)', from: 'page surface (transparent control)' });
+            } else if (includePageBg) {
+              backgrounds.push({ value: 'var(--bg-primary)', from: 'page default' });
+            } else {
+              continue;
+            }
           }
         }
 
         const { px, weight, min } = sizeThreshold(decls, tokens);
+        const minReq = isNonText ? NONTEXT : min;
 
         for (const { value, from } of backgrounds) {
           let bg;
@@ -430,14 +475,15 @@ export function check({
           if (!bgFlat || !fgFlat) continue;
 
           const ratio = contrast(fgFlat, bgFlat);
-          if (ratio < min) {
+          if (ratio < minReq) {
             findings.push({
               kind: 'contrast',
               file: relative(ROOT, file),
               selector: base,
               theme,
               ratio: Number(ratio.toFixed(2)),
-              required: min,
+              required: minReq,
+              nonText: isNonText,
               fg: decls.color,
               bg: value,
               bgFrom: from,

@@ -1,5 +1,7 @@
 /* TheoryLink (t/2343) — mirrors .field-help-btn tokens: muted foreground, brightens on hover.
    Co-located because styles.css is frozen (no new selectors). */
+/* graphical icon affordance — scored at the WCAG 1.4.11 3:1 non-text floor (t/2359) */
+/* contrast-nontext */
 .theory-link {
   display: inline-flex;
   align-items: center;

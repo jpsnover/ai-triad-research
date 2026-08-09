@@ -4990,7 +4990,7 @@ body {
   vertical-align: middle;
 }
 
-.field-help-btn {
+/* contrast-nontext */ .field-help-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
