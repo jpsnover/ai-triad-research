@@ -121,7 +121,7 @@ export function registerDebatesRoutes(r: Router, _ctx: ServerCtx): void {
     catch (err) {
       getGlobalRecorder()?.record({ type: 'system.error', component: 'debates', level: 'warn', message: 'Failed to load debate session', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
       let owned_by = 'unknown';
-      try { if (await community.loadCommunityItem('debates', id)) owned_by = 'community'; } catch { /* silent */ }
+      try { if (await community.loadCommunityItem('debates', id)) owned_by = 'community'; } catch { /* telemetry — silent by design */ }
       error(res, String(err), 404, err, { storageUserId: getStorageUserId(), owned_by });
     }
   });
