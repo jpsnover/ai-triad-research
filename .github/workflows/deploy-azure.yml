@@ -367,23 +367,29 @@ jobs:
             }
           }
 
-      - name: Acceptance tests (pre-traffic shift)
+      - name: Acceptance tests — full smoke (pre-traffic shift)
         id: acceptance
         if: steps.health_check.outputs.healthy == 'true'
         shell: pwsh
         run: |
           Import-Module ./scripts/AITriad/AITriad.psm1 -Force
           $BaseUrl = '${{ steps.health_check.outputs.base_url }}'
-          Write-Host "=== Acceptance tests against 0% revision: $BaseUrl ==="
-          $Results = @(Test-TaxEditorEndpoints -BaseUrl $BaseUrl -AnonymousSession)
-          $Fails = @($Results | Where-Object { -not $_.Pass })
-          $Results | Format-Table Endpoint, Pass, Status, Error -AutoSize
+          Write-Host "=== Full smoke test against 0%-traffic revision: $BaseUrl ==="
+
+          # Invoke-TaxEditorSmokeTest covers all 6 endpoint categories + health +
+          # Azure + GitHub checks against the zero-traffic revision before any traffic
+          # is shifted — mandatory pre-promotion gate (t/2376).
+          $SmokeResult = Invoke-TaxEditorSmokeTest -BaseUrl $BaseUrl -Detailed
           Write-Host ""
-          Write-Host "=== Acceptance: $($Results.Count - $Fails.Count) passed, $($Fails.Count) failed ==="
-          if ($Fails.Count -gt 0) {
+          Write-Host "=== Smoke: $($SmokeResult.EndpointsPassed)/$($SmokeResult.EndpointsTotal) endpoints passed ==="
+
+          if (-not $SmokeResult.OverallPass) {
             Add-Content -Path $env:GITHUB_OUTPUT -Value 'accepted=false'
-            Write-Host "::error::Acceptance tests failed — NOT shifting traffic"
-            foreach ($F in $Fails) { Write-Host "  FAIL  $($F.Endpoint): $($F.Error)" }
+            Write-Host "::error::Smoke test failed — NOT shifting traffic"
+            Write-Host "  Health: $(if ($SmokeResult.HealthOk) { 'OK' } else { 'FAIL' })"
+            Write-Host "  Azure:  $(if ($SmokeResult.AzureOk) { 'OK' } else { 'FAIL' })"
+            Write-Host "  GitHub: $(if ($SmokeResult.GitHubOk) { 'OK' } else { 'FAIL' })"
+            foreach ($F in $SmokeResult.FailedEndpoints) { Write-Host "  FAIL  $($F.Endpoint): $($F.Error)" }
           } else {
             Add-Content -Path $env:GITHUB_OUTPUT -Value 'accepted=true'
           }
