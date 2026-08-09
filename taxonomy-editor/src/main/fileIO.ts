@@ -619,7 +619,7 @@ export function discoverSources(): DiscoveredSource[] {
       });
     } catch { /* telemetry — silent by design;  skip */ }
   }
-  return sources.sort((a, b) => a.title.localeCompare(b.title));
+  return sources.sort((a, b) => (a.title ?? '').localeCompare(b.title ?? ''));
 }
 
 export function loadSummary(docId: string): unknown | null {
