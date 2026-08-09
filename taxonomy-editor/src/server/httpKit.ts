@@ -51,7 +51,7 @@ function recordServerError(route: string, status: number, message: string, cause
   });
 }
 
-export function error(res: ServerResponse, message: string, status = 500, cause?: unknown): void {
+export function error(res: ServerResponse, message: string, status = 500, cause?: unknown, extra?: Record<string, unknown>): void {
   // M4: don't leak internal detail (file paths, stack) to clients on server
   // errors in production — record the real message server-side, return generic.
   const route: string = (res as unknown as { __routePath?: string }).__routePath ?? 'server';
@@ -78,7 +78,7 @@ export function error(res: ServerResponse, message: string, status = 500, cause?
   }
   // t/853: strip ActionableError internals (location, resolve steps) from <500
   // responses in production; keep the user-actionable summary.
-  json(res, { error: clientSafeMessage(message, cause), requestId: getRequestId() }, status);
+  json(res, { error: clientSafeMessage(message, cause), requestId: getRequestId(), ...extra }, status);
 }
 
 /** t/1515/t/1516 — defense-in-depth wall-clock cap for handlers that call out to

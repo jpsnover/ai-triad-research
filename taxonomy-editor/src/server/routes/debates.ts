@@ -118,7 +118,7 @@ export function registerDebatesRoutes(r: Router, _ctx: ServerCtx): void {
     try { json(res, await fileIO.loadDebateSession(param(req, 'id', '/api/debates/:id'))); }
     catch (err) {
       getGlobalRecorder()?.record({ type: 'system.error', component: 'debates', level: 'warn', message: 'Failed to load debate session', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
-      error(res, String(err), 404, err);
+      error(res, String(err), 404, err, { storageUserId: getStorageUserId() });
     }
   });
 
