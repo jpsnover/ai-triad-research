@@ -23,6 +23,7 @@ export * from './ProposalReviewDialog';
 export * from './ReflectionsPanel';
 export * from './StartupProgressScreen';
 export * from './TabBar';
+export * from './TheoryLink';
 export * from './TerminalPanel';
 export * from './TimelineScrubber';
 export * from './Toolbar';

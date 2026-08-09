@@ -1,0 +1,49 @@
+/* TheoryLink (t/2343) — mirrors .field-help-btn tokens: muted foreground, brightens on hover.
+   Co-located because styles.css is frozen (no new selectors). */
+.theory-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  line-height: 1;
+  vertical-align: middle;
+  transition: color 0.15s;
+}
+
+.theory-link:hover,
+.theory-link:focus-visible {
+  color: var(--focus-ring);
+}
+
+.theory-link:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+
+.theory-link-book {
+  width: 1em;
+  height: 1em;
+  display: block;
+}
+
+/* Small ↗ external-jump badge tucked into the top-right corner of the glyph. */
+.theory-link-badge {
+  position: absolute;
+  top: -0.15em;
+  right: -0.32em;
+  width: 0.62em;
+  height: 0.62em;
+  display: block;
+}
+
+.theory-link-badge svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
