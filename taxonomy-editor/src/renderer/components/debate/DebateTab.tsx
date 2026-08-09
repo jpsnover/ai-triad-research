@@ -154,6 +154,18 @@ function formatDateLong(iso: string): string {
   });
 }
 
+/**
+ * Picks the correct session loader for pdf/markdown export (t/2400).
+ * Exported for unit testing — do not call from outside DebateTab.
+ */
+export function resolveExportLoader(
+  rowSession: Pick<SessionRowData, 'id' | 'community'>,
+  loadPersonal: (id: string) => Promise<unknown>,
+  loadCommunity: (id: string) => Promise<unknown>,
+): Promise<unknown> {
+  return rowSession.community ? loadCommunity(rowSession.id) : loadPersonal(rowSession.id);
+}
+
 export function DebateTab() {
   const {
     sessions, sessionsLoading, loadSessions,
@@ -420,7 +432,7 @@ export function DebateTab() {
   const handleRowCommunityExport = useCallback(async (cd: CommunityDebate, format: string) => {
     if (format === 'markdown' || format === 'pdf') {
       setPendingExportFormat(format);
-      setPendingExportSession({ id: cd.id, title: cd.title, updated_at: cd.updated_at, phase: cd.phase ?? '', created_at: cd.updated_at });
+      setPendingExportSession({ id: cd.id, title: cd.title, updated_at: cd.updated_at, phase: cd.phase ?? '', created_at: cd.updated_at, community: true });
       return;
     }
     try {
@@ -520,7 +532,7 @@ export function DebateTab() {
             if (rowSession) {
               // Table row export — load full session then export.
               // (activeDebate is not set in table mode; Condition 2)
-              api.loadDebateSession(rowSession.id).then(full => {
+              resolveExportLoader(rowSession, api.loadDebateSession, api.loadCommunityDebateSession).then(full => {
                 void runExport(fmt, opts, full);
               }).catch((err: Error) => {
                 getGlobalRecorder()?.record({ type: 'system.error', component: 'debate-tab', level: 'error', message: 'Row pdf/md export: failed to load session', error: { name: err.name ?? 'Error', message: String(err), stack: err.stack } });
