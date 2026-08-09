@@ -12,6 +12,7 @@ import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { ALL_API_KEY_BACKENDS } from '@lib/ai-client/types';
 import { encryptKeysForSharing, decryptKeysFromSharing } from '../utils/keyShareCrypto';
 import { resilientFetch, categorizeEndpoint, registerConnectionPoolProvider, type EndpointCategory } from './resilience';
+import { nextStepsForStatus } from './httpErrorSteps';
 import { onQuotaMilestone } from '../hooks/useQuotaWarning';
 export { getResilienceState, subscribeResilience, resetResilience } from './resilience';
 export type { ResilienceStatus, CircuitState, ThrottleState, EndpointCategory } from './resilience';
@@ -37,21 +38,7 @@ function throwHttpError(status: number, err: ActionableError): never {
   throw err;
 }
 
-function nextStepsForStatus(status: number, responseText: string): string[] {
-  if (status === 403) {
-    try {
-      const body = JSON.parse(responseText) as Record<string, unknown>;
-      if (body.reason === 'anon_route_blocked') {
-        const detail = typeof body.detail === 'string' ? body.detail : 'Sign in with GitHub at /.auth/login/github';
-        return [detail];
-      }
-      const error = typeof body.error === 'string' ? body.error : undefined;
-      if (error) return [error, 'Check your API key tier supports this backend'];
-    } catch { /* telemetry — silent by design */ }
-    return ['Verify your authentication', 'Check your API key tier supports this backend'];
-  }
-  return ['Check the server is running', 'Verify your authentication'];
-}
+// nextStepsForStatus moved to ./httpErrorSteps (leaf module, unit-tested) — t/2366.
 
 // ── Resilient fetch options for callers ──
 
