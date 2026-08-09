@@ -3244,3 +3244,23 @@ Institutional memory for failure patterns across the AI Triad Research project.
 **Status:** Active — 1 instance (DevOps p/26#72).
 
 **Applies To:** All agents managing Dependabot PRs.
+
+---
+
+## #158 [Build] Barrel Import Loads Full Module Graph in Vitest — Transitive Module-Eval Crash Shows as "0 tests / TypeError"
+
+**Pattern:** Importing from a shared barrel (`from '../../shared'`) in vitest test files causes the full shared module graph to load at import time. If any transitive module crashes at module-eval (side effects, constant initialization on an undefined dependency), all test files sharing that import show "0 tests / TypeError" — no test names, no assertion failures, just silent zero-result runs.
+
+**Instances:**
+- 2026-08-09 — DebateDiagnostics (t/2394, PR #761): `from '../../shared'` in 6 test files transitively loaded PromptsPanel→promptCatalog→turn.ts, which crashed at module-eval (`c.voice.disposition` on undefined). Fix: replaced barrel imports with direct file imports (`from '../../shared/BookmarkLink'`).
+
+**Root Cause:** Barrel/index files re-export every member of a module group. Vitest executes module-level code eagerly at import time. A barrel import expands the import surface to the entire module graph, dragging in modules with side-effectful initializers. The failure presents as "0 tests" rather than a named test failure, making it non-obvious that the crash is an import issue.
+
+**Prevention:**
+1. **In test files, prefer direct file imports** (`from '../../shared/ComponentName'`) over barrel imports (`from '../../shared'`) — avoids loading the full module graph.
+2. **"0 tests / TypeError" with no test names = suspect an import-time crash** — check whether a barrel import transitively loads a module with side effects or state-dependent initialization.
+3. When a barrel module grows to include components with side-effectful initializers, add a note in its index warning that test files should use direct imports.
+
+**Status:** Active — 1 instance (DebateDiagnostics p/245#5).
+
+**Applies To:** All agents writing vitest tests that import from shared barrels.

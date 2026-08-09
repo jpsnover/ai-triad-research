@@ -2007,3 +2007,22 @@ Failure patterns related to builds, CI, tooling, environment, and git operations
 **Status:** Active — 1 instance (DevOps p/26#72).
 
 **Applies To:** All agents managing Dependabot PRs.
+
+---
+
+## #158 [Build] Barrel Import Loads Full Module Graph in Vitest — Transitive Module-Eval Crash Shows as "0 tests / TypeError"
+
+**Pattern:** Importing from a shared barrel (`from '../../shared'`) in vitest test files loads the full module graph at import time. A transitive module with a side-effectful initializer crashes all test files sharing the barrel import — showing "0 tests / TypeError" with no test names.
+
+**Instances:**
+- 2026-08-09 — DebateDiagnostics (t/2394, PR #761, p/245#5): barrel import transitively loaded PromptsPanel→promptCatalog→turn.ts, crashing at `c.voice.disposition` on undefined. Fix: direct file imports.
+
+**Root Cause:** Barrel re-exports expand the import surface to the entire module group. Vitest executes module-level code eagerly. "0 tests / TypeError" with no test names = import-time crash, not a test failure.
+
+**Prevention:**
+1. In test files, use direct file imports (`from '../../shared/ComponentName'`) not barrels.
+2. "0 tests / TypeError" with no test names → suspect barrel-import module-eval crash.
+
+**Status:** Active — 1 instance (DebateDiagnostics p/245#5).
+
+**Applies To:** All agents writing vitest tests that import from shared barrels.
