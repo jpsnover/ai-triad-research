@@ -67,6 +67,15 @@ function extractResultMeta(method: string, args: unknown[], value: unknown): Rec
     const edges = v.edges;
     return { edge_count: Array.isArray(edges) ? edges.length : undefined };
   }
+  if (method === 'listDebateSessionsMeta') {
+    // Log returned debate IDs so a 404 dump can distinguish an orphaned index
+    // from user navigation: was the missing ID actually in the list? (t/2365)
+    if (!Array.isArray(v)) return undefined;
+    const ids = (v as Array<{ id?: unknown }>)
+      .map((s) => s?.id)
+      .filter((id): id is string => typeof id === 'string');
+    return { count: v.length, ids: ids.slice(0, 20) };
+  }
   if (method === 'generateText' || method === 'generateTextWithSearch') {
     const text = v.text;
     const meta: Record<string, unknown> = {};
