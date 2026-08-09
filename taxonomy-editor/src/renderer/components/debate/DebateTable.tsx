@@ -196,12 +196,12 @@ function MyColGroup({ editMode }: { editMode: boolean }) {
   return (
     <colgroup>
       {editMode && <col className="col-cb" />}
-      <col className="col-title" />
       <col className="col-status" />
       <col className="col-date" />
       <col className="col-turns" />
       <col className="col-model" />
       <col className="col-actions" />
+      <col className="col-title" />
     </colgroup>
   );
 }
@@ -209,12 +209,12 @@ function MyColGroup({ editMode }: { editMode: boolean }) {
 function CommunityColGroup() {
   return (
     <colgroup>
-      <col className="col-title" />
       <col className="col-status" />
       <col className="col-date" />
       <col className="col-turns" />
       <col className="col-model" />
       <col className="col-actions" />
+      <col className="col-title" />
     </colgroup>
   );
 }
@@ -316,42 +316,6 @@ export function DebateTableRow({
         </td>
       )}
 
-      {/* Title */}
-      <td className="col-title">
-        {isRenaming ? (
-          <input
-            className="debate-table-rename-input"
-            value={renameValue}
-            autoFocus
-            onClick={e => e.stopPropagation()}
-            onChange={e => setRenameValue(e.target.value)}
-            onKeyDown={e => {
-              if (e.key === 'Enter' && renameValue.trim()) {
-                e.stopPropagation();
-                commitRename();
-              } else if (e.key === 'Escape') {
-                setRenamingId(null);
-              }
-            }}
-            onBlur={commitRename}
-          />
-        ) : (
-          <div
-            className="debate-table-title-text"
-            title={safeTitle}
-            onDoubleClick={!editMode ? handleDoubleClick : undefined}
-          >
-            {safeTitle}
-          </div>
-        )}
-        {/* Model shown as secondary line on tablet (col hidden) */}
-        {s.model && (
-          <div className="debate-table-title-secondary model-secondary">
-            {s.model}
-          </div>
-        )}
-      </td>
-
       {/* Status */}
       <td className="col-status">
         <StatusPill phase={s.phase} />
@@ -430,6 +394,42 @@ export function DebateTableRow({
           </div>
         )}
       </td>
+
+      {/* Title — rightmost so it absorbs extra window width */}
+      <td className="col-title">
+        {isRenaming ? (
+          <input
+            className="debate-table-rename-input"
+            value={renameValue}
+            autoFocus
+            onClick={e => e.stopPropagation()}
+            onChange={e => setRenameValue(e.target.value)}
+            onKeyDown={e => {
+              if (e.key === 'Enter' && renameValue.trim()) {
+                e.stopPropagation();
+                commitRename();
+              } else if (e.key === 'Escape') {
+                setRenamingId(null);
+              }
+            }}
+            onBlur={commitRename}
+          />
+        ) : (
+          <div
+            className="debate-table-title-text"
+            title={safeTitle}
+            onDoubleClick={!editMode ? handleDoubleClick : undefined}
+          >
+            {safeTitle}
+          </div>
+        )}
+        {/* Model shown as secondary line on tablet (col hidden) */}
+        {s.model && (
+          <div className="debate-table-title-secondary model-secondary">
+            {s.model}
+          </div>
+        )}
+      </td>
     </tr>
   );
 }
@@ -482,18 +482,6 @@ export function CommunityTableRow({
       onClick={handleRowClick}
       onKeyDown={handleKeyDown}
     >
-      {/* Title */}
-      <td className="col-title">
-        <div className="debate-table-title-text" title={cd.title}>
-          {cd.title}
-        </div>
-        {submitter && (
-          <div className="debate-table-title-secondary">
-            by {submitter}
-          </div>
-        )}
-      </td>
-
       {/* Status */}
       <td className="col-status">
         <StatusPill phase={cd.phase} />
@@ -540,6 +528,18 @@ export function CommunityTableRow({
             </button>
           )}
         </div>
+      </td>
+
+      {/* Title — rightmost so it absorbs extra window width */}
+      <td className="col-title">
+        <div className="debate-table-title-text" title={cd.title}>
+          {cd.title}
+        </div>
+        {submitter && (
+          <div className="debate-table-title-secondary">
+            by {submitter}
+          </div>
+        )}
       </td>
     </tr>
   );
@@ -593,9 +593,6 @@ function MyTable(props: DebateTableMyProps & { sort: SortState; onSort: (col: So
         <thead>
           <tr>
             {editMode && <th scope="col" className="col-cb" aria-label="Select row" />}
-            <th scope="col" className="col-title" aria-sort={getSortAttr('title', sort)}>
-              <SortHeader label="Title" col="title" sort={sort} onSort={onSort} />
-            </th>
             <th scope="col" className="col-status" aria-sort={getSortAttr('status', sort)}>
               <SortHeader label="Status" col="status" sort={sort} onSort={onSort} />
             </th>
@@ -610,6 +607,9 @@ function MyTable(props: DebateTableMyProps & { sort: SortState; onSort: (col: So
             </th>
             <th scope="col" className="col-actions">
               Actions
+            </th>
+            <th scope="col" className="col-title" aria-sort={getSortAttr('title', sort)}>
+              <SortHeader label="Title" col="title" sort={sort} onSort={onSort} />
             </th>
           </tr>
         </thead>
@@ -686,9 +686,6 @@ function CommunityTable(
         <CommunityColGroup />
         <thead>
           <tr>
-            <th scope="col" className="col-title" aria-sort={getSortAttr('title', sort)}>
-              <SortHeader label="Title" col="title" sort={sort} onSort={onSort} />
-            </th>
             <th scope="col" className="col-status" aria-sort={getSortAttr('status', sort)}>
               <SortHeader label="Status" col="status" sort={sort} onSort={onSort} />
             </th>
@@ -703,6 +700,9 @@ function CommunityTable(
             </th>
             <th scope="col" className="col-actions">
               Actions
+            </th>
+            <th scope="col" className="col-title" aria-sort={getSortAttr('title', sort)}>
+              <SortHeader label="Title" col="title" sort={sort} onSort={onSort} />
             </th>
           </tr>
         </thead>
