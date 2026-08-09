@@ -1987,3 +1987,23 @@ Failure patterns related to builds, CI, tooling, environment, and git operations
 **Status:** Active — 1 instance (DevOps p/26#70).
 
 **Applies To:** All agents opening PRs from the shared checkout or any dirty working tree.
+
+---
+
+## #157 [Build] `gh pr reopen` Fails on Dependabot PRs — Branch Deleted on Close; Use `@dependabot recreate`
+
+**Pattern:** `gh pr reopen` fails on closed Dependabot PRs — Dependabot deletes its branch on close; GitHub's reopen API requires the branch to exist.
+
+**Instances:**
+- 2026-08-09 — DevOps (p/26#72): `gh pr reopen 649` failed. Fix: `@dependabot recreate` comment on the closed PR.
+
+**Root Cause:** Dependabot auto-deletes its branch on close. Reopen requires the branch; this is Dependabot-specific (human PRs usually retain their branch).
+
+**Prevention:**
+1. Never `gh pr reopen` a closed Dependabot PR — the branch is gone.
+2. To reactivate: comment `@dependabot recreate` — opens a fresh PR.
+3. To rebase an open Dependabot PR: comment `@dependabot rebase`.
+
+**Status:** Active — 1 instance (DevOps p/26#72).
+
+**Applies To:** All agents managing Dependabot PRs.

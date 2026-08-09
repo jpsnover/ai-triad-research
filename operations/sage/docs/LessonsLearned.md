@@ -3219,3 +3219,23 @@ Institutional memory for failure patterns across the AI Triad Research project.
 **Status:** Active — 1 instance (DevOps p/26#70).
 
 **Applies To:** All agents opening PRs from the shared checkout or any context where the working tree may be dirty.
+
+---
+
+## #157 [Build] `gh pr reopen` Fails on Dependabot PRs — Branch Deleted on Close; Use `@dependabot recreate`
+
+**Pattern:** `gh pr reopen <n>` returns "Could not open the pull request" for a closed Dependabot PR. Dependabot deletes its branch when a PR is closed — GitHub's GraphQL reopen mutation requires the head branch to exist. Attempting to reopen via `gh` or the GitHub UI both fail silently.
+
+**Instances:**
+- 2026-08-09 — DevOps (p/26#72): `gh pr reopen 649` failed — Dependabot branch deleted on close, making reopen impossible via GraphQL. Fix: commented `@dependabot recreate` on the closed PR; Dependabot opens a fresh PR.
+
+**Root Cause:** Dependabot auto-deletes its branch when a PR is closed (not merged). GitHub's reopen API requires the branch to exist. This is Dependabot-specific behavior — human PRs usually retain their branch after closing.
+
+**Prevention:**
+1. **Never `gh pr reopen` a closed Dependabot PR** — the branch is gone; reopen will always fail.
+2. **To reactivate a closed Dependabot PR:** comment `@dependabot recreate` on the closed PR — Dependabot creates a fresh branch and opens a new PR.
+3. **To rebase an open Dependabot PR:** comment `@dependabot rebase`.
+
+**Status:** Active — 1 instance (DevOps p/26#72).
+
+**Applies To:** All agents managing Dependabot PRs.
