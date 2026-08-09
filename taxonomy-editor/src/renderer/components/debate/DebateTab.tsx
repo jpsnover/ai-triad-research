@@ -23,7 +23,7 @@ import { PromptDetailPanel } from '../chat/PromptsPanel';
 import type { PromptCatalogEntry } from '../../data/promptCatalog';
 import { PROMPT_CATALOG } from '../../data/promptCatalog';
 import { ToolbarPaneRenderer, isFullWidthPanel, PhoneToolClose } from '../shared/ToolbarPaneRenderer';
-import { TheoryLink } from '../shared';
+import { TheoryLink } from '../shared/TheoryLink';
 import { LineageDetailView } from '../shared/LineageDetailView';
 import type { DebateSession } from '../../types/debate';
 import { POVER_INFO } from '@lib/debate/types';
