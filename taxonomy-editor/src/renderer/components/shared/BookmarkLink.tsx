@@ -17,7 +17,7 @@ import { api } from '@bridge';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import './BookmarkLink.css';
 
-const REPO_BLOB_BASE = 'https://github.com/Berkman-Klein-Center/ai-triad-research/blob/main';
+const REPO_BLOB_BASE = 'https://github.com/jpsnover/ai-triad-research/blob/main';
 
 export interface BookmarkLinkProps {
   /** Repo-relative path to the doc, e.g. "docs/reading-the-argument-network.md". */

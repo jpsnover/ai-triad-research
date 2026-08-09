@@ -11,7 +11,7 @@ vi.mock('@lib/flight-recorder/index', () => ({ getGlobalRecorder: () => ({ recor
 
 import { BookmarkLink, buildDocUrl } from './BookmarkLink';
 
-const BASE = 'https://github.com/Berkman-Klein-Center/ai-triad-research/blob/main';
+const BASE = 'https://github.com/jpsnover/ai-triad-research/blob/main';
 
 describe('buildDocUrl', () => {
   it('constructs a GitHub blob URL from a repo-relative path', () => {
