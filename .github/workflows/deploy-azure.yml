@@ -429,6 +429,50 @@ jobs:
             -RetryIntervalSec 30
           Write-Host "Traffic shifted to ${{ steps.new_revision.outputs.revision }} after $($Result.AttemptCount) attempt(s)"
 
+      - name: Verify Bicep config (env vars + traffic pin)
+        # Runs AFTER traffic shift — audits deployed state without blocking the rollout.
+        # Hard fail (continue-on-error: false) so drift alerts the team via red CI.
+        # Coverage: non-secret Bicep-declared env vars + traffic weight + firewall defaultAction.
+        # Not covered: secretRef vars, ALLOWED_ORIGINS, APPLICATIONINSIGHTS_* (v2 path).
+        if: steps.acceptance.outputs.accepted == 'true' && steps.persona.outputs.accepted == 'true'
+        continue-on-error: false
+        shell: pwsh
+        run: |
+          Import-Module ./scripts/AITriad/AITriad.psm1 -Force
+          $Result = Test-AzureHealth -CheckConfig -UseCLI `
+            -AppName '${{ env.CONTAINER_APP_NAME }}' `
+            -ResourceGroup '${{ env.RESOURCE_GROUP }}' `
+            -ExpectedTrafficRevision '${{ steps.new_revision.outputs.revision }}' `
+            -ExpectedTrafficWeight 100 `
+            -ExpectedEnvVars @{
+              NODE_ENV                           = 'production'
+              WEBSITE_AUTH_ENABLED               = 'true'
+              HOME                               = '/home/aitriad'
+              AI_TRIAD_DATA_ROOT                 = '/tmp/taxonomy-cache'
+              AUTH_OPTIONAL                      = '${{ inputs.auth_mode == ''optional'' && ''1'' || '''' }}'
+              AUTH_DISABLED                      = '${{ inputs.auth_mode == ''disabled'' && ''1'' || '''' }}'
+              ADMIN_USERS                        = '${{ vars.ADMIN_USERS }}'
+              GIT_SYNC_ENABLED                   = '1'
+              GITHUB_REPO                        = '${{ vars.SYNC_GITHUB_REPO }}'
+              GITHUB_APP_ID                      = '${{ vars.SYNC_GITHUB_APP_ID }}'
+              GITHUB_APP_INSTALLATION_ID         = '${{ vars.SYNC_GITHUB_APP_INSTALLATION_ID }}'
+              GITHUB_APP_PRIVATE_KEY_SECRET_NAME = '${{ vars.SYNC_GITHUB_APP_PRIVATE_KEY_SECRET_NAME }}'
+              AZURE_KEYVAULT_URL                 = '${{ steps.deploy.outputs.keyVaultUri }}'
+              AZURE_STORAGE_ACCOUNT_URL          = '${{ steps.deploy.outputs.storageAccountBlobUrl }}'
+            } `
+            -CheckFirewall `
+            -StorageAccountName '${{ steps.deploy.outputs.storageAccountName }}' `
+            -KeyVaultName '${{ steps.deploy.outputs.keyVaultName }}' `
+            -ConfigRetryCount 3
+          $ConfigChecks = @($Result.Checks | Where-Object { $_.Check -like 'Config:*' })
+          $Failed = @($ConfigChecks | Where-Object { -not $_.Pass })
+          $ConfigChecks | Format-Table Check, Pass, Detail -AutoSize
+          if ($Failed.Count -gt 0) {
+            Write-Host "::error::Config drift detected ($($Failed.Count) checks failed) — deployed state != Bicep intent"
+            exit 1
+          }
+          Write-Host "Config verification passed ($($ConfigChecks.Count) checks)"
+
       - name: Collect failure diagnostics
         if: steps.health_check.outputs.healthy != 'true' || steps.acceptance.outputs.accepted == 'false' || steps.persona.outputs.accepted == 'false'
         continue-on-error: true
