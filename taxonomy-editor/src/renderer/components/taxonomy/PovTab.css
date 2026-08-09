@@ -1,3 +1,11 @@
+/* Left group in the list-panel header: soul-doc icon sits immediately left of the POV name (t/2348) */
+.list-panel-header-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
 .dt-filter-bar {
   display: flex;
   align-items: center;
