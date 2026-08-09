@@ -26,7 +26,7 @@ The system serves researchers, policy analysts, and scholars who need to underst
 ┌─────────────────────────────┼───────────────────────────────┐
 │              PowerShell Module (AITriad)                     │
 │  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────────┐   │
-│  │ 75 Public│ │33 Private│ │29 Prompt │ │  Companion    │   │
+│  │148 Public│ │86 Private│ │42 Prompt │ │  Companion    │   │
 │  │ Cmdlets  │ │ Helpers  │ │Templates │ │  Modules      │   │
 │  │          │ │          │ │          │ │ AIEnrich.psm1 │   │
 │  │          │ │          │ │          │ │ DocConvert.psm│   │
@@ -35,10 +35,8 @@ The system serves researchers, policy analysts, and scholars who need to underst
                               │
 ┌─────────────────────────────┼───────────────────────────────┐
 │                  AI Backends                                 │
-│  ┌──────────┐  ┌───────────┐  ┌──────┐  ┌──────────────┐   │
-│  │  Gemini  │  │  Claude   │  │ Groq │  │  OpenAI      │   │
-│  │  (free)  │  │           │  │(free)│  │  (future)    │   │
-│  └──────────┘  └───────────┘  └──────┘  └──────────────┘   │
+│    Gemini · Claude · Groq · OpenAI · DeepSeek                │
+│    Azure · Z.AI · Moonshot · Ollama (local)                  │
 └─────────────────────────────────────────────────────────────┘
                               │
 ┌─────────────────────────────┼───────────────────────────────┐
@@ -99,19 +97,19 @@ For the complete technical specification, see [GitHub API-First Implementation P
 
 ### 1. Taxonomy Model
 
-The core data structure — a graph of ~565 nodes representing arguments about AI policy, organized by perspective and argument type. Four POV camps (Accelerationist, Safetyist, Skeptic, Situations) each decomposed into Belief-Desire-Intention categories. Nodes link to each other via typed edges (SUPPORTS, CONTRADICTS, ASSUMES, etc.) and reference shared policy actions from a centralized registry of ~1,100 policies.
+The core data structure — a graph of 889 POV nodes (~1,330 total incl. 441 situation nodes) representing arguments about AI policy, organized by perspective and argument type. Four POV camps (Accelerationist, Safetyist, Skeptic, Situations) each decomposed into Belief-Desire-Intention categories. Nodes link to each other via typed edges (SUPPORTS, CONTRADICTS, ASSUMES, etc.) and reference shared policy actions from a centralized registry of 1,547 policies.
 
 **See:** [Taxonomy & Data Model](./subsystem-taxonomy.md)
 
 ### 2. PowerShell Module
 
-75 public cmdlets for taxonomy queries, document ingestion, AI-powered summarization, conflict detection, graph analysis, and debate orchestration. Companion modules handle multi-backend AI abstraction (AIEnrich) and document format conversion (DocConverters).
+148 public cmdlets for taxonomy queries, document ingestion, AI-powered summarization, conflict detection, graph analysis, and debate orchestration. Companion modules handle multi-backend AI abstraction (AIEnrich) and document format conversion (DocConverters).
 
 **See:** [PowerShell Module](./subsystem-powershell.md)
 
 ### 3. Debate Engine
 
-A three-agent BDI debate system in TypeScript (`lib/debate/`, 22+ files). Characters (Accelerationist, Safetyist, Skeptic) argue grounded in the taxonomy, with a moderator agent managing interventions, convergence detection, and phase transitions. Produces structured transcripts with QBAF (Quantitative Bipolar Argumentation Framework) networks.
+A three-agent BDI debate system in TypeScript (`lib/debate/`, 129 non-test files / 228 incl. tests). Characters (Accelerationist, Safetyist, Skeptic) argue grounded in the taxonomy, with a moderator agent managing interventions, convergence detection, and phase transitions. Produces structured transcripts with QBAF (Quantitative Bipolar Argumentation Framework) networks.
 
 **Debate phases:** confrontation → argumentation → concluding (with adaptive phase transitions based on convergence signals).
 
@@ -165,12 +163,17 @@ GitHub Actions CI/CD, Docker multi-platform builds, Azure Container Apps deploym
 
 All AI calls route through a unified abstraction layer. The PowerShell side uses `Invoke-AIApi` (in AIEnrich.psm1); the TypeScript side uses `aiAdapter.ts`. Both read from `ai-models.json` — the single source of truth for model IDs, backend mappings, and API endpoints.
 
-| Backend | API | Key Env Var | Default Model |
+| Backend | API Endpoint | Key Env Var | Default Model |
 |---|---|---|---|
-| Google Gemini | generativelanguage.googleapis.com | `GEMINI_API_KEY` | gemini-3.5-flash-lite-preview |
-| Anthropic Claude | api.anthropic.com | `ANTHROPIC_API_KEY` | claude-sonnet-4-5 |
-| Groq | api.groq.com | `GROQ_API_KEY` | groq-openai-gpt-oss-120b |
-| OpenAI | api.openai.com | `OPENAI_API_KEY` | (future) |
+| Google Gemini | generativelanguage.googleapis.com | `GEMINI_API_KEY` | gemini-3.6-flash |
+| Anthropic Claude | api.anthropic.com | `ANTHROPIC_API_KEY` | claude-sonnet-4-6 |
+| Groq | api.groq.com | `GROQ_API_KEY` | openai/gpt-oss-120b |
+| OpenAI | api.openai.com | `OPENAI_API_KEY` | — |
+| DeepSeek | api.deepseek.com | `DEEPSEEK_API_KEY` | deepseek-v4-flash |
+| Azure OpenAI | $AZURE_OPENAI_ENDPOINT | `AZURE_OPENAI_API_KEY` | gpt-4o |
+| Z.AI (GLM) | api.z.ai | `ZAI_API_KEY` | glm-5.2 |
+| Moonshot (Kimi) | api.moonshot.ai | `MOONSHOT_API_KEY` | kimi-k3 |
+| Ollama (local) | localhost:11434 | — | gemma4:e4b-it-q4_K_M |
 
 Fallback key: `$AI_API_KEY` works for any backend if the specific env var is unset.
 
@@ -251,7 +254,7 @@ Additional workflows handle releases (triggered by `v*` tags), Azure deployment 
 | Document | Purpose |
 |---|---|
 | [Taxonomy & Data Model](./subsystem-taxonomy.md) | Node structure, POV camps, BDI categories, edges, policies, embeddings |
-| [PowerShell Module](./subsystem-powershell.md) | 75 cmdlets, companion modules, prompt templates, data resolution |
+| [PowerShell Module](./subsystem-powershell.md) | 148 cmdlets, companion modules, prompt templates, data resolution |
 | [Debate Engine](./subsystem-debate-engine.md) | Three-agent debates, moderator system, QBAF, phase transitions |
 | [Taxonomy Editor](./subsystem-taxonomy-editor.md) | Electron app, React components, Zustand stores, IPC layer |
 | [Infrastructure & Deployment](./subsystem-infrastructure.md) | CI/CD, Docker, Azure, BYOK key management |
