@@ -877,13 +877,6 @@ function Finalize-Summary {
         }
     }
 
-    # -- Out-of-scope guard pass (t/2370) -------------------------------------
-    # Runs after M5 so mechanism5_flag/mechanism5_candidates are populated.
-    # Flag-only: sets out_of_scope_flag; actuation gated on calibration (t/2370#1).
-    if ($script:CachedEmbeddings -and $script:CachedEmbeddings.Count -gt 0 -and $AllKpsForM5 -and $AllKpsForM5.Count -gt 0) {
-        Invoke-OutOfScopeGuardPass -KeyPointItems $AllKpsForM5.ToArray()
-    }
-
     # -- Excludes-veto pass (t/2286) ------------------------------------------
     # Runs after confidence pass so retrieval_low_confidence is already present.
     if ($script:TaxonomyData -and $script:TaxonomyData.Count -gt 0) {
