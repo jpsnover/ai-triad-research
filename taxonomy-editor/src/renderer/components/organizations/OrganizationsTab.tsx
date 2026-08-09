@@ -77,7 +77,7 @@ export function OrganizationsTab() {
         return stance && (stance.tier === 'leans_toward' || stance.tier === 'champions');
       });
     }
-    return list.slice().sort((a, b) => a.name.localeCompare(b.name));
+    return list.slice().sort((a, b) => (a.name ?? '').localeCompare(b.name ?? ''));
   }, [organizations, searchQuery, filters]);
 
   return (

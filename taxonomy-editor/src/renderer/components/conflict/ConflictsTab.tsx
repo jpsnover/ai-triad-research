@@ -73,10 +73,10 @@ export function ConflictsTab() {
   // Alpha-bucket grouping (zero-dependency, always available)
   const alphaClusters = useMemo(() => {
     if (conflicts.length === 0) return [];
-    const sorted = [...conflicts].sort((a, b) => a.claim_label.localeCompare(b.claim_label));
+    const sorted = [...conflicts].sort((a, b) => (a.claim_label ?? '').localeCompare(b.claim_label ?? ''));
     const buckets = new Map<string, string[]>();
     for (const c of sorted) {
-      const first = (c.claim_label[0] || '#').toUpperCase();
+      const first = ((c.claim_label ?? '')[0] || '#').toUpperCase();
       const key = /[A-Z]/.test(first) ? first : '#';
       if (!buckets.has(key)) buckets.set(key, []);
       buckets.get(key)!.push(c.claim_id);
