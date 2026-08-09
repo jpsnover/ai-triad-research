@@ -252,7 +252,7 @@ export function DebateTab() {
     const q = searchQuery.trim().toLowerCase();
     if (!q) return orderedSessions;
     return orderedSessions.filter(s =>
-      s.title.toLowerCase().includes(q) ||
+      (s.title ?? '').toLowerCase().includes(q) ||
       (s.topic_text && s.topic_text.toLowerCase().includes(q))
     );
   }, [orderedSessions, searchQuery]);

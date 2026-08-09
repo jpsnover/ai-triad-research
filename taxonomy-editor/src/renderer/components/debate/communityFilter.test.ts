@@ -32,4 +32,13 @@ describe('filterCommunityDebates', () => {
   it('does not throw when community_metadata is absent', () => {
     expect(() => filterCommunityDebates(debates, 'lovelace')).not.toThrow();
   });
+
+  it('does not throw when a debate has a null title (t/2385)', () => {
+    const withNull = [
+      ...debates,
+      { id: '4', title: null, updated_at: '2026-01-01' } as unknown as CommunityDebate,
+    ];
+    expect(() => filterCommunityDebates(withNull, 'safety')).not.toThrow();
+    expect(filterCommunityDebates(withNull, 'safety').map(d => d.id)).toEqual(['1']);
+  });
 });

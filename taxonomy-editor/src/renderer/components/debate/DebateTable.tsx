@@ -109,12 +109,12 @@ function formatDate(iso: string): string {
   });
 }
 
-function applySortMy(rows: SessionRowData[], sort: SortState): SessionRowData[] {
+export function applySortMy(rows: SessionRowData[], sort: SortState): SessionRowData[] {
   if (!sort.col || sort.dir === 'none') return rows;
   const mul = sort.dir === 'asc' ? 1 : -1;
   return [...rows].sort((a, b) => {
     switch (sort.col) {
-      case 'title':  return mul * a.title.localeCompare(b.title);
+      case 'title':  return mul * (a.title ?? '').localeCompare(b.title ?? '');
       case 'status': return mul * (a.phase ?? '').localeCompare(b.phase ?? '');
       case 'date':   return mul * (new Date(a.updated_at).getTime() - new Date(b.updated_at).getTime());
       case 'turns':  return mul * ((a.turn_count ?? 0) - (b.turn_count ?? 0));
@@ -124,12 +124,12 @@ function applySortMy(rows: SessionRowData[], sort: SortState): SessionRowData[] 
   });
 }
 
-function applySortCommunity(rows: CommunityDebate[], sort: SortState): CommunityDebate[] {
+export function applySortCommunity(rows: CommunityDebate[], sort: SortState): CommunityDebate[] {
   if (!sort.col || sort.dir === 'none') return rows;
   const mul = sort.dir === 'asc' ? 1 : -1;
   return [...rows].sort((a, b) => {
     switch (sort.col) {
-      case 'title':  return mul * a.title.localeCompare(b.title);
+      case 'title':  return mul * (a.title ?? '').localeCompare(b.title ?? '');
       case 'status': return mul * (a.phase ?? '').localeCompare(b.phase ?? '');
       case 'date':   return mul * (new Date(a.updated_at).getTime() - new Date(b.updated_at).getTime());
       case 'turns':  return mul * ((a.turn_count ?? 0) - (b.turn_count ?? 0));

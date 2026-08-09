@@ -12,7 +12,7 @@ export function filterCommunityDebates(debates: CommunityDebate[], query: string
   const q = query.trim().toLowerCase();
   if (!q) return debates;
   return debates.filter(cd =>
-    cd.title.toLowerCase().includes(q) ||
+    (cd.title ?? '').toLowerCase().includes(q) ||
     (cd.community_metadata?.submitted_by_display?.toLowerCase().includes(q) ?? false)
   );
 }
