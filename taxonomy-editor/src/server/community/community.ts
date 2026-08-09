@@ -50,11 +50,21 @@ export function isAdmin(userId?: string): boolean {
 
 const COMMUNITY_INDEX_FILE = '_index.json';
 
+// Bump when toEntry shape changes so stale caches are replaced on next list.
+const CHAT_INDEX_VERSION = 'chat-v1';
+const DEBATE_INDEX_VERSION = 'debate-v2'; // v2: added model + turn_count (t/2362/t/2384)
+
 interface ListingIndexSpec<T> {
   dir: string;
   prefix: string;
   toEntry: (parsed: any) => T;
   malformedMessage: string;
+  version: string;
+}
+
+interface ListingIndex<T> {
+  version: string;
+  entries: T[];
 }
 
 /** Direct-child item files in `dir` matching `prefix` (excludes `_index.json`). */
@@ -86,25 +96,35 @@ async function rebuildListingIndex<T>(spec: ListingIndexSpec<T>): Promise<T[]> {
     }
   }
   // Best-effort: a read-only context (or exhausted API) just keeps full-scanning.
+  const index: ListingIndex<T> = { version: spec.version, entries };
   await backend.writeFile(
     path.join(spec.dir, COMMUNITY_INDEX_FILE),
-    JSON.stringify(entries, null, 2),
+    JSON.stringify(index, null, 2),
   ).catch((err) => { log.server.warn({ err }, 'Community listing index write failed (best-effort)'); });
   return entries;
 }
 
 /**
  * Serve a community listing from its `_index.json`, rebuilding when the index is
- * absent (cold start) or its entry count no longer matches the directory. When a
- * stale index exists, the cached copy is returned immediately and the rebuild
- * runs in the background. Returns entries unsorted — callers apply their own sort.
+ * absent (cold start), its version doesn't match the current toEntry schema, or its
+ * entry count no longer matches the directory. A version mismatch (toEntry schema
+ * change) forces a synchronous rebuild so callers always get up-to-date fields.
+ * A count drift returns the cached copy immediately and rebuilds in the background.
+ * Returns entries unsorted — callers apply their own sort.
  */
 async function listViaIndex<T>(spec: ListingIndexSpec<T>): Promise<T[]> {
   const backend = getUserContentBackend();
   let cached: T[] | null = null;
   try {
     const raw = await backend.readFile(path.join(spec.dir, COMMUNITY_INDEX_FILE));
-    if (raw !== null) cached = JSON.parse(raw) as T[];
+    if (raw !== null) {
+      const parsed = JSON.parse(raw);
+      // Old format was a bare array; new format is { version, entries }.
+      // Any version mismatch (incl. old format) → cache miss → synchronous rebuild.
+      if (!Array.isArray(parsed) && parsed?.version === spec.version) {
+        cached = (parsed as ListingIndex<T>).entries;
+      }
+    }
   } catch { /* telemetry — silent by design */ cached = null; }
 
   if (cached !== null) {
@@ -139,6 +159,7 @@ export async function listCommunityChats(): Promise<unknown[]> {
   const items = await listViaIndex<CommunityChatEntry>({
     dir: communityChatsDir(),
     prefix: 'chat-',
+    version: CHAT_INDEX_VERSION,
     malformedMessage: 'Skipping malformed community chat file',
     toEntry: (parsed) => ({
       id: parsed.id,
@@ -156,6 +177,7 @@ export async function listCommunityDebates(): Promise<unknown[]> {
   const items = await listViaIndex<CommunityDebateEntry>({
     dir: communityDebatesDir(),
     prefix: 'debate-',
+    version: DEBATE_INDEX_VERSION,
     malformedMessage: 'Skipping malformed community debate file',
     toEntry: (parsed) => ({
       id: parsed.id,
