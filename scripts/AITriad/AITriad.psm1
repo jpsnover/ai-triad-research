@@ -913,6 +913,8 @@ Export-ModuleMember -Function @(
     'Get-DebateSessionState'
     # t/2335 — Debate index field-type integrity check
     'Test-DebateIndexIntegrity'
+    # t/2367 — Debate blob existence check in Azure storage
+    'Test-DebateSession'
 ) -Alias @(
     'Import-Document'
     'TaxonomyEditor'
