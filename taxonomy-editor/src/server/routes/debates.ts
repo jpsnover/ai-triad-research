@@ -95,7 +95,10 @@ export function registerDebatesRoutes(r: Router, _ctx: ServerCtx): void {
   const { get, post, put, patch, del } = r;
 
   get('/api/debates', async (_req, res) => { json(res, await fileIO.listDebateSessions()); });
-  get('/api/debates/list', async (_req, res) => { json(res, await fileIO.listDebateSessionsMeta()); });
+  get('/api/debates/list', async (_req, res) => {
+    const entries = await fileIO.listDebateSessionsMeta() as Record<string, unknown>[];
+    json(res, entries.map(e => ({ ...e, source: 'user' })));
+  });
 
   // t/1360: read-only quota pre-check for the New Debate button (t/1358). MUST be
   // registered before /api/debates/:id — the :id wildcard would otherwise match
