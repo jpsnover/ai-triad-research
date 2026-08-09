@@ -3,7 +3,22 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  min-width: 0;
+  /* Keep the POV name at full width so it's never occluded; the actions cluster wraps
+     below instead of the sort dropdown squishing the name at high display zoom (t/2360). */
+  flex: 0 0 auto;
+}
+
+/* High display zoom: the list panel is a fixed-width column, so zooming enlarges the
+   POV name + sort/actions until they collide on one row (the Sort dropdown occluded the
+   POV name). Let the header wrap so the actions cluster reflows below the name instead.
+   The phone-width media query already wraps this header; apply it at all widths for zoom.
+   `.list-panel` prefix raises specificity above the styles.css base rule (t/2360). */
+.list-panel .list-panel-header {
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.list-panel .list-panel-header-actions {
+  flex-shrink: 0;
 }
 
 .dt-filter-bar {
