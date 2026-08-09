@@ -33,6 +33,20 @@
   min-width: 0;
   flex: 1 1 auto;
 }
+/* Title + inline TheoryLink help icon (t/2347 mount e). min-width:0 keeps the
+   clamped h2 able to shrink/ellipsize beside the icon; the icon never shrinks. */
+.debate-hdr-title-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.debate-hdr-title-row .debate-hdr-title {
+  min-width: 0;
+}
+.debate-hdr-theory-link {
+  flex: 0 0 auto;
+}
 .debate-hdr-title {
   margin: 0;
   font-size: 1.1rem;

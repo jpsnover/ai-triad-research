@@ -105,3 +105,20 @@ describe('TaxonomyRefsSection — PLAN anchor → inline POV detail (t/1724)', (
     expect(screen.queryByTestId('ref-detail')).toBeNull();
   });
 });
+
+describe('TheoryLink help icons — mounts f + g (t/2347)', () => {
+  it('renders the artifact-guide icon on BRIEF + PLAN and the citation-diagnostics icon in the statement footer, with distinct aria-labels', () => {
+    const stageDiagnostics = [
+      { stage: 'brief', raw_response: '', work_product: { situation_assessment: 'sa' } },
+      { stage: 'plan', raw_response: '', work_product: { strategic_goal: 'g', argument_structure: [] } },
+    ];
+    const entry = { id: 'e1', timestamp: 't', type: 'statement', speaker: 'accelerationist', content: 'x', taxonomy_refs: [], caveats: ['c1'] } as unknown as Parameters<typeof TaxonomyRefsSection>[0]['entry'];
+
+    render(<TaxonomyRefsSection refs={[]} entry={entry} stageDiagnostics={stageDiagnostics} forceExpanded />);
+
+    // (f) artifact-guide help renders on both the BRIEF and PLAN artifact cards
+    expect(screen.getAllByLabelText('Help: artifact guide')).toHaveLength(2);
+    // (g) citation-diagnostics help renders in the statement footer
+    expect(screen.getByLabelText('Help: citation diagnostics design')).toBeInTheDocument();
+  });
+});

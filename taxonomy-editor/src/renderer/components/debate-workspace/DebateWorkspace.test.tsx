@@ -378,6 +378,12 @@ describe('phase routing', () => {
     expect(container.querySelector('.debate-hdr-phase')?.textContent).toBe('Setting up...');
   });
 
+  it('renders the debate-system-overview TheoryLink in the header (t/2347 mount e)', () => {
+    mockStore.activeDebate = makeDebate();
+    render(<DebateWorkspace />);
+    expect(screen.getByLabelText('Help: debate system overview')).toBeInTheDocument();
+  });
+
   it('renders ClarificationActions in clarification phase when no substantive transcript entries', () => {
     mockStore.activeDebate = makeDebate({ phase: 'clarification', transcript: [] });
     render(<DebateWorkspace />);
