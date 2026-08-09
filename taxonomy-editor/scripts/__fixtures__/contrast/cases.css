@@ -59,3 +59,41 @@
   background: rgba(184, 78, 19, 0.12);
   color: #6b3a10;
 }
+
+/* ── t/2359: transparent-fill fall-through + non-text (3:1) floor ─────────── */
+
+/* FAIL (non-text) — transparent fill, muted glyph BELOW the 3:1 floor on the page
+   surface. Pins Gap 1 (a transparent control is evaluated, not silently skipped)
+   AND Gap 2 (scored at the 3:1 non-text floor). Shape of the muted help icon. */
+/* contrast-nontext */
+.fx-nontext-fail {
+  background: transparent;
+  color: #94a3b8;   /* 2.56:1 on #fff → below the 3:1 non-text floor */
+}
+
+/* PASS (non-text) — transparent fill, glyph at 3.68:1: clears the 3:1 non-text
+   floor but would FAIL the 4.5 text threshold, so a pass here proves the 3:1 rule
+   is what's applied (not 4.5). */
+/* contrast-nontext */
+.fx-nontext-pass {
+  background: transparent;
+  color: #3b82f6;   /* 3.68:1 on #fff */
+}
+
+/* PASS-BY-SKIP — a transparent TEXT control (no marker). It must NOT be audited
+   against the page surface by default (that broad audit is opt-in via
+   --include-page-bg), so it yields no finding even though 3.68:1 < 4.5. Pins the
+   flood guard that keeps Gap 1 from surfacing ~2400 page-bg findings. */
+.fx-transparent-text {
+  background: transparent;
+  color: #3b82f6;
+}
+
+/* PASS — :hover of a non-text control inherits the marker via pseudo-strip (same
+   control, not a broadened selector). Own opaque fill so it's always evaluated;
+   3.68:1 clears 3:1 but would fail 4.5 in every theme, so 0 findings proves the
+   pseudo-stripped inheritance applied the non-text floor. */
+.fx-nontext-pass:hover {
+  background: #ffffff;
+  color: #3b82f6;
+}
