@@ -854,6 +854,29 @@ function Finalize-Summary {
         }
     }
 
+    # -- Mechanism #5 per-key_point re-retrieval pass (t/2357) -----------------
+    # Runs after the confidence pass so retrieval_low_confidence is populated.
+    # Flags key_points whose assigned node is retrieval_low_confidence OR absent
+    # from the attribution_text top-3, and surfaces per-key_point top-3 candidates
+    # for the t/2289 override path. Flag→surface ships unconditionally (zero
+    # regression risk). Auto-correct is a separate fast-follow.
+    if ($script:CachedEmbeddings -and $script:CachedEmbeddings.Count -gt 0) {
+        $AllKpsForM5 = [System.Collections.Generic.List[object]]::new()
+        foreach ($Camp in $Camps) {
+            $CampDataM5 = $SummaryObject.pov_summaries.$Camp
+            if (-not $CampDataM5 -or -not (Has-Field $CampDataM5 'key_points')) { continue }
+            $kpListM5 = Get-Field $CampDataM5 'key_points'
+            if ($kpListM5) {
+                foreach ($kp in @($kpListM5)) {
+                    [void]$AllKpsForM5.Add(@{ KeyPoint = $kp; POV = $Camp })
+                }
+            }
+        }
+        if ($AllKpsForM5.Count -gt 0) {
+            Invoke-Mechanism5RetrievalPass -KeyPointItems $AllKpsForM5.ToArray()
+        }
+    }
+
     # -- Excludes-veto pass (t/2286) ------------------------------------------
     # Runs after confidence pass so retrieval_low_confidence is already present.
     if ($script:TaxonomyData -and $script:TaxonomyData.Count -gt 0) {
