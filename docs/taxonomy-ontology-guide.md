@@ -151,9 +151,11 @@ This field is populated organically by the attribute extraction process, not bat
 
 **Canonical edge types:**
 
-The taxonomy uses 7 AIF-aligned edge types for relationships between nodes:
+The taxonomy uses 8 canonical edge types for relationships between nodes. The first seven are AIF-aligned; `CONVERGES_WITH` is the project's consensus/convergence extension (not a native AIF locution):
 
-`SUPPORTS`, `CONTRADICTS`, `ASSUMES`, `WEAKENS`, `RESPONDS_TO`, `TENSION_WITH`, `INTERPRETS`
+`SUPPORTS`, `CONTRADICTS`, `ASSUMES`, `WEAKENS`, `RESPONDS_TO`, `TENSION_WITH`, `INTERPRETS`, `CONVERGES_WITH`
+
+`CONVERGES_WITH` marks that a POV/camp node has reached consensus with another node (e.g. a situation node); it drives debate convergence scoring but is semantically inert in QBAF strength computation (QBAF mapping tracked in B-305).
 
 ---
 
@@ -217,7 +219,7 @@ interpretations   conceptual)           interact
   - `scheme` — an argumentative pattern or reasoning method
   - `bridging` — connects claims to schemes (rare)
 - If the node has `possible_fallacies`, each must have a `type` field (one of: `formal`, `informal_structural`, `informal_contextual`, `cognitive_bias`) and a `confidence` level (`likely`, `possible`, `borderline`).
-- Edge types connecting this node to others must be one of the 7 canonical types.
+- Edge types connecting this node to others must be one of the 8 canonical types.
 
 ### When Adding a Situation Node
 

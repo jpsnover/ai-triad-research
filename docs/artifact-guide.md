@@ -348,7 +348,7 @@ The key design insight is that the same policy can be referenced by multiple nod
 
 ### Where They Are Stored
 
-- **Central registry**: `taxonomy/Origin/policy_actions.json` — the single source of truth for all ~270 policies with their `id`, `action`, `source_povs`, and `member_count`
+- **Central registry**: `taxonomy/Origin/policy_actions.json` — the single source of truth for all ~1,547 policies with their `id`, `action`, `source_povs`, and `member_count`
 - **On taxonomy nodes**: `node.graph_attributes.policy_actions[]` — array of `{ policy_id, action, framing }` objects linking the node to specific policies with node-specific framing
 - **Policy-to-policy edges**: `taxonomy/Origin/edges.json` — ~452 edges typed CONTRADICTS, COMPLEMENTS, or TENSION_WITH between policies
 - **Policy embeddings**: `taxonomy/Origin/embeddings.json` — 384-dimensional vectors (all-MiniLM-L6-v2) for policy text, enabling semantic similarity search
