@@ -102,8 +102,12 @@ export function DebatePopoutWindow() {
     // Also check if the main process already sent the ID before we mounted
     // (can happen with the bootstrap indirection — did-finish-load fires before React mounts)
     const unsub = api.onDebateWindowLoad((debateId: string) => {
-      setLoadTarget({ id: debateId, community: false });
-      void runLoad(debateId, false);
+      // Read community flag from the window hash set by buildDebateHash — don't
+      // hardcode false here (t/2399: latent 404 if community ever enabled in Electron).
+      const hashTarget = parseDebateHash(window.location.hash);
+      const community = hashTarget?.id === debateId ? hashTarget.community : false;
+      setLoadTarget({ id: debateId, community });
+      void runLoad(debateId, community);
     });
 
     return unsub;

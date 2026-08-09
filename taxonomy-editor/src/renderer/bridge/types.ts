@@ -374,7 +374,9 @@ export interface AppAPI {
   openPromptDiffWindow: (debateId: string, entryId: string) => Promise<void>;
 
   // --- Debate popout ---
-  openDebateWindow: (debateId: string) => Promise<{ atCap: true } | void>;
+  // `source` (e.g. 'community') is propagated to the popout hash so it loads the
+  // correct endpoint — community debates must route to the community load path (t/2399).
+  openDebateWindow: (debateId: string, source?: string) => Promise<{ atCap: true } | void>;
   closeDebateWindow: (debateId: string) => Promise<void>;
   getCliFileArg: () => Promise<{ type: string; path: string; data?: unknown; error?: string } | null>;
 

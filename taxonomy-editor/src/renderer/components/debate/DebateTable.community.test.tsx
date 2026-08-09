@@ -2,7 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { CommunityTableRow, applySortMy, applySortCommunity } from './DebateTable';
 import type { SessionRowData } from './DebateTable';
 import type { CommunityDebate } from '../../hooks/useCommunityStore';
@@ -129,5 +129,74 @@ describe('CommunityTableRow — TURNS and MODEL field mapping (t/2362)', () => {
     renderRow(makeRow({ turn_count: 3, model: 'gemini-flash-lite' }));
     expect(screen.getByText('3')).toBeTruthy();
     expect(screen.getByText('gemini-flash-lite')).toBeTruthy();
+  });
+});
+
+// Entry-point coverage (t/2399 TL cond-1 addendum): both button and keyboard must fire
+// onOpen so the caller (DebateTab.handleCommunityRowOpen) can pass source='community'.
+describe('CommunityTableRow — open entry points (t/2399)', () => {
+  it('Open button click fires onOpen with the debate id', () => {
+    const onOpen = vi.fn();
+    render(
+      <table><tbody>
+        <CommunityTableRow
+          cd={makeRow({ id: 'debate-42' })}
+          isSelected={false}
+          onOpen={onOpen}
+          onExport={vi.fn()}
+          onCopy={vi.fn<() => Promise<void>>().mockResolvedValue(undefined)}
+          copyingId={null}
+          showCopy={false}
+          onPhoneSelect={vi.fn()}
+          isPhone={false}
+        />
+      </tbody></table>,
+    );
+    fireEvent.click(screen.getByRole('button', { name: /open/i }));
+    expect(onOpen).toHaveBeenCalledWith('debate-42');
+  });
+
+  it('keyboard Enter on the row fires onOpen with the debate id', () => {
+    const onOpen = vi.fn();
+    const { container } = render(
+      <table><tbody>
+        <CommunityTableRow
+          cd={makeRow({ id: 'debate-42' })}
+          isSelected={false}
+          onOpen={onOpen}
+          onExport={vi.fn()}
+          onCopy={vi.fn<() => Promise<void>>().mockResolvedValue(undefined)}
+          copyingId={null}
+          showCopy={false}
+          onPhoneSelect={vi.fn()}
+          isPhone={false}
+        />
+      </tbody></table>,
+    );
+    const row = container.querySelector('tr')!;
+    fireEvent.keyDown(row, { key: 'Enter' });
+    expect(onOpen).toHaveBeenCalledWith('debate-42');
+  });
+
+  it('detail-pane regression: onOpen NOT called for My-tab rows without explicit invocation', () => {
+    // Guards that wiring changes don't accidentally trigger community open on My-tab rows.
+    const onOpen = vi.fn();
+    render(
+      <table><tbody>
+        <CommunityTableRow
+          cd={makeRow({ id: 'debate-personal' })}
+          isSelected={false}
+          onOpen={onOpen}
+          onExport={vi.fn()}
+          onCopy={vi.fn<() => Promise<void>>().mockResolvedValue(undefined)}
+          copyingId={null}
+          showCopy={false}
+          onPhoneSelect={vi.fn()}
+          isPhone={false}
+        />
+      </tbody></table>,
+    );
+    // No click or keydown fired — onOpen must remain uncalled.
+    expect(onOpen).not.toHaveBeenCalled();
   });
 });

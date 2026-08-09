@@ -90,6 +90,7 @@ interface DebateListProps {
   auth: AuthStatus;
   // Table-mode action handlers (t/2305)
   onRowOpen: (id: string) => void;
+  onCommunityRowOpen: (id: string) => void;
   onRowExport: (session: SessionRowData, format: string) => void;
   onRowShare: (session: SessionRowData) => Promise<void>;
   onRowCommunityExport: (cd: CommunityDebate, format: string) => void;
@@ -366,6 +367,24 @@ export function DebateTab() {
     });
   }, []);
 
+  // Community debates must propagate source=community so the popout's runLoad routes
+  // to loadCommunityDebateSession instead of the personal endpoint (t/2399).
+  const handleCommunityRowOpen = useCallback((id: string) => {
+    api.openDebateWindow(id, 'community').then((result) => {
+      if (result && result.atCap) {
+        setQuotaError('Close a debate window — max 5 open');
+      }
+    }).catch((err: Error) => {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'debate-tab',
+        level: 'warn',
+        message: 'Failed to open community debate popout window',
+        error: { name: err.name ?? 'Error', message: String(err), stack: err.stack },
+      });
+    });
+  }, []);
+
   // Per-row export — loads full session on demand so the main process has transcript
   // data for markdown/pdf formatters (summary alone is insufficient for rich formats).
   const handleRowExport = useCallback(async (session: SessionRowData, format: string) => {
@@ -429,6 +448,7 @@ export function DebateTab() {
     handleSelect, moveSession, selectedCommunityDebate, setSelectedCommunityDebate, nav,
     copyingId, setCopyingId, copyItem, loadSessions, auth,
     onRowOpen: handleRowOpen,
+    onCommunityRowOpen: handleCommunityRowOpen,
     onRowExport: (s, fmt) => { void handleRowExport(s, fmt); },
     onRowShare: handleRowShare,
     onRowCommunityExport: (cd, fmt) => { void handleRowCommunityExport(cd, fmt); },
@@ -685,7 +705,7 @@ function DebateCommunityList(props: DebateListProps) {
     communityDebates, communityLoading, searchQuery, setSearchQuery,
     filteredCommunityDebates, selectedCommunityDebate, setSelectedCommunityDebate,
     copyingId, setCopyingId, copyItem, loadSessions, auth, nav,
-    onRowOpen, onRowCommunityExport,
+    onCommunityRowOpen, onRowCommunityExport,
   } = props;
   const isPhone = nav.isActive;
 
@@ -735,7 +755,7 @@ function DebateCommunityList(props: DebateListProps) {
         loading={communityLoading}
         searchQuery={searchQuery}
         selectedId={selectedCommunityDebate?.id ?? null}
-        onOpen={onRowOpen}
+        onOpen={onCommunityRowOpen}
         onExport={onRowCommunityExport}
         onCopy={handleCopy}
         copyingId={copyingId}
