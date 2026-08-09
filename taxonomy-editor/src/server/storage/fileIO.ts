@@ -1204,7 +1204,7 @@ export async function discoverSources(): Promise<DiscoveredSource[]> {
       });
     } catch { /* telemetry — silent by design;  skip */ }
   }
-  return sources.sort((a, b) => a.title.localeCompare(b.title));
+  return sources.sort((a, b) => (a.title ?? '').localeCompare(b.title ?? ''));
 }
 
 export async function loadSummary(docId: string): Promise<unknown | null> {
