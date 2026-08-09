@@ -145,4 +145,65 @@ describe('community listing index (t/726)', () => {
     expect(ids(second)).toEqual(['2', '1']);
     expect(mem.itemReads('debate-')).toBe(0); // served from index
   });
+
+  // ── Index versioning (t/2384) ─────────────────────────────────────────────
+  //
+  // A toEntry schema change must bust the cached index so new fields appear
+  // immediately — the count-only staleness check doesn't catch this.
+
+  function debateFileWithModel(id: string) {
+    return JSON.stringify({
+      id, title: `Debate ${id}`, created_at: '2026-01-01', updated_at: '2026-06-01',
+      phase: 'synthesis',
+      debate_model: 'claude-sonnet-5',
+      transcript: [{ type: 'opening' }, { type: 'statement' }, { type: 'statement' }],
+    });
+  }
+
+  it('old bare-array index (pre-versioning) is ignored → fresh rebuild returns new fields', async () => {
+    mem.put(path.join(debatesDir(), 'debate-m.json'), debateFileWithModel('m'));
+    // Simulate the stale pre-t/2362 index: a raw array with no model/turn_count.
+    mem.put(indexPath(debatesDir()), JSON.stringify([
+      { id: 'm', title: 'Debate m', created_at: '2026-01-01', updated_at: '2026-06-01', phase: 'synthesis', community_metadata: null },
+    ]));
+
+    mem.resetReads();
+    const result = await userContext.runWithUser(authedCtx, () => community.listCommunityDebates());
+
+    expect(result.length).toBe(1);
+    const entry = result[0] as { model?: string; turn_count?: number };
+    expect(entry.model).toBe('claude-sonnet-5');
+    expect(entry.turn_count).toBe(3); // opening + statement + statement
+    expect(mem.itemReads('debate-')).toBeGreaterThan(0); // full scan ran — stale cache skipped
+  });
+
+  it('index with wrong schema version is ignored → fresh rebuild returns new fields', async () => {
+    mem.put(path.join(debatesDir(), 'debate-m.json'), debateFileWithModel('m'));
+    // Simulate a versioned index from a previous toEntry shape (debate-v1 → current is debate-v2).
+    mem.put(indexPath(debatesDir()), JSON.stringify({
+      version: 'debate-v1',
+      entries: [{ id: 'm', title: 'Debate m', created_at: '2026-01-01', updated_at: '2026-06-01', phase: 'synthesis', community_metadata: null }],
+    }));
+
+    mem.resetReads();
+    const result = await userContext.runWithUser(authedCtx, () => community.listCommunityDebates());
+
+    expect(result.length).toBe(1);
+    const entry = result[0] as { model?: string; turn_count?: number };
+    expect(entry.model).toBe('claude-sonnet-5');
+    expect(entry.turn_count).toBe(3);
+    expect(mem.itemReads('debate-')).toBeGreaterThan(0); // full scan ran — stale version skipped
+  });
+
+  it('matching version index is served without per-file reads', async () => {
+    mem.put(path.join(debatesDir(), 'debate-m.json'), debateFileWithModel('m'));
+    // Build a valid current-version index.
+    await userContext.runWithUser(authedCtx, () => community.listCommunityDebates());
+
+    mem.resetReads();
+    const result = await userContext.runWithUser(authedCtx, () => community.listCommunityDebates());
+
+    expect((result[0] as { model?: string }).model).toBe('claude-sonnet-5');
+    expect(mem.itemReads('debate-')).toBe(0); // served from valid versioned index
+  });
 });
