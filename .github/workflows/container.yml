@@ -103,10 +103,20 @@ jobs:
           dockerfile: taxonomy-editor/Dockerfile
           failure-threshold: error
 
+      - name: Verify digest-pinned FROM lines
+        run: |
+          UNPINNED=$(grep -E '^FROM\s' taxonomy-editor/Dockerfile | grep -v '@sha256:' || true)
+          if [ -n "$UNPINNED" ]; then
+            echo "::error::Non-digest-pinned FROM lines found in taxonomy-editor/Dockerfile:"
+            echo "$UNPINNED"
+            echo "All base images must use the form: FROM image:tag@sha256:<digest>"
+            exit 1
+          fi
+          echo "All FROM lines are digest-pinned."
+
       - name: Verify base image exists
         run: |
-          BASE_TAG=$(grep -oP 'FROM ghcr\.io/jpsnover/ai-triad-base:\K\S+' taxonomy-editor/Dockerfile | head -1)
-          BASE_TAG="${BASE_TAG%% *}"
+          BASE_TAG=$(grep -oP 'FROM ghcr\.io/jpsnover/ai-triad-base:\K[^@ ]+' taxonomy-editor/Dockerfile | head -1)
           echo "Base image tag: $BASE_TAG"
           if [ "$BASE_TAG" = "latest" ]; then
             echo "Using :latest — checking it exists..."
