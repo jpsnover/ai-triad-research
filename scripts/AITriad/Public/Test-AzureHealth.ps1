@@ -55,10 +55,37 @@ function Test-AzureHealth {
 
         [Parameter()]
         [ValidateRange(1, 120)]
-        [int]$TimeoutSec = 10
+        [int]$TimeoutSec = 10,
+
+        [Parameter()]
+        [switch]$CheckConfig,
+
+        [Parameter()]
+        [hashtable]$ExpectedEnvVars = @{},
+
+        [Parameter()]
+        [string]$ExpectedTrafficRevision = '',
+
+        [Parameter()]
+        [ValidateRange(0, 100)]
+        [int]$ExpectedTrafficWeight = 100,
+
+        [Parameter()]
+        [switch]$CheckFirewall,
+
+        [Parameter()]
+        [string]$StorageAccountName = '',
+
+        [Parameter()]
+        [string]$KeyVaultName = '',
+
+        [Parameter()]
+        [ValidateRange(1, 10)]
+        [int]$ConfigRetryCount = 3
     )
 
     Set-StrictMode -Version Latest
+    if ($CheckConfig) { $UseCLI = $true }
 
     $BaseUrl = $BaseUrl.TrimEnd('/')
     $Checks = [System.Collections.Generic.List[PSObject]]::new()
@@ -295,6 +322,133 @@ function Test-AzureHealth {
                 ResponseMs = 0
                 Detail     = 'Azure CLI (az) not found — install from https://aka.ms/installazurecli'
             })
+        }
+    }
+
+    # ── Config verification (-CheckConfig) ──────────────────────────────
+    # Coverage limit: secretRef vars and dynamic ACA-domain vars
+    # (ALLOWED_ORIGINS, APPLICATIONINSIGHTS_*) not verified — require
+    # Bicep outputs or runtime reads (v2 path).
+    if ($CheckConfig) {
+        $AzCmd2 = Get-Command az -ErrorAction SilentlyContinue
+        if (-not $AzCmd2) {
+            $Checks.Add([PSCustomObject]@{
+                Check = 'Config:CLI'; Pass = $false; ResponseMs = 0
+                Detail = 'Azure CLI (az) not found — required for -CheckConfig'
+            })
+        }
+        else {
+            # ── Firewall validation ──────────────────────────────────────
+            if ($CheckFirewall) {
+                if ([string]::IsNullOrWhiteSpace($StorageAccountName) -or
+                    [string]::IsNullOrWhiteSpace($KeyVaultName)) {
+                    throw (New-ActionableError `
+                        -Goal      'Verify Storage + Key Vault firewall defaultAction' `
+                        -Problem   '-CheckFirewall specified but StorageAccountName or KeyVaultName is empty' `
+                        -Location  'Test-AzureHealth -CheckFirewall' `
+                        -NextSteps 'Pass -StorageAccountName and -KeyVaultName when using -CheckFirewall')
+                }
+                $StAction = (& az storage account show -n $StorageAccountName -g $ResourceGroup `
+                    --query 'networkAcls.defaultAction' -o tsv 2>$null)
+                $StPass = ($LASTEXITCODE -eq 0) -and ($StAction.Trim() -eq 'Allow')
+                $Checks.Add([PSCustomObject]@{
+                    Check = 'Config:Firewall:Storage'; Pass = $StPass; ResponseMs = 0
+                    Detail = if ($StPass) { 'defaultAction=Allow' }
+                             else { "defaultAction=$($StAction.Trim()) (expected Allow — consumption-tier ACA SNAT trap)" }
+                })
+                $KvAction = (& az keyvault show -n $KeyVaultName -g $ResourceGroup `
+                    --query 'properties.networkAcls.defaultAction' -o tsv 2>$null)
+                $KvPass = ($LASTEXITCODE -eq 0) -and ($KvAction.Trim() -eq 'Allow')
+                $Checks.Add([PSCustomObject]@{
+                    Check = 'Config:Firewall:KeyVault'; Pass = $KvPass; ResponseMs = 0
+                    Detail = if ($KvPass) { 'defaultAction=Allow' }
+                             else { "defaultAction=$($KvAction.Trim()) (expected Allow — consumption-tier ACA SNAT trap)" }
+                })
+            }
+            # ── Traffic weight ───────────────────────────────────────────
+            if (-not [string]::IsNullOrWhiteSpace($ExpectedTrafficRevision)) {
+                $TrafficJson = & az containerapp ingress traffic show `
+                    -g $ResourceGroup -n $AppName --output json 2>$null
+                if ($LASTEXITCODE -eq 0 -and $TrafficJson) {
+                    $Traffic = @($TrafficJson | ConvertFrom-Json)
+                    $RevEntry = @($Traffic | Where-Object {
+                        $_.PSObject.Properties['revisionName'] -and
+                        $_.revisionName -eq $ExpectedTrafficRevision
+                    })
+                    if ($RevEntry.Count -eq 0) {
+                        $Checks.Add([PSCustomObject]@{
+                            Check = 'Config:Traffic'; Pass = $false; ResponseMs = 0
+                            Detail = "revision '$ExpectedTrafficRevision' not found in traffic rules — possible auto-promotion"
+                        })
+                    }
+                    elseif ([int]$RevEntry[0].weight -ne $ExpectedTrafficWeight) {
+                        $Checks.Add([PSCustomObject]@{
+                            Check = 'Config:Traffic'; Pass = $false; ResponseMs = 0
+                            Detail = "weight=$($RevEntry[0].weight) expected=$ExpectedTrafficWeight for '$ExpectedTrafficRevision'"
+                        })
+                    }
+                    else {
+                        $Checks.Add([PSCustomObject]@{
+                            Check = 'Config:Traffic'; Pass = $true; ResponseMs = 0
+                            Detail = "'$ExpectedTrafficRevision' at $($RevEntry[0].weight)%"
+                        })
+                    }
+                }
+                else {
+                    $Checks.Add([PSCustomObject]@{
+                        Check = 'Config:Traffic'; Pass = $false; ResponseMs = 0
+                        Detail = 'az containerapp ingress traffic show failed'
+                    })
+                }
+            }
+            # ── Env var check (retry for ACA eventual consistency) ───────
+            if ($ExpectedEnvVars.Count -gt 0) {
+                $EnvResults = @{}
+                $EnvAllPass = $false
+                for ($Attempt = 1; $Attempt -le $ConfigRetryCount; $Attempt++) {
+                    $AppJson2 = & az containerapp show -g $ResourceGroup -n $AppName --output json 2>$null
+                    if ($LASTEXITCODE -ne 0 -or -not $AppJson2) {
+                        foreach ($Key in $ExpectedEnvVars.Keys) {
+                            $EnvResults[$Key] = @{ Pass = $false; Detail = 'az containerapp show failed' }
+                        }
+                        break
+                    }
+                    $App2 = $AppJson2 | ConvertFrom-Json
+                    $LiveEnv = @{}
+                    $Containers2 = @($App2.properties.template.containers)
+                    if ($Containers2.Count -gt 0 -and $Containers2[0].PSObject.Properties['env']) {
+                        foreach ($E in @($Containers2[0].env)) {
+                            if ($E.PSObject.Properties['name'] -and $E.PSObject.Properties['value']) {
+                                $LiveEnv[$E.name] = $E.value
+                            }
+                        }
+                    }
+                    $RoundPass = $true
+                    $RoundResults = @{}
+                    foreach ($Kv in $ExpectedEnvVars.GetEnumerator()) {
+                        $ExpectedVal = $Kv.Value
+                        $LiveVal = if ($LiveEnv.ContainsKey($Kv.Key)) { $LiveEnv[$Kv.Key] } else { $null }
+                        $Pass = if ($ExpectedVal -eq '') { ($null -eq $LiveVal -or $LiveVal -eq '') }
+                                 else { $LiveVal -eq $ExpectedVal }
+                        $Detail = if ($Pass) { 'ok' }
+                                  elseif ($null -eq $LiveVal) { "MISSING (expected '$ExpectedVal')" }
+                                  else { "MISMATCH: live='$LiveVal' expected='$ExpectedVal'" }
+                        $RoundResults[$Kv.Key] = @{ Pass = $Pass; Detail = $Detail }
+                        if (-not $Pass) { $RoundPass = $false }
+                    }
+                    $EnvResults = $RoundResults
+                    $EnvAllPass = $RoundPass
+                    if ($EnvAllPass -or $Attempt -eq $ConfigRetryCount) { break }
+                    Write-Verbose "Env var check attempt $Attempt/$ConfigRetryCount not clean — retrying in 5s (ACA eventual consistency)"
+                    Start-Sleep -Seconds 5
+                }
+                foreach ($Key in $EnvResults.Keys) {
+                    $Checks.Add([PSCustomObject]@{
+                        Check = "Config:EnvVar:$Key"; Pass = $EnvResults[$Key].Pass
+                        ResponseMs = 0; Detail = $EnvResults[$Key].Detail
+                    })
+                }
+            }
         }
     }
 
