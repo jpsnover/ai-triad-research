@@ -157,11 +157,32 @@ def compose_new_vectors(model, new_nodes):
     entries = {}
     for i, n in enumerate(new_nodes):
         entries[n["id"]] = {
-            "pov": "safetyist",
+            "pov": n.get("pov", "safetyist"),   # per-node POV (backfill spans acc/saf/sit/skp)
             "vector": main[i].tolist(),
             "exclusion_vector": (next(excl_iter).tolist() if excl_texts[i] else None),
         }
     return entries
+
+
+def self_retrieval_proof(model, emb_nodes, new_nodes):
+    """Backfill proof (no gap queries): each node, queried by its own description,
+    is rank-1 among its POV's stored vectors — confirming the embedding was stored
+    correctly and the node is now retrievable. Not a coverage-gap-closure claim."""
+    results = []
+    for n in new_nodes:
+        pov = n.get("pov")
+        ids = [k for k, v in emb_nodes.items() if v.get("pov") == pov]
+        M = np.asarray([emb_nodes[k]["vector"] for k in ids], dtype=np.float64)
+        M = M / np.clip(np.linalg.norm(M, axis=1, keepdims=True), 1e-9, None)
+        q = _encode_norm(model, [n["description"]])[0]
+        sims = M @ q
+        rank1 = ids[int(np.argmax(sims))]
+        results.append({
+            "node": n["id"], "pov": pov,
+            "rank1": rank1, "rank1_is_self": rank1 == n["id"],
+            "self_score": round(float(sims[ids.index(n["id"])]), 4),
+        })
+    return results
 
 
 def retrieval_proof(model, emb_nodes, new_nodes, source_queries):
@@ -245,12 +266,23 @@ def main():
     spliced_nodes.update(new_entries)
     new_count = envelope["node_count"] + len(new_entries)
 
-    # ── Retrieval proof (over the SPLICED vectors) ───────────────────
-    proof = retrieval_proof(model, spliced_nodes, new_nodes, new_doc.get("_source_queries", {}))
-    print("=== RETRIEVAL PROOF (new node must be rank-1 for its gap text) ===", file=sys.stderr)
-    print(json.dumps(proof, indent=2))
-    all_rank1 = all(p["rank1_is_new_node"] for p in proof)
-    print(f"ALL new nodes rank-1: {all_rank1}", file=sys.stderr)
+    # ── Proof over the SPLICED vectors ───────────────────────────────
+    # Coverage-gap mode (source queries present): each gap query returns its new
+    # node rank-1. Backfill mode (no source queries): each node self-retrieves
+    # rank-1 within its POV (embedding stored + retrievable).
+    source_queries = new_doc.get("_source_queries", {})
+    if source_queries:
+        proof = retrieval_proof(model, spliced_nodes, new_nodes, source_queries)
+        print("=== RETRIEVAL PROOF (new node must be rank-1 for its gap text) ===", file=sys.stderr)
+        print(json.dumps(proof, indent=2))
+        all_ok = all(p.get("rank1_is_new_node") for p in proof)
+        print(f"ALL new nodes rank-1 for their gap query: {all_ok}", file=sys.stderr)
+    else:
+        proof = self_retrieval_proof(model, spliced_nodes, new_nodes)
+        print("=== SELF-RETRIEVAL PROOF (backfill: each node rank-1 within its POV) ===", file=sys.stderr)
+        print(json.dumps(proof, indent=2))
+        all_ok = all(p.get("rank1_is_self") for p in proof)
+        print(f"ALL backfilled nodes self-retrieve rank-1: {all_ok}", file=sys.stderr)
     print(f"node_count {envelope['node_count']} -> {new_count}", file=sys.stderr)
 
     if args.dry_run:
