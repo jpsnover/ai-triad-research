@@ -149,7 +149,7 @@ export async function listDebateSessions(): Promise<unknown[]> {
       } catch { /* telemetry — silent by design;  skip */ }
     }
   }
-  return summaries.sort((a, b) => b.updated_at.localeCompare(a.updated_at));
+  return summaries.sort((a, b) => (b.updated_at ?? '').localeCompare(a.updated_at ?? ''));
 }
 
 export async function loadDebateSession(id: string): Promise<unknown> {
@@ -351,7 +351,7 @@ export async function listChatSessions(): Promise<unknown[]> {
       });
     } catch { /* telemetry — silent by design;  skip */ }
   }
-  return summaries.sort((a, b) => b.updated_at.localeCompare(a.updated_at));
+  return summaries.sort((a, b) => (b.updated_at ?? '').localeCompare(a.updated_at ?? ''));
 }
 
 export async function loadChatSession(id: string): Promise<unknown> {
