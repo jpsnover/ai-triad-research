@@ -139,7 +139,7 @@ CONFLICTS_DIR: Optional[Path] = None  # set in _resolve_taxonomy_dir
 
 # Default weights for multi-field embedding.  Must sum to 1.0.
 # Fields: description, assumes, lineage, epistemic_type, rhetorical_strategy
-DEFAULT_FIELD_WEIGHTS = (0.8, 0.2, 0.0, 0.0, 0.0)
+DEFAULT_FIELD_WEIGHTS = (1.0, 0.0, 0.0, 0.0, 0.0)
 
 
 def _package_version(pkg_name: str) -> str:
@@ -386,7 +386,7 @@ def cmd_generate(args):
     per field first would flatten the weight ratios (t/268, see combination site).
 
     Weights are configurable via --field-weights (DEFAULT_FIELD_WEIGHTS =
-    0.8/0.2/0/0/0). Policies and conflicts each use a single embedding of their
+    1/0/0/0/0). Policies and conflicts each use a single embedding of their
     action/claim text, normalized individually.
     """
     nodes = _load_taxonomy_nodes()
