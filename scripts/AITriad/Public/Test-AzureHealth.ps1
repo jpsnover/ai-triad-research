@@ -358,23 +358,26 @@ function Test-AzureHealth {
                         -Location  'Test-AzureHealth -CheckFirewall' `
                         -NextSteps 'Pass -StorageAccountName and -KeyVaultName when using -CheckFirewall')
                 }
+                # t/2431: az CLI returns storage network rules under `networkRuleSet`, not `networkAcls`.
                 $StActionRaw = (& az storage account show -n $StorageAccountName -g $ResourceGroup `
-                    --query 'networkAcls.defaultAction' -o tsv 2>$null)
+                    --query 'networkRuleSet.defaultAction' -o tsv 2>$null)
                 $StAction = if (-not [string]::IsNullOrWhiteSpace($StActionRaw)) { $StActionRaw.Trim() } else { '' }
                 $StPass = ($LASTEXITCODE -eq 0) -and ($StAction -eq 'Allow')
                 $Checks.Add([PSCustomObject]@{
                     Check = 'Config:Firewall:Storage'; Pass = $StPass; ResponseMs = 0
-                    Detail = if ($StPass) { 'defaultAction=Allow' }
-                             else { "defaultAction=$StAction (expected Allow — consumption-tier ACA SNAT trap)" }
+                    Detail = if ($StPass) { 'networkRuleSet.defaultAction=Allow' }
+                             else { "networkRuleSet.defaultAction=$StAction (expected Allow — consumption-tier ACA SNAT trap)" }
                 })
-                $KvActionRaw = (& az keyvault show -n $KeyVaultName -g $ResourceGroup `
-                    --query 'properties.networkAcls.defaultAction' -o tsv 2>$null)
-                $KvAction = if (-not [string]::IsNullOrWhiteSpace($KvActionRaw)) { $KvActionRaw.Trim() } else { '' }
-                $KvPass = ($LASTEXITCODE -eq 0) -and ($KvAction -eq 'Allow')
+                # t/2431: Key Vault networkAcls is null when no network restrictions are configured;
+                # publicNetworkAccess=Enabled is the controlling flag that permits ACA managed-identity calls.
+                $KvPubAccessRaw = (& az keyvault show -n $KeyVaultName -g $ResourceGroup `
+                    --query 'properties.publicNetworkAccess' -o tsv 2>$null)
+                $KvPubAccess = if (-not [string]::IsNullOrWhiteSpace($KvPubAccessRaw)) { $KvPubAccessRaw.Trim() } else { '' }
+                $KvPass = ($LASTEXITCODE -eq 0) -and ($KvPubAccess -eq 'Enabled')
                 $Checks.Add([PSCustomObject]@{
                     Check = 'Config:Firewall:KeyVault'; Pass = $KvPass; ResponseMs = 0
-                    Detail = if ($KvPass) { 'defaultAction=Allow' }
-                             else { "defaultAction=$KvAction (expected Allow — consumption-tier ACA SNAT trap)" }
+                    Detail = if ($KvPass) { 'publicNetworkAccess=Enabled' }
+                             else { "publicNetworkAccess=$KvPubAccess (expected Enabled — required for ACA managed-identity calls)" }
                 })
             }
             # ── Traffic weight ───────────────────────────────────────────
