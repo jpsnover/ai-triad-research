@@ -700,6 +700,11 @@ export function initFlightRecorder(): FlightRecorder {
         },
         debate: debate ? {
           id: debate.id,
+          // Community (read-only, viewing a shared debate) vs personal (editable). Lets
+          // triage read the source directly instead of inferring it from a comments-404
+          // error chain (t/2435). communityReadOnly is the store's durable representation
+          // of the `source=community` load path.
+          source: (debateState.communityReadOnly ? 'community' : 'personal') as 'community' | 'personal' | null,
           phase: debate.phase,
           adaptive_phase: debate.adaptive_staging?.current_phase ?? null,
           transcript_length: debate.transcript?.length ?? 0,
