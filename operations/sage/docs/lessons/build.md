@@ -2010,19 +2010,35 @@ Failure patterns related to builds, CI, tooling, environment, and git operations
 
 ---
 
-## #158 [Build] Barrel Import Loads Full Module Graph in Vitest — Transitive Module-Eval Crash Shows as "0 tests / TypeError"
+## #159 [Build] Smoke Gate That Checks the Deploy Workflow Itself Creates a Circular Block
 
-**Pattern:** Importing from a shared barrel (`from '../../shared'`) in vitest test files loads the full module graph at import time. A transitive module with a side-effectful initializer crashes all test files sharing the barrel import — showing "0 tests / TypeError" with no test names.
+**Pattern:** A pre-traffic smoke gate that includes the deploy workflow in its "required workflows green" check creates a circular dependency — a failed deploy leaves the workflow red, permanently blocking redeployment via the gate.
 
 **Instances:**
-- 2026-08-09 — DebateDiagnostics (t/2394, PR #761, p/245#5): barrel import transitively loaded PromptsPanel→promptCatalog→turn.ts, crashing at `c.voice.disposition` on undefined. Fix: direct file imports.
-
-**Root Cause:** Barrel re-exports expand the import surface to the entire module group. Vitest executes module-level code eagerly. "0 tests / TypeError" with no test names = import-time crash, not a test failure.
+- 2026-08-10 — DevOps (t/2427, PR #789, p/26#75): `Test-GitHubHealth` checked `deploy-azure.yml @main` in `$KeyWorkflows`; failed deploy permanently blocked redeploys. Fix: remove deploy workflow from `$KeyWorkflows`.
 
 **Prevention:**
-1. In test files, use direct file imports (`from '../../shared/ComponentName'`) not barrels.
-2. "0 tests / TypeError" with no test names → suspect barrel-import module-eval crash.
+1. Never include the deploy workflow in a pre-deploy gate's checked-workflow list.
+2. When designing a gate, ask: "Can a failed deploy still pass this gate?"
 
-**Status:** Active — 1 instance (DebateDiagnostics p/245#5).
+**Status:** Active — 1 instance (DevOps p/26#75).
 
-**Applies To:** All agents writing vitest tests that import from shared barrels.
+**Applies To:** All agents designing pre-deployment smoke or health gates.
+
+---
+
+## #160 [Build] `az` CLI Field Paths Diverge From REST/Bicep Names — New Health Checks Silently Return Empty Until Verified Against Live Azure
+
+**Pattern:** New Azure health checks written from Bicep/REST docs use `az` CLI field paths that don't exist. The check returns null/empty silently and passes the gate — false-green. Invisible without running against real Azure.
+
+**Instances:**
+- 2026-08-10 — DevOps (t/2431, PR #796, p/26#76): storage check used `networkAcls.defaultAction` (empty); correct path is `networkRuleSet.defaultAction`. Key Vault used `networkAcls.defaultAction` (null); correct path is `publicNetworkAccess`.
+
+**Prevention:**
+1. Smoke-the-smoker locally before landing new `Test-AzureHealth` checks — run against real Azure and confirm non-null result.
+2. Use `az <resource> show --query <path>` interactively to verify exact field paths.
+3. A null result from a new health check is suspect until confirmed against real Azure output.
+
+**Status:** Active — 1 instance (DevOps p/26#76).
+
+**Applies To:** All agents writing `az` CLI health checks from Bicep/REST schema references.

@@ -150,6 +150,7 @@ Institutional memory for failure patterns across the AI Triad Research project.
 - 2026-05-22 — `Get-PovLineage` crashed with "The property 'parent_id' cannot be found on this object" when traversing nodes that lack a `parent_id` property (p/20#1).
 - 2026-05-24 — `HashSet[string]::new([System.StringComparer]::OrdinalIgnoreCase)` inside an inline `if/else` assignment threw "cannot call a method on a null-valued expression". Fixed by simplifying to block `if/else` with `HashSet[string]::new()` (no constructor args) (p/20#5).
 - 2026-05-25 — `.Count` on empty JSON arrays from `ConvertFrom-Json` threw under strict mode. `children: []` and `situation_refs: []` produce objects where `.Count` is unavailable. Fixed by using `foreach` with `break` to test emptiness instead (p/20#9).
+- 2026-08-10 — DevOps (t/2428, PR #791, p/26#75): `Test-AzureHealth` called `.Trim()` on null `az` CLI result under StrictMode — "Cannot call a method on a null-valued expression." Fix: null-coerce before `.Trim()` (`$result?.Trim()` or `if ($null -ne $result)`).  
 - 2026-07-26 — Technical Lead (t/1726, p/8#88): `Invoke-SummaryPipeline` crashed under strict mode accessing `.factual_claims` at **4 sites** when an LLM **omitted that optional JSON field**. Same class as the `.Count`-on-scalar trap behind the `ps-strict-mode-count-guard` hook — an unguarded property read on a `ConvertFrom-Json` object whose shape varies per LLM call. Fix = `$obj.PSObject.Properties['factual_claims']` guard (prevention #1). **The recurring driver is LLM-omitted optional fields** — every optional field in an LLM JSON contract is a latent unguarded-access crash site.
 
 **Root Cause:** PowerShell strict mode interacts unpredictably with complex expressions and JSON-sourced objects — missing properties throw terminating errors, .NET constructors can fail in inline conditionals, and `ConvertFrom-Json` empty arrays may lack `.Count` unlike native `@()` arrays. **The dominant recurrence source is LLM JSON with optional fields:** the model omits a field on some calls, so a property read that worked in testing crashes in production — the same object-shape-varies risk as the "normalize at fetch" data-shape rule, on the PowerShell side.
@@ -1607,7 +1608,6 @@ Institutional memory for failure patterns across the AI Triad Research project.
 
 **Instances:**
 - 2026-07-17 — Server Storage (p/206#3): after `npm run verify` in a landing worktree, `git rebase origin/main` failed "you have unstaged changes." Cause: verify regenerated `src/server/__tests__/__snapshots__/routeTable.test.ts.snap` with flipped LF↔CRLF — a tracked file dirtied as a side effect of verify, not the actual change. Resolved: `git checkout -- <that snap>` before the rebase, then rebase + push cleanly.
-- 2026-08-10 — DebateUI (p/83#10, wt-2413): same snap file (`routeTable.test.ts.snap`) dirtied by verify blocked rebase. Fix: `git stash -u` before rebase, `git stash pop` after.
 - 2026-07-17 — DebateTool (t/1686, ADR-007 worktree land, resolved 2ef26698, p/70#7): the `git push` bash step exited 1 because the `&&`-chained FF-guard `git merge-base --is-ancestor origin/main HEAD` returned non-zero — origin/main had advanced. Compounding, `git diff HEAD..origin/main` false-flagged the agent's own unpushed split files as "overlap." Resolved: cleaned the verify-run snapshot artifact, confirmed via `git show --stat <origin-commit>` that origin's new commit didn't touch the agent's files, rebased, pushed.
 - 2026-07-26 — DevOps (t/1802, p/26#19): **confirming instance of facet B — discipline held, benign.** The pre-push FF-guard exited 1 because origin/main advanced between worktree-creation and push; resolved cleanly with `git rebase origin/main` on the 1 commit + push. Documents the recorded fix working in practice — a non-zero FF-guard is the *expected* "origin advanced, rebase now" signal, not an error. (Flagged only because the exit-1 tripped the route-to-Sage hook — #80 Part-3 residual.)
 
@@ -2310,7 +2310,6 @@ Institutional memory for failure patterns across the AI Triad Research project.
 - 2026-08-06 — DebateUI (p/83#8): **6th instance, 5th independent agent.** `gh pr merge --squash --delete-branch` failed when `main` was checked out in another worktree. Workaround: called the GitHub API directly — `gh api repos/:owner/:repo/pulls/N/merge -X PUT -f merge_method=squash` — which executes the merge server-side with no local checkout/cleanup step at all.
 - 2026-08-07 — DebateWorkspace (p/124#8): **7th instance, 6th independent agent.** `gh pr merge --rebase --delete-branch` from a worktree — Facet 1 (main held by primary tree). Discriminator: `gh pr view --json state,mergedAt` confirmed MERGED. Recovery: `git push origin --delete <branch>` + `git worktree remove` manually — no retry of the merge.
 - 2026-08-09 — Server Community (p/160#3): **8th instance, 7th independent agent.** `gh pr merge --delete-branch` from a worktree — same Facet 1 (`fatal: 'main' is already used by worktree`). GitHub merge landed; fix: `gh pr view --json state` to confirm, then delete branch manually.
-- 2026-08-09 — Server Community (p/160#5): **9th instance, Facet 3 (new).** `gh pr merge --delete-branch` exits 1 with "remote ref does not exist" — GitHub had already auto-deleted the branch on merge. Error is benign/redundant; confirmed MERGED, worktree removed. Fix: omit `--delete-branch` when GitHub auto-delete-on-merge is enabled (the flag is redundant and noisy).
 
 **Root Cause:** `--delete-branch` cleans up the merged head branch locally too, and gh switches the working copy to the base branch (`git checkout main`) to do so. Git's one-branch-per-worktree rule blocks checking out `main` while the primary worktree has it → `fatal`. The remote merge + branch delete already happened via the API; only the local checkout/cleanup fails. Bookkeeping-≠-artifact family — the exit code describes post-success cleanup, not the merge.
 
@@ -2321,7 +2320,6 @@ Institutional memory for failure patterns across the AI Triad Research project.
 4. **Or run `gh pr merge` from the MAIN REPO PATH, not a worktree** (Server Storage p/206#9): the hub holds `main`, so gh's post-merge local `checkout main` succeeds — no checkout-conflict. **Caveat (p/206#11): NOT a full escape** — if a worktree still holds the PR's HEAD branch, `--delete-branch`'s local `git branch -D <head>` then fails "cannot delete branch used by worktree." (If a safety classifier blocks the command, ask the user to run it.)
 5. **Fully-safe order: `git worktree remove <path>` FIRST, then merge/delete** — clears BOTH facets (checkout-main + branch-used-by-worktree). Simplest: drop `--delete-branch` (prevention #1), remove the worktree, delete the branch by hand.
 6. **Direct API escape hatch:** `gh api repos/:owner/:repo/pulls/N/merge -X PUT -f merge_method=squash` (or `rebase`/`merge`) — calls the GitHub merge API directly with no local checkout or branch-delete step; bypasses all worktree conflicts entirely. Then clean up branches manually.
-7. **Facet 3 — "remote ref does not exist":** when GitHub auto-delete-on-merge is enabled, `--delete-branch` tries to delete an already-gone branch → benign "remote ref does not exist" error. Drop `--delete-branch` entirely; if GitHub deletes it, there is nothing to do.
 
 **Status:** **Skill-path RESOLVED; direct-invocation ACTIVE (recurred 2026-07-30).** TL fixed step 5 (p/8#121): drops `--delete-branch`, verifies `gh pr view <n> --json state` == `MERGED` (not the exit code), deletes the remote branch by push. **But the failure is intrinsic to `--delete-branch` from a worktree** — Server Storage re-hit it with a DIRECT `gh pr merge --squash --delete-branch` (t/2020), bypassing the fixed skill; any direct invocation from a worktree re-triggers it (fix: drop `--delete-branch`, or run from the main repo path — prevention #4). **3rd instance (p/206#11) surfaced a 2nd facet:** even from the main repo path, `--delete-branch`'s LOCAL branch-delete fails "cannot delete branch used by worktree" if a worktree holds the head → fully-safe order is `git worktree remove` FIRST, then merge/delete (prevention #5). Was the dangerous PR-flow variant (fatal → panic-retry → double-land). **4th instance (DevOps p/26#36, 2026-08-03) — 3rd independent agent confirms prevention #5** (worktree-remove-first) and adds the "**already merged**" signature (an auto-merged PR whose `--delete-branch` cleanup still exit-1s on the held branch) — reinforcing that exit 1 is post-merge cleanup, not a failed merge. Root cause folded into the "validate a fleet-standard procedure end-to-end before mandating" process lesson. **5th instance (ServerAPI p/79#25, 2026-08-05) — 4th independent agent; IDE-managed worktree (`.claude/worktrees/`) holds the branch, same outcome.** Correctly handled: check `mergedAt`, treat exit 1 as cosmetic, hand cleanup to the worktree owner. **7th instance (DebateWorkspace p/124#8, 2026-08-07) — 6th independent agent; `--rebase --delete-branch` from a worktree; same Facet 1.** Discriminator confirmed: `gh pr view --json state,mergedAt` shows MERGED; recovery = `git push origin --delete` + `git worktree remove` manually.
 
@@ -3250,20 +3248,40 @@ Institutional memory for failure patterns across the AI Triad Research project.
 
 ---
 
-## #158 [Build] Barrel Import Loads Full Module Graph in Vitest — Transitive Module-Eval Crash Shows as "0 tests / TypeError"
+## #159 [Build] Smoke Gate That Checks the Deploy Workflow Itself Creates a Circular Block — A Failed Deploy Permanently Prevents Redeployment
 
-**Pattern:** Importing from a shared barrel (`from '../../shared'`) in vitest test files causes the full shared module graph to load at import time. If any transitive module crashes at module-eval (side effects, constant initialization on an undefined dependency), all test files sharing that import show "0 tests / TypeError" — no test names, no assertion failures, just silent zero-result runs.
+**Pattern:** A pre-traffic smoke gate that verifies "required workflows are green" includes the deploy workflow itself in its check list. A failed deploy leaves that workflow red → the gate fails → a fix-deploy cannot run → the system is permanently locked out of redeployment via the gate.
 
 **Instances:**
-- 2026-08-09 — DebateDiagnostics (t/2394, PR #761): `from '../../shared'` in 6 test files transitively loaded PromptsPanel→promptCatalog→turn.ts, which crashed at module-eval (`c.voice.disposition` on undefined). Fix: replaced barrel imports with direct file imports (`from '../../shared/BookmarkLink'`).
+- 2026-08-10 — DevOps (t/2427, PR #789, p/26#75): `Test-GitHubHealth` checked `deploy-azure.yml @main` in `$KeyWorkflows`. A failed deploy left the workflow red, blocking all subsequent redeploys. Fix: remove the deploy workflow itself from `$KeyWorkflows`.
 
-**Root Cause:** Barrel/index files re-export every member of a module group. Vitest executes module-level code eagerly at import time. A barrel import expands the import surface to the entire module graph, dragging in modules with side-effectful initializers. The failure presents as "0 tests" rather than a named test failure, making it non-obvious that the crash is an import issue.
+**Root Cause:** A gate that depends on the thing it guards creates a circular dependency — once in a failed state, the system cannot self-heal through the normal path.
 
 **Prevention:**
-1. **In test files, prefer direct file imports** (`from '../../shared/ComponentName'`) over barrel imports (`from '../../shared'`) — avoids loading the full module graph.
-2. **"0 tests / TypeError" with no test names = suspect an import-time crash** — check whether a barrel import transitively loads a module with side effects or state-dependent initialization.
-3. When a barrel module grows to include components with side-effectful initializers, add a note in its index warning that test files should use direct imports.
+1. **Never include the deploy workflow in a pre-deploy gate's checked-workflow list** — a deploy workflow being red is the reason to redeploy, not a blocker.
+2. For health gates, check application-level workflows (CI, test, lint) not the deploy pipeline itself.
+3. When designing a gate, explicitly ask: "Can a failed deploy still pass this gate?" If no, the gate has a circular dependency.
 
-**Status:** Active — 1 instance (DebateDiagnostics p/245#5).
+**Status:** Active — 1 instance (DevOps p/26#75).
 
-**Applies To:** All agents writing vitest tests that import from shared barrels.
+**Applies To:** All agents designing pre-deployment smoke or health gates.
+
+---
+
+## #160 [Build] `az` CLI Field Paths Diverge From REST/Bicep Names — New Health Checks Silently Return Empty Until Verified Against Live Azure
+
+**Pattern:** New `Test-AzureHealth` checks written from Bicep/REST documentation use field paths that `az` CLI does not expose. The check runs silently (no error), returns empty/null, and passes the gate — giving a false-green. The mismatch is invisible without running against real Azure resources.
+
+**Instances:**
+- 2026-08-10 — DevOps (t/2431, PR #796, p/26#76): storage check used `networkAcls.defaultAction` (empty) — correct path is `networkRuleSet.defaultAction`. Key Vault check used `networkAcls.defaultAction` (null) — correct path is `publicNetworkAccess`. Both shipped and passed gate before running against real resources.
+
+**Root Cause:** `az` CLI response shapes are distinct from REST API / Bicep resource schemas. A check authored from Bicep or portal documentation may use the wrong field path. `az` CLI returns the field as absent/null without error, which a naïve null-check may treat as "not configured" rather than "wrong path."
+
+**Prevention:**
+1. **Smoke-the-smoker locally before landing new `Test-AzureHealth` checks** — run each new check against a real Azure resource (dev/staging) and confirm it returns the expected non-null value.
+2. Use `az <resource> show --query <path>` interactively to verify the exact field path before writing the check.
+3. Treat a null/empty result from a new health check as suspect until confirmed against real Azure output.
+
+**Status:** Active — 1 instance (DevOps p/26#76).
+
+**Applies To:** All agents writing Azure health checks (`Test-AzureHealth`) or querying `az` CLI fields derived from Bicep/REST schema references.
