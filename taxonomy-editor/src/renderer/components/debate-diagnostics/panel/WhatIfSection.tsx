@@ -8,7 +8,7 @@ import { computeQbafStrengths } from '@lib/debate/qbaf';
 import type { QbafNode, QbafEdge } from '@lib/debate/qbaf';
 import type { ArgumentNetworkNode, ArgumentNetworkEdge } from '../../../types/debate';
 import { CollapsibleSection, speakerLabel } from './helpers';
-import { BookmarkLink } from '../../shared/BookmarkLink';
+import { TheoryLink } from '../../shared/TheoryLink';
 
 /** What-If Mode (D-Q6): counterfactual strength propagation via DF-QuAD. */
 export function WhatIfSection({ nodes, edges }: { nodes: ArgumentNetworkNode[]; edges: ArgumentNetworkEdge[] }) {
@@ -68,7 +68,7 @@ export function WhatIfSection({ nodes, edges }: { nodes: ArgumentNetworkNode[]; 
 
   return (
     <CollapsibleSection title={`What-If Mode — counterfactual strength propagation${active ? ' (active)' : ''}`} defaultOpen={active}>
-      <BookmarkLink docPath="docs/mid-debate-gap-analysis-design.md" size="xs" />
+      <TheoryLink docPath="docs/mid-debate-gap-analysis-design.md" size={12} />
       <div className="whatif-header">
         <button
           className={`btn btn-sm whatif-toggle ${active ? 'whatif-toggle-active' : ''}`}

@@ -4,7 +4,7 @@
 import React from 'react';
 import { Section } from '../helpers';
 import type { EntryDiagnostics } from '../../../../types/debate';
-import { BookmarkLink } from '../../../shared/BookmarkLink';
+import { TheoryLink } from '../../../shared/TheoryLink';
 
 interface ExclusionViolation {
   claim_id: string;
@@ -71,7 +71,7 @@ function ClaimExtractionGuardSection({ diag }: ExclusionGuardTabProps) {
 
   return (
     <Section title="Claim Extraction Guard" defaultOpen>
-      <BookmarkLink docPath="docs/scope-enforcement.md" anchor="claim-extraction-guard" size="xs" />
+      <TheoryLink docPath="docs/scope-enforcement.md" anchor="claim-extraction-guard" size={12} />
       {exclusionGuard ? (
         <>
           <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginBottom: 6 }}>
@@ -106,7 +106,7 @@ function DraftScopeCheckSection({ diag }: ExclusionGuardTabProps) {
 
   return (
     <Section title="Draft Scope Check" defaultOpen>
-      <BookmarkLink docPath="docs/scope-enforcement.md" anchor="draft-scope-check" size="xs" />
+      <TheoryLink docPath="docs/scope-enforcement.md" anchor="draft-scope-check" size={12} />
       {scopeDriftCheck ? (
         <>
           <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginBottom: 6 }}>
@@ -143,7 +143,7 @@ function TaxonomyInjectionSection({ diag }: ExclusionGuardTabProps) {
   };
   return (
     <Section title={`Taxonomy Context Injection — ${tit.considered} considered, ${tit.demoted} demoted`} defaultOpen>
-      <BookmarkLink docPath="docs/scope-enforcement.md" anchor="taxonomy-context-injection-demotion" size="xs" />
+      <TheoryLink docPath="docs/scope-enforcement.md" anchor="taxonomy-context-injection-demotion" size={12} />
       {tit.demoted > 0 && tit.demoted_nodes ? (
         tit.demoted_nodes.map((n, i) => (
           <div key={i} style={{
@@ -171,7 +171,7 @@ function SituationInjectionSection({ diag }: ExclusionGuardTabProps) {
   };
   return (
     <Section title={`Situation Injection — ${sit.considered} considered, ${sit.excluded} excluded`} defaultOpen>
-      <BookmarkLink docPath="docs/scope-enforcement.md" anchor="situation-injection-filtering" size="xs" />
+      <TheoryLink docPath="docs/scope-enforcement.md" anchor="situation-injection-filtering" size={12} />
       {sit.excluded > 0 && sit.excluded_situations ? (
         sit.excluded_situations.map((s, i) => (
           <div key={i} style={{

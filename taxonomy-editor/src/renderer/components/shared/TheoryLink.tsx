@@ -2,10 +2,15 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 /**
- * TheoryLink (t/2343) — shared open-book help affordance that opens an external
- * GitHub theory-notes doc. Muted glyph that brightens on hover (mirrors
- * .field-help-btn), with a small ↗ external-jump badge + tooltip so the
- * open-in-browser behavior is discoverable.
+ * TheoryLink (t/2343, unified in t/2410) — the app's general doc-link affordance:
+ * a shared open-book glyph that opens a repo doc on GitHub in the system browser.
+ * (Name kept for continuity; `DocLink` is exported as a readability alias.) Muted
+ * glyph that brightens on hover (mirrors .field-help-btn), with a small ↗
+ * external-jump badge + tooltip so the open-in-browser behavior is discoverable.
+ *
+ * Accepts either a full `url` or a repo-relative `docPath` (+ optional `anchor`);
+ * the latter is built from a single `REPO_BLOB_BASE` constant so callers never
+ * hand-assemble URLs and the canonical org is swappable in one place (t/2410).
  *
  * Activation routes through the bridge (`api.openExternal`) — never shell/window
  * directly — so it works in both the Electron (shell.openExternal) and web
@@ -19,31 +24,79 @@ import { api } from '@bridge';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import './TheoryLink.css';
 
-export interface TheoryLinkProps {
-  /** Full GitHub blob URL to open externally. */
-  url: string;
-  /** Accessible label, distinct per instance (e.g. "Help: debate system overview"). */
-  label: string;
-  /** Glyph size in px, clamped to 14–16. Default 15. */
-  size?: number;
-  /** Hover tooltip text. Default "Open theory notes on GitHub". */
+/** Canonical GitHub repo for doc links — single source of truth (t/2410, TL-confirmed org). */
+const REPO_BLOB_BASE = 'https://github.com/jpsnover/ai-triad-research/blob/main';
+
+/** Build a GitHub blob URL from a repo-relative doc path (+ optional anchor). */
+export function buildDocUrl(docPath: string, anchor?: string): string {
+  return `${REPO_BLOB_BASE}/${docPath}${anchor ? `#${anchor}` : ''}`;
+}
+
+/**
+ * Humanize a doc filename into a Title-Cased display name (t/2410).
+ * Accepts a full URL or a repo-relative path; takes the last segment, drops the
+ * `#anchor` and `.md`, and turns `-`/`_` separators into Title-Cased words.
+ * e.g. `docs/debate-system-overview.md` → `"Debate System Overview"`.
+ * (Acronyms like `ai` → `Ai` are acceptable for v1 — no current doc hits this.)
+ */
+export function humanizeDocName(source: string): string {
+  const segment = source.split('#')[0].split('/').pop() ?? '';
+  const stem = segment.replace(/\.md$/i, '');
+  return stem
+    .split(/[-_.]+/) // dot included so multi-dot stems (e.g. v2.migration-notes) title-case fully (t/2410#2)
+    .filter(Boolean)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(' ');
+}
+
+interface TheoryLinkBaseProps {
+  /** Accessible label. Optional — defaults to the tooltip text. */
+  label?: string;
+  /** Hover tooltip. Optional — defaults to `"Open {Doc Name} in GitHub"`. */
   tooltip?: string;
+  /** Glyph size in px, clamped to 12–16. Default 15. */
+  size?: number;
   /** Extra class(es) for inline positioning by consumers — appended to the base class. */
   className?: string;
 }
 
-const DEFAULT_TOOLTIP = 'Open theory notes on GitHub';
+/** Exactly one of `url` or `docPath` must be supplied (discriminated union). */
+export type TheoryLinkProps =
+  | (TheoryLinkBaseProps & { url: string; docPath?: never; anchor?: never })
+  | (TheoryLinkBaseProps & { docPath: string; anchor?: string; url?: never });
 
-export function TheoryLink({ url, label, size = 15, tooltip = DEFAULT_TOOLTIP, className }: TheoryLinkProps) {
-  const px = Math.min(16, Math.max(14, size));
+export function TheoryLink(props: TheoryLinkProps) {
+  const { label, tooltip, size = 15, className } = props;
+
+  // Runtime guard (t/2410): exactly one of `url` / `docPath`. The discriminated union
+  // catches static callers; this catches spread / `as any` / JS-caller bypasses — record a
+  // diagnostic and no-op rather than silently opening the repo root (neither) or dropping
+  // docPath+anchor (both).
+  if ((props.url != null) === (props.docPath != null)) {
+    getGlobalRecorder()?.record({
+      type: 'system.error',
+      component: 'theory-link',
+      level: 'error',
+      message: 'TheoryLink requires exactly one of `url` or `docPath`',
+      error: { name: 'InvalidTheoryLinkProps', message: `url=${props.url != null} docPath=${props.docPath != null}`, stack: new Error().stack },
+    });
+    return null;
+  }
+
+  const px = Math.min(16, Math.max(12, size));
+
+  const targetUrl = props.url ?? buildDocUrl(props.docPath ?? '', props.anchor);
+  const docName = humanizeDocName(props.docPath ?? props.url ?? '');
+  const title = tooltip ?? `Open ${docName} in GitHub`;
+  const ariaLabel = label ?? title;
 
   const handleOpen = () => {
-    void api.openExternal(url).catch((err) => {
+    void api.openExternal(targetUrl).catch((err) => {
       getGlobalRecorder()?.record({
         type: 'system.error',
         component: 'theory-link',
         level: 'error',
-        message: 'Failed to open theory link externally',
+        message: 'Failed to open doc link externally',
         error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
     });
@@ -54,10 +107,10 @@ export function TheoryLink({ url, label, size = 15, tooltip = DEFAULT_TOOLTIP, c
       type="button"
       className={`theory-link ${className ?? ''}`}
       data-theory-link
-      aria-label={label}
-      title={tooltip}
+      aria-label={ariaLabel}
+      title={title}
       onClick={handleOpen}
-      // eslint-disable-next-line local/no-inline-style -- dynamic glyph size (14–16px) drives the 1em SVG
+      // eslint-disable-next-line local/no-inline-style -- dynamic glyph size (12–16px) drives the 1em SVG
       style={{ fontSize: `${px}px` }}
     >
       {/* Open-book glyph (currentColor so it can be tinted muted → hover-brighten) */}
@@ -75,3 +128,6 @@ export function TheoryLink({ url, label, size = 15, tooltip = DEFAULT_TOOLTIP, c
     </button>
   );
 }
+
+/** Readability alias — same component, clearer name at general doc-link call sites (t/2410). */
+export const DocLink = TheoryLink;

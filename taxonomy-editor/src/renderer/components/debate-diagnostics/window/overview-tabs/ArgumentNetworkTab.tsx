@@ -9,7 +9,7 @@ import { computeQbafStrengths } from '@lib/debate/qbaf';
 import type { QbafNode, QbafEdge } from '@lib/debate/qbaf';
 import { useTaxonomyStore } from '../../../../hooks/useTaxonomyStore';
 import { INodeRow } from '../shared';
-import { BookmarkLink } from '../../../shared/BookmarkLink';
+import { TheoryLink } from '../../../shared/TheoryLink';
 import { Highlight, speakerLabel } from '../helpers';
 import type { OverviewTab } from '../types';
 import { POV_META, type PovMetaKey } from '@lib/electron-shared/povMeta';
@@ -137,7 +137,7 @@ export function ArgumentNetworkTab({
         <span className="ant-header-summary">
           {an.nodes.length} I-nodes · {caCount} CA · {raCount} RA{modCount > 0 ? ` · ${modCount} moderator decisions` : ''}
         </span>
-        <BookmarkLink docPath="docs/reading-the-argument-network.md" anchor="node-types" size="xs" />
+        <TheoryLink docPath="docs/reading-the-argument-network.md" anchor="node-types" size={12} />
         <button
           onClick={() => setAllExpanded(!allExpanded)}
           className="ant-expand-btn"
@@ -354,7 +354,7 @@ function ArgNetMinimap({ nodes, edges }: { nodes: ArgumentNetworkNode[]; edges: 
         <span className="ant-legend-item">
           <span className="ant-legend-support" /> support
         </span>
-        <BookmarkLink docPath="docs/aif-debate-tool-analysis.md" size="xs" />
+        <TheoryLink docPath="docs/aif-debate-tool-analysis.md" size={12} />
       </div>
     </div>
   );

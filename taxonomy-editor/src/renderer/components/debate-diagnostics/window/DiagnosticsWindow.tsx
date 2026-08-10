@@ -17,7 +17,7 @@ import { DiagSearchContext, SearchBar, speakerLabel } from './helpers';
 import { OverviewTabRouter } from './OverviewTabRouter';
 import { EntryDetailRouter } from './EntryDetailRouter';
 import { CopyLinkButton } from '../../shared/CopyLinkButton';
-import { BookmarkLink } from '../../shared/BookmarkLink';
+import { TheoryLink } from '../../shared/TheoryLink';
 import { POV_META, type PovMetaKey } from '@lib/electron-shared/povMeta';
 import type { OverviewTab } from './types';
 import type { DebateSession } from '../../../types/debate';
@@ -323,7 +323,7 @@ function DiagnosticsHeader({
       >
         {showHelp ? 'Close Help' : 'Help'}
       </button>
-      <BookmarkLink docPath="docs/debate-diagnostics-field-guide.md" size="xs" />
+      <TheoryLink docPath="docs/debate-diagnostics-field-guide.md" size={12} />
     </div>
   );
 }

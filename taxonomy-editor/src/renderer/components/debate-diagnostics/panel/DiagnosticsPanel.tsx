@@ -9,7 +9,7 @@ import { useShallow } from 'zustand/react/shallow';
 import { EntryView } from './EntryView';
 import { OverviewView } from './OverviewView';
 import './DiagnosticsPanel.css';
-import { BookmarkLink } from '../../shared/BookmarkLink';
+import { TheoryLink } from '../../shared/TheoryLink';
 
 export function DiagnosticsPanel() {
   const { selectedDiagEntry, selectDiagEntry, activeDebate } = useDebateStore(
@@ -99,7 +99,7 @@ export function DiagnosticsPanel() {
             }} className="btn btn-sm diag-panel-action-btn" title="Show how each Perspective's taxonomy context and citations evolve across turns">
               Perspective Progression
             </button>
-            <BookmarkLink docPath="docs/why-not-just-prompt-a-debate.md" size="xs" />
+            <TheoryLink docPath="docs/why-not-just-prompt-a-debate.md" size={12} />
           </div>
         </div>
         <div className="diagnostics-panel-body">

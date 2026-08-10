@@ -16,6 +16,7 @@ import { computeSha256, DEBATE_TESTED_TIER_LABELS } from './DebateTestedChip';
 import type { DebateTestedTier } from '../../bridge/types';
 import './PovTab.css';
 import { NodeDetail } from './NodeDetail';
+import { TheoryLink } from '../shared/TheoryLink';
 import { SituationDetail } from '../debate/SituationDetail';
 import { PinnedPanel } from '../shared/PinnedPanel';
 import { SearchPreview } from '../edge-browser/SearchPreview';
@@ -923,12 +924,18 @@ export function PovTab({ pov }: PovTabProps) {
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6" /></svg>
                     Back
                   </button>
-                  <button className="phone-detail-list-toggle" onClick={() => setMobileListOpen(true)} title="Show node list">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="6" x2="21" y2="6" /><line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="18" x2="21" y2="18" /></svg>
-                  </button>
+                  <div className="phone-detail-header-actions">
+                    {/* doc-link book kept on phone too — collapse-row isn't rendered here (t/2412, Design t/2412#2) */}
+                    <TheoryLink docPath="research/comp-linguist/analyses/epistemic-infrastructure-framing.md" label="Help: epistemic infrastructure framing" size={14} />
+                    <button className="phone-detail-list-toggle" onClick={() => setMobileListOpen(true)} title="Show node list">
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="6" x2="21" y2="6" /><line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="18" x2="21" y2="18" /></svg>
+                    </button>
+                  </div>
                 </div>
               ) : (
                 <div className="detail-panel-collapse-row">
+                  {/* doc-link book grouped left of the collapse chevron (t/2412, Design t/2412#2) */}
+                  <TheoryLink docPath="research/comp-linguist/analyses/epistemic-infrastructure-framing.md" label="Help: epistemic infrastructure framing" size={14} />
                   <button className="pane-collapse-btn" onClick={() => setDetailCollapsed(true)} title="Collapse">&lsaquo;</button>
                 </div>
               )}

@@ -602,6 +602,7 @@ function DebateListPanel(props: DebateListProps & { fullWidth?: boolean }) {
     <div className="list-panel debate-session-list" style={fullWidth ? undefined : { width }}>
       <div className="list-panel-header">
         <h2>Debates</h2>
+        <TheoryLink docPath="docs/debate-system-overview.md" />
         <DebateListHeaderActions {...props} />
       </div>
       <div className="list-view-tabs">
@@ -650,7 +651,7 @@ function DebateListHeaderActions(props: DebateListProps) {
           <button className="btn btn-sm" onClick={handleNewDebate}>
             + New
           </button>
-          <TheoryLink url="https://github.com/jpsnover/ai-triad-research/blob/main/docs/theory-of-success.md" label="Help: theory of success" />
+          <TheoryLink docPath="docs/theory-of-success.md" label="Help: theory of success" />
           <button className="pane-collapse-btn" onClick={() => setListCollapsed(true)} title="Collapse" aria-label="Collapse panel">&lsaquo;</button>
         </>
       ) : (
