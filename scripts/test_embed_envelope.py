@@ -37,7 +37,7 @@ def test_envelope_stamps_encoder_versions_and_composition():
 
     # Composition descriptor records the recipe accurately.
     comp = env["composition"]
-    assert "0.8/0.2" in comp  # the DEFAULT weights, rendered dynamically
+    assert "1/0/0/0/0" in comp  # the DEFAULT weights, rendered dynamically
     assert "single final L2 normalize" in comp
     assert "incl. Excludes" in comp  # description is verbatim, not Excludes-stripped
 
@@ -45,7 +45,7 @@ def test_envelope_stamps_encoder_versions_and_composition():
     assert env["model"] == "all-MiniLM-L6-v2"
     assert env["dimension"] == 384
     assert env["node_count"] == 1
-    assert env["field_weights"]["description"] == 0.8
+    assert env["field_weights"]["description"] == 1.0
 
 
 def test_composition_descriptor_reflects_actual_weights():
