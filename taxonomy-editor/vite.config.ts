@@ -20,6 +20,14 @@ function getGitVersion(): string {
   }
 }
 
+function getGitSha(): string {
+  try {
+    return execSync('git rev-parse HEAD', { encoding: 'utf8' }).trim();
+  } catch {
+    return 'unknown';
+  }
+}
+
 export default defineConfig({
   plugins: [
     react(),
@@ -74,6 +82,7 @@ export default defineConfig({
     'import.meta.env.VITE_TARGET': JSON.stringify(process.env.VITE_TARGET || 'electron'),
     __APP_VERSION__: JSON.stringify(getGitVersion()),
     __BUILD_DATE__: JSON.stringify(new Date().toISOString()),
+    __BUILD_SHA__: JSON.stringify(getGitSha()),
     __CHANGELOG_MD__: JSON.stringify(
       fs.readFileSync(path.resolve(import.meta.dirname, '../CHANGELOG.md'), 'utf-8')
     ),
