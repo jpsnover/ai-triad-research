@@ -1,0 +1,110 @@
+{
+  "_doc": "t/2426 backfill — 21 pre-existing taxonomy nodes that lack embeddings.json entries. Composition: description-only (single-field, normalized), matching the taxonomy-editor updateNodeEmbeddings path (the live corpus maintainer). No taxonomy content changes — only embeddings added.",
+  "nodes": [
+    {
+      "id": "acc-beliefs-120",
+      "description": "A Belief within accelerationist discourse that higher education institutions suffer from systemic paralysis, remaining consumed by legacy administrative battles and credential preservation while technological frontiers advance rapidly. Encompasses: administrative inertia, curricular stagnation, resistance to technological integration, institutional irrelevance.\nExcludes: broad labor market displacement, technical AI alignment failures, corporate monopoly control.",
+      "pov": "accelerationist"
+    },
+    {
+      "id": "acc-intentions-126",
+      "description": "An Intention within accelerationist discourse that educational institutions must shift pedagogical focus upstream toward original knowledge production and blank spaces in scholarship, leaving basic information transfer to AI models. Encompasses: curriculum restructuring, focusing on unread knowledge domains, moving beyond foundational chat interactions.\nExcludes: basic literacy training, administrative cost-cutting, standardized testing reform.",
+      "pov": "accelerationist"
+    },
+    {
+      "id": "saf-beliefs-266",
+      "description": "A Belief within safetyist and skeptic discourse that identifiable at-risk minority users serve as leading indicators of systemic environmental toxicity for the broader population. Encompasses: outlier vulnerability analysis, systemic toxicity warnings, disproportionate impact indicators. Excludes: average user productivity models, aggregate harm assessments.",
+      "pov": "safetyist"
+    },
+    {
+      "id": "saf-beliefs-267",
+      "description": "A Belief within safetyist discourse that highly vulnerable or extreme users serve as vital indicators of systemic toxicity in technology products rather than isolated anomalies. Encompasses: outlier user vulnerability, systemic toxicity detection, concentrated harm indicators. Excludes: average user impact analysis, aggregate productivity metrics.",
+      "pov": "safetyist"
+    },
+    {
+      "id": "saf-beliefs-268",
+      "description": "A Belief within safetyist discourse that judicial evaluation of fair use may incorporate whether model developers implemented technical mitigation strategies in good faith. Encompasses: robots.txt compliance, system cache adherence, and judicial discretion in copyright assessment. Excludes: strict statutory compliance standards.",
+      "pov": "safetyist"
+    },
+    {
+      "id": "saf-intentions-240",
+      "description": "An Intention within safetyist discourse that proposes modifying reinforcement learning annotation frameworks to penalize non-transformative content generation. Encompasses: reward function modification, human labeler copyright flags, and value alignment. Excludes: standard helpfulness-only RLHF and post-hoc output filtering.",
+      "pov": "safetyist"
+    },
+    {
+      "id": "saf-intentions-241",
+      "description": "An Intention within safetyist discourse that mandates configuring memory management units at the hardware level to prevent AI models from writing executable code or expanding executable regions. Encompasses: MMU locking, base-and-bound executable restrictions, prevention of recursive self-improvement. Excludes: dynamic code generation and software-level permission checks.",
+      "pov": "safetyist"
+    },
+    {
+      "id": "saf-intentions-242",
+      "description": "An Intention within safetyist discourse that courts impose specific operational product changes—such as time limits, default privacy settings, and feature restrictions—as legal remedies for public nuisance. Encompasses: court-ordered product redesign, mandatory safety defaults, judicial feature restrictions. Excludes: voluntary industry standards, legislative statutory bans.",
+      "pov": "safetyist"
+    },
+    {
+      "id": "sit-465",
+      "description": "A situation concept that captures user inability to differentiate between convergent, divergent, and neutral opinion stances in conversational agent feedback. Encompasses: conversational nuance flattening, algorithmic perspective recognition limits, user interpretation ambiguity. Excludes: explicit alignment measurement frameworks.",
+      "pov": "situations"
+    },
+    {
+      "id": "sit-466",
+      "description": "A situation concept that describes the automated extraction of fine-grained nonverbal behavioral markers, such as eye contact gaze ratios, turn-taking balance, and verbal sentiment, to quantify psychological development during interactive tasks.\nEncompasses: computer vision gaze estimation, automatic speech recognition sentiment analysis, multimodal behavioral telemetry.\nExcludes: retrospective qualitative surveys, clinician interview scoring, standardized self-report questionnaires.",
+      "pov": "situations"
+    },
+    {
+      "id": "sit-467",
+      "description": "A situation concept that characterizes the co-design methodology involving children and parents in domestic settings to evaluate social robot integration. Encompasses: family-centered design sessions, fictional prototyping with miniature figurines, multi-stakeholder preference mapping.\nEncompasses: family-centered design sessions, fictional prototyping with miniature figurines, multi-stakeholder preference mapping.\nExcludes: laboratory-only usability testing, developer-centric requirements gathering.",
+      "pov": "situations"
+    },
+    {
+      "id": "sit-468",
+      "description": "A situation concept that combines objective automated system interaction logs with subjective longitudinal interview data to evaluate authentic user experiences in naturalistic environments.\nEncompasses: log data analysis, semi-structured family interviews, uncontrolled field trials.\nExcludes: controlled laboratory usability testing.",
+      "pov": "situations"
+    },
+    {
+      "id": "sit-469",
+      "description": "A situation concept that unrepresented individuals in legal proceedings disproportionately encounter and rely upon hallucinatory AI outputs due to resource constraints and lack of institutional training.\nEncompasses: family court pro se errors, unrepresented litigant reliance, resource-driven technological exposure.\nExcludes: corporate legal malpractice, enterprise software deployment risks.",
+      "pov": "situations"
+    },
+    {
+      "id": "sit-470",
+      "description": "A situation concept that maps the distributed accountability and duties among robot manufacturers, software developers, marketing teams, parents, and government regulators when companion technologies fail. Encompasses: corporate financial management, parental emotional mediation, regulatory fail-safes, marketing transparency.\nExcludes: single-party developer liability models, pure laissez-faire market doctrine.",
+      "pov": "situations"
+    },
+    {
+      "id": "sit-471",
+      "description": "A situation concept that examines how institutional monopolies over professional credentials and degree-granting authority insulate legacy organizations from market-driven technological competition until sudden obsolescence occurs.\nEncompasses: degree monopolies, credentialing barriers, historical precedents like the Victorian Post Office, sudden institutional displacement.\nExcludes: technical capability scaling, enterprise software adoption, open-source model distribution.",
+      "pov": "situations"
+    },
+    {
+      "id": "sit-472",
+      "description": "A situation concept that describes the persistent qualitative gap between quantifiable digital data and messy real-world human reality that resists algorithmic systematization.\nEncompasses: tacit knowledge, unwritten cultural codes, interpersonal chemistry, complex institutional power dynamics.\nExcludes: broad training data scarcity and hardware compute limitations.",
+      "pov": "situations"
+    },
+    {
+      "id": "sit-473",
+      "description": "A situation concept that describes the fundamental information gap between human instructions and implicit contextual requirements.\nEncompasses: pragmatic communication, unstated conversational assumptions, contextual pragmatics.\nExcludes: technical alignment failure, reward hacking, adversarial prompt injection.",
+      "pov": "situations"
+    },
+    {
+      "id": "sit-474",
+      "description": "A situation concept that describes operational AI failures where system outputs remain within the declared technical scope but diverge from intended behavioral norms, remaining unpriced in existing insurance portfolios.\nEncompasses: in-scope behavioral divergence, unpriced operational risk, silent portfolio exposure.\nExcludes: out-of-bounds malicious misuse, catastrophic existential risk scenarios.",
+      "pov": "situations"
+    },
+    {
+      "id": "sit-475",
+      "description": "A situation concept that describes how platform analytics aggregate data across typical users to conceal severe, concentrated harms experienced by high-engagement minorities.\nEncompasses: metric obfuscation, uneven platform engagement, hiding acute harms behind benign averages.\nExcludes: broad labor displacement metrics, systemic algorithmic bias across demographic groups.",
+      "pov": "situations"
+    },
+    {
+      "id": "skp-beliefs-300",
+      "description": "A Belief within skeptic discourse that quantifying the frequency of copyrighted artist and media citations in prompt datasets reveals systemic reliance on protected cultural works.\nEncompasses: prompt metadata analysis, artist citation frequency, commercial franchise concentration.\nExcludes: algorithmic capability benchmarking, compute scaling metrics.",
+      "pov": "skeptic"
+    },
+    {
+      "id": "skp-beliefs-301",
+      "description": "A Belief within skeptic discourse that foundational models fail to reliably execute semantic transformations such as true parody generation, defaulting instead to uninspired plot summaries. Encompasses: Parody prompt execution, qualitative output evaluation, semantic misinterpretation. Excludes: Verbatim data extraction and literal token replication.",
+      "pov": "skeptic"
+    }
+  ]
+}
