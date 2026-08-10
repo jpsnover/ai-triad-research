@@ -602,6 +602,7 @@ function DebateListPanel(props: DebateListProps & { fullWidth?: boolean }) {
     <div className="list-panel debate-session-list" style={fullWidth ? undefined : { width }}>
       <div className="list-panel-header">
         <h2>Debates</h2>
+        <TheoryLink docPath="docs/debate-system-overview.md" />
         <DebateListHeaderActions {...props} />
       </div>
       <div className="list-view-tabs">
