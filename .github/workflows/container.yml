@@ -232,6 +232,7 @@ jobs:
           load: ${{ steps.push_mode.outputs.load }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          build-args: BUILD_SHA=${{ github.sha }}
           cache-from: type=gha,scope=shared-docker
           cache-to: type=gha,scope=shared-docker,mode=min
 
