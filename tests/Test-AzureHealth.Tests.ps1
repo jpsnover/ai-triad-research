@@ -131,4 +131,85 @@ Describe 'Test-AzureHealth -CheckConfig' {
             } | Should -Throw
         }
     }
+
+    Context 'Firewall check — happy path (t/2431: correct az query paths)' {
+        BeforeAll {
+            Mock -ModuleName AITriad Invoke-RemoteCheck {
+                [PSCustomObject]@{ Success = $false; StatusCode = 0; ResponseMs = 0; Error = 'mocked'; Body = $null }
+            }
+            Mock -ModuleName AITriad az {
+                $global:LASTEXITCODE = 0
+                $cmd = $args -join ' '
+                if ($cmd -like '*storage account show*') {
+                    # az storage account show returns networkRuleSet (not networkAcls) in CLI output
+                    'Allow'
+                }
+                elseif ($cmd -like '*keyvault show*' -and $cmd -like '*publicNetworkAccess*') {
+                    'Enabled'
+                }
+                else { '{}' }
+            }
+        }
+
+        It 'Config:Firewall:Storage passes when networkRuleSet.defaultAction=Allow' {
+            $Result = Test-AzureHealth -CheckConfig -CheckFirewall `
+                -StorageAccountName 'st-test' -KeyVaultName 'kv-test' `
+                -ConfigRetryCount 1 `
+                -ResourceGroup 'rg-test' -AppName 'app-test'
+
+            $StCheck = @($Result.Checks | Where-Object { $_.Check -eq 'Config:Firewall:Storage' })
+            $StCheck.Count | Should -Be 1
+            $StCheck[0].Pass | Should -Be $true
+            $StCheck[0].Detail | Should -BeLike '*networkRuleSet.defaultAction=Allow*'
+        }
+
+        It 'Config:Firewall:KeyVault passes when publicNetworkAccess=Enabled' {
+            $Result = Test-AzureHealth -CheckConfig -CheckFirewall `
+                -StorageAccountName 'st-test' -KeyVaultName 'kv-test' `
+                -ConfigRetryCount 1 `
+                -ResourceGroup 'rg-test' -AppName 'app-test'
+
+            $KvCheck = @($Result.Checks | Where-Object { $_.Check -eq 'Config:Firewall:KeyVault' })
+            $KvCheck.Count | Should -Be 1
+            $KvCheck[0].Pass | Should -Be $true
+            $KvCheck[0].Detail | Should -BeLike '*publicNetworkAccess=Enabled*'
+        }
+    }
+
+    Context 'Firewall check — broken arm (t/2431: checks fail on wrong values)' {
+        BeforeAll {
+            Mock -ModuleName AITriad Invoke-RemoteCheck {
+                [PSCustomObject]@{ Success = $false; StatusCode = 0; ResponseMs = 0; Error = 'mocked'; Body = $null }
+            }
+            Mock -ModuleName AITriad az {
+                $global:LASTEXITCODE = 0
+                $cmd = $args -join ' '
+                if ($cmd -like '*storage account show*') { 'Deny' }
+                elseif ($cmd -like '*keyvault show*' -and $cmd -like '*publicNetworkAccess*') { 'Disabled' }
+                else { '{}' }
+            }
+        }
+
+        It 'Config:Firewall:Storage fails when defaultAction=Deny' {
+            $Result = Test-AzureHealth -CheckConfig -CheckFirewall `
+                -StorageAccountName 'st-test' -KeyVaultName 'kv-test' `
+                -ConfigRetryCount 1 `
+                -ResourceGroup 'rg-test' -AppName 'app-test'
+
+            $StCheck = @($Result.Checks | Where-Object { $_.Check -eq 'Config:Firewall:Storage' })
+            $StCheck[0].Pass | Should -Be $false
+            $StCheck[0].Detail | Should -BeLike '*networkRuleSet.defaultAction=Deny*'
+        }
+
+        It 'Config:Firewall:KeyVault fails when publicNetworkAccess=Disabled' {
+            $Result = Test-AzureHealth -CheckConfig -CheckFirewall `
+                -StorageAccountName 'st-test' -KeyVaultName 'kv-test' `
+                -ConfigRetryCount 1 `
+                -ResourceGroup 'rg-test' -AppName 'app-test'
+
+            $KvCheck = @($Result.Checks | Where-Object { $_.Check -eq 'Config:Firewall:KeyVault' })
+            $KvCheck[0].Pass | Should -Be $false
+            $KvCheck[0].Detail | Should -BeLike '*publicNetworkAccess=Disabled*'
+        }
+    }
 }
