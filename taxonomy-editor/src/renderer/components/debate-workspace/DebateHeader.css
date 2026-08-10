@@ -11,6 +11,13 @@
   border-bottom: 1px solid var(--border-color);
   flex-shrink: 0;
 }
+/* Header now scrolls with the transcript (rendered as the first child of the padded
+   .debate-scroll-content) rather than staying pinned. Cancel the container's 16px
+   padding on top/left/right so the header still bleeds edge-to-edge and sits flush at
+   the top; the container's row gap supplies the space to the first transcript card. */
+.debate-scroll-content > .debate-hdr {
+  margin: -16px -16px 0;
+}
 .debate-hdr-band {
   padding: 8px 12px;
 }
