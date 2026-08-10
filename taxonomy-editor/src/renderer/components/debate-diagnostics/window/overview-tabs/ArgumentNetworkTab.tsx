@@ -12,6 +12,7 @@ import { INodeRow } from '../shared';
 import { BookmarkLink } from '../../../shared/BookmarkLink';
 import { Highlight, speakerLabel } from '../helpers';
 import type { OverviewTab } from '../types';
+import { POV_META, type PovMetaKey } from '@lib/electron-shared/povMeta';
 
 interface ArgumentNetwork {
   nodes: ArgumentNetworkNode[];
@@ -186,7 +187,8 @@ export function ArgumentNetworkTab({
               title={`Go to ${stmtId ?? entryId} in transcript`}
             >
               <span className="ant-stmt-id">{stmtId ?? entryId}</span>
-              <span className="ant-speaker">{speakerLabel(srcEntry.speaker)}</span>
+              {/* eslint-disable-next-line local/no-inline-style -- color is per-camp, derived from POV_META.cssVar */}
+              <span className="ant-speaker" style={{ color: `var(${POV_META[srcEntry.speaker as PovMetaKey]?.cssVar ?? '--text-primary'})` }}>{speakerLabel(srcEntry.speaker)}</span>
               <span className="ant-muted">
                 {srcEntry.content.length > 200 ? srcEntry.content.slice(0, 200) + '…' : srcEntry.content}
               </span>
@@ -197,7 +199,8 @@ export function ArgumentNetworkTab({
             <div className="ant-mod-banner">
               <div className="ant-mod-row">
                 <span className="ant-mod-label">Moderator</span>
-                <span className="ant-bold">→ {speakerLabel(trace.selected)}</span>
+                {/* eslint-disable-next-line local/no-inline-style -- color is per-camp, derived from POV_META.cssVar */}
+                <span className="ant-bold" style={{ color: `var(${POV_META[trace.selected as PovMetaKey]?.cssVar ?? '--text-primary'})` }}>→ {speakerLabel(trace.selected)}</span>
                 {trace.selection_reason && (
                   <span className="ant-reason-chip">
                     {trace.selection_reason.replace(/_/g, ' ')}
@@ -221,11 +224,12 @@ export function ArgumentNetworkTab({
               {trace.candidates && trace.candidates.length > 0 && (
                 <div className="ant-candidates">
                   {trace.candidates.map((c, i) => (
-                    // eslint-disable-next-line local/no-inline-style -- opacity/fontWeight are data-driven (selected candidate)
+                    // eslint-disable-next-line local/no-inline-style -- opacity/fontWeight/color are data-driven (selected candidate, per-camp from POV_META.cssVar)
                     <span key={i} style={{
                       fontSize: 'var(--text-2xs)',
                       opacity: c.debater === trace.selected ? 1 : 0.6,
                       fontWeight: c.debater === trace.selected ? 700 : 400,
+                      color: `var(${POV_META[c.debater as PovMetaKey]?.cssVar ?? '--text-primary'})`,
                     }}>
                       #{c.rank} {speakerLabel(c.debater)}
                       {c.computed_strength != null && ` (${c.computed_strength.toFixed(2)})`}
@@ -270,11 +274,9 @@ export function ArgumentNetworkTab({
   );
 }
 
-const MINIMAP_SPEAKER_COLORS: Record<string, string> = {
-  accelerationist: 'var(--color-acc, #b84e13)',
-  safetyist: 'var(--color-saf, #2b5fad)',
-  skeptic: 'var(--color-skp, #7b4fa6)',
-};
+const MINIMAP_SPEAKER_COLORS: Record<string, string> = Object.fromEntries(
+  Object.entries(POV_META).filter(([k]) => k !== 'situations').map(([k, v]) => [k, `var(${v.cssVar})`])
+);
 const MINIMAP_DEGRADE_CEILING = 80;
 
 function ArgNetMinimap({ nodes, edges }: { nodes: ArgumentNetworkNode[]; edges: ArgumentNetworkEdge[] }) {

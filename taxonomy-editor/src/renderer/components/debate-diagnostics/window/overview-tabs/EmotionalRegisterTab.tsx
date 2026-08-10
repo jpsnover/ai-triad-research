@@ -15,6 +15,7 @@ import {
 } from '@lib/debate/affectSignals';
 import { getDebatePhase } from '@lib/debate/types';
 import { BookmarkLink } from '../../../shared/BookmarkLink';
+import { POV_META } from '@lib/electron-shared/povMeta';
 
 interface EmotionalRegisterTabProps {
   debate: DebateSession;
@@ -22,11 +23,9 @@ interface EmotionalRegisterTabProps {
   setLocalOverride: (v: boolean) => void;
 }
 
-const SPEAKER_COLORS: Record<string, string> = {
-  accelerationist: 'var(--color-acc)',
-  safetyist: 'var(--color-saf)',
-  skeptic: 'var(--color-skp)',
-};
+const SPEAKER_COLORS: Record<string, string> = Object.fromEntries(
+  Object.entries(POV_META).filter(([k]) => k !== 'situations').map(([k, v]) => [k, `var(${v.cssVar})`])
+);
 
 const CATEGORY_COLORS: Record<AffectCategory, string> = {
   urgency: 'var(--warning)',

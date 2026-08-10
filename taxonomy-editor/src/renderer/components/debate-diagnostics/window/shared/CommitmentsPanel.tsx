@@ -6,6 +6,7 @@ import type { CommitmentStore, ArgumentNetworkNode, ArgumentNetworkEdge } from '
 import { POVER_INFO } from '../../../../types/debate';
 import type { SpeakerId } from '../../../../types/debate';
 import { bandColor, RISK_BANDS } from '../../../../lib/bandColor';
+import { POV_META, type PovMetaKey } from '@lib/electron-shared/povMeta';
 import './CommitmentsPanel.css';
 
 // NOTE: speakerLabel and AifBadge stay in DiagnosticsWindow.tsx (parent).
@@ -128,7 +129,8 @@ export function CommitmentsPanel({ commitments, nodes, edges, onGoToNode }: {
       {Object.entries(commitments).map(([pov, store]) => (
         <div key={pov} className="commit-panel-pov-row">
           <div className="commit-panel-pov-header">
-            <strong className="commit-panel-pov-label">{speakerLabel(pov)}</strong>
+            {/* eslint-disable-next-line local/no-inline-style -- color is per-camp, derived from POV_META.cssVar */}
+            <strong className="commit-panel-pov-label" style={{ color: `var(${POV_META[pov as PovMetaKey]?.cssVar ?? '--text-primary'})` }}>{speakerLabel(pov)}</strong>
             {asymmetryByPov[pov] != null && (() => {
               const a = asymmetryByPov[pov]!;
               const color = bandColor(Math.abs(a), RISK_BANDS);

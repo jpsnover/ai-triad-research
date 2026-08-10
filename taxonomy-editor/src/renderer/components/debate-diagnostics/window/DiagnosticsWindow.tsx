@@ -18,6 +18,7 @@ import { OverviewTabRouter } from './OverviewTabRouter';
 import { EntryDetailRouter } from './EntryDetailRouter';
 import { CopyLinkButton } from '../../shared/CopyLinkButton';
 import { BookmarkLink } from '../../shared/BookmarkLink';
+import { POV_META, type PovMetaKey } from '@lib/electron-shared/povMeta';
 import type { OverviewTab } from './types';
 import type { DebateSession } from '../../../types/debate';
 import type { RefObject } from 'react';
@@ -78,7 +79,7 @@ function HelpContent() {
       <p>Reading the network:</p>
       <ul>
         <li><strong>AN-1, AN-2, ...</strong> — claim identifiers, in order of appearance</li>
-        <li><strong>(Accelerationist), (Safetyist), (Skeptic)</strong> — who made the claim</li>
+        <li>{/* eslint-disable-next-line local/no-inline-style -- color is per-camp, derived from POV_META.cssVar */}<strong>(<span style={{ color: `var(${POV_META.accelerationist.cssVar})` }}>Accelerationist</span>), (<span style={{ color: `var(${POV_META.safetyist.cssVar})` }}>Safetyist</span>), (<span style={{ color: `var(${POV_META.skeptic.cssVar})` }}>Skeptic</span>)</strong> — who made the claim</li>
         <li><span className="diag-help-attack">&larr; AN-6 rebut via REFRAME</span> — claim AN-6 attacks
           this claim. &quot;rebut&quot; is the attack type; &quot;REFRAME&quot; is the dialectical scheme
           (the argumentative strategy used)</li>
@@ -442,7 +443,8 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                               title={`${speakerLabel(e.speaker)} [${e.type}]: ${e.content.slice(0, 80)}`}
                             >
                               <span className="diag-sidebar-stmt-id">{stmtId}</span>
-                              <span className="diag-sidebar-speaker">{speakerLabel(e.speaker)}</span>
+                              {/* eslint-disable-next-line local/no-inline-style -- color is per-camp, derived from POV_META.cssVar */}
+                              <span className="diag-sidebar-speaker" style={{ color: `var(${POV_META[e.speaker as PovMetaKey]?.cssVar ?? '--text-primary'})` }}>{speakerLabel(e.speaker)}</span>
                               <span onClick={(ev) => ev.stopPropagation()} className="diag-sidebar-copylink">
                                 <CopyLinkButton hash={`#diagnostics-window?debateId=${debate.id}&entry=${i}&tab=${entryTab}`} title="Copy link to this entry" />
                               </span>

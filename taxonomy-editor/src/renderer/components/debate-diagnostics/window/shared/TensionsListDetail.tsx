@@ -3,6 +3,7 @@
 
 import { useState, useMemo } from 'react';
 import { useTaxonomyStore } from '../../../../hooks/useTaxonomyStore';
+import { nodeIdColor } from './constants';
 
 export function TensionsListDetail({ content }: { content: string }) {
   const [selected, setSelected] = useState<number | null>(null);
@@ -55,11 +56,6 @@ export function TensionsListDetail({ content }: { content: string }) {
   const sel = selected != null ? tensions[selected] : null;
   const relationColor = (r: string) => r === 'CONTRADICTS' ? 'var(--danger)' : r === 'TENSION_WITH' ? 'var(--warning)' : 'var(--success)';
   const relationIcon = (r: string) => r === 'TENSION_WITH' ? '⟷' : r === 'CONTRADICTS' ? '✕' : '✓';
-  const sourcePov = (id: string) => id.startsWith('acc-') ? 'acc' : id.startsWith('saf-') ? 'saf' : id.startsWith('skp-') ? 'skp' : id.startsWith('sit-') ? 'sit' : '';
-  const povColor = (id: string) => {
-    const p = sourcePov(id);
-    return p === 'acc' ? 'var(--color-acc)' : p === 'saf' ? 'var(--color-saf)' : p === 'skp' ? 'var(--color-skp)' : p === 'sit' ? 'var(--success)' : '#888';
-  };
 
   const selRationale = sel ? edgeRationale.get(`${sel.source}|${sel.target}|${sel.relation}`) : undefined;
   const RATIONALE_TRUNCATE = 200;
@@ -74,11 +70,11 @@ export function TensionsListDetail({ content }: { content: string }) {
             borderLeft: selected === i ? '3px solid var(--color-acc)' : '3px solid transparent',
             borderBottom: '1px solid var(--border)',
           }}>
-            <span style={{ color: povColor(t.source), fontWeight: 600 }}>{t.source}</span>
+            <span style={{ color: nodeIdColor(t.source), fontWeight: 600 }}>{t.source}</span>
             <span style={{ color: relationColor(t.relation), fontSize: 'var(--text-2xs)', fontWeight: 700, margin: '0 4px' }}>
               {relationIcon(t.relation)}
             </span>
-            <span style={{ color: povColor(t.target), fontWeight: 600 }}>{t.target}</span>
+            <span style={{ color: nodeIdColor(t.target), fontWeight: 600 }}>{t.target}</span>
             <span style={{ marginLeft: 6, color: 'var(--text-muted)', fontSize: 'var(--text-2xs)' }}>{(t.confidence ?? 0).toFixed(2)}</span>
           </div>
         ))}
@@ -98,7 +94,7 @@ export function TensionsListDetail({ content }: { content: string }) {
             <div style={{ display: 'flex', alignItems: 'center', padding: '12px 12px 8px', gap: 8 }}>
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 600, marginBottom: 2 }}>Source</div>
-                <div style={{ fontWeight: 600, color: povColor(sel.source), fontSize: '0.78rem', lineHeight: 1.3 }}>
+                <div style={{ fontWeight: 600, color: nodeIdColor(sel.source), fontSize: '0.78rem', lineHeight: 1.3 }}>
                   {nodeLabel.get(sel.source) || sel.source}
                 </div>
                 <div style={{ fontFamily: 'monospace', fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', marginTop: 2 }}>{sel.source}</div>
@@ -108,7 +104,7 @@ export function TensionsListDetail({ content }: { content: string }) {
               </div>
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 600, marginBottom: 2 }}>Target</div>
-                <div style={{ fontWeight: 600, color: povColor(sel.target), fontSize: '0.78rem', lineHeight: 1.3 }}>
+                <div style={{ fontWeight: 600, color: nodeIdColor(sel.target), fontSize: '0.78rem', lineHeight: 1.3 }}>
                   {nodeLabel.get(sel.target) || sel.target}
                 </div>
                 <div style={{ fontFamily: 'monospace', fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', marginTop: 2 }}>{sel.target}</div>
