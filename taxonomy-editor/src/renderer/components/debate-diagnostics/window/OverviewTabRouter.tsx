@@ -25,6 +25,7 @@ import { GroundingPanel } from '../../analysis/GroundingPanel';
 import { PovProgressionView } from '../../PovProgression/PovProgressionView';
 import { PromptDiffContent } from '../../chat/PromptDiffWindow';
 import { CommitmentsPanel } from './shared';
+import { BookmarkLink } from '../../shared/BookmarkLink';
 
 declare const __COMPONENT_VERSIONS__: Record<string, string>;
 
@@ -74,7 +75,7 @@ function TopicScopeSection({ debate, effectiveOverviewTab }: { debate: DebateSes
   const scope = debate.topic.scope as TopicScope;
   return (
     <div className="ovr-topic-scope">
-      <h4 className="ovr-h4">Topic Scope</h4>
+      <h4 className="ovr-h4">Topic Scope <BookmarkLink docPath="docs/topic-scope.md" label="About Topic Scope" size="xs" /></h4>
       <div className="ovr-mb-8">
         <span className="ovr-scope-prop">{scope.core_proposition}</span>
       </div>

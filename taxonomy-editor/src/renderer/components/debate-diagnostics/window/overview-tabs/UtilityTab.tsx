@@ -8,6 +8,7 @@ import { UTILITY_WEIGHTS } from '../types';
 import type { UtilitySnapshot } from '../types';
 import { ScoreBadge } from '../shared';
 import { BookmarkLink } from '../../../shared/BookmarkLink';
+import { POV_META } from '@lib/electron-shared/povMeta';
 
 interface UtilityTabProps {
   debate: DebateSession;
@@ -21,7 +22,9 @@ export function UtilityTab({ debate, perTurnUtilities, setSelectedEntry, setLoca
   const latest = perTurnUtilities[perTurnUtilities.length - 1];
   const speakers = Object.keys(latest.byAgent);
   const maxComposite = Math.max(...perTurnUtilities.flatMap(s => Object.values(s.byAgent).map(a => a.composite)), 0.01);
-  const speakerColors: Record<string, string> = { accelerationist: 'var(--color-acc)', safetyist: 'var(--color-saf)', skeptic: 'var(--color-skp)' };
+  const speakerColors: Record<string, string> = Object.fromEntries(
+    Object.entries(POV_META).filter(([k]) => k !== 'situations').map(([k, v]) => [k, `var(${v.cssVar})`])
+  );
 
   const getTrend = (speaker: string): { icon: string; color: string; label: string } => {
     if (perTurnUtilities.length < 2) return { icon: '—', color: 'var(--text-muted)', label: 'insufficient data' };

@@ -22,6 +22,7 @@ import {
   TaxRefsTab, DetailsTab, BriefTab, PlanTab, LookaheadTab, CiteTab,
   ExclusionGuardTab, AffectTab,
 } from './entry-tabs';
+import { POV_META, type PovMetaKey } from '@lib/electron-shared/povMeta';
 import type { EntryDetailRouterProps } from './EntryDetailRouter';
 import {
   isTabEnabled,
@@ -114,7 +115,8 @@ export function EntryHeader({ p, m }: PartProps) {
           className="edr-stmt-badge"
         >{stmtId}</span>
       )}
-      <strong className="edr-speaker">{speakerLabel(entry.speaker)}</strong>
+      {/* eslint-disable-next-line local/no-inline-style -- color is per-camp, derived from POV_META.cssVar */}
+      <strong className="edr-speaker" style={{ color: `var(${POV_META[entry.speaker as PovMetaKey]?.cssVar ?? '--text-primary'})` }}>{speakerLabel(entry.speaker)}</strong>
       <span className="edr-entry-type">{entry.type}</span>
       <button
         onClick={() => { void api.clipboardWriteText(entry.id); }}
