@@ -87,7 +87,17 @@ function Test-AzureHealth {
     Set-StrictMode -Version Latest
     if ($CheckConfig) { $UseCLI = $true }
 
-    $BaseUrl = $BaseUrl.TrimEnd('/')
+    # Get-TaxEditorBaseUrl returns $null in CI environments with no local config.
+    # When -UseCLI/-CheckConfig is active, resolve the FQDN from the Container App
+    # so the HTTP health checks have a valid target. (t/2403)
+    if ([string]::IsNullOrWhiteSpace($BaseUrl) -and $UseCLI) {
+        $FqdnOut = & az containerapp show -g $ResourceGroup -n $AppName `
+            --query 'properties.configuration.ingress.fqdn' -o tsv 2>$null
+        if ($LASTEXITCODE -eq 0 -and $FqdnOut) {
+            $BaseUrl = "https://$($FqdnOut.Trim())"
+        }
+    }
+    $BaseUrl = if (-not [string]::IsNullOrWhiteSpace($BaseUrl)) { $BaseUrl.TrimEnd('/') } else { '' }
     $Checks = [System.Collections.Generic.List[PSObject]]::new()
 
     # ── Azure Status Page ────────────────────────────────────────────────
