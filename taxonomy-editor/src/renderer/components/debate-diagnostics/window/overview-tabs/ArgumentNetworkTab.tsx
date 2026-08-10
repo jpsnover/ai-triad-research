@@ -49,15 +49,17 @@ export function ArgumentNetworkTab({
   setLocalOverride,
   nodeLabels,
 }: ArgumentNetworkTabProps) {
-  const caCount = an.edges.filter(e => e.type === 'attacks').length;
-  const raCount = an.edges.filter(e => e.type === 'supports').length;
+  // Community/older debates may omit edges entirely — guard all usages
+  const edges = an.edges ?? [];
+  const caCount = edges.filter(e => e.type === 'attacks').length;
+  const raCount = edges.filter(e => e.type === 'supports').length;
   // Statement-ID map — matches S{round} from the main transcript view.
   const stmtIdByEntry = new Map<string, string>();
   debate.transcript.forEach((e, i) => stmtIdByEntry.set(e.id, `S${i + 1}`));
 
   // Compute QBAF strengths from edges
   const qbafNodes: QbafNode[] = an.nodes.map(n => ({ id: n.id, base_strength: n.base_strength ?? 0.5 }));
-  const qbafEdges: QbafEdge[] = an.edges.map(e => ({
+  const qbafEdges: QbafEdge[] = edges.map(e => ({
     source: e.source, target: e.target,
     type: e.type as 'attacks' | 'supports',
     weight: e.weight ?? 0.5,
@@ -132,7 +134,7 @@ export function ArgumentNetworkTab({
 
   return (
     <div className="ant-root">
-      <ArgNetMinimap nodes={an.nodes} edges={an.edges} />
+      <ArgNetMinimap nodes={an.nodes} edges={edges} />
       <div className="ant-header-row">
         <span className="ant-header-summary">
           {an.nodes.length} I-nodes · {caCount} CA · {raCount} RA{modCount > 0 ? ` · ${modCount} moderator decisions` : ''}
@@ -241,9 +243,9 @@ export function ArgumentNetworkTab({
           )}
           {/* AN nodes from this entry */}
           {groupNodes.map(n => {
-            const attacks = an.edges.filter(e => e.target === n.id && e.type === 'attacks');
-            const supports = an.edges.filter(e => e.target === n.id && e.type === 'supports');
-            const isSource = an.edges.some(e => e.source === n.id);
+            const attacks = edges.filter(e => e.target === n.id && e.type === 'attacks');
+            const supports = edges.filter(e => e.target === n.id && e.type === 'supports');
+            const isSource = edges.some(e => e.source === n.id);
             return (
               <INodeRow
                 key={n.id}
@@ -251,7 +253,7 @@ export function ArgumentNetworkTab({
                 attacks={attacks}
                 supports={supports}
                 allNodes={an.nodes}
-                allEdges={an.edges}
+                allEdges={edges}
                 isSource={isSource}
                 computedStrength={strengthMap.get(n.id)}
                 strengthMap={strengthMap}

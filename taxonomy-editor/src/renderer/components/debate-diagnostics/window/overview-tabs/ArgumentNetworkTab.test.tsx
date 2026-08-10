@@ -169,4 +169,17 @@ describe('ArgumentNetworkTab', () => {
     expect(options).toContain('Novel arguments');
     expect(options).toContain('Attributed only');
   });
+
+  // Regression: community/older debates may have argument_network.edges = null
+  it('renders without crash when an.edges is null (community debate format)', () => {
+    const nodes = [makeNode('n1', 'e1', 'Community claim')];
+    expect(() => {
+      render(
+        <ArgumentNetworkTab
+          {...makeProps({ an: { nodes, edges: null as any } })}
+        />,
+      );
+    }).not.toThrow();
+    expect(screen.getByTestId('inode-n1')).toBeInTheDocument();
+  });
 });
