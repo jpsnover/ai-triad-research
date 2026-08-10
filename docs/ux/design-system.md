@@ -183,7 +183,17 @@ Full-width panel sliding up from bottom of viewport. Semi-transparent backdrop. 
 
 ## Icons
 
-Inline SVGs — no icon library. Standard dimensions: 16x16 or 24x24. Stroke-based: `stroke="currentColor"`, `strokeWidth="2"`, `strokeLinecap="round"`. Color inherits from parent via `currentColor`.
+The app uses **[lucide-react](https://lucide.dev)** for UI/nav/toolbar glyphs, plus hand-authored inline SVGs for domain glyphs (camp glyphs, the TheoryLink book, status dots). Stroke-based: `stroke="currentColor"`, `strokeWidth="2"`, `strokeLinecap="round"`; color inherits via `currentColor`.
+
+**Sizing is em-based so icons track adjacent text and the zoom control (t/2416).** Tokens on `:root`:
+
+| Token | value | use (former px) |
+|---|---|---|
+| `--icon-sm` | `1em` | inline-with-text glyphs (~14px) |
+| `--icon-md` | `1.25em` | default UI / nav / toolbar (~18–20px) |
+| `--icon-lg` | `1.5em` | emphasis (~22px) |
+
+lucide call sites pass the em value to `size` (e.g. `size="1.25em"`). Components with a numeric `size` prop (`TheoryLink`, `CampGlyph`, `OrgLogo`) keep the numeric API but render `${size/16}em` internally, so they scale too. Raster favicons (org logos, app favicon) stay fixed-px. Base root font-size is **112.5% (18px)**; the zoom control multiplies against it (see `App.tsx`).
 
 Unicode symbols used for lightweight indicators: `▸`/`▾` (collapse arrows), `✕` (close/reject), `●` (colored dots for strength/confidence).
 
