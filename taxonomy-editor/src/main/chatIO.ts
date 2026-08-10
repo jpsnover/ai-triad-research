@@ -48,7 +48,7 @@ export function listChatSessions(): ChatSessionSummary[] {
       // Skip corrupt files
     }
   }
-  summaries.sort((a, b) => b.updated_at.localeCompare(a.updated_at));
+  summaries.sort((a, b) => (b.updated_at ?? '').localeCompare(a.updated_at ?? ''));
   return summaries;
 }
 
