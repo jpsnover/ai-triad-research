@@ -21,6 +21,11 @@ function getGitVersion(): string {
 }
 
 function getGitSha(): string {
+  // Container builds (Docker) inject the commit as BUILD_SHA — the build context has no
+  // .git, so git exec would fall through to 'unknown' (t/2434). Prefer it when set; local
+  // and Electron builds leave it unset and keep using git exec unchanged (t/2439).
+  const fromEnv = process.env.BUILD_SHA?.trim();
+  if (fromEnv) return fromEnv;
   try {
     return execSync('git rev-parse HEAD', { encoding: 'utf8' }).trim();
   } catch {
