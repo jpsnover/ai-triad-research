@@ -9,7 +9,8 @@ const openExternal = vi.fn().mockResolvedValue(undefined);
 vi.mock('@bridge', () => ({ api: { openExternal: (url: string) => openExternal(url) } }));
 vi.mock('@lib/flight-recorder/index', () => ({ getGlobalRecorder: () => ({ record: vi.fn() }) }));
 
-import { BookmarkLink, buildDocUrl } from './BookmarkLink';
+import { BookmarkLink } from './BookmarkLink';
+import { buildDocUrl } from './TheoryLink';
 
 const BASE = 'https://github.com/jpsnover/ai-triad-research/blob/main';
 

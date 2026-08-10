@@ -650,7 +650,7 @@ function DebateListHeaderActions(props: DebateListProps) {
           <button className="btn btn-sm" onClick={handleNewDebate}>
             + New
           </button>
-          <TheoryLink url="https://github.com/jpsnover/ai-triad-research/blob/main/docs/theory-of-success.md" label="Help: theory of success" />
+          <TheoryLink docPath="docs/theory-of-success.md" label="Help: theory of success" />
           <button className="pane-collapse-btn" onClick={() => setListCollapsed(true)} title="Collapse" aria-label="Collapse panel">&lsaquo;</button>
         </>
       ) : (

@@ -73,7 +73,7 @@ export function DebateHeader({
           <div className="debate-hdr-title-row">
             <h2 className="debate-hdr-title" title={activeDebate.topic.final}>{displayTitle}</h2>
             <TheoryLink
-              url="https://github.com/jpsnover/ai-triad-research/blob/main/docs/debate-system-overview.md"
+              docPath="docs/debate-system-overview.md"
               label="Help: debate system overview"
               className="debate-hdr-theory-link"
             />

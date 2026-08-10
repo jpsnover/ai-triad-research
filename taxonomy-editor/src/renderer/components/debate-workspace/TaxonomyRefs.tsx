@@ -162,7 +162,7 @@ function RefsHeader({ entry, explainCopied, onExplain, onToggleCaveats }: {
         </button>
       )}
       <TheoryLink
-        url="https://github.com/jpsnover/ai-triad-research/blob/main/docs/citation-diagnostics-design.md"
+        docPath="docs/citation-diagnostics-design.md"
         label="Help: citation diagnostics design"
         size={14}
         className="taxrefs-refs-help"
@@ -177,7 +177,7 @@ function BriefSection({ briefStage }: { briefStage: { work_product: Record<strin
       <summary className="debate-reasoning-section-title taxrefs-section-brief" onClick={suppressDetailsToggleForHelp}>
         BRIEF
         <TheoryLink
-          url="https://github.com/jpsnover/ai-triad-research/blob/main/docs/artifact-guide.md"
+          docPath="docs/artifact-guide.md"
           label="Help: artifact guide"
           size={14}
           className="taxrefs-section-help"
@@ -352,7 +352,7 @@ function PlanSection({ planStage, selectedPlanNodeId, setSelectedPlanNodeId }: {
       <summary className="debate-reasoning-section-title taxrefs-section-plan" onClick={suppressDetailsToggleForHelp}>
         PLAN
         <TheoryLink
-          url="https://github.com/jpsnover/ai-triad-research/blob/main/docs/artifact-guide.md"
+          docPath="docs/artifact-guide.md"
           label="Help: artifact guide"
           size={14}
           className="taxrefs-section-help"
