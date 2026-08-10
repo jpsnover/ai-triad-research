@@ -225,6 +225,7 @@ vi.mock('@lib/debate/taxonomyGapAnalysis', () => ({
 
 vi.mock('@lib/debate/moderator', () => ({
   updateModeratorState: vi.fn().mockReturnValue({}),
+  computeDebateHealthScore: vi.fn().mockReturnValue({ value: 0.8, trend: 0, components: {} }),
   MOVE_RESPONSE_CONFIG: {},
   DIRECT_RESPONSE_PATTERNS: [],
 }));
@@ -274,12 +275,18 @@ vi.mock('@lib/debate/phaseTransitions', () => ({
   loadProvisionalWeights: vi.fn().mockReturnValue({}),
   initPhaseState: vi.fn().mockReturnValue({ current_phase: 'confrontation', rounds_in_phase: 0, total_rounds_elapsed: 0 }),
   evaluatePhaseTransition: vi.fn().mockReturnValue({ action: 'continue', reason: 'test' }),
-  advanceRound: vi.fn().mockReturnValue({ current_phase: 'confrontation', rounds_in_phase: 1, total_rounds_elapsed: 1 }),
+  advanceRound: vi.fn().mockReturnValue({ current_phase: 'confrontation', rounds_in_phase: 1, total_rounds_elapsed: 1, argumentation_exit_threshold: 0.6, concluding_exit_threshold: 0.7 }),
   applyTransition: vi.fn().mockReturnValue({ current_phase: 'confrontation', rounds_in_phase: 0, total_rounds_elapsed: 1 }),
   buildSignalRegistry: vi.fn().mockReturnValue([]),
   computeSaturationScore: vi.fn().mockReturnValue(0),
   computeConvergenceScore: vi.fn().mockReturnValue(0),
   detectCruxNodes: vi.fn().mockReturnValue([]),
+  buildPhaseContext: vi.fn().mockReturnValue({ phase_progress: 0.3, rationale: 'test', approaching_transition: false }),
+  buildSignalTelemetry: vi.fn().mockReturnValue({ round: 1, phase: 'confrontation', composite: { convergence_score: 0.1, saturation_score: 0.1 }, signals: {}, action: 'continue', reason: 'test', phase_progress: 0.3, predicate_ms: 0 }),
+  initAdaptiveDiagnostics: vi.fn().mockImplementation(() => ({
+    signal_telemetry: [], phases: [], regressions: [], gc_events: [],
+    total_predicate_evaluations: 0, confidence_deferrals: 0, vetoes_fired: 0, forces_fired: 0, network_size_peak: 0,
+  })),
 }));
 
 vi.mock('@lib/debate/gapCheck', () => ({
