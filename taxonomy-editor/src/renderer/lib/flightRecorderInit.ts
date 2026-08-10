@@ -20,6 +20,7 @@ import { showDumpToast, showDumpErrorToast, showDumpPendingToast } from './dumpT
 
 declare const __APP_VERSION__: string;
 declare const __BUILD_DATE__: string;
+declare const __BUILD_SHA__: string;
 declare const __COMPONENT_VERSIONS__: Record<string, string>;
 
 function getDeploymentMode(): string {
@@ -673,6 +674,7 @@ export function initFlightRecorder(): FlightRecorder {
         app: {
           version: typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : undefined,
           build_date: typeof __BUILD_DATE__ !== 'undefined' ? __BUILD_DATE__ : undefined,
+          build_commit_sha: typeof __BUILD_SHA__ !== 'undefined' ? __BUILD_SHA__ : undefined,
           build_fingerprint: `build-${(window as unknown as { __BUILD_FINGERPRINT?: string }).__BUILD_FINGERPRINT ?? 'unknown'}`,
           deployment_mode: getDeploymentMode(),
           vite_target: import.meta.env.VITE_TARGET ?? 'electron',
