@@ -193,7 +193,7 @@ async function applyDeepLink(
 function countAnMatches(an: ArgumentNetwork, sq: string): number {
   let count = 0;
   for (const n of an.nodes) count += countMatches(n.id, sq) + countMatches(n.text, sq) + countMatches(n.speaker, sq);
-  for (const e of an.edges) count += countMatches(e.source, sq) + countMatches(e.warrant || '', sq) + countMatches(e.scheme || '', sq);
+  for (const e of (an.edges ?? [])) count += countMatches(e.source, sq) + countMatches(e.warrant || '', sq) + countMatches(e.scheme || '', sq);
   return count;
 }
 

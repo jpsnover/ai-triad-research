@@ -406,7 +406,7 @@ function PanelArgumentNetworkSection({ an }: { an: ActiveDebate['argument_networ
 
 function WhatIfWrapper({ an }: { an: ActiveDebate['argument_network'] }) {
   if (!an || an.nodes.length === 0) return null;
-  return <WhatIfSection nodes={an.nodes} edges={an.edges} />;
+  return <WhatIfSection nodes={an.nodes} edges={an.edges ?? []} />;
 }
 
 function CommitmentStoresSection({ commitments }: { commitments: ActiveDebate['commitments'] }) {
