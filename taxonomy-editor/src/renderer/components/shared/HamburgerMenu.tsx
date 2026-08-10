@@ -211,7 +211,7 @@ export function HamburgerMenu({ isOpen, onClose }: HamburgerMenuProps) {
       className={`hamburger-item${isNavItemActive(item) ? ' active' : ''}`}
       onClick={() => act(() => dispatchNav(item.action))}
     >
-      <item.icon size={20} />
+      <item.icon size="1.25em" />
       <span>{item.label}</span>
     </button>
   );
@@ -235,7 +235,7 @@ export function HamburgerMenu({ isOpen, onClose }: HamburgerMenuProps) {
       >
         <div className="hamburger-header">
           <button className="hamburger-close" onClick={onClose} aria-label="Close menu">
-            <X size={20} />
+            <X size="1.25em" />
           </button>
           <span className="hamburger-title">Taxonomy Editor</span>
         </div>
@@ -263,7 +263,7 @@ export function HamburgerMenu({ isOpen, onClose }: HamburgerMenuProps) {
               className={`hamburger-item${window.location.hash === '#admin' ? ' active' : ''}`}
               onClick={() => act(() => { window.location.hash = '#admin'; window.location.reload(); })}
             >
-              <Shield size={20} />
+              <Shield size="1.25em" />
               <span>Admin Review</span>
             </button>
           )}
@@ -275,7 +275,7 @@ export function HamburgerMenu({ isOpen, onClose }: HamburgerMenuProps) {
               className="hamburger-item"
               onClick={() => { dispatchNav(item.action); onClose(); }}
             >
-              <item.icon size={20} />
+              <item.icon size="1.25em" />
               <span>{item.label}</span>
             </button>
           ))}

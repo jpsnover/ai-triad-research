@@ -74,7 +74,7 @@ export function OrgLogo({ name, url, size = 24 }: { name: string; url?: string; 
     <span
       className="org-logo-initials"
       /* eslint-disable-next-line local/no-inline-style -- size/bg are per-instance dynamic values passed as CSS custom properties */
-      style={{ '--size': `${size}px`, '--font-size': `${size * 0.4}px`, '--bg': bg } as React.CSSProperties}
+      style={{ '--size': `${size / 16}em`, '--font-size': `${(size * 0.4) / 16}em`, '--bg': bg } as React.CSSProperties}
     >
       {initials}
     </span>
@@ -92,7 +92,7 @@ function PersonAvatar({ name, size = 24 }: { name: string; size?: number }) {
     <span
       className="person-avatar"
       /* eslint-disable-next-line local/no-inline-style -- size/bg are per-instance dynamic values passed as CSS custom properties */
-      style={{ '--size': `${size}px`, '--font-size': `${size * 0.4}px`, '--bg': bg } as React.CSSProperties}
+      style={{ '--size': `${size / 16}em`, '--font-size': `${(size * 0.4) / 16}em`, '--bg': bg } as React.CSSProperties}
     >
       {initials}
     </span>

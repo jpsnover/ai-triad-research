@@ -97,13 +97,13 @@ describe('TheoryLink', () => {
     expect(btn.className).toContain('inline-heading');
   });
 
-  it('clamps size to 12–16px', () => {
+  it('clamps size to 12–16px, emitted as em (px/16) so it scales with zoom (t/2416)', () => {
     const { rerender } = render(<TheoryLink url={URL} label="H" size={40} />);
-    expect(screen.getByRole('button').style.fontSize).toBe('16px');
+    expect(screen.getByRole('button').style.fontSize).toBe('1em');
     rerender(<TheoryLink url={URL} label="H" size={2} />);
-    expect(screen.getByRole('button').style.fontSize).toBe('12px');
+    expect(screen.getByRole('button').style.fontSize).toBe('0.75em');
     rerender(<TheoryLink url={URL} label="H" size={12} />);
-    expect(screen.getByRole('button').style.fontSize).toBe('12px');
+    expect(screen.getByRole('button').style.fontSize).toBe('0.75em');
   });
 
   // ── runtime guard (t/2410 blocker): exactly one of url/docPath ──

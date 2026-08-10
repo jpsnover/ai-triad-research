@@ -110,8 +110,8 @@ export function TheoryLink(props: TheoryLinkProps) {
       aria-label={ariaLabel}
       title={title}
       onClick={handleOpen}
-      // eslint-disable-next-line local/no-inline-style -- dynamic glyph size (12–16px) drives the 1em SVG
-      style={{ fontSize: `${px}px` }}
+      // eslint-disable-next-line local/no-inline-style -- dynamic glyph size drives the 1em SVG; em (px/16) scales with the root baseline + zoom (t/2416)
+      style={{ fontSize: `${px / 16}em` }}
     >
       {/* Open-book glyph (currentColor so it can be tinted muted → hover-brighten) */}
       <svg className="theory-link-book" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">

@@ -253,6 +253,13 @@
   --text-xl:  1.375rem;
   --text-2xl: 1.75rem;
 
+  /* Icon sizes — em-based so lucide glyphs track adjacent text AND the zoom control (t/2416).
+     Bucket map: 14→sm, 18/20→md, 22→lg (see design-system.md). One-offs (favicon 16 raster,
+     large empties) stay fixed-px. */
+  --icon-sm: 1em;
+  --icon-md: 1.25em;
+  --icon-lg: 1.5em;
+
   --leading-ui: 1.4;
   --leading-prose: 1.65;
 

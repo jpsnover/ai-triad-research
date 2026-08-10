@@ -153,20 +153,24 @@ function RefsHeader({ entry, explainCopied, onExplain, onToggleCaveats }: {
           : <button className="debate-reasoning-toggle" onClick={onExplain} title="Copy an explain prompt to clipboard and open Gemini">Explain</button>
       )}
       {entry?.caveats && entry.caveats.length > 0 && (
-        <button
-          className="debate-reasoning-toggle taxrefs-caveats-btn"
-          onClick={onToggleCaveats}
-          title="Unresolved argument limitations identified by the judge"
-        >
-          Caveats ({entry.caveats.length})
-        </button>
+        <>
+          <button
+            className="debate-reasoning-toggle taxrefs-caveats-btn"
+            onClick={onToggleCaveats}
+            title="Unresolved argument limitations identified by the judge"
+          >
+            Caveats ({entry.caveats.length})
+          </button>
+          {/* Doc-link icon — gated on has-caveats + placed beside the Caveats control, no longer right-parked (t/2418).
+              Uses the unified docPath form (t/2410, now on main). */}
+          <TheoryLink
+            docPath="docs/citation-diagnostics-design.md"
+            label="Help: citation diagnostics design"
+            size={14}
+            className="taxrefs-refs-help"
+          />
+        </>
       )}
-      <TheoryLink
-        docPath="docs/citation-diagnostics-design.md"
-        label="Help: citation diagnostics design"
-        size={14}
-        className="taxrefs-refs-help"
-      />
     </div>
   );
 }
