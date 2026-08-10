@@ -7,8 +7,9 @@
   border: 1px solid var(--border);
   border-left: 3px solid var(--accent);
   border-radius: 4px;
-  max-height: 70vh;
-  overflow-y: auto;
+  /* No own height cap (t/2414): grow to fit content (e.g. a long Steelman Vulnerability)
+     instead of an inner fixed-height scrollbar that clips it. The enclosing detail pane /
+     diagnostics entry-tab (overflow-y:auto) handles overflow. */
 }
 
 .taxref-header-pad {
