@@ -25,6 +25,7 @@ import type { FactVerdict, FactDiscrepancy } from '@lib/debate/types';
 import { remarkLinkifyRefs, REF_LINK_CLASS } from '../shared/refLinkifyPlugin';
 import { ClaimsView } from './ClaimsView';
 import { CampGlyph, povToCamp } from '../shared/CampGlyph';
+import { BookmarkLink } from '../shared/BookmarkLink';
 import './StatementCard.css';
 
 const SafeLink = ({ node: _, ...props }: AnchorHTMLAttributes<HTMLAnchorElement> & { node?: unknown }) => (
@@ -1268,6 +1269,7 @@ function FactCheckHeader({ statementId, factCheck, verdictClass, citations, hasW
       <span className={`debate-fact-check-verdict ${verdictClass}`}>
         {factCheck ? FACT_VERDICT_LABEL[factCheck.verdict] ?? factCheck.verdict : 'unknown'}
       </span>
+      <BookmarkLink docPath="docs/fact-check-process.md" anchor="what-the-card-shows-you" label="How fact-checking works" size="xs" />
       {citations.length > 0 && (
         <span className="debate-fact-check-sources-inline" aria-label="External sources">
           <span className="debate-fact-check-sources-inline-label">Sources:</span>

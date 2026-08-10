@@ -1,209 +1,158 @@
 # Fact-Checking in the Debate Engine
 
-This document explains when fact-checks are triggered, how they work, how their results update QBAF scores, and how they affect the course of the debate.
+This document explains what the **Fact Check** card in a debate is telling you: when a
+fact-check is triggered, the verdict vocabulary, how the verdict is reached, how it feeds
+back into the argument network (QBAF) scores, and how it steers the rest of the debate.
+
+If you arrived here from the bookmark on a Fact Check card, start with
+[What the card shows you](#what-the-card-shows-you).
+
+## What the Card Shows You
+
+A Fact Check card is a **system** transcript entry that appears between debater turns. It
+verifies a *single* empirical claim that a debater just made. Reading it left-to-right,
+top-to-bottom:
+
+- **Verdict chip** — one of five values (see [Verdict Vocabulary](#verdict-vocabulary)).
+  The card is tinted by verdict (`supported` green, `disputed`/`false` red, etc.).
+- **`Sources: [1] [2] …`** — inline links to the external web sources the grounded search
+  consulted. Click a number to open that source; the same list is expanded, with grounded
+  spans, under **Show Web Evidence**.
+- **Show Web Evidence** — toggles the raw web-search evidence and the numbered source list
+  with per-source grounded-span counts and max confidence.
+- **Discrepancy row** (only on `partially_accurate`) — names the specific detail that is
+  off: a *dimension* (Magnitude / Timing / Attribution / Scope / Existence), a severity
+  (minor / major), and a `claimed → actual` delta. This row is **evidence-gated** — see
+  [The `partially_accurate` gate](#the-partially_accurate-gate).
+- **Checked text** — the exact claim text that was verified (the full claim, even when the
+  debater's statement embedded a truncated quote).
+
+The verdict is not just a label — it rewrites the claim's strength in the argument network,
+which propagates to every claim that supports or attacks it. See
+[How Results Update QBAF Scores](#how-results-update-qbaf-scores).
+
+## Verdict Vocabulary
+
+The shared verdict axis (source of truth: `lib/debate/types/factVerdict.ts`, t/1701) measures
+the polarity of the **core** claim. Genus–differentia definitions:
+
+| Verdict | Chip label | Meaning |
+|---|---|---|
+| `supported` | Supported | Core claim + material details corroborated by the weight of evidence. |
+| `partially_accurate` | Partially Accurate | A *support* verdict: direction is right, but evidence identifies a specific, material discrepancy in a detail. **Requires** a complete `discrepancy` object. |
+| `disputed` | Disputed | A *contested* verdict: authoritative sources conflict on the central assertion; evidence is mixed, not decisive. Does **not** absorb detail errors. |
+| `false` | False | The central assertion is directly contradicted by authoritative sources (direction wrong, decisively). |
+| `unverifiable` | Unverifiable | Can be neither confirmed nor denied with the available evidence. This is also the conservative fallback on parse failure or a rejected `partially_accurate`. |
+
+> **Legacy note.** Older data stored `verified`; it is aliased to `supported` **on read**
+> via `normalizeVerdict` (no data rewrite). The inline auto-check web-search prompt still
+> emits the legacy `verified`/`disputed`/`unverifiable` subset, which is normalized before
+> display; the full five-value vocabulary is what the card renders.
+
+### The `partially_accurate` gate
+
+`partially_accurate` is the one verdict a classifier could abuse as a no-lose "mostly right"
+default, so it is **structurally gated** (`factCheckValidator.ts`). It is only valid when it
+carries a `discrepancy` that both **names the error** (`claimed`) and **sources the truth**
+(`actual` + `source`) — all three non-empty. A `partially_accurate` verdict missing any of
+those is rejected and downgraded to `unverifiable`, and the rejection is recorded on the
+flight recorder. This is why every `partially_accurate` card shows a populated discrepancy
+row.
 
 ## When Fact-Checks Trigger
 
-Fact-checking runs **after claim extraction** on each debate turn. It is not applied to every claim — only claims that meet specific criteria.
+Inline fact-checking runs **after claim extraction** on each debate turn
+(`verifyPreciseClaims`). A claim is checked only when ALL of these hold:
 
-### Trigger Conditions
+1. **BDI category is Belief** — only empirical claims are fact-checkable. Desires (normative)
+   and Intentions (strategic) are not subject to factual verification.
+2. **Specificity is `precise`** — the claim contains specific numbers, dates, named entities,
+   or directly verifiable facts. `general` and `abstract` claims are skipped.
+3. **A search-capable adapter exists** — `generateTextWithSearch` must be present. This is
+   available in the Taxonomy Editor, **not** in the CLI adapter — so CLI-batch-generated
+   debates (the calibration corpus) carry no inline fact-checks or evidence by design.
+4. **Cap of 2 claims per turn** — at most the first two precise beliefs of a turn are checked,
+   to bound API cost and latency.
 
-A claim is fact-checked when ALL of these are true:
+Everything else — Desire/Intention claims, `general`/`abstract` beliefs, and every claim on
+the CLI path — is skipped.
 
-1. **BDI category is Belief** — only empirical claims are fact-checkable. Desires (normative) and Intentions (strategic) are not subject to factual verification.
-2. **Specificity is "precise"** — the claim contains specific numbers, dates, named entities, or directly verifiable facts. Claims classified as "general" or "abstract" are not fact-checked.
-3. **Search adapter is available** — the `generateTextWithSearch` method exists on the AI adapter (available in the Taxonomy Editor, not in the CLI).
-4. **Cap of 2 per turn** — at most 2 claims per debate turn are fact-checked, to control API costs and latency.
+## How the Verdict Is Reached
 
-### What Gets Skipped
+Two verification paths are tried in priority order per claim:
 
-- Desire claims ("AI governance should prioritize safety") — normative, not verifiable
-- Intention claims ("We should implement audits by 2028") — strategic, not verifiable
-- Belief claims with "general" specificity ("AI has risks") — too vague to verify
-- Belief claims with "abstract" specificity ("Intelligence is a positive-sum resource") — theoretical, not empirically testable
-- All claims when running via CLI (no search adapter)
+### Path 1 — Evidence QBAF (preferred, when a source corpus is available)
 
-## How Fact-Checks Work
+Uses the project's own source documents as the evidence base (`evidenceQbaf.ts`,
+`evidenceRetriever.ts`):
 
-There are two verification paths, tried in priority order:
+1. **Retrieve** — search the source corpus (`ai-triad-data/sources/`) with hybrid keyword +
+   embedding similarity; return top evidence passages with similarity scores.
+2. **Classify** — an LLM labels each passage `support` / `contradict` / `irrelevant`, and
+   assigns `source_reliability` and `relevance`.
+3. **Compute** — build a micro-QBAF (claim node + one node per passage, edges weighted by
+   relevance), run DF-QuAD gradual semantics, and emit a continuous `computed_strength`
+   (0–1). That value is used directly as the claim's `base_strength`.
 
-### Path 1: Evidence QBAF (preferred, when source corpus available)
+The full evidence graph is persisted on the node (`node.evidence_graph`) for post-debate
+analysis and the Evidence tab.
 
-This path uses the project's own source documents as the evidence base. It's a 3-stage pipeline:
+### Path 2 — Web-search verdict (fallback, when no corpus resolves)
 
-**Stage 1: Evidence Retrieval** (`evidenceRetriever.ts`)
-- Takes the claim text and searches the source corpus (documents in `ai-triad-data/sources/`)
-- Uses a hybrid of keyword extraction and embedding similarity (when available)
-- Returns top-10 evidence passages with similarity scores
-
-**Stage 2: Evidence Classification** (LLM call)
-- For each retrieved passage, an LLM classifies the relationship to the claim:
-  - `support` — the evidence supports the claim
-  - `contradict` — the evidence contradicts the claim
-  - `irrelevant` — the evidence is not relevant
-- Also assigns `source_reliability` (how authoritative the source is) and `relevance` (how closely related)
-
-**Stage 3: QBAF Computation** (`computeFactCheckStrength()` in qbaf.ts)
-- Builds a micro-QBAF graph:
-  - Central node: the claim (base_strength = 0.5)
-  - Surrounding nodes: each evidence passage (base_strength = source_reliability x relevance)
-  - Edges: support or attack, weighted by relevance
-- Runs DF-QuAD gradual semantics on this mini-network
-- Output: `computed_strength` (0-1) — the claim's strength after incorporating all evidence
-
-**Result:**
-- `computed_strength >= 0.6` → `verification_status: 'verified'`
-- `computed_strength <= 0.4` → `verification_status: 'disputed'`
-- Between 0.4-0.6 → `verification_status: 'unverifiable'`
-
-### Path 2: Web Search Verdict (fallback, when no source corpus)
-
-When the source corpus is unavailable, the system falls back to a single-shot web search:
-
-- Calls `generateTextWithSearch` with the claim text
-- LLM searches the web and produces a verdict:
-  - `verified` — evidence supports the claim
-  - `disputed` — evidence contradicts the claim
-  - `unverifiable` — insufficient evidence either way
-- Also returns confidence (`high`, `medium`, `low`) and a 1-2 sentence evidence summary
+When the source corpus can't be resolved, the system falls back to a single grounded
+web-search call: the model searches the web, returns a verdict + a 1–2 sentence evidence
+summary + confidence (`high`/`medium`/`low`), and the grounding citations become the card's
+`Sources`.
 
 ## How Results Update QBAF Scores
 
-Fact-check results modify the claim's `base_strength` in the argument network, which then propagates through the full QBAF computation.
+The verdict (or the evidence `computed_strength`) sets the claim's `base_strength`, which then
+propagates through the whole argument network via QBAF. Mapping
+(`factCheckToBaseStrength` in `argumentNetwork/strength.ts`):
 
-### Base Strength Updates
-
-| Verification Path | Result | base_strength |
+| Path / verdict | Confidence | base_strength |
 |---|---|---|
-| Evidence QBAF | computed_strength from DF-QuAD | Direct use (0-1 continuous) |
-| Web search | verified + high confidence | 0.85 |
-| Web search | verified + medium confidence | 0.70 |
-| Web search | verified + low confidence | 0.60 |
-| Web search | disputed + any confidence | 0.20 |
-| Web search | unverifiable | 0.45 |
+| Evidence QBAF | — | `computed_strength` (0–1, used directly) |
+| `supported` | high / medium / low | 0.85 / 0.70 / 0.55 |
+| `disputed` or `false` | high / medium / low | 0.15 / 0.30 / 0.40 |
+| `unverifiable` | any | 0.50 |
 
-The mapping is performed by `factCheckToBaseStrength()` in `argumentNetwork.ts`.
+The claim's `scoring_method` is set to `fact_check`, which **overwrites** any extraction-time
+score (e.g. a claim the ThinkPRM chain scored 0.70 at extraction can be revised to 0.15 if the
+inline check finds it `false` with high confidence).
 
-### Propagation Effect
+**Propagation is transitive.** A `supported` claim attacking an opponent's claim drives that
+opponent's strength down and boosts the supported claim's own supporters; a `false` claim's
+supporters lose credibility with it. Verifying one claim can shift many.
 
-Once a fact-checked claim's base_strength is updated, the change propagates through the full argument network via QBAF:
+## How Fact-Checks Steer the Debate
 
-```
-Verified claim (0.85) attacking an opponent's claim:
-  → opponent's claim strength drops significantly
-  → claims that depend on the opponent's claim also weaken
-  → the verified claim's supporters get a boost
+- **Transcript visibility** — the fact-check entry sits in the shared transcript, so it enters
+  every debater's subsequent context window. A debater seeing `AN-12 [disputed]` knows to
+  defend, revise, or drop that claim.
+- **QBAF strength display** — a `false`/`disputed` claim shows a very low computed strength;
+  debaters on the FIELD-AWARE strategy target weak claims with UNDERCUT / EMPIRICAL CHALLENGE
+  moves.
+- **Moderator steering** — the moderator's QBAF context surfaces high-strength unaddressed
+  claims to direct attention toward, and may CHALLENGE a debater who keeps re-asserting a
+  disputed claim.
+- **Calibration** — verdicts feed `borderline_claim_survival_rate`: a `disputed`/`false` claim
+  that survives the debate un-refuted signals the debate failed to engage available
+  counter-evidence.
 
-Disputed claim (0.20) being attacked:
-  → the attack has minimal effect (attacking something already weak)
-  → but claims that SUPPORT the disputed claim also lose credibility
-```
+## Where Fact-Check Fits Among Scoring Paths
 
-This means fact-checking has **transitive effects** — verifying one claim can shift the strength of many related claims through the argument network.
-
-### Scoring Method Tracking
-
-When a claim is fact-checked, its `scoring_method` is set to `'fact_check'`, distinguishing it from other scoring paths:
-
-| scoring_method | Source |
-|---|---|
-| `belief_verification` | ThinkPRM 4-step verification chain |
-| `evidence_qbaf` | Evidence retrieval + QBAF (during extraction) |
-| `fact_check` | Post-extraction inline verification (this process) |
-| `belief_specificity` | Specificity proxy (precise/general/abstract) |
-| `bdi_composite` | BDI sub-score composite (Desires/Intentions) |
-| `unscored` | No scoring data available |
-
-## How Fact-Checks Affect the Debate
-
-### 1. Transcript Entries
-
-Each fact-check produces a visible transcript entry of type `'fact-check'`:
+Fact-checking is one of several ways a Belief claim can be scored. Priority (highest wins):
 
 ```
-Claim AN-7 — verified: Multiple peer-reviewed studies confirm that
-current RLHF techniques reduce harmful outputs by 60-80% in
-standard benchmarks.
-```
-
-or
-
-```
-Claim AN-12 — disputed: The claim that "90% of AI researchers
-support open-weight models" could not be verified. Available surveys
-show significantly lower support rates.
-```
-
-These entries appear in the debate transcript between turns, visible to all debaters in subsequent context windows.
-
-### 2. Debater Awareness
-
-Fact-check results affect debaters through three channels:
-
-**Argument Network Context** — when the moderator and debaters see the AN via `formatArgumentNetworkContext()`, disputed claims are marked with their verification status. A debater seeing `AN-12 [disputed]` knows to either defend, revise, or abandon that claim.
-
-**QBAF Strength Display** — a disputed claim (base_strength: 0.20) will have a very low computed_strength in the QBAF display. Debaters using the FIELD-AWARE STRATEGY see these strength signals and can target weak claims with UNDERCUT or EMPIRICAL CHALLENGE moves.
-
-**Moderator Steering** — the moderator's QBAF context (`buildQbafContext()`) highlights high-strength unaddressed claims. A verified claim that opponents haven't engaged becomes a priority for the moderator to direct attention toward. Conversely, a disputed claim that a debater keeps asserting may trigger a CHALLENGE intervention.
-
-### 3. Calibration Impact
-
-Fact-check results feed into calibration Parameter 13 (`borderline_claim_survival_rate`):
-- Tracks what fraction of borderline claims (base_strength 0.4-0.55) survive the debate without being refuted
-- Fact-checked claims with `verification_status: 'disputed'` that survive (remain above 0.25 computed_strength) indicate the debate failed to engage with available counter-evidence
-
-### 4. Evidence Graph Persistence
-
-When the evidence QBAF path runs, the full evidence graph is stored on the AN node:
-
-```typescript
-node.evidence_graph = {
-  evidence_items: [...],      // retrieved passages with classifications
-  computed_strength: 0.72,    // QBAF result
-  qbaf_iterations: 8,         // convergence data
-};
-```
-
-This persists in the debate JSON file and is available for post-debate analysis, diagnostics, and the Evidence tab in the Taxonomy Editor.
-
-## Interaction with Other Scoring Paths
-
-Fact-checking is ONE of several ways a Belief claim can be scored. The priority order:
-
-```
-1. Inline fact-check (verifyPreciseClaims)     — runs post-extraction, overwrites everything
-2. ThinkPRM verification (belief_verification) — runs at extraction time
-3. Evidence QBAF at extraction (t/455 Stage 2) — runs at extraction time
+1. Inline fact-check (verifyPreciseClaims)      — post-extraction, overwrites everything
+2. ThinkPRM verification (belief_verification)  — extraction time
+3. Evidence QBAF at extraction                  — extraction time
 4. Specificity proxy (precise/general/abstract) — zero-cost fallback
 5. Generic (0.50)                               — no scoring data
 ```
 
-Inline fact-checking (this process) runs AFTER extraction and can OVERWRITE the extraction-time scoring. A claim that was scored 0.70 by the ThinkPRM verification chain at extraction time might be revised to 0.20 if the inline fact-check finds contradicting evidence.
-
-## What Determines Whether Evidence QBAF or Web Search Runs
-
-```
-verifyPreciseClaims(newNodes)
-  ↓
-  Filter: bdi_category === 'belief' AND specificity === 'precise'
-  ↓
-  Cap at 2 claims per turn
-  ↓
-  For each claim:
-    ↓
-    Can we resolve the sources directory?
-    ├─ YES → runEvidenceQbaf()
-    │         ↓
-    │         retrieveEvidence() returns passages?
-    │         ├─ YES → classify → QBAF → update node → done
-    │         └─ NO  → fall through to web search
-    └─ NO  → fall through to web search
-    ↓
-    Does adapter have generateTextWithSearch?
-    ├─ YES → web search → verdict → update node → done
-    └─ NO  → skip (CLI path, no verification available)
-```
-
 ---
 
-*Documented: 2026-05-14 · Computational Linguist · AI Triad Research*
+*Owner: Computational Linguist · AI Triad Research · Verdict vocabulary per t/1701 ·
+Last updated: 2026-08-10*
