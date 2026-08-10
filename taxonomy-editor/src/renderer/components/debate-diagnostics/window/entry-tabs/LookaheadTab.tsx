@@ -4,7 +4,7 @@
 import React from 'react';
 import { Highlight, CopyButton } from '../helpers';
 import './LookaheadTab.css';
-import { BookmarkLink } from '../../../shared/BookmarkLink';
+import { TheoryLink } from '../../../shared/TheoryLink';
 
 export interface LookaheadTabProps {
   lookaheadDiag: any;
@@ -116,7 +116,7 @@ export function LookaheadTab(props: LookaheadTabProps) {
           color: lookaheadDiag.final_pass ? 'var(--success)' : 'var(--danger)',
         }}>{lookaheadDiag.final_pass ? '✓ PASS' : '✗ FAIL'}</span>
         <span>LOOKAHEAD</span>
-        <BookmarkLink docPath="docs/utility-function-and-lookahead.md" anchor="how-the-lookahead-gate-works" size="xs" />
+        <TheoryLink docPath="docs/utility-function-and-lookahead.md" anchor="how-the-lookahead-gate-works" size={12} />
         <span>{(lookaheadDiag.elapsed_ms / 1000).toFixed(1)}s</span>
         {lookaheadDiag.regen_triggered && <span className="look-regen-badge">REGEN TRIGGERED</span>}
       </div>

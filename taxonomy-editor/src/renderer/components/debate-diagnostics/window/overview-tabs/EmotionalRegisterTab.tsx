@@ -14,7 +14,7 @@ import {
   type AffectProfile,
 } from '@lib/debate/affectSignals';
 import { getDebatePhase } from '@lib/debate/types';
-import { BookmarkLink } from '../../../shared/BookmarkLink';
+import { TheoryLink } from '../../../shared/TheoryLink';
 import { POV_META } from '@lib/electron-shared/povMeta';
 
 interface EmotionalRegisterTabProps {
@@ -120,7 +120,7 @@ export function EmotionalRegisterTab({ debate, setSelectedEntry, setLocalOverrid
       <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginBottom: 12 }}>
         Emotional register across {turnData.length} statements. Affect computed from lexical signals (Wachsmuth Emotional Appeal).
       </div>
-      <BookmarkLink docPath="docs/emotional-registers.md" size="xs" />
+      <TheoryLink docPath="docs/emotional-registers.md" size={12} />
 
       {/* Concluding-outrage warnings */}
       {warnings.length > 0 && (

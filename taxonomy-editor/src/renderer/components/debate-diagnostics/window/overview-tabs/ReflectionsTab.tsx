@@ -4,7 +4,7 @@
 import React from 'react';
 import { POVER_INFO } from '../../../../types/debate';
 import type { DebateSession } from '../../../../types/debate';
-import { BookmarkLink } from '../../../shared/BookmarkLink';
+import { TheoryLink } from '../../../shared/TheoryLink';
 
 interface ReflectionEdit {
   edit_type: string;
@@ -47,7 +47,7 @@ export function ReflectionsTab({ debate }: ReflectionsTabProps) {
       <div style={{ marginBottom: 8, color: 'var(--text-muted)', fontSize: '0.7rem' }}>
         {allResults.length} debater{allResults.length !== 1 ? 's' : ''} reflected, {totalEdits} edit{totalEdits !== 1 ? 's' : ''} proposed{approved > 0 ? `, ${approved} applied` : ''}
       </div>
-      <BookmarkLink docPath="docs/debate-system-overview.md" anchor="reflections" size="xs" />
+      <TheoryLink docPath="docs/debate-system-overview.md" anchor="reflections" size={12} />
       {allResults.map((r, ri) => {
         const poverInfo = Object.values(POVER_INFO).find(p => p.pov === r.pover);
         const color = poverInfo?.color || '#888';

@@ -4,7 +4,7 @@
 import React from 'react';
 import type { DebateSession } from '../../../../types/debate';
 import './AdaptiveStagingTab.css';
-import { BookmarkLink } from '../../../shared/BookmarkLink';
+import { TheoryLink } from '../../../shared/TheoryLink';
 
 interface AdaptiveStagingDiagnostics {
   phases: { phase: string; rounds: number[]; exit_reason: string }[];
@@ -73,7 +73,7 @@ export function AdaptiveStagingTab({ debate }: AdaptiveStagingTabProps) {
       {diag && <>
       <div className="adst-diag-header">
         <span className="adst-title">Adaptive Staging Diagnostics</span>
-        <BookmarkLink docPath="docs/adaptive-staging-signals.md" size="xs" />
+        <TheoryLink docPath="docs/adaptive-staging-signals.md" size={12} />
         <button onClick={downloadSignals} className="adst-download-btn">
           Download Signals JSON
         </button>
@@ -128,7 +128,7 @@ export function AdaptiveStagingTab({ debate }: AdaptiveStagingTabProps) {
       {diag.signal_telemetry.length > 0 && (
         <div>
           <div className="adst-section-header">Signal Telemetry (per round)</div>
-          <BookmarkLink docPath="docs/adaptive-staging-signals.md" anchor="signal-glossary" size="xs" />
+          <TheoryLink docPath="docs/adaptive-staging-signals.md" anchor="signal-glossary" size={12} />
           <div className="adst-telemetry-scroll">
             <table className="adst-telemetry-table">
               <thead>

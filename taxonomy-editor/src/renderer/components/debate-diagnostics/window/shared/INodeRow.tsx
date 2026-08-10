@@ -11,7 +11,7 @@ import type { SpeakerId } from '../../../../types/debate';
 import { explainNodeStrength } from '../../../../utils/qbafExplain';
 import { SUB_SCORE_TIPS, BELIEF_KEYS } from './constants';
 import { ScoreBadge } from './ScoreBadge';
-import { BookmarkLink } from '../../../shared/BookmarkLink';
+import { TheoryLink } from '../../../shared/TheoryLink';
 
 // NOTE: speakerLabel stays in DiagnosticsWindow.tsx (parent). A local copy is provided here
 // for self-contained compilation. When integrating, pass speakerLabel as a prop or import
@@ -95,7 +95,7 @@ function SubScoreRow({ node, onUpdateSubScore }: { node: ArgumentNetworkNode; on
           </span>
         );
       })}
-      <BookmarkLink docPath="docs/bdi-sub-score-calibration.md" size="xs" />
+      <TheoryLink docPath="docs/bdi-sub-score-calibration.md" size={12} />
     </div>
   );
 }
