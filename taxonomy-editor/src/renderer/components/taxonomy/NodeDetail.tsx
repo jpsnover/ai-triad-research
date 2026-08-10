@@ -585,10 +585,7 @@ function NodeDetailHeaderTop({ pov, node, readOnly, err, update, maybeRegenAphor
         )}
       </div>
       <div className="nd-header-actions">
-        <TheoryLink
-          docPath="research/comp-linguist/analyses/epistemic-infrastructure-framing.md"
-          label="Help: epistemic infrastructure framing"
-        />
+        {/* doc-link book relocated to the detail panel top-right (collapse-row / phone header) in PovTab — t/2412 */}
         {nodeTypeFromId(node.id) === 'pov' && (
           <CopyLinkButton hash={publicPovSharePath(node.id)} title="Copy public link" />
         )}

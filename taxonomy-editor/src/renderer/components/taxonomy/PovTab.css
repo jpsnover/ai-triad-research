@@ -91,9 +91,19 @@
 
 .detail-panel-collapse-row {
   display: flex;
+  align-items: center;
   justify-content: flex-end;
+  gap: 8px; /* [book] [‹] group, right-aligned (t/2412) */
   margin-bottom: 0;
   line-height: 1;
+}
+
+/* Phone: keep the doc-link book grouped with the list toggle on the right
+   (collapse-row isn't rendered on phone) — t/2412. */
+.phone-detail-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .pane3-crux-detail-sizing {
