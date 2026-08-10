@@ -107,7 +107,7 @@ export function BottomNav({ onOpenMore }: BottomNavProps) {
           className="bottom-nav-item"
           onClick={onOpenMore}
         >
-          <Ellipsis size={22} />
+          <Ellipsis size="1.5em" />
           <span className="bottom-nav-label">More</span>
         </button>
       </nav>

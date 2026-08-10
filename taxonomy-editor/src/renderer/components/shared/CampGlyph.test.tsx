@@ -13,8 +13,8 @@ describe('CampGlyph', () => {
     const { container } = render(<CampGlyph camp={camp} />);
     const svg = container.querySelector('svg');
     expect(svg).toBeInTheDocument();
-    expect(svg).toHaveAttribute('width', '16');
-    expect(svg).toHaveAttribute('height', '16');
+    expect(svg).toHaveAttribute('width', '1em');
+    expect(svg).toHaveAttribute('height', '1em');
     expect(svg).toHaveAttribute('aria-hidden', 'true');
   });
 
@@ -28,8 +28,8 @@ describe('CampGlyph', () => {
   it('accepts a custom size', () => {
     const { container } = render(<CampGlyph camp="saf" size={24} />);
     const svg = container.querySelector('svg');
-    expect(svg).toHaveAttribute('width', '24');
-    expect(svg).toHaveAttribute('height', '24');
+    expect(svg).toHaveAttribute('width', '1.5em');
+    expect(svg).toHaveAttribute('height', '1.5em');
   });
 
   it('accepts a custom className', () => {

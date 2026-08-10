@@ -89,7 +89,7 @@ function ToolbarAuthButton() {
         data-tooltip={auth.anonymous ? 'Sign in' : auth.user}
       >
         {auth.anonymous ? (
-          <User size={20} />
+          <User size="1.25em" />
         ) : (
           <span className="toolbar-auth-avatar">{initial}</span>
         )}
@@ -152,13 +152,13 @@ function ToolbarAuthButton() {
               <div className="toolbar-auth-divider" />
               <a className="toolbar-more-item toolbar-more-link" href="#community"
                 onClick={() => setShowPopover(false)}>
-                <Users size={18} />
+                <Users size="1.25em" />
                 <span>Community Library</span>
               </a>
               {adminFeatures && (
                 <a className="toolbar-more-item toolbar-more-link" href="#admin"
                   onClick={() => setShowPopover(false)}>
-                  <Shield size={18} />
+                  <Shield size="1.25em" />
                   <span>Admin Review</span>
                   {reviewCount > 0 && (
                     <span className="toolbar-auth-admin-badge toolbar-auth-badge-ml">
@@ -170,7 +170,7 @@ function ToolbarAuthButton() {
               <div className="toolbar-auth-divider" />
               <a className="toolbar-more-item toolbar-more-link" href="/api/auth/logout"
                 onClick={() => { getGlobalRecorder()?.record({ type: 'auth.logout_initiated', component: 'auth', level: 'info', message: 'User initiated logout', data: { target: '/api/auth/logout', source: 'toolbar' } }); setShowPopover(false); }}>
-                <LogOut size={18} />
+                <LogOut size="1.25em" />
                 <span>Sign out</span>
               </a>
             </>
@@ -291,7 +291,7 @@ export function Toolbar() {
               aria-label="Back"
               data-tooltip="Back"
             >
-              <ArrowLeft size={20} />
+              <ArrowLeft size="1.25em" />
             </button>
             <div className="toolbar-separator" />
           </>
@@ -302,7 +302,7 @@ export function Toolbar() {
           onClick={() => toggle('search')}
           aria-label="Search"
         >
-          <Search size={20} />
+          <Search size="1.25em" />
           <span className="toolbar-nav-label">Search</span>
         </button>
         <button
@@ -316,7 +316,7 @@ export function Toolbar() {
           }}
           aria-label="Taxonomy"
         >
-          <LayoutGrid size={20} />
+          <LayoutGrid size="1.25em" />
           <span className="toolbar-nav-label">Taxonomy</span>
         </button>
         <button
@@ -324,7 +324,7 @@ export function Toolbar() {
           onClick={() => switchTab('debate')}
           aria-label="Debate"
         >
-          <MessageSquare size={20} />
+          <MessageSquare size="1.25em" />
           <span className="toolbar-nav-label">Debate</span>
         </button>
         <button
@@ -332,7 +332,7 @@ export function Toolbar() {
           onClick={() => void api.openChatWindow()}
           aria-label="Chat"
         >
-          <MessageCircle size={20} />
+          <MessageCircle size="1.25em" />
           <span className="toolbar-nav-label">Chat</span>
         </button>
       </div>
@@ -343,7 +343,7 @@ export function Toolbar() {
           aria-label={viewMode === 'simple' ? 'Switch to Advanced view' : 'Switch to Simple view'}
           data-tooltip={viewMode === 'simple' ? 'Switch to Advanced view' : 'Switch to Simple view'}
         >
-          <Layers size={20} />
+          <Layers size="1.25em" />
         </button>
         {/* Other Tools — hidden in Simple view */}
         {viewMode === 'advanced' && <div className="toolbar-more-wrap" ref={moreRef}>
@@ -353,7 +353,7 @@ export function Toolbar() {
             aria-label="Other Tools"
             data-tooltip="Other Tools"
           >
-            <Ellipsis size={20} />
+            <Ellipsis size="1.25em" />
           </button>
           {showMore && (
             <div className="toolbar-more-popover" role="menu">
@@ -366,7 +366,7 @@ export function Toolbar() {
                       className={`toolbar-more-item${isNavItemActive(item) ? ' active' : ''}`}
                       onClick={() => { dispatchNav(item.action); setShowMore(false); }}
                     >
-                      <item.icon size={18} />
+                      <item.icon size="1.25em" />
                       <span>{item.label}</span>
                     </button>
                   ))}
@@ -382,7 +382,7 @@ export function Toolbar() {
           aria-label="Help"
           data-tooltip="Help"
         >
-          <CircleHelp size={20} />
+          <CircleHelp size="1.25em" />
         </button>
         <div className="toolbar-feedback-wrap" ref={feedbackRef}>
           <button
@@ -391,7 +391,7 @@ export function Toolbar() {
             aria-label="Feedback"
             data-tooltip="Feedback"
           >
-            <Star size={20} />
+            <Star size="1.25em" />
           </button>
           {showFeedback && <FeedbackPopover onClose={() => setShowFeedback(false)} />}
         </div>
@@ -403,7 +403,7 @@ export function Toolbar() {
           aria-label="Reload taxonomy data"
           data-tooltip="Reload taxonomy data"
         >
-          <RefreshCw size={20} />
+          <RefreshCw size="1.25em" />
         </button>
         <button
           className="toolbar-icon"
@@ -411,7 +411,7 @@ export function Toolbar() {
           aria-label="Settings"
           data-tooltip="Settings"
         >
-          <Settings size={20} />
+          <Settings size="1.25em" />
         </button>
       </div>
       {showSettings && <SettingsDialog onClose={() => setShowSettings(false)} />}

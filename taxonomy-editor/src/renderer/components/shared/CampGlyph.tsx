@@ -34,8 +34,8 @@ const PATHS: Record<CampKey, JSX.Element> = {
 export function CampGlyph({ camp, size = 16, className }: CampGlyphProps) {
   return (
     <svg
-      width={size}
-      height={size}
+      width={`${size / 16}em`}
+      height={`${size / 16}em`}
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
