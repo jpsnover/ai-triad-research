@@ -1300,33 +1300,6 @@ export function DebateWorkspace({ onExport, exportStatus }: {
     <div className="debate-workspace-row" data-phase={isClarificationPhase ? 'setup' : undefined}>
     {chatRedesign && <TranscriptOutline transcript={activeDebate.transcript} />}
     <div className="debate-workspace">
-      {/* Fixed header — always visible (t/2293): title+source, status, DEBATERS strip,
-          with the action controls anchored top-right in Band 1. */}
-      <DebateHeader
-        activeDebate={activeDebate}
-        coverageMap={coverageMap}
-        strengthWeighted={strengthWeighted}
-        phaseLabel={PHASE_TITLES[activeDebate.phase] || activeDebate.phase}
-        actions={
-          <DebateToolbar
-            activeDebate={activeDebate}
-            headerVariant
-            isExploration={isExploration}
-            isCrossCutting={isCrossCutting}
-            onShowCCDetails={() => setShowCCDetails(true)}
-            commentSidebarOpen={commentSidebarOpen}
-            toggleCommentSidebar={toggleCommentSidebar}
-            commentsFile={commentsFile}
-            exportStatus={exportStatus}
-            onExport={onExport}
-            diagnosticsEnabled={diagnosticsEnabled}
-            toggleDiagnostics={toggleDiagnostics}
-            defaultTier={defaultTier}
-            setDefaultTier={setDefaultTier}
-          />
-        }
-      />
-
       {/* Cross-cutting context dialog */}
       <CrossCuttingDialog activeDebate={activeDebate} show={showCCDetails} onClose={() => setShowCCDetails(false)} />
 
@@ -1346,9 +1319,34 @@ export function DebateWorkspace({ onExport, exportStatus }: {
       {/* Remote driver overlay — popout window is driving this debate */}
       <RemoteDriverOverlay show={showRemoteOverlay} />
 
-      {/* Scrollable content: debaters, transcript (the topic/metadata header is now
-          the fixed DebateHeader above, t/2293) */}
+      {/* Scrollable content: header (title+status+DEBATERS strip), debaters, transcript.
+          The header scrolls with the transcript rather than staying pinned (user request):
+          on a phone the fixed header consumed ~half the viewport. */}
       <div className="debate-scroll-content" onContextMenu={handleContextMenu}>
+        <DebateHeader
+          activeDebate={activeDebate}
+          coverageMap={coverageMap}
+          strengthWeighted={strengthWeighted}
+          phaseLabel={PHASE_TITLES[activeDebate.phase] || activeDebate.phase}
+          actions={
+            <DebateToolbar
+              activeDebate={activeDebate}
+              headerVariant
+              isExploration={isExploration}
+              isCrossCutting={isCrossCutting}
+              onShowCCDetails={() => setShowCCDetails(true)}
+              commentSidebarOpen={commentSidebarOpen}
+              toggleCommentSidebar={toggleCommentSidebar}
+              commentsFile={commentsFile}
+              exportStatus={exportStatus}
+              onExport={onExport}
+              diagnosticsEnabled={diagnosticsEnabled}
+              toggleDiagnostics={toggleDiagnostics}
+              defaultTier={defaultTier}
+              setDefaultTier={setDefaultTier}
+            />
+          }
+        />
         <DebatePhaseHeader activeDebate={activeDebate} isDebatePhase={isDebatePhase} isOpeningPhase={isOpeningPhase} />
         <DebateTranscriptColumn
           activeDebate={activeDebate}
