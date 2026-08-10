@@ -21,11 +21,12 @@ const PATHS: Record<CampKey, JSX.Element> = {
   saf: (
     <path d="M12 3l7 4v5c0 4.5-3 8.5-7 10-4-1.5-7-5.5-7-10V7l7-4z" />
   ),
+  // Bare "?" — reads as doubt/scrutiny (the Skeptic's stance) without the
+  // circled-"?" Help affordance or the old bullseye's "selected radio" read (t/2415, Design t/2415#1).
   skp: (
     <>
-      <circle cx="12" cy="12" r="4" />
-      <circle cx="12" cy="12" r="9" />
-      <circle cx="12" cy="12" r="1.5" />
+      <path d="M8.5 9.5a3.5 3.5 0 1 1 5.3 3c-1.1.8-1.8 1.4-1.8 2.8" />
+      <path d="M12 18.5h0.01" />
     </>
   ),
 };

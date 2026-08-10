@@ -236,11 +236,11 @@
   color: var(--color-sit);
 }
 
-/* TheoryLink help icons (t/2347). Footer (g): the .debate-taxonomy-refs row is
-   flex, so margin-left:auto parks the icon at the right end beside Explain/Caveats.
+/* TheoryLink help icons (t/2347). Footer (g): sits directly beside the Caveats
+   control (t/2418 — no longer right-parked; gated on has-caveats in RefsHeader).
    Summary (f): small gap after the BRIEF/PLAN label. */
 .taxrefs-refs-help {
-  margin-left: auto;
+  margin-left: 6px;
   vertical-align: middle;
 }
 .taxrefs-section-help {
