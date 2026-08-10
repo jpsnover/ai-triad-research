@@ -515,8 +515,8 @@ export function TaxonomyGapPanel({ debate }: Props) {
     <div className="tgap-root">
       <SummaryBanner summary={analysis.summary} />
       <PovCoverageSection analysis={analysis} />
-      <UnmappedArgumentsSection args={analysis.unmapped_arguments} />
-      <CrossPovGapsSection gaps={analysis.cross_pov_gaps} />
+      <UnmappedArgumentsSection args={analysis.unmapped_arguments ?? []} />
+      <CrossPovGapsSection gaps={analysis.cross_pov_gaps ?? []} />
       {injections.length > 0 && <GapInjectionsSection injections={injections} />}
       {proposals.length > 0 && <CrossCuttingProposalsSection proposals={proposals} />}
     </div>
