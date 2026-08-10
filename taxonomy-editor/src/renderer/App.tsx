@@ -441,9 +441,12 @@ function MainApp() {
     return () => mq.removeEventListener('change', handler);
   }, [colorScheme]);
 
-  // Apply zoom level
+  // Apply zoom level. 112.5% (18px root) is the comfortable web baseline (t/2416); the zoom
+  // control multiplies against it, so "zoom 100%" == the baseline and taxonomy-editor-zoom still
+  // round-trips as a percentage (default 100).
   useEffect(() => {
-    document.documentElement.style.fontSize = `${zoomLevel}%`;
+    const BASE_FONT_PCT = 112.5;
+    document.documentElement.style.fontSize = `${(BASE_FONT_PCT * zoomLevel) / 100}%`;
   }, [zoomLevel]);
 
   // Apply pane spacing
