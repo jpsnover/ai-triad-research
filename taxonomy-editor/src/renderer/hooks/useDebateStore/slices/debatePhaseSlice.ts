@@ -70,6 +70,9 @@ import {
   computeSaturationScore,
   computeConvergenceScore,
   detectCruxNodes,
+  buildPhaseContext,
+  buildSignalTelemetry,
+  initAdaptiveDiagnostics,
 } from '@lib/debate/phaseTransitions';
 import { runTurnPipeline, assemblePipelineResult } from '@lib/debate/turnPipeline';
 import { evaluateLookaheadPerClaim, buildClaimAnalysis } from '@lib/debate/lookaheadGate';
@@ -713,6 +716,47 @@ function evaluateAdaptiveStaging(get: _Get, set: _Set, addTranscriptEntry: _AddE
   const satScore = computeSaturationScore(signals, signalCtx, coldStart);
   const convScore = computeConvergenceScore(signalCtx, coldStart);
   recordPhaseSignals(postDebate, signals, signalCtx, advanced, crossRespondRound, lastConvSignal, lastClaimsAccepted, satScore, convScore, asHealthScore, result, config);
+
+  // Accumulate adaptive_staging_diagnostics on the session (t/2423).
+  // The engine path does this at the end of its batch loop; the GUI path must
+  // do it per-round since each round is a separate call with no shared loop state.
+  if (!postDebate.adaptive_staging_diagnostics) {
+    postDebate.adaptive_staging_diagnostics = initAdaptiveDiagnostics();
+  }
+  const diag = postDebate.adaptive_staging_diagnostics;
+  // Derive current-phase start round from already-completed phase entries.
+  const currentPhaseStartRound = diag.phases.length > 0
+    ? Math.max(...diag.phases[diag.phases.length - 1].rounds) + 1
+    : 1;
+  diag.total_predicate_evaluations++;
+  if (result.confidence_deferred) diag.confidence_deferrals++;
+  if (result.veto_active) diag.vetoes_fired++;
+  if (result.force_active) diag.forces_fired++;
+  diag.network_size_peak = Math.max(diag.network_size_peak, signalCtx.network.nodeCount);
+  const phaseCtx = buildPhaseContext(advanced, config, satScore, convScore);
+  diag.signal_telemetry.push(buildSignalTelemetry(advanced, signalCtx, signals, result, phaseCtx.phase_progress, 0));
+  const prevPhase = advanced.current_phase;
+  if (result.action === 'transition' || result.action === 'force_transition') {
+    diag.phases.push({
+      phase: prevPhase,
+      rounds: Array.from({ length: crossRespondRound - currentPhaseStartRound + 1 }, (_, i) => currentPhaseStartRound + i),
+      exit_reason: result.reason,
+      force_active: result.force_active,
+    });
+  } else if (result.action === 'terminate') {
+    diag.phases.push({
+      phase: prevPhase,
+      rounds: Array.from({ length: crossRespondRound - currentPhaseStartRound + 1 }, (_, i) => currentPhaseStartRound + i),
+      exit_reason: result.reason,
+      force_active: result.force_active,
+    });
+  } else if (result.action === 'regress') {
+    diag.regressions.push({
+      from_round: crossRespondRound,
+      crux_id: 'unknown',
+      threshold_after: advanced.argumentation_exit_threshold,
+    });
+  }
 
   // Apply transition (skipped in step mode — user controls phase manually)
   applyPhaseTransitionResult(get, set, addTranscriptEntry, advanced, result, config, postDebate.adaptive_staging!.step_mode);
