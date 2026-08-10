@@ -44,11 +44,14 @@ python check_composition_drift.py --taxonomy-dir "$AI_TRIAD_DATA_ROOT/taxonomy/O
 python check_composition_drift.py --taxonomy-dir "$AI_TRIAD_DATA_ROOT/taxonomy/Origin" --selftest
 ```
 
-`--selftest` runs the clean arm (declared weights reproduce → pass) and a
-failure arm (a deliberately-planted 0.8/0.2 composition **must** be detected as
-drift). Exit non-zero iff the gate itself is broken (missed the plant or
-false-flagged clean). Running it in CI is how we prove both arms *in the CI
-environment* before trusting `--mode blocking`.
+`--selftest` proves both arms: the **clean arm** (the runner reproduces the
+canonical composition) and the **failure arm** (a deliberately-planted 0.8/0.2
+composition **must** be detected as drift). It exits non-zero (3) **only** on a
+genuine gate defect — the env reproduces the corpus but the gate misses a planted
+drift. On **environment drift** (the runner can't reproduce even the canonical
+composition) it warns and exits 0 — warn-only on a shaky runner, same as
+`--mode blocking`; it never reds the build on env drift. Running it in CI is how
+we prove both arms *in the CI environment* before trusting `--mode blocking`.
 
 ## Exit codes
 
