@@ -43,7 +43,7 @@ export function humanizeDocName(source: string): string {
   const segment = source.split('#')[0].split('/').pop() ?? '';
   const stem = segment.replace(/\.md$/i, '');
   return stem
-    .split(/[-_]+/)
+    .split(/[-_.]+/) // dot included so multi-dot stems (e.g. v2.migration-notes) title-case fully (t/2410#2)
     .filter(Boolean)
     .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
     .join(' ');
@@ -67,6 +67,22 @@ export type TheoryLinkProps =
 
 export function TheoryLink(props: TheoryLinkProps) {
   const { label, tooltip, size = 15, className } = props;
+
+  // Runtime guard (t/2410): exactly one of `url` / `docPath`. The discriminated union
+  // catches static callers; this catches spread / `as any` / JS-caller bypasses — record a
+  // diagnostic and no-op rather than silently opening the repo root (neither) or dropping
+  // docPath+anchor (both).
+  if ((props.url != null) === (props.docPath != null)) {
+    getGlobalRecorder()?.record({
+      type: 'system.error',
+      component: 'theory-link',
+      level: 'error',
+      message: 'TheoryLink requires exactly one of `url` or `docPath`',
+      error: { name: 'InvalidTheoryLinkProps', message: `url=${props.url != null} docPath=${props.docPath != null}`, stack: new Error().stack },
+    });
+    return null;
+  }
+
   const px = Math.min(16, Math.max(12, size));
 
   const targetUrl = props.url ?? buildDocUrl(props.docPath ?? '', props.anchor);

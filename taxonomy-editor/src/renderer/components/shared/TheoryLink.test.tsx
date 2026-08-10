@@ -7,9 +7,10 @@ import userEvent from '@testing-library/user-event';
 
 const openExternal = vi.fn().mockResolvedValue(undefined);
 vi.mock('@bridge', () => ({ api: { openExternal: (url: string) => openExternal(url) } }));
-vi.mock('@lib/flight-recorder/index', () => ({ getGlobalRecorder: () => ({ record: vi.fn() }) }));
+const { recorderRecord } = vi.hoisted(() => ({ recorderRecord: vi.fn() }));
+vi.mock('@lib/flight-recorder/index', () => ({ getGlobalRecorder: () => ({ record: recorderRecord }) }));
 
-import { TheoryLink, DocLink, buildDocUrl, humanizeDocName } from './TheoryLink';
+import { TheoryLink, DocLink, buildDocUrl, humanizeDocName, type TheoryLinkProps } from './TheoryLink';
 
 const BASE = 'https://github.com/jpsnover/ai-triad-research/blob/main';
 const URL = `${BASE}/docs/debate-system-overview.md`;
@@ -32,7 +33,7 @@ describe('humanizeDocName', () => {
 });
 
 describe('TheoryLink', () => {
-  beforeEach(() => { openExternal.mockClear(); });
+  beforeEach(() => { openExternal.mockClear(); recorderRecord.mockClear(); });
 
   it('DocLink is an alias of TheoryLink', () => {
     expect(DocLink).toBe(TheoryLink);
@@ -103,5 +104,18 @@ describe('TheoryLink', () => {
     expect(screen.getByRole('button').style.fontSize).toBe('12px');
     rerender(<TheoryLink url={URL} label="H" size={12} />);
     expect(screen.getByRole('button').style.fontSize).toBe('12px');
+  });
+
+  // ── runtime guard (t/2410 blocker): exactly one of url/docPath ──
+  it('records a system.error and renders nothing when NEITHER url nor docPath is given', () => {
+    const { container } = render(<TheoryLink {...({ label: 'X' } as unknown as TheoryLinkProps)} />);
+    expect(container).toBeEmptyDOMElement();
+    expect(recorderRecord).toHaveBeenCalledWith(expect.objectContaining({ type: 'system.error', component: 'theory-link' }));
+  });
+
+  it('records a system.error and renders nothing when BOTH url and docPath are given', () => {
+    const { container } = render(<TheoryLink {...({ url: URL, docPath: 'docs/x.md' } as unknown as TheoryLinkProps)} />);
+    expect(container).toBeEmptyDOMElement();
+    expect(recorderRecord).toHaveBeenCalledWith(expect.objectContaining({ type: 'system.error', component: 'theory-link' }));
   });
 });
