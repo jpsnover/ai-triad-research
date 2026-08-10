@@ -240,19 +240,10 @@ def main():
         sys.exit(3)
 
     new_entries = compose_new_vectors(model, new_nodes)
-    spliced = dict(envelope)
+    # in-memory spliced view — for the retrieval proof only (not what we write)
     spliced_nodes = dict(emb_nodes)
     spliced_nodes.update(new_entries)
-    spliced["nodes"] = spliced_nodes
-    spliced["node_count"] = len(spliced_nodes)
-    spliced.setdefault("_splices", []).append({
-        "ticket": "t/2408",
-        "added": [n["id"] for n in new_nodes],
-        "composition": "description-only (w=1.0), L2-normalized; exclusion_vector = Excludes-clause encode, L2; matches shipped corpus empirically (gate clean-arm cos 1.0)",
-        "sentence_transformers_version": _pkg("sentence-transformers"),
-        "transformers_version": _pkg("transformers"),
-        "gate_clean_arm_min_cos": report["clean_arm_min_cos"],
-    })
+    new_count = envelope["node_count"] + len(new_entries)
 
     # ── Retrieval proof (over the SPLICED vectors) ───────────────────
     proof = retrieval_proof(model, spliced_nodes, new_nodes, new_doc.get("_source_queries", {}))
@@ -260,15 +251,53 @@ def main():
     print(json.dumps(proof, indent=2))
     all_rank1 = all(p["rank1_is_new_node"] for p in proof)
     print(f"ALL new nodes rank-1: {all_rank1}", file=sys.stderr)
-    print(f"node_count {envelope['node_count']} -> {spliced['node_count']}", file=sys.stderr)
+    print(f"node_count {envelope['node_count']} -> {new_count}", file=sys.stderr)
 
     if args.dry_run:
         print("DRY-RUN — not writing.", file=sys.stderr)
         return
 
+    # ── Text-level splice ────────────────────────────────────────────
+    # The shipped embeddings.json was serialized by a JS encoder (decimal small
+    # floats, unpadded exponents); a Python json.dumps rewrite would churn every
+    # small float corpus-wide. So we edit the file TEXT: append the new entries
+    # before the nodes-closing brace and bump node_count, leaving every existing
+    # byte untouched (a truly byte-identical corpus + a clean, reviewable diff).
+    original = emb_path.read_text(encoding="utf-8")
+    blocks = []
+    for nid, entry in new_entries.items():
+        body = json.dumps(entry, indent=2, ensure_ascii=False)
+        body = "\n".join("    " + ln for ln in body.split("\n"))   # indent to nodes level
+        body = body.replace("    {", f'    "{nid}": {{', 1)        # first line -> "id": {
+        blocks.append(body)
+    entries_text = "".join(",\n" + b for b in blocks)              # leading comma joins prior entry
+
+    anchor = "\n  }\n}"                                            # nodes-close + top-close (unique at EOF)
+    idx = original.rfind(anchor)
+    if idx == -1:
+        print("ERROR: nodes-close anchor not found — aborting text-splice.", file=sys.stderr)
+        sys.exit(4)
+    old_nc = f'"node_count": {envelope["node_count"]}'
+    if original.count(old_nc) != 1:
+        print(f"ERROR: {old_nc!r} not uniquely present ({original.count(old_nc)}) — aborting.", file=sys.stderr)
+        sys.exit(5)
+    new_text = original[:idx] + entries_text + original[idx:]
+    new_text = new_text.replace(old_nc, f'"node_count": {new_count}', 1)
+
     out_path = Path(args.out).resolve() if args.out else emb_path
-    out_path.write_text(json.dumps(spliced, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
-    print(f"Wrote spliced embeddings ({spliced['node_count']} entries) to {out_path}", file=sys.stderr)
+    # newline="" — write bytes verbatim (no CRLF translation); the source file is
+    # LF and we must preserve it exactly so the diff stays byte-clean on Windows.
+    with open(out_path, "w", encoding="utf-8", newline="") as fh:
+        fh.write(new_text)
+
+    # validate the written file: parses, count correct, new entries 384-dim
+    check = json.loads(out_path.read_text(encoding="utf-8"))
+    assert check["node_count"] == new_count, "node_count mismatch after write"
+    assert len(check["nodes"]) == new_count, "nodes length mismatch after write"
+    for nid in new_entries:
+        v = check["nodes"][nid]
+        assert len(v["vector"]) == 384 and (v["exclusion_vector"] is None or len(v["exclusion_vector"]) == 384), f"{nid} bad dim"
+    print(f"Wrote spliced embeddings ({new_count} entries; text-splice, existing bytes preserved) to {out_path}", file=sys.stderr)
 
 
 if __name__ == "__main__":
