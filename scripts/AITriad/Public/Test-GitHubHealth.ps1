@@ -124,7 +124,10 @@ function Test-GitHubHealth {
     }
 
     # ── Latest Workflow Runs ─────────────────────────────────────────────
-    $KeyWorkflows = @('ci.yml', 'deploy-azure.yml', 'health-monitor.yml')
+    # deploy-azure.yml excluded: checking the last deploy creates a circular
+    # dependency — a failed deploy blocks all future deploys from passing the
+    # pre-traffic smoke gate (t/2425).
+    $KeyWorkflows = @('ci.yml', 'health-monitor.yml')
 
     # t/1975 — scope the workflow-runs query to the deployed line (default: main)
     # so a red PR/branch run doesn't false-FAIL the CI-health category in a prod
