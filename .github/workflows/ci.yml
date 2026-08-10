@@ -768,6 +768,22 @@ jobs:
           HF_HUB_OFFLINE: '1'
           TRANSFORMERS_OFFLINE: '1'
         run: python .github/ci/assert_embed_stability.py
+      - name: Checkout data repo (composition-drift gate, t/2430)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v6
+        with:
+          repository: jpsnover/ai-triad-data
+          path: ai-triad-data
+          token: ${{ secrets.DATA_REPO_TOKEN || secrets.GITHUB_TOKEN }}
+      - name: Composition-drift gate — selftest + blocking (t/2430)
+        env:
+          AI_TRIAD_DATA_ROOT: ${{ github.workspace }}/ai-triad-data
+          HF_HUB_OFFLINE: '1'
+          TRANSFORMERS_OFFLINE: '1'
+        run: |
+          python research/comp-linguist/analyses/embedding-drift-gate/check_composition_drift.py \
+            --taxonomy-dir "$AI_TRIAD_DATA_ROOT/taxonomy/Origin" --selftest
+          python research/comp-linguist/analyses/embedding-drift-gate/check_composition_drift.py \
+            --taxonomy-dir "$AI_TRIAD_DATA_ROOT/taxonomy/Origin" --mode blocking
 
   # ── lockfile-overrides-check: standalone lockfile divergence guard (t/2188) ──
   # Confirms taxonomy-editor/pnpm-lock.yaml overrides: block matches root
