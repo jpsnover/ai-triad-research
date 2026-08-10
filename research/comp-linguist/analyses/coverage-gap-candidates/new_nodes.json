@@ -1,0 +1,177 @@
+{
+  "_doc": "t/2408 — 4 safetyist coverage-gap nodes authored from t/2371 candidates (cg-001..cg-004). Staged here in CL scope; landed into ai-triad-data/taxonomy/Origin/safetyist.json only after PI approval. Embedding vectors are spliced into embeddings.json via splice_embeddings.py (description-only composition, matching the shipped corpus empirically). parent_id: null (TL-approved, t/2408#3). No manual edges / policy_actions this pass (edge_discovery picks them up).",
+  "_source_candidates": "analyses/coverage-gap-candidates/candidates.jsonl",
+  "_source_queries": {
+    "_doc": "Exact gap query texts from gap_nearest.py (t/2371), used by splice_embeddings.py retrieval proof so scores are directly comparable to the shipped 0.43-0.68 baselines. Baseline = candidates.jsonl nearest-node cosine (prior top hit, no new node).",
+    "saf-intentions-243": {"query": "Workers and labor organizations should have the independent authority to assess, monitor, and halt AI systems that threaten worker safety or rights — worker-led independent AI risk assessment and veto power over deployment.", "baseline_nearest": "saf-intentions-058", "baseline_score": 0.678},
+    "saf-desires-030": {"query": "The sovereign state must retain ultimate authority and final control over mission-critical AI systems used in national defense, infrastructure, and public administration, above private-firm control.", "baseline_nearest": "saf-desires-025", "baseline_score": 0.541},
+    "saf-intentions-244": {"query": "Detect prompt-injection and jailbreak attacks by monitoring a model's internal activations at inference time, rather than filtering inputs or outputs at the text level.", "baseline_nearest": "saf-beliefs-255", "baseline_score": 0.493},
+    "saf-intentions-245": {"query": "Deliberately cap or limit how informative or capable AI outputs are, to prevent human epistemic dependence and large-scale knowledge collapse from over-reliance on AI.", "baseline_nearest": "saf-beliefs-146", "baseline_score": 0.603}
+  },
+  "nodes": [
+    {
+      "id": "saf-intentions-243",
+      "category": "Intentions",
+      "label": "Worker-Led Independent Authority to Assess and Halt Unsafe AI",
+      "description": "An Intention within safetyist discourse that vests workers and labor organizations with independent standing to assess, monitor, and halt AI systems threatening worker safety, rights, or dignity — a labor-held veto over deployment not contingent on employer or regulator consent.\nEncompasses: worker-triggered deployment halts, independent labor safety audits of workplace AI, collectively-bargained AI-oversight rights, whistleblower-backed shutdown authority.\nExcludes: management-controlled safety committees, purely advisory works councils, general regulator-led audit regimes without labor standing.",
+      "parent_id": null,
+      "children": [],
+      "situation_refs": [],
+      "graph_attributes": {
+        "epistemic_type": "strategic_recommendation",
+        "rhetorical_strategy": "precautionary_framing, appeal_to_justice",
+        "assumes": [
+          "Workers possess situated knowledge of AI harms in their own workplaces that external auditors and employers lack.",
+          "Independent labor authority can assess and halt an unsafe deployment faster than a regulator-mediated process.",
+          "Locating veto power in labor counterbalances employer incentives to prioritize throughput and cost over safety."
+        ],
+        "falsifiability": "medium",
+        "audience": "policymakers, civil_society, labor_organizations",
+        "emotional_register": "assertive",
+        "intellectual_lineage": [
+          {
+            "name": "Occupational safety and health governance",
+            "description": "The body of law and practice — from factory acts to modern OSH regimes — establishing that workers and their representatives hold enforceable rights to a safe workplace, including inspection and, in some regimes, the right to refuse or stop unsafe work independent of management direction."
+          },
+          {
+            "name": "Stop-work authority (Andon cord)",
+            "description": "The industrial-safety principle, formalized in the Toyota Production System's Andon cord, that any frontline worker may unilaterally halt a production line on detecting a defect or hazard, vesting shutdown authority at the point of situated knowledge rather than in management."
+          }
+        ],
+        "steelman_vulnerability": "Worker-held veto authority can be captured by narrow or misinformed interests, or wielded against beneficial automation, and presumes labor has the technical capacity to evaluate complex AI systems it did not build — a capacity gap that a purely adversarial (non-collaborative) veto does little to close.",
+        "possible_fallacies": [
+          {
+            "fallacy": "Appeal to the People",
+            "confidence": "possible",
+            "explanation": "Locating legitimacy in worker consent can substitute the popularity of a halt among affected workers for evidence that the system is actually unsafe."
+          }
+        ],
+        "node_scope": "scheme",
+        "aphorism": null
+      }
+    },
+    {
+      "id": "saf-desires-030",
+      "category": "Desires",
+      "label": "Sovereign Primacy Over Mission-Critical AI",
+      "description": "A Desire within safetyist discourse that the sovereign state retain ultimate authority and final control over mission-critical AI — defense, critical infrastructure, and core public administration — above the private firms that build or operate them.\nEncompasses: state override and kill-switch authority over critical-sector AI, non-delegable public control of defense and infrastructure AI, democratic accountability for mission-critical automation.\nExcludes: autocratic weaponization of AI for domestic repression, routine regulation of consumer AI, and nationalization of the broader AI industry.",
+      "parent_id": null,
+      "children": [],
+      "situation_refs": [],
+      "graph_attributes": {
+        "epistemic_type": "normative_prescription",
+        "rhetorical_strategy": "precautionary_framing, appeal_to_sovereignty",
+        "assumes": [
+          "Mission-critical functions carry public-interest stakes that private control cannot legitimately hold.",
+          "Final human and state control is technically achievable and enforceable over deployed critical-sector AI.",
+          "Sovereign primacy over mission-critical AI is separable from — and does not entail — authoritarian misuse of AI."
+        ],
+        "falsifiability": "low",
+        "audience": "policymakers, academic_community",
+        "emotional_register": "resolute",
+        "intellectual_lineage": [
+          {
+            "name": "Westphalian sovereignty",
+            "description": "The principle, associated with the Peace of Westphalia (1648), that the state holds supreme authority within its territory over matters of security and governance — invoked here to assert that ultimate control of mission-critical systems is a non-delegable attribute of sovereignty."
+          },
+          {
+            "name": "Public control of strategic sectors",
+            "description": "The governance tradition holding that industries essential to national survival — defense, energy, critical infrastructure — must remain under ultimate public authority, whether through ownership, override rights, or non-delegable regulatory control."
+          }
+        ],
+        "steelman_vulnerability": "Vesting ultimate control in the sovereign presumes the state is a more trustworthy or competent steward of mission-critical AI than private operators, which does not hold across all regime types; the same primacy that enables safety override also enables the repression the node's Excludes clause disavows, and the line between them is institutional, not intrinsic.",
+        "possible_fallacies": [
+          {
+            "fallacy": "False Dilemma",
+            "confidence": "possible",
+            "explanation": "Framing control as a binary between sovereign primacy and private-firm control can exclude shared or multi-stakeholder custody arrangements."
+          }
+        ],
+        "node_scope": "scheme",
+        "aphorism": null
+      }
+    },
+    {
+      "id": "saf-intentions-244",
+      "category": "Intentions",
+      "label": "Activation-Level Monitoring for Prompt-Injection Detection",
+      "description": "An Intention within safetyist discourse to detect prompt-injection and jailbreak attempts by monitoring a model's internal activations at inference time, rather than filtering text-level inputs and outputs — treating mechanistic signals as a defense surface.\nEncompasses: probing internal representations for injection signatures, activation-based anomaly detection at inference, mechanistic-interpretability tooling repurposed for runtime defense.\nExcludes: text-level input and output filtering, prompt-hardening and instruction-defense phrasing, and post-hoc output classification.",
+      "parent_id": null,
+      "children": [],
+      "situation_refs": [],
+      "graph_attributes": {
+        "epistemic_type": "strategic_recommendation",
+        "rhetorical_strategy": "technical_framing",
+        "assumes": [
+          "Prompt-injection leaves signatures in a model's internal activations that are detectable and distinct from those of benign inputs.",
+          "Activation-level monitoring generalizes to novel attacks better than text-level filters that an attacker can paraphrase around.",
+          "Runtime activation probes can operate within acceptable inference latency and cost budgets."
+        ],
+        "falsifiability": "high",
+        "audience": "technical_researchers, industry_leaders",
+        "emotional_register": "analytical",
+        "intellectual_lineage": [
+          {
+            "name": "Mechanistic interpretability",
+            "description": "The research program that seeks to reverse-engineer the internal computations of neural networks into human-understandable mechanisms — the basis for treating internal activations, rather than surface text, as an observable and actionable signal."
+          },
+          {
+            "name": "Anomaly-based intrusion detection",
+            "description": "The security paradigm that detects attacks by modeling a system's normal internal behavior and flagging deviations, rather than matching known-bad signatures — transposed here from network traffic to model activations."
+          }
+        ],
+        "steelman_vulnerability": "Activation signatures of injection may not be robustly separable from benign edge cases, and a sufficiently capable adversary aware of the monitor can optimize inputs to evade it in activation space as readily as in text space, reducing the claimed generalization advantage; the approach also assumes white-box access that many deployment settings lack.",
+        "possible_fallacies": [
+          {
+            "fallacy": "Appeal to Novelty",
+            "confidence": "possible",
+            "explanation": "Preferring activation-level defense because it is more sophisticated than text filtering can conflate mechanistic depth with demonstrated robustness."
+          }
+        ],
+        "node_scope": "narrow_technical",
+        "aphorism": null
+      }
+    },
+    {
+      "id": "saf-intentions-245",
+      "category": "Intentions",
+      "label": "Capping AI Informativeness to Prevent Knowledge Collapse",
+      "description": "An Intention within safetyist discourse to deliberately cap or throttle the informativeness of AI outputs in order to preserve human epistemic independence and prevent large-scale knowledge collapse from over-reliance.\nEncompasses: intentional under-answering or added friction in high-stakes epistemic tasks, preserving human skill retention by design, and guarding against homogenization of collective knowledge.\nExcludes: capability compute caps, safety refusals for harmful content, accuracy or truthfulness limits, and throttling for cost or rate-limiting reasons.",
+      "parent_id": null,
+      "children": [],
+      "situation_refs": [],
+      "graph_attributes": {
+        "epistemic_type": "strategic_recommendation",
+        "rhetorical_strategy": "precautionary_framing",
+        "assumes": [
+          "Unbounded AI informativeness drives a human epistemic dependence that erodes independent knowledge and skill.",
+          "Deliberately capping informativeness measurably preserves human competence and epistemic diversity.",
+          "The long-run benefit of preserved human competence outweighs the immediate utility lost to capped outputs."
+        ],
+        "falsifiability": "low",
+        "audience": "academic_community, policymakers",
+        "emotional_register": "cautionary",
+        "intellectual_lineage": [
+          {
+            "name": "Automation-induced deskilling and complacency",
+            "description": "The human-factors literature showing that reliance on automation degrades the operator skills and vigilance the automation was meant to support — the empirical basis for fearing epistemic deskilling from over-reliance on capable AI."
+          },
+          {
+            "name": "Counterproductivity (Ivan Illich)",
+            "description": "Illich's thesis that beyond a threshold, powerful tools become counterproductive — undermining the human capacities they augment — invoked here to justify deliberately bounding an AI's informativeness rather than maximizing it."
+          }
+        ],
+        "steelman_vulnerability": "Deliberately withholding accurate, useful information imposes a concrete and often regressive cost to forestall a diffuse and unproven collective harm; 'informativeness' resists non-arbitrary measurement, and a cap set by the provider substitutes their judgment of how much a human should know for the user's, inviting paternalism and gaming.",
+        "possible_fallacies": [
+          {
+            "fallacy": "Slippery Slope",
+            "confidence": "possible",
+            "explanation": "Inferring large-scale knowledge collapse from individual over-reliance can overstate an unbroken causal chain from convenience to civilizational epistemic failure."
+          }
+        ],
+        "node_scope": "scheme",
+        "aphorism": null
+      }
+    }
+  ]
+}
