@@ -1,5 +1,4 @@
 // Barrel file — re-exports all components in this directory
-export * from './BookmarkLink';
 export * from './BottomNav';
 export * from './DetailPane';
 export * from './resolveRef';
