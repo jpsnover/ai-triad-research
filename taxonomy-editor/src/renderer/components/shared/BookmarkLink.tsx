@@ -16,8 +16,9 @@
 import { api } from '@bridge';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import './BookmarkLink.css';
-
-const REPO_BLOB_BASE = 'https://github.com/jpsnover/ai-triad-research/blob/main';
+// buildDocUrl is owned by the canonical doc-link control now (t/2410); BookmarkLink is
+// being retired once diagnostics migrate off it, so it consumes the shared builder.
+import { buildDocUrl } from './TheoryLink';
 
 export interface BookmarkLinkProps {
   /** Repo-relative path to the doc, e.g. "docs/reading-the-argument-network.md". */
@@ -30,11 +31,6 @@ export interface BookmarkLinkProps {
   size?: 'xs' | 'sm' | 'md';
   /** Extra class(es) for inline positioning by consumers — appended to the base classes. */
   className?: string;
-}
-
-/** Build the GitHub blob URL for a repo-relative doc path (+ optional anchor). */
-export function buildDocUrl(docPath: string, anchor?: string): string {
-  return `${REPO_BLOB_BASE}/${docPath}${anchor ? `#${anchor}` : ''}`;
 }
 
 export function BookmarkLink({ docPath, anchor, label = 'Learn more', size = 'sm', className }: BookmarkLinkProps) {

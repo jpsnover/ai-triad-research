@@ -127,7 +127,7 @@ export function SaveBar() {
           </button>
         )}
         <TheoryLink
-          url="https://github.com/jpsnover/ai-triad-research/blob/main/docs/architecture-overview.md"
+          docPath="docs/architecture-overview.md"
           label="Help: architecture overview"
         />
         <div className="zoom-controls">

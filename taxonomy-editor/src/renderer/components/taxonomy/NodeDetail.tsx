@@ -401,7 +401,7 @@ export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, onRela
           </span>
           <span className="nd-header-id">{node.id}</span>
           <TheoryLink
-            url="https://github.com/jpsnover/ai-triad-research/blob/main/docs/taxonomy-ontology-guide.md"
+            docPath="docs/taxonomy-ontology-guide.md"
             label="Help: taxonomy ontology guide"
             size={14}
           />
@@ -586,7 +586,7 @@ function NodeDetailHeaderTop({ pov, node, readOnly, err, update, maybeRegenAphor
       </div>
       <div className="nd-header-actions">
         <TheoryLink
-          url="https://github.com/jpsnover/ai-triad-research/blob/main/research/comp-linguist/analyses/epistemic-infrastructure-framing.md"
+          docPath="research/comp-linguist/analyses/epistemic-infrastructure-framing.md"
           label="Help: epistemic infrastructure framing"
         />
         {nodeTypeFromId(node.id) === 'pov' && (
