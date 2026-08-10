@@ -936,6 +936,7 @@ function DebateSideRail({
 function useDebateWorkspaceEffects({
   activeDebate, setDiagPopoutOpen, extractExplorationSummary,
   loadDebateComments, unloadComments, saveDebate, debateGenerating, compressOldTranscript,
+  communityReadOnly,
 }: {
   activeDebate: DWStore['activeDebate'];
   setDiagPopoutOpen: DWStore['setDiagPopoutOpen'];
@@ -945,6 +946,7 @@ function useDebateWorkspaceEffects({
   saveDebate: DWStore['saveDebate'];
   debateGenerating: DWStore['debateGenerating'];
   compressOldTranscript: DWStore['compressOldTranscript'];
+  communityReadOnly: DWStore['communityReadOnly'];
 }) {
   const explorationExtracted = useRef<string | null>(null);
   const hasTriggeredOpening = useRef(false);
@@ -984,13 +986,15 @@ function useDebateWorkspaceEffects({
     }
   }, [activeDebate?.id, activeDebate?.phase, activeDebate?.protocol_id, extractExplorationSummary]);
 
-  // Load comments when debate changes
+  // Load comments when debate changes. Skip for community/read-only debates —
+  // they live in a shared namespace with no personal comments blob, so the load
+  // 404s repeatedly with a misleading "may have been deleted" error (t/2433).
   useEffect(() => {
-    if (activeDebate) {
+    if (activeDebate && !communityReadOnly) {
       void loadDebateComments(activeDebate.id);
     }
     return () => unloadComments();
-  }, [activeDebate?.id, loadDebateComments, unloadComments]);
+  }, [activeDebate?.id, communityReadOnly, loadDebateComments, unloadComments]);
 
   // Phase 8: Auto-save debounced (2s after last change)
   useEffect(() => {
@@ -1220,6 +1224,7 @@ export function DebateWorkspace({ onExport, exportStatus }: {
     driverIsRemote,
     selectedRef, setSelectedRef,
     explorationSummary, extractExplorationSummary,
+    communityReadOnly,
   } = useDebateStore(
     useShallow(s => ({
       activeDebate: s.activeDebate, debateLoading: s.debateLoading, debateError: s.debateError, debateGenerating: s.debateGenerating,
@@ -1234,6 +1239,7 @@ export function DebateWorkspace({ onExport, exportStatus }: {
       selectedRef: s.selectedRef, setSelectedRef: s.setSelectedRef,
       explorationSummary: s.explorationSummary,
       extractExplorationSummary: s.extractExplorationSummary,
+      communityReadOnly: s.communityReadOnly,
     }))
   );
   const { runSemanticSearch, setFindQuery: setStoreFindQuery, setFindMode: setStoreFindMode, setToolbarPanel } = useTaxonomyStore();
@@ -1247,6 +1253,7 @@ export function DebateWorkspace({ onExport, exportStatus }: {
   useDebateWorkspaceEffects({
     activeDebate, setDiagPopoutOpen, extractExplorationSummary,
     loadDebateComments, unloadComments, saveDebate, debateGenerating, compressOldTranscript,
+    communityReadOnly,
   });
 
   const handleSimilarPovSearch = useCallback((query: string) => {
