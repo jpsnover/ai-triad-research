@@ -358,21 +358,23 @@ function Test-AzureHealth {
                         -Location  'Test-AzureHealth -CheckFirewall' `
                         -NextSteps 'Pass -StorageAccountName and -KeyVaultName when using -CheckFirewall')
                 }
-                $StAction = (& az storage account show -n $StorageAccountName -g $ResourceGroup `
+                $StActionRaw = (& az storage account show -n $StorageAccountName -g $ResourceGroup `
                     --query 'networkAcls.defaultAction' -o tsv 2>$null)
-                $StPass = ($LASTEXITCODE -eq 0) -and ($StAction.Trim() -eq 'Allow')
+                $StAction = if (-not [string]::IsNullOrWhiteSpace($StActionRaw)) { $StActionRaw.Trim() } else { '' }
+                $StPass = ($LASTEXITCODE -eq 0) -and ($StAction -eq 'Allow')
                 $Checks.Add([PSCustomObject]@{
                     Check = 'Config:Firewall:Storage'; Pass = $StPass; ResponseMs = 0
                     Detail = if ($StPass) { 'defaultAction=Allow' }
-                             else { "defaultAction=$($StAction.Trim()) (expected Allow — consumption-tier ACA SNAT trap)" }
+                             else { "defaultAction=$StAction (expected Allow — consumption-tier ACA SNAT trap)" }
                 })
-                $KvAction = (& az keyvault show -n $KeyVaultName -g $ResourceGroup `
+                $KvActionRaw = (& az keyvault show -n $KeyVaultName -g $ResourceGroup `
                     --query 'properties.networkAcls.defaultAction' -o tsv 2>$null)
-                $KvPass = ($LASTEXITCODE -eq 0) -and ($KvAction.Trim() -eq 'Allow')
+                $KvAction = if (-not [string]::IsNullOrWhiteSpace($KvActionRaw)) { $KvActionRaw.Trim() } else { '' }
+                $KvPass = ($LASTEXITCODE -eq 0) -and ($KvAction -eq 'Allow')
                 $Checks.Add([PSCustomObject]@{
                     Check = 'Config:Firewall:KeyVault'; Pass = $KvPass; ResponseMs = 0
                     Detail = if ($KvPass) { 'defaultAction=Allow' }
-                             else { "defaultAction=$($KvAction.Trim()) (expected Allow — consumption-tier ACA SNAT trap)" }
+                             else { "defaultAction=$KvAction (expected Allow — consumption-tier ACA SNAT trap)" }
                 })
             }
             # ── Traffic weight ───────────────────────────────────────────
