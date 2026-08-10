@@ -49,11 +49,11 @@ Describe 'Test-GitHubHealth branch scoping (t/1975)' -Tag 'health' {
 
             $result = Test-GitHubHealth 6>$null
 
-            @($script:WfUris).Count | Should -Be 3 -Because 'all three key workflows are queried'
+            @($script:WfUris).Count | Should -Be 2 -Because 'ci.yml and health-monitor.yml are queried (deploy-azure.yml excluded, t/2425)'
             foreach ($u in $script:WfUris) { $u | Should -Match 'branch=main' -Because 'the query must be scoped to the deployed line' }
 
             $wfChecks = @($result.Checks | Where-Object { $_.Check -like 'Workflow:*' })
-            @($wfChecks).Count | Should -Be 3
+            @($wfChecks).Count | Should -Be 2
             @($wfChecks | Where-Object { -not $_.Pass }).Count | Should -Be 0 -Because 'branch=main returns only the green main run; the red non-main run is filtered out (the t/1975 fix)'
             $wfChecks[0].Check | Should -Match '@main' -Because 'the scoping is visible in the check label'
         }
