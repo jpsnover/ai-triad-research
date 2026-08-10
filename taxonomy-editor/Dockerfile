@@ -60,6 +60,12 @@ COPY CHANGELOG.md ./
 COPY taxonomy/schemas/ ./taxonomy/schemas/
 
 WORKDIR /build/taxonomy-editor
+
+# Expose commit SHA to Vite at build time so it's baked into the renderer bundle.
+# Empty default → fallback chain in vite.config.ts handles missing arg gracefully.
+ARG BUILD_SHA
+ENV BUILD_SHA=$BUILD_SHA
+
 # Cache mount required: pnpm store not in image layer — `pnpm licenses list` reads
 # package index files from the store.
 # pnpm shim: in workspace mode, `pnpm licenses list --prod` (called by generate-license-file)
