@@ -1298,6 +1298,7 @@ Institutional memory for failure patterns across the AI Triad Research project.
 **Instances:**
 - 2026-07-09 — Orca Support: found untracked junk files across 3 scopes (`lib/debate/`, `engineering/tech-lead/`, `src/main/`) — TypeScript/JS expression fragments and brace-expansion tokens created as literal filenames by bash commands with unquoted special chars. A `git checkout -- <bad-pathspec>` in the shared tree reverted ElectronMain's uncommitted edits mid-change on t/1425, briefly breaking the build for TaxEditor and ServerAuth (p/13#16).
 - 2026-08-09 — Rosetta Stone 3 (p/402#1): mis-quoted multi-line shell command run against the shared tree (cwd not cd'd into worktree). 0-byte files named like code fragments (`t.type`, `Promise.resolve()})``, `console.log(k+'`, etc.) spread across `taxonomy-editor/`, `engineering/tech-lead/`, `research/comp-linguist/`. RS3 swept their own scope via `git clean -f -- taxonomy-editor/`; TL and CL pinged to sweep theirs (p/335#18, p/7#59).
+- 2026-08-11 — Taxonomy Editor scope (p/26#78): 8 fresh 0-byte extension-less junk files in `taxonomy-editor/` source dirs alongside real WIP on `SaveBar.tsx`. Caught immediately by `check-shared-drift.ps1` (t/2473/PR #846). TL notified; Rosetta Stone pinged for remediation.
 
 **Root Cause:** ADR-004 (shell quoting rule) violations — agents ran bash commands containing code with special characters (heredocs, sed, unquoted git pathspecs). Bash interpreted brace expansion, glob patterns, and parentheses as shell metacharacters, creating literal files instead of passing the strings to the intended command. The shared working tree amplifies the blast radius: junk files pollute other agents' environment, and recovery commands (`git checkout`) risk reverting other agents' work.
 
@@ -1308,8 +1309,9 @@ Institutional memory for failure patterns across the AI Triad Research project.
 4. Never run `git checkout -- <pathspec>` on the shared tree to clean up junk files — it reverts ALL changes at those paths, including other agents' uncommitted work. Use `rm` for junk files instead.
 5. Recommend: new hook on Bash commands containing `git checkout` to warn about shared-tree reverts.
 6. **shell-code-mangling-guard hook updated 2026-08-09** (p/9#64): now catches (1) backticks, (2) multiline + `${`/`$(` patterns, (3) unbalanced quotes + dollar/backtick in `node -e` invocations. Remedy named in the nudge: Write tool → execute file. Condition=true, run gate exits 1 for safe commands.
+7. **check-shared-drift.ps1 extended 2026-08-11** (t/2473/PR #846): drift monitor now catches non-0-byte extension-less files in source dirs (`SuspiciousPaths`) in addition to 0-byte files. Third spray caught immediately; remediation loop closed within minutes.
 
-**Status:** Active — systemic hook guard updated 2026-08-09 (Diagnostics p/9#64).
+**Status:** Active — 3 instances; hook guard + drift monitor both operational as of 2026-08-11.
 
 **Applies To:** All agents using Bash with code containing special characters, especially on shared working trees.
 
