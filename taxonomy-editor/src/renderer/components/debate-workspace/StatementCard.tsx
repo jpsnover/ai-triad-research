@@ -875,7 +875,19 @@ function StatementBody({
   return (
     <div className={`debate-statement-body${isMetaView ? ' meta-view' : ''}`} ref={bodyRef} id={`debate-statement-body-${entry.id}`}>
       <div key={flipKey} ref={innerRef} className={`debate-flip-inner${flipping ? ' flipping' : ''}`} onAnimationEnd={handleFlipEnd}>
-      {isMetaView && <div className="debate-meta-mode-label">{TIER_LABELS[displayedTier]?.toUpperCase()}</div>}
+      {isMetaView && (
+        <div className="debate-meta-mode-label">
+          {TIER_LABELS[displayedTier]?.toUpperCase()}
+          {displayedTier === 'convergence' && (
+            <TheoryLink
+              docPath="research/comp-linguist/docs/convergence-signals-guide.md"
+              anchor="the-seven-fields"
+              label="Help: convergence signals"
+              size={12}
+            />
+          )}
+        </div>
+      )}
       {displayedTier === 'terms' && vocabResolutions && vocabResolutions.length > 0 ? (
         <div className="debate-statement-content">
           <VocabTermsView resolutions={vocabResolutions} ambiguities={meta?.vocabulary_ambiguities as { colloquial: string; offset?: number }[] | undefined} statementText={entry.content} />

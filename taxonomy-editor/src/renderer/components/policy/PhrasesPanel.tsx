@@ -4,6 +4,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { api } from '@bridge';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
+import { TheoryLink } from '../shared/TheoryLink';
 
 // ── Types ──
 
@@ -211,6 +212,11 @@ export function PhrasesPanel({ nodeId }: { nodeId: string }) {
         {totalCount} synthetic {totalCount === 1 ? 'statement' : 'statements'}
         {' across '}
         {grouped!.length} {grouped!.length === 1 ? 'archetype' : 'archetypes'}
+        <TheoryLink
+          docPath="research/comp-linguist/docs/synthetic-phrases-theory-of-success.md"
+          label="Help: synthetic phrases theory & usage"
+          size={12}
+        />
       </div>
       <div className="phrases-archetype-list">
         {grouped!.map(([archetype, entries]) => {
