@@ -10,12 +10,15 @@
     files, and non-0-byte extension-less untracked files in source directories
     (t/2222 spray pattern + t/2473 extension; excluding linked worktrees).
 
-    Contract (TL-approved, t/2452#4):
-      - WARN-ONLY: always exits 0; git failures are best-effort skips.
+    Contract (TL-approved, t/2452#4 + t/2476 amendment):
+      - Always exits 0; git failures are best-effort skips.
       - SILENT on a clean + current tree (Alarm=$false, no output beyond the object).
       - Returns a PSCustomObject for the calling agent to interpret and ping on.
       - Cadence: 60 min (hourly backstop via Orca reminder; proportionate given the
         dev-start hook in check-drift.cjs already covers the acute at-dev-time case).
+      - AUTO-REMEDIATES 0-byte JunkPaths with triple guard (t/2476): files that pass
+        all three checks are deleted and logged in AutoRemoved. SuspiciousPaths, real
+        WIP, and behind-count remain WARN-ONLY (agent ping required).
 
     Seeded-arm proofs must use a disposable clone (-RepoRoot <clone>), NOT the live
     shared tree. Only the clean arm runs against the real checkout.
@@ -50,6 +53,7 @@ $result = [PSCustomObject]@{
     HasRealDiff      = $false
     JunkPaths        = @()
     SuspiciousPaths  = @()
+    AutoRemoved      = @()
     RemediationHint  = ''
 }
 
@@ -100,11 +104,37 @@ try {
             }
         } catch { continue }
     }
-    $result.JunkPaths = $junkPaths
     $result.SuspiciousPaths = $suspiciousPaths
 
+    # 5b. Auto-remediate 0-byte junk — triple guard per t/2476#1:
+    #     (a) path is in $junkPaths (already classified as 0-byte untracked)
+    #     (b1) not tracked in main repo (git ls-files returns empty at delete time)
+    #     (b2) not tracked in overlay repo (.orca-git), if overlay is present
+    #     (c) re-stat immediately before delete — still 0 bytes (TOCTOU guard)
+    $overlayGitDir = Join-Path $RepoRoot '.orca-git'
+    $autoRemoved = @()
+    $remainingJunk = @()
+    foreach ($f in $junkPaths) {
+        $fullPath = Join-Path $RepoRoot $f
+        try {
+            # Guard (b1): not tracked in main repo
+            if (Invoke-Git @('-C', $RepoRoot, 'ls-files', $f)) { $remainingJunk += $f; continue }
+            # Guard (b2): not tracked in overlay (skip check when no overlay present)
+            if ((Test-Path $overlayGitDir) -and (Invoke-Git @('--git-dir', $overlayGitDir, 'ls-files', $f))) {
+                $remainingJunk += $f; continue
+            }
+            # Guard (c): re-stat — file must still be 0 bytes at deletion time
+            if ((Get-Item $fullPath -ErrorAction Stop).Length -ne 0) { $remainingJunk += $f; continue }
+
+            Remove-Item $fullPath -Force -ErrorAction Stop
+            $autoRemoved += $fullPath  # full path per t/2476#1 observability requirement
+        } catch { $remainingJunk += $f }
+    }
+    $result.JunkPaths = $remainingJunk
+    $result.AutoRemoved = $autoRemoved
+
     # 6. Determine alarm + remediation hint
-    $alarm = $behind -gt 0 -or $dirtyFiles.Count -gt 0 -or $junkPaths.Count -gt 0 -or $suspiciousPaths.Count -gt 0
+    $alarm = $behind -gt 0 -or $dirtyFiles.Count -gt 0 -or $remainingJunk.Count -gt 0 -or $suspiciousPaths.Count -gt 0
     $result.Alarm = $alarm
 
     if ($alarm) {
@@ -112,9 +142,13 @@ try {
         if ($behind -gt 0) {
             $hints += "behind ($behind commit(s)): git fetch && git merge --ff-only origin/main"
         }
-        if ($junkPaths.Count -gt 0) {
-            $listed = $junkPaths -join ', '
-            $hints += "junk 0-byte file(s) [$listed]: Remove-Item <paths>"
+        if ($autoRemoved.Count -gt 0) {
+            $listed = $autoRemoved -join ', '
+            $hints += "auto-removed 0-byte junk [$listed]"
+        }
+        if ($remainingJunk.Count -gt 0) {
+            $listed = $remainingJunk -join ', '
+            $hints += "junk 0-byte file(s) NOT auto-removed (guard blocked) [$listed]: Remove-Item <paths> manually"
         }
         if ($suspiciousPaths.Count -gt 0) {
             $listed = $suspiciousPaths -join ', '
