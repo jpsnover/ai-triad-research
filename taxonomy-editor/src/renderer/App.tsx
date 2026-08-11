@@ -62,6 +62,7 @@ const PromptDiffWindow = recordingLazy(() => import('./components/chat/PromptDif
 const DiffWindow = recordingLazy(() => import('./components/shared/DiffWindow').then(m => ({ default: m.DiffWindow })));
 const HarvestDialog = recordingLazy(() => import('./components/shared/HarvestDialog').then(m => ({ default: m.HarvestDialog })));
 const AnalyticsDashboard = recordingLazy(() => import('./components/analysis/AnalyticsDashboard').then(m => ({ default: m.AnalyticsDashboard })));
+const EngagementDashboard = recordingLazy(() => import('./components/analysis/EngagementDashboard').then(m => ({ default: m.EngagementDashboard })));
 const CommunityLibrary = recordingLazy(() => import('./components/community/CommunityLibrary').then(m => ({ default: m.CommunityLibrary })));
 const AdminPanel = recordingLazy(() => import('./components/settings/AdminPanel').then(m => ({ default: m.AdminPanel })));
 const AdminReviewPanel = recordingLazy(() => import('./components/settings/AdminReviewPanel').then(m => ({ default: m.AdminReviewPanel })));
@@ -166,6 +167,7 @@ function FileViewerApp() {
 export function App() {
   const [hash, setHash] = useState(window.location.hash);
   const analyticsFlag = useFlag('env-web-analytics-dashboard');
+  const isAdmin = useFlag('permission-admin-features');
   const communityFlag = useFlag('env-web-community-library');
   const adminLegacyFlag = useFlag('env-web-admin-legacy');
 
@@ -202,6 +204,12 @@ export function App() {
   }
   if (hash === '#analytics' && analyticsFlag) {
     return <ErrorBoundary buildInfo={BUILD_FINGERPRINT}><Suspense fallback={null}><AnalyticsDashboard /></Suspense></ErrorBoundary>;
+  }
+  // Admin-only engagement analytics (t/2468). Non-admins fall through to the main
+  // app — the view is unreachable — and the server independently requireAdmin-gates
+  // the per-user data it serves.
+  if (hash === '#engagement' && isAdmin) {
+    return <ErrorBoundary buildInfo={BUILD_FINGERPRINT}><Suspense fallback={null}><EngagementDashboard /></Suspense></ErrorBoundary>;
   }
   if (hash === '#community' && communityFlag) {
     return <ErrorBoundary buildInfo={BUILD_FINGERPRINT}><Suspense fallback={null}><CommunityLibrary /></Suspense></ErrorBoundary>;
