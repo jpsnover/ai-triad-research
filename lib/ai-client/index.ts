@@ -1,13 +1,13 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-export type { GenerateOptions, ProviderResult, TokenUsage, RateLimitType, RateLimitHeaders, RetryProgress, BackendId, ApiKeyBackend, FetchFn, ToolDefinition, ToolCall, ToolResult, ModelCapabilities } from './types.js';
+export type { GenerateOptions, ProviderResult, TokenUsage, RateLimitType, RateLimitHeaders, RetryProgress, BackendId, ApiKeyBackend, FetchFn, ToolDefinition, ToolCall, ToolResult, ModelCapabilities, UrlContextEntry, UrlContextMetadata } from './types.js';
 export type { ModelEntry, ModelRegistry, ModelPricing } from './registry.js';
 export { ALL_API_KEY_BACKENDS } from './types.js';
 export { resolveBackend, resolveModel, buildModelIdMap, buildModelEntryMap, getApiModelId, getDefaultTimeout, getModelCapabilities, filterByCapabilities, estimateCost } from './registry.js';
 export { withTimeout, withRetry, retryableFetch, parseRateLimitType, parseRateLimitHeaders, CLI_RETRY_CONFIG, SERVER_RETRY_CONFIG } from './retry.js';
 export type { RetryConfig } from './retry.js';
-export { generateViaGemini, GEMINI_BASE, GEMINI_SAFETY_SETTINGS, toGeminiSchema } from './providers/gemini.js';
+export { generateViaGemini, generateViaGeminiStream, GEMINI_BASE, GEMINI_SAFETY_SETTINGS, toGeminiSchema } from './providers/gemini.js';
 export { generateViaClaude } from './providers/claude.js';
 export { generateViaGroq } from './providers/groq.js';
 export { generateViaOpenAI } from './providers/openai.js';

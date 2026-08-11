@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { mapGeminiError } from './gemini.js';
+import { mapGeminiError, generateViaGemini, generateViaGeminiStream } from './gemini.js';
 import { ActionableError } from '../../debate/errors.js';
+import type { FetchFn } from '../types.js';
 
 function geminiErrorBody(status: string, reason?: string): string {
   const details = reason ? [{ '@type': 'type.googleapis.com/google.rpc.ErrorInfo', reason }] : [];
@@ -70,5 +71,119 @@ describe('mapGeminiError', () => {
     const body = geminiErrorBody('UNAUTHENTICATED', 'ACCESS_TOKEN_TYPE_UNSUPPORTED');
     const err = mapGeminiError(400, body);
     expect(err.message).toContain('OAuth access token');
+  });
+});
+
+// ── urlContext tool injection ────────────────────────────────────────────────
+
+function makeFetch(responseBody: unknown, status = 200): FetchFn {
+  return async () => ({
+    ok: status >= 200 && status < 300,
+    status,
+    text: async () => JSON.stringify(responseBody),
+    body: null,
+  } as unknown as Response);
+}
+
+function geminiResponse(text: string, urlContextMetadata?: unknown) {
+  const candidate: Record<string, unknown> = {
+    content: { parts: [{ text }] },
+  };
+  if (urlContextMetadata !== undefined) candidate.urlContextMetadata = urlContextMetadata;
+  return { candidates: [candidate], usageMetadata: {} };
+}
+
+describe('generateViaGemini — urlContext', () => {
+  it('omits url_context tool when urlContext is not set', async () => {
+    let capturedBody = '';
+    const fetchFn: FetchFn = async (_url, init) => {
+      capturedBody = init?.body as string;
+      return { ok: true, status: 200, text: async () => JSON.stringify(geminiResponse('hello')), body: null } as unknown as Response;
+    };
+    await generateViaGemini(fetchFn, 'prompt', 'gemini-pro', 'key', { timeoutMs: 5000 });
+    const parsed = JSON.parse(capturedBody);
+    expect(parsed.tools).toBeUndefined();
+  });
+
+  it('includes url_context tool when urlContext is true', async () => {
+    let capturedBody = '';
+    const fetchFn: FetchFn = async (_url, init) => {
+      capturedBody = init?.body as string;
+      return { ok: true, status: 200, text: async () => JSON.stringify(geminiResponse('hello')), body: null } as unknown as Response;
+    };
+    await generateViaGemini(fetchFn, 'prompt', 'gemini-pro', 'key', { timeoutMs: 5000, urlContext: true });
+    const parsed = JSON.parse(capturedBody);
+    expect(parsed.tools).toEqual(expect.arrayContaining([{ url_context: {} }]));
+  });
+
+  it('parses urlContextMetadata when present in response', async () => {
+    const meta = { urlMetadata: [{ retrievedUrl: 'https://example.com', urlRetrievalStatus: 'URL_RETRIEVAL_STATUS_SUCCESS' }] };
+    const fetchFn = makeFetch(geminiResponse('hello', meta));
+    const result = await generateViaGemini(fetchFn, 'prompt', 'gemini-pro', 'key', { timeoutMs: 5000, urlContext: true });
+    expect(result.urlContextMetadata).toEqual({ urlMetadata: [{ retrievedUrl: 'https://example.com', urlRetrievalStatus: 'URL_RETRIEVAL_STATUS_SUCCESS' }] });
+  });
+
+  it('tolerates absent urlContextMetadata', async () => {
+    const fetchFn = makeFetch(geminiResponse('hello'));
+    const result = await generateViaGemini(fetchFn, 'prompt', 'gemini-pro', 'key', { timeoutMs: 5000, urlContext: true });
+    expect(result.urlContextMetadata).toBeUndefined();
+  });
+});
+
+// ── streaming path ───────────────────────────────────────────────────────────
+
+function makeStreamFetch(chunks: unknown[]): FetchFn {
+  return async () => {
+    const encoder = new TextEncoder();
+    const lines = chunks.map(c => `data: ${JSON.stringify(c)}\n`).join('\n');
+    const encoded = encoder.encode(lines);
+    let pos = 0;
+    const stream = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        if (pos >= encoded.length) { controller.close(); return; }
+        controller.enqueue(encoded.slice(pos, pos + 64));
+        pos += 64;
+      },
+    });
+    return { ok: true, status: 200, body: stream } as unknown as Response;
+  };
+}
+
+function streamChunk(text: string, urlContextMetadata?: unknown) {
+  const candidate: Record<string, unknown> = { content: { parts: [{ text }] } };
+  if (urlContextMetadata !== undefined) candidate.urlContextMetadata = urlContextMetadata;
+  return { candidates: [candidate] };
+}
+
+describe('generateViaGeminiStream — urlContext', () => {
+  it('includes url_context tool in streaming request when urlContext is true', async () => {
+    let capturedBody = '';
+    const fetchFn: FetchFn = async (_url, init) => {
+      capturedBody = init?.body as string;
+      const encoder = new TextEncoder();
+      const data = encoder.encode(`data: ${JSON.stringify(streamChunk('hi'))}\n`);
+      const stream = new ReadableStream<Uint8Array>({ start(c) { c.enqueue(data); c.close(); } });
+      return { ok: true, status: 200, body: stream } as unknown as Response;
+    };
+    await generateViaGeminiStream(fetchFn, 'prompt', 'gemini-pro', 'key', { timeoutMs: 5000, urlContext: true });
+    const parsed = JSON.parse(capturedBody);
+    expect(parsed.tools).toEqual(expect.arrayContaining([{ url_context: {} }]));
+  });
+
+  it('accumulates streamed text and surfaces urlContextMetadata from last chunk', async () => {
+    const meta = { urlMetadata: [{ retrievedUrl: 'https://example.com', urlRetrievalStatus: 'URL_RETRIEVAL_STATUS_SUCCESS' }] };
+    const fetchFn = makeStreamFetch([streamChunk('hel'), streamChunk('lo', meta)]);
+    const chunks: string[] = [];
+    const result = await generateViaGeminiStream(fetchFn, 'p', 'gemini-pro', 'key', { timeoutMs: 5000, urlContext: true }, c => chunks.push(c));
+    expect(result.text).toBe('hello');
+    expect(chunks).toEqual(['hel', 'lo']);
+    expect(result.urlContextMetadata).toEqual({ urlMetadata: [{ retrievedUrl: 'https://example.com', urlRetrievalStatus: 'URL_RETRIEVAL_STATUS_SUCCESS' }] });
+  });
+
+  it('tolerates absent urlContextMetadata in streaming response', async () => {
+    const fetchFn = makeStreamFetch([streamChunk('ok')]);
+    const result = await generateViaGeminiStream(fetchFn, 'p', 'gemini-pro', 'key', { timeoutMs: 5000, urlContext: true });
+    expect(result.text).toBe('ok');
+    expect(result.urlContextMetadata).toBeUndefined();
   });
 });
