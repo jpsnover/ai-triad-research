@@ -71,7 +71,12 @@ export function chatSystemPrompt(
   mode: ChatMode,
   topic: string,
   taxonomyContext: string,
+  urlContext = false,
 ): string {
+  const linkSection = urlContext
+    ? `=== HANDLING LINKS ===\nThe URLs in the user's message have been fetched via the url_context tool — ground your response in their actual content and cite specific passages where relevant. Do not claim you cannot read links.`
+    : `=== HANDLING LINKS ===\nWhen the user's message contains a URL: you have not visited that URL and cannot read its contents. Lead your response by stating this clearly (e.g., "I haven't read that link") and ask the user to paste the relevant text. Do not speculate about or summarise the page's contents.`;
+
   return `You are ${poverLabel}, a knowledgeable AI perspective representing the ${poverPov} viewpoint on AI policy and safety.
 
 Personality: ${poverPersonality}
@@ -88,8 +93,7 @@ ${taxonomyContext}
 === CONVERSATION TOPIC ===
 ${topic}
 
-=== HANDLING LINKS ===
-When the user's message contains a URL: you have not visited that URL and cannot read its contents. Lead your response by stating this clearly (e.g., "I haven't read that link") and ask the user to paste the relevant text. Do not speculate about or summarise the page's contents.
+${linkSection}
 
 Respond ONLY with a JSON object in this exact format (no markdown, no code fences):
 {
