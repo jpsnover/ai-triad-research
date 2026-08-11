@@ -53,7 +53,7 @@ vi.mock('@lib/flight-recorder/index', () => ({
   getGlobalRecorder: () => ({ record: vi.fn() }),
 }));
 
-import { useChatStore } from './useChatStore';
+import { useChatStore, parseChatResponse } from './useChatStore';
 
 function makeChatSession(overrides: Record<string, unknown> = {}) {
   return {
@@ -274,6 +274,40 @@ describe('useChatStore', () => {
       const state = useChatStore.getState();
       expect(state.chatStreamingText).toBeNull();
       expect(state.chatError).toContain('Response failed');
+    });
+  });
+
+  // t/2453 — reasoning models (DeepSeek/Groq) prepend <think>…</think> before their
+  // JSON; those blocks must never reach user-visible content via any fallback path.
+  describe('parseChatResponse — strips reasoning <think> blocks (t/2453)', () => {
+    const THINK = '<think>internal chain of thought\nspanning lines</think>';
+
+    it('strips the think block on the JSON-parse-failure fallback', () => {
+      const r = parseChatResponse(THINK + 'plain prose, not JSON');
+      expect(r.response).toBe('plain prose, not JSON');
+      expect(r.response).not.toMatch(/<think/i);
+      expect(r.taxonomyRefs).toEqual([]);
+    });
+
+    it('parses JSON that is prefixed by a think block', () => {
+      const r = parseChatResponse(THINK + '{"response":"hi","taxonomy_refs":[{"node_id":"acc-B-001","relevance":"x"}]}');
+      expect(r.response).toBe('hi');
+      expect(r.taxonomyRefs).toEqual([{ node_id: 'acc-B-001', relevance: 'x' }]);
+    });
+
+    it('strips the think block when parsed JSON has no response field (raw-text fallback)', () => {
+      const r = parseChatResponse(THINK + '{"taxonomy_refs":[]}');
+      expect(r.response).not.toMatch(/<think/i);
+      expect(r.response).toBe('{"taxonomy_refs":[]}');
+    });
+
+    it('handles the <thinking> variant, case-insensitively', () => {
+      expect(parseChatResponse('<THINKING>x</THINKING>done').response).toBe('done');
+    });
+
+    it('leaves think-free responses unchanged', () => {
+      expect(parseChatResponse('{"response":"ok"}').response).toBe('ok');
+      expect(parseChatResponse('just text').response).toBe('just text');
     });
   });
 });

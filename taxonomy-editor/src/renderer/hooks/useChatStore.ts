@@ -78,11 +78,18 @@ function getTaxonomyContext(pov: string): TaxonomyContext {
   return { povNodes, situationNodes };
 }
 
+/** Remove reasoning-model `<think>…</think>` / `<thinking>…</thinking>` blocks that
+ *  DeepSeek/Groq prepend before their JSON, so they never leak into user-visible
+ *  content (t/2453 — production bug: the raw think dump was rendered in chat). */
+function stripThinkingBlocks(text: string): string {
+  return text.replace(/<think(?:ing)?[\s\S]*?<\/think(?:ing)?>/gi, '').trim();
+}
+
 /** Parse the POVer's JSON response into content + taxonomy refs */
-function parseChatResponse(text: string): { response: string; taxonomyRefs: TaxonomyRef[] } {
+export function parseChatResponse(text: string): { response: string; taxonomyRefs: TaxonomyRef[] } {
   try {
-    const parsed = JSON.parse(stripCodeFences(text));
-    const response = parsed.response || text.trim();
+    const parsed = JSON.parse(stripCodeFences(stripThinkingBlocks(text)));
+    const response = parsed.response || stripThinkingBlocks(text);
     const taxonomyRefs: TaxonomyRef[] = Array.isArray(parsed.taxonomy_refs)
       ? parsed.taxonomy_refs
         .filter((r: Record<string, unknown>) => r.node_id && typeof r.node_id === 'string')
@@ -94,7 +101,7 @@ function parseChatResponse(text: string): { response: string; taxonomyRefs: Taxo
     return { response, taxonomyRefs };
   } catch (err) {
     getGlobalRecorder()?.record({ type: 'system.error', component: 'chat-store', level: 'debug', message: 'Chat response JSON parse failed, using raw text', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
-    return { response: text.trim(), taxonomyRefs: [] };
+    return { response: stripThinkingBlocks(text), taxonomyRefs: [] };
   }
 }
 
