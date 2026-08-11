@@ -164,15 +164,16 @@ function readBody(res: http.IncomingMessage, maxBytes: number): Promise<string |
 // ── HTML → plain text ──────────────────────────────────────────────────────
 
 function decodeBasicEntities(s: string): string {
+  // Numeric refs first, then named, then &amp; LAST — prevents &amp;lt; double-unescaping to <
   return s
-    .replace(/&amp;/gi, '&')
+    .replace(/&#(\d+);/g, (_, n) => String.fromCodePoint(parseInt(n, 10)))
+    .replace(/&#x([0-9a-f]+);/gi, (_, n) => String.fromCodePoint(parseInt(n, 16)))
     .replace(/&lt;/gi, '<')
     .replace(/&gt;/gi, '>')
     .replace(/&quot;/gi, '"')
     .replace(/&apos;/gi, "'")
     .replace(/&nbsp;/gi, ' ')
-    .replace(/&#(\d+);/g, (_, n) => String.fromCodePoint(parseInt(n, 10)))
-    .replace(/&#x([0-9a-f]+);/gi, (_, n) => String.fromCodePoint(parseInt(n, 16)));
+    .replace(/&amp;/gi, '&');
 }
 
 function htmlToText(html: string): { text: string; title: string | undefined } {
@@ -181,8 +182,8 @@ function htmlToText(html: string): { text: string; title: string | undefined } {
 
   let text = html
     .replace(/<head\b[^>]*>[\s\S]*?<\/head>/gi, '')
-    .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, ' ')
-    .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<script\b[\s\S]*?<\/script\s*>/gi, ' ')
+    .replace(/<style\b[\s\S]*?<\/style\s*>/gi, ' ')
     .replace(/<(?:br|\/p|\/div|\/h[1-6]|\/li|\/tr|\/blockquote)[^>]*>/gi, '\n')
     .replace(/<[^>]+>/g, ' ');
 
