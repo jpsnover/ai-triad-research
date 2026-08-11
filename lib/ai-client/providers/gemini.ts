@@ -3,7 +3,7 @@
 
 import { ActionableError } from '../../debate/errors.js';
 import { withTimeout } from '../retry.js';
-import type { FetchFn, GenerateOptions, ProviderResult, ToolCall } from '../types.js';
+import type { FetchFn, GenerateOptions, ProviderResult, ToolCall, UrlContextMetadata } from '../types.js';
 import { DEFAULT_TEMPERATURE } from '../defaults.js';
 
 export const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
@@ -45,6 +45,34 @@ export function toGeminiSchema(schema: Record<string, unknown>): Record<string, 
   return result;
 }
 
+function buildGeminiTools(opts: GenerateOptions): unknown[] | undefined {
+  const tools: unknown[] = [];
+  if (opts.tools?.length) {
+    tools.push({
+      functionDeclarations: opts.tools.map(t => ({
+        name: t.name,
+        description: t.description,
+        parameters: toGeminiSchema(t.parameters),
+      })),
+    });
+  }
+  if (opts.urlContext) {
+    tools.push({ url_context: {} });
+  }
+  return tools.length ? tools : undefined;
+}
+
+function parseUrlContextMetadata(candidate: Record<string, unknown>): UrlContextMetadata | undefined {
+  const raw = candidate.urlContextMetadata as { urlMetadata?: { retrievedUrl?: string; urlRetrievalStatus?: string }[] } | undefined;
+  if (!raw?.urlMetadata?.length) return undefined;
+  return {
+    urlMetadata: raw.urlMetadata.map(e => ({
+      retrievedUrl: e.retrievedUrl ?? '',
+      urlRetrievalStatus: e.urlRetrievalStatus ?? '',
+    })),
+  };
+}
+
 export async function generateViaGemini(
   fetchFn: FetchFn,
   prompt: string,
@@ -74,15 +102,8 @@ export async function generateViaGemini(
   if (opts.systemMessage) {
     body.systemInstruction = { parts: [{ text: opts.systemMessage }] };
   }
-  if (opts.tools?.length) {
-    body.tools = [{
-      functionDeclarations: opts.tools.map(t => ({
-        name: t.name,
-        description: t.description,
-        parameters: toGeminiSchema(t.parameters),
-      })),
-    }];
-  }
+  const tools = buildGeminiTools(opts);
+  if (tools) body.tools = tools;
 
   const response = await withTimeout(
     fetchFn(url, {
@@ -109,7 +130,7 @@ export async function generateViaGemini(
   }
 
   let json: {
-    candidates?: { content: { parts: { text?: string; functionCall?: { name: string; args: Record<string, unknown> } }[] } }[];
+    candidates?: (Record<string, unknown> & { content: { parts: { text?: string; functionCall?: { name: string; args: Record<string, unknown> } }[] } })[];
     usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number; cachedContentTokenCount?: number; totalTokenCount?: number };
   };
   try {
@@ -130,7 +151,8 @@ export async function generateViaGemini(
       nextSteps: ['Retry the request', 'Try a different model'],
     });
   }
-  const parts = json.candidates[0].content.parts;
+  const candidate = json.candidates[0];
+  const parts = candidate.content.parts;
   const text = parts.filter(p => p.text).map(p => p.text).join('');
   const fnCalls = parts.filter(p => p.functionCall);
   const toolCalls: ToolCall[] | undefined = fnCalls.length > 0
@@ -147,7 +169,114 @@ export async function generateViaGemini(
     cachedTokens: um.cachedContentTokenCount,
     totalTokens: um.totalTokenCount,
   } : undefined;
-  return { text, usage, toolCalls };
+  const urlContextMetadata = parseUrlContextMetadata(candidate);
+  return { text, usage, toolCalls, urlContextMetadata };
+}
+
+export async function generateViaGeminiStream(
+  fetchFn: FetchFn,
+  prompt: string,
+  apiModelId: string,
+  apiKey: string,
+  opts: GenerateOptions,
+  onChunk?: (text: string) => void,
+): Promise<ProviderResult> {
+  const url = `${GEMINI_BASE}/${apiModelId}:streamGenerateContent?alt=sse&key=${apiKey}`;
+  const timeoutMs = opts.timeoutMs!;
+
+  const genConfig: Record<string, unknown> = {
+    temperature: opts.temperature ?? DEFAULT_TEMPERATURE,
+    maxOutputTokens: opts.maxTokens ?? 16384,
+  };
+
+  const body: Record<string, unknown> = {
+    contents: [{ parts: [{ text: prompt }] }],
+    generationConfig: genConfig,
+    safetySettings: GEMINI_SAFETY_SETTINGS,
+  };
+  if (opts.systemMessage) {
+    body.systemInstruction = { parts: [{ text: opts.systemMessage }] };
+  }
+  const tools = buildGeminiTools(opts);
+  if (tools) body.tools = tools;
+
+  const response = await withTimeout(
+    fetchFn(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    }),
+    timeoutMs,
+    'Gemini streaming API request',
+  );
+
+  if (response.status === 429 || response.status === 503) {
+    const errBody = await response.text().catch(() => '');
+    throw new ActionableError({
+      goal: 'Generate text via Gemini (streaming)',
+      problem: `Gemini ${response.status}: ${errBody.slice(0, 200)}`,
+      location: 'ai-client.generateViaGeminiStream',
+      nextSteps: ['Wait a minute and retry', 'Switch to a different AI provider (Settings → AI Model)', 'Check API quota'],
+    });
+  }
+  if (!response.ok) {
+    const errBody = await response.text().catch(() => '');
+    throw mapGeminiError(response.status, errBody);
+  }
+  if (!response.body) {
+    throw new ActionableError({
+      goal: 'Generate text via Gemini (streaming)',
+      problem: 'Gemini streaming response has no body',
+      location: 'ai-client.generateViaGeminiStream',
+      nextSteps: ['Retry the request', 'Fall back to non-streaming generateViaGemini'],
+    });
+  }
+
+  const chunks: string[] = [];
+  let urlContextMetadata: UrlContextMetadata | undefined;
+  const decoder = new TextDecoder();
+  let buffer = '';
+
+  const processPayload = (payload: string): void => {
+    if (!payload || payload === '[DONE]') return;
+    let parsed: { candidates?: (Record<string, unknown> & { content?: { parts?: { text?: string }[] } })[] };
+    try {
+      parsed = JSON.parse(payload);
+    } catch {
+      return;
+    }
+    const candidate = parsed.candidates?.[0];
+    if (!candidate) return;
+    const text = candidate.content?.parts
+      ?.filter((p): p is { text: string } => typeof p.text === 'string')
+      .map(p => p.text)
+      .join('') ?? '';
+    if (text) {
+      chunks.push(text);
+      onChunk?.(text);
+    }
+    const meta = parseUrlContextMetadata(candidate);
+    if (meta) urlContextMetadata = meta;
+  };
+
+  const reader = response.body.getReader();
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop() ?? '';
+      for (const line of lines) {
+        if (line.startsWith('data: ')) processPayload(line.slice(6).trim());
+      }
+    }
+    if (buffer.startsWith('data: ')) processPayload(buffer.slice(6).trim());
+  } finally {
+    reader.releaseLock();
+  }
+
+  return { text: chunks.join(''), urlContextMetadata };
 }
 
 export function mapGeminiError(status: number, bodyText: string): ActionableError {

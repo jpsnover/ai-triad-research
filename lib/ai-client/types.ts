@@ -34,6 +34,18 @@ export interface GenerateOptions {
    *  registry (ModelEntry.fixedTemperature) for reasoning models that reject arbitrary
    *  values, e.g. moonshot kimi-k3 which only accepts 1 (t/2068). */
   fixedTemperature?: number;
+  /** Gemini only: enable URL-context grounding. When set, the provider adds the
+   *  `url_context` tool entry so Gemini fetches URLs mentioned in the prompt. */
+  urlContext?: boolean;
+}
+
+export interface UrlContextEntry {
+  retrievedUrl: string;
+  urlRetrievalStatus: string;
+}
+
+export interface UrlContextMetadata {
+  urlMetadata: UrlContextEntry[];
 }
 
 export interface ProviderResult {
@@ -43,6 +55,8 @@ export interface ProviderResult {
   estimatedCostUsd?: number;
   /** First 200 chars of raw API response body when content is empty — aids FR diagnosis. */
   rawResponsePreview?: string;
+  /** Gemini URL-context grounding metadata — present when `urlContext` was enabled. */
+  urlContextMetadata?: UrlContextMetadata;
 }
 
 export interface TokenUsage {
