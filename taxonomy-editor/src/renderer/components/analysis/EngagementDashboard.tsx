@@ -28,18 +28,18 @@ interface TreeNode {
   children?: Record<string, TreeNode>;
 }
 
-interface DailyPoint { date: string; engagedMs: number; visits: number }
-interface UserRow { user: string; engagedMs: number; sessions: number; topCamp: string; topNode: string; lastActive: string }
+interface DailyPoint { date: string; visits: number; engagedVisits: number; engagedMs: number }
+interface UserRow { user: string; visits: number; engagedVisits: number; engagedMs: number; topCamp: string; lastActive: string }
 
 interface EngagementResult {
   aggregate: TreeNode;
-  subtree: TreeNode | null;
+  user?: TreeNode;    // per-user subtree when ?user= given (t/2467#2)
   daily: DailyPoint[];
-  users: UserRow[]; // admin-gated; empty/absent for non-admins
+  users?: UserRow[];  // admin-only; stripped server-side for non-admins
 }
 
 type DatePreset = '7d' | '30d' | '90d';
-type UserSortCol = 'user' | 'engagedMs' | 'sessions' | 'topCamp' | 'lastActive';
+type UserSortCol = 'user' | 'engagedMs' | 'visits' | 'topCamp' | 'lastActive';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -343,7 +343,7 @@ function PerUserTable({ users }: { users: UserRow[] }) {
           <thead><tr>
             <Th col="user" label="User" align="left" />
             <Th col="engagedMs" label="Engaged" />
-            <Th col="sessions" label="Sessions" />
+            <Th col="visits" label="Visits" />
             <Th col="topCamp" label="Top Camp" />
             <Th col="lastActive" label="Last Active" />
           </tr></thead>
@@ -352,7 +352,7 @@ function PerUserTable({ users }: { users: UserRow[] }) {
               <tr key={u.user} className="eng-user-row">
                 <td className="eng-td-user" title={u.user}>{u.user}</td>
                 <td className="eng-td-num">{fmtDuration(u.engagedMs)}</td>
-                <td className="eng-td-num">{u.sessions}</td>
+                <td className="eng-td-num">{fmtNumber(u.visits)}</td>
                 <td className="eng-td">
                   <span
                     className="eng-camp-badge"
@@ -515,7 +515,7 @@ export function EngagementDashboard() {
               <Leaderboards aggregate={data.aggregate} />
 
               {/* Sections 5+6: admin-only */}
-              {isAdmin && data.users.length > 0 && <PerUserTable users={data.users} />}
+              {isAdmin && <PerUserTable users={data.users ?? []} />}
               {isAdmin && <HealthStrip aggregate={data.aggregate} />}
             </>
           )}
