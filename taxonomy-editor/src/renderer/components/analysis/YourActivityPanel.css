@@ -1,0 +1,216 @@
+/* YourActivityPanel — personal engagement view (t/2469) */
+
+.yap-root {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 20px;
+  max-width: 860px;
+  margin: 0 auto;
+}
+
+/* ── Header ──────────────────────────────────────────────────────────────── */
+
+.yap-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.yap-back-btn {
+  background: none;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  padding: 4px 10px;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.yap-back-btn:hover {
+  color: var(--text-primary);
+  border-color: var(--text-muted);
+}
+
+.yap-title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.yap-period-label {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-left: auto;
+}
+
+/* ── Panel cards ─────────────────────────────────────────────────────────── */
+
+.yap-panel {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 16px;
+}
+
+.yap-panel-title {
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  margin-bottom: 12px;
+}
+
+/* ── Camp distribution bars ──────────────────────────────────────────────── */
+
+.yap-camp-hint {
+  font-size: 0.73rem;
+  color: var(--text-muted);
+  margin-bottom: 10px;
+}
+
+.yap-camp-row {
+  margin-bottom: 10px;
+  cursor: pointer;
+  border-radius: 4px;
+  padding: 4px 6px;
+  transition: background 0.1s;
+}
+
+.yap-camp-row:hover,
+.yap-camp-row--active {
+  background: var(--bg-primary);
+}
+
+.yap-camp-row-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 4px;
+}
+
+.yap-camp-label {
+  font-size: 0.82rem;
+  color: var(--text-primary);
+}
+
+.yap-camp-value {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.yap-camp-track {
+  height: 6px;
+  background: var(--bg-primary);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.yap-camp-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.2s;
+}
+
+/* ── Category drill-down ─────────────────────────────────────────────────── */
+
+.yap-cat-row {
+  margin-bottom: 8px;
+}
+
+.yap-cat-row-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 3px;
+}
+
+.yap-cat-label {
+  font-size: 0.8rem;
+  color: var(--text-primary);
+}
+
+.yap-cat-value {
+  font-size: 0.73rem;
+  color: var(--text-muted);
+}
+
+/* ── Leaderboard ─────────────────────────────────────────────────────────── */
+
+.yap-leaders-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+@media (max-width: 560px) {
+  .yap-leaders-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+.yap-leader-col-title {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+}
+
+.yap-leader-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 0;
+  border-bottom: 1px solid var(--border-color);
+  font-size: 0.78rem;
+}
+
+.yap-leader-row:last-child {
+  border-bottom: none;
+}
+
+.yap-leader-rank {
+  color: var(--text-muted);
+  min-width: 18px;
+  font-size: 0.72rem;
+}
+
+.yap-leader-id {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-primary);
+  font-family: monospace;
+  font-size: 0.75rem;
+}
+
+.yap-leader-val {
+  color: var(--text-muted);
+  font-size: 0.73rem;
+  flex-shrink: 0;
+}
+
+/* ── State feedback ──────────────────────────────────────────────────────── */
+
+.yap-loading,
+.yap-error,
+.yap-empty {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  padding: 12px 0;
+}
+
+.yap-error {
+  color: var(--error, #c0392b);
+}
+
+.yap-auth-required {
+  text-align: center;
+  padding: 40px 0;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}

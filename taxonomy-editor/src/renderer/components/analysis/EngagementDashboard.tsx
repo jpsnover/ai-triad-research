@@ -14,19 +14,15 @@ import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { bridgeGet } from '../../bridge/web-bridge';
 import { useFlag } from '../../hooks/useFeatureFlags';
 import { useChartTooltip, ChartTooltipLayer } from './chartTooltip';
+import {
+  type TreeNode,
+  CAMP_COLORS, CAMP_LABELS,
+  fmtDuration, fmtNumber, relativeTime, categoryLabel,
+  sumByCamp, sumByCategoryForCamp, collectLeafNodes,
+} from './engagementTree';
 import './EngagementDashboard.css';
 
 // ── Types ────────────────────────────────────────────────────────────────────
-
-interface TreeNode {
-  id: string;
-  visits: number;
-  engagedVisits: number;
-  engagedMs: number;
-  cappedRate?: number;
-  uniqueUsers?: number;
-  children?: Record<string, TreeNode>;
-}
 
 interface DailyPoint { date: string; visits: number; engagedVisits: number; engagedMs: number }
 interface UserRow { user: string; visits: number; engagedVisits: number; engagedMs: number; topCamp: string; lastActive: string }
@@ -45,19 +41,6 @@ type UserSortCol = 'user' | 'engagedMs' | 'visits' | 'topCamp' | 'lastActive';
 
 const PRESET_DAYS: Record<DatePreset, number> = { '7d': 7, '30d': 30, '90d': 90 };
 
-const CAMP_COLORS: Record<string, string> = {
-  acc: 'var(--color-acc, #b84e13)',
-  saf: 'var(--color-saf, #2b5fad)',
-  skp: 'var(--color-skp, #7b4fa6)',
-  cc:  '#6b7280',
-};
-
-const CAMP_LABELS: Record<string, string> = {
-  acc: 'Accelerationist', saf: 'Safetyist', skp: 'Skeptic', cc: 'Cross-Cutting',
-};
-
-const CATEGORY_LABEL_MAP: Record<string, string> = { bel: 'Beliefs', des: 'Desires', int: 'Intentions' };
-
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function dateRange(preset: DatePreset): { from: string; to: string } {
@@ -65,77 +48,6 @@ function dateRange(preset: DatePreset): { from: string; to: string } {
   const from = new Date();
   from.setDate(from.getDate() - (PRESET_DAYS[preset] - 1));
   return { from: from.toISOString().slice(0, 10), to: to.toISOString().slice(0, 10) };
-}
-
-function fmtDuration(ms: number): string {
-  if (ms < 60_000) return `${Math.round(ms / 1000)}s`;
-  const mins = Math.round(ms / 60_000);
-  if (mins < 60) return `${mins}m`;
-  return `${Math.floor(mins / 60)}h ${mins % 60}m`;
-}
-
-function fmtNumber(n: number): string {
-  return n >= 1000 ? `${(n / 1000).toFixed(1)}k` : String(n);
-}
-
-function relativeTime(iso: string): string {
-  const diff = Date.now() - new Date(iso).getTime();
-  const mins = Math.floor(diff / 60_000);
-  if (mins < 1) return 'just now';
-  if (mins < 60) return `${mins}m ago`;
-  const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `${hrs}h ago`;
-  return `${Math.floor(hrs / 24)}d ago`;
-}
-
-/** Extract the category suffix (e.g. "bel" from "acc-bel") and return a human label. */
-function categoryLabel(catKey: string): string {
-  const suffix = catKey.split('-')[1];
-  return CATEGORY_LABEL_MAP[suffix] ?? catKey;
-}
-
-/** Traverse the tool→camp→category→node tree and accumulate engagedMs + visits per camp. */
-function sumByCamp(root: TreeNode): Array<{ key: string; engagedMs: number; visits: number }> {
-  const acc: Record<string, { engagedMs: number; visits: number }> = {};
-  for (const tool of Object.values(root.children ?? {})) {
-    for (const [campKey, camp] of Object.entries(tool.children ?? {})) {
-      if (!acc[campKey]) acc[campKey] = { engagedMs: 0, visits: 0 };
-      acc[campKey].engagedMs += camp.engagedMs;
-      acc[campKey].visits += camp.visits;
-    }
-  }
-  return Object.entries(acc)
-    .map(([key, v]) => ({ key, ...v }))
-    .sort((a, b) => b.engagedMs - a.engagedMs);
-}
-
-/** Accumulate engagedMs + visits per category inside the given camp, across all tools. */
-function sumByCategoryForCamp(root: TreeNode, camp: string): Array<{ key: string; engagedMs: number; visits: number }> {
-  const acc: Record<string, { engagedMs: number; visits: number }> = {};
-  for (const tool of Object.values(root.children ?? {})) {
-    const campNode = tool.children?.[camp];
-    if (!campNode) continue;
-    for (const [catKey, cat] of Object.entries(campNode.children ?? {})) {
-      if (!acc[catKey]) acc[catKey] = { engagedMs: 0, visits: 0 };
-      acc[catKey].engagedMs += cat.engagedMs;
-      acc[catKey].visits += cat.visits;
-    }
-  }
-  return Object.entries(acc)
-    .map(([key, v]) => ({ key, ...v }))
-    .sort((a, b) => b.engagedMs - a.engagedMs);
-}
-
-/** Flatten all leaf nodes (actual taxonomy nodes) for leaderboard ranking. */
-function collectLeafNodes(node: TreeNode, depth: number, results: Array<{ id: string; engagedMs: number; visits: number }>): void {
-  const kids = node.children;
-  if (!kids || Object.keys(kids).length === 0) {
-    if (depth >= 3) results.push({ id: node.id, engagedMs: node.engagedMs, visits: node.visits });
-    return;
-  }
-  for (const child of Object.values(kids)) {
-    collectLeafNodes(child, depth + 1, results);
-  }
 }
 
 // ── Section 1: Time-with-tool chart ──────────────────────────────────────────
