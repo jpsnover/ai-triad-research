@@ -1,9 +1,9 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-import { describe, it, expect, vi, afterEach } from 'vitest';
+import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
 import { useRef } from 'react';
-import { render, screen } from '@testing-library/react';
+import { render, screen, act } from '@testing-library/react';
 import { ProgressIndicator, PhaseProgressBar, DebaterToggles, TokenBudgetIndicator, DebateActions } from './DebateActionBar';
 
 // ── Mocks ────────────────────────────────────────────────────
@@ -370,5 +370,86 @@ describe('DebateActions — hook-count stability (t/2298)', () => {
     primeStore();
     bridgeState.electron = false;
     expect(() => render(<DebateActions {...actionsProps} />)).not.toThrow();
+  });
+});
+
+// ── ProgressIndicator — live countdown (t/2442) ─────────────
+
+describe('ProgressIndicator — live countdown', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.clearAllMocks();
+  });
+
+  it('ticks countdown down from backoffSeconds toward 0', async () => {
+    vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] });
+    mockStore.debateActivity = 'Calling AI...';
+    mockStore.debateProgress = { attempt: 2, maxRetries: 3, phase: 'retry', backoffSeconds: 3 };
+    render(<ProgressIndicator />);
+
+    expect(screen.getByText(/waiting 3s/)).toBeInTheDocument();
+
+    await act(async () => { vi.advanceTimersByTime(1000); });
+    expect(screen.getByText(/waiting 2s/)).toBeInTheDocument();
+
+    await act(async () => { vi.advanceTimersByTime(2000); });
+    expect(screen.getByText(/retrying now/)).toBeInTheDocument();
+  });
+
+  it('shows attempt N of M alongside the countdown', () => {
+    mockStore.debateActivity = 'Calling AI...';
+    mockStore.debateProgress = { attempt: 2, maxRetries: 3, phase: 'retry', backoffSeconds: 30 };
+    render(<ProgressIndicator />);
+    const retryEl = screen.getByText(/Retry 2\/3/);
+    expect(retryEl).toBeInTheDocument();
+    expect(retryEl.textContent).toMatch(/waiting 30s/);
+  });
+
+  it('suppresses retry badge on the first attempt', () => {
+    mockStore.debateActivity = 'Calling AI...';
+    mockStore.debateProgress = { attempt: 1, maxRetries: 3, phase: 'active', backoffSeconds: undefined };
+    render(<ProgressIndicator />);
+    expect(screen.queryByText(/Retry/)).toBeNull();
+  });
+});
+
+// ── DebateActions — exhaustion error banner (t/2442) ─────────
+
+describe('DebateActions — exhaustion error banner', () => {
+  const noop = () => {};
+  const actionsProps = {
+    showParamHistory: false,
+    setShowParamHistory: noop,
+    showEvaluation: false,
+    setShowEvaluation: noop,
+  };
+
+  beforeEach(() => {
+    mockStore.activeDebate = {
+      phase: 'active',
+      active_povers: ['accelerationist', 'safetyist'],
+      transcript: [],
+      neutral_evaluations: [],
+    };
+    mockStore.debateGenerating = null;
+    mockStore.debateRetryAction = null;
+    mockStore.dailyLimitPaused = false;
+    mockStore.toggleStepMode = vi.fn();
+    mockStore.setDebatePhase = vi.fn();
+    mockStore.setError = vi.fn();
+  });
+
+  it('renders attempt count and elapsed time, no "Click Retry" text in the message', () => {
+    mockStore.debateError = 'Opening statements failed for Skeptic after 2 attempts (~45s).';
+    render(<DebateActions {...actionsProps} />);
+    expect(screen.getByText(/Opening statements failed for Skeptic after 2 attempts/)).toBeInTheDocument();
+    expect(screen.queryByText(/Click Retry/i)).toBeNull();
+    expect(screen.getByRole('button', { name: 'Retry' })).toBeInTheDocument();
+  });
+
+  it('shows no error banner when debateError is null', () => {
+    mockStore.debateError = null;
+    render(<DebateActions {...actionsProps} />);
+    expect(screen.queryByRole('button', { name: 'Retry' })).toBeNull();
   });
 });

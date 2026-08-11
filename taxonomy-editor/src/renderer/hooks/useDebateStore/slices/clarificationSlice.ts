@@ -873,6 +873,7 @@ export const createClarificationSlice: StateCreator<DebateStore, [], [], Clarifi
     console.log(`[debate-store] Opening statements: aiPovers=${JSON.stringify(aiPovers)}, existingOpenings=${JSON.stringify([...existingOpenings])}, resolvedOrder=${JSON.stringify(resolvedOrder)}`);
 
     const MAX_OPENING_RETRIES = 1;
+    const openingStartedAt = Date.now();
     let openingRetryPass = 0;
     let failedSpeakers: string[] = [];
     let hasRetryableFailure = false;
@@ -1111,7 +1112,9 @@ export const createClarificationSlice: StateCreator<DebateStore, [], [], Clarifi
         addTranscriptEntry({
           type: 'system',
           speaker: 'system',
-          content: `${info.label} failed to deliver opening statement: ${mapErrorToUserMessage(err)}`,
+          content: isRetryable
+            ? `${info.label} was rate limited — retrying automatically…`
+            : `${info.label} failed to deliver opening statement: ${mapErrorToUserMessage(err)}`,
           taxonomy_refs: [],
         });
         failedSpeakers.push(info.label);
@@ -1143,7 +1146,12 @@ export const createClarificationSlice: StateCreator<DebateStore, [], [], Clarifi
       const missingLabels = missingSpeakers.map(p => POVER_INFO[p].label);
       set({
         debateActivity: null,
-        debateError: `Opening statements failed for ${missingLabels.join(', ')}. Click Retry to try again.`,
+        debateError: (() => {
+          const elapsedSec = Math.round((Date.now() - openingStartedAt) / 1000);
+          const elapsedStr = elapsedSec >= 60 ? `~${Math.round(elapsedSec / 60)} min` : `~${elapsedSec}s`;
+          const attempts = openingRetryPass + 1;
+          return `Opening statements failed for ${missingLabels.join(', ')} after ${attempts} attempt${attempts > 1 ? 's' : ''} (${elapsedStr}).`;
+        })(),
       });
       getGlobalRecorder()?.record({ type: 'debate.lifecycle', component: 'debate-store', level: 'warn', debate_id: activeDebate?.id, message: 'runOpeningStatements partial failure', data: { missingSpeakers } });
       await saveDebate('runOpeningStatements:partialFailure');
