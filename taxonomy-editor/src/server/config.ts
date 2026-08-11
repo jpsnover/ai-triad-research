@@ -32,17 +32,33 @@ interface AiTriadConfig {
 
 // In source: __dirname = .../taxonomy-editor/src/server (3 levels to monorepo root)
 // Compiled:  __dirname = .../taxonomy-editor/dist/server (3 levels to monorepo root)
-// Container: __dirname = /app/dist/server (only 2 levels to /app which has scripts/)
-// Resolve by checking which ancestor has .aitriad.json or scripts/
-const PROJECT_ROOT = (() => {
-  const hasMarker = (d: string) =>
-    fs.existsSync(path.join(d, '.aitriad.json')) || fs.existsSync(path.join(d, 'scripts'));
-  for (let i = 2; i <= 6; i++) {
-    const candidate = path.resolve(__dirname, '../'.repeat(i));
-    if (hasMarker(candidate)) return candidate;
-  }
-  return path.resolve(__dirname, '../../..');
-})();
+// Container: __dirname = /app/dist/server (2 levels to /app, which has .aitriad.json)
+//
+// t/2475: resolve by ancestor marker, but PREFER `.aitriad.json` over `scripts/`.
+// `.aitriad.json` exists only at the monorepo root (and at /app in the container);
+// `scripts/` is AMBIGUOUS because `taxonomy-editor/` has its own `scripts/` dir. A
+// single-pass walk that accepted either marker stopped one level short at
+// `taxonomy-editor/` in local compiled/dev runs, so getProjectRoot() pointed there
+// and the root-only ai-models.json / ai-usages.json failed to load — breaking every
+// registry-backed path (non-Gemini /api/ai/chat-stream fallback, /api/ai/generate)
+// locally. Prod was unaffected: the container copies `.aitriad.json` + both
+// registries to /app at the marker level (taxonomy-editor/Dockerfile). Two-pass
+// fixes both: config-marker first; `scripts/` only as a fallback for any layout
+// lacking `.aitriad.json`.
+//
+// Extracted as a pure function so a regression test can drive it with a simulated
+// dist layout (PROJECT_ROOT itself is import-time-frozen from the real __dirname).
+export function resolveProjectRoot(startDir: string): string {
+  const candidates: string[] = [];
+  for (let i = 2; i <= 6; i++) candidates.push(path.resolve(startDir, '../'.repeat(i)));
+  const byConfig = candidates.find(d => fs.existsSync(path.join(d, '.aitriad.json')));
+  if (byConfig) return byConfig;
+  const byScripts = candidates.find(d => fs.existsSync(path.join(d, 'scripts')));
+  if (byScripts) return byScripts;
+  return path.resolve(startDir, '../../..');
+}
+
+const PROJECT_ROOT = resolveProjectRoot(__dirname);
 
 const DEFAULT_CONFIG: AiTriadConfig = {
   data_root: '.',
