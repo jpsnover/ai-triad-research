@@ -19,7 +19,8 @@ import type { ServerCtx } from './context.js';
 import { json, error, param, getClientIp, withEndpointTimeout } from '../httpKit.js';
 import { getGlobalRecorder } from '../../../../lib/flight-recorder/index.js';
 import { callerTierIdentity, missingApiKeyError, expiredAuthCookies } from '../security/accessControl.js';
-import { getCurrentUser } from '../security/userContext.js';
+import { getCurrentUser, getCurrentUserId } from '../security/userContext.js';
+import type { GenerateTextProgress } from '../ai/aiBackends.js';
 import { log, getRequestContext } from '../logger.js';
 import { DEFAULT_MODEL } from '../../../../lib/ai-client/index.js';
 import { hasApiKey, getPaidGeminiFallbackKey, type AIBackend } from '../config.js';
@@ -156,11 +157,11 @@ async function generateWithPaidFallback(
   prompt: string,
   usageOverrides: Record<string, unknown>,
   explicitKey: string | string[] | undefined,
-  ctx: { isFree: boolean; backend: AIBackend; requestModel: string; t0: number },
+  ctx: { isFree: boolean; backend: AIBackend; requestModel: string; t0: number; onRetry?: (p: GenerateTextProgress) => void },
 ): Promise<Awaited<ReturnType<typeof ai.generateText>>> {
-  const { isFree, backend, requestModel, t0 } = ctx;
+  const { isFree, backend, requestModel, t0, onRetry } = ctx;
   try {
-    return await ai.generateTextByUsage('server.chat-response', { prompt }, usageOverrides, undefined, explicitKey);
+    return await ai.generateTextByUsage('server.chat-response', { prompt }, usageOverrides, onRetry, explicitKey);
   } catch (genErr) {
     const paidKey = (ai.is429Error(genErr) && isFree) ? await getPaidGeminiFallbackKey() : null;
     if (!paidKey) throw genErr; // non-free, non-429, or no paid key → outer 429 mapping records it
@@ -173,7 +174,7 @@ async function generateWithPaidFallback(
     // cooldown so the next request reverts to the free pool.
     await new Promise(r => setTimeout(r, 3000));
     try {
-      const result = await ai.generateTextByUsage('server.chat-response:paid-fallback', { prompt }, usageOverrides, undefined, paidKey);
+      const result = await ai.generateTextByUsage('server.chat-response:paid-fallback', { prompt }, usageOverrides, onRetry, paidKey);
       getGlobalRecorder()?.record({
         type: 'ai.response', component: 'ai-generate', level: 'info', duration_ms: Date.now() - t0,
         message: `Paid fallback succeeded for ${backend}/${requestModel}`,
@@ -271,7 +272,7 @@ function resolveGenerationContext(req: http.IncomingMessage, model: string | und
   return { tier, isFree, limitKey, effectiveModel, backend };
 }
 
-export function registerAiRoutes(r: Router, _ctx: ServerCtx): void {
+export function registerAiRoutes(r: Router, ctx: ServerCtx): void {
   const { get, post } = r;
 
   // t/897: Easy Auth's /.auth/logout left AppServiceAuthSession valid, so "Sign
@@ -311,6 +312,9 @@ export function registerAiRoutes(r: Router, _ctx: ServerCtx): void {
 
   post('/api/ai/generate', async (req, res, body) => {
     const { prompt, model, timeout, apiKey: clientKey, search, debateId } = body as { prompt: string; model?: string; timeout?: number; apiKey?: string; search?: boolean; debateId?: string };
+    // Capture synchronously before any await — ALS context is available here but not
+    // guaranteed across the await boundary in all Node versions.
+    const userId = getCurrentUserId();
     // t/966: stamp the debate client's debateId onto the request context so it lands
     // in the request-completion log (and every log line for this request) — debate
     // sessions become filterable in one query instead of correlating by user+time.
@@ -357,7 +361,10 @@ export function registerAiRoutes(r: Router, _ctx: ServerCtx): void {
       if (search) {
         json(res, await generateWithSearch(prompt, effectiveModel, explicitKey, { backend, requestModel, t0 }));
       } else {
-        const result = await generateWithPaidFallback(prompt, usageOverrides, explicitKey, { isFree, backend, requestModel, t0 });
+        const result = await generateWithPaidFallback(prompt, usageOverrides, explicitKey, {
+          isFree, backend, requestModel, t0,
+          onRetry: (p) => ctx.emitToUser(userId, 'generate-text-progress', p),
+        });
 
         getGlobalRecorder()?.record({
           type: 'ai.response', component: 'ai-generate', level: 'info',

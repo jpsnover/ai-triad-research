@@ -36,4 +36,6 @@ export interface ServerCtx {
   readonly serverStartTime: string;
   /** Broadcast a typed event to connected WebSocket clients (e.g. focus-node). (t/1687 session) */
   readonly broadcastEvent: (type: string, data: unknown) => void;
+  /** Emit a typed event only to the WebSocket clients of a specific authenticated user. Silent no-op for unknown/empty userId. (t/2443) */
+  readonly emitToUser: (userId: string, type: string, data: unknown) => void;
 }

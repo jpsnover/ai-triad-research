@@ -335,6 +335,7 @@ const serverCtx: ServerCtx = {
   serverVersion: SERVER_VERSION,
   serverStartTime: SERVER_START_TIME,
   broadcastEvent,
+  emitToUser,
 };
 
 // Best-effort client IP for rate limiting — first X-Forwarded-For hop (Azure
@@ -1126,12 +1127,23 @@ async function dispatchMatchedRoute(req: http.IncomingMessage, res: http.ServerR
 // ws default is 100 MB, an easy memory-exhaustion vector.
 const wss = new WebSocketServer({ noServer: true, maxPayload: 1024 * 1024 });
 const eventClients = new Set<WebSocket>();
+const userEventClients = new Map<string, Set<WebSocket>>();
 
 function broadcastEvent(type: string, data: unknown) {
   const msg = JSON.stringify({ type, data });
   for (const ws of eventClients) {
     if (ws.readyState === WebSocket.OPEN) ws.send(msg);
   }
+}
+
+// t/2443: NOTE: revisit registration rule if anonymous generation ever enabled (anon = read-only now).
+function getWebSocketUserId(req: http.IncomingMessage): string | null {
+  if (process.env.AUTH_DISABLED === '1') return '_local';
+  return (AZURE_AUTH_ENABLED ? (req.headers['x-ms-client-principal-name'] as string) || '' : '') || null;
+}
+function emitToUser(userId: string, type: string, data: unknown): void {
+  const msg = JSON.stringify({ type, data });
+  userEventClients.get(userId)?.forEach(ws => { if (ws.readyState === WebSocket.OPEN) ws.send(msg); });
 }
 
 // POV/taxonomy file keys the client toast knows how to label (Phase 5F / t/652).
@@ -1196,15 +1208,11 @@ async function broadcastTaxonomyUpdate(
 }
 
 function isWebSocketAuthorized(req: http.IncomingMessage): boolean {
-  const authDisabled = process.env.AUTH_DISABLED === '1';
-  if (authDisabled) return true;
+  if (process.env.AUTH_DISABLED === '1') return true;
 
-  // S-WS-AUTH: Only trust Azure auth headers when Azure Auth is enabled,
-  // matching the HTTP handler behavior. Prevents header spoofing when
-  // the container is exposed directly (not behind Azure Front Door).
-  const principalName = AZURE_AUTH_ENABLED
-    ? (req.headers['x-ms-client-principal-name'] as string) || ''
-    : '';
+  // S-WS-AUTH: principalName sourced via getWebSocketUserId (single header-read path
+  // shared with the /ws/events registration handler — t/2443 condition 3).
+  const principalName = getWebSocketUserId(req) ?? '';
   const idp = AZURE_AUTH_ENABLED
     ? (req.headers['x-ms-client-principal-idp'] as string) || ''
     : '';
@@ -1275,8 +1283,10 @@ server.on('upgrade', (req, socket, head) => {
     });
   } else if (url.pathname === '/ws/events') {
     wss.handleUpgrade(req, socket, head, (ws) => {
-      eventClients.add(ws);
-      ws.on('close', () => eventClients.delete(ws));
+      const userId = getWebSocketUserId(req); eventClients.add(ws);
+      if (userId) { const s = userEventClients.get(userId) ?? new Set<WebSocket>(); userEventClients.set(userId, s); s.add(ws); }
+      const c = () => { eventClients.delete(ws); if (userId) { const s = userEventClients.get(userId); if (s) { s.delete(ws); if (!s.size) userEventClients.delete(userId); } } };
+      ws.on('close', c); ws.on('error', c);
     });
   } else {
     socket.destroy();
