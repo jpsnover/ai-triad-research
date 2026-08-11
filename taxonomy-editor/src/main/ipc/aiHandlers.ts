@@ -15,9 +15,28 @@ import type { ChatMessage, NodeEmbeddingInput, NliPair } from '../embeddings.js'
 import { refreshAIModels } from '../modelDiscovery.js';
 import { ActionableError } from '../../../../lib/debate/errors.js';
 import { getGlobalRecorder } from '../../../../lib/flight-recorder/index.js';
-import { DEFAULT_TEMPERATURE } from '../../../../lib/ai-client/index.js';
+import { DEFAULT_TEMPERATURE, resolveBackend, DEFAULT_MODEL } from '../../../../lib/ai-client/index.js';
+import type { UrlContextMetadata } from '../../../../lib/ai-client/index.js';
 import { DEFAULT_RELEVANCE_THRESHOLD } from '../../../../lib/debate/constants.js';
 import { buildEmbeddingFailureError } from '../embeddingErrors.js';
+import { fetchUrlForPrompt } from '../../../../lib/url-fetch/fetchUrlForPrompt.js';
+import { extractHttpUrls } from '../../../../lib/url-fetch/extractHttpUrls.js';
+
+// ── Fetch-and-inject helpers (t/2484) ─────────────────────────────────────
+
+const MAX_FETCH_URLS = 3;
+
+// Mirrors the non-urlContext branch of src/renderer/prompts/chat.ts.
+// Main process can't import renderer — kept in sync manually.
+const HONEST_FAIL_INSTRUCTION =
+  `=== HANDLING LINKS ===\nWhen the user's message contains a URL: you have not visited that URL and cannot read its contents. Lead your response by stating this clearly (e.g., "I haven't read that link") and ask the user to paste the relevant text. Do not speculate about or summarise the page's contents.`;
+
+// Canonical shape shared with ServerAPI (t/2483) — reuses UrlContextMetadata so
+// the renderer UrlContextChip parses both Gemini and app-fetch events identically.
+interface AppFetchEvent {
+  source: 'app-fetch';
+  urlContextMetadata: UrlContextMetadata;
+}
 
 export function registerAiHandlers(): void {
   ipcMain.handle('load-ai-models', () => {
@@ -167,8 +186,57 @@ export function registerAiHandlers(): void {
     const send = (channel: string, data: unknown) => {
       if (!event.sender.isDestroyed()) event.sender.send(channel, data);
     };
+
+    // Fetch-and-inject: when model lacks native URL grounding, fetch URLs from
+    // the last user message and prepend content as an ephemeral system block.
+    const isUrlCapable = resolveBackend(model ?? DEFAULT_MODEL) === 'gemini' && urlContext === true;
+    let effectiveSystem = systemInstruction;
+    let appFetchEvent: AppFetchEvent | undefined;
+
+    if (!isUrlCapable) {
+      const lastUser = [...messages].reverse().find(m => m.role === 'user');
+      const urls = lastUser ? extractHttpUrls(lastUser.content, MAX_FETCH_URLS) : [];
+      if (urls.length > 0) {
+        try {
+          const results = await Promise.all(urls.map(u => fetchUrlForPrompt(u)));
+          const timestamp = new Date().toISOString();
+          const successes = results
+            .map((r, i) => ({ url: urls[i], r }))
+            .filter(x => x.r.ok) as Array<{ url: string; r: Extract<typeof results[number], { ok: true }> }>;
+
+          if (successes.length === 0) {
+            effectiveSystem = HONEST_FAIL_INSTRUCTION + '\n\n' + systemInstruction;
+          } else {
+            const block = successes
+              .map(({ url, r }) => `=== FETCHED PAGE CONTENT ===\nContent of "${r.title ?? url}" (${r.finalUrl}) fetched at ${timestamp}:\n${r.text}`)
+              .join('\n\n');
+            effectiveSystem = block + '\n\n' + systemInstruction;
+          }
+
+          appFetchEvent = {
+            source: 'app-fetch',
+            urlContextMetadata: {
+              urlMetadata: results.map((r, i) => ({
+                retrievedUrl: urls[i],
+                urlRetrievalStatus: r.ok ? 'SUCCESS' : 'FAILED',
+              })),
+            },
+          };
+        } catch (err) {
+          getGlobalRecorder()?.record({
+            type: 'system.error',
+            component: 'ipc-handlers',
+            level: 'error',
+            message: 'URL fetch-and-inject failed unexpectedly',
+            error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+          });
+          effectiveSystem = HONEST_FAIL_INSTRUCTION + '\n\n' + systemInstruction;
+        }
+      }
+    }
+
     const { text: fullText, urlContextMetadata } = await generateChatStream(
-      systemInstruction,
+      effectiveSystem,
       messages,
       (chunk: string) => send('chat-stream-chunk', chunk),
       model,
@@ -177,6 +245,7 @@ export function registerAiHandlers(): void {
     );
     console.log('[IPC:chat-stream] done, returning', fullText.length, 'chars');
     if (urlContextMetadata) send('chat-stream-url-metadata', urlContextMetadata);
+    if (appFetchEvent) send('chat-stream-url-metadata', appFetchEvent);
     send('chat-stream-done', fullText);
     return fullText;
   });
