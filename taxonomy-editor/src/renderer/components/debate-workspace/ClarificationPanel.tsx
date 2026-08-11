@@ -399,7 +399,7 @@ function SetupActionButtons({
         onClick={onBeginDebate}
         disabled={isGenerating || submitting}
       >
-        Begin Debate
+        {isGenerating || submitting ? 'Starting…' : 'Begin Debate'}
       </button>
     </div>
   );
@@ -436,9 +436,16 @@ function DebateSetupFooter() {
     return cheap.length > 0 ? cheap : all.slice(0, 3);
   }, []);
 
+  const [submitting, setSubmitting] = useState(false);
+
   const handleBeginDebate = async () => {
-    await beginDebate();
-    await runOpeningStatements();
+    setSubmitting(true);
+    try {
+      await beginDebate();
+      await runOpeningStatements();
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const handleExploreFirst = async () => {
@@ -622,7 +629,7 @@ function DebateSetupFooter() {
           overflowTriggerRef={overflowTriggerRef}
           overflowMenuRef={overflowMenuRef}
           isGenerating={isGenerating}
-          submitting={false}
+          submitting={submitting}
           onExploreFirst={handleExploreFirst}
           onRefine={runClarification}
           onBeginDebate={handleBeginDebate}

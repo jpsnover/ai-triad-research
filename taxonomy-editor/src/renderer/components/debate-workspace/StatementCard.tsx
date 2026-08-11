@@ -987,6 +987,28 @@ function StatementFooter({ entry, activeDebate, activeTier, debateGenerating, as
   );
 }
 
+// ── Elapsed timer for S1 (shown while opening statements load) ──────────
+
+function ElapsedTimer({ since, active }: { since: string; active: boolean }) {
+  const [elapsed, setElapsed] = useState(() => Math.max(0, Math.floor((Date.now() - new Date(since).getTime()) / 1000)));
+  useEffect(() => {
+    if (!active) return;
+    const id = setInterval(() => {
+      setElapsed(Math.max(0, Math.floor((Date.now() - new Date(since).getTime()) / 1000)));
+    }, 1000);
+    return () => clearInterval(id);
+  }, [since, active]);
+  if (!active) return null;
+  const m = Math.floor(elapsed / 60);
+  const s = elapsed % 60;
+  return (
+    <div className="debate-s1-timer">
+      <span className="debate-s1-timer-spinner" aria-hidden="true" />
+      Generating opening statements… {m > 0 ? `${m}m ` : ''}{s}s
+    </div>
+  );
+}
+
 // ── Main cards ──────────────────────────────────────────
 
 export function StatementCard({ entry, statementId, findQuery = '', matchOffset = 0, findCurrentIndex = -1, entryIndex, totalEntries }: {
@@ -1176,6 +1198,8 @@ export function StatementCard({ entry, statementId, findQuery = '', matchOffset 
             isTruncated={isTruncated}
             setEntryDisplayTier={setEntryDisplayTier}
           />
+          <ElapsedTimer since={entry.timestamp} active={statementId === 'S1' && !!debateGenerating} />
+
           <StatementFooter entry={entry} activeDebate={activeDebate} activeTier={activeTier} debateGenerating={debateGenerating} askQuestion={askQuestion} />
         </>
       )}
