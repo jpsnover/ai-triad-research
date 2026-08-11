@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-export type { GenerateOptions, ProviderResult, TokenUsage, RateLimitType, RateLimitHeaders, RetryProgress, BackendId, ApiKeyBackend, FetchFn, ToolDefinition, ToolCall, ToolResult, ModelCapabilities, UrlContextEntry, UrlContextMetadata } from './types.js';
+export type { GenerateOptions, ProviderResult, TokenUsage, RateLimitType, RateLimitHeaders, RetryProgress, BackendId, ApiKeyBackend, FetchFn, ToolDefinition, ToolCall, ToolResult, ModelCapabilities, UrlContextEntry, UrlContextMetadata, GeminiContentPart, GeminiContent } from './types.js';
 export type { ModelEntry, ModelRegistry, ModelPricing } from './registry.js';
 export { ALL_API_KEY_BACKENDS } from './types.js';
 export { resolveBackend, resolveModel, buildModelIdMap, buildModelEntryMap, getApiModelId, getDefaultTimeout, getModelCapabilities, filterByCapabilities, estimateCost } from './registry.js';

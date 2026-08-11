@@ -37,6 +37,19 @@ export interface GenerateOptions {
   /** Gemini only: enable URL-context grounding. When set, the provider adds the
    *  `url_context` tool entry so Gemini fetches URLs mentioned in the prompt. */
   urlContext?: boolean;
+  /** Gemini only: pre-built multi-turn contents array for chat streaming.
+   *  When provided, replaces the default single-turn `[{ parts: [{ text: prompt }] }]`
+   *  construction so callers can pass conversation history directly. */
+  geminiContents?: GeminiContent[];
+}
+
+export interface GeminiContentPart {
+  text: string;
+}
+
+export interface GeminiContent {
+  role: string;
+  parts: GeminiContentPart[];
 }
 
 export interface UrlContextEntry {

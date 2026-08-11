@@ -189,8 +189,9 @@ export async function generateViaGeminiStream(
     maxOutputTokens: opts.maxTokens ?? 16384,
   };
 
+  const contents = opts.geminiContents ?? [{ role: 'user', parts: [{ text: prompt }] }];
   const body: Record<string, unknown> = {
-    contents: [{ parts: [{ text: prompt }] }],
+    contents,
     generationConfig: genConfig,
     safetySettings: GEMINI_SAFETY_SETTINGS,
   };
