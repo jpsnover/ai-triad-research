@@ -193,10 +193,12 @@ export interface AppAPI {
     searchQueries?: string[];
     citations?: GroundingCitation[];
   }>;
-  startChatStream: (systemInstruction: string, messages: { role: 'user' | 'model'; content: string }[], model?: string, temperature?: number) => Promise<string>;
+  startChatStream: (systemInstruction: string, messages: { role: 'user' | 'model'; content: string }[], model?: string, temperature?: number, urlContext?: boolean) => Promise<string>;
   onChatStreamChunk: (callback: (chunk: string) => void) => () => void;
   onChatStreamDone: (callback: (fullText: string) => void) => () => void;
   onChatStreamError: (callback: (error: string) => void) => () => void;
+  /** url_context grounding metadata (t/2462) — optional; only the Gemini backend emits it. */
+  onChatStreamUrlMetadata?: (callback: (metadata: unknown) => void) => () => void;
   setDebateTemperature: (temp: number | null) => Promise<void>;
 
   // --- Proxy tier & usage ---
