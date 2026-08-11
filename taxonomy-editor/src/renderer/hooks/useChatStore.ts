@@ -11,11 +11,12 @@ import type {
 import type { SpeakerId, TaxonomyRef } from '../types/debate';
 import { POVER_INFO } from '../types/debate';
 import type { PovNode, CrossCuttingNode as SituationNode } from '../types/taxonomy';
-import { useTaxonomyStore } from './useTaxonomyStore';
+import { useTaxonomyStore, backendForModel } from './useTaxonomyStore';
 import { mapErrorToUserMessage } from '../utils/errorMessages';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { api } from '@bridge';
 import { DEFAULT_MODEL } from '@lib/ai-client/defaults';
+import type { UrlContextMetadata } from '@lib/ai-client/index';
 import { formatTaxonomyContext } from '../utils/taxonomyContext';
 import type { TaxonomyContext, FormatContextConfig } from '../utils/taxonomyContext';
 import {
@@ -45,6 +46,19 @@ function getConfiguredModel(): string {
   }
 }
 
+const URL_PATTERN = /https?:\/\/\S+/;
+
+function isUrlContextMetadata(payload: unknown): payload is UrlContextMetadata {
+  if (!payload || typeof payload !== 'object') return false;
+  const p = payload as Record<string, unknown>;
+  if (!Array.isArray(p.urlMetadata)) return false;
+  return (p.urlMetadata as unknown[]).every(
+    (e) => typeof e === 'object' && e !== null &&
+      typeof (e as Record<string, unknown>).retrievedUrl === 'string' &&
+      typeof (e as Record<string, unknown>).urlRetrievalStatus === 'string',
+  );
+}
+
 async function streamChatWithProgress(
   systemInstruction: string,
   messages: { role: 'user' | 'model'; content: string }[],
@@ -53,13 +67,24 @@ async function streamChatWithProgress(
   activity: string,
   set: (partial: Partial<ChatStore>) => void,
   onChunk: (chunk: string) => void,
-): Promise<string> {
+  urlContext?: boolean,
+): Promise<{ text: string; urlContextMetadata?: UrlContextMetadata }> {
   set({ chatActivity: activity, chatStreamingText: null });
+  let urlContextMetadata: UrlContextMetadata | undefined;
   const unsubChunk = api.onChatStreamChunk(onChunk);
+  const unsubMeta = api.onChatStreamUrlMetadata?.((payload) => {
+    if (isUrlContextMetadata(payload)) {
+      urlContextMetadata = payload;
+    } else {
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'chat-store', level: 'debug', message: 'onChatStreamUrlMetadata payload did not match UrlContextMetadata shape', error: { name: 'TypeError', message: 'Non-conforming url-context metadata', stack: '' } });
+    }
+  });
   try {
-    return await api.startChatStream(systemInstruction, messages, model, temperature);
+    const text = await api.startChatStream(systemInstruction, messages, model, temperature, urlContext);
+    return { text, urlContextMetadata };
   } finally {
     unsubChunk();
+    unsubMeta?.();
     set({ chatStreamingText: null, chatActivity: null });
   }
 }
@@ -313,7 +338,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       );
       const userContent = chatOpeningPrompt(activeChat.mode, activeChat.topic);
 
-      const fullText = await streamChatWithProgress(
+      const { text: fullText } = await streamChatWithProgress(
         systemInstruction,
         [{ role: 'user', content: userContent }],
         model,
@@ -397,9 +422,11 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       const model = getConfiguredModel();
       const temperature = CHAT_MODE_TEMPERATURE[activeChat.mode];
 
+      const urlContext = URL_PATTERN.test(message.trim()) && backendForModel(model) === 'gemini';
       const systemInstruction = chatSystemPrompt(
         info.label, info.pov, info.personality,
         activeChat.mode, activeChat.topic, taxonomyBlock,
+        urlContext,
       );
       const transcriptText = formatTranscriptForContext(
         withUserMsg.transcript, info.label,
@@ -415,7 +442,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         .filter(Boolean);
       const userContent = chatContinuationPrompt(message.trim(), transcriptText, priorClaims);
 
-      const fullText = await streamChatWithProgress(
+      const { text: fullText, urlContextMetadata } = await streamChatWithProgress(
         systemInstruction,
         [{ role: 'user', content: userContent }],
         model,
@@ -423,6 +450,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         `${info.label} is thinking...`,
         set,
         (chunk) => get().appendStreamingText(chunk),
+        urlContext,
       );
 
       if (!isStillValid()) return;
@@ -435,6 +463,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         speaker: activeChat.pover,
         content: response,
         taxonomy_refs: taxonomyRefs,
+        ...(urlContextMetadata && { url_context_metadata: urlContextMetadata }),
       };
 
       const updated = {
