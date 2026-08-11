@@ -3,7 +3,8 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
-const { mockApi } = vi.hoisted(() => {
+const { mockApi, mockRecord } = vi.hoisted(() => {
+  const mockRecord = vi.fn();
   const mockApi = {
     listChatSessions: vi.fn().mockResolvedValue([]),
     loadChatSession: vi.fn(),
@@ -50,7 +51,7 @@ vi.mock('../prompts/chat', () => ({
 }));
 
 vi.mock('@lib/flight-recorder/index', () => ({
-  getGlobalRecorder: () => ({ record: vi.fn() }),
+  getGlobalRecorder: () => ({ record: mockRecord }),
 }));
 
 import { useChatStore, parseChatResponse } from './useChatStore';
@@ -308,6 +309,34 @@ describe('useChatStore', () => {
     it('leaves think-free responses unchanged', () => {
       expect(parseChatResponse('{"response":"ok"}').response).toBe('ok');
       expect(parseChatResponse('just text').response).toBe('just text');
+    });
+  });
+
+  // t/2454 — observability: emit a flight-recorder event when a <think> block is stripped,
+  // so thinking-model incidents are diagnosable from a dump without a live repro.
+  describe('parseChatResponse — records chat.thinking-stripped (t/2454)', () => {
+    beforeEach(() => { mockRecord.mockClear(); });
+
+    it('records chat.thinking-stripped with model + byte count when a block is stripped', () => {
+      const text = '<think>reasoning</think>{"response":"hi"}';
+      parseChatResponse(text, 'deepseek-r1');
+      const rec = mockRecord.mock.calls.map(c => c[0]).find(r => r.type === 'chat.thinking-stripped');
+      expect(rec).toBeTruthy();
+      expect(rec.component).toBe('chat-store');
+      expect(rec.level).toBe('debug');
+      expect(rec.data.model).toBe('deepseek-r1');
+      expect(rec.data.blockLength).toBe(text.length - '{"response":"hi"}'.length);
+    });
+
+    it('emits no chat.thinking-stripped record for a think-free response (no noise)', () => {
+      parseChatResponse('{"response":"ok"}', 'gemini-flash');
+      expect(mockRecord.mock.calls.map(c => c[0]).some(r => r.type === 'chat.thinking-stripped')).toBe(false);
+    });
+
+    it('records model as null when the model is unknown', () => {
+      parseChatResponse('<think>x</think>hi');
+      const rec = mockRecord.mock.calls.map(c => c[0]).find(r => r.type === 'chat.thinking-stripped');
+      expect(rec.data.model).toBeNull();
     });
   });
 });
