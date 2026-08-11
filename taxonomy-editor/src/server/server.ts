@@ -36,7 +36,7 @@ import { GitHubAPIBackend } from './storage/githubAPIBackend.js';
 import { SessionBranchManager } from './storage/sessionBranchManager.js';
 import { runWithUser, getCurrentUserId, setSessionBranchName, deriveStorageUserId } from './security/userContext.js';
 import type { UserContext } from './security/userContext.js';
-import { isAuthDisabledAllowed, isPathWithinDir, isTerminalAccessAllowed, isAnonAllowedRoute, invalidRouteParam, missingApiKeyError, anonymousSessionCookies, resolveTestPersonaOverride } from './security/accessControl.js';
+import { isAuthDisabledAllowed, isPathWithinDir, isTerminalAccessAllowed, isAnonAllowedRoute, invalidRouteParam, missingApiKeyError, anonymousSessionCookies, resolveAnonSessionId, resolveTestPersonaOverride } from './security/accessControl.js';
 import { sanitizeUserText } from './security/contentSanitizer.js';
 import { getRollbackStatus } from './rollbackStatus.js';
 import { getErrorSummaryCached, type ErrorEntry } from './errorAggregation.js';
@@ -891,7 +891,7 @@ function handleAnonAuthEndpoints(req: http.IncomingMessage, res: http.ServerResp
   if (urlPath === '/.auth/anonymous' && authOptional) {
     res.writeHead(302, {
       'Location': '/',
-      'Set-Cookie': anonymousSessionCookies(() => crypto.randomUUID()),
+      'Set-Cookie': anonymousSessionCookies(resolveAnonSessionId(parseCookies(req).get('anon_session_id'))), // t/2464
     });
     res.end();
     return true;
@@ -907,7 +907,7 @@ function handleAnonAuthEndpoints(req: http.IncomingMessage, res: http.ServerResp
   if (urlPath === '/api/auth/anonymous' && req.method === 'POST' && authOptional) {
     res.writeHead(200, {
       'Content-Type': 'application/json',
-      'Set-Cookie': anonymousSessionCookies(() => crypto.randomUUID()),
+      'Set-Cookie': anonymousSessionCookies(resolveAnonSessionId(parseCookies(req).get('anon_session_id'))), // t/2464
     });
     res.end(JSON.stringify({ ok: true, anonymous: true }));
     return true;
