@@ -25,6 +25,7 @@ import { initFlightRecorder } from './lib/flightRecorderInit';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { recordingLazy } from './utils/recordingLazy';
 import { initAnalytics } from './lib/analyticsEmitter';
+import { initDwellTracker } from './lib/dwellTracker';
 import { useBreakpoint } from './hooks/useBreakpoint';
 import { useIsTouchDevice } from './hooks/useIsTouchDevice';
 import { BottomNav } from './components/shared/BottomNav';
@@ -264,7 +265,7 @@ function MainApp() {
       if (!available) {
         setShowFirstRun(true);
       } else {
-        void initAIModels().then(() => { void useTaxonomyStore.getState().loadAll(); void initAnalytics(); initDebateSessions(); });
+        void initAIModels().then(() => { void useTaxonomyStore.getState().loadAll(); void initDwellTracker().then(() => initAnalytics()); initDebateSessions(); });
       }
     });
   }, []);
@@ -500,12 +501,12 @@ function MainApp() {
 
   const handleFirstRunComplete = () => {
     setShowFirstRun(false);
-    void initAIModels().then(() => { void loadAll(); void initAnalytics(); initDebateSessions(); });
+    void initAIModels().then(() => { void loadAll(); void initDwellTracker().then(() => initAnalytics()); initDebateSessions(); });
   };
 
   const handleFirstRunSkip = () => {
     setShowFirstRun(false);
-    void initAIModels().then(() => { void loadAll(); void initAnalytics(); initDebateSessions(); });
+    void initAIModels().then(() => { void loadAll(); void initDwellTracker().then(() => initAnalytics()); initDebateSessions(); });
   };
 
   if (showFirstRun) {

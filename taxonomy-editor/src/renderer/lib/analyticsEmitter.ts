@@ -201,6 +201,28 @@ export function trackConfigChange(setting: string, value: unknown): void {
   emit('config.change', 'config', { setting, value });
 }
 
+/** Detail shape for `view.dwell` (t/2466). See docs/ux/usage-analytics-instrumentation.md §2.3. */
+export interface ViewDwellDetail {
+  subject_type: 'node' | 'tab' | 'panel';
+  subject_id: string;
+  pov: string | null;
+  cat: string | null;
+  tab: string;
+  engaged_ms: number;
+  wall_ms: number;
+  engaged: boolean;
+  capped: boolean;
+  close_reason: 'subject_change' | 'idle' | 'hidden' | 'unload';
+}
+
+/**
+ * Emit a `view.dwell` event on visit close (DwellTracker, t/2466). `duration_ms`
+ * on the wire event reuses `engaged_ms` — the existing schema field, per §2.3.
+ */
+export function trackViewDwell(category: string, detail: ViewDwellDetail): void {
+  emit('view.dwell', category, detail as unknown as Record<string, unknown>, detail.engaged_ms);
+}
+
 /** Stop the flush timer. */
 export function stopAnalytics(): void {
   if (flushTimer) {
