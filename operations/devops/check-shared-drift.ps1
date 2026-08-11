@@ -120,7 +120,8 @@ try {
             # Guard (b1): not tracked in main repo
             if (Invoke-Git @('-C', $RepoRoot, 'ls-files', $f)) { $remainingJunk += $f; continue }
             # Guard (b2): not tracked in overlay (skip check when no overlay present)
-            if ((Test-Path $overlayGitDir) -and (Invoke-Git @('--git-dir', $overlayGitDir, 'ls-files', $f))) {
+            # -C $RepoRoot anchors path resolution to repo root regardless of script CWD (t/2477)
+            if ((Test-Path $overlayGitDir) -and (Invoke-Git @('-C', $RepoRoot, '--git-dir', $overlayGitDir, 'ls-files', $f))) {
                 $remainingJunk += $f; continue
             }
             # Guard (c): re-stat — file must still be 0 bytes at deletion time
