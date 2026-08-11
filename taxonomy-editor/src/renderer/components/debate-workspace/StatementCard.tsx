@@ -36,6 +36,9 @@ import { CommentOverlay, useEntryCommentCount } from '../chat/CommentHighlights'
 import { useCommentStore } from '../../hooks/useCommentStore';
 import type { DetailTier } from '@lib/debate/comments';
 import { TaxonomyRefsSection } from './TaxonomyRefs';
+import { api } from '@bridge';
+
+const VOCAB_SPEC_URL = 'https://github.com/jpsnover/ai-triad-research/blob/main/docs/taxonomy-vocabulary-system-spec.md';
 
 /** Remark pipeline for debate transcript text: GFM + POV colorization + ID-token ref links (t/1776). */
 const DEBATE_REMARK_PLUGINS = [remarkGfm, remarkColorizePov, remarkLinkifyRefs];
@@ -878,13 +881,15 @@ function StatementBody({
       {isMetaView && (
         <div className="debate-meta-mode-label">
           {TIER_LABELS[displayedTier]?.toUpperCase()}
-          {displayedTier === 'convergence' && (
-            <TheoryLink
-              docPath="research/comp-linguist/docs/convergence-signals-guide.md"
-              anchor="the-seven-fields"
-              label="Help: convergence signals"
-              size={12}
-            />
+          {displayedTier === 'terms' && (
+            <a
+              href="#"
+              className="debate-meta-mode-spec-link"
+              title="Open the Taxonomy Vocabulary System spec on GitHub"
+              onClick={(e) => { e.preventDefault(); void api.openExternal(VOCAB_SPEC_URL); }}
+            >
+              🔖 spec
+            </a>
           )}
         </div>
       )}
@@ -984,6 +989,26 @@ function StatementFooter({ entry, activeDebate, activeTier, debateGenerating, as
         forceExpanded={false}
       />
     </>
+  );
+}
+
+// ── Elapsed timer for S1 (shown while opening statements load) ──────────
+
+function ElapsedTimer({ since }: { since: string }) {
+  const [elapsed, setElapsed] = useState(() => Math.max(0, Math.floor((Date.now() - new Date(since).getTime()) / 1000)));
+  useEffect(() => {
+    const id = setInterval(() => {
+      setElapsed(Math.max(0, Math.floor((Date.now() - new Date(since).getTime()) / 1000)));
+    }, 1000);
+    return () => clearInterval(id);
+  }, [since]);
+  const m = Math.floor(elapsed / 60);
+  const s = elapsed % 60;
+  return (
+    <div className="debate-s1-timer">
+      <span className="debate-s1-timer-spinner" aria-hidden="true" />
+      Generating opening statements… {m > 0 ? `${m}m ` : ''}{s}s
+    </div>
   );
 }
 
@@ -1176,6 +1201,9 @@ export function StatementCard({ entry, statementId, findQuery = '', matchOffset 
             isTruncated={isTruncated}
             setEntryDisplayTier={setEntryDisplayTier}
           />
+          {statementId === 'S1' && !!debateGenerating && (
+            <ElapsedTimer since={entry.timestamp} />
+          )}
           <StatementFooter entry={entry} activeDebate={activeDebate} activeTier={activeTier} debateGenerating={debateGenerating} askQuestion={askQuestion} />
         </>
       )}
