@@ -182,3 +182,11 @@
   width: 100%;
   border-left: 1px solid var(--border-color);
 }
+
+/* ── Elapsed-time timer (t/2479) ─────────────────────── */
+.chat-generating-elapsed {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-left: 6px;
+  font-variant-numeric: tabular-nums;
+}

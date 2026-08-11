@@ -195,8 +195,22 @@ function ChatMessage({ entry, selectedRef, onSelectRef }: { entry: ChatEntry; se
 
 // ── Progress indicator ───────────────────────────────────
 
+function useElapsedTimer(active: boolean): string {
+  const [secs, setSecs] = useState(0);
+  useEffect(() => {
+    if (!active) { setSecs(0); return; }
+    setSecs(0);
+    const id = setInterval(() => setSecs(s => s + 1), 1000);
+    return () => clearInterval(id);
+  }, [active]);
+  const m = Math.floor(secs / 60);
+  const s = (secs % 60).toString().padStart(2, '0');
+  return `${m}:${s}`;
+}
+
 function ProgressIndicator() {
   const chatActivity = useChatStore(s => s.chatActivity);
+  const elapsed = useElapsedTimer(chatActivity != null);
 
   if (!chatActivity) return null;
 
@@ -204,6 +218,7 @@ function ProgressIndicator() {
     <ThinkingIndicator className="chat-generating">
       <span className="chat-generating-dots">
         <span>{chatActivity}</span>
+        <span className="chat-generating-elapsed">{elapsed}</span>
         <span className="dot-animation" />
       </span>
     </ThinkingIndicator>
@@ -418,12 +433,14 @@ function ChatTranscript({ activeChat, chatGenerating, chatActivity, selectedRef,
   transcriptEndRef: React.RefObject<HTMLDivElement | null>;
 }) {
   const chatStreamingText = useChatStore(s => s.chatStreamingText);
+  const heroElapsed = useElapsedTimer(activeChat.transcript.length === 0 && chatGenerating && chatStreamingText == null);
   return (
     <div className="chat-transcript">
       {activeChat.transcript.length === 0 && chatGenerating && chatStreamingText == null ? (
         <div className="chat-generating-hero">
           <div className="chat-generating-spinner" />
           <span>{chatActivity || 'Preparing conversation...'}</span>
+          <span className="chat-generating-elapsed">{heroElapsed}</span>
         </div>
       ) : (
         <>
