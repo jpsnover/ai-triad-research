@@ -223,14 +223,19 @@ export class DwellTracker {
   private visible = true;
   private lastPulseTime = 0;
 
-  constructor(private readonly getThresholds: () => EngagementThresholds) {}
+  constructor(
+    private readonly getThresholds: () => EngagementThresholds,
+    /** Emit sink for closed visits. Defaults to the real emitter; injected in tests to
+     *  capture the emitted `engaged_ms`/`wall_ms` without module-mocking the emitter. */
+    private readonly emit: (category: string, detail: DwellDetail) => void = trackViewDwell,
+  ) {}
 
   private emitClose(t: number, reason: CloseReason): void {
     if (!this.currentVisit) return;
     const thresholds = this.getThresholds();
     const detail = this.currentVisit.close(t, reason, thresholds);
     if (detail) {
-      trackViewDwell(categoryForSubject(this.currentSubject as Subject), detail);
+      this.emit(categoryForSubject(this.currentSubject as Subject), detail);
     }
     this.currentVisit = null;
     this.currentSubject = null;
