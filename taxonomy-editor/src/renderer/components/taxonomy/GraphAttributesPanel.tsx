@@ -7,7 +7,15 @@ import { useTaxonomyStore } from '../../hooks/useTaxonomyStore';
 import type { PolicyRegistryEntry } from '../../hooks/useTaxonomyStore';
 import { FALLACY_CATALOG } from '../../data/fallacyInfo';
 import { api } from '@bridge';
+import { TheoryLink } from '../shared/TheoryLink';
 import './GraphAttributesPanel.css';
+
+// Doc-link to the BDI scales reference (t/2448), rendered beside each scale label
+// (Priority / Operationality / Confidence — one doc documents all three). Kept inside
+// the scale cell so the fixed attribute grid columns don't shift.
+function BdiScaleDocLink() {
+  return <TheoryLink docPath="docs/bdi-scales.md" size={12} tooltip="How the BDI scales work" />;
+}
 
 interface GraphAttributesPanelProps {
   attrs: GraphAttributes;
@@ -152,7 +160,7 @@ function confidenceColor(val: number): string {
   return 'var(--color-warning, #f59e0b)';
 }
 
-function ConfidenceCell({ value, readOnly, doctrinallyAnchored, evidentialConfidence, history, onUpdate }: {
+export function ConfidenceCell({ value, readOnly, doctrinallyAnchored, evidentialConfidence, history, onUpdate }: {
   value: number;
   readOnly?: boolean;
   doctrinallyAnchored?: boolean;
@@ -162,7 +170,10 @@ function ConfidenceCell({ value, readOnly, doctrinallyAnchored, evidentialConfid
 }) {
   return (
     <div className="ga-cell">
-      <div className="ga-label">Confidence</div>
+      <div className="ga-label-row">
+        <span className="ga-label">Confidence</span>
+        <BdiScaleDocLink />
+      </div>
       <div className="ga-confidence-row">
         <input
           type="range"
@@ -198,7 +209,7 @@ function ConfidenceCell({ value, readOnly, doctrinallyAnchored, evidentialConfid
   );
 }
 
-function RankedSelectCell({ label, value, options, badge, history, readOnly, onUpdate }: {
+export function RankedSelectCell({ label, value, options, badge, history, readOnly, onUpdate }: {
   label: string;
   value: number;
   options: Array<{ value: number; label: string }>;
@@ -209,7 +220,10 @@ function RankedSelectCell({ label, value, options, badge, history, readOnly, onU
 }) {
   return (
     <div className="ga-cell">
-      <div className="ga-label">{label}</div>
+      <div className="ga-label-row">
+        <span className="ga-label">{label}</span>
+        <BdiScaleDocLink />
+      </div>
       <select
         value={value}
         disabled={readOnly || !onUpdate}

@@ -1,3 +1,11 @@
+/* Scale label + its doc-link (t/2448) — keep them on one line inside the cell so the
+   fixed attribute grid columns don't shift. */
+.ga-label-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
 .ga-confidence-row {
   display: flex;
   align-items: center;
