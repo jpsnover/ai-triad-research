@@ -2078,3 +2078,21 @@ Failure patterns related to builds, CI, tooling, environment, and git operations
 **Status:** Active — 1 instance (Rosetta Stone p/6#52).
 
 **Applies To:** All agents running untracked-file checks in the main repo.
+
+---
+
+## #163 [Build] Inline `<head>` Script DOM Query Runs Before DOM Ready — Silent No-Op in Production, Tests Pass
+
+**Pattern:** A `<script>` in `<head>` calls `querySelector`/`getElementById` synchronously. The body isn't parsed yet — query returns null silently. Tests inject a ready DOM so they pass; in the browser (loading) the script is a no-op.
+
+**Instances:**
+- 2026-08-11 — ServerAPI (t/2474, PR #849): `<head>` script used `querySelector` to read a hash value before `DOMContentLoaded`. Tests injected a complete body → passed. Browser → silent null → feature broken in production. Fix: `DOMContentLoaded` wrapper (PR #850).
+
+**Prevention:**
+1. Any DOM query in an inline `<head>` script must be deferred: `document.addEventListener('DOMContentLoaded', () => { ... })`.
+2. Test harnesses for `<head>` scripts must simulate browser parse order: set up at `readyState='loading'`, fire `DOMContentLoaded` after — do not inject a pre-built body.
+3. Code review flag: `<head>` `<script>` + `querySelector`/`getElementById` without a `DOMContentLoaded` wrapper = instant flag.
+
+**Status:** Active — 1 instance (ServerAPI t/2474, p/335#24).
+
+**Applies To:** All agents authoring inline `<head>` scripts with DOM queries.
