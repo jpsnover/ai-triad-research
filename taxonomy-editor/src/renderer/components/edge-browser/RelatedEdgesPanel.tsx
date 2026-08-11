@@ -310,7 +310,6 @@ export function RelatedEdgesPanel({ width }: RelatedEdgesPanelProps) {
         <div className="related-edges-title">
           <h3>Related Edges</h3>
           <span className="related-edges-count">{totalEdges}</span>
-          {/* TODO(t/2445): update docPath to the final path once the doc lands */}
           <TheoryLink docPath="docs/pov-edges.md" size={12} label="Open POV Edges doc in GitHub" />
         </div>
         <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
