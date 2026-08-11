@@ -447,6 +447,50 @@ describe('computeQbafConvergence', () => {
   });
 });
 
+// ── null edges regression (t/2441 / t/2432) ────────────
+
+describe('null edges guard — community-debate format', () => {
+  const nodes: QbafNode[] = [
+    { id: 'a', base_strength: 0.7 },
+    { id: 'b', base_strength: 0.4 },
+  ];
+
+  it('computeQbafStrengths does not throw when edges is null', () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    expect(() => computeQbafStrengths(nodes, null as any)).not.toThrow();
+  });
+
+  it('computeQbafStrengths returns clamped base strengths when edges is null', () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const result = computeQbafStrengths(nodes, null as any);
+    expect(result.strengths.get('a')).toBeCloseTo(0.7);
+    expect(result.strengths.get('b')).toBeCloseTo(0.4);
+    expect(result.converged).toBe(true);
+  });
+
+  it('computeEdgeAttribution does not throw when edges is null', () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    expect(() => computeEdgeAttribution(nodes, null as any, 'a')).not.toThrow();
+  });
+
+  it('computeEdgeAttribution returns empty attributions when edges is null', () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const result = computeEdgeAttribution(nodes, null as any, 'a');
+    expect(result.size).toBe(0);
+  });
+
+  it('computeShapleyContributions does not throw when edges is null', () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    expect(() => computeShapleyContributions(nodes, null as any)).not.toThrow();
+  });
+
+  it('computeShapleyContributions returns empty map when edges is null', () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const result = computeShapleyContributions(nodes, null as any);
+    expect(result.size).toBe(0);
+  });
+});
+
 // ── computeFactCheckStrength ────────────────────────────
 
 describe('computeFactCheckStrength', () => {

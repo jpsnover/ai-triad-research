@@ -132,6 +132,8 @@ export function computeQbafStrengths(
     return { strengths: new Map(), iterations: 0, converged: true };
   }
 
+  const safeEdges = Array.isArray(edges) ? edges : [];
+
   // Initialize strengths to base_strength
   const strengths = new Map<string, number>();
   for (const n of nodes) {
@@ -142,7 +144,7 @@ export function computeQbafStrengths(
   const attacks = new Map<string, { sourceId: string; weight: number }[]>();
   const supports = new Map<string, { sourceId: string; weight: number }[]>();
 
-  for (const e of edges) {
+  for (const e of safeEdges) {
     // Skip edges referencing unknown nodes
     if (!strengths.has(e.source) || !strengths.has(e.target)) continue;
 
@@ -332,13 +334,14 @@ export function computeEdgeAttribution(
   targetNodeId: string,
   options?: QbafOptions,
 ): Map<string, number> {
-  const baseline = computeQbafStrengths(nodes, edges, options);
+  const safeEdges = Array.isArray(edges) ? edges : [];
+  const baseline = computeQbafStrengths(nodes, safeEdges, options);
   const baseStrength = baseline.strengths.get(targetNodeId) ?? 0;
   const attributions = new Map<string, number>();
 
-  const targetEdges = edges.filter(e => e.target === targetNodeId);
+  const targetEdges = safeEdges.filter(e => e.target === targetNodeId);
   for (const edge of targetEdges) {
-    const reduced = edges.filter(e => e !== edge);
+    const reduced = safeEdges.filter(e => e !== edge);
     const result = computeQbafStrengths(nodes, reduced, options);
     const without = result.strengths.get(targetNodeId) ?? 0;
     attributions.set(`${edge.source}→${edge.target}`, baseStrength - without);
@@ -401,6 +404,7 @@ export function computeShapleyContributions(
 ): ShapleyContributions {
   if (nodes.length === 0) return new Map();
 
+  const safeEdges = Array.isArray(edges) ? edges : [];
   const topN = options?.topN ?? 0;
   const numSamples = options?.numSamples ?? 512;
   const sampleThreshold = options?.sampleThreshold ?? 20;
@@ -413,14 +417,14 @@ export function computeShapleyContributions(
   // (i.e. non-isolated nodes that receive influence). We compute attribution
   // for every node that has at least one incoming edge.
   const targetIds = new Set<string>();
-  for (const e of edges) {
+  for (const e of safeEdges) {
     if (nodeSet.has(e.target)) targetIds.add(e.target);
   }
 
   if (targetIds.size === 0) return new Map();
 
   // Pre-compute baseline (all arguments present)
-  const baselineResult = computeQbafStrengths(nodes, edges, qbafOptions);
+  const baselineResult = computeQbafStrengths(nodes, safeEdges, qbafOptions);
 
   /**
    * Characteristic function v(S, targetId):
@@ -438,7 +442,7 @@ export function computeShapleyContributions(
     included.add(targetId);
 
     const subNodes = nodes.filter(n => included.has(n.id));
-    const subEdges = edges.filter(e => included.has(e.source) && included.has(e.target));
+    const subEdges = safeEdges.filter(e => included.has(e.source) && included.has(e.target));
 
     const result = computeQbafStrengths(subNodes, subEdges, qbafOptions);
     return result.strengths.get(targetId) ?? 0;
