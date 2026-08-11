@@ -7,6 +7,7 @@ import { api } from '@bridge';
 import { useTaxonomyStore } from '../../hooks/useTaxonomyStore';
 import type { Edge } from '../../types/taxonomy';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
+import { TheoryLink } from '../shared/TheoryLink';
 
 interface EdgeDetailPanelProps {
   width?: number;
@@ -250,7 +251,7 @@ export function EdgeDetailPanel({ width }: EdgeDetailPanelProps) {
 
         {/* Weight & Confidence */}
         <div className="edge-detail-section">
-          <div className="edge-detail-section-label">Weight &amp; Confidence</div>
+          <div className="edge-detail-section-label">Weight &amp; Confidence <TheoryLink docPath="docs/pov-edges.md" anchor="weight-and-confidence" size={12} label="Open POV Edges doc in GitHub" /></div>
           {wPct != null && (
             <div className="edge-detail-confidence" style={{ marginBottom: 4 }}>
               <span
