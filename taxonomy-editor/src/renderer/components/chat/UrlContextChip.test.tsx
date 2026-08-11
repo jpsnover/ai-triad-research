@@ -4,7 +4,7 @@
 import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { UrlContextChip } from './UrlContextChip';
-import type { UrlContextMetadata } from '@lib/ai-client';
+import type { UrlContextMetadata } from '@lib/ai-client/index';
 
 describe('UrlContextChip', () => {
   it('renders nothing when urlMetadata is empty', () => {
