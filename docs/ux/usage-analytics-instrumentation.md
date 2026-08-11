@@ -200,9 +200,33 @@ Each node in the tree carries, **per user and in aggregate**:
 - `uniqueUsers` (aggregate only) — distinct users who visited
 - `cappedRate` — QA signal
 
+#### Response envelope (v1 contract — t/2467)
+
+The tree alone can't feed every report view: it's range-aggregated (no day dimension for the
+time series) and isn't a per-user leaderboard. Both are computed server-side in the **same
+single pass** over `view.dwell` events — the client never re-derives them. The endpoint returns:
+
+```jsonc
+GET /api/analytics/engagement?from=YYYY-MM-DD&to=YYYY-MM-DD&user=<optional>
+{
+  "aggregate": <TreeNode>,        // tool→camp→category→node; per node: visits, engagedVisits, engagedMs, cappedRate, uniqueUsers
+  "subtree":   <TreeNode> | null, // present when ?user= given (other-user = requireAdmin)
+  "daily":     [{ "date": "YYYY-MM-DD", "engagedMs": 0, "visits": 0 }],  // total across users — drives §4.1 view 1
+  "users":     [{ "user": "", "engagedMs": 0, "sessions": 0, "topCamp": "skp", "topNode": "skp-bel-002", "lastActive": "<iso>" }]  // ADMIN-gated — drives §4.1 view 5
+}
+```
+
+- **`daily`** mirrors the shape already in `/query`; **`users`** mirrors its `UserSummary` but
+  with engagement fields (`engagedMs`, `topCamp`, `topNode`).
+- **Gating:** `users` (per-user rows) is omitted/empty for non-admin callers, exactly like
+  `/query`. `aggregate` + `daily` are open to any authenticated caller; own `subtree` on request.
+- **v1 scope guard:** §4.1 view 1 is **total** engaged-min/day only — per-user-over-time lines
+  are deferred to keep the payload bounded.
+
 ### 4.1 Report views
 
-1. **Time-with-tool over time** — engaged minutes/day, per user and total (line/area).
+1. **Time-with-tool over time** — engaged minutes/day (line/area). v1: **total** only; per-user
+   lines deferred (see the response-envelope scope guard above).
 2. **Camp distribution** — engaged time split across acc / saf / skp / cc (horizontal bars
    in the camp colors already in the design system). The headline "where does attention go."
 3. **Category drill-down** — within a camp, Belief / Desire / Intention split.
