@@ -6,7 +6,7 @@
 //   2. location.replace fires for #debate-window hashes (auto-continue)
 //   3. No-op when location.hash is empty
 //   4. Non-debate hashes: hash-carry only, no auto-replace
-//   5. Loop breaker: anon_deeplink_continued marker suppresses auto-replace
+//   5. Loop breaker: anon_autocontinue marker suppresses auto-replace
 //   6. Gating: no-op when .anon-link is absent (showAnonymous=false policy)
 //
 // Strategy: extract the hash-carry IIFE from the full SW_HEAL_SCRIPT string
@@ -91,7 +91,7 @@ describe('login-page hash-carry + auto-continue (t/2474)', () => {
     const { replaceCalls, anonLinkHref } = runHashCarry(
       ANON_DOM,
       '#debate-window?id=abc123',
-      { anon_deeplink_continued: '1' },
+      { anon_autocontinue: '1' },
     );
     expect(replaceCalls).toHaveLength(0);
     expect(anonLinkHref).toBe('/.auth/anonymous#debate-window?id=abc123');
@@ -99,7 +99,7 @@ describe('login-page hash-carry + auto-continue (t/2474)', () => {
 
   it('loop breaker: marker is SET on first auto-continue so a reload cannot loop', () => {
     const { ss } = runHashCarry(ANON_DOM, '#debate-window?id=abc123');
-    expect(ss.get('anon_deeplink_continued')).toBe('1');
+    expect(ss.get('anon_autocontinue')).toBe('1');
   });
 
   it('gating: no-op when .anon-link absent (showAnonymous=false — policy-disabled)', () => {

@@ -37,6 +37,28 @@ export function loginPageHeaders(req: http.IncomingMessage): http.OutgoingHttpHe
 // the current SW re-registers after a successful login. The script text is static,
 // so its CSP sha256 is derived from this same constant and can never drift out of
 // sync (script-src has no 'unsafe-inline'; a hash source is the safe way in).
+//
+// t/2474: a second IIFE carries the URL fragment through the anonymous flow so a
+// pasted community-debate deep link (`/#debate-window?id=...`) survives login. The
+// hash fragment never reaches the server, so the auth gate serves this login page
+// for such a cold visit; without help the anon link discards the fragment. Per
+// RFC 7231 §7.1.2, a 302 whose Location has no fragment re-applies the request
+// URL's fragment — so navigating to `/.auth/anonymous#debate-window?...` lands the
+// visitor on `/#debate-window?...` with session cookies set. Two behaviours:
+//   (1) Hash-carry (always, when a hash is present): rewrite `.anon-link`'s href to
+//       `/.auth/anonymous` + the current hash.
+//   (2) Auto-continue (known deep-link routes only): for `#debate-window` hashes,
+//       replace to the anon endpoint immediately — paste-in-incognito opens the
+//       debate with no interstitial.
+// Both are gated on `.anon-link` being present in the DOM: it exists iff
+// buildLoginPage was called with showAnonymous=true, so in required-auth mode this
+// script advertises NO path toward /.auth/anonymous (TL t/2474#2, req. change 1).
+// Auto-continue is guarded by a one-shot sessionStorage marker so a failed anon
+// handshake (cookies blocked / endpoint error) that re-serves this page cannot
+// loop — on the second pass we fall through to the interstitial with the
+// hash-carried link intact. If sessionStorage is unavailable we do NOT
+// auto-continue (can't guarantee the loop breaker), only hash-carry (req. change 2).
+// Staying in this one constant keeps a single CSP hash source (no drift).
 const SW_HEAL_SCRIPT =
   `(function(){try{if(!('serviceWorker' in navigator))return;` +
   `navigator.serviceWorker.getRegistrations().then(function(regs){` +
@@ -48,19 +70,13 @@ const SW_HEAL_SCRIPT =
   `if(stuck&&sessionStorage.getItem('sw_login_cleared')!=='1'){sessionStorage.setItem('sw_login_cleared','1');` +
   `Promise.all(regs.map(function(r){return r.unregister();})).then(function(){location.reload();}).catch(function(){});}` +
   `}).catch(function(){});}catch(e){}})();` +
-  // t/2474: hash-carry + auto-continue for community debate deep links.
-  // Gated on .anon-link DOM presence (= showAnonymous true) to prevent routing
-  // toward /.auth/anonymous when anonymous access is policy-disabled.
-  // Loop breaker: sessionStorage flag prevents infinite replace if anon mint fails.
-  `(function(){try{` +
-  `var al=document.querySelector('.anon-link');if(!al)return;` +
-  `var h=location.hash;if(!h)return;` +
-  `al.href='/.auth/anonymous'+h;` +
-  `if(h.startsWith('#debate-window')){` +
-  `var k='anon_deeplink_continued';` +
-  `if(sessionStorage.getItem(k)==='1')return;` +
-  `sessionStorage.setItem(k,'1');` +
-  `location.replace('/.auth/anonymous'+h);}` +
+  `(function(){try{var h=location.hash;if(!h)return;function run(){` +
+  `var a=document.querySelector('.anon-link');if(!a)return;` +
+  `var target='/.auth/anonymous'+h;a.setAttribute('href',target);` +
+  `if(h.indexOf('#debate-window')===0){var go=false;` +
+  `try{if(sessionStorage.getItem('anon_autocontinue')!=='1'){sessionStorage.setItem('anon_autocontinue','1');go=true;}}catch(e){go=false;}` +
+  `if(go)location.replace(target);}}` +
+  `if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',run);}else{run();}` +
   `}catch(e){}})();`;
 export const SW_HEAL_SCRIPT_CSP_HASH = `'sha256-${crypto.createHash('sha256').update(SW_HEAL_SCRIPT).digest('base64')}'`;
 
