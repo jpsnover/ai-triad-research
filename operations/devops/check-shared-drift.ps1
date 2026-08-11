@@ -6,8 +6,9 @@
     Scheduled drift check for the fleet's shared main checkout (t/2452).
 .DESCRIPTION
     Checks the shared main checkout for: commits behind origin/main, uncommitted
-    tracked files (classified as 0-diff-safe or real WIP), and 0-byte untracked
-    junk files (t/2222 spray pattern, excluding linked worktrees).
+    tracked files (classified as 0-diff-safe or real WIP), 0-byte untracked junk
+    files, and non-0-byte extension-less untracked files in source directories
+    (t/2222 spray pattern + t/2473 extension; excluding linked worktrees).
 
     Contract (TL-approved, t/2452#4):
       - WARN-ONLY: always exits 0; git failures are best-effort skips.
@@ -43,12 +44,13 @@ function Invoke-Git {
 }
 
 $result = [PSCustomObject]@{
-    Alarm           = $false
-    BehindCount     = 0
-    DirtyFiles      = @()
-    HasRealDiff     = $false
-    JunkPaths       = @()
-    RemediationHint = ''
+    Alarm            = $false
+    BehindCount      = 0
+    DirtyFiles       = @()
+    HasRealDiff      = $false
+    JunkPaths        = @()
+    SuspiciousPaths  = @()
+    RemediationHint  = ''
 }
 
 try {
@@ -73,22 +75,36 @@ try {
     }
     $result.HasRealDiff = $hasRealDiff
 
-    # 5. Junk untracked: 0-byte files, excluding linked worktrees (.worktrees/)
+    # 5. Junk untracked — two classes (t/2222 + t/2473), excluding linked worktrees (.worktrees/):
+    #    JunkPaths:       0-byte files anywhere in the tree
+    #    SuspiciousPaths: non-0-byte, extension-less files inside source directories
+    #                     (shell-quoting debris like src/server/community/22)
     $untracked = @(Invoke-Git @('-C', $RepoRoot, 'ls-files', '--others', '--exclude-standard') | Where-Object { $_ })
+    $sourceDirs = @('taxonomy-editor/src/', 'taxonomy-editor/lib/', 'lib/', 'engineering/', 'operations/', 'research/')
     $junkPaths = @()
+    $suspiciousPaths = @()
     foreach ($f in $untracked) {
         # Skip anything under .worktrees/ — other agents' in-worktree files are not shared-tree drift
         if ($f -match '^\.worktrees[\\/]') { continue }
         $fullPath = Join-Path $RepoRoot $f
         try {
             $item = Get-Item $fullPath -ErrorAction Stop
-            if ($item.Length -eq 0) { $junkPaths += $f }
+            if ($item.Length -eq 0) {
+                $junkPaths += $f
+            } else {
+                # Non-0-byte: flag if extension-less file found under a source directory
+                $normalizedF = $f -replace '\\', '/'
+                $inSourceDir = @($sourceDirs | Where-Object { $normalizedF.StartsWith($_) })
+                $hasNoExtension = [System.IO.Path]::GetExtension($item.Name) -eq ''
+                if ($inSourceDir.Count -gt 0 -and $hasNoExtension) { $suspiciousPaths += $f }
+            }
         } catch { continue }
     }
     $result.JunkPaths = $junkPaths
+    $result.SuspiciousPaths = $suspiciousPaths
 
     # 6. Determine alarm + remediation hint
-    $alarm = $behind -gt 0 -or $dirtyFiles.Count -gt 0 -or $junkPaths.Count -gt 0
+    $alarm = $behind -gt 0 -or $dirtyFiles.Count -gt 0 -or $junkPaths.Count -gt 0 -or $suspiciousPaths.Count -gt 0
     $result.Alarm = $alarm
 
     if ($alarm) {
@@ -99,6 +115,10 @@ try {
         if ($junkPaths.Count -gt 0) {
             $listed = $junkPaths -join ', '
             $hints += "junk 0-byte file(s) [$listed]: Remove-Item <paths>"
+        }
+        if ($suspiciousPaths.Count -gt 0) {
+            $listed = $suspiciousPaths -join ', '
+            $hints += "suspicious extension-less file(s) in source dir [$listed]: verify untracked, then Remove-Item <paths>"
         }
         if ($dirtyFiles.Count -gt 0) {
             if (-not $hasRealDiff) {
