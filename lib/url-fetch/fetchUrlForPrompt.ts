@@ -182,8 +182,8 @@ function htmlToText(html: string): { text: string; title: string | undefined } {
 
   let text = html
     .replace(/<head\b[^>]*>[\s\S]*?<\/head>/gi, '')
-    .replace(/<script\b[\s\S]*?<\/script\s*>/gi, ' ')
-    .replace(/<style\b[\s\S]*?<\/style\s*>/gi, ' ')
+    .replace(/<script\b[\s\S]*?<\/script\b[^>]*>/gi, ' ')
+    .replace(/<style\b[\s\S]*?<\/style\b[^>]*>/gi, ' ')
     .replace(/<(?:br|\/p|\/div|\/h[1-6]|\/li|\/tr|\/blockquote)[^>]*>/gi, '\n')
     .replace(/<[^>]+>/g, ' ');
 

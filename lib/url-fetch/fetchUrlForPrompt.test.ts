@@ -293,4 +293,22 @@ describe('fetchUrlForPrompt', () => {
     if (result.ok) return;
     expect(result.reason).toBe('timeout');
   }, 5000);
+
+  // Pinning test: </script\t\n bar> — end-tag with whitespace+attribute — must be stripped.
+  // <\/script\s*> misses this (stops before "bar"); <\/script\b[^>]*> catches it.
+  it('strips script/style end-tags that contain whitespace and attributes', async () => {
+    ({ url: baseUrl, server } = await startServer((_req, res) => {
+      res.writeHead(200, { 'Content-Type': 'text/html' });
+      // The close tag </script\t\n bar> has whitespace+attribute before >
+      // If not stripped, "evil()" leaks into the prompt text
+      res.end('<html><body>safe<script>evil()</script\t\n bar>end</body></html>');
+    }));
+
+    const result = await fetchUrlForPrompt(baseUrl, { checkAddress: ALLOW_ALL });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.text).not.toContain('evil');
+    expect(result.text).toContain('safe');
+    expect(result.text).toContain('end');
+  });
 });
