@@ -7,7 +7,7 @@ import './UrlContextChip.css';
 function hostnameFrom(url: string): string {
   try {
     return new URL(url).hostname;
-  } catch {
+  } catch { /* telemetry — silent by design */
     return url;
   }
 }
