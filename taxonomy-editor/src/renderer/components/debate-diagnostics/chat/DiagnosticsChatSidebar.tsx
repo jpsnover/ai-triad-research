@@ -8,7 +8,7 @@ import { POVER_INFO } from '../../../types/debate';
 import { POV_META, type PovMetaKey } from '@lib/electron-shared/povMeta';
 import { POV_KEYS } from '@lib/debate/types';
 import { api, isElectronMode } from '@bridge';
-import { DEFAULT_MODEL } from '@lib/ai-client/defaults';
+import { getStoredModel } from '../../../hooks/useTaxonomyStore';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -43,18 +43,7 @@ interface Props {
 }
 
 function getModel(): string {
-  try {
-    return localStorage.getItem('taxonomy-editor-gemini-model') || DEFAULT_MODEL;
-  } catch (err) {
-    getGlobalRecorder()?.record({
-      type: 'system.error',
-      component: 'diagnostics-chat-sidebar',
-      level: 'warn',
-      message: 'Failed to read model from localStorage',
-      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
-    });
-    return DEFAULT_MODEL;
-  }
+  return getStoredModel();
 }
 
 interface TaxNode { id: string; label: string; category?: string; description?: string }

@@ -8,6 +8,9 @@ export type { TaxonomyStore, ToolbarPanel } from './types';
 export {
   initAIModels,
   backendForModel,
+  backendForModelWithFallback,
+  isKnownBackend,
+  getStoredModel,
   AI_BACKENDS,
   MODELS_BY_BACKEND,
   GEMINI_MODELS,
@@ -24,6 +27,8 @@ export type {
   OpenAIModel,
   DeepSeekModel,
   OllamaModel,
+  ZAIModel,
+  MoonshotModel,
   AIModel,
   AIModelEntry,
 } from './slices/settingsSlice';

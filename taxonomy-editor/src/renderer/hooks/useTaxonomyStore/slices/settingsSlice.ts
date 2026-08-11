@@ -20,7 +20,7 @@ const DEFAULT_COMMUNITY_SERVER_URL = 'https://taxonomy-editor.yellowbush-aeda037
 
 export type ColorScheme = 'light' | 'dark' | 'bkc' | 'harvard' | 'system';
 
-export type AIBackend = 'gemini' | 'claude' | 'groq' | 'openai' | 'deepseek' | 'azure' | 'ollama' | 'zai';
+export type AIBackend = 'gemini' | 'claude' | 'groq' | 'openai' | 'deepseek' | 'azure' | 'ollama' | 'zai' | 'moonshot';
 
 export type GeminiModel =
   | typeof DEFAULT_MODEL
@@ -64,7 +64,10 @@ export type OllamaModel =
 export type ZAIModel =
   | 'zai-glm-5-2';
 
-export type AIModel = GeminiModel | ClaudeModel | GroqModel | OpenAIModel | DeepSeekModel | AzureModel | OllamaModel | ZAIModel;
+export type MoonshotModel =
+  | 'moonshot-kimi-k3';
+
+export type AIModel = GeminiModel | ClaudeModel | GroqModel | OpenAIModel | DeepSeekModel | AzureModel | OllamaModel | ZAIModel | MoonshotModel;
 
 export interface AIModelEntry { value: AIModel; label: string }
 
@@ -79,6 +82,7 @@ export const AI_BACKENDS: { value: AIBackend; label: string }[] = [
   { value: 'azure', label: 'Azure OpenAI' },
   { value: 'ollama', label: 'Ollama (Local)' },
   { value: 'zai', label: 'Z.AI (GLM)' },
+  { value: 'moonshot', label: 'Moonshot AI (Kimi)' },
 ];
 
 export const MODELS_BY_BACKEND: Record<AIBackend, AIModelEntry[]> = {
@@ -120,6 +124,9 @@ export const MODELS_BY_BACKEND: Record<AIBackend, AIModelEntry[]> = {
   zai: [
     { value: 'zai-glm-5-2', label: 'GLM 5.2' },
   ],
+  moonshot: [
+    { value: 'moonshot-kimi-k3', label: 'Kimi K3' },
+  ],
 };
 
 /** @deprecated Use MODELS_BY_BACKEND.gemini instead */
@@ -138,6 +145,7 @@ const DEFAULT_MODELS: Record<AIBackend, AIModel> = {
   azure: 'azure-gpt-4o',
   ollama: 'ollama-gemma4-e4b-it-q4-k-m',
   zai: 'zai-glm-5-2',
+  moonshot: 'moonshot-kimi-k3',
 };
 
 export let DEBATE_TIERS: Record<string, Record<string, string>> = {};
@@ -145,17 +153,23 @@ export let FALLBACK_CHAINS: Record<string, string[]> = {};
 
 // -- Module-level helpers --
 
+const KNOWN_BACKENDS: ReadonlySet<AIBackend> = new Set(['gemini', 'claude', 'groq', 'openai', 'deepseek', 'azure', 'ollama', 'zai', 'moonshot']);
+
+export function isKnownBackend(id: string): id is AIBackend {
+  return (KNOWN_BACKENDS as ReadonlySet<string>).has(id);
+}
+
 function getStoredBackend(): AIBackend {
   try {
     const stored = localStorage.getItem('taxonomy-editor-ai-backend');
-    if (stored === 'gemini' || stored === 'claude' || stored === 'groq' || stored === 'openai' || stored === 'deepseek' || stored === 'azure' || stored === 'ollama' || stored === 'zai') return stored;
+    if (stored && isKnownBackend(stored)) return stored;
   } catch (err) {
     getGlobalRecorder()?.record({ type: 'system.error', component: 'taxonomy-store', level: 'warn', message: 'Failed to read stored AI backend from localStorage', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
   }
   return 'gemini';
 }
 
-function getStoredModel(): AIModel {
+export function getStoredModel(): AIModel {
   try {
     const stored = localStorage.getItem('taxonomy-editor-gemini-model');
     if (stored && ALL_MODEL_IDS.has(stored)) return stored as AIModel;
@@ -215,7 +229,7 @@ export async function initAIModels(): Promise<void> {
   }
 }
 
-export function backendForModel(model: string): AIBackend {
+export function backendForModel(model: string): AIBackend | undefined {
   if (model.startsWith('gemini')) return 'gemini';
   if (model.startsWith('claude')) return 'claude';
   if (model.startsWith('groq')) return 'groq';
@@ -224,7 +238,19 @@ export function backendForModel(model: string): AIBackend {
   if (model.startsWith('azure')) return 'azure';
   if (model.startsWith('ollama')) return 'ollama';
   if (model.startsWith('zai')) return 'zai';
-  return 'gemini';
+  if (model.startsWith('moonshot')) return 'moonshot';
+  return undefined;
+}
+
+/** Backend for a model, falling back to the stored backend for unknown ids (debate-dialog family picker).
+ *  Records a debug FR event when the fallback fires (t/2486). Do NOT use for the urlContext gate — that must
+ *  use backendForModel() directly so unknown models never resolve to 'gemini'. */
+export function backendForModelWithFallback(model: string): AIBackend {
+  const b = backendForModel(model);
+  if (b) return b;
+  const fallback = getStoredBackend();
+  getGlobalRecorder()?.record({ type: 'ai.fallback', component: 'taxonomy-store', level: 'debug', message: `backendForModel: unknown model '${model}' → fallback backend '${fallback}'`, data: { model, fallbackBackend: fallback } });
+  return fallback;
 }
 
 // Theme resolution core moved to utils/theme.ts (t/2338) so the popout path

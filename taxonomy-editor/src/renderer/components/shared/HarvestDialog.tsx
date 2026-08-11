@@ -5,11 +5,10 @@ import { useState, useEffect, useMemo } from 'react';
 import { POV_KEYS } from '@lib/debate/types';
 import { api } from '@bridge';
 import { useDebateStore } from '../../hooks/useDebateStore';
-import { useTaxonomyStore } from '../../hooks/useTaxonomyStore';
+import { useTaxonomyStore, getStoredModel } from '../../hooks/useTaxonomyStore';
 import { useFeatureFlagStore } from '../../hooks/useFeatureFlags';
 import type { ArgumentNetworkNode } from '../../types/debate';
 import { QbafClaimBadge } from '../taxonomy/QbafOverlay';
-import { DEFAULT_MODEL } from '@lib/ai-client/defaults';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { triggerPovNodeRegeneration } from '../../utils/regeneratePlainDescription';
 import type { Pov } from '../../types/taxonomy';
@@ -236,8 +235,7 @@ export function HarvestDialog({ onClose, fileData }: HarvestDialogProps) {
     if (checked.length === 0) return;
     setGeneratingConflicts(true);
 
-    const model = useDebateStore.getState().debateModel ||
-      localStorage.getItem('taxonomy-editor-gemini-model') || DEFAULT_MODEL;
+    const model = useDebateStore.getState().debateModel || getStoredModel();
 
     for (const item of checked) {
       try {
@@ -301,8 +299,7 @@ IMPORTANT: Return ONLY claim_label and description. Do NOT include linked_taxono
     if (checked.length === 0) return;
     setGeneratingSteelmans(true);
 
-    const model = useDebateStore.getState().debateModel ||
-      localStorage.getItem('taxonomy-editor-gemini-model') || DEFAULT_MODEL;
+    const model = useDebateStore.getState().debateModel || getStoredModel();
 
     for (const item of checked) {
       try {
@@ -342,8 +339,7 @@ Return ONLY the condensed steelman text, no JSON, no quotes.`;
     const checked = concepts.filter(c => c.checked && !c.suggestedLabel);
     if (checked.length === 0) return;
 
-    const model = useDebateStore.getState().debateModel ||
-      localStorage.getItem('taxonomy-editor-gemini-model') || DEFAULT_MODEL;
+    const model = useDebateStore.getState().debateModel || getStoredModel();
 
     for (const item of checked) {
       try {
