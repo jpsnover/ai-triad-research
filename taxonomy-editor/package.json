@@ -15,7 +15,9 @@
   },
   "main": "dist/main/taxonomy-editor/src/main/main.js",
   "scripts": {
+    "predev": "node scripts/check-drift.cjs",
     "dev": "npm run build:main && concurrently \"npm run dev:vite\" \"npm run dev:electron\"",
+    "dev:fresh": "cross-env CHECK_DRIFT_FETCH=1 npm run dev",
     "dev:vite": "vite",
     "dev:web": "cross-env VITE_TARGET=web vite --host 0.0.0.0",
     "dev:server": "npm run build:server && node dist/server/taxonomy-editor/src/server/server.js",
