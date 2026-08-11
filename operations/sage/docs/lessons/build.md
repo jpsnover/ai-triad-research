@@ -2010,9 +2010,28 @@ Failure patterns related to builds, CI, tooling, environment, and git operations
 
 ---
 
+## #158 [Build] Barrel Import Loads Full Module Graph in Vitest — Transitive Module-Eval Crash Shows as "0 tests / TypeError"
+
+**Pattern:** Importing from a shared barrel (`from '../../shared'`) in vitest test files loads the full module graph at import time. A transitive module with a side-effectful initializer crashes all test files sharing the barrel import — showing "0 tests / TypeError" with no test names.
+
+**Instances:**
+- 2026-08-09 — DebateDiagnostics (t/2394, PR #761, p/245#5): barrel import transitively loaded PromptsPanel→promptCatalog→turn.ts, crashing at `c.voice.disposition` on undefined. Fix: direct file imports.
+
+**Root Cause:** Barrel re-exports expand the import surface to the entire module group. Vitest executes module-level code eagerly. "0 tests / TypeError" with no test names = import-time crash, not a test failure.
+
+**Prevention:**
+1. In test files, use direct file imports (`from '../../shared/ComponentName'`) not barrels.
+2. "0 tests / TypeError" with no test names → suspect barrel-import module-eval crash.
+
+**Status:** Active — 1 instance (DebateDiagnostics p/245#5).
+
+**Applies To:** All agents writing vitest tests that import from shared barrels.
+
+---
+
 ## #159 [Build] Smoke Gate That Checks the Deploy Workflow Itself Creates a Circular Block
 
-**Pattern:** A pre-traffic smoke gate that includes the deploy workflow in its "required workflows green" check creates a circular dependency — a failed deploy leaves the workflow red, permanently blocking redeployment via the gate.
+**Pattern:** A pre-traffic smoke gate including the deploy workflow in its "required workflows green" check creates a circular dependency — a failed deploy leaves the workflow red, permanently blocking redeployment via the gate.
 
 **Instances:**
 - 2026-08-10 — DevOps (t/2427, PR #789, p/26#75): `Test-GitHubHealth` checked `deploy-azure.yml @main` in `$KeyWorkflows`; failed deploy permanently blocked redeploys. Fix: remove deploy workflow from `$KeyWorkflows`.
@@ -2042,3 +2061,20 @@ Failure patterns related to builds, CI, tooling, environment, and git operations
 **Status:** Active — 1 instance (DevOps p/26#76).
 
 **Applies To:** All agents writing `az` CLI health checks from Bicep/REST schema references.
+
+---
+
+## #161 [Build] `git ls-files --others` Recurses Into Linked `.worktrees/` Directories — Times Out in a Busy Repo
+
+**Pattern:** `git ls-files --others --exclude-standard` without a pathspec recurses into every linked worktree dir under `.worktrees/`, enumerating thousands of files per worktree. Unlike `git status`, `ls-files --others` is not worktree-aware. Times out the 2-min Bash cap.
+
+**Instances:**
+- 2026-08-11 — Rosetta Stone (p/6#52): unbounded `ls-files --others` piped into per-file diff loop timed out. Fix: scope with `-- docs research` or `:(exclude).worktrees`.
+
+**Prevention:**
+1. Always scope: `git ls-files --others -- <scope>` or exclude: `git ls-files --others ':(exclude).worktrees'`.
+2. Prefer `git status -- <scope>` for untracked-file checks (worktree-aware).
+
+**Status:** Active — 1 instance (Rosetta Stone p/6#52).
+
+**Applies To:** All agents running untracked-file checks in the main repo.
