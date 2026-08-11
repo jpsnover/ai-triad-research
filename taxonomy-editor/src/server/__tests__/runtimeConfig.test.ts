@@ -300,7 +300,7 @@ describe('REST-endpoint support — file round-trip (t/927)', () => {
     const client = getClientConfig();
     expect(Object.keys(client).sort()).toEqual(['analytics', 'debate', 'flightRecorder', 'resilience']);
     expect(Object.keys(client.flightRecorder).sort()).toEqual(['dumpWindowMs', 'maxDumpsPerWindow', 'minDumpIntervalMs']);
-    expect(Object.keys(client.analytics)).toEqual(['bufferRequeueLimit']);
+    expect(Object.keys(client.analytics)).toEqual(['bufferRequeueLimit', 'IDLE_TIMEOUT_MS', 'MAX_ENGAGED_MS', 'ENGAGED_MIN_MS', 'MIN_VISIT_MS', 'PULSE_THROTTLE_MS']);
     expect(client.resilience.circuitThreshold).toBe(5);
     expect(client.debate).toEqual({
       defaultConfrontationRounds: 1, defaultArgumentationRounds: 2, defaultConcludingRounds: 1,
