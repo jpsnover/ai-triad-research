@@ -96,7 +96,7 @@ function extractResultMeta(method: string, args: unknown[], value: unknown): Rec
 /** Methods that should NOT be wrapped. */
 const SKIP = new Set([
   // Event listeners return unsubscribe functions, not promises
-  'onChatStreamChunk', 'onChatStreamDone', 'onChatStreamError',
+  'onChatStreamChunk', 'onChatStreamDone', 'onChatStreamError', 'onChatStreamUrlMetadata',
   'onDiagnosticsStateUpdate', 'onDiagnosticsPopoutClosed', 'onReExtractClaims',
   'onDebateWindowLoad', 'onDebatePopoutClosed',
   'onGenerateTextProgress', 'onReloadTaxonomy', 'onFocusNode', 'onTaxonomyUpdated',

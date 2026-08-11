@@ -13,6 +13,7 @@ import { ALL_API_KEY_BACKENDS } from '@lib/ai-client/types';
 import { encryptKeysForSharing, decryptKeysFromSharing } from '../utils/keyShareCrypto';
 import { resilientFetch, categorizeEndpoint, registerConnectionPoolProvider, type EndpointCategory } from './resilience';
 import { nextStepsForStatus } from './httpErrorSteps';
+import { runChatStream, chatStreamBus } from './chatStream';
 import { onQuotaMilestone } from '../hooks/useQuotaWarning';
 export { getResilienceState, subscribeResilience, resetResilience } from './resilience';
 export type { ResilienceStatus, CircuitState, ThrottleState, EndpointCategory } from './resilience';
@@ -960,10 +961,14 @@ const rawApi: AppAPI = {
     });
     return post('/api/ai/generate', body, undefined, { 'x-request-id': requestId });
   },
-  startChatStream: () => Promise.reject(new Error('Streaming chat not supported in web mode')),
-  onChatStreamChunk: () => () => {},
-  onChatStreamDone: () => () => {},
-  onChatStreamError: () => () => {},
+  // Chat streaming (SSE) — transport lives in ./chatStream (leaf module, t/2462). Shape-identical
+  // to the Electron preload so useChatStore consumes one contract from both bridges.
+  startChatStream: (systemInstruction, messages, model, temperature, urlContext) =>
+    runChatStream(fetchWithSessionRecovery, { systemInstruction, messages, model, temperature, urlContext }),
+  onChatStreamChunk: (cb) => chatStreamBus.onChunk(cb),
+  onChatStreamDone: (cb) => chatStreamBus.onDone(cb),
+  onChatStreamError: (cb) => chatStreamBus.onError(cb),
+  onChatStreamUrlMetadata: (cb) => chatStreamBus.onUrlMetadata(cb),
   setDebateTemperature: (temp) => post('/api/ai/temperature', { temp }).then(() => {}),
 
   // Proxy tier & usage
