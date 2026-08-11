@@ -63,6 +63,7 @@ const DiffWindow = recordingLazy(() => import('./components/shared/DiffWindow').
 const HarvestDialog = recordingLazy(() => import('./components/shared/HarvestDialog').then(m => ({ default: m.HarvestDialog })));
 const AnalyticsDashboard = recordingLazy(() => import('./components/analysis/AnalyticsDashboard').then(m => ({ default: m.AnalyticsDashboard })));
 const EngagementDashboard = recordingLazy(() => import('./components/analysis/EngagementDashboard').then(m => ({ default: m.EngagementDashboard })));
+const YourActivityPanel = recordingLazy(() => import('./components/analysis/YourActivityPanel').then(m => ({ default: m.YourActivityPanel })));
 const CommunityLibrary = recordingLazy(() => import('./components/community/CommunityLibrary').then(m => ({ default: m.CommunityLibrary })));
 const AdminPanel = recordingLazy(() => import('./components/settings/AdminPanel').then(m => ({ default: m.AdminPanel })));
 const AdminReviewPanel = recordingLazy(() => import('./components/settings/AdminReviewPanel').then(m => ({ default: m.AdminReviewPanel })));
@@ -210,6 +211,12 @@ export function App() {
   // the per-user data it serves.
   if (hash === '#engagement' && isAdmin) {
     return <ErrorBoundary buildInfo={BUILD_FINGERPRINT}><Suspense fallback={null}><EngagementDashboard /></Suspense></ErrorBoundary>;
+  }
+  // Self-only "Your Activity" view (t/2469). No admin gate — the panel requests only the
+  // caller's OWN engagement subtree, and the server (t/2467) never returns other users' rows
+  // to a non-admin. Reached from the Help menu (Settings-owned HelpDialog entry).
+  if (hash === '#your-activity') {
+    return <ErrorBoundary buildInfo={BUILD_FINGERPRINT}><Suspense fallback={null}><YourActivityPanel /></Suspense></ErrorBoundary>;
   }
   if (hash === '#community' && communityFlag) {
     return <ErrorBoundary buildInfo={BUILD_FINGERPRINT}><Suspense fallback={null}><CommunityLibrary /></Suspense></ErrorBoundary>;
