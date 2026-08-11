@@ -74,6 +74,12 @@
   margin-left: 3px;
 }
 
+/* "How claim strength is scored" doc-link, trailing the strength badge (t/2410 TheoryLink). */
+.claims-strength-doclink {
+  margin-left: 4px;
+  vertical-align: middle;
+}
+
 .claims-edge-count {
   color: var(--text-muted);
 }

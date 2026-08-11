@@ -7,6 +7,8 @@ import { computeQbafStrengths } from '@lib/debate/qbaf';
 import type { QbafNode, QbafEdge } from '@lib/debate/qbaf';
 import { speakerLabel, STRENGTH_BAND, getNodeLabel } from './utils';
 import { bandColor as computeBandColor, CONFIDENCE_BANDS } from '../../lib/bandColor';
+// Direct import, not via the '../shared' barrel — the barrel crashes at test module-eval (t/2420).
+import { TheoryLink } from '../shared/TheoryLink';
 import './ClaimsView.css';
 
 const ATTACK_TYPE_WEIGHTS: Record<string, number> = { rebut: 1.0, undercut: 1.05, undermine: 1.1 };
@@ -117,6 +119,12 @@ function ClaimGrid({ node, computed, base, delta, band, bandColor, bdiLabel, att
         {/* eslint-disable-next-line local/no-inline-style -- dynamic strength band color */}
         <span className="claims-dot" style={{ color: bandColor }}>●</span>{band.label} {computed.toFixed(2)}
         {Math.abs(delta) > 0.01 && <span className="claims-delta">{delta > 0 ? '+' : ''}{delta.toFixed(2)}</span>}
+        <TheoryLink
+          docPath="research/comp-linguist/docs/debate-claim-scoring.md"
+          size={12}
+          tooltip="How claim strength is scored"
+          className="claims-strength-doclink"
+        />
       </span>
       {/* Col 5: Edge count */}
       <span className="claims-edge-count" title={edgeColTitle(hasEdges, attacks, supports)}>

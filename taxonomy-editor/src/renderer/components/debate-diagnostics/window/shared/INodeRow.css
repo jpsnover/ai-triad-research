@@ -53,3 +53,6 @@
 .inr-loo-summary { color: var(--text-secondary); font-style: italic; margin-bottom: 4px; }
 .inr-loo-row { display: grid; grid-template-columns: 72px 160px 100px 1fr; gap: 4px; align-items: center; margin-top: 1px; }
 .inr-loo-more { font-size: var(--text-2xs); color: var(--text-muted); margin-top: 2px; }
+
+/* Strength cell: score badge + "how strength is scored" doc-link (t/2410 TheoryLink). */
+.inr-strength-cell { display: inline-flex; align-items: center; gap: 4px; }
