@@ -8,7 +8,7 @@
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import path from 'path';
-import { isAuthDisabledAllowed, isPathWithinDir, isTerminalAccessAllowed, isAnonAllowedRoute, invalidRouteParam, callerTierIdentity, clientSafeMessage, missingApiKeyError, expiredAuthCookies, anonymousSessionCookies, hasEasyAuthSessionCookie, resolveTestPersonaOverride } from '../security/accessControl.js';
+import { isAuthDisabledAllowed, isPathWithinDir, isTerminalAccessAllowed, isAnonAllowedRoute, invalidRouteParam, callerTierIdentity, clientSafeMessage, missingApiKeyError, expiredAuthCookies, anonymousSessionCookies, isValidAnonSessionId, resolveAnonSessionId, hasEasyAuthSessionCookie, resolveTestPersonaOverride } from '../security/accessControl.js';
 import { deriveStorageUserId } from '../security/userContext.js';
 import { resolveTier } from '../ai/proxyTiers.js';
 
@@ -34,7 +34,60 @@ describe('expiredAuthCookies (t/897)', () => {
   });
 });
 
-describe('anonymousSessionCookies (t/1483)', () => {
+describe('isValidAnonSessionId (t/2464)', () => {
+  it('accepts a well-formed UUID v4', () => {
+    expect(isValidAnonSessionId('550e8400-e29b-41d4-a716-446655440000')).toBe(true);
+    expect(isValidAnonSessionId('f47ac10b-58cc-4372-a567-0e02b2c3d479')).toBe(true);
+  });
+
+  it('rejects wrong version bit (not 4)', () => {
+    expect(isValidAnonSessionId('550e8400-e29b-31d4-a716-446655440000')).toBe(false); // version 3
+    expect(isValidAnonSessionId('550e8400-e29b-51d4-a716-446655440000')).toBe(false); // version 5
+  });
+
+  it('rejects wrong variant bits (not [89ab])', () => {
+    expect(isValidAnonSessionId('550e8400-e29b-41d4-0716-446655440000')).toBe(false); // variant 0x
+    expect(isValidAnonSessionId('550e8400-e29b-41d4-f716-446655440000')).toBe(false); // variant fx
+  });
+
+  it('rejects wrong length', () => {
+    expect(isValidAnonSessionId('550e8400-e29b-41d4-a716-44665544000')).toBe(false);  // 35 chars
+    expect(isValidAnonSessionId('550e8400-e29b-41d4-a716-4466554400000')).toBe(false); // 37 chars
+  });
+
+  it('rejects empty string, path traversal, SQL injection', () => {
+    expect(isValidAnonSessionId('')).toBe(false);
+    expect(isValidAnonSessionId('../etc/passwd')).toBe(false);
+    expect(isValidAnonSessionId("'; DROP TABLE sessions; --")).toBe(false);
+    expect(isValidAnonSessionId('UPPERCASE-UUID-4XXX-AXXX-XXXXXXXXXXXX')).toBe(false);
+  });
+});
+
+describe('resolveAnonSessionId (t/2464)', () => {
+  it('reuses a valid existing cookie value', () => {
+    const id = '550e8400-e29b-41d4-a716-446655440000';
+    expect(resolveAnonSessionId(id)).toBe(id);
+  });
+
+  it('mints a fresh UUID when existing is undefined', () => {
+    const result = resolveAnonSessionId(undefined);
+    expect(isValidAnonSessionId(result)).toBe(true);
+  });
+
+  it('mints a fresh UUID when existing is malformed — never echoes unvalidated input', () => {
+    const malformed = '../evil';
+    const result = resolveAnonSessionId(malformed);
+    expect(result).not.toBe(malformed);
+    expect(isValidAnonSessionId(result)).toBe(true);
+  });
+
+  it('mints a fresh UUID when existing is an empty string', () => {
+    const result = resolveAnonSessionId('');
+    expect(isValidAnonSessionId(result)).toBe(true);
+  });
+});
+
+describe('anonymousSessionCookies (t/1483 + t/2464)', () => {
   const saved = { env: process.env.NODE_ENV, origins: process.env.ALLOWED_ORIGINS };
   afterEach(() => {
     process.env.NODE_ENV = saved.env;
@@ -42,15 +95,21 @@ describe('anonymousSessionCookies (t/1483)', () => {
     else process.env.ALLOWED_ORIGINS = saved.origins;
   });
 
-  it('mints exactly the auth_anonymous flag + a fresh anon_session_id from the injected id', () => {
-    const out = anonymousSessionCookies(() => 'fixed-id-123');
+  it('mints exactly the auth_anonymous flag + the provided anon_session_id', () => {
+    const out = anonymousSessionCookies('fixed-id-123');
     expect(out).toHaveLength(2);
     expect(out[0]).toMatch(/^auth_anonymous=1;/);
     expect(out[1]).toMatch(/^anon_session_id=fixed-id-123;/);
   });
 
+  it('anon_session_id carries Max-Age=31536000 (1yr persistence); auth_anonymous does not', () => {
+    const out = anonymousSessionCookies('x');
+    expect(out[0]).not.toContain('Max-Age'); // session-scoped flag cookie
+    expect(out[1]).toContain('Max-Age=31536000');
+  });
+
   it('marks both cookies HttpOnly + SameSite=Lax so JS never reads them and CSRF is limited', () => {
-    for (const c of anonymousSessionCookies(() => 'x')) {
+    for (const c of anonymousSessionCookies('x')) {
       expect(c).toContain('HttpOnly');
       expect(c).toContain('SameSite=Lax');
       expect(c).toContain('Path=/');
@@ -60,19 +119,19 @@ describe('anonymousSessionCookies (t/1483)', () => {
   it('adds Secure in production', () => {
     process.env.NODE_ENV = 'production';
     delete process.env.ALLOWED_ORIGINS;
-    for (const c of anonymousSessionCookies(() => 'x')) expect(c).toContain('; Secure');
+    for (const c of anonymousSessionCookies('x')) expect(c).toContain('; Secure');
   });
 
   it('adds Secure when a cross-origin allowlist is configured (HTTPS deploy)', () => {
     process.env.NODE_ENV = 'development';
     process.env.ALLOWED_ORIGINS = 'https://app.example.com';
-    for (const c of anonymousSessionCookies(() => 'x')) expect(c).toContain('; Secure');
+    for (const c of anonymousSessionCookies('x')) expect(c).toContain('; Secure');
   });
 
   it('omits Secure in plain local dev so the cookie is still settable over HTTP', () => {
     process.env.NODE_ENV = 'development';
     delete process.env.ALLOWED_ORIGINS;
-    for (const c of anonymousSessionCookies(() => 'x')) expect(c).not.toContain('Secure');
+    for (const c of anonymousSessionCookies('x')) expect(c).not.toContain('Secure');
   });
 });
 
