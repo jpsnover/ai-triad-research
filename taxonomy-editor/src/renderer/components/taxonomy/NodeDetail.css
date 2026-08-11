@@ -357,6 +357,18 @@
   margin-bottom: 4px;
 }
 
+/* Steelman Vulnerability editors grow to fit their content instead of scrolling inside
+   the fixed rows={3}/rows={2} textarea (t/2414). The reported box clipped a long steelman
+   at ~3 lines with empty space below; field-sizing:content auto-sizes the textarea to its
+   text, min-height keeps the initial multi-row size, and the Content tab's own scroll
+   handles very long values. Engines without field-sizing keep the rows-based height (no
+   regression). Scoped to the vulnerability editor so other .ga-promoted-text / assumption
+   consumers are untouched. */
+.nd-vulnerability-input {
+  field-sizing: content;
+  min-height: calc(1.4em * 3 + 12px);
+}
+
 /* ── Debate-Tested metrics row (t/1585) ── */
 
 .nd-metrics-row {
