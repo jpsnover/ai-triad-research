@@ -14,7 +14,10 @@ import { getCurrentUser } from '../security/userContext.js';
 import { log } from '../logger.js';
 import { getGlobalRecorder } from '../../../../lib/flight-recorder/index.js';
 import { DEFAULT_MODEL, generateViaGeminiStream } from '../../../../lib/ai-client/index.js';
-import type { UrlContextMetadata, GeminiContent } from '../../../../lib/ai-client/index.js';
+import type { UrlContextMetadata, UrlContextEntry, GeminiContent } from '../../../../lib/ai-client/index.js';
+import { fetchUrlForPrompt } from '../../../../lib/url-fetch/fetchUrlForPrompt.js';
+import { extractHttpUrls } from '../../../../lib/url-fetch/extractHttpUrls.js';
+import type { UrlFetchOptions, UrlFetchResult } from '../../../../lib/url-fetch/types.js';
 import * as proxyTiers from '../ai/proxyTiers.js';
 import * as rateLimiter from '../security/rateLimiter.js';
 import * as ai from '../ai/aiBackends.js';
@@ -22,6 +25,97 @@ import { getApiKeys, hasApiKey, type AIBackend } from '../config.js';
 
 type ResolvedTier = ReturnType<typeof proxyTiers.resolveTier>;
 type ChatMessage = { role: 'user' | 'model'; content: string };
+
+// ── t/2483: app-side URL fetch-and-inject for non-URL-capable (non-Gemini) models ──
+// When a URL is pasted into chat and the model can't fetch it natively (only Gemini
+// has url_context), the server fetches the page via the SSRF-guarded shared util and
+// prepends its readable text as an ephemeral system block. Bounds (also the SSRF/DoS
+// surface — TL review t/2483#2): at most 3 URLs per message, a shared char budget, and
+// per-URL timeout/size caps. app-fetch is gated OFF for free/anonymous tiers (open-proxy
+// risk — t/2489#1 #3); the SSRF guard itself lives inside fetchUrlForPrompt.
+const URL_FETCH_MAX_URLS = 3;
+const URL_FETCH_TOTAL_CHAR_BUDGET = 24_000; // shared readable-text budget across the ≤3 URLs (~6k tokens)
+const URL_FETCH_TIMEOUT_MS = 10_000;
+const URL_FETCH_MAX_BYTES = 1_572_864; // ~1.5 MB
+const URL_FETCH_MAX_REDIRECTS = 5;
+
+type UrlFetchFn = (url: string, opts: UrlFetchOptions) => Promise<UrlFetchResult>;
+
+/**
+ * Build the non-Gemini combined prompt, optionally augmented with fetched URL content.
+ * When `enabled`, fetch up to URL_FETCH_MAX_URLS http(s) URLs from the latest user
+ * message (SSRF-guarded, shared char budget) and prepend their readable text as an
+ * ephemeral leading `System (fetched URL content):` block. Returns the prompt plus
+ * per-URL metadata (reusing Gemini's UrlContextEntry so the shared chip renders
+ * identically — TL-ratified). A typed fetch failure injects nothing (the caller's
+ * Stage-0 honest-fail systemInstruction stands) but still reports a FAILED entry.
+ *
+ * Never throws: a fetch-subsystem fault degrades to the un-augmented prompt so a URL
+ * problem can't break chat. `enabled` = caller's gate (urlContext requested AND the
+ * tier may app-fetch — never free/anonymous). `fetchFn` is injected for tests; the
+ * default carries the production SSRF guard — never pass a permissive checkAddress.
+ */
+export async function buildUrlInjectedPrompt(
+  messages: ChatMessage[],
+  systemInstruction: string,
+  enabled: boolean,
+  fetchFn: UrlFetchFn = fetchUrlForPrompt,
+): Promise<{ combinedPrompt: string; urlMeta: UrlContextEntry[] }> {
+  let injectedBlock = '';
+  let urlMeta: UrlContextEntry[] = [];
+
+  if (enabled) {
+    try {
+      const lastUser = [...messages].reverse().find(m => m.role === 'user');
+      const urls = lastUser ? extractHttpUrls(lastUser.content, URL_FETCH_MAX_URLS) : [];
+      let budget = URL_FETCH_TOTAL_CHAR_BUDGET;
+      for (const url of urls) {
+        const result = await fetchFn(url, {
+          timeoutMs: URL_FETCH_TIMEOUT_MS,
+          maxBytes: URL_FETCH_MAX_BYTES,
+          maxRedirects: URL_FETCH_MAX_REDIRECTS,
+          tokenBudget: budget,
+        });
+        if (result.ok) {
+          injectedBlock += `\n\nContent of ${result.finalUrl} fetched at ${new Date().toISOString()}:\n${result.text}`;
+          budget -= result.text.length;
+          urlMeta.push({ retrievedUrl: result.finalUrl, urlRetrievalStatus: 'SUCCESS' });
+          if (budget <= 0) break;
+        } else {
+          urlMeta.push({ retrievedUrl: url, urlRetrievalStatus: 'FAILED' });
+        }
+      }
+      if (urlMeta.length) {
+        getGlobalRecorder()?.record({
+          type: 'ai.request', component: 'ai-chat-stream', level: 'info',
+          message: 'chat-stream url fetch-and-inject',
+          data: {
+            requested: urls.length,
+            fetched: urlMeta.filter(e => e.urlRetrievalStatus === 'SUCCESS').length,
+            failed: urlMeta.filter(e => e.urlRetrievalStatus === 'FAILED').length,
+          },
+        });
+      }
+    } catch (err) {
+      // A fetch-subsystem fault must never break chat — drop injection, no metadata.
+      getGlobalRecorder()?.record({
+        type: 'system.error', component: 'ai-chat-stream', level: 'error',
+        message: 'chat-stream url fetch-and-inject failed; continuing without injection',
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+      });
+      injectedBlock = '';
+      urlMeta = [];
+    }
+  }
+
+  const combinedPrompt = [
+    injectedBlock && `System (fetched URL content):${injectedBlock}`,
+    systemInstruction && `System: ${systemInstruction}`,
+    ...messages.map(m => `${m.role === 'user' ? 'User' : 'Assistant'}: ${m.content}`),
+  ].filter(Boolean).join('\n\n');
+
+  return { combinedPrompt, urlMeta };
+}
 
 /** Pure mirror of routes/ai.ts callerIdentity — ALS-verified context, not raw headers (t/848). */
 function callerIdentity(): { principalName: string; idp: string } {
@@ -168,18 +262,15 @@ export function registerChatRoutes(r: Router, _ctx: ServerCtx): void {
           urlContext: urlContext as boolean,
         });
       } else {
-        // Non-Gemini: non-streaming fallback — stream as single synthetic chunk.
-        const combinedPrompt = [
-          systemInstruction && `System: ${systemInstruction}`,
-          ...(messages as ChatMessage[]).map(m => `${m.role === 'user' ? 'User' : 'Assistant'}: ${m.content}`),
-        ].filter(Boolean).join('\n\n');
-        const result = await ai.generateTextByUsage(
-          'server.chat-stream', { prompt: combinedPrompt },
-          { ...(effectiveModel ? { model: effectiveModel } : {}), temperature: effectiveTemperature },
-          undefined, explicitKey,
-        );
-        writeSse(res, { type: 'chunk', text: result.text });
-        writeSse(res, { type: 'done', fullText: result.text });
+        await streamNonGeminiChat(res, {
+          messages: messages as ChatMessage[],
+          systemInstruction: systemInstruction as string,
+          effectiveModel,
+          temperature: effectiveTemperature,
+          explicitKey,
+          tierLevel: tier.level,
+          urlContext: urlContext as boolean,
+        });
       }
 
       getGlobalRecorder()?.record({
@@ -256,4 +347,39 @@ async function streamGeminiChat(
     writeSse(res, { type: 'chat-stream-url-metadata', urlContextMetadata });
   }
   writeSse(res, { type: 'done', fullText });
+}
+
+/** Non-Gemini chat (t/2457 fallback + t/2483 app-fetch): optionally fetch-and-inject
+ *  URL content from the latest user message, then stream the non-streaming reply as a
+ *  single synthetic chunk. Emits the app-fetch url-metadata event (byte-identical to
+ *  the Gemini shape + `source:'app-fetch'`, TL-ratified) so the shared chip renders
+ *  identically. app-fetch is gated OFF for free/anonymous tiers (open-proxy risk —
+ *  t/2489#1 #3); anon is Gemini-pinned so it never reaches here, gated explicitly. */
+async function streamNonGeminiChat(
+  res: http.ServerResponse,
+  opts: {
+    messages: ChatMessage[];
+    systemInstruction: string;
+    effectiveModel: string | undefined;
+    temperature: number;
+    explicitKey: string | string[] | undefined;
+    tierLevel: ResolvedTier['level'];
+    urlContext: boolean;
+  },
+): Promise<void> {
+  const { messages, systemInstruction, effectiveModel, temperature, explicitKey, tierLevel, urlContext } = opts;
+  const appFetchAllowed = tierLevel !== 'free' && tierLevel !== 'anonymous';
+  const { combinedPrompt, urlMeta } = await buildUrlInjectedPrompt(
+    messages, systemInstruction, urlContext && appFetchAllowed,
+  );
+  const result = await ai.generateTextByUsage(
+    'server.chat-stream', { prompt: combinedPrompt },
+    { ...(effectiveModel ? { model: effectiveModel } : {}), temperature },
+    undefined, explicitKey,
+  );
+  writeSse(res, { type: 'chunk', text: result.text });
+  if (urlMeta.length) {
+    writeSse(res, { type: 'chat-stream-url-metadata', urlContextMetadata: { urlMetadata: urlMeta }, source: 'app-fetch' });
+  }
+  writeSse(res, { type: 'done', fullText: result.text });
 }
