@@ -67,7 +67,7 @@ function CampBars({
             onClick={() => onSelectCamp(isActive ? null : c.key)}
             role="button"
             tabIndex={0}
-            onKeyDown={e => e.key === 'Enter' && onSelectCamp(isActive ? null : c.key)}
+            onKeyDown={e => (e.key === 'Enter' || e.key === ' ') && onSelectCamp(isActive ? null : c.key)}
           >
             <div className="yap-camp-row-head">
               <span className="yap-camp-label">{label}</span>
