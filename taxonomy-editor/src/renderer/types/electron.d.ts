@@ -101,10 +101,11 @@ export interface ElectronAPI {
     searchQueries?: string[];
     citations?: { uri: string; title: string; segments: { startIndex: number; endIndex: number; text?: string; confidence?: number }[] }[];
   }>;
-  startChatStream: (systemInstruction: string, messages: { role: 'user' | 'model'; content: string }[], model?: string, temperature?: number) => Promise<string>;
+  startChatStream: (systemInstruction: string, messages: { role: 'user' | 'model'; content: string }[], model?: string, temperature?: number, urlContext?: boolean) => Promise<string>;
   onChatStreamChunk: (callback: (chunk: string) => void) => () => void;
   onChatStreamDone: (callback: (fullText: string) => void) => () => void;
   onChatStreamError: (callback: (error: string) => void) => () => void;
+  onChatStreamUrlMetadata?: (callback: (metadata: unknown) => void) => () => void;
   setDebateTemperature: (temp: number | null) => Promise<void>;
   onGenerateTextProgress: (callback: (progress: { attempt: number; maxRetries: number; backoffSeconds: number; limitType: string; limitMessage: string }) => void) => () => void;
   // onBriefTimeout / onBriefRetriesExhausted removed (t/2307) — brief-timeout now

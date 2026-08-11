@@ -36,9 +36,10 @@ import {
   withRetry,
   SERVER_RETRY_CONFIG,
   generateViaDeepSeekStream,
+  generateViaGeminiStream,
   DEFAULT_MODEL,
 } from '../../../lib/ai-client/index.js';
-import type { GenerateOptions, RateLimitType as SharedRateLimitType, FetchFn } from '../../../lib/ai-client/index.js';
+import type { GenerateOptions, RateLimitType as SharedRateLimitType, FetchFn, UrlContextMetadata, GeminiContent } from '../../../lib/ai-client/index.js';
 import type { ModelEntry } from '../../../lib/ai-client/index.js';
 import { resolveModelEntry as resolveModelEntryFromCache } from './modelConfigCache.js';
 
@@ -700,55 +701,14 @@ export interface ChatMessage {
   content: string;
 }
 
-/** Extract the text delta from one Gemini SSE `data:` payload. Returns null for an
- *  empty / `[DONE]` / malformed chunk (all skipped by design). Shared by the two
- *  identical parse sites the streaming loop used to inline (t/1914 complexity split). */
-function parseGeminiSseChunk(payload: string): string | null {
-  if (!payload || payload === '[DONE]') return null;
-  try {
-    const parsed = JSON.parse(payload) as { candidates?: { content?: { parts?: { text?: string }[] } }[] };
-    return parsed.candidates?.[0]?.content?.parts?.[0]?.text ?? null;
-  } catch {
-    /* telemetry — silent by design;  skip malformed chunks */
-    return null;
-  }
-}
-
-/** Drain a Gemini SSE stream, emitting each text delta via `onChunk` and returning the
- *  concatenated text. Extracted verbatim from generateChatStream's inline reader loop +
- *  trailing-buffer flush (t/1914). */
-async function readGeminiSseStream(
-  reader: ReadableStreamDefaultReader<Uint8Array>,
-  onChunk: (chunk: string) => void,
-): Promise<string> {
-  const decoder = new TextDecoder();
-  let fullText = '';
-  let buffer = '';
-  const emit = (payload: string): void => {
-    const text = parseGeminiSseChunk(payload);
-    if (text) { fullText += text; onChunk(text); }
-  };
-  for (;;) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    buffer += decoder.decode(value, { stream: true });
-    const lines = buffer.split('\n');
-    buffer = lines.pop() || '';
-    for (const line of lines) {
-      if (line.startsWith('data: ')) emit(line.slice(6).trim());
-    }
-  }
-  if (buffer.startsWith('data: ')) emit(buffer.slice(6).trim());
-  return fullText;
-}
-
 export async function generateChatStream(
   systemInstruction: string,
   messages: ChatMessage[],
   onChunk: (chunk: string) => void,
   model?: string,
   temperature?: number,
-): Promise<string> {
+  urlContext?: boolean,
+): Promise<{ text: string; urlContextMetadata?: UrlContextMetadata }> {
   const friendlyModel = model || DEFAULT_MODEL;
   const backend = resolveBackend(friendlyModel);
   const entry = resolveModelEntry(friendlyModel);
@@ -782,59 +742,21 @@ export async function generateChatStream(
       ? await generateViaDeepSeekStream(electronFetch, prompt, resolvedModel, apiKey, opts, onChunk)
       : await callProvider(electronFetch, backend, prompt, resolvedModel, apiKey, opts);
     if (backend !== 'deepseek') onChunk(providerResult.text);
-    return providerResult.text;
+    return { text: providerResult.text };
   }
 
-  const url = `${GEMINI_BASE}/${resolvedModel}:streamGenerateContent?alt=sse&key=${apiKey}`;
-  const contents = messages.map(m => ({
-    role: m.role,
-    parts: [{ text: m.content }],
-  }));
-
-  const _streamBody = JSON.stringify({
-    system_instruction: { parts: [{ text: systemInstruction }] },
-    contents,
-    generationConfig: {
-      temperature: temperature ?? 0.3,
-      maxOutputTokens: 16384,
-    },
-    safetySettings: GEMINI_SAFETY_SETTINGS,
-  });
-  const response = await net.fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: Buffer.from(_streamBody, 'utf-8'),
-  });
-
-  if (!response.ok) {
-    const errBody = await response.text();
-    throw new ActionableError({
-      goal: 'Stream chat response via Gemini API',
-      problem: `Gemini API error ${response.status}: ${errBody.slice(0, 500)}`,
-      location: 'embeddings.generateChatStream',
-      nextSteps: [
-        'Check the API response status and error message above.',
-        'Verify your Gemini API key is valid in Settings.',
-        'If rate limited, wait a moment and try again.',
-      ],
-    });
-  }
-
-  const reader = response.body?.getReader();
-  if (!reader) throw new ActionableError({
-    goal: 'Stream chat response via Gemini API',
-    problem: 'No response body reader available from the Gemini streaming response.',
-    location: 'embeddings.generateChatStream',
-    nextSteps: [
-      'This may indicate a network or Electron fetch issue.',
-      'Try again or restart the application.',
-      'If the problem persists, switch to a non-streaming backend.',
-    ],
-  });
-
-  const fullText = await readGeminiSseStream(reader, onChunk);
-  console.log(`[chatStream] Complete, total length: ${fullText.length}`);
-  return fullText;
+  const geminiContents: GeminiContent[] = messages.map(m => ({ role: m.role, parts: [{ text: m.content }] }));
+  const opts: GenerateOptions = {
+    temperature: temperature ?? 0.3,
+    timeoutMs: getDefaultTimeout(friendlyModel),
+    systemMessage: systemInstruction,
+    geminiContents,
+    urlContext,
+    ...fixedTempOverride(entry),
+  };
+  const result = await generateViaGeminiStream(electronFetch, '', resolvedModel, apiKey, opts, onChunk);
+  console.log(`[chatStream] Complete, total length: ${result.text.length}`);
+  return { text: result.text, urlContextMetadata: result.urlContextMetadata };
 }
 
 export interface GroundingSegment {
