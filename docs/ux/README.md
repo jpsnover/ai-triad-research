@@ -26,4 +26,5 @@ Active UX specs in `docs/ux/`. Design owns these; coding agents reference them d
 | `debate-list-tables.md` | My/Community debate tabs → full-width tables (Title/Status/Date/Turns/Model/Actions); Title wraps, per-row Open/Export/Share|Copy controls (t/2305) |
 | `base-scale-calibration.md` | Raise base type baseline + tokenize icon sizes so 100% reads comfortably on web (fonts/icons tiny at 100%) |
 | `regenerate-phrases-toggle.md` | Opt-in phrase regeneration on reflection edits (t/611, done) |
+| `usage-analytics-instrumentation.md` | Hierarchical engagement tracking proposal — visit/dwell heuristic, tool→camp→category→node roll-up, admin + per-user dashboards (t/2463) |
 | `design-system.md` | Design system reference (living document) |
