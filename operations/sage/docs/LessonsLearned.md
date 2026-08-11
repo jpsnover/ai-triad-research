@@ -3317,7 +3317,7 @@ Institutional memory for failure patterns across the AI Triad Research project.
 **Pattern:** A `<script>` in `<head>` runs `document.querySelector()`/`getElementById()` synchronously. The target element does not exist yet (body not parsed). The query returns null silently — no error, no behavior. Tests inject a complete body so they pass; in the browser the script is a no-op at load time.
 
 **Instances:**
-- 2026-08-11 — ServerAPI (t/2474, PR #849): a `<head>` script used `querySelector` to read a hash value before `DOMContentLoaded`. Tests injected a complete body, so they passed. In the browser (page loading) the query returned null — silent no-op, the feature did not work in production. Fix: wrap DOM query in `DOMContentLoaded` listener (PR #850, 265de260).
+- 2026-08-11 — ServerAPI (t/2474, PR #849): a `<head>` script used `querySelector('.anon-link')` to rewrite the element's href with `location.hash`, but ran before `DOMContentLoaded` — `.anon-link` didn't exist yet, query returned null, rewrite silently skipped. Tests injected a complete body, so they passed. In the browser the script was a no-op. Fix: wrap in `DOMContentLoaded` listener (PR #850, 265de260).
 
 **Root Cause:** `<head>` scripts execute before the browser parses the body. Test environments typically inject a complete DOM rather than simulating the browser's parse order, masking the timing gap. The test passed because the DOM was ready when the script ran; production failed because it wasn't.
 

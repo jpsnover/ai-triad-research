@@ -2086,7 +2086,7 @@ Failure patterns related to builds, CI, tooling, environment, and git operations
 **Pattern:** A `<script>` in `<head>` calls `querySelector`/`getElementById` synchronously. The body isn't parsed yet — query returns null silently. Tests inject a ready DOM so they pass; in the browser (loading) the script is a no-op.
 
 **Instances:**
-- 2026-08-11 — ServerAPI (t/2474, PR #849): `<head>` script used `querySelector` to read a hash value before `DOMContentLoaded`. Tests injected a complete body → passed. Browser → silent null → feature broken in production. Fix: `DOMContentLoaded` wrapper (PR #850).
+- 2026-08-11 — ServerAPI (t/2474, PR #849): `<head>` script used `querySelector('.anon-link')` to rewrite the element's href with `location.hash` before `DOMContentLoaded` — element absent, query null, rewrite silently skipped. Tests injected complete body → passed. Browser → no-op → feature broken in production. Fix: `DOMContentLoaded` wrapper (PR #850).
 
 **Prevention:**
 1. Any DOM query in an inline `<head>` script must be deferred: `document.addEventListener('DOMContentLoaded', () => { ... })`.
