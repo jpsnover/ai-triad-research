@@ -422,7 +422,21 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       const model = getConfiguredModel();
       const temperature = CHAT_MODE_TEMPERATURE[activeChat.mode];
 
-      const urlContext = URL_PATTERN.test(message.trim()) && backendForModel(model) === 'gemini';
+      const urlDetected = URL_PATTERN.test(message.trim());
+      const urlContext = urlDetected && backendForModel(model) === 'gemini';
+      getGlobalRecorder()?.record({
+        type: 'chat.url-context-decision',
+        component: 'chat-store',
+        level: 'info',
+        message: 'URL context gating decision',
+        data: {
+          url_detected: urlDetected,
+          url_context_enabled: urlContext,
+          gating_reason: !urlDetected ? 'no-url' : urlContext ? 'enabled' : 'model-not-capable',
+          ingestion_path: urlContext ? 'provider' : 'none',
+          model,
+        },
+      });
       const systemInstruction = chatSystemPrompt(
         info.label, info.pov, info.personality,
         activeChat.mode, activeChat.topic, taxonomyBlock,
