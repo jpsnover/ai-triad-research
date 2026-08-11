@@ -30,6 +30,7 @@ import { SpeakerIdentity } from '../shared/SpeakerIdentity';
 import { EmptyState } from '../shared/EmptyState';
 import { ThinkingIndicator, MessageBubble, StreamingBubble } from '../shared/ChatBubble';
 import { useFlag } from '../../hooks/useFeatureFlags';
+import { UrlContextChip } from './UrlContextChip';
 import './ChatWorkspace.css';
 
 // ── Helpers ──────────────────────────────────────────────
@@ -184,6 +185,9 @@ function ChatMessage({ entry, selectedRef, onSelectRef }: { entry: ChatEntry; se
           <Markdown remarkPlugins={[remarkGfm, remarkColorizePov, remarkLinkifyRefs]} components={mdComponents}>{entry.content}</Markdown>
         </MessageBubble>
         <TaxonomyRefsSection refs={entry.taxonomy_refs} selectedRef={selectedRef} onSelectRef={onSelectRef} />
+        {!isUser && entry.url_context_metadata && (
+          <UrlContextChip metadata={entry.url_context_metadata} />
+        )}
       </div>
     </div>
   );

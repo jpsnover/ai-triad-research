@@ -1,0 +1,30 @@
+/* UrlContextChip — co-located styles for URL-context fetch indicators */
+
+.url-context-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 6px;
+}
+
+.url-context-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 0.7rem;
+  line-height: 1.4;
+  max-width: 280px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: default;
+  background: color-mix(in srgb, var(--focus-ring) 12%, transparent);
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+}
+
+.url-context-chip--failed {
+  background: color-mix(in srgb, var(--warning) 10%, transparent);
+  color: var(--text-muted);
+}
