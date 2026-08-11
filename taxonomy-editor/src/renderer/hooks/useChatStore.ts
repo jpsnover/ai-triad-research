@@ -11,7 +11,7 @@ import type {
 import type { SpeakerId, TaxonomyRef } from '../types/debate';
 import { POVER_INFO } from '../types/debate';
 import type { PovNode, CrossCuttingNode as SituationNode } from '../types/taxonomy';
-import { useTaxonomyStore } from './useTaxonomyStore';
+import { useTaxonomyStore, backendForModel } from './useTaxonomyStore';
 import { mapErrorToUserMessage } from '../utils/errorMessages';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { api } from '@bridge';
@@ -422,7 +422,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       const model = getConfiguredModel();
       const temperature = CHAT_MODE_TEMPERATURE[activeChat.mode];
 
-      const urlContext = URL_PATTERN.test(message.trim());
+      const urlContext = URL_PATTERN.test(message.trim()) && backendForModel(model) === 'gemini';
       const systemInstruction = chatSystemPrompt(
         info.label, info.pov, info.personality,
         activeChat.mode, activeChat.topic, taxonomyBlock,

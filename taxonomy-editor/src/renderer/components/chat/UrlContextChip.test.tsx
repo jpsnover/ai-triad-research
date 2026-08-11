@@ -73,4 +73,17 @@ describe('chatSystemPrompt urlContext param', () => {
     expect(prompt).toContain("ground your response");
     expect(prompt).not.toContain("you have not visited that URL");
   });
+
+  it('non-Gemini model gates urlContext to false → honest-fail text in prompt', async () => {
+    // backendForModel('claude-3-5-sonnet') === 'claude', not 'gemini'
+    // so URL_PATTERN.test(msg) && backendForModel(model) === 'gemini' is false
+    const { backendForModel } = await import('../../hooks/useTaxonomyStore');
+    const { chatSystemPrompt } = await import('../../prompts/chat');
+    const nonGeminiModel = 'claude-3-5-sonnet';
+    const urlContext = /https?:\/\/\S+/.test('https://example.com') && backendForModel(nonGeminiModel) === 'gemini';
+    expect(urlContext).toBe(false);
+    const prompt = chatSystemPrompt('Label', 'pov', 'personality', 'inform', 'topic', 'ctx', urlContext);
+    expect(prompt).toContain("you have not visited that URL");
+    expect(prompt).not.toContain("url_context tool");
+  });
 });
