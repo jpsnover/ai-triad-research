@@ -235,11 +235,18 @@ function StrengthBadgeCell({ node, computedStrength }: { node: ArgumentNetworkNo
   const computed = computedStrength ?? node.computed_strength ?? base;
   const delta = computed - base;
   return (
-    <ScoreBadge
-      value={computed}
-      label="strength"
-      tooltip={`Strength: ${computed.toFixed(2)} (base: ${base.toFixed(2)}, delta: ${delta >= 0 ? '+' : ''}${delta.toFixed(2)})`}
-    />
+    <span className="inr-strength-cell">
+      <ScoreBadge
+        value={computed}
+        label="strength"
+        tooltip={`Strength: ${computed.toFixed(2)} (base: ${base.toFixed(2)}, delta: ${delta >= 0 ? '+' : ''}${delta.toFixed(2)})`}
+      />
+      <TheoryLink
+        docPath="research/comp-linguist/docs/debate-claim-scoring.md"
+        size={12}
+        tooltip="How claim strength is scored"
+      />
+    </span>
   );
 }
 
