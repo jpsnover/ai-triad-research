@@ -71,17 +71,17 @@ const FIXTURE_TREE = {
 };
 
 const FIXTURE_USERS = [
-  { user: 'alice@example.com', engagedMs: 120_000, sessions: 5, topCamp: 'saf', topNode: 'saf-bel-001', lastActive: new Date(Date.now() - 60_000).toISOString() },
-  { user: 'bob@example.com',   engagedMs:  60_000, sessions: 2, topCamp: 'acc', topNode: 'acc-bel-001', lastActive: new Date(Date.now() - 3_600_000).toISOString() },
+  { user: 'alice@example.com', visits: 50, engagedVisits: 40, engagedMs: 120_000, topCamp: 'saf', lastActive: new Date(Date.now() - 60_000).toISOString() },
+  { user: 'bob@example.com',   visits: 20, engagedVisits: 15, engagedMs:  60_000, topCamp: 'acc', lastActive: new Date(Date.now() - 3_600_000).toISOString() },
 ];
 
 const FIXTURE_RESULT = {
   aggregate: FIXTURE_TREE,
   subtree: null,
   daily: [
-    { date: '2026-08-04', engagedMs: 80_000, visits: 30 },
-    { date: '2026-08-05', engagedMs: 60_000, visits: 20 },
-    { date: '2026-08-06', engagedMs: 100_000, visits: 40 },
+    { date: '2026-08-04', visits: 30, engagedVisits: 24, engagedMs: 80_000 },
+    { date: '2026-08-05', visits: 20, engagedVisits: 16, engagedMs: 60_000 },
+    { date: '2026-08-06', visits: 40, engagedVisits: 32, engagedMs: 100_000 },
   ],
   users: FIXTURE_USERS,
 };
