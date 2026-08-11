@@ -73,6 +73,12 @@ export interface RuntimeConfig {
   analytics: {
     retentionDays: number;
     bufferRequeueLimit: number;
+    /** t/2472: dwell engagement thresholds (docs/ux/usage-analytics-instrumentation.md §3.3) */
+    IDLE_TIMEOUT_MS: number;
+    MAX_ENGAGED_MS: number;
+    ENGAGED_MIN_MS: number;
+    MIN_VISIT_MS: number;
+    PULSE_THROTTLE_MS: number;
   };
   flightRecorder: {
     minDumpIntervalMs: number;
@@ -170,6 +176,11 @@ const DEFAULTS: RuntimeConfig = {
   analytics: {
     retentionDays: 90,
     bufferRequeueLimit: 500,
+    IDLE_TIMEOUT_MS: 60_000,
+    MAX_ENGAGED_MS: 1_800_000,
+    ENGAGED_MIN_MS: 8_000,
+    MIN_VISIT_MS: 1_000,
+    PULSE_THROTTLE_MS: 5_000,
   },
   flightRecorder: {
     minDumpIntervalMs: 10_000,
@@ -387,6 +398,11 @@ export function validateAndMerge(raw: unknown, defaults: RuntimeConfig): { confi
     analytics: {
       retentionDays: vNum(an.retentionDays, defaults.analytics.retentionDays, { min: 1, max: 3_650, integer: true }, 'analytics.retentionDays', errors),
       bufferRequeueLimit: vNum(an.bufferRequeueLimit, defaults.analytics.bufferRequeueLimit, { min: 0, max: 1_000_000, integer: true }, 'analytics.bufferRequeueLimit', errors),
+      IDLE_TIMEOUT_MS: vNum(an.IDLE_TIMEOUT_MS, defaults.analytics.IDLE_TIMEOUT_MS, { min: 0, max: DURATION_MAX }, 'analytics.IDLE_TIMEOUT_MS', errors),
+      MAX_ENGAGED_MS: vNum(an.MAX_ENGAGED_MS, defaults.analytics.MAX_ENGAGED_MS, { min: 0, max: DURATION_MAX }, 'analytics.MAX_ENGAGED_MS', errors),
+      ENGAGED_MIN_MS: vNum(an.ENGAGED_MIN_MS, defaults.analytics.ENGAGED_MIN_MS, { min: 0, max: DURATION_MAX }, 'analytics.ENGAGED_MIN_MS', errors),
+      MIN_VISIT_MS: vNum(an.MIN_VISIT_MS, defaults.analytics.MIN_VISIT_MS, { min: 0, max: DURATION_MAX }, 'analytics.MIN_VISIT_MS', errors),
+      PULSE_THROTTLE_MS: vNum(an.PULSE_THROTTLE_MS, defaults.analytics.PULSE_THROTTLE_MS, { min: 0, max: DURATION_MAX }, 'analytics.PULSE_THROTTLE_MS', errors),
     },
     flightRecorder: {
       minDumpIntervalMs: vNum(fr.minDumpIntervalMs, defaults.flightRecorder.minDumpIntervalMs, { min: 0, max: DURATION_MAX }, 'flightRecorder.minDumpIntervalMs', errors),
@@ -625,7 +641,7 @@ export function diffFromDefaults(): ConfigDiffEntry[] {
 export interface ClientConfig {
   resilience: RuntimeConfig['resilience'];
   flightRecorder: Pick<RuntimeConfig['flightRecorder'], 'minDumpIntervalMs' | 'maxDumpsPerWindow' | 'dumpWindowMs'>;
-  analytics: Pick<RuntimeConfig['analytics'], 'bufferRequeueLimit'>;
+  analytics: Pick<RuntimeConfig['analytics'], 'bufferRequeueLimit' | 'IDLE_TIMEOUT_MS' | 'MAX_ENGAGED_MS' | 'ENGAGED_MIN_MS' | 'MIN_VISIT_MS' | 'PULSE_THROTTLE_MS'>;
   debate: RuntimeConfig['debate'];
 }
 
@@ -643,7 +659,14 @@ export function getClientConfig(): ClientConfig {
       maxDumpsPerWindow: c.flightRecorder.maxDumpsPerWindow,
       dumpWindowMs: c.flightRecorder.dumpWindowMs,
     },
-    analytics: { bufferRequeueLimit: c.analytics.bufferRequeueLimit },
+    analytics: {
+      bufferRequeueLimit: c.analytics.bufferRequeueLimit,
+      IDLE_TIMEOUT_MS: c.analytics.IDLE_TIMEOUT_MS,
+      MAX_ENGAGED_MS: c.analytics.MAX_ENGAGED_MS,
+      ENGAGED_MIN_MS: c.analytics.ENGAGED_MIN_MS,
+      MIN_VISIT_MS: c.analytics.MIN_VISIT_MS,
+      PULSE_THROTTLE_MS: c.analytics.PULSE_THROTTLE_MS,
+    },
     debate: c.debate,
   };
 }
