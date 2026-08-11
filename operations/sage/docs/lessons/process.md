@@ -711,3 +711,21 @@ Failure patterns related to tooling configuration, agent workflows, and operatio
 **Status:** Active — 1 instance (Rosetta Stone p/6#47).
 
 **Applies To:** All agents working in the shared main checkout alongside concurrent uncommitted changes from other agents.
+
+---
+
+## #162 [Process] Same-Role Duplicate Implementation from Session/Context Loss — Self-Race
+
+**Pattern:** An agent loses context between passes and implements the same ticket twice — the second PR is opened unaware the first has already merged, based on pre-merge state. Requires manual reconciliation by TL.
+
+**Instances:**
+- 2026-08-11 — ServerAPI (t/2474): PR #849 merged at 18:55; PR #850 opened at 19:01 from a pre-#849 base (session/context loss between passes). TL merged #850's variant over it (265de260, t/2474#4-5).
+
+**Prevention:**
+1. **Before opening any PR, search open AND merged PRs for the ticket key:** `gh pr list --state all --search "t/XXXX" -R jpsnover/ai-triad-research`.
+2. After a context boundary, re-read the ticket's latest comments before writing code — the ticket is where completed work is recorded.
+3. If a merged PR is found, close stale work and redirect to a follow-up ticket.
+
+**Status:** Active — 1 instance (ServerAPI t/2474, p/335#24).
+
+**Applies To:** All agents implementing tickets across session boundaries.

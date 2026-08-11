@@ -3291,3 +3291,43 @@ Institutional memory for failure patterns across the AI Triad Research project.
 **Status:** Active — 1 instance (Rosetta Stone p/6#52).
 
 **Applies To:** All agents running untracked-file checks in the main repo.
+
+---
+
+## #162 [Process] Same-Role Duplicate Implementation from Session/Context Loss — Self-Race
+
+**Pattern:** An agent loses context between passes (session boundary, context compression) and implements the same ticket twice — opening a second PR unaware the first has already merged. The second PR is based on pre-merge state, diverges from the landed implementation, and requires manual reconciliation.
+
+**Instances:**
+- 2026-08-11 — ServerAPI (t/2474): PR #849 merged at 18:55 (co-authored); PR #850 opened at 19:01 from a pre-#849 base, evidently unaware #849 had landed. Likely caused by session/context loss between passes. TL merged #850's variant over it (265de260); details t/2474#4-5.
+
+**Root Cause:** Context window exhaustion or session restart causes an agent to lose awareness of prior work completed in the same ticket. The agent resumes from the ticket description, not from the merged state. Without an explicit "check existing PRs" step, the agent begins fresh implementation.
+
+**Prevention:**
+1. **Before opening a PR, search open AND merged PRs for the ticket key:** `gh pr list --state all --search "t/XXXX" -R jpsnover/ai-triad-research`. If a merged PR exists, read its diff before writing any code.
+2. After a context boundary (session restart, long gap, context compression), re-read the ticket's latest comments before starting implementation — the ticket anchor is where completed work is recorded.
+3. If a merged PR is found for the ticket, close any draft/stale work and redirect to a follow-up ticket rather than overwriting the landed implementation.
+
+**Status:** Active — 1 instance (ServerAPI t/2474, p/335#24).
+
+**Applies To:** All agents implementing tickets across session boundaries.
+
+---
+
+## #163 [Build] Inline `<head>` Script DOM Query Runs Before DOM Ready — Silent No-Op in Production, Tests Pass
+
+**Pattern:** A `<script>` in `<head>` runs `document.querySelector()`/`getElementById()` synchronously. The target element does not exist yet (body not parsed). The query returns null silently — no error, no behavior. Tests inject a complete body so they pass; in the browser the script is a no-op at load time.
+
+**Instances:**
+- 2026-08-11 — ServerAPI (t/2474, PR #849): a `<head>` script used `querySelector('.anon-link')` to rewrite the element's href with `location.hash`, but ran before `DOMContentLoaded` — `.anon-link` didn't exist yet, query returned null, rewrite silently skipped. Tests injected a complete body, so they passed. In the browser the script was a no-op. Fix: wrap in `DOMContentLoaded` listener (PR #850, 265de260).
+
+**Root Cause:** `<head>` scripts execute before the browser parses the body. Test environments typically inject a complete DOM rather than simulating the browser's parse order, masking the timing gap. The test passed because the DOM was ready when the script ran; production failed because it wasn't.
+
+**Prevention:**
+1. **Any DOM query in an inline `<head>` script must be deferred:** `document.addEventListener('DOMContentLoaded', () => { ... })`.
+2. **Test harnesses for `<head>` scripts must simulate browser parse order:** set up the environment at `readyState='loading'` and fire `DOMContentLoaded` after setup — do not inject a pre-built body.
+3. **Code review heuristic:** inline `<head>` `<script>` + `querySelector`/`getElementById` without a `DOMContentLoaded` wrapper = instant flag.
+
+**Status:** Active — 1 instance (ServerAPI t/2474, p/335#24).
+
+**Applies To:** All agents authoring inline `<head>` scripts with DOM queries.
