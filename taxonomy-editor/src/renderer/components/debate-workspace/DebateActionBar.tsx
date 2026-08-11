@@ -24,16 +24,34 @@ export function ProgressIndicator() {
   const { debateActivity, debateProgress } = useDebateStore(
     useShallow(s => ({ debateActivity: s.debateActivity, debateProgress: s.debateProgress }))
   );
+  const [countdown, setCountdown] = useState(0);
+
+  // Reset countdown whenever a new retry with a fresh backoff window starts.
+  useEffect(() => {
+    setCountdown(debateProgress?.backoffSeconds ?? 0);
+  }, [debateProgress?.attempt, debateProgress?.backoffSeconds]);
+
+  // Tick while backing off; clear interval automatically when countdown hits 0.
+  const isBackingOff = countdown > 0;
+  useEffect(() => {
+    if (!isBackingOff) return;
+    const id = setInterval(() => setCountdown(c => Math.max(0, c - 1)), 1000);
+    return () => clearInterval(id);
+  }, [isBackingOff]);
 
   if (!debateActivity) return null;
+
+  const showRetry = debateProgress && (debateProgress.attempt > 1 || debateProgress.phase === 'retry');
 
   return (
     <div className="debate-progress-indicator">
       <span className="debate-progress-activity">{debateActivity}</span>
-      {debateProgress && (debateProgress.attempt > 1 || debateProgress.phase === 'retry') && (
+      {showRetry && (
         <span className="debate-progress-retry">
           Retry {debateProgress.attempt}/{debateProgress.maxRetries}
-          {debateProgress.backoffSeconds ? ` (waiting ${debateProgress.backoffSeconds}s)` : ''}
+          {debateProgress.backoffSeconds
+            ? (countdown > 0 ? ` (waiting ${countdown}s)` : ' (retrying now…)')
+            : ''}
         </span>
       )}
       {debateProgress?.limitMessage && (
@@ -959,27 +977,29 @@ export function DebateActions({ showParamHistory, setShowParamHistory, showEvalu
             />
             <AudienceSelect audience={audience} setAudience={setAudience} disabled={disableAnalysis || isClosed} />
           </div>
-          <div className="debate-composer-right">
-            <button
-              type="button"
-              className="debate-composer-send"
-              onClick={() => void handleSend()}
-              disabled={!input.trim() || disableAnalysis}
-            >
-              Send
-            </button>
-            {!isSocratic && (
-              <ContinueButton
-                isAdaptive={isAdaptive}
-                isStepMode={isStepMode}
-                disableAnalysis={disableAnalysis}
-                crossRespondTurns={crossRespondTurns}
-                onCrossRespond={handleCrossRespond}
-                onToggleStepMode={toggleStepMode}
-                setCrossRespondTurns={setCrossRespondTurns}
-              />
-            )}
-          </div>
+          {!isClosed && (
+            <div className="debate-composer-right">
+              <button
+                type="button"
+                className="debate-composer-send"
+                onClick={() => void handleSend()}
+                disabled={!input.trim() || disableAnalysis}
+              >
+                Send
+              </button>
+              {!isSocratic && (
+                <ContinueButton
+                  isAdaptive={isAdaptive}
+                  isStepMode={isStepMode}
+                  disableAnalysis={disableAnalysis}
+                  crossRespondTurns={crossRespondTurns}
+                  onCrossRespond={handleCrossRespond}
+                  onToggleStepMode={toggleStepMode}
+                  setCrossRespondTurns={setCrossRespondTurns}
+                />
+              )}
+            </div>
+          )}
         </div>
       </div>
       {isGenerating && (
