@@ -314,6 +314,11 @@ export function retryAfterMs(err: unknown): number {
   return 30_000;
 }
 
+/** Resolve a friendly model name to its provider API model ID (t/2457 streaming path). */
+export function getResolvedApiModelId(friendlyId: string): string {
+  return getApiModelId(friendlyId);
+}
+
 // Normalize the caller-supplied key(s) to a filtered array, or undefined when the
 // caller passed nothing (→ fall back to the stored keys for each backend).
 function normalizeExplicitKeys(explicitApiKey: string | string[] | undefined): string[] | undefined {
