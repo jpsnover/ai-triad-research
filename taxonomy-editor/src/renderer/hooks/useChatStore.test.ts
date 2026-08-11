@@ -33,6 +33,8 @@ vi.mock('./useTaxonomyStore', () => ({
     }),
   },
   MODELS_BY_BACKEND: { gemini: [{ value: 'gemini-flash-lite-latest', label: 'Flash Lite' }] },
+  getStoredModel: () => 'gemini-flash-lite-latest',
+  backendForModel: () => 'gemini',
 }));
 
 vi.mock('../utils/taxonomyContext', () => ({
