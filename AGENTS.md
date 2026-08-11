@@ -63,10 +63,11 @@ The hook is self-documenting (see its header comment). Owner / emergency overrid
 
 ### Pre-Self-Merge Verification (confirm head + CI-on-that-head)
 
-Before `gh pr merge`, confirm the merge lands the commit you intend, with checks that ran on **that** commit. Two incidents landed the wrong/incomplete commit: a stale PR-head squash-merged on a predecessor's green checks (#710 — the pushed fix never shipped), and a merge that raced an unresolved decision (#701).
+Before `gh pr merge`, confirm the merge lands the commit you intend, onto the base you intend, with checks that ran on **that** commit. Three incident classes: a stale PR-head squash-merged on a predecessor's green checks (#710 — the pushed fix never shipped), a merge that raced an unresolved decision (#701), and two PRs merged into a squash-dead feature branch instead of `main` (#830/#831 — content stranded off-main, t/2470).
 
-Confirm all three first:
+Confirm all four first:
 
+0. **Base is `main`.** `gh pr view <N> --json baseRefName` MUST be `main` (or a base the ticket explicitly names). GitHub silently suggests the parent feature branch as base when your branch was cut from one — and a "merged" PR against a branch that later squash-merges leaves your content off-main with no error anywhere.
 1. **Head matches your push.** `gh pr view <N> --json headRefOid` MUST equal your latest pushed commit SHA. GitHub's PR-head ref can lag a fresh push by minutes — if it doesn't match, re-push (or `git push --force-with-lease`) and wait for the head to advance. Never merge against a stale head.
 2. **CI ran on that exact OID.** `gh run list --commit <headRefOid>` is green — **not** a predecessor's run. A green check attached to an older commit does not vouch for the new one.
 3. **No open decision/hold** on the PR you haven't cleared.
