@@ -116,7 +116,7 @@ function CampDistribution({
             onClick={() => onSelectCamp(isActive ? null : c.key)}
             role="button"
             tabIndex={0}
-            onKeyDown={e => e.key === 'Enter' && onSelectCamp(isActive ? null : c.key)}
+            onKeyDown={e => (e.key === 'Enter' || e.key === ' ') && onSelectCamp(isActive ? null : c.key)}
           >
             <div className="eng-camp-row-head">
               <span className="eng-camp-label">{label}</span>
@@ -237,6 +237,8 @@ function PerUserTable({ users }: { users: UserRow[] }) {
   const Th = ({ col, label, align = 'right' }: { col: UserSortCol; label: string; align?: 'left' | 'right' }) => (
     <th
       onClick={() => handleSort(col)}
+      onKeyDown={e => (e.key === 'Enter' || e.key === ' ') && handleSort(col)}
+      tabIndex={0}
       className="eng-th"
       /* eslint-disable-next-line local/no-inline-style -- dynamic: sort-active color + textAlign per column */
       style={{ textAlign: align, color: sortCol === col ? 'var(--text-primary)' : 'var(--text-muted)' }}
@@ -369,6 +371,7 @@ export function EngagementDashboard() {
             <input
               type="text"
               className="eng-user-filter"
+              aria-label="Filter by user"
               placeholder="Filter by user…"
               value={userFilter}
               onChange={e => setUserFilter(e.target.value)}
