@@ -11,11 +11,10 @@ import type {
 import type { SpeakerId, TaxonomyRef } from '../types/debate';
 import { POVER_INFO } from '../types/debate';
 import type { PovNode, CrossCuttingNode as SituationNode } from '../types/taxonomy';
-import { useTaxonomyStore, backendForModel } from './useTaxonomyStore';
+import { useTaxonomyStore, backendForModel, getStoredModel } from './useTaxonomyStore';
 import { mapErrorToUserMessage } from '../utils/errorMessages';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { api } from '@bridge';
-import { DEFAULT_MODEL } from '@lib/ai-client/defaults';
 import type { UrlContextMetadata } from '@lib/ai-client/index';
 import { formatTaxonomyContext } from '../utils/taxonomyContext';
 import type { TaxonomyContext, FormatContextConfig } from '../utils/taxonomyContext';
@@ -38,12 +37,7 @@ function getConfiguredModel(): string {
   // eslint-disable-next-line @typescript-eslint/no-use-before-define -- store defined below, safe at call-time
   const chatModel = useChatStore.getState().chatModel;
   if (chatModel) return chatModel;
-  try {
-    return localStorage.getItem('taxonomy-editor-gemini-model') || DEFAULT_MODEL;
-  } catch (err) {
-    getGlobalRecorder()?.record({ type: 'system.error', component: 'chat-store', level: 'debug', message: 'Failed to read chat model from localStorage', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
-    return DEFAULT_MODEL;
-  }
+  return getStoredModel();
 }
 
 const URL_PATTERN = /https?:\/\/\S+/;

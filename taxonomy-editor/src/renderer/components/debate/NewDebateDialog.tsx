@@ -5,7 +5,7 @@ import { useState, useMemo, useEffect, useRef, useLayoutEffect } from 'react';
 import type { TextareaHTMLAttributes, RefObject } from 'react';
 import { useDebateStore } from '../../hooks/useDebateStore';
 import { useShallow } from 'zustand/react/shallow';
-import { useTaxonomyStore, AI_BACKENDS, MODELS_BY_BACKEND, DEBATE_TIERS, FALLBACK_CHAINS, backendForModel, initAIModels, type AIBackend } from '../../hooks/useTaxonomyStore';
+import { useTaxonomyStore, AI_BACKENDS, MODELS_BY_BACKEND, DEBATE_TIERS, FALLBACK_CHAINS, backendForModelWithFallback, initAIModels, type AIBackend } from '../../hooks/useTaxonomyStore';
 import { POVER_INFO, DEBATE_AUDIENCES } from '../../types/debate';
 import type { SpeakerId, DebateSourceType, DebateAudience } from '../../types/debate';
 import { DEBATE_PROTOCOLS } from '../../data/debateProtocols';
@@ -439,7 +439,7 @@ function DebateSettingsDialog({
   const [localExcludedBackends, setLocalExcludedBackends] = useState(() => new Set(initExcludedBackends));
   const [localUseCustomModel, setLocalUseCustomModel] = useState(initUseCustomModel);
   const [localCustomModel, setLocalCustomModel] = useState(initCustomModel);
-  const [localCustomFamily, setLocalCustomFamily] = useState<AIBackend>(() => backendForModel(initCustomModel));
+  const [localCustomFamily, setLocalCustomFamily] = useState<AIBackend>(() => backendForModelWithFallback(initCustomModel));
   const [refreshing, setRefreshing] = useState(false);
   // Sourcing
   const [localExcludeGreatestHits, setLocalExcludeGreatestHits] = useState(initExcludeGreatestHits);
@@ -1011,14 +1011,14 @@ export function NewDebateDialog({ onClose, onAtCap }: NewDebateDialogProps) {
   );
 
   const activeModel = computeActiveModel(freeTier, tierInfo, useCustomModel, customModel, globalModel);
-  const activeModelBackend = backendForModel(activeModel);
+  const activeModelBackend = backendForModelWithFallback(activeModel);
   const activeModelExcluded = DEBATE_EXCLUDED_BACKENDS.has(activeModelBackend);
   const activeModelHasKey = computeActiveModelHasKey(activeModelExcluded, hasApiKey, activeModelBackend, freeTier, tierInfo);
 
   // fallbackWarnings — computed but consumed by Screen B (t/2201); suppress lint
   const fallbackWarnings = useMemo(() => {
     const chain = FALLBACK_CHAINS[activeModel] ?? [];
-    return chain.map(m => ({ model: m, backend: backendForModel(m) })).filter(({ backend }) => hasApiKey[backend] === false).map(({ model, backend }) => `${model} (${backend})`);
+    return chain.map(m => ({ model: m, backend: backendForModelWithFallback(m) })).filter(({ backend }) => hasApiKey[backend] === false).map(({ model, backend }) => `${model} (${backend})`);
   }, [activeModel, hasApiKey]);
   void fallbackWarnings;
 

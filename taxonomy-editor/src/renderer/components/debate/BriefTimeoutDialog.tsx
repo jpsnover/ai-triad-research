@@ -5,7 +5,7 @@ import { useState } from 'react';
 import {
   AI_BACKENDS,
   MODELS_BY_BACKEND,
-  backendForModel,
+  backendForModelWithFallback,
   type AIBackend,
 } from '../../hooks/useTaxonomyStore';
 import './BriefTimeoutDialog.css';
@@ -21,7 +21,7 @@ interface BriefTimeoutDialogProps {
 export function BriefTimeoutDialog({
   speakerLabel, totalAttempts, currentModel, onRetry, onAbort,
 }: BriefTimeoutDialogProps) {
-  const [family, setFamily] = useState<AIBackend>(() => backendForModel(currentModel));
+  const [family, setFamily] = useState<AIBackend>(() => backendForModelWithFallback(currentModel));
   const [model, setModel] = useState(currentModel);
 
   const modelOptions = MODELS_BY_BACKEND[family] ?? [];
