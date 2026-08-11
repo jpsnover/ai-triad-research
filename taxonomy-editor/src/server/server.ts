@@ -395,15 +395,11 @@ registerDataRoutes(router, serverCtx);
 // cluster's original first-route position (the interspersed /api/auth/* routes stay).
 registerKeysRoutes(router, serverCtx);
 
-// ── Auth-logout / AI generation / proxy-info / embeddings+NLI (t/1687: routes/ai.ts) ──
-// Registers between registerKeysRoutes and registerDebatesRoutes, preserving the routeTable snapshot order.
+// ── Auth-logout / AI generation / proxy-info / embeddings+NLI + SSE chat (t/1687, t/2457) ──
 registerAiRoutes(router, serverCtx);
-
-// ── Multi-turn SSE chat streaming (t/2457) ──
 registerChatRoutes(router, serverCtx);
 
 // ── Debate sessions ──
-
 // t/1295: the /api/debates cluster (9 routes) moved to routes/debates.ts. This
 // single registration replaces both former debates blocks (was here + ~L1831),
 // registering all 9 at this position to preserve collision-pair order.

@@ -58,7 +58,7 @@ function resolveExplicitAiKey(
 /** Write one SSE event. No-op when the response is already closed (client disconnect). */
 function writeSse(res: http.ServerResponse, payload: Record<string, unknown>): void {
   if (res.writableEnded) return;
-  try { res.write(`data: ${JSON.stringify(payload)}\n\n`); } catch { /* client disconnected */ }
+  try { res.write(`data: ${JSON.stringify(payload)}\n\n`); } catch { /* telemetry — silent by design */ }
 }
 
 export function registerChatRoutes(r: Router, _ctx: ServerCtx): void {
@@ -247,6 +247,7 @@ async function streamGeminiChat(
     );
     urlContextMetadata = result.urlContextMetadata;
   } catch (streamErr) {
+    log.server.warn({ err: streamErr }, 'chat-stream: generateViaGeminiStream threw');
     writeSse(res, { type: 'error', message: clientSafeMessage(String(streamErr)), code: 'STREAM_ERROR' });
     return;
   }
