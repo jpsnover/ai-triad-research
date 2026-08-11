@@ -62,6 +62,7 @@ import { registerEdgesRoutes } from './routes/edges.js';
 import { registerConflictsRoutes, invalidateConflictsCache, warmConflictsCache } from './routes/conflicts.js';
 import { registerDataRoutes } from './routes/data.js';
 import { registerAiRoutes } from './routes/ai.js';
+import { registerChatRoutes } from './routes/chat.js';
 import { registerDiagnosticsRoutes } from './routes/diagnostics.js';
 import { registerSupportRoutes } from './routes/support.js';
 import { registerSourcesRoutes } from './routes/sources.js';
@@ -397,6 +398,9 @@ registerKeysRoutes(router, serverCtx);
 // ── Auth-logout / AI generation / proxy-info / embeddings+NLI (t/1687: routes/ai.ts) ──
 // Registers between registerKeysRoutes and registerDebatesRoutes, preserving the routeTable snapshot order.
 registerAiRoutes(router, serverCtx);
+
+// ── Multi-turn SSE chat streaming (t/2457) ──
+registerChatRoutes(router, serverCtx);
 
 // ── Debate sessions ──
 

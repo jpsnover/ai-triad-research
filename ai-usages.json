@@ -306,6 +306,17 @@
     "_extends": "server.chat-response",
     "description": "Paid Gemini fallback when free-tier keys are exhausted"
   },
+  "server.chat-stream": {
+    "description": "Server-side multi-turn SSE streaming chat (/api/ai/chat-stream, t/2457)",
+    "model": "gemini-flash-lite-latest",
+    "temperature": 0.7,
+    "timeoutMs": 120000,
+    "tags": [
+      "server",
+      "chat",
+      "streaming"
+    ]
+  },
   "server.search": {
     "description": "Server-side AI search via Gemini grounding or Tavily augmentation",
     "model": "gemini-flash-lite-latest",
