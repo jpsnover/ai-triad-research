@@ -186,4 +186,23 @@ describe('generateViaGeminiStream — urlContext', () => {
     expect(result.text).toBe('ok');
     expect(result.urlContextMetadata).toBeUndefined();
   });
+
+  it('sends geminiContents directly when provided, bypassing single-prompt construction', async () => {
+    let capturedBody = '';
+    const fetchFn: FetchFn = async (_url, init) => {
+      capturedBody = init?.body as string;
+      const encoder = new TextEncoder();
+      const data = encoder.encode(`data: ${JSON.stringify(streamChunk('reply'))}\n`);
+      const stream = new ReadableStream<Uint8Array>({ start(c) { c.enqueue(data); c.close(); } });
+      return { ok: true, status: 200, body: stream } as unknown as Response;
+    };
+    const contents = [
+      { role: 'user', parts: [{ text: 'hello' }] },
+      { role: 'model', parts: [{ text: 'hi' }] },
+      { role: 'user', parts: [{ text: 'what is 2+2?' }] },
+    ];
+    await generateViaGeminiStream(fetchFn, '', 'gemini-pro', 'key', { timeoutMs: 5000, geminiContents: contents });
+    const parsed = JSON.parse(capturedBody);
+    expect(parsed.contents).toEqual(contents);
+  });
 });
