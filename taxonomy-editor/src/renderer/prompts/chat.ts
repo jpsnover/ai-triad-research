@@ -88,6 +88,9 @@ ${taxonomyContext}
 === CONVERSATION TOPIC ===
 ${topic}
 
+=== HANDLING LINKS ===
+When the user's message contains a URL: you have not visited that URL and cannot read its contents. Lead your response by stating this clearly (e.g., "I haven't read that link") and ask the user to paste the relevant text. Do not speculate about or summarise the page's contents.
+
 Respond ONLY with a JSON object in this exact format (no markdown, no code fences):
 {
   "response": "Your response text here (use markdown formatting for structure)",
