@@ -86,10 +86,23 @@ function stripThinkingBlocks(text: string): string {
 }
 
 /** Parse the POVer's JSON response into content + taxonomy refs */
-export function parseChatResponse(text: string): { response: string; taxonomyRefs: TaxonomyRef[] } {
+export function parseChatResponse(text: string, model?: string): { response: string; taxonomyRefs: TaxonomyRef[] } {
+  const stripped = stripThinkingBlocks(text);
+  // Observability (t/2454): a stripped-vs-input difference means a reasoning model
+  // (DeepSeek/Groq) emitted a <think> block. Record it so thinking-model incidents are
+  // diagnosable from a flight-recorder dump without a live repro. Silent otherwise.
+  if (stripped !== text.trim()) {
+    getGlobalRecorder()?.record({
+      type: 'chat.thinking-stripped',
+      component: 'chat-store',
+      level: 'debug',
+      message: 'Stripped thinking block from model response',
+      data: { model: model ?? null, blockLength: text.length - stripped.length },
+    });
+  }
   try {
-    const parsed = JSON.parse(stripCodeFences(stripThinkingBlocks(text)));
-    const response = parsed.response || stripThinkingBlocks(text);
+    const parsed = JSON.parse(stripCodeFences(stripped));
+    const response = parsed.response || stripped;
     const taxonomyRefs: TaxonomyRef[] = Array.isArray(parsed.taxonomy_refs)
       ? parsed.taxonomy_refs
         .filter((r: Record<string, unknown>) => r.node_id && typeof r.node_id === 'string')
@@ -101,7 +114,7 @@ export function parseChatResponse(text: string): { response: string; taxonomyRef
     return { response, taxonomyRefs };
   } catch (err) {
     getGlobalRecorder()?.record({ type: 'system.error', component: 'chat-store', level: 'debug', message: 'Chat response JSON parse failed, using raw text', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
-    return { response: stripThinkingBlocks(text), taxonomyRefs: [] };
+    return { response: stripped, taxonomyRefs: [] };
   }
 }
 
@@ -312,7 +325,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
 
       if (!isStillValid()) return;
 
-      const { response, taxonomyRefs } = parseChatResponse(fullText);
+      const { response, taxonomyRefs } = parseChatResponse(fullText, model);
 
       const entry: ChatEntry = {
         id: generateId(),
@@ -414,7 +427,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
 
       if (!isStillValid()) return;
 
-      const { response, taxonomyRefs } = parseChatResponse(fullText);
+      const { response, taxonomyRefs } = parseChatResponse(fullText, model);
 
       const poverEntry: ChatEntry = {
         id: generateId(),

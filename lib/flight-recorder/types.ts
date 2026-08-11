@@ -67,6 +67,7 @@ export type EventType =
   | 'state.init'
   // Chat
   | 'chat.user-message'
+  | 'chat.thinking-stripped'
   // User interaction
   | 'user.action'
   | 'ui.navigate'
