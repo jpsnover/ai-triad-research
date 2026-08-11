@@ -16,7 +16,7 @@ const { mockApi, mockRecord } = vi.hoisted(() => {
     onChatStreamChunk: vi.fn().mockReturnValue(() => {}),
     trackEvent: vi.fn(),
   };
-  return { mockApi };
+  return { mockApi, mockRecord };
 });
 
 vi.mock('@bridge', () => ({ api: mockApi }));
