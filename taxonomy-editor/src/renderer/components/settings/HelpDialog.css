@@ -72,6 +72,10 @@
 .helpdialog-ref-link { color: var(--accent); font-size: 0.85em; }
 .helpdialog-shortcuts-h4 { margin-top: 0; }
 
+.helpdialog-tab-sep { height: 1px; background: var(--border); margin: 6px 0; }
+.helpdialog-tab-nav { border-left: 2px solid transparent; color: var(--text-secondary); }
+.helpdialog-tab-nav:hover { color: var(--text-primary); }
+
 .helpdialog-resize-e { position: absolute; right: -4px; top: 0; width: 14px; height: 100%; cursor: ew-resize; z-index: 10; }
 .helpdialog-resize-s { position: absolute; bottom: -4px; left: 0; width: 100%; height: 14px; cursor: ns-resize; z-index: 10; }
 .helpdialog-resize-se { position: absolute; right: -4px; bottom: -4px; width: 20px; height: 20px; cursor: nwse-resize; opacity: 0.4; z-index: 11; }
