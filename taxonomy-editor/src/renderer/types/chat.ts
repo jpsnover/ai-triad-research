@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import type { SpeakerId, TaxonomyRef } from './debate.js';
+import type { UrlContextMetadata } from '@lib/ai-client/index';
 
 export type ChatMode = 'brainstorm' | 'inform' | 'decide';
 
@@ -12,6 +13,7 @@ export interface ChatEntry {
   content: string;
   taxonomy_refs: TaxonomyRef[];
   metadata?: Record<string, unknown>;
+  url_context_metadata?: UrlContextMetadata;
 }
 
 export interface ChatSession {

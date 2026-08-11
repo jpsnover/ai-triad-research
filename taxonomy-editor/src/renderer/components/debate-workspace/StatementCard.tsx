@@ -36,9 +36,13 @@ import { CommentOverlay, useEntryCommentCount } from '../chat/CommentHighlights'
 import { useCommentStore } from '../../hooks/useCommentStore';
 import type { DetailTier } from '@lib/debate/comments';
 import { TaxonomyRefsSection } from './TaxonomyRefs';
+import { api } from '@bridge';
 
 /** Remark pipeline for debate transcript text: GFM + POV colorization + ID-token ref links (t/1776). */
 const DEBATE_REMARK_PLUGINS = [remarkGfm, remarkColorizePov, remarkLinkifyRefs];
+
+/** Taxonomy Vocabulary System spec — linked from the TERMS meta-view header (t/2471). */
+const VOCAB_SPEC_URL = 'https://github.com/jpsnover/ai-triad-research/blob/main/docs/taxonomy-vocabulary-system-spec.md';
 
 /** Human-readable labels for the fact-check verdict taxonomy (t/1701 / t/1716). */
 const FACT_VERDICT_LABEL: Record<FactVerdict, string> = {
@@ -878,6 +882,10 @@ function StatementBody({
       {isMetaView && (
         <div className="debate-meta-mode-label">
           {TIER_LABELS[displayedTier]?.toUpperCase()}
+          {displayedTier === 'terms' && (
+            <a href="#" className="debate-meta-mode-spec-link" title="Open the Taxonomy Vocabulary System spec"
+              onClick={(e) => { e.preventDefault(); void api.openExternal(VOCAB_SPEC_URL); }}>🔖 spec</a>
+          )}
           {displayedTier === 'convergence' && (
             <TheoryLink
               docPath="research/comp-linguist/docs/convergence-signals-guide.md"

@@ -36,7 +36,7 @@ import { GitHubAPIBackend } from './storage/githubAPIBackend.js';
 import { SessionBranchManager } from './storage/sessionBranchManager.js';
 import { runWithUser, getCurrentUserId, setSessionBranchName, deriveStorageUserId } from './security/userContext.js';
 import type { UserContext } from './security/userContext.js';
-import { isAuthDisabledAllowed, isPathWithinDir, isTerminalAccessAllowed, isAnonAllowedRoute, invalidRouteParam, missingApiKeyError, anonymousSessionCookies, resolveTestPersonaOverride } from './security/accessControl.js';
+import { isAuthDisabledAllowed, isPathWithinDir, isTerminalAccessAllowed, isAnonAllowedRoute, invalidRouteParam, missingApiKeyError, anonymousSessionCookies, resolveAnonSessionId, resolveTestPersonaOverride } from './security/accessControl.js';
 import { sanitizeUserText } from './security/contentSanitizer.js';
 import { getRollbackStatus } from './rollbackStatus.js';
 import { getErrorSummaryCached, type ErrorEntry } from './errorAggregation.js';
@@ -62,6 +62,7 @@ import { registerEdgesRoutes } from './routes/edges.js';
 import { registerConflictsRoutes, invalidateConflictsCache, warmConflictsCache } from './routes/conflicts.js';
 import { registerDataRoutes } from './routes/data.js';
 import { registerAiRoutes } from './routes/ai.js';
+import { registerChatRoutes } from './routes/chat.js';
 import { registerDiagnosticsRoutes } from './routes/diagnostics.js';
 import { registerSupportRoutes } from './routes/support.js';
 import { registerSourcesRoutes } from './routes/sources.js';
@@ -394,12 +395,11 @@ registerDataRoutes(router, serverCtx);
 // cluster's original first-route position (the interspersed /api/auth/* routes stay).
 registerKeysRoutes(router, serverCtx);
 
-// ── Auth-logout / AI generation / proxy-info / embeddings+NLI (t/1687: routes/ai.ts) ──
-// Registers between registerKeysRoutes and registerDebatesRoutes, preserving the routeTable snapshot order.
+// ── Auth-logout / AI generation / proxy-info / embeddings+NLI + SSE chat (t/1687, t/2457) ──
 registerAiRoutes(router, serverCtx);
+registerChatRoutes(router, serverCtx);
 
 // ── Debate sessions ──
-
 // t/1295: the /api/debates cluster (9 routes) moved to routes/debates.ts. This
 // single registration replaces both former debates blocks (was here + ~L1831),
 // registering all 9 at this position to preserve collision-pair order.
@@ -891,7 +891,7 @@ function handleAnonAuthEndpoints(req: http.IncomingMessage, res: http.ServerResp
   if (urlPath === '/.auth/anonymous' && authOptional) {
     res.writeHead(302, {
       'Location': '/',
-      'Set-Cookie': anonymousSessionCookies(() => crypto.randomUUID()),
+      'Set-Cookie': anonymousSessionCookies(resolveAnonSessionId(parseCookies(req).get('anon_session_id'))), // t/2464
     });
     res.end();
     return true;
@@ -907,7 +907,7 @@ function handleAnonAuthEndpoints(req: http.IncomingMessage, res: http.ServerResp
   if (urlPath === '/api/auth/anonymous' && req.method === 'POST' && authOptional) {
     res.writeHead(200, {
       'Content-Type': 'application/json',
-      'Set-Cookie': anonymousSessionCookies(() => crypto.randomUUID()),
+      'Set-Cookie': anonymousSessionCookies(resolveAnonSessionId(parseCookies(req).get('anon_session_id'))), // t/2464
     });
     res.end(JSON.stringify({ ok: true, anonymous: true }));
     return true;

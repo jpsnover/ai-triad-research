@@ -31,6 +31,12 @@ export interface ClientConfig {
   };
   analytics: {
     bufferRequeueLimit: number;
+    /** t/2466: engagement/dwell-tracking thresholds (see docs/ux/usage-analytics-instrumentation.md §3.3) */
+    IDLE_TIMEOUT_MS: number;
+    MAX_ENGAGED_MS: number;
+    ENGAGED_MIN_MS: number;
+    MIN_VISIT_MS: number;
+    PULSE_THROTTLE_MS: number;
   };
   healthProbe: {
     intervalMs: number;
@@ -84,6 +90,12 @@ const DEFAULTS: ClientConfig = {
   },
   analytics: {
     bufferRequeueLimit: 500,
+    // t/2466: defaults per docs/ux/usage-analytics-instrumentation.md §3.3
+    IDLE_TIMEOUT_MS: 60_000,
+    MAX_ENGAGED_MS: 1_800_000,
+    ENGAGED_MIN_MS: 8_000,
+    MIN_VISIT_MS: 1_000,
+    PULSE_THROTTLE_MS: 5_000,
   },
   healthProbe: {
     intervalMs: 30_000,

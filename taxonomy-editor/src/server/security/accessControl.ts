@@ -65,20 +65,44 @@ export function expiredAuthCookies(presentCookieNames: string[]): string[] {
     `${n}=; Path=/; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT; HttpOnly; Secure; SameSite=Lax`);
 }
 
+// UUID v4: version bit = 4, variant bits = [89ab]. Matches exactly
+// crypto.randomUUID() output — length and charset are checked simultaneously.
+const ANON_SESSION_UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+
+/** t/2464: true iff `id` has the exact shape produced by crypto.randomUUID(). */
+export function isValidAnonSessionId(id: string): boolean {
+  return ANON_SESSION_UUID_RE.test(id);
+}
+
+/**
+ * t/2464: reuse-not-rotate. Returns `existing` when it is a well-formed UUID v4
+ * (the only shape this server ever mints), otherwise mints a fresh one.
+ *
+ * INVARIANT: `existing` MUST come from parseCookies(req) — never from a query
+ * parameter, request body, or header. The HttpOnly flag prevents JS from forging
+ * the cookie; query/body/header inputs are untrusted and must never reach here.
+ */
+export function resolveAnonSessionId(existing: string | undefined): string {
+  return (existing !== undefined && isValidAnonSessionId(existing))
+    ? existing
+    : crypto.randomUUID();
+}
+
 /**
  * Mint the two anonymous-session cookies: the `auth_anonymous=1` flag the auth
- * gate reads and a fresh `anon_session_id`. Shared by GET /.auth/anonymous (302)
- * and POST /api/auth/anonymous (JSON, t/1483) so the Secure-flag gating can't
- * drift between the two mint sites. HttpOnly (never read by JS; the session id
- * is never echoed in a response body) and SameSite=Lax. Secure is added in
- * production or whenever cross-origin is configured, matching the deployed HTTPS
- * posture while staying settable over plain HTTP in local dev.
+ * gate reads and the `anon_session_id` pseudonymous identifier. Shared by
+ * GET /.auth/anonymous (302) and POST /api/auth/anonymous (JSON, t/1483) so
+ * the Secure-flag gating can't drift between the two mint sites.
+ * HttpOnly (never read by JS) and SameSite=Lax. Secure is added in production
+ * or whenever cross-origin is configured. Max-Age=1yr on anon_session_id makes
+ * it persistent across browser sessions (t/2464); auth_anonymous stays session-
+ * scoped so it acts as a "logged in anonymously" signal only while the tab is open.
  */
-export function anonymousSessionCookies(randomId: () => string): string[] {
+export function anonymousSessionCookies(sessionId: string): string[] {
   const secureSuffix = process.env.NODE_ENV === 'production' || process.env.ALLOWED_ORIGINS ? '; Secure' : '';
   return [
     `auth_anonymous=1; Path=/; HttpOnly; SameSite=Lax${secureSuffix}`,
-    `anon_session_id=${randomId()}; Path=/; HttpOnly; SameSite=Lax${secureSuffix}`,
+    `anon_session_id=${sessionId}; Path=/; HttpOnly; SameSite=Lax; Max-Age=31536000${secureSuffix}`,
   ];
 }
 

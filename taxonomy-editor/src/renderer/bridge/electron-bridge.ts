@@ -145,10 +145,11 @@ export const api: AppAPI = {
   // AI generation
   generateText: (prompt, model, timeout, temperature) => window.electronAPI.generateText(prompt, model, timeout, temperature),
   generateTextWithSearch: (prompt, model) => window.electronAPI.generateTextWithSearch(prompt, model),
-  startChatStream: (sys, msgs, model, temp) => window.electronAPI.startChatStream(sys, msgs, model, temp),
+  startChatStream: (sys, msgs, model, temp, urlContext) => window.electronAPI.startChatStream(sys, msgs, model, temp, urlContext),
   onChatStreamChunk: (cb) => window.electronAPI.onChatStreamChunk(cb),
   onChatStreamDone: (cb) => window.electronAPI.onChatStreamDone(cb),
   onChatStreamError: (cb) => window.electronAPI.onChatStreamError(cb),
+  onChatStreamUrlMetadata: (cb) => window.electronAPI.onChatStreamUrlMetadata?.(cb) ?? (() => {}),
   setDebateTemperature: (temp) => window.electronAPI.setDebateTemperature(temp),
 
   // Embeddings & NLI — local WebNN/WASM first, IPC fallback
