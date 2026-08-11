@@ -10,6 +10,7 @@ import {
   deriveSubject,
   parseNodeId,
   categoryForSubject,
+  type DwellDetail,
   type EngagementThresholds,
   type Subject,
 } from './dwellTracker';
@@ -132,6 +133,42 @@ describe('DwellTracker — engaged excludes idle and hidden spans (AC a)', () =>
     // Confirm no further accrual happened silently: close it and inspect via a subject change.
     tracker.onSubjectChange({ ...nodeA, subject_id: 'skp-bel-999' }, 65_100);
     expect(tracker.hasOpenVisit()).toBe(true);
+  });
+});
+
+describe('DwellTracker — emitted engaged_ms excludes hidden + idle spans (AC a, end-to-end)', () => {
+  it('a visible→hidden→visible-stale timeline emits engaged_ms covering only the visible+active span', () => {
+    const emitted: Array<{ category: string; detail: DwellDetail }> = [];
+    const tracker = new DwellTracker(() => THRESHOLDS, (category, detail) => emitted.push({ category, detail }));
+    const nodeA: Subject = { subject_type: 'node', subject_id: 'skp-bel-002', pov: 'skp', cat: 'bel', tab: 'skeptic' };
+
+    tracker.onSubjectChange(nodeA, 0);
+    tracker.onPulse(0);                       // engaged from t=0
+    tracker.onVisibilityChange(true, 5_000);  // tab hidden at t=5s → engaged span stops at 5s
+    tracker.onVisibilityChange(false, 65_000); // back at t=65s, but last pulse (t=0) is now stale → NOT re-engaged
+    tracker.onSubjectChange({ ...nodeA, subject_id: 'skp-bel-003' }, 65_100); // closes prior visit
+
+    expect(emitted).toHaveLength(1);
+    const { detail } = emitted[0];
+    expect(detail.close_reason).toBe('subject_change');
+    expect(detail.wall_ms).toBe(65_100);      // full wall clock
+    expect(detail.engaged_ms).toBe(5_000);    // ONLY the 0–5s visible+active span — hidden + idle excluded
+    expect(detail.engaged).toBe(false);       // 5s < ENGAGED_MIN_MS (8s)
+    expect(detail.capped).toBe(false);
+  });
+
+  it('idle-close emits engaged_ms bounded by the trailing idle window, not the full wall gap', () => {
+    const emitted: DwellDetail[] = [];
+    const tracker = new DwellTracker(() => THRESHOLDS, (_c, detail) => emitted.push(detail));
+    const nodeA: Subject = { subject_type: 'node', subject_id: 'skp-bel-002', pov: 'skp', cat: 'bel', tab: 'skeptic' };
+    tracker.onSubjectChange(nodeA, 0);
+    tracker.onPulse(0);
+    tracker.onPulse(10_000);                   // active reading through t=10s (single engaged span from 0)
+    tracker.onIdleTimeout(70_000);             // no pulse since 10s; idle fires at 70s (>60s after last pulse)
+    expect(emitted).toHaveLength(1);
+    expect(emitted[0].close_reason).toBe('idle');
+    expect(emitted[0].engaged_ms).toBe(70_000); // engaged span 0→70s (last-pulse-within-idle window), not truncated silently
+    expect(emitted[0].engaged).toBe(true);
   });
 });
 
