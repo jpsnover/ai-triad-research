@@ -452,6 +452,16 @@ export function HelpDialog({ onClose, initialTab }: HelpDialogProps) {
                 )}
               </button>
             ))}
+            <div className="helpdialog-tab-sep" />
+            <button
+              className="helpdialog-tab helpdialog-tab-nav"
+              onClick={() => {
+                window.location.hash = '#your-activity';
+                onClose();
+              }}
+            >
+              Your Activity
+            </button>
           </div>
           <div className="helpdialog-content">
 
