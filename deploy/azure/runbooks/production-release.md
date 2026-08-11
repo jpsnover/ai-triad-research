@@ -25,15 +25,16 @@
 
 ## Step 2: Build Container Image
 
-1. Trigger the Container Image workflow:
-   ```bash
-   gh workflow run container.yml --ref main
+1. Trigger the Container Image workflow using the validated dispatch script (t/2487):
+   ```powershell
+   ./operations/devops/Invoke-ContainerBuild.ps1 -Sha <full-or-short-sha>
    ```
+   The script resolves short SHAs, waits for the full ci.yml run to reach `success`,
+   then dispatches. Bare `gh workflow run container.yml` bypasses these guards — do not
+   use it directly.
 
-2. Wait for the build to complete (use `gh run watch` — never poll in a loop):
+2. Wait for the build to complete (the script prints the run URL; watch it):
    ```bash
-   # Get the run ID, then watch it to completion
-   gh run list --workflow=container.yml --limit=1
    gh run watch <run-id> --exit-status
    ```
 
