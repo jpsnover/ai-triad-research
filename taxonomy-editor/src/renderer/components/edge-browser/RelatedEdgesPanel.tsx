@@ -5,6 +5,7 @@ import { useMemo, useState, useCallback, useEffect, useRef } from 'react';
 import { useTaxonomyStore } from '../../hooks/useTaxonomyStore';
 import type { Edge, EdgeType, EdgeStatus } from '../../types/taxonomy';
 import { POV_META, povKeyFromNodeId, type PovMetaKey } from '@lib/electron-shared/povMeta';
+import { TheoryLink } from '../shared/TheoryLink';
 
 interface RelatedEdgesPanelProps {
   width?: number;
@@ -309,6 +310,8 @@ export function RelatedEdgesPanel({ width }: RelatedEdgesPanelProps) {
         <div className="related-edges-title">
           <h3>Related Edges</h3>
           <span className="related-edges-count">{totalEdges}</span>
+          {/* TODO(t/2445): update docPath to the final path once the doc lands */}
+          <TheoryLink docPath="docs/pov-edges.md" size={12} label="Open POV Edges doc in GitHub" />
         </div>
         <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
           <button className="pane-collapse-btn" onClick={() => setCollapsed(true)} title="Collapse">&lsaquo;</button>
