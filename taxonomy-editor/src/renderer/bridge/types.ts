@@ -197,8 +197,9 @@ export interface AppAPI {
   onChatStreamChunk: (callback: (chunk: string) => void) => () => void;
   onChatStreamDone: (callback: (fullText: string) => void) => () => void;
   onChatStreamError: (callback: (error: string) => void) => () => void;
-  /** url_context grounding metadata (t/2462) — optional; only the Gemini backend emits it. */
-  onChatStreamUrlMetadata?: (callback: (metadata: unknown) => void) => () => void;
+  /** url_context grounding metadata (t/2462). Both bridges implement it; a no-op unsubscribe
+   *  when the backend never emits metadata, so consumers need no optional-chaining. */
+  onChatStreamUrlMetadata: (callback: (metadata: unknown) => void) => () => void;
   setDebateTemperature: (temp: number | null) => Promise<void>;
 
   // --- Proxy tier & usage ---
