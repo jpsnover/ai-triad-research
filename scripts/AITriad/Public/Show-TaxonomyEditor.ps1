@@ -16,6 +16,11 @@ function Show-TaxonomyEditor {
         not available but Node.js is installed.
 
         Use -Dev to force legacy Electron dev mode even when Docker is available.
+
+        Before launching, the local data repository (and, in dev mode, the code
+        repository) is synced with GitHub via a fast-forward-only pull. If GitHub
+        is unreachable or local history has diverged, a warning is shown and the
+        launch proceeds with the local copy.
     .PARAMETER Port
         Port for the web server. Default: 7862.
     .PARAMETER DataPath
@@ -334,6 +339,12 @@ function Show-TaxonomyEditor {
         }
     }
 
+    # ── Keep the local data repo current with GitHub (t/2478) ────────────────
+    if ($ResolvedData -and (Test-Path (Join-Path $ResolvedData '.git'))) {
+        Write-Step 'Syncing data repository with GitHub'
+        $null = Update-GitRepository -Path $ResolvedData -Label 'data repository'
+    }
+
     # ── Launch container ─────────────────────────────────────────────────────
     Start-ContainerMode -Port $Port -DataPath $DataPath -NoBrowser:$NoBrowser `
         -Pull:$Pull -Detach:$Detach
@@ -361,6 +372,17 @@ function Start-LegacyElectronMode {
     if (-not (Test-Path $AppDir)) {
         Write-Fail "App directory not found: $AppDir"
         return
+    }
+
+    # ── Keep local repos current with GitHub (t/2478) ─────────────────────
+    # Dev mode builds from source, so the code repo matters here too.
+    Write-Step 'Syncing code repository with GitHub'
+    $null = Update-GitRepository -Path $CodeRoot -Label 'code repository'
+    $DevDataRoot = $null
+    try { $DevDataRoot = Get-DataRoot } catch { $DevDataRoot = $null }
+    if ($DevDataRoot -and (Test-Path (Join-Path $DevDataRoot '.git'))) {
+        Write-Step 'Syncing data repository with GitHub'
+        $null = Update-GitRepository -Path $DevDataRoot -Label 'data repository'
     }
 
     # Check data
