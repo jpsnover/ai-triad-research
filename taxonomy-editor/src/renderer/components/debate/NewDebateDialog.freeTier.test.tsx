@@ -43,6 +43,7 @@ vi.mock('../../hooks/useTaxonomyStore', () => {
     FALLBACK_CHAINS: {},
     initAIModels: vi.fn().mockResolvedValue(undefined),
     backendForModel: () => 'gemini',
+    backendForModelWithFallback: () => 'gemini',
   };
 });
 

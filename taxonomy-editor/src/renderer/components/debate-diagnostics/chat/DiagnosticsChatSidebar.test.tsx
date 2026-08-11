@@ -40,6 +40,12 @@ vi.mock('@lib/ai-client/defaults', () => ({
   DEFAULT_MODEL: 'test-model',
 }));
 
+// getModel() now reads the validated model via getStoredModel (t/2486). Mock the store module
+// so the header assertion still sees 'test-model' and the real store isn't loaded into this suite.
+vi.mock('../../../hooks/useTaxonomyStore', () => ({
+  getStoredModel: () => 'test-model',
+}));
+
 // Soul docs are imported transitively by @lib/debate/types → poverInfo.ts.
 vi.mock('@lib/debate/soul-docs/accelerationist.soul.json', () => ({
   default: { label: 'Accelerationist', pov: 'accelerationist' },
