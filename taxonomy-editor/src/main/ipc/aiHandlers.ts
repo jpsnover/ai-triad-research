@@ -162,19 +162,21 @@ export function registerAiHandlers(): void {
     setDebateTemperature(temp);
   });
 
-  ipcMain.handle('start-chat-stream', async (event, systemInstruction: string, messages: ChatMessage[], model?: string, temperature?: number) => {
-    console.log('[IPC:chat-stream] start, model:', model, 'msgs:', messages.length);
+  ipcMain.handle('start-chat-stream', async (event, systemInstruction: string, messages: ChatMessage[], model?: string, temperature?: number, urlContext?: boolean) => {
+    console.log('[IPC:chat-stream] start, model:', model, 'msgs:', messages.length, 'urlContext:', urlContext ?? false);
     const send = (channel: string, data: unknown) => {
       if (!event.sender.isDestroyed()) event.sender.send(channel, data);
     };
-    const fullText = await generateChatStream(
+    const { text: fullText, urlContextMetadata } = await generateChatStream(
       systemInstruction,
       messages,
       (chunk: string) => send('chat-stream-chunk', chunk),
       model,
       temperature,
+      urlContext,
     );
     console.log('[IPC:chat-stream] done, returning', fullText.length, 'chars');
+    if (urlContextMetadata) send('chat-stream-url-metadata', urlContextMetadata);
     send('chat-stream-done', fullText);
     return fullText;
   });
