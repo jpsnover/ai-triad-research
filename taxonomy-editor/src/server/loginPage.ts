@@ -47,7 +47,21 @@ const SW_HEAL_SCRIPT =
   `var stuck=regs.length>0||!!navigator.serviceWorker.controller;` +
   `if(stuck&&sessionStorage.getItem('sw_login_cleared')!=='1'){sessionStorage.setItem('sw_login_cleared','1');` +
   `Promise.all(regs.map(function(r){return r.unregister();})).then(function(){location.reload();}).catch(function(){});}` +
-  `}).catch(function(){});}catch(e){}})();`;
+  `}).catch(function(){});}catch(e){}})();` +
+  // t/2474: hash-carry + auto-continue for community debate deep links.
+  // Gated on .anon-link DOM presence (= showAnonymous true) to prevent routing
+  // toward /.auth/anonymous when anonymous access is policy-disabled.
+  // Loop breaker: sessionStorage flag prevents infinite replace if anon mint fails.
+  `(function(){try{` +
+  `var al=document.querySelector('.anon-link');if(!al)return;` +
+  `var h=location.hash;if(!h)return;` +
+  `al.href='/.auth/anonymous'+h;` +
+  `if(h.startsWith('#debate-window')){` +
+  `var k='anon_deeplink_continued';` +
+  `if(sessionStorage.getItem(k)==='1')return;` +
+  `sessionStorage.setItem(k,'1');` +
+  `location.replace('/.auth/anonymous'+h);}` +
+  `}catch(e){}})();`;
 export const SW_HEAL_SCRIPT_CSP_HASH = `'sha256-${crypto.createHash('sha256').update(SW_HEAL_SCRIPT).digest('base64')}'`;
 
 export function buildLoginPage(showAnonymous: boolean): string {
