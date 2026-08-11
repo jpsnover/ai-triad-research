@@ -14,6 +14,7 @@
 // cap (TRACE_MAX_EVENTS_PER_BATCH) is used only by /debug/events, so it moves in
 // as module-local state. All other helpers are pure module imports.
 
+import type { IncomingMessage } from 'http';
 import type { Router } from '../httpKit.js';
 import type { ServerCtx } from './context.js';
 import { json, error, getClientIp } from '../httpKit.js';
@@ -23,6 +24,15 @@ import { deriveStorageUserId } from '../security/userContext.js';
 import { getQuotaLimits } from '../security/quotas.js';
 import { requireAdmin } from '../community/admin/reviewRegistry.js';
 import * as analytics from '../community/analytics.js';
+import { parseCookies } from '../httpCookies.js';
+
+/** Resolve analytics user key for anonymous requests (t/2465).
+ *  Returns 'anon:' + first 12 chars of anon_session_id (HttpOnly — server-reads only),
+ *  or '_anonymous' when the cookie is absent (cookie-less fallback). */
+export function resolveAnonSessionKey(req: IncomingMessage): string {
+  const id = parseCookies(req).get('anon_session_id');
+  return id ? `anon:${id.slice(0, 12)}` : '_anonymous';
+}
 
 const TRACE_MAX_EVENTS_PER_BATCH = 100;
 
@@ -44,7 +54,7 @@ export function registerSessionRoutes(r: Router, ctx: ServerCtx): void {
     const isAnon = !principalName;
     const authOpt = process.env.AUTH_OPTIONAL === '1';
     json(res, {
-      user: principalName || '_anonymous',
+      user: principalName || resolveAnonSessionKey(req),
       idp: idp || '',
       anonymous: isAnon,
       capabilities: {
