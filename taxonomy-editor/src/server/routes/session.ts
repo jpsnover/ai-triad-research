@@ -23,6 +23,7 @@ import { log } from '../logger.js';
 import { deriveStorageUserId } from '../security/userContext.js';
 import { getQuotaLimits } from '../security/quotas.js';
 import { requireAdmin } from '../community/admin/reviewRegistry.js';
+import { isAdmin } from '../community/community.js';
 import * as analytics from '../community/analytics.js';
 import { parseCookies } from '../httpCookies.js';
 
@@ -148,6 +149,26 @@ export function registerSessionRoutes(r: Router, ctx: ServerCtx): void {
     } else {
       json(res, await analytics.queryAggregated(from, to));
     }
+  });
+
+  // t/2467: engagement tree (view.dwell roll-up — tool→camp→category→node).
+  // Aggregate + daily open to any authenticated caller.
+  // Per-user subtree (other-user) and users table are admin-gated.
+  get('/api/analytics/engagement', async (req, res) => {
+    const url = new URL(req.url!, 'http://localhost');
+    const from = url.searchParams.get('from') || new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10);
+    const to = url.searchParams.get('to') || new Date().toISOString().slice(0, 10);
+    const user = url.searchParams.get('user') || undefined;
+
+    const azureAuth = process.env.WEBSITE_AUTH_ENABLED === 'True' || process.env.WEBSITE_AUTH_ENABLED === 'true';
+    const principalName = azureAuth ? (req.headers['x-ms-client-principal-name'] as string) || '' : '';
+    const idp = azureAuth ? (req.headers['x-ms-client-principal-idp'] as string) || '' : '';
+    const currentUserId = deriveStorageUserId(principalName || '_local', idp || '_local');
+
+    if (user && user !== currentUserId && !requireAdmin(res)) return;
+
+    const { users, ...rest } = await analytics.queryEngagement(from, to, user);
+    json(res, isAdmin(currentUserId) ? { ...rest, users } : rest);
   });
 
   // ── Focus node (inter-app communication) ──

@@ -316,3 +316,212 @@ export async function queryRawEvents(from: string, to: string, user?: string, se
     (!user || e.user === user) && (!sessionId || e.session_id === sessionId)
   );
 }
+
+// ── Engagement aggregation (t/2467) ──
+
+const KNOWN_CAMPS = new Set(['acc', 'saf', 'skp', 'cc']);
+
+/** Per-node engagement stats. `uniqueUsers` is present on aggregate rollups only. */
+export interface EngagementNodeResult {
+  visits: number;
+  engagedVisits: number;
+  engagedMs: number;
+  cappedRate: number;
+  uniqueUsers?: number;
+}
+
+export interface EngagementCategoryResult extends EngagementNodeResult {
+  nodes: Record<string, EngagementNodeResult>;
+}
+
+export interface EngagementCampResult extends EngagementNodeResult {
+  categories: Record<string, EngagementCategoryResult>;
+}
+
+/** Engagement tree: tool root → camps (taxonomy nodes) + tabs (non-taxonomy). */
+export interface EngagementTree {
+  tool: EngagementNodeResult;
+  camps: Record<string, EngagementCampResult>;
+  tabs: Record<string, EngagementNodeResult>;
+}
+
+/** One entry per calendar day in the query range that received view.dwell events. */
+export interface EngagementDailyEntry {
+  date: string;
+  visits: number;
+  engagedVisits: number;
+  engagedMs: number;
+}
+
+/** Per-user engagement rollup (admin-gated; strip before sending to non-admins). */
+export interface EngagementUserEntry {
+  user: string;
+  visits: number;
+  engagedVisits: number;
+  engagedMs: number;
+  topCamp: string;
+  lastActive: string;
+}
+
+export interface EngagementQueryResult {
+  aggregate: EngagementTree;
+  /** Per-day engaged totals for section 1 of the dashboard. */
+  daily: EngagementDailyEntry[];
+  /** Per-user rollup for section 5; caller must strip for non-admins before sending. */
+  users: EngagementUserEntry[];
+  /** Present when a `user` param was requested. */
+  user?: EngagementTree;
+}
+
+interface EngAccum {
+  visits: number;
+  engagedVisits: number;
+  engagedMs: number;
+  cappedCount: number;
+  users: Set<string>;
+}
+
+function mkAccum(): EngAccum {
+  return { visits: 0, engagedVisits: 0, engagedMs: 0, cappedCount: 0, users: new Set() };
+}
+
+function addToAccum(acc: EngAccum, evt: AnalyticsEvent): void {
+  acc.visits++;
+  if (evt.detail.engaged === true) acc.engagedVisits++;
+  acc.engagedMs += typeof evt.duration_ms === 'number' ? evt.duration_ms : 0;
+  if (evt.detail.capped === true) acc.cappedCount++;
+  acc.users.add(evt.user);
+}
+
+function sealAccum(acc: EngAccum, withUsers: boolean): EngagementNodeResult {
+  const cappedRate = acc.visits > 0 ? acc.cappedCount / acc.visits : 0;
+  return {
+    visits: acc.visits,
+    engagedVisits: acc.engagedVisits,
+    engagedMs: acc.engagedMs,
+    cappedRate: Math.round(cappedRate * 1e4) / 1e4,
+    ...(withUsers ? { uniqueUsers: acc.users.size } : {}),
+  };
+}
+
+interface DailyEngAccum { visits: number; engagedVisits: number; engagedMs: number }
+interface UserEngAccum { visits: number; engagedVisits: number; engagedMs: number; lastActive: string; campCounts: Map<string, number> }
+
+interface EngState {
+  tool: EngAccum;
+  camps: Map<string, EngAccum>;
+  categories: Map<string, EngAccum>;
+  nodes: Map<string, EngAccum>;
+  tabs: Map<string, EngAccum>;
+  daily: Map<string, DailyEngAccum>;
+  userSummaries: Map<string, UserEngAccum>;
+}
+
+function mkState(): EngState {
+  return { tool: mkAccum(), camps: new Map(), categories: new Map(), nodes: new Map(), tabs: new Map(), daily: new Map(), userSummaries: new Map() };
+}
+
+function getOrMake(m: Map<string, EngAccum>, key: string): EngAccum {
+  let a = m.get(key);
+  if (!a) { a = mkAccum(); m.set(key, a); }
+  return a;
+}
+
+/** Place one view.dwell event into all accumulators (tree + daily + userSummaries). Malformed ids go to tabs['other']. */
+function placeEvent(state: EngState, evt: AnalyticsEvent): void {
+  const d = evt.detail;
+  const subjectType = typeof d.subject_type === 'string' ? d.subject_type : '';
+  if (subjectType !== 'node' && subjectType !== 'tab' && subjectType !== 'panel') return;
+
+  addToAccum(state.tool, evt);
+
+  // Daily roll-up
+  const date = evt.timestamp.slice(0, 10);
+  let day = state.daily.get(date);
+  if (!day) { day = { visits: 0, engagedVisits: 0, engagedMs: 0 }; state.daily.set(date, day); }
+  day.visits++;
+  if (d.engaged === true) day.engagedVisits++;
+  day.engagedMs += typeof evt.duration_ms === 'number' ? evt.duration_ms : 0;
+
+  // Per-user summary roll-up
+  let u = state.userSummaries.get(evt.user);
+  if (!u) { u = { visits: 0, engagedVisits: 0, engagedMs: 0, lastActive: evt.timestamp, campCounts: new Map() }; state.userSummaries.set(evt.user, u); }
+  u.visits++;
+  if (d.engaged === true) u.engagedVisits++;
+  u.engagedMs += typeof evt.duration_ms === 'number' ? evt.duration_ms : 0;
+  if (evt.timestamp > u.lastActive) u.lastActive = evt.timestamp;
+
+  // Tree placement
+  if (subjectType === 'node') {
+    const pov = typeof d.pov === 'string' ? d.pov : '';
+    const cat = typeof d.cat === 'string' ? d.cat : '';
+    const subjectId = typeof d.subject_id === 'string' ? d.subject_id.slice(0, 100) : '';
+    if (pov && KNOWN_CAMPS.has(pov)) {
+      addToAccum(getOrMake(state.camps, pov), evt);
+      if (u) u.campCounts.set(pov, (u.campCounts.get(pov) ?? 0) + 1);
+      if (cat) {
+        addToAccum(getOrMake(state.categories, `${pov}-${cat}`), evt);
+        if (subjectId) addToAccum(getOrMake(state.nodes, subjectId), evt);
+      }
+    } else {
+      addToAccum(getOrMake(state.tabs, 'other'), evt);
+    }
+  } else {
+    const tabKey = (typeof d.subject_id === 'string' && d.subject_id) ? d.subject_id.slice(0, 100) : 'unknown';
+    addToAccum(getOrMake(state.tabs, tabKey), evt);
+  }
+}
+
+function buildTree(state: EngState, withUsers: boolean): EngagementTree {
+  const camps: Record<string, EngagementCampResult> = {};
+  for (const [campId, campAcc] of state.camps) {
+    const categories: Record<string, EngagementCategoryResult> = {};
+    for (const [catKey, catAcc] of state.categories) {
+      if (!catKey.startsWith(`${campId}-`)) continue;
+      const nodes: Record<string, EngagementNodeResult> = {};
+      for (const [nodeId, nodeAcc] of state.nodes) {
+        if (nodeId.startsWith(`${catKey}-`)) nodes[nodeId] = sealAccum(nodeAcc, withUsers);
+      }
+      categories[catKey] = { ...sealAccum(catAcc, withUsers), nodes };
+    }
+    camps[campId] = { ...sealAccum(campAcc, withUsers), categories };
+  }
+  const tabs: Record<string, EngagementNodeResult> = {};
+  for (const [tabId, tabAcc] of state.tabs) tabs[tabId] = sealAccum(tabAcc, withUsers);
+  return { tool: sealAccum(state.tool, withUsers), camps, tabs };
+}
+
+/**
+ * Aggregate view.dwell events into a tool→camp→category→node engagement tree,
+ * a daily series, and a per-user rollup — all in one pass.
+ * When `user` is provided, also returns that user's subtree (without uniqueUsers).
+ * Callers are responsible for stripping `users` before sending to non-admin clients.
+ */
+export async function queryEngagement(from: string, to: string, user?: string): Promise<EngagementQueryResult> {
+  const events = await readEvents(from, to);
+  const aggState = mkState();
+  const userState = user ? mkState() : null;
+  for (const evt of events) {
+    if (evt.event_type !== 'view.dwell') continue;
+    placeEvent(aggState, evt);
+    if (userState && evt.user === user) placeEvent(userState, evt);
+  }
+
+  const daily: EngagementDailyEntry[] = Array.from(aggState.daily.entries())
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([date, d]) => ({ date, visits: d.visits, engagedVisits: d.engagedVisits, engagedMs: d.engagedMs }));
+
+  const users: EngagementUserEntry[] = Array.from(aggState.userSummaries.entries())
+    .map(([userId, u]) => {
+      const topCamp = [...u.campCounts.entries()].sort(([, a], [, b]) => b - a)[0]?.[0] ?? '';
+      return { user: userId, visits: u.visits, engagedVisits: u.engagedVisits, engagedMs: u.engagedMs, topCamp, lastActive: u.lastActive };
+    })
+    .sort((a, b) => b.lastActive.localeCompare(a.lastActive));
+
+  return {
+    aggregate: buildTree(aggState, true),
+    daily,
+    users,
+    ...(userState ? { user: buildTree(userState, false) } : {}),
+  };
+}
