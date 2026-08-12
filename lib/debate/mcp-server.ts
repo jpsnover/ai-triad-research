@@ -15,7 +15,7 @@ import { loadTaxonomy, resolveRepoRoot, resolveDataRoot, type LoadedTaxonomy } f
 import type { DebateSession } from './types.js';
 import { listDebateSessionsIndexed, updateDebateIndexEntry } from './debateIndex.js';
 import { getGlobalRecorder } from '../flight-recorder/index.js';
-import { assertSafeDebateId } from './mcpServerGuard.js';
+import { assertSafeId, assertContainedIn } from '../electron-shared/safeId.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolveRepoRoot(__dirname);
@@ -46,8 +46,10 @@ const activeDebates = new Map<string, ActiveDebate>();
 // ── Debate file helpers ─────────────────────────────────
 
 function loadDebateSession(id: string): unknown {
-  assertSafeDebateId(id, debatesDir);
+  // H2 fix (t/2528): validate id before using it in a filesystem path.
+  assertSafeId(id, 'debate id');
   const filePath = path.join(debatesDir, `debate-${id}.json`);
+  assertContainedIn(path.resolve(filePath), path.resolve(debatesDir));
   if (!fs.existsSync(filePath)) {
     throw new Error(`Debate session not found: ${id}`);
   }
