@@ -9,6 +9,19 @@ export function getSpeakerModel(activeDebate: { speaker_models?: Record<string, 
   return activeDebate?.speaker_models?.[speaker] || fallbackModel;
 }
 
+/** Resolve the model a speaker's brief stage actually runs with — and thus the model the
+ *  brief-timeout toast/dialog must display (t/2504). Mirrors the pipeline's
+ *  `input.briefModel ?? input.model` (turnPipeline/runTurn.ts): the stage-level brief override
+ *  wins, else the speaker's model (speaker_models override, else the base fallback). Keep in
+ *  sync with the OpeningPipelineInput built at the emit site (clarificationSlice.ts). */
+export function resolveBriefModel(
+  activeDebate: { stage_models?: Record<string, string>; speaker_models?: Record<string, string> } | null,
+  speaker: string,
+  fallbackModel: string,
+): string {
+  return activeDebate?.stage_models?.brief || getSpeakerModel(activeDebate, speaker, fallbackModel);
+}
+
 /** Read the model for the current debate context.
  *  Priority: debate-specific override > global Settings model > default */
 export function getConfiguredModel(): string {
