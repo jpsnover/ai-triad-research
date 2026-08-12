@@ -55,6 +55,10 @@ export interface GeminiContent {
 export interface UrlContextEntry {
   retrievedUrl: string;
   urlRetrievalStatus: string;
+  /** Whether the entry came from the provider's grounding response or was fetched by the app. */
+  source?: 'provider' | 'app-fetch';
+  /** Whether the retrieved content was truncated before storage. */
+  truncated?: boolean;
 }
 
 export interface UrlContextMetadata {
