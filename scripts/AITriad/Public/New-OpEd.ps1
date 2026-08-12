@@ -21,6 +21,17 @@ function New-OpEd {
         set explicitly with -WordCount). Optionally emits the standard pitch
         cover email (-IncludePitch) and writes a Markdown file (-OutputPath).
 
+        The substance is grounded (by default) in the project taxonomy: the POV's
+        most topic-relevant BDI nodes (its actual beliefs / desires / intentions)
+        and situation-library stress cases are retrieved via the same embedding
+        relevance the debate engine uses (Get-RelevantTaxonomyNodes) and injected
+        as the positions the essay must argue from — so the op-ed reflects THIS
+        project's registered camp, not the model's generic priors. The elements
+        used and their relevance scores are returned on the Grounding field. Pass
+        -VoiceOnly (or set the counts to 0) to write from voice alone; if the
+        taxonomy / embeddings / Python are unavailable, retrieval degrades to
+        voice-only with a warning rather than failing.
+
         Prompts are production artifacts: the structural rules live in
         Prompts/op-ed-generation-system.prompt and the task contract in
         Prompts/op-ed-generation-user.prompt; the voice block is built from the
@@ -66,15 +77,35 @@ function New-OpEd {
         maximum polish, pass -Model gemini-3.1-pro-preview.
     .PARAMETER Temperature
         Sampling temperature. Defaults to 0.8 for creative prose.
+    .PARAMETER VoiceOnly
+        Skip taxonomy grounding and write from the camp voice + general knowledge
+        alone. By default the essay is grounded in retrieved BDI nodes and
+        situations.
+    .PARAMETER MaxGroundingNodes
+        Maximum POV BDI nodes to retrieve and inject as registered positions
+        (0-40, default 12). 0 disables BDI grounding.
+    .PARAMETER MaxSituations
+        Maximum situation-library stress cases to retrieve and inject (0-15,
+        default 3). 0 disables situation grounding.
     .OUTPUTS
         [PSCustomObject] with Headline, Subtitle, Body, Pitch, WordCount, Pov,
-        Outlet, Model, and Backend.
+        Outlet, Model, Backend, and Grounding — an array of the taxonomy elements
+        injected (Id, Type [bdi|situation], POV, Category, Label, RelevanceScore),
+        ordered as retrieved.
     .EXAMPLE
         New-OpEd -Topic 'Mandatory pre-deployment audits for frontier AI models' `
             -Pov safetyist -Outlet WashingtonPost `
             -NewsHook 'the Senate AI oversight bill scheduled for a floor vote next week'
 
-        Drafts an 800-word Washington Post-length guest essay in the Safetyist voice.
+        Drafts an 800-word Washington Post-length guest essay in the Safetyist
+        voice, grounded in the Safetyist camp's most relevant belief/desire/
+        intention nodes and situations.
+    .EXAMPLE
+        $oped = New-OpEd -Topic 'Open-weight models and biosecurity' -Pov skeptic
+        $oped.Grounding | Format-Table Id, Type, Category, RelevanceScore
+
+        Inspects which taxonomy nodes and situations grounded the essay and how
+        relevant each was.
     .EXAMPLE
         New-OpEd -Url 'https://example.com/ai-jobs-report' -Pov accelerationist `
             -Outlet WallStreetJournal -IncludePitch -OutputPath ./oped.md
@@ -123,7 +154,15 @@ function New-OpEd {
         [string]$Model = 'gemini-3.6-flash',
 
         [ValidateRange(0.0, 2.0)]
-        [double]$Temperature = 0.8
+        [double]$Temperature = 0.8,
+
+        [switch]$VoiceOnly,
+
+        [ValidateRange(0, 40)]
+        [int]$MaxGroundingNodes = 12,
+
+        [ValidateRange(0, 15)]
+        [int]$MaxSituations = 3
     )
 
     Set-StrictMode -Version Latest
@@ -228,6 +267,71 @@ function New-OpEd {
         }
     }
 
+    # ── Ground the essay in the camp's registered taxonomy ───────────────────
+    # Retrieve the POV's most topic-relevant BDI nodes (its actual beliefs /
+    # desires / intentions) and situation-library stress cases via the same
+    # embedding relevance the debate engine uses, and inject them as the
+    # substance the essay must argue from. This is what makes the op-ed reflect
+    # THIS project's taxonomy rather than the model's generic priors. Grounded by
+    # default; -VoiceOnly (or zeroed counts) skips it. Retrieval failure (data
+    # repo / embeddings.json / Python unavailable) degrades to voice-only with a
+    # warning rather than failing the whole generation.
+    $Grounding = [System.Collections.Generic.List[PSObject]]::new()
+    $GroundingNodesText = '(none — argue from your camp voice and general knowledge)'
+    $SituationsText     = '(none supplied)'
+    if (-not $VoiceOnly -and ($MaxGroundingNodes -gt 0 -or $MaxSituations -gt 0)) {
+        # Query = the topic signal, plus the hook/thesis and a slice of any source.
+        $QueryParts = @($Topic, $NewsHook, $Thesis) | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
+        if ($PSCmdlet.ParameterSetName -eq 'FromUrl' -and $SourceMaterial.Length -gt 0) {
+            $QueryParts += $SourceMaterial.Substring(0, [Math]::Min(1500, $SourceMaterial.Length))
+        }
+        $RetrievalQuery = $QueryParts -join '. '
+
+        try {
+            $WantSituations = $MaxSituations -gt 0
+            $PovArg = if ($WantSituations) { @($PovKey, 'situations') } else { @($PovKey) }
+            $Relevant = Get-RelevantTaxonomyNodes -Query $RetrievalQuery -POV $PovArg `
+                -IncludeSituations:$WantSituations -MaxTotal 50 -MinPerCategory 2
+
+            $BdiNodes = @($Relevant | Where-Object { $_.POV -eq $PovKey } |
+                Sort-Object Score -Descending | Select-Object -First $MaxGroundingNodes)
+            $SitNodes = @($Relevant | Where-Object { $_.POV -eq 'situations' } |
+                Sort-Object Score -Descending | Select-Object -First $MaxSituations)
+
+            if (@($BdiNodes).Count -gt 0) {
+                $sb = [System.Text.StringBuilder]::new()
+                foreach ($n in $BdiNodes) {
+                    $desc = [string]$n.Description
+                    if ($desc.Length -gt 240) { $desc = $desc.Substring(0, 240) + '…' }
+                    [void]$sb.AppendLine("- [$($n.Category)] $($n.Label): $desc")
+                    $Grounding.Add([PSCustomObject]@{
+                        Id = $n.Id; Type = 'bdi'; POV = $n.POV; Category = $n.Category
+                        Label = $n.Label; RelevanceScore = $n.Score
+                    })
+                }
+                $GroundingNodesText = $sb.ToString().TrimEnd()
+            }
+
+            if (@($SitNodes).Count -gt 0) {
+                $sb2 = [System.Text.StringBuilder]::new()
+                foreach ($s in $SitNodes) {
+                    $desc = [string]$s.Description
+                    if ($desc.Length -gt 300) { $desc = $desc.Substring(0, 300) + '…' }
+                    [void]$sb2.AppendLine("- $($s.Label): $desc")
+                    $Grounding.Add([PSCustomObject]@{
+                        Id = $s.Id; Type = 'situation'; POV = $s.POV; Category = 'Situation'
+                        Label = $s.Label; RelevanceScore = $s.Score
+                    })
+                }
+                $SituationsText = $sb2.ToString().TrimEnd()
+            }
+
+            Write-Verbose "Grounding: $(@($BdiNodes).Count) BDI nodes + $(@($SitNodes).Count) situations retrieved"
+        } catch {
+            Write-Warning "Taxonomy grounding unavailable — writing voice-only. ($($_.Exception.Message))"
+        }
+    }
+
     # ── Assemble prompt-fill values for the optional fields ──────────────────
     $NewsHookText = if ([string]::IsNullOrWhiteSpace($NewsHook)) {
         '(none supplied — invent a plausible current news hook and make clear in the lede what timely event it assumes, so the author can verify it against real events before submitting)'
@@ -262,6 +366,8 @@ function New-OpEd {
         THESIS            = $ThesisText
         AUTHOR_BIO        = $AuthorBioText
         SOURCE_MATERIAL   = $SourceMaterial
+        GROUNDING_NODES   = $GroundingNodesText
+        SITUATIONS        = $SituationsText
         PITCH_INSTRUCTION = $PitchInstruction
     }
 
@@ -343,6 +449,7 @@ function New-OpEd {
         Outlet    = $Outlet
         Model     = $Model
         Backend   = $Result.Backend
+        Grounding = $Grounding.ToArray()
     }
 
     # ── Optionally write a Markdown file ─────────────────────────────────────
@@ -358,6 +465,18 @@ function New-OpEd {
             [void]$md.AppendLine('## Pitch cover email')
             [void]$md.AppendLine()
             [void]$md.AppendLine($Pitch)
+        }
+        if (@($Grounding).Count -gt 0) {
+            [void]$md.AppendLine()
+            [void]$md.AppendLine('---')
+            [void]$md.AppendLine()
+            [void]$md.AppendLine('## Taxonomy grounding (relevance)')
+            [void]$md.AppendLine()
+            [void]$md.AppendLine('| Element | Type | Category | Relevance |')
+            [void]$md.AppendLine('|---|---|---|---|')
+            foreach ($g in $Grounding) {
+                [void]$md.AppendLine("| $($g.Id) — $($g.Label) | $($g.Type) | $($g.Category) | $([Math]::Round([double]$g.RelevanceScore, 4)) |")
+            }
         }
         $Utf8NoBom = [System.Text.UTF8Encoding]::new($false)
         [System.IO.File]::WriteAllText($OutputPath, $md.ToString(), $Utf8NoBom)
