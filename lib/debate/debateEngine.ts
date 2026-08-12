@@ -254,10 +254,7 @@ export class DebateEngine {
   private _boundaryEmbeddings: BoundaryEmbeddings | null = null;
   private _signalHistory: Map<string, { round: number; value: number }[]> = new Map();
   private _peakTrackers: Map<string, number> = new Map();
-  /** Debate-wide hint failure streaks for hopeless hint suppression.
-   *  Tracked globally (not per-speaker) because hint suppressibility is a model
-   *  capability — if the model can't produce specific claims for one speaker,
-   *  it can't for any of them. */
+  /** Debate-wide hint failure streaks — global (not per-speaker); suppressibility is model-wide. */
   private _hintStreaks = new Map<string, import('./types.js').HintStreak>();
   /** Cached prior crux context string — seeded from registry at debate start, injected into Brief stage. */
   private _priorCruxContext: string = '';
@@ -397,16 +394,7 @@ export class DebateEngine {
 
     const derivedModeratorMode = config.moderatorMode ?? (config.protocolId === 'socratic' ? 'socratic' : undefined);
     this.config = { ...config, stageModels: merged, moderatorMode: derivedModeratorMode };
-
-    if (this.config.protocolId === 'socratic' && this.config.activePovers.length !== 1) {
-      throw new ActionableError({
-        goal: 'Initialize a Socratic debate',
-        problem: `Socratic protocol requires exactly one active POV (the interlocutor under examination), but ${this.config.activePovers.length} were provided: ${this.config.activePovers.join(', ')}`,
-        location: 'DebateEngine constructor',
-        nextSteps: ['Set activePovers to a single debater (e.g. ["safetyist"]) when using protocolId: "socratic".'],
-      });
-    }
-
+    if (this.config.protocolId === 'socratic' && this.config.activePovers.length !== 1) throw new ActionableError({ goal: 'Initialize a Socratic debate', problem: `Socratic requires exactly one active POV; got ${this.config.activePovers.length}: ${this.config.activePovers.join(', ')}`, location: 'DebateEngine constructor', nextSteps: ['Pass a single debater in activePovers when using protocolId: "socratic".'] });
     this._talmudicCorpus = initTalmudicCorpusFromConfig(this.config);
     this.adapter = adapter;
     this.taxonomy = taxonomy;
