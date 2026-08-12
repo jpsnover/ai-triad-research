@@ -560,6 +560,12 @@ class ViteDevStatus {
     [string]  $Summary
 }
 
+class DebatePersistenceResult {
+    [string] $Status       # OK | LOCKED | NO_PERMISSION
+    [string] $Path
+    [string] $LockHolder   # process name if identifiable, otherwise $null
+}
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Module-scoped taxonomy store
 # ─────────────────────────────────────────────────────────────────────────────
@@ -916,6 +922,8 @@ Export-ModuleMember -Function @(
     'Test-DebateIndexIntegrity'
     # t/2367 — Debate blob existence check in Azure storage
     'Test-DebateSession'
+    # t/2545 — Pre-flight atomic write+rename probe for debate output dir
+    'Test-DebatePersistence'
     # Op-ed generation in a POV Soul-document voice
     'New-OpEd'
 ) -Alias @(
