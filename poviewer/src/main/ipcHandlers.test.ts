@@ -5,6 +5,8 @@
 //   M4  — 'get-api-key' is gone; 'has-api-key' returns a boolean (never the key).
 //   M7  — 'add-source' rejects metadata whose id fails SAFE_ID_RE.
 //   M10 — 'extract-pdf-text' rejects paths outside the data root / sources dir.
+// Plus t/2540: 'read-source-file' (restored from the ef8bac78 regression) serves only
+// dialog-returned paths — allowlisted read succeeds, non-allowlisted path → 400.
 
 import { describe, it, expect, vi, beforeAll } from 'vitest';
 import fs from 'node:fs';
@@ -12,6 +14,7 @@ import path from 'node:path';
 
 const captured = vi.hoisted(() => ({
   handlers: {} as Record<string, (...args: unknown[]) => unknown>,
+  showOpen: vi.fn(),
 }));
 
 vi.mock('electron', () => ({
@@ -20,7 +23,7 @@ vi.mock('electron', () => ({
       captured.handlers[channel] = fn;
     },
   },
-  dialog: {},
+  dialog: { showOpenDialog: (opts: unknown) => captured.showOpen(opts) },
   shell: {},
   BrowserWindow: { getAllWindows: () => [] },
   safeStorage: { isEncryptionAvailable: () => false },
@@ -148,5 +151,47 @@ describe('t/2534 M9pov: set-taxonomy-dir confinement', () => {
       thrown = err;
     }
     expect((thrown as { statusCode?: number } | undefined)?.statusCode).toBe(400);
+  });
+});
+
+describe('t/2540: read-source-file dialog-returned-path allowlist', () => {
+  const allowedFile = path.join(TMP_SOURCES, 'allowed.md');
+  beforeAll(() => {
+    fs.writeFileSync(allowedFile, '# Allowed\n\nhello world\n');
+    captured.showOpen.mockReset();
+  });
+
+  it('reads a file the native open dialog handed out (add-file flow repro)', async () => {
+    // Simulates AddSourceDialog: openSourceFileDialog() then readSourceFile(fp).
+    captured.showOpen.mockResolvedValueOnce({ canceled: false, filePaths: [allowedFile] });
+    const paths = await captured.handlers['open-source-file-dialog'](EVENT) as string[];
+    expect(paths).toEqual([allowedFile]);
+    const content = await captured.handlers['read-source-file'](EVENT, allowedFile);
+    expect(content).toContain('hello world');
+  });
+
+  it('refuses a path the dialog never returned — statusCode 400, four-field ActionableError', async () => {
+    const outside = path.resolve(path.parse(process.cwd()).root, 'etc', 'passwd');
+    let thrown: unknown;
+    try {
+      await captured.handlers['read-source-file'](EVENT, outside);
+    } catch (err) {
+      /* telemetry — silent by design (test captures the expected throw) */
+      thrown = err;
+    }
+    expect(thrown).toBeDefined();
+    expect((thrown as { statusCode?: number }).statusCode).toBe(400);
+    expect((thrown as { goal?: string }).goal).toBeDefined();
+    expect((thrown as { problem?: string }).problem).toBeDefined();
+    expect((thrown as { location?: string }).location).toBeDefined();
+    expect(Array.isArray((thrown as { nextSteps?: string[] }).nextSteps)).toBe(true);
+  });
+
+  it('a path authorized this session survives path.resolve normalization', async () => {
+    captured.showOpen.mockResolvedValueOnce({ canceled: false, filePaths: [allowedFile] });
+    await captured.handlers['open-source-file-dialog'](EVENT);
+    // A non-normalized spelling of the same file (extra "./" segment) must still match.
+    const messy = path.join(path.dirname(allowedFile), '.', path.basename(allowedFile));
+    await expect(captured.handlers['read-source-file'](EVENT, messy)).resolves.toContain('hello world');
   });
 });
