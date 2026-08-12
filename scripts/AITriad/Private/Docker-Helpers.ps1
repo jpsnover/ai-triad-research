@@ -220,19 +220,43 @@ function Test-ContainerVersionCompat {
 function Get-ApiKeyEnvArgs {
     <#
     .SYNOPSIS
-        Builds Docker --env flags for any AI API keys found in the environment.
+        Builds Docker '--env-file' args for any AI API keys found in the environment.
+    .DESCRIPTION
+        Writes matching keys to a private, owner-only (0600) temp env-file and
+        returns @('--env-file', <path>). Passing secrets by file keeps them out of
+        the container's argv and `docker inspect` output — unlike `--env KEY=value`,
+        which exposes every value to any local user who can inspect the container
+        or its process list (t/2530 L3).
+
+        Returns @() when no keys are set (no file is written). The caller MUST
+        delete the returned file once `docker` has consumed it — the docker CLI
+        reads --env-file client-side at invocation, so the file can be removed
+        immediately after the `docker` call returns.
     #>
     [CmdletBinding()]
     param()
 
-    $envArgs = @()
+    Set-StrictMode -Version Latest
+
     $keyVars = @('GEMINI_API_KEY', 'ANTHROPIC_API_KEY', 'GROQ_API_KEY', 'AI_API_KEY', 'AI_MODEL')
+    $lines = [System.Collections.Generic.List[string]]::new()
     foreach ($var in $keyVars) {
         $val = [System.Environment]::GetEnvironmentVariable($var)
         if ($val) {
-            $envArgs += '--env'
-            $envArgs += "$var=$val"
+            # docker --env-file format is literal VAR=value, one per line; docker
+            # does not strip quotes, so write the raw value.
+            $lines.Add("$var=$val")
         }
     }
-    return $envArgs
+
+    if ($lines.Count -eq 0) {
+        return @()
+    }
+
+    $envFile = New-SecureTempPath -Prefix 'aitriad-docker-env' -Extension 'env'
+    Write-Utf8NoBom -Path $envFile -Value ($lines -join "`n") -Force
+    # Restrict to the current user before docker reads it.
+    Protect-UserSecretFile -Path $envFile
+
+    return @('--env-file', $envFile)
 }
