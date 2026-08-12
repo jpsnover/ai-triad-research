@@ -1,0 +1,59 @@
+/* Copyright (c) 2026 Jeffrey Snover. All rights reserved. */
+/* Shared indeterminate loading bar + elapsed timer (t/2498). Class prefix lp-* (styles.css is frozen). */
+
+.lp-root {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+}
+
+.lp-bar {
+  position: relative;
+  height: 4px;
+  border-radius: 2px;
+  overflow: hidden;
+  background: var(--border-color, rgba(127, 127, 127, 0.25));
+}
+
+.lp-bar-indeterminate {
+  position: absolute;
+  top: 0;
+  left: -40%;
+  height: 100%;
+  width: 40%;
+  border-radius: 2px;
+  background: var(--focus-ring, #4c8bf5);
+  animation: lp-indeterminate 1.2s ease-in-out infinite;
+}
+
+@keyframes lp-indeterminate {
+  0% { left: -40%; }
+  100% { left: 100%; }
+}
+
+/* Respect reduced-motion: replace the sweep with a gentle pulse. */
+@media (prefers-reduced-motion: reduce) {
+  .lp-bar-indeterminate {
+    left: 0;
+    width: 100%;
+    animation: lp-pulse 1.6s ease-in-out infinite;
+  }
+  @keyframes lp-pulse {
+    0%, 100% { opacity: 0.4; }
+    50% { opacity: 1; }
+  }
+}
+
+.lp-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 0.8rem;
+  color: var(--text-secondary, #6b7280);
+}
+
+.lp-elapsed {
+  font-variant-numeric: tabular-nums;
+}
