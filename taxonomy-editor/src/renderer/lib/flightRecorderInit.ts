@@ -45,16 +45,21 @@ let _embeddingInfo: { backend: string; execution_provider?: string; calibration_
 void getElectronAPI()?.getEmbeddingInfo?.().then(info => { _embeddingInfo = info; }).catch(() => {});
 
 // ── Cached auth state (fetched once, used synchronously in context) ──
-let _authState: { mode: string; user_type: string } | null = null;
+let _authState: { mode: string; user_type: string; session_created_at?: string } | null = null;
 if (getElectronAPI()) {
   _authState = { mode: 'local', user_type: 'authenticated' };
 } else {
   void fetch('/api/auth/me').then(r => r.ok ? r.json() : null).then(data => {
     if (!data) return;
     const isAnon = !!(data as { anonymous?: boolean }).anonymous;
+    // session_created_at: server-provided anon-session mint time (first-seen for legacy sessions),
+    // exposed on /api/auth/me per t/2493. Absent for authenticated/Electron. Session age explains
+    // stale debate references in dumps (t/2490 Gap 1).
+    const createdAt = (data as { session_created_at?: unknown }).session_created_at;
     _authState = {
       mode: isAnon ? 'optional' : 'required',
       user_type: isAnon ? 'anonymous' : 'authenticated',
+      ...(typeof createdAt === 'string' ? { session_created_at: createdAt } : {}),
     };
   }).catch(() => { /* flight recorder init — silent by design */ });
 }
