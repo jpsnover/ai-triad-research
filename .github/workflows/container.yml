@@ -236,8 +236,10 @@ jobs:
 
       - name: Determine push mode
         id: push_mode
+        env:
+          INPUTS_PUSH: ${{ inputs.push }}
         run: |
-          if [[ "${{ github.event_name }}" == "push" ]] || [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ inputs.push }}" == "true" ]]; then
+          if [[ "${{ github.event_name }}" == "push" ]] || [[ "${{ github.event_name }}" == "workflow_dispatch" && "$INPUTS_PUSH" == "true" ]]; then
             echo "push=true" >> $GITHUB_OUTPUT
             echo "load=false" >> $GITHUB_OUTPUT
           else

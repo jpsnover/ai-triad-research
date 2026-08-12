@@ -228,7 +228,7 @@ jobs:
         run: ln -s "$GITHUB_WORKSPACE/ai-triad-data" ../ai-triad-data
         continue-on-error: true
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1  # v4
         with:
           version: '11.20.0'
 
@@ -292,7 +292,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v6
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1  # v4
         with:
           version: '11.20.0'
 
@@ -365,7 +365,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v6
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1  # v4
         with:
           version: '11.20.0'
 
@@ -426,7 +426,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v6
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1  # v4
         with:
           version: '11.20.0'
 
@@ -487,7 +487,7 @@ jobs:
       - name: Check doc links (main-repo presence)
         run: bash .github/scripts/check-doc-links.sh
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1  # v4
         with:
           version: '11.20.0'
 
@@ -531,7 +531,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v6
         continue-on-error: true
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1  # v4
         continue-on-error: true
         with:
           version: '11.20.0'
@@ -584,7 +584,7 @@ jobs:
         run: ln -s "$GITHUB_WORKSPACE/ai-triad-data" ../ai-triad-data
         continue-on-error: true
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1  # v4
         continue-on-error: true
         with:
           version: '11.20.0'
@@ -860,7 +860,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v6
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1  # v4
         with:
           version: '11.20.0'
 
@@ -910,6 +910,19 @@ jobs:
           ALLOWED_ORIGINS: ''
         run: pnpm exec vitest run src/server/
 
+  # ── workflow-lint: enforce SHA-pinned actions, env-var indirection, permissions ──
+  # Mechanically catches the M14/M15/L8 failure classes (t/2529). Always runs —
+  # no path filter, since any workflow edit can introduce a violation.
+  # skip = N/A (no filter); failure = gate blocks. (t/2529)
+  workflow-lint:
+    needs: [changes]
+    if: always() && !cancelled() && needs.changes.result != 'failure' && needs.changes.result != 'cancelled'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
+      - name: Lint workflow YAML files
+        run: python3 .github/ci/workflow-lint.py
+
   # ── ci-gate: the SINGLE required status context (t/1962) ──────────────────
   # Replaces the 6 individual code-check contexts in branch protection. Those get
   # SKIPPED by path-filtering on non-electron PRs (docs-only, PS-only); a skipped
@@ -935,9 +948,11 @@ jobs:
   # path-filtered to electron changes, skip = OK.
   # test-server-prod-config (t/2377) is gated here: NODE_ENV=production server
   # startup health check + test suite; path-filtered to container changes, skip = OK.
+  # workflow-lint (t/2529) is gated here: SHA-pinned actions, env-var indirection,
+  # permissions block required; always runs, no path filter.
   ci-gate:
     name: ci-gate
-    needs: [changes, test-powershell, test-electron, test-container, python-embed-smoke, dependency-coverage, lockfile-overrides-check, lib-lint, renderer-tsc, contrast-check, test-server-prod-config]
+    needs: [changes, test-powershell, test-electron, test-container, python-embed-smoke, dependency-coverage, lockfile-overrides-check, lib-lint, renderer-tsc, contrast-check, test-server-prod-config, workflow-lint]
     if: always()
     runs-on: ubuntu-latest
     steps:
