@@ -2,7 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { ActionableError } from '../../debate/errors.js';
-import { withTimeout } from '../retry.js';
+import { withTimeout, makeFetchSignal } from '../retry.js';
 import type { FetchFn, GenerateOptions, ProviderResult } from '../types.js';
 import { DEFAULT_TEMPERATURE } from '../defaults.js';
 
@@ -49,18 +49,15 @@ export async function generateViaAzure(
     reqBody.response_format = { type: 'json_object' };
   }
 
-  const response = await withTimeout(
-    fetchFn(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'api-key': apiKey,
-      },
-      body: JSON.stringify(reqBody),
-    }),
-    timeoutMs,
-    'Azure OpenAI API request',
-  );
+  const response = await fetchFn(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'api-key': apiKey,
+    },
+    body: JSON.stringify(reqBody),
+    signal: makeFetchSignal(timeoutMs, opts.signal),
+  });
 
   const bodyText = await withTimeout(response.text(), 60_000, 'Reading Azure OpenAI response');
 

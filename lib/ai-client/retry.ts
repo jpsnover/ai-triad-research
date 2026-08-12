@@ -13,6 +13,34 @@ export function withTimeout<T>(promise: Promise<T>, ms: number, label: string): 
   ]);
 }
 
+/**
+ * Creates a per-attempt AbortSignal that fires on whichever comes first:
+ * the caller's signal or the per-attempt timeout. Replacing Promise.race
+ * (withTimeout on fetch) ensures the losing fetch is actually cancelled
+ * rather than left running in the background (t/2507).
+ */
+export function makeFetchSignal(timeoutMs: number, callerSignal?: AbortSignal): AbortSignal {
+  return callerSignal
+    ? AbortSignal.any([callerSignal, AbortSignal.timeout(timeoutMs)])
+    : AbortSignal.timeout(timeoutMs);
+}
+
+/** Sleeps for ms, but wakes early and throws AbortError when signal fires. */
+async function abortableSleep(ms: number, signal?: AbortSignal): Promise<void> {
+  if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
+  return new Promise<void>((resolve, reject) => {
+    const tid = setTimeout(() => {
+      signal?.removeEventListener('abort', onAbort);
+      resolve();
+    }, ms);
+    function onAbort() {
+      clearTimeout(tid);
+      reject(new DOMException('Aborted', 'AbortError'));
+    }
+    signal?.addEventListener('abort', onAbort, { once: true });
+  });
+}
+
 export function parseRateLimitType(bodyText: string): { limitType: RateLimitType; limitMessage: string } {
   try {
     const json = JSON.parse(bodyText);
@@ -88,6 +116,7 @@ export async function withRetry<T>(
   config: RetryConfig,
   label: string,
   onLog?: (msg: string) => void,
+  signal?: AbortSignal,
 ): Promise<T> {
   // NOTE (t/2492): this is the low-level per-call AI-client retry layer. The renderer's
   // user-facing debate/chat orchestration retry uses a separate, independent classifier at
@@ -95,9 +124,13 @@ export async function withRetry<T>(
   // layer, different budget). If you change the transient-retry set here, check whether that
   // classifier wants the same, and vice versa.
   for (let attempt = 1; attempt <= config.maxRetries; attempt++) {
+    if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
     try {
       return await fn();
     } catch (err: unknown) {
+      // AbortError is non-retryable — rethrow immediately (t/2507).
+      // Use name-check rather than instanceof so DOMException works in all environments.
+      if ((err as { name?: unknown } | null)?.name === 'AbortError') throw err;
       const msg = err instanceof Error ? err.message : String(err);
       const lower = msg.toLowerCase();
       if (lower.includes('error 401') || lower.includes('error 403') ||
@@ -119,7 +152,7 @@ export async function withRetry<T>(
       const delay = isRateLimit ? Math.max(baseDelay, RATE_LIMIT_MIN_DELAY_S) : baseDelay;
       const errSummary = err instanceof ActionableError ? err.problem : msg.slice(0, 300);
       onLog?.(`[retry] ${label} attempt ${attempt}/${config.maxRetries} failed (${errSummary}), waiting ${delay}s...`);
-      await new Promise(r => setTimeout(r, delay * 1000));
+      await abortableSleep(delay * 1000, signal);
     }
   }
   throw new ActionableError({
@@ -138,19 +171,31 @@ export async function retryableFetch(opts: {
   fetchFn: FetchFn;
   config?: RetryConfig;
   onRetry?: (p: RetryProgress) => void;
+  signal?: AbortSignal;
 }): Promise<{ response: Response; bodyText: string }> {
   const config = opts.config ?? SERVER_RETRY_CONFIG;
   for (let attempt = 1; attempt <= config.maxRetries; attempt++) {
+    if (opts.signal?.aborted) throw new DOMException('Aborted', 'AbortError');
     let response: Response;
     try {
-      response = await withTimeout(opts.fetchFn(opts.url, opts.init), opts.timeoutMs, opts.label);
+      response = await opts.fetchFn(opts.url, {
+        ...opts.init,
+        signal: makeFetchSignal(opts.timeoutMs, opts.signal),
+      });
     } catch (err: unknown) {
-      if (attempt === config.maxRetries) throw err instanceof Error ? err : new Error(String(err));
+      // AbortError is non-retryable (t/2507). Name-check works for both Error and DOMException.
+      if ((err as { name?: unknown } | null)?.name === 'AbortError') throw err;
+      if (attempt === config.maxRetries) {
+        if (err instanceof Error) throw err;
+        // Preserve non-Error throwables (e.g. DOMException where instanceof varies by environment)
+        if (err != null && typeof err === 'object') throw err as Error;
+        throw new Error(String(err));
+      }
       const backoff = config.strategy === 'fixed'
         ? (config.fixedDelays?.[attempt - 1] ?? 45)
         : Math.min(2 ** attempt, config.maxBackoffS ?? 30);
       opts.onRetry?.({ attempt, maxRetries: config.maxRetries, backoffSeconds: backoff, limitType: 'unknown', limitMessage: 'Network error. Retrying...' });
-      await new Promise(r => setTimeout(r, backoff * 1000));
+      await abortableSleep(backoff * 1000, opts.signal);
       continue;
     }
 
@@ -184,7 +229,7 @@ export async function retryableFetch(opts: {
         ? rateLimitHeaders.retryAfterSeconds  // respect server's guidance unconditionally
         : Math.max(exponentialBackoff, RATE_LIMIT_MIN_DELAY_S);
       opts.onRetry?.({ attempt, maxRetries: config.maxRetries, backoffSeconds: backoff, limitType, limitMessage, rateLimitHeaders });
-      await new Promise(r => setTimeout(r, backoff * 1000));
+      await abortableSleep(backoff * 1000, opts.signal);
       continue;
     }
 

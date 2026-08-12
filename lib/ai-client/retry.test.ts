@@ -2,7 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { withRetry, parseRateLimitHeaders, parseRateLimitType, retryableFetch } from './retry.js';
+import { withRetry, parseRateLimitHeaders, parseRateLimitType, retryableFetch, makeFetchSignal } from './retry.js';
 import type { RetryConfig } from './retry.js';
 
 const FAST_CONFIG: RetryConfig = {
@@ -116,6 +116,95 @@ describe('withRetry — auth error fast-fail', () => {
       throw new Error('JSON parse error: unexpected token');
     }, FAST_CONFIG, 'test')).rejects.toThrow('JSON parse');
     expect(calls).toBe(1);
+  });
+});
+
+describe('withRetry — AbortSignal (t/2507)', () => {
+  it('throws AbortError immediately without calling fn when signal is pre-aborted', async () => {
+    const controller = new AbortController();
+    controller.abort();
+    let calls = 0;
+    await expect(withRetry(async () => { calls++; return 'ok'; }, FAST_CONFIG, 'test', undefined, controller.signal))
+      .rejects.toMatchObject({ name: 'AbortError' });
+    expect(calls).toBe(0);
+  });
+
+  it('does not retry AbortError thrown from fn', async () => {
+    let calls = 0;
+    await expect(withRetry(async () => {
+      calls++;
+      throw new DOMException('Aborted', 'AbortError');
+    }, FAST_CONFIG, 'test')).rejects.toMatchObject({ name: 'AbortError' });
+    expect(calls).toBe(1);
+  });
+
+  it('stops retrying and throws AbortError when signal fires during backoff', async () => {
+    const controller = new AbortController();
+    let calls = 0;
+    const p = withRetry(async () => {
+      calls++;
+      if (calls === 1) {
+        // abort while the first retry backoff would be sleeping
+        setTimeout(() => controller.abort(), 0);
+        throw new Error('fetch failed: ECONNRESET');
+      }
+      return 'ok';
+    }, FAST_CONFIG, 'test', undefined, controller.signal);
+    await expect(p).rejects.toMatchObject({ name: 'AbortError' });
+    expect(calls).toBe(1);
+  });
+});
+
+describe('retryableFetch — AbortSignal (t/2507)', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('throws AbortError immediately when signal is pre-aborted', async () => {
+    const controller = new AbortController();
+    controller.abort();
+    const fetchFn = vi.fn();
+    await expect(retryableFetch({
+      label: 'test', url: 'https://example.com', init: { method: 'POST' },
+      timeoutMs: 5000, fetchFn, config: FAST_CONFIG, signal: controller.signal,
+    })).rejects.toMatchObject({ name: 'AbortError' });
+    expect(fetchFn).not.toHaveBeenCalled();
+  });
+
+  it('does not retry when fetch throws AbortError', async () => {
+    let calls = 0;
+    const fetchFn = vi.fn().mockImplementation(() => {
+      calls++;
+      throw new DOMException('Aborted', 'AbortError');
+    });
+    await expect(retryableFetch({
+      label: 'test', url: 'https://example.com', init: { method: 'POST' },
+      timeoutMs: 5000, fetchFn, config: FAST_CONFIG,
+    })).rejects.toMatchObject({ name: 'AbortError' });
+    expect(calls).toBe(1);
+  });
+});
+
+describe('makeFetchSignal (t/2507)', () => {
+  it('returns a signal that fires after the timeout with no caller signal', () => {
+    const sig = makeFetchSignal(100);
+    expect(sig).toBeInstanceOf(AbortSignal);
+    expect(sig.aborted).toBe(false);
+  });
+
+  it('returns an already-aborted signal when caller signal is pre-aborted', () => {
+    const controller = new AbortController();
+    controller.abort();
+    const sig = makeFetchSignal(30_000, controller.signal);
+    expect(sig.aborted).toBe(true);
+  });
+
+  it('combines caller signal and timeout — fires when caller aborts', async () => {
+    const controller = new AbortController();
+    const sig = makeFetchSignal(30_000, controller.signal);
+    expect(sig.aborted).toBe(false);
+    controller.abort();
+    expect(sig.aborted).toBe(true);
   });
 });
 

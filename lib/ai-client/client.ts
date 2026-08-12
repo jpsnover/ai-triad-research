@@ -79,6 +79,7 @@ export function createAIClient(
         retryConfig,
         `${backend}/${apiModelId}`,
         deps.onRetryLog,
+        effectiveOpts.signal,
       );
       if (result.usage) {
         result.estimatedCostUsd = estimateCost(registry, apiModelId, result.usage);
