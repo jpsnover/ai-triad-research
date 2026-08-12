@@ -12,7 +12,8 @@ name: PR triage
 
 on:
   schedule:
-    - cron: '0 9 * * 1'  # Monday 09:00 UTC
+    - cron: '0 9 * * 1'    # Monday 09:00 UTC — full weekly triage
+    - cron: '0 */2 * * *'  # every 2 hours — idle-green nudge sweep (t/2523)
   workflow_dispatch:
     inputs:
       dry_run:
@@ -94,8 +95,9 @@ jobs:
             }
 
             // ── 5. Process bot PRs ────────────────────────────────────────────────
-            const closedPRs  = [];
+            const closedPRs   = [];
             const digestItems = [];
+            const nudgedPRs   = [];  // step 9 — idle-green nudges (t/2523)
 
             // 5a. Group by (dep, dir) — keep highest semver "to", close the rest
             const groups = new Map();
@@ -286,6 +288,85 @@ jobs:
               digestItems.push({ pr, reason });
             }
 
+            // ── 9. Nudge idle-green fleet PRs (t/2523) ────────────────────────────
+            // Advisory nudge — not a blocking gate. Posts exactly once per head SHA
+            // on fleet PRs where CI has been green >30 min with no recorded hold.
+            // Idempotent: the hidden marker prevents re-nudge on repeat sweeps.
+            //
+            // CodeQL absent vs pending (Quality TL note): absent = satisfied
+            // (docs-only PR skipped by paths-ignore); in_progress/queued = still
+            // running, skip nudge. These are different states and must be checked
+            // explicitly — do NOT treat absent and pending the same.
+            const NUDGE_MARKER_PREFIX = '<!-- pr-triage-nudge-sha:';
+            const HOLD_RE = /^HOLD:/im;
+            const THIRTY_MIN_MS = 30 * 60 * 1000;
+            const nowMs = Date.now();
+
+            for (const pr of fleetPRs) {
+              if (pr.draft) continue;
+
+              // Fetch check runs for this head SHA
+              const { data: nudgeChecks } = await github.rest.checks.listForRef({
+                owner, repo, ref: pr.head.sha, per_page: 100,
+              });
+              const byNameNudge = {};
+              for (const c of nudgeChecks.check_runs) {
+                const prev = byNameNudge[c.name];
+                if (!prev || new Date(c.started_at) > new Date(prev.started_at))
+                  byNameNudge[c.name] = c;
+              }
+
+              const ciGateNudge = byNameNudge['ci-gate'];
+              const codeQLNudge = byNameNudge['CodeQL'];
+
+              // ci-gate must be present and successful
+              if (!ciGateNudge || ciGateNudge.conclusion !== 'success') continue;
+
+              // CodeQL: absent → satisfied (docs-only, paths-ignore skipped it).
+              // in_progress/queued → still running, don't nudge yet.
+              // failure/cancelled → not green, don't nudge.
+              if (codeQLNudge) {
+                if (codeQLNudge.status === 'in_progress' || codeQLNudge.status === 'queued') continue;
+                if (codeQLNudge.conclusion !== 'success') continue;
+              }
+
+              // Must have been green for >30 min
+              const greenAt = new Date(ciGateNudge.completed_at).getTime();
+              if (nowMs - greenAt < THIRTY_MIN_MS) continue;
+
+              // Check for holds: CHANGES_REQUESTED reviews or HOLD: comments
+              const { data: prReviews } = await github.rest.pulls.listReviews({
+                owner, repo, pull_number: pr.number,
+              });
+              if (prReviews.some(r => r.state === 'CHANGES_REQUESTED')) continue;
+
+              const { data: prComments } = await github.rest.issues.listComments({
+                owner, repo, issue_number: pr.number, per_page: 100,
+              });
+              if (prComments.some(c => HOLD_RE.test(c.body))) continue;
+
+              // Idempotency: skip if this exact head SHA was already nudged.
+              // A repeat sweep must NOT post a second nudge (Quality TL note).
+              const nudgeMarker = `${NUDGE_MARKER_PREFIX} ${pr.head.sha} -->`;
+              if (prComments.some(c => c.body.includes(nudgeMarker))) continue;
+
+              // Post nudge comment
+              const elapsedMin = Math.round((nowMs - greenAt) / 60000);
+              const nudgeBody = [
+                `@${pr.user.login} CI has been green for ${elapsedMin} min — merge when ready,`,
+                `or add a comment starting with \`HOLD: <reason>\` to suppress this nudge.`,
+                nudgeMarker,
+              ].join('\n');
+
+              if (!dryRun) {
+                await github.rest.issues.createComment({
+                  owner, repo, issue_number: pr.number, body: nudgeBody,
+                });
+              }
+              nudgedPRs.push({ pr, elapsedMin });
+              core.info(`${dryRun ? '[DRY]' : '[LIVE]'} Nudge #${pr.number} (green ${elapsedMin} min, @${pr.user.login})`);
+            }
+
             // ── 8. Job summary ────────────────────────────────────────────────────
             const runDate = new Date().toISOString().slice(0, 10);
             const mode    = dryRun ? 'DRY RUN' : 'LIVE';
@@ -306,6 +387,11 @@ jobs:
                 header3(['PR', 'Title', 'Action']),
                 ...(retriggeredPRs.length ? retriggeredPRs.map(({ pr, action }) => [`#${pr.number}`, pr.title.slice(0, 80), action]) : [['—', '—', '—']]),
               ])
+              .addHeading(`Nudged — idle green >30 min (${nudgedPRs.length})`, 3)
+              .addTable([
+                header3(['PR', 'Title', 'Green for']),
+                ...(nudgedPRs.length ? nudgedPRs.map(({ pr, elapsedMin }) => [`#${pr.number}`, pr.title.slice(0, 80), `${elapsedMin} min`]) : [['—', 'No items', '']]),
+              ])
               .addHeading(`Digest — needs attention (${digestItems.length})`, 3)
               .addTable([
                 header3(['PR', 'Title', 'Stuck reason']),
@@ -313,4 +399,4 @@ jobs:
               ])
               .write();
 
-            core.info(`Done — closed:${closedPRs.length} retriggered:${retriggeredPRs.length} digest:${digestItems.length}`);
+            core.info(`Done — closed:${closedPRs.length} retriggered:${retriggeredPRs.length} nudged:${nudgedPRs.length} digest:${digestItems.length}`);
