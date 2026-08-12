@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { type DebateSession, type DebateSourceType, type SpeakerId, type DebatePacing } from '../types.js';
+import type { DialecticalStyle } from '../types/phase.js';
 
 // ── Lifecycle stages (for stopAfterStage on resume) ─────
 
@@ -56,6 +57,8 @@ export interface DebateConfig {
   useAdaptiveStaging?: boolean;
   /** Pacing preset — controls max rounds and exit thresholds. Default: 'moderate'. */
   pacing?: DebatePacing;
+  /** Dialectical style — controls phase exit thresholds. Default: 'adversarial'. Preset-specific: socratic→integrative, deep→deliberative, quick→adversarial. */
+  dialecticalStyle?: DialecticalStyle;
   /** Override max total rounds (otherwise derived from pacing preset). */
   maxTotalRounds?: number;
   /** Override exploration exit threshold (otherwise derived from pacing preset). */

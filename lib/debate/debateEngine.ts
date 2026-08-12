@@ -1032,7 +1032,7 @@ export class DebateEngine {
         useAdaptiveStaging: true,
         maxTotalRounds: this.config.maxTotalRounds ?? preset.maxTotalRounds,
         pacing,
-        dialecticalStyle: 'adversarial',
+        dialecticalStyle: this.config.dialecticalStyle ?? 'adversarial',
         argumentationExitThreshold: this.config.argumentationExitThreshold ?? preset.argumentationExit,
         concludingExitThreshold: this.config.concludingExitThreshold ?? preset.concludingExit,
         allowEarlyTermination: this.config.allowEarlyTermination ?? true,
