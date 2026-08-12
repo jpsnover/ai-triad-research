@@ -367,7 +367,9 @@ $($DiffOnlyHtml.ToString())
     $Html = $Html -replace '{{DIFF_ONLY_SECTION}}', $DiffOnlySection
 
     # ── Write and open ───────────────────────────────────────────────────────
-    $TempPath = Join-Path ([System.IO.Path]::GetTempPath()) 'AITriad-TaxonomyCompare.html'
+    # Unpredictable name — a fixed temp filename lets a local attacker pre-create
+    # the path (e.g. as a symlink) to redirect this write (t/2530 L2).
+    $TempPath = New-SecureTempPath -Prefix 'AITriad-TaxonomyCompare' -Extension 'html'
     Set-Content -Path $TempPath -Value $Html -Encoding utf8
     Write-OK "Report written to $TempPath"
 

@@ -186,14 +186,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         continue
                     }
 
-                    $PandocArgs = @(
-                        $FilePath
-                        '-o', $TempHtml
-                        '--standalone'
-                        '--embed-resources'
-                        '--metadata', "title=$Title"
-                        '--include-in-header', $StyleFile
-                    )
+                    $PandocArgs = Get-PandocHtmlArgs -InputPath $FilePath -OutputPath $TempHtml -Title $Title -HeaderFile $StyleFile
 
                     $PandocErrors = @()
                     & $PandocPath @PandocArgs 2>&1 | ForEach-Object {

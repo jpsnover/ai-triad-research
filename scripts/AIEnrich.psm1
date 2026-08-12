@@ -266,12 +266,14 @@ function Measure-PromptTokens {
     $GeminiKey = Resolve-AIApiKey -ExplicitKey $ApiKey -Backend 'gemini'
     if ($GeminiKey) {
         try {
-            $CountUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:countTokens?key=$GeminiKey"
+            # Key travels in the x-goog-api-key header, not the URL — a ?key= query
+            # param leaks via proxy logs and PS5.1 error-record URIs (t/2530 L1).
+            $CountUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:countTokens'
             $CountBody = @{
                 contents = @(@{ parts = @(@{ text = $Text }) })
             } | ConvertTo-Json -Depth 5
             $BodyBytes = [System.Text.Encoding]::UTF8.GetBytes($CountBody)
-            $CountResponse = Invoke-RestMethod -Uri $CountUrl -Method POST -ContentType 'application/json; charset=utf-8' -Body $BodyBytes -TimeoutSec 10
+            $CountResponse = Invoke-RestMethod -Uri $CountUrl -Method POST -Headers @{ 'x-goog-api-key' = $GeminiKey } -ContentType 'application/json; charset=utf-8' -Body $BodyBytes -TimeoutSec 10
             return [PSCustomObject]@{
                 TokenCount = [int]$CountResponse.totalTokens
                 Method     = 'gemini-countTokens'
@@ -541,7 +543,10 @@ function Invoke-AIApi {
 
     switch ($Backend) {
         'gemini' {
-            $Uri = "https://generativelanguage.googleapis.com/v1beta/models/${ApiModelId}:generateContent?key=${ResolvedKey}"
+            # Key travels in the x-goog-api-key header, not the URL — a ?key= query
+            # param leaks via proxy logs and PS5.1 error-record URIs (t/2530 L1).
+            $Uri = "https://generativelanguage.googleapis.com/v1beta/models/${ApiModelId}:generateContent"
+            $Headers['x-goog-api-key'] = $ResolvedKey
 
             $Categories = @('HARASSMENT', 'HATE_SPEECH', 'SEXUALLY_EXPLICIT', 'DANGEROUS_CONTENT')
             $SafetyList = $Categories | ForEach-Object {
@@ -926,7 +931,10 @@ function Invoke-AIApi {
             { $_ -in 500, 502, 503 } { 'Server error — the API may be temporarily unavailable.' }
             default { '' }
         }
-        Write-Warning "$($Backend): API call failed (HTTP $StatusCode) — $($LastError.Exception.Message)"
+        # Scrub any key/token that the exception message or response body may echo
+        # before it reaches a log (t/2530 L14).
+        $SafeMsg = Protect-SensitiveText -Text $LastError.Exception.Message -Secret $ResolvedKey
+        Write-Warning "$($Backend): API call failed (HTTP $StatusCode) — $SafeMsg"
         if ($Hint) { Write-Warning "$($Backend): $Hint" }
         try {
             if ($LastError.Exception.Response) {
@@ -934,7 +942,8 @@ function Invoke-AIApi {
                 $ErrReader = [System.IO.StreamReader]::new($ErrStream)
                 $ErrBody   = $ErrReader.ReadToEnd()
                 $ErrReader.Close()
-                Write-Warning "$($Backend): Response body: $ErrBody"
+                $SafeBody = Protect-SensitiveText -Text $ErrBody -Secret $ResolvedKey
+                Write-Warning "$($Backend): Response body: $SafeBody"
             }
         } catch { }
 

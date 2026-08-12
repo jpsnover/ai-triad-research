@@ -547,7 +547,15 @@ function Start-ContainerMode {
     }
 
     # ── Build docker run arguments ────────────────────────────────────────
+    # Get-ApiKeyEnvArgs writes keys to a 0600 temp env-file and returns
+    # @('--env-file', <path>) — we delete that file once docker has read it (t/2530 L3).
     $envArgs = Get-ApiKeyEnvArgs
+    $envFilePath = if ($envArgs.Count -ge 2 -and $envArgs[0] -eq '--env-file') { $envArgs[1] } else { $null }
+    $removeEnvFile = {
+        if ($envFilePath -and (Test-Path -LiteralPath $envFilePath)) {
+            Remove-Item -LiteralPath $envFilePath -Force -ErrorAction SilentlyContinue
+        }
+    }
 
     # UID/GID for bind mount and tmpfs ownership
     $uid = $null
@@ -594,6 +602,7 @@ function Start-ContainerMode {
     if ($Detach) {
         Write-Step 'Starting Taxonomy Editor (detached)'
         $dockerOutput = docker @runArgs 2>&1
+        & $removeEnvFile   # docker has read --env-file; remove the secret now
         if ($LASTEXITCODE -ne 0) {
             $errorText = ($dockerOutput | Out-String).Trim()
             Write-Fail "Failed to start container (exit code $LASTEXITCODE)."
@@ -642,6 +651,7 @@ function Start-ContainerMode {
         $fgArgs = @($fgArgs[0..($fgArgs.Count - 2)]) + @('-d') + @($fgArgs[-1])
 
         $dockerOutput = docker @fgArgs 2>&1
+        & $removeEnvFile   # docker has read --env-file; remove the secret now
         if ($LASTEXITCODE -ne 0) {
             $errorText = ($dockerOutput | Out-String).Trim()
             Write-Fail "Failed to start container (exit code $LASTEXITCODE)."

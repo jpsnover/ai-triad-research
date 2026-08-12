@@ -751,9 +751,9 @@ function Show-AITriadHelp {
     $Html = $Html.Replace('{{COUNT}}',     [string]$CmdletCount)
     $Html = $Html.Replace('{{CATCOUNT}}',  [string]$CategoryCount)
 
-    # Write to temp directory with a fixed filename
-    $TempDir  = [System.IO.Path]::GetTempPath()
-    $TempPath = Join-Path $TempDir 'AITriad-Help.html'
+    # Unpredictable name — a fixed temp filename lets a local attacker pre-create
+    # the path (e.g. as a symlink) to redirect this write (t/2530 L2).
+    $TempPath = New-SecureTempPath -Prefix 'AITriad-Help' -Extension 'html'
     Set-Content -Path $TempPath -Value $Html -Encoding utf8
 
     if ($PassThru) {

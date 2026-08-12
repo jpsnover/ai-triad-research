@@ -677,8 +677,9 @@ init();
                             try {
                                 switch ($TestBackend) {
                                     'gemini' {
-                                        $Uri = "https://generativelanguage.googleapis.com/v1beta/models?key=$TestKey"
-                                        $R = Invoke-RestMethod -Uri $Uri -Method Get -TimeoutSec 10 -ErrorAction Stop
+                                        # Key in x-goog-api-key header, not ?key= URL (t/2530 L1).
+                                        $Uri = 'https://generativelanguage.googleapis.com/v1beta/models'
+                                        $R = Invoke-RestMethod -Uri $Uri -Method Get -Headers @{ 'x-goog-api-key' = $TestKey } -TimeoutSec 10 -ErrorAction Stop
                                         $TestResult = @{ ok = $true; message = "Valid — $(@($R.models).Count) models available" }
                                     }
                                     'anthropic' {
@@ -834,6 +835,8 @@ init();
                             $EnvLines.Add('# powershell_section_end')
 
                             Write-Utf8NoBom -Path $EnvFilePath -Value ($EnvLines -join "`n")  -Force
+                            # Persisted keys are secrets — restrict to the current user (t/2530 M1).
+                            Protect-UserSecretFile -Path $EnvFilePath
 
                             if ($Changes.Count -gt 0) {
                                 $SaveResult.message = "Saved: $($Changes -join ', '). Persisted to $EnvFilePath"
