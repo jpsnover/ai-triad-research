@@ -14,12 +14,14 @@ const {
   mockLoadDebateFromData,
   mockLoadAll,
   mockOnDebateWindowLoad,
+  storeState,
 } = vi.hoisted(() => ({
   mockLoadCommunityDebateSession: vi.fn().mockResolvedValue({ id: 'abc-123', found: true }),
   mockLoadDebate: vi.fn().mockResolvedValue(undefined),
   mockLoadDebateFromData: vi.fn(),
   mockLoadAll: vi.fn().mockResolvedValue(undefined),
   mockOnDebateWindowLoad: vi.fn(),
+  storeState: { activeDebateId: null as string | null, debateError: null as string | null },
 }));
 
 // Captured IPC callback — populated when DebatePopoutWindow registers its onDebateWindowLoad listener.
@@ -37,9 +39,7 @@ vi.mock('@bridge', () => ({
 }));
 
 vi.mock('../../hooks/useDebateStore', () => {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const useDebateStore = (selector: (s: any) => any) =>
-    selector({ activeDebateId: null, debateError: null });
+  const useDebateStore = (selector: (s: typeof storeState) => unknown) => selector(storeState);
   useDebateStore.getState = () => ({
     loadDebate: mockLoadDebate,
     loadDebateFromData: mockLoadDebateFromData,
@@ -59,6 +59,11 @@ vi.mock('../../hooks/useTaxonomyStore', () => {
 });
 
 vi.mock('../debate-workspace', () => ({ DebateWorkspace: () => null }));
+vi.mock('../shared/LoadingProgress', () => ({
+  LoadingProgress: ({ label }: { label?: string }) => (
+    <div data-testid="loading-progress" aria-label={label ?? 'Loading'} />
+  ),
+}));
 
 vi.mock('./useBriefTimeoutEvents', () => ({
   useBriefTimeoutEvents: () => ({
@@ -89,6 +94,8 @@ describe('DebatePopoutWindow — runLoad routing (t/2399)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     capturedDebateWindowLoadCb = null;
+    storeState.activeDebateId = null;
+    storeState.debateError = null;
     mockLoadCommunityDebateSession.mockResolvedValue({ id: 'abc-123', found: true });
     mockLoadAll.mockResolvedValue(undefined);
   });
@@ -142,5 +149,33 @@ describe('DebatePopoutWindow — runLoad routing (t/2399)', () => {
       expect(mockLoadDebate).toHaveBeenCalledWith('abc-123');
     });
     expect(mockLoadCommunityDebateSession).not.toHaveBeenCalled();
+  });
+});
+
+describe('DebatePopoutWindow — loading progress (t/2499)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    capturedDebateWindowLoadCb = null;
+    storeState.activeDebateId = null;
+    storeState.debateError = null;
+    mockLoadAll.mockResolvedValue(undefined);
+    setHash('');
+  });
+
+  it('shows LoadingProgress while taxonomy and debate are loading', () => {
+    // loadAll never resolves → ready stays false
+    mockLoadAll.mockReturnValue(new Promise(() => {}));
+    const { getByTestId } = render(<DebatePopoutWindow />);
+    expect(getByTestId('loading-progress')).not.toBeNull();
+  });
+
+  it('hides LoadingProgress once taxonomy is ready and debate is active', async () => {
+    // Store already has an active debate (simulates debate loaded before/during taxonomy init)
+    storeState.activeDebateId = 'debate-abc';
+    const { queryByTestId } = render(<DebatePopoutWindow />);
+    // loadAll resolves → ready=true; activeDebateId already set → component advances past loading gate
+    await waitFor(() => {
+      expect(queryByTestId('loading-progress')).toBeNull();
+    });
   });
 });

@@ -6,7 +6,7 @@
  * initializes stores independently, and renders DebateWorkspace.
  */
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { api } from '@bridge';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { useDebateStore } from '../../hooks/useDebateStore';
@@ -19,12 +19,15 @@ import { parseDebateHash, shouldShowLoadError, type DebateLoadTarget } from './p
 import { useBriefTimeoutEvents } from './useBriefTimeoutEvents';
 import { BriefTimeoutToast } from './BriefTimeoutToast';
 import { BriefTimeoutDialog } from './BriefTimeoutDialog';
+import { LoadingProgress } from '../shared/LoadingProgress';
 import './DebatePopoutWindow.css';
 
 export function DebatePopoutWindow() {
   usePopoutTheme();
   useTheoryLinkHotkey(); // F1-to-nearest must work in the popout document too (t/2343)
   useEffect(() => { markAsPopout(); }, []);
+  // Captured at component mount — before any async work — so the elapsed timer reflects true window-open time.
+  const loadStartRef = useRef(Date.now());
   const [ready, setReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const activeDebateId = useDebateStore(s => s.activeDebateId);
@@ -152,7 +155,7 @@ export function DebatePopoutWindow() {
   if (!ready || !activeDebateId) {
     return (
       <div className="debate-popout-fullscreen">
-        <p className="debate-popout-hint">Loading debate...</p>
+        <LoadingProgress label="Loading debate…" startedAt={loadStartRef.current} />
       </div>
     );
   }
