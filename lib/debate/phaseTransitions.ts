@@ -16,6 +16,7 @@ import type {
   ArgumentNetworkNode,
   ArgumentNetworkEdge,
   TranscriptEntry,
+  DialecticalStyle,
 } from './types.js';
 import { computePragmaticConvergence, computeConcludingPragmaticSignal } from './pragmaticSignals.js';
 import { computeSchemeStagnationCombined, computeSchemeCoverageFactor } from './schemeStagnation.js';
@@ -178,7 +179,7 @@ export function validateAdaptiveConfig(config: PhaseTransitionConfig): { valid: 
   if (config.argumentationExitThreshold > 0.95) {
     errors.push('argumentationExitThreshold > 0.95: exploration will almost never exit organically');
   }
-  if (config.concludingExitThreshold < 0.30) {
+  if (config.concludingExitThreshold < 0.30 && config.dialecticalStyle !== 'socratic') {
     errors.push('concludingExitThreshold < 0.30: synthesis will exit before meaningful convergence');
   }
   if (config.maxTotalRounds < 6) {
@@ -196,14 +197,30 @@ export function validateAdaptiveConfig(config: PhaseTransitionConfig): { valid: 
 
 // ── Signal Registry ─────────────────────────────────────────
 
-export function buildSignalRegistry(): Signal[] {
+// Saturation weights renormalized for Socratic mode — pragmatic_convergence is zeroed
+// (concessive language signals elenchus working, not a reason to exit argumentation).
+// Remaining weights sum to 0.67; renormalized to 1.00 so the threshold is reachable.
+// Dominant signals: scheme_stagnation (0.537) + crux_maturity (0.418) = exit elenchus
+// when argumentation schemes stop diversifying and cruxes are examined — inquiry maturation.
+// Provenance: stipulated — registered in research/comp-linguist/docs/metric-provenance-register.md (t/2515).
+const SOCRATIC_SATURATION_WEIGHTS = {
+  recycling_pressure: 0.015,
+  crux_maturity: 0.418,
+  concession_plateau: 0.015,
+  engagement_fatigue: 0.015,
+  pragmatic_convergence: 0,
+  scheme_stagnation: 0.537,
+} as const;
+
+export function buildSignalRegistry(dialecticalStyle?: DialecticalStyle): Signal[] {
   const w = loadProvisionalWeights();
+  const sat = dialecticalStyle === 'socratic' ? SOCRATIC_SATURATION_WEIGHTS : w.argumentative_saturation;
 
   return [
     // Saturation signals (exploration exit)
     {
       id: 'recycling_pressure',
-      weight: w.argumentative_saturation.recycling_pressure,
+      weight: sat.recycling_pressure,
       enabled: true,
       maturity: 'v1-ship' as const,
       compute: (ctx: SignalContext) => {
@@ -215,7 +232,7 @@ export function buildSignalRegistry(): Signal[] {
     },
     {
       id: 'crux_maturity',
-      weight: w.argumentative_saturation.crux_maturity,
+      weight: sat.crux_maturity,
       enabled: true,
       maturity: 'v1-ship' as const,
       compute: (ctx: SignalContext) => {
@@ -255,7 +272,7 @@ export function buildSignalRegistry(): Signal[] {
     },
     {
       id: 'concession_plateau',
-      weight: w.argumentative_saturation.concession_plateau,
+      weight: sat.concession_plateau,
       enabled: true,
       maturity: 'v1-ship' as const,
       compute: (ctx: SignalContext) => {
@@ -265,7 +282,7 @@ export function buildSignalRegistry(): Signal[] {
     },
     {
       id: 'engagement_fatigue',
-      weight: w.argumentative_saturation.engagement_fatigue,
+      weight: sat.engagement_fatigue,
       enabled: true,
       maturity: 'v1-ship' as const,
       compute: (ctx: SignalContext) => {
@@ -277,7 +294,7 @@ export function buildSignalRegistry(): Signal[] {
     },
     {
       id: 'pragmatic_convergence',
-      weight: w.argumentative_saturation.pragmatic_convergence,
+      weight: sat.pragmatic_convergence,
       enabled: true,
       maturity: 'v1-ship' as const,
       compute: (ctx: SignalContext) => {
@@ -291,7 +308,7 @@ export function buildSignalRegistry(): Signal[] {
     },
     {
       id: 'scheme_stagnation',
-      weight: w.argumentative_saturation.scheme_stagnation,
+      weight: sat.scheme_stagnation,
       enabled: true,
       maturity: 'v1-ship' as const,
       compute: (ctx: SignalContext) => {
@@ -792,6 +809,12 @@ function evaluateConcludingExit(
     return { action: 'terminate', reason: `Max synthesis turns (${pb.max_concluding_rounds / s} rounds × ${s} speakers)`, veto_active: false, force_active: true, confidence_deferred: false, components };
   }
 
+  // Socratic aporia phase: exit only on hard cap — convergence score and stall logic are
+  // inapplicable when the goal is productive irresolution, not consensus.
+  if (config.dialecticalStyle === 'socratic') {
+    return { action: 'stay', reason: `Aporia phase, turn ${state.rounds_in_phase} — awaiting hard cap`, veto_active: false, force_active: false, confidence_deferred: false, components };
+  }
+
   if (coldStart) {
     return { action: 'stay', reason: `Cold start (turn ${state.rounds_in_phase} < min ${pb.min_concluding_rounds})`, veto_active: false, force_active: false, confidence_deferred: false, components };
   }
@@ -945,7 +968,7 @@ export function buildPhaseContext(state: PhaseState, config: PhaseTransitionConf
   const progress = Math.max(0, Math.min(1, Math.max(timeProgress, scoreProgress)));
   const approaching = progress >= 0.85;
 
-  const rationale = buildPhaseRationale(state, satScore, convScore);
+  const rationale = buildPhaseRationale(state, satScore, convScore, config.dialecticalStyle);
 
   return {
     phase: state.current_phase,
@@ -956,7 +979,7 @@ export function buildPhaseContext(state: PhaseState, config: PhaseTransitionConf
   };
 }
 
-function buildPhaseRationale(state: PhaseState, satScore: number, convScore: number): string {
+function buildPhaseRationale(state: PhaseState, satScore: number, convScore: number, dialecticalStyle?: DialecticalStyle): string {
   switch (state.current_phase) {
     case 'confrontation':
       return `Thesis-antithesis phase, turn ${state.rounds_in_phase}. Debaters are establishing positions.`;
@@ -967,6 +990,9 @@ function buildPhaseRationale(state: PhaseState, satScore: number, convScore: num
       return `Exploration phase, turn ${state.rounds_in_phase}. Saturation at ${pct}% of ${threshPct}% threshold${regrNote}.`;
     }
     case 'concluding': {
+      if (dialecticalStyle === 'socratic') {
+        return `Aporia phase, turn ${state.rounds_in_phase}. Articulating productive irresolution and sharpened question.`;
+      }
       const pct = (convScore * 100).toFixed(0);
       const threshPct = (state.concluding_exit_threshold * 100).toFixed(0);
       return `Synthesis phase, turn ${state.rounds_in_phase}. Convergence at ${pct}% of ${threshPct}% threshold.`;

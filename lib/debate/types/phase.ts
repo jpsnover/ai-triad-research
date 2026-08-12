@@ -47,7 +47,7 @@ export function getDebatePhase(round: number, totalRounds: number): DebatePhase 
 // ── Adaptive Staging Types ──────────────────────────────────────────
 
 export type DebatePacing = 'tight' | 'moderate' | 'thorough' | 'quick';
-export type DialecticalStyle = 'adversarial' | 'deliberative' | 'integrative';
+export type DialecticalStyle = 'adversarial' | 'deliberative' | 'integrative' | 'socratic';
 
 export interface PhaseBoundsOverride {
   maxConfrontationRounds?: number;
