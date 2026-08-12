@@ -420,4 +420,40 @@ describe('moonshot backend routing (t/1945)', () => {
   it('getDefaultTimeout uses the moonshot (240s) budget, mirroring zai', () => {
     expect(getDefaultTimeout('moonshot-kimi-k3')).toBe(240_000);
   });
+
+  // Frontier-tier 2× tests (t/2495)
+  const tierRegistry = {
+    backends: [],
+    models: [],
+    debateTiers: {
+      basic:    { claude: 'claude-haiku-4-5',       gemini: 'gemini-3.5-flash-lite', ollama: 'ollama-llama3', zai: 'zai-model' },
+      advanced: { claude: 'claude-sonnet-4-6',      gemini: 'gemini-3.1-pro-preview', ollama: 'ollama-llama3', zai: 'zai-model' },
+    },
+  };
+
+  it('getDefaultTimeout doubles for frontier claude (advanced ≠ basic)', () => {
+    expect(getDefaultTimeout('claude-sonnet-4-6', tierRegistry)).toBe(360_000); // 2× 180_000
+  });
+
+  it('getDefaultTimeout stays at base for basic claude', () => {
+    expect(getDefaultTimeout('claude-haiku-4-5', tierRegistry)).toBe(180_000);
+  });
+
+  it('getDefaultTimeout doubles for frontier gemini (advanced ≠ basic)', () => {
+    expect(getDefaultTimeout('gemini-3.1-pro-preview', tierRegistry)).toBe(240_000); // 2× 120_000
+  });
+
+  it('getDefaultTimeout stays at base for basic gemini', () => {
+    expect(getDefaultTimeout('gemini-3.5-flash-lite', tierRegistry)).toBe(120_000);
+  });
+
+  it('getDefaultTimeout stays at base for ollama/zai (same model in both tiers)', () => {
+    expect(getDefaultTimeout('ollama-llama3', tierRegistry)).toBe(300_000); // 1× — no frontier distinction
+    expect(getDefaultTimeout('zai-model',     tierRegistry)).toBe(240_000); // 1× — no frontier distinction
+  });
+
+  it('getDefaultTimeout returns base when no registry is passed (back-compat)', () => {
+    expect(getDefaultTimeout('claude-sonnet-4-6')).toBe(180_000);
+    expect(getDefaultTimeout('gemini-3.1-pro-preview')).toBe(120_000);
+  });
 });
