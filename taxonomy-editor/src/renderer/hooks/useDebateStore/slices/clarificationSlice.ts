@@ -143,6 +143,7 @@ async function runInitialCrossRespondRounds(get: () => DebateStore, set: (partia
     const { initialCrossRespondRounds } = get();
     if (!activeDebate.user_is_pover) {
       const freshDebate = get().activeDebate;
+      if (freshDebate?.protocol_id === 'socratic') return; // user-driven (ask/probe/summarize); no auto cross-respond loop
       const adaptive = freshDebate?.adaptive_staging;
       if (adaptive?.enabled) {
         // Adaptive: run until phase transitions signal termination (up to maxTotalRounds)
