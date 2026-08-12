@@ -77,6 +77,24 @@ describe('DebateEngine construction', () => {
     const engine = new DebateEngine(config, adapter, taxonomy);
     expect(engine).toBeDefined();
   });
+
+  it('throws ActionableError when socratic protocol has multiple active povers (t/2514)', () => {
+    const config = createDefaultConfig({
+      protocolId: 'socratic',
+      activePovers: ['accelerationist', 'safetyist'],
+    });
+    expect(() => new DebateEngine(config, createMockAdapter(), createMinimalTaxonomy()))
+      .toThrow('exactly one active POV');
+  });
+
+  it('accepts socratic protocol with exactly one active pover (t/2514)', () => {
+    const config = createDefaultConfig({
+      protocolId: 'socratic',
+      activePovers: ['safetyist'],
+    });
+    const engine = new DebateEngine(config, createMockAdapter(), createMinimalTaxonomy());
+    expect(engine).toBeDefined();
+  });
 });
 
 // ── Session initialization via run() ─────────────────────
