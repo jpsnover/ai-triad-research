@@ -11,6 +11,7 @@ import { renameSyncWithRetry } from '../../../lib/debate/persistence.js';
 import { getGlobalRecorder } from '../../../lib/flight-recorder/index.js';
 import { parseNpy, extractNodeVectors } from '../../../lib/npy.js';
 import { resolveRepoRootForApp } from '../../../lib/electron-shared/resolveRepoRootForApp.js';
+import { assertSafeId } from '../../../lib/electron-shared/safeId.js';
 import type { Entity } from '../../../lib/entities/types.js';
 import { serializeEdgesJson } from '../../../lib/edges/serializeEdges.js';
 import type { ContainerMentions, EntityMentionsFile } from '../../../lib/entities/mentionTypes.js';
@@ -179,6 +180,7 @@ export function getActiveTaxonomyDirName(): string {
 }
 
 export function setActiveTaxonomyDir(dirName: string): void {
+  assertSafeId(dirName, 'taxonomy directory name');
   const newDir = path.join(TAXONOMY_BASE, dirName);
   if (!fs.existsSync(newDir)) {
     throw new ActionableError({

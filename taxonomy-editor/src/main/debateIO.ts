@@ -5,6 +5,7 @@ import fs from 'fs';
 import path from 'path';
 
 import { resolveDataPath } from './fileIO.js';
+import { assertSafeId } from '../../../lib/electron-shared/safeId.js';
 import { extractCalibrationData, appendCalibrationLog } from '../../../lib/debate/calibrationLogger.js';
 import { safeSerialize, atomicWriteSync, renameSyncWithRetry } from '../../../lib/debate/persistence.js';
 import { ActionableError } from '../../../lib/debate/errors.js';
@@ -41,6 +42,7 @@ function ensureDebatesDir(): void {
 }
 
 function debateFilePath(id: string): string {
+  assertSafeId(id, 'debate id');
   return path.join(DEBATES_DIR, `debate-${id}.json`);
 }
 
@@ -305,6 +307,7 @@ export function deleteDebateSession(id: string): void {
 // ── Debate comments ────────────────────────────────────────
 
 function commentsFilePath(debateId: string): string {
+  assertSafeId(debateId, 'debate id');
   return path.join(DEBATES_DIR, `debate-${debateId}-comments.json`);
 }
 
