@@ -9,6 +9,7 @@ import { ActionableError } from '../../../lib/debate/errors';
 import { renameSyncWithRetry } from '../../../lib/debate/persistence';
 import { getGlobalRecorder } from '../../../lib/flight-recorder/index.js';
 import { resolveRepoRootForApp } from '../../../lib/electron-shared/resolveRepoRootForApp.js';
+import { assertSafeId } from '../../../lib/electron-shared/safeId.js';
 
 // Repo root via the shared electron resolver (walks to .aitriad.json/scripts/AITriad,
 // falls back to the packaged app path). Was a local findProjectRoot with a weak ../../.. fallback (t/1721).
@@ -263,6 +264,7 @@ export function discoverSources(): DiscoveredSource[] {
 }
 
 export function loadSummary(docId: string): PipelineSummary | null {
+  assertSafeId(docId, 'docId');
   const summaryPath = path.join(SUMMARIES_DIR, `${docId}.json`);
   if (!fs.existsSync(summaryPath)) return null;
   return parseJsonFile(summaryPath) as PipelineSummary;
@@ -299,6 +301,7 @@ export function getActiveTaxonomyDirName(): string {
 }
 
 export function setActiveTaxonomyDir(dirName: string): void {
+  assertSafeId(dirName, 'dirName');
   const newDir = path.join(TAXONOMY_BASE, dirName);
   if (!fs.existsSync(newDir)) {
     throw new ActionableError({
@@ -406,6 +409,7 @@ export interface AddTaxonomyNodeResult {
 }
 
 export function addTaxonomyNode(req: AddTaxonomyNodeRequest): AddTaxonomyNodeResult {
+  if (req.docId != null) assertSafeId(req.docId, 'docId');
   const fileName = POV_FILE_MAP[req.pov];
   if (!fileName) {
     return { success: false, nodeId: '', error: `Unknown POV: ${req.pov}` };
@@ -557,10 +561,17 @@ function povFileForNodeId(nodeId: string): string | null {
  * Patch fields on an existing taxonomy node. If parent_id is being set,
  * also updates the parent's children array.
  */
+const ALLOWED_NODE_FIELDS = new Set(['source_refs', 'parent_id', 'parent_relationship', 'parent_rationale', 'graph_attributes']);
+
 export function updateNodeFields(
   nodeId: string,
   fields: Record<string, unknown>,
 ): { success: boolean; error?: string } {
+  for (const key of Object.keys(fields)) {
+    if (!ALLOWED_NODE_FIELDS.has(key)) {
+      return { success: false, error: `Field "${key}" is not in the allowed update set` };
+    }
+  }
   const fileName = povFileForNodeId(nodeId);
   if (!fileName) return { success: false, error: `Cannot determine POV file for ${nodeId}` };
 
@@ -574,7 +585,7 @@ export function updateNodeFields(
     const node = raw.nodes.find((n) => n.id === nodeId);
     if (!node) return { success: false, error: `Node ${nodeId} not found in ${fileName}` };
 
-    // Merge fields onto the node
+    // Merge fields onto the node (keys pre-validated against ALLOWED_NODE_FIELDS above)
     for (const [key, value] of Object.entries(fields)) {
       // For source_refs, append rather than replace
       if (key === 'source_refs' && Array.isArray(value)) {
@@ -733,6 +744,7 @@ export function getNodesByPovCategory(pov: string, category?: string): unknown[]
 }
 
 export function readSnapshot(sourceId: string): string {
+  assertSafeId(sourceId, 'sourceId');
   const filePath = path.join(SOURCES_DIR, sourceId, 'snapshot.md');
   if (!fs.existsSync(filePath)) {
     return '';
@@ -745,6 +757,7 @@ export function readSnapshot(sourceId: string): string {
 // over IPC as bytes. Sources store the original document under <id>/raw/*.pdf.
 
 export function findRawPdfPath(sourceId: string): string | null {
+  assertSafeId(sourceId, 'sourceId');
   const rawDir = path.join(SOURCES_DIR, sourceId, 'raw');
   if (!fs.existsSync(rawDir)) return null;
   const files = fs.readdirSync(rawDir);

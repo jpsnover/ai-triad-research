@@ -10,7 +10,11 @@ vi.mock('electron', () => ({
   app: { isPackaged: false, getPath: () => '/tmp', getAppPath: () => process.cwd() },
 }));
 
-import { POV_PREFIX_MAP, CATEGORY_PREFIX_MAP, NODE_ID_PATTERN } from './fileIO.js';
+import {
+  POV_PREFIX_MAP, CATEGORY_PREFIX_MAP, NODE_ID_PATTERN,
+  loadSummary, readSnapshot, findRawPdfPath, setActiveTaxonomyDir,
+  addTaxonomyNode, updateNodeFields,
+} from './fileIO.js';
 
 // Invariant (t/1682 — closes the t/1677 drift class): the two sources of truth
 // for taxonomy node IDs — POV_PREFIX_MAP (+ CATEGORY_PREFIX_MAP) and the
@@ -53,4 +57,50 @@ describe('taxonomy node ID invariant: POV_PREFIX_MAP ↔ NODE_ID_PATTERN', () =>
       }
     }
   }
+});
+
+// Regression tests for t/2533 — path traversal guards (M8/M9/L11/L12b).
+// assertSafeId throws before any fs access, so no fs mock is needed.
+describe('path traversal rejection (t/2533)', () => {
+  it('loadSummary rejects a traversal docId', () => {
+    expect(() => loadSummary('../etc/passwd')).toThrow();
+  });
+
+  it('loadSummary rejects a docId with a path separator', () => {
+    expect(() => loadSummary('a/b')).toThrow();
+  });
+
+  it('readSnapshot rejects a traversal sourceId', () => {
+    expect(() => readSnapshot('../../outside')).toThrow();
+  });
+
+  it('findRawPdfPath rejects a traversal sourceId', () => {
+    expect(() => findRawPdfPath('../escape')).toThrow();
+  });
+
+  it('setActiveTaxonomyDir rejects a traversal dirName before existsSync', () => {
+    expect(() => setActiveTaxonomyDir('../pivot')).toThrow();
+  });
+
+  it('addTaxonomyNode rejects a traversal docId', () => {
+    expect(() => addTaxonomyNode({
+      pov: 'accelerationist',
+      category: 'beliefs',
+      label: 'Test',
+      description: 'Test',
+      docId: '../traversal',
+    })).toThrow();
+  });
+
+  it('updateNodeFields rejects an unknown field name (L12b)', () => {
+    const result = updateNodeFields('acc-beliefs-001', { evil: 'bad' });
+    expect(result.success).toBe(false);
+    expect(result.error).toMatch(/not in the allowed update set/);
+  });
+
+  it('updateNodeFields accepts all allowed fields without error from allowlist', () => {
+    // The function may fail later (no real taxonomy file), but not from the allowlist check.
+    const result = updateNodeFields('acc-beliefs-001', { source_refs: ['doc-1'] });
+    expect(result.error).not.toMatch(/not in the allowed update set/);
+  });
 });
