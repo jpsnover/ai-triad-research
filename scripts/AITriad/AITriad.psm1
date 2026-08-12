@@ -916,6 +916,8 @@ Export-ModuleMember -Function @(
     'Test-DebateIndexIntegrity'
     # t/2367 — Debate blob existence check in Azure storage
     'Test-DebateSession'
+    # Op-ed generation in a POV Soul-document voice
+    'New-OpEd'
 ) -Alias @(
     'Import-Document'
     'TaxonomyEditor'

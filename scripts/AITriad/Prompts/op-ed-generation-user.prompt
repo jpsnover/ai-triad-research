@@ -1,0 +1,32 @@
+Write the op-ed now.
+
+TOPIC / ANGLE:
+{{TOPIC}}
+
+TARGET LENGTH: about {{WORD_COUNT}} words. Treat this as a hard editorial limit — an oversized draft is rejected unread.
+
+OUTLET GUIDANCE:
+{{OUTLET_GUIDANCE}}
+
+NEWS HOOK:
+{{NEWS_HOOK}}
+
+THESIS DIRECTION:
+{{THESIS}}
+
+AUTHOR (for the authority line / bio):
+{{AUTHOR_BIO}}
+
+SOURCE MATERIAL (use as factual grounding; quote or paraphrase from it where it strengthens a pillar — do not invent statistics it does not support):
+{{SOURCE_MATERIAL}}
+
+{{PITCH_INSTRUCTION}}
+
+Return ONLY a JSON object with these fields:
+- "headline": a suggested headline (editors write their own, but propose a strong one — active, specific, under ~12 words)
+- "subtitle": a one-line deck/subtitle that sharpens the thesis (may be empty string)
+- "body_markdown": the full essay as Markdown. Short paragraphs. No section labels or headers inside the body — it must read as continuous prose. Do NOT repeat the headline inside the body.
+- "word_count": your integer count of the words in body_markdown
+- "pitch_email": the pitch cover email if one was requested above, otherwise an empty string
+
+Do not include any commentary outside the JSON.
