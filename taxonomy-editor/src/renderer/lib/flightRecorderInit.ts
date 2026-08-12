@@ -718,7 +718,7 @@ export function initFlightRecorder(): FlightRecorder {
           temperature: debateState.debateTemperature,
           is_generating: !!debateState.debateGenerating,
           convergence_signals_count: debate.convergence_signals?.length ?? 0,
-          protocol: debate.protocol ?? null,
+          protocol: debate.protocol_id ?? null,
           calibration_version: _embeddingInfo?.calibration_version ?? undefined,
         } : null,
         taxonomy: {
