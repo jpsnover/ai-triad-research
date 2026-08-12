@@ -39,6 +39,9 @@ env:
 jobs:
   ci-gate:
     runs-on: ubuntu-latest
+    permissions:
+      actions: write   # required for gh workflow run (dispatch CI on docs-only tips)
+      contents: read
     steps:
       - name: Verify container-relevant CI passed for this commit
         env:
