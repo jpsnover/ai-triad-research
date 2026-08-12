@@ -512,7 +512,7 @@ function DebateSettingsDialog({
 
   const handleReset = () => {
     const p = PRESET_DEFAULTS[basePreset];
-    setLocalSelected(new Set(AI_POVERS));
+    setLocalSelected(p.protocolId === 'socratic' ? new Set([AI_POVERS[0]]) : new Set(AI_POVERS));
     setLocalUserIsPover(false);
     setLocalAudience('policymakers');
     setLocalProtocolId(p.protocolId);
@@ -537,7 +537,7 @@ function DebateSettingsDialog({
   };
 
   const canApply = localSelected.size >= 1;
-
+  const isSocratic = localProtocolId === 'socratic';
   return (
     <div className="ndd-settings-overlay" onClick={onClose}>
       <div
@@ -667,13 +667,15 @@ function DebateSettingsDialog({
                 <h3 className="ndd-settings-section-title">Voices &amp; audience</h3>
 
                 <label className="ndd-field-label">Debaters</label>
+                {isSocratic && <p className="ndd-settings-field-hint">Socratic elenchus examines one interlocutor. Select one perspective.</p>}
                 <div className="ndd-settings-debaters">
                   {AI_POVERS.map(id => {
                     const info = POVER_INFO[id];
                     const camp = povToCamp(id);
+                    const sel = localSelected.has(id);
                     return (
-                      <label key={id} className="ndd-settings-debater-row">
-                        <input type="checkbox" checked={localSelected.has(id)} onChange={() => toggleDebater(id)} />
+                      <label key={id} className={`ndd-settings-debater-row${isSocratic && !sel ? ' ndd-settings-debater-row--dim' : ''}`}>
+                        <input type="checkbox" checked={sel} onChange={() => isSocratic ? setLocalSelected(new Set([id])) : toggleDebater(id)} />
                         <span className="ndd-debater-chip" data-camp={camp}>
                           <span className="ndd-debater-chip-icon" aria-hidden="true"><CampGlyph camp={camp!} size={12} /></span>
                           {info.label}
@@ -683,7 +685,7 @@ function DebateSettingsDialog({
                     );
                   })}
                   <label className="ndd-settings-debater-row">
-                    <input type="checkbox" checked={localUserIsPover} onChange={() => setLocalUserIsPover(v => !v)} />
+                    <input type="checkbox" checked={localUserIsPover} disabled={isSocratic} onChange={() => setLocalUserIsPover(v => !v)} />
                     <span className="ndd-debater-chip ndd-debater-chip--user">👤 You</span>
                     <span className="ndd-step-help" style={{ margin: 0 }}>Argue a position yourself</span>
                   </label>
@@ -1044,6 +1046,7 @@ export function NewDebateDialog({ onClose, onAtCap }: NewDebateDialogProps) {
     setConcludingRounds(p.concludingRounds);
     setStepMode(p.stepMode);
     setModelTier(p.modelTier);
+    if (id === 'socratic') { setSelected(new Set([AI_POVERS[0]])); setUserIsPover(false); }
   };
 
   const handleAudienceChange = (val: DebateAudience) => {

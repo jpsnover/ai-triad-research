@@ -1154,3 +1154,8 @@
     color: var(--text-primary);
   }
 }
+
+/* Socratic mode — dim non-selected debater rows (remain clickable to switch selection) */
+.ndd-settings-debater-row--dim {
+  opacity: 0.45;
+}
