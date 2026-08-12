@@ -110,7 +110,7 @@ export const createDebatePhaseSlice: StateCreator<DebateStore, [], [], DebatePha
       getGlobalRecorder()?.record({ type: 'lifecycle', component: 'debate-store', level: 'warn', debate_id: activeDebate.id, message: 'Debate driver claim denied — another window owns it' });
       return;
     }
-    getGlobalRecorder()?.record({ type: 'debate.round', component: 'debate-store', level: 'debug', debate_id: activeDebate?.id, message: 'crossRespond entered', data: { phase: activeDebate?.phase, transcript_length: activeDebate?.transcript.length, adaptive_phase: activeDebate?.adaptive_staging?.phase_state?.current_phase } });
+    getGlobalRecorder()?.record({ type: 'debate.round', component: 'debate-store', level: 'debug', debate_id: activeDebate?.id, message: 'crossRespond entered', data: { protocol_id: activeDebate?.protocol_id, phase: activeDebate?.phase, transcript_length: activeDebate?.transcript.length, adaptive_phase: activeDebate?.adaptive_staging?.phase_state?.current_phase } });
 
     // Guard: if openings completed but abort guard prevented phase transition, fix it now
     if (activeDebate.phase === 'opening' && activeDebate.transcript.some(e => e.type === 'opening')) {
