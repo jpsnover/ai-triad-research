@@ -13,6 +13,12 @@ import { PROJECT_ROOT, getDataRootPath, writeJsonFileAtomic } from '../fileIO.js
 import { ActionableError } from '../../../../lib/debate/errors.js';
 import { getGlobalRecorder } from '../../../../lib/flight-recorder/index.js';
 
+// Extensions that execute on open — blocked regardless of directory (M13, t/2531).
+const BLOCKED_OPEN_EXTS = new Set([
+  '.exe', '.bat', '.cmd', '.com', '.ps1', '.vbs', '.lnk', '.msi', '.scr', '.pif',
+  '.sh', '.py', '.rb', '.jar',
+]);
+
 export function registerSystemHandlers(): void {
   ipcMain.handle('open-external', (_event, url: string) => {
     // Only allow http/https URLs
@@ -22,10 +28,16 @@ export function registerSystemHandlers(): void {
   });
 
   ipcMain.handle('open-file', (_event, filePath: string) => {
-    // Only allow opening files that actually exist on disk
-    if (fs.existsSync(filePath)) {
-      void shell.openPath(filePath);
-    }
+    // S-M13: Containment + extension denylist before shell.openPath.
+    // shell.openPath executes .exe/.bat/.ps1/.lnk etc. — restrict to known safe
+    // directories and non-executable extensions to prevent renderer-bug RCE.
+    const resolved = path.resolve(filePath);
+    const dataRoot = getDataRootPath();
+    const inDataRoot = resolved.startsWith(dataRoot + path.sep);
+    const inProjectRoot = resolved.startsWith(PROJECT_ROOT + path.sep);
+    if (!inDataRoot && !inProjectRoot) return;
+    if (BLOCKED_OPEN_EXTS.has(path.extname(resolved).toLowerCase())) return;
+    if (fs.existsSync(resolved)) void shell.openPath(resolved);
   });
 
   // Clipboard (Electron 40: renderer clipboard API deprecated → use main process)
