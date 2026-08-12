@@ -21,7 +21,8 @@ import { TheoryLink } from '../../shared/TheoryLink';
 import { POV_META, type PovMetaKey } from '@lib/electron-shared/povMeta';
 import type { OverviewTab } from './types';
 import type { DebateSession } from '../../../types/debate';
-import type { RefObject } from 'react';
+import { useRef, type RefObject } from 'react';
+import { LoadingProgress } from '../../shared/LoadingProgress';
 import './DiagnosticsWindow.css';
 
 // ---------------------------------------------------------------------------
@@ -333,6 +334,7 @@ function DiagnosticsHeader({
 // ---------------------------------------------------------------------------
 
 export function DiagnosticsWindow({ initialData }: { initialData?: Record<string, unknown> } = {}) {
+  const loadStartRef = useRef(Date.now());
   const state = useDiagnosticsState(initialData);
   const {
     debate,
@@ -382,12 +384,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
       {!debate && !showHelp && (
         deepLinkError
           ? <p style={{ color: 'var(--error, var(--danger))', padding: '1rem' }}>{deepLinkError}</p>
-          : (
-            <div className="diag-loading" role="status" aria-live="polite">
-              <span className="diag-loading-spinner" aria-hidden="true" />
-              <span>Loading debate data… large debates may take a while.</span>
-            </div>
-          )
+          : <LoadingProgress label="Loading debate…" startedAt={loadStartRef.current} />
       )}
 
       {/* ── Main content area ── */}
