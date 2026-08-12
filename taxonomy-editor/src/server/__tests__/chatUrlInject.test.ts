@@ -12,8 +12,8 @@ import type { UrlFetchResult } from '../../../../lib/url-fetch/types.js';
 import { buildUrlInjectedPrompt } from '../routes/chat.js';
 
 type Msg = { role: 'user' | 'model'; content: string };
-const ok = (url: string, text: string): UrlFetchResult =>
-  ({ ok: true, text, title: 'T', finalUrl: url, truncated: false });
+const ok = (url: string, text: string, truncated = false): UrlFetchResult =>
+  ({ ok: true, text, title: 'T', finalUrl: url, truncated });
 const fail = (): UrlFetchResult => ({ ok: false, reason: 'ssrf-blocked' });
 
 describe('t/2483 — buildUrlInjectedPrompt', () => {
@@ -29,8 +29,8 @@ describe('t/2483 — buildUrlInjectedPrompt', () => {
     expect(combinedPrompt).toContain('BODY(https://b.example)');
     expect(combinedPrompt).toContain('System: sys'); // instruction preserved
     expect(urlMeta).toEqual([
-      { retrievedUrl: 'https://a.example', urlRetrievalStatus: 'SUCCESS' },
-      { retrievedUrl: 'https://b.example', urlRetrievalStatus: 'SUCCESS' },
+      { retrievedUrl: 'https://a.example', urlRetrievalStatus: 'SUCCESS', source: 'app-fetch', truncated: false },
+      { retrievedUrl: 'https://b.example', urlRetrievalStatus: 'SUCCESS', source: 'app-fetch', truncated: false },
     ]);
   });
 
@@ -42,7 +42,23 @@ describe('t/2483 — buildUrlInjectedPrompt', () => {
     expect(combinedPrompt).not.toContain('System (fetched URL content):');
     expect(combinedPrompt).not.toContain('Content of');
     expect(combinedPrompt).toContain('System: sys');
-    expect(urlMeta).toEqual([{ retrievedUrl: 'https://blocked.example', urlRetrievalStatus: 'FAILED' }]);
+    expect(urlMeta).toEqual([{ retrievedUrl: 'https://blocked.example', urlRetrievalStatus: 'FAILED', source: 'app-fetch', truncated: false }]);
+  });
+
+  it('sets per-entry source:"app-fetch" + truncated on each entry (Option C — t/2502)', async () => {
+    const msgs: Msg[] = [{ role: 'user', content: 'https://full.example https://cut.example https://bad.example' }];
+    const fetchFn = vi.fn(async (url: string) =>
+      url.includes('bad') ? fail()
+        : ok(url, 'BODY', url.includes('cut')), // 'cut' → truncated true
+    );
+    const { urlMeta } = await buildUrlInjectedPrompt(msgs, '', true, fetchFn);
+    expect(urlMeta).toEqual([
+      { retrievedUrl: 'https://full.example', urlRetrievalStatus: 'SUCCESS', source: 'app-fetch', truncated: false },
+      { retrievedUrl: 'https://cut.example', urlRetrievalStatus: 'SUCCESS', source: 'app-fetch', truncated: true },
+      { retrievedUrl: 'https://bad.example', urlRetrievalStatus: 'FAILED', source: 'app-fetch', truncated: false },
+    ]);
+    // every app-fetch entry is tagged, both success and failure
+    expect(urlMeta.every(e => e.source === 'app-fetch')).toBe(true);
   });
 
   it('frames injected content as untrusted source material (prompt-injection hardening — t/2483#4)', async () => {

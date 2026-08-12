@@ -91,10 +91,12 @@ async function gatherUrlContent(
     if (result.ok) {
       injectedBlock += `\n\nContent of ${result.finalUrl} fetched at ${new Date().toISOString()}:\n${result.text}`;
       budget -= result.text.length;
-      urlMeta.push({ retrievedUrl: result.finalUrl, urlRetrievalStatus: 'SUCCESS' });
+      // t/2502: per-entry source + truncated (Option C, TL t/2485#4) so the payload is
+      // self-describing; renderer reads source per entry, absent ⇒ 'provider'.
+      urlMeta.push({ retrievedUrl: result.finalUrl, urlRetrievalStatus: 'SUCCESS', source: 'app-fetch', truncated: result.truncated });
       if (budget <= 0) break;
     } else {
-      urlMeta.push({ retrievedUrl: url, urlRetrievalStatus: 'FAILED' });
+      urlMeta.push({ retrievedUrl: url, urlRetrievalStatus: 'FAILED', source: 'app-fetch', truncated: false });
     }
   }
   const fetched = urlMeta.filter(e => e.urlRetrievalStatus === 'SUCCESS').length;
