@@ -36,7 +36,7 @@ import { loadProvisionalWeights } from '@lib/debate/phaseTransitions';
 import { useTaxonomyStore } from '../../useTaxonomyStore';
 import { mapErrorToUserMessage } from '../../../utils/errorMessages';
 import { isLineageDataLoaded } from '../../../data/lineageCategories';
-import { getConfiguredModel, getSpeakerModel } from '../shared/modelConfig';
+import { getConfiguredModel, getSpeakerModel, resolveBriefModel } from '../shared/modelConfig';
 import { generateTextWithProgress, summarizeTranscriptEntry, makeStageGenerate } from '../shared/generation';
 import { createDebateGuard, newAbortController, _abortController, claimDebateDriver, releaseDebateDriver, isDailyLimitError, DAILY_LIMIT_MESSAGE } from '../shared/guards';
 import { pushWarning, recordDiagnostic } from '../shared/diagnostics';
@@ -974,11 +974,16 @@ export const createClarificationSlice: StateCreator<DebateStore, [], [], Clarifi
         // opening pipeline runs in this renderer, so emit and the same-window toast
         // consumer share @bridge's bus — no IPC. Previously web-only; the Electron
         // path routed through an unfed IPC channel and never fired.
+        // The model the brief actually runs with (stage override, else speaker/base model) —
+        // this is what the timeout toast/dialog must display so "Switch model" is an informed
+        // choice (t/2504). onBriefEvent is created per-speaker inside the aiPovers loop, so
+        // poverId/model already resolve the timed-out speaker (data.agent).
+        const resolvedBriefModel = resolveBriefModel(activeDebate, poverId, model);
         const onBriefEvent: BriefEventFn = (phase, data) => {
           if (phase === 'brief.timeout' || phase === 'brief.retrying') {
-            emitBriefTimeout({ debateId: activeDebate.id, speaker: data.agent, attempt: data.attempt, maxAttempts: data.maxRetries, currentModel: '' });
+            emitBriefTimeout({ debateId: activeDebate.id, speaker: data.agent, attempt: data.attempt, maxAttempts: data.maxRetries, currentModel: resolvedBriefModel });
           } else if (phase === 'brief.retries_exhausted') {
-            emitBriefRetriesExhausted({ debateId: activeDebate.id, speaker: data.agent, totalAttempts: data.attempt, currentModel: '' });
+            emitBriefRetriesExhausted({ debateId: activeDebate.id, speaker: data.agent, totalAttempts: data.attempt, currentModel: resolvedBriefModel });
           }
         };
 
