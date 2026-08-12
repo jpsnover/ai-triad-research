@@ -26,6 +26,7 @@ import { renameSyncWithRetry } from '../../../../lib/debate/persistence.js';
 import { getGlobalRecorder } from '../../../../lib/flight-recorder/index.js';
 import { DEFAULT_MODEL } from '../../../../lib/ai-client/index.js';
 import { VALID_POV, NodeId } from '../ipcSchemas.js';
+import { assertSafeId } from '../../../../lib/electron-shared/safeId.js';
 
 export function registerDebateHandlers(): void {
   // ── Debate session handlers ────────────────────────────
@@ -205,7 +206,7 @@ export function registerDebateHandlers(): void {
   // ── Harvest IPC handlers ──────────────────────────────────
 
   ipcMain.handle('harvest-create-conflict', async (_event, conflict: Record<string, unknown>) => {
-    const conflictId = conflict.claim_id as string;
+    const conflictId = assertSafeId(conflict.claim_id as string, 'conflict id');
     const conflictsDir = path.join(getDataRootPath(), 'conflicts');
     if (!fs.existsSync(conflictsDir)) fs.mkdirSync(conflictsDir, { recursive: true });
     const filePath = path.join(conflictsDir, `${conflictId}.json`);
@@ -273,6 +274,7 @@ export function registerDebateHandlers(): void {
   });
 
   ipcMain.handle('harvest-add-verdict', async (_event, conflictId: string, verdict: Record<string, unknown>) => {
+    assertSafeId(conflictId, 'conflict id');
     const conflictsDir = path.join(getDataRootPath(), 'conflicts');
     const filePath = path.join(conflictsDir, `${conflictId}.json`);
     if (!fs.existsSync(filePath)) return { updated: false, error: `Conflict ${conflictId} not found` };
@@ -303,7 +305,7 @@ export function registerDebateHandlers(): void {
   ipcMain.handle('harvest-save-manifest', async (_event, manifest: Record<string, unknown>) => {
     const harvestsDir = path.join(getDataRootPath(), 'harvests');
     if (!fs.existsSync(harvestsDir)) fs.mkdirSync(harvestsDir, { recursive: true });
-    const debateId = manifest.debate_id as string;
+    const debateId = assertSafeId(manifest.debate_id as string, 'debate id');
     const filePath = path.join(harvestsDir, `${debateId}.json`);
     fs.writeFileSync(filePath, JSON.stringify(manifest, null, 2) + '\n', 'utf-8');
     console.log(`[harvest] Saved manifest: ${debateId}`);

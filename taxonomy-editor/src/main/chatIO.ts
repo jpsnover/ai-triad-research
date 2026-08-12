@@ -5,6 +5,7 @@ import fs from 'fs';
 import path from 'path';
 
 import { resolveDataPath } from './fileIO.js';
+import { assertSafeId } from '../../../lib/electron-shared/safeId.js';
 
 const CHATS_DIR = resolveDataPath('chats');
 
@@ -24,6 +25,7 @@ function ensureChatsDir(): void {
 }
 
 function chatFilePath(id: string): string {
+  assertSafeId(id, 'chat session id');
   return path.join(CHATS_DIR, `chat-${id}.json`);
 }
 
