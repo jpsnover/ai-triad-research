@@ -74,6 +74,11 @@ Confirm all four first:
 
 A squash-merge of a stale head ships the *old* content on the *old* commit's green — the fix you pushed never lands. Verify; don't assume the PR reflects your last push. The advisory `pre-self-merge-verify` Instant Feedback hook nudges this on every `gh pr merge`; this rule is the contract.
 
+### PR-Flow Practice Rules (approved q/40, 2026-08-12)
+
+- **Batch sequential same-feature work.** When one agent works sequentially on a feature and no other agent is blocked between steps, stage all steps on one branch and open a **single PR** — not a PR per step (the URL-context feature burned 6 CI cycles for one feature). Split anyway when the accumulated diff exceeds ~400 changed lines or mixes unrelated concerns; and revert to per-step PRs the moment a peer needs an intermediate step on `main`.
+- **Merge promptly on green.** Once CI is green on your current head, complete the pre-self-merge verification (above) and merge within ~15 minutes — or record the hold (pending decision, blocked dependency, review condition) as a PR/ticket comment so the delay is visible. A green PR sitting unmerged with no recorded hold is drift: it invites stale-head merges and landing races. (Deliberate holds are fine — record them; PR #879's multi-hour hold for a manual visual check was correct *because* it was recorded.)
+
 ### Subsystem Map
 
 Detailed conventions and build/test commands live in each subtree's `AGENTS.md` (loaded when you work in that scope). This is the orientation map only.
