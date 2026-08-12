@@ -2,7 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { ActionableError } from '../../debate/errors.js';
-import { withTimeout } from '../retry.js';
+import { withTimeout, makeFetchSignal } from '../retry.js';
 import type { FetchFn, GenerateOptions, ProviderResult } from '../types.js';
 import { DEFAULT_TEMPERATURE } from '../defaults.js';
 
@@ -19,31 +19,28 @@ export async function generateViaGroq(
   if (opts.systemMessage) messages.push({ role: 'system', content: opts.systemMessage });
   messages.push({ role: 'user', content: prompt });
 
-  const response = await withTimeout(
-    fetchFn('https://api.groq.com/openai/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: apiModelId,
-        messages,
-        temperature: opts.fixedTemperature ?? opts.temperature ?? DEFAULT_TEMPERATURE,
-        max_tokens: opts.maxTokens ?? 8192,
-        ...(opts.responseSchema ? {
-          response_format: {
-            type: 'json_schema',
-            json_schema: { name: 'response', schema: opts.responseSchema, strict: true },
-          },
-        } : opts.jsonMode ? {
-          response_format: { type: 'json_object' },
-        } : {}),
-      }),
+  const response = await fetchFn('https://api.groq.com/openai/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      model: apiModelId,
+      messages,
+      temperature: opts.fixedTemperature ?? opts.temperature ?? DEFAULT_TEMPERATURE,
+      max_tokens: opts.maxTokens ?? 8192,
+      ...(opts.responseSchema ? {
+        response_format: {
+          type: 'json_schema',
+          json_schema: { name: 'response', schema: opts.responseSchema, strict: true },
+        },
+      } : opts.jsonMode ? {
+        response_format: { type: 'json_object' },
+      } : {}),
     }),
-    timeoutMs,
-    'Groq API request',
-  );
+    signal: makeFetchSignal(timeoutMs, opts.signal),
+  });
 
   const bodyText = await withTimeout(response.text(), 60_000, 'Reading Groq response');
 

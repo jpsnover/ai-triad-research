@@ -2,7 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { ActionableError } from '../../debate/errors.js';
-import { withTimeout } from '../retry.js';
+// no retry import needed — geminiGroundedSearch uses AbortSignal.timeout directly
 import type { FetchFn } from '../types.js';
 import { GEMINI_BASE, GEMINI_SAFETY_SETTINGS } from './gemini.js';
 
@@ -33,20 +33,17 @@ export async function geminiGroundedSearch(
 ): Promise<GroundedSearchResult> {
   const url = `${GEMINI_BASE}/${apiModelId}:generateContent?key=${apiKey}`;
 
-  const response = await withTimeout(
-    fetchFn(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        tools: [{ google_search: {} }],
-        generationConfig: { temperature: 0.2, maxOutputTokens: 16384 },
-        safetySettings: GEMINI_SAFETY_SETTINGS,
-      }),
+  const response = await fetchFn(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      contents: [{ parts: [{ text: prompt }] }],
+      tools: [{ google_search: {} }],
+      generationConfig: { temperature: 0.2, maxOutputTokens: 16384 },
+      safetySettings: GEMINI_SAFETY_SETTINGS,
     }),
-    60_000,
-    'Gemini grounded search',
-  );
+    signal: AbortSignal.timeout(60_000),
+  });
 
   if (!response.ok) {
     const body = await response.text();

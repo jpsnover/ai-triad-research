@@ -2,7 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { ActionableError } from '../../debate/errors.js';
-import { withTimeout } from '../retry.js';
+import { withTimeout, makeFetchSignal } from '../retry.js';
 import type { FetchFn, GenerateOptions, ProviderResult } from '../types.js';
 import { DEFAULT_TEMPERATURE } from '../defaults.js';
 
@@ -14,11 +14,9 @@ export const OLLAMA_BASE = 'http://localhost:11434';
  */
 export async function isOllamaAvailable(fetchFn: FetchFn): Promise<boolean> {
   try {
-    const res = await withTimeout(
-      fetchFn(`${OLLAMA_BASE}/api/tags`),
-      3000,
-      'Ollama availability check',
-    );
+    const res = await fetchFn(`${OLLAMA_BASE}/api/tags`, {
+      signal: AbortSignal.timeout(3000),
+    });
     return res.ok;
   } catch {
     return false;
@@ -52,15 +50,12 @@ export async function generateViaOllama(
     reqBody.format = 'json';
   }
 
-  const response = await withTimeout(
-    fetchFn(`${OLLAMA_BASE}/v1/chat/completions`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(reqBody),
-    }),
-    timeoutMs,
-    'Ollama API request',
-  );
+  const response = await fetchFn(`${OLLAMA_BASE}/v1/chat/completions`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(reqBody),
+    signal: makeFetchSignal(timeoutMs, opts.signal),
+  });
 
   const bodyText = await withTimeout(response.text(), 120_000, 'Reading Ollama response');
 

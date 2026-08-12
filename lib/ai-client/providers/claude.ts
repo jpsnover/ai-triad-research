@@ -2,7 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { ActionableError } from '../../debate/errors.js';
-import { withTimeout } from '../retry.js';
+import { withTimeout, makeFetchSignal } from '../retry.js';
 import type { FetchFn, GenerateOptions, ProviderResult, ToolCall } from '../types.js';
 
 export async function generateViaClaude(
@@ -44,15 +44,12 @@ export async function generateViaClaude(
     'anthropic-version': '2023-06-01',
   };
 
-  const response = await withTimeout(
-    fetchFn('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers,
-      body: JSON.stringify(reqBody),
-    }),
-    timeoutMs,
-    'Claude API request',
-  );
+  const response = await fetchFn('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(reqBody),
+    signal: makeFetchSignal(timeoutMs, opts.signal),
+  });
 
   const bodyText = await withTimeout(response.text(), 180_000, 'Reading Claude response');
 
@@ -67,15 +64,12 @@ export async function generateViaClaude(
   // Some models (e.g. claude-opus-4-7) reject temperature — retry without it
   if (response.status === 400 && reqBody.temperature != null && bodyText.includes('temperature')) {
     delete reqBody.temperature;
-    const retryResponse = await withTimeout(
-      fetchFn('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers,
-        body: JSON.stringify(reqBody),
-      }),
-      timeoutMs,
-      'Claude API request (retry without temperature)',
-    );
+    const retryResponse = await fetchFn('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(reqBody),
+      signal: makeFetchSignal(timeoutMs, opts.signal),
+    });
     const retryBodyText = await withTimeout(retryResponse.text(), 180_000, 'Reading Claude retry response');
     if (!retryResponse.ok) {
       throw new ActionableError({

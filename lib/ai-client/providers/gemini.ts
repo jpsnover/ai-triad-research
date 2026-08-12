@@ -2,7 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { ActionableError } from '../../debate/errors.js';
-import { withTimeout } from '../retry.js';
+import { withTimeout, makeFetchSignal } from '../retry.js';
 import type { FetchFn, GenerateOptions, ProviderResult, ToolCall, UrlContextMetadata } from '../types.js';
 import { DEFAULT_TEMPERATURE } from '../defaults.js';
 
@@ -105,15 +105,12 @@ export async function generateViaGemini(
   const tools = buildGeminiTools(opts);
   if (tools) body.tools = tools;
 
-  const response = await withTimeout(
-    fetchFn(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    }),
-    timeoutMs,
-    'Gemini API request',
-  );
+  const response = await fetchFn(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+    signal: makeFetchSignal(timeoutMs, opts.signal),
+  });
 
   const bodyText = await withTimeout(response.text(), 60_000, 'Reading Gemini response');
 
@@ -201,15 +198,12 @@ export async function generateViaGeminiStream(
   const tools = buildGeminiTools(opts);
   if (tools) body.tools = tools;
 
-  const response = await withTimeout(
-    fetchFn(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    }),
-    timeoutMs,
-    'Gemini streaming API request',
-  );
+  const response = await fetchFn(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+    signal: makeFetchSignal(timeoutMs, opts.signal),
+  });
 
   if (response.status === 429 || response.status === 503) {
     const errBody = await response.text().catch(() => '');
