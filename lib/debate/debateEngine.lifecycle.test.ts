@@ -1083,6 +1083,24 @@ describe('Adaptive staging initialization', () => {
     expect(stored).toEqual(override);
   });
 
+  it('threads dialecticalStyle from config into _adaptiveConfig (t/2511)', () => {
+    const config = createDefaultConfig({ useAdaptiveStaging: true, dialecticalStyle: 'integrative' });
+    const engine = new DebateEngine(config, createMockAdapter(), createMinimalTaxonomy());
+    (engine as unknown as { initSession: () => void }).initSession();
+    const adaptiveConfig = (engine as unknown as { _adaptiveConfig: { dialecticalStyle: string } | null })._adaptiveConfig;
+    expect(adaptiveConfig).not.toBeNull();
+    expect(adaptiveConfig!.dialecticalStyle).toBe('integrative');
+  });
+
+  it('defaults dialecticalStyle to adversarial when not set (t/2511)', () => {
+    const config = createDefaultConfig({ useAdaptiveStaging: true });
+    const engine = new DebateEngine(config, createMockAdapter(), createMinimalTaxonomy());
+    (engine as unknown as { initSession: () => void }).initSession();
+    const adaptiveConfig = (engine as unknown as { _adaptiveConfig: { dialecticalStyle: string } | null })._adaptiveConfig;
+    expect(adaptiveConfig).not.toBeNull();
+    expect(adaptiveConfig!.dialecticalStyle).toBe('adversarial');
+  });
+
   it('does not create adaptive diagnostics when useAdaptiveStaging is false', async () => {
     const responses: string[] = [];
     for (let i = 0; i < 200; i++) {
