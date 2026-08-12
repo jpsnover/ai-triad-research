@@ -79,6 +79,10 @@ A squash-merge of a stale head ships the *old* content on the *old* commit's gre
 - **Batch sequential same-feature work.** When one agent works sequentially on a feature and no other agent is blocked between steps, stage all steps on one branch and open a **single PR** — not a PR per step (the URL-context feature burned 6 CI cycles for one feature). Split anyway when the accumulated diff exceeds ~400 changed lines or mixes unrelated concerns; and revert to per-step PRs the moment a peer needs an intermediate step on `main`.
 - **Merge promptly on green.** Once CI is green on your current head, complete the pre-self-merge verification (above) and merge within ~15 minutes — or record the hold (pending decision, blocked dependency, review condition) as a PR/ticket comment so the delay is visible. A green PR sitting unmerged with no recorded hold is drift: it invites stale-head merges and landing races. (Deliberate holds are fine — record them; PR #879's multi-hour hold for a manual visual check was correct *because* it was recorded.)
 
+### Claim Before Implement (approved q/42, 2026-08-12)
+
+Before implementing a ticket assigned to your role, **claim it** — assign it to your specific instance, or comment that you're starting. Multi-instance roles: check for a peer instance's claim, in-flight PR, or recent landed commit on the ticket **before** committing to an implementation approach. Two DebateTool instances implemented t/2514 in parallel (#898 constructor check vs #903 run-entry check); the semantic collision on the merge ref burned two CI cycles. Same failure shape as the incident duplicate-filing rule.
+
 ### Subsystem Map
 
 Detailed conventions and build/test commands live in each subtree's `AGENTS.md` (loaded when you work in that scope). This is the orientation map only.
