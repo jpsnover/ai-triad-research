@@ -36,7 +36,7 @@ import { GitHubAPIBackend } from './storage/githubAPIBackend.js';
 import { SessionBranchManager } from './storage/sessionBranchManager.js';
 import { runWithUser, getCurrentUserId, setSessionBranchName, deriveStorageUserId } from './security/userContext.js';
 import type { UserContext } from './security/userContext.js';
-import { isAuthDisabledAllowed, isPathWithinDir, isTerminalAccessAllowed, isAnonAllowedRoute, invalidRouteParam, missingApiKeyError, anonymousSessionCookies, resolveAnonSessionId, resolveTestPersonaOverride } from './security/accessControl.js';
+import { isAuthDisabledAllowed, isPathWithinDir, isTerminalAccessAllowed, isAnonAllowedRoute, invalidRouteParam, missingApiKeyError, resolveTestPersonaOverride } from './security/accessControl.js';
 import { sanitizeUserText } from './security/contentSanitizer.js';
 import { isFreeTierAiPath } from './anonAiRoutes.js';
 import { getRollbackStatus } from './rollbackStatus.js';
@@ -67,7 +67,7 @@ import { registerChatRoutes } from './routes/chat.js';
 import { registerDiagnosticsRoutes } from './routes/diagnostics.js';
 import { registerSupportRoutes } from './routes/support.js';
 import { registerSourcesRoutes } from './routes/sources.js';
-import { registerSessionRoutes } from './routes/session.js';
+import { registerSessionRoutes, anonSessionCookiesWithCreated } from './routes/session.js';
 import { registerPreferencesRoutes } from './routes/preferences.js';
 import { buildLoginPage, FORBIDDEN_PAGE, SW_HEAL_SCRIPT_CSP_HASH, loginPageHeaders } from './loginPage.js';
 import type { ServerCtx } from './routes/context.js';
@@ -892,7 +892,7 @@ function handleAnonAuthEndpoints(req: http.IncomingMessage, res: http.ServerResp
   if (urlPath === '/.auth/anonymous' && authOptional) {
     res.writeHead(302, {
       'Location': '/',
-      'Set-Cookie': anonymousSessionCookies(resolveAnonSessionId(parseCookies(req).get('anon_session_id'))), // t/2464
+      'Set-Cookie': anonSessionCookiesWithCreated(req), // t/2464 (id) + t/2493 (created marker on fresh mint)
     });
     res.end();
     return true;
@@ -908,7 +908,7 @@ function handleAnonAuthEndpoints(req: http.IncomingMessage, res: http.ServerResp
   if (urlPath === '/api/auth/anonymous' && req.method === 'POST' && authOptional) {
     res.writeHead(200, {
       'Content-Type': 'application/json',
-      'Set-Cookie': anonymousSessionCookies(resolveAnonSessionId(parseCookies(req).get('anon_session_id'))), // t/2464
+      'Set-Cookie': anonSessionCookiesWithCreated(req), // t/2464 (id) + t/2493 (created marker on fresh mint)
     });
     res.end(JSON.stringify({ ok: true, anonymous: true }));
     return true;
