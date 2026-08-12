@@ -386,6 +386,7 @@ Institutional memory for failure patterns across the AI Triad Research project.
 - 2026-07-28 — Taxonomy Editor (p/6#24): **`bc` is not installed** in this Windows git-bash — a `git grep -c … | paste -sd+ | bc` pipeline failed "bc: command not found". Resolved by summing with **`awk '{s+=$1} END{print s}'`** — `awk`/`python3` are present where `bc` isn't; use them for arithmetic in Bash-tool pipelines.
 - 2026-08-01 — Technical Lead (p/8#158): **2nd `jq` instance** — a Bash `jq` command parsing `~/.claude` JSON exited **127 "command not found"** (`jq` not installed in the Bash tool's Git Bash). Resolved via the **PowerShell tool (`ConvertFrom-Json`)**. Distinct from the p/20#21 python-`jq`-shim (that was for a CI script that hard-depends on jq); for **ad-hoc JSON reads, read in PowerShell, don't shim** — win32 "host/file/JSON ops belong in the PowerShell tool" rule.
 - 2026-08-11 — ServerAPI (p/79#27): **3rd `jq` instance** — `gh pr view ... | jq` exited 127 ("jq: command not found") in the Bash tool. Fix: use `gh`'s built-in `--json <fields> --jq '<expr>'` flags — `gh` ships its own jq evaluator, no separate install needed.
+- 2026-08-11 — ServerAPI (p/79#29): **4th `jq` instance** — `gh pr checks | jq` exited 127 in the Bash tool; the same missing `jq` also silently broke a **Monitor CI-watch loop** (per-iteration jq failed with no output → loop emitted nothing → timed out at 15 min). **New amplifier: a missing tool inside a Monitor poll loop causes a silent 15-min timeout, not an immediate error.** Fix: use `gh pr checks --json ... --jq '...'` built-in.
 
 **Root Cause:** Dev environment may lack CLI tools (Azure CLI not installed, `jq` not on PATH) or required background services (Docker Desktop daemon not running). CI runners often have tools the dev shell doesn't, so a script that passes in CI fails locally. Both fail silently or with unhelpful exit codes.
 
@@ -398,6 +399,7 @@ Institutional memory for failure patterns across the AI Triad Research project.
 6. **For arithmetic in Bash-tool pipelines, use `awk`, not `bc`** — `bc` isn't installed in this Windows git-bash. Sum a column with `awk '{s+=$1} END{print s}'`.
 7. **For ad-hoc JSON reads, use the PowerShell tool (`Get-Content x.json | ConvertFrom-Json`), not Bash `jq`** — `jq` isn't installed in this host's Git Bash (exits 127). Shim (prevention #5) only to run a CI script that hard-depends on jq; parse your own JSON in PowerShell (win32 host/file/JSON-ops-in-PowerShell rule).
 8. **When parsing `gh` output, use `gh`'s built-in flags, not a pipe to `jq`** — `gh pr view/list/run list` all support `--json <fields> --jq '<expr>'`; `gh` ships its own jq evaluator so standalone `jq` is never needed for `gh` output.
+9. **Never depend on external `jq` inside a Monitor poll loop** — a per-iteration `jq` failure emits nothing and lets the loop spin silently until the Monitor timeout (up to 15 min), with no error surfaced. Use `gh --jq` or `ConvertFrom-Json` instead; any tool dependency inside a Monitor loop should be verified before entering the loop.
 
 **Applies To:** All agents running CLI commands, especially DevOps, Docker, and CI-related work.
 
