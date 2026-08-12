@@ -57,7 +57,7 @@ export interface DebateConfig {
   useAdaptiveStaging?: boolean;
   /** Pacing preset — controls max rounds and exit thresholds. Default: 'moderate'. */
   pacing?: DebatePacing;
-  /** Dialectical style — controls phase exit thresholds. Default: 'adversarial'. Preset-specific: socratic→integrative, deep→deliberative, quick→adversarial. */
+  /** Dialectical style — derived from protocolId when not set explicitly. */
   dialecticalStyle?: DialecticalStyle;
   /** Override max total rounds (otherwise derived from pacing preset). */
   maxTotalRounds?: number;

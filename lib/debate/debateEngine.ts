@@ -277,14 +277,7 @@ export class DebateEngine {
   private _synthesisPipeline!: SynthesisPipeline;
   private _talmudicCorpus: TalmudicCorpus | null = null;
 
-  /**
-   * t/1781: pending evidence-verification promises. verifyPreciseClaims populates
-   * evidence_graph.evidence_items (the source-authority substrate) and runs
-   * fire-and-forget during the debate to keep web-search latency off the turn path.
-   * They are tracked here (each already terminated with a .catch() so a rejection
-   * resolves) so the completion path can settle them before the calibration extract,
-   * making source_authority deterministic instead of racing the write.
-   */
+  /** t/1781: fire-and-forget claim verifications; settled before calibration extract to make source_authority deterministic. */
   private _pendingClaimVerifications: Promise<void>[] = [];
 
   /** Get the set of hint keys currently suppressed for this debate. */
@@ -393,7 +386,8 @@ export class DebateEngine {
     }
 
     const derivedModeratorMode = config.moderatorMode ?? (config.protocolId === 'socratic' ? 'socratic' : undefined);
-    this.config = { ...config, stageModels: merged, moderatorMode: derivedModeratorMode };
+    const derivedDialecticalStyle = config.dialecticalStyle ?? (config.protocolId === 'socratic' ? 'socratic' : undefined);
+    this.config = { ...config, stageModels: merged, moderatorMode: derivedModeratorMode, dialecticalStyle: derivedDialecticalStyle };
     if (this.config.protocolId === 'socratic' && this.config.activePovers.length !== 1) throw new ActionableError({ goal: 'Initialize a Socratic debate', problem: `Socratic requires exactly one active POV; got ${this.config.activePovers.length}: ${this.config.activePovers.join(', ')}`, location: 'DebateEngine constructor', nextSteps: ['Pass a single debater in activePovers when using protocolId: "socratic".'] });
     this._talmudicCorpus = initTalmudicCorpusFromConfig(this.config);
     this.adapter = adapter;
@@ -541,22 +535,28 @@ export class DebateEngine {
       );
 
       // Phase 4: Synthesis + final neutral evaluation in parallel
-      await Promise.all([
-        this._synthesisPipeline.runSynthesis(),
-        this._synthesisPipeline.runNeutralCheckpoint('final'),
-      ]);
+      // Socratic debates aim at aporia (productive irresolution), not consensus — skip synthesis.
+      if (this.config.dialecticalStyle !== 'socratic') {
+        await Promise.all([
+          this._synthesisPipeline.runSynthesis(),
+          this._synthesisPipeline.runNeutralCheckpoint('final'),
+        ]);
 
-      // Phase 4b: Missing arguments pass (needs synthesis output, so runs after)
-      await this._synthesisPipeline.runMissingArgumentsPass();
+        // Phase 4b: Missing arguments pass (needs synthesis output, so runs after)
+        await this._synthesisPipeline.runMissingArgumentsPass();
 
-      // Phase 4c: Taxonomy refinement suggestions (needs synthesis + argument network)
-      await this._synthesisPipeline.runTaxonomyRefinementPass();
+        // Phase 4c: Taxonomy refinement suggestions (needs synthesis + argument network)
+        await this._synthesisPipeline.runTaxonomyRefinementPass();
 
-      // Phase 4d: Dialectic trace generation (needs synthesis preferences + argument network)
-      this._synthesisPipeline.runDialecticTracePass();
+        // Phase 4d: Dialectic trace generation (needs synthesis preferences + argument network)
+        this._synthesisPipeline.runDialecticTracePass();
 
-      // Phase 4e: Cross-cutting node promotion (needs synthesis areas_of_agreement)
-      await this._claimPipeline.runCrossCuttingProposalPass();
+        // Phase 4e: Cross-cutting node promotion (needs synthesis areas_of_agreement)
+        await this._claimPipeline.runCrossCuttingProposalPass();
+      } else {
+        // Socratic: run neutral checkpoint only (no consensus framing)
+        await this._synthesisPipeline.runNeutralCheckpoint('final');
+      }
 
       // Phase 4f: Taxonomy gap analysis (deterministic — needs transcript, AN, taxonomy, manifests)
       this._claimPipeline.runTaxonomyGapAnalysisPass();
@@ -1032,13 +1032,15 @@ export class DebateEngine {
         maxTotalRounds: this.config.maxTotalRounds ?? preset.maxTotalRounds,
         pacing,
         dialecticalStyle: this.config.dialecticalStyle ?? 'adversarial',
-        argumentationExitThreshold: this.config.argumentationExitThreshold ?? preset.argumentationExit,
+        argumentationExitThreshold: this.config.argumentationExitThreshold ?? (this.config.dialecticalStyle === 'socratic' ? 0.80 : preset.argumentationExit),
         concludingExitThreshold: this.config.concludingExitThreshold ?? preset.concludingExit,
         allowEarlyTermination: this.config.allowEarlyTermination ?? true,
-        phaseBoundsOverride: this.config.phaseBoundsOverride,
+        phaseBoundsOverride: this.config.dialecticalStyle === 'socratic'
+          ? { maxConcludingRounds: 1, ...this.config.phaseBoundsOverride }
+          : this.config.phaseBoundsOverride,
       };
       this._phaseState = initPhaseState(this._adaptiveConfig);
-      this._signalRegistry = buildSignalRegistry();
+      this._signalRegistry = buildSignalRegistry(this.config.dialecticalStyle);
       this._adaptiveDiagnostics = initAdaptiveDiagnostics();
     }
 

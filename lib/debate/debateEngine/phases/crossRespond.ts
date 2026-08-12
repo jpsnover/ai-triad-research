@@ -393,6 +393,7 @@ export async function runCrossRespondRound(engine: DebateEngineInternals, round:
       : undefined,
     nodeEmbeddings: engine.taxonomy.embeddings as Record<string, { vector: number[] }> | undefined,
     moderatorMode: engine.config.moderatorMode as import('../../types.js').ModeratorMode | undefined,
+    dialecticalStyle: engine.config.dialecticalStyle,
   };
 
   const modResult = await runModeratorSelection(selectionInput, selectionCallbacks);
