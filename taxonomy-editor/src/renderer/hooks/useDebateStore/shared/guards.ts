@@ -14,13 +14,23 @@ export let _abortController: AbortController | null = null;
 
 /**
  * Guard against race conditions in async debate operations.
- * Captures the active debate ID at call time; returns a checker that
- * verifies the debate hasn't changed during an await.
+ * Captures the active debate ID *and this run's abort controller* at call time;
+ * returns a checker that verifies the debate hasn't changed and this run hasn't
+ * been superseded during an await.
+ *
+ * Capturing the controller matters when a new run replaces the module-global
+ * `_abortController` via newAbortController() (e.g. Switch-model restart, t/2505):
+ * a bare `_abortController.signal.aborted` read would see the *new* run's fresh
+ * (un-aborted) controller and wrongly report the superseded run as still valid,
+ * so the abandoned pipeline would keep writing. The captured reference stays
+ * pinned to this run's controller, so cancelAndResetAbort() reliably discards it.
  */
 export function createDebateGuard(get: () => { activeDebateId: string | null }): () => boolean {
   const capturedId = get().activeDebateId;
+  const capturedAbort = _abortController;
   return () => {
-    if (_abortController?.signal.aborted) return false;
+    if (capturedAbort?.signal.aborted) return false; // this run superseded/cancelled
+    if (_abortController?.signal.aborted) return false; // current run cancelled (existing behavior)
     if (capturedId !== get().activeDebateId) {
       console.warn(`[debate] Active debate changed during async operation (was ${capturedId}, now ${get().activeDebateId}). Discarding stale results.`);
       return false;

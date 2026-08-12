@@ -33,6 +33,14 @@ vi.mock('../../hooks/useDebateStore', () => ({
   },
 }));
 
+// retryWithModel aborts the in-flight pipeline (t/2505) — mock the guard so we can assert
+// it fires and keep this a hermetic hook test (no real abort-controller/store side effects).
+// vi.hoisted so the fn exists before the hoisted vi.mock factory references it.
+const mockCancelAndResetAbort = vi.hoisted(() => vi.fn());
+vi.mock('../../hooks/useDebateStore/shared/guards', () => ({
+  cancelAndResetAbort: mockCancelAndResetAbort,
+}));
+
 vi.mock('@lib/flight-recorder/index', () => ({
   getGlobalRecorder: () => null,
 }));
@@ -102,15 +110,24 @@ describe('useBriefTimeoutEvents', () => {
     expect(result.current.dialogData?.currentModel).toBe('gemini-flash');
   });
 
-  it('retryWithModel clears both and calls runOpeningStatements', () => {
+  it('retryWithModel aborts the in-flight run, clears the guard, and restarts on the new model (t/2505)', () => {
     const { result } = renderHook(() => useBriefTimeoutEvents(DEBATE_ID));
     act(() => emitExhausted());
 
     act(() => result.current.retryWithModel('claude-sonnet-5'));
 
     expect(result.current.dialogData).toBeNull();
-    expect(useDebateStore.setState).toHaveBeenCalledWith({ debateModel: 'claude-sonnet-5' });
-    expect(mockRunOpeningStatements).toHaveBeenCalled();
+    // Aborts the superseded pipeline so it stops burning attempts on the old model...
+    expect(mockCancelAndResetAbort).toHaveBeenCalledTimes(1);
+    // ...sets the new model AND clears debateGenerating so the re-entry guard doesn't
+    // block the restart (the original no-op bug)...
+    expect(useDebateStore.setState).toHaveBeenCalledWith({ debateModel: 'claude-sonnet-5', debateGenerating: null });
+    // ...then kicks off the fresh run.
+    expect(mockRunOpeningStatements).toHaveBeenCalledTimes(1);
+    // Abort must happen before the restart, else the new run's fresh controller would be
+    // torn down. (invocationCallOrder increases with call sequence.)
+    expect(mockCancelAndResetAbort.mock.invocationCallOrder[0])
+      .toBeLessThan(mockRunOpeningStatements.mock.invocationCallOrder[0]);
   });
 
   it('ignores events for a different debateId', () => {

@@ -5,6 +5,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { api } from '@bridge';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { useDebateStore } from '../../hooks/useDebateStore';
+import { cancelAndResetAbort } from '../../hooks/useDebateStore/shared/guards';
 import { POVER_INFO } from '@lib/debate/types';
 import type { SpeakerId } from '@lib/debate/types';
 
@@ -98,15 +99,25 @@ export function useBriefTimeoutEvents(activeDebateId: string | null): UseBriefTi
   const retryWithModel = useCallback((model: string) => {
     setDialogData(null);
     setToastData(null);
-    useDebateStore.setState({ debateModel: model });
+    // Abort the in-flight opening pipeline before restarting (t/2505). It was started with
+    // the old model captured at pipeline start (makeStageGenerate), so a bare debateModel
+    // update can't redirect it — it would keep burning attempts on the old model, and the
+    // runOpeningStatements re-entry guard (debateGenerating) would then block the restart as
+    // a silent no-op. cancelAndResetAbort() lets the superseded pipeline self-discard
+    // (createDebateGuard captures its own controller); clearing debateGenerating reopens the
+    // guard so the fresh run proceeds. Set debateModel first so the new run picks it up.
+    cancelAndResetAbort();
+    useDebateStore.setState({ debateModel: model, debateGenerating: null });
+    void useDebateStore.getState().runOpeningStatements();
+    // Log the outcome — the abort + restart we just performed — not intent. Previously this
+    // fired ahead of a guard that could swallow the retry, so the FR event overstated it.
     getGlobalRecorder()?.record({
       type: 'debate.lifecycle',
       component: 'brief-timeout',
       level: 'info',
-      message: 'Retrying opening statements with new model after brief timeout',
+      message: 'Aborted in-flight opening pipeline and restarted with new model after brief timeout',
       data: { model },
     });
-    void useDebateStore.getState().runOpeningStatements();
   }, []);
 
   // User clicks "Switch model" on the toast before retries are exhausted —
