@@ -20,6 +20,7 @@ import { api, emitBriefTimeout, emitBriefRetriesExhausted } from '@bridge';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { generateId, nowISO, parseAIJson, parsePoverResponse, formatRecentTranscript } from '@lib/debate/helpers';
 import { formatTaxonomyContext } from '../../../utils/taxonomyContext';
+import { classifyAiRetry, retryReasonLabel } from '../../../utils/retryClassifier';
 import { formatCommitments, formatEstablishedPoints } from '../../../prompts/argumentNetwork';
 import { formatVocabularyContext } from '@lib/debate/vocabularyContext';
 import {
@@ -872,17 +873,27 @@ export const createClarificationSlice: StateCreator<DebateStore, [], [], Clarifi
 
     console.log(`[debate-store] Opening statements: aiPovers=${JSON.stringify(aiPovers)}, existingOpenings=${JSON.stringify([...existingOpenings])}, resolvedOrder=${JSON.stringify(resolvedOrder)}`);
 
-    const MAX_OPENING_RETRIES = 1;
+    // Auto-retry policy (t/2492): transient failures (429 / 5xx / timeout / network) retry up to
+    // MAX_OPENING_RETRIES with expo backoff, bounded by a total-elapsed budget so a multi-minute
+    // timeout × N passes can't strand the user before the honest exhaustion banner.
+    const MAX_OPENING_RETRIES = 2;
+    const OPENING_RETRY_BUDGET_MS = 8 * 60 * 1000; // 8 min total across all passes
     const openingStartedAt = Date.now();
     let openingRetryPass = 0;
     let failedSpeakers: string[] = [];
     let hasRetryableFailure = false;
     let retryBackoffMs = 5000;
+    let lastRetryReason = retryReasonLabel('non_retryable');
 
     while (openingRetryPass <= MAX_OPENING_RETRIES) {
       if (openingRetryPass > 0) {
+        // Budget guard: don't launch another pass if we'd blow the total-elapsed budget.
+        if (Date.now() - openingStartedAt + retryBackoffMs > OPENING_RETRY_BUDGET_MS) {
+          console.log(`[debate-store] Opening retry budget (${OPENING_RETRY_BUDGET_MS}ms) exhausted — stopping`);
+          break;
+        }
         console.log(`[debate-store] Opening retry pass ${openingRetryPass} — waiting ${retryBackoffMs}ms`);
-        set({ debateActivity: `Rate-limited — retrying openings in ${Math.ceil(retryBackoffMs / 1000)}s...` });
+        set({ debateActivity: `A speaker ${lastRetryReason} — retrying openings in ${Math.ceil(retryBackoffMs / 1000)}s...` });
         await new Promise(resolve => setTimeout(resolve, retryBackoffMs));
         if (!isStillValid()) break;
       }
@@ -1094,9 +1105,10 @@ export const createClarificationSlice: StateCreator<DebateStore, [], [], Clarifi
         }
       } catch (err) {
         const httpStatus = (err as { httpStatus?: number }).httpStatus;
-        const isRetryable = httpStatus === 429 && !isDailyLimitError(err);
-        console.error(`[debate] ${info.label} opening statement failed (status=${httpStatus ?? 'unknown'}):`, err);
-        getGlobalRecorder()?.record({ type: 'system.error', debate_id: activeDebate?.id, component: 'debate-engine', level: 'error', message: `Opening statement failed: ${info.label} (status=${httpStatus ?? 'unknown'})`, error: { name: (err as Error).name ?? 'Error', message: (err as Error).message ?? String(err), stack: (err as Error).stack?.slice(0, 500) } });
+        // Broadened classification (t/2492): transient timeout/5xx/network now auto-retry, not just 429.
+        const { retryable: isRetryable, reason: retryReason } = classifyAiRetry(err);
+        console.error(`[debate] ${info.label} opening statement failed (status=${httpStatus ?? 'unknown'}, retry=${retryReason}):`, err);
+        getGlobalRecorder()?.record({ type: 'system.error', debate_id: activeDebate?.id, component: 'debate-engine', level: 'error', message: `Opening statement failed: ${info.label} (status=${httpStatus ?? 'unknown'})`, data: { retry_reason: retryReason, retryable: isRetryable, retry_pass: openingRetryPass }, error: { name: (err as Error).name ?? 'Error', message: (err as Error).message ?? String(err), stack: (err as Error).stack?.slice(0, 500) } });
         if (isDailyLimitError(err)) {
           addTranscriptEntry({
             type: 'system',
@@ -1113,15 +1125,22 @@ export const createClarificationSlice: StateCreator<DebateStore, [], [], Clarifi
           type: 'system',
           speaker: 'system',
           content: isRetryable
-            ? `${info.label} was rate limited — retrying automatically…`
+            ? `${info.label} ${retryReasonLabel(retryReason)} — retrying automatically…`
             : `${info.label} failed to deliver opening statement: ${mapErrorToUserMessage(err)}`,
           taxonomy_refs: [],
         });
         failedSpeakers.push(info.label);
         if (isRetryable) {
           hasRetryableFailure = true;
-          const msgMatch = String(err).match(/Retry in (\d+)s/);
-          retryBackoffMs = msgMatch ? parseInt(msgMatch[1], 10) * 1000 : 5000;
+          lastRetryReason = retryReasonLabel(retryReason);
+          if (retryReason === 'rate_limit') {
+            // Honor the server's advertised Retry-After when present.
+            const msgMatch = String(err).match(/Retry in (\d+)s/);
+            retryBackoffMs = msgMatch ? parseInt(msgMatch[1], 10) * 1000 : 5000;
+          } else {
+            // Exponential backoff for transient timeout/5xx/network (5s, 10s, …), capped at 30s.
+            retryBackoffMs = Math.min(5000 * 2 ** openingRetryPass, 30_000);
+          }
           break;
         }
       }
@@ -1153,7 +1172,7 @@ export const createClarificationSlice: StateCreator<DebateStore, [], [], Clarifi
           return `Opening statements failed for ${missingLabels.join(', ')} after ${attempts} attempt${attempts > 1 ? 's' : ''} (${elapsedStr}).`;
         })(),
       });
-      getGlobalRecorder()?.record({ type: 'debate.lifecycle', component: 'debate-store', level: 'warn', debate_id: activeDebate?.id, message: 'runOpeningStatements partial failure', data: { missingSpeakers } });
+      getGlobalRecorder()?.record({ type: 'debate.lifecycle', component: 'debate-store', level: 'warn', debate_id: activeDebate?.id, message: 'runOpeningStatements partial failure', data: { missingSpeakers, retry_passes: openingRetryPass, last_retry_reason: lastRetryReason, elapsed_ms: Date.now() - openingStartedAt } });
       await saveDebate('runOpeningStatements:partialFailure');
       return;
     }
