@@ -50,8 +50,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   storeApiKey: (key: string): Promise<void> =>
     ipcRenderer.invoke('store-api-key', key),
 
-  getApiKey: (): Promise<string | null> =>
-    ipcRenderer.invoke('get-api-key'),
+  // t/2534 (M4): presence check only — the raw API key never crosses IPC.
+  hasApiKey: (): Promise<boolean> =>
+    ipcRenderer.invoke('has-api-key'),
 
   validateApiKey: (key: string): Promise<{ valid: boolean; error?: string }> =>
     ipcRenderer.invoke('validate-api-key', key),

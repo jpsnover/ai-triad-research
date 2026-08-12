@@ -33,7 +33,7 @@ export interface ElectronAPI {
 
   // === AI Engine APIs ===
   storeApiKey: (key: string) => Promise<void>;
-  getApiKey: () => Promise<string | null>;
+  hasApiKey: () => Promise<boolean>;
   validateApiKey: (key: string) => Promise<{ valid: boolean; error?: string }>;
   runAnalysis: (sourceId: string, sourceText: string) => Promise<unknown>;
   cancelAnalysis: (sourceId: string) => Promise<void>;
