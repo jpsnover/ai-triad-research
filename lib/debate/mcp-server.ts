@@ -98,7 +98,7 @@ server.tool(
     rounds: z.number().optional().describe('Number of rounds (default: 3)'),
     activePovers: z.array(z.string()).optional().describe('Active perspectives (default: all three)'),
     audience: z.string().optional().describe('Target audience'),
-    moderatorMode: z.enum(['standard', 'talmudic']).optional().describe('Moderator strategy (default: standard; talmudic is method-only)'),
+    moderatorMode: z.enum(['standard', 'talmudic', 'socratic']).optional().describe('Moderator strategy (default: standard; talmudic enables source-card dialectics; socratic enables elenchus inquiry)'),
     responseLength: z.enum(['brief', 'medium', 'detailed']).optional().describe('Response length preset'),
     pacing: z.string().optional().describe('Pacing preset'),
     outputDir: z.string().optional().describe('Output directory for session JSON'),

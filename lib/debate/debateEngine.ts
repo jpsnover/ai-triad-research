@@ -395,7 +395,8 @@ export class DebateEngine {
       }
     }
 
-    this.config = { ...config, stageModels: merged };
+    const derivedModeratorMode = config.moderatorMode ?? (config.protocolId === 'socratic' ? 'socratic' : undefined);
+    this.config = { ...config, stageModels: merged, moderatorMode: derivedModeratorMode };
     this._talmudicCorpus = initTalmudicCorpusFromConfig(this.config);
     this.adapter = adapter;
     this.taxonomy = taxonomy;
