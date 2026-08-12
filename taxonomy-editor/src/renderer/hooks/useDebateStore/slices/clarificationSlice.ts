@@ -1001,7 +1001,7 @@ export const createClarificationSlice: StateCreator<DebateStore, [], [], Clarifi
         );
         if (!isStillValid()) {
           console.warn(`[debate-store] Debate state changed after ${info.label} opening pipeline — remaining speakers will be skipped. activeDebateId: ${get().activeDebateId}, aborted: ${_abortController?.signal.aborted}`);
-          addTranscriptEntry({ type: 'system', speaker: 'system', content: `Opening generation interrupted after ${info.label} — debate state changed during generation.`, taxonomy_refs: [] });
+          addTranscriptEntry({ type: 'system', speaker: 'system', content: `Opening generation interrupted after ${info.label} — superseded by a model switch or a debate change.`, taxonomy_refs: [] });
           getGlobalRecorder()?.record({ type: 'debate.lifecycle', component: 'debate-store', level: 'info', debate_id: activeDebate?.id, message: 'runOpeningStatements aborted post-pipeline', data: { speaker: info.label } });
           return;
         }
@@ -1031,7 +1031,7 @@ export const createClarificationSlice: StateCreator<DebateStore, [], [], Clarifi
           }
           if (!isStillValid()) {
             console.warn(`[debate-store] Debate state changed after ${info.label} opening retry — remaining speakers will be skipped. activeDebateId: ${get().activeDebateId}, aborted: ${_abortController?.signal.aborted}`);
-            addTranscriptEntry({ type: 'system', speaker: 'system', content: `Opening generation interrupted after ${info.label} retry — debate state changed during generation.`, taxonomy_refs: [] });
+            addTranscriptEntry({ type: 'system', speaker: 'system', content: `Opening generation interrupted after ${info.label} retry — superseded by a model switch or a debate change.`, taxonomy_refs: [] });
             getGlobalRecorder()?.record({ type: 'debate.lifecycle', component: 'debate-store', level: 'info', debate_id: activeDebate?.id, message: 'runOpeningStatements aborted post-retry', data: { speaker: info.label } });
             return;
           }
