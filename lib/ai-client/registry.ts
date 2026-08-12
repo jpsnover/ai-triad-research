@@ -61,8 +61,7 @@ export function resolveModel(registry: ModelRegistry, friendlyId: string): { api
   return { apiModelId: friendlyId, backend: 'gemini' };
 }
 
-export function getDefaultTimeout(model: string): number {
-  const backend = resolveBackend(model);
+function baseTimeout(backend: string): number {
   switch (backend) {
     case 'ollama':    return 300_000;
     case 'deepseek':  return 180_000;
@@ -75,6 +74,24 @@ export function getDefaultTimeout(model: string): number {
     case 'gemini':    return 120_000;
     default:          return 120_000;
   }
+}
+
+/**
+ * Returns the default timeout for a model in milliseconds.
+ *
+ * When a registry is provided, frontier-tier models (those in
+ * debateTiers.advanced but NOT in debateTiers.basic for their backend)
+ * receive 2× the backend base. Same-model tiers (ollama, zai) are
+ * intentionally held at 1× — they have no frontier/basic distinction (t/2495).
+ */
+export function getDefaultTimeout(model: string, registry?: ModelRegistry): number {
+  const backend = resolveBackend(model);
+  const base = baseTimeout(backend);
+  if (!registry?.debateTiers) return base;
+  const advanced = registry.debateTiers['advanced']?.[backend];
+  const basic    = registry.debateTiers['basic']?.[backend];
+  if (advanced === model && advanced !== basic) return base * 2;
+  return base;
 }
 
 function parseVersionedModelId(id: string): { family: string; version: number } | null {

@@ -70,7 +70,7 @@ export function createAIClient(
       // fixedTemperature (if any) overrides the caller's temperature so providers send it.
       const effectiveOpts = {
         ...opts,
-        timeoutMs: opts?.timeoutMs ?? getDefaultTimeout(model),
+        timeoutMs: opts?.timeoutMs ?? getDefaultTimeout(model, registry),
         ...(fixedTemperature != null ? { fixedTemperature } : {}),
       };
       const t0 = performance.now();

@@ -166,11 +166,12 @@ function callEnvelopeProvider(
   backend: string,
   req: GenerateRequest,
   apiKey: string,
+  registry: ModelRegistry,
 ): Promise<ProviderResult> {
   const sysText = envelopeSystemText(req.envelope);
   return callProvider(fetch, backend, req.envelope.layer4_variable, req.model, apiKey, {
     ...req.options,
-    timeoutMs: req.options?.timeoutMs ?? getDefaultTimeout(req.model),
+    timeoutMs: req.options?.timeoutMs ?? getDefaultTimeout(req.model, registry),
     systemMessage: sysText || undefined,
   });
 }
@@ -292,7 +293,7 @@ export function createCLIAdapter(repoRoot: string, explicitApiKey?: string): Ext
   async function doGenerateText(prompt: string, model: string, options?: GenerateOptions): Promise<string> {
     const { apiModelId, backend, fixedTemperature } = resolveModel(registry, model);
     const apiKey = resolveApiKey(backend, explicitApiKey);
-    const timeoutMs = options?.timeoutMs ?? getDefaultTimeout(model);
+    const timeoutMs = options?.timeoutMs ?? getDefaultTimeout(model, registry);
     const opts = { ...options, timeoutMs, fixedTemperature };
 
     const t0 = performance.now();
@@ -360,7 +361,7 @@ export function createCLIAdapter(repoRoot: string, explicitApiKey?: string): Ext
       }
       process.stderr.write(`[cascade] ${backend}/${apiModelId} failed, trying ${fb.backend}/${fb.apiModelId}\n`);
       try {
-        const fbTimeoutMs = getDefaultTimeout(fbModel);
+        const fbTimeoutMs = getDefaultTimeout(fbModel, registry);
         const fbOpts = { ...opts, timeoutMs: fbTimeoutMs, fixedTemperature: fb.fixedTemperature };
         const fbResult = await callWithTimeout(
           (signal) => withRetry(
@@ -402,7 +403,7 @@ export function createCLIAdapter(repoRoot: string, explicitApiKey?: string): Ext
     });
     try {
       const result = await withRetry(
-        () => callEnvelopeProvider(backend, resolvedReq, apiKey),
+        () => callEnvelopeProvider(backend, resolvedReq, apiKey, registry),
         CLI_RETRY_CONFIG, `${backend}/${apiModelId}`, retryLog,
       );
 
