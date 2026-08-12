@@ -70,8 +70,14 @@ function Export-TaxonomyToGraph {
     if ($Credential) {
         $Pair = "$($Credential.UserName):$($Credential.GetNetworkCredential().Password)"
     } else {
-        if ($env:NEO4J_PASSWORD) { $Neo4jPwd = $env:NEO4J_PASSWORD } else { $Neo4jPwd = 'aitriad2026' }
-        $Pair = "neo4j:$Neo4jPwd"
+        if (-not $env:NEO4J_PASSWORD) {
+            throw (New-ActionableError `
+                -Goal 'Connect to Neo4j' `
+                -Problem 'NEO4J_PASSWORD environment variable is not set and no -Credential was provided' `
+                -Location 'Export-TaxonomyToGraph' `
+                -NextSteps 'Set $env:NEO4J_PASSWORD or pass -Credential (Get-Credential) with the Neo4j password.')
+        }
+        $Pair = "neo4j:$($env:NEO4J_PASSWORD)"
     }
     $Bytes = [System.Text.Encoding]::ASCII.GetBytes($Pair)
     $AuthHeader['Authorization'] = "Basic $([Convert]::ToBase64String($Bytes))"

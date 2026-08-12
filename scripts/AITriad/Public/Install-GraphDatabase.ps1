@@ -16,7 +16,8 @@ function Install-GraphDatabase {
     .PARAMETER Force
         Remove and recreate the container even if it already exists.
     .PARAMETER Password
-        Neo4j password. Falls back to NEO4J_PASSWORD env var, then 'aitriad2026'.
+        Neo4j password. Falls back to NEO4J_PASSWORD env var. If neither is provided,
+        a random password is generated and printed once — copy it to $env:NEO4J_PASSWORD.
     .PARAMETER DataPath
         Path for persistent database storage. Default: ~/ai-triad-graphdb.
     .EXAMPLE
@@ -44,13 +45,27 @@ function Install-GraphDatabase {
     param(
         [switch]$Force,
 
-        [string]$Password = $(if ($env:NEO4J_PASSWORD) { $env:NEO4J_PASSWORD } else { 'aitriad2026' }),
+        [string]$Password = '',
 
         [string]$DataPath = (Join-Path $HOME 'ai-triad-graphdb')
     )
 
     Set-StrictMode -Version Latest
     $ErrorActionPreference = 'Stop'
+
+    # Resolve password: explicit param > env var > generate once
+    if ([string]::IsNullOrWhiteSpace($Password)) {
+        if ($env:NEO4J_PASSWORD) {
+            $Password = $env:NEO4J_PASSWORD
+        } else {
+            $Password = [Convert]::ToBase64String([Security.Cryptography.RandomNumberGenerator]::GetBytes(18))
+            Write-Host ''
+            Write-Host '  Neo4j password generated (not persisted):' -ForegroundColor Yellow
+            Write-Host "  $Password" -ForegroundColor Cyan
+            Write-Host '  Set $env:NEO4J_PASSWORD = ''<above>'' to reuse it.' -ForegroundColor Yellow
+            Write-Host ''
+        }
+    }
 
     $ContainerName = 'ai-triad-neo4j'
 
