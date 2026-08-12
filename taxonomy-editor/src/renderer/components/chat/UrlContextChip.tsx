@@ -1,8 +1,10 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-import type { UrlContextMetadata } from '@lib/ai-client/index';
+import type { UrlContextMetadata, UrlContextEntry } from '@lib/ai-client/index';
 import './UrlContextChip.css';
+
+type UrlContextEntryExt = UrlContextEntry & { source?: 'provider' | 'app-fetch'; truncated?: boolean };
 
 function hostnameFrom(url: string): string {
   try {
@@ -19,17 +21,25 @@ export function UrlContextChip({ metadata }: { metadata: UrlContextMetadata }) {
   return (
     <div className="url-context-chips" aria-label="URL context">
       {entries.map((entry, i) => {
-        const success = entry.urlRetrievalStatus === 'SUCCESS';
-        const host = hostnameFrom(entry.retrievedUrl);
+        const e = entry as UrlContextEntryExt;
+        const success = e.urlRetrievalStatus === 'SUCCESS';
+        const isAppFetch = e.source === 'app-fetch';
+        const host = hostnameFrom(e.retrievedUrl);
+        const tooltip = isAppFetch
+          ? (success ? `Fetched by app: ${e.retrievedUrl}` : `Couldn't fetch: ${e.retrievedUrl}`)
+          : (success ? `Read: ${e.retrievedUrl}` : `Couldn't read: ${e.retrievedUrl}`);
         return (
           <span
             key={i}
-            className={`url-context-chip${success ? '' : ' url-context-chip--failed'}`}
-            title={success
-              ? `Read: ${entry.retrievedUrl}`
-              : `Couldn't read: ${entry.retrievedUrl}`}
+            className={[
+              'url-context-chip',
+              success ? '' : 'url-context-chip--failed',
+              isAppFetch ? 'url-context-chip--app-fetch' : '',
+            ].filter(Boolean).join(' ')}
+            title={tooltip}
           >
             {success ? `read: ${host}` : `couldn't read: ${host}`}
+            {e.truncated && <span className="url-context-chip-truncated">[truncated]</span>}
           </span>
         );
       })}

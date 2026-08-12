@@ -11,7 +11,8 @@ import type {
 import type { SpeakerId, TaxonomyRef } from '../types/debate';
 import { POVER_INFO } from '../types/debate';
 import type { PovNode, CrossCuttingNode as SituationNode } from '../types/taxonomy';
-import { useTaxonomyStore, backendForModel, getStoredModel } from './useTaxonomyStore';
+import { useTaxonomyStore, getStoredModel } from './useTaxonomyStore';
+import { extractHttpUrls } from '../../../../lib/url-fetch/extractHttpUrls';
 import { mapErrorToUserMessage } from '../utils/errorMessages';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { api } from '@bridge';
@@ -40,8 +41,6 @@ function getConfiguredModel(): string {
   return getStoredModel();
 }
 
-const URL_PATTERN = /https?:\/\/\S+/;
-
 function isUrlContextMetadata(payload: unknown): payload is UrlContextMetadata {
   if (!payload || typeof payload !== 'object') return false;
   const p = payload as Record<string, unknown>;
@@ -69,6 +68,16 @@ async function streamChatWithProgress(
   const unsubMeta = api.onChatStreamUrlMetadata?.((payload) => {
     if (isUrlContextMetadata(payload)) {
       urlContextMetadata = payload;
+      getGlobalRecorder()?.record({
+        type: 'chat.url-context-result',
+        component: 'chat-store',
+        level: 'info',
+        message: 'URL context metadata received',
+        data: {
+          entry_count: payload.urlMetadata.length,
+          success_count: payload.urlMetadata.filter(e => e.urlRetrievalStatus === 'SUCCESS').length,
+        },
+      });
     } else {
       getGlobalRecorder()?.record({ type: 'system.error', component: 'chat-store', level: 'debug', message: 'onChatStreamUrlMetadata payload did not match UrlContextMetadata shape', error: { name: 'TypeError', message: 'Non-conforming url-context metadata', stack: '' } });
     }
@@ -426,8 +435,9 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       const model = getConfiguredModel();
       const temperature = CHAT_MODE_TEMPERATURE[activeChat.mode];
 
-      const urlDetected = URL_PATTERN.test(message.trim());
-      const urlContext = urlDetected && backendForModel(model) === 'gemini';
+      const detectedUrls = extractHttpUrls(message.trim());
+      const urlDetected = detectedUrls.length > 0;
+      const urlContext = urlDetected;
       getGlobalRecorder()?.record({
         type: 'chat.url-context-decision',
         component: 'chat-store',
@@ -436,7 +446,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         data: {
           url_detected: urlDetected,
           url_context_enabled: urlContext,
-          gating_reason: !urlDetected ? 'no-url' : urlContext ? 'enabled' : 'model-not-capable',
+          gating_reason: !urlDetected ? 'no-url' : 'enabled',
           ingestion_path: urlContext ? 'provider' : 'none',
           model,
         },
@@ -460,12 +470,15 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         .filter(Boolean);
       const userContent = chatContinuationPrompt(message.trim(), transcriptText, priorClaims);
 
+      const activity = urlContext
+        ? `Fetching page for ${info.label}…`
+        : `${info.label} is thinking…`;
       const { text: fullText, urlContextMetadata } = await streamChatWithProgress(
         systemInstruction,
         [{ role: 'user', content: userContent }],
         model,
         temperature,
-        `${info.label} is thinking...`,
+        activity,
         set,
         (chunk) => get().appendStreamingText(chunk),
         urlContext,

@@ -28,3 +28,15 @@
   background: color-mix(in srgb, var(--warning) 10%, transparent);
   color: var(--text-muted);
 }
+
+.url-context-chip--app-fetch {
+  background: color-mix(in srgb, var(--text-secondary) 10%, transparent);
+  border-style: dashed;
+}
+
+.url-context-chip-truncated {
+  margin-left: 4px;
+  font-size: 0.65rem;
+  opacity: 0.7;
+  flex-shrink: 0;
+}

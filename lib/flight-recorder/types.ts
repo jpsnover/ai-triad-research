@@ -69,6 +69,7 @@ export type EventType =
   | 'chat.user-message'
   | 'chat.thinking-stripped'
   | 'chat.url-context-decision'
+  | 'chat.url-context-result'
   // User interaction
   | 'user.action'
   | 'ui.navigate'
