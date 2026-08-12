@@ -115,10 +115,13 @@ describe('fetch-and-inject: non-Gemini model with URL', () => {
 
     const metaEvent = sent.find(([ch]) => ch === 'chat-stream-url-metadata');
     expect(metaEvent).toBeDefined();
-    const payload = metaEvent![1] as { source: string; urlContextMetadata: { urlMetadata: Array<{ retrievedUrl: string; urlRetrievalStatus: string }> } };
+    const payload = metaEvent![1] as { source: string; urlContextMetadata: { urlMetadata: Array<{ retrievedUrl: string; urlRetrievalStatus: string; source: string; truncated: boolean }> } };
     expect(payload.source).toBe('app-fetch');
-    expect(payload.urlContextMetadata.urlMetadata[0].retrievedUrl).toBe('https://example.com');
-    expect(payload.urlContextMetadata.urlMetadata[0].urlRetrievalStatus).toBe('SUCCESS');
+    const entry = payload.urlContextMetadata.urlMetadata[0];
+    expect(entry.retrievedUrl).toBe('https://example.com');
+    expect(entry.urlRetrievalStatus).toBe('SUCCESS');
+    expect(entry.source).toBe('app-fetch');
+    expect(entry.truncated).toBe(false);
   });
 
   it('all fetches fail → honest-fail instruction prepended, no content block', async () => {

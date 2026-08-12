@@ -219,6 +219,8 @@ export function registerAiHandlers(): void {
               urlMetadata: results.map((r, i) => ({
                 retrievedUrl: urls[i],
                 urlRetrievalStatus: r.ok ? 'SUCCESS' : 'FAILED',
+                source: 'app-fetch' as const,
+                truncated: r.ok ? r.truncated : undefined,
               })),
             },
           };
