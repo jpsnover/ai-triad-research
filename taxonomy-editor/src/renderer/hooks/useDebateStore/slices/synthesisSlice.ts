@@ -36,7 +36,7 @@ import { useTaxonomyStore } from '../../useTaxonomyStore';
 import { mapErrorToUserMessage } from '../../../utils/errorMessages';
 import { getConfiguredModel } from '../shared/modelConfig';
 import { generateTextWithProgress, phaseGuardedSet } from '../shared/generation';
-import { createDebateGuard, newAbortController, _abortController, isDailyLimitError, DAILY_LIMIT_MESSAGE } from '../shared/guards';
+import { createDebateGuard, newAbortController, _abortController, isDailyLimitError, DAILY_LIMIT_MESSAGE, isCancellationError } from '../shared/guards';
 import { pushWarning, recordDiagnostic } from '../shared/diagnostics';
 import { runNeutralCheckpoint } from '../shared/neutralCheckpoint';
 import { getRelevantTaxonomyContext, formatDebaterEdgeContext, enrichPolicyRefs, serializeNodeSourceMap, getNodeLabelForFactCheck, getTaxonomyContext } from '../shared/taxonomyContext';
@@ -987,6 +987,8 @@ export const createSynthesisSlice: StateCreator<DebateStore, [], [], SynthesisSl
 
       runLineageDebateSummary(get, activeDebate);
     } catch (err) {
+      // User cancel / model switch (t/2508) — bail quietly, no error toast (helper logged info).
+      if (isCancellationError(err)) { set({ debateGenerating: null, debateActivity: null }); return; }
       getGlobalRecorder()?.record({
         type: 'system.error',
         debate_id: activeDebate?.id,
@@ -1066,6 +1068,8 @@ export const createSynthesisSlice: StateCreator<DebateStore, [], [], SynthesisSl
         metadata: { probing_questions: questions, round: probingRound },
       });
     } catch (err) {
+      // User cancel / model switch (t/2508) — bail quietly, no error toast (helper logged info).
+      if (isCancellationError(err)) { set({ debateGenerating: null, debateActivity: null }); return; }
       getGlobalRecorder()?.record({
         type: 'system.error',
         debate_id: activeDebate?.id,
@@ -1140,6 +1144,8 @@ export const createSynthesisSlice: StateCreator<DebateStore, [], [], SynthesisSl
       // Generate AN nodes and edges from the fact-check points and commit them.
       applyFactCheckToArgumentNetwork(get, set, entryId, selectedText, result, validated);
     } catch (err) {
+      // User cancel / model switch (t/2508) — bail quietly (finally clears state); no toast.
+      if (isCancellationError(err)) return;
       getGlobalRecorder()?.record({
         type: 'system.error',
         debate_id: activeDebate?.id,

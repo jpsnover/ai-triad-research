@@ -84,7 +84,7 @@ import { mapErrorToUserMessage } from '../../../utils/errorMessages';
 import { cosineSimilarity, scoreNodesLexical } from '../../../utils/taxonomyRelevance';
 import { getConfiguredModel, getSpeakerModel } from '../shared/modelConfig';
 import { generateTextWithProgress, phaseGuardedSet, summarizeTranscriptEntry, makeStageGenerate, routeTurnValidatorHintsIntoSuggestions, getSourceEvidenceIndex, getDocTitles } from '../shared/generation';
-import { createDebateGuard, newAbortController, _abortController, claimDebateDriver, releaseDebateDriver, isDailyLimitError, DAILY_LIMIT_MESSAGE } from '../shared/guards';
+import { createDebateGuard, newAbortController, _abortController, claimDebateDriver, releaseDebateDriver, isDailyLimitError, DAILY_LIMIT_MESSAGE, isCancellationError } from '../shared/guards';
 import { pushWarning, recordDiagnostic, recordSignalHistory, getSignalValue, movingAverageSignal, incrementGapInjectionCount, _gapInjectionCount } from '../shared/diagnostics';
 import { runNeutralCheckpoint } from '../shared/neutralCheckpoint';
 import { buildLineageContext, enrichPolicyRefs, serializeNodeSourceMap, formatEdgeContext, formatDebaterEdgeContext, getRelevantTaxonomyContext, getAllKnownNodeIds, getAllPolicyIds, findNodeMetaInStore, getTaxonomyContext } from '../shared/taxonomyContext';
@@ -223,6 +223,8 @@ export const createDebateLoopSlice: StateCreator<DebateStore, [], [], DebateLoop
           await summarizeTranscriptEntry(lastEntry.id, statement, info.label, model, get, set);
         }
       } catch (err) {
+        // User cancel / model switch (t/2508) — bail quietly, no error toast (helper logged info).
+        if (isCancellationError(err)) { set({ debateGenerating: null }); return; }
         getGlobalRecorder()?.record({
           type: 'system.error',
           debate_id: activeDebate?.id,

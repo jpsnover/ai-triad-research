@@ -124,6 +124,52 @@ describe('resilience', () => {
     });
   });
 
+  describe('resilientFetch — caller abort signal (t/2508)', () => {
+    it('threads a composed signal into fetch when a caller signal is provided', async () => {
+      fetchSpy.mockResolvedValueOnce(mockFetchResponse(200, { ok: true }));
+      const controller = new AbortController();
+      await resilientFetch('/api/ai/generate', { method: 'POST' }, defaultOpts({ category: 'ai', signal: controller.signal }));
+      const passed = fetchSpy.mock.calls[0][1].signal as AbortSignal;
+      expect(passed).toBeInstanceOf(AbortSignal);
+      expect(passed.aborted).toBe(false);
+    });
+
+    it('does NOT retry when the caller aborts mid-request, even with retries available', async () => {
+      const controller = new AbortController();
+      fetchSpy.mockImplementation(() => {
+        controller.abort();
+        return Promise.reject(new DOMException('The operation was aborted', 'AbortError'));
+      });
+      await expect(
+        resilientFetch('/api/test', {}, defaultOpts({ maxRetries: 3, signal: controller.signal })),
+      ).rejects.toBeInstanceOf(DOMException);
+      expect(fetchSpy).toHaveBeenCalledTimes(1); // caller cancel is non-retryable
+    });
+
+    it('a caller abort does not trip the circuit breaker', async () => {
+      const controller = new AbortController();
+      fetchSpy.mockImplementation(() => {
+        controller.abort();
+        return Promise.reject(new DOMException('The operation was aborted', 'AbortError'));
+      });
+      await expect(
+        resilientFetch('/api/test', {}, defaultOpts({ category: 'ai', signal: controller.signal })),
+      ).rejects.toBeTruthy();
+      expect(getResilienceState().circuits.ai.consecutiveFailures).toBe(0);
+    });
+
+    it('without a caller signal, a timeout-style abort still retries (unchanged behavior)', async () => {
+      fetchSpy
+        .mockRejectedValueOnce(new DOMException('The operation was aborted', 'AbortError'))
+        .mockResolvedValueOnce(mockFetchResponse(200, { ok: true }));
+      const promise = resilientFetch('/api/test', {}, defaultOpts({ maxRetries: 1 }));
+      await vi.advanceTimersByTimeAsync(5000);
+      const res = await promise;
+      expect(res.ok).toBe(true);
+      expect(fetchSpy).toHaveBeenCalledTimes(2);
+    });
+  });
+
   describe('resilientFetch — retry on 5xx', () => {
     it('retries on 500 and succeeds on second attempt', async () => {
       fetchSpy

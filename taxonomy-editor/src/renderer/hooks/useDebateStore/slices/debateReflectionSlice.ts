@@ -85,7 +85,7 @@ import { usePromptConfigStore } from '../../usePromptConfigStore';
 import { mapErrorToUserMessage } from '../../../utils/errorMessages';
 import { getConfiguredModel, getSpeakerModel } from '../shared/modelConfig';
 import { generateTextWithProgress, phaseGuardedSet, summarizeTranscriptEntry, makeStageGenerate, routeTurnValidatorHintsIntoSuggestions, getSourceEvidenceIndex, getDocTitles } from '../shared/generation';
-import { createDebateGuard, newAbortController, _abortController, claimDebateDriver, releaseDebateDriver, isDailyLimitError, DAILY_LIMIT_MESSAGE } from '../shared/guards';
+import { createDebateGuard, newAbortController, _abortController, claimDebateDriver, releaseDebateDriver, isDailyLimitError, DAILY_LIMIT_MESSAGE, isCancellationError } from '../shared/guards';
 import { pushWarning, recordDiagnostic, recordSignalHistory, getSignalValue, movingAverageSignal, incrementGapInjectionCount, _gapInjectionCount } from '../shared/diagnostics';
 import { runNeutralCheckpoint } from '../shared/neutralCheckpoint';
 import { enrichPolicyRefs, serializeNodeSourceMap, formatEdgeContext, formatDebaterEdgeContext, getRelevantTaxonomyContext, getAllKnownNodeIds, getAllPolicyIds, findNodeMetaInStore, getTaxonomyContext } from '../shared/taxonomyContext';
@@ -693,6 +693,9 @@ export const createDebateReflectionSlice: StateCreator<DebateStore, [], [], Deba
 
         set({ reflections: [...results] });
       } catch (err) {
+        // User cancel / model switch (t/2508) — stop the reflection loop quietly, don't push
+        // a spurious "Error:" reflection entry (helper already logged the info event).
+        if (isCancellationError(err)) return;
         getGlobalRecorder()?.record({
           type: 'system.error',
           debate_id: activeDebate?.id,

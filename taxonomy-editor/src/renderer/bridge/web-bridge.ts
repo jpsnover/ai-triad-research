@@ -7,6 +7,7 @@
  */
 import type { AppAPI, SourceDocumentResolution, DebateDelta, UserPreferences } from './types';
 import { instrumentBridge } from './instrumentBridge';
+import { makeCancellationError } from './cancellation';
 import { ActionableError } from '@lib/debate/errors';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { ALL_API_KEY_BACKENDS } from '@lib/ai-client/types';
@@ -48,6 +49,9 @@ interface FetchOptions {
   maxRetries?: number;
   idempotent?: boolean;
   critical?: boolean;
+  /** Caller abort signal (t/2508) — threaded to the fetch so a deliberate cancel
+   *  tears down the request; on abort `post` throws a tagged cancellation error. */
+  signal?: AbortSignal;
 }
 
 const DEFAULT_READ_TIMEOUT_MS = 30_000;
@@ -221,8 +225,15 @@ async function post<T = unknown>(path: string, body?: unknown, opts?: FetchOptio
       maxRetries: opts?.maxRetries ?? defaultMaxRetries(cat, 'POST', opts?.idempotent),
       critical: opts?.critical ?? (cat !== 'telemetry'),
       category: cat,
+      signal: opts?.signal,
     });
   } catch (err) {
+    // Caller-initiated cancel (t/2508: Switch model / Cancel debate) — not a network
+    // error and not a timeout. Skip the scary system.error and propagate a distinguishable
+    // tagged cancellation so pipeline catches bail quietly (no toast, no retry).
+    if (opts?.signal?.aborted) {
+      throw makeCancellationError(`POST ${path} cancelled by caller`);
+    }
     getGlobalRecorder()?.record({
       type: 'system.error',
       component: 'web-bridge',
@@ -931,8 +942,8 @@ const rawApi: AppAPI = {
   },
 
   // AI generation
-  generateText: (prompt, model, timeout, temperature) => {
-    const requestId = crypto.randomUUID();
+  generateText: (prompt, model, timeout, temperature, opts) => {
+    const requestId = opts?.requestId ?? crypto.randomUUID();
     const body: Record<string, unknown> = { prompt, model, timeout, temperature };
     const byokKey = sessionStorage.getItem('byok-api-key');
     if (byokKey) body.apiKey = byokKey;
@@ -944,7 +955,9 @@ const rawApi: AppAPI = {
       message: `AI generate request: ${model ?? 'default'}`,
       data: { requestId, ..._activeDebateId ? { debateId: _activeDebateId } : {} },
     });
-    return post('/api/ai/generate', body, undefined, { 'x-request-id': requestId });
+    // Thread the abort signal (t/2508) into the fetch so cancel physically tears down
+    // the request; the server also aborts the provider call on client disconnect (t/2510).
+    return post('/api/ai/generate', body, { signal: opts?.signal }, { 'x-request-id': requestId });
   },
   generateTextWithSearch: (prompt, model) => {
     const requestId = crypto.randomUUID();
