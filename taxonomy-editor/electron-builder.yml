@@ -9,6 +9,11 @@ directories:
 files:
   - dist/**/*
   - "!dist/**/*.map"
+  # Belt-and-suspenders: never bundle Orca overlay artifacts (.orca/activity/
+  # activity-hook.js et al.). Already safe by construction — files: only pulls
+  # dist/**/*, and .orca/ lives in src/ and is never imported into dist/ — but
+  # this makes the exclusion explicit and auditable. (t/2543, sec L7)
+  - "!**/.orca/**"
   - node_modules/**/*
   - package.json
 
