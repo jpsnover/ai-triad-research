@@ -592,7 +592,6 @@ function Find-SituationCandidates {
                     -Temperature 0.2 `
                     -MaxTokens  8192 `
                     -JsonMode `
-                    -TimeoutSec 120 `
                     -MaxRetries 3 `
                     -RetryDelays @(5, 15, 45)
 

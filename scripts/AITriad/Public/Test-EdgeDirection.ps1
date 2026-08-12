@@ -145,8 +145,7 @@ function Test-EdgeDirection {
                 -Model      $Model `
                 -ApiKey     $ResolvedKey `
                 -Temperature 0.1 `
-                -MaxTokens  4096 `
-                -TimeoutSec 120
+                -MaxTokens  4096
 
             if ($null -eq $Response) {
                 Write-Warning "Batch $($b + 1): API returned null"

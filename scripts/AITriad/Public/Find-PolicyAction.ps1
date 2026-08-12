@@ -273,8 +273,7 @@ $SchemaPrompt
                     -ApiKey $ResolvedKey `
                     -Temperature $Temperature `
                     -MaxTokens 16384 `
-                    -JsonMode `
-                    -TimeoutSec 120
+                    -JsonMode
             }
             catch {
                 Write-Fail "API call failed for batch $BatchNum ($($Batch.Count) nodes) using model '$Model': $($_.Exception.Message)"

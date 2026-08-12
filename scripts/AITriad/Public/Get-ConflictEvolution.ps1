@@ -327,8 +327,7 @@ $ConflictJson
                 -ApiKey $ResolvedKey `
                 -Temperature 0.3 `
                 -MaxTokens 4096 `
-                -ResponseSchema $EvolutionSchema `
-                -TimeoutSec 120
+                -ResponseSchema $EvolutionSchema
 
             $ResponseText = $AIResult.Text -replace '^\s*```json\s*', '' -replace '\s*```\s*$', ''
             try {

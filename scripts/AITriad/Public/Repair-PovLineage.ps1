@@ -367,7 +367,7 @@ Return a JSON object mapping node_id to an array of updated lineage entries:
             try {
                 $Result = Invoke-AIApi -Prompt $UserPrompt -SystemInstruction $SystemPrompt `
                     -Model $Model -ApiKey $ResolvedKey `
-                    -Temperature 0.3 -MaxTokens 16384 -JsonMode -TimeoutSec 120
+                    -Temperature 0.3 -MaxTokens 16384 -JsonMode
 
                 if (-not $Result -or -not $Result.Text) {
                     Write-Host " no response" -ForegroundColor Red

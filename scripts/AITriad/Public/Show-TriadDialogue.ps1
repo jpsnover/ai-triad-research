@@ -314,7 +314,6 @@ DETAIL: $($AudDir.DetailInstruction)
             -Temperature 0.7 `
             -MaxTokens  2048 `
             -JsonMode `
-            -TimeoutSec 120 `
             -MaxRetries 3 `
             -RetryDelays @(5, 15, 45)
 
@@ -507,7 +506,6 @@ DETAIL: $($AudDir.DetailInstruction)
             -Temperature 0.3 `
             -MaxTokens  4096 `
             -JsonMode `
-            -TimeoutSec 120 `
             -MaxRetries 3 `
             -RetryDelays @(5, 15, 45)
 
