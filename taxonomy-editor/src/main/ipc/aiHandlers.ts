@@ -22,6 +22,10 @@ import { buildEmbeddingFailureError } from '../embeddingErrors.js';
 import { fetchUrlForPrompt } from '../../../../lib/url-fetch/fetchUrlForPrompt.js';
 import { extractHttpUrls } from '../../../../lib/url-fetch/extractHttpUrls.js';
 
+// ── Per-request AbortController map (t/2509) ──────────────────────────────
+
+const activeGenerations = new Map<string, AbortController>();
+
 // ── Fetch-and-inject helpers (t/2484) ─────────────────────────────────────
 
 const MAX_FETCH_URLS = 3;
@@ -147,14 +151,27 @@ export function registerAiHandlers(): void {
     }
   });
 
-  ipcMain.handle('generate-text', async (event, prompt: string, model?: string, timeoutMs?: number, temperature?: number) => {
+  ipcMain.handle('generate-text', async (event, prompt: string, model?: string, timeoutMs?: number, temperature?: number, requestId?: string) => {
+    const t0 = Date.now();
+    const controller = requestId ? new AbortController() : undefined;
+    if (requestId && controller) activeGenerations.set(requestId, controller);
     try {
       return {
         text: await generateText(prompt, model, (progress) => {
           event.sender.send('generate-text-progress', progress);
-        }, timeoutMs, temperature),
+        }, timeoutMs, temperature, controller?.signal),
       };
     } catch (err) {
+      if ((err as Error).name === 'AbortError' || controller?.signal.aborted) {
+        getGlobalRecorder()?.record({
+          type: 'system.info',
+          component: 'ipc-handlers',
+          level: 'info',
+          message: 'ai.cancelled',
+          data: { requestId, elapsed_ms: Date.now() - t0 },
+        });
+        throw err;
+      }
       getGlobalRecorder()?.record({
         type: 'system.error',
         component: 'ipc-handlers',
@@ -174,7 +191,13 @@ export function registerAiHandlers(): void {
           'Try a different AI backend if the current one is unreachable',
         ],
       });
+    } finally {
+      if (requestId) activeGenerations.delete(requestId);
     }
+  });
+
+  ipcMain.handle('ai:cancel-generate', (_event, requestId: string) => {
+    activeGenerations.get(requestId)?.abort();
   });
 
   ipcMain.handle('set-debate-temperature', (_event, temp: number | null) => {
