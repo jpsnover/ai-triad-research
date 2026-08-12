@@ -215,6 +215,8 @@
         'Test-DebateIndexIntegrity'
         # t/2367 — Debate blob existence check in Azure storage
         'Test-DebateSession'
+        # t/2545 — Pre-flight atomic write+rename probe for debate output dir
+        'Test-DebatePersistence'
     )
 
     # Aliases exported from this module
