@@ -342,10 +342,17 @@ export function registerAiRoutes(r: Router, ctx: ServerCtx): void {
     // mid-generate. `finished` is the clean-arm — a 'close' that fires AFTER the
     // response has been sent (normal completion) must NOT abort. abort() is
     // idempotent, so a duplicate 'close' is harmless.
+    //
+    // t/2522: listen on `res`, NOT `req`. Node ≥15 fires IncomingMessage 'close' at
+    // message-complete (nodejs/node#33035), and the body is parsed before this
+    // handler runs — so `req.on('close')` had already missed and never fired on a
+    // real mid-generate disconnect (dead code). ServerResponse 'close' fires when the
+    // connection actually terminates; the writableEnded guard filters the normal-
+    // completion 'close'.
     const t0 = Date.now();
     const abort = new AbortController();
     let finished = false;
-    req.on('close', () => { if (shouldAbortOnClientClose(finished, res.writableEnded)) abort.abort(); });
+    res.on('close', () => { if (shouldAbortOnClientClose(finished, res.writableEnded)) abort.abort(); });
     try {
       // Free-tier cost is bounded by tokensPerDay + per-IP rate limits; the redundant
       // per-prompt char cap was removed in t/812 (broke long debate prompts).
