@@ -1262,6 +1262,26 @@ describe('moderatorSelectionPrompt', () => {
       '"unresolved_outcome"',
     );
   });
+
+  it('socratic mode: shows INTERLOCUTOR section not ACTIVE DEBATERS', () => {
+    const result = moderatorSelectionPrompt(TRANSCRIPT, ['Sentinel'], '', '', undefined, undefined, undefined, undefined, undefined, undefined, 'socratic');
+    expect(result).toContain('=== INTERLOCUTOR ===');
+    expect(result).toContain('Sentinel (sole interlocutor under examination; you are the questioner)');
+    expect(result).not.toContain('=== ACTIVE DEBATERS ===');
+  });
+
+  it('socratic mode: SELECTION is deterministic naming the sole interlocutor', () => {
+    const result = moderatorSelectionPrompt(TRANSCRIPT, ['Sentinel'], '', '', undefined, undefined, undefined, undefined, undefined, undefined, 'socratic');
+    expect(result).toContain('Your SELECTION must name Sentinel as the responder every round');
+    expect(result).not.toContain('Identify which debater should respond next');
+  });
+
+  it('non-socratic mode: ACTIVE DEBATERS section and generic SELECTION are unchanged', () => {
+    const result = moderatorSelectionPrompt(TRANSCRIPT, ACTIVE_POVERS, '', '');
+    expect(result).toContain('=== ACTIVE DEBATERS ===');
+    expect(result).not.toContain('=== INTERLOCUTOR ===');
+    expect(result).toContain('Identify which debater should respond next');
+  });
 });
 
 describe('moderatorInterventionPrompt', () => {

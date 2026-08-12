@@ -388,7 +388,6 @@ export class DebateEngine {
     const derivedModeratorMode = config.moderatorMode ?? (config.protocolId === 'socratic' ? 'socratic' : undefined);
     const derivedDialecticalStyle = config.dialecticalStyle ?? (config.protocolId === 'socratic' ? 'socratic' : undefined);
     this.config = { ...config, stageModels: merged, moderatorMode: derivedModeratorMode, dialecticalStyle: derivedDialecticalStyle };
-    if (this.config.protocolId === 'socratic' && this.config.activePovers.length !== 1) throw new ActionableError({ goal: 'Initialize a Socratic debate', problem: `Socratic requires exactly one active POV; got ${this.config.activePovers.length}: ${this.config.activePovers.join(', ')}`, location: 'DebateEngine constructor', nextSteps: ['Pass a single debater in activePovers when using protocolId: "socratic".'] });
     this._talmudicCorpus = initTalmudicCorpusFromConfig(this.config);
     this.adapter = adapter;
     this.taxonomy = taxonomy;
@@ -406,6 +405,20 @@ export class DebateEngine {
         });
       };
     }
+    // Socratic protocol is a dyad: exactly one interlocutor under examination.
+    // Checked here (run entry) so load/view of saved debates is unaffected (t/2514).
+    if (this.config.protocolId === 'socratic' && this.config.activePovers.length !== 1) {
+      throw new ActionableError({
+        goal: 'Run a Socratic debate',
+        problem: `Socratic protocol requires exactly one active POV (the interlocutor under examination), but ${this.config.activePovers.length} were provided: ${this.config.activePovers.join(', ')}.`,
+        location: 'DebateEngine.run()',
+        nextSteps: [
+          'Select a single debater as the interlocutor when using protocolId "socratic" (e.g. activePovers: ["safetyist"]).',
+          'The moderator acts as the questioner — no second debater is needed.',
+        ],
+      });
+    }
+
     this.initSession();
 
     // Route prompt directives based on model capability (t/331)
@@ -520,11 +533,8 @@ export class DebateEngine {
       }
 
       // Phase 3b: Finalize undecided cruxes (t/1676; engagement gate t/1818) — mark any crux
-      // surfaced but never actually adjudicated (still `identified` AND not cross-engaged per
-      // wasCruxAdjudicated) as terminal `undecided` BEFORE synthesis reads the tracker, so the
-      // synthesis prompt, calibration, and persistence all observe one consistent terminal state.
-      // AN nodes/edges + transcript are passed by reference (read-only — the gate is pure).
-      // Idempotent (guard 1) — safe if run again on resume().
+      // still `identified` and not cross-engaged as terminal `undecided` BEFORE synthesis so
+      // all downstream observers see one consistent state. Idempotent — safe on resume().
       const finalizeAN = this.session.argument_network;
       this.session.crux_tracker = finalizeUndecidedCruxes(
         this.session.crux_tracker,
@@ -598,33 +608,21 @@ export class DebateEngine {
     // Compute extraction coverage on sampled turns (t/391)
     await this._synthesisPipeline.runExtractionCoverage();
 
-    // Stamp source provenance onto the session so source-authority calibration
-    // resolves on every write path (renderer/main-save, server), not just the
-    // in-process engine path with FS-derived doc titles (t/1769). Additive/
-    // back-compat: only set when we have titles and the session doesn't already
-    // carry them (don't clobber a caller-supplied map).
+    // Stamp source provenance for source-authority calibration on all write paths (t/1769).
+    // Additive: only set when we have titles and the session doesn't already carry them.
     if (this.docTitles && !this.session.doc_meta) {
       this.session.doc_meta = this.docTitles;
     }
 
     // Log calibration data point (non-blocking, never fails the debate)
     try {
-      // ── ASYNC-ORDERING GUARANTEE (settle-gate) ──────────────────────────────────
-      // This gate is the single focal point that guarantees every pending claim-
-      // verification has settled (bounded by CLAIM_VERIFY_SETTLE_TIMEOUT_MS) BEFORE
-      // extractCalibrationData reads the argument network below. Ordering:
-      //   phase modules push  →  engine._pendingClaimVerifications  →  gate awaits here.
-      // t/1781: evidence verification is fire-and-forget during the debate (keeps web-search
-      // latency off the turn path); settle it here, post-completion, before the calibration
-      // extract so source_authority is deterministic. Bounded — a hung search must not block
-      // the write (ADR-001 partial recovery: extract with evidence-so-far on timeout).
-      //
-      // ADR-007 split (t/1778): the per-turn `verifyPreciseClaims(...)` push sites now live
-      // in the extracted phase modules (debateEngine/phases/opening.ts and crossRespond.ts),
-      // but they still enqueue onto THIS engine's `_pendingClaimVerifications` array (via the
-      // `_internal` accessor), so this gate continues to await them. Any future work that adds
-      // post-completion async ordering (e.g. t/1767 entity/mention-metadata extraction) must
-      // enqueue here and settle at this same point — do not scatter the ordering contract.
+      // ── ASYNC-ORDERING GUARANTEE (settle-gate) ─────────────────────────────
+      // Awaits pending claim-verifications (t/1781 fire-and-forget) before
+      // extractCalibrationData reads the argument network. Bounded by
+      // CLAIM_VERIFY_SETTLE_TIMEOUT_MS; ADR-001 partial recovery extracts
+      // with evidence-so-far on timeout. Phase modules enqueue onto this
+      // engine's _pendingClaimVerifications via _internal — new post-completion
+      // async work must do the same; do not scatter the ordering contract.
       if (this._pendingClaimVerifications.length > 0) {
         const settled = await Promise.race([
           Promise.allSettled(this._pendingClaimVerifications).then(() => true),

@@ -11,6 +11,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { computeTalmudicCardChecksum } from './talmudicReferences.js';
 import type { TalmudicSourceCard } from './types.js';
+import { ActionableError } from './errors.js';
 
 
 // ── DebateEngine construction ─────────────────────────────
@@ -78,23 +79,6 @@ describe('DebateEngine construction', () => {
     expect(engine).toBeDefined();
   });
 
-  it('throws ActionableError when socratic protocol has multiple active povers (t/2514)', () => {
-    const config = createDefaultConfig({
-      protocolId: 'socratic',
-      activePovers: ['accelerationist', 'safetyist'],
-    });
-    expect(() => new DebateEngine(config, createMockAdapter(), createMinimalTaxonomy()))
-      .toThrow('exactly one active POV');
-  });
-
-  it('accepts socratic protocol with exactly one active pover (t/2514)', () => {
-    const config = createDefaultConfig({
-      protocolId: 'socratic',
-      activePovers: ['safetyist'],
-    });
-    const engine = new DebateEngine(config, createMockAdapter(), createMinimalTaxonomy());
-    expect(engine).toBeDefined();
-  });
 });
 
 // ── Session initialization via run() ─────────────────────
@@ -1086,6 +1070,47 @@ describe('Finalization', () => {
     // but the main counted path should be close to actual
     expect(session.diagnostics!.overview.total_ai_calls).toBeGreaterThan(0);
     expect(session.diagnostics!.overview.total_ai_calls).toBeLessThanOrEqual(actualCalls);
+  });
+});
+
+// ── Socratic single-interlocutor invariant ───────────────
+
+describe('Socratic single-interlocutor invariant', () => {
+  it('throws ActionableError when socratic has more than one active POV', async () => {
+    const engine = new DebateEngine(
+      createDefaultConfig({ protocolId: 'socratic', activePovers: ['accelerationist', 'safetyist'] }),
+      createMockAdapter(),
+      createMinimalTaxonomy(),
+    );
+    const err = await engine.run().catch(e => e);
+    expect(err).toBeInstanceOf(ActionableError);
+    expect((err as ActionableError).goal).toBe('Run a Socratic debate');
+    expect((err as ActionableError).problem).toContain('2');
+    expect((err as ActionableError).nextSteps.join(' ')).toContain('single debater');
+  });
+
+  it('does not fire invariant when socratic has exactly one POV', async () => {
+    const engine = new DebateEngine(
+      createDefaultConfig({ protocolId: 'socratic', activePovers: ['safetyist'] }),
+      createMockAdapter(),
+      createMinimalTaxonomy(),
+    );
+    const err = await engine.run().catch(e => e);
+    if (err instanceof ActionableError) {
+      expect(err.goal).not.toBe('Run a Socratic debate');
+    }
+  });
+
+  it('does not fire invariant for non-socratic protocol with multiple POVs', async () => {
+    const engine = new DebateEngine(
+      createDefaultConfig({ protocolId: 'structured', activePovers: ['accelerationist', 'safetyist', 'skeptic'] }),
+      createMockAdapter(),
+      createMinimalTaxonomy(),
+    );
+    const err = await engine.run().catch(e => e);
+    if (err instanceof ActionableError) {
+      expect(err.goal).not.toBe('Run a Socratic debate');
+    }
   });
 });
 
