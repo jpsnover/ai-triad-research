@@ -19,6 +19,7 @@
 $script:ModelRegistry = @{}
 $script:FallbackChains = @{}
 $script:ContextWindows = @{ gemini = 1048576; claude = 200000; groq = 131072; openai = 131072; zai = 1000000; moonshot = 1000000; deepseek = 65536 }
+$script:DebateTiers = @{ basic = @{}; advanced = @{} }
 $script:LastApiKeySource = ''
 $script:AIApiLoggedThisSession = $false
 $script:AIApiLastModel = ''
@@ -101,6 +102,16 @@ if (Test-Path $_aiModelsPath) {
         if ($_aiConfig.PSObject.Properties['contextWindows'] -and $_aiConfig.contextWindows) {
             foreach ($_prop in $_aiConfig.contextWindows.PSObject.Properties) {
                 $script:ContextWindows[$_prop.Name] = [int]$_prop.Value
+            }
+        }
+        if ($_aiConfig.PSObject.Properties['debateTiers'] -and $_aiConfig.debateTiers) {
+            foreach ($_tier in @('basic', 'advanced')) {
+                $tierObj = $_aiConfig.debateTiers.$_tier
+                if ($tierObj) {
+                    foreach ($_prop in $tierObj.PSObject.Properties) {
+                        $script:DebateTiers[$_tier][$_prop.Name] = $_prop.Value
+                    }
+                }
             }
         }
         Write-Verbose "AIEnrich: loaded $($script:ModelRegistry.Count) models, $($script:FallbackChains.Count) fallback chains from ai-models.json"
@@ -318,6 +329,47 @@ function ConvertTo-GeminiSchema {
     return $result
 }
 
+# ─────────────────────────────────────────────────────────────────────────────
+# Get-AIDefaultTimeoutSec (private)
+# Returns the default Invoke-AIApi timeout for a model, applying 2x for
+# frontier-tier models (mirrors TS getDefaultTimeout in lib/ai-client/registry.ts).
+# ─────────────────────────────────────────────────────────────────────────────
+function Get-AIDefaultTimeoutSec {
+    param([string]$Model)
+
+    $backend = switch -Wildcard ($Model) {
+        'claude*'    { 'claude';    break }
+        'groq*'      { 'groq';      break }
+        'openai*'    { 'openai';    break }
+        'azure*'     { 'azure';     break }
+        'ollama*'    { 'ollama';    break }
+        'deepseek*'  { 'deepseek';  break }
+        'zai*'       { 'zai';       break }
+        'moonshot*'  { 'moonshot';  break }
+        default      { 'gemini' }
+    }
+
+    $base = switch ($backend) {
+        'ollama'    { 300 }
+        'deepseek'  { 180 }
+        'openai'    { 180 }
+        'azure'     { 180 }
+        'claude'    { 180 }
+        'groq'      { 120 }
+        'zai'       { 240 }
+        'moonshot'  { 240 }
+        'gemini'    { 120 }
+        default     { 120 }
+    }
+
+    $advanced = $script:DebateTiers['advanced'][$backend]
+    $basic    = $script:DebateTiers['basic'][$backend]
+    if ($advanced -and ($advanced -eq $Model) -and ($advanced -ne $basic)) {
+        return $base * 2
+    }
+    return $base
+}
+
 <#
 .SYNOPSIS
     Calls an AI backend with a prompt and returns the generated text.
@@ -397,7 +449,7 @@ function Invoke-AIApi {
         [int]   $MaxTokens   = 1024,
         [switch]$JsonMode,
         [hashtable]$ResponseSchema,
-        [int]   $TimeoutSec  = 120,
+        [int]   $TimeoutSec  = 0,
         [int]   $MaxRetries  = 5,
         [int[]] $RetryDelays = @(15, 45, 90, 120),
         [string[]]$FallbackModels,
@@ -413,6 +465,8 @@ function Invoke-AIApi {
 
     $Backend    = $ModelInfo.Backend
     $ApiModelId = $ModelInfo.ApiModelId
+
+    if ($TimeoutSec -le 0) { $TimeoutSec = Get-AIDefaultTimeoutSec -Model $Model }
 
     # -- Resolve API key ------------------------------------------------------
     # t/1409: Ollama runs models locally and has no auth surface — skip both the

@@ -229,7 +229,6 @@ INSTRUCTIONS:
                 -ApiKey    $ResolvedKey `
                 -Temperature 0.1 `
                 -MaxTokens 2048 `
-                -TimeoutSec 120 `
                 -ResponseSchema $RefinementSchema
 
             $ResponseText = $AIResult.Text

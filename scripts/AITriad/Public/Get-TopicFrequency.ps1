@@ -334,7 +334,6 @@ function Get-TopicFrequency {
                     -Temperature 0.1 `
                     -MaxTokens  4096 `
                     -JsonMode `
-                    -TimeoutSec 120 `
                     -MaxRetries 3 `
                     -RetryDelays @(5, 15, 45)
 

@@ -272,8 +272,7 @@ $SchemaPrompt
             -ApiKey $ResolvedKey `
             -Temperature $Temperature `
             -MaxTokens 8192 `
-            -ResponseSchema $GraphQuerySchema `
-            -TimeoutSec 120
+            -ResponseSchema $GraphQuerySchema
     } catch {
         Write-Fail "API call failed: $_"
         throw
