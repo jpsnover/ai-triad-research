@@ -38,6 +38,7 @@ import { runWithUser, getCurrentUserId, setSessionBranchName, deriveStorageUserI
 import type { UserContext } from './security/userContext.js';
 import { isAuthDisabledAllowed, isPathWithinDir, isTerminalAccessAllowed, isAnonAllowedRoute, invalidRouteParam, missingApiKeyError, anonymousSessionCookies, resolveAnonSessionId, resolveTestPersonaOverride } from './security/accessControl.js';
 import { sanitizeUserText } from './security/contentSanitizer.js';
+import { isFreeTierAiPath } from './anonAiRoutes.js';
 import { getRollbackStatus } from './rollbackStatus.js';
 import { getErrorSummaryCached, type ErrorEntry } from './errorAggregation.js';
 import { isCaseStatus } from './support/types.js';
@@ -936,13 +937,12 @@ interface AuthGateCtx {
   idp: string;
 }
 
-/** Free tier (t/793): keyless POSTs to the three AI/embeddings paths when configured.
- *  Exact-match (===) is load-bearing (Server-Auth p/135#8) — never widen to a prefix.
- *  Extracted verbatim from the two identical call sites. */
+/** Free tier (t/793): keyless POSTs to the allowlisted AI/embeddings paths when
+ *  configured. Path membership is the exact-match FREE_TIER_AI_POST_PATHS allowlist
+ *  (t/2489, extracted to anonAiRoutes.ts for unit testing); the `freeTierEnabled()`
+ *  gate keeps a matched route exempt only when the server has a free-tier key. */
 function isFreeTierRoute(method: string, urlPath: string): boolean {
-  return method === 'POST'
-    && (urlPath === '/api/ai/generate' || urlPath === '/api/embeddings/compute' || urlPath === '/api/embeddings/query')
-    && proxyTiers.freeTierEnabled();
+  return isFreeTierAiPath(method, urlPath) && proxyTiers.freeTierEnabled();
 }
 
 /** AUTH_OPTIONAL mode gate: show login page / 401 unless signed in or anonymous. */
