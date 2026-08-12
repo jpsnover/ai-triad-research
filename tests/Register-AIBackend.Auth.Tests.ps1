@@ -123,8 +123,10 @@ Describe 'Register-AIBackend auth hardening (t/2527)' -Tag 'security' {
         $status | Should -Be 403
     }
 
-    It 'GET /api/reveal with spoofed Host header returns 403 (DNS-rebinding block)' {
-        # Use .NET HttpClient to set the Host header — Invoke-WebRequest restricts it
+    It 'GET /api/reveal with spoofed Host header is rejected (DNS-rebinding block)' {
+        # Use .NET HttpClient to set the Host header — Invoke-WebRequest restricts it.
+        # On Linux, HttpListener rejects a Host-mismatch before the handler runs (404);
+        # on Windows our handler fires and returns 403. Both prove the request was blocked.
         $status = $null
         try {
             $handler = [System.Net.Http.HttpClientHandler]::new()
@@ -141,6 +143,6 @@ Describe 'Register-AIBackend auth hardening (t/2527)' -Tag 'security' {
         } catch {
             # connection refused or other transport error — server not ready
         }
-        $status | Should -Be 403
+        $status | Should -BeIn @(403, 404)
     }
 }
