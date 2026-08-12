@@ -20,10 +20,10 @@ AUTHOR (for the authority line / bio):
 SOURCE MATERIAL (use as factual grounding; quote or paraphrase from it where it strengthens a pillar — do not invent statistics it does not support):
 {{SOURCE_MATERIAL}}
 
-YOUR CAMP'S REGISTERED POSITIONS — these are this camp's actual belief / desire / intention nodes, retrieved as the most relevant to this topic (most relevant first). Argue FROM them: build the thesis and evidence pillars on these commitments and do NOT contradict them. They are the substance of your camp, not optional background:
+YOUR CAMP'S REGISTERED POSITIONS — these are this camp's actual belief / desire / intention nodes, retrieved as the most relevant to this topic (most relevant first). Each is prefixed with its [id]. Argue FROM them: build the thesis and evidence pillars on these commitments and do NOT contradict them. They are the substance of your camp, not optional background:
 {{GROUNDING_NODES}}
 
-CONCRETE STRESS-CASE SITUATIONS from your camp's situation library (most relevant first) — you may use one or two as the opening scene or as an evidence pillar, grounding an abstract position in a specific scenario:
+CONCRETE STRESS-CASE SITUATIONS from your camp's situation library (most relevant first), each prefixed with its [id] — you may use one or two as the opening scene or as an evidence pillar, grounding an abstract position in a specific scenario:
 {{SITUATIONS}}
 
 {{PITCH_INSTRUCTION}}

@@ -5,7 +5,7 @@ Describe 'New-OpEd' -Tag 'oped' {
     BeforeAll {
         Import-Module "$PSScriptRoot/../scripts/AITriad/AITriad.psm1" -Force
 
-        # Standard structured response the mocked backend returns.
+        # Essay call (has a SystemInstruction) returns this.
         $script:GoodJson = @{
             headline      = 'Stop Stalling on AI Safety'
             subtitle      = 'The cost of delay is measured in trust'
@@ -13,6 +13,29 @@ Describe 'New-OpEd' -Tag 'oped' {
             word_count    = 11
             pitch_email   = 'Subject: Op-Ed Submission: Stop Stalling on AI Safety'
         } | ConvertTo-Json
+
+        # Reflection call (no SystemInstruction) returns this. Deliberately reports
+        # 2 of the 3 mock ids (omits saf-intentions-004) to exercise the fallback.
+        $script:ReflJson = @{
+            grounding_usage = @(
+                @{ id = 'saf-beliefs-001'; reflection = 'Anchors the thesis in the second paragraph.' }
+                @{ id = 'sit-012'; reflection = 'Opens the lede as the concrete scene.' }
+            )
+        } | ConvertTo-Json -Depth 5
+
+        # Branching backend mock: the essay call carries a SystemInstruction, the
+        # reflection call does not. Captures only the essay prompt/system so the
+        # second call doesn't clobber assertions.
+        $script:MockAI = {
+            if ($SystemInstruction) {
+                $script:capturedSystem = $SystemInstruction
+                $script:capturedPrompt = $Prompt
+                [PSCustomObject]@{ Text = $script:GoodJson; Backend = 'gemini' }
+            } else {
+                $script:capturedReflPrompt = $Prompt
+                [PSCustomObject]@{ Text = $script:ReflJson; Backend = 'gemini' }
+            }
+        }
 
         # Fixture the mocked retriever returns: 2 safetyist BDI nodes + 1 situation.
         $script:MockNodes = @(
@@ -26,11 +49,7 @@ Describe 'New-OpEd' -Tag 'oped' {
         BeforeEach {
             $script:capturedSystem = $null
             $script:capturedPrompt = $null
-            Mock Invoke-AIApi {
-                $script:capturedSystem = $SystemInstruction
-                $script:capturedPrompt = $Prompt
-                [PSCustomObject]@{ Text = $script:GoodJson; Backend = 'gemini' }
-            } -ModuleName AITriad
+            Mock Invoke-AIApi -MockWith $script:MockAI -ModuleName AITriad
             # Mock retrieval so existing tests never touch the data repo / Python.
             Mock Get-RelevantTaxonomyNodes { $script:MockNodes } -ModuleName AITriad
         }
@@ -95,10 +114,8 @@ Describe 'New-OpEd' -Tag 'oped' {
     Context 'Taxonomy grounding' {
         BeforeEach {
             $script:capturedPrompt = $null
-            Mock Invoke-AIApi {
-                $script:capturedPrompt = $Prompt
-                [PSCustomObject]@{ Text = $script:GoodJson; Backend = 'gemini' }
-            } -ModuleName AITriad
+            $script:capturedReflPrompt = $null
+            Mock Invoke-AIApi -MockWith $script:MockAI -ModuleName AITriad
         }
 
         It 'Surfaces the injected elements and their relevance scores on Grounding' {
@@ -113,12 +130,23 @@ Describe 'New-OpEd' -Tag 'oped' {
             ($r.Grounding | Where-Object Id -eq 'sit-012').Category | Should -Be 'Situation'
         }
 
-        It 'Injects the retrieved node text into the user prompt' {
+        It 'Injects the retrieved node text (with ids) into the user prompt' {
             Mock Get-RelevantTaxonomyNodes { $script:MockNodes } -ModuleName AITriad
             New-OpEd -Topic 'audits' -Pov safetyist | Out-Null
             $script:capturedPrompt | Should -Match 'Irreversibility demands caution'
             $script:capturedPrompt | Should -Match 'Undetected jailbreak at scale'
             $script:capturedPrompt | Should -Match 'REGISTERED POSITIONS'
+            # The id is prefixed so the model can reference it in grounding_usage.
+            $script:capturedPrompt | Should -Match '\[saf-beliefs-001\]'
+        }
+
+        It 'Joins the model grounding_usage back onto each element as Reflection' {
+            Mock Get-RelevantTaxonomyNodes { $script:MockNodes } -ModuleName AITriad
+            $r = New-OpEd -Topic 'audits' -Pov safetyist
+            ($r.Grounding | Where-Object Id -eq 'saf-beliefs-001').Reflection | Should -Match 'thesis'
+            ($r.Grounding | Where-Object Id -eq 'sit-012').Reflection        | Should -Match 'lede'
+            # saf-intentions-004 was not in grounding_usage → explicit fallback.
+            ($r.Grounding | Where-Object Id -eq 'saf-intentions-004').Reflection | Should -Be '(not reported)'
         }
 
         It 'Filters retrieved nodes to the requested POV' {
