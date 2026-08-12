@@ -3,6 +3,11 @@ import path from 'path';
 
 const mockExistsSync = vi.fn();
 const mockReadFileSync = vi.fn();
+const mockFetchUrlForPrompt = vi.fn();
+
+vi.mock('../url-fetch/fetchUrlForPrompt.js', () => ({
+  fetchUrlForPrompt: (...args: unknown[]) => mockFetchUrlForPrompt(...args),
+}));
 
 vi.mock('fs', () => ({
   default: {
@@ -22,7 +27,7 @@ vi.mock('../npy.js', () => ({
   extractNodeVectors: vi.fn(() => ({})),
 }));
 
-import { loadConflicts } from './taxonomyLoader.js';
+import { loadConflicts, fetchUrlContent } from './taxonomyLoader.js';
 
 const FAKE_DATA_ROOT = path.resolve('/fake/data');
 const FAKE_ROOT = '/fake/repo';
@@ -114,5 +119,32 @@ describe('loadConflicts', () => {
     const existsCalls = mockExistsSync.mock.calls.map((c: unknown[]) => c[0] as string);
     const conflictsCall = existsCalls.find((p: string) => p.includes('conflicts.json'));
     expect(conflictsCall).toMatch(/conflicts[/\\]conflicts\.json$/);
+  });
+});
+
+describe('fetchUrlContent (L10 SSRF regression — t/2528)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('returns text from fetchUrlForPrompt on success', async () => {
+    mockFetchUrlForPrompt.mockResolvedValue({ ok: true, text: 'Hello world', title: undefined, finalUrl: 'https://example.com', truncated: false });
+    const result = await fetchUrlContent('https://example.com');
+    expect(result).toBe('Hello world');
+    expect(mockFetchUrlForPrompt).toHaveBeenCalledWith('https://example.com');
+  });
+
+  it('throws ActionableError when fetchUrlForPrompt blocks a private/SSRF URL', async () => {
+    mockFetchUrlForPrompt.mockResolvedValue({ ok: false, reason: 'ssrf' });
+    await expect(fetchUrlContent('http://169.254.169.254/latest/meta-data/')).rejects.toMatchObject({
+      goal: 'Fetch debate source URL',
+    });
+  });
+
+  it('throws ActionableError on network failure', async () => {
+    mockFetchUrlForPrompt.mockResolvedValue({ ok: false, reason: 'network' });
+    await expect(fetchUrlContent('https://unreachable.example.com')).rejects.toMatchObject({
+      goal: 'Fetch debate source URL',
+    });
   });
 });

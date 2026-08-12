@@ -15,6 +15,7 @@ import { loadTaxonomy, resolveRepoRoot, resolveDataRoot, type LoadedTaxonomy } f
 import type { DebateSession } from './types.js';
 import { listDebateSessionsIndexed, updateDebateIndexEntry } from './debateIndex.js';
 import { getGlobalRecorder } from '../flight-recorder/index.js';
+import { assertSafeDebateId } from './mcpServerGuard.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolveRepoRoot(__dirname);
@@ -45,6 +46,7 @@ const activeDebates = new Map<string, ActiveDebate>();
 // ── Debate file helpers ─────────────────────────────────
 
 function loadDebateSession(id: string): unknown {
+  assertSafeDebateId(id, debatesDir);
   const filePath = path.join(debatesDir, `debate-${id}.json`);
   if (!fs.existsSync(filePath)) {
     throw new Error(`Debate session not found: ${id}`);
@@ -101,7 +103,6 @@ server.tool(
     moderatorMode: z.enum(['standard', 'talmudic', 'socratic']).optional().describe('Moderator strategy (default: standard; talmudic enables source-card dialectics; socratic enables elenchus inquiry)'),
     responseLength: z.enum(['brief', 'medium', 'detailed']).optional().describe('Response length preset'),
     pacing: z.string().optional().describe('Pacing preset'),
-    outputDir: z.string().optional().describe('Output directory for session JSON'),
   },
   async (params) => {
     const configObj: Record<string, unknown> = {
@@ -114,16 +115,16 @@ server.tool(
     if (params.audience) configObj.audience = params.audience;
     if (params.moderatorMode) configObj.moderatorMode = params.moderatorMode;
     if (params.pacing) configObj.pacing = params.pacing;
-    if (params.outputDir) configObj.outputDir = params.outputDir;
 
     const tmpConfig = path.join(dataRoot, `tmp-mcp-config-${randomUUID().slice(0, 8)}.json`);
     fs.writeFileSync(tmpConfig, JSON.stringify(configObj, null, 2), 'utf-8');
 
     try {
       const result = await new Promise<{ stdout: string; stderr: string; code: number }>((resolve) => {
-        const child = spawn('npx', ['tsx', path.join(repoRoot, 'lib/debate/cli.ts'), '--config', tmpConfig], {
+        // L9 fix (t/2528): shell:false + process.execPath eliminates shell-injection surface.
+        const child = spawn(process.execPath, ['--import', 'tsx', path.join(repoRoot, 'lib/debate/cli.ts'), '--config', tmpConfig], {
           cwd: repoRoot,
-          shell: true,
+          shell: false,
           timeout: 600_000,
           env: { ...process.env },
         });

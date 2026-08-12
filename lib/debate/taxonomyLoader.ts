@@ -13,6 +13,7 @@ import type { PolicyRef, SituationStatements } from './taxonomyContext.js';
 import { ActionableError } from './errors.js';
 import { parseNpy, extractNodeVectors } from '../npy.js';
 import { getGlobalRecorder } from '../flight-recorder/index.js';
+import { fetchUrlForPrompt } from '../url-fetch/fetchUrlForPrompt.js';
 
 // ── Types ────────────────────────────────────────────────
 
@@ -492,21 +493,20 @@ export async function loadSourceContent(filePath: string): Promise<string> {
 }
 
 export async function fetchUrlContent(url: string): Promise<string> {
-  // codeql[js/file-access-to-http] intentional: URL sourced from operator CLI config file, not untrusted network input; no SSRF risk
-  const response = await fetch(url);
-  if (!response.ok) {
+  // L10 fix (t/2528): route through SSRF-guarded fetcher (DNS/private-IP check).
+  const result = await fetchUrlForPrompt(url);
+  if (!result.ok) {
     throw new ActionableError({
       goal: 'Fetch debate source URL',
-      problem: `HTTP ${response.status} fetching ${url}`,
+      problem: `Failed to fetch ${url}: ${result.reason ?? 'unknown error'}`,
       location: 'taxonomyLoader.fetchUrlContent',
       nextSteps: [
-        'Verify the URL is correct and publicly accessible',
+        'Verify the URL is correct and publicly accessible (HTTPS only)',
         'Check your network connection and any proxy settings',
         `Open the URL in a browser to confirm it loads: ${url}`,
         'If the resource requires authentication, download it manually and use a local file path instead',
       ],
     });
   }
-  const html = await response.text();
-  return htmlToMarkdown(html);
+  return result.text ?? '';
 }
