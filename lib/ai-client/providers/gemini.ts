@@ -80,7 +80,7 @@ export async function generateViaGemini(
   apiKey: string,
   opts: GenerateOptions,
 ): Promise<ProviderResult> {
-  const url = `${GEMINI_BASE}/${apiModelId}:generateContent?key=${apiKey}`;
+  const url = `${GEMINI_BASE}/${apiModelId}:generateContent`;
   const timeoutMs = opts.timeoutMs!;
 
   const genConfig: Record<string, unknown> = {
@@ -107,7 +107,7 @@ export async function generateViaGemini(
 
   const response = await fetchFn(url, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
     body: JSON.stringify(body),
     signal: makeFetchSignal(timeoutMs, opts.signal),
   });
@@ -178,7 +178,7 @@ export async function generateViaGeminiStream(
   opts: GenerateOptions,
   onChunk?: (text: string) => void,
 ): Promise<ProviderResult> {
-  const url = `${GEMINI_BASE}/${apiModelId}:streamGenerateContent?alt=sse&key=${apiKey}`;
+  const url = `${GEMINI_BASE}/${apiModelId}:streamGenerateContent?alt=sse`;
   const timeoutMs = opts.timeoutMs!;
 
   const genConfig: Record<string, unknown> = {
@@ -200,7 +200,7 @@ export async function generateViaGeminiStream(
 
   const response = await fetchFn(url, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
     body: JSON.stringify(body),
     signal: makeFetchSignal(timeoutMs, opts.signal),
   });

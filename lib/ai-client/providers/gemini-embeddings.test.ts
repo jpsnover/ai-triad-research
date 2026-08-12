@@ -82,14 +82,16 @@ describe('callGeminiBatchEmbed', () => {
       .rejects.toThrow('400');
   });
 
-  it('constructs correct URL with API key and model', async () => {
+  it('constructs correct URL and sends key in x-goog-api-key header (t/2535)', async () => {
     const fetchFn = mockFetch(200, { embeddings: [{ values: [1] }] });
 
     await callGeminiBatchEmbed(fetchFn, ['test'], 'RETRIEVAL_QUERY', 'my-api-key', FAST_RETRY);
 
     const url = fetchFn.mock.calls[0][0] as string;
+    const init = fetchFn.mock.calls[0][1] as RequestInit;
     expect(url).toContain('gemini-embedding-001:batchEmbedContents');
-    expect(url).toContain('key=my-api-key');
+    expect(url).not.toContain('key=');
+    expect((init.headers as Record<string, string>)['x-goog-api-key']).toBe('my-api-key');
   });
 
   it('sends correct request body with taskType and model', async () => {

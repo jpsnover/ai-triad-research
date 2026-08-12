@@ -16,7 +16,7 @@ export async function callGeminiBatchEmbed(
   retryConfig: RetryConfig = SERVER_RETRY_CONFIG,
   timeoutMs: number = DEFAULT_EMBED_TIMEOUT_MS,
 ): Promise<number[][]> {
-  const url = `${GEMINI_BASE}/${GEMINI_EMBED_MODEL}:batchEmbedContents?key=${apiKey}`;
+  const url = `${GEMINI_BASE}/${GEMINI_EMBED_MODEL}:batchEmbedContents`;
   const requests = texts.map(text => ({
     model: `models/${GEMINI_EMBED_MODEL}`,
     content: { parts: [{ text }] },
@@ -26,7 +26,7 @@ export async function callGeminiBatchEmbed(
   return withRetry(async () => {
     const response = await fetchFn(url, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
       body: JSON.stringify({ requests }),
       signal: AbortSignal.timeout(timeoutMs),
     });
