@@ -1,0 +1,16 @@
+# TEMPORARY — TL Gate Verification red-arm proof for t/2529 (workflow-lint).
+# Deliberately violates check 1 (unpinned action). Never merged; PR is closed after the run.
+name: tl-gate-proof-tmp
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  noop:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: echo "gate proof — this workflow is never meant to run"
