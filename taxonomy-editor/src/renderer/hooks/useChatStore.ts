@@ -368,6 +368,16 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     } catch (err) {
       getGlobalRecorder()?.record({ type: 'system.error', component: 'chat-store', level: 'error', message: 'Failed to generate opening message', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
       set({ chatError: `Failed to start conversation: ${mapErrorToUserMessage(err)}`, chatStreamingText: null });
+      // createChat pre-saved an empty session before generation; the opening never landed, so remove
+      // it from storage + the sidebar list rather than leaving a stale empty chat (t/2491). Cleanup
+      // failures must not mask the original error, so they're swallowed after being recorded.
+      try {
+        await api.deleteChatSession(activeChat.id);
+        const sessions = await api.listChatSessions();
+        set({ sessions: sessions as ChatSessionSummary[] });
+      } catch (cleanupErr) {
+        getGlobalRecorder()?.record({ type: 'system.error', component: 'chat-store', level: 'warn', message: 'Failed to clean up empty chat session after opening failure', error: { name: (cleanupErr as Error).name ?? 'Error', message: String(cleanupErr), stack: (cleanupErr as Error).stack } });
+      }
     } finally {
       set({ chatGenerating: false });
     }

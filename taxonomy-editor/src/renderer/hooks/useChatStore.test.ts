@@ -278,6 +278,23 @@ describe('useChatStore', () => {
       expect(state.chatStreamingText).toBeNull();
       expect(state.chatError).toContain('Response failed');
     });
+
+    it('deletes the pre-saved empty session when the opening fails (t/2491)', async () => {
+      mockApi.startChatStream.mockRejectedValueOnce(new Error('opening failed'));
+      mockApi.deleteChatSession.mockClear();
+
+      useChatStore.setState({
+        activeChat: makeChatSession({ id: 'empty-1', transcript: [] }) as never,
+      });
+
+      await useChatStore.getState().generateOpening();
+
+      // The empty session is cleaned from storage rather than left stale.
+      expect(mockApi.deleteChatSession).toHaveBeenCalledWith('empty-1');
+      const state = useChatStore.getState();
+      expect(state.chatError).toContain('Failed to start conversation');
+      expect(state.chatGenerating).toBe(false);
+    });
   });
 
   // t/2453 — reasoning models (DeepSeek/Groq) prepend <think>…</think> before their

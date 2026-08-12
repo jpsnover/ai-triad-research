@@ -1,7 +1,13 @@
+import { ActionableError } from '@lib/debate/errors';
+
 /**
  * Translate raw error messages into user-friendly, actionable guidance.
  */
 export function mapErrorToUserMessage(err: unknown): string {
+  // ActionableError already carries a one-line human-readable `problem`; its `.message` is the full
+  // Goal/Error/Location/Resolve block, which must never be surfaced raw to users (t/2491).
+  if (err instanceof ActionableError) return err.problem;
+
   const msg = err instanceof Error ? err.message : String(err);
   const errorCode = (err as Record<string, unknown> | null)?.errorCode;
 
