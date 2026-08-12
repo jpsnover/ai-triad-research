@@ -976,8 +976,8 @@ const rawApi: AppAPI = {
   },
   // Chat streaming (SSE) — transport lives in ./chatStream (leaf module, t/2462). Shape-identical
   // to the Electron preload so useChatStore consumes one contract from both bridges.
-  startChatStream: (systemInstruction, messages, model, temperature, urlContext) =>
-    runChatStream(fetchWithSessionRecovery, { systemInstruction, messages, model, temperature, urlContext }),
+  startChatStream: (systemInstruction, messages, model, temperature, urlContext, context) =>
+    runChatStream(fetchWithSessionRecovery, { systemInstruction, messages, model, temperature, urlContext, chatSessionId: context?.chatSessionId, linkedDebateId: context?.linkedDebateId }),
   onChatStreamChunk: (cb) => chatStreamBus.onChunk(cb),
   onChatStreamDone: (cb) => chatStreamBus.onDone(cb),
   onChatStreamError: (cb) => chatStreamBus.onError(cb),
