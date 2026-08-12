@@ -22,6 +22,17 @@ name: CI
 on:
   push:
     branches: [main]
+    # Skip the post-merge re-run for docs-only pushes. All code PRs already
+    # ran CI before merging (branch protection). A push where every changed
+    # file matches this list cannot affect any compiled artifact, so re-running
+    # the electron matrix / Pester / container smoke is pure redundancy.
+    # SOUNDNESS: paths-ignore skips the workflow only when ALL changed files
+    # match — a docs commit that sneaks in a .ts or .ps1 file won't match
+    # and will run the full suite. ci.yml itself is never ignored (not listed).
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - 'deploy/azure/runbooks/**'
   pull_request:
     branches: [main]
   workflow_dispatch:
