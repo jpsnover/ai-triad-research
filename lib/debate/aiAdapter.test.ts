@@ -475,8 +475,9 @@ describe('aiAdapter', () => {
       const adapter = mod.createCLIAdapter('/fake/root');
       await adapter.generateText('test', 'gemini-2.5-flash');
 
-      const fetchUrl = mockFetch.mock.calls[0][0] as string;
-      expect(fetchUrl).toContain('key=gemini-specific-key');
+      const fetchOpts = mockFetch.mock.calls[0][1] as RequestInit;
+      expect(mockFetch.mock.calls[0][0] as string).toContain('generateContent');
+      expect((fetchOpts.headers as Record<string, string>)['x-goog-api-key']).toBe('gemini-specific-key');
     });
 
     it('uses ANTHROPIC_API_KEY for claude backend', async () => {
@@ -544,8 +545,8 @@ describe('aiAdapter', () => {
       const adapter = mod.createCLIAdapter('/fake/root');
       await adapter.generateText('test', 'gemini-2.5-flash');
 
-      const fetchUrl = mockFetch.mock.calls[0][0] as string;
-      expect(fetchUrl).toContain('key=universal-key');
+      const fetchOpts = mockFetch.mock.calls[0][1] as RequestInit;
+      expect((fetchOpts.headers as Record<string, string>)['x-goog-api-key']).toBe('universal-key');
     });
 
     it('throws ActionableError when no API key is available', async () => {
@@ -564,8 +565,8 @@ describe('aiAdapter', () => {
       const adapter = mod.createCLIAdapter('/fake/root', 'explicit-key');
       await adapter.generateText('test', 'gemini-2.5-flash');
 
-      const fetchUrl = mockFetch.mock.calls[0][0] as string;
-      expect(fetchUrl).toContain('key=explicit-key');
+      const fetchOpts = mockFetch.mock.calls[0][1] as RequestInit;
+      expect((fetchOpts.headers as Record<string, string>)['x-goog-api-key']).toBe('explicit-key');
     });
   });
 

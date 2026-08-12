@@ -124,8 +124,8 @@ export function curateGeminiModels(rawModels: GeminiModelInfo[]): ModelEntry[] {
 }
 
 export async function discoverGeminiModels(apiKey: string): Promise<ModelEntry[]> {
-  const url = `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}&pageSize=100`;
-  const resp = await fetch(url);
+  const url = `https://generativelanguage.googleapis.com/v1beta/models?pageSize=100`;
+  const resp = await fetch(url, { headers: { 'x-goog-api-key': apiKey } });
   if (!resp.ok) {
     const body = await resp.text();
     throw new ActionableError({

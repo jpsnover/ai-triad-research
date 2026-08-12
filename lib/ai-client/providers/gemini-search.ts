@@ -31,11 +31,11 @@ export async function geminiGroundedSearch(
   apiModelId: string,
   apiKey: string,
 ): Promise<GroundedSearchResult> {
-  const url = `${GEMINI_BASE}/${apiModelId}:generateContent?key=${apiKey}`;
+  const url = `${GEMINI_BASE}/${apiModelId}:generateContent`;
 
   const response = await fetchFn(url, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
     body: JSON.stringify({
       contents: [{ parts: [{ text: prompt }] }],
       tools: [{ google_search: {} }],
