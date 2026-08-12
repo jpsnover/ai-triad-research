@@ -39,6 +39,9 @@ env:
 jobs:
   ci-gate:
     runs-on: ubuntu-latest
+    permissions:
+      actions: write   # required for gh workflow run (dispatch CI on docs-only tips)
+      contents: read
     steps:
       - name: Verify container-relevant CI passed for this commit
         env:
@@ -63,8 +66,28 @@ jobs:
             --jq '.workflow_runs[0].id // empty' 2>/dev/null || echo "")
 
           if [ -z "$RUN_ID" ]; then
-            echo "::error::No CI run found for commit ${TARGET_SHA}. Push to main to trigger CI first."
-            exit 1
+            # No CI run found — likely a docs-only tip that paths-ignore skipped.
+            # Dispatch CI manually and wait for it rather than failing with an
+            # unhelpful "push to main" instruction that no longer applies.
+            echo "No CI run found for ${TARGET_SHA} (docs-only tip skipped by paths-ignore). Dispatching CI..."
+            gh workflow run ci.yml --ref main
+            # Allow ~20s for the dispatched run to register in GitHub's API
+            sleep 20
+            for i in $(seq 1 18); do
+              RUN_ID=$(gh api "repos/${{ github.repository }}/actions/workflows/ci.yml/runs?head_sha=${TARGET_SHA}&per_page=1" \
+                --jq '.workflow_runs[0].id // empty' 2>/dev/null || echo "")
+              [ -n "$RUN_ID" ] && break
+              echo "  waiting for run to appear (${i}/18)..."; sleep 10
+            done
+            if [ -z "$RUN_ID" ]; then
+              echo "::error::CI run did not appear within ~3 min after dispatch. Trigger manually: gh workflow run ci.yml --ref main"
+              exit 1
+            fi
+            echo "CI run ${RUN_ID} started — waiting for completion..."
+            gh run watch "${RUN_ID}" --exit-status || {
+              echo "::error::CI run ${RUN_ID} failed. Container build blocked until CI passes."
+              exit 1
+            }
           fi
 
           # Check only test-container — it needs: [test-powershell, test-electron]
