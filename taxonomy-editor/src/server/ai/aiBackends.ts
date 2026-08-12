@@ -414,6 +414,11 @@ export async function generateText(
       }
       return { text: result.text, tokenUsage: mapUsage(result.usage) };
     } catch (err) {
+      // t/2524: a deliberate cancellation (client disconnect) must NOT advance the
+      // fallback chain — otherwise every remaining chain entry emits a spurious
+      // warn-level ai.fallback on user cancel. Rethrow AbortError immediately (same
+      // name-check as t/2507; DOMException-compatible).
+      if ((err as { name?: unknown } | null)?.name === 'AbortError') throw err;
       lastError = err;
       if (mi < modelsToTry.length - 1) {
         const nextModel = modelsToTry[mi + 1];
