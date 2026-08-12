@@ -74,6 +74,13 @@ jobs:
           INPUT_IMAGE_TAG: ${{ inputs.image_tag }}
         run: |
           if [ -n "$INPUT_IMAGE_TAG" ]; then
+            # M14: allowlist image_tag before writing to GITHUB_OUTPUT.
+            # Rejects shell metacharacters, $() subexpressions, newlines, etc.
+            # Static error message — never echo the raw input (newline = command injection).
+            if [[ ! "$INPUT_IMAGE_TAG" =~ ^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$ ]]; then
+              echo "::error::image_tag is invalid — must match ^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$"
+              exit 1
+            fi
             echo "tag=$INPUT_IMAGE_TAG" >> $GITHUB_OUTPUT
           else
             TAG="${GITHUB_REF_NAME#v}"
@@ -154,6 +161,11 @@ jobs:
           INPUT_IMAGE_TAG: ${{ inputs.image_tag }}
         run: |
           if [ -n "$INPUT_IMAGE_TAG" ]; then
+            # M14: allowlist image_tag before writing to GITHUB_OUTPUT (same guard as preflight).
+            if [[ ! "$INPUT_IMAGE_TAG" =~ ^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$ ]]; then
+              echo "::error::image_tag is invalid — must match ^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$"
+              exit 1
+            fi
             echo "tag=$INPUT_IMAGE_TAG" >> $GITHUB_OUTPUT
           else
             # Use the git tag name if triggered from a tag context, else 'latest'
