@@ -397,6 +397,16 @@ export class DebateEngine {
 
     const derivedModeratorMode = config.moderatorMode ?? (config.protocolId === 'socratic' ? 'socratic' : undefined);
     this.config = { ...config, stageModels: merged, moderatorMode: derivedModeratorMode };
+
+    if (this.config.protocolId === 'socratic' && this.config.activePovers.length !== 1) {
+      throw new ActionableError({
+        goal: 'Initialize a Socratic debate',
+        problem: `Socratic protocol requires exactly one active POV (the interlocutor under examination), but ${this.config.activePovers.length} were provided: ${this.config.activePovers.join(', ')}`,
+        location: 'DebateEngine constructor',
+        nextSteps: ['Set activePovers to a single debater (e.g. ["safetyist"]) when using protocolId: "socratic".'],
+      });
+    }
+
     this._talmudicCorpus = initTalmudicCorpusFromConfig(this.config);
     this.adapter = adapter;
     this.taxonomy = taxonomy;
