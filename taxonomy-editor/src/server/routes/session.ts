@@ -26,6 +26,10 @@ import { requireAdmin } from '../community/admin/reviewRegistry.js';
 import { isAdmin } from '../community/community.js';
 import * as analytics from '../community/analytics.js';
 import { parseCookies } from '../httpCookies.js';
+import { anonSessionCreatedCookie, readValidCreatedMs } from './anonSessionCreated.js';
+// Re-exported so server.ts's pre-route anon mint sites import it here (keeps the
+// server.ts import list flat / at its max-lines ceiling — t/2493).
+export { anonSessionCookiesWithCreated } from './anonSessionCreated.js';
 
 /** Resolve analytics user key for anonymous requests (t/2465).
  *  Returns 'anon:' + first 12 chars of anon_session_id (HttpOnly — server-reads only),
@@ -54,10 +58,31 @@ export function registerSessionRoutes(r: Router, ctx: ServerCtx): void {
       : '';
     const isAnon = !principalName;
     const authOpt = process.env.AUTH_OPTIONAL === '1';
+
+    // t/2493: session_created_at = the anon session's mint time; for sessions
+    // predating this feature (id cookie set, no created marker) it is the
+    // first-seen time (this request), lazily backfilled server-side so the FR
+    // field (t/2490 Gap 1) populates for the existing user base too. The created
+    // cookie is untrusted client input — a bad/forged value is discarded and
+    // re-backfilled with now; the raw cookie value is never echoed, only an ISO
+    // string derived from a validated ms. Authenticated users: omitted (no
+    // reliable account-creation source in Easy Auth headers).
+    let sessionCreatedAt: string | undefined;
+    if (isAnon && parseCookies(req).get('anon_session_id') !== undefined) {
+      const now = Date.now();
+      let createdMs = readValidCreatedMs(req, now);
+      if (createdMs === null) {
+        createdMs = now;
+        res.setHeader('Set-Cookie', anonSessionCreatedCookie(createdMs)); // backfill / repair forged value
+      }
+      sessionCreatedAt = new Date(createdMs).toISOString();
+    }
+
     json(res, {
       user: principalName || resolveAnonSessionKey(req),
       idp: idp || '',
       anonymous: isAnon,
+      ...(sessionCreatedAt ? { session_created_at: sessionCreatedAt } : {}),
       capabilities: {
         ai: !isAnon || !authOpt,
         write: !isAnon || !authOpt,
