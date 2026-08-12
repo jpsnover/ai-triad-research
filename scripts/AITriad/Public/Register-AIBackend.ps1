@@ -110,20 +110,23 @@ function Register-AIBackend {
         return $Key.Substring(0, 4) + ('*' * ($Key.Length - 8)) + $Key.Substring($Key.Length - 4)
     }
 
+    # Masked-only — unmasked keys never leave the server process (t/2527)
     $InitialState = @{
-        gemini_key    = $Persisted['GEMINI_API_KEY']
-        anthropic_key = $Persisted['ANTHROPIC_API_KEY']
-        groq_key      = $Persisted['GROQ_API_KEY']
-        openai_key    = $Persisted['OPENAI_API_KEY']
-        ollama_url    = $Persisted['OLLAMA_BASE_URL']
-        zai_key       = $Persisted['ZAI_API_KEY']
-        ai_model      = $Persisted['AI_MODEL']
+        ollama_url       = $Persisted['OLLAMA_BASE_URL']
+        ai_model         = $Persisted['AI_MODEL']
         gemini_masked    = Get-MaskedKey $Persisted['GEMINI_API_KEY']
         anthropic_masked = Get-MaskedKey $Persisted['ANTHROPIC_API_KEY']
         groq_masked      = Get-MaskedKey $Persisted['GROQ_API_KEY']
         openai_masked    = Get-MaskedKey $Persisted['OPENAI_API_KEY']
         zai_masked       = Get-MaskedKey $Persisted['ZAI_API_KEY']
     } | ConvertTo-Json
+
+    # Per-run CSPRNG bearer token — injected into the browser URL, required on every endpoint (t/2527).
+    # The ?token= query param lands in browser history; this is an accepted risk for an ephemeral
+    # localhost server (same pattern as Jupyter). Token is never persisted.
+    $Token          = [Convert]::ToBase64String([Security.Cryptography.RandomNumberGenerator]::GetBytes(24))
+    $ExpectedHost   = "127.0.0.1:$Port"
+    $ExpectedOrigin = "http://127.0.0.1:$Port"
 
     # ── HTML ──────────────────────────────────────────────────────────────────
     $Html = @"
@@ -375,6 +378,7 @@ function Register-AIBackend {
 <script>
 const state = $InitialState;
 const models = $ModelsJson;
+const TOKEN = '$Token';
 
 // Populate fields
 function init() {
@@ -422,7 +426,7 @@ function toggleReveal(inputId, btn) {
     if (inp.dataset.dirty === 'false') {
       const backendMap = { 'gemini-key': 'gemini', 'anthropic-key': 'anthropic', 'groq-key': 'groq', 'openai-key': 'openai' };
       const backend = backendMap[inputId];
-      fetch('/api/reveal?backend=' + backend)
+      fetch('/api/reveal?backend=' + backend, { headers: { 'Authorization': 'Bearer ' + TOKEN } })
         .then(r => r.json())
         .then(d => {
           if (d.key) { inp.value = d.key; inp.dataset.dirty = 'false'; }
@@ -453,7 +457,7 @@ function testKey(backend) {
   setStatus(backend, 'pending', 'Testing...');
   fetch('/api/test', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + TOKEN },
     body: JSON.stringify({ backend, key })
   })
   .then(r => r.json())
@@ -487,7 +491,7 @@ function save() {
 
   fetch('/api/save', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + TOKEN },
     body: JSON.stringify(data)
   })
   .then(r => r.json())
@@ -516,8 +520,10 @@ init();
 "@
 
     # ── HTTP Server ───────────────────────────────────────────────────────────
+    # Bound to 127.0.0.1 only — never '+', '*', or 'localhost' (which can bind
+    # dual-stack or be remapped via the hosts file). t/2527 loopback-only binding.
     $Listener = [System.Net.HttpListener]::new()
-    $Prefix   = "http://localhost:$Port/"
+    $Prefix   = "http://127.0.0.1:$Port/"
     $Listener.Prefixes.Add($Prefix)
 
     try {
@@ -533,11 +539,51 @@ init();
     Write-OK "Configuration UI running at $Prefix"
     Write-Info 'Press Ctrl+C to close when done.'
 
-    # Open browser
+    # Open browser with one-time token in URL (token-in-URL is an accepted risk for
+    # ephemeral localhost servers — same pattern as Jupyter Notebook; t/2527).
+    $BrowserUrl = "http://127.0.0.1:$Port/?token=$Token"
     if (-not $NoBrowser) {
-        if ($IsMacOS)     { Start-Process 'open' -ArgumentList $Prefix }
-        elseif ($IsLinux) { Start-Process 'xdg-open' -ArgumentList $Prefix -ErrorAction SilentlyContinue }
-        else              { Start-Process $Prefix }
+        if ($IsMacOS)     { Start-Process 'open' -ArgumentList $BrowserUrl }
+        elseif ($IsLinux) { Start-Process 'xdg-open' -ArgumentList $BrowserUrl -ErrorAction SilentlyContinue }
+        else              { Start-Process $BrowserUrl }
+    }
+
+    # ── Auth helpers (t/2527) ─────────────────────────────────────────────────
+    function Test-OriginAndHost {
+        param($Req)
+        $H = $Req.Headers['Host']
+        if ($H -ne $ExpectedHost) { return 'forbidden' }
+        $O = $Req.Headers['Origin']
+        if ($O -and $O -ne $ExpectedOrigin) { return 'forbidden' }
+        return 'ok'
+    }
+
+    function Test-BearerToken {
+        param($Req)
+        $Auth = $Req.Headers['Authorization']
+        if (-not $Auth -or -not $Auth.StartsWith('Bearer ')) { return $false }
+        $Submitted = $Auth.Substring(7)
+        $T = [System.Text.Encoding]::UTF8.GetBytes($Token)
+        $S = [System.Text.Encoding]::UTF8.GetBytes($Submitted)
+        return [System.Security.Cryptography.CryptographicOperations]::FixedTimeEquals($T, $S)
+    }
+
+    function Send-Unauthorized {
+        param($Resp)
+        $Resp.StatusCode = 401
+        $B = [System.Text.Encoding]::UTF8.GetBytes('{"error":"Unauthorized"}')
+        $Resp.ContentType = 'application/json'
+        $Resp.ContentLength64 = $B.Length
+        $Resp.OutputStream.Write($B, 0, $B.Length)
+    }
+
+    function Send-Forbidden {
+        param($Resp)
+        $Resp.StatusCode = 403
+        $B = [System.Text.Encoding]::UTF8.GetBytes('{"error":"Forbidden"}')
+        $Resp.ContentType = 'application/json'
+        $Resp.ContentLength64 = $B.Length
+        $Resp.OutputStream.Write($B, 0, $B.Length)
     }
 
     $ServerRunning = $true
@@ -562,6 +608,17 @@ init();
                 switch ("$Method $Path") {
 
                     'GET /' {
+                        # Validate ?token= (browser nav — no Bearer header available on initial load)
+                        $QToken = ''
+                        $Q = $Request.Url.Query
+                        if ($Q -match '[?&]token=([^&]+)') { $QToken = [Uri]::UnescapeDataString($Matches[1]) }
+                        $TBytes  = [System.Text.Encoding]::UTF8.GetBytes($Token)
+                        $QTBytes = [System.Text.Encoding]::UTF8.GetBytes($QToken)
+                        if (-not [System.Security.Cryptography.CryptographicOperations]::FixedTimeEquals($TBytes, $QTBytes)) {
+                            Send-Unauthorized $Response; break
+                        }
+                        $ReqHost = $Request.Headers['Host']
+                        if ($ReqHost -ne $ExpectedHost) { Send-Forbidden $Response; break }
                         $Buffer = [System.Text.Encoding]::UTF8.GetBytes($Html)
                         $Response.ContentType = 'text/html; charset=utf-8'
                         $Response.ContentLength64 = $Buffer.Length
@@ -569,6 +626,8 @@ init();
                     }
 
                     'GET /api/reveal' {
+                        if ((Test-OriginAndHost $Request) -eq 'forbidden') { Send-Forbidden $Response; break }
+                        if (-not (Test-BearerToken $Request)) { Send-Unauthorized $Response; break }
                         $Query   = $Request.Url.Query
                         if ($Query -match 'backend=(\w+)') { $Backend = $Matches[1] } else { $Backend = '' }
                         $KeyMap  = @{ gemini = 'GEMINI_API_KEY'; anthropic = 'ANTHROPIC_API_KEY'; groq = 'GROQ_API_KEY'; openai = 'OPENAI_API_KEY'; ollama = 'OLLAMA_BASE_URL'; zai = 'ZAI_API_KEY' }
@@ -584,6 +643,8 @@ init();
                     }
 
                     'POST /api/test' {
+                        if ((Test-OriginAndHost $Request) -eq 'forbidden') { Send-Forbidden $Response; break }
+                        if (-not (Test-BearerToken $Request)) { Send-Unauthorized $Response; break }
                         $Reader = [System.IO.StreamReader]::new($Request.InputStream)
                         $Body   = $Reader.ReadToEnd() | ConvertFrom-Json
                         $Reader.Close()
@@ -694,6 +755,8 @@ init();
                     }
 
                     'POST /api/save' {
+                        if ((Test-OriginAndHost $Request) -eq 'forbidden') { Send-Forbidden $Response; break }
+                        if (-not (Test-BearerToken $Request)) { Send-Unauthorized $Response; break }
                         $Reader = [System.IO.StreamReader]::new($Request.InputStream)
                         $Body   = $Reader.ReadToEnd() | ConvertFrom-Json
                         $Reader.Close()
