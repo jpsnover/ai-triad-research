@@ -116,6 +116,8 @@ export interface ModeratorSelectionInput {
   audience?: DebateAudience;
   /** Moderator strategy; absent means standard behavior. */
   moderatorMode?: ModeratorMode;
+  /** Dialectical style — gates phase/orchestration behaviour (e.g. suppresses COMMIT in socratic). */
+  dialecticalStyle?: import('./types/phase.js').DialecticalStyle;
   sourceDocSummary?: string;
   /** Final resolution text — used to anchor the moderator's interventions
    *  to the resolution's specific subjects rather than abstractions. */
@@ -382,7 +384,8 @@ export async function runModeratorSelection(
   const triggerBlock = formatTriggerContext(triggerCtx);
 
   // ── Synthesis COMMIT automation ──
-  const concludingTarget = phase === 'concluding'
+  // Suppressed for socratic: aporia phase has no consensus telos, so forced COMMIT moves are wrong.
+  const concludingTarget = phase === 'concluding' && input.dialecticalStyle !== 'socratic'
     ? getConcludingResponder(modState, activePovers, transcript as TranscriptEntry[])
     : null;
 

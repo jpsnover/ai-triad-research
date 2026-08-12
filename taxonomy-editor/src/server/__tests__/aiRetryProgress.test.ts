@@ -94,6 +94,9 @@ function makeReq() {
     method: 'POST',
     headers: {},
     socket: { remoteAddress: '127.0.0.1' },
+    // http.IncomingMessage is an EventEmitter; the handler subscribes to 'close'
+    // to abort on client disconnect (t/2510). No-op mock — 'close' never fires here.
+    on: vi.fn(),
   };
 }
 

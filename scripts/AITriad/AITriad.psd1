@@ -114,6 +114,7 @@
         'Get-AITClaim'
         'Compare-EmbeddingModel'
         'Test-RerankerBaseline'
+        'New-OpEd'
         'New-SyntheticCorpus'
         'Update-SyntheticCorpus'
         'Sync-SyntheticCorpus'

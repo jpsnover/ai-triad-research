@@ -118,6 +118,8 @@ Constraints:
 - Draw only from what debaters have stated — do not introduce new evidence or claims of your own
 - If no operative assumption is yet visible, direct this round toward eliciting a clearer position first
 
+SELECTION (deterministic — do not use judgment here): There is exactly one interlocutor listed under ACTIVE DEBATERS. Your "responder" MUST always be that interlocutor. Your "addressing" MUST be "moderator". There is no panel to rotate; the moderator is the questioner throughout. Do not select any other speaker as responder.
+
 Add a "dialectical_diagnostic" field to your JSON response:
 {
   "focused_crux": "the position or claim being examined this round",

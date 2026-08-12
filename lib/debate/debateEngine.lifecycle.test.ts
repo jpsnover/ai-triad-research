@@ -78,6 +78,7 @@ describe('DebateEngine construction', () => {
     const engine = new DebateEngine(config, adapter, taxonomy);
     expect(engine).toBeDefined();
   });
+
 });
 
 // ── Session initialization via run() ─────────────────────

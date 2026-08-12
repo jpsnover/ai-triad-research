@@ -149,6 +149,22 @@ async function enforceKeyPresent(res: http.ServerResponse, backend: AIBackend, t
   return true;
 }
 
+/** True for a deliberate cancellation (client disconnect → AbortController.abort()).
+ *  The ai-client throws `DOMException('Aborted','AbortError')` and rethrows it
+ *  non-retryable (t/2507), so name-matching distinguishes cancel from a genuine
+ *  failure — and from a per-attempt timeout, which surfaces as `TimeoutError`. */
+export function isAbortError(err: unknown): boolean {
+  return !!err && typeof err === 'object' && (err as { name?: unknown }).name === 'AbortError';
+}
+
+/** Clean-arm guard for the `/api/ai/generate` disconnect abort (t/2510): abort ONLY
+ *  when the request hasn't finished AND the response isn't already written. A `'close'`
+ *  that fires after normal completion (response sent) must not false-abort. Exported
+ *  for unit testing the clean/failure arms without booting the HTTP server. */
+export function shouldAbortOnClientClose(finished: boolean, responseEnded: boolean): boolean {
+  return !finished && !responseEnded;
+}
+
 /** Generate via the standard chat-response usage; on a free-tier 429 with the whole
  *  free pool exhausted, retry ONCE with the admin-registered paid Gemini key after a
  *  deliberate 3s throttle (t/948). Re-throws the original error when there's no paid
@@ -157,11 +173,11 @@ async function generateWithPaidFallback(
   prompt: string,
   usageOverrides: Record<string, unknown>,
   explicitKey: string | string[] | undefined,
-  ctx: { isFree: boolean; backend: AIBackend; requestModel: string; t0: number; onRetry?: (p: GenerateTextProgress) => void },
+  ctx: { isFree: boolean; backend: AIBackend; requestModel: string; t0: number; onRetry?: (p: GenerateTextProgress) => void; signal?: AbortSignal },
 ): Promise<Awaited<ReturnType<typeof ai.generateText>>> {
-  const { isFree, backend, requestModel, t0, onRetry } = ctx;
+  const { isFree, backend, requestModel, t0, onRetry, signal } = ctx;
   try {
-    return await ai.generateTextByUsage('server.chat-response', { prompt }, usageOverrides, onRetry, explicitKey);
+    return await ai.generateTextByUsage('server.chat-response', { prompt }, usageOverrides, onRetry, explicitKey, signal);
   } catch (genErr) {
     const paidKey = (ai.is429Error(genErr) && isFree) ? await getPaidGeminiFallbackKey() : null;
     if (!paidKey) throw genErr; // non-free, non-429, or no paid key → outer 429 mapping records it
@@ -174,7 +190,7 @@ async function generateWithPaidFallback(
     // cooldown so the next request reverts to the free pool.
     await new Promise(r => setTimeout(r, 3000));
     try {
-      const result = await ai.generateTextByUsage('server.chat-response:paid-fallback', { prompt }, usageOverrides, onRetry, paidKey);
+      const result = await ai.generateTextByUsage('server.chat-response:paid-fallback', { prompt }, usageOverrides, onRetry, paidKey, signal);
       getGlobalRecorder()?.record({
         type: 'ai.response', component: 'ai-generate', level: 'info', duration_ms: Date.now() - t0,
         message: `Paid fallback succeeded for ${backend}/${requestModel}`,
@@ -322,6 +338,14 @@ export function registerAiRoutes(r: Router, ctx: ServerCtx): void {
       const rc = getRequestContext();
       if (rc) rc.debateId = debateId.slice(0, 64);
     }
+    // t/2510: cancel the in-flight provider request when the client disconnects
+    // mid-generate. `finished` is the clean-arm — a 'close' that fires AFTER the
+    // response has been sent (normal completion) must NOT abort. abort() is
+    // idempotent, so a duplicate 'close' is harmless.
+    const t0 = Date.now();
+    const abort = new AbortController();
+    let finished = false;
+    req.on('close', () => { if (shouldAbortOnClientClose(finished, res.writableEnded)) abort.abort(); });
     try {
       // Free-tier cost is bounded by tokensPerDay + per-IP rate limits; the redundant
       // per-prompt char cap was removed in t/812 (broke long debate prompts).
@@ -346,7 +370,6 @@ export function registerAiRoutes(r: Router, ctx: ServerCtx): void {
       // retry timeline is visible in the flight recorder (mirrors lib/debate
       // aiAdapter). Prompt content is never recorded — only its length.
       const requestModel = effectiveModel ?? DEFAULT_MODEL;
-      const t0 = Date.now();
       getGlobalRecorder()?.record({
         type: 'ai.request', component: 'ai-generate', level: 'info',
         message: `generate ${backend}/${requestModel}`,
@@ -364,6 +387,7 @@ export function registerAiRoutes(r: Router, ctx: ServerCtx): void {
         const result = await generateWithPaidFallback(prompt, usageOverrides, explicitKey, {
           isFree, backend, requestModel, t0,
           onRetry: (p) => ctx.emitToUser(userId, 'generate-text-progress', p),
+          signal: abort.signal, // t/2510: client disconnect → abort the provider fetch
         });
 
         getGlobalRecorder()?.record({
@@ -378,6 +402,20 @@ export function registerAiRoutes(r: Router, ctx: ServerCtx): void {
       }
     } catch (err) {
       const modelLabel = model ?? 'default';
+      // t/2510: client disconnected mid-generate → the provider fetch was aborted.
+      // Not a failure: log ai.cancelled at info (correlate via x-request-id), skip the
+      // failure mappings + 500, and write nothing (the socket is already gone). The
+      // retry attempt count lives in the ai-client ladder's ai.retry events (same
+      // requestId), so it is not re-surfaced here.
+      if (isAbortError(err)) {
+        getGlobalRecorder()?.record({
+          type: 'ai.cancelled', component: 'ai-generate', level: 'info',
+          duration_ms: Date.now() - t0,
+          message: `generate cancelled (client disconnect): ${modelLabel}`,
+          data: { model: modelLabel, requestId: String(req.headers['x-request-id'] ?? ''), reason: 'client_disconnect' },
+        });
+        return;
+      }
       if (respondIfContextTooLong(res, err, modelLabel)) return; // t/997 → context_too_long 400
       if (respondIfUpstream429(res, err, modelLabel)) return;    // t/920 → retryable 429
       // t/1362: also log at error level via Pino so the 500 is visible in
@@ -391,6 +429,8 @@ export function registerAiRoutes(r: Router, ctx: ServerCtx): void {
         data: { model: modelLabel, promptLength: prompt?.length },
       });
       error(res, String(err), 500, err);
+    } finally {
+      finished = true; // clean-arm: any later 'close' (normal completion) won't abort
     }
   });
 

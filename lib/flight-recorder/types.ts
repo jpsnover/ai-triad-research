@@ -13,6 +13,7 @@ export type EventType =
   | 'ai.retry'
   | 'ai.fallback'
   | 'ai.call_by_usage'
+  | 'ai.cancelled' // t/2510: request cancelled by client disconnect (info, not a failure)
   // Argument network
   | 'an.extract'
   | 'an.commit'

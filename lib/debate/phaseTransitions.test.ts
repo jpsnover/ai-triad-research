@@ -1451,6 +1451,136 @@ describe('max-rounds concluding starvation (t/1256)', () => {
   });
 });
 
+// ── Socratic phase model (t/2515) ────────────────────────────
+
+describe('socratic phase model', () => {
+  beforeEach(() => resetWeightsCache());
+
+  describe('buildSignalRegistry socratic weights', () => {
+    it('pragmatic_convergence weight is 0 for socratic', () => {
+      const signals = buildSignalRegistry('socratic');
+      const pc = signals.find(s => s.id === 'pragmatic_convergence');
+      expect(pc?.weight).toBe(0);
+    });
+
+    it('socratic saturation weights sum to 1.0', () => {
+      const signals = buildSignalRegistry('socratic');
+      const satSignals = signals.filter(s =>
+        ['recycling_pressure','crux_maturity','concession_plateau','engagement_fatigue','pragmatic_convergence','scheme_stagnation'].includes(s.id)
+      );
+      const total = satSignals.reduce((sum, s) => sum + s.weight, 0);
+      expect(total).toBeCloseTo(1.0, 2);
+    });
+
+    it('scheme_stagnation and crux_maturity dominate the socratic profile', () => {
+      const signals = buildSignalRegistry('socratic');
+      const ss = signals.find(s => s.id === 'scheme_stagnation')!;
+      const cm = signals.find(s => s.id === 'crux_maturity')!;
+      const pc = signals.find(s => s.id === 'pragmatic_convergence')!;
+      expect(ss.weight).toBeGreaterThan(0.50);
+      expect(cm.weight).toBeGreaterThan(0.40);
+      expect(pc.weight).toBe(0);
+    });
+
+    it('default (non-socratic) weights are unchanged', () => {
+      const signals = buildSignalRegistry();
+      const w = loadProvisionalWeights();
+      const pc = signals.find(s => s.id === 'pragmatic_convergence');
+      expect(pc?.weight).toBe(w.argumentative_saturation.pragmatic_convergence);
+    });
+
+    it('socratic max reachable saturation is 1.0 (threshold 0.80 is reachable)', () => {
+      const signals = buildSignalRegistry('socratic');
+      const satSignals = signals.filter(s =>
+        ['recycling_pressure','crux_maturity','concession_plateau','engagement_fatigue','pragmatic_convergence','scheme_stagnation'].includes(s.id)
+      );
+      const maxScore = satSignals.reduce((sum, s) => sum + s.weight * 1.0, 0);
+      expect(maxScore).toBeGreaterThanOrEqual(0.80);
+    });
+  });
+
+  describe('validateAdaptiveConfig socratic carve-out', () => {
+    it('allows concludingExitThreshold < 0.30 for socratic (convergence score unused)', () => {
+      const result = validateAdaptiveConfig(makeConfig({
+        dialecticalStyle: 'socratic',
+        concludingExitThreshold: 0.10,
+      }));
+      expect(result.errors.some(e => e.includes('concludingExitThreshold'))).toBe(false);
+    });
+
+    it('still errors on concludingExitThreshold < 0.30 for non-socratic', () => {
+      const result = validateAdaptiveConfig(makeConfig({
+        dialecticalStyle: 'deliberative',
+        concludingExitThreshold: 0.10,
+      }));
+      expect(result.errors.some(e => e.includes('concludingExitThreshold'))).toBe(true);
+    });
+  });
+
+  describe('evaluateConcludingExit socratic bypass', () => {
+    it('returns stay in socratic concluding regardless of convergence score', () => {
+      const state = makePhaseState({
+        current_phase: 'concluding',
+        rounds_in_phase: 0,
+        total_rounds_elapsed: 6,
+        concluding_exit_threshold: 0.10,
+      });
+      const config = makeConfig({ dialecticalStyle: 'socratic', maxTotalRounds: 12 });
+      const ctx = makeSignalContext({
+        phase: {
+          current: 'concluding', allPovsResponded: true, cruxNodes: [],
+          cruxResolution: [], priorCruxClusters: [], regressionCount: 0,
+          argumentationExitThreshold: 0.80, concludingExitThreshold: 0.10,
+        },
+      });
+      const signals = buildSignalRegistry('socratic');
+      const result = evaluatePhaseTransition(state, ctx, signals, config);
+      expect(result.action).toBe('stay');
+      expect(result.reason).toContain('Aporia phase');
+    });
+
+    it('terminates on hard cap in socratic concluding', () => {
+      const w = loadProvisionalWeights();
+      // pb.max_concluding_rounds is scaled by s (activePovsCount = 3 in makeSignalContext)
+      const activePovsCount = 3;
+      const maxConcluding = w.phase_bounds.max_concluding_rounds * activePovsCount;
+      const state = makePhaseState({
+        current_phase: 'concluding',
+        rounds_in_phase: maxConcluding,
+        total_rounds_elapsed: 6,
+      });
+      const config = makeConfig({ dialecticalStyle: 'socratic', maxTotalRounds: 12 });
+      const ctx = makeSignalContext({
+        phase: {
+          current: 'concluding', allPovsResponded: true, cruxNodes: [],
+          cruxResolution: [], priorCruxClusters: [], regressionCount: 0,
+          argumentationExitThreshold: 0.80, concludingExitThreshold: 0.10,
+        },
+      });
+      const signals = buildSignalRegistry('socratic');
+      const result = evaluatePhaseTransition(state, ctx, signals, config);
+      expect(result.action).toBe('terminate');
+      expect(result.force_active).toBe(true);
+    });
+  });
+
+  describe('buildPhaseContext socratic rationale', () => {
+    it('labels concluding phase "Aporia phase" for socratic', () => {
+      const state = makePhaseState({ current_phase: 'concluding', rounds_in_phase: 0, total_rounds_elapsed: 6 });
+      const config = makeConfig({ dialecticalStyle: 'socratic' });
+      const ctx = buildPhaseContext(state, config, 0.5, 0.3);
+      expect(ctx.rationale).toContain('Aporia phase');
+    });
+
+    it('labels concluding phase "Synthesis phase" for non-socratic', () => {
+      const state = makePhaseState({ current_phase: 'concluding', rounds_in_phase: 0, total_rounds_elapsed: 6 });
+      const config = makeConfig({ dialecticalStyle: 'deliberative' });
+      const ctx = buildPhaseContext(state, config, 0.5, 0.3);
+      expect(ctx.rationale).toContain('Synthesis phase');
+    });
+  });
+});
+
 // ── Budget parity gate (t/2186) ───────────────────────────────
 // Asserts that the hardcoded browser fallback in loadProvisionalWeights() stays byte-for-byte
 // equal to the budget block in calibration-config.json. If either side drifts, this test fails.

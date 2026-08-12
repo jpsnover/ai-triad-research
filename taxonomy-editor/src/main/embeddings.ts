@@ -631,6 +631,7 @@ export async function generateText(
   onRetry?: (progress: GenerateTextProgress) => void,
   timeoutMs?: number,
   temperature?: number,
+  signal?: AbortSignal,
 ): Promise<string> {
   const friendlyModel = model || DEFAULT_MODEL;
   const backend = resolveBackend(friendlyModel);
@@ -667,6 +668,7 @@ export async function generateText(
     temperature: temperature ?? _debateTemperature ?? 0.7,
     timeoutMs: timeoutMs ?? getDefaultTimeout(friendlyModel),
     ...fixedTempOverride(entry),
+    ...(signal ? { signal } : {}),
   };
 
   const providerFn = backend === 'deepseek'
