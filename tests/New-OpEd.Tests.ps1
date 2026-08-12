@@ -13,6 +13,13 @@ Describe 'New-OpEd' -Tag 'oped' {
             word_count    = 11
             pitch_email   = 'Subject: Op-Ed Submission: Stop Stalling on AI Safety'
         } | ConvertTo-Json
+
+        # Fixture the mocked retriever returns: 2 safetyist BDI nodes + 1 situation.
+        $script:MockNodes = @(
+            [PSCustomObject]@{ Id = 'saf-beliefs-001'; POV = 'safetyist'; Category = 'Beliefs';    Label = 'Irreversibility demands caution'; Description = 'Some harms cannot be undone.'; Score = 0.71 }
+            [PSCustomObject]@{ Id = 'saf-intentions-004'; POV = 'safetyist'; Category = 'Intentions'; Label = 'Mandate pre-deployment audits'; Description = 'Independent audits before release.'; Score = 0.66 }
+            [PSCustomObject]@{ Id = 'sit-012'; POV = 'situations'; Category = 'Situations'; Label = 'Undetected jailbreak at scale'; Description = 'A model bypasses filters post-release.'; Score = 0.58 }
+        )
     }
 
     Context 'Happy path — topic input' {
@@ -24,6 +31,8 @@ Describe 'New-OpEd' -Tag 'oped' {
                 $script:capturedPrompt = $Prompt
                 [PSCustomObject]@{ Text = $script:GoodJson; Backend = 'gemini' }
             } -ModuleName AITriad
+            # Mock retrieval so existing tests never touch the data repo / Python.
+            Mock Get-RelevantTaxonomyNodes { $script:MockNodes } -ModuleName AITriad
         }
 
         It 'Returns a populated structured object' {
@@ -83,10 +92,70 @@ Describe 'New-OpEd' -Tag 'oped' {
         }
     }
 
+    Context 'Taxonomy grounding' {
+        BeforeEach {
+            $script:capturedPrompt = $null
+            Mock Invoke-AIApi {
+                $script:capturedPrompt = $Prompt
+                [PSCustomObject]@{ Text = $script:GoodJson; Backend = 'gemini' }
+            } -ModuleName AITriad
+        }
+
+        It 'Surfaces the injected elements and their relevance scores on Grounding' {
+            Mock Get-RelevantTaxonomyNodes { $script:MockNodes } -ModuleName AITriad
+            $r = New-OpEd -Topic 'pre-deployment audits' -Pov safetyist
+            @($r.Grounding).Count | Should -Be 3
+            $bdi = @($r.Grounding | Where-Object Type -eq 'bdi')
+            $sit = @($r.Grounding | Where-Object Type -eq 'situation')
+            $bdi.Count | Should -Be 2
+            $sit.Count | Should -Be 1
+            ($r.Grounding | Where-Object Id -eq 'saf-beliefs-001').RelevanceScore | Should -Be 0.71
+            ($r.Grounding | Where-Object Id -eq 'sit-012').Category | Should -Be 'Situation'
+        }
+
+        It 'Injects the retrieved node text into the user prompt' {
+            Mock Get-RelevantTaxonomyNodes { $script:MockNodes } -ModuleName AITriad
+            New-OpEd -Topic 'audits' -Pov safetyist | Out-Null
+            $script:capturedPrompt | Should -Match 'Irreversibility demands caution'
+            $script:capturedPrompt | Should -Match 'Undetected jailbreak at scale'
+            $script:capturedPrompt | Should -Match 'REGISTERED POSITIONS'
+        }
+
+        It 'Filters retrieved nodes to the requested POV' {
+            # Retriever returns a mix; a foreign-POV node must not be injected.
+            Mock Get-RelevantTaxonomyNodes {
+                $script:MockNodes + [PSCustomObject]@{ Id = 'acc-beliefs-009'; POV = 'accelerationist'; Category = 'Beliefs'; Label = 'Permissionless innovation'; Description = 'x'; Score = 0.9 }
+            } -ModuleName AITriad
+            $r = New-OpEd -Topic 'audits' -Pov safetyist
+            @($r.Grounding | Where-Object Id -eq 'acc-beliefs-009').Count | Should -Be 0
+        }
+
+        It '-VoiceOnly skips retrieval and returns empty Grounding' {
+            Mock Get-RelevantTaxonomyNodes { $script:MockNodes } -ModuleName AITriad
+            $r = New-OpEd -Topic 'x' -Pov safetyist -VoiceOnly
+            @($r.Grounding).Count | Should -Be 0
+            Should -Invoke Get-RelevantTaxonomyNodes -ModuleName AITriad -Times 0
+        }
+
+        It 'Zeroed counts disable retrieval entirely' {
+            Mock Get-RelevantTaxonomyNodes { $script:MockNodes } -ModuleName AITriad
+            New-OpEd -Topic 'x' -Pov safetyist -MaxGroundingNodes 0 -MaxSituations 0 | Out-Null
+            Should -Invoke Get-RelevantTaxonomyNodes -ModuleName AITriad -Times 0
+        }
+
+        It 'Degrades to voice-only when retrieval fails' {
+            Mock Get-RelevantTaxonomyNodes { throw 'embeddings.json not found' } -ModuleName AITriad
+            $r = New-OpEd -Topic 'x' -Pov safetyist 3>$null
+            $r.Body | Should -Match 'First paragraph'
+            @($r.Grounding).Count | Should -Be 0
+        }
+    }
+
     Context 'URL input' {
         It 'Fetches and converts the URL into source material' {
             Mock Invoke-WebRequest { [PSCustomObject]@{ Content = '<html><body><p>Source body text.</p></body></html>' } } -ModuleName AITriad
             Mock ConvertFrom-Html { 'Source body text.' } -ModuleName AITriad
+            Mock Get-RelevantTaxonomyNodes { @() } -ModuleName AITriad
             $script:seenPrompt = $null
             Mock Invoke-AIApi {
                 $script:seenPrompt = $Prompt
@@ -101,15 +170,17 @@ Describe 'New-OpEd' -Tag 'oped' {
     }
 
     Context 'Degradation and errors' {
+        # These exercise response handling, not grounding — run voice-only so no
+        # retrieval subprocess is attempted.
         It 'Falls back to raw text when the response is not valid JSON' {
             Mock Invoke-AIApi { [PSCustomObject]@{ Text = 'Just some prose, not JSON.'; Backend = 'gemini' } } -ModuleName AITriad
-            $r = New-OpEd -Topic 'x' -Pov skeptic 3>$null
+            $r = New-OpEd -Topic 'x' -Pov skeptic -VoiceOnly 3>$null
             $r.Body | Should -Match 'Just some prose'
         }
 
         It 'Throws an actionable error when the backend returns nothing' {
             Mock Invoke-AIApi { [PSCustomObject]@{ Text = ''; Backend = 'gemini' } } -ModuleName AITriad
-            { New-OpEd -Topic 'x' -Pov skeptic } | Should -Throw
+            { New-OpEd -Topic 'x' -Pov skeptic -VoiceOnly } | Should -Throw
         }
 
         It 'Rejects an unknown POV at parameter binding' {
