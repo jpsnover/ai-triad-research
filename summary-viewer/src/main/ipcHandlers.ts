@@ -23,7 +23,7 @@ import {
   readRawPdfBytes,
   PROJECT_ROOT,
 } from './fileIO';
-import type { AddTaxonomyNodeRequest } from './fileIO';
+
 import { loadEmbeddings, computeEmbeddings, computeQueryEmbedding } from './embeddings';
 import { generateContent } from './generateContent';
 import { storeApiKey, hasApiKey } from './apiKeyStore';
@@ -32,7 +32,6 @@ import { diagnosePythonEmbeddings } from './diagnosePython';
 import {
   validatedHandle,
   oneString,
-  oneUnknown,
   stringArray,
   stringAndRecord,
   stringAndOptionalString,
@@ -40,7 +39,22 @@ import {
   twoStringsAndOptional,
   unknownArray,
 } from '../../../lib/electron-shared/utils/validatedIpc';
+
 import { loadPromptWithFragments } from '../../../lib/electron-shared/promptLoader';
+
+export const addNodeSchema = z.tuple([z.object({
+  pov: z.string(),
+  category: z.string(),
+  label: z.string(),
+  description: z.string(),
+  interpretations: z.object({
+    accelerationist: z.string(),
+    safetyist: z.string(),
+    skeptic: z.string(),
+  }).optional(),
+  docId: z.string().optional(),
+  conceptIndex: z.number().optional(),
+})]);
 
 // PROJECT_ROOT imported from fileIO (findProjectRoot walk-up to .aitriad.json) —
 // NOT a hardcoded __dirname offset. The compiled layout (dist/main/summary-viewer/
@@ -205,8 +219,8 @@ export function registerIpcHandlers(): void {
 
   // === Object / unknown args ===
 
-  validatedHandle('add-taxonomy-node', oneUnknown, (_event, req) => {
-    return addTaxonomyNode(req as AddTaxonomyNodeRequest);
+  validatedHandle('add-taxonomy-node', addNodeSchema, (_event, req) => {
+    return addTaxonomyNode(req);
   });
 
   validatedHandle('persist-edges', unknownArray, (_event, edges) => {
