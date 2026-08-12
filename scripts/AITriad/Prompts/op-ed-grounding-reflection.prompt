@@ -1,0 +1,11 @@
+You are auditing how a finished op-ed used a set of source positions. Do not rewrite or judge the essay — only report, for each provided element, how and where it shows up in the text.
+
+THE FINISHED OP-ED:
+{{OPED_BODY}}
+
+THE ELEMENTS THAT WERE PROVIDED AS SOURCE MATERIAL (each with its [id] and a short label):
+{{GROUNDING_LIST}}
+
+For EACH element id above, judge against the actual essay text and write one sentence saying HOW and WHERE it is reflected — name the concrete structural place it most influenced (the lede, the thesis, the first / second / third evidence pillar, the "To Be Sure" counterargument, the solution/call-to-action, or the closing) and what it contributed. If an element is not actually reflected in the essay, set its reflection to exactly "not directly used". Be honest: only claim a placement that is really present in the text.
+
+Return ONLY a JSON object: { "grounding_usage": [ { "id": "<the [id]>", "reflection": "<one sentence>" }, ... ] } with exactly one entry per element id shown above. No commentary outside the JSON.

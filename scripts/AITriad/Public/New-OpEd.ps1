@@ -27,8 +27,10 @@ function New-OpEd {
         relevance the debate engine uses (Get-RelevantTaxonomyNodes) and injected
         as the positions the essay must argue from — so the op-ed reflects THIS
         project's registered camp, not the model's generic priors. The elements
-        used and their relevance scores are returned on the Grounding field. Pass
-        -VoiceOnly (or set the counts to 0) to write from voice alone; if the
+        used and their relevance scores are returned on the Grounding field, each
+        annotated (via a second lightweight AI call that reads the finished essay)
+        with a Reflection explaining how and where it is reflected in the draft.
+        Pass -VoiceOnly (or set the counts to 0) to write from voice alone; if the
         taxonomy / embeddings / Python are unavailable, retrieval degrades to
         voice-only with a warning rather than failing.
 
@@ -90,8 +92,10 @@ function New-OpEd {
     .OUTPUTS
         [PSCustomObject] with Headline, Subtitle, Body, Pitch, WordCount, Pov,
         Outlet, Model, Backend, and Grounding — an array of the taxonomy elements
-        injected (Id, Type [bdi|situation], POV, Category, Label, RelevanceScore),
-        ordered as retrieved.
+        injected (Id, Type [bdi|situation], POV, Category, Label, RelevanceScore,
+        and Reflection — the model's one-sentence account of how and where that
+        element is reflected in the essay, or '(not reported)'), ordered as
+        retrieved.
     .EXAMPLE
         New-OpEd -Topic 'Mandatory pre-deployment audits for frontier AI models' `
             -Pov safetyist -Outlet WashingtonPost `
@@ -102,10 +106,10 @@ function New-OpEd {
         intention nodes and situations.
     .EXAMPLE
         $oped = New-OpEd -Topic 'Open-weight models and biosecurity' -Pov skeptic
-        $oped.Grounding | Format-Table Id, Type, Category, RelevanceScore
+        $oped.Grounding | Format-Table Id, Category, RelevanceScore, Reflection
 
-        Inspects which taxonomy nodes and situations grounded the essay and how
-        relevant each was.
+        Inspects which taxonomy nodes and situations grounded the essay, how
+        relevant each was, and how/where each is reflected in the draft.
     .EXAMPLE
         New-OpEd -Url 'https://example.com/ai-jobs-report' -Pov accelerationist `
             -Outlet WallStreetJournal -IncludePitch -OutputPath ./oped.md
@@ -303,10 +307,11 @@ function New-OpEd {
                 foreach ($n in $BdiNodes) {
                     $desc = [string]$n.Description
                     if ($desc.Length -gt 240) { $desc = $desc.Substring(0, 240) + '…' }
-                    [void]$sb.AppendLine("- [$($n.Category)] $($n.Label): $desc")
+                    # Prefix the node id so the model can reference it back in grounding_usage.
+                    [void]$sb.AppendLine("- [$($n.Id)] [$($n.Category)] $($n.Label): $desc")
                     $Grounding.Add([PSCustomObject]@{
                         Id = $n.Id; Type = 'bdi'; POV = $n.POV; Category = $n.Category
-                        Label = $n.Label; RelevanceScore = $n.Score
+                        Label = $n.Label; RelevanceScore = $n.Score; Reflection = ''
                     })
                 }
                 $GroundingNodesText = $sb.ToString().TrimEnd()
@@ -317,10 +322,10 @@ function New-OpEd {
                 foreach ($s in $SitNodes) {
                     $desc = [string]$s.Description
                     if ($desc.Length -gt 300) { $desc = $desc.Substring(0, 300) + '…' }
-                    [void]$sb2.AppendLine("- $($s.Label): $desc")
+                    [void]$sb2.AppendLine("- [$($s.Id)] $($s.Label): $desc")
                     $Grounding.Add([PSCustomObject]@{
                         Id = $s.Id; Type = 'situation'; POV = $s.POV; Category = 'Situation'
-                        Label = $s.Label; RelevanceScore = $s.Score
+                        Label = $s.Label; RelevanceScore = $s.Score; Reflection = ''
                     })
                 }
                 $SituationsText = $sb2.ToString().TrimEnd()
@@ -439,6 +444,60 @@ function New-OpEd {
         @($Body -split '\s+' | Where-Object { $_ -ne '' }).Count
     }
 
+    # ── Reflection pass: map each grounding element to how/where it's reflected ──
+    # A separate lightweight call that reads the FINISHED essay. Deliberately NOT
+    # folded into the main call: asking for the essay AND per-element usage in one
+    # JSON response makes the metadata contend with the body for the output token
+    # budget and truncates the essay (observed). Judging against the real text
+    # also yields truthful placements rather than mid-write predictions.
+    # Best-effort — any failure leaves Reflection as '(not reported)'.
+    if (@($Grounding).Count -gt 0 -and -not [string]::IsNullOrWhiteSpace($Body)) {
+        foreach ($g in $Grounding) { $g.Reflection = '(not reported)' }
+        try {
+            $glb = [System.Text.StringBuilder]::new()
+            foreach ($g in $Grounding) {
+                [void]$glb.AppendLine("- [$($g.Id)] ($($g.Type)/$($g.Category)) $($g.Label)")
+            }
+            $ReflPrompt = Get-Prompt -Name 'op-ed-grounding-reflection' -Replacements @{
+                OPED_BODY      = $Body
+                GROUNDING_LIST = $glb.ToString().TrimEnd()
+            }
+            $ReflSchema = @{
+                type       = 'object'
+                properties = @{
+                    grounding_usage = @{
+                        type  = 'array'
+                        items = @{
+                            type       = 'object'
+                            properties = @{ id = @{ type = 'string' }; reflection = @{ type = 'string' } }
+                            required   = @('id', 'reflection')
+                        }
+                    }
+                }
+                required   = @('grounding_usage')
+            }
+            $ReflMax = [Math]::Max(4000, (@($Grounding).Count * 150) + 3000)
+            $ReflResult = Invoke-AIApi -Prompt $ReflPrompt -Model $Model -Temperature 0.2 `
+                -MaxTokens $ReflMax -JsonMode -ResponseSchema $ReflSchema
+            if ($ReflResult -and -not [string]::IsNullOrWhiteSpace($ReflResult.Text)) {
+                $ReflParsed = $ReflResult.Text | ConvertFrom-Json
+                if ($ReflParsed.PSObject.Properties.Name -contains 'grounding_usage') {
+                    $UsageMap = @{}
+                    foreach ($u in @($ReflParsed.grounding_usage)) {
+                        if ($null -ne $u -and $u.PSObject.Properties.Name -contains 'id') {
+                            $UsageMap[[string]$u.id] = [string]$u.reflection
+                        }
+                    }
+                    foreach ($g in $Grounding) {
+                        if ($UsageMap.ContainsKey($g.Id)) { $g.Reflection = $UsageMap[$g.Id] }
+                    }
+                }
+            }
+        } catch {
+            Write-Warning "Grounding-reflection pass failed; Grounding.Reflection left as '(not reported)'. ($($_.Exception.Message))"
+        }
+    }
+
     $Output = [PSCustomObject]@{
         Headline  = $Headline
         Subtitle  = $Subtitle
@@ -470,12 +529,13 @@ function New-OpEd {
             [void]$md.AppendLine()
             [void]$md.AppendLine('---')
             [void]$md.AppendLine()
-            [void]$md.AppendLine('## Taxonomy grounding (relevance)')
+            [void]$md.AppendLine('## Taxonomy grounding (relevance + how it is reflected)')
             [void]$md.AppendLine()
-            [void]$md.AppendLine('| Element | Type | Category | Relevance |')
-            [void]$md.AppendLine('|---|---|---|---|')
+            [void]$md.AppendLine('| Element | Type | Category | Relevance | Reflected in the op-ed |')
+            [void]$md.AppendLine('|---|---|---|---|---|')
             foreach ($g in $Grounding) {
-                [void]$md.AppendLine("| $($g.Id) — $($g.Label) | $($g.Type) | $($g.Category) | $([Math]::Round([double]$g.RelevanceScore, 4)) |")
+                $refl = ([string]$g.Reflection) -replace '\|', '\|'
+                [void]$md.AppendLine("| $($g.Id) — $($g.Label) | $($g.Type) | $($g.Category) | $([Math]::Round([double]$g.RelevanceScore, 4)) | $refl |")
             }
         }
         $Utf8NoBom = [System.Text.UTF8Encoding]::new($false)
