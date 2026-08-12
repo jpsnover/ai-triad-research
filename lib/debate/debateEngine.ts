@@ -277,14 +277,7 @@ export class DebateEngine {
   private _synthesisPipeline!: SynthesisPipeline;
   private _talmudicCorpus: TalmudicCorpus | null = null;
 
-  /**
-   * t/1781: pending evidence-verification promises. verifyPreciseClaims populates
-   * evidence_graph.evidence_items (the source-authority substrate) and runs
-   * fire-and-forget during the debate to keep web-search latency off the turn path.
-   * They are tracked here (each already terminated with a .catch() so a rejection
-   * resolves) so the completion path can settle them before the calibration extract,
-   * making source_authority deterministic instead of racing the write.
-   */
+  /** t/1781: fire-and-forget claim verifications; settled before calibration extract to make source_authority deterministic. */
   private _pendingClaimVerifications: Promise<void>[] = [];
 
   /** Get the set of hint keys currently suppressed for this debate. */
