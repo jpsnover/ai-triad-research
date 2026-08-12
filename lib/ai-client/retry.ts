@@ -89,6 +89,11 @@ export async function withRetry<T>(
   label: string,
   onLog?: (msg: string) => void,
 ): Promise<T> {
+  // NOTE (t/2492): this is the low-level per-call AI-client retry layer. The renderer's
+  // user-facing debate/chat orchestration retry uses a separate, independent classifier at
+  // taxonomy-editor/src/renderer/utils/retryClassifier.ts — intentionally NOT shared (different
+  // layer, different budget). If you change the transient-retry set here, check whether that
+  // classifier wants the same, and vice versa.
   for (let attempt = 1; attempt <= config.maxRetries; attempt++) {
     try {
       return await fn();

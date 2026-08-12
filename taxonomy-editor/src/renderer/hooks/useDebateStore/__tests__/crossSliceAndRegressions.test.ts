@@ -410,6 +410,64 @@ describe('runOpeningStatements — failure halts flow (t/920)', () => {
 
     vi.mocked(runOpeningPipeline).mockResolvedValue({});
   });
+
+  it('auto-retries on a transient TIMEOUT (no httpStatus), not just 429 (t/2492)', async () => {
+    const { runOpeningPipeline } = await import('@lib/debate/turnPipeline');
+    // The PI case: a ~3-min timeout with no httpStatus. Pre-fix this got 1 attempt + manual banner.
+    const timeoutError = Object.assign(new Error('Request timed out after 180s'), { name: 'AbortError' });
+    vi.mocked(runOpeningPipeline).mockRejectedValue(timeoutError);
+
+    const session = makeSession({
+      phase: 'opening',
+      active_povers: ['accelerationist'],
+      topic: { original: 'Test', refined: null, final: 'Test topic' },
+    });
+    useDebateStore.setState({ activeDebate: session as any, debateModel: 'gemini-2.0-flash' });
+
+    // Fake timers so the transient backoff (5s expo) flushes instantly instead of stalling the test.
+    vi.useFakeTimers();
+    try {
+      const run = useDebateStore.getState().runOpeningStatements();
+      await vi.runAllTimersAsync();
+      await run;
+    } finally {
+      vi.useRealTimers();
+    }
+
+    // Auto-retry engaged (initial + at least one retry) — the honest banner appears only after the cap.
+    expect(vi.mocked(runOpeningPipeline).mock.calls.length).toBeGreaterThanOrEqual(2);
+    const state = useDebateStore.getState();
+    expect(state.debateError).toBeTruthy();
+    expect(state.debateGenerating).toBeNull();
+
+    vi.mocked(runOpeningPipeline).mockResolvedValue({});
+  });
+
+  it('does NOT retry a daily-limit error — immediate pause banner (t/2492)', async () => {
+    const { runOpeningPipeline } = await import('@lib/debate/turnPipeline');
+    const dailyLimitError = Object.assign(
+      new Error('Daily AI usage limit reached'),
+      { httpStatus: 429, limitType: 'tokens_per_day' },
+    );
+    vi.mocked(runOpeningPipeline).mockRejectedValue(dailyLimitError);
+
+    const session = makeSession({
+      phase: 'opening',
+      active_povers: ['accelerationist'],
+      topic: { original: 'Test', refined: null, final: 'Test topic' },
+    });
+    useDebateStore.setState({ activeDebate: session as any, debateModel: 'gemini-2.0-flash' });
+
+    await useDebateStore.getState().runOpeningStatements();
+
+    // Exactly one attempt — daily-limit halts immediately, no auto-retry.
+    expect(vi.mocked(runOpeningPipeline).mock.calls.length).toBe(1);
+    const state = useDebateStore.getState();
+    expect(state.dailyLimitPaused).toBe(true);
+    expect(state.debateError).toMatch(/Daily/i);
+
+    vi.mocked(runOpeningPipeline).mockResolvedValue({});
+  });
 });
 
 // ── Retry Action Tracking (t/953) ──────────────────────────
