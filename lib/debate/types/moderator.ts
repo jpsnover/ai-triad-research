@@ -345,7 +345,7 @@ export interface InterventionResponseFields {
 
 // ── Talmudic Moderator types ───────────────────────────
 
-export type ModeratorMode = 'standard' | 'talmudic';
+export type ModeratorMode = 'standard' | 'talmudic' | 'socratic';
 
 export type DialecticalDisagreementType = 'empirical' | 'causal' | 'definitional' | 'normative' | 'mixed' | 'unclear';
 

@@ -710,7 +710,7 @@ export async function runModeratorSelection(
         target_debater: labelMap[String(parsed.target_debater ?? '').toLowerCase()] ?? undefined,
         trigger_reasoning: parsed.trigger_reasoning as string | undefined,
         trigger_evidence: parsed.trigger_evidence as SelectionResult['trigger_evidence'] | undefined,
-        dialectical_diagnostic: moderatorMode === 'talmudic'
+        dialectical_diagnostic: (moderatorMode === 'talmudic' || moderatorMode === 'socratic')
           ? parseDialecticalDiagnostic(parsed.dialectical_diagnostic, focusPoint)
           : undefined,
       };

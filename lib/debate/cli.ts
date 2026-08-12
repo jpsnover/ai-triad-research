@@ -48,7 +48,7 @@ interface CLIConfig {
   apiKey?: string;
   temperature?: number;
   audience?: string;
-  moderatorMode?: 'standard' | 'talmudic';
+  moderatorMode?: 'standard' | 'talmudic' | 'socratic';
   talmudicReferences?: {
     enabled: boolean;
     corpusPath: string;
@@ -370,13 +370,13 @@ async function main(): Promise<void> {
   log(`Model: ${model}`);
 
   const moderatorMode = config.moderatorMode ?? 'standard';
-  if (moderatorMode !== 'standard' && moderatorMode !== 'talmudic') {
+  if (moderatorMode !== 'standard' && moderatorMode !== 'talmudic' && moderatorMode !== 'socratic') {
     throw new ActionableError({
       goal: 'Validate debate configuration',
       problem: `Unknown moderator mode: ${moderatorMode}`,
       location: 'cli.main',
       nextSteps: [
-        'Set "moderatorMode" to "standard" or "talmudic"',
+        'Set "moderatorMode" to "standard", "talmudic", or "socratic"',
         'Remove the field to use standard moderation',
       ],
     });
