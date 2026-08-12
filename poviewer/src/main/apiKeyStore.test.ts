@@ -94,6 +94,27 @@ describe('t/2534 M3: legacy plaintext migration', () => {
     expect(fs.existsSync(PLAIN_PATH)).toBe(false);
   });
 
+  it('EEXIST on the migration write leaves the existing encrypted key untouched and still removes the plaintext file', () => {
+    // Same invariant as above but asserting the on-disk encrypted bytes are
+    // byte-identical after migration (the 'wx' write must not have replaced them).
+    store.storeApiKey('kept-placeholder');
+    const encryptedBefore = fs.readFileSync(ENC_PATH);
+    fs.writeFileSync(PLAIN_PATH, 'stale-placeholder', 'utf-8');
+
+    expect(store.getApiKey()).toBe('kept-placeholder');
+    expect(fs.readFileSync(ENC_PATH).equals(encryptedBefore)).toBe(true);
+    expect(fs.existsSync(PLAIN_PATH)).toBe(false);
+  });
+
+  it('deletes an empty legacy plaintext file without creating an encrypted key', () => {
+    fs.mkdirSync(CONFIG_DIR, { recursive: true });
+    fs.writeFileSync(PLAIN_PATH, '   \n', 'utf-8');
+
+    expect(store.getApiKey()).toBe(null);
+    expect(fs.existsSync(ENC_PATH)).toBe(false);
+    expect(fs.existsSync(PLAIN_PATH)).toBe(false);
+  });
+
   it('refuses with next steps when a plaintext file exists but safeStorage is unavailable', () => {
     fs.mkdirSync(CONFIG_DIR, { recursive: true });
     fs.writeFileSync(PLAIN_PATH, 'stranded-placeholder', 'utf-8');
@@ -117,9 +138,17 @@ describe('t/2534 M3: legacy plaintext migration', () => {
 });
 
 describe('t/2534 M3: getApiKey base cases', () => {
-  it('returns null when no key is stored (safeStorage available)', () => {
+  it('returns null when no key is stored (safeStorage available) — ENOENT handled cleanly, no config dir needed', () => {
+    // CONFIG_DIR itself does not exist here (beforeEach removed it): every
+    // EAFP read/unlink path must treat ENOENT as "absent", not throw.
+    expect(fs.existsSync(CONFIG_DIR)).toBe(false);
     expect(store.getApiKey()).toBe(null);
     expect(store.hasApiKey()).toBe(false);
+  });
+
+  it('storeApiKey succeeds when no plaintext file exists (unlink ENOENT tolerated)', () => {
+    store.storeApiKey('placeholder-value-3');
+    expect(store.getApiKey()).toBe('placeholder-value-3');
   });
 
   it('returns null when no key is stored (safeStorage unavailable)', () => {

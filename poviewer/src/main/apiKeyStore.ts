@@ -12,25 +12,54 @@ const KEY_PATH = path.join(CONFIG_DIR, 'apikey.enc');
 const PLAIN_KEY_PATH = path.join(CONFIG_DIR, 'apikey.txt');
 
 function ensureConfigDir(): void {
-  if (!fs.existsSync(CONFIG_DIR)) {
-    fs.mkdirSync(CONFIG_DIR, { recursive: true });
+  // recursive:true is idempotent — no existsSync guard needed (and a guard
+  // would be a check-then-act race, CodeQL js/file-system-race).
+  fs.mkdirSync(CONFIG_DIR, { recursive: true });
+}
+
+function hasErrnoCode(err: unknown, code: string): boolean {
+  return (err as NodeJS.ErrnoException | null)?.code === code;
+}
+
+/** Delete a file, treating "already gone" as success (EAFP — no existsSync). */
+function unlinkIfExists(filePath: string): void {
+  try {
+    fs.unlinkSync(filePath);
+  } catch (err) {
+    /* telemetry — silent by design (ENOENT = already gone, the desired state) */
+    if (!hasErrnoCode(err, 'ENOENT')) throw err;
   }
 }
 
 // One-time migration of the legacy plaintext key file (pre-t/2534 fallback).
-// Only runs when safeStorage is available; never overwrites an existing
-// encrypted key (the encrypted copy is always newer — storeApiKey deletes the
-// plaintext file on every encrypted write).
+// Only runs when safeStorage is available. EAFP throughout (CodeQL
+// js/file-system-race): the plaintext file is read directly (ENOENT = no
+// legacy file), and the encrypted write uses the atomic 'wx' flag so an
+// existing encrypted key — always newer, since storeApiKey deletes the
+// plaintext file on every encrypted write — is never overwritten.
 function migrateLegacyPlaintextKey(): void {
-  if (!fs.existsSync(PLAIN_KEY_PATH)) return;
-  if (!fs.existsSync(KEY_PATH)) {
-    const key = fs.readFileSync(PLAIN_KEY_PATH, 'utf-8').trim();
-    if (key) {
-      ensureConfigDir();
-      fs.writeFileSync(KEY_PATH, safeStorage.encryptString(key));
+  let legacyRaw: string;
+  try {
+    legacyRaw = fs.readFileSync(PLAIN_KEY_PATH, 'utf-8');
+  } catch (err) {
+    /* telemetry — silent by design (ENOENT = no legacy file, nothing to migrate) */
+    if (hasErrnoCode(err, 'ENOENT')) return;
+    throw err;
+  }
+
+  const legacyKey = legacyRaw.trim();
+  if (legacyKey) {
+    ensureConfigDir();
+    try {
+      // 'wx' = exclusive create: fails with EEXIST if an encrypted key already
+      // exists, preserving the never-overwrite-newer-key invariant atomically.
+      fs.writeFileSync(KEY_PATH, safeStorage.encryptString(legacyKey), { flag: 'wx' });
+    } catch (err) {
+      /* telemetry — silent by design (EEXIST = encrypted key already present, keep it) */
+      if (!hasErrnoCode(err, 'EEXIST')) throw err;
     }
   }
-  fs.unlinkSync(PLAIN_KEY_PATH);
+  unlinkIfExists(PLAIN_KEY_PATH);
 }
 
 export function storeApiKey(key: string): void {
@@ -51,24 +80,27 @@ export function storeApiKey(key: string): void {
   ensureConfigDir();
   const encrypted = safeStorage.encryptString(key);
   fs.writeFileSync(KEY_PATH, encrypted);
-  // Remove legacy plaintext file if it exists
-  if (fs.existsSync(PLAIN_KEY_PATH)) {
-    fs.unlinkSync(PLAIN_KEY_PATH);
-  }
+  // Remove the legacy plaintext file if present (EAFP, ENOENT tolerated)
+  unlinkIfExists(PLAIN_KEY_PATH);
 }
 
 export function getApiKey(): string | null {
   if (safeStorage.isEncryptionAvailable()) {
     migrateLegacyPlaintextKey();
-    if (fs.existsSync(KEY_PATH)) {
-      const encrypted = fs.readFileSync(KEY_PATH);
-      return safeStorage.decryptString(encrypted);
+    let encrypted: Buffer;
+    try {
+      encrypted = fs.readFileSync(KEY_PATH);
+    } catch (err) {
+      /* telemetry — silent by design (ENOENT = no key stored yet) */
+      if (hasErrnoCode(err, 'ENOENT')) return null;
+      throw err;
     }
-    return null;
+    return safeStorage.decryptString(encrypted);
   }
 
   // safeStorage unavailable: never read (or silently keep serving) a plaintext
-  // key — refuse with instructions if a legacy file is present.
+  // key — refuse with instructions if a legacy file is present. Existence-only
+  // probe: the file is deliberately never opened on this branch.
   if (fs.existsSync(PLAIN_KEY_PATH)) {
     throw new ActionableError({
       goal: 'Load the stored API key',
