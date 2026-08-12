@@ -11,7 +11,10 @@ import { makeStorageError } from './faultInjection.js';
 import { setGlobalRecorder, clearGlobalRecorder, type FlightRecorder } from '../../flight-recorder/index.js';
 import type { RecordInput } from '../../flight-recorder/types.js';
 
-vi.mock('child_process', () => ({ execSync: vi.fn() }));
+vi.mock('child_process', () => {
+  const execSync = vi.fn();
+  return { default: { execSync }, execSync };
+});
 
 import { execSync } from 'child_process';
 import { atomicWriteSync, renameSyncWithRetry } from '../persistence.js';
