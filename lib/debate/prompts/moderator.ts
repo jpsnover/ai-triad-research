@@ -135,8 +135,7 @@ ${audienceLine}${phaseObjective}${sourceAnchorSection}${topicAnchoringBlock ?? '
 === RECENT DEBATE EXCHANGE ===
 ${recentTranscript}
 
-=== ACTIVE DEBATERS ===
-${activePovers.join(', ')}
+${moderatorMode === 'socratic' ? `=== INTERLOCUTOR ===\n${activePovers[0]} (sole interlocutor under examination; you are the questioner)` : `=== ACTIVE DEBATERS ===\n${activePovers.join(', ')}`}
 ${edgeContext}${schemeSection}${metaphorSection}
 
 === MODERATOR STATE ===
@@ -144,7 +143,7 @@ ${triggerEvaluationContext}
 
 === TASK ===
 
-1. SELECTION: Identify which debater should respond next, to whom, and about what specific point.
+${moderatorMode === 'socratic' ? `1. SELECTION: There is exactly one interlocutor. Your SELECTION must name ${activePovers[0]} as the responder every round. You (the moderator) are the questioner — no debater rotation.` : `1. SELECTION: Identify which debater should respond next, to whom, and about what specific point.`}
 2. INTERVENTION ASSESSMENT: Based on the moderator state above and your reading of the transcript, evaluate whether a moderator intervention is warranted this round.
 
 Available intervention moves (organized by family):

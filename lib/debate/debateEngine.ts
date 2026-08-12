@@ -414,6 +414,20 @@ export class DebateEngine {
         });
       };
     }
+    // Socratic protocol is a dyad: exactly one interlocutor under examination.
+    // Checked here (run entry) so load/view of saved debates is unaffected (t/2514).
+    if (this.config.protocolId === 'socratic' && this.config.activePovers.length !== 1) {
+      throw new ActionableError({
+        goal: 'Run a Socratic debate',
+        problem: `Socratic protocol requires exactly one active POV (the interlocutor under examination), but ${this.config.activePovers.length} were provided: ${this.config.activePovers.join(', ')}.`,
+        location: 'DebateEngine.run()',
+        nextSteps: [
+          'Select a single debater as the interlocutor when using protocolId "socratic" (e.g. activePovers: ["safetyist"]).',
+          'The moderator acts as the questioner — no second debater is needed.',
+        ],
+      });
+    }
+
     this.initSession();
 
     // Route prompt directives based on model capability (t/331)
