@@ -46,6 +46,7 @@ import * as organizations from './organizations.js';
 import { isPov } from './organizations.js';
 import { json, error, param, query, getClientIp, createRouter, withEndpointTimeout, normalizedRequestPath, type Handler } from './httpKit.js';
 import { computeIsPublicPath } from './publicPaths.js';
+import { resolveAllowedOrigins, corsOriginFor, resolveBindHost, isNonLoopbackDevBind, enforceCrossOriginMutationGuard, isWebSocketOriginAllowed } from './networkSecurity.js';
 import { parseCookies } from './httpCookies.js';
 import { registerDebatesRoutes } from './routes/debates.js';
 import { registerSyncRoutes } from './routes/sync.js';
@@ -553,23 +554,15 @@ async function readBody(req: http.IncomingMessage): Promise<unknown> {
 
 // ── HTTP server ──
 
-// Resolve allowed CORS origins from ALLOWED_ORIGINS env var (comma-separated).
-// In production, rejects cross-origin requests when unset (S8).
-const ALLOWED_ORIGINS = (() => {
-  if (process.env.ALLOWED_ORIGINS) {
-    return process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim()).filter(Boolean);
-  }
-  if (process.env.NODE_ENV === 'production') {
-    log.security.warn('ALLOWED_ORIGINS not set in production — CORS will reject cross-origin requests');
-    return [];
-  }
-  return null; // null = allow all (development mode)
-})();
+// t/2532 (M12): CORS/WS allowlist is ALWAYS a concrete array — dev defaults to the
+// Vite origins (never `*`), prod uses ALLOWED_ORIGINS ([] + warn if unset).
+const ALLOWED_ORIGINS = resolveAllowedOrigins(process.env);
+if (process.env.NODE_ENV === 'production' && !process.env.ALLOWED_ORIGINS) {
+  log.security.warn('ALLOWED_ORIGINS not set in production — CORS will reject cross-origin requests');
+}
 
 function getCorsOrigin(req: http.IncomingMessage): string {
-  if (!ALLOWED_ORIGINS) return '*';
-  const origin = req.headers.origin || '';
-  return ALLOWED_ORIGINS.includes(origin) ? origin : (ALLOWED_ORIGINS[0] ?? '');
+  return corsOriginFor((req.headers.origin || '') as string, ALLOWED_ORIGINS);
 }
 
 // parseCookies now lives in ./httpCookies.ts (t/2019) — shared with loginPage.ts and
@@ -725,6 +718,8 @@ async function handleRequestInner(
   // publicPaths.ts so it's testable in isolation; the exact-vs-prefix match-kind split
   // is load-bearing and Server-Auth-reviewed (p/135#8) — do not add paths here.
   const isPublicPath = computeIsPublicPath(urlPath);
+  // t/2532 (M12): drive-by defense — reject cross-origin mutating requests before auth (same-origin/no-Origin/public paths pass; networkSecurity.ts).
+  if (enforceCrossOriginMutationGuard(req, res, isPublicPath, ALLOWED_ORIGINS)) return;
   // AUTH_DISABLED='1' (default) = anonymous access, no login page.
   // AUTH_OPTIONAL='1' = show login page with anonymous option; sign-in
   //   unlocks platform-tier keys, anonymous users get lower limits + BYOK.
@@ -1251,11 +1246,10 @@ function isTerminalWebSocketAllowed(req: http.IncomingMessage): boolean {
 }
 
 server.on('upgrade', (req, socket, head) => {
-  // S-WS-ORIGIN: Validate Origin header against ALLOWED_ORIGINS to prevent
-  // cross-origin WebSocket hijacking (WebSocket bypasses CORS).
-  if (ALLOWED_ORIGINS) {
+  // S-WS-ORIGIN + t/2532: block cross-origin WS upgrades (WS bypasses CORS); same-origin accepted, allowlist enforced in dev too.
+  {
     const origin = (req.headers.origin || '') as string;
-    if (!ALLOWED_ORIGINS.includes(origin)) {
+    if (!isWebSocketOriginAllowed(origin, req.headers.host, ALLOWED_ORIGINS)) {
       log.security.warn({ origin }, 'Blocked WebSocket upgrade from disallowed origin');
       socket.write('HTTP/1.1 403 Forbidden\r\n\r\n');
       socket.destroy();
@@ -1444,9 +1438,14 @@ initAnonymousSessionStore({
 
 // ── Start ──
 
-server.listen(PORT, '0.0.0.0', () => {
-  serverRecorder.record({ type: 'lifecycle', component: 'server', level: 'info', message: 'Server started', data: { port: PORT, version: SERVER_VERSION, dataRoot: getDataRoot(), platform: process.platform, arch: process.arch, storageMode: STORAGE_MODE } });
-  log.server.info({ port: PORT }, 'Taxonomy Editor running');
+// t/2532 (M12): loopback (127.0.0.1) in dev / 0.0.0.0 in prod; HOST opts into LAN exposure (logged loudly below).
+const BIND_HOST = resolveBindHost(process.env);
+server.listen(PORT, BIND_HOST, () => {
+  if (isNonLoopbackDevBind(process.env)) {
+    log.security.warn({ host: BIND_HOST }, 'HOST override → binding a non-loopback interface in dev; the REST API is exposed beyond localhost');
+  }
+  serverRecorder.record({ type: 'lifecycle', component: 'server', level: 'info', message: 'Server started', data: { port: PORT, host: BIND_HOST, version: SERVER_VERSION, dataRoot: getDataRoot(), platform: process.platform, arch: process.arch, storageMode: STORAGE_MODE } });
+  log.server.info({ port: PORT, host: BIND_HOST }, 'Taxonomy Editor running');
   log.server.info({ dataRoot: getDataRoot() }, 'Data root');
 
   // t/924: surface the free-tier key pool + effective RPM so rate-limit
