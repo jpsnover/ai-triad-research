@@ -55,6 +55,58 @@ describe('UrlContextChip', () => {
     render(<UrlContextChip metadata={meta} />);
     expect(screen.getByText('read: not-a-url')).toBeTruthy();
   });
+
+  it('app-fetch chip: adds --app-fetch modifier and "Fetched by app:" tooltip', () => {
+    const meta = {
+      urlMetadata: [
+        { retrievedUrl: 'https://example.com/page', urlRetrievalStatus: 'SUCCESS', source: 'app-fetch' as const },
+      ],
+    };
+    render(<UrlContextChip metadata={meta as UrlContextMetadata} />);
+    const chip = screen.getByText('read: example.com');
+    expect(chip.className).toContain('url-context-chip--app-fetch');
+    expect(chip.getAttribute('title')).toBe('Fetched by app: https://example.com/page');
+  });
+
+  it('app-fetch failed chip: "Couldn\'t fetch:" tooltip', () => {
+    const meta = {
+      urlMetadata: [
+        { retrievedUrl: 'https://blocked.io/', urlRetrievalStatus: 'ERROR_BLOCKED', source: 'app-fetch' as const },
+      ],
+    };
+    render(<UrlContextChip metadata={meta as UrlContextMetadata} />);
+    const chip = screen.getByText("couldn't read: blocked.io");
+    expect(chip.className).toContain('url-context-chip--app-fetch');
+    expect(chip.getAttribute('title')).toBe("Couldn't fetch: https://blocked.io/");
+  });
+
+  it('truncated badge renders when truncated is true', () => {
+    const meta = {
+      urlMetadata: [
+        { retrievedUrl: 'https://long.example.com/', urlRetrievalStatus: 'SUCCESS', source: 'app-fetch' as const, truncated: true },
+      ],
+    };
+    render(<UrlContextChip metadata={meta as UrlContextMetadata} />);
+    expect(screen.getByText('[truncated]')).toBeTruthy();
+  });
+
+  it('no truncated badge when truncated is absent', () => {
+    const meta: UrlContextMetadata = {
+      urlMetadata: [{ retrievedUrl: 'https://example.com/', urlRetrievalStatus: 'SUCCESS' }],
+    };
+    render(<UrlContextChip metadata={meta} />);
+    expect(screen.queryByText('[truncated]')).toBeNull();
+  });
+
+  it('absent source defaults to provider behavior — no --app-fetch class', () => {
+    const meta: UrlContextMetadata = {
+      urlMetadata: [{ retrievedUrl: 'https://example.com/', urlRetrievalStatus: 'SUCCESS' }],
+    };
+    render(<UrlContextChip metadata={meta} />);
+    const chip = screen.getByText('read: example.com');
+    expect(chip.className).not.toContain('url-context-chip--app-fetch');
+    expect(chip.getAttribute('title')).toBe('Read: https://example.com/');
+  });
 });
 
 describe('chatSystemPrompt urlContext param', () => {
@@ -74,16 +126,12 @@ describe('chatSystemPrompt urlContext param', () => {
     expect(prompt).not.toContain("you have not visited that URL");
   });
 
-  it('non-Gemini model gates urlContext to false → honest-fail text in prompt', async () => {
-    // backendForModel('claude-3-5-sonnet') === 'claude', not 'gemini'
-    // so URL_PATTERN.test(msg) && backendForModel(model) === 'gemini' is false
-    const { backendForModel } = await import('../../hooks/useTaxonomyStore');
+  it('urlContext=true (URL detected, no model gate since t/2485) → grounding prompt', async () => {
+    // Gate is now purely URL presence (extractHttpUrls); no backend check.
+    // Any URL detection produces urlContext=true regardless of model.
     const { chatSystemPrompt } = await import('../../prompts/chat');
-    const nonGeminiModel = 'claude-3-5-sonnet';
-    const urlContext = /https?:\/\/\S+/.test('https://example.com') && backendForModel(nonGeminiModel) === 'gemini';
-    expect(urlContext).toBe(false);
-    const prompt = chatSystemPrompt('Label', 'pov', 'personality', 'inform', 'topic', 'ctx', urlContext);
-    expect(prompt).toContain("you have not visited that URL");
-    expect(prompt).not.toContain("url_context tool");
+    const prompt = chatSystemPrompt('Label', 'pov', 'personality', 'inform', 'topic', 'ctx', true);
+    expect(prompt).toContain("url_context tool");
+    expect(prompt).not.toContain("you have not visited that URL");
   });
 });
