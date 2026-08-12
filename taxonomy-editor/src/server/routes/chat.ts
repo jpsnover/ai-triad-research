@@ -152,6 +152,22 @@ function callerIdentity(): { principalName: string; idp: string } {
   return callerTierIdentity(getCurrentUser());
 }
 
+/** Coarse caller auth class for the ai.request flight-recorder event (t/2494 —
+ *  observability only, never an auth decision): local single-user, cookie-only
+ *  anonymous, or a signed-in principal. Derived from the ALS user context. */
+export function authUserType(): 'local' | 'anonymous' | 'authenticated' {
+  const u = getCurrentUser();
+  if (!u || u.principalName === '_local') return 'local';
+  return u.isAnonymous ? 'anonymous' : 'authenticated';
+}
+
+/** Clamp a client-supplied linkage id for safe logging (t/2494): a non-empty
+ *  string capped at 128 chars, else undefined (absent-field tolerance for older
+ *  clients + guard against a malicious oversize value bloating the recorder). */
+export function boundedId(v: unknown): string | undefined {
+  return typeof v === 'string' && v.length > 0 ? v.slice(0, 128) : undefined;
+}
+
 /** Pure mirror of routes/ai.ts resolveGenerationContext. */
 function resolveGenerationContext(req: http.IncomingMessage, model: string | undefined): {
   tier: ResolvedTier; isFree: boolean; limitKey: string; effectiveModel: string | undefined; backend: AIBackend;
@@ -199,6 +215,8 @@ export function registerChatRoutes(r: Router, _ctx: ServerCtx): void {
       temperature,
       apiKey: clientKey,
       urlContext = false,
+      chatSessionId,   // t/2494: observability linkage (optional; older clients omit)
+      linkedDebateId,  // t/2494
     } = body as {
       systemInstruction?: string;
       messages?: ChatMessage[];
@@ -206,6 +224,8 @@ export function registerChatRoutes(r: Router, _ctx: ServerCtx): void {
       temperature?: number;
       apiKey?: string;
       urlContext?: boolean;
+      chatSessionId?: string;
+      linkedDebateId?: string;
     };
 
     try {
@@ -269,7 +289,14 @@ export function registerChatRoutes(r: Router, _ctx: ServerCtx): void {
       getGlobalRecorder()?.record({
         type: 'ai.request', component: 'ai-chat-stream', level: 'info',
         message: `chat-stream ${backend}/${requestModel}`,
-        data: { model: requestModel, backend, tier: tier.level, urlContext, messageCount: messages.length },
+        data: {
+          model: requestModel, backend, tier: tier.level, urlContext, messageCount: messages.length,
+          // t/2494 (Gap 2): chat/debate linkage + caller class so a flight-recorder
+          // dump explains the anon-chat-403 class without cross-referencing context.
+          auth_user_type: authUserType(),
+          chatSessionId: boundedId(chatSessionId),
+          linkedDebateId: boundedId(linkedDebateId),
+        },
       });
 
       // Commit SSE headers — no JSON error responses after this point.
