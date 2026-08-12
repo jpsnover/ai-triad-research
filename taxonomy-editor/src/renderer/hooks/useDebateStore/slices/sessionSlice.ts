@@ -634,7 +634,14 @@ export const createSessionSlice: StateCreator<DebateStore, [], [], SessionSlice>
           void get().saveDebate('loadDebate:interrupted_turn_recovery');
           setTimeout(() => {
             const s = get();
-            if (s.activeDebateId === id && !s.debateGenerating) {
+            if (s.activeDebate?.protocol_id === 'socratic') {
+              // Socratic is user-driven (ask/probe/summarize) with a single AI
+              // debater; crossRespond requires >=2 AI debaters and would bail with a
+              // "Need at least 2 AI debaters" error toast. The interrupted_turn field
+              // is already cleared above, so there is nothing to auto-resume — the
+              // user simply drives the next turn. Sibling of t/2536 (Q5). (t/2539)
+              getGlobalRecorder()?.record({ type: 'lifecycle', component: 'debate-store', level: 'info', debate_id: id, message: 'Interrupted-turn auto-resume skipped for socratic protocol' });
+            } else if (s.activeDebateId === id && !s.debateGenerating) {
               getGlobalRecorder()?.record({ type: 'lifecycle', component: 'debate-store', level: 'info', debate_id: id, message: 'Auto-resuming after interrupted turn recovery' });
               // Engage the generating indicator up front so the Continue button is
               // disabled during crossRespond's ramp-up (edge load + moderator
