@@ -94,9 +94,7 @@ function makeReq() {
     method: 'POST',
     headers: {},
     socket: { remoteAddress: '127.0.0.1' },
-    // http.IncomingMessage is an EventEmitter; the handler subscribes to 'close'
-    // to abort on client disconnect (t/2510). No-op mock — 'close' never fires here.
-    on: vi.fn(),
+    on: vi.fn(), // IncomingMessage is an EventEmitter (no-op mock)
   };
 }
 
@@ -108,6 +106,9 @@ function makeRes() {
     writeHead(status: number) { out.status = status; out.headersSent = true; },
     end(body: string) { out.body = body; out.writableEnded = true; },
     setHeader: vi.fn(),
+    // t/2522: the handler subscribes to ServerResponse 'close' (NOT req 'close')
+    // to abort on client disconnect. No-op mock — 'close' never fires here.
+    on: vi.fn(),
     out,
   };
 }
