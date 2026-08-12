@@ -121,6 +121,12 @@ export interface ChatStreamArgs {
   model?: string;
   temperature?: number;
   urlContext?: boolean;
+  /** Chat/debate linkage for observability (t/2490 Gap 2): sent on the POST body so the
+   *  server ai.request carries it (t/2494), and included on the client ai.request event.
+   *  linkedDebateId has no source in the current chat model (POVer chats aren't
+   *  debate-linked) — wired as a forward-compatible passthrough, absent for now. */
+  chatSessionId?: string;
+  linkedDebateId?: string;
 }
 
 /** The web bridge's session-recovering fetch (injected to avoid a circular import). */
@@ -129,12 +135,16 @@ type ChatFetch = (path: string, init: RequestInit, opts: ResilientFetchOptions) 
 /** Drive one chat-stream request: POST → read SSE body → dispatch. Resolves the accumulated
  *  fullText, or rejects with an ActionableError (also surfaced to onChatStreamError listeners). */
 export async function runChatStream(fetchFn: ChatFetch, args: ChatStreamArgs): Promise<string> {
-  const { systemInstruction, messages, model, temperature, urlContext } = args;
+  const { systemInstruction, messages, model, temperature, urlContext, chatSessionId, linkedDebateId } = args;
   const requestId = crypto.randomUUID();
-  const body: Record<string, unknown> = { systemInstruction, messages, model, temperature, urlContext: !!urlContext };
+  // Chat/debate linkage → server ai.request (t/2494). JSON.stringify drops undefined keys, so
+  // absent chatSessionId/linkedDebateId simply don't appear on the wire (absent-tolerant).
+  const body: Record<string, unknown> = { systemInstruction, messages, model, temperature, urlContext: !!urlContext, chatSessionId, linkedDebateId };
   const byokKey = sessionStorage.getItem('byok-api-key');
   if (byokKey) body.apiKey = byokKey;
-  getGlobalRecorder()?.record({ type: 'ai.request', component: 'web-bridge', level: 'info', message: `chat-stream request: ${model ?? 'default'}`, data: { requestId, urlContext: !!urlContext, messageCount: messages.length } });
+  // t/2490 Gap 2: chat/debate linkage on the client ai.request makes the anon-chat-403 root
+  // cause self-evident without cross-referencing the context block (undefined fields drop out).
+  getGlobalRecorder()?.record({ type: 'ai.request', component: 'web-bridge', level: 'info', message: `chat-stream request: ${model ?? 'default'}`, data: { requestId, urlContext: !!urlContext, messageCount: messages.length, chatSessionId, linkedDebateId } });
 
   const path = '/api/ai/chat-stream';
   let res: Response;

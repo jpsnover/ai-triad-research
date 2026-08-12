@@ -61,6 +61,7 @@ async function streamChatWithProgress(
   set: (partial: Partial<ChatStore>) => void,
   onChunk: (chunk: string) => void,
   urlContext?: boolean,
+  chatSessionId?: string,
 ): Promise<{ text: string; urlContextMetadata?: UrlContextMetadata }> {
   set({ chatActivity: activity, chatStreamingText: null });
   let urlContextMetadata: UrlContextMetadata | undefined;
@@ -83,7 +84,7 @@ async function streamChatWithProgress(
     }
   });
   try {
-    const text = await api.startChatStream(systemInstruction, messages, model, temperature, urlContext);
+    const text = await api.startChatStream(systemInstruction, messages, model, temperature, urlContext, chatSessionId ? { chatSessionId } : undefined);
     return { text, urlContextMetadata };
   } finally {
     unsubChunk();
@@ -349,6 +350,8 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         `${info.label} is thinking...`,
         set,
         (chunk) => get().appendStreamingText(chunk),
+        undefined,
+        activeChat.id,
       );
 
       if (!isStillValid()) return;
@@ -482,6 +485,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         set,
         (chunk) => get().appendStreamingText(chunk),
         urlContext,
+        activeChat.id,
       );
 
       if (!isStillValid()) return;

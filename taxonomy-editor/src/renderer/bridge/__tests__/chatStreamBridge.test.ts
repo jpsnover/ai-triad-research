@@ -30,7 +30,8 @@ vi.mock('@lib/debate/errors', () => ({
   },
 }));
 
-vi.mock('@lib/flight-recorder/index', () => ({ getGlobalRecorder: () => ({ record: vi.fn() }) }));
+const recorded = vi.hoisted(() => [] as Array<{ type: string; data?: Record<string, unknown> }>);
+vi.mock('@lib/flight-recorder/index', () => ({ getGlobalRecorder: () => ({ record: (r: { type: string; data?: Record<string, unknown> }) => { recorded.push(r); } }) }));
 vi.mock('../instrumentBridge', () => ({ instrumentBridge: (raw: unknown) => raw }));
 vi.mock('../../utils/keyShareCrypto', () => ({ encryptKeysForSharing: vi.fn(), decryptKeysFromSharing: vi.fn() }));
 const mockQuotaMilestone = vi.fn();
@@ -67,6 +68,7 @@ beforeEach(() => {
   mockResilientFetch.mockReset();
   mockQuotaMilestone.mockReset();
   sessionStorage.clear();
+  recorded.length = 0;
 });
 
 describe('web-bridge startChatStream — SSE happy path (t/2462)', () => {
@@ -141,6 +143,23 @@ describe('web-bridge startChatStream — request shaping (t/2462)', () => {
     const body = JSON.parse(mockResilientFetch.mock.calls[0][1].body as string);
     expect(body.apiKey).toBeUndefined();
     expect(body.urlContext).toBe(false);
+  });
+
+  it('threads chatSessionId onto the POST body and the client ai.request event (t/2490 Gap 2)', async () => {
+    mockResilientFetch.mockResolvedValue(sseResponse([frame({ type: 'done', fullText: '' })]));
+    await api.startChatStream('sys', MSGS, 'gemini', 0.5, false, { chatSessionId: 'chat-abc' });
+    const body = JSON.parse(mockResilientFetch.mock.calls[0][1].body as string);
+    expect(body.chatSessionId).toBe('chat-abc'); // → server ai.request (t/2494)
+    const aiReq = recorded.find((r) => r.type === 'ai.request');
+    expect(aiReq?.data?.chatSessionId).toBe('chat-abc'); // → client dump
+  });
+
+  it('omits chatSessionId/linkedDebateId from the body when no context is passed (absent-tolerant)', async () => {
+    mockResilientFetch.mockResolvedValue(sseResponse([frame({ type: 'done', fullText: '' })]));
+    await api.startChatStream('sys', MSGS);
+    const body = JSON.parse(mockResilientFetch.mock.calls[0][1].body as string);
+    expect('chatSessionId' in body).toBe(false);
+    expect('linkedDebateId' in body).toBe(false);
   });
 });
 
