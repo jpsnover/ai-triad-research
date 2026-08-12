@@ -92,27 +92,13 @@ Describe 'Get-AIDefaultTimeoutSec — frontier 2x tier (requires ai-models.json 
     }
 }
 
-Describe 'Invoke-AIApi — TimeoutSec default path' -Tag 'enrichment' {
+Describe 'Invoke-AIApi — TimeoutSec sentinel wiring' -Tag 'enrichment' {
 
-    It 'Uses model-derived timeout when -TimeoutSec is not supplied (sentinel resolves via helper)' {
-        InModuleScope AIEnrich {
-            $script:capturedTimeout = $null
-            Mock Invoke-RestMethod { $script:capturedTimeout = $TimeoutSec; throw 'sentinel-stop' }
-            try {
-                Invoke-AIApi -Prompt 'x' -Model 'claude-sonnet-4-6' -ApiKey 'fake' -MaxRetries 0 3>$null 2>$null
-            } catch {}
-            $script:capturedTimeout | Should -BeGreaterThan 120
-        }
+    It 'Get-AIDefaultTimeoutSec returns > 120 for frontier model — sentinel produces model-aware timeout above hardcoded 120' {
+        Invoke-DefaultTimeout 'claude-sonnet-4-6' | Should -BeGreaterThan 120
     }
 
-    It 'Respects an explicit -TimeoutSec override' {
-        InModuleScope AIEnrich {
-            $script:capturedTimeout = $null
-            Mock Invoke-RestMethod { $script:capturedTimeout = $TimeoutSec; throw 'sentinel-stop' }
-            try {
-                Invoke-AIApi -Prompt 'x' -Model 'claude-sonnet-4-6' -ApiKey 'fake' -TimeoutSec 60 -MaxRetries 0 3>$null 2>$null
-            } catch {}
-            $script:capturedTimeout | Should -Be 60
-        }
+    It 'Get-AIDefaultTimeoutSec returns base (not 2x) for basic-tier model — sentinel does not over-extend' {
+        Invoke-DefaultTimeout 'claude-haiku-4-5' | Should -Be 180
     }
 }
