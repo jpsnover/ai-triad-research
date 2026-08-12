@@ -61,6 +61,13 @@ const sourceMetadataSchema = z.object({
 });
 const oneSourceMetadata = z.tuple([sourceMetadataSchema]);
 
+// t/2540: dialog-returned-path allowlist. The `read-source-file` handler serves ONLY paths
+// the native open dialog handed to the renderer this session (populated by
+// 'open-source-file-dialog'). Users may legitimately pick source files anywhere on disk, so a
+// fixed-root containment (as in extract-pdf-text) would be wrong here — the native dialog IS the
+// authorization. Restores the handler dropped in ef8bac78 which broke AddSourceDialog's add-file flow.
+const dialogAuthorizedSourcePaths = new Set<string>();
+
 export function registerIpcHandlers(): void {
   // === No-arg handlers (no validation needed) ===
 
@@ -93,10 +100,38 @@ export function registerIpcHandlers(): void {
       properties: ['openFile', 'multiSelections'],
     });
     if (result.canceled || result.filePaths.length === 0) return null;
+    // t/2540: authorize exactly these dialog-vetted paths for a later read-source-file read.
+    for (const fp of result.filePaths) dialogAuthorizedSourcePaths.add(path.resolve(fp));
     return result.filePaths;
   });
 
   // === Single string arg ===
+
+  // t/2540: restore the read-source-file handler dropped in ef8bac78 — AddSourceDialog's
+  // add-file flow calls it after open-source-file-dialog. Containment is the dialog-returned-path
+  // allowlist (dialogAuthorizedSourcePaths), NOT a fixed root: the native dialog is the authorization.
+  validatedHandle('read-source-file', oneString, (_event, filePath) => {
+    const resolved = path.resolve(filePath);
+    if (!dialogAuthorizedSourcePaths.has(resolved)) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'poviewer-ipc',
+        level: 'warn',
+        message: 'read-source-file refused a path not authorized by the native open dialog',
+        error: { name: 'SecurityError', message: resolved },
+      });
+      throw Object.assign(new ActionableError({
+        goal: 'Read a source file selected via the Add Source dialog',
+        problem: `Refused to read a path the native file dialog did not return this session: ${resolved}`,
+        location: 'ipcHandlers.ts:read-source-file',
+        nextSteps: [
+          'Select the file through Add Source → Browse — the native dialog authorizes the path',
+          'Paths are only readable when handed out by dialog.showOpenDialog in this session',
+        ],
+      }), { statusCode: 400 });
+    }
+    return readSourceFileContent(resolved);
+  });
 
   validatedHandle('set-taxonomy-dir', oneString, (_event, dirName) => {
     setActiveTaxonomyDir(dirName);
