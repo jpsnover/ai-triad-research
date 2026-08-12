@@ -4,6 +4,7 @@
 import { ipcMain, dialog, shell, BrowserWindow } from 'electron';
 import { z } from 'zod';
 import fs from 'fs';
+import path from 'path';
 import { getGlobalRecorder } from '../../../lib/flight-recorder/index.js';
 import { ActionableError } from '../../../lib/debate/errors.js';
 import {
@@ -30,9 +31,11 @@ import {
   readRawPdfBytes,
   watchTaxonomyFiles,
   stopWatchingTaxonomyFiles,
-  SourceMetadataOnDisk,
+  getSourcesRoot,
+  getProjectRoot,
 } from './fileIO.js';
-import { storeApiKey, getApiKey, validateApiKey } from './apiKeyStore.js';
+import { storeApiKey, hasApiKey, validateApiKey } from './apiKeyStore.js';
+import { SAFE_ID_RE, assertContainedIn } from '../../../lib/electron-shared/safeId.js';
 import { runAnalysis, cancelAnalysis, getAnalysisStatus } from './aiEngine.js';
 import type { AiSettings, PromptOverrides } from './analysisTypes.js';
 import {
@@ -45,6 +48,19 @@ import {
   stringAndUnknown,
 } from '../../../lib/electron-shared/utils/validatedIpc.js';
 
+// t/2534 (M7): shape check for renderer-supplied source metadata. The `id`
+// becomes an on-disk directory name, so it is refined by the shared SAFE_ID_RE
+// (createSourceOnDisk additionally assertSafeId's it at the write site).
+const sourceMetadataSchema = z.object({
+  id: z.string().regex(SAFE_ID_RE, 'must contain only alphanumerics, hyphens, and underscores'),
+  title: z.string(),
+  sourceType: z.string(),
+  url: z.string().nullable(),
+  addedAt: z.string(),
+  status: z.string(),
+});
+const oneSourceMetadata = z.tuple([sourceMetadataSchema]);
+
 export function registerIpcHandlers(): void {
   // === No-arg handlers (no validation needed) ===
 
@@ -52,7 +68,8 @@ export function registerIpcHandlers(): void {
   ipcMain.handle('get-active-taxonomy-dir', () => getActiveTaxonomyDirName());
   ipcMain.handle('load-settings', () => loadSettings());
   ipcMain.handle('discover-sources', () => discoverSources());
-  ipcMain.handle('get-api-key', () => getApiKey());
+  // t/2534 (M4): presence check only — the raw API key never crosses IPC.
+  ipcMain.handle('has-api-key', () => hasApiKey());
   ipcMain.handle('get-ai-settings', () => loadAiSettings());
   ipcMain.handle('get-prompt-overrides', () => loadPromptOverrides());
 
@@ -120,8 +137,32 @@ export function registerIpcHandlers(): void {
   });
 
   validatedHandle('extract-pdf-text', oneString, async (_event, filePath) => {
+    // t/2534 (M10): the renderer must not be able to read arbitrary absolute
+    // paths — constrain to the taxonomy data root or the app's sources dir.
+    const resolved = path.resolve(filePath);
+    const allowedRoots = [path.resolve(getSourcesRoot()), path.resolve(getProjectRoot())];
+    const contained = allowedRoots.some((root) => {
+      try {
+        assertContainedIn(resolved, root);
+        return true;
+      } catch {
+        /* telemetry — silent by design */
+        return false;
+      }
+    });
+    if (!contained) {
+      throw Object.assign(new ActionableError({
+        goal: 'Extract text from a PDF file',
+        problem: `Blocked PDF path outside the data root and sources directory: ${resolved}`,
+        location: 'ipcHandlers.ts:extract-pdf-text',
+        nextSteps: [
+          'Only PDFs under the project data root or the sources directory can be extracted',
+          'Ingest the document as a source first, then extract from its raw/ directory (see get-pdf-bytes)',
+        ],
+      }), { statusCode: 400 });
+    }
     const { extractPdfText } = await import('./pdfExtractor.js');
-    return extractPdfText(filePath);
+    return extractPdfText(resolved);
   });
 
   validatedHandle('open-external-url', oneString, (_event, url) => {
@@ -216,8 +257,8 @@ export function registerIpcHandlers(): void {
     saveSettings(data);
   });
 
-  validatedHandle('add-source', oneUnknown, (_event, meta) => {
-    createSourceOnDisk(meta as SourceMetadataOnDisk);
+  validatedHandle('add-source', oneSourceMetadata, (_event, meta) => {
+    createSourceOnDisk(meta);
   });
 
   validatedHandle('save-ai-settings', oneUnknown, (_event, settings) => {

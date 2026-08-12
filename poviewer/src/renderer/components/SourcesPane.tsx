@@ -22,9 +22,9 @@ export default function SourcesPane() {
   const setHasApiKey = useAnalysisStore(s => s.setHasApiKey);
 
   useEffect(() => {
-    if (window.electronAPI?.getApiKey) {
-      window.electronAPI.getApiKey().then(key => {
-        setHasApiKey(!!key);
+    if (window.electronAPI?.hasApiKey) {
+      window.electronAPI.hasApiKey().then(hasKey => {
+        setHasApiKey(hasKey);
       });
     }
   }, [setHasApiKey]);

@@ -10,6 +10,7 @@
     "dev:vite": "vite",
     "dev:electron": "wait-on http://localhost:5174 && electron .",
     "build:main": "tsc -p tsconfig.main.json",
+    "test": "vitest run",
     "licenses": "node scripts/generate-notices.cjs --output THIRD-PARTY-NOTICES.txt",
     "build": "tsc -p tsconfig.main.json && vite build && npm run licenses",
     "lint": "eslint src/"
@@ -33,6 +34,7 @@
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.66.0",
     "vite": "^8.2.0",
+    "vitest": "^4.1.10",
     "wait-on": "^9.1.0"
   },
   "overrides": {

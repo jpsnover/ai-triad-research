@@ -44,9 +44,9 @@ function useOnboardingCheck() {
       return;
     }
 
-    if (window.electronAPI?.getApiKey) {
-      window.electronAPI.getApiKey().then(key => {
-        if (!key) {
+    if (window.electronAPI?.hasApiKey) {
+      window.electronAPI.hasApiKey().then(hasKey => {
+        if (!hasKey) {
           setShowOnboarding(true);
         }
         setChecked(true);

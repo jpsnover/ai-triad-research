@@ -10,6 +10,7 @@ import { getGlobalRecorder } from '../../../lib/flight-recorder/index.js';
 import { DEFAULT_MODEL } from '../../../lib/ai-client/index.js';
 import { app } from 'electron';
 import { resolveRepoRootForApp } from '../../../lib/electron-shared/resolveRepoRootForApp.js';
+import { assertSafeId, assertContainedIn } from '../../../lib/electron-shared/safeId.js';
 
 // Repo root via the shared electron resolver (walks to .aitriad.json/scripts/AITriad,
 // falls back to the packaged app path — the asar hardening the t/1720 comment flagged
@@ -39,6 +40,22 @@ function resolveSourcesDir(): string {
   return path.join(PROJECT_ROOT, 'sources');
 }
 const SOURCES_DIR = resolveSourcesDir();
+const SOURCES_ROOT_RESOLVED = path.resolve(SOURCES_DIR);
+
+// t/2534 (M6/M8pov): validate a renderer-supplied source ID and resolve its
+// directory, guaranteeing the result stays inside SOURCES_DIR. assertSafeId
+// rejects traversal tokens (`..`, separators, absolute paths) up front;
+// assertContainedIn is the defense-in-depth backstop after path.resolve.
+function resolveSourceDirSafe(sourceId: string): string {
+  assertSafeId(sourceId, 'sourceId');
+  const dir = path.resolve(SOURCES_DIR, sourceId);
+  assertContainedIn(dir, SOURCES_ROOT_RESOLVED);
+  return dir;
+}
+
+export function getSourcesRoot(): string {
+  return SOURCES_DIR;
+}
 const SETTINGS_PATH = path.join(PROJECT_ROOT, 'poviewer', 'settings.json');
 const AI_SETTINGS_PATH = path.join(CONFIG_DIR, 'ai-settings.json');
 const PROMPTS_PATH = path.join(CONFIG_DIR, 'prompts.json');
@@ -62,7 +79,11 @@ export function getActiveTaxonomyDirName(): string {
 }
 
 export function setActiveTaxonomyDir(dirName: string): void {
-  const newDir = path.join(TAXONOMY_BASE, dirName);
+  // t/2534 (M9pov): dirName is renderer-supplied (picked from getTaxonomyDirs());
+  // reject traversal tokens and confine the result to TAXONOMY_BASE.
+  assertSafeId(dirName, 'dirName');
+  const newDir = path.resolve(TAXONOMY_BASE, dirName);
+  assertContainedIn(newDir, path.resolve(TAXONOMY_BASE));
   if (!fs.existsSync(newDir)) {
     throw new ActionableError({
       goal: 'Switch active taxonomy directory',
@@ -97,7 +118,7 @@ export function readTaxonomyFile(pov: string): unknown {
 }
 
 export function readSnapshot(sourceId: string): string {
-  const filePath = path.join(SOURCES_DIR, sourceId, 'snapshot.md');
+  const filePath = path.join(resolveSourceDirSafe(sourceId), 'snapshot.md');
   if (!fs.existsSync(filePath)) {
     throw new ActionableError({
       goal: 'Read snapshot markdown for a source document',
@@ -135,7 +156,10 @@ export interface SourceMetadataOnDisk {
 }
 
 export function createSourceOnDisk(meta: SourceMetadataOnDisk): void {
-  const sourceDir = path.join(SOURCES_DIR, meta.id);
+  // t/2534 (M7): meta.id is renderer-supplied — validate at the write site too
+  // (the IPC handler's Zod schema is the first line of defense).
+  assertSafeId(meta.id, 'meta.id');
+  const sourceDir = resolveSourceDirSafe(meta.id);
   if (!fs.existsSync(sourceDir)) {
     fs.mkdirSync(sourceDir, { recursive: true });
   }
@@ -313,7 +337,10 @@ export function discoverSources(): DiscoveredSource[] {
 }
 
 export function loadPipelineSummary(docId: string): PipelineSummary | null {
-  const summaryPath = path.join(SUMMARIES_DIR, `${docId}.json`);
+  // t/2534 (M8pov): docId is renderer-supplied.
+  assertSafeId(docId, 'docId');
+  const summaryPath = path.resolve(SUMMARIES_DIR, `${docId}.json`);
+  assertContainedIn(summaryPath, path.resolve(SUMMARIES_DIR));
   if (!fs.existsSync(summaryPath)) return null;
   const raw = fs.readFileSync(summaryPath, 'utf-8');
   return JSON.parse(raw);
@@ -322,7 +349,7 @@ export function loadPipelineSummary(docId: string): PipelineSummary | null {
 // === Annotation File I/O ===
 
 export function saveAnnotations(sourceId: string, annotations: unknown): void {
-  const sourceDir = path.join(SOURCES_DIR, sourceId);
+  const sourceDir = resolveSourceDirSafe(sourceId);
   if (!fs.existsSync(sourceDir)) {
     fs.mkdirSync(sourceDir, { recursive: true });
   }
@@ -334,7 +361,7 @@ export function saveAnnotations(sourceId: string, annotations: unknown): void {
 }
 
 export function loadAnnotations(sourceId: string): unknown {
-  const filePath = path.join(SOURCES_DIR, sourceId, 'annotations.json');
+  const filePath = path.join(resolveSourceDirSafe(sourceId), 'annotations.json');
   if (!fs.existsSync(filePath)) return [];
   const raw = fs.readFileSync(filePath, 'utf-8');
   return JSON.parse(raw);
@@ -343,7 +370,7 @@ export function loadAnnotations(sourceId: string): unknown {
 // === Analysis Result I/O ===
 
 export function saveAnalysisResult(sourceId: string, result: unknown): void {
-  const sourceDir = path.join(SOURCES_DIR, sourceId);
+  const sourceDir = resolveSourceDirSafe(sourceId);
   if (!fs.existsSync(sourceDir)) {
     fs.mkdirSync(sourceDir, { recursive: true });
   }
@@ -355,7 +382,7 @@ export function saveAnalysisResult(sourceId: string, result: unknown): void {
 }
 
 export function loadAnalysisResult(sourceId: string): unknown | null {
-  const filePath = path.join(SOURCES_DIR, sourceId, 'analysis.json');
+  const filePath = path.join(resolveSourceDirSafe(sourceId), 'analysis.json');
   if (!fs.existsSync(filePath)) return null;
   const raw = fs.readFileSync(filePath, 'utf-8');
   return JSON.parse(raw);
@@ -414,7 +441,7 @@ export function readAllTaxonomies(): string {
 // === Export Helpers ===
 
 export function getSourceDir(sourceId: string): string {
-  return path.join(SOURCES_DIR, sourceId);
+  return resolveSourceDirSafe(sourceId);
 }
 
 export function getProjectRoot(): string {
@@ -424,7 +451,7 @@ export function getProjectRoot(): string {
 // === Raw PDF Path Resolution ===
 
 export function findRawPdfPath(sourceId: string): string | null {
-  const rawDir = path.join(SOURCES_DIR, sourceId, 'raw');
+  const rawDir = path.join(resolveSourceDirSafe(sourceId), 'raw');
   if (!fs.existsSync(rawDir)) return null;
   const files = fs.readdirSync(rawDir);
   const pdf = files.find(f => f.toLowerCase().endsWith('.pdf'));
