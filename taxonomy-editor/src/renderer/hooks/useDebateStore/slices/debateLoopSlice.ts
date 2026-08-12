@@ -240,6 +240,15 @@ export const createDebateLoopSlice: StateCreator<DebateStore, [], [], DebateLoop
           taxonomy_refs: [],
         });
       }
+
+      // Socratic step mode (t/2516): one AI response per user question. Break after the
+      // first responder so generation pauses for the user's next question instead of
+      // letting the remaining respondingPovers auto-run. Placed at the end of the loop
+      // body (after the try/catch) so exactly one turn is produced even if it errored.
+      // protocol_id + step_mode are set at debate creation and don't change mid-turn.
+      if (activeDebate.adaptive_staging?.step_mode && activeDebate.protocol_id === 'socratic') {
+        break;
+      }
     }
 
     set({ debateGenerating: null });
