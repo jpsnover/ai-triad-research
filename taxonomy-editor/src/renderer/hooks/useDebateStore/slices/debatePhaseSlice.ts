@@ -87,7 +87,7 @@ import { mapErrorToUserMessage } from '../../../utils/errorMessages';
 import { cosineSimilarity, scoreNodesLexical } from '../../../utils/taxonomyRelevance';
 import { getConfiguredModel, getSpeakerModel } from '../shared/modelConfig';
 import { generateTextWithProgress, phaseGuardedSet, summarizeTranscriptEntry, makeStageGenerate, routeTurnValidatorHintsIntoSuggestions, getSourceEvidenceIndex, getDocTitles } from '../shared/generation';
-import { createDebateGuard, newAbortController, _abortController, claimDebateDriver, releaseDebateDriver, isDailyLimitError, DAILY_LIMIT_MESSAGE } from '../shared/guards';
+import { createDebateGuard, newAbortController, _abortController, claimDebateDriver, releaseDebateDriver, isDailyLimitError, DAILY_LIMIT_MESSAGE, isCancellationError } from '../shared/guards';
 import { pushWarning, recordDiagnostic, recordSignalHistory, getSignalValue, movingAverageSignal, incrementGapInjectionCount, _gapInjectionCount } from '../shared/diagnostics';
 import { runNeutralCheckpoint } from '../shared/neutralCheckpoint';
 import { enrichPolicyRefs, serializeNodeSourceMap, formatEdgeContext, formatDebaterEdgeContext, getRelevantTaxonomyContext, getAllKnownNodeIds, getAllPolicyIds, findNodeMetaInStore, getTaxonomyContext } from '../shared/taxonomyContext';
@@ -368,6 +368,9 @@ export const createDebatePhaseSlice: StateCreator<DebateStore, [], [], DebatePha
               const { statement: newStatement, meta: newMeta } = regenAssembled;
               return { statement: newStatement, debaterClaims: newMeta.my_claims };
             } catch (err) {
+              // Propagate a user cancel to the outer catch (t/2508) rather than silently
+              // falling back to the un-regenerated statement.
+              if (isCancellationError(err)) throw err;
               getGlobalRecorder()?.record({
                 type: 'system.error',
                 debate_id: activeDebate?.id,
@@ -401,6 +404,8 @@ export const createDebatePhaseSlice: StateCreator<DebateStore, [], [], DebatePha
 
       await runGapInjectionCheck(get, set, addTranscriptEntry, activeDebate);
     } catch (err) {
+      // User cancel / model switch (t/2508) — bail quietly, no error toast (helper logged info).
+      if (isCancellationError(err)) { releaseDebateDriver(); set({ debateGenerating: null, debateActivity: null }); return; }
       getGlobalRecorder()?.record({ type: 'system.error', component: 'debate-store', level: 'error', debate_id: activeDebate.id, message: `Pipeline failed for ${responderPover} R${crossRespondRound}`, data: { round: crossRespondRound, speaker: responderPover, error: String(err), stack: (err as Error).stack?.slice(0, 500), transcript_length: get().activeDebate?.transcript.length } });
       if (isDailyLimitError(err)) {
         addTranscriptEntry({ type: 'system', speaker: 'system', content: DAILY_LIMIT_MESSAGE, taxonomy_refs: [] });
@@ -1416,6 +1421,8 @@ async function runModeratorStep(selectionInput: ModeratorSelectionInput, selecti
         releaseDebateDriver(); return null;
       }
     } catch (err) {
+      // User cancel / model switch (t/2508) — bail quietly, no error toast (helper logged info).
+      if (isCancellationError(err)) { releaseDebateDriver(); set({ debateGenerating: null, debateActivity: null }); return null; }
       getGlobalRecorder()?.record({
         type: 'system.error',
         debate_id: activeDebate?.id,

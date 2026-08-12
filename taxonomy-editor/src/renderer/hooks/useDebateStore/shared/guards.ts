@@ -49,6 +49,11 @@ export function newAbortController(): AbortController {
   return _abortController;
 }
 
+// Deliberate-cancellation tagging (t/2508) lives in the zero-dependency bridge module
+// so both bridges and this debate-store module share one definition without an import
+// cycle. Re-exported here for the debate-store consumers (generation.ts, slice catches).
+export { isCancellationError, makeCancellationError } from '../../../bridge/cancellation';
+
 // ── Single-driver guard (t/657) ────────────────────────────────────────
 const _driverChannel = typeof BroadcastChannel !== 'undefined'
   ? new BroadcastChannel('aitriad-debate-driver') : null;

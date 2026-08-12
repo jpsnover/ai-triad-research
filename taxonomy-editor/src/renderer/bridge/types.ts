@@ -101,6 +101,19 @@ export type ContainerMentions = _ContainerMentions;
 
 export interface OrgFilters { type?: string; pov?: string }
 
+/**
+ * Per-call options for {@link AppAPI.generateText} (t/2508, HLD t/2506#1).
+ * `signal` lets a caller abort an in-flight AI request — in web builds it tears
+ * down the fetch; in Electron it fires the `cancelGenerate` IPC (feature-detected).
+ * `requestId` correlates the request across bridge → transport → provider so the
+ * cancel channel can target the exact in-flight request. Optional throughout, so
+ * no-signal callers behave exactly as before.
+ */
+export interface GenerateTextOptions {
+  signal?: AbortSignal;
+  requestId?: string;
+}
+
 export type ViewMode = 'simple' | 'advanced';
 
 export interface UserPreferences {
@@ -187,7 +200,7 @@ export interface AppAPI {
   importKeysFromSharing: (payload: { v: number; salt: string; iv: string; data: string; tag: string }, passphrase: string) => Promise<string[]>;
 
   // --- AI generation ---
-  generateText: (prompt: string, model?: string, timeoutMs?: number, temperature?: number) => Promise<{ text: string; tokenUsage?: { inputTokens: number; outputTokens: number; totalTokens: number } }>;
+  generateText: (prompt: string, model?: string, timeoutMs?: number, temperature?: number, opts?: GenerateTextOptions) => Promise<{ text: string; tokenUsage?: { inputTokens: number; outputTokens: number; totalTokens: number } }>;
   generateTextWithSearch: (prompt: string, model?: string) => Promise<{
     text: string;
     searchQueries?: string[];

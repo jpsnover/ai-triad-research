@@ -21,6 +21,26 @@ export interface ResilientFetchOptions {
   maxRetries: number;
   critical: boolean;
   category: EndpointCategory;
+  /** Caller abort signal (t/2508). Composed with the per-attempt timeout so a
+   *  deliberate cancel physically tears down the socket. A caller abort is
+   *  non-retryable and does not trip the circuit breaker. */
+  signal?: AbortSignal;
+}
+
+/** Compose the caller signal with the per-attempt timeout controller. Prefers the
+ *  native `AbortSignal.any` (Electron 35 / Node 20.3+); manual link is a fallback so
+ *  the composition never throws in an older runtime. */
+function anySignal(caller: AbortSignal | undefined, timeout: AbortSignal): AbortSignal {
+  if (!caller) return timeout;
+  if (typeof AbortSignal.any === 'function') return AbortSignal.any([caller, timeout]);
+  const ctrl = new AbortController();
+  const onAbort = () => ctrl.abort();
+  if (caller.aborted || timeout.aborted) ctrl.abort();
+  else {
+    caller.addEventListener('abort', onAbort, { once: true });
+    timeout.addEventListener('abort', onAbort, { once: true });
+  }
+  return ctrl.signal;
 }
 
 // ── Config accessors (backed by runtime config, falls back to hardcoded defaults) ──
@@ -245,7 +265,10 @@ export async function resilientFetch(
     const start = performance.now();
 
     try {
-      const res = await fetch(path, { ...init, signal: controller.signal });
+      // Compose the caller's abort signal (if any) with the per-attempt timeout (t/2508).
+      // Without this, `signal: controller.signal` would overwrite init.signal and a
+      // deliberate cancel could never reach the socket.
+      const res = await fetch(path, { ...init, signal: anySignal(opts.signal, controller.signal) });
       clearTimeout(timer);
       recordLatency(category, performance.now() - start);
 
@@ -279,6 +302,9 @@ export async function resilientFetch(
     } catch (err) {
       clearTimeout(timer);
       recordLatency(category, performance.now() - start);
+      // Deliberate caller cancel (t/2508): not a server failure — don't trip the circuit,
+      // don't retry, don't log an error. Re-throw so the bridge can tag it as a cancellation.
+      if (opts.signal?.aborted) throw err;
       onCircuitFailure(category, (err as Error).name === 'AbortError' ? 'timeout' : (err as Error).name);
 
       if (attempt < maxRetries && isRetryableError(err)) {

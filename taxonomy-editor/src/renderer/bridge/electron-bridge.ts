@@ -6,6 +6,7 @@
  * Used when the app runs inside Electron (desktop mode).
  */
 import type { AppAPI, UserPreferences } from './types';
+import { makeCancellationError } from './cancellation';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { ALL_API_KEY_BACKENDS } from '@lib/ai-client/types';
 import {
@@ -143,7 +144,31 @@ export const api: AppAPI = {
   importKeysFromSharing: (payload, passphrase) => window.electronAPI.importKeysFromSharing(payload, passphrase),
 
   // AI generation
-  generateText: (prompt, model, timeout, temperature) => window.electronAPI.generateText(prompt, model, timeout, temperature),
+  generateText: (prompt, model, timeout, temperature, opts) => {
+    // Correlate the request so the cancel channel can target it (t/2508). The main-process
+    // handler ignores an unknown trailing arg until it wires requestId + AbortController (t/2509).
+    const requestId = opts?.requestId ?? crypto.randomUUID();
+    const invoke = window.electronAPI.generateText(prompt, model, timeout, temperature, requestId);
+    const signal = opts?.signal;
+    if (!signal) return invoke;
+    // Race the invoke against the abort signal so the renderer promise rejects PROMPTLY on a
+    // user cancel — this makes t/2505's "new model starts immediately" work even before t/2509
+    // lands. cancelGenerate is feature-detected, so this is safe in either landing order; the
+    // main-process request itself keeps running until t/2509 (resource leak closed there).
+    const cancel = () => window.electronAPI.cancelGenerate?.(requestId);
+    if (signal.aborted) {
+      cancel();
+      return Promise.reject(makeCancellationError('generateText cancelled by caller'));
+    }
+    return new Promise<{ text: string }>((resolve, reject) => {
+      const onAbort = () => { cancel(); reject(makeCancellationError('generateText cancelled by caller')); };
+      signal.addEventListener('abort', onAbort, { once: true });
+      invoke.then(
+        (r) => { signal.removeEventListener('abort', onAbort); resolve(r); },
+        (e) => { signal.removeEventListener('abort', onAbort); reject(e); },
+      );
+    });
+  },
   generateTextWithSearch: (prompt, model) => window.electronAPI.generateTextWithSearch(prompt, model),
   startChatStream: (sys, msgs, model, temp, urlContext) => window.electronAPI.startChatStream(sys, msgs, model, temp, urlContext),
   onChatStreamChunk: (cb) => window.electronAPI.onChatStreamChunk(cb),

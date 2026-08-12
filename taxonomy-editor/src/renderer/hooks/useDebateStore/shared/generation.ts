@@ -8,6 +8,7 @@ import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { parseAIJson } from '@lib/debate/helpers';
 import { entrySummarizationPrompt } from '../../../prompts/debate';
 import { findNodeMetaInStore } from './taxonomyContext';
+import { _abortController, isCancellationError } from './guards';
 // getDocTitles lives in a store-free module to avoid a load-order cycle (t/1779);
 // re-exported here so existing importers (debate*Slice) stay unchanged.
 export { getDocTitles } from './docTitles';
@@ -61,8 +62,18 @@ export async function generateTextWithProgress(
     set({ debateProgress: normalizeProgress(progress) });
   });
   try {
-    const result = await api.generateText(prompt, model, timeoutMs);
+    // Thread the live debate abort signal (t/2508) so cancelAndResetAbort() physically
+    // kills the in-flight request instead of merely gating late results. Read inline:
+    // the currently-active controller is the one owning this call at await time.
+    const result = await api.generateText(prompt, model, timeoutMs, undefined, { signal: _abortController?.signal });
     return result;
+  } catch (err) {
+    if (isCancellationError(err)) {
+      // Deliberate cancel (Switch model / Cancel debate) — record at info, not error,
+      // and re-throw the tagged error so the caller's catch can bail quietly (t/2508).
+      getGlobalRecorder()?.record({ type: 'debate.lifecycle', component: 'debate-store', level: 'info', message: `AI generation cancelled: ${activity}` });
+    }
+    throw err;
   } finally {
     unsubscribe();
     set({ debateProgress: null, debateActivity: null, debateGeneratingStartedAt: null });
@@ -211,8 +222,14 @@ export function makeStageGenerate(
       set({ debateProgress: normalizeProgress(progress) });
     });
     try {
-      const result = await api.generateText(prompt, callModel || model, options.timeoutMs, options.temperature);
+      // Thread the live debate abort signal (t/2508) — see generateTextWithProgress.
+      const result = await api.generateText(prompt, callModel || model, options.timeoutMs, options.temperature, { signal: _abortController?.signal });
       return result.text;
+    } catch (err) {
+      if (isCancellationError(err)) {
+        getGlobalRecorder()?.record({ type: 'debate.lifecycle', component: 'debate-store', level: 'info', message: `AI generation cancelled: ${label}` });
+      }
+      throw err;
     } finally {
       unsubscribe();
       set({ debateProgress: null, debateActivity: null, debateGeneratingStartedAt: null });

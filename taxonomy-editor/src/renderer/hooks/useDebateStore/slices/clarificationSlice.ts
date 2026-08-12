@@ -38,7 +38,7 @@ import { mapErrorToUserMessage } from '../../../utils/errorMessages';
 import { isLineageDataLoaded } from '../../../data/lineageCategories';
 import { getConfiguredModel, getSpeakerModel, resolveBriefModel } from '../shared/modelConfig';
 import { generateTextWithProgress, summarizeTranscriptEntry, makeStageGenerate } from '../shared/generation';
-import { createDebateGuard, newAbortController, _abortController, claimDebateDriver, releaseDebateDriver, isDailyLimitError, DAILY_LIMIT_MESSAGE } from '../shared/guards';
+import { createDebateGuard, newAbortController, _abortController, claimDebateDriver, releaseDebateDriver, isDailyLimitError, DAILY_LIMIT_MESSAGE, isCancellationError } from '../shared/guards';
 import { pushWarning, recordDiagnostic } from '../shared/diagnostics';
 import { runNeutralCheckpoint } from '../shared/neutralCheckpoint';
 import { buildLineageContext, getRelevantTaxonomyContext, formatDebaterEdgeContext, enrichPolicyRefs, serializeNodeSourceMap, getAllKnownNodeIds } from '../shared/taxonomyContext';
@@ -276,6 +276,8 @@ export const createClarificationSlice: StateCreator<DebateStore, [], [], Clarifi
         });
       }
     } catch (err) {
+      // User cancel / model switch (t/2508) — bail quietly, no toast (helper logged info).
+      if (isCancellationError(err)) { set({ debateGenerating: null, debateActivity: null }); return; }
       getGlobalRecorder()?.record({
         type: 'system.error',
         debate_id: activeDebate?.id,
@@ -545,6 +547,8 @@ export const createClarificationSlice: StateCreator<DebateStore, [], [], Clarifi
       await get().beginDebate();
       return;
     } catch (err) {
+      // User cancel / model switch (t/2508) — bail quietly (finally clears state); no toast.
+      if (isCancellationError(err)) return;
       getGlobalRecorder()?.record({
         type: 'system.error',
         debate_id: activeDebate?.id,
@@ -678,6 +682,8 @@ export const createClarificationSlice: StateCreator<DebateStore, [], [], Clarifi
           }
         }
       } catch (err) {
+        // User cancel / model switch (t/2508) — bail quietly (finally clears state); no toast.
+        if (isCancellationError(err)) return;
         getGlobalRecorder()?.record({
           type: 'system.error',
           debate_id: activeDebate?.id,
@@ -1109,6 +1115,15 @@ export const createClarificationSlice: StateCreator<DebateStore, [], [], Clarifi
           void extractClaimsAndUpdateAN(statement, poverId, lastEntry.id, taxonomyRefs.map(r => r.node_id), get, set, meta.my_claims);
         }
       } catch (err) {
+        // Deliberate cancel / model switch mid-brief (t/2508): the shared generation helper
+        // already recorded the info event. Bail quietly — no error toast, no auto-retry —
+        // instead of classifying it as a transient failure. t/2505's retryWithModel starts a
+        // fresh run on the new model immediately after aborting this one.
+        if (isCancellationError(err)) {
+          releaseDebateDriver();
+          set({ debateGenerating: null, debateActivity: null, debateProgress: null });
+          return;
+        }
         const httpStatus = (err as { httpStatus?: number }).httpStatus;
         // Broadened classification (t/2492): transient timeout/5xx/network now auto-retry, not just 429.
         const { retryable: isRetryable, reason: retryReason } = classifyAiRetry(err);
