@@ -331,7 +331,7 @@ function normalizeExplicitKeys(explicitApiKey: string | string[] | undefined): s
 // friendly id — fixedTemperature is resolved for currentModel on each attempt so
 // fallback models get their own value, not the primary's (t/2108).
 function buildGenerateOptions(
-  options: { temperature?: number } | undefined,
+  options: { temperature?: number; signal?: AbortSignal } | undefined,
   timeoutMs: number | undefined,
   currentModel: string,
   entryMap: Record<string, ModelEntry>,
@@ -341,6 +341,9 @@ function buildGenerateOptions(
     temperature: options?.temperature ?? _debateTemperature ?? 0.7,
     timeoutMs: timeoutMs ?? getDefaultTimeout(currentModel),
     ...(entry?.fixedTemperature != null ? { fixedTemperature: entry.fixedTemperature } : {}),
+    // t/2510: caller cancellation (client disconnect) → callProvider passes this into
+    // the provider fetch's init.signal (AbortSignal.any with the per-attempt timeout).
+    ...(options?.signal ? { signal: options.signal } : {}),
   };
 }
 
@@ -362,7 +365,7 @@ export async function generateText(
   onRetry?: (p: GenerateTextProgress) => void,
   timeoutMs?: number,
   explicitApiKey?: string | string[],
-  options?: { temperature?: number },
+  options?: { temperature?: number; signal?: AbortSignal },
 ): Promise<GenerateResult> {
   const resolved = model || DEFAULT_MODEL;
   const explicitKeys = normalizeExplicitKeys(explicitApiKey);
@@ -394,6 +397,9 @@ export async function generateText(
       SERVER_RETRY_CONFIG,
       `${backend}/${apiModel}`,
       (msg: string) => reportProviderRetry(msg, backend, apiModel, onRetry),
+      // t/2510: signal-aware backoff + pre-attempt abort check; an AbortError is
+      // rethrown non-retryable so a deliberate cancel never enters the retry ladder.
+      options?.signal,
     );
 
     try {
@@ -487,6 +493,7 @@ export async function generateTextByUsage(
   overrides?: Partial<UsageConfig>,
   onRetry?: (p: GenerateTextProgress) => void,
   explicitApiKey?: string | string[],
+  signal?: AbortSignal, // t/2510: caller cancellation (client disconnect) → provider fetch
 ): Promise<GenerateResult> {
   const repoRoot = getProjectRoot();
   const config = getUsage(usageId, repoRoot);
@@ -502,7 +509,7 @@ export async function generateTextByUsage(
     data: { usageId, model: merged.model, hasOverrides: !!overrides, valueKeys: Object.keys(values) },
   });
 
-  return generateText(prompt, merged.model, onRetry, merged.timeoutMs, explicitApiKey, { temperature: merged.temperature });
+  return generateText(prompt, merged.model, onRetry, merged.timeoutMs, explicitApiKey, { temperature: merged.temperature, signal });
 }
 
 /**
