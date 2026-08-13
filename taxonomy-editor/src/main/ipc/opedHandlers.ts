@@ -1,9 +1,10 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-// Op-ed create/cancel/export IPC handlers (t/2575).
-// N× New-OpEd fan-out via ElectronMain-owned PS shim, 3-stage progress,
-// temp→atomic finalize (partial-set contract), whole-set Markdown export.
+// Op-ed create/cancel/export IPC handlers (t/2575, t/2588).
+// Stage A: Get-OpEdSource hoisted once per create call, SourcePrep threaded into each voice.
+// Stage B: N× New-OpEd fan-out via ElectronMain-owned PS shim, per-voice progress + cancel.
+// Partial-set contract: failed/cancelled members; whole-set Markdown export.
 
 import { ipcMain, dialog, BrowserWindow } from 'electron';
 import { spawn } from 'child_process';
@@ -19,10 +20,11 @@ import { saveOpEdSetTemp, finalizeOpEdSet, loadOpEdSet, deleteOpEdSet, listOpEdS
 import type { OpEdSet, OpEdMember, OpEdParams } from '../../../../lib/oped/types.js';
 import type { PovKey } from '../../../../lib/oped/types.js';
 
-// PS shim lives in source tree alongside its TypeScript callers. PROJECT_ROOT resolves
+// PS shims live in source tree alongside their TypeScript callers. PROJECT_ROOT resolves
 // via resolveRepoRootForApp (walks .aitriad.json), stable in both dev and packaged builds —
 // build:main is tsc-only and does not copy .ps1 to dist/.
-const SHIM_PATH = path.join(PROJECT_ROOT, 'taxonomy-editor', 'src', 'main', 'ps', 'invoke-oped.ps1');
+const SHIM_PATH      = path.join(PROJECT_ROOT, 'taxonomy-editor', 'src', 'main', 'ps', 'invoke-oped.ps1');
+const PREP_SHIM_PATH = path.join(PROJECT_ROOT, 'taxonomy-editor', 'src', 'main', 'ps', 'invoke-get-oped-source.ps1');
 
 // Read generation.opedVoiceTimeoutMs from {dataRoot}/admin/runtime-config.json on each run
 // so it's tunable without restart. Falls back to 360s (New-OpEd = grounding + full-essay LLM;
@@ -44,11 +46,11 @@ const activeOpEdRuns = new Map<string, AbortController>();
 
 // ── Progress event shape ──────────────────────────────────────────────────────
 
-type OpEdStage = 'queued' | 'fetching' | 'grounding' | 'generating' | 'finalizing' | 'complete' | 'failed' | 'cancelled';
+type OpEdStage = 'queued' | 'preparing-source' | 'fetching' | 'grounding' | 'generating' | 'finalizing' | 'complete' | 'failed' | 'cancelled';
 
 interface OpEdProgressEvent {
   set_id: string;
-  voice: PovKey;
+  voice?: PovKey;  // absent for set-phase events (e.g. preparing-source)
   stage: OpEdStage;
   error?: string;
 }
@@ -59,23 +61,94 @@ interface ShimStageLine { type: 'stage'; stage: string }
 interface ShimResultLine { type: 'result'; data: Record<string, unknown> }
 type ShimLine = ShimStageLine | ShimResultLine;
 
-// ── Single-voice runner ───────────────────────────────────────────────────────
+// ── Stage-A: source prep runner ───────────────────────────────────────────────
+
+function runGetOpEdSource(url: string, signal: AbortSignal): Promise<Record<string, unknown>> {
+  return new Promise((resolve, reject) => {
+    const child = spawn('pwsh', ['-NoProfile', '-NonInteractive', '-File', PREP_SHIM_PATH], {
+      stdio: ['pipe', 'pipe', 'pipe'],
+    });
+
+    let settled = false;
+    let timeoutHandle: ReturnType<typeof setTimeout> | undefined;
+
+    function onAbort(): void {
+      settle(() => { child.kill('SIGTERM'); reject(Object.assign(new Error('cancelled'), { name: 'AbortError' })); });
+    }
+
+    function settle(fn: () => void): void {
+      if (settled) return;
+      settled = true;
+      if (timeoutHandle !== undefined) clearTimeout(timeoutHandle);
+      signal.removeEventListener('abort', onAbort);
+      fn();
+    }
+
+    if (signal.aborted) { onAbort(); return; }
+    signal.addEventListener('abort', onAbort, { once: true });
+
+    timeoutHandle = setTimeout(() => {
+      settle(() => { child.kill('SIGTERM'); reject(new Error('Get-OpEdSource timed out')); });
+    }, getVoiceTimeoutMs());
+
+    child.stdin.write(JSON.stringify({ Url: url }), 'utf-8');
+    child.stdin.end();
+
+    let stdoutBuf = '';
+    child.stdout.on('data', (chunk: Buffer) => {
+      stdoutBuf += chunk.toString('utf-8');
+      const lines = stdoutBuf.split('\n');
+      stdoutBuf = lines.pop() ?? '';
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed) continue;
+        let msg: ShimLine;
+        try { msg = JSON.parse(trimmed) as ShimLine; } catch { /* telemetry — silent by design */ continue; }
+        if (msg.type === 'result') {
+          settle(() => resolve((msg as ShimResultLine).data ?? {}));
+        }
+      }
+    });
+
+    child.stderr.on('data', (chunk: Buffer) => {
+      getGlobalRecorder()?.record({
+        type: 'system.error', component: 'opedHandlers', level: 'warn',
+        message: `Get-OpEdSource stderr: ${chunk.toString('utf-8').slice(0, 500)}`,
+      });
+    });
+
+    child.on('error', (err) => settle(() => reject(err)));
+    child.on('close', (code) => settle(() => {
+      if (code !== 0) reject(new Error(`Get-OpEdSource exited with code ${code}`));
+      else reject(new Error('No result received from Get-OpEdSource'));
+    }));
+  });
+}
+
+// ── Stage-B: single-voice runner ─────────────────────────────────────────────
 
 interface VoiceRunOpts {
   topic: string;
   pov: PovKey;
   params: OpEdParams;
+  sourcePrep?: Record<string, unknown>;  // hoisted Stage-A result; if absent, Url falls through
   signal: AbortSignal;
   onProgress: (stage: OpEdStage, error?: string) => void;
 }
 
-function runVoice({ topic, pov, params, signal, onProgress }: VoiceRunOpts): Promise<OpEdMember> {
+function runVoice({ topic, pov, params, sourcePrep, signal, onProgress }: VoiceRunOpts): Promise<OpEdMember> {
   return new Promise<OpEdMember>((resolve, reject) => {
     const stdinPayload = JSON.stringify({
       Topic: topic,
       Pov: pov,
       WordCount: params.wordCount,
       Model: params.model,
+      // SourcePrep (FromPrep path) and Url (FromUrl path) are mutually exclusive parameter sets.
+      // The orchestrator passes SourcePrep when it has hoisted Stage A; otherwise falls through
+      // to Url for single-voice direct callers (not currently wired — future use).
+      ...(sourcePrep
+        ? { SourcePrep: sourcePrep }
+        : {}),
       ...(params.outlet    ? { Outlet:    params.outlet }    : {}),
       ...(params.newsHook  ? { NewsHook:  params.newsHook }  : {}),
       ...(params.thesis    ? { Thesis:    params.thesis }    : {}),
@@ -216,10 +289,11 @@ function renderOpEdSetMarkdown(set: OpEdSet): string {
 export function registerOpEdHandlers(): void {
   ipcMain.handle('create-oped-set', async (event, payload: {
     topic: string;
+    url?: string;   // if provided, Get-OpEdSource is hoisted once (Stage A) before voice fan-out
     params: OpEdParams;
     voices: PovKey[];
   }) => {
-    const { topic, params, voices } = payload;
+    const { topic, url, params, voices } = payload;
 
     if (!topic?.trim() || !voices?.length) {
       throw new ActionableError({
@@ -239,7 +313,33 @@ export function registerOpEdHandlers(): void {
       if (!event.sender.isDestroyed()) event.sender.send('oped-progress', data);
     };
 
-    // Fire queued for each voice immediately — renderer stores set_id for cancellation
+    // Stage A: hoist Get-OpEdSource once before spawning voices.
+    // Fail fast if readability gate trips — don't fan out to draft on garbage (TL cond 3).
+    let sourcePrep: Record<string, unknown> | undefined;
+    if (url) {
+      send({ set_id: setId, stage: 'preparing-source' });
+      try {
+        sourcePrep = await runGetOpEdSource(url, controller.signal);
+      } catch (err) {
+        activeOpEdRuns.delete(setId);
+        getGlobalRecorder()?.record({
+          type: 'system.error', component: 'opedHandlers', level: 'error',
+          message: `Stage A Get-OpEdSource failed for set ${setId}: ${(err as Error).message}`,
+          error: { name: (err as Error).name ?? 'Error', message: String((err as Error).message ?? err), stack: (err as Error).stack },
+        });
+        throw new ActionableError({
+          goal: 'Prepare source material for op-ed set',
+          problem: `Get-OpEdSource failed: ${(err as Error).message}`,
+          location: 'opedHandlers create-oped-set Stage A',
+          nextSteps: [
+            'Check that the URL is publicly accessible',
+            'Verify the page contains sufficient readable text (minimum word count required)',
+          ],
+        });
+      }
+    }
+
+    // Fire queued for each voice — renderer stores set_id for cancellation
     for (const voice of voices) {
       send({ set_id: setId, voice, stage: 'queued' });
     }
@@ -248,7 +348,7 @@ export function registerOpEdHandlers(): void {
 
     const voicePromises = voices.map(async (voice): Promise<OpEdMember> => {
       const member = await runVoice({
-        topic, pov: voice, params,
+        topic, pov: voice, params, sourcePrep,
         signal: controller.signal,
         onProgress: (stage, error) => send({ set_id: setId, voice, stage, error }),
       }).catch((err): OpEdMember => {
