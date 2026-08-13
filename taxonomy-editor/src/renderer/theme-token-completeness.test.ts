@@ -45,10 +45,8 @@ const BASELINE_ALIAS_BUGS_T2568 = [
 const BASELINE_NEED_VALUES_T2569 = [
   // Error family → owned by the t/2566 thread (don't double-define here).
   '--error-bg', '--error-border', '--error-color', '--error-text',
-  // --color-accent: still ~8 undefined refs. Design's Batch 3 (t/2569#2) dispositioned
-  // --accent/-color/-primary/-strong/-blue but did NOT name --color-accent; kept
-  // grandfathered pending Design's call on whether it repoints to --focus-ring like --accent.
-  '--color-accent',
+  // --color-accent repointed to --focus-ring (Design p/29#114) — cleared, class-(b) baseline
+  // is now the error family only (t/2566).
   // Everything else here (Batch 1 + Batch 3: --info, --link-color, --warning-bg/-border,
   // --bg-selected, --border-subtle, --accent-hover/-bg/-text/-rgb, --color-moderator,
   // reuse/font tokens) is now DEFINED, and --accent/-color/-primary/-strong/-blue,
