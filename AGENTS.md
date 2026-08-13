@@ -138,3 +138,18 @@ Every incident diagnosis produces **two** kinds of follow-up, not one:
 **A diagnosis that files only observability tickets is incomplete.** Map each incident to a **failure class** (see `docs/CodeReview/failure-classes.md`) and file the prevention that closes that class's gap *for this surface*. Rationale: quality coverage is point-in-time — each gate was sufficient when written; without a prevention ticket per incident, coverage lags system growth and the next prod bug finds the gap, not a gate.
 
 **Gate-touching prevention tickets** (a new/changed CI step, deploy gate, verify script, or config validation) route to **Main (TL)** for Gate Verification: proven with **both arms** (a deliberate failure fires the gate; the clean case passes with zero noise), reliable enough to block prod (a flaky blocking gate is the *next* incident), and config co-located at point of use. See the *Gate signal integrity* rules under **Code Review & Quality** (the tech-lead scope's `AGENTS.md`).
+
+## Second Opinion
+
+Any Main instance may consult `main.engineering-second-opinion@ai-triad-research.orca.local` when **any one** of these conditions holds:
+
+1. **Irreversibility** — Decision takes >1 sprint to undo, touches production data, or modifies shared infrastructure (CI gates, deploy pipeline, branch protection).
+2. **Cost/risk asymmetry** — Getting it wrong costs far more than the consultation. Architecture choices that constrain future work for months qualify; single-file refactors do not.
+3. **Novel territory** — No established precedent in AGENTS.md, no prior incident for the pattern, or involves a capability not yet used in the project.
+4. **Conflicting signals** — Two reasonable approaches with no clear tie-breaker from existing conventions or ticket history.
+5. **Security or compliance surface** — Auth, data privacy, key management, session tokens, or compliance requirements.
+6. **Post-incident gate design** — Designing a gate or guard intended to prevent a failure-class recurrence.
+
+**Non-triggers:** routine work covered by a playbook (self-certify), decisions bounded to one role's scope and easily reversed, or clarifying questions for QnA/human.
+
+Consult via email with: the full proposal, alternatives considered, what's at stake if wrong, and any time constraint. Second Opinion responds with a structured Recommendation / Key risks / Conditions / Dissent.
