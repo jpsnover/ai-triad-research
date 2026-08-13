@@ -69,8 +69,9 @@ function ScopeBar({ scopeUser, scopeSession, users, sessions, onSetUser, onClear
     };
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
+        const triggeredRef = sessionOpen ? sessionBtnRef : userBtnRef;
         setUserOpen(false); setSessionOpen(false);
-        userBtnRef.current?.focus();
+        triggeredRef.current?.focus();
       }
     };
     document.addEventListener('mousedown', onDown);
@@ -163,9 +164,15 @@ function BreadcrumbNav({ drillPath, onNavigate }: { drillPath: string[]; onNavig
 // ── Section 3: Summary card ───────────────────────────────────────────────────
 
 function SummaryCard({ node, scope }: { node: TreeNode; scope: AnalyticsScope }) {
-  const childCount = Object.keys(node.children ?? {}).length;
-  const kind = inferKind(node.id);
-  const { countUnit } = getKind(kind);
+  const children = Object.entries(node.children ?? {});
+  const childCount = children.length;
+  const firstChildKey = children[0]?.[0];
+  // §2.2: unit comes from CHILD kind (like DrillTable column header), falls back to current kind.
+  // This yields "Nodes" at a category level and "Items" at the mixed root.
+  const childKind = firstChildKey ? inferKind(firstChildKey) : null;
+  const countUnit = childKind
+    ? (getKind(childKind).countUnit || getKind(inferKind(node.id)).countUnit)
+    : getKind(inferKind(node.id)).countUnit;
   const showUsers = scope.kind !== 'session' && node.uniqueUsers != null;
 
   return (
@@ -178,7 +185,7 @@ function SummaryCard({ node, scope }: { node: TreeNode; scope: AnalyticsScope })
         <div className="uh-summary-value">{fmtNumber(node.visits)}</div>
         <div className="uh-summary-label">Visits</div>
       </div>
-      {countUnit && (
+      {countUnit && childCount > 0 && (
         <div className="uh-summary-metric">
           <div className="uh-summary-value">{fmtNumber(childCount)}</div>
           <div className="uh-summary-label">{countUnit}</div>
