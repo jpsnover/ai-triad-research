@@ -17,10 +17,10 @@ import type { IncomingMessage, ServerResponse } from 'http';
 
 // Controllable store — the routes import the public opedStore API directly.
 // vi.hoisted so the mock fns exist when the hoisted vi.mock factory runs.
-const { listOpedSets, loadOpedSet, deleteOpedSet } = vi.hoisted(() => ({
-  listOpedSets: vi.fn(), loadOpedSet: vi.fn(), deleteOpedSet: vi.fn(),
+const { listOpedSets, loadOpedSet, deleteOpedSet, getOpedSetsQuotaStatus } = vi.hoisted(() => ({
+  listOpedSets: vi.fn(), loadOpedSet: vi.fn(), deleteOpedSet: vi.fn(), getOpedSetsQuotaStatus: vi.fn(),
 }));
-vi.mock('../storage/opedStore.js', () => ({ listOpedSets, loadOpedSet, deleteOpedSet }));
+vi.mock('../storage/opedStore.js', () => ({ listOpedSets, loadOpedSet, deleteOpedSet, getOpedSetsQuotaStatus }));
 
 // isSafeId comes from fileIO; mock it to the SAME whitelist as fileIO's SAFE_ID_RE
 // (/^[a-zA-Z0-9_-]+$/) so this test never pulls the heavy fileIO backend chain.
@@ -54,7 +54,7 @@ function fakeRes(): ServerResponse & { _status?: number; _body?: string } {
 describe('/api/oped-sets routes (t/2573)', () => {
   let handlers: Record<string, Handler>;
   beforeEach(() => {
-    listOpedSets.mockReset(); loadOpedSet.mockReset(); deleteOpedSet.mockReset();
+    listOpedSets.mockReset(); loadOpedSet.mockReset(); deleteOpedSet.mockReset(); getOpedSetsQuotaStatus.mockReset();
     const r = makeRouter();
     registerOpedRoutes(r.router as never, {} as never);
     handlers = r.handlers;
@@ -67,6 +67,18 @@ describe('/api/oped-sets routes (t/2573)', () => {
     await handlers['GET /api/oped-sets'](fakeReq('/api/oped-sets'), res, undefined);
     expect(res._status).toBe(200);
     expect(JSON.parse(res._body!)).toEqual(rows);
+  });
+
+  it('GET /api/oped-sets/quota-status returns the store quota status', async () => {
+    const status = { allowed: true, resource: 'opeds', current: 2, limit: 15 };
+    getOpedSetsQuotaStatus.mockResolvedValue(status);
+    const res = fakeRes();
+    await handlers['GET /api/oped-sets/quota-status'](fakeReq('/api/oped-sets/quota-status'), res, undefined);
+    expect(res._status).toBe(200);
+    expect(JSON.parse(res._body!)).toEqual(status);
+    // The literal must be registered as its own handler (not swallowed by :id) —
+    // routeTable.test.ts's collision-pair gate proves the first-match ordering.
+    expect(loadOpedSet).not.toHaveBeenCalled();
   });
 
   it('GET /api/oped-sets/:id returns the full set, partial members passing through untouched', async () => {
