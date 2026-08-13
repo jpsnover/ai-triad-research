@@ -2,7 +2,6 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import fs from 'fs';
-import { execFileSync } from 'child_process';
 import { getGlobalRecorder } from '../flight-recorder/index.js';
 import { ActionableError } from './errors.js';
 
@@ -39,20 +38,6 @@ export function safeSerialize(value: unknown, indent: number = 2): { json: strin
   }
 }
 
-// t/2544: identify the process holding a file lock (Windows only, requires handle.exe on PATH).
-function queryLockHolder(filePath: string): { processName?: string; pid?: number; unavailable?: boolean; reason?: string } {
-  if (process.platform !== 'win32') return { unavailable: true, reason: 'non-Windows' };
-  try {
-    const output = execFileSync('handle.exe', [filePath], { timeout: 2000, encoding: 'utf-8' });
-    // handle.exe output: "<ProcessName>  pid: <pid>  type: File  <handle>: <path>"
-    const match = output.match(/^(\S+)\s+pid:\s+(\d+)\s/m);
-    if (match) return { processName: match[1], pid: parseInt(match[2], 10) };
-    return { unavailable: true, reason: 'handle.exe output not parseable' };
-  } catch {
-    return { unavailable: true, reason: 'handle.exe not on PATH or timed out' };
-  }
-}
-
 /**
  * Rename with exponential-backoff retry for transient Windows file locks.
  * EPERM / EACCES on rename are almost always caused by antivirus, search
@@ -63,10 +48,17 @@ function queryLockHolder(filePath: string): { processName?: string; pid?: number
  * time grows with file size, so a fixed attempt budget starves large files.
  * Small files use the default maxRetries=7 (~6.35s total) unchanged.
  *
- * On budget exhaustion, emits io.lock-holder FR event naming the lock holder
- * (via handle.exe if on PATH; unavailable:true otherwise) before rethrowing.
+ * onLockExhausted: optional callback invoked when a transient EPERM/EACCES
+ * exhausts the budget. Injected by Node-only callers (cli.ts via lockHolder.ts)
+ * so persistence.ts stays free of child_process imports (renderer-safe).
  */
-export function renameSyncWithRetry(oldPath: string, newPath: string, maxRetries = 7, maxWallClockMs?: number): void {
+export function renameSyncWithRetry(
+  oldPath: string,
+  newPath: string,
+  maxRetries = 7,
+  maxWallClockMs?: number,
+  onLockExhausted?: (filePath: string) => void,
+): void {
   const deadline = maxWallClockMs !== undefined ? Date.now() + maxWallClockMs : undefined;
   for (let i = 0; ; i++) {
     try {
@@ -86,17 +78,7 @@ export function renameSyncWithRetry(oldPath: string, newPath: string, maxRetries
         Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, delayMs);
         continue;
       }
-      // t/2544: budget exhausted on a transient error — identify the lock holder before rethrowing.
-      if (isTransient) {
-        const lockHolder = queryLockHolder(newPath);
-        getGlobalRecorder()?.record({
-          type: 'io.lock-holder', component: 'persistence', level: 'warn',
-          message: lockHolder.unavailable
-            ? `io.lock-holder: unavailable (${lockHolder.reason})`
-            : `io.lock-holder: ${lockHolder.processName} pid ${lockHolder.pid}`,
-          data: { filePath: newPath, ...lockHolder },
-        });
-      }
+      if (isTransient) onLockExhausted?.(newPath);
       throw err;
     }
   }
@@ -143,7 +125,11 @@ export async function renameWithRetry(oldPath: string, newPath: string, maxRetri
  * wall-clock cap instead of the 7-attempt (~6.35s) small-file budget, since
  * AV scan time grows with file size. Small-file fast-fail behavior is unchanged.
  */
-export function atomicWriteSync(filePath: string, content: string): void {
+export function atomicWriteSync(
+  filePath: string,
+  content: string,
+  onLockExhausted?: (filePath: string) => void,
+): void {
   // codeql[js/insecure-temporary-file] FP: same-directory atomic write via rename, not an os.tmpdir() temp file
   const tmpPath = `${filePath}.tmp`;
   fs.writeFileSync(tmpPath, content, 'utf-8');
@@ -151,7 +137,7 @@ export function atomicWriteSync(filePath: string, content: string): void {
   const bytes = Buffer.byteLength(content, 'utf-8');
   const wallClockCapMs = bytes > 200 * 1024 ? 30_000 : undefined;
   try {
-    renameSyncWithRetry(tmpPath, filePath, 7, wallClockCapMs);
+    renameSyncWithRetry(tmpPath, filePath, 7, wallClockCapMs, onLockExhausted);
     return;
   } catch (renameErr) {
     const renameCode = (renameErr as NodeJS.ErrnoException).code;
@@ -178,7 +164,7 @@ export function atomicWriteSync(filePath: string, content: string): void {
     try {
       fs.writeFileSync(tmp2Path, content, 'utf-8');
       // writeFileSync closes the handle on return, flushing OS write buffers.
-      renameSyncWithRetry(tmp2Path, filePath, 7, wallClockCapMs);
+      renameSyncWithRetry(tmp2Path, filePath, 7, wallClockCapMs, onLockExhausted);
       // .tmp2 rename succeeded — clean up the original .tmp (best-effort)
       try { fs.unlinkSync(tmpPath); } catch { /* best-effort */ }
       getGlobalRecorder()?.record({
