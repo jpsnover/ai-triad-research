@@ -10,7 +10,7 @@ import { atomicWriteSync, renameSyncWithRetry } from '../../../lib/debate/persis
 import { recordLockHolder } from '../../../lib/debate/lockHolder.js';
 import { ActionableError } from '../../../lib/debate/errors.js';
 import { getGlobalRecorder } from '../../../lib/flight-recorder/index.js';
-import type { OpEdSet } from '../../../lib/oped/types.js';
+import type { OpEdSet, OpEdSetSummary } from '../../../lib/oped/types.js';
 
 const OPED_DIR = resolveDataPath('oped-sets');
 
@@ -96,4 +96,28 @@ export function deleteOpEdSet(setId: string): void {
     });
   }
   fs.unlinkSync(filePath);
+}
+
+export function listOpEdSets(): OpEdSetSummary[] {
+  ensureOpEdDir();
+  const summaries: OpEdSetSummary[] = [];
+  for (const entry of fs.readdirSync(OPED_DIR)) {
+    if (!entry.startsWith('oped-') || !entry.endsWith('.json') || entry.endsWith('-wip.json')) continue;
+    try {
+      const set = JSON.parse(fs.readFileSync(path.join(OPED_DIR, entry), 'utf-8')) as OpEdSet;
+      summaries.push({
+        set_id: set.set_id,
+        topic: set.topic,
+        created_at: set.created_at,
+        camps: [...new Set(set.opeds.map(o => o.pov))],
+        voice_count: set.opeds.length,
+      });
+    } catch { /* telemetry — silent by design; skip unreadable/corrupt entries */ }
+  }
+  return summaries.sort((a, b) => b.created_at.localeCompare(a.created_at));
+}
+
+export function saveOpEdSet(set: OpEdSet): void {
+  // Atomic whole-set write (rename edits topic in-place) — mirrors saveDebateSession.
+  finalizeOpEdSet(set);
 }
