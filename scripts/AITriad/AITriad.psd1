@@ -115,6 +115,7 @@
         'Compare-EmbeddingModel'
         'Test-RerankerBaseline'
         'New-OpEd'
+        'Get-OpEdSource'
         'New-SyntheticCorpus'
         'Update-SyntheticCorpus'
         'Sync-SyntheticCorpus'

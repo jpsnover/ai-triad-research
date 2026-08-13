@@ -181,8 +181,17 @@ Describe 'New-OpEd' -Tag 'oped' {
 
     Context 'URL input' {
         It 'Fetches and converts the URL into source material' {
-            Mock Invoke-WebRequest { [PSCustomObject]@{ Content = '<html><body><p>Source body text.</p></body></html>' } } -ModuleName AITriad
-            Mock ConvertFrom-Html { 'Source body text.' } -ModuleName AITriad
+            Mock Invoke-WebRequest { [PSCustomObject]@{
+                Content    = '<html><body><p>Source body text.</p></body></html>'
+                Headers    = @{ 'Content-Type' = 'text/html; charset=utf-8' }
+                StatusCode = 200
+            } } -ModuleName AITriad
+            # 35 alpha words per sentence × 3 = 105 — passes the MinReadableWords=100
+            # gate; "Source body text" preserved for the seenPrompt assertion.
+            Mock ConvertFrom-Html {
+                $s = 'Source body text. Artificial intelligence governance policy requires careful consideration of competing interests including innovation safety fairness accountability transparency democratic oversight regulation compliance monitoring evaluation auditing enforcement remediation capacity building standards development international coordination multistakeholder approaches.'
+                "$s $s $s"
+            } -ModuleName AITriad
             Mock Get-RelevantTaxonomyNodes { @() } -ModuleName AITriad
             $script:seenPrompt = $null
             Mock Invoke-AIApi {
