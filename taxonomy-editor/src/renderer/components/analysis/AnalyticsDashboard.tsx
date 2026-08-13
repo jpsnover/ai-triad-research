@@ -14,6 +14,7 @@ import { useChartTooltip, ChartTooltipLayer } from './chartTooltip';
 import { DebateHealthCard } from './DebateHealthCard';
 import { AICostCard } from './AICostCard';
 import { DebateFunnelChart } from './DebateFunnelChart';
+import { UsageHierarchy } from './UsageHierarchy';
 import './AnalyticsDashboard.css';
 
 // ── Types ──
@@ -408,7 +409,46 @@ function SessionExplorer({ from, to, selectedUser, categoryFilter }: {
 
 // ── Main Dashboard ──
 
+type AnalyticsTab = 'overview' | 'hierarchy';
+
+function OverviewBody({ data, prevData, compare, from, to, selectedUser, categoryFilter, sortCol, sortDir, onSort, onSelectUser, onFilter }: {
+  data: QueryResult; prevData: QueryResult['summary'] | null; compare: boolean;
+  from: string; to: string; selectedUser: string | null; categoryFilter: string | null;
+  sortCol: SortCol; sortDir: 'asc' | 'desc';
+  onSort: (col: SortCol) => void; onSelectUser: (u: string) => void; onFilter: (cat: string) => void;
+}) {
+  if (data.summary.totalEvents === 0) {
+    return (
+      <div className="adash-empty">
+        <div className="adash-empty-title">No analytics data available</div>
+        <div className="adash-empty-sub">Events will appear as users interact with the app.</div>
+      </div>
+    );
+  }
+  const sessionsDeltaPct = compare && prevData && prevData.sessions > 0
+    ? ((data.summary.sessions - prevData.sessions) / prevData.sessions) * 100
+    : null;
+  return (
+    <>
+      <SystemOverviewRow usage={{ sessions: data.summary.sessions, sessionsDeltaPct }} />
+      <SummaryCards data={data.summary} previous={compare ? prevData : null} />
+      <div className="adash-cards-row">
+        <DebateHealthCard eventTypes={data.eventTypes} />
+        <AICostCard aiCost={data.aiCost} debateCount={data.eventTypes?.['debate.complete']} />
+      </div>
+      <ActivityChart daily={data.daily} />
+      <DebateFunnelChart eventTypes={data.eventTypes} />
+      <div className="adash-panels-row">
+        <FeatureUsage usage={data.featureUsage} onFilter={onFilter} />
+        <ActiveUsers users={data.users} sortCol={sortCol} sortDir={sortDir} onSort={onSort} onSelectUser={onSelectUser} />
+      </div>
+      <SessionExplorer from={from} to={to} selectedUser={selectedUser} categoryFilter={categoryFilter} />
+    </>
+  );
+}
+
 export function AnalyticsDashboard() {
+  const [activeTab, setActiveTab] = useState<AnalyticsTab>('overview');
   const [preset, setPreset] = useState<DatePreset>('7d');
   const [data, setData] = useState<QueryResult | null>(null);
   const [loading, setLoading] = useState(true);
@@ -421,6 +461,9 @@ export function AnalyticsDashboard() {
   const [prevData, setPrevData] = useState<QueryResult['summary'] | null>(null);
 
   const { from, to } = useMemo(() => dateRange(preset), [preset]);
+
+  const handleSelectUser = useCallback((u: string) => setSelectedUser(prev => prev === u ? null : u), []);
+  const handleFilter = useCallback((cat: string) => setCategoryFilter(prev => prev === cat ? null : cat), []);
 
   useEffect(() => {
     setLoading(true);
@@ -507,43 +550,28 @@ export function AnalyticsDashboard() {
         </div>
       </div>
 
-      {loading && <div className="adash-loading">Loading analytics...</div>}
-      {error && <div className="adash-error">Failed to load analytics: {error}</div>}
+      <div className="adash-tab-bar" role="tablist">
+        <button role="tab" aria-selected={activeTab === 'overview'}
+          className={`adash-tab${activeTab === 'overview' ? ' adash-tab--active' : ''}`}
+          onClick={() => setActiveTab('overview')}>Overview</button>
+        <button role="tab" aria-selected={activeTab === 'hierarchy'}
+          className={`adash-tab${activeTab === 'hierarchy' ? ' adash-tab--active' : ''}`}
+          onClick={() => setActiveTab('hierarchy')}>Hierarchy</button>
+      </div>
 
-      {data && !loading && (
-        <>
-          {data.summary.totalEvents === 0 ? (
-            <div className="adash-empty">
-              <div className="adash-empty-title">No analytics data available</div>
-              <div className="adash-empty-sub">Events will appear as users interact with the app.</div>
-            </div>
-          ) : (
-            <>
-              <SystemOverviewRow usage={{
-                sessions: data.summary.sessions,
-                sessionsDeltaPct: compare && prevData && prevData.sessions > 0
-                  ? ((data.summary.sessions - prevData.sessions) / prevData.sessions) * 100
-                  : null,
-              }} />
-              <SummaryCards data={data.summary} previous={compare ? prevData : null} />
-              <div className="adash-cards-row">
-                <DebateHealthCard eventTypes={data.eventTypes} />
-                <AICostCard aiCost={data.aiCost} debateCount={data.eventTypes?.['debate.complete']} />
-              </div>
-              <ActivityChart daily={data.daily} />
-              <DebateFunnelChart eventTypes={data.eventTypes} />
-              <div className="adash-panels-row">
-                <FeatureUsage usage={data.featureUsage} onFilter={cat => setCategoryFilter(cat === categoryFilter ? null : cat)} />
-                <ActiveUsers
-                  users={data.users} sortCol={sortCol} sortDir={sortDir}
-                  onSort={handleSort}
-                  onSelectUser={u => setSelectedUser(u === selectedUser ? null : u)}
-                />
-              </div>
-              <SessionExplorer from={from} to={to} selectedUser={selectedUser} categoryFilter={categoryFilter} />
-            </>
-          )}
-        </>
+      {activeTab === 'hierarchy' && <UsageHierarchy range={{ from, to }} />}
+
+      {activeTab === 'overview' && loading && <div className="adash-loading">Loading analytics...</div>}
+      {activeTab === 'overview' && error && <div className="adash-error">Failed to load analytics: {error}</div>}
+
+      {activeTab === 'overview' && data && !loading && (
+        <OverviewBody
+          data={data} prevData={prevData} compare={compare}
+          from={from} to={to}
+          selectedUser={selectedUser} categoryFilter={categoryFilter}
+          sortCol={sortCol} sortDir={sortDir}
+          onSort={handleSort} onSelectUser={handleSelectUser} onFilter={handleFilter}
+        />
       )}
     </div>
   );

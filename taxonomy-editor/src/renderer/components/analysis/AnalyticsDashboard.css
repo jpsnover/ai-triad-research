@@ -399,3 +399,35 @@
   gap: 16px;
   flex-wrap: wrap;
 }
+
+/* ── Tab bar (t/2561 — Overview / Hierarchy tabs) ────────────────────────── */
+
+.adash-tab-bar {
+  display: flex;
+  gap: 2px;
+  border-bottom: 1px solid var(--border-color);
+  margin-bottom: 16px;
+}
+
+.adash-tab {
+  padding: 7px 14px;
+  border: none;
+  border-bottom: 2px solid transparent;
+  background: none;
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  cursor: pointer;
+  transition: color 0.1s, border-color 0.1s;
+  border-radius: 4px 4px 0 0;
+  margin-bottom: -1px;
+}
+
+.adash-tab:hover {
+  color: var(--text-primary);
+}
+
+.adash-tab--active {
+  color: var(--text-primary);
+  font-weight: 500;
+  border-bottom-color: var(--focus-ring, var(--text-muted));
+}
