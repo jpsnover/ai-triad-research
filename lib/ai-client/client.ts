@@ -15,6 +15,7 @@ import { generateViaOllama } from './providers/ollama.js';
 import { generateViaAzure } from './providers/azure.js';
 import { generateViaZai } from './providers/zai.js';
 import { generateViaMoonshot } from './providers/moonshot.js';
+import { generateViaXai } from './providers/xai.js';
 
 export interface AIClientDeps {
   fetch: FetchFn;
@@ -44,6 +45,7 @@ export function callProvider(
     case 'ollama': return generateViaOllama(fetchFn, prompt, apiModelId, apiKey, opts);
     case 'zai': return generateViaZai(fetchFn, prompt, apiModelId, apiKey, opts);
     case 'moonshot': return generateViaMoonshot(fetchFn, prompt, apiModelId, apiKey, opts);
+    case 'xai': return generateViaXai(fetchFn, prompt, apiModelId, apiKey, opts);
     default: return generateViaGemini(fetchFn, prompt, apiModelId, apiKey, opts);
   }
 }

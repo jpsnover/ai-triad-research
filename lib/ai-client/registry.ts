@@ -43,6 +43,7 @@ export function resolveBackend(model: string): BackendId {
   if (model.startsWith('deepseek')) return 'deepseek';
   if (model.startsWith('zai')) return 'zai';
   if (model.startsWith('moonshot')) return 'moonshot';
+  if (model.startsWith('xai')) return 'xai';
   return 'gemini';
 }
 
@@ -58,6 +59,7 @@ export function resolveModel(registry: ModelRegistry, friendlyId: string): { api
   if (friendlyId.startsWith('deepseek')) return { apiModelId: friendlyId, backend: 'deepseek' };
   if (friendlyId.startsWith('zai')) return { apiModelId: friendlyId, backend: 'zai' };
   if (friendlyId.startsWith('moonshot')) return { apiModelId: friendlyId, backend: 'moonshot' };
+  if (friendlyId.startsWith('xai')) return { apiModelId: friendlyId, backend: 'xai' };
   return { apiModelId: friendlyId, backend: 'gemini' };
 }
 
@@ -71,6 +73,7 @@ function baseTimeout(backend: string): number {
     case 'groq':      return 120_000;
     case 'zai':       return 240_000;
     case 'moonshot':  return 240_000;
+    case 'xai':       return 240_000;
     case 'gemini':    return 120_000;
     default:          return 120_000;
   }

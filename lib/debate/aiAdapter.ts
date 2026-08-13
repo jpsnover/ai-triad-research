@@ -117,6 +117,7 @@ const BACKEND_ENV_KEYS: Record<string, string> = {
   deepseek: 'DEEPSEEK_API_KEY',
   moonshot: 'MOONSHOT_API_KEY',
   zai: 'ZAI_API_KEY',
+  xai: 'XAI_API_KEY',
   tavily: 'TAVILY_API_KEY',
 };
 

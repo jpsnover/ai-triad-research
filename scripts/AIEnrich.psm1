@@ -18,7 +18,7 @@
 # ─────────────────────────────────────────────────────────────────────────────
 $script:ModelRegistry = @{}
 $script:FallbackChains = @{}
-$script:ContextWindows = @{ gemini = 1048576; claude = 200000; groq = 131072; openai = 131072; zai = 1000000; moonshot = 1000000; deepseek = 65536 }
+$script:ContextWindows = @{ gemini = 1048576; claude = 200000; groq = 131072; openai = 131072; zai = 1000000; moonshot = 1000000; xai = 500000; deepseek = 65536 }
 $script:DebateTiers = @{ basic = @{}; advanced = @{} }
 $script:LastApiKeySource = ''
 $script:AIApiLoggedThisSession = $false
@@ -189,6 +189,7 @@ function Resolve-AIApiKey {
         'azure'  = @('AZURE_OPENAI_API_KEY')
         'zai'    = @('ZAI_API_KEY')
         'moonshot' = @('MOONSHOT_API_KEY')
+        'xai'    = @('XAI_API_KEY')
         'deepseek' = @('DEEPSEEK_API_KEY')
     }
 
@@ -348,6 +349,7 @@ function Get-AIDefaultTimeoutSec {
         'deepseek*'  { 'deepseek';  break }
         'zai*'       { 'zai';       break }
         'moonshot*'  { 'moonshot';  break }
+        'xai*'       { 'xai';       break }
         default      { 'gemini' }
     }
 
@@ -360,6 +362,7 @@ function Get-AIDefaultTimeoutSec {
         'groq'      { 120 }
         'zai'       { 240 }
         'moonshot'  { 240 }
+        'xai'       { 240 }
         'gemini'    { 120 }
         default     { 120 }
     }
@@ -491,8 +494,9 @@ function Invoke-AIApi {
                 'ollama' { '(no env var — local, keyless)' }
                 'zai'    { 'ZAI_API_KEY' }
                 'moonshot' { 'MOONSHOT_API_KEY' }
+                'xai'    { 'XAI_API_KEY' }
                 'deepseek' { 'DEEPSEEK_API_KEY' }
-                default  { "(unknown backend '$Backend' — expected gemini/claude/groq/openai/azure/ollama/zai/moonshot/deepseek)" }
+                default  { "(unknown backend '$Backend' — expected gemini/claude/groq/openai/azure/ollama/zai/moonshot/xai/deepseek)" }
             }
             Write-Warning "No API key found for $Backend backend. Set $EnvHint or AI_API_KEY."
             return $null
@@ -720,6 +724,48 @@ function Invoke-AIApi {
             }
 
             $Body = $MoonshotBody | ConvertTo-Json -Depth 10
+        }
+
+        # t/2583 — xAI (Grok) exposes an OpenAI-compatible /chat/completions
+        # endpoint at https://api.x.ai/v1. Request shape matches Groq/z.ai/Moonshot
+        # exactly (Bearer auth, system+user messages); the model id (grok-4.6) flows
+        # from ai-models.json via $ApiModelId. 500K-token context
+        # ($script:ContextWindows.xai) so the pre-flight token check tolerates
+        # very large prompts sanely.
+        'xai' {
+            $Uri = 'https://api.x.ai/v1/chat/completions'
+            $Headers = @{
+                'Authorization' = "Bearer $ResolvedKey"
+            }
+
+            $XaiMessages = [System.Collections.Generic.List[object]]::new()
+            if ($SystemInstruction) {
+                $XaiMessages.Add(@{ role = 'system'; content = $SystemInstruction })
+            }
+            $XaiMessages.Add(@{ role = 'user'; content = $Prompt })
+
+            $XaiBody = @{
+                model       = $ApiModelId
+                messages    = @($XaiMessages)
+                temperature = $Temperature
+                max_tokens  = $MaxTokens
+            }
+            if ($JsonMode) {
+                if ($ResponseSchema) {
+                    $XaiBody['response_format'] = @{
+                        type        = 'json_schema'
+                        json_schema = @{
+                            name   = 'response'
+                            schema = $ResponseSchema
+                            strict = $true
+                        }
+                    }
+                } else {
+                    $XaiBody['response_format'] = @{ type = 'json_object' }
+                }
+            }
+
+            $Body = $XaiBody | ConvertTo-Json -Depth 10
         }
 
         # t/1938 — DeepSeek exposes an OpenAI-compatible /v1/chat/completions endpoint
@@ -1091,6 +1137,26 @@ function Invoke-AIApi {
             } catch {
                 $TopKeys = ($Response.PSObject.Properties.Name | Select-Object -First 5) -join ', '
                 Write-Warning "Moonshot: unexpected response shape (top-level keys: $TopKeys). Expected choices[].message.content"
+                return $null
+            }
+        }
+        # t/2583 — xAI (Grok) response shape mirrors Groq/z.ai/OpenAI.
+        'xai' {
+            try {
+                $Choice = $Response.choices[0]
+                $Text = $Choice.message.content
+                $Truncated = ($Choice.finish_reason -eq 'length')
+                $u = $Response.usage
+                if ($u) {
+                    $Usage = [PSCustomObject]@{
+                        InputTokens  = [int]($u.prompt_tokens)
+                        OutputTokens = [int]($u.completion_tokens)
+                        TotalTokens  = [int]($u.total_tokens)
+                    }
+                }
+            } catch {
+                $TopKeys = ($Response.PSObject.Properties.Name | Select-Object -First 5) -join ', '
+                Write-Warning "xAI: unexpected response shape (top-level keys: $TopKeys). Expected choices[].message.content"
                 return $null
             }
         }

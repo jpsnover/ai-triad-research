@@ -20,7 +20,7 @@ const DEFAULT_COMMUNITY_SERVER_URL = 'https://taxonomy-editor.yellowbush-aeda037
 
 export type ColorScheme = 'light' | 'dark' | 'bkc' | 'harvard' | 'system';
 
-export type AIBackend = 'gemini' | 'claude' | 'groq' | 'openai' | 'deepseek' | 'azure' | 'ollama' | 'zai' | 'moonshot';
+export type AIBackend = 'gemini' | 'claude' | 'groq' | 'openai' | 'deepseek' | 'azure' | 'ollama' | 'zai' | 'moonshot' | 'xai';
 
 export type GeminiModel =
   | typeof DEFAULT_MODEL
@@ -67,7 +67,10 @@ export type ZAIModel =
 export type MoonshotModel =
   | 'moonshot-kimi-k3';
 
-export type AIModel = GeminiModel | ClaudeModel | GroqModel | OpenAIModel | DeepSeekModel | AzureModel | OllamaModel | ZAIModel | MoonshotModel;
+export type XAIModel =
+  | 'xai-grok-4-6';
+
+export type AIModel = GeminiModel | ClaudeModel | GroqModel | OpenAIModel | DeepSeekModel | AzureModel | OllamaModel | ZAIModel | MoonshotModel | XAIModel;
 
 export interface AIModelEntry { value: AIModel; label: string }
 
@@ -83,6 +86,7 @@ export const AI_BACKENDS: { value: AIBackend; label: string }[] = [
   { value: 'ollama', label: 'Ollama (Local)' },
   { value: 'zai', label: 'Z.AI (GLM)' },
   { value: 'moonshot', label: 'Moonshot AI (Kimi)' },
+  { value: 'xai', label: 'xAI (Grok)' },
 ];
 
 export const MODELS_BY_BACKEND: Record<AIBackend, AIModelEntry[]> = {
@@ -127,6 +131,9 @@ export const MODELS_BY_BACKEND: Record<AIBackend, AIModelEntry[]> = {
   moonshot: [
     { value: 'moonshot-kimi-k3', label: 'Kimi K3' },
   ],
+  xai: [
+    { value: 'xai-grok-4-6', label: 'Grok 4.6' },
+  ],
 };
 
 /** @deprecated Use MODELS_BY_BACKEND.gemini instead */
@@ -146,6 +153,7 @@ const DEFAULT_MODELS: Record<AIBackend, AIModel> = {
   ollama: 'ollama-gemma4-e4b-it-q4-k-m',
   zai: 'zai-glm-5-2',
   moonshot: 'moonshot-kimi-k3',
+  xai: 'xai-grok-4-6',
 };
 
 export let DEBATE_TIERS: Record<string, Record<string, string>> = {};
@@ -153,7 +161,7 @@ export let FALLBACK_CHAINS: Record<string, string[]> = {};
 
 // -- Module-level helpers --
 
-const KNOWN_BACKENDS: ReadonlySet<AIBackend> = new Set(['gemini', 'claude', 'groq', 'openai', 'deepseek', 'azure', 'ollama', 'zai', 'moonshot']);
+const KNOWN_BACKENDS: ReadonlySet<AIBackend> = new Set(['gemini', 'claude', 'groq', 'openai', 'deepseek', 'azure', 'ollama', 'zai', 'moonshot', 'xai']);
 
 export function isKnownBackend(id: string): id is AIBackend {
   return (KNOWN_BACKENDS as ReadonlySet<string>).has(id);
@@ -239,6 +247,7 @@ export function backendForModel(model: string): AIBackend | undefined {
   if (model.startsWith('ollama')) return 'ollama';
   if (model.startsWith('zai')) return 'zai';
   if (model.startsWith('moonshot')) return 'moonshot';
+  if (model.startsWith('xai')) return 'xai';
   return undefined;
 }
 

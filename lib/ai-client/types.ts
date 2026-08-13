@@ -102,7 +102,7 @@ export interface RetryProgress {
   rateLimitHeaders?: RateLimitHeaders;
 }
 
-export type BackendId = 'gemini' | 'claude' | 'groq' | 'openai' | 'azure' | 'ollama' | 'deepseek' | 'zai' | 'moonshot';
+export type BackendId = 'gemini' | 'claude' | 'groq' | 'openai' | 'azure' | 'ollama' | 'deepseek' | 'zai' | 'moonshot' | 'xai';
 
 /** Superset of BackendId that includes non-generation backends needing API key management (e.g. tavily for search). */
 export type ApiKeyBackend = BackendId | 'tavily';
@@ -123,6 +123,7 @@ const ALL_API_KEY_BACKENDS_MAP: Record<ApiKeyBackend, true> = {
   deepseek: true,
   zai: true,
   moonshot: true,
+  xai: true,
   tavily: true,
 };
 
