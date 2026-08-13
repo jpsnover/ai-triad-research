@@ -71,7 +71,8 @@
       "description": "Default per-user content quotas. Per-user overrides remain in quotas.json.",
       "properties": {
         "defaultMaxChats": { "type": "integer", "minimum": 1, "maximum": 10000, "description": "Max saved chats per user. Default 25." },
-        "defaultMaxDebates": { "type": "integer", "minimum": 1, "maximum": 10000, "description": "Max saved debates per user. Default 15." }
+        "defaultMaxDebates": { "type": "integer", "minimum": 1, "maximum": 10000, "description": "Max saved debates per user. Default 15." },
+        "defaultMaxOpEds": { "type": "integer", "minimum": 1, "maximum": 10000, "description": "Max saved op-ed sets per user. Default 15." }
       }
     },
     "sessions": {

@@ -61,6 +61,7 @@ export interface RuntimeConfig {
   quotas: {
     defaultMaxChats: number;
     defaultMaxDebates: number;
+    defaultMaxOpEds: number;
   };
   sessions: {
     anonymousTtlMs: number;
@@ -164,6 +165,7 @@ const DEFAULTS: RuntimeConfig = {
   quotas: {
     defaultMaxChats: 25,
     defaultMaxDebates: 15,
+    defaultMaxOpEds: 15,
   },
   sessions: {
     anonymousTtlMs: 14_400_000,
@@ -386,6 +388,7 @@ export function validateAndMerge(raw: unknown, defaults: RuntimeConfig): { confi
     quotas: {
       defaultMaxChats: vNum(q.defaultMaxChats, defaults.quotas.defaultMaxChats, { min: 1, max: QUOTA_MAX, integer: true }, 'quotas.defaultMaxChats', errors),
       defaultMaxDebates: vNum(q.defaultMaxDebates, defaults.quotas.defaultMaxDebates, { min: 1, max: QUOTA_MAX, integer: true }, 'quotas.defaultMaxDebates', errors),
+      defaultMaxOpEds: vNum(q.defaultMaxOpEds, defaults.quotas.defaultMaxOpEds, { min: 1, max: QUOTA_MAX, integer: true }, 'quotas.defaultMaxOpEds', errors),
     },
     sessions: {
       anonymousTtlMs: vNum(sess.anonymousTtlMs, defaults.sessions.anonymousTtlMs, { min: 0, max: DURATION_MAX }, 'sessions.anonymousTtlMs', errors),
