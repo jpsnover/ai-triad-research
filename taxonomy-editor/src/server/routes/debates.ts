@@ -20,6 +20,7 @@ import { getStorageUserId, getAnonymousSessionId } from '../security/userContext
 import * as rateLimiter from '../security/rateLimiter.js';
 import { getDataRoot } from '../config.js';
 import type { DebateDelta } from '../../../../lib/debate/types.js';
+import { ActionableError } from '../../../../lib/debate/errors.js';
 
 // t/1461: per-{userId,debateId} in-flight guard against the concurrent debate-save
 // cascade — an actively-used debate fires saveDebate from many store transitions,
@@ -279,13 +280,48 @@ export function registerDebatesRoutes(r: Router, _ctx: ServerCtx): void {
   });
 
   post('/api/debates/:id/news-report', async (req, res) => {
+    // t/2553: entry breadcrumb BEFORE the try — a catch-only recorder leaves no FR
+    // event when the handler fails fast (39ms 500), so triage cannot tell "threw
+    // before try" / "dynamic import failed" / "route not found" apart. param() is
+    // non-throwing (returns '' when absent), so it is safe outside the try.
+    const debateId = param(req, 'id', '/api/debates/:id/news-report');
+    getGlobalRecorder()?.record({ type: 'debate.lifecycle', component: 'debates', level: 'info', message: 'news-report: started', data: { debateId, phase: 'started' } });
+
     try {
-      const debateId = param(req, 'id', '/api/debates/:id/news-report');
-      const session = await fileIO.loadDebateSession(debateId) as Record<string, unknown>;
+      // t/2554: a missing debate blob is a well-defined client condition (the
+      // Incident-3 debate was absent from storage, downstream of an EPERM .tmp
+      // stranding), not a server fault — surface it as a 404 with an ActionableError
+      // body instead of an opaque 500. loadDebateSession throws an ActionableError
+      // ONLY for the not-found case; genuine backend/parse failures throw other
+      // error types, so we isolate just this call: a not-found returns 404 here,
+      // and anything else re-throws to the outer 500 catch below. (Same discriminator
+      // the debate-load GET path models — cf. 79a86b3b.)
+      let session: Record<string, unknown>;
+      try {
+        session = await fileIO.loadDebateSession(debateId) as Record<string, unknown>;
+      } catch (loadErr) {
+        if (loadErr instanceof ActionableError) {
+          const notFound = new ActionableError({
+            goal: 'Generate a news report for this debate',
+            problem: `Debate ${debateId} is not in storage; it may have been lost to a write failure`,
+            location: 'server/routes/debates.ts → POST /api/debates/:id/news-report',
+            nextSteps: ['Re-run the debate to regenerate it', 'If it vanished unexpectedly, see incident t/2552 (storage write-failure)'],
+            innerError: loadErr,
+          });
+          getGlobalRecorder()?.record({ type: 'system.error', component: 'debates', level: 'warn', message: 'News report: debate not found', error: { name: notFound.name, message: notFound.message, stack: notFound.stack } });
+          error(res, String(notFound), 404, notFound);
+          return;
+        }
+        throw loadErr; // genuine unexpected failure → outer catch → 500
+      }
+
       const transcript = (session.transcript ?? []) as Array<{ type: string; content: string; speaker: string }>;
       const hasSynthesis = transcript.some(e => e.type === 'synthesis' || e.type === 'concluding');
       if (!hasSynthesis) { error(res, 'A synthesis must exist before generating a news report.', 400); return; }
 
+      // t/2553: breadcrumb immediately before the dynamic imports — the import()
+      // calls are the most likely fast-failure site (module resolution / runtime).
+      getGlobalRecorder()?.record({ type: 'debate.lifecycle', component: 'debates', level: 'info', message: 'news-report: importing', data: { debateId, phase: 'importing' } });
       // @ts-expect-error — lib/debate uses bundler moduleResolution; dynamic import resolves at runtime
       const { extractTranscriptHighlights, summarizeArgumentNetwork } = await import('../../../lib/debate/newsReport.js');
       // @ts-expect-error — lib/debate uses bundler moduleResolution; dynamic import resolves at runtime
