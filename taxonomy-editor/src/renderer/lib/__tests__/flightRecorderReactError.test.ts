@@ -97,3 +97,48 @@ describe('dumpOnReactError — crash event is recorded synchronously (t/2297)', 
     expect(h.reportError.mock.calls[0][0]).toMatchObject({ name: 'Error', message: 'boom' });
   });
 });
+
+/**
+ * Observability arm for t/2551: when the crash is a Node-builtin externalization
+ * throw (t/2550's child_process class), the dump must name the failing module in a
+ * first-class `externalized_module` field so triage sees the import chain without a
+ * human repro. Ordinary crashes must NOT carry the field.
+ */
+describe('dumpOnReactError — externalized-module attribution (t/2551 observability)', () => {
+  beforeEach(() => {
+    h.recordCalls.length = 0;
+    h.fakeRecorder.record.mockClear();
+    h.dumpFlightRecorder.mockClear();
+    h.reportError.mockClear();
+  });
+
+  it('records externalized_module (module + accessed binding) for a Vite externalization crash', async () => {
+    const { dumpOnReactError } = await import('../flightRecorderInit');
+
+    // The exact runtime message Vite's browser-external stub throws on named-binding
+    // access — the shape t/2550's child_process crash produced.
+    const err = new Error(
+      'Module "child_process" has been externalized for browser compatibility. ' +
+      'Cannot access "child_process.execFileSync" in client code. See https://vite.dev/guide/troubleshooting.html for more details.',
+    );
+
+    dumpOnReactError(err, '\n    at useCommentStore\n    at DebateTab');
+
+    expect(h.fakeRecorder.record).toHaveBeenCalledTimes(1);
+    const data = h.recordCalls[0].data as Record<string, unknown>;
+    expect(data.externalized_module).toEqual({
+      module: 'child_process',
+      accessed: 'child_process.execFileSync',
+    });
+  });
+
+  it('omits externalized_module for an ordinary crash', async () => {
+    const { dumpOnReactError } = await import('../flightRecorderInit');
+
+    dumpOnReactError(new Error('Rendered more hooks than during the previous render'), undefined);
+
+    expect(h.fakeRecorder.record).toHaveBeenCalledTimes(1);
+    const data = (h.recordCalls[0].data ?? {}) as Record<string, unknown>;
+    expect(data.externalized_module).toBeUndefined();
+  });
+});

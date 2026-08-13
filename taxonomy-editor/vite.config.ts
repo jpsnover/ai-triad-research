@@ -12,6 +12,63 @@ import path from 'path';
 const require = createRequire(import.meta.url);
 const isWeb = process.env.VITE_TARGET === 'web';
 
+// ── Renderer Node-builtin externalization gate (t/2551) ──────────────────────
+// lib/debate/ (and other lib/*) is shared between Node (server/CLI/main) and the
+// renderer. When a renderer-reachable module imports a Node built-in, Vite/rolldown
+// externalizes it ("Module X has been externalized for browser compatibility") and
+// emits a *warning* — the build stays green. But the shim is a stub: a NAMED import
+// of an externalized builtin throws at module link (t/2550: `import { execFileSync }
+// from 'child_process'` in persistence.ts crashed the Debate tab on load), while
+// default/namespace imports only throw on lazy property access (why fs/path/crypto
+// were tolerated). vitest/tsc don't catch it — the crash only manifests at renderer
+// bundle eval. This gate promotes rolldown's own externalization signal to a hard
+// error for any builtin outside the allowlist, so the next child_process-class import
+// fails the build instead of prod (TL design t/2551#1).
+//
+// ALLOWLIST = the exact builtins a clean build currently externalizes, enumerated
+// from the real build log (t/2551). This is a latent-hazard REGISTER (these are all
+// externalized today and would throw on eager use), NOT a safe-list — burn-down is
+// welcome but out of scope. `child_process` is deliberately absent → any re-introduction
+// errors the build. `node:` and bare specifiers are normalized to the same key.
+const RENDERER_BUILTIN_ALLOWLIST = new Set<string>([
+  'crypto', // lib/debate/comments.ts, talmudicReferences.ts — shimmed, lazy access (t/2551)
+  'fs',     // lib/debate/*, lib/flight-recorder, lib/ai-client — shimmed, lazy access (t/2551)
+  'net',    // lib/flight-recorder/flightRecorder.ts — shimmed, lazy access (t/2551)
+  'os',     // lib/flight-recorder/flightRecorder.ts — shimmed, lazy access (t/2551)
+  'path',   // lib/debate/*, lib/flight-recorder, lib/ai-client — shimmed, lazy access (t/2551)
+]);
+
+const EXTERNALIZED_RE = /Module "([^"]+)" has been externalized for browser compatibility/;
+
+// Rolldown/Rollup plugin: intercept every externalization log; collect any builtin
+// outside the allowlist; fail the build at buildEnd (this.error → non-zero exit).
+// Collecting-then-failing (rather than throwing inside onLog) aggregates ALL offenders
+// into one actionable message and guarantees the build aborts.
+function rendererNodeBuiltinGate() {
+  const violations = new Map<string, string>(); // normalized builtin -> first log line
+  return {
+    name: 't2551-renderer-node-builtin-gate',
+    onLog(_level: string, log: { message?: string } | string) {
+      const message = typeof log === 'string' ? log : (log?.message ?? '');
+      const match = EXTERNALIZED_RE.exec(message);
+      if (!match) return;
+      const builtin = match[1].replace(/^node:/, '');
+      if (!RENDERER_BUILTIN_ALLOWLIST.has(builtin) && !violations.has(builtin)) {
+        violations.set(builtin, message);
+      }
+    },
+    buildEnd(this: { error: (msg: string) => never }) {
+      if (violations.size === 0) return;
+      const detail = [...violations.values()].map((m) => `    ${m}`).join('\n');
+      this.error(
+        `[t/2551 renderer node-builtin gate] ${violations.size} renderer-reachable module(s) import a Node built-in that Vite externalized for the browser and is NOT on the allowlist: ${[...violations.keys()].join(', ')}.\n` +
+        `A named import of an externalized builtin throws at renderer bundle eval (crashes the tab). Fix by moving the importing code into a Node-only module that is NOT reachable from the renderer import graph. ` +
+        `If the builtin is genuinely renderer-safe and shimmed, add it to RENDERER_BUILTIN_ALLOWLIST in taxonomy-editor/vite.config.ts with a one-line why + burn-down ref.\n${detail}`
+      );
+    },
+  };
+}
+
 function getGitVersion(): string {
   try {
     return execSync('git describe --tags --always', { encoding: 'utf8' }).trim();
@@ -35,6 +92,7 @@ function getGitSha(): string {
 
 export default defineConfig({
   plugins: [
+    rendererNodeBuiltinGate(),
     react(),
     ...(isWeb ? [VitePWA({
       registerType: 'autoUpdate',
