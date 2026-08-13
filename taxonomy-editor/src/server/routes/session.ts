@@ -192,7 +192,7 @@ export function registerSessionRoutes(r: Router, ctx: ServerCtx): void {
 
     if (user && user !== currentUserId && !requireAdmin(res)) return;
 
-    const { users, ...rest } = await analytics.queryEngagement(from, to, user);
+    const { users, ...rest } = await analytics.queryEngagement(from, to, user ? { user } : undefined);
     json(res, isAdmin(currentUserId) ? { ...rest, users } : rest);
   });
 
