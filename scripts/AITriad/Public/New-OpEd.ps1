@@ -131,6 +131,7 @@ function New-OpEd {
     param(
         [Parameter(Mandatory, Position = 0, ParameterSetName = 'FromTopic')]
         [Parameter(Position = 0, ParameterSetName = 'FromUrl')]
+        [Parameter(ParameterSetName = 'FromPrep')]
         [ValidateNotNullOrEmpty()]
         [string]$Topic,
 
