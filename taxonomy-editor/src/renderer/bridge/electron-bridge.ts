@@ -458,15 +458,15 @@ export const api: AppAPI = {
   // DEBATE_CHAT_REDESIGN defaults ON for the local/Electron build (t/2257); opt out with
   // VITE_DEBATE_CHAT_REDESIGN=false. Web/server default is separate (Azure ticket, t/2243).
   //
-  // env-electron-opeds: GA reveal (t/2603, PI decision) — now defaults ON on desktop
-  // (create is Electron-only; unblocked once New-OpEd FromPrep -Topic landed, t/2588 #996).
-  // Opt OUT with VITE_ELECTRON_OPEDS=false (mirrors DEBATE_CHAT_REDESIGN). GA contract: t/2570#5.
-  // NOTE: `env-electron-summaries` has the SAME stub omission — NOT delivered on desktop, so
-  // Summaries is web-only in practice on the Electron build. Flagged on t/2601 for a separate
-  // decision (intended web-only vs. the same latent gap → follow-up); left as-is here.
+  // env-electron-opeds: GA reveal (t/2603) RE-GATED to opt-in (default OFF) — a real-data
+  // desktop smoke found three create-vs-render contract crashes the sign-off missed (t/2605
+  // set.opeds; pov short-code vs POV_META; grounding persisted PascalCase vs OpEdGroundingRef).
+  // Render-side resolvers/guards (povResolve, groundingType) are legacy-data TOLERANCE, not the
+  // fix; the reveal stays dark until create-side persists the canonical TS contract (ElectronMain
+  // migration) and a real-data READER smoke passes on a DRAFT re-reveal PR. Opt IN: VITE_ELECTRON_OPEDS=true.
   getFlags: () => Promise.resolve({
     DEBATE_CHAT_REDESIGN: import.meta.env.VITE_DEBATE_CHAT_REDESIGN !== 'false',
-    'env-electron-opeds': import.meta.env.VITE_ELECTRON_OPEDS !== 'false',
+    'env-electron-opeds': import.meta.env.VITE_ELECTRON_OPEDS === 'true',
   }),
 
   // UsageID registry — stub (desktop has no server-side usage registry)
