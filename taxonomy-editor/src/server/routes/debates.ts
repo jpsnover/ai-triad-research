@@ -300,6 +300,10 @@ export function registerDebatesRoutes(r: Router, _ctx: ServerCtx): void {
       try {
         session = await fileIO.loadDebateSession(debateId) as Record<string, unknown>;
       } catch (loadErr) {
+        // t/2600: this instanceof discriminates not-found (404) from real faults (500).
+        // It is reliable ONLY because the server is a no-bundler tsc/nodenext build —
+        // one ActionableError module identity across storage + route. Revisit (switch to
+        // a duck-typed marker) if we ever adopt a bundler that could duplicate the class.
         if (loadErr instanceof ActionableError) {
           const notFound = new ActionableError({
             goal: 'Generate a news report for this debate',
