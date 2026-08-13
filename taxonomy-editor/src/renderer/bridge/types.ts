@@ -82,7 +82,7 @@ export type DebateTestedEntry = _DebateTestedEntry;
 import type { DebateDelta as _DebateDelta } from '@lib/debate/types';
 export type DebateDelta = _DebateDelta;
 
-import type { OpEdSet, PovKey } from '../../../../lib/oped/types';
+import type { OpEdSet, OpEdSetSummary, PovKey } from '../../../../lib/oped/types';
 
 /** Op-Ed generation params (PR#2) — maps to New-OpEd cmdlet params; topic + voices
  *  travel separately in the payload (one New-OpEd call per selected voice). */
@@ -292,7 +292,7 @@ export interface AppAPI {
   saveDebateComments: (debateId: string, data: unknown) => Promise<void>;
 
   // --- Op-Ed Studio (t/2576; personal library — submit/copy route via community store) ---
-  listOpEdSets: () => Promise<OpEdSet[]>;
+  listOpEdSets: () => Promise<OpEdSetSummary[]>;
   loadOpEdSet: (id: string) => Promise<OpEdSet>;
   saveOpEdSet: (set: OpEdSet) => Promise<void>;
   deleteOpEdSet: (id: string) => Promise<void>;

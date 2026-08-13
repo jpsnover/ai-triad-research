@@ -9,7 +9,7 @@
 // "▸ N voices" tag on the headline.
 
 import { useState, useCallback, useEffect, useRef } from 'react';
-import type { OpEdSet, OpEdCommunityEntry, PovKey } from '../../../../../lib/oped/types';
+import type { OpEdSetSummary, OpEdCommunityEntry, PovKey } from '../../../../../lib/oped/types';
 import { CampGlyph, povToCamp } from '../shared/CampGlyph';
 import { POV_META } from '@lib/electron-shared/povMeta';
 import './OpEdTable.css';
@@ -30,7 +30,7 @@ interface SortState {
 
 export interface OpEdTableMyProps {
   variant: 'my';
-  rows: OpEdSet[];
+  rows: OpEdSetSummary[];
   loading: boolean;
   searchQuery: string;
   editMode: boolean;
@@ -42,8 +42,8 @@ export interface OpEdTableMyProps {
   setRenameValue: (v: string) => void;
   onRename: (id: string, topic: string) => void;
   onOpen: (id: string) => void;
-  onExport: (set: OpEdSet, format: string) => void;
-  onShare: (set: OpEdSet) => void;
+  onExport: (set: OpEdSetSummary, format: string) => void;
+  onShare: (set: OpEdSetSummary) => void;
   onNew: () => void;
   selectedSetId: string | null;
   totalCount: number;
@@ -79,30 +79,21 @@ function formatDate(iso: string): string {
   });
 }
 
-/** Distinct camps in a set, in first-seen member order. */
-export function opEdCamps(set: OpEdSet): PovKey[] {
-  const seen = new Set<PovKey>();
-  const out: PovKey[] = [];
-  for (const m of set.opeds) {
-    if (!seen.has(m.pov)) { seen.add(m.pov); out.push(m.pov); }
-  }
-  return out;
+/** Distinct camps in a set. The list API returns OpEdSetSummary, whose `camps` is
+ *  already deduped at the producer (t/2591) — the summary carries no `opeds` array,
+ *  so we read `camps` directly (the t/2605 crash was iterating `set.opeds` here). */
+export function opEdCamps(set: OpEdSetSummary): PovKey[] {
+  return set.camps;
 }
 
-/** Total words across a set (single-voice = the one member's count). */
-export function opEdWordCount(set: OpEdSet): number {
-  return set.opeds.reduce((sum, m) => sum + (m.wordCount ?? 0), 0);
-}
-
-export function applySortMy(rows: OpEdSet[], sort: SortState): OpEdSet[] {
+export function applySortMy(rows: OpEdSetSummary[], sort: SortState): OpEdSetSummary[] {
   if (!sort.col || sort.dir === 'none') return rows;
   const mul = sort.dir === 'asc' ? 1 : -1;
   return [...rows].sort((a, b) => {
     switch (sort.col) {
       case 'headline': return mul * (a.topic ?? '').localeCompare(b.topic ?? '');
       case 'camp':     return mul * opEdCamps(a).join(',').localeCompare(opEdCamps(b).join(','));
-      case 'outlet':   return mul * (a.params.outlet ?? '').localeCompare(b.params.outlet ?? '');
-      case 'words':    return mul * (opEdWordCount(a) - opEdWordCount(b));
+      // outlet/words are NOT on OpEdSetSummary — those columns are dropped from My (t/2605).
       case 'date':     return mul * (new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
       default:         return 0;
     }
@@ -272,7 +263,7 @@ export function OpEdMyRow({
   renamingId, setRenamingId, renameValue, setRenameValue, onRename,
   onOpen, onExport, onShare,
 }: {
-  set: OpEdSet;
+  set: OpEdSetSummary;
   isActive: boolean;
   editMode: boolean;
   isSelected: boolean;
@@ -283,15 +274,16 @@ export function OpEdMyRow({
   setRenameValue: (v: string) => void;
   onRename: (id: string, topic: string) => void;
   onOpen: (id: string) => void;
-  onExport: (set: OpEdSet, format: string) => void;
-  onShare: (set: OpEdSet) => void;
+  onExport: (set: OpEdSetSummary, format: string) => void;
+  onShare: (set: OpEdSetSummary) => void;
 }) {
   const camps = opEdCamps(set);
-  const words = opEdWordCount(set);
-  const voiceCount = set.opeds.length;
+  const voiceCount = set.voice_count;
   const isRenaming = renamingId === set.set_id;
   const headline = set.topic || 'Untitled op-ed';
-  const subtitle = voiceCount === 1 ? (set.opeds[0]?.subtitle ?? '') : '';
+  // OpEdSetSummary carries no per-member subtitle — the secondary line is the
+  // "▸ N voices" tag for multi-voice sets (OpEdHeadlineCell falls back to '' here).
+  const subtitle = '';
 
   const handleRowClick = useCallback(() => {
     if (editMode) onToggleSelect(set.set_id);
@@ -349,11 +341,7 @@ export function OpEdMyRow({
       {/* Camp */}
       <td className="col-camp"><CampChips camps={camps} /></td>
 
-      {/* Outlet */}
-      <td className="col-outlet" title={set.params.outlet ?? undefined}>{set.params.outlet || '—'}</td>
-
-      {/* Words */}
-      <td className="col-words">{words > 0 ? words : '—'}</td>
+      {/* Outlet + Words dropped (t/2605): OpEdSetSummary carries neither. */}
 
       {/* Date */}
       <td className="col-date" title={set.created_at}>{formatDate(set.created_at)}</td>
@@ -484,7 +472,9 @@ function MyTable(props: OpEdTableMyProps) {
   } = props;
   const [sort, onSort] = useSort();
   const sortedRows = applySortMy(rows, sort);
-  const colSpan = editMode ? 7 : 6;
+  // Columns: [cb?] headline · camp · date · actions — Outlet/Words dropped (t/2605,
+  // not on OpEdSetSummary).
+  const colSpan = editMode ? 5 : 4;
 
   return (
     <div className="oped-table-wrap" role="region" aria-label="My op-eds table">
@@ -494,8 +484,6 @@ function MyTable(props: OpEdTableMyProps) {
           {editMode && <col className="col-cb" />}
           <col className="col-headline" />
           <col className="col-camp" />
-          <col className="col-outlet" />
-          <col className="col-words" />
           <col className="col-date" />
           <col className="col-actions" />
         </colgroup>
@@ -507,12 +495,6 @@ function MyTable(props: OpEdTableMyProps) {
             </th>
             <th scope="col" className="col-camp" aria-sort={getSortAttr('camp', sort)}>
               <SortHeader label="Camp" col="camp" sort={sort} onSort={onSort} />
-            </th>
-            <th scope="col" className="col-outlet" aria-sort={getSortAttr('outlet', sort)}>
-              <SortHeader label="Outlet" col="outlet" sort={sort} onSort={onSort} />
-            </th>
-            <th scope="col" className="col-words" aria-sort={getSortAttr('words', sort)}>
-              <SortHeader label="Words" col="words" sort={sort} onSort={onSort} />
             </th>
             <th scope="col" className="col-date" aria-sort={getSortAttr('date', sort)}>
               <SortHeader label="Date" col="date" sort={sort} onSort={onSort} />

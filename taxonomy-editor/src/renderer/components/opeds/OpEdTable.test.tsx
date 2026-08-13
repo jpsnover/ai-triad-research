@@ -3,30 +3,18 @@
 
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent, within } from '@testing-library/react';
-import { OpEdTable, OpEdMyRow, OpEdCommunityRow, opEdCamps, opEdWordCount, applySortMy, applySortCommunity } from './OpEdTable';
-import type { OpEdSet, OpEdMember, OpEdCommunityEntry, PovKey } from '../../../../../lib/oped/types';
+import { OpEdTable, OpEdMyRow, OpEdCommunityRow, opEdCamps, applySortMy, applySortCommunity } from './OpEdTable';
+import type { OpEdSetSummary, OpEdCommunityEntry, PovKey } from '../../../../../lib/oped/types';
 
-function member(overrides: Partial<OpEdMember> = {}): OpEdMember {
+// The My list renders OpEdSetSummary index rows (no `opeds`/`params` body) — the
+// t/2605 crash was code that assumed the full OpEdSet here (`set.opeds` iteration).
+function makeSummary(overrides: Partial<OpEdSetSummary> = {}): OpEdSetSummary {
   return {
-    pov: 'safetyist',
-    status: 'complete',
-    headline: 'A headline',
-    subtitle: 'A subtitle',
-    body: 'Body text.',
-    wordCount: 800,
-    grounding: [],
-    ...overrides,
-  };
-}
-
-function makeSet(overrides: Partial<OpEdSet> = {}): OpEdSet {
-  return {
-    schema_version: 1,
     set_id: 'set-1',
     topic: 'Mandatory pre-deployment audits',
-    params: { wordCount: 800, model: 'gemini-3.6-flash', outlet: 'The Washington Post' },
     created_at: '2026-08-08T12:00:00Z',
-    opeds: [member()],
+    camps: ['safetyist'],
+    voice_count: 1,
     ...overrides,
   };
 }
@@ -64,39 +52,34 @@ const noopMyProps = {
   totalCount: 0,
 };
 
-describe('opEdCamps / opEdWordCount helpers', () => {
-  it('returns distinct camps in member order', () => {
-    const set = makeSet({ opeds: [member({ pov: 'skeptic' }), member({ pov: 'safetyist' }), member({ pov: 'skeptic' })] });
+describe('opEdCamps helper', () => {
+  it('returns the summary camps directly (no opeds iteration)', () => {
+    const set = makeSummary({ camps: ['skeptic', 'safetyist'] });
     expect(opEdCamps(set)).toEqual<PovKey[]>(['skeptic', 'safetyist']);
-  });
-
-  it('sums word counts across members', () => {
-    const set = makeSet({ opeds: [member({ wordCount: 800 }), member({ pov: 'skeptic', wordCount: 655 })] });
-    expect(opEdWordCount(set)).toBe(1455);
   });
 });
 
 describe('applySort — My / Community', () => {
   it('sorts My rows by date descending', () => {
     const rows = [
-      makeSet({ set_id: 'a', created_at: '2026-08-01T00:00:00Z' }),
-      makeSet({ set_id: 'b', created_at: '2026-08-09T00:00:00Z' }),
+      makeSummary({ set_id: 'a', created_at: '2026-08-01T00:00:00Z' }),
+      makeSummary({ set_id: 'b', created_at: '2026-08-09T00:00:00Z' }),
     ];
     const sorted = applySortMy(rows, { col: 'date', dir: 'desc' });
     expect(sorted[0].set_id).toBe('b');
   });
 
-  it('sorts My rows by words ascending', () => {
+  it('sorts My rows by camp ascending', () => {
     const rows = [
-      makeSet({ set_id: 'big', opeds: [member({ wordCount: 900 })] }),
-      makeSet({ set_id: 'small', opeds: [member({ wordCount: 300 })] }),
+      makeSummary({ set_id: 'skp', camps: ['skeptic'] }),
+      makeSummary({ set_id: 'acc', camps: ['accelerationist'] }),
     ];
-    const sorted = applySortMy(rows, { col: 'words', dir: 'asc' });
-    expect(sorted[0].set_id).toBe('small');
+    const sorted = applySortMy(rows, { col: 'camp', dir: 'asc' });
+    expect(sorted[0].set_id).toBe('acc');
   });
 
   it('returns rows unchanged when sort is none', () => {
-    const rows = [makeSet({ set_id: 'a' }), makeSet({ set_id: 'b' })];
+    const rows = [makeSummary({ set_id: 'a' }), makeSummary({ set_id: 'b' })];
     expect(applySortMy(rows, { col: null, dir: 'none' })).toBe(rows);
   });
 
@@ -111,7 +94,7 @@ describe('applySort — My / Community', () => {
 });
 
 describe('OpEdMyRow', () => {
-  function renderRow(set: OpEdSet, extra: Record<string, unknown> = {}) {
+  function renderRow(set: OpEdSetSummary, extra: Record<string, unknown> = {}) {
     return render(
       <table><tbody>
         <OpEdMyRow
@@ -134,39 +117,35 @@ describe('OpEdMyRow', () => {
     );
   }
 
-  it('renders topic as the headline and the outlet + word count', () => {
-    renderRow(makeSet());
+  it('renders the topic as the headline and the camp chip', () => {
+    const { container } = renderRow(makeSummary());
     expect(screen.getByText('Mandatory pre-deployment audits')).toBeTruthy();
-    expect(screen.getByText('The Washington Post')).toBeTruthy();
-    expect(screen.getByText('800')).toBeTruthy();
-  });
-
-  it('shows "— " for a missing outlet', () => {
-    renderRow(makeSet({ params: { wordCount: 800, model: 'm' } }));
-    expect(screen.getByText('—')).toBeTruthy();
+    // Camp chip renders the short label for safetyist.
+    expect(within(container.querySelector('.col-camp')!).getByText('Saf')).toBeTruthy();
   });
 
   it('shows a "▸ N voices" tag for multi-voice sets', () => {
-    renderRow(makeSet({ opeds: [member({ pov: 'skeptic' }), member({ pov: 'safetyist' })] }));
+    renderRow(makeSummary({ camps: ['skeptic', 'safetyist'], voice_count: 2 }));
     expect(screen.getByText('▸ 2 voices')).toBeTruthy();
   });
 
   it('Open button fires onOpen with the set id', () => {
     const onOpen = vi.fn();
-    renderRow(makeSet(), { onOpen });
+    renderRow(makeSummary(), { onOpen });
     fireEvent.click(screen.getByRole('button', { name: /open/i }));
     expect(onOpen).toHaveBeenCalledWith('set-1');
   });
 
-  it('Share button fires onShare', () => {
+  it('Share button fires onShare with the summary', () => {
     const onShare = vi.fn();
-    renderRow(makeSet(), { onShare });
+    const set = makeSummary();
+    renderRow(set, { onShare });
     fireEvent.click(screen.getByRole('button', { name: /share/i }));
-    expect(onShare).toHaveBeenCalled();
+    expect(onShare).toHaveBeenCalledWith(set);
   });
 
   it('renders a select checkbox in edit mode', () => {
-    renderRow(makeSet(), { editMode: true });
+    renderRow(makeSummary(), { editMode: true });
     expect(screen.getByRole('checkbox', { name: /select/i })).toBeTruthy();
   });
 });
@@ -230,10 +209,35 @@ describe('OpEdTable — My variant', () => {
   });
 
   it('renders a semantic table with an sr-only caption and sortable headers', () => {
-    render(<OpEdTable {...noopMyProps} rows={[makeSet()]} />);
+    render(<OpEdTable {...noopMyProps} rows={[makeSummary()]} />);
     const table = screen.getByRole('table');
     expect(within(table).getByText('My Op-Eds')).toBeTruthy();
     expect(screen.getByRole('columnheader', { name: /headline/i })).toBeTruthy();
+  });
+
+  // t/2605 regression: the full My table over a NON-EMPTY OpEdSetSummary[] must render
+  // camp chips + voice counts for every row without throwing. A prior version iterated
+  // `set.opeds` on the summary and crashed on the first non-empty list; an empty-rows
+  // test never exercised the row-render path and gave false confidence.
+  it('renders a non-empty My list with per-row camp chips + voice tags (no crash)', () => {
+    const rows = [
+      makeSummary({ set_id: 'multi', topic: 'Frontier model licensing', camps: ['safetyist', 'skeptic'], voice_count: 2 }),
+      makeSummary({ set_id: 'single', topic: 'Compute governance', camps: ['accelerationist'], voice_count: 1 }),
+    ];
+    render(<OpEdTable {...noopMyProps} rows={rows} totalCount={rows.length} />);
+
+    // Both topics render as headlines.
+    expect(screen.getByText('Frontier model licensing')).toBeTruthy();
+    expect(screen.getByText('Compute governance')).toBeTruthy();
+
+    // The multi-voice row shows its camp chips and the voices tag.
+    const multiRow = screen.getByText('Frontier model licensing').closest('tr')!;
+    expect(within(multiRow).getByText('Saf')).toBeTruthy();
+    expect(within(multiRow).getByText('Skp')).toBeTruthy();
+    expect(within(multiRow).getByText('▸ 2 voices')).toBeTruthy();
+
+    // Every row exposes an Open action — proves the full row body rendered.
+    expect(screen.getAllByRole('button', { name: /open/i })).toHaveLength(2);
   });
 });
 

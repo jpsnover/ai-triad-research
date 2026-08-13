@@ -17,7 +17,7 @@ import {
   localComputeEmbeddings,
 } from '../utils/localEmbedding';
 import { ActionableError } from '@lib/debate/errors';
-import type { OpEdSet } from '../../../../lib/oped/types';
+import type { OpEdSet, OpEdSetSummary } from '../../../../lib/oped/types';
 
 // Fire-and-forget: start local embedding init on module load.
 // Bridge is always available in Electron, so WASM-init-failed is harmless noise.
@@ -29,7 +29,7 @@ void tryInitLocalEmbedding();
 // we feature-detect (optional-chained cast) and reject with an honest ActionableError.
 // No stub to swap out: when t/2575 installs the real methods, these calls light up.
 type OpEdIpc = {
-  listOpEdSets?: () => Promise<OpEdSet[]>;
+  listOpEdSets?: () => Promise<OpEdSetSummary[]>;
   loadOpEdSet?: (id: string) => Promise<OpEdSet>;
   saveOpEdSet?: (set: OpEdSet) => Promise<void>;
   deleteOpEdSet?: (id: string) => Promise<void>;

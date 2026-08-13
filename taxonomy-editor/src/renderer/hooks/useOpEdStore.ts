@@ -4,7 +4,7 @@
 import { create } from 'zustand';
 import { api } from '@bridge';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
-import type { OpEdSet } from '../../../../lib/oped/types';
+import type { OpEdSetSummary } from '../../../../lib/oped/types';
 
 // Personal Op-Ed library store (t/2576). A lean list/load/delete/rename surface over
 // the bridge trio — deliberately NOT a mirror of useDebateStore's state machine: an
@@ -15,8 +15,8 @@ import type { OpEdSet } from '../../../../lib/oped/types';
 // t/2573 routes). Community op-eds live in useCommunityStore alongside debates/chats.
 
 interface OpEdStore {
-  /** Personal op-ed sets (each set = one create run; single-voice is a set of 1). */
-  sets: OpEdSet[];
+  /** Personal op-ed sets as lightweight index rows (no body/params — load on open). */
+  sets: OpEdSetSummary[];
   /** set_id of the row open in the reader, or null for the table view. */
   selectedSetId: string | null;
   loading: boolean;
@@ -83,10 +83,13 @@ export const useOpEdStore = create<OpEdStore>((set, get) => ({
     const prev = get().sets;
     const target = prev.find(s => s.set_id === id);
     if (!target) return;
-    const updated: OpEdSet = { ...target, topic };
-    set({ sets: prev.map(s => (s.set_id === id ? updated : s)) });
+    // Optimistically patch the visible index row (topic is on the summary), but the
+    // persisted doc is the FULL set — the index carries no body, so we load-then-save
+    // the whole doc (a summary-only save would truncate opeds/params). t/2605.
+    set({ sets: prev.map(s => (s.set_id === id ? { ...s, topic } : s)) });
     try {
-      await api.saveOpEdSet(updated);
+      const full = await api.loadOpEdSet(id);
+      await api.saveOpEdSet({ ...full, topic });
     } catch (err) {
       getGlobalRecorder()?.record({
         type: 'system.error', component: 'oped-store', level: 'error', message: 'Failed to rename op-ed set',
