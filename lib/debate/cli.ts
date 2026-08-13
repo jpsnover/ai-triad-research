@@ -23,6 +23,7 @@ import { generateSlug, formatDebateMarkdown, buildDiagnosticsOutput, buildHarves
 import { ActionableError } from './errors.js';
 import { runExploreFirstPipeline } from './explorationPreset.js';
 import { safeSerialize, atomicWriteSync } from './persistence.js';
+import { recordLockHolder } from './lockHolder.js';
 import { computeQualityScore } from './qualityScore.js';
 
 // ── CLI Config schema ────────────────────────────────────
@@ -576,7 +577,7 @@ async function main(): Promise<void> {
 
   const jsonPath = path.join(outputDir, `${slug}-debate.json`);
   try {
-    atomicWriteSync(jsonPath, sessionJson);
+    atomicWriteSync(jsonPath, sessionJson, recordLockHolder);
     log(`Wrote debate JSON (atomic): ${jsonPath}`);
   } catch (err) {
     getGlobalRecorder()?.record({ type: 'state.error', component: 'cli', level: 'error', message: `Failed to write debate JSON to '${jsonPath}'`, error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });

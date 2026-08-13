@@ -1,8 +1,8 @@
-// Fault injection tests for atomicWriteSync retry budget scaling (t/2546),
-// io.lock-holder FR event on exhaustion (t/2544), and execFileSync argv
-// injection guard (t/2549).
+// Fault injection tests for atomicWriteSync retry budget scaling (t/2546)
+// and onLockExhausted callback contract (t/2544).
 //
-// Uses vi.mock('child_process') to intercept execFileSync calls in queryLockHolder.
+// child_process is no longer imported by persistence.ts (t/2550 hot-fix);
+// the lock-holder diagnostic is in lockHolder.ts and tested in lockHolder.test.ts.
 
 import { describe, it, expect, vi, afterEach, beforeAll, afterAll } from 'vitest';
 import fs from 'fs';
@@ -12,15 +12,7 @@ import { makeStorageError } from './faultInjection.js';
 import { setGlobalRecorder, clearGlobalRecorder, type FlightRecorder } from '../../flight-recorder/index.js';
 import type { RecordInput } from '../../flight-recorder/types.js';
 
-vi.mock('child_process', () => {
-  const execFileSync = vi.fn();
-  return { default: { execFileSync }, execFileSync };
-});
-
-import { execFileSync } from 'child_process';
 import { atomicWriteSync, renameSyncWithRetry } from '../persistence.js';
-
-const mockExecFileSync = vi.mocked(execFileSync);
 
 // ── Hermetic isolation ────────────────────────────────────
 beforeAll(() => {
@@ -49,13 +41,12 @@ function installCaptureRecorder(): RecordInput[] {
   return captured;
 }
 
-afterEach(() => { vi.restoreAllMocks(); mockExecFileSync.mockClear(); clearGlobalRecorder(); });
+afterEach(() => { vi.restoreAllMocks(); clearGlobalRecorder(); });
 
 // ── t/2546: wall-clock budget scales with payload size ───
 
 describe('renameSyncWithRetry — wall-clock budget (t/2546)', () => {
   it('wall-clock budget: continues past 7-attempt limit while deadline not reached', () => {
-    // Atomics.wait mocked → no real sleep, Date.now frozen → deadline never expires
     vi.spyOn(Atomics, 'wait').mockReturnValue('ok');
     vi.spyOn(Date, 'now').mockReturnValue(0); // deadline = 30000, 0 < 30000 always true
 
@@ -63,7 +54,6 @@ describe('renameSyncWithRetry — wall-clock budget (t/2546)', () => {
     vi.spyOn(fs, 'renameSync').mockImplementation(() => {
       callCount++;
       if (callCount <= 15) throw makeStorageError('EPERM', 'operation not permitted');
-      // 16th call succeeds (void return from mock = success)
     });
 
     expect(() => renameSyncWithRetry('a.tmp', 'a.json', 7, 30_000)).not.toThrow();
@@ -85,30 +75,27 @@ describe('renameSyncWithRetry — wall-clock budget (t/2546)', () => {
     expect(callCount).toBe(8);
   });
 
-  it('wall-clock deadline exceeded: single attempt then throws (budget=0ms)', () => {
+  it('wall-clock deadline exceeded: single attempt then invokes onLockExhausted callback', () => {
     vi.spyOn(Atomics, 'wait').mockReturnValue('ok');
-    // deadline = Date.now()(call 1=0) + 30000 = 30000
-    // budget check = Date.now()(call 2=31000) < 30000 → false immediately
     let nowCall = 0;
     vi.spyOn(Date, 'now').mockImplementation(() => { nowCall++; return nowCall === 1 ? 0 : 31_000; });
 
-    const captured = installCaptureRecorder();
     let callCount = 0;
     vi.spyOn(fs, 'renameSync').mockImplementation(() => {
       callCount++;
       throw makeStorageError('EPERM', 'operation not permitted');
     });
 
-    expect(() => renameSyncWithRetry('a.tmp', 'a.json', 7, 30_000)).toThrow('EPERM');
-    // Budget exhausted after 1 attempt (first Date.now check sees 31000 > 30000)
+    const onLockExhausted = vi.fn();
+    expect(() => renameSyncWithRetry('a.tmp', 'a.json', 7, 30_000, onLockExhausted)).toThrow('EPERM');
     expect(callCount).toBe(1);
-    // io.lock-holder emitted on budget exhaustion
-    expect(captured.some(e => e.type === 'io.lock-holder')).toBe(true);
+    // callback fired with the target path
+    expect(onLockExhausted).toHaveBeenCalledOnce();
+    expect(onLockExhausted).toHaveBeenCalledWith('a.json');
   });
 
   it('atomicWriteSync large payload (>200KB): scales to wall-clock budget end-to-end', () => {
     vi.spyOn(Atomics, 'wait').mockReturnValue('ok');
-    // Date.now always returns 0 → 0 < 30000 always true → wall-clock never expires
     vi.spyOn(Date, 'now').mockReturnValue(0);
 
     const target = tmpPath('large-e2e.json');
@@ -118,7 +105,6 @@ describe('renameSyncWithRetry — wall-clock budget (t/2546)', () => {
     vi.spyOn(fs, 'renameSync').mockImplementation(() => {
       callCount++;
       if (callCount <= 10) throw makeStorageError('EPERM', 'operation not permitted');
-      // Succeed on call 11 (void = success)
     });
 
     expect(() => atomicWriteSync(target, content)).not.toThrow();
@@ -139,7 +125,6 @@ describe('renameSyncWithRetry — wall-clock budget (t/2546)', () => {
 
     try { atomicWriteSync(target, '{"small":true}'); } catch (e) { caught = e; }
 
-    // Small file → fixed budget → eventually throws ActionableError (both rename paths exhausted)
     expect(caught).toBeDefined();
     cleanup(target);
   });
@@ -163,125 +148,70 @@ describe('renameSyncWithRetry — wall-clock budget (t/2546)', () => {
   });
 });
 
-// ── t/2544: io.lock-holder FR event on exhaustion ────────
+// ── t/2544: onLockExhausted callback contract ────────────
+//
+// queryLockHolder and the io.lock-holder FR event are in lockHolder.ts;
+// tested in lockHolder.test.ts. Here we verify persistence.ts's callback contract:
+// the callback is invoked on transient-EPERM budget exhaustion, not on success
+// or non-transient errors.
 
-describe('renameSyncWithRetry — io.lock-holder event (t/2544)', () => {
-  it('emits io.lock-holder with processName and pid when handle.exe succeeds', () => {
-    // Simulate Windows platform for queryLockHolder
-    const origPlatform = process.platform;
-    Object.defineProperty(process, 'platform', { value: 'win32', configurable: true });
-
-    mockExecFileSync.mockReturnValue(
-      'Defender.exe  pid: 1234  type: File  8C: C:\\data\\debates\\debate-abc.json\n' as unknown as Buffer,
-    );
-
-    const captured = installCaptureRecorder();
+describe('renameSyncWithRetry — onLockExhausted callback (t/2544)', () => {
+  it('invokes onLockExhausted with target path on EPERM budget exhaustion', () => {
     vi.spyOn(Atomics, 'wait').mockReturnValue('ok');
     vi.spyOn(fs, 'renameSync').mockImplementation(() => {
       throw makeStorageError('EPERM', 'operation not permitted');
     });
 
-    // maxRetries=0 → i=0, withinBudget=0<0=false → budget exhausted immediately
-    expect(() => renameSyncWithRetry('a.tmp', 'a.json', 0)).toThrow('EPERM');
-
-    const lockEvents = captured.filter(e => e.type === 'io.lock-holder');
-    expect(lockEvents).toHaveLength(1);
-    expect(lockEvents[0].data).toMatchObject({ processName: 'Defender.exe', pid: 1234 });
-    expect(lockEvents[0].data).not.toHaveProperty('unavailable');
-
-    Object.defineProperty(process, 'platform', { value: origPlatform, configurable: true });
+    const onLockExhausted = vi.fn();
+    expect(() => renameSyncWithRetry('a.tmp', 'a.json', 0, undefined, onLockExhausted)).toThrow('EPERM');
+    expect(onLockExhausted).toHaveBeenCalledOnce();
+    expect(onLockExhausted).toHaveBeenCalledWith('a.json');
   });
 
-  it('emits io.lock-holder with unavailable:true when handle.exe absent', () => {
-    const origPlatform = process.platform;
-    Object.defineProperty(process, 'platform', { value: 'win32', configurable: true });
-
-    mockExecFileSync.mockImplementation(() => {
-      throw Object.assign(new Error('ENOENT: handle.exe not found'), { code: 'ENOENT' });
-    });
-
-    const captured = installCaptureRecorder();
+  it('invokes onLockExhausted on EACCES budget exhaustion', () => {
     vi.spyOn(Atomics, 'wait').mockReturnValue('ok');
     vi.spyOn(fs, 'renameSync').mockImplementation(() => {
-      throw makeStorageError('EPERM', 'operation not permitted');
+      throw makeStorageError('EACCES', 'permission denied');
     });
 
-    expect(() => renameSyncWithRetry('a.tmp', 'a.json', 0)).toThrow('EPERM');
-
-    const lockEvents = captured.filter(e => e.type === 'io.lock-holder');
-    expect(lockEvents).toHaveLength(1);
-    expect(lockEvents[0].data).toMatchObject({ unavailable: true });
-
-    Object.defineProperty(process, 'platform', { value: origPlatform, configurable: true });
+    const onLockExhausted = vi.fn();
+    expect(() => renameSyncWithRetry('a.tmp', 'a.json', 0, undefined, onLockExhausted)).toThrow('EACCES');
+    expect(onLockExhausted).toHaveBeenCalledOnce();
   });
 
-  it('emits io.lock-holder with unavailable:true on non-Windows', () => {
-    const origPlatform = process.platform;
-    // Ensure non-Windows platform
-    Object.defineProperty(process, 'platform', { value: 'linux', configurable: true });
-
-    const captured = installCaptureRecorder();
-    vi.spyOn(Atomics, 'wait').mockReturnValue('ok');
-    vi.spyOn(fs, 'renameSync').mockImplementation(() => {
-      throw makeStorageError('EPERM', 'operation not permitted');
-    });
-
-    expect(() => renameSyncWithRetry('a.tmp', 'a.json', 0)).toThrow('EPERM');
-
-    const lockEvents = captured.filter(e => e.type === 'io.lock-holder');
-    expect(lockEvents).toHaveLength(1);
-    expect(lockEvents[0].data).toMatchObject({ unavailable: true, reason: 'non-Windows' });
-    // execSync never called on non-Windows
-    expect(mockExecFileSync).not.toHaveBeenCalled();
-
-    Object.defineProperty(process, 'platform', { value: origPlatform, configurable: true });
-  });
-
-  it('does NOT emit io.lock-holder on non-transient errors (EXDEV)', () => {
-    const captured = installCaptureRecorder();
+  it('does NOT invoke onLockExhausted on non-transient errors (EXDEV)', () => {
     vi.spyOn(fs, 'renameSync').mockImplementation(() => {
       throw makeStorageError('EXDEV', 'cross-device link not permitted');
     });
 
-    expect(() => renameSyncWithRetry('a.tmp', 'a.json', 0)).toThrow('EXDEV');
-    expect(captured.some(e => e.type === 'io.lock-holder')).toBe(false);
+    const onLockExhausted = vi.fn();
+    expect(() => renameSyncWithRetry('a.tmp', 'a.json', 0, undefined, onLockExhausted)).toThrow('EXDEV');
+    expect(onLockExhausted).not.toHaveBeenCalled();
   });
-});
 
-// ── t/2549: execFileSync argv — shell metachar regression ────
-//
-// Regression guard: filePath containing shell metacharacters must reach
-// execFileSync as a single argv element, not be interpreted by a shell.
-// Previously execSync(`handle.exe "${filePath}"`) allowed injection via
-// embedded quotes/metacharacters in the path (CodeQL #5530).
+  it('does NOT invoke onLockExhausted on success', () => {
+    vi.spyOn(fs, 'renameSync').mockReturnValue(undefined);
 
-describe('queryLockHolder — execFileSync argv injection guard (t/2549)', () => {
-  it('passes filePath with shell metacharacters as single argv element (not shell-interpreted)', () => {
-    const origPlatform = process.platform;
-    Object.defineProperty(process, 'platform', { value: 'win32', configurable: true });
+    const onLockExhausted = vi.fn();
+    expect(() => renameSyncWithRetry('a.tmp', 'a.json', 0, undefined, onLockExhausted)).not.toThrow();
+    expect(onLockExhausted).not.toHaveBeenCalled();
+  });
 
-    // Path containing characters that would break shell interpolation
-    const maliciousPath = 'C:\\debates\\file-with-"quotes"&meta$chars.json';
-
-    mockExecFileSync.mockReturnValue(
-      'SomeProcess.exe  pid: 9999  type: File  A0: ' + maliciousPath + '\n' as unknown as Buffer,
-    );
-
+  it('atomicWriteSync threads onLockExhausted callback to renameSyncWithRetry', () => {
     vi.spyOn(Atomics, 'wait').mockReturnValue('ok');
     vi.spyOn(fs, 'renameSync').mockImplementation(() => {
       throw makeStorageError('EPERM', 'operation not permitted');
     });
 
-    expect(() => renameSyncWithRetry(maliciousPath + '.tmp', maliciousPath, 0)).toThrow('EPERM');
+    const target = tmpPath('callback-thread.json');
+    const onLockExhausted = vi.fn();
 
-    // execFileSync must have been called with filePath as a separate argv element,
-    // not as part of a shell command string.
-    expect(mockExecFileSync).toHaveBeenCalledWith(
-      'handle.exe',
-      [maliciousPath],
-      expect.objectContaining({ timeout: 2000 }),
-    );
+    let caught: unknown;
+    try { atomicWriteSync(target, '{"x":1}', onLockExhausted); } catch (e) { caught = e; }
 
-    Object.defineProperty(process, 'platform', { value: origPlatform, configurable: true });
+    expect(caught).toBeDefined();
+    // Callback fired at least once (primary rename + .tmp2 fallback may both exhaust)
+    expect(onLockExhausted).toHaveBeenCalled();
+    cleanup(target);
   });
 });
