@@ -61,6 +61,19 @@ export interface OpEdSet {
   opeds: OpEdMember[];
 }
 
+// ── Local library listing summary (t/2591) ───────────────────────────────────
+//
+// Returned by list-oped-sets IPC so OpEdTable renders camp chips + voice count
+// without loading the full set doc. Derived from OpEdSet at list time.
+
+export interface OpEdSetSummary {
+  set_id: string;
+  topic: string;
+  created_at: string;
+  camps: PovKey[];
+  voice_count: number;
+}
+
 // ── Community index entry (e/91#2 condition 5) ────────────────────────────────
 //
 // Carried in the listing index so list rows render camp chips without loading
