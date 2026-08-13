@@ -828,13 +828,17 @@ export function initFlightRecorder(): FlightRecorder {
 
   window.addEventListener('error', (event) => {
     const err = event.error instanceof Error ? event.error : new Error(String(event.error ?? event.message));
+    // An externalized-builtin link failure can throw at module eval, before React
+    // mounts — so it surfaces here rather than via the error boundary. Name the
+    // module in the dump either way (t/2551 observability arm).
+    const externalizedModule = extractExternalizedModule(err);
     recorder.record({
       type: 'system.error',
       component: 'unknown',
       level: 'fatal',
       message: err.message,
       error: { name: err.name, message: err.message, stack: err.stack?.slice(0, 500) },
-      data: { hmr_timestamps: extractHmrTimestamps(err.stack), load_generation: loadGeneration },
+      data: { hmr_timestamps: extractHmrTimestamps(err.stack), load_generation: loadGeneration, ...(externalizedModule ? { externalized_module: externalizedModule } : {}) },
     });
     if (canAutoDump()) {
       recordDump();
@@ -961,6 +965,24 @@ function snapshotStoresForCrash(): Record<string, unknown> | undefined {
 }
 
 /**
+ * When a renderer-reachable module imports a Node built-in that Vite externalized
+ * for the browser, accessing a named binding throws at bundle eval with a message
+ * that names the module — e.g. `Module "child_process" has been externalized for
+ * browser compatibility. Cannot access "child_process.execFileSync" in client code.`
+ * (t/2550's crash). Surface that module id as a first-class dump field so the NEXT
+ * such crash names its failing built-in / import chain instead of leaving triage to
+ * a human repro (t/2551 observability arm; the vite.config.ts build gate is the
+ * prevention arm). Returns undefined for ordinary errors.
+ */
+function extractExternalizedModule(error: Error): { module: string; accessed?: string } | undefined {
+  const msg = String(error?.message ?? '');
+  const mod = /Module "([^"]+)" has been externalized for browser compatibility/.exec(msg);
+  if (!mod) return undefined;
+  const accessed = /Cannot access "([^"]+)" in client code/.exec(msg)?.[1];
+  return { module: mod[1], ...(accessed ? { accessed } : {}) };
+}
+
+/**
  * Called from ErrorBoundary.componentDidCatch to dump on React render errors.
  */
 export function dumpOnReactError(
@@ -974,10 +996,12 @@ export function dumpOnReactError(
   recordDump();
 
   const stateSnapshot = snapshotStoresForCrash();
+  const externalizedModule = extractExternalizedModule(error);
 
   const baseData: Record<string, unknown> = {
     ...(componentStack ? { component_stack: componentStack.slice(0, 1000) } : {}),
     ...(stateSnapshot ? { state_snapshot: stateSnapshot } : {}),
+    ...(externalizedModule ? { externalized_module: externalizedModule } : {}),
   };
 
   // Record the crash SYNCHRONOUSLY, before any async work (t/2297). This guarantees
