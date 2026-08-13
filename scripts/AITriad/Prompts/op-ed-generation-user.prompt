@@ -20,6 +20,14 @@ AUTHOR (for the authority line / bio):
 SOURCE MATERIAL (use as factual grounding; quote or paraphrase from it where it strengthens a pillar — do not invent statistics it does not support):
 {{SOURCE_MATERIAL}}
 
+WHAT THE SOURCE ACTUALLY ARGUES. This is a neutral brief prepared from the source above. Treat each line as an established fact about the document that you must represent accurately:
+- Published by: {{SOURCE_AUTHOR}} ({{SOURCE_ACTOR_TYPE}})
+- Its thesis: {{SOURCE_THESIS}}
+- Its stance: {{SOURCE_STANCE}}
+- What it calls for: {{SOURCE_RECOMMENDATIONS}}
+
+SOURCE FIDELITY IS A HARD CONSTRAINT. You write in your camp's voice, but you must represent the source document accurately. Get right who wrote it, what it argues, and what it recommends. Your camp governs the ARGUMENT you make about the ISSUE, not the FACTS about this document. If your camp agrees with the source, say so and build on it or push it further; do not manufacture a disagreement that isn't there. If your camp disagrees, state the source's actual position fairly before rebutting it. (If no source material is provided above, disregard this block.)
+
 YOUR CAMP'S REGISTERED POSITIONS — these are this camp's actual belief / desire / intention nodes, retrieved as the most relevant to this topic (most relevant first). Each is prefixed with its [id]. Argue FROM them: build the thesis and evidence pillars on these commitments and do NOT contradict them. They are the substance of your camp, not optional background:
 {{GROUNDING_NODES}}
 
@@ -34,5 +42,6 @@ Return ONLY a JSON object with these fields:
 - "body_markdown": the full essay as Markdown. Short paragraphs. No section labels or headers inside the body — it must read as continuous prose. Do NOT repeat the headline inside the body.
 - "word_count": your integer count of the words in body_markdown
 - "pitch_email": the pitch cover email if one was requested above, otherwise an empty string
+- "stance": your camp's relationship to the source document ("agree", "rebut", or "extend"), matching what you actually wrote (empty string if no source material was provided)
 
 Do not include any commentary outside the JSON.
