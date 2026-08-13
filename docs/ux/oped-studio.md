@@ -102,7 +102,7 @@ Full-width semantic `<table>` (`<thead>` / `<th scope="col">` / `<caption class=
 - **My:** `Open` (select → reader, primary emphasis) · `Export` (Markdown / PDF / text — reuses the essay's Markdown; see §7) · `Share` (submit to community, mirror `submitToCommunity('oped', …)`).
 - **Community:** `Open` · `Export` · **`Copy`** (`copyItem('opeds', id)` → `loadOpEds()`; hidden for anonymous users, per `!auth?.anonymous` — same rule as Debate). Do **not** render a disabled Share on community rows.
 
-**Preserve** (identical semantics to Debate): search box filters rows; **Edit mode** (My) gives a leading checkbox column for bulk-delete + inline Headline rename; active/selected row highlighted by a left accent bar + `aria-current` (not color alone); empty/loading states as full-width rows spanning all columns; column sort (`aria-sort`) on Headline/Camp/Outlet/Words/Date, default Date-desc.
+**Preserve** (identical semantics to Debate): search box filters rows; **Edit mode** (My) gives a leading checkbox column for bulk-delete + inline Headline rename — which edits the **set-level `topic`** (the label rendered in the Headline column), **never** the AI-generated per-voice essay headlines (each voice's own reader `<h1>`; N per set); no schema change, mirrors Debate's session-title rename (t/2592); active/selected row highlighted by a left accent bar + `aria-current` (not color alone); empty/loading states as full-width rows spanning all columns; column sort (`aria-sort`) on Headline/Camp/Outlet/Words/Date, default Date-desc.
 
 **Empty states:**
 - **My, none yet:** "No op-eds yet. Create one to draft a guest essay in a camp voice." + `[ + New Op-Ed ]`.
@@ -113,6 +113,8 @@ Full-width semantic `<table>` (`<thead>` / `<th scope="col">` / `<caption class=
 ## 5. Create flow — `NewOpEdDialog`
 
 Two screens, mirroring `NewDebateDialog`'s **Screen A (quick) + Screen B (settings drawer)** pattern, so the common path is one short form and the full parameter surface is one click away. Every field maps to a `New-OpEd` parameter.
+
+**Platform (v1) — create is Electron-only (PI-confirmed, TL ruling on the epic, t/2570#3).** `New-OpEd` is a PowerShell cmdlet the web server can't run, so **the whole create flow below is a desktop-only mount.** In the **web** app the `+ New Op-Ed` control renders **disabled** (not hidden — discoverability) with the affordance *"Available in the desktop app"*; browse / share / copy stay platform-agnostic. Include the disabled web state in Design's four-theme review scope. No web-side generation in v1.
 
 ### Screen A — the essential form (≈560 px, single column)
 
@@ -256,7 +258,7 @@ Reuse Debate's export pattern (`ExportOptionsDialog` + `api.exportDebateToFile` 
 - **URL fetch failure** (create) → surface the cmdlet's ActionableError Next Steps; offer "use topic text instead."
 - **Community in Electron** → web-app-only empty state (as Debate).
 - **Anonymous** → Copy hidden (Community); URL source blocked (create); Share still available on My.
-- **Row click vs actions** → row click selects → reader; action buttons `stopPropagation`; double-click Headline → rename (edit mode).
+- **Row click vs actions** → row click selects → reader; action buttons `stopPropagation`; double-click Headline → rename (edit mode; edits the set `topic`, not the per-voice essay `<h1>`s).
 
 **Accessibility** (same contract as `debate-list-tables.md`, plus reader specifics)
 - Real `<table>`, `<th scope="col">`, `sr-only` caption; sortable headers are `<button aria-sort>`.
