@@ -122,6 +122,9 @@ export interface RuntimeConfig {
     defaultTimeoutMs: number;
     maxRegenAttempts: number;
   };
+  generation: {
+    opedVoiceTimeoutMs: number;
+  };
 }
 
 // Mirror of the backend ids in ai-models.json (t/1513). Used to validate admin
@@ -223,6 +226,9 @@ const DEFAULTS: RuntimeConfig = {
     evaluatorMaxTokens: 8192,
     defaultTimeoutMs: 120_000,
     maxRegenAttempts: 3,
+  },
+  generation: {
+    opedVoiceTimeoutMs: 360_000, // 6 min; New-OpEd = grounding + full-essay LLM (debate briefs use 330s)
   },
 };
 
@@ -347,6 +353,7 @@ export function validateAndMerge(raw: unknown, defaults: RuntimeConfig): { confi
   const srv = section(r, 'server', errors);
   const cache = section(r, 'cache', errors);
   const deb = section(r, 'debate', errors);
+  const gen = section(r, 'generation', errors);
 
   let resilience: RuntimeConfig['resilience'] = {
     circuitThreshold: vNum(res.circuitThreshold, defaults.resilience.circuitThreshold, { min: 1, max: 1_000, integer: true }, 'resilience.circuitThreshold', errors),
@@ -445,6 +452,9 @@ export function validateAndMerge(raw: unknown, defaults: RuntimeConfig): { confi
       evaluatorMaxTokens: vNum(deb.evaluatorMaxTokens, defaults.debate.evaluatorMaxTokens, { min: 100, max: 32_768, integer: true }, 'debate.evaluatorMaxTokens', errors),
       defaultTimeoutMs: vNum(deb.defaultTimeoutMs, defaults.debate.defaultTimeoutMs, { min: 5_000, max: DURATION_MAX }, 'debate.defaultTimeoutMs', errors),
       maxRegenAttempts: vNum(deb.maxRegenAttempts, defaults.debate.maxRegenAttempts, { min: 0, max: 10, integer: true }, 'debate.maxRegenAttempts', errors),
+    },
+    generation: {
+      opedVoiceTimeoutMs: vNum(gen.opedVoiceTimeoutMs, defaults.generation.opedVoiceTimeoutMs, { min: 60_000, max: 3_600_000 }, 'generation.opedVoiceTimeoutMs', errors),
     },
   };
 

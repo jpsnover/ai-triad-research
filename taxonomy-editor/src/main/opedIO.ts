@@ -74,7 +74,12 @@ export function finalizeOpEdSet(set: OpEdSet): void {
 export function loadOpEdSet(setId: string): OpEdSet {
   const filePath = finalPath(setId);
   if (!fs.existsSync(filePath)) {
-    throw new Error(`Op-ed set not found: ${setId}`);
+    throw new ActionableError({
+      goal: `Load op-ed set ${setId}`,
+      problem: `Op-ed set file not found at ${filePath}`,
+      location: 'taxonomy-editor/src/main/opedIO.ts loadOpEdSet',
+      nextSteps: ['Verify the set was created successfully before loading'],
+    });
   }
   const raw = fs.readFileSync(filePath, 'utf-8');
   return JSON.parse(raw) as OpEdSet;
@@ -83,7 +88,12 @@ export function loadOpEdSet(setId: string): OpEdSet {
 export function deleteOpEdSet(setId: string): void {
   const filePath = finalPath(setId);
   if (!fs.existsSync(filePath)) {
-    throw new Error(`Op-ed set not found: ${setId}`);
+    throw new ActionableError({
+      goal: `Delete op-ed set ${setId}`,
+      problem: `Op-ed set file not found at ${filePath}`,
+      location: 'taxonomy-editor/src/main/opedIO.ts deleteOpEdSet',
+      nextSteps: ['Verify the set exists before attempting deletion'],
+    });
   }
   fs.unlinkSync(filePath);
 }
