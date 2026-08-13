@@ -325,7 +325,48 @@ describe('leaf cross-axis panel', () => {
   });
 });
 
-// ── 6. View toggle ─────────────────────────────────────────────────────────────
+// ── 6. Summary card count-metric (spec §2.2) ──────────────────────────────────
+
+describe('summary card count-metric (spec §2.2)', () => {
+  it('shows root count as "Items" using firstChild-kind fallback', () => {
+    render(<UsageHierarchy range={RANGE_DEFAULT} />);
+    // Root firstChild = taxonomy (section kind, countUnit=''), falls back to root's countUnit='Items'
+    expect(screen.getByText('Items')).toBeTruthy();
+  });
+
+  it('shows "Nodes" at a category node — child kind, not hidden', async () => {
+    render(<UsageHierarchy range={RANGE_DEFAULT} />);
+    // Drill: root → taxonomy → acc → acc-bel (category with 2 node children)
+    fireEvent.click(screen.getByRole('button', { name: /drill into taxonomy/i }));
+    await waitFor(() => screen.getByRole('button', { name: /drill into accelerationist/i }));
+    fireEvent.click(screen.getByRole('button', { name: /drill into accelerationist/i }));
+    await waitFor(() => screen.getByRole('button', { name: /drill into beliefs/i }));
+    fireEvent.click(screen.getByRole('button', { name: /drill into beliefs/i }));
+    // SummaryCard: countUnit comes from child kind 'node' → 'Nodes'; childCount = 2
+    await waitFor(() => expect(screen.getByText('Nodes')).toBeTruthy());
+    // count value is 2 (acc-bel has acc-bel-001 and acc-bel-002)
+    const summaryMetrics = document.querySelectorAll('.uh-summary-metric');
+    const nodesMetric = Array.from(summaryMetrics).find(m => m.querySelector('.uh-summary-label')?.textContent === 'Nodes');
+    expect(nodesMetric?.querySelector('.uh-summary-value')?.textContent).toBe('2');
+  });
+
+  it('hides count metric at a leaf node (no spurious "0 Nodes")', async () => {
+    render(<UsageHierarchy range={RANGE_DEFAULT} />);
+    // Drill to acc-bel-001 (true leaf, no children)
+    fireEvent.click(screen.getByRole('button', { name: /drill into taxonomy/i }));
+    await waitFor(() => screen.getByRole('button', { name: /drill into accelerationist/i }));
+    fireEvent.click(screen.getByRole('button', { name: /drill into accelerationist/i }));
+    await waitFor(() => screen.getByRole('button', { name: /drill into beliefs/i }));
+    fireEvent.click(screen.getByRole('button', { name: /drill into beliefs/i }));
+    await waitFor(() => screen.getByRole('button', { name: /drill into acc-bel-001/i }));
+    fireEvent.click(screen.getByRole('button', { name: /drill into acc-bel-001/i }));
+    // Leaf: no count metric should render
+    await waitFor(() => expect(MOCK_LOAD_SUBJECT).toHaveBeenCalledWith('acc-bel-001', 'user'));
+    expect(screen.queryByText('Nodes')).toBeNull();
+  });
+});
+
+// ── 7. View toggle ─────────────────────────────────────────────────────────────
 
 describe('view toggle', () => {
   it('switches to tree view and shows expand/collapse controls', async () => {
