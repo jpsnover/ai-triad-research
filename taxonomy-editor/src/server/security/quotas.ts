@@ -13,12 +13,14 @@ import { isAdmin } from '../community/community.js';
 export interface QuotaLimits {
   maxChats: number;
   maxDebates: number;
+  maxOpEds: number;
 }
 
 interface ElevatedEntry {
   userId: string;
   maxChats?: number;
   maxDebates?: number;
+  maxOpEds?: number;
 }
 
 interface QuotaConfig {
@@ -31,7 +33,9 @@ interface QuotaConfig {
 // `defaults` override layered on top.
 function runtimeQuotaDefaults(): QuotaLimits {
   const q = getRuntimeConfig().quotas;
-  return { maxChats: q.defaultMaxChats, maxDebates: q.defaultMaxDebates };
+  // t/2578: defaultMaxOpEds knob lands in t/2573 (runtimeConfig.ts); use interim
+  // hardcoded default until that PR merges, then replace 10 with q.defaultMaxOpEds.
+  return { maxChats: q.defaultMaxChats, maxDebates: q.defaultMaxDebates, maxOpEds: 10 };
 }
 
 // ── Config loading with mtime cache (follows proxyTiers.ts pattern) ──
@@ -85,25 +89,26 @@ function getConfig(): QuotaConfig {
 
 export function getQuotaLimits(userId?: string): QuotaLimits {
   const uid = userId ?? getStorageUserId();
-  if (isAdmin(uid)) return { maxChats: Infinity, maxDebates: Infinity };
+  if (isAdmin(uid)) return { maxChats: Infinity, maxDebates: Infinity, maxOpEds: Infinity };
   const config = getConfig();
   const entry = config.elevated.find(e => e.userId === uid);
   return {
     maxChats: entry?.maxChats ?? config.defaults.maxChats,
     maxDebates: entry?.maxDebates ?? config.defaults.maxDebates,
+    maxOpEds: entry?.maxOpEds ?? config.defaults.maxOpEds,
   };
 }
 
 export interface QuotaCheckResult {
   allowed: boolean;
-  resource: 'chats' | 'debates';
+  resource: 'chats' | 'debates' | 'opeds';
   current: number;
   limit: number;
 }
 
-export function checkQuota(resource: 'chats' | 'debates', currentCount: number, userId?: string): QuotaCheckResult {
+export function checkQuota(resource: 'chats' | 'debates' | 'opeds', currentCount: number, userId?: string): QuotaCheckResult {
   const limits = getQuotaLimits(userId);
-  const limit = resource === 'chats' ? limits.maxChats : limits.maxDebates;
+  const limit = resource === 'chats' ? limits.maxChats : resource === 'debates' ? limits.maxDebates : limits.maxOpEds;
   return {
     allowed: currentCount < limit,
     resource,
