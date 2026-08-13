@@ -43,9 +43,13 @@ function New-OpEd {
         default 'FromTopic' parameter set; optional alongside -Url to steer the
         angle of a fetched source.
     .PARAMETER Url
-        A web page to use as source material. The page is fetched and converted
-        to Markdown, then handed to the model as factual grounding. Mandatory in
-        the 'FromUrl' parameter set.
+        A web page to use as source material. Fetched and converted to Markdown
+        via Get-OpEdSource (with format detection and readability gate), then
+        handed to the model as factual grounding. Mandatory in 'FromUrl'.
+    .PARAMETER SourcePrep
+        A pre-built SourcePrep object from Get-OpEdSource. Use this in the
+        multi-POV orchestrated path so the fetch/convert/gate work happens once
+        and is reused per voice. Mandatory in 'FromPrep'.
     .PARAMETER Pov
         The camp voice to write in. One of accelerationist, safetyist, skeptic
         (short forms acc / saf / skp accepted). Loads the matching Soul document.
@@ -91,11 +95,12 @@ function New-OpEd {
         default 3). 0 disables situation grounding.
     .OUTPUTS
         [PSCustomObject] with Headline, Subtitle, Body, Pitch, WordCount, Pov,
-        Outlet, Model, Backend, and Grounding — an array of the taxonomy elements
-        injected (Id, Type [bdi|situation], POV, Category, Label, RelevanceScore,
-        and Reflection — the model's one-sentence account of how and where that
-        element is reflected in the essay, or '(not reported)'), ordered as
-        retrieved.
+        Outlet, Model, Backend, Grounding, StanceRelationship, SourceFormat,
+        SourceExtractionTool, ReadableWords, ReadableRatio, and SourceUnderstanding.
+        Grounding is an array of taxonomy elements injected (Id, Type [bdi|situation],
+        POV, Category, Label, RelevanceScore, Reflection). SourceUnderstanding is
+        the CL source_brief object (thesis/author/actor_type/stance/
+        primary_recommendations/key_claims/readable) or null if no source was supplied.
     .EXAMPLE
         New-OpEd -Topic 'Mandatory pre-deployment audits for frontier AI models' `
             -Pov safetyist -Outlet WashingtonPost `
@@ -132,6 +137,10 @@ function New-OpEd {
         [Parameter(Mandatory, ParameterSetName = 'FromUrl')]
         [ValidateNotNullOrEmpty()]
         [string]$Url,
+
+        [Parameter(Mandatory, ParameterSetName = 'FromPrep')]
+        [ValidateNotNullOrEmpty()]
+        [PSObject]$SourcePrep,
 
         [Parameter(Mandatory)]
         [ValidateSet('accelerationist', 'safetyist', 'skeptic', 'acc', 'saf', 'skp')]
@@ -243,31 +252,23 @@ function New-OpEd {
     $Band = $OutletBands[$Outlet]
     $TargetWords = if ($PSBoundParameters.ContainsKey('WordCount')) { $WordCount } else { $Band.Words }
 
-    # ── Resolve source material: fetch + convert the URL if given ────────────
+    # ── Resolve source material via Get-OpEdSource ───────────────────────────
+    # -Url builds a SourcePrep internally (single-voice path); -SourcePrep
+    # accepts one from the ElectronMain orchestrator (3-POV path). Both then
+    # follow the identical draft path — one implementation, two entry points.
+    $Prep = $null
+    if ($PSCmdlet.ParameterSetName -eq 'FromPrep') {
+        $Prep = $SourcePrep
+    } elseif ($PSCmdlet.ParameterSetName -eq 'FromUrl') {
+        Write-Verbose "Fetching + converting source material from $Url"
+        $Prep = Get-OpEdSource -Url $Url -Verbose:($VerbosePreference -ne 'SilentlyContinue')
+    }
+
     $SourceMaterial = '(no external source supplied — argue from the topic and general knowledge)'
-    if ($PSCmdlet.ParameterSetName -eq 'FromUrl') {
-        Write-Verbose "Fetching source material from $Url"
-        try {
-            $Resp = Invoke-WebRequest -Uri $Url -UseBasicParsing -TimeoutSec 30
-        } catch {
-            throw (New-ActionableError -PassThru `
-                -Goal 'Generate an op-ed from a URL' `
-                -Problem "Failed to fetch source URL '$Url': $($_.Exception.Message)" `
-                -Location 'New-OpEd' `
-                -NextSteps @(
-                    'Confirm the URL is reachable and returns HTML',
-                    'Supply the material via -Topic text instead, or try a different URL'
-                ))
-        }
-        $Markdown = ConvertFrom-Html -Html ([string]$Resp.Content) -SourceUrl $Url
-        # Cap the source to keep the prompt within a sane token budget.
-        $MaxChars = 12000
-        if ($Markdown.Length -gt $MaxChars) {
-            $Markdown = $Markdown.Substring(0, $MaxChars) + "`n`n[... source truncated ...]"
-        }
-        $SourceMaterial = $Markdown
+    if ($null -ne $Prep) {
+        $SourceMaterial = [string]$Prep.SourceMarkdown
         if (-not $PSBoundParameters.ContainsKey('Topic') -or [string]::IsNullOrWhiteSpace($Topic)) {
-            $Topic = "Write an op-ed responding to the source material below (from $Url). Choose the sharpest angle consistent with your camp's convictions."
+            $Topic = "Write an op-ed responding to the source material below (from $($Prep.Url)). Choose the sharpest angle consistent with your camp's convictions."
         }
     }
 
@@ -337,6 +338,46 @@ function New-OpEd {
         }
     }
 
+    # ── Source comprehension pass (best-effort) ───────────────────────────────
+    # Populates SOURCE_* prompt placeholders from the CL-owned op-ed-source-brief
+    # prompt. If the orchestrator pre-populated SourceBrief on the prep object,
+    # use it directly (saves a second AI call). If the prompt file is not yet
+    # deployed (CL lands it separately), silently degrades — SOURCE_* will be
+    # empty strings, which the prompt treats as "(not supplied)".
+    $SBrief = $null
+    if ($null -ne $Prep -and -not [string]::IsNullOrWhiteSpace($Prep.SourceMarkdown)) {
+        if ($Prep.PSObject.Properties.Name -contains 'SourceBrief' -and $null -ne $Prep.SourceBrief) {
+            $SBrief = $Prep.SourceBrief
+        } else {
+            try {
+                $BriefSchema = @{
+                    type       = 'object'
+                    properties = @{
+                        author                  = @{ type = 'string' }
+                        actor_type              = @{ type = 'string' }
+                        thesis                  = @{ type = 'string' }
+                        stance                  = @{ type = 'string' }
+                        primary_recommendations = @{ type = 'array'; items = @{ type = 'string' } }
+                        key_claims              = @{ type = 'array'; items = @{ type = 'string' } }
+                        readable                = @{ type = 'string' }
+                    }
+                    required   = @('thesis', 'readable')
+                }
+                $BriefPrompt = Get-Prompt -Name 'op-ed-source-brief' -Replacements @{
+                    SOURCE_MATERIAL = [string]$Prep.SourceMarkdown
+                }
+                $BriefResult = Invoke-AIApi -Prompt $BriefPrompt -Model $Model -Temperature 0.2 `
+                    -MaxTokens 2000 -JsonMode -ResponseSchema $BriefSchema
+                if ($null -ne $BriefResult -and -not [string]::IsNullOrWhiteSpace($BriefResult.Text)) {
+                    $SBrief = $BriefResult.Text | ConvertFrom-Json
+                    $Prep.SourceBrief = $SBrief
+                }
+            } catch {
+                Write-Warning "Source comprehension pass skipped — SOURCE_* placeholders will be empty. ($($_.Exception.Message))"
+            }
+        }
+    }
+
     # ── Assemble prompt-fill values for the optional fields ──────────────────
     $NewsHookText = if ([string]::IsNullOrWhiteSpace($NewsHook)) {
         '(none supplied — invent a plausible current news hook and make clear in the lede what timely event it assumes, so the author can verify it against real events before submitting)'
@@ -364,16 +405,23 @@ function New-OpEd {
         OUTLET_GUIDANCE = $Band.Guidance
     }
     $UserPrompt = Get-Prompt -Name 'op-ed-generation-user' -Replacements @{
-        TOPIC             = $Topic
-        WORD_COUNT        = "$TargetWords"
-        OUTLET_GUIDANCE   = $Band.Guidance
-        NEWS_HOOK         = $NewsHookText
-        THESIS            = $ThesisText
-        AUTHOR_BIO        = $AuthorBioText
-        SOURCE_MATERIAL   = $SourceMaterial
-        GROUNDING_NODES   = $GroundingNodesText
-        SITUATIONS        = $SituationsText
-        PITCH_INSTRUCTION = $PitchInstruction
+        TOPIC               = $Topic
+        WORD_COUNT          = "$TargetWords"
+        OUTLET_GUIDANCE     = $Band.Guidance
+        NEWS_HOOK           = $NewsHookText
+        THESIS              = $ThesisText
+        AUTHOR_BIO          = $AuthorBioText
+        SOURCE_MATERIAL     = $SourceMaterial
+        GROUNDING_NODES     = $GroundingNodesText
+        SITUATIONS          = $SituationsText
+        PITCH_INSTRUCTION   = $PitchInstruction
+        SOURCE_AUTHOR       = if ($null -ne $SBrief -and $SBrief.PSObject.Properties.Name -contains 'author') { [string]$SBrief.author } else { '' }
+        SOURCE_ACTOR_TYPE   = if ($null -ne $SBrief -and $SBrief.PSObject.Properties.Name -contains 'actor_type') { [string]$SBrief.actor_type } else { '' }
+        SOURCE_THESIS       = if ($null -ne $SBrief -and $SBrief.PSObject.Properties.Name -contains 'thesis') { [string]$SBrief.thesis } else { '' }
+        SOURCE_STANCE       = if ($null -ne $SBrief -and $SBrief.PSObject.Properties.Name -contains 'stance') { [string]$SBrief.stance } else { '' }
+        SOURCE_RECOMMENDATIONS = if ($null -ne $SBrief -and $SBrief.PSObject.Properties.Name -contains 'primary_recommendations') {
+            (@($SBrief.primary_recommendations) -join '; ')
+        } else { '' }
     }
 
     # ── Response schema — structured output for clean field extraction ───────
@@ -385,6 +433,7 @@ function New-OpEd {
             body_markdown = @{ type = 'string' }
             word_count    = @{ type = 'integer' }
             pitch_email   = @{ type = 'string' }
+            stance        = @{ type = 'string'; description = 'How the camp engages the source: agree/extend/rebut (or empty if no source)' }
         }
         required   = @('headline', 'body_markdown', 'word_count')
     }
@@ -420,11 +469,12 @@ function New-OpEd {
     }
 
     # ── Parse the structured response, degrading gracefully to raw text ──────
-    $Headline = ''
-    $Subtitle = ''
-    $Body     = ''
-    $Pitch    = ''
-    $ReportedWords = 0
+    $Headline           = ''
+    $Subtitle           = ''
+    $Body               = ''
+    $Pitch              = ''
+    $StanceRelationship = ''
+    $ReportedWords      = 0
     try {
         $Parsed = $Result.Text | ConvertFrom-Json
         $Headline = [string]$Parsed.headline
@@ -434,6 +484,7 @@ function New-OpEd {
         # a pitch the caller did not ask for, even if the model volunteered one.
         if ($IncludePitch -and $Parsed.PSObject.Properties.Name -contains 'pitch_email') { $Pitch = [string]$Parsed.pitch_email }
         if ($Parsed.PSObject.Properties.Name -contains 'word_count')  { $ReportedWords = [int]$Parsed.word_count }
+        if ($Parsed.PSObject.Properties.Name -contains 'stance')      { $StanceRelationship = [string]$Parsed.stance }
     } catch {
         Write-Warning "Response was not valid JSON; returning raw text as the body. ($($_.Exception.Message))"
         $Body = [string]$Result.Text
@@ -499,16 +550,22 @@ function New-OpEd {
     }
 
     $Output = [PSCustomObject]@{
-        Headline  = $Headline
-        Subtitle  = $Subtitle
-        Body      = $Body
-        Pitch     = $Pitch
-        WordCount = $ActualWords
-        Pov       = $PovKey
-        Outlet    = $Outlet
-        Model     = $Model
-        Backend   = $Result.Backend
-        Grounding = $Grounding.ToArray()
+        Headline             = $Headline
+        Subtitle             = $Subtitle
+        Body                 = $Body
+        Pitch                = $Pitch
+        WordCount            = $ActualWords
+        Pov                  = $PovKey
+        Outlet               = $Outlet
+        Model                = $Model
+        Backend              = $Result.Backend
+        Grounding            = $Grounding.ToArray()
+        StanceRelationship   = $StanceRelationship
+        SourceFormat         = if ($null -ne $Prep) { $Prep.SourceFormat } else { $null }
+        SourceExtractionTool = if ($null -ne $Prep) { $Prep.SourceExtractionTool } else { $null }
+        ReadableWords        = if ($null -ne $Prep) { $Prep.ReadableWords } else { $null }
+        ReadableRatio        = if ($null -ne $Prep) { $Prep.ReadableRatio } else { $null }
+        SourceUnderstanding  = $SBrief
     }
 
     # ── Optionally write a Markdown file ─────────────────────────────────────

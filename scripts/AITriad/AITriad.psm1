@@ -926,6 +926,8 @@ Export-ModuleMember -Function @(
     'Test-DebatePersistence'
     # Op-ed generation in a POV Soul-document voice
     'New-OpEd'
+    # Fetch + convert + validate a source URL for op-ed generation (once per URL)
+    'Get-OpEdSource'
 ) -Alias @(
     'Import-Document'
     'TaxonomyEditor'
