@@ -454,11 +454,20 @@ export const api: AppAPI = {
   onBriefRetriesExhausted: (cb) => { briefExhaustedCbs.add(cb); return () => briefExhaustedCbs.delete(cb); },
   captureScreenshot: (opts) => window.electronAPI.captureScreenshot(opts),
 
-  // Feature flags — desktop has no server. DEBATE_CHAT_REDESIGN defaults ON for
-  // the local/Electron build (t/2257); opt out with VITE_DEBATE_CHAT_REDESIGN=false.
-  // Web/server default is separate (companion Azure ticket, gated on t/2243).
+  // Feature flags — desktop has no server, so flags are delivered here at build time.
+  // DEBATE_CHAT_REDESIGN defaults ON for the local/Electron build (t/2257); opt out with
+  // VITE_DEBATE_CHAT_REDESIGN=false. Web/server default is separate (Azure ticket, t/2243).
+  //
+  // env-electron-opeds (t/2601): dark-ship, default OFF. Opt in with VITE_ELECTRON_OPEDS=true
+  // (`VITE_ELECTRON_OPEDS=true npm run dev`) for local preview/QA; at GA, flip the default
+  // here or set the env in the desktop release build (GA reveal contract on the epic t/2570).
+  // NOTE: `env-electron-summaries` has the SAME omission — it is NOT delivered on desktop
+  // today, so Summaries is web-only in practice on the Electron build. Flagged on t/2601 for
+  // a decision (intended web-only vs. the same latent gap → follow-up); left as-is here to
+  // keep this change scoped to the op-ed flag.
   getFlags: () => Promise.resolve({
     DEBATE_CHAT_REDESIGN: import.meta.env.VITE_DEBATE_CHAT_REDESIGN !== 'false',
+    'env-electron-opeds': import.meta.env.VITE_ELECTRON_OPEDS === 'true',
   }),
 
   // UsageID registry — stub (desktop has no server-side usage registry)
