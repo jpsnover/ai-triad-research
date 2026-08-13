@@ -239,7 +239,7 @@ jobs:
           cache-dependency-path: 'pnpm-lock.yaml'
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: pnpm install --frozen-lockfile --side-effects-cache
 
       # NOTE: dependency audit + provenance moved OUT of this job into the
       # standalone `dependency-audit` job below (t/1800). They used to sit here
