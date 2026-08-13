@@ -34,7 +34,7 @@ function getVoiceTimeoutMs(): number {
     const g = raw.generation as Record<string, unknown> | undefined;
     const val = Number(g?.opedVoiceTimeoutMs);
     if (Number.isFinite(val) && val >= 60_000 && val <= 3_600_000) return val;
-  } catch { /* no config file or bad JSON — use default */ }
+  } catch { /* telemetry — silent by design */ }
   return 360_000;
 }
 
@@ -90,6 +90,14 @@ function runVoice({ topic, pov, params, signal, onProgress }: VoiceRunOpts): Pro
     let timeoutHandle: ReturnType<typeof setTimeout> | undefined;
     const voiceTimeoutMs = getVoiceTimeoutMs();
 
+    function onAbort(): void {
+      settle(() => {
+        child.kill('SIGTERM');
+        onProgress('cancelled');
+        reject(Object.assign(new Error('cancelled'), { name: 'AbortError' }));
+      });
+    }
+
     function settle(fn: () => void): void {
       if (settled) return;
       settled = true;
@@ -97,14 +105,6 @@ function runVoice({ topic, pov, params, signal, onProgress }: VoiceRunOpts): Pro
       signal.removeEventListener('abort', onAbort);
       fn();
     }
-
-    const onAbort = () => {
-      settle(() => {
-        child.kill('SIGTERM');
-        onProgress('cancelled');
-        reject(Object.assign(new Error('cancelled'), { name: 'AbortError' }));
-      });
-    };
 
     if (signal.aborted) { onAbort(); return; }
     signal.addEventListener('abort', onAbort, { once: true });
@@ -129,7 +129,7 @@ function runVoice({ topic, pov, params, signal, onProgress }: VoiceRunOpts): Pro
         const trimmed = line.trim();
         if (!trimmed) continue;
         let msg: ShimLine;
-        try { msg = JSON.parse(trimmed) as ShimLine; } catch { continue; }
+        try { msg = JSON.parse(trimmed) as ShimLine; } catch { /* telemetry — silent by design */ continue; }
         if (msg.type === 'stage') {
           onProgress(msg.stage as OpEdStage);
         } else if (msg.type === 'result') {
