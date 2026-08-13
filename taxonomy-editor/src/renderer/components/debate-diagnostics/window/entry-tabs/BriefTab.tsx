@@ -106,7 +106,7 @@ function DocumentClaimsSection({ workProduct, renderGrounding }: {
             return (
               <Fragment key={i}>
                 {/* eslint-disable-next-line local/no-inline-style -- dynamic borderBottom */}
-                <tr style={{ borderBottom: Array.isArray(dc.grounding) && dc.grounding.length > 0 ? 'none' : '1px solid var(--border)' }}>
+                <tr style={{ borderBottom: Array.isArray(dc.grounding) && dc.grounding.length > 0 ? 'none' : '1px solid var(--border-color)' }}>
                   <td className="brief-td-did">{dc.d_id}</td>
                   {/* eslint-disable-next-line local/no-inline-style -- dynamic stanceColor */}
                   <td style={{ padding: '3px 6px', verticalAlign: 'top', fontWeight: 600, color: stanceColor, textTransform: 'uppercase', fontSize: 'var(--text-2xs)' }}>{dc.stance}</td>
@@ -402,7 +402,7 @@ export function BriefTab(props: BriefTabProps) {
                   : 'var(--danger)';
                 return (
                   // eslint-disable-next-line local/no-inline-style -- dynamic selected background
-                  <tr key={i} style={{ borderBottom: '1px solid var(--border)', background: isSelected ? 'color-mix(in srgb, var(--warning) 8%, transparent)' : 'transparent' }}>
+                  <tr key={i} style={{ borderBottom: '1px solid var(--border-color)', background: isSelected ? 'color-mix(in srgb, var(--warning) 8%, transparent)' : 'transparent' }}>
                     <td className="brief-td-nowrap">
                       <button
                         onClick={() => setSelectedTaxRefId(isSelected ? null : n.node_id)}

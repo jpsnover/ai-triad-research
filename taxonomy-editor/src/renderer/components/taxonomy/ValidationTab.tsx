@@ -41,9 +41,9 @@ function speakerColor(speaker: string): string {
 }
 
 function scoreColor(score: number): string {
-  if (score > 0.5) return 'var(--color-success, #22c55e)';
-  if (score >= 0.35) return 'var(--color-warning, #eab308)';
-  return 'var(--color-error, #ef4444)';
+  if (score > 0.5) return 'var(--success, #22c55e)';
+  if (score >= 0.35) return 'var(--warning, #eab308)';
+  return 'var(--danger, #ef4444)';
 }
 
 function truncate(text: string, max: number): string {

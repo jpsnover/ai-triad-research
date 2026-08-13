@@ -119,7 +119,7 @@
 .neutral-eval-diagnostics-pre {
   font-size: var(--text-xs);
   background: var(--bg-tertiary, #1a1a2e);
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-color);
   border-radius: var(--radius-sm);
   padding: 8px;
   max-height: 300px;

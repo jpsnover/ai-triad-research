@@ -21,7 +21,7 @@
 
 .pov-prog-header {
   padding: 10px 14px;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--border-color);
   display: flex;
   align-items: center;
   gap: 12px;
@@ -47,7 +47,7 @@
 
 .pov-prog-turn-bar {
   padding: 6px 14px;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--border-color);
   display: flex;
   gap: 4px;
   flex-wrap: wrap;
@@ -231,7 +231,7 @@
 /* ── Mini-map ────────────────────────────────────────────── */
 
 .pov-prog-mini {
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--border-color);
   padding: 8px 10px;
   margin-bottom: 8px;
 }

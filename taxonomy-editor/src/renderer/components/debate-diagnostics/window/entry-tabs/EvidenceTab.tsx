@@ -265,7 +265,7 @@ function CitationPipelineSection({ evidenceWP }: { evidenceWP: EvidenceWP | unde
           {pipeline.map((p, pi) => (
             // eslint-disable-next-line local/no-inline-style -- dynamic cited-row highlight
             <tr key={pi} style={{
-              borderBottom: '1px solid var(--border)',
+              borderBottom: '1px solid var(--border-color)',
               background: p.cited ? 'color-mix(in srgb, var(--success) 5%, transparent)' : 'transparent',
             }}>
               <td className="evid-td-source">

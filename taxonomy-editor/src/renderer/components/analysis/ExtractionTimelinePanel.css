@@ -18,13 +18,13 @@
 .etl-td {
   padding: 3px 6px;
   font-size: 0.7rem;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--border-color);
 }
 
 .etl-td-num {
   padding: 3px 6px;
   font-size: 0.7rem;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--border-color);
   text-align: right;
   font-variant-numeric: tabular-nums;
 }
@@ -48,7 +48,7 @@
   font-weight: 700;
   text-align: left;
   color: var(--text-muted);
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--border-color);
   cursor: default;
 }
 
@@ -58,7 +58,7 @@
   font-weight: 700;
   text-align: right;
   color: var(--text-muted);
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--border-color);
   cursor: default;
 }
 
@@ -312,7 +312,7 @@
 
 .etl-attr-section {
   margin-top: 8px;
-  border-top: 1px solid var(--border);
+  border-top: 1px solid var(--border-color);
   padding-top: 6px;
 }
 

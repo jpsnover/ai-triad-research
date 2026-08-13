@@ -99,7 +99,7 @@
 }
 
 .brief-thead-row {
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--border-color);
   text-align: left;
 }
 
@@ -144,7 +144,7 @@
 }
 
 .brief-tr-border {
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--border-color);
 }
 
 .brief-td-grounding {
@@ -171,7 +171,7 @@
 .brief-turn-rule {
   flex: 1;
   height: 1px;
-  background: var(--border);
+  background: var(--border-color);
 }
 
 .brief-valbox {
@@ -195,7 +195,7 @@
 }
 
 .brief-valfooter {
-  border-top: 1px solid var(--border);
+  border-top: 1px solid var(--border-color);
   margin-top: 4px;
   padding-top: 3px;
   font-size: var(--text-2xs);

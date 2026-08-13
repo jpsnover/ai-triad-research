@@ -231,7 +231,7 @@
 .plan-sep-line {
   flex: 1;
   height: 1px;
-  background: var(--border);
+  background: var(--border-color);
 }
 
 .plan-fw400 {

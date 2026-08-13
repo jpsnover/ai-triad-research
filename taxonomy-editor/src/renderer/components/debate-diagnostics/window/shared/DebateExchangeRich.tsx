@@ -29,11 +29,11 @@ export function DebateExchangeRich({ content }: { content: string }) {
   }, [content]);
 
   if (segments.length <= 1 && !segments[0]?.speaker) {
-    return <pre style={{ fontSize: 'var(--text-2xs)', whiteSpace: 'pre-wrap', wordBreak: 'break-word', maxHeight: 300, overflow: 'auto', margin: '4px 0 8px', padding: '6px 8px', background: 'var(--bg-primary)', borderRadius: 4, border: '1px solid var(--border)' }}>{content}</pre>;
+    return <pre style={{ fontSize: 'var(--text-2xs)', whiteSpace: 'pre-wrap', wordBreak: 'break-word', maxHeight: 300, overflow: 'auto', margin: '4px 0 8px', padding: '6px 8px', background: 'var(--bg-primary)', borderRadius: 4, border: '1px solid var(--border-color)' }}>{content}</pre>;
   }
 
   return (
-    <div style={{ maxHeight: 300, overflow: 'auto', margin: '4px 0 8px', padding: '6px 8px', background: 'var(--bg-primary)', borderRadius: 4, border: '1px solid var(--border)' }}>
+    <div style={{ maxHeight: 300, overflow: 'auto', margin: '4px 0 8px', padding: '6px 8px', background: 'var(--bg-primary)', borderRadius: 4, border: '1px solid var(--border-color)' }}>
       {segments.map((seg, i) => (
         <div key={i} style={{ marginBottom: 8 }}>
           {seg.speaker && (

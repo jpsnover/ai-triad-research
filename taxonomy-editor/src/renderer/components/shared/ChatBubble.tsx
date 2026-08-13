@@ -50,7 +50,7 @@ export function MessageBubble({ role, children, footer, isError, className, styl
     color: 'var(--text-primary, var(--border-color))',
     border: role === 'user'
       ? '1px solid color-mix(in srgb, var(--warning) 30%, transparent)'
-      : '1px solid var(--border)',
+      : '1px solid var(--border-color)',
     userSelect: 'text',
     cursor: 'text',
   };
@@ -114,7 +114,7 @@ export function StreamingBubble({ content, mdClassName, className, style }: {
     lineHeight: 1.4,
     background: 'var(--bg-tertiary, rgba(255,255,255,0.05))',
     color: 'var(--text-primary, var(--border-color))',
-    border: '1px solid var(--border)',
+    border: '1px solid var(--border-color)',
     userSelect: 'text',
     cursor: 'text',
   };

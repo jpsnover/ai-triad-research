@@ -69,7 +69,7 @@
   padding: 6px 10px;
   border-radius: 4px;
   background: var(--bg-subtle);
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-color);
   text-align: center;
 }
 
@@ -139,7 +139,7 @@
   color: var(--text-muted);
   font-style: italic;
   margin-top: 2px;
-  border-left: 2px solid var(--border);
+  border-left: 2px solid var(--border-color);
   padding-left: 6px;
 }
 
@@ -169,7 +169,7 @@
 }
 
 .evid-thead-row {
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--border-color);
   color: var(--text-muted);
 }
 
@@ -296,7 +296,7 @@
   padding: 5px 8px;
   border-radius: 4px;
   background: var(--bg-subtle);
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-color);
 }
 
 .evid-mono700 {
@@ -361,5 +361,5 @@
   font-style: italic;
   margin-top: 1px;
   padding-left: 4px;
-  border-left: 1px solid var(--border);
+  border-left: 1px solid var(--border-color);
 }

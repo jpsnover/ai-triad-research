@@ -100,7 +100,7 @@ export function EntryHeader({ p, m }: PartProps) {
   };
   const navBtnStyle = (disabled: boolean): React.CSSProperties => ({
     padding: '2px 8px', fontSize: 'var(--text-2xs)', fontWeight: 600,
-    borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)',
+    borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)',
     background: disabled ? 'transparent' : 'color-mix(in srgb, var(--accent, var(--color-acc)) 10%, transparent)',
     color: disabled ? 'var(--text-muted)' : 'var(--accent, var(--color-acc))',
     cursor: disabled ? 'not-allowed' : 'pointer',
@@ -272,8 +272,8 @@ export function EntryTabBar({ p, m }: PartProps) {
       padding: '6px 12px',
       fontSize: 'var(--text-xs)',
       fontWeight: 600,
-      border: '1px solid var(--border)',
-      borderBottom: t.id === activeTab ? '1px solid var(--bg-primary)' : '1px solid var(--border)',
+      border: '1px solid var(--border-color)',
+      borderBottom: t.id === activeTab ? '1px solid var(--bg-primary)' : '1px solid var(--border-color)',
       background: t.id === activeTab ? 'var(--bg-primary)' : 'transparent',
       color: !enabled ? 'var(--text-muted)' : t.ranEmpty ? 'var(--warning, var(--warning))' : (t.id === activeTab ? 'var(--accent, var(--color-acc))' : 'var(--text-primary)'),
       cursor: enabled ? 'pointer' : 'not-allowed',

@@ -69,7 +69,7 @@
   position: fixed;
   z-index: 9999;
   background: var(--bg-primary);
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-color);
   border-radius: 6px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
   padding: 4px 0;

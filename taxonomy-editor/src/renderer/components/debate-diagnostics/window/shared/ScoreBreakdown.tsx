@@ -71,7 +71,7 @@ export function ScoreBreakdown({ dims, processReward, judgeUsed }: {
       <DimensionScoreRow name="grounding"   pass={dims.grounding.pass}   weight={0.3} details={dims.grounding.issues ?? []} />
       <DimensionScoreRow name="advancement" pass={dims.advancement.pass} weight={0.2} details={dims.advancement.signals ?? []} />
       <DimensionScoreRow name="clarifies"   pass={dims.clarifies.pass}   weight={0.1} details={dims.clarifies.signals ?? []} />
-      <div style={{ borderTop: '1px solid var(--border)', margin: '4px 0', paddingTop: 4, display: 'flex', gap: 16 }}>
+      <div style={{ borderTop: '1px solid var(--border-color)', margin: '4px 0', paddingTop: 4, display: 'flex', gap: 16 }}>
         <span>Stage A: <strong style={mono}>{stageAScore.toFixed(2)}</strong> <span style={{ color: 'var(--text-muted)' }}>× 0.4 = {(0.4 * stageAScore).toFixed(2)}</span></span>
         <span>Judge: <strong style={mono}>{judgeQuality.toFixed(2)}</strong>{!judgeUsed && <span style={{ color: 'var(--text-muted)' }}> (default)</span>} <span style={{ color: 'var(--text-muted)' }}>× 0.6 = {(0.6 * judgeQuality).toFixed(2)}</span></span>
         <span>Total: <strong style={mono}>{processReward.toFixed(2)}</strong></span>

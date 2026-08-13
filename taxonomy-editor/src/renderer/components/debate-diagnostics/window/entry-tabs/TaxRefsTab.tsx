@@ -94,7 +94,7 @@ function SourceCell({ src, isAN }: { src: RelevanceSource | undefined; isAN: boo
 function ScoringDetailRow({ src, isSelected, hasSourceData, setOverviewTab }: { src: RelevanceSource; isSelected: boolean; hasSourceData: boolean; setOverviewTab: (tab: OverviewTab) => void }) {
   const isAN = src.source === 'an';
   return (
-    <tr style={{ borderBottom: '1px solid var(--border)', background: isSelected ? 'color-mix(in srgb, var(--warning) 8%, transparent)' : 'transparent' }}>
+    <tr style={{ borderBottom: '1px solid var(--border-color)', background: isSelected ? 'color-mix(in srgb, var(--warning) 8%, transparent)' : 'transparent' }}>
       <td colSpan={hasSourceData ? 4 : 3} style={{ padding: '0 6px 4px 20px' }}>
         <details style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
           <summary style={{ cursor: 'pointer', userSelect: 'none' }}>Scoring detail</summary>
@@ -133,7 +133,7 @@ function TaxRefRow({ r, hasSourceData, isSelected, src, tw, setSelectedTaxRefId,
     <Fragment>
       <tr
         style={{
-          borderBottom: src ? 'none' : '1px solid var(--border)',
+          borderBottom: src ? 'none' : '1px solid var(--border-color)',
           background: isSelected ? 'color-mix(in srgb, var(--warning) 8%, transparent)' : 'transparent',
         }}
       >
@@ -224,7 +224,7 @@ export function TaxRefsTab({ entry, meta, debate, taxRefCount, nodeWeights, taxN
         };
 
         return (
-          <div style={{ marginBottom: 10, padding: '8px 10px', background: 'var(--bg-secondary)', borderRadius: 6, border: '1px solid var(--border)', fontSize: '0.75rem' }}>
+          <div style={{ marginBottom: 10, padding: '8px 10px', background: 'var(--bg-secondary)', borderRadius: 6, border: '1px solid var(--border-color)', fontSize: '0.75rem' }}>
             {/* Header row: title + summary counts */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 6, flexWrap: 'wrap' }}>
               <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>AN Claim Coverage</span>
@@ -283,7 +283,7 @@ export function TaxRefsTab({ entry, meta, debate, taxRefCount, nodeWeights, taxN
           <col style={{ width: hasSourceData ? '62%' : '72%' }} />
         </colgroup>
         <thead>
-          <tr style={{ borderBottom: '1px solid var(--border)', textAlign: 'left' }}>
+          <tr style={{ borderBottom: '1px solid var(--border-color)', textAlign: 'left' }}>
             {hasSourceData && <th style={{ padding: '4px 6px', fontWeight: 600, color: 'var(--text-muted)' }}>Source</th>}
             <th style={{ padding: '4px 6px', fontWeight: 600, color: 'var(--text-muted)' }}>Id</th>
             <th style={{ padding: '4px 6px', fontWeight: 600, color: 'var(--text-muted)', textAlign: 'center' }}>Score</th>

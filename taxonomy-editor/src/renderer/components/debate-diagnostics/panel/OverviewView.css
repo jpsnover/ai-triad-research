@@ -25,7 +25,7 @@
 .ovw-badge-secondary-ml4 { font-size: var(--text-2xs); background: color-mix(in srgb, var(--text-secondary) 15%, transparent); color: var(--text-secondary); margin-left: 4px; }
 .ovw-toolbar-mb4 { display: flex; justify-content: flex-end; margin-bottom: 4px; }
 .ovw-toolbar-mb6 { display: flex; justify-content: flex-end; margin-bottom: 6px; }
-.ovw-toggle-btn { font-size: var(--text-2xs); padding: 2px 6px; border-radius: 3px; border: 1px solid var(--border); background: var(--bg-secondary); color: var(--text-primary); cursor: pointer; }
+.ovw-toggle-btn { font-size: var(--text-2xs); padding: 2px 6px; border-radius: 3px; border: 1px solid var(--border-color); background: var(--bg-secondary); color: var(--text-primary); cursor: pointer; }
 .ovw-caret { font-size: var(--text-2xs); margin-right: 2px; user-select: none; }
 .ovw-2xs-default { font-size: var(--text-2xs); cursor: default; }
 .ovw-warning-2xs { color: var(--warning); font-size: var(--text-2xs); }

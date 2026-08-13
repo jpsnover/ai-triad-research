@@ -513,7 +513,7 @@ export function INodeRow({ node, attacks, supports, allNodes, allEdges, isSource
     <div
       ref={rowRef}
       // eslint-disable-next-line local/no-inline-style -- focus-driven outline/borderRadius
-      style={{ margin: '6px 0', paddingBottom: 6, borderBottom: '1px solid var(--border)', outline: focused ? '2px solid var(--warning)' : 'none', borderRadius: focused ? 4 : 0, fontSize: '0.85rem' }}
+      style={{ margin: '6px 0', paddingBottom: 6, borderBottom: '1px solid var(--border-color)', outline: focused ? '2px solid var(--warning)' : 'none', borderRadius: focused ? 4 : 0, fontSize: '0.85rem' }}
     >
       <div className="inr-header-row">
         <button

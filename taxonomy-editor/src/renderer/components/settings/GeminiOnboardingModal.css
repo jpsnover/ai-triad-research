@@ -28,7 +28,7 @@
 }
 
 .gemini-onboarding-success {
-  color: var(--color-success, #22c55e);
+  color: var(--success, #22c55e);
   margin-bottom: 12px;
   font-weight: 500;
 }

@@ -39,16 +39,8 @@ const RENDERER_DIR = dirname(fileURLToPath(import.meta.url)); // this file lives
 // (b) undefined, need Design values → t/2569: genuinely-new tokens
 //     (e.g. --error-* family). Fix = Design blesses per-theme values, then define.
 const BASELINE_ALIAS_BUGS_T2568 = [
-  '--accent', '--accent-bg', '--accent-blue', '--accent-color', '--accent-hover',
-  '--accent-primary', '--accent-rgb', '--accent-strong', '--accent-text',
-  '--border', '--border-color-light', '--border-color-subtle', '--border-faint',
-  '--border-light', '--border-primary', '--border-subtle',
-  '--color-accent', '--color-beliefs', '--color-bg-default', '--color-bg-emphasis',
-  '--color-bg-subtle', '--color-border', '--color-conflict', '--color-desires',
-  '--color-error', '--color-fg-default', '--color-fg-muted', '--color-intentions',
-  '--color-moderator', '--color-success', '--color-warning',
-  '--hover-bg', '--input-bg', '--red', '--green',
-  '--text', '--text-color', '--text-tertiary', '--warning-color',
+  // Emptied by the t/2568 sweep: 23 wrong-name refs renamed to their real token;
+  // the other 16 were NOT wrong-names — reclassified to the (b) group below.
 ];
 const BASELINE_NEED_VALUES_T2569 = [
   '--active-definition-bg', '--bg-elevated', '--bg-selected', '--bg-subtle',
@@ -57,6 +49,15 @@ const BASELINE_NEED_VALUES_T2569 = [
   '--font-sans', '--font-serif', '--info', '--link', '--link-color',
   '--settings-warn-bg', '--surface-1', '--tag-bg', '--tag-color',
   '--warning-bg', '--warning-border',
+  // reclassified from class-(a) by t/2568 — these need REAL tokens, not renames:
+  //   accent family + --color-accent + --color-moderator = the unresolved t/2172 accent;
+  //   border-subtle variants need a real --border-subtle (collapsing to --border-color
+  //   would render heavier borders than the fallbacks — TL t/2568#3).
+  '--accent', '--accent-bg', '--accent-blue', '--accent-color', '--accent-hover',
+  '--accent-primary', '--accent-rgb', '--accent-strong', '--accent-text',
+  '--color-accent', '--color-moderator',
+  '--border-light', '--border-faint', '--border-subtle',
+  '--border-color-light', '--border-color-subtle',
 ];
 const BASELINE = new Set<string>([...BASELINE_ALIAS_BUGS_T2568, ...BASELINE_NEED_VALUES_T2569]);
 

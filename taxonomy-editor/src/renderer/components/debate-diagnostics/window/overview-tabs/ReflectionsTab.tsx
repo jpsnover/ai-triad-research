@@ -74,7 +74,7 @@ export function ReflectionsTab({ debate }: ReflectionsTabProps) {
             {r.edits.map((edit, ei) => (
               <div key={ei} style={{
                 padding: '8px 10px', marginBottom: 6, borderRadius: 6,
-                border: `1px solid ${edit.status === 'approved' ? 'var(--success)44' : 'var(--border)'}`,
+                border: `1px solid ${edit.status === 'approved' ? 'var(--success)44' : 'var(--border-color)'}`,
                 opacity: edit.status === 'dismissed' ? 0.5 : 1,
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>

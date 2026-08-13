@@ -74,7 +74,7 @@ export function CopyButton({ text }: { text: string }) {
         setTimeout(() => setCopied(false), 1500);
       }}
       style={{
-        background: 'none', border: '1px solid var(--border)', borderRadius: 3,
+        background: 'none', border: '1px solid var(--border-color)', borderRadius: 3,
         color: copied ? 'var(--success)' : 'var(--text-muted)', cursor: 'pointer',
         fontSize: 'var(--text-2xs)', padding: '1px 6px', marginLeft: 6, flexShrink: 0,
       }}
@@ -198,7 +198,7 @@ export function SearchBar({ query, setQuery, matchCount, inputRef }: { query: st
         style={{
           flex: 1, padding: '4px 8px', fontSize: '0.75rem',
           background: 'var(--bg-primary)', color: 'var(--text-primary)',
-          border: '1px solid var(--border)', borderRadius: 4,
+          border: '1px solid var(--border-color)', borderRadius: 4,
         }}
       />
       {query && (
@@ -207,16 +207,16 @@ export function SearchBar({ query, setQuery, matchCount, inputRef }: { query: st
             {domCount > 0 ? `${currentIdx + 1}/${domCount}` : '0 matches'}
           </span>
           <button onClick={goPrev} title="Previous match (Shift+Enter)"
-            style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 4, padding: '2px 5px', cursor: 'pointer', color: 'var(--text-muted)', fontSize: '0.7rem', lineHeight: 1 }}>
+            style={{ background: 'none', border: '1px solid var(--border-color)', borderRadius: 4, padding: '2px 5px', cursor: 'pointer', color: 'var(--text-muted)', fontSize: '0.7rem', lineHeight: 1 }}>
             ▲
           </button>
           <button onClick={goNext} title="Next match (Enter)"
-            style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 4, padding: '2px 5px', cursor: 'pointer', color: 'var(--text-muted)', fontSize: '0.7rem', lineHeight: 1 }}>
+            style={{ background: 'none', border: '1px solid var(--border-color)', borderRadius: 4, padding: '2px 5px', cursor: 'pointer', color: 'var(--text-muted)', fontSize: '0.7rem', lineHeight: 1 }}>
             ▼
           </button>
           <button
             onClick={() => setQuery('')}
-            style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 4, padding: '2px 6px', cursor: 'pointer', color: 'var(--text-muted)', fontSize: 'var(--text-2xs)' }}
+            style={{ background: 'none', border: '1px solid var(--border-color)', borderRadius: 4, padding: '2px 6px', cursor: 'pointer', color: 'var(--text-muted)', fontSize: 'var(--text-2xs)' }}
           >
             Clear
           </button>
@@ -240,7 +240,7 @@ export function ResizablePre({ text, tall = false }: { text: string; tall?: bool
         fontSize: tall ? '0.75rem' : '0.65rem',
         background: 'var(--bg-primary)',
         color: 'var(--text-primary)',
-        border: '1px solid var(--border)',
+        border: '1px solid var(--border-color)',
         borderRadius: 4,
         padding: '6px 8px',
         whiteSpace: 'pre-wrap',

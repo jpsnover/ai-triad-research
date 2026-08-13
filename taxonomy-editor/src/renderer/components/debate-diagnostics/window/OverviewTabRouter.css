@@ -55,7 +55,7 @@
 /* --- Vocabulary Disambiguation --- */
 .ovr-mt-20 { margin-top: 20px; }
 .ovr-vocab-table { width: 100%; font-size: 0.7rem; border-collapse: collapse; margin-bottom: 8px; }
-.ovr-vocab-head-row { border-bottom: 1px solid var(--border); }
+.ovr-vocab-head-row { border-bottom: 1px solid var(--border-color); }
 .ovr-th-left { text-align: left; padding: 3px 8px; color: var(--text-muted); }
 .ovr-th-center { text-align: center; padding: 3px 8px; color: var(--text-muted); }
 .ovr-vocab-row { border-bottom: 1px solid color-mix(in srgb, var(--text-muted) 10%, transparent); }
@@ -88,7 +88,7 @@
 /* --- Transcript --- */
 .ovr-transcript { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
 .ovr-transcript-filters { display: flex; gap: 4px; padding: 4px 6px; flex-wrap: wrap; align-items: center; flex-shrink: 0; }
-.ovr-filter-btn { padding: 2px 8px; font-size: var(--text-2xs); font-weight: 600; border-radius: 4px; cursor: pointer; border: 1px solid var(--border); }
+.ovr-filter-btn { padding: 2px 8px; font-size: var(--text-2xs); font-weight: 600; border-radius: 4px; cursor: pointer; border: 1px solid var(--border-color); }
 .ovr-transcript-list { flex: 1; min-height: 0; overflow-y: auto; }
 .ovr-transcript-entry { padding: 4px 6px; cursor: pointer; border-radius: 4px; margin: 2px 0; font-size: 0.7rem; }
 .ovr-stmt-head { display: flex; align-items: baseline; gap: 6px; }
@@ -125,4 +125,4 @@
 .ovr-violation-claim { color: var(--text-primary); font-size: var(--text-2xs); }
 .ovr-violation-sims { display: flex; gap: 12px; font-size: var(--text-2xs); margin-top: 2px; color: var(--text-muted); }
 .ovr-drift-sim { margin-left: auto; font-family: monospace; font-weight: 600; }
-.ovr-drift-excerpt { color: var(--text-muted); font-style: italic; font-size: var(--text-2xs); padding: 3px 6px; border-left: 1px solid var(--border); margin-top: 2px; }
+.ovr-drift-excerpt { color: var(--text-muted); font-style: italic; font-size: var(--text-2xs); padding: 3px 6px; border-left: 1px solid var(--border-color); margin-top: 2px; }

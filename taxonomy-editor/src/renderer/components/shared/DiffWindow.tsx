@@ -57,7 +57,7 @@ export function DiffWindow() {
           <pre className="diff-window-pre">
             {lines.map((line, i) => {
               let bg = 'transparent';
-              let color = 'var(--text, #d4d4d4)';
+              let color = 'var(--text-primary, #d4d4d4)';
               if (line.startsWith('+') && !line.startsWith('+++')) {
                 bg = 'rgba(78, 197, 105, 0.15)';
                 color = '#4ec569';

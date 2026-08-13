@@ -11,8 +11,8 @@ import './SupportAdminPanel.css';
 const STATUS_OPTIONS = ['all', 'open', 'in-progress', 'resolved', 'closed'] as const;
 const STATUS_COLORS: Record<string, string> = {
   open: 'var(--color-info, #3b82f6)',
-  'in-progress': 'var(--color-warning, #f59e0b)',
-  resolved: 'var(--color-success, #22c55e)',
+  'in-progress': 'var(--warning, #f59e0b)',
+  resolved: 'var(--success, #22c55e)',
   closed: 'var(--text-muted, #94a3b8)',
 };
 const PRIORITY_ORDER: Record<string, number> = { high: 0, medium: 1, low: 2 };
@@ -353,7 +353,7 @@ function TableRow({
   statusChanging,
 }: TableRowProps) {
   const tdBorderStyle: React.CSSProperties = {
-    borderBottom: isExpanded ? 'none' : '1px solid var(--border)',
+    borderBottom: isExpanded ? 'none' : '1px solid var(--border-color)',
   };
 
   return (
@@ -591,7 +591,7 @@ function ExpandedDetail({
         <div
           className="support-admin-response-status"
           // eslint-disable-next-line local/no-inline-style -- text color reflects success vs failure state
-          style={{ color: responseSuccess.startsWith('Failed') ? 'var(--color-error, #ef4444)' : 'var(--color-success, #22c55e)' }}
+          style={{ color: responseSuccess.startsWith('Failed') ? 'var(--danger, #ef4444)' : 'var(--success, #22c55e)' }}
         >
           {responseSuccess}
         </div>

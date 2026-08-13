@@ -12,7 +12,7 @@
 .orgs-tab-pov-btn { font-size: var(--text-2xs); border-radius: 10px; }
 .orgs-tab-fs-2xs { font-size: var(--text-2xs); }
 .orgs-tab-empty-state { padding: 16px; text-align: center; }
-.orgs-tab-error-text { color: var(--color-error, #ef4444); margin-bottom: 8px; font-size: 0.8rem; }
+.orgs-tab-error-text { color: var(--danger, #ef4444); margin-bottom: 8px; font-size: 0.8rem; }
 .orgs-tab-item-header { display: flex; align-items: center; gap: 6px; }
 .orgs-tab-flex-1 { flex: 1; }
 .orgs-tab-type-badge {

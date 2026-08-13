@@ -27,7 +27,7 @@
   padding: 6px 10px;
   border-radius: 4px;
   background: var(--bg-subtle);
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-color);
   text-align: center;
 }
 
@@ -195,7 +195,7 @@
   padding: 4px 8px;
   border-radius: 3px;
   background: var(--bg-subtle);
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-color);
   font-size: var(--text-2xs);
   color: var(--text-muted);
   display: flex;

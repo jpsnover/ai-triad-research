@@ -83,7 +83,7 @@
 }
 
 .critique-col-dim-max {
-  color: var(--text-tertiary, #777);
+  color: var(--text-muted, #777);
   font-size: 0.7rem;
 }
 

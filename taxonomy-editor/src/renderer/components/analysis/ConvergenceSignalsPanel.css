@@ -95,14 +95,14 @@
 }
 
 .conv-table thead tr {
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--border-color);
   position: sticky;
   top: 0;
   background: var(--bg-secondary);
 }
 
 .conv-table tbody tr {
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--border-color);
   cursor: pointer;
 }
 
@@ -183,7 +183,7 @@
 
 .conv-verbatim-section {
   margin-top: 6px;
-  border-top: 1px solid var(--border);
+  border-top: 1px solid var(--border-color);
   padding-top: var(--sp-1);
 }
 
@@ -250,7 +250,7 @@
 }
 
 .csig-filter-btn-all {
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-color);
 }
 
 .csig-table-scroll {

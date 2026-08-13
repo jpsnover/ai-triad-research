@@ -50,7 +50,7 @@ export function TensionsListDetail({ content }: { content: string }) {
   }, [content]);
 
   if (tensions.length === 0) {
-    return <pre style={{ fontSize: 'var(--text-2xs)', whiteSpace: 'pre-wrap', wordBreak: 'break-word', maxHeight: 300, overflow: 'auto', margin: '4px 0 8px', padding: '6px 8px', background: 'var(--bg-primary)', borderRadius: 4, border: '1px solid var(--border)' }}>{content}</pre>;
+    return <pre style={{ fontSize: 'var(--text-2xs)', whiteSpace: 'pre-wrap', wordBreak: 'break-word', maxHeight: 300, overflow: 'auto', margin: '4px 0 8px', padding: '6px 8px', background: 'var(--bg-primary)', borderRadius: 4, border: '1px solid var(--border-color)' }}>{content}</pre>;
   }
 
   const sel = selected != null ? tensions[selected] : null;
@@ -62,13 +62,13 @@ export function TensionsListDetail({ content }: { content: string }) {
 
   return (
     <div style={{ display: 'flex', gap: 8, margin: '4px 0 8px' }}>
-      <div style={{ flex: '1 1 45%', maxHeight: 340, overflow: 'auto', borderRadius: 4, border: '1px solid var(--border)', background: 'var(--bg-primary)' }}>
+      <div style={{ flex: '1 1 45%', maxHeight: 340, overflow: 'auto', borderRadius: 4, border: '1px solid var(--border-color)', background: 'var(--bg-primary)' }}>
         {tensions.map((t, i) => (
           <div key={i} onClick={() => { setSelected(i); setRationaleExpanded(false); }} style={{
             padding: '4px 8px', cursor: 'pointer', fontSize: 'var(--text-2xs)',
             background: selected === i ? 'color-mix(in srgb, var(--color-acc) 12%, transparent)' : 'transparent',
             borderLeft: selected === i ? '3px solid var(--color-acc)' : '3px solid transparent',
-            borderBottom: '1px solid var(--border)',
+            borderBottom: '1px solid var(--border-color)',
           }}>
             <span style={{ color: nodeIdColor(t.source), fontWeight: 600 }}>{t.source}</span>
             <span style={{ color: relationColor(t.relation), fontSize: 'var(--text-2xs)', fontWeight: 700, margin: '0 4px' }}>
@@ -79,10 +79,10 @@ export function TensionsListDetail({ content }: { content: string }) {
           </div>
         ))}
       </div>
-      <div style={{ flex: '1 1 55%', borderRadius: 4, border: '1px solid var(--border)', background: 'var(--bg-primary)', fontSize: '0.7rem', minHeight: 80, overflow: 'auto' }}>
+      <div style={{ flex: '1 1 55%', borderRadius: 4, border: '1px solid var(--border-color)', background: 'var(--bg-primary)', fontSize: '0.7rem', minHeight: 80, overflow: 'auto' }}>
         {sel ? (
           <>
-            <div style={{ padding: '8px 12px', borderBottom: '1px solid var(--border)', background: 'var(--bg-secondary)' }}>
+            <div style={{ padding: '8px 12px', borderBottom: '1px solid var(--border-color)', background: 'var(--bg-secondary)' }}>
               <span style={{ display: 'inline-block', padding: '2px 10px', borderRadius: 4, background: `${relationColor(sel.relation)}18`, color: relationColor(sel.relation), fontWeight: 700, fontSize: '0.72rem', textTransform: 'uppercase' }}>
                 {sel.relation.replace(/_/g, ' ')}
               </span>

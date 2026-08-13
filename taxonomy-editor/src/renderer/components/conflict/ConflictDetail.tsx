@@ -509,7 +509,7 @@ function ConflictHeaderSection({
             {' · '}
             <span
               className="cd-meta-stance"
-              style={{ color: stanceSummary.kind === 'contested' ? 'var(--color-warning, #d97706)' : 'var(--text-muted)' }}
+              style={{ color: stanceSummary.kind === 'contested' ? 'var(--warning, #d97706)' : 'var(--text-muted)' }}
               title={`${stanceSummary.supports} support / ${stanceSummary.disputes} dispute / ${stanceSummary.neutral} neutral / ${stanceSummary.qualifies} qualify — derived from instance stance, not a claim that the sides disagree`}
             >
               {stanceSummary.label} ({stanceSummary.detail})

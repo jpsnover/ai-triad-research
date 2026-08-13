@@ -72,7 +72,7 @@
 .support-case-detail-attachment-item {
   padding: 8px;
   border-radius: 6px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-color);
   background: var(--bg-secondary);
 }
 

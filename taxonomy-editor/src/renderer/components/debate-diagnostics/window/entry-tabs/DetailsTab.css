@@ -301,7 +301,7 @@
 .det-assumption {
   margin: 4px 0;
   padding-left: 8px;
-  border-left: 2px solid var(--border);
+  border-left: 2px solid var(--border-color);
 }
 
 .det-muted-7 {
@@ -367,7 +367,7 @@
   width: 60px;
   height: 6px;
   border-radius: 3px;
-  background: var(--border);
+  background: var(--border-color);
   overflow: hidden;
   flex-shrink: 0;
 }

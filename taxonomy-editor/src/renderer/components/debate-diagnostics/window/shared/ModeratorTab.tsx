@@ -70,7 +70,7 @@ function CandidateCard({ c, selected }: { c: Candidate; selected: ModeratorTrace
     // eslint-disable-next-line local/no-inline-style -- selected-state drives background, border, and fontWeight
     <div className="mod-tab-candidate-card" style={{
       background: c.debater === selected ? 'color-mix(in srgb, var(--color-acc) 12%, transparent)' : 'transparent',
-      border: `1px solid ${c.debater === selected ? 'var(--color-acc)' : 'var(--border)'}`,
+      border: `1px solid ${c.debater === selected ? 'var(--color-acc)' : 'var(--border-color)'}`,
       fontWeight: c.debater === selected ? 700 : 400,
     }}>
       <div>#{c.rank} {c.debater}</div>
