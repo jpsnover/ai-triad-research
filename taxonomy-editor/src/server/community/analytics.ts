@@ -363,14 +363,24 @@ export interface EngagementUserEntry {
   lastActive: string;
 }
 
+/** Per-session rollup (admin-gated; present only when opts.includeSessions is requested). */
+export interface EngagementSessionEntry {
+  session: string;
+  startTime: string;    // ISO — first view.dwell timestamp for this session within [from, to]
+  engagedMs: number;
+  nodeCount: number;    // distinct visited subject_ids (100-char cap, matches node accumulator)
+}
+
 export interface EngagementQueryResult {
   aggregate: EngagementTree;
   /** Per-day engaged totals for section 1 of the dashboard. */
   daily: EngagementDailyEntry[];
   /** Per-user rollup for section 5; caller must strip for non-admins before sending. */
   users: EngagementUserEntry[];
-  /** Present when a `user` param was requested. */
+  /** Present when opts.user was requested. */
   user?: EngagementTree;
+  /** Present only when opts.includeSessions; admin-gated by the route layer. */
+  sessions?: EngagementSessionEntry[];
 }
 
 interface EngAccum {
@@ -406,6 +416,7 @@ function sealAccum(acc: EngAccum, withUsers: boolean): EngagementNodeResult {
 
 interface DailyEngAccum { visits: number; engagedVisits: number; engagedMs: number }
 interface UserEngAccum { visits: number; engagedVisits: number; engagedMs: number; lastActive: string; campCounts: Map<string, number> }
+interface SessionEngEntry { startTime: string; engagedMs: number; nodes: Set<string>; user: string }
 
 interface EngState {
   tool: EngAccum;
@@ -415,10 +426,12 @@ interface EngState {
   tabs: Map<string, EngAccum>;
   daily: Map<string, DailyEngAccum>;
   userSummaries: Map<string, UserEngAccum>;
+  /** null when not tracking sessions (ordinary queries pay no allocation cost). */
+  sessionEntries: Map<string, SessionEngEntry> | null;
 }
 
-function mkState(): EngState {
-  return { tool: mkAccum(), camps: new Map(), categories: new Map(), nodes: new Map(), tabs: new Map(), daily: new Map(), userSummaries: new Map() };
+function mkState(includeSessions = false): EngState {
+  return { tool: mkAccum(), camps: new Map(), categories: new Map(), nodes: new Map(), tabs: new Map(), daily: new Map(), userSummaries: new Map(), sessionEntries: includeSessions ? new Map() : null };
 }
 
 function getOrMake(m: Map<string, EngAccum>, key: string): EngAccum {
@@ -470,6 +483,18 @@ function placeEvent(state: EngState, evt: AnalyticsEvent): void {
     const tabKey = (typeof d.subject_id === 'string' && d.subject_id) ? d.subject_id.slice(0, 100) : 'unknown';
     addToAccum(getOrMake(state.tabs, tabKey), evt);
   }
+
+  // Session entry tracking — gated on sessionEntries != null (only allocated when includeSessions)
+  if (state.sessionEntries !== null) {
+    const sessId = evt.session_id;
+    let se = state.sessionEntries.get(sessId);
+    if (!se) { se = { startTime: evt.timestamp, engagedMs: 0, nodes: new Set(), user: evt.user }; state.sessionEntries.set(sessId, se); }
+    if (evt.timestamp < se.startTime) se.startTime = evt.timestamp;
+    se.engagedMs += typeof evt.duration_ms === 'number' ? evt.duration_ms : 0;
+    // nodeCount: cap subject_id at 100 chars to match the node accumulator bound above
+    const subId = typeof d.subject_id === 'string' && d.subject_id ? d.subject_id.slice(0, 100) : '';
+    if (subId) se.nodes.add(subId);
+  }
 }
 
 function buildTree(state: EngState, withUsers: boolean): EngagementTree {
@@ -494,20 +519,32 @@ function buildTree(state: EngState, withUsers: boolean): EngagementTree {
 /**
  * Aggregate view.dwell events into a tool→camp→category→node engagement tree,
  * a daily series, and a per-user rollup — all in one pass.
- * When `user` is provided, also returns that user's subtree (without uniqueUsers).
- * Callers are responsible for stripping `users` before sending to non-admin clients.
+ * opts.user    → also returns that user's subtree (without uniqueUsers).
+ * opts.session → aggregate + daily recomputed for that session only (§7.1).
+ * opts.includeSessions → adds sessions list (scoped to opts.user if set; admin-gated by caller).
+ * No opts → output is byte-identical to the pre-extension t/2463 result.
+ * Callers are responsible for stripping users/sessions before sending to non-admin clients.
  */
-export async function queryEngagement(from: string, to: string, user?: string): Promise<EngagementQueryResult> {
+export async function queryEngagement(
+  from: string,
+  to: string,
+  opts?: { user?: string; session?: string; includeSessions?: boolean },
+): Promise<EngagementQueryResult> {
   const events = await readEvents(from, to);
-  const aggState = mkState();
-  const userState = user ? mkState() : null;
+  const aggState = mkState(!!opts?.includeSessions);
+  const userState = opts?.user ? mkState(false) : null;
+  const sessionState = opts?.session ? mkState(false) : null;
+
   for (const evt of events) {
     if (evt.event_type !== 'view.dwell') continue;
     placeEvent(aggState, evt);
-    if (userState && evt.user === user) placeEvent(userState, evt);
+    if (userState && evt.user === opts!.user) placeEvent(userState, evt);
+    if (sessionState && evt.session_id === opts!.session) placeEvent(sessionState, evt);
   }
 
-  const daily: EngagementDailyEntry[] = Array.from(aggState.daily.entries())
+  const sourceState = sessionState ?? aggState;
+
+  const daily: EngagementDailyEntry[] = Array.from(sourceState.daily.entries())
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([date, d]) => ({ date, visits: d.visits, engagedVisits: d.engagedVisits, engagedMs: d.engagedMs }));
 
@@ -518,10 +555,58 @@ export async function queryEngagement(from: string, to: string, user?: string): 
     })
     .sort((a, b) => b.lastActive.localeCompare(a.lastActive));
 
+  let sessions: EngagementSessionEntry[] | undefined;
+  if (opts?.includeSessions && aggState.sessionEntries) {
+    const filterUser = opts.user;
+    sessions = Array.from(aggState.sessionEntries.entries())
+      .filter(([, se]) => !filterUser || se.user === filterUser)
+      .map(([session, se]) => ({ session, startTime: se.startTime, engagedMs: se.engagedMs, nodeCount: se.nodes.size }))
+      .sort((a, b) => a.startTime.localeCompare(b.startTime));
+  }
+
   return {
-    aggregate: buildTree(aggState, true),
+    aggregate: buildTree(sourceState, true),
     daily,
     users,
     ...(userState ? { user: buildTree(userState, false) } : {}),
+    ...(sessions !== undefined ? { sessions } : {}),
   };
+}
+
+/** Subject-scoped WHO breakdown for the leaf panel (spec §7.3).
+ *  One row per distinct user or session that viewed this subject, summing engagedMs + visits.
+ *  If user is provided, only that user's events are included (for the user-scoped leaf panel). */
+export type SubjectBreakdownRow =
+  | { user: string; engagedMs: number; visits: number }
+  | { session: string; engagedMs: number; visits: number };
+
+export interface SubjectBreakdownResult { rows: SubjectBreakdownRow[]; }
+
+export async function querySubjectBreakdown(
+  from: string,
+  to: string,
+  subjectId: string,
+  groupBy: 'user' | 'session',
+  user?: string,
+): Promise<SubjectBreakdownResult> {
+  const events = await readEvents(from, to);
+  const acc = new Map<string, { engagedMs: number; visits: number }>();
+  for (const evt of events) {
+    if (evt.event_type !== 'view.dwell') continue;
+    if (typeof evt.detail.subject_id !== 'string' || evt.detail.subject_id !== subjectId) continue;
+    if (user !== undefined && evt.user !== user) continue;
+    const key = groupBy === 'user' ? evt.user : evt.session_id;
+    let entry = acc.get(key);
+    if (!entry) { entry = { engagedMs: 0, visits: 0 }; acc.set(key, entry); }
+    entry.visits++;
+    entry.engagedMs += typeof evt.duration_ms === 'number' ? evt.duration_ms : 0;
+  }
+  const rows: SubjectBreakdownRow[] = Array.from(acc.entries())
+    .sort(([, a], [, b]) => b.engagedMs - a.engagedMs)
+    .map(([key, e]) =>
+      groupBy === 'user'
+        ? { user: key, engagedMs: e.engagedMs, visits: e.visits }
+        : { session: key, engagedMs: e.engagedMs, visits: e.visits },
+    );
+  return { rows };
 }
