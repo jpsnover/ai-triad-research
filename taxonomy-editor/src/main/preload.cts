@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { contextBridge, ipcRenderer } from 'electron';
+import type { OpEdSet, OpEdSetSummary } from '../../../lib/oped/types.js';
 
 // Buffer debate-window-load IPC so it isn't lost if React mounts after did-finish-load
 // (happens with bootstrap.ts dynamic import indirection).
@@ -572,12 +573,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('oped-progress', listener);
     return () => { ipcRenderer.removeListener('oped-progress', listener); };
   },
-  listOpEdSets: (): Promise<unknown[]> =>
+  listOpEdSets: (): Promise<OpEdSetSummary[]> =>
     ipcRenderer.invoke('list-oped-sets'),
-  loadOpEdSet: (setId: string): Promise<unknown> =>
+  loadOpEdSet: (setId: string): Promise<OpEdSet> =>
     ipcRenderer.invoke('load-oped-set', setId),
   deleteOpEdSet: (setId: string): Promise<void> =>
     ipcRenderer.invoke('delete-oped-set', setId),
-  saveOpEdSet: (set: unknown): Promise<void> =>
+  saveOpEdSet: (set: OpEdSet): Promise<void> =>
     ipcRenderer.invoke('save-oped-set', set),
 });
