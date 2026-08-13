@@ -88,14 +88,15 @@ Describe 'Get-OpEdSource' -Tag 'oped' {
                     StatusCode = 200
                 }
             }
-            Mock Invoke-PdfConversion -ModuleName AITriad { $script:ReadableText }
+            $script:PdfConvCalled = $false
+            Mock Invoke-PdfConversion -ModuleName AITriad { $script:PdfConvCalled = $true; $script:ReadableText }
         }
 
         It 'Routes to ConvertFrom-Pdf when Content-Type is application/pdf' {
             $Prep = Get-OpEdSource -Url 'https://example.com/report'
             $Prep.SourceFormat         | Should -Be 'pdf'
             $Prep.SourceExtractionTool | Should -Be 'ConvertFrom-Pdf'
-            Should -Invoke Invoke-PdfConversion -ModuleName AITriad -Times 1
+            $script:PdfConvCalled      | Should -BeTrue -Because 'Invoke-PdfConversion must be called for PDF routing'
         }
     }
 
@@ -108,13 +109,14 @@ Describe 'Get-OpEdSource' -Tag 'oped' {
                     StatusCode = 200
                 }
             }
-            Mock Invoke-PdfConversion -ModuleName AITriad { $script:ReadableText }
+            $script:PdfConvCalled = $false
+            Mock Invoke-PdfConversion -ModuleName AITriad { $script:PdfConvCalled = $true; $script:ReadableText }
         }
 
         It 'Routes to ConvertFrom-Pdf when URL ends in .pdf' {
             $Prep = Get-OpEdSource -Url 'https://example.com/report.pdf'
-            $Prep.SourceFormat | Should -Be 'pdf'
-            Should -Invoke Invoke-PdfConversion -ModuleName AITriad -Times 1
+            $Prep.SourceFormat    | Should -Be 'pdf'
+            $script:PdfConvCalled | Should -BeTrue -Because 'Invoke-PdfConversion must be called for .pdf extension routing'
         }
     }
 
@@ -127,14 +129,15 @@ Describe 'Get-OpEdSource' -Tag 'oped' {
                     StatusCode = 200
                 }
             }
-            Mock Invoke-DocxConversion -ModuleName AITriad { $script:ReadableText }
+            $script:DocxConvCalled = $false
+            Mock Invoke-DocxConversion -ModuleName AITriad { $script:DocxConvCalled = $true; $script:ReadableText }
         }
 
         It 'Routes to ConvertFrom-Docx when URL ends in .docx' {
             $Prep = Get-OpEdSource -Url 'https://example.com/brief.docx'
-            $Prep.SourceFormat         | Should -Be 'docx'
-            $Prep.SourceExtractionTool | Should -Be 'ConvertFrom-Docx'
-            Should -Invoke Invoke-DocxConversion -ModuleName AITriad -Times 1
+            $Prep.SourceFormat          | Should -Be 'docx'
+            $Prep.SourceExtractionTool  | Should -Be 'ConvertFrom-Docx'
+            $script:DocxConvCalled      | Should -BeTrue -Because 'Invoke-DocxConversion must be called for .docx extension routing'
         }
     }
 
