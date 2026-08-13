@@ -206,6 +206,45 @@ Describe 'New-OpEd' -Tag 'oped' {
         }
     }
 
+    Context 'FromPrep parameter set' {
+        BeforeEach {
+            $script:capturedSystem = $null
+            $script:capturedPrompt = $null
+            Mock Invoke-AIApi -MockWith $script:MockAI -ModuleName AITriad
+            Mock Get-RelevantTaxonomyNodes { @() } -ModuleName AITriad
+        }
+
+        # Regression: t/2588 — -Topic was missing [Parameter(ParameterSetName='FromPrep')]
+        # so passing both -SourcePrep and -Topic together threw "parameter set cannot be resolved".
+        It 'Resolves FromPrep without error when both -SourcePrep and -Topic are passed' {
+            $Prep = [PSCustomObject]@{
+                Url                  = 'https://example.com/doc.pdf'
+                SourceMarkdown       = 'Artificial intelligence policy requires oversight and accountability mechanisms.'
+                SourceFormat         = 'pdf'
+                SourceExtractionTool = 'ConvertFrom-Pdf'
+                ReadableWords        = 12
+                ReadableRatio        = 0.92
+                SourceBrief          = [PSCustomObject]@{ thesis = 'AI needs oversight.'; readable = 'true' }
+            }
+            { New-OpEd -SourcePrep $Prep -Topic 'Explicit topic override' -Pov safetyist } |
+                Should -Not -Throw
+        }
+
+        It 'Uses SourcePrep.SourceMarkdown as the source material in the prompt' {
+            $Prep = [PSCustomObject]@{
+                Url                  = 'https://example.com/doc.pdf'
+                SourceMarkdown       = 'Unique source content marker for test assertion.'
+                SourceFormat         = 'pdf'
+                SourceExtractionTool = 'ConvertFrom-Pdf'
+                ReadableWords        = 8
+                ReadableRatio        = 0.88
+                SourceBrief          = [PSCustomObject]@{ thesis = 'test'; readable = 'true' }
+            }
+            New-OpEd -SourcePrep $Prep -Topic 'Explicit topic' -Pov safetyist | Out-Null
+            $script:capturedPrompt | Should -Match 'Unique source content marker'
+        }
+    }
+
     Context 'Degradation and errors' {
         # These exercise response handling, not grounding — run voice-only so no
         # retrieval subprocess is attempted.
