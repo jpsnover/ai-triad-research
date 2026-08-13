@@ -16,11 +16,36 @@ import {
   localComputeEmbedding,
   localComputeEmbeddings,
 } from '../utils/localEmbedding';
+import { ActionableError } from '@lib/debate/errors';
+import type { OpEdSet } from '../../../../lib/oped/types';
 
 // Fire-and-forget: start local embedding init on module load.
 // Bridge is always available in Electron, so WASM-init-failed is harmless noise.
 notifyBridgeFallback();
 void tryInitLocalEmbedding();
+
+// Op-Ed Studio (t/2576) — the op-ed persistence IPC surface is added to the preload
+// API by t/2575. Until that lands, the methods are absent from window.electronAPI, so
+// we feature-detect (optional-chained cast) and reject with an honest ActionableError.
+// No stub to swap out: when t/2575 installs the real methods, these calls light up.
+type OpEdIpc = {
+  listOpEdSets?: () => Promise<OpEdSet[]>;
+  loadOpEdSet?: (id: string) => Promise<OpEdSet>;
+  saveOpEdSet?: (set: OpEdSet) => Promise<void>;
+  deleteOpEdSet?: (id: string) => Promise<void>;
+};
+const opEdIpc = (): OpEdIpc => window.electronAPI as unknown as OpEdIpc;
+function rejectOpEdIpc(goal: string, method: string): Promise<never> {
+  return Promise.reject(new ActionableError({
+    goal: `Op-Ed Studio: ${goal}`,
+    problem: `The desktop op-ed backend (${method}) is not installed in this build.`,
+    location: 'electron-bridge · Op-Ed Studio',
+    nextSteps: [
+      'Update to a desktop build that includes the op-ed backend (t/2575).',
+      'Until then, browse the community op-ed library in the web app.',
+    ],
+  }));
+}
 
 // Same-window diagnostics callbacks for the in-app drawer (mobile/narrow).
 // When a popout BrowserWindow is open, IPC delivers state to it directly.
@@ -236,6 +261,12 @@ export const api: AppAPI = {
   loadDebateComments: (id) => window.electronAPI.loadDebateComments(id),
   saveDebateComments: (id, data) => window.electronAPI.saveDebateComments(id, data),
 
+  // Op-Ed Studio (t/2576) — feature-detected IPC (lands with t/2575); see opEdIpc above.
+  listOpEdSets: () => opEdIpc().listOpEdSets?.() ?? rejectOpEdIpc('list op-eds', 'listOpEdSets'),
+  loadOpEdSet: (id) => opEdIpc().loadOpEdSet?.(id) ?? rejectOpEdIpc('load an op-ed', 'loadOpEdSet'),
+  saveOpEdSet: (set) => opEdIpc().saveOpEdSet?.(set) ?? rejectOpEdIpc('save an op-ed', 'saveOpEdSet'),
+  deleteOpEdSet: (id) => opEdIpc().deleteOpEdSet?.(id) ?? rejectOpEdIpc('delete an op-ed', 'deleteOpEdSet'),
+
   // News Report
   generateNewsReport: (debateId) => window.electronAPI.generateNewsReport(debateId),
 
@@ -292,6 +323,7 @@ export const api: AppAPI = {
   },
   copyFromCommunity: async () => { throw new Error('Community Library is only available in the web app'); },
   loadCommunityDebateSession: async () => { throw new Error('Community Library is only available in the web app'); },
+  loadCommunityOpEd: async () => { throw new Error('Community Library is only available in the web app'); },
   loadCommunityChatSession: async () => { throw new Error('Community Library is only available in the web app'); },
   // Proxy through the main process so the cross-origin POST is not blocked by browser CORS.
   communitySubmit: (baseUrl, payload) => window.electronAPI.communitySubmit(baseUrl, payload),

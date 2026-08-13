@@ -1,0 +1,283 @@
+/* OpEdReader.css — essay reader (t/2576 PR#1, §6). Tokens only — no hard-coded colors. */
+
+.oped-reader {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.oped-reader-empty {
+  padding: 2rem;
+  color: var(--text-muted);
+}
+
+/* Camp-tab strip (multi-voice sets only) */
+.oped-tabstrip {
+  display: flex;
+  gap: 0.25rem;
+  border-bottom: 1px solid var(--border-color);
+  padding: 0 0.75rem;
+}
+
+.oped-tab {
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  padding: 0.5rem 0.75rem;
+  margin-bottom: -1px;
+}
+
+.oped-tab:hover { color: var(--text-primary); }
+
+.oped-tab:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+.oped-tab-active { font-weight: 700; }
+
+/* Article */
+.oped-article {
+  padding: 1.25rem 1.5rem 2.5rem;
+}
+
+/* Camp-accent strip — colored left border + label text */
+.oped-article-strip {
+  border-left: 4px solid var(--border-color);
+  padding: 0.35rem 0.75rem;
+  margin-bottom: 1.25rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  background: var(--bg-secondary, transparent);
+}
+
+.oped-article-notice {
+  padding: 1rem 1.25rem;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  background: var(--bg-secondary, transparent);
+}
+
+.oped-article-headline {
+  font-size: 1.75rem;
+  line-height: 1.2;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0 0 0.5rem;
+  max-width: 34ch;
+}
+
+.oped-article-subtitle {
+  font-size: 1.05rem;
+  font-style: italic;
+  color: var(--text-muted);
+  margin: 0 0 1.5rem;
+  max-width: 60ch;
+}
+
+/* Body — comfortable reading measure (~68ch) */
+.oped-reader-body {
+  max-width: 68ch;
+  font-size: 1rem;
+  line-height: 1.65;
+  color: var(--text-primary);
+}
+
+.oped-reader-body p { margin: 0 0 1rem; }
+
+.oped-reader-body h1,
+.oped-reader-body h2,
+.oped-reader-body h3 {
+  line-height: 1.3;
+  margin: 1.5rem 0 0.6rem;
+  color: var(--text-primary);
+}
+
+.oped-reader-body a { color: var(--focus-ring); }
+
+.oped-reader-body blockquote {
+  border-left: 3px solid var(--border-color);
+  margin: 1rem 0;
+  padding-left: 1rem;
+  color: var(--text-secondary);
+}
+
+.oped-reader-body ul,
+.oped-reader-body ol { margin: 0 0 1rem 1.25rem; }
+
+/* Pitch (collapsible) */
+.oped-pitch {
+  margin-top: 1.5rem;
+  border-top: 1px solid var(--border-color);
+  padding-top: 1rem;
+}
+
+.oped-pitch-summary,
+.oped-grounding-summary {
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  user-select: none;
+}
+
+.oped-pitch-summary:hover,
+.oped-grounding-summary:hover { color: var(--text-primary); }
+
+.oped-pitch-body { margin-top: 0.75rem; }
+
+/* Voice-only notice (empty grounding) */
+.oped-voice-only {
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border-color);
+  font-size: 0.85rem;
+  font-style: italic;
+  color: var(--text-muted);
+}
+
+/* Grounding table */
+.oped-grounding {
+  margin-top: 1.5rem;
+  border-top: 1px solid var(--border-color);
+  padding-top: 1rem;
+}
+
+.oped-grounding-table-wrap {
+  overflow-x: auto;
+  margin-top: 0.75rem;
+}
+
+.oped-grounding-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8125rem;
+}
+
+.oped-grounding-table th {
+  text-align: left;
+  padding: 0.4rem 0.6rem;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--border-color);
+  white-space: nowrap;
+}
+
+.oped-grounding-table td {
+  padding: 0.4rem 0.6rem;
+  border-bottom: 1px solid var(--border-color);
+  color: var(--text-primary);
+  vertical-align: top;
+}
+
+.oped-grounding-row-active {
+  background: var(--bg-hover);
+}
+
+.oped-grounding-id-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.8125rem;
+  font-family: var(--font-mono, monospace);
+  color: var(--focus-ring);
+  text-align: left;
+}
+
+.oped-grounding-id-btn:hover { text-decoration: underline; }
+
+.oped-grounding-id-btn:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* Inline element detail card */
+.oped-grounding-card {
+  margin-top: 0.75rem;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 0.75rem;
+  background: var(--bg-secondary, transparent);
+}
+
+.oped-grounding-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.oped-grounding-card-id {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+}
+
+.oped-grounding-card-head-actions {
+  display: inline-flex;
+  gap: 0.4rem;
+  align-items: center;
+}
+
+.oped-grounding-card-open {
+  background: none;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  color: var(--text-primary);
+  cursor: pointer;
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 0.2rem 0.55rem;
+}
+
+.oped-grounding-card-open:hover { background: var(--bg-hover); }
+
+.oped-grounding-card-close {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-muted);
+  font-size: 1.1rem;
+  line-height: 1;
+  padding: 0 0.3rem;
+}
+
+.oped-grounding-card-close:hover { color: var(--text-primary); }
+
+.oped-grounding-card-reflected {
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+  margin-bottom: 0.6rem;
+}
+
+.oped-grounding-card-reflected-label {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.oped-grounding-card-empty {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  padding: 0.5rem 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .oped-tab { transition: none; }
+}

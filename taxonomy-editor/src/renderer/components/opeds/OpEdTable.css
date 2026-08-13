@@ -1,0 +1,332 @@
+/* OpEdTable.css — full-width op-ed library table (t/2576 PR#1). Tokens only. */
+
+.oped-table-wrap {
+  flex: 1;
+  overflow: auto;
+  min-height: 0;
+  padding-bottom: 1rem;
+}
+
+.oped-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+/* Column sizing — Headline takes the flex; everything else sizes to content. */
+.oped-table colgroup .col-headline { width: auto; }
+.oped-table colgroup .col-camp     { width: 8rem; }
+.oped-table colgroup .col-outlet   { width: 8rem; }
+.oped-table colgroup .col-words    { width: 5rem; }
+.oped-table colgroup .col-date     { width: 7.5rem; }
+.oped-table colgroup .col-actions  { width: 13rem; }
+.oped-table colgroup .col-cb       { width: 2rem; }
+
+/* Header */
+.oped-table thead th {
+  padding: 0.5rem 0.75rem;
+  text-align: left;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--border-color);
+  white-space: nowrap;
+  user-select: none;
+}
+
+.oped-table thead th.col-words {
+  text-align: right;
+}
+
+.oped-table-sort-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3em;
+}
+
+.oped-table-sort-btn:hover { color: var(--text-primary); }
+
+.oped-table-sort-btn:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+.oped-table-sort-indicator {
+  font-size: 0.65em;
+  opacity: 0.7;
+}
+
+/* Rows */
+.oped-table tbody tr {
+  border-bottom: 1px solid var(--border-color);
+  transition: background 0.1s;
+}
+
+.oped-table tbody tr:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: -2px;
+}
+
+.oped-table tbody tr:hover { background: var(--bg-hover); }
+
+.oped-table tbody tr.selected,
+.oped-table tbody tr[aria-current="true"] {
+  background: var(--bg-hover);
+  box-shadow: inset 3px 0 0 var(--focus-ring);
+}
+
+.oped-table tbody tr.bulk-selected { background: var(--bg-hover); }
+
+/* Cells */
+.oped-table tbody td {
+  padding: 0.55rem 0.75rem;
+  vertical-align: top;
+  color: var(--text-primary);
+  font-size: 0.875rem;
+}
+
+.oped-table td.col-headline {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.oped-table-headline-text {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
+  line-height: 1.4;
+}
+
+.oped-table-headline-secondary {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-top: 0.2rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.oped-table-rename-input {
+  width: 100%;
+  font: inherit;
+  font-size: 0.875rem;
+  padding: 0.15rem 0.25rem;
+  border: 1px solid var(--border-color);
+  border-radius: 3px;
+  background: transparent;
+  color: var(--text-primary);
+}
+
+.oped-table-rename-input:focus {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 0;
+}
+
+.oped-table td.col-camp { white-space: nowrap; }
+
+.oped-table td.col-outlet,
+.oped-table td.col-date {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--text-muted);
+  font-size: 0.8125rem;
+}
+
+.oped-table td.col-words {
+  white-space: nowrap;
+  text-align: right;
+  color: var(--text-muted);
+  font-size: 0.8125rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.oped-table td.col-actions { white-space: nowrap; }
+.oped-table td.col-cb { text-align: center; }
+
+/* Camp chips — glyph + short label, colored per camp (label text carries identity) */
+.oped-camp-chips {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.oped-camp-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2em;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.oped-camp-chip-label { color: var(--text-secondary); }
+
+/* Action buttons */
+.oped-table-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  position: relative;
+}
+
+.oped-table-action-btn {
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  cursor: pointer;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+  transition: color 0.1s, border-color 0.1s, background 0.1s;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25em;
+}
+
+.oped-table-action-btn:hover {
+  color: var(--text-primary);
+  border-color: var(--border-color);
+  background: var(--bg-hover);
+}
+
+.oped-table-action-btn:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.oped-table-action-btn.primary {
+  color: var(--text-primary);
+  border-color: var(--border-color);
+}
+
+.oped-table-action-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Export mini-menu */
+.oped-export-menu { position: relative; display: inline-flex; }
+
+.oped-export-menu-list {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  margin-top: 2px;
+  display: flex;
+  flex-direction: column;
+  min-width: 8rem;
+  background: var(--bg-secondary, var(--bg-primary));
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 10;
+}
+
+.oped-export-menu-item {
+  background: none;
+  border: none;
+  text-align: left;
+  padding: 0.4rem 0.7rem;
+  font: inherit;
+  font-size: 0.8125rem;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.oped-export-menu-item:hover { background: var(--bg-hover); }
+
+/* Empty / loading */
+.oped-table-empty-cell {
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 0.875rem;
+  padding: 2.5rem 1rem;
+}
+
+.oped-table-empty-action {
+  margin-top: 0.75rem;
+}
+
+/* Responsive: tablet — collapse Outlet into the headline secondary line */
+@media (max-width: 960px) {
+  .oped-table .col-outlet,
+  .oped-table td.col-outlet,
+  .oped-table th.col-outlet {
+    display: none;
+  }
+}
+
+/* Phone — stacked card fallback */
+@media (max-width: 600px) {
+  .oped-table,
+  .oped-table thead,
+  .oped-table tbody,
+  .oped-table tr,
+  .oped-table th,
+  .oped-table td {
+    display: block;
+  }
+
+  .oped-table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+  }
+
+  .oped-table tbody tr {
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    margin-bottom: 0.75rem;
+    padding: 0.5rem 0.75rem;
+  }
+
+  .oped-table td.col-headline { order: -1; }
+
+  .oped-table tbody tr.selected {
+    box-shadow: 0 0 0 2px var(--focus-ring);
+  }
+
+  .oped-table tbody td {
+    padding: 0.2rem 0;
+    border: none;
+  }
+
+  .oped-table td.col-camp,
+  .oped-table td.col-words,
+  .oped-table td.col-date {
+    display: inline;
+    padding-right: 0.5rem;
+  }
+
+  .oped-table td.col-actions {
+    text-align: left;
+    padding-top: 0.4rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .oped-table tbody tr,
+  .oped-table-action-btn {
+    transition: none;
+  }
+}

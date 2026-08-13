@@ -188,7 +188,7 @@ export function HamburgerMenu({ isOpen, onClose }: HamburgerMenuProps) {
       if (action.id === 'taxonomy') {
         clearCurrentPanel();
         setToolbarPanel(null);
-        if (['situations', 'conflicts', 'debate', 'chat', 'summaries', 'validation'].includes(activeTab)) setActiveTab('accelerationist');
+        if (['situations', 'conflicts', 'debate', 'chat', 'opeds', 'summaries', 'validation'].includes(activeTab)) setActiveTab('accelerationist');
       } else if (action.id === 'chat') {
         void api.openChatWindow();
       } else if (action.id === 'feedback') {

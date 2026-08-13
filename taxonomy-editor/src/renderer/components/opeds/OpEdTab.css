@@ -1,0 +1,117 @@
+/* OpEdTab.css — Op-Ed Studio shell (t/2576 PR#1). Tokens only — no hard-coded colors. */
+
+/* Full-width list panel in table mode (mirrors .debate-tab-table-mode). */
+.oped-tab-table-mode .list-panel {
+  width: 100% !important;
+  max-width: 100%;
+}
+
+.oped-tab-table-mode .list-panel.oped-list-panel {
+  flex: 1;
+}
+
+.two-column.tablet-mode.oped-tab-table-mode .list-panel.oped-list-panel {
+  width: auto !important;
+  min-width: 0 !important;
+  max-width: none !important;
+  flex: 1;
+}
+
+.oped-list-panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+/* Search box */
+.oped-search-wrap {
+  padding: 0.5rem 0.75rem;
+}
+
+.oped-search-input {
+  width: 100%;
+  padding: 0.4rem 0.6rem;
+  font: inherit;
+  font-size: 0.875rem;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background: var(--bg-secondary, transparent);
+  color: var(--text-primary);
+}
+
+.oped-search-input:focus {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 0;
+}
+
+/* Status flash */
+.oped-status {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.oped-status-inline {
+  padding: 0 0.75rem 0.4rem;
+}
+
+/* Reader shell */
+.oped-reader-shell {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: auto;
+  width: 100%;
+}
+
+.oped-reader-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid var(--border-color);
+  position: sticky;
+  top: 0;
+  background: var(--bg-primary, var(--bg-secondary));
+  z-index: 1;
+}
+
+.oped-reader-back {
+  background: none;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  color: var(--text-primary);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.8125rem;
+  padding: 0.25rem 0.7rem;
+}
+
+.oped-reader-back:hover {
+  background: var(--bg-hover);
+}
+
+.oped-reader-back:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.oped-reader-loading,
+.oped-reader-error {
+  padding: 1.5rem;
+  color: var(--text-muted);
+  font-size: 0.875rem;
+}
+
+.oped-reader-error {
+  color: var(--danger, var(--warning));
+}
+
+/* Empty state (community-in-Electron notice) */
+.oped-session-empty {
+  padding: 2.5rem 1.5rem;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
