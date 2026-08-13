@@ -10,20 +10,33 @@ import { spawn } from 'child_process';
 import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
-import { fileURLToPath } from 'url';
 
 import { ActionableError } from '../../../../lib/debate/errors.js';
 import { getGlobalRecorder } from '../../../../lib/flight-recorder/index.js';
 import { assertSafeId } from '../../../../lib/electron-shared/safeId.js';
+import { PROJECT_ROOT, getDataRootPath } from '../fileIO.js';
 import { saveOpEdSetTemp, finalizeOpEdSet, loadOpEdSet } from '../opedIO.js';
 import type { OpEdSet, OpEdMember, OpEdParams } from '../../../../lib/oped/types.js';
 import type { PovKey } from '../../../../lib/oped/types.js';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+// PS shim lives in source tree alongside its TypeScript callers. PROJECT_ROOT resolves
+// via resolveRepoRootForApp (walks .aitriad.json), stable in both dev and packaged builds —
+// build:main is tsc-only and does not copy .ps1 to dist/.
+const SHIM_PATH = path.join(PROJECT_ROOT, 'taxonomy-editor', 'src', 'main', 'ps', 'invoke-oped.ps1');
 
-const SHIM_PATH = path.join(__dirname, '../ps/invoke-oped.ps1');
-const VOICE_TIMEOUT_MS = 30_000;
+// Read generation.opedVoiceTimeoutMs from {dataRoot}/admin/runtime-config.json on each run
+// so it's tunable without restart. Falls back to 360s (New-OpEd = grounding + full-essay LLM;
+// debate briefs use 330s — 30s was mock-friendly but fails real runs).
+function getVoiceTimeoutMs(): number {
+  try {
+    const cfgPath = path.join(getDataRootPath(), 'admin', 'runtime-config.json');
+    const raw = JSON.parse(fs.readFileSync(cfgPath, 'utf-8')) as Record<string, unknown>;
+    const g = raw.generation as Record<string, unknown> | undefined;
+    const val = Number(g?.opedVoiceTimeoutMs);
+    if (Number.isFinite(val) && val >= 60_000 && val <= 3_600_000) return val;
+  } catch { /* no config file or bad JSON — use default */ }
+  return 360_000;
+}
 
 // ── Active run registry (keyed by set_id — sent in queued events so renderer can cancel early)
 
@@ -75,6 +88,7 @@ function runVoice({ topic, pov, params, signal, onProgress }: VoiceRunOpts): Pro
 
     let settled = false;
     let timeoutHandle: ReturnType<typeof setTimeout> | undefined;
+    const voiceTimeoutMs = getVoiceTimeoutMs();
 
     function settle(fn: () => void): void {
       if (settled) return;
@@ -99,9 +113,9 @@ function runVoice({ topic, pov, params, signal, onProgress }: VoiceRunOpts): Pro
       settle(() => {
         child.kill('SIGTERM');
         onProgress('failed', 'timeout');
-        reject(new Error(`Voice ${pov} timed out after ${VOICE_TIMEOUT_MS}ms`));
+        reject(new Error(`Voice ${pov} timed out after ${voiceTimeoutMs}ms`));
       });
-    }, VOICE_TIMEOUT_MS);
+    }, voiceTimeoutMs);
 
     child.stdin.write(stdinPayload, 'utf-8');
     child.stdin.end();
