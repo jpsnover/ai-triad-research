@@ -143,7 +143,7 @@ Write-Host "  ci.yml run ${runId}: success — green."
 # ── Step 3: Dispatch ───────────────────────────────────────────────────────────
 $pushVal = if ($Push) { 'true' } else { 'false' }
 Write-Host "Dispatching container.yml for $Sha (push=$pushVal)..."
-gh workflow run container.yml --ref main -f sha=$Sha -f push=$pushVal
+gh workflow run container.yml --repo $Repo --ref main -f sha=$Sha -f push=$pushVal
 if ($LASTEXITCODE -ne 0) {
     Fail -Goal     'Dispatch container build' `
          -Problem  "gh workflow run container.yml exited $LASTEXITCODE." `
