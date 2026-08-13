@@ -322,6 +322,11 @@ export function registerOpEdHandlers(): void {
         sourcePrep = await runGetOpEdSource(url, controller.signal);
       } catch (err) {
         activeOpEdRuns.delete(setId);
+        getGlobalRecorder()?.record({
+          type: 'system.error', component: 'opedHandlers', level: 'error',
+          message: `Stage A Get-OpEdSource failed for set ${setId}: ${(err as Error).message}`,
+          error: { name: (err as Error).name ?? 'Error', message: String((err as Error).message ?? err), stack: (err as Error).stack },
+        });
         throw new ActionableError({
           goal: 'Prepare source material for op-ed set',
           problem: `Get-OpEdSource failed: ${(err as Error).message}`,
