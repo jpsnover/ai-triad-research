@@ -33,6 +33,7 @@ import { serializeEdgesJson } from '../../../../lib/edges/serializeEdges.js';
 export * from './debateStore.js';
 export * from './calibrationStore.js';
 export * from './urlFetch.js';
+export * from './opedStore.js';
 // ── Backend injection ──
 
 // Taxonomy / conflicts / calibration / summaries / sources use `backend`.
