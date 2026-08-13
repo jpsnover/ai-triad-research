@@ -25,6 +25,7 @@ import { registerFlightRecorderHandlers } from './ipc/flightRecorderHandlers.js'
 import { registerCommunityHandlers } from './ipc/communityHandlers.js';
 import { registerSystemHandlers } from './ipc/systemHandlers.js';
 import { registerPrefsHandlers } from './ipc/prefsHandlers.js';
+import { registerOpEdHandlers } from './ipc/opedHandlers.js';
 
 export function registerIpcHandlers(): void {
   registerPrefsHandlers();
@@ -41,4 +42,5 @@ export function registerIpcHandlers(): void {
   registerFlightRecorderHandlers();
   registerCommunityHandlers();
   registerSystemHandlers();
+  registerOpEdHandlers();
 }

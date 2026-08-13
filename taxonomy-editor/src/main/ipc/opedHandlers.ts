@@ -1,0 +1,303 @@
+// Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+// Licensed under the MIT License. See LICENSE file in the project root.
+
+// Op-ed create/cancel/export IPC handlers (t/2575).
+// N× New-OpEd fan-out via ElectronMain-owned PS shim, 3-stage progress,
+// temp→atomic finalize (partial-set contract), whole-set Markdown export.
+
+import { ipcMain, dialog, BrowserWindow } from 'electron';
+import { spawn } from 'child_process';
+import crypto from 'crypto';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+import { ActionableError } from '../../../../lib/debate/errors.js';
+import { getGlobalRecorder } from '../../../../lib/flight-recorder/index.js';
+import { assertSafeId } from '../../../../lib/electron-shared/safeId.js';
+import { saveOpEdSetTemp, finalizeOpEdSet, loadOpEdSet } from '../opedIO.js';
+import type { OpEdSet, OpEdMember, OpEdParams } from '../../../../lib/oped/types.js';
+import type { PovKey } from '../../../../lib/oped/types.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+const SHIM_PATH = path.join(__dirname, '../ps/invoke-oped.ps1');
+const VOICE_TIMEOUT_MS = 30_000;
+
+// ── Active run registry (keyed by set_id — sent in queued events so renderer can cancel early)
+
+const activeOpEdRuns = new Map<string, AbortController>();
+
+// ── Progress event shape ──────────────────────────────────────────────────────
+
+type OpEdStage = 'queued' | 'fetching' | 'grounding' | 'generating' | 'finalizing' | 'complete' | 'failed' | 'cancelled';
+
+interface OpEdProgressEvent {
+  set_id: string;
+  voice: PovKey;
+  stage: OpEdStage;
+  error?: string;
+}
+
+// ── Shim stdout line shapes ───────────────────────────────────────────────────
+
+interface ShimStageLine { type: 'stage'; stage: string }
+interface ShimResultLine { type: 'result'; data: Record<string, unknown> }
+type ShimLine = ShimStageLine | ShimResultLine;
+
+// ── Single-voice runner ───────────────────────────────────────────────────────
+
+interface VoiceRunOpts {
+  topic: string;
+  pov: PovKey;
+  params: OpEdParams;
+  signal: AbortSignal;
+  onProgress: (stage: OpEdStage, error?: string) => void;
+}
+
+function runVoice({ topic, pov, params, signal, onProgress }: VoiceRunOpts): Promise<OpEdMember> {
+  return new Promise<OpEdMember>((resolve, reject) => {
+    const stdinPayload = JSON.stringify({
+      Topic: topic,
+      Pov: pov,
+      WordCount: params.wordCount,
+      Model: params.model,
+      ...(params.outlet    ? { Outlet:    params.outlet }    : {}),
+      ...(params.newsHook  ? { NewsHook:  params.newsHook }  : {}),
+      ...(params.thesis    ? { Thesis:    params.thesis }    : {}),
+      ...(params.authorBio ? { AuthorBio: params.authorBio } : {}),
+    });
+
+    const child = spawn('pwsh', ['-NoProfile', '-NonInteractive', '-File', SHIM_PATH], {
+      stdio: ['pipe', 'pipe', 'pipe'],
+    });
+
+    let settled = false;
+    let timeoutHandle: ReturnType<typeof setTimeout> | undefined;
+
+    function settle(fn: () => void): void {
+      if (settled) return;
+      settled = true;
+      if (timeoutHandle !== undefined) clearTimeout(timeoutHandle);
+      signal.removeEventListener('abort', onAbort);
+      fn();
+    }
+
+    const onAbort = () => {
+      settle(() => {
+        child.kill('SIGTERM');
+        onProgress('cancelled');
+        reject(Object.assign(new Error('cancelled'), { name: 'AbortError' }));
+      });
+    };
+
+    if (signal.aborted) { onAbort(); return; }
+    signal.addEventListener('abort', onAbort, { once: true });
+
+    timeoutHandle = setTimeout(() => {
+      settle(() => {
+        child.kill('SIGTERM');
+        onProgress('failed', 'timeout');
+        reject(new Error(`Voice ${pov} timed out after ${VOICE_TIMEOUT_MS}ms`));
+      });
+    }, VOICE_TIMEOUT_MS);
+
+    child.stdin.write(stdinPayload, 'utf-8');
+    child.stdin.end();
+
+    let stdoutBuf = '';
+    child.stdout.on('data', (chunk: Buffer) => {
+      stdoutBuf += chunk.toString('utf-8');
+      const lines = stdoutBuf.split('\n');
+      stdoutBuf = lines.pop() ?? '';
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed) continue;
+        let msg: ShimLine;
+        try { msg = JSON.parse(trimmed) as ShimLine; } catch { continue; }
+        if (msg.type === 'stage') {
+          onProgress(msg.stage as OpEdStage);
+        } else if (msg.type === 'result') {
+          const raw = msg.data ?? {};
+          const member: OpEdMember = {
+            pov,
+            status: 'complete',
+            headline:  String(raw.Headline  ?? raw.headline  ?? ''),
+            subtitle:  String(raw.Subtitle  ?? raw.subtitle  ?? ''),
+            body:      String(raw.Body      ?? raw.body      ?? ''),
+            pitch:     raw.Pitch ?? raw.pitch ? String(raw.Pitch ?? raw.pitch) : undefined,
+            wordCount: Number(raw.WordCount  ?? raw.wordCount ?? 0),
+            grounding: Array.isArray(raw.Grounding ?? raw.grounding)
+              ? (raw.Grounding ?? raw.grounding) as OpEdMember['grounding']
+              : [],
+          };
+          settle(() => {
+            onProgress('complete');
+            resolve(member);
+          });
+        }
+      }
+    });
+
+    child.stderr.on('data', (chunk: Buffer) => {
+      getGlobalRecorder()?.record({
+        type: 'system.error', component: 'opedHandlers', level: 'warn',
+        message: `Voice stderr (${pov}): ${chunk.toString('utf-8').slice(0, 500)}`,
+      });
+    });
+
+    child.on('error', (err) => {
+      settle(() => {
+        onProgress('failed', err.message);
+        reject(err);
+      });
+    });
+
+    child.on('close', (code) => {
+      settle(() => {
+        if (code !== 0) {
+          onProgress('failed', `exit ${code ?? 'null'}`);
+          reject(new Error(`pwsh exited with code ${code} for voice ${pov}`));
+        } else {
+          onProgress('failed', 'no result line received');
+          reject(new Error(`No result received from voice ${pov}`));
+        }
+      });
+    });
+  });
+}
+
+// ── Markdown renderer ─────────────────────────────────────────────────────────
+
+function renderOpEdSetMarkdown(set: OpEdSet): string {
+  const lines: string[] = [
+    `# Op-Ed Set: ${set.topic}`,
+    '',
+    `*Generated: ${set.created_at}*`,
+    '',
+  ];
+  for (const member of set.opeds) {
+    if (member.status !== 'complete') {
+      lines.push(`## ${member.pov} — ${member.status}`, '');
+      continue;
+    }
+    lines.push(`## ${member.pov}`, '', `### ${member.headline}`);
+    if (member.subtitle) lines.push('', `*${member.subtitle}*`);
+    lines.push('', member.body);
+    if (member.pitch) lines.push('', '**Pitch:**', '', member.pitch);
+    if (member.grounding?.length) {
+      lines.push('', '**Grounding:**', '');
+      for (const g of member.grounding) {
+        lines.push(`- ${g.label} (${g.pov}): ${g.how_reflected}`);
+      }
+    }
+    lines.push('', '---', '');
+  }
+  return lines.join('\n');
+}
+
+// ── Handler registration ──────────────────────────────────────────────────────
+
+export function registerOpEdHandlers(): void {
+  ipcMain.handle('create-oped-set', async (event, payload: {
+    topic: string;
+    params: OpEdParams;
+    voices: PovKey[];
+  }) => {
+    const { topic, params, voices } = payload;
+
+    if (!topic?.trim() || !voices?.length) {
+      throw new ActionableError({
+        goal: 'Create op-ed set',
+        problem: 'topic and at least one voice are required',
+        location: 'opedHandlers create-oped-set',
+        nextSteps: ['Provide a topic and select at least one voice'],
+      });
+    }
+
+    const setId = crypto.randomUUID();
+    const createdAt = new Date().toISOString();
+    const controller = new AbortController();
+    activeOpEdRuns.set(setId, controller);
+
+    const send = (data: OpEdProgressEvent): void => {
+      if (!event.sender.isDestroyed()) event.sender.send('oped-progress', data);
+    };
+
+    // Fire queued for each voice immediately — renderer stores set_id for cancellation
+    for (const voice of voices) {
+      send({ set_id: setId, voice, stage: 'queued' });
+    }
+
+    const completedMembers: OpEdMember[] = [];
+
+    const voicePromises = voices.map(async (voice): Promise<OpEdMember> => {
+      const member = await runVoice({
+        topic, pov: voice, params,
+        signal: controller.signal,
+        onProgress: (stage, error) => send({ set_id: setId, voice, stage, error }),
+      }).catch((err): OpEdMember => {
+        const isAbort = (err as Error).name === 'AbortError' || String((err as Error).message) === 'cancelled';
+        return { pov: voice, status: isAbort ? 'cancelled' : 'failed', headline: '', subtitle: '', body: '', wordCount: 0, grounding: [] };
+      });
+
+      completedMembers.push(member);
+      // Best-effort temp save after each voice (partial-set crash guard)
+      try {
+        saveOpEdSetTemp({ schema_version: 1, set_id: setId, topic, params, created_at: createdAt, opeds: [...completedMembers] });
+      } catch { /* telemetry — silent by design; temp save is best-effort */ }
+
+      return member;
+    });
+
+    try {
+      const results = await Promise.all(voicePromises);
+      const set: OpEdSet = { schema_version: 1, set_id: setId, topic, params, created_at: createdAt, opeds: results };
+      finalizeOpEdSet(set);
+      return { set_id: setId };
+    } finally {
+      activeOpEdRuns.delete(setId);
+    }
+  });
+
+  ipcMain.handle('cancel-oped-set', (_event, setId: string) => {
+    activeOpEdRuns.get(setId)?.abort();
+  });
+
+  ipcMain.handle('export-oped-set', async (event, setId: string) => {
+    assertSafeId(setId, 'oped set id');
+
+    const win = BrowserWindow.fromWebContents(event.sender);
+    if (!win) return { cancelled: true };
+
+    let set: OpEdSet;
+    try {
+      set = loadOpEdSet(setId);
+    } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error', component: 'opedHandlers', level: 'error',
+        message: `export-oped-set: set not found (${setId})`,
+        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      });
+      throw new ActionableError({
+        goal: `Export op-ed set ${setId}`,
+        problem: 'Op-ed set file not found',
+        location: 'opedHandlers export-oped-set',
+        nextSteps: ['Verify the set was created successfully before exporting'],
+      });
+    }
+
+    const slug = set.topic.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').substring(0, 60);
+    const result = await dialog.showSaveDialog(win, {
+      title: 'Export Op-Ed Set',
+      defaultPath: `oped-${slug}.md`,
+      filters: [{ name: 'Markdown', extensions: ['md'] }],
+    });
+
+    if (result.canceled || !result.filePath) return { cancelled: true };
+
+    fs.writeFileSync(result.filePath, renderOpEdSetMarkdown(set), 'utf-8');
+    return { cancelled: false, filePath: result.filePath };
+  });
+}
