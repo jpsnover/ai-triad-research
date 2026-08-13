@@ -28,4 +28,5 @@ Active UX specs in `docs/ux/`. Design owns these; coding agents reference them d
 | `regenerate-phrases-toggle.md` | Opt-in phrase regeneration on reflection edits (t/611, done) |
 | `usage-analytics-instrumentation.md` | Hierarchical engagement tracking proposal — visit/dwell heuristic, tool→camp→category→node roll-up, admin + per-user dashboards (t/2463) |
 | `usage-hierarchy-navigation.md` | Presentation UX for the roll-up: breadcrumb drill-down + tree + user/session scope filtering across all tools (Taxonomy/Chat/Lineage/Situations); KIND registry, leaf cross-axis, endpoint additions. Builds on `usage-analytics-instrumentation.md`, supersedes `analytics-dashboard.md` §3 |
+| `oped-studio.md` | Op-Ed Studio — GUI for `New-OpEd`: My/Community library, multi-voice create (one topic → one op-ed per camp), tabbed multi-voice sets, clickable taxonomy grounding (t/2570) |
 | `design-system.md` | Design system reference (living document) |
