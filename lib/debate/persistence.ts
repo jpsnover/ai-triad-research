@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import fs from 'fs';
+import path from 'path';
 import { getGlobalRecorder } from '../flight-recorder/index.js';
 import { ActionableError } from './errors.js';
 
@@ -208,5 +209,85 @@ export function atomicWriteSync(
         innerError: tmp2Err,
       });
     }
+  }
+}
+
+// ── Orphaned temp-file sweep (t/2555) ────────────────────
+
+export type OrphanResult = {
+  tmpPath: string;
+  finalPath: string;
+  recovered: boolean;
+  reason?: string;
+};
+
+/**
+ * Scan debatesDir for stranded `.json.tmp` and `.json.tmp2` files left by
+ * interrupted atomic writes. Both extensions are produced by atomicWriteSync:
+ * `.tmp` by the primary write; `.tmp2` by the rename-fallback path when the
+ * primary rename exhausts its EPERM/EACCES budget (persistence.ts:163-167).
+ *
+ * For each orphan:
+ *   - Validates JSON parsability. writeFileSync completes before returning,
+ *     so any existing .tmp file contains a full write — partial writes produce
+ *     malformed JSON via OS-level truncation, which JSON.parse catches. Zod
+ *     validation would be stricter but risks rejecting structurally valid
+ *     debates from older schema versions. JSON.parse is the right boundary.
+ *   - If valid and final path absent: renames to the final path (recovered).
+ *   - If final path already exists: preserves orphan for manual review.
+ *   - If JSON invalid: preserves orphan — it is the durable copy of the write.
+ *   - Emits io.tmp-orphan FR event either way; invokes onOrphan callback if
+ *     provided (used by tests to inspect results without a real recorder).
+ *
+ * Clean runs (no orphans) emit nothing.
+ */
+export function sweepOrphanedTempFiles(
+  debatesDir: string,
+  onOrphan?: (result: OrphanResult) => void,
+): void {
+  let entries: string[];
+  try {
+    entries = fs.readdirSync(debatesDir);
+  } catch {
+    return;
+  }
+
+  const tmpNames = entries.filter(
+    name => name.endsWith('.json.tmp') || name.endsWith('.json.tmp2'),
+  );
+
+  for (const name of tmpNames) {
+    const tmpPath = path.join(debatesDir, name);
+    const finalPath = path.join(debatesDir, name.replace(/\.tmp2?$/, ''));
+
+    let recovered = false;
+    let reason: string | undefined;
+
+    try {
+      const content = fs.readFileSync(tmpPath, 'utf-8');
+      JSON.parse(content);
+
+      if (fs.existsSync(finalPath)) {
+        reason = 'final path already exists — preserved for manual review';
+      } else {
+        fs.renameSync(tmpPath, finalPath);
+        recovered = true;
+      }
+    } catch (err) {
+      reason = (err as NodeJS.ErrnoException).code ?? (err as Error).message;
+    }
+
+    const result: OrphanResult = { tmpPath, finalPath, recovered, reason };
+    onOrphan?.(result);
+
+    getGlobalRecorder()?.record({
+      type: 'io.tmp-orphan',
+      component: 'persistence',
+      level: recovered ? 'warn' : 'error',
+      message: recovered
+        ? `io.tmp-orphan: recovered ${name} → ${path.basename(finalPath)}`
+        : `io.tmp-orphan: could not recover ${name} (${reason ?? 'unknown'})`,
+      data: { tmpPath, finalPath, recovered, reason },
+    });
   }
 }

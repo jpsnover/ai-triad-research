@@ -111,6 +111,7 @@ export type EventType =
   | 'io.recovered'    // t/1627: atomicWriteSync recovered a rename-exhausted write via in-place copy fallback
   | 'io.data-loss'    // t/1627: atomicWriteSync could not persist; new content preserved at tmpPath
   | 'io.lock-holder'  // t/2544: lock holder identified on EPERM exhaustion (handle.exe / unavailable fallback)
+  | 'io.tmp-orphan'   // t/2555: stranded .tmp/.tmp2 file detected at startup sweep (recovered or preserved)
   // Lock instrumentation
   | 'lock.acquire_attempt'
   | 'lock.acquired'

@@ -22,7 +22,7 @@ import { FlightRecorder, getGlobalRecorder, setGlobalRecorder, RECORDER_CAPACITY
 import { generateSlug, formatDebateMarkdown, buildDiagnosticsOutput, buildHarvestOutput } from './formatters.js';
 import { ActionableError } from './errors.js';
 import { runExploreFirstPipeline } from './explorationPreset.js';
-import { safeSerialize, atomicWriteSync } from './persistence.js';
+import { safeSerialize, atomicWriteSync, sweepOrphanedTempFiles } from './persistence.js';
 import { recordLockHolder } from './lockHolder.js';
 import { computeQualityScore } from './qualityScore.js';
 
@@ -468,6 +468,9 @@ async function main(): Promise<void> {
   }
 
   // Mirror the CLI's cal-log isolation into the engine so both write paths use the same root (t/2219).
+  // Recover any .tmp/.tmp2 orphans left by a previously interrupted write (t/2555).
+  sweepOrphanedTempFiles(outputDir);
+
   engineConfig.calibrationDataRoot = config.outputDir != null ? outputDir : dataRoot;
 
   const partialPath = path.join(outputDir, `${slug}-partial.json`);
