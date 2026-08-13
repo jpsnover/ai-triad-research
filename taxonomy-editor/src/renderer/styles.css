@@ -45,6 +45,7 @@
 
   /* Semantic */
   --danger: #ef4444;
+  --error: var(--danger); /* alias — single source of truth for "the red" (t/2566) */
   --success: #22c55e; --success-text: #15803d; /* AA green TEXT on --bg-primary; --success stays fill (t/2260) */
   --warning: #a16207;
   --focus-ring: #3b82f6;
@@ -105,6 +106,7 @@
 
   /* Semantic */
   --danger: #ef4444;
+  --error: var(--danger); /* alias (t/2566) */
   --success: #22c55e; --success-text: #22c55e; /* reuses fill; AA on dark bg (t/2260) */
   --warning: #f59e0b;
   --focus-ring: #60a5fa;
@@ -165,6 +167,7 @@
 
   /* Semantic */
   --danger: #fb2c36;
+  --error: var(--danger); /* alias (t/2566) */
   --success: #00ff4c; --success-text: #00ff4c; /* reuses fill; AA on dark bg (t/2260) */
   --warning: #d9a441;
   --focus-ring: #4d7a8b;
@@ -223,6 +226,7 @@
 
   /* Semantic */
   --danger: #C53B4A;
+  --error: var(--danger); /* alias (t/2566) */
   --success: #2D6A4F; --success-text: #2D6A4F; /* reuses forest green; already AA (t/2260) */
   --warning: #8B6508;
   --focus-ring: #A51C30;
