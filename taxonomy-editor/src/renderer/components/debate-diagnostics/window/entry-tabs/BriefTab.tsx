@@ -342,7 +342,7 @@ export function BriefTab(props: BriefTabProps) {
             {((briefStage.work_product as Record<string, unknown>).key_claims_to_address as { claim: string; speaker: string; an_id?: string; grounding?: { node_id: string; why: string }[] }[]).map((c, i) => (
               <li key={i}>
                 <strong>{c.speaker}</strong>{c.an_id ? ` (${c.an_id})` : ''}: <Highlight text={c.claim} />
-                {Array.isArray(c.grounding) && c.grounding.length > 0 && renderGrounding(c.grounding, 'var(--accent)')}
+                {Array.isArray(c.grounding) && c.grounding.length > 0 && renderGrounding(c.grounding, 'var(--focus-ring)')}
               </li>
             ))}
           </ul>
@@ -355,7 +355,7 @@ export function BriefTab(props: BriefTabProps) {
             {((briefStage.work_product as Record<string, unknown>).strongest_angles as { angle: string; why: string; grounding?: { node_id: string; why: string }[] }[]).map((a, i) => (
               <li key={i}>
                 <strong>{a.angle}</strong>: <Highlight text={a.why} />
-                {Array.isArray(a.grounding) && a.grounding.length > 0 && renderGrounding(a.grounding, 'var(--accent)')}
+                {Array.isArray(a.grounding) && a.grounding.length > 0 && renderGrounding(a.grounding, 'var(--focus-ring)')}
               </li>
             ))}
           </ul>
@@ -407,7 +407,7 @@ export function BriefTab(props: BriefTabProps) {
                       <button
                         onClick={() => setSelectedTaxRefId(isSelected ? null : n.node_id)}
                         // eslint-disable-next-line local/no-inline-style -- dynamic fontWeight when selected
-                        style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--accent)', fontWeight: isSelected ? 700 : 600, textDecoration: 'underline', fontFamily: 'monospace', fontSize: 'inherit', textAlign: 'left' }}
+                        style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--focus-ring)', fontWeight: isSelected ? 700 : 600, textDecoration: 'underline', fontFamily: 'monospace', fontSize: 'inherit', textAlign: 'left' }}
                         title="Show node details"
                       >{n.node_id}</button>
                     </td>

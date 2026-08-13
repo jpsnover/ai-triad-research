@@ -50,7 +50,7 @@
 /*
  * Dark's `--focus-ring` is a light blue (#60a5fa), where the white step numeral
  * lands at ~2.5:1. Dark-on-light-blue gives ~6.7:1. The predecessor dodged this
- * by using `var(--accent, #3b82f6)` — but `--accent` is undefined app-wide, so
+ * by using `var(--focus-ring, #3b82f6)` — but `--focus-ring` is undefined app-wide, so
  * it silently pinned one fixed blue in every theme; the token here is real, and
  * only dark needs the glyph inverted.
  */

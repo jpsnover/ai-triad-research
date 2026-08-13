@@ -193,7 +193,7 @@ function ViewModeTabs({ viewMode, setViewMode, keyPointsCount, summary, povFilte
           onClick={() => setViewMode(mode)}
           /* eslint-disable-next-line local/no-inline-style -- dynamic: active-tab underline/color/weight */
           style={{
-            borderBottom: viewMode === mode ? '2px solid var(--accent-color, #3b82f6)' : '2px solid transparent',
+            borderBottom: viewMode === mode ? '2px solid var(--focus-ring, #3b82f6)' : '2px solid transparent',
             color: viewMode === mode ? 'var(--text-primary)' : 'var(--text-muted)',
             fontWeight: viewMode === mode ? 600 : 400,
           }}
@@ -213,7 +213,7 @@ function ViewModeTabs({ viewMode, setViewMode, keyPointsCount, summary, povFilte
             onClick={() => setPovFilter(null)}
             /* eslint-disable-next-line local/no-inline-style -- dynamic: active-filter background/color */
             style={{
-              background: !povFilter ? 'var(--accent-color, #3b82f6)' : 'var(--bg-secondary)',
+              background: !povFilter ? 'var(--focus-ring, #3b82f6)' : 'var(--bg-secondary)',
               color: !povFilter ? '#fff' : 'var(--text-muted)',
             }}
           >All</button>
@@ -571,7 +571,7 @@ export function SummariesTab() {
                 }}
                 /* eslint-disable-next-line local/no-inline-style -- dynamic: active-tab background/color */
                 style={{
-                  background: sortField === field ? 'var(--accent-color, #3b82f6)' : 'var(--bg-secondary)',
+                  background: sortField === field ? 'var(--focus-ring, #3b82f6)' : 'var(--bg-secondary)',
                   color: sortField === field ? '#fff' : 'var(--text-muted)',
                 }}
               >{label}{sortField === field ? (sortDesc ? ' \u25BC' : ' \u25B2') : ''}</button>

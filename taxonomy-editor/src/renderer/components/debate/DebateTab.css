@@ -99,7 +99,7 @@
 }
 
 .debate-tab-speaker-tbody-row {
-  border-bottom: 1px solid var(--border-light, var(--border-color));
+  border-bottom: 1px solid var(--border-subtle, var(--border-color));
 }
 
 .debate-tab-speaker-td {

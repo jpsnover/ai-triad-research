@@ -20,7 +20,7 @@
 .overflow-menu__trigger--active {
   background: var(--bg-primary);
   border-bottom-color: var(--bg-primary);
-  color: var(--accent, #f97316);
+  color: var(--focus-ring, #f97316);
   z-index: 2;
   position: relative;
 }
@@ -66,13 +66,13 @@
 }
 
 .overflow-menu__item:focus-visible {
-  outline: 2px solid var(--accent, #f97316);
+  outline: 2px solid var(--focus-ring, #f97316);
   outline-offset: -2px;
 }
 
 .overflow-menu__item--active {
   font-weight: 600;
-  color: var(--accent, #f97316);
+  color: var(--focus-ring, #f97316);
 }
 
 .overflow-menu__item--disabled {

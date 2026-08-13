@@ -61,7 +61,7 @@ export function ScoreBreakdown({ dims, processReward, judgeUsed }: {
 
   return (
     <div style={{
-      background: 'var(--bg-subtle)', borderRadius: 4, padding: '6px 10px',
+      background: 'var(--bg-secondary)', borderRadius: 4, padding: '6px 10px',
       fontSize: '0.72rem', marginBottom: 8,
     }}>
       <div style={{ fontWeight: 600, marginBottom: 6, fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5 }}>

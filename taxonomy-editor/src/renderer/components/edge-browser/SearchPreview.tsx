@@ -39,7 +39,7 @@ export function SearchPreview({ searchPreviewId, onClear }: SearchPreviewProps) 
             <button
               onClick={() => openInTree(p, node.id)}
               title="Open this node in the tree view for full editing context"
-              style={{ padding: '2px 10px', fontSize: '0.7rem', fontWeight: 600, borderRadius: 4, border: '1px solid var(--accent)', background: 'none', color: 'var(--accent)', cursor: 'pointer' }}
+              style={{ padding: '2px 10px', fontSize: '0.7rem', fontWeight: 600, borderRadius: 4, border: '1px solid var(--focus-ring)', background: 'none', color: 'var(--focus-ring)', cursor: 'pointer' }}
             >Open in Tree</button>
           </div>
           <NodeDetail pov={p} node={node} chipDepth={0} />

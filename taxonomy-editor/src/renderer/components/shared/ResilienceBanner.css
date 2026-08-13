@@ -50,7 +50,7 @@
 }
 
 .resilience-banner--reconnecting .resilience-banner-icon {
-  color: var(--accent, #4a9eff);
+  color: var(--focus-ring, #4a9eff);
 }
 
 .resilience-banner-text {

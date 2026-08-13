@@ -746,7 +746,7 @@ export function PovProgressionView({ session, nodeLabels }: PovProgressionViewPr
               onClick={() => setMode(m)}
               className="btn btn-sm pov-prog-toggle-btn"
               style={{
-                '--btn-bg': mode === m ? 'var(--accent-color, #3b82f6)' : 'var(--bg-subtle)',
+                '--btn-bg': mode === m ? 'var(--focus-ring, #3b82f6)' : 'var(--bg-secondary)',
                 '--btn-color': mode === m ? '#fff' : 'var(--text-primary)',
               } as CSSProperties}
             >{m === 'since-opening' ? 'vs Opening' : m}</button>
@@ -762,7 +762,7 @@ export function PovProgressionView({ session, nodeLabels }: PovProgressionViewPr
             onClick={() => setSelectedTurn(t.turnIndex)}
             className="btn btn-sm pov-prog-toggle-btn"
             style={{
-              '--btn-bg': t.turnIndex === safeSelected ? 'var(--accent-color, #3b82f6)' : 'var(--bg-subtle)',
+              '--btn-bg': t.turnIndex === safeSelected ? 'var(--focus-ring, #3b82f6)' : 'var(--bg-secondary)',
               '--btn-color': t.turnIndex === safeSelected ? '#fff' : 'var(--text-primary)',
             } as CSSProperties}
           >{t.label}</button>

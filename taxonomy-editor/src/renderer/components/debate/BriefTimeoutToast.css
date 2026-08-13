@@ -11,7 +11,7 @@
   gap: 12px;
   padding: 10px 14px;
   border-radius: 8px;
-  background: var(--bg-elevated, var(--bg-secondary));
+  background: var(--bg-panel, var(--bg-secondary));
   border: 1px solid var(--warning, var(--border-color));
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
   max-width: 480px;

@@ -156,7 +156,7 @@ function KeyPointsSection({ evidenceWP }: { evidenceWP: EvidenceWP | undefined }
           // eslint-disable-next-line local/no-inline-style -- dynamic stanceColor border
           <div key={ki} style={{
             marginBottom: 6, padding: '6px 8px', borderRadius: 4,
-            borderLeft: `3px solid ${stanceColor}`, background: 'var(--bg-subtle)',
+            borderLeft: `3px solid ${stanceColor}`, background: 'var(--bg-secondary)',
           }}>
             <div className="evid-row-center-gap6">
               {/* eslint-disable-next-line local/no-inline-style -- dynamic stanceColor swatch */}
@@ -220,7 +220,7 @@ function CitedEvidenceSection({ evidenceWP }: { evidenceWP: EvidenceWP | undefin
       ) : (
         eu.cited_docs.map((cd, i) => (
           // eslint-disable-next-line local/no-inline-style -- dynamic matchColors border
-          <div key={i} style={{ marginBottom: 4, padding: '4px 8px', borderRadius: 4, borderLeft: `3px solid ${matchColors[cd.match_type] ?? 'var(--text-muted)'}`, background: 'var(--bg-subtle)', fontSize: 'var(--text-2xs)' }}>
+          <div key={i} style={{ marginBottom: 4, padding: '4px 8px', borderRadius: 4, borderLeft: `3px solid ${matchColors[cd.match_type] ?? 'var(--text-muted)'}`, background: 'var(--bg-secondary)', fontSize: 'var(--text-2xs)' }}>
             <span className="evid-bold600">{cd.title ?? cd.doc_id}</span>
             {/* eslint-disable-next-line local/no-inline-style -- dynamic matchColors chip */}
             <span style={{ fontSize: 'var(--text-2xs)', marginLeft: 6, padding: '0 4px', borderRadius: 3, color: matchColors[cd.match_type] ?? 'var(--text-muted)', background: `color-mix(in srgb, ${matchColors[cd.match_type] ?? 'var(--text-muted)'} 10%, transparent)` }}>

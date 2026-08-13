@@ -393,6 +393,6 @@
   color: var(--text-muted);
   margin-bottom: 8px;
   padding: 4px 8px;
-  background: var(--bg-subtle);
+  background: var(--bg-secondary);
   border-radius: 4px;
 }

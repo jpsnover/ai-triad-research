@@ -34,7 +34,7 @@
 
 .edit-conflict-badge-resolve {
   margin-left: 2px;
-  color: var(--color-accent);
+  color: var(--focus-ring);
   text-decoration: none;
   font-weight: 500;
 }

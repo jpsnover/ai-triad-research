@@ -10,7 +10,7 @@ import './SupportAdminPanel.css';
 
 const STATUS_OPTIONS = ['all', 'open', 'in-progress', 'resolved', 'closed'] as const;
 const STATUS_COLORS: Record<string, string> = {
-  open: 'var(--color-info, #3b82f6)',
+  open: 'var(--info, #3b82f6)',
   'in-progress': 'var(--warning, #f59e0b)',
   resolved: 'var(--success, #22c55e)',
   closed: 'var(--text-muted, #94a3b8)',

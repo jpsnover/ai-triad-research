@@ -40,11 +40,11 @@
 
 .conflicts-panel-item:hover {
   background: var(--bg-secondary);
-  border-color: var(--accent);
+  border-color: var(--focus-ring);
 }
 
 .conflicts-panel-item:focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--focus-ring);
   outline-offset: -2px;
 }
 
@@ -71,6 +71,6 @@
   right: 10px;
   top: 50%;
   transform: translateY(-50%);
-  color: var(--accent);
+  color: var(--focus-ring);
   font-size: var(--text-sm);
 }

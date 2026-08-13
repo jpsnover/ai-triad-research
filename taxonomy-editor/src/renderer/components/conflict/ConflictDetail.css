@@ -35,8 +35,8 @@
   background: transparent;
 }
 .cd-status-chip-btn { cursor: pointer; }
-.cd-status-chip-btn:hover { border-color: var(--accent, #6366f1); }
-.cd-status-chip-btn:focus-visible { outline: 2px solid var(--accent, #6366f1); outline-offset: 1px; }
+.cd-status-chip-btn:hover { border-color: var(--focus-ring, #6366f1); }
+.cd-status-chip-btn:focus-visible { outline: 2px solid var(--focus-ring, #6366f1); outline-offset: 1px; }
 .cd-status-dot { width: 7px; height: 7px; border-radius: 50%; flex: 0 0 auto; }
 .cd-status-caret { font-size: 0.6rem; opacity: 0.7; }
 .cd-status-menu { top: calc(100% + 4px); left: 0; right: auto; min-width: 140px; }
@@ -150,7 +150,7 @@
   padding: 4px 10px;
   cursor: pointer;
 }
-.cd-add-row:hover { border-color: var(--accent, #6366f1); color: var(--text-primary); }
+.cd-add-row:hover { border-color: var(--focus-ring, #6366f1); color: var(--text-primary); }
 
 /* ── Related policies (§3.5) ── */
 .cd-policy-grid {
@@ -187,7 +187,7 @@
   margin-top: 6px;
   background: none;
   border: none;
-  color: var(--accent, #6366f1);
+  color: var(--focus-ring, #6366f1);
   font-size: var(--text-xs);
   cursor: pointer;
   padding: 2px 0;
@@ -250,7 +250,7 @@
   outline: none;
 }
 .editable-field-read[role="button"]:hover { background: var(--bg-secondary); }
-.editable-field-read:focus-visible { outline: 2px solid var(--accent, #6366f1); outline-offset: 2px; }
+.editable-field-read:focus-visible { outline: 2px solid var(--focus-ring, #6366f1); outline-offset: 2px; }
 .editable-field-empty { color: var(--text-muted); font-style: italic; }
 .editable-field-edit { display: flex; flex-direction: column; gap: 6px; }
 .editable-field-input {
@@ -262,7 +262,7 @@
   background: var(--bg-input, var(--bg-primary));
   color: var(--text-primary);
 }
-.editable-field-input:focus-visible { outline: 2px solid var(--accent, #6366f1); outline-offset: -1px; }
+.editable-field-input:focus-visible { outline: 2px solid var(--focus-ring, #6366f1); outline-offset: -1px; }
 .editable-field-actions { display: flex; gap: 6px; justify-content: flex-end; }
 
 /* ── InlineConfirm primitive (§3.6) ── */
@@ -286,7 +286,7 @@
 .cd-node-row.cd-row-selected,
 .cd-policy-row.cd-row-selected {
   background: var(--bg-secondary);
-  box-shadow: inset 2px 0 0 var(--accent, #6366f1);
+  box-shadow: inset 2px 0 0 var(--focus-ring, #6366f1);
 }
 
 .cd-preview {
@@ -310,7 +310,7 @@
 .cd-preview-open {
   background: none;
   border: none;
-  color: var(--accent, #6366f1);
+  color: var(--focus-ring, #6366f1);
   font-size: var(--text-xs);
   cursor: pointer;
   padding: 2px 4px;

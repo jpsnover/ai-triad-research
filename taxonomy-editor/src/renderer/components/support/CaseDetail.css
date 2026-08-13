@@ -114,7 +114,7 @@
   padding: 10px;
   border-radius: 6px;
   background: var(--bg-secondary);
-  border-left: 3px solid var(--accent, #3b82f6);
+  border-left: 3px solid var(--focus-ring, #3b82f6);
 }
 
 .support-case-detail-response-meta {

@@ -202,7 +202,7 @@
 }
 
 .diag-sidebar-stmt-id {
-  color: var(--accent, #f97316);
+  color: var(--focus-ring, #f97316);
   font-weight: 700;
   margin-right: var(--sp-1);
   flex-shrink: 0;

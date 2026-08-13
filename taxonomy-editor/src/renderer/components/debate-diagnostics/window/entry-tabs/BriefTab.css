@@ -176,7 +176,7 @@
 
 .brief-valbox {
   margin-top: 6px;
-  background: var(--bg-subtle);
+  background: var(--bg-secondary);
   border-radius: 4px;
   padding: 5px 8px;
   font-size: 0.7rem;
@@ -240,7 +240,7 @@
   border: none;
   padding: 0;
   cursor: pointer;
-  color: var(--accent);
+  color: var(--focus-ring);
   text-decoration: underline;
   font-family: monospace;
   font-size: inherit;

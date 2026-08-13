@@ -55,7 +55,7 @@ export function AdaptiveStagingTab({ debate }: AdaptiveStagingTabProps) {
               <div key={stage}>
                 <span className="adst-stage-name">{stage}: </span>
                 {/* eslint-disable-next-line local/no-inline-style -- dynamic color: override presence */}
-                <span style={{ color: sm[stage] ? 'var(--accent, var(--color-saf))' : 'var(--text-muted)' }}>
+                <span style={{ color: sm[stage] ? 'var(--focus-ring, var(--color-saf))' : 'var(--text-muted)' }}>
                   {sm[stage] || 'debate model'}
                 </span>
               </div>

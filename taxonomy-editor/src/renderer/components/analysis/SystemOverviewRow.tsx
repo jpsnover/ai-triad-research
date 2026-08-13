@@ -46,7 +46,7 @@ function DomainCard({ label, primary, secondary, onClick }: {
   const clickable = !!onClick;
   return (
     <div
-      className={`sys-overview-card${clickable ? ' sys-overview-card--link' : ''}`}
+      className={`sys-overview-card${clickable ? ' sys-overview-card--link-color' : ''}`}
       onClick={onClick}
       role={clickable ? 'button' : undefined}
       tabIndex={clickable ? 0 : undefined}

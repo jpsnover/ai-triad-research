@@ -18,11 +18,11 @@
   border: 1px solid var(--border-color);
 }
 
-.sys-overview-card--link {
+.sys-overview-card--link-color {
   cursor: pointer;
 }
 
-.sys-overview-card--link:hover {
+.sys-overview-card--link-color:hover {
   border-color: var(--color-acc, #3b82f6);
   background: var(--bg-hover);
 }

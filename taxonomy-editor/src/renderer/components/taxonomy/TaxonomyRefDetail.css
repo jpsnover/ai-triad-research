@@ -5,7 +5,7 @@
   padding: 12px 16px 16px;
   background: var(--bg-primary);
   border: 1px solid var(--border-color);
-  border-left: 3px solid var(--accent);
+  border-left: 3px solid var(--focus-ring);
   border-radius: 4px;
   /* No own height cap (t/2414): grow to fit content (e.g. a long Steelman Vulnerability)
      instead of an inner fixed-height scrollbar that clips it. The enclosing detail pane /

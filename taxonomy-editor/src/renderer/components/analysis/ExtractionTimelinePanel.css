@@ -332,7 +332,7 @@
 
 .etl-claim-id {
   font-weight: 700;
-  color: var(--accent);
+  color: var(--focus-ring);
   min-width: 44px;
 }
 

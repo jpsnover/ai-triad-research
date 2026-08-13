@@ -509,7 +509,7 @@
 }
 
 .admin-fallback-key-input:focus-visible {
-  border-color: var(--accent);
+  border-color: var(--focus-ring);
 }
 
 .admin-review-placeholder-title { margin-top: 8px; }

@@ -108,8 +108,8 @@ function Sparkline({ values }: { values: number[] }) {
 
   return (
     <svg width={w} height={h} className="phist-sparkline-svg">
-      <polyline points={points} fill="none" stroke="var(--accent)" strokeWidth="1.5" />
-      <circle cx={(values.length - 1) / (values.length - 1) * w} cy={h - ((values[values.length - 1] - min) / range) * (h - 4) - 2} r="2" fill="var(--accent)" />
+      <polyline points={points} fill="none" stroke="var(--focus-ring)" strokeWidth="1.5" />
+      <circle cx={(values.length - 1) / (values.length - 1) * w} cy={h - ((values[values.length - 1] - min) / range) * (h - 4) - 2} r="2" fill="var(--focus-ring)" />
     </svg>
   );
 }

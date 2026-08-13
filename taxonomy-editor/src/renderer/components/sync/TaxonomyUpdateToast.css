@@ -25,7 +25,7 @@
   background: var(--bg-secondary, #f8fafc);
   color: var(--text-primary, #1e293b);
   border: 1px solid var(--border-color, #e2e8f0);
-  border-left: 3px solid var(--accent, #4a9eff);
+  border-left: 3px solid var(--focus-ring, #4a9eff);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-2);
   font-size: var(--text-sm);
@@ -42,7 +42,7 @@
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: var(--accent, #4a9eff);
+  background: var(--focus-ring, #4a9eff);
   flex-shrink: 0;
 }
 

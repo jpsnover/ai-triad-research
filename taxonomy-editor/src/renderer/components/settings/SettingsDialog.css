@@ -114,7 +114,7 @@
 
 .settings-dialog-provision-link {
   font-size: 0.8rem;
-  color: var(--accent);
+  color: var(--focus-ring);
   text-decoration: underline;
   cursor: pointer;
 }
