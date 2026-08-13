@@ -1,28 +1,29 @@
 // @vitest-environment node
-// Tests for opedStore.ts — t/2572
+// Tests for opedStore.ts — t/2572 (base) + t/2579 (quota enforcement)
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-// ── Inline mock backend ──────────────────────────────────────────────────────
+// ── Hoisted mock backend ──────────────────────────────────────────────────────
 
-type Blob = { content: string } | null;
-const _store = new Map<string, string>();
-
-const mockBackend = {
-  readFile: vi.fn(async (p: string) => _store.get(p) ?? null),
-  writeFile: vi.fn(async (p: string, c: string) => { _store.set(p, c); }),
-  deleteFile: vi.fn(async (p: string) => { _store.delete(p); }),
-  listDirectory: vi.fn(async (dir: string) => {
+const { _store, mockBackend } = vi.hoisted(() => {
+  const _store = new Map<string, string>();
+  const readFile = vi.fn(async (p: string) => _store.get(p) ?? null);
+  const writeFile = vi.fn(async (p: string, c: string) => { _store.set(p, c); });
+  const deleteFile = vi.fn(async (p: string) => { _store.delete(p); });
+  const listDirectory = vi.fn(async (dir: string) => {
     const prefix = dir.endsWith('/') ? dir : dir + '/';
     return [..._store.keys()]
       .filter(k => k.startsWith(prefix))
       .map(k => k.slice(prefix.length).split('/')[0])
       .filter((v, i, a) => a.indexOf(v) === i);
-  }),
-  fileExists: vi.fn(async (p: string) => _store.has(p)),
-  readBinaryFile: vi.fn(),
-  writeBinaryFile: vi.fn(),
-};
+  });
+  const fileExists = vi.fn(async (p: string) => _store.has(p));
+  const mockBackend = {
+    readFile, writeFile, deleteFile, listDirectory, fileExists,
+    readBinaryFile: vi.fn(), writeBinaryFile: vi.fn(),
+  };
+  return { _store, mockBackend };
+});
 
 // ── Module mocks ─────────────────────────────────────────────────────────────
 
@@ -40,6 +41,15 @@ vi.mock('../security/userContext.js', () => ({
   isAnonymousUser: vi.fn(() => false),
 }));
 
+vi.mock('../security/quotas.js', () => ({
+  checkQuota: vi.fn((resource: string, count: number) => ({
+    allowed: count < 10,
+    resource,
+    current: count,
+    limit: 10,
+  })),
+}));
+
 vi.mock('../storage/fileIO.js', () => ({
   getUserContentBackend: () => mockBackend,
   assertSafeId: (value: string, label: string) => {
@@ -55,6 +65,7 @@ import {
   loadOpedSetInProgress,
   finalizeOpedSet,
   deleteOpedSet,
+  getOpedSetsQuotaStatus,
 } from '../storage/opedStore.js';
 import type { OpEdSet } from '../../../../lib/oped/types.js';
 
@@ -76,13 +87,11 @@ function makeSet(id: string, overrides: Partial<OpEdSet> = {}): OpEdSet {
 }
 
 const DIR = '/data/users/user-abc/oped-sets';
-const indexPath = `${DIR}/_index.json`;
 
 beforeEach(() => {
   _store.clear();
   vi.clearAllMocks();
-  // Reset the _sweptUsers set between tests by re-importing isn't possible with vi.mock,
-  // so we rely on mock.calls tracking for sweep assertions instead.
+  mockBackend.readFile.mockImplementation(async (p: string) => _store.get(p) ?? null);
 });
 
 // ── 1. Round-trip ─────────────────────────────────────────────────────────────
@@ -125,7 +134,6 @@ describe('list without full-doc load (t/2572)', () => {
     const set = makeSet('set-003');
     await finalizeOpedSet(set);
 
-    // Poison individual set-doc reads; index reads still work
     const setDocPath = `${DIR}/oped-set-set-003.json`;
     mockBackend.readFile.mockImplementation(async (p: string) => {
       if (p === setDocPath) throw new Error('Should not read individual set doc');
@@ -136,9 +144,6 @@ describe('list without full-doc load (t/2572)', () => {
     const entry = list.find(e => e.set_id === 'set-003');
     expect(entry).toBeDefined();
     expect(entry!.topic).toBe('AI Safety policy');
-
-    // Restore default implementation
-    mockBackend.readFile.mockImplementation(async (p: string) => _store.get(p) ?? null);
   });
 });
 
@@ -153,7 +158,6 @@ describe('in-progress lifecycle (t/2572)', () => {
 
     const set = makeSet('set-004');
     await finalizeOpedSet(set);
-    // Allow the best-effort delete to settle
     await new Promise(r => setTimeout(r, 10));
 
     const inprogPath = `${DIR}/oped-set-set-004.json.inprogress`;
@@ -164,7 +168,6 @@ describe('in-progress lifecycle (t/2572)', () => {
 // ── 5. assertSafeId at entry points ──────────────────────────────────────────
 
 describe('assertSafeId guards (t/2572)', () => {
-  const badIds = ['../evil', 'bad/path', '', 'a b'];
   const ops: Array<[string, () => Promise<unknown>]> = [
     ['loadOpedSet', () => loadOpedSet('../evil')],
     ['saveOpedSetInProgress', () => saveOpedSetInProgress('../evil', {})],
@@ -187,12 +190,56 @@ describe('delete round-trip (t/2572)', () => {
     const set = makeSet('set-006');
     await finalizeOpedSet(set);
     await deleteOpedSet('set-006');
-    // Allow best-effort operations to settle
     await new Promise(r => setTimeout(r, 10));
 
     expect(await loadOpedSet('set-006')).toBeNull();
     const list = await listOpedSets();
     expect(list.find(e => e.set_id === 'set-006')).toBeUndefined();
-    // .inprogress delete on absent file must not throw (deleteFile is best-effort)
+  });
+});
+
+// ── 7. Quota status (t/2579) ──────────────────────────────────────────────────
+
+describe('getOpedSetsQuotaStatus (t/2579)', () => {
+  it('returns allowed=true when below cap and counts only finalized docs', async () => {
+    // .inprogress and _index.json must not count
+    _store.set(`${DIR}/oped-set-q1.json`, '{}');
+    _store.set(`${DIR}/oped-set-q2.json`, '{}');
+    _store.set(`${DIR}/oped-set-q3.json.inprogress`, '{}');
+    _store.set(`${DIR}/_index.json`, '[]');
+
+    const q = await getOpedSetsQuotaStatus();
+    expect(q.resource).toBe('opeds');
+    expect(q.current).toBe(2);  // only the two finalized docs
+    expect(q.allowed).toBe(true);
+  });
+});
+
+// ── 8. finalizeOpedSet quota enforcement (t/2579) ────────────────────────────
+
+describe('finalizeOpedSet quota enforcement (t/2579)', () => {
+  it('blocks a NEW set when quota exceeded (statusCode 429 + quotaInfo)', async () => {
+    // Seed 10 finalized sets to hit the cap (mock limit = 10)
+    for (let i = 0; i < 10; i++) {
+      _store.set(`${DIR}/oped-set-existing-${i}.json`, '{}');
+    }
+
+    await expect(finalizeOpedSet(makeSet('set-new'))).rejects.toMatchObject({
+      statusCode: 429,
+      quotaInfo: expect.objectContaining({ allowed: false, resource: 'opeds' }),
+    });
+  });
+
+  it('does NOT block re-finalizing an EXISTING set even when quota exceeded', async () => {
+    // Finalize set once (under quota)
+    await finalizeOpedSet(makeSet('set-existing'));
+
+    // Seed 9 more to push over cap (total = 10 finalized)
+    for (let i = 0; i < 9; i++) {
+      _store.set(`${DIR}/oped-set-extra-${i}.json`, '{}');
+    }
+
+    // Re-finalize the existing set — must not throw
+    await expect(finalizeOpedSet(makeSet('set-existing', { topic: 'Updated' }))).resolves.toBeUndefined();
   });
 });

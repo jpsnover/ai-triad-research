@@ -13,8 +13,10 @@
 import path from 'path';
 import { resolveDataPath } from '../config.js';
 import type { OpEdSet } from '../../../../lib/oped/types.js';
+import { ActionableError } from '../../../../lib/debate/errors.js';
 import { log } from '../logger.js';
 import { getStorageUserId, isAnonymousUser } from '../security/userContext.js';
+import { checkQuota, type QuotaCheckResult } from '../security/quotas.js';
 import { getUserContentBackend, assertSafeId } from './fileIO.js';
 
 // ── Summary type (index entry — cheap list surface, no full-doc loads) ──
@@ -103,6 +105,15 @@ async function sweepOrphanedOpedSetInProgress(): Promise<void> {
 
 // ── Public API ──
 
+/** Oped-set quota status for the current (non-anonymous) user — exact count + cap.
+ *  Shared by finalizeOpedSet and the GET /api/oped-sets/quota-status pre-check so
+ *  they can never diverge (Shared Utility Rule, mirrors getDebatesQuotaStatus). */
+export async function getOpedSetsQuotaStatus(): Promise<QuotaCheckResult> {
+  const files = (await getUserContentBackend().listDirectory(getOpedSetsDir()))
+    .filter(f => f.startsWith('oped-set-') && f.endsWith('.json'));
+  return checkQuota('opeds', files.length);
+}
+
 /** List oped-sets for the current user — reads _index.json only, never individual docs.
  *  .inprogress blobs are invisible. Triggers orphan sweep on first call per user. */
 export async function listOpedSets(): Promise<OpEdSetSummary[]> {
@@ -159,6 +170,20 @@ export async function finalizeOpedSet(set: OpEdSet): Promise<void> {
   const backend = getUserContentBackend();
   const dir = getOpedSetsDir();
   const now = new Date().toISOString();
+
+  // Quota check — only for NEW sets; re-finalizing an existing set is never blocked
+  const isNew = (await backend.readFile(path.join(dir, `oped-set-${set.set_id}.json`))) === null;
+  if (isNew) {
+    const q = await getOpedSetsQuotaStatus();
+    if (!q.allowed) {
+      throw Object.assign(new ActionableError({
+        goal: 'Finalize op-ed set',
+        problem: `Op-ed set quota exceeded (${q.current}/${q.limit})`,
+        location: 'server/storage/opedStore.ts → finalizeOpedSet',
+        nextSteps: ['Delete existing op-ed sets to free space'],
+      }), { statusCode: 429, quotaInfo: q });
+    }
+  }
 
   // (a) Write final doc — single write, atomic on blob
   await backend.writeFile(
