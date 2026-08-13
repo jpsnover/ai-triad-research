@@ -6,8 +6,7 @@
  * Two independent axes: WHAT (drill-down breadcrumb + tree) × WHO (scope bar user→session).
  * Changing scope never resets the drill path; changing drill path never resets scope.
  *
- * Data contract: useAnalytics hook (t/2560#1). Import currently sourced from
- * _useAnalyticsStub.ts (in-scope stub); swap to ../../hooks/useAnalytics when t/2560 lands.
+ * Data contract: useAnalytics hook (t/2560#1).
  */
 
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
@@ -18,7 +17,7 @@ import {
   type DateRange, type AnalyticsScope, type SessionRow,
   type SubjectBreakdownRow, type AsyncState, type EngagementResult,
   type SubjectGroupBy, type UseAnalyticsResult,
-} from './_useAnalyticsStub';
+} from '../../hooks/useAnalytics';
 import './UsageHierarchy.css';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
