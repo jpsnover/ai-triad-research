@@ -219,10 +219,17 @@ describe('OpEdTable — My variant', () => {
   // camp chips + voice counts for every row without throwing. A prior version iterated
   // `set.opeds` on the summary and crashed on the first non-empty list; an empty-rows
   // test never exercised the row-render path and gave false confidence.
-  it('renders a non-empty My list with per-row camp chips + voice tags (no crash)', () => {
+  //
+  // t/2605 follow-up: camps here carry the SHORT camp codes ('acc'/'saf'/'skp') that the
+  // create flow actually persists in OpEdMember.pov — NOT the full-name PovKeys POV_META
+  // is keyed by. Using full names before hid a second crash (POV_META['acc'].label =
+  // undefined.label), caught only by a live smoke on real data. `as unknown as PovKey[]`
+  // documents that these values violate the nominal PovKey type — that drift is the bug.
+  const short = (...c: string[]) => c as unknown as PovKey[];
+  it('renders a non-empty My list with SHORT-code camp chips + voice tags (no crash)', () => {
     const rows = [
-      makeSummary({ set_id: 'multi', topic: 'Frontier model licensing', camps: ['safetyist', 'skeptic'], voice_count: 2 }),
-      makeSummary({ set_id: 'single', topic: 'Compute governance', camps: ['accelerationist'], voice_count: 1 }),
+      makeSummary({ set_id: 'multi', topic: 'Frontier model licensing', camps: short('saf', 'skp'), voice_count: 2 }),
+      makeSummary({ set_id: 'single', topic: 'Compute governance', camps: short('acc'), voice_count: 1 }),
     ];
     render(<OpEdTable {...noopMyProps} rows={rows} totalCount={rows.length} />);
 
@@ -230,14 +237,25 @@ describe('OpEdTable — My variant', () => {
     expect(screen.getByText('Frontier model licensing')).toBeTruthy();
     expect(screen.getByText('Compute governance')).toBeTruthy();
 
-    // The multi-voice row shows its camp chips and the voices tag.
+    // Short codes normalize to their POV_META short labels — proving the resolver ran.
     const multiRow = screen.getByText('Frontier model licensing').closest('tr')!;
     expect(within(multiRow).getByText('Saf')).toBeTruthy();
     expect(within(multiRow).getByText('Skp')).toBeTruthy();
     expect(within(multiRow).getByText('▸ 2 voices')).toBeTruthy();
+    const singleRow = screen.getByText('Compute governance').closest('tr')!;
+    expect(within(singleRow).getByText('Acc')).toBeTruthy();
 
     // Every row exposes an Open action — proves the full row body rendered.
     expect(screen.getAllByRole('button', { name: /open/i })).toHaveLength(2);
+  });
+
+  it('renders a neutral chip for an unknown/legacy camp code instead of crashing', () => {
+    const rows = [makeSummary({ set_id: 'x', topic: 'Legacy voice', camps: short('bogus'), voice_count: 1 })];
+    render(<OpEdTable {...noopMyProps} rows={rows} totalCount={1} />);
+    const row = screen.getByText('Legacy voice').closest('tr')!;
+    // Fallback short label is an em dash — the row still renders, no error boundary.
+    expect(within(row).getByText('—')).toBeTruthy();
+    expect(within(row).getByRole('button', { name: /open/i })).toBeTruthy();
   });
 });
 

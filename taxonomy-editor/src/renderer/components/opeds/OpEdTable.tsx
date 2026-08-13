@@ -10,8 +10,8 @@
 
 import { useState, useCallback, useEffect, useRef } from 'react';
 import type { OpEdSetSummary, OpEdCommunityEntry, PovKey } from '../../../../../lib/oped/types';
-import { CampGlyph, povToCamp } from '../shared/CampGlyph';
-import { POV_META } from '@lib/electron-shared/povMeta';
+import { CampGlyph } from '../shared/CampGlyph';
+import { resolvePovMeta, resolveCampKey } from './povResolve';
 import './OpEdTable.css';
 
 // ──────────────────────────────────────────────
@@ -121,17 +121,20 @@ function CampChips({ camps }: { camps: PovKey[] }) {
   return (
     <span className="oped-camp-chips">
       {camps.map(pov => {
-        const camp = povToCamp(pov);
+        // pov may be a short camp code ('acc') or full PovKey — normalize both, and
+        // fall back to a neutral chip for unknown/legacy codes (t/2605 follow-up).
+        const meta = resolvePovMeta(pov);
+        const camp = resolveCampKey(pov);
         return (
           <span
             key={pov}
             className="oped-camp-chip"
-            title={POV_META[pov].label}
+            title={meta.label}
             // eslint-disable-next-line local/no-inline-style -- dynamic: camp accent color from POV_META cssVar (theme-aware)
-            style={{ color: `var(${POV_META[pov].cssVar})` }}
+            style={{ color: `var(${meta.cssVar})` }}
           >
             {camp && <CampGlyph camp={camp} size={13} />}
-            <span className="oped-camp-chip-label">{POV_META[pov].shortLabel}</span>
+            <span className="oped-camp-chip-label">{meta.shortLabel}</span>
           </span>
         );
       })}

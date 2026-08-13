@@ -11,7 +11,7 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import type { OpEdSet, OpEdMember, OpEdGroundingRef, PovKey } from '../../../../../lib/oped/types';
-import { POV_META } from '@lib/electron-shared/povMeta';
+import { resolvePovMeta } from './povResolve';
 import { POV_KEYS } from '@lib/debate/types';
 import { useTaxonomyStore } from '../../hooks/useTaxonomyStore';
 import { NodeDetail } from '../taxonomy/NodeDetail';
@@ -24,8 +24,10 @@ function prefersReducedMotion(): boolean {
     && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 }
 
-function groundingType(nodeId: string): string {
-  return nodeId.startsWith('sit-') ? 'Situation' : 'BDI';
+function groundingType(nodeId: string | undefined): string {
+  // Legacy/foreign grounding rows may lack node_id (persisted PascalCase shape) — don't
+  // crash the reader; classify a missing id as BDI (t/2605 follow-up: real-data smoke).
+  return nodeId?.startsWith('sit-') ? 'Situation' : 'BDI';
 }
 
 // ──────────────────────────────────────────────
@@ -50,7 +52,7 @@ function GroundingDetailCard({ ref, onClose }: { ref: OpEdGroundingRef; onClose:
   let body: React.ReactNode = <div className="oped-grounding-card-empty">Element not found in the loaded taxonomy.</div>;
   let openTab: string | null = null;
 
-  if (ref.node_id.startsWith('sit-')) {
+  if (ref.node_id?.startsWith('sit-')) {
     const node = state.situations?.nodes.find(n => n.id === ref.node_id);
     if (node) { body = <SituationDetail node={node} readOnly chipDepth={0} />; openTab = 'situations'; }
   } else {
@@ -157,7 +159,7 @@ function GroundingSection({ grounding }: { grounding: OpEdGroundingRef[] }) {
 // ──────────────────────────────────────────────
 
 function OpEdArticle({ member, outlet }: { member: OpEdMember; outlet?: string }) {
-  const meta = POV_META[member.pov];
+  const meta = resolvePovMeta(member.pov);
   const metaLine = [meta.label.toUpperCase(), outlet || null, `${member.wordCount} words`]
     .filter(Boolean).join(' · ');
 
@@ -241,7 +243,7 @@ export function OpEdReader({ set }: { set: OpEdSet }) {
     <div className="oped-reader">
       <div className="oped-tabstrip" role="tablist" aria-label="Op-ed voices">
         {members.map((m, i) => {
-          const meta = POV_META[m.pov];
+          const meta = resolvePovMeta(m.pov);
           const isActive = i === activeIdx;
           return (
             <button
