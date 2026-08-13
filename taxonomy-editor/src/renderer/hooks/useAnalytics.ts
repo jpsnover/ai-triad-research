@@ -90,6 +90,24 @@ export interface UseAnalyticsResult {
   refetch: () => void;
 }
 
+// ── Server wire shapes → frozen contract (boundary adapter) ──────────────────
+//
+// The merged engagement route (t/2559/t/2562) diverged from the frozen contract
+// (t/2560#1) in two field names (found by live-verify, t/2560#6): sessions rows
+// carry `session` (contract: `id`), and the subject breakdown is `{ rows: [...] }`
+// with per-row `user`/`session` keys (contract: a bare array of `{ key, … }`). The
+// hook is the boundary between the server API and renderer consumers, so it adapts
+// the wire format to the frozen contract here — Analysis's UsageHierarchy sees the
+// contract unchanged. Forward-compatible: if the server later realigns, the maps
+// below simply become identity passthroughs.
+
+interface WireSessionRow { session: string; startTime: string; engagedMs: number; nodeCount: number }
+type WireEngagementResult = Omit<EngagementResult, 'sessions'> & { sessions?: WireSessionRow[] };
+type WireSubjectRow =
+  | { user: string; engagedMs: number; visits: number }
+  | { session: string; engagedMs: number; visits: number };
+interface WireSubjectBreakdown { rows: WireSubjectRow[] }
+
 // ── Query builders ───────────────────────────────────────────────────────────
 
 const ENGAGEMENT = '/api/analytics/engagement';
@@ -150,9 +168,17 @@ export function useAnalytics({ range, scope = { kind: 'all' } }: UseAnalyticsOpt
   const runEngagement = useCallback(() => {
     const id = ++engReq.current;
     setEngagement(LOADING);
-    bridgeGet<EngagementResult>(engagementQuery(from, to, scope))
-      .then(d => {
+    bridgeGet<WireEngagementResult>(engagementQuery(from, to, scope))
+      .then(raw => {
         if (id !== engReq.current) return;
+        // Adapt §7.2 sessions: server row field `session` → frozen contract `id` (t/2560#6/#7).
+        const { sessions: wireSessions, ...rest } = raw;
+        const d: EngagementResult = {
+          ...rest,
+          ...(wireSessions
+            ? { sessions: wireSessions.map(s => ({ id: s.session, startTime: s.startTime, engagedMs: s.engagedMs, nodeCount: s.nodeCount })) }
+            : {}),
+        };
         setEngagement({ data: d, loading: false, error: null, isEmpty: (d.aggregate?.visits ?? 0) === 0 });
       })
       .catch(err => {
@@ -171,9 +197,15 @@ export function useAnalytics({ range, scope = { kind: 'all' } }: UseAnalyticsOpt
     setSubject(LOADING);
     const activeScope = scopeRef.current;
     const userFilter = activeScope.kind === 'user' ? activeScope.user : undefined;
-    bridgeGet<SubjectBreakdownRow[]>(subjectQuery(subjectId, groupBy, userFilter))
-      .then(rows => {
+    bridgeGet<WireSubjectBreakdown>(subjectQuery(subjectId, groupBy, userFilter))
+      .then(res => {
         if (id !== subjReq.current) return;
+        // Adapt §7.3: unwrap the {rows} envelope + map per-row `user`/`session` → `key` (t/2560#6/#7).
+        const rows: SubjectBreakdownRow[] = res.rows.map(r => ({
+          key: 'user' in r ? r.user : r.session,
+          engagedMs: r.engagedMs,
+          visits: r.visits,
+        }));
         setSubject({ data: rows, loading: false, error: null, isEmpty: rows.length === 0 });
       })
       .catch(err => {
