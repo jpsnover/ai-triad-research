@@ -17,10 +17,10 @@ import type { IncomingMessage, ServerResponse } from 'http';
 
 // Controllable store — the routes import the public opedStore API directly.
 // vi.hoisted so the mock fns exist when the hoisted vi.mock factory runs.
-const { listOpedSets, loadOpedSet, deleteOpedSet, getOpedSetsQuotaStatus } = vi.hoisted(() => ({
-  listOpedSets: vi.fn(), loadOpedSet: vi.fn(), deleteOpedSet: vi.fn(), getOpedSetsQuotaStatus: vi.fn(),
+const { listOpedSets, loadOpedSet, deleteOpedSet, getOpedSetsQuotaStatus, finalizeOpedSet } = vi.hoisted(() => ({
+  listOpedSets: vi.fn(), loadOpedSet: vi.fn(), deleteOpedSet: vi.fn(), getOpedSetsQuotaStatus: vi.fn(), finalizeOpedSet: vi.fn(),
 }));
-vi.mock('../storage/opedStore.js', () => ({ listOpedSets, loadOpedSet, deleteOpedSet, getOpedSetsQuotaStatus }));
+vi.mock('../storage/opedStore.js', () => ({ listOpedSets, loadOpedSet, deleteOpedSet, getOpedSetsQuotaStatus, finalizeOpedSet }));
 
 // isSafeId comes from fileIO; mock it to the SAME whitelist as fileIO's SAFE_ID_RE
 // (/^[a-zA-Z0-9_-]+$/) so this test never pulls the heavy fileIO backend chain.
@@ -54,7 +54,7 @@ function fakeRes(): ServerResponse & { _status?: number; _body?: string } {
 describe('/api/oped-sets routes (t/2573)', () => {
   let handlers: Record<string, Handler>;
   beforeEach(() => {
-    listOpedSets.mockReset(); loadOpedSet.mockReset(); deleteOpedSet.mockReset(); getOpedSetsQuotaStatus.mockReset();
+    listOpedSets.mockReset(); loadOpedSet.mockReset(); deleteOpedSet.mockReset(); getOpedSetsQuotaStatus.mockReset(); finalizeOpedSet.mockReset();
     const r = makeRouter();
     registerOpedRoutes(r.router as never, {} as never);
     handlers = r.handlers;
@@ -127,5 +127,60 @@ describe('/api/oped-sets routes (t/2573)', () => {
     await handlers['DELETE /api/oped-sets/:id'](fakeReq('/api/oped-sets/evil.id'), res, undefined);
     expect(res._status).toBe(400);
     expect(deleteOpedSet).not.toHaveBeenCalled();
+  });
+
+  // ── PUT /api/oped-sets/:id — rename (topic-only, update-only) — t/2594 ──
+
+  const storedSet = {
+    schema_version: 1, set_id: 'set-1', topic: 'Old topic', params: { wordCount: 800, model: 'm' }, created_at: 'c',
+    opeds: [{ pov: 'acc', status: 'complete', headline: 'H', subtitle: 's', body: 'B', wordCount: 800, grounding: [] }],
+  };
+
+  it('PUT /api/oped-sets/:id renames the topic on an EXISTING set, members untouched', async () => {
+    loadOpedSet.mockResolvedValue(structuredClone(storedSet));
+    finalizeOpedSet.mockResolvedValue(undefined);
+    const res = fakeRes();
+    await handlers['PUT /api/oped-sets/:id'](fakeReq('/api/oped-sets/set-1'), res, { topic: 'New topic' });
+    expect(res._status).toBe(200);
+    expect(JSON.parse(res._body!)).toEqual({ ok: true });
+    // Only topic changed; every member passed through verbatim.
+    expect(finalizeOpedSet).toHaveBeenCalledWith({ ...storedSet, topic: 'New topic' });
+  });
+
+  it('PUT /api/oped-sets/:id applies ONLY topic — ignores other body fields (never mutates members)', async () => {
+    loadOpedSet.mockResolvedValue(structuredClone(storedSet));
+    finalizeOpedSet.mockResolvedValue(undefined);
+    const res = fakeRes();
+    // Client sends a full OpEdSet body with tampered members + a new topic.
+    await handlers['PUT /api/oped-sets/:id'](fakeReq('/api/oped-sets/set-1'), res, {
+      ...storedSet, topic: 'Renamed', opeds: [{ pov: 'skp', status: 'complete', headline: 'HACKED', subtitle: '', body: 'HACKED', wordCount: 1, grounding: [] }],
+    });
+    expect(res._status).toBe(200);
+    // Persisted set keeps the STORED members; only topic is taken from the body.
+    expect(finalizeOpedSet).toHaveBeenCalledWith({ ...storedSet, topic: 'Renamed' });
+  });
+
+  it('PUT /api/oped-sets/:id returns 404 for an absent set — never creates', async () => {
+    loadOpedSet.mockResolvedValue(null);
+    const res = fakeRes();
+    await handlers['PUT /api/oped-sets/:id'](fakeReq('/api/oped-sets/ghost'), res, { topic: 'X' });
+    expect(res._status).toBe(404);
+    expect(finalizeOpedSet).not.toHaveBeenCalled();
+  });
+
+  it('PUT /api/oped-sets/:id rejects an empty/blank topic with 400', async () => {
+    const res = fakeRes();
+    await handlers['PUT /api/oped-sets/:id'](fakeReq('/api/oped-sets/set-1'), res, { topic: '   ' });
+    expect(res._status).toBe(400);
+    expect(loadOpedSet).not.toHaveBeenCalled();
+    expect(finalizeOpedSet).not.toHaveBeenCalled();
+  });
+
+  it('PUT /api/oped-sets/:id rejects an unsafe set_id with 400 before any store call', async () => {
+    const res = fakeRes();
+    await handlers['PUT /api/oped-sets/:id'](fakeReq('/api/oped-sets/evil.id'), res, { topic: 'New' });
+    expect(res._status).toBe(400);
+    expect(loadOpedSet).not.toHaveBeenCalled();
+    expect(finalizeOpedSet).not.toHaveBeenCalled();
   });
 });
