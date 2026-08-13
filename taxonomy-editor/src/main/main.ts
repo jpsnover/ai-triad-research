@@ -22,13 +22,13 @@ import { warmupEmbeddingModel } from './embeddings.js';
 console.log('[main] embeddings import OK');
 import { PROJECT_ROOT } from './fileIO.js';
 console.log('[main] fileIO import OK');
+import { registerChatWindowHandlers } from './ipc/chatWindowHandlers.js';
 
 let mainWindow: BrowserWindow | null = null;
 let diagWindow: BrowserWindow | null = null;
 let povProgWindow: BrowserWindow | null = null;
 const debateWindows = new Map<string, BrowserWindow>();
 let promptDiffWindow: BrowserWindow | null = null;
-let chatWindow: BrowserWindow | null = null;
 let diffWindow: BrowserWindow | null = null;
 let focusServer: http.Server | null = null;
 
@@ -438,44 +438,7 @@ void app.whenReady().then(() => {
     }
   });
 
-  // Chat popout window
-  ipcMain.handle('open-chat-window', () => {
-    if (chatWindow && !chatWindow.isDestroyed()) {
-      if (chatWindow.isMinimized()) chatWindow.restore();
-      chatWindow.show();
-      chatWindow.focus();
-      return;
-    }
-    const preloadPath = path.join(__dirname, 'preload.cjs');
-    const { width: screenW, height: screenH } = screen.getPrimaryDisplay().workAreaSize;
-    chatWindow = new BrowserWindow({
-      width: Math.round(screenW * 0.5),
-      height: Math.round(screenH * 0.75),
-      minWidth: 400,
-      minHeight: 400,
-      title: 'POVer Chat',
-      alwaysOnTop: false,
-      webPreferences: {
-        preload: preloadPath,
-        contextIsolation: true,
-        nodeIntegration: false,
-        sandbox: true,
-      },
-    });
-    hardenWindow(chatWindow);
-    const isDev = !app.isPackaged;
-    if (isDev) {
-      void chatWindow.loadURL('http://localhost:5173#chat-window');
-    } else {
-      void chatWindow.loadFile(path.join(PROJECT_ROOT, 'taxonomy-editor/dist/renderer/index.html'), { hash: 'chat-window' });
-    }
-    chatWindow.on('closed', () => {
-      chatWindow = null;
-      if (mainWindow && !mainWindow.isDestroyed()) {
-        mainWindow.webContents.send('chat-popout-closed');
-      }
-    });
-  });
+  registerChatWindowHandlers(path.join(__dirname, 'preload.cjs'), () => mainWindow, hardenWindow);
 
   // Prompt Diff popout window
   ipcMain.handle('open-prompt-diff-window', (_event, debateId: string, entryId: string) => {
