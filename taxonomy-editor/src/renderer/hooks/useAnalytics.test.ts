@@ -4,7 +4,12 @@
 // Mock-driven tests for useAnalytics (t/2560) — one per new surface from spec §7:
 // session scope (§7.1), sessions list riding the response (§7.2), subject WHO
 // breakdown (§7.3), plus loading/empty/error and the stale-response guard.
-// Live-verify against the real endpoint is noted for after t/2559 lands the server.
+//
+// Fixtures use the REAL server wire shapes (t/2559/t/2562), NOT the hook's public
+// contract — live-verify (t/2560#6) found the wire diverges (sessions field
+// `session`≠`id`; subject `{rows:[{user|session,…}]}`≠bare `[{key,…}]`), and the
+// original mocks were blind to it because they asserted the hook's own contract.
+// The hook now adapts wire→contract at the boundary; these tests pin that mapping.
 
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { renderHook, waitFor, act } from '@testing-library/react';
@@ -26,9 +31,18 @@ function leaf(visits: number, engagedMs = 1000): import('../components/analysis/
   return { id: 'root', visits, engagedVisits: visits, engagedMs };
 }
 
+// Public contract shape (id) — what the hook must EXPOSE to consumers.
 const SESSIONS: SessionRow[] = [
   { id: 's1', startTime: '2026-08-13T09:00:00.000Z', engagedMs: 4000, nodeCount: 3 },
   { id: 's2', startTime: '2026-08-13T10:00:00.000Z', engagedMs: 1500, nodeCount: 1 },
+];
+
+// Real server wire shape (t/2559): rows carry `session`, not `id` (t/2560#6). The
+// hook adapts these into SESSIONS above; a mock returning SESSIONS would be blind
+// to the drift (the original bug), so fixtures must be the wire shape.
+const WIRE_SESSIONS = [
+  { session: 's1', startTime: '2026-08-13T09:00:00.000Z', engagedMs: 4000, nodeCount: 3 },
+  { session: 's2', startTime: '2026-08-13T10:00:00.000Z', engagedMs: 1500, nodeCount: 1 },
 ];
 
 afterEach(() => { vi.restoreAllMocks(); mockGet.mockReset(); });
@@ -80,17 +94,18 @@ describe('useAnalytics — engagement scope (§7.1)', () => {
 
 describe('useAnalytics — sessions list (§7.2)', () => {
   it('exposes sessions riding the user-scope response, with no second round-trip', async () => {
-    mockGet.mockResolvedValue({ aggregate: leaf(5), daily: [], sessions: SESSIONS });
+    mockGet.mockResolvedValue({ aggregate: leaf(5), daily: [], sessions: WIRE_SESSIONS });
     const { result: hook } = renderHook(() => useAnalytics({ range: RANGE, scope: { kind: 'user', user: 'alice' } }));
     await waitFor(() => expect(hook.current.engagement.loading).toBe(false));
 
     expect(mockGet).toHaveBeenCalledTimes(1); // no separate sessions fetch
+    // Wire `session` is adapted to the contract `id` before exposure.
     expect(hook.current.sessions.data).toEqual(SESSIONS);
     expect(hook.current.sessions.isEmpty).toBe(false);
   });
 
   it('is empty under non-user scope even if the payload carried sessions', async () => {
-    mockGet.mockResolvedValue({ aggregate: leaf(5), daily: [], sessions: SESSIONS });
+    mockGet.mockResolvedValue({ aggregate: leaf(5), daily: [], sessions: WIRE_SESSIONS });
     const { result: hook } = renderHook(() => useAnalytics({ range: RANGE, scope: { kind: 'all' } }));
     await waitFor(() => expect(hook.current.engagement.loading).toBe(false));
     expect(hook.current.sessions.isEmpty).toBe(true);
@@ -100,19 +115,24 @@ describe('useAnalytics — sessions list (§7.2)', () => {
 describe('useAnalytics — subject WHO breakdown (§7.3)', () => {
   it('fetches ?subject=&groupBy=user on demand', async () => {
     mockGet.mockResolvedValueOnce({ aggregate: leaf(5), daily: [] }); // initial engagement
-    const rows: SubjectBreakdownRow[] = [
+    // Wire: {rows:[{user,…}]} envelope (groupBy=user). Hook unwraps + maps user→key.
+    const wire = { rows: [
+      { user: 'alice', engagedMs: 3000, visits: 4 },
+      { user: 'bob', engagedMs: 1000, visits: 1 },
+    ] };
+    const expected: SubjectBreakdownRow[] = [
       { key: 'alice', engagedMs: 3000, visits: 4 },
       { key: 'bob', engagedMs: 1000, visits: 1 },
     ];
     const { result: hook } = renderHook(() => useAnalytics({ range: RANGE }));
     await waitFor(() => expect(hook.current.engagement.loading).toBe(false));
 
-    mockGet.mockResolvedValueOnce(rows);
+    mockGet.mockResolvedValueOnce(wire);
     act(() => { hook.current.loadSubjectBreakdown('src-l02', 'user'); });
     await waitFor(() => expect(hook.current.subject.loading).toBe(false));
 
     expect(mockGet).toHaveBeenLastCalledWith('/api/analytics/engagement?subject=src-l02&groupBy=user');
-    expect(hook.current.subject.data).toEqual(rows);
+    expect(hook.current.subject.data).toEqual(expected);
     expect(hook.current.subject.isEmpty).toBe(false);
   });
 
@@ -121,7 +141,7 @@ describe('useAnalytics — subject WHO breakdown (§7.3)', () => {
     const { result: hook } = renderHook(() => useAnalytics({ range: RANGE }));
     await waitFor(() => expect(hook.current.engagement.loading).toBe(false));
 
-    mockGet.mockResolvedValueOnce([]);
+    mockGet.mockResolvedValueOnce({ rows: [] });
     act(() => { hook.current.loadSubjectBreakdown('sit-01b', 'session'); });
     await waitFor(() => expect(hook.current.subject.loading).toBe(false));
 
@@ -136,7 +156,7 @@ describe('useAnalytics — subject WHO breakdown (§7.3)', () => {
     const { result: hook } = renderHook(() => useAnalytics({ range: RANGE, scope: { kind: 'user', user: 'alice@x.com' } }));
     await waitFor(() => expect(hook.current.engagement.loading).toBe(false));
 
-    mockGet.mockResolvedValueOnce([{ key: 's1', engagedMs: 500, visits: 2 }]);
+    mockGet.mockResolvedValueOnce({ rows: [{ session: 's1', engagedMs: 500, visits: 2 }] });
     act(() => { hook.current.loadSubjectBreakdown('src-l02', 'session'); });
     await waitFor(() => expect(hook.current.subject.loading).toBe(false));
 
@@ -148,11 +168,38 @@ describe('useAnalytics — subject WHO breakdown (§7.3)', () => {
     const { result: hook } = renderHook(() => useAnalytics({ range: RANGE, scope: { kind: 'session', session: 's9' } }));
     await waitFor(() => expect(hook.current.engagement.loading).toBe(false));
 
-    mockGet.mockResolvedValueOnce([]);
+    mockGet.mockResolvedValueOnce({ rows: [] });
     act(() => { hook.current.loadSubjectBreakdown('src-l02', 'user'); });
     await waitFor(() => expect(hook.current.subject.loading).toBe(false));
 
     expect(mockGet).toHaveBeenLastCalledWith('/api/analytics/engagement?subject=src-l02&groupBy=user');
+  });
+});
+
+// TL must-add (t/2560#7): pin the REAL server wire shape → hook public contract, so
+// the mock-blindness that hid the t/2560#6 drift cannot recur. Field-level assertions.
+describe('useAnalytics — server wire shape → frozen contract (regression, t/2560#6/#7)', () => {
+  it('maps the sessions wire field `session` → contract `id` (never undefined)', async () => {
+    mockGet.mockResolvedValue({ aggregate: leaf(3), daily: [], sessions: WIRE_SESSIONS });
+    const { result: hook } = renderHook(() => useAnalytics({ range: RANGE, scope: { kind: 'user', user: 'alice' } }));
+    await waitFor(() => expect(hook.current.engagement.loading).toBe(false));
+    // The wire carries no `id`; the adapter must supply it from `session`.
+    expect(hook.current.sessions.data?.[0]).toEqual({ id: 's1', startTime: '2026-08-13T09:00:00.000Z', engagedMs: 4000, nodeCount: 3 });
+    expect(hook.current.sessions.data?.every(s => typeof s.id === 'string')).toBe(true);
+  });
+
+  it('unwraps the subject `{rows}` envelope and maps `user`/`session` → `key`', async () => {
+    mockGet.mockResolvedValueOnce({ aggregate: leaf(3), daily: [] });
+    const { result: hook } = renderHook(() => useAnalytics({ range: RANGE }));
+    await waitFor(() => expect(hook.current.engagement.loading).toBe(false));
+
+    mockGet.mockResolvedValueOnce({ rows: [{ session: 'sess-9', engagedMs: 800, visits: 3 }] });
+    act(() => { hook.current.loadSubjectBreakdown('src-l02', 'session'); });
+    await waitFor(() => expect(hook.current.subject.loading).toBe(false));
+
+    // `data` must be a bare array (not the {rows} object), `key` populated from `session`.
+    expect(Array.isArray(hook.current.subject.data)).toBe(true);
+    expect(hook.current.subject.data?.[0]).toEqual({ key: 'sess-9', engagedMs: 800, visits: 3 });
   });
 });
 
