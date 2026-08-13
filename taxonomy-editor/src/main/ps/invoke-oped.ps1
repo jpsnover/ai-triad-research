@@ -28,10 +28,18 @@ $stagePatterns = [ordered]@{
 
 # Splat only recognized New-OpEd params (no -ParamsFile; avoids cross-scope cmdlet change)
 $splat = [ordered]@{ Topic = [string]$p.Topic; Pov = [string]$p.Pov }
-foreach ($key in @('Outlet', 'NewsHook', 'Thesis', 'AuthorBio', 'Url', 'Model')) {
+foreach ($key in @('Outlet', 'NewsHook', 'Thesis', 'AuthorBio', 'Model')) {
     if ($null -ne $p.PSObject.Properties[$key] -and $null -ne $p.$key) {
         $splat[$key] = [string]$p.$key
     }
+}
+# SourcePrep (FromPrep path) and Url (FromUrl path) are mutually exclusive parameter sets.
+# The orchestrator hoists Get-OpEdSource once and passes SourcePrep as plain JSON data;
+# ConvertFrom-Json yields a PSCustomObject, which is exactly what New-OpEd -SourcePrep expects.
+if ($null -ne $p.PSObject.Properties['SourcePrep'] -and $null -ne $p.SourcePrep) {
+    $splat['SourcePrep'] = $p.SourcePrep
+} elseif ($null -ne $p.PSObject.Properties['Url'] -and $null -ne $p.Url) {
+    $splat['Url'] = [string]$p.Url
 }
 if ($null -ne $p.PSObject.Properties['WordCount'] -and $null -ne $p.WordCount) {
     $splat['WordCount'] = [int]$p.WordCount
