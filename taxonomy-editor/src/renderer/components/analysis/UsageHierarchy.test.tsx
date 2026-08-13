@@ -11,12 +11,12 @@ import { getKind, inferKind, KIND_REGISTRY, type KindDef } from './kindRegistry'
 vi.mock('@bridge', () => ({ api: {} }));
 vi.mock('@lib/flight-recorder/index', () => ({ getGlobalRecorder: vi.fn(() => ({ record: vi.fn() })) }));
 
-vi.mock('./_useAnalyticsStub', async () => {
-  const actual = await vi.importActual<typeof import('./_useAnalyticsStub')>('./_useAnalyticsStub');
+vi.mock('../../hooks/useAnalytics', async () => {
+  const actual = await vi.importActual<typeof import('../../hooks/useAnalytics')>('../../hooks/useAnalytics');
   return { ...actual, useAnalytics: vi.fn() };
 });
 
-import { useAnalytics, type UseAnalyticsResult, type AsyncState, type EngagementResult } from './_useAnalyticsStub';
+import { useAnalytics, type UseAnalyticsResult, type AsyncState, type EngagementResult } from '../../hooks/useAnalytics';
 import type { TreeNode } from './engagementTree';
 
 // ── Fixtures ───────────────────────────────────────────────────────────────────
