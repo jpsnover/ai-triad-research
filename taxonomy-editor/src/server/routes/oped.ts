@@ -21,9 +21,14 @@ import type { ServerCtx } from './context.js';
 import { json, error, param } from '../httpKit.js';
 import { getGlobalRecorder } from '../../../../lib/flight-recorder/index.js';
 import { isSafeId } from '../storage/fileIO.js';
-import { listOpedSets, loadOpedSet, deleteOpedSet, getOpedSetsQuotaStatus } from '../storage/opedStore.js';
+import { listOpedSets, loadOpedSet, deleteOpedSet, getOpedSetsQuotaStatus, finalizeOpedSet } from '../storage/opedStore.js';
+import type { OpEdSet } from '../../../../lib/oped/types.js';
 
 const ROUTE_ID = '/api/oped-sets/:id';
+
+// Rename guard: a set-level topic is a short title, not an essay. Cap it to reject
+// pathological payloads without rejecting legitimately long topic lines.
+const MAX_TOPIC_LEN = 2000;
 
 /** set_id validation at the route boundary (the audit class — t/2526 shared
  *  validator): reject a traversal/unsafe id with 400 before the store read. The
@@ -35,7 +40,7 @@ function rejectUnsafeId(res: import('http').ServerResponse, id: string): boolean
 }
 
 export function registerOpedRoutes(r: Router, _ctx: ServerCtx): void {
-  const { get, del } = r;
+  const { get, put, del } = r;
 
   // Row summaries only (topic/camps/voice_count/dates) — never full docs.
   // .inprogress blobs are invisible (store contract). Anonymous → [].
@@ -84,6 +89,35 @@ export function registerOpedRoutes(r: Router, _ctx: ServerCtx): void {
     } catch (err) {
       getGlobalRecorder()?.record({ type: 'system.error', component: 'oped', level: 'error', message: 'Failed to delete oped-set', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
       error(res, String(err), 500, err);
+    }
+  });
+
+  // t/2594 (parent t/2592, TL-approved t/2576#14): rename an existing set — the
+  // ONLY mutation on the web build. UPDATE-ONLY: it must never CREATE a set
+  // (creation stays Electron-only, TL ruling). Design (p/256#6) fixed the editable
+  // field to the set-level `topic`; member headlines/bodies are generated content
+  // and are NEVER touched here, so we whitelist `topic` and overlay it onto the
+  // STORED set rather than trusting the client's (possibly full-OpEdSet) body.
+  put('/api/oped-sets/:id', async (req, res, body) => {
+    const id = param(req, 'id', ROUTE_ID);
+    if (rejectUnsafeId(res, id)) return;
+    const topic = (body as { topic?: unknown } | null)?.topic;
+    if (typeof topic !== 'string' || topic.trim() === '' || topic.length > MAX_TOPIC_LEN) {
+      error(res, `topic is required and must be a non-empty string (≤${MAX_TOPIC_LEN} chars)`, 400);
+      return;
+    }
+    try {
+      // load-then-404 — the load-bearing guard: a PUT to an absent id is NOT a
+      // create, it's a 404. Keeps op-ed creation Electron-only.
+      const stored = await loadOpedSet(id) as OpEdSet | null;
+      if (stored === null) { error(res, 'Op-ed set not found', 404); return; }
+      // Existing set → finalizeOpedSet does NOT quota-check (verified: it gates
+      // NEW sets only). Only `topic` changes; every member passes through intact.
+      await finalizeOpedSet({ ...stored, topic });
+      json(res, { ok: true });
+    } catch (err) {
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'oped', level: 'error', message: 'Failed to rename oped-set', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
+      error(res, String(err), (err as { statusCode?: number }).statusCode ?? 500, err);
     }
   });
 }

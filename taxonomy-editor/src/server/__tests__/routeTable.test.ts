@@ -21,7 +21,7 @@ describe('server.ts route table (t/1295 — zero-behaviour-change guard)', () =>
   const routes = extractRoutes(serverEntry);
 
   it('registers exactly 190 routes', () => {
-    expect(routes.length).toBe(200); // +GET /api/admin/usages (t/1265); +GET /api/organizations/:id/edges (t/1530); +POST/DELETE /api/cruxes/:id/evidence (t/1541); +PATCH /api/debates/:id (t/1636); +GET /api/entity/:ref (t/1786); +GET /api/public/pov/:pov/node/:nodeId (t/1788); +PUT /api/edges (t/1821); +GET /api/entities (t/1883); +GET /api/container-mentions/:containerId (t/1902); +GET /api/greatest-hits (t/1998); +GET/PUT /api/preferences (t/2119); +POST /api/ai/chat-stream (t/2457); +GET /api/analytics/engagement (t/2467); +GET/GET/DELETE /api/oped-sets(/:id) + GET/GET /api/community/opeds(/:id) (t/2573); +GET /api/oped-sets/quota-status (t/2573)
+    expect(routes.length).toBe(201); // +GET /api/admin/usages (t/1265); +GET /api/organizations/:id/edges (t/1530); +POST/DELETE /api/cruxes/:id/evidence (t/1541); +PATCH /api/debates/:id (t/1636); +GET /api/entity/:ref (t/1786); +GET /api/public/pov/:pov/node/:nodeId (t/1788); +PUT /api/edges (t/1821); +GET /api/entities (t/1883); +GET /api/container-mentions/:containerId (t/1902); +GET /api/greatest-hits (t/1998); +GET/PUT /api/preferences (t/2119); +POST /api/ai/chat-stream (t/2457); +GET /api/analytics/engagement (t/2467); +GET/GET/DELETE /api/oped-sets(/:id) + GET/GET /api/community/opeds(/:id) (t/2573); +GET /api/oped-sets/quota-status (t/2573); +PUT /api/oped-sets/:id rename (t/2594)
   });
 
   // GATE 1 — set identity: sorted (method, path) multiset. Fails on any add/drop.
