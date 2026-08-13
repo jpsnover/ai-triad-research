@@ -1,7 +1,8 @@
-// Fault injection tests for atomicWriteSync retry budget scaling (t/2546)
-// and io.lock-holder FR event on exhaustion (t/2544).
+// Fault injection tests for atomicWriteSync retry budget scaling (t/2546),
+// io.lock-holder FR event on exhaustion (t/2544), and execFileSync argv
+// injection guard (t/2549).
 //
-// Uses vi.mock('child_process') to intercept execSync calls in queryLockHolder.
+// Uses vi.mock('child_process') to intercept execFileSync calls in queryLockHolder.
 
 import { describe, it, expect, vi, afterEach, beforeAll, afterAll } from 'vitest';
 import fs from 'fs';
@@ -12,14 +13,14 @@ import { setGlobalRecorder, clearGlobalRecorder, type FlightRecorder } from '../
 import type { RecordInput } from '../../flight-recorder/types.js';
 
 vi.mock('child_process', () => {
-  const execSync = vi.fn();
-  return { default: { execSync }, execSync };
+  const execFileSync = vi.fn();
+  return { default: { execFileSync }, execFileSync };
 });
 
-import { execSync } from 'child_process';
+import { execFileSync } from 'child_process';
 import { atomicWriteSync, renameSyncWithRetry } from '../persistence.js';
 
-const mockExecSync = vi.mocked(execSync);
+const mockExecFileSync = vi.mocked(execFileSync);
 
 // ── Hermetic isolation ────────────────────────────────────
 beforeAll(() => {
@@ -48,7 +49,7 @@ function installCaptureRecorder(): RecordInput[] {
   return captured;
 }
 
-afterEach(() => { vi.restoreAllMocks(); mockExecSync.mockClear(); clearGlobalRecorder(); });
+afterEach(() => { vi.restoreAllMocks(); mockExecFileSync.mockClear(); clearGlobalRecorder(); });
 
 // ── t/2546: wall-clock budget scales with payload size ───
 
@@ -170,7 +171,7 @@ describe('renameSyncWithRetry — io.lock-holder event (t/2544)', () => {
     const origPlatform = process.platform;
     Object.defineProperty(process, 'platform', { value: 'win32', configurable: true });
 
-    mockExecSync.mockReturnValue(
+    mockExecFileSync.mockReturnValue(
       'Defender.exe  pid: 1234  type: File  8C: C:\\data\\debates\\debate-abc.json\n' as unknown as Buffer,
     );
 
@@ -195,7 +196,7 @@ describe('renameSyncWithRetry — io.lock-holder event (t/2544)', () => {
     const origPlatform = process.platform;
     Object.defineProperty(process, 'platform', { value: 'win32', configurable: true });
 
-    mockExecSync.mockImplementation(() => {
+    mockExecFileSync.mockImplementation(() => {
       throw Object.assign(new Error('ENOENT: handle.exe not found'), { code: 'ENOENT' });
     });
 
@@ -231,7 +232,7 @@ describe('renameSyncWithRetry — io.lock-holder event (t/2544)', () => {
     expect(lockEvents).toHaveLength(1);
     expect(lockEvents[0].data).toMatchObject({ unavailable: true, reason: 'non-Windows' });
     // execSync never called on non-Windows
-    expect(mockExecSync).not.toHaveBeenCalled();
+    expect(mockExecFileSync).not.toHaveBeenCalled();
 
     Object.defineProperty(process, 'platform', { value: origPlatform, configurable: true });
   });
@@ -244,5 +245,43 @@ describe('renameSyncWithRetry — io.lock-holder event (t/2544)', () => {
 
     expect(() => renameSyncWithRetry('a.tmp', 'a.json', 0)).toThrow('EXDEV');
     expect(captured.some(e => e.type === 'io.lock-holder')).toBe(false);
+  });
+});
+
+// ── t/2549: execFileSync argv — shell metachar regression ────
+//
+// Regression guard: filePath containing shell metacharacters must reach
+// execFileSync as a single argv element, not be interpreted by a shell.
+// Previously execSync(`handle.exe "${filePath}"`) allowed injection via
+// embedded quotes/metacharacters in the path (CodeQL #5530).
+
+describe('queryLockHolder — execFileSync argv injection guard (t/2549)', () => {
+  it('passes filePath with shell metacharacters as single argv element (not shell-interpreted)', () => {
+    const origPlatform = process.platform;
+    Object.defineProperty(process, 'platform', { value: 'win32', configurable: true });
+
+    // Path containing characters that would break shell interpolation
+    const maliciousPath = 'C:\\debates\\file-with-"quotes"&meta$chars.json';
+
+    mockExecFileSync.mockReturnValue(
+      'SomeProcess.exe  pid: 9999  type: File  A0: ' + maliciousPath + '\n' as unknown as Buffer,
+    );
+
+    vi.spyOn(Atomics, 'wait').mockReturnValue('ok');
+    vi.spyOn(fs, 'renameSync').mockImplementation(() => {
+      throw makeStorageError('EPERM', 'operation not permitted');
+    });
+
+    expect(() => renameSyncWithRetry(maliciousPath + '.tmp', maliciousPath, 0)).toThrow('EPERM');
+
+    // execFileSync must have been called with filePath as a separate argv element,
+    // not as part of a shell command string.
+    expect(mockExecFileSync).toHaveBeenCalledWith(
+      'handle.exe',
+      [maliciousPath],
+      expect.objectContaining({ timeout: 2000 }),
+    );
+
+    Object.defineProperty(process, 'platform', { value: origPlatform, configurable: true });
   });
 });
