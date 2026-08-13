@@ -11,6 +11,7 @@ import { makeCancellationError } from './cancellation';
 import { ActionableError } from '@lib/debate/errors';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { ALL_API_KEY_BACKENDS } from '@lib/ai-client/types';
+import type { OpEdSet } from '../../../../lib/oped/types';
 import { encryptKeysForSharing, decryptKeysFromSharing } from '../utils/keyShareCrypto';
 import { resilientFetch, categorizeEndpoint, registerConnectionPoolProvider, type EndpointCategory } from './resilience';
 import { nextStepsForStatus } from './httpErrorSteps';
@@ -1014,6 +1015,14 @@ const rawApi: AppAPI = {
   deleteDebateSession: (id) => del(`/api/debates/${encodeURIComponent(id)}`).then(() => {}),
   loadDebateComments: (id) => get(`/api/debates/${encodeURIComponent(id)}/comments`),
   saveDebateComments: (id, data) => put(`/api/debates/${encodeURIComponent(id)}/comments`, data).then(() => {}),
+
+  // Op-Ed Studio (t/2576) — real routes against t/2573's server API. Those routes
+  // are not merged yet, so these calls surface an honest normalized 404 until they
+  // land (no stub module to swap out — the wiring lights up when t/2573 ships).
+  listOpEdSets: () => get<OpEdSet[]>('/api/opeds'),
+  loadOpEdSet: (id) => get<OpEdSet>(`/api/opeds/${encodeURIComponent(id)}`),
+  saveOpEdSet: (set) => put('/api/opeds', set).then(() => {}),
+  deleteOpEdSet: (id) => del(`/api/opeds/${encodeURIComponent(id)}`).then(() => {}),
   exportDebateToFile: async (session, format = 'json', exportOptions) => {
     const { debateToText, debateToMarkdown, debateToHtml, debateToPackage, debateExportFilename } = await import('@lib/debate/debateExport');
     const debate = session as Parameters<typeof debateToText>[0] & { diagnostics?: unknown };
@@ -1161,6 +1170,7 @@ const rawApi: AppAPI = {
   submitToCommunity: (type, itemData, note) => post('/api/community/submit', { type, data: itemData, note }),
   copyFromCommunity: (type, communityId) => post('/api/community/copy', { type, communityId }),
   loadCommunityDebateSession: (id) => get(`/api/community/debates/${encodeURIComponent(id)}`),
+  loadCommunityOpEd: (id) => get<OpEdSet>(`/api/community/opeds/${encodeURIComponent(id)}`),
   loadCommunityChatSession: (id) => get(`/api/community/chats/${encodeURIComponent(id)}`),
   // Web mode is same-origin; baseUrl is ignored and the relative path is used.
   communitySubmit: (_baseUrl, payload) => post('/api/community/submit', payload),

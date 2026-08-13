@@ -48,6 +48,7 @@ const SituationsTab = recordingLazy(() => import('./components/debate/Situations
 const ConflictsTab = recordingLazy(() => import('./components/conflict/ConflictsTab').then(m => ({ default: m.ConflictsTab })));
 const DebateTab = recordingLazy(() => import('./components/debate/DebateTab').then(m => ({ default: m.DebateTab })));
 const ChatTab = recordingLazy(() => import('./components/chat/ChatTab').then(m => ({ default: m.ChatTab })));
+const OpEdTab = recordingLazy(() => import('./components/opeds/OpEdTab').then(m => ({ default: m.OpEdTab })));
 const SummariesTab = recordingLazy(() => import('./components/analysis/SummariesTab').then(m => ({ default: m.SummariesTab })));
 const CruxesTab = recordingLazy(() => import('./components/debate/CruxesTab').then(m => ({ default: m.CruxesTab })));
 const ValidationTab = recordingLazy(() => import('./components/taxonomy/ValidationTab').then(m => ({ default: m.ValidationTab })));
@@ -248,6 +249,7 @@ function AppRouter() {
 function MainApp() {
   const { activeTab, loading, backgroundLoading, loadingProgress, loadAll, colorScheme, paneSpacing, zoomLevel, zoomIn, zoomOut, zoomReset, toolbarPanel } = useTaxonomyStore();
   const summariesFlag = useFlag('env-electron-summaries');
+  const opedsFlag = useFlag('env-electron-opeds');
   const breakpoint = useBreakpoint();
   const isTouch = useIsTouchDevice();
   const isMobile = breakpoint === 'phone' || breakpoint === 'phone-lg' || breakpoint === 'tablet';
@@ -667,7 +669,7 @@ function MainApp() {
         </button>
         <span className="mobile-header-title">Taxonomy Editor</span>
       </div>
-      {toolbarPanel === null && !['situations', 'conflicts', 'cruxes', 'debate', 'chat', 'summaries', 'validation', 'organizations'].includes(activeTab) && <TabBar />}
+      {toolbarPanel === null && !['situations', 'conflicts', 'cruxes', 'debate', 'chat', 'opeds', 'summaries', 'validation', 'organizations'].includes(activeTab) && <TabBar />}
       <div className="app-body">
         <Toolbar />
         <div className="tab-content">
@@ -679,6 +681,7 @@ function MainApp() {
             {activeTab === 'conflicts' && <ConflictsTab />}
             {activeTab === 'cruxes' && <CruxesTab />}
             {activeTab === 'debate' && <DebateTab />}
+            {activeTab === 'opeds' && opedsFlag && <OpEdTab />}
             {activeTab === 'summaries' && summariesFlag && <SummariesTab />}
             {activeTab === 'validation' && <ValidationTab />}
             {activeTab === 'organizations' && <OrganizationsTab />}

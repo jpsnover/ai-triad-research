@@ -151,4 +151,4 @@ export interface ConflictFile {
   verdict?: ConflictVerdict;
 }
 
-export type TabId = 'accelerationist' | 'safetyist' | 'skeptic' | 'situations' | 'conflicts' | 'cruxes' | 'debate' | 'chat' | 'summaries' | 'validation' | 'organizations';
+export type TabId = 'accelerationist' | 'safetyist' | 'skeptic' | 'situations' | 'conflicts' | 'cruxes' | 'debate' | 'chat' | 'opeds' | 'summaries' | 'validation' | 'organizations';

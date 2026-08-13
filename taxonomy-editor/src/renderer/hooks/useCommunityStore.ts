@@ -6,6 +6,7 @@ import { api } from '@bridge';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { bridgeGet, bridgePost } from '../bridge/web-bridge';
 import { useTaxonomyStore } from './useTaxonomyStore';
+import type { OpEdCommunityEntry } from '../../../../lib/oped/types';
 
 export interface CommunityItem {
   id: string;
@@ -35,7 +36,7 @@ export interface CommunityDebate extends CommunityItem {
 
 export interface Submission {
   id: string;
-  type: 'chat' | 'debate';
+  type: 'chat' | 'debate' | 'oped';
   originalId: string;
   submittedBy: string;
   submittedAt: string;
@@ -46,16 +47,18 @@ export interface Submission {
 interface CommunityStore {
   chats: CommunityChat[];
   debates: CommunityDebate[];
+  opeds: OpEdCommunityEntry[];
   submissions: Submission[];
   loading: boolean;
   error: string | null;
 
   fetchChats: () => Promise<void>;
   fetchDebates: () => Promise<void>;
+  fetchOpeds: () => Promise<void>;
   fetchSubmissions: (status?: string) => Promise<void>;
-  submitItem: (type: 'chat' | 'debate', data: unknown, note?: string) => Promise<string>;
-  copyItem: (type: 'chats' | 'debates', communityId: string) => Promise<string>;
-  removeItem: (type: 'chats' | 'debates', id: string, reason?: string) => Promise<void>;
+  submitItem: (type: 'chat' | 'debate' | 'oped', data: unknown, note?: string) => Promise<string>;
+  copyItem: (type: 'chats' | 'debates' | 'opeds', communityId: string) => Promise<string>;
+  removeItem: (type: 'chats' | 'debates' | 'opeds', id: string, reason?: string) => Promise<void>;
   approveSubmission: (id: string) => Promise<void>;
   rejectSubmission: (id: string) => Promise<void>;
 }
@@ -73,6 +76,7 @@ function getCommunityBaseUrl(): string {
 export const useCommunityStore = create<CommunityStore>((set) => ({
   chats: [],
   debates: [],
+  opeds: [],
   submissions: [],
   loading: false,
   error: null,
@@ -99,6 +103,19 @@ export const useCommunityStore = create<CommunityStore>((set) => ({
       api.trackEvent('community_browse', 'community', { type: 'debates', count: debates.length });
     } catch (err) {
       getGlobalRecorder()?.record({ type: 'system.error', component: 'community-store', level: 'error', message: 'Failed to fetch community debates', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
+      set({ error: String(err), loading: false });
+    }
+  },
+
+  fetchOpeds: async () => {
+    if (isElectronMode()) { set({ opeds: [], loading: false }); return; }
+    set({ loading: true, error: null });
+    try {
+      const opeds = await bridgeGet<OpEdCommunityEntry[]>('/api/community/opeds');
+      set({ opeds, loading: false });
+      api.trackEvent('community_browse', 'community', { type: 'opeds', count: opeds.length });
+    } catch (err) {
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'community-store', level: 'error', message: 'Failed to fetch community op-eds', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
       set({ error: String(err), loading: false });
     }
   },
@@ -140,7 +157,7 @@ export const useCommunityStore = create<CommunityStore>((set) => ({
   },
 
   removeItem: async (type, id, reason) => {
-    const listKey = type === 'chats' ? 'chats' : 'debates';
+    const listKey = type;
     const prev = useCommunityStore.getState()[listKey];
     set({ [listKey]: prev.filter(item => item.id !== id) });
     try {

@@ -5,7 +5,7 @@ import { useState, useEffect, useRef, Fragment } from 'react';
 import {
   Search, LayoutGrid, MessageSquare, MessageCircle, ArrowLeft,
   Ellipsis, CircleHelp, Star, Layers,
-  RefreshCw, Settings, User, Users, Shield, LogOut,
+  RefreshCw, Settings, User, Users, Shield, LogOut, Newspaper,
 } from 'lucide-react';
 import { useTaxonomyStore } from '../../hooks/useTaxonomyStore';
 import { api, isElectronMode } from '@bridge';
@@ -216,6 +216,7 @@ export function Toolbar() {
 
   const adminFeatures = useFlag('permission-admin-features');
   const summariesFlag = useFlag('env-electron-summaries');
+  const opedsFlag = useFlag('env-electron-opeds');
   const navCtx = { flags: { 'env-electron-summaries': summariesFlag }, isAdmin: adminFeatures };
   const visibleItems = getVisibleNavItems(NAV_ITEMS, navCtx);
   const secondaryGroups = getSecondaryByGroup(visibleItems);
@@ -249,7 +250,7 @@ export function Toolbar() {
     else if (toolbarPanel === 'attrInfo') clearAttributeInfo();
   };
 
-  const switchTab = (tab: 'situations' | 'conflicts' | 'cruxes' | 'debate' | 'chat' | 'summaries' | 'validation') => {
+  const switchTab = (tab: 'situations' | 'conflicts' | 'cruxes' | 'debate' | 'chat' | 'opeds' | 'summaries' | 'validation') => {
     clearCurrentPanel();
     useTaxonomyStore.setState({ relatedNodeId: null, selectedEdge: null });
     setToolbarPanel(null);
@@ -278,7 +279,7 @@ export function Toolbar() {
     else if (action.type === 'togglePanel') toggle(action.target as ToolbarPanel);
   };
 
-  const isTaxonomyActive = toolbarPanel === null && !['situations', 'conflicts', 'cruxes', 'debate', 'chat', 'summaries', 'validation'].includes(activeTab);
+  const isTaxonomyActive = toolbarPanel === null && !['situations', 'conflicts', 'cruxes', 'debate', 'chat', 'opeds', 'summaries', 'validation'].includes(activeTab);
 
   return (
     <nav className="toolbar" aria-label="Primary">
@@ -310,7 +311,7 @@ export function Toolbar() {
           onClick={() => {
             clearCurrentPanel();
             setToolbarPanel(null);
-            if (['situations', 'conflicts', 'debate', 'chat', 'summaries', 'validation'].includes(activeTab)) {
+            if (['situations', 'conflicts', 'debate', 'chat', 'opeds', 'summaries', 'validation'].includes(activeTab)) {
               setActiveTab('accelerationist');
             }
           }}
@@ -335,6 +336,16 @@ export function Toolbar() {
           <MessageCircle size="1.25em" />
           <span className="toolbar-nav-label">Chat</span>
         </button>
+        {opedsFlag && (
+          <button
+            className={`toolbar-nav${activeTab === 'opeds' && toolbarPanel === null ? ' toolbar-nav-active' : ''}`}
+            onClick={() => switchTab('opeds')}
+            aria-label="Op-Eds"
+          >
+            <Newspaper size="1.25em" />
+            <span className="toolbar-nav-label">Op-Eds</span>
+          </button>
+        )}
       </div>
       <div className="toolbar-bottom">
         <button

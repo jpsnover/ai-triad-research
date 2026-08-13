@@ -82,6 +82,8 @@ export type DebateTestedEntry = _DebateTestedEntry;
 import type { DebateDelta as _DebateDelta } from '@lib/debate/types';
 export type DebateDelta = _DebateDelta;
 
+import type { OpEdSet } from '../../../../lib/oped/types';
+
 import type { EdgesFile as _EdgesFile } from '@lib/debate/taxonomyTypes';
 export type EdgesFile = _EdgesFile;
 
@@ -269,6 +271,12 @@ export interface AppAPI {
   loadDebateComments: (debateId: string) => Promise<unknown>;
   saveDebateComments: (debateId: string, data: unknown) => Promise<void>;
 
+  // --- Op-Ed Studio (t/2576; personal library — submit/copy route via community store) ---
+  listOpEdSets: () => Promise<OpEdSet[]>;
+  loadOpEdSet: (id: string) => Promise<OpEdSet>;
+  saveOpEdSet: (set: OpEdSet) => Promise<void>;
+  deleteOpEdSet: (id: string) => Promise<void>;
+
   // --- News Report ---
   generateNewsReport: (debateId: string) => Promise<{ article: string }>;
 
@@ -324,10 +332,11 @@ export interface AppAPI {
   submitToCommunity: (type: 'chat' | 'debate', itemData: unknown, note?: string) => Promise<{ submissionId: string }>;
   copyFromCommunity: (type: 'chats' | 'debates', communityId: string) => Promise<{ newId: string }>;
   loadCommunityDebateSession: (id: string) => Promise<unknown>;
+  loadCommunityOpEd: (id: string) => Promise<OpEdSet>;
   loadCommunityChatSession: (id: string) => Promise<unknown>;
   // Submit to a remote community server. In Electron this is proxied through the main
   // process (net.fetch) so it is not blocked by browser CORS; baseUrl is the server origin.
-  communitySubmit: (baseUrl: string, payload: { type: 'chat' | 'debate'; data: unknown; note?: string }) => Promise<{ submissionId: string }>;
+  communitySubmit: (baseUrl: string, payload: { type: 'chat' | 'debate' | 'oped'; data: unknown; note?: string }) => Promise<{ submissionId: string }>;
 
   // --- Support cases ---
   createSupportCase: (payload: SupportCaseCreatePayload) => Promise<{ id: string }>;
@@ -483,5 +492,5 @@ export interface AppAPI {
   adminReviewStats: () => Promise<{ total: number; byDomain: Record<string, number> }>;
   adminReviewDetail: (groupId: string) => Promise<unknown>;
   adminReviewAction: (action: { domain: string; groupId: string; action: string; itemIds: string[]; reason?: string; edits?: Record<string, unknown> }) => Promise<void>;
-  adminRemoveCommunityItem: (type: 'chats' | 'debates', id: string, reason?: string) => Promise<void>;
+  adminRemoveCommunityItem: (type: 'chats' | 'debates' | 'opeds', id: string, reason?: string) => Promise<void>;
 }

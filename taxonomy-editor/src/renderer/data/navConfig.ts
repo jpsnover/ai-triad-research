@@ -7,7 +7,7 @@ import {
   Crosshair, TriangleAlert, CirclePlus, BookText,
   CircleCheck, GitFork, Link, Layers, BarChart3, ShieldAlert,
   BookOpen, LineChart, Terminal, FileText, CircleHelp, Star,
-  RefreshCw, Settings, Building2, Boxes,
+  RefreshCw, Settings, Building2, Boxes, Newspaper,
 } from 'lucide-react';
 
 export type NavAction =
@@ -34,6 +34,7 @@ export const NAV_ITEMS: readonly NavItem[] = [
   { id: 'taxonomy', label: 'Taxonomy', icon: LayoutGrid, tier: 'primary', action: { type: 'custom', id: 'taxonomy' } },
   { id: 'debate', label: 'Debate', icon: MessageSquare, tier: 'primary', action: { type: 'switchTab', target: 'debate' } },
   { id: 'chat', label: 'Chat', icon: MessageCircle, tier: 'primary', action: { type: 'custom', id: 'chat' } },
+  { id: 'opeds', label: 'Op-Eds', icon: Newspaper, tier: 'primary', action: { type: 'switchTab', target: 'opeds' }, gate: { flag: 'env-electron-opeds' } },
 
   // ── Secondary tier — browse group ──
   { id: 'situations', label: 'Situations', icon: Crosshair, tier: 'secondary', group: 'browse', action: { type: 'switchTab', target: 'situations' } },
