@@ -97,3 +97,20 @@ export function deleteOpEdSet(setId: string): void {
   }
   fs.unlinkSync(filePath);
 }
+
+export function listOpEdSets(): OpEdSet[] {
+  ensureOpEdDir();
+  const sets: OpEdSet[] = [];
+  for (const entry of fs.readdirSync(OPED_DIR)) {
+    if (!entry.startsWith('oped-') || !entry.endsWith('.json') || entry.endsWith('-wip.json')) continue;
+    try {
+      sets.push(JSON.parse(fs.readFileSync(path.join(OPED_DIR, entry), 'utf-8')) as OpEdSet);
+    } catch { /* telemetry — silent by design; skip unreadable/corrupt entries */ }
+  }
+  return sets.sort((a, b) => b.created_at.localeCompare(a.created_at));
+}
+
+export function saveOpEdSet(set: OpEdSet): void {
+  // Atomic whole-set write (rename edits topic in-place) — mirrors saveDebateSession.
+  finalizeOpEdSet(set);
+}

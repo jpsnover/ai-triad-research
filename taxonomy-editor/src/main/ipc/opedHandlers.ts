@@ -15,7 +15,7 @@ import { ActionableError } from '../../../../lib/debate/errors.js';
 import { getGlobalRecorder } from '../../../../lib/flight-recorder/index.js';
 import { assertSafeId } from '../../../../lib/electron-shared/safeId.js';
 import { PROJECT_ROOT, getDataRootPath } from '../fileIO.js';
-import { saveOpEdSetTemp, finalizeOpEdSet, loadOpEdSet } from '../opedIO.js';
+import { saveOpEdSetTemp, finalizeOpEdSet, loadOpEdSet, deleteOpEdSet, listOpEdSets, saveOpEdSet } from '../opedIO.js';
 import type { OpEdSet, OpEdMember, OpEdParams } from '../../../../lib/oped/types.js';
 import type { PovKey } from '../../../../lib/oped/types.js';
 
@@ -277,6 +277,23 @@ export function registerOpEdHandlers(): void {
 
   ipcMain.handle('cancel-oped-set', (_event, setId: string) => {
     activeOpEdRuns.get(setId)?.abort();
+  });
+
+  ipcMain.handle('list-oped-sets', () => listOpEdSets());
+
+  ipcMain.handle('load-oped-set', (_event, setId: string) => {
+    assertSafeId(setId, 'oped set id');
+    return loadOpEdSet(setId);
+  });
+
+  ipcMain.handle('delete-oped-set', (_event, setId: string) => {
+    assertSafeId(setId, 'oped set id');
+    deleteOpEdSet(setId);
+  });
+
+  ipcMain.handle('save-oped-set', (_event, set: OpEdSet) => {
+    assertSafeId(set.set_id, 'oped set id');
+    saveOpEdSet(set);
   });
 
   ipcMain.handle('export-oped-set', async (event, setId: string) => {
