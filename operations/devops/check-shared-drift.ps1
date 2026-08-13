@@ -161,7 +161,7 @@ try {
                 $hints += "dirty tracked (0-diff, safe to drop) [$listed]: git checkout -- <files>"
             } else {
                 $listed = $dirtyFiles -join ', '
-                $hints += "dirty tracked with REAL DIFF (WIP) [$listed]: snapshot-first + owner-claim required — do NOT stash or auto-merge; escalate to TL"
+                $hints += "dirty tracked with REAL DIFF (WIP) [$listed]: snapshot-first + owner-claim required — do NOT stash or auto-merge; escalate to TL | POST-CLAIM pull: git restore <files> THEN git pull --ff-only (dirty tracked file silently blocks ff-merge even on byte-identical incoming content — restore first; p/331#98)"
             }
         }
         $result.RemediationHint = $hints -join ' | '
