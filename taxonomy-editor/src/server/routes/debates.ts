@@ -327,10 +327,18 @@ export function registerDebatesRoutes(r: Router, _ctx: ServerCtx): void {
       // @ts-expect-error — lib/debate uses bundler moduleResolution; dynamic import resolves at runtime
       const { newsReportPrompt } = await import('../../../lib/debate/prompts.js');
 
+      // t/2600: breadcrumb between the imports and the AI call so the FR's last
+      // event separates an extract/summarize throw (this phase) from an import
+      // throw (prior 'importing') and from the AI call (next 'generating').
+      getGlobalRecorder()?.record({ type: 'debate.lifecycle', component: 'debates', level: 'info', message: 'news-report: extracting', data: { debateId, phase: 'extracting' } });
       const { anNodes, anEdges, synthesisJson, docAnalysis, topic, audience } = extractNewsReportFields(session, transcript);
       const highlights = extractTranscriptHighlights(transcript as never[], anNodes as never[]);
       const argSummary = summarizeArgumentNetwork(anNodes as never[], anEdges as never[]);
       const prompt = newsReportPrompt(topic, synthesisJson, argSummary, highlights, docAnalysis, undefined, audience as import('../../../../lib/debate/types.js').DebateAudience | undefined);
+      // t/2600: breadcrumb immediately before the AI call — the top-ranked site for
+      // an intermittent prod 500 (backend/key/quota/timeout). If the FR's last
+      // event is 'generating', the throw is generateTextByUsage, not extract/import.
+      getGlobalRecorder()?.record({ type: 'debate.lifecycle', component: 'debates', level: 'info', message: 'news-report: generating', data: { debateId, phase: 'generating' } });
       const result = await ai.generateTextByUsage('server.news-report', { prompt });
       json(res, { article: result.text });
     } catch (err) {
