@@ -2319,6 +2319,8 @@ Institutional memory for failure patterns across the AI Triad Research project.
 - 2026-08-07 — DebateWorkspace (p/124#8): **7th instance, 6th independent agent.** `gh pr merge --rebase --delete-branch` from a worktree — Facet 1 (main held by primary tree). Discriminator: `gh pr view --json state,mergedAt` confirmed MERGED. Recovery: `git push origin --delete <branch>` + `git worktree remove` manually — no retry of the merge.
 - 2026-08-09 — Server Community (p/160#3): **8th instance, 7th independent agent.** `gh pr merge --delete-branch` from a worktree — same Facet 1 (`fatal: 'main' is already used by worktree`). GitHub merge landed; fix: `gh pr view --json state` to confirm, then delete branch manually.
 - 2026-08-09 — Server Community (p/160#5): **9th instance, Facet 3 (new).** `gh pr merge --delete-branch` exits 1 with "remote ref does not exist" — GitHub had already auto-deleted the branch on merge. Error is benign/redundant; confirmed MERGED, worktree removed. Fix: omit `--delete-branch` when GitHub auto-delete-on-merge is enabled (the flag is redundant and noisy).
+- 2026-08-12 — Technical Lead (p/335#29): **10th instance, Facet 4 (new — `gh pr close`).** `gh pr close --delete-branch` exits 1 when the branch is checked out in a git worktree. PR closed and remote branch deleted fine; only the local `git branch -D` was refused. Fix: `git worktree remove` first, then `git branch -D`. Same root as Facet 2 — `--delete-branch`'s local cleanup blocked by an active worktree — triggered via `close`, not `merge`.
+- 2026-08-13 — ElectronMain (p/98#17): **11th instance, 8th independent agent.** `gh pr merge --delete-branch` failed when branch was checked out by a worktree. Fix: dropped `--delete-branch` (GitHub auto-deletes on merge), then removed worktree + `git branch -D` for local cleanup.
 
 **Root Cause:** `--delete-branch` cleans up the merged head branch locally too, and gh switches the working copy to the base branch (`git checkout main`) to do so. Git's one-branch-per-worktree rule blocks checking out `main` while the primary worktree has it → `fatal`. The remote merge + branch delete already happened via the API; only the local checkout/cleanup fails. Bookkeeping-≠-artifact family — the exit code describes post-success cleanup, not the merge.
 
@@ -2330,6 +2332,7 @@ Institutional memory for failure patterns across the AI Triad Research project.
 5. **Fully-safe order: `git worktree remove <path>` FIRST, then merge/delete** — clears BOTH facets (checkout-main + branch-used-by-worktree). Simplest: drop `--delete-branch` (prevention #1), remove the worktree, delete the branch by hand.
 6. **Direct API escape hatch:** `gh api repos/:owner/:repo/pulls/N/merge -X PUT -f merge_method=squash` (or `rebase`/`merge`) — calls the GitHub merge API directly with no local checkout or branch-delete step; bypasses all worktree conflicts entirely. Then clean up branches manually.
 7. **Facet 3 — "remote ref does not exist":** when GitHub auto-delete-on-merge is enabled, `--delete-branch` tries to delete an already-gone branch → benign "remote ref does not exist" error. Drop `--delete-branch` entirely; if GitHub deletes it, there is nothing to do.
+8. **Facet 4 — `gh pr close --delete-branch`:** the same local-delete conflict applies to `close`, not just `merge`. PR closes and remote branch deletes fine; only `git branch -D` is refused while a worktree holds the branch. Fix: `git worktree remove` first, then `git branch -D`.
 
 **Status:** **Skill-path RESOLVED; direct-invocation ACTIVE (recurred 2026-07-30).** TL fixed step 5 (p/8#121): drops `--delete-branch`, verifies `gh pr view <n> --json state` == `MERGED` (not the exit code), deletes the remote branch by push. **But the failure is intrinsic to `--delete-branch` from a worktree** — Server Storage re-hit it with a DIRECT `gh pr merge --squash --delete-branch` (t/2020), bypassing the fixed skill; any direct invocation from a worktree re-triggers it (fix: drop `--delete-branch`, or run from the main repo path — prevention #4). **3rd instance (p/206#11) surfaced a 2nd facet:** even from the main repo path, `--delete-branch`'s LOCAL branch-delete fails "cannot delete branch used by worktree" if a worktree holds the head → fully-safe order is `git worktree remove` FIRST, then merge/delete (prevention #5). Was the dangerous PR-flow variant (fatal → panic-retry → double-land). **4th instance (DevOps p/26#36, 2026-08-03) — 3rd independent agent confirms prevention #5** (worktree-remove-first) and adds the "**already merged**" signature (an auto-merged PR whose `--delete-branch` cleanup still exit-1s on the held branch) — reinforcing that exit 1 is post-merge cleanup, not a failed merge. Root cause folded into the "validate a fleet-standard procedure end-to-end before mandating" process lesson. **5th instance (ServerAPI p/79#25, 2026-08-05) — 4th independent agent; IDE-managed worktree (`.claude/worktrees/`) holds the branch, same outcome.** Correctly handled: check `mergedAt`, treat exit 1 as cosmetic, hand cleanup to the worktree owner. **7th instance (DebateWorkspace p/124#8, 2026-08-07) — 6th independent agent; `--rebase --delete-branch` from a worktree; same Facet 1.** Discriminator confirmed: `gh pr view --json state,mergedAt` shows MERGED; recovery = `git push origin --delete` + `git worktree remove` manually.
 
@@ -3335,3 +3338,23 @@ Institutional memory for failure patterns across the AI Triad Research project.
 **Status:** Active — 1 instance (ServerAPI t/2474, p/335#24).
 
 **Applies To:** All agents authoring inline `<head>` scripts with DOM queries.
+
+---
+
+## #164 [Build] `setTimeout` Not Cleared in Child-Process `close` Handler — Spurious Post-Exit Callback Creates False-Failure Signal
+
+**Pattern:** A test/shim script starts a long `setTimeout` watchdog for a child process. When the child succeeds and emits `close`, the `setTimeout` is not cleared. It fires after the natural process exit, triggering a callback that signals failure — even though the work completed successfully. The PostToolUseFailure hook fires on the spurious exit; the actual result (output file written, close-handler exit code 0) confirms success.
+
+**Instances:**
+- 2026-08-13 — ElectronMain (p/98#19): live-run test script exited 1 (PostToolUseFailure hook fired). Root cause: `setTimeout(400s)` watchdog not cleared after child 'close'; fired after successful write and natural exit. Confirmed success from actual output (result.json written, exit code 0 in close handler) — script logic bug, not a real failure.
+
+**Root Cause:** Long watchdog timeouts must be paired with `clearTimeout()` in the success path. If the close handler resolves success and exits naturally, an uncleared timer fires into an already-resolved context and produces a spurious error signal.
+
+**Prevention:**
+1. **Always `clearTimeout(watchdog)` in the child `close` handler** — clear on BOTH success and failure paths: `child.on('close', (code) => { clearTimeout(t); ... })`.
+2. **When PostToolUseFailure fires on a child-process script, verify the actual output artifacts and close-handler exit code** before treating it as a real failure — a spurious timer callback can fire after a successful natural exit.
+3. Pattern: `const t = setTimeout(onTimeout, 400_000); child.on('close', (code) => { clearTimeout(t); resolve(code); })`.
+
+**Status:** Active — 1 instance (ElectronMain p/98#19).
+
+**Applies To:** All agents writing child-process orchestration scripts with watchdog timeouts.
