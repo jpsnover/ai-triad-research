@@ -45,6 +45,7 @@ function makeConfig(overrides?: Partial<RuntimeConfig>): RuntimeConfig {
       gitDefaultTimeoutMs: 30000, gitBufferLimitBytes: 52428800, apiKeyMaskLength: 8,
     },
     cache: { defaultTtlMs: 300000 },
+    generation: { opedVoiceTimeoutMs: 360000 },
     ...overrides,
   };
 }

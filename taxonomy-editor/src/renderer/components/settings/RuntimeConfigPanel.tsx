@@ -117,6 +117,12 @@ const SECTIONS: SectionDef[] = [
       { key: 'defaultTtlMs', label: 'Default TTL', type: 'number', unit: 'ms' },
     ],
   },
+  {
+    key: 'generation', label: 'Generation',
+    fields: [
+      { key: 'opedVoiceTimeoutMs', label: 'Op-Ed Voice Timeout', type: 'number', unit: 'ms' },
+    ],
+  },
 ];
 
 const TIER_KEYS = ['platform', 'byok', 'anonymous', 'free'] as const;
