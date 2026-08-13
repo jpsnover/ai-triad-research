@@ -40,7 +40,7 @@ vi.mock('../security/userContext.js', () => ({
   isAnonymousUser: vi.fn(() => false),
 }));
 
-vi.mock('./fileIO.js', () => ({
+vi.mock('../storage/fileIO.js', () => ({
   getUserContentBackend: () => mockBackend,
   assertSafeId: (value: string, label: string) => {
     if (!value || !/^[a-zA-Z0-9_-]+$/.test(value))
