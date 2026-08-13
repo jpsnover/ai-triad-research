@@ -367,7 +367,7 @@ function New-OpEd {
                     SOURCE_MATERIAL = [string]$Prep.SourceMarkdown
                 }
                 $BriefResult = Invoke-AIApi -Prompt $BriefPrompt -Model $Model -Temperature 0.2 `
-                    -MaxTokens 2000 -JsonMode -ResponseSchema $BriefSchema
+                    -MaxTokens 4000 -JsonMode -ResponseSchema $BriefSchema
                 if ($null -ne $BriefResult -and -not [string]::IsNullOrWhiteSpace($BriefResult.Text)) {
                     $SBrief = $BriefResult.Text | ConvertFrom-Json
                     $Prep.SourceBrief = $SBrief
