@@ -34,7 +34,10 @@ Describe 'Protect-SensitiveText (t/2530 L14)' -Tag 'unit' {
 
     It 'redacts a Google AIza key, a Bearer token, sk-, and gsk_ tokens' {
         InModuleScope AITriad {
-            (Protect-SensitiveText -Text 'AIzaSyABCDEFGHIJKLMNOPQRSTUVWXYZ0123456') | Should -Not -Match 'AIzaSyABCDEF'
+            # Synthetic, never-valid fixture. Split so the source literal cannot match a
+            # Google-key pattern — the inline form tripped GitHub secret scanning as a
+            # false positive (alert #12). Runtime value is unchanged.
+            (Protect-SensitiveText -Text ('AIza' + 'SyABCDEFGHIJKLMNOPQRSTUVWXYZ0123456')) | Should -Not -Match 'AIzaSyABCDEF'
             (Protect-SensitiveText -Text 'Authorization: Bearer abc.def.ghijklmnop') | Should -Not -Match 'abc\.def\.ghijklmnop'
             (Protect-SensitiveText -Text 'sk-ant-api03-AAAAAAAAAAAAAAAA') | Should -Not -Match 'sk-ant-api03-A'
             (Protect-SensitiveText -Text 'gsk_ABCDEFGHIJKLMNOPQRST') | Should -Not -Match 'gsk_ABCDEFGH'

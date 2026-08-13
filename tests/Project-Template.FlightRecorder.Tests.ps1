@@ -7,6 +7,12 @@ BeforeAll {
 
     # Set script-scope vars the module normally provides
     $script:RepoRoot = (Resolve-Path "$PSScriptRoot/..").Path
+
+    # Synthetic, never-valid API-key fixture for the PII-detection tests. Assembled at
+    # runtime so no source literal matches a Google-key pattern — the inline form tripped
+    # GitHub secret scanning as a false positive (alert #12). Value/length are unchanged
+    # (39 chars), which the masking test asserts on.
+    $script:FakeGoogleKey = 'AIza' + 'SyABCDEFGHIJKLMNOPQRSTUVWXYZ1234567'
 }
 
 Describe 'Get-FlightRecorderDump' -Tag 'template' {
@@ -240,7 +246,7 @@ Describe 'Test-FlightRecorderPII' -Tag 'template' {
     It 'detects Google API key pattern' {
         $testFile = Join-Path $TestDrive 'pii-google.jsonl'
         @(
-            (@{ _type = 'event'; level = 'info'; message = 'Using key AIzaSyABCDEFGHIJKLMNOPQRSTUVWXYZ1234567' } | ConvertTo-Json -Compress)
+            (@{ _type = 'event'; level = 'info'; message = 'Using key ' + $script:FakeGoogleKey } | ConvertTo-Json -Compress)
         ) | Set-Content -Path $testFile -Encoding utf8
 
         $result = Test-FlightRecorderPII -Path $testFile
@@ -286,7 +292,7 @@ Describe 'Test-FlightRecorderPII' -Tag 'template' {
     It 'masks matched values for safe display' {
         $testFile = Join-Path $TestDrive 'pii-mask.jsonl'
         @(
-            (@{ _type = 'event'; level = 'info'; message = 'Found key AIzaSyABCDEFGHIJKLMNOPQRSTUVWXYZ1234567' } | ConvertTo-Json -Compress)
+            (@{ _type = 'event'; level = 'info'; message = 'Found key ' + $script:FakeGoogleKey } | ConvertTo-Json -Compress)
         ) | Set-Content -Path $testFile -Encoding utf8
 
         $result = Test-FlightRecorderPII -Path $testFile
