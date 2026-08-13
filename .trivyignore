@@ -4,7 +4,7 @@
 # POLICY (t/2006): no silent suppression. Every entry MUST carry: the CVE, the
 # affected package, WHY it is ignored, and a concrete REVISIT trigger. Anything
 # with an available upstream fix must be patched (base rebuild), not ignored.
-# Last reviewed: 2026-08-05 (Docker).
+# Last reviewed: 2026-08-12 (Docker).
 
 # ── perl-modules-5.36 (Debian bookworm) — NO UPSTREAM FIX AVAILABLE ─────────────
 # CVE-2026-13221  perl regex trie overflow (>65535 alternation branches)
@@ -423,6 +423,8 @@ CVE-2026-5435  # libc6: glibc: glibc: Out-of-bounds write via TSIG record proces
 CVE-2026-5450  # libc6: glibc: glibc: Heap Buffer Overflow in `scanf` with `%mc` format specifier and...
 CVE-2026-5928  # libc6: glibc: glibc: Information disclosure or denial of service via ungetwc functio...
 CVE-2026-6238  # libc6: glibc: glibc: Application crash or uninitialized memory read via crafted DNS ...
+CVE-2026-6368  # libc6: glibc: glibc: no Debian fix as of 2026-08-12 (t/2547)
+CVE-2026-6791  # libc6: glibc: glibc: no Debian fix as of 2026-08-12 (t/2547)
 
 # -- libcairo2 (Cairo 2D graphics library) -- fix not backported to debian:bookworm
 # node:22-bookworm-slim base; apt-get upgrade -y at build time installs all available Debian
@@ -479,6 +481,7 @@ CVE-2026-56409  # libexpat1: xmlwf in libexpat before 2.8.2 has an integer overf
 CVE-2026-56410  # libexpat1: libexpat: libexpat: Integer overflow in xmlwf can lead to information disclos...
 CVE-2026-56411  # libexpat1: expat: libexpat: Integer Overflow Vulnerability Leading to Information Disclo...
 CVE-2026-56412  # libexpat1: libexpat: libexpat: Use-after-free vulnerability due to improper handling of ...
+CVE-2026-72522  # libexpat1: libexpat: no Debian fix as of 2026-08-12 (t/2547)
 
 # -- libgcrypt20 (GnuPG cryptographic library) -- fix not backported to debian:bookworm
 # node:22-bookworm-slim base; apt-get upgrade -y at build time installs all available Debian
@@ -597,6 +600,8 @@ CVE-2025-15661  # libssh2-1: libssh2: libssh2: Information disclosure and denial
 CVE-2026-55199  # libssh2-1: libssh2: libssh2: Denial of Service via crafted SSH_MSG_EXT_INFO message
 CVE-2026-55200  # libssh2-1: libssh2: libssh2 - Out-of-Bounds Write via Unchecked packet_length in transpo...
 CVE-2026-7598  # libssh2-1: libssh2: integer overflow via large username or password arguments
+CVE-2026-58050  # libssh2-1: libssh2: HIGH; no Debian fix as of 2026-08-12; recheck on next rebuild (t/2547)
+CVE-2026-58051  # libssh2-1: libssh2: MEDIUM; no Debian fix as of 2026-08-12 (t/2547)
 
 # -- libstdc++6 (GNU C++ standard library) -- fix not backported to debian:bookworm
 # node:22-bookworm-slim base; apt-get upgrade -y at build time installs all available Debian
@@ -688,6 +693,7 @@ CVE-2026-48961  # perl-modules-5.36: perl-IO-Compress: IO::Compress: Denial of S
 CVE-2026-48962  # perl-modules-5.36: perl-IO-Compress: perl-IO-Compress: Arbitrary code execution via attacker-con...
 CVE-2026-7010  # perl-modules-5.36: HTTP::Tiny versions before 0.093 for Perl do not validate CRLF in HTTP ...
 CVE-2026-9538  # perl-modules-5.36: perl-Archive-Tar: perl-Archive-Tar: Denial of Service via crafted tar header ...
+CVE-2026-15534  # perl-modules-5.36: perl: no Debian fix as of 2026-08-12 (t/2547)
 
 # -- poppler-utils (PDF rendering library) -- fix not backported to debian:bookworm
 # node:22-bookworm-slim base; apt-get upgrade -y at build time installs all available Debian
