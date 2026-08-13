@@ -674,8 +674,8 @@ describe('appendCalibrationLog stamps runtime provenance (t/1672)', () => {
       // config_revision: 12-hex content hash of calibration-config.json, or '' if unreadable.
       expect(typeof entry.config_revision).toBe('string');
       expect(entry.config_revision).toMatch(/^([0-9a-f]{12})?$/);
-      // working_tree_state: real git state where a repo exists, 'unknown' where git is absent.
-      expect(['clean', 'dirty', 'unknown']).toContain(entry.working_tree_state);
+      // working_tree_state: must be clean or dirty in a git repo (t/2597: 'unknown' = bug).
+      expect(entry.working_tree_state).toMatch(/^(clean|dirty)$/);
     } finally {
       fs.rmSync(dataRoot, { recursive: true, force: true });
     }
