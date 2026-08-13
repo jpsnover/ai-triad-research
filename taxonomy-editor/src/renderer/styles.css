@@ -48,6 +48,7 @@
   --success: #22c55e; --success-text: #15803d; /* AA green TEXT on --bg-primary; --success stays fill (t/2260) */
   --warning: #a16207;
   --focus-ring: #3b82f6;
+  --bar: #3b82f6; /* data-blue share-bar fill; was undefined → hardcoded fallback (t/2565) */
 
   /* Scrollbar */
   --scrollbar-track: #f1f5f9;
@@ -107,6 +108,7 @@
   --success: #22c55e; --success-text: #22c55e; /* reuses fill; AA on dark bg (t/2260) */
   --warning: #f59e0b;
   --focus-ring: #60a5fa;
+  --bar: #60a5fa; /* data-blue share-bar fill (t/2565) */
 
   /* Scrollbar */
   --scrollbar-track: #111827;
@@ -166,6 +168,7 @@
   --success: #00ff4c; --success-text: #00ff4c; /* reuses fill; AA on dark bg (t/2260) */
   --warning: #d9a441;
   --focus-ring: #4d7a8b;
+  --bar: #6a9fd4; /* data-blue share-bar fill (t/2565) */
 
   /* Scrollbar */
   --scrollbar-track: #1f1f1f;
@@ -223,6 +226,7 @@
   --success: #2D6A4F; --success-text: #2D6A4F; /* reuses forest green; already AA (t/2260) */
   --warning: #8B6508;
   --focus-ring: #A51C30;
+  --bar: #3f6fae; /* data-blue share-bar fill (t/2565) */
 
   /* Scrollbar */
   --scrollbar-track: #F3F0EB;
