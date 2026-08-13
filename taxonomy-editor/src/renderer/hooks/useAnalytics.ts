@@ -79,6 +79,12 @@ export interface UseAnalyticsResult {
   sessions: AsyncState<SessionRow[]>;
   /** Subject WHO breakdown; fetched on demand via loadSubjectBreakdown. */
   subject: AsyncState<SubjectBreakdownRow[]>;
+  /**
+   * Fetch the WHO breakdown for a subject. Signature is stable across contract v2:
+   * when the active scope is `user`, the query threads `&user=` automatically so the
+   * user-scoped leaf panel gets rows for that user only (t/2560#2, t/2562#2). Callers
+   * do not pass the user — it follows the hook's active scope.
+   */
   loadSubjectBreakdown: (subjectId: string, groupBy: SubjectGroupBy) => void;
   /** Re-run the main engagement fetch. */
   refetch: () => void;
@@ -95,8 +101,11 @@ function engagementQuery(from: string, to: string, scope: AnalyticsScope): strin
   return base;
 }
 
-function subjectQuery(subjectId: string, groupBy: SubjectGroupBy): string {
-  return `${ENGAGEMENT}?subject=${encodeURIComponent(subjectId)}&groupBy=${groupBy}`;
+function subjectQuery(subjectId: string, groupBy: SubjectGroupBy, user?: string): string {
+  const base = `${ENGAGEMENT}?subject=${encodeURIComponent(subjectId)}&groupBy=${groupBy}`;
+  // Contract v2 (t/2560#2, t/2562#2): under user scope the leaf panel shows the
+  // by-session breakdown FOR THAT USER, so thread the active user into the WHO query.
+  return user ? `${base}&user=${encodeURIComponent(user)}` : base;
 }
 
 /** Stable string key for a scope, so effects re-run on semantic change only. */
@@ -133,6 +142,11 @@ export function useAnalytics({ range, scope = { kind: 'all' } }: UseAnalyticsOpt
   const engReq = useRef(0);
   const subjReq = useRef(0);
 
+  // Current scope, read at loadSubjectBreakdown call time so the WHO query threads the
+  // active user (contract v2) without re-creating the stable callback on every scope change.
+  const scopeRef = useRef<AnalyticsScope>(scope);
+  scopeRef.current = scope;
+
   const runEngagement = useCallback(() => {
     const id = ++engReq.current;
     setEngagement(LOADING);
@@ -155,7 +169,9 @@ export function useAnalytics({ range, scope = { kind: 'all' } }: UseAnalyticsOpt
   const loadSubjectBreakdown = useCallback((subjectId: string, groupBy: SubjectGroupBy) => {
     const id = ++subjReq.current;
     setSubject(LOADING);
-    bridgeGet<SubjectBreakdownRow[]>(subjectQuery(subjectId, groupBy))
+    const activeScope = scopeRef.current;
+    const userFilter = activeScope.kind === 'user' ? activeScope.user : undefined;
+    bridgeGet<SubjectBreakdownRow[]>(subjectQuery(subjectId, groupBy, userFilter))
       .then(rows => {
         if (id !== subjReq.current) return;
         setSubject({ data: rows, loading: false, error: null, isEmpty: rows.length === 0 });

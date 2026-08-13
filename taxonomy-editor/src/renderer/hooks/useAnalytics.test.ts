@@ -128,6 +128,32 @@ describe('useAnalytics — subject WHO breakdown (§7.3)', () => {
     expect(mockGet).toHaveBeenLastCalledWith('/api/analytics/engagement?subject=sit-01b&groupBy=session');
     expect(hook.current.subject.isEmpty).toBe(true);
   });
+
+  // Contract v2 (t/2560#2, t/2562#2): under user scope the WHO query threads &user=
+  // so the user-scoped leaf panel gets by-session rows for that user only.
+  it('threads &user= when the active scope is a user (v2)', async () => {
+    mockGet.mockResolvedValueOnce({ aggregate: leaf(5), daily: [] });
+    const { result: hook } = renderHook(() => useAnalytics({ range: RANGE, scope: { kind: 'user', user: 'alice@x.com' } }));
+    await waitFor(() => expect(hook.current.engagement.loading).toBe(false));
+
+    mockGet.mockResolvedValueOnce([{ key: 's1', engagedMs: 500, visits: 2 }]);
+    act(() => { hook.current.loadSubjectBreakdown('src-l02', 'session'); });
+    await waitFor(() => expect(hook.current.subject.loading).toBe(false));
+
+    expect(mockGet).toHaveBeenLastCalledWith('/api/analytics/engagement?subject=src-l02&groupBy=session&user=alice%40x.com');
+  });
+
+  it('omits &user= under non-user scope (all / session)', async () => {
+    mockGet.mockResolvedValueOnce({ aggregate: leaf(5), daily: [] });
+    const { result: hook } = renderHook(() => useAnalytics({ range: RANGE, scope: { kind: 'session', session: 's9' } }));
+    await waitFor(() => expect(hook.current.engagement.loading).toBe(false));
+
+    mockGet.mockResolvedValueOnce([]);
+    act(() => { hook.current.loadSubjectBreakdown('src-l02', 'user'); });
+    await waitFor(() => expect(hook.current.subject.loading).toBe(false));
+
+    expect(mockGet).toHaveBeenLastCalledWith('/api/analytics/engagement?subject=src-l02&groupBy=user');
+  });
 });
 
 describe('useAnalytics — refetch + stale-response guard', () => {
