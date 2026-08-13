@@ -186,10 +186,11 @@ Describe 'New-OpEd' -Tag 'oped' {
                 Headers    = @{ 'Content-Type' = 'text/html; charset=utf-8' }
                 StatusCode = 200
             } } -ModuleName AITriad
-            # Long enough to pass the readability gate (>100 alpha words); includes
-            # "Source body text" so the seenPrompt assertion still matches.
+            # 35 alpha words per sentence × 3 = 105 — passes the MinReadableWords=100
+            # gate; "Source body text" preserved for the seenPrompt assertion.
             Mock ConvertFrom-Html {
-                'Source body text. Artificial intelligence governance policy requires careful consideration of competing interests including innovation safety fairness accountability transparency democratic oversight regulation compliance monitoring evaluation auditing enforcement remediation capacity building standards development international coordination multistakeholder approaches.'
+                $s = 'Source body text. Artificial intelligence governance policy requires careful consideration of competing interests including innovation safety fairness accountability transparency democratic oversight regulation compliance monitoring evaluation auditing enforcement remediation capacity building standards development international coordination multistakeholder approaches.'
+                "$s $s $s"
             } -ModuleName AITriad
             Mock Get-RelevantTaxonomyNodes { @() } -ModuleName AITriad
             $script:seenPrompt = $null
