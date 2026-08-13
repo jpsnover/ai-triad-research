@@ -559,4 +559,17 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('admin-review-action', action),
   adminRemoveCommunityItem: (type: string, id: string, reason?: string): Promise<void> =>
     ipcRenderer.invoke('admin-remove-community-item', type, id, reason),
+
+  // Op-Ed Studio (t/2575)
+  createOpEdSet: (payload: { topic: string; params: unknown; voices: string[] }): Promise<{ set_id: string }> =>
+    ipcRenderer.invoke('create-oped-set', payload),
+  cancelOpEdSet: (setId: string): void =>
+    void ipcRenderer.invoke('cancel-oped-set', setId),
+  exportOpEdSet: (setId: string): Promise<{ cancelled: boolean; filePath?: string }> =>
+    ipcRenderer.invoke('export-oped-set', setId),
+  onOpEdProgress: (callback: (event: { set_id: string; voice: string; stage: string; error?: string }) => void) => {
+    const listener = (_event: Electron.IpcRendererEvent, data: { set_id: string; voice: string; stage: string; error?: string }) => callback(data);
+    ipcRenderer.on('oped-progress', listener);
+    return () => { ipcRenderer.removeListener('oped-progress', listener); };
+  },
 });
