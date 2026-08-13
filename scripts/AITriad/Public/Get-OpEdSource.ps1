@@ -88,7 +88,7 @@ function Get-OpEdSource {
             $TempFile = [System.IO.Path]::GetTempFileName() + '.pdf'
             try {
                 [System.IO.File]::WriteAllBytes($TempFile, $Resp.Content)
-                $Markdown = ConvertFrom-Pdf -PdfPath $TempFile
+                $Markdown = Invoke-PdfConversion -Path $TempFile
             } finally {
                 Remove-Item $TempFile -Force -ErrorAction SilentlyContinue
             }
@@ -97,7 +97,7 @@ function Get-OpEdSource {
             $TempFile = [System.IO.Path]::GetTempFileName() + '.docx'
             try {
                 [System.IO.File]::WriteAllBytes($TempFile, $Resp.Content)
-                $Markdown = ConvertFrom-Docx -DocxPath $TempFile
+                $Markdown = Invoke-DocxConversion -Path $TempFile
             } finally {
                 Remove-Item $TempFile -Force -ErrorAction SilentlyContinue
             }

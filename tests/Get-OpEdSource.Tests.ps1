@@ -88,14 +88,14 @@ Describe 'Get-OpEdSource' -Tag 'oped' {
                     StatusCode = 200
                 }
             }
-            Mock ConvertFrom-Pdf -ModuleName AITriad { $script:ReadableText }
+            Mock Invoke-PdfConversion -ModuleName AITriad { $script:ReadableText }
         }
 
         It 'Routes to ConvertFrom-Pdf when Content-Type is application/pdf' {
             $Prep = Get-OpEdSource -Url 'https://example.com/report'
             $Prep.SourceFormat         | Should -Be 'pdf'
             $Prep.SourceExtractionTool | Should -Be 'ConvertFrom-Pdf'
-            Assert-MockCalled ConvertFrom-Pdf -ModuleName AITriad -Times 1
+            Should -Invoke Invoke-PdfConversion -ModuleName AITriad -Times 1
         }
     }
 
@@ -108,13 +108,13 @@ Describe 'Get-OpEdSource' -Tag 'oped' {
                     StatusCode = 200
                 }
             }
-            Mock ConvertFrom-Pdf -ModuleName AITriad { $script:ReadableText }
+            Mock Invoke-PdfConversion -ModuleName AITriad { $script:ReadableText }
         }
 
         It 'Routes to ConvertFrom-Pdf when URL ends in .pdf' {
             $Prep = Get-OpEdSource -Url 'https://example.com/report.pdf'
             $Prep.SourceFormat | Should -Be 'pdf'
-            Assert-MockCalled ConvertFrom-Pdf -ModuleName AITriad -Times 1
+            Should -Invoke Invoke-PdfConversion -ModuleName AITriad -Times 1
         }
     }
 
@@ -127,14 +127,14 @@ Describe 'Get-OpEdSource' -Tag 'oped' {
                     StatusCode = 200
                 }
             }
-            Mock ConvertFrom-Docx -ModuleName AITriad { $script:ReadableText }
+            Mock Invoke-DocxConversion -ModuleName AITriad { $script:ReadableText }
         }
 
         It 'Routes to ConvertFrom-Docx when URL ends in .docx' {
             $Prep = Get-OpEdSource -Url 'https://example.com/brief.docx'
             $Prep.SourceFormat         | Should -Be 'docx'
             $Prep.SourceExtractionTool | Should -Be 'ConvertFrom-Docx'
-            Assert-MockCalled ConvertFrom-Docx -ModuleName AITriad -Times 1
+            Should -Invoke Invoke-DocxConversion -ModuleName AITriad -Times 1
         }
     }
 
