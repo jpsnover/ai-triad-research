@@ -279,13 +279,21 @@ export function registerDebatesRoutes(r: Router, _ctx: ServerCtx): void {
   });
 
   post('/api/debates/:id/news-report', async (req, res) => {
+    // t/2553: entry breadcrumb BEFORE the try — a catch-only recorder leaves no FR
+    // event when the handler fails fast (39ms 500), so triage cannot tell "threw
+    // before try" / "dynamic import failed" / "route not found" apart. param() is
+    // non-throwing (returns '' when absent), so it is safe outside the try.
+    const debateId = param(req, 'id', '/api/debates/:id/news-report');
+    getGlobalRecorder()?.record({ type: 'debate.lifecycle', component: 'debates', level: 'info', message: 'news-report: started', data: { debateId, phase: 'started' } });
     try {
-      const debateId = param(req, 'id', '/api/debates/:id/news-report');
       const session = await fileIO.loadDebateSession(debateId) as Record<string, unknown>;
       const transcript = (session.transcript ?? []) as Array<{ type: string; content: string; speaker: string }>;
       const hasSynthesis = transcript.some(e => e.type === 'synthesis' || e.type === 'concluding');
       if (!hasSynthesis) { error(res, 'A synthesis must exist before generating a news report.', 400); return; }
 
+      // t/2553: breadcrumb immediately before the dynamic imports — the import()
+      // calls are the most likely fast-failure site (module resolution / runtime).
+      getGlobalRecorder()?.record({ type: 'debate.lifecycle', component: 'debates', level: 'info', message: 'news-report: importing', data: { debateId, phase: 'importing' } });
       // @ts-expect-error — lib/debate uses bundler moduleResolution; dynamic import resolves at runtime
       const { extractTranscriptHighlights, summarizeArgumentNetwork } = await import('../../../lib/debate/newsReport.js');
       // @ts-expect-error — lib/debate uses bundler moduleResolution; dynamic import resolves at runtime
