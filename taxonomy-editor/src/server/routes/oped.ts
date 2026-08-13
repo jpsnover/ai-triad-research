@@ -21,7 +21,7 @@ import type { ServerCtx } from './context.js';
 import { json, error, param } from '../httpKit.js';
 import { getGlobalRecorder } from '../../../../lib/flight-recorder/index.js';
 import { isSafeId } from '../storage/fileIO.js';
-import { listOpedSets, loadOpedSet, deleteOpedSet } from '../storage/opedStore.js';
+import { listOpedSets, loadOpedSet, deleteOpedSet, getOpedSetsQuotaStatus } from '../storage/opedStore.js';
 
 const ROUTE_ID = '/api/oped-sets/:id';
 
@@ -43,6 +43,19 @@ export function registerOpedRoutes(r: Router, _ctx: ServerCtx): void {
     try { json(res, await listOpedSets()); }
     catch (err) {
       getGlobalRecorder()?.record({ type: 'system.error', component: 'oped', level: 'error', message: 'Failed to list oped-sets', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
+      error(res, String(err), 500, err);
+    }
+  });
+
+  // t/2573: read-only quota pre-check (mirrors GET /api/debates/quota-status).
+  // MUST be registered before /api/oped-sets/:id — the :id wildcard would otherwise
+  // match "quota-status" (both GET, 3 segments; literal wins by first-match).
+  // Delegates to getOpedSetsQuotaStatus() so the pre-check never diverges from the
+  // cap the finalizeOpedSet path enforces (Shared Utility Rule).
+  get('/api/oped-sets/quota-status', async (_req, res) => {
+    try { json(res, await getOpedSetsQuotaStatus()); }
+    catch (err) {
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'oped', level: 'error', message: 'Failed to check oped quota', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
       error(res, String(err), 500, err);
     }
   });
