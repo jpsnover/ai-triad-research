@@ -82,7 +82,27 @@ export type DebateTestedEntry = _DebateTestedEntry;
 import type { DebateDelta as _DebateDelta } from '@lib/debate/types';
 export type DebateDelta = _DebateDelta;
 
-import type { OpEdSet } from '../../../../lib/oped/types';
+import type { OpEdSet, PovKey } from '../../../../lib/oped/types';
+
+/** Op-Ed generation params (PR#2) — maps to New-OpEd cmdlet params; topic + voices
+ *  travel separately in the payload (one New-OpEd call per selected voice). */
+export interface CreateOpEdParams {
+  url?: string;
+  outlet?: string;
+  wordCount?: number;
+  newsHook?: string;
+  thesis?: string;
+  authorBio?: string;
+  model?: string;
+  temperature?: number;
+  maxGroundingNodes?: number;
+  maxSituations?: number;
+  includePitch?: boolean;
+  voiceOnly?: boolean;
+}
+export interface CreateOpEdPayload { topic: string; params: CreateOpEdParams; voices: PovKey[] }
+/** One 3-stage progress tick from the Electron generation IPC (t/2575 `oped-progress`). */
+export interface OpEdProgressEvent { set_id: string; voice: string; stage: string; error?: string }
 
 import type { EdgesFile as _EdgesFile } from '@lib/debate/taxonomyTypes';
 export type EdgesFile = _EdgesFile;
@@ -276,6 +296,10 @@ export interface AppAPI {
   loadOpEdSet: (id: string) => Promise<OpEdSet>;
   saveOpEdSet: (set: OpEdSet) => Promise<void>;
   deleteOpEdSet: (id: string) => Promise<void>;
+  // PR#2 create flow — Electron-only (New-OpEd is PowerShell); web rejects with a desktop-only error.
+  createOpEdSet: (payload: CreateOpEdPayload) => Promise<{ set_id: string }>;
+  cancelOpEdSet: (setId: string) => void;
+  onOpEdProgress: (callback: (event: OpEdProgressEvent) => void) => () => void;
 
   // --- News Report ---
   generateNewsReport: (debateId: string) => Promise<{ article: string }>;

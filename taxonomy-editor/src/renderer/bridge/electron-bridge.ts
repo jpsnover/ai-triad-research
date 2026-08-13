@@ -5,7 +5,7 @@
  * Electron bridge — delegates every AppAPI method to window.electronAPI (IPC).
  * Used when the app runs inside Electron (desktop mode).
  */
-import type { AppAPI, UserPreferences } from './types';
+import type { AppAPI, UserPreferences, CreateOpEdPayload, OpEdProgressEvent } from './types';
 import { makeCancellationError } from './cancellation';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { ALL_API_KEY_BACKENDS } from '@lib/ai-client/types';
@@ -33,6 +33,9 @@ type OpEdIpc = {
   loadOpEdSet?: (id: string) => Promise<OpEdSet>;
   saveOpEdSet?: (set: OpEdSet) => Promise<void>;
   deleteOpEdSet?: (id: string) => Promise<void>;
+  createOpEdSet?: (payload: CreateOpEdPayload) => Promise<{ set_id: string }>;
+  cancelOpEdSet?: (setId: string) => void;
+  onOpEdProgress?: (cb: (e: OpEdProgressEvent) => void) => () => void;
 };
 const opEdIpc = (): OpEdIpc => window.electronAPI as unknown as OpEdIpc;
 function rejectOpEdIpc(goal: string, method: string): Promise<never> {
@@ -266,6 +269,9 @@ export const api: AppAPI = {
   loadOpEdSet: (id) => opEdIpc().loadOpEdSet?.(id) ?? rejectOpEdIpc('load an op-ed', 'loadOpEdSet'),
   saveOpEdSet: (set) => opEdIpc().saveOpEdSet?.(set) ?? rejectOpEdIpc('save an op-ed', 'saveOpEdSet'),
   deleteOpEdSet: (id) => opEdIpc().deleteOpEdSet?.(id) ?? rejectOpEdIpc('delete an op-ed', 'deleteOpEdSet'),
+  createOpEdSet: (payload) => opEdIpc().createOpEdSet?.(payload) ?? rejectOpEdIpc('create an op-ed', 'createOpEdSet'),
+  cancelOpEdSet: (setId) => { opEdIpc().cancelOpEdSet?.(setId); },
+  onOpEdProgress: (cb) => opEdIpc().onOpEdProgress?.(cb) ?? (() => {}),
 
   // News Report
   generateNewsReport: (debateId) => window.electronAPI.generateNewsReport(debateId),

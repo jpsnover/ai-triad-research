@@ -250,7 +250,7 @@ export function OpEdReader({ set }: { set: OpEdSet }) {
               role="tab"
               id={`oped-tab-${i}`}
               aria-selected={isActive}
-              aria-controls={`oped-panel-${i}`}
+              aria-controls="oped-panel"
               tabIndex={isActive ? 0 : -1}
               className={`oped-tab${isActive ? ' oped-tab-active' : ''}`}
               // eslint-disable-next-line local/no-inline-style -- dynamic: active underline uses the camp's theme color
@@ -263,7 +263,7 @@ export function OpEdReader({ set }: { set: OpEdSet }) {
           );
         })}
       </div>
-      <div role="tabpanel" id={`oped-panel-${activeIdx}`} aria-labelledby={`oped-tab-${activeIdx}`}>
+      <div role="tabpanel" id="oped-panel" aria-labelledby={`oped-tab-${activeIdx}`}>
         <OpEdArticle member={active} outlet={set.params.outlet} />
       </div>
     </div>

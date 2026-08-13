@@ -1016,13 +1016,21 @@ const rawApi: AppAPI = {
   loadDebateComments: (id) => get(`/api/debates/${encodeURIComponent(id)}/comments`),
   saveDebateComments: (id, data) => put(`/api/debates/${encodeURIComponent(id)}/comments`, data).then(() => {}),
 
-  // Op-Ed Studio (t/2576) — real routes against t/2573's server API. Those routes
-  // are not merged yet, so these calls surface an honest normalized 404 until they
-  // land (no stub module to swap out — the wiring lights up when t/2573 ships).
+  // Op-Ed Studio (t/2576) — real routes against t/2573's server API (now on main).
   listOpEdSets: () => get<OpEdSet[]>('/api/opeds'),
   loadOpEdSet: (id) => get<OpEdSet>(`/api/opeds/${encodeURIComponent(id)}`),
   saveOpEdSet: (set) => put('/api/opeds', set).then(() => {}),
   deleteOpEdSet: (id) => del(`/api/opeds/${encodeURIComponent(id)}`).then(() => {}),
+  // PR#2 create flow is Electron-only (New-OpEd is PowerShell; v1 has no web generation
+  // route — server confirms). Web rejects honestly; the UI shows a "desktop app" affordance.
+  createOpEdSet: () => Promise.reject(new ActionableError({
+    goal: 'Op-Ed Studio: create an op-ed',
+    problem: 'Op-ed generation runs the New-OpEd PowerShell cmdlet, available only in the desktop app.',
+    location: 'web-bridge · Op-Ed Studio',
+    nextSteps: ['Open the desktop app to draft op-eds.', 'You can still browse, share, and copy community op-eds here.'],
+  })),
+  cancelOpEdSet: () => { /* no-op: web has no in-flight generation to cancel */ },
+  onOpEdProgress: () => () => {}, // web has no generation progress stream
   exportDebateToFile: async (session, format = 'json', exportOptions) => {
     const { debateToText, debateToMarkdown, debateToHtml, debateToPackage, debateExportFilename } = await import('@lib/debate/debateExport');
     const debate = session as Parameters<typeof debateToText>[0] & { diagnostics?: unknown };
