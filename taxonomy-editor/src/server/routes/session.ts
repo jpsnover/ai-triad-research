@@ -14,13 +14,14 @@
 // cap (TRACE_MAX_EVENTS_PER_BATCH) is used only by /debug/events, so it moves in
 // as module-local state. All other helpers are pure module imports.
 
-import type { IncomingMessage } from 'http';
+import type { IncomingMessage, ServerResponse } from 'http';
 import type { Router } from '../httpKit.js';
 import type { ServerCtx } from './context.js';
 import { json, error, getClientIp } from '../httpKit.js';
 import { getGlobalRecorder } from '../../../../lib/flight-recorder/index.js';
 import { log } from '../logger.js';
 import { deriveStorageUserId } from '../security/userContext.js';
+import { isSafeId } from '../storage/fileIO.js';
 import { getQuotaLimits } from '../security/quotas.js';
 import { requireAdmin } from '../community/admin/reviewRegistry.js';
 import { isAdmin } from '../community/community.js';
@@ -40,6 +41,40 @@ export function resolveAnonSessionKey(req: IncomingMessage): string {
 }
 
 const TRACE_MAX_EVENTS_PER_BATCH = 100;
+
+/** Derive the analytics user id for a request from the Easy Auth principal headers
+ *  (only when Azure auth is enabled), falling back to '_local'. */
+function deriveRequestUserId(req: IncomingMessage): string {
+  const azureAuth = process.env.WEBSITE_AUTH_ENABLED === 'True' || process.env.WEBSITE_AUTH_ENABLED === 'true';
+  const principalName = azureAuth ? (req.headers['x-ms-client-principal-name'] as string) || '' : '';
+  const idp = azureAuth ? (req.headers['x-ms-client-principal-idp'] as string) || '' : '';
+  return deriveStorageUserId(principalName || '_local', idp || '_local');
+}
+
+/** §7.3 subject WHO breakdown — admin-only. Extracted so the engagement handler
+ *  stays under the complexity ceiling (ADR-007). `subject` is already validated. */
+async function serveSubjectBreakdown(
+  res: ServerResponse, from: string, to: string,
+  subject: string, groupBy: string | undefined, user: string | undefined,
+): Promise<void> {
+  if (!requireAdmin(res)) return;
+  if (groupBy !== 'user' && groupBy !== 'session') { error(res, "groupBy must be 'user' or 'session'", 400); return; }
+  json(res, await analytics.querySubjectBreakdown(from, to, subject, groupBy, user));
+}
+
+/** Engagement tree (+ §7.1 session scope, §7.2 sessions list). The session scope,
+ *  other-user subtree, users table, and sessions list are all admin-only; non-admins
+ *  receive only the anonymized aggregate. */
+async function serveEngagementTree(
+  res: ServerResponse, from: string, to: string,
+  user: string | undefined, session: string | undefined,
+  currentUserId: string, admin: boolean,
+): Promise<void> {
+  const needsAdmin = session !== undefined || (user !== undefined && user !== currentUserId);
+  if (needsAdmin && !requireAdmin(res)) return;
+  const { users, sessions, ...rest } = await analytics.queryEngagement(from, to, { user, session, includeSessions: admin });
+  json(res, admin ? { ...rest, users, ...(sessions ? { sessions } : {}) } : rest);
+}
 
 export function registerSessionRoutes(r: Router, ctx: ServerCtx): void {
   const { get, post } = r;
@@ -178,22 +213,31 @@ export function registerSessionRoutes(r: Router, ctx: ServerCtx): void {
 
   // t/2467: engagement tree (view.dwell roll-up — tool→camp→category→node).
   // Aggregate + daily open to any authenticated caller.
-  // Per-user subtree (other-user) and users table are admin-gated.
+  // t/2559 (spec §7) — three admin-only extensions over the same single pass:
+  //   ?session=<id>              → aggregate/daily recomputed for one session (§7.1)
+  //   sessions[] (admin)         → per-session rollup for the session picker (§7.2)
+  //   ?subject=<id>&groupBy=…     → WHO breakdown rows, optional &user= scope (§7.3)
+  // The per-user subtree, users table, sessions list, and the session/subject
+  // extensions are all admin-gated (TL p/333#89). `session`/`subject` are validated
+  // with the shared safe-ID validator (t/2526) at the boundary. `user` is an in-memory
+  // equality filter only (never a path) and can legitimately carry email-derived chars
+  // (e.g. `+` from deriveStorageUserId), so it is deliberately NOT safe-ID-constrained.
   get('/api/analytics/engagement', async (req, res) => {
     const url = new URL(req.url!, 'http://localhost');
     const from = url.searchParams.get('from') || new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10);
     const to = url.searchParams.get('to') || new Date().toISOString().slice(0, 10);
     const user = url.searchParams.get('user') || undefined;
+    const session = url.searchParams.get('session') || undefined;
+    const subject = url.searchParams.get('subject') || undefined;
+    const groupBy = url.searchParams.get('groupBy') || undefined;
 
-    const azureAuth = process.env.WEBSITE_AUTH_ENABLED === 'True' || process.env.WEBSITE_AUTH_ENABLED === 'true';
-    const principalName = azureAuth ? (req.headers['x-ms-client-principal-name'] as string) || '' : '';
-    const idp = azureAuth ? (req.headers['x-ms-client-principal-idp'] as string) || '' : '';
-    const currentUserId = deriveStorageUserId(principalName || '_local', idp || '_local');
+    // t/2526 safe-ID validation at the boundary, before any query.
+    if (session !== undefined && !isSafeId(session)) { error(res, 'Invalid session id', 400); return; }
+    if (subject !== undefined && !isSafeId(subject)) { error(res, 'Invalid subject id', 400); return; }
 
-    if (user && user !== currentUserId && !requireAdmin(res)) return;
-
-    const { users, ...rest } = await analytics.queryEngagement(from, to, user ? { user } : undefined);
-    json(res, isAdmin(currentUserId) ? { ...rest, users } : rest);
+    const currentUserId = deriveRequestUserId(req);
+    if (subject !== undefined) { await serveSubjectBreakdown(res, from, to, subject, groupBy, user); return; }
+    await serveEngagementTree(res, from, to, user, session, currentUserId, isAdmin(currentUserId));
   });
 
   // ── Focus node (inter-app communication) ──
