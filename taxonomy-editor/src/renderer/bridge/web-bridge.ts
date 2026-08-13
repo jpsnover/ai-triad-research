@@ -1016,11 +1016,13 @@ const rawApi: AppAPI = {
   loadDebateComments: (id) => get(`/api/debates/${encodeURIComponent(id)}/comments`),
   saveDebateComments: (id, data) => put(`/api/debates/${encodeURIComponent(id)}/comments`, data).then(() => {}),
 
-  // Op-Ed Studio (t/2576) — real routes against t/2573's server API (now on main).
-  listOpEdSets: () => get<OpEdSet[]>('/api/opeds'),
-  loadOpEdSet: (id) => get<OpEdSet>(`/api/opeds/${encodeURIComponent(id)}`),
-  saveOpEdSet: (set) => put('/api/opeds', set).then(() => {}),
-  deleteOpEdSet: (id) => del(`/api/opeds/${encodeURIComponent(id)}`).then(() => {}),
+  // Op-Ed Studio (t/2576) — real routes against t/2573's server API (on main). The
+  // personal-library path is /api/oped-sets (t/2599 live-smoke found the bridge had
+  // assumed /api/opeds). Rename persists topic-only via PUT /api/oped-sets/:id (t/2594).
+  listOpEdSets: () => get<OpEdSet[]>('/api/oped-sets'),
+  loadOpEdSet: (id) => get<OpEdSet>(`/api/oped-sets/${encodeURIComponent(id)}`),
+  saveOpEdSet: (set) => put(`/api/oped-sets/${encodeURIComponent(set.set_id)}`, set).then(() => {}),
+  deleteOpEdSet: (id) => del(`/api/oped-sets/${encodeURIComponent(id)}`).then(() => {}),
   // PR#2 create flow is Electron-only (New-OpEd is PowerShell; v1 has no web generation
   // route — server confirms). Web rejects honestly; the UI shows a "desktop app" affordance.
   createOpEdSet: () => Promise.reject(new ActionableError({
