@@ -97,6 +97,17 @@ mode_path() {
   fi
   [ "$in_main" -eq 1 ]    && { echo "main"; return 0; }
   [ "$in_overlay" -eq 1 ] && { echo "overlay"; return 0; }
+  # Nested-git-repo exclusion (t/2548): a file whose directory belongs to a
+  # DIFFERENT git repo (e.g. .local-data/ai-triad-data — the sibling data repo
+  # cloned inside the tree) is that repo's to track, not this project's.
+  if [ -e "$root/$rel" ]; then
+    case "$rel" in */*) fdir="$root/${rel%/*}" ;; *) fdir="$root" ;; esac
+    ftop=$(git -C "$fdir" rev-parse --show-toplevel 2>/dev/null) || ftop=$root
+    if [ "$ftop" != "$root" ]; then
+      echo "external (nested git repo at ${ftop#"$root"/} — tracked there, not by this project)"
+      return 0
+    fi
+  fi
   if [ "$have_overlay" -eq 0 ]; then
     echo "NEITHER (overlay absent — cannot distinguish overlay from untracked)"
     return 0
@@ -137,6 +148,13 @@ mode_audit() {
     orphans=$(printf '%s\n' "$(on_disk)" | grep -v '^$' | while IFS= read -r f; do
       printf '%s\n' "$mt" | grep -qxF -- "$f" && continue
       printf '%s\n' "$ot" | grep -qxF -- "$f" && continue
+      # Nested-git-repo exclusion (t/2548): skip files owned by a different git
+      # repo nested in the tree (e.g. .local-data/ai-triad-data — the sibling
+      # data repo clone); that repo, not this one, is their backing store. A
+      # genuine orphan's directory resolves to THIS root and still fires.
+      case "$f" in */*) fdir="$root/${f%/*}" ;; *) fdir="$root" ;; esac
+      ftop=$(git -C "$fdir" rev-parse --show-toplevel 2>/dev/null) || ftop=$root
+      [ "$ftop" != "$root" ] && continue
       echo "$f"
     done)
     if [ -n "$orphans" ]; then
