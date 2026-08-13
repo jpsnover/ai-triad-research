@@ -84,6 +84,9 @@ export interface RuntimeConfig {
   cache: {
     defaultTtlMs: number;
   };
+  generation: {
+    opedVoiceTimeoutMs: number;
+  };
 }
 
 export interface ConfigState {
