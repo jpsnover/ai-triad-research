@@ -8,6 +8,7 @@ import { fileURLToPath } from 'url';
 import { app } from 'electron';
 import { ActionableError } from '../../../lib/debate/errors.js';
 import { renameSyncWithRetry } from '../../../lib/debate/persistence.js';
+import { recordLockHolder } from '../../../lib/debate/lockHolder.js';
 import { getGlobalRecorder } from '../../../lib/flight-recorder/index.js';
 import { parseNpy, extractNodeVectors } from '../../../lib/npy.js';
 import { resolveRepoRootForApp } from '../../../lib/electron-shared/resolveRepoRootForApp.js';
@@ -252,7 +253,7 @@ function writeStringAtomic(filePath: string, content: string, caller: string): v
   const tmpPath = filePath + '.tmp';
   try {
     fs.writeFileSync(tmpPath, content, 'utf-8');
-    renameSyncWithRetry(tmpPath, filePath);
+    renameSyncWithRetry(tmpPath, filePath, 7, undefined, recordLockHolder);
   } catch (err) {
     getGlobalRecorder()?.record({
       type: 'system.error',
