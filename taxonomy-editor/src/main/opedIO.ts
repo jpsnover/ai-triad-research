@@ -109,7 +109,7 @@ export function listOpEdSets(): OpEdSetSummary[] {
         set_id: set.set_id,
         topic: set.topic,
         created_at: set.created_at,
-        camps: set.opeds.map(o => o.pov),
+        camps: [...new Set(set.opeds.map(o => o.pov))],
         voice_count: set.opeds.length,
       });
     } catch { /* telemetry — silent by design; skip unreadable/corrupt entries */ }

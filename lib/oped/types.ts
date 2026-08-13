@@ -70,6 +70,7 @@ export interface OpEdSetSummary {
   set_id: string;
   topic: string;
   created_at: string;
+  updated_at?: string;
   camps: PovKey[];
   voice_count: number;
 }

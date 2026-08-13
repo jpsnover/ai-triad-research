@@ -93,15 +93,16 @@ describe('listOpEdSets', () => {
     expect(result[1].set_id).toBe('set-a');
   });
 
-  it('derives summary fields correctly from OpEdSet', () => {
-    write('oped-xyz.json', makeSet('xyz', 'AI policy', '2026-08-13T00:00:00.000Z', ['acc', 'saf', 'skp']));
+  it('derives summary fields correctly from OpEdSet and deduplicates camps', () => {
+    // Two 'acc' opeds (e.g. retry) should produce one 'acc' in camps
+    write('oped-xyz.json', makeSet('xyz', 'AI policy', '2026-08-13T00:00:00.000Z', ['acc', 'saf', 'skp', 'acc']));
     const [summary] = listOpEdSets();
     expect(summary).toEqual({
       set_id: 'xyz',
       topic: 'AI policy',
       created_at: '2026-08-13T00:00:00.000Z',
       camps: ['acc', 'saf', 'skp'],
-      voice_count: 3,
+      voice_count: 4,
     });
   });
 
