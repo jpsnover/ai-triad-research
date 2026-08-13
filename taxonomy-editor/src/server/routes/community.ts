@@ -40,10 +40,10 @@ export function registerCommunityRoutes(r: Router, ctx: ServerCtx): void {
     if (!community.isAdmin()) { json(res, { error: 'Forbidden' }, 403); return; }
     try {
       const type = param(req, 'type', '/api/community/:type/:id');
-      if (type !== 'chats' && type !== 'debates') { error(res, 'type must be "chats" or "debates"', 400); return; }
+      if (type !== 'chats' && type !== 'debates' && type !== 'opeds') { error(res, 'type must be "chats", "debates", or "opeds"', 400); return; }
       const id = param(req, 'id', '/api/community/:type/:id');
       const reason = (body as { reason?: string } | undefined)?.reason;
-      await community.removeCommunityItem(type, id, typeof reason === 'string' ? reason : undefined);
+      await community.removeCommunityItem(type as 'chats' | 'debates' | 'opeds', id, typeof reason === 'string' ? reason : undefined);
       json(res, { ok: true });
     } catch (err) {
       getGlobalRecorder()?.record({
@@ -124,9 +124,47 @@ export function registerCommunityRoutes(r: Router, ctx: ServerCtx): void {
     }
   });
 
+  // t/2573: community op-ed reader surface (the module funcs landed with t/2574).
+  // Mirrors the debates listing/detail handlers verbatim; `source: 'community'`
+  // tags rows the same way the debate listing does.
+  get('/api/community/opeds', async (_req, res) => {
+    try {
+      const entries = await community.listCommunityOpEds() as Record<string, unknown>[];
+      json(res, entries.map(e => ({ ...e, source: 'community' })));
+    }
+    catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'server',
+        level: 'error',
+        message: 'Failed to list community opeds',
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+      });
+      error(res, String(err));
+    }
+  });
+
+  get('/api/community/opeds/:id', async (req, res) => {
+    try {
+      const id = param(req, 'id', '/api/community/opeds/:id');
+      const item = await community.loadCommunityItem('opeds', id);
+      if (!item) { json(res, { found: false }, 200); return; }
+      json(res, item);
+    } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'server',
+        level: 'error',
+        message: 'Failed to load community oped item',
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+      });
+      error(res, String(err), 404);
+    }
+  });
+
   post('/api/community/submit', async (_req, res, body) => {
     try {
-      const { type, data, note } = body as { type: 'chat' | 'debate'; data: unknown; note?: string };
+      const { type, data, note } = body as { type: 'chat' | 'debate' | 'oped'; data: unknown; note?: string };
       if (!type || !data) { json(res, { error: 'type and data required' }, 400); return; }
 
       // Pre-flight: a community submission must reach GitHub (it's shared data on
@@ -170,7 +208,7 @@ export function registerCommunityRoutes(r: Router, ctx: ServerCtx): void {
 
   post('/api/community/copy', async (_req, res, body) => {
     try {
-      const { type, communityId } = body as { type: 'chats' | 'debates'; communityId: string };
+      const { type, communityId } = body as { type: 'chats' | 'debates' | 'opeds'; communityId: string };
       if (!type || !communityId) { json(res, { error: 'type and communityId required' }, 400); return; }
       json(res, await community.copyFromCommunity(type, communityId));
     } catch (err) {

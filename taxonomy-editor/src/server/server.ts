@@ -70,6 +70,7 @@ import { registerSupportRoutes } from './routes/support.js';
 import { registerSourcesRoutes } from './routes/sources.js';
 import { registerSessionRoutes, anonSessionCookiesWithCreated } from './routes/session.js';
 import { registerPreferencesRoutes } from './routes/preferences.js';
+import { registerOpedRoutes } from './routes/oped.js';
 import { buildLoginPage, FORBIDDEN_PAGE, SW_HEAL_SCRIPT_CSP_HASH, loginPageHeaders } from './loginPage.js';
 import type { ServerCtx } from './routes/context.js';
 import { listFlags, setFlag, deleteFlag, type FlagDef } from './featureFlags.js';
@@ -417,7 +418,7 @@ registerDiagnosticsRoutes(router, serverCtx);
 // t/1347: /api/community/* cluster extracted to routes/community.ts (registered here at
 // the group's position; the community-only respondRateLimited helper moved with it).
 registerCommunityRoutes(router, serverCtx);
-
+registerOpedRoutes(router, serverCtx); // t/2573: /api/oped-sets library (list/load/delete); no v1 create route — see routes/oped.ts
 // t/1687: the public client-config + support-cases route run moved to
 // routes/support.ts (registered here at its former position, between
 // registerCommunityRoutes and registerHarvestRoutes, to preserve snapshot order).
