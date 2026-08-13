@@ -2,7 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import fs from 'fs';
-import { execSync } from 'child_process';
+import { execFileSync } from 'child_process';
 import { getGlobalRecorder } from '../flight-recorder/index.js';
 import { ActionableError } from './errors.js';
 
@@ -43,7 +43,7 @@ export function safeSerialize(value: unknown, indent: number = 2): { json: strin
 function queryLockHolder(filePath: string): { processName?: string; pid?: number; unavailable?: boolean; reason?: string } {
   if (process.platform !== 'win32') return { unavailable: true, reason: 'non-Windows' };
   try {
-    const output = execSync(`handle.exe "${filePath}"`, { timeout: 2000, encoding: 'utf-8' });
+    const output = execFileSync('handle.exe', [filePath], { timeout: 2000, encoding: 'utf-8' });
     // handle.exe output: "<ProcessName>  pid: <pid>  type: File  <handle>: <path>"
     const match = output.match(/^(\S+)\s+pid:\s+(\d+)\s/m);
     if (match) return { processName: match[1], pid: parseInt(match[2], 10) };
