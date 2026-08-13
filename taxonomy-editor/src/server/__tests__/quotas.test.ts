@@ -33,6 +33,8 @@ vi.mock('../runtimeConfig.js', () => ({
     cache: { defaultTtlMs: 5000 },
   }),
 }));
+// Note: runtimeConfig mock omits defaultMaxOpEds (t/2573 not yet landed);
+// quotas.ts uses the interim hardcoded default of 10 for maxOpEds.
 
 async function loadModule() {
   vi.resetModules();
@@ -126,6 +128,7 @@ describe('quotas config load — fd path (t/2023)', () => {
 
     expect(limits.maxChats).toBe(25);
     expect(limits.maxDebates).toBe(15);
+    expect(limits.maxOpEds).toBe(10);
     // fd was never opened → finally must not attempt to close it.
     expect(fsMock.closeSync).not.toHaveBeenCalled();
   });
@@ -135,6 +138,7 @@ describe('quotas config load — fd path (t/2023)', () => {
     const limits = getQuotaLimits();
     expect(limits.maxChats).toBe(25);
     expect(limits.maxDebates).toBe(15);
+    expect(limits.maxOpEds).toBe(10);
   });
 });
 
@@ -166,5 +170,17 @@ describe('checkQuota', () => {
     const { checkQuota } = await loadModule();
     const result = checkQuota('debates', 5, 'testuser');
     expect(result).toMatchObject({ allowed: true, current: 5, limit: 15 });
+  });
+
+  it('allows opeds under the limit', async () => {
+    const { checkQuota } = await loadModule();
+    const result = checkQuota('opeds', 5, 'testuser');
+    expect(result).toMatchObject({ allowed: true, current: 5, limit: 10, resource: 'opeds' });
+  });
+
+  it('blocks when at the opeds limit', async () => {
+    const { checkQuota } = await loadModule();
+    const result = checkQuota('opeds', 10, 'testuser');
+    expect(result).toMatchObject({ allowed: false, current: 10, limit: 10 });
   });
 });
