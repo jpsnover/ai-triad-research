@@ -83,12 +83,6 @@
       "backend": "gemini"
     },
     {
-      "id": "gemini-3.6-flash",
-      "apiModelId": "gemini-3.6-flash",
-      "label": "Gemini 3.6 Flash",
-      "backend": "gemini"
-    },
-    {
       "id": "gemini-3.1-pro-preview",
       "apiModelId": "gemini-3.1-pro-preview",
       "label": "Gemini 3.1 Pro Preview",
@@ -760,10 +754,6 @@
     "moonshot": "moonshot-kimi-k3"
   },
   "fallbackChains": {
-    "gemini-3.6-flash": [
-      "gemini-3.5-flash-lite",
-      "groq-llama-3.3-70b-versatile"
-    ],
     "gemini-3.1-pro-preview": [
       "gemini-3.1-pro-preview"
     ],
