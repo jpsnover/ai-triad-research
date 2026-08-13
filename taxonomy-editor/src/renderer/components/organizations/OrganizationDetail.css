@@ -148,6 +148,6 @@
 }
 .od-tags-row { display: flex; flex-wrap: wrap; gap: 4px; }
 .od-tag-chip { padding: 1px 8px; border-radius: 10px; font-size: var(--text-2xs); background: var(--bg-tertiary, #1e293b); color: var(--text-muted); }
-.od-footer { border-top: 1px solid var(--border); padding-top: 8px; font-size: 0.7rem; color: var(--text-muted); }
+.od-footer { border-top: 1px solid var(--border-color); padding-top: 8px; font-size: 0.7rem; color: var(--text-muted); }
 .od-footer-id { font-family: monospace; user-select: all; }
 .od-footer-spaced { margin-left: 12px; }

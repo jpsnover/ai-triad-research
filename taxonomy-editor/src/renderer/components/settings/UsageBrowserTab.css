@@ -17,7 +17,7 @@
   font-size: var(--text-sm);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-sm);
-  background: var(--bg-secondary, var(--input-bg, #fff));
+  background: var(--bg-secondary, var(--bg-input, #fff));
   color: var(--text-primary);
 }
 
@@ -26,7 +26,7 @@
   font-size: var(--text-sm);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-sm);
-  background: var(--bg-secondary, var(--input-bg, #fff));
+  background: var(--bg-secondary, var(--bg-input, #fff));
   color: var(--text-primary);
 }
 
@@ -71,11 +71,11 @@
 }
 
 .usage-browser-row:hover {
-  background: var(--hover-bg, rgba(0, 0, 0, 0.03));
+  background: var(--bg-hover, rgba(0, 0, 0, 0.03));
 }
 
 .usage-browser-row-expanded {
-  background: var(--hover-bg, rgba(0, 0, 0, 0.03));
+  background: var(--bg-hover, rgba(0, 0, 0, 0.03));
 }
 
 .usage-browser-id code {

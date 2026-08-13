@@ -277,7 +277,7 @@ function WarningItem({ warning }: { warning: ScopeDriftWarning }) {
         fontStyle: 'italic',
         fontSize: 'var(--text-2xs)',
         padding: '3px 6px',
-        borderLeft: '1px solid var(--border)',
+        borderLeft: '1px solid var(--border-color)',
         marginTop: 2,
       }}>
         {warning.draft_excerpt.length > 200 ? warning.draft_excerpt.slice(0, 200) + '…' : warning.draft_excerpt}

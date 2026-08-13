@@ -17,7 +17,7 @@
   width: min(720px, 90vw);
   max-height: 85vh;
   background: var(--bg-primary, #fff);
-  border: 1px solid var(--border, #d0d7de);
+  border: 1px solid var(--border-color, #d0d7de);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-3);
   display: flex;
@@ -29,7 +29,7 @@
   align-items: center;
   justify-content: space-between;
   padding: 14px 18px;
-  border-bottom: 1px solid var(--border, #d0d7de);
+  border-bottom: 1px solid var(--border-color, #d0d7de);
 }
 .sync-diag-header h2 {
   margin: 0;
@@ -129,7 +129,7 @@
   font-weight: 500;
   color: var(--text-muted);
   padding: 4px 8px;
-  border-bottom: 1px solid var(--border, #d0d7de);
+  border-bottom: 1px solid var(--border-color, #d0d7de);
 }
 .sync-diag-file-table td {
   padding: 3px 8px;

@@ -290,7 +290,7 @@
 .cit-hr-line {
   flex: 1;
   height: 1px;
-  background: var(--border);
+  background: var(--border-color);
 }
 
 .cit-raw-summary {
@@ -337,7 +337,7 @@
 .cit-muted { color: var(--text-muted); }
 
 .cit-breakdown {
-  border-top: 1px solid var(--border);
+  border-top: 1px solid var(--border-color);
   margin-top: 4px;
   padding-top: 3px;
   font-size: var(--text-2xs);

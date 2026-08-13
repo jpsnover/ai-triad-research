@@ -80,8 +80,8 @@ function GrowthChart({ summary, traces }: { summary: ExtractionSummary; traces: 
       style={{ height: H }}
     >
       {plateauRect}
-      <line x1={PAD} y1={H - PAD} x2={W - PAD} y2={H - PAD} stroke="var(--border)" strokeWidth={0.5} />
-      <line x1={PAD} y1={PAD} x2={PAD} y2={H - PAD} stroke="var(--border)" strokeWidth={0.5} />
+      <line x1={PAD} y1={H - PAD} x2={W - PAD} y2={H - PAD} stroke="var(--border-color)" strokeWidth={0.5} />
+      <line x1={PAD} y1={PAD} x2={PAD} y2={H - PAD} stroke="var(--border-color)" strokeWidth={0.5} />
       <polyline fill="none" stroke="#22c55e" strokeWidth={1.5} points={points} />
       {summary.an_growth_series.map((p, i) => (
         <circle key={i} cx={x(p.round)} cy={y(p.cumulative_count)} r={2}
@@ -117,7 +117,7 @@ function RejectionSparkline({ traces }: { traces: ClaimExtractionTrace[] }) {
       /* eslint-disable-next-line local/no-inline-style -- dynamic: computed chart height */
       style={{ height: H }}
     >
-      <line x1={PAD} y1={H - PAD} x2={W - PAD} y2={H - PAD} stroke="var(--border)" strokeWidth={0.5} />
+      <line x1={PAD} y1={H - PAD} x2={W - PAD} y2={H - PAD} stroke="var(--border-color)" strokeWidth={0.5} />
       {traces.map((t, i) => {
         const x = PAD + i * (barW + 2);
         let yOffset = H - PAD;
@@ -193,7 +193,7 @@ const navBtn = (disabled: boolean): React.CSSProperties => ({
   fontSize: 'var(--text-2xs)',
   fontWeight: 600,
   borderRadius: 4,
-  border: '1px solid var(--border)',
+  border: '1px solid var(--border-color)',
   background: disabled ? 'transparent' : 'rgba(249,115,22,0.1)',
   color: disabled ? 'var(--text-muted)' : '#f97316',
   cursor: disabled ? 'not-allowed' : 'pointer',

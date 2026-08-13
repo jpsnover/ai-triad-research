@@ -6,6 +6,6 @@
   display: flex;
   flex-direction: column;
   background: var(--bg);
-  color: var(--text);
+  color: var(--text-primary);
   font-family: system-ui, sans-serif;
 }

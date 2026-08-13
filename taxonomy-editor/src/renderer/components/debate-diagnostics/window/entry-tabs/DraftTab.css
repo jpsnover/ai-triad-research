@@ -264,7 +264,7 @@
   margin-bottom: 6px;
 }
 
-.draft-tr-border { border-bottom: 1px solid var(--border); }
+.draft-tr-border { border-bottom: 1px solid var(--border-color); }
 .draft-tr-border-soft { border-bottom: 1px solid color-mix(in srgb, var(--text-muted) 10%, transparent); }
 
 .draft-th-left {
@@ -398,7 +398,7 @@
 }
 
 .draft-score-breakdown {
-  border-top: 1px solid var(--border);
+  border-top: 1px solid var(--border-color);
   margin-top: 4px;
   padding-top: 3px;
   font-size: var(--text-2xs);
@@ -407,7 +407,7 @@
 }
 
 .draft-caveats-box {
-  border-top: 1px solid var(--border);
+  border-top: 1px solid var(--border-color);
   margin-top: 4px;
   padding-top: 3px;
 }
@@ -437,7 +437,7 @@
 .draft-hr-line {
   flex: 1;
   height: 1px;
-  background: var(--border);
+  background: var(--border-color);
 }
 
 .draft-valscore-box {

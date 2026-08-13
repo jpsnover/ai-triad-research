@@ -37,7 +37,7 @@
   top: var(--ctx-y);
   z-index: 9999;
   background: var(--bg-primary, #1a1a2e);
-  border: 1px solid var(--border, #333);
+  border: 1px solid var(--border-color, #333);
   border-radius: 6px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
   padding: 2px 0;

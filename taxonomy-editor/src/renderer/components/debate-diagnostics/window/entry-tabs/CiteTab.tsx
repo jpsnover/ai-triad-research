@@ -96,7 +96,7 @@ function CiteTaxonomyRefsSection(props: CiteTaxRefsSectionProps) {
                 const nodeLabel = (taxNodeMap.get(r.node_id) as TaxRefNode | undefined)?.label;
                 return (
                   // eslint-disable-next-line local/no-inline-style -- selection-driven background
-                  <tr key={i} style={{ borderBottom: '1px solid var(--border)', background: isSelected ? 'color-mix(in srgb, var(--warning) 8%, transparent)' : 'transparent' }}>
+                  <tr key={i} style={{ borderBottom: '1px solid var(--border-color)', background: isSelected ? 'color-mix(in srgb, var(--warning) 8%, transparent)' : 'transparent' }}>
                     <td className="cit-td-node">
                       <div>
                         <button
@@ -308,7 +308,7 @@ export function CiteTab(props: CiteTabProps) {
                 const pol = policyMap.get(p);
                 return (
                   // eslint-disable-next-line local/no-inline-style -- selection-driven background
-                  <tr key={i} style={{ borderBottom: '1px solid var(--border)', background: isSelected ? 'color-mix(in srgb, var(--text-secondary) 8%, transparent)' : 'transparent' }}>
+                  <tr key={i} style={{ borderBottom: '1px solid var(--border-color)', background: isSelected ? 'color-mix(in srgb, var(--text-secondary) 8%, transparent)' : 'transparent' }}>
                     <td className="cit-td-pol">
                       <button
                         onClick={() => setSelectedPolicyId(isSelected ? null : p)}

@@ -73,7 +73,7 @@ function StrengthTimeline({ timeline, nodes, onSelectClaim }: {
         {/* Grid lines */}
         {[0, 0.25, 0.5, 0.75, 1.0].map(v => (
           <g key={v}>
-            <line x1={TIMELINE_PAD.left} y1={yScale(v)} x2={TIMELINE_W - TIMELINE_PAD.right} y2={yScale(v)} stroke="var(--border)" strokeWidth={0.5} opacity={0.4} />
+            <line x1={TIMELINE_PAD.left} y1={yScale(v)} x2={TIMELINE_W - TIMELINE_PAD.right} y2={yScale(v)} stroke="var(--border-color)" strokeWidth={0.5} opacity={0.4} />
             <text x={TIMELINE_PAD.left - 4} y={yScale(v) + 3} textAnchor="end" fill="var(--text-muted)" fontSize={8}>{v.toFixed(1)}</text>
           </g>
         ))}

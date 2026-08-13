@@ -65,7 +65,7 @@
   padding: 6px 10px;
   border-radius: 4px;
   background: var(--bg-secondary);
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-color);
   word-break: break-all;
   white-space: pre-wrap;
   display: block;
@@ -89,7 +89,7 @@
 }
 
 .debate-tab-speaker-thead-row {
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--border-color);
 }
 
 .debate-tab-speaker-th {
@@ -99,7 +99,7 @@
 }
 
 .debate-tab-speaker-tbody-row {
-  border-bottom: 1px solid var(--border-light, var(--border));
+  border-bottom: 1px solid var(--border-light, var(--border-color));
 }
 
 .debate-tab-speaker-td {

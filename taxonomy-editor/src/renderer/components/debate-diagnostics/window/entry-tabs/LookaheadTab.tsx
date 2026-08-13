@@ -191,7 +191,7 @@ export function LookaheadTab(props: LookaheadTabProps) {
               const hintColor = utilityHintColor(hint);
               return (
                 // eslint-disable-next-line local/no-inline-style -- dynamic fontWeight for composite row
-                <tr key={k} style={{ borderBottom: '1px solid var(--border)', fontWeight: k === 'composite' ? 700 : 400 }}>
+                <tr key={k} style={{ borderBottom: '1px solid var(--border-color)', fontWeight: k === 'composite' ? 700 : 400 }}>
                   <td className="look-cell-p">{k.replace(/_/g, ' ')}</td>
                   <td className="look-cell-r">{b.toFixed(3)}</td>
                   <td className="look-cell-r">{a.toFixed(3)}</td>

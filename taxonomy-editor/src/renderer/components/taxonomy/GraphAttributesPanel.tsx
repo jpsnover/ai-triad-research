@@ -155,9 +155,9 @@ function Badge({ field, value, onClick, onContextMenu }: {
 // ── Extracted sub-components for complexity reduction ──────────
 
 function confidenceColor(val: number): string {
-  if (val >= 0.7) return 'var(--color-success, #22c55e)';
+  if (val >= 0.7) return 'var(--success, #22c55e)';
   if (val >= 0.4) return 'var(--color-info, #3b82f6)';
-  return 'var(--color-warning, #f59e0b)';
+  return 'var(--warning, #f59e0b)';
 }
 
 export function ConfidenceCell({ value, readOnly, doctrinallyAnchored, evidentialConfidence, history, onUpdate }: {

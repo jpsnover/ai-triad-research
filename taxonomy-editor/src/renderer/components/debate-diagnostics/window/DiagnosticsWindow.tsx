@@ -471,7 +471,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
               minWidth: selectedEntry ? 280 : 0,
               maxWidth: selectedEntry ? '45%' : 'none',
               overflow: 'hidden', display: 'flex', flexDirection: 'column',
-              borderRight: selectedEntry ? '1px solid var(--border)' : 'none',
+              borderRight: selectedEntry ? '1px solid var(--border-color)' : 'none',
               marginRight: selectedEntry ? 8 : 0,
             }}>
               <OverviewTabRouter

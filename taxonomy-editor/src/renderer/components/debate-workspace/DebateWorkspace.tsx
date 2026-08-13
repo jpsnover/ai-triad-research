@@ -163,7 +163,7 @@ function ShareToCommunityButton({ debate }: { debate: { id: string; topic: strin
       {shareState === 'error' && shareError && (
         <span
           className="debate-toolbar-status"
-          style={{ color: 'var(--red, #ef4444)', marginLeft: 4, fontSize: '0.75rem' }}
+          style={{ color: 'var(--danger, #ef4444)', marginLeft: 4, fontSize: '0.75rem' }}
           title={shareError}
         >
           {'Failed: ' + shareError}

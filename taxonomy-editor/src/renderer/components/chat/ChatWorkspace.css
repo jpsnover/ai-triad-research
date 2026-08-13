@@ -83,7 +83,7 @@
 }
 
 .chat-share-error {
-  color: var(--red, #ef4444);
+  color: var(--danger, #ef4444);
   font-size: var(--text-xs);
   padding: var(--sp-1) var(--sp-3);
 }
@@ -133,7 +133,7 @@
   z-index: 20;
   margin-top: var(--sp-1);
   background: var(--bg-primary);
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-2);
   min-width: 140px;

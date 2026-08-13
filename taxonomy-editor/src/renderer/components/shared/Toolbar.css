@@ -19,12 +19,12 @@
 }
 
 .toolbar-nav:hover {
-  background: var(--bg-hover, var(--hover-bg));
+  background: var(--bg-hover, var(--bg-hover));
   color: var(--text-secondary);
 }
 
 .toolbar-nav-active {
-  background: var(--bg-hover, var(--hover-bg));
+  background: var(--bg-hover, var(--bg-hover));
   color: var(--text-primary);
 }
 

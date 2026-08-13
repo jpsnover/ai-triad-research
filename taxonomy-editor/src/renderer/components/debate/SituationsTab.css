@@ -5,7 +5,7 @@
 }
 
 .situations-standalone-divider {
-  border-top: 1px solid var(--border);
+  border-top: 1px solid var(--border-color);
   margin-top: 4px;
   padding-top: 4px;
 }

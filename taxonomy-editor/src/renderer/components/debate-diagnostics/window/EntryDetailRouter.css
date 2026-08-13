@@ -38,7 +38,7 @@
   color: var(--text-muted);
   font-family: var(--font-mono, monospace);
   background: none;
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-color);
   border-radius: var(--radius-sm);
   padding: 1px 4px;
   cursor: pointer;
@@ -67,7 +67,7 @@
   font-size: var(--text-2xs);
   font-weight: 600;
   border-radius: var(--radius-sm);
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-color);
   background: color-mix(in srgb, var(--accent, #f97316) 10%, transparent);
   color: var(--accent, #f97316);
   cursor: pointer;
@@ -155,7 +155,7 @@
 .edr-tab-bar {
   display: flex;
   align-items: flex-end;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--border-color);
 }
 
 .edr-tab-ran-empty-marker {
@@ -178,7 +178,7 @@
 .edr-tab-copy-btn {
   font-size: var(--text-xs);
   padding: 3px 10px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-color);
   border-radius: var(--radius-sm);
   background: var(--bg-secondary);
   color: var(--text-primary);
@@ -193,7 +193,7 @@
   min-height: 0;
   overflow-y: auto;
   background: var(--bg-primary);
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-color);
   border-top: none;
   border-radius: 0 var(--radius-md) var(--radius-md) var(--radius-md);
   outline: none;
@@ -230,7 +230,7 @@
   position: fixed;
   z-index: 9999;
   background: var(--bg-primary);
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
   box-shadow: 0 4px 12px rgba(0,0,0,0.25);
   padding: 4px 0;

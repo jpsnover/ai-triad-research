@@ -10,7 +10,7 @@
 }
 
 .support-mycases-error-text {
-  color: var(--color-error, #ef4444);
+  color: var(--danger, #ef4444);
   margin-bottom: 12px;
 }
 
@@ -43,7 +43,7 @@
 .support-mycases-detail-error {
   padding: 20px;
   text-align: center;
-  color: var(--color-error, #ef4444);
+  color: var(--danger, #ef4444);
 }
 
 .support-mycases-list {
@@ -72,7 +72,7 @@
 .support-mycases-row {
   padding: 8px 10px;
   border-radius: 6px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-color);
   cursor: pointer;
   background: var(--bg-primary);
   transition: background 0.1s;

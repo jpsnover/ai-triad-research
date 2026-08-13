@@ -5,13 +5,13 @@
  */
 
 .community-share-banner-admin {
-  color: var(--green, #22c55e);
+  color: var(--success, #22c55e);
   font-size: 0.75rem;
 }
 
 .community-share-banner-compact {
   background: var(--bg-secondary, #f5f5f5);
-  border-left: 3px solid var(--green, #22c55e);
+  border-left: 3px solid var(--success, #22c55e);
   border-radius: 6px;
   padding: 6px 12px;
   margin-top: 6px;
@@ -22,7 +22,7 @@
 }
 
 .community-share-banner-compact-icon {
-  color: var(--green, #22c55e);
+  color: var(--success, #22c55e);
   flex-shrink: 0;
 }
 
@@ -39,7 +39,7 @@
 
 .community-share-banner {
   background: var(--bg-secondary, #f5f5f5);
-  border-left: 3px solid var(--green, #22c55e);
+  border-left: 3px solid var(--success, #22c55e);
   border-radius: 6px;
   padding: 8px 12px;
   margin-top: 6px;
@@ -52,7 +52,7 @@
 }
 
 .community-share-banner-icon {
-  color: var(--green, #22c55e);
+  color: var(--success, #22c55e);
   flex-shrink: 0;
 }
 
