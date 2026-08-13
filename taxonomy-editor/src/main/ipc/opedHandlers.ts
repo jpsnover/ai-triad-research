@@ -17,7 +17,7 @@ import { getGlobalRecorder } from '../../../../lib/flight-recorder/index.js';
 import { assertSafeId } from '../../../../lib/electron-shared/safeId.js';
 import { PROJECT_ROOT, getDataRootPath } from '../fileIO.js';
 import { saveOpEdSetTemp, finalizeOpEdSet, loadOpEdSet, deleteOpEdSet, listOpEdSets, saveOpEdSet } from '../opedIO.js';
-import type { OpEdSet, OpEdMember, OpEdParams } from '../../../../lib/oped/types.js';
+import type { OpEdSet, OpEdMember, OpEdParams, OpEdGroundingRef } from '../../../../lib/oped/types.js';
 import type { PovKey } from '../../../../lib/oped/types.js';
 
 // PS shims live in source tree alongside their TypeScript callers. PROJECT_ROOT resolves
@@ -60,6 +60,31 @@ interface OpEdProgressEvent {
 interface ShimStageLine { type: 'stage'; stage: string }
 interface ShimResultLine { type: 'result'; data: Record<string, unknown> }
 type ShimLine = ShimStageLine | ShimResultLine;
+
+// STOPGAP (t/2611): PS shim returns PascalCase grounding fields and short pov codes.
+// Normalize at the persist boundary so stored JSON conforms to TS types.
+// Delete both helpers when t/2611 replaces the PS path with lib/oped core.
+
+const POV_SHORT_MAP: Readonly<Record<string, PovKey>> = {
+  acc: 'accelerationist', saf: 'safetyist', skp: 'skeptic',
+  accelerationist: 'accelerationist', safetyist: 'safetyist', skeptic: 'skeptic',
+} as const;
+
+function normalizePov(raw: unknown): PovKey {
+  return POV_SHORT_MAP[String(raw ?? '').toLowerCase()] ?? (raw as PovKey);
+}
+
+function normalizeGrounding(raw: unknown): OpEdGroundingRef[] {
+  if (!Array.isArray(raw)) return [];
+  return (raw as Record<string, unknown>[]).map(g => ({
+    node_id:       String(g.node_id       ?? g.NodeId       ?? ''),
+    label:         String(g.label         ?? g.Label         ?? ''),
+    category:      String(g.category      ?? g.Category      ?? ''),
+    pov:           normalizePov(g.pov     ?? g.Pov),
+    relevance:     String(g.relevance     ?? g.Relevance     ?? ''),
+    how_reflected: String(g.how_reflected ?? g.HowReflected  ?? ''),
+  }));
+}
 
 // ── Stage-A: source prep runner ───────────────────────────────────────────────
 
@@ -215,9 +240,7 @@ function runVoice({ topic, pov, params, sourcePrep, signal, onProgress }: VoiceR
             body:      String(raw.Body      ?? raw.body      ?? ''),
             pitch:     raw.Pitch ?? raw.pitch ? String(raw.Pitch ?? raw.pitch) : undefined,
             wordCount: Number(raw.WordCount  ?? raw.wordCount ?? 0),
-            grounding: Array.isArray(raw.Grounding ?? raw.grounding)
-              ? (raw.Grounding ?? raw.grounding) as OpEdMember['grounding']
-              : [],
+            grounding: normalizeGrounding(raw.Grounding ?? raw.grounding),
           };
           settle(() => {
             onProgress('complete');
