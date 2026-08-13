@@ -131,7 +131,7 @@ export interface RuntimeConfig {
 // Mirror of the backend ids in ai-models.json (t/1513). Used to validate admin
 // overrides of tier allowedBackends — must include every backend the system can
 // route to, or valid overrides get silently dropped by vBackends().
-export const KNOWN_BACKENDS = ['gemini', 'claude', 'groq', 'openai', 'deepseek', 'azure', 'zai', 'moonshot', 'ollama'] as const;
+export const KNOWN_BACKENDS = ['gemini', 'claude', 'groq', 'openai', 'deepseek', 'azure', 'zai', 'moonshot', 'xai', 'ollama'] as const;
 
 // Range bounds (spec §3.2).
 const DURATION_MAX = 86_400_000; // 24h

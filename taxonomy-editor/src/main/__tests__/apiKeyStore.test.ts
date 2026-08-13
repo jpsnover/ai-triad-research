@@ -178,7 +178,7 @@ describe('full-backend coverage (t/1957 — zai/moonshot were silently omitted)'
   // so deleteAllApiKeys left those keys on disk).
   const FAKE_KEYS: Record<ApiKeyBackend, string> = {
     gemini: 'k-gemini', claude: 'k-claude', groq: 'k-groq', openai: 'k-openai', azure: 'k-azure',
-    ollama: 'k-ollama', deepseek: 'k-deepseek', zai: 'k-zai', moonshot: 'k-moonshot', tavily: 'k-tavily',
+    ollama: 'k-ollama', deepseek: 'k-deepseek', zai: 'k-zai', moonshot: 'k-moonshot', xai: 'k-xai', tavily: 'k-tavily',
   };
   const ALL = Object.keys(FAKE_KEYS) as ApiKeyBackend[];
 

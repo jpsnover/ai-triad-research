@@ -63,7 +63,7 @@ function Test-AIApiKey {
     [OutputType([PSCustomObject])]
     param(
         [Parameter(Mandatory, ParameterSetName = 'One', Position = 0)]
-        [ValidateSet('gemini', 'claude', 'groq', 'openai', 'azure', 'ollama', 'zai', 'moonshot', 'deepseek')]
+        [ValidateSet('gemini', 'claude', 'groq', 'openai', 'azure', 'ollama', 'zai', 'moonshot', 'xai', 'deepseek')]
         [string]$Backend,
 
         [Parameter(ParameterSetName = 'One')]
@@ -176,6 +176,11 @@ function Test-AIApiKey {
                 $Uri = 'https://api.moonshot.ai/v1/models'
                 $Headers['Authorization'] = "Bearer $Key"
             }
+            # t/2583 — xAI (Grok) is OpenAI-compatible and exposes a GET /v1/models list.
+            'xai' {
+                $Uri = 'https://api.x.ai/v1/models'
+                $Headers['Authorization'] = "Bearer $Key"
+            }
             # t/1938 — DeepSeek is OpenAI-compatible and exposes a GET /models list.
             'deepseek' {
                 $Uri = 'https://api.deepseek.com/models'
@@ -259,6 +264,8 @@ function Test-AIApiKey {
         # t/1437 — z.ai only if $env:ZAI_API_KEY is present (needs a real key).
         if ($env:ZAI_API_KEY) { $Backends += 'zai' }
         if ($env:MOONSHOT_API_KEY) { $Backends += 'moonshot' }
+        # t/2583 — xAI (Grok) only if $env:XAI_API_KEY is present (needs a real key).
+        if ($env:XAI_API_KEY) { $Backends += 'xai' }
         # t/1938 — DeepSeek only if $env:DEEPSEEK_API_KEY is present (needs a real key).
         if ($env:DEEPSEEK_API_KEY) { $Backends += 'deepseek' }
         foreach ($B in $Backends) {

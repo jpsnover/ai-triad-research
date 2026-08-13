@@ -20,6 +20,7 @@ describe('ALL_API_KEY_BACKENDS', () => {
         'ollama',
         'openai',
         'tavily',
+        'xai',
         'zai',
       ].sort(),
     );

@@ -349,7 +349,7 @@ function buildGenerateOptions(
 
 // No key for any model in the chain — throw a backend-named ActionableError.
 function throwNoApiKeyError(backend: string, modelsToTry: string[]): never {
-  const names: Record<string, string> = { gemini: 'Gemini', claude: 'Claude', groq: 'Groq', openai: 'OpenAI', tavily: 'Tavily', deepseek: 'DeepSeek', moonshot: 'Moonshot (Kimi)' };
+  const names: Record<string, string> = { gemini: 'Gemini', claude: 'Claude', groq: 'Groq', openai: 'OpenAI', tavily: 'Tavily', deepseek: 'DeepSeek', moonshot: 'Moonshot (Kimi)', xai: 'xAI (Grok)' };
   const backendName = names[backend] ?? backend;
   throw new ActionableError({
     goal: `Generate text via ${backendName}`,

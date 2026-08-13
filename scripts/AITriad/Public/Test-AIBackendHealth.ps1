@@ -19,7 +19,7 @@
 
 .PARAMETER Backend
     Single backend to probe. One of: gemini, claude, groq, openai, deepseek, azure, zai,
-    moonshot, ollama.
+    moonshot, xai, ollama.
 
 .PARAMETER All
     Probe every backend that has a default model in ai-models.json.
@@ -48,7 +48,7 @@ function Test-AIBackendHealth {
     [OutputType([PSCustomObject])]
     param(
         [Parameter(Mandatory, ParameterSetName = 'One', Position = 0)]
-        [ValidateSet('gemini', 'claude', 'groq', 'openai', 'deepseek', 'azure', 'zai', 'moonshot', 'ollama')]
+        [ValidateSet('gemini', 'claude', 'groq', 'openai', 'deepseek', 'azure', 'zai', 'moonshot', 'xai', 'ollama')]
         [string]$Backend,
 
         [Parameter(Mandatory, ParameterSetName = 'All')]

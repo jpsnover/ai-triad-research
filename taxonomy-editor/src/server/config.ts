@@ -157,6 +157,7 @@ const ENV_KEY_NAMES: Record<AIBackend, string> = {
   azure: 'AZURE_OPENAI_API_KEY', // t/945 build-fix; actual Azure-backend wiring owned elsewhere
   zai: 'ZAI_API_KEY',
   moonshot: 'MOONSHOT_API_KEY', // t/1934 build-fix; matches lib/debate/aiAdapter.ts key map
+  xai: 'XAI_API_KEY', // t/2583; xAI Grok — matches lib/debate/aiAdapter.ts key map
 };
 
 // Imported after AIBackend is defined (keyStore depends on the type).

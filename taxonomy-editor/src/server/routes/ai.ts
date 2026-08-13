@@ -62,6 +62,7 @@ const BACKEND_DISPLAY: Record<AIBackend, string> = {
   gemini: 'Gemini', claude: 'Claude (Anthropic)', groq: 'Groq',
   openai: 'OpenAI', deepseek: 'DeepSeek', tavily: 'Tavily', ollama: 'Ollama',
   azure: 'Azure OpenAI', zai: 'Z.AI (GLM)', moonshot: 'Moonshot (Kimi)',
+  xai: 'xAI (Grok)',
 };
 
 // ── POST /api/ai/generate guard/step helpers (extracted from the handler, ADR-007)
