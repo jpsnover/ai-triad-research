@@ -20,6 +20,7 @@ import { useCommunityStore } from '../../hooks/useCommunityStore';
 import type { OpEdSet, OpEdCommunityEntry } from '../../../../../lib/oped/types';
 import { OpEdTable } from './OpEdTable';
 import { OpEdReader } from './OpEdReader';
+import { NewOpEdDialog } from './NewOpEdDialog';
 import './OpEdTab.css';
 
 function recordError(component: string, message: string, err: unknown): void {
@@ -100,7 +101,7 @@ function filterCommunity(entries: OpEdCommunityEntry[], q: string): OpEdCommunit
 
 function OpEdHeaderActions({
   listView, editMode, hasSets, selectedCount, isElectron,
-  onBulkDelete, onClearSelected, onExitEdit, onEnterEdit,
+  onBulkDelete, onClearSelected, onExitEdit, onEnterEdit, onNew,
 }: {
   listView: 'my' | 'community';
   editMode: boolean;
@@ -111,6 +112,7 @@ function OpEdHeaderActions({
   onClearSelected: () => void;
   onExitEdit: () => void;
   onEnterEdit: () => void;
+  onNew: () => void;
 }) {
   if (listView !== 'my') return null;
   if (editMode) {
@@ -129,15 +131,21 @@ function OpEdHeaderActions({
       {hasSets && (
         <button className="btn btn-sm btn-ghost" onClick={onEnterEdit} title="Rename or delete op-eds">Edit</button>
       )}
-      {/* Create is PR#2 — the button is present but disabled (t/2570#3). */}
-      <button
-        className="btn btn-sm"
-        disabled
-        title={isElectron ? 'Create coming soon' : 'Available in the desktop app'}
-        aria-label="New op-ed (coming soon)"
-      >
-        + New Op-Ed
-      </button>
+      {/* Create (PR#2) — Electron only; web keeps the disabled desktop-app affordance. */}
+      {isElectron ? (
+        <button className="btn btn-sm" onClick={onNew} aria-label="New op-ed">
+          + New Op-Ed
+        </button>
+      ) : (
+        <button
+          className="btn btn-sm"
+          disabled
+          title="Available in the desktop app"
+          aria-label="New op-ed (available in the desktop app)"
+        >
+          + New Op-Ed
+        </button>
+      )}
     </div>
   );
 }
@@ -194,6 +202,7 @@ export function OpEdTab() {
   const [renameValue, setRenameValue] = useState('');
   const [copyingId, setCopyingId] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
+  const [showNewDialog, setShowNewDialog] = useState(false);
 
   // The set currently open in the reader — may come from the personal store (My)
   // or a community load (Community). null = table view.
@@ -240,6 +249,16 @@ export function OpEdTab() {
     setReaderSet(null);
     setReaderError(null);
   }, [selectSet]);
+
+  // A fresh create (PR#2) — reload the library, then open the new set in the reader.
+  const handleCreated = useCallback(async (setId: string) => {
+    setListView('my');
+    await loadSets();
+    const found = useOpEdStore.getState().sets.find(s => s.set_id === setId) ?? null;
+    selectSet(setId);
+    setReaderError(null);
+    setReaderSet(found);
+  }, [loadSets, selectSet]);
 
   // ── Row actions ──
 
@@ -331,6 +350,7 @@ export function OpEdTab() {
             onClearSelected={clearSelected}
             onExitEdit={exitEditMode}
             onEnterEdit={() => setEditMode(true)}
+            onNew={() => setShowNewDialog(true)}
           />
         </div>
 
@@ -378,7 +398,7 @@ export function OpEdTab() {
             onOpen={openMy}
             onExport={handleExportMy}
             onShare={handleShare}
-            onNew={() => { /* create is PR#2 */ }}
+            onNew={() => setShowNewDialog(true)}
             selectedSetId={selectedSetId}
             totalCount={sets.length}
           />
@@ -399,6 +419,14 @@ export function OpEdTab() {
           />
         )}
       </div>
+
+      {isElectron && (
+        <NewOpEdDialog
+          open={showNewDialog}
+          onClose={() => setShowNewDialog(false)}
+          onCreated={setId => { void handleCreated(setId); }}
+        />
+      )}
     </div>
   );
 }

@@ -8,7 +8,7 @@
 // a single-voice run is a set of 1; a multi-voice set shows N camp chips and a
 // "▸ N voices" tag on the headline.
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import type { OpEdSet, OpEdCommunityEntry, PovKey } from '../../../../../lib/oped/types';
 import { CampGlyph, povToCamp } from '../shared/CampGlyph';
 import { POV_META } from '@lib/electron-shared/povMeta';
@@ -176,9 +176,26 @@ function SortHeader({ label, col, sort, onSort }: {
 
 function OpEdExportMenu({ onExport }: { onExport: (format: string) => void }) {
   const [open, setOpen] = useState(false);
+  const wrapRef = useRef<HTMLSpanElement>(null);
   const pick = (format: string) => { setOpen(false); onExport(format); };
+
+  // Escape + click-outside dismiss (t/2576#6 polish).
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false); };
+    const onDocClick = (e: MouseEvent) => {
+      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('keydown', onKey);
+    document.addEventListener('mousedown', onDocClick);
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      document.removeEventListener('mousedown', onDocClick);
+    };
+  }, [open]);
+
   return (
-    <span className="oped-export-menu">
+    <span className="oped-export-menu" ref={wrapRef}>
       <button
         type="button"
         className="oped-table-action-btn"
