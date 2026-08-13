@@ -13,6 +13,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 import type { CalibrationDataPoint } from './schema.js';
 
 // ── File I/O ────────────────────────────────────────────────
@@ -42,7 +43,7 @@ function captureRunProvenance(): { config_revision: string; working_tree_state: 
   // Resolve relative to this file — use import.meta.url for ESM compatibility (mirrors captureSnapshot).
   // This module lives in lib/debate/calibrationLogger/, so calibration-config.json (in lib/debate/)
   // is one directory up.
-  const thisDir = path.dirname(new URL(import.meta.url).pathname);
+  const thisDir = path.dirname(fileURLToPath(import.meta.url));
 
   let config_revision = '';
   try {
