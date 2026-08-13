@@ -142,7 +142,7 @@
   border-left: 3px solid var(--pov-color);
   padding: 8px 10px;
   margin-bottom: 10px;
-  background: var(--bg-subtle);
+  background: var(--bg-secondary);
   border-radius: 4px;
 }
 
@@ -161,7 +161,7 @@
 
 .pov-prog-an-empty {
   padding: 8px 10px;
-  background: var(--bg-subtle);
+  background: var(--bg-secondary);
   border-radius: 4px;
   font-size: 0.7rem;
   color: var(--text-muted);
@@ -169,7 +169,7 @@
 
 .pov-prog-an-panel {
   padding: 8px 10px;
-  background: var(--bg-subtle);
+  background: var(--bg-secondary);
   border-radius: 4px;
 }
 

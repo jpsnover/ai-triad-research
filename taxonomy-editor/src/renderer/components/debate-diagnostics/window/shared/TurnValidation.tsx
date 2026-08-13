@@ -125,7 +125,7 @@ function AttemptHintEffectiveness({ a }: { a: TurnAttempt }) {
                   <div key={hi} style={{
                     marginBottom: 4, padding: '4px 8px', borderRadius: 4, fontSize: 'var(--text-2xs)',
                     borderLeft: `3px solid ${resColors[h.resolution] ?? 'var(--text-muted)'}`,
-                    background: 'var(--bg-subtle)',
+                    background: 'var(--bg-secondary)',
                   }}>
                     <div className="tv-he-row-head">
                       {/* eslint-disable-next-line local/no-inline-style -- dynamic color/bg from resColors */}

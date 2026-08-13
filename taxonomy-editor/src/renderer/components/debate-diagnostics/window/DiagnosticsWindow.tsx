@@ -435,7 +435,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                               onClick={() => { setSelectedEntry(e.id); setLocalOverride(true); }}
                               className="diag-sidebar-entry"
                               style={{
-                                background: selectedEntry === e.id ? 'color-mix(in srgb, var(--accent, var(--color-acc)) 12%, transparent)' : 'transparent',
+                                background: selectedEntry === e.id ? 'color-mix(in srgb, var(--focus-ring, var(--color-acc)) 12%, transparent)' : 'transparent',
                               }}
                               title={`${speakerLabel(e.speaker)} [${e.type}]: ${e.content.slice(0, 80)}`}
                             >

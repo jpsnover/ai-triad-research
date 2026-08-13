@@ -278,7 +278,7 @@
   padding: 8px;
   border-radius: 4px;
   background: var(--bg-primary);
-  border-left: 3px solid var(--accent, #3b82f6);
+  border-left: 3px solid var(--focus-ring, #3b82f6);
 }
 
 .support-admin-response-meta {

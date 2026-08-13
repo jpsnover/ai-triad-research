@@ -1,7 +1,7 @@
 /* Copyright (c) 2026 Jeffrey Snover. All rights reserved. */
 /* EntityDetail — read-only entity record view (t/1882 §5). Uses DEFINED design-system
    tokens only (styles.css): --border-color (not --border), --focus-ring/--warning for
-   accents (--accent is undefined app-wide), and --text-secondary for small labels so
+   accents (--focus-ring is undefined app-wide), and --text-secondary for small labels so
    they clear WCAG AA 4.5:1 in all four themes (--text-muted fails in light/harvard/bkc).
    Verified per Design review t/1882#4. Badges/links come from DetailPrimitives. */
 
@@ -50,7 +50,7 @@
   font-weight: 600;
   border: 1px solid transparent;
 }
-/* Distinct, AA-safe status tones from DEFINED tokens (no --accent). Approved reads as a
+/* Distinct, AA-safe status tones from DEFINED tokens (no --focus-ring). Approved reads as a
    solid/active fill with a focus-ring accent border; proposed is a muted outline;
    deprecated is a warning outline. */
 .ed-status-approved { background: var(--bg-hover); color: var(--text-secondary); border-color: var(--focus-ring); }

@@ -171,7 +171,7 @@
   border: 1px solid var(--border-color);
   border-radius: 3px;
   background: var(--bg-primary);
-  color: var(--accent-color, #3b82f6);
+  color: var(--focus-ring, #3b82f6);
   cursor: pointer;
 }
 
@@ -214,7 +214,7 @@
   font-size: var(--text-2xs);
   border: none;
   background: none;
-  color: var(--accent-color, #3b82f6);
+  color: var(--focus-ring, #3b82f6);
   cursor: pointer;
   text-decoration: underline;
 }
@@ -271,7 +271,7 @@
   border: 1px solid var(--border-color);
   border-radius: 3px;
   background: var(--bg-primary);
-  color: var(--accent-color, #3b82f6);
+  color: var(--focus-ring, #3b82f6);
   cursor: pointer;
 }
 

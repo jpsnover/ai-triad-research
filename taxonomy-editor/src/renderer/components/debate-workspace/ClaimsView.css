@@ -46,7 +46,7 @@
 }
 
 .claims-id {
-  color: var(--accent);
+  color: var(--focus-ring);
 }
 
 .claims-badge {

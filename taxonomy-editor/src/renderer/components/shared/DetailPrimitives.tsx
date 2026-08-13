@@ -88,7 +88,7 @@ export function ExternalLinkRow({ url, title, type, orgUrl }: { url: string; tit
       )}
       <span
         className="od-ext-label"
-        style={{ '--label-color': isValid ? 'var(--color-info, #3b82f6)' : 'var(--text-muted)' } as React.CSSProperties}
+        style={{ '--label-color': isValid ? 'var(--info, #3b82f6)' : 'var(--text-muted)' } as React.CSSProperties}
       >
         {label}
       </span>

@@ -439,9 +439,9 @@ export function HelpDialog({ onClose, initialTab }: HelpDialogProps) {
                 className="helpdialog-tab"
                 // eslint-disable-next-line local/no-inline-style -- borderLeft/background/color computed from active tab
                 style={{
-                  borderLeft: t.id === activeTab ? '2px solid var(--accent)' : '2px solid transparent',
+                  borderLeft: t.id === activeTab ? '2px solid var(--focus-ring)' : '2px solid transparent',
                   background: t.id === activeTab ? 'rgba(var(--accent-rgb, 59,130,246), 0.08)' : 'transparent',
-                  color: t.id === activeTab ? 'var(--accent)' : 'var(--text-secondary)',
+                  color: t.id === activeTab ? 'var(--focus-ring)' : 'var(--text-secondary)',
                 }}
               >
                 {t.label}

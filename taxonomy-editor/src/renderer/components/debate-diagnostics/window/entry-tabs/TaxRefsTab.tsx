@@ -63,7 +63,7 @@ function TaxRefIdCell({ r, score, tw, isSelected, setSelectedTaxRefId }: { r: Ta
         onClick={() => setSelectedTaxRefId(isSelected ? null : r.node_id)}
         style={{
           background: 'none', border: 'none', padding: 0, cursor: 'pointer',
-          color: 'var(--accent)', fontWeight: isSelected ? 700 : 600,
+          color: 'var(--focus-ring)', fontWeight: isSelected ? 700 : 600,
           textDecoration: 'underline', fontFamily: 'inherit', fontSize: 'inherit', textAlign: 'left',
         }}
         title="Show Perspective details"
@@ -102,7 +102,7 @@ function ScoringDetailRow({ src, isSelected, hasSourceData, setOverviewTab }: { 
             {isAN && src.best_claim_id && (
               <div>
                 <strong>Best match:</strong>{' '}
-                <button onClick={() => setOverviewTab('argument-network')} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--accent)', textDecoration: 'underline', fontFamily: 'inherit', fontSize: 'inherit' }}>{src.best_claim_id}</button>
+                <button onClick={() => setOverviewTab('argument-network')} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--focus-ring)', textDecoration: 'underline', fontFamily: 'inherit', fontSize: 'inherit' }}>{src.best_claim_id}</button>
                 {src.best_claim_text && <> &ldquo;{truncateLabel(src.best_claim_text, 60)}&rdquo;</>}
                 {src.best_claim_sim != null && <> (sim: {src.best_claim_sim.toFixed(2)})</>}
               </div>

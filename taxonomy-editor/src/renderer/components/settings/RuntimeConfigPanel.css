@@ -42,8 +42,8 @@
 }
 
 .rc-count-badge {
-  background: color-mix(in srgb, var(--accent-blue, #3b82f6) 20%, transparent);
-  color: var(--accent-blue, #3b82f6);
+  background: color-mix(in srgb, var(--info, #3b82f6) 20%, transparent);
+  color: var(--info, #3b82f6);
 }
 
 .rc-dirty-badge {
@@ -123,8 +123,8 @@
   font-size: var(--text-2xs);
   padding: 1px 5px;
   border-radius: var(--radius-md);
-  background: color-mix(in srgb, var(--accent-blue, #3b82f6) 20%, transparent);
-  color: var(--accent-blue, #3b82f6);
+  background: color-mix(in srgb, var(--info, #3b82f6) 20%, transparent);
+  color: var(--info, #3b82f6);
   font-weight: 600;
 }
 
@@ -173,7 +173,7 @@
 }
 
 .rc-field-input:focus-visible {
-  border-color: var(--accent-blue, #3b82f6);
+  border-color: var(--info, #3b82f6);
 }
 
 .rc-field-hint {
@@ -202,7 +202,7 @@
   flex-shrink: 0;
 }
 
-.rc-dot--modified { background: var(--accent-blue, #3b82f6); }
+.rc-dot--modified { background: var(--info, #3b82f6); }
 .rc-dot--dirty { background: #f59e0b; }
 
 .rc-reset-btn {
@@ -257,9 +257,9 @@
 }
 
 .rc-tier-tab.active {
-  background: var(--accent-blue, #3b82f6);
+  background: var(--info, #3b82f6);
   color: white;
-  border-color: var(--accent-blue, #3b82f6);
+  border-color: var(--info, #3b82f6);
 }
 
 /* ── Empty / loading / error states ── */

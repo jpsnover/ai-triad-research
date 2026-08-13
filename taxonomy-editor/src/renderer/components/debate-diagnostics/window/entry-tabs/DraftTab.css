@@ -339,7 +339,7 @@
 }
 
 .draft-link {
-  color: var(--accent);
+  color: var(--focus-ring);
   text-decoration: underline;
   cursor: pointer;
 }
@@ -442,7 +442,7 @@
 
 .draft-valscore-box {
   margin-top: 6px;
-  background: var(--bg-subtle);
+  background: var(--bg-secondary);
   border-radius: 4px;
   padding: 5px 8px;
   font-size: 0.7rem;

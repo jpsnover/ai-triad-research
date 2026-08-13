@@ -14,7 +14,7 @@
 .inr-text-secondary { color: var(--text-secondary); }
 .inr-text-muted { color: var(--text-muted); }
 .inr-text-muted-italic { color: var(--text-muted); font-style: italic; }
-.inr-accent { color: var(--accent); }
+.inr-accent { color: var(--focus-ring); }
 
 .inr-header-row { display: flex; align-items: flex-start; gap: 4px; }
 .inr-expand-btn { background: none; border: none; color: var(--text-muted); cursor: pointer; padding: 0; font-size: 0.7rem; line-height: 1; margin-top: 2px; flex-shrink: 0; }

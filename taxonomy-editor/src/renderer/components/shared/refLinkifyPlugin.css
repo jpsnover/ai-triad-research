@@ -16,7 +16,7 @@
   padding: 0;
   margin: 0;
   font: inherit;
-  color: var(--accent);
+  color: var(--focus-ring);
   cursor: pointer;
   text-decoration: underline;
   text-decoration-style: dotted;
@@ -26,5 +26,5 @@
 .ref-link:hover,
 .ref-link:focus-visible {
   text-decoration-style: solid;
-  color: var(--accent-strong, var(--accent));
+  color: var(--accent-hover, var(--focus-ring));
 }

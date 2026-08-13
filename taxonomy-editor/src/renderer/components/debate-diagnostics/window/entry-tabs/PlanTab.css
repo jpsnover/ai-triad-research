@@ -199,7 +199,7 @@
   border: none;
   padding: 0;
   cursor: pointer;
-  color: var(--accent);
+  color: var(--focus-ring);
   text-decoration: underline;
   font-family: monospace;
   font-size: var(--text-2xs);

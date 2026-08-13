@@ -174,7 +174,7 @@ export function LineageDetailView({ value, onSelectValue, onOpenLink }: LineageD
           >
             <button
               className="lineage-detail-ctx-menu-item"
-              onMouseEnter={(e) => { (e.target as HTMLElement).style.background = 'var(--accent, #3b82f6)'; (e.target as HTMLElement).style.color = '#fff'; }}
+              onMouseEnter={(e) => { (e.target as HTMLElement).style.background = 'var(--focus-ring, #3b82f6)'; (e.target as HTMLElement).style.color = '#fff'; }}
               onMouseLeave={(e) => { (e.target as HTMLElement).style.background = 'transparent'; (e.target as HTMLElement).style.color = 'var(--text-primary)'; }}
               onClick={() => { navigateToLineage(ctxMenu.key); setCtxMenu(null); }}
             >

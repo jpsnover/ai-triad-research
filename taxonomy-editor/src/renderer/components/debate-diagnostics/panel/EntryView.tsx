@@ -1015,7 +1015,7 @@ function SituationDivergence({ injectedSit, referencedIds }: { injectedSit: stri
         return (
           <div key={sit.id} className="ev-flex-row-sm">
             {/* eslint-disable-next-line local/no-inline-style -- data-driven cited color */}
-            <span className="ev-mono-52" style={{ color: cited ? 'var(--accent)' : 'var(--text-muted)' }}>{sit.id}</span>
+            <span className="ev-mono-52" style={{ color: cited ? 'var(--focus-ring)' : 'var(--text-muted)' }}>{sit.id}</span>
             <span className="ev-sit-label">{sit.label}</span>
             <span className="ev-div-score">{div.toFixed(2)}</span>
             <div className="ev-div-bar-track">

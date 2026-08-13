@@ -6,7 +6,7 @@
   bottom: 24px;
   right: 24px;
   z-index: 9999;
-  background: var(--bg-elevated, #333);
+  background: var(--bg-panel, #333);
   color: var(--text-primary, #fff);
   padding: 10px 16px;
   border-radius: 8px;

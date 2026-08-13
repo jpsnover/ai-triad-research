@@ -117,7 +117,7 @@
 }
 
 .txdiff-file-counts .count-added { color: var(--success, #22c55e); }
-.txdiff-file-counts .count-modified { color: var(--accent, #4a9eff); }
+.txdiff-file-counts .count-modified { color: var(--focus-ring, #4a9eff); }
 .txdiff-file-counts .count-removed { color: var(--danger, #ef4444); }
 
 .txdiff-file-body {
@@ -135,7 +135,7 @@
 .txdiff-node:first-child { border-top: none; }
 .txdiff-node--added { border-left-color: var(--success, #22c55e); }
 .txdiff-node--removed { border-left-color: var(--danger, #ef4444); }
-.txdiff-node--modified { border-left-color: var(--accent, #4a9eff); }
+.txdiff-node--modified { border-left-color: var(--focus-ring, #4a9eff); }
 
 .txdiff-node-head {
   display: flex;
@@ -163,7 +163,7 @@
 
 .txdiff-node-badge.badge-added { background: var(--success, #22c55e); }
 .txdiff-node-badge.badge-removed { background: var(--danger, #ef4444); }
-.txdiff-node-badge.badge-modified { background: var(--accent, #4a9eff); }
+.txdiff-node-badge.badge-modified { background: var(--focus-ring, #4a9eff); }
 
 .txdiff-node-id {
   font-family: monospace;
@@ -312,5 +312,5 @@
 }
 
 .txdiff-submitted-msg a {
-  color: var(--accent, #4a9eff);
+  color: var(--focus-ring, #4a9eff);
 }

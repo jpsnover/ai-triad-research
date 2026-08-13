@@ -100,7 +100,7 @@ export function FactsPanel({ nodeId, onSelectFact, onSelectRef }: {
   //      taxonomy-view host that supplies onSelectRef blocks t/1906; until then → plain.
   //   2. WCAG AA (§9): links render only in the EXPANDED claim (var(--text-primary),
   //      passes AA in all 4 themes). The collapsed preview stays plain — it uses
-  //      var(--text-muted) and .ref-link inherits color (var(--accent) is undefined
+  //      var(--text-muted) and .ref-link inherits color (var(--focus-ring) is undefined
   //      app-wide), which fails AA at the preview's small muted size.
   // Hooks stay unconditional (above the early returns); claims are plain text (no
   // HighlightedTextarea caveat).

@@ -214,7 +214,7 @@ function ToolCalls({ citationResDiag }: { citationResDiag: CitationResolutionDia
         <div key={ti} style={{
           marginBottom: 6, padding: '6px 8px', borderRadius: 4,
           borderLeft: `3px solid ${tc.empty ? 'var(--warning)' : 'var(--text-secondary)'}`,
-          background: 'var(--bg-subtle)',
+          background: 'var(--bg-secondary)',
         }}>
           <div className="ctn-tc-header">
             <span className="ctn-fw700">LOOKUP #{ti + 1}</span>

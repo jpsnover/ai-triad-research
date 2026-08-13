@@ -53,7 +53,7 @@
   background: var(--bg-primary);
   color: var(--text-primary);
   font-weight: 600;
-  border-bottom: 2px solid var(--accent);
+  border-bottom: 2px solid var(--focus-ring);
 }
 .neutral-eval-tab-divergence { color: #f44336; }
 .neutral-eval-tab-divergence.active { border-bottom-color: #f44336; }

@@ -42,7 +42,7 @@
 .helpdialog-empty-note { color: var(--text-muted); padding: 8px; }
 
 .helpdialog-changelog-header { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
-.helpdialog-version-badge { font-size: 0.8rem; padding: 2px 8px; border-radius: 4px; background: var(--accent); color: #fff; }
+.helpdialog-version-badge { font-size: 0.8rem; padding: 2px 8px; border-radius: 4px; background: var(--focus-ring); color: #fff; }
 
 .helpdialog-dialog {
   max-width: none; max-height: none;
@@ -68,8 +68,8 @@
 .helpdialog-about-desc { margin-top: 12px; font-size: 0.85em; color: var(--text-secondary); }
 .helpdialog-about-stack { margin-top: 8px; font-size: 0.8em; color: var(--text-muted); }
 .helpdialog-doc-item { margin: 6px 0; }
-.helpdialog-doc-link { color: var(--accent); text-decoration: underline; cursor: pointer; }
-.helpdialog-ref-link { color: var(--accent); font-size: 0.85em; }
+.helpdialog-doc-link { color: var(--focus-ring); text-decoration: underline; cursor: pointer; }
+.helpdialog-ref-link { color: var(--focus-ring); font-size: 0.85em; }
 .helpdialog-shortcuts-h4 { margin-top: 0; }
 
 .helpdialog-tab-sep { height: 1px; background: var(--border-color); margin: 6px 0; }

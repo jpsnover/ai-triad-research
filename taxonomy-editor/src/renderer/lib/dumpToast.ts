@@ -82,7 +82,7 @@ export function showDumpToast(opts: {
   Object.assign(title.style, {
     fontWeight: '600',
     marginBottom: '4px',
-    color: 'var(--accent-color, #89b4fa)',
+    color: 'var(--focus-ring, #89b4fa)',
   });
   toast.appendChild(title);
 
@@ -93,7 +93,7 @@ export function showDumpToast(opts: {
       mergedLink.textContent = 'Download merged dump';
       Object.assign(mergedLink.style, {
         display: 'block',
-        color: 'var(--accent-color, #89b4fa)',
+        color: 'var(--focus-ring, #89b4fa)',
         textDecoration: 'underline',
         cursor: 'pointer',
         wordBreak: 'break-all',
@@ -131,7 +131,7 @@ export function showDumpToast(opts: {
     link.textContent = opts.dumpId ? `Client: ${opts.filename}` : opts.filename;
     Object.assign(link.style, {
       display: 'block',
-      color: 'var(--accent-color, #89b4fa)',
+      color: 'var(--focus-ring, #89b4fa)',
       textDecoration: 'underline',
       cursor: 'pointer',
       wordBreak: 'break-all',
@@ -160,7 +160,7 @@ export function showDumpToast(opts: {
       serverLink.textContent = `Server: ${opts.serverFilename}`;
       Object.assign(serverLink.style, {
         display: 'block',
-        color: 'var(--accent-color, #89b4fa)',
+        color: 'var(--focus-ring, #89b4fa)',
         textDecoration: 'underline',
         cursor: 'pointer',
         wordBreak: 'break-all',
@@ -258,7 +258,7 @@ export function showDumpPendingToast(): () => void {
     position: 'relative',
     background: 'var(--bg-secondary, #1e1e2e)',
     color: 'var(--text-primary, #cdd6f4)',
-    border: '1px solid var(--accent-color, #89b4fa)',
+    border: '1px solid var(--focus-ring, #89b4fa)',
     borderRadius: '6px',
     padding: '10px 14px',
     fontSize: '12px',
@@ -275,7 +275,7 @@ export function showDumpPendingToast(): () => void {
   title.textContent = 'Saving flight recorder dump…';
   Object.assign(title.style, {
     fontWeight: '600',
-    color: 'var(--accent-color, #89b4fa)',
+    color: 'var(--focus-ring, #89b4fa)',
   });
   toast.appendChild(title);
 

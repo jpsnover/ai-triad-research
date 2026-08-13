@@ -53,7 +53,7 @@ export function RadarChart({ structural, frame }: { structural: StructuralScore;
         <line key={i} x1={cx} y1={cy} x2={p.x} y2={p.y} stroke="var(--border-color, #555)" strokeWidth={0.3} opacity={0.3} />
       ))}
       {/* Data polygon */}
-      <path d={dataPath} fill="var(--accent-color, #3b82f6)" fillOpacity={0.2} stroke="var(--accent-color, #3b82f6)" strokeWidth={1.5} />
+      <path d={dataPath} fill="var(--focus-ring, #3b82f6)" fillOpacity={0.2} stroke="var(--focus-ring, #3b82f6)" strokeWidth={1.5} />
       {/* Data points */}
       {dataPts.map((p, i) => (
         <circle key={i} cx={p.x} cy={p.y} r={2.5}

@@ -40,7 +40,7 @@
 }
 
 .quota-banner--info .quota-banner-icon {
-  color: var(--accent, #4a9eff);
+  color: var(--focus-ring, #4a9eff);
 }
 
 .quota-banner--warning .quota-banner-icon {

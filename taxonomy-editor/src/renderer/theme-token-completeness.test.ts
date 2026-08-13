@@ -43,21 +43,17 @@ const BASELINE_ALIAS_BUGS_T2568 = [
   // the other 16 were NOT wrong-names — reclassified to the (b) group below.
 ];
 const BASELINE_NEED_VALUES_T2569 = [
-  '--active-definition-bg', '--bg-elevated', '--bg-selected', '--bg-subtle',
-  '--code-bg', '--color-info',
+  // Error family → owned by the t/2566 thread (don't double-define here).
   '--error-bg', '--error-border', '--error-color', '--error-text',
-  '--font-sans', '--font-serif', '--info', '--link', '--link-color',
-  '--settings-warn-bg', '--surface-1', '--tag-bg', '--tag-color',
-  '--warning-bg', '--warning-border',
-  // reclassified from class-(a) by t/2568 — these need REAL tokens, not renames:
-  //   accent family + --color-accent + --color-moderator = the unresolved t/2172 accent;
-  //   border-subtle variants need a real --border-subtle (collapsing to --border-color
-  //   would render heavier borders than the fallbacks — TL t/2568#3).
-  '--accent', '--accent-bg', '--accent-blue', '--accent-color', '--accent-hover',
-  '--accent-primary', '--accent-rgb', '--accent-strong', '--accent-text',
-  '--color-accent', '--color-moderator',
-  '--border-light', '--border-faint', '--border-subtle',
-  '--border-color-light', '--border-color-subtle',
+  // --color-accent: still ~8 undefined refs. Design's Batch 3 (t/2569#2) dispositioned
+  // --accent/-color/-primary/-strong/-blue but did NOT name --color-accent; kept
+  // grandfathered pending Design's call on whether it repoints to --focus-ring like --accent.
+  '--color-accent',
+  // Everything else here (Batch 1 + Batch 3: --info, --link-color, --warning-bg/-border,
+  // --bg-selected, --border-subtle, --accent-hover/-bg/-text/-rgb, --color-moderator,
+  // reuse/font tokens) is now DEFINED, and --accent/-color/-primary/-strong/-blue,
+  // --bg-subtle, --surface-1, --bg-elevated, --link, --color-info, --border-* variants,
+  // --active-definition-bg are REPOINTED to existing tokens — all removed from the ratchet.
 ];
 const BASELINE = new Set<string>([...BASELINE_ALIAS_BUGS_T2568, ...BASELINE_NEED_VALUES_T2569]);
 

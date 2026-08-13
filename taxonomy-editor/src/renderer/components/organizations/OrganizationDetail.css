@@ -89,7 +89,7 @@
 /* RelationshipSection */
 .od-rel-group-header { font-size: 0.72rem; font-weight: 600; color: var(--text-muted); margin-bottom: 2px; }
 .od-rel-link-btn {
-  color: var(--color-info, #3b82f6);
+  color: var(--info, #3b82f6);
   padding: 0;
   text-decoration: underline;
   font-weight: 500;
@@ -103,7 +103,7 @@
 .od-status { font-size: 0.7rem; color: var(--text-muted); font-style: italic; }
 .od-short-name { color: var(--text-muted); font-size: 0.78rem; margin-top: 2px; }
 .od-meta-row { display: flex; gap: 12px; margin-top: 4px; font-size: 0.75rem; color: var(--text-muted); flex-wrap: wrap; }
-.od-website-link { color: var(--color-info, #3b82f6); text-decoration: underline; padding: 0; }
+.od-website-link { color: var(--info, #3b82f6); text-decoration: underline; padding: 0; }
 .od-description { margin: 0; line-height: 1.5; }
 .od-stance-badge {
   padding: 1px 6px;

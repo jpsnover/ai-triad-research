@@ -102,7 +102,7 @@ function CiteTaxonomyRefsSection(props: CiteTaxRefsSectionProps) {
                         <button
                           onClick={() => setSelectedTaxRefId(isSelected ? null : r.node_id)}
                           // eslint-disable-next-line local/no-inline-style -- selection-driven fontWeight
-                          style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--accent)', fontWeight: isSelected ? 700 : 600, textDecoration: 'underline', fontFamily: 'monospace', fontSize: 'inherit', textAlign: 'left' }}
+                          style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--focus-ring)', fontWeight: isSelected ? 700 : 600, textDecoration: 'underline', fontFamily: 'monospace', fontSize: 'inherit', textAlign: 'left' }}
                           title="Show node details"
                         >{r.primary ? '★ ' : ''}{r.node_id}</button>
                         {isNew && (

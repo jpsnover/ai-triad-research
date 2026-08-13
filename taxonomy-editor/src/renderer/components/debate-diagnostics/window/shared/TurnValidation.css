@@ -95,7 +95,7 @@
 
 .tv-prompt-delta {
   white-space: pre-wrap;
-  background: var(--bg-subtle);
+  background: var(--bg-secondary);
   padding: 6px;
   border-radius: 3px;
   max-height: 200px;

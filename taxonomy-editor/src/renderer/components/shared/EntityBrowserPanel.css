@@ -1,7 +1,7 @@
 /* Copyright (c) 2026 Jeffrey Snover. All rights reserved. */
 /* EntityBrowserPanel (t/1884 §7) — list column + shared DetailPane. Uses DEFINED
    design-system tokens only (styles.css): --border-color (not --border), --focus-ring
-   for accents (--accent is undefined app-wide), and --text-secondary for small labels
+   for accents (--focus-ring is undefined app-wide), and --text-secondary for small labels
    so they clear WCAG AA in all four themes. Row badge = shared TypeBadge. */
 
 .entity-browser-panel {
@@ -72,7 +72,7 @@
   border-radius: 10px;
   cursor: pointer;
 }
-/* Selected facet — AA-safe distinct state from DEFINED tokens (no --accent): filled
+/* Selected facet — AA-safe distinct state from DEFINED tokens (no --focus-ring): filled
    surface + focus-ring border + primary text. */
 .ebp-facet-chip-on {
   color: var(--text-primary);

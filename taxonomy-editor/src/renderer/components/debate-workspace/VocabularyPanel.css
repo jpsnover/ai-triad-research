@@ -90,8 +90,8 @@
 }
 
 .vocab-def-active {
-  border-left: 3px solid var(--accent-color, #3b82f6);
-  background: var(--active-definition-bg, rgba(59,130,246,0.08));
+  border-left: 3px solid var(--focus-ring, #3b82f6);
+  background: var(--bg-selected, rgba(59,130,246,0.08));
   opacity: 1;
 }
 
@@ -108,7 +108,7 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: var(--accent-color, #3b82f6);
+  color: var(--focus-ring, #3b82f6);
   flex-shrink: 0;
 }
 
