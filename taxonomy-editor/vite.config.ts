@@ -214,6 +214,7 @@ export default defineConfig({
       '../../../lib/chat/**/*.test.ts',
       '../../../lib/electron-shared/**/*.test.ts',
       '../../../lib/debate/**/*.test.ts',
+      '../../../lib/oped/**/*.test.ts',
       // dictionary lint tests excluded — data consistency checks owned by data team
       '../../../lib/diff/**/*.test.ts',
       '../../../lib/edges/**/*.test.ts',
