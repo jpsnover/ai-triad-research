@@ -17,6 +17,7 @@ import { getConfig } from '../runtimeConfig.js';
 
 function communityChatsDir(): string { return resolveDataPath('community/chats'); }
 function communityDebatesDir(): string { return resolveDataPath('community/debates'); }
+function communityOpedsDir(): string { return resolveDataPath('community/opeds'); }
 function submissionsDir(): string { return resolveDataPath('community/_submissions'); }
 function removalsDir(): string { return resolveDataPath('community/_removals'); }
 
@@ -53,6 +54,7 @@ const COMMUNITY_INDEX_FILE = '_index.json';
 // Bump when toEntry shape changes so stale caches are replaced on next list.
 const CHAT_INDEX_VERSION = 'chat-v1';
 const DEBATE_INDEX_VERSION = 'debate-v2'; // v2: added model + turn_count (t/2362/t/2384)
+const OPED_INDEX_VERSION = 'oped-v1';
 
 interface ListingIndexSpec<T> {
   dir: string;
@@ -155,6 +157,13 @@ interface CommunityDebateEntry {
   model?: string; turn_count?: number;
 }
 
+interface CommunityOpEdEntry {
+  id: unknown; title: string; created_at: string; updated_at: string;
+  community_metadata: unknown;
+  camps: string[];
+  voice_count: number;
+}
+
 export async function listCommunityChats(): Promise<unknown[]> {
   const items = await listViaIndex<CommunityChatEntry>({
     dir: communityChatsDir(),
@@ -195,11 +204,34 @@ export async function listCommunityDebates(): Promise<unknown[]> {
   return [...items].sort((a, b) => (b.updated_at || '').localeCompare(a.updated_at || ''));
 }
 
-export async function loadCommunityItem(type: 'chats' | 'debates', id: string): Promise<unknown | null> {
+export async function listCommunityOpEds(): Promise<unknown[]> {
+  const items = await listViaIndex<CommunityOpEdEntry>({
+    dir: communityOpedsDir(),
+    prefix: 'oped-',
+    version: OPED_INDEX_VERSION,
+    malformedMessage: 'Skipping malformed community op-ed file',
+    toEntry: (parsed) => ({
+      id: parsed.id,
+      title: typeof parsed.topic === 'string' ? parsed.topic || 'Untitled' : 'Untitled',
+      created_at: parsed.created_at || '',
+      updated_at: parsed.updated_at || parsed.created_at || '',
+      community_metadata: stripOriginalId(parsed.community_metadata || null),
+      camps: Array.isArray(parsed.opeds)
+        ? [...new Set<string>((parsed.opeds as { pov?: string }[]).map(m => m.pov).filter((p): p is string => Boolean(p)))]
+        : [],
+      voice_count: Array.isArray(parsed.opeds) ? (parsed.opeds as unknown[]).length : 0,
+    }),
+  });
+  return [...items].sort((a, b) => (b.updated_at || '').localeCompare(a.updated_at || ''));
+}
+
+export async function loadCommunityItem(type: 'chats' | 'debates' | 'opeds', id: string): Promise<unknown | null> {
   assertSafeId(id, 'community id'); // block path traversal (M2)
   const backend = getUserContentBackend();
-  const dir = type === 'chats' ? communityChatsDir() : communityDebatesDir();
-  const prefix = type === 'chats' ? 'chat-' : 'debate-';
+  const dir = type === 'chats' ? communityChatsDir()
+    : type === 'debates' ? communityDebatesDir()
+    : communityOpedsDir();
+  const prefix = type === 'chats' ? 'chat-' : type === 'debates' ? 'debate-' : 'oped-';
   const raw = await backend.readFile(path.join(dir, `${prefix}${id}.json`));
   if (!raw) return null;
   const parsed = JSON.parse(raw) as Record<string, unknown>;
@@ -212,7 +244,7 @@ export async function loadCommunityItem(type: 'chats' | 'debates', id: string): 
 
 interface Submission {
   id: string;
-  type: 'chat' | 'debate';
+  type: 'chat' | 'debate' | 'oped';
   originalId: string;
   submittedBy: string;
   submittedAt: string;
@@ -222,7 +254,7 @@ interface Submission {
   data: unknown;
 }
 
-export async function submitToCommunity(type: 'chat' | 'debate', itemData: unknown, note?: string): Promise<{ submissionId: string }> {
+export async function submitToCommunity(type: 'chat' | 'debate' | 'oped', itemData: unknown, note?: string): Promise<{ submissionId: string }> {
   const userId = getStorageUserId();
   const backend = getUserContentBackend();
   const dir = submissionsDir();
@@ -383,8 +415,12 @@ export async function approveSubmission(
     ? { ...(submission.data as Record<string, unknown>), ...edits }
     : submission.data;
   const sanitized = sanitizeForCommunity(dataToPublish, submission.submittedBy) as { id: string };
-  const dir = submission.type === 'chat' ? communityChatsDir() : communityDebatesDir();
-  const prefix = submission.type === 'chat' ? 'chat-' : 'debate-';
+  const dir = submission.type === 'chat' ? communityChatsDir()
+    : submission.type === 'debate' ? communityDebatesDir()
+    : communityOpedsDir();
+  const prefix = submission.type === 'chat' ? 'chat-'
+    : submission.type === 'debate' ? 'debate-'
+    : 'oped-';
 
   await backend.writeFile(
     path.join(dir, `${prefix}${sanitized.id}.json`),
@@ -417,7 +453,7 @@ export async function rejectSubmission(submissionId: string, reason?: string): P
   log.server.info({ submissionId, type: submission.type }, 'Community submission rejected');
 }
 
-export async function copyFromCommunity(type: 'chats' | 'debates', communityId: string): Promise<{ newId: string }> {
+export async function copyFromCommunity(type: 'chats' | 'debates' | 'opeds', communityId: string): Promise<{ newId: string }> {
   if (isAnonymousUser()) throw Object.assign(new Error('Anonymous users cannot copy community items'), { statusCode: 403 });
 
   const item = await loadCommunityItem(type, communityId);
@@ -430,11 +466,16 @@ export async function copyFromCommunity(type: 'chats' | 'debates', communityId: 
   copy.updated_at = new Date().toISOString();
 
   // Import into user's personal store via fileIO (which routes to user dir)
-  const { saveChatSession, saveDebateSession } = await import('../storage/fileIO.js');
   if (type === 'chats') {
+    const { saveChatSession } = await import('../storage/fileIO.js');
     await saveChatSession(copy);
-  } else {
+  } else if (type === 'debates') {
+    const { saveDebateSession } = await import('../storage/fileIO.js');
     await saveDebateSession(copy, 'community-fork');
+  } else {
+    // Draft: blocked on t/2572 (finalizeOpedSet) landing in storage/fileIO.ts
+    const fileIO = await import('../storage/fileIO.js') as Record<string, unknown>;
+    await (fileIO['finalizeOpedSet'] as (set: unknown) => Promise<void>)(copy);
   }
 
   return { newId: copy.id as string };
@@ -457,7 +498,7 @@ function parseRemovalItem(raw: string): Record<string, unknown> {
 /** Build the audit record captured before a community item is hard-deleted (t/748). */
 function buildRemovalAudit(
   id: string,
-  type: 'chats' | 'debates',
+  type: 'chats' | 'debates' | 'opeds',
   item: Record<string, unknown>,
   removedBy: string,
   reason?: string,
@@ -465,11 +506,13 @@ function buildRemovalAudit(
   const meta = (item.community_metadata && typeof item.community_metadata === 'object')
     ? item.community_metadata as Record<string, unknown> : {};
   const topic = item.topic as { final?: string; original?: string } | string | undefined;
+  const auditType = type === 'chats' ? 'chat' : type === 'debates' ? 'debate' : 'oped';
   return {
     id,
-    type: type === 'chats' ? 'chat' : 'debate',
+    type: auditType,
     title: (item.title as string)
       || (typeof topic === 'object' ? (topic.final || topic.original) : topic)
+      || (typeof topic === 'string' ? topic : undefined)
       || 'Untitled',
     submitted_by: (meta.submitted_by_display as string) ?? null,
     removed_by: removedBy,
@@ -500,14 +543,16 @@ async function invalidateListingIndex(backend: StorageBackend, dir: string): Pro
  * admin gate; callers must already be authorized.
  */
 export async function removeCommunityItem(
-  type: 'chats' | 'debates',
+  type: 'chats' | 'debates' | 'opeds',
   id: string,
   reason?: string,
 ): Promise<void> {
   assertSafeId(id, 'community id'); // block path traversal
   const backend = getUserContentBackend();
-  const dir = type === 'chats' ? communityChatsDir() : communityDebatesDir();
-  const prefix = type === 'chats' ? 'chat-' : 'debate-';
+  const dir = type === 'chats' ? communityChatsDir()
+    : type === 'debates' ? communityDebatesDir()
+    : communityOpedsDir();
+  const prefix = type === 'chats' ? 'chat-' : type === 'debates' ? 'debate-' : 'oped-';
   const filePath = path.join(dir, `${prefix}${id}.json`);
 
   const raw = await backend.readFile(filePath);
