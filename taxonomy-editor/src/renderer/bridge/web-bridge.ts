@@ -11,7 +11,7 @@ import { makeCancellationError } from './cancellation';
 import { ActionableError } from '@lib/debate/errors';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { ALL_API_KEY_BACKENDS } from '@lib/ai-client/types';
-import type { OpEdSet } from '../../../../lib/oped/types';
+import type { OpEdSet, OpEdSetSummary } from '../../../../lib/oped/types';
 import { encryptKeysForSharing, decryptKeysFromSharing } from '../utils/keyShareCrypto';
 import { resilientFetch, categorizeEndpoint, registerConnectionPoolProvider, type EndpointCategory } from './resilience';
 import { nextStepsForStatus } from './httpErrorSteps';
@@ -1019,7 +1019,7 @@ const rawApi: AppAPI = {
   // Op-Ed Studio (t/2576) — real routes against t/2573's server API (on main). The
   // personal-library path is /api/oped-sets (t/2599 live-smoke found the bridge had
   // assumed /api/opeds). Rename persists topic-only via PUT /api/oped-sets/:id (t/2594).
-  listOpEdSets: () => get<OpEdSet[]>('/api/oped-sets'),
+  listOpEdSets: () => get<OpEdSetSummary[]>('/api/oped-sets'),
   loadOpEdSet: (id) => get<OpEdSet>(`/api/oped-sets/${encodeURIComponent(id)}`),
   saveOpEdSet: (set) => put(`/api/oped-sets/${encodeURIComponent(set.set_id)}`, set).then(() => {}),
   deleteOpEdSet: (id) => del(`/api/oped-sets/${encodeURIComponent(id)}`).then(() => {}),

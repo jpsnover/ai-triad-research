@@ -17,7 +17,7 @@ import { useBreakpoint } from '../../hooks/useBreakpoint';
 import { useAuthStatus } from '../../hooks/useAuthStatus';
 import { useOpEdStore } from '../../hooks/useOpEdStore';
 import { useCommunityStore } from '../../hooks/useCommunityStore';
-import type { OpEdSet, OpEdCommunityEntry } from '../../../../../lib/oped/types';
+import type { OpEdSet, OpEdSetSummary, OpEdCommunityEntry } from '../../../../../lib/oped/types';
 import { OpEdTable } from './OpEdTable';
 import { OpEdReader } from './OpEdReader';
 import { NewOpEdDialog } from './NewOpEdDialog';
@@ -87,9 +87,10 @@ function exportOpEdSet(set: OpEdSet, format: string): void {
   else downloadFile(`${slugify(set.topic)}.md`, buildOpEdMarkdown(set), 'text/markdown');
 }
 
-function filterSets(sets: OpEdSet[], q: string): OpEdSet[] {
+function filterSets(sets: OpEdSetSummary[], q: string): OpEdSetSummary[] {
   if (!q) return sets;
-  return sets.filter(s => s.topic.toLowerCase().includes(q) || s.opeds.some(m => m.headline.toLowerCase().includes(q)));
+  // Index rows carry no bodies/headlines — filter on topic only (t/2605).
+  return sets.filter(s => s.topic.toLowerCase().includes(q));
 }
 
 function filterCommunity(entries: OpEdCommunityEntry[], q: string): OpEdCommunityEntry[] {
@@ -225,12 +226,18 @@ export function OpEdTab() {
   // ── Reader open/close ──
 
   const openMy = useCallback((id: string) => {
-    const found = sets.find(s => s.set_id === id) ?? null;
-    if (!found) return;
+    // The My list holds index summaries (no body) — load the full doc for the reader.
     selectSet(id);
     setReaderError(null);
-    setReaderSet(found);
-  }, [sets, selectSet]);
+    setReaderSet(null);
+    setReaderLoading(true);
+    api.loadOpEdSet(id).then(set => {
+      setReaderSet(set);
+    }).catch(err => {
+      recordError('oped-tab', 'Failed to load op-ed', err);
+      setReaderError('Could not load this op-ed — it may have been removed.');
+    }).finally(() => setReaderLoading(false));
+  }, [selectSet]);
 
   const openCommunity = useCallback((id: string) => {
     selectSet(id);
@@ -254,10 +261,17 @@ export function OpEdTab() {
   const handleCreated = useCallback(async (setId: string) => {
     setListView('my');
     await loadSets();
-    const found = useOpEdStore.getState().sets.find(s => s.set_id === setId) ?? null;
+    // loadSets returns index summaries (no body) — load the full doc for the reader.
     selectSet(setId);
     setReaderError(null);
-    setReaderSet(found);
+    setReaderSet(null);
+    setReaderLoading(true);
+    return api.loadOpEdSet(setId).then(set => {
+      setReaderSet(set);
+    }).catch(err => {
+      recordError('oped-tab', 'Failed to load new op-ed', err);
+      setReaderError('Could not load this op-ed.');
+    }).finally(() => setReaderLoading(false));
   }, [loadSets, selectSet]);
 
   // ── Row actions ──
@@ -269,23 +283,25 @@ export function OpEdTab() {
     });
   }, [renameSet, flash]);
 
-  const handleShare = useCallback((set: OpEdSet) => {
-    submitItem('oped', set).then(() => flash('Shared to community.')).catch(err => {
-      recordError('oped-tab', 'Failed to share op-ed to community', err);
-      flash(`Share failed: ${err}`);
-    });
+  const handleShare = useCallback((summary: OpEdSetSummary) => {
+    // The My row is an index summary — load the full doc before submitting.
+    api.loadOpEdSet(summary.set_id)
+      .then(set => submitItem('oped', set))
+      .then(() => flash('Shared to community.'))
+      .catch(err => {
+        recordError('oped-tab', 'Failed to share op-ed to community', err);
+        flash(`Share failed: ${err}`);
+      });
   }, [submitItem, flash]);
 
-  const handleExportMy = useCallback((set: OpEdSet, format: string) => {
-    try {
-      exportOpEdSet(set, format);
-    } catch (err) {
-      getGlobalRecorder()?.record({
-        type: 'system.error', component: 'oped-tab', level: 'error', message: 'Failed to export op-ed',
-        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+  const handleExportMy = useCallback((summary: OpEdSetSummary, format: string) => {
+    // buildOpEd* iterate set.opeds — the index row has none, so load the full doc.
+    api.loadOpEdSet(summary.set_id)
+      .then(set => exportOpEdSet(set, format))
+      .catch(err => {
+        recordError('oped-tab', 'Failed to export op-ed', err);
+        flash(`Export failed: ${err}`);
       });
-      flash(`Export failed: ${err}`);
-    }
   }, [flash]);
 
   const handleExportCommunity = useCallback((entry: OpEdCommunityEntry, format: string) => {
