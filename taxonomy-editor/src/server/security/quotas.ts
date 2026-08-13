@@ -33,9 +33,7 @@ interface QuotaConfig {
 // `defaults` override layered on top.
 function runtimeQuotaDefaults(): QuotaLimits {
   const q = getRuntimeConfig().quotas;
-  // t/2578: defaultMaxOpEds knob lands in t/2573 (runtimeConfig.ts); use interim
-  // hardcoded default until that PR merges, then replace 10 with q.defaultMaxOpEds.
-  return { maxChats: q.defaultMaxChats, maxDebates: q.defaultMaxDebates, maxOpEds: 10 };
+  return { maxChats: q.defaultMaxChats, maxDebates: q.defaultMaxDebates, maxOpEds: q.defaultMaxOpEds };
 }
 
 // ── Config loading with mtime cache (follows proxyTiers.ts pattern) ──
