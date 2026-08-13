@@ -36,6 +36,7 @@ import {
 } from '../fileIO.js';
 import { ActionableError } from '../../../../lib/debate/errors.js';
 import { renameSyncWithRetry } from '../../../../lib/debate/persistence.js';
+import { recordLockHolder } from '../../../../lib/debate/lockHolder.js';
 import { stampNodeAuthorship } from '../../server/storage/editMeta.js';
 import { getGlobalRecorder } from '../../../../lib/flight-recorder/index.js';
 import { VALID_POV } from '../ipcSchemas.js';
@@ -244,7 +245,7 @@ export function registerTaxonomyHandlers(): void {
     const filePath = path.join(proposalDir, filename);
     const tmpPath = filePath + '.tmp';
     fs.writeFileSync(tmpPath, JSON.stringify(data, null, 2) + '\n', 'utf-8');
-    renameSyncWithRetry(tmpPath, filePath);
+    renameSyncWithRetry(tmpPath, filePath, 7, undefined, recordLockHolder);
     return { saved: true };
   });
 

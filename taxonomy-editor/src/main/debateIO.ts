@@ -8,6 +8,7 @@ import { resolveDataPath } from './fileIO.js';
 import { assertSafeId } from '../../../lib/electron-shared/safeId.js';
 import { extractCalibrationData, appendCalibrationLog } from '../../../lib/debate/calibrationLogger.js';
 import { safeSerialize, atomicWriteSync, renameSyncWithRetry } from '../../../lib/debate/persistence.js';
+import { recordLockHolder } from '../../../lib/debate/lockHolder.js';
 import { ActionableError } from '../../../lib/debate/errors.js';
 import { getGlobalRecorder } from '../../../lib/flight-recorder/index.js';
 
@@ -246,7 +247,7 @@ export function saveDebateSession(session: unknown, caller: string): void {
     });
   }
   try {
-    atomicWriteSync(filePath, json + '\n');
+    atomicWriteSync(filePath, json + '\n', recordLockHolder);
   } catch (err) {
     // t/1638: atomicWriteSync (t/1627) throws on a total-loss save naming only
     // filePath/tmpPath; re-throw enriched with the debate-specific state (id, run_id,

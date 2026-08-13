@@ -23,6 +23,7 @@ import { getDataRootPath, loadDataConfig, getSourcesDir } from '../fileIO.js';
 import { generateText } from '../embeddings.js';
 import { ActionableError } from '../../../../lib/debate/errors.js';
 import { renameSyncWithRetry } from '../../../../lib/debate/persistence.js';
+import { recordLockHolder } from '../../../../lib/debate/lockHolder.js';
 import { getGlobalRecorder } from '../../../../lib/flight-recorder/index.js';
 import { DEFAULT_MODEL } from '../../../../lib/ai-client/index.js';
 import { VALID_POV, NodeId } from '../ipcSchemas.js';
@@ -212,7 +213,7 @@ export function registerDebateHandlers(): void {
     const filePath = path.join(conflictsDir, `${conflictId}.json`);
     const tmpPath = filePath + '.tmp';
     fs.writeFileSync(tmpPath, JSON.stringify(conflict, null, 2) + '\n', 'utf-8');
-    renameSyncWithRetry(tmpPath, filePath);
+    renameSyncWithRetry(tmpPath, filePath, 7, undefined, recordLockHolder);
     console.log(`[harvest] Created conflict: ${conflictId}`);
     return { created: true, path: filePath };
   });
@@ -234,7 +235,7 @@ export function registerDebateHandlers(): void {
         node.debate_refs.push(debateId);
         const tmpPath = filePath + '.tmp';
         fs.writeFileSync(tmpPath, JSON.stringify(data, null, 2) + '\n', 'utf-8');
-        renameSyncWithRetry(tmpPath, filePath);
+        renameSyncWithRetry(tmpPath, filePath, 7, undefined, recordLockHolder);
         console.log(`[harvest] Added debate_ref ${debateId} to ${nodeId}`);
       }
       return { updated: true };
@@ -266,7 +267,7 @@ export function registerDebateHandlers(): void {
       }
       const tmpPath = filePath + '.tmp';
       fs.writeFileSync(tmpPath, JSON.stringify(data, null, 2) + '\n', 'utf-8');
-      renameSyncWithRetry(tmpPath, filePath);
+      renameSyncWithRetry(tmpPath, filePath, 7, undefined, recordLockHolder);
       console.log(`[harvest] Updated steelman on ${nodeId} from_${attackerPov}`);
       return { updated: true };
     }
@@ -282,7 +283,7 @@ export function registerDebateHandlers(): void {
     data.verdict = verdict;
     const tmpPath = filePath + '.tmp';
     fs.writeFileSync(tmpPath, JSON.stringify(data, null, 2) + '\n', 'utf-8');
-    renameSyncWithRetry(tmpPath, filePath);
+    renameSyncWithRetry(tmpPath, filePath, 7, undefined, recordLockHolder);
     console.log(`[harvest] Added verdict to conflict: ${conflictId}`);
     return { updated: true };
   });
@@ -297,7 +298,7 @@ export function registerDebateHandlers(): void {
     queue.queued_at = new Date().toISOString();
     const tmpPath = queuePath + '.tmp';
     fs.writeFileSync(tmpPath, JSON.stringify(queue, null, 2) + '\n', 'utf-8');
-    renameSyncWithRetry(tmpPath, queuePath);
+    renameSyncWithRetry(tmpPath, queuePath, 7, undefined, recordLockHolder);
     console.log(`[harvest] Queued concept: ${concept.label}`);
     return { queued: true };
   });
