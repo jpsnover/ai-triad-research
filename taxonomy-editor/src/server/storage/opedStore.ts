@@ -12,23 +12,12 @@
 
 import path from 'path';
 import { resolveDataPath } from '../config.js';
-import type { OpEdSet } from '../../../../lib/oped/types.js';
+import type { OpEdSet, OpEdSetSummary, PovKey } from '../../../../lib/oped/types.js';
 import { ActionableError } from '../../../../lib/debate/errors.js';
 import { log } from '../logger.js';
 import { getStorageUserId, isAnonymousUser } from '../security/userContext.js';
 import { checkQuota, type QuotaCheckResult } from '../security/quotas.js';
 import { getUserContentBackend, assertSafeId } from './fileIO.js';
-
-// ── Summary type (index entry — cheap list surface, no full-doc loads) ──
-
-export interface OpEdSetSummary {
-  set_id: string;
-  topic: string;
-  camps: string[];       // pov keys from all members
-  voice_count: number;
-  created_at: string;
-  updated_at: string;   // stamped at finalizeOpedSet time
-}
 
 // ── Dir helpers ──
 
@@ -195,7 +184,7 @@ export async function finalizeOpedSet(set: OpEdSet): Promise<void> {
   const summary: OpEdSetSummary = {
     set_id: set.set_id,
     topic: set.topic,
-    camps: [...new Set(set.opeds.map(m => m.pov))],
+    camps: [...new Set(set.opeds.map(m => m.pov))] as PovKey[],
     voice_count: set.opeds.length,
     created_at: set.created_at,
     updated_at: now,
