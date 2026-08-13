@@ -7,7 +7,7 @@
  */
 
 import { describe, it, expect, beforeEach } from 'vitest';
-import { recordServerLog, drainServerLogLines, _resetServerLogBuffer, MAX_LOG_LINES } from '../serverLogBuffer.js';
+import { recordServerLog, drainServerLogLines, _resetServerLogBuffer, MAX_LOG_LINES, MAX_ERROR_LOG_LINES } from '../serverLogBuffer.js';
 
 describe('serverLogBuffer', () => {
   beforeEach(() => { _resetServerLogBuffer(); });
@@ -67,5 +67,39 @@ describe('serverLogBuffer', () => {
     recordServerLog(JSON.stringify({ msg: 'a' }));
     drainServerLogLines().push({ msg: 'injected' });
     expect(drainServerLogLines()).toHaveLength(1);
+  });
+
+  // t/2552: the incident — an error line (level 50) evicted from the main ring by
+  // info-level request traffic before the dump triggered.
+  it('pins an error line so info-level flooding cannot evict it (t/2552)', () => {
+    recordServerLog(JSON.stringify({ level: 50, component: 'server', requestId: 'req-err', msg: 'boom 500' }));
+    // Flood the 250-entry main ring with far more info lines than its cap.
+    for (let i = 0; i < MAX_LOG_LINES + 50; i++) recordServerLog(JSON.stringify({ level: 30, n: i }));
+
+    const lines = drainServerLogLines();
+    const errors = lines.filter(l => l.level === 50);
+    expect(errors).toHaveLength(1);                       // survived, exactly once
+    expect(errors[0]).toMatchObject({ requestId: 'req-err', msg: 'boom 500' });
+    expect(lines[0]).toMatchObject({ requestId: 'req-err' }); // evicted error prepended (oldest)
+  });
+
+  it('does not duplicate an error still within the main ring window (t/2552)', () => {
+    recordServerLog(JSON.stringify({ level: 50, msg: 'err-1' }));
+    recordServerLog(JSON.stringify({ level: 30, msg: 'info-1' }));
+    const lines = drainServerLogLines();
+    expect(lines).toHaveLength(2);                        // no dup — error still in main
+    expect(lines.filter(l => l.msg === 'err-1')).toHaveLength(1);
+  });
+
+  it('caps the pinned error buffer at MAX_ERROR_LOG_LINES (t/2552)', () => {
+    const total = MAX_ERROR_LOG_LINES + 20;
+    for (let i = 0; i < total; i++) recordServerLog(JSON.stringify({ level: 50, e: i }));
+    // Evict every error from the main ring so drain sources them from the error ring.
+    for (let i = 0; i < MAX_LOG_LINES; i++) recordServerLog(JSON.stringify({ level: 30, n: i }));
+
+    const errors = drainServerLogLines().filter(l => l.level === 50);
+    expect(errors).toHaveLength(MAX_ERROR_LOG_LINES);     // only the most recent 50 pinned
+    expect(errors[errors.length - 1].e).toBe(total - 1);  // newest kept
+    expect(errors[0].e).toBe(total - MAX_ERROR_LOG_LINES); // oldest 20 dropped
   });
 });
