@@ -8,8 +8,9 @@
 //
 // AST-based for low false-positives (per the TL gate-design conditions, p/333#130). It flags a
 // route handler that BOTH (a) directly calls ai.generateText/…ByUsage/…WithSearchByUsage (incl.
-// inside an adapter closure defined in the handler) AND (b) binds `model` from `body`, but does
-// NOT call resolveGenerationContext anywhere in the handler.
+// inside an adapter closure defined in the handler) AND (b) reads `model` from `body` — either
+// the destructure form (`const { model } = body`) OR the property-access form (`body.model`,
+// `req.body.model`, inline) — but does NOT call resolveGenerationContext anywhere in the handler.
 //
 // KNOWN LIMITATION (favours low false-POSITIVE over completeness): generation reached INDIRECTLY
 // via a module-scope helper the handler calls (op-ed's driveOpEdRun; /api/ai/generate's
@@ -55,12 +56,19 @@ function bindsModelFromBody(node: ts.Node): boolean {
     ((ts.isIdentifier(el.name) && el.name.text === 'model') ||
      (!!el.propertyName && ts.isIdentifier(el.propertyName) && el.propertyName.text === 'model')));
 }
+/** Property-access read of a user model: `body.model` or `req.body.model` (TL GV p/333#138). */
+function readsBodyModelProp(node: ts.Node): boolean {
+  if (!ts.isPropertyAccessExpression(node) || node.name.text !== 'model') return false;
+  const obj = node.expression;
+  return (ts.isIdentifier(obj) && obj.text === 'body') ||
+         (ts.isPropertyAccessExpression(obj) && obj.name.text === 'body'); // req.body.model
+}
 function analyzeHandler(fn: ts.Node): { generates: boolean; readsBodyModel: boolean; callsGate: boolean } {
   let generates = false, readsBodyModel = false, callsGate = false;
   (function walk(n: ts.Node): void {
     if (isGenCall(n)) generates = true;
     if (isGateCall(n)) callsGate = true;
-    if (bindsModelFromBody(n)) readsBodyModel = true;
+    if (bindsModelFromBody(n) || readsBodyModelProp(n)) readsBodyModel = true;
     ts.forEachChild(n, walk);
   })(fn);
   return { generates, readsBodyModel, callsGate };
@@ -109,6 +117,17 @@ describe('t/2634 — route backend-entitlement gate', () => {
       json(res, await ai.generateTextWithSearchByUsage('server.search', { prompt }, model ? { model } : undefined));
     });`;
     expect(scanSource('synthetic.ts', src)).toHaveLength(1);
+  });
+
+  it('flags the property-access form too (body.model / req.body.model, no destructure) (TL GV p/333#138)', () => {
+    const inline = `post('/api/x', async (req, res, body) => {
+      json(res, await ai.generateText((body as { prompt: string }).prompt, body.model));
+    });`;
+    expect(scanSource('synthetic.ts', inline)).toHaveLength(1);
+    const reqBody = `post('/api/x', async (req, res) => {
+      json(res, await ai.generateText(req.body.prompt, req.body.model));
+    });`;
+    expect(scanSource('synthetic.ts', reqBody)).toHaveLength(1);
   });
 
   it('does NOT flag the same route once it routes through resolveGenerationContext', () => {
