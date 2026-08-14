@@ -51,6 +51,14 @@ param trafficPinRevisionName string = ''
 @description('Full name of the revision to hold 100% STAGING ingress traffic on during a Bicep apply. Empty = first/only staging deploy (latest gets 100%).')
 param trafficPinRevisionNameStaging string = ''
 
+// ── Staging write-isolation (t/2643) ──
+// Set stagingSharedReadOnly=true as the FINAL step of the isolation deployment,
+// AFTER arm-B verification confirms class-A writes route to /mnt/staging-state.
+// The RO flip makes the hard boundary live: missed write sites EROFS instead of
+// silently mutating prod. Deploy order matters — see t/2643#5/#6.
+@description('Flip /mnt/shared to read-only on staging (ARM step 3 of t/2643 isolation). Apply ONLY after arm-B verification passes with /mnt/shared still RW.')
+param stagingSharedReadOnly bool = false
+
 // ── Resource Tags ──
 var tags = {
   project: 'ai-triad-research'
@@ -402,6 +410,24 @@ resource envStorageStagingState 'Microsoft.App/managedEnvironments/storages@2024
   dependsOn: [stagingStateShare]
 }
 
+// Read-only registration of the shared taxonomy-data share.
+// Always provisioned so the RO flip (stagingSharedReadOnly=true) is a
+// single-param redeploy — no resource creation race at flip time.
+// Arm A verification: with staging referencing this, a write to /mnt/shared
+// must fail with EACCES/EPERM (Azure Files surfaces RO writes as EACCES).
+resource envStorageSharedRO 'Microsoft.App/managedEnvironments/storages@2024-03-01' = {
+  parent: containerAppEnv
+  name: 'taxonomy-data-ro'
+  properties: {
+    azureFile: {
+      accountName: storageAccount.name
+      accountKey: storageAccount.listKeys().keys[0].value
+      shareName: 'taxonomy-data'
+      accessMode: 'ReadOnly'
+    }
+  }
+}
+
 // ── Container App ──
 
 var baseEnv = [
@@ -609,6 +635,9 @@ resource containerAppStaging 'Microsoft.App/containerApps@2024-03-01' = {
   identity: {
     type: 'SystemAssigned'
   }
+  // storageName strings create no implicit dependency — explicit dependsOn ensures
+  // both managed env storage registrations exist before the container app is deployed.
+  dependsOn: [envStorageStagingState, envStorageSharedRO]
   properties: {
     managedEnvironmentId: containerAppEnv.id
     configuration: {
@@ -666,7 +695,12 @@ resource containerAppStaging 'Microsoft.App/containerApps@2024-03-01' = {
         {
           name: 'shared-data'
           storageType: 'AzureFile'
-          storageName: 'taxonomy-data'
+          // RO flip (step 3): deploy with stagingSharedReadOnly=true AFTER arm-B
+          // confirms class-A writes route to /mnt/staging-state. The -ro registration
+          // (ReadOnly accessMode) makes the hard boundary live: any missed write site
+          // fails with EACCES rather than silently mutating prod (t/2643#3 cond 3,
+          // t/2643#5 binding correction — RO must come last, never before getStateRoot).
+          storageName: stagingSharedReadOnly ? 'taxonomy-data-ro' : 'taxonomy-data'
         }
         {
           // Staging-isolated RW share for class-A state (t/2643).
