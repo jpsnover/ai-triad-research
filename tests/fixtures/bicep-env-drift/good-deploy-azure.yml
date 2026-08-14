@@ -1,0 +1,13 @@
+# Minimal fixture for BicepEnvDrift.Tests.ps1 — in-sync baseline.
+# Contains only the ExpectedEnvVars block Test-BicepEnvDrift.ps1 reads.
+run: |
+  Test-AzureHealth `
+    -ExpectedEnvVars @{
+      NODE_ENV                           = 'production'
+      WEBSITE_AUTH_ENABLED               = 'true'
+      HOME                               = '/home/aitriad'
+      AI_TRIAD_DATA_ROOT                 = '/mnt/shared'
+      TAXONOMY_CACHE_DIR                 = '/mnt/shared'
+      AUTH_OPTIONAL                      = '${{ inputs.auth_mode }}'
+      AZURE_KEYVAULT_URL                 = '${{ steps.deploy.outputs.keyVaultUri }}'
+    }
