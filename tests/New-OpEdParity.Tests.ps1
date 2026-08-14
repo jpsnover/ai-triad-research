@@ -20,6 +20,11 @@
 
 #Requires -Module Pester
 
+# Load at discovery time so module init code runs outside Pester's BeforeAll wrapper
+# (avoids LoopFlowException from break/continue in the module's foreach loops — pester/Pester#2669)
+$script:RepoRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
+Import-Module (Join-Path $script:RepoRoot 'scripts\AITriad\AITriad.psm1') -WarningAction SilentlyContinue
+
 BeforeAll {
     $script:RepoRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
     Import-Module (Join-Path $script:RepoRoot 'scripts\AITriad\AITriad.psm1') -WarningAction SilentlyContinue
