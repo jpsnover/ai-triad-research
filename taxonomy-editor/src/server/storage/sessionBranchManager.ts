@@ -487,14 +487,15 @@ export class SessionBranchManager {
     const state = this.sessions.get(userId);
     if (!state) return null;
 
-    const result = await this.backend.compareBranches('main', state.branchName);
+    const baseBranch = this.backend.getBaseBranch();
+    const result = await this.backend.compareBranches(baseBranch, state.branchName);
 
     if (result.behind_by > 0) {
       this.recordEvent({
         type: 'branch.divergence',
         component: 'session',
         level: result.behind_by >= 10 ? 'warn' : 'info',
-        message: `Branch ${state.branchName}: ${result.ahead_by} ahead, ${result.behind_by} behind main`,
+        message: `Branch ${state.branchName}: ${result.ahead_by} ahead, ${result.behind_by} behind ${baseBranch}`,
         data: {
           branch: state.branchName,
           userId,
