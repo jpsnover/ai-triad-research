@@ -76,6 +76,17 @@ function extractResultMeta(method: string, args: unknown[], value: unknown): Rec
       .filter((id): id is string => typeof id === 'string');
     return { count: v.length, ids: ids.slice(0, 20) };
   }
+  if (method === 'listOpEdSets') {
+    // Record the RESULT SHAPE, not just the count, so a summary-vs-full regression is
+    // visible in the dump alone (t/2606). The t/2605 crash was listOpEdSets returning a
+    // full OpEdSet[] where the caller expected OpEdSetSummary[] (no `opeds`); result_type
+    // makes a repeat diagnosable without re-reading source. Empty list → 'summary' (the
+    // expected default). `has_opeds` is the same signal at the per-row level.
+    if (!Array.isArray(v)) return undefined;
+    const first = (v as unknown[])[0] as Record<string, unknown> | undefined;
+    const has_opeds = !!first && 'opeds' in first;
+    return { count: (v as unknown[]).length, result_type: has_opeds ? 'full' : 'summary', has_opeds };
+  }
   if (method === 'generateText' || method === 'generateTextWithSearch') {
     const text = v.text;
     const meta: Record<string, unknown> = {};

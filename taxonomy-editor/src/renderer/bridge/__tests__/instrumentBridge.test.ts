@@ -23,6 +23,47 @@ function lastRecord(): { level: string; message: string; data?: { http_status?: 
   return mockRecord.mock.calls.at(-1)?.[0] as { level: string; message: string; data?: { http_status?: number } };
 }
 
+/** Find the ok-completion event for a bridge method (its enriched result meta). */
+function okRecord(method: string): { message: string; data?: Record<string, unknown> } | undefined {
+  return mockRecord.mock.calls
+    .map((c) => c[0] as { message: string; data?: Record<string, unknown> })
+    .find((e) => e.message === `bridge.${method} ok`);
+}
+
+describe('instrumentBridge — listOpEdSets result shape (t/2606)', () => {
+  beforeEach(() => { vi.clearAllMocks(); });
+
+  it('records result_type=summary + has_opeds=false for the summary index', async () => {
+    const rows = [{ set_id: 'a', topic: 'T', camps: ['acc'], voice_count: 1 }];
+    const api = instrumentBridge({ listOpEdSets: () => Promise.resolve(rows) } as unknown as AppAPI);
+    await (api as unknown as { listOpEdSets: () => Promise<unknown> }).listOpEdSets();
+
+    const ok = okRecord('listOpEdSets');
+    expect(ok?.data?.count).toBe(1);
+    expect(ok?.data?.result_type).toBe('summary');
+    expect(ok?.data?.has_opeds).toBe(false);
+  });
+
+  it('records result_type=full + has_opeds=true if full OpEdSets leak through (the t/2605 shape)', async () => {
+    const full = [{ set_id: 'a', topic: 'T', opeds: [{ pov: 'acc' }] }];
+    const api = instrumentBridge({ listOpEdSets: () => Promise.resolve(full) } as unknown as AppAPI);
+    await (api as unknown as { listOpEdSets: () => Promise<unknown> }).listOpEdSets();
+
+    const ok = okRecord('listOpEdSets');
+    expect(ok?.data?.result_type).toBe('full');
+    expect(ok?.data?.has_opeds).toBe(true);
+  });
+
+  it('records result_type=summary for an empty list (expected default)', async () => {
+    const api = instrumentBridge({ listOpEdSets: () => Promise.resolve([]) } as unknown as AppAPI);
+    await (api as unknown as { listOpEdSets: () => Promise<unknown> }).listOpEdSets();
+
+    const ok = okRecord('listOpEdSets');
+    expect(ok?.data?.count).toBe(0);
+    expect(ok?.data?.result_type).toBe('summary');
+  });
+});
+
 describe('instrumentBridge — expected-status downgrade (t/2395)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
