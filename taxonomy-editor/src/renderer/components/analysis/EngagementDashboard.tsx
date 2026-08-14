@@ -14,6 +14,7 @@ import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { bridgeGet } from '../../bridge/web-bridge';
 import { useFlag } from '../../hooks/useFeatureFlags';
 import { useChartTooltip, ChartTooltipLayer } from './chartTooltip';
+import { UsageHierarchy } from './UsageHierarchy';
 import {
   type TreeNode,
   CAMP_COLORS, CAMP_LABELS,
@@ -322,6 +323,7 @@ function HealthStrip({ aggregate }: { aggregate: TreeNode }) {
 export function EngagementDashboard() {
   const isAdmin = useFlag('permission-admin-features');
 
+  const [activeTab, setActiveTab] = useState<'overview' | 'hierarchy'>('overview');
   const [preset, setPreset] = useState<DatePreset>('7d');
   // userFilter: live input value; committedFilter: triggers fetch on Enter
   const [userFilter, setUserFilter] = useState('');
@@ -399,10 +401,21 @@ export function EngagementDashboard() {
         </div>
       </div>
 
-      {loading && <div className="eng-loading">Loading engagement data…</div>}
-      {error && <div className="eng-error">Failed to load: {error}</div>}
+      <div className="eng-tab-bar" role="tablist">
+        <button role="tab" aria-selected={activeTab === 'overview'}
+          className={`eng-tab${activeTab === 'overview' ? ' eng-tab--active' : ''}`}
+          onClick={() => setActiveTab('overview')}>Overview</button>
+        <button role="tab" aria-selected={activeTab === 'hierarchy'}
+          className={`eng-tab${activeTab === 'hierarchy' ? ' eng-tab--active' : ''}`}
+          onClick={() => setActiveTab('hierarchy')}>Hierarchy</button>
+      </div>
 
-      {data && !loading && (
+      {activeTab === 'hierarchy' && <UsageHierarchy />}
+
+      {activeTab === 'overview' && loading && <div className="eng-loading">Loading engagement data…</div>}
+      {activeTab === 'overview' && error && <div className="eng-error">Failed to load: {error}</div>}
+
+      {activeTab === 'overview' && data && !loading && (
         <>
           {data.aggregate.visits === 0 ? (
             <div className="eng-empty-state">

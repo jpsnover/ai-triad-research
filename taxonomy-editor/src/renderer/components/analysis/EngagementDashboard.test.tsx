@@ -28,6 +28,10 @@ vi.mock('./chartTooltip', () => ({
   ChartTooltipLayer: () => null,
 }));
 
+vi.mock('./UsageHierarchy', () => ({
+  UsageHierarchy: () => <div data-testid="usage-hierarchy-stub">UsageHierarchy</div>,
+}));
+
 import { bridgeGet } from '../../bridge/web-bridge';
 import { useFlag } from '../../hooks/useFeatureFlags';
 
@@ -232,5 +236,57 @@ describe('EngagementDashboard', () => {
     render(<EngagementDashboard />);
     // aggregate: visits=100, engagedVisits=80 → 80.0%
     await waitFor(() => expect(screen.getByText('80.0%')).toBeTruthy());
+  });
+});
+
+// ── Tab bar ───────────────────────────────────────────────────────────────────
+
+describe('EngagementDashboard tab bar', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockAdmin(false);
+    mockBridgeGet(FIXTURE_RESULT);
+  });
+
+  it('renders Overview and Hierarchy tab buttons', async () => {
+    render(<EngagementDashboard />);
+    expect(screen.getByRole('tab', { name: /overview/i })).toBeTruthy();
+    expect(screen.getByRole('tab', { name: /hierarchy/i })).toBeTruthy();
+  });
+
+  it('Overview tab is selected by default', () => {
+    render(<EngagementDashboard />);
+    expect(screen.getByRole('tab', { name: /overview/i }).getAttribute('aria-selected')).toBe('true');
+    expect(screen.getByRole('tab', { name: /hierarchy/i }).getAttribute('aria-selected')).toBe('false');
+  });
+
+  it('Overview content visible on default tab', async () => {
+    render(<EngagementDashboard />);
+    await waitFor(() => expect(screen.getByText(/loading engagement/i)).toBeTruthy());
+    expect(screen.queryByTestId('usage-hierarchy-stub')).toBeNull();
+  });
+
+  it('clicking Hierarchy tab shows UsageHierarchy and hides Overview content', async () => {
+    render(<EngagementDashboard />);
+    fireEvent.click(screen.getByRole('tab', { name: /hierarchy/i }));
+    await waitFor(() => expect(screen.getByTestId('usage-hierarchy-stub')).toBeTruthy());
+    expect(screen.queryByText(/loading engagement/i)).toBeNull();
+  });
+
+  it('clicking Overview tab after Hierarchy restores Overview content', async () => {
+    render(<EngagementDashboard />);
+    await waitFor(() => expect(screen.getByText(/camp distribution/i)).toBeTruthy());
+    fireEvent.click(screen.getByRole('tab', { name: /hierarchy/i }));
+    await waitFor(() => expect(screen.getByTestId('usage-hierarchy-stub')).toBeTruthy());
+    fireEvent.click(screen.getByRole('tab', { name: /overview/i }));
+    expect(screen.queryByTestId('usage-hierarchy-stub')).toBeNull();
+    expect(screen.getByText(/camp distribution/i)).toBeTruthy();
+  });
+
+  it('date preset buttons remain visible when switching tabs', async () => {
+    render(<EngagementDashboard />);
+    expect(screen.getByText('30 days')).toBeTruthy();
+    fireEvent.click(screen.getByRole('tab', { name: /hierarchy/i }));
+    expect(screen.getByText('30 days')).toBeTruthy();
   });
 });

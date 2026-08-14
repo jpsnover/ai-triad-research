@@ -79,6 +79,35 @@
 
 .eng-admin-badge--header { margin-left: 0.25rem; }
 
+/* ── Tab bar ────────────────────────────────────────────────────────────────── */
+
+.eng-tab-bar {
+  display: flex;
+  gap: 2px;
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 0;
+}
+
+.eng-tab {
+  padding: 0.4rem 1rem;
+  border: none;
+  border-bottom: 2px solid transparent;
+  background: none;
+  color: var(--text-muted);
+  font-size: 0.875rem;
+  cursor: pointer;
+  margin-bottom: -1px;
+  transition: color 0.1s;
+}
+
+.eng-tab:hover { color: var(--text-primary); }
+
+.eng-tab--active {
+  color: var(--text-primary);
+  border-bottom-color: var(--color-acc, #3b82f6);
+  font-weight: 500;
+}
+
 /* ── Controls ───────────────────────────────────────────────────────────────── */
 
 .eng-preset-group {
