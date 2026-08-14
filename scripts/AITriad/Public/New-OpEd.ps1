@@ -181,6 +181,9 @@ function New-OpEd {
 
     Set-StrictMode -Version Latest
 
+    # Shared prompt artifacts live in lib/oped/prompts/ (canonical TS-core location, t/2609).
+    $OPedPromptsDir = [System.IO.Path]::GetFullPath((Join-Path $script:ModuleRoot '..\..\lib\oped\prompts'))
+
     # ── Normalize the POV to its canonical Soul-document name ────────────────
     $PovMap = @{
         acc = 'accelerationist'; accelerationist = 'accelerationist'
@@ -364,7 +367,7 @@ function New-OpEd {
                     }
                     required   = @('thesis', 'readable')
                 }
-                $BriefPrompt = Get-Prompt -Name 'op-ed-source-brief' -Replacements @{
+                $BriefPrompt = Get-Prompt -Name 'op-ed-source-brief' -PromptsDir $OPedPromptsDir -Replacements @{
                     SOURCE_MATERIAL = [string]$Prep.SourceMarkdown
                 }
                 $BriefResult = Invoke-AIApi -Prompt $BriefPrompt -Model $Model -Temperature 0.2 `
@@ -399,13 +402,13 @@ function New-OpEd {
     }
 
     # ── Load prompt templates ────────────────────────────────────────────────
-    $SystemPrompt = Get-Prompt -Name 'op-ed-generation-system' -Replacements @{
+    $SystemPrompt = Get-Prompt -Name 'op-ed-generation-system' -PromptsDir $OPedPromptsDir -Replacements @{
         POV_LABEL       = $Soul.label
         VOICE_BLOCK     = $VoiceBlock
         WORD_COUNT      = "$TargetWords"
         OUTLET_GUIDANCE = $Band.Guidance
     }
-    $UserPrompt = Get-Prompt -Name 'op-ed-generation-user' -Replacements @{
+    $UserPrompt = Get-Prompt -Name 'op-ed-generation-user' -PromptsDir $OPedPromptsDir -Replacements @{
         TOPIC               = $Topic
         WORD_COUNT          = "$TargetWords"
         OUTLET_GUIDANCE     = $Band.Guidance
@@ -510,7 +513,7 @@ function New-OpEd {
             foreach ($g in $Grounding) {
                 [void]$glb.AppendLine("- [$($g.Id)] ($($g.Type)/$($g.Category)) $($g.Label)")
             }
-            $ReflPrompt = Get-Prompt -Name 'op-ed-grounding-reflection' -Replacements @{
+            $ReflPrompt = Get-Prompt -Name 'op-ed-grounding-reflection' -PromptsDir $OPedPromptsDir -Replacements @{
                 OPED_BODY      = $Body
                 GROUNDING_LIST = $glb.ToString().TrimEnd()
             }
