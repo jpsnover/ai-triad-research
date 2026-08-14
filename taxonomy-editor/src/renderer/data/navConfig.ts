@@ -25,7 +25,10 @@ export interface NavItem {
   tier: NavTier;
   group?: NavGroup;
   action: NavAction;
-  gate?: { flag?: string; adminOnly?: boolean };
+  // `flag`: single required flag. `anyFlag`: OR-of-flags — the item shows when ANY listed
+  // flag is truthy (per-build reveal, e.g. Op-Eds shows in whichever build delivers its own
+  // build flag). `adminOnly`: admin-gated. Multiple keys AND together (t/2633).
+  gate?: { flag?: string; anyFlag?: string[]; adminOnly?: boolean };
 }
 
 export const NAV_ITEMS: readonly NavItem[] = [
@@ -34,7 +37,7 @@ export const NAV_ITEMS: readonly NavItem[] = [
   { id: 'taxonomy', label: 'Taxonomy', icon: LayoutGrid, tier: 'primary', action: { type: 'custom', id: 'taxonomy' } },
   { id: 'debate', label: 'Debate', icon: MessageSquare, tier: 'primary', action: { type: 'switchTab', target: 'debate' } },
   { id: 'chat', label: 'Chat', icon: MessageCircle, tier: 'primary', action: { type: 'custom', id: 'chat' } },
-  { id: 'opeds', label: 'Op-Eds', icon: Newspaper, tier: 'primary', action: { type: 'switchTab', target: 'opeds' }, gate: { flag: 'env-electron-opeds' } },
+  { id: 'opeds', label: 'Op-Eds', icon: Newspaper, tier: 'primary', action: { type: 'switchTab', target: 'opeds' }, gate: { anyFlag: ['env-electron-opeds', 'env-web-opeds'] } },
 
   // ── Secondary tier — browse group ──
   { id: 'situations', label: 'Situations', icon: Crosshair, tier: 'secondary', group: 'browse', action: { type: 'switchTab', target: 'situations' } },
@@ -78,6 +81,8 @@ export function getVisibleNavItems(
     if (!item.gate) return true;
     if (item.gate.adminOnly && !ctx.isAdmin) return false;
     if (item.gate.flag && !ctx.flags[item.gate.flag]) return false;
+    // OR-of-flags: hide unless at least one listed flag is truthy (t/2633).
+    if (item.gate.anyFlag && !item.gate.anyFlag.some(f => ctx.flags[f])) return false;
     return true;
   });
 }
