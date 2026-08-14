@@ -217,7 +217,8 @@ export function Toolbar() {
   const adminFeatures = useFlag('permission-admin-features');
   const summariesFlag = useFlag('env-electron-summaries');
   const opedsFlag = useFlag('env-electron-opeds');
-  const navCtx = { flags: { 'env-electron-summaries': summariesFlag, 'env-electron-opeds': opedsFlag }, isAdmin: adminFeatures };
+  const webOpedsFlag = useFlag('env-web-opeds'); // web reveal — Op-Eds gate ORs both build flags (t/2633)
+  const navCtx = { flags: { 'env-electron-summaries': summariesFlag, 'env-electron-opeds': opedsFlag, 'env-web-opeds': webOpedsFlag }, isAdmin: adminFeatures };
   const visibleItems = getVisibleNavItems(NAV_ITEMS, navCtx);
   const secondaryGroups = getSecondaryByGroup(visibleItems);
   const isNavItemActive = (item: NavItem): boolean => {
