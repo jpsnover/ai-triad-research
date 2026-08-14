@@ -247,6 +247,7 @@ function buildDebateSection(debate: DebateSession, hasAn: boolean, hasCommitment
   return { header: 'DEBATE', tabs: [
     { id: 'topic-scope', label: 'Topic Scope', visible: !!debate.topic?.scope },
     { id: 'argument-network', label: 'Arg Net', visible: hasAn },
+    { id: 'arg-strength', label: 'Arg Strength', visible: hasAn },
     { id: 'commitments', label: 'Commitments', visible: hasCommitments },
     { id: 'transcript', label: `Transcript (${debate.transcript.filter(e => e.type === 'statement' || e.type === 'opening').length} stmts / ${debate.transcript.length} total)`, visible: true },
     { id: 'convergence', label: `Convergence (${debate.convergence_signals?.length ?? 0})`, visible: !!(debate.convergence_signals && debate.convergence_signals.length > 0) },

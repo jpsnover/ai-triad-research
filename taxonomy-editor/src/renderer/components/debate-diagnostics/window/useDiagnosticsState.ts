@@ -580,6 +580,7 @@ export function useDiagnosticsState(initialData?: Record<string, unknown>) {
     const tabVisibility: Record<OverviewTab, boolean> = {
       'topic-scope': !!debate.topic?.scope,
       'argument-network': hasAn,
+      'arg-strength': hasAn,
       'commitments': hasCommitments,
       'transcript': true,
       'extraction': true,
