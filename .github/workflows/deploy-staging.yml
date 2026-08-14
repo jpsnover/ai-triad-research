@@ -78,6 +78,13 @@ jobs:
             Write-Host "Prior revision (rollback target): '$($Top.Name)'"
           }
 
+      - name: Sync Bicep baseEnv to staging template (t/2630)
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Import-Module ./scripts/AITriad/AITriad.psm1 -Force
+          ./operations/devops/Sync-StagingEnv.ps1
+
       - name: Deploy new revision to staging (0% traffic)
         id: new_revision
         shell: pwsh
@@ -160,6 +167,36 @@ jobs:
             -MaxAttempts 3 `
             -RetryIntervalSec 10
           Write-Host "Staging traffic promoted to ${{ steps.new_revision.outputs.revision }}"
+
+      - name: Verify Bicep baseEnv on staging serving revision (t/2630)
+        if: steps.smoke.outputs.passed == 'true'
+        shell: pwsh
+        run: |
+          Set-StrictMode -Version Latest
+          $ErrorActionPreference = 'Stop'
+          $BicepEnv = & ./operations/devops/Get-BicepBaseEnv.ps1 -BicepPath deploy/azure/main.bicep
+          $RevEnvJson = az containerapp revision show `
+            --name '${{ env.CONTAINER_APP_NAME }}' `
+            -g '${{ env.RESOURCE_GROUP }}' `
+            --revision '${{ steps.new_revision.outputs.revision }}' `
+            --query 'properties.template.containers[0].env' -o json
+          $RevEnv = $RevEnvJson | ConvertFrom-Json
+          $RevMap = @{}
+          foreach ($e in @($RevEnv)) {
+            $valProp = $e.PSObject.Properties['value']
+            if ($null -ne $valProp) { $RevMap[$e.name] = $valProp.Value }
+          }
+          $Mismatches = @()
+          foreach ($key in $BicepEnv.Keys) {
+            if ($RevMap[$key] -ne $BicepEnv[$key]) {
+              $Mismatches += "${key}: expected='$($BicepEnv[$key])' actual='$($RevMap[$key])'"
+            }
+          }
+          if ($Mismatches.Count -gt 0) {
+            Write-Error "Staging serving revision baseEnv mismatch:`n$($Mismatches -join "`n")"
+            exit 1
+          }
+          Write-Host "Staging serving revision '${{ steps.new_revision.outputs.revision }}' baseEnv verified OK"
 
       - name: Re-authenticate before rollback
         if: always() && failure() && steps.current_revision.outputs.revision != ''
