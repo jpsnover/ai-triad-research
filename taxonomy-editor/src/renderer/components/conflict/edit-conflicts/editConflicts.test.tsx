@@ -30,6 +30,42 @@ const CONFLICT: NodeConflict = SAMPLE.conflicts[0];
 
 afterEach(() => { vi.restoreAllMocks(); mockBridgeGet.mockReset(); });
 
+// Capture baseline env so each describe can restore cleanly.
+const _origTarget = import.meta.env.VITE_TARGET;
+const _origDev = import.meta.env.DEV;
+
+describe('getNodeConflicts — electron-prod guard (t/2620)', () => {
+  afterEach(() => {
+    import.meta.env.VITE_TARGET = _origTarget;
+    (import.meta.env as Record<string, unknown>).DEV = _origDev;
+    mockBridgeGet.mockReset();
+  });
+
+  it('returns DISABLED immediately without touching bridgeGet in electron-prod', async () => {
+    import.meta.env.VITE_TARGET = 'electron';
+    (import.meta.env as Record<string, unknown>).DEV = false;
+    // No server: if bridgeGet were called it would reject and open the read circuit.
+    expect(await getNodeConflicts()).toEqual({ enabled: false, session_branch: null, behind_by: 0, conflicts: [] });
+    expect(mockBridgeGet).not.toHaveBeenCalled();
+  });
+
+  it('calls bridgeGet in web-container mode (guard off)', async () => {
+    import.meta.env.VITE_TARGET = 'web';
+    (import.meta.env as Record<string, unknown>).DEV = false;
+    mockBridgeGet.mockResolvedValue(SAMPLE);
+    expect(await getNodeConflicts()).toEqual(SAMPLE);
+    expect(mockBridgeGet).toHaveBeenCalledWith('/api/sync/node-conflicts');
+  });
+
+  it('calls bridgeGet in electron-dev mode (dev server is running)', async () => {
+    import.meta.env.VITE_TARGET = 'electron';
+    (import.meta.env as Record<string, unknown>).DEV = true;
+    mockBridgeGet.mockResolvedValue(SAMPLE);
+    expect(await getNodeConflicts()).toEqual(SAMPLE);
+    expect(mockBridgeGet).toHaveBeenCalledWith('/api/sync/node-conflicts');
+  });
+});
+
 describe('getNodeConflicts', () => {
   it('returns the disabled response on HTTP error', async () => {
     mockBridgeGet.mockRejectedValue(new Error('HTTP 500'));
