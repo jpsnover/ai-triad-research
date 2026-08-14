@@ -62,8 +62,13 @@ vi.mock('../../hooks/useAuthStatus', () => ({
   useUserProfile: () => null,
 }));
 
+// Configurable feature flags (t/2641). Both useFlag and the whole-record store selector
+// read the same source, so a test can reveal Op-Eds via EITHER build flag and prove the
+// component threads it (the drift that hid Op-Eds on web — t/2599, t/2633).
+const { mockFlags } = vi.hoisted(() => ({ mockFlags: { value: {} as Record<string, boolean> } }));
 vi.mock('../../hooks/useFeatureFlags', () => ({
-  useFlag: () => false,
+  useFlag: (name: string) => mockFlags.value[name] ?? false,
+  useFeatureFlagStore: (selector: (s: { flags: Record<string, boolean> }) => unknown) => selector({ flags: mockFlags.value }),
 }));
 
 vi.mock('../../hooks/useTierInfo', () => ({
@@ -127,5 +132,28 @@ describe('Toolbar — Zustand scalar selector regression (t/2142)', () => {
       screen.getByRole('button', { name: /switch to simple view/i }),
     );
     expect(mockPrefsState.setViewMode).toHaveBeenCalledWith('simple');
+  });
+});
+
+describe('Toolbar — Op-Eds reveal honors both build flags (t/2641)', () => {
+  beforeEach(() => { mockFlags.value = {}; mockPrefsState.viewMode = 'simple'; });
+
+  it('hides the Op-Eds button when neither build flag is set', () => {
+    render(<Toolbar />);
+    expect(screen.queryByRole('button', { name: 'Op-Eds' })).toBeNull();
+  });
+
+  // The web-reveal case that the hardcoded env-electron-opeds gate (Toolbar line 340) missed:
+  // env-web-opeds ON, env-electron-opeds absent → the primary Op-Eds button MUST appear.
+  it('shows the Op-Eds button when only env-web-opeds is on (web reveal)', () => {
+    mockFlags.value = { 'env-web-opeds': true };
+    render(<Toolbar />);
+    expect(screen.getByRole('button', { name: 'Op-Eds' })).toBeInTheDocument();
+  });
+
+  it('shows the Op-Eds button when only env-electron-opeds is on (desktop, unchanged)', () => {
+    mockFlags.value = { 'env-electron-opeds': true };
+    render(<Toolbar />);
+    expect(screen.getByRole('button', { name: 'Op-Eds' })).toBeInTheDocument();
   });
 });

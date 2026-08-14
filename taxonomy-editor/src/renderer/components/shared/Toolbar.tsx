@@ -13,7 +13,7 @@ import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { HelpDialog } from '../settings/HelpDialog';
 import { SettingsDialog } from '../settings/SettingsDialog';
 import { useAuthStatus, useUserProfile } from '../../hooks/useAuthStatus';
-import { useFlag } from '../../hooks/useFeatureFlags';
+import { useFlag, useFeatureFlagStore } from '../../hooks/useFeatureFlags';
 import { useTierInfo } from '../../hooks/useTierInfo';
 import { FeedbackPopover } from './FeedbackPopover';
 import { NAV_ITEMS, getVisibleNavItems, getSecondaryByGroup, type NavItem, type NavAction } from '../../data/navConfig';
@@ -215,12 +215,15 @@ export function Toolbar() {
   }, [showMore]);
 
   const adminFeatures = useFlag('permission-admin-features');
-  const summariesFlag = useFlag('env-electron-summaries');
-  const opedsFlag = useFlag('env-electron-opeds');
-  const webOpedsFlag = useFlag('env-web-opeds'); // web reveal — Op-Eds gate ORs both build flags (t/2633)
-  const navCtx = { flags: { 'env-electron-summaries': summariesFlag, 'env-electron-opeds': opedsFlag, 'env-web-opeds': webOpedsFlag }, isAdmin: adminFeatures };
+  // Thread the WHOLE flag record into navCtx so a nav gate can never reference a flag the
+  // component forgot to include — the drift that hid Op-Eds twice (t/2599, t/2633). t/2641.
+  const allFlags = useFeatureFlagStore(s => s.flags);
+  const navCtx = { flags: allFlags, isAdmin: adminFeatures };
   const visibleItems = getVisibleNavItems(NAV_ITEMS, navCtx);
   const secondaryGroups = getSecondaryByGroup(visibleItems);
+  // The hardcoded primary Op-Eds button honors the SAME navConfig gate (not a re-derived
+  // flag check) so its visibility can't diverge from the gate — the line-340 drift (t/2641).
+  const opedsVisible = visibleItems.some(i => i.id === 'opeds');
   const isNavItemActive = (item: NavItem): boolean => {
     if (item.action.type === 'switchTab') return activeTab === item.action.target && toolbarPanel === null;
     if (item.action.type === 'togglePanel') return toolbarPanel === item.action.target;
@@ -337,7 +340,7 @@ export function Toolbar() {
           <MessageCircle size="1.25em" />
           <span className="toolbar-nav-label">Chat</span>
         </button>
-        {opedsFlag && (
+        {opedsVisible && (
           <button
             className={`toolbar-nav${activeTab === 'opeds' && toolbarPanel === null ? ' toolbar-nav-active' : ''}`}
             onClick={() => switchTab('opeds')}
