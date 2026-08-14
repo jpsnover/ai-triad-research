@@ -1,10 +1,10 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-// Op-ed create/cancel/export IPC handlers (t/2575, t/2588).
-// Stage A: Get-OpEdSource hoisted once per create call, SourcePrep threaded into each voice.
-// Stage B: N× New-OpEd fan-out via ElectronMain-owned PS shim, per-voice progress + cancel.
-// Partial-set contract: failed/cancelled members; whole-set Markdown export.
+// Op-ed create/cancel/export IPC handlers (t/2575, t/2588, t/2611).
+// Stage A: Get-OpEdSource PS shim hoisted once per create call (FromUrl path).
+// Stage B: lib/oped generate.ts in-process core — parallel voice fan-out via AIAdapter.
+// Partial-set contract: failed/cancelled members persisted; whole-set Markdown export.
 
 import { ipcMain, dialog, BrowserWindow } from 'electron';
 import { spawn } from 'child_process';
@@ -17,18 +17,21 @@ import { getGlobalRecorder } from '../../../../lib/flight-recorder/index.js';
 import { assertSafeId } from '../../../../lib/electron-shared/safeId.js';
 import { PROJECT_ROOT, getDataRootPath } from '../fileIO.js';
 import { saveOpEdSetTemp, finalizeOpEdSet, loadOpEdSet, deleteOpEdSet, listOpEdSets, saveOpEdSet } from '../opedIO.js';
-import type { OpEdSet, OpEdMember, OpEdParams, OpEdGroundingRef } from '../../../../lib/oped/types.js';
+import type { OpEdSet, OpEdMember, OpEdParams } from '../../../../lib/oped/types.js';
 import type { PovKey } from '../../../../lib/oped/types.js';
+import { generateOpEdSet } from '../../../../lib/oped/generate.js';
+import type { GenerateOpEdRequest, OpEdGeneratorDeps } from '../../../../lib/oped/generate.js';
+import { makeElectronAIAdapter } from '../electronAIAdapter.js';
 
-// PS shims live in source tree alongside their TypeScript callers. PROJECT_ROOT resolves
-// via resolveRepoRootForApp (walks .aitriad.json), stable in both dev and packaged builds —
-// build:main is tsc-only and does not copy .ps1 to dist/.
-const SHIM_PATH      = path.join(PROJECT_ROOT, 'taxonomy-editor', 'src', 'main', 'ps', 'invoke-oped.ps1');
+// Shared prompts dir: op-ed-*.prompt artifacts used by both PS and TS cores.
+// Path is runtime-resolved so t/2609 prompt relocation only requires updating this constant.
+const PROMPTS_DIR = path.join(PROJECT_ROOT, 'scripts', 'AITriad', 'Prompts');
+
+// Stage-A fetch shim (FromUrl path only — stays PS, t/2604 P2 will migrate to TS).
 const PREP_SHIM_PATH = path.join(PROJECT_ROOT, 'taxonomy-editor', 'src', 'main', 'ps', 'invoke-get-oped-source.ps1');
 
-// Read generation.opedVoiceTimeoutMs from {dataRoot}/admin/runtime-config.json on each run
-// so it's tunable without restart. Falls back to 360s (New-OpEd = grounding + full-essay LLM;
-// debate briefs use 330s — 30s was mock-friendly but fails real runs).
+// Read generation.opedVoiceTimeoutMs from {dataRoot}/admin/runtime-config.json on each run.
+// Falls back to 360s — in-process generation matches the PS wall-clock for grounding + LLM.
 function getVoiceTimeoutMs(): number {
   try {
     const cfgPath = path.join(getDataRootPath(), 'admin', 'runtime-config.json');
@@ -40,51 +43,26 @@ function getVoiceTimeoutMs(): number {
   return 360_000;
 }
 
-// ── Active run registry (keyed by set_id — sent in queued events so renderer can cancel early)
+// ── Active run registry ───────────────────────────────────────────────────────
 
 const activeOpEdRuns = new Map<string, AbortController>();
 
-// ── Progress event shape ──────────────────────────────────────────────────────
+// ── IPC progress event shape ──────────────────────────────────────────────────
 
 type OpEdStage = 'queued' | 'preparing-source' | 'fetching' | 'grounding' | 'generating' | 'finalizing' | 'complete' | 'failed' | 'cancelled';
 
 interface OpEdProgressEvent {
   set_id: string;
-  voice?: PovKey;  // absent for set-phase events (e.g. preparing-source)
+  voice?: PovKey;  // absent for set-phase events (e.g. preparing-source, grounding)
   stage: OpEdStage;
   error?: string;
 }
 
-// ── Shim stdout line shapes ───────────────────────────────────────────────────
+// ── Shim stdout line shapes (Stage-A only) ────────────────────────────────────
 
 interface ShimStageLine { type: 'stage'; stage: string }
 interface ShimResultLine { type: 'result'; data: Record<string, unknown> }
 type ShimLine = ShimStageLine | ShimResultLine;
-
-// STOPGAP (t/2611): PS shim returns PascalCase grounding fields and short pov codes.
-// Normalize at the persist boundary so stored JSON conforms to TS types.
-// Delete both helpers when t/2611 replaces the PS path with lib/oped core.
-
-const POV_SHORT_MAP: Readonly<Record<string, PovKey>> = {
-  acc: 'accelerationist', saf: 'safetyist', skp: 'skeptic',
-  accelerationist: 'accelerationist', safetyist: 'safetyist', skeptic: 'skeptic',
-} as const;
-
-function normalizePov(raw: unknown): PovKey {
-  return POV_SHORT_MAP[String(raw ?? '').toLowerCase()] ?? (raw as PovKey);
-}
-
-function normalizeGrounding(raw: unknown): OpEdGroundingRef[] {
-  if (!Array.isArray(raw)) return [];
-  return (raw as Record<string, unknown>[]).map(g => ({
-    node_id:       String(g.node_id       ?? g.NodeId       ?? ''),
-    label:         String(g.label         ?? g.Label         ?? ''),
-    category:      String(g.category      ?? g.Category      ?? ''),
-    pov:           normalizePov(g.pov     ?? g.Pov),
-    relevance:     String(g.relevance     ?? g.Relevance     ?? ''),
-    how_reflected: String(g.how_reflected ?? g.HowReflected  ?? ''),
-  }));
-}
 
 // ── Stage-A: source prep runner ───────────────────────────────────────────────
 
@@ -150,134 +128,6 @@ function runGetOpEdSource(url: string, signal: AbortSignal): Promise<Record<stri
   });
 }
 
-// ── Stage-B: single-voice runner ─────────────────────────────────────────────
-
-interface VoiceRunOpts {
-  topic: string;
-  pov: PovKey;
-  params: OpEdParams;
-  sourcePrep?: Record<string, unknown>;  // hoisted Stage-A result; if absent, Url falls through
-  signal: AbortSignal;
-  onProgress: (stage: OpEdStage, error?: string) => void;
-}
-
-function runVoice({ topic, pov, params, sourcePrep, signal, onProgress }: VoiceRunOpts): Promise<OpEdMember> {
-  return new Promise<OpEdMember>((resolve, reject) => {
-    const stdinPayload = JSON.stringify({
-      Topic: topic,
-      Pov: pov,
-      WordCount: params.wordCount,
-      Model: params.model,
-      // SourcePrep (FromPrep path) and Url (FromUrl path) are mutually exclusive parameter sets.
-      // The orchestrator passes SourcePrep when it has hoisted Stage A; otherwise falls through
-      // to Url for single-voice direct callers (not currently wired — future use).
-      ...(sourcePrep
-        ? { SourcePrep: sourcePrep }
-        : {}),
-      ...(params.outlet    ? { Outlet:    params.outlet }    : {}),
-      ...(params.newsHook  ? { NewsHook:  params.newsHook }  : {}),
-      ...(params.thesis    ? { Thesis:    params.thesis }    : {}),
-      ...(params.authorBio ? { AuthorBio: params.authorBio } : {}),
-    });
-
-    const child = spawn('pwsh', ['-NoProfile', '-NonInteractive', '-File', SHIM_PATH], {
-      stdio: ['pipe', 'pipe', 'pipe'],
-    });
-
-    let settled = false;
-    let timeoutHandle: ReturnType<typeof setTimeout> | undefined;
-    const voiceTimeoutMs = getVoiceTimeoutMs();
-
-    function onAbort(): void {
-      settle(() => {
-        child.kill('SIGTERM');
-        onProgress('cancelled');
-        reject(Object.assign(new Error('cancelled'), { name: 'AbortError' }));
-      });
-    }
-
-    function settle(fn: () => void): void {
-      if (settled) return;
-      settled = true;
-      if (timeoutHandle !== undefined) clearTimeout(timeoutHandle);
-      signal.removeEventListener('abort', onAbort);
-      fn();
-    }
-
-    if (signal.aborted) { onAbort(); return; }
-    signal.addEventListener('abort', onAbort, { once: true });
-
-    timeoutHandle = setTimeout(() => {
-      settle(() => {
-        child.kill('SIGTERM');
-        onProgress('failed', 'timeout');
-        reject(new Error(`Voice ${pov} timed out after ${voiceTimeoutMs}ms`));
-      });
-    }, voiceTimeoutMs);
-
-    child.stdin.write(stdinPayload, 'utf-8');
-    child.stdin.end();
-
-    let stdoutBuf = '';
-    child.stdout.on('data', (chunk: Buffer) => {
-      stdoutBuf += chunk.toString('utf-8');
-      const lines = stdoutBuf.split('\n');
-      stdoutBuf = lines.pop() ?? '';
-      for (const line of lines) {
-        const trimmed = line.trim();
-        if (!trimmed) continue;
-        let msg: ShimLine;
-        try { msg = JSON.parse(trimmed) as ShimLine; } catch { /* telemetry — silent by design */ continue; }
-        if (msg.type === 'stage') {
-          onProgress(msg.stage as OpEdStage);
-        } else if (msg.type === 'result') {
-          const raw = msg.data ?? {};
-          const member: OpEdMember = {
-            pov,
-            status: 'complete',
-            headline:  String(raw.Headline  ?? raw.headline  ?? ''),
-            subtitle:  String(raw.Subtitle  ?? raw.subtitle  ?? ''),
-            body:      String(raw.Body      ?? raw.body      ?? ''),
-            pitch:     raw.Pitch ?? raw.pitch ? String(raw.Pitch ?? raw.pitch) : undefined,
-            wordCount: Number(raw.WordCount  ?? raw.wordCount ?? 0),
-            grounding: normalizeGrounding(raw.Grounding ?? raw.grounding),
-          };
-          settle(() => {
-            onProgress('complete');
-            resolve(member);
-          });
-        }
-      }
-    });
-
-    child.stderr.on('data', (chunk: Buffer) => {
-      getGlobalRecorder()?.record({
-        type: 'system.error', component: 'opedHandlers', level: 'warn',
-        message: `Voice stderr (${pov}): ${chunk.toString('utf-8').slice(0, 500)}`,
-      });
-    });
-
-    child.on('error', (err) => {
-      settle(() => {
-        onProgress('failed', err.message);
-        reject(err);
-      });
-    });
-
-    child.on('close', (code) => {
-      settle(() => {
-        if (code !== 0) {
-          onProgress('failed', `exit ${code ?? 'null'}`);
-          reject(new Error(`pwsh exited with code ${code} for voice ${pov}`));
-        } else {
-          onProgress('failed', 'no result line received');
-          reject(new Error(`No result received from voice ${pov}`));
-        }
-      });
-    });
-  });
-}
-
 // ── Markdown renderer ─────────────────────────────────────────────────────────
 
 function renderOpEdSetMarkdown(set: OpEdSet): string {
@@ -312,7 +162,7 @@ function renderOpEdSetMarkdown(set: OpEdSet): string {
 export function registerOpEdHandlers(): void {
   ipcMain.handle('create-oped-set', async (event, payload: {
     topic: string;
-    url?: string;   // if provided, Get-OpEdSource is hoisted once (Stage A) before voice fan-out
+    url?: string;   // if provided, Get-OpEdSource is hoisted once (Stage A) before generation
     params: OpEdParams;
     voices: PovKey[];
   }) => {
@@ -336,13 +186,16 @@ export function registerOpEdHandlers(): void {
       if (!event.sender.isDestroyed()) event.sender.send('oped-progress', data);
     };
 
-    // Stage A: hoist Get-OpEdSource once before spawning voices.
+    // Stage A: hoist Get-OpEdSource once before generation (FromUrl path).
     // Fail fast if readability gate trips — don't fan out to draft on garbage (TL cond 3).
-    let sourcePrep: Record<string, unknown> | undefined;
+    let sourceBrief: string | undefined;
     if (url) {
       send({ set_id: setId, stage: 'preparing-source' });
       try {
-        sourcePrep = await runGetOpEdSource(url, controller.signal);
+        const sourcePrep = await runGetOpEdSource(url, controller.signal);
+        // Extract markdown text for the lib/oped sourceBrief slot ({{SOURCE_MATERIAL}}).
+        // Structured fields (SOURCE_AUTHOR etc.) are P2 — empty in P1 (t/2604).
+        sourceBrief = sourcePrep.SourceMarkdown != null ? String(sourcePrep.SourceMarkdown) : undefined;
       } catch (err) {
         activeOpEdRuns.delete(setId);
         getGlobalRecorder()?.record({
@@ -367,35 +220,76 @@ export function registerOpEdHandlers(): void {
       send({ set_id: setId, voice, stage: 'queued' });
     }
 
+    const request: GenerateOpEdRequest = {
+      set_id: setId,
+      topic,
+      params,
+      povs: voices,
+      sourceBrief,
+      signal: controller.signal,
+    };
+
+    const deps: OpEdGeneratorDeps = {
+      adapter: makeElectronAIAdapter(),
+      promptsDir: PROMPTS_DIR,
+      repoRoot: PROJECT_ROOT,
+    };
+
     const completedMembers: OpEdMember[] = [];
-
-    const voicePromises = voices.map(async (voice): Promise<OpEdMember> => {
-      const member = await runVoice({
-        topic, pov: voice, params, sourcePrep,
-        signal: controller.signal,
-        onProgress: (stage, error) => send({ set_id: setId, voice, stage, error }),
-      }).catch((err): OpEdMember => {
-        const isAbort = (err as Error).name === 'AbortError' || String((err as Error).message) === 'cancelled';
-        return { pov: voice, status: isAbort ? 'cancelled' : 'failed', headline: '', subtitle: '', body: '', wordCount: 0, grounding: [] };
-      });
-
-      completedMembers.push(member);
-      // Best-effort temp save after each voice (partial-set crash guard)
-      try {
-        saveOpEdSetTemp({ schema_version: 1, set_id: setId, topic, params, created_at: createdAt, opeds: [...completedMembers] });
-      } catch { /* telemetry — silent by design; temp save is best-effort */ }
-
-      return member;
-    });
+    let finalized = false;
 
     try {
-      const results = await Promise.all(voicePromises);
-      const set: OpEdSet = { schema_version: 1, set_id: setId, topic, params, created_at: createdAt, opeds: results };
-      finalizeOpEdSet(set);
-      return { set_id: setId };
+      for await (const evt of generateOpEdSet(request, deps)) {
+        switch (evt.type) {
+          case 'grounding_done':
+            send({ set_id: setId, stage: 'grounding' });
+            break;
+          case 'grounding_failed':
+            getGlobalRecorder()?.record({
+              type: 'system.error', component: 'opedHandlers', level: 'warn',
+              message: `Grounding failed for set ${setId}: ${evt.error} — continuing voice-only`,
+            });
+            break;
+          case 'voice_start':
+            send({ set_id: setId, voice: evt.pov, stage: 'generating' });
+            break;
+          case 'voice_complete': {
+            completedMembers.push(evt.member);
+            try {
+              saveOpEdSetTemp({ schema_version: 1, set_id: setId, topic, params, created_at: createdAt, opeds: [...completedMembers] });
+            } catch { /* telemetry — silent by design; temp save is best-effort */ }
+            send({ set_id: setId, voice: evt.pov, stage: 'complete' });
+            break;
+          }
+          case 'voice_failed': {
+            const failed: OpEdMember = { pov: evt.pov, status: 'failed', headline: '', subtitle: '', body: '', wordCount: 0, grounding: [] };
+            completedMembers.push(failed);
+            send({ set_id: setId, voice: evt.pov, stage: 'failed', error: evt.error });
+            break;
+          }
+          case 'voice_cancelled': {
+            const cancelled: OpEdMember = { pov: evt.pov, status: 'cancelled', headline: '', subtitle: '', body: '', wordCount: 0, grounding: [] };
+            completedMembers.push(cancelled);
+            send({ set_id: setId, voice: evt.pov, stage: 'cancelled' });
+            break;
+          }
+          case 'complete':
+            finalizeOpEdSet(evt.set);
+            finalized = true;
+            break;
+        }
+      }
     } finally {
       activeOpEdRuns.delete(setId);
+      // Abort before complete: persist partial set so completed voices aren't lost.
+      if (!finalized && completedMembers.length > 0) {
+        try {
+          finalizeOpEdSet({ schema_version: 1, set_id: setId, topic, params, created_at: createdAt, opeds: completedMembers });
+        } catch { /* telemetry — silent by design */ }
+      }
     }
+
+    return { set_id: setId };
   });
 
   ipcMain.handle('cancel-oped-set', (_event, setId: string) => {
