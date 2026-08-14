@@ -22,7 +22,7 @@
 
 BeforeAll {
     $script:RepoRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
-    Import-Module (Join-Path $script:RepoRoot 'scripts\AITriad\AITriad.psm1') -Force -WarningAction SilentlyContinue
+    Import-Module (Join-Path $script:RepoRoot 'scripts\AITriad\AITriad.psm1') -WarningAction SilentlyContinue
 
     $script:OPedPromptsDir = Join-Path $script:RepoRoot 'lib\oped\prompts'
     $script:TsxBin         = Join-Path $script:RepoRoot 'taxonomy-editor\node_modules\.bin\tsx'
