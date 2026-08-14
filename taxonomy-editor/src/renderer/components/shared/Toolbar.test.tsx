@@ -64,6 +64,9 @@ vi.mock('../../hooks/useAuthStatus', () => ({
 
 vi.mock('../../hooks/useFeatureFlags', () => ({
   useFlag: () => false,
+  // Toolbar threads the whole flag record via useNavVisibilityContext (t/2641).
+  useFeatureFlagStore: (selector: (s: { flags: Record<string, boolean> }) => unknown) =>
+    selector({ flags: {} }),
 }));
 
 vi.mock('../../hooks/useTierInfo', () => ({

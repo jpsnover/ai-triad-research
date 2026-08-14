@@ -14,6 +14,7 @@ import { HelpDialog } from '../settings/HelpDialog';
 import { SettingsDialog } from '../settings/SettingsDialog';
 import { useAuthStatus, useUserProfile } from '../../hooks/useAuthStatus';
 import { useFlag } from '../../hooks/useFeatureFlags';
+import { useNavVisibilityContext } from '../../hooks/useNavVisibilityContext';
 import { useTierInfo } from '../../hooks/useTierInfo';
 import { FeedbackPopover } from './FeedbackPopover';
 import { NAV_ITEMS, getVisibleNavItems, getSecondaryByGroup, type NavItem, type NavAction } from '../../data/navConfig';
@@ -214,11 +215,8 @@ export function Toolbar() {
     return () => window.removeEventListener('mousedown', handler);
   }, [showMore]);
 
-  const adminFeatures = useFlag('permission-admin-features');
-  const summariesFlag = useFlag('env-electron-summaries');
-  const opedsFlag = useFlag('env-electron-opeds');
-  const webOpedsFlag = useFlag('env-web-opeds'); // web reveal — Op-Eds gate ORs both build flags (t/2633)
-  const navCtx = { flags: { 'env-electron-summaries': summariesFlag, 'env-electron-opeds': opedsFlag, 'env-web-opeds': webOpedsFlag }, isAdmin: adminFeatures };
+  const opedsFlag = useFlag('env-electron-opeds'); // gates the primary Op-Eds button below (desktop reveal)
+  const navCtx = useNavVisibilityContext(); // whole flag record — no subset to drift (t/2641)
   const visibleItems = getVisibleNavItems(NAV_ITEMS, navCtx);
   const secondaryGroups = getSecondaryByGroup(visibleItems);
   const isNavItemActive = (item: NavItem): boolean => {
