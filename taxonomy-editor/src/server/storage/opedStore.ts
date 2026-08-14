@@ -13,6 +13,7 @@
 import path from 'path';
 import { resolveDataPath } from '../config.js';
 import type { OpEdSet, OpEdSetSummary, PovKey } from '../../../../lib/oped/types.js';
+import { parseOpEdSet } from '../../../../lib/oped/schemas.js';
 import { ActionableError } from '../../../../lib/debate/errors.js';
 import { log } from '../logger.js';
 import { getStorageUserId, isAnonymousUser } from '../security/userContext.js';
@@ -174,10 +175,13 @@ export async function finalizeOpedSet(set: OpEdSet): Promise<void> {
     }
   }
 
+  // Validate shape before writing — rejects PS short-code pov / PascalCase grounding fields
+  const validated = parseOpEdSet(set);
+
   // (a) Write final doc — single write, atomic on blob
   await backend.writeFile(
     path.join(dir, `oped-set-${set.set_id}.json`),
-    JSON.stringify(set, null, 2),
+    JSON.stringify(validated, null, 2),
   );
 
   // (b) Upsert index
