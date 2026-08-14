@@ -43,15 +43,11 @@ const BASELINE_ALIAS_BUGS_T2568 = [
   // the other 16 were NOT wrong-names — reclassified to the (b) group below.
 ];
 const BASELINE_NEED_VALUES_T2569 = [
-  // Error family → owned by the t/2566 thread (don't double-define here).
-  '--error-bg', '--error-border', '--error-color', '--error-text',
-  // --color-accent repointed to --focus-ring (Design p/29#114) — cleared, class-(b) baseline
-  // is now the error family only (t/2566).
-  // Everything else here (Batch 1 + Batch 3: --info, --link-color, --warning-bg/-border,
-  // --bg-selected, --border-subtle, --accent-hover/-bg/-text/-rgb, --color-moderator,
-  // reuse/font tokens) is now DEFINED, and --accent/-color/-primary/-strong/-blue,
-  // --bg-subtle, --surface-1, --bg-elevated, --link, --color-info, --border-* variants,
-  // --active-definition-bg are REPOINTED to existing tokens — all removed from the ratchet.
+  // EMPTY → class-(b) baseline is ZERO (t/2569 complete). The error family
+  // (--error-bg/-border/-color/-text) was the final batch — Design-blessed per-theme at
+  // t/2569#6 (correcting the earlier mis-deferral to t/2566, which only covered singular
+  // --error) and now DEFINED in styles.css. Everything else was defined (Batch 1+3) or
+  // repointed to existing tokens (accent family → --focus-ring, etc.) in prior landings.
 ];
 const BASELINE = new Set<string>([...BASELINE_ALIAS_BUGS_T2568, ...BASELINE_NEED_VALUES_T2569]);
 
