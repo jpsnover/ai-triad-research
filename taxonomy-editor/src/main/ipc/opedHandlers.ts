@@ -24,7 +24,7 @@ import type { GenerateOpEdRequest, OpEdGeneratorDeps } from '../../../../lib/ope
 import { makeElectronAIAdapter } from '../electronAIAdapter.js';
 
 // Shared prompts dir: op-ed-*.prompt artifacts used by both PS and TS cores.
-// Path is runtime-resolved so t/2609 prompt relocation only requires updating this constant.
+// t/2609: when prompts relocate, update this constant to match the new path.
 const PROMPTS_DIR = path.join(PROJECT_ROOT, 'scripts', 'AITriad', 'Prompts');
 
 // Stage-A fetch shim (FromUrl path only — stays PS, t/2604 P2 will migrate to TS).
@@ -230,7 +230,7 @@ export function registerOpEdHandlers(): void {
     };
 
     const deps: OpEdGeneratorDeps = {
-      adapter: makeElectronAIAdapter(),
+      adapter: makeElectronAIAdapter(getVoiceTimeoutMs()),
       promptsDir: PROMPTS_DIR,
       repoRoot: PROJECT_ROOT,
     };
