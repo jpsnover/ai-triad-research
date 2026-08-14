@@ -24,7 +24,11 @@ import { isSafeId } from '../storage/fileIO.js';
 import { listOpedSets, loadOpedSet, deleteOpedSet, getOpedSetsQuotaStatus, finalizeOpedSet } from '../storage/opedStore.js';
 import type { OpEdSet, OpEdMember, OpEdParams, PovKey } from '../../../../lib/oped/types.js';
 import type { GenerateOpEdRequest, OpEdGeneratorDeps, OpEdProgressEvent } from '../../../../lib/oped/generate.js';
-import { getStorageUserId, isAnonymousUser } from '../security/userContext.js';
+import { getStorageUserId, isAnonymousUser, getCurrentUser } from '../security/userContext.js';
+import { callerTierIdentity } from '../security/accessControl.js';
+import * as proxyTiers from '../ai/proxyTiers.js';
+import { resolveBackend } from '../ai/aiBackends.js';
+import { DEFAULT_MODEL } from '../../../../lib/ai-client/index.js';
 import { getProjectRoot } from '../config.js';
 import { createWebOpEdAdapter } from '../ai/opedAdapter.js';
 import { randomUUID } from 'crypto';
@@ -81,6 +85,20 @@ function parseOpEdCreate(body: unknown): { ok: true; value: ParsedOpEdCreate } |
   if (povs.length === 0) return { ok: false, status: 400, message: 'at least one voice (pov) is required' };
   if (!params || typeof params.model !== 'string' || typeof params.wordCount !== 'number') return { ok: false, status: 400, message: 'params.model and params.wordCount are required' };
   return { ok: true, value: { topic, povs, params } };
+}
+
+/** Tier-backend entitlement (mirrors chat.ts resolveGenerationContext, t/2610#11): a free
+ *  user must not invoke a premium backend via `params.model`, and the free tier's model is
+ *  pinned. Returns the EFFECTIVE model to generate with (pinned for free). */
+function resolveOpEdModel(params: OpEdParams): { ok: true; model: string } | { ok: false; status: number; message: string } {
+  const { principalName, idp } = callerTierIdentity(getCurrentUser());
+  const tier = proxyTiers.resolveTier(principalName, idp);
+  const model = tier.level === 'free' ? (tier.pinnedModel ?? params.model) : params.model;
+  const backend = resolveBackend(model || DEFAULT_MODEL);
+  if (!proxyTiers.isBackendAllowed(tier, backend)) {
+    return { ok: false, status: 403, message: `Your plan can't use the ${backend} backend — choose an allowed model` };
+  }
+  return { ok: true, model: model || params.model };
 }
 
 function applyEventToRun(run: OpEdRun, event: OpEdProgressEvent, completed: OpEdMember[]): void {
@@ -156,6 +174,10 @@ export function registerOpedRoutes(r: Router, _ctx: ServerCtx): void {
     const parsed = parseOpEdCreate(body);
     if (!parsed.ok) { error(res, parsed.message, parsed.status); return; }
     const { topic, povs, params } = parsed.value;
+    // Tier-backend entitlement — a free user can't pick a premium backend via params.model
+    // (mirrors chat.ts:236); free tier's model is pinned. Must precede any generation.
+    const ent = resolveOpEdModel(params);
+    if (!ent.ok) { error(res, ent.message, ent.status); return; }
 
     const userId = getStorageUserId();
     sweepOpedRuns();
@@ -187,7 +209,8 @@ export function registerOpedRoutes(r: Router, _ctx: ServerCtx): void {
     res.on('close', () => { clientGone = true; ac.abort(); });
 
     writeFrame({ type: 'run_started', runId });
-    const request: GenerateOpEdRequest = { set_id: setId, topic, params, povs: povs as PovKey[], signal: ac.signal };
+    // Generate with the entitlement-resolved (free-tier-pinned) model, not the raw request.
+    const request: GenerateOpEdRequest = { set_id: setId, topic, params: { ...params, model: ent.model }, povs: povs as PovKey[], signal: ac.signal };
     await driveOpEdRun(res, run, request, writeFrame, heartbeat, () => clientGone);
   });
 

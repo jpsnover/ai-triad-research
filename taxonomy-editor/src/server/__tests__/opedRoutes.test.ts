@@ -22,11 +22,21 @@ const { listOpedSets, loadOpedSet, deleteOpedSet, getOpedSetsQuotaStatus, finali
 }));
 vi.mock('../storage/opedStore.js', () => ({ listOpedSets, loadOpedSet, deleteOpedSet, getOpedSetsQuotaStatus, finalizeOpedSet }));
 
-// Controllable auth context for the create-route pre-start gate (t/2610).
-const { isAnonymousUser, getStorageUserId } = vi.hoisted(() => ({
-  isAnonymousUser: vi.fn(() => false), getStorageUserId: vi.fn(() => 'user-1'),
+// Controllable auth + tier context for the create-route pre-start gate (t/2610).
+const { isAnonymousUser, getStorageUserId, getCurrentUser, resolveTier, resolveBackend } = vi.hoisted(() => ({
+  isAnonymousUser: vi.fn(() => false),
+  getStorageUserId: vi.fn(() => 'user-1'),
+  getCurrentUser: vi.fn(() => ({ principalName: 'u', idp: 'aad', isAnonymous: false })),
+  resolveTier: vi.fn(() => ({ level: 'platform', allowedBackends: ['gemini', 'claude', 'groq'], pinnedModel: undefined })),
+  resolveBackend: vi.fn(() => 'gemini'),
 }));
-vi.mock('../security/userContext.js', () => ({ isAnonymousUser, getStorageUserId }));
+vi.mock('../security/userContext.js', () => ({ isAnonymousUser, getStorageUserId, getCurrentUser }));
+vi.mock('../ai/proxyTiers.js', () => ({ resolveTier, isBackendAllowed: (tier: { allowedBackends: string[] }, b: string) => tier.allowedBackends.includes(b) }));
+vi.mock('../ai/aiBackends.js', () => ({ resolveBackend }));
+// accessControl (callerTierIdentity, clientSafeMessage) is pure — use the real module
+// so httpKit's error() path keeps clientSafeMessage. Only the tier/backend + user context
+// need controlling, and those are mocked above.
+vi.mock('../../../../lib/ai-client/index.js', () => ({ DEFAULT_MODEL: 'gemini-2.5-flash' }));
 // Stub the adapter so importing the route never pulls the heavy aiBackends provider
 // chain — the pre-start gate tests return before any generation.
 vi.mock('../ai/opedAdapter.js', () => ({ createWebOpEdAdapter: () => ({ generateText: vi.fn() }) }));
@@ -207,9 +217,21 @@ describe('POST /api/oped-sets create pre-start gate (t/2610)', () => {
     getStorageUserId.mockReset().mockReturnValue('user-1');
     getOpedSetsQuotaStatus.mockReset().mockResolvedValue({ allowed: true, resource: 'opeds', current: 0, limit: 15 });
     finalizeOpedSet.mockReset();
+    getCurrentUser.mockReset().mockReturnValue({ principalName: 'u', idp: 'aad', isAnonymous: false });
+    resolveTier.mockReset().mockReturnValue({ level: 'platform', allowedBackends: ['gemini', 'claude', 'groq'], pinnedModel: undefined });
+    resolveBackend.mockReset().mockReturnValue('gemini');
     const r = makeRouter();
     registerOpedRoutes(r.router as never, {} as never);
     handlers = r.handlers;
+  });
+
+  it('403 when the caller’s tier does not allow the selected backend (no premium via params.model)', async () => {
+    resolveTier.mockReturnValue({ level: 'platform', allowedBackends: ['gemini'], pinnedModel: undefined });
+    resolveBackend.mockReturnValue('claude'); // the requested model resolves to a disallowed backend
+    const res = fakeRes();
+    await handlers['POST /api/oped-sets'](fakeReq('/api/oped-sets'), res, { ...validBody, params: { model: 'claude-opus-4', wordCount: 800 } });
+    expect(res._status).toBe(403);
+    expect(getOpedSetsQuotaStatus).not.toHaveBeenCalled(); // gated before quota + any generation
   });
 
   it('403 for anonymous users (no anonymous op-ed tier)', async () => {
