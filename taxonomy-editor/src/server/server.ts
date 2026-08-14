@@ -1459,7 +1459,7 @@ server.listen(PORT, BIND_HOST, () => {
   const analyticsBlobUrl = process.env.AZURE_STORAGE_ACCOUNT_URL;
   const analyticsContainer = process.env.AZURE_ANALYTICS_CONTAINER || 'analytics';
   analytics.initAnalytics(
-    getDataRoot(),
+    getStateRoot(), // t/2643: analytics NDJSON is class-A writable state — isolate the fs-fallback root by construction (not by AZURE_STORAGE_ACCOUNT_URL being set). No-op on prod (stateRoot===dataRoot).
     analyticsBlobUrl ? { accountUrl: analyticsBlobUrl, container: analyticsContainer } : undefined,
   ).then(() => {
     log.analytics.info({ backend: analyticsBlobUrl ? 'azure-blob' : 'filesystem' }, 'Analytics initialized');
