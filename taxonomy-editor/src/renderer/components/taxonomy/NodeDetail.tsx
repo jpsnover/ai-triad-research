@@ -881,7 +881,10 @@ function SteelmanVulnerabilitySection({ node, readOnly, update }: SteelmanVulner
             const vuln = node.graph_attributes!.steelman_vulnerability as Record<string, string | undefined>;
             const povKey = key.replace('from_', '') as 'accelerationist' | 'safetyist' | 'skeptic';
             const meta = POV_META[povKey];
-            if (!vuln[key] && readOnly) return null;
+            // Hide a POV with no vulnerability text in BOTH modes — an empty POV rendered a
+            // blank textarea in edit mode (noise). These are AI-populated (POV-node regen), not
+            // manually seeded, so hiding an empty one loses nothing; regen repopulates it.
+            if (!vuln[key]) return null;
             return (
               <div key={key} className="vulnerability-subsection">
                 {/* eslint-disable-next-line local/no-inline-style -- color is per-POV, computed from meta.cssVar */}
