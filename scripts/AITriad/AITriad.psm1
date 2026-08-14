@@ -671,14 +671,14 @@ if (Test-Path $TaxonomyDir) {
             # array whose entries carry an 'id'). Auxiliary files (lineage_categories.json)
             # and sidecar logs (entity_extraction_log.json, whose nodes are keyed by
             # 'node_id' — t/1834) live alongside POV files but must NOT be treated as POVs.
-            if (-not (Test-IsPovTaxonomyData $Json)) {
+            if (Test-IsPovTaxonomyData $Json) {
+                $PovName = $File.BaseName.ToLower()
+                $script:TaxonomyData[$PovName] = $Json
+                $script:TaxonomyFileTimestamps[$File.FullName] = $File.LastWriteTime
+                Write-Verbose "Taxonomy: loaded '$PovName' ($($Json.nodes.Count) nodes) from $($File.Name)"
+            } else {
                 Write-Verbose "Taxonomy: skipping $($File.Name) (not a POV node file — no id-shaped nodes[])"
-                continue
             }
-            $PovName = $File.BaseName.ToLower()
-            $script:TaxonomyData[$PovName] = $Json
-            $script:TaxonomyFileTimestamps[$File.FullName] = $File.LastWriteTime
-            Write-Verbose "Taxonomy: loaded '$PovName' ($($Json.nodes.Count) nodes) from $($File.Name)"
         }
         catch {
             Write-Warning "Taxonomy: failed to load $($File.Name): $_ — this POV will be unavailable until the file is fixed."
