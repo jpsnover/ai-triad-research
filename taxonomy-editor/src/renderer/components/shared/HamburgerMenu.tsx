@@ -79,6 +79,7 @@ export function HamburgerMenu({ isOpen, onClose }: HamburgerMenuProps) {
   const adminFeatures = useFlag('permission-admin-features');
   const summariesFlag = useFlag('env-electron-summaries');
   const opedsFlag = useFlag('env-electron-opeds');
+  const webOpedsFlag = useFlag('env-web-opeds'); // web reveal — Op-Eds gate ORs both build flags (t/2633)
   const [showHelp, setShowHelp] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showFeedback, setShowFeedback] = useState(false);
@@ -167,7 +168,7 @@ export function HamburgerMenu({ isOpen, onClose }: HamburgerMenuProps) {
   }
 
   // NavConfig-driven items
-  const navCtx = { flags: { 'env-electron-summaries': summariesFlag, 'env-electron-opeds': opedsFlag }, isAdmin: adminFeatures };
+  const navCtx = { flags: { 'env-electron-summaries': summariesFlag, 'env-electron-opeds': opedsFlag, 'env-web-opeds': webOpedsFlag }, isAdmin: adminFeatures };
   const visibleItems = getVisibleNavItems(NAV_ITEMS, navCtx);
   const primaryNavItems = visibleItems.filter(i => i.tier === 'primary' && !bottomNavIds.has(i.id));
   const secondaryGroups = getSecondaryByGroup(visibleItems);
