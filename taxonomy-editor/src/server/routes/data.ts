@@ -16,7 +16,7 @@ import type { Router } from '../httpKit.js';
 import type { ServerCtx } from './context.js';
 import { json, error } from '../httpKit.js';
 import { getGlobalRecorder } from '../../../../lib/flight-recorder/index.js';
-import { getDataRoot, STORAGE_MODE } from '../config.js';
+import { getDataRoot, STORAGE_MODE, isStagingIdentity } from '../config.js';
 import { getConfig } from '../runtimeConfig.js';
 import { isPathWithinDir } from '../security/accessControl.js';
 import { requireAdmin } from '../community/admin/reviewRegistry.js';
@@ -166,6 +166,15 @@ export function registerDataRoutes(r: Router, ctx: ServerCtx): void {
       res.end('Data pull skipped: github-api mode uses the GitHub API as the source of truth (no local git sync).\n');
       return;
     }
+    // t/2643: even in filesystem mode, refuse a data-pull on staging — reset --hard + clean -fd on
+    // the worktree at getDataRoot() (= /mnt/shared, prod's SHARED tree) would mutate prod's data.
+    // Closes the git-worktree staging→prod hazard before DevOps flips the mount RO (the backstop).
+    if (isStagingIdentity()) {
+      res.writeHead(403, { 'Content-Type': 'text/plain; charset=utf-8' });
+      res.end('Data pull is disabled on staging: the shared data worktree is read-only there (t/2643).\n');
+      return;
+    }
+
     // Stream heartbeats to prevent Azure Container Apps' Envoy proxy from
     // returning 504 "stream timeout" during long-running git operations.
     res.writeHead(200, {

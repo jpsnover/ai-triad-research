@@ -107,6 +107,67 @@ export function resolveDataPath(subPath: string): string {
 }
 
 /**
+ * Writable STATE root for class-A data — feature flags, runtime config, the key store,
+ * telemetry, flight-recorder dirs, and calibration logs. Split from the read/grounding
+ * data root so a staging deployment cannot mutate prod's shared Azure Files share (t/2643).
+ *
+ * - `AI_TRIAD_STATE_ROOT` (Bicep-declared on staging) → an isolated, staging-owned RW mount.
+ * - Defaults to `getDataRoot()`, so filesystem/Electron and prod behave exactly as before
+ *   (prod's state root IS its data root — the shared share, which prod legitimately owns).
+ *
+ * Grounding/taxonomy READS and read-only provisioned config keep using `getDataRoot()` /
+ * `resolveDataPath()` (the shared, read-only mount) — only WRITABLE class-A paths route here.
+ * The RO mount is the primary prod-immutability boundary; this split makes staging function
+ * within it (t/2643#3).
+ */
+export function getStateRoot(): string {
+  const envRoot = process.env.AI_TRIAD_STATE_ROOT;
+  if (envRoot) return path.resolve(envRoot);
+  return getDataRoot();
+}
+
+/** `resolveDataPath` for the writable state root (t/2643). Use for class-A WRITE paths. */
+export function resolveStatePath(subPath: string): string {
+  const stateRoot = getStateRoot();
+  return path.isAbsolute(subPath) ? subPath : path.resolve(stateRoot, subPath);
+}
+
+/**
+ * True when this process is the STAGING deployment. ACA auto-injects `CONTAINER_APP_NAME`
+ * (drift-proof — set by the platform, not a Bicep env a drift could silently wipe); an
+ * explicit `AI_TRIAD_ENV=staging` is accepted as a belt-and-suspenders backstop. Used only
+ * by the state-root isolation fail-fast guard (t/2643) — never an auth/security decision.
+ */
+export function isStagingIdentity(): boolean {
+  const appName = process.env.CONTAINER_APP_NAME ?? '';
+  return /staging/i.test(appName) || process.env.AI_TRIAD_ENV === 'staging';
+}
+
+/**
+ * Boot-time fail-fast guard (t/2643, Second Opinion cond. 4): if this is the STAGING
+ * deployment but the isolated state root resolves back to the shared data root — i.e.
+ * `AI_TRIAD_STATE_ROOT` was wiped by env-var drift (the project's documented incident class)
+ * — refuse to start. This converts "staging silently resumes mutating prod's shared share"
+ * into a visible boot failure. Called once at server startup. No-op on prod/local (where
+ * stateRoot===dataRoot is legitimate — prod owns its share).
+ */
+export function assertStateRootIsolation(): void {
+  if (isStagingIdentity() && getStateRoot() === getDataRoot()) {
+    throw new Error(
+      'State-root isolation guard failed — refusing to start (t/2643).\n' +
+      '  Goal:       keep staging class-A writes off prod\'s shared Azure Files data root.\n' +
+      '  Problem:    staging identity detected but AI_TRIAD_STATE_ROOT is unset/equal to the ' +
+      'data root, so class-A writes (feature flags, runtime config, keys, calibration) would ' +
+      'land on prod\'s shared share.\n' +
+      `  Location:   getStateRoot()===getDataRoot()===${getDataRoot()} on ` +
+      `${process.env.CONTAINER_APP_NAME ?? '(unknown app)'}.\n` +
+      '  Next steps: set AI_TRIAD_STATE_ROOT to the staging-owned RW mount in main.bicep ' +
+      '(never via --set-env-vars, which the next Bicep apply wipes — re-arming the hazard).',
+    );
+  }
+}
+
+/**
  * Resolve sources root independently from data root.
  * Priority: AI_TRIAD_SOURCES_ROOT env var > .aitriad.json sources_root > null.
  * Returns null when sources are unavailable (web/container mode, or repo not cloned).
@@ -177,7 +238,7 @@ export async function getApiKey(backend: AIBackend = 'gemini'): Promise<string |
 
   try {
     // t/835: stored value may be a JSON array of keys — take the first.
-    const stored = await getKeyStore(getDataRoot).getKeys(backend, getCurrentUserId());
+    const stored = await getKeyStore(getStateRoot).getKeys(backend, getCurrentUserId());
     if (stored.length > 0) return stored[0];
   } catch (err) {
     getGlobalRecorder()?.record({
@@ -206,7 +267,7 @@ export async function getApiKeys(backend: AIBackend = 'gemini'): Promise<string[
   if (envKey) return [envKey];
 
   try {
-    const stored = await getKeyStore(getDataRoot).getKeys(backend, getCurrentUserId());
+    const stored = await getKeyStore(getStateRoot).getKeys(backend, getCurrentUserId());
     if (stored.length > 0) return stored;
   } catch (err) {
     getGlobalRecorder()?.record({
@@ -226,17 +287,17 @@ export async function getApiKeys(backend: AIBackend = 'gemini'): Promise<string[
 /** The user's stored BYOK keys for a backend (t/835) — excludes env/platform
  *  keys; for the Settings key-management list. */
 export async function getStoredApiKeys(backend: AIBackend = 'gemini'): Promise<string[]> {
-  return getKeyStore(getDataRoot).getKeys(backend, getCurrentUserId());
+  return getKeyStore(getStateRoot).getKeys(backend, getCurrentUserId());
 }
 
 /** Append a BYOK key for a backend (t/835); returns the new key list. */
 export async function addApiKey(key: string, backend: AIBackend = 'gemini'): Promise<string[]> {
-  return getKeyStore(getDataRoot).addKey(backend, getCurrentUserId(), key);
+  return getKeyStore(getStateRoot).addKey(backend, getCurrentUserId(), key);
 }
 
 /** Remove the BYOK key at `index` for a backend (t/835); returns the new key list. */
 export async function removeApiKey(index: number, backend: AIBackend = 'gemini'): Promise<string[]> {
-  return getKeyStore(getDataRoot).removeKey(backend, getCurrentUserId(), index);
+  return getKeyStore(getStateRoot).removeKey(backend, getCurrentUserId(), index);
 }
 
 export async function hasApiKey(backend: AIBackend = 'gemini'): Promise<boolean> {
@@ -244,7 +305,7 @@ export async function hasApiKey(backend: AIBackend = 'gemini'): Promise<boolean>
 }
 
 export async function storeApiKey(key: string, backend: AIBackend = 'gemini'): Promise<void> {
-  await getKeyStore(getDataRoot).set(backend, getCurrentUserId(), key);
+  await getKeyStore(getStateRoot).set(backend, getCurrentUserId(), key);
 }
 
 // ── Paid Gemini fallback key (t/948) ──
@@ -258,7 +319,7 @@ const PAID_FALLBACK_PARTITION = '_system';
  *  GEMINI_PAID_KEY env var), or null if neither is configured. */
 export async function getPaidGeminiFallbackKey(): Promise<string | null> {
   try {
-    const stored = await getKeyStore(getDataRoot).getKeys('gemini', PAID_FALLBACK_PARTITION);
+    const stored = await getKeyStore(getStateRoot).getKeys('gemini', PAID_FALLBACK_PARTITION);
     if (stored.length > 0) return stored[0];
   } catch (err) {
     getGlobalRecorder()?.record({
@@ -272,12 +333,12 @@ export async function getPaidGeminiFallbackKey(): Promise<string | null> {
 
 /** Admin: store the paid Gemini fallback key in the `_system` key-store partition. */
 export async function setPaidGeminiFallbackKey(key: string): Promise<void> {
-  await getKeyStore(getDataRoot).set('gemini', PAID_FALLBACK_PARTITION, key);
+  await getKeyStore(getStateRoot).set('gemini', PAID_FALLBACK_PARTITION, key);
 }
 
 /** Admin: remove the stored paid Gemini fallback key (the env-var path, if any, persists). */
 export async function deletePaidGeminiFallbackKey(): Promise<void> {
-  await getKeyStore(getDataRoot).delete('gemini', PAID_FALLBACK_PARTITION);
+  await getKeyStore(getStateRoot).delete('gemini', PAID_FALLBACK_PARTITION);
 }
 
 /** All user-configurable AI backends — iterated by deleteAllApiKeys().
@@ -288,11 +349,11 @@ export async function deletePaidGeminiFallbackKey(): Promise<void> {
 const ALL_AI_BACKENDS = Object.keys(ENV_KEY_NAMES) as AIBackend[];
 
 export async function deleteApiKey(backend: AIBackend = 'gemini'): Promise<void> {
-  await getKeyStore(getDataRoot).delete(backend, getCurrentUserId());
+  await getKeyStore(getStateRoot).delete(backend, getCurrentUserId());
 }
 
 export async function deleteAllApiKeys(): Promise<void> {
-  const store = getKeyStore(getDataRoot);
+  const store = getKeyStore(getStateRoot);
   const userId = getCurrentUserId();
   await Promise.all(ALL_AI_BACKENDS.map(b => store.delete(b, userId)));
 }
@@ -302,7 +363,7 @@ export async function deleteAllApiKeys(): Promise<void> {
  * (t/809). No-op on Key Vault (platform-managed encryption). Admin-triggered.
  */
 export async function rotateApiKeyMaterial(): Promise<KeyRotationResult> {
-  return getKeyStore(getDataRoot).rotateKeyMaterial();
+  return getKeyStore(getStateRoot).rotateKeyMaterial();
 }
 
 // ── Storage mode ──

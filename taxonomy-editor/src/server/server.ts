@@ -26,7 +26,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 import { WebSocketServer, WebSocket } from 'ws';
 import {
-  PORT, getDataRoot, getApiKey, hasApiKey, storeApiKey, deleteApiKey, deleteAllApiKeys, rotateApiKeyMaterial,
+  PORT, getDataRoot, getStateRoot, assertStateRootIsolation, getApiKey, hasApiKey, storeApiKey, deleteApiKey, deleteAllApiKeys, rotateApiKeyMaterial,
   getStoredApiKeys, addApiKey, removeApiKey, resolveDataPath,
   getPaidGeminiFallbackKey, setPaidGeminiFallbackKey, deletePaidGeminiFallbackKey,
   BROKER_SCRIPT, SCRIPTS_DIR, getProjectRoot, type AIBackend,
@@ -1373,7 +1373,7 @@ function shutdown(signal: string) {
   try {
     serverRecorder.record({ type: 'lifecycle', component: 'server', level: 'info', message: `Shutdown: ${signal}` });
     const ndjson = appendServerLogs(serverRecorder.buildDump('manual').ndjson);
-    const dumpDir = path.join(getDataRoot(), 'flight-recorder');
+    const dumpDir = path.join(getStateRoot(), 'flight-recorder'); // t/2643: class-A writable state
     fs.mkdirSync(dumpDir, { recursive: true });
     fs.writeFileSync(path.join(dumpDir, `server-shutdown-${Date.now()}.jsonl`), ndjson);
   } catch { /* telemetry — silent by design;  best effort */ }
@@ -1417,7 +1417,7 @@ process.on('uncaughtException', (err) => {
   try {
     serverRecorder.record({ type: 'system.error', component: 'server', level: 'fatal', message: err.message, error: { name: err.name, message: err.message, stack: err.stack?.slice(0, 500) } });
     const { ndjson } = serverRecorder.buildDump('uncaught_error', { name: err.name, message: err.message, stack: err.stack?.slice(0, 500) });
-    const dumpDir = path.join(getDataRoot(), 'flight-recorder');
+    const dumpDir = path.join(getStateRoot(), 'flight-recorder'); // t/2643: class-A writable state
     fs.mkdirSync(dumpDir, { recursive: true });
     fs.writeFileSync(path.join(dumpDir, `server-crash-${Date.now()}.jsonl`), ndjson);
   } catch { /* telemetry — silent by design;  best effort */ }
@@ -1438,7 +1438,7 @@ initAnonymousSessionStore({
 });
 
 // ── Start ──
-
+assertStateRootIsolation(); // t/2643: refuse start if staging's state root wasn't isolated (env drift) — no-op prod/local
 // t/2532 (M12): loopback (127.0.0.1) in dev / 0.0.0.0 in prod; HOST opts into LAN exposure (logged loudly below).
 const BIND_HOST = resolveBindHost(process.env);
 server.listen(PORT, BIND_HOST, () => {
@@ -1459,7 +1459,7 @@ server.listen(PORT, BIND_HOST, () => {
   const analyticsBlobUrl = process.env.AZURE_STORAGE_ACCOUNT_URL;
   const analyticsContainer = process.env.AZURE_ANALYTICS_CONTAINER || 'analytics';
   analytics.initAnalytics(
-    getDataRoot(),
+    getStateRoot(), // t/2643: analytics NDJSON is class-A writable state — isolate the fs-fallback root by construction (not by AZURE_STORAGE_ACCOUNT_URL being set). No-op on prod (stateRoot===dataRoot).
     analyticsBlobUrl ? { accountUrl: analyticsBlobUrl, container: analyticsContainer } : undefined,
   ).then(() => {
     log.analytics.info({ backend: analyticsBlobUrl ? 'azure-blob' : 'filesystem' }, 'Analytics initialized');

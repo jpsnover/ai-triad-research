@@ -16,7 +16,7 @@ import type { ServerCtx } from './context.js';
 import { json, error, param, query } from '../httpKit.js';
 import { getGlobalRecorder } from '../../../../lib/flight-recorder/index.js';
 import { log } from '../logger.js';
-import { getDataRoot, getProjectRoot, rotateApiKeyMaterial, STORAGE_MODE, getPaidGeminiFallbackKey, setPaidGeminiFallbackKey, deletePaidGeminiFallbackKey } from '../config.js';
+import { getDataRoot, getStateRoot, getProjectRoot, rotateApiKeyMaterial, STORAGE_MODE, getPaidGeminiFallbackKey, setPaidGeminiFallbackKey, deletePaidGeminiFallbackKey } from '../config.js';
 import { loadUsageRegistry } from '../../../../lib/ai-client/usageTypes.js';
 import { getConfig, getConfigState, writeConfig, forceReload as reloadRuntimeConfig, diffFromDefaults } from '../runtimeConfig.js';
 import { requireAdmin, getReviewQueue, getReviewStats, getReviewDetail, executeReviewAction } from '../community/admin/reviewRegistry.js';
@@ -738,7 +738,7 @@ export function registerAdminRoutes(r: Router, ctx: ServerCtx): void {
 
       const userId = getCurrentUserId();
       const date = new Date().toISOString().slice(0, 10);
-      const telemetryDir = path.join(getDataRoot(), 'admin', 'telemetry');
+      const telemetryDir = path.join(getStateRoot(), 'admin', 'telemetry'); // t/2643: class-A writable state
       fs.mkdirSync(telemetryDir, { recursive: true });
 
       const line = JSON.stringify({
@@ -779,7 +779,7 @@ export function registerAdminRoutes(r: Router, ctx: ServerCtx): void {
     try {
       const url = new URL(req.url!, 'http://localhost');
       const days = Math.min(parseInt(url.searchParams.get('days') || '7', 10) || 7, 90);
-      const telemetryDir = path.join(getDataRoot(), 'admin', 'telemetry');
+      const telemetryDir = path.join(getStateRoot(), 'admin', 'telemetry'); // t/2643: class-A writable state
 
       const summaries: Record<string, Record<string, number>> = {};
       const now = new Date();
