@@ -446,6 +446,8 @@ export function registerAiRoutes(r: Router, ctx: ServerCtx): void {
         error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
         data: { model: model ?? 'default', promptLength: prompt?.length, source: ai.isContextTooLongError(err) ? 'context_overflow' : ai.is429Error(err) ? 'upstream' : 'error' },
       });
+      if (ai.isContextTooLongError(err)) log.server.warn({ component: 'ai-search', model: model ?? 'default' }, 'AI search input exceeds model context window');
+      else if (ai.is429Error(err)) log.server.warn({ component: 'ai-search', model: model ?? 'default', retryAfterMs: ai.retryAfterMs(err) }, 'AI search upstream rate-limited — returning 429');
       respondAiSearchError(res, err);
     }
   });

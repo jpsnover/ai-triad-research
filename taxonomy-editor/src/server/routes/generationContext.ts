@@ -54,7 +54,7 @@ export function enforceBackendAllowed(res: http.ServerResponse, tier: ResolvedTi
     message: `Backend '${backend}' not available on '${tier.level}' tier`,
     data: { tier_level: tier.level, requested_backend: backend, allowed_backends: tier.allowedBackends },
   });
-  res.writeHead(403);
+  res.writeHead(403, { 'Content-Type': 'application/json' });
   res.end(JSON.stringify({ error: `Backend '${backend}' not available on your tier`, tier_level: tier.level, requested_backend: backend }));
   return true;
 }
