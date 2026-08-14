@@ -458,15 +458,17 @@ export const api: AppAPI = {
   // DEBATE_CHAT_REDESIGN defaults ON for the local/Electron build (t/2257); opt out with
   // VITE_DEBATE_CHAT_REDESIGN=false. Web/server default is separate (Azure ticket, t/2243).
   //
-  // env-electron-opeds: GA reveal (t/2603) RE-GATED to opt-in (default OFF) — a real-data
-  // desktop smoke found three create-vs-render contract crashes the sign-off missed (t/2605
-  // set.opeds; pov short-code vs POV_META; grounding persisted PascalCase vs OpEdGroundingRef).
-  // Render-side resolvers/guards (povResolve, groundingType) are legacy-data TOLERANCE, not the
-  // fix; the reveal stays dark until create-side persists the canonical TS contract (ElectronMain
-  // migration) and a real-data READER smoke passes on a DRAFT re-reveal PR. Opt IN: VITE_ELECTRON_OPEDS=true.
+  // env-electron-opeds: GA reveal (t/2603) RE-REVEALED (default ON). The re-gate went dark
+  // after a real-data smoke found three create-vs-render crashes (t/2605 set.opeds; pov
+  // short-code vs POV_META; grounding PascalCase vs OpEdGroundingRef). Both root causes are
+  // now fixed on the CREATE side — new sets persist the canonical TS contract (ElectronMain
+  // migration t/2611; parseOpEdSet Zod validation at the write boundary #1005/t/2617 throws
+  // on non-canonical shape). Render-side povResolve/groundingType stay as legacy-data tolerance
+  // for already-persisted short-code/PascalCase sets. Un-drafted only after the new-set-arm
+  // reader smoke passed (TL p/336#161). Opt OUT: VITE_ELECTRON_OPEDS=false.
   getFlags: () => Promise.resolve({
     DEBATE_CHAT_REDESIGN: import.meta.env.VITE_DEBATE_CHAT_REDESIGN !== 'false',
-    'env-electron-opeds': import.meta.env.VITE_ELECTRON_OPEDS === 'true',
+    'env-electron-opeds': import.meta.env.VITE_ELECTRON_OPEDS !== 'false',
   }),
 
   // UsageID registry — stub (desktop has no server-side usage registry)
