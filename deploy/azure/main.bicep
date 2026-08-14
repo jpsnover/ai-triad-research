@@ -378,6 +378,30 @@ resource stagingAnalyticsContainer 'Microsoft.Storage/storageAccounts/blobServic
   }
 }
 
+// ── Staging Azure Files — writable state share (t/2643) ──
+// Class-A writes (flags, config, calibration, keys) from staging route here.
+// Prod's 'taxonomy-data' share is NOT declared here (managed externally) — it
+// will be flipped to ReadOnly in a follow-up deploy once getStateRoot() is live.
+
+resource stagingStateShare 'Microsoft.Storage/storageAccounts/fileServices/shares@2023-05-01' = {
+  name: '${storageAccount.name}/default/taxonomy-data-staging'
+  properties: { shareQuota: 100 }
+}
+
+resource envStorageStagingState 'Microsoft.App/managedEnvironments/storages@2024-03-01' = {
+  parent: containerAppEnv
+  name: 'taxonomy-data-staging'
+  properties: {
+    azureFile: {
+      accountName: storageAccount.name
+      accountKey: storageAccount.listKeys().keys[0].value
+      shareName: 'taxonomy-data-staging'
+      accessMode: 'ReadWrite'
+    }
+  }
+  dependsOn: [stagingStateShare]
+}
+
 // ── Container App ──
 
 var baseEnv = [
@@ -432,6 +456,42 @@ var envWithFreeTier = freeTierEnabled
 var containerEnv = paidTierEnabled
   ? concat(envWithFreeTier, [ { name: 'GEMINI_PAID_KEY', secretRef: paidTierSecretName } ])
   : envWithFreeTier
+
+// ── Staging env isolation (t/2643) ──
+// Override 2 baseEnv keys and add 1 new key for staging class-A write isolation.
+// ALL three must be Bicep-declared (never --set-env-vars — wiped by next apply).
+// Get-BicepBaseEnv.ps1 -ForStaging also parses stagingEnvOverrides so
+// Sync-StagingEnv.ps1 keeps staging's template in sync on every deploy.
+var stagingEnvOverrides = [
+  // Force off: staging must not sync to prod's git backend (t/2643 git-worktree hazard)
+  { name: 'GIT_SYNC_ENABLED',    value: '0' }
+  // Cache must not write to the (soon-to-be) RO /mnt/shared; route to state mount
+  { name: 'TAXONOMY_CACHE_DIR',  value: '/mnt/staging-state/cache' }
+  // Routes all class-A writes (flags, config, calibration, keys) to isolated mount
+  { name: 'AI_TRIAD_STATE_ROOT', value: '/mnt/staging-state' }
+  // github-api writes go to the staging branch, not main (t/2650 class-B isolation)
+  { name: 'GITHUB_BRANCH',       value: 'staging' }
+]
+// stagingBaseEnv = baseEnv with the 4 isolation overrides applied.
+// filter() removes the baseEnv entries that stagingEnvOverrides supersedes.
+var stagingBaseEnv = concat(
+  filter(baseEnv, e => e.name != 'TAXONOMY_CACHE_DIR' && e.name != 'GIT_SYNC_ENABLED'),
+  stagingEnvOverrides
+)
+// Rebuild the secret chain for staging — mirrors the prod chain so staging
+// is a faithful pre-prod proxy (same oauth/ai secrets, different write path).
+var stagingEnvWithToken = githubTokenProvided
+  ? concat(stagingBaseEnv, [ { name: 'GITHUB_TOKEN', secretRef: githubTokenSecretName } ])
+  : stagingBaseEnv
+var stagingEnvWithWebhook = githubWebhookSecretProvided
+  ? concat(stagingEnvWithToken, [ { name: 'GITHUB_WEBHOOK_SECRET', secretRef: githubWebhookSecretName } ])
+  : stagingEnvWithToken
+var stagingEnvWithFreeTier = freeTierEnabled
+  ? concat(stagingEnvWithWebhook, [ { name: 'FREE_TIER_GEMINI_KEY', secretRef: freeTierSecretName } ])
+  : stagingEnvWithWebhook
+var stagingContainerEnv = paidTierEnabled
+  ? concat(stagingEnvWithFreeTier, [ { name: 'GEMINI_PAID_KEY', secretRef: paidTierSecretName } ])
+  : stagingEnvWithFreeTier
 
 resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
   name: 'taxonomy-editor'
@@ -577,7 +637,7 @@ resource containerAppStaging 'Microsoft.App/containerApps@2024-03-01' = {
             cpu: json('0.25')
             memory: '0.5Gi'
           }
-          env: containerEnv
+          env: stagingContainerEnv
           probes: [
             {
               type: 'Startup'
@@ -587,12 +647,17 @@ resource containerAppStaging 'Microsoft.App/containerApps@2024-03-01' = {
             }
           ]
           volumeMounts: [
-            // Mirror prod's Azure Files mount so staging is a faithful pre-prod
-            // proxy — grounding data (/mnt/shared) must be present for smoke
-            // tests to cover the full feature surface (t/2612 P1 gap).
+            // Shared grounding data (taxonomy, embeddings) — read-only after
+            // getStateRoot() is live (t/2643 step 3; RO flip is a follow-up deploy).
             {
               volumeName: 'shared-data'
               mountPath: '/mnt/shared'
+            }
+            // Staging-isolated writable state: class-A writes (flags, config,
+            // calibration, keys) land here, never on the shared /mnt/shared (t/2643).
+            {
+              volumeName: 'staging-state'
+              mountPath: '/mnt/staging-state'
             }
           ]
         }
@@ -602,6 +667,12 @@ resource containerAppStaging 'Microsoft.App/containerApps@2024-03-01' = {
           name: 'shared-data'
           storageType: 'AzureFile'
           storageName: 'taxonomy-data'
+        }
+        {
+          // Staging-isolated RW share for class-A state (t/2643).
+          name: 'staging-state'
+          storageType: 'AzureFile'
+          storageName: 'taxonomy-data-staging'
         }
       ]
       scale: {

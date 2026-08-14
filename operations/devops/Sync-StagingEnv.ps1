@@ -27,7 +27,8 @@ if (-not $BicepPath) {
     $BicepPath = Join-Path $PSScriptRoot '../../deploy/azure/main.bicep'
 }
 
-$BicepEnv = & (Join-Path $PSScriptRoot 'Get-BicepBaseEnv.ps1') -BicepPath $BicepPath
+$isStaging = $AppName -like '*-staging*'
+$BicepEnv = & (Join-Path $PSScriptRoot 'Get-BicepBaseEnv.ps1') -BicepPath $BicepPath $(if ($isStaging) { '-ForStaging' })
 if ($BicepEnv.Count -eq 0) {
     Write-Error "Get-BicepBaseEnv.ps1 returned 0 entries — Bicep parse failed or baseEnv block is empty"
     exit 1
