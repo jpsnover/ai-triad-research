@@ -13,6 +13,7 @@ import type { OverviewTab, UtilitySnapshot } from './types';
 import { UTILITY_WEIGHTS } from './types';
 
 import { ArgumentNetworkTab } from './overview-tabs';
+import { ArgStrengthTab } from './overview-tabs';
 import { AdaptiveStagingTab } from './overview-tabs';
 import { ReflectionsTab } from './overview-tabs';
 import { UtilityTab } from './overview-tabs';
@@ -459,6 +460,35 @@ function ArgumentNetworkSection({
       setAnFilterMode={setAnFilterMode}
       setAnFilterNodeId={setAnFilterNodeId}
       focusedNodeId={focusedNodeId}
+      handleUpdateSubScore={handleUpdateSubScore}
+      setOverviewTab={setOverviewTab}
+      setSelectedEntry={setSelectedEntry}
+      setLocalOverride={setLocalOverride}
+      nodeLabels={nodeLabels}
+    />
+  );
+}
+
+interface ArgStrengthSectionProps {
+  debate: DebateSession;
+  an: { nodes: ArgumentNetworkNode[]; edges: ArgumentNetworkEdge[] } | undefined;
+  effectiveOverviewTab: OverviewTab;
+  handleUpdateSubScore: (nodeId: string, key: string, value: number) => void;
+  setOverviewTab: (tab: OverviewTab) => void;
+  setSelectedEntry: (id: string | null) => void;
+  setLocalOverride: (v: boolean) => void;
+  nodeLabels: Map<string, string>;
+}
+
+function ArgStrengthSection({
+  debate, an, effectiveOverviewTab, handleUpdateSubScore, setOverviewTab, setSelectedEntry,
+  setLocalOverride, nodeLabels,
+}: ArgStrengthSectionProps) {
+  if (effectiveOverviewTab !== 'arg-strength' || !an || an.nodes.length === 0) return null;
+  return (
+    <ArgStrengthTab
+      debate={debate}
+      an={an}
       handleUpdateSubScore={handleUpdateSubScore}
       setOverviewTab={setOverviewTab}
       setSelectedEntry={setSelectedEntry}
@@ -1039,6 +1069,18 @@ export function OverviewTabRouter({
         setAnFilterMode={setAnFilterMode}
         setAnFilterNodeId={setAnFilterNodeId}
         focusedNodeId={focusedNodeId}
+        handleUpdateSubScore={handleUpdateSubScore}
+        setOverviewTab={setOverviewTab}
+        setSelectedEntry={setSelectedEntry}
+        setLocalOverride={setLocalOverride}
+        nodeLabels={nodeLabels}
+      />
+
+      {/* Arg Strength — AN reorganized by POV, sorted by QBAF score */}
+      <ArgStrengthSection
+        debate={debate}
+        an={an}
+        effectiveOverviewTab={effectiveOverviewTab}
         handleUpdateSubScore={handleUpdateSubScore}
         setOverviewTab={setOverviewTab}
         setSelectedEntry={setSelectedEntry}

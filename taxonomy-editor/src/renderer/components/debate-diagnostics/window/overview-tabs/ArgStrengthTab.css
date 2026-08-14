@@ -1,0 +1,75 @@
+/* ArgStrengthTab — ast-* prefix (t/2658) */
+
+.ast-root {
+  padding: 12px;
+}
+
+.ast-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 8px;
+}
+
+.ast-expand-btn {
+  font-size: var(--text-xs);
+  padding: 2px 8px;
+  background: transparent;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.ast-expand-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.ast-pov-section {
+  margin-bottom: 20px;
+}
+
+.ast-pov-header {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 6px 0 4px;
+  border-bottom: 2px solid var(--border-color);
+  margin-bottom: 4px;
+}
+
+.ast-pov-label {
+  font-weight: 700;
+  font-size: var(--text-sm);
+  letter-spacing: 0.02em;
+}
+
+.ast-pov-stats {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.ast-node-wrap {
+  position: relative;
+}
+
+.ast-rank-badge {
+  position: absolute;
+  right: 0;
+  top: 8px;
+  font-size: var(--text-2xs);
+  font-weight: 700;
+  padding: 1px 5px;
+  border: 1px solid;
+  border-radius: 3px;
+  opacity: 0.75;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.ast-empty {
+  padding: 24px;
+  color: var(--text-muted);
+  font-style: italic;
+  text-align: center;
+}
