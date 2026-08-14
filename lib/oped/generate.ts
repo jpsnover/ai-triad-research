@@ -294,8 +294,14 @@ export async function* generateOpEdSet(
   request: GenerateOpEdRequest,
   deps: OpEdGeneratorDeps,
 ): AsyncGenerator<OpEdProgressEvent> {
-  // ── Step 1: grounding (once, shared across voices) ────────────────────────
-  let groundingNodes: ScoredPovNode[] = [];
+  // ── Step 1: grounding ─────────────────────────────────────────────────────
+  // BDI grounding is selected PER POV — the taxonomy is camp-partitioned
+  // (`taxonomy[pov].nodes`, ids `{pov}-{category}-{NNN}`), so a camp's grounding IS
+  // its own belief/desire/intention nodes. Selecting once from `povs[0]` grounded
+  // every voice in the first camp's nodes, making all voices display identical
+  // grounding tables (a Safetyist essay grounded in `acc-*` nodes). Situations are
+  // camp-agnostic, so `sitNodes` is legitimately selected once and shared.
+  const groundingByPov = new Map<PovKey, ScoredPovNode[]>();
   let sitNodes: ScoredSituationNode[] = [];
 
   try {
@@ -305,17 +311,14 @@ export async function* generateOpEdSet(
     const vec = await computeEmbedding(query);
     const scores = scoreNodeRelevance(vec, taxonomy.embeddings);
 
-    // Use first pov to select BDI nodes — all voices get the same grounding set
-    // (semantically appropriate: the topic is shared; voice differences are in voice block)
-    const firstPov = request.povs[0];
-    if (firstPov) {
-      groundingNodes = selectRelevantNodes(
-        taxonomy[firstPov]?.nodes ?? [],
+    for (const pov of request.povs) {
+      groundingByPov.set(pov, selectRelevantNodes(
+        taxonomy[pov]?.nodes ?? [],
         scores,
         undefined, // use default threshold
         2,         // minPerCategory
         12,        // maxTotal — mirrors PS MaxGroundingNodes default
-      );
+      ));
     }
     sitNodes = selectRelevantSituationNodes(
       taxonomy.situations?.nodes ?? [],
@@ -324,7 +327,13 @@ export async function* generateOpEdSet(
       1,
       3,
     );
-    yield { type: 'grounding_done', nodeCount: groundingNodes.length + sitNodes.length };
+    // Count distinct grounding elements across the whole set (per-POV BDI node ids
+    // are disjoint by camp; situations counted once) — a truthful set-level total.
+    const distinctBdi = new Set<string>();
+    for (const nodes of groundingByPov.values()) {
+      for (const { node } of nodes) distinctBdi.add(node.id);
+    }
+    yield { type: 'grounding_done', nodeCount: distinctBdi.size + sitNodes.length };
   } catch (err) {
     yield { type: 'grounding_failed', error: String(err) };
     // continue voice-only
@@ -350,7 +359,7 @@ export async function* generateOpEdSet(
     } else {
       enqueue({ type: 'voice_start', pov });
       try {
-        const member = await runVoiceGeneration(pov, groundingNodes, sitNodes, request, deps);
+        const member = await runVoiceGeneration(pov, groundingByPov.get(pov) ?? [], sitNodes, request, deps);
         members.push({ pov, member });
         enqueue({ type: 'voice_complete', pov, member });
       } catch (err) {
