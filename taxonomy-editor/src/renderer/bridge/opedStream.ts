@@ -1,0 +1,195 @@
+// Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+// Licensed under the MIT License. See LICENSE file in the project root.
+
+/**
+ * Op-Ed create streaming (SSE) transport for the web bridge (t/2614). Extracted as a leaf
+ * module (like chatStream.ts) so web-bridge.ts stays under the max-lines cap and the SSE
+ * parse/dispatch is unit-testable in isolation.
+ *
+ * Shape-identical to the Electron IPC (opedHandlers.ts): createOpEdSet resolves `{set_id}`
+ * or rejects with an ActionableError; onOpEdProgress callbacks fire per voice as the run
+ * streams. The per-voice stage mapping matches Electron EXACTLY so desktop and web render
+ * the same live panel.
+ *
+ * Server contract (POST /api/oped-sets, t/2610 — SSE):
+ *   200 text/event-stream, each frame: data: {runId, seq, event}
+ *     event {type:'run_started', runId}
+ *     event {type:'voice_start'|'voice_complete'|'voice_failed'|'voice_cancelled', pov, ...}
+ *     event {type:'grounding_done'|'grounding_failed', ...}   (set-level — not per-voice)
+ *     event {type:'complete', set}                            → resolve {set_id: set.set_id}
+ *     event {type:'error', message}                           → reject
+ *   Pre-SSE failures (403 anon / 429 quota|concurrency / 400 / 403 entitlement) arrive
+ *   instead as a non-200 JSON body BEFORE the stream headers.
+ * Recovery (t/2610): a dropped stream re-fetches GET /api/oped-runs/:runId — a terminal
+ * status resolves with the durable set_id (the set is finalized server-side); the run never
+ * orphans the UI.
+ */
+
+import { ActionableError } from '@lib/debate/errors';
+import { getGlobalRecorder } from '@lib/flight-recorder/index';
+import { categorizeEndpoint, type ResilientFetchOptions } from './resilience';
+import type { CreateOpEdPayload, OpEdProgressEvent } from './types';
+
+type OpEdProgressCb = (event: OpEdProgressEvent) => void;
+const progressCbs = new Set<OpEdProgressCb>();
+
+/** Subscription surface exposed via the bridge's onOpEdProgress method. */
+export const opedProgressBus = {
+  onProgress: (cb: OpEdProgressCb): (() => void) => { progressCbs.add(cb); return () => { progressCbs.delete(cb); }; },
+};
+
+// A web build runs at most one create at a time (mirrors the server's per-user concurrency
+// cap of 1). Cancel = abort the in-flight POST → the server's res.on('close') cancels the
+// in-flight voices and still finalizes the partial set (t/2610 gap 1).
+let activeAbort: AbortController | null = null;
+
+/** Abort the in-flight web op-ed run, if any (bridge cancelOpEdSet on web). */
+export function cancelActiveOpEdRun(): void {
+  activeAbort?.abort();
+}
+
+const OPED_STREAM_TIMEOUT_MS = 300_000; // multi-voice generation: 30s–2min per voice × N
+
+function errShape(err: unknown): { name: string; message: string; stack?: string } {
+  return { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack };
+}
+
+function emitProgress(event: OpEdProgressEvent): void {
+  for (const cb of progressCbs) {
+    try { cb(event); } catch { /* telemetry — silent by design */ }
+  }
+}
+
+/** Parse an SSE byte stream, invoking `onEvent` once per `data:` JSON payload. */
+async function consumeSse(res: Response, onEvent: (evt: Record<string, unknown>) => void): Promise<void> {
+  const reader = res.body?.getReader();
+  if (!reader) return;
+  const decoder = new TextDecoder();
+  let buffer = '';
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    let sep: number;
+    while ((sep = buffer.indexOf('\n\n')) !== -1) {
+      const frame = buffer.slice(0, sep);
+      buffer = buffer.slice(sep + 2);
+      const data = frame.split('\n').filter((l) => l.startsWith('data:')).map((l) => l.replace(/^data:\s?/, '')).join('\n');
+      if (!data) continue; // heartbeat ': ping' comment or blank
+      try { onEvent(JSON.parse(data) as Record<string, unknown>); }
+      catch (err) { getGlobalRecorder()?.record({ type: 'system.error', component: 'web-bridge', level: 'warn', message: 'oped-stream: malformed SSE data frame', error: errShape(err) }); }
+    }
+  }
+}
+
+/** Build a user-readable ActionableError from a non-200 create response (JSON error emitted
+ *  before the SSE headers: 403 anon, 400 bad request, 403 entitlement, 429 quota/concurrency). */
+async function buildHttpError(res: Response): Promise<ActionableError> {
+  const data = await res.json().catch(() => ({})) as Record<string, unknown>;
+  const goal = 'Op-Ed Studio: create an op-ed';
+  if (res.status === 429) {
+    const problem = data.error === 'concurrency_limit'
+      ? (data.message as string) || 'You already have an op-ed generating — wait for it to finish.'
+      : 'You have reached your op-ed limit. Delete an op-ed or try again later.';
+    const err = new ActionableError({ goal, problem, location: 'opedStream.runOpEdCreate', nextSteps: data.error === 'concurrency_limit' ? ['Wait for the current op-ed to finish, then try again'] : ['Delete an existing op-ed to free a slot', 'Try again later'] });
+    (err as ActionableError & { httpStatus: number }).httpStatus = 429;
+    return err;
+  }
+  const problem = (typeof data.error === 'string' && data.error) || (typeof data.message === 'string' && data.message) || `Create failed with HTTP ${res.status}`;
+  const nextSteps = res.status === 403
+    ? ['Sign in with GitHub or Google to create op-eds']
+    : ['Check your topic and selected voices, then try again'];
+  const err = new ActionableError({ goal, problem, location: 'opedStream.runOpEdCreate', nextSteps });
+  (err as ActionableError & { httpStatus: number }).httpStatus = res.status;
+  return err;
+}
+
+/** Map a lib/oped generator event → the bridge's per-voice {set_id, voice, stage, error}
+ *  shape, matching Electron opedHandlers exactly. Returns null for non-per-voice events
+ *  (grounding breadcrumbs / run_started / complete are handled by the caller). */
+function toProgress(event: Record<string, unknown>): OpEdProgressEvent | null {
+  const pov = typeof event.pov === 'string' ? event.pov : '';
+  switch (event.type) {
+    case 'voice_start': return { set_id: '', voice: pov, stage: 'generating' };
+    case 'voice_complete': return { set_id: '', voice: pov, stage: 'complete' };
+    case 'voice_failed': return { set_id: '', voice: pov, stage: 'failed', error: typeof event.error === 'string' ? event.error : undefined };
+    case 'voice_cancelled': return { set_id: '', voice: pov, stage: 'cancelled' };
+    default: return null; // grounding_done/failed (set-level) + run_started/complete
+  }
+}
+
+/** The web bridge's session-recovering fetch (injected to avoid a circular import). */
+type OpEdFetch = (path: string, init: RequestInit, opts: ResilientFetchOptions) => Promise<Response>;
+
+/** Recover a dropped stream: a terminal run resolves with the durable set_id; still-running
+ *  or missing → surface as an interruption the user can retry (the set may exist in My Library). */
+async function recoverFromRunStatus(fetchFn: OpEdFetch, runId: string): Promise<{ set_id: string }> {
+  const path = `/api/oped-runs/${encodeURIComponent(runId)}`;
+  const res = await fetchFn(path, { method: 'GET' }, { timeoutMs: 30_000, maxRetries: 1, critical: false, category: categorizeEndpoint(path, 'GET') });
+  if (!res.ok) throw new ActionableError({ goal: 'Op-Ed Studio: create an op-ed', problem: 'The op-ed stream was interrupted and its run could not be recovered.', location: 'opedStream.recoverFromRunStatus', nextSteps: ['Check My Op-Eds — it may have finished', 'Try creating it again'] });
+  const run = await res.json() as { setId?: string; status?: string };
+  if ((run.status === 'complete' || run.status === 'cancelled') && typeof run.setId === 'string') return { set_id: run.setId };
+  throw new ActionableError({ goal: 'Op-Ed Studio: create an op-ed', problem: run.status === 'error' ? 'Op-ed generation failed on the server.' : 'The op-ed stream was interrupted before it finished.', location: 'opedStream.recoverFromRunStatus', nextSteps: ['Check My Op-Eds — it may have finished', 'Try creating it again'] });
+}
+
+/** Drive one web op-ed create: POST → read SSE → map per-voice events to onOpEdProgress →
+ *  resolve {set_id} on 'complete'. Rejects with an ActionableError (pre-SSE JSON error, a
+ *  server 'error' frame, or an unrecoverable stream drop). */
+export async function runOpEdCreate(fetchFn: OpEdFetch, payload: CreateOpEdPayload): Promise<{ set_id: string }> {
+  const body = { topic: payload.topic, povs: payload.voices, params: payload.params };
+  const controller = new AbortController();
+  activeAbort = controller;
+  getGlobalRecorder()?.record({ type: 'ai.request', component: 'web-bridge', level: 'info', message: 'oped-create request', data: { voiceCount: payload.voices.length, model: payload.params.model } });
+
+  const path = '/api/oped-sets';
+  let res: Response;
+  try {
+    res = await fetchFn(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) },
+      { timeoutMs: OPED_STREAM_TIMEOUT_MS, maxRetries: 0, critical: true, category: categorizeEndpoint(path, 'POST'), signal: controller.signal });
+  } catch (err) {
+    activeAbort = null;
+    getGlobalRecorder()?.record({ type: 'system.error', component: 'web-bridge', level: 'error', message: 'oped-create network error', error: errShape(err) });
+    if (err instanceof DOMException && err.name === 'AbortError') {
+      throw new ActionableError({ goal: 'Op-Ed Studio: create an op-ed', problem: 'Op-ed creation was cancelled.', location: 'opedStream.runOpEdCreate', nextSteps: ['Start a new op-ed when you are ready'] });
+    }
+    throw err;
+  }
+
+  if (!res.ok) { activeAbort = null; throw await buildHttpError(res); }
+
+  let runId = '';
+  let resolvedSetId: string | null = null;
+  let streamError: ActionableError | null = null;
+  try {
+    await consumeSse(res, (frame) => {
+      const event = (frame.event ?? frame) as Record<string, unknown>; // frames wrap: {runId, seq, event}
+      if (typeof frame.runId === 'string' && frame.runId) runId = frame.runId;
+      if (event.type === 'run_started') { if (typeof event.runId === 'string') runId = event.runId; return; }
+      if (event.type === 'complete') {
+        const set = event.set as { set_id?: unknown } | undefined;
+        if (set && typeof set.set_id === 'string') resolvedSetId = set.set_id;
+        return;
+      }
+      if (event.type === 'error') {
+        streamError = new ActionableError({ goal: 'Op-Ed Studio: create an op-ed', problem: typeof event.message === 'string' ? event.message : 'Op-ed generation failed on the server.', location: 'opedStream.runOpEdCreate', nextSteps: ['Try creating it again', 'Check My Op-Eds — a partial op-ed may have been saved'] });
+        return;
+      }
+      const progress = toProgress(event);
+      if (progress) emitProgress(progress);
+    });
+  } catch (err) {
+    getGlobalRecorder()?.record({ type: 'system.error', component: 'web-bridge', level: 'error', message: 'oped-create: reading the SSE body failed', error: errShape(err) });
+    activeAbort = null;
+    // Stream dropped mid-run — recover via the run-status GET rather than orphaning the UI.
+    // recoverFromRunStatus throws its own ActionableError on failure, which propagates to the caller.
+    if (runId) return recoverFromRunStatus(fetchFn, runId);
+    throw new ActionableError({ goal: 'Op-Ed Studio: create an op-ed', problem: `The op-ed stream was interrupted: ${String(err)}`, location: 'opedStream.runOpEdCreate', nextSteps: ['Check your network connection and try again'] });
+  }
+
+  activeAbort = null;
+  if (streamError) throw streamError as ActionableError;
+  if (resolvedSetId) return { set_id: resolvedSetId };
+  // Stream ended cleanly but with no 'complete' frame (rare) — recover the terminal state.
+  if (runId) return recoverFromRunStatus(fetchFn, runId);
+  throw new ActionableError({ goal: 'Op-Ed Studio: create an op-ed', problem: 'The op-ed finished but no result was returned.', location: 'opedStream.runOpEdCreate', nextSteps: ['Check My Op-Eds — it may have been saved', 'Try creating it again'] });
+}
