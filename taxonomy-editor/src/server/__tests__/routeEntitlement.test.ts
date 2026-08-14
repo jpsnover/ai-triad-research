@@ -12,11 +12,14 @@
 // the destructure form (`const { model } = body`) OR the property-access form (`body.model`,
 // `req.body.model`, inline) — but does NOT call resolveGenerationContext anywhere in the handler.
 //
-// KNOWN LIMITATION (favours low false-POSITIVE over completeness): generation reached INDIRECTLY
-// via a module-scope helper the handler calls (op-ed's driveOpEdRun; /api/ai/generate's
-// generateWithSearch) is not analysed, so not flagged — those are gated separately (op-ed:
-// resolveOpEdModel; ai/generate: resolveGenerationContext). The direct-call class this closes is
-// the one that regressed. Same shape as the t/2626 lib-emit build-artifact gate.
+// It also follows ONE level of module-scope helper calls (t/2638): a handler + the helpers it
+// directly calls form one gate-scope — the generation OR the gate may live in either.
+//
+// KNOWN LIMITATIONS (favour low false-POSITIVE over completeness): (1) two-level+ indirection (a
+// helper calling another helper that generates) is not followed; (2) a model laundered through a
+// parse helper — e.g. op-ed's parseOpEdCreate(body) → params.model, not body.model — is not
+// detected as a user-model read, so op-ed is not flagged (it's gated separately via
+// resolveOpEdModel). Same shape as the t/2626 lib-emit build-artifact gate.
 
 import { describe, it, expect } from 'vitest';
 import ts from 'typescript';
@@ -74,9 +77,36 @@ function analyzeHandler(fn: ts.Node): { generates: boolean; readsBodyModel: bool
   return { generates, readsBodyModel, callsGate };
 }
 
-/** Scan one route source; return the bypassing routes it contains. */
+/** Names of module-scope functions that `fn` directly calls (one-level call graph). */
+function collectCalledLocalFns(fn: ts.Node, localFns: Map<string, ts.Node>): Set<string> {
+  const called = new Set<string>();
+  (function walk(n: ts.Node): void {
+    if (ts.isCallExpression(n) && ts.isIdentifier(n.expression) && localFns.has(n.expression.text)) {
+      called.add(n.expression.text);
+    }
+    ts.forEachChild(n, walk);
+  })(fn);
+  return called;
+}
+
+/** Scan one route source; return the bypassing routes it contains. Follows ONE level of
+ *  module-scope helper calls (t/2638): a handler + the helpers it directly calls form one
+ *  gate-scope — the generation or the gate may live in either. */
 export function scanSource(file: string, source: string): Finding[] {
   const sf = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true);
+  // Module-scope function definitions (name → body node), for one-level call-graph following.
+  const localFns = new Map<string, ts.Node>();
+  sf.forEachChild(n => {
+    if (ts.isFunctionDeclaration(n) && n.name && n.body) localFns.set(n.name.text, n);
+    else if (ts.isVariableStatement(n)) {
+      for (const d of n.declarationList.declarations) {
+        if (ts.isIdentifier(d.name) && d.initializer &&
+            (ts.isArrowFunction(d.initializer) || ts.isFunctionExpression(d.initializer))) {
+          localFns.set(d.name.text, d.initializer);
+        }
+      }
+    }
+  });
   const out: Finding[] = [];
   (function walk(n: ts.Node): void {
     if (ts.isCallExpression(n)) {
@@ -87,9 +117,16 @@ export function scanSource(file: string, source: string): Finding[] {
         const path = pathArg && ts.isStringLiteral(pathArg) ? pathArg.text : '<dynamic>';
         const handler = n.arguments.find(a => ts.isArrowFunction(a) || ts.isFunctionExpression(a));
         if (handler) {
-          const { generates, readsBodyModel, callsGate } = analyzeHandler(handler);
+          const direct = analyzeHandler(handler);
+          // Follow one level: a called same-file helper can supply the generation OR the gate.
+          let generates = direct.generates, callsGate = direct.callsGate;
+          for (const fnName of collectCalledLocalFns(handler, localFns)) {
+            const h = analyzeHandler(localFns.get(fnName)!);
+            generates = generates || h.generates;
+            callsGate = callsGate || h.callsGate;
+          }
           const key = `${file}:${name.toUpperCase()} ${path}`;
-          if (generates && readsBodyModel && !callsGate && !EXEMPT.has(key)) {
+          if (generates && direct.readsBodyModel && !callsGate && !EXEMPT.has(key)) {
             out.push({ file, method: name.toUpperCase(), path, line: sf.getLineAndCharacterOfPosition(n.getStart()).line + 1 });
           }
         }
@@ -144,6 +181,40 @@ describe('t/2634 — route backend-entitlement gate', () => {
     const src = `post('/api/x', async (req, res, body) => {
       const { prompt } = body as { prompt: string };
       json(res, await ai.generateText(prompt, 'gemini-2.5-flash'));
+    });`;
+    expect(scanSource('synthetic.ts', src)).toHaveLength(0);
+  });
+
+  // t/2638 — one-level helper following: generation OR the gate may live in a called same-file helper.
+  it('flags a route that generates via a same-file helper with no gate anywhere', () => {
+    const src = `async function genHelper(m) { return await ai.generateText('p', m); }
+    post('/api/x', async (req, res, body) => {
+      const { model } = body as { model?: string };
+      json(res, await genHelper(model));
+    });`;
+    expect(scanSource('synthetic.ts', src)).toHaveLength(1);
+  });
+
+  it('does NOT flag a helper-routed route when the HANDLER gates', () => {
+    const src = `async function genHelper(m) { return await ai.generateText('p', m); }
+    post('/api/x', async (req, res, body) => {
+      const { model } = body as { model?: string };
+      const { tier, effectiveModel, backend } = resolveGenerationContext(req, model);
+      if (enforceBackendAllowed(res, tier, backend)) return;
+      json(res, await genHelper(effectiveModel));
+    });`;
+    expect(scanSource('synthetic.ts', src)).toHaveLength(0);
+  });
+
+  it('does NOT flag a helper-routed route when the HELPER gates', () => {
+    const src = `async function genHelper(req, res, m) {
+      const { tier, effectiveModel, backend } = resolveGenerationContext(req, m);
+      if (enforceBackendAllowed(res, tier, backend)) return;
+      return await ai.generateText('p', effectiveModel);
+    }
+    post('/api/x', async (req, res, body) => {
+      const { model } = body as { model?: string };
+      json(res, await genHelper(req, res, model));
     });`;
     expect(scanSource('synthetic.ts', src)).toHaveLength(0);
   });
