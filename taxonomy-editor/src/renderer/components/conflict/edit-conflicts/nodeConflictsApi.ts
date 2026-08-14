@@ -56,6 +56,13 @@ export const DISABLED_NODE_CONFLICTS: NodeConflictsResponse = {
  * rather than throwing into the render/save path.
  */
 export async function getNodeConflicts(): Promise<NodeConflictsResponse> {
+  // Node-conflicts is a web-container-only feature. In the packaged Electron
+  // build (no Express backend), repeated failures here would open the read
+  // circuit and block Engagement Analytics / Leaderboards / Heuristic Health
+  // for 60 s (t/2620). electron-dev is excluded: the dev server is running.
+  if (import.meta.env.VITE_TARGET !== 'web' && !import.meta.env.DEV) {
+    return DISABLED_NODE_CONFLICTS;
+  }
   try {
     return await bridgeGet<NodeConflictsResponse>('/api/sync/node-conflicts');
   } catch (err) {
