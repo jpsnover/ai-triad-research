@@ -143,6 +143,9 @@ export function registerDataRoutes(r: Router, ctx: ServerCtx): void {
         component: 'server',
         level: 'error',
         message: 'Operation failed',
+        // t/2653: name the endpoint + git command + data root so the FR event is self-diagnosable
+        // without grepping the source (this only fires in filesystem mode — github-api skips git).
+        data: { endpoint: '/api/data/check-updates', command: 'git fetch', dataRoot: getDataRoot() },
         error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
       json(res, { available: false, error: String(err) });
