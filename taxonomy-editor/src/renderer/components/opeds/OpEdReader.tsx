@@ -24,12 +24,6 @@ function prefersReducedMotion(): boolean {
     && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 }
 
-function groundingType(nodeId: string | undefined): string {
-  // Legacy/foreign grounding rows may lack node_id (persisted PascalCase shape) — don't
-  // crash the reader; classify a missing id as BDI (t/2605 follow-up: real-data smoke).
-  return nodeId?.startsWith('sit-') ? 'Situation' : 'BDI';
-}
-
 // ──────────────────────────────────────────────
 // Inline grounding-element detail card (§6 clickable grounding)
 // ──────────────────────────────────────────────
@@ -110,6 +104,12 @@ function GroundingSection({ grounding }: { grounding: OpEdGroundingRef[] }) {
 
   const expandedRef = grounding.find(g => g.node_id === expandedId) ?? null;
 
+  // Elements the AI didn't reflect ('not directly used') sink to the bottom; everything
+  // else keeps its existing (relevance) order — a stable partition (Array.sort is stable).
+  const orderedGrounding = [...grounding].sort(
+    (a, b) => Number(a.how_reflected === 'not directly used') - Number(b.how_reflected === 'not directly used'),
+  );
+
   return (
     <details className="oped-grounding" open>
       <summary className="oped-grounding-summary">Taxonomy grounding ({grounding.length} element{grounding.length !== 1 ? 's' : ''})</summary>
@@ -119,13 +119,12 @@ function GroundingSection({ grounding }: { grounding: OpEdGroundingRef[] }) {
           <thead>
             <tr>
               <th scope="col">Element</th>
-              <th scope="col">Type</th>
               <th scope="col">Relevance</th>
               <th scope="col">Reflected in the op-ed</th>
             </tr>
           </thead>
           <tbody>
-            {grounding.map(g => {
+            {orderedGrounding.map(g => {
               const isOpen = g.node_id === expandedId;
               return (
                 <tr key={g.node_id} className={isOpen ? 'oped-grounding-row-active' : ''}>
@@ -140,7 +139,6 @@ function GroundingSection({ grounding }: { grounding: OpEdGroundingRef[] }) {
                       {g.node_id}
                     </button>
                   </td>
-                  <td>{groundingType(g.node_id)}</td>
                   <td>{g.relevance || '—'}</td>
                   <td>{g.how_reflected || '(not reported)'}</td>
                 </tr>
