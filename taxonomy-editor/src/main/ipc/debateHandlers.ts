@@ -26,6 +26,12 @@ import { renameSyncWithRetry } from '../../../../lib/debate/persistence.js';
 import { recordLockHolder } from '../../../../lib/debate/lockHolder.js';
 import { getGlobalRecorder } from '../../../../lib/flight-recorder/index.js';
 import { DEFAULT_MODEL } from '../../../../lib/ai-client/index.js';
+// t/2628: static import type forces tsc to emit newsReport.js + prompts.js into
+// dist/main (rootDir=../ → dist/main/lib/debate/). Both files are reached ONLY by
+// dynamic import() in the news-report handler and never enter the tsc program otherwise
+// → 'Cannot find module' in the packaged Electron build. Mirrors cf4b735e (server-side fix).
+import type * as NewsReportModule from '../../../../lib/debate/newsReport.js';
+import type * as PromptsModule from '../../../../lib/debate/prompts.js';
 import { VALID_POV, NodeId } from '../ipcSchemas.js';
 import { assertSafeId } from '../../../../lib/electron-shared/safeId.js';
 
@@ -68,8 +74,10 @@ export function registerDebateHandlers(): void {
       });
     }
 
-    const { extractTranscriptHighlights, summarizeArgumentNetwork } = await import('../../../../lib/debate/newsReport.js');
-    const { newsReportPrompt } = await import('../../../../lib/debate/prompts.js');
+    const { extractTranscriptHighlights, summarizeArgumentNetwork }: typeof NewsReportModule =
+      await import('../../../../lib/debate/newsReport.js');
+    const { newsReportPrompt }: typeof PromptsModule =
+      await import('../../../../lib/debate/prompts.js');
 
     const anNodes = ((session.argument_network as Record<string, unknown>)?.nodes ?? []) as unknown[];
     const anEdges = ((session.argument_network as Record<string, unknown>)?.edges ?? []) as unknown[];
