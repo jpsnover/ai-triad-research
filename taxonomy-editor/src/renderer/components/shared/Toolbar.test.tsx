@@ -62,11 +62,15 @@ vi.mock('../../hooks/useAuthStatus', () => ({
   useUserProfile: () => null,
 }));
 
+// Configurable flags (t/2641): both useFlag and the whole-record store read the same
+// source, so a test can reveal Op-Eds via EITHER build flag and prove the primary button
+// honors the gate (it was hardcoded on env-electron-opeds → hidden on web).
+const { mockFlags } = vi.hoisted(() => ({ mockFlags: { value: {} as Record<string, boolean> } }));
 vi.mock('../../hooks/useFeatureFlags', () => ({
-  useFlag: () => false,
+  useFlag: (name: string) => mockFlags.value[name] ?? false,
   // Toolbar threads the whole flag record via useNavVisibilityContext (t/2641).
   useFeatureFlagStore: (selector: (s: { flags: Record<string, boolean> }) => unknown) =>
-    selector({ flags: {} }),
+    selector({ flags: mockFlags.value }),
 }));
 
 vi.mock('../../hooks/useTierInfo', () => ({
@@ -130,5 +134,29 @@ describe('Toolbar — Zustand scalar selector regression (t/2142)', () => {
       screen.getByRole('button', { name: /switch to simple view/i }),
     );
     expect(mockPrefsState.setViewMode).toHaveBeenCalledWith('simple');
+  });
+});
+
+describe('Toolbar — primary Op-Eds button honors both build flags (t/2641)', () => {
+  beforeEach(() => { mockFlags.value = {}; mockPrefsState.viewMode = 'simple'; });
+
+  it('hides the Op-Eds button when neither build flag is set', () => {
+    render(<Toolbar />);
+    expect(screen.queryByRole('button', { name: 'Op-Eds' })).toBeNull();
+  });
+
+  // The web-reveal case the hardcoded env-electron-opeds gate missed: env-web-opeds ON,
+  // env-electron-opeds absent → the primary Op-Eds button MUST appear (the Toolbar is
+  // what renders on desktop-width web).
+  it('shows the Op-Eds button when only env-web-opeds is on (web reveal)', () => {
+    mockFlags.value = { 'env-web-opeds': true };
+    render(<Toolbar />);
+    expect(screen.getByRole('button', { name: 'Op-Eds' })).toBeInTheDocument();
+  });
+
+  it('shows the Op-Eds button when only env-electron-opeds is on (desktop, unchanged)', () => {
+    mockFlags.value = { 'env-electron-opeds': true };
+    render(<Toolbar />);
+    expect(screen.getByRole('button', { name: 'Op-Eds' })).toBeInTheDocument();
   });
 });

@@ -215,10 +215,13 @@ export function Toolbar() {
     return () => window.removeEventListener('mousedown', handler);
   }, [showMore]);
 
-  const opedsFlag = useFlag('env-electron-opeds'); // gates the primary Op-Eds button below (desktop reveal)
   const navCtx = useNavVisibilityContext(); // whole flag record — no subset to drift (t/2641)
   const visibleItems = getVisibleNavItems(NAV_ITEMS, navCtx);
   const secondaryGroups = getSecondaryByGroup(visibleItems);
+  // The hardcoded primary Op-Eds button honors the SAME navConfig gate as the data-driven
+  // items — it was gated on env-electron-opeds ALONE, so it stayed hidden on web even with
+  // env-web-opeds ON (the Toolbar is what renders on desktop-width web). t/2641.
+  const opedsVisible = visibleItems.some(i => i.id === 'opeds');
   const isNavItemActive = (item: NavItem): boolean => {
     if (item.action.type === 'switchTab') return activeTab === item.action.target && toolbarPanel === null;
     if (item.action.type === 'togglePanel') return toolbarPanel === item.action.target;
@@ -335,7 +338,7 @@ export function Toolbar() {
           <MessageCircle size="1.25em" />
           <span className="toolbar-nav-label">Chat</span>
         </button>
-        {opedsFlag && (
+        {opedsVisible && (
           <button
             className={`toolbar-nav${activeTab === 'opeds' && toolbarPanel === null ? ' toolbar-nav-active' : ''}`}
             onClick={() => switchTab('opeds')}
