@@ -188,10 +188,15 @@ function getConfig(): FlagsConfig {
 // bounced back to true). Fix: every write re-reads the file FRESH, merges ONLY the target flag,
 // and commits atomically — retrying if a concurrent writer changed the file since our read. A
 // content hash (not mtime) is the precondition, so it's independent of Azure Files mtime
-// resolution and detects a same-tick concurrent commit. Cross-flag writes never clobber; the
-// only residual is two writers hitting the SAME flag in the same instant (last-writer-wins on
-// that one flag — acceptable; not the cross-flag data-loss the incident was). Reads stay
-// 30s-cached, so cross-replica propagation of a committed change is bounded at ≤30s.
+// resolution and detects a same-tick concurrent commit. This makes the file-granularity clobber
+// (the incident) vanishingly unlikely — a stale replica writing flag Y re-reads and preserves
+// flag X's committed change. TWO residuals remain (both negligible at the human admin-flip rate):
+//   (1) DOMINANT: two writers hitting the SAME flag in the same instant → last-writer-wins on
+//       that one flag (acceptable; NOT the cross-flag file-granularity data-loss the incident was);
+//   (2) a sub-µs check-then-rename TOCTOU: two writers (even on different flags) can both pass the
+//       hash check before either renames → the earlier rename is dropped. The commit stages the
+//       temp file BEFORE the precondition check (below) so this window is only the rename itself.
+// Reads stay 30s-cached, so cross-replica propagation of a committed change is bounded at ≤30s.
 const MAX_RMW_ATTEMPTS = 5;
 
 /** sha256 of the current on-disk flags file, or '' if absent. Single-fd (t/2019 race-safe). */
@@ -235,12 +240,13 @@ function rmwFlags<T>(apply: (fresh: FlagsConfig) => RmwApply<T>): T {
     const { config: fresh, hash } = readFreshFlags();
     const applied = apply(fresh);
     if (applied.config === null) return applied.result; // no write needed
-    // Precondition: if the file changed since our fresh read, a concurrent writer committed →
-    // retry the full read-merge (so we merge onto their change, not clobber it).
-    if (currentFlagsHash() !== hash) continue;
-    // Atomic commit: temp in the SAME directory (same fs → no EXDEV) then rename.
+    // Stage the new file FIRST (the expensive step: write to a temp in the SAME directory — same
+    // fs, no EXDEV), THEN re-check the precondition immediately before the rename, so the
+    // check→commit TOCTOU window is only the rename call (t/2644 TL GV). If the file changed since
+    // our fresh read, a concurrent writer committed → drop the temp and retry the full read-merge.
     const tmp = `${p}.tmp-${process.pid}-${attempt}`;
     fs.writeFileSync(tmp, JSON.stringify(applied.config, null, 2));
+    if (currentFlagsHash() !== hash) { fs.rmSync(tmp, { force: true }); continue; }
     fs.renameSync(tmp, p);
     _cache = applied.config;
     _cacheMtime = -1; // force a fresh stat on next read (mtime changed)
