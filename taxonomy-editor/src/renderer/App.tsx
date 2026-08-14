@@ -249,7 +249,12 @@ function AppRouter() {
 function MainApp() {
   const { activeTab, loading, backgroundLoading, loadingProgress, loadAll, colorScheme, paneSpacing, zoomLevel, zoomIn, zoomOut, zoomReset, toolbarPanel } = useTaxonomyStore();
   const summariesFlag = useFlag('env-electron-summaries');
-  const opedsFlag = useFlag('env-electron-opeds');
+  // OR both build flags — mirrors the navConfig Op-Eds gate (anyFlag: electron||web). Gates
+  // BOTH the tab render below and must stay in sync with the nav gate, else the button shows
+  // (via env-web-opeds) but the panel never mounts on web → blank content area (t/2646).
+  const opedsElectronFlag = useFlag('env-electron-opeds');
+  const opedsWebFlag = useFlag('env-web-opeds');
+  const opedsFlag = opedsElectronFlag || opedsWebFlag;
   const breakpoint = useBreakpoint();
   const isTouch = useIsTouchDevice();
   const isMobile = breakpoint === 'phone' || breakpoint === 'phone-lg' || breakpoint === 'tablet';
