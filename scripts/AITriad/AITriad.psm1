@@ -630,15 +630,16 @@ $_companionDirs = @(
 foreach ($_name in @('DocConverters', 'AIEnrich')) {
     $_loaded = $false
     foreach ($_dir in $_companionDirs) {
-        $_path = Join-Path $_dir "$_name.psm1"
-        if (Test-Path $_path) {
-            try {
-                Import-Module $_path -Force
-                $_loaded = $true
-                break
-            }
-            catch {
-                Write-Warning "Failed to import ${_name}.psm1: $_ — related features will be unavailable."
+        if (-not $_loaded) {
+            $_path = Join-Path $_dir "$_name.psm1"
+            if (Test-Path $_path) {
+                try {
+                    Import-Module $_path -Force
+                    $_loaded = $true
+                }
+                catch {
+                    Write-Warning "Failed to import ${_name}.psm1: $_ — related features will be unavailable."
+                }
             }
         }
     }
