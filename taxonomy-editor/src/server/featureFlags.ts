@@ -23,6 +23,7 @@
 
 import fs from 'fs';
 import path from 'path';
+import crypto from 'crypto';
 import { getStateRoot } from './config.js';
 import { log } from './logger.js';
 import { getCurrentUser } from './security/userContext.js';
@@ -179,12 +180,77 @@ function getConfig(): FlagsConfig {
   return _cache ?? loadConfig();
 }
 
-function persist(config: FlagsConfig): void {
+// ── Writes: read-modify-write with a content-hash precondition (t/2644) ──
+//
+// Prod runs multiple replicas, each with its own 30s `_cache`. The old write path serialized
+// that (possibly stale) whole cache back to the file, so a stale-cache replica's write silently
+// clobbered another replica's committed change at FILE granularity (the env-web-opeds revert
+// bounced back to true). Fix: every write re-reads the file FRESH, merges ONLY the target flag,
+// and commits atomically — retrying if a concurrent writer changed the file since our read. A
+// content hash (not mtime) is the precondition, so it's independent of Azure Files mtime
+// resolution and detects a same-tick concurrent commit. Cross-flag writes never clobber; the
+// only residual is two writers hitting the SAME flag in the same instant (last-writer-wins on
+// that one flag — acceptable; not the cross-flag data-loss the incident was). Reads stay
+// 30s-cached, so cross-replica propagation of a committed change is bounded at ≤30s.
+const MAX_RMW_ATTEMPTS = 5;
+
+/** sha256 of the current on-disk flags file, or '' if absent. Single-fd (t/2019 race-safe). */
+function currentFlagsHash(): string {
+  try {
+    const fd = fs.openSync(flagsPath(), 'r');
+    try { return crypto.createHash('sha256').update(fs.readFileSync(fd)).digest('hex'); }
+    finally { fs.closeSync(fd); }
+  } catch (err) {
+    // ENOENT (no flags file yet) → '' hash; any other error re-throws to the recording caller. telemetry — silent by design for the ENOENT path.
+    if ((err as NodeJS.ErrnoException).code === 'ENOENT') return '';
+    throw err;
+  }
+}
+
+/** Read the current on-disk flags FRESH (bypassing the 30s cache) + its content hash. */
+function readFreshFlags(): { config: FlagsConfig; hash: string } {
+  try {
+    const fd = fs.openSync(flagsPath(), 'r');
+    try {
+      const buf = fs.readFileSync(fd);
+      const data = JSON.parse(buf.toString('utf-8')) as Partial<FlagsConfig>;
+      return { config: { flags: { ...SEED_FLAGS, ...(data.flags ?? {}) } }, hash: crypto.createHash('sha256').update(buf).digest('hex') };
+    } finally { fs.closeSync(fd); }
+  } catch (err) {
+    // ENOENT (no flags file yet) → seed baseline; any other error re-throws to the recording caller. telemetry — silent by design for the ENOENT path.
+    if ((err as NodeJS.ErrnoException).code === 'ENOENT') return { config: { flags: { ...SEED_FLAGS } }, hash: '' };
+    throw err;
+  }
+}
+
+type RmwApply<T> =
+  | { config: FlagsConfig; audit: FlagAuditEntry; result: T }  // commit + audit
+  | { config: null; result: T };                                // no-op (e.g. delete of an absent flag)
+
+/** Apply a single-flag mutation against fresh file state, retrying on a concurrent write. */
+function rmwFlags<T>(apply: (fresh: FlagsConfig) => RmwApply<T>): T {
   const p = flagsPath();
   fs.mkdirSync(path.dirname(p), { recursive: true });
-  fs.writeFileSync(p, JSON.stringify(config, null, 2));
-  _cache = config;
-  _cacheMtime = -1; // force a fresh stat on next read (mtime changed)
+  for (let attempt = 0; attempt < MAX_RMW_ATTEMPTS; attempt++) {
+    const { config: fresh, hash } = readFreshFlags();
+    const applied = apply(fresh);
+    if (applied.config === null) return applied.result; // no write needed
+    // Precondition: if the file changed since our fresh read, a concurrent writer committed →
+    // retry the full read-merge (so we merge onto their change, not clobber it).
+    if (currentFlagsHash() !== hash) continue;
+    // Atomic commit: temp in the SAME directory (same fs → no EXDEV) then rename.
+    const tmp = `${p}.tmp-${process.pid}-${attempt}`;
+    fs.writeFileSync(tmp, JSON.stringify(applied.config, null, 2));
+    fs.renameSync(tmp, p);
+    _cache = applied.config;
+    _cacheMtime = -1; // force a fresh stat on next read (mtime changed)
+    appendAudit(applied.audit);
+    return applied.result;
+  }
+  throw new Error(
+    `feature-flags: could not commit a flag change to ${p} after ${MAX_RMW_ATTEMPTS} retries — ` +
+    'another replica is writing concurrently. Retry the change.',
+  );
 }
 
 function appendAudit(entry: FlagAuditEntry): void {
@@ -291,25 +357,28 @@ function mergeFlagDef(name: string, patch: Partial<FlagDef>, before: FlagDef | n
 
 /** Create or update a flag (admin). Persists + appends audit. Returns the def. */
 export function setFlag(name: string, patch: Partial<FlagDef>, by = '_local'): FlagDef {
-  const config = { flags: { ...getConfig().flags } };
-  const before = config.flags[name] ?? null;
-  const now = new Date().toISOString();
-  const def = mergeFlagDef(name, patch, before, now, by);
-  config.flags[name] = def;
-  persist(config);
-  appendAudit({ timestamp: now, action: 'set', flag: name, by, before, after: def });
-  return def;
+  // t/2644: merge onto FRESH file state (not the stale in-process cache) so a concurrent
+  // change to a DIFFERENT flag on another replica survives; the RMW retries on a race.
+  return rmwFlags((fresh) => {
+    const config = { flags: { ...fresh.flags } };
+    const before = config.flags[name] ?? null;
+    const now = new Date().toISOString();
+    const def = mergeFlagDef(name, patch, before, now, by);
+    config.flags[name] = def;
+    return { config, audit: { timestamp: now, action: 'set', flag: name, by, before, after: def }, result: def };
+  });
 }
 
 /** Delete a flag (admin). No-op if absent. Persists + appends audit. */
 export function deleteFlag(name: string, by = '_local'): boolean {
-  const config = { flags: { ...getConfig().flags } };
-  const before = config.flags[name];
-  if (!before) return false;
-  delete config.flags[name];
-  persist(config);
-  appendAudit({ timestamp: new Date().toISOString(), action: 'delete', flag: name, by, before, after: null });
-  return true;
+  // t/2644: existence is checked against FRESH state; absent → no-op (no write, no clobber).
+  return rmwFlags<boolean>((fresh) => {
+    const before = fresh.flags[name];
+    if (!before) return { config: null, result: false };
+    const config = { flags: { ...fresh.flags } };
+    delete config.flags[name];
+    return { config, audit: { timestamp: new Date().toISOString(), action: 'delete', flag: name, by, before, after: null }, result: true };
+  });
 }
 
 /** Flags whose updated_at is older than `daysOld` and have no expiry set. */
