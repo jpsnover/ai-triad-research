@@ -5,6 +5,7 @@ import { readFileSync } from 'fs';
 import { join } from 'path';
 import type { AIAdapter } from '../debate/aiAdapter.js';
 import type { PovKey } from '../debate/types.js';
+import { stripCodeFences } from '../debate/helpers.js';
 import type { ScoredPovNode, ScoredSituationNode } from '../debate/taxonomyRelevance.js';
 import { scoreNodeRelevance, selectRelevantNodes, selectRelevantSituationNodes } from '../debate/taxonomyRelevance.js';
 import { loadTaxonomy } from '../debate/taxonomyLoader.js';
@@ -217,7 +218,7 @@ async function runVoiceGeneration(
 
   let parsed: EssayResponse;
   try {
-    parsed = JSON.parse(rawText) as EssayResponse;
+    parsed = JSON.parse(stripCodeFences(rawText)) as EssayResponse;
   } catch {
     parsed = { headline: '', body_markdown: rawText, word_count: undefined };
   }
@@ -257,7 +258,7 @@ async function runVoiceGeneration(
         responseSchema: REFLECTION_SCHEMA as Record<string, unknown>,
         signal: request.signal,
       });
-      const reflParsed = JSON.parse(reflRaw) as ReflectionResponse;
+      const reflParsed = JSON.parse(stripCodeFences(reflRaw)) as ReflectionResponse;
       const usageMap = new Map(reflParsed.grounding_usage.map(u => [u.id, u.reflection]));
       for (const ref of allGroundingRefs) {
         const refl = usageMap.get(ref.node_id);
