@@ -17,7 +17,7 @@
 
 import fs from 'fs';
 import path from 'path';
-import { getDataRoot } from './config.js';
+import { getStateRoot } from './config.js';
 import { log } from './logger.js';
 import { getGlobalRecorder } from '../../../lib/flight-recorder/index.js';
 import { DEFAULT_MODEL } from '../../../lib/ai-client/index.js';
@@ -472,7 +472,8 @@ let _lastLoadTime = 0;
 const CACHE_TTL = 5_000;
 
 function configPath(): string {
-  return path.join(getDataRoot(), 'admin', 'runtime-config.json');
+  // t/2643: runtime config is class-A writable state → the writable state root.
+  return path.join(getStateRoot(), 'admin', 'runtime-config.json');
 }
 
 function loadConfig(): RuntimeConfig {

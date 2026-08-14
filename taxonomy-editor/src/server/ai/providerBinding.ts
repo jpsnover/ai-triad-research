@@ -16,7 +16,7 @@
 import fs from 'fs';
 import path from 'path';
 import { readFileWithMtime } from './fsCache.js';
-import { getDataRoot } from '../config.js';
+import { getStateRoot } from '../config.js';
 import { log } from '../logger.js';
 import { getConfig } from '../runtimeConfig.js';
 import { getGlobalRecorder } from '../../../../lib/flight-recorder/index.js';
@@ -40,7 +40,9 @@ let _cacheMtime = 0;
 let _lastLoadTime = 0;
 
 function getBindingsPath(): string {
-  return path.join(getDataRoot(), 'admin', 'provider_bindings.json');
+  // t/2643: provider bindings are class-A writable state (runtime-written on first login) →
+  // the writable state root, so a staging login can't rewrite prod's provider_bindings.json.
+  return path.join(getStateRoot(), 'admin', 'provider_bindings.json');
 }
 
 function loadBindings(): Map<string, string> {

@@ -20,7 +20,7 @@ import type { Router } from '../httpKit.js';
 import type { ServerCtx } from './context.js';
 import { json, error, param } from '../httpKit.js';
 import { getGlobalRecorder } from '../../../../lib/flight-recorder/index.js';
-import { getDataRoot, getProjectRoot, STORAGE_MODE } from '../config.js';
+import { getDataRoot, getStateRoot, getProjectRoot, STORAGE_MODE } from '../config.js';
 import { writeDump, isValidDumpId, readMergedDump } from '../flightRecorderDumps.js';
 import { escapeForInlineScript } from '../flightRecorderViewer.js';
 import { clientSafeMessage } from '../security/accessControl.js';
@@ -36,7 +36,7 @@ export function registerDiagnosticsRoutes(r: Router, ctx: ServerCtx): void {
   // ── Calibration log (per-debate metrics — JSONL from core/) ──
   get('/api/calibration/log', (_req, res) => {
     try {
-      const logPath = path.join(getDataRoot(), 'calibration', 'core', 'calibration-log.jsonl');
+      const logPath = path.join(getStateRoot(), 'calibration', 'core', 'calibration-log.jsonl'); // t/2643: calibration is class-A writable state (read side)
       if (!fs.existsSync(logPath)) { json(res, { entries: [], validationReport: null }); return; }
 
       const entries = fs.readFileSync(logPath, 'utf-8')
@@ -44,7 +44,7 @@ export function registerDiagnosticsRoutes(r: Router, ctx: ServerCtx): void {
         .filter((line: string) => line.trim().length > 0)
         .map((line: string) => JSON.parse(line));
 
-      const reportPath = path.join(getDataRoot(), 'calibration', 'validation-report.json');
+      const reportPath = path.join(getStateRoot(), 'calibration', 'validation-report.json'); // t/2643
       let validationReport = null;
       if (fs.existsSync(reportPath)) {
         try { validationReport = JSON.parse(fs.readFileSync(reportPath, 'utf-8')); } catch { /* telemetry — silent by design */ }
@@ -58,7 +58,7 @@ export function registerDiagnosticsRoutes(r: Router, ctx: ServerCtx): void {
   get('/api/calibration/history', async (_req, res) => {
     try {
       const { readParameterHistory, captureSnapshot } = await import('../../../../lib/debate/calibrationLogger.js');
-      const history = readParameterHistory(getDataRoot());
+      const history = readParameterHistory(getStateRoot()); // t/2643: calibration is class-A writable state
       const current = captureSnapshot();
       json(res, { current, history });
     } catch (err) { getGlobalRecorder()?.record({ type: 'system.error', component: 'server', level: 'error', message: 'Failed to load parameter history', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } }); error(res, String(err), 500, err); }
@@ -80,7 +80,7 @@ export function registerDiagnosticsRoutes(r: Router, ctx: ServerCtx): void {
         return;
       }
 
-      const dumpDir = path.join(getDataRoot(), 'flight-recorder');
+      const dumpDir = path.join(getStateRoot(), 'flight-recorder'); // t/2643: class-A writable state
       fs.mkdirSync(dumpDir, { recursive: true });
 
       const ts = new Date().toISOString().replace(/:/g, '-');
@@ -116,7 +116,7 @@ export function registerDiagnosticsRoutes(r: Router, ctx: ServerCtx): void {
   post('/api/flight-recorder/server-dump', (_req, res) => {
     try {
       const ndjson = appendServerLogs(serverRecorder.buildDump('manual').ndjson);
-      const dumpDir = path.join(getDataRoot(), 'flight-recorder');
+      const dumpDir = path.join(getStateRoot(), 'flight-recorder'); // t/2643: class-A writable state
       fs.mkdirSync(dumpDir, { recursive: true });
       const ts = new Date().toISOString().replace(/:/g, '-');
       const filename = `server-flight-recorder-${ts}.jsonl`;
@@ -199,7 +199,7 @@ export function registerDiagnosticsRoutes(r: Router, ctx: ServerCtx): void {
 
   get('/api/flight-recorder/list', (_req, res) => {
     try {
-      const dumpDir = path.join(getDataRoot(), 'flight-recorder');
+      const dumpDir = path.join(getStateRoot(), 'flight-recorder'); // t/2643: class-A writable state
       if (!fs.existsSync(dumpDir)) { json(res, { files: [] }); return; }
       const files = fs.readdirSync(dumpDir)
         .filter(f => f.endsWith('.jsonl') && /^(server-)?flight-recorder-/.test(f))
@@ -229,7 +229,7 @@ export function registerDiagnosticsRoutes(r: Router, ctx: ServerCtx): void {
         error(res, 'Invalid filename', 400);
         return;
       }
-      const dumpDir = path.join(getDataRoot(), 'flight-recorder');
+      const dumpDir = path.join(getStateRoot(), 'flight-recorder'); // t/2643: class-A writable state
       const filePath = path.join(dumpDir, filename);
       if (!fs.existsSync(filePath)) { error(res, 'File not found', 404); return; }
       const content = fs.readFileSync(filePath, 'utf-8');
@@ -248,7 +248,7 @@ export function registerDiagnosticsRoutes(r: Router, ctx: ServerCtx): void {
         error(res, 'Invalid filename', 400);
         return;
       }
-      const dumpDir = path.join(getDataRoot(), 'flight-recorder');
+      const dumpDir = path.join(getStateRoot(), 'flight-recorder'); // t/2643: class-A writable state
       const filePath = path.join(dumpDir, filename);
       if (!fs.existsSync(filePath)) { error(res, 'File not found', 404); return; }
 

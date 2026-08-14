@@ -23,7 +23,7 @@
 
 import fs from 'fs';
 import path from 'path';
-import { getDataRoot } from './config.js';
+import { getStateRoot } from './config.js';
 import { log } from './logger.js';
 import { getCurrentUser } from './security/userContext.js';
 import { isAdmin } from './community/community.js';
@@ -132,8 +132,10 @@ let _cacheMtime = -1;
 let _lastLoadTime = 0;
 const CACHE_TTL = 30_000;
 
-function flagsPath(): string { return path.join(getDataRoot(), 'admin', 'feature-flags.json'); }
-function auditPath(): string { return path.join(getDataRoot(), 'admin', 'feature-flags-audit.ndjson'); }
+// t/2643: feature flags are class-A WRITABLE state (read + runtime-written by the server) →
+// the writable state root, so a staging flag flip can't mutate prod's shared feature-flags.json.
+function flagsPath(): string { return path.join(getStateRoot(), 'admin', 'feature-flags.json'); }
+function auditPath(): string { return path.join(getStateRoot(), 'admin', 'feature-flags-audit.ndjson'); }
 
 function loadConfig(): FlagsConfig {
   const p = flagsPath();

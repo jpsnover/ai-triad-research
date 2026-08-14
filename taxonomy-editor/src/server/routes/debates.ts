@@ -18,7 +18,7 @@ import * as community from '../community/community.js';
 import * as ai from '../ai/aiBackends.js';
 import { getStorageUserId, getAnonymousSessionId } from '../security/userContext.js';
 import * as rateLimiter from '../security/rateLimiter.js';
-import { getDataRoot } from '../config.js';
+import { getStateRoot } from '../config.js';
 import type { DebateDelta } from '../../../../lib/debate/types.js';
 import { ActionableError } from '../../../../lib/debate/errors.js';
 // t/2626: this static `import type` forces tsc to emit lib/debate/newsReport.js into the
@@ -50,7 +50,9 @@ async function logCalibrationIfComplete(body: unknown): Promise<void> {
       // `body` is the saved debate session at runtime; the local narrow type above
       // is only for the transcript check, so cast to the function's param.
       const dataPoint = extractCalibrationData(session as unknown as Parameters<typeof extractCalibrationData>[0], getStorageUserId());
-      appendCalibrationLog(dataPoint, getDataRoot());
+      // t/2643: calibration is class-A writable state (raw-fs append in the lib funnel, which
+      // roots purely at this arg) → the writable state root, not prod's shared data root.
+      appendCalibrationLog(dataPoint, getStateRoot());
     }
   } catch (err) {
     getGlobalRecorder()?.record({
