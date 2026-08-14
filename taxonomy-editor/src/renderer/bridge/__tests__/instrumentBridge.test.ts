@@ -64,6 +64,35 @@ describe('instrumentBridge — listOpEdSets result shape (t/2606)', () => {
   });
 });
 
+describe('instrumentBridge — loadOpEdSet grounding presence (t/2621)', () => {
+  beforeEach(() => { vi.clearAllMocks(); });
+
+  it('records has_grounding=true + grounded_member_count when some members are grounded', async () => {
+    const set = { set_id: 'a', topic: 'T', opeds: [
+      { pov: 'acc', grounding: [{ node_id: 'acc-b-001' }, { node_id: 'acc-b-002' }] },
+      { pov: 'saf', grounding: [] },
+    ] };
+    const api = instrumentBridge({ loadOpEdSet: () => Promise.resolve(set) } as unknown as AppAPI);
+    await (api as unknown as { loadOpEdSet: (id: string) => Promise<unknown> }).loadOpEdSet('a');
+
+    const ok = okRecord('loadOpEdSet');
+    expect(ok?.data?.member_count).toBe(2);
+    expect(ok?.data?.has_grounding).toBe(true);
+    expect(ok?.data?.grounded_member_count).toBe(1);
+  });
+
+  it('records has_grounding=false when no member carries grounding', async () => {
+    const set = { set_id: 'a', topic: 'T', opeds: [{ pov: 'acc', grounding: [] }, { pov: 'saf' }] };
+    const api = instrumentBridge({ loadOpEdSet: () => Promise.resolve(set) } as unknown as AppAPI);
+    await (api as unknown as { loadOpEdSet: (id: string) => Promise<unknown> }).loadOpEdSet('a');
+
+    const ok = okRecord('loadOpEdSet');
+    expect(ok?.data?.member_count).toBe(2);
+    expect(ok?.data?.has_grounding).toBe(false);
+    expect(ok?.data?.grounded_member_count).toBe(0);
+  });
+});
+
 describe('instrumentBridge — expected-status downgrade (t/2395)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
