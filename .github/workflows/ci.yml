@@ -463,7 +463,7 @@ jobs:
           cache-dependency-path: 'pnpm-lock.yaml'
 
       - name: Install lib dependencies
-        run: pnpm install --frozen-lockfile
+        run: pnpm install --frozen-lockfile --ignore-scripts
 
       - name: Lint (errors gate; warnings advisory — see header)
         working-directory: lib
