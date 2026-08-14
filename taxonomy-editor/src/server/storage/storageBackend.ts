@@ -19,6 +19,9 @@
  */
 
 export interface StorageBackend {
+  /** Short identity string for structured logs (e.g. 'filesystem', 'azure-blob', 'github-api'). */
+  readonly backendName: string;
+
   /** Read a file as UTF-8. Returns null if the file does not exist.
    *  `opts.ref` pins the read to a specific ref (e.g. 'main') for shared data
    *  that lives on main rather than a per-user session branch (community

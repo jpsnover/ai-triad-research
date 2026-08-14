@@ -90,6 +90,8 @@ function wrapBlobError(err: unknown, op: string, blob: string): ActionableError 
 const DEFAULT_BLOB_UPLOAD_TIMEOUT_MS = 60_000;
 
 export class AzureBlobBackend implements StorageBackend {
+  readonly backendName = 'azure-blob';
+
   private readonly userContentClient: ContainerClient;
   private readonly communityClient: ContainerClient;
   private readonly uploadTimeoutMs: number;
