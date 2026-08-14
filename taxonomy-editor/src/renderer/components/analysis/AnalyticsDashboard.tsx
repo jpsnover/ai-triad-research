@@ -559,7 +559,7 @@ export function AnalyticsDashboard() {
           onClick={() => setActiveTab('hierarchy')}>Hierarchy</button>
       </div>
 
-      {activeTab === 'hierarchy' && <UsageHierarchy range={{ from, to }} />}
+      {activeTab === 'hierarchy' && <UsageHierarchy />}
 
       {activeTab === 'overview' && loading && <div className="adash-loading">Loading analytics...</div>}
       {activeTab === 'overview' && error && <div className="adash-error">Failed to load analytics: {error}</div>}
