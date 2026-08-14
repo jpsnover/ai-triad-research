@@ -23,6 +23,11 @@ function Invoke-TaxEditorSmokeTest {
     .PARAMETER HealthRetryIntervalSec
         Seconds to sleep between health-probe attempts when HealthMaxAttempts > 1.
         Default: 10.
+    .PARAMETER DeployedSha
+        When provided, passes the commit SHA to Test-GitHubHealth so the ci.yml
+        check queries by exact SHA instead of branch=main. Fail-closed: no
+        completed CI run for the SHA → GitHub check fails. Intended for use in
+        the deploy workflow immediately after a push (t/2639).
     .PARAMETER Detailed
         Show per-endpoint results in addition to the summary.
     .EXAMPLE
@@ -62,6 +67,9 @@ function Invoke-TaxEditorSmokeTest {
         [Parameter()]
         [ValidateRange(1, 300)]
         [int]$HealthRetryIntervalSec = 10,
+
+        [Parameter()]
+        [string]$DeployedSha = '',
 
         [Parameter()]
         [switch]$Detailed
@@ -137,7 +145,9 @@ function Invoke-TaxEditorSmokeTest {
 
     # ── Phase 4: GitHub services ─────────────────────────────────────────
     Write-Host '=== GitHub Services ===' -ForegroundColor Cyan
-    $GitHub = Test-GitHubHealth -TimeoutSec $TimeoutSec
+    $GitHubSplatArgs = @{ TimeoutSec = $TimeoutSec }
+    if ($DeployedSha) { $GitHubSplatArgs['DeployedSha'] = $DeployedSha }
+    $GitHub = Test-GitHubHealth @GitHubSplatArgs
 
     foreach ($Check in $GitHub.Checks) {
         $Icon = if ($Check.Pass) { '[PASS]' } else { '[FAIL]' }

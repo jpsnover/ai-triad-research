@@ -17,6 +17,11 @@ function Test-GitHubHealth {
         Branch to scope the workflow-runs status check to. Default: main (the
         deployed line) — so a red PR/branch run does not false-FAIL the CI-health
         category in a prod smoke (t/1975).
+    .PARAMETER DeployedSha
+        When provided, the ci.yml check queries by exact commit SHA instead of
+        branch=main. Fail-closed: zero completed runs for the SHA → check fails
+        (never silently passes or falls back to branch). Fixes the gh-run-rerun
+        created_at displacement false-negative (t/2639).
     .EXAMPLE
         Test-GitHubHealth
     .EXAMPLE
@@ -36,7 +41,10 @@ function Test-GitHubHealth {
         [int]$TimeoutSec = 10,
 
         [Parameter()]
-        [string]$Branch = 'main'
+        [string]$Branch = 'main',
+
+        [Parameter()]
+        [string]$DeployedSha = ''
     )
 
     Set-StrictMode -Version Latest
@@ -133,28 +141,50 @@ function Test-GitHubHealth {
     # so a red PR/branch run doesn't false-FAIL the CI-health category in a prod
     # smoke. GitHub filters by head_branch via the `branch` param; escape guards
     # branch names containing '/'.
+    # t/2639 — when DeployedSha is provided, ci.yml uses head_sha= instead of
+    # branch= so a gh-run-rerun (which preserves original created_at) is not
+    # displaced by a newer branch run. Fail-closed: zero runs for the SHA → FAIL.
     $BranchQ = [uri]::EscapeDataString($Branch)
     foreach ($Wf in $KeyWorkflows) {
+        $UseSha = $DeployedSha -and $Wf -eq 'ci.yml'
+        $CheckLabel = if ($UseSha) { "Workflow: $Wf @$DeployedSha" } else { "Workflow: $Wf @$Branch" }
+        $RunsUri = if ($UseSha) {
+            "https://api.github.com/repos/$Repo/actions/workflows/$Wf/runs?head_sha=$DeployedSha&status=completed&per_page=1"
+        } else {
+            "https://api.github.com/repos/$Repo/actions/workflows/$Wf/runs?per_page=1&status=completed&branch=$BranchQ"
+        }
         try {
-            $RunsResp = Invoke-RestMethod `
-                -Uri "https://api.github.com/repos/$Repo/actions/workflows/$Wf/runs?per_page=1&status=completed&branch=$BranchQ" `
+            $RunsResp = Invoke-RestMethod -Uri $RunsUri `
                 -Headers $Headers -TimeoutSec $TimeoutSec -ErrorAction Stop
 
             if ($RunsResp.total_count -gt 0) {
                 $Run = $RunsResp.workflow_runs[0]
                 $Conclusion = $Run.conclusion
                 $RunDate = ([datetime]$Run.updated_at).ToString('yyyy-MM-dd HH:mm')
+                if ($UseSha) {
+                    Write-Verbose "Checking CI for sha=$DeployedSha, run #$($Run.run_number)"
+                }
 
                 $Checks.Add([PSCustomObject]@{
-                    Check      = "Workflow: $Wf @$Branch"
+                    Check      = $CheckLabel
                     Pass       = $Conclusion -eq 'success'
                     ResponseMs = 0
                     Detail     = "conclusion=$Conclusion | $RunDate | #$($Run.run_number)"
                 })
             }
+            elseif ($UseSha) {
+                # Fail-closed: a SHA with no completed runs must not silently pass
+                Write-Verbose "sha=$DeployedSha — no CI run found → failing closed"
+                $Checks.Add([PSCustomObject]@{
+                    Check      = $CheckLabel
+                    Pass       = $false
+                    ResponseMs = 0
+                    Detail     = "sha=$DeployedSha — no CI run found → failing closed"
+                })
+            }
             else {
                 $Checks.Add([PSCustomObject]@{
-                    Check      = "Workflow: $Wf @$Branch"
+                    Check      = $CheckLabel
                     Pass       = $true
                     ResponseMs = 0
                     Detail     = 'No completed runs found'
@@ -167,7 +197,7 @@ function Test-GitHubHealth {
                 $StatusCode = [int]$_.Exception.Response.StatusCode
             }
             $Checks.Add([PSCustomObject]@{
-                Check      = "Workflow: $Wf @$Branch"
+                Check      = $CheckLabel
                 Pass       = $false
                 ResponseMs = 0
                 Detail     = if ($StatusCode -eq 404) { 'Workflow not found' }
