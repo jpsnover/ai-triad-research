@@ -27,6 +27,7 @@ import { hasApiKey, getPaidGeminiFallbackKey, type AIBackend } from '../config.j
 import * as proxyTiers from '../ai/proxyTiers.js';
 import * as rateLimiter from '../security/rateLimiter.js';
 import * as ai from '../ai/aiBackends.js';
+import { resolveGenerationContext, enforceBackendAllowed } from './generationContext.js';
 import * as fileIO from '../storage/fileIO.js';
 
 // Pure mirror of the server.ts parseCookies helper (used by the logout /
@@ -68,21 +69,6 @@ const BACKEND_DISPLAY: Record<AIBackend, string> = {
 // ── POST /api/ai/generate guard/step helpers (extracted from the handler, ADR-007)
 // Each guard returns true when it has already sent a response (caller must return).
 type ResolvedTier = ReturnType<typeof proxyTiers.resolveTier>;
-
-/** 403 + record when the resolved backend isn't allowed on the caller's tier. */
-function enforceBackendAllowed(res: http.ServerResponse, tier: ResolvedTier, backend: AIBackend): boolean {
-  if (proxyTiers.isBackendAllowed(tier, backend)) return false;
-  // t/1463: record the tier context so a tier-restriction 403 is a one-line FR read
-  // instead of a server.ts → proxyTiers → runtimeConfig code trace.
-  getGlobalRecorder()?.record({
-    type: 'ai.error', component: 'ai-generate', level: 'warn',
-    message: `Backend '${backend}' not available on '${tier.level}' tier`,
-    data: { tier_level: tier.level, requested_backend: backend, allowed_backends: tier.allowedBackends },
-  });
-  res.writeHead(403);
-  res.end(JSON.stringify({ error: `Backend '${backend}' not available on your tier`, tier_level: tier.level, requested_backend: backend }));
-  return true;
-}
 
 /** Per-IP (free) / per-user RPM + daily-token limits. 429 + log/record on breach. */
 function enforceAiRateLimits(res: http.ServerResponse, isFree: boolean, limitKey: string, tier: ResolvedTier, backend: AIBackend): boolean {
@@ -273,20 +259,22 @@ function respondIfUpstream429(res: http.ServerResponse, err: unknown, modelLabel
   return true;
 }
 
-/** Resolve the caller's tier + rate-limit key + effective (pinned-for-free) model +
- *  target backend from the request. Pure setup — sends no response. */
-function resolveGenerationContext(req: http.IncomingMessage, model: string | undefined): {
-  tier: ResolvedTier; isFree: boolean; limitKey: string; effectiveModel: string | undefined; backend: AIBackend;
-} {
-  const { principalName, idp } = callerIdentity(); // t/848: verified context, not raw headers
-  const tier = proxyTiers.resolveTier(principalName, idp);
-  const isFree = tier.level === 'free';
-  // Free tier (t/793): keyed per-IP (all keyless users would otherwise share one
-  // bucket), with the model pinned. Other tiers key by user and honour the request model.
-  const limitKey = isFree ? `free:${getClientIp(req)}` : (principalName || '_anonymous');
-  const effectiveModel = isFree ? (tier.pinnedModel ?? model) : model;
-  const backend = ai.resolveBackend(effectiveModel || DEFAULT_MODEL);
-  return { tier, isFree, limitKey, effectiveModel, backend };
+/** Map an /api/ai/search generation error to its HTTP response (t/2625 — the non-recording
+ *  tail extracted from the handler catch per ADR-003; the catch records, this only responds). */
+function respondAiSearchError(res: http.ServerResponse, err: unknown): void {
+  if (ai.isContextTooLongError(err)) {
+    res.writeHead(400, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ error: 'context_too_long', message: 'Input exceeds the model context window — try a shorter prompt or a model with a larger context window' }));
+    return;
+  }
+  if (ai.is429Error(err)) {
+    const retry = ai.retryAfterMs(err);
+    res.setHeader('Retry-After', String(Math.max(1, Math.ceil(retry / 1000))));
+    res.writeHead(429, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ error: 'Upstream AI provider rate limit — retry shortly', limitType: 'upstream_rate_limit', retryAfterMs: retry, retryable: true }));
+    return;
+  }
+  error(res, String(err), 500, err);
 }
 
 export function registerAiRoutes(r: Router, ctx: ServerCtx): void {
@@ -442,42 +430,23 @@ export function registerAiRoutes(r: Router, ctx: ServerCtx): void {
     }
   });
 
-  post('/api/ai/search', async (_req, res, body) => {
+  post('/api/ai/search', async (req, res, body) => {
     const { prompt, model } = body as { prompt: string; model?: string };
     try {
-      json(res, await ai.generateTextWithSearchByUsage('server.search', { prompt }, model ? { model } : undefined));
+      // t/2625: gate the user-supplied model through the shared entitlement path (pins free tier).
+      const { tier, effectiveModel, backend } = resolveGenerationContext(req, model);
+      if (enforceBackendAllowed(res, tier, backend)) return;
+      json(res, await ai.generateTextWithSearchByUsage('server.search', { prompt }, effectiveModel ? { model: effectiveModel } : undefined));
     } catch (err) {
-      if (ai.isContextTooLongError(err)) {
-        log.server.warn({ component: 'ai-search', model: model ?? 'default' }, 'AI search input exceeds model context window');
-        getGlobalRecorder()?.record({
-          type: 'ai.error', component: 'ai-search', level: 'warn',
-          message: 'AI search input too long for model context window',
-          data: { model: model ?? 'default', source: 'context_overflow' },
-        });
-        res.writeHead(400, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: 'context_too_long', message: 'Input exceeds the model context window — try a shorter prompt or a model with a larger context window' }));
-        return;
-      }
-      if (ai.is429Error(err)) {
-        const retry = ai.retryAfterMs(err);
-        log.server.warn({ component: 'ai-search', model: model ?? 'default', retryAfterMs: retry }, 'AI search upstream rate-limited — returning 429');
-        getGlobalRecorder()?.record({
-          type: 'ai.error', component: 'ai-search', level: 'warn',
-          message: 'AI search upstream rate-limited',
-          data: { model: model ?? 'default', retryAfterMs: retry, source: 'upstream' },
-        });
-        res.setHeader('Retry-After', String(Math.max(1, Math.ceil(retry / 1000))));
-        res.writeHead(429, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: 'Upstream AI provider rate limit — retry shortly', limitType: 'upstream_rate_limit', retryAfterMs: retry, retryable: true }));
-        return;
-      }
+      // ADR-003: record literally in the catch; the (non-recording) err→HTTP mapping is extracted.
+      const expected = ai.isContextTooLongError(err) || ai.is429Error(err);
       getGlobalRecorder()?.record({
-        type: 'system.error', component: 'ai-search', level: 'error',
+        type: 'ai.error', component: 'ai-search', level: expected ? 'warn' : 'error',
         message: `AI search failed: ${String(err)}`,
         error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
-        data: { model: model ?? 'default', promptLength: prompt?.length },
+        data: { model: model ?? 'default', promptLength: prompt?.length, source: ai.isContextTooLongError(err) ? 'context_overflow' : ai.is429Error(err) ? 'upstream' : 'error' },
       });
-      error(res, String(err), 500, err);
+      respondAiSearchError(res, err);
     }
   });
 

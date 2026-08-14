@@ -31,6 +31,7 @@ import { getGlobalRecorder } from '../../../../lib/flight-recorder/index.js';
 import { DEFAULT_MODEL } from '../../../../lib/ai-client/index.js';
 import { log } from '../logger.js';
 import * as ai from '../ai/aiBackends.js';
+import { resolveGenerationContext, enforceBackendAllowed } from './generationContext.js';
 import { getDataRoot } from '../config.js';
 import { greatestHitsPath } from '../../../../lib/debate/corpusCoverage.js';
 import * as fileIO from '../storage/fileIO.js';
@@ -254,9 +255,14 @@ export function registerSourcesRoutes(r: Router, _ctx: ServerCtx): void {
 
   // ── Evidence QBAF (runs full pipeline server-side) ──
 
-  post('/api/evidence-qbaf', async (_req, res, body) => {
+  post('/api/evidence-qbaf', async (req, res, body) => {
     const { claimText, claimId, model } = body as { claimText: string; claimId: string; model?: string };
     if (!claimText || !claimId) { error(res, 'claimText and claimId are required', 400); return; }
+
+    // t/2625: gate the user-supplied model through the shared entitlement path — a
+    // free/restricted tier can't select a premium backend via body.model. Pins free tier.
+    const { tier, effectiveModel, backend } = resolveGenerationContext(req, model);
+    if (enforceBackendAllowed(res, tier, backend)) return;
 
     const sourcesDir = fileIO.getSourcesDir();
     if (!sourcesDir || !fs.existsSync(sourcesDir)) { json(res, null); return; }
@@ -276,7 +282,7 @@ export function registerSourcesRoutes(r: Router, _ctx: ServerCtx): void {
         },
       };
 
-      const evalModel = model || DEFAULT_MODEL;
+      const evalModel = effectiveModel || DEFAULT_MODEL;
       const result = await buildEvidenceQbaf(claimText, evidenceItems, adapter, evalModel, {
         claimBaseStrength: 0.5,
       });
