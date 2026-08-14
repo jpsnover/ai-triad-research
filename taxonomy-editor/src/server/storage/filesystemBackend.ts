@@ -14,6 +14,8 @@ import { getGlobalRecorder } from '../../../../lib/flight-recorder/index.js';
  * gracefully (no throws for ENOENT).
  */
 export class FilesystemBackend implements StorageBackend {
+  readonly backendName = 'filesystem';
+
   private async renameWithRetry(oldPath: string, newPath: string): Promise<void> {
     const maxRetries = 5;
     for (let i = 0; i <= maxRetries; i++) {

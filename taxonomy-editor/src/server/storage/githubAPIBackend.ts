@@ -89,6 +89,8 @@ const MANIFEST_FILE = 'manifest.json';
 // ── GitHubAPIBackend ─────────────────────────────────────────────────────
 
 export class GitHubAPIBackend implements StorageBackend {
+  readonly backendName = 'github-api';
+
   private readonly cacheDir: string;
   private readonly recorder: FlightRecorder | null;
   private readonly pollIntervalMs: number;

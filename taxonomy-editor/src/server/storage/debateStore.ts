@@ -163,12 +163,15 @@ export async function loadDebateSession(id: string): Promise<unknown> {
   const backend = getUserContentBackend();
   const filePath = path.join(getDebatesDir(), `debate-${id}.json`);
   const raw = await backend.readFile(filePath);
-  if (raw === null) throw new ActionableError({
-    goal: 'Load debate session',
-    problem: `Debate session not found: ${id}`,
-    location: 'server/fileIO.ts → loadDebateSession',
-    nextSteps: ['Verify the debate ID exists via listDebateSessions()'],
-  });
+  if (raw === null) {
+    log.server.info({ backendName: backend.backendName, debateId: id, blobKey: filePath, result: 'not-found' }, 'Debate session not found on backend');
+    throw new ActionableError({
+      goal: 'Load debate session',
+      problem: `Debate session not found: ${id}`,
+      location: 'server/fileIO.ts → loadDebateSession',
+      nextSteps: ['Verify the debate ID exists via listDebateSessions()'],
+    });
+  }
   return JSON.parse(raw);
 }
 
@@ -200,7 +203,7 @@ export async function saveDebateSession(session: unknown, caller: string): Promi
     log.server.warn({ debateId: s.id, errorMessage }, 'Debate session serialized with sanitizing replacer — non-serializable fields stripped');
   }
   await backend.writeFile(debatePath, json);
-  log.server.info({ caller, debateId: s.id }, 'Debate session saved');
+  log.server.info({ caller, debateId: s.id, backendName: backend.backendName, blobKey: debatePath, bytes: json.length, writeAck: true }, 'Debate session saved');
   // Maintain the lightweight index
   void upsertDebateIndex({
     id: s.id,
