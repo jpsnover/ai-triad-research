@@ -457,8 +457,9 @@ jobs:
             -ExpectedTrafficRevision '${{ steps.new_revision.outputs.revision }}' `
             -ExpectedTrafficWeight 100 `
             -ExpectedEnvVars @{
-              # Keep in sync with baseEnv var in deploy/azure/main.bicep (lines 383-417).
-              # A new Bicep env var not added here escapes coverage silently.
+              # MANDATORY: Keep in sync with baseEnv in deploy/azure/main.bicep (lines 383-417).
+              # Every PR that adds/changes a Bicep env var MUST update this table in the same PR.
+              # Drift here = false-red OR silently missed config check (t/2631).
               NODE_ENV                           = 'production'
               WEBSITE_AUTH_ENABLED               = 'true'
               HOME                               = '/home/aitriad'
