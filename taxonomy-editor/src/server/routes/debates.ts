@@ -21,6 +21,14 @@ import * as rateLimiter from '../security/rateLimiter.js';
 import { getDataRoot } from '../config.js';
 import type { DebateDelta } from '../../../../lib/debate/types.js';
 import { ActionableError } from '../../../../lib/debate/errors.js';
+// t/2626: this static `import type` forces tsc to emit lib/debate/newsReport.js into the
+// build (rootDir=../ → dist/server/lib/debate/newsReport.js). newsReport is otherwise
+// reached ONLY by the dynamic import() in the news-report handler, so it never enters the
+// tsc program and never emits → 'Cannot find module' → a 500 on every container
+// news-report request (a distinct t/2600 cause). The namespace type also annotates the
+// dynamic result below. (prompts.js already emits via static importers — only its path
+// needed the 3-ups→4-ups fix.)
+import type * as NewsReportModule from '../../../../lib/debate/newsReport.js';
 
 // t/1461: per-{userId,debateId} in-flight guard against the concurrent debate-save
 // cascade — an actively-used debate fires saveDebate from many store transitions,
@@ -326,10 +334,12 @@ export function registerDebatesRoutes(r: Router, _ctx: ServerCtx): void {
       // t/2553: breadcrumb immediately before the dynamic imports — the import()
       // calls are the most likely fast-failure site (module resolution / runtime).
       getGlobalRecorder()?.record({ type: 'debate.lifecycle', component: 'debates', level: 'info', message: 'news-report: importing', data: { debateId, phase: 'importing' } });
-      // @ts-expect-error — lib/debate uses bundler moduleResolution; dynamic import resolves at runtime
-      const { extractTranscriptHighlights, summarizeArgumentNetwork } = await import('../../../lib/debate/newsReport.js');
-      // @ts-expect-error — lib/debate uses bundler moduleResolution; dynamic import resolves at runtime
-      const { newsReportPrompt } = await import('../../../lib/debate/prompts.js');
+      // 4-ups matches tsconfig.server rootDir=../ + outDir=dist/server (compiled route at
+      // dist/server/taxonomy-editor/src/server/routes/, lib at dist/server/lib/); the prior
+      // 3-ups path resolved in no environment (t/2626).
+      const { extractTranscriptHighlights, summarizeArgumentNetwork }: typeof NewsReportModule =
+        await import('../../../../lib/debate/newsReport.js');
+      const { newsReportPrompt } = await import('../../../../lib/debate/prompts.js');
 
       // t/2600: breadcrumb between the imports and the AI call so the FR's last
       // event separates an extract/summarize throw (this phase) from an import
