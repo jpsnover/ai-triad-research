@@ -630,15 +630,16 @@ $_companionDirs = @(
 foreach ($_name in @('DocConverters', 'AIEnrich')) {
     $_loaded = $false
     foreach ($_dir in $_companionDirs) {
-        $_path = Join-Path $_dir "$_name.psm1"
-        if (Test-Path $_path) {
-            try {
-                Import-Module $_path -Force
-                $_loaded = $true
-                break
-            }
-            catch {
-                Write-Warning "Failed to import ${_name}.psm1: $_ — related features will be unavailable."
+        if (-not $_loaded) {
+            $_path = Join-Path $_dir "$_name.psm1"
+            if (Test-Path $_path) {
+                try {
+                    Import-Module $_path -Force
+                    $_loaded = $true
+                }
+                catch {
+                    Write-Warning "Failed to import ${_name}.psm1: $_ — related features will be unavailable."
+                }
             }
         }
     }
@@ -652,35 +653,45 @@ foreach ($_name in @('DocConverters', 'AIEnrich')) {
 # ─────────────────────────────────────────────────────────────────────────────
 $TaxonomyDir = Get-TaxonomyDir
 if (Test-Path $TaxonomyDir) {
+    $script:_TaxSkipNames = @(
+        'embeddings.json', 'edges.json', 'policy_actions.json', '_archived_edges.json',
+        'lineage_categories.json', 'interpretation_embeddings.json',
+        'source_evidence_index.json', 'similarity-cache.json'
+    )
     foreach ($File in Get-ChildItem -Path $TaxonomyDir -Filter '*.json' -File) {
-        if ($File.Name -in 'embeddings.json', 'edges.json', 'policy_actions.json', '_archived_edges.json', 'lineage_categories.json', 'interpretation_embeddings.json', 'source_evidence_index.json', 'similarity-cache.json') { continue }
-        # Embedding-variant files (e.g. embeddings-orgstance-6733.json, t/524) are legitimately
-        # large (50MB+, ~9,500 orgs x 1,536-dim vectors) and carry no .nodes array — they are
-        # loaded on demand by org-stance cmdlets, never by this POV loop. Skip them BEFORE the
-        # corruption guard so they neither trip the 10MB POV-corruption warning (t/1645) nor get
-        # parsed-then-discarded 13x per batch run. The 10MB guard below still protects POV files.
-        if ($File.Name -like 'embeddings-*.json' -or $File.Name -like '*-embeddings.json') { continue }
-        if ($File.Length -gt 10MB) {
-            Write-Warning "Taxonomy: skipping $($File.Name) — file is $([math]::Round($File.Length / 1MB, 1)) MB (likely corrupted, max 10 MB)."
-            continue
+        # Avoid break/continue inside the foreach body — Pester 6.1.0 wraps module init
+        # scriptblocks in flow-control traps and any escaped continue/break (even from a
+        # valid foreach) trips the guard. Use nested if/else instead.
+        $script:_TaxSkip = $File.Name -in $script:_TaxSkipNames
+        if (-not $script:_TaxSkip) {
+            # Embedding-variant files (e.g. embeddings-orgstance-6733.json, t/524) are
+            # legitimately large (50MB+) and carry no .nodes array — loaded on demand, never
+            # by this POV loop. Skip BEFORE the 10MB corruption guard (t/1645).
+            $script:_TaxSkip = $File.Name -like 'embeddings-*.json' -or $File.Name -like '*-embeddings.json'
         }
-        try {
-            $Json    = Get-Content -Raw -Path $File.FullName | ConvertFrom-Json
-            # Only register POV files that follow the taxonomy-node shape (a .nodes
-            # array whose entries carry an 'id'). Auxiliary files (lineage_categories.json)
-            # and sidecar logs (entity_extraction_log.json, whose nodes are keyed by
-            # 'node_id' — t/1834) live alongside POV files but must NOT be treated as POVs.
-            if (-not (Test-IsPovTaxonomyData $Json)) {
-                Write-Verbose "Taxonomy: skipping $($File.Name) (not a POV node file — no id-shaped nodes[])"
-                continue
+        if (-not $script:_TaxSkip) {
+            if ($File.Length -gt 10MB) {
+                Write-Warning "Taxonomy: skipping $($File.Name) — file is $([math]::Round($File.Length / 1MB, 1)) MB (likely corrupted, max 10 MB)."
+            } else {
+                try {
+                    $Json = Get-Content -Raw -Path $File.FullName | ConvertFrom-Json
+                    # Only register POV files that follow the taxonomy-node shape (a .nodes
+                    # array whose entries carry an 'id'). Auxiliary files (lineage_categories.json)
+                    # and sidecar logs (entity_extraction_log.json, whose nodes are keyed by
+                    # 'node_id' — t/1834) live alongside POV files but must NOT be treated as POVs.
+                    if (Test-IsPovTaxonomyData $Json) {
+                        $PovName = $File.BaseName.ToLower()
+                        $script:TaxonomyData[$PovName] = $Json
+                        $script:TaxonomyFileTimestamps[$File.FullName] = $File.LastWriteTime
+                        Write-Verbose "Taxonomy: loaded '$PovName' ($($Json.nodes.Count) nodes) from $($File.Name)"
+                    } else {
+                        Write-Verbose "Taxonomy: skipping $($File.Name) (not a POV node file — no id-shaped nodes[])"
+                    }
+                }
+                catch {
+                    Write-Warning "Taxonomy: failed to load $($File.Name): $_ — this POV will be unavailable until the file is fixed."
+                }
             }
-            $PovName = $File.BaseName.ToLower()
-            $script:TaxonomyData[$PovName] = $Json
-            $script:TaxonomyFileTimestamps[$File.FullName] = $File.LastWriteTime
-            Write-Verbose "Taxonomy: loaded '$PovName' ($($Json.nodes.Count) nodes) from $($File.Name)"
-        }
-        catch {
-            Write-Warning "Taxonomy: failed to load $($File.Name): $_ — this POV will be unavailable until the file is fixed."
         }
     }
 }
