@@ -88,6 +88,20 @@ describe('feature flag CRUD + resolution (t/899)', () => {
     expect(getFlag('custom-only')).toBe(true);
   });
 
+  it('env-web-opeds is seeded OFF with env:web scope; reveal = admin flip (t/2632)', () => {
+    // AC1: present in SEED, scope env:web, default disabled.
+    expect(getFlagMetadata('env-web-opeds')).toMatchObject({ enabled: false, scope: 'env:web' });
+    // AC2: resolves false by default (disabled short-circuits before scope).
+    expect(getFlag('env-web-opeds')).toBe(false);
+    expect(getFlag('release-qbaf-analysis')).toBe(true); // no regression to a sibling seed
+    // AC3: an admin flip → true, delivered on web only (env:web scope).
+    setFlag('env-web-opeds', { enabled: true, scope: 'env:web' }, 'jpsnover');
+    _resetFlagCache();
+    expect(getFlagMetadata('env-web-opeds')?.enabled).toBe(true);
+    expect(evaluateScope('env:web', ctx({ env: 'web' }))).toBe(true);
+    expect(evaluateScope('env:web', ctx({ env: 'electron' }))).toBe(false);
+  });
+
   it('file flags take precedence over seed flags with the same name', () => {
     setFlag('release-qbaf-analysis', { enabled: false, scope: 'global' });
     _resetFlagCache();
