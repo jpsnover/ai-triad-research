@@ -23,9 +23,8 @@ import { generateOpEdSet } from '../../../../lib/oped/generate.js';
 import type { GenerateOpEdRequest, OpEdGeneratorDeps } from '../../../../lib/oped/generate.js';
 import { makeElectronAIAdapter } from '../electronAIAdapter.js';
 
-// Shared prompts dir: op-ed-*.prompt artifacts used by both PS and TS cores.
-// t/2609: when prompts relocate, update this constant to match the new path.
-const PROMPTS_DIR = path.join(PROJECT_ROOT, 'scripts', 'AITriad', 'Prompts');
+// Shared prompts dir: op-ed-*.prompt artifacts (relocated to lib/oped/prompts by t/2609).
+const PROMPTS_DIR = path.join(PROJECT_ROOT, 'lib', 'oped', 'prompts');
 
 // Stage-A fetch shim (FromUrl path only — stays PS, t/2604 P2 will migrate to TS).
 const PREP_SHIM_PATH = path.join(PROJECT_ROOT, 'taxonomy-editor', 'src', 'main', 'ps', 'invoke-get-oped-source.ps1');
