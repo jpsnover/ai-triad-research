@@ -381,7 +381,12 @@ resource stagingAnalyticsContainer 'Microsoft.Storage/storageAccounts/blobServic
 // ── Container App ──
 
 var baseEnv = [
-  { name: 'AI_TRIAD_DATA_ROOT', value: '/tmp/taxonomy-cache' }
+  // t/2602: repoint data root from ephemeral /tmp to durable Azure Files mount.
+  // Fixes class-A durability (admin flags, runtime-config, calibration logs) and
+  // taxonomy reads (supersedes t/2612 startup.sh symlink). TAXONOMY_CACHE_DIR must
+  // stay in sync with AI_TRIAD_DATA_ROOT (t/2061 invariant; Dockerfile comment).
+  { name: 'AI_TRIAD_DATA_ROOT', value: '/mnt/shared' }
+  { name: 'TAXONOMY_CACHE_DIR', value: '/mnt/shared' }
   { name: 'ALLOWED_ORIGINS', value: 'https://taxonomy-editor.${containerAppEnv.properties.defaultDomain}' }
   { name: 'HOME', value: '/home/aitriad' }
   { name: 'NODE_ENV', value: 'production' }
