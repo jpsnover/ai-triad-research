@@ -121,8 +121,11 @@ async function driveOpEdRun(
 ): Promise<void> {
   const completed: OpEdMember[] = [];
   try {
-    // @ts-expect-error — lib/oped uses bundler moduleResolution; dynamic import resolves at runtime
-    const { generateOpEdSet } = await import('../../../lib/oped/generate.js');
+    // 4-ups matches tsconfig.server rootDir=../ + outDir=dist/server: source
+    // src/server/routes/oped.ts + lib/oped/generate.ts land at dist/server/taxonomy-editor/
+    // src/server/routes/oped.js and dist/server/lib/oped/generate.js, so ../../../../lib
+    // resolves in dist, tsc, AND vitest (a 3-ups path exists in none — it would 500 at runtime).
+    const { generateOpEdSet } = await import('../../../../lib/oped/generate.js');
     const deps: OpEdGeneratorDeps = {
       adapter: createWebOpEdAdapter(),
       promptsDir: path.join(getProjectRoot(), 'scripts', 'AITriad', 'Prompts'),
