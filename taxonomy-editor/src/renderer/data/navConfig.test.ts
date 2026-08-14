@@ -33,3 +33,24 @@ describe('navConfig — env-electron-opeds gate (t/2599)', () => {
     expect(hasOpeds({ 'env-electron-summaries': true, 'env-electron-opeds': false })).toBe(false);
   });
 });
+
+describe('navConfig — Op-Eds OR-of-flags per-build reveal (t/2633)', () => {
+  // Op-Eds is gated on anyFlag ['env-electron-opeds','env-web-opeds'] so each build reveals
+  // it via its OWN flag: Electron delivers env-electron-opeds, web delivers env-web-opeds.
+  it('shows Op-Eds when only the WEB flag is on (web reveal; electron flag absent)', () => {
+    expect(hasOpeds({ 'env-web-opeds': true })).toBe(true);
+  });
+
+  it('shows Op-Eds when only the ELECTRON flag is on (desktop reveal; web flag absent)', () => {
+    expect(hasOpeds({ 'env-electron-opeds': true })).toBe(true);
+  });
+
+  it('hides Op-Eds when BOTH build flags are off/absent', () => {
+    expect(hasOpeds({ 'env-electron-opeds': false, 'env-web-opeds': false })).toBe(false);
+    expect(hasOpeds({})).toBe(false);
+  });
+
+  it('shows Op-Eds when both flags are on', () => {
+    expect(hasOpeds({ 'env-electron-opeds': true, 'env-web-opeds': true })).toBe(true);
+  });
+});
