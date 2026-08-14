@@ -457,12 +457,14 @@ jobs:
             -ExpectedTrafficRevision '${{ steps.new_revision.outputs.revision }}' `
             -ExpectedTrafficWeight 100 `
             -ExpectedEnvVars @{
-              # Keep in sync with baseEnv var in deploy/azure/main.bicep (lines 383-417).
-              # A new Bicep env var not added here escapes coverage silently.
+              # MANDATORY: Keep in sync with baseEnv in deploy/azure/main.bicep (lines 383-417).
+              # Every PR that adds/changes a Bicep env var MUST update this table in the same PR.
+              # Drift here = false-red OR silently missed config check (t/2631).
               NODE_ENV                           = 'production'
               WEBSITE_AUTH_ENABLED               = 'true'
               HOME                               = '/home/aitriad'
-              AI_TRIAD_DATA_ROOT                 = '/tmp/taxonomy-cache'
+              AI_TRIAD_DATA_ROOT                 = '/mnt/shared'
+              TAXONOMY_CACHE_DIR                 = '/mnt/shared'
               AUTH_OPTIONAL                      = '${{ inputs.auth_mode == 'optional' && '1' || '' }}'
               AUTH_DISABLED                      = '${{ inputs.auth_mode == 'disabled' && '1' || '' }}'
               ADMIN_USERS                        = '${{ vars.ADMIN_USERS }}'
