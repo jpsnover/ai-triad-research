@@ -469,8 +469,10 @@ var stagingEnvOverrides = [
   { name: 'TAXONOMY_CACHE_DIR',  value: '/mnt/staging-state/cache' }
   // Routes all class-A writes (flags, config, calibration, keys) to isolated mount
   { name: 'AI_TRIAD_STATE_ROOT', value: '/mnt/staging-state' }
+  // github-api writes go to the staging branch, not main (t/2650 class-B isolation)
+  { name: 'GITHUB_BRANCH',       value: 'staging' }
 ]
-// stagingBaseEnv = baseEnv with the 3 isolation overrides applied.
+// stagingBaseEnv = baseEnv with the 4 isolation overrides applied.
 // filter() removes the baseEnv entries that stagingEnvOverrides supersedes.
 var stagingBaseEnv = concat(
   filter(baseEnv, e => e.name != 'TAXONOMY_CACHE_DIR' && e.name != 'GIT_SYNC_ENABLED'),
