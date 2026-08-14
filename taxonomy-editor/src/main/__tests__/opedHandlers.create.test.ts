@@ -2,15 +2,17 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 // Unit tests for create-oped-set / cancel-oped-set IPC handlers (t/2575, t/2588).
-// Verifies: Stage-A source prep hoist, N-voice fan-out, per-voice progress,
-// partial-set finalization, cancel mid-run, 2-window event targeting, and
-// fail-fast on unreadable source (TL cond 3).
+// Stage B (voice generation) is now in-process via lib/oped — see opedHandlers.migration.test.ts
+// for the generator-wiring coverage. This file covers:
+//   Stage-A source prep hoist, queued event sequence, event targeting, cancel no-op,
+//   and fail-fast on unreadable source (TL cond 3).
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { EventEmitter } from 'events';
 import { ipcMain } from 'electron';
+import type { OpEdSet } from '../../../../lib/oped/types.js';
 
-// ── child_process.spawn mock ──────────────────────────────────────────────────
+// ── child_process.spawn mock (Stage A only) ───────────────────────────────────
 
 const mockSpawn = vi.hoisted(() => vi.fn());
 
@@ -38,7 +40,21 @@ vi.mock('../opedIO.js', () => ({
   saveOpEdSetTemp: mockSaveTemp,
   finalizeOpEdSet: mockFinalize,
   loadOpEdSet: vi.fn(),
+  saveOpEdSet: vi.fn(),
   deleteOpEdSet: vi.fn(),
+  listOpEdSets: vi.fn(() => []),
+}));
+
+// ── lib/oped generator mock (Stage B) ────────────────────────────────────────
+
+const mockGenerateOpEdSet = vi.hoisted(() => vi.fn());
+
+vi.mock('../../../../lib/oped/generate.js', () => ({
+  generateOpEdSet: (...args: unknown[]) => mockGenerateOpEdSet(...args),
+}));
+
+vi.mock('../electronAIAdapter.js', () => ({
+  makeElectronAIAdapter: vi.fn(() => ({ generateText: vi.fn() })),
 }));
 
 // ── Remaining deps ────────────────────────────────────────────────────────────
@@ -92,194 +108,49 @@ function makeChild(): FakeChild {
   return child;
 }
 
-function emitResult(child: FakeChild, data: Record<string, unknown>): void {
-  const line = JSON.stringify({ type: 'result', data }) + '\n';
-  child.stdout.emit('data', Buffer.from(line));
-  child.emit('close', 0);
-}
-
-function emitStage(child: FakeChild, stage: string): void {
-  child.stdout.emit('data', Buffer.from(JSON.stringify({ type: 'stage', stage }) + '\n'));
+// Minimal complete generator: yields queued events and completes the run
+async function* makeCompleteGenerator(set: OpEdSet): AsyncGenerator<{ type: string; set?: OpEdSet; pov?: string }> {
+  yield { type: 'complete', set };
 }
 
 const baseParams = { wordCount: 600, model: 'test-model' };
 
+const FAKE_SET: OpEdSet = {
+  schema_version: 1,
+  set_id: 'test-id',
+  topic: 'topic',
+  params: baseParams,
+  created_at: '2026-08-13T00:00:00.000Z',
+  opeds: [],
+};
+
 beforeEach(() => {
   vi.clearAllMocks();
+  mockGenerateOpEdSet.mockImplementation(() => makeCompleteGenerator(FAKE_SET));
   registerOpEdHandlers();
 });
 
-// ── Fan-out ───────────────────────────────────────────────────────────────────
+// ── Queued events ─────────────────────────────────────────────────────────────
 
-describe('create-oped-set — fan-out', () => {
-  it('spawns one pwsh child per voice', async () => {
-    const children = [makeChild(), makeChild()];
-    let spawnIdx = 0;
-    mockSpawn.mockImplementation(() => children[spawnIdx++]);
-
-    const { sender } = makeSender();
-    const handler = getHandler('create-oped-set');
-
-    const resultP = handler(
-      { sender },
-      { topic: 'AI safety', params: baseParams, voices: ['accelerationist', 'safetyist'] },
-    ) as Promise<{ set_id: string }>;
-
-    await Promise.resolve(); // let handler start
-    emitResult(children[0], { Headline: 'H1', Subtitle: 'S1', Body: 'B1', WordCount: 600, Grounding: [] });
-    emitResult(children[1], { Headline: 'H2', Subtitle: 'S2', Body: 'B2', WordCount: 600, Grounding: [] });
-
-    const result = await resultP;
-    expect(mockSpawn).toHaveBeenCalledTimes(2);
-    expect(result).toHaveProperty('set_id');
-    expect(mockFinalize).toHaveBeenCalledTimes(1);
-    const finalizedSet = mockFinalize.mock.calls[0][0];
-    expect(finalizedSet.opeds).toHaveLength(2);
-    expect(finalizedSet.opeds[0].status).toBe('complete');
-    expect(finalizedSet.opeds[1].status).toBe('complete');
-  });
-
-  it('queued progress fires for each voice before any spawn completes', async () => {
-    const children = [makeChild(), makeChild()];
-    let spawnIdx = 0;
-    mockSpawn.mockImplementation(() => children[spawnIdx++]);
-
+describe('create-oped-set — queued events', () => {
+  it('fires queued for each voice before generation starts', async () => {
     const { sender, sent } = makeSender();
     const handler = getHandler('create-oped-set');
 
-    const resultP = handler(
+    await handler(
       { sender },
       { topic: 'topic', params: baseParams, voices: ['accelerationist', 'safetyist'] },
-    ) as Promise<unknown>;
+    );
 
-    await Promise.resolve();
     const queued = (sent as Array<{ stage: string; voice: string }>).filter(e => e.stage === 'queued');
     expect(queued).toHaveLength(2);
     expect(queued.map(e => e.voice).sort()).toEqual(['accelerationist', 'safetyist']);
-
-    emitResult(children[0], { Headline: 'H', Subtitle: 'S', Body: 'B', WordCount: 600, Grounding: [] });
-    emitResult(children[1], { Headline: 'H', Subtitle: 'S', Body: 'B', WordCount: 600, Grounding: [] });
-    await resultP;
-  });
-
-  it('stage events from shim are forwarded to sender', async () => {
-    const child = makeChild();
-    mockSpawn.mockReturnValue(child);
-
-    const { sender, sent } = makeSender();
-    const handler = getHandler('create-oped-set');
-
-    const resultP = handler(
-      { sender },
-      { topic: 'topic', params: baseParams, voices: ['accelerationist'] },
-    ) as Promise<unknown>;
-
-    await Promise.resolve();
-    emitStage(child, 'grounding');
-    emitStage(child, 'generating');
-    emitResult(child, { Headline: 'H', Subtitle: 'S', Body: 'B', WordCount: 600, Grounding: [] });
-    await resultP;
-
-    const stages = (sent as Array<{ stage: string }>).map(e => e.stage);
-    expect(stages).toContain('grounding');
-    expect(stages).toContain('generating');
-    expect(stages).toContain('complete');
-  });
-});
-
-// ── Partial-set contract ──────────────────────────────────────────────────────
-
-describe('create-oped-set — partial-set contract', () => {
-  it('one voice fails → partial set finalized with failed member', async () => {
-    const children = [makeChild(), makeChild()];
-    let spawnIdx = 0;
-    mockSpawn.mockImplementation(() => children[spawnIdx++]);
-
-    const { sender } = makeSender();
-    const handler = getHandler('create-oped-set');
-
-    const resultP = handler(
-      { sender },
-      { topic: 'topic', params: baseParams, voices: ['accelerationist', 'safetyist'] },
-    ) as Promise<{ set_id: string }>;
-
-    await Promise.resolve();
-    // voice 0 succeeds
-    emitResult(children[0], { Headline: 'H', Subtitle: 'S', Body: 'B', WordCount: 600, Grounding: [] });
-    // voice 1 errors
-    children[1].emit('error', new Error('pwsh not found'));
-
-    const result = await resultP;
-    expect(result).toHaveProperty('set_id');
-    expect(mockFinalize).toHaveBeenCalledTimes(1);
-    const set = mockFinalize.mock.calls[0][0];
-    expect(set.opeds[0].status).toBe('complete');
-    expect(set.opeds[1].status).toBe('failed');
-  });
-
-  it('all voices fail → all-failed set still finalized', async () => {
-    const children = [makeChild(), makeChild()];
-    let spawnIdx = 0;
-    mockSpawn.mockImplementation(() => children[spawnIdx++]);
-
-    const { sender } = makeSender();
-    const resultP = getHandler('create-oped-set')(
-      { sender },
-      { topic: 'topic', params: baseParams, voices: ['accelerationist', 'safetyist'] },
-    ) as Promise<unknown>;
-
-    await Promise.resolve();
-    children[0].emit('error', new Error('err'));
-    children[1].emit('error', new Error('err'));
-
-    await resultP;
-    expect(mockFinalize).toHaveBeenCalledTimes(1);
-    const set = mockFinalize.mock.calls[0][0];
-    expect(set.opeds.every((m: { status: string }) => m.status === 'failed')).toBe(true);
   });
 });
 
 // ── Cancel ────────────────────────────────────────────────────────────────────
 
 describe('cancel-oped-set', () => {
-  it('aborts in-flight voices and finalizes a partial cancelled set', async () => {
-    const children = [makeChild(), makeChild()];
-    let spawnIdx = 0;
-    mockSpawn.mockImplementation(() => children[spawnIdx++]);
-
-    const { sender } = makeSender();
-    const create = getHandler('create-oped-set');
-    const cancel = getHandler('cancel-oped-set');
-
-    const resultP = create(
-      { sender },
-      { topic: 'topic', params: baseParams, voices: ['accelerationist', 'safetyist'] },
-    ) as Promise<{ set_id: string }>;
-
-    await Promise.resolve();
-    // voice 0 completes before cancel
-    emitResult(children[0], { Headline: 'H', Subtitle: 'S', Body: 'B', WordCount: 600, Grounding: [] });
-
-    // Get set_id from the queued events on sender
-    const sentData = (sender.send as ReturnType<typeof vi.fn>).mock.calls as unknown[][];
-    const queuedCall = sentData.find(c => (c[1] as { stage: string }).stage === 'queued');
-    const setId: string = (queuedCall![1] as { set_id: string }).set_id;
-
-    // Cancel — triggers abort on all remaining voices
-    cancel({}, setId);
-
-    // voice 1 receives SIGTERM signal (child.kill called)
-    await Promise.resolve();
-
-    const result = await resultP;
-    expect(result).toHaveProperty('set_id', setId);
-    expect(mockFinalize).toHaveBeenCalledTimes(1);
-    const set = mockFinalize.mock.calls[0][0];
-    expect(set.opeds[0].status).toBe('complete');
-    expect(set.opeds[1].status).toBe('cancelled');
-    expect(children[1].kill).toHaveBeenCalledWith('SIGTERM');
-  });
-
   it('unknown set_id cancel is silent no-op', () => {
     expect(() => getHandler('cancel-oped-set')({}, 'nonexistent-id')).not.toThrow();
   });
@@ -289,21 +160,14 @@ describe('cancel-oped-set', () => {
 
 describe('create-oped-set — event targeting', () => {
   it('progress events reach only the initiating window sender, not a second sender', async () => {
-    const child = makeChild();
-    mockSpawn.mockReturnValue(child);
-
     const { sender: sender1, sent: sent1 } = makeSender(1);
     const { sender: sender2 } = makeSender(2);
 
     const handler = getHandler('create-oped-set');
-    const resultP = handler(
+    await handler(
       { sender: sender1 },
       { topic: 'topic', params: baseParams, voices: ['accelerationist'] },
-    ) as Promise<unknown>;
-
-    await Promise.resolve();
-    emitResult(child, { Headline: 'H', Subtitle: 'S', Body: 'B', WordCount: 600, Grounding: [] });
-    await resultP;
+    );
 
     expect(sent1.length).toBeGreaterThan(0);
     expect(sender2.send).not.toHaveBeenCalled();
@@ -312,9 +176,7 @@ describe('create-oped-set — event targeting', () => {
 
 // ── Stage-A source hoist (t/2588) ─────────────────────────────────────────────
 
-// Identify spawned shims by filename (avoids path-separator differences on Windows).
-const PREP_SHIM_FILE  = 'invoke-get-oped-source.ps1';
-const VOICE_SHIM_FILE = 'invoke-oped.ps1';
+const PREP_SHIM_FILE = 'invoke-get-oped-source.ps1';
 
 const FAKE_SOURCE_PREP = {
   Url: 'https://example.com/article',
@@ -325,53 +187,24 @@ const FAKE_SOURCE_PREP = {
   ContentHash: 'abc123',
 };
 
-function makeSpawnRouter(prepChild: FakeChild, voiceChildren: FakeChild[]): (_cmd: string, args: string[]) => FakeChild {
-  let voiceIdx = 0;
-  return (_cmd: string, args: string[]) => {
-    const file = args[3] ?? '';
-    if (file.includes('invoke-get-oped-source')) return prepChild;
-    return voiceChildren[voiceIdx++] as FakeChild;
-  };
+function makePrepChild(): FakeChild {
+  const child = new EventEmitter() as FakeChild;
+  child.stdin  = { write: vi.fn(), end: vi.fn() };
+  child.stdout = new EventEmitter();
+  child.stderr = new EventEmitter();
+  child.kill   = vi.fn();
+  return child;
 }
 
 function emitPrepResult(child: FakeChild, data: Record<string, unknown>): void {
-  const line = JSON.stringify({ type: 'result', data }) + '\n';
-  child.stdout.emit('data', Buffer.from(line));
+  child.stdout.emit('data', Buffer.from(JSON.stringify({ type: 'result', data }) + '\n'));
   child.emit('close', 0);
 }
 
 describe('create-oped-set — Stage-A source hoist', () => {
-  it('spawns prep shim first, then one voice shim per voice', async () => {
-    const prepChild = makeChild();
-    const voiceChildren = [makeChild(), makeChild()];
-    mockSpawn.mockImplementation(makeSpawnRouter(prepChild, voiceChildren));
-
-    const { sender } = makeSender();
-    const handler = getHandler('create-oped-set');
-
-    const resultP = handler(
-      { sender },
-      { topic: 'AI safety', url: 'https://example.com', params: baseParams, voices: ['accelerationist', 'safetyist'] },
-    ) as Promise<{ set_id: string }>;
-
-    await Promise.resolve();
-    emitPrepResult(prepChild, FAKE_SOURCE_PREP);
-    await Promise.resolve();
-
-    emitResult(voiceChildren[0], { Headline: 'H1', Subtitle: 'S1', Body: 'B1', WordCount: 600, Grounding: [] });
-    emitResult(voiceChildren[1], { Headline: 'H2', Subtitle: 'S2', Body: 'B2', WordCount: 600, Grounding: [] });
-    await resultP;
-
-    expect(mockSpawn).toHaveBeenCalledTimes(3); // 1 prep + 2 voices
-    expect((mockSpawn.mock.calls[0] as [string, string[]])[1][3]).toContain(PREP_SHIM_FILE);
-    expect((mockSpawn.mock.calls[1] as [string, string[]])[1][3]).toContain(VOICE_SHIM_FILE);
-    expect((mockSpawn.mock.calls[2] as [string, string[]])[1][3]).toContain(VOICE_SHIM_FILE);
-  });
-
   it('emits preparing-source set-phase event (no voice field) before queued events', async () => {
-    const prepChild = makeChild();
-    const voiceChild = makeChild();
-    mockSpawn.mockImplementation(makeSpawnRouter(prepChild, [voiceChild]));
+    const prepChild = makePrepChild();
+    mockSpawn.mockReturnValue(prepChild);
 
     const { sender, sent } = makeSender();
     const handler = getHandler('create-oped-set');
@@ -381,11 +214,9 @@ describe('create-oped-set — Stage-A source hoist', () => {
       { topic: 'topic', url: 'https://example.com', params: baseParams, voices: ['accelerationist'] },
     ) as Promise<unknown>;
 
+    // Let Stage A start, then emit prep result to unblock
     await Promise.resolve();
     emitPrepResult(prepChild, FAKE_SOURCE_PREP);
-    await Promise.resolve();
-
-    emitResult(voiceChild, { Headline: 'H', Subtitle: 'S', Body: 'B', WordCount: 600, Grounding: [] });
     await resultP;
 
     const events = sent as Array<{ stage: string; voice?: string }>;
@@ -396,39 +227,30 @@ describe('create-oped-set — Stage-A source hoist', () => {
     expect(prepIdx).toBeLessThan(queuedIdx);
   });
 
-  it('threads SourcePrep into each voice spawn stdin', async () => {
-    const prepChild = makeChild();
-    const voiceChildren = [makeChild(), makeChild()];
-    mockSpawn.mockImplementation(makeSpawnRouter(prepChild, voiceChildren));
+  it('passes SourceMarkdown as sourceBrief to generateOpEdSet', async () => {
+    const prepChild = makePrepChild();
+    mockSpawn.mockReturnValue(prepChild);
 
     const { sender } = makeSender();
     const handler = getHandler('create-oped-set');
 
     const resultP = handler(
       { sender },
-      { topic: 'topic', url: 'https://example.com', params: baseParams, voices: ['accelerationist', 'safetyist'] },
+      { topic: 'topic', url: 'https://example.com', params: baseParams, voices: ['accelerationist'] },
     ) as Promise<unknown>;
 
     await Promise.resolve();
     emitPrepResult(prepChild, FAKE_SOURCE_PREP);
-    await Promise.resolve();
-
-    emitResult(voiceChildren[0], { Headline: 'H', Subtitle: 'S', Body: 'B', WordCount: 600, Grounding: [] });
-    emitResult(voiceChildren[1], { Headline: 'H', Subtitle: 'S', Body: 'B', WordCount: 600, Grounding: [] });
     await resultP;
 
-    // Both voice spawns must receive SourcePrep in stdin
-    for (const voiceChild of voiceChildren) {
-      const writtenArg = (voiceChild.stdin.write as ReturnType<typeof vi.fn>).mock.calls[0][0] as string;
-      const parsed = JSON.parse(writtenArg) as Record<string, unknown>;
-      expect(parsed).toHaveProperty('SourcePrep');
-      expect((parsed.SourcePrep as Record<string, unknown>).ContentHash).toBe('abc123');
-    }
+    expect(mockGenerateOpEdSet).toHaveBeenCalledOnce();
+    const [request] = mockGenerateOpEdSet.mock.calls[0] as [{ sourceBrief?: string }];
+    expect(request.sourceBrief).toBe(FAKE_SOURCE_PREP.SourceMarkdown);
   });
 
-  it('fail-fast: unreadable source throws ActionableError, no voice spawns, no finalize', async () => {
-    const prepChild = makeChild();
-    mockSpawn.mockImplementation(makeSpawnRouter(prepChild, []));
+  it('fail-fast: unreadable source throws ActionableError, no generateOpEdSet call, no finalize', async () => {
+    const prepChild = makePrepChild();
+    mockSpawn.mockReturnValue(prepChild);
 
     const { sender } = makeSender();
     const handler = getHandler('create-oped-set');
@@ -444,26 +266,21 @@ describe('create-oped-set — Stage-A source hoist', () => {
 
     await expect(resultP).rejects.toThrow();
     expect(mockFinalize).not.toHaveBeenCalled();
+    expect(mockGenerateOpEdSet).not.toHaveBeenCalled();
     // Only the prep shim was spawned — no voice shims
     expect(mockSpawn).toHaveBeenCalledTimes(1);
     expect((mockSpawn.mock.calls[0] as [string, string[]])[1][3]).toContain(PREP_SHIM_FILE);
   });
 
-  it('no prep shim when url is absent (topic-only path unchanged)', async () => {
-    const voiceChild = makeChild();
-    mockSpawn.mockReturnValue(voiceChild);
-
+  it('no Stage-A spawn when url is absent (topic-only path)', async () => {
     const { sender } = makeSender();
-    const resultP = getHandler('create-oped-set')(
+    await getHandler('create-oped-set')(
       { sender },
       { topic: 'topic', params: baseParams, voices: ['accelerationist'] },
-    ) as Promise<unknown>;
+    );
 
-    await Promise.resolve();
-    emitResult(voiceChild, { Headline: 'H', Subtitle: 'S', Body: 'B', WordCount: 600, Grounding: [] });
-    await resultP;
-
-    expect(mockSpawn).toHaveBeenCalledTimes(1);
-    expect((mockSpawn.mock.calls[0] as [string, string[]])[1][3]).toContain(VOICE_SHIM_FILE);
+    // No spawns at all — Stage A skipped, Stage B is in-process
+    expect(mockSpawn).not.toHaveBeenCalled();
+    expect(mockGenerateOpEdSet).toHaveBeenCalledOnce();
   });
 });
