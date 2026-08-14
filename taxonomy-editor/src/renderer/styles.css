@@ -61,6 +61,11 @@
   --accent-text: #1A56DB;
   --accent-rgb: 59,130,246; /* MUST equal --focus-ring RGB — for rgba(var(--accent-rgb),α) accent tints */
   --color-moderator: #8B5CF6;
+  /* t/2569 error family — Design-blessed (t/2569#6); final class-(b) batch → baseline zero */
+  --error-color: var(--danger); /* generic error red — alias, single source like --error */
+  --error-text: #B42318; /* foreground; AA on --bg-primary (paired w/ --success-text) AND on --error-bg */
+  --error-bg: #FDECEC;
+  --error-border: #F3C0C0;
   --bar: #3b82f6; /* data-blue share-bar fill; was undefined → hardcoded fallback (t/2565) */
 
   /* Scrollbar */
@@ -134,6 +139,11 @@
   --accent-text: #93C5FD;
   --accent-rgb: 96,165,250;
   --color-moderator: #A78BFA;
+  /* t/2569 error family — Design-blessed (t/2569#6); final class-(b) batch → baseline zero */
+  --error-color: var(--danger);
+  --error-text: #FCA5A5; /* foreground; AA on --bg-primary AND on --error-bg */
+  --error-bg: #2A1616;
+  --error-border: #4D2424;
   --bar: #60a5fa; /* data-blue share-bar fill (t/2565) */
 
   /* Scrollbar */
@@ -207,6 +217,11 @@
   --accent-text: #8FB8C8;
   --accent-rgb: 77,122,139;
   --color-moderator: #B794D4;
+  /* t/2569 error family — Design-blessed (t/2569#6); final class-(b) batch → baseline zero */
+  --error-color: var(--danger);
+  --error-text: #FF9B9B; /* foreground; AA on --bg-primary AND on --error-bg */
+  --error-bg: #2E1A1C;
+  --error-border: #4D2428;
   --bar: #6a9fd4; /* data-blue share-bar fill (t/2565) */
 
   /* Scrollbar */
@@ -278,6 +293,11 @@
   --accent-text: #A51C30;
   --accent-rgb: 165,28,48;
   --color-moderator: #7A5299;
+  /* t/2569 error family — Design-blessed (t/2569#6); final class-(b) batch → baseline zero */
+  --error-color: var(--danger);
+  --error-text: #A5182A; /* foreground; AA on --bg-primary AND on --error-bg */
+  --error-bg: #F5E2E2;
+  --error-border: #D9A5A5;
   --bar: #3f6fae; /* data-blue share-bar fill (t/2565) */
 
   /* Scrollbar */
