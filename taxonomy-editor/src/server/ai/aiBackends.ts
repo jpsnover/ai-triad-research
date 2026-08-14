@@ -331,7 +331,7 @@ function normalizeExplicitKeys(explicitApiKey: string | string[] | undefined): s
 // friendly id — fixedTemperature is resolved for currentModel on each attempt so
 // fallback models get their own value, not the primary's (t/2108).
 function buildGenerateOptions(
-  options: { temperature?: number; signal?: AbortSignal } | undefined,
+  options: { temperature?: number; signal?: AbortSignal; responseSchema?: Record<string, unknown>; maxTokens?: number } | undefined,
   timeoutMs: number | undefined,
   currentModel: string,
   entryMap: Record<string, ModelEntry>,
@@ -344,6 +344,12 @@ function buildGenerateOptions(
     // t/2510: caller cancellation (client disconnect) → callProvider passes this into
     // the provider fetch's init.signal (AbortSignal.any with the per-attempt timeout).
     ...(options?.signal ? { signal: options.signal } : {}),
+    // t/2610: structured-output pass-through. callProvider → gemini.ts (90-94) turns
+    // responseSchema into native constrained decoding (responseMimeType=application/json
+    // + toGeminiSchema). Threaded here so the web op-ed AIAdapter matches the Electron/
+    // CLI adapter's schema-enforced path exactly (no prompt-instructed divergence).
+    ...(options?.responseSchema ? { responseSchema: options.responseSchema } : {}),
+    ...(options?.maxTokens != null ? { maxTokens: options.maxTokens } : {}),
   };
 }
 
@@ -365,7 +371,7 @@ export async function generateText(
   onRetry?: (p: GenerateTextProgress) => void,
   timeoutMs?: number,
   explicitApiKey?: string | string[],
-  options?: { temperature?: number; signal?: AbortSignal },
+  options?: { temperature?: number; signal?: AbortSignal; responseSchema?: Record<string, unknown>; maxTokens?: number },
 ): Promise<GenerateResult> {
   const resolved = model || DEFAULT_MODEL;
   const explicitKeys = normalizeExplicitKeys(explicitApiKey);
