@@ -50,8 +50,6 @@ const FIXTURE_TREE: TreeNode = {
   },
 };
 
-const RANGE = { from: '2026-07-14', to: '2026-08-13' };
-
 const MOCK_LOAD_SUBJECT = vi.fn();
 
 function makeHookResult(overrides: Partial<UseAnalyticsResult> = {}): UseAnalyticsResult {
@@ -68,8 +66,6 @@ function makeHookResult(overrides: Partial<UseAnalyticsResult> = {}): UseAnalyti
     ...overrides,
   };
 }
-
-const RANGE_DEFAULT = RANGE;
 
 // ── Setup ──────────────────────────────────────────────────────────────────────
 
@@ -130,7 +126,7 @@ describe('UsageHierarchy states', () => {
     vi.mocked(useAnalytics).mockReturnValue(makeHookResult({
       engagement: { data: null, loading: true, error: null, isEmpty: false },
     }));
-    render(<UsageHierarchy range={RANGE_DEFAULT} />);
+    render(<UsageHierarchy />);
     expect(document.querySelector('.uh-skeleton')).toBeTruthy();
   });
 
@@ -138,7 +134,7 @@ describe('UsageHierarchy states', () => {
     vi.mocked(useAnalytics).mockReturnValue(makeHookResult({
       engagement: { data: null, loading: false, error: 'Network error', isEmpty: true },
     }));
-    render(<UsageHierarchy range={RANGE_DEFAULT} />);
+    render(<UsageHierarchy />);
     expect(screen.getByText(/network error/i)).toBeTruthy();
   });
 
@@ -149,7 +145,7 @@ describe('UsageHierarchy states', () => {
         loading: false, error: null, isEmpty: true,
       },
     }));
-    render(<UsageHierarchy range={RANGE_DEFAULT} />);
+    render(<UsageHierarchy />);
     expect(screen.getByText(/no analytics data/i)).toBeTruthy();
   });
 
@@ -163,7 +159,7 @@ describe('UsageHierarchy states', () => {
     // Render with a user scope active (achieved by setting up the hook to reflect user scope)
     // We test the empty-under-scope branch via the `underScope` logic in HierarchyBody.
     // Simulate by checking that the no-scope message is NOT the scoped one when scope=all.
-    render(<UsageHierarchy range={RANGE_DEFAULT} />);
+    render(<UsageHierarchy />);
     expect(screen.queryByText(/no activity in this branch/i)).toBeNull();
   });
 });
@@ -172,14 +168,14 @@ describe('UsageHierarchy states', () => {
 
 describe('drill-down navigation', () => {
   it('renders summary card and root-level drill table', () => {
-    render(<UsageHierarchy range={RANGE_DEFAULT} />);
+    render(<UsageHierarchy />);
     expect(document.querySelector('.uh-summary-card')).toBeTruthy();
     expect(screen.getByText('Taxonomy')).toBeTruthy();
     expect(screen.getByText('Chat')).toBeTruthy();
   });
 
   it('clicking a drill row descends into that child', async () => {
-    render(<UsageHierarchy range={RANGE_DEFAULT} />);
+    render(<UsageHierarchy />);
     fireEvent.click(screen.getByRole('button', { name: /drill into taxonomy/i }));
     await waitFor(() => expect(screen.getByText('Accelerationist')).toBeTruthy());
     // Breadcrumb now shows Taxonomy segment
@@ -187,21 +183,21 @@ describe('drill-down navigation', () => {
   });
 
   it('Enter key on a drill row descends', async () => {
-    render(<UsageHierarchy range={RANGE_DEFAULT} />);
+    render(<UsageHierarchy />);
     const taxonomyRow = screen.getByRole('button', { name: /drill into taxonomy/i });
     fireEvent.keyDown(taxonomyRow, { key: 'Enter' });
     await waitFor(() => expect(screen.getByText('Accelerationist')).toBeTruthy());
   });
 
   it('Space key on a drill row descends', async () => {
-    render(<UsageHierarchy range={RANGE_DEFAULT} />);
+    render(<UsageHierarchy />);
     const taxonomyRow = screen.getByRole('button', { name: /drill into taxonomy/i });
     fireEvent.keyDown(taxonomyRow, { key: ' ' });
     await waitFor(() => expect(screen.getByText('Accelerationist')).toBeTruthy());
   });
 
   it('breadcrumb segment click navigates up', async () => {
-    render(<UsageHierarchy range={RANGE_DEFAULT} />);
+    render(<UsageHierarchy />);
     // Drill down
     fireEvent.click(screen.getByRole('button', { name: /drill into taxonomy/i }));
     await waitFor(() => expect(screen.getByText('Accelerationist')).toBeTruthy());
@@ -217,7 +213,7 @@ describe('drill-down navigation', () => {
 describe('scope-independence invariant', () => {
   it('scope change does NOT reset drillPath — position is preserved', async () => {
     // This is the critical invariant per spec §3 and TL ruling t/2561#2.
-    render(<UsageHierarchy range={RANGE_DEFAULT} />);
+    render(<UsageHierarchy />);
 
     // Drill down two levels: root → taxonomy → acc
     fireEvent.click(screen.getByRole('button', { name: /drill into taxonomy/i }));
@@ -237,7 +233,7 @@ describe('scope-independence invariant', () => {
   });
 
   it('drill change does NOT reset scope — WHO filter is preserved', async () => {
-    render(<UsageHierarchy range={RANGE_DEFAULT} />);
+    render(<UsageHierarchy />);
 
     // Set user scope first
     fireEvent.click(screen.getByRole('button', { name: /everyone/i }));
@@ -254,7 +250,7 @@ describe('scope-independence invariant', () => {
   });
 
   it('clearing user scope also clears session scope', async () => {
-    render(<UsageHierarchy range={RANGE_DEFAULT} />);
+    render(<UsageHierarchy />);
 
     // Set user scope
     fireEvent.click(screen.getByRole('button', { name: /everyone/i }));
@@ -275,7 +271,7 @@ describe('scope-independence invariant', () => {
 
 describe('leaf cross-axis panel', () => {
   it('calls loadSubjectBreakdown with groupBy=user at root scope when reaching a leaf', async () => {
-    render(<UsageHierarchy range={RANGE_DEFAULT} />);
+    render(<UsageHierarchy />);
     // Drill all the way to a leaf: root → taxonomy → acc → acc-bel → acc-bel-001
     fireEvent.click(screen.getByRole('button', { name: /drill into taxonomy/i }));
     await waitFor(() => screen.getByRole('button', { name: /drill into accelerationist/i }));
@@ -295,7 +291,7 @@ describe('leaf cross-axis panel', () => {
         loading: false, error: null, isEmpty: false,
       },
     }));
-    render(<UsageHierarchy range={RANGE_DEFAULT} />);
+    render(<UsageHierarchy />);
     // Drill to a true leaf node (acc-bel-001 has no children)
     fireEvent.click(screen.getByRole('button', { name: /drill into taxonomy/i }));
     await waitFor(() => screen.getByRole('button', { name: /drill into accelerationist/i }));
@@ -329,13 +325,13 @@ describe('leaf cross-axis panel', () => {
 
 describe('summary card count-metric (spec §2.2)', () => {
   it('shows root count as "Items" using firstChild-kind fallback', () => {
-    render(<UsageHierarchy range={RANGE_DEFAULT} />);
+    render(<UsageHierarchy />);
     // Root firstChild = taxonomy (section kind, countUnit=''), falls back to root's countUnit='Items'
     expect(screen.getByText('Items')).toBeTruthy();
   });
 
   it('shows "Nodes" at a category node — child kind, not hidden', async () => {
-    render(<UsageHierarchy range={RANGE_DEFAULT} />);
+    render(<UsageHierarchy />);
     // Drill: root → taxonomy → acc → acc-bel (category with 2 node children)
     fireEvent.click(screen.getByRole('button', { name: /drill into taxonomy/i }));
     await waitFor(() => screen.getByRole('button', { name: /drill into accelerationist/i }));
@@ -351,7 +347,7 @@ describe('summary card count-metric (spec §2.2)', () => {
   });
 
   it('hides count metric at a leaf node (no spurious "0 Nodes")', async () => {
-    render(<UsageHierarchy range={RANGE_DEFAULT} />);
+    render(<UsageHierarchy />);
     // Drill to acc-bel-001 (true leaf, no children)
     fireEvent.click(screen.getByRole('button', { name: /drill into taxonomy/i }));
     await waitFor(() => screen.getByRole('button', { name: /drill into accelerationist/i }));
@@ -370,7 +366,7 @@ describe('summary card count-metric (spec §2.2)', () => {
 
 describe('view toggle', () => {
   it('switches to tree view and shows expand/collapse controls', async () => {
-    render(<UsageHierarchy range={RANGE_DEFAULT} />);
+    render(<UsageHierarchy />);
     const treeBtn = screen.getByRole('button', { name: /^tree$/i });
     fireEvent.click(treeBtn);
     await waitFor(() => expect(treeBtn.getAttribute('aria-pressed')).toBe('true'));
@@ -379,7 +375,7 @@ describe('view toggle', () => {
   });
 
   it('switching back to drill-down shows drill table', async () => {
-    render(<UsageHierarchy range={RANGE_DEFAULT} />);
+    render(<UsageHierarchy />);
     fireEvent.click(screen.getByRole('button', { name: /^tree$/i }));
     fireEvent.click(screen.getByRole('button', { name: /^drill-down$/i }));
     await waitFor(() => expect(document.querySelector('.uh-drill-table')).toBeTruthy());

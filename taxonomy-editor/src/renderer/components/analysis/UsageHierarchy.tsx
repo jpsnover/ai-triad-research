@@ -26,6 +26,19 @@ import type { TreeNode } from './engagementTree';
 
 interface ScopeUserRow { user: string; engagedMs: number; sessions?: number }
 
+type DatePreset = '7d' | '30d' | '90d';
+
+// ── Date helpers (local — component owns its own range) ───────────────────────
+
+const PRESET_DAYS: Record<DatePreset, number> = { '7d': 7, '30d': 30, '90d': 90 };
+
+function dateRange(preset: DatePreset): DateRange {
+  const to = new Date();
+  const from = new Date();
+  from.setDate(from.getDate() - (PRESET_DAYS[preset] - 1));
+  return { from: from.toISOString().slice(0, 10), to: to.toISOString().slice(0, 10) };
+}
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function walkPath(root: TreeNode, path: string[]): TreeNode | null {
@@ -451,7 +464,10 @@ function HierarchyBody({ engagement, currentNode, drillPath, viewMode, scope, su
 
 // ── Section 9: Main export ────────────────────────────────────────────────────
 
-export function UsageHierarchy({ range }: { range: DateRange }) {
+export function UsageHierarchy() {
+  // Date preset — component owns its own range (default 30d; fixes t/2655 date-range mismatch)
+  const [preset, setPreset] = useState<DatePreset>('30d');
+  const range = useMemo(() => dateRange(preset), [preset]);
   // WHAT axis — drill path (array of node ID keys from root)
   const [drillPath, setDrillPath] = useState<string[]>([]);
   // WHO axis — scope filter (fully independent of WHAT; see TL ruling t/2561#2)
@@ -497,6 +513,18 @@ export function UsageHierarchy({ range }: { range: DateRange }) {
 
   return (
     <div className="uh-root">
+      <div className="uh-preset-bar" role="group" aria-label="Date range">
+        {(['7d', '30d', '90d'] as DatePreset[]).map(p => (
+          <button
+            key={p}
+            className={`uh-preset-btn${preset === p ? ' uh-preset-btn--active' : ''}`}
+            onClick={() => setPreset(p)}
+            aria-pressed={preset === p}
+          >
+            {p === '7d' ? '7 days' : p === '30d' ? '30 days' : '90 days'}
+          </button>
+        ))}
+      </div>
       <ScopeBar
         scopeUser={scopeUser} scopeSession={scopeSession}
         users={users} sessions={sessionRows}
