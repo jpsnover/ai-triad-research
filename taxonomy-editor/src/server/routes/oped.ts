@@ -128,7 +128,11 @@ async function driveOpEdRun(
     const { generateOpEdSet } = await import('../../../../lib/oped/generate.js');
     const deps: OpEdGeneratorDeps = {
       adapter: createWebOpEdAdapter(),
-      promptsDir: path.join(getProjectRoot(), 'scripts', 'AITriad', 'Prompts'),
+      // t/2609 relocated the op-ed .prompt files from scripts/AITriad/Prompts to
+      // lib/oped/prompts; New-OpEd (PS), the parity gate, and Electron main (#1015) already
+      // read the new location. The container ships them at /app/lib/oped/prompts via the
+      // companion Dockerfile COPY (Rosetta, repo-root-anchored). Repo-root anchor matches.
+      promptsDir: path.join(getProjectRoot(), 'lib', 'oped', 'prompts'),
       repoRoot: getProjectRoot(),
     };
     for await (const event of generateOpEdSet(request, deps) as AsyncGenerator<OpEdProgressEvent>) {
