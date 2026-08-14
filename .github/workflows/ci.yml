@@ -68,6 +68,7 @@ jobs:
       python: ${{ steps.filter.outputs.python }}
       container: ${{ steps.filter.outputs.container }}
       lockfile-sync: ${{ steps.filter.outputs.lockfile-sync }}
+      bicep-env: ${{ steps.filter.outputs.bicep-env }}
     steps:
       - uses: dorny/paths-filter@7b450fff21473bca461d4b92ce414b9d0420d706  # v4.0.2
         id: filter
@@ -153,6 +154,16 @@ jobs:
             lockfile-sync:
               - 'pnpm-workspace.yaml'
               - 'taxonomy-editor/pnpm-lock.yaml'
+              - '.github/workflows/ci.yml'
+            # 'bicep-env' gates bicep-env-drift (t/2631). Triggers when either
+            # source-of-truth changes: main.bicep (Bicep definitions) or
+            # deploy-azure.yml (ExpectedEnvVars table). The parser script is
+            # also included so a change to parsing logic re-verifies the gate.
+            bicep-env:
+              - 'deploy/azure/main.bicep'
+              - '.github/workflows/deploy-azure.yml'
+              - 'operations/devops/Get-BicepBaseEnv.ps1'
+              - 'operations/devops/Test-BicepEnvDrift.ps1'
               - '.github/workflows/ci.yml'
 
   test-powershell:
@@ -938,6 +949,33 @@ jobs:
       - name: Lint workflow YAML files
         run: python3 .github/ci/workflow-lint.py
 
+  # ── bicep-env-drift: Bicep baseEnv ↔ ExpectedEnvVars sync gate (t/2631) ──
+  # Parses literal-string entries from the baseEnv block in deploy/azure/main.bicep
+  # and compares them against the ExpectedEnvVars table in deploy-azure.yml.
+  # Non-literal entries (interpolation / param refs) are skipped by the parser
+  # — only the 5 static-comparable keys are checked. Fails ::error:: if any value
+  # differs or a Bicep literal is missing from the table.
+  #
+  # This is the gate whose absence caused the step-14 false-red on 2026-08-13
+  # (t/2602): AI_TRIAD_DATA_ROOT was updated in Bicep by PR #1007 but the
+  # ExpectedEnvVars hardcode in deploy-azure.yml wasn't updated in the same PR,
+  # so the verify step failed in prod with a stale value.
+  #
+  # Path-filtered: runs only when main.bicep, deploy-azure.yml, or the parser
+  # scripts change. Skip = OK through ci-gate.
+  bicep-env-drift:
+    needs: [changes]
+    if: >-
+      always() && !cancelled() &&
+      (github.event_name != 'pull_request' || needs.changes.outputs.bicep-env == 'true')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v6
+
+      - name: Bicep baseEnv ↔ ExpectedEnvVars drift check
+        shell: pwsh
+        run: ./operations/devops/Test-BicepEnvDrift.ps1
+
   # ── ci-gate: the SINGLE required status context (t/1962) ──────────────────
   # Replaces the 6 individual code-check contexts in branch protection. Those get
   # SKIPPED by path-filtering on non-electron PRs (docs-only, PS-only); a skipped
@@ -965,9 +1003,11 @@ jobs:
   # startup health check + test suite; path-filtered to container changes, skip = OK.
   # workflow-lint (t/2529) is gated here: SHA-pinned actions, env-var indirection,
   # permissions block required; always runs, no path filter.
+  # bicep-env-drift (t/2631) is gated here: Bicep baseEnv ↔ deploy-azure.yml
+  # ExpectedEnvVars sync check; path-filtered to those two files + parser, skip = OK.
   ci-gate:
     name: ci-gate
-    needs: [changes, test-powershell, test-electron, test-container, python-embed-smoke, dependency-coverage, lockfile-overrides-check, lib-lint, renderer-tsc, contrast-check, test-server-prod-config, workflow-lint]
+    needs: [changes, test-powershell, test-electron, test-container, python-embed-smoke, dependency-coverage, lockfile-overrides-check, lib-lint, renderer-tsc, contrast-check, test-server-prod-config, workflow-lint, bicep-env-drift]
     if: always()
     runs-on: ubuntu-latest
     steps:
