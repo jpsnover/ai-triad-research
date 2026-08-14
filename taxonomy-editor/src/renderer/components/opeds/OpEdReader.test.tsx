@@ -59,6 +59,21 @@ describe('OpEdReader — single voice', () => {
     expect(screen.getByRole('button', { name: 'saf-belief-014' })).toBeTruthy();
     expect(screen.getByText('Grounds the claim')).toBeTruthy();
   });
+
+  it('drops the Type column and sinks "not directly used" rows to the bottom', () => {
+    render(<OpEdReader set={makeSet([member({
+      grounding: [
+        { node_id: 'acc-belief-001', label: 'Unused', category: 'Belief', pov: 'accelerationist', relevance: '0.15', how_reflected: 'not directly used' },
+        { node_id: 'saf-belief-014', label: 'Used', category: 'Belief', pov: 'safetyist', relevance: '0.82', how_reflected: 'Grounds the claim' },
+      ],
+    })])} />);
+    // Type column is gone (Element / Relevance / Reflected only).
+    expect(screen.queryByRole('columnheader', { name: 'Type' })).toBeNull();
+    // The reflected row sorts ABOVE the 'not directly used' row despite lower list position.
+    const used = screen.getByRole('button', { name: 'saf-belief-014' });
+    const unused = screen.getByRole('button', { name: 'acc-belief-001' });
+    expect(used.compareDocumentPosition(unused) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
 });
 
 describe('OpEdReader — failed / cancelled member', () => {
