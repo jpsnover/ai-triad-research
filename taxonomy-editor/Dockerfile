@@ -155,6 +155,10 @@ COPY --chown=aitriad:aitriad ai-usages.json ./
 COPY --chown=aitriad:aitriad .aitriad.json ./
 COPY --chown=aitriad:aitriad taxonomy/schemas/ ./taxonomy/schemas/
 COPY --chown=aitriad:aitriad scripts/ ./scripts/
+# Op-ed prompt templates (t/2609 relocated them out of scripts/AITriad/Prompts).
+# The op-ed create route resolves promptsDir = getProjectRoot()/lib/oped/prompts
+# (= /app/lib/oped/prompts here); tsc emits no .prompt assets, so copy the source.
+COPY --chown=aitriad:aitriad lib/oped/prompts/ ./lib/oped/prompts/
 
 # 3. Built artifacts (change on every code edit — LAST for fastest rebuilds)
 # tsc outputs to dist/server/{taxonomy-editor/src/server/,lib/} due to rootDir=../
