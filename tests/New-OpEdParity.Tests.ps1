@@ -112,7 +112,7 @@ BeforeAll {
     # Stored as a scriptblock variable to guarantee it is visible in It scopes.
     $script:TsxHelper = {
         param([string]$TsCode)
-        $TmpTs = Join-Path $env:TEMP "parity-$(New-Guid).mts"
+        $TmpTs = Join-Path ([System.IO.Path]::GetTempPath()) "parity-$(New-Guid).mts"
         Set-Content -Path $TmpTs -Value $TsCode -Encoding UTF8
         try {
             $Out = & $script:NodeBin $script:TsxCliMjs $TmpTs 2>$null
