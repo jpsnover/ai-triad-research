@@ -139,7 +139,8 @@ jobs:
 
           # Full smoke: all 6 endpoint categories (mandatory pre-traffic gate, t/2376).
           Write-Host "=== Full smoke test against 0%-traffic revision: $BaseUrl ==="
-          $SmokeResult = Invoke-TaxEditorSmokeTest -BaseUrl $BaseUrl -Detailed
+          $SmokeResult = Invoke-TaxEditorSmokeTest -BaseUrl $BaseUrl -Detailed `
+            -DeployedSha '${{ github.event.workflow_run.head_sha }}'
           if (-not $SmokeResult.OverallPass) {
             Write-Host "::error::Smoke test failed on new staging revision — NOT promoting traffic"
             Write-Host "  Health: $(if ($SmokeResult.HealthOk) { 'OK' } else { 'FAIL' })"
