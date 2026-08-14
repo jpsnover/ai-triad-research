@@ -21,6 +21,7 @@ import type { UrlFetchOptions, UrlFetchResult } from '../../../../lib/url-fetch/
 import * as proxyTiers from '../ai/proxyTiers.js';
 import * as rateLimiter from '../security/rateLimiter.js';
 import * as ai from '../ai/aiBackends.js';
+import { resolveGenerationContext } from './generationContext.js';
 import { getApiKeys, hasApiKey, type AIBackend } from '../config.js';
 
 type ResolvedTier = ReturnType<typeof proxyTiers.resolveTier>;
@@ -149,11 +150,6 @@ export async function buildUrlInjectedPrompt(
   return { combinedPrompt, urlMeta };
 }
 
-/** Pure mirror of routes/ai.ts callerIdentity — ALS-verified context, not raw headers (t/848). */
-function callerIdentity(): { principalName: string; idp: string } {
-  return callerTierIdentity(getCurrentUser());
-}
-
 /** Coarse caller auth class for the ai.request flight-recorder event (t/2494 —
  *  observability only, never an auth decision): local single-user, cookie-only
  *  anonymous, or a signed-in principal. Derived from the ALS user context. */
@@ -168,19 +164,6 @@ export function authUserType(): 'local' | 'anonymous' | 'authenticated' {
  *  clients + guard against a malicious oversize value bloating the recorder). */
 export function boundedId(v: unknown): string | undefined {
   return typeof v === 'string' && v.length > 0 ? v.slice(0, 128) : undefined;
-}
-
-/** Pure mirror of routes/ai.ts resolveGenerationContext. */
-function resolveGenerationContext(req: http.IncomingMessage, model: string | undefined): {
-  tier: ResolvedTier; isFree: boolean; limitKey: string; effectiveModel: string | undefined; backend: AIBackend;
-} {
-  const { principalName, idp } = callerIdentity();
-  const tier = proxyTiers.resolveTier(principalName, idp);
-  const isFree = tier.level === 'free';
-  const limitKey = isFree ? `free:${getClientIp(req)}` : (principalName || '_anonymous');
-  const effectiveModel = isFree ? (tier.pinnedModel ?? model) : model;
-  const backend = ai.resolveBackend(effectiveModel || DEFAULT_MODEL);
-  return { tier, isFree, limitKey, effectiveModel, backend };
 }
 
 /** Pure mirror of routes/ai.ts resolveExplicitAiKey. */
