@@ -28,7 +28,9 @@ if (-not $BicepPath) {
 }
 
 $isStaging = $AppName -like '*-staging*'
-$BicepEnv = & (Join-Path $PSScriptRoot 'Get-BicepBaseEnv.ps1') -BicepPath $BicepPath $(if ($isStaging) { '-ForStaging' })
+$getEnvArgs = @{ BicepPath = $BicepPath }
+if ($isStaging) { $getEnvArgs['ForStaging'] = $true }
+$BicepEnv = & (Join-Path $PSScriptRoot 'Get-BicepBaseEnv.ps1') @getEnvArgs
 if ($BicepEnv.Count -eq 0) {
     Write-Error "Get-BicepBaseEnv.ps1 returned 0 entries — Bicep parse failed or baseEnv block is empty"
     exit 1
