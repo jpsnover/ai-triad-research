@@ -586,6 +586,22 @@ resource containerAppStaging 'Microsoft.App/containerApps@2024-03-01' = {
               failureThreshold: 10
             }
           ]
+          volumeMounts: [
+            // Mirror prod's Azure Files mount so staging is a faithful pre-prod
+            // proxy — grounding data (/mnt/shared) must be present for smoke
+            // tests to cover the full feature surface (t/2612 P1 gap).
+            {
+              volumeName: 'shared-data'
+              mountPath: '/mnt/shared'
+            }
+          ]
+        }
+      ]
+      volumes: [
+        {
+          name: 'shared-data'
+          storageType: 'AzureFile'
+          storageName: 'taxonomy-data'
         }
       ]
       scale: {
