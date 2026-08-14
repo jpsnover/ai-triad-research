@@ -63,11 +63,35 @@ export function categorizeEndpoint(path: string, method: string): EndpointCatego
 
 const RECENT_FAILURES_CAP = 5;
 
+/** A single circuit failure with call attribution (t/2622). `reason` is the failure
+ *  class (`HTTP 500`, `timeout`, `TypeError`); `endpoint`/`method` identify the failing
+ *  request; `component` is a best-effort call-site label derived from the endpoint. */
+interface FailureRecord {
+  reason: string;
+  endpoint?: string;
+  method?: string;
+  component?: string;
+}
+
 interface CircuitEntry {
   state: CircuitState;
   consecutiveFailures: number;
   lastFailureTime: number;
-  recentFailures: string[];
+  recentFailures: FailureRecord[];
+}
+
+/** Best-effort call-site label from an endpoint: normalize id-like path segments to
+ *  `:id` so `/api/nodes/acc-b-001/conflicts` → `/api/nodes/:id/conflicts` — a stable
+ *  route pattern that distinguishes call-sites without a caller-supplied tag (t/2622). */
+function deriveComponent(endpoint: string): string {
+  const pathOnly = endpoint.split('?')[0];
+  return pathOnly.split('/').map((seg) => {
+    if (!seg) return seg;
+    if (/^\d+$/.test(seg)) return ':id';                        // numeric id
+    if (/^[0-9a-f]{8,}$/i.test(seg)) return ':id';              // uuid/hash
+    if (seg.includes('-') && /\d/.test(seg) && /[a-z]/i.test(seg)) return ':id'; // node-id shape (acc-b-001)
+    return seg;
+  }).join('/');
 }
 
 const circuits = new Map<EndpointCategory, CircuitEntry>();
@@ -106,7 +130,7 @@ function checkCircuit(cat: EndpointCategory, path: string): void {
       return;
     }
     const remaining = Math.ceil((cfg().circuitCooldownMs - elapsed) / 1000);
-    const failureSummary = summarizeFailures(c.recentFailures);
+    const failureSummary = summarizeFailures(c.recentFailures.map(f => f.reason));
     const detail = failureSummary ? `\nLast failures: ${failureSummary}` : '';
     throw new ActionableError({
       goal: `Make request to ${path}`,
@@ -132,24 +156,37 @@ function onCircuitSuccess(cat: EndpointCategory): void {
   if (wasNotClosed) notifyListeners();
 }
 
-function onCircuitFailure(cat: EndpointCategory, reason: string): void {
+function onCircuitFailure(cat: EndpointCategory, reason: string, endpoint?: string, method?: string): void {
   const c = getCircuit(cat);
   const prevState = c.state;
   c.consecutiveFailures++;
   c.lastFailureTime = Date.now();
-  c.recentFailures.push(reason);
+  // The failing call's attribution travels with the failure so the OPEN event can name
+  // the triggering endpoint/call-site without walking preceding events (t/2622).
+  const failure: FailureRecord = {
+    reason,
+    ...(endpoint !== undefined && { endpoint, component: deriveComponent(endpoint) }),
+    ...(method !== undefined && { method }),
+  };
+  c.recentFailures.push(failure);
   if (c.recentFailures.length > RECENT_FAILURES_CAP) c.recentFailures.shift();
+  // The just-pushed failure is the trigger (the latest / threshold-tripping entry).
+  const trig = {
+    triggering_endpoint: failure.endpoint,
+    triggering_method: failure.method,
+    triggering_component: failure.component,
+  };
   if (c.state === 'HALF_OPEN') {
     c.state = 'OPEN';
     recordEvent('network.circuit_open', 'warn',
       `Circuit '${cat}' re-OPEN after failed probe (${reason})`,
-      { category: cat, state: 'OPEN', trigger: 'half_open_probe_failed', consecutiveFailures: c.consecutiveFailures, cooldownMs: cfg().circuitCooldownMs, lastFailure: reason });
+      { category: cat, state: 'OPEN', trigger: 'half_open_probe_failed', consecutiveFailures: c.consecutiveFailures, cooldownMs: cfg().circuitCooldownMs, lastFailure: reason, ...trig });
   } else if (c.consecutiveFailures >= cfg().circuitThreshold && c.state === 'CLOSED') {
     c.state = 'OPEN';
-    const summary = summarizeFailures(c.recentFailures);
+    const summary = summarizeFailures(c.recentFailures.map(f => f.reason));
     recordEvent('network.circuit_open', 'error',
       `Circuit '${cat}' → OPEN after ${c.consecutiveFailures} consecutive failures. Last: ${summary}`,
-      { category: cat, state: 'OPEN', trigger: 'threshold_exceeded', consecutiveFailures: c.consecutiveFailures, cooldownMs: cfg().circuitCooldownMs, recentFailures: [...c.recentFailures] });
+      { category: cat, state: 'OPEN', trigger: 'threshold_exceeded', consecutiveFailures: c.consecutiveFailures, cooldownMs: cfg().circuitCooldownMs, recentFailures: c.recentFailures.map(f => f.reason), ...trig });
   }
   if (c.state !== prevState) notifyListeners();
 }
@@ -281,7 +318,7 @@ export async function resilientFetch(
       if (res.status === 429) {
         onCircuitSuccess(category);
       } else {
-        onCircuitFailure(category, `HTTP ${res.status}`);
+        onCircuitFailure(category, `HTTP ${res.status}`, path, init.method);
       }
 
       if (attempt < maxRetries) {
@@ -305,7 +342,7 @@ export async function resilientFetch(
       // Deliberate caller cancel (t/2508): not a server failure — don't trip the circuit,
       // don't retry, don't log an error. Re-throw so the bridge can tag it as a cancellation.
       if (opts.signal?.aborted) throw err;
-      onCircuitFailure(category, (err as Error).name === 'AbortError' ? 'timeout' : (err as Error).name);
+      onCircuitFailure(category, (err as Error).name === 'AbortError' ? 'timeout' : (err as Error).name, path, init.method);
 
       if (attempt < maxRetries && isRetryableError(err)) {
         const backoff = computeBackoff(attempt);
@@ -354,7 +391,7 @@ export function getResilienceState(): ResilienceStatus {
   const ts = {} as ResilienceStatus['throttles'];
   for (const cat of ALL_CATEGORIES) {
     const c = getCircuit(cat);
-    cs[cat] = { state: c.state, consecutiveFailures: c.consecutiveFailures, recentFailures: [...c.recentFailures] };
+    cs[cat] = { state: c.state, consecutiveFailures: c.consecutiveFailures, recentFailures: c.recentFailures.map(f => f.reason) };
     const t = getThrottle(cat);
     ts[cat] = {
       state: t.state,

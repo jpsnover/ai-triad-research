@@ -472,6 +472,39 @@ describe('resilience', () => {
         lastFailure: 'HTTP 503',
       });
     });
+
+    it('attributes the triggering endpoint/method/component on threshold-open (t/2622)', async () => {
+      // A node-id-shaped path segment (acc-b-001) exercises the component normalization.
+      for (let i = 0; i < 5; i++) {
+        fetchSpy.mockResolvedValueOnce(mockFetchResponse(500));
+        await resilientFetch('/api/nodes/acc-b-001/conflicts', { method: 'GET' }, defaultOpts());
+      }
+      const event = findRecordCall('network.circuit_open')![0] as { data: Record<string, unknown> };
+      expect(event.data).toMatchObject({
+        triggering_endpoint: '/api/nodes/acc-b-001/conflicts',
+        triggering_method: 'GET',
+        triggering_component: '/api/nodes/:id/conflicts',
+      });
+    });
+
+    it('attributes the triggering endpoint/component on half-open re-open (t/2622)', async () => {
+      for (let i = 0; i < 5; i++) {
+        fetchSpy.mockResolvedValueOnce(mockFetchResponse(500));
+        await resilientFetch('/api/oped-sets/42', { method: 'GET' }, defaultOpts());
+      }
+      mockRecord.mockClear();
+
+      vi.advanceTimersByTime(60_001);
+      fetchSpy.mockResolvedValueOnce(mockFetchResponse(503));
+      await resilientFetch('/api/oped-sets/42', { method: 'GET' }, defaultOpts());
+
+      const event = findRecordCall('network.circuit_open')![0] as { data: Record<string, unknown> };
+      expect(event.data).toMatchObject({
+        trigger: 'half_open_probe_failed',
+        triggering_endpoint: '/api/oped-sets/42',
+        triggering_component: '/api/oped-sets/:id',
+      });
+    });
   });
 
   describe('adaptive throttle', () => {

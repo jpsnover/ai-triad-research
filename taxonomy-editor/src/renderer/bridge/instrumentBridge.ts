@@ -87,6 +87,14 @@ function extractResultMeta(method: string, args: unknown[], value: unknown): Rec
     const has_opeds = !!first && 'opeds' in first;
     return { count: (v as unknown[]).length, result_type: has_opeds ? 'full' : 'summary', has_opeds };
   }
+  if (method === 'loadOpEdSet') {
+    // Record grounding presence on the loaded set so a "grounding No data" report is
+    // diagnosable from the dump alone — distinguishes "grounding absent in the payload"
+    // from "present but not rendering" (which previously needed the on-disk JSON). t/2621.
+    const opeds = Array.isArray(v.opeds) ? (v.opeds as Array<{ grounding?: unknown[] }>) : [];
+    const grounded_member_count = opeds.filter(m => (m.grounding?.length ?? 0) > 0).length;
+    return { member_count: opeds.length, has_grounding: grounded_member_count > 0, grounded_member_count };
+  }
   if (method === 'generateText' || method === 'generateTextWithSearch') {
     const text = v.text;
     const meta: Record<string, unknown> = {};
