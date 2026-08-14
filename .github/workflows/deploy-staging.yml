@@ -175,7 +175,7 @@ jobs:
         run: |
           Set-StrictMode -Version Latest
           $ErrorActionPreference = 'Stop'
-          $BicepEnv = & ./operations/devops/Get-BicepBaseEnv.ps1 -BicepPath deploy/azure/main.bicep
+          $BicepEnv = & ./operations/devops/Get-BicepBaseEnv.ps1 -BicepPath deploy/azure/main.bicep -ForStaging
           $RevEnvJson = az containerapp revision show `
             --name '${{ env.CONTAINER_APP_NAME }}' `
             -g '${{ env.RESOURCE_GROUP }}' `
