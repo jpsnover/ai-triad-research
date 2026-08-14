@@ -31,7 +31,7 @@
     "dist:mac": "npm run build && electron-builder --mac",
     "dist:win": "npm run build && electron-builder --win",
     "dist:linux": "npm run build && electron-builder --linux",
-    "build:server": "node -e \"const fs=require('fs');fs.rmSync('dist/server',{recursive:true,force:true});fs.rmSync('.tsbuildinfo/server.tsbuildinfo',{force:true})\" && tsc -p tsconfig.server.json",
+    "build:server": "node -e \"const fs=require('fs');fs.rmSync('dist/server',{recursive:true,force:true});fs.rmSync('.tsbuildinfo/server.tsbuildinfo',{force:true})\" && tsc -p tsconfig.server.json && node scripts/check-server-lib-emits.mjs",
     "build:web": "cross-env VITE_TARGET=web vite build",
     "build:container": "npm run build:server && npm run build:web && npm run licenses",
     "start:server": "node dist/server/taxonomy-editor/src/server/server.js",
