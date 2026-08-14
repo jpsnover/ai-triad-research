@@ -18,7 +18,7 @@ export const usePreferencesStore = create<PreferencesState>()((set) => ({
   setViewMode: async (mode: ViewMode) => {
     set({ viewMode: mode });
     try {
-      const { api } = await import('../bridge/index');
+      const { api } = await import('@bridge'); // alias — resolves to web-bridge on web, electron-bridge on desktop (t/2651)
       await api.setPreferences({ viewMode: mode });
     } catch (err) {
       getGlobalRecorder()?.record({ type: 'system.error', component: 'preferencesStore', level: 'error', message: 'Failed to persist view mode preference', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
@@ -27,7 +27,7 @@ export const usePreferencesStore = create<PreferencesState>()((set) => ({
 
   hydrate: async () => {
     try {
-      const { api } = await import('../bridge/index');
+      const { api } = await import('@bridge'); // alias — resolves to web-bridge on web, electron-bridge on desktop (t/2651)
       const prefs: UserPreferences | null = await api.getPreferences();
       if (prefs?.viewMode) {
         set({ viewMode: prefs.viewMode });
