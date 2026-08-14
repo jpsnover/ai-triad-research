@@ -13,6 +13,15 @@
 // Gate co-location (per TL condition 3): the scan target and the exemption list live HERE,
 // not in external config.
 //
+// Known limitations (TL GV note, p/333#132 — none occur in the current codebase; if one ever
+// does, add the module to EXEMPT with a why-comment, or extend the matcher):
+//   1. Multi-line import — a specifier split across lines (`import(\n  '...'\n)`) is not matched
+//      (the scan is line-oriented).
+//   2. Computed specifier — `import(someVar)` (non-literal) can't be statically resolved, so it
+//      is skipped (nothing to check).
+//   3. Bracket type-access — the type-query skip handles `import('...').T` (dot) but not the
+//      rarer `import('...')['T']` (bracket), which would be treated as a runtime import.
+//
 // Usage: node scripts/check-server-lib-emits.mjs   (exit 0 = all emitted; exit 1 = missing)
 
 import { readFileSync, readdirSync, existsSync, statSync } from 'fs';
