@@ -16,7 +16,7 @@ import type { Router } from '../httpKit.js';
 import type { ServerCtx } from './context.js';
 import { json, error } from '../httpKit.js';
 import { getGlobalRecorder } from '../../../../lib/flight-recorder/index.js';
-import { getDataRoot } from '../config.js';
+import { getDataRoot, STORAGE_MODE } from '../config.js';
 import { getConfig } from '../runtimeConfig.js';
 import { isPathWithinDir } from '../security/accessControl.js';
 import { requireAdmin } from '../community/admin/reviewRegistry.js';
@@ -102,6 +102,14 @@ export function registerDataRoutes(r: Router, ctx: ServerCtx): void {
   });
 
   post('/api/data/check-updates', async (_req, res) => {
+    if (!requireAdmin(res)) return; // t/2645: git fetch mutates the shared data root's .git — admin-only, mirroring set-root/clone
+    if (STORAGE_MODE === 'github-api') {
+      // t/2649: on github-api the GitHub API is authoritative and the /mnt/shared git cache is
+      // vestigial. Running git here only trips dubious-ownership on the Azure Files mount, whose
+      // swallowed error returned a false-healthy 200 (~every 30s). Skip with an honest response.
+      json(res, { available: false, reason: 'github-api mode: git sync disabled (GitHub API is the source of truth)' });
+      return;
+    }
     try {
       const dataRoot = getDataRoot();
       const gitDir = path.join(dataRoot, '.git');
@@ -142,6 +150,19 @@ export function registerDataRoutes(r: Router, ctx: ServerCtx): void {
   });
 
   post('/api/data/pull', async (_req, res) => {
+    // t/2645: a data-pull runs `git reset --hard` + `clean -fd` on the shared data worktree —
+    // a destructive admin operation. Gate it like its siblings set-root (:43)/clone (:66); it was
+    // the one data route left ungated. requireAdmin limits WHO; the data-repo .gitignore covering
+    // admin/ is the actual data-loss fix (an admin pull still clean -fd's untracked class-A files).
+    if (!requireAdmin(res)) return;
+    if (STORAGE_MODE === 'github-api') {
+      // t/2649: git pull is vestigial AND destructive (reset --hard + clean -fd on the shared
+      // /mnt/shared worktree) in github-api mode — the GitHub API is the persistence layer. Skip
+      // it entirely: this removes the worktree-mutation hazard in prod and moots dubious-ownership.
+      res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8' });
+      res.end('Data pull skipped: github-api mode uses the GitHub API as the source of truth (no local git sync).\n');
+      return;
+    }
     // Stream heartbeats to prevent Azure Container Apps' Envoy proxy from
     // returning 504 "stream timeout" during long-running git operations.
     res.writeHead(200, {
