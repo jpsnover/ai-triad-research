@@ -11,6 +11,7 @@ import { FeedbackPopover } from './FeedbackPopover';
 import { useAuthStatus } from '../../hooks/useAuthStatus';
 import { useBreakpoint } from '../../hooks/useBreakpoint';
 import { useFlag } from '../../hooks/useFeatureFlags';
+import { useNavVisibilityContext } from '../../hooks/useNavVisibilityContext';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import {
   NAV_ITEMS, getVisibleNavItems, getSecondaryByGroup,
@@ -77,9 +78,6 @@ export function HamburgerMenu({ isOpen, onClose }: HamburgerMenuProps) {
   } = useTaxonomyStore();
   const breakpoint = useBreakpoint();
   const adminFeatures = useFlag('permission-admin-features');
-  const summariesFlag = useFlag('env-electron-summaries');
-  const opedsFlag = useFlag('env-electron-opeds');
-  const webOpedsFlag = useFlag('env-web-opeds'); // web reveal — Op-Eds gate ORs both build flags (t/2633)
   const [showHelp, setShowHelp] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showFeedback, setShowFeedback] = useState(false);
@@ -168,7 +166,7 @@ export function HamburgerMenu({ isOpen, onClose }: HamburgerMenuProps) {
   }
 
   // NavConfig-driven items
-  const navCtx = { flags: { 'env-electron-summaries': summariesFlag, 'env-electron-opeds': opedsFlag, 'env-web-opeds': webOpedsFlag }, isAdmin: adminFeatures };
+  const navCtx = useNavVisibilityContext(); // whole flag record — no subset to drift (t/2641)
   const visibleItems = getVisibleNavItems(NAV_ITEMS, navCtx);
   const primaryNavItems = visibleItems.filter(i => i.tier === 'primary' && !bottomNavIds.has(i.id));
   const secondaryGroups = getSecondaryByGroup(visibleItems);

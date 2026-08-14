@@ -68,6 +68,28 @@ export const NAV_ITEMS: readonly NavItem[] = [
   { id: 'settings', label: 'Settings', icon: Settings, tier: 'system', action: { type: 'custom', id: 'settings' } },
 ];
 
+/**
+ * Every feature flag referenced by any NAV_ITEMS gate (`flag` + `anyFlag`), deduped.
+ * Derived from NAV_ITEMS so a newly-added gate flag is covered automatically. The nav
+ * visibility context MUST thread all of these: `getVisibleNavItems` treats an absent
+ * flag as falsy, so a gate flag missing from `navCtx.flags` silently hides its item even
+ * with the flag ON — the class of bug that bit twice (t/2599, t/2633). Threading the
+ * whole flag record (see `useNavVisibilityContext`) makes that drift impossible; this
+ * export exists so a regression test can assert every gate flag is actually threaded.
+ */
+export const NAV_GATE_FLAGS: readonly string[] = Array.from(
+  new Set(
+    NAV_ITEMS.flatMap(item => {
+      const g = item.gate;
+      if (!g) return [];
+      const flags: string[] = [];
+      if (g.flag) flags.push(g.flag);
+      if (g.anyFlag) flags.push(...g.anyFlag);
+      return flags;
+    }),
+  ),
+);
+
 export interface NavVisibilityContext {
   flags: Record<string, boolean>;
   isAdmin: boolean;
