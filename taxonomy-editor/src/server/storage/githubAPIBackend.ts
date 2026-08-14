@@ -96,6 +96,10 @@ export class GitHubAPIBackend implements StorageBackend {
   private readonly pollIntervalMs: number;
   private readonly coherencyProbeRate: number;
 
+  // Base branch for this deployment — read from GITHUB_BRANCH env var.
+  // Default 'main' keeps prod/local/Electron unchanged when unset.
+  private readonly baseBranch: string = process.env.GITHUB_BRANCH ?? 'main';
+
   // Session context — legacy instance field used only by tests that call
   // setSessionContext() directly. Production reads from AsyncLocalStorage
   // (see userContext.ts). getEffectiveRef/getUserId check ALS first.
@@ -241,12 +245,17 @@ export class GitHubAPIBackend implements StorageBackend {
     return this.sessionContext;
   }
 
+  /** The base branch for this deployment (GITHUB_BRANCH env, default 'main'). */
+  getBaseBranch(): string {
+    return this.baseBranch;
+  }
+
   /**
    * Resolve the effective git ref for the current request.
-   * Priority: AsyncLocalStorage (production) → instance field (tests) → 'main'.
+   * Priority: AsyncLocalStorage (production) → instance field (tests) → baseBranch.
    */
   private getEffectiveRef(): string {
-    return getSessionBranchName() ?? this.sessionContext?.branchName ?? 'main';
+    return getSessionBranchName() ?? this.sessionContext?.branchName ?? this.baseBranch;
   }
 
   /**
@@ -286,7 +295,7 @@ export class GitHubAPIBackend implements StorageBackend {
     // Check session overlay first
     const readBranch = this.getEffectiveRef();
     const readUserId = this.getEffectiveUserId();
-    if (readBranch !== 'main' && readUserId) {
+    if (readBranch !== this.baseBranch && readUserId) {
       const overlay = this.sessionOverlays.get(readUserId);
       if (overlay?.has(repoPath)) {
         const val = overlay.get(repoPath)!;
@@ -360,14 +369,14 @@ export class GitHubAPIBackend implements StorageBackend {
   }
 
   async readFileAtRef(repoPath: string, ref: string): Promise<string | null> {
-    if (ref === 'main') {
+    if (ref === this.baseBranch) {
       const cached = await this.readFromDiskCache(repoPath);
       if (cached !== null) return cached;
     }
     if (this.rest.isTripped()) return null;
     const result = await this.fetchFileFromGitHub(repoPath, ref);
     if (result === null) return null;
-    if (ref === 'main') {
+    if (ref === this.baseBranch) {
       await this.writeToDiskCache(repoPath, result.content, result.sha, result.etag);
     }
     return result.content;
@@ -385,17 +394,32 @@ export class GitHubAPIBackend implements StorageBackend {
 
     // When on a session branch (and no ref is forced), write to overlay only —
     // no API call. The overlay is flushed via commitOverlay() (Trees API batch).
-    if (!forceRef && ref !== 'main' && this.hasSessionContext()) {
+    if (!forceRef && ref !== this.baseBranch && this.hasSessionContext()) {
       this.writeToOverlay(filePath, content);
       return;
     }
 
+    // Guard: a forced ref that differs from the configured base branch would bypass
+    // base-branch isolation (e.g. forced 'main' on a staging deployment leaks to prod).
+    // Zero current consumers (t/2657) — this future-proofs against re-arming the incident.
+    if (forceRef && forceRef !== this.baseBranch) {
+      throw new ActionableError({
+        goal: `Force-write to ref '${forceRef}'`,
+        problem: `Forced ref '${forceRef}' does not match the configured base branch '${this.baseBranch}'. This would bypass base-branch isolation and risk writing to the wrong environment.`,
+        location: `GitHubAPIBackend.writeFile(${repoPath})`,
+        nextSteps: [
+          `Set GITHUB_BRANCH=${forceRef} if this deployment should write there`,
+          'Or remove opts.ref to use the configured base branch',
+        ],
+      });
+    }
+
     // Without a forced ref, writes must go to a session branch — caller should
     // create one first. A forced ref is an explicit opt-in to a direct commit.
-    if (!forceRef && ref === 'main' && this.hasSessionContext()) {
+    if (!forceRef && ref === this.baseBranch && this.hasSessionContext()) {
       throw new ActionableError({
         goal: 'Write file to GitHub',
-        problem: 'Cannot write directly to main. Create a session branch first.',
+        problem: `Cannot write directly to ${this.baseBranch}. Create a session branch first.`,
         location: `GitHubAPIBackend.writeFile(${repoPath})`,
         nextSteps: ['Create a session branch via the Session Branch Manager'],
       });
@@ -578,7 +602,7 @@ export class GitHubAPIBackend implements StorageBackend {
    * segment, since other (non-deleted) files may still live under it.
    */
   private mergeOverlayIntoListing(prefix: string, entries: Set<string>): void {
-    if (this.getEffectiveRef() === 'main') return;
+    if (this.getEffectiveRef() === this.baseBranch) return;
     const userId = this.getEffectiveUserId();
     if (!userId) return;
     const overlay = this.sessionOverlays.get(userId);
@@ -603,7 +627,7 @@ export class GitHubAPIBackend implements StorageBackend {
     const ref = this.getEffectiveRef();
 
     // When on a session branch, tombstone in overlay — no API call.
-    if (ref !== 'main' && this.hasSessionContext()) {
+    if (ref !== this.baseBranch && this.hasSessionContext()) {
       this.deleteFromOverlay(filePath);
       return;
     }
@@ -649,7 +673,7 @@ export class GitHubAPIBackend implements StorageBackend {
     // Check session overlay
     const existsBranch = this.getEffectiveRef();
     const existsUserId = this.getEffectiveUserId();
-    if (existsBranch !== 'main' && existsUserId) {
+    if (existsBranch !== this.baseBranch && existsUserId) {
       const overlay = this.sessionOverlays.get(existsUserId);
       if (overlay?.has(repoPath)) return overlay.get(repoPath) !== GitHubAPIBackend.TOMBSTONE;
     }
@@ -688,7 +712,7 @@ export class GitHubAPIBackend implements StorageBackend {
     if (!creds) return '';
 
     const resp = await this.rest.request(creds, 'GET',
-      `/repos/${creds.repo}/commits/main`);
+      `/repos/${creds.repo}/commits/${this.baseBranch}`);
     if (!resp.ok) return '';
 
     return (resp.data as { sha: string }).sha;
@@ -878,10 +902,10 @@ export class GitHubAPIBackend implements StorageBackend {
     if (!entries) return null;
 
     const branch = this.getEffectiveRef();
-    if (branch === 'main') {
+    if (branch === this.baseBranch) {
       throw new ActionableError({
         goal: 'Commit overlay to GitHub',
-        problem: 'Cannot commit overlay to main branch.',
+        problem: `Cannot commit overlay to base branch '${this.baseBranch}'.`,
         location: 'GitHubAPIBackend.commitOverlay',
         nextSteps: ['Ensure a session branch is active'],
       });
@@ -1023,7 +1047,7 @@ export class GitHubAPIBackend implements StorageBackend {
         title,
         body,
         head: branch,
-        base: 'main',
+        base: this.baseBranch,
       });
 
     if (!resp.ok) {
@@ -1031,7 +1055,7 @@ export class GitHubAPIBackend implements StorageBackend {
         goal: `Create PR from ${branch}`,
         problem: `GitHub API returned ${resp.status}: ${resp.error}`,
         location: `GitHubAPIBackend.createOrUpdatePR(${branch})`,
-        nextSteps: ['Check if branch has commits ahead of main', 'Verify GitHub App permissions'],
+        nextSteps: [`Check if branch has commits ahead of ${this.baseBranch}`, 'Verify GitHub App permissions'],
       });
     }
 
@@ -1082,7 +1106,7 @@ export class GitHubAPIBackend implements StorageBackend {
   }
 
   /**
-   * Merge main into the given branch via the GitHub Merges API.
+   * Merge the base branch into the given branch via the GitHub Merges API.
    * Returns { ok, sha, conflicts } — conflicts true when the API returns 409.
    */
   async mergeBranch(
@@ -1095,14 +1119,14 @@ export class GitHubAPIBackend implements StorageBackend {
     const resp = await this.rest.request(creds, 'POST',
       `/repos/${creds.repo}/merges`, {
         base: branch,
-        head: 'main',
-        commit_message: commitMessage ?? `Merge main into ${branch}`,
+        head: this.baseBranch,
+        commit_message: commitMessage ?? `Merge ${this.baseBranch} into ${branch}`,
       });
 
     if (resp.status === 409) {
       this.recordEvent({
         type: 'sync.conflict', component: 'session', level: 'warn',
-        message: `Merge conflict: main into ${branch}`,
+        message: `Merge conflict: ${this.baseBranch} into ${branch}`,
         data: { branch },
       });
       return { ok: false, sha: '', conflicts: true, message: 'Merge conflict — resolve on GitHub' };
@@ -1115,7 +1139,7 @@ export class GitHubAPIBackend implements StorageBackend {
 
     if (!resp.ok) {
       throw new ActionableError({
-        goal: `Merge main into ${branch}`,
+        goal: `Merge ${this.baseBranch} into ${branch}`,
         problem: `GitHub API returned ${resp.status}: ${resp.error}`,
         location: `GitHubAPIBackend.mergeBranch(${branch})`,
         nextSteps: ['Check branch exists on GitHub', 'Verify GitHub App permissions'],
