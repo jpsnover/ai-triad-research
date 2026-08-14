@@ -90,6 +90,15 @@ const SEED_FLAGS: Record<string, FlagDef> = {
     created_at: '2026-06-24T00:00:00.000Z', updated_at: '2026-06-24T00:00:00.000Z',
     created_by: 'seed',
   },
+  'env-web-opeds': {
+    // t/2632: default OFF (deliberate deviation from the other enabled:true env-web-* seeds) —
+    // web Op-Eds is unverified until the t/2614 web-create smoke. Reveal = an admin flip to true
+    // (admin data.flags merges over SEED, no redeploy); pairs with the renderer nav gate (t/2633).
+    name: 'env-web-opeds', enabled: false, scope: 'env:web',
+    description: 'Show Op-Eds tab/route (web only) — OFF until the t/2614 web-create smoke verifies',
+    created_at: '2026-08-14T00:00:00.000Z', updated_at: '2026-08-14T00:00:00.000Z',
+    created_by: 'seed',
+  },
   'env-electron-summaries': {
     name: 'env-electron-summaries', enabled: true, scope: 'env:electron',
     description: 'Show summaries tab and menu items (electron only)',
