@@ -51,8 +51,10 @@ BeforeAll {
     # Walk up from RepoRoot to handle worktrees that lack their own node_modules.
     $script:TsxCliMjs = $null
     $script:NodeBin = (Get-Command node -ErrorAction SilentlyContinue)?.Source
+    # Flag-guard pattern instead of break — Pester 6 BeforeAll ScriptBlocks catch
+    # LoopFlowException from bare break/continue even inside a while loop (Pester#2669).
     $_searchDir = $script:RepoRoot
-    while ($_searchDir) {
+    while ($_searchDir -and -not $script:TsxCliMjs) {
         $pnpmStore = Join-Path $_searchDir 'node_modules\.pnpm'
         if (Test-Path $pnpmStore) {
             $script:TsxCliMjs = Get-ChildItem $pnpmStore -Directory |
@@ -62,11 +64,11 @@ BeforeAll {
                 ForEach-Object { Join-Path $_.FullName 'node_modules\tsx\dist\cli.mjs' } |
                 Where-Object { Test-Path $_ } |
                 Select-Object -First 1
-            if ($script:TsxCliMjs) { break }
         }
-        $parent = Split-Path $_searchDir -Parent
-        if (-not $parent -or $parent -eq $_searchDir) { break }
-        $_searchDir = $parent
+        if (-not $script:TsxCliMjs) {
+            $parent = Split-Path $_searchDir -Parent
+            $_searchDir = if (-not $parent -or $parent -eq $_searchDir) { $null } else { $parent }
+        }
     }
     $script:TsxAvailable = $null -ne $script:TsxCliMjs -and $null -ne $script:NodeBin
 
