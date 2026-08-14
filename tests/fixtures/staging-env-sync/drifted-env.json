@@ -1,0 +1,8 @@
+[
+  { "name": "AI_TRIAD_DATA_ROOT",   "value": "/tmp/old-path" },
+  { "name": "TAXONOMY_CACHE_DIR",   "value": "/tmp/old-path" },
+  { "name": "HOME",                 "value": "/home/aitriad" },
+  { "name": "NODE_ENV",             "value": "staging" },
+  { "name": "WEBSITE_AUTH_ENABLED", "value": "true" },
+  { "name": "AZURE_KEYVAULT_URL",   "secretRef": "kv-url" }
+]
