@@ -16,6 +16,7 @@ import { encryptKeysForSharing, decryptKeysFromSharing } from '../utils/keyShare
 import { resilientFetch, categorizeEndpoint, registerConnectionPoolProvider, type EndpointCategory } from './resilience';
 import { nextStepsForStatus } from './httpErrorSteps';
 import { runChatStream, chatStreamBus } from './chatStream';
+import { runOpEdCreate, cancelActiveOpEdRun, opedProgressBus } from './opedStream';
 import { onQuotaMilestone } from '../hooks/useQuotaWarning';
 export { getResilienceState, subscribeResilience, resetResilience } from './resilience';
 export type { ResilienceStatus, CircuitState, ThrottleState, EndpointCategory } from './resilience';
@@ -1023,16 +1024,12 @@ const rawApi: AppAPI = {
   loadOpEdSet: (id) => get<OpEdSet>(`/api/oped-sets/${encodeURIComponent(id)}`),
   saveOpEdSet: (set) => put(`/api/oped-sets/${encodeURIComponent(set.set_id)}`, set).then(() => {}),
   deleteOpEdSet: (id) => del(`/api/oped-sets/${encodeURIComponent(id)}`).then(() => {}),
-  // PR#2 create flow is Electron-only (New-OpEd is PowerShell; v1 has no web generation
-  // route — server confirms). Web rejects honestly; the UI shows a "desktop app" affordance.
-  createOpEdSet: () => Promise.reject(new ActionableError({
-    goal: 'Op-Ed Studio: create an op-ed',
-    problem: 'Op-ed generation runs the New-OpEd PowerShell cmdlet, available only in the desktop app.',
-    location: 'web-bridge · Op-Ed Studio',
-    nextSteps: ['Open the desktop app to draft op-eds.', 'You can still browse, share, and copy community op-eds here.'],
-  })),
-  cancelOpEdSet: () => { /* no-op: web has no in-flight generation to cancel */ },
-  onOpEdProgress: () => () => {}, // web has no generation progress stream
+  // Web op-ed create (t/2614) — POST /api/oped-sets opens an SSE run driven by the shared
+  // lib/oped core server-side (t/2610). Topic-only on web (the URL toggle is hidden). The
+  // SSE parse/dispatch + run-status recovery live in opedStream.ts (leaf, like chatStream).
+  createOpEdSet: (payload) => runOpEdCreate(fetchWithSessionRecovery, payload),
+  cancelOpEdSet: () => cancelActiveOpEdRun(), // aborts the in-flight POST → server cancels voices
+  onOpEdProgress: (cb) => opedProgressBus.onProgress(cb),
   exportDebateToFile: async (session, format = 'json', exportOptions) => {
     const { debateToText, debateToMarkdown, debateToHtml, debateToPackage, debateExportFilename } = await import('@lib/debate/debateExport');
     const debate = session as Parameters<typeof debateToText>[0] & { diagnostics?: unknown };

@@ -465,6 +465,9 @@ function OpEdProgressPanel({
 // ── Screen A form (extracted to keep the dialog's complexity in check) ────────
 
 interface CreateFormProps {
+  /** Whether the URL/source create path is offered. False on web (v1 topic-only) — the
+   *  server rejects URL create, so we never present a submit path it can't run (t/2614). */
+  allowUrlSource: boolean;
   fromWebPage: boolean;
   setFromWebPage: (v: boolean) => void;
   topic: string;
@@ -512,9 +515,11 @@ function OpEdCreateForm(p: CreateFormProps) {
               autoFocus
               aria-required="true"
             />
-            <button type="button" className="oped-source-toggle" onClick={() => p.setFromWebPage(true)}>
-              ⌥ From a web page instead →
-            </button>
+            {p.allowUrlSource && (
+              <button type="button" className="oped-source-toggle" onClick={() => p.setFromWebPage(true)}>
+                ⌥ From a web page instead →
+              </button>
+            )}
           </div>
         ) : (
           <div>
@@ -636,10 +641,12 @@ function OpEdCreateForm(p: CreateFormProps) {
 
 // ── Main dialog ────────────────────────────────────────────────────────────────
 
-export function NewOpEdDialog({ open, onClose, onCreated }: {
+export function NewOpEdDialog({ open, onClose, onCreated, allowUrlSource = true }: {
   open: boolean;
   onClose: () => void;
   onCreated: (setId: string) => void;
+  /** Offer the URL/source create path. Default true (desktop); false on web — v1 topic-only. */
+  allowUrlSource?: boolean;
 }) {
   // Screen A
   const [fromWebPage, setFromWebPage] = useState(false);
@@ -831,6 +838,7 @@ export function NewOpEdDialog({ open, onClose, onCreated }: {
           <OpEdProgressPanel voices={orderedVoices} progress={progress} onCancel={handleCancel} />
         ) : (
           <OpEdCreateForm
+            allowUrlSource={allowUrlSource}
             fromWebPage={fromWebPage}
             setFromWebPage={setFromWebPage}
             topic={topic}

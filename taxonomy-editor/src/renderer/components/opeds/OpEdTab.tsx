@@ -101,14 +101,13 @@ function filterCommunity(entries: OpEdCommunityEntry[], q: string): OpEdCommunit
 // ── Header actions (Edit / bulk-delete / disabled + New) ──────────────────────
 
 function OpEdHeaderActions({
-  listView, editMode, hasSets, selectedCount, isElectron,
+  listView, editMode, hasSets, selectedCount,
   onBulkDelete, onClearSelected, onExitEdit, onEnterEdit, onNew,
 }: {
   listView: 'my' | 'community';
   editMode: boolean;
   hasSets: boolean;
   selectedCount: number;
-  isElectron: boolean;
   onBulkDelete: () => void;
   onClearSelected: () => void;
   onExitEdit: () => void;
@@ -132,21 +131,11 @@ function OpEdHeaderActions({
       {hasSets && (
         <button className="btn btn-sm btn-ghost" onClick={onEnterEdit} title="Rename or delete op-eds">Edit</button>
       )}
-      {/* Create (PR#2) — Electron only; web keeps the disabled desktop-app affordance. */}
-      {isElectron ? (
-        <button className="btn btn-sm" onClick={onNew} aria-label="New op-ed">
-          + New Op-Ed
-        </button>
-      ) : (
-        <button
-          className="btn btn-sm"
-          disabled
-          title="Available in the desktop app"
-          aria-label="New op-ed (available in the desktop app)"
-        >
-          + New Op-Ed
-        </button>
-      )}
+      {/* Create — both builds (t/2614). Desktop runs the in-process core; web streams the
+          shared lib/oped core via POST /api/oped-sets (topic-only; URL toggle hidden on web). */}
+      <button className="btn btn-sm" onClick={onNew} aria-label="New op-ed">
+        + New Op-Ed
+      </button>
     </div>
   );
 }
@@ -361,7 +350,6 @@ export function OpEdTab() {
             editMode={editMode}
             hasSets={sets.length > 0}
             selectedCount={selectedIds.size}
-            isElectron={isElectron}
             onBulkDelete={handleBulkDelete}
             onClearSelected={clearSelected}
             onExitEdit={exitEditMode}
@@ -436,13 +424,14 @@ export function OpEdTab() {
         )}
       </div>
 
-      {isElectron && (
-        <NewOpEdDialog
-          open={showNewDialog}
-          onClose={() => setShowNewDialog(false)}
-          onCreated={setId => { void handleCreated(setId); }}
-        />
-      )}
+      {/* Create dialog — both builds (t/2614). URL/source create is desktop-only in v1
+          (server rejects it), so the web build hides the URL toggle → topic-only. */}
+      <NewOpEdDialog
+        open={showNewDialog}
+        onClose={() => setShowNewDialog(false)}
+        onCreated={setId => { void handleCreated(setId); }}
+        allowUrlSource={isElectron}
+      />
     </div>
   );
 }
