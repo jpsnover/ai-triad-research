@@ -20,6 +20,16 @@ updates:
       minor-and-patch:
         update-types: [minor, patch]
     open-pull-requests-limit: 5
+    ignore:
+      # undici MAJOR is HELD (t/2053/t/2113/t/2281; #1091). The GitHub REST client passes an
+      # undici.Agent as `dispatcher:` to Node's built-in fetch; per assertUndiciMajorInvariant,
+      # userland undici major MUST equal Node's bundled undici major (node:22.23.2 → undici 6.x),
+      # or fetch silently ignores the dispatcher and falls back to TLS session caching
+      # (CVE-2026-58040). A userland-only major bump (e.g. 6→8) reintroduces that condition and
+      # reds githubApi.test.ts. minor/patch within the pinned major still flow (security patches).
+      # REVISIT when the pinned Node runtime bundles a newer undici major, then bump both together.
+      - dependency-name: undici
+        update-types: [version-update:semver-major]
 
   - package-ecosystem: npm
     directory: /workflow-app
