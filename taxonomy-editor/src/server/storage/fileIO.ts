@@ -512,6 +512,7 @@ export async function readOrganizations(): Promise<unknown | null> {
     if (raw === null) return null;
     return JSON.parse(raw);
   } catch (err) {
+    log.server.warn({ err }, 'readOrganizations failed');
     getGlobalRecorder()?.record({
       type: 'system.error',
       component: 'file-io',
@@ -531,6 +532,7 @@ export async function readOrganizationEdges(): Promise<OrganizationEdge[] | null
     const data = JSON.parse(raw);
     return (data as { edges?: OrganizationEdge[] })?.edges ?? [];
   } catch (err) {
+    log.server.warn({ err }, 'readOrganizationEdges failed');
     getGlobalRecorder()?.record({
       type: 'system.error',
       component: 'file-io',
@@ -590,6 +592,7 @@ export async function readEntities(): Promise<Entity[] | null> {
     entitiesCache = { at: Date.now(), entities };
     return entities;
   } catch (err) {
+    log.server.warn({ err }, 'readEntities failed');
     getGlobalRecorder()?.record({
       type: 'system.error',
       component: 'file-io',
@@ -641,6 +644,7 @@ export async function readEntityMentions(): Promise<EntityMentionsFile> {
     mentionsCache = { at: Date.now(), data };
     return data;
   } catch (err) {
+    log.server.warn({ err }, 'readEntityMentions failed');
     getGlobalRecorder()?.record({
       type: 'system.error',
       component: 'file-io',
@@ -1009,6 +1013,7 @@ export async function getErrorReport(id: string): Promise<Record<string, unknown
     if (raw == null) return null;
     return JSON.parse(raw) as Record<string, unknown>;
   } catch (err) {
+    log.server.warn({ err, errorId: id }, 'getErrorReport failed to read/parse error report');
     getGlobalRecorder()?.record({
       type: 'system.error', component: 'file-io', level: 'warn',
       message: 'Failed to read/parse error report',
@@ -1029,6 +1034,7 @@ export async function listFlightRecorderDumpIds(): Promise<Array<{ kind: 'client
     names = await fs.readdir(dir);
   } catch (err) {
     if ((err as NodeJS.ErrnoException).code === 'ENOENT') return [];
+    log.server.warn({ err }, 'listFlightRecorderDumpIds: failed to list dumps directory');
     getGlobalRecorder()?.record({
       type: 'system.error', component: 'file-io', level: 'warn',
       message: 'Failed to list flight recorder dumps directory',
@@ -1044,6 +1050,7 @@ export async function listFlightRecorderDumpIds(): Promise<Array<{ kind: 'client
       const stat = await fs.stat(path.join(dir, name));
       results.push({ kind: m[1] as 'client' | 'server', dumpId: m[2], timestamp: new Date(stat.mtimeMs).toISOString() });
     } catch (err) {
+      log.server.warn({ err, file: name }, 'listFlightRecorderDumpIds: failed to stat dump file; skipping');
       getGlobalRecorder()?.record({
         type: 'system.error', component: 'file-io', level: 'warn',
         message: 'Failed to stat flight recorder dump file; skipping',
