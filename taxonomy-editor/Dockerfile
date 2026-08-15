@@ -7,7 +7,7 @@
 # (see deploy/azure/Dockerfile.base)
 
 # ── Stage 1: Build ──
-FROM node:22.23.2-bookworm-slim@sha256:d649c27dae7ba0137b3cef5dd75baa422c08dc3d9e3fc0c23dfb172dc3cc6436 AS builder
+FROM node:22.23.2-trixie-slim@sha256:f4c1b09232a0ae8f765093968ec82107a1be65cb0bfb36fc831195794f139568 AS builder
 
 WORKDIR /build
 
@@ -90,7 +90,7 @@ RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
     PATH="/tmp:$PATH" npm run build:container
 
 # ── Stage 2: Production dependencies (with build tools for native modules) ──
-FROM node:22.23.2-bookworm-slim@sha256:d649c27dae7ba0137b3cef5dd75baa422c08dc3d9e3fc0c23dfb172dc3cc6436 AS prod-deps
+FROM node:22.23.2-trixie-slim@sha256:f4c1b09232a0ae8f765093968ec82107a1be65cb0bfb36fc831195794f139568 AS prod-deps
 
 # node-pty requires make/g++/python3 for compilation when prebuilds
 # are unavailable. The runtime base image is intentionally slim (no
