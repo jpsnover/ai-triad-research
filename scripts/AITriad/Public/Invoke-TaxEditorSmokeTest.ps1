@@ -208,9 +208,24 @@ function Invoke-TaxEditorSmokeTest {
         return $null
     }
 
+    # Establish an anonymous session first. Both /api/analytics/event (POST) and
+    # /api/analytics/query (GET) are anon-allowed, BUT in AUTH_OPTIONAL a cookie-less
+    # request receives a 200 text/html Sign-In interstitial (see Phase 6 note below,
+    # and lines 302-303) — so a session-less round-trip POSTs into the interstitial
+    # (event never reaches the handler) and reads the interstitial back as delta 0,
+    # a false "silent drop" that blocked prod+staging deploys (t/2683 → t/2684).
+    # Mirror the t/2671 data-presence phase: get the anon cookies, thread them
+    # through all three calls. If the session can't be established, warn explicitly
+    # so a resulting read failure is not mistaken for a persistence drop.
+    $AnalyticsSession = New-AnonymousWebSession -BaseUrl $BaseUrl -TimeoutSec $TimeoutSec
+    if (-not $AnalyticsSession) {
+        Write-Host '  (anonymous session not established — analytics round-trip may hit the auth interstitial; delta cannot be trusted)' -ForegroundColor DarkYellow
+    }
+
     # Baseline read BEFORE the write.
-    $BaselineCheck = Invoke-RemoteCheck -BaseUrl $BaseUrl -Path '/api/analytics/query' `
-        -Method GET -TimeoutSec $TimeoutSec -AcceptableStatusCodes @(200)
+    $BaselineParams = @{ BaseUrl = $BaseUrl; Path = '/api/analytics/query'; Method = 'GET'; TimeoutSec = $TimeoutSec; AcceptableStatusCodes = @(200) }
+    if ($AnalyticsSession) { $BaselineParams.Session = $AnalyticsSession }
+    $BaselineCheck = Invoke-RemoteCheck @BaselineParams
     $Before = & $GetTotalEvents $BaselineCheck
 
     # Write probe — reachability only (200 + ok:true). NOT a drop detector.
@@ -228,8 +243,9 @@ function Invoke-TaxEditorSmokeTest {
     }
     $EventJson = '{"events":[' + ($ProbeEvent | ConvertTo-Json -Depth 6 -Compress) + ']}'
 
-    $WriteCheck = Invoke-RemoteCheck -BaseUrl $BaseUrl -Path '/api/analytics/event' `
-        -Method POST -Body $EventJson -TimeoutSec $TimeoutSec -AcceptableStatusCodes @(200)
+    $WriteParams = @{ BaseUrl = $BaseUrl; Path = '/api/analytics/event'; Method = 'POST'; Body = $EventJson; TimeoutSec = $TimeoutSec; AcceptableStatusCodes = @(200) }
+    if ($AnalyticsSession) { $WriteParams.Session = $AnalyticsSession }
+    $WriteCheck = Invoke-RemoteCheck @WriteParams
     $WriteOk = $false
     if ($WriteCheck.Success -and $WriteCheck.Body -and $WriteCheck.Body.PSObject.Properties['ok']) {
         $WriteOk = [bool]$WriteCheck.Body.ok
@@ -257,8 +273,9 @@ function Invoke-TaxEditorSmokeTest {
     Start-Sleep -Seconds 2
 
     # Read-back AFTER the write — the delta is the detector.
-    $AfterCheck = Invoke-RemoteCheck -BaseUrl $BaseUrl -Path '/api/analytics/query' `
-        -Method GET -TimeoutSec $TimeoutSec -AcceptableStatusCodes @(200)
+    $AfterParams = @{ BaseUrl = $BaseUrl; Path = '/api/analytics/query'; Method = 'GET'; TimeoutSec = $TimeoutSec; AcceptableStatusCodes = @(200) }
+    if ($AnalyticsSession) { $AfterParams.Session = $AnalyticsSession }
+    $AfterCheck = Invoke-RemoteCheck @AfterParams
     $After = & $GetTotalEvents $AfterCheck
 
     $DeltaPass = $false
