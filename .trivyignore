@@ -4,7 +4,8 @@
 # POLICY (t/2006): no silent suppression. Every entry MUST carry: the CVE, the
 # affected package, WHY it is ignored, and a concrete REVISIT trigger. Anything
 # with an available upstream fix must be patched (base rebuild), not ignored.
-# Last reviewed: 2026-08-12 (Docker).
+# Last reviewed: 2026-08-15 (Docker). Trixie migration complete (t/2681) — re-scan
+# will confirm which entries below are cleared by Trixie's newer package versions.
 
 # ── perl-modules-5.36 (Debian bookworm) — NO UPSTREAM FIX AVAILABLE ─────────────
 # CVE-2026-13221  perl regex trie overflow (>65535 alternation branches)
