@@ -21,7 +21,7 @@ Get-Help <CmdletName> -Full                     # full docs for any cmdlet
 | `Get-Policy` | Look up policy actions from the registry |
 | `Get-TaxonomyHealth` | Check node/edge counts, orphans, structural issues |
 | `Compare-Taxonomy` | Diff two taxonomy states |
-| `Test-TaxonomyIntegrity` | Validate referential integrity (see `Test-OrganizationIntegrity` for the Organization slice) |
+| `Test-TaxonomyIntegrity` | Validate referential integrity — dangling refs, edge source/target resolution, and self-loop edges (source == target); `-Repair` strips bad/self-loop edges (see `Test-OrganizationIntegrity` for the Organization slice) |
 | `Test-OntologyCompliance` | Check nodes against ontology rules |
 | `Get-NodeTestingRecord` | Debate-Tested Phase 2 research surface — filter/sort POV nodes by tier, stale-hash, or importance×deficit (t/1579) |
 | `Update-NodeTestingRecord -RecomputeOnly` | Recompute tier + sort_key across all nodes after a constant change; historical record[] never touched; idempotent (t/1579) |
