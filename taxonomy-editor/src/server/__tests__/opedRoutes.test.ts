@@ -260,10 +260,21 @@ describe('POST /api/oped-sets create pre-start gate (t/2610)', () => {
     expect(res._status).toBe(400);
   });
 
-  it('400 when params.model / wordCount are missing', async () => {
+  it('400 when params.model is missing', async () => {
     const res = fakeRes();
-    await handlers['POST /api/oped-sets'](fakeReq('/api/oped-sets'), res, { topic: 'x', povs: ['acc'] });
+    await handlers['POST /api/oped-sets'](fakeReq('/api/oped-sets'), res, { topic: 'x', povs: ['acc'], params: { wordCount: 800 } });
     expect(res._status).toBe(400);
+  });
+
+  it('wordCount is OPTIONAL — a default create (no wordCount ⇒ outlet band) passes validation, not a 400 (t/2685)', async () => {
+    // Regression for the UAT bug: the default create ("Use outlet band") sends no wordCount and
+    // was wrongly 400'd. Prove it now passes validation by advancing to the quota gate (429) —
+    // if wordCount were still required this would 400 BEFORE quota is ever checked.
+    getOpedSetsQuotaStatus.mockResolvedValue({ allowed: false, resource: 'opeds', current: 15, limit: 15 });
+    const res = fakeRes();
+    await handlers['POST /api/oped-sets'](fakeReq('/api/oped-sets'), res, { topic: 'x', povs: ['acc'], params: { model: 'gemini-2.5-flash' } });
+    expect(res._status).toBe(429);
+    expect(JSON.parse(res._body!).error).toBe('quota_exceeded');
   });
 
   it('429 quota_exceeded when the op-ed quota is full — BEFORE any generation', async () => {

@@ -83,8 +83,13 @@ function parseOpEdCreate(body: unknown): { ok: true; value: ParsedOpEdCreate } |
   const params = b.params;
   if (!topic || topic.length > MAX_TOPIC_LEN) return { ok: false, status: 400, message: 'topic is required (non-empty, ≤2000 chars)' };
   if (povs.length === 0) return { ok: false, status: 400, message: 'at least one voice (pov) is required' };
-  if (!params || typeof params.model !== 'string' || typeof params.wordCount !== 'number') return { ok: false, status: 400, message: 'params.model and params.wordCount are required' };
-  return { ok: true, value: { topic, povs, params } };
+  if (!params || typeof params.model !== 'string') return { ok: false, status: 400, message: 'params.model is required' };
+  // wordCount is OPTIONAL — the outlet band supplies the default (lib/oped/generate.ts resolveOutletBand;
+  // New-OpEd.ps1 derives length from the outlet). A default create ("Use outlet band") sends no wordCount,
+  // so requiring it 400'd every default web op-ed (t/2685). Coerce absent/invalid/≤0 to the band sentinel 0
+  // (mirrors schemas.ts .optional().default(0); generate.ts treats `wordCount > 0 ? … : band.words`).
+  const wordCount = typeof params.wordCount === 'number' && params.wordCount > 0 ? params.wordCount : 0;
+  return { ok: true, value: { topic, povs, params: { ...params, wordCount } } };
 }
 
 /** Tier-backend entitlement (mirrors chat.ts resolveGenerationContext, t/2610#11): a free
