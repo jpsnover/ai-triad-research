@@ -2146,6 +2146,7 @@ Institutional memory for failure patterns across the AI Triad Research project.
 **Instances:**
 - 2026-07-29 — Taxonomy Editor 2 (t/1848 batch 7): extracting a `catch` body into a helper tripped the rule. Fixed by keeping `record(...)` inline, extracting only the non-recording tail (p/195#9, t/1848#11).
 - 2026-07-29 — ElectronMain (t/1914): independently hit the same rule in the same fan-out. Same fix.
+- 2026-08-13 — ElectronMain (PR #989, p/98#21): **new-code variant** — new catch block in `opedHandlers.ts` missing `getGlobalRecorder()?.record()` before `ActionableError` re-throw. Trigger: omission on new code (not a refactor). Same lint rule, same fix: add `record()` inline before the throw.
 
 **Root Cause:** ADR-003 enforces "every `catch` records" *structurally* — the `record()` call must be a direct statement of the `catch` block, not merely reachable. A recording helper is behavior-equivalent but AST-invisible, so the rule holds the line on literal position rather than proving reachability.
 
@@ -3358,3 +3359,45 @@ Institutional memory for failure patterns across the AI Triad Research project.
 **Status:** Active — 1 instance (ElectronMain p/98#19).
 
 **Applies To:** All agents writing child-process orchestration scripts with watchdog timeouts.
+
+---
+
+## #165 [Process] `git worktree add` "Branch Already Used by Worktree" — Peer Instance Has the PR Branch Checked Out
+
+**Pattern:** `git worktree add <path> <branch>` fails "fatal: branch '<branch>' is already used by worktree at '<peer-path>'" when a peer instance of the same role already has the branch checked out. The error is a valid collision signal, not a system failure. Force-adding or creating a parallel worktree on the same branch races the peer's uncommitted work.
+
+**Instances:**
+- 2026-08-13 — PowerShell 2 (p/228#13): tried to add a worktree for a PR branch; peer Main already had it checked out at `.worktrees/t2609`. Correct response: inspected the peer's worktree read-only, found uncommitted edits, coordinated via ping instead of racing.
+
+**Root Cause:** Git enforces one-checked-out-per-branch across all worktrees in the repo. In a multi-instance role, two instances may independently try to work the same PR branch — the second instance gets the "already used" error. Same family as #162 (duplicate implementation), but detectable earlier: the `git worktree add` failure surfaces the collision before any code is written.
+
+**Prevention:**
+1. **Before `git worktree add <path> <branch>`, run `git worktree list`** — if the branch appears, a peer instance owns it. Do not proceed until coordination is complete.
+2. **Do NOT force-add or create a new branch from the same base** — that races the peer's uncommitted changes and produces a semantic collision at merge time (#162).
+3. **The "already used" error is a gift: it surfaces the collision before work begins.** Treat it as a signal to ping the peer and coordinate, not an error to work around.
+4. Related: `git worktree list` is also the right oracle when you encounter unexpected worktree-lock errors during cleanup — it shows all active checkouts fleet-wide.
+
+**Status:** Active — 1 instance (PowerShell 2 p/228#13).
+
+**Applies To:** All multi-instance roles where peer instances may work the same PR branch.
+
+---
+
+## #166 [Build] Stale Branch Diverges from CI's Merge Base — Local Tests Pass, CI Fails on Code That Landed in the Gap
+
+**Pattern:** GitHub Actions `pull_request` checks run against the PR branch **merged with current `origin/main`** — not the branch alone. A branch cut N commits ago passes locally because it never saw the commits that landed since; CI runs them all and can fail on interactions with new code. Chasing the CI failure as a code bug burns cycles on theories that don't reproduce locally. The actual failure only reproduces once `git merge origin/main` (or rebase) brings the local branch in sync with what CI sees.
+
+**Instances:**
+- 2026-08-13 — PowerShell 2 (t/2673, PR #1071, p/228#15): PR passed locally, failed CI twice. 2 cycles spent on an endpoint-mock theory. Real cause: Phase 5 analytics probe (t/2667) landed in a 23-commit gap between the branch base and current `origin/main`. Once the branch was merged with `origin/main`, the failure reproduced locally and was diagnosed quickly. Details: t/2673#8.
+
+**Root Cause:** The `pull_request` event in GitHub Actions merges the branch with `main` before running checks — this is intentional (testing the final merged state). A branch that hasn't been kept up to date therefore runs against a different codebase than the local worktree. The longer the gap, the higher the collision risk. "Passes locally, fails CI" is the diagnostic signature.
+
+**Prevention:**
+1. **When local tests pass but CI fails, suspect stale branch first** — run `git log --oneline origin/main..HEAD` (your commits) and `git log --oneline HEAD..origin/main` (what you're missing). A non-empty second set = potential CI divergence.
+2. **Before debugging a CI failure as a code bug, merge `origin/main` into the branch first:** `git merge origin/main` (or `git rebase origin/main`). If the failure now reproduces locally, you have the real root cause.
+3. **On a busy main, merge/rebase before opening a PR** to minimize the gap between your branch base and `origin/main` at CI time.
+4. "Passes locally, fails CI" without a branch-age check = premature debugging. The CI environment is not mysterious — it runs a merge you haven't run yet.
+
+**Status:** Active — 1 instance (PowerShell 2 t/2673, p/228#15).
+
+**Applies To:** All agents opening PRs on branches that may be behind origin/main.
