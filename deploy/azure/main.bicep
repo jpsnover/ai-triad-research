@@ -1181,6 +1181,85 @@ resource branchDivergence 'Microsoft.Insights/scheduledQueryRules@2023-03-15-pre
   }
 }
 
+// ── Staging ContainerBackOff Alert (t/2659) ──
+// Fires within 2 min on any ContainerBackOff or ContainerCrashing event on
+// taxonomy-editor-staging. Staging-specific so it can be distinguished from
+// the generic restartLoopAlert (all apps, 5+ threshold, 5-min eval).
+// Historical proof: staging-151d3e7 incident produced ContainerBackOff rows
+// in LA at 2026-08-15T00:13-00:23; query returned matching rows on a P7D
+// look-back (verified 2026-08-15). ContainerBackOff is the correct Reason_s —
+// ACA never emits the raw Kubernetes string "ImagePullBackOff" (see imagePullFailureAlert).
+
+resource stagingBackoffAlert 'Microsoft.Insights/scheduledQueryRules@2023-03-15-preview' = {
+  name: 'alert-staging-container-backoff'
+  location: location
+  tags: tags
+  properties: {
+    displayName: 'taxonomy-editor-staging — ContainerBackOff'
+    description: 'Staging container entered a restart loop. No direct user impact; investigate before next isolation deploy. (t/2659)'
+    severity: 1
+    enabled: true
+    scopes: [ logAnalytics.id ]
+    evaluationFrequency: 'PT1M'
+    windowSize: 'PT5M'
+    criteria: {
+      allOf: [
+        {
+          query: '''
+            ContainerAppSystemLogs_CL
+            | where ContainerAppName_s == "taxonomy-editor-staging"
+            | where Reason_s in ("ContainerBackOff", "ContainerCrashing")
+          '''
+          timeAggregation: 'Count'
+          operator: 'GreaterThan'
+          threshold: 0
+        }
+      ]
+    }
+    actions: {
+      actionGroups: budgetAlertConfigured ? [ restartAlertActionGroup.id ] : []
+    }
+  }
+}
+
+// ── Prod ContainerBackOff Alert (t/2659 — severity 0, direct user impact) ──
+// Same query as staging alert but scoped to taxonomy-editor (prod).
+// Severity 0 (Critical) because a prod restart loop means users cannot load the app.
+// Complements the generic restartLoopAlert (all apps, 5-restart threshold)
+// with faster per-minute detection and no restart-count threshold.
+
+resource prodBackoffAlert 'Microsoft.Insights/scheduledQueryRules@2023-03-15-preview' = {
+  name: 'alert-prod-container-backoff'
+  location: location
+  tags: tags
+  properties: {
+    displayName: 'taxonomy-editor PROD — ContainerBackOff (Critical)'
+    description: 'Production container entered a restart loop — direct user impact. Investigate immediately. (t/2659)'
+    severity: 0
+    enabled: true
+    scopes: [ logAnalytics.id ]
+    evaluationFrequency: 'PT1M'
+    windowSize: 'PT5M'
+    criteria: {
+      allOf: [
+        {
+          query: '''
+            ContainerAppSystemLogs_CL
+            | where ContainerAppName_s == "taxonomy-editor"
+            | where Reason_s in ("ContainerBackOff", "ContainerCrashing")
+          '''
+          timeAggregation: 'Count'
+          operator: 'GreaterThan'
+          threshold: 0
+        }
+      ]
+    }
+    actions: {
+      actionGroups: budgetAlertConfigured ? [ restartAlertActionGroup.id ] : []
+    }
+  }
+}
+
 // ── Ephemeral Runner Module ──
 module ephemeralRunner 'runner/runner.bicep' = {
   name: 'ephemeral-runner'
