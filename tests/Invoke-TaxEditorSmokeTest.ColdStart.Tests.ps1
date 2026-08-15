@@ -42,6 +42,29 @@ Describe 'Invoke-TaxEditorSmokeTest Health-phase cold-start tolerance (t/1696)' 
             Mock Test-AzureHealth  -MockWith { [PSCustomObject]@{ Healthy = $true; Checks = @() } }
             Mock Test-GitHubHealth -MockWith { [PSCustomObject]@{ Healthy = $true; Checks = @() } }
             Mock Start-Sleep -MockWith { }
+
+            # t/2667 — the Analytics phase (Phase 5) calls the Private Invoke-RemoteCheck
+            # for a delta read-back. Stub it to a clean round-trip (totalEvents 0 → 1)
+            # so the analytics phase passes and OverallPass hinges solely on the health
+            # phase under test. Without this stub the real HTTP calls to the stub URL
+            # would fail and sink OverallPass, masking the health-phase assertions.
+            $script:CsQuery = 0
+            Mock Invoke-RemoteCheck -ParameterFilter { $Path -eq '/api/analytics/query' } -MockWith {
+                $script:CsQuery++
+                $total = if ($script:CsQuery -eq 1) { 0 } else { 1 }
+                [PSCustomObject]@{
+                    Success = $true; StatusCode = 200; ResponseMs = 5
+                    Body = [PSCustomObject]@{ summary = [PSCustomObject]@{ totalEvents = $total } }
+                    ContentType = 'application/json'; RawBody = ''; Error = $null
+                }
+            }
+            Mock Invoke-RemoteCheck -ParameterFilter { $Path -eq '/api/analytics/event' } -MockWith {
+                [PSCustomObject]@{
+                    Success = $true; StatusCode = 200; ResponseMs = 5
+                    Body = [PSCustomObject]@{ ok = $true; count = 1 }
+                    ContentType = 'application/json'; RawBody = ''; Error = $null
+                }
+            }
         }
     }
 
@@ -85,7 +108,9 @@ Describe 'Invoke-TaxEditorSmokeTest Health-phase cold-start tolerance (t/1696)' 
             $result.HealthOk    | Should -BeFalse -Because 'an app that never returns healthy within the budget must still fail (no falsely-green gate)'
             $result.OverallPass | Should -BeFalse -Because 'a down health phase must sink OverallPass even with other phases green'
             $script:Probe       | Should -Be 4 -Because 'it must exhaust exactly HealthMaxAttempts probes before giving up'
-            Should -Invoke Start-Sleep -Times 3 -Exactly -Because '4 attempts → 3 inter-attempt sleeps (none after the last)'
+            # Scope to the health-phase retry sleep (interval=1s); the t/2667 analytics
+            # phase adds one -Seconds 2 wait that must not be counted here.
+            Should -Invoke Start-Sleep -Times 3 -Exactly -ParameterFilter { $Seconds -ne 2 } -Because '4 attempts → 3 inter-attempt sleeps (none after the last)'
         }
     }
 
@@ -106,7 +131,8 @@ Describe 'Invoke-TaxEditorSmokeTest Health-phase cold-start tolerance (t/1696)' 
 
             $result.HealthOk | Should -BeFalse
             $script:Probe    | Should -Be 1 -Because 'HealthMaxAttempts=1 preserves the prior single-shot behavior'
-            Should -Invoke Start-Sleep -Times 0 -Exactly
+            # Health-phase sleeps only; the t/2667 analytics -Seconds 2 wait is excluded.
+            Should -Invoke Start-Sleep -Times 0 -Exactly -ParameterFilter { $Seconds -ne 2 }
         }
     }
 }

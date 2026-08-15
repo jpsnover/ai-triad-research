@@ -123,3 +123,80 @@ Describe 'Edge validation (gaps 7.1-7.4)' -Tag 'taxonomy' {
         }
     }
 }
+
+Describe 'Rationale silent-blank observability (t/2674)' -Tag 'taxonomy' {
+
+    BeforeEach {
+        InModuleScope AITriad {
+            $script:RatTempDir = Join-Path ([System.IO.Path]::GetTempPath()) "edge-rat-$([guid]::NewGuid().ToString('N').Substring(0,8))"
+            New-Item -ItemType Directory -Path $script:RatTempDir -Force | Out-Null
+            $TaxJson = @{
+                nodes = @(
+                    @{ id = 'acc-beliefs-001'; label = 'A'; description = 'A'; category = 'Beliefs' }
+                    @{ id = 'saf-beliefs-001'; label = 'B'; description = 'B'; category = 'Beliefs' }
+                )
+            } | ConvertTo-Json -Depth 5
+            Set-Content -Path (Join-Path $script:RatTempDir 'accelerationist.json') -Value $TaxJson
+            Set-Content -Path (Join-Path $script:RatTempDir 'safetyist.json') -Value '{"nodes":[]}'
+            Set-Content -Path (Join-Path $script:RatTempDir 'skeptic.json') -Value '{"nodes":[]}'
+            Set-Content -Path (Join-Path $script:RatTempDir 'situations.json') -Value '{"nodes":[]}'
+            Mock Get-TaxonomyDir { $script:RatTempDir }
+            Mock Resolve-AIApiKey { 'fake-key' }
+            Mock Write-Utf8NoBom { }
+        }
+    }
+
+    AfterEach {
+        InModuleScope AITriad {
+            Remove-Item -Path $script:RatTempDir -Recurse -Force -ErrorAction SilentlyContinue
+        }
+    }
+
+    It 'FIRE ARM: warns when the LLM omits rationale (silent-blank surfaced, not swallowed)' {
+        InModuleScope AITriad {
+            # Two valid, distinct-type edges with NO rationale property — mirrors an
+            # LLM that omits the schema-required field (the real silent-blank cause).
+            Mock Invoke-NodeEdgeDiscovery {
+                [PSCustomObject]@{
+                    NodeId = $Node.id
+                    RawEdges = @(
+                        [PSCustomObject]@{ target = 'saf-beliefs-001'; type = 'SUPPORTS'; confidence = 0.8 }
+                        [PSCustomObject]@{ target = 'saf-beliefs-001'; type = 'WEAKENS';  confidence = 0.8 }
+                    )
+                    NewEdgeTypes = @(); Error = $null; ElapsedSec = 0.5
+                }
+            }
+
+            $warn = $null
+            $null = Invoke-EdgeDiscovery -NodeId 'acc-beliefs-001' -Force -MaxConcurrent 1 `
+                -RepoRoot $script:RatTempDir -WarningVariable warn -WarningAction SilentlyContinue 6>$null
+            $warnText = ($warn -join "`n")
+
+            $warnText | Should -Match 'rationale' -Because 'an omitted rationale must be surfaced, not silently blank'
+            $warnText | Should -Match 't/2674'
+            $warnText | Should -Match '2 proposed edge' -Because 'both rationale-less edges must be counted'
+        }
+    }
+
+    It 'CLEAN ARM: no rationale warning when every edge carries one (gate does not false-fire)' {
+        InModuleScope AITriad {
+            Mock Invoke-NodeEdgeDiscovery {
+                [PSCustomObject]@{
+                    NodeId = $Node.id
+                    RawEdges = @(
+                        [PSCustomObject]@{ target = 'saf-beliefs-001'; type = 'SUPPORTS'; confidence = 0.8; rationale = 'Because it supports' }
+                        [PSCustomObject]@{ target = 'saf-beliefs-001'; type = 'WEAKENS';  confidence = 0.8; rationale = 'Because it weakens' }
+                    )
+                    NewEdgeTypes = @(); Error = $null; ElapsedSec = 0.5
+                }
+            }
+
+            $warn = $null
+            $null = Invoke-EdgeDiscovery -NodeId 'acc-beliefs-001' -Force -MaxConcurrent 1 `
+                -RepoRoot $script:RatTempDir -WarningVariable warn -WarningAction SilentlyContinue 6>$null
+            $warnText = ($warn -join "`n")
+
+            $warnText | Should -Not -Match 't/2674' -Because 'a fully-populated run must not emit the silent-blank warning'
+        }
+    }
+}

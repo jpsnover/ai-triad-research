@@ -14,6 +14,7 @@
 import fs from 'fs';
 import path from 'path';
 import { getConfig } from '../runtimeConfig.js';
+import { log } from '../logger.js';
 
 // ── Types ──
 
@@ -165,7 +166,11 @@ export async function appendEvents(events: AnalyticsEvent[]): Promise<void> {
   }
 
   for (const [date, lines] of byDate) {
-    await backend.append(date, lines);
+    try {
+      await backend.append(date, lines);
+    } catch (err) {
+      log.analytics.error({ err, date, count: lines.length }, 'analytics: append failed, events dropped');
+    }
   }
 }
 

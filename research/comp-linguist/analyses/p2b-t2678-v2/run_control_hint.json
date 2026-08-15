@@ -1,0 +1,284 @@
+{
+  "2306fafc#5f8be326": {
+    "proposals": [],
+    "org_mentions": [
+      {
+        "name": "Menlo Park"
+      }
+    ]
+  },
+  "2306fafc#3c016066": {
+    "proposals": [
+      {
+        "name": "EU AI Act",
+        "entity_type": "legislation",
+        "aliases": [
+          "European Union AI Act"
+        ],
+        "quote": "The EU AI Act mentions the word 'trust' only twice in its 245 pages of articles because legal frameworks regulate liability and market access, not abstract virtues.",
+        "confidence": 0.97
+      },
+      {
+        "name": "Trump Executive Order on AI Preemption",
+        "entity_type": "legislation",
+        "aliases": [
+          "executive order directing federal agencies to argue preemption of state AI laws"
+        ],
+        "quote": "President Trump issued an executive order in December 2025 directing federal agencies to argue preemption of state AI laws under existing federal law, cementing federal protection for dominant market players.",
+        "confidence": 0.72
+      },
+      {
+        "name": "Donald Trump",
+        "entity_type": "person",
+        "aliases": [
+          "President Trump"
+        ],
+        "quote": "President Trump issued an executive order in December 2025 directing federal agencies to argue preemption of state AI laws under existing federal law",
+        "confidence": 0.97
+      }
+    ],
+    "org_mentions": [
+      {
+        "name": "Goldman Sachs"
+      }
+    ]
+  },
+  "2306fafc#d5ff16bf": {
+    "proposals": [
+      {
+        "name": "Stripe",
+        "entity_type": "artifact",
+        "aliases": [],
+        "quote": "When tools like Stripe process transactions across a global economy handling over $20 trillion annually, security happens through distributed verification",
+        "confidence": 0.72
+      },
+      {
+        "name": "AI Agents and the Law (arXiv:2508.08544v1)",
+        "entity_type": "artifact",
+        "aliases": [
+          "arXiv:2508.08544v1"
+        ],
+        "quote": "As documented in AI Agents and the Law (arXiv:2508.08544v1), regulatory gatekeeping creates an artificial scarcity of capability that locks out smaller innovators while cementing incumbent dominance.",
+        "confidence": 0.85
+      }
+    ],
+    "org_mentions": [
+      {
+        "name": "Stripe"
+      }
+    ]
+  },
+  "2306fafc#d962db00": {
+    "proposals": [
+      {
+        "name": "EU AI Act",
+        "entity_type": "legislation",
+        "aliases": [
+          "European Union AI Act",
+          "EU Artificial Intelligence Act"
+        ],
+        "quote": "The EU AI Act demonstrates this dynamic clearly by running to 245 pages of compliance architecture that cement the dominance of legacy cloud providers who can afford the legal overhead.",
+        "confidence": 0.97
+      }
+    ],
+    "org_mentions": []
+  },
+  "2306fafc#fddc841e": {
+    "proposals": [
+      {
+        "name": "State of AI in the Enterprise: The untapped edge",
+        "entity_type": "artifact",
+        "aliases": [
+          "State of AI in the Enterprise"
+        ],
+        "quote": "Only 21% of companies report having a mature model for the governance of autonomous agents, according to 'State of AI in the Enterprise: The untapped edge'",
+        "confidence": 0.85
+      },
+      {
+        "name": "Boeing 737 MAX MCAS failure",
+        "entity_type": "event",
+        "aliases": [
+          "737 MAX automated MCAS sensor failure"
+        ],
+        "quote": "The Boeing 737 MAX automated MCAS sensor failure proved that automated telemetry signals normal parameters while an aircraft enters an unrecoverable dive.",
+        "confidence": 0.9
+      },
+      {
+        "name": "MCAS",
+        "entity_type": "artifact",
+        "aliases": [
+          "Maneuvering Characteristics Augmentation System"
+        ],
+        "quote": "The Boeing 737 MAX automated MCAS sensor failure proved that automated telemetry signals normal parameters while an aircraft enters an unrecoverable dive.",
+        "confidence": 0.85
+      }
+    ],
+    "org_mentions": [
+      {
+        "name": "Deloitte"
+      },
+      {
+        "name": "Boeing"
+      }
+    ]
+  },
+  "2306fafc#c79ec266": {
+    "proposals": [
+      {
+        "name": "AI Action Plan",
+        "entity_type": "artifact",
+        "aliases": [
+          "Trump AI Action Plan"
+        ],
+        "quote": "The Trump administration issued an AI Action Plan in July 2025, followed by numerous executive orders throughout the year aimed at promoting AI development and adoption without erecting arbitrary pre-launch barriers.",
+        "confidence": 0.85
+      }
+    ],
+    "org_mentions": [
+      {
+        "name": "Google"
+      },
+      {
+        "name": "Meta"
+      },
+      {
+        "name": "OpenAI"
+      },
+      {
+        "name": "Anthropic"
+      }
+    ]
+  },
+  "2306fafc#2095442a": {
+    "proposals": [
+      {
+        "name": "Artificial Intelligence Index Report 2025",
+        "entity_type": "artifact",
+        "aliases": [
+          "AI Index Report 2025"
+        ],
+        "quote": "As detailed in the 'Artificial Intelligence Index Report 2025'",
+        "confidence": 0.82
+      },
+      {
+        "name": "OpenAI o1",
+        "entity_type": "artifact",
+        "aliases": [
+          "o1",
+          "o1 model"
+        ],
+        "quote": "OpenAI's o1 model running 40 times slower than GPT-4o",
+        "confidence": 0.95
+      },
+      {
+        "name": "GPT-4o",
+        "entity_type": "artifact",
+        "aliases": [],
+        "quote": "OpenAI's o1 model running 40 times slower than GPT-4o",
+        "confidence": 0.97
+      },
+      {
+        "name": "Constructing AI Speech",
+        "entity_type": "artifact",
+        "aliases": [],
+        "quote": "As noted in 'Constructing AI Speech'",
+        "confidence": 0.72
+      },
+      {
+        "name": "Margot Kaminski",
+        "entity_type": "person",
+        "aliases": [
+          "MargotKaminski"
+        ],
+        "quote": "As noted in 'Constructing AI Speech (https://x.com/MargotKaminski/status/1790333201816183204)'",
+        "confidence": 0.85
+      },
+      {
+        "name": "CHIPS Act",
+        "entity_type": "legislation",
+        "aliases": [
+          "U.S. CHIPS",
+          "CHIPS and Science Act"
+        ],
+        "quote": "The U.S. CHIPS and proposed regulatory frameworks has already catalyzed over $630 billion in private investments",
+        "confidence": 0.78
+      }
+    ],
+    "org_mentions": [
+      {
+        "name": "OpenAI"
+      }
+    ]
+  },
+  "a0eaaca9#82113a5d": {
+    "proposals": [
+      {
+        "name": "GDPR",
+        "entity_type": "legislation",
+        "aliases": [
+          "General Data Protection Regulation"
+        ],
+        "quote": "Look at GDPR. The EU finalized it in 2016 against a data-processing world that no longer exists.",
+        "confidence": 0.99
+      },
+      {
+        "name": "Ireland's Data Protection Commission",
+        "entity_type": "institution",
+        "aliases": [
+          "DPC"
+        ],
+        "quote": "Ireland's Data Protection Commission took until 2023 — seven years — to land major decisions against Meta.",
+        "confidence": 0.95
+      }
+    ],
+    "org_mentions": [
+      {
+        "name": "Meta"
+      }
+    ]
+  },
+  "a0eaaca9#ec612d7c": {
+    "proposals": [
+      {
+        "name": "Latanya Sweeney",
+        "entity_type": "person",
+        "aliases": [],
+        "quote": "Researchers re-identified 87 percent of Americans from just ZIP code, birth date, and sex in Latanya Sweeney's work decades ago.",
+        "confidence": 0.97
+      },
+      {
+        "name": "Irish Data Protection Commission",
+        "entity_type": "institution",
+        "aliases": [
+          "DPC"
+        ],
+        "quote": "When they point to the seven years it took the Irish Data Protection Commission to move on Meta, they're right that clumsy precautionary gates can strangle the very people who never got a vote.",
+        "confidence": 0.95
+      }
+    ],
+    "org_mentions": [
+      {
+        "name": "Meta"
+      }
+    ]
+  },
+  "a0eaaca9#3c0909b1": {
+    "proposals": [
+      {
+        "name": "Latanya Sweeney",
+        "entity_type": "person",
+        "aliases": [],
+        "quote": "Latanya Sweeney showed in 2000 that ZIP code, birthdate, and sex re-identify 87 percent of Americans",
+        "confidence": 0.99
+      }
+    ],
+    "org_mentions": [
+      {
+        "name": "Irish Data Protection Commission"
+      },
+      {
+        "name": "Meta"
+      }
+    ]
+  }
+}

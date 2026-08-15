@@ -27,6 +27,7 @@ import { getGlobalRecorder } from '../../../../lib/flight-recorder/index.js';
 import type { FlightRecorder, RecordInput } from '../../../../lib/flight-recorder/index.js';
 import { getCurrentUserId, getSessionBranchName } from '../security/userContext.js';
 import { GitHubRestClient, normalizeErrorForEvent, type CircuitState } from './githubRestClient.js';
+import { getDataRoot } from '../config.js';
 
 // ── Types ────────────────────────────────────────────────────────────────
 
@@ -1155,9 +1156,14 @@ export class GitHubAPIBackend implements StorageBackend {
   private toRepoPath(filePath: string): string {
     let p = filePath;
 
-    // If the path is absolute and starts with the cache dir, strip it
-    if (p.startsWith(this.cacheDir)) {
-      p = p.slice(this.cacheDir.length);
+    // Strip the data-root prefix to get the repo-relative path. Use getDataRoot()
+    // (the actual source of incoming absolute paths from fileIO.ts) rather than
+    // this.cacheDir (the disk-cache write location) — they can diverge when the
+    // cache is on a separate mount (e.g. TAXONOMY_CACHE_DIR != AI_TRIAD_DATA_ROOT),
+    // which caused staging github-api reads to 404 (t/2670).
+    const dataRoot = getDataRoot();
+    if (p.startsWith(dataRoot)) {
+      p = p.slice(dataRoot.length);
     }
 
     // Strip leading slashes

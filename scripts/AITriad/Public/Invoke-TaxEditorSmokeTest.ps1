@@ -7,9 +7,12 @@ function Invoke-TaxEditorSmokeTest {
         Runs a comprehensive remote smoke test against the deployed Taxonomy Editor.
     .DESCRIPTION
         Orchestrates Test-TaxEditorHealth, Test-TaxEditorEndpoints,
-        Test-AzureHealth, and Test-GitHubHealth, then produces a summary
-        report with pass/fail counts, response time stats, and per-category
-        breakdowns.
+        Test-AzureHealth, and Test-GitHubHealth, plus an analytics write/read
+        round-trip probe (t/2667), then produces a summary report with pass/fail
+        counts, response time stats, and per-category breakdowns. The analytics
+        probe reads aggregated totalEvents, POSTs a synthetic event, and re-reads
+        to confirm the count increased — catching silent blob-storage drops that
+        still return HTTP 200.
     .PARAMETER BaseUrl
         The base URL of the deployed Taxonomy Editor site.
     .PARAMETER TimeoutSec
@@ -165,8 +168,123 @@ function Invoke-TaxEditorSmokeTest {
     }
     Write-Host ''
 
+    # ── Phase 5: Analytics write/read round-trip (t/2667) ────────────────
+    # Q3b prevention (failure Class 3): the blob analytics backend silently drops
+    # events when misconfigured while the server still returns 200. The POST
+    # response's `count` reflects sanitized REQUEST events (session.ts:179), and the
+    # blob append is fire-and-forget (session.ts:172) — so the write alone can NEVER
+    # confirm persistence. The authoritative detector is a DELTA READ-BACK: read the
+    # aggregated totalEvents (read straight from blob storage — analytics.ts:301),
+    # POST a synthetic event, wait for the async append, read again, and require the
+    # count to increase. A silent drop leaves the count flat. (Design option A,
+    # approved t/2667#6. GET /api/analytics/query is anon-allowed — accessControl.ts:335
+    # — so this runs without a session token. Concurrent staging traffic between the
+    # two reads is an accepted low-risk masking window on quiet staging.)
+    Write-Host '=== Analytics Round-Trip ===' -ForegroundColor Cyan
+    $Analytics = @()
+
+    # Guarded extractor: pull summary.totalEvents from an Invoke-RemoteCheck result,
+    # or $null when the read failed / the field is absent (StrictMode-safe).
+    $GetTotalEvents = {
+        param($Check)
+        if ($Check.Success -and $Check.Body -and
+            $Check.Body.PSObject.Properties['summary'] -and $Check.Body.summary -and
+            $Check.Body.summary.PSObject.Properties['totalEvents']) {
+            return [int]$Check.Body.summary.totalEvents
+        }
+        return $null
+    }
+
+    # Baseline read BEFORE the write.
+    $BaselineCheck = Invoke-RemoteCheck -BaseUrl $BaseUrl -Path '/api/analytics/query' `
+        -Method GET -TimeoutSec $TimeoutSec -AcceptableStatusCodes @(200)
+    $Before = & $GetTotalEvents $BaselineCheck
+
+    # Write probe — reachability only (200 + ok:true). NOT a drop detector.
+    # Build the body as an explicit JSON string so the single-element `events`
+    # array is never unwrapped to an object (the server requires an array — 400 otherwise).
+    $ProbeStamp   = [DateTimeOffset]::UtcNow.ToString('o')
+    $ProbeSession = "smoke-$([DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds())"
+    $ProbeEvent   = @{
+        user       = 'smoke-probe'
+        session_id = $ProbeSession
+        timestamp  = $ProbeStamp
+        event_type = 'smoke-probe'
+        category   = 'system'
+        detail     = @{}
+    }
+    $EventJson = '{"events":[' + ($ProbeEvent | ConvertTo-Json -Depth 6 -Compress) + ']}'
+
+    $WriteCheck = Invoke-RemoteCheck -BaseUrl $BaseUrl -Path '/api/analytics/event' `
+        -Method POST -Body $EventJson -TimeoutSec $TimeoutSec -AcceptableStatusCodes @(200)
+    $WriteOk = $false
+    if ($WriteCheck.Success -and $WriteCheck.Body -and $WriteCheck.Body.PSObject.Properties['ok']) {
+        $WriteOk = [bool]$WriteCheck.Body.ok
+    }
+    $WritePass = $WriteCheck.Success -and $WriteOk
+
+    $WriteResult = [EndpointTestResult]::new()
+    $WriteResult.Endpoint    = 'POST /api/analytics/event'
+    $WriteResult.Category    = 'Analytics'
+    $WriteResult.Description = 'Analytics write reachability (200 + ok:true)'
+    $WriteResult.Status      = $WriteCheck.StatusCode
+    $WriteResult.Pass        = $WritePass
+    $WriteResult.Ms          = $WriteCheck.ResponseMs
+    $WriteResult.NodeCount   = $null
+    if (-not $WritePass) {
+        $WriteResult.Error = if ($WriteCheck.Error) {
+            $WriteCheck.Error
+        } else {
+            "Unexpected write response (status=$($WriteCheck.StatusCode), ok=$WriteOk)"
+        }
+    }
+    $Analytics += $WriteResult
+
+    # Async blob append — give the write time to land before the read-back.
+    Start-Sleep -Seconds 2
+
+    # Read-back AFTER the write — the delta is the detector.
+    $AfterCheck = Invoke-RemoteCheck -BaseUrl $BaseUrl -Path '/api/analytics/query' `
+        -Method GET -TimeoutSec $TimeoutSec -AcceptableStatusCodes @(200)
+    $After = & $GetTotalEvents $AfterCheck
+
+    $DeltaPass = $false
+    $DeltaErr  = $null
+    if ($null -eq $Before) {
+        $DeltaErr = "Baseline read failed (status=$($BaselineCheck.StatusCode)) — cannot compute delta$(if ($BaselineCheck.Error) { ": $($BaselineCheck.Error)" })"
+    } elseif ($null -eq $After) {
+        $DeltaErr = "Read-back failed (status=$($AfterCheck.StatusCode)) — cannot confirm write landed$(if ($AfterCheck.Error) { ": $($AfterCheck.Error)" })"
+    } else {
+        $Delta = $After - $Before
+        $DeltaPass = ($Delta -ge 1)
+        if (-not $DeltaPass) {
+            $DeltaErr = "Silent drop: totalEvents did not increase after write (before=$Before, after=$After, delta=$Delta) — event accepted but not persisted (blob backend misconfigured?)"
+        }
+    }
+
+    $DeltaResult = [EndpointTestResult]::new()
+    $DeltaResult.Endpoint    = 'GET /api/analytics/query (delta read-back)'
+    $DeltaResult.Category    = 'Analytics'
+    $DeltaResult.Description = 'Analytics storage round-trip (totalEvents increased)'
+    $DeltaResult.Status      = $AfterCheck.StatusCode
+    $DeltaResult.Pass        = $DeltaPass
+    $DeltaResult.Ms          = $BaselineCheck.ResponseMs + $AfterCheck.ResponseMs
+    $DeltaResult.NodeCount   = $After
+    $DeltaResult.Error       = $DeltaErr
+    $Analytics += $DeltaResult
+
+    foreach ($Ep in $Analytics) {
+        $Icon = if ($Ep.Pass) { '[PASS]' } else { '[FAIL]' }
+        $Color = if ($Ep.Pass) { 'Green' } else { 'Red' }
+        Write-Host "  $Icon $($Ep.Endpoint) — $($Ep.Status) $($Ep.Ms)ms" -ForegroundColor $Color
+        if (-not $Ep.Pass -and $Ep.Error) {
+            Write-Host "        $($Ep.Error)" -ForegroundColor DarkRed
+        }
+    }
+    Write-Host ''
+
     # ── Summary ──────────────────────────────────────────────────────────
-    $AllResults = @($Endpoints) + @($AnonEndpoints)
+    $AllResults = @($Endpoints) + @($AnonEndpoints) + @($Analytics)
     $Passed = @($AllResults | Where-Object { $_.Pass }).Count
     $Failed = @($AllResults | Where-Object { -not $_.Pass }).Count
     $Total = $AllResults.Count

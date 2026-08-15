@@ -1,10 +1,10 @@
 # Failure-Class Taxonomy — Prospective Review Checklist
 
-**Last updated:** 2026-08-09
+**Last updated:** 2026-08-15
 **Owner:** Diagnostics (source analysis) / Tech Lead (review checklist)
-**Source:** e/84 systemic quality analysis of the 2026-08-09 Azure production bug sweep.
+**Source:** e/84 systemic quality analysis of the 2026-08-09 Azure production bug sweep; Class 6 added from the 2026-08-15 dual-build / staging-prod-isolation sweep (t/2669).
 
-Purpose: turn post-incident hindsight into foresight. Before landing a change — especially at a producer/consumer seam, on a deploy path, or touching config — ask **"which of these classes could this change introduce?"** and require the corresponding test or gate. Each incident maps to one of five structural classes.
+Purpose: turn post-incident hindsight into foresight. Before landing a change — especially at a producer/consumer seam, on a deploy path, or touching config — ask **"which of these classes could this change introduce?"** and require the corresponding test or gate. Each incident maps to one of six structural classes.
 
 ## The Core Gap
 
@@ -44,6 +44,16 @@ A gate that was sufficient when written, outgrown as the system added surfaces.
 
 - **Examples:** renderer type errors invisible to the server `tsconfig`; the shell-quoting junk-spray guard condition was too narrow (t/2222).
 - **Prevention:** gate-coverage review after every incident (the Prevention-per-incident rule); cross-project `tsc` in CI.
+
+## Class 6 — Silent degradation under single-context validation
+
+A failure that **returns a success-shaped result** (empty list + HTTP 200, swallowed write + continue, "renders without error" on zero data) in a code path that was **validated in only one context** (local not hosted, staging not prod, authenticated not anonymous). The two properties are lethal *together*: single-context validation means the broken context is never exercised, and silent degradation means that when it does run, it looks like success. The failure is invisible in the context you checked and silent in the one you didn't.
+
+- **Examples:** Entities/Organizations render locally (Electron/filesystem) but return `[]` on hosted web — the github-api read fell through to empty and ADR-001 graceful-empty rendered zero with no error (t/2648/t/2661); the github-api backend read the session branch not `main`, and `toRepoPath` stripped `cacheDir` not `getDataRoot()`, so a divergent staging cache mount 404'd every read into a silent empty (t/2662/t/2670). The deploy smoke went **26/26 green while entities were visibly broken** because it asserted "endpoints respond," not "data populates" (t/2669). Analytics `appendEvents` swallowed its blob error and returned on the fire-and-forget contract — a dropped write that reported success (t/2664). A durability check passed on `revision restart` (≠ scale-to-zero), a false-positive from validating the wrong condition.
+- **Prevention (three coupled countermeasures — one alone is insufficient):**
+  1. **Validate in the deployed context, not a proxy for it.** A dual-build/data-reading feature is verified on the **hosted web profile via the github-api path against real deployed data** before Done — "works locally" is not sign-off (tech-lead `AGENTS.md` Cross-Profile Impact; t/2669 AC2).
+  2. **Assert the positive outcome, not the absence of error.** Smokes assert **data presence** (count > 0 / expected shape), never "renders" / "endpoint responds" — a graceful-empty page and a broken page are indistinguishable to a renders-without-error check (t/2671 data-presence smoke).
+  3. **Make degradation observable.** Every graceful-empty (ADR-001) and swallow-and-continue path emits a log/metric ("loaded 0 / write failed") so a zero/failed result is **detectable**, not invisible — this turns "silently empty" into "detectably empty" (t/2664 analytics signal; Server-Storage graceful-empty observability).
 
 ## How to use this
 

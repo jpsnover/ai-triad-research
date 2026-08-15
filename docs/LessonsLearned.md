@@ -127,3 +127,12 @@ Categories: `Build`, `Data`, `Migration`, `API`, `Type System`, `UI`, `PowerShel
 **Root Cause:** The curl command was written for the happy path (fast response) without considering the failure path (gateway timeout). No one noticed because the 2h runtime was attributed to "Azure being slow" rather than a missing flag.
 **Prevention:** All HTTP health checks in CI/CD must include explicit timeouts: `--connect-timeout 5 --max-time 15` (or equivalent for non-curl clients). The total health check loop duration should be calculable from the retry count and per-attempt timeout — if it exceeds expectations, the timeouts are wrong. Review existing pipelines for this gap.
 **Applies To:** DevOps, SRE. Any deploy pipeline with HTTP health checks.
+
+## [Process] `git worktree add` Fails When Branch Already Checked Out
+
+**Pattern:** `git worktree add <path> -B <branch> origin/<branch>` fatals with "branch already used by worktree" when a pre-existing worktree already has that branch checked out.
+**Instances:**
+- 2026-08-15: TL attempted `git worktree add .worktrees/fix-1065 -B <branch> origin/<branch>` — failed because the PR author's `.worktrees/analytics-append-swallow` had the same branch checked out. Resolved by using the existing worktree after verifying it was clean and at origin head (p/335#34).
+**Root Cause:** Git enforces one-worktree-per-branch. A branch checked out in any linked worktree cannot be checked out again in a new one. This isn't surfaced until the `worktree add` command runs.
+**Prevention:** Before `git worktree add <path> <branch>`, run `git worktree list` to check whether the branch is already in use. If it is, locate and verify the existing worktree (clean, at the correct origin head) and work there instead of creating a duplicate.
+**Applies To:** All profiles doing worktree-based feature or fix work.

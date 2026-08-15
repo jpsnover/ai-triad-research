@@ -118,7 +118,7 @@ describe('computeAffectAppropriateness (share-normalized, t/1785)', () => {
   });
 
   it('distinguishes different balances at the same magnitude (AC3)', () => {
-    // Concluding baseline is hope-dominant (0.39) and outrage-minimal (0.04).
+    // Concluding baseline is empathy-dominant (0.40) and urgency-minimal (0.09) after t/1771 refit.
     const hopeDominant: AffectProfile = { urgency: 0.10, fear: 0.03, hope: 0.40, outrage: 0.02, empathy: 0.25 };
     const outrageDominant: AffectProfile = { urgency: 0.10, fear: 0.10, hope: 0.05, outrage: 0.60, empathy: 0.05 };
     const sHope = computeAffectAppropriateness(hopeDominant, 'concluding')!;
@@ -127,7 +127,7 @@ describe('computeAffectAppropriateness (share-normalized, t/1785)', () => {
   });
 
   it('scores ~0 for a balance far from the phase baseline', () => {
-    // All mass in outrage; concluding rates outrage lowest (0.04) → maximal share deviation.
+    // All mass in outrage; concluding baseline outrage share is 0.11 → large deviation, scores near 0.
     const allOutrage: AffectProfile = { urgency: 0, fear: 0, hope: 0, outrage: 1, empathy: 0 };
     const score = computeAffectAppropriateness(allOutrage, 'concluding')!;
     expect(score).toBeLessThanOrEqual(0.05);
@@ -185,10 +185,11 @@ describe('computeAffectEvidence', () => {
     expect(ev.fear).not.toContain('dire');
   });
 
-  it('keeps inflected forms (risk→"risks")', () => {
-    const text = pad('The risks of this approach are significant and the threats multiply as benefits decrease.');
+  it('keeps inflected forms (danger→"dangers")', () => {
+    // 'risk' removed from fear lexicon (t/2677 — neutral noun); inflection tested via 'danger'/'dangers'.
+    const text = pad('The dangers of this approach are significant and the threats multiply as benefits decrease.');
     const ev = computeAffectEvidence(text);
-    expect(ev.fear).toContain('risk');
+    expect(ev.fear).toContain('danger');
     expect(ev.fear).toContain('threat');
   });
 });

@@ -6,7 +6,8 @@
 // t/1793 caching discipline (repeated reads don't re-parse), absent-store null,
 // and cache reset on backend swap.
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
+import { log } from '../logger.js';
 import type { StorageBackend } from '../storage/storageBackend.js';
 import type { Entity } from '../../../../lib/entities/types.js';
 import * as fileIO from '../storage/fileIO.js';
@@ -166,5 +167,89 @@ describe('static registry readers pin ref:main (t/2662)', () => {
     const call = calls.find(c => c.path.replace(/\\/g, '/').endsWith('organization_edges.json'));
     expect(call).toBeDefined();
     expect(call!.opts?.ref).toBe('main');
+  });
+});
+
+// t/2672: absent-file branches must emit a greppable log.server.warn so ops can
+// detect "silently empty" loads via az logs without requiring a flight-recorder dump.
+// Must NOT fire on a legitimately-empty-but-successful read (an empty array is valid data).
+describe('graceful-empty readers emit warn on absent file (t/2672)', () => {
+  function makeNullBackend(): StorageBackend {
+    return {
+      async readFile(): Promise<string | null> { return null; },
+      async writeFile(): Promise<void> { /* stub */ },
+      async listDirectory(): Promise<string[]> { return []; },
+      async deleteFile(): Promise<void> { /* stub */ },
+      async fileExists(): Promise<boolean> { return false; },
+      async readBinaryFile(): Promise<Buffer | null> { return null; },
+      async writeBinaryFile(): Promise<void> { /* stub */ },
+    };
+  }
+
+  afterEach(() => { vi.restoreAllMocks(); });
+
+  it('readOrganizations: emits warn with path+ref on absent file, returns null', async () => {
+    fileIO.setTaxonomyBackend(makeNullBackend());
+    const spy = vi.spyOn(log.server, 'warn').mockImplementation(() => { /* suppress */ });
+    const result = await fileIO.readOrganizations();
+    expect(result).toBeNull();
+    expect(spy).toHaveBeenCalledWith(
+      expect.objectContaining({ ref: 'main' }),
+      'readOrganizations: file absent',
+    );
+  });
+
+  it('readOrganizationEdges: emits warn with path+ref on absent file, returns null', async () => {
+    fileIO.setTaxonomyBackend(makeNullBackend());
+    const spy = vi.spyOn(log.server, 'warn').mockImplementation(() => { /* suppress */ });
+    const result = await fileIO.readOrganizationEdges();
+    expect(result).toBeNull();
+    expect(spy).toHaveBeenCalledWith(
+      expect.objectContaining({ ref: 'main' }),
+      'readOrganizationEdges: file absent',
+    );
+  });
+
+  it('readEntities: emits warn with path+ref on absent file, returns null', async () => {
+    fileIO.setTaxonomyBackend(makeNullBackend());
+    const spy = vi.spyOn(log.server, 'warn').mockImplementation(() => { /* suppress */ });
+    const result = await fileIO.readEntities();
+    expect(result).toBeNull();
+    expect(spy).toHaveBeenCalledWith(
+      expect.objectContaining({ ref: 'main' }),
+      'readEntities: file absent',
+    );
+  });
+
+  it('readEntityRegistry: emits warn on absent entity store, returns null', async () => {
+    fileIO.setTaxonomyBackend(makeNullBackend());
+    const spy = vi.spyOn(log.server, 'warn').mockImplementation(() => { /* suppress */ });
+    const result = await fileIO.readEntityRegistry();
+    expect(result).toBeNull();
+    expect(spy).toHaveBeenCalledWith(
+      expect.objectContaining({ ref: 'main' }),
+      'readEntityRegistry: entity store absent',
+    );
+  });
+
+  it('readEntities: does NOT warn on a successful empty-array read (no false noise)', async () => {
+    const emptyBackend: StorageBackend = {
+      async readFile(p): Promise<string | null> {
+        if (p.replace(/\\/g, '/').endsWith('entities.json')) return JSON.stringify({ entities: [] });
+        return null;
+      },
+      async writeFile(): Promise<void> { /* stub */ },
+      async listDirectory(): Promise<string[]> { return []; },
+      async deleteFile(): Promise<void> { /* stub */ },
+      async fileExists(): Promise<boolean> { return false; },
+      async readBinaryFile(): Promise<Buffer | null> { return null; },
+      async writeBinaryFile(): Promise<void> { /* stub */ },
+    };
+    fileIO.setTaxonomyBackend(emptyBackend);
+    const spy = vi.spyOn(log.server, 'warn').mockImplementation(() => { /* suppress */ });
+    const result = await fileIO.readEntities();
+    expect(result).toEqual([]);
+    const absentCalls = spy.mock.calls.filter(([, msg]) => String(msg).includes('absent'));
+    expect(absentCalls).toHaveLength(0);
   });
 });

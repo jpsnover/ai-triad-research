@@ -17,14 +17,15 @@ export const AFFECT_LEXICONS: Record<AffectCategory, string[]> = {
     'overdue', 'at once', 'no time to waste', 'act now', 'accelerating',
     'vital', 'essential', 'necessity', 'demands immediate',
   ],
+  // Dropped (t/2677): 'risk' (neutral noun), 'undermine'/'could lead to'/'may result in' (causal connectives),
+  // 'unpredictable' (neutral ML descriptor). Keep 'risky', 'severe' (genuine charge).
   fear: [
-    'danger', 'dangerous', 'threat', 'threaten', 'risk', 'risky',
+    'danger', 'dangerous', 'threat', 'threaten', 'risky',
     'harmful', 'catastrophic', 'catastrophe', 'devastating', 'disastrous',
     'disaster', 'alarming', 'alarm', 'worried', 'peril', 'perilous',
     'hazard', 'hazardous', 'menace', 'menacing', 'dire', 'existential',
-    'nightmare', 'irreversible', 'uncontrollable', 'unpredictable',
-    'jeopardize', 'endanger', 'undermine', 'could lead to',
-    'may result in', 'fallout', 'frightening', 'terrifying', 'severe',
+    'nightmare', 'irreversible', 'uncontrollable',
+    'jeopardize', 'endanger', 'fallout', 'frightening', 'terrifying', 'severe',
   ],
   hope: [
     'hope', 'hopeful', 'promising', 'potential', 'opportunity',
@@ -44,12 +45,15 @@ export const AFFECT_LEXICONS: Record<AffectCategory, string[]> = {
     'unconscionable', 'reprehensible', 'deplorable', 'at the expense of',
     'willfully ignore', 'deliberately disregard', 'contemptible',
   ],
+  // Dropped (t/2677): 'people'/'human'/'individual'/'individuals' (units of analysis),
+  // 'community'/'communities'/'workers' (neutral collective nouns),
+  // 'in practice'/'impact on' (analytic connectives — ubiquitous in AI-policy prose).
   empathy: [
-    'people', 'human', 'community', 'communities', 'victim', 'victims',
-    'suffer', 'suffering', 'pain', 'impact on', 'lived experience',
-    'families', 'workers', 'vulnerable', 'dignity', 'welfare', 'wellbeing',
+    'victim', 'victims',
+    'suffer', 'suffering', 'pain', 'lived experience',
+    'families', 'vulnerable', 'dignity', 'welfare', 'wellbeing',
     'affected by', 'those who', 'real people', 'ordinary', 'day to day',
-    'in practice', 'individual', 'individuals', 'struggle', 'burden',
+    'struggle', 'burden',
     'harm to', 'care', 'compassion',
   ],
 };
@@ -62,10 +66,15 @@ export const AFFECT_SATURATION_RATE: Record<AffectCategory, number> = {
   empathy: 4.0,
 };
 
+// Provisional fit from t/1771 + research/comp-linguist/analyses/t1771-affect/provisional-fit.md.
+// Replaces the pre-fit stipulated vector that made the 0.60 target unreachable (ceiling 0.580,
+// 100% of real turns below). Refit → median affect_appropriateness 0.40→0.63. Row stays
+// stipulated (provisional). Values from runs after this land are NOT comparable to the interim
+// post-t/1785 window. MAX_ACCEPTABLE_DEVIATION (0.35) is unchanged.
 export const AFFECT_PHASE_BASELINES: Record<Exclude<DebatePhase, 'terminated'>, AffectProfile> = {
-  confrontation: { urgency: 0.30, fear: 0.20, hope: 0.17, outrage: 0.17, empathy: 0.14 },
-  argumentation: { urgency: 0.20, fear: 0.12, hope: 0.30, outrage: 0.09, empathy: 0.24 },
-  concluding:    { urgency: 0.25, fear: 0.08, hope: 0.39, outrage: 0.04, empathy: 0.29 },
+  confrontation: { urgency: 0.06, fear: 0.36, hope: 0.09, outrage: 0.10, empathy: 0.40 },
+  argumentation: { urgency: 0.07, fear: 0.39, hope: 0.09, outrage: 0.08, empathy: 0.37 },
+  concluding:    { urgency: 0.09, fear: 0.30, hope: 0.10, outrage: 0.11, empathy: 0.40 },
 };
 
 const INTENSITY_WEIGHTS: Record<AffectCategory, number> = {

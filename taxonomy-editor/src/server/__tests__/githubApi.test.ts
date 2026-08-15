@@ -107,6 +107,9 @@ const originalFetch = globalThis.fetch;
 beforeEach(() => {
   fetchCalls.length = 0;
   apiHandlers = [];
+  // Align getDataRoot() with createBackend()'s cacheDir so toRepoPath() strips the
+  // right prefix. Tests that need a divergent dataRoot override this in their own beforeEach.
+  vi.stubEnv('AI_TRIAD_DATA_ROOT', '/var/cache/taxonomy-test');
 
   globalThis.fetch = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
     const url = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url;
@@ -1752,6 +1755,38 @@ describe('GitHubAPIBackend — undici dispatcher (t/2053)', () => {
     // Error must surface in flight recorder (not swallowed at info-level)
     const errorEvents = recorder.events.filter(e => e.level === 'error');
     expect(errorEvents.length).toBeGreaterThan(0);
+
+    backend.shutdown();
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+// t/2670: toRepoPath must strip getDataRoot(), not cacheDir — separate cache
+// mount must not 404 all github-api reads.
+// ═══════════════════════════════════════════════════════════════════════════
+
+describe('toRepoPath strips getDataRoot() not cacheDir (t/2670)', () => {
+  // Simulate a staging deployment where TAXONOMY_CACHE_DIR != AI_TRIAD_DATA_ROOT.
+  // cacheDir comes from createBackend() = '/var/cache/taxonomy-test'.
+  // getDataRoot() reads AI_TRIAD_DATA_ROOT; stub it to a distinct value.
+  const FAKE_DATA_ROOT = '/mnt/shared-data';
+
+  beforeEach(() => { vi.stubEnv('AI_TRIAD_DATA_ROOT', FAKE_DATA_ROOT); });
+  afterEach(() => { vi.unstubAllEnvs(); });
+
+  it('resolves a getDataRoot()-prefixed absolute path to a repo-relative path when cacheDir differs', async () => {
+    const backend = await createBackend(); // cacheDir = /var/cache/taxonomy-test
+
+    // File path as fileIO.ts constructs it: absolute, rooted at getDataRoot().
+    await backend.readFile(`${FAKE_DATA_ROOT}/taxonomy/nodes.json`);
+
+    // The GitHub Contents API call must use the repo-relative path.
+    // With the bug (strip cacheDir): prefix not stripped → URL gets 'mnt/shared-data/taxonomy/...'
+    // With the fix (strip dataRoot): prefix stripped → URL gets 'taxonomy/nodes.json'
+    const contentCall = fetchCalls.find(c => c.method === 'GET' && c.url.includes('/contents/'));
+    expect(contentCall).toBeDefined();
+    expect(contentCall!.url).toContain('/contents/taxonomy/nodes.json');
+    expect(contentCall!.url).not.toContain('mnt/shared-data');
 
     backend.shutdown();
   });

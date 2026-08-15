@@ -9,6 +9,7 @@ import crypto from 'crypto';
 import path from 'path';
 import { resolveDataPath } from '../config.js';
 import { getUserContentBackend, assertSafeId } from '../storage/fileIO.js';
+import { log } from '../logger.js';
 import { getGlobalRecorder } from '../../../../lib/flight-recorder/index.js';
 import type { SupportCase, CaseStatus, CaseResponse, SupportCaseSystemInfo, Attachment } from './types.js';
 import { isAllowedAttachmentMime, ATTACHMENT_MAX_BYTES, CASE_MAX_TOTAL_BYTES, CASE_MAX_ATTACHMENTS } from './types.js';
@@ -40,6 +41,7 @@ async function readCaseAt(userId: string, caseId: string): Promise<SupportCase |
   try {
     return JSON.parse(raw) as SupportCase;
   } catch (err) {
+    log.server.warn({ err }, 'Skipping unparseable support case');
     getGlobalRecorder()?.record({
       type: 'system.error', component: 'support', level: 'warn',
       message: 'Skipping unparseable support case',

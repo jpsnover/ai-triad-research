@@ -760,6 +760,7 @@ Export-ModuleMember -Function @(
     'Get-Summary'
     'Invoke-AttributeExtraction'
     'Invoke-EdgeDiscovery'
+    'Invoke-EdgeRationaleBackfill'
     'Get-GraphNode'
     'Find-GraphPath'
     'Approve-Edge'
@@ -849,6 +850,8 @@ Export-ModuleMember -Function @(
     'Invoke-DebateBatch'
     'Get-FreeTierStatus'
     'Invoke-TaxEditorSmokeTest'
+    # t/2668 — analytics storage round-trip diagnosis
+    'Test-AnalyticsBackend'
     'Test-AzureHealth'
     'Test-GitHubHealth'
     'Get-TaxEditorRevision'
@@ -961,7 +964,7 @@ $_modelCompleter = {
 
 foreach ($_cmd in @(
     'Invoke-POVSummary', 'Invoke-BatchSummary', 'Invoke-AttributeExtraction',
-    'Invoke-EdgeDiscovery', 'Invoke-GraphQuery', 'Invoke-TaxonomyProposal',
+    'Invoke-EdgeDiscovery', 'Invoke-EdgeRationaleBackfill', 'Invoke-GraphQuery', 'Invoke-TaxonomyProposal',
     'Invoke-HierarchyProposal', 'Invoke-PolicyRefinement', 'Invoke-AITDebate',
     'Import-AITriadDocument', 'Find-PolicyAction', 'Find-PossibleFallacy',
     'Find-SituationCandidates', 'Get-ConflictEvolution', 'Get-Edge',
