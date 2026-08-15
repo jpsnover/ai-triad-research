@@ -12,7 +12,9 @@ function Invoke-TaxEditorSmokeTest {
         counts, response time stats, and per-category breakdowns. The analytics
         probe reads aggregated totalEvents, POSTs a synthetic event, and re-reads
         to confirm the count increased — catching silent blob-storage drops that
-        still return HTTP 200.
+        still return HTTP 200. With -AssertDataPresence, an additional phase (t/2671)
+        asserts entities/organizations/taxonomy-nodes return JSON with > 0 rows over
+        an anonymous session — catching empty data and auth-interstitial false-greens.
     .PARAMETER BaseUrl
         The base URL of the deployed Taxonomy Editor site.
     .PARAMETER TimeoutSec
@@ -33,6 +35,14 @@ function Invoke-TaxEditorSmokeTest {
         the deploy workflow immediately after a push (t/2639).
     .PARAMETER Detailed
         Show per-endpoint results in addition to the summary.
+    .PARAMETER AssertDataPresence
+        Run the data-presence phase (t/2671): establish an anonymous session, then
+        assert /api/entities, /api/organizations, and /api/taxonomy/<pov> return
+        JSON with > 0 rows — not just HTTP 200. Off by default so local runs (which
+        may not point at a data-populated instance) are unaffected; the deploy
+        workflow passes it. Catches the escape where the endpoint smoke went 26/26
+        green while data was empty on web, and where an auth Sign-In interstitial
+        (200 text/html) is mistaken for real data.
     .EXAMPLE
         Invoke-TaxEditorSmokeTest
     .EXAMPLE
@@ -75,7 +85,10 @@ function Invoke-TaxEditorSmokeTest {
         [string]$DeployedSha = '',
 
         [Parameter()]
-        [switch]$Detailed
+        [switch]$Detailed,
+
+        [Parameter()]
+        [switch]$AssertDataPresence
     )
 
     Set-StrictMode -Version Latest
@@ -283,8 +296,62 @@ function Invoke-TaxEditorSmokeTest {
     }
     Write-Host ''
 
+    # ── Phase 6: Data presence (t/2671) — opt-in via -AssertDataPresence ──
+    # The endpoint smoke passed 26/26 green while Entities/Organizations were empty
+    # on web (t/2648/t/2661): it asserts endpoints RESPOND, not that data POPULATES.
+    # Worse, in AUTH_OPTIONAL a cookie-less GET returns a 200 text/html Sign-In
+    # interstitial that a status-only check reads as PASS. This phase establishes an
+    # anonymous session (so the app serves real JSON, not the interstitial —
+    # accessControl.ts:335 anon-allows GETs; no admin token needed) and asserts each
+    # data route returns application/json with > 0 rows. Failures flow into
+    # FailedEndpoints → OverallPass. Off by default; the deploy workflow passes the switch.
+    $DataPresence = @()
+    if ($AssertDataPresence) {
+        Write-Host '=== Data Presence ===' -ForegroundColor Cyan
+        $DataSession = New-AnonymousWebSession -BaseUrl $BaseUrl -TimeoutSec $TimeoutSec
+        if (-not $DataSession) {
+            Write-Host '  (anonymous session not established — data GETs may return the auth interstitial)' -ForegroundColor DarkYellow
+        }
+
+        $DataRoutes = @(
+            @{ Path = '/api/entities';                 Field = '';      Label = 'entities' }
+            @{ Path = '/api/organizations';            Field = '';      Label = 'organizations' }
+            @{ Path = '/api/taxonomy/accelerationist'; Field = 'nodes'; Label = 'taxonomy nodes' }
+        )
+        foreach ($R in $DataRoutes) {
+            $Params = @{ BaseUrl = $BaseUrl; Path = $R.Path; Method = 'GET'; TimeoutSec = $TimeoutSec; ExpectJson = $true }
+            if ($DataSession) { $Params.Session = $DataSession }
+            $Check  = Invoke-RemoteCheck @Params
+            $Assert = Test-DataPresenceAssertion -Body $Check.Body -ContentType $Check.ContentType `
+                -CountField $R.Field -Label $R.Label
+
+            $Res = [EndpointTestResult]::new()
+            $Res.Endpoint    = "GET $($R.Path)"
+            $Res.Category    = 'DataPresence'
+            $Res.Description = "Data presence: $($R.Label) > 0"
+            $Res.Status      = $Check.StatusCode
+            $Res.Pass        = $Assert.Pass
+            $Res.Ms          = $Check.ResponseMs
+            $Res.NodeCount   = $Assert.Count
+            if (-not $Assert.Pass) {
+                $Res.Error = "$($R.Label): $($Assert.Reason)$(if ($Check.Error) { " (http: $($Check.Error))" })"
+            }
+            $DataPresence += $Res
+        }
+
+        foreach ($Ep in $DataPresence) {
+            $Icon = if ($Ep.Pass) { '[PASS]' } else { '[FAIL]' }
+            $Color = if ($Ep.Pass) { 'Green' } else { 'Red' }
+            Write-Host "  $Icon $($Ep.Endpoint) — $($Ep.Status) ($($Ep.NodeCount) rows) $($Ep.Ms)ms" -ForegroundColor $Color
+            if (-not $Ep.Pass -and $Ep.Error) {
+                Write-Host "        $($Ep.Error)" -ForegroundColor DarkRed
+            }
+        }
+        Write-Host ''
+    }
+
     # ── Summary ──────────────────────────────────────────────────────────
-    $AllResults = @($Endpoints) + @($AnonEndpoints) + @($Analytics)
+    $AllResults = @($Endpoints) + @($AnonEndpoints) + @($Analytics) + @($DataPresence)
     $Passed = @($AllResults | Where-Object { $_.Pass }).Count
     $Failed = @($AllResults | Where-Object { -not $_.Pass }).Count
     $Total = $AllResults.Count
