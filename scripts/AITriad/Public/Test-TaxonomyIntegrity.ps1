@@ -12,6 +12,7 @@ function Test-TaxonomyIntegrity {
         - member_count and source_povs are accurate
         - No duplicate policy_id references within a single node
         - Edge source/target IDs resolve to existing nodes or policies
+        - No self-loop edges (source == target), which are malformed
         - Embeddings exist for all nodes and policies
     .PARAMETER Detailed
         Show per-issue details instead of just counts.
@@ -157,21 +158,34 @@ function Test-TaxonomyIntegrity {
     $Checks++
     $EdgesPath = Join-Path $TaxDir 'edges.json'
     $BadEdges = 0
+    $SelfLoopEdges = 0
     if (Test-Path $EdgesPath) {
         $EdgesData = Get-Content -Raw -Path $EdgesPath | ConvertFrom-Json
         $ValidIds = [System.Collections.Generic.HashSet[string]]::new($AllNodeIds)
         if ($Registry) { foreach ($Pol in $Registry.policies) { [void]$ValidIds.Add($Pol.id) } }
 
-        foreach ($Edge in $EdgesData.edges) {
+        foreach ($Edge in @($EdgesData.edges)) {
             $Src = if ($Edge.PSObject.Properties['source']) { $Edge.source } else { $null }
             $Tgt = if ($Edge.PSObject.Properties['target']) { $Edge.target } else { $null }
             if (-not $ValidIds.Contains($Src) -or -not $ValidIds.Contains($Tgt)) {
                 $BadEdges++
             }
+            # Self-loops (source == target) are malformed: Invoke-EdgeDiscovery and
+            # Import-OrganizationEdge reject them at creation, so any in the stored
+            # graph are legacy/hand-introduced (t/2682). Count non-null sources only.
+            if ($null -ne $Src -and $Src -eq $Tgt) {
+                $SelfLoopEdges++
+            }
         }
     }
     if ($BadEdges -gt 0) {
         $Issues.Add([PSCustomObject]@{ Check = 'EdgeRef'; Severity = 'Error'; Count = $BadEdges; Detail = "$BadEdges edges reference non-existent nodes/policies" })
+    } else { $Passed++ }
+
+    # ── Check 4b: Self-loop edges ──
+    $Checks++
+    if ($SelfLoopEdges -gt 0) {
+        $Issues.Add([PSCustomObject]@{ Check = 'SelfLoopEdge'; Severity = 'Error'; Count = $SelfLoopEdges; Detail = "$SelfLoopEdges self-loop edge(s) where source == target (malformed; rejected at creation)" })
     } else { $Passed++ }
 
     # ── Check 5: Embedding coverage ──
@@ -415,6 +429,20 @@ function Test-TaxonomyIntegrity {
                 Write-EdgesFile -EdgesData $EdgesData -Path $EdgesPath
                 $Repaired += $Removed
                 Write-Host "    Removed $Removed dangling edges" -ForegroundColor Yellow
+            }
+        }
+
+        # Fix self-loop edges (source == target). Re-read from disk so this composes
+        # correctly after the dangling-edge fix above may have rewritten the file.
+        if ($SelfLoopEdges -gt 0 -and (Test-Path $EdgesPath)) {
+            $EdgesData = Get-Content -Raw -Path $EdgesPath | ConvertFrom-Json
+            $OrigCount = @($EdgesData.edges).Count
+            $EdgesData.edges = @($EdgesData.edges | Where-Object { $_.source -ne $_.target })
+            $Removed = $OrigCount - @($EdgesData.edges).Count
+            if ($Removed -gt 0) {
+                Write-EdgesFile -EdgesData $EdgesData -Path $EdgesPath
+                $Repaired += $Removed
+                Write-Host "    Removed $Removed self-loop edges" -ForegroundColor Yellow
             }
         }
 
