@@ -169,7 +169,7 @@ export async function appendEvents(events: AnalyticsEvent[]): Promise<void> {
     try {
       await backend.append(date, lines);
     } catch (err) {
-      log.error({ err, date, count: lines.length }, 'analytics: append failed, events dropped');
+      log.analytics.error({ err, date, count: lines.length }, 'analytics: append failed, events dropped');
     }
   }
 }
