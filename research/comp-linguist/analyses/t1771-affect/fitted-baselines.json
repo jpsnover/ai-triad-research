@@ -1,0 +1,32 @@
+{
+  "generated": "provisional",
+  "debatesUsed": 39,
+  "turnsByPhase": {
+    "confrontation": 188,
+    "argumentation": 214,
+    "concluding": 33
+  },
+  "fitted": {
+    "confrontation": {
+      "urgency": 0.055017451652692194,
+      "fear": 0.3633257707852883,
+      "hope": 0.08629686032849007,
+      "outrage": 0.09713686427132869,
+      "empathy": 0.3982230529622008
+    },
+    "argumentation": {
+      "urgency": 0.07355788356470261,
+      "fear": 0.3870475095478877,
+      "hope": 0.08905966965042375,
+      "outrage": 0.0835103490095825,
+      "empathy": 0.3668245882274034
+    },
+    "concluding": {
+      "urgency": 0.09182429211141703,
+      "fear": 0.30290934018637344,
+      "hope": 0.09675964372579826,
+      "outrage": 0.11164584756064433,
+      "empathy": 0.39686087641576706
+    }
+  }
+}
