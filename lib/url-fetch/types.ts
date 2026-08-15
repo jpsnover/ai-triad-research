@@ -18,7 +18,7 @@ export type UrlFetchFailureReason =
 
 export type UrlFetchResult =
   | { ok: true; text: string; title: string | undefined; finalUrl: string; truncated: boolean }
-  | { ok: false; reason: UrlFetchFailureReason };
+  | { ok: false; reason: UrlFetchFailureReason; status?: number };
 
 export interface UrlFetchOptions {
   /** Max response body size in bytes before abort. Default: 1.5 MB. */
@@ -29,6 +29,18 @@ export interface UrlFetchOptions {
   maxRedirects?: number;
   /** Soft character budget: truncates extracted text to this length when set. */
   tokenBudget?: number;
+  /**
+   * Return the response body verbatim instead of the tag-stripped, sanitized
+   * extraction. For callers that run their own converter over the raw markup
+   * (the server's markitdown HTML→Markdown pass, t/720). Default: false.
+   *
+   * The SSRF transport guarantees — IP pinning, private-range blocking, size
+   * cap, timeout, content-type gate — are unaffected; only the post-processing
+   * of an already-fetched body changes. Raw output is NOT XSS-sanitized, so a
+   * caller using this must treat the result as untrusted markup and never
+   * re-render it as HTML.
+   */
+  rawBody?: boolean;
   /**
    * Predicate that returns true when an IP address should be blocked (private/SSRF).
    * Default: internal isPrivateIp (blocks RFC-1918, loopback, link-local, CGNAT, etc.).
