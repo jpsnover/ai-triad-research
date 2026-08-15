@@ -1,0 +1,120 @@
+{
+  "report": {
+    "gate": 0.6,
+    "core_total": 10,
+    "coverage_n": 10,
+    "coverage_rate": 1.0,
+    "missed": [],
+    "variant_gated_total": 13,
+    "variant_gated_camp_or_role": [],
+    "variant_gated_org": [
+      [
+        "2306fafc#fddc841e",
+        "Boeing 737 MAX",
+        "artifact",
+        0.95,
+        "ORG-in-proposals"
+      ]
+    ],
+    "variant_gated_source": [],
+    "variant_gated_universal": [],
+    "variant_nohint_raw_camp": [],
+    "control_nohint_raw_camp": [],
+    "variant_hint_raw_camp": [],
+    "control_hint_raw_camp": [],
+    "control_gated_total": 21
+  },
+  "variant_gated_rows": [
+    [
+      "2306fafc#3c016066",
+      "Trump executive order on AI preemption (December 2025)",
+      "legislation",
+      0.82,
+      "particular?"
+    ],
+    [
+      "2306fafc#3c016066",
+      "EU AI Act",
+      "legislation",
+      0.97,
+      "particular?"
+    ],
+    [
+      "2306fafc#3c016066",
+      "Donald Trump",
+      "person",
+      0.97,
+      "particular?"
+    ],
+    [
+      "2306fafc#d962db00",
+      "EU AI Act",
+      "legislation",
+      0.97,
+      "particular?"
+    ],
+    [
+      "2306fafc#fddc841e",
+      "Boeing 737 MAX",
+      "artifact",
+      0.95,
+      "ORG-in-proposals"
+    ],
+    [
+      "2306fafc#fddc841e",
+      "MCAS",
+      "artifact",
+      0.92,
+      "particular?"
+    ],
+    [
+      "2306fafc#c79ec266",
+      "AI Action Plan",
+      "legislation",
+      0.82,
+      "particular?"
+    ],
+    [
+      "2306fafc#2095442a",
+      "o1",
+      "artifact",
+      0.95,
+      "particular?"
+    ],
+    [
+      "2306fafc#2095442a",
+      "GPT-4o",
+      "artifact",
+      0.95,
+      "particular?"
+    ],
+    [
+      "2306fafc#2095442a",
+      "CHIPS Act",
+      "legislation",
+      0.82,
+      "particular?"
+    ],
+    [
+      "a0eaaca9#82113a5d",
+      "GDPR",
+      "legislation",
+      0.99,
+      "particular?"
+    ],
+    [
+      "a0eaaca9#ec612d7c",
+      "Latanya Sweeney",
+      "person",
+      0.97,
+      "particular?"
+    ],
+    [
+      "a0eaaca9#3c0909b1",
+      "Latanya Sweeney",
+      "person",
+      0.98,
+      "particular?"
+    ]
+  ]
+}
