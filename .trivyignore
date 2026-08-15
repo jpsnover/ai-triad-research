@@ -694,6 +694,7 @@ CVE-2026-48962  # perl-modules-5.36: perl-IO-Compress: perl-IO-Compress: Arbitra
 CVE-2026-7010  # perl-modules-5.36: HTTP::Tiny versions before 0.093 for Perl do not validate CRLF in HTTP ...
 CVE-2026-9538  # perl-modules-5.36: perl-Archive-Tar: perl-Archive-Tar: Denial of Service via crafted tar header ...
 CVE-2026-15534  # perl-modules-5.36: perl: no Debian fix as of 2026-08-12 (t/2547)
+CVE-2026-19487  # perl-modules-5.36: perl: incorrect regexp output for 5.9.4–5.41.8; no Debian bookworm fix available
 
 # -- poppler-utils (PDF rendering library) -- fix not backported to debian:bookworm
 # node:22-bookworm-slim base; apt-get upgrade -y at build time installs all available Debian
