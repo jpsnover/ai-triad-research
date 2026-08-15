@@ -67,7 +67,7 @@ RUN apt-get update \
     python3-venv \
     poppler-utils \
     curl \
-    libicu74 \
+    libicu76 \
     tini \
     && rm -rf /var/lib/apt/lists/*
 
