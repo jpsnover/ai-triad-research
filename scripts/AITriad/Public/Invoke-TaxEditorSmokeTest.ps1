@@ -157,6 +157,15 @@ function Invoke-TaxEditorSmokeTest {
         $Color = if ($Check.Pass) { 'Green' } else { 'Red' }
         Write-Host "  $Icon $($Check.Check) — $($Check.Detail)" -ForegroundColor $Color
     }
+    # t/2673 — GitHub health (status page, rate limits, GHCR) is a monitoring
+    # signal, not app health. A transient GitHub API flap must NOT sink the gate
+    # when the app itself is fully healthy — it caused a false-negative rollback on
+    # the step-1 staging isolation deploy (run 31890116255, 2026-08-15). Surface a
+    # degraded GitHub check as a CI warning; OverallPass gates only on
+    # Health/Endpoints/Azure (see the $OverallPass computation below).
+    if (-not $GitHub.Healthy) {
+        Write-Host "::warning::GitHub services degraded — monitoring signal only, does not block the traffic shift. See '=== GitHub Services ===' above."
+    }
     Write-Host ''
 
     # ── Phase 5: Analytics write/read round-trip (t/2667) ────────────────
@@ -300,7 +309,10 @@ function Invoke-TaxEditorSmokeTest {
     }
 
     $Duration = (Get-Date) - $StartTime
-    $OverallPass = $Health.Healthy -and $Failed -eq 0 -and $Azure.Healthy -and $GitHub.Healthy
+    # t/2673 — gate on app health only (Health + Endpoints + Azure). GitHubOk is
+    # reported below and surfaced as a warning when degraded, but is intentionally
+    # excluded here so a transient GitHub API flap cannot false-red the deploy gate.
+    $OverallPass = $Health.Healthy -and $Failed -eq 0 -and $Azure.Healthy
 
     Write-Host '=== Summary ===' -ForegroundColor Cyan
     $SummaryColor = if ($OverallPass) { 'Green' } else { 'Red' }
