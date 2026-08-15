@@ -219,11 +219,16 @@ function OpEdSettingsDrawer({
     setFamily(backendForModelWithFallback(globalModel));
   };
 
-  const clampWordCount = (raw: string): number | null => {
+  // While typing, keep the raw parsed value (no clamp) so intermediate digits — e.g. "80" on the
+  // way to "800" — aren't collapsed to the 300 floor, which made only 300/2000 reachable (t/2685).
+  // Clamp to [300,2000] on blur; empty ⇒ null ⇒ use the outlet band.
+  const parseWordCount = (raw: string): number | null => {
     if (raw.trim() === '') return null;
     const n = parseInt(raw, 10);
-    if (Number.isNaN(n)) return null;
-    return Math.min(2000, Math.max(300, n));
+    return Number.isNaN(n) ? null : n;
+  };
+  const clampWordCountOnBlur = () => {
+    setWordCount(prev => (prev == null ? null : Math.min(2000, Math.max(300, prev))));
   };
 
   return (
@@ -277,7 +282,8 @@ function OpEdSettingsDrawer({
                     max={2000}
                     placeholder="Use outlet band"
                     value={wordCount ?? ''}
-                    onChange={e => setWordCount(clampWordCount(e.target.value))}
+                    onChange={e => setWordCount(parseWordCount(e.target.value))}
+                    onBlur={clampWordCountOnBlur}
                   />
                   <p className="oped-field-hint">300–2000. Overrides the outlet's target length.</p>
                 </div>

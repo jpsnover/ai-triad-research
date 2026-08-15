@@ -127,6 +127,36 @@ describe('NewOpEdDialog — settings drawer', () => {
     // Back on Screen A the modified badge reflects one changed section
     expect(screen.getByLabelText(/1 setting changed/)).toBeTruthy();
   });
+
+  it('word count clamps on blur, not on keystroke — intermediate values are typeable (t/2685)', () => {
+    open();
+    fireEvent.click(screen.getByRole('button', { name: /More options/ }));
+    // 'Length & outlet' is the default section, so the override input is visible.
+    const input = screen.getByLabelText('Word count override') as HTMLInputElement;
+
+    // Regression: the old clamp ran on every change, so a below-min keystroke was collapsed to
+    // 300 immediately — making only 300/2000 reachable. Now typing is preserved; clamp is on blur.
+    fireEvent.change(input, { target: { value: '50' } });
+    expect(input.value).toBe('50');
+    fireEvent.blur(input);
+    expect(input.value).toBe('300');
+
+    // Above-max: typeable while editing, clamped to 2000 on blur.
+    fireEvent.change(input, { target: { value: '9000' } });
+    expect(input.value).toBe('9000');
+    fireEvent.blur(input);
+    expect(input.value).toBe('2000');
+
+    // A mid-band value survives untouched.
+    fireEvent.change(input, { target: { value: '800' } });
+    fireEvent.blur(input);
+    expect(input.value).toBe('800');
+
+    // Empty ⇒ null ⇒ use the outlet band (no override sent).
+    fireEvent.change(input, { target: { value: '' } });
+    fireEvent.blur(input);
+    expect(input.value).toBe('');
+  });
 });
 
 describe('NewOpEdDialog — draft + progress + cancel', () => {
