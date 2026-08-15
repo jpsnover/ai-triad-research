@@ -2,12 +2,14 @@
 
 **Ticket:** t/1767 Phase 2b (design of record: `designs/entity-ontology-proposal.md` §5, §8, §9.4); v2 revision under t/2678
 **Author:** Computational Linguist
-**Status:** v2, revised 2026-08-15 (t/2678). v1 (SHA `bc6653b095dd3a12`) was **NOT VALIDATED** —
-precision 0.765 < 0.80, driven by organization/regulatory-agency leakage into `proposals` — see
-`analyses/PREREG-t1767-phase2b.md`. v2 sharpens the organization/institution genus-differentia and
-adds an `artifact`-type guard (see **v2 revision** below). This file is the authoritative prompt
-text; the v2 PREREG (`analyses/PREREG-t2678-phase2b-v2.md`) locks the v2 SHA
-(`a33196dc529b28c4`) before its validation run.
+**Status:** v2 **VALIDATED** 2026-08-15 (t/2678). v1 (SHA `bc6653b095dd3a12`) was NOT VALIDATED —
+precision 0.765 < 0.80, driven by organization/regulatory-agency leakage into `proposals`. v2 (SHA
+`a33196dc529b28c4`) sharpens the organization/institution genus-differentia and adds an
+`artifact`-type guard (see **v2 revision** below), and passes its preregistered validation:
+**precision 1.00 (13/13), coverage 1.00, 0 gated camp-labels, 0 wrong links** (Rule 4b inconclusive
+per its conditional). See `analyses/PREREG-t2678-phase2b-v2.md`. This file is the authoritative
+prompt text; the v2 PREREG locked the v2 SHA before the run. Cleared to land into `ai-usages.json`
+by the owning role — the production-wiring tickets this instrument gates remain separate.
 
 ## Why a separate instrument
 

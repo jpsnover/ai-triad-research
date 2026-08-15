@@ -172,6 +172,97 @@ counts wrong) — the same rule v1 was judged by; no lenient re-reading substitu
 `run_extraction.py` (four-arm caller), `score.py` (mechanical scorer), `scores.json` (computed
 table). Throwaway out-of-band harness — **no production change**, exactly as v1 and Phase 0 ran.
 
-## Results (filled after the run; this section committed EMPTY before the run)
+## Results (run of 2026-08-15; protocol committed empty at `c23189ea` before the run)
 
-_To be completed after the run. Committed empty at prereg time._
+All four arms ran on `claude-sonnet-4-6`, temp 0.1, over the locked 10 statements. Raw outputs:
+`run_variant_hint.json`, `run_control_hint.json`, `run_variant_nohint.json`,
+`run_control_nohint.json`. Scorer: `score.py` → `scores.json`. Resolution: `resolve.py` vs the live
+`taxonomy/Origin/entities.json` (78 rows / 134 labels) ∪ `organizations.json` (25 names).
+
+### Verdict against the fixed rules
+
+| Rule | Threshold | v1 | v2 result | Verdict |
+|---|---|---|---|---|
+| 1. Coverage of 10 core gold | ≥ 0.80 | 1.00 | **1.00** (10/10 at/above gate) | **PASS** |
+| 2. Precision of gated `variant_hint` proposals | ≥ 0.80 | 0.765 | **1.00** (13/13) | **PASS** |
+| 3. Universals gated | 0 | 0 | **0** | **PASS** |
+| 4a. Camp labels / roles gated (`variant_hint`) | 0 | 0 | **0** (and 0 raw, any conf) | **PASS** |
+| 4b. `variant_nohint` raw camp < `control_nohint` raw camp | strict < | inconclusive | `control_nohint` raw = **0** | **INCONCLUSIVE** |
+| 5. Wrong links | 0 | 0 | **0** (6 correct links, 7 candidates) | **PASS** |
+
+**Preregistered verdict: VALIDATED (v2 of the debate variant).** Every hard rule passes; Rule 4b is
+inconclusive per its preregistered conditional (not a failure). Precision improved from the v1
+failure (0.765) to **1.00** — the two targeted teaching-text changes closed exactly the boundary
+that failed.
+
+### The v1 precision failure is closed
+
+All three v1 organization/agency-leakage errors and the artifact mis-type are gone:
+
+| v1 error (gated) | v2 outcome |
+|---|---|
+| `Ireland's Data Protection Commission` [institution], 0.85 | **fixed** — appears only under `org_mentions` (`82113a5d`), not proposed |
+| `Irish Data Protection Commission` [institution], 0.92 | **fixed** — the DPC statement gates exactly one proposal (`GDPR`); no institution proposal |
+| `Stripe` [artifact], 0.62 | **fixed at the gate** — v2 still emits `Stripe` [artifact] but at **0.55 < 0.6**, so it does not gate (also correctly in `org_mentions`); see residual below |
+| `AI Action Plan` [artifact], 0.85 | **fixed** — now typed **`legislation`** 0.82, resolves to ent-049 |
+
+The sharpened genus-differentia moved the DPC decision off the surface noun ("commission" reading as
+a framework-institution) and onto "does it act?" — and the DPC was routed to `org_mentions` on the
+only statement it appears in. The `artifact` guard re-typed the policy plan to `legislation`. Both
+held on the single sample they had to hold on.
+
+### What passed, and how strongly
+
+- **Coverage 1.00** — all 10 core particulars gated at high confidence (Donald Trump 0.97, EU AI Act
+  0.97×2, o1 0.95, GPT-4o 0.95, GDPR 0.99, MCAS 0.92, Boeing 737 MAX 0.95, Latanya Sweeney
+  0.97/0.98), plus all four borderline items (Trump EO 0.82, AI Action Plan 0.82, CHIPS Act 0.82,
+  and — this run — no S&P 500 proposal, which is not a coverage failure). The guards are
+  exclusionary and did not cost coverage, as predicted.
+- **Precision 1.00 (13/13).** All 13 gated `variant_hint` proposals are real, correctly-typed
+  particulars (7 core-gold, 3 borderline-gold as `legislation`, plus the two Sweeney person
+  mentions and both EU AI Act mentions). See the adjudication note on the scorer below.
+- **Vocabulary boundary clean** — 0 gated universals on prose dense with "risk", "oversight",
+  "model weights", "compliance".
+- **Resolution: 0 wrong links.** 6 of 13 gated proposals correctly resolved to *existing* entities
+  (ent-032 Donald Trump, ent-049 AI Action Plan, ent-023 o1, ent-024 GPT-4o, ent-048 CHIPS Act,
+  ent-071 GDPR) — every link to the correct referent. The other 7 are genuine new curation
+  candidates (EU AI Act ×2, Trump EO, Boeing 737 MAX, MCAS, Latanya Sweeney ×2). This is the
+  designed retroactive-linking behavior.
+
+### Rule 4b: inconclusive again — but a stronger null
+
+The clean no-hint test was built to remove the v1 confound (the shared `Speaker camp:` line priming
+both arms away from camp reification). With the hint stripped, **`control_nohint` still emitted 0 raw
+camp-label proposals** — so the systematic camp-as-person error Phase 0 found at n=3 does **not**
+reproduce on this n=10 sample even when the confound is removed. Rule 4a passed decisively (the
+variant emits 0 camp labels, gated or raw, hinted or not), so the variant demonstrably *does no harm
+and holds the hard gate*; but its **differential** value over the fact instrument on camp labels
+remains unproven on this sample. This is a stronger null than v1 (the confound is now excluded, not
+merely suspected). If Phase 0's finding is to be reproduced as a differential, it needs statements
+where a camp label sits in bare subject position without an adjacent `Speaker camp:` cue — a
+targeted sample this held-out set did not contain. Recorded as a limitation, not a hedge.
+
+### Residuals and adjudications (disclosed)
+
+1. **Stripe still double-channels below the gate.** `variant_hint` emits `Stripe` as `artifact`
+   0.55 *and* lists it under `org_mentions`. The 0.6 gate drops it, so it is precision-clean, but
+   the model's residual pull to also mint Stripe as an artifact persists — a lower gate would leak
+   it. The org paragraph names regulators/commissions explicitly but not payment companies typed as
+   "tools"; this is a known soft edge, not a rule failure. Not worth a further teaching change on
+   n=1 sub-gate evidence; flagged for the production monitoring the wiring tickets add.
+2. **Scorer false-positive on Boeing 737 MAX.** `score.py`'s substring `classify()` flags
+   `Boeing 737 MAX` as `ORG-in-proposals` because `boeing` is in the ORG list. Per the locked gold
+   this is a **core `artifact`** (an aircraft; Boeing the company is correctly separate in
+   `org_mentions`). Adjudicated correct — this is the "ambiguous residual printed for adjudication"
+   the scorer header anticipates, not a silent override. It is the only scorer flag in the run; the
+   13/13 precision holds without it.
+
+### Caveats (limits, not hedges)
+
+n = 10 statements from 2 debates, single model, single scoring pass by the author, same frozen
+sample as v1 (so v1→v2 is a controlled instrument comparison, but not a fresh-sample generalization).
+This validates that the two targeted teaching changes **close the v1 boundary defect** and cost no
+coverage — a within-sample confirmation, not a production error rate. The 0.6 gate remains a
+**stipulated** threshold (`metric-provenance-register.md`). No production artifact changed: the run
+is out-of-band, exactly as v1 and Phase 0 ran. Landing the instrument into `ai-usages.json` and the
+production wiring remain the separate Phase 2b tickets this instrument gates.
