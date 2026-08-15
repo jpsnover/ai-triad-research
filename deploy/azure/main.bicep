@@ -484,24 +484,31 @@ var containerEnv = paidTierEnabled
   : envWithFreeTier
 
 // ── Staging env isolation (t/2643) ──
-// Override 2 baseEnv keys and add 1 new key for staging class-A write isolation.
-// ALL three must be Bicep-declared (never --set-env-vars — wiped by next apply).
+// Override baseEnv keys for staging class-A write isolation.
+// ALL must be Bicep-declared (never --set-env-vars — wiped by next apply).
 // Get-BicepBaseEnv.ps1 -ForStaging also parses stagingEnvOverrides so
 // Sync-StagingEnv.ps1 keeps staging's template in sync on every deploy.
+//
+// AI_TRIAD_DATA_ROOT must equal TAXONOMY_CACHE_DIR (t/2061 invariant):
+// githubAPIBackend.toRepoPath() strips cacheDir (=TAXONOMY_CACHE_DIR) from
+// filePaths that resolveDataPath() builds from AI_TRIAD_DATA_ROOT. If they
+// differ, toRepoPath() cannot strip the prefix → GitHub tree lookup produces
+// wrong paths → /healthz 503 (t/2643#staging-boot).
 var stagingEnvOverrides = [
   // Force off: staging must not sync to prod's git backend (t/2643 git-worktree hazard)
   { name: 'GIT_SYNC_ENABLED',    value: '0' }
-  // Cache must not write to the (soon-to-be) RO /mnt/shared; route to state mount
+  // Redirect data root + cache to staging-state mount (t/2061 invariant: must match)
+  { name: 'AI_TRIAD_DATA_ROOT',  value: '/mnt/staging-state/cache' }
   { name: 'TAXONOMY_CACHE_DIR',  value: '/mnt/staging-state/cache' }
   // Routes all class-A writes (flags, config, calibration, keys) to isolated mount
   { name: 'AI_TRIAD_STATE_ROOT', value: '/mnt/staging-state' }
   // github-api writes go to the staging branch, not main (t/2650 class-B isolation)
   { name: 'GITHUB_BRANCH',       value: 'staging' }
 ]
-// stagingBaseEnv = baseEnv with the 4 isolation overrides applied.
+// stagingBaseEnv = baseEnv with the isolation overrides applied.
 // filter() removes the baseEnv entries that stagingEnvOverrides supersedes.
 var stagingBaseEnv = concat(
-  filter(baseEnv, e => e.name != 'TAXONOMY_CACHE_DIR' && e.name != 'GIT_SYNC_ENABLED'),
+  filter(baseEnv, e => e.name != 'AI_TRIAD_DATA_ROOT' && e.name != 'TAXONOMY_CACHE_DIR' && e.name != 'GIT_SYNC_ENABLED'),
   stagingEnvOverrides
 )
 // Rebuild the secret chain for staging — mirrors the prod chain so staging
