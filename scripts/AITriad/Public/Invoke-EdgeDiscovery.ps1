@@ -183,6 +183,14 @@ function Invoke-EdgeDiscovery {
     Set-StrictMode -Version Latest
     $ErrorActionPreference = 'Stop'
 
+    # t/2674 — surface silent-blank rationales. When the LLM omits the
+    # schema-required `rationale`, the edge is still written with rationale=''
+    # (schema contract preserved). Count those so a run that quietly drops
+    # rationales is visible in the summary, not invisible (silent-failure class
+    # shared with t/2664/t/2669). Only one mode runs per call, so a single
+    # function-scoped counter never double-counts across modes.
+    $MissingRationaleCount = 0
+
     function Save-DiscoveryLog {
         param(
             [string]$Path,
@@ -689,6 +697,7 @@ Omit pairs with no relationship. No markdown fences.
                             discovered_at = (Get-Date).ToString('yyyy-MM-dd')
                         }
 
+                        if ([string]::IsNullOrWhiteSpace($NewEdge.rationale)) { $MissingRationaleCount++ }
                         $EdgesList.Add([PSCustomObject]$NewEdge)
                         $null = $ExistingEdgeKeys.Add($EdgeKey)
                         $BatchNewEdges++
@@ -742,6 +751,9 @@ Omit pairs with no relationship. No markdown fences.
         Write-Host "  Classification batches: $($ClassifyBatches.Count)"
         Write-Host "  New edges discovered: $NewEdgeCount" -ForegroundColor Green
         Write-Host "  Total edges: $($EdgesList.Count)"
+        if ($MissingRationaleCount -gt 0) {
+            Write-Warning "Edge discovery: $MissingRationaleCount proposed edge(s) had an empty/missing rationale (LLM omitted the schema-required field); stored rationale='' for these. Inspect the model output or re-run — silent-blank rationales are a tracked gap (t/2674)."
+        }
         return
     }
 
@@ -917,6 +929,7 @@ $BatchSchemaPrompt
 
                 if ($Edge.PSObject.Properties['bidirectional']) { $Bidir = [bool]$Edge.bidirectional } else { $Bidir = $false }
                 if ($Edge.PSObject.Properties['rationale'])    { $Rationale = $Edge.rationale }           else { $Rationale = '' }
+                if ([string]::IsNullOrWhiteSpace($Rationale)) { $MissingRationaleCount++ }
                 $EdgeObj = [ordered]@{
                     source        = $SourceId
                     target        = $TargetId
@@ -1246,6 +1259,7 @@ $SchemaPrompt
 
                 if ($Edge.PSObject.Properties['bidirectional']) { $Bidir = [bool]$Edge.bidirectional } else { $Bidir = $false }
                 if ($Edge.PSObject.Properties['rationale'])    { $Rationale = $Edge.rationale }           else { $Rationale = '' }
+                if ([string]::IsNullOrWhiteSpace($Rationale)) { $MissingRationaleCount++ }
                 $EdgeObj  = [ordered]@{
                     source        = $Disc.NodeId
                     target        = $Edge.target
@@ -1376,6 +1390,7 @@ $SchemaPrompt
 
                 if ($Edge.PSObject.Properties['bidirectional']) { $Bidir = [bool]$Edge.bidirectional } else { $Bidir = $false }
                 if ($Edge.PSObject.Properties['rationale'])    { $Rationale = $Edge.rationale }           else { $Rationale = '' }
+                if ([string]::IsNullOrWhiteSpace($Rationale)) { $MissingRationaleCount++ }
                 $EdgeObj  = [ordered]@{
                     source        = $Disc.NodeId
                     target        = $Edge.target
@@ -1469,6 +1484,9 @@ $SchemaPrompt
         Write-Host "  New edge types:   $($NewEdgeTypes.Count)" -ForegroundColor Yellow
     }
     Write-Host "  Total edges in store: $($EdgesList.Count)" -ForegroundColor Cyan
+    if ($MissingRationaleCount -gt 0) {
+        Write-Warning "Edge discovery: $MissingRationaleCount proposed edge(s) had an empty/missing rationale (LLM omitted the schema-required field); stored rationale='' for these. Inspect the model output or re-run — silent-blank rationales are a tracked gap (t/2674)."
+    }
     Write-Host ''
     Write-Host 'Proposed edges need human approval. Use Approve-Edge or Review-Edges to manage.' -ForegroundColor DarkGray
     Write-Host ''
