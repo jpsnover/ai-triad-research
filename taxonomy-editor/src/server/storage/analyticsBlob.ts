@@ -55,11 +55,15 @@ export class BlobAnalyticsBackend implements AnalyticsBackend {
       const content = lines.join('\n') + '\n';
       await appendClient.appendBlock(content, Buffer.byteLength(content, 'utf-8'));
     } catch (err) {
+      const code = err instanceof RestError ? (err.code ?? String(err.statusCode)) : undefined;
+      // Greppable via `az containerapp logs` without a flight-recorder dump (t/2664)
+      console.error('[analytics-blob-append-failed]', { component: 'analytics-blob', date, code, error: String(err) });
       getGlobalRecorder()?.record({
         type: 'system.error', component: 'analytics-blob', level: 'error',
         message: 'analytics blob append failed',
         error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
+      throw err;
     }
   }
 
