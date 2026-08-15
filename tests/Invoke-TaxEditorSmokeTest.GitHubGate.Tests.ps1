@@ -19,41 +19,37 @@
     Both gate arms are proven: (1) a GitHub flap with a healthy app yields PASS;
     (2) each real app failure (Health / Endpoints / Azure) still sinks the gate.
 
-    Mock the PRIVATE primitives, not the public phase functions. We mock:
+    Offline mocking — mock the PRIVATE primitives, not the public phase functions:
       - Invoke-HealthProbe   (innermost of Test-TaxEditorHealth) + Start-Sleep
-      - Invoke-RemoteCheck   (the per-endpoint HTTP primitive of
-                              Test-TaxEditorEndpoints AND Invoke-ListLoadContractTest)
-      - New-AnonymousWebSession (the anon-session primitive used by the -UserType
-                              Anonymous Community re-scan; raw Invoke-WebRequest)
-    and let the real Test-TaxEditorHealth / Test-TaxEditorEndpoints run over them.
-    Test-AzureHealth / Test-GitHubHealth are mocked directly (they are the phase
-    boundary and intercept reliably).
+      - Invoke-RemoteCheck   (per-endpoint HTTP primitive of Test-TaxEditorEndpoints,
+                              Invoke-ListLoadContractTest, AND the Phase-5 analytics
+                              round-trip). Path-filtered for the two analytics routes
+                              (below); a general mock serves the rest.
+      - New-AnonymousWebSession (anon-session primitive of the -UserType Anonymous
+                              Community re-scan; raw Invoke-WebRequest)
+    Test-AzureHealth / Test-GitHubHealth are mocked directly (phase boundary).
 
-    Why mock the primitive, not the public Test-TaxEditorEndpoints: an earlier
-    revision did `Mock Test-TaxEditorEndpoints`. It ran green on Windows but on the
-    ubuntu CI runner the mock did NOT intercept — the real 26-endpoint scan hit the
-    network, 2 endpoints failed, and ARM 1 false-red (run 31894084737). Same
-    InModuleScope non-interception that first bit the public Test-TaxEditorHealth
-    mock. Mocking the innermost private primitive is the proven-on-CI recipe
-    (Invoke-TaxEditorSmokeTest.ColdStart.Tests.ps1).
+    Analytics phase (t/2667, Phase 5) post-dates this branch's cut and arrived via a
+    merge from main. Its delta read-back probe (Class-3 silent-drop detector) does
+    GET /api/analytics/query (baseline) → POST /api/analytics/event (ok:true) → GET
+    query again and requires totalEvents to increase. It uses Invoke-RemoteCheck but
+    reads analytics-specific body fields, so the healthy arms path-filter that
+    primitive to return summary.totalEvents (5→6) and ok:true — mirroring
+    Invoke-TaxEditorSmokeTest.Analytics.Tests.ps1. Without it the probe reports
+    "Baseline read failed" / "Unexpected write response" and false-reds the app.
 
-    Healthy Invoke-RemoteCheck mock returns the real return shape
-    (Success/StatusCode/ResponseMs/Body/ContentType/RawBody/Error) with a UNIFORM
-    Body of `[PSCustomObject]@{ nodes = @(); id = 'stub-item' }`. That one shape
-    satisfies BOTH consumers under Set-StrictMode:
-      - nodes routes (/api/taxonomy/*): `$Check.Body.nodes` resolves (empty) — no
-        strict-mode PropertyNotFound throw, NodeCount 0.
-      - the two list->load contract tests (Community + Debate,
-        Invoke-ListLoadContractTest): a non-null item WITH an `id` → the test takes
-        the deterministic load path (load also mocked → Pass), instead of the
-        empty-list skip. An earlier `Body = @()` relied on the empty-array skip;
-        that array read back as $null on the CI runner, so `@($null)` looked like a
-        1-item list with a null id → "list item has no 'id'" → 2 contract-test rows
-        false-red ARM 1 (run 31901726143, EndpointsFailed=2 at 146ms, no network —
-        proving Invoke-RemoteCheck WAS intercepting; the fault was fixture shape,
-        not interception). RawBody carries a root div + script so the SPA '/' check
-        passes. ARM 1's -Because surfaces $result.FailedEndpoints so any future
-        regression names the offending endpoint(s) directly in the CI log.
+    The general (non-analytics) Invoke-RemoteCheck mock returns a UNIFORM Body of
+    [PSCustomObject]@{ nodes = @(); id = 'stub-item' }: nodes routes resolve
+    `.nodes` (no strict-mode throw) and the list->load contract tests get a non-null
+    item with an id (deterministic load path), avoiding an empty-array Body that read
+    back as $null on the CI runner. RawBody carries a root div + script so the SPA
+    '/' check passes. ARM 1's -Because surfaces $result.FailedEndpoints so any future
+    regression names the offending endpoint in the CI log.
+
+    Why mock the primitive, not the public Test-TaxEditorEndpoints: mocking the
+    public function did not intercept under InModuleScope on the ubuntu runner (same
+    quirk that first bit the public Test-TaxEditorHealth mock). Mocking the innermost
+    private primitive is the proven-on-CI recipe (ColdStart / Analytics test files).
 #>
 
 BeforeAll {
@@ -80,6 +76,23 @@ Describe 'Invoke-TaxEditorSmokeTest GitHub-flap gate exclusion (t/2673)' -Tag 'h
                     ContentType = 'application/json'
                     RawBody = '<!doctype html><html><body><div id="root"></div><script src="/assets/app.js"></script></body></html>'
                     Error = $null
+                }
+            }
+            $script:AnalyticsQ = 0
+            Mock Invoke-RemoteCheck -ParameterFilter { $Path -eq '/api/analytics/query' } -MockWith {
+                $script:AnalyticsQ++
+                $total = if ($script:AnalyticsQ -eq 1) { 5 } else { 6 }
+                [PSCustomObject]@{
+                    Success = $true; StatusCode = 200; ResponseMs = 10
+                    Body = [PSCustomObject]@{ summary = [PSCustomObject]@{ totalEvents = $total } }
+                    ContentType = 'application/json'; RawBody = ''; Error = $null
+                }
+            }
+            Mock Invoke-RemoteCheck -ParameterFilter { $Path -eq '/api/analytics/event' } -MockWith {
+                [PSCustomObject]@{
+                    Success = $true; StatusCode = 200; ResponseMs = 10
+                    Body = [PSCustomObject]@{ ok = $true; count = 1 }
+                    ContentType = 'application/json'; RawBody = ''; Error = $null
                 }
             }
             Mock Test-AzureHealth  -MockWith { [PSCustomObject]@{ Healthy = $true; Checks = @() } }
@@ -121,6 +134,23 @@ Describe 'Invoke-TaxEditorSmokeTest GitHub-flap gate exclusion (t/2673)' -Tag 'h
                     Error = $null
                 }
             }
+            $script:AnalyticsQ = 0
+            Mock Invoke-RemoteCheck -ParameterFilter { $Path -eq '/api/analytics/query' } -MockWith {
+                $script:AnalyticsQ++
+                $total = if ($script:AnalyticsQ -eq 1) { 5 } else { 6 }
+                [PSCustomObject]@{
+                    Success = $true; StatusCode = 200; ResponseMs = 10
+                    Body = [PSCustomObject]@{ summary = [PSCustomObject]@{ totalEvents = $total } }
+                    ContentType = 'application/json'; RawBody = ''; Error = $null
+                }
+            }
+            Mock Invoke-RemoteCheck -ParameterFilter { $Path -eq '/api/analytics/event' } -MockWith {
+                [PSCustomObject]@{
+                    Success = $true; StatusCode = 200; ResponseMs = 10
+                    Body = [PSCustomObject]@{ ok = $true; count = 1 }
+                    ContentType = 'application/json'; RawBody = ''; Error = $null
+                }
+            }
             Mock Test-AzureHealth  -MockWith { [PSCustomObject]@{ Healthy = $true; Checks = @() } }
             Mock Test-GitHubHealth -MockWith { [PSCustomObject]@{ Healthy = $false; Checks = @() } }
 
@@ -151,6 +181,23 @@ Describe 'Invoke-TaxEditorSmokeTest GitHub-flap gate exclusion (t/2673)' -Tag 'h
                     Error = $null
                 }
             }
+            $script:AnalyticsQ = 0
+            Mock Invoke-RemoteCheck -ParameterFilter { $Path -eq '/api/analytics/query' } -MockWith {
+                $script:AnalyticsQ++
+                $total = if ($script:AnalyticsQ -eq 1) { 5 } else { 6 }
+                [PSCustomObject]@{
+                    Success = $true; StatusCode = 200; ResponseMs = 10
+                    Body = [PSCustomObject]@{ summary = [PSCustomObject]@{ totalEvents = $total } }
+                    ContentType = 'application/json'; RawBody = ''; Error = $null
+                }
+            }
+            Mock Invoke-RemoteCheck -ParameterFilter { $Path -eq '/api/analytics/event' } -MockWith {
+                [PSCustomObject]@{
+                    Success = $true; StatusCode = 200; ResponseMs = 10
+                    Body = [PSCustomObject]@{ ok = $true; count = 1 }
+                    ContentType = 'application/json'; RawBody = ''; Error = $null
+                }
+            }
             Mock Test-AzureHealth  -MockWith { [PSCustomObject]@{ Healthy = $true; Checks = @() } }
             Mock Test-GitHubHealth -MockWith { [PSCustomObject]@{ Healthy = $true; Checks = @() } }
 
@@ -173,7 +220,8 @@ Describe 'Invoke-TaxEditorSmokeTest GitHub-flap gate exclusion (t/2673)' -Tag 'h
             Mock Start-Sleep -MockWith { }
             Mock New-AnonymousWebSession -MockWith { [Microsoft.PowerShell.Commands.WebRequestSession]::new() }
             # Every endpoint probe fails → the real Test-TaxEditorEndpoints produces
-            # failing rows → EndpointsFailed > 0 → the gate must still sink.
+            # failing rows → EndpointsFailed > 0 → the gate must still sink. (Analytics
+            # paths fail too under this blanket mock — consistent with app-down.)
             Mock Invoke-RemoteCheck -MockWith {
                 [PSCustomObject]@{
                     Success = $false; StatusCode = 500; ResponseMs = 12; Body = $null
@@ -207,6 +255,23 @@ Describe 'Invoke-TaxEditorSmokeTest GitHub-flap gate exclusion (t/2673)' -Tag 'h
                     ContentType = 'application/json'
                     RawBody = '<!doctype html><html><body><div id="root"></div><script src="/assets/app.js"></script></body></html>'
                     Error = $null
+                }
+            }
+            $script:AnalyticsQ = 0
+            Mock Invoke-RemoteCheck -ParameterFilter { $Path -eq '/api/analytics/query' } -MockWith {
+                $script:AnalyticsQ++
+                $total = if ($script:AnalyticsQ -eq 1) { 5 } else { 6 }
+                [PSCustomObject]@{
+                    Success = $true; StatusCode = 200; ResponseMs = 10
+                    Body = [PSCustomObject]@{ summary = [PSCustomObject]@{ totalEvents = $total } }
+                    ContentType = 'application/json'; RawBody = ''; Error = $null
+                }
+            }
+            Mock Invoke-RemoteCheck -ParameterFilter { $Path -eq '/api/analytics/event' } -MockWith {
+                [PSCustomObject]@{
+                    Success = $true; StatusCode = 200; ResponseMs = 10
+                    Body = [PSCustomObject]@{ ok = $true; count = 1 }
+                    ContentType = 'application/json'; RawBody = ''; Error = $null
                 }
             }
             Mock Test-AzureHealth  -MockWith { [PSCustomObject]@{ Healthy = $false; Checks = @() } }
