@@ -19,13 +19,30 @@
     Both gate arms are proven: (1) a GitHub flap with a healthy app yields PASS;
     (2) each real app failure (Health / Endpoints / Azure) still sinks the gate.
 
-    Health-phase mocking: we mock the innermost private Invoke-HealthProbe (and
-    Start-Sleep), NOT the public Test-TaxEditorHealth, and let the real
-    Test-TaxEditorHealth retry loop run over the mocked probe. An earlier revision
-    mocked Test-TaxEditorHealth directly; that ran green on Windows but on the CI
-    runner the mock did not intercept — the real health phase hit https://stub
-    (~2s vs ~160ms mocked), sank HealthOk, and false-red ARM 1. This is the exact
-    proven-on-CI recipe used by Invoke-TaxEditorSmokeTest.ColdStart.Tests.ps1.
+    Mock the PRIVATE primitives, not the public phase functions. We mock:
+      - Invoke-HealthProbe   (innermost of Test-TaxEditorHealth) + Start-Sleep
+      - Invoke-RemoteCheck   (the per-endpoint HTTP primitive of
+                              Test-TaxEditorEndpoints AND Invoke-ListLoadContractTest)
+      - New-AnonymousWebSession (the anon-session primitive used by the -UserType
+                              Anonymous Community re-scan; raw Invoke-WebRequest)
+    and let the real Test-TaxEditorHealth / Test-TaxEditorEndpoints run over them.
+    Test-AzureHealth / Test-GitHubHealth are mocked directly (they are the phase
+    boundary and intercept reliably).
+
+    Why mock the primitive, not the public Test-TaxEditorEndpoints: an earlier
+    revision did `Mock Test-TaxEditorEndpoints`. It ran green on Windows but on the
+    ubuntu CI runner the mock did NOT intercept — the real 26-endpoint scan hit the
+    network, 2 endpoints failed (EndpointsFailed=2), and ARM 1 false-red (run
+    31894084737). Same InModuleScope non-interception that first bit the health
+    mock (public Test-TaxEditorHealth). Mocking the innermost private primitive is
+    the proven-on-CI recipe (Invoke-TaxEditorSmokeTest.ColdStart.Tests.ps1).
+
+    Invoke-RemoteCheck mock shape mirrors the real return object
+    (Success/StatusCode/ResponseMs/Body/ContentType/RawBody/Error). Healthy RawBody
+    carries a root div + script so the SPA-shell '/' check passes; Body is an empty
+    array so (a) the strict-mode `$Check.Body.nodes` guard is skipped for nodes
+    routes and (b) the list->load contract test sees an empty list and skips
+    gracefully (Pass=$true) rather than a null-item id failure.
 #>
 
 BeforeAll {
@@ -44,11 +61,14 @@ Describe 'Invoke-TaxEditorSmokeTest GitHub-flap gate exclusion (t/2673)' -Tag 'h
                 $r.Timestamp = (Get-Date).ToString('o'); $r
             }
             Mock Start-Sleep -MockWith { }
-            Mock Test-TaxEditorEndpoints -MockWith {
-                @([PSCustomObject]@{
-                    Endpoint = '/api/models'; Category = 'Health'; Description = 'stub'
-                    Status = 200; Pass = $true; Ms = 42; NodeCount = 0; Error = $null
-                })
+            Mock New-AnonymousWebSession -MockWith { [Microsoft.PowerShell.Commands.WebRequestSession]::new() }
+            Mock Invoke-RemoteCheck -MockWith {
+                [PSCustomObject]@{
+                    Success = $true; StatusCode = 200; ResponseMs = 42; Body = @()
+                    ContentType = 'application/json'
+                    RawBody = '<!doctype html><html><body><div id="root"></div><script src="/assets/app.js"></script></body></html>'
+                    Error = $null
+                }
             }
             Mock Test-AzureHealth  -MockWith { [PSCustomObject]@{ Healthy = $true; Checks = @() } }
             Mock Test-GitHubHealth -MockWith {
@@ -78,11 +98,14 @@ Describe 'Invoke-TaxEditorSmokeTest GitHub-flap gate exclusion (t/2673)' -Tag 'h
                 $r.Timestamp = (Get-Date).ToString('o'); $r
             }
             Mock Start-Sleep -MockWith { }
-            Mock Test-TaxEditorEndpoints -MockWith {
-                @([PSCustomObject]@{
-                    Endpoint = '/api/models'; Category = 'Health'; Description = 'stub'
-                    Status = 200; Pass = $true; Ms = 42; NodeCount = 0; Error = $null
-                })
+            Mock New-AnonymousWebSession -MockWith { [Microsoft.PowerShell.Commands.WebRequestSession]::new() }
+            Mock Invoke-RemoteCheck -MockWith {
+                [PSCustomObject]@{
+                    Success = $true; StatusCode = 200; ResponseMs = 42; Body = @()
+                    ContentType = 'application/json'
+                    RawBody = '<!doctype html><html><body><div id="root"></div><script src="/assets/app.js"></script></body></html>'
+                    Error = $null
+                }
             }
             Mock Test-AzureHealth  -MockWith { [PSCustomObject]@{ Healthy = $true; Checks = @() } }
             Mock Test-GitHubHealth -MockWith { [PSCustomObject]@{ Healthy = $false; Checks = @() } }
@@ -104,11 +127,14 @@ Describe 'Invoke-TaxEditorSmokeTest GitHub-flap gate exclusion (t/2673)' -Tag 'h
                 $r.Timestamp = (Get-Date).ToString('o'); $r
             }
             Mock Start-Sleep -MockWith { }
-            Mock Test-TaxEditorEndpoints -MockWith {
-                @([PSCustomObject]@{
-                    Endpoint = '/api/models'; Category = 'Health'; Description = 'stub'
-                    Status = 200; Pass = $true; Ms = 42; NodeCount = 0; Error = $null
-                })
+            Mock New-AnonymousWebSession -MockWith { [Microsoft.PowerShell.Commands.WebRequestSession]::new() }
+            Mock Invoke-RemoteCheck -MockWith {
+                [PSCustomObject]@{
+                    Success = $true; StatusCode = 200; ResponseMs = 42; Body = @()
+                    ContentType = 'application/json'
+                    RawBody = '<!doctype html><html><body><div id="root"></div><script src="/assets/app.js"></script></body></html>'
+                    Error = $null
+                }
             }
             Mock Test-AzureHealth  -MockWith { [PSCustomObject]@{ Healthy = $true; Checks = @() } }
             Mock Test-GitHubHealth -MockWith { [PSCustomObject]@{ Healthy = $true; Checks = @() } }
@@ -130,11 +156,14 @@ Describe 'Invoke-TaxEditorSmokeTest GitHub-flap gate exclusion (t/2673)' -Tag 'h
                 $r.Timestamp = (Get-Date).ToString('o'); $r
             }
             Mock Start-Sleep -MockWith { }
-            Mock Test-TaxEditorEndpoints -MockWith {
-                @([PSCustomObject]@{
-                    Endpoint = '/api/models'; Category = 'Health'; Description = 'stub'
-                    Status = 500; Pass = $false; Ms = 12; NodeCount = 0; Error = 'HTTP 500'
-                })
+            Mock New-AnonymousWebSession -MockWith { [Microsoft.PowerShell.Commands.WebRequestSession]::new() }
+            # Every endpoint probe fails → the real Test-TaxEditorEndpoints produces
+            # failing rows → EndpointsFailed > 0 → the gate must still sink.
+            Mock Invoke-RemoteCheck -MockWith {
+                [PSCustomObject]@{
+                    Success = $false; StatusCode = 500; ResponseMs = 12; Body = $null
+                    ContentType = 'application/json'; RawBody = ''; Error = 'HTTP 500'
+                }
             }
             Mock Test-AzureHealth  -MockWith { [PSCustomObject]@{ Healthy = $true; Checks = @() } }
             Mock Test-GitHubHealth -MockWith { [PSCustomObject]@{ Healthy = $true; Checks = @() } }
@@ -155,11 +184,14 @@ Describe 'Invoke-TaxEditorSmokeTest GitHub-flap gate exclusion (t/2673)' -Tag 'h
                 $r.Timestamp = (Get-Date).ToString('o'); $r
             }
             Mock Start-Sleep -MockWith { }
-            Mock Test-TaxEditorEndpoints -MockWith {
-                @([PSCustomObject]@{
-                    Endpoint = '/api/models'; Category = 'Health'; Description = 'stub'
-                    Status = 200; Pass = $true; Ms = 42; NodeCount = 0; Error = $null
-                })
+            Mock New-AnonymousWebSession -MockWith { [Microsoft.PowerShell.Commands.WebRequestSession]::new() }
+            Mock Invoke-RemoteCheck -MockWith {
+                [PSCustomObject]@{
+                    Success = $true; StatusCode = 200; ResponseMs = 42; Body = @()
+                    ContentType = 'application/json'
+                    RawBody = '<!doctype html><html><body><div id="root"></div><script src="/assets/app.js"></script></body></html>'
+                    Error = $null
+                }
             }
             Mock Test-AzureHealth  -MockWith { [PSCustomObject]@{ Healthy = $false; Checks = @() } }
             Mock Test-GitHubHealth -MockWith { [PSCustomObject]@{ Healthy = $true; Checks = @() } }
