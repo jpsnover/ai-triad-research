@@ -509,7 +509,10 @@ export async function readOrganizations(): Promise<unknown | null> {
   try {
     const p = path.join(getTaxonomyDir(), 'organizations.json');
     const raw = await backend.readFile(p, { ref: 'main' });
-    if (raw === null) return null;
+    if (raw === null) {
+      log.server.warn({ path: p, ref: 'main' }, 'readOrganizations: file absent');
+      return null;
+    }
     return JSON.parse(raw);
   } catch (err) {
     log.server.warn({ err }, 'readOrganizations failed');
@@ -528,7 +531,10 @@ export async function readOrganizationEdges(): Promise<OrganizationEdge[] | null
   try {
     const p = path.join(getTaxonomyDir(), 'organization_edges.json');
     const raw = await backend.readFile(p, { ref: 'main' });
-    if (raw === null) return null;
+    if (raw === null) {
+      log.server.warn({ path: p, ref: 'main' }, 'readOrganizationEdges: file absent');
+      return null;
+    }
     const data = JSON.parse(raw);
     return (data as { edges?: OrganizationEdge[] })?.edges ?? [];
   } catch (err) {
@@ -586,7 +592,10 @@ export async function readEntities(): Promise<Entity[] | null> {
   try {
     const p = path.join(getTaxonomyDir(), 'entities.json');
     const raw = await backend.readFile(p, { ref: 'main' });
-    if (raw === null) return null;
+    if (raw === null) {
+      log.server.warn({ path: p, ref: 'main' }, 'readEntities: file absent');
+      return null;
+    }
     const data = JSON.parse(raw) as { entities?: Entity[] };
     const entities = data.entities ?? [];
     entitiesCache = { at: Date.now(), entities };
@@ -613,7 +622,11 @@ export async function readEntities(): Promise<Entity[] | null> {
  */
 export async function readEntityRegistry(): Promise<Map<string, Entity> | null> {
   const entities = await readEntities();
-  return entities ? new Map(entities.map(e => [e.id, e])) : null;
+  if (entities === null) {
+    log.server.warn({ ref: 'main' }, 'readEntityRegistry: entity store absent');
+    return null;
+  }
+  return new Map(entities.map(e => [e.id, e]));
 }
 
 // ── Entity Mentions (derived artifact) ──

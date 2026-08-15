@@ -62,10 +62,15 @@ export const AFFECT_SATURATION_RATE: Record<AffectCategory, number> = {
   empathy: 4.0,
 };
 
+// Provisional fit from t/1771 + research/comp-linguist/analyses/t1771-affect/provisional-fit.md.
+// Replaces the pre-fit stipulated vector that made the 0.60 target unreachable (ceiling 0.580,
+// 100% of real turns below). Refit → median affect_appropriateness 0.40→0.63. Row stays
+// stipulated (provisional). Values from runs after this land are NOT comparable to the interim
+// post-t/1785 window. MAX_ACCEPTABLE_DEVIATION (0.35) is unchanged.
 export const AFFECT_PHASE_BASELINES: Record<Exclude<DebatePhase, 'terminated'>, AffectProfile> = {
-  confrontation: { urgency: 0.30, fear: 0.20, hope: 0.17, outrage: 0.17, empathy: 0.14 },
-  argumentation: { urgency: 0.20, fear: 0.12, hope: 0.30, outrage: 0.09, empathy: 0.24 },
-  concluding:    { urgency: 0.25, fear: 0.08, hope: 0.39, outrage: 0.04, empathy: 0.29 },
+  confrontation: { urgency: 0.06, fear: 0.36, hope: 0.09, outrage: 0.10, empathy: 0.40 },
+  argumentation: { urgency: 0.07, fear: 0.39, hope: 0.09, outrage: 0.08, empathy: 0.37 },
+  concluding:    { urgency: 0.09, fear: 0.30, hope: 0.10, outrage: 0.11, empathy: 0.40 },
 };
 
 const INTENSITY_WEIGHTS: Record<AffectCategory, number> = {

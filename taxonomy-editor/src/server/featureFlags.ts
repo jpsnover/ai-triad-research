@@ -265,6 +265,7 @@ function appendAudit(entry: FlagAuditEntry): void {
     fs.mkdirSync(path.dirname(p), { recursive: true });
     fs.appendFileSync(p, JSON.stringify(entry) + '\n');
   } catch (err) {
+    log.server.warn({ err }, 'Failed to append feature-flag audit entry');
     getGlobalRecorder()?.record({
       type: 'system.error', component: 'feature-flags', level: 'warn',
       message: 'Failed to append feature-flag audit entry',
