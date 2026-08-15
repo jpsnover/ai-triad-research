@@ -7,6 +7,7 @@
 // the topic/policy reverse indexes, and the query helpers the REST routes call.
 
 import { readOrganizations, readOrganizationEdges } from './storage/fileIO.js';
+import { log } from './logger.js';
 import { getGlobalRecorder } from '../../../lib/flight-recorder/index.js';
 
 export type { Pov, PovStance, TopicEngagement, PolicyEngagement, Organization, OrganizationEdgeType, OrganizationEdge } from '../../../lib/organizations/types.js';
@@ -82,6 +83,7 @@ async function load(): Promise<OrgIndexes> {
     const edges = Array.isArray(edgesRaw) ? edgesRaw.filter(e => e && typeof e.source === 'string') : [];
     cache = buildIndexes(orgs, edges);
   } catch (err) {
+    log.server.warn({ err }, 'Failed to load organizations.json; serving empty set');
     getGlobalRecorder()?.record({
       type: 'system.error', component: 'organizations', level: 'error',
       message: 'Failed to load organizations.json; serving empty set',
