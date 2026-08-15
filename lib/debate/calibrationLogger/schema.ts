@@ -13,6 +13,7 @@ import type { AgentUtility } from '../agentUtility.js';
 export type { AgentUtility } from '../agentUtility.js';
 import type { CruxMatchStats } from './extract-metrics.js';
 export type { CruxMatchStats } from './extract-metrics.js';
+import type { AffectProfile } from '../affectSignals.js';
 
 // ── Calibration data point schema ──────────────────────────
 
@@ -385,6 +386,18 @@ export interface CalibrationDataPoint {
   affect_intensity_variance: number | null;
   /** Mean affect appropriateness score (deviation from phase baseline). */
   affect_appropriateness: number | null;
+  /**
+   * Per-phase share-normalized affect profile aggregate (t/2676). Re-fit input for
+   * deriving AFFECT_PHASE_BASELINES from corpus data. Each phase entry holds the
+   * mean of per-turn share-normalized profiles (profile[cat]/total) for turns in
+   * that phase, plus n_turns (the weight for corpus aggregation). Absent on legacy
+   * rows and when no qualifying turns exist. Values at 4dp.
+   * Provenance: stipulated → derived once CL re-fits on ≥N post-t/2677 debates.
+   */
+  affect_profile_by_phase?: Partial<Record<'confrontation' | 'argumentation' | 'concluding', {
+    profile_mean: AffectProfile;
+    n_turns: number;
+  }>>;
 
   // ── Source authority (Wachsmuth: Credibility, t/1122) ──
   /** Mean venue tier score of cited sources [0,1]. */
