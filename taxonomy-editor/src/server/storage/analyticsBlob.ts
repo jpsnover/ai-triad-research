@@ -76,7 +76,8 @@ export class BlobAnalyticsBackend implements AnalyticsBackend {
       return text.split('\n').filter(Boolean);
     } catch (err) {
       if (isNotFound(err)) return [];
-      log.analytics.warn({ err, date }, 'analytics blob readLines failed');
+      const code = err instanceof RestError ? (err.code ?? String(err.statusCode)) : undefined;
+      log.analytics.warn({ err, date, code }, 'analytics blob readLines failed');
       getGlobalRecorder()?.record({
         type: 'system.error', component: 'analytics-blob', level: 'error',
         message: 'analytics blob readLines failed',
@@ -94,7 +95,8 @@ export class BlobAnalyticsBackend implements AnalyticsBackend {
         if (match) dates.push(match[1]);
       }
     } catch (err) {
-      log.analytics.warn({ err }, 'analytics blob listDates failed');
+      const code = err instanceof RestError ? (err.code ?? String(err.statusCode)) : undefined;
+      log.analytics.warn({ err, code }, 'analytics blob listDates failed');
       getGlobalRecorder()?.record({
         type: 'system.error', component: 'analytics-blob', level: 'error',
         message: 'analytics blob listDates failed',
