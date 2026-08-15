@@ -151,6 +151,100 @@ rejected. Every outcome is reported as measured.
 `scores.json` (computed table). The harness is a throwaway out-of-band caller — **no production
 change**, exactly as Phase 0 ran.
 
-## Results
+## Results (run of 2026-08-15; protocol committed empty at `b17cfd84` before the run)
 
-**Not yet run.**
+Both arms ran on `claude-sonnet-4-6`, temp 0.1, over the locked 10 statements. Raw outputs:
+`run_variant.json`, `run_control.json`. Scorer: `score.py` → `scores.json`. Resolution vs the live
+`entities.json` (78) ∪ `organizations.json` (44 names).
+
+### Verdict against the fixed rules
+
+| Rule | Threshold | Result | Verdict |
+|---|---|---|---|
+| 1. Coverage of 10 core gold | ≥ 0.80 | **1.00** (10/10 proposed at/above gate) | **PASS** |
+| 2. Precision of gated variant proposals | ≥ 0.80 | **0.765** (13/17) | **FAIL** |
+| 3. Universals gated | 0 | **0** | **PASS** |
+| 4a. Camp labels / roles gated (variant) | 0 | **0** (and 0 raw, any confidence) | **PASS** |
+| 4b. Variant raw camp < control raw camp | strict < | control raw = **0** | **INCONCLUSIVE** |
+| 5. Wrong links | 0 | **0** (6 correct links, 9 curation candidates) | **PASS** |
+
+**Preregistered verdict: NOT VALIDATED (v1 of the debate variant).** Failed axis: Rule 2 (precision).
+Per the failure disposition (no goalpost moves), this is reported as measured and the variant needs
+one more separately-preregistered revision before production.
+
+### What passed, and strongly
+
+- **Coverage 1.00.** All 10 core world-knowledge particulars were proposed at high confidence
+  (Donald Trump 0.97, EU AI Act 0.98/0.97, o1 0.95, GPT-4o 0.95, GDPR 0.99, MCAS 0.80, Latanya
+  Sweeney 0.97/0.98) — plus all four borderline items (Trump EO 0.72, AI Action Plan 0.85, CHIPS
+  Act 0.82, S&P 500 0.60). Statement-side extraction reaches debate mentions the facts alias-table
+  cannot, confirming Phase 0's mechanism at n=10.
+- **Both zero-entity precision probes returned 0 gated proposals** under the variant.
+- **Vocabulary boundary clean:** zero universals/contested vocabulary gated, on prose dense with
+  "risk", "oversight", "model weights", "compliance".
+- **Resolution: 0 wrong links.** 6 of 17 gated proposals correctly resolved to *existing* entities
+  (ent-032 Trump, ent-023 o1, ent-024 GPT-4o, ent-048 CHIPS, ent-071 GDPR, ent-076 AI Action Plan)
+  — a live demonstration that the retroactive-linking path (§7) would attach these debate mentions
+  to the curated store. The other 9 are genuine new curation candidates.
+
+### Why Rule 2 failed — the one actionable finding
+
+4 of 17 gated proposals were errors, and **3 of the 4 are organization/agency leakage into the
+`proposals` channel** — the exact boundary the variant's teaching tried to hold:
+
+| proposal | conf | error | note |
+|---|---|---|---|
+| `Stripe` [artifact] | 0.62 | org in proposals | **also** listed under `org_mentions` — double-channelled, not omitted |
+| `Ireland's Data Protection Commission` [institution] | 0.85 | agentive agency typed `institution` | routed to proposals, NOT org_mentions |
+| `Irish Data Protection Commission` [institution] | 0.92 | same, second statement | consistent error, not noise |
+| `AI Action Plan` [artifact] | 0.85 | mis-typed (policy plan ≠ AI tool) | resolution-absorbed → links to ent-076, so downstream-harmless |
+
+The dominant, non-absorbed failure mode is **the organization-vs-institution genus-differentia
+boundary**: a named regulator (a *data-protection commission*) reads to the model as a "named
+framework-institution" and is proposed as an `institution` entity rather than routed to
+`org_mentions`. The variant's one-line rule ("a named government agency that acts … is an
+organization") did not carry against the surface pull of the noun phrase, and it did so
+*consistently* (both DPC occurrences), so this is a systematic gap, not a stochastic miss — the same
+class of finding Phase 0 made about camp labels.
+
+**Verdict sensitivity, disclosed:** the fail hinges partly on counting the resolution-absorbed
+`AI Action Plan` mis-type as an error (the locked rule 2 does: "a mis-typed particular counts
+wrong"). Under a resolution-aware lenient reading that exempts it, precision is 14/17 = **0.824**
+(a marginal pass). The verdict is reported by the **locked strict rule** (NOT VALIDATED); either way
+the organization/agency leakage (3 errors) is the material, actionable defect.
+
+### Rule 4 is inconclusive, and why (a design limitation, stated as a limit)
+
+The camp-label check has two clauses. The hard clause **passed**: the variant emitted **zero** camp
+labels, gated or raw. But the value-demonstration clause is **inconclusive**, because the CONTROL
+(fact instrument) *also* emitted zero raw camp labels on this sample — so the systematic error
+Phase 0 found at n=3 did not reproduce here, and the variant's teaching-text suppression could not
+be shown to add differential value.
+
+The likely cause is a **confound I preregistered as a risk**: for single-variable purity both arms
+received the identical user message, which included a `Speaker camp: <camp>` line. That line
+plausibly primes *both* arms away from reifying camps as persons — masking the very effect the
+variant targets. The clean test strips the camp hint from the user message so the system-prompt
+exclusion is the only camp signal. That is a required arm in the revision run below.
+
+### Required revision (v2, separately preregistered before its numbers are trusted)
+
+1. **Sharpen the organization/institution boundary.** Give the agency-vs-framework test explicitly
+   with the DPC as a worked negative example ("a data-protection commission, an agency, a regulator
+   *acts* → org_mentions; reserve `institution` for a non-agentive framework such as a named treaty
+   regime or 'common law'"). Add a tie-break: **if in doubt between organization and institution,
+   route to `org_mentions`.**
+2. **Guard the `artifact` type** so a named policy/plan/act is never `artifact` (it is `legislation`
+   or `institution`).
+3. **Re-run the camp-label arm without the shared `Speaker camp:` user hint**, so Rule 4b can
+   actually resolve.
+
+### Caveats (limits, not hedges)
+
+n = 10 statements from 2 debates, single model, single scoring pass by the author. This validates
+the instrument's *behavior class* on real argumentative prose — strong coverage, clean vocabulary
+boundary, clean camp-label suppression, but a real organization/agency-leakage defect — not a
+production error rate. The confidence gate (0.6) remains a **stipulated** threshold
+(`metric-provenance-register.md`). No production artifact changed: the run is out-of-band, exactly
+as Phase 0 ran.
+
