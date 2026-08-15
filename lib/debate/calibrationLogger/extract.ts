@@ -34,6 +34,7 @@ import {
   computeTopicCoherence,
   computeClarityMetrics,
   computeAffectSignals,
+  computeAffectProfileByPhase,
   computeCampInsularity,
   computePeerReferencing,
   computeLocalSufficiency,
@@ -366,6 +367,7 @@ export function extractCalibrationData(
 
   // ── Affect signals (Wachsmuth: Emotional Appeal, t/1121) ──
   const { affectIntensityMean, affectIntensityVariance, affectAppropMean } = computeAffectSignals(session, rounds);
+  const affectProfileByPhase = computeAffectProfileByPhase(session, rounds);
 
   // ── Source authority (Wachsmuth: Credibility, t/1122) ──
   // Fall back to session-stamped provenance (t/1769) when the caller didn't pass
@@ -802,6 +804,7 @@ export function extractCalibrationData(
     affect_intensity_mean: affectIntensityMean != null ? Math.round(affectIntensityMean * 1000) / 1000 : null,
     affect_intensity_variance: affectIntensityVariance != null ? Math.round(affectIntensityVariance * 1000) / 1000 : null,
     affect_appropriateness: affectAppropMean != null ? Math.round(affectAppropMean * 1000) / 1000 : null,
+    affect_profile_by_phase: affectProfileByPhase,
 
     // ── Source authority (Wachsmuth: Credibility, t/1122) ──
     source_authority_mean: srcAuth.source_authority_mean != null ? Math.round(srcAuth.source_authority_mean * 1000) / 1000 : null,
