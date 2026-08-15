@@ -136,3 +136,12 @@ Categories: `Build`, `Data`, `Migration`, `API`, `Type System`, `UI`, `PowerShel
 **Root Cause:** Git enforces one-worktree-per-branch. A branch checked out in any linked worktree cannot be checked out again in a new one. This isn't surfaced until the `worktree add` command runs.
 **Prevention:** Before `git worktree add <path> <branch>`, run `git worktree list` to check whether the branch is already in use. If it is, locate and verify the existing worktree (clean, at the correct origin head) and work there instead of creating a duplicate.
 **Applies To:** All profiles doing worktree-based feature or fix work.
+
+## [Process] Stale Worktree Ref Blocks `--delete-branch` After Directory Removal
+
+**Pattern:** `gh pr merge --delete-branch` fails when the local worktree directory has already been removed but git still holds a stale ref for it — the branch delete is blocked by the dangling worktree entry.
+**Instances:**
+- 2026-08-15: Diagnostics — PR #1065 merge with `--delete-branch` failed because `.worktrees/` directory was gone but git retained the worktree ref. Fixed with `git worktree prune` then `git push origin --delete <branch>` (p/9#68).
+**Root Cause:** Git tracks linked worktrees in `.git/worktrees/`. Manually removing the worktree directory leaves the metadata intact, so git still considers the branch "in use" and refuses to delete it.
+**Prevention:** Always remove worktrees via `git worktree remove <path>` (or `--force`) rather than deleting the directory directly — this also prunes the metadata. If a stale ref already exists, run `git worktree prune` to clear dangling entries before retrying the branch delete.
+**Applies To:** All profiles doing worktree-based feature or fix work.
