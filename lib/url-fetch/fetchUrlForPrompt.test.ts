@@ -1,7 +1,12 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
+// @vitest-environment node
+// Binds real loopback HTTP servers and drives node:http/node:dns — the suite's
+// default jsdom environment cannot host either.
+
 import * as http from 'node:http';
+import { promises as dnsPromises } from 'node:dns';
 import { AddressInfo } from 'node:net';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
@@ -112,10 +117,61 @@ describe('fetchUrlForPrompt', () => {
   let baseUrl: string;
 
   afterEach(async () => {
+    vi.restoreAllMocks();
     if (server) {
       await stopServer(server);
       server = undefined;
     }
+  });
+
+  // ── IP pinning / DNS-rebind defense (TL change #2) ────────────────────
+
+  it('connects to the validated IP instead of re-resolving the hostname', async () => {
+    ({ url: baseUrl, server } = await startServer((req, res) => {
+      res.writeHead(200, { 'Content-Type': 'text/plain' });
+      res.end(`host=${req.headers.host}`);
+    }));
+    const { port } = new URL(baseUrl);
+
+    // `.invalid` is reserved by RFC 2606 and never resolves. The only way this
+    // request can succeed is if the transport connects to the address returned
+    // by the pre-flight lookup rather than resolving the hostname again at
+    // connect time — which is exactly what closes the rebind TOCTOU window.
+    vi.spyOn(dnsPromises, 'lookup').mockResolvedValue(
+      [{ address: '127.0.0.1', family: 4 }] as never,
+    );
+
+    const result = await fetchUrlForPrompt(`http://pinned.invalid:${port}/`, { checkAddress: ALLOW_ALL });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    // Host header carries the original hostname AND the non-default port.
+    expect(result.text).toContain(`host=pinned.invalid:${port}`);
+  });
+
+  // ── rawBody passthrough (server markitdown path, t/720) ───────────────
+
+  it('returns the body verbatim when rawBody is set', async () => {
+    ({ url: baseUrl, server } = await startServer((_req, res) => {
+      res.writeHead(200, { 'Content-Type': 'text/html' });
+      res.end('<html><head><title>Raw</title></head><body><p>Hello <b>world</b></p></body></html>');
+    }));
+
+    const result = await fetchUrlForPrompt(baseUrl, { checkAddress: ALLOW_ALL, rawBody: true });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.text).toContain('<b>world</b>'); // markup preserved for the converter
+    expect(result.title).toBe('Raw');
+  });
+
+  it('still applies the SSRF block when rawBody is set', async () => {
+    ({ url: baseUrl, server } = await startServer((_req, res) => {
+      res.writeHead(200, { 'Content-Type': 'text/html' });
+      res.end('should not reach');
+    }));
+    const result = await fetchUrlForPrompt(baseUrl, { rawBody: true }); // default checkAddress
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.reason).toBe('ssrf-blocked');
   });
 
   // ── Happy path ────────────────────────────────────────────────────────
@@ -218,6 +274,7 @@ describe('fetchUrlForPrompt', () => {
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(result.reason).toBe('http-error');
+    expect(result.status).toBe(404); // carried so callers can surface `HTTP 404`
   });
 
   it('returns unsupported-content for non-text content-type', async () => {

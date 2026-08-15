@@ -222,6 +222,9 @@ export default defineConfig({
       '../../../lib/search/**/*.test.ts',
       '../../../lib/entities/**/*.test.ts',
       '../../../lib/sanitize/**/*.test.ts',
+      // t/720 consolidation: the shared SSRF-guarded fetcher backs POST /api/fetch-url,
+      // so its suite must gate CI. It was absent from this list since t/2482 landed.
+      '../../../lib/url-fetch/**/*.test.ts',
       '../../../lib/ai-config/**/*.test.ts',
       '../../../lib/embeddings/**/*.test.ts', // t/2060 — mock-based (fake onnxruntime-node), no native addon/model needed
       '../../../lib/*.test.ts',

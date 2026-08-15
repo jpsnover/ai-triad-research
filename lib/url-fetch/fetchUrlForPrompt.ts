@@ -110,6 +110,9 @@ function makeRequest(
 ): Promise<http.IncomingMessage> {
   return new Promise((resolve, reject) => {
     let timedOut = false;
+    // RFC 9110 §7.2: the Host header carries the port whenever it is not the
+    // scheme default, or a virtual host on a non-standard port misroutes.
+    const hostHeader = port === (isHttps ? 443 : 80) ? hostname : `${hostname}:${port}`;
     const options: http.RequestOptions & https.RequestOptions = {
       method: 'GET',
       host: resolvedIp,       // connect to the pre-validated IP — closes rebind TOCTOU
@@ -117,7 +120,7 @@ function makeRequest(
       port,
       path,
       headers: {
-        'Host': hostname,     // correct HTTP/1.1 virtual-host routing
+        'Host': hostHeader,   // correct HTTP/1.1 virtual-host routing
         'User-Agent': 'AI-Triad-Research/1.0 (url-fetch)',
         'Accept': 'text/html, text/plain;q=0.9, */*;q=0.1',
         'Accept-Encoding': 'identity', // avoid gzip complications
@@ -176,9 +179,13 @@ function decodeBasicEntities(s: string): string {
     .replace(/&amp;/gi, '&');
 }
 
-function htmlToText(html: string): { text: string; title: string | undefined } {
+function extractTitle(html: string): string | undefined {
   const titleMatch = /<title[^>]*>([^<]*)<\/title>/i.exec(html);
-  const title = titleMatch ? decodeBasicEntities(titleMatch[1].trim()) : undefined;
+  return titleMatch ? decodeBasicEntities(titleMatch[1].trim()) : undefined;
+}
+
+function htmlToText(html: string): { text: string; title: string | undefined } {
+  const title = extractTitle(html);
 
   let text = html
     .replace(/<head\b[^>]*>[\s\S]*?<\/head>/gi, '')
@@ -264,10 +271,11 @@ export async function fetchUrlForPrompt(
       continue;
     }
 
-    // HTTP errors
+    // HTTP errors — carry the status so callers can surface `HTTP <code>`
     if (!res.statusCode || res.statusCode < 200 || res.statusCode >= 300) {
+      const status = res.statusCode;
       res.destroy();
-      return { ok: false, reason: 'http-error' };
+      return { ok: false, reason: 'http-error', status };
     }
 
     // Content-Type gate — only fetch text (HTML or plain)
@@ -290,12 +298,21 @@ export async function fetchUrlForPrompt(
     const raw = await readBody(res, maxBytes);
     if (raw === null) return { ok: false, reason: 'too-large' };
 
-    // HTML → text, then XSS safety pass via shared core
-    const { text: extracted, title } = isHtml ? htmlToText(raw) : { text: raw, title: undefined };
-    const safe = sanitizeText(extracted);
+    // HTML → text, then XSS safety pass via shared core. rawBody callers run
+    // their own converter over the markup, so both steps are skipped for them
+    // (the transport-level SSRF guarantees above still applied).
+    let text: string;
+    let title: string | undefined;
+    if (opts.rawBody) {
+      text = raw;
+      title = isHtml ? extractTitle(raw) : undefined;
+    } else {
+      const extracted = isHtml ? htmlToText(raw) : { text: raw, title: undefined };
+      title = extracted.title;
+      text = sanitizeText(extracted.text);
+    }
 
     // Soft token-budget truncation
-    let text = safe;
     let truncated = false;
     if (opts.tokenBudget !== undefined && text.length > opts.tokenBudget) {
       text = text.slice(0, opts.tokenBudget);
