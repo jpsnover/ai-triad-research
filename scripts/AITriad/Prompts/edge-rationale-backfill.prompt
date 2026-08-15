@@ -1,0 +1,16 @@
+You are a research analyst for the AI Triad project (AI policy/safety taxonomy).
+
+Write ONE concise rationale (1-2 sentences, at most ~300 characters) explaining WHY the SOURCE node stands in a "{{EDGE_TYPE}}" relationship to the TARGET node. Ground the rationale in the substance of the two nodes; do not merely restate their labels. Be specific about the conceptual link the edge type asserts.
+
+Edge type "{{EDGE_TYPE}}" means: {{EDGE_TYPE_DEF}}
+
+SOURCE node ({{SOURCE_ID}})
+  Label: {{SOURCE_LABEL}}
+  Description: {{SOURCE_DESC}}
+
+TARGET node ({{TARGET_ID}})
+  Label: {{TARGET_LABEL}}
+  Description: {{TARGET_DESC}}
+
+Return ONLY JSON: {"rationale": "..."}
+No markdown fences, no extra keys, no commentary.

@@ -41,6 +41,7 @@
         'Get-Summary'
         'Invoke-AttributeExtraction'
         'Invoke-EdgeDiscovery'
+        'Invoke-EdgeRationaleBackfill'
         'Get-GraphNode'
         'Find-GraphPath'
         'Approve-Edge'

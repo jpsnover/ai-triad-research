@@ -89,6 +89,7 @@ Get-Help <CmdletName> -Full                     # full docs for any cmdlet
 | `Get-IngestionPriority` | Score sources by ingestion value |
 | `Invoke-AttributeExtraction` | AI-extract attributes from a source |
 | `Invoke-EdgeDiscovery` | Discover candidate edges from text |
+| `Invoke-EdgeRationaleBackfill` | Backfill missing/empty edge `rationale` via AI — idempotent, resumable, `-DryRun`/`-Limit` for a costed pilot (t/2679) |
 
 ### AI Enrichment
 | Cmdlet | Use when |
