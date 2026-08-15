@@ -489,16 +489,14 @@ var containerEnv = paidTierEnabled
 // Get-BicepBaseEnv.ps1 -ForStaging also parses stagingEnvOverrides so
 // Sync-StagingEnv.ps1 keeps staging's template in sync on every deploy.
 //
-// AI_TRIAD_DATA_ROOT must equal TAXONOMY_CACHE_DIR (t/2061 invariant):
-// githubAPIBackend.toRepoPath() strips cacheDir (=TAXONOMY_CACHE_DIR) from
-// filePaths that resolveDataPath() builds from AI_TRIAD_DATA_ROOT. If they
-// differ, toRepoPath() cannot strip the prefix → GitHub tree lookup produces
-// wrong paths → /healthz 503 (t/2643#staging-boot).
+// t/2670: toRepoPath() fix (PR #1078) makes AI_TRIAD_DATA_ROOT and TAXONOMY_CACHE_DIR
+// independent — staging inherits AI_TRIAD_DATA_ROOT=/mnt/shared from baseEnv and
+// overrides only TAXONOMY_CACHE_DIR to the isolated mount. The old must-match
+// invariant (t/2061) is lifted by PR #1078's code fix.
 var stagingEnvOverrides = [
   // Force off: staging must not sync to prod's git backend (t/2643 git-worktree hazard)
   { name: 'GIT_SYNC_ENABLED',    value: '0' }
-  // Redirect data root + cache to staging-state mount (t/2061 invariant: must match)
-  { name: 'AI_TRIAD_DATA_ROOT',  value: '/mnt/staging-state/cache' }
+  // Isolated cache dir only — AI_TRIAD_DATA_ROOT=/mnt/shared inherited from baseEnv
   { name: 'TAXONOMY_CACHE_DIR',  value: '/mnt/staging-state/cache' }
   // Routes all class-A writes (flags, config, calibration, keys) to isolated mount
   { name: 'AI_TRIAD_STATE_ROOT', value: '/mnt/staging-state' }
@@ -508,7 +506,7 @@ var stagingEnvOverrides = [
 // stagingBaseEnv = baseEnv with the isolation overrides applied.
 // filter() removes the baseEnv entries that stagingEnvOverrides supersedes.
 var stagingBaseEnv = concat(
-  filter(baseEnv, e => e.name != 'AI_TRIAD_DATA_ROOT' && e.name != 'TAXONOMY_CACHE_DIR' && e.name != 'GIT_SYNC_ENABLED'),
+  filter(baseEnv, e => e.name != 'TAXONOMY_CACHE_DIR' && e.name != 'GIT_SYNC_ENABLED'),
   stagingEnvOverrides
 )
 // Rebuild the secret chain for staging — mirrors the prod chain so staging
