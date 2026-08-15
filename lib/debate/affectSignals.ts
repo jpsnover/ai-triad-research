@@ -17,14 +17,15 @@ export const AFFECT_LEXICONS: Record<AffectCategory, string[]> = {
     'overdue', 'at once', 'no time to waste', 'act now', 'accelerating',
     'vital', 'essential', 'necessity', 'demands immediate',
   ],
+  // Dropped (t/2677): 'risk' (neutral noun), 'undermine'/'could lead to'/'may result in' (causal connectives),
+  // 'unpredictable' (neutral ML descriptor). Keep 'risky', 'severe' (genuine charge).
   fear: [
-    'danger', 'dangerous', 'threat', 'threaten', 'risk', 'risky',
+    'danger', 'dangerous', 'threat', 'threaten', 'risky',
     'harmful', 'catastrophic', 'catastrophe', 'devastating', 'disastrous',
     'disaster', 'alarming', 'alarm', 'worried', 'peril', 'perilous',
     'hazard', 'hazardous', 'menace', 'menacing', 'dire', 'existential',
-    'nightmare', 'irreversible', 'uncontrollable', 'unpredictable',
-    'jeopardize', 'endanger', 'undermine', 'could lead to',
-    'may result in', 'fallout', 'frightening', 'terrifying', 'severe',
+    'nightmare', 'irreversible', 'uncontrollable',
+    'jeopardize', 'endanger', 'fallout', 'frightening', 'terrifying', 'severe',
   ],
   hope: [
     'hope', 'hopeful', 'promising', 'potential', 'opportunity',
@@ -44,12 +45,15 @@ export const AFFECT_LEXICONS: Record<AffectCategory, string[]> = {
     'unconscionable', 'reprehensible', 'deplorable', 'at the expense of',
     'willfully ignore', 'deliberately disregard', 'contemptible',
   ],
+  // Dropped (t/2677): 'people'/'human'/'individual'/'individuals' (units of analysis),
+  // 'community'/'communities'/'workers' (neutral collective nouns),
+  // 'in practice'/'impact on' (analytic connectives — ubiquitous in AI-policy prose).
   empathy: [
-    'people', 'human', 'community', 'communities', 'victim', 'victims',
-    'suffer', 'suffering', 'pain', 'impact on', 'lived experience',
-    'families', 'workers', 'vulnerable', 'dignity', 'welfare', 'wellbeing',
+    'victim', 'victims',
+    'suffer', 'suffering', 'pain', 'lived experience',
+    'families', 'vulnerable', 'dignity', 'welfare', 'wellbeing',
     'affected by', 'those who', 'real people', 'ordinary', 'day to day',
-    'in practice', 'individual', 'individuals', 'struggle', 'burden',
+    'struggle', 'burden',
     'harm to', 'care', 'compassion',
   ],
 };
