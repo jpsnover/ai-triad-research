@@ -508,7 +508,7 @@ export async function readLineageEnrichments(): Promise<Record<string, unknown>>
 export async function readOrganizations(): Promise<unknown | null> {
   try {
     const p = path.join(getTaxonomyDir(), 'organizations.json');
-    const raw = await backend.readFile(p);
+    const raw = await backend.readFile(p, { ref: 'main' });
     if (raw === null) return null;
     return JSON.parse(raw);
   } catch (err) {
@@ -526,7 +526,7 @@ export async function readOrganizations(): Promise<unknown | null> {
 export async function readOrganizationEdges(): Promise<OrganizationEdge[] | null> {
   try {
     const p = path.join(getTaxonomyDir(), 'organization_edges.json');
-    const raw = await backend.readFile(p);
+    const raw = await backend.readFile(p, { ref: 'main' });
     if (raw === null) return null;
     const data = JSON.parse(raw);
     return (data as { edges?: OrganizationEdge[] })?.edges ?? [];
@@ -583,7 +583,7 @@ export async function readEntities(): Promise<Entity[] | null> {
   }
   try {
     const p = path.join(getTaxonomyDir(), 'entities.json');
-    const raw = await backend.readFile(p);
+    const raw = await backend.readFile(p, { ref: 'main' });
     if (raw === null) return null;
     const data = JSON.parse(raw) as { entities?: Entity[] };
     const entities = data.entities ?? [];

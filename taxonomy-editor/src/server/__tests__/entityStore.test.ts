@@ -101,3 +101,70 @@ describe('entity store read path (t/1807)', () => {
     expect(mem2.readCount).toBe(1);
   });
 });
+
+// t/2662 regression: static registries must pin { ref: 'main' } so a cache miss
+// fetches from the base branch, not the caller's session branch (where these files
+// don't exist → 404 → empty panels).
+describe('static registry readers pin ref:main (t/2662)', () => {
+  type ReadCall = { path: string; opts: { ref?: string; optional?: boolean } | undefined };
+
+  function makeSpyBackend(
+    readCalls: ReadCall[],
+    responseFor: (p: string) => string | null,
+  ): StorageBackend {
+    return {
+      async readFile(filePath, opts) {
+        readCalls.push({ path: filePath, opts });
+        return responseFor(filePath);
+      },
+      async writeFile(): Promise<void> { /* stub */ },
+      async listDirectory(): Promise<string[]> { return []; },
+      async deleteFile(): Promise<void> { /* stub */ },
+      async fileExists(): Promise<boolean> { return false; },
+      async readBinaryFile(): Promise<Buffer | null> { return null; },
+      async writeBinaryFile(): Promise<void> { /* stub */ },
+    };
+  }
+
+  it('readEntities passes { ref: "main" } to readFile', async () => {
+    const calls: ReadCall[] = [];
+    const spy = makeSpyBackend(calls, p =>
+      p.replace(/\\/g, '/').endsWith('entities.json')
+        ? JSON.stringify({ entities: [] })
+        : null,
+    );
+    fileIO.setTaxonomyBackend(spy);
+    await fileIO.readEntities();
+    const call = calls.find(c => c.path.replace(/\\/g, '/').endsWith('entities.json'));
+    expect(call).toBeDefined();
+    expect(call!.opts?.ref).toBe('main');
+  });
+
+  it('readOrganizations passes { ref: "main" } to readFile', async () => {
+    const calls: ReadCall[] = [];
+    const spy = makeSpyBackend(calls, p =>
+      p.replace(/\\/g, '/').endsWith('organizations.json')
+        ? JSON.stringify([])
+        : null,
+    );
+    fileIO.setTaxonomyBackend(spy);
+    await fileIO.readOrganizations();
+    const call = calls.find(c => c.path.replace(/\\/g, '/').endsWith('organizations.json'));
+    expect(call).toBeDefined();
+    expect(call!.opts?.ref).toBe('main');
+  });
+
+  it('readOrganizationEdges passes { ref: "main" } to readFile', async () => {
+    const calls: ReadCall[] = [];
+    const spy = makeSpyBackend(calls, p =>
+      p.replace(/\\/g, '/').endsWith('organization_edges.json')
+        ? JSON.stringify({ edges: [] })
+        : null,
+    );
+    fileIO.setTaxonomyBackend(spy);
+    await fileIO.readOrganizationEdges();
+    const call = calls.find(c => c.path.replace(/\\/g, '/').endsWith('organization_edges.json'));
+    expect(call).toBeDefined();
+    expect(call!.opts?.ref).toBe('main');
+  });
+});
