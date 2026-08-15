@@ -411,8 +411,9 @@ export function computeAffectProfileByPhase(
 ): Partial<Record<'confrontation' | 'argumentation' | 'concluding', { profile_mean: AffectProfile; n_turns: number }>> | undefined {
   type PhaseKey = 'confrontation' | 'argumentation' | 'concluding';
   const PHASE_KEYS: PhaseKey[] = ['confrontation', 'argumentation', 'concluding'];
-  const sums = Object.fromEntries(PHASE_KEYS.map(ph => [ph, { urgency: 0, fear: 0, hope: 0, outrage: 0, empathy: 0 }])) as Record<PhaseKey, Record<string, number>>;
-  const counts = Object.fromEntries(PHASE_KEYS.map(ph => [ph, 0])) as Record<PhaseKey, number>;
+  const zero = (): AffectProfile => ({ urgency: 0, fear: 0, hope: 0, outrage: 0, empathy: 0 });
+  const sums: Record<PhaseKey, AffectProfile> = { confrontation: zero(), argumentation: zero(), concluding: zero() };
+  const counts: Record<PhaseKey, number> = { confrontation: 0, argumentation: 0, concluding: 0 };
   for (const entry of session.transcript ?? []) {
     if (entry.type !== 'opening' && entry.type !== 'statement') continue;
     if (entry.speaker === 'system' || entry.speaker === 'moderator') continue;
