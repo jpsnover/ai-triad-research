@@ -32,17 +32,28 @@
     Why mock the primitive, not the public Test-TaxEditorEndpoints: an earlier
     revision did `Mock Test-TaxEditorEndpoints`. It ran green on Windows but on the
     ubuntu CI runner the mock did NOT intercept — the real 26-endpoint scan hit the
-    network, 2 endpoints failed (EndpointsFailed=2), and ARM 1 false-red (run
-    31894084737). Same InModuleScope non-interception that first bit the health
-    mock (public Test-TaxEditorHealth). Mocking the innermost private primitive is
-    the proven-on-CI recipe (Invoke-TaxEditorSmokeTest.ColdStart.Tests.ps1).
+    network, 2 endpoints failed, and ARM 1 false-red (run 31894084737). Same
+    InModuleScope non-interception that first bit the public Test-TaxEditorHealth
+    mock. Mocking the innermost private primitive is the proven-on-CI recipe
+    (Invoke-TaxEditorSmokeTest.ColdStart.Tests.ps1).
 
-    Invoke-RemoteCheck mock shape mirrors the real return object
-    (Success/StatusCode/ResponseMs/Body/ContentType/RawBody/Error). Healthy RawBody
-    carries a root div + script so the SPA-shell '/' check passes; Body is an empty
-    array so (a) the strict-mode `$Check.Body.nodes` guard is skipped for nodes
-    routes and (b) the list->load contract test sees an empty list and skips
-    gracefully (Pass=$true) rather than a null-item id failure.
+    Healthy Invoke-RemoteCheck mock returns the real return shape
+    (Success/StatusCode/ResponseMs/Body/ContentType/RawBody/Error) with a UNIFORM
+    Body of `[PSCustomObject]@{ nodes = @(); id = 'stub-item' }`. That one shape
+    satisfies BOTH consumers under Set-StrictMode:
+      - nodes routes (/api/taxonomy/*): `$Check.Body.nodes` resolves (empty) — no
+        strict-mode PropertyNotFound throw, NodeCount 0.
+      - the two list->load contract tests (Community + Debate,
+        Invoke-ListLoadContractTest): a non-null item WITH an `id` → the test takes
+        the deterministic load path (load also mocked → Pass), instead of the
+        empty-list skip. An earlier `Body = @()` relied on the empty-array skip;
+        that array read back as $null on the CI runner, so `@($null)` looked like a
+        1-item list with a null id → "list item has no 'id'" → 2 contract-test rows
+        false-red ARM 1 (run 31901726143, EndpointsFailed=2 at 146ms, no network —
+        proving Invoke-RemoteCheck WAS intercepting; the fault was fixture shape,
+        not interception). RawBody carries a root div + script so the SPA '/' check
+        passes. ARM 1's -Because surfaces $result.FailedEndpoints so any future
+        regression names the offending endpoint(s) directly in the CI log.
 #>
 
 BeforeAll {
@@ -64,7 +75,8 @@ Describe 'Invoke-TaxEditorSmokeTest GitHub-flap gate exclusion (t/2673)' -Tag 'h
             Mock New-AnonymousWebSession -MockWith { [Microsoft.PowerShell.Commands.WebRequestSession]::new() }
             Mock Invoke-RemoteCheck -MockWith {
                 [PSCustomObject]@{
-                    Success = $true; StatusCode = 200; ResponseMs = 42; Body = @()
+                    Success = $true; StatusCode = 200; ResponseMs = 42
+                    Body = [PSCustomObject]@{ nodes = @(); id = 'stub-item' }
                     ContentType = 'application/json'
                     RawBody = '<!doctype html><html><body><div id="root"></div><script src="/assets/app.js"></script></body></html>'
                     Error = $null
@@ -79,7 +91,8 @@ Describe 'Invoke-TaxEditorSmokeTest GitHub-flap gate exclusion (t/2673)' -Tag 'h
             }
 
             $result = Invoke-TaxEditorSmokeTest -BaseUrl 'https://stub' 6>$null
-            $diag = "HealthOk=$($result.HealthOk) AzureOk=$($result.AzureOk) EndpointsFailed=$($result.EndpointsFailed) GitHubOk=$($result.GitHubOk) OverallPass=$($result.OverallPass)"
+            $failed = @($result.FailedEndpoints | ForEach-Object { "$($_.Endpoint)[$($_.Status)]=$($_.Error)" }) -join ' ; '
+            $diag = "HealthOk=$($result.HealthOk) AzureOk=$($result.AzureOk) EndpointsFailed=$($result.EndpointsFailed) GitHubOk=$($result.GitHubOk) OverallPass=$($result.OverallPass) | FAILED=[$failed]"
 
             $result.HealthOk        | Should -BeTrue  -Because "healthy-app precondition must hold (mock check): $diag"
             $result.AzureOk         | Should -BeTrue  -Because "healthy-app precondition must hold (mock check): $diag"
@@ -101,7 +114,8 @@ Describe 'Invoke-TaxEditorSmokeTest GitHub-flap gate exclusion (t/2673)' -Tag 'h
             Mock New-AnonymousWebSession -MockWith { [Microsoft.PowerShell.Commands.WebRequestSession]::new() }
             Mock Invoke-RemoteCheck -MockWith {
                 [PSCustomObject]@{
-                    Success = $true; StatusCode = 200; ResponseMs = 42; Body = @()
+                    Success = $true; StatusCode = 200; ResponseMs = 42
+                    Body = [PSCustomObject]@{ nodes = @(); id = 'stub-item' }
                     ContentType = 'application/json'
                     RawBody = '<!doctype html><html><body><div id="root"></div><script src="/assets/app.js"></script></body></html>'
                     Error = $null
@@ -130,7 +144,8 @@ Describe 'Invoke-TaxEditorSmokeTest GitHub-flap gate exclusion (t/2673)' -Tag 'h
             Mock New-AnonymousWebSession -MockWith { [Microsoft.PowerShell.Commands.WebRequestSession]::new() }
             Mock Invoke-RemoteCheck -MockWith {
                 [PSCustomObject]@{
-                    Success = $true; StatusCode = 200; ResponseMs = 42; Body = @()
+                    Success = $true; StatusCode = 200; ResponseMs = 42
+                    Body = [PSCustomObject]@{ nodes = @(); id = 'stub-item' }
                     ContentType = 'application/json'
                     RawBody = '<!doctype html><html><body><div id="root"></div><script src="/assets/app.js"></script></body></html>'
                     Error = $null
@@ -187,7 +202,8 @@ Describe 'Invoke-TaxEditorSmokeTest GitHub-flap gate exclusion (t/2673)' -Tag 'h
             Mock New-AnonymousWebSession -MockWith { [Microsoft.PowerShell.Commands.WebRequestSession]::new() }
             Mock Invoke-RemoteCheck -MockWith {
                 [PSCustomObject]@{
-                    Success = $true; StatusCode = 200; ResponseMs = 42; Body = @()
+                    Success = $true; StatusCode = 200; ResponseMs = 42
+                    Body = [PSCustomObject]@{ nodes = @(); id = 'stub-item' }
                     ContentType = 'application/json'
                     RawBody = '<!doctype html><html><body><div id="root"></div><script src="/assets/app.js"></script></body></html>'
                     Error = $null
