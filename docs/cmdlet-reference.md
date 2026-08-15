@@ -111,6 +111,7 @@ Get-Help <CmdletName> -Full                     # full docs for any cmdlet
 | `Test-PersonaEndpoints` | Auth-gate regression matrix across anonymous/authenticated/admin personas |
 | `Test-ServiceWorkerHealth` | Parse deployed /sw.js for skipWaiting mode, denylist coverage, precache stats |
 | `Get-FreeTierStatus` | Live free-tier budget/usage report (live config + token consumption) |
+| `Test-AnalyticsBackend` | Analytics storage round-trip probe — POST synthetic event, wait, GET query, verify event appears; confirms write failures in <60s (t/2668) |
 | `Test-AzureHealth` | Azure infra status |
 | `Test-GitHubHealth` | GitHub platform + CI status |
 | `Test-AIApiKey` | Probe AI backend auth endpoints (no tokens consumed) — confirm a key is present and accepted before running jobs |

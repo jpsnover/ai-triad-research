@@ -849,6 +849,8 @@ Export-ModuleMember -Function @(
     'Invoke-DebateBatch'
     'Get-FreeTierStatus'
     'Invoke-TaxEditorSmokeTest'
+    # t/2668 — analytics storage round-trip diagnosis
+    'Test-AnalyticsBackend'
     'Test-AzureHealth'
     'Test-GitHubHealth'
     'Get-TaxEditorRevision'

@@ -132,6 +132,7 @@
         'Invoke-DebateBatch'
         'Get-FreeTierStatus'
         'Invoke-TaxEditorSmokeTest'
+        'Test-AnalyticsBackend'
         'Test-AzureHealth'
         'Test-GitHubHealth'
         'Get-TaxEditorRevision'
