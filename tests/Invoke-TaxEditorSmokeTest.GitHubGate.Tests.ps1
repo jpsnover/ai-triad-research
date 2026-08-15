@@ -19,13 +19,13 @@
     Both gate arms are proven: (1) a GitHub flap with a healthy app yields PASS;
     (2) each real app failure (Health / Endpoints / Azure) still sinks the gate.
 
-    Mock scoping: every phase mock and the Invoke-TaxEditorSmokeTest call live in
-    ONE InModuleScope block per test. An earlier revision split the "healthy"
-    default mocks into a BeforeEach InModuleScope and the call into a separate It
-    InModuleScope; that split ran green in isolation but let the real
-    Test-TaxEditorEndpoints fire in the full-suite CI run (mocks set in one
-    InModuleScope invocation did not carry into the second), false-reding ARM 1.
-    Keeping mocks + call in a single InModuleScope is the robust pattern.
+    Health-phase mocking: we mock the innermost private Invoke-HealthProbe (and
+    Start-Sleep), NOT the public Test-TaxEditorHealth, and let the real
+    Test-TaxEditorHealth retry loop run over the mocked probe. An earlier revision
+    mocked Test-TaxEditorHealth directly; that ran green on Windows but on the CI
+    runner the mock did not intercept — the real health phase hit https://stub
+    (~2s vs ~160ms mocked), sank HealthOk, and false-red ARM 1. This is the exact
+    proven-on-CI recipe used by Invoke-TaxEditorSmokeTest.ColdStart.Tests.ps1.
 #>
 
 BeforeAll {
@@ -37,7 +37,13 @@ Describe 'Invoke-TaxEditorSmokeTest GitHub-flap gate exclusion (t/2673)' -Tag 'h
 
     It 'ARM 1 — GitHub degraded + healthy app yields OverallPass=$true (AC#1)' {
         InModuleScope AITriad {
-            Mock Test-TaxEditorHealth  -MockWith { [PSCustomObject]@{ Healthy = $true; Checks = @() } }
+            Mock Invoke-HealthProbe -MockWith {
+                $r = [TaxEditorHealthResult]::new()
+                $r.BaseUrl = 'https://stub'; $r.Healthy = $true
+                $r.Checks = @(); $r.AverageMs = 0; $r.FreeTierKeyPoolSize = 0
+                $r.Timestamp = (Get-Date).ToString('o'); $r
+            }
+            Mock Start-Sleep -MockWith { }
             Mock Test-TaxEditorEndpoints -MockWith {
                 @([PSCustomObject]@{
                     Endpoint = '/api/models'; Category = 'Health'; Description = 'stub'
@@ -53,18 +59,25 @@ Describe 'Invoke-TaxEditorSmokeTest GitHub-flap gate exclusion (t/2673)' -Tag 'h
             }
 
             $result = Invoke-TaxEditorSmokeTest -BaseUrl 'https://stub' 6>$null
+            $diag = "HealthOk=$($result.HealthOk) AzureOk=$($result.AzureOk) EndpointsFailed=$($result.EndpointsFailed) GitHubOk=$($result.GitHubOk) OverallPass=$($result.OverallPass)"
 
-            $result.OverallPass     | Should -BeTrue  -Because 'a GitHub API flap is a monitoring signal, not app health — it must not block the traffic shift'
-            $result.GitHubOk        | Should -BeFalse -Because 'the degraded GitHub status must still be reported (surfaced as a CI warning)'
-            $result.HealthOk        | Should -BeTrue  -Because 'the healthy-app precondition must actually hold (guards against a mock not applying)'
-            $result.AzureOk         | Should -BeTrue  -Because 'the healthy-app precondition must actually hold (guards against a mock not applying)'
-            $result.EndpointsFailed | Should -Be 0    -Because 'the healthy-app precondition must actually hold (guards against a mock not applying)'
+            $result.HealthOk        | Should -BeTrue  -Because "healthy-app precondition must hold (mock check): $diag"
+            $result.AzureOk         | Should -BeTrue  -Because "healthy-app precondition must hold (mock check): $diag"
+            $result.EndpointsFailed | Should -Be 0    -Because "healthy-app precondition must hold (mock check): $diag"
+            $result.OverallPass     | Should -BeTrue  -Because "a GitHub API flap is a monitoring signal, not app health — it must not block the traffic shift: $diag"
+            $result.GitHubOk        | Should -BeFalse -Because "the degraded GitHub status must still be reported (surfaced as a CI warning): $diag"
         }
     }
 
     It 'ARM 1 — surfaces a ::warning:: annotation when GitHub is degraded (AC#2)' {
         InModuleScope AITriad {
-            Mock Test-TaxEditorHealth  -MockWith { [PSCustomObject]@{ Healthy = $true; Checks = @() } }
+            Mock Invoke-HealthProbe -MockWith {
+                $r = [TaxEditorHealthResult]::new()
+                $r.BaseUrl = 'https://stub'; $r.Healthy = $true
+                $r.Checks = @(); $r.AverageMs = 0; $r.FreeTierKeyPoolSize = 0
+                $r.Timestamp = (Get-Date).ToString('o'); $r
+            }
+            Mock Start-Sleep -MockWith { }
             Mock Test-TaxEditorEndpoints -MockWith {
                 @([PSCustomObject]@{
                     Endpoint = '/api/models'; Category = 'Health'; Description = 'stub'
@@ -84,7 +97,13 @@ Describe 'Invoke-TaxEditorSmokeTest GitHub-flap gate exclusion (t/2673)' -Tag 'h
 
     It 'ARM 2 — a real Health-phase failure still sinks OverallPass (gate integrity, AC#3)' {
         InModuleScope AITriad {
-            Mock Test-TaxEditorHealth  -MockWith { [PSCustomObject]@{ Healthy = $false; Checks = @() } }
+            Mock Invoke-HealthProbe -MockWith {
+                $r = [TaxEditorHealthResult]::new()
+                $r.BaseUrl = 'https://stub'; $r.Healthy = $false
+                $r.Checks = @(); $r.AverageMs = 0; $r.FreeTierKeyPoolSize = 0
+                $r.Timestamp = (Get-Date).ToString('o'); $r
+            }
+            Mock Start-Sleep -MockWith { }
             Mock Test-TaxEditorEndpoints -MockWith {
                 @([PSCustomObject]@{
                     Endpoint = '/api/models'; Category = 'Health'; Description = 'stub'
@@ -94,7 +113,8 @@ Describe 'Invoke-TaxEditorSmokeTest GitHub-flap gate exclusion (t/2673)' -Tag 'h
             Mock Test-AzureHealth  -MockWith { [PSCustomObject]@{ Healthy = $true; Checks = @() } }
             Mock Test-GitHubHealth -MockWith { [PSCustomObject]@{ Healthy = $true; Checks = @() } }
 
-            $result = Invoke-TaxEditorSmokeTest -BaseUrl 'https://stub' 6>$null
+            # -HealthMaxAttempts 1 → single probe, no retry (fast, deterministic).
+            $result = Invoke-TaxEditorSmokeTest -BaseUrl 'https://stub' -HealthMaxAttempts 1 6>$null
 
             $result.OverallPass | Should -BeFalse -Because 'a down health phase is real app failure and must still fail the gate'
             $result.HealthOk    | Should -BeFalse
@@ -103,7 +123,13 @@ Describe 'Invoke-TaxEditorSmokeTest GitHub-flap gate exclusion (t/2673)' -Tag 'h
 
     It 'ARM 2 — a real endpoint failure still sinks OverallPass (gate integrity, AC#3)' {
         InModuleScope AITriad {
-            Mock Test-TaxEditorHealth  -MockWith { [PSCustomObject]@{ Healthy = $true; Checks = @() } }
+            Mock Invoke-HealthProbe -MockWith {
+                $r = [TaxEditorHealthResult]::new()
+                $r.BaseUrl = 'https://stub'; $r.Healthy = $true
+                $r.Checks = @(); $r.AverageMs = 0; $r.FreeTierKeyPoolSize = 0
+                $r.Timestamp = (Get-Date).ToString('o'); $r
+            }
+            Mock Start-Sleep -MockWith { }
             Mock Test-TaxEditorEndpoints -MockWith {
                 @([PSCustomObject]@{
                     Endpoint = '/api/models'; Category = 'Health'; Description = 'stub'
@@ -122,7 +148,13 @@ Describe 'Invoke-TaxEditorSmokeTest GitHub-flap gate exclusion (t/2673)' -Tag 'h
 
     It 'ARM 2 — a real Azure-infra failure still sinks OverallPass (gate integrity, AC#3)' {
         InModuleScope AITriad {
-            Mock Test-TaxEditorHealth  -MockWith { [PSCustomObject]@{ Healthy = $true; Checks = @() } }
+            Mock Invoke-HealthProbe -MockWith {
+                $r = [TaxEditorHealthResult]::new()
+                $r.BaseUrl = 'https://stub'; $r.Healthy = $true
+                $r.Checks = @(); $r.AverageMs = 0; $r.FreeTierKeyPoolSize = 0
+                $r.Timestamp = (Get-Date).ToString('o'); $r
+            }
+            Mock Start-Sleep -MockWith { }
             Mock Test-TaxEditorEndpoints -MockWith {
                 @([PSCustomObject]@{
                     Endpoint = '/api/models'; Category = 'Health'; Description = 'stub'
