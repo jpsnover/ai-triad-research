@@ -391,7 +391,7 @@ jobs:
           # Invoke-TaxEditorSmokeTest covers all 6 endpoint categories + health +
           # Azure + GitHub checks against the zero-traffic revision before any traffic
           # is shifted — mandatory pre-promotion gate (t/2376).
-          $SmokeResult = Invoke-TaxEditorSmokeTest -BaseUrl $BaseUrl -Detailed
+          $SmokeResult = Invoke-TaxEditorSmokeTest -BaseUrl $BaseUrl -Detailed -AssertDataPresence
           Write-Host ""
           Write-Host "=== Smoke: $($SmokeResult.EndpointsPassed)/$($SmokeResult.EndpointsTotal) endpoints passed ==="
 
