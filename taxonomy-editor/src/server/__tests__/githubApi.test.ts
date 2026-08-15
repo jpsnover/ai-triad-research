@@ -107,6 +107,9 @@ const originalFetch = globalThis.fetch;
 beforeEach(() => {
   fetchCalls.length = 0;
   apiHandlers = [];
+  // Align getDataRoot() with createBackend()'s cacheDir so toRepoPath() strips the
+  // right prefix. Tests that need a divergent dataRoot override this in their own beforeEach.
+  vi.stubEnv('AI_TRIAD_DATA_ROOT', '/var/cache/taxonomy-test');
 
   globalThis.fetch = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
     const url = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url;
