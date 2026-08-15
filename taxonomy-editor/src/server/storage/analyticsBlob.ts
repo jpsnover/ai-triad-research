@@ -13,6 +13,7 @@
 import { BlobServiceClient, type ContainerClient, RestError } from '@azure/storage-blob';
 import { DefaultAzureCredential } from '@azure/identity';
 import { getGlobalRecorder } from '../../../../lib/flight-recorder/index.js';
+import { log } from '../logger.js';
 import type { AnalyticsBackend } from '../community/analytics.js';
 
 export interface AnalyticsBlobOptions {
@@ -56,11 +57,9 @@ export class BlobAnalyticsBackend implements AnalyticsBackend {
       await appendClient.appendBlock(content, Buffer.byteLength(content, 'utf-8'));
     } catch (err) {
       const code = err instanceof RestError ? (err.code ?? String(err.statusCode)) : undefined;
-      // Greppable via `az containerapp logs` without a flight-recorder dump (t/2664).
-      // Best-effort: log loudly but do not rethrow — analytics is non-critical telemetry
-      // and a rethrow would 5xx every event during a backend outage. Add rethrow +
-      // route-layer catch (Server Community appendEvents) when the catch is co-landed.
-      console.error('[analytics-blob-append-failed]', { component: 'analytics-blob', date, code, error: String(err) });
+      // Best-effort: log but do not rethrow — analytics is non-critical telemetry and a
+      // rethrow would 5xx every event during a backend outage (t/2664).
+      log.analytics.warn({ err, date, code }, 'analytics blob append failed');
       getGlobalRecorder()?.record({
         type: 'system.error', component: 'analytics-blob', level: 'error',
         message: 'analytics blob append failed',
@@ -77,6 +76,7 @@ export class BlobAnalyticsBackend implements AnalyticsBackend {
       return text.split('\n').filter(Boolean);
     } catch (err) {
       if (isNotFound(err)) return [];
+      log.analytics.warn({ err, date }, 'analytics blob readLines failed');
       getGlobalRecorder()?.record({
         type: 'system.error', component: 'analytics-blob', level: 'error',
         message: 'analytics blob readLines failed',
@@ -94,6 +94,7 @@ export class BlobAnalyticsBackend implements AnalyticsBackend {
         if (match) dates.push(match[1]);
       }
     } catch (err) {
+      log.analytics.warn({ err }, 'analytics blob listDates failed');
       getGlobalRecorder()?.record({
         type: 'system.error', component: 'analytics-blob', level: 'error',
         message: 'analytics blob listDates failed',
@@ -111,15 +112,19 @@ export class BlobAnalyticsBackend implements AnalyticsBackend {
           try {
             await this.client.getBlobClient(`${date}.ndjson`).delete();
           } catch (err) {
-            if (!isNotFound(err)) getGlobalRecorder()?.record({
-              type: 'system.error', component: 'analytics-blob', level: 'warn',
-              message: 'analytics blob prune delete failed',
-              error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
-            });
+            if (!isNotFound(err)) {
+              log.analytics.warn({ err, date }, 'analytics blob prune delete failed');
+              getGlobalRecorder()?.record({
+                type: 'system.error', component: 'analytics-blob', level: 'warn',
+                message: 'analytics blob prune delete failed',
+                error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+              });
+            }
           }
         }
       }
     } catch (err) {
+      log.analytics.warn({ err, cutoffDate }, 'analytics blob prune failed');
       getGlobalRecorder()?.record({
         type: 'system.error', component: 'analytics-blob', level: 'warn',
         message: 'analytics blob prune failed',
