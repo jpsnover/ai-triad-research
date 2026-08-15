@@ -169,6 +169,26 @@ jobs:
             -RetryIntervalSec 10
           Write-Host "Staging traffic promoted to ${{ steps.new_revision.outputs.revision }}"
 
+      - name: Deactivate stale revisions (keep serving + prior rollback) (t/2660)
+        if: steps.smoke.outputs.passed == 'true'
+        continue-on-error: true  # cosmetic GC — must not red a successful deploy
+        shell: pwsh
+        run: |
+          # 30s drain window: prior revision may still be draining long-lived connections
+          Start-Sleep -Seconds 30
+          $serving = '${{ steps.new_revision.outputs.revision }}'
+          $prior   = '${{ steps.current_revision.outputs.revision }}'
+          $stale = az containerapp revision list `
+            --name '${{ env.CONTAINER_APP_NAME }}' -g '${{ env.RESOURCE_GROUP }}' `
+            --query '[?properties.trafficWeight==`0` && properties.active==`true`].name' `
+            -o json | ConvertFrom-Json | Where-Object { $_ -ne $prior }
+          foreach ($rev in $stale) {
+            az containerapp revision deactivate `
+              --name '${{ env.CONTAINER_APP_NAME }}' -g '${{ env.RESOURCE_GROUP }}' --revision $rev
+            Write-Host "Deactivated: $rev"
+          }
+          Write-Host "Active: $serving (serving)$(if ($prior) { ', ' + $prior + ' (rollback)' })"
+
       - name: Verify Bicep baseEnv on staging serving revision (t/2630)
         if: steps.smoke.outputs.passed == 'true'
         shell: pwsh
