@@ -175,4 +175,63 @@ Describe 'Invoke-EdgeRationaleBackfill (t/2679)' -Tag 'taxonomy' {
             } finally { Remove-Item -Path $dir -Recurse -Force -ErrorAction SilentlyContinue }
         }
     }
+
+    It '-MinConfidence excludes edges below the threshold' {
+        InModuleScope AITriad {
+            $dir = Join-Path ([System.IO.Path]::GetTempPath()) "erb-$([guid]::NewGuid().ToString('N').Substring(0,8))"
+            New-Item -ItemType Directory -Path $dir -Force | Out-Null
+            @{ nodes = @(
+                @{ id = 'acc-b-1'; label = 'A'; description = 'Desc A' }
+                @{ id = 'acc-b-2'; label = 'B'; description = 'Desc B' }
+            ) } | ConvertTo-Json -Depth 5 | Set-Content -Path (Join-Path $dir 'accelerationist.json')
+            @{
+                _schema_version = '1.0.0'; _doc = 't'; last_modified = '2026-01-01'
+                edge_types = @(@{ type = 'SUPPORTS'; bidirectional = $false; definition = 'x' })
+                edges = @(
+                    @{ source = 'acc-b-1'; target = 'acc-b-2'; type = 'SUPPORTS'; confidence = 0.97; status = 'approved' }  # keep
+                    @{ source = 'acc-b-2'; target = 'acc-b-1'; type = 'SUPPORTS'; confidence = 0.80; status = 'approved' }  # below 0.95
+                )
+            } | ConvertTo-Json -Depth 6 | Set-Content -Path (Join-Path $dir 'edges.json')
+
+            Mock Get-TaxonomyDir { $dir }
+            Mock Resolve-AIApiKey { 'fake-key' }
+            Mock Invoke-AIApi { [PSCustomObject]@{ Text = '{"rationale":"nope"}' } }
+            Mock Write-EdgesFile { }
+
+            try {
+                $r = Invoke-EdgeRationaleBackfill -Scope UIVisible -MinConfidence 0.95 -DryRun 6>$null
+                $r.Targeted | Should -Be 1 -Because 'only the 0.97 edge clears the 0.95 gate; the 0.80 edge is excluded'
+            } finally { Remove-Item -Path $dir -Recurse -Force -ErrorAction SilentlyContinue }
+        }
+    }
+
+    It 'skips self-loop edges (source == target) and reports the count' {
+        InModuleScope AITriad {
+            $dir = Join-Path ([System.IO.Path]::GetTempPath()) "erb-$([guid]::NewGuid().ToString('N').Substring(0,8))"
+            New-Item -ItemType Directory -Path $dir -Force | Out-Null
+            @{ nodes = @(
+                @{ id = 'acc-b-1'; label = 'A'; description = 'Desc A' }
+                @{ id = 'acc-b-2'; label = 'B'; description = 'Desc B' }
+            ) } | ConvertTo-Json -Depth 5 | Set-Content -Path (Join-Path $dir 'accelerationist.json')
+            @{
+                _schema_version = '1.0.0'; _doc = 't'; last_modified = '2026-01-01'
+                edge_types = @(@{ type = 'SUPPORTS'; bidirectional = $false; definition = 'x' })
+                edges = @(
+                    @{ source = 'acc-b-1'; target = 'acc-b-1'; type = 'SUPPORTS'; confidence = 0.99; status = 'approved' }  # self-loop → skip
+                    @{ source = 'acc-b-1'; target = 'acc-b-2'; type = 'SUPPORTS'; confidence = 0.99; status = 'approved' }  # keep
+                )
+            } | ConvertTo-Json -Depth 6 | Set-Content -Path (Join-Path $dir 'edges.json')
+
+            Mock Get-TaxonomyDir { $dir }
+            Mock Resolve-AIApiKey { 'fake-key' }
+            Mock Invoke-AIApi { [PSCustomObject]@{ Text = '{"rationale":"nope"}' } }
+            Mock Write-EdgesFile { }
+
+            try {
+                $r = Invoke-EdgeRationaleBackfill -Scope UIVisible -DryRun -WarningAction SilentlyContinue 6>$null
+                $r.Targeted         | Should -Be 1 -Because 'the self-loop is excluded; only the real edge remains'
+                $r.SelfLoopsSkipped | Should -Be 1 -Because 'the source==target edge must be counted as a skipped self-loop'
+            } finally { Remove-Item -Path $dir -Recurse -Force -ErrorAction SilentlyContinue }
+        }
+    }
 }

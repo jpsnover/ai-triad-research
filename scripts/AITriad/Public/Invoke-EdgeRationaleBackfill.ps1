@@ -23,6 +23,10 @@ function Invoke-EdgeRationaleBackfill {
     .PARAMETER Limit
         Cap the number of edges processed this run (0 = no cap). Use for a costed
         pilot, e.g. -Limit 200.
+    .PARAMETER MinConfidence
+        Only backfill edges whose `confidence` is >= this value (0.0 = no filter).
+        e.g. -MinConfidence 0.95 restricts to the highest-confidence edges. Self-loops
+        (source == target) are always skipped regardless of this setting.
     .PARAMETER Model
         AI model. Default 'gemini-3.5-flash-lite' (free tier).
     .PARAMETER ApiKey
@@ -62,6 +66,10 @@ function Invoke-EdgeRationaleBackfill {
         [Parameter()]
         [ValidateRange(0, 100000)]
         [int]$Limit = 0,
+
+        [Parameter()]
+        [ValidateRange(0.0, 1.0)]
+        [double]$MinConfidence = 0.0,
 
         [Parameter()]
         [ValidateScript({ Test-AIModelId $_ })]
@@ -142,32 +150,44 @@ function Invoke-EdgeRationaleBackfill {
     }
 
     # ── Select target edges ───────────────────────────────────────────────
-    $Targets = [System.Collections.Generic.List[object]]::new()
+    $Targets   = [System.Collections.Generic.List[object]]::new()
+    $SelfLoops = [System.Collections.Generic.List[string]]::new()
     foreach ($E in @($EdgesData.edges)) {
         $HasRationale = $E.PSObject.Properties['rationale'] -and -not [string]::IsNullOrWhiteSpace($E.rationale)
         if ($HasRationale -and -not $Force) { continue }
+        # Never rationalize a malformed self-loop (source == target). Collect for a cleanup list.
+        if ($E.source -eq $E.target) { $SelfLoops.Add("$($E.source) ($($E.type))"); continue }
         if ($Scope -eq 'UIVisible') {
             $Status = if ($E.PSObject.Properties['status']) { $E.status } else { '' }
             if ($Status -ne 'approved') { continue }
         }
+        # Confidence gate — skip edges below the model-confidence threshold.
+        $Conf = if ($E.PSObject.Properties['confidence']) { [double]$E.confidence } else { 0.0 }
+        if ($Conf -lt $MinConfidence) { continue }
         $Targets.Add($E)
     }
     if ($Limit -gt 0 -and $Targets.Count -gt $Limit) {
         $Targets = [System.Collections.Generic.List[object]]@($Targets[0..($Limit - 1)])
     }
 
-    Write-Host "Edge rationale backfill: $($Targets.Count) target edge(s) [scope=$Scope, limit=$Limit, model=$Model]" -ForegroundColor Cyan
+    Write-Host "Edge rationale backfill: $($Targets.Count) target edge(s) [scope=$Scope, minConfidence=$MinConfidence, limit=$Limit, model=$Model]" -ForegroundColor Cyan
+    if ($SelfLoops.Count -gt 0) {
+        $Shown = @($SelfLoops | Select-Object -First 20) -join ', '
+        Write-Warning "Skipped $($SelfLoops.Count) self-loop edge(s) (source == target — malformed, should be removed): $Shown$(if ($SelfLoops.Count -gt 20) { ' …' })"
+    }
 
     $Summary = {
-        param($t, $b, $f, $s, $dry)
+        param($t, $b, $f, $s, $sl, $dry)
         [PSCustomObject]@{
             Targeted          = $t
             Backfilled        = $b
             Failed            = $f
             SkippedNoNodeText = $s
+            SelfLoopsSkipped  = $sl
             DryRun            = [bool]$dry
             Model             = $Model
             Scope             = $Scope
+            MinConfidence     = $MinConfidence
         }
     }
 
@@ -204,7 +224,7 @@ function Invoke-EdgeRationaleBackfill {
         }
         Write-Host ''
         Write-Host "DRY RUN — no API calls, no writes. Would process $($Targets.Count) edge(s)." -ForegroundColor Yellow
-        return & $Summary $Targets.Count 0 0 0 $true
+        return & $Summary $Targets.Count 0 0 0 $SelfLoops.Count $true
     }
 
     # ── Backfill loop ─────────────────────────────────────────────────────
@@ -272,5 +292,5 @@ function Invoke-EdgeRationaleBackfill {
         Write-Warning "$Failed edge(s) produced no rationale and were left unchanged (t/2674 silent-blank contract)."
     }
 
-    return & $Summary $Targets.Count $Backfilled $Failed $SkippedNoText $false
+    return & $Summary $Targets.Count $Backfilled $Failed $SkippedNoText $SelfLoops.Count $false
 }
