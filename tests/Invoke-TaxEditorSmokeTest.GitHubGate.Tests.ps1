@@ -95,6 +95,13 @@ Describe 'Invoke-TaxEditorSmokeTest GitHub-flap gate exclusion (t/2673)' -Tag 'h
                     ContentType = 'application/json'; RawBody = ''; Error = $null
                 }
             }
+            Mock Invoke-RemoteCheck -ParameterFilter { $Path -eq '/api/health/oped-files' } -MockWith {
+                [PSCustomObject]@{
+                    Success = $true; StatusCode = 200; ResponseMs = 10
+                    Body = [PSCustomObject]@{ ok = $true; assets = @('a','b','c') }
+                    ContentType = 'application/json'; RawBody = ''; Error = $null
+                }
+            }
             Mock Test-AzureHealth  -MockWith { [PSCustomObject]@{ Healthy = $true; Checks = @() } }
             Mock Test-GitHubHealth -MockWith {
                 [PSCustomObject]@{
