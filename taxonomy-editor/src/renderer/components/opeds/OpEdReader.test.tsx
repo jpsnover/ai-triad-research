@@ -60,7 +60,7 @@ describe('OpEdReader — single voice', () => {
     expect(screen.getByText('Grounds the claim')).toBeTruthy();
   });
 
-  it('drops the Type column and sinks "not directly used" rows to the bottom', () => {
+  it('drops the Type column and hides "not directly used" rows behind a toggle (t/2703)', () => {
     render(<OpEdReader set={makeSet([member({
       grounding: [
         { node_id: 'acc-belief-001', label: 'Unused', category: 'Belief', pov: 'accelerationist', relevance: '0.15', how_reflected: 'not directly used' },
@@ -69,10 +69,22 @@ describe('OpEdReader — single voice', () => {
     })])} />);
     // Type column is gone (Element / Relevance / Reflected only).
     expect(screen.queryByRole('columnheader', { name: 'Type' })).toBeNull();
-    // The reflected row sorts ABOVE the 'not directly used' row despite lower list position.
-    const used = screen.getByRole('button', { name: 'saf-belief-014' });
-    const unused = screen.getByRole('button', { name: 'acc-belief-001' });
-    expect(used.compareDocumentPosition(unused) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    // The used row shows; the 'not directly used' row is hidden by default.
+    expect(screen.getByRole('button', { name: 'saf-belief-014' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'acc-belief-001' })).toBeNull();
+    // The toggle reveals the hidden row…
+    fireEvent.click(screen.getByRole('button', { name: /show 1 unused element/i }));
+    expect(screen.getByRole('button', { name: 'acc-belief-001' })).toBeTruthy();
+    // …and toggling again re-hides it.
+    fireEvent.click(screen.getByRole('button', { name: /hide 1 unused element/i }));
+    expect(screen.queryByRole('button', { name: 'acc-belief-001' })).toBeNull();
+  });
+
+  it('shows no unused-toggle when every element is reflected (t/2703)', () => {
+    render(<OpEdReader set={makeSet([member({
+      grounding: [{ node_id: 'saf-belief-014', label: 'Used', category: 'Belief', pov: 'safetyist', relevance: '0.82', how_reflected: 'Grounds the claim' }],
+    })])} />);
+    expect(screen.queryByRole('button', { name: /unused element/i })).toBeNull();
   });
 });
 
