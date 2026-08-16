@@ -205,7 +205,7 @@ describe('Config slice: getConfiguredModel behavior', () => {
     await useDebateStore.getState().runClarification();
 
     const call = mockApi.generateText.mock.calls[0];
-    expect(call[1]).toBe('gemini-flash-lite-latest');
+    expect(call[1]).toBe('gemini-3.5-flash-lite'); // = DEFAULT_MODEL (t/2687)
   });
 
   it('setResponseLength clears per-entry display_tier overrides', () => {
