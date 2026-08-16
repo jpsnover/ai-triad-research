@@ -853,6 +853,75 @@ resource authConfig 'Microsoft.App/containerApps/authConfigs@2024-10-02-preview'
   }
 }
 
+// ── Authentication — Staging (Easy Auth for containerAppStaging) ──
+// Mirrors the prod authConfig above. Identical identity-provider wiring so
+// staging is a faithful pre-prod OAuth proxy.
+//
+// Part 2 (human gate, t/2695): Before deploying this resource, register the
+// staging callback URIs with each provider:
+//   Google:  https://<staging-fqdn>/.auth/login/google/callback
+//   GitHub:  https://<staging-fqdn>/.auth/login/github/callback
+//   AAD:     https://<staging-fqdn>/.auth/login/aad/callback
+// The FQDN can be read from containerAppStaging.properties.configuration.ingress.fqdn
+// after a deploy or via: az containerapp show -n taxonomy-editor-staging -g ai-triad --query properties.configuration.ingress.fqdn
+//
+// The authConfig can land and CI-green independently of Part 2; the deploy step
+// waits for the URIs to be registered (unauthenticated staging remains accessible
+// since unauthenticatedClientAction='AllowAnonymous').
+
+resource authConfigStaging 'Microsoft.App/containerApps/authConfigs@2024-10-02-preview' = {
+  parent: containerAppStaging
+  name: 'current'
+  properties: {
+    platform: {
+      enabled: true
+    }
+    globalValidation: {
+      unauthenticatedClientAction: 'AllowAnonymous'
+    }
+    identityProviders: {
+      google: {
+        enabled: googleEnabled
+        registration: {
+          clientId: googleClientId
+          clientSecretSettingName: googleClientSecretName
+        }
+        validation: {
+          allowedAudiences: []
+        }
+      }
+      gitHub: {
+        enabled: githubEnabled
+        registration: {
+          clientId: githubClientId
+          clientSecretSettingName: githubClientSecretName
+        }
+      }
+      azureActiveDirectory: {
+        enabled: aadEnabled
+        registration: {
+          clientId: aadClientId
+          clientSecretSettingName: aadClientSecretName
+          #disable-next-line no-hardcoded-env-urls
+          openIdIssuer: 'https://login.microsoftonline.com/${aadIssuer}/v2.0'
+        }
+      }
+    }
+    login: {
+      routes: {
+        logoutEndpoint: '/.auth/logout'
+      }
+      allowedExternalRedirectUrls: [
+        'https://${containerAppStaging.properties.configuration.ingress.fqdn}'
+      ]
+      preserveUrlFragmentsForLogins: false
+      tokenStore: {
+        enabled: true
+      }
+    }
+  }
+}
+
 // ── Budget Alert ──
 // Alerts at 80% and 100% of $5/month to catch cost overruns early.
 
