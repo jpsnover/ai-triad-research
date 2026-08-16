@@ -31,6 +31,7 @@ export const PUBLIC_EXACT_PATHS: ReadonlySet<string> = new Set<string>([
   '/api/community/submit',
   '/manifest.webmanifest',
   '/sw.js',                 // EXACT — contrast the '/workbox-' PREFIX below
+  '/api/health/oped-files', // t/2689: runtime-asset health check — no secrets, deterministic; cookie-less smoke must get JSON not interstitial
 ]);
 
 /** Prefix public paths (were `urlPath.startsWith(X)`). */

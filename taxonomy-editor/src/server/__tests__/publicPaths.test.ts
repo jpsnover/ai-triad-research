@@ -3,7 +3,7 @@
 /**
  * t/1910 — the auth-exempt allowlist extracted from handleRequestInner's isPublicPath
  * OR-chain into publicPaths.ts. This table test pins the exact behavior (Server Auth
- * guardrail, p/135#9): every one of the 22 terms resolves public, and near-miss paths
+ * guardrail, p/135#9): every one of the 23 terms resolves public, and near-miss paths
  * do NOT — proving each term kept its exact-vs-prefix match-kind (an exact term must
  * not behave like a prefix, which would widen the allowlist = auth bypass).
  */
@@ -12,8 +12,8 @@ import { describe, it, expect } from 'vitest';
 import { computeIsPublicPath, PUBLIC_EXACT_PATHS, PUBLIC_PATH_PREFIXES } from '../publicPaths.js';
 
 describe('computeIsPublicPath — auth-exempt allowlist (t/1910)', () => {
-  it('has exactly 15 exact + 7 prefix terms (guards accidental add/drop)', () => {
-    expect(PUBLIC_EXACT_PATHS.size).toBe(15);
+  it('has exactly 16 exact + 7 prefix terms (guards accidental add/drop)', () => {
+    expect(PUBLIC_EXACT_PATHS.size).toBe(16);
     expect(PUBLIC_PATH_PREFIXES.length).toBe(7);
   });
 
@@ -28,10 +28,10 @@ describe('computeIsPublicPath — auth-exempt allowlist (t/1910)', () => {
     }
   });
 
-  it('the full 22-path allowlist resolves public', () => {
+  it('the full 23-path allowlist resolves public', () => {
     const samples = [...PUBLIC_EXACT_PATHS, ...PUBLIC_PATH_PREFIXES.map(p => `${p}anything`)];
     expect(samples.every(computeIsPublicPath)).toBe(true);
-    expect(samples.length).toBe(22);
+    expect(samples.length).toBe(23);
   });
 
   // Near-miss NEGATIVES (Server Auth p/135#9): each proves an EXACT term did not become
