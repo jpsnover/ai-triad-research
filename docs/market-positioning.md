@@ -7,7 +7,7 @@ Berkman Klein Center, Harvard University, 2026.
 
 ## Elevator Pitch
 
-AI Triad Research is a multi-perspective research platform that structures AI policy debates through a curated taxonomy of 320+ nodes across three philosophical camps (Accelerationist, Safetyist, Skeptic), using formal argumentation frameworks to quantify argument strength, track convergence, and surface the cruxes that actually divide competing worldviews. Unlike general-purpose AI chat tools that produce single-perspective responses, it forces genuine multi-perspective engagement grounded in scholarly literature and produces auditable, quantified analysis rather than opaque summaries.
+AI Triad Research is a multi-perspective research platform that structures AI policy debates through a curated taxonomy of 1,197 nodes (785 POV nodes across three philosophical camps — Accelerationist, Safetyist, Skeptic — plus 412 shared situation nodes), using formal argumentation frameworks to quantify argument strength, track convergence, and surface the cruxes that actually divide competing worldviews. Unlike general-purpose AI chat tools that produce single-perspective responses, it forces genuine multi-perspective engagement grounded in scholarly literature and produces auditable, quantified analysis rather than opaque summaries.
 
 ---
 
@@ -21,7 +21,7 @@ The primary audience. Scholars studying AI governance, safety, and ethics who ne
 
 > For **AI policy researchers** who need to systematically analyze competing perspectives in AI governance discourse, **AI Triad Research** is a **multi-perspective research platform** that structures arguments into a curated BDI taxonomy and computes quantified argument strength using formal QBAF semantics. Unlike **general-purpose AI assistants** (ChatGPT, Claude, Gemini), AI Triad Research forces genuine multi-perspective engagement across three philosophical camps, tracks crux disagreements through resolution, and produces auditable argumentation graphs rather than single-perspective prose.
 
-**Value drivers:** BDI decomposition (Beliefs vs. Desires vs. Intentions), QBAF argument strength scoring, intellectual lineage tracking to scholarly traditions, neutral evaluation with persona-stripped bias detection, 78+ cross-cutting situation nodes that reveal how the same concept is interpreted differently by each camp.
+**Value drivers:** BDI decomposition (Beliefs vs. Desires vs. Intentions), QBAF argument strength scoring, intellectual lineage tracking to scholarly traditions, neutral evaluation with persona-stripped bias detection, 412 cross-cutting situation nodes that reveal how the same concept is interpreted differently by each camp.
 
 ---
 
@@ -55,7 +55,7 @@ Analysts at policy institutes who produce briefings, reports, and recommendation
 
 **Positioning Statement:**
 
-> For **think tank analysts** who produce multi-stakeholder briefings on AI governance, **AI Triad Research** is a **argument mapping and debate platform** that generates structured analysis across three philosophical camps with audience-specific framing for policymakers, technical researchers, industry leaders, academics, or the general public. Unlike **manual literature review and expert interviews**, AI Triad Research provides a living taxonomy of 320+ argument nodes with formal attack/support relationships, enabling rapid identification of where stakeholder positions actually conflict versus where they talk past each other through different interpretations of shared concepts.
+> For **think tank analysts** who produce multi-stakeholder briefings on AI governance, **AI Triad Research** is a **argument mapping and debate platform** that generates structured analysis across three philosophical camps with audience-specific framing for policymakers, technical researchers, industry leaders, academics, or the general public. Unlike **manual literature review and expert interviews**, AI Triad Research provides a living taxonomy of 1,197 nodes (785 POV argument nodes, 412 situation nodes) with formal attack/support relationships, enabling rapid identification of where stakeholder positions actually conflict versus where they talk past each other through different interpretations of shared concepts.
 
 **Value drivers:** Five audience presets with distinct writing style, evidence standards, and moderator behavior, situation nodes that reveal interpretive divergence on shared concepts, community library for sharing and building on prior analyses, three debate protocols (Structured, Socratic, Deliberation) for different analytical goals.
 
@@ -135,7 +135,7 @@ Corporate teams in AI companies who need to understand the regulatory landscape 
 
 Every debate is grounded in a curated taxonomy of 320+ nodes across three philosophical camps (Accelerationist, Safetyist, Skeptic), each decomposed into Beliefs (empirical claims), Desires (normative commitments), and Intentions (strategic proposals). This structural decomposition prevents the collapse of empirical and normative disagreements into a single dimension — a fundamental limitation of flat stance-detection approaches and general-purpose AI chat.
 
-**Evidence:** 320+ POV nodes, 78+ situation nodes with per-camp BDI interpretations, 500+ typed edges, 384-dimensional embeddings, 1,091+ policy actions in shared registry.
+**Evidence:** 785 POV nodes, 412 situation nodes with per-camp BDI interpretations, 500+ typed edges, 384-dimensional embeddings, 1,091+ policy actions in shared registry.
 
 ### 2. Formal Argumentation with Quantified Strength
 
@@ -168,7 +168,7 @@ The same topic produces substantively different debates depending on the target 
 | Capability | Description |
 |---|---|
 | Structured Debate | Three protocols (Structured, Socratic, Deliberation) with adaptive phase transitions |
-| Taxonomy Grounding | 320+ POV nodes, 78+ situations, 500+ edges, 1,091+ policy actions |
+| Taxonomy Grounding | 785 POV nodes, 412 situations, 500+ edges, 1,091+ policy actions |
 | QBAF Analysis | Quantified argument strength via DF-QuAD gradual semantics |
 | Crux Tracking | Core disagreements classified (empirical/values/definitional) and tracked to resolution |
 | Convergence Detection | 7 deterministic signals driving adaptive phase transitions |
