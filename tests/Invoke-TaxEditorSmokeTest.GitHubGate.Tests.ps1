@@ -84,7 +84,10 @@ Describe 'Invoke-TaxEditorSmokeTest GitHub-flap gate exclusion (t/2673)' -Tag 'h
                 $total = if ($script:AnalyticsQ -eq 1) { 5 } else { 6 }
                 [PSCustomObject]@{
                     Success = $true; StatusCode = 200; ResponseMs = 10
-                    Body = [PSCustomObject]@{ summary = [PSCustomObject]@{ totalEvents = $total } }
+                    Body = [PSCustomObject]@{
+                        summary    = [PSCustomObject]@{ totalEvents = $total }
+                        eventTypes = [PSCustomObject]@{ 'view.dwell' = if ($script:AnalyticsQ -ge 2) { 1 } else { 0 } }
+                    }
                     ContentType = 'application/json'; RawBody = ''; Error = $null
                 }
             }
@@ -147,7 +150,10 @@ Describe 'Invoke-TaxEditorSmokeTest GitHub-flap gate exclusion (t/2673)' -Tag 'h
                 $total = if ($script:AnalyticsQ -eq 1) { 5 } else { 6 }
                 [PSCustomObject]@{
                     Success = $true; StatusCode = 200; ResponseMs = 10
-                    Body = [PSCustomObject]@{ summary = [PSCustomObject]@{ totalEvents = $total } }
+                    Body = [PSCustomObject]@{
+                        summary    = [PSCustomObject]@{ totalEvents = $total }
+                        eventTypes = [PSCustomObject]@{ 'view.dwell' = if ($script:AnalyticsQ -ge 2) { 1 } else { 0 } }
+                    }
                     ContentType = 'application/json'; RawBody = ''; Error = $null
                 }
             }
@@ -194,7 +200,10 @@ Describe 'Invoke-TaxEditorSmokeTest GitHub-flap gate exclusion (t/2673)' -Tag 'h
                 $total = if ($script:AnalyticsQ -eq 1) { 5 } else { 6 }
                 [PSCustomObject]@{
                     Success = $true; StatusCode = 200; ResponseMs = 10
-                    Body = [PSCustomObject]@{ summary = [PSCustomObject]@{ totalEvents = $total } }
+                    Body = [PSCustomObject]@{
+                        summary    = [PSCustomObject]@{ totalEvents = $total }
+                        eventTypes = [PSCustomObject]@{ 'view.dwell' = if ($script:AnalyticsQ -ge 2) { 1 } else { 0 } }
+                    }
                     ContentType = 'application/json'; RawBody = ''; Error = $null
                 }
             }
@@ -270,7 +279,10 @@ Describe 'Invoke-TaxEditorSmokeTest GitHub-flap gate exclusion (t/2673)' -Tag 'h
                 $total = if ($script:AnalyticsQ -eq 1) { 5 } else { 6 }
                 [PSCustomObject]@{
                     Success = $true; StatusCode = 200; ResponseMs = 10
-                    Body = [PSCustomObject]@{ summary = [PSCustomObject]@{ totalEvents = $total } }
+                    Body = [PSCustomObject]@{
+                        summary    = [PSCustomObject]@{ totalEvents = $total }
+                        eventTypes = [PSCustomObject]@{ 'view.dwell' = if ($script:AnalyticsQ -ge 2) { 1 } else { 0 } }
+                    }
                     ContentType = 'application/json'; RawBody = ''; Error = $null
                 }
             }

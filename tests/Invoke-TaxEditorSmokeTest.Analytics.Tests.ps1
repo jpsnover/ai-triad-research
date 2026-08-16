@@ -78,7 +78,10 @@ Describe 'Invoke-TaxEditorSmokeTest analytics round-trip probe (t/2667)' -Tag 'h
             Mock Invoke-RemoteCheck -ParameterFilter { $Path -eq '/api/analytics/query' } -MockWith {
                 $script:QueryCall++
                 $total = if ($script:QueryCall -eq 1) { 5 } else { 6 }   # +1 after write
-                New-RCResult $true 200 ([PSCustomObject]@{ summary = [PSCustomObject]@{ totalEvents = $total } })
+                New-RCResult $true 200 ([PSCustomObject]@{
+                    summary    = [PSCustomObject]@{ totalEvents = $total }
+                    eventTypes = [PSCustomObject]@{ 'view.dwell' = if ($script:QueryCall -ge 2) { 1 } else { 0 } }
+                })
             }
             Mock Invoke-RemoteCheck -ParameterFilter { $Path -eq '/api/analytics/event' } -MockWith {
                 New-RCResult $true 200 ([PSCustomObject]@{ ok = $true; count = 1 })
@@ -162,7 +165,10 @@ Describe 'Invoke-TaxEditorSmokeTest analytics round-trip probe (t/2667)' -Tag 'h
             Mock Invoke-RemoteCheck -ParameterFilter { $Path -eq '/api/analytics/query' } -MockWith {
                 $script:QueryCall++
                 $total = if ($script:QueryCall -eq 1) { 5 } else { 6 }
-                New-RCResult $true 200 ([PSCustomObject]@{ summary = [PSCustomObject]@{ totalEvents = $total } })
+                New-RCResult $true 200 ([PSCustomObject]@{
+                    summary    = [PSCustomObject]@{ totalEvents = $total }
+                    eventTypes = [PSCustomObject]@{ 'view.dwell' = if ($script:QueryCall -ge 2) { 1 } else { 0 } }
+                })
             }
             Mock Invoke-RemoteCheck -ParameterFilter { $Path -eq '/api/analytics/event' } -MockWith {
                 New-RCResult $true 200 ([PSCustomObject]@{ ok = $true; count = 1 })
@@ -188,7 +194,10 @@ Describe 'Invoke-TaxEditorSmokeTest analytics round-trip probe (t/2667)' -Tag 'h
             Mock Invoke-RemoteCheck -ParameterFilter { $Path -eq '/api/analytics/query' } -MockWith {
                 $script:QueryCall++
                 $total = if ($script:QueryCall -eq 1) { 5 } else { 6 }
-                New-RCResult $true 200 ([PSCustomObject]@{ summary = [PSCustomObject]@{ totalEvents = $total } })
+                New-RCResult $true 200 ([PSCustomObject]@{
+                    summary    = [PSCustomObject]@{ totalEvents = $total }
+                    eventTypes = [PSCustomObject]@{ 'view.dwell' = if ($script:QueryCall -ge 2) { 1 } else { 0 } }
+                })
             }
             Mock Invoke-RemoteCheck -ParameterFilter { $Path -eq '/api/analytics/event' } -MockWith {
                 New-RCResult $true 200 ([PSCustomObject]@{ ok = $true; count = 1 })
