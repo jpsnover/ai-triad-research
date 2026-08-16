@@ -231,6 +231,8 @@ function Invoke-TaxEditorSmokeTest {
     # Write probe — reachability only (200 + ok:true). NOT a drop detector.
     # Build the body as an explicit JSON string so the single-element `events`
     # array is never unwrapped to an object (the server requires an array — 400 otherwise).
+    # Two events in one batch: smoke-probe (system category) + view.dwell (engagement)
+    # so the after-read can assert eventTypes['view.dwell'] >= 1 (t/2706 AC).
     $ProbeStamp   = [DateTimeOffset]::UtcNow.ToString('o')
     $ProbeSession = "smoke-$([DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds())"
     $ProbeEvent   = @{
@@ -241,7 +243,15 @@ function Invoke-TaxEditorSmokeTest {
         category   = 'system'
         detail     = @{}
     }
-    $EventJson = '{"events":[' + ($ProbeEvent | ConvertTo-Json -Depth 6 -Compress) + ']}'
+    $DwellEvent   = @{
+        user       = 'smoke-probe'
+        session_id = $ProbeSession
+        timestamp  = $ProbeStamp
+        event_type = 'view.dwell'
+        category   = 'engagement'
+        detail     = @{ duration_ms = 100 }
+    }
+    $EventJson = '{"events":[' + ($ProbeEvent | ConvertTo-Json -Depth 6 -Compress) + ',' + ($DwellEvent | ConvertTo-Json -Depth 6 -Compress) + ']}'
 
     $WriteParams = @{ BaseUrl = $BaseUrl; Path = '/api/analytics/event'; Method = 'POST'; Body = $EventJson; TimeoutSec = $TimeoutSec; AcceptableStatusCodes = @(200) }
     if ($AnalyticsSession) { $WriteParams.Session = $AnalyticsSession }
@@ -302,6 +312,38 @@ function Invoke-TaxEditorSmokeTest {
     $DeltaResult.NodeCount   = $After
     $DeltaResult.Error       = $DeltaErr
     $Analytics += $DeltaResult
+
+    # t/2706 — assert view.dwell event_type is recorded in eventTypes.
+    # The write batch above includes a view.dwell event; the after-read's
+    # eventTypes map (QueryResult.eventTypes: Record<string,number>) must
+    # contain 'view.dwell' >= 1. This catches a class of routing bug where
+    # the event is accepted (200 ok) but silently discarded or mis-typed.
+    $DwellPass = $false
+    $DwellErr  = $null
+    if (-not $AfterCheck.Success) {
+        $DwellErr = "after-read failed (status=$($AfterCheck.StatusCode)) — cannot check eventTypes"
+    } elseif (-not $AfterCheck.Body -or -not $AfterCheck.Body.PSObject.Properties['eventTypes']) {
+        $DwellErr = "eventTypes field missing from /api/analytics/query response"
+    } else {
+        $EventTypes  = $AfterCheck.Body.eventTypes
+        $DwellProp   = $EventTypes.PSObject.Properties['view.dwell']
+        $DwellCount  = if ($DwellProp) { [int]$DwellProp.Value } else { 0 }
+        $DwellPass   = ($DwellCount -ge 1)
+        if (-not $DwellPass) {
+            $DwellErr = "view.dwell absent or zero in eventTypes after probe write (count=$DwellCount) — event not persisted or event_type mis-routed"
+        }
+    }
+
+    $DwellResult = [EndpointTestResult]::new()
+    $DwellResult.Endpoint    = 'GET /api/analytics/query (view.dwell eventType)'
+    $DwellResult.Category    = 'Analytics'
+    $DwellResult.Description = 'view.dwell event_type present in analytics after write (t/2706)'
+    $DwellResult.Status      = $AfterCheck.StatusCode
+    $DwellResult.Pass        = $DwellPass
+    $DwellResult.Ms          = $AfterCheck.ResponseMs
+    $DwellResult.NodeCount   = $null
+    $DwellResult.Error       = $DwellErr
+    $Analytics += $DwellResult
 
     foreach ($Ep in $Analytics) {
         $Icon = if ($Ep.Pass) { '[PASS]' } else { '[FAIL]' }
