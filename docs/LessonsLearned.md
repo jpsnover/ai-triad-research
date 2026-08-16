@@ -2,9 +2,6 @@
 
 Institutional memory for failure patterns across the AI Triad Research project.
 
-> **This file is the flat archive.** For the organized, category-indexed view, see [`lessons/INDEX.md`](lessons/INDEX.md).
-> New patterns should be added to both this file (append) and the appropriate category file in `lessons/`.
-
 ---
 
 ## [Build] Bash Dollar-Sign Variable Substitution Corrupts Code
