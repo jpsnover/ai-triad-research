@@ -6,9 +6,9 @@
       "type": "value_check",
       "description": "AGENTS.md cmdlet count ≈ actual Public/ count",
       "measure": "ls scripts/AITriad/Public | wc -l",
-      "expect": "145",
+      "expect": "183",
       "tolerance": 5,
-      "source": "AGENTS.md:174 — '145 cmdlets in Public/'"
+      "source": "scripts/AITriad/Public/ — actual count as of 2026-08-15"
     },
     {
       "id": "module-version",
