@@ -312,26 +312,12 @@ jobs:
       # SYNC WITH main.bicep: analyticsContainer, stagingAnalyticsContainer,
       # userContentContainer, stagingUserContentContainer, communityContainer,
       # stagingCommunityContainer. Update both if a container is added or removed.
+      # Discriminates ContainerNotFound (404) from RBAC failures (403) — t/2718.
       - name: Verify blob containers exist post-deploy
         shell: pwsh
         run: |
-          $StorageAccount = '${{ steps.deploy.outputs.storageAccountName }}'
-          $Containers = @('analytics', 'staging-analytics', 'user-content', 'staging-user-content', 'community', 'staging-community')
-          if ($Containers.Count -ne 6) { throw "Container list sync error: expected 6, got $($Containers.Count). Update workflow and main.bicep together." }
-          $Failed = @()
-          foreach ($c in $Containers) {
-            $null = az storage container show --account-name $StorageAccount --name $c --auth-mode login --output none 2>&1
-            if ($LASTEXITCODE -ne 0) {
-              Write-Host "::error::Blob container '$c' missing or inaccessible after Bicep deploy (storageAccount=$StorageAccount)"
-              $Failed += $c
-            } else {
-              Write-Host "  [OK] $c"
-            }
-          }
-          if ($Failed.Count -gt 0) {
-            throw "Post-deploy blob container check FAILED: $($Failed.Count) container(s) missing — $($Failed -join ', ')"
-          }
-          Write-Host "All $($Containers.Count) blob containers verified."
+          ./operations/devops/Invoke-BlobContainerGateCheck.ps1 `
+            -StorageAccount '${{ steps.deploy.outputs.storageAccountName }}'
 
       - name: Cleanup stale revisions
         shell: pwsh
