@@ -372,24 +372,33 @@ function Invoke-TaxEditorSmokeTest {
     # Warn-only: NOT gating OverallPass until TL Gate Verification (both arms +
     # ≥1 real-env cycle) is complete. See t/2689 AC3.
     Write-Host '=== Oped Files Health ===' -ForegroundColor Cyan
+    # Accept both 200 (ok) and 500 (missing files) so Invoke-WebRequest doesn't throw on the
+    # failure arm; we discriminate via ok:true/false in the body, not the HTTP status.
     $OpedFilesCheck = Invoke-RemoteCheck -BaseUrl $BaseUrl -Path '/api/health/oped-files' `
-        -Method 'GET' -TimeoutSec $TimeoutSec -AcceptableStatusCodes @(200) -ExpectJson $true
-    # Require JSON content-type + ok:true — status-200-only passes the Sign-In interstitial
-    # (200 text/html) which is what any unknown GET returns before the endpoint is deployed.
+        -Method 'GET' -TimeoutSec $TimeoutSec -AcceptableStatusCodes @(200, 500)
+    # Parse body explicitly — Invoke-RemoteCheck.Body may arrive as a raw string or as a
+    # PSCustomObject depending on how ConvertFrom-Json behaved for this response. Parse
+    # defensively so the ok/missing checks always operate on a structured object.
+    # (t/2689: smoke false-warned on a valid {ok:true} response — body not parsed as object)
+    $OpedFilesJson = if ($OpedFilesCheck.Body -is [string]) {
+        try { $OpedFilesCheck.Body | ConvertFrom-Json -ErrorAction SilentlyContinue } catch { $null }
+    } else { $OpedFilesCheck.Body }
+    # Require JSON content-type + ok:true — a 200 text/html response is the Sign-In
+    # interstitial (any unknown GET before the endpoint is in PUBLIC_EXACT_PATHS).
     $OpedFilesJsonOk  = $OpedFilesCheck.ContentType -and ($OpedFilesCheck.ContentType -like '*json*')
-    $OpedFilesBodyOk  = $OpedFilesCheck.Body -and
-        $OpedFilesCheck.Body.PSObject.Properties['ok'] -and [bool]$OpedFilesCheck.Body.ok
+    $OpedFilesBodyOk  = $OpedFilesJson -and
+        $OpedFilesJson.PSObject.Properties['ok'] -and [bool]$OpedFilesJson.ok
     $OpedFilesPass = $OpedFilesCheck.Success -and $OpedFilesJsonOk -and $OpedFilesBodyOk
     $OpedFilesDetail = if ($OpedFilesPass) {
-        $count = if ($OpedFilesCheck.Body -and $OpedFilesCheck.Body.PSObject.Properties['assets']) {
-            @($OpedFilesCheck.Body.assets).Count
+        $count = if ($OpedFilesJson -and $OpedFilesJson.PSObject.Properties['assets']) {
+            @($OpedFilesJson.assets).Count
         } else { 0 }
         "all assets present ($count files)"
     } elseif (-not $OpedFilesJsonOk) {
         "non-JSON response (content-type=$($OpedFilesCheck.ContentType), status=$($OpedFilesCheck.StatusCode)) — endpoint unreachable or returned interstitial"
     } elseif (-not $OpedFilesBodyOk) {
-        $missing = if ($OpedFilesCheck.Body -and $OpedFilesCheck.Body.PSObject.Properties['missing']) {
-            ($OpedFilesCheck.Body.missing -join ', ')
+        $missing = if ($OpedFilesJson -and $OpedFilesJson.PSObject.Properties['missing']) {
+            ($OpedFilesJson.missing -join ', ')
         } else { 'ok:false (no missing list)' }
         "MISSING: $missing (status=$($OpedFilesCheck.StatusCode))"
     } else {
