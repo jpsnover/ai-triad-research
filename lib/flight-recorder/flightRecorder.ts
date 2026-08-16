@@ -305,6 +305,7 @@ export class FlightRecorder {
       ring_buffer_events_total: this.buffer.count,
       ring_buffer_events_retained: this.buffer.retained,
       events_lost: Math.max(0, this.buffer.count - this.buffer.capacity),
+      ...(this.config.shim && { shim: true }),
     };
   }
 }
