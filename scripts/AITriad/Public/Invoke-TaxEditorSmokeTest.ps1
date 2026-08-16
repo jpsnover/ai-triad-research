@@ -373,18 +373,27 @@ function Invoke-TaxEditorSmokeTest {
     # ≥1 real-env cycle) is complete. See t/2689 AC3.
     Write-Host '=== Oped Files Health ===' -ForegroundColor Cyan
     $OpedFilesCheck = Invoke-RemoteCheck -BaseUrl $BaseUrl -Path '/api/health/oped-files' `
-        -Method 'GET' -TimeoutSec $TimeoutSec -AcceptableStatusCodes @(200)
-    $OpedFilesPass = $OpedFilesCheck.Success
+        -Method 'GET' -TimeoutSec $TimeoutSec -AcceptableStatusCodes @(200) -ExpectJson $true
+    # Require JSON content-type + ok:true — status-200-only passes the Sign-In interstitial
+    # (200 text/html) which is what any unknown GET returns before the endpoint is deployed.
+    $OpedFilesJsonOk  = $OpedFilesCheck.ContentType -and ($OpedFilesCheck.ContentType -like '*json*')
+    $OpedFilesBodyOk  = $OpedFilesCheck.Body -and
+        $OpedFilesCheck.Body.PSObject.Properties['ok'] -and [bool]$OpedFilesCheck.Body.ok
+    $OpedFilesPass = $OpedFilesCheck.Success -and $OpedFilesJsonOk -and $OpedFilesBodyOk
     $OpedFilesDetail = if ($OpedFilesPass) {
         $count = if ($OpedFilesCheck.Body -and $OpedFilesCheck.Body.PSObject.Properties['assets']) {
             @($OpedFilesCheck.Body.assets).Count
         } else { 0 }
         "all assets present ($count files)"
-    } else {
+    } elseif (-not $OpedFilesJsonOk) {
+        "non-JSON response (content-type=$($OpedFilesCheck.ContentType), status=$($OpedFilesCheck.StatusCode)) — endpoint unreachable or returned interstitial"
+    } elseif (-not $OpedFilesBodyOk) {
         $missing = if ($OpedFilesCheck.Body -and $OpedFilesCheck.Body.PSObject.Properties['missing']) {
             ($OpedFilesCheck.Body.missing -join ', ')
-        } else { 'unknown' }
+        } else { 'ok:false (no missing list)' }
         "MISSING: $missing (status=$($OpedFilesCheck.StatusCode))"
+    } else {
+        "failed (status=$($OpedFilesCheck.StatusCode))"
     }
     $OFIcon  = if ($OpedFilesPass) { '[PASS]' } else { '[WARN]' }
     $OFColor = if ($OpedFilesPass) { 'Green' } else { 'Yellow' }

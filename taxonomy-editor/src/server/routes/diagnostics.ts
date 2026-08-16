@@ -310,7 +310,7 @@ document.addEventListener('DOMContentLoaded', function() {
       } else {
         json(res, { ok: false, missing, present }, 500);
       }
-    } catch (err) { error(res, String(err), 500, err); }
+    } catch (err) { getGlobalRecorder()?.record({ type: 'system.error', component: 'server', level: 'error', message: 'Failed to check oped runtime assets', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } }); error(res, String(err), 500, err); }
   });
 
   // ── Chat sessions ──
