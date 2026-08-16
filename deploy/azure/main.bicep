@@ -790,6 +790,17 @@ resource blobRoleAssignmentStagingCommunity 'Microsoft.Authorization/roleAssignm
   }
 }
 
+// t/2701: analytics was missing — staging app had no Storage Blob Data Contributor on staging-analytics.
+resource blobRoleAssignmentStagingAnalytics 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  scope: stagingAnalyticsContainer
+  name: guid(stagingAnalyticsContainer.id, containerAppStaging.id, blobDataContributorRoleId)
+  properties: {
+    principalId: containerAppStaging.identity.principalId
+    principalType: 'ServicePrincipal'
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', blobDataContributorRoleId)
+  }
+}
+
 // ── Authentication (Easy Auth for Container Apps) ──
 // Enables /.auth/login/<provider> endpoints. On successful OAuth, Azure injects
 // X-MS-CLIENT-PRINCIPAL-* headers into requests to the container. The server
