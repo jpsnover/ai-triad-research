@@ -134,6 +134,7 @@
         'Get-FreeTierStatus'
         'Invoke-TaxEditorSmokeTest'
         'Test-AnalyticsBackend'
+        'Test-AnalyticsBlobHealth'
         'Test-AzureHealth'
         'Test-GitHubHealth'
         'Get-TaxEditorRevision'
