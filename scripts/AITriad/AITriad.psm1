@@ -852,6 +852,8 @@ Export-ModuleMember -Function @(
     'Invoke-TaxEditorSmokeTest'
     # t/2668 — analytics storage round-trip diagnosis
     'Test-AnalyticsBackend'
+    # t/2702 — analytics blob container health (exists/accessible/recent data)
+    'Test-AnalyticsBlobHealth'
     'Test-AzureHealth'
     'Test-GitHubHealth'
     'Get-TaxEditorRevision'

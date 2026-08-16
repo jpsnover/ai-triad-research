@@ -114,6 +114,7 @@ Get-Help <CmdletName> -Full                     # full docs for any cmdlet
 | `Get-FreeTierStatus` | Live free-tier budget/usage report (live config + token consumption) |
 | `Test-AnalyticsBackend` | Analytics storage round-trip probe — POST synthetic event, wait, GET query, verify event appears; confirms write failures in <60s (t/2668) |
 | `Test-AzureHealth` | Azure infra status |
+| `Test-AnalyticsBlobHealth` | Verify the analytics blob container exists, is accessible, and has recent data (daily NDJSON blobs, event counts, stale-write threshold) |
 | `Test-GitHubHealth` | GitHub platform + CI status |
 | `Test-AIApiKey` | Probe AI backend auth endpoints (no tokens consumed) — confirm a key is present and accepted before running jobs |
 | `Test-AIBackendHealth` | Full completion round-trip probe per backend — use before a debate run to surface degraded/unreachable models (t/2212) |
