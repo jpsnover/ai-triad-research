@@ -315,7 +315,7 @@ jobs:
           # SYNC WITH main.bicep: analyticsContainer, stagingAnalyticsContainer,
           # userContentContainer, stagingUserContentContainer, communityContainer,
           # stagingCommunityContainer. Update both if a container is added or removed.
-          $Containers = @('analytics', 'staging-analytics', 'user-content', 'staging-user-content', 'community', 'staging-community')
+          $Containers = @('analytics', 'staging-analytics', 'user-content', 'staging-user-content', 'community', 'staging-community', 'does-not-exist-gatecheck')
           $Failed = @()
           foreach ($c in $Containers) {
             $null = az storage container show --account-name $StorageAccount --name $c --auth-mode login --output none 2>&1
