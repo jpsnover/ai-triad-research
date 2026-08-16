@@ -13,12 +13,13 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 import { backendForModel, isKnownBackend, getStoredModel } from '../settingsSlice';
+import { DEFAULT_MODEL } from '@lib/ai-client/defaults';
 
 const here = dirname(fileURLToPath(import.meta.url));
 // __tests__ → slices → useTaxonomyStore → hooks → renderer → src → taxonomy-editor → repo root
 const aiModels = JSON.parse(
   readFileSync(resolve(here, '../../../../../../../ai-models.json'), 'utf8'),
-) as { backends: { id: string }[]; models: { id: string; backend: string }[] };
+) as { backends: { id: string }[]; models: { id: string; backend: string }[]; defaults?: Record<string, string> };
 
 describe('renderer registry completeness (t/2486 prevention gate)', () => {
   it('has a non-empty registry to check (guards against a false-green empty read)', () => {
@@ -51,6 +52,31 @@ describe('renderer registry completeness (t/2486 prevention gate)', () => {
       const b = backendForModel(fake.id);
       if (b !== fake.backend) throw new Error('uncovered model id');
     }).toThrow();
+  });
+
+  // t/2687: DEFAULT_MODEL and every defaults.* must be a REGISTERED model id. An unregistered
+  // default silently fails at generation — resolveModel sends the raw id to the provider, which
+  // rejects it (this is exactly how DEFAULT_MODEL='gemini-flash-lite-latest' broke op-ed create).
+  const registeredIds = new Set(aiModels.models.map(m => m.id));
+
+  it('CLEAN ARM: DEFAULT_MODEL is a registered model id (t/2687)', () => {
+    expect(
+      registeredIds.has(DEFAULT_MODEL),
+      `DEFAULT_MODEL '${DEFAULT_MODEL}' is not in ai-models.json models[].id`,
+    ).toBe(true);
+  });
+
+  it('CLEAN ARM: every ai-models.json defaults.* value is a registered model id (t/2687)', () => {
+    const failures: string[] = [];
+    for (const [backend, id] of Object.entries(aiModels.defaults ?? {})) {
+      if (!registeredIds.has(id)) failures.push(`defaults.${backend} = '${id}' is not a registered model id`);
+    }
+    expect(failures, failures.join('\n')).toEqual([]);
+  });
+
+  it('BROKEN ARM: an unregistered default id is caught (t/2687)', () => {
+    // The pre-fix value must read as unregistered — proving the membership check bites.
+    expect(registeredIds.has('gemini-flash-lite-latest')).toBe(false);
   });
 });
 

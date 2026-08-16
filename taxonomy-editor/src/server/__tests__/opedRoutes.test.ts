@@ -23,16 +23,17 @@ const { listOpedSets, loadOpedSet, deleteOpedSet, getOpedSetsQuotaStatus, finali
 vi.mock('../storage/opedStore.js', () => ({ listOpedSets, loadOpedSet, deleteOpedSet, getOpedSetsQuotaStatus, finalizeOpedSet }));
 
 // Controllable auth + tier context for the create-route pre-start gate (t/2610).
-const { isAnonymousUser, getStorageUserId, getCurrentUser, resolveTier, resolveBackend } = vi.hoisted(() => ({
+const { isAnonymousUser, getStorageUserId, getCurrentUser, resolveTier, resolveBackend, isRegisteredModel } = vi.hoisted(() => ({
   isAnonymousUser: vi.fn(() => false),
   getStorageUserId: vi.fn(() => 'user-1'),
   getCurrentUser: vi.fn(() => ({ principalName: 'u', idp: 'aad', isAnonymous: false })),
   resolveTier: vi.fn(() => ({ level: 'platform', allowedBackends: ['gemini', 'claude', 'groq'], pinnedModel: undefined })),
   resolveBackend: vi.fn(() => 'gemini'),
+  isRegisteredModel: vi.fn(() => true),
 }));
 vi.mock('../security/userContext.js', () => ({ isAnonymousUser, getStorageUserId, getCurrentUser }));
 vi.mock('../ai/proxyTiers.js', () => ({ resolveTier, isBackendAllowed: (tier: { allowedBackends: string[] }, b: string) => tier.allowedBackends.includes(b) }));
-vi.mock('../ai/aiBackends.js', () => ({ resolveBackend }));
+vi.mock('../ai/aiBackends.js', () => ({ resolveBackend, isRegisteredModel }));
 // accessControl (callerTierIdentity, clientSafeMessage) is pure — use the real module
 // so httpKit's error() path keeps clientSafeMessage. Only the tier/backend + user context
 // need controlling, and those are mocked above.
@@ -220,6 +221,7 @@ describe('POST /api/oped-sets create pre-start gate (t/2610)', () => {
     getCurrentUser.mockReset().mockReturnValue({ principalName: 'u', idp: 'aad', isAnonymous: false });
     resolveTier.mockReset().mockReturnValue({ level: 'platform', allowedBackends: ['gemini', 'claude', 'groq'], pinnedModel: undefined });
     resolveBackend.mockReset().mockReturnValue('gemini');
+    isRegisteredModel.mockReset().mockReturnValue(true);
     const r = makeRouter();
     registerOpedRoutes(r.router as never, {} as never);
     handlers = r.handlers;
@@ -240,6 +242,16 @@ describe('POST /api/oped-sets create pre-start gate (t/2610)', () => {
     await handlers['POST /api/oped-sets'](fakeReq('/api/oped-sets'), res, validBody);
     expect(res._status).toBe(403);
     expect(getOpedSetsQuotaStatus).not.toHaveBeenCalled();
+  });
+
+  it('400 when the model is not a registered id — rejected before any generation (t/2687)', async () => {
+    // Prevents an unregistered model (e.g. a stale/misconfigured default) from reaching the
+    // provider and silently failing mid-generation ("voice failed — 0 words").
+    isRegisteredModel.mockReturnValue(false);
+    const res = fakeRes();
+    await handlers['POST /api/oped-sets'](fakeReq('/api/oped-sets'), res, { ...validBody, params: { model: 'gemini-flash-lite-latest', wordCount: 800 } });
+    expect(res._status).toBe(400);
+    expect(getOpedSetsQuotaStatus).not.toHaveBeenCalled(); // gated before quota + any generation
   });
 
   it('400 on a URL/source path — P1 is FromTopic only', async () => {

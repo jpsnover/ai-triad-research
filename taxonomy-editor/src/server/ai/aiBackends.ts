@@ -319,6 +319,15 @@ export function getResolvedApiModelId(friendlyId: string): string {
   return getApiModelId(friendlyId);
 }
 
+/**
+ * Whether `model` is a registered friendly id in ai-models.json (t/2687). `resolveBackend` /
+ * `resolveModel` fall back to a prefix guess for unknown ids, so they never reject — callers that
+ * must NOT send an unregistered id to a provider (e.g. the op-ed create boundary) use this to gate.
+ */
+export function isRegisteredModel(model: string): boolean {
+  return loadModelConfig().entryMap[model] !== undefined;
+}
+
 // Normalize the caller-supplied key(s) to a filtered array, or undefined when the
 // caller passed nothing (→ fall back to the stored keys for each backend).
 function normalizeExplicitKeys(explicitApiKey: string | string[] | undefined): string[] | undefined {
