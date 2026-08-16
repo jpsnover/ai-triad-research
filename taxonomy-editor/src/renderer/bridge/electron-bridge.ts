@@ -399,6 +399,23 @@ export const api: AppAPI = {
   sendDiagnosticsState: (s) => {
     for (const cb of localDiagCallbacks) cb(s);
     window.electronAPI.sendDiagnosticsState(s);
+    // t/2692: sendDiagnosticsState is a sync `ipcRenderer.send`, so instrumentBridge
+    // (which only wraps async methods) skips it — record manually here to confirm the
+    // IPC state push actually left the sender. Fires on every debate state change
+    // (high-frequency), so debug level + minimal payload to avoid evicting useful
+    // events (the concern the instrumentBridge SKIP list already guards).
+    const st = s as { debate?: { id?: string; transcript?: unknown[] }; selectedEntry?: unknown } | null;
+    getGlobalRecorder()?.record({
+      type: 'lifecycle',
+      component: 'electron-bridge',
+      level: 'debug',
+      message: 'bridge.sendDiagnosticsState',
+      data: {
+        debate_id: st?.debate?.id ?? null,
+        transcript_length: Array.isArray(st?.debate?.transcript) ? st.debate.transcript.length : null,
+        selected_entry: st?.selectedEntry ?? null,
+      },
+    });
   },
 
   // Data file diff popout
