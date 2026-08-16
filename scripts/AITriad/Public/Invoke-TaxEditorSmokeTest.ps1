@@ -367,6 +367,34 @@ function Invoke-TaxEditorSmokeTest {
         Write-Host ''
     }
 
+    # ── Phase 7: Oped-files runtime asset health (t/2689 AC3) — warn-only ─────
+    # Asserts soul-docs + lib/oped/prompts are present in the container image.
+    # Warn-only: NOT gating OverallPass until TL Gate Verification (both arms +
+    # ≥1 real-env cycle) is complete. See t/2689 AC3.
+    Write-Host '=== Oped Files Health ===' -ForegroundColor Cyan
+    $OpedFilesCheck = Invoke-RemoteCheck -BaseUrl $BaseUrl -Path '/api/health/oped-files' `
+        -Method 'GET' -TimeoutSec $TimeoutSec -AcceptableStatusCodes @(200)
+    $OpedFilesPass = $OpedFilesCheck.Success
+    $OpedFilesDetail = if ($OpedFilesPass) {
+        $count = if ($OpedFilesCheck.Body -and $OpedFilesCheck.Body.PSObject.Properties['assets']) {
+            @($OpedFilesCheck.Body.assets).Count
+        } else { 0 }
+        "all assets present ($count files)"
+    } else {
+        $missing = if ($OpedFilesCheck.Body -and $OpedFilesCheck.Body.PSObject.Properties['missing']) {
+            ($OpedFilesCheck.Body.missing -join ', ')
+        } else { 'unknown' }
+        "MISSING: $missing (status=$($OpedFilesCheck.StatusCode))"
+    }
+    $OFIcon  = if ($OpedFilesPass) { '[PASS]' } else { '[WARN]' }
+    $OFColor = if ($OpedFilesPass) { 'Green' } else { 'Yellow' }
+    Write-Host "  $OFIcon GET /api/health/oped-files — $($OpedFilesCheck.StatusCode) $($OpedFilesCheck.ResponseMs)ms — $OpedFilesDetail" -ForegroundColor $OFColor
+    if (-not $OpedFilesPass) {
+        Write-Host "  (warn-only: not gating OverallPass — see t/2689 AC3)" -ForegroundColor DarkYellow
+        Write-Host "::warning::Oped-files health check failed: $OpedFilesDetail"
+    }
+    Write-Host ''
+
     # ── Summary ──────────────────────────────────────────────────────────
     $AllResults = @($Endpoints) + @($AnonEndpoints) + @($Analytics) + @($DataPresence)
     $Passed = @($AllResults | Where-Object { $_.Pass }).Count
@@ -424,6 +452,7 @@ function Invoke-TaxEditorSmokeTest {
         HealthOk        = $Health.Healthy
         AzureOk         = $Azure.Healthy
         GitHubOk        = $GitHub.Healthy
+        OpedFilesOk     = $OpedFilesPass
         EndpointsPassed = $Passed
         EndpointsFailed = $Failed
         EndpointsTotal  = $Total
