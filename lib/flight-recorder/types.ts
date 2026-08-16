@@ -225,6 +225,7 @@ export interface FlightRecorderConfig {
   maxDumpFiles: number;          // Retain last N dumps (default: 10)
   maxDumpBytes: number;          // Total disk budget in bytes (default: 50 MB)
   includeSystemContext: boolean;  // Include OS/app info in dump header (default: true)
+  shim?: boolean;                // Marks this as an intentional capacity-1 popup shim recorder
 }
 
 export const DEFAULT_CONFIG: FlightRecorderConfig = {

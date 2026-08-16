@@ -592,6 +592,19 @@ describe('FlightRecorder', () => {
 
     expect(eventLine.component).toBe('argument-network');
   });
+
+  it('shim:true is emitted in dump header when config.shim is set', () => {
+    const shim = new FlightRecorder({ capacity: 1, dumpOnError: false, shim: true });
+    const { ndjson } = shim.buildDump('manual');
+    const header = JSON.parse(ndjson.split('\n')[0]);
+    expect(header.shim).toBe(true);
+  });
+
+  it('shim field is absent from dump header when config.shim is not set', () => {
+    const { ndjson } = recorder.buildDump('manual');
+    const header = JSON.parse(ndjson.split('\n')[0]);
+    expect(header.shim).toBeUndefined();
+  });
 });
 
 // ═══════════════════════════════════════════════════════════════════
