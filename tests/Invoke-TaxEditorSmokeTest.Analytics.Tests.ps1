@@ -53,6 +53,15 @@ Describe 'Invoke-TaxEditorSmokeTest analytics round-trip probe (t/2667)' -Tag 'h
             # override to $null to exercise the unavailable path.
             Mock New-AnonymousWebSession -MockWith { [Microsoft.PowerShell.Commands.WebRequestSession]::new() }
 
+            # Phase 7 (t/2689) runs before analytics — stub it so analytics tests focus on their phase.
+            Mock Invoke-RemoteCheck -ParameterFilter { $Path -eq '/api/health/oped-files' } -MockWith {
+                [PSCustomObject]@{
+                    Success = $true; StatusCode = 200; ResponseMs = 5
+                    Body = [PSCustomObject]@{ ok = $true; assets = @() }
+                    ContentType = 'application/json'; RawBody = ''; Error = $null
+                }
+            }
+
             # Helper builds an Invoke-RemoteCheck-shaped result.
             function script:New-RCResult ($Success, $Status, $Body) {
                 [PSCustomObject]@{
