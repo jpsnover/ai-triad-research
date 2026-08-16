@@ -226,7 +226,7 @@ async function persistDump(
  */
 function createPopupShim(origin: string): FlightRecorder {
   // Create a minimal recorder (capacity 1 — we don't buffer locally)
-  const shim = new FlightRecorder({ capacity: 1, dumpOnError: false });
+  const shim = new FlightRecorder({ capacity: 1, dumpOnError: false, shim: true }); // t/2691: mark dumps as popup-shim in the FR header
 
   const electronAPI = (window as unknown as { electronAPI: { forwardFlightEvent: (event: RecordInput) => void } }).electronAPI;
 
@@ -280,7 +280,7 @@ function createPopupShim(origin: string): FlightRecorder {
  * Mirrors createPopupShim but uses BroadcastChannel instead of Electron IPC.
  */
 function createWebPopupShim(origin: string): FlightRecorder {
-  const shim = new FlightRecorder({ capacity: 1, dumpOnError: false });
+  const shim = new FlightRecorder({ capacity: 1, dumpOnError: false, shim: true }); // t/2691: mark dumps as popup-shim in the FR header
   const channel = new BroadcastChannel('aitriad-flight-recorder');
 
   shim.record = (input: RecordInput) => {
