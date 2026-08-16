@@ -367,10 +367,9 @@ function Invoke-TaxEditorSmokeTest {
         Write-Host ''
     }
 
-    # ── Phase 7: Oped-files runtime asset health (t/2689 AC3) — warn-only ─────
+    # ── Phase 7: Oped-files runtime asset health (t/2689 AC3) ──────────────────
     # Asserts soul-docs + lib/oped/prompts are present in the container image.
-    # Warn-only: NOT gating OverallPass until TL Gate Verification (both arms +
-    # ≥1 real-env cycle) is complete. See t/2689 AC3.
+    # Both-arms gate verified (#1124) + clean real-env cycle (#1122) — now blocking.
     Write-Host '=== Oped Files Health ===' -ForegroundColor Cyan
     # Accept both 200 (ok) and 500 (missing files) so Invoke-WebRequest doesn't throw on the
     # failure arm; we discriminate via ok:true/false in the body, not the HTTP status.
@@ -404,17 +403,28 @@ function Invoke-TaxEditorSmokeTest {
     } else {
         "failed (status=$($OpedFilesCheck.StatusCode))"
     }
-    $OFIcon  = if ($OpedFilesPass) { '[PASS]' } else { '[WARN]' }
-    $OFColor = if ($OpedFilesPass) { 'Green' } else { 'Yellow' }
+    $OFIcon  = if ($OpedFilesPass) { '[PASS]' } else { '[FAIL]' }
+    $OFColor = if ($OpedFilesPass) { 'Green' } else { 'Red' }
     Write-Host "  $OFIcon GET /api/health/oped-files — $($OpedFilesCheck.StatusCode) $($OpedFilesCheck.ResponseMs)ms — $OpedFilesDetail" -ForegroundColor $OFColor
     if (-not $OpedFilesPass) {
-        Write-Host "  (warn-only: not gating OverallPass — see t/2689 AC3)" -ForegroundColor DarkYellow
-        Write-Host "::warning::Oped-files health check failed: $OpedFilesDetail"
+        Write-Host "::error::Oped-files health check failed: $OpedFilesDetail"
     }
     Write-Host ''
 
+    $OpedFilesResult = [EndpointTestResult]::new()
+    $OpedFilesResult.Endpoint    = 'GET /api/health/oped-files'
+    $OpedFilesResult.Category    = 'OpedFiles'
+    $OpedFilesResult.Description = 'Soul-docs + oped prompts present in container image'
+    $OpedFilesResult.Status      = $OpedFilesCheck.StatusCode
+    $OpedFilesResult.Pass        = $OpedFilesPass
+    $OpedFilesResult.Ms          = $OpedFilesCheck.ResponseMs
+    $OpedFilesResult.NodeCount   = $null
+    if (-not $OpedFilesPass) {
+        $OpedFilesResult.Error = $OpedFilesDetail
+    }
+
     # ── Summary ──────────────────────────────────────────────────────────
-    $AllResults = @($Endpoints) + @($AnonEndpoints) + @($Analytics) + @($DataPresence)
+    $AllResults = @($Endpoints) + @($AnonEndpoints) + @($Analytics) + @($DataPresence) + @($OpedFilesResult)
     $Passed = @($AllResults | Where-Object { $_.Pass }).Count
     $Failed = @($AllResults | Where-Object { -not $_.Pass }).Count
     $Total = $AllResults.Count
