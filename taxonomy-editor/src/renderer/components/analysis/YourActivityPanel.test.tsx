@@ -26,41 +26,38 @@ import { useUserProfile } from '../../hooks/useAuthStatus';
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────
 
-const LEAF_NODE = (id: string) => ({
-  id, visits: 10, engagedVisits: 8, engagedMs: 30_000,
-});
+const LEAF_NODE = () => ({ visits: 10, engagedVisits: 8, engagedMs: 30_000, cappedRate: 0 });
 
+// Server wire EngagementTree ({tool,camps,tabs}) — the panel adapts `.user` into the
+// hierarchical TreeNode at the fetch boundary (engagementTreeToTreeNode, t/2709). The
+// prior fixture was already-adapted TreeNode and never exercised that conversion.
 const FIXTURE_TREE = {
-  id: 'root', visits: 80, engagedVisits: 64, engagedMs: 200_000,
-  children: {
-    taxonomy: {
-      id: 'taxonomy', visits: 80, engagedVisits: 64, engagedMs: 200_000,
-      children: {
-        acc: {
-          id: 'acc', visits: 40, engagedVisits: 32, engagedMs: 100_000,
-          children: {
-            'acc-bel': {
-              id: 'acc-bel', visits: 20, engagedVisits: 16, engagedMs: 60_000,
-              children: { 'acc-bel-001': LEAF_NODE('acc-bel-001') },
-            },
-            'acc-des': {
-              id: 'acc-des', visits: 20, engagedVisits: 16, engagedMs: 40_000,
-              children: { 'acc-des-001': LEAF_NODE('acc-des-001') },
-            },
-          },
+  tool: { visits: 80, engagedVisits: 64, engagedMs: 200_000, cappedRate: 0 },
+  camps: {
+    acc: {
+      visits: 40, engagedVisits: 32, engagedMs: 100_000, cappedRate: 0,
+      categories: {
+        'acc-bel': {
+          visits: 20, engagedVisits: 16, engagedMs: 60_000, cappedRate: 0,
+          nodes: { 'acc-bel-001': LEAF_NODE() },
         },
-        saf: {
-          id: 'saf', visits: 40, engagedVisits: 32, engagedMs: 100_000,
-          children: {
-            'saf-bel': {
-              id: 'saf-bel', visits: 40, engagedVisits: 32, engagedMs: 100_000,
-              children: { 'saf-bel-001': LEAF_NODE('saf-bel-001') },
-            },
-          },
+        'acc-des': {
+          visits: 20, engagedVisits: 16, engagedMs: 40_000, cappedRate: 0,
+          nodes: { 'acc-des-001': LEAF_NODE() },
+        },
+      },
+    },
+    saf: {
+      visits: 40, engagedVisits: 32, engagedMs: 100_000, cappedRate: 0,
+      categories: {
+        'saf-bel': {
+          visits: 40, engagedVisits: 32, engagedMs: 100_000, cappedRate: 0,
+          nodes: { 'saf-bel-001': LEAF_NODE() },
         },
       },
     },
   },
+  tabs: {},
 };
 
 const SIGNED_IN_PROFILE = {
@@ -129,7 +126,7 @@ describe('YourActivityPanel', () => {
   it('shows empty state when user tree has no visits', async () => {
     mockProfile(SIGNED_IN_PROFILE);
     vi.mocked(bridgeGet).mockResolvedValue({
-      user: { id: 'root', visits: 0, engagedVisits: 0, engagedMs: 0 },
+      user: { tool: { visits: 0, engagedVisits: 0, engagedMs: 0, cappedRate: 0 }, camps: {}, tabs: {} },
     });
     render(<YourActivityPanel />);
     await waitFor(() => expect(screen.getByText(/no activity recorded/i)).toBeTruthy());

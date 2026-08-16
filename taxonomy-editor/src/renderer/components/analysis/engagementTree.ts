@@ -18,6 +18,91 @@ export interface TreeNode {
   children?: Record<string, TreeNode>;
 }
 
+// ── Server wire shape → TreeNode adapter (t/2709) ─────────────────────────────
+//
+// GET /api/analytics/engagement returns an *EngagementTree*, NOT a TreeNode:
+//   { tool, camps: { campId: { …metrics, categories: { catKey: { …metrics,
+//     nodes: { nodeId: …metrics } } } } }, tabs: { tabId: …metrics } }   (analytics.ts)
+// Every panel here instead consumes the hierarchical `TreeNode` ({id,…metrics,children})
+// via sumByCamp / sumByCategoryForCamp / collectLeafNodes. The renderer's frozen
+// contract types the field as TreeNode, but `bridgeGet<T>` is an unchecked cast over
+// JSON — so the shape mismatch compiled and shipped an empty dashboard (t/2709). This
+// is the single conversion point; every fetch boundary (useAnalytics,
+// EngagementDashboard, YourActivityPanel) runs its aggregate/user tree through it.
+//
+// Structure mapping — the traversal expects root → tool → camps → categories → nodes:
+//   root            = tool metrics, one child keyed 'tool'  (HealthStrip/isEmpty read root.visits)
+//   tool.children   = camps      (keyed acc|saf|skp|cc)
+//   camp.children   = categories (keyed `${camp}-${cat}`)
+//   category.children = taxonomy nodes (leaves, depth 4 → collectLeafNodes' depth≥3)
+// `tabs` are non-taxonomy views (Summaries, Lineage, …) whose ids are not camps; the
+// camp-based dashboard (CampBars is keyed to the 4 camps) has no place for them, so
+// they are intentionally excluded from the camp hierarchy. root.visits still counts
+// them — the server's `tool` rollup aggregates every view — so the totals stay
+// complete while the camp breakdown stays taxonomy-only. (Surfacing tabs is a separate
+// feature, not a silent loss.)
+
+export interface WireEngagementNode {
+  visits: number;
+  engagedVisits: number;
+  engagedMs: number;
+  cappedRate: number;
+  uniqueUsers?: number;
+}
+export interface WireEngagementCategory extends WireEngagementNode {
+  nodes: Record<string, WireEngagementNode>;
+}
+export interface WireEngagementCamp extends WireEngagementNode {
+  categories: Record<string, WireEngagementCategory>;
+}
+export interface WireEngagementTree {
+  tool: WireEngagementNode;
+  camps: Record<string, WireEngagementCamp>;
+  tabs: Record<string, WireEngagementNode>;
+}
+
+function wireToNode(id: string, n: WireEngagementNode, children?: Record<string, TreeNode>): TreeNode {
+  const node: TreeNode = {
+    id,
+    visits: n.visits,
+    engagedVisits: n.engagedVisits,
+    engagedMs: n.engagedMs,
+    cappedRate: n.cappedRate,
+  };
+  if (n.uniqueUsers !== undefined) node.uniqueUsers = n.uniqueUsers;
+  if (children) node.children = children;
+  return node;
+}
+
+/**
+ * Convert a server EngagementTree into the hierarchical TreeNode the panels traverse.
+ * A missing tree (the server omits `.user` when a caller has no events) maps to null,
+ * so callers keep their existing `?? null` / `=== null` empty-state handling.
+ */
+export function engagementTreeToTreeNode(tree: WireEngagementTree): TreeNode;
+export function engagementTreeToTreeNode(tree: WireEngagementTree | null | undefined): TreeNode | null;
+export function engagementTreeToTreeNode(tree: WireEngagementTree | null | undefined): TreeNode | null {
+  if (!tree) return null;
+  const camps: Record<string, TreeNode> = {};
+  // Maps default to {} — the server may omit an empty camps/categories/nodes level,
+  // and a defensive walk keeps a partial tree from throwing (returns a valid subtree).
+  for (const [campId, camp] of Object.entries(tree.camps ?? {})) {
+    const categories: Record<string, TreeNode> = {};
+    for (const [catKey, cat] of Object.entries(camp.categories ?? {})) {
+      const nodes: Record<string, TreeNode> = {};
+      for (const [nodeId, node] of Object.entries(cat.nodes ?? {})) {
+        nodes[nodeId] = wireToNode(nodeId, node);
+      }
+      categories[catKey] = wireToNode(catKey, cat, nodes);
+    }
+    camps[campId] = wireToNode(campId, camp, categories);
+  }
+  const toolNode = wireToNode('tool', tree.tool, camps);
+  // root carries tool metrics (HealthStrip/isEmpty read root.visits) and wraps the
+  // single tool node whose children are the camps — the two levels sumByCamp expects.
+  return wireToNode('root', tree.tool, { tool: toolNode });
+}
+
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 export const CAMP_COLORS: Record<string, string> = {

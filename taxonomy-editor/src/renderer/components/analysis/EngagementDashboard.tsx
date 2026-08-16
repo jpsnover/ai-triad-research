@@ -17,6 +17,8 @@ import { useChartTooltip, ChartTooltipLayer } from './chartTooltip';
 import { UsageHierarchy } from './UsageHierarchy';
 import {
   type TreeNode,
+  type WireEngagementTree,
+  engagementTreeToTreeNode,
   CAMP_COLORS, CAMP_LABELS,
   fmtDuration, fmtNumber, relativeTime, categoryLabel,
   sumByCamp, sumByCategoryForCamp, collectLeafNodes,
@@ -33,6 +35,23 @@ interface EngagementResult {
   user?: TreeNode;    // per-user subtree when ?user= given (t/2467#2)
   daily: DailyPoint[];
   users?: UserRow[];  // admin-only; stripped server-side for non-admins
+}
+
+// Server wire shape: aggregate/user are EngagementTree ({tool,camps,tabs}), converted
+// to TreeNode by engagementTreeToTreeNode at the fetch boundary (t/2709).
+type WireEngagementResult = Omit<EngagementResult, 'aggregate' | 'user'> & {
+  aggregate: WireEngagementTree;
+  user?: WireEngagementTree;
+};
+
+/** Adapt the server wire result to the TreeNode-based contract the panels consume (t/2709). */
+function adaptEngagement(raw: WireEngagementResult): EngagementResult {
+  const { aggregate, user, ...rest } = raw;
+  return {
+    ...rest,
+    aggregate: engagementTreeToTreeNode(aggregate),
+    ...(user ? { user: engagementTreeToTreeNode(user) } : {}),
+  };
 }
 
 type DatePreset = '7d' | '30d' | '90d';
@@ -341,8 +360,8 @@ export function EngagementDashboard() {
     const qs = committedFilter
       ? `/api/analytics/engagement?from=${from}&to=${to}&user=${encodeURIComponent(committedFilter)}`
       : `/api/analytics/engagement?from=${from}&to=${to}`;
-    bridgeGet<EngagementResult>(qs)
-      .then(d => { setData(d); setLoading(false); })
+    bridgeGet<WireEngagementResult>(qs)
+      .then(raw => { setData(adaptEngagement(raw)); setLoading(false); })
       .catch(err => {
         getGlobalRecorder()?.record({
           type: 'system.error',
