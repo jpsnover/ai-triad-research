@@ -3403,3 +3403,43 @@ Institutional memory for failure patterns across the AI Triad Research project.
 **Status:** Active — 1 instance (PowerShell 2 t/2673, p/228#15).
 
 **Applies To:** All agents opening PRs on branches that may be behind origin/main.
+
+---
+
+## #167 [Build] Blocking Gate Promoted Before Validating Against Real Env — Probe's Own Gap Downs Both Deploys
+
+**Pattern:** A new blocking deploy gate (probe) is promoted to block production deploys after passing in dev/staging, but has never run against the real target environment. Its first real run fails on the probe's own gap (untested assumption), not a real regression — taking down deploys it was meant to protect.
+
+**Instances:**
+- 2026-08-15 — Analytics round-trip smoke probe (t/2671): promoted to block deploys before running against AUTH_OPTIONAL env. First real run failed because the probe assumed an authenticated session; AUTH_OPTIONAL allows anonymous sessions, which the probe didn't handle. Both deploys downed (t/2683). Fixed by t/2684. Prevention ticket: t/2688 (p/335#38). Failure class: single-context validation (t/2648/2661) + Gate Verification (t/1589).
+
+**Root Cause:** The gate was validated in a single context (dev, with auth) and extrapolated to all envs. The real env (AUTH_OPTIONAL) had a different session model the probe never exercised. A probe that has never run against the target env is an untested assumption masquerading as a gate — when it fails, it's indistinguishable from a real regression.
+
+**Prevention:**
+1. **Run new blocking probes non-blocking against the target env for ≥1 full green cycle before promoting them to block.** The first real-env run validates the probe itself, not just the system under test.
+2. Map every new gate to its target env(s) at design time — list the session models, auth modes, and config variants the probe will encounter. If any are untested, keep the gate advisory until they are.
+3. Failure class check before gate promotion: does this gate pass Gate Verification (t/1589)? — proven with both arms (deliberate failure fires it; clean case passes with zero noise), reliable across ALL target envs, not just the one it was written against.
+
+**Status:** Active — 1 instance (t/2683, p/335#38). Prevention ticket open (t/2688).
+
+**Applies To:** DevOps, TL, any role designing or promoting CI/deploy blocking gates.
+
+---
+
+## #168 [Test] Tests Hardcode DEFAULT_MODEL Literal Instead of Importing from Config
+
+**Pattern:** Tests assert against the literal string value of `DEFAULT_MODEL` (e.g., `"claude-sonnet-4-6"`) instead of importing it from config. When `DEFAULT_MODEL` changes, the tests fail with a mismatch — catching a config update rather than a real regression.
+
+**Instances:**
+- 2026-08-15 — t/2687 (PR #1113, p/335#38): tests hardcoded the DEFAULT_MODEL literal value. When DEFAULT_MODEL was updated as part of `fix(ai): DEFAULT_MODEL must be a registered id` (#1113), the hardcoded assertions broke. Fix: import `DEFAULT_MODEL` from config in tests; never hardcode its value.
+
+**Root Cause:** Tests that string-match a config constant treat the constant's value as a stable fixture. Config constants change intentionally; when they do, hardcoded assertions produce false failures that obscure whether the gate is testing the right thing.
+
+**Prevention:**
+1. **Never hardcode `DEFAULT_MODEL` (or any config constant) as a literal string in test assertions.** Import it from the same source as production code: `import { DEFAULT_MODEL } from '../config'` (or equivalent).
+2. If the test's purpose is to verify that DEFAULT_MODEL IS a specific value (e.g., a change-detection gate), make that intent explicit with a comment and a pointer to the change approval record — so the next person updating the constant knows to update the test too.
+3. General rule: test constants that live in config by importing them, not by copying their values.
+
+**Status:** Active — 1 instance (t/2687, p/335#38).
+
+**Applies To:** All agents writing tests that reference AI model IDs, config defaults, or other values that change with normal project evolution.
