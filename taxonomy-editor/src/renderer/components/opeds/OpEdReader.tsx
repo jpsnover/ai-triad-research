@@ -90,6 +90,7 @@ function GroundingDetailCard({ ref, onClose }: { ref: OpEdGroundingRef; onClose:
 
 function GroundingSection({ grounding }: { grounding: OpEdGroundingRef[] }) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [showUnused, setShowUnused] = useState(false);
 
   useEffect(() => {
     if (!expandedId) return;
@@ -102,13 +103,14 @@ function GroundingSection({ grounding }: { grounding: OpEdGroundingRef[] }) {
     return <p className="oped-voice-only">Written from voice alone (no taxonomy grounding).</p>;
   }
 
-  const expandedRef = grounding.find(g => g.node_id === expandedId) ?? null;
+  // t/2703: elements the AI judged 'not directly used' are noise by default — partition
+  // them out and reveal on demand via the toggle below. Used rows keep their (relevance) order.
+  const used = grounding.filter(g => g.how_reflected !== 'not directly used');
+  const unused = grounding.filter(g => g.how_reflected === 'not directly used');
+  const visible = showUnused ? [...used, ...unused] : used;
 
-  // Elements the AI didn't reflect ('not directly used') sink to the bottom; everything
-  // else keeps its existing (relevance) order — a stable partition (Array.sort is stable).
-  const orderedGrounding = [...grounding].sort(
-    (a, b) => Number(a.how_reflected === 'not directly used') - Number(b.how_reflected === 'not directly used'),
-  );
+  // Only a visible row can stay expanded — hiding the unused set closes any card it owned.
+  const expandedRef = visible.find(g => g.node_id === expandedId) ?? null;
 
   return (
     <details className="oped-grounding" open>
@@ -124,7 +126,7 @@ function GroundingSection({ grounding }: { grounding: OpEdGroundingRef[] }) {
             </tr>
           </thead>
           <tbody>
-            {orderedGrounding.map(g => {
+            {visible.map(g => {
               const isOpen = g.node_id === expandedId;
               return (
                 <tr key={g.node_id} className={isOpen ? 'oped-grounding-row-active' : ''}>
@@ -147,6 +149,16 @@ function GroundingSection({ grounding }: { grounding: OpEdGroundingRef[] }) {
           </tbody>
         </table>
       </div>
+      {unused.length > 0 && (
+        <button
+          type="button"
+          className="oped-grounding-toggle-unused"
+          aria-expanded={showUnused}
+          onClick={() => setShowUnused(v => !v)}
+        >
+          {showUnused ? 'Hide' : 'Show'} {unused.length} unused element{unused.length !== 1 ? 's' : ''}
+        </button>
+      )}
       {expandedRef && <GroundingDetailCard ref={expandedRef} onClose={() => setExpandedId(null)} />}
     </details>
   );
