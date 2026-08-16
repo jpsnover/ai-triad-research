@@ -27,6 +27,15 @@ export function ArgStrengthTab({
   debate, an, handleUpdateSubScore, setOverviewTab, setSelectedEntry, setLocalOverride, nodeLabels,
 }: ArgStrengthTabProps) {
   const [allExpanded, setAllExpanded] = useState(false);
+  // t/2686: per-POV-section collapse + per-POV Top-5 filter. Default: all sections expanded.
+  const [collapsedPovs, setCollapsedPovs] = useState<Set<string>>(new Set());
+  const [top5Povs, setTop5Povs] = useState<Set<string>>(new Set());
+  const togglePov = (pov: string, setter: React.Dispatch<React.SetStateAction<Set<string>>>) =>
+    setter(prev => {
+      const next = new Set(prev);
+      if (next.has(pov)) next.delete(pov); else next.add(pov);
+      return next;
+    });
   const edges = an.edges ?? [];
 
   const stmtIdByEntry = useMemo(() => {
@@ -71,12 +80,21 @@ export function ArgStrengthTab({
     ...POV_ORDER.filter(p => nodesByPov.has(p)),
     ...[...nodesByPov.keys()].filter(p => !(POV_ORDER as readonly string[]).includes(p)),
   ];
+  const anyCollapsed = orderedPovs.some(p => collapsedPovs.has(p));
 
   return (
     <div className="ast-root">
       <div className="ast-toolbar">
-        <button onClick={() => setAllExpanded(!allExpanded)} className="ast-expand-btn">
-          {allExpanded ? 'Collapse All' : 'Expand All'}
+        <button
+          type="button"
+          className="ast-expand-btn"
+          // t/2686: operates on POV SECTIONS. Expand All also expands argument-row detail.
+          onClick={() => {
+            if (anyCollapsed) { setCollapsedPovs(new Set()); setAllExpanded(true); }
+            else { setCollapsedPovs(new Set(orderedPovs)); }
+          }}
+        >
+          {anyCollapsed ? 'Expand All' : 'Collapse All'}
         </button>
       </div>
       {orderedPovs.map(pov => {
@@ -87,19 +105,43 @@ export function ArgStrengthTab({
               nodes.length
             : 0;
         const cssVar = POV_META[pov as PovMetaKey]?.cssVar ?? '--text-primary';
+        const isCollapsed = collapsedPovs.has(pov);
+        const isTop5 = top5Povs.has(pov);
+        const displayNodes = isTop5 ? nodes.slice(0, 5) : nodes;
         return (
           <div key={pov} className="ast-pov-section">
             <div className="ast-pov-header">
-              {/* eslint-disable-next-line local/no-inline-style -- color is per-camp, derived from POV_META.cssVar */}
-              <span className="ast-pov-label" style={{ color: `var(${cssVar})` }}>
-                {speakerLabel(pov)}
-              </span>
+              <button
+                type="button"
+                className="ast-pov-toggle"
+                onClick={() => togglePov(pov, setCollapsedPovs)}
+                aria-expanded={!isCollapsed}
+                title={isCollapsed ? 'Expand section' : 'Collapse section'}
+              >
+                <span className="ast-pov-caret" aria-hidden="true">{isCollapsed ? '▶' : '▼'}</span>
+                {/* eslint-disable-next-line local/no-inline-style -- color is per-camp, derived from POV_META.cssVar */}
+                <span className="ast-pov-label" style={{ color: `var(${cssVar})` }}>
+                  {speakerLabel(pov)}
+                </span>
+              </button>
               <span className="ast-pov-stats">
                 {nodes.length} argument{nodes.length !== 1 ? 's' : ''} · avg{' '}
                 {avgStrength.toFixed(2)}
               </span>
+              {nodes.length > 5 && (
+                <button
+                  type="button"
+                  className={`ast-top5-btn${isTop5 ? ' active' : ''}`}
+                  onClick={() => togglePov(pov, setTop5Povs)}
+                  aria-pressed={isTop5}
+                  disabled={isCollapsed}
+                  title={isTop5 ? 'Show all arguments' : 'Show only the 5 strongest'}
+                >
+                  Top 5
+                </button>
+              )}
             </div>
-            {nodes.map((n, idx) => {
+            {!isCollapsed && displayNodes.map((n, idx) => {
               const attacks = edges.filter(e => e.target === n.id && e.type === 'attacks');
               const supports = edges.filter(e => e.target === n.id && e.type === 'supports');
               const isSource = edges.some(e => e.source === n.id);
