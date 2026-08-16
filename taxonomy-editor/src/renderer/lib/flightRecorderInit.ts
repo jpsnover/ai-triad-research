@@ -332,6 +332,14 @@ function createWebPopupShim(origin: string): FlightRecorder {
 
 let initialized = false;
 
+// In a popup window, the real (capacity-5000) recorder lives in the MAIN window;
+// this window holds only a capacity-1 forwarding shim. Set in the popup init path
+// below to the popup's dump handler (IPC / BroadcastChannel → main window) so that
+// triggerManualDump() — imported directly by the "Dump Log" UI buttons — delegates
+// to it instead of persisting the empty local shim buffer (t/2690). null in the
+// main window, where triggerManualDump persists the real recorder directly.
+let _popupDumpHandler: (() => void) | null = null;
+
 // Defer store import to avoid circular dependency — resolved on first context/dump call.
 // Module-scoped so both initFlightRecorder and dumpOnReactError can access it.
 let _stores: { useDebateStore: unknown; useTaxonomyStore: unknown } | null = null;
@@ -469,8 +477,12 @@ export function initFlightRecorder(): FlightRecorder {
         }
       };
 
-      // Set up manual dump trigger for popup — request main window to dump
-      (globalThis as unknown as { __triggerManualDump: () => Promise<void> | void }).__triggerManualDump = () => {
+      // Set up manual dump trigger for popup — request main window to dump.
+      // Stored in module-level _popupDumpHandler AND on globalThis so both the
+      // error-boundary hook (globalThis) and the "Dump Log" UI buttons (which
+      // import triggerManualDump directly) route through this IPC/BroadcastChannel
+      // forwarder instead of persisting the empty local shim buffer (t/2690).
+      const popupDumpHandler = () => {
         shim.record({ type: 'lifecycle', component: 'flight-recorder', level: 'info', message: 'Manual dump requested from popup' });
         if (hasElectronIPC) {
           try {
@@ -488,6 +500,8 @@ export function initFlightRecorder(): FlightRecorder {
           ch.close();
         }
       };
+      _popupDumpHandler = popupDumpHandler;
+      (globalThis as unknown as { __triggerManualDump: () => Promise<void> | void }).__triggerManualDump = popupDumpHandler;
 
       return shim;
     }
@@ -924,6 +938,15 @@ export function isDumpInProgress(): boolean { return _dumpInFlight; }
  * Shows an immediate pending toast, guards against overlapping dumps.
  */
 export async function triggerManualDump(): Promise<void> {
+  // In a popup window the real recorder lives in the MAIN window; the local
+  // recorder is a capacity-1 forwarding shim. Delegate to the popup's dump handler
+  // (IPC / BroadcastChannel → main window) instead of persisting the empty shim.
+  // The "Dump Log" buttons import this function directly, bypassing the
+  // globalThis.__triggerManualDump hook, so the popup check must live here (t/2690).
+  if (_popupDumpHandler) {
+    _popupDumpHandler();
+    return;
+  }
   const recorder = getGlobalRecorder();
   if (!recorder || _dumpInFlight) return;
   _dumpInFlight = true;
