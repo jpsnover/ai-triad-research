@@ -1,0 +1,13 @@
+{
+  "topic": "Should liability for AI-caused harms follow strict liability or negligence standards?",
+  "name": "exp1075-ctrl-liability-regime",
+  "model": "claude-opus-4-8",
+  "stageModels": {
+    "evaluator": "claude-opus-4-8"
+  },
+  "useAdaptiveStaging": true,
+  "pacing": "moderate",
+  "outputFormat": "all",
+  "throttleMs": 2000,
+  "outputDir": "C:/tmp/exp1075-out"
+}
