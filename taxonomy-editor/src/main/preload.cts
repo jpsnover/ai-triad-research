@@ -12,6 +12,19 @@ ipcRenderer.on('debate-window-load', (_event, debateId: string) => {
   if (_debateBufferActive) _bufferedDebateId = debateId;
 });
 
+// Buffer the diagnostics-state-update push the same way (t/2694). The main window
+// pushes the cached state once on the diagnostics popup's did-finish-load
+// (main.ts), but useDiagnosticsState registers its listener only after React
+// mounts — so a push arriving first was silently dropped, and for an idle debate
+// (no follow-up pushes) the window stayed on "Loading debate…" forever. Buffer the
+// latest pre-registration state (full-state snapshots, so only the newest matters)
+// and flush it on registration. Also covers the PovProgression window (same channel).
+let _bufferedDiagnosticsState: unknown = null;
+let _diagnosticsBufferActive = true;
+ipcRenderer.on('diagnostics-state-update', (_event, state: unknown) => {
+  if (_diagnosticsBufferActive) _bufferedDiagnosticsState = state;
+});
+
 contextBridge.exposeInMainWorld('electronAPI', {
   // Synchronous system info — available without IPC round-trip
   processVersions: { ...process.versions },
@@ -272,9 +285,21 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
   sendDiagnosticsState: (state: unknown): void => ipcRenderer.send('diagnostics-state-update', state),
   onDiagnosticsStateUpdate: (callback: (state: unknown) => void) => {
+    // Stop buffering — the component is now listening directly.
+    _diagnosticsBufferActive = false;
+    // If the push arrived before the component mounted (race with the
+    // did-finish-load push), deliver the buffered state immediately (t/2694).
+    if (_bufferedDiagnosticsState !== null) {
+      const state = _bufferedDiagnosticsState;
+      _bufferedDiagnosticsState = null;
+      queueMicrotask(() => callback(state));
+    }
     const listener = (_event: Electron.IpcRendererEvent, state: unknown) => callback(state);
     ipcRenderer.on('diagnostics-state-update', listener);
-    return () => { ipcRenderer.removeListener('diagnostics-state-update', listener); };
+    return () => {
+      ipcRenderer.removeListener('diagnostics-state-update', listener);
+      _diagnosticsBufferActive = true; // re-arm for the next reload cycle
+    };
   },
   requestReExtractClaims: (entryId: string): void => ipcRenderer.send('request-re-extract-claims', entryId),
   onReExtractClaims: (callback: (entryId: string) => void) => {
