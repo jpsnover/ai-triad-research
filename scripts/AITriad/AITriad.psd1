@@ -135,6 +135,7 @@
         'Invoke-TaxEditorSmokeTest'
         'Test-AnalyticsBackend'
         'Test-AnalyticsBlobHealth'
+        'Get-AnalyticsEventTypes'
         'Test-AzureHealth'
         'Test-GitHubHealth'
         'Get-TaxEditorRevision'

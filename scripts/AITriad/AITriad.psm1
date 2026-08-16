@@ -854,6 +854,8 @@ Export-ModuleMember -Function @(
     'Test-AnalyticsBackend'
     # t/2702 — analytics blob container health (exists/accessible/recent data)
     'Test-AnalyticsBlobHealth'
+    # t/2708 — analytics read-side: per-event-type counts from the query endpoint
+    'Get-AnalyticsEventTypes'
     'Test-AzureHealth'
     'Test-GitHubHealth'
     'Get-TaxEditorRevision'
