@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-import { defineConfig } from 'vite';
+import { defineConfig, transformWithEsbuild } from 'vite';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 import { execSync } from 'child_process';
@@ -92,6 +92,21 @@ function getGitSha(): string {
 
 export default defineConfig({
   plugins: [
+    // t/2698: vite classifies `.cts` as CommonJS and routes it through a script
+    // transform that rejects TypeScript syntax, so a typed `.cts` (e.g. a preload
+    // helper) throws a parse error when imported by vitest. Run esbuild's TS
+    // transform on `.cts` first so such modules are importable + unit-testable.
+    // Renderer bundle imports no `.cts`, so this only affects test/dev resolution.
+    {
+      name: 'transform-cts-as-ts',
+      enforce: 'pre' as const,
+      async transform(code: string, id: string) {
+        if (id.split('?')[0].endsWith('.cts')) {
+          return transformWithEsbuild(code, id, { loader: 'ts', format: 'esm' });
+        }
+        return null;
+      },
+    },
     rendererNodeBuiltinGate(),
     react(),
     ...(isWeb ? [VitePWA({
