@@ -1461,9 +1461,9 @@ server.listen(PORT, BIND_HOST, () => {
   analytics.initAnalytics(
     getStateRoot(), // t/2643: analytics NDJSON is class-A writable state — isolate the fs-fallback root by construction (not by AZURE_STORAGE_ACCOUNT_URL being set). No-op on prod (stateRoot===dataRoot).
     analyticsBlobUrl ? { accountUrl: analyticsBlobUrl, container: analyticsContainer } : undefined,
-  ).then(() => {
-    log.analytics.info({ backend: analyticsBlobUrl ? 'azure-blob' : 'filesystem' }, 'Analytics initialized');
-  }).catch((e) => { /* telemetry — silent by design */ log.analytics.warn({ err: e }, 'Analytics init failed'); });
+    // t/2704: reportStartupProbe logs "initialized" then probes the store, so a broken/empty pipeline is observable at boot (would have surfaced t/2699) instead of as a silent empty dashboard.
+  ).then(() => analytics.reportStartupProbe(analyticsBlobUrl ? 'azure-blob' : 'filesystem', analyticsContainer))
+    .catch((e) => { /* telemetry — silent by design */ log.analytics.warn({ err: e }, 'Analytics init failed'); });
 
   if (githubBackend) {
     // Initialize GitHubAPIBackend (token + cache check) AFTER health check is
