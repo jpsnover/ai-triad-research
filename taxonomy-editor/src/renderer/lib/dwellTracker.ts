@@ -341,6 +341,19 @@ const PULSE_EVENTS = ['pointermove', 'keydown', 'scroll', 'wheel', 'click'] as c
 
 /** Initialize dwell tracking. Call once, before `initAnalytics()`. No-op in Electron. */
 export async function initDwellTracker(): Promise<void> {
+  // t/2705: record the init lifecycle outcome so a session's dwell-tracking state is
+  // diagnosable from the FR. During t/2699 there was no signal for whether the tracker
+  // activated, was an Electron no-op, or was a redundant re-init — the emptiness could
+  // not be distinguished from "tracking on but no events". `view.dwell` (what feeds the
+  // engagement dashboard) exists only when outcome === 'activated'.
+  const outcome = !isWeb ? 'skipped_electron' : initialized ? 'skipped_already_initialized' : 'activated';
+  getGlobalRecorder()?.record({
+    type: 'lifecycle',
+    component: 'dwellTracker',
+    level: 'info',
+    message: 'dwell_tracker_init',
+    data: { outcome, target: isWeb ? 'web' : 'electron' },
+  });
   if (!isWeb || initialized) return;
   initialized = true;
   tracker = new DwellTracker(() => getClientConfig().analytics);
