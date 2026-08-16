@@ -27,7 +27,7 @@ import type { GenerateOpEdRequest, OpEdGeneratorDeps, OpEdProgressEvent } from '
 import { getStorageUserId, isAnonymousUser, getCurrentUser } from '../security/userContext.js';
 import { callerTierIdentity } from '../security/accessControl.js';
 import * as proxyTiers from '../ai/proxyTiers.js';
-import { resolveBackend } from '../ai/aiBackends.js';
+import { resolveBackend, isRegisteredModel } from '../ai/aiBackends.js';
 import { DEFAULT_MODEL } from '../../../../lib/ai-client/index.js';
 import { getProjectRoot } from '../config.js';
 import { createWebOpEdAdapter } from '../ai/opedAdapter.js';
@@ -98,12 +98,19 @@ function parseOpEdCreate(body: unknown): { ok: true; value: ParsedOpEdCreate } |
 function resolveOpEdModel(params: OpEdParams): { ok: true; model: string } | { ok: false; status: number; message: string } {
   const { principalName, idp } = callerTierIdentity(getCurrentUser());
   const tier = proxyTiers.resolveTier(principalName, idp);
-  const model = tier.level === 'free' ? (tier.pinnedModel ?? params.model) : params.model;
-  const backend = resolveBackend(model || DEFAULT_MODEL);
+  const model = (tier.level === 'free' ? (tier.pinnedModel ?? params.model) : params.model) || DEFAULT_MODEL;
+  // t/2687: reject an UNREGISTERED model before committing the SSE stream. resolveBackend only
+  // prefix-guesses (unknown → 'gemini'), so without this an unregistered id reaches the provider
+  // and fails silently mid-generation ("voice failed — 0 words"). Free tier is pinned to a
+  // registered model, so this only rejects a caller-chosen unregistered id.
+  if (!isRegisteredModel(model)) {
+    return { ok: false, status: 400, message: `Model '${model}' is not available — choose another model in Settings.` };
+  }
+  const backend = resolveBackend(model);
   if (!proxyTiers.isBackendAllowed(tier, backend)) {
     return { ok: false, status: 403, message: `Your plan can't use the ${backend} backend — choose an allowed model` };
   }
-  return { ok: true, model: model || params.model };
+  return { ok: true, model };
 }
 
 function applyEventToRun(run: OpEdRun, event: OpEdProgressEvent, completed: OpEdMember[]): void {
@@ -143,6 +150,18 @@ async function driveOpEdRun(
     for await (const event of generateOpEdSet(request, deps) as AsyncGenerator<OpEdProgressEvent>) {
       applyEventToRun(run, event, completed);
       writeFrame(event as unknown as Record<string, unknown>);
+      if (event.type === 'voice_failed') {
+        // t/2687: a voice failure is streamed to the client but was NOT logged server-side, so a
+        // prod "voice failed — 0 words" left no diagnostic trail. Emit a structured error with the
+        // model/backend/underlying error so it is detectable, not invisible (silent-degradation rule).
+        const evt = event as { pov: string; error?: string };
+        const backend = resolveBackend(request.params.model || DEFAULT_MODEL);
+        getGlobalRecorder()?.record({
+          type: 'system.error', component: 'oped', level: 'error',
+          message: `Op-ed voice failed to generate (pov=${evt.pov}, model=${request.params.model}, backend=${backend})`,
+          error: { name: 'VoiceGenerationError', message: String(evt.error ?? 'unknown') },
+        });
+      }
       if (event.type === 'complete') {
         await finalizeOpedSet(event.set);
         run.status = Object.values(run.perVoice).some(s => s === 'cancelled') ? 'cancelled' : 'complete';

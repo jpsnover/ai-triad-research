@@ -65,7 +65,7 @@ describe('free tier (t/793)', () => {
     const tier = resolveTier('', 'github');
     expect(tier.level).toBe('free');
     expect(tier.serverProvidedKey).toBe(true);
-    expect(tier.pinnedModel).toBe('gemini-flash-lite-latest');
+    expect(tier.pinnedModel).toBe('gemini-3.5-flash-lite'); // = DEFAULT_MODEL (t/2687)
     // t/812: no per-prompt char cap — cost is bounded by tokensPerDay + per-IP RPM.
     expect(tier.maxPromptChars).toBeUndefined();
     expect(tier.limits).toEqual({ requestsPerMinute: 6, tokensPerDay: 500_000 });

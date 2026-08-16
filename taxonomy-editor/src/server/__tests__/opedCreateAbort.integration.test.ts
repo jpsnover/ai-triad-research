@@ -56,7 +56,7 @@ vi.mock('../ai/proxyTiers.js', () => ({
   resolveTier: () => ({ level: 'platform', allowedBackends: ['gemini'], pinnedModel: undefined }),
   isBackendAllowed: () => true,
 }));
-vi.mock('../ai/aiBackends.js', () => ({ resolveBackend: () => 'gemini' }));
+vi.mock('../ai/aiBackends.js', () => ({ resolveBackend: () => 'gemini', isRegisteredModel: () => true }));
 vi.mock('../../../../lib/ai-client/index.js', () => ({ DEFAULT_MODEL: 'gemini-flash' }));
 vi.mock('../config.js', () => ({ getProjectRoot: () => '/repo' }));
 vi.mock('../storage/fileIO.js', () => ({ isSafeId: (v: string) => /^[a-zA-Z0-9_-]+$/.test(v) }));
