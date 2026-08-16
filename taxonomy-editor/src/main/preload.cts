@@ -3,6 +3,7 @@
 
 import { contextBridge, ipcRenderer } from 'electron';
 import type { OpEdSet, OpEdSetSummary } from '../../../lib/oped/types.js';
+import { createLatestValueBuffer } from './preloadBuffer.cjs';
 
 // Buffer debate-window-load IPC so it isn't lost if React mounts after did-finish-load
 // (happens with bootstrap.ts dynamic import indirection).
@@ -12,17 +13,16 @@ ipcRenderer.on('debate-window-load', (_event, debateId: string) => {
   if (_debateBufferActive) _bufferedDebateId = debateId;
 });
 
-// Buffer the diagnostics-state-update push the same way (t/2694). The main window
-// pushes the cached state once on the diagnostics popup's did-finish-load
-// (main.ts), but useDiagnosticsState registers its listener only after React
-// mounts — so a push arriving first was silently dropped, and for an idle debate
-// (no follow-up pushes) the window stayed on "Loading debate…" forever. Buffer the
-// latest pre-registration state (full-state snapshots, so only the newest matters)
-// and flush it on registration. Also covers the PovProgression window (same channel).
-let _bufferedDiagnosticsState: unknown = null;
-let _diagnosticsBufferActive = true;
+// Buffer the diagnostics-state-update push the same way (t/2694) — see
+// preloadBuffer.cts. The main window pushes the cached state once on the
+// diagnostics popup's did-finish-load, but useDiagnosticsState subscribes only
+// after React mounts; a push arriving first was silently dropped, and for an idle
+// debate (no follow-up pushes) the window stayed on "Loading debate…" forever.
+// Also covers the PovProgression window (same channel). Logic extracted to the
+// pure helper so it's unit-tested (preloadBuffer.test.ts, unblocked by t/2698).
+const _diagnosticsStateBuffer = createLatestValueBuffer<unknown>();
 ipcRenderer.on('diagnostics-state-update', (_event, state: unknown) => {
-  if (_diagnosticsBufferActive) _bufferedDiagnosticsState = state;
+  _diagnosticsStateBuffer.onIpc(state);
 });
 
 contextBridge.exposeInMainWorld('electronAPI', {
@@ -285,20 +285,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
   sendDiagnosticsState: (state: unknown): void => ipcRenderer.send('diagnostics-state-update', state),
   onDiagnosticsStateUpdate: (callback: (state: unknown) => void) => {
-    // Stop buffering — the component is now listening directly.
-    _diagnosticsBufferActive = false;
-    // If the push arrived before the component mounted (race with the
-    // did-finish-load push), deliver the buffered state immediately (t/2694).
-    if (_bufferedDiagnosticsState !== null) {
-      const state = _bufferedDiagnosticsState;
-      _bufferedDiagnosticsState = null;
-      queueMicrotask(() => callback(state));
-    }
+    // Flush a push that arrived before the component mounted (t/2694), then the
+    // buffer stops; live pushes come through the listener registered below.
+    _diagnosticsStateBuffer.onSubscribe(callback);
     const listener = (_event: Electron.IpcRendererEvent, state: unknown) => callback(state);
     ipcRenderer.on('diagnostics-state-update', listener);
     return () => {
       ipcRenderer.removeListener('diagnostics-state-update', listener);
-      _diagnosticsBufferActive = true; // re-arm for the next reload cycle
+      _diagnosticsStateBuffer.onUnsubscribe(); // re-arm for the next reload cycle
     };
   },
   requestReExtractClaims: (entryId: string): void => ipcRenderer.send('request-re-extract-claims', entryId),
