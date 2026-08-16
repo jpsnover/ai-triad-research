@@ -24,8 +24,7 @@ import { initClientConfig } from './lib/clientConfig';
 import { initFlightRecorder } from './lib/flightRecorderInit';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { recordingLazy } from './utils/recordingLazy';
-import { initAnalytics } from './lib/analyticsEmitter';
-import { initDwellTracker } from './lib/dwellTracker';
+import { initAnalyticsSession } from './lib/initAnalyticsSession';
 import { useBreakpoint } from './hooks/useBreakpoint';
 import { useIsTouchDevice } from './hooks/useIsTouchDevice';
 import { BottomNav } from './components/shared/BottomNav';
@@ -287,7 +286,7 @@ function MainApp() {
       if (!available) {
         setShowFirstRun(true);
       } else {
-        void initAIModels().then(() => { void useTaxonomyStore.getState().loadAll(); void initDwellTracker().then(() => initAnalytics()); initDebateSessions(); });
+        void initAIModels().then(() => { void useTaxonomyStore.getState().loadAll(); initAnalyticsSession(); initDebateSessions(); });
       }
     });
   }, []);
@@ -328,7 +327,7 @@ function MainApp() {
             if (available) {
               setShowFirstRun(false);
               setCopyStatus(null);
-              void initAIModels().then(() => { void useTaxonomyStore.getState().loadAll(); void initAnalytics(); initDebateSessions(); });
+              void initAIModels().then(() => { void useTaxonomyStore.getState().loadAll(); initAnalyticsSession(); initDebateSessions(); });
             }
             // If still not available after copy complete, DeploymentErrorScreen will show
           });
@@ -523,12 +522,12 @@ function MainApp() {
 
   const handleFirstRunComplete = () => {
     setShowFirstRun(false);
-    void initAIModels().then(() => { void loadAll(); void initDwellTracker().then(() => initAnalytics()); initDebateSessions(); });
+    void initAIModels().then(() => { void loadAll(); initAnalyticsSession(); initDebateSessions(); });
   };
 
   const handleFirstRunSkip = () => {
     setShowFirstRun(false);
-    void initAIModels().then(() => { void loadAll(); void initDwellTracker().then(() => initAnalytics()); initDebateSessions(); });
+    void initAIModels().then(() => { void loadAll(); initAnalyticsSession(); initDebateSessions(); });
   };
 
   if (showFirstRun) {
