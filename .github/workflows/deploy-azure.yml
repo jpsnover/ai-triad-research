@@ -307,6 +307,7 @@ jobs:
         run: |
           $StorageAccount = '${{ steps.deploy.outputs.storageAccountName }}'
           $Containers = @('analytics', 'staging-analytics', 'user-content', 'staging-user-content', 'community', 'staging-community')
+          if ($Containers.Count -ne 6) { throw "Container list sync error: expected 6, got $($Containers.Count). Update workflow and main.bicep together." }
           $Failed = @()
           foreach ($c in $Containers) {
             $null = az storage container show --account-name $StorageAccount --name $c --auth-mode login --output none 2>&1
