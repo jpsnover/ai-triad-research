@@ -299,6 +299,39 @@ jobs:
       # target below — and, with the pin, that revision holds 100% throughout the
       # deploy, so it can never drop to 0% / go stale / be GC'd mid-deploy (t/2047).
 
+      # t/2701: WARN-ONLY (Gate Promotion cycle). This step runs non-blocking for ≥1
+      # real-env green deploy to prove: (a) --auth-mode login works for the CI SP
+      # (data-plane RBAC check), (b) gate fires correctly on absence (Arm-A), and
+      # (c) gate is silent on a clean deploy (Arm-B). A follow-up PR flips it to
+      # blocking once all three are confirmed. Keep in sync with the container
+      # resources in deploy/azure/main.bicep (6 containers: analytics,
+      # staging-analytics, user-content, staging-user-content, community,
+      # staging-community). Adding a container there requires adding it here.
+      - name: Verify blob containers exist post-deploy (warn-only)
+        shell: pwsh
+        continue-on-error: true
+        run: |
+          $StorageAccount = '${{ steps.deploy.outputs.storageAccountName }}'
+          # SYNC WITH main.bicep: analyticsContainer, stagingAnalyticsContainer,
+          # userContentContainer, stagingUserContentContainer, communityContainer,
+          # stagingCommunityContainer. Update both if a container is added or removed.
+          $Containers = @('analytics', 'staging-analytics', 'user-content', 'staging-user-content', 'community', 'staging-community')
+          $Failed = @()
+          foreach ($c in $Containers) {
+            $null = az storage container show --account-name $StorageAccount --name $c --auth-mode login --output none 2>&1
+            if ($LASTEXITCODE -ne 0) {
+              Write-Host "::warning::Blob container '$c' missing or inaccessible after Bicep deploy (storageAccount=$StorageAccount) — warn-only (t/2701 Gate Promotion)"
+              $Failed += $c
+            } else {
+              Write-Host "  [OK] $c"
+            }
+          }
+          if ($Failed.Count -gt 0) {
+            Write-Host "::warning::Post-deploy blob container check: $($Failed.Count) container(s) missing — $($Failed -join ', ') (warn-only; will block after Gate Promotion)"
+            exit 1
+          }
+          Write-Host "All $($Containers.Count) blob containers verified."
+
       - name: Cleanup stale revisions
         shell: pwsh
         run: |
