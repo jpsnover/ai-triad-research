@@ -159,6 +159,10 @@ COPY --chown=aitriad:aitriad scripts/ ./scripts/
 # The op-ed create route resolves promptsDir = getProjectRoot()/lib/oped/prompts
 # (= /app/lib/oped/prompts here); tsc emits no .prompt assets, so copy the source.
 COPY --chown=aitriad:aitriad lib/oped/prompts/ ./lib/oped/prompts/
+# Soul-doc JSON data files for op-ed voice generation (t/2689).
+# soulDocLoader.ts reads these at runtime via fs.readFile from SOUL_DOCS_DIR
+# (= /app/lib/debate/soul-docs/); tsc does not emit .json data files, so copy explicitly.
+COPY --chown=aitriad:aitriad lib/debate/soul-docs/ ./lib/debate/soul-docs/
 
 # 3. Built artifacts (change on every code edit — LAST for fastest rebuilds)
 # tsc outputs to dist/server/{taxonomy-editor/src/server/,lib/} due to rootDir=../
