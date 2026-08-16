@@ -275,6 +275,44 @@ document.addEventListener('DOMContentLoaded', function() {
     } catch (err) { getGlobalRecorder()?.record({ type: 'system.error', component: 'server', level: 'error', message: 'Failed to render flight-recorder viewer', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } }); error(res, String(err), 500, err); }
   });
 
+  // ── Oped-files runtime asset health (t/2689 AC3) ──
+  // No-auth endpoint: asserts all disk-read runtime data assets are present in the
+  // container image — soul-docs (three named .soul.json files) and lib/oped/prompts
+  // (directory + all files). Returns 200 { ok, assets } or 500 { ok, missing, present }.
+  get('/api/health/oped-files', (_req, res) => {
+    try {
+      const root = getProjectRoot();
+      const soulDocsDir = path.join(root, 'lib', 'debate', 'soul-docs');
+      const promptsDir  = path.join(root, 'lib', 'oped', 'prompts');
+
+      const missing: string[] = [];
+      const present: string[] = [];
+
+      for (const pov of ['accelerationist', 'safetyist', 'skeptic']) {
+        const rel = `lib/debate/soul-docs/${pov}.soul.json`;
+        if (fs.existsSync(path.join(soulDocsDir, `${pov}.soul.json`))) { present.push(rel); }
+        else { missing.push(rel); }
+      }
+
+      if (!fs.existsSync(promptsDir)) {
+        missing.push('lib/oped/prompts/ (directory missing)');
+      } else {
+        const files = fs.readdirSync(promptsDir);
+        if (files.length === 0) {
+          missing.push('lib/oped/prompts/ (empty — no prompt files)');
+        } else {
+          for (const f of files) { present.push(`lib/oped/prompts/${f}`); }
+        }
+      }
+
+      if (missing.length === 0) {
+        json(res, { ok: true, assets: present });
+      } else {
+        json(res, { ok: false, missing, present }, 500);
+      }
+    } catch (err) { getGlobalRecorder()?.record({ type: 'system.error', component: 'server', level: 'error', message: 'Failed to check oped runtime assets', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } }); error(res, String(err), 500, err); }
+  });
+
   // ── Chat sessions ──
 
   get('/api/chats', async (_req, res) => { json(res, await fileIO.listChatSessions()); });

@@ -65,6 +65,14 @@ Describe 'Invoke-TaxEditorSmokeTest Health-phase cold-start tolerance (t/1696)' 
                     ContentType = 'application/json'; RawBody = ''; Error = $null
                 }
             }
+            # Phase 7 (t/2689) — stub oped-files check so ColdStart tests focus on the health phase.
+            Mock Invoke-RemoteCheck -ParameterFilter { $Path -eq '/api/health/oped-files' } -MockWith {
+                [PSCustomObject]@{
+                    Success = $true; StatusCode = 200; ResponseMs = 5
+                    Body = [PSCustomObject]@{ ok = $true; assets = @() }
+                    ContentType = 'application/json'; RawBody = ''; Error = $null
+                }
+            }
         }
     }
 
