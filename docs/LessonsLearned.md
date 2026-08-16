@@ -2,6 +2,9 @@
 
 Institutional memory for failure patterns across the AI Triad Research project.
 
+> **This file is the flat archive.** For the organized, category-indexed view, see [`lessons/INDEX.md`](lessons/INDEX.md).
+> New patterns should be added to both this file (append) and the appropriate category file in `lessons/`.
+
 ---
 
 ## [Build] Bash Dollar-Sign Variable Substitution Corrupts Code
@@ -2319,9 +2322,6 @@ Institutional memory for failure patterns across the AI Triad Research project.
 - 2026-08-09 — Server Community (p/160#5): **9th instance, Facet 3 (new).** `gh pr merge --delete-branch` exits 1 with "remote ref does not exist" — GitHub had already auto-deleted the branch on merge. Error is benign/redundant; confirmed MERGED, worktree removed. Fix: omit `--delete-branch` when GitHub auto-delete-on-merge is enabled (the flag is redundant and noisy).
 - 2026-08-12 — Technical Lead (p/335#29): **10th instance, Facet 4 (new — `gh pr close`).** `gh pr close --delete-branch` exits 1 when the branch is checked out in a git worktree. PR closed and remote branch deleted fine; only the local `git branch -D` was refused. Fix: `git worktree remove` first, then `git branch -D`. Same root as Facet 2 — `--delete-branch`'s local cleanup blocked by an active worktree — triggered via `close`, not `merge`.
 - 2026-08-13 — ElectronMain (p/98#17): **11th instance, 8th independent agent.** `gh pr merge --delete-branch` failed when branch was checked out by a worktree. Fix: dropped `--delete-branch` (GitHub auto-deletes on merge), then removed worktree + `git branch -D` for local cleanup.
-- 2026-08-15 — Technical Lead (PR #1104, p/447#1): **12th instance — Facet 2, post-merge TL cleanup.** `gh pr merge --delete-branch` on `fix/t2685-oped-wordcount` — remote branch deleted fine, but local branch-delete failed because `.worktrees/t2685` was still checked out on that branch. Merge succeeded; local cleanup deferred to the worktree owner via ping. Correct handling: confirmed MERGED, no retry.
-- 2026-08-15 — Technical Lead (PR #1111, p/447#2): **13th instance — Facet 2, same session, 2nd occurrence.** `gh pr merge --delete-branch` on t/2686 branch — same outcome: merge and remote branch delete succeeded; local branch-delete failed because `.worktrees/t2686` was still checked out. Resolved identically — cleanup deferred to worktree owner.
-- 2026-08-15 — Technical Lead (PR #1113, t/2687, p/447#6): **14th instance — 3rd TL occurrence same session.** `worktree-delete-branch-guard` feedback rule fired (detection confirmed), but TL proceeded with `--delete-branch` anyway — advisory injection did not change behavior. Same outcome. Signal: detection is working; enforcement is not.
 
 **Root Cause:** `--delete-branch` cleans up the merged head branch locally too, and gh switches the working copy to the base branch (`git checkout main`) to do so. Git's one-branch-per-worktree rule blocks checking out `main` while the primary worktree has it → `fatal`. The remote merge + branch delete already happened via the API; only the local checkout/cleanup fails. Bookkeeping-≠-artifact family — the exit code describes post-success cleanup, not the merge.
 
@@ -2336,8 +2336,6 @@ Institutional memory for failure patterns across the AI Triad Research project.
 8. **Facet 4 — `gh pr close --delete-branch`:** the same local-delete conflict applies to `close`, not just `merge`. PR closes and remote branch deletes fine; only `git branch -D` is refused while a worktree holds the branch. Fix: `git worktree remove` first, then `git branch -D`.
 
 **Status:** **Skill-path RESOLVED; direct-invocation ACTIVE (recurred 2026-07-30).** TL fixed step 5 (p/8#121): drops `--delete-branch`, verifies `gh pr view <n> --json state` == `MERGED` (not the exit code), deletes the remote branch by push. **But the failure is intrinsic to `--delete-branch` from a worktree** — Server Storage re-hit it with a DIRECT `gh pr merge --squash --delete-branch` (t/2020), bypassing the fixed skill; any direct invocation from a worktree re-triggers it (fix: drop `--delete-branch`, or run from the main repo path — prevention #4). **3rd instance (p/206#11) surfaced a 2nd facet:** even from the main repo path, `--delete-branch`'s LOCAL branch-delete fails "cannot delete branch used by worktree" if a worktree holds the head → fully-safe order is `git worktree remove` FIRST, then merge/delete (prevention #5). Was the dangerous PR-flow variant (fatal → panic-retry → double-land). **4th instance (DevOps p/26#36, 2026-08-03) — 3rd independent agent confirms prevention #5** (worktree-remove-first) and adds the "**already merged**" signature (an auto-merged PR whose `--delete-branch` cleanup still exit-1s on the held branch) — reinforcing that exit 1 is post-merge cleanup, not a failed merge. Root cause folded into the "validate a fleet-standard procedure end-to-end before mandating" process lesson. **5th instance (ServerAPI p/79#25, 2026-08-05) — 4th independent agent; IDE-managed worktree (`.claude/worktrees/`) holds the branch, same outcome.** Correctly handled: check `mergedAt`, treat exit 1 as cosmetic, hand cleanup to the worktree owner. **7th instance (DebateWorkspace p/124#8, 2026-08-07) — 6th independent agent; `--rebase --delete-branch` from a worktree; same Facet 1.** Discriminator confirmed: `gh pr view --json state,mergedAt` shows MERGED; recovery = `git push origin --delete` + `git worktree remove` manually.
-
-**Gate (2026-08-15):** Feedback rule `worktree-delete-branch-guard` (workspace scope, PreToolUse Bash|PowerShell) now intercepts `--delete-branch` invocations and prompts `git worktree list` → `git worktree remove` before proceeding, with a pointer to /land-from-worktree. AGENTS.md pre-merge checklist update pending human approval (TL p/447#4).
 
 **Applies To:** Every worktree PR-flow lander — i.e. everyone using `/land-from-worktree` step 5.
 
@@ -3403,43 +3401,3 @@ Institutional memory for failure patterns across the AI Triad Research project.
 **Status:** Active — 1 instance (PowerShell 2 t/2673, p/228#15).
 
 **Applies To:** All agents opening PRs on branches that may be behind origin/main.
-
----
-
-## #167 [Build] Blocking Gate Promoted Before Validating Against Real Env — Probe's Own Gap Downs Both Deploys
-
-**Pattern:** A new blocking deploy gate (probe) is promoted to block production deploys after passing in dev/staging, but has never run against the real target environment. Its first real run fails on the probe's own gap (untested assumption), not a real regression — taking down deploys it was meant to protect.
-
-**Instances:**
-- 2026-08-15 — Analytics round-trip smoke probe (t/2671): promoted to block deploys before running against AUTH_OPTIONAL env. First real run failed because the probe assumed an authenticated session; AUTH_OPTIONAL allows anonymous sessions, which the probe didn't handle. Both deploys downed (t/2683). Fixed by t/2684. Prevention ticket: t/2688 (p/335#38). Failure class: single-context validation (t/2648/2661) + Gate Verification (t/1589).
-
-**Root Cause:** The gate was validated in a single context (dev, with auth) and extrapolated to all envs. The real env (AUTH_OPTIONAL) had a different session model the probe never exercised. A probe that has never run against the target env is an untested assumption masquerading as a gate — when it fails, it's indistinguishable from a real regression.
-
-**Prevention:**
-1. **Run new blocking probes non-blocking against the target env for ≥1 full green cycle before promoting them to block.** The first real-env run validates the probe itself, not just the system under test.
-2. Map every new gate to its target env(s) at design time — list the session models, auth modes, and config variants the probe will encounter. If any are untested, keep the gate advisory until they are.
-3. Failure class check before gate promotion: does this gate pass Gate Verification (t/1589)? — proven with both arms (deliberate failure fires it; clean case passes with zero noise), reliable across ALL target envs, not just the one it was written against.
-
-**Status:** Active — 1 instance (t/2683, p/335#38). Prevention ticket open (t/2688).
-
-**Applies To:** DevOps, TL, any role designing or promoting CI/deploy blocking gates.
-
----
-
-## #168 [Test] Tests Hardcode DEFAULT_MODEL Literal Instead of Importing from Config
-
-**Pattern:** Tests assert against the literal string value of `DEFAULT_MODEL` (e.g., `"claude-sonnet-4-6"`) instead of importing it from config. When `DEFAULT_MODEL` changes, the tests fail with a mismatch — catching a config update rather than a real regression.
-
-**Instances:**
-- 2026-08-15 — t/2687 (PR #1113, p/335#38): tests hardcoded the DEFAULT_MODEL literal value. When DEFAULT_MODEL was updated as part of `fix(ai): DEFAULT_MODEL must be a registered id` (#1113), the hardcoded assertions broke. Fix: import `DEFAULT_MODEL` from config in tests; never hardcode its value.
-
-**Root Cause:** Tests that string-match a config constant treat the constant's value as a stable fixture. Config constants change intentionally; when they do, hardcoded assertions produce false failures that obscure whether the gate is testing the right thing.
-
-**Prevention:**
-1. **Never hardcode `DEFAULT_MODEL` (or any config constant) as a literal string in test assertions.** Import it from the same source as production code: `import { DEFAULT_MODEL } from '../config'` (or equivalent).
-2. If the test's purpose is to verify that DEFAULT_MODEL IS a specific value (e.g., a change-detection gate), make that intent explicit with a comment and a pointer to the change approval record — so the next person updating the constant knows to update the test too.
-3. General rule: test constants that live in config by importing them, not by copying their values.
-
-**Status:** Active — 1 instance (t/2687, p/335#38).
-
-**Applies To:** All agents writing tests that reference AI model IDs, config defaults, or other values that change with normal project evolution.
