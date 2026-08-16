@@ -285,8 +285,8 @@ async function runVoiceGeneration(
 
 /**
  * Generate a multi-voice op-ed set, yielding progress events.
- * Voices run in parallel (Promise.all fan-out). Grounding failure degrades to
- * voice-only rather than throwing. Signal is threaded into every AI call.
+ * Voices run SEQUENTIALLY (one at a time) to bound peak memory (t/2719) — grounding
+ * failure degrades to voice-only rather than throwing. Signal is threaded into every AI call.
  * Always yields `{ type: 'complete', set }` last — set.opeds carries all
  * members including failed/cancelled (partial-set contract, e/91#2 cond. 1).
  */
@@ -339,7 +339,7 @@ export async function* generateOpEdSet(
     // continue voice-only
   }
 
-  // ── Step 2: parallel voice fan-out ────────────────────────────────────────
+  // ── Step 2: sequential voice generation (memory-bounded, t/2719) ──────────
   const queue: OpEdProgressEvent[] = [];
   let wakeResolve: (() => void) | null = null;
   let remaining = request.povs.length;
@@ -378,7 +378,12 @@ export async function* generateOpEdSet(
     r?.();
   }
 
-  void Promise.all(request.povs.map(pov => runVoice(pov)));
+  // t/2719: run voices SEQUENTIALLY (concurrency 1), not Promise.all. Parallel fan-out
+  // kept every voice's AI response + JSON.parse resident at once which, on top of the
+  // in-process ONNX model + embeddings + taxonomy, OOM-crashed the Node process mid-stream
+  // (a single create took the whole server down). Sequential caps peak at one voice; the
+  // queue/drain loop below still streams per-voice progress in order.
+  void (async () => { for (const pov of request.povs) await runVoice(pov); })();
 
   while (remaining > 0 || queue.length > 0) {
     while (queue.length > 0) {
