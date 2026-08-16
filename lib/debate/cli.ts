@@ -628,23 +628,8 @@ async function main(): Promise<void> {
     writeOutput(explorationDiagPath, JSON.stringify(buildDiagnosticsOutput(explorationSession), null, 2), 'exploration diagnostics');
   }
 
-  // Log calibration data point (non-blocking)
-  try {
-    const { extractCalibrationData, appendCalibrationLog } = await import('./calibrationLogger.js');
-    // When outputDir is explicitly configured, write the cal log inside it so
-    // experimental/isolated runs don't contaminate the main data-root log (t/2216).
-    // path.dirname(outputDir) would still land in the main data root when the
-    // scratch dir is a direct child of it (e.g. ../ai-triad-data/debates-t2192).
-    const calDataRoot = config.outputDir != null ? outputDir : dataRoot;
-    const dataPoint = extractCalibrationData(session, 'local', {
-      explorationSummary: engineConfig.explorationSummary,
-    });
-    appendCalibrationLog(dataPoint, calDataRoot);
-    log(`Calibration data logged to ${calDataRoot}/calibration/users/${dataPoint.origin || 'local'}/calibration-log.jsonl`);
-  } catch (err) {
-    getGlobalRecorder()?.record({ type: 'system.error', component: 'cli', level: 'warn', message: 'Calibration logging failed', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
-    log(`Calibration logging failed (non-critical): ${err instanceof Error ? err.message : err}`);
-  }
+  // Calibration data is written by the engine (debateEngine.ts) using calibrationDataRoot.
+  // The CLI previously wrote a second identical copy here (t/2716); removed — one write per debate.
 
   // Dump flight recorder to output directory
   const recorderDump = recorder.dumpToFile(path.join(outputDir, `${slug}-flight-recorder.jsonl`));

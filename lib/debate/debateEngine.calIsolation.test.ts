@@ -45,7 +45,7 @@ describe('DebateEngine calibrationDataRoot isolation (t/2219)', () => {
     await engine.run();
 
     const mockFn = vi.mocked(appendCalibrationLog);
-    expect(mockFn).toHaveBeenCalled();
+    expect(mockFn).toHaveBeenCalledTimes(1); // exactly one write per debate (t/2716)
     expect(mockFn.mock.calls[0][1]).toBe(calRoot);
   });
 
@@ -55,7 +55,7 @@ describe('DebateEngine calibrationDataRoot isolation (t/2219)', () => {
     await engine.run();
 
     const mockFn = vi.mocked(appendCalibrationLog);
-    expect(mockFn).toHaveBeenCalled();
+    expect(mockFn).toHaveBeenCalledTimes(1); // exactly one write per debate (t/2716)
     // Must be a non-empty filesystem path — not '/isolated/cal-root'
     const calledRoot = mockFn.mock.calls[0][1];
     expect(typeof calledRoot).toBe('string');
