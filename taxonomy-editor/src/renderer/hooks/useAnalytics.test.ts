@@ -14,7 +14,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { renderHook, waitFor, act } from '@testing-library/react';
 import { useAnalytics } from './useAnalytics';
-import type { EngagementResult, SubjectBreakdownRow, SessionRow, DateRange } from './useAnalytics';
+import type { SubjectBreakdownRow, SessionRow, DateRange } from './useAnalytics';
 
 vi.mock('@lib/flight-recorder/index', () => ({
   getGlobalRecorder: () => ({ record: vi.fn() }),
@@ -27,8 +27,12 @@ const mockGet = vi.mocked(bridgeGet);
 
 const RANGE: DateRange = { from: '2026-08-06', to: '2026-08-13' };
 
-function leaf(visits: number, engagedMs = 1000): import('../components/analysis/engagementTree').TreeNode {
-  return { id: 'root', visits, engagedVisits: visits, engagedMs };
+// Server wire aggregate/user shape (t/2709): an EngagementTree whose `tool` carries
+// the root metrics the hook exposes as aggregate.{visits,engagedMs}. The hook adapts
+// this wire tree → the contract TreeNode at the boundary (engagementTreeToTreeNode);
+// these fixtures pin that mapping alongside the sessions/subject wire adapters.
+function wireTree(visits: number, engagedMs = 1000): import('../components/analysis/engagementTree').WireEngagementTree {
+  return { tool: { visits, engagedVisits: visits, engagedMs, cappedRate: 0 }, camps: {}, tabs: {} };
 }
 
 // Public contract shape (id) — what the hook must EXPOSE to consumers.
@@ -49,26 +53,29 @@ afterEach(() => { vi.restoreAllMocks(); mockGet.mockReset(); });
 
 describe('useAnalytics — engagement scope (§7.1)', () => {
   it('fetches the whole-population aggregate for scope "all" and reports non-empty', async () => {
-    const result: EngagementResult = { aggregate: leaf(42), daily: [] };
+    const result = { aggregate: wireTree(42), daily: [] };
     mockGet.mockResolvedValue(result);
 
     const { result: hook } = renderHook(() => useAnalytics({ range: RANGE }));
     await waitFor(() => expect(hook.current.engagement.loading).toBe(false));
 
     expect(mockGet).toHaveBeenCalledWith('/api/analytics/engagement?from=2026-08-06&to=2026-08-13');
-    expect(hook.current.engagement.data).toEqual(result);
+    // aggregate is adapted wire→TreeNode at the boundary: root carries the tool metrics.
+    expect(hook.current.engagement.data?.aggregate.id).toBe('root');
+    expect(hook.current.engagement.data?.aggregate.visits).toBe(42);
+    expect(hook.current.engagement.data?.daily).toEqual([]);
     expect(hook.current.engagement.isEmpty).toBe(false);
   });
 
   it('threads &user= for user scope', async () => {
-    mockGet.mockResolvedValue({ aggregate: leaf(5), daily: [] });
+    mockGet.mockResolvedValue({ aggregate: wireTree(5), daily: [] });
     const { result: hook } = renderHook(() => useAnalytics({ range: RANGE, scope: { kind: 'user', user: 'alice@x.com' } }));
     await waitFor(() => expect(hook.current.engagement.loading).toBe(false));
     expect(mockGet).toHaveBeenCalledWith('/api/analytics/engagement?from=2026-08-06&to=2026-08-13&user=alice%40x.com');
   });
 
   it('threads &session= for session scope and returns the recomputed aggregate', async () => {
-    const scoped: EngagementResult = { aggregate: leaf(9, 7777), daily: [] };
+    const scoped = { aggregate: wireTree(9, 7777), daily: [] };
     mockGet.mockResolvedValue(scoped);
     const { result: hook } = renderHook(() => useAnalytics({ range: RANGE, scope: { kind: 'session', session: 's1' } }));
     await waitFor(() => expect(hook.current.engagement.loading).toBe(false));
@@ -77,7 +84,7 @@ describe('useAnalytics — engagement scope (§7.1)', () => {
   });
 
   it('reports isEmpty when the aggregate has zero visits', async () => {
-    mockGet.mockResolvedValue({ aggregate: leaf(0), daily: [] });
+    mockGet.mockResolvedValue({ aggregate: wireTree(0), daily: [] });
     const { result: hook } = renderHook(() => useAnalytics({ range: RANGE }));
     await waitFor(() => expect(hook.current.engagement.loading).toBe(false));
     expect(hook.current.engagement.isEmpty).toBe(true);
@@ -94,7 +101,7 @@ describe('useAnalytics — engagement scope (§7.1)', () => {
 
 describe('useAnalytics — sessions list (§7.2)', () => {
   it('exposes sessions riding the user-scope response, with no second round-trip', async () => {
-    mockGet.mockResolvedValue({ aggregate: leaf(5), daily: [], sessions: WIRE_SESSIONS });
+    mockGet.mockResolvedValue({ aggregate: wireTree(5), daily: [], sessions: WIRE_SESSIONS });
     const { result: hook } = renderHook(() => useAnalytics({ range: RANGE, scope: { kind: 'user', user: 'alice' } }));
     await waitFor(() => expect(hook.current.engagement.loading).toBe(false));
 
@@ -105,7 +112,7 @@ describe('useAnalytics — sessions list (§7.2)', () => {
   });
 
   it('is empty under non-user scope even if the payload carried sessions', async () => {
-    mockGet.mockResolvedValue({ aggregate: leaf(5), daily: [], sessions: WIRE_SESSIONS });
+    mockGet.mockResolvedValue({ aggregate: wireTree(5), daily: [], sessions: WIRE_SESSIONS });
     const { result: hook } = renderHook(() => useAnalytics({ range: RANGE, scope: { kind: 'all' } }));
     await waitFor(() => expect(hook.current.engagement.loading).toBe(false));
     expect(hook.current.sessions.isEmpty).toBe(true);
@@ -114,7 +121,7 @@ describe('useAnalytics — sessions list (§7.2)', () => {
 
 describe('useAnalytics — subject WHO breakdown (§7.3)', () => {
   it('fetches ?subject=&groupBy=user on demand', async () => {
-    mockGet.mockResolvedValueOnce({ aggregate: leaf(5), daily: [] }); // initial engagement
+    mockGet.mockResolvedValueOnce({ aggregate: wireTree(5), daily: [] }); // initial engagement
     // Wire: {rows:[{user,…}]} envelope (groupBy=user). Hook unwraps + maps user→key.
     const wire = { rows: [
       { user: 'alice', engagedMs: 3000, visits: 4 },
@@ -137,7 +144,7 @@ describe('useAnalytics — subject WHO breakdown (§7.3)', () => {
   });
 
   it('reports isEmpty for a subject with no rows, and groupBy=session in the query', async () => {
-    mockGet.mockResolvedValueOnce({ aggregate: leaf(5), daily: [] });
+    mockGet.mockResolvedValueOnce({ aggregate: wireTree(5), daily: [] });
     const { result: hook } = renderHook(() => useAnalytics({ range: RANGE }));
     await waitFor(() => expect(hook.current.engagement.loading).toBe(false));
 
@@ -152,7 +159,7 @@ describe('useAnalytics — subject WHO breakdown (§7.3)', () => {
   // Contract v2 (t/2560#2, t/2562#2): under user scope the WHO query threads &user=
   // so the user-scoped leaf panel gets by-session rows for that user only.
   it('threads &user= when the active scope is a user (v2)', async () => {
-    mockGet.mockResolvedValueOnce({ aggregate: leaf(5), daily: [] });
+    mockGet.mockResolvedValueOnce({ aggregate: wireTree(5), daily: [] });
     const { result: hook } = renderHook(() => useAnalytics({ range: RANGE, scope: { kind: 'user', user: 'alice@x.com' } }));
     await waitFor(() => expect(hook.current.engagement.loading).toBe(false));
 
@@ -164,7 +171,7 @@ describe('useAnalytics — subject WHO breakdown (§7.3)', () => {
   });
 
   it('omits &user= under non-user scope (all / session)', async () => {
-    mockGet.mockResolvedValueOnce({ aggregate: leaf(5), daily: [] });
+    mockGet.mockResolvedValueOnce({ aggregate: wireTree(5), daily: [] });
     const { result: hook } = renderHook(() => useAnalytics({ range: RANGE, scope: { kind: 'session', session: 's9' } }));
     await waitFor(() => expect(hook.current.engagement.loading).toBe(false));
 
@@ -180,7 +187,7 @@ describe('useAnalytics — subject WHO breakdown (§7.3)', () => {
 // the mock-blindness that hid the t/2560#6 drift cannot recur. Field-level assertions.
 describe('useAnalytics — server wire shape → frozen contract (regression, t/2560#6/#7)', () => {
   it('maps the sessions wire field `session` → contract `id` (never undefined)', async () => {
-    mockGet.mockResolvedValue({ aggregate: leaf(3), daily: [], sessions: WIRE_SESSIONS });
+    mockGet.mockResolvedValue({ aggregate: wireTree(3), daily: [], sessions: WIRE_SESSIONS });
     const { result: hook } = renderHook(() => useAnalytics({ range: RANGE, scope: { kind: 'user', user: 'alice' } }));
     await waitFor(() => expect(hook.current.engagement.loading).toBe(false));
     // The wire carries no `id`; the adapter must supply it from `session`.
@@ -189,7 +196,7 @@ describe('useAnalytics — server wire shape → frozen contract (regression, t/
   });
 
   it('unwraps the subject `{rows}` envelope and maps `user`/`session` → `key`', async () => {
-    mockGet.mockResolvedValueOnce({ aggregate: leaf(3), daily: [] });
+    mockGet.mockResolvedValueOnce({ aggregate: wireTree(3), daily: [] });
     const { result: hook } = renderHook(() => useAnalytics({ range: RANGE }));
     await waitFor(() => expect(hook.current.engagement.loading).toBe(false));
 
@@ -205,7 +212,7 @@ describe('useAnalytics — server wire shape → frozen contract (regression, t/
 
 describe('useAnalytics — refetch + stale-response guard', () => {
   it('re-runs the engagement fetch on refetch()', async () => {
-    mockGet.mockResolvedValue({ aggregate: leaf(1), daily: [] });
+    mockGet.mockResolvedValue({ aggregate: wireTree(1), daily: [] });
     const { result: hook } = renderHook(() => useAnalytics({ range: RANGE }));
     await waitFor(() => expect(hook.current.engagement.loading).toBe(false));
     expect(mockGet).toHaveBeenCalledTimes(1);
@@ -218,7 +225,7 @@ describe('useAnalytics — refetch + stale-response guard', () => {
     // First (user=alice) resolves slowly; the rerender to session=s1 resolves first.
     let resolveAlice!: (v: EngagementResult) => void;
     mockGet.mockImplementationOnce(() => new Promise<EngagementResult>(r => { resolveAlice = r; }));
-    mockGet.mockResolvedValueOnce({ aggregate: leaf(2, 222), daily: [] }); // session=s1
+    mockGet.mockResolvedValueOnce({ aggregate: wireTree(2, 222), daily: [] }); // session=s1
 
     const { result: hook, rerender } = renderHook(
       (props: { scope: import('./useAnalytics').AnalyticsScope }) => useAnalytics({ range: RANGE, scope: props.scope }),
@@ -229,7 +236,7 @@ describe('useAnalytics — refetch + stale-response guard', () => {
     await waitFor(() => expect(hook.current.engagement.data?.aggregate.engagedMs).toBe(222));
 
     // The late alice response must be ignored (stale request id).
-    act(() => { resolveAlice({ aggregate: leaf(999, 999), daily: [] }); });
+    act(() => { resolveAlice({ aggregate: wireTree(999, 999), daily: [] }); });
     await Promise.resolve();
     expect(hook.current.engagement.data?.aggregate.engagedMs).toBe(222);
   });

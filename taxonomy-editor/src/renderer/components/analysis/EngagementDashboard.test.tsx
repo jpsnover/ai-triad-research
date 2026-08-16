@@ -37,41 +37,40 @@ import { useFlag } from '../../hooks/useFeatureFlags';
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────
 
-const LEAF_NODE = (id: string) => ({
-  id, visits: 10, engagedVisits: 8, engagedMs: 30_000, cappedRate: 0.05,
-});
+const LEAF_NODE = () => ({ visits: 10, engagedVisits: 8, engagedMs: 30_000, cappedRate: 0.05 });
 
+// Server wire EngagementTree ({tool,camps,tabs}) — the dashboard adapts this into the
+// hierarchical TreeNode at the fetch boundary (engagementTreeToTreeNode, t/2709). The
+// prior fixture was already-adapted TreeNode, which never exercised the wire→TreeNode
+// conversion and so was blind to the mismatch that shipped an empty dashboard. Metrics
+// mirror the old fixture, so the rendered camps/categories/leaderboards are unchanged.
 const FIXTURE_TREE = {
-  id: 'root', visits: 100, engagedVisits: 80, engagedMs: 240_000, cappedRate: 0.05, uniqueUsers: 5,
-  children: {
-    taxonomy: {
-      id: 'taxonomy', visits: 100, engagedVisits: 80, engagedMs: 240_000,
-      children: {
-        acc: {
-          id: 'acc', visits: 40, engagedVisits: 32, engagedMs: 90_000,
-          children: {
-            'acc-bel': {
-              id: 'acc-bel', visits: 20, engagedVisits: 16, engagedMs: 50_000,
-              children: { 'acc-bel-001': LEAF_NODE('acc-bel-001'), 'acc-bel-002': LEAF_NODE('acc-bel-002') },
-            },
-            'acc-des': {
-              id: 'acc-des', visits: 20, engagedVisits: 16, engagedMs: 40_000,
-              children: { 'acc-des-001': LEAF_NODE('acc-des-001') },
-            },
-          },
+  tool: { visits: 100, engagedVisits: 80, engagedMs: 240_000, cappedRate: 0.05, uniqueUsers: 5 },
+  camps: {
+    acc: {
+      visits: 40, engagedVisits: 32, engagedMs: 90_000, cappedRate: 0.05,
+      categories: {
+        'acc-bel': {
+          visits: 20, engagedVisits: 16, engagedMs: 50_000, cappedRate: 0.05,
+          nodes: { 'acc-bel-001': LEAF_NODE(), 'acc-bel-002': LEAF_NODE() },
         },
-        saf: {
-          id: 'saf', visits: 60, engagedVisits: 48, engagedMs: 150_000,
-          children: {
-            'saf-bel': {
-              id: 'saf-bel', visits: 60, engagedVisits: 48, engagedMs: 150_000,
-              children: { 'saf-bel-001': LEAF_NODE('saf-bel-001') },
-            },
-          },
+        'acc-des': {
+          visits: 20, engagedVisits: 16, engagedMs: 40_000, cappedRate: 0.05,
+          nodes: { 'acc-des-001': LEAF_NODE() },
+        },
+      },
+    },
+    saf: {
+      visits: 60, engagedVisits: 48, engagedMs: 150_000, cappedRate: 0.05,
+      categories: {
+        'saf-bel': {
+          visits: 60, engagedVisits: 48, engagedMs: 150_000, cappedRate: 0.05,
+          nodes: { 'saf-bel-001': LEAF_NODE() },
         },
       },
     },
   },
+  tabs: {},
 };
 
 const FIXTURE_USERS = [
@@ -91,7 +90,7 @@ const FIXTURE_RESULT = {
 };
 
 const EMPTY_RESULT = {
-  aggregate: { id: 'root', visits: 0, engagedVisits: 0, engagedMs: 0 },
+  aggregate: { tool: { visits: 0, engagedVisits: 0, engagedMs: 0, cappedRate: 0 }, camps: {}, tabs: {} },
   subtree: null,
   daily: [],
   users: [],
