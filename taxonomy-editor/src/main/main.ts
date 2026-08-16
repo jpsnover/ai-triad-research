@@ -419,6 +419,17 @@ void app.whenReady().then(() => {
       void diagWindow.loadFile(path.join(PROJECT_ROOT, 'taxonomy-editor/dist/renderer/index.html'), { hash: 'diagnostics-window' });
     }
     diagWindow.webContents.on('did-finish-load', () => {
+      // t/2692: record whether the buffered state existed the moment the diag window
+      // finished loading. This is the seam where an IPC-after-load race would strand the
+      // popout (Issue 2): lastStateAvailable=false at load, with no later push, is the
+      // failure signature — previously only assessable as PLAUSIBLE, now CONFIRMABLE.
+      getGlobalRecorder()?.record({
+        type: 'lifecycle',
+        component: 'diagnostics-window',
+        level: 'info',
+        message: 'diagnostics-window did-finish-load',
+        data: { lastStateAvailable: !!_lastDiagnosticsState },
+      });
       if (_lastDiagnosticsState && diagWindow && !diagWindow.isDestroyed()) {
         diagWindow.webContents.send('diagnostics-state-update', _lastDiagnosticsState);
       }
