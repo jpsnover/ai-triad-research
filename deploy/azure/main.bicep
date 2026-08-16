@@ -361,6 +361,12 @@ resource analyticsContainer 'Microsoft.Storage/storageAccounts/blobServices/cont
 // Staging writes to its own containers to prevent cross-contamination with
 // production user data. The staging Container App env needs updating to
 // use these container names (BLOB_CONTAINER_PREFIX=staging-).
+//
+// SYNC WITH deploy-azure.yml: the "Verify blob containers exist post-deploy"
+// step (t/2701 gate) holds a hard-coded list of these 6 container names
+// (analytics, staging-analytics, user-content, staging-user-content, community,
+// staging-community). Adding or removing a container resource here requires
+// updating that list in the workflow.
 
 resource stagingUserContentContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-05-01' = {
   parent: blobService
