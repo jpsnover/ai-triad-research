@@ -313,7 +313,8 @@ function Invoke-OrgClaimMatching {
         # PROVISIONAL edge type from the org's own polarity only. The directional
         # gate below (t/2745) reconciles it against the matched node's proposition
         # before any edge is kept — a claim that asserts ¬(node) flips
-        # ADVOCATES_FOR→OPPOSES; an unresolved direction drops the edge.
+        # ADVOCATES_FOR→OPPOSES; anything else (incl. unresolved) KEEPS the edge
+        # (opposition-only gate — unresolved is never a false demote).
         $edgeType = if ($polarity -eq 'asserts') { 'ADVOCATES_FOR' } else { 'OPPOSES' }
 
         # Independence: family-dedup
