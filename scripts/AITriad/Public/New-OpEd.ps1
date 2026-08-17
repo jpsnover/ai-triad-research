@@ -426,6 +426,12 @@ function New-OpEd {
         SOURCE_RECOMMENDATIONS = if ($null -ne $SBrief -and $SBrief.PSObject.Properties.Name -contains 'primary_recommendations') {
             (@($SBrief.primary_recommendations) -join '; ')
         } else { '' }
+        # Mirror promptLoader.ts SOURCE_KEY_CLAIMS: numbered list "  {i+1}. {claim}"
+        # joined by LF, falling back to "(none extracted)" when empty (t/2721 parity).
+        SOURCE_KEY_CLAIMS   = if ($null -ne $SBrief -and $SBrief.PSObject.Properties.Name -contains 'key_claims' -and $null -ne $SBrief.key_claims -and @($SBrief.key_claims).Count -gt 0) {
+            $Claims = @($SBrief.key_claims)
+            (0..($Claims.Count - 1) | ForEach-Object { "  $($_ + 1). $($Claims[$_])" }) -join "`n"
+        } else { '(none extracted)' }
     }
 
     # ── Response schema — structured output for clean field extraction ───────
