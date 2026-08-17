@@ -9,14 +9,18 @@ per-runtime NLI, framing, or thresholds. It exists to keep every runtime's
 directional verdict *identical*, which is the whole point of a gate that fights
 a cross-cutting inversion class.
 
-WHY AN ENGINE, NOT WRAPPER LOGIC (t/2744#2, empirically reproduced):
-The deberta NLI model reproduces the polarity-blindness bug on RAW propositions
-(false `entailment` +4.09 on the t/2737 origin case) and only recovers the true
-direction when each side is framed as a *stated position*
-(`"The <pov> position is: <prop>"` -> `contradiction`, entail -1.23 / contra
-+1.44). Framing is the fragile, bug-determining step, so it MUST live here and
-nowhere else — a wrapper that frames (or forgets to) is exactly how one runtime
-regresses unnoticed.
+WHY AN ENGINE, NOT WRAPPER LOGIC (t/2744#7, controlled 2x2):
+The load-bearing lever is node-proposition RICHNESS, not framing. Feeding the
+matched node's bare label recovers a false `entailment` on an inversion (the model
+latches onto the shared topic); feeding the full `label + Core description` — whose
+explicit contrast ("Not Adapted Old Ones … rather than adapted existing laws") the
+bare label drops — recovers `contradiction` and catches the inversion. (An earlier
+"framing-sensitivity" claim, t/2744#2, was confounded: those two probes differed in
+BOTH framing and node richness. A clean 2x2 shows framing is INERT.) The mapping,
+thresholds, and node-text expectation therefore live here and nowhere else — a
+wrapper that passes a terser node_prop is exactly how one runtime regresses
+unnoticed, so all wrappers MUST pass the fullest `label + Core` (see RECALL BOUNDARY).
+POV framing is retained (harmless, and it normalizes both sides) but is not the lever.
 
 Reuses embed_taxonomy.py's deberta driver (`_load_nli_model`,
 `_classify_pairs_nli`) so the raw model + margin gate are single-sourced too;
@@ -29,12 +33,23 @@ SUBPROCESS CONTRACT
   direction in {agrees, opposes, unrelated, unresolved}
   confidence = NLI top-1 vs top-2 logit margin (best - second).
 
-ASYMMETRIC OPPOSITION DETECTOR (CL ruling t/2751#3): under POV framing the deberta
-model reliably recovers *contradiction* but SUPPRESSES *entailment* — a genuine
-agreement reads `neutral`, not `entailment` (a label fact, not a threshold to
-tune). So this gate's load-bearing signal is `opposes`; callers demote/flip ONLY
-on `opposes`. `agrees` / `unrelated` / `unresolved` all mean "no opposition
-detected" and the caller KEEPS its edge. The gate never confirms agreement.
+ASYMMETRIC OPPOSITION DETECTOR (CL ruling t/2751#3): on this two-position task the
+deberta model reliably recovers *contradiction* but rates a genuine agreement
+`neutral`, not `entailment` (a label fact, not a threshold to tune). So this gate's
+load-bearing signal is `opposes`; callers demote/flip ONLY on `opposes`. `agrees` /
+`unrelated` / `unresolved` all mean "no opposition detected" and the caller KEEPS
+its edge. The gate never confirms agreement.
+
+RECALL BOUNDARY (t/2744#7): the gate UNDER-catches — it can only return `opposes`
+when the node_prop is rich enough to carry the asserted proposition's contrast.
+Concrete floor: a node with an empty Core description falls back to label-only,
+which is the guaranteed-MISS case (an inversion reads `agrees`/`entailment`, e.g.
++4.76 on the origin claim, so the wrong edge is KEPT). Claim-proposition specificity
+matters too (a terse canonical proposition can read `neutral` where a fuller
+attribution phrasing reads `opposes`). This is acceptable under the opposes-only
+fail-safe (a miss never fabricates opposition), and it is OBSERVABLE: an all-`agrees`
+/ all-`unresolved` run over rich inputs signals a degraded feed. Mitigation is on
+the caller: pass the fullest `label + Core` node text (Encompasses/Excludes stripped).
 
 FAIL-SAFE (load-bearing, t/2751#3 arm 3): any error, an empty proposition, or a
 below-threshold margin resolves to `unresolved` — NEVER `opposes`. Because callers
@@ -51,9 +66,9 @@ Flags:
   --tau-entail FLOAT   Margin floor to emit `agrees`. Default 0.0 = RESERVED/unused
                        (CL t/2751#3): `agrees` is informational only — no caller
                        acts on it — so it carries no floor.
-  --no-framing         Bypass POV framing (feed raw props). Exists ONLY so the
-                       framing-regression guard fixture can show raw->entailment
-                       (wrong) vs framed->contradiction (right) through THIS engine.
+  --no-framing         Bypass POV framing (feed raw props). Diagnostic only —
+                       framing is inert on the verdict (t/2744#7), so this lets the
+                       2x2 confirm framed vs unframed give identical results.
 """
 
 import argparse

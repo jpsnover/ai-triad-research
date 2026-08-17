@@ -5,11 +5,12 @@
 
 """Unit tests for nli_classify.py — the shared directional-agreement engine (t/2751).
 
-Exercises the engine's OWN logic (POV framing, label->direction mapping, the
+Exercises the engine's OWN logic (framing plumbing, label->direction mapping, the
 tau_contra floor, and the fail-safe) WITHOUT the deberta model by monkeypatching
-the classifier embed_taxonomy exposes. The real-model arms (exact scores on the
-t/2742 fixture) are proven separately and recorded on t/2751; this suite is the
-CI-runnable guard so framing/mapping/fail-safe can never regress unnoticed.
+the classifier embed_taxonomy exposes. `test_richness_guard_real_model` adds the
+GV richness arm on the actual model (skips offline): node-proposition richness —
+NOT framing — is what catches an inversion (CL 2x2, t/2744#7). Together they guard
+mapping/fail-safe/richness so the gate can never regress unnoticed.
 
 Runnable under pytest or standalone: `python test_nli_classify.py`.
 """
@@ -34,6 +35,11 @@ def _load(name):
 embed_taxonomy = _load("embed_taxonomy")
 sys.modules["embed_taxonomy"] = embed_taxonomy
 nli_classify = _load("nli_classify")
+
+# Real deberta driver, saved before any monkeypatch — the richness guard restores
+# these to run against the actual model (it skips if the model can't load).
+_REAL_LOAD = embed_taxonomy._load_nli_model
+_REAL_CLASSIFY = embed_taxonomy._classify_pairs_nli
 
 
 def _stub_classifier(result_for):
@@ -103,6 +109,10 @@ def test_empty_proposition_is_unresolved_without_calling_model():
 
 
 def test_no_framing_passes_raw_text():
+    # Plumbing only: --no-framing must feed the raw prop (no "The <pov> position
+    # is:" prefix) to the classifier. NOTE: framing is INERT on the verdict
+    # (CL t/2744#7 2x2) — the semantic lever is node richness, guarded by
+    # test_richness_guard_real_model below. This test just pins the flag's wiring.
     captured = {}
 
     def fake(model, pairs):
@@ -116,6 +126,43 @@ def test_no_framing_passes_raw_text():
           "node_prop": "raw node"}], no_framing=True)
     assert captured["pairs"][0] == ("raw claim", "raw node")  # no prefix
     assert out[0]["direction"] == "agrees"
+
+
+def test_richness_guard_real_model():
+    """The GV richness arm (TL bless t/2744#8, replaces the moot framing arm).
+
+    node-proposition RICHNESS — not framing — is what catches an inversion
+    (CL 2x2, t/2744#7). Same origin claim, vary the node_prop:
+      bare  (label only)     -> agrees   (MISSES the inversion)
+      rich  (label + Core)   -> opposes  (CATCHES it)
+    Real deberta; skips when the model can't load (offline CI). The margins are
+    the tau_contra calibration anchor (rich ~1.3, matching CL's ~1.42).
+    """
+    # Restore the real driver (earlier tests monkeypatched it).
+    embed_taxonomy._load_nli_model = _REAL_LOAD
+    embed_taxonomy._classify_pairs_nli = _REAL_CLASSIFY
+    try:
+        _REAL_LOAD()
+    except Exception as exc:  # noqa: BLE001 — model unavailable => skip, not fail
+        print("SKIP test_richness_guard_real_model — model unavailable:", exc)
+        return
+
+    claim = ("rejecting AI exceptionalism ensures existing privacy principles "
+             "remain the baseline for technological deployment without requiring "
+             "novel regulatory regimes.")
+    label = "Argue That AI Requires Entirely New Laws, Not Adapted Old Ones"
+    core = ("asserts emerging technologies are so transformative they require "
+            "entirely new legal frameworks rather than adapted existing laws.")
+    out = nli_classify.judge_direction([
+        {"id": "bare", "claim_prop": claim, "claim_pov": "accelerationist",
+         "node_prop": label, "node_pov": "accelerationist"},
+        {"id": "rich", "claim_prop": claim, "claim_pov": "accelerationist",
+         "node_prop": "{} — {}".format(label, core), "node_pov": "accelerationist"},
+    ])
+    by = {r["id"]: r for r in out}
+    assert by["bare"]["direction"] == "agrees", by["bare"]     # bare node MISSES
+    assert by["rich"]["direction"] == "opposes", by["rich"]    # rich node CATCHES
+    assert by["rich"]["confidence"] >= 1.0                     # >= tau_contra
 
 
 def test_ids_and_order_preserved():

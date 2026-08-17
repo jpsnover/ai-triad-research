@@ -278,8 +278,8 @@ function Invoke-QbafConflictAnalysis {
     # engine. Only 'opposes' is actionable — the two claims genuinely contradict,
     # so emit an ATTACK instead of the (bogus) support. Everything else
     # ('agrees'/'unrelated'/'unresolved') keeps the provisional supports edge:
-    # framing suppresses entailment so a true agreement reads 'unrelated', and the
-    # gate's job is to catch the inversion, not to confirm support.
+    # the gate rates a true agreement 'unrelated', not 'agrees', and its job is to
+    # catch the inversion, not to confirm support.
     $StageADirCounts = [ordered]@{ opposes = 0; agrees = 0; unrelated = 0; unresolved = 0 }
     if (-not $SkipDirectionalGate -and $SupportCandidates.Count -gt 0) {
         $dirPairs = [System.Collections.Generic.List[PSObject]]::new()
