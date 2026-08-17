@@ -19,6 +19,7 @@ import { fileURLToPath } from 'url';
 import { createRequire } from 'module';
 import { spawn, execFile, ChildProcess } from 'child_process';
 import { getGlobalRecorder, setGlobalRecorder } from '../../../lib/flight-recorder/index.js';
+import { warmup as warmupEmbeddings } from '../../../lib/embeddings/onnxEmbedding.js';
 
 const require = createRequire(import.meta.url);
 
@@ -34,8 +35,7 @@ import {
 } from './config.js';
 import { GitHubAPIBackend } from './storage/githubAPIBackend.js';
 import { SessionBranchManager } from './storage/sessionBranchManager.js';
-import { runWithUser, getCurrentUserId, setSessionBranchName, deriveStorageUserId } from './security/userContext.js';
-import type { UserContext } from './security/userContext.js';
+import { runWithUser, getCurrentUserId, setSessionBranchName, deriveStorageUserId, type UserContext } from './security/userContext.js';
 import { isAuthDisabledAllowed, isPathWithinDir, isTerminalAccessAllowed, isAnonAllowedRoute, invalidRouteParam, missingApiKeyError, resolveTestPersonaOverride } from './security/accessControl.js';
 import { sanitizeUserText } from './security/contentSanitizer.js';
 import { isFreeTierAiPath } from './anonAiRoutes.js';
@@ -81,8 +81,7 @@ import * as community from './community/community.js';
 import * as fileIO from './storage/fileIO.js';
 import { FEEDBACK_CATEGORIES, isFeedbackCategory, paginateFeedback } from './storage/feedbackStore.js';
 import { stampNodeAuthorship, diffNodes, changedFields } from './storage/editMeta.js';
-import { computeNodeConflicts } from './community/nodeConflicts.js';
-import type { TaxNode, NodeConflict } from './community/nodeConflicts.js';
+import { computeNodeConflicts, type TaxNode, type NodeConflict } from './community/nodeConflicts.js';
 import { getConfig, getConfigState, writeConfig, forceReload as reloadRuntimeConfig, diffFromDefaults } from './runtimeConfig.js';
 import { setRuntimeCredentials, clearRuntimeCredentials, getCredentials } from './security/githubAppAuth.js';
 import * as proxyTiers from './ai/proxyTiers.js';
@@ -1448,6 +1447,7 @@ server.listen(PORT, BIND_HOST, () => {
   serverRecorder.record({ type: 'lifecycle', component: 'server', level: 'info', message: 'Server started', data: { port: PORT, host: BIND_HOST, version: SERVER_VERSION, dataRoot: getDataRoot(), platform: process.platform, arch: process.arch, storageMode: STORAGE_MODE } });
   log.server.info({ port: PORT, host: BIND_HOST }, 'Taxonomy Editor running');
   log.server.info({ dataRoot: getDataRoot() }, 'Data root');
+  void warmupEmbeddings().catch((err: unknown) => log.server.warn({ err: String(err) }, 't/2719: ONNX embedding warmup failed at boot (non-fatal — first grounding request pays the cold-load)'));
 
   // t/924: surface the free-tier key pool + effective RPM so rate-limit
   // behavior is observable from startup logs (not inferred from 429 timing).
