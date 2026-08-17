@@ -89,8 +89,10 @@ is now **resolved** (concluding grounded on 30 debates / 54 turns). Item 2 remai
   concluding: { urgency: 0.17, fear: 0.44, hope: 0.21, outrage: 0.04, empathy: 0.14 },
   ```
 
-- **Cutover:** the concluding-row change rides the same pruned-lexicon + v2-baseline
-  non-comparability boundary (the third boundary, after t/1785 units and t/2677 lexicon). No trend
+- **Cutover:** the concluding-row value changes at the t/2713 landing, distinct from the t/2680
+  v2 conf/arg landing, so it is a **fourth** `affect_appropriateness` non-comparability boundary —
+  after t/1785 units, t/2677 lexicon, and the t/2680 v2 conf/arg baselines (this is the boundary
+  DebateTool labels "fourth cutover" in the `affectSignals.ts` comment). No concluding-phase trend
   may span it.
 - **Provenance:** `AFFECT_PHASE_BASELINES` / `affect_appropriateness` stay **stipulated/provisional**
   with this doc + `provisional-fit-v2.md` as the evidence pointers; promotion to `derived` gated on
