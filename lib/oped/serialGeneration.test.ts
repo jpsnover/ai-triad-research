@@ -112,6 +112,45 @@ describe('generateOpEdSet — document_claims propagation (t/2722)', () => {
   });
 });
 
+describe('generateOpEdSet — FABRICATED_LEDE_GUARD integration (t/2730)', () => {
+  const makeAdapter = (body: string) => ({
+    generateText: async () => JSON.stringify({ headline: 'H', subtitle: '', body_markdown: body, word_count: body.split(/\s+/).length }),
+  });
+  const makeReq = (newsHook: string) => ({
+    set_id: 'g1', topic: 'AI policy',
+    params: { model: 'gemini-flash', wordCount: 800, outlet: 'nyt', newsHook, thesis: '' } as never,
+    povs: ['accelerationist'] as PovKey[],
+  });
+  const DEPS = { adapter: null as never, promptsDir: join(REPO_ROOT, 'lib', 'oped', 'prompts'), repoRoot: REPO_ROOT };
+
+  it('fabricated_lede is absent when body is timeless and newsHook is empty', async () => {
+    const deps = { ...DEPS, adapter: makeAdapter('The question of who controls AI has never been more consequential.') as never };
+    let member: { fabricated_lede?: true } | undefined;
+    for await (const ev of generateOpEdSet(makeReq(''), deps) as AsyncGenerator<OpEdProgressEvent>) {
+      if (ev.type === 'voice_complete') member = ev.member as typeof member;
+    }
+    expect(member?.fabricated_lede).toBeUndefined();
+  });
+
+  it('fabricated_lede is true when body contains a guard phrase and newsHook is empty', async () => {
+    const deps = { ...DEPS, adapter: makeAdapter('This week regulators released a newly proposed pre-clearance rule for AI.') as never };
+    let member: { fabricated_lede?: true } | undefined;
+    for await (const ev of generateOpEdSet(makeReq(''), deps) as AsyncGenerator<OpEdProgressEvent>) {
+      if (ev.type === 'voice_complete') member = ev.member as typeof member;
+    }
+    expect(member?.fabricated_lede).toBe(true);
+  });
+
+  it('fabricated_lede is absent even when body has guard phrase if newsHook is non-empty', async () => {
+    const deps = { ...DEPS, adapter: makeAdapter('This week regulators released a newly proposed pre-clearance rule for AI.') as never };
+    let member: { fabricated_lede?: true } | undefined;
+    for await (const ev of generateOpEdSet(makeReq('EU AI Act passed committee'), deps) as AsyncGenerator<OpEdProgressEvent>) {
+      if (ev.type === 'voice_complete') member = ev.member as typeof member;
+    }
+    expect(member?.fabricated_lede).toBeUndefined();
+  });
+});
+
 describe('generateOpEdSet — Step 0 source-brief comprehension (t/2722)', () => {
   const ESSAY_JSON = JSON.stringify({ headline: 'H', subtitle: '', body_markdown: 'Body.', word_count: 1 });
   const REFL_JSON = JSON.stringify({ grounding_usage: [] });

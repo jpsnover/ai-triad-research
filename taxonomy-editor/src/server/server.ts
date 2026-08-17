@@ -48,29 +48,9 @@ import { json, error, param, query, getClientIp, createRouter, withEndpointTimeo
 import { computeIsPublicPath } from './publicPaths.js';
 import { resolveAllowedOrigins, corsOriginFor, resolveBindHost, isNonLoopbackDevBind, enforceCrossOriginMutationGuard, isWebSocketOriginAllowed } from './networkSecurity.js';
 import { parseCookies } from './httpCookies.js';
-import { registerDebatesRoutes } from './routes/debates.js';
-import { registerSyncRoutes } from './routes/sync.js';
-import { registerAdminRoutes } from './routes/admin.js';
-import { registerKeysRoutes } from './routes/keys.js';
-import { registerCommunityRoutes } from './routes/community.js';
-import { registerHarvestRoutes } from './routes/harvest.js';
-import { registerOrganizationsRoutes } from './routes/organizations.js';
-import { registerEntityRoutes } from './routes/entity.js';
-import { registerMentionsRoutes } from './routes/mentions.js';
-import { registerPublicShareRoutes } from './routes/publicShare.js';
-import { registerTaxonomyRoutes } from './routes/taxonomy.js';
-import { registerMetaRoutes } from './routes/meta.js';
-import { registerEdgesRoutes } from './routes/edges.js';
-import { registerConflictsRoutes, invalidateConflictsCache, warmConflictsCache } from './routes/conflicts.js';
-import { registerDataRoutes } from './routes/data.js';
-import { registerAiRoutes } from './routes/ai.js';
-import { registerChatRoutes } from './routes/chat.js';
-import { registerDiagnosticsRoutes } from './routes/diagnostics.js';
-import { registerSupportRoutes } from './routes/support.js';
-import { registerSourcesRoutes } from './routes/sources.js';
-import { registerSessionRoutes, anonSessionCookiesWithCreated } from './routes/session.js';
-import { registerPreferencesRoutes } from './routes/preferences.js';
-import { registerOpedRoutes } from './routes/oped.js';
+import { registerAllRoutes } from './routes/all.js';
+import { invalidateConflictsCache, warmConflictsCache } from './routes/conflicts.js';
+import { anonSessionCookiesWithCreated } from './routes/session.js';
 import { buildLoginPage, FORBIDDEN_PAGE, SW_HEAL_SCRIPT_CSP_HASH, loginPageHeaders } from './loginPage.js';
 import type { ServerCtx } from './routes/context.js';
 import { listFlags, setFlag, deleteFlag, type FlagDef } from './featureFlags.js';
@@ -345,110 +325,9 @@ const serverCtx: ServerCtx = {
 // ingress sets it) else the socket address. (M7)
 // getClientIp moved to httpKit.ts (t/1347) — shared by server.ts + routes/*.ts.
 
-// ── Meta / liveness / taxonomy-dirs (t/1687: extracted to routes/meta.ts) ──
-// Registers before registerTaxonomyRoutes, preserving the routeTable snapshot order.
-registerMetaRoutes(router, serverCtx);
-
-// ── Taxonomy: synthetic corpus + CRUD + node edit history ──
-// t/1383: /api/taxonomy/* cluster extracted to routes/taxonomy.ts (registrar at group position;
-// synthetic-embeddings registers before :pov, preserving the collision-pair order).
-registerTaxonomyRoutes(router, serverCtx);
-
-// ── Conflicts / cruxes / policy-registry (t/1687: extracted to routes/conflicts.ts) ──
-// Registers between registerTaxonomyRoutes and registerOrganizationsRoutes, preserving
-// the routeTable snapshot order. The module owns conflictsCache; its exported
-// invalidateConflictsCache() is wired into serverCtx above so harvest can null it.
-registerConflictsRoutes(router, serverCtx);
-
-// ── Organizations (t/1225) ──
-// t/1383: /api/organizations/* cluster extracted to routes/organizations.ts (registrar at group position).
-registerOrganizationsRoutes(router, serverCtx);
-
-// ── Entity resolver (t/1786) ──
-// GET /api/entity/:ref — public read; resolves the entity-ref discriminated union
-// (lib/entities/types.ts) to the record type that owns each kind. Grouped with
-// organizations (shares the public read tier). Brand-new path — no collision.
-registerEntityRoutes(router, serverCtx);
-
-// ── Container mentions (t/1902) ──
-// GET /api/container-mentions/:containerId — the entity mentions extracted for one
-// container (web transport for C's fileIO.readContainerMentions). Session-gated;
-// an absent container → 200 null (designed miss, not 404). Brand-new path — no collision.
-registerMentionsRoutes(router, serverCtx);
-
-// ── Public share (t/1788) ──
-// GET /api/public/pov/:pov/node/:nodeId — public, no-login, read-only POV node
-// share. Grouped with organizations/entity (public read tier). Brand-new path —
-// no collision. The auth-exemption is the isPublicPath '/api/public/' clause.
-registerPublicShareRoutes(router, serverCtx);
-
-// ── Lineage / edges / source-indexes / data-availability / flags (t/1687: routes/edges.ts) ──
-// Registers between organizations and admin, preserving the routeTable snapshot order.
-registerEdgesRoutes(router, serverCtx);
-
-// ── Admin (35 routes, 6 scattered runs) extracted to routes/admin.ts — t/1295 ──
-registerAdminRoutes(router, serverCtx);
-
-// ── Data management + AI models (t/1687: extracted to routes/data.ts) ──
-// Registers between registerAdminRoutes and registerKeysRoutes, preserving the routeTable snapshot order.
-registerDataRoutes(router, serverCtx);
-
-// t/1347: /api/keys/* cluster extracted to routes/keys.ts, registered here at the
-// cluster's original first-route position (the interspersed /api/auth/* routes stay).
-registerKeysRoutes(router, serverCtx);
-
-// ── Auth-logout / AI generation / proxy-info / embeddings+NLI + SSE chat (t/1687, t/2457) ──
-registerAiRoutes(router, serverCtx);
-registerChatRoutes(router, serverCtx);
-
-// ── Debate sessions ──
-// t/1295: the /api/debates cluster (9 routes) moved to routes/debates.ts. This
-// single registration replaces both former debates blocks (was here + ~L1831),
-// registering all 9 at this position to preserve collision-pair order.
-registerDebatesRoutes(router, serverCtx);
-
-// t/1687: the calibration / flight-recorder / chat-sessions route run moved to
-// routes/diagnostics.ts (registered here at its former position, between
-// registerDebatesRoutes and registerCommunityRoutes, to preserve snapshot order).
-registerDiagnosticsRoutes(router, serverCtx);
-
-// ── Community Library ──
-
-// t/1347: /api/community/* cluster extracted to routes/community.ts (registered here at
-// the group's position; the community-only respondRateLimited helper moved with it).
-registerCommunityRoutes(router, serverCtx);
-registerOpedRoutes(router, serverCtx); // t/2573: /api/oped-sets library (list/load/delete); no v1 create route — see routes/oped.ts
-// t/1687: the public client-config + support-cases route run moved to
-// routes/support.ts (registered here at its former position, between
-// registerCommunityRoutes and registerHarvestRoutes, to preserve snapshot order).
-registerSupportRoutes(router, serverCtx);
-
-
-// ── Harvest ──
-// t/1347: /api/harvest/* cluster extracted to routes/harvest.ts (registrar at group position).
-registerHarvestRoutes(router, serverCtx);
-
-// t/1687: the summaries / sources / source-documents / dictionary / source-
-// evidence / evidence-qbaf / proposals / ps-prompts / fetch-url / upload-document
-// route run moved to routes/sources.ts (registered here at its former position,
-// between registerHarvestRoutes and registerSyncRoutes, to preserve snapshot
-// order). Its two module-local caches moved in with it.
-registerSourcesRoutes(router, serverCtx);
-
-// ── Git sync ── (17 routes extracted to routes/sync.ts — t/1295)
-registerSyncRoutes(router, serverCtx);
-
-// t/1687: the auth-identity / analytics / diagnostics-beacon / focus-node /
-// trace-channel route run moved to routes/session.ts (registered here at its
-// former position, immediately after registerSyncRoutes and before the static-
-// file pipeline, to preserve snapshot order). /focus-node broadcasts via the new
-// ctx.broadcastEvent (broadcastEvent stays in server.ts with the WebSocket set).
-registerSessionRoutes(router, serverCtx);
-
-// ── User preferences (t/2119) ──
-// GET /api/preferences + PUT /api/preferences — per-user JSON file storage for
-// the web build. Brand-new paths — no collision.
-registerPreferencesRoutes(router, serverCtx);
+// ── Route registration (t/2749: consolidated into routes/registerAll.ts) ──
+// Order is preserved verbatim — see registerAll.ts for the per-cluster comments.
+registerAllRoutes(router, serverCtx);
 
 // ── Static file serving ──
 

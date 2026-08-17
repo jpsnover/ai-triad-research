@@ -45,6 +45,8 @@ export interface OpEdMember {
   pitch?: string;
   wordCount: number;
   grounding: OpEdGroundingRef[];
+  /** Set when FABRICATED_LEDE_GUARD matched the lede on an empty-newsHook run (t/2730). */
+  fabricated_lede?: true;
 }
 
 // ── Set wrapper (e/91#2 conditions 2 & 4) ────────────────────────────────────
