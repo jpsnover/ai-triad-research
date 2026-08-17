@@ -5,9 +5,10 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { runNliDirectionGate } from './nliDirectionGate.js';
 import type { ArgumentNetworkNode } from '../types.js';
 
-vi.mock('child_process', () => ({
-  spawnSync: vi.fn(),
-}));
+vi.mock('child_process', async (importOriginal) => {
+  const actual = await importOriginal();
+  return { ...(actual as object), spawnSync: vi.fn() };
+});
 
 import { spawnSync } from 'child_process';
 const mockSpawn = vi.mocked(spawnSync);
