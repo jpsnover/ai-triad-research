@@ -294,7 +294,10 @@ export function createCLIAdapter(repoRoot: string, explicitApiKey?: string): Ext
   async function doGenerateText(prompt: string, model: string, options?: GenerateOptions): Promise<string> {
     const { apiModelId, backend, fixedTemperature } = resolveModel(registry, model);
     const apiKey = resolveApiKey(backend, explicitApiKey);
-    const timeoutMs = options?.timeoutMs ?? getDefaultTimeout(model, registry);
+    // Opus models require extended per-call time on complex structured topics (t/1075, t/1069#6).
+    // Apply a 300s floor for any model whose ID contains 'opus'; other models use the registry default.
+    const baseTimeoutMs = options?.timeoutMs ?? getDefaultTimeout(model, registry);
+    const timeoutMs = model.includes('opus') ? Math.max(baseTimeoutMs, 300_000) : baseTimeoutMs;
     const opts = { ...options, timeoutMs, fixedTemperature };
 
     const t0 = performance.now();
