@@ -32,6 +32,7 @@ import { entailmentRepairPrompt, cruxRefreshPrompt } from '../prompts.js';
 import { callByUsage } from '../../ai-client/usageRegistry.js';
 import { getGlobalRecorder } from '../../flight-recorder/index.js';
 import { hashString, looksTruncated, updateExtractionSummary } from './helpers.js';
+import { runNliDirectionGate } from './nliDirectionGate.js';
 import type { ClaimExtractionContext } from './context.js';
 
 export async function extractClaims(
@@ -233,6 +234,30 @@ export async function extractClaims(
       trace.attribution_missing_embedding = attrResult.missing_embedding;
       trace.attribution_novel_argument = attrResult.novel_argument;
       trace.attribution_decisions = attrResult.decisions;
+
+      // V4 NLI direction gate (t/2746): demote 'opposes' claims to direction_mismatch
+      const nodeTextById = new Map(povNodes.map(n => [n.id, n.text]));
+      const opposingIds = runNliDirectionGate(claimsResult.newNodes, nodeTextById, speakerPov);
+      if (opposingIds.size > 0) {
+        for (const node of claimsResult.newNodes) {
+          if (!opposingIds.has(node.id)) continue;
+          node.claim_taxonomy_attribution = {
+            primary_ref: '',
+            attribution_confidence: node.claim_taxonomy_attribution?.attribution_confidence ?? 0,
+            unattributed_reason: 'direction_mismatch',
+          };
+          const dec = trace.attribution_decisions?.find(d => d.claim_id === node.id);
+          if (dec) {
+            dec.primary_ref = null;
+            dec.unattributed_reason = 'direction_mismatch';
+            dec.secondary_refs_count = 0;
+          }
+        }
+        const nliDemoted = opposingIds.size;
+        trace.attribution_attributed = (trace.attribution_attributed ?? 0) - nliDemoted;
+        trace.attribution_unattributed = (trace.attribution_unattributed ?? 0) + nliDemoted;
+        trace.attribution_novel_argument = (trace.attribution_novel_argument ?? 0) + nliDemoted;
+      }
 
       // Log warning if zero statement-level taxonomy_refs (injection may have failed upstream)
       if (taxonomyRefIds.length === 0 && claimsResult.newNodes.length > 0) {
