@@ -304,6 +304,21 @@ EXAMPLE KEY POINTS:
       "extraction_confidence": 0.90
     }
 
+  Directional stance example — topically matched, propositionally OPPOSED (stance: strongly_opposed):
+    {
+      "point": "The document argues that mandatory opt-in consent for biometric data collection should be replaced by an opt-out default, contending that opt-in regimes impose compliance costs disproportionate to any demonstrated privacy benefit and suppress beneficial uses of the technology. It cites lower fraud-detection rates in opt-in jurisdictions as supporting evidence. This passage is topically matched to the skeptic node on biometric-privacy protection, but it argues the NEGATION of that node's proposition: the node holds that biometric collection ought to require affirmative opt-in consent, whereas the document advocates removing that requirement — hence strongly_opposed, not aligned, even though both concern the same skeptic-camp topic. The document acknowledges its opt-out default shifts the burden onto individuals to protect their own data.",
+      "canonical_proposition": "Biometric data collection ought to default to opt-out rather than require affirmative opt-in consent.",
+      "attribution_text": "A Desire within skeptic discourse that biometric data collection default to opt-out consent rather than affirmative opt-in, prioritizing technological utility and compliance-cost reduction over default privacy protection. Encompasses: opt-out consent defaults, biometric compliance cost, facial-recognition utility.",
+      "taxonomy_node_id": "skp-desires-003",
+      "category": "Desires",
+      "stance": "strongly_opposed",
+      "verbatim": "Opt-in consent requirements for biometric systems impose costs far out of proportion to any demonstrated privacy benefit and should give way to an opt-out default.",
+      "extraction_confidence": 0.90
+    }
+    Note: category is Desires because the ASSIGNED node (skp-desires-003) is a Desire —
+    category tracks the node, not the stance. The document opposes that desire; it does
+    not thereby change categories. This is the CATEGORY CONSISTENCY rule in action.
+
 EXAMPLE FACTUAL CLAIM:
     {
       "claim": "GPT-4 scored in the 90th percentile on the Uniform Bar Exam",
@@ -382,6 +397,15 @@ SALIENCE DEFINITION — what makes a point worth extracting:
 RULES:
   - Map every point to a taxonomy node ID from the provided taxonomy where possible.
     Use the exact node IDs (e.g. "acc-desires-001", "saf-beliefs-002", "skp-intentions-001").
+  - CATEGORY CONSISTENCY (mandatory): a key_point's "category" must match the category
+    encoded in its assigned taxonomy_node_id. The node ID's middle segment names the
+    category: "*-beliefs-*" → Beliefs, "*-desires-*" → Desires, "*-intentions-*" →
+    Intentions. If the category you chose and the assigned node's category disagree,
+    STOP and re-examine before emitting — either the node assignment or the category
+    is wrong; fix whichever is mistaken (or set taxonomy_node_id to null if no
+    same-category node fits). This check is independent of stance: an opposed point
+    still shares its node's category (it disputes that node's proposition, which lives
+    in the same category).
   - CROSS-POV SEARCH: before declaring a concept unmapped, search ALL four taxonomy
     files (accelerationist, safetyist, skeptic, AND situation). A concept may
     appear under a different POV than you would initially expect. For example, a
@@ -395,6 +419,21 @@ RULES:
   - Each key_point must include a stance field. stance must be ONE of:
     strongly_aligned | aligned | neutral | opposed | strongly_opposed | not_applicable.
     Different key_points within the same POV camp may have different stances.
+
+    DIRECTIONAL STANCE (mandatory): stance measures the document's agreement with the
+    ASSIGNED NODE's asserted proposition — NOT with the POV camp. A source can be
+    on-topic for a node (same subject) yet argue the negation of its proposition; that
+    is opposed or strongly_opposed, never aligned. Determine stance directionally:
+      1. Read the assigned node's proposition (its actual claim), not merely its topic.
+      2. Ask whether the document ASSERTS that proposition or DISPUTES it:
+         • asserts / endorses / provides evidence for it → aligned / strongly_aligned
+         • disputes / argues its negation / rebuts it     → opposed / strongly_opposed
+         • engages the proposition without taking a side   → neutral
+      3. NEVER default to aligned because the document's subject matches the node's
+         camp. Camp-match is topical relevance; stance is propositional agreement.
+         A skeptic-camp source arguing against a skeptic node's claim is opposed, not
+         aligned. When the document is on-topic but its direction is unclear, prefer
+         neutral over a reflexive aligned.
   - Each key_point and factual_claim must include an extraction_confidence field (0.0-1.0)
     rating how faithfully this point represents the source document. Assign confidence
     AFTER formulating each point — do not self-censor or skip uncertain points.
