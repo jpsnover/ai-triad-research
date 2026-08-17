@@ -214,12 +214,15 @@ describe('embedDoctrinalBoundaries', () => {
 
     const result = await embedDoctrinalBoundaries(boundaries, embedFn);
 
-    expect(result.accelerationist).toHaveLength(2);
-    expect(result.safetyist).toHaveLength(1);
-    expect(result.accelerationist[0]).toHaveLength(384);
+    expect(result.accelerationist.vectors).toHaveLength(2);
+    expect(result.safetyist.vectors).toHaveLength(1);
+    expect(result.accelerationist.vectors[0]).toHaveLength(384);
+    // All are REJECT: boundaries → isRejection should all be true
+    expect(result.accelerationist.isRejection).toEqual([true, true]);
+    expect(result.safetyist.isRejection).toEqual([true]);
   });
 
-  it('strips REJECT: prefix before embedding', async () => {
+  it('preserves REJECT: prefix when embedding and sets isRejection flag (t/2746 V5)', async () => {
     const boundaries = {
       test: ['REJECT: precautionary principle', 'REJECT:  capability limits', 'No prefix here'],
     };
@@ -229,13 +232,16 @@ describe('embedDoctrinalBoundaries', () => {
       return new Array(384).fill(0.1);
     };
 
-    await embedDoctrinalBoundaries(boundaries, embedFn);
+    const result = await embedDoctrinalBoundaries(boundaries, embedFn);
 
+    // V5: prefix is preserved so the embedding captures polarity-bearing text
     expect(receivedTexts).toEqual([
-      'precautionary principle',
-      'capability limits',
+      'REJECT: precautionary principle',
+      'REJECT:  capability limits',
       'No prefix here',
     ]);
+    expect(result.test.isRejection).toEqual([true, true, false]);
+    expect(result.test.vectors).toHaveLength(3);
   });
 
   it('handles embedding failures gracefully', async () => {
@@ -248,7 +254,7 @@ describe('embedDoctrinalBoundaries', () => {
     };
 
     const result = await embedDoctrinalBoundaries(boundaries, embedFn);
-    expect(result.test).toHaveLength(2); // 1 failed, 2 succeeded
+    expect(result.test.vectors).toHaveLength(2); // 1 failed, 2 succeeded
   });
 });
 
@@ -268,7 +274,7 @@ describe('calibrateDoctrinalThresholds', () => {
       'b-001': { pov: 'acc', vector: base },      // sim=1.0 to boundary
       'b-002': { pov: 'acc', vector: similar },    // sim≈0.50 to boundary
     };
-    const boundaryEmbs = { acc: [base] };
+    const boundaryEmbs = { acc: { vectors: [base], isRejection: [false] } };
 
     const rows = calibrateDoctrinalThresholds(nodes, boundaryEmbs, nodeEmbs, [0.45, 0.55, 0.90]);
 
@@ -329,5 +335,70 @@ describe('DEFAULT_ANCHORING_CONFIG', () => {
   it('has threshold 0.55 and floor 0.60', () => {
     expect(DEFAULT_ANCHORING_CONFIG.threshold).toBe(0.55);
     expect(DEFAULT_ANCHORING_CONFIG.confidenceFloor).toBe(0.60);
+  });
+});
+
+// ── V5: REJECT: polarity gate (t/2746) ─────────────────
+
+describe('computeDoctrinalAnchoring — V5 REJECT: polarity gate', () => {
+  it('does not anchor a node matching a REJECT: boundary', () => {
+    const base = makeEmbedding(0);
+    const node = makeBeliefNode('b-001', 0.50);
+    const nodeEmbs = { 'b-001': { pov: 'accelerationist', vector: base } };
+    const boundaryVecs = [base]; // sim = 1.0 — above threshold
+    const isRejection = [true]; // this boundary is a REJECT: string
+
+    const results = computeDoctrinalAnchoring(
+      [node], boundaryVecs, nodeEmbs, undefined, undefined, isRejection,
+    );
+
+    expect(results[0].anchored).toBe(false);
+    expect(results[0].floorApplied).toBe(false);
+    // Confidence should not have been raised
+    expect(node.confidence).toBe(0.50);
+  });
+
+  it('anchors normally when matching an embrace boundary (isRejection = false)', () => {
+    const base = makeEmbedding(0);
+    const node = makeBeliefNode('b-001', 0.50);
+    const nodeEmbs = { 'b-001': { pov: 'accelerationist', vector: base } };
+    const boundaryVecs = [base];
+    const isRejection = [false]; // normal embrace boundary
+
+    const results = computeDoctrinalAnchoring(
+      [node], boundaryVecs, nodeEmbs, undefined, undefined, isRejection,
+    );
+
+    expect(results[0].anchored).toBe(true);
+    expect(results[0].floorApplied).toBe(true);
+    expect(node.confidence).toBe(DEFAULT_ANCHORING_CONFIG.confidenceFloor);
+  });
+
+  it('anchors normally when boundaryIsRejection is omitted (backward-compat)', () => {
+    const base = makeEmbedding(0);
+    const node = makeBeliefNode('b-001', 0.50);
+    const nodeEmbs = { 'b-001': { pov: 'accelerationist', vector: base } };
+    const boundaryVecs = [base]; // no isRejection arg
+
+    const results = computeDoctrinalAnchoring([node], boundaryVecs, nodeEmbs);
+
+    expect(results[0].anchored).toBe(true);
+  });
+
+  it('does not apply floor when matching a REJECT: boundary', () => {
+    const base = makeEmbedding(2);
+    const node = makeBeliefNode('b-rej', 0.40);
+    const nodeEmbs = { 'b-rej': { pov: 'safetyist', vector: base } };
+    const boundaryVecs = [base];
+    const isRejection = [true];
+
+    const config = { threshold: 0.55, confidenceFloor: 0.75 };
+    const results = computeDoctrinalAnchoring(
+      [node], boundaryVecs, nodeEmbs, undefined, config, isRejection,
+    );
+
+    expect(results[0].anchored).toBe(false);
+    expect(results[0].floorApplied).toBe(false);
+    expect(node.confidence).toBe(0.40); // untouched
   });
 });
