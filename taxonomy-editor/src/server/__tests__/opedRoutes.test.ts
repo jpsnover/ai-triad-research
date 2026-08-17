@@ -233,7 +233,26 @@ describe('POST /api/oped-sets create pre-start gate (t/2610)', () => {
     const res = fakeRes();
     await handlers['POST /api/oped-sets'](fakeReq('/api/oped-sets'), res, { ...validBody, params: { model: 'claude-opus-4', wordCount: 800 } });
     expect(res._status).toBe(403);
+    // t/2635: entitlement now flows through the shared enforceBackendAllowed
+    // (routes/generationContext.ts), whose 403 carries the tier context — asserting the
+    // body shape locks the op-ed route onto the ONE consolidated gate, not the old mirror.
+    expect(JSON.parse(res._body ?? '{}')).toMatchObject({ tier_level: 'platform', requested_backend: 'claude' });
     expect(getOpedSetsQuotaStatus).not.toHaveBeenCalled(); // gated before quota + any generation
+  });
+
+  it('free tier is PINNED — a premium request is not 403’d, it proceeds on the pinned backend (t/2635)', async () => {
+    // The consolidation's core behaviour via resolveGenerationContext: a free user asking for a
+    // premium model is served the tier's pinned model (an allowed backend), NOT rejected. We stop
+    // at the quota gate (429) to prove entitlement passed without kicking off real generation.
+    resolveTier.mockReturnValue({ level: 'free', allowedBackends: ['gemini'], pinnedModel: 'gemini-2.5-flash' });
+    resolveBackend.mockReturnValue('gemini'); // effectiveModel = pinned gemini-2.5-flash → gemini backend
+    getOpedSetsQuotaStatus.mockResolvedValue({ allowed: false, resource: 'opeds', current: 15, limit: 15 });
+    // Free-tier limit-keying calls getClientIp, so this req needs headers + socket (bare fakeReq doesn't).
+    const freeReq = { url: '/api/oped-sets', headers: {}, socket: { remoteAddress: '127.0.0.1' } } as unknown as IncomingMessage;
+    const res = fakeRes();
+    await handlers['POST /api/oped-sets'](freeReq, res, { ...validBody, params: { model: 'claude-opus-4', wordCount: 800 } });
+    expect(res._status).toBe(429); // reached quota ⇒ entitlement did NOT 403 the pinned free user
+    expect(getOpedSetsQuotaStatus).toHaveBeenCalled();
   });
 
   it('403 for anonymous users (no anonymous op-ed tier)', async () => {
