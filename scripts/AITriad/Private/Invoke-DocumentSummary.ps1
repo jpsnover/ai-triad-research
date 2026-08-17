@@ -854,6 +854,32 @@ function Finalize-Summary {
         }
     }
 
+    # -- Polarity/contradiction gate (t/2739 P1) -------------------------------
+    # Runs after the confidence pass (retrieval_low_confidence populated). Asks the
+    # shared directional engine whether each aligned, high-topical-band key_point
+    # OPPOSES its ASSIGNED node's proposition; flips to strongly_opposed +
+    # stance_polarity_flag on 'opposes' (opposition-only; unresolved keeps). The
+    # residual that similarity + the prompt (t/2738) cannot catch.
+    $PolarityKps = [System.Collections.Generic.List[object]]::new()
+    foreach ($Camp in $Camps) {
+        $CampDataPol = $SummaryObject.pov_summaries.$Camp
+        if (-not $CampDataPol -or -not (Has-Field $CampDataPol 'key_points')) { continue }
+        $kpListPol = Get-Field $CampDataPol 'key_points'
+        if ($kpListPol) {
+            foreach ($kp in @($kpListPol)) { [void]$PolarityKps.Add(@{ KeyPoint = $kp; POV = $Camp }) }
+        }
+    }
+    if ($PolarityKps.Count -gt 0) {
+        $PolarityCounts = Invoke-PolarityGatePass -KeyPoints $PolarityKps.ToArray()
+        if ($PolarityCounts.opposes -gt 0) {
+            Write-Warn ("Polarity gate: {0} inversion(s) flagged (opposes) — counts o={0} a={1} u={2} x={3} over {4} gated" -f `
+                $PolarityCounts.opposes, $PolarityCounts.agrees, $PolarityCounts.unrelated, $PolarityCounts.unresolved, $PolarityCounts.gated)
+        } else {
+            Write-Verbose ("Polarity gate: no inversions — counts o=0 a={0} u={1} x={2} over {3} gated" -f `
+                $PolarityCounts.agrees, $PolarityCounts.unrelated, $PolarityCounts.unresolved, $PolarityCounts.gated)
+        }
+    }
+
     # -- Mechanism #5 per-key_point re-retrieval pass (t/2357) -----------------
     # Runs after the confidence pass so retrieval_low_confidence is populated.
     # Flags key_points whose assigned node is retrieval_low_confidence OR absent
