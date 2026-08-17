@@ -6,6 +6,11 @@ THE FINISHED OP-ED:
 THE ELEMENTS THAT WERE PROVIDED AS SOURCE MATERIAL (each with its [id] and a short label):
 {{GROUNDING_LIST}}
 
+THE SOURCE DOCUMENT'S KEY CLAIMS (numbered). Empty if this op-ed had no source document:
+{{SOURCE_CLAIMS}}
+
 For EACH element id above, judge against the actual essay text and write one sentence saying HOW and WHERE it is reflected — name the concrete structural place it most influenced (the lede, the thesis, the first / second / third evidence pillar, the "To Be Sure" counterargument, the solution/call-to-action, or the closing) and what it contributed. If an element is not actually reflected in the essay, set its reflection to exactly "not directly used". Be honest: only claim a placement that is really present in the text.
 
-Return ONLY a JSON object: { "grounding_usage": [ { "id": "<the [id]>", "reflection": "<one sentence>" }, ... ] } with exactly one entry per element id shown above. No commentary outside the JSON.
+Also, when SOURCE DOCUMENT KEY CLAIMS are provided above, list in "document_claims" the specific claims (copied verbatim from the numbered list) that THIS element engages, supports, or rebuts in the essay. Include a claim only if the essay actually connects this element to it. Use an empty array if the element engages no source claim, or if no source claims were provided.
+
+Return ONLY a JSON object: { "grounding_usage": [ { "id": "<the [id]>", "reflection": "<one sentence>", "document_claims": ["<verbatim claim>", ...] }, ... ] } with exactly one entry per element id shown above. No commentary outside the JSON.

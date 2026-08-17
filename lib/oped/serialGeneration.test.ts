@@ -70,3 +70,43 @@ describe('generateOpEdSet — sequential voice generation (t/2719 OOM regression
     expect(maxInFlight).toBe(1);
   });
 });
+
+describe('generateOpEdSet — document_claims propagation (t/2722)', () => {
+  it('populates document_claims on grounding refs when reflection returns them', async () => {
+    let call = 0;
+    const adapter = {
+      generateText: async () => {
+        call++;
+        if (call % 2 === 1) {
+          // Essay generation call
+          return JSON.stringify({ headline: 'H', subtitle: '', body_markdown: 'Body text here.', word_count: 3 });
+        }
+        // Reflection call — include document_claims for one node
+        return JSON.stringify({
+          grounding_usage: [
+            { id: 'acc-bel-001', reflection: 'used in lede', document_claims: ['claim A', 'claim B'] },
+            { id: 'sit-001', reflection: 'used as evidence', document_claims: [] },
+          ],
+        });
+      },
+    };
+    const req = {
+      set_id: 's2', topic: 'AI policy',
+      params: { model: 'gemini-flash', wordCount: 800, outlet: 'nyt', newsHook: '', thesis: '' } as never,
+      povs: ['accelerationist'] as PovKey[],
+    };
+    const deps = { adapter: adapter as never, promptsDir: join(REPO_ROOT, 'lib', 'oped', 'prompts'), repoRoot: REPO_ROOT };
+
+    let member: { grounding: { node_id: string; document_claims?: string[] }[] } | undefined;
+    for await (const ev of generateOpEdSet(req, deps) as AsyncGenerator<OpEdProgressEvent>) {
+      if (ev.type === 'voice_complete') member = ev.member as typeof member;
+    }
+
+    expect(member).toBeDefined();
+    const bdiRef = member!.grounding.find(r => r.node_id === 'acc-bel-001');
+    expect(bdiRef?.document_claims).toEqual(['claim A', 'claim B']);
+    // Empty document_claims array → field stays absent (only set when length > 0)
+    const sitRef = member!.grounding.find(r => r.node_id === 'sit-001');
+    expect(sitRef?.document_claims).toBeUndefined();
+  });
+});

@@ -46,7 +46,11 @@ export function loadPromptTemplate(promptsDir: string, name: string): string {
 export function loadAndAssemblePrompt(promptsDir: string, ctx: PromptContext): AssembledPrompt {
   const newsHookText = ctx.params.newsHook?.trim()
     ? ctx.params.newsHook
-    : '(none supplied — invent a plausible current news hook and make clear in the lede what timely event it assumes, so the author can verify it against real events before submitting)';
+    : '(none supplied — do NOT invent or assert a specific dated news event, pending vote, ruling, '
+    + 'report, milestone, or named regulation. Open on the enduring stakes of the issue itself — a '
+    + 'trend, a structural tension, or a concrete illustrative scene — with no claim that any '
+    + 'particular thing happened "this week" or is "currently pending." If SOURCE MATERIAL is '
+    + 'provided above, anchor the opening in what THAT document argues or reports, not an external event.)';
   const thesisText = ctx.params.thesis?.trim()
     ? ctx.params.thesis
     : '(none supplied — derive a clear, arguable thesis that follows from your camp value hierarchy)';
@@ -78,6 +82,9 @@ export function loadAndAssemblePrompt(promptsDir: string, ctx: PromptContext): A
     SOURCE_THESIS: ctx.sourceBrief?.thesis ?? '',
     SOURCE_STANCE: ctx.sourceBrief?.stance ?? '',
     SOURCE_RECOMMENDATIONS: ctx.sourceBrief?.primary_recommendations?.join('; ') ?? '',
+    SOURCE_KEY_CLAIMS: ctx.sourceBrief?.key_claims?.length
+      ? ctx.sourceBrief.key_claims.map((c, i) => `  ${i + 1}. ${c}`).join('\n')
+      : '(none extracted)',
   });
 
   return { system, user };
@@ -87,9 +94,11 @@ export function assembleReflectionPrompt(
   promptsDir: string,
   opedBody: string,
   groundingList: string,
+  sourceClaims = '(none)',
 ): string {
   return interpolate(loadPromptTemplate(promptsDir, 'op-ed-grounding-reflection'), {
     OPED_BODY: opedBody,
     GROUNDING_LIST: groundingList,
+    SOURCE_CLAIMS: sourceClaims,
   });
 }

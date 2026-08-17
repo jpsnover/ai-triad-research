@@ -192,7 +192,7 @@ export function registerOpEdHandlers(): void {
       send({ set_id: setId, stage: 'preparing-source' });
       try {
         const sourcePrep = await runGetOpEdSource(url, controller.signal);
-        // Extract markdown text for the lib/oped sourceBrief slot ({{SOURCE_MATERIAL}}).
+        // Extract markdown text for the lib/oped sourceMaterial slot ({{SOURCE_MATERIAL}}).
         // Structured fields (SOURCE_AUTHOR etc.) are P2 — empty in P1 (t/2604).
         sourceBrief = sourcePrep.SourceMarkdown != null ? String(sourcePrep.SourceMarkdown) : undefined;
       } catch (err) {
@@ -224,7 +224,7 @@ export function registerOpEdHandlers(): void {
       topic,
       params,
       povs: voices,
-      sourceBrief,
+      sourceMaterial: sourceBrief,
       signal: controller.signal,
     };
 
