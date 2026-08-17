@@ -166,7 +166,7 @@ export interface ClaimExtractionTrace {
     primary_ref: string | null;
     attribution_confidence: number;
     secondary_refs_count: number;
-    unattributed_reason?: 'novel_argument' | 'no_embedding';
+    unattributed_reason?: 'novel_argument' | 'no_embedding' | 'direction_mismatch';
   }[];
 
   exclusion_violations?: {
