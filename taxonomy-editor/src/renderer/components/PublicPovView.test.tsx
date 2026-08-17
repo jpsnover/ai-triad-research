@@ -113,12 +113,30 @@ describe('PublicPovView (t/1790)', () => {
     expect(mockFetch).not.toHaveBeenCalled();
   });
 
-  it('shows an error state and records to the flight recorder on network failure', async () => {
-    mockFetch.mockRejectedValue(new Error('network down'));
+  it(‘shows an error state and records to the flight recorder on network failure’, async () => {
+    mockFetch.mockRejectedValue(new Error(‘network down’));
     render(<PublicPovView />);
     await screen.findByText(/Couldn’t load this item/);
     expect(mockRecord).toHaveBeenCalledWith(
-      expect.objectContaining({ type: 'system.error', component: 'PublicPovView', level: 'error' }),
+      expect.objectContaining({ type: ‘system.error’, component: ‘PublicPovView’, level: ‘error’ }),
     );
+  });
+
+  it(‘aborts the in-flight fetch when the component unmounts (t/2755)’, async () => {
+    let resolveResponse!: (r: Response) => void;
+    mockFetch.mockReturnValue(new Promise(res => { resolveResponse = res; }));
+
+    const { unmount } = render(<PublicPovView />);
+    await Promise.resolve();
+
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+    const signal = mockFetch.mock.calls[0][1]?.signal as AbortSignal;
+    expect(signal).toBeDefined();
+    expect(signal.aborted).toBe(false);
+
+    unmount();
+    expect(signal.aborted).toBe(true);
+
+    resolveResponse(fakeResponse({ body: SAMPLE }));
   });
 });
