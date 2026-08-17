@@ -2,7 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { runNliDirectionGate } from './nliDirectionGate.js';
+import { runNliDirectionGate, buildNliNodeProp } from './nliDirectionGate.js';
 import type { ArgumentNetworkNode } from '../types.js';
 
 vi.mock('child_process', async (importOriginal) => {
@@ -33,6 +33,31 @@ function spawnResult(stdout: object, status = 0) {
 
 beforeEach(() => {
   vi.resetAllMocks();
+});
+
+describe('buildNliNodeProp — rich node prop for NLI (t/2744#7)', () => {
+  it('joins label and core description with em-dash', () => {
+    expect(buildNliNodeProp('Rapid Deployment', 'Faster deployment helps society.')).toBe('Rapid Deployment — Faster deployment helps society.');
+  });
+
+  it('strips Encompasses tail from description', () => {
+    const desc = 'AI accelerates progress. Encompasses: narrow AI, AGI research.';
+    expect(buildNliNodeProp('AI Progress', desc)).toBe('AI Progress — AI accelerates progress.');
+  });
+
+  it('strips Excludes tail from description', () => {
+    const desc = 'Regulation slows development. Excludes: safety-critical domains.';
+    expect(buildNliNodeProp('Regulation Risk', desc)).toBe('Regulation Risk — Regulation slows development.');
+  });
+
+  it('falls back to label-only when description is empty', () => {
+    expect(buildNliNodeProp('Bare Label', '')).toBe('Bare Label');
+  });
+
+  it('falls back to label-only when core is empty after strip', () => {
+    const desc = 'Encompasses: everything, nothing.';
+    expect(buildNliNodeProp('Label Only', desc)).toBe('Label Only');
+  });
 });
 
 describe('runNliDirectionGate — V4 direction gate (t/2746)', () => {

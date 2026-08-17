@@ -8,6 +8,17 @@ import { fileURLToPath } from 'url';
 import path from 'path';
 import type { ArgumentNetworkNode } from '../types.js';
 
+/**
+ * Build the rich node proposition for NLI input (t/2744#7, TL ruling t/2746).
+ * Matches V1 (PS2) format exactly: "label — Core" where Core = description with
+ * Encompasses:/Excludes: tails stripped (they name sibling topics, not the asserted
+ * proposition). Falls back to label-only when description is empty.
+ */
+export function buildNliNodeProp(label: string, description: string): string {
+  const core = (description ?? '').replace(/\s*(Encompasses|Excludes)\s*:[\s\S]*$/, '').trim();
+  return core ? `${label} — ${core}` : label;
+}
+
 const __filename = fileURLToPath(import.meta.url);
 // claimExtractionPipeline -> lib/debate -> lib -> repo root
 const REPO_ROOT = path.resolve(path.dirname(__filename), '../../..');
