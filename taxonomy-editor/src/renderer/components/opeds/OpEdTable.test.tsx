@@ -253,9 +253,16 @@ describe('OpEdTable — My variant', () => {
     const rows = [makeSummary({ set_id: 'x', topic: 'Legacy voice', camps: short('bogus'), voice_count: 1 })];
     render(<OpEdTable {...noopMyProps} rows={rows} totalCount={1} />);
     const row = screen.getByText('Legacy voice').closest('tr')!;
-    // Fallback short label is an em dash — the row still renders, no error boundary.
-    expect(within(row).getByText('—')).toBeTruthy();
+    // Fallback short label is an em dash — scope to the camp cell, since the Outlet
+    // cell also renders '—' after t/2724 (an unscoped getByText('—') is ambiguous).
+    expect(within(row.querySelector('.col-camp') as HTMLElement).getByText('—')).toBeTruthy();
     expect(within(row).getByRole('button', { name: /open/i })).toBeTruthy();
+  });
+
+  it('renders My columns in order Camp · Date · Outlet · Actions · Headline (t/2724)', () => {
+    render(<OpEdTable {...noopMyProps} rows={[makeSummary()]} totalCount={1} />);
+    const heads = screen.getAllByRole('columnheader').map(th => (th.textContent || '').replace(/[^A-Za-z]/g, ''));
+    expect(heads).toEqual(['Camp', 'Date', 'Outlet', 'Actions', 'Headline']);
   });
 });
 
@@ -281,5 +288,12 @@ describe('OpEdTable — Community variant', () => {
   it('hides Copy for anonymous users', () => {
     render(<OpEdTable {...base} rows={[makeEntry()]} isElectron={false} auth={{ anonymous: true }} />);
     expect(screen.queryByRole('button', { name: /copy/i })).toBeNull();
+  });
+
+  it('renders Community columns in order Camp · Date · Outlet · Actions · Headline, no Words (t/2724)', () => {
+    render(<OpEdTable {...base} rows={[makeEntry()]} isElectron={false} />);
+    const heads = screen.getAllByRole('columnheader').map(th => (th.textContent || '').replace(/[^A-Za-z]/g, ''));
+    expect(heads).toEqual(['Camp', 'Date', 'Outlet', 'Actions', 'Headline']);
+    expect(heads).not.toContain('Words');
   });
 });

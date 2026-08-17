@@ -325,29 +325,17 @@ export function OpEdMyRow({
         </td>
       )}
 
-      {/* Headline — flexible column, wraps then clamps */}
-      <td className="col-headline">
-        <OpEdHeadlineCell
-          headline={headline}
-          subtitle={subtitle}
-          voiceCount={voiceCount}
-          isRenaming={isRenaming}
-          editMode={editMode}
-          renameValue={renameValue}
-          setRenameValue={setRenameValue}
-          onCommit={commitRename}
-          onCancel={() => setRenamingId(null)}
-          onStartRename={() => { setRenamingId(set.set_id); setRenameValue(headline); }}
-        />
-      </td>
+      {/* Column order (t/2724): Camp · Date · Outlet · Actions · Headline. */}
 
       {/* Camp */}
       <td className="col-camp"><CampChips camps={camps} /></td>
 
-      {/* Outlet + Words dropped (t/2605): OpEdSetSummary carries neither. */}
-
       {/* Date */}
       <td className="col-date" title={set.created_at}>{formatDate(set.created_at)}</td>
+
+      {/* Outlet — OpEdSetSummary carries no outlet data; placeholder dash (t/2724:
+          the column is always shown for parity with the Community table). */}
+      <td className="col-outlet">—</td>
 
       {/* Actions */}
       <td className="col-actions" onClick={e => e.stopPropagation()}>
@@ -372,6 +360,22 @@ export function OpEdMyRow({
             Share
           </button>
         </div>
+      </td>
+
+      {/* Headline — flexible column, rightmost so it expands with window width (t/2724) */}
+      <td className="col-headline">
+        <OpEdHeadlineCell
+          headline={headline}
+          subtitle={subtitle}
+          voiceCount={voiceCount}
+          isRenaming={isRenaming}
+          editMode={editMode}
+          renameValue={renameValue}
+          setRenameValue={setRenameValue}
+          onCommit={commitRename}
+          onCancel={() => setRenamingId(null)}
+          onStartRename={() => { setRenamingId(set.set_id); setRenameValue(headline); }}
+        />
       </td>
     </tr>
   );
@@ -407,14 +411,11 @@ export function OpEdCommunityRow({
       tabIndex={0}
       onKeyDown={handleKeyDown}
     >
-      <td className="col-headline">
-        <div className="oped-table-headline-text" title={headline}>{headline}</div>
-        {voiceCount > 1 && <div className="oped-table-headline-secondary">▸ {voiceCount} voices</div>}
-      </td>
+      {/* Column order (t/2724): Camp · Date · Outlet · Actions · Headline. The
+          always-"—" Words column is dropped so both tables share one column set. */}
       <td className="col-camp"><CampChips camps={entry.camps} /></td>
-      <td className="col-outlet">—</td>
-      <td className="col-words">—</td>
       <td className="col-date" title={entry.updated_at}>{formatDate(entry.updated_at)}</td>
+      <td className="col-outlet">—</td>
       <td className="col-actions" onClick={e => e.stopPropagation()}>
         <div className="oped-table-actions">
           <button
@@ -440,6 +441,12 @@ export function OpEdCommunityRow({
             </button>
           )}
         </div>
+      </td>
+
+      {/* Headline — rightmost so it expands with window width (t/2724) */}
+      <td className="col-headline">
+        <div className="oped-table-headline-text" title={headline}>{headline}</div>
+        {voiceCount > 1 && <div className="oped-table-headline-secondary">▸ {voiceCount} voices</div>}
       </td>
     </tr>
   );
@@ -475,9 +482,10 @@ function MyTable(props: OpEdTableMyProps) {
   } = props;
   const [sort, onSort] = useSort();
   const sortedRows = applySortMy(rows, sort);
-  // Columns: [cb?] headline · camp · date · actions — Outlet/Words dropped (t/2605,
-  // not on OpEdSetSummary).
-  const colSpan = editMode ? 5 : 4;
+  // Columns (t/2724): [cb?] camp · date · outlet · actions · headline. Headline is
+  // rightmost so it expands with window width; Outlet is always shown (placeholder
+  // dash — OpEdSetSummary carries no outlet data).
+  const colSpan = editMode ? 6 : 5;
 
   return (
     <div className="oped-table-wrap" role="region" aria-label="My op-eds table">
@@ -485,24 +493,26 @@ function MyTable(props: OpEdTableMyProps) {
         <caption className="sr-only">My Op-Eds</caption>
         <colgroup>
           {editMode && <col className="col-cb" />}
-          <col className="col-headline" />
           <col className="col-camp" />
           <col className="col-date" />
+          <col className="col-outlet" />
           <col className="col-actions" />
+          <col className="col-headline" />
         </colgroup>
         <thead>
           <tr>
             {editMode && <th scope="col" className="col-cb" aria-label="Select row" />}
-            <th scope="col" className="col-headline" aria-sort={getSortAttr('headline', sort)}>
-              <SortHeader label="Headline" col="headline" sort={sort} onSort={onSort} />
-            </th>
             <th scope="col" className="col-camp" aria-sort={getSortAttr('camp', sort)}>
               <SortHeader label="Camp" col="camp" sort={sort} onSort={onSort} />
             </th>
             <th scope="col" className="col-date" aria-sort={getSortAttr('date', sort)}>
               <SortHeader label="Date" col="date" sort={sort} onSort={onSort} />
             </th>
+            <th scope="col" className="col-outlet">Outlet</th>
             <th scope="col" className="col-actions">Actions</th>
+            <th scope="col" className="col-headline" aria-sort={getSortAttr('headline', sort)}>
+              <SortHeader label="Headline" col="headline" sort={sort} onSort={onSort} />
+            </th>
           </tr>
         </thead>
         <tbody>
@@ -567,38 +577,36 @@ function CommunityTable(props: OpEdTableCommunityProps) {
       <table className="oped-table">
         <caption className="sr-only">Community Op-Eds</caption>
         <colgroup>
-          <col className="col-headline" />
           <col className="col-camp" />
-          <col className="col-outlet" />
-          <col className="col-words" />
           <col className="col-date" />
+          <col className="col-outlet" />
           <col className="col-actions" />
+          <col className="col-headline" />
         </colgroup>
         <thead>
           <tr>
-            <th scope="col" className="col-headline" aria-sort={getSortAttr('headline', sort)}>
-              <SortHeader label="Headline" col="headline" sort={sort} onSort={onSort} />
-            </th>
             <th scope="col" className="col-camp" aria-sort={getSortAttr('camp', sort)}>
               <SortHeader label="Camp" col="camp" sort={sort} onSort={onSort} />
             </th>
-            <th scope="col" className="col-outlet">Outlet</th>
-            <th scope="col" className="col-words">Words</th>
             <th scope="col" className="col-date" aria-sort={getSortAttr('date', sort)}>
               <SortHeader label="Date" col="date" sort={sort} onSort={onSort} />
             </th>
+            <th scope="col" className="col-outlet">Outlet</th>
             <th scope="col" className="col-actions">Actions</th>
+            <th scope="col" className="col-headline" aria-sort={getSortAttr('headline', sort)}>
+              <SortHeader label="Headline" col="headline" sort={sort} onSort={onSort} />
+            </th>
           </tr>
         </thead>
         <tbody>
           {loading && rows.length === 0 && (
-            <tr><td colSpan={6} className="oped-table-empty-cell">Loading community op-eds…</td></tr>
+            <tr><td colSpan={5} className="oped-table-empty-cell">Loading community op-eds…</td></tr>
           )}
           {!loading && rows.length === 0 && (
-            <tr><td colSpan={6} className="oped-table-empty-cell">No community op-eds available yet.</td></tr>
+            <tr><td colSpan={5} className="oped-table-empty-cell">No community op-eds available yet.</td></tr>
           )}
           {searchQuery && sortedRows.length === 0 && rows.length > 0 && (
-            <tr><td colSpan={6} className="oped-table-empty-cell">No community op-eds match &ldquo;{searchQuery}&rdquo;</td></tr>
+            <tr><td colSpan={5} className="oped-table-empty-cell">No community op-eds match &ldquo;{searchQuery}&rdquo;</td></tr>
           )}
           {sortedRows.map(entry => (
             <OpEdCommunityRow
