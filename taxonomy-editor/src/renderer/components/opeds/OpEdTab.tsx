@@ -162,8 +162,9 @@ function ShareOpEdControl({ setId }: { setId: string }) {
       await navigator.clipboard.writeText(url);
       setState({ status: 'shared', url, copied: true });
     } catch {
+      /* telemetry — silent by design */
       // Clipboard denied (permissions/insecure context) — still show the link so
-      // the user can copy manually; this is not a share failure.
+      // the user can copy manually; this is not a share failure, so no record.
       setState({ status: 'shared', url, copied: false });
     }
   }, []);
@@ -175,6 +176,11 @@ function ShareOpEdControl({ setId }: { setId: string }) {
       const url = new URL(`/share/oped/${encodeURIComponent(shareId)}`, window.location.origin).href;
       await copy(url);
     } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error', component: 'ShareOpEdControl', level: 'error',
+        message: 'Failed to publish an op-ed share link',
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+      });
       setState({ status: 'error', message: err instanceof Error ? err.message : 'Could not create the share link.' });
     }
   }, [setId, copy]);
@@ -185,6 +191,11 @@ function ShareOpEdControl({ setId }: { setId: string }) {
       await api.unshareOpEdSet(setId);
       setState({ status: 'idle' });
     } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error', component: 'ShareOpEdControl', level: 'error',
+        message: 'Failed to revoke an op-ed share link',
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+      });
       setState({ status: 'error', message: err instanceof Error ? err.message : 'Could not revoke the share link.' });
     }
   }, [setId]);
