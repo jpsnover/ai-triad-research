@@ -371,8 +371,8 @@ function Invoke-OrgClaimMatching {
     # ¬(node), so the provisional edge type (derived from the org's OWN polarity)
     # is FLIPPED (ADVOCATES_FOR<->OPPOSES). 'agrees'/'unrelated'/'unresolved' all
     # mean "no opposition detected" → the provisional edge stands (no drop —
-    # framing suppresses entailment so genuine agreement reads 'unrelated', and
-    # dropping it would nuke recall). Off only under -SkipDirectionalGate.
+    # the gate rates a genuine agreement 'unrelated', not 'agrees', so dropping on
+    # anything but 'opposes' would nuke recall). Off only under -SkipDirectionalGate.
     $directionalFlipped = 0
     if (-not $SkipDirectionalGate -and $proposals.Count -gt 0) {
         $povByPrefix = @{ acc = 'accelerationist'; saf = 'safetyist'; skp = 'skeptic' }

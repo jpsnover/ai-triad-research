@@ -15,11 +15,13 @@ function Test-DirectionalAgreement {
         of that is single-sourced in the engine so the two runtimes can never
         drift. It only marshals pairs to the engine and returns its verdicts.
 
-        ASYMMETRIC OPPOSITION DETECTOR (CL ruling t/2751#3): under POV framing the
-        NLI model reliably recovers *contradiction* but suppresses *entailment*, so
-        `opposes` is the only actionable verdict. Callers demote/flip ONLY on
-        `opposes`; `agrees` / `unrelated` / `unresolved` all mean "no opposition
-        detected → keep your edge." The gate never confirms agreement.
+        ASYMMETRIC OPPOSITION DETECTOR (CL ruling t/2751#3): the NLI model reliably
+        recovers *contradiction* but rates a genuine agreement `neutral`, not
+        `entailment`, so `opposes` is the only actionable verdict. Callers
+        demote/flip ONLY on `opposes`; `agrees` / `unrelated` / `unresolved` all
+        mean "no opposition detected → keep your edge." The gate never confirms
+        agreement. Recall depends on rich node text — pass the fullest label+Core
+        (t/2744#7); a bare label can miss an inversion (engine RECALL BOUNDARY).
 
         FAIL-SAFE: any subprocess failure resolves every pair to `unresolved`
         (method `none`) — NEVER `opposes`. A missed inversion beats a false demote.
