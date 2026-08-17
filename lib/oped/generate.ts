@@ -12,7 +12,7 @@ import { loadTaxonomy } from '../debate/taxonomyLoader.js';
 import { computeEmbedding } from '../embeddings/onnxEmbedding.js';
 import type { OpEdMember, OpEdParams, OpEdSet, OpEdGroundingRef } from './types.js';
 import { resolveOutletBand } from './outletBands.js';
-import { loadAndAssemblePrompt, assembleReflectionPrompt, type SourceBrief } from './promptLoader.js';
+import { loadAndAssemblePrompt, assembleReflectionPrompt, assembleSourceBriefPrompt, type SourceBrief } from './promptLoader.js';
 import { FABRICATED_LEDE_GUARD } from './opedGuards.js';
 
 // ── Public request / deps types ───────────────────────────────────────────────
@@ -40,6 +40,8 @@ export interface OpEdGeneratorDeps {
 // ── Progress event union ──────────────────────────────────────────────────────
 
 export type OpEdProgressEvent =
+  | { type: 'source_brief_done' }
+  | { type: 'source_brief_failed'; error: string }
   | { type: 'grounding_done'; nodeCount: number }
   | { type: 'grounding_failed'; error: string }
   | { type: 'voice_start'; pov: PovKey }
@@ -138,6 +140,20 @@ function buildGroundingList(nodes: ScoredPovNode[], sitNodes: ScoredSituationNod
 
 // ── Essay response schema ─────────────────────────────────────────────────────
 
+const SOURCE_BRIEF_SCHEMA = {
+  type: 'object',
+  properties: {
+    thesis: { type: 'string' },
+    author: { type: 'string' },
+    actor_type: { type: 'string' },
+    stance: { type: 'string' },
+    primary_recommendations: { type: 'array', items: { type: 'string' } },
+    key_claims: { type: 'array', items: { type: 'string' } },
+    readable: { type: 'boolean' },
+  },
+  required: ['thesis', 'author', 'actor_type', 'stance', 'primary_recommendations', 'key_claims', 'readable'],
+} as const;
+
 const ESSAY_SCHEMA = {
   type: 'object',
   properties: {
@@ -191,6 +207,7 @@ async function runVoiceGeneration(
   sitNodes: ScoredSituationNode[],
   request: GenerateOpEdRequest,
   deps: OpEdGeneratorDeps,
+  sourceBrief: SourceBrief | undefined,
 ): Promise<OpEdMember> {
   const soul = loadSoulDoc(deps.repoRoot, pov);
   const band = resolveOutletBand(request.params.outlet);
@@ -206,6 +223,7 @@ async function runVoiceGeneration(
     groundingNodes: formatGroundingNodes(groundingNodes),
     situations: formatSituationNodes(sitNodes),
     sourceMaterial: request.sourceMaterial ?? '(no external source supplied — argue from the topic and general knowledge)',
+    sourceBrief,
     outletGuidance: band.guidance,
     targetWords,
   });
@@ -254,8 +272,10 @@ async function runVoiceGeneration(
   if (allGroundingRefs.length > 0 && body) {
     try {
       const groundingList = buildGroundingList(groundingNodes, sitNodes);
-      // sourceClaims stays '(none)' for P1 — key_claims require the comprehension pass in Step-0 (TL)
-      const reflPrompt = assembleReflectionPrompt(deps.promptsDir, body, groundingList, '(none)');
+      const sourceClaims = sourceBrief?.key_claims?.length
+        ? sourceBrief.key_claims.map((c, i) => `  ${i + 1}. ${c}`).join('\n')
+        : '(none)';
+      const reflPrompt = assembleReflectionPrompt(deps.promptsDir, body, groundingList, sourceClaims);
       const reflMaxTokens = Math.max(4000, allGroundingRefs.length * 150 + 3000);
       const reflRaw = await deps.adapter.generateText(reflPrompt, request.params.model, {
         maxTokens: reflMaxTokens,
@@ -314,6 +334,29 @@ export async function* generateOpEdSet(
   request: GenerateOpEdRequest,
   deps: OpEdGeneratorDeps,
 ): AsyncGenerator<OpEdProgressEvent> {
+  // ── Step 0: source-brief comprehension (when URL source present) ─────────
+  // Extracts structured SourceBrief (thesis/author/stance/key_claims) from raw
+  // markdown so {{SOURCE_AUTHOR/THESIS/STANCE/RECOMMENDATIONS/KEY_CLAIMS}} are
+  // populated in the generation prompt. Non-fatal — falls through with undefined
+  // so voices still generate from raw {{SOURCE_MATERIAL}} text on failure.
+  let sourceBrief: SourceBrief | undefined;
+  if (request.sourceMaterial) {
+    try {
+      const briefPrompt = assembleSourceBriefPrompt(deps.promptsDir, request.sourceMaterial);
+      const briefRaw = await deps.adapter.generateText(briefPrompt, request.params.model, {
+        maxTokens: 2000,
+        temperature: 0.1,
+        responseSchema: SOURCE_BRIEF_SCHEMA as Record<string, unknown>,
+        signal: request.signal,
+      });
+      const parsed = JSON.parse(stripCodeFences(briefRaw)) as SourceBrief;
+      if (parsed.readable !== false) sourceBrief = parsed;
+      yield { type: 'source_brief_done' };
+    } catch (err) {
+      yield { type: 'source_brief_failed', error: String(err) };
+    }
+  }
+
   // ── Step 1: grounding ─────────────────────────────────────────────────────
   // BDI grounding is selected PER POV — the taxonomy is camp-partitioned
   // (`taxonomy[pov].nodes`, ids `{pov}-{category}-{NNN}`), so a camp's grounding IS
@@ -379,7 +422,7 @@ export async function* generateOpEdSet(
     } else {
       enqueue({ type: 'voice_start', pov });
       try {
-        const member = await runVoiceGeneration(pov, groundingByPov.get(pov) ?? [], sitNodes, request, deps);
+        const member = await runVoiceGeneration(pov, groundingByPov.get(pov) ?? [], sitNodes, request, deps, sourceBrief);
         members.push({ pov, member });
         enqueue({ type: 'voice_complete', pov, member });
       } catch (err) {

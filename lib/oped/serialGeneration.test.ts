@@ -29,6 +29,7 @@ vi.mock('./outletBands.js', () => ({ resolveOutletBand: () => ({ words: 800, gui
 vi.mock('./promptLoader.js', () => ({
   loadAndAssemblePrompt: () => ({ system: 'sys', user: 'user' }),
   assembleReflectionPrompt: () => 'refl',
+  assembleSourceBriefPrompt: () => 'source-brief-prompt',
 }));
 
 import { fileURLToPath } from 'url';
@@ -143,9 +144,102 @@ describe('generateOpEdSet — FABRICATED_LEDE_GUARD integration (t/2730)', () =>
   it('fabricated_lede is absent even when body has guard phrase if newsHook is non-empty', async () => {
     const deps = { ...DEPS, adapter: makeAdapter('This week regulators released a newly proposed pre-clearance rule for AI.') as never };
     let member: { fabricated_lede?: true } | undefined;
-    for await (const ev of generateOpEdSet(makeReq('EU AI Act passed committee') , deps) as AsyncGenerator<OpEdProgressEvent>) {
+    for await (const ev of generateOpEdSet(makeReq('EU AI Act passed committee'), deps) as AsyncGenerator<OpEdProgressEvent>) {
       if (ev.type === 'voice_complete') member = ev.member as typeof member;
     }
     expect(member?.fabricated_lede).toBeUndefined();
+  });
+});
+
+describe('generateOpEdSet — Step 0 source-brief comprehension (t/2722)', () => {
+  const ESSAY_JSON = JSON.stringify({ headline: 'H', subtitle: '', body_markdown: 'Body.', word_count: 1 });
+  const REFL_JSON = JSON.stringify({ grounding_usage: [] });
+
+  it('yields source_brief_done before grounding_done when comprehension succeeds', async () => {
+    const BRIEF_JSON = JSON.stringify({
+      thesis: 'AI labs must share safety research',
+      author: 'Test Org', actor_type: 'think tank',
+      stance: 'FOR mandatory sharing',
+      primary_recommendations: ['Mandate sharing within 30 days'],
+      key_claims: ['Safety incidents doubled last year', 'Only 3 labs share proactively'],
+      readable: true,
+    });
+    const adapter = {
+      generateText: async (prompt: string) => {
+        if (prompt === 'source-brief-prompt') return BRIEF_JSON;
+        if (prompt === 'refl') return REFL_JSON;
+        return ESSAY_JSON;
+      },
+    };
+    const req = {
+      set_id: 's3', topic: 'AI safety sharing',
+      params: { model: 'gemini-flash', wordCount: 800, outlet: 'nyt', newsHook: '', thesis: '' } as never,
+      povs: ['accelerationist'] as PovKey[],
+      sourceMaterial: 'Full document text...',
+    };
+    const deps = { adapter: adapter as never, promptsDir: join(REPO_ROOT, 'lib', 'oped', 'prompts'), repoRoot: REPO_ROOT };
+
+    const events: string[] = [];
+    for await (const ev of generateOpEdSet(req, deps) as AsyncGenerator<OpEdProgressEvent>) {
+      events.push(ev.type);
+    }
+
+    expect(events).toContain('source_brief_done');
+    const briefIdx = events.indexOf('source_brief_done');
+    const groundingIdx = events.indexOf('grounding_done');
+    expect(briefIdx).toBeGreaterThanOrEqual(0);
+    expect(groundingIdx).toBeGreaterThanOrEqual(0);
+    expect(briefIdx).toBeLessThan(groundingIdx);
+  });
+
+  it('yields source_brief_failed but still completes when comprehension throws', async () => {
+    const adapter = {
+      generateText: async (prompt: string) => {
+        if (prompt === 'source-brief-prompt') throw new Error('network error');
+        if (prompt === 'refl') return REFL_JSON;
+        return ESSAY_JSON;
+      },
+    };
+    const req = {
+      set_id: 's4', topic: 'AI safety',
+      params: { model: 'gemini-flash', wordCount: 800, outlet: 'nyt', newsHook: '', thesis: '' } as never,
+      povs: ['accelerationist'] as PovKey[],
+      sourceMaterial: 'Some text',
+    };
+    const deps = { adapter: adapter as never, promptsDir: join(REPO_ROOT, 'lib', 'oped', 'prompts'), repoRoot: REPO_ROOT };
+
+    const events: string[] = [];
+    for await (const ev of generateOpEdSet(req, deps) as AsyncGenerator<OpEdProgressEvent>) {
+      events.push(ev.type);
+    }
+
+    expect(events).toContain('source_brief_failed');
+    expect(events).toContain('complete'); // non-fatal
+    expect(events).not.toContain('source_brief_done');
+  });
+
+  it('skips Step 0 entirely when no sourceMaterial is provided', async () => {
+    const adapter = {
+      generateText: async (prompt: string) => {
+        if (prompt === 'source-brief-prompt') throw new Error('should not be called');
+        if (prompt === 'refl') return REFL_JSON;
+        return ESSAY_JSON;
+      },
+    };
+    const req = {
+      set_id: 's5', topic: 'AI policy',
+      params: { model: 'gemini-flash', wordCount: 800, outlet: 'nyt', newsHook: '', thesis: '' } as never,
+      povs: ['accelerationist'] as PovKey[],
+    };
+    const deps = { adapter: adapter as never, promptsDir: join(REPO_ROOT, 'lib', 'oped', 'prompts'), repoRoot: REPO_ROOT };
+
+    const events: string[] = [];
+    for await (const ev of generateOpEdSet(req, deps) as AsyncGenerator<OpEdProgressEvent>) {
+      events.push(ev.type);
+    }
+
+    expect(events).not.toContain('source_brief_done');
+    expect(events).not.toContain('source_brief_failed');
+    expect(events).toContain('complete');
   });
 });
