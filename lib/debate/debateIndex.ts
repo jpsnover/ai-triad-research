@@ -162,7 +162,7 @@ export function listDebateSessionsIndexed(debatesDir: string): DebateSessionSumm
       return expectedPath === filePath && e.file_mtime === mtime;
     });
 
-    if (cached) {
+    if (cached && typeof cached.title === 'string') {
       newEntries[cached.id] = cached;
       continue;
     }
