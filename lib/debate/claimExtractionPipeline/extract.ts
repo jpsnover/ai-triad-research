@@ -236,7 +236,7 @@ export async function extractClaims(
       trace.attribution_decisions = attrResult.decisions;
 
       // V4 NLI direction gate (t/2746): demote 'opposes' claims to direction_mismatch
-      const nodeTextById = new Map(povNodes.map(n => [n.id, n.text]));
+      const nodeTextById = new Map(povNodes.map(n => [n.id, n.description]));
       const opposingIds = runNliDirectionGate(claimsResult.newNodes, nodeTextById, speakerPov);
       if (opposingIds.size > 0) {
         for (const node of claimsResult.newNodes) {
