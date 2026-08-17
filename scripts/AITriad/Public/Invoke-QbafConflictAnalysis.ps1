@@ -39,6 +39,17 @@ function Invoke-QbafConflictAnalysis {
         Report what would be analyzed without writing files.
     .PARAMETER PassThru
         Return the analysis results for piping.
+    .PARAMETER SkipDirectionalGate
+        Disable the Stage-A directional gate (t/2745). By default a shared node +
+        equal doc_position is NOT taken as a support edge — the pair is judged on
+        an actual claim↔claim direction (NLI): agree→supports, contradict→attacks,
+        unresolved→deferred to Stage B. This switch restores the legacy
+        polarity-blind behavior (equal doc_position ⇒ supports) and can emit
+        false support edges between opposing claims.
+    .PARAMETER DirectionalMinMargin
+        Extra confidence floor (NLI top-1 vs top-2 logit margin) for the Stage-A
+        gate. Default 0.0 — defer to the engine's own NLI_CONFIDENCE_MARGIN gate.
+        Wired to the τ value registered under t/2744 once TL-approved.
     .EXAMPLE
         Invoke-QbafConflictAnalysis -DocId 'ai-safety-debate-2026'
     .EXAMPLE
@@ -70,7 +81,12 @@ function Invoke-QbafConflictAnalysis {
 
         [switch]$DryRun,
 
-        [switch]$PassThru
+        [switch]$PassThru,
+
+        [switch]$SkipDirectionalGate,
+
+        [ValidateRange(0.0, 1000.0)]
+        [double]$DirectionalMinMargin = 0.0
     )
 
     Set-StrictMode -Version Latest
@@ -200,6 +216,13 @@ function Invoke-QbafConflictAnalysis {
     # Track pair keys claimed by Stage A so Stage B can skip them.
     $StageAPairs = [System.Collections.Generic.HashSet[string]]::new()
 
+    # Support candidates deferred to the directional gate (V2, t/2745). A shared
+    # taxonomy node plus equal doc_position does NOT establish that two DIFFERENT
+    # claim texts agree — doc_position is each doc's stance toward its OWN text and
+    # is not commensurable across claims. Collect these and reconcile them below
+    # with an actual claim↔claim direction judgment.
+    $SupportCandidates = [System.Collections.Generic.List[PSObject]]::new()
+
     # Claims that share taxonomy nodes but take opposing positions are attacks
     for ($i = 0; $i -lt $AllClaims.Count; $i++) {
         for ($j = $i + 1; $j -lt $AllClaims.Count; $j++) {
@@ -216,6 +239,8 @@ function Invoke-QbafConflictAnalysis {
             $IsSupport = ($A.Position -eq $B.Position) -and ($A.Position -in @('supports', 'disputes'))
 
             if ($IsConflict) {
+                # Opposing doc_positions on a shared node — a genuine directional
+                # signal (rebuttal), kept as-is.
                 $Edges.Add([PSCustomObject]@{
                     Source     = $A.Id
                     Target     = $B.Id
@@ -227,17 +252,70 @@ function Invoke-QbafConflictAnalysis {
                 [void]$StageAPairs.Add("$($A.Id)|$($B.Id)")
             }
             elseif ($IsSupport) {
+                if ($SkipDirectionalGate) {
+                    # Legacy polarity-blind behavior (gate disabled).
+                    $Edges.Add([PSCustomObject]@{
+                        Source     = $A.Id
+                        Target     = $B.Id
+                        Type       = 'supports'
+                        Weight     = 0.5
+                        AttackType = $null
+                        Source_    = 'node-overlap'
+                    })
+                    [void]$StageAPairs.Add("$($A.Id)|$($B.Id)")
+                }
+                else {
+                    $SupportCandidates.Add([PSCustomObject]@{ A = $A; B = $B })
+                }
+            }
+        }
+    }
+
+    # ── Stage A directional reconciliation (V2, t/2745) ──────────────────────
+    # Judge each support candidate on the actual claim↔claim direction (NLI):
+    #   agrees      → supports edge
+    #   opposes     → attacks edge (the two claims actually contradict)
+    #   unresolved/ → emit nothing; leave the pair unclaimed so Stage B's LLM
+    #   unrelated     confirmer can adjudicate it (never assert support blindly).
+    $StageADirAgree  = 0
+    $StageADirOppose = 0
+    $StageADirDefer  = 0
+    if (-not $SkipDirectionalGate -and $SupportCandidates.Count -gt 0) {
+        $dirPairs = [System.Collections.Generic.List[PSObject]]::new()
+        for ($ci = 0; $ci -lt $SupportCandidates.Count; $ci++) {
+            $cand = $SupportCandidates[$ci]
+            $dirPairs.Add([PSCustomObject]@{ Id = $ci; ClaimProp = [string]$cand.A.Text; NodeProp = [string]$cand.B.Text })
+        }
+        $dirVerdicts = Test-DirectionalAgreement -Pair @($dirPairs) -MinMargin $DirectionalMinMargin
+        $dirByIdx = @{}
+        foreach ($v in @($dirVerdicts)) { $dirByIdx[[int]$v.Id] = $v }
+
+        for ($ci = 0; $ci -lt $SupportCandidates.Count; $ci++) {
+            $cand = $SupportCandidates[$ci]
+            $A = $cand.A; $B = $cand.B
+            $dir = if ($dirByIdx.ContainsKey($ci)) { [string]$dirByIdx[$ci].Direction } else { 'unresolved' }
+            if ($dir -eq 'agrees') {
+                $StageADirAgree++
                 $Edges.Add([PSCustomObject]@{
-                    Source     = $A.Id
-                    Target     = $B.Id
-                    Type       = 'supports'
-                    Weight     = 0.5
-                    AttackType = $null
-                    Source_    = 'node-overlap'
+                    Source = $A.Id; Target = $B.Id; Type = 'supports'
+                    Weight = 0.5; AttackType = $null; Source_ = 'node-overlap+nli'
                 })
                 [void]$StageAPairs.Add("$($A.Id)|$($B.Id)")
             }
+            elseif ($dir -eq 'opposes') {
+                $StageADirOppose++
+                $Edges.Add([PSCustomObject]@{
+                    Source = $A.Id; Target = $B.Id; Type = 'attacks'
+                    Weight = 0.7; AttackType = 'rebut'; Source_ = 'node-overlap+nli'
+                })
+                [void]$StageAPairs.Add("$($A.Id)|$($B.Id)")
+            }
+            else {
+                # unresolved / unrelated → defer to Stage B (do not mark the pair).
+                $StageADirDefer++
+            }
         }
+        Write-OK "Stage A directional gate: $($SupportCandidates.Count) support candidates → $StageADirAgree supports, $StageADirOppose attacks, $StageADirDefer deferred to Stage B"
     }
 
     $StageAEdgeCount = $Edges.Count
