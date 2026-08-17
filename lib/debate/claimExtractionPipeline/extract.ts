@@ -237,7 +237,14 @@ export async function extractClaims(
 
       // V4 NLI direction gate (t/2746): demote 'opposes' claims to direction_mismatch
       const nodeTextById = new Map(povNodes.map(n => [n.id, buildNliNodeProp(n.label, n.description)]));
-      const opposingIds = runNliDirectionGate(claimsResult.newNodes, nodeTextById, speakerPov);
+      const nliResult = runNliDirectionGate(claimsResult.newNodes, nodeTextById, speakerPov);
+      const { opposingIds, counts: nliCounts } = nliResult;
+      getGlobalRecorder()?.record({
+        type: 'an.nli_direction_gate', component: 'debate-engine', level: 'info',
+        speaker, debate_id: ctx.session?.id,
+        message: `NLI gate: ${opposingIds.size} demoted`,
+        data: { ...nliCounts },
+      });
       if (opposingIds.size > 0) {
         for (const node of claimsResult.newNodes) {
           if (!opposingIds.has(node.id)) continue;
