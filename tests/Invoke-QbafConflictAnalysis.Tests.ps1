@@ -218,12 +218,14 @@ Describe 'Invoke-QbafConflictAnalysis Stage A/B monotonicity (t/1403 AC#3)' -Tag
         }
     }
 
-    Context 'Stage A directional gate (t/2745, V2) — both arms' {
+    Context 'Stage A directional gate (t/2745 V2, shared engine t/2751) — opposition-only' {
         # Two cross-doc claims sharing a node, BOTH doc_position=supports. The
         # legacy rule emits a `supports` edge from position-equality alone; the
-        # gate instead judges the actual claim↔claim direction. Get-TextEmbedding
-        # is mocked null (Stage B off) so the only python call is the NLI gate,
-        # which the shadow controls.
+        # gate instead judges the actual claim↔claim direction via the shared
+        # engine (opposition-only: opposes→attacks, everything else keeps the
+        # support edge). Get-TextEmbedding is mocked null (Stage B off) so the
+        # only python call is the nli_classify engine, which the shadow controls
+        # (items carry .claim_prop; the shadow returns [{id,direction,...}]).
         BeforeEach {
             $script:V2Dir       = Join-Path ([System.IO.Path]::GetTempPath()) "qbaf-v2-$(Get-Random)"
             $script:V2Summaries = Join-Path $script:V2Dir 'summaries'
@@ -248,51 +250,52 @@ Describe 'Invoke-QbafConflictAnalysis Stage A/B monotonicity (t/1403 AC#3)' -Tag
             }
         }
 
-        It 'INVERSION ARM: two opposing claims with equal doc_position → attacks, NOT supports' {
+        It 'INVERSION ARM: opposes flips the equal-doc_position support to an attack' {
             InModuleScope AITriad {
                 function python {
                     process {
                         $items = @($input | Out-String | ConvertFrom-Json)
                         $out = foreach ($it in $items) {
-                            [pscustomobject]@{ idx=$it.idx; nli_label='contradiction'
-                                nli_entailment=0.0; nli_neutral=1.0; nli_contradiction=6.0 }
+                            [pscustomobject]@{ id=$it.id; direction='opposes'; confidence=1.5; method='nli' }
                         }
                         ConvertTo-Json -InputObject @($out) -Depth 5
                     }
                 }
                 $r = Invoke-QbafConflictAnalysis -DryRun -PassThru 6>$null
-                $r.SupportCount | Should -Be 0 -Because 'the false support is caught'
-                $r.AttackCount  | Should -Be 1 -Because 'contradicting claims become an attack'
-                $r.EdgeCount    | Should -Be 1
+                $r.SupportCount             | Should -Be 0 -Because 'the false support is caught'
+                $r.AttackCount              | Should -Be 1 -Because 'contradicting claims become an attack'
+                $r.EdgeCount                | Should -Be 1
+                $r.DirectionalCounts.opposes | Should -Be 1
             }
         }
 
-        It 'AGREEMENT ARM: two genuinely agreeing claims → one supports edge' {
+        It 'KEEP ARM: a non-opposes verdict (unrelated) keeps the support edge' {
             InModuleScope AITriad {
                 function python {
                     process {
                         $items = @($input | Out-String | ConvertFrom-Json)
                         $out = foreach ($it in $items) {
-                            [pscustomobject]@{ idx=$it.idx; nli_label='entailment'
-                                nli_entailment=6.0; nli_neutral=1.0; nli_contradiction=0.0 }
+                            [pscustomobject]@{ id=$it.id; direction='unrelated'; confidence=0.1; method='nli' }
                         }
                         ConvertTo-Json -InputObject @($out) -Depth 5
                     }
                 }
                 $r = Invoke-QbafConflictAnalysis -DryRun -PassThru 6>$null
-                $r.SupportCount | Should -Be 1
-                $r.AttackCount  | Should -Be 0
-                $r.EdgeCount    | Should -Be 1
+                $r.SupportCount               | Should -Be 1
+                $r.AttackCount                | Should -Be 0
+                $r.EdgeCount                  | Should -Be 1
+                $r.DirectionalCounts.unrelated | Should -Be 1
             }
         }
 
-        It 'FAIL-SAFE ARM: unresolved direction emits no Stage-A edge (deferred, not asserted)' {
+        It 'FAIL-SAFE ARM: unresolved KEEPS the support edge (never a false attack) and records the count' {
             InModuleScope AITriad {
-                function python { process { $null = $input } }   # NLI unavailable
+                function python { process { $null = $input } }   # engine unavailable
                 $r = Invoke-QbafConflictAnalysis -DryRun -PassThru 6>$null
-                $r.SupportCount | Should -Be 0
-                $r.AttackCount  | Should -Be 0
-                $r.EdgeCount    | Should -Be 0 -Because 'unresolved → deferred to Stage B (which is off here), never asserted'
+                $r.SupportCount                | Should -Be 1 -Because 'unresolved → keep (no false demotion)'
+                $r.AttackCount                 | Should -Be 0
+                $r.EdgeCount                   | Should -Be 1
+                $r.DirectionalCounts.unresolved | Should -Be 1
             }
         }
 

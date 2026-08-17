@@ -357,15 +357,15 @@ Describe 'Invoke-OrgClaimMatching (t/1553 Stages 2+3)' -Tag 'taxonomy' {
         }
     }
 
-    Context 'Directional gate (t/2745, V1) — both arms' {
+    Context 'Directional gate (t/2745 V1, shared engine t/2751) — opposition-only' {
 
         # A single-claim proposal that lands (cosine argmax) on a node whose
-        # proposition the claim actually NEGATES. The claim vector == node vector
-        # (topically identical, as an inversion is), so the embedding gate greens
-        # it; only the NLI direction distinguishes assert-P from assert-¬P.
-        # The python shadow serves BOTH subcommands: batch-encode (returns the
-        # claim vector) and nli-classify (returns a canned label keyed to the
-        # node text marker in text_b).
+        # proposition the claim NEGATES. The claim vector == node vector (an
+        # inversion is topically identical), so the embedding gate greens it; only
+        # the NLI direction distinguishes assert-P from assert-¬P. The python
+        # shadow serves BOTH callees: embed_taxonomy batch-encode (items carry
+        # .text → returns vectors) and the nli_classify engine (items carry
+        # .claim_prop → returns [{id,direction,...}]).
         BeforeEach {
             $script:invEmbPath = Join-Path $script:workDir 'embeddings-inv.json'
             @{
@@ -374,7 +374,7 @@ Describe 'Invoke-OrgClaimMatching (t/1553 Stages 2+3)' -Tag 'taxonomy' {
             } | ConvertTo-Json -Depth 6 | Set-Content -Path $script:invEmbPath -Encoding utf8NoBOM
         }
 
-        It 'INVERSION ARM: an org that ASSERTS a claim negating the node yields OPPOSES, not ADVOCATES_FOR' {
+        It 'INVERSION ARM: opposes flips the provisional ADVOCATES_FOR to OPPOSES (edge kept, not dropped)' {
             InModuleScope AITriad -Parameters @{
                 ClaimsPath = $script:claimsPath
                 EmbPath    = $script:invEmbPath
@@ -388,7 +388,6 @@ Describe 'Invoke-OrgClaimMatching (t/1553 Stages 2+3)' -Tag 'taxonomy' {
                         extraction_confidence=0.9 }
                 ) } | ConvertTo-Json -Depth 5 | Set-Content -Path $ClaimsPath -Encoding utf8NoBOM
 
-                # Inject node proposition text (the OPPOSITE of the claim).
                 $script:TaxonomyData['invtest-pov'] = [PSCustomObject]@{ nodes = @(
                     [PSCustomObject]@{ id='acc-intentions-999'; label='AI requires entirely new laws'
                         description='Emerging technologies require entirely new legal frameworks rather than adapted existing laws' }
@@ -398,15 +397,12 @@ Describe 'Invoke-OrgClaimMatching (t/1553 Stages 2+3)' -Tag 'taxonomy' {
                 function python {
                     process {
                         $payload = @($input | Out-String | ConvertFrom-Json)
-                        if ($payload.Count -gt 0 -and $payload[0].PSObject.Properties['text_a']) {
-                            # nli-classify: claim negates node → contradiction
+                        if ($payload.Count -gt 0 -and $payload[0].PSObject.Properties['claim_prop']) {
                             $out = foreach ($it in $payload) {
-                                [pscustomobject]@{ idx=$it.idx; nli_label='contradiction'
-                                    nli_entailment=0.0; nli_neutral=1.0; nli_contradiction=6.0 }
+                                [pscustomobject]@{ id=$it.id; direction='opposes'; confidence=1.5; method='nli' }
                             }
                             ConvertTo-Json -InputObject @($out) -Depth 5
                         } else {
-                            # batch-encode: every claim → vecA (== node vector)
                             $o = [ordered]@{}
                             foreach ($it in $payload) { $o[$it.id] = $vecAref }
                             $o | ConvertTo-Json -Depth 5 -Compress
@@ -418,16 +414,17 @@ Describe 'Invoke-OrgClaimMatching (t/1553 Stages 2+3)' -Tag 'taxonomy' {
                 $r = Invoke-OrgClaimMatching -ClaimsPath $ClaimsPath -EmbeddingsPath $EmbPath `
                     -MatchThreshold 0.60 -Verbose:$false 6>$null
 
-                $r.ProposalsWouldEmit     | Should -Be 1 -Because 'the edge survives — reconciled, not dropped'
+                $r.ProposalsWouldEmit     | Should -Be 1 -Because 'the edge survives — flipped, not dropped'
                 $r.Proposals[0].EdgeType  | Should -Be 'OPPOSES' -Because 'org asserts a claim that negates the node → OPPOSES'
                 $r.Proposals[0].Direction | Should -Be 'opposes'
-                $r.DirectionalFlipped     | Should -Be 1 -Because 'provisional ADVOCATES_FOR flipped to OPPOSES'
+                $r.DirectionalFlipped     | Should -Be 1
+                $r.DirectionalCounts.opposes | Should -Be 1
 
                 $script:TaxonomyData.Remove('invtest-pov')
             }
         }
 
-        It 'AGREEMENT ARM: a genuinely aligned claim keeps ADVOCATES_FOR with zero flips or drops' {
+        It 'KEEP ARM: a non-opposes verdict (unrelated) keeps ADVOCATES_FOR — no flip, no drop (recall preserved)' {
             InModuleScope AITriad -Parameters @{
                 ClaimsPath = $script:claimsPath
                 EmbPath    = $script:invEmbPath
@@ -450,10 +447,10 @@ Describe 'Invoke-OrgClaimMatching (t/1553 Stages 2+3)' -Tag 'taxonomy' {
                 function python {
                     process {
                         $payload = @($input | Out-String | ConvertFrom-Json)
-                        if ($payload.Count -gt 0 -and $payload[0].PSObject.Properties['text_a']) {
+                        if ($payload.Count -gt 0 -and $payload[0].PSObject.Properties['claim_prop']) {
+                            # Realistic: framing suppresses entailment, genuine agreement reads 'unrelated'.
                             $out = foreach ($it in $payload) {
-                                [pscustomobject]@{ idx=$it.idx; nli_label='entailment'
-                                    nli_entailment=6.0; nli_neutral=1.0; nli_contradiction=0.0 }
+                                [pscustomobject]@{ id=$it.id; direction='unrelated'; confidence=0.1; method='nli' }
                             }
                             ConvertTo-Json -InputObject @($out) -Depth 5
                         } else {
@@ -469,15 +466,16 @@ Describe 'Invoke-OrgClaimMatching (t/1553 Stages 2+3)' -Tag 'taxonomy' {
                     -MatchThreshold 0.60 -Verbose:$false 6>$null
 
                 $r.ProposalsWouldEmit     | Should -Be 1
-                $r.Proposals[0].EdgeType  | Should -Be 'ADVOCATES_FOR' -Because 'genuine agreement passes unchanged'
-                $r.Proposals[0].Direction | Should -Be 'agrees'
+                $r.Proposals[0].EdgeType  | Should -Be 'ADVOCATES_FOR' -Because 'no opposition detected → provisional edge stands'
+                $r.Proposals[0].Direction | Should -Be 'unrelated'
                 $r.DirectionalFlipped     | Should -Be 0
+                $r.DirectionalCounts.unrelated | Should -Be 1
 
                 $script:TaxonomyData.Remove('invtest-pov')
             }
         }
 
-        It 'FAIL-SAFE ARM: an unresolved direction drops the edge (never persists an unverified stance)' {
+        It 'FAIL-SAFE ARM: an unresolved direction KEEPS the edge (never falsely demotes) and records the count' {
             InModuleScope AITriad -Parameters @{
                 ClaimsPath = $script:claimsPath
                 EmbPath    = $script:invEmbPath
@@ -498,8 +496,8 @@ Describe 'Invoke-OrgClaimMatching (t/1553 Stages 2+3)' -Tag 'taxonomy' {
                 function python {
                     process {
                         $payload = @($input | Out-String | ConvertFrom-Json)
-                        if ($payload.Count -gt 0 -and $payload[0].PSObject.Properties['text_a']) {
-                            # NLI unavailable → emit nothing → helper fails closed to unresolved
+                        if ($payload.Count -gt 0 -and $payload[0].PSObject.Properties['claim_prop']) {
+                            # Engine unavailable → emit nothing → wrapper fails safe to unresolved.
                             $null = $payload
                         } else {
                             $o = [ordered]@{}
@@ -513,8 +511,11 @@ Describe 'Invoke-OrgClaimMatching (t/1553 Stages 2+3)' -Tag 'taxonomy' {
                 $r = Invoke-OrgClaimMatching -ClaimsPath $ClaimsPath -EmbeddingsPath $EmbPath `
                     -MatchThreshold 0.60 -Verbose:$false 6>$null
 
-                $r.ProposalsWouldEmit        | Should -Be 0 -Because 'unresolved direction → edge dropped'
-                @($r.DirectionalDropped).Count | Should -Be 1
+                $r.ProposalsWouldEmit        | Should -Be 1 -Because 'unresolved → keep (never a false demote)'
+                $r.Proposals[0].EdgeType     | Should -Be 'ADVOCATES_FOR'
+                $r.Proposals[0].Direction    | Should -Be 'unresolved'
+                $r.DirectionalFlipped        | Should -Be 0
+                $r.DirectionalCounts.unresolved | Should -Be 1
 
                 $script:TaxonomyData.Remove('invtest-pov')
             }

@@ -40,16 +40,17 @@ function Invoke-QbafConflictAnalysis {
     .PARAMETER PassThru
         Return the analysis results for piping.
     .PARAMETER SkipDirectionalGate
-        Disable the Stage-A directional gate (t/2745). By default a shared node +
-        equal doc_position is NOT taken as a support edge — the pair is judged on
-        an actual claim↔claim direction (NLI): agree→supports, contradict→attacks,
-        unresolved→deferred to Stage B. This switch restores the legacy
+        Disable the Stage-A directional gate (t/2745, shared engine t/2751). By
+        default a shared node + equal doc_position is NOT trusted as a support
+        edge — the pair is judged on the actual claim↔claim direction via the
+        POV-framed NLI engine (opposition-only, CL t/2751#3): contradict→attacks;
+        anything else keeps the support edge. This switch restores the legacy
         polarity-blind behavior (equal doc_position ⇒ supports) and can emit
         false support edges between opposing claims.
-    .PARAMETER DirectionalMinMargin
-        Extra confidence floor (NLI top-1 vs top-2 logit margin) for the Stage-A
-        gate. Default 0.0 — defer to the engine's own NLI_CONFIDENCE_MARGIN gate.
-        Wired to the τ value registered under t/2744 once TL-approved.
+    .PARAMETER DirectionalTauContra
+        Contradiction margin floor forwarded to the shared engine to flip a
+        support candidate to an attack. Default 1.0 (FINAL, CL t/2751#3;
+        provenance in the metric-provenance-register).
     .EXAMPLE
         Invoke-QbafConflictAnalysis -DocId 'ai-safety-debate-2026'
     .EXAMPLE
@@ -86,7 +87,7 @@ function Invoke-QbafConflictAnalysis {
         [switch]$SkipDirectionalGate,
 
         [ValidateRange(0.0, 1000.0)]
-        [double]$DirectionalMinMargin = 0.0
+        [double]$DirectionalTauContra = 1.0
     )
 
     Set-StrictMode -Version Latest
@@ -271,22 +272,22 @@ function Invoke-QbafConflictAnalysis {
         }
     }
 
-    # ── Stage A directional reconciliation (V2, t/2745) ──────────────────────
-    # Judge each support candidate on the actual claim↔claim direction (NLI):
-    #   agrees      → supports edge
-    #   opposes     → attacks edge (the two claims actually contradict)
-    #   unresolved/ → emit nothing; leave the pair unclaimed so Stage B's LLM
-    #   unrelated     confirmer can adjudicate it (never assert support blindly).
-    $StageADirAgree  = 0
-    $StageADirOppose = 0
-    $StageADirDefer  = 0
+    # ── Stage A directional reconciliation (V2, shared gate t/2751) ──────────
+    # Opposition-only (CL ruling t/2751#3). Judge each equal-doc_position support
+    # candidate on the actual claim↔claim direction via the shared POV-framed NLI
+    # engine. Only 'opposes' is actionable — the two claims genuinely contradict,
+    # so emit an ATTACK instead of the (bogus) support. Everything else
+    # ('agrees'/'unrelated'/'unresolved') keeps the provisional supports edge:
+    # framing suppresses entailment so a true agreement reads 'unrelated', and the
+    # gate's job is to catch the inversion, not to confirm support.
+    $StageADirCounts = [ordered]@{ opposes = 0; agrees = 0; unrelated = 0; unresolved = 0 }
     if (-not $SkipDirectionalGate -and $SupportCandidates.Count -gt 0) {
         $dirPairs = [System.Collections.Generic.List[PSObject]]::new()
         for ($ci = 0; $ci -lt $SupportCandidates.Count; $ci++) {
             $cand = $SupportCandidates[$ci]
             $dirPairs.Add([PSCustomObject]@{ Id = $ci; ClaimProp = [string]$cand.A.Text; NodeProp = [string]$cand.B.Text })
         }
-        $dirVerdicts = Test-DirectionalAgreement -Pair @($dirPairs) -MinMargin $DirectionalMinMargin
+        $dirVerdicts = Test-DirectionalAgreement -Pair @($dirPairs) -TauContra $DirectionalTauContra
         $dirByIdx = @{}
         foreach ($v in @($dirVerdicts)) { $dirByIdx[[int]$v.Id] = $v }
 
@@ -294,28 +295,26 @@ function Invoke-QbafConflictAnalysis {
             $cand = $SupportCandidates[$ci]
             $A = $cand.A; $B = $cand.B
             $dir = if ($dirByIdx.ContainsKey($ci)) { [string]$dirByIdx[$ci].Direction } else { 'unresolved' }
-            if ($dir -eq 'agrees') {
-                $StageADirAgree++
-                $Edges.Add([PSCustomObject]@{
-                    Source = $A.Id; Target = $B.Id; Type = 'supports'
-                    Weight = 0.5; AttackType = $null; Source_ = 'node-overlap+nli'
-                })
-                [void]$StageAPairs.Add("$($A.Id)|$($B.Id)")
-            }
-            elseif ($dir -eq 'opposes') {
-                $StageADirOppose++
+            if ($StageADirCounts.Contains($dir)) { $StageADirCounts[$dir]++ }
+            if ($dir -eq 'opposes') {
                 $Edges.Add([PSCustomObject]@{
                     Source = $A.Id; Target = $B.Id; Type = 'attacks'
                     Weight = 0.7; AttackType = 'rebut'; Source_ = 'node-overlap+nli'
                 })
-                [void]$StageAPairs.Add("$($A.Id)|$($B.Id)")
             }
             else {
-                # unresolved / unrelated → defer to Stage B (do not mark the pair).
-                $StageADirDefer++
+                # No opposition detected → keep the provisional support edge.
+                $Edges.Add([PSCustomObject]@{
+                    Source = $A.Id; Target = $B.Id; Type = 'supports'
+                    Weight = 0.5; AttackType = $null; Source_ = 'node-overlap+nli'
+                })
             }
+            [void]$StageAPairs.Add("$($A.Id)|$($B.Id)")
         }
-        Write-OK "Stage A directional gate: $($SupportCandidates.Count) support candidates → $StageADirAgree supports, $StageADirOppose attacks, $StageADirDefer deferred to Stage B"
+        # Per-run verdict counts (TL GV condition t/2751#4 #1) — mandatory metric
+        # and the detector for a silently-degraded engine (all-unresolved = down).
+        $cnt = ($StageADirCounts.GetEnumerator() | ForEach-Object { "$($_.Key)=$($_.Value)" }) -join ' '
+        Write-OK "Stage A directional gate: $($SupportCandidates.Count) support candidates → [$cnt] ($($StageADirCounts.opposes) flipped to attacks)"
     }
 
     $StageAEdgeCount = $Edges.Count
@@ -428,6 +427,9 @@ function Invoke-QbafConflictAnalysis {
                 StageBConfirmed   = $StageBConfirmed
                 StageBRejected    = $StageBRejected
                 StageBLlmErrors   = $StageBLlmErrors
+                # Directional gate (t/2745 V2) — per-run verdict counts (t/2751#4 #1)
+                DirectionalGate   = (-not $SkipDirectionalGate)
+                DirectionalCounts = $StageADirCounts
             }
         }
         return
