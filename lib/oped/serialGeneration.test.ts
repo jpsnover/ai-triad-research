@@ -30,7 +30,6 @@ vi.mock('./promptLoader.js', () => ({
   loadAndAssemblePrompt: () => ({ system: 'sys', user: 'user' }),
   assembleReflectionPrompt: () => 'refl',
 }));
-vi.mock('../flight-recorder/index.js', () => ({ getGlobalRecorder: () => null }));
 
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';

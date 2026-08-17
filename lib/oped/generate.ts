@@ -14,7 +14,6 @@ import type { OpEdMember, OpEdParams, OpEdSet, OpEdGroundingRef } from './types.
 import { resolveOutletBand } from './outletBands.js';
 import { loadAndAssemblePrompt, assembleReflectionPrompt, type SourceBrief } from './promptLoader.js';
 import { FABRICATED_LEDE_GUARD } from './opedGuards.js';
-import { getGlobalRecorder } from '../flight-recorder/index.js';
 
 // ── Public request / deps types ───────────────────────────────────────────────
 
@@ -34,6 +33,8 @@ export interface OpEdGeneratorDeps {
   promptsDir: string;
   /** Repo root — locates soul-docs/ and taxonomy/embeddings data. */
   repoRoot: string;
+  /** Optional recorder for guard warnings — pass getGlobalRecorder() from the host. */
+  recorder?: { record: (event: Record<string, unknown>) => void } | null;
 }
 
 // ── Progress event union ──────────────────────────────────────────────────────
@@ -281,7 +282,7 @@ async function runVoiceGeneration(
   const emptyHook = !request.params.newsHook?.trim();
   const fabricatedLede = emptyHook && FABRICATED_LEDE_GUARD.test(body.slice(0, 500));
   if (fabricatedLede) {
-    getGlobalRecorder()?.record({
+    deps.recorder?.record({
       type: 'system.warning', component: 'opedGenerate', level: 'warn',
       message: `FABRICATED_LEDE_GUARD matched for pov=${pov} set=${request.set_id} — empty-hook lede may contain invented dated event`,
     });
