@@ -29,16 +29,28 @@ SUBPROCESS CONTRACT
   direction in {agrees, opposes, unrelated, unresolved}
   confidence = NLI top-1 vs top-2 logit margin (best - second).
 
-FAIL-SAFE (load-bearing, t/2744#3 arm 3): any error, an empty proposition, or a
-below-threshold margin resolves to `unresolved` — NEVER `agrees`. Callers treat
-`unresolved`/`unrelated` as flag/neutral/drop and must never assert alignment.
+ASYMMETRIC OPPOSITION DETECTOR (CL ruling t/2751#3): under POV framing the deberta
+model reliably recovers *contradiction* but SUPPRESSES *entailment* — a genuine
+agreement reads `neutral`, not `entailment` (a label fact, not a threshold to
+tune). So this gate's load-bearing signal is `opposes`; callers demote/flip ONLY
+on `opposes`. `agrees` / `unrelated` / `unresolved` all mean "no opposition
+detected" and the caller KEEPS its edge. The gate never confirms agreement.
+
+FAIL-SAFE (load-bearing, t/2751#3 arm 3): any error, an empty proposition, or a
+below-threshold margin resolves to `unresolved` — NEVER `opposes`. Because callers
+only act on `opposes`, `unresolved` is safe (a missed inversion beats dropping
+every edge). The gate must never FALSELY oppose.
 
 Flags:
-  --min-margin FLOAT   Margin floor (best-second) required to emit agrees/opposes;
-                       below it -> unresolved. Default 1.0 (stipulated v0; same
-                       units as embed_taxonomy NLI_CONFIDENCE_MARGIN). Provenance
-                       owned by CL (docs/metric-provenance-register.md), calibrated
-                       against the t/2742 fixture + an agreement control.
+  --tau-contra FLOAT   Margin floor (best-second) to emit `opposes`; below it ->
+                       unresolved. Default 1.0 (FINAL, CL t/2751#3 — catches the
+                       t/2742 inversion at margin 1.2746; genuine agreements are
+                       `neutral` so the false-oppose rate is structurally ~0). Do
+                       not exceed ~1.4 (the real contradiction margin). Provenance
+                       registered by CL in docs/metric-provenance-register.md.
+  --tau-entail FLOAT   Margin floor to emit `agrees`. Default 0.0 = RESERVED/unused
+                       (CL t/2751#3): `agrees` is informational only — no caller
+                       acts on it — so it carries no floor.
   --no-framing         Bypass POV framing (feed raw props). Exists ONLY so the
                        framing-regression guard fixture can show raw->entailment
                        (wrong) vs framed->contradiction (right) through THIS engine.
@@ -55,11 +67,14 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 _MAX_STDIN_BYTES = 50 * 1024 * 1024
 
-# Stipulated v0 (t/2744, CL). Margin floor on the (best - second) logit scale.
-# v0 == the base margin gate, i.e. "trust the margin-gated label". CL calibrates
-# and registers the final value; do NOT raise tau_contra past ~1.4 (the t/2744#2
-# true-contradiction margin was ~1.44 — a higher floor rejects real opposition).
-MARGIN_FLOOR_DEFAULT = 1.0
+# FINAL thresholds (CL ruling t/2751#3). Margin = (best - second) logit gap.
+# tau_contra 1.0 catches the t/2742 inversion (margin 1.2746) while genuine
+# agreements read `neutral`, so the false-oppose rate is structurally ~0. Do NOT
+# raise past ~1.4 (the real contradiction margin). Registered by CL in the
+# metric-provenance-register. tau_entail is reserved/unused — `agrees` is
+# informational only (no caller acts on it), so it carries no floor.
+TAU_CONTRA_DEFAULT = 1.0
+TAU_ENTAIL_DEFAULT = 0.0
 
 
 def frame_position(prop, pov):
@@ -77,19 +92,25 @@ def frame_position(prop, pov):
     return "The stated position is: {}".format(prop)
 
 
-def _direction_for(label, margin, min_margin):
-    """Map an NLI label + margin to a directional verdict. Fail-safe by default."""
-    if label == "entailment" and margin >= min_margin:
-        return "agrees"
-    if label == "contradiction" and margin >= min_margin:
+def _direction_for(label, margin, tau_contra, tau_entail):
+    """Map an NLI label + margin to a directional verdict (opposition detector).
+
+    `opposes` is the only load-bearing verdict (callers act on it); it requires a
+    contradiction label AND margin >= tau_contra. `agrees` is informational
+    (tau_entail default 0.0 = no floor). Anything below the contradiction floor,
+    or an unexpected label, is `unresolved` — never a false `opposes`.
+    """
+    if label == "contradiction" and margin >= tau_contra:
         return "opposes"
+    if label == "entailment" and margin >= tau_entail:
+        return "agrees"
     if label == "neutral":
         return "unrelated"
-    # entailment/contradiction below the margin floor, or anything unexpected.
     return "unresolved"
 
 
-def judge_direction(items, min_margin=MARGIN_FLOOR_DEFAULT, no_framing=False):
+def judge_direction(items, tau_contra=TAU_CONTRA_DEFAULT,
+                    tau_entail=TAU_ENTAIL_DEFAULT, no_framing=False):
     """Judge each {claim_prop, node_prop, pov} item. Returns aligned result dicts."""
     n = len(items)
     results = [None] * n
@@ -133,7 +154,7 @@ def judge_direction(items, min_margin=MARGIN_FLOOR_DEFAULT, no_framing=False):
                 label = res.get("label")
                 margin = float(res.get("margin", 0.0))
                 results[i] = {
-                    "direction": _direction_for(label, margin, min_margin),
+                    "direction": _direction_for(label, margin, tau_contra, tau_entail),
                     "confidence": round(margin, 4),
                     "method": "nli",
                     "nli_label": label,
@@ -153,8 +174,10 @@ def judge_direction(items, min_margin=MARGIN_FLOOR_DEFAULT, no_framing=False):
 def main():
     parser = argparse.ArgumentParser(
         description="Shared directional-agreement engine (POV-framed NLI).")
-    parser.add_argument("--min-margin", type=float, default=MARGIN_FLOOR_DEFAULT,
-                        help="Margin floor for agrees/opposes (default 1.0).")
+    parser.add_argument("--tau-contra", type=float, default=TAU_CONTRA_DEFAULT,
+                        help="Margin floor to emit 'opposes' (default 1.0, final).")
+    parser.add_argument("--tau-entail", type=float, default=TAU_ENTAIL_DEFAULT,
+                        help="Margin floor to emit 'agrees' (default 0.0, reserved).")
     parser.add_argument("--no-framing", action="store_true",
                         help="Bypass POV framing (regression-guard fixture only).")
     args = parser.parse_args()
@@ -167,7 +190,8 @@ def main():
     if not isinstance(items, list):
         items = [items]
 
-    out = judge_direction(items, min_margin=args.min_margin, no_framing=args.no_framing)
+    out = judge_direction(items, tau_contra=args.tau_contra,
+                          tau_entail=args.tau_entail, no_framing=args.no_framing)
     json.dump(out, sys.stdout)
 
 
