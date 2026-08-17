@@ -520,5 +520,57 @@ Describe 'Invoke-OrgClaimMatching (t/1553 Stages 2+3)' -Tag 'taxonomy' {
                 $script:TaxonomyData.Remove('invtest-pov')
             }
         }
+
+        It 'CLAIM TEXT: the gate is fed the VERBATIM text (claim.text), not the canonical proposition (t/2744#9)' {
+            InModuleScope AITriad -Parameters @{
+                ClaimsPath = $script:claimsPath
+                EmbPath    = $script:invEmbPath
+                VecA       = [double[]]$script:vecA
+            } {
+                param($ClaimsPath, $EmbPath, $VecA)
+
+                # Distinct text vs canonical, so we can tell which one reached the gate.
+                @{ claims = @(
+                    [PSCustomObject]@{ org_id='org-014'; source_id='src-vb'; polarity='asserts'
+                        text='VERBATIM org sentence with the full polarity-bearing phrasing'
+                        canonical_proposition='over-abstracted canonical'
+                        extraction_confidence=0.9 }
+                ) } | ConvertTo-Json -Depth 5 | Set-Content -Path $ClaimsPath -Encoding utf8NoBOM
+
+                $script:TaxonomyData['invtest-pov'] = [PSCustomObject]@{ nodes = @(
+                    [PSCustomObject]@{ id='acc-intentions-999'; label='N'; description='node text' }
+                )}
+
+                $script:capturedClaimProp = $null
+                $vecAref = $VecA
+                function python {
+                    process {
+                        $payload = @($input | Out-String | ConvertFrom-Json)
+                        if ($payload.Count -gt 0 -and $payload[0].PSObject.Properties['claim_prop']) {
+                            $script:capturedClaimProp = [string]$payload[0].claim_prop
+                            # Genuine-agreement-style control fed via verbatim → not opposes.
+                            $out = foreach ($it in $payload) {
+                                [pscustomobject]@{ id=$it.id; direction='unrelated'; confidence=0.1; method='nli' }
+                            }
+                            ConvertTo-Json -InputObject @($out) -Depth 5
+                        } else {
+                            $o = [ordered]@{}
+                            foreach ($it in $payload) { $o[$it.id] = $vecAref }
+                            $o | ConvertTo-Json -Depth 5 -Compress
+                        }
+                    }
+                }
+                Mock Get-OrganizationEdgesStore { [PSCustomObject]@{ edges = @() } }
+
+                $r = Invoke-OrgClaimMatching -ClaimsPath $ClaimsPath -EmbeddingsPath $EmbPath `
+                    -MatchThreshold 0.60 -Verbose:$false 6>$null
+
+                $script:capturedClaimProp | Should -Be 'VERBATIM org sentence with the full polarity-bearing phrasing' -Because 'the gate feeds claim.text (verbatim), not canonical_proposition (t/2744#9)'
+                $r.Proposals[0].Direction | Should -Be 'unrelated'
+                $r.DirectionalCounts.opposes | Should -Be 0 -Because 'no false-opposes on the verbatim-fed control'
+
+                $script:TaxonomyData.Remove('invtest-pov')
+            }
+        }
     }
 }
