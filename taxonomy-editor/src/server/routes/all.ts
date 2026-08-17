@@ -16,6 +16,7 @@ import { registerOrganizationsRoutes } from './organizations.js';
 import { registerEntityRoutes } from './entity.js';
 import { registerMentionsRoutes } from './mentions.js';
 import { registerPublicShareRoutes } from './publicShare.js';
+import { registerOpedShareRoutes } from './opedShare.js';
 import { registerEdgesRoutes } from './edges.js';
 import { registerAdminRoutes } from './admin.js';
 import { registerDataRoutes } from './data.js';
@@ -41,6 +42,7 @@ export function registerAllRoutes(router: Router, ctx: ServerCtx): void {
   registerEntityRoutes(router, ctx);
   registerMentionsRoutes(router, ctx);
   registerPublicShareRoutes(router, ctx);
+  registerOpedShareRoutes(router, ctx);
   registerEdgesRoutes(router, ctx);
   registerAdminRoutes(router, ctx);
   registerDataRoutes(router, ctx);
