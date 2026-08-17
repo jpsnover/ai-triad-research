@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-// ── V5 NLI direction gate (t/2746, t/2744#10) ────────────
+// ── V4 NLI direction gate (t/2746, t/2744#10) ────────────
 
 import { spawnSync } from 'child_process';
 import { fileURLToPath } from 'url';
@@ -68,7 +68,7 @@ function baseClaimId(slotId: string): string {
 }
 
 /**
- * V5 NLI direction gate (t/2746, t/2744#10): subprocess-calls scripts/nli_classify.py with
+ * V4 NLI direction gate (t/2746, t/2744#10): subprocess-calls scripts/nli_classify.py with
  * up to THREE slots per claim — verbatim (text), canonical_proposition, attribution_text_genus —
  * and returns IDs of claims where ANY slot direction === 'opposes' (recall-safe OR rule).
  *

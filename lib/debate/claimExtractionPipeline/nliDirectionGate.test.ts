@@ -83,7 +83,7 @@ describe('buildNliNodeProp — rich node prop for NLI (t/2744#7)', () => {
   });
 });
 
-describe('runNliDirectionGate — V5 direction gate, multi-field OR (t/2746, t/2744#10)', () => {
+describe('runNliDirectionGate — V4 direction gate, multi-field OR (t/2746, t/2744#10)', () => {
   // V5 sends up to 3 slots per claim (id__v / id__c / id__a) and applies opposes-if-ANY.
   // Default makeNode has only text set → one slot (__v). Tests with all fields use makeNode overloads.
 
