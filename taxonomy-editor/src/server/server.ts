@@ -58,6 +58,7 @@ import { registerOrganizationsRoutes } from './routes/organizations.js';
 import { registerEntityRoutes } from './routes/entity.js';
 import { registerMentionsRoutes } from './routes/mentions.js';
 import { registerPublicShareRoutes } from './routes/publicShare.js';
+import { registerOpedShareRoutes } from './routes/opedShare.js';
 import { registerTaxonomyRoutes } from './routes/taxonomy.js';
 import { registerMetaRoutes } from './routes/meta.js';
 import { registerEdgesRoutes } from './routes/edges.js';
@@ -381,6 +382,9 @@ registerMentionsRoutes(router, serverCtx);
 // share. Grouped with organizations/entity (public read tier). Brand-new path —
 // no collision. The auth-exemption is the isPublicPath '/api/public/' clause.
 registerPublicShareRoutes(router, serverCtx);
+// GET /api/public/oped/:shareId — public, no-login, read-only op-ed share (t/2727,
+// design t/2723#3). Second tenant of the '/api/public/' auth-exempt namespace.
+registerOpedShareRoutes(router, serverCtx);
 
 // ── Lineage / edges / source-indexes / data-availability / flags (t/1687: routes/edges.ts) ──
 // Registers between organizations and admin, preserving the routeTable snapshot order.
