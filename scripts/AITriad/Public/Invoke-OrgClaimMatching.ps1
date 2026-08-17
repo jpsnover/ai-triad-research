@@ -249,12 +249,20 @@ function Invoke-OrgClaimMatching {
 
         $sourceId = [string]$claim.source_id
         $family = $sourceId -replace $familyKeyPattern, ''
+        # Verbatim = the raw org sentence. The directional gate feeds this (not the
+        # canonical_proposition) as claimProp per CL's contract amendment t/2744#9:
+        # canonical over-abstracts and neutralizes the polarity signal the gate
+        # exists to detect (origin inversion reads unrelated on canonical vs opposes
+        # on the verbatim phrasing). Org claims carry no attribution_text, so `text`
+        # is the verbatim fallback. Embedding/node-selection still use canonical.
+        $verbatim = if ($claim.PSObject.Properties['text']) { [string]$claim.text } else { '' }
         $matchPerClaim.Add([PSCustomObject]@{
             OrgId       = [string]$claim.org_id
             SourceId    = $sourceId
             Family      = $family
             Polarity    = [string]$claim.polarity
             Proposition = [string]$claim.canonical_proposition
+            Verbatim    = $verbatim
             Top         = @($top)
             Best        = $top[0]
         })
@@ -333,8 +341,11 @@ function Invoke-OrgClaimMatching {
         #  because a flip changes the (org, node, type) tuple it keys on.)
 
         # Representative claim proposition = the highest-cosine item in the
-        # bucket (the pair the directional gate judges for this proposal).
-        $repProp = (@($items | Sort-Object -Property { $_.Best.Score } -Descending)[0]).Proposition
+        # bucket (the pair the directional gate judges for this proposal). Use its
+        # VERBATIM text (t/2744#9), falling back to the canonical proposition only
+        # when verbatim is empty.
+        $repItem = @($items | Sort-Object -Property { $_.Best.Score } -Descending)[0]
+        $repProp = if ([string]::IsNullOrWhiteSpace($repItem.Verbatim)) { $repItem.Proposition } else { $repItem.Verbatim }
 
         # Rationale + source_refs bundle
         $reason = if ($meetsA -and $meetsB) { 'multi-claim-agreement+high-cosine' }
