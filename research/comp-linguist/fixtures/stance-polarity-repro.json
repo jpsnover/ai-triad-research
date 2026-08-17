@@ -34,8 +34,16 @@
         "label_full_desc": { "direction": "opposes", "confidence": 2.17 },
         "desc_only":       { "direction": "opposes", "confidence": 3.27 }
       },
+      "claim_field_dependence": {
+        "finding": "CL t/2756#1 (real deberta on stored case_1, POV-framed). The winning claim field is CASE-DEPENDENT — no single field suffices. The live gate missed case_1 because it fed attribution_text alone.",
+        "verbatim":              { "direction": "opposes", "nli_label": "contradiction",      "margin": 5.22 },
+        "canonical_proposition": { "direction": "opposes", "nli_label": "contradiction",      "margin": 1.42 },
+        "attribution_text":      { "direction": "agrees",  "nli_label": "entailment (FALSE)", "margin": 6.88, "note": "meta-descriptive schema wrapper ('A Belief within <camp> discourse that rejecting X ensures Y without Z') confuses NLI direction — false-ENTAIL, not false-oppose (still fail-safe under opposes-only)." },
+        "cross_case": "Opposite of t/2745 #1184 org-stance case (there attribution caught it, canonical missed). Hence the contract runs ALL fields, opposes-if-any.",
+        "contract": "Run the gate over {verbatim, canonical_proposition, attribution_text}, emit opposes if ANY returns contradiction (t/2744#10). Implemented in t/2757 (PowerShell)."
+      },
       "requirement": "judgeDirection node_prop MUST be 'label — Core' (description with the Encompasses:/Excludes: tail stripped; label-only fallback), IDENTICAL across PS (V1/V2) and TS (V3/V4/V5) so every surface feeds the engine the same text (TL cross-surface ruling). The POV-framing wrapper is retained but is NOT the safeguard. Passing label-only or a terse/bare node_prop causes MISSED inversions.",
-      "recall_limitation": "The gate under-catches when a node's description is terse/non-contrastive -> false 'agrees' -> the inversion keeps its edge. Accepted under the opposes-only fail-safe (the gate never falsely opposes; a missed inversion beats dropping every edge), but recall depends on node descriptions encoding the contrast. Enrich terse node descriptions to raise recall."
+      "recall_limitation": "SUPERSEDED (CL t/2756#1): the origin miss is NOT terse node text — acc-047's stored label+Core already fires opposes (verbatim margin 5.22, canonical 1.42). The recall lever is CLAIM-FIELD choice: attribution_text false-ENTAILS here while verbatim/canonical catch it (opposite of #1184). DO NOT enrich node descriptions to raise recall — tested counterproductive: a longer, more-explicit acc-047 Core NEUTRALIZED the working canonical contradiction (verbose text dilutes the NLI signal). Correct lever: run the gate over multiple claim fields, opposes-if-any (t/2744#10, implemented t/2757). Every failure mode here is false-ENTAIL (kept), never false-oppose — safe under opposes-only."
     }
   },
 
