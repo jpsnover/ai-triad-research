@@ -216,8 +216,10 @@
         'Get-ViteDevStatus'
         # t/2330 — Debate session state diagnostic
         'Get-DebateSessionState'
-        # t/2335 — Debate index field-type integrity check
+        # t/2335 — Debate index field-type integrity check (per-session files)
         'Test-DebateIndexIntegrity'
+        # t/2735 — Debate index (.debate-index.json) type-invalid entry scan + repair
+        'Get-DebateIndexHealth'
         # t/2367 — Debate blob existence check in Azure storage
         'Test-DebateSession'
         # t/2545 — Pre-flight atomic write+rename probe for debate output dir
