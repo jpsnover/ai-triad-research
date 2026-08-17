@@ -11,7 +11,7 @@ vi.mock('../conflict/edit-conflicts', () => ({
   EditConflictBadge: () => null,
 }));
 
-const mockLocalStorage = (() => {
+function makeStorageMock() {
   let store: Record<string, string> = {};
   return {
     getItem: (key: string) => store[key] ?? null,
@@ -19,8 +19,14 @@ const mockLocalStorage = (() => {
     removeItem: (key: string) => { delete store[key]; },
     clear: () => { store = {}; },
   };
-})();
+}
+const mockLocalStorage = makeStorageMock();
 Object.defineProperty(window, 'localStorage', { value: mockLocalStorage });
+// NodeTree backs its collapse state on sessionStorage (t/2720): empty at session
+// start → all categories collapsed. Render suites below seed it with '[]' (nothing
+// collapsed) so node rows are visible; the session-start test leaves it empty.
+const mockSessionStorage = makeStorageMock();
+Object.defineProperty(window, 'sessionStorage', { value: mockSessionStorage });
 
 Element.prototype.scrollIntoView = vi.fn();
 HTMLElement.prototype.focus = vi.fn();
@@ -118,8 +124,9 @@ describe('getOrderedNodeIds', () => {
 describe('NodeTree', () => {
   beforeEach(() => {
     mockLocalStorage.clear();
-    mockLocalStorage.setItem('taxonomy-editor-collapsed-version', '2');
-    mockLocalStorage.setItem('taxonomy-editor-collapsed-categories', '[]');
+    // Seed sessionStorage with nothing-collapsed so category rows render for these suites.
+    mockSessionStorage.clear();
+    mockSessionStorage.setItem('taxonomy-editor-collapsed-categories', '[]');
   });
 
   it('renders category headers with counts', () => {
@@ -127,6 +134,20 @@ describe('NodeTree', () => {
     expect(screen.getByText(/Desires/)).toBeDefined();
     expect(screen.getByText(/Intentions/)).toBeDefined();
     expect(screen.getByText(/Beliefs/)).toBeDefined();
+  });
+
+  it('collapses all BDI categories at session start (empty sessionStorage) (t/2720)', () => {
+    // Fresh session: no stored collapse state at all.
+    mockSessionStorage.clear();
+    render(<NodeTree nodes={NODES} selectedNodeId={null} onSelect={vi.fn()} />);
+    // Category headers still render...
+    expect(screen.getByText(/Desires/)).toBeDefined();
+    expect(screen.getByText(/Intentions/)).toBeDefined();
+    expect(screen.getByText(/Beliefs/)).toBeDefined();
+    // ...but every category is collapsed, so no node rows are visible.
+    expect(screen.queryByText('Open dev is safe')).toBeNull();
+    expect(screen.queryByText('Maximize progress')).toBeNull();
+    expect(screen.queryByText('Fund research')).toBeNull();
   });
 
   it('calls onSelect when a node is clicked', () => {
@@ -185,8 +206,9 @@ describe('NodeTree', () => {
 describe('NodeTree debate-tested chip display gate (t/1661)', () => {
   beforeEach(() => {
     mockLocalStorage.clear();
-    mockLocalStorage.setItem('taxonomy-editor-collapsed-version', '2');
-    mockLocalStorage.setItem('taxonomy-editor-collapsed-categories', '[]');
+    // Seed sessionStorage with nothing-collapsed so category rows render for these suites.
+    mockSessionStorage.clear();
+    mockSessionStorage.setItem('taxonomy-editor-collapsed-categories', '[]');
   });
 
   // Hybrid gate: Beliefs always show the chip (legacy "Untested" when record-less);
