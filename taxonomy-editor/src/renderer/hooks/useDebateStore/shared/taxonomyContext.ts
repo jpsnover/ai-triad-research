@@ -224,10 +224,10 @@ async function applyDoctrinalAnchoring(pov: string, allPovNodes: PovNode[], node
     // Embed boundary strings (cached across POVs)
     await ensureBoundaryEmbeddingsCache();
 
-    const boundaryVectors = _boundaryEmbeddingsCache?.[pov] ?? [];
-    if (boundaryVectors.length > 0) {
+    const povBoundary = _boundaryEmbeddingsCache?.[pov];
+    if (povBoundary && povBoundary.vectors.length > 0) {
       const beliefs = allPovNodes.filter(n => n.category === 'Beliefs');
-      const results = computeDoctrinalAnchoring(beliefs, boundaryVectors, nodeEmbeddings);
+      const results = computeDoctrinalAnchoring(beliefs, povBoundary.vectors, nodeEmbeddings, undefined, undefined, povBoundary.isRejection);
       const anomaly = checkThresholdAnomalies(results, beliefs.length);
       if (anomaly) console.warn(anomaly.warning);
       const anchoredCount = results.filter(r => r.anchored).length;
