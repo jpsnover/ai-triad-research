@@ -13,6 +13,7 @@ import { computeEmbedding } from '../embeddings/onnxEmbedding.js';
 import type { OpEdMember, OpEdParams, OpEdSet, OpEdGroundingRef } from './types.js';
 import { resolveOutletBand } from './outletBands.js';
 import { loadAndAssemblePrompt, assembleReflectionPrompt, assembleSourceBriefPrompt, type SourceBrief } from './promptLoader.js';
+import { FABRICATED_LEDE_GUARD } from './opedGuards.js';
 
 // ── Public request / deps types ───────────────────────────────────────────────
 
@@ -32,6 +33,8 @@ export interface OpEdGeneratorDeps {
   promptsDir: string;
   /** Repo root — locates soul-docs/ and taxonomy/embeddings data. */
   repoRoot: string;
+  /** Optional recorder for guard warnings — pass getGlobalRecorder() from the host. */
+  recorder?: { record: (event: Record<string, unknown>) => void } | null;
 }
 
 // ── Progress event union ──────────────────────────────────────────────────────
@@ -294,6 +297,17 @@ async function runVoiceGeneration(
     }
   }
 
+  // Guard scan: when newsHook was empty, check the lede (first 500 chars) for
+  // fabricated dated-event markers. Flag without mutating the body (t/2730).
+  const emptyHook = !request.params.newsHook?.trim();
+  const fabricatedLede = emptyHook && FABRICATED_LEDE_GUARD.test(body.slice(0, 500));
+  if (fabricatedLede) {
+    deps.recorder?.record({
+      type: 'system.warning', component: 'opedGenerate', level: 'warn',
+      message: `FABRICATED_LEDE_GUARD matched for pov=${pov} set=${request.set_id} — empty-hook lede may contain invented dated event`,
+    });
+  }
+
   return {
     pov,
     status: 'complete',
@@ -303,6 +317,7 @@ async function runVoiceGeneration(
     pitch: parsed.pitch_email || undefined,
     wordCount: actualWordCount,
     grounding: allGroundingRefs,
+    ...(fabricatedLede && { fabricated_lede: true as const }),
   };
 }
 

@@ -6,6 +6,7 @@ import { mkdtempSync, writeFileSync, rmSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
 import { loadAndAssemblePrompt, assembleReflectionPrompt, type PromptContext } from './promptLoader.js';
+import { FABRICATED_LEDE_GUARD } from './opedGuards.js';
 
 // Fixture prompt templates — minimal placeholders that cover every interpolation key
 const SYSTEM_TEMPLATE =
@@ -97,10 +98,6 @@ describe('loadAndAssemblePrompt', () => {
     expect(user).toContain('enduring stakes');
   });
 
-  // Guard pattern for fabricated dated-event markers (stipulated lexicon — t/2721)
-  // Provenance: CL to register in metric-provenance-register once pattern is final.
-  const FABRICATED_LEDE_GUARD =
-    /\b(this week|next week|yesterday|pending (vote|ruling)|newly? (proposed|drafted) (rule|regulation)|pre-?clearance)\b/i;
 
   it('FABRICATED_LEDE_GUARD matches known fabricated regulatory text', () => {
     const fabricated =
