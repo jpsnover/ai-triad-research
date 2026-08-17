@@ -21,24 +21,38 @@ export interface RouteEntry { method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE
 const METHOD: Record<string, RouteEntry['method']> = { get: 'GET', post: 'POST', put: 'PUT', patch: 'PATCH', del: 'DELETE' };
 
 /**
- * Resolve `register<Cluster>Routes(...)` to its `routes/<cluster>.ts` file. The
- * cluster capture is PascalCase (e.g. `PublicShare`); the file is conventionally
- * its lowercased form. A single-word cluster (`Organizations`) already IS its
- * filename lowercased, but a multi-word one (`PublicShare` → `publicShare.ts`)
- * keeps interior capitals — so the naive `<cluster>.ts` lookup misses on a
- * case-sensitive filesystem (Linux CI) while passing on case-insensitive Windows.
- * Fall back to a case-insensitive scan of routes/ so the extractor resolves such
- * files identically on every platform (else the routeTable snapshot would diverge
- * dev↔CI). Returns the absolute path, or null if no matching module exists.
+ * Resolve `register<Cluster>Routes(...)` to its source file. The cluster capture
+ * is PascalCase (e.g. `PublicShare`); the file is conventionally its lowercased
+ * form. A single-word cluster (`Organizations`) already IS its filename lowercased,
+ * but a multi-word one (`PublicShare` → `publicShare.ts`) keeps interior capitals —
+ * so the naive `<cluster>.ts` lookup misses on a case-sensitive filesystem (Linux
+ * CI) while passing on case-insensitive Windows. Fall back to a case-insensitive
+ * scan so the extractor resolves such files identically on every platform.
+ *
+ * Two search roots (t/2749 — two-level indirection via routes/all.ts):
+ *   1. `dir/routes/<cluster>.ts` — standard: server.ts → routes/<cluster>.ts
+ *   2. `dir/<cluster>.ts`        — same-dir:  routes/all.ts → routes/<cluster>.ts
+ * Returns the absolute path, or null if no matching module exists.
  */
 function resolveClusterFile(dir: string, cluster: string): string | null {
-  const routesDir = path.join(dir, 'routes');
   const target = `${cluster.toLowerCase()}.ts`;
-  const exact = path.join(routesDir, target);
-  if (fs.existsSync(exact)) return exact;
-  if (!fs.existsSync(routesDir)) return null;
-  const match = fs.readdirSync(routesDir).find(f => f.toLowerCase() === target);
-  return match ? path.join(routesDir, match) : null;
+
+  // Primary: dir/routes/<cluster>.ts (server.ts → routes/<cluster>.ts)
+  const routesDir = path.join(dir, 'routes');
+  if (fs.existsSync(routesDir)) {
+    const exact = path.join(routesDir, target);
+    if (fs.existsSync(exact)) return exact;
+    const match = fs.readdirSync(routesDir).find(f => f.toLowerCase() === target);
+    if (match) return path.join(routesDir, match);
+  }
+
+  // Fallback: dir/<cluster>.ts (routes/all.ts → routes/<cluster>.ts siblings)
+  const sameDir = path.join(dir, target);
+  if (fs.existsSync(sameDir)) return sameDir;
+  const siblingMatch = fs.existsSync(dir)
+    ? fs.readdirSync(dir).find(f => f.toLowerCase() === target)
+    : undefined;
+  return siblingMatch ? path.join(dir, siblingMatch) : null;
 }
 
 // e.g.  get('/api/foo', ...)   put('/api/bar/:id', ...)   patch('/api/baz/:id', ...)

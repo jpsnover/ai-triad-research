@@ -48,7 +48,7 @@ import { json, error, param, query, getClientIp, createRouter, withEndpointTimeo
 import { computeIsPublicPath } from './publicPaths.js';
 import { resolveAllowedOrigins, corsOriginFor, resolveBindHost, isNonLoopbackDevBind, enforceCrossOriginMutationGuard, isWebSocketOriginAllowed } from './networkSecurity.js';
 import { parseCookies } from './httpCookies.js';
-import { registerAllRoutes } from './routes/registerAll.js';
+import { registerAllRoutes } from './routes/all.js';
 import { invalidateConflictsCache, warmConflictsCache } from './routes/conflicts.js';
 import { anonSessionCookiesWithCreated } from './routes/session.js';
 import { buildLoginPage, FORBIDDEN_PAGE, SW_HEAL_SCRIPT_CSP_HASH, loginPageHeaders } from './loginPage.js';
