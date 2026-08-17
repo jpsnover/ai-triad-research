@@ -30,6 +30,7 @@ vi.mock('./promptLoader.js', () => ({
   loadAndAssemblePrompt: () => ({ system: 'sys', user: 'user' }),
   assembleReflectionPrompt: () => 'refl',
 }));
+vi.mock('../flight-recorder/index.js', () => ({ getGlobalRecorder: () => null }));
 
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
@@ -108,5 +109,44 @@ describe('generateOpEdSet — document_claims propagation (t/2722)', () => {
     // Empty document_claims array → field stays absent (only set when length > 0)
     const sitRef = member!.grounding.find(r => r.node_id === 'sit-001');
     expect(sitRef?.document_claims).toBeUndefined();
+  });
+});
+
+describe('generateOpEdSet — FABRICATED_LEDE_GUARD integration (t/2730)', () => {
+  const makeAdapter = (body: string) => ({
+    generateText: async () => JSON.stringify({ headline: 'H', subtitle: '', body_markdown: body, word_count: body.split(/\s+/).length }),
+  });
+  const makeReq = (newsHook: string) => ({
+    set_id: 'g1', topic: 'AI policy',
+    params: { model: 'gemini-flash', wordCount: 800, outlet: 'nyt', newsHook, thesis: '' } as never,
+    povs: ['accelerationist'] as PovKey[],
+  });
+  const DEPS = { adapter: null as never, promptsDir: join(REPO_ROOT, 'lib', 'oped', 'prompts'), repoRoot: REPO_ROOT };
+
+  it('fabricated_lede is absent when body is timeless and newsHook is empty', async () => {
+    const deps = { ...DEPS, adapter: makeAdapter('The question of who controls AI has never been more consequential.') as never };
+    let member: { fabricated_lede?: true } | undefined;
+    for await (const ev of generateOpEdSet(makeReq(''), deps) as AsyncGenerator<OpEdProgressEvent>) {
+      if (ev.type === 'voice_complete') member = ev.member as typeof member;
+    }
+    expect(member?.fabricated_lede).toBeUndefined();
+  });
+
+  it('fabricated_lede is true when body contains a guard phrase and newsHook is empty', async () => {
+    const deps = { ...DEPS, adapter: makeAdapter('This week regulators released a newly proposed pre-clearance rule for AI.') as never };
+    let member: { fabricated_lede?: true } | undefined;
+    for await (const ev of generateOpEdSet(makeReq(''), deps) as AsyncGenerator<OpEdProgressEvent>) {
+      if (ev.type === 'voice_complete') member = ev.member as typeof member;
+    }
+    expect(member?.fabricated_lede).toBe(true);
+  });
+
+  it('fabricated_lede is absent even when body has guard phrase if newsHook is non-empty', async () => {
+    const deps = { ...DEPS, adapter: makeAdapter('This week regulators released a newly proposed pre-clearance rule for AI.') as never };
+    let member: { fabricated_lede?: true } | undefined;
+    for await (const ev of generateOpEdSet(makeReq('EU AI Act passed committee') , deps) as AsyncGenerator<OpEdProgressEvent>) {
+      if (ev.type === 'voice_complete') member = ev.member as typeof member;
+    }
+    expect(member?.fabricated_lede).toBeUndefined();
   });
 });
