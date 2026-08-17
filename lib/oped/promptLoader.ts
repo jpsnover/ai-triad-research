@@ -13,7 +13,7 @@ export interface SourceBrief {
   stance?: string;
   primary_recommendations?: string[];
   key_claims?: string[];
-  readable?: string;
+  readable?: boolean;
 }
 
 export interface PromptContext {
@@ -88,6 +88,12 @@ export function loadAndAssemblePrompt(promptsDir: string, ctx: PromptContext): A
   });
 
   return { system, user };
+}
+
+export function assembleSourceBriefPrompt(promptsDir: string, sourceMaterial: string): string {
+  return interpolate(loadPromptTemplate(promptsDir, 'op-ed-source-brief'), {
+    SOURCE_MATERIAL: sourceMaterial,
+  });
 }
 
 export function assembleReflectionPrompt(
