@@ -25,6 +25,8 @@ import { listOpedSets, loadOpedSet, deleteOpedSet, getOpedSetsQuotaStatus, final
 import type { OpEdSet, OpEdMember, OpEdParams, PovKey } from '../../../../lib/oped/types.js';
 import type { GenerateOpEdRequest, OpEdGeneratorDeps, OpEdProgressEvent } from '../../../../lib/oped/generate.js';
 import { getStorageUserId, isAnonymousUser } from '../security/userContext.js';
+import { checkRate } from '../security/rateLimiter.js';
+import { publishOpedShare, unpublishOpedShare } from '../storage/opedShareStore.js';
 import { resolveGenerationContext, enforceBackendAllowed } from './generationContext.js';
 import { resolveBackend, isRegisteredModel } from '../ai/aiBackends.js';
 import { DEFAULT_MODEL } from '../../../../lib/ai-client/index.js';
@@ -289,6 +291,41 @@ export function registerOpedRoutes(r: Router, _ctx: ServerCtx): void {
       json(res, { ok: true });
     } catch (err) {
       getGlobalRecorder()?.record({ type: 'system.error', component: 'oped', level: 'error', message: 'Failed to delete oped-set', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
+      error(res, String(err), 500, err);
+    }
+  });
+
+  // ── Op-ed public share (t/2727; design t/2723#3, SO-approved e/106#2) ──
+  // Pattern A: publish-on-share to a user-agnostic public copy; the public read is
+  // GET /api/public/oped/:shareId (routes/opedShare.ts). Owner-only: publishOpedShare
+  // reads via the caller's getStorageUserId scope, so a non-owner/absent set is an
+  // indistinguishable 404. 5-segment path → no collision with the :id wildcard.
+  const SHARE_ROUTE = '/api/oped-sets/:setId/share';
+  post('/api/oped-sets/:setId/share', async (req, res) => {
+    const setId = param(req, 'setId', SHARE_ROUTE);
+    if (rejectUnsafeId(res, setId)) return;
+    // Modest per-user rate guard — this writes to a public container.
+    if (!checkRate(`oped-share-write:${getStorageUserId()}`, 20, 60_000).allowed) {
+      json(res, { error: 'rate_limited' }, 429); return;
+    }
+    try {
+      const result = await publishOpedShare(setId);
+      if (!result) { error(res, 'Op-ed set not found', 404); return; }
+      json(res, { shareId: result.shareId, url: `/share/oped/${result.shareId}` });
+    } catch (err) {
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'oped', level: 'error', message: 'Failed to publish oped share', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
+      error(res, String(err), 500, err);
+    }
+  });
+
+  del('/api/oped-sets/:setId/share', async (req, res) => {
+    const setId = param(req, 'setId', SHARE_ROUTE);
+    if (rejectUnsafeId(res, setId)) return;
+    try {
+      const existed = await unpublishOpedShare(setId);
+      json(res, { ok: existed });
+    } catch (err) {
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'oped', level: 'error', message: 'Failed to unpublish oped share', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
       error(res, String(err), 500, err);
     }
   });
