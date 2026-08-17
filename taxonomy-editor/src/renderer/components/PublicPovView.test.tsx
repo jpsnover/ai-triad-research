@@ -67,7 +67,7 @@ describe('PublicPovView (t/1790)', () => {
     vi.stubGlobal('fetch', mockFetch);
   });
 
-  it('fetches the node via a raw GET to the public endpoint — no session minted', async () => {
+  it('fetches the node via a raw GET to the public endpoint -- no session minted', async () => {
     mockFetch.mockResolvedValue(fakeResponse({ body: SAMPLE }));
     render(<PublicPovView />);
 
@@ -91,7 +91,7 @@ describe('PublicPovView (t/1790)', () => {
     expect(screen.getByText('Accelerationist')).toBeInTheDocument();
     expect(screen.getByText('Beliefs')).toBeInTheDocument();
     expect(screen.getByText(SAMPLE.description)).toBeInTheDocument();
-    expect(screen.getByText(`“${SAMPLE.aphorism}”`)).toBeInTheDocument();
+    expect(screen.getByText(`"${SAMPLE.aphorism}"`)).toBeInTheDocument();
     expect(screen.getByText(SAMPLE.nodeId)).toBeInTheDocument();
 
     // Read-only: no inputs, textareas, or actionable buttons on this path.
@@ -113,16 +113,16 @@ describe('PublicPovView (t/1790)', () => {
     expect(mockFetch).not.toHaveBeenCalled();
   });
 
-  it(‘shows an error state and records to the flight recorder on network failure’, async () => {
-    mockFetch.mockRejectedValue(new Error(‘network down’));
+  it('shows an error state and records to the flight recorder on network failure', async () => {
+    mockFetch.mockRejectedValue(new Error('network down'));
     render(<PublicPovView />);
-    await screen.findByText(/Couldn’t load this item/);
+    await screen.findByText(/Couldn't load this item/);
     expect(mockRecord).toHaveBeenCalledWith(
-      expect.objectContaining({ type: ‘system.error’, component: ‘PublicPovView’, level: ‘error’ }),
+      expect.objectContaining({ type: 'system.error', component: 'PublicPovView', level: 'error' }),
     );
   });
 
-  it(‘aborts the in-flight fetch when the component unmounts (t/2755)’, async () => {
+  it('aborts the in-flight fetch when the component unmounts (t/2755)', async () => {
     let resolveResponse!: (r: Response) => void;
     mockFetch.mockReturnValue(new Promise(res => { resolveResponse = res; }));
 
