@@ -117,12 +117,32 @@ describe('PublicOpEdView (t/2728)', () => {
     expect(mockFetch).not.toHaveBeenCalled();
   });
 
-  it('shows an error state and records to the flight recorder on network failure', async () => {
-    mockFetch.mockRejectedValue(new Error('network down'));
+  it(‘shows an error state and records to the flight recorder on network failure’, async () => {
+    mockFetch.mockRejectedValue(new Error(‘network down’));
     render(<PublicOpEdView />);
     await screen.findByText(/Couldn’t load this op-ed/);
     expect(mockRecord).toHaveBeenCalledWith(
-      expect.objectContaining({ type: 'system.error', component: 'PublicOpEdView', level: 'error' }),
+      expect.objectContaining({ type: ‘system.error’, component: ‘PublicOpEdView’, level: ‘error’ }),
     );
+  });
+
+  it(‘aborts the in-flight fetch when the component unmounts’, async () => {
+    let resolveResponse!: (r: Response) => void;
+    mockFetch.mockReturnValue(new Promise(res => { resolveResponse = res; }));
+
+    const { unmount } = render(<PublicOpEdView />);
+    // Let microtasks settle so fetch() has been called.
+    await Promise.resolve();
+
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+    const signal = mockFetch.mock.calls[0][1]?.signal as AbortSignal;
+    expect(signal).toBeDefined();
+    expect(signal.aborted).toBe(false);
+
+    unmount();
+    expect(signal.aborted).toBe(true);
+
+    // Resolve after unmount — no setState crash should occur.
+    resolveResponse(fakeResponse({ body: SAMPLE }));
   });
 });

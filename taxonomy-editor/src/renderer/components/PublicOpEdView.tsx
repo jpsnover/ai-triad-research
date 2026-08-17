@@ -131,7 +131,7 @@ export function PublicOpEdView() {
         clearTimeout(timeout);
       }
     })();
-    return () => { cancelled = true; clearTimeout(timeout); };
+    return () => { cancelled = true; clearTimeout(timeout); controller.abort(); };
   }, []);
 
   if (state.status === 'loading') {
