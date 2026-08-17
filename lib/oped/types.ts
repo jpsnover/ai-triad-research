@@ -25,6 +25,7 @@ export interface OpEdGroundingRef {
   pov: PovKey;
   relevance: string;
   how_reflected: string;
+  document_claims?: string[];  // source claims this BDI element responds to (absent when no source brief)
 }
 
 // ── Per-voice member (self-contained — e/91#2 condition 3) ───────────────────

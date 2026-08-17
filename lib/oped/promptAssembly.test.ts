@@ -84,6 +84,36 @@ describe('loadAndAssemblePrompt', () => {
     expect(user).toContain('none supplied');
   });
 
+  it('empty newsHook fallback does not invite fabrication of a dated event', () => {
+    const ctx: PromptContext = {
+      ...FIXTURE_CTX,
+      params: { ...FIXTURE_CTX.params, newsHook: undefined },
+    };
+    const { user } = loadAndAssemblePrompt(promptsDir, ctx);
+    // Must not contain fabrication-inviting language (t/2721 — the old fallback said "invent a plausible")
+    expect(user).not.toMatch(/invent a plausible/i);
+    expect(user).not.toMatch(/plausible.*news hook/i);
+    expect(user).toContain('do NOT invent');
+    expect(user).toContain('enduring stakes');
+  });
+
+  // Guard pattern for fabricated dated-event markers (stipulated lexicon — t/2721)
+  // Provenance: CL to register in metric-provenance-register once pattern is final.
+  const FABRICATED_LEDE_GUARD =
+    /\b(this week|next week|yesterday|pending (vote|ruling)|newly? (proposed|drafted) (rule|regulation)|pre-?clearance)\b/i;
+
+  it('FABRICATED_LEDE_GUARD matches known fabricated regulatory text', () => {
+    const fabricated =
+      'This week, as federal regulators draft new rules requiring multi-month pre-clearance audits before developers can release advanced AI models…';
+    expect(FABRICATED_LEDE_GUARD.test(fabricated)).toBe(true);
+  });
+
+  it('FABRICATED_LEDE_GUARD does not flag timeless stakes framing', () => {
+    const timeless =
+      'The question of who controls artificial intelligence has never been more consequential. A structural tension at the heart of the field — speed versus safety — demands a clear answer.';
+    expect(FABRICATED_LEDE_GUARD.test(timeless)).toBe(false);
+  });
+
   it('interpolates sourceBrief fields when present', () => {
     const ctx: PromptContext = {
       ...FIXTURE_CTX,
