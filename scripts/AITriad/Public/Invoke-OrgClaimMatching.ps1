@@ -68,6 +68,19 @@ function Invoke-OrgClaimMatching {
         Emit proposals even when a (org, node, type) tuple already exists in
         the edge store. Never touches approved/disputed rows unless combined
         with a manual delete — this only overrides the has-any-status skip.
+    .PARAMETER SkipDirectionalGate
+        Disable the directional-agreement gate (t/2745, shared engine t/2751). By
+        default every surviving proposal's claim proposition is checked against
+        the matched node via the POV-framed NLI engine: on `opposes` (the claim
+        asserts ¬node) the edge type is FLIPPED ADVOCATES_FOR↔OPPOSES; otherwise
+        the edge is kept unchanged. Use this switch only where the NLI engine is
+        unavailable, or to isolate the aggregation logic in tests — it restores
+        the pre-gate polarity-only behavior and can persist polarity-inverted edges.
+    .PARAMETER DirectionalTauContra
+        Contradiction margin floor forwarded to the shared engine to emit
+        `opposes`. Default 1.0 (FINAL, CL t/2751#3; provenance in the
+        metric-provenance-register). Raising it makes the gate flip only on
+        stronger contradictions; do not exceed ~1.4 (the real contradiction margin).
     .EXAMPLE
         Invoke-OrgClaimMatching -EmbeddingsPath ../ai-triad-data/taxonomy/Origin/embeddings-orgstance-6733.json
     .EXAMPLE
@@ -114,7 +127,14 @@ function Invoke-OrgClaimMatching {
         [switch]$WriteProposals,
 
         [Parameter()]
-        [switch]$Force
+        [switch]$Force,
+
+        [Parameter()]
+        [switch]$SkipDirectionalGate,
+
+        [Parameter()]
+        [ValidateRange(0.0, 1000.0)]
+        [double]$DirectionalTauContra = 1.0
     )
 
     Set-StrictMode -Version Latest
@@ -290,6 +310,11 @@ function Invoke-OrgClaimMatching {
         $orgId    = ($items[0]).OrgId
         $nodeId   = ($items[0]).Best.NodeId
         $polarity = ($items[0]).Polarity
+        # PROVISIONAL edge type from the org's own polarity only. The directional
+        # gate below (t/2745) reconciles it against the matched node's proposition
+        # before any edge is kept — a claim that asserts ¬(node) flips
+        # ADVOCATES_FOR→OPPOSES; anything else (incl. unresolved) KEEPS the edge
+        # (opposition-only gate — unresolved is never a false demote).
         $edgeType = if ($polarity -eq 'asserts') { 'ADVOCATES_FOR' } else { 'OPPOSES' }
 
         # Independence: family-dedup
@@ -304,9 +329,12 @@ function Invoke-OrgClaimMatching {
         $meetsB = $bestScore -ge $MatchThreshold
         if (-not ($meetsA -or $meetsB)) { continue }
 
-        # Skip existing
-        $existingCheckKey = "$orgId::$nodeId::$edgeType"
-        if (-not $Force -and $existingKeys.ContainsKey($existingCheckKey)) { continue }
+        # (existing-edge skip is deferred to after directional reconciliation,
+        #  because a flip changes the (org, node, type) tuple it keys on.)
+
+        # Representative claim proposition = the highest-cosine item in the
+        # bucket (the pair the directional gate judges for this proposal).
+        $repProp = (@($items | Sort-Object -Property { $_.Best.Score } -Descending)[0]).Proposition
 
         # Rationale + source_refs bundle
         $reason = if ($meetsA -and $meetsB) { 'multi-claim-agreement+high-cosine' }
@@ -321,6 +349,10 @@ function Invoke-OrgClaimMatching {
             NodeId      = $nodeId
             EdgeType    = $edgeType
             Polarity    = $polarity
+            RepProp     = [string]$repProp
+            Direction   = 'skipped'
+            DirConfidence = $null
+            DirMethod   = 'skipped'
             Reason      = $reason
             BestCosine  = $bestScore
             Independent = $independence
@@ -329,6 +361,80 @@ function Invoke-OrgClaimMatching {
             Rationale   = $summary
             Items       = @($items)
         })
+    }
+
+    # ── Directional reconciliation (t/2745 V1, shared gate t/2751) ───────
+    # Embedding cosine picked the matched node by TOPIC; it cannot tell "asserts
+    # P" from "asserts ¬P". The shared engine (POV-framed NLI) supplies that
+    # signal. Per CL ruling (t/2751#3) the gate is an asymmetric OPPOSITION
+    # detector: only 'opposes' is actionable. On 'opposes' the claim asserts
+    # ¬(node), so the provisional edge type (derived from the org's OWN polarity)
+    # is FLIPPED (ADVOCATES_FOR<->OPPOSES). 'agrees'/'unrelated'/'unresolved' all
+    # mean "no opposition detected" → the provisional edge stands (no drop —
+    # framing suppresses entailment so genuine agreement reads 'unrelated', and
+    # dropping it would nuke recall). Off only under -SkipDirectionalGate.
+    $directionalFlipped = 0
+    if (-not $SkipDirectionalGate -and $proposals.Count -gt 0) {
+        $povByPrefix = @{ acc = 'accelerationist'; saf = 'safetyist'; skp = 'skeptic' }
+        # Node proposition text (label + Core description) from loaded taxonomy.
+        $nodeTextById = @{}
+        foreach ($pov in $script:TaxonomyData.Values) {
+            if (-not $pov.PSObject.Properties['nodes']) { continue }
+            foreach ($n in @($pov.nodes)) {
+                if (-not $n.PSObject.Properties['id']) { continue }
+                $lbl = if ($n.PSObject.Properties['label']) { [string]$n.label } else { '' }
+                $dsc = if ($n.PSObject.Properties['description'] -and $n.description) { [string]$n.description } else { '' }
+                # Core proposition only: strip Encompasses:/Excludes: tails (they name
+                # sibling topics, not the asserted proposition). Consistent node_prop
+                # construction across V-surfaces is a TL GV condition (t/2751#4 #3).
+                $dsc = $dsc -replace '(?s)\s*(Encompasses|Excludes)\s*:.*$', ''
+                $nodeTextById[[string]$n.id] = if ($dsc) { "$lbl — $($dsc.Trim())" } else { $lbl }
+            }
+        }
+
+        $gatePairs = [System.Collections.Generic.List[PSObject]]::new()
+        for ($pi = 0; $pi -lt $proposals.Count; $pi++) {
+            $prop = $proposals[$pi]
+            $nid = [string]$prop.NodeId
+            $nodeText = if ($nodeTextById.ContainsKey($nid)) { $nodeTextById[$nid] } else { '' }
+            $prefix = if ($nid -match '^(acc|saf|skp)-') { $Matches[1] } else { '' }
+            $nodePov = if ($prefix -and $povByPrefix.ContainsKey($prefix)) { $povByPrefix[$prefix] } else { '' }
+            $gatePairs.Add([PSCustomObject]@{ Id = $pi; ClaimProp = $prop.RepProp; NodeProp = $nodeText; NodePov = $nodePov })
+        }
+
+        $verdicts = Test-DirectionalAgreement -Pair @($gatePairs) -TauContra $DirectionalTauContra
+        $verdictByIdx = @{}
+        foreach ($v in @($verdicts)) { $verdictByIdx[[int]$v.Id] = $v }
+
+        for ($pi = 0; $pi -lt $proposals.Count; $pi++) {
+            $prop = $proposals[$pi]
+            $v = if ($verdictByIdx.ContainsKey($pi)) { $verdictByIdx[$pi] } else { $null }
+            $direction = if ($v) { [string]$v.Direction } else { 'unresolved' }
+            $prop.Direction     = $direction
+            $prop.DirConfidence = if ($v) { $v.Confidence } else { 0.0 }
+            $prop.DirMethod     = if ($v) { [string]$v.Method } else { 'none' }
+
+            if ($direction -eq 'opposes') {
+                # Claim asserts ¬(node) → flip the provisional polarity-derived edge.
+                $finalType = if ($prop.EdgeType -eq 'ADVOCATES_FOR') { 'OPPOSES' } else { 'ADVOCATES_FOR' }
+                $directionalFlipped++
+                $prop.Rationale = "$($prop.Rationale) directional_flip=$($prop.EdgeType)->$finalType nli_dir=opposes"
+                $prop.EdgeType = $finalType
+            } else {
+                $prop.Rationale = "$($prop.Rationale) directional_ok nli_dir=$direction"
+            }
+        }
+    }
+
+    # ── Existing-edge skip (keyed on the FINAL, reconciled edge type) ─────
+    if (-not $Force) {
+        $kept = [System.Collections.Generic.List[PSObject]]::new()
+        foreach ($prop in $proposals) {
+            $existingCheckKey = "$($prop.OrgId)::$($prop.NodeId)::$($prop.EdgeType)"
+            if ($existingKeys.ContainsKey($existingCheckKey)) { continue }
+            $kept.Add($prop)
+        }
+        $proposals = $kept
     }
 
     # ── Per-org cap (top by best cosine) ─────────────────────────────────
@@ -368,11 +474,24 @@ function Invoke-OrgClaimMatching {
         }
     }
 
+    # Per-run directional verdict counts (TL GV condition t/2751#4 #1): mandatory
+    # metric AND the detector for a silently-degraded engine — an all-`unresolved`
+    # run over a non-empty gated set means the engine is down (stderr is swallowed).
+    $directionalCounts = [ordered]@{ opposes = 0; agrees = 0; unrelated = 0; unresolved = 0 }
+    if (-not $SkipDirectionalGate) {
+        foreach ($p in $capped) {
+            $d = [string]$p.Direction
+            if ($directionalCounts.Contains($d)) { $directionalCounts[$d]++ }
+        }
+    }
+    $countsNote = ($directionalCounts.GetEnumerator() | ForEach-Object { "$($_.Key)=$($_.Value)" }) -join ' '
+    $gateNote = if ($SkipDirectionalGate) { 'gate=OFF' } else { "gate: flipped=$directionalFlipped [$countsNote]" }
+
     Write-Host ""
     if ($WriteProposals) {
-        Write-Host "Claims: $totalClaims | Proposals: $($capped.Count) (wrote $written) | Dropped by cap: $($dropped.Count) | Negation-slice: $($negationSlice.Count)"
+        Write-Host "Claims: $totalClaims | Proposals: $($capped.Count) (wrote $written) | Dropped by cap: $($dropped.Count) | Negation-slice: $($negationSlice.Count) | $gateNote"
     } else {
-        Write-Host "Claims: $totalClaims | Proposals (dry-run): $($capped.Count) | Dropped by cap: $($dropped.Count) | Negation-slice: $($negationSlice.Count)"
+        Write-Host "Claims: $totalClaims | Proposals (dry-run): $($capped.Count) | Dropped by cap: $($dropped.Count) | Negation-slice: $($negationSlice.Count) | $gateNote"
     }
 
     [PSCustomObject]@{
@@ -382,6 +501,9 @@ function Invoke-OrgClaimMatching {
         DroppedByCap        = @($dropped)
         Proposals           = @($capped)
         NegationSlice       = @($negationSlice)
+        DirectionalFlipped  = $directionalFlipped
+        DirectionalCounts   = $directionalCounts
+        DirectionalGate     = (-not $SkipDirectionalGate)
         Failed              = @($failed)
         EmbeddingsPath      = $EmbeddingsPath
     }
