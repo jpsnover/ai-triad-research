@@ -5,9 +5,11 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { runNliDirectionGate, buildNliNodeProp } from './nliDirectionGate.js';
 import type { ArgumentNetworkNode } from '../types.js';
 
-vi.mock('child_process', async (importOriginal) => {
-  const actual = await importOriginal();
-  return { ...(actual as object), spawnSync: vi.fn() };
+// Create the fn inside the factory so it's available when vi.mock is hoisted.
+// Both the default and named export reference the same fn for cross-env compat.
+vi.mock('child_process', () => {
+  const fn = vi.fn();
+  return { default: { spawnSync: fn }, spawnSync: fn };
 });
 
 import { spawnSync } from 'child_process';
@@ -58,20 +60,34 @@ describe('buildNliNodeProp — rich node prop for NLI (t/2744#7)', () => {
     const desc = 'Encompasses: everything, nothing.';
     expect(buildNliNodeProp('Label Only', desc)).toBe('Label Only');
   });
+
+  it('richness arm — label-only would not match V1; label+Core does (t/2744#8)', () => {
+    // Demonstrates the load-bearing contrast: stripping Encompasses produces the
+    // same core text that tau_contra=1.0 was calibrated on (CL 4-variant test).
+    const fullDesc = 'Existing laws are insufficient for AI. Encompasses: tort law, liability.';
+    const labelOnly = 'Existing Laws Insufficient';
+    const labelPlusCore = buildNliNodeProp(labelOnly, fullDesc);
+    expect(labelPlusCore).toBe('Existing Laws Insufficient — Existing laws are insufficient for AI.');
+    // Bare label (what a naive caller would pass) is shorter and loses the proposition
+    expect(labelOnly).not.toContain('insufficient for AI');
+    // Rich form preserves the asserted proposition (the inversion-catchable content)
+    expect(labelPlusCore).toContain('insufficient for AI');
+  });
 });
 
 describe('runNliDirectionGate — V4 direction gate (t/2746)', () => {
-  it('returns empty set when no nodes are attributed', () => {
+  it('returns empty result when no nodes are attributed', () => {
     const nodes = [makeNode('AN-1', null)];
     const result = runNliDirectionGate(nodes, new Map(), 'acc');
-    expect(result.size).toBe(0);
+    expect(result.opposingIds.size).toBe(0);
+    expect(result.counts).toEqual({ opposes: 0, agrees: 0, unrelated: 0, unresolved: 0 });
     expect(mockSpawn).not.toHaveBeenCalled();
   });
 
-  it('returns empty set when nodeTextById has no entry for the ref', () => {
+  it('returns empty result when nodeTextById has no entry for the ref', () => {
     const nodes = [makeNode('AN-1', 'acc-bel-001')];
     const result = runNliDirectionGate(nodes, new Map(), 'acc');
-    expect(result.size).toBe(0);
+    expect(result.opposingIds.size).toBe(0);
     expect(mockSpawn).not.toHaveBeenCalled();
   });
 
@@ -83,8 +99,9 @@ describe('runNliDirectionGate — V4 direction gate (t/2746)', () => {
     ]) as any);
 
     const result = runNliDirectionGate(nodes, nodeMap, 'acc');
-    expect(result.has('AN-1')).toBe(true);
-    expect(result.size).toBe(1);
+    expect(result.opposingIds.has('AN-1')).toBe(true);
+    expect(result.counts.opposes).toBe(1);
+    expect(result.counts.agrees).toBe(0);
   });
 
   it('keeps claim when engine returns unrelated', () => {
@@ -95,7 +112,8 @@ describe('runNliDirectionGate — V4 direction gate (t/2746)', () => {
     ]) as any);
 
     const result = runNliDirectionGate(nodes, nodeMap, 'acc');
-    expect(result.has('AN-1')).toBe(false);
+    expect(result.opposingIds.has('AN-1')).toBe(false);
+    expect(result.counts.unrelated).toBe(1);
   });
 
   it('keeps claim when engine returns unresolved (fail-safe output)', () => {
@@ -106,7 +124,8 @@ describe('runNliDirectionGate — V4 direction gate (t/2746)', () => {
     ]) as any);
 
     const result = runNliDirectionGate(nodes, nodeMap, 'acc');
-    expect(result.size).toBe(0);
+    expect(result.opposingIds.size).toBe(0);
+    expect(result.counts.unresolved).toBe(1);
   });
 
   it('keeps claim when engine returns agrees', () => {
@@ -117,37 +136,39 @@ describe('runNliDirectionGate — V4 direction gate (t/2746)', () => {
     ]) as any);
 
     const result = runNliDirectionGate(nodes, nodeMap, 'acc');
-    expect(result.size).toBe(0);
+    expect(result.opposingIds.size).toBe(0);
+    expect(result.counts.agrees).toBe(1);
   });
 
-  it('returns empty set (fail-safe) when subprocess exits non-zero', () => {
+  it('returns empty result (fail-safe) when subprocess exits non-zero', () => {
     const nodes = [makeNode('AN-1', 'acc-bel-001')];
     const nodeMap = new Map([['acc-bel-001', 'some node text']]);
     mockSpawn.mockReturnValue({ stdout: '', stderr: 'ImportError', status: 1, error: undefined } as any);
 
     const result = runNliDirectionGate(nodes, nodeMap, 'acc');
-    expect(result.size).toBe(0);
+    expect(result.opposingIds.size).toBe(0);
+    expect(result.counts).toEqual({ opposes: 0, agrees: 0, unrelated: 0, unresolved: 0 });
   });
 
-  it('returns empty set (fail-safe) when subprocess throws', () => {
+  it('returns empty result (fail-safe) when subprocess throws', () => {
     const nodes = [makeNode('AN-1', 'acc-bel-001')];
     const nodeMap = new Map([['acc-bel-001', 'some node text']]);
     mockSpawn.mockReturnValue({ stdout: '', stderr: '', status: 0, error: new Error('ENOENT') } as any);
 
     const result = runNliDirectionGate(nodes, nodeMap, 'acc');
-    expect(result.size).toBe(0);
+    expect(result.opposingIds.size).toBe(0);
   });
 
-  it('returns empty set (fail-safe) when subprocess output is malformed JSON', () => {
+  it('returns empty result (fail-safe) when subprocess output is malformed JSON', () => {
     const nodes = [makeNode('AN-1', 'acc-bel-001')];
     const nodeMap = new Map([['acc-bel-001', 'some node text']]);
     mockSpawn.mockReturnValue({ stdout: 'not json', stderr: '', status: 0, error: undefined } as any);
 
     const result = runNliDirectionGate(nodes, nodeMap, 'acc');
-    expect(result.size).toBe(0);
+    expect(result.opposingIds.size).toBe(0);
   });
 
-  it('handles mixed batch — demotes only the opposes claim', () => {
+  it('handles mixed batch — demotes only the opposes claim, counts all', () => {
     const nodes = [
       makeNode('AN-1', 'acc-bel-001', 'AI is beneficial'),
       makeNode('AN-2', 'acc-bel-002', 'AI is dangerous'),
@@ -162,13 +183,15 @@ describe('runNliDirectionGate — V4 direction gate (t/2746)', () => {
     ]) as any);
 
     const result = runNliDirectionGate(nodes, nodeMap, 'acc');
-    expect(result.has('AN-1')).toBe(false);
-    expect(result.has('AN-2')).toBe(true);
+    expect(result.opposingIds.has('AN-1')).toBe(false);
+    expect(result.opposingIds.has('AN-2')).toBe(true);
+    expect(result.counts).toEqual({ opposes: 1, agrees: 1, unrelated: 0, unresolved: 0 });
   });
 
-  it('passes claim_pov and node_pov to the subprocess', () => {
+  it('passes claim_pov, node_pov, and rich node_prop to the subprocess', () => {
+    const desc = 'AI cannot be regulated. Encompasses: AI safety, AGI policy.';
     const nodes = [makeNode('AN-1', 'saf-bel-001', 'safety first')];
-    const nodeMap = new Map([['saf-bel-001', 'safety matters']]);
+    const nodeMap = new Map([['saf-bel-001', buildNliNodeProp('Unregulatable AI', desc)]]);
     mockSpawn.mockReturnValue(spawnResult([
       { id: 'AN-1', direction: 'unrelated', confidence: 0.1, method: 'nli-deberta' },
     ]) as any);
@@ -180,5 +203,8 @@ describe('runNliDirectionGate — V4 direction gate (t/2746)', () => {
     const parsed = JSON.parse(stdin);
     expect(parsed[0].claim_pov).toBe('safetyist');
     expect(parsed[0].node_pov).toBe('safetyist');
+    // Rich node_prop: label+Core with Encompasses stripped
+    expect(parsed[0].node_prop).toBe('Unregulatable AI — AI cannot be regulated.');
+    expect(parsed[0].node_prop).not.toContain('Encompasses');
   });
 });

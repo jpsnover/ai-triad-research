@@ -25,6 +25,7 @@ export type EventType =
   | 'an.extraction_confidence_delta'
   | 'an.extraction_coverage_error'
   | 'an.exclusion_violation'
+  | 'an.nli_direction_gate'
   // Turn pipeline
   | 'turn.stage'
   | 'turn.validate'

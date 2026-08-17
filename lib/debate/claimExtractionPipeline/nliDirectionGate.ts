@@ -39,24 +39,40 @@ interface NliOutput {
   method: string;
 }
 
+export interface NliGateCounts {
+  opposes: number;
+  agrees: number;
+  unrelated: number;
+  unresolved: number;
+}
+
+export interface NliGateResult {
+  opposingIds: Set<string>;
+  counts: NliGateCounts;
+}
+
+const ZERO_COUNTS: NliGateCounts = { opposes: 0, agrees: 0, unrelated: 0, unresolved: 0 };
+
 /**
  * V4 NLI direction gate (t/2746): subprocess-calls scripts/nli_classify.py for
- * each attributed claim and returns the IDs of claims where direction === 'opposes'.
+ * each attributed claim and returns IDs of claims where direction === 'opposes'
+ * plus per-direction counts for diagnostics.
  *
  * Opposition-only gate (CL ruling t/2751#3): callers demote 'opposes' claims to
  * direction_mismatch; all other directions keep their attribution unchanged.
  *
- * Fail-safe: any subprocess error or parse failure returns an empty set — the
- * gate never falsely demotes a claim. 'unresolved' is the engine's fail-safe
- * output and is treated identically to 'unrelated' here (keep attribution).
+ * Fail-safe: any subprocess error or parse failure returns empty set + zero counts —
+ * the gate never falsely demotes a claim. 'unresolved' is the engine's fail-safe
+ * output and is treated identically to 'unrelated' (keep attribution).
  */
 export function runNliDirectionGate(
   nodes: ArgumentNetworkNode[],
   nodeTextById: Map<string, string>,
   speakerPov: string,
-): Set<string> {
+): NliGateResult {
+  const empty: NliGateResult = { opposingIds: new Set(), counts: { ...ZERO_COUNTS } };
   const attributed = nodes.filter(n => n.claim_taxonomy_attribution?.primary_ref);
-  if (attributed.length === 0) return new Set();
+  if (attributed.length === 0) return empty;
 
   const batch: NliInput[] = [];
   for (const n of attributed) {
@@ -70,7 +86,7 @@ export function runNliDirectionGate(
       node_pov: speakerPov,
     });
   }
-  if (batch.length === 0) return new Set();
+  if (batch.length === 0) return empty;
 
   const proc = spawnSync('python', [NLI_SCRIPT], {
     input: JSON.stringify(batch),
@@ -84,7 +100,7 @@ export function runNliDirectionGate(
       `[nli-direction-gate] subprocess failed (status=${proc.status}): ` +
       (proc.stderr?.slice(0, 300) ?? proc.error?.message ?? 'unknown'),
     );
-    return new Set();
+    return empty;
   }
 
   let outputs: NliOutput[];
@@ -92,9 +108,17 @@ export function runNliDirectionGate(
     outputs = JSON.parse(proc.stdout);
   } catch {
     console.warn('[nli-direction-gate] failed to parse subprocess output');
-    return new Set();
+    return empty;
   }
-  if (!Array.isArray(outputs)) return new Set();
+  if (!Array.isArray(outputs)) return empty;
 
-  return new Set(outputs.filter(o => o.direction === 'opposes').map(o => o.id));
+  const counts: NliGateCounts = { ...ZERO_COUNTS };
+  const opposingIds = new Set<string>();
+  for (const o of outputs) {
+    if (o.direction === 'opposes') { counts.opposes++; opposingIds.add(o.id); }
+    else if (o.direction === 'agrees') counts.agrees++;
+    else if (o.direction === 'unresolved') counts.unresolved++;
+    else counts.unrelated++;
+  }
+  return { opposingIds, counts };
 }
