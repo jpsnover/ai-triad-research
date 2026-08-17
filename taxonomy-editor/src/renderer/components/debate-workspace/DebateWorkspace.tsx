@@ -7,7 +7,6 @@ import { useDebateStore } from '../../hooks/useDebateStore';
 import { useShallow } from 'zustand/react/shallow';
 import { useTaxonomyStore } from '../../hooks/useTaxonomyStore';
 import type { SpeakerId } from '../../types/debate';
-import { DebateSourceViewer } from '../debate/DebateSourceViewer';
 import { NeutralEvaluationPanel } from '../analysis/NeutralEvaluationPanel';
 import { ParameterHistoryPanel } from '../analysis/ParameterHistoryPanel';
 import { computeCoverageMap, computeStrengthWeightedCoverage } from '@lib/debate/coverageTracker';
@@ -32,6 +31,7 @@ import { useCommunityStore } from '../../hooks/useCommunityStore';
 import { useUserProfile } from '../../hooks/useAuthStatus';
 import { CommunityShareBanner } from '../shared/CommunityShareBanner';
 import { DebateHeader } from './DebateHeader';
+import { DebateSetupDialog } from './DebateSetupDialog';
 import { StatementCard, ProbingCard, FactCheckCard, EntryDeleteControls, HighlightedText, PhaseHairline } from './StatementCard';
 import { DebaterToggles, DebateActions } from './DebateActionBar';
 import { DebatePhaseIndicators } from './DebatePhaseIndicators';
@@ -470,15 +470,14 @@ function GlobalModeControl({ defaultTier, setDefaultTier }: {
 }
 
 function DebateToolbar({
-  activeDebate, isExploration, isCrossCutting, onShowCCDetails,
+  activeDebate, isExploration, onShowSetup,
   commentSidebarOpen, toggleCommentSidebar, commentsFile,
   exportStatus, onExport, diagnosticsEnabled, toggleDiagnostics,
   defaultTier, setDefaultTier, headerVariant = false,
 }: {
   activeDebate: ActiveDebateSession;
   isExploration: boolean;
-  isCrossCutting: boolean;
-  onShowCCDetails: () => void;
+  onShowSetup: () => void;
   commentSidebarOpen: boolean;
   toggleCommentSidebar: () => void;
   commentsFile: CommentStoreState['commentsFile'];
@@ -505,15 +504,13 @@ function DebateToolbar({
           Exploration
         </span>
       )}
-      {isCrossCutting && (
-        <button
-          className="btn btn-sm debate-cc-details-btn"
-          onClick={onShowCCDetails}
-          title="View situation context used for this debate"
-        >
-          Details
-        </button>
-      )}
+      <button
+        className="btn btn-sm"
+        onClick={onShowSetup}
+        title="View full topic, source, and debate configuration"
+      >
+        Setup
+      </button>
       <button
         className={`btn btn-sm${commentSidebarOpen ? ' active' : ''}`}
         onClick={toggleCommentSidebar}
@@ -536,34 +533,6 @@ function DebateToolbar({
         {diagnosticsEnabled ? 'Diagnostics ON' : 'Diagnostics'}
       </button>
       <GlobalModeControl defaultTier={defaultTier} setDefaultTier={setDefaultTier} />
-    </div>
-  );
-}
-
-function CrossCuttingDialog({ activeDebate, show, onClose }: {
-  activeDebate: ActiveDebateSession;
-  show: boolean;
-  onClose: () => void;
-}) {
-  if (!show || !activeDebate.source_content) return null;
-  return (
-    <div className="dialog-overlay" onClick={onClose}>
-      <div className="dialog debate-cc-details-dialog" onClick={(e) => e.stopPropagation()}>
-        <div className="debate-cc-details-header">
-          <h3>Cross-Cutting Context</h3>
-          {activeDebate.source_ref && (
-            <span className="debate-source-ref">{activeDebate.source_ref}</span>
-          )}
-          <button className="debate-inspect-close" onClick={onClose} title="Close" aria-label="Close">&times;</button>
-        </div>
-        <div className="debate-cc-details-body">
-          <DebateSourceViewer
-            content={activeDebate.source_content}
-            sourceType="document"
-            sourceRef={activeDebate.source_ref}
-          />
-        </div>
-      </div>
     </div>
   );
 }
@@ -1244,7 +1213,7 @@ export function DebateWorkspace({ onExport, exportStatus }: {
   );
   const { runSemanticSearch, setFindQuery: setStoreFindQuery, setFindMode: setStoreFindMode, setToolbarPanel } = useTaxonomyStore();
   const transcriptEndRef = useRef<HTMLDivElement>(null);
-  const [showCCDetails, setShowCCDetails] = useState(false);
+  const [showSetup, setShowSetup] = useState(false);
   const [showParamHistory, setShowParamHistory] = useState(false);
   const [showEvaluation, setShowEvaluation] = useState(false);
   const [debateChatOpen, setDebateChatOpen] = useState(false);
@@ -1291,7 +1260,6 @@ export function DebateWorkspace({ onExport, exportStatus }: {
   const isDebatePhase = activeDebate.phase === 'debate'
     || activeDebate.phase === 'closed'
     || activeDebate.adaptive_staging?.phase_state?.current_phase != null;
-  const isCrossCutting = activeDebate.source_type === 'situations';
   const isExploration = activeDebate.protocol_id === 'exploration';
   const isExplorationClosed = isExploration && activeDebate.phase === 'closed';
   const showRemoteOverlay = driverIsRemote && !!activeDebate;
@@ -1300,8 +1268,7 @@ export function DebateWorkspace({ onExport, exportStatus }: {
     <div className="debate-workspace-row" data-phase={isClarificationPhase ? 'setup' : undefined}>
     {chatRedesign && <TranscriptOutline transcript={activeDebate.transcript} />}
     <div className="debate-workspace">
-      {/* Cross-cutting context dialog */}
-      <CrossCuttingDialog activeDebate={activeDebate} show={showCCDetails} onClose={() => setShowCCDetails(false)} />
+      {showSetup && <DebateSetupDialog activeDebate={activeDebate} onClose={() => setShowSetup(false)} />}
 
       {/* Find bar */}
       {findVisible && (
@@ -1328,13 +1295,13 @@ export function DebateWorkspace({ onExport, exportStatus }: {
           coverageMap={coverageMap}
           strengthWeighted={strengthWeighted}
           phaseLabel={PHASE_TITLES[activeDebate.phase] || activeDebate.phase}
+          onShowSetup={() => setShowSetup(true)}
           actions={
             <DebateToolbar
               activeDebate={activeDebate}
               headerVariant
               isExploration={isExploration}
-              isCrossCutting={isCrossCutting}
-              onShowCCDetails={() => setShowCCDetails(true)}
+              onShowSetup={() => setShowSetup(true)}
               commentSidebarOpen={commentSidebarOpen}
               toggleCommentSidebar={toggleCommentSidebar}
               commentsFile={commentsFile}
