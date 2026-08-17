@@ -407,7 +407,10 @@ function Find-SituationCandidates {
         $Members = @($Pair.IdA, $Pair.IdB)
         $PovsRepresented = @($Members | ForEach-Object { $NodeIndex[$_].POV } | Select-Object -Unique)
         if ($PovsRepresented.Count -lt 2) { continue }
-        if ($Pair.PSObject.Properties['NliLabel'] -and $Pair.NliLabel) { $NliLabel = $Pair.NliLabel } else { $NliLabel = 'entailment' }
+        # Fail CLOSED: an unlabeled / NLI-failed pair is unverified, not agreement.
+        # Defaulting to 'entailment' here asserted shared-concept agreement we never
+        # confirmed (fail-open, t/2747); resolve to 'neutral' instead.
+        $NliLabel = Resolve-NliLabelOrDefault -Pair $Pair
         $NliCounts = @{ entailment = 0; neutral = 0; contradiction = 0 }
         $NliCounts[$NliLabel]++
         $AllScoredGroups.Add([PSCustomObject]@{
