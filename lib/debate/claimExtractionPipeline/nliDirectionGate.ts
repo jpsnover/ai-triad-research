@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-// ── V4 NLI direction gate (t/2746) ───────────────────────
+// ── V5 NLI direction gate (t/2746, t/2744#10) ────────────
 
 import { spawnSync } from 'child_process';
 import { fileURLToPath } from 'url';
@@ -53,17 +53,35 @@ export interface NliGateResult {
 
 const ZERO_COUNTS: NliGateCounts = { opposes: 0, agrees: 0, unrelated: 0, unresolved: 0 };
 
+// Slot suffixes for the three claim-text fields (t/2744#10: run-all, opposes-if-ANY).
+// Using short suffix strings that cannot collide with real claim IDs (which never end in __v/__c/__a).
+const SLOT_V = '__v';
+const SLOT_C = '__c';
+const SLOT_A = '__a';
+const SLOT_SUFFIXES = [SLOT_V, SLOT_C, SLOT_A] as const;
+
+function baseClaimId(slotId: string): string {
+  for (const s of SLOT_SUFFIXES) {
+    if (slotId.endsWith(s)) return slotId.slice(0, -s.length);
+  }
+  return slotId;
+}
+
 /**
- * V4 NLI direction gate (t/2746): subprocess-calls scripts/nli_classify.py for
- * each attributed claim and returns IDs of claims where direction === 'opposes'
- * plus per-direction counts for diagnostics.
+ * V5 NLI direction gate (t/2746, t/2744#10): subprocess-calls scripts/nli_classify.py with
+ * up to THREE slots per claim — verbatim (text), canonical_proposition, attribution_text_genus —
+ * and returns IDs of claims where ANY slot direction === 'opposes' (recall-safe OR rule).
+ *
+ * Rationale (t/2744#10–#11): no single claim field wins across cases. verbatim/canonical
+ * catch the origin key-point inversion; attribution catches the #1184 org-stance case.
+ * The OR rule never false-demotes under opposes-only + fail-safe: extra neutral/entailment
+ * slots don't fire. Counts are claim-level (not slot-level).
  *
  * Opposition-only gate (CL ruling t/2751#3): callers demote 'opposes' claims to
  * direction_mismatch; all other directions keep their attribution unchanged.
  *
  * Fail-safe: any subprocess error or parse failure returns empty set + zero counts —
- * the gate never falsely demotes a claim. 'unresolved' is the engine's fail-safe
- * output and is treated identically to 'unrelated' (keep attribution).
+ * the gate never falsely demotes a claim.
  */
 export function runNliDirectionGate(
   nodes: ArgumentNetworkNode[],
@@ -74,17 +92,24 @@ export function runNliDirectionGate(
   const attributed = nodes.filter(n => n.claim_taxonomy_attribution?.primary_ref);
   if (attributed.length === 0) return empty;
 
+  // Build up to 3 slots per claim — skip unavailable fields.
   const batch: NliInput[] = [];
+  const claimIds = new Set<string>(); // track which claims have at least one slot
   for (const n of attributed) {
     const nodeText = nodeTextById.get(n.claim_taxonomy_attribution!.primary_ref!);
     if (!nodeText) continue;
-    batch.push({
-      id: n.id,
-      claim_prop: n.canonical_proposition ?? n.text,
-      node_prop: nodeText,
-      claim_pov: speakerPov,
-      node_pov: speakerPov,
-    });
+    const fields: Array<[string, string | undefined]> = [
+      [SLOT_V, n.text],
+      [SLOT_C, n.canonical_proposition],
+      [SLOT_A, n.attribution_text_genus],
+    ];
+    let added = false;
+    for (const [suffix, claimText] of fields) {
+      if (!claimText) continue;
+      batch.push({ id: `${n.id}${suffix}`, claim_prop: claimText, node_prop: nodeText, claim_pov: speakerPov, node_pov: speakerPov });
+      added = true;
+    }
+    if (added) claimIds.add(n.id);
   }
   if (batch.length === 0) return empty;
 
@@ -112,13 +137,28 @@ export function runNliDirectionGate(
   }
   if (!Array.isArray(outputs)) return empty;
 
+  // Group slot outputs by claim ID, then apply OR rule at claim level.
+  const slotsByClaimId = new Map<string, NliOutput[]>();
+  for (const o of outputs) {
+    const cid = baseClaimId(o.id);
+    const arr = slotsByClaimId.get(cid);
+    if (arr) arr.push(o); else slotsByClaimId.set(cid, [o]);
+  }
+
   const counts: NliGateCounts = { ...ZERO_COUNTS };
   const opposingIds = new Set<string>();
-  for (const o of outputs) {
-    if (o.direction === 'opposes') { counts.opposes++; opposingIds.add(o.id); }
-    else if (o.direction === 'agrees') counts.agrees++;
-    else if (o.direction === 'unresolved') counts.unresolved++;
-    else counts.unrelated++;
+  for (const [claimId, slots] of slotsByClaimId) {
+    const dirs = slots.map(s => s.direction);
+    if (dirs.some(d => d === 'opposes')) {
+      counts.opposes++;
+      opposingIds.add(claimId);
+    } else if (dirs.some(d => d === 'agrees')) {
+      counts.agrees++;
+    } else if (dirs.every(d => d === 'unresolved')) {
+      counts.unresolved++;
+    } else {
+      counts.unrelated++;
+    }
   }
   return { opposingIds, counts };
 }

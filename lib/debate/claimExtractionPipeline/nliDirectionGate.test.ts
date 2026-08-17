@@ -15,10 +15,18 @@ vi.mock('child_process', () => {
 import { spawnSync } from 'child_process';
 const mockSpawn = vi.mocked(spawnSync);
 
-function makeNode(id: string, primaryRef: string | null, text = 'some claim'): ArgumentNetworkNode {
+function makeNode(
+  id: string,
+  primaryRef: string | null,
+  text = 'some claim',
+  canonical?: string,
+  attribution?: string,
+): ArgumentNetworkNode {
   return {
     id,
     text,
+    ...(canonical !== undefined && { canonical_proposition: canonical }),
+    ...(attribution !== undefined && { attribution_text_genus: attribution }),
     speaker: 'accelerationist',
     source_entry_id: 'e1',
     taxonomy_refs: [],
@@ -75,7 +83,10 @@ describe('buildNliNodeProp — rich node prop for NLI (t/2744#7)', () => {
   });
 });
 
-describe('runNliDirectionGate — V4 direction gate (t/2746)', () => {
+describe('runNliDirectionGate — V5 direction gate, multi-field OR (t/2746, t/2744#10)', () => {
+  // V5 sends up to 3 slots per claim (id__v / id__c / id__a) and applies opposes-if-ANY.
+  // Default makeNode has only text set → one slot (__v). Tests with all fields use makeNode overloads.
+
   it('returns empty result when no nodes are attributed', () => {
     const nodes = [makeNode('AN-1', null)];
     const result = runNliDirectionGate(nodes, new Map(), 'acc');
@@ -91,11 +102,11 @@ describe('runNliDirectionGate — V4 direction gate (t/2746)', () => {
     expect(mockSpawn).not.toHaveBeenCalled();
   });
 
-  it('demotes claim when engine returns opposes', () => {
+  it('demotes claim when verbatim slot returns opposes', () => {
     const nodes = [makeNode('AN-1', 'acc-bel-001')];
     const nodeMap = new Map([['acc-bel-001', 'AI regulation accelerates progress']]);
     mockSpawn.mockReturnValue(spawnResult([
-      { id: 'AN-1', direction: 'opposes', confidence: 1.4, method: 'nli-deberta' },
+      { id: 'AN-1__v', direction: 'opposes', confidence: 1.4, method: 'nli-deberta' },
     ]) as any);
 
     const result = runNliDirectionGate(nodes, nodeMap, 'acc');
@@ -104,11 +115,11 @@ describe('runNliDirectionGate — V4 direction gate (t/2746)', () => {
     expect(result.counts.agrees).toBe(0);
   });
 
-  it('keeps claim when engine returns unrelated', () => {
+  it('keeps claim when verbatim slot returns unrelated', () => {
     const nodes = [makeNode('AN-1', 'acc-bel-001')];
     const nodeMap = new Map([['acc-bel-001', 'AI regulation accelerates progress']]);
     mockSpawn.mockReturnValue(spawnResult([
-      { id: 'AN-1', direction: 'unrelated', confidence: 0.2, method: 'nli-deberta' },
+      { id: 'AN-1__v', direction: 'unrelated', confidence: 0.2, method: 'nli-deberta' },
     ]) as any);
 
     const result = runNliDirectionGate(nodes, nodeMap, 'acc');
@@ -116,11 +127,11 @@ describe('runNliDirectionGate — V4 direction gate (t/2746)', () => {
     expect(result.counts.unrelated).toBe(1);
   });
 
-  it('keeps claim when engine returns unresolved (fail-safe output)', () => {
+  it('keeps claim when verbatim slot returns unresolved (fail-safe output)', () => {
     const nodes = [makeNode('AN-1', 'acc-bel-001')];
     const nodeMap = new Map([['acc-bel-001', 'AI regulation accelerates progress']]);
     mockSpawn.mockReturnValue(spawnResult([
-      { id: 'AN-1', direction: 'unresolved', confidence: 0.0, method: 'nli-deberta' },
+      { id: 'AN-1__v', direction: 'unresolved', confidence: 0.0, method: 'nli-deberta' },
     ]) as any);
 
     const result = runNliDirectionGate(nodes, nodeMap, 'acc');
@@ -128,17 +139,121 @@ describe('runNliDirectionGate — V4 direction gate (t/2746)', () => {
     expect(result.counts.unresolved).toBe(1);
   });
 
-  it('keeps claim when engine returns agrees', () => {
-    const nodes = [makeNode('AN-1', 'acc-bel-001')];
-    const nodeMap = new Map([['acc-bel-001', 'AI regulation accelerates progress']]);
+  it('keeps claim when all slots return agrees (arm-2 genuine-agreement control: no false demote)', () => {
+    // GV arm-2: genuine agreement across all three fields must never manufacture a false opposes.
+    const nodes = [makeNode('AN-1', 'acc-bel-001', 'AI helps everyone', 'AI is beneficial', 'AI improves welfare')];
+    const nodeMap = new Map([['acc-bel-001', 'AI accelerates progress']]);
     mockSpawn.mockReturnValue(spawnResult([
-      { id: 'AN-1', direction: 'agrees', confidence: 0.5, method: 'nli-deberta' },
+      { id: 'AN-1__v', direction: 'agrees', confidence: 0.9, method: 'nli-deberta' },
+      { id: 'AN-1__c', direction: 'agrees', confidence: 0.8, method: 'nli-deberta' },
+      { id: 'AN-1__a', direction: 'agrees', confidence: 0.7, method: 'nli-deberta' },
     ]) as any);
 
     const result = runNliDirectionGate(nodes, nodeMap, 'acc');
     expect(result.opposingIds.size).toBe(0);
     expect(result.counts.agrees).toBe(1);
+    expect(result.counts.opposes).toBe(0);
   });
+
+  // ── OR rule tests (t/2744#10–#11) ──────────────────────────────────────────
+
+  it('OR rule: verbatim→opposes fires even when canonical→unrelated', () => {
+    const nodes = [makeNode('AN-1', 'acc-bel-001', 'verbatim text', 'canonical text')];
+    const nodeMap = new Map([['acc-bel-001', 'node prop']]);
+    mockSpawn.mockReturnValue(spawnResult([
+      { id: 'AN-1__v', direction: 'opposes', confidence: 1.2, method: 'nli-deberta' },
+      { id: 'AN-1__c', direction: 'unrelated', confidence: 0.1, method: 'nli-deberta' },
+    ]) as any);
+
+    const result = runNliDirectionGate(nodes, nodeMap, 'acc');
+    expect(result.opposingIds.has('AN-1')).toBe(true);
+    expect(result.counts.opposes).toBe(1);
+  });
+
+  it('OR rule: attribution→agrees (false entailment) blocked by verbatim→opposes (t/2744#11 case)', () => {
+    // The empirical origin case: attribution_text over-abstracts to false entailment,
+    // but verbatim/canonical both fire opposes — the OR rule catches the inversion.
+    const nodes = [makeNode('AN-1', 'acc-int-047', 'verbatim contradicts node', 'canonical also contradicts', 'attribution entails — false')];
+    const nodeMap = new Map([['acc-int-047', 'Existing laws are insufficient for AI']]);
+    mockSpawn.mockReturnValue(spawnResult([
+      { id: 'AN-1__v', direction: 'opposes', confidence: 4.71, method: 'nli-deberta' },
+      { id: 'AN-1__c', direction: 'opposes', confidence: 1.42, method: 'nli-deberta' },
+      { id: 'AN-1__a', direction: 'agrees',  confidence: 6.84, method: 'nli-deberta' },
+    ]) as any);
+
+    const result = runNliDirectionGate(nodes, nodeMap, 'acc');
+    expect(result.opposingIds.has('AN-1')).toBe(true);
+    expect(result.counts.opposes).toBe(1);
+    expect(result.counts.agrees).toBe(0);
+  });
+
+  it('OR rule: all three slots→unrelated → claim not opposing, counts as unrelated', () => {
+    const nodes = [makeNode('AN-1', 'acc-bel-001', 'v text', 'c text', 'a text')];
+    const nodeMap = new Map([['acc-bel-001', 'node prop']]);
+    mockSpawn.mockReturnValue(spawnResult([
+      { id: 'AN-1__v', direction: 'unrelated', confidence: 0.1, method: 'nli-deberta' },
+      { id: 'AN-1__c', direction: 'unrelated', confidence: 0.1, method: 'nli-deberta' },
+      { id: 'AN-1__a', direction: 'unrelated', confidence: 0.1, method: 'nli-deberta' },
+    ]) as any);
+
+    const result = runNliDirectionGate(nodes, nodeMap, 'acc');
+    expect(result.opposingIds.size).toBe(0);
+    expect(result.counts.unrelated).toBe(1);
+    expect(result.counts.opposes).toBe(0);
+  });
+
+  it('OR rule: all three slots→unresolved → counts as unresolved (fail-safe)', () => {
+    const nodes = [makeNode('AN-1', 'acc-bel-001', 'v text', 'c text', 'a text')];
+    const nodeMap = new Map([['acc-bel-001', 'node prop']]);
+    mockSpawn.mockReturnValue(spawnResult([
+      { id: 'AN-1__v', direction: 'unresolved', confidence: 0.0, method: 'nli-deberta' },
+      { id: 'AN-1__c', direction: 'unresolved', confidence: 0.0, method: 'nli-deberta' },
+      { id: 'AN-1__a', direction: 'unresolved', confidence: 0.0, method: 'nli-deberta' },
+    ]) as any);
+
+    const result = runNliDirectionGate(nodes, nodeMap, 'acc');
+    expect(result.opposingIds.size).toBe(0);
+    expect(result.counts.unresolved).toBe(1);
+  });
+
+  it('sends only available fields — skips undefined canonical and attribution', () => {
+    // Node with only text → batch should have exactly 1 slot (__v).
+    const nodes = [makeNode('AN-1', 'acc-bel-001', 'just verbatim')];
+    const nodeMap = new Map([['acc-bel-001', 'node prop']]);
+    mockSpawn.mockReturnValue(spawnResult([
+      { id: 'AN-1__v', direction: 'unrelated', confidence: 0.1, method: 'nli-deberta' },
+    ]) as any);
+
+    runNliDirectionGate(nodes, nodeMap, 'acc');
+    const stdin = JSON.parse(mockSpawn.mock.calls[0][2]?.input as string);
+    expect(stdin).toHaveLength(1);
+    expect(stdin[0].id).toBe('AN-1__v');
+    expect(stdin[0].claim_prop).toBe('just verbatim');
+  });
+
+  it('sends all three slots when all fields are populated', () => {
+    const nodes = [makeNode('AN-1', 'acc-bel-001', 'verbatim', 'canonical', 'attribution')];
+    const nodeMap = new Map([['acc-bel-001', 'node prop']]);
+    mockSpawn.mockReturnValue(spawnResult([
+      { id: 'AN-1__v', direction: 'unrelated', confidence: 0.1, method: 'nli-deberta' },
+      { id: 'AN-1__c', direction: 'unrelated', confidence: 0.1, method: 'nli-deberta' },
+      { id: 'AN-1__a', direction: 'unrelated', confidence: 0.1, method: 'nli-deberta' },
+    ]) as any);
+
+    runNliDirectionGate(nodes, nodeMap, 'acc');
+    const stdin = JSON.parse(mockSpawn.mock.calls[0][2]?.input as string);
+    expect(stdin).toHaveLength(3);
+    const ids = stdin.map((s: { id: string }) => s.id);
+    expect(ids).toContain('AN-1__v');
+    expect(ids).toContain('AN-1__c');
+    expect(ids).toContain('AN-1__a');
+    const byId = Object.fromEntries(stdin.map((s: { id: string; claim_prop: string }) => [s.id, s.claim_prop]));
+    expect(byId['AN-1__v']).toBe('verbatim');
+    expect(byId['AN-1__c']).toBe('canonical');
+    expect(byId['AN-1__a']).toBe('attribution');
+  });
+
+  // ── Fail-safe tests ────────────────────────────────────────────────────────
 
   it('returns empty result (fail-safe) when subprocess exits non-zero', () => {
     const nodes = [makeNode('AN-1', 'acc-bel-001')];
@@ -168,7 +283,7 @@ describe('runNliDirectionGate — V4 direction gate (t/2746)', () => {
     expect(result.opposingIds.size).toBe(0);
   });
 
-  it('handles mixed batch — demotes only the opposes claim, counts all', () => {
+  it('handles mixed batch — demotes only the opposes claim, counts all (claim-level)', () => {
     const nodes = [
       makeNode('AN-1', 'acc-bel-001', 'AI is beneficial'),
       makeNode('AN-2', 'acc-bel-002', 'AI is dangerous'),
@@ -178,8 +293,8 @@ describe('runNliDirectionGate — V4 direction gate (t/2746)', () => {
       ['acc-bel-002', 'AI reduces risk'],
     ]);
     mockSpawn.mockReturnValue(spawnResult([
-      { id: 'AN-1', direction: 'agrees', confidence: 0.8, method: 'nli-deberta' },
-      { id: 'AN-2', direction: 'opposes', confidence: 1.3, method: 'nli-deberta' },
+      { id: 'AN-1__v', direction: 'agrees',  confidence: 0.8, method: 'nli-deberta' },
+      { id: 'AN-2__v', direction: 'opposes', confidence: 1.3, method: 'nli-deberta' },
     ]) as any);
 
     const result = runNliDirectionGate(nodes, nodeMap, 'acc');
@@ -188,12 +303,12 @@ describe('runNliDirectionGate — V4 direction gate (t/2746)', () => {
     expect(result.counts).toEqual({ opposes: 1, agrees: 1, unrelated: 0, unresolved: 0 });
   });
 
-  it('passes claim_pov, node_pov, and rich node_prop to the subprocess', () => {
+  it('passes claim_pov, node_pov, and rich node_prop to each slot', () => {
     const desc = 'AI cannot be regulated. Encompasses: AI safety, AGI policy.';
     const nodes = [makeNode('AN-1', 'saf-bel-001', 'safety first')];
     const nodeMap = new Map([['saf-bel-001', buildNliNodeProp('Unregulatable AI', desc)]]);
     mockSpawn.mockReturnValue(spawnResult([
-      { id: 'AN-1', direction: 'unrelated', confidence: 0.1, method: 'nli-deberta' },
+      { id: 'AN-1__v', direction: 'unrelated', confidence: 0.1, method: 'nli-deberta' },
     ]) as any);
 
     runNliDirectionGate(nodes, nodeMap, 'safetyist');
