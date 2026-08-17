@@ -76,7 +76,7 @@ interface ParsedOpEdCreate { topic: string; povs: string[]; params: OpEdParams }
 function parseOpEdCreate(body: unknown): { ok: true; value: ParsedOpEdCreate } | { ok: false; status: number; message: string } {
   const b = (body ?? {}) as { topic?: unknown; params?: OpEdParams; povs?: unknown; url?: unknown; source?: unknown };
   // P1 is FromTopic only (TL) — never present a submit path the server can't run.
-  if (b.url != null || b.source != null) return { ok: false, status: 400, message: 'URL/source op-eds are desktop-only in v1 — use a topic' };
+  if (b.url != null || b.source != null) return { ok: false, status: 400, message: 'URL sources require the desktop app — open the desktop app to generate an op-ed from a URL' };
   const topic = typeof b.topic === 'string' ? b.topic.trim() : '';
   const povs = Array.isArray(b.povs) ? b.povs.filter((p): p is string => typeof p === 'string') : [];
   const params = b.params;
