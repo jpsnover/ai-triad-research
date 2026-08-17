@@ -215,6 +215,13 @@ describe('OpEdTable — My variant', () => {
     expect(screen.getByRole('columnheader', { name: /headline/i })).toBeTruthy();
   });
 
+  it('renders columns in the t/2724 order: Camp, Date, Outlet, Actions, Headline', () => {
+    render(<OpEdTable {...noopMyProps} rows={[makeSummary()]} />);
+    // Strip sort indicators (▲/▼) and whitespace → bare labels; single-word labels only.
+    const headers = screen.getAllByRole('columnheader').map(th => (th.textContent || '').replace(/[^A-Za-z]/g, ''));
+    expect(headers).toEqual(['Camp', 'Date', 'Outlet', 'Actions', 'Headline']);
+  });
+
   // t/2605 regression: the full My table over a NON-EMPTY OpEdSetSummary[] must render
   // camp chips + voice counts for every row without throwing. A prior version iterated
   // `set.opeds` on the summary and crashed on the first non-empty list; an empty-rows
