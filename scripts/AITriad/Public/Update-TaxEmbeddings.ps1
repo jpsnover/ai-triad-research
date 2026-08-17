@@ -8,8 +8,16 @@ function Update-TaxEmbeddings {
     .DESCRIPTION
         Calls embed_taxonomy.py generate to rebuild the semantic embeddings
         used by Get-Tax -Similar. Requires Python with sentence-transformers.
+    .PARAMETER AutoCommit
+        On success, git-add + commit taxonomy/Origin/embeddings.json to the DATA repo
+        with a machine-attributed message, so a run never leaves unattributed churn in
+        the shared data checkout (t/2753). Default $true. Pipeline callers that own the
+        broader commit pass -AutoCommit:$false. No-op when the file is unchanged, git is
+        absent, or the data root is not a git work tree (warns, never throws).
     .EXAMPLE
         Update-TaxEmbeddings
+    .EXAMPLE
+        Update-TaxEmbeddings -AutoCommit:$false   # pipeline owns the commit
     .LINK
         Show-AITriadHelp
     .LINK
@@ -26,7 +34,9 @@ function Update-TaxEmbeddings {
         Test-OntologyCompliance
     #>
     [CmdletBinding()]
-    param()
+    param(
+        [switch]$AutoCommit = $true
+    )
 
     Set-StrictMode -Version Latest
     $ErrorActionPreference = 'Stop'
@@ -78,4 +88,43 @@ function Update-TaxEmbeddings {
         return
     }
     Write-Host "Embeddings updated successfully." -ForegroundColor Green
+
+    # ── Auto-commit to the DATA repo (t/2753) ────────────────────────────────
+    # Prevent shared-data-checkout drift: a regen must never leave unattributed
+    # embeddings.json churn in the shared data tree (the t/2750 incident). Commit it
+    # here with machine attribution unless the pipeline owns the broader commit
+    # (-AutoCommit:$false). Narrow staging (embeddings.json only), no-change guard,
+    # and graceful degradation (warn, never throw — the embeddings are already written).
+    if ($AutoCommit) {
+        $DataRoot = Get-DataRoot
+        $EmbFile  = Join-Path (Get-TaxonomyDir) 'embeddings.json'
+        $GitCmd   = Get-Command git -ErrorAction SilentlyContinue
+
+        if (-not $GitCmd) {
+            Write-Warning "Update-TaxEmbeddings: -AutoCommit skipped — git not found on PATH. Commit embeddings.json manually to avoid shared-checkout drift (t/2753)."
+        }
+        elseif (-not $DataRoot -or ((& git -C $DataRoot rev-parse --is-inside-work-tree 2>$null) -ne 'true')) {
+            Write-Warning "Update-TaxEmbeddings: -AutoCommit skipped — data root '$DataRoot' is not a git work tree. Commit embeddings.json manually (t/2753)."
+        }
+        elseif (-not (Test-Path $EmbFile)) {
+            Write-Warning "Update-TaxEmbeddings: -AutoCommit skipped — embeddings.json not found at '$EmbFile'."
+        }
+        else {
+            $Status = (& git -C $DataRoot status --porcelain -- $EmbFile 2>$null) -join "`n"
+            if ([string]::IsNullOrWhiteSpace($Status)) {
+                Write-Host "AutoCommit: embeddings.json unchanged — nothing to commit." -ForegroundColor DarkGray
+            }
+            else {
+                & git -C $DataRoot add -- $EmbFile 2>&1 | Out-Null
+                $CommitMsg = "chore(embed): auto-commit embeddings [Update-TaxEmbeddings]`n`nCo-Authored-By: PowerShell (Orca) <main.scripts@ai-triad-research.orca.local>"
+                & git -C $DataRoot commit -m $CommitMsg 2>&1 | Out-Null
+                if ($LASTEXITCODE -eq 0) {
+                    Write-Host "AutoCommit: committed embeddings.json to '$DataRoot'." -ForegroundColor Green
+                }
+                else {
+                    Write-Warning "Update-TaxEmbeddings: -AutoCommit commit failed (git exit $LASTEXITCODE) — embeddings.json is staged but uncommitted. Finish manually: git -C `"$DataRoot`" commit (t/2753)."
+                }
+            }
+        }
+    }
 }
