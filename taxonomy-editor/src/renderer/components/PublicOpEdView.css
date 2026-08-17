@@ -1,0 +1,128 @@
+/* Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+   Licensed under the MIT License. See LICENSE file in the project root. */
+
+/* Public read-only op-ed share view (t/2728). Self-contained, theme-aware — this
+   view renders for a fully logged-out visitor and must not depend on the main app
+   shell. Mirrors the PublicPovView.css posture (slim centered card). */
+
+.pov-oped-root {
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  padding: 2.5rem 1rem 4rem;
+  background: var(--bg, #f7f7f8);
+  color: var(--text, #1a1a1a);
+  box-sizing: border-box;
+}
+
+.pov-oped-card {
+  width: 100%;
+  max-width: 46rem;
+  background: var(--surface, #ffffff);
+  border: 1px solid var(--border, #e2e2e5);
+  border-radius: 12px;
+  padding: 2rem 2.25rem 1.5rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+.pov-oped-status {
+  text-align: center;
+  color: var(--text-muted, #666);
+}
+.pov-oped-status-title {
+  font-size: 1.25rem;
+  margin: 0 0 0.5rem;
+}
+.pov-oped-status-body {
+  margin: 0;
+}
+
+.pov-oped-head {
+  border-bottom: 1px solid var(--border, #e2e2e5);
+  padding-bottom: 1rem;
+  margin-bottom: 1.25rem;
+}
+.pov-oped-topic {
+  font-size: 1.6rem;
+  line-height: 1.2;
+  margin: 0;
+}
+.pov-oped-outlet {
+  margin: 0.4rem 0 0;
+  color: var(--text-muted, #666);
+  font-size: 0.9rem;
+}
+
+.pov-oped-article {
+  margin: 1.75rem 0;
+}
+.pov-oped-strip {
+  border-left: 4px solid var(--text-muted, #888);
+  padding-left: 0.75rem;
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+  color: var(--text-muted, #666);
+  text-transform: uppercase;
+  margin-bottom: 0.6rem;
+}
+.pov-oped-headline {
+  font-size: 1.3rem;
+  line-height: 1.25;
+  margin: 0 0 0.35rem;
+}
+.pov-oped-subtitle {
+  font-size: 1.02rem;
+  color: var(--text-muted, #555);
+  margin: 0 0 0.9rem;
+  font-style: italic;
+}
+.pov-oped-body {
+  font-family: var(--font-serif, 'Source Serif 4', Georgia, serif);
+  font-size: 1.05rem;
+  line-height: 1.65;
+}
+.pov-oped-body p { margin: 0 0 1rem; }
+.pov-oped-body h1,
+.pov-oped-body h2,
+.pov-oped-body h3 { line-height: 1.3; }
+
+.pov-oped-notice {
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  background: var(--surface-muted, #f0f0f2);
+  color: var(--text-muted, #666);
+  font-size: 0.92rem;
+}
+
+.pov-oped-empty {
+  color: var(--text-muted, #666);
+  text-align: center;
+}
+
+.pov-oped-footer {
+  border-top: 1px solid var(--border, #e2e2e5);
+  padding-top: 1rem;
+  margin-top: 1.5rem;
+  text-align: center;
+}
+.pov-oped-brand {
+  font-size: 0.8rem;
+  letter-spacing: 0.05em;
+  color: var(--text-muted, #888);
+  text-transform: uppercase;
+}
+
+@media (prefers-color-scheme: dark) {
+  .pov-oped-root {
+    background: var(--bg, #17171a);
+    color: var(--text, #e8e8ea);
+  }
+  .pov-oped-card {
+    background: var(--surface, #1f1f23);
+    border-color: var(--border, #33333a);
+    box-shadow: none;
+  }
+  .pov-oped-notice {
+    background: var(--surface-muted, #26262b);
+  }
+}
