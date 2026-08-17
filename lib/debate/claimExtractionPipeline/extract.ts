@@ -32,7 +32,7 @@ import { entailmentRepairPrompt, cruxRefreshPrompt } from '../prompts.js';
 import { callByUsage } from '../../ai-client/usageRegistry.js';
 import { getGlobalRecorder } from '../../flight-recorder/index.js';
 import { hashString, looksTruncated, updateExtractionSummary } from './helpers.js';
-import { runNliDirectionGate } from './nliDirectionGate.js';
+import { runNliDirectionGate, buildNliNodeProp } from './nliDirectionGate.js';
 import type { ClaimExtractionContext } from './context.js';
 
 export async function extractClaims(
@@ -236,7 +236,7 @@ export async function extractClaims(
       trace.attribution_decisions = attrResult.decisions;
 
       // V4 NLI direction gate (t/2746): demote 'opposes' claims to direction_mismatch
-      const nodeTextById = new Map(povNodes.map(n => [n.id, n.description]));
+      const nodeTextById = new Map(povNodes.map(n => [n.id, buildNliNodeProp(n.label, n.description)]));
       const opposingIds = runNliDirectionGate(claimsResult.newNodes, nodeTextById, speakerPov);
       if (opposingIds.size > 0) {
         for (const node of claimsResult.newNodes) {
