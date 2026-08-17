@@ -85,6 +85,11 @@ try {
     #                     (shell-quoting debris like src/server/community/22)
     $untracked = @(Invoke-Git @('-C', $RepoRoot, 'ls-files', '--others', '--exclude-standard') | Where-Object { $_ })
     $sourceDirs = @('taxonomy-editor/src/', 'taxonomy-editor/lib/', 'lib/', 'engineering/', 'operations/', 'research/')
+    # OS-locked files confirmed as junk but un-deletable until host restart.
+    # Entries here suppress SuspiciousPaths alarm. Remove when the file clears.
+    $knownOsLocked = @(
+        'engineering/tech-lead/fail-open'   # vim TUI artifact, OS handle lock — clears on host restart
+    )
     $junkPaths = @()
     $suspiciousPaths = @()
     foreach ($f in $untracked) {
@@ -100,7 +105,7 @@ try {
                 $normalizedF = $f -replace '\\', '/'
                 $inSourceDir = @($sourceDirs | Where-Object { $normalizedF.StartsWith($_) })
                 $hasNoExtension = [System.IO.Path]::GetExtension($item.Name) -eq ''
-                if ($inSourceDir.Count -gt 0 -and $hasNoExtension) { $suspiciousPaths += $f }
+                if ($inSourceDir.Count -gt 0 -and $hasNoExtension -and ($normalizedF -notin $knownOsLocked)) { $suspiciousPaths += $f }
             }
         } catch { continue }
     }
