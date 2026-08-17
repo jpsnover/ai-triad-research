@@ -5,6 +5,7 @@
 
 import type { ArgumentNetworkNode, ClaimTaxonomyAttribution } from '../types.js';
 import { cosineSimilarity, scoreNodeRelevanceMeanTopN } from '../taxonomyRelevance.js';
+import { EXCLUSION_RATIO_THRESHOLD } from '../exclusionGuard.js';
 
 /** Thresholds per spec: primary ≥ 0.35, secondary ≥ 0.40. */
 const ATTRIBUTION_PRIMARY_THRESHOLD = 0.35;
@@ -23,7 +24,7 @@ export interface ClaimAttributionDecision {
   primary_ref: string | null;
   attribution_confidence: number;
   secondary_refs_count: number;
-  unattributed_reason?: 'novel_argument' | 'no_embedding';
+  unattributed_reason?: 'novel_argument' | 'no_embedding' | 'direction_mismatch';
 }
 
 /**
@@ -42,7 +43,7 @@ export interface ClaimAttributionDecision {
 export function computeClaimTaxonomyAttribution(
   nodes: ArgumentNetworkNode[],
   speakerPov: string,
-  nodeEmbeddings: Record<string, { pov: string; vector: number[]; vectors?: number[][] }>,
+  nodeEmbeddings: Record<string, { pov: string; vector: number[]; vectors?: number[][]; exclusion_vector?: number[] }>,
   candidateNodeIds: Set<string>,
   topN: number = 3,
 ): ClaimAttributionResult {
@@ -53,12 +54,13 @@ export function computeClaimTaxonomyAttribution(
   let novelArgument = 0;
 
   // Pre-filter: same-POV nodes with embeddings (all BDI categories)
-  const candidateEntries: [string, { vector: number[]; vectors?: number[][] }][] = [];
+  const candidateEntries: [string, { vector: number[]; vectors?: number[][]; exclusion_vector?: number[] }][] = [];
   for (const [nodeId, entry] of Object.entries(nodeEmbeddings)) {
     if (entry.pov === speakerPov && candidateNodeIds.has(nodeId) && entry.vector?.length > 0) {
-      candidateEntries.push([nodeId, { vector: entry.vector, vectors: entry.vectors }]);
+      candidateEntries.push([nodeId, { vector: entry.vector, vectors: entry.vectors, exclusion_vector: entry.exclusion_vector }]);
     }
   }
+  const candidateMap = new Map(candidateEntries);
   const hasMultiVector = candidateEntries.some(([, e]) => e.vectors && e.vectors.length > 0);
 
   for (const node of nodes) {
@@ -143,6 +145,31 @@ export function computeClaimTaxonomyAttribution(
         unattributed_reason: 'novel_argument',
       });
       continue;
+    }
+
+    // V3 directional gate: if the best candidate has an exclusion_vector and the claim
+    // is similarly close to the exclusion direction, demote to direction_mismatch (t/2746 V3).
+    const bestEntry = candidateMap.get(best.node_id);
+    if (bestEntry?.exclusion_vector && bestEntry.exclusion_vector.length > 0) {
+      const excSim = cosineSimilarity(queryVector, bestEntry.exclusion_vector);
+      if (excSim >= best.similarity * EXCLUSION_RATIO_THRESHOLD) {
+        const attribution: ClaimTaxonomyAttribution = {
+          primary_ref: '',
+          attribution_confidence: best.similarity,
+          unattributed_reason: 'direction_mismatch',
+        };
+        node.claim_taxonomy_attribution = attribution;
+        novelArgument++;
+        unattributed++;
+        decisions.push({
+          claim_id: node.id,
+          primary_ref: null,
+          attribution_confidence: best.similarity,
+          secondary_refs_count: 0,
+          unattributed_reason: 'direction_mismatch',
+        });
+        continue;
+      }
     }
 
     // Attributed — primary ref is the best match
