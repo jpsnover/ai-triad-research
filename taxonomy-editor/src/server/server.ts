@@ -378,12 +378,8 @@ registerEntityRoutes(router, serverCtx);
 registerMentionsRoutes(router, serverCtx);
 
 // ── Public share (t/1788) ──
-// GET /api/public/pov/:pov/node/:nodeId — public, no-login, read-only POV node
-// share. Grouped with organizations/entity (public read tier). Brand-new path —
-// no collision. The auth-exemption is the isPublicPath '/api/public/' clause.
+// Public no-login read-only shares under the auth-exempt /api/public/* namespace (isPublicPath clause): POV node (t/1788) + op-ed set (t/2727, second tenant).
 registerPublicShareRoutes(router, serverCtx);
-// GET /api/public/oped/:shareId — public, no-login, read-only op-ed share (t/2727,
-// design t/2723#3). Second tenant of the '/api/public/' auth-exempt namespace.
 registerOpedShareRoutes(router, serverCtx);
 
 // ── Lineage / edges / source-indexes / data-availability / flags (t/1687: routes/edges.ts) ──
