@@ -272,6 +272,10 @@ export const api: AppAPI = {
   createOpEdSet: (payload) => opEdIpc().createOpEdSet?.(payload) ?? rejectOpEdIpc('create an op-ed', 'createOpEdSet'),
   cancelOpEdSet: (setId) => { opEdIpc().cancelOpEdSet?.(setId); },
   onOpEdProgress: (cb) => opEdIpc().onOpEdProgress?.(cb) ?? (() => {}),
+  // t/2728: op-ed public sharing is a hosted-web feature (needs the public server route);
+  // desktop has no public URL, so reject with the standard web-only actionable error.
+  shareOpEdSet: () => rejectOpEdIpc('share an op-ed', 'shareOpEdSet'),
+  unshareOpEdSet: () => rejectOpEdIpc('un-share an op-ed', 'unshareOpEdSet'),
 
   // News Report
   generateNewsReport: (debateId) => window.electronAPI.generateNewsReport(debateId),

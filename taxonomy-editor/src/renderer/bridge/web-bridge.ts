@@ -1030,6 +1030,9 @@ const rawApi: AppAPI = {
   createOpEdSet: (payload) => runOpEdCreate(fetchWithSessionRecovery, payload),
   cancelOpEdSet: () => cancelActiveOpEdRun(), // aborts the in-flight POST → server cancels voices
   onOpEdProgress: (cb) => opedProgressBus.onProgress(cb),
+  // t/2728: publish/revoke a durable public share link (server: routes/oped.ts + opedShare.ts).
+  shareOpEdSet: (id) => post<{ shareId: string; url: string }>(`/api/oped-sets/${encodeURIComponent(id)}/share`, {}),
+  unshareOpEdSet: (id) => del<{ ok: boolean }>(`/api/oped-sets/${encodeURIComponent(id)}/share`),
   exportDebateToFile: async (session, format = 'json', exportOptions) => {
     const { debateToText, debateToMarkdown, debateToHtml, debateToPackage, debateExportFilename } = await import('@lib/debate/debateExport');
     const debate = session as Parameters<typeof debateToText>[0] & { diagnostics?: unknown };

@@ -300,6 +300,11 @@ export interface AppAPI {
   createOpEdSet: (payload: CreateOpEdPayload) => Promise<{ set_id: string }>;
   cancelOpEdSet: (setId: string) => void;
   onOpEdProgress: (callback: (event: OpEdProgressEvent) => void) => () => void;
+  /** t/2728: publish a durable public share link for an op-ed set. Web-only (the public
+   *  URL is served by the hosted server, GET /api/public/oped/:shareId); Electron rejects. */
+  shareOpEdSet: (setId: string) => Promise<{ shareId: string; url: string }>;
+  /** t/2728: revoke a public share (owner-only). */
+  unshareOpEdSet: (setId: string) => Promise<{ ok: boolean }>;
 
   // --- News Report ---
   generateNewsReport: (debateId: string) => Promise<{ article: string }>;

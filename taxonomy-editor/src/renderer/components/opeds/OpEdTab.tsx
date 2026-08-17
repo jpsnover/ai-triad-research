@@ -140,6 +140,78 @@ function OpEdHeaderActions({
   );
 }
 
+// ── Share control (web-only; electron-bridge rejects share — t/2728) ──────────
+//
+// Publishes a durable, no-login public link for a set and copies it to the
+// clipboard. The link is built from the returned shareId against the current
+// origin — canonical `/share/oped/:shareId`, independent of the server's `url`
+// field format. Un-share revokes the public copy (delete + re-share mints a
+// fresh shareId, so a leaked link dies for good).
+
+type ShareState =
+  | { status: 'idle' }
+  | { status: 'working' }
+  | { status: 'shared'; url: string; copied: boolean }
+  | { status: 'error'; message: string };
+
+function ShareOpEdControl({ setId }: { setId: string }) {
+  const [state, setState] = useState<ShareState>({ status: 'idle' });
+
+  const copy = useCallback(async (url: string) => {
+    try {
+      await navigator.clipboard.writeText(url);
+      setState({ status: 'shared', url, copied: true });
+    } catch {
+      // Clipboard denied (permissions/insecure context) — still show the link so
+      // the user can copy manually; this is not a share failure.
+      setState({ status: 'shared', url, copied: false });
+    }
+  }, []);
+
+  const onShare = useCallback(async () => {
+    setState({ status: 'working' });
+    try {
+      const { shareId } = await api.shareOpEdSet(setId);
+      const url = new URL(`/share/oped/${encodeURIComponent(shareId)}`, window.location.origin).href;
+      await copy(url);
+    } catch (err) {
+      setState({ status: 'error', message: err instanceof Error ? err.message : 'Could not create the share link.' });
+    }
+  }, [setId, copy]);
+
+  const onUnshare = useCallback(async () => {
+    setState({ status: 'working' });
+    try {
+      await api.unshareOpEdSet(setId);
+      setState({ status: 'idle' });
+    } catch (err) {
+      setState({ status: 'error', message: err instanceof Error ? err.message : 'Could not revoke the share link.' });
+    }
+  }, [setId]);
+
+  if (state.status === 'shared') {
+    return (
+      <span className="oped-share oped-share-active">
+        <span className="oped-share-status" role="status">{state.copied ? 'Link copied' : 'Public link ready'}</span>
+        <input className="oped-share-url" type="text" readOnly value={state.url} aria-label="Public share link"
+          onFocus={e => e.currentTarget.select()} />
+        <button type="button" className="btn btn-sm btn-ghost" onClick={() => void copy(state.url)}>Copy</button>
+        <button type="button" className="btn btn-sm btn-ghost" onClick={() => void onUnshare()}>Un-share</button>
+      </span>
+    );
+  }
+
+  return (
+    <span className="oped-share">
+      <button type="button" className="btn btn-sm btn-ghost" onClick={() => void onShare()}
+        disabled={state.status === 'working'} aria-label="Create a public share link">
+        {state.status === 'working' ? 'Sharing…' : '🔗 Share'}
+      </button>
+      {state.status === 'error' && <span className="oped-share-error" role="alert">{state.message}</span>}
+    </span>
+  );
+}
+
 // ── Reader view (back bar + article/loading/error) ────────────────────────────
 
 function OpEdReaderView({
@@ -157,6 +229,8 @@ function OpEdReaderView({
         <div className="oped-reader-bar">
           <button type="button" className="oped-reader-back" onClick={onBack}>‹ Op-Eds</button>
           {status && <span className="oped-status">{status}</span>}
+          {/* Share is web-only: electron-bridge rejects shareOpEdSet (t/2728). */}
+          {readerSet && !isElectronMode() && <ShareOpEdControl setId={readerSet.set_id} />}
         </div>
         {readerLoading && <p className="oped-reader-loading">Loading op-ed…</p>}
         {readerError && <p className="oped-reader-error">{readerError}</p>}
