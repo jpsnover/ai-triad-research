@@ -244,8 +244,8 @@ describe('create-oped-set — Stage-A source hoist', () => {
     await resultP;
 
     expect(mockGenerateOpEdSet).toHaveBeenCalledOnce();
-    const [request] = mockGenerateOpEdSet.mock.calls[0] as [{ sourceBrief?: string }];
-    expect(request.sourceBrief).toBe(FAKE_SOURCE_PREP.SourceMarkdown);
+    const [request] = mockGenerateOpEdSet.mock.calls[0] as [{ sourceMaterial?: string }];
+    expect(request.sourceMaterial).toBe(FAKE_SOURCE_PREP.SourceMarkdown);
   });
 
   it('fail-fast: unreadable source throws ActionableError, no generateOpEdSet call, no finalize', async () => {

@@ -251,7 +251,8 @@ async function runVoiceGeneration(
   if (allGroundingRefs.length > 0 && body) {
     try {
       const groundingList = buildGroundingList(groundingNodes, sitNodes);
-      const reflPrompt = assembleReflectionPrompt(deps.promptsDir, body, groundingList);
+      // sourceClaims stays '(none)' for P1 — key_claims require the comprehension pass in Step-0 (TL)
+      const reflPrompt = assembleReflectionPrompt(deps.promptsDir, body, groundingList, '(none)');
       const reflMaxTokens = Math.max(4000, allGroundingRefs.length * 150 + 3000);
       const reflRaw = await deps.adapter.generateText(reflPrompt, request.params.model, {
         maxTokens: reflMaxTokens,
@@ -260,10 +261,13 @@ async function runVoiceGeneration(
         signal: request.signal,
       });
       const reflParsed = JSON.parse(stripCodeFences(reflRaw)) as ReflectionResponse;
-      const usageMap = new Map(reflParsed.grounding_usage.map(u => [u.id, u.reflection]));
+      const usageMap = new Map(reflParsed.grounding_usage.map(u => [u.id, u]));
       for (const ref of allGroundingRefs) {
-        const refl = usageMap.get(ref.node_id);
-        if (refl) ref.how_reflected = refl;
+        const usage = usageMap.get(ref.node_id);
+        if (usage) {
+          ref.how_reflected = usage.reflection;
+          if (usage.document_claims?.length) ref.document_claims = usage.document_claims;
+        }
       }
     } catch {
       // Reflection failure is non-fatal — how_reflected stays '(not reported)'
