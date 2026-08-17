@@ -4,6 +4,13 @@
 import { ActionableError } from '../debate/errors.js';
 import type { RateLimitType, RateLimitHeaders, RetryProgress, FetchFn } from './types.js';
 
+// t/2719: hard ceiling on a single AI-response body before we buffer + JSON.parse it.
+// This is the shared text-generation fetch path (op-ed voices, debate, NLI, chat);
+// embeddings run through a separate Python-subprocess path with its own maxBuffer, so
+// nothing legitimate here is more than KB-range. 25 MiB is far above any real response
+// yet well under what would OOM the process — a runaway payload is rejected, not parsed.
+const MAX_RESPONSE_BYTES = 25 * 1024 * 1024;
+
 export function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
   return Promise.race([
     promise,
@@ -233,7 +240,29 @@ export async function retryableFetch(opts: {
       continue;
     }
 
+    // t/2719: reject an over-cap body BEFORE buffering it, using the declared
+    // Content-Length when the provider sends one — this avoids even reading a
+    // pathologically large payload into memory.
+    const contentLength = Number(response.headers.get('content-length'));
+    if (Number.isFinite(contentLength) && contentLength > MAX_RESPONSE_BYTES) {
+      throw new ActionableError({
+        goal: `Generate text via ${opts.label}`,
+        problem: `Response body is ${contentLength} bytes, over the ${MAX_RESPONSE_BYTES}-byte safety cap. Refusing to buffer it to avoid an out-of-memory crash.`,
+        location: `ai-client.retryableFetch(${opts.label})`,
+        nextSteps: ['Retry — an oversized/malformed response is usually transient', 'Switch to a different AI provider (Settings → AI Model)', 'If this recurs, the provider or proxy is returning an unexpected payload'],
+      });
+    }
     const bodyText = await withTimeout(response.text(), 30_000, `Reading ${opts.label} response`);
+    // t/2719: chunked / no-Content-Length responses slip past the pre-check, so cap the
+    // buffered string before it reaches JSON.parse — the OOM was in JsonParser::ParseJson.
+    if (bodyText.length > MAX_RESPONSE_BYTES) {
+      throw new ActionableError({
+        goal: `Generate text via ${opts.label}`,
+        problem: `Response body is ${bodyText.length} chars, over the ${MAX_RESPONSE_BYTES}-char safety cap. Refusing to parse it to avoid an out-of-memory crash.`,
+        location: `ai-client.retryableFetch(${opts.label})`,
+        nextSteps: ['Retry — an oversized/malformed response is usually transient', 'Switch to a different AI provider (Settings → AI Model)', 'If this recurs, the provider or proxy is returning an unexpected payload'],
+      });
+    }
     return { response, bodyText };
   }
   throw new ActionableError({

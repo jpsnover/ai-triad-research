@@ -427,3 +427,53 @@ describe('retryableFetch — Retry-After header integration', () => {
     });
   });
 });
+
+describe('retryableFetch — response size cap (t/2719)', () => {
+  // Mirror MAX_RESPONSE_BYTES in retry.ts. A runaway provider/proxy response previously
+  // OOM-crashed the whole Node server in JsonParser::ParseJson (one bad response → server
+  // down for every user); the cap rejects it cleanly instead of buffering + parsing it.
+  const CAP = 25 * 1024 * 1024;
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('rejects an over-cap body by Content-Length WITHOUT reading it', async () => {
+    let textRead = false;
+    const fetchFn = vi.fn().mockResolvedValue({
+      ok: true, status: 200,
+      headers: new Headers({ 'content-length': String(CAP + 1) }),
+      text: () => { textRead = true; return Promise.resolve('unused'); },
+    });
+    await expect(retryableFetch({
+      label: 'test', url: 'https://example.com/api', init: { method: 'POST' },
+      timeoutMs: 5000, fetchFn, config: FAST_CONFIG,
+    })).rejects.toThrow(/safety cap/);
+    expect(textRead).toBe(false); // pre-check fires before the body is buffered
+  });
+
+  it('rejects an over-cap chunked body (no Content-Length) before parsing it', async () => {
+    const huge = 'x'.repeat(CAP + 1);
+    const fetchFn = vi.fn().mockResolvedValue({
+      ok: true, status: 200, headers: new Headers(),
+      text: () => Promise.resolve(huge),
+    });
+    await expect(retryableFetch({
+      label: 'test', url: 'https://example.com/api', init: { method: 'POST' },
+      timeoutMs: 5000, fetchFn, config: FAST_CONFIG,
+    })).rejects.toThrow(/safety cap/);
+  });
+
+  it('returns the body for an under-cap response', async () => {
+    const fetchFn = vi.fn().mockResolvedValue({
+      ok: true, status: 200,
+      headers: new Headers({ 'content-length': '15' }),
+      text: () => Promise.resolve('{"result":"ok"}'),
+    });
+    const result = await retryableFetch({
+      label: 'test', url: 'https://example.com/api', init: { method: 'POST' },
+      timeoutMs: 5000, fetchFn, config: FAST_CONFIG,
+    });
+    expect(result.bodyText).toBe('{"result":"ok"}');
+  });
+});
