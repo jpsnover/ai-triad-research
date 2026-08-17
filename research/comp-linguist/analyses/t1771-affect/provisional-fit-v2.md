@@ -47,7 +47,7 @@ Centering improves; spread preserved (still discriminating).
 
 ## Why this stays provisional, not `derived`
 
-1. **Concluding phase has zero data.** Tight pacing produced no concluding-phase turns across all 66 debates. That phase cannot be grounded on this corpus; its baseline is left **unchanged** (still the v1 provisional value, itself un-pruned-artifact-bearing). Follow-up: a `moderate`-pacing batch to cover concluding.
+1. **Concluding phase has zero data.** Tight pacing produced no concluding-phase turns across all 66 debates. That phase cannot be grounded on this corpus; its baseline is left **unchanged** (still the v1 provisional value, itself un-pruned-artifact-bearing). Follow-up: a `moderate`-pacing batch to cover concluding. **DONE — t/2713** (`provisional-fit-t2713.md`): concluding re-fit `{urg 0.17, fear 0.44, hope 0.21, out 0.04, emp 0.14}` on a 30-debate moderate-pacing corpus.
 2. **Single-model / single-pacing corpus.** All 66 are `gemini-3.5-flash-lite` / tight. The lexicon reads any text, but the share *distribution* is that generation regime's; `affect_appropriateness` also scores Opus-main debates, so a defensible `derived` claim wants model spread. Follow-up: multi-model corpus before final promotion.
 
 ## Landing
