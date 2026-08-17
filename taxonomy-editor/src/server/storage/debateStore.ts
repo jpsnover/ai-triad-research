@@ -78,12 +78,24 @@ async function removeFromDebateIndex(id: string): Promise<void> {
  * Falls back to full scan (listDebateSessions) and rebuilds the index on first call
  * or when the file count in the tree doesn't match the index (staleness check).
  */
+/**
+ * t/2725: a cached index whose rows predate the model/turn_count summary fields must be
+ * rebuilt — the count-only staleness check below can't detect a schema ADDITION (row count
+ * is unchanged), so it would keep serving fieldless rows (Turns/Model render empty).
+ */
+export function isDebateIndexSchemaStale(cached: unknown[]): boolean {
+  const first = cached[0] as Record<string, unknown> | undefined;
+  return first != null && (!('turn_count' in first) || !('model' in first));
+}
+
 export async function listDebateSessionsMeta(): Promise<unknown[]> {
   if (isAnonymousUser()) { const a = getAnonStore(); return a ? await a.store.listDebatesMeta(a.sessionId) : []; }
   const backend = getUserContentBackend();
   const dir = getDebatesDir();
   const cached = await readDebateIndex();
   if (cached !== null && cached.length > 0) {
+    // t/2725: rebuild synchronously on schema drift so this request returns populated fields.
+    if (isDebateIndexSchemaStale(cached)) return rebuildDebateIndex();
     // Lightweight staleness check: compare file count from tree with index size.
     // listDirectory() uses the in-memory repoTree — zero API calls.
     try {
