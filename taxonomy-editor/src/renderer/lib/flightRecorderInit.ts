@@ -980,6 +980,13 @@ function snapshotStoresForCrash(): Record<string, unknown> | undefined {
       debate_phase: debate?.phase ?? null,
       debate_generating: !!debateState.debateGenerating,
       dirty_files: [...((taxState.dirty as Set<string>) ?? [])],
+      // t/2732: surface sessions with non-string titles so index-shape bugs name the
+      // offending session IDs immediately rather than after reading the full call path.
+      debate_sessions_non_string_title_ids: (() => {
+        const sessions = debateState.sessions as Array<{ id: string; title: unknown }> | undefined;
+        const bad = (sessions ?? []).filter(s => typeof s.title !== 'string').map(s => s.id);
+        return bad.length > 0 ? bad : undefined;
+      })(),
     };
   } catch {
     /* flight recorder init — silent by design (store may be corrupted) */
@@ -997,6 +1004,15 @@ function snapshotStoresForCrash(): Record<string, unknown> | undefined {
  * a human repro (t/2551 observability arm; the vite.config.ts build gate is the
  * prevention arm). Returns undefined for ordinary errors.
  */
+/**
+ * Parse the React "Objects are not valid as a React child" error message to extract
+ * the offending object's key names (t/2732). Returns undefined for unrelated errors.
+ */
+function extractInvalidReactChildKeys(error: Error): string[] | undefined {
+  const m = /found: object with keys \{([^}]+)\}/.exec(error.message);
+  return m ? m[1].split(',').map(k => k.trim()) : undefined;
+}
+
 function extractExternalizedModule(error: Error): { module: string; accessed?: string } | undefined {
   const msg = String(error?.message ?? '');
   const mod = /Module "([^"]+)" has been externalized for browser compatibility/.exec(msg);
@@ -1021,10 +1037,12 @@ export function dumpOnReactError(
   const stateSnapshot = snapshotStoresForCrash();
   const externalizedModule = extractExternalizedModule(error);
 
+  const invalidReactChildKeys = extractInvalidReactChildKeys(error);
   const baseData: Record<string, unknown> = {
     ...(componentStack ? { component_stack: componentStack.slice(0, 1000) } : {}),
     ...(stateSnapshot ? { state_snapshot: stateSnapshot } : {}),
     ...(externalizedModule ? { externalized_module: externalizedModule } : {}),
+    ...(invalidReactChildKeys ? { invalid_react_child_keys: invalidReactChildKeys } : {}),
   };
 
   // Record the crash SYNCHRONOUSLY, before any async work (t/2297). This guarantees
