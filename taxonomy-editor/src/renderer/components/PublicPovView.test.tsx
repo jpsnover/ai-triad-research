@@ -113,16 +113,16 @@ describe('PublicPovView (t/1790)', () => {
     expect(mockFetch).not.toHaveBeenCalled();
   });
 
-  it(‘shows an error state and records to the flight recorder on network failure’, async () => {
-    mockFetch.mockRejectedValue(new Error(‘network down’));
+  it('shows an error state and records to the flight recorder on network failure', async () => {
+    mockFetch.mockRejectedValue(new Error('network down'));
     render(<PublicPovView />);
-    await screen.findByText(/Couldn’t load this item/);
+    await screen.findByText(/Couldn't load this item/);
     expect(mockRecord).toHaveBeenCalledWith(
-      expect.objectContaining({ type: ‘system.error’, component: ‘PublicPovView’, level: ‘error’ }),
+      expect.objectContaining({ type: 'system.error', component: 'PublicPovView', level: 'error' }),
     );
   });
 
-  it(‘aborts the in-flight fetch on unmount (t/2755)’, async () => {
+  it('aborts the in-flight fetch on unmount (t/2755)', async () => {
     const abortSpy = vi.fn();
     const origAbortController = globalThis.AbortController;
     globalThis.AbortController = class extends origAbortController {
