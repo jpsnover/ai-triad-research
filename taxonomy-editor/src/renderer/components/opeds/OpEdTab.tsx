@@ -162,9 +162,7 @@ function ShareOpEdControl({ setId }: { setId: string }) {
       await navigator.clipboard.writeText(url);
       setState({ status: 'shared', url, copied: true });
     } catch {
-      /* telemetry — silent by design */
-      // Clipboard denied (permissions/insecure context) — still show the link so
-      // the user can copy manually; this is not a share failure, so no record.
+      /* clipboard denied — silent by design; link shown for manual copy */
       setState({ status: 'shared', url, copied: false });
     }
   }, []);
