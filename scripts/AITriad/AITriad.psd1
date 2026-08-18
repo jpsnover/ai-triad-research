@@ -133,6 +133,7 @@
         'Invoke-DebateBatch'
         'Get-FreeTierStatus'
         'Invoke-TaxEditorSmokeTest'
+        'Test-PreloadHealth'
         'Test-AnalyticsBackend'
         'Test-AnalyticsBlobHealth'
         'Get-AnalyticsEventTypes'
