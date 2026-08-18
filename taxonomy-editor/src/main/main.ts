@@ -163,6 +163,20 @@ function createWindow(): void {
 
   console.log('[main] BrowserWindow created, setting up event handlers...');
 
+  // Preload failures are otherwise silent in the terminal — the renderer just
+  // never gets window.electronAPI and shows "Desktop bridge unavailable".
+  mainWindow.webContents.on('preload-error', (_event, _preloadPath, error) => {
+    console.error('[main] PRELOAD ERROR (bridge will be unavailable):', error);
+  });
+
+  // Confirm bridge landed after the page finishes loading.
+  mainWindow.webContents.on('did-finish-load', () => {
+    void mainWindow?.webContents
+      .executeJavaScript('typeof window.electronAPI')
+      .then(type => { console.log('[main] window.electronAPI type after did-finish-load:', type); })
+      .catch(err => { console.error('[main] bridge check executeJavaScript failed:', err); });
+  });
+
   // S6: Restrict webview to HTTPS URLs only — prevent loading arbitrary content
   mainWindow.webContents.on('will-attach-webview', (_event, webPreferences, params) => {
     // Strip dangerous preferences from webviews
