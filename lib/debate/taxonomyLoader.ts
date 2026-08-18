@@ -193,7 +193,6 @@ function loadConfig(repoRoot: string): AiTriadConfig {
       goal: 'Parse AI model configuration',
       problem: `Failed to parse ${configPath}: ${errMsg}`,
       location: 'taxonomyLoader.loadConfig',
-      innerError: err,
       nextSteps: [
         `Open ${configPath} and fix the JSON syntax (trailing commas, unquoted keys, etc.)`,
         'Run the file through a JSON linter: npx jsonlint .aitriad.json',
