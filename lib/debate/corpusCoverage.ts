@@ -260,9 +260,10 @@ export function loadGreatestHitsFile(
   try {
     raw = JSON.parse(fs.readFileSync(p, 'utf-8'));
   } catch (err) {
+    const errMsg = err instanceof Error ? err.message : String(err);
     throw new ActionableError({
       goal: 'Load greatest-hits exclusion file',
-      problem: `Failed to parse greatest-hits.json at ${p}: ${err instanceof Error ? err.message : err}`,
+      problem: `Failed to parse greatest-hits.json at ${p}: ${errMsg}`,
       location: 'loadGreatestHitsFile',
       nextSteps: [
         'Validate the JSON with a linter',

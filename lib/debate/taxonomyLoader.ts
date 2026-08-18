@@ -188,9 +188,10 @@ function loadConfig(repoRoot: string): AiTriadConfig {
       message: `Failed to parse config file: ${configPath}`,
       error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
     });
+    const errMsg = err instanceof ActionableError ? err.problem : (err instanceof Error ? err.message : String(err));
     throw new ActionableError({
       goal: 'Parse AI model configuration',
-      problem: `Failed to parse ${configPath}: ${err instanceof Error ? err.message : err}`,
+      problem: `Failed to parse ${configPath}: ${errMsg}`,
       location: 'taxonomyLoader.loadConfig',
       nextSteps: [
         `Open ${configPath} and fix the JSON syntax (trailing commas, unquoted keys, etc.)`,

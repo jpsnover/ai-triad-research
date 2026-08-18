@@ -1056,17 +1056,19 @@ export async function classifyNli(
         },
       });
       if (apiErr instanceof ActionableError) throw apiErr;
+      const apiErrMsg = apiErr instanceof Error ? apiErr.message : String(apiErr);
       throw new ActionableError({
         goal: 'Classify NLI pairs',
         problem: isTimeout
           ? `Local Python NLI subprocess timed out after ${NLI_TIMEOUT_MS / 1000}s and the API fallback also failed (${pairs.length} pairs)`
-          : `Local Python NLI encoder failed and the API fallback also failed: ${String((apiErr as Error).message ?? apiErr)}`,
+          : `Local Python NLI encoder failed and the API fallback also failed: ${apiErrMsg}`,
         location: 'aiBackends.classifyNli',
         nextSteps: [
           'Verify the AI backend is reachable and a valid API key was supplied for the fallback',
           'If the local encoder should be available, verify Python sentence-transformers is installed',
           'Reduce the number of pairs per request',
         ],
+        innerError: apiErr,
       });
     }
   }

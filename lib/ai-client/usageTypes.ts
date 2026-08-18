@@ -72,9 +72,10 @@ export function loadUsageRegistry(repoRoot: string): UsageRegistry {
   try {
     raw = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
   } catch (err) {
+    const errMsg = err instanceof Error ? err.message : String(err);
     throw new ActionableError({
       goal: 'Parse AI usage registry',
-      problem: `Failed to parse usage registry at ${configPath}: ${err instanceof Error ? err.message : err}`,
+      problem: `Failed to parse usage registry at ${configPath}: ${errMsg}`,
       location: 'usageTypes.loadUsageRegistry',
       nextSteps: ['Check ai-usages.json for JSON syntax errors'],
       innerError: err,
