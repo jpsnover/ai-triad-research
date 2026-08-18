@@ -202,14 +202,16 @@ export function registerOpEdHandlers(): void {
           message: `Stage A Get-OpEdSource failed for set ${setId}: ${(err as Error).message}`,
           error: { name: (err as Error).name ?? 'Error', message: String((err as Error).message ?? err), stack: (err as Error).stack },
         });
+        const errProblem = err instanceof ActionableError ? err.problem : (err instanceof Error ? err.message : String(err));
         throw new ActionableError({
           goal: 'Prepare source material for op-ed set',
-          problem: `Get-OpEdSource failed: ${(err as Error).message}`,
+          problem: `Get-OpEdSource failed: ${errProblem}`,
           location: 'opedHandlers create-oped-set Stage A',
           nextSteps: [
             'Check that the URL is publicly accessible',
             'Verify the page contains sufficient readable text (minimum word count required)',
           ],
+          innerError: err,
         });
       }
     }

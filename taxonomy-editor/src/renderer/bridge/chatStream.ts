@@ -105,7 +105,8 @@ async function buildHttpError(res: Response): Promise<ActionableError> {
   }
   if (res.status === 422) {
     const data = await res.json().catch(() => ({})) as Record<string, unknown>;
-    const err = new ActionableError({ goal: 'Stream chat response', problem: (data.message as string) || 'No API key configured for the selected backend.', location: 'chatStream.startChatStream', nextSteps: ['Open Settings → API Keys and add a key for this backend', 'Switch to a backend that has a key configured'] });
+    const apiKeyProblem = (data.message as string) || 'No API key configured for the selected backend.';
+    const err = new ActionableError({ goal: 'Stream chat response', problem: apiKeyProblem, location: 'chatStream.startChatStream', nextSteps: ['Open Settings → API Keys and add a key for this backend', 'Switch to a backend that has a key configured'] });
     (err as ActionableError & { httpStatus: number }).httpStatus = 422;
     return err;
   }

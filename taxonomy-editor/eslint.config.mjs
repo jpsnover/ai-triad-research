@@ -76,6 +76,13 @@ export default tseslint.config(
       // flight recorder. Flipped warn→error once the tree was clean (0 violations).
       'local/require-flight-recorder-in-catch': 'error',
       'max-lines': MAX_LINES_SRC,
+      // ActionableError nesting gate (t/2764 / t/2761): forbid `problem: <expr>.message`
+      // inside an ActionableError constructor — it embeds the multi-line formatted block
+      // instead of the concise problem string. Use `err.problem` / `innerError: err`.
+      'no-restricted-syntax': ['error', {
+        selector: "NewExpression[callee.name='ActionableError'] Property[key.name='problem'] MemberExpression[property.name='message']",
+        message: "Don't put a caught error's .message into ActionableError.problem — it embeds the multi-line block. Use `err instanceof ActionableError ? err.problem : errorMessage(err)` and chain via `innerError: err`. (t/2761)",
+      }],
     },
   },
   {
