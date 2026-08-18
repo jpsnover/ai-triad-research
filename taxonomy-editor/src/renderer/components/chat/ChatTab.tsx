@@ -299,11 +299,9 @@ function SessionListPanel({
       <div className="list-panel-header">
         <h2>Chats</h2>
         <div className="list-panel-header-actions">
-          {listView === 'my' && (
-            <button className="btn btn-sm" onClick={() => setShowNewDialog(true)}>
-              + New
-            </button>
-          )}
+          <button className="btn btn-sm" onClick={() => { setShowNewDialog(true); setListView('my'); }}>
+            + New
+          </button>
           <button className="pane-collapse-btn" onClick={() => setListCollapsed(true)} title="Collapse" aria-label="Collapse panel">&lsaquo;</button>
         </div>
       </div>
@@ -455,6 +453,25 @@ export function ChatTab() {
     if (sessionsLoading) return;
     setListView(sessions.length > 0 ? 'my' : 'community');
   }, [listView, sessionsLoading, sessions.length]);
+
+  // Auto-select the most-recent chat into pane 2 on first open (t/2760).
+  // Suppressed on phone: the phone layout is list-first and the user initiates detail view by tapping.
+  useEffect(() => {
+    if (isPhone) return;
+    if (activeChatId || selectedCommunityChat) return;
+    if (sessionsLoading || communityLoading) return;
+    if (sessions.length > 0) {
+      const newest = [...sessions].sort((a, b) =>
+        new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
+      )[0];
+      void loadChat(newest.id);
+    } else if (communityChats.length > 0) {
+      const newest = [...communityChats].sort((a, b) =>
+        new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
+      )[0];
+      setSelectedCommunityChat(newest);
+    }
+  }, [isPhone, activeChatId, selectedCommunityChat, sessionsLoading, communityLoading, sessions, communityChats, loadChat]);
 
   const handleSelect = (session: ChatSessionSummary) => {
     if (session.id !== activeChatId) {
