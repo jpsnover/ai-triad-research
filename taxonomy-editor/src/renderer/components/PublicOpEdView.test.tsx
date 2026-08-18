@@ -126,12 +126,11 @@ describe('PublicOpEdView (t/2728)', () => {
     );
   });
 
-  it('aborts the in-flight fetch when the component unmounts', async () => {
+  it('aborts the in-flight fetch when the component unmounts (t/2755)', async () => {
     let resolveResponse!: (r: Response) => void;
     mockFetch.mockReturnValue(new Promise(res => { resolveResponse = res; }));
 
     const { unmount } = render(<PublicOpEdView />);
-    // Let microtasks settle so fetch() has been called.
     await Promise.resolve();
 
     expect(mockFetch).toHaveBeenCalledTimes(1);
@@ -139,10 +138,11 @@ describe('PublicOpEdView (t/2728)', () => {
     expect(signal).toBeDefined();
     expect(signal.aborted).toBe(false);
 
+    // Regression guard: cleanup must call controller.abort(), not merely
+    // clearTimeout (which would suppress the timer-driven abort).
     unmount();
     expect(signal.aborted).toBe(true);
 
-    // Resolve after unmount — no setState crash should occur.
     resolveResponse(fakeResponse({ body: SAMPLE }));
   });
 });

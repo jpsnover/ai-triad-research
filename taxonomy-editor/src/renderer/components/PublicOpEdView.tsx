@@ -131,6 +131,10 @@ export function PublicOpEdView() {
         clearTimeout(timeout);
       }
     })();
+    // Abort the in-flight fetch on unmount, not just clear the timer — clearing
+    // the timeout alone suppresses the timer-driven abort, so the request would
+    // otherwise run to completion after the component is gone. The sibling
+    // PublicPovView fix (t/2755) missed this view; same one-line cleanup here.
     return () => { cancelled = true; clearTimeout(timeout); controller.abort(); };
   }, []);
 
