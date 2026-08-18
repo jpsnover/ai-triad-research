@@ -971,6 +971,16 @@ function snapshotStoresForCrash(): Record<string, unknown> | undefined {
     const taxState = (stores.useTaxonomyStore as { getState: () => Record<string, unknown> }).getState();
     const debateState = (stores.useDebateStore as { getState: () => Record<string, unknown> }).getState();
     const debate = debateState.activeDebate as Record<string, unknown> | null;
+    // Session index-shape audit (t/2732): a session whose `title` is not a string
+    // is the class of bad index entry that crashed BulkDeleteDialog (t/2729 —
+    // rendered `{final, original}` as a React child). Surfacing the offending
+    // session ids here cuts diagnosis from reading `listDebateSessionsIndexed`
+    // end-to-end to a glance at the dump. Empty when every title is well-typed.
+    const sessions = debateState.sessions as Array<{ id?: string; title?: unknown }> | undefined;
+    const badSessionTitleIds = (sessions ?? [])
+      .filter(s => typeof s?.title !== 'string')
+      .map(s => s?.id)
+      .filter((id): id is string => typeof id === 'string');
     return {
       active_tab: taxState.activeTab ?? null,
       toolbar_panel: taxState.toolbarPanel ?? null,
@@ -980,6 +990,7 @@ function snapshotStoresForCrash(): Record<string, unknown> | undefined {
       debate_phase: debate?.phase ?? null,
       debate_generating: !!debateState.debateGenerating,
       dirty_files: [...((taxState.dirty as Set<string>) ?? [])],
+      ...(badSessionTitleIds.length > 0 ? { debate_sessions_non_string_title_ids: badSessionTitleIds } : {}),
     };
   } catch {
     /* flight recorder init — silent by design (store may be corrupted) */
@@ -1006,6 +1017,20 @@ function extractExternalizedModule(error: Error): { module: string; accessed?: s
 }
 
 /**
+ * A React "invalid child" crash — rendering a non-primitive where a child is
+ * expected — throws with a message like `Objects are not valid as a React child
+ * (found: object with keys {final, original})`. Surface those keys as a first-class
+ * dump field so the NEXT such crash names the offending shape instead of requiring a
+ * human to read the producing code path (t/2732; the BulkDeleteDialog index-shape
+ * crash, t/2729). Mirrors the extractExternalizedModule pattern above. Returns
+ * undefined for ordinary errors.
+ */
+function extractInvalidReactChildKeys(error: Error): string[] | undefined {
+  const m = /found: object with keys \{([^}]+)\}/.exec(String(error?.message ?? ''));
+  return m ? m[1].split(',').map(k => k.trim()).filter(Boolean) : undefined;
+}
+
+/**
  * Called from ErrorBoundary.componentDidCatch to dump on React render errors.
  */
 export function dumpOnReactError(
@@ -1020,11 +1045,13 @@ export function dumpOnReactError(
 
   const stateSnapshot = snapshotStoresForCrash();
   const externalizedModule = extractExternalizedModule(error);
+  const invalidReactChildKeys = extractInvalidReactChildKeys(error);
 
   const baseData: Record<string, unknown> = {
     ...(componentStack ? { component_stack: componentStack.slice(0, 1000) } : {}),
     ...(stateSnapshot ? { state_snapshot: stateSnapshot } : {}),
     ...(externalizedModule ? { externalized_module: externalizedModule } : {}),
+    ...(invalidReactChildKeys ? { invalid_react_child_keys: invalidReactChildKeys } : {}),
   };
 
   // Record the crash SYNCHRONOUSLY, before any async work (t/2297). This guarantees
