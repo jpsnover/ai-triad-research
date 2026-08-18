@@ -5,6 +5,8 @@ import { contextBridge, ipcRenderer } from 'electron';
 import type { OpEdSet, OpEdSetSummary } from '../../../lib/oped/types.js';
 import { createLatestValueBuffer } from './preloadBuffer.cjs';
 
+console.log('[preload] starting...');
+
 // Buffer debate-window-load IPC so it isn't lost if React mounts after did-finish-load
 // (happens with bootstrap.ts dynamic import indirection).
 let _bufferedDebateId: string | null = null;
@@ -599,6 +601,7 @@ try {
   saveOpEdSet: (set: OpEdSet): Promise<void> =>
     ipcRenderer.invoke('save-oped-set', set),
   });
+  console.log('[preload] electronAPI exposed');
   ipcRenderer.send('forward-flight-event', {
     type: 'lifecycle', component: 'preload', level: 'info',
     message: 'contextBridge.exposeInMainWorld completed',
