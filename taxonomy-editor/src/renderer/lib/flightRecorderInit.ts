@@ -1014,15 +1014,6 @@ function snapshotStoresForCrash(): Record<string, unknown> | undefined {
  * a human repro (t/2551 observability arm; the vite.config.ts build gate is the
  * prevention arm). Returns undefined for ordinary errors.
  */
-/**
- * Parse the React "Objects are not valid as a React child" error message to extract
- * the offending object's key names (t/2732). Returns undefined for unrelated errors.
- */
-function extractInvalidReactChildKeys(error: Error): string[] | undefined {
-  const m = /found: object with keys \{([^}]+)\}/.exec(error.message);
-  return m ? m[1].split(',').map(k => k.trim()) : undefined;
-}
-
 function extractExternalizedModule(error: Error): { module: string; accessed?: string } | undefined {
   const msg = String(error?.message ?? '');
   const mod = /Module "([^"]+)" has been externalized for browser compatibility/.exec(msg);
@@ -1060,8 +1051,6 @@ export function dumpOnReactError(
 
   const stateSnapshot = snapshotStoresForCrash();
   const externalizedModule = extractExternalizedModule(error);
-  const invalidReactChildKeys = extractInvalidReactChildKeys(error);
-
   const invalidReactChildKeys = extractInvalidReactChildKeys(error);
   const baseData: Record<string, unknown> = {
     ...(componentStack ? { component_stack: componentStack.slice(0, 1000) } : {}),
