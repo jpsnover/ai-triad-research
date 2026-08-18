@@ -184,6 +184,45 @@ export function App() {
   // covers the main app and every window mode App renders (t/2343).
   useTheoryLinkHotkey();
 
+  // t/2767: defer all child mounts until window.electronAPI is ready.
+  // In web mode bridgeReady starts true (no preload exists), so the gate is transparent.
+  // Inline polling (not imported waitForElectronAPI) to avoid bundling electron-bridge into
+  // the web build. clearInterval in cleanup handles StrictMode's discarded first mount.
+  const [bridgeReady, setBridgeReady] = useState(import.meta.env.VITE_TARGET === 'web');
+  const [bridgeError, setBridgeError] = useState<string | null>(null);
+  useEffect(() => {
+    if (import.meta.env.VITE_TARGET === 'web') return;
+    if (window.electronAPI) { setBridgeReady(true); return; }
+    const TIMEOUT_MS = 2000;
+    const start = performance.now();
+    let done = false;
+    const id = setInterval(() => {
+      if (window.electronAPI) {
+        clearInterval(id);
+        if (done) return; done = true;
+        getGlobalRecorder()?.record({
+          type: 'lifecycle', component: 'electron-bridge', level: 'info',
+          message: `bridge-available after ${Math.round(performance.now() - start)}ms`,
+          data: { preloadTimestamp: window.electronAPI.preloadTimestamp },
+        });
+        setBridgeReady(true);
+      } else if (performance.now() - start > TIMEOUT_MS) {
+        clearInterval(id);
+        if (done) return; done = true;
+        getGlobalRecorder()?.record({
+          type: 'system.error', component: 'electron-bridge', level: 'error',
+          message: `window.electronAPI not available after ${TIMEOUT_MS}ms — preload may have failed`,
+          error: { name: 'BridgeInitError', message: 'Preload did not run in time' },
+        });
+        setBridgeError('Desktop bridge unavailable — restart the app');
+      }
+    }, 5);
+    return () => { clearInterval(id); done = true; };
+  }, []);
+
+  if (!bridgeReady) return null;
+  if (bridgeError) return <div className="app-bridge-error">{bridgeError}</div>;
+
   // If this window was opened as a diagnostics popout, render only that
   if (hash === '#diagnostics-window') {
     return <ErrorBoundary buildInfo={BUILD_FINGERPRINT}><Suspense fallback={null}><DiagnosticsWindow /></Suspense></ErrorBoundary>;

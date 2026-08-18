@@ -24,6 +24,32 @@ import type { OpEdSet, OpEdSetSummary } from '../../../../lib/oped/types';
 notifyBridgeFallback();
 void tryInitLocalEmbedding();
 
+// t/2767: exported for App.tsx's mount gate — resolves once window.electronAPI is set.
+// Timeout default is 2000ms so a cold-start machine with slow preload still succeeds.
+export function waitForElectronAPI(timeoutMs = 2000): Promise<void> {
+  if (window.electronAPI) return Promise.resolve();
+  return new Promise((resolve, reject) => {
+    const start = performance.now();
+    const id = setInterval(() => {
+      if (window.electronAPI) {
+        clearInterval(id);
+        resolve();
+      } else if (performance.now() - start > timeoutMs) {
+        clearInterval(id);
+        reject(new ActionableError({
+          goal: 'Initialize Electron bridge',
+          problem: `window.electronAPI not available after ${timeoutMs}ms — preload may have failed`,
+          location: 'electron-bridge.waitForElectronAPI',
+          nextSteps: [
+            'Launch via npm run electron:dev',
+            'Check preload.cts for errors in DevTools console',
+          ],
+        }));
+      }
+    }, 5);
+  });
+}
+
 // Op-Ed Studio (t/2576) — the op-ed persistence IPC surface is added to the preload
 // API by t/2575. Until that lands, the methods are absent from window.electronAPI, so
 // we feature-detect (optional-chained cast) and reject with an honest ActionableError.

@@ -31,6 +31,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   osRelease: process.getSystemVersion?.() ?? process.platform,
   osPlatform: process.platform,
   osArch: process.arch,
+  // t/2766: stamp when contextBridge.exposeInMainWorld ran — lets renderer compute
+  // the preload→bridge-available delta for the bridge-available FR lifecycle event.
+  preloadTimestamp: performance.now(),
   getEmbeddingInfo: (): Promise<{ backend: string; execution_provider?: string; calibration_version?: number }> =>
     ipcRenderer.invoke('get-embedding-info'),
 
