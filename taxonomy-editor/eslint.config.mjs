@@ -18,6 +18,7 @@
 import tseslint from 'typescript-eslint';
 import reactHooks from 'eslint-plugin-react-hooks';
 import requireFlightRecorderInCatch from '../lib/eslint-rules/require-flight-recorder-in-catch.js';
+import noActionableErrorMessageNesting from '../lib/eslint-rules/no-actionable-error-message-nesting.js';
 import noUnmanagedModuleResources from './eslint-rules/no-unmanaged-module-resources.js';
 import noInlineStyle from './eslint-rules/no-inline-style.js';
 
@@ -26,6 +27,7 @@ const localPlugin = {
     'require-flight-recorder-in-catch': requireFlightRecorderInCatch,
     'no-unmanaged-module-resources': noUnmanagedModuleResources,
     'no-inline-style': noInlineStyle,
+    'no-actionable-error-message-nesting': noActionableErrorMessageNesting,
   },
 };
 
@@ -76,13 +78,10 @@ export default tseslint.config(
       // flight recorder. Flipped warn→error once the tree was clean (0 violations).
       'local/require-flight-recorder-in-catch': 'error',
       'max-lines': MAX_LINES_SRC,
-      // ActionableError nesting gate (t/2764 / t/2761): forbid `problem: <expr>.message`
-      // inside an ActionableError constructor — it embeds the multi-line formatted block
-      // instead of the concise problem string. Use `err.problem` / `innerError: err`.
-      'no-restricted-syntax': ['error', {
-        selector: "NewExpression[callee.name='ActionableError'] Property[key.name='problem'] MemberExpression[property.name='message']",
-        message: "Don't put a caught error's .message into ActionableError.problem — it embeds the multi-line block. Use `err instanceof ActionableError ? err.problem : errorMessage(err)` and chain via `innerError: err`. (t/2761)",
-      }],
+      // ActionableError nesting gate (t/2764 / t/2761): forbid err.message in problem:.
+      // Custom rule (not no-restricted-syntax) so it restricts to error-named identifiers
+      // and unwraps TSAsExpression — no false positives on data.message HTTP response fields.
+      'local/no-actionable-error-message-nesting': 'error',
     },
   },
   {

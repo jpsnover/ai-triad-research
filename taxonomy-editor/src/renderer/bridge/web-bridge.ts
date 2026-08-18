@@ -275,10 +275,9 @@ async function post<T = unknown>(path: string, body?: unknown, opts?: FetchOptio
   if (res.status === 400 && (path === '/api/ai/generate' || path === '/api/ai/search')) {
     const data = await res.json().catch(bridgeWarn('Failed to parse 400 response body', {})) as Record<string, unknown>;
     if (data.error === 'context_too_long') {
-      const contextProblem = (data.message as string) || 'Input exceeds the model context window.';
       const err = new ActionableError({
         goal: 'Generate AI response',
-        problem: contextProblem,
+        problem: (data.message as string) || 'Input exceeds the model context window.',
         location: 'web-bridge.post',
         nextSteps: ['Try a shorter prompt or fewer debate rounds', 'Switch to a model with a larger context window in Settings'],
       });
@@ -297,10 +296,9 @@ async function post<T = unknown>(path: string, body?: unknown, opts?: FetchOptio
   if (res.status === 422 && path === '/api/ai/generate') {
     const data = await res.json().catch(bridgeWarn('Failed to parse 422 response body', {})) as Record<string, unknown>;
     if (data.error === 'missing_api_key') {
-      const missingKeyProblem = (data.message as string) || `No API key configured for ${(data.backend as string) || 'the selected backend'}.`;
       throwHttpError(422, new ActionableError({
         goal: 'Generate AI response',
-        problem: missingKeyProblem,
+        problem: (data.message as string) || `No API key configured for ${(data.backend as string) || 'the selected backend'}.`,
         location: 'web-bridge.post',
         nextSteps: ['Open Settings → API Keys and add a key for this backend', 'Switch to a backend that has a key configured'],
       }));
