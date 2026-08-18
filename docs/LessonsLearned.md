@@ -3407,6 +3407,26 @@ Institutional memory for failure patterns across the AI Triad Research project.
 
 ---
 
+## #169 [Process] `git worktree add` "invalid reference" — Repo Subdirectory Path in the commit-ish Slot
+
+**Pattern:** `git worktree add -b <branch> <path> <scope-hint>` fails "fatal: invalid reference: <scope-hint>" when a repo subdirectory path (e.g., `research/comp-linguist`) is passed as the `[<commit-ish>]` argument. The signature is `add [-b <branch>] <worktree-path> [<commit-ish>]` — the third positional is parsed as a git ref, not a directory hint.
+
+**Instances:**
+- 2026-08-15 — CL.Investigate1 (p/40#13): `git worktree add -b <br> <path> research/comp-linguist` → `fatal: invalid reference: research/comp-linguist`. Intended as a scope hint; not a valid commit-ish. Fix: `git worktree add -b <br> .worktrees/<name> main`; scope the worktree via cwd inside it, not a path argument.
+
+**Root Cause:** `git worktree add` takes `[<commit-ish>]` as its last positional — a starting point for the new branch/checkout, not a scope or context hint. A bare subdirectory path like `research/comp-linguist` is not a valid ref, so git rejects it with "invalid reference." The error message does not explain the expected argument shape.
+
+**Prevention:**
+1. The full signature is `git worktree add [-b <new-branch>] <worktree-path> [<commit-ish>]`. Valid `<commit-ish>` values: `main`, `origin/main`, a SHA, a tag — not a directory path.
+2. To scope work to a subdirectory, `cd` into the worktree after creation: `git worktree add -b <br> .worktrees/<name> main && cd .worktrees/<name> && <work in scope>`.
+3. When the error is "invalid reference" on a `worktree add`, check whether the last argument looks like a path rather than a ref.
+
+**Status:** Active — 1 instance (CL.Investigate1 p/40#13).
+
+**Applies To:** All agents creating worktrees, especially when scoping work to a sub-role path.
+
+---
+
 ## #167 [Build] Blocking Gate Promoted Before Validating Against Real Env — Probe's Own Gap Downs Both Deploys
 
 **Pattern:** A new blocking deploy gate (probe) is promoted to block production deploys after passing in dev/staging, but has never run against the real target environment. Its first real run fails on the probe's own gap (untested assumption), not a real regression — taking down deploys it was meant to protect.
