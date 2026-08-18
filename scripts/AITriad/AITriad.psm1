@@ -948,6 +948,8 @@ Export-ModuleMember -Function @(
     'New-OpEd'
     # Fetch + convert + validate a source URL for op-ed generation (once per URL)
     'Get-OpEdSource'
+    # t/2765 — ACA server log retrieval with requestId correlation
+    'Get-ServerLog'
 ) -Alias @(
     'Import-Document'
     'TaxonomyEditor'
