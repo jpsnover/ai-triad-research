@@ -13,7 +13,7 @@ interface LatestValueBuffer<T> {
   onUnsubscribe(): void;
 }
 
-function createLatestValueBuffer<T>(): LatestValueBuffer<T> {
+export function createLatestValueBuffer<T>(): LatestValueBuffer<T> {
   let buffered: T | null = null;
   let active = true;
   return {
