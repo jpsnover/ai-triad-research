@@ -109,7 +109,7 @@ Describe 'Invoke-OrgClaimMatching (t/1553 Stages 2+3)' -Tag 'taxonomy' {
                 Mock Get-OrganizationEdgesStore { [PSCustomObject]@{ edges = @() } }
 
                 $r = Invoke-OrgClaimMatching -ClaimsPath $ClaimsPath -EmbeddingsPath $EmbPath `
-                    -MatchThreshold 0.75 -MinAgreement 2 -Verbose:$false 6>$null
+                    -MatchThreshold 0.75 -MinAgreement 2 -SkipDirectionalGate -Verbose:$false 6>$null
 
                 $r.ClaimsProcessed    | Should -Be 2
                 $r.ProposalsWouldEmit | Should -Be 0 -Because 'both claims collapse to family "rmf-1.0" — only 1 independent family, so multi-agreement fails; and cosine 0.7071 < threshold 0.75'
@@ -148,7 +148,7 @@ Describe 'Invoke-OrgClaimMatching (t/1553 Stages 2+3)' -Tag 'taxonomy' {
                 Mock Get-OrganizationEdgesStore { [PSCustomObject]@{ edges = @() } }
 
                 $r = Invoke-OrgClaimMatching -ClaimsPath $ClaimsPath -EmbeddingsPath $EmbPath `
-                    -MatchThreshold 0.75 -MinAgreement 2 -Verbose:$false 6>$null
+                    -MatchThreshold 0.75 -MinAgreement 2 -SkipDirectionalGate -Verbose:$false 6>$null
 
                 $r.ProposalsWouldEmit           | Should -Be 1
                 $r.Proposals[0].Reason          | Should -Be 'multi-claim-agreement'
@@ -188,7 +188,7 @@ Describe 'Invoke-OrgClaimMatching (t/1553 Stages 2+3)' -Tag 'taxonomy' {
                 Mock Get-OrganizationEdgesStore { [PSCustomObject]@{ edges = @() } }
 
                 $r = Invoke-OrgClaimMatching -ClaimsPath $ClaimsPath -EmbeddingsPath $EmbPath `
-                    -MatchThreshold 0.60 -Verbose:$false 6>$null
+                    -MatchThreshold 0.60 -SkipDirectionalGate -Verbose:$false 6>$null
 
                 $r.ProposalsWouldEmit    | Should -Be 1
                 $r.Proposals[0].Reason   | Should -Match 'high-cosine'
@@ -234,12 +234,12 @@ Describe 'Invoke-OrgClaimMatching (t/1553 Stages 2+3)' -Tag 'taxonomy' {
 
                 # Default: skipped
                 $r1 = Invoke-OrgClaimMatching -ClaimsPath $ClaimsPath -EmbeddingsPath $EmbPath `
-                    -MatchThreshold 0.60 -Verbose:$false 6>$null
+                    -MatchThreshold 0.60 -SkipDirectionalGate -Verbose:$false 6>$null
                 $r1.ProposalsWouldEmit | Should -Be 0 -Because 'tuple already exists — default skip'
 
                 # -Force: emitted
                 $r2 = Invoke-OrgClaimMatching -ClaimsPath $ClaimsPath -EmbeddingsPath $EmbPath `
-                    -MatchThreshold 0.60 -Force -Verbose:$false 6>$null
+                    -MatchThreshold 0.60 -Force -SkipDirectionalGate -Verbose:$false 6>$null
                 $r2.ProposalsWouldEmit | Should -Be 1 -Because '-Force overrides the skip'
             }
         }
@@ -289,7 +289,7 @@ Describe 'Invoke-OrgClaimMatching (t/1553 Stages 2+3)' -Tag 'taxonomy' {
                 Mock Get-OrganizationEdgesStore { [PSCustomObject]@{ edges = @() } }
 
                 $r = Invoke-OrgClaimMatching -ClaimsPath $ClaimsPath -EmbeddingsPath $EmbPath `
-                    -MatchThreshold 0.60 -Verbose:$false 6>$null
+                    -MatchThreshold 0.60 -SkipDirectionalGate -Verbose:$false 6>$null
 
                 @($r.NegationSlice).Count | Should -Be 2 -Because 'the two negation/oppose-lexicon claims land in the slice; the clean "should be required" one does not'
                 ($r.NegationSlice.Proposition -join '|') | Should -Match 'ought not to impose'
@@ -349,10 +349,329 @@ Describe 'Invoke-OrgClaimMatching (t/1553 Stages 2+3)' -Tag 'taxonomy' {
                 Mock Get-OrganizationEdgesStore { [PSCustomObject]@{ edges = @() } }
 
                 $r = Invoke-OrgClaimMatching -ClaimsPath $ClaimsPath -EmbeddingsPath $EmbPath `
-                    -MatchThreshold 0.60 -PerOrgCap 2 -Verbose:$false 6>$null
+                    -MatchThreshold 0.60 -PerOrgCap 2 -SkipDirectionalGate -Verbose:$false 6>$null
 
                 $r.ProposalsWouldEmit | Should -Be 2 -Because '3 candidates → PerOrgCap 2 keeps top 2 by cosine'
                 @($r.DroppedByCap).Count | Should -Be 1
+            }
+        }
+    }
+
+    Context 'Directional gate (t/2745 V1, shared engine t/2751) — opposition-only' {
+
+        # A single-claim proposal that lands (cosine argmax) on a node whose
+        # proposition the claim NEGATES. The claim vector == node vector (an
+        # inversion is topically identical), so the embedding gate greens it; only
+        # the NLI direction distinguishes assert-P from assert-¬P. The python
+        # shadow serves BOTH callees: embed_taxonomy batch-encode (items carry
+        # .text → returns vectors) and the nli_classify engine (items carry
+        # .claim_prop → returns [{id,direction,...}]).
+        BeforeEach {
+            $script:invEmbPath = Join-Path $script:workDir 'embeddings-inv.json'
+            @{
+                metadata = @{ dim = $script:dim }
+                nodes = [ordered]@{ 'acc-intentions-999' = @{ pov = 'acc'; vector = $script:vecA } }
+            } | ConvertTo-Json -Depth 6 | Set-Content -Path $script:invEmbPath -Encoding utf8NoBOM
+        }
+
+        It 'INVERSION ARM: opposes flips the provisional ADVOCATES_FOR to OPPOSES (edge kept, not dropped)' {
+            InModuleScope AITriad -Parameters @{
+                ClaimsPath = $script:claimsPath
+                EmbPath    = $script:invEmbPath
+                VecA       = [double[]]$script:vecA
+            } {
+                param($ClaimsPath, $EmbPath, $VecA)
+
+                @{ claims = @(
+                    [PSCustomObject]@{ org_id='org-014'; source_id='src-inv'; polarity='asserts'
+                        canonical_proposition='Ordinary privacy law already applies to AI; no new legal regime is needed'
+                        extraction_confidence=0.9 }
+                ) } | ConvertTo-Json -Depth 5 | Set-Content -Path $ClaimsPath -Encoding utf8NoBOM
+
+                $script:TaxonomyData['invtest-pov'] = [PSCustomObject]@{ nodes = @(
+                    [PSCustomObject]@{ id='acc-intentions-999'; label='AI requires entirely new laws'
+                        description='Emerging technologies require entirely new legal frameworks rather than adapted existing laws' }
+                )}
+
+                $vecAref = $VecA
+                function python {
+                    process {
+                        $payload = @($input | Out-String | ConvertFrom-Json)
+                        if ($payload.Count -gt 0 -and $payload[0].PSObject.Properties['claim_prop']) {
+                            $out = foreach ($it in $payload) {
+                                [pscustomobject]@{ id=$it.id; direction='opposes'; confidence=1.5; method='nli' }
+                            }
+                            ConvertTo-Json -InputObject @($out) -Depth 5
+                        } else {
+                            $o = [ordered]@{}
+                            foreach ($it in $payload) { $o[$it.id] = $vecAref }
+                            $o | ConvertTo-Json -Depth 5 -Compress
+                        }
+                    }
+                }
+                Mock Get-OrganizationEdgesStore { [PSCustomObject]@{ edges = @() } }
+
+                $r = Invoke-OrgClaimMatching -ClaimsPath $ClaimsPath -EmbeddingsPath $EmbPath `
+                    -MatchThreshold 0.60 -Verbose:$false 6>$null
+
+                $r.ProposalsWouldEmit     | Should -Be 1 -Because 'the edge survives — flipped, not dropped'
+                $r.Proposals[0].EdgeType  | Should -Be 'OPPOSES' -Because 'org asserts a claim that negates the node → OPPOSES'
+                $r.Proposals[0].Direction | Should -Be 'opposes'
+                $r.DirectionalFlipped     | Should -Be 1
+                $r.DirectionalCounts.opposes | Should -Be 1
+
+                $script:TaxonomyData.Remove('invtest-pov')
+            }
+        }
+
+        It 'KEEP ARM: a non-opposes verdict (unrelated) keeps ADVOCATES_FOR — no flip, no drop (recall preserved)' {
+            InModuleScope AITriad -Parameters @{
+                ClaimsPath = $script:claimsPath
+                EmbPath    = $script:invEmbPath
+                VecA       = [double[]]$script:vecA
+            } {
+                param($ClaimsPath, $EmbPath, $VecA)
+
+                @{ claims = @(
+                    [PSCustomObject]@{ org_id='org-014'; source_id='src-agree'; polarity='asserts'
+                        canonical_proposition='AI requires entirely new legal frameworks'
+                        extraction_confidence=0.9 }
+                ) } | ConvertTo-Json -Depth 5 | Set-Content -Path $ClaimsPath -Encoding utf8NoBOM
+
+                $script:TaxonomyData['invtest-pov'] = [PSCustomObject]@{ nodes = @(
+                    [PSCustomObject]@{ id='acc-intentions-999'; label='AI requires entirely new laws'
+                        description='Emerging technologies require entirely new legal frameworks rather than adapted existing laws' }
+                )}
+
+                $vecAref = $VecA
+                function python {
+                    process {
+                        $payload = @($input | Out-String | ConvertFrom-Json)
+                        if ($payload.Count -gt 0 -and $payload[0].PSObject.Properties['claim_prop']) {
+                            # Realistic: framing suppresses entailment, genuine agreement reads 'unrelated'.
+                            $out = foreach ($it in $payload) {
+                                [pscustomobject]@{ id=$it.id; direction='unrelated'; confidence=0.1; method='nli' }
+                            }
+                            ConvertTo-Json -InputObject @($out) -Depth 5
+                        } else {
+                            $o = [ordered]@{}
+                            foreach ($it in $payload) { $o[$it.id] = $vecAref }
+                            $o | ConvertTo-Json -Depth 5 -Compress
+                        }
+                    }
+                }
+                Mock Get-OrganizationEdgesStore { [PSCustomObject]@{ edges = @() } }
+
+                $r = Invoke-OrgClaimMatching -ClaimsPath $ClaimsPath -EmbeddingsPath $EmbPath `
+                    -MatchThreshold 0.60 -Verbose:$false 6>$null
+
+                $r.ProposalsWouldEmit     | Should -Be 1
+                $r.Proposals[0].EdgeType  | Should -Be 'ADVOCATES_FOR' -Because 'no opposition detected → provisional edge stands'
+                $r.Proposals[0].Direction | Should -Be 'unrelated'
+                $r.DirectionalFlipped     | Should -Be 0
+                $r.DirectionalCounts.unrelated | Should -Be 1
+
+                $script:TaxonomyData.Remove('invtest-pov')
+            }
+        }
+
+        It 'FAIL-SAFE ARM: an unresolved direction KEEPS the edge (never falsely demotes) and records the count' {
+            InModuleScope AITriad -Parameters @{
+                ClaimsPath = $script:claimsPath
+                EmbPath    = $script:invEmbPath
+                VecA       = [double[]]$script:vecA
+            } {
+                param($ClaimsPath, $EmbPath, $VecA)
+
+                @{ claims = @(
+                    [PSCustomObject]@{ org_id='org-014'; source_id='src-unres'; polarity='asserts'
+                        canonical_proposition='Some claim'; extraction_confidence=0.9 }
+                ) } | ConvertTo-Json -Depth 5 | Set-Content -Path $ClaimsPath -Encoding utf8NoBOM
+
+                $script:TaxonomyData['invtest-pov'] = [PSCustomObject]@{ nodes = @(
+                    [PSCustomObject]@{ id='acc-intentions-999'; label='N'; description='node text' }
+                )}
+
+                $vecAref = $VecA
+                function python {
+                    process {
+                        $payload = @($input | Out-String | ConvertFrom-Json)
+                        if ($payload.Count -gt 0 -and $payload[0].PSObject.Properties['claim_prop']) {
+                            # Engine unavailable → emit nothing → wrapper fails safe to unresolved.
+                            $null = $payload
+                        } else {
+                            $o = [ordered]@{}
+                            foreach ($it in $payload) { $o[$it.id] = $vecAref }
+                            $o | ConvertTo-Json -Depth 5 -Compress
+                        }
+                    }
+                }
+                Mock Get-OrganizationEdgesStore { [PSCustomObject]@{ edges = @() } }
+
+                $r = Invoke-OrgClaimMatching -ClaimsPath $ClaimsPath -EmbeddingsPath $EmbPath `
+                    -MatchThreshold 0.60 -Verbose:$false 6>$null
+
+                $r.ProposalsWouldEmit        | Should -Be 1 -Because 'unresolved → keep (never a false demote)'
+                $r.Proposals[0].EdgeType     | Should -Be 'ADVOCATES_FOR'
+                $r.Proposals[0].Direction    | Should -Be 'unresolved'
+                $r.DirectionalFlipped        | Should -Be 0
+                $r.DirectionalCounts.unresolved | Should -Be 1
+
+                $script:TaxonomyData.Remove('invtest-pov')
+            }
+        }
+
+        It 'CLAIM TEXT: the gate is fed the VERBATIM text (claim.text), not the canonical proposition (t/2744#9)' {
+            InModuleScope AITriad -Parameters @{
+                ClaimsPath = $script:claimsPath
+                EmbPath    = $script:invEmbPath
+                VecA       = [double[]]$script:vecA
+            } {
+                param($ClaimsPath, $EmbPath, $VecA)
+
+                # Distinct text vs canonical, so we can tell which one reached the gate.
+                @{ claims = @(
+                    [PSCustomObject]@{ org_id='org-014'; source_id='src-vb'; polarity='asserts'
+                        text='VERBATIM org sentence with the full polarity-bearing phrasing'
+                        canonical_proposition='over-abstracted canonical'
+                        extraction_confidence=0.9 }
+                ) } | ConvertTo-Json -Depth 5 | Set-Content -Path $ClaimsPath -Encoding utf8NoBOM
+
+                $script:TaxonomyData['invtest-pov'] = [PSCustomObject]@{ nodes = @(
+                    [PSCustomObject]@{ id='acc-intentions-999'; label='N'; description='node text' }
+                )}
+
+                $script:capturedClaimProp = $null
+                $vecAref = $VecA
+                function python {
+                    process {
+                        $payload = @($input | Out-String | ConvertFrom-Json)
+                        if ($payload.Count -gt 0 -and $payload[0].PSObject.Properties['claim_prop']) {
+                            $script:capturedClaimProp = [string]$payload[0].claim_prop
+                            # Genuine-agreement-style control fed via verbatim → not opposes.
+                            $out = foreach ($it in $payload) {
+                                [pscustomobject]@{ id=$it.id; direction='unrelated'; confidence=0.1; method='nli' }
+                            }
+                            ConvertTo-Json -InputObject @($out) -Depth 5
+                        } else {
+                            $o = [ordered]@{}
+                            foreach ($it in $payload) { $o[$it.id] = $vecAref }
+                            $o | ConvertTo-Json -Depth 5 -Compress
+                        }
+                    }
+                }
+                Mock Get-OrganizationEdgesStore { [PSCustomObject]@{ edges = @() } }
+
+                $r = Invoke-OrgClaimMatching -ClaimsPath $ClaimsPath -EmbeddingsPath $EmbPath `
+                    -MatchThreshold 0.60 -Verbose:$false 6>$null
+
+                $script:capturedClaimProp | Should -Be 'VERBATIM org sentence with the full polarity-bearing phrasing' -Because 'the gate feeds claim.text (verbatim), not canonical_proposition (t/2744#9)'
+                $r.Proposals[0].Direction | Should -Be 'unrelated'
+                $r.DirectionalCounts.opposes | Should -Be 0 -Because 'no false-opposes on the verbatim-fed control'
+
+                $script:TaxonomyData.Remove('invtest-pov')
+            }
+        }
+
+        It 'MULTI-REP OR: an inversion caught by ONLY the canonical rep still flips the edge (opposes-if-any, t/2744#10)' {
+            InModuleScope AITriad -Parameters @{
+                ClaimsPath = $script:claimsPath
+                EmbPath    = $script:invEmbPath
+                VecA       = [double[]]$script:vecA
+            } {
+                param($ClaimsPath, $EmbPath, $VecA)
+
+                @{ claims = @(
+                    [PSCustomObject]@{ org_id='org-014'; source_id='src-mr'; polarity='asserts'
+                        text='VERBATIM rep that reads neutral to the model'
+                        canonical_proposition='CANONICAL rep that contradicts the node'
+                        extraction_confidence=0.9 }
+                ) } | ConvertTo-Json -Depth 5 | Set-Content -Path $ClaimsPath -Encoding utf8NoBOM
+
+                $script:TaxonomyData['invtest-pov'] = [PSCustomObject]@{ nodes = @(
+                    [PSCustomObject]@{ id='acc-intentions-999'; label='N'; description='node text' }
+                )}
+
+                $vecAref = $VecA
+                function python {
+                    process {
+                        $payload = @($input | Out-String | ConvertFrom-Json)
+                        if ($payload.Count -gt 0 -and $payload[0].PSObject.Properties['claim_prop']) {
+                            # verbatim rep → unrelated; canonical rep → opposes. OR must fire.
+                            $out = foreach ($it in $payload) {
+                                $dir = if ([string]$it.claim_prop -match 'CANONICAL') { 'opposes' } else { 'unrelated' }
+                                [pscustomobject]@{ id=$it.id; direction=$dir; confidence=1.4; method='nli' }
+                            }
+                            ConvertTo-Json -InputObject @($out) -Depth 5
+                        } else {
+                            $o = [ordered]@{}
+                            foreach ($it in $payload) { $o[$it.id] = $vecAref }
+                            $o | ConvertTo-Json -Depth 5 -Compress
+                        }
+                    }
+                }
+                Mock Get-OrganizationEdgesStore { [PSCustomObject]@{ edges = @() } }
+
+                $r = Invoke-OrgClaimMatching -ClaimsPath $ClaimsPath -EmbeddingsPath $EmbPath `
+                    -MatchThreshold 0.60 -Verbose:$false 6>$null
+
+                $r.ProposalsWouldEmit        | Should -Be 1
+                $r.Proposals[0].Direction    | Should -Be 'opposes' -Because 'opposes-if-ANY: the canonical rep fires'
+                $r.Proposals[0].EdgeType     | Should -Be 'OPPOSES'
+                $r.DirectionalFlipped        | Should -Be 1
+                $r.DirectionalCounts.opposes | Should -Be 1
+
+                $script:TaxonomyData.Remove('invtest-pov')
+            }
+        }
+
+        It 'MULTI-REP arm-2: genuine agreement across BOTH reps keeps the edge with zero false-opposes (TL binding condition)' {
+            InModuleScope AITriad -Parameters @{
+                ClaimsPath = $script:claimsPath
+                EmbPath    = $script:invEmbPath
+                VecA       = [double[]]$script:vecA
+            } {
+                param($ClaimsPath, $EmbPath, $VecA)
+
+                @{ claims = @(
+                    [PSCustomObject]@{ org_id='org-014'; source_id='src-agree2'; polarity='asserts'
+                        text='VERBATIM rep, genuinely aligned'
+                        canonical_proposition='CANONICAL rep, genuinely aligned'
+                        extraction_confidence=0.9 }
+                ) } | ConvertTo-Json -Depth 5 | Set-Content -Path $ClaimsPath -Encoding utf8NoBOM
+
+                $script:TaxonomyData['invtest-pov'] = [PSCustomObject]@{ nodes = @(
+                    [PSCustomObject]@{ id='acc-intentions-999'; label='N'; description='node text' }
+                )}
+
+                $vecAref = $VecA
+                function python {
+                    process {
+                        $payload = @($input | Out-String | ConvertFrom-Json)
+                        if ($payload.Count -gt 0 -and $payload[0].PSObject.Properties['claim_prop']) {
+                            # Both reps read unrelated (genuine agreement reads 'unrelated' under the gate).
+                            $out = foreach ($it in $payload) {
+                                [pscustomobject]@{ id=$it.id; direction='unrelated'; confidence=0.2; method='nli' }
+                            }
+                            ConvertTo-Json -InputObject @($out) -Depth 5
+                        } else {
+                            $o = [ordered]@{}
+                            foreach ($it in $payload) { $o[$it.id] = $vecAref }
+                            $o | ConvertTo-Json -Depth 5 -Compress
+                        }
+                    }
+                }
+                Mock Get-OrganizationEdgesStore { [PSCustomObject]@{ edges = @() } }
+
+                $r = Invoke-OrgClaimMatching -ClaimsPath $ClaimsPath -EmbeddingsPath $EmbPath `
+                    -MatchThreshold 0.60 -Verbose:$false 6>$null
+
+                $r.ProposalsWouldEmit        | Should -Be 1
+                $r.Proposals[0].EdgeType     | Should -Be 'ADVOCATES_FOR' -Because 'no rep opposes → edge kept'
+                $r.DirectionalFlipped        | Should -Be 0
+                $r.DirectionalCounts.opposes | Should -Be 0 -Because 'zero false-opposes across both reps (TL binding condition)'
+
+                $script:TaxonomyData.Remove('invtest-pov')
             }
         }
     }

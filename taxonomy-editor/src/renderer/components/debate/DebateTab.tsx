@@ -265,7 +265,7 @@ export function DebateTab() {
     const q = searchQuery.trim().toLowerCase();
     if (!q) return orderedSessions;
     return orderedSessions.filter(s =>
-      (s.title ?? '').toLowerCase().includes(q) ||
+      (typeof s.title === 'string' ? s.title : '').toLowerCase().includes(q) ||
       (s.topic_text && s.topic_text.toLowerCase().includes(q))
     );
   }, [orderedSessions, searchQuery]);
@@ -895,7 +895,7 @@ function BulkDeleteDialog({
         <div className="bulk-delete-list">
           {sessions.filter(s => selectedIds.has(s.id)).map(s => (
             <div key={s.id} className="bulk-delete-item">
-              <span className="bulk-delete-item-title">{s.title}</span>
+              <span className="bulk-delete-item-title">{typeof s.title === 'string' ? s.title : (s.title as any)?.final ?? (s.title as any)?.original ?? '(Untitled)'}</span>
               <span className="bulk-delete-item-meta">{s.phase} &middot; {formatDate(s.updated_at)}</span>
             </div>
           ))}

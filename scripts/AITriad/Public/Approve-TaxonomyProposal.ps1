@@ -98,7 +98,7 @@ function Approve-TaxonomyProposal {
         if ($DescRaw.Length -gt 150) { $Desc = $DescRaw.Substring(0, 150) + '...' } else { $Desc = $DescRaw }
         Write-Host "    Desc:     $Desc" -ForegroundColor Gray
 
-        if ($P.target_node_id) {
+        if ($P.PSObject.Properties['target_node_id'] -and $P.target_node_id) {
             Write-Host "    Target:   $($P.target_node_id)" -ForegroundColor DarkYellow
         }
 
