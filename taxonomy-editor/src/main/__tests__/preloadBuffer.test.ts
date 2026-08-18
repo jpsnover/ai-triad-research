@@ -8,12 +8,22 @@
  * push arriving first was silently dropped, leaving an idle debate stuck on
  * "Loading debate…". preload.cts fixes it with createLatestValueBuffer (buffer the
  * latest pre-registration value, flush on subscribe). These tests exercise that
- * buffer state machine directly — now possible because t/2698 widened vite's
- * esbuild.include to cover typed `.cts` modules.
+ * buffer state machine directly.
+ *
+ * createLatestValueBuffer is now inlined in preload.cts (t/2772 — sandboxed
+ * preloads cannot require sibling files) and exported for testability. Electron is
+ * mocked so the preload's IPC side-effects don't interfere with the pure buffer
+ * semantics under test.
  */
 
-import { describe, it, expect } from 'vitest';
-import { createLatestValueBuffer } from '../preloadBuffer.cjs';
+import { describe, it, expect, vi } from 'vitest';
+
+vi.mock('electron', () => ({
+  contextBridge: { exposeInMainWorld: vi.fn() },
+  ipcRenderer: { invoke: vi.fn(), send: vi.fn(), on: vi.fn(), removeListener: vi.fn() },
+}));
+
+import { createLatestValueBuffer } from '../preload.cjs';
 
 const flush = () => new Promise(resolve => setTimeout(resolve, 0));
 
