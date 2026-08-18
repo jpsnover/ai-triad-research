@@ -82,4 +82,17 @@ Describe 'Get-ServerLog' -Tag 'diagnostics' {
     It 'Is exported and resolvable after import' {
         Get-Command Get-ServerLog -Module AITriad -ErrorAction SilentlyContinue | Should -Not -BeNullOrEmpty
     }
+
+    It 'Caps --tail at az''s 300 max for the ByRequestId default (regression: az rejects >300)' {
+        Mock az -ModuleName AITriad -MockWith { $global:AzArgs = $args; $global:LASTEXITCODE = 0; @() }
+        Get-ServerLog -RequestId 'abc' *> $null
+        $ti = [array]::IndexOf([object[]]$global:AzArgs, '--tail')
+        $ti | Should -BeGreaterThan -1 -Because '--tail must be passed to az'
+        [int]$global:AzArgs[$ti + 1] | Should -Be 300 -Because 'the ByRequestId default (was 5000) must clamp to az''s 300 cap'
+        Remove-Variable -Name AzArgs -Scope Global -ErrorAction SilentlyContinue
+    }
+
+    It 'Rejects -Tail greater than 300 at parameter binding (ValidateRange)' {
+        { Get-ServerLog -RequestId 'abc' -Tail 5000 } | Should -Throw -Because 'az caps --tail at 300; a clear PS validation error beats an opaque az failure'
+    }
 }

@@ -21,8 +21,11 @@ function Get-ServerLog {
     .PARAMETER Follow
         (Recent/Search) Stream logs live instead of a batch capture.
     .PARAMETER Tail
-        Number of log lines to request from ACA. 0 = per-set default
-        (Recent 100, ByRequestId 5000, ByTimeRange 10000, Search 1000).
+        Number of log lines to request from ACA (1-300 — `az containerapp logs show`
+        hard-caps `--tail` at 300). 0 = per-set default (Recent 100; ByRequestId,
+        ByTimeRange, and Search each request the 300 max). For history deeper than the
+        live-tail buffer, query Log Analytics directly — this cmdlet wraps the
+        `logs show` buffer only.
     .PARAMETER Component
         Filter to a single Pino `component`.
     .PARAMETER Level
@@ -77,7 +80,7 @@ function Get-ServerLog {
         [Parameter(ParameterSetName = 'ByRequestId')]
         [Parameter(ParameterSetName = 'ByTimeRange')]
         [Parameter(ParameterSetName = 'Search')]
-        [ValidateRange(1, 100000)]
+        [ValidateRange(1, 300)]
         [int]$Tail = 0,
 
         [Parameter(ParameterSetName = 'Recent')]
@@ -122,13 +125,18 @@ function Get-ServerLog {
             $EndTime = [datetime]::UtcNow
         }
 
+        # az containerapp logs show hard-caps --tail at 300; requesting more errors out
+        # (observed live: "--tail must be between 0 and 300"). Per-set defaults request
+        # the 300 max for the search-heavy sets; Recent tails 100.
+        $azTailMax = 300
         $effectiveTail = switch ($PSCmdlet.ParameterSetName) {
             'Recent'      { if ($Tail -gt 0) { $Tail } else { 100 } }
-            'ByRequestId' { if ($Tail -gt 0) { $Tail } else { 5000 } }
-            'ByTimeRange' { if ($Tail -gt 0) { $Tail } else { 10000 } }
-            'Search'      { if ($Tail -gt 0) { $Tail } else { 1000 } }
+            'ByRequestId' { if ($Tail -gt 0) { $Tail } else { $azTailMax } }
+            'ByTimeRange' { if ($Tail -gt 0) { $Tail } else { $azTailMax } }
+            'Search'      { if ($Tail -gt 0) { $Tail } else { $azTailMax } }
             default       { if ($Tail -gt 0) { $Tail } else { 100 } }
         }
+        if ($effectiveTail -gt $azTailMax) { $effectiveTail = $azTailMax }
 
         $levelNums = if ($Level) { [int[]]@($Level | ForEach-Object { $pinoLevelToNum[$_] }) } else { $null }
 
