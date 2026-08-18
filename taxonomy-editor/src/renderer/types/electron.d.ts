@@ -207,8 +207,9 @@ export interface ElectronAPI {
   openPromptDiffWindow: (debateId: string, entryId: string) => Promise<void>;
 
   // Chat popout
-  openChatWindow: () => Promise<void>;
-  onChatPopoutClosed: (callback: () => void) => () => void;
+  openChatWindow: (chatId: string, source?: 'my' | 'community') => Promise<{ atCap: true } | void>;
+  onChatPopoutClosed: (callback: (chatId: string) => void) => () => void;
+  onChatWindowLoad: (callback: (chatId: string) => void) => () => void;
 
   // Flight recorder
   dumpFlightRecorder: (ndjson: string, dumpId?: string) => Promise<{ filePath: string; filename: string }>;

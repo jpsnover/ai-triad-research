@@ -239,7 +239,7 @@ export function App() {
   if (hash.startsWith('#diff-window')) {
     return <ErrorBoundary buildInfo={BUILD_FINGERPRINT}><Suspense fallback={null}><DiffWindow /></Suspense></ErrorBoundary>;
   }
-  if (hash === '#chat-window') {
+  if (hash.startsWith('#chat-window')) {
     return <ErrorBoundary buildInfo={BUILD_FINGERPRINT}><Suspense fallback={null}><ChatWindow /></Suspense></ErrorBoundary>;
   }
   if (hash === '#analytics' && analyticsFlag) {

@@ -483,8 +483,9 @@ export const api: AppAPI = {
     return () => { localDiagCallbacks.delete(cb); unsub(); };
   },
   onDiagnosticsPopoutClosed: (cb) => window.electronAPI.onDiagnosticsPopoutClosed(cb),
-  openChatWindow: () => window.electronAPI.openChatWindow(),
+  openChatWindow: (chatId, source) => window.electronAPI.openChatWindow(chatId, source),
   onChatPopoutClosed: (cb) => window.electronAPI.onChatPopoutClosed(cb),
+  onChatWindowLoad: (cb) => window.electronAPI.onChatWindowLoad(cb),
   requestReExtractClaims: (entryId) => window.electronAPI.requestReExtractClaims(entryId),
   onReExtractClaims: (cb) => window.electronAPI.onReExtractClaims(cb),
   onDebateWindowLoad: (cb) => window.electronAPI.onDebateWindowLoad(cb),
