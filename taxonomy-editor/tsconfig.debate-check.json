@@ -9,7 +9,7 @@
     "../lib/flight-recorder/**/*"
   ],
   "exclude": [
-    "../lib/debate/**/*.test.ts",
+    "../lib/**/*.test.ts",
     "../lib/debate/__tests__/**/*",
     "../lib/debate/_*.ts",
     "src/main/__tests__/**",
