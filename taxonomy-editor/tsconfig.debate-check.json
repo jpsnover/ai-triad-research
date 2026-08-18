@@ -11,6 +11,8 @@
   "exclude": [
     "../lib/debate/**/*.test.ts",
     "../lib/debate/__tests__/**/*",
-    "../lib/debate/_*.ts"
+    "../lib/debate/_*.ts",
+    "src/main/__tests__/**",
+    "**/*.test.ts"
   ]
 }
