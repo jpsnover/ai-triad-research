@@ -171,7 +171,8 @@ export async function runOpEdCreate(fetchFn: OpEdFetch, payload: CreateOpEdPaylo
         return;
       }
       if (event.type === 'error') {
-        streamError = new ActionableError({ goal: 'Op-Ed Studio: create an op-ed', problem: typeof event.message === 'string' ? event.message : 'Op-ed generation failed on the server.', location: 'opedStream.runOpEdCreate', nextSteps: ['Try creating it again', 'Check My Op-Eds — a partial op-ed may have been saved'] });
+        const evtProblem = typeof event.problem === 'string' ? event.problem : (typeof event.message === 'string' ? event.message : 'Op-ed generation failed on the server.');
+        streamError = new ActionableError({ goal: 'Op-Ed Studio: create an op-ed', problem: evtProblem, location: 'opedStream.runOpEdCreate', nextSteps: ['Try creating it again', 'Check My Op-Eds — a partial op-ed may have been saved'] });
         return;
       }
       const progress = toProgress(event);

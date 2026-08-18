@@ -20,6 +20,8 @@ import type { Router } from '../httpKit.js';
 import type { ServerCtx } from './context.js';
 import { json, error, param } from '../httpKit.js';
 import { getGlobalRecorder } from '../../../../lib/flight-recorder/index.js';
+import { ActionableError } from '../../../../lib/debate/errors.js';
+import { clientSafeMessage } from '../security/accessControl.js';
 import { isSafeId } from '../storage/fileIO.js';
 import { listOpedSets, loadOpedSet, deleteOpedSet, getOpedSetsQuotaStatus, finalizeOpedSet } from '../storage/opedStore.js';
 import type { OpEdSet, OpEdMember, OpEdParams, PovKey } from '../../../../lib/oped/types.js';
@@ -150,12 +152,19 @@ async function driveOpEdRun(
     if (run.status === 'running') run.status = 'complete';
   } catch (err) {
     run.status = 'error';
-    getGlobalRecorder()?.record({ type: 'system.error', component: 'oped', level: 'error', message: 'Op-ed generation failed', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
+    const opedErrMsg = err instanceof ActionableError
+      ? `Op-ed generation failed — goal: ${err.goal} | problem: ${err.problem}`
+      : 'Op-ed generation failed';
+    getGlobalRecorder()?.record({ type: 'system.error', component: 'oped', level: 'error', message: opedErrMsg, error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
     if (completed.length > 0) {
       try { await finalizeOpedSet({ schema_version: 1, set_id: request.set_id, topic: request.topic, params: request.params, created_at: new Date().toISOString(), opeds: completed } as OpEdSet); }
       catch { /* telemetry — silent by design (best-effort partial persist) */ }
     }
-    writeFrame({ type: 'error', message: String(err) });
+    writeFrame({
+      type: 'error',
+      ...(err instanceof ActionableError ? { goal: err.goal, problem: clientSafeMessage(err.problem, err) } : {}),
+      message: clientSafeMessage(String(err), err),
+    });
   } finally {
     clearInterval(heartbeat);
     run.startedAt = Date.now(); // restart the TTL clock from the terminal state (status-GET window)

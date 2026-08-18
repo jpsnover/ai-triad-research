@@ -13,6 +13,7 @@ import { callerTierIdentity, missingApiKeyError, clientSafeMessage } from '../se
 import { getCurrentUser } from '../security/userContext.js';
 import { log } from '../logger.js';
 import { getGlobalRecorder } from '../../../../lib/flight-recorder/index.js';
+import { ActionableError } from '../../../../lib/debate/errors.js';
 import { DEFAULT_MODEL, generateViaGeminiStream } from '../../../../lib/ai-client/index.js';
 import type { UrlContextMetadata, UrlContextEntry, GeminiContent } from '../../../../lib/ai-client/index.js';
 import { fetchUrlForPrompt } from '../../../../lib/url-fetch/fetchUrlForPrompt.js';
@@ -324,13 +325,21 @@ export function registerChatRoutes(r: Router, _ctx: ServerCtx): void {
 
     } catch (err) {
       log.server.error({ component: 'ai-chat-stream', err }, 'chat-stream failed');
+      const chatErrMsg = err instanceof ActionableError
+        ? `chat-stream failed — goal: ${err.goal} | problem: ${err.problem}`
+        : `chat-stream failed: ${String(err)}`;
       getGlobalRecorder()?.record({
         type: 'system.error', component: 'ai-chat-stream', level: 'error',
-        message: `chat-stream failed: ${String(err)}`,
+        message: chatErrMsg,
         error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
       if (res.headersSent) {
-        writeSse(res, { type: 'error', message: clientSafeMessage(String(err)), code: 'SERVER_ERROR' });
+        writeSse(res, {
+          type: 'error',
+          ...(err instanceof ActionableError ? { goal: err.goal, problem: clientSafeMessage(err.problem, err) } : {}),
+          message: clientSafeMessage(String(err), err),
+          code: 'SERVER_ERROR',
+        });
       } else {
         error(res, String(err), 500, err);
       }
@@ -381,7 +390,12 @@ async function streamGeminiChat(
     urlContextMetadata = result.urlContextMetadata;
   } catch (streamErr) {
     log.server.warn({ err: streamErr }, 'chat-stream: generateViaGeminiStream threw');
-    writeSse(res, { type: 'error', message: clientSafeMessage(String(streamErr)), code: 'STREAM_ERROR' });
+    writeSse(res, {
+      type: 'error',
+      ...(streamErr instanceof ActionableError ? { goal: streamErr.goal, problem: clientSafeMessage(streamErr.problem, streamErr) } : {}),
+      message: clientSafeMessage(String(streamErr), streamErr),
+      code: 'STREAM_ERROR',
+    });
     return;
   }
 
