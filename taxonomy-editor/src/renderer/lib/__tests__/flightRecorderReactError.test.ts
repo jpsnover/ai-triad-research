@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import type { RecordInput } from '@lib/flight-recorder/types';
 
 /**
@@ -140,5 +140,76 @@ describe('dumpOnReactError — externalized-module attribution (t/2551 observabi
     expect(h.fakeRecorder.record).toHaveBeenCalledTimes(1);
     const data = (h.recordCalls[0].data ?? {}) as Record<string, unknown>;
     expect(data.externalized_module).toBeUndefined();
+  });
+});
+
+/**
+ * Observability arm for t/2732: an "invalid React child" crash (rendering a
+ * non-primitive, e.g. a bad session-index entry — the t/2729 BulkDeleteDialog crash)
+ * must name the offending object's keys in `invalid_react_child_keys`, and the store
+ * snapshot must surface the ids of any debate session whose `title` is non-string
+ * (the index-shape defect class) in `debate_sessions_non_string_title_ids`.
+ */
+describe('dumpOnReactError — invalid-child + bad-session attribution (t/2732 observability)', () => {
+  beforeEach(() => {
+    h.recordCalls.length = 0;
+    h.fakeRecorder.record.mockClear();
+    h.dumpFlightRecorder.mockClear();
+    h.reportError.mockClear();
+  });
+  afterEach(() => {
+    delete (window as unknown as Record<string, unknown>).__ZUSTAND_STORES__;
+  });
+
+  it('records invalid_react_child_keys parsed from the React error message', async () => {
+    const { dumpOnReactError } = await import('../flightRecorderInit');
+
+    // The exact message React throws when a non-primitive is rendered as a child —
+    // the shape t/2729's BulkDeleteDialog crash produced ({final, original}).
+    const err = new Error(
+      'Objects are not valid as a React child (found: object with keys {final, original}). ' +
+      'If you meant to render a collection of children, use an array instead.',
+    );
+
+    dumpOnReactError(err, '\n    at BulkDeleteDialog\n    at DebateTab');
+
+    expect(h.fakeRecorder.record).toHaveBeenCalledTimes(1);
+    const data = h.recordCalls[0].data as Record<string, unknown>;
+    expect(data.invalid_react_child_keys).toEqual(['final', 'original']);
+  });
+
+  it('omits invalid_react_child_keys for an ordinary crash', async () => {
+    const { dumpOnReactError } = await import('../flightRecorderInit');
+
+    dumpOnReactError(new Error('boom'), undefined);
+
+    expect(h.fakeRecorder.record).toHaveBeenCalledTimes(1);
+    const data = (h.recordCalls[0].data ?? {}) as Record<string, unknown>;
+    expect(data.invalid_react_child_keys).toBeUndefined();
+  });
+
+  it('surfaces non-string-title session ids in the crash state snapshot', async () => {
+    // Stub the zustand stores getStores() reads, with one well-typed and one
+    // malformed session title (the bad index-entry class).
+    (window as unknown as Record<string, unknown>).__ZUSTAND_STORES__ = {
+      debate: {
+        getState: () => ({
+          sessions: [
+            { id: 'good-1', title: 'A normal debate' },
+            { id: 'bad-1', title: { final: 'x', original: 'y' } },
+            { id: 'bad-2', title: 42 },
+          ],
+        }),
+      },
+      taxonomy: { getState: () => ({}) },
+    };
+
+    const { dumpOnReactError } = await import('../flightRecorderInit');
+    dumpOnReactError(new Error('boom'), undefined);
+
+    expect(h.fakeRecorder.record).toHaveBeenCalledTimes(1);
+    const data = h.recordCalls[0].data as Record<string, unknown>;
+    const snapshot = data.state_snapshot as Record<string, unknown>;
+    expect(snapshot.debate_sessions_non_string_title_ids).toEqual(['bad-1', 'bad-2']);
   });
 });
