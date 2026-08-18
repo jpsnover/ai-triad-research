@@ -224,6 +224,8 @@
         'Test-DebateSession'
         # t/2545 — Pre-flight atomic write+rename probe for debate output dir
         'Test-DebatePersistence'
+        # t/2765 — ACA server log retrieval with requestId correlation
+        'Get-ServerLog'
     )
 
     # Aliases exported from this module
