@@ -3,7 +3,32 @@
 
 import { contextBridge, ipcRenderer } from 'electron';
 import type { OpEdSet, OpEdSetSummary } from '../../../lib/oped/types.js';
-import { createLatestValueBuffer } from './preloadBuffer.cjs';
+
+// Inlined from preloadBuffer.cts — sandboxed preloads (sandbox:true) cannot
+// require sibling files at runtime; inlining avoids the require('./preloadBuffer.cjs')
+// that tsc emits, which throws "module not found" before exposeInMainWorld runs (t/2772).
+interface LatestValueBuffer<T> {
+  onIpc(value: T): void;
+  onSubscribe(deliver: (value: T) => void): void;
+  onUnsubscribe(): void;
+}
+
+function createLatestValueBuffer<T>(): LatestValueBuffer<T> {
+  let buffered: T | null = null;
+  let active = true;
+  return {
+    onIpc(value: T): void { if (active) buffered = value; },
+    onSubscribe(deliver: (value: T) => void): void {
+      active = false;
+      if (buffered !== null) {
+        const value = buffered;
+        buffered = null;
+        queueMicrotask(() => deliver(value));
+      }
+    },
+    onUnsubscribe(): void { active = true; },
+  };
+}
 
 console.log('[preload] starting...');
 

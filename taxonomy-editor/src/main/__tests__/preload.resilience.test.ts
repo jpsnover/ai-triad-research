@@ -23,10 +23,6 @@ function makeIpcRenderer(overrides: Partial<{ on: () => void }> = {}) {
   };
 }
 
-function makeBuffer() {
-  return { onIpc: vi.fn(), onSubscribe: vi.fn(), onUnsubscribe: vi.fn() };
-}
-
 describe('preload.cts structural resilience (t/2774)', () => {
   beforeEach(() => {
     vi.resetModules();
@@ -37,9 +33,6 @@ describe('preload.cts structural resilience (t/2774)', () => {
     vi.doMock('electron', () => ({
       contextBridge: { exposeInMainWorld },
       ipcRenderer: makeIpcRenderer(),
-    }));
-    vi.doMock('../preloadBuffer.cjs', () => ({
-      createLatestValueBuffer: makeBuffer,
     }));
 
     const origNow = performance.now;
@@ -65,9 +58,6 @@ describe('preload.cts structural resilience (t/2774)', () => {
         // First .on call (debate-window-load buffer listener) throws; expose runs before listeners.
         on: vi.fn().mockImplementationOnce(() => { throw new Error('sandbox-ipc'); }),
       }),
-    }));
-    vi.doMock('../preloadBuffer.cjs', () => ({
-      createLatestValueBuffer: makeBuffer,
     }));
 
     await import('../preload.cjs');
