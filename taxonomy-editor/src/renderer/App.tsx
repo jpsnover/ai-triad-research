@@ -220,8 +220,8 @@ export function App() {
     return () => { clearInterval(id); done = true; };
   }, []);
 
-  if (!bridgeReady) return null;
   if (bridgeError) return <div className="app-bridge-error">{bridgeError}</div>;
+  if (!bridgeReady) return null;
 
   // If this window was opened as a diagnostics popout, render only that
   if (hash === '#diagnostics-window') {
