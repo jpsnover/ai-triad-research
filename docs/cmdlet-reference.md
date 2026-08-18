@@ -124,7 +124,7 @@ Get-Help <CmdletName> -Full                     # full docs for any cmdlet
 | `Test-DebatePersistence` | Pre-flight atomic write+rename probe for the debates output dir — call before AI generation to surface LOCKED/NO_PERMISSION early (t/2545) |
 | `Get-ContainerAppRevision` | Query ACA revisions by mode (Active/Stale/Fqdn) — replaces raw `az containerapp revision` calls (t/1498) |
 | `Get-ServerLog` | Retrieve + filter ACA server logs, correlate by Pino requestId — `-RequestId`/`-Recent`/`-StartTime`/`-Pattern` sets, `-Level`/`-Component`/`-Follow`/`-Raw` (t/2765) |
-| `Test-PreloadHealth` | Validate the built `preload.cjs` before launch — exists, calls `contextBridge.exposeInMainWorld`, `preloadBuffer.cjs` alongside, optional `node --check` (t/2775) |
+| `Test-PreloadHealth` | Validate the built `preload.cjs` before launch — exists, calls `contextBridge.exposeInMainWorld`, self-contained (no relative `require('./…')`), optional `node --check` (t/2775, t/2777) |
 | `New-ContainerAppRevision` | Blue-green: deploy a new ACA revision at 0% traffic; returns real `RevisionName` for the promotion chain (t/1500 Phase 3) |
 | `Set-ContainerAppTraffic` | Shift traffic to a named revision with retry — call BEFORE `Disable-ContainerAppRevision` in rollback (t/1500 Phase 3) |
 | `Disable-ContainerAppRevision` | Deactivate an ACA revision (stale cleanup or rollback tail); non-fatal on failure — matches deploy YAML's `\|\| true` semantics (t/1500 Phase 3) |

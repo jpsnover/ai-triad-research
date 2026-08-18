@@ -11,7 +11,9 @@ function Test-PreloadHealth {
         offline in well under a second:
           - preload.cjs exists under taxonomy-editor/dist/main
           - it calls contextBridge.exposeInMainWorld (the bridge that sets electronAPI)
-          - preloadBuffer.cjs is present alongside it
+          - it is self-contained: NO relative sibling require('./…') (a relative
+            sibling require breaks under the Electron sandbox — that was the t/2772 bug;
+            the fix inlines it and deletes preloadBuffer.cjs)
           - (optional) `node --check` syntax-validates it
 
         Emits a structured Healthy/Checks object matching the diagnostic-cmdlet family
@@ -88,14 +90,20 @@ function Test-PreloadHealth {
     }
     & $AddCheck 'exposes electronAPI (contextBridge.exposeInMainWorld)' $HasBridge $(if ($HasBridge) { 'bridge call present' } elseif ($PreloadExists) { 'bridge call MISSING — preload will not set window.electronAPI (t/2772)' } else { 'skipped (no preload.cjs)' })
 
-    # ── Check 3: preloadBuffer.cjs alongside ─────────────────────────────────────
-    $BufferExists = $false
-    $BufferPath = $null
+    # ── Check 3: preload.cjs is self-contained (no relative sibling require) ──────
+    # A preload that require()s a relative sibling (e.g. ./preloadBuffer) breaks under
+    # the Electron sandbox — THAT sibling require was the t/2772 bug. The fix (#1214)
+    # inlines the dependency and deletes preloadBuffer.cjs, so a healthy preload has NO
+    # relative require. Bare module requires like require('electron') are fine.
+    $SelfContained = $false
+    $RelRequire    = $null
     if ($PreloadExists) {
-        $BufferPath = Join-Path $Preload.Directory.FullName 'preloadBuffer.cjs'
-        $BufferExists = Test-Path $BufferPath
+        if ($null -eq $Content) { $Content = Get-Content -Raw -Path $Preload.FullName }
+        $RelMatch = [regex]::Match($Content, 'require\(\s*[''"]\.{1,2}/')
+        $SelfContained = -not $RelMatch.Success
+        if ($RelMatch.Success) { $RelRequire = $RelMatch.Value }
     }
-    & $AddCheck 'preloadBuffer.cjs present' $BufferExists $(if ($BufferExists) { $BufferPath } elseif ($PreloadExists) { "missing alongside preload.cjs ($($Preload.Directory.FullName))" } else { 'skipped (no preload.cjs)' })
+    & $AddCheck 'preload.cjs self-contained (no relative require)' $SelfContained $(if ($SelfContained -and $PreloadExists) { 'no relative sibling require — sandbox-safe' } elseif ($PreloadExists) { "relative require present (`"$RelRequire`"...) — breaks under the Electron sandbox (t/2772)" } else { 'skipped (no preload.cjs)' })
 
     # ── Check 4 (optional): node --check syntax validation ───────────────────────
     if ($CheckSyntax) {
