@@ -144,4 +144,84 @@ Describe 'Invoke-PolarityGatePass (t/2739)' -Tag 'summary' {
             Should -Invoke Test-DirectionalAgreement -Times 0
         }
     }
+
+    # ── t/2757: opposes-if-any over {verbatim, canonical_proposition, attribution_text} ──
+
+    # A gated aligned key_point carrying all three claim reps with distinct text.
+    function script:New-MultiRepKp ($vb = 'VERBATIM-TEXT', $canon = 'CANON-TEXT', $attr = 'ATTR-TEXT') {
+        [PSCustomObject]@{
+            verbatim                 = $vb
+            canonical_proposition    = $canon
+            attribution_text         = $attr
+            taxonomy_node_id         = 'acc-intentions-047'
+            stance                   = 'aligned'
+            retrieval_low_confidence = $false
+        }
+    }
+
+    It 'OPPOSES-IF-ANY: one rep (verbatim) opposes → flip; reps counted; source recorded' {
+        InModuleScope AITriad {
+            # Only the verbatim rep opposes; canonical + attribution read unrelated.
+            Mock Test-DirectionalAgreement -MockWith {
+                $r = [System.Collections.Generic.List[PSObject]]::new()
+                foreach ($p in @($Pair)) {
+                    $dir = if ($p.ClaimProp -eq 'VERBATIM-TEXT') { 'opposes' } else { 'unrelated' }
+                    $conf = if ($dir -eq 'opposes') { 5.22 } else { 0.0 }
+                    $r.Add([PSCustomObject]@{ Id = $p.Id; Direction = $dir; Confidence = $conf; Method = 'nli' })
+                }
+                $r
+            }
+            $kp = New-MultiRepKp
+            $counts = Invoke-PolarityGatePass -KeyPoints @(@{ KeyPoint = $kp; POV = 'accelerationist' })
+
+            $kp.stance | Should -Be 'strongly_opposed'
+            $kp.stance_polarity_flag | Should -BeTrue
+            $kp.stance_polarity_source | Should -Be 'verbatim' -Because 'the firing rep is recorded for observability'
+            $counts.gated     | Should -Be 1
+            $counts.reps      | Should -Be 3 -Because 'all three claim reps were sent to the engine'
+            $counts.opposes   | Should -Be 1
+            $counts.unrelated | Should -Be 2
+        }
+    }
+
+    It 'ARM-2 zero-false-oppose across all 3 reps: genuine agreement stays aligned (TL binding)' {
+        InModuleScope AITriad {
+            # The observed failure mode is false-ENTAIL, never false-oppose; assert NO
+            # rep spuriously fires opposes on a true agreement.
+            Mock Test-DirectionalAgreement -MockWith {
+                $r = [System.Collections.Generic.List[PSObject]]::new()
+                foreach ($p in @($Pair)) { $r.Add([PSCustomObject]@{ Id = $p.Id; Direction = 'unrelated'; Confidence = 0.0; Method = 'nli' }) }
+                $r
+            }
+            $kp = New-MultiRepKp
+            $counts = Invoke-PolarityGatePass -KeyPoints @(@{ KeyPoint = $kp; POV = 'accelerationist' })
+
+            $kp.stance | Should -Be 'aligned' -Because 'no rep opposes → keep (opposition-only, zero false-oppose)'
+            ($kp.PSObject.Properties['stance_polarity_flag']) | Should -BeNullOrEmpty
+            $counts.opposes | Should -Be 0
+            $counts.reps    | Should -Be 3
+        }
+    }
+
+    It 'verbatim as a multi-span ARRAY is joined into one claim rep' {
+        InModuleScope AITriad {
+            $script:SeenVerbatim = $null
+            Mock Test-DirectionalAgreement -MockWith {
+                foreach ($p in @($Pair)) { if ($p.ClaimProp -like 'span one*') { $script:SeenVerbatim = $p.ClaimProp } }
+                $r = [System.Collections.Generic.List[PSObject]]::new()
+                foreach ($p in @($Pair)) { $r.Add([PSCustomObject]@{ Id = $p.Id; Direction = 'unrelated'; Confidence = 0; Method = 'nli' }) }
+                $r
+            }
+            $kp = [PSCustomObject]@{
+                verbatim = @('span one.', 'span two.')
+                canonical_proposition = 'c'
+                taxonomy_node_id = 'acc-intentions-047'
+                stance = 'aligned'
+                retrieval_low_confidence = $false
+            }
+            $counts = Invoke-PolarityGatePass -KeyPoints @(@{ KeyPoint = $kp; POV = 'accelerationist' })
+            $script:SeenVerbatim | Should -Be 'span one. span two.'
+            $counts.reps | Should -Be 2 -Because 'verbatim (joined) + canonical; attribution_text absent'
+        }
+    }
 }

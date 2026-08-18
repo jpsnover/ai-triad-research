@@ -874,11 +874,13 @@ function Finalize-Summary {
         if ($PolarityCounts.opposes -gt 0) {
             Write-Warn ("Polarity gate: {0} inversion(s) flagged (opposes) — counts o={0} a={1} u={2} x={3} over {4} gated" -f `
                 $PolarityCounts.opposes, $PolarityCounts.agrees, $PolarityCounts.unrelated, $PolarityCounts.unresolved, $PolarityCounts.gated)
-        } elseif ($PolarityCounts.gated -gt 0 -and $PolarityCounts.unresolved -eq $PolarityCounts.gated) {
-            # Silent-degradation detector: every gated pair unresolved ⇒ the directional
-            # engine likely failed for the whole run (fail-safe kept all mappings). Surface
-            # by default so a dead engine does not pass unnoticed (TL GV t/2739#6).
-            Write-Warn ("Polarity gate: all {0} gated key_point(s) unresolved — directional engine may be down (no inversion detection this run)" -f $PolarityCounts.gated)
+        } elseif ($PolarityCounts.reps -gt 0 -and $PolarityCounts.unresolved -eq $PolarityCounts.reps) {
+            # Silent-degradation detector: every claim-rep pair unresolved ⇒ the
+            # directional engine likely failed for the whole run (fail-safe kept all
+            # mappings). Surface by default so a dead engine does not pass unnoticed
+            # (TL GV t/2739#6).
+            Write-Warn ("Polarity gate: all {0} claim-rep pair(s) over {1} gated key_point(s) unresolved — directional engine may be down (no inversion detection this run)" -f `
+                $PolarityCounts.reps, $PolarityCounts.gated)
         } else {
             Write-Verbose ("Polarity gate: no inversions — counts o=0 a={0} u={1} x={2} over {3} gated" -f `
                 $PolarityCounts.agrees, $PolarityCounts.unrelated, $PolarityCounts.unresolved, $PolarityCounts.gated)

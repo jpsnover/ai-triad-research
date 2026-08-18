@@ -43,8 +43,15 @@ function Invoke-PolarityGatePass {
         engine's τ; CL t/2751#3). Introduces NO new threshold of its own.
     .PARAMETER SkipDirectionalGate
         Bypass the gate entirely (returns zeroed counts, mutates nothing).
+        OPPOSES-IF-ANY (t/2757): for each gated key_point the gate runs over EVERY
+        available claim representation {verbatim, canonical_proposition,
+        attribution_text} and flips if ANY returns 'opposes'. The stored verbatim /
+        canonical carry the case_1 contrast that attribution_text false-ENTAILS; the
+        engine is unchanged (one-pair→one-verdict) and the OR is aggregated here.
     .OUTPUTS
-        [hashtable] per-run counts { opposes; agrees; unrelated; unresolved; gated }.
+        [hashtable] per-run counts { opposes; agrees; unrelated; unresolved; gated;
+        reps } — opposes/agrees/unrelated/unresolved tally PER claim-rep pair; gated
+        counts key_points; reps counts total claim-rep pairs sent to the engine.
     #>
     [CmdletBinding()]
     [OutputType([hashtable])]
@@ -64,7 +71,7 @@ function Invoke-PolarityGatePass {
     Set-StrictMode -Version Latest
     $ErrorActionPreference = 'Stop'
 
-    $counts = @{ opposes = 0; agrees = 0; unrelated = 0; unresolved = 0; gated = 0 }
+    $counts = @{ opposes = 0; agrees = 0; unrelated = 0; unresolved = 0; gated = 0; reps = 0 }
     $items = @($KeyPoints)
     if ($SkipDirectionalGate -or $items.Count -eq 0) { return $counts }
 
@@ -108,48 +115,70 @@ function Invoke-PolarityGatePass {
     $counts.gated = $gated.Count
     if ($gated.Count -eq 0) { return $counts }
 
-    # ── Build directional pairs (claim vs ASSIGNED node) ───────────────────────
-    $pairs = [System.Collections.Generic.List[PSObject]]::new()
+    # ── Build directional pairs: one per available claim REP per gated key_point ─
+    # opposes-if-any over {verbatim, canonical_proposition, attribution_text}: the
+    # stored verbatim (opposes@5.22) / canonical (opposes@1.42) carry the case_1
+    # contrast that attribution_text false-ENTAILS on the "rejecting X ensures Y"
+    # construction (CL t/2756#1; TL ruling t/2756#2, t/2757). One-pair→one-verdict in
+    # the engine; the OR aggregation lives here in the consumer.
+    $repNames = @('verbatim', 'canonical_proposition', 'attribution_text')
+    $pairs    = [System.Collections.Generic.List[PSObject]]::new()
+    $pairMeta = [System.Collections.Generic.List[PSObject]]::new()   # index-aligned with $pairs
     for ($i = 0; $i -lt $gated.Count; $i++) {
-        $kp = $gated[$i].KeyPoint
-        $claimProp = if ($kp.PSObject.Properties['canonical_proposition'] -and $kp.canonical_proposition) {
-            [string]$kp.canonical_proposition
-        } elseif ($kp.PSObject.Properties['attribution_text'] -and $kp.attribution_text) {
-            [string]$kp.attribution_text
-        } else { '' }
-
+        $kp       = $gated[$i].KeyPoint
         $nid      = $gated[$i].NodeId
         $nodeText = if ($nodeTextById.ContainsKey($nid)) { $nodeTextById[$nid] } else { '' }
         $prefix   = if ($nid -match '^(acc|saf|skp)-') { $Matches[1] } else { '' }
         $nodePov  = if ($prefix -and $povByPrefix.ContainsKey($prefix)) { $povByPrefix[$prefix] } else { '' }
         $claimPov = [string]$gated[$i].POV
 
-        $pairs.Add([PSCustomObject]@{
-            Id = $i; ClaimProp = $claimProp; NodeProp = $nodeText; ClaimPov = $claimPov; NodePov = $nodePov
-        })
+        foreach ($rep in $repNames) {
+            if (-not $kp.PSObject.Properties[$rep]) { continue }
+            $raw = $kp.$rep
+            if ($null -eq $raw) { continue }
+            # verbatim may be a single string OR an array of 2-4 non-contiguous spans.
+            $text = if ($raw -is [System.Array]) { (@($raw) -join ' ') } else { [string]$raw }
+            if ([string]::IsNullOrWhiteSpace($text)) { continue }
+
+            $pairs.Add([PSCustomObject]@{
+                Id = $pairs.Count; ClaimProp = $text; NodeProp = $nodeText; ClaimPov = $claimPov; NodePov = $nodePov
+            })
+            $pairMeta.Add([PSCustomObject]@{ KpIndex = $i; Rep = $rep })
+        }
     }
+    $counts.reps = $pairs.Count
+    if ($pairs.Count -eq 0) { return $counts }
 
     # ── Directional verdicts via the shared wrapper ────────────────────────────
     $verdicts = Test-DirectionalAgreement -Pair @($pairs) -TauContra $DirectionalTauContra
-    $byIdx = @{}
-    foreach ($v in @($verdicts)) { $byIdx[[int]$v.Id] = $v }
+    $byId = @{}
+    foreach ($v in @($verdicts)) { $byId[[int]$v.Id] = $v }
 
-    for ($i = 0; $i -lt $gated.Count; $i++) {
-        $kp = $gated[$i].KeyPoint
-        $v  = if ($byIdx.ContainsKey($i)) { $byIdx[$i] } else { $null }
-        $direction = if ($v) { [string]$v.Direction } else { 'unresolved' }
-        if ($counts.ContainsKey($direction)) { $counts[$direction]++ } else { $counts['unresolved']++ }
+    # Tally per-rep verdicts into the counts metric; aggregate opposes-if-any per kp.
+    $kpOpposes = @{}   # KpIndex -> @{ Conf; Rep } (strongest opposing rep)
+    for ($pid = 0; $pid -lt $pairs.Count; $pid++) {
+        $v   = if ($byId.ContainsKey($pid)) { $byId[$pid] } else { $null }
+        $dir = if ($v) { [string]$v.Direction } else { 'unresolved' }
+        if ($counts.ContainsKey($dir)) { $counts[$dir]++ } else { $counts['unresolved']++ }
 
-        if ($direction -eq 'opposes') {
-            # Claim asserts ¬(node proposition): surface the inversion + flip to
-            # opposed-family. Node mapping preserved (it disputes THAT node).
-            $kp | Add-Member -NotePropertyName 'stance'               -NotePropertyValue 'strongly_opposed' -Force
-            $kp | Add-Member -NotePropertyName 'stance_polarity_flag' -NotePropertyValue $true              -Force
-            $conf = if ($v -and $v.PSObject.Properties['Confidence']) { $v.Confidence } else { 0.0 }
-            $kp | Add-Member -NotePropertyName 'stance_polarity_confidence' -NotePropertyValue $conf -Force
+        if ($dir -eq 'opposes') {
+            $kpi  = [int]$pairMeta[$pid].KpIndex
+            $conf = if ($v -and $v.PSObject.Properties['Confidence']) { [double]$v.Confidence } else { 0.0 }
+            if (-not $kpOpposes.ContainsKey($kpi) -or $conf -gt $kpOpposes[$kpi].Conf) {
+                $kpOpposes[$kpi] = @{ Conf = $conf; Rep = [string]$pairMeta[$pid].Rep }
+            }
         }
-        # agrees / unrelated / unresolved → KEEP the LLM's mapping (opposition-only,
-        # fail-safe = do not demote).
+        # agrees / unrelated / unresolved → no opposition from this rep.
+    }
+
+    # opposes-if-any: flip to opposed-family + surface when ANY rep opposed. Node
+    # mapping preserved (the claim disputes THAT node's proposition).
+    foreach ($kpi in $kpOpposes.Keys) {
+        $kp = $gated[$kpi].KeyPoint
+        $kp | Add-Member -NotePropertyName 'stance'                     -NotePropertyValue 'strongly_opposed'    -Force
+        $kp | Add-Member -NotePropertyName 'stance_polarity_flag'       -NotePropertyValue $true                 -Force
+        $kp | Add-Member -NotePropertyName 'stance_polarity_confidence' -NotePropertyValue $kpOpposes[$kpi].Conf -Force
+        $kp | Add-Member -NotePropertyName 'stance_polarity_source'     -NotePropertyValue $kpOpposes[$kpi].Rep  -Force
     }
 
     return $counts

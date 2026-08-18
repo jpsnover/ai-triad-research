@@ -1,6 +1,7 @@
 import { app, BrowserWindow, Menu } from 'electron';
 import path from 'path';
 import { registerIpcHandlers } from './ipcHandlers';
+import { restoreEmbeddingsIfAbandoned } from './pipeline';
 
 let mainWindow: BrowserWindow | null = null;
 
@@ -77,6 +78,10 @@ process.on('unhandledRejection', (reason) => {
 app.whenReady().then(() => {
   registerIpcHandlers(() => mainWindow);
   createWindow();
+});
+
+app.on('before-quit', () => {
+  restoreEmbeddingsIfAbandoned();
 });
 
 app.on('window-all-closed', () => {

@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeAll, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { OpEdReader } from './OpEdReader';
 import type { OpEdSet, OpEdMember } from '../../../../../lib/oped/types';
@@ -32,6 +32,10 @@ function makeSet(members: OpEdMember[], overrides: Partial<OpEdSet> = {}): OpEdS
 }
 
 describe('OpEdReader — single voice', () => {
+  beforeAll(() => {
+    Element.prototype.scrollIntoView = vi.fn();
+  });
+
   it('renders no tab strip and the headline as the sole h1', () => {
     render(<OpEdReader set={makeSet([member()])} />);
     expect(screen.queryByRole('tablist')).toBeNull();
@@ -85,6 +89,24 @@ describe('OpEdReader — single voice', () => {
       grounding: [{ node_id: 'saf-belief-014', label: 'Used', category: 'Belief', pov: 'safetyist', relevance: '0.82', how_reflected: 'Grounds the claim' }],
     })])} />);
     expect(screen.queryByRole('button', { name: /unused element/i })).toBeNull();
+  });
+
+  it('renders document_claims list in the detail card when present (t/2717)', () => {
+    render(<OpEdReader set={makeSet([member({
+      grounding: [{ node_id: 'saf-belief-014', label: 'A belief', category: 'Belief', pov: 'safetyist', relevance: '0.82', how_reflected: 'Grounds the claim', document_claims: ['Safety incidents doubled last year', 'Only 3 labs share proactively'] }],
+    })])} />);
+    fireEvent.click(screen.getByRole('button', { name: 'saf-belief-014' }));
+    expect(screen.getByText('Addresses these source claims:')).toBeTruthy();
+    expect(screen.getByText('Safety incidents doubled last year')).toBeTruthy();
+    expect(screen.getByText('Only 3 labs share proactively')).toBeTruthy();
+  });
+
+  it('renders nothing for document_claims when absent (t/2717)', () => {
+    render(<OpEdReader set={makeSet([member({
+      grounding: [{ node_id: 'saf-belief-014', label: 'A belief', category: 'Belief', pov: 'safetyist', relevance: '0.82', how_reflected: 'Grounds the claim' }],
+    })])} />);
+    fireEvent.click(screen.getByRole('button', { name: 'saf-belief-014' }));
+    expect(screen.queryByText('Addresses these source claims:')).toBeNull();
   });
 });
 
