@@ -990,7 +990,13 @@ function snapshotStoresForCrash(): Record<string, unknown> | undefined {
       debate_phase: debate?.phase ?? null,
       debate_generating: !!debateState.debateGenerating,
       dirty_files: [...((taxState.dirty as Set<string>) ?? [])],
-      ...(badSessionTitleIds.length > 0 ? { debate_sessions_non_string_title_ids: badSessionTitleIds } : {}),
+      // t/2732: surface sessions with non-string titles so index-shape bugs name the
+      // offending session IDs immediately rather than after reading the full call path.
+      debate_sessions_non_string_title_ids: (() => {
+        const sessions = debateState.sessions as Array<{ id: string; title: unknown }> | undefined;
+        const bad = (sessions ?? []).filter(s => typeof s.title !== 'string').map(s => s.id);
+        return bad.length > 0 ? bad : undefined;
+      })(),
     };
   } catch {
     /* flight recorder init — silent by design (store may be corrupted) */
@@ -1046,7 +1052,6 @@ export function dumpOnReactError(
   const stateSnapshot = snapshotStoresForCrash();
   const externalizedModule = extractExternalizedModule(error);
   const invalidReactChildKeys = extractInvalidReactChildKeys(error);
-
   const baseData: Record<string, unknown> = {
     ...(componentStack ? { component_stack: componentStack.slice(0, 1000) } : {}),
     ...(stateSnapshot ? { state_snapshot: stateSnapshot } : {}),
