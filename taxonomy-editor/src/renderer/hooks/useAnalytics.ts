@@ -19,6 +19,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { bridgeGet } from '../bridge/web-bridge';
+import { mapErrorToUserMessage } from '../utils/errorMessages';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import type { TreeNode, WireEngagementTree } from '../components/analysis/engagementTree';
 import { engagementTreeToTreeNode } from '../components/analysis/engagementTree';
@@ -197,7 +198,7 @@ export function useAnalytics({ range, scope = { kind: 'all' } }: UseAnalyticsOpt
       .catch(err => {
         if (id !== engReq.current) return;
         recordError('Engagement query failed', err);
-        setEngagement({ data: null, loading: false, error: String(err), isEmpty: false });
+        setEngagement({ data: null, loading: false, error: mapErrorToUserMessage(err), isEmpty: false });
       });
     // Deps are the primitives from/to/scopeKey — scopeKey encodes every scope field,
     // so a semantic scope change re-runs the fetch without depending on the object identity.
@@ -224,7 +225,7 @@ export function useAnalytics({ range, scope = { kind: 'all' } }: UseAnalyticsOpt
       .catch(err => {
         if (id !== subjReq.current) return;
         recordError('Subject breakdown query failed', err);
-        setSubject({ data: null, loading: false, error: String(err), isEmpty: false });
+        setSubject({ data: null, loading: false, error: mapErrorToUserMessage(err), isEmpty: false });
       });
   }, []);
 

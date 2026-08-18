@@ -18,6 +18,7 @@ import { useAuthStatus } from '../../hooks/useAuthStatus';
 import { useOpEdStore } from '../../hooks/useOpEdStore';
 import { useCommunityStore } from '../../hooks/useCommunityStore';
 import type { OpEdSet, OpEdSetSummary, OpEdCommunityEntry } from '../../../../../lib/oped/types';
+import { mapErrorToUserMessage } from '../../utils/errorMessages';
 import { OpEdTable } from './OpEdTable';
 import { OpEdReader } from './OpEdReader';
 import { NewOpEdDialog } from './NewOpEdDialog';
@@ -179,7 +180,7 @@ function ShareOpEdControl({ setId }: { setId: string }) {
         message: 'Failed to publish an op-ed share link',
         error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
-      setState({ status: 'error', message: err instanceof Error ? err.message : 'Could not create the share link.' });
+      setState({ status: 'error', message: mapErrorToUserMessage(err) });
     }
   }, [setId, copy]);
 
@@ -194,7 +195,7 @@ function ShareOpEdControl({ setId }: { setId: string }) {
         message: 'Failed to revoke an op-ed share link',
         error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
-      setState({ status: 'error', message: err instanceof Error ? err.message : 'Could not revoke the share link.' });
+      setState({ status: 'error', message: mapErrorToUserMessage(err) });
     }
   }, [setId]);
 
