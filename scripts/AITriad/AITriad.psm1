@@ -851,6 +851,8 @@ Export-ModuleMember -Function @(
     'Get-FreeTierStatus'
     'Invoke-TaxEditorSmokeTest'
     # t/2668 — analytics storage round-trip diagnosis
+    # t/2775 — validate the built preload.cjs artifact before launch
+    'Test-PreloadHealth'
     'Test-AnalyticsBackend'
     # t/2702 — analytics blob container health (exists/accessible/recent data)
     'Test-AnalyticsBlobHealth'
