@@ -19,7 +19,8 @@ let _debateBufferActive = true;
 // pure helper so it's unit-tested (preloadBuffer.test.ts, unblocked by t/2698).
 const _diagnosticsStateBuffer = createLatestValueBuffer<unknown>();
 
-contextBridge.exposeInMainWorld('electronAPI', {
+try {
+  contextBridge.exposeInMainWorld('electronAPI', {
   // Synchronous system info — available without IPC round-trip
   processVersions: { ...process.versions },
   osRelease: process.getSystemVersion?.() ?? process.platform,
@@ -597,7 +598,19 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('delete-oped-set', setId),
   saveOpEdSet: (set: OpEdSet): Promise<void> =>
     ipcRenderer.invoke('save-oped-set', set),
-});
+  });
+  ipcRenderer.send('forward-flight-event', {
+    type: 'lifecycle', component: 'preload', level: 'info',
+    message: 'contextBridge.exposeInMainWorld completed',
+  });
+} catch (e) {
+  ipcRenderer.send('forward-flight-event', {
+    type: 'system.error', component: 'preload', level: 'error',
+    message: 'contextBridge.exposeInMainWorld failed — window.electronAPI will not be set',
+    error: { name: e instanceof Error ? e.name : 'Error', message: String(e) },
+  });
+  throw e;
+}
 
 // Wire IPC listeners AFTER exposeInMainWorld so window.electronAPI is always set
 // even if a listener registration throws (t/2772).
