@@ -107,6 +107,7 @@ Get-Help <CmdletName> -Full                     # full docs for any cmdlet
 | Cmdlet | Use when |
 |--------|----------|
 | `Test-TaxEditorHealth` | Production liveness/readiness check (supports `-MaxAttempts` polling for post-deploy waits, t/1491) |
+| `Test-EmbeddingHealth` | Smoke-test `POST /api/embeddings/compute` in prod (anon session + x-request-id) — reports Healthy/status/duration/vector dims + a `Get-ServerLog`-traceable requestId on failure (t/2787) |
 | `Test-TaxEditorEndpoints` | Smoke-test 16 endpoints |
 | `Test-AnonymousDebateFlow` | End-to-end smoke test of the anonymous/free-tier user journey |
 | `Test-PersonaEndpoints` | Auth-gate regression matrix across anonymous/authenticated/admin personas |

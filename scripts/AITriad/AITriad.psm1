@@ -842,6 +842,8 @@ Export-ModuleMember -Function @(
     'Get-ImportReport'
     'Get-CalibrationTrend'
     'Test-TaxEditorHealth'
+    # t/2787 — smoke-test /api/embeddings/compute in production
+    'Test-EmbeddingHealth'
     'Test-TaxEditorEndpoints'
     'Test-AnonymousDebateFlow'
     'Test-PersonaEndpoints'
