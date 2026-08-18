@@ -35,7 +35,25 @@
         "desc_only":       { "direction": "opposes", "confidence": 3.27 }
       },
       "requirement": "judgeDirection node_prop MUST be 'label — Core' (description with the Encompasses:/Excludes: tail stripped; label-only fallback), IDENTICAL across PS (V1/V2) and TS (V3/V4/V5) so every surface feeds the engine the same text (TL cross-surface ruling). The POV-framing wrapper is retained but is NOT the safeguard. Passing label-only or a terse/bare node_prop causes MISSED inversions.",
-      "recall_limitation": "The gate under-catches when a node's description is terse/non-contrastive -> false 'agrees' -> the inversion keeps its edge. Accepted under the opposes-only fail-safe (the gate never falsely opposes; a missed inversion beats dropping every edge), but recall depends on node descriptions encoding the contrast. Enrich terse node descriptions to raise recall."
+      "recall_limitation": "The gate under-catches when a node's description is terse/non-contrastive -> false 'agrees' -> the inversion keeps its edge. Accepted under the opposes-only fail-safe (the gate never falsely opposes; a missed inversion beats dropping every edge), but recall depends on node descriptions encoding the contrast. Enrich terse node descriptions to raise recall.",
+      "claim_field_sensitivity": {
+        "rule": "opposes-if-ANY over {verbatim, canonical_proposition, attribution_text} (final contract, t/2744#10 & #12; supersedes the retracted attribution-primary line #9). The gate runs over ALL available claim fields and emits 'opposes' if ANY returns contradiction >= tau_contra. Safe under opposes-only + fail-safe: a field that reads neutral/entailment simply does not fire, never a false demote — so extra fields only add recall.",
+        "probe": "CL.Investigate1 reproduction 2026-08-18 against the shipped scripts/nli_classify.py (tau_contra 1.0, POV-framed). Inputs = the three stored claim fields of case_1 (byte-identical to the on-disk summary) and case_2's two fields, each vs the rich 'label — Core' node_prop for acc-intentions-047.",
+        "case_1_inversion": {
+          "verbatim":              { "nli_label": "contradiction", "direction": "opposes",   "confidence": 5.789,  "fires": true },
+          "canonical_proposition": { "nli_label": "contradiction", "direction": "opposes",   "confidence": 4.6652, "fires": true },
+          "attribution_text":      { "nli_label": "neutral",       "direction": "unrelated",  "confidence": 3.167,  "fires": false, "note": "MISSES on this case — the genus prefix + 'Encompasses:' tail over-abstract the polarity. Keeps the edge under fail-safe; the OR recovers the catch via verbatim + canonical." },
+          "outcome": "opposes-if-ANY CATCHES (verbatim + canonical fire). A single-field attribution-primary contract (#9, retracted) would MISS this case."
+        },
+        "case_2_genuine_agreement_control": {
+          "canonical_proposition": { "nli_label": "neutral", "direction": "unrelated", "confidence": 0.1175, "fires": false },
+          "attribution_text":      { "nli_label": "neutral", "direction": "unrelated", "confidence": 4.9711, "fires": false },
+          "outcome": "ZERO false-opposes across all fields — genuine agreement reads neutral/unrelated on every field (extends GV arm-2 to the multi-field input, t/2744#10)."
+        },
+        "conclusion": "No single claim field wins across cases: case_1 fires on verbatim+canonical (attribution misses); the org-stance case #1184 is the mirror (attribution fires, canonical misses). The evidence is bidirectional, so the OR is the durable, recall-safe contract.",
+        "discrepancy_note": "t/2744#11 recorded attribution_text as a FALSE entailment (agrees, conf ~6.84) on 2026-08-17; this 2026-08-18 re-run against the finalized engine reads neutral (unrelated, 3.167). The fixture stored_key_point is byte-identical to the on-disk summary, so the shift is ENGINE evolution (final framing/mapping/tau), not text drift. Both outcomes are a 'miss' under the opposes-only fail-safe (neither false-opposes), so the multi-field necessity is unchanged; the numbers here are the current-engine ground truth.",
+        "guard": "V-surface tests (t/2745/t/2746/t/2739) MUST run all available claim fields and assert opposes-if-ANY; regressing to single-field claim input re-opens the #1184/case_1 miss. The genuine-agreement control MUST be fed through every field and return zero false-opposes."
+      }
     }
   },
 
@@ -93,6 +111,7 @@
         "existing_gates": "MUST all pass/false-green (documents the gap): retrieval_low_confidence=false @ 0.7133; M5 top-3 includes acc-intentions-047 (it IS the top topical match); excludes-veto MUST NOT fire.",
         "judgeDirection_label_plus_core": "MUST return direction='opposes' (NLI contradiction) when node_prop is the full 'label — Core' (conf ~1.42, above tau_contra 1.0).",
         "judgeDirection_node_richness_guard": "REQUIRED richness guard (replaces the retracted framing guard, t/2744#7): with a BARE node_prop the gate MISSES (returns 'agrees'); with the full 'label — Core' node_prop it CATCHES ('opposes'). See nli_probe.node_prop_construction. The V-surfaces MUST build node_prop as label+Core.",
+        "judgeDirection_claim_field_guard": "REQUIRED multi-field guard (t/2744#10/#12): the gate MUST run over ALL available claim fields {verbatim, canonical_proposition, attribution_text} and emit 'opposes' if ANY fires. On case_1, verbatim + canonical fire 'opposes' but attribution_text MISSES ('unrelated') — a single-field attribution-primary contract would miss this inversion. See nli_probe.claim_field_sensitivity.",
         "gate_action": "On direction='opposes' where stance='aligned' was claimed: set stance_polarity_flag=true and either unmap (+unmapped_concept) or set opposed-family stance. Do NOT silently auto-flip without surfacing.",
         "final_correct_output": "taxonomy_node_id=null + unmapped_concept (case correct_disposition)."
       },
@@ -139,7 +158,7 @@
 
   "consumer_map": {
     "t/2739_summary_p1_gate": "case_1 (PRIMARY) — the summary pipeline must, on case_1, produce unmap+gap (or opposed-family), not aligned. case_2 negative (must keep aligned).",
-    "t/2744_shared_gate": "case_1 (opposes), case_2 (not-opposes/unrelated), case_3 (unresolved) — the three-arm test set. PLUS the rich-vs-bare node_prop pair in empirical_findings.nli_probe.controlled_2x2 as the required node-richness guard (replaces the retracted framing-regression guard, t/2744#7).",
+    "t/2744_shared_gate": "case_1 (opposes), case_2 (not-opposes/unrelated), case_3 (unresolved) — the three-arm test set. PLUS the rich-vs-bare node_prop pair in empirical_findings.nli_probe.controlled_2x2 as the required node-richness guard (replaces the retracted framing-regression guard, t/2744#7), AND empirical_findings.nli_probe.claim_field_sensitivity as the multi-field claim-input guard (opposes-if-ANY over {verbatim, canonical, attribution}; t/2744#10/#12).",
     "t/2745_org_and_qbaf": "case_1 canonical_proposition vs matched node exercises the V1/V2 directional gate (no ADVOCATES_FOR / supports edge on an inversion).",
     "t/2746_debate_surfaces": "case_1 exercises V3 (attribution not aligned) and, framed as evidence-vs-claim, V4 (contradiction not 'supports'). V5 uses the REJECT:-preservation principle, not this case directly.",
     "t/2740_taxonomy_gap": "correct_counterpart_node (absent) motivates the anti-exceptionalism node proposal; once it lands, case_1 fallback_if_counterpart_node_lands applies."
