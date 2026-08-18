@@ -79,6 +79,14 @@ function GroundingDetailCard({ ref, onClose }: { ref: OpEdGroundingRef; onClose:
           <span className="oped-grounding-card-reflected-label">Reflected in this op-ed:</span> {ref.how_reflected}
         </div>
       )}
+      {ref.document_claims && ref.document_claims.length > 0 && (
+        <div className="oped-grounding-card-claims">
+          <span className="oped-grounding-card-claims-label">Addresses these source claims:</span>
+          <ul className="oped-grounding-card-claims-list">
+            {ref.document_claims.map((c, i) => <li key={i}>{c}</li>)}
+          </ul>
+        </div>
+      )}
       {body}
     </div>
   );
