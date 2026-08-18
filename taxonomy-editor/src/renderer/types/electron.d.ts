@@ -10,6 +10,8 @@ import type { UserPreferences } from '../bridge/types';
 export interface ElectronAPI {
   processVersions: Record<string, string | undefined>;
   osRelease: string;
+  /** t/2766: performance.now() stamp from when contextBridge.exposeInMainWorld ran. */
+  preloadTimestamp: number;
   getEmbeddingInfo: () => Promise<{ backend: string; execution_provider?: string; calibration_version?: number }>;
 
   // User preferences (t/2118) — optional until handler confirmed present
