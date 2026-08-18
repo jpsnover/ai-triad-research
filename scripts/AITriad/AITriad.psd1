@@ -125,6 +125,7 @@
         'Get-ImportReport'
         'Get-CalibrationTrend'
         'Test-TaxEditorHealth'
+        'Test-EmbeddingHealth'
         'Test-TaxEditorEndpoints'
         'Test-AnonymousDebateFlow'
         'Test-PersonaEndpoints'
