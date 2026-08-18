@@ -9,9 +9,6 @@ import { createLatestValueBuffer } from './preloadBuffer.cjs';
 // (happens with bootstrap.ts dynamic import indirection).
 let _bufferedDebateId: string | null = null;
 let _debateBufferActive = true;
-ipcRenderer.on('debate-window-load', (_event, debateId: string) => {
-  if (_debateBufferActive) _bufferedDebateId = debateId;
-});
 
 // Buffer the diagnostics-state-update push the same way (t/2694) — see
 // preloadBuffer.cts. The main window pushes the cached state once on the
@@ -21,9 +18,6 @@ ipcRenderer.on('debate-window-load', (_event, debateId: string) => {
 // Also covers the PovProgression window (same channel). Logic extracted to the
 // pure helper so it's unit-tested (preloadBuffer.test.ts, unblocked by t/2698).
 const _diagnosticsStateBuffer = createLatestValueBuffer<unknown>();
-ipcRenderer.on('diagnostics-state-update', (_event, state: unknown) => {
-  _diagnosticsStateBuffer.onIpc(state);
-});
 
 contextBridge.exposeInMainWorld('electronAPI', {
   // Synchronous system info — available without IPC round-trip
@@ -33,7 +27,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   osArch: process.arch,
   // t/2766: stamp when contextBridge.exposeInMainWorld ran — lets renderer compute
   // the preload→bridge-available delta for the bridge-available FR lifecycle event.
-  preloadTimestamp: performance.now(),
+  preloadTimestamp: (typeof performance !== 'undefined' && typeof performance.now === 'function') ? performance.now() : Date.now(),
   getEmbeddingInfo: (): Promise<{ backend: string; execution_provider?: string; calibration_version?: number }> =>
     ipcRenderer.invoke('get-embedding-info'),
 
@@ -604,3 +598,16 @@ contextBridge.exposeInMainWorld('electronAPI', {
   saveOpEdSet: (set: OpEdSet): Promise<void> =>
     ipcRenderer.invoke('save-oped-set', set),
 });
+
+// Wire IPC listeners AFTER exposeInMainWorld so window.electronAPI is always set
+// even if a listener registration throws (t/2772).
+try {
+  ipcRenderer.on('debate-window-load', (_event, debateId: string) => {
+    if (_debateBufferActive) _bufferedDebateId = debateId;
+  });
+  ipcRenderer.on('diagnostics-state-update', (_event, state: unknown) => {
+    _diagnosticsStateBuffer.onIpc(state);
+  });
+} catch (e) {
+  console.error('[preload] listener wiring failed', e);
+}
