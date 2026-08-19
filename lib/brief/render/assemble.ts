@@ -21,16 +21,25 @@ export interface AssembleResult {
   warnings: string[];
 }
 
+/** Options for overriding the preset's default slide selection (t/2838, T7-v2). */
+export interface AssembleOptions {
+  /** Slide kinds to drop from the preset's ordered list. Required slides are never dropped. */
+  excludeSlides?: ReadonlySet<SlideKind>;
+}
+
 const REQUIRED_SLIDES: ReadonlySet<SlideKind> = new Set<SlideKind>([
   'title', 'question', 'provenance',
 ]);
 
-export function assemble(spec: DeckSpec, narration: Narration, preset: BriefPreset): AssembleResult {
+export function assemble(spec: DeckSpec, narration: Narration, preset: BriefPreset, options?: AssembleOptions): AssembleResult {
   const ctx = new AssembleCtx(spec, narration, preset);
   const profile = profileFor(preset);
+  const kindList = options?.excludeSlides
+    ? profile.slides.filter(k => REQUIRED_SLIDES.has(k) || !options.excludeSlides!.has(k))
+    : profile.slides;
   const slides: SlideModel[] = [];
 
-  for (const kind of profile.slides) {
+  for (const kind of kindList) {
     const slide = ctx.buildSlide(kind);
     if (slide === null) continue; // graceful-omit: no content and not required
     slides.push(slide);

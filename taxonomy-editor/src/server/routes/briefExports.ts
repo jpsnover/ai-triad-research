@@ -33,7 +33,8 @@ const TOOL_VERSIONS: Record<string, string> = { node: process.version, brief: '1
 
 interface ExportPostBody {
   preset?: unknown; format?: unknown; model?: unknown; checkerModel?: unknown;
-  template?: unknown; modelSource?: unknown; options?: { skipNarration?: unknown };
+  template?: unknown; modelSource?: unknown; framingMeta?: unknown;
+  options?: { skipNarration?: unknown };
 }
 
 /** The static, request-shape gates that need no I/O — auth, preset, PDF-is-desktop-only,
@@ -145,9 +146,10 @@ export function registerBriefExportsRoutes(r: Router, _ctx: ServerCtx): void {
       return;
     }
 
+    const framingMeta = b.framingMeta === false ? false : undefined;
     const job = startExportJob({
       userId, session, debateId, models,
-      request: { preset, skipNarration },
+      request: { preset, skipNarration, framingMeta },
       toolVersions: TOOL_VERSIONS, timestamp: new Date().toISOString(),
       idempotencyKey, adapter: createWebOpEdAdapter(),
     });
@@ -184,7 +186,8 @@ export function registerBriefExportsRoutes(r: Router, _ctx: ServerCtx): void {
         res.writeHead(200, { 'Content-Type': 'application/vnd.openxmlformats-officedocument.presentationml.presentation', 'Content-Disposition': `attachment; filename="${name}"` });
         res.end(artifact.bytes);
       } else {
-        res.writeHead(200, { 'Content-Type': 'application/json', 'Content-Disposition': `attachment; filename="${name}"` });
+        const ct = name === BRIEF_ARTIFACTS.htmlDoc ? 'text/html; charset=utf-8' : 'application/json';
+        res.writeHead(200, { 'Content-Type': ct, 'Content-Disposition': `attachment; filename="${name}"` });
         res.end(artifact.text);
       }
     } catch (err) {

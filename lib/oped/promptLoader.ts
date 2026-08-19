@@ -75,8 +75,6 @@ export function loadAndAssemblePrompt(promptsDir: string, ctx: PromptContext): A
     SOURCE_MATERIAL: ctx.sourceMaterial,
     GROUNDING_NODES: ctx.groundingNodes,
     SITUATIONS: ctx.situations,
-    PITCH_INSTRUCTION:
-      'ALSO write a pitch cover email in "pitch_email". Use this layout: a subject line "Op-Ed Submission: [Headline]"; one or two sentences opening with the news hook and summarizing the thesis and proposed solution; one sentence of author credentials; and a closing note that the full draft is pasted below. Keep it under 150 words and do not paste the essay itself into the pitch.',
     SOURCE_AUTHOR: ctx.sourceBrief?.author ?? '',
     SOURCE_ACTOR_TYPE: ctx.sourceBrief?.actor_type ?? '',
     SOURCE_THESIS: ctx.sourceBrief?.thesis ?? '',
