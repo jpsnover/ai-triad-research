@@ -43,6 +43,9 @@ export interface OpEdMember {
   subtitle: string;
   body: string;
   pitch?: string;
+  byline: string;
+  disclosure: string;
+  rhetorical_meta: string;
   wordCount: number;
   grounding: OpEdGroundingRef[];
   /** Set when FABRICATED_LEDE_GUARD matched the lede on an empty-newsHook run (t/2730). */

@@ -38,6 +38,9 @@ export const OpEdMemberSchema = z.object({
   subtitle: z.string().optional().default(''),
   body: z.string().optional().default(''),
   pitch: z.string().optional(),
+  byline: z.string().optional().default(''),
+  disclosure: z.string().optional().default(''),
+  rhetorical_meta: z.string().optional().default(''),
   wordCount: z.number().int().optional().default(0),
   grounding: z.array(OpEdGroundingRefSchema),
 });
