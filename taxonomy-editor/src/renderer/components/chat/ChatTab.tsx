@@ -650,7 +650,7 @@ export function ChatTab() {
         selectedCommunityChat={selectedCommunityChat}
       />}
 
-      {showNewDialog && <NewChatDialog onClose={() => setShowNewDialog(false)} />}
+      {showNewDialog && <NewChatDialog onClose={() => setShowNewDialog(false)} onCreated={(id) => { void loadChat(id); }} />}
     </div>
   );
 }
