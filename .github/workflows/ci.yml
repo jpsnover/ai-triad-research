@@ -377,6 +377,7 @@ jobs:
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           COMMIT_SHA: ${{ github.sha }}
         run: |
+          LABEL="ci-alert:contrast"
           TITLE="contrast-check RED on main — ceiling breach"
           BODY="contrast-check failed on push to main.
 
@@ -385,13 +386,27 @@ jobs:
 
           DevOps + TL: fix before the next electron-path PR lands (it will block on this red gate)."
 
-          EXISTING=$(gh issue list --state open --search "in:title contrast-check RED on main" --json number --jq '.[0].number // empty')
+          gh label create "$LABEL" --color "B60205" --description "CI: contrast-check alert on main" 2>/dev/null || true
+
+          EXISTING=$(gh issue list --state open --label "$LABEL" --json number --jq '.[0].number // empty')
           if [ -n "$EXISTING" ]; then
             gh issue comment "$EXISTING" --body "$BODY"
-            echo "::error::contrast-check RED on main — appended alert to existing issue #${EXISTING}"
+            echo "::error::contrast-check RED on main — appended to issue #${EXISTING}"
           else
-            gh issue create --title "$TITLE" --body "$BODY"
+            gh issue create --title "$TITLE" --label "$LABEL" --body "$BODY"
             echo "::error::contrast-check RED on main — new alert issue created"
+          fi
+
+      - name: Auto-close contrast-alert issue on green main (t/2818)
+        if: success() && github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          COMMIT_SHA: ${{ github.sha }}
+        run: |
+          LABEL="ci-alert:contrast"
+          EXISTING=$(gh issue list --state open --label "$LABEL" --json number --jq '.[0].number // empty')
+          if [ -n "$EXISTING" ]; then
+            gh issue close "$EXISTING" --comment "contrast-check passed on main (commit: ${COMMIT_SHA}). Auto-closing."
           fi
 
   # ── Dependency audit: standalone security gate (t/1800) ──

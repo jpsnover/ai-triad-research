@@ -1,0 +1,68 @@
+# Gate-Verification scratch workflow for t/2818 contrast-alert logic.
+# TEMPORARY — delete after GV evidence is captured and TL clears #1251.
+name: GV — contrast-alert scratch
+
+on:
+  workflow_dispatch:
+    inputs:
+      should_fail:
+        description: 'Simulate contrast-check failure'
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  contrast-alert-gv:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Simulate contrast-check result
+        env:
+          SHOULD_FAIL: ${{ inputs.should_fail && 'true' || 'false' }}
+        run: |
+          if [ "$SHOULD_FAIL" = "true" ]; then
+            echo "::error::Simulated contrast-check failure (GV arm)"
+            exit 1
+          fi
+          echo "Simulated contrast-check PASS"
+
+      - name: Alert — contrast-check RED (GV)
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          COMMIT_SHA: ${{ github.sha }}
+        run: |
+          LABEL="ci-alert:contrast"
+          TITLE="contrast-check RED on main — ceiling breach"
+          BODY="[GV TEST] contrast-check failure simulation.
+
+          Run: ${RUN_URL}"
+
+          gh label create "$LABEL" --color "B60205" --description "CI: contrast-check alert on main" 2>/dev/null || true
+
+          EXISTING=$(gh issue list --state open --label "$LABEL" --json number --jq '.[0].number // empty')
+          if [ -n "$EXISTING" ]; then
+            gh issue comment "$EXISTING" --body "$BODY"
+            echo "::error::GV: appended to existing issue #${EXISTING}"
+          else
+            NUMBER=$(gh issue create --title "$TITLE" --label "$LABEL" --body "$BODY" --json number --jq '.number')
+            echo "::error::GV: new alert issue #${NUMBER} created"
+          fi
+
+      - name: Auto-close on green (GV)
+        if: success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          COMMIT_SHA: ${{ github.sha }}
+        run: |
+          LABEL="ci-alert:contrast"
+          EXISTING=$(gh issue list --state open --label "$LABEL" --json number --jq '.[0].number // empty')
+          if [ -n "$EXISTING" ]; then
+            gh issue close "$EXISTING" --comment "GV TEST: contrast-check passed. Auto-closing."
+            echo "Closed issue #${EXISTING}"
+          else
+            echo "No open ci-alert:contrast issue — clean path working correctly"
+          fi
