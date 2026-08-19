@@ -1,0 +1,19 @@
+/* PromptInspector — disk-load activity indicator (t/2823) */
+
+@keyframes pi-load-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
+.pi-load-live {
+  color: var(--text-muted);
+  font-style: italic;
+  font-size: var(--text-sm, 0.875rem);
+  animation: pi-load-pulse 1.4s ease-in-out infinite;
+}
+
+.pi-load-timeout {
+  color: var(--color-danger, #dc2626);
+  font-style: italic;
+  font-size: var(--text-sm, 0.875rem);
+}
