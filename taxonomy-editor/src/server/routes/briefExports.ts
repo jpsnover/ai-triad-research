@@ -23,7 +23,7 @@ import {
   startExportJob, getExportJob, sweepExportJobs, countRunningExportJobs,
   findIdempotentJob, MAX_CONCURRENT_EXPORT_JOBS, type ResolvedModels,
 } from '../briefExportJobs.js';
-import { listBriefExports, loadBriefExportRecord, loadBriefArtifact, deleteBriefExport } from '../storage/briefExportStore.js';
+import { listBriefExports, loadBriefExportRecord, loadBriefArtifact, deleteBriefExport, getBriefExportsQuotaStatus } from '../storage/briefExportStore.js';
 import { BRIEF_ARTIFACTS, type BriefArtifactName, type BriefPreset } from '../../../../lib/brief/types.js';
 import type { DebateSession } from '../../../../lib/debate/types.js';
 
@@ -91,6 +91,17 @@ function resolveExportModels(
 export function registerBriefExportsRoutes(r: Router, _ctx: ServerCtx): void {
   const { get, post, del } = r;
 
+  // ── GET /api/brief-exports/quota-status (t/2831) ──
+  // Registered first — no wildcard conflict risk in this namespace, but keep
+  // the pattern consistent with oped-sets/quota-status (t/2573).
+  get('/api/brief-exports/quota-status', async (_req, res) => {
+    try { json(res, await getBriefExportsQuotaStatus()); }
+    catch (err) {
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'brief-export', level: 'error', message: 'Failed to get brief-export quota status', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
+      error(res, String(err), 500, err);
+    }
+  });
+
   // ── POST /api/debates/:debateId/exports → 202 { jobId } ──
   post('/api/debates/:debateId/exports', async (req, res, body) => {
     const b = (body ?? {}) as ExportPostBody;
@@ -109,6 +120,13 @@ export function registerBriefExportsRoutes(r: Router, _ctx: ServerCtx): void {
     if (!session) { error(res, 'Debate not found', 404); return; }
     if (session.phase !== 'closed') {
       error(res, 'Only closed debates can be exported. Close the debate first (live-snapshot export is tracked in t/2816).', 409);
+      return;
+    }
+
+    // Count-quota gate (t/2831): cap total exports before any model call.
+    const quotaStatus = await getBriefExportsQuotaStatus();
+    if (!quotaStatus.allowed) {
+      json(res, { error: 'quota_exceeded', message: `Brief export quota reached (${quotaStatus.current}/${quotaStatus.limit}). Delete older exports to make room.`, current: quotaStatus.current, limit: quotaStatus.limit }, 429);
       return;
     }
 
