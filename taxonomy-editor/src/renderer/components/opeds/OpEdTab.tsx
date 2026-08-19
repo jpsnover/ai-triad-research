@@ -83,8 +83,10 @@ function slugify(s: string): string {
   return (s || 'op-ed').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60) || 'op-ed';
 }
 
-function exportOpEdSet(set: OpEdSet, format: string): void {
-  if (format === 'text') downloadFile(`${slugify(set.topic)}.txt`, buildOpEdText(set), 'text/plain');
+// Exported for unit testing (t/2797 JSON regression).
+export function exportOpEdSet(set: OpEdSet, format: string): void {
+  if (format === 'json') downloadFile(`${slugify(set.topic)}.json`, JSON.stringify(set, null, 2), 'application/json');
+  else if (format === 'text') downloadFile(`${slugify(set.topic)}.txt`, buildOpEdText(set), 'text/plain');
   else downloadFile(`${slugify(set.topic)}.md`, buildOpEdMarkdown(set), 'text/markdown');
 }
 

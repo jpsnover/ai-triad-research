@@ -55,6 +55,13 @@
   white-space: nowrap;
 }
 
+/* The Export ▾ dropdown is position:absolute inside col-actions; the blanket
+   td overflow:hidden above would clip it invisible. Mirror DebateTable, which
+   scopes clipping to text columns and leaves col-actions unclipped (t/2797 A). */
+.chat-table td.col-actions {
+  overflow: visible;
+}
+
 /* col widths */
 .chat-table .col-created  { width: 110px; }
 .chat-table .col-updated  { width: 110px; }

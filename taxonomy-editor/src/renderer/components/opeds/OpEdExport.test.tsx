@@ -1,0 +1,73 @@
+// Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+// Licensed under the MIT License. See LICENSE file in the project root.
+
+// t/2797 Part B regression: exportOpEdSet(set, 'json') must download a valid,
+// parseable .json of the full op-ed set. Captures the Blob handed to the
+// download helper (via URL.createObjectURL) and round-trips it through JSON.parse.
+
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { exportOpEdSet } from './OpEdTab';
+import type { OpEdSet } from '../../../../../lib/oped/types';
+
+function makeSet(): OpEdSet {
+  return {
+    schema_version: 1,
+    set_id: 'set-json-1',
+    topic: 'Export as JSON',
+    params: { povers: ['safetyist'] } as unknown as OpEdSet['params'],
+    created_at: '2026-08-19T10:00:00Z',
+    opeds: [
+      {
+        pov: 'safetyist' as OpEdSet['opeds'][number]['pov'],
+        status: 'complete',
+        headline: 'The case for audits',
+        subtitle: 'A subtitle',
+        body: 'Body text.',
+        wordCount: 2,
+        grounding: [],
+      },
+    ],
+  };
+}
+
+describe('exportOpEdSet — JSON path (t/2797)', () => {
+  let capturedBlob: Blob | null;
+  let clickSpy: ReturnType<typeof vi.spyOn>;
+  let lastDownloadName: string | undefined;
+
+  beforeEach(() => {
+    capturedBlob = null;
+    lastDownloadName = undefined;
+    // downloadFile() calls URL.createObjectURL(blob); capture the blob there.
+    vi.stubGlobal('URL', {
+      ...URL,
+      createObjectURL: vi.fn((blob: Blob) => { capturedBlob = blob; return 'blob:mock'; }),
+      revokeObjectURL: vi.fn(),
+    });
+    // Suppress the anchor navigation and record the download filename.
+    clickSpy = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (this: HTMLAnchorElement) {
+      lastDownloadName = this.download;
+    });
+  });
+
+  afterEach(() => {
+    clickSpy.mockRestore();
+    vi.unstubAllGlobals();
+  });
+
+  it('produces a parseable .json blob round-tripping the set', async () => {
+    const set = makeSet();
+    exportOpEdSet(set, 'json');
+
+    expect(capturedBlob).not.toBeNull();
+    expect(capturedBlob!.type).toBe('application/json');
+    expect(lastDownloadName).toMatch(/\.json$/);
+
+    const text = await capturedBlob!.text();
+    const parsed = JSON.parse(text);
+    expect(parsed.set_id).toBe('set-json-1');
+    expect(parsed.topic).toBe('Export as JSON');
+    expect(parsed.opeds).toHaveLength(1);
+    expect(parsed.opeds[0].headline).toBe('The case for audits');
+  });
+});
