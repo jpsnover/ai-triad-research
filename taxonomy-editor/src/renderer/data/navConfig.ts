@@ -36,7 +36,7 @@ export const NAV_ITEMS: readonly NavItem[] = [
   { id: 'search', label: 'Search', icon: Search, tier: 'primary', action: { type: 'togglePanel', target: 'search' } },
   { id: 'taxonomy', label: 'Taxonomy', icon: LayoutGrid, tier: 'primary', action: { type: 'custom', id: 'taxonomy' } },
   { id: 'debate', label: 'Debate', icon: MessageSquare, tier: 'primary', action: { type: 'switchTab', target: 'debate' } },
-  { id: 'chat', label: 'Chat', icon: MessageCircle, tier: 'primary', action: { type: 'custom', id: 'chat' } },
+  { id: 'chat', label: 'Chat', icon: MessageCircle, tier: 'primary', action: { type: 'switchTab', target: 'chat' } },
   { id: 'opeds', label: 'Op-Eds', icon: Newspaper, tier: 'primary', action: { type: 'switchTab', target: 'opeds' }, gate: { anyFlag: ['env-electron-opeds', 'env-web-opeds'] } },
 
   // ── Secondary tier — browse group ──

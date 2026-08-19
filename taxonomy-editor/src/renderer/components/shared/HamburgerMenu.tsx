@@ -4,7 +4,7 @@
 import { useState, useRef, useCallback, useEffect, Fragment } from 'react';
 import { Shield, X } from 'lucide-react';
 import { useTaxonomyStore } from '../../hooks/useTaxonomyStore';
-import { api, isElectronMode } from '@bridge';
+import { isElectronMode } from '@bridge';
 import { HelpDialog } from '../settings/HelpDialog';
 import { SettingsDialog } from '../settings/SettingsDialog';
 import { FeedbackPopover } from './FeedbackPopover';
@@ -189,8 +189,6 @@ export function HamburgerMenu({ isOpen, onClose }: HamburgerMenuProps) {
         clearCurrentPanel();
         setToolbarPanel(null);
         if (['situations', 'conflicts', 'debate', 'chat', 'opeds', 'summaries', 'validation'].includes(activeTab)) setActiveTab('accelerationist');
-      } else if (action.id === 'chat') {
-        void api.openChatWindow(crypto.randomUUID());
       } else if (action.id === 'feedback') {
         setShowFeedback(true);
       } else if (action.id === 'help') {
