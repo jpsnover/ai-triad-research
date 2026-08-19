@@ -38,6 +38,7 @@
         'Repair-PovLineage'
         'Repair-PovAttributes'
         'Export-AggregatedCruxes'
+        'Export-TriadDebateBrief'
         'Get-Summary'
         'Invoke-AttributeExtraction'
         'Invoke-EdgeDiscovery'

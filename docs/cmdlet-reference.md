@@ -72,6 +72,7 @@ Get-Help <CmdletName> -Full                     # full docs for any cmdlet
 | `Watch-DebateProgress` | Live-updating table of a running batch's per-debate status (hung detection) |
 | `Show-DebateDiagnostics` | Inspect debate internals |
 | `Repair-DebateOutput` | Fix malformed debate JSON |
+| `Export-TriadDebateBrief` | Export a closed debate to a presentation brief (.pptx). Local mode (`-Path`) runs the offline lib/brief pipeline; server mode (`-DebateId`) is deferred pending AAD auth (t/2839) |
 
 ### Op-Ed Generation
 | Cmdlet | Use when |
