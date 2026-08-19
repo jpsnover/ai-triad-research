@@ -554,8 +554,8 @@ try {
     ipcRenderer.invoke('save-proposal', filename, data),
 
   // PowerShell prompt files (for Prompt Inspector)
-  readPsPrompt: (promptName: string): Promise<{ text: string | null; error?: string }> =>
-    ipcRenderer.invoke('read-ps-prompt', promptName),
+  readPsPrompt: (promptName: string, dir = 'ps'): Promise<{ text: string | null; error?: string }> =>
+    ipcRenderer.invoke('read-ps-prompt', promptName, dir),
   listPsPrompts: (): Promise<string[]> =>
     ipcRenderer.invoke('list-ps-prompts'),
 

@@ -329,7 +329,7 @@ export const api: AppAPI = {
   saveProposal: (f, d) => window.electronAPI.saveProposal(f, d),
 
   // PowerShell prompts
-  readPsPrompt: (name) => window.electronAPI.readPsPrompt(name),
+  readPsPrompt: (name, dir = 'ps') => window.electronAPI.readPsPrompt(name, dir),
   listPsPrompts: () => window.electronAPI.listPsPrompts(),
 
   // Research file access

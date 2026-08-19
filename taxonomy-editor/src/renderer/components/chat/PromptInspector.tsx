@@ -21,11 +21,12 @@ const GROUP_LABELS: Record<PromptGroup, string> = {
   'taxonomy': 'Taxonomy',
   'research': 'Research',
   'powershell': 'PowerShell Backend',
+  'oped': 'Op-Ed Generation',
 };
 
 const GROUP_ORDER: PromptGroup[] = [
   'debate-setup', 'debate-turns', 'debate-analysis', 'moderator',
-  'chat', 'taxonomy', 'research', 'powershell',
+  'chat', 'taxonomy', 'research', 'powershell', 'oped',
 ];
 
 // Data source labels/descriptions moved to DataSourceCard.tsx
@@ -474,9 +475,10 @@ export function PromptInspector() {
     if (filesToLoad.length === 0) return;
 
     setPsPromptLoading(true);
+    const promptDir = selected.promptDir ?? 'ps';
     void Promise.all(
       filesToLoad.map(async (name) => {
-        const result = await api.readPsPrompt(name);
+        const result = await api.readPsPrompt(name, promptDir);
         return [name, result.text ?? `(Error: ${result.error})`] as [string, string];
       })
     ).then(results => {

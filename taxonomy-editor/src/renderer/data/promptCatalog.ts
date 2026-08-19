@@ -61,7 +61,7 @@ import { documentAnalysisPrompt } from '@lib/debate/documentAnalysis';
 import { critiqueTopicPrompt } from '@lib/debate/topicCritique';
 import { buildRepairPrompt } from '@lib/debate/turnValidator';
 
-export type PromptGroup = 'debate-setup' | 'debate-turns' | 'debate-analysis' | 'moderator' | 'chat' | 'taxonomy' | 'research' | 'powershell';
+export type PromptGroup = 'debate-setup' | 'debate-turns' | 'debate-analysis' | 'moderator' | 'chat' | 'taxonomy' | 'research' | 'powershell' | 'oped';
 export type DataSourceId = 'taxonomyNodes' | 'situationNodes' | 'vulnerabilities' | 'fallacies' | 'policyRegistry' | 'sourceDocument' | 'commitments' | 'argumentNetwork' | 'establishedPoints';
 
 export interface PromptCatalogEntry {
@@ -82,6 +82,8 @@ export interface PromptCatalogEntry {
   applicableDataSources: DataSourceId[];
   /** PS prompt file names (without .prompt extension) — loaded from disk via IPC */
   promptFiles?: string[];
+  /** Prompt directory key for disk-backed entries; defaults to 'ps' (scripts/AITriad/Prompts) */
+  promptDir?: 'ps' | 'oped';
   /** PS cmdlet parameters that configure this prompt at runtime */
   psParameters?: { name: string; type: string; default: string; description: string }[];
 }
@@ -993,5 +995,55 @@ export const PROMPT_CATALOG: PromptCatalogEntry[] = [
     group: 'taxonomy',
     purpose: 'Fires after debate reflection creates new taxonomy nodes. Generates the same rich attributes as the PowerShell attribute extraction pipeline: epistemic_type, rhetorical_strategy, assumes, falsifiability, audience, emotional_register, intellectual_lineage, steelman_vulnerability, and node_scope.',
     applicableDataSources: ['taxonomyNodes'],
+  },
+
+  // === Op-Ed Generation (lib/oped/prompts) ===
+  {
+    id: 'ps-oped-generation-system',
+    title: 'Op-Ed Generation (System)',
+    description: 'System prompt that configures the model to ghost-write a publication-ready op-ed in the voice of a specific POV camp.',
+    source: 'lib/oped/prompts/op-ed-generation-system.prompt',
+    template: '(Loading from disk...)',
+    group: 'oped' as const,
+    promptDir: 'oped' as const,
+    purpose: 'Used by the op-ed generation pipeline. Establishes tone, voice, and structural requirements for the guest essay. Accepts {{POV_LABEL}} and {{VOICE_BLOCK}} placeholders.',
+    applicableDataSources: ['taxonomyNodes', 'sourceDocument'],
+    promptFiles: ['op-ed-generation-system'],
+  },
+  {
+    id: 'ps-oped-generation-user',
+    title: 'Op-Ed Generation (User Turn)',
+    description: 'User turn that triggers the actual op-ed generation, specifying topic, word count, and outlet guidance.',
+    source: 'lib/oped/prompts/op-ed-generation-user.prompt',
+    template: '(Loading from disk...)',
+    group: 'oped' as const,
+    promptDir: 'oped' as const,
+    purpose: 'Paired with the system prompt. Passes {{TOPIC}}, {{WORD_COUNT}}, and {{OUTLET_GUIDANCE}} to produce the draft op-ed body.',
+    applicableDataSources: ['sourceDocument'],
+    promptFiles: ['op-ed-generation-user'],
+  },
+  {
+    id: 'ps-oped-grounding-reflection',
+    title: 'Op-Ed Grounding Reflection',
+    description: 'Audit prompt that checks how a finished op-ed used (or omitted) grounded source positions.',
+    source: 'lib/oped/prompts/op-ed-grounding-reflection.prompt',
+    template: '(Loading from disk...)',
+    group: 'oped' as const,
+    promptDir: 'oped' as const,
+    purpose: 'Post-generation quality check. Compares the drafted op-ed against the grounding list and source claims to surface unsupported assertions or missed opportunities. Accepts {{OPED_BODY}}, {{GROUNDING_LIST}}, {{SOURCE_CLAIMS}}.',
+    applicableDataSources: ['sourceDocument', 'taxonomyNodes'],
+    promptFiles: ['op-ed-grounding-reflection'],
+  },
+  {
+    id: 'ps-oped-source-brief',
+    title: 'Op-Ed Source Brief',
+    description: 'Neutral analyst prompt that extracts a structured brief from a source document for use in op-ed generation.',
+    source: 'lib/oped/prompts/op-ed-source-brief.prompt',
+    template: '(Loading from disk...)',
+    group: 'oped' as const,
+    promptDir: 'oped' as const,
+    purpose: 'Pre-generation step. Reads {{SOURCE_MATERIAL}} and returns a structured JSON brief (key claims, evidence, positions) that grounds the subsequent op-ed. Returns JSON.',
+    applicableDataSources: ['sourceDocument'],
+    promptFiles: ['op-ed-source-brief'],
   },
 ];
