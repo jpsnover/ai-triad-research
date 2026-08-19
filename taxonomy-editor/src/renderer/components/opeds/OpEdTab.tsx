@@ -49,7 +49,11 @@ function buildOpEdMarkdown(set: OpEdSet): string {
       lines.push(`_(This voice ${m.status === 'failed' ? 'failed to generate' : 'was cancelled'}.)_`);
       return;
     }
+    if (m.byline) lines.push(`\n*${m.byline}*`);
+    if (m.disclosure) lines.push(`\n> ${m.disclosure}`);
+    lines.push('');
     lines.push(m.body);
+    if (m.rhetorical_meta) lines.push(`\n---\n\n## What this op-ed did\n\n${m.rhetorical_meta}`);
     if (m.grounding.length > 0) {
       lines.push('\n---\n\n## Taxonomy grounding\n');
       lines.push('| Element | Type | Relevance | Reflected in the op-ed |');

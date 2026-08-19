@@ -146,13 +146,13 @@ function renderOpEdSetMarkdown(set: OpEdSet): string {
     if (member.byline) lines.push('', `_${member.byline}_`);
     if (member.disclosure) lines.push('', `> ${member.disclosure}`);
     lines.push('', member.body);
+    if (member.rhetorical_meta) lines.push('', '### What this op-ed did', '', member.rhetorical_meta);
     if (member.grounding?.length) {
       lines.push('', '**Grounding:**', '');
       for (const g of member.grounding) {
         lines.push(`- ${g.label} (${g.pov}): ${g.how_reflected}`);
       }
     }
-    if (member.rhetorical_meta) lines.push('', '### What this op-ed did', '', member.rhetorical_meta);
     lines.push('', '---', '');
   }
   return lines.join('\n');
@@ -341,7 +341,7 @@ export function registerOpEdHandlers(): void {
 
     const slug = set.topic.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').substring(0, 60);
     const result = await dialog.showSaveDialog(win, {
-      title: 'Export Op-Ed Studies Set',
+      title: 'Export Op-Ed Study',
       defaultPath: `oped-${slug}.md`,
       filters: [{ name: 'Markdown', extensions: ['md'] }],
     });
