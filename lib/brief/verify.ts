@@ -76,15 +76,23 @@ export async function verify(input: VerifyInput): Promise<VerifyResult> {
   const { coveragePct, coverageFailures } = checkTraceCoverage(spec, narration);
   for (const msg of coverageFailures) hardFailures.push(msg);
 
-  // 5 — per-camp symmetry
+  // 5 — per-camp symmetry. For an in-progress snapshot (meta.snapshot=true) the deck is
+  // inherently incomplete/imbalanced (the debate hasn't concluded), so symmetry breaches
+  // are recorded as warnings, NOT gate failures (t/2841) — else every snapshot errors.
+  // Correctness checks (schema/trace/coverage/OOXML) stay HARD even for snapshots.
+  const isSnapshot = spec.meta.snapshot === true;
   const { symmetry, symmetryFailures } = computeSymmetry(spec, narration, tolerancePct);
-  for (const msg of symmetryFailures) hardFailures.push(msg);
+  const snapshotSymmetryWarnings: string[] = [];
+  for (const msg of symmetryFailures) {
+    if (isSnapshot) snapshotSymmetryWarnings.push(`snapshot_symmetry: ${msg}`);
+    else hardFailures.push(msg);
+  }
 
   // 6 — OOXML lint on the shipped bytes
   for (const msg of await lintOoxml(pptxBytes)) hardFailures.push(msg);
 
   // Warnings (recorded, never fail the build)
-  const warnings = computeWarnings(spec, symmetry);
+  const warnings = [...computeWarnings(spec, symmetry, isSnapshot), ...snapshotSymmetryWarnings];
 
   // Assemble the manifest — records reality regardless of pass/fail
   const manifest: AuditManifest = {
@@ -376,7 +384,7 @@ async function lintOoxml(pptxBytes: Uint8Array): Promise<string[]> {
 
 // ── Warnings (recorded, never fail) ───────────────────────────────────────────
 
-function computeWarnings(spec: DeckSpec, symmetry: SymmetryAudit): string[] {
+function computeWarnings(spec: DeckSpec, symmetry: SymmetryAudit, isSnapshot: boolean): string[] {
   const warnings: string[] = [];
   if (spec.convergence.some(c => c.score < 0.3)) {
     warnings.push('low_convergence: one or more issues have a convergence score below 0.3');
@@ -393,7 +401,9 @@ function computeWarnings(spec: DeckSpec, symmetry: SymmetryAudit): string[] {
   }
   // A symmetry breach also surfaces as a manifest warning (the hard-fail is separate).
   if (!symmetry.within_tolerance) {
-    warnings.push('symmetry_breach: per-camp parity is outside tolerance (see hard-failures)');
+    warnings.push(isSnapshot
+      ? 'symmetry_breach: per-camp parity is outside tolerance (allowed — in-progress snapshot)'
+      : 'symmetry_breach: per-camp parity is outside tolerance (see hard-failures)');
   }
   return warnings;
 }

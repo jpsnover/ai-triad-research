@@ -24,7 +24,7 @@ import './PublicOpEdView.css';
  * Public projection of a shared op-ed set — MUST mirror the server-side
  * `PublicOpEd` / `PublicOpEdMember` positive allowlist (opedShareStore.ts). Exactly
  * these fields are public; generation params (model/prompts/thesis/authorBio),
- * the pitch draft, grounding internals, userId and the storage set_id are never exposed.
+ * grounding internals, userId and the storage set_id are never exposed.
  */
 export interface PublicOpEdMember {
   pov: string;

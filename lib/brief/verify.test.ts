@@ -215,6 +215,59 @@ describe('verify — symmetry', () => {
   });
 });
 
+// ── Snapshot-aware symmetry (t/2841) ──────────────────────────────────────────
+
+const SNAPSHOT_META = {
+  id: 'sess-1', run_id: 'run-1', title: 'AI Safety Debate',
+  model: 'gemini-pro', protocol: 'structured', phase: 'open' as const, snapshot: true,
+};
+
+describe('verify — snapshot-aware symmetry (t/2841)', () => {
+  it('word_budget imbalance is a WARNING, not a hard-fail, when meta.snapshot', async () => {
+    const spec = makeSpec({ meta: SNAPSHOT_META });
+    const skewed = makeBalancedNarration({
+      entries: [
+        { trace: '/top_claims/0', text: 'one two three four five six seven eight nine ten eleven twelve', slide: 5 },
+        { trace: '/top_claims/1', text: 'short', slide: 5 },
+      ],
+    });
+    const result = await verify(await makeInput({ spec, narration: skewed }));
+    expect(result.hardFailures.filter(f => f.includes('word_budget'))).toEqual([]);
+    expect(result.hardFailures).toEqual([]); // no gate failures at all for the snapshot
+    expect(result.manifest.warnings.some(w => w.startsWith('snapshot_symmetry'))).toBe(true);
+  });
+
+  it('a camp with zero slides is a WARNING, not a hard-fail, when meta.snapshot', async () => {
+    const spec = makeSpec({ meta: SNAPSHOT_META });
+    const oneCamp = makeBalancedNarration({
+      entries: [{ trace: '/top_claims/0', text: 'only saf has spoken so far', slide: 5 }],
+    });
+    const result = await verify(await makeInput({ spec, narration: oneCamp }));
+    expect(result.hardFailures.some(f => f.includes('has 0 slides'))).toBe(false);
+    expect(result.manifest.warnings.some(w => w.includes('snapshot_symmetry'))).toBe(true);
+  });
+
+  it('correctness checks stay HARD even for a snapshot (unresolvable trace)', async () => {
+    const spec = makeSpec({ meta: SNAPSHOT_META });
+    const bad = makeBalancedNarration({
+      entries: [{ trace: '/nonexistent/path', text: 'hallucinated', slide: 1 }],
+    });
+    const result = await verify(await makeInput({ spec, narration: bad }));
+    expect(result.hardFailures.some(f => f.startsWith('trace resolution'))).toBe(true);
+  });
+
+  it('closed (non-snapshot) imbalance still hard-fails — no regression', async () => {
+    const skewed = makeBalancedNarration({
+      entries: [
+        { trace: '/top_claims/0', text: 'one two three four five six seven eight nine ten eleven twelve', slide: 5 },
+        { trace: '/top_claims/1', text: 'short', slide: 5 },
+      ],
+    });
+    const result = await verify(await makeInput({ narration: skewed }));
+    expect(result.hardFailures.some(f => f.includes('word_budget'))).toBe(true);
+  });
+});
+
 // ── Red arm: OOXML lint ────────────────────────────────────────────────────────
 
 describe('verify — OOXML lint', () => {

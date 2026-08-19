@@ -18,8 +18,8 @@ function New-OpEd {
         The subject can be supplied as free text (-Topic) or fetched from a URL
         (-Url), which is converted to Markdown and passed as source material. The
         target length is derived from the chosen -Outlet's editorial limits (or
-        set explicitly with -WordCount). Optionally emits the standard pitch
-        cover email (-IncludePitch) and writes a Markdown file (-OutputPath).
+        set explicitly with -WordCount). Optionally writes a Markdown file
+        (-OutputPath).
 
         The substance is grounded (by default) in the project taxonomy: the POV's
         most topic-relevant BDI nodes (its actual beliefs / desires / intentions)
@@ -70,11 +70,8 @@ function New-OpEd {
     .PARAMETER AuthorBio
         Author credentials for the authority line / bio (e.g.,
         'a health economist at ...').
-    .PARAMETER IncludePitch
-        Also generate the standard pitch cover email (subject line, thesis
-        summary, credentials) per the submission protocol.
     .PARAMETER OutputPath
-        If supplied, writes the headline, body, and any pitch to a Markdown file
+        If supplied, writes the headline and body to a Markdown file
         at this path (UTF-8, no BOM).
     .PARAMETER Model
         AI model to use. Defaults to gemini-3.7-flash — a deliberate step up from
@@ -94,7 +91,7 @@ function New-OpEd {
         Maximum situation-library stress cases to retrieve and inject (0-15,
         default 3). 0 disables situation grounding.
     .OUTPUTS
-        [PSCustomObject] with Headline, Subtitle, Body, Pitch, WordCount, Pov,
+        [PSCustomObject] with Headline, Subtitle, Body, WordCount, Pov,
         Outlet, Model, Backend, Grounding, StanceRelationship, SourceFormat,
         SourceExtractionTool, ReadableWords, ReadableRatio, and SourceUnderstanding.
         Grounding is an array of taxonomy elements injected (Id, Type [bdi|situation],
@@ -117,10 +114,10 @@ function New-OpEd {
         relevant each was, and how/where each is reflected in the draft.
     .EXAMPLE
         New-OpEd -Url 'https://example.com/ai-jobs-report' -Pov accelerationist `
-            -Outlet WallStreetJournal -IncludePitch -OutputPath ./oped.md
+            -Outlet WallStreetJournal -OutputPath ./oped.md
 
         Fetches the article as source material, writes a WSJ-length essay in the
-        Accelerationist voice, includes a pitch email, and saves it to disk.
+        Accelerationist voice, and saves it to disk.
     .LINK
         Invoke-AIApi
     .LINK
@@ -159,8 +156,6 @@ function New-OpEd {
         [string]$Thesis = '',
 
         [string]$AuthorBio = '',
-
-        [switch]$IncludePitch,
 
         [string]$OutputPath,
 
@@ -395,12 +390,6 @@ function New-OpEd {
         '(none supplied — write a generic authority line the author can replace, e.g. "[Author], [affiliation]")'
     } else { $AuthorBio }
 
-    $PitchInstruction = if ($IncludePitch) {
-        'ALSO write a pitch cover email in "pitch_email". Use this layout: a subject line "Op-Ed Submission: [Headline]"; one or two sentences opening with the news hook and summarizing the thesis and proposed solution; one sentence of author credentials; and a closing note that the full draft is pasted below. Keep it under 150 words and do not paste the essay itself into the pitch.'
-    } else {
-        'No pitch email is needed; return an empty string for "pitch_email".'
-    }
-
     # ── Load prompt templates ────────────────────────────────────────────────
     $SystemPrompt = Get-Prompt -Name 'op-ed-generation-system' -PromptsDir $OPedPromptsDir -Replacements @{
         POV_LABEL       = $Soul.label
@@ -418,7 +407,6 @@ function New-OpEd {
         SOURCE_MATERIAL     = $SourceMaterial
         GROUNDING_NODES     = $GroundingNodesText
         SITUATIONS          = $SituationsText
-        PITCH_INSTRUCTION   = $PitchInstruction
         SOURCE_AUTHOR       = if ($null -ne $SBrief -and $SBrief.PSObject.Properties.Name -contains 'author') { [string]$SBrief.author } else { '' }
         SOURCE_ACTOR_TYPE   = if ($null -ne $SBrief -and $SBrief.PSObject.Properties.Name -contains 'actor_type') { [string]$SBrief.actor_type } else { '' }
         SOURCE_THESIS       = if ($null -ne $SBrief -and $SBrief.PSObject.Properties.Name -contains 'thesis') { [string]$SBrief.thesis } else { '' }
@@ -442,7 +430,6 @@ function New-OpEd {
             subtitle      = @{ type = 'string' }
             body_markdown = @{ type = 'string' }
             word_count    = @{ type = 'integer' }
-            pitch_email   = @{ type = 'string' }
             stance        = @{ type = 'string'; description = 'How the camp engages the source: agree/extend/rebut (or empty if no source)' }
         }
         required   = @('headline', 'body_markdown', 'word_count')
@@ -482,7 +469,6 @@ function New-OpEd {
     $Headline           = ''
     $Subtitle           = ''
     $Body               = ''
-    $Pitch              = ''
     $StanceRelationship = ''
     $ReportedWords      = 0
     try {
@@ -490,9 +476,6 @@ function New-OpEd {
         $Headline = [string]$Parsed.headline
         if ($Parsed.PSObject.Properties.Name -contains 'subtitle')    { $Subtitle = [string]$Parsed.subtitle }
         $Body = [string]$Parsed.body_markdown
-        # -IncludePitch deterministically controls the pitch field; never surface
-        # a pitch the caller did not ask for, even if the model volunteered one.
-        if ($IncludePitch -and $Parsed.PSObject.Properties.Name -contains 'pitch_email') { $Pitch = [string]$Parsed.pitch_email }
         if ($Parsed.PSObject.Properties.Name -contains 'word_count')  { $ReportedWords = [int]$Parsed.word_count }
         if ($Parsed.PSObject.Properties.Name -contains 'stance')      { $StanceRelationship = [string]$Parsed.stance }
     } catch {
@@ -563,7 +546,6 @@ function New-OpEd {
         Headline             = $Headline
         Subtitle             = $Subtitle
         Body                 = $Body
-        Pitch                = $Pitch
         WordCount            = $ActualWords
         Pov                  = $PovKey
         Outlet               = $Outlet
@@ -584,14 +566,6 @@ function New-OpEd {
         if ($Headline) { [void]$md.AppendLine("# $Headline"); [void]$md.AppendLine() }
         if ($Subtitle) { [void]$md.AppendLine("*$Subtitle*"); [void]$md.AppendLine() }
         [void]$md.AppendLine($Body)
-        if ($Pitch) {
-            [void]$md.AppendLine()
-            [void]$md.AppendLine('---')
-            [void]$md.AppendLine()
-            [void]$md.AppendLine('## Pitch cover email')
-            [void]$md.AppendLine()
-            [void]$md.AppendLine($Pitch)
-        }
         if (@($Grounding).Count -gt 0) {
             [void]$md.AppendLine()
             [void]$md.AppendLine('---')
