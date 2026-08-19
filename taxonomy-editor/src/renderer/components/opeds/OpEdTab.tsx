@@ -9,7 +9,7 @@
 //
 // Create is PR#2 — the "+ New Op-Ed" button is present but DISABLED here (t/2570#3).
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { api, isElectronMode } from '@bridge';
@@ -102,15 +102,17 @@ function filterCommunity(entries: OpEdCommunityEntry[], q: string): OpEdCommunit
 // ── Header actions (Edit / bulk-delete / disabled + New) ──────────────────────
 
 function OpEdHeaderActions({
-  listView, editMode, hasSets, selectedCount,
-  onBulkDelete, onClearSelected, onExitEdit, onEnterEdit, onNew,
+  listView, editMode, hasSets, selectedCount, hasCustomOrder,
+  onBulkDelete, onClearSelected, onResetOrder, onExitEdit, onEnterEdit, onNew,
 }: {
   listView: 'my' | 'community';
   editMode: boolean;
   hasSets: boolean;
   selectedCount: number;
+  hasCustomOrder: boolean;
   onBulkDelete: () => void;
   onClearSelected: () => void;
+  onResetOrder: () => void;
   onExitEdit: () => void;
   onEnterEdit: () => void;
   onNew: () => void;
@@ -123,6 +125,9 @@ function OpEdHeaderActions({
           <button className="btn btn-sm btn-danger" onClick={onBulkDelete}>Delete {selectedCount}</button>
         )}
         <button className="btn btn-sm btn-ghost" onClick={onClearSelected}>None</button>
+        {hasCustomOrder && (
+          <button className="btn btn-sm btn-ghost" onClick={onResetOrder} title="Reset to default sort order">Reset Order</button>
+        )}
         <button className="btn btn-sm btn-ghost" onClick={onExitEdit}>Done</button>
       </div>
     );
@@ -130,7 +135,7 @@ function OpEdHeaderActions({
   return (
     <div className="list-panel-header-actions">
       {hasSets && (
-        <button className="btn btn-sm btn-ghost" onClick={onEnterEdit} title="Rename or delete op-eds">Edit</button>
+        <button className="btn btn-sm btn-ghost" onClick={onEnterEdit} title="Rename, reorder, or delete op-eds">Edit</button>
       )}
       {/* Create — both builds (t/2614). Desktop runs the in-process core; web streams the
           shared lib/oped core via POST /api/oped-sets (topic-only; URL toggle hidden on web). */}
@@ -296,6 +301,52 @@ export function OpEdTab() {
 
   const exitEditMode = useCallback(() => { setEditMode(false); setRenamingId(null); }, [setEditMode]);
 
+  // ── Custom sort order (persisted to localStorage) — mirrors DebateTab (t/2796). ──
+  const [customOrder, setCustomOrder] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem('oped-custom-order');
+      return saved ? JSON.parse(saved) : [];
+    } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error', component: 'oped-tab', level: 'warn',
+        message: 'Failed to load custom op-ed order from localStorage',
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+      });
+      return [];
+    }
+  });
+
+  const saveCustomOrder = useCallback((order: string[]) => {
+    setCustomOrder(order);
+    localStorage.setItem('oped-custom-order', JSON.stringify(order));
+  }, []);
+
+  // Apply custom ordering: sets not yet in the custom order (e.g. newly created)
+  // float to the top in server order (newest-first), followed by manually-ordered
+  // sets in their saved order. Mirrors DebateTab.orderedSessions.
+  const orderedSets = useMemo(() => {
+    if (customOrder.length === 0) return sets;
+    const orderMap = new Map(customOrder.map((id, i) => [id, i]));
+    return [...sets].sort((a, b) => {
+      const ai = orderMap.get(a.set_id);
+      const bi = orderMap.get(b.set_id);
+      if (ai !== undefined && bi !== undefined) return ai - bi;
+      if (ai !== undefined) return 1;  // a pinned, b new — new (b) first
+      if (bi !== undefined) return -1; // b pinned, a new — new (a) first
+      return 0;                        // both unordered — keep server order
+    });
+  }, [sets, customOrder]);
+
+  const moveSet = useCallback((id: string, direction: 'up' | 'down') => {
+    const ids = orderedSets.map(s => s.set_id);
+    const idx = ids.indexOf(id);
+    if (idx < 0) return;
+    const targetIdx = direction === 'up' ? idx - 1 : idx + 1;
+    if (targetIdx < 0 || targetIdx >= ids.length) return;
+    [ids[idx], ids[targetIdx]] = [ids[targetIdx], ids[idx]];
+    saveCustomOrder(ids);
+  }, [orderedSets, saveCustomOrder]);
+
   // ── Reader open/close ──
 
   const openMy = useCallback((id: string) => {
@@ -403,7 +454,7 @@ export function OpEdTab() {
   // ── Filtering ──
 
   const q = searchQuery.trim().toLowerCase();
-  const filteredSets = filterSets(sets, q);
+  const filteredSets = filterSets(orderedSets, q);
   const filteredCommunity = filterCommunity(communityOpeds, q);
 
   const isTableMode = !isPhone;
@@ -434,8 +485,10 @@ export function OpEdTab() {
             editMode={editMode}
             hasSets={sets.length > 0}
             selectedCount={selectedIds.size}
+            hasCustomOrder={customOrder.length > 0}
             onBulkDelete={handleBulkDelete}
             onClearSelected={clearSelected}
+            onResetOrder={() => saveCustomOrder([])}
             onExitEdit={exitEditMode}
             onEnterEdit={() => setEditMode(true)}
             onNew={() => setShowNewDialog(true)}
@@ -483,6 +536,7 @@ export function OpEdTab() {
             renameValue={renameValue}
             setRenameValue={setRenameValue}
             onRename={handleRename}
+            onMoveSet={moveSet}
             onOpen={openMy}
             onExport={handleExportMy}
             onShare={handleShare}

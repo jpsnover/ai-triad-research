@@ -44,6 +44,7 @@ const noopMyProps = {
   renameValue: '',
   setRenameValue: vi.fn(),
   onRename: vi.fn(),
+  onMoveSet: vi.fn(),
   onOpen: vi.fn(),
   onExport: vi.fn(),
   onShare: vi.fn(),
@@ -270,6 +271,31 @@ describe('OpEdTable — My variant', () => {
     render(<OpEdTable {...noopMyProps} rows={[makeSummary()]} totalCount={1} />);
     const heads = screen.getAllByRole('columnheader').map(th => (th.textContent || '').replace(/[^A-Za-z]/g, ''));
     expect(heads).toEqual(['Camp', 'Date', 'Outlet', 'Actions', 'Headline']);
+  });
+
+  // t/2796: reorder controls appear only in edit mode; ends are disabled; onMoveSet fires.
+  it('edit mode: shows move up/down per row, disables at the ends, fires onMoveSet', () => {
+    const onMoveSet = vi.fn();
+    const rows = [
+      makeSummary({ set_id: 'a', topic: 'First' }),
+      makeSummary({ set_id: 'b', topic: 'Second' }),
+    ];
+    render(<OpEdTable {...noopMyProps} rows={rows} totalCount={2} editMode onMoveSet={onMoveSet} />);
+    const firstRow = screen.getByText('First').closest('tr')!;
+    const secondRow = screen.getByText('Second').closest('tr')!;
+    // Top row: Up disabled, Down enabled. Bottom row: the reverse.
+    expect(within(firstRow).getByRole('button', { name: /move "first" up/i })).toBeDisabled();
+    const firstDown = within(firstRow).getByRole('button', { name: /move "first" down/i });
+    expect(firstDown).toBeEnabled();
+    expect(within(secondRow).getByRole('button', { name: /move "second" down/i })).toBeDisabled();
+    fireEvent.click(firstDown);
+    expect(onMoveSet).toHaveBeenCalledWith('a', 'down');
+  });
+
+  it('non-edit mode: no move controls are rendered', () => {
+    render(<OpEdTable {...noopMyProps} rows={[makeSummary({ topic: 'Solo' })]} totalCount={1} />);
+    expect(screen.queryByRole('button', { name: /move .* up/i })).toBeNull();
+    expect(screen.queryByRole('button', { name: /move .* down/i })).toBeNull();
   });
 });
 
