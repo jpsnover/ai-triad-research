@@ -34,6 +34,9 @@ export interface ExportJobRequest {
   template?: Uint8Array;
   /** When false, removes the framing_meta slide from classroom exports (t/2838). */
   framingMeta?: boolean;
+  /** When true, export a non-closed (in-progress) debate as a watermarked snapshot
+   *  (t/2851 / t/2816). Passed through to extractDeckSpec; a closed debate ignores it. */
+  allowOpen?: boolean;
 }
 export interface ExportJob {
   jobId: string;
@@ -157,8 +160,16 @@ async function runExportJob(job: ExportJob, args: CreateJobArgs): Promise<void> 
   try {
     // ── extract ──
     setState(job, 'extracting'); stage = 'extracting';
-    const spec = extractDeckSpec(session);
+    const spec = extractDeckSpec(session, request.allowOpen ? { allowOpen: true } : undefined);
     title = spec.meta.title;
+    // Maturity warning (t/2851): a live-snapshot export is partial, not a final export.
+    // Keyed on the actual snapshot flag (a closed debate + allowOpen still extracts normally),
+    // so the response never lets an in-progress snapshot masquerade as a concluded brief.
+    if (spec.meta.snapshot) {
+      job.warnings.push(
+        'in_progress_snapshot: exported from a non-closed debate — this is a partial, watermarked live snapshot (meta.snapshot=true), not a final export.',
+      );
+    }
     artifacts.push({ name: BRIEF_ARTIFACTS.deckSpec, text: JSON.stringify(spec, null, 2) });
 
     // ── narrate (+ optional maker-checker) ──

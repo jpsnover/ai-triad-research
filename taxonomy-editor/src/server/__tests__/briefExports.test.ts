@@ -125,10 +125,15 @@ describe('Brief Export routes (t/2804)', () => {
     expect(startExportJob).not.toHaveBeenCalled();
   });
 
-  it('400 on ?allowOpen=true — live-snapshot export is not available yet (t/2816)', async () => {
+  it('?allowOpen=true on a non-closed debate runs the pipeline (202) with request.allowOpen (t/2851)', async () => {
+    loadDebateSession.mockResolvedValue({ phase: 'open' });
     await post(validBody, '/api/debates/deb-1/exports?allowOpen=true');
-    expect(lastRes._status).toBe(400);
-    expect(lastRes._body).toMatch(/t\/2816/);
+    expect(lastRes._status).toBe(202);
+    expect(JSON.parse(lastRes._body!)).toEqual({ jobId: 'job-1' });
+    // allowOpen is threaded into the job so extractDeckSpec produces the watermarked snapshot.
+    expect(startExportJob).toHaveBeenCalledWith(expect.objectContaining({
+      request: expect.objectContaining({ allowOpen: true }),
+    }));
   });
 
   it('404 when the debate does not exist', async () => {

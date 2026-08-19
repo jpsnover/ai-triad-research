@@ -128,6 +128,23 @@ describe('brief export runner (t/2804)', () => {
     expect(narrate).toHaveBeenCalledWith(expect.objectContaining({ skipNarration: true }), expect.anything());
   });
 
+  it('allowOpen: extracts a watermarked snapshot and surfaces the in-progress maturity warning (t/2851)', async () => {
+    extractDeckSpec.mockReturnValue({ ...SPEC, meta: { ...SPEC.meta, snapshot: true, snapshot_note: 'IN PROGRESS' } });
+    const job = startExportJob(baseArgs({ session: { phase: 'open' } as never, request: { preset: 'policymaker', skipNarration: false, allowOpen: true } }));
+    await waitTerminal(job);
+    // extract was asked for the snapshot (allowOpen threaded through)
+    expect(extractDeckSpec).toHaveBeenCalledWith(expect.objectContaining({ phase: 'open' }), { allowOpen: true });
+    // an explicit maturity warning — a snapshot never masquerades as a final export
+    expect(job.warnings.some(w => w.startsWith('in_progress_snapshot:'))).toBe(true);
+  });
+
+  it('allowOpen unset: a closed export passes no snapshot opts and adds no maturity warning (t/2851)', async () => {
+    const job = startExportJob(baseArgs());
+    await waitTerminal(job);
+    expect(extractDeckSpec).toHaveBeenCalledWith(expect.objectContaining({ phase: 'closed' }), undefined);
+    expect(job.warnings.some(w => w.startsWith('in_progress_snapshot:'))).toBe(false);
+  });
+
   it('registry: getExportJob is user-scoped (another user cannot read the job)', async () => {
     const job = startExportJob(baseArgs());
     await waitTerminal(job);
