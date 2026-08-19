@@ -628,7 +628,7 @@ export const PROMPT_CATALOG: PromptCatalogEntry[] = [
     source: 'AITriad/Prompts/fallacy-analysis.prompt',
     template: '(Loading from disk...)',
     group: 'powershell',
-    purpose: 'Used by Invoke-FallacyAnalysis. Identifies possible fallacies with tiered classification (formal, informal_structural, informal_contextual, cognitive_bias) and confidence levels.',
+    purpose: 'Used by Find-PossibleFallacy. Identifies possible fallacies with tiered classification (formal, informal_structural, informal_contextual, cognitive_bias) and confidence levels.',
     applicableDataSources: ['taxonomyNodes'],
     promptFiles: ['fallacy-analysis', 'fallacy-analysis-schema'],
     psParameters: [
@@ -659,7 +659,7 @@ export const PROMPT_CATALOG: PromptCatalogEntry[] = [
     source: 'AITriad/Prompts/metadata-extraction.prompt',
     template: '(Loading from disk...)',
     group: 'powershell',
-    purpose: 'Used by Import-AITriadDocument. Extracts structured metadata from source documents during ingestion: title, authors, publication date, abstract, topic tags, POV tags.',
+    purpose: 'Runs during document ingestion via the enrichment.metadata-extraction usage (AIEnrich.psm1, Invoke-AIByUsage). Extracts structured metadata from source documents: title, authors, publication date, abstract, topic tags, POV tags.',
     applicableDataSources: ['sourceDocument'],
     promptFiles: ['metadata-extraction'],
     psParameters: [
