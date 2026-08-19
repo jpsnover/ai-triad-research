@@ -81,6 +81,8 @@ interface NodeDetailProps {
   onPin?: () => void;
   onSimilarSearch?: () => void;
   onRelated?: () => void;
+  /** Opens the camp Soul Document dialog (t/2827) — rendered in the header icon row, Advanced-view only. */
+  onOpenSoulDoc?: () => void;
   chipDepth?: number;
   conflict?: NodeConflict;
   resolveUrl?: string | null;
@@ -115,7 +117,7 @@ function getNodeAphorism(node: PovNode): string | undefined {
   return node.graph_attributes?.aphorism;
 }
 
-export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, onRelated, chipDepth = 0, conflict, resolveUrl }: NodeDetailProps) {
+export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, onRelated, onOpenSoulDoc, chipDepth = 0, conflict, resolveUrl }: NodeDetailProps) {
   const { updatePovNode, deletePovNode, movePovNodeCategory, movePovNode, validationErrors, getAllNodeIds, getAllConflictIds, runAttributeFilter, showAttributeInfo, navigateToLineage, setToolbarPanel, selectedEdge, relatedNodeId, loadEdges, edgesFile, setSelectedNodeId, getLabelForId, aggregatedCruxes, showCruxDetail, conflicts } = useTaxonomyStore();
   const viewMode = usePreferencesStore(state => state.viewMode);
   const [descMode, setDescMode] = useDescriptionMode();
@@ -410,6 +412,11 @@ export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, onRela
             tooltip="Open Soul Documents Analysis in GitHub"
             size={15}
           />
+          {/* Soul-doc bookmark relocated here (t/2827), right of the soul-doc icon; Advanced-view
+              only (same bookmark-control gate as t/2826 — not an always-visible control). */}
+          {viewMode === 'advanced' && onOpenSoulDoc && (
+            <button className="nd-header-btn" onClick={onOpenSoulDoc} title="Soul document" aria-label="Soul document">&#x1f4dc;</button>
+          )}
           <EditConflictBadge conflict={conflict} resolveUrl={resolveUrl} />
         </div>
 
