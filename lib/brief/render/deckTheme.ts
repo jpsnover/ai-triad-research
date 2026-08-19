@@ -49,21 +49,27 @@ export const HOUSE_THEME: DeckTheme = {
 };
 
 /**
- * Resolve the theme for a render. v1 applies the AITriad house style; a supplied
- * `.potx` template is acknowledged but its colors/fonts/masters are NOT yet
- * honored (full template theming + slide-master honoring is the t/2820 v2 item).
- * Returns a disclosure warning so the partial application is never silent
- * (silent-degradation rule; TL e/113#2 condition 2a).
+ * Resolve the theme for a render. When `.potx` bytes are supplied the template's
+ * theme colors and fonts are extracted and applied (v2, t/2820); slide-master
+ * honoring is handled as a post-process step in render() via mergePotxMasters().
+ * Falls back to HOUSE_THEME with a `template_parse_error` warning if the bytes
+ * cannot be read as a valid .potx zip (silent-degradation rule, TL e/113#2 §2a).
  */
-export function resolveTheme(hasTemplate: boolean): { theme: DeckTheme; warning?: string } {
-  if (hasTemplate) {
+export async function resolveTheme(
+  template?: Uint8Array,
+): Promise<{ theme: DeckTheme; warning?: string }> {
+  if (!template) return { theme: HOUSE_THEME };
+
+  try {
+    const { extractPotxTheme } = await import('./potxHonor.js');
+    const theme = await extractPotxTheme(template);
+    return { theme };
+  } catch {
     return {
       theme: HOUSE_THEME,
       warning:
-        'template_not_honored: a .potx template was supplied but v1 renders in the ' +
-        'AITriad house style — template colors/fonts and slide masters are not applied ' +
-        '(tracked as t/2820).',
+        'template_parse_error: the supplied .potx could not be read as a valid ' +
+        'Office Open XML zip — house style applied, slide masters not merged.',
     };
   }
-  return { theme: HOUSE_THEME };
 }

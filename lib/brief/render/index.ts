@@ -17,7 +17,11 @@ export interface RenderInput {
   spec: DeckSpec;
   narration: Narration;
   preset: BriefPreset;
-  /** Optional .potx bytes. v1 records a disclosure warning; theming is not yet applied. */
+  /**
+   * Optional .potx bytes. When supplied, v2 (t/2820) extracts theme colors/fonts
+   * and injects the .potx slide masters into the rendered output. A
+   * `template_parse_error` warning is emitted if the bytes are not a valid zip.
+   */
   template?: Uint8Array;
 }
 
@@ -28,16 +32,29 @@ export interface RenderResult {
   htmlDoc: string;
   /** The assembled slide IR — exposed for tests/debugging. */
   slideModels: SlideModel[];
-  /** Non-fatal render warnings (trimmed content, template-not-honored, empty slides). */
+  /** Non-fatal render warnings (trimmed content, template_parse_error, empty slides). */
   warnings: string[];
 }
 
 export async function render(input: RenderInput): Promise<RenderResult> {
-  const { theme, warning } = resolveTheme(input.template !== undefined);
+  const { theme, warning } = await resolveTheme(input.template);
   const { slides, warnings } = assemble(input.spec, input.narration, input.preset);
-  const allWarnings = warning ? [warning, ...warnings] : warnings;
+  const allWarnings: string[] = warning ? [warning, ...warnings] : [...warnings];
 
-  const pptxBytes = await renderPptx(slides, theme);
+  let pptxBytes = await renderPptx(slides, theme);
+
+  if (input.template && !warning) {
+    // Template was parsed successfully — inject its slide masters as a post-process.
+    // Falls back to the unmerged bytes on failure (never silent: warning is appended).
+    try {
+      const { mergePotxMasters } = await import('./potxHonor.js');
+      pptxBytes = await mergePotxMasters(pptxBytes, input.template);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      allWarnings.push(`template_masters_not_merged: slide-master injection failed — ${msg}`);
+    }
+  }
+
   const htmlDoc = renderHtml(slides, theme);
 
   return { pptxBytes, htmlDoc, slideModels: slides, warnings: allWarnings };

@@ -149,9 +149,9 @@ describe('render — speaker notes reuse the narration trace', () => {
 });
 
 describe('render — self-contained HTML', () => {
-  it('has inline styles and no external network references', () => {
+  it('has inline styles and no external network references', async () => {
     const { slides } = assemble(makeSpec(), makeNarration(), 'conference');
-    const { theme } = resolveTheme(false);
+    const { theme } = await resolveTheme();
     const html = renderHtml(slides, theme);
     expect(html).toContain('<style>');
     expect(html).not.toMatch(/https?:\/\//);
@@ -159,10 +159,10 @@ describe('render — self-contained HTML', () => {
     expect(html).not.toMatch(/@import/);
   });
 
-  it('escapes HTML in dynamic content (XSS-safe, deterministic)', () => {
+  it('escapes HTML in dynamic content (XSS-safe, deterministic)', async () => {
     const spec = makeSpec({ question: { core_proposition: 'Pause <script>alert(1)</script>?' } });
     const { slides } = assemble(spec, makeNarration({ entries: [] }), 'conference');
-    const { theme } = resolveTheme(false);
+    const { theme } = await resolveTheme();
     const html = renderHtml(slides, theme);
     expect(html).not.toContain('<script>alert(1)</script>');
     expect(html).toContain('&lt;script&gt;');
@@ -176,9 +176,9 @@ describe('render — snapshot watermark + template disclosure', () => {
     expect(slides.every(s => s.watermark === 'IN PROGRESS')).toBe(true);
   });
 
-  it('records a template-not-honored disclosure warning when a template is supplied', async () => {
+  it('records a template_parse_error warning when invalid .potx bytes are supplied', async () => {
     const r = await render({ spec: makeSpec(), narration: makeNarration(), preset: 'conference', template: new Uint8Array([1, 2, 3]) });
-    expect(r.warnings.some(w => w.startsWith('template_not_honored'))).toBe(true);
+    expect(r.warnings.some(w => w.startsWith('template_parse_error'))).toBe(true);
   });
 });
 
