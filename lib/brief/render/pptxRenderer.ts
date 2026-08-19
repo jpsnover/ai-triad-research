@@ -6,10 +6,50 @@
 // only this file. Input is the target-neutral SlideModel[]; output is the real
 // serialized .pptx bytes handed to T5 verify().
 
-import PptxGenJS from 'pptxgenjs';
+import PptxGenJSImport from 'pptxgenjs';
 import type { SlideModel, SlideBlock } from './slideModel.js';
 import type { DeckTheme } from './deckTheme.js';
 import { campColor } from './deckTheme.js';
+
+// ── Bounded pptxgenjs surface ────────────────────────────────────────────────
+// pptxgenjs ships ESM-`export default` types over a CJS main; under the server's
+// nodenext build its default export is typed as the module namespace, not a
+// constructor (and `PptxGenJS.Slide` etc. become unreachable). This local surface —
+// the ONLY pptxgenjs coupling in lib/brief — pins the runtime constructor (correct
+// at runtime: the CJS main's `module.exports` IS the class) to the exact API this
+// renderer uses, so it type-checks under BOTH bundler (vitest/renderer) and nodenext
+// (server build). A pptxgenjs swap or a types fix touches only this block.
+type Hex = string;
+interface PptxLine { color: Hex; width?: number; pt?: number }
+interface PptxTextOpts {
+  x?: number; y?: number; w?: number; h?: number;
+  fontSize?: number; color?: Hex; bold?: boolean; italic?: boolean;
+  align?: 'left' | 'center' | 'right'; valign?: 'top' | 'middle' | 'bottom';
+  rotate?: number; transparency?: number; bullet?: boolean;
+  fontFace?: string; fill?: { color: Hex }; margin?: number; line?: PptxLine;
+}
+interface PptxTextRun { text: string; options?: PptxTextOpts }
+type PptxTextInput = string | PptxTextRun[];
+interface PptxTableCell { text: string; options?: Record<string, unknown> }
+interface PptxTableOpts {
+  x?: number; y?: number; w?: number; fontSize?: number; fontFace?: string;
+  border?: { type?: string; color?: Hex; pt?: number };
+}
+interface PptxSlide {
+  background: { color: Hex };
+  addText(text: PptxTextInput, opts: PptxTextOpts): void;
+  addTable(rows: PptxTableCell[][], opts: PptxTableOpts): void;
+  addNotes(notes: string): void;
+}
+interface PptxDeck {
+  defineLayout(opts: { name: string; width: number; height: number }): void;
+  layout: string;
+  theme: { headFontFace?: string; bodyFontFace?: string };
+  addSlide(): PptxSlide;
+  write(opts: { outputType: 'uint8array' }): Promise<Uint8Array>;
+}
+type PptxDeckCtor = new () => PptxDeck;
+const PptxGenJS = PptxGenJSImport as unknown as PptxDeckCtor;
 
 const MARGIN = 0.5;
 const CONTENT_W = 9.0; // 10in slide width minus margins
@@ -49,11 +89,10 @@ export async function renderPptx(slides: SlideModel[], theme: DeckTheme): Promis
 
   // pptxgenjs emits valid OOXML (positive offsets, canonical p:presentation order),
   // so the render output passes T5's OOXML lint by construction.
-  const out = await pptx.write({ outputType: 'uint8array' });
-  return out as Uint8Array;
+  return pptx.write({ outputType: 'uint8array' });
 }
 
-function layoutBlocks(slide: PptxGenJS.Slide, blocks: SlideBlock[], theme: DeckTheme): void {
+function layoutBlocks(slide: PptxSlide, blocks: SlideBlock[], theme: DeckTheme): void {
   let y = BODY_Y;
   for (const block of blocks) {
     y = layoutBlock(slide, block, theme, y);
@@ -61,7 +100,7 @@ function layoutBlocks(slide: PptxGenJS.Slide, blocks: SlideBlock[], theme: DeckT
   }
 }
 
-function layoutBlock(slide: PptxGenJS.Slide, block: SlideBlock, theme: DeckTheme, y: number): number {
+function layoutBlock(slide: PptxSlide, block: SlideBlock, theme: DeckTheme, y: number): number {
   switch (block.type) {
     case 'text':
       slide.addText(block.text, {

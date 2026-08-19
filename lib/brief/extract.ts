@@ -5,7 +5,7 @@
 // Deterministic, no model. Maps a closed DebateSession → deck_spec.json IR.
 // Validates output against the strict write schema before returning.
 
-import Ajv from 'ajv';
+import { Ajv } from 'ajv';
 import type { DebateSession } from '../debate/types.js';
 import type { SynthesisResult, SynthesisCrux, PreferenceEntry } from '../debate/types/synthesis.js';
 import type { ArgumentNetworkNode, CommitmentStore } from '../debate/types/argumentNetwork.js';

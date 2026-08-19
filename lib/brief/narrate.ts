@@ -6,7 +6,7 @@
 // Validates output against the strict write schema and checks trace resolvability
 // before returning (the T2 lesson: structured-output requests are NOT self-validating).
 
-import Ajv from 'ajv';
+import { Ajv } from 'ajv';
 import type { AIAdapter } from '../debate/aiAdapter.js';
 import { ActionableError } from '../debate/errors.js';
 import { getGlobalRecorder } from '../flight-recorder/index.js';
