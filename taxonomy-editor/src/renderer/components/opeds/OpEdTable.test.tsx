@@ -149,6 +149,18 @@ describe('OpEdMyRow', () => {
     renderRow(makeSummary(), { editMode: true });
     expect(screen.getByRole('checkbox', { name: /select/i })).toBeTruthy();
   });
+
+  // t/2797 Part B: the export menu offers Markdown / Plain text / JSON; JSON is new.
+  it('export menu includes a JSON option that fires onExport with "json"', () => {
+    const onExport = vi.fn();
+    const set = makeSummary();
+    renderRow(set, { onExport });
+    fireEvent.click(screen.getByRole('button', { name: /export/i }));
+    const jsonItem = screen.getByRole('menuitem', { name: /^json$/i });
+    expect(jsonItem).toBeTruthy();
+    fireEvent.click(jsonItem);
+    expect(onExport).toHaveBeenCalledWith(set, 'json');
+  });
 });
 
 describe('OpEdCommunityRow', () => {

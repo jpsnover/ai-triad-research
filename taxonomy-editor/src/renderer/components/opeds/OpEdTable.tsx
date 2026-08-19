@@ -205,6 +205,7 @@ function OpEdExportMenu({ onExport }: { onExport: (format: string) => void }) {
         <span role="menu" className="oped-export-menu-list">
           <button type="button" role="menuitem" className="oped-export-menu-item" onClick={() => pick('markdown')}>Markdown</button>
           <button type="button" role="menuitem" className="oped-export-menu-item" onClick={() => pick('text')}>Plain text</button>
+          <button type="button" role="menuitem" className="oped-export-menu-item" onClick={() => pick('json')}>JSON</button>
         </span>
       )}
     </span>
