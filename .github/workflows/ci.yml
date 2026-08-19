@@ -301,6 +301,14 @@ jobs:
         working-directory: ${{ matrix.app }}
         run: pnpm run build
 
+      - name: Preload self-contained gate (t/2776)
+        if: matrix.app == 'taxonomy-editor'
+        shell: pwsh
+        run: |
+          Import-Module ./scripts/AITriad/AITriad.psd1 -Force
+          $r = Test-PreloadHealth -CheckSyntax
+          if (-not $r.Healthy) { $r.Checks | Where-Object { -not $_.Pass } | ForEach-Object { Write-Error $_.Detail }; exit 1 }
+
   # ── renderer-tsc: renderer type-check gate (t/2252) ──
   # CI ran `tsc --noEmit -p tsconfig.main.json` for main-process code but NEVER
   # ran renderer tsc — a renderer import error / unresolved module passes all CI
