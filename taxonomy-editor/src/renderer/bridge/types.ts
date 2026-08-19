@@ -100,7 +100,7 @@ export interface CreateOpEdParams {
   includePitch?: boolean;
   voiceOnly?: boolean;
 }
-export interface CreateOpEdPayload { topic: string; params: CreateOpEdParams; voices: PovKey[] }
+export interface CreateOpEdPayload { topic: string; url?: string; params: CreateOpEdParams; voices: PovKey[] }
 /** One 3-stage progress tick from the Electron generation IPC (t/2575 `oped-progress`). */
 export interface OpEdProgressEvent { set_id: string; voice: string; stage: string; error?: string }
 

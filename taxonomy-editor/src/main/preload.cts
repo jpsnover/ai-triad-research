@@ -622,7 +622,7 @@ try {
     ipcRenderer.invoke('admin-remove-community-item', type, id, reason),
 
   // Op-Ed Studio (t/2575, t/2591)
-  createOpEdSet: (payload: { topic: string; params: unknown; voices: string[] }): Promise<{ set_id: string }> =>
+  createOpEdSet: (payload: { topic: string; url?: string; params: unknown; voices: string[] }): Promise<{ set_id: string }> =>
     ipcRenderer.invoke('create-oped-set', payload),
   cancelOpEdSet: (setId: string): void =>
     void ipcRenderer.invoke('cancel-oped-set', setId),

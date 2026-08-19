@@ -775,7 +775,8 @@ export function NewOpEdDialog({ open, onClose, onCreated, allowUrlSource = true 
     if (wordCount != null) params.wordCount = wordCount;
     if (!ground) params.voiceOnly = true;
     else { params.maxGroundingNodes = maxGroundingNodes; params.maxSituations = maxSituations; }
-    return { topic: topic.trim(), params, voices: orderedVoices };
+    const sourceUrl = fromWebPage && url.trim() ? url.trim() : undefined;
+    return { topic: topic.trim(), url: sourceUrl, params, voices: orderedVoices };
   };
 
   const handleCancel = () => {
