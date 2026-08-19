@@ -16,10 +16,8 @@ jobs:
   contrast-alert-gv:
     runs-on: ubuntu-latest
     steps:
-      - name: Simulate contrast-check FAILURE
-        run: |
-          echo "::error::Simulated contrast-check failure (GV arm — failure path)"
-          exit 1
+      - name: Simulate contrast-check PASS
+        run: echo "Simulated contrast-check PASS — green path"
 
       - name: Alert — contrast-check RED (GV)
         if: failure()
