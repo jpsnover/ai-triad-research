@@ -1,0 +1,88 @@
+/* Brief Export dialog (t/2805, T7). Co-located per the styles.css-frozen rule.
+   All colors use var(--token, fallback) so the contrast gate never hits an undefined token. */
+
+.bx-overlay {
+  position: fixed; inset: 0; z-index: 1000;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--overlay-bg, rgba(0, 0, 0, 0.5));
+}
+.bx-dialog {
+  width: min(560px, 92vw); max-height: 88vh; overflow-y: auto;
+  background: var(--panel-bg, #ffffff);
+  color: var(--text-color, #1a1a1a);
+  border: 1px solid var(--border-color, #d0d0d0);
+  border-radius: 8px;
+  box-shadow: 0 8px 32px var(--shadow-color, rgba(0, 0, 0, 0.25));
+  padding: 20px;
+}
+.bx-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.bx-title { font-size: 1.1rem; margin: 0; }
+.bx-close {
+  background: none; border: none; font-size: 1.5rem; line-height: 1; cursor: pointer;
+  color: var(--text-muted, #6b7280);
+}
+.bx-close:hover { color: var(--text-color, #1a1a1a); }
+
+.bx-notice {
+  background: var(--warning-bg, #fff7ed);
+  color: var(--warning-text, #9a3412);
+  border: 1px solid var(--warning-border, #fed7aa);
+  border-radius: 6px; padding: 10px 12px; margin-bottom: 12px; font-size: 0.9rem;
+}
+.bx-notice-sub { color: var(--text-muted, #6b7280); }
+
+.bx-form { display: flex; flex-direction: column; gap: 14px; }
+.bx-fieldset { border: 1px solid var(--border-color, #d0d0d0); border-radius: 6px; padding: 10px 12px; margin: 0; }
+.bx-fieldset legend { font-weight: 600; padding: 0 6px; }
+.bx-radio { display: grid; grid-template-columns: auto 1fr; align-items: baseline; gap: 6px 8px; padding: 4px 0; }
+.bx-radio-label { font-weight: 500; }
+.bx-hint { grid-column: 2; color: var(--text-muted, #6b7280); font-size: 0.82rem; }
+
+.bx-field { display: flex; flex-direction: column; gap: 4px; }
+.bx-field label { font-weight: 500; font-size: 0.9rem; }
+.bx-field select {
+  padding: 6px 8px; border-radius: 6px;
+  border: 1px solid var(--border-color, #d0d0d0);
+  background: var(--input-bg, #ffffff); color: var(--text-color, #1a1a1a);
+}
+.bx-indent { margin-left: 22px; }
+.bx-check { display: flex; align-items: center; gap: 8px; font-size: 0.9rem; }
+.bx-formats { font-size: 0.82rem; color: var(--text-muted, #6b7280); margin: 0; }
+
+.bx-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px; }
+.bx-btn-primary {
+  padding: 7px 16px; border-radius: 6px; border: none; cursor: pointer; font-weight: 600;
+  background: var(--accent-color, #2563eb); color: var(--accent-text, #ffffff);
+}
+.bx-btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+.bx-btn-ghost {
+  padding: 7px 14px; border-radius: 6px; cursor: pointer;
+  background: transparent; color: var(--text-color, #1a1a1a);
+  border: 1px solid var(--border-color, #d0d0d0);
+}
+
+.bx-error, .bx-failed-msg {
+  background: var(--error-bg, #fef2f2); color: var(--error-text, #991b1b);
+  border: 1px solid var(--error-border, #fecaca);
+  border-radius: 6px; padding: 8px 10px; font-size: 0.85rem;
+  white-space: pre-wrap; word-break: break-word; margin: 0;
+}
+
+.bx-progress { display: flex; flex-direction: column; gap: 10px; padding: 16px 0; }
+.bx-phase { font-weight: 600; }
+.bx-bar { height: 8px; border-radius: 4px; background: var(--track-bg, #e5e7eb); overflow: hidden; }
+.bx-bar-fill { height: 100%; background: var(--accent-color, #2563eb); transition: width 0.3s ease; }
+
+.bx-warnings { margin: 4px 0; padding-left: 18px; color: var(--warning-text, #9a3412); font-size: 0.85rem; }
+
+.bx-done-head, .bx-failed-head { font-weight: 700; margin-bottom: 10px; }
+.bx-done-head { color: var(--success-text, #15803d); }
+.bx-failed-head { color: var(--error-text, #991b1b); }
+.bx-artifacts { list-style: none; margin: 0 0 10px; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.bx-artifacts li {
+  display: flex; align-items: center; justify-content: space-between;
+  border: 1px solid var(--border-color, #d0d0d0); border-radius: 6px; padding: 8px 10px;
+}
+.bx-artifact-name { font-size: 0.9rem; }
+.bx-dl { padding: 4px 12px; }
+.bx-meta { color: var(--text-muted, #6b7280); font-size: 0.82rem; margin-bottom: 10px; }
