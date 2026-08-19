@@ -66,14 +66,12 @@ export const AFFECT_SATURATION_RATE: Record<AffectCategory, number> = {
   empathy: 4.0,
 };
 
-// v2 fit from t/2680 + analyses/t1771-affect/provisional-fit-v2.md (66-debate pruned-lexicon corpus).
-// conf/arg re-fit on the pruned lexicon (t/2677). concluding v2 fit from t/2713 (30-debate corpus);
-// fourth non-comparability cutover for affect_appropriateness (post-t/2713).
-// Values stay provisional (not derived). MAX_ACCEPTABLE_DEVIATION (0.35) unchanged.
+// Pooled 2-model derived fit (gemini + haiku, 56-debate corpus); promoted to DERIVED (t/2714, t/2819).
+// Fifth non-comparability cutover for affect_appropriateness. MAX_ACCEPTABLE_DEVIATION (0.35) unchanged.
 export const AFFECT_PHASE_BASELINES: Record<Exclude<DebatePhase, 'terminated'>, AffectProfile> = {
-  confrontation: { urgency: 0.18, fear: 0.39, hope: 0.16, outrage: 0.09, empathy: 0.18 },
-  argumentation: { urgency: 0.19, fear: 0.37, hope: 0.23, outrage: 0.06, empathy: 0.15 },
-  concluding:    { urgency: 0.17, fear: 0.44, hope: 0.21, outrage: 0.04, empathy: 0.14 },
+  confrontation: { urgency: 0.15, fear: 0.45, hope: 0.18, outrage: 0.07, empathy: 0.15 },
+  argumentation: { urgency: 0.19, fear: 0.39, hope: 0.15, outrage: 0.09, empathy: 0.18 },
+  concluding:    { urgency: 0.17, fear: 0.46, hope: 0.17, outrage: 0.05, empathy: 0.15 },
 };
 
 const INTENSITY_WEIGHTS: Record<AffectCategory, number> = {
