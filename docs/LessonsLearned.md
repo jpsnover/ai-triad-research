@@ -2837,16 +2837,18 @@ Institutional memory for failure patterns across the AI Triad Research project.
 
 **Instances:**
 - 2026-08-03 — DevOps (p/26#44): Edit tool inferred `file_path` from scope/context knowledge without confirming the active worktree root first. `git add` found nothing staged. Fixed by re-applying the edit to the correct worktree absolute path.
+- 2026-08-15 — DebateTool (p/70#17): **Ordering variant — worktree not yet created at time of edit.** Edited `lib/debate/affectSignals.ts` via the shared-tree absolute path before running `git worktree add`. Shared-tree write guard (t/2449) fired post-edit. Fix: `git restore` reverted the shared-tree edit; re-applied inside `.worktrees/t2819-affect-baselines` after creating the worktree. Key rule: **create the worktree first, edit second** — the worktree path doesn't exist until after `git worktree add`.
 
-**Root Cause:** The Edit/Write tools take an absolute path and do not validate it against the active worktree. Agents know their scope's canonical path (e.g. `operations/devops/`) and naturally infer `file_path` by prepending the repo root they know from context — but in a worktree, the root is different. Without explicitly confirming the worktree root via `git worktree list`, the inferred path silently targets the shared checkout instead. Distinct from #128 (Bash tool `ls` on wrong POSIX path due to depth miscount) — here the failure is a wrong absolute path to Edit/Write.
+**Root Cause:** The Edit/Write tools take an absolute path and do not validate it against the active worktree. Agents know their scope's canonical path (e.g. `operations/devops/`) and naturally infer `file_path` by prepending the repo root they know from context — but in a worktree, the root is different. Without explicitly confirming the worktree root via `git worktree list`, the inferred path silently targets the shared checkout instead. Distinct from #128 (Bash tool `ls` on wrong POSIX path due to depth miscount) — here the failure is a wrong absolute path to Edit/Write. A second ordering failure class (#134b): creating the worktree AFTER an edit means the edit always lands in the wrong tree.
 
 **Prevention:**
-1. **At the start of every worktree workflow, record the worktree's absolute root** from `git worktree list` output (or the `git worktree add` output line `HEAD is now at …`).
-2. **All Edit/Write calls must use paths prefixed with the worktree root** — never with the main-checkout repo root, even if the scope's relative path is well-known.
-3. **Confirm before first Edit:** `git worktree list | grep <branch-name>` gives the canonical absolute path.
-4. Sibling of #128 — both produce an edit-to-wrong-tree; #128 affects Bash tool path access, #134 affects Edit/Write tool file_path.
+1. **Create the worktree before making any edits** — `git worktree add -b <branch> .worktrees/<name> main` first, then Edit/Write to paths under the worktree root.
+2. **At the start of every worktree workflow, record the worktree's absolute root** from `git worktree list` output (or the `git worktree add` output line `HEAD is now at …`).
+3. **All Edit/Write calls must use paths prefixed with the worktree root** — never with the main-checkout repo root, even if the scope's relative path is well-known.
+4. **Confirm before first Edit:** `git worktree list | grep <branch-name>` gives the canonical absolute path.
+5. Sibling of #128 — both produce an edit-to-wrong-tree; #128 affects Bash tool path access, #134 affects Edit/Write tool file_path.
 
-**Status:** Active — 1 instance (DevOps p/26#44). 4th env/path hazard in the worktree-land cluster.
+**Status:** Active — 2 instances (DevOps p/26#44; DebateTool p/70#17). 4th env/path hazard in the worktree-land cluster.
 
 **Applies To:** All agents using Edit or Write tool during a worktree landing workflow.
 
