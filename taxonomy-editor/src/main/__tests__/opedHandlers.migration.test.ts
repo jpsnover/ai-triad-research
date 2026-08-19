@@ -86,7 +86,6 @@ const FAKE_MEMBER: OpEdMember = {
   status: 'complete',
   headline: 'Test Headline',
   subtitle: 'Test Subtitle',
-  pitch: 'Test Pitch',
   body: 'Body text.',
   wordCount: 2,
   grounding: [{ node_id: 'acc-bel-001', label: 'Node A', category: 'Beliefs', pov: 'accelerationist', relevance: 'High', how_reflected: 'Directly cited' }],

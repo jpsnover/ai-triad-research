@@ -56,23 +56,42 @@ const STRIP_LIST = new Set([
 
 const KNOWN_FIELDS = new Set([...MAPPED_FIELDS, ...STRIP_LIST]);
 
+/** Options for {@link extractDeckSpec}. */
+export interface ExtractOptions {
+  /**
+   * Export a non-closed (in-progress) debate as a WATERMARKED snapshot (spec §5).
+   * Sets `meta.snapshot=true` + `meta.snapshot_note`; T4 renders the "IN PROGRESS"
+   * watermark + maturity note. Sections derived from the concluding synthesis may be
+   * empty because the debate has not concluded. Default false → non-closed throws.
+   */
+  allowOpen?: boolean;
+}
+
 /**
- * Extract a `deck_spec.json` IR from a closed debate session.
- * All 14 sections are deterministically derived — no model calls.
+ * Extract a `deck_spec.json` IR from a debate session.
+ * Closed debates export directly. A non-closed debate throws unless `allowOpen` is set
+ * (spec §5), in which case it exports a watermarked in-progress snapshot.
+ * All sections are deterministically derived — no model calls.
  * Validates output against the strict write schema; throws ActionableError on failure.
  */
-export function extractDeckSpec(session: DebateSession): DeckSpec {
-  if (session.phase !== 'closed') {
+export function extractDeckSpec(session: DebateSession, opts: ExtractOptions = {}): DeckSpec {
+  const isSnapshot = session.phase !== 'closed';
+  if (isSnapshot && !opts.allowOpen) {
     throw new ActionableError({
       goal: 'Extract deck_spec from debate session',
       problem: `Session phase is '${session.phase}' — must be 'closed'`,
       location: LOCATION,
-      nextSteps: ['Close the debate before exporting (run the synthesis phase first).'],
+      nextSteps: [
+        'Close the debate before exporting (run the synthesis phase first),',
+        'or pass allowOpen=true to export a watermarked in-progress snapshot.',
+      ],
     });
   }
 
+  // The concluding synthesis only exists once the debate concludes; a snapshot of an
+  // in-progress debate legitimately has none — its synthesis-derived sections are empty.
   const concludingEntry = session.transcript.find(e => e.type === 'concluding');
-  if (!concludingEntry) {
+  if (!concludingEntry && !isSnapshot) {
     throw new ActionableError({
       goal: 'Extract deck_spec from debate session',
       problem: 'No concluding transcript entry found',
@@ -81,7 +100,7 @@ export function extractDeckSpec(session: DebateSession): DeckSpec {
     });
   }
 
-  const synthesis = (concludingEntry.metadata?.['synthesis'] ?? {}) as Partial<SynthesisResult>;
+  const synthesis = (concludingEntry?.metadata?.['synthesis'] ?? {}) as Partial<SynthesisResult>;
   const recorder = getGlobalRecorder();
 
   // Warn on unmapped non-strip fields (silent-degradation guard, t/2800#1)
@@ -99,7 +118,7 @@ export function extractDeckSpec(session: DebateSession): DeckSpec {
 
   const spec: DeckSpec = {
     deck_spec_version: DECK_SPEC_VERSION,
-    meta: buildMeta(session),
+    meta: buildMeta(session, isSnapshot),
     question: buildQuestion(session),
     framing_critique: buildFramingCritique(session),
     agreements: buildAgreements(synthesis),
@@ -121,15 +140,24 @@ export function extractDeckSpec(session: DebateSession): DeckSpec {
 
 // ── Section builders ──────────────────────────────────────────────────────────
 
-function buildMeta(session: DebateSession): DeckSpec['meta'] {
-  return {
+function buildMeta(session: DebateSession, isSnapshot: boolean): DeckSpec['meta'] {
+  const meta: DeckSpec['meta'] = {
     id: session.id,
     run_id: session.run_id ?? session.id,
     title: session.title,
     model: session.debate_model ?? (session.stage_models?.['draft'] as string | undefined) ?? 'unknown',
     protocol: session.protocol_id ?? 'structured',
-    phase: 'closed',
+    // Session lifecycle (setup|…|closed|cancelled) → deck_spec phase enum (closed|open).
+    // 'concluding' has no session-lifecycle equivalent, so any non-closed → 'open'.
+    phase: session.phase === 'closed' ? 'closed' : 'open',
   };
+  if (isSnapshot) {
+    meta.snapshot = true;
+    meta.snapshot_note =
+      `Exported from an in-progress debate (session phase: '${session.phase}') via allowOpen; ` +
+      'this is a snapshot and may be incomplete.';
+  }
+  return meta;
 }
 
 function buildQuestion(session: DebateSession): DeckSpec['question'] {

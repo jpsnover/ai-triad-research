@@ -77,6 +77,7 @@ describe('render — outputs', () => {
     expect(r.pptxBytes[0]).toBe(0x50);
     expect(r.pptxBytes[1]).toBe(0x4b);
     expect(typeof r.htmlDoc).toBe('string');
+    expect(r.htmlDoc).toContain('<!DOCTYPE html');
     expect(r.slideModels.length).toBeGreaterThan(0);
   });
 });
@@ -100,6 +101,23 @@ describe('render — presets as masks', () => {
     expect(kinds).toContain('framing_meta');
     expect(kinds).toContain('glossary');
     expect(kinds).toContain('open_threads_appendix');
+  });
+
+  it('framingMeta:false removes framing_meta from classroom (t/2838)', async () => {
+    const r = await render({ spec: makeSpec(), narration: makeNarration(), preset: 'classroom', framingMeta: false });
+    expect(r.slideModels.map(s => s.kind)).not.toContain('framing_meta');
+    expect(r.slideModels.map(s => s.kind)).toContain('glossary'); // other classroom-only slides survive
+  });
+
+  it('framingMeta:true (explicit) keeps framing_meta for classroom', async () => {
+    const r = await render({ spec: makeSpec(), narration: makeNarration(), preset: 'classroom', framingMeta: true });
+    expect(r.slideModels.map(s => s.kind)).toContain('framing_meta');
+  });
+
+  it('framingMeta:false on conference/policymaker is a no-op (they never had the slide)', async () => {
+    const conf = await render({ spec: makeSpec(), narration: makeNarration(), preset: 'conference', framingMeta: false });
+    expect(conf.slideModels.map(s => s.kind)).not.toContain('framing_meta');
+    expect(conf.slideModels.length).toBe(11); // count unchanged
   });
 });
 
@@ -149,9 +167,9 @@ describe('render — speaker notes reuse the narration trace', () => {
 });
 
 describe('render — self-contained HTML', () => {
-  it('has inline styles and no external network references', () => {
+  it('has inline styles and no external network references', async () => {
     const { slides } = assemble(makeSpec(), makeNarration(), 'conference');
-    const { theme } = resolveTheme(false);
+    const { theme } = await resolveTheme();
     const html = renderHtml(slides, theme);
     expect(html).toContain('<style>');
     expect(html).not.toMatch(/https?:\/\//);
@@ -159,10 +177,10 @@ describe('render — self-contained HTML', () => {
     expect(html).not.toMatch(/@import/);
   });
 
-  it('escapes HTML in dynamic content (XSS-safe, deterministic)', () => {
+  it('escapes HTML in dynamic content (XSS-safe, deterministic)', async () => {
     const spec = makeSpec({ question: { core_proposition: 'Pause <script>alert(1)</script>?' } });
     const { slides } = assemble(spec, makeNarration({ entries: [] }), 'conference');
-    const { theme } = resolveTheme(false);
+    const { theme } = await resolveTheme();
     const html = renderHtml(slides, theme);
     expect(html).not.toContain('<script>alert(1)</script>');
     expect(html).toContain('&lt;script&gt;');
@@ -176,9 +194,9 @@ describe('render — snapshot watermark + template disclosure', () => {
     expect(slides.every(s => s.watermark === 'IN PROGRESS')).toBe(true);
   });
 
-  it('records a template-not-honored disclosure warning when a template is supplied', async () => {
+  it('records a template_parse_error warning when invalid .potx bytes are supplied', async () => {
     const r = await render({ spec: makeSpec(), narration: makeNarration(), preset: 'conference', template: new Uint8Array([1, 2, 3]) });
-    expect(r.warnings.some(w => w.startsWith('template_not_honored'))).toBe(true);
+    expect(r.warnings.some(w => w.startsWith('template_parse_error'))).toBe(true);
   });
 });
 

@@ -182,7 +182,6 @@ process.stdout.write(out);
                     SOURCE_MATERIAL        = '(no external source supplied — argue from the topic and general knowledge)'
                     GROUNDING_NODES        = '- [saf-bel-001] [Belief] AI is dangerous: Detail here.'
                     SITUATIONS             = '- [sit-001] Runaway model: Bad outcome.'
-                    PITCH_INSTRUCTION      = 'Write a short pitch email.'
                     SOURCE_AUTHOR          = ''
                     SOURCE_ACTOR_TYPE      = ''
                     SOURCE_THESIS          = ''
@@ -198,7 +197,7 @@ import { readFileSync } from 'fs';
 import { join } from 'path';
 const dir = "$($script:PromptsDirFwd)";
 const tpl = readFileSync(join(dir, 'op-ed-generation-user.prompt'), 'utf-8').trimEnd();
-const vars = {"TOPIC":"Mandatory AI audits","WORD_COUNT":"800","OUTLET_GUIDANCE":"Generic: ~800 words","NEWS_HOOK":"Senate AI bill hearing next week","THESIS":"Audits prevent catastrophic failures","AUTHOR_BIO":"A researcher at MIT","SOURCE_MATERIAL":"(no external source supplied — argue from the topic and general knowledge)","GROUNDING_NODES":"- [saf-bel-001] [Belief] AI is dangerous: Detail here.","SITUATIONS":"- [sit-001] Runaway model: Bad outcome.","PITCH_INSTRUCTION":"Write a short pitch email.","SOURCE_AUTHOR":"","SOURCE_ACTOR_TYPE":"","SOURCE_THESIS":"","SOURCE_STANCE":"","SOURCE_RECOMMENDATIONS":"","SOURCE_KEY_CLAIMS":"  1. Audits catch failures early\n  2. Voluntary compliance is insufficient"};
+const vars = {"TOPIC":"Mandatory AI audits","WORD_COUNT":"800","OUTLET_GUIDANCE":"Generic: ~800 words","NEWS_HOOK":"Senate AI bill hearing next week","THESIS":"Audits prevent catastrophic failures","AUTHOR_BIO":"A researcher at MIT","SOURCE_MATERIAL":"(no external source supplied — argue from the topic and general knowledge)","GROUNDING_NODES":"- [saf-bel-001] [Belief] AI is dangerous: Detail here.","SITUATIONS":"- [sit-001] Runaway model: Bad outcome.","SOURCE_AUTHOR":"","SOURCE_ACTOR_TYPE":"","SOURCE_THESIS":"","SOURCE_STANCE":"","SOURCE_RECOMMENDATIONS":"","SOURCE_KEY_CLAIMS":"  1. Audits catch failures early\n  2. Voluntary compliance is insufficient"};
 const out = tpl.replace(/\{\{(\w+)\}\}/g, (_, k) => vars[k] ?? '');
 process.stdout.write(out);
 "@

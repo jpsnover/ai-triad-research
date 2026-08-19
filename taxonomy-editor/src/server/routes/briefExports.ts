@@ -23,7 +23,7 @@ import {
   startExportJob, getExportJob, sweepExportJobs, countRunningExportJobs,
   findIdempotentJob, MAX_CONCURRENT_EXPORT_JOBS, type ResolvedModels,
 } from '../briefExportJobs.js';
-import { listBriefExports, loadBriefExportRecord, loadBriefArtifact, deleteBriefExport } from '../storage/briefExportStore.js';
+import { listBriefExports, loadBriefExportRecord, loadBriefArtifact, deleteBriefExport, getBriefExportsQuotaStatus } from '../storage/briefExportStore.js';
 import { BRIEF_ARTIFACTS, type BriefArtifactName, type BriefPreset } from '../../../../lib/brief/types.js';
 import type { DebateSession } from '../../../../lib/debate/types.js';
 
@@ -33,7 +33,8 @@ const TOOL_VERSIONS: Record<string, string> = { node: process.version, brief: '1
 
 interface ExportPostBody {
   preset?: unknown; format?: unknown; model?: unknown; checkerModel?: unknown;
-  template?: unknown; modelSource?: unknown; options?: { skipNarration?: unknown };
+  template?: unknown; modelSource?: unknown; framingMeta?: unknown;
+  options?: { skipNarration?: unknown };
 }
 
 /** The static, request-shape gates that need no I/O — auth, preset, PDF-is-desktop-only,
@@ -91,6 +92,17 @@ function resolveExportModels(
 export function registerBriefExportsRoutes(r: Router, _ctx: ServerCtx): void {
   const { get, post, del } = r;
 
+  // ── GET /api/brief-exports/quota-status (t/2831) ──
+  // Registered first — no wildcard conflict risk in this namespace, but keep
+  // the pattern consistent with oped-sets/quota-status (t/2573).
+  get('/api/brief-exports/quota-status', async (_req, res) => {
+    try { json(res, await getBriefExportsQuotaStatus()); }
+    catch (err) {
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'brief-export', level: 'error', message: 'Failed to get brief-export quota status', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
+      error(res, String(err), 500, err);
+    }
+  });
+
   // ── POST /api/debates/:debateId/exports → 202 { jobId } ──
   post('/api/debates/:debateId/exports', async (req, res, body) => {
     const b = (body ?? {}) as ExportPostBody;
@@ -112,6 +124,13 @@ export function registerBriefExportsRoutes(r: Router, _ctx: ServerCtx): void {
       return;
     }
 
+    // Count-quota gate (t/2831): cap total exports before any model call.
+    const quotaStatus = await getBriefExportsQuotaStatus();
+    if (!quotaStatus.allowed) {
+      json(res, { error: 'quota_exceeded', message: `Brief export quota reached (${quotaStatus.current}/${quotaStatus.limit}). Delete older exports to make room.`, current: quotaStatus.current, limit: quotaStatus.limit }, 429);
+      return;
+    }
+
     // Model resolution + entitlement gate (MUST #5). Narrator + checker resolved independently.
     const models = resolveExportModels(req, res, b);
     if (!models) return; // helper already wrote the 400/403
@@ -127,9 +146,10 @@ export function registerBriefExportsRoutes(r: Router, _ctx: ServerCtx): void {
       return;
     }
 
+    const framingMeta = b.framingMeta === false ? false : undefined;
     const job = startExportJob({
       userId, session, debateId, models,
-      request: { preset, skipNarration },
+      request: { preset, skipNarration, framingMeta },
       toolVersions: TOOL_VERSIONS, timestamp: new Date().toISOString(),
       idempotencyKey, adapter: createWebOpEdAdapter(),
     });
@@ -166,7 +186,8 @@ export function registerBriefExportsRoutes(r: Router, _ctx: ServerCtx): void {
         res.writeHead(200, { 'Content-Type': 'application/vnd.openxmlformats-officedocument.presentationml.presentation', 'Content-Disposition': `attachment; filename="${name}"` });
         res.end(artifact.bytes);
       } else {
-        res.writeHead(200, { 'Content-Type': 'application/json', 'Content-Disposition': `attachment; filename="${name}"` });
+        const ct = name === BRIEF_ARTIFACTS.htmlDoc ? 'text/html; charset=utf-8' : 'application/json';
+        res.writeHead(200, { 'Content-Type': ct, 'Content-Disposition': `attachment; filename="${name}"` });
         res.end(artifact.text);
       }
     } catch (err) {

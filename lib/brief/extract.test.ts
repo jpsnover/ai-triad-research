@@ -122,6 +122,46 @@ describe('extractDeckSpec phase guard', () => {
   });
 });
 
+// ── allowOpen / meta.snapshot (t/2816) ────────────────────────────────────────
+
+describe('extractDeckSpec allowOpen snapshot', () => {
+  it('non-closed still throws by default (allowOpen omitted)', () => {
+    const session = makeSession({ phase: 'debate' });
+    expect(() => extractDeckSpec(session as never)).toThrow("must be 'closed'");
+  });
+
+  it('non-closed + allowOpen exports a snapshot with meta.snapshot + note + phase open', () => {
+    const session = makeSession({ phase: 'debate' });
+    const spec = extractDeckSpec(session as never, { allowOpen: true });
+    expect(spec.meta.snapshot).toBe(true);
+    expect(spec.meta.snapshot_note).toContain('snapshot');
+    expect(spec.meta.snapshot_note).toContain('debate'); // the real session phase
+    expect(spec.meta.phase).toBe('open');
+  });
+
+  it('allowOpen tolerates a missing concluding entry (in-progress snapshot)', () => {
+    const session = makeSession({ phase: 'opening', transcript: [] });
+    const spec = extractDeckSpec(session as never, { allowOpen: true });
+    expect(spec.meta.snapshot).toBe(true);
+    // synthesis-derived sections are legitimately empty before the debate concludes
+    expect(spec.agreements).toEqual([]);
+    expect(spec.cruxes).toEqual([]);
+  });
+
+  it('closed export sets no snapshot flag (unchanged)', () => {
+    const spec = extractDeckSpec(makeSession() as never);
+    expect(spec.meta.snapshot).toBeUndefined();
+    expect(spec.meta.snapshot_note).toBeUndefined();
+    expect(spec.meta.phase).toBe('closed');
+  });
+
+  it('closed + allowOpen is a no-op (not treated as a snapshot)', () => {
+    const spec = extractDeckSpec(makeSession() as never, { allowOpen: true });
+    expect(spec.meta.snapshot).toBeUndefined();
+    expect(spec.meta.phase).toBe('closed');
+  });
+});
+
 // ── Happy path: version + meta ────────────────────────────────────────────────
 
 describe('extractDeckSpec meta', () => {

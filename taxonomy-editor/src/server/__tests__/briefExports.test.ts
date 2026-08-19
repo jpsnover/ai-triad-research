@@ -38,10 +38,11 @@ vi.mock('../briefExportJobs.js', () => ({
   MAX_CONCURRENT_EXPORT_JOBS: 1,
 }));
 
-const { listBriefExports, loadBriefExportRecord, loadBriefArtifact, deleteBriefExport } = vi.hoisted(() => ({
+const { listBriefExports, loadBriefExportRecord, loadBriefArtifact, deleteBriefExport, getBriefExportsQuotaStatus } = vi.hoisted(() => ({
   listBriefExports: vi.fn(), loadBriefExportRecord: vi.fn(), loadBriefArtifact: vi.fn(), deleteBriefExport: vi.fn(),
+  getBriefExportsQuotaStatus: vi.fn(() => Promise.resolve({ allowed: true, resource: 'brief-exports', current: 0, limit: 25 })),
 }));
-vi.mock('../storage/briefExportStore.js', () => ({ listBriefExports, loadBriefExportRecord, loadBriefArtifact, deleteBriefExport }));
+vi.mock('../storage/briefExportStore.js', () => ({ listBriefExports, loadBriefExportRecord, loadBriefArtifact, deleteBriefExport, getBriefExportsQuotaStatus }));
 
 import { registerBriefExportsRoutes } from '../routes/briefExports.js';
 import { BRIEF_ARTIFACTS } from '../../../../lib/brief/types.js';
@@ -82,6 +83,7 @@ describe('Brief Export routes (t/2804)', () => {
     countRunningExportJobs.mockReset().mockReturnValue(0);
     findIdempotentJob.mockReset().mockReturnValue(null);
     listBriefExports.mockReset(); loadBriefExportRecord.mockReset(); loadBriefArtifact.mockReset(); deleteBriefExport.mockReset();
+    getBriefExportsQuotaStatus.mockReset().mockResolvedValue({ allowed: true, resource: 'brief-exports', current: 0, limit: 25 });
     const r = makeRouter();
     registerBriefExportsRoutes(r.router as never, {} as never);
     handlers = r.handlers;
@@ -225,6 +227,15 @@ describe('Brief Export routes (t/2804)', () => {
     expect(res._headers?.['Content-Disposition']).toMatch(/attachment/);
   });
 
+  it('GET artifact: brief.html ⇒ text/html content-type (t/2838)', async () => {
+    loadBriefArtifact.mockResolvedValue({ text: '<!DOCTYPE html><html></html>' });
+    const res = fakeRes();
+    await handlers['GET /api/exports/:exportId/artifacts/:name'](fakeReq(`/api/exports/e1/artifacts/${BRIEF_ARTIFACTS.htmlDoc}`), res, undefined);
+    expect(res._status).toBe(200);
+    expect(res._headers?.['Content-Type']).toMatch(/text\/html/);
+    expect(res._body).toBe('<!DOCTYPE html><html></html>');
+  });
+
   it('GET artifact: json ⇒ text/json body, 404 when absent', async () => {
     loadBriefArtifact.mockResolvedValue({ text: '{"a":1}' });
     const res = fakeRes();
@@ -237,6 +248,28 @@ describe('Brief Export routes (t/2804)', () => {
     const res2 = fakeRes();
     await handlers['GET /api/exports/:exportId/artifacts/:name'](fakeReq(`/api/exports/e1/artifacts/${BRIEF_ARTIFACTS.deckSpec}`), res2, undefined);
     expect(res2._status).toBe(404);
+  });
+
+  // ── DELETE ──
+
+  // ── quota (t/2831) ──
+
+  it('429 quota_exceeded when brief-export count quota is at the limit, BEFORE any model call', async () => {
+    getBriefExportsQuotaStatus.mockResolvedValue({ allowed: false, resource: 'brief-exports', current: 25, limit: 25 });
+    await post(validBody);
+    expect(lastRes._status).toBe(429);
+    expect(JSON.parse(lastRes._body!).error).toBe('quota_exceeded');
+    expect(resolveExportModel).not.toHaveBeenCalled();
+    expect(startExportJob).not.toHaveBeenCalled();
+  });
+
+  it('GET /api/brief-exports/quota-status: 200 + QuotaCheckResult (mirrors oped-sets/quota-status pattern)', async () => {
+    getBriefExportsQuotaStatus.mockResolvedValue({ allowed: true, resource: 'brief-exports', current: 3, limit: 25 });
+    const res = fakeRes();
+    await handlers['GET /api/brief-exports/quota-status'](fakeReq('/api/brief-exports/quota-status'), res, undefined);
+    expect(res._status).toBe(200);
+    expect(JSON.parse(res._body!)).toMatchObject({ allowed: true, resource: 'brief-exports', current: 3, limit: 25 });
+    expect(getBriefExportsQuotaStatus).toHaveBeenCalled();
   });
 
   // ── DELETE ──
