@@ -1192,7 +1192,10 @@ function handleTerminalConnection(ws: WebSocket) {
   const pythonCmd = process.platform === 'win32' ? 'python' : 'python3';
   terminalProcess = spawn(pythonCmd, [BROKER_SCRIPT], {
     cwd: getProjectRoot(),
-    env: { ...safeEnv, TERM: 'xterm-256color', PTY_COLS: '120', PTY_ROWS: '30' },
+    // AITRIAD_MODULE (t/2830): the broker imports this into the pwsh console on launch.
+    // Resolved via the server's SCRIPTS_DIR (config.ts, .aitriad.json-anchored) so it works
+    // in the container (/app/scripts) and dev alike — never a hardcoded path.
+    env: { ...safeEnv, TERM: 'xterm-256color', PTY_COLS: '120', PTY_ROWS: '30', AITRIAD_MODULE: path.join(SCRIPTS_DIR, 'AITriad', 'AITriad.psd1') },
     stdio: ['pipe', 'pipe', 'pipe'],
   });
 
