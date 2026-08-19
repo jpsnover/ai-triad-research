@@ -1,0 +1,182 @@
+/* ChatTable — structural clone of DebateTable.css, chat-scoped class names (t/2783). */
+
+.chat-table-wrap {
+  overflow-x: auto;
+  flex: 1;
+}
+
+.chat-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+  table-layout: fixed;
+}
+
+.chat-table caption {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+}
+
+.chat-table thead th {
+  position: sticky;
+  top: 0;
+  background: var(--bg-primary);
+  border-bottom: 1px solid var(--border-color);
+  padding: 6px 8px;
+  text-align: left;
+  font-weight: 600;
+  white-space: nowrap;
+  z-index: 1;
+}
+
+.chat-table tbody tr {
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.chat-table tbody tr:hover {
+  background: var(--bg-hover);
+}
+
+.chat-table td {
+  padding: 6px 8px;
+  vertical-align: middle;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* col widths */
+.chat-table .col-created  { width: 110px; }
+.chat-table .col-updated  { width: 110px; }
+.chat-table .col-mode     { width: 80px; }
+.chat-table .col-pov      { width: 110px; }
+.chat-table .col-model    { width: 120px; }
+.chat-table .col-actions  { width: 200px; }
+.chat-table .col-title    { /* absorbs remaining width */ }
+
+.chat-table-sort-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 600;
+  color: inherit;
+  white-space: nowrap;
+}
+
+.chat-table-sort-btn:hover {
+  text-decoration: underline;
+}
+
+.chat-table-sort-indicator {
+  font-size: 0.7em;
+}
+
+.chat-table-actions {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  flex-wrap: nowrap;
+}
+
+.chat-table-action-btn {
+  padding: 2px 8px;
+  font-size: 0.8rem;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background: var(--bg-primary);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.chat-table-action-btn:hover {
+  background: var(--bg-hover);
+}
+
+.chat-table-action-btn.primary {
+  background: var(--focus-ring);
+  color: #fff;
+  border-color: transparent;
+}
+
+.chat-table-action-btn.primary:hover {
+  opacity: 0.9;
+}
+
+.chat-table-rename-input {
+  width: 100%;
+  font: inherit;
+  padding: 2px 4px;
+  border: 1px solid var(--focus-ring);
+  border-radius: 3px;
+  background: var(--bg-primary);
+}
+
+.chat-table-title-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: default;
+}
+
+.chat-table-title-secondary {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chat-table-empty-cell {
+  padding: 24px 8px;
+  text-align: center;
+  color: var(--text-secondary);
+}
+
+/* Search bar above table */
+.chat-tab-search-wrap {
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.chat-tab-search-input {
+  width: 100%;
+  padding: 5px 10px;
+  font-size: 0.875rem;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background: var(--bg-primary);
+  color: inherit;
+  box-sizing: border-box;
+}
+
+.chat-tab-search-input:focus {
+  outline: none;
+  border-color: var(--focus-ring);
+}
+
+/* Table mode: list panel fills full width */
+.chat-tab-table-mode .list-panel {
+  width: 100% !important;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.chat-tab-table-mode .list-panel-items {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+@media (prefers-color-scheme: dark) {
+  .chat-table thead th,
+  .chat-table-rename-input {
+    background: var(--bg-primary);
+  }
+}

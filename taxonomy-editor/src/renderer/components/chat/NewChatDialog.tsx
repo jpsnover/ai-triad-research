@@ -28,7 +28,7 @@ const MODE_ICONS: Record<ChatMode, string> = {
 };
 
 export function NewChatDialog({ onClose }: NewChatDialogProps) {
-  const { createChat, loadChat } = useChatStore();
+  const { createChat } = useChatStore();
   const [mode, setMode] = useState<ChatMode>('brainstorm');
   const [pover, setPover] = useState<Exclude<SpeakerId, 'user'>>('accelerationist');
   const [topic, setTopic] = useState('');
@@ -68,7 +68,7 @@ export function NewChatDialog({ onClose }: NewChatDialogProps) {
     setCreating(true);
     const chatModelOverride = useCustomModel && customModel !== globalModel ? customModel : undefined;
     const id = await createChat(mode, pover, topic.trim(), chatModelOverride);
-    await loadChat(id);
+    void api.openChatWindow(id, 'my');
     onClose();
   };
 
