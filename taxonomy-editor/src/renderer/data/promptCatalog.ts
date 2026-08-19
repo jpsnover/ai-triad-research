@@ -821,21 +821,6 @@ export const PROMPT_CATALOG: PromptCatalogEntry[] = [
     ],
   },
   {
-    id: 'ps-hierarchy-placement',
-    title: 'Hierarchy Placement',
-    description: 'Places a single new node into the existing hierarchy by selecting the best parent.',
-    source: 'AITriad/Prompts/hierarchy-placement.prompt',
-    template: '(Loading from disk...)',
-    group: 'powershell',
-    purpose: 'Used for incremental taxonomy building. Given a new node and the existing hierarchy, determines the optimal parent_id placement.',
-    applicableDataSources: ['taxonomyNodes'],
-    promptFiles: ['hierarchy-placement'],
-    psParameters: [
-      { name: '-Model', type: 'string', default: DEFAULT_MODEL, description: 'AI model' },
-      { name: '-Temperature', type: 'number', default: '0.1', description: 'Sampling temperature' },
-    ],
-  },
-  {
     id: 'ps-policy-actions',
     title: 'Policy Action Extraction',
     description: 'Extracts concrete policy actions from taxonomy nodes and maps them to the canonical policy registry.',
