@@ -24,6 +24,7 @@ export interface CommunityItem {
 
 export interface CommunityChat extends CommunityItem {
   mode?: string;
+  model?: string;
 }
 
 export interface CommunityDebate extends CommunityItem {
