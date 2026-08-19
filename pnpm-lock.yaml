@@ -52,6 +52,9 @@ importers:
       decode-named-character-reference:
         specifier: ^1.3.0
         version: 1.3.0
+      jszip:
+        specifier: 3.10.1
+        version: 3.10.1
       micromark-util-decode-numeric-character-reference:
         specifier: ^2.0.2
         version: 2.0.2
