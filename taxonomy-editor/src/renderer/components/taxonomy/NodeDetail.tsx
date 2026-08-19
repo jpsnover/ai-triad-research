@@ -10,6 +10,7 @@ import type { AggregatedCrux } from '../../hooks/useTaxonomyStore';
 import { useDebateStore } from '../../hooks/useDebateStore';
 import { DeleteConfirmDialog } from '../shared/DeleteConfirmDialog';
 import { HighlightedTextarea } from '../shared/HighlightedField';
+import { buildSearchRegex } from '../../utils/searchRegex';
 import { TypeaheadSelect } from '../shared/TypeaheadSelect';
 import { FieldHelp } from '../shared/FieldHelp';
 import { TheoryLink } from '../shared/TheoryLink';
@@ -159,6 +160,12 @@ export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, onRela
   const descSegments = readOnly ? mentionKit.segmentsFor('description') : [];
   const descriptionMention: DescriptionMention | undefined = descSegments.some(s => s.ref)
     ? { segments: descSegments, onSelectRef: mentionKit.onSelectRef }
+    : undefined;
+  // t/2811: plain-description read-only view also needs search highlight; build its mention
+  // segments so it can render through the same HighlightedTextarea readOnly path.
+  const plainSegments = readOnly ? mentionKit.segmentsFor('plain_description') : [];
+  const plainDescriptionMention: DescriptionMention | undefined = plainSegments.length > 0
+    ? { segments: plainSegments, onSelectRef: mentionKit.onSelectRef }
     : undefined;
 
   // Eagerly load facts index so count badge is available
@@ -467,6 +474,7 @@ export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, onRela
             hasGraphAttrs={hasGraphAttrs}
             renderMentionField={renderMentionField}
             descriptionMention={descriptionMention}
+            plainDescriptionMention={plainDescriptionMention}
           />
         )}
 
@@ -807,11 +815,19 @@ interface DescriptionSectionProps {
   renderMentionField?: (fieldName: string, fallback: string) => ReactNode;
   /** Mention segments for the formal `description` HighlightedTextarea (t/1908); undefined = no links. */
   descriptionMention?: DescriptionMention;
+  /** t/2811: mention segments for the plain_description read-only highlight path; undefined = no links. */
+  plainDescriptionMention?: DescriptionMention;
 }
 
-function DescriptionSection({ pov, node, readOnly, err, descMode, setDescMode, maybeRegenAphorism, update, updatePovNode, renderMentionField, descriptionMention }: DescriptionSectionProps) {
+function DescriptionSection({ pov, node, readOnly, err, descMode, setDescMode, maybeRegenAphorism, update, updatePovNode, renderMentionField, descriptionMention, plainDescriptionMention }: DescriptionSectionProps) {
   const viewMode = usePreferencesStore(state => state.viewMode);
-  const effectiveDescMode = viewMode === 'simple' ? 'plain' as const : descMode;
+  const { findQuery, findMode, findCaseSensitive } = useTaxonomyStore();
+  // t/2812: a search match in Formal-but-not-Plain surfaces the Formal tab (even under Simple
+  // View); empty query restores the global pref. Fresh regex per test → no /g lastIndex carry.
+  const matchIn = (t: string) => !!findQuery && (buildSearchRegex(findQuery, findMode, findCaseSensitive)?.test(t) ?? false);
+  const baseDescMode: 'formal' | 'plain' = viewMode === 'simple' ? 'plain' : descMode;
+  const effectiveDescMode: 'formal' | 'plain' =
+    baseDescMode === 'plain' && matchIn(node.description ?? '') && !matchIn(node.plain_description ?? '') ? 'formal' : baseDescMode;
   return (
     <div className={`form-group ${err('description') ? 'has-error' : ''}`}>
       <div className="description-header">
@@ -839,9 +855,16 @@ function DescriptionSection({ pov, node, readOnly, err, descMode, setDescMode, m
             <div className="plain-description-box plain-description-generating">Regenerating…</div>
           ) : (
             <div className="plain-description-box">
-              {readOnly && renderMentionField
-                ? renderMentionField(node.plain_description ? 'plain_description' : 'description', node.plain_description ?? node.description)
-                : (node.plain_description ?? node.description)}
+              {/* t/2811: readOnly view highlights search matches + keeps mention links (Formal
+                  already did via HighlightedTextarea). Segments follow the shown field. */}
+              {readOnly ? (
+                <HighlightedTextarea
+                  value={node.plain_description ?? node.description}
+                  readOnly
+                  mentionSegments={(node.plain_description ? plainDescriptionMention : descriptionMention)?.segments}
+                  onSelectRef={(node.plain_description ? plainDescriptionMention : descriptionMention)?.onSelectRef}
+                />
+              ) : (node.plain_description ?? node.description)}
             </div>
           )}
           {!readOnly && (
@@ -1022,9 +1045,11 @@ interface NodeDetailContentTabProps {
   renderMentionField?: (fieldName: string, fallback: string) => ReactNode;
   /** Mention segments for the formal `description` HighlightedTextarea (t/1908). */
   descriptionMention?: DescriptionMention;
+  /** t/2811: mention segments for the plain_description read-only highlight path. */
+  plainDescriptionMention?: DescriptionMention;
 }
 
-function NodeDetailContentTab({ pov, node, readOnly, err, descMode, setDescMode, maybeRegenAphorism, update, updatePovNode, showDtDrilldown, setShowDtDrilldown, expandedLineage, setExpandedLineage, showAttributeInfo, hasGraphAttrs, renderMentionField, descriptionMention }: NodeDetailContentTabProps) {
+function NodeDetailContentTab({ pov, node, readOnly, err, descMode, setDescMode, maybeRegenAphorism, update, updatePovNode, showDtDrilldown, setShowDtDrilldown, expandedLineage, setExpandedLineage, showAttributeInfo, hasGraphAttrs, renderMentionField, descriptionMention, plainDescriptionMention }: NodeDetailContentTabProps) {
   return (
     <>
       {node.category === 'Beliefs' && (
@@ -1047,6 +1072,7 @@ function NodeDetailContentTab({ pov, node, readOnly, err, descMode, setDescMode,
         updatePovNode={updatePovNode}
         renderMentionField={renderMentionField}
         descriptionMention={descriptionMention}
+        plainDescriptionMention={plainDescriptionMention}
       />
 
       {hasGraphAttrs && (
