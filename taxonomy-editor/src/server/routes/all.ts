@@ -27,6 +27,7 @@ import { registerDebatesRoutes } from './debates.js';
 import { registerDiagnosticsRoutes } from './diagnostics.js';
 import { registerCommunityRoutes } from './community.js';
 import { registerOpedRoutes } from './oped.js';
+import { registerBriefExportsRoutes } from './briefExports.js';
 import { registerSupportRoutes } from './support.js';
 import { registerHarvestRoutes } from './harvest.js';
 import { registerSourcesRoutes } from './sources.js';
@@ -53,6 +54,7 @@ export function registerAllRoutes(router: Router, ctx: ServerCtx): void {
   registerDiagnosticsRoutes(router, ctx);
   registerCommunityRoutes(router, ctx);
   registerOpedRoutes(router, ctx);
+  registerBriefExportsRoutes(router, ctx);
   registerSupportRoutes(router, ctx);
   registerHarvestRoutes(router, ctx);
   registerSourcesRoutes(router, ctx);

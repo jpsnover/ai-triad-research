@@ -21,6 +21,7 @@ import type {
   DeckSpec, Narration, AuditManifest, SymmetryAudit,
   FactCheckVerdict, ModelSource,
 } from './types.js';
+import { BRIEF_ARTIFACTS } from './types.js';
 import { isResolvable, resolveTrace } from './traceResolver.js';
 import deckSpecSchema from './schemas/deck_spec.write.json' with { type: 'json' };
 import narrationSchema from './schemas/narration.write.json' with { type: 'json' };
@@ -93,9 +94,9 @@ export async function verify(input: VerifyInput): Promise<VerifyResult> {
     timestamp: input.meta.timestamp,
     tool_versions: input.meta.toolVersions,
     artifacts: [
-      { name: 'deck_spec.json', sha256: sha256(stableJson(spec)) },
-      { name: 'narration.json', sha256: sha256(stableJson(narration)) },
-      { name: 'brief.pptx', sha256: sha256(pptxBytes) },
+      { name: BRIEF_ARTIFACTS.deckSpec, sha256: sha256(stableJson(spec)) },
+      { name: BRIEF_ARTIFACTS.narration, sha256: sha256(stableJson(narration)) },
+      { name: BRIEF_ARTIFACTS.pptx, sha256: sha256(pptxBytes) },
     ],
     narrator_model: narration.narrator_model,
     narrator_model_source: narration.narrator_model_source,
