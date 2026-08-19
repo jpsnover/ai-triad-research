@@ -267,9 +267,7 @@ function SearchInlineRow(props: SearchInlineRowProps) {
         value={findMode}
         onChange={onModeChange}
       >
-        <option value="raw">Raw</option>
         <option value="wildcard">Wildcard</option>
-        <option value="regex">Regex</option>
         <option value="semantic">Semantic</option>
       </select>
       <button
@@ -325,8 +323,6 @@ function SearchResultsList(props: SearchResultsListProps) {
 
 interface SearchDropdownProps {
   isSemantic: boolean;
-  findCaseSensitive: boolean;
-  onCaseSensitiveChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onOpenApiKeyDialog: () => void;
   showResults: boolean;
   onToggleResults: () => void;
@@ -343,23 +339,13 @@ interface SearchDropdownProps {
 
 function SearchDropdown(props: SearchDropdownProps) {
   const {
-    isSemantic, findCaseSensitive, onCaseSensitiveChange, onOpenApiKeyDialog,
+    isSemantic, onOpenApiKeyDialog,
     showResults, onToggleResults, povScopes, onTogglePovScope, aspectScopes,
     onToggleAspectScope, embeddingError, results, activeIndex, onSelectResult, highlightMatch,
   } = props;
   return (
     <div className="search-dropdown">
       <div className="search-dropdown-options">
-        {!isSemantic && (
-          <label>
-            <input
-              type="checkbox"
-              checked={findCaseSensitive}
-              onChange={onCaseSensitiveChange}
-            />
-            Case sensitive
-          </label>
-        )}
         {isSemantic && (
           <button
             className="btn btn-ghost btn-sm"
@@ -438,7 +424,7 @@ export function SearchBar() {
     accelerationist, safetyist, skeptic, situations, conflicts,
     navigateToNode,
     findQuery, findMode, findCaseSensitive,
-    setFindQuery, setFindMode, setFindCaseSensitive,
+    setFindQuery, setFindMode,
     hasApiKey, checkApiKey, runSemanticSearch,
     semanticResults, embeddingLoading, embeddingError,
     getLabelForId,
@@ -657,8 +643,6 @@ export function SearchBar() {
       {showDropdown && (
         <SearchDropdown
           isSemantic={isSemantic}
-          findCaseSensitive={findCaseSensitive}
-          onCaseSensitiveChange={(e) => setFindCaseSensitive(e.target.checked)}
           onOpenApiKeyDialog={() => setShowApiKeyDialog(true)}
           showResults={showResults}
           onToggleResults={() => setShowResults(v => !v)}

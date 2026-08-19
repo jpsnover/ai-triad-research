@@ -55,7 +55,7 @@ export interface SearchSlice {
 
 export const createSearchSlice: StateCreator<TaxonomyStore, [], [], SearchSlice> = (set, get) => ({
   findQuery: '',
-  findMode: 'raw' as SearchMode,
+  findMode: 'wildcard' as SearchMode,
   findCaseSensitive: false,
   setFindQuery: (query) => set({ findQuery: query }),
   setFindMode: (mode) => set({ findMode: mode }),
