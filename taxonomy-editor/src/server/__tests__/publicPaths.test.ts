@@ -12,8 +12,8 @@ import { describe, it, expect } from 'vitest';
 import { computeIsPublicPath, PUBLIC_EXACT_PATHS, PUBLIC_PATH_PREFIXES } from '../publicPaths.js';
 
 describe('computeIsPublicPath — auth-exempt allowlist (t/1910)', () => {
-  it('has exactly 16 exact + 7 prefix terms (guards accidental add/drop)', () => {
-    expect(PUBLIC_EXACT_PATHS.size).toBe(16);
+  it('has exactly 17 exact + 7 prefix terms (guards accidental add/drop)', () => {
+    expect(PUBLIC_EXACT_PATHS.size).toBe(17);
     expect(PUBLIC_PATH_PREFIXES.length).toBe(7);
   });
 
@@ -31,7 +31,7 @@ describe('computeIsPublicPath — auth-exempt allowlist (t/1910)', () => {
   it('the full 23-path allowlist resolves public', () => {
     const samples = [...PUBLIC_EXACT_PATHS, ...PUBLIC_PATH_PREFIXES.map(p => `${p}anything`)];
     expect(samples.every(computeIsPublicPath)).toBe(true);
-    expect(samples.length).toBe(23);
+    expect(samples.length).toBe(24);
   });
 
   // Near-miss NEGATIVES (Server Auth p/135#9): each proves an EXACT term did not become
