@@ -1,14 +1,12 @@
 # Gate-Verification scratch workflow for t/2818 contrast-alert logic.
-# TEMPORARY — delete after GV evidence is captured and TL clears #1251.
+# Push-triggered on feature branch — GV arms controlled by file edits + pushes.
+# TEMPORARY — delete after GV evidence captured and TL clears #1251.
 name: GV — contrast-alert scratch
 
 on:
-  workflow_dispatch:
-    inputs:
-      should_fail:
-        description: 'Simulate contrast-check failure'
-        type: boolean
-        default: false
+  push:
+    branches:
+      - feat/contrast-alert-t2818
 
 permissions:
   contents: read
@@ -18,15 +16,10 @@ jobs:
   contrast-alert-gv:
     runs-on: ubuntu-latest
     steps:
-      - name: Simulate contrast-check result
-        env:
-          SHOULD_FAIL: ${{ inputs.should_fail && 'true' || 'false' }}
+      - name: Simulate contrast-check FAILURE
         run: |
-          if [ "$SHOULD_FAIL" = "true" ]; then
-            echo "::error::Simulated contrast-check failure (GV arm)"
-            exit 1
-          fi
-          echo "Simulated contrast-check PASS"
+          echo "::error::Simulated contrast-check failure (GV arm — failure path)"
+          exit 1
 
       - name: Alert — contrast-check RED (GV)
         if: failure()
