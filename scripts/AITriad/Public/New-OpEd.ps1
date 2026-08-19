@@ -407,10 +407,6 @@ function New-OpEd {
         SOURCE_MATERIAL     = $SourceMaterial
         GROUNDING_NODES     = $GroundingNodesText
         SITUATIONS          = $SituationsText
-        # Pitch removed (t/2843). Neutralize the prompt's {{PITCH_INSTRUCTION}}
-        # placeholder to empty until Shared Lib strips it from op-ed-generation-user.prompt
-        # (their scope) — avoids a Get-Prompt unresolved-placeholder warning + literal leak.
-        PITCH_INSTRUCTION   = ''
         SOURCE_AUTHOR       = if ($null -ne $SBrief -and $SBrief.PSObject.Properties.Name -contains 'author') { [string]$SBrief.author } else { '' }
         SOURCE_ACTOR_TYPE   = if ($null -ne $SBrief -and $SBrief.PSObject.Properties.Name -contains 'actor_type') { [string]$SBrief.actor_type } else { '' }
         SOURCE_THESIS       = if ($null -ne $SBrief -and $SBrief.PSObject.Properties.Name -contains 'thesis') { [string]$SBrief.thesis } else { '' }
