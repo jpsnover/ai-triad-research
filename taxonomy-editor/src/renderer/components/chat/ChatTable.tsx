@@ -29,6 +29,7 @@ export interface ChatTableMyProps {
   rows: ChatSessionSummary[];
   loading: boolean;
   searchQuery: string;
+  selectedId?: string;
   renamingId: string | null;
   setRenamingId: (id: string | null) => void;
   renameValue: string;
@@ -44,6 +45,7 @@ export interface ChatTableCommunityProps {
   rows: CommunityChat[];
   loading: boolean;
   searchQuery: string;
+  selectedId?: string;
   onOpen: (id: string) => void;
   onExport: (id: string, format: string) => void;
   onCopy: (cc: CommunityChat) => Promise<void>;
@@ -127,6 +129,7 @@ function SortHeader({
 
 interface ChatTableRowMyProps {
   s: ChatSessionSummary;
+  selectedId?: string;
   renamingId: string | null;
   setRenamingId: (id: string | null) => void;
   renameValue: string;
@@ -138,7 +141,7 @@ interface ChatTableRowMyProps {
 }
 
 function ChatTableRowMy({
-  s, renamingId, setRenamingId, renameValue, setRenameValue,
+  s, selectedId, renamingId, setRenamingId, renameValue, setRenameValue,
   onRename, onOpen, onExport, onShare,
 }: ChatTableRowMyProps) {
   const isRenaming = renamingId === s.id;
@@ -159,7 +162,12 @@ function ChatTableRowMy({
   }, [s, setRenamingId, setRenameValue, safeTitle]);
 
   return (
-    <tr>
+    // eslint-disable-next-line jsx-a11y/no-interactive-element-to-noninteractive-role
+    <tr
+      className={selectedId === s.id ? 'selected' : ''}
+      onClick={() => onOpen(s.id)}
+      style={{ cursor: 'pointer' }}
+    >
       <td className="col-created" title={s.created_at}>{formatDate(s.created_at)}</td>
       <td className="col-updated" title={s.updated_at}>{formatDate(s.updated_at)}</td>
       <td className="col-mode">{s.mode || '—'}</td>
@@ -167,15 +175,6 @@ function ChatTableRowMy({
       <td className="col-model" title={s.chat_model}>{s.chat_model || '—'}</td>
       <td className="col-actions" onClick={e => e.stopPropagation()}>
         <div className="chat-table-actions">
-          <button
-            type="button"
-            className="chat-table-action-btn primary"
-            title="Open in popout window"
-            aria-label={`Open "${safeTitle}" in window`}
-            onClick={() => onOpen(s.id)}
-          >
-            Open
-          </button>
           <ChatExportDropdown onExport={fmt => onExport(s.id, fmt)} />
           <button
             type="button"
@@ -221,9 +220,10 @@ function ChatTableRowMy({
 // ──────────────────────────────────────────────
 
 function ChatTableRowCommunity({
-  cc, onOpen, onExport, onCopy, copyingId,
+  cc, selectedId, onOpen, onExport, onCopy, copyingId,
 }: {
   cc: CommunityChat;
+  selectedId?: string;
   onOpen: (id: string) => void;
   onExport: (id: string, format: string) => void;
   onCopy: (cc: CommunityChat) => Promise<void>;
@@ -231,7 +231,12 @@ function ChatTableRowCommunity({
 }) {
   const isCopying = copyingId === cc.id;
   return (
-    <tr>
+    // eslint-disable-next-line jsx-a11y/no-interactive-element-to-noninteractive-role
+    <tr
+      className={selectedId === cc.id ? 'selected' : ''}
+      onClick={() => onOpen(cc.id)}
+      style={{ cursor: 'pointer' }}
+    >
       <td className="col-created" title={cc.created_at}>{formatDate(cc.created_at)}</td>
       <td className="col-updated" title={cc.updated_at}>{formatDate(cc.updated_at)}</td>
       <td className="col-mode">{cc.mode || '—'}</td>
@@ -239,15 +244,6 @@ function ChatTableRowCommunity({
       <td className="col-model">{cc.model || '—'}</td>
       <td className="col-actions" onClick={e => e.stopPropagation()}>
         <div className="chat-table-actions">
-          <button
-            type="button"
-            className="chat-table-action-btn primary"
-            title="Open in popout window"
-            aria-label={`Open "${cc.title}" in window`}
-            onClick={() => onOpen(cc.id)}
-          >
-            Open
-          </button>
           <ChatExportDropdown onExport={fmt => onExport(cc.id, fmt)} />
           <button
             type="button"
@@ -324,7 +320,7 @@ export function ChatTable(props: ChatTableProps) {
 
 function MyTable(props: ChatTableMyProps & { sort: SortState; onSort: (col: SortColumn) => void }) {
   const {
-    rows, loading, searchQuery, renamingId, setRenamingId, renameValue, setRenameValue,
+    rows, loading, searchQuery, selectedId, renamingId, setRenamingId, renameValue, setRenameValue,
     onRename, onOpen, onExport, onShare, sort, onSort,
   } = props;
   const sorted = applySortMy(rows, sort);
@@ -367,18 +363,19 @@ function MyTable(props: ChatTableMyProps & { sort: SortState; onSort: (col: Sort
         </thead>
         <tbody>
           {loading && rows.length === 0 && (
-            <tr><td colSpan={7} className="chat-table-empty-cell">Loading…</td></tr>
+            <tr key="loading"><td colSpan={7} className="chat-table-empty-cell">Loading…</td></tr>
           )}
           {!loading && rows.length === 0 && (
-            <tr><td colSpan={7} className="chat-table-empty-cell">No chats yet. Click <strong>+ New</strong> to start one.</td></tr>
+            <tr key="empty"><td colSpan={7} className="chat-table-empty-cell">No chats yet. Click <strong>+ New</strong> to start one.</td></tr>
           )}
           {searchQuery && sorted.length === 0 && rows.length > 0 && (
-            <tr><td colSpan={7} className="chat-table-empty-cell">No chats match &ldquo;{searchQuery}&rdquo;</td></tr>
+            <tr key="no-match"><td colSpan={7} className="chat-table-empty-cell">No chats match &ldquo;{searchQuery}&rdquo;</td></tr>
           )}
           {sorted.map(s => (
             <ChatTableRowMy
               key={s.id}
               s={s}
+              selectedId={selectedId}
               renamingId={renamingId}
               setRenamingId={setRenamingId}
               renameValue={renameValue}
@@ -402,7 +399,7 @@ function MyTable(props: ChatTableMyProps & { sort: SortState; onSort: (col: Sort
 function CommunityTable(
   props: ChatTableCommunityProps & { sort: SortState; onSort: (col: SortColumn) => void },
 ) {
-  const { rows, loading, searchQuery, onOpen, onExport, onCopy, copyingId, sort, onSort } = props;
+  const { rows, loading, searchQuery, selectedId, onOpen, onExport, onCopy, copyingId, sort, onSort } = props;
   const sorted = applySortCommunity(rows, sort);
 
   return (
@@ -441,18 +438,19 @@ function CommunityTable(
         </thead>
         <tbody>
           {loading && rows.length === 0 && (
-            <tr><td colSpan={7} className="chat-table-empty-cell">Loading community chats…</td></tr>
+            <tr key="loading"><td colSpan={7} className="chat-table-empty-cell">Loading community chats…</td></tr>
           )}
           {!loading && rows.length === 0 && (
-            <tr><td colSpan={7} className="chat-table-empty-cell">No community chats available yet.</td></tr>
+            <tr key="empty"><td colSpan={7} className="chat-table-empty-cell">No community chats available yet.</td></tr>
           )}
           {searchQuery && sorted.length === 0 && rows.length > 0 && (
-            <tr><td colSpan={7} className="chat-table-empty-cell">No community chats match &ldquo;{searchQuery}&rdquo;</td></tr>
+            <tr key="no-match"><td colSpan={7} className="chat-table-empty-cell">No community chats match &ldquo;{searchQuery}&rdquo;</td></tr>
           )}
           {sorted.map(cc => (
             <ChatTableRowCommunity
               key={cc.id}
               cc={cc}
+              selectedId={selectedId}
               onOpen={onOpen}
               onExport={onExport}
               onCopy={onCopy}
