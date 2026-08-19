@@ -166,7 +166,7 @@
   margin-top: 0.3rem;
 }
 
-/* ── More options / pitch footer ───────────────────────────────────────────── */
+/* ── More options footer ───────────────────────────────────────────────────── */
 
 .oped-more-options-btn {
   background: none;
@@ -197,14 +197,6 @@
   color: var(--bg-primary, #fff);
   font-size: 0.7rem;
   font-weight: 700;
-}
-
-.oped-pitch-row {
-  display: flex;
-  align-items: center;
-  gap: 0.45rem;
-  font-size: 0.8125rem;
-  color: var(--text-primary);
 }
 
 /* ── Footer ────────────────────────────────────────────────────────────────── */

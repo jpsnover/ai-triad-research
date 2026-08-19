@@ -98,7 +98,6 @@ export interface CreateOpEdParams {
   temperature?: number;
   maxGroundingNodes?: number;
   maxSituations?: number;
-  includePitch?: boolean;
   voiceOnly?: boolean;
 }
 export interface CreateOpEdPayload { topic: string; url?: string; params: CreateOpEdParams; voices: PovKey[] }
