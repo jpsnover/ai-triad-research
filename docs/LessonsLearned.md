@@ -2837,16 +2837,18 @@ Institutional memory for failure patterns across the AI Triad Research project.
 
 **Instances:**
 - 2026-08-03 — DevOps (p/26#44): Edit tool inferred `file_path` from scope/context knowledge without confirming the active worktree root first. `git add` found nothing staged. Fixed by re-applying the edit to the correct worktree absolute path.
+- 2026-08-15 — DebateTool (p/70#17): **Ordering variant — worktree not yet created at time of edit.** Edited `lib/debate/affectSignals.ts` via the shared-tree absolute path before running `git worktree add`. Shared-tree write guard (t/2449) fired post-edit. Fix: `git restore` reverted the shared-tree edit; re-applied inside `.worktrees/t2819-affect-baselines` after creating the worktree. Key rule: **create the worktree first, edit second** — the worktree path doesn't exist until after `git worktree add`.
 
-**Root Cause:** The Edit/Write tools take an absolute path and do not validate it against the active worktree. Agents know their scope's canonical path (e.g. `operations/devops/`) and naturally infer `file_path` by prepending the repo root they know from context — but in a worktree, the root is different. Without explicitly confirming the worktree root via `git worktree list`, the inferred path silently targets the shared checkout instead. Distinct from #128 (Bash tool `ls` on wrong POSIX path due to depth miscount) — here the failure is a wrong absolute path to Edit/Write.
+**Root Cause:** The Edit/Write tools take an absolute path and do not validate it against the active worktree. Agents know their scope's canonical path (e.g. `operations/devops/`) and naturally infer `file_path` by prepending the repo root they know from context — but in a worktree, the root is different. Without explicitly confirming the worktree root via `git worktree list`, the inferred path silently targets the shared checkout instead. Distinct from #128 (Bash tool `ls` on wrong POSIX path due to depth miscount) — here the failure is a wrong absolute path to Edit/Write. A second ordering failure class (#134b): creating the worktree AFTER an edit means the edit always lands in the wrong tree.
 
 **Prevention:**
-1. **At the start of every worktree workflow, record the worktree's absolute root** from `git worktree list` output (or the `git worktree add` output line `HEAD is now at …`).
-2. **All Edit/Write calls must use paths prefixed with the worktree root** — never with the main-checkout repo root, even if the scope's relative path is well-known.
-3. **Confirm before first Edit:** `git worktree list | grep <branch-name>` gives the canonical absolute path.
-4. Sibling of #128 — both produce an edit-to-wrong-tree; #128 affects Bash tool path access, #134 affects Edit/Write tool file_path.
+1. **Create the worktree before making any edits** — `git worktree add -b <branch> .worktrees/<name> main` first, then Edit/Write to paths under the worktree root.
+2. **At the start of every worktree workflow, record the worktree's absolute root** from `git worktree list` output (or the `git worktree add` output line `HEAD is now at …`).
+3. **All Edit/Write calls must use paths prefixed with the worktree root** — never with the main-checkout repo root, even if the scope's relative path is well-known.
+4. **Confirm before first Edit:** `git worktree list | grep <branch-name>` gives the canonical absolute path.
+5. Sibling of #128 — both produce an edit-to-wrong-tree; #128 affects Bash tool path access, #134 affects Edit/Write tool file_path.
 
-**Status:** Active — 1 instance (DevOps p/26#44). 4th env/path hazard in the worktree-land cluster.
+**Status:** Active — 2 instances (DevOps p/26#44; DebateTool p/70#17). 4th env/path hazard in the worktree-land cluster.
 
 **Applies To:** All agents using Edit or Write tool during a worktree landing workflow.
 
@@ -3404,6 +3406,47 @@ Institutional memory for failure patterns across the AI Triad Research project.
 **Status:** Active — 1 instance (PowerShell 2 t/2673, p/228#15).
 
 **Applies To:** All agents opening PRs on branches that may be behind origin/main.
+
+---
+
+## #170 [Build] Batch Filesystem Cleanup Aborts on First File-Lock — Remaining Items Undeleted
+
+**Pattern:** A batch `os.remove()` / `os.unlink()` loop (or equivalent) aborts on the first `WinError 32` (file locked by another process), leaving all subsequent items undeleted. The cleanup appears to succeed up to the failing file but silently abandons the rest.
+
+**Instances:**
+- 2026-08-15 — Tech Lead (t/2222 junk cleanup, p/335#40): Python batch `os.remove` loop hit `WinError 32` on `engineering/tech-lead/fail-open` (locked by a live process) and aborted — 1/17 files removed, 16 left. Fixed with per-item `try/except`; 16/17 cleaned, residual locked file harmless (frees when session closes).
+
+**Root Cause:** Batch cleanup without per-item exception handling treats the first failure as fatal. On Windows, file locks (`WinError 32`) are common when a file is open in another process (IDE, terminal, agent session). A single locked file should not block cleanup of the remaining items.
+
+**Prevention:**
+1. **Always wrap per-item filesystem operations (remove, rename, move) in per-item `try/except`** — collect and log failures, but continue the loop: `for f in files: try: os.remove(f) except OSError as e: failed.append((f, e))`.
+2. Log skipped items with the reason (lock error, permissions, not found) — silent skips make cleanup look complete when it isn't.
+3. On Windows: `WinError 32` ("The process cannot access the file because it is being used by another process") is expected for files open in live sessions — treat as a deferred skip, not a fatal error.
+4. After a best-effort cleanup, report counts: `removed N/M; skipped: <list>`.
+
+**Status:** Active — 1 instance (TL t/2222, p/335#40).
+
+**Applies To:** All agents writing Python/PowerShell batch cleanup scripts on Windows.
+
+---
+
+## #169 [Process] `git worktree add` "invalid reference" — Repo Subdirectory Path in the commit-ish Slot
+
+**Pattern:** `git worktree add -b <branch> <path> <scope-hint>` fails "fatal: invalid reference: <scope-hint>" when a repo subdirectory path (e.g., `research/comp-linguist`) is passed as the `[<commit-ish>]` argument. The signature is `add [-b <branch>] <worktree-path> [<commit-ish>]` — the third positional is parsed as a git ref, not a directory hint.
+
+**Instances:**
+- 2026-08-15 — CL.Investigate1 (p/40#13): `git worktree add -b <br> <path> research/comp-linguist` → `fatal: invalid reference: research/comp-linguist`. Intended as a scope hint; not a valid commit-ish. Fix: `git worktree add -b <br> .worktrees/<name> main`; scope the worktree via cwd inside it, not a path argument.
+
+**Root Cause:** `git worktree add` takes `[<commit-ish>]` as its last positional — a starting point for the new branch/checkout, not a scope or context hint. A bare subdirectory path like `research/comp-linguist` is not a valid ref, so git rejects it with "invalid reference." The error message does not explain the expected argument shape.
+
+**Prevention:**
+1. The full signature is `git worktree add [-b <new-branch>] <worktree-path> [<commit-ish>]`. Valid `<commit-ish>` values: `main`, `origin/main`, a SHA, a tag — not a directory path.
+2. To scope work to a subdirectory, `cd` into the worktree after creation: `git worktree add -b <br> .worktrees/<name> main && cd .worktrees/<name> && <work in scope>`.
+3. When the error is "invalid reference" on a `worktree add`, check whether the last argument looks like a path rather than a ref.
+
+**Status:** Active — 1 instance (CL.Investigate1 p/40#13).
+
+**Applies To:** All agents creating worktrees, especially when scoping work to a sub-role path.
 
 ---
 
