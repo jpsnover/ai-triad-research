@@ -17,7 +17,7 @@ import type {
   DeckSpec, TextNode, Disagreement, Crux, FactCheck,
   CampConcessions, TopClaim, ConvergenceScore, FactCheckVerdict,
 } from './types.js';
-import deckSpecWriteSchema from './schemas/deck_spec.write.json' assert { type: 'json' };
+import deckSpecWriteSchema from './schemas/deck_spec.write.json' with { type: 'json' };
 
 const LOCATION = 'lib/brief/extract.ts:extractDeckSpec';
 const DECK_SPEC_VERSION = '1.0';
