@@ -161,7 +161,6 @@ const ESSAY_SCHEMA = {
     subtitle: { type: 'string' },
     body_markdown: { type: 'string' },
     word_count: { type: 'integer' },
-    pitch_email: { type: 'string' },
     stance: { type: 'string', description: 'How the camp engages the source: agree/extend/rebut (or empty if no source)' },
   },
   required: ['headline', 'body_markdown', 'word_count'],
@@ -193,7 +192,6 @@ interface EssayResponse {
   subtitle?: string;
   body_markdown: string;
   word_count?: number;
-  pitch_email?: string;
   stance?: string;
 }
 
@@ -314,7 +312,6 @@ async function runVoiceGeneration(
     headline: parsed.headline ?? '',
     subtitle: parsed.subtitle ?? '',
     body,
-    pitch: parsed.pitch_email || undefined,
     wordCount: actualWordCount,
     grounding: allGroundingRefs,
     ...(fabricatedLede && { fabricated_lede: true as const }),
