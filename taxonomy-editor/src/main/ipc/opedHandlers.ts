@@ -144,7 +144,6 @@ function renderOpEdSetMarkdown(set: OpEdSet): string {
     lines.push(`## ${member.pov}`, '', `### ${member.headline}`);
     if (member.subtitle) lines.push('', `*${member.subtitle}*`);
     lines.push('', member.body);
-    if (member.pitch) lines.push('', '**Pitch:**', '', member.pitch);
     if (member.grounding?.length) {
       lines.push('', '**Grounding:**', '');
       for (const g of member.grounding) {

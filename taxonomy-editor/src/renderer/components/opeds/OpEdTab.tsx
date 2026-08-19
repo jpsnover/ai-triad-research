@@ -48,7 +48,6 @@ function buildOpEdMarkdown(set: OpEdSet): string {
       return;
     }
     lines.push(m.body);
-    if (m.pitch) { lines.push('\n---\n\n## Pitch cover email\n'); lines.push(m.pitch); }
     if (m.grounding.length > 0) {
       lines.push('\n---\n\n## Taxonomy grounding\n');
       lines.push('| Element | Type | Relevance | Reflected in the op-ed |');

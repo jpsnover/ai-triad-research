@@ -34,7 +34,7 @@ function shareRegistryPath(): string {
 
 // ── Public wire shape — POSITIVE allowlist, the info-leak control ─────────────
 // Only these fields ever reach the public copy at rest. Generation params (model,
-// prompts, thesis, authorBio, newsHook), the pitch-email draft, grounding internals,
+// prompts, thesis, authorBio, newsHook), grounding internals,
 // userId, and the storage set_id are all STRIPPED — never a spread/denylist.
 export interface PublicOpEdMember {
   pov: string;

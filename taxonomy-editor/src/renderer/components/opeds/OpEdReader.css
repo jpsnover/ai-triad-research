@@ -116,14 +116,6 @@
 .oped-reader-body ul,
 .oped-reader-body ol { margin: 0 0 1rem 1.25rem; }
 
-/* Pitch (collapsible) */
-.oped-pitch {
-  margin-top: 1.5rem;
-  border-top: 1px solid var(--border-color);
-  padding-top: 1rem;
-}
-
-.oped-pitch-summary,
 .oped-grounding-summary {
   cursor: pointer;
   font-size: 0.85rem;
@@ -132,10 +124,7 @@
   user-select: none;
 }
 
-.oped-pitch-summary:hover,
 .oped-grounding-summary:hover { color: var(--text-primary); }
-
-.oped-pitch-body { margin-top: 0.75rem; }
 
 /* Voice-only notice (empty grounding) */
 .oped-voice-only {
