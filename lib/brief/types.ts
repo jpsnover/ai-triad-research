@@ -220,7 +220,5 @@ export const BRIEF_ARTIFACTS = {
   pptx: 'brief.pptx',
   /** Self-contained HTML for Electron printToPDF (t/2838, T7-v2). */
   htmlDoc: 'brief.html',
-  /** GV Arm-1 throwaway — revert after red run confirms renderer-tsc triggers (t/2854). */
-  gvTestArtifact: 'gv-test.json',
 } as const;
 export type BriefArtifactName = typeof BRIEF_ARTIFACTS[keyof typeof BRIEF_ARTIFACTS];
