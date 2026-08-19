@@ -438,7 +438,17 @@ jobs:
             Write-Host "  GitHub: $(if ($SmokeResult.GitHubOk) { 'OK' } else { 'FAIL' })"
             foreach ($F in $SmokeResult.FailedEndpoints) { Write-Host "  FAIL  $($F.Endpoint): $($F.Error)" }
           } else {
-            Add-Content -Path $env:GITHUB_OUTPUT -Value 'accepted=true'
+            # Embedding health check — blocks traffic shift if ONNX encoder is down (t/2786).
+            # Must assert a real 384-dim vector, not just HTTP 200 — silent-degradation guard.
+            Write-Host ""
+            Write-Host "=== Embedding health check (pre-traffic shift) ==="
+            $EmbedHealth = Test-EmbeddingHealth -BaseUrl $BaseUrl
+            if (-not $EmbedHealth.Healthy) {
+              Add-Content -Path $env:GITHUB_OUTPUT -Value 'accepted=false'
+              Write-Host "::error::Embedding health FAILED ($($EmbedHealth.Error)) — NOT shifting traffic. Trace: Get-ServerLog -RequestId $($EmbedHealth.RequestId)"
+            } else {
+              Add-Content -Path $env:GITHUB_OUTPUT -Value 'accepted=true'
+            }
           }
 
       - name: Persona matrix (pre-traffic shift)
