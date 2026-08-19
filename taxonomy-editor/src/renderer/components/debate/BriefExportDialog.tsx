@@ -36,7 +36,9 @@ const ARTIFACT_LABEL: Record<BriefArtifactName, string> = {
   [BRIEF_ARTIFACTS.narration]: 'Narration (JSON)',
   [BRIEF_ARTIFACTS.manifest]: 'Audit manifest (JSON)',
   [BRIEF_ARTIFACTS.pptx]: 'Slides (PPTX)',
-  [BRIEF_ARTIFACTS.htmlDoc]: 'HTML doc (brief.html)',
+  // brief.html is the printToPDF source (Electron-only, t/2838); label kept so the
+  // Record<BriefArtifactName> stays exhaustive after htmlDoc was added to BRIEF_ARTIFACTS.
+  [BRIEF_ARTIFACTS.htmlDoc]: 'HTML (PDF source)',
 };
 
 const POLL_MS = 1500;

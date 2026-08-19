@@ -4,7 +4,7 @@
 
 <#
 .SYNOPSIS
-    Post-deploy gate: verify all 6 blob containers exist and are accessible.
+    Post-deploy gate: verify all 8 blob containers exist and are accessible.
 .DESCRIPTION
     Called by deploy-azure.yml after the Bicep deploy, before traffic switch.
     Discriminates ContainerNotFound (404) from RBAC failures (403) so on-call
@@ -16,11 +16,13 @@ param(
     [Parameter(Mandatory)] [string] $StorageAccount,
     # SYNC WITH main.bicep: analyticsContainer, stagingAnalyticsContainer,
     # userContentContainer, stagingUserContentContainer, communityContainer,
-    # stagingCommunityContainer. Update both if a container is added or removed.
+    # stagingCommunityContainer, briefExportsContainer, stagingBriefExportsContainer.
+    # Update both if a container is added or removed.
     [string[]] $Containers = @(
         'analytics', 'staging-analytics',
         'user-content', 'staging-user-content',
-        'community', 'staging-community'
+        'community', 'staging-community',
+        'brief-exports', 'staging-brief-exports'
     )
 )
 

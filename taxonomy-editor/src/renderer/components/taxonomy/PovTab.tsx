@@ -808,9 +808,9 @@ export function PovTab({ pov }: PovTabProps) {
         // eslint-disable-next-line local/no-inline-style -- width is a user-resized panel size from useResizablePanel
         <div className="list-panel" ref={listPanelRef} style={{ width }}>
           <div className="list-panel-header">
-            <div className="list-panel-header-title">
-              <button className="btn btn-sm btn-ghost" onClick={() => setShowSoulDoc(true)} title="Soul document" aria-label="Soul document">&#x1f4dc;</button>
-            </div>
+            {/* t/2827: the Soul-document control moved into the POV detail header icon row
+                (NodeDetail nd-header-meta, right of the soul-doc icon). Title kept for layout. */}
+            <div className="list-panel-header-title"></div>
             <div className="list-panel-header-actions">
               {/* t/2813: Search entry point relocated from the nav rail into the Taxonomy panel header. */}
               <button className="btn btn-sm btn-ghost" onClick={() => setToolbarPanel('search')} title="Search taxonomy" aria-label="Search taxonomy">
@@ -944,7 +944,7 @@ export function PovTab({ pov }: PovTabProps) {
                 </div>
               )}
               {selectedNode ? (
-                <NodeDetail pov={pov} node={selectedNode} onPin={handlePin} onSimilarSearch={handleSimilarSearch} onRelated={handleRelated} conflict={nodeConflicts.conflicts.get(selectedNode.id)} resolveUrl={syncStatus.pr_url} />
+                <NodeDetail pov={pov} node={selectedNode} onPin={handlePin} onSimilarSearch={handleSimilarSearch} onRelated={handleRelated} onOpenSoulDoc={() => setShowSoulDoc(true)} conflict={nodeConflicts.conflicts.get(selectedNode.id)} resolveUrl={syncStatus.pr_url} />
               ) : (
                 <div className="detail-panel-empty">Select a node to edit</div>
               )}

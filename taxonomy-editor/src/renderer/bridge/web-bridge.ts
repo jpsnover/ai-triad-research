@@ -5,7 +5,7 @@
  * Web bridge — implements AppAPI via REST and WebSocket calls to the server.
  * Used when the app runs in a browser served by the container.
  */
-import type { AppAPI, SourceDocumentResolution, DebateDelta, UserPreferences } from './types';
+import type { AppAPI, SourceDocumentResolution, DebateDelta, UserPreferences, BriefExportJobView, BriefExportRecord } from './types';
 import { instrumentBridge } from './instrumentBridge';
 import { makeCancellationError } from './cancellation';
 import { ActionableError } from '@lib/debate/errors';
@@ -1017,6 +1017,22 @@ const rawApi: AppAPI = {
   loadDebateComments: (id) => get(`/api/debates/${encodeURIComponent(id)}/comments`),
   saveDebateComments: (id, data) => put(`/api/debates/${encodeURIComponent(id)}/comments`, data).then(() => {}),
 
+  // Brief Export (t/2805, T7) — client of the T6 REST API (server: routes/briefExports.ts).
+  createBriefExport: (debateId, body) => post<{ jobId: string }>(`/api/debates/${encodeURIComponent(debateId)}/exports`, body),
+  getBriefExportJob: (jobId) => get<BriefExportJobView>(`/api/export-jobs/${encodeURIComponent(jobId)}`),
+  listBriefExports: (debateId) => get<BriefExportRecord[]>(`/api/debates/${encodeURIComponent(debateId)}/exports`),
+  downloadBriefArtifact: async (exportId, name) => {
+    // Binary-capable read (pptx is bytes; json artifacts also come back as a Blob) — mirrors
+    // downloadCaseAttachment. The route validates the artifact name; we encode defensively.
+    const res = await resilientFetch(
+      `/api/exports/${encodeURIComponent(exportId)}/artifacts/${encodeURIComponent(name)}`,
+      {}, { timeoutMs: 30_000, maxRetries: 1, critical: true, category: 'read' as EndpointCategory },
+    );
+    if (!res.ok) throw new Error(`Artifact download failed: ${res.status}`);
+    return res.blob();
+  },
+  deleteBriefExport: (exportId) => del(`/api/exports/${encodeURIComponent(exportId)}`).then(() => {}),
+
   // Op-Ed Studio (t/2576) — real routes against t/2573's server API (on main). The
   // personal-library path is /api/oped-sets (t/2599 live-smoke found the bridge had
   // assumed /api/opeds). Rename persists topic-only via PUT /api/oped-sets/:id (t/2594).
@@ -1166,7 +1182,7 @@ const rawApi: AppAPI = {
   saveProposal: (filename, data) => put(`/api/proposals/${encodeURIComponent(filename)}`, data),
 
   // PowerShell prompts
-  readPsPrompt: (name) => get(`/api/ps-prompts/${encodeURIComponent(name)}`),
+  readPsPrompt: (name, dir = 'ps') => get(`/api/ps-prompts/${encodeURIComponent(name)}?dir=${encodeURIComponent(dir)}`),
   listPsPrompts: () => get('/api/ps-prompts'),
 
   // Feedback & error reporting

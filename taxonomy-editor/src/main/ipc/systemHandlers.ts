@@ -46,12 +46,18 @@ export function registerSystemHandlers(): void {
   });
 
   // PowerShell prompt file reader (for Prompt Inspector)
-  ipcMain.handle('read-ps-prompt', (_event, promptName: string) => {
+  const PROMPT_DIR_SEGMENTS: Record<string, string[]> = {
+    ps: ['scripts', 'AITriad', 'Prompts'],
+    oped: ['lib', 'oped', 'prompts'],
+  };
+  ipcMain.handle('read-ps-prompt', (_event, promptName: string, dir = 'ps') => {
     // Sanitize: only allow alphanumeric, hyphens, no path traversal
     if (!/^[a-z0-9-]+$/.test(promptName)) {
       return { text: null, error: 'Invalid prompt name' };
     }
-    const promptPath = path.join(PROJECT_ROOT, 'scripts', 'AITriad', 'Prompts', `${promptName}.prompt`);
+    const segments = PROMPT_DIR_SEGMENTS[dir];
+    if (!segments) return { text: null, error: `Unknown prompt directory: ${dir}` };
+    const promptPath = path.join(PROJECT_ROOT, ...segments, `${promptName}.prompt`);
     if (!fs.existsSync(promptPath)) {
       return { text: null, error: `Prompt file not found: ${promptName}.prompt` };
     }

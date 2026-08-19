@@ -46,7 +46,7 @@ Line 3: "Excludes: [2-3 neighboring concepts named neutrally]."
 
 The differentia states *what* the position is, not why it is correct. Causal connectors (`rendering`, `thereby`, `thus`, `therefore`, `contingent on`) are not allowed in line 1. Each description carries exactly one concept in the differentia. Packing mechanism, target, and caveats into one clause is a compliance failure.
 
-After the model returns its proposals, the engine checks each proposed description against these rules. If any description fails, the engine sends a targeted retry prompt with the specific violations listed. It retries up to three times per edit. A description that still fails after three attempts is excluded from the reflection set.
+After the model returns its proposals, the engine checks each proposed description against these rules. If any description fails, the engine sends a targeted retry prompt with the specific violations listed. It retries up to three times per edit. A description that still fails after three attempts is surfaced to the human as-is.
 
 ## Approval flow
 

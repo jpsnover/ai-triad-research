@@ -205,15 +205,6 @@ function OpEdArticle({ member, outlet }: { member: OpEdMember; outlet?: string }
             <Markdown remarkPlugins={[remarkGfm]}>{member.body}</Markdown>
           </div>
 
-          {member.pitch && (
-            <details className="oped-pitch">
-              <summary className="oped-pitch-summary">Pitch cover email</summary>
-              <div className="oped-reader-body oped-pitch-body">
-                <Markdown remarkPlugins={[remarkGfm]}>{member.pitch}</Markdown>
-              </div>
-            </details>
-          )}
-
           <GroundingSection grounding={member.grounding} />
         </>
       )}

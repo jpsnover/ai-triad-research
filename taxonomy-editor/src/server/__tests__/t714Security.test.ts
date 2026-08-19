@@ -21,6 +21,16 @@ describe('M1 — readPsPrompt path traversal', () => {
     const r = await fileIO.readPsPrompt('triad-system');
     expect(r).toHaveProperty('text');
   });
+
+  it('rejects an unknown dir (allowlist — not an arbitrary path)', async () => {
+    const r = await fileIO.readPsPrompt('safe-name', '../../../etc');
+    expect(r).toMatchObject({ text: null, error: expect.stringContaining('Unknown') });
+  });
+
+  it('accepts the oped dir with a safe name (returns object, not a throw)', async () => {
+    const r = await fileIO.readPsPrompt('op-ed-generation-system', 'oped');
+    expect(r).toHaveProperty('text');
+  });
 });
 
 describe('M2 — loadCommunityItem path traversal', () => {

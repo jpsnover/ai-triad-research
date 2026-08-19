@@ -76,6 +76,22 @@ function rejectOpEdIpc(goal: string, method: string): Promise<never> {
   }));
 }
 
+// Brief Export (t/2805, T7) is web-only for v1. Desktop parity is tracked as a follow-up:
+// the Electron IPC handler will call the shared `runBriefPipeline` in-process (blocked by
+// t/2837), NOT a reimplementation. Until then, reject LOUDLY (never a silent empty) so a
+// desktop user is told exactly where to go — the UI also gates the menu item (see DebateTab).
+function rejectBriefWebOnly(goal: string, method: string): Promise<never> {
+  return Promise.reject(new ActionableError({
+    goal: `Brief Export: ${goal}`,
+    problem: `Brief export runs in the AITriad web app; the desktop backend (${method}) is not available in this build yet.`,
+    location: 'electron-bridge · Brief Export',
+    nextSteps: [
+      'Open this debate in the AITriad web app to export a brief.',
+      'Desktop parity is tracked (blocked by the shared runBriefPipeline, t/2837).',
+    ],
+  }));
+}
+
 // Same-window diagnostics callbacks for the in-app drawer (mobile/narrow).
 // When a popout BrowserWindow is open, IPC delivers state to it directly.
 // When the drawer is used instead, we also deliver to local callbacks.
@@ -290,6 +306,13 @@ export const api: AppAPI = {
   loadDebateComments: (id) => window.electronAPI.loadDebateComments(id),
   saveDebateComments: (id, data) => window.electronAPI.saveDebateComments(id, data),
 
+  // Brief Export (t/2805, T7) — web-only v1; desktop parity tracked (blocked by t/2837 runBriefPipeline).
+  createBriefExport: () => rejectBriefWebOnly('start a brief export', 'createBriefExport'),
+  getBriefExportJob: () => rejectBriefWebOnly('check a brief export job', 'getBriefExportJob'),
+  listBriefExports: () => rejectBriefWebOnly('list brief exports', 'listBriefExports'),
+  downloadBriefArtifact: () => rejectBriefWebOnly('download a brief export artifact', 'downloadBriefArtifact'),
+  deleteBriefExport: () => rejectBriefWebOnly('delete a brief export', 'deleteBriefExport'),
+
   // Op-Ed Studio (t/2576) — feature-detected IPC (lands with t/2575); see opEdIpc above.
   listOpEdSets: () => opEdIpc().listOpEdSets?.() ?? rejectOpEdIpc('list op-eds', 'listOpEdSets'),
   loadOpEdSet: (id) => opEdIpc().loadOpEdSet?.(id) ?? rejectOpEdIpc('load an op-ed', 'loadOpEdSet'),
@@ -329,7 +352,7 @@ export const api: AppAPI = {
   saveProposal: (f, d) => window.electronAPI.saveProposal(f, d),
 
   // PowerShell prompts
-  readPsPrompt: (name) => window.electronAPI.readPsPrompt(name),
+  readPsPrompt: (name, dir = 'ps') => window.electronAPI.readPsPrompt(name, dir),
   listPsPrompts: () => window.electronAPI.listPsPrompts(),
 
   // Research file access

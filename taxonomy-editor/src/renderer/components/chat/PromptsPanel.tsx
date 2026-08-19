@@ -18,6 +18,7 @@ const GROUP_LABELS: Record<PromptGroup, string> = {
   'taxonomy': 'Taxonomy',
   'research': 'Research',
   'powershell': 'PowerShell Backend',
+  'oped': 'Op-Ed',
 };
 import { PromptInspector } from './PromptInspector';
 import './PromptsPanel.css';
