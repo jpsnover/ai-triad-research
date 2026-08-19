@@ -332,8 +332,8 @@ export function Toolbar() {
           <span className="toolbar-nav-label">Debate</span>
         </button>
         <button
-          className="toolbar-nav"
-          onClick={() => void api.openChatWindow(crypto.randomUUID())}
+          className={`toolbar-nav${activeTab === 'chat' && toolbarPanel === null ? ' toolbar-nav-active' : ''}`}
+          onClick={() => switchTab('chat')}
           aria-label="Chat"
         >
           <MessageCircle size="1.25em" />

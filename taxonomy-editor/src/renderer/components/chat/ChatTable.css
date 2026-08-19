@@ -166,6 +166,26 @@
   border-color: var(--focus-ring);
 }
 
+/* Table mode: list panel fills full width */
+.chat-tab-table-mode .list-panel {
+  width: 100% !important;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.chat-tab-table-mode .list-panel-items {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.chat-tab-cap-notice {
+  padding: 4px 12px;
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+}
 
 @media (prefers-color-scheme: dark) {
   .chat-table thead th,

@@ -174,6 +174,15 @@ function ChatTableRowMy({
       <td className="col-model" title={s.chat_model}>{s.chat_model || '—'}</td>
       <td className="col-actions" onClick={e => e.stopPropagation()}>
         <div className="chat-table-actions">
+          <button
+            type="button"
+            className="chat-table-action-btn"
+            title="Open in a chat window"
+            aria-label={`Open "${safeTitle}" in a chat window`}
+            onClick={() => onOpen(s.id)}
+          >
+            Open
+          </button>
           <ChatExportDropdown onExport={fmt => onExport(s.id, fmt)} />
           <button
             type="button"
@@ -242,6 +251,15 @@ function ChatTableRowCommunity({
       <td className="col-model">{cc.model || '—'}</td>
       <td className="col-actions" onClick={e => e.stopPropagation()}>
         <div className="chat-table-actions">
+          <button
+            type="button"
+            className="chat-table-action-btn"
+            title="Open in a chat window"
+            aria-label={`Open "${cc.title}" in a chat window`}
+            onClick={() => onOpen(cc.id)}
+          >
+            Open
+          </button>
           <ChatExportDropdown onExport={fmt => onExport(cc.id, fmt)} />
           <button
             type="button"

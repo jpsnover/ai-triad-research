@@ -724,6 +724,7 @@ function MainApp() {
             {activeTab === 'conflicts' && <ConflictsTab />}
             {activeTab === 'cruxes' && <CruxesTab />}
             {activeTab === 'debate' && <DebateTab />}
+            {activeTab === 'chat' && <ChatTab />}
             {activeTab === 'opeds' && opedsFlag && <OpEdTab />}
             {activeTab === 'summaries' && summariesFlag && <SummariesTab />}
             {activeTab === 'validation' && <ValidationTab />}
