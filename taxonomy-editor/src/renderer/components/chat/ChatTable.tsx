@@ -162,7 +162,6 @@ function ChatTableRowMy({
   }, [s, setRenamingId, setRenameValue, safeTitle]);
 
   return (
-    // eslint-disable-next-line jsx-a11y/no-interactive-element-to-noninteractive-role
     <tr
       className={selectedId === s.id ? 'selected' : ''}
       onClick={() => onOpen(s.id)}
@@ -231,7 +230,6 @@ function ChatTableRowCommunity({
 }) {
   const isCopying = copyingId === cc.id;
   return (
-    // eslint-disable-next-line jsx-a11y/no-interactive-element-to-noninteractive-role
     <tr
       className={selectedId === cc.id ? 'selected' : ''}
       onClick={() => onOpen(cc.id)}
