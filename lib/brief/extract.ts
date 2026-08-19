@@ -5,6 +5,7 @@
 // Deterministic, no model. Maps a closed DebateSession → deck_spec.json IR.
 // Validates output against the strict write schema before returning.
 
+import Ajv from 'ajv';
 import type { DebateSession } from '../debate/types.js';
 import type { SynthesisResult, SynthesisCrux, PreferenceEntry } from '../debate/types/synthesis.js';
 import type { ArgumentNetworkNode, CommitmentStore } from '../debate/types/argumentNetwork.js';
@@ -16,6 +17,7 @@ import type {
   DeckSpec, TextNode, Disagreement, Crux, FactCheck,
   CampConcessions, TopClaim, ConvergenceScore, FactCheckVerdict,
 } from './types.js';
+import deckSpecWriteSchema from './schemas/deck_spec.write.json' assert { type: 'json' };
 
 const LOCATION = 'lib/brief/extract.ts:extractDeckSpec';
 const DECK_SPEC_VERSION = '1.0';
@@ -262,7 +264,11 @@ function buildConcessions(session: DebateSession): CampConcessions[] {
 function buildTopClaims(session: DebateSession): TopClaim[] {
   const nodes = (session.argument_network?.nodes ?? []) as ArgumentNetworkNode[];
   return nodes
-    .filter(n => n.computed_strength !== undefined && n.computed_strength !== null)
+    .filter(n =>
+      n.computed_strength !== undefined &&
+      n.computed_strength !== null &&
+      n.speaker !== 'system'   // spec: camp claims only
+    )
     .sort((a, b) => (b.computed_strength ?? 0) - (a.computed_strength ?? 0))
     .map(n => ({
       camp: String(n.speaker),
@@ -301,53 +307,26 @@ function buildOpenThreads(session: DebateSession): TextNode[] {
     .filter(t => t.text);
 }
 
-// ── Runtime validation (structural + enum + range) ────────────────────────────
+// ── AJV validation against the strict write schema (additionalProperties:false) ──
 
-const VERSION_RE = /^1\.\d+$/;
-const VALID_VERDICTS = new Set<FactCheckVerdict>(['Supported', 'Disputed', 'Unverifiable']);
-const VALID_KINDS = new Set(['EMPIRICAL', 'VALUES']);
-const VALID_PHASES = new Set(['concluding', 'closed', 'open']);
+const _ajv = new Ajv({ allErrors: true, strict: false });
+const _validateSchema = _ajv.compile(deckSpecWriteSchema);
 
-function validateDeckSpec(spec: DeckSpec): void {
-  const errs: string[] = [];
-
-  if (!VERSION_RE.test(spec.deck_spec_version)) {
-    errs.push(`deck_spec_version '${spec.deck_spec_version}' does not match ^1\\.\\d+$`);
-  }
-  if (!spec.meta.id) errs.push('meta.id is empty');
-  if (!spec.meta.run_id) errs.push('meta.run_id is empty');
-  if (!spec.meta.title) errs.push('meta.title is empty');
-  if (!spec.meta.model) errs.push('meta.model is empty');
-  if (!VALID_PHASES.has(spec.meta.phase)) {
-    errs.push(`meta.phase '${spec.meta.phase}' is not a valid DebatePhase`);
-  }
-  if (!spec.question.core_proposition) errs.push('question.core_proposition is empty');
-
-  for (const [i, d] of spec.disagreements.entries()) {
-    if (!VALID_KINDS.has(d.kind)) errs.push(`disagreements[${i}].kind '${d.kind}' invalid`);
-  }
-  for (const [i, c] of spec.cruxes.entries()) {
-    if (!VALID_KINDS.has(c.kind)) errs.push(`cruxes[${i}].kind '${c.kind}' invalid`);
-  }
-  for (const [i, f] of spec.fact_checks.entries()) {
-    if (!VALID_VERDICTS.has(f.verdict)) errs.push(`fact_checks[${i}].verdict '${f.verdict}' invalid`);
-  }
-  for (const [i, cv] of spec.convergence.entries()) {
-    if (cv.score < 0 || cv.score > 1) errs.push(`convergence[${i}].score ${cv.score} out of [0,1]`);
-  }
-  for (const [i, cc] of spec.concessions.entries()) {
-    if (cc.asserted < 0 || cc.conceded < 0 || cc.challenged < 0) {
-      errs.push(`concessions[${i}] has negative count`);
-    }
-  }
-
-  if (errs.length > 0) {
+/** Validate a DeckSpec against the strict write schema. Throws ActionableError on failure. */
+export function validateDeckSpec(spec: DeckSpec): void {
+  const valid = _validateSchema(spec);
+  if (!valid) {
+    const errors = _validateSchema.errors ?? [];
+    const first = errors[0];
+    const firstMsg = first
+      ? `${first.instancePath || '(root)'} ${first.message ?? 'failed'}`
+      : 'unknown error';
     throw new ActionableError({
       goal: 'Produce valid deck_spec.json',
-      problem: `Schema validation failed (${errs.length} error${errs.length > 1 ? 's' : ''}): ${errs[0]}${errs.length > 1 ? ` [+${errs.length - 1} more]` : ''}`,
+      problem: `AJV schema validation failed (${errors.length} error${errors.length > 1 ? 's' : ''}): ${firstMsg}`,
       location: LOCATION,
       nextSteps: [
-        `Errors: ${errs.join('; ')}`,
+        ...errors.slice(0, 5).map(e => `${e.instancePath || '(root)'}: ${e.message ?? 'failed'}`),
         'Check the field mapping in lib/brief/extract.ts against deck_spec.write.json.',
       ],
     });

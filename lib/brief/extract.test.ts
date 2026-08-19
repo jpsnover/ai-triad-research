@@ -5,7 +5,8 @@
 // All tests use deterministic fixtures — no model calls.
 
 import { describe, it, expect } from 'vitest';
-import { extractDeckSpec } from './extract.js';
+import { extractDeckSpec, validateDeckSpec } from './extract.js';
+import type { DeckSpec } from './types.js';
 
 // ── Minimal valid closed session fixture ──────────────────────────────────────
 
@@ -380,14 +381,52 @@ describe('extractDeckSpec open_threads', () => {
   });
 });
 
-// ── validation rejects bad output ─────────────────────────────────────────────
+// ── top_claims excludes system speaker ───────────────────────────────────────
 
-describe('extractDeckSpec validation', () => {
-  it('validates convergence score range — rejects >1', () => {
+describe('extractDeckSpec top_claims system-node exclusion', () => {
+  it('excludes nodes where speaker is system', () => {
     const session = makeSession();
-    (session['convergence_tracker'] as Record<string, unknown[]>)['issues'] = [
-      { taxonomy_ref: 'x', convergence: 1.5 },
-    ];
-    expect(() => extractDeckSpec(session as never)).toThrow('out of [0,1]');
+    (session['argument_network'] as Record<string, unknown[]>)['nodes'].push({
+      id: 'sys1', text: 'System-injected evidence', speaker: 'system',
+      scoring_method: 'bdi_criteria', computed_strength: 0.99,
+    });
+    const spec = extractDeckSpec(session as never);
+    expect(spec.top_claims.find(c => c.claim.includes('System-injected'))).toBeUndefined();
+  });
+
+  it('includes camp nodes alongside the filter', () => {
+    const spec = extractDeckSpec(makeSession() as never);
+    expect(spec.top_claims.every(c => c.camp !== 'system')).toBe(true);
+  });
+});
+
+// ── AJV validation rejects schema violations ──────────────────────────────────
+
+function makeValidSpec(): DeckSpec {
+  return extractDeckSpec(makeSession() as never);
+}
+
+describe('validateDeckSpec AJV gate', () => {
+  it('rejects convergence score > 1 (schema maximum)', () => {
+    const spec = makeValidSpec();
+    spec.convergence = [{ issue: 'x', score: 1.5 }];
+    expect(() => validateDeckSpec(spec)).toThrow(/AJV schema validation failed/);
+  });
+
+  it('rejects unknown property on meta (additionalProperties:false)', () => {
+    const spec = makeValidSpec();
+    (spec.meta as unknown as Record<string, unknown>)['unknown_field'] = 'injected';
+    expect(() => validateDeckSpec(spec)).toThrow(/AJV schema validation failed/);
+  });
+
+  it('rejects invalid verdict enum value', () => {
+    const spec = makeValidSpec();
+    spec.fact_checks = [{ claim: 'x', verdict: 'Unknown' as never }];
+    expect(() => validateDeckSpec(spec)).toThrow(/AJV schema validation failed/);
+  });
+
+  it('accepts a valid spec without throwing', () => {
+    const spec = makeValidSpec();
+    expect(() => validateDeckSpec(spec)).not.toThrow();
   });
 });
