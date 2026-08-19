@@ -28,7 +28,7 @@ import { getRequestId } from '../logger.js';
 import { log } from '../logger.js';
 import * as community from '../community/community.js';
 import * as fileIO from '../storage/fileIO.js';
-import { getWarmupStatus } from '../../../../lib/embeddings/onnxEmbedding.js';
+import { getWarmupStatus, computeEmbedding } from '../../../../lib/embeddings/onnxEmbedding.js';
 
 export function registerDiagnosticsRoutes(r: Router, ctx: ServerCtx): void {
   const { get, post, put, del } = r;
@@ -315,15 +315,26 @@ document.addEventListener('DOMContentLoaded', function() {
   });
 
   // ── Embedding health (t/2789 Part 2) ──
-  // No-auth endpoint: reflects the cached warmup result from onnxEmbedding.ts.
-  // 200 { ok, ready } when warm; 503 { ok, ready, error } when warmup failed.
-  // Does NOT gate /healthz — embedding warm-up failure is non-fatal.
-  get('/api/health/embeddings', (_req, res) => {
+  // No-auth endpoint: fast-fails on cached warmup status, then runs a 1-vector
+  // self-test (compute one embedding, assert 384-dim non-empty). Does NOT gate
+  // /healthz — embedding failure is degraded-but-non-fatal.
+  get('/api/health/embeddings', async (_req, res) => {
     const status = getWarmupStatus();
-    if (status.ready) {
-      json(res, { ok: true, ready: true });
-    } else {
-      json(res, { ok: false, ready: false, error: status.error ?? 'not ready' }, 503);
+    if (!status.ready) {
+      json(res, { ok: false, error: status.error ?? 'not ready' }, 503);
+      return;
+    }
+    try {
+      const vector = await computeEmbedding('health check');
+      const dims = vector.length;
+      if (dims !== 384) {
+        json(res, { ok: false, error: `unexpected embedding dims: ${dims}` }, 503);
+        return;
+      }
+      json(res, { ok: true, dims });
+    } catch (err) {
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'server', level: 'error', message: 'Embedding health self-test failed', error: { name: (err as Error)?.name ?? 'Error', message: String(err), stack: (err as Error)?.stack } });
+      json(res, { ok: false, error: String(err) }, 503);
     }
   });
 
