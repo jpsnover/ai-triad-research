@@ -158,7 +158,7 @@ interface CommunityDebateEntry {
 }
 
 interface CommunityOpEdEntry {
-  id: unknown; title: string; created_at: string; updated_at: string;
+  id: unknown; topic: string; created_at: string; updated_at: string;
   community_metadata: unknown;
   camps: string[];
   voice_count: number;
@@ -213,7 +213,7 @@ export async function listCommunityOpEds(): Promise<unknown[]> {
     malformedMessage: 'Skipping malformed community op-ed file',
     toEntry: (parsed) => ({
       id: parsed.id,
-      title: typeof parsed.topic === 'string' ? parsed.topic || 'Untitled' : 'Untitled',
+      topic: typeof parsed.topic === 'string' ? parsed.topic || 'Untitled' : 'Untitled',
       created_at: parsed.created_at || '',
       updated_at: parsed.updated_at || parsed.created_at || '',
       community_metadata: stripOriginalId(parsed.community_metadata || null),
