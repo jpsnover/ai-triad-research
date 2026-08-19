@@ -114,6 +114,10 @@ export const useCommunityStore = create<CommunityStore>((set) => ({
     set({ loading: true, error: null });
     try {
       const opeds = await bridgeGet<OpEdCommunityEntry[]>('/api/community/opeds');
+      const missing = opeds.filter(e => !e.topic);
+      if (missing.length > 0) {
+        getGlobalRecorder()?.record({ type: 'system.error', component: 'community-store', level: 'warn', message: `community opeds missing topic on ${missing.length} entr${missing.length === 1 ? 'y' : 'ies'}: ${missing.map(e => e.id).join(', ')}` });
+      }
       set({ opeds, loading: false });
       api.trackEvent('community_browse', 'community', { type: 'opeds', count: opeds.length });
     } catch (err) {
