@@ -193,3 +193,30 @@ export interface TriadDeckExport {
   verdicts: Partial<Record<FactCheckVerdict, number>>;
   warnings: string[];
 }
+
+// ── Brief Export job/REST contract (T6, t/2804) ──────────────────────────────
+// Cross-surface wire contract consumed by the REST API (T6), GUI (T7), and PS (T8).
+
+/** Async export-job lifecycle states (spec §5). 8 on the wire; `checking` only
+ *  appears when a checkerModel is set. GUI (T7) may collapse these for display. */
+export type ExportJobState =
+  | 'queued' | 'extracting' | 'narrating' | 'checking'
+  | 'rendering' | 'verifying' | 'done' | 'failed';
+
+/** Stable error codes carried by a failed export job (maps onto the spec §8 PS
+ *  error ids). T7/T8 branch on these; the stored audit-manifest records the detail. */
+export type ExportErrorCode =
+  | 'DebateNotFound' | 'DebateNotClosed' | 'SpecSchemaFailure'
+  | 'ModelUnavailable' | 'TraceGateFailure' | 'SymmetryFailure'
+  | 'PptxLintFailure' | 'RenderFailure' | 'AuthFailure';
+
+/** Canonical artifact filenames (download via GET /api/exports/{id}/artifacts/{name}).
+ *  The manifest is the output record, not a hashed input — it is a filename here but
+ *  is NOT listed in AuditManifest.artifacts[]. */
+export const BRIEF_ARTIFACTS = {
+  deckSpec: 'deck_spec.json',
+  narration: 'narration.json',
+  manifest: 'audit-manifest.json',
+  pptx: 'brief.pptx',
+} as const;
+export type BriefArtifactName = typeof BRIEF_ARTIFACTS[keyof typeof BRIEF_ARTIFACTS];
