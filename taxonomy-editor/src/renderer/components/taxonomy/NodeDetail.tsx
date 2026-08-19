@@ -388,7 +388,7 @@ export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, onRela
           update={update}
           maybeRegenAphorism={maybeRegenAphorism}
           onSimilarSearch={onSimilarSearch}
-          onPin={onPin}
+          onPin={viewMode === 'advanced' ? onPin : undefined}
           moveTargets={moveTargets}
           setShowDelete={setShowDelete}
           labelContent={labelContent}

@@ -7,6 +7,7 @@ import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import type { ConflictFile, ConflictInstance, ConflictQbaf, ConflictStance, DialecticTrace, DialecticTraceStep, TabId } from '../../types/taxonomy';
 import { useTaxonomyStore } from '../../hooks/useTaxonomyStore';
 import { useFeatureFlagStore } from '../../hooks/useFeatureFlags';
+import { usePreferencesStore } from '../../store/preferencesStore';
 import { DeleteConfirmDialog } from '../shared/DeleteConfirmDialog';
 import { OverflowMenu } from '../shared/OverflowMenu';
 import { newEmptyInstance } from './ConflictInstanceForm';
@@ -62,6 +63,8 @@ function tabForNodeId(id: string): TabId {
 }
 
 export function ConflictDetail({ conflict, readOnly, onPin, chipDepth = 0 }: ConflictDetailProps) {
+  // Bookmark (Pin-for-comparison) controls are Advanced-view only (t/2826).
+  const viewMode = usePreferencesStore(s => s.viewMode);
   const {
     updateConflict,
     deleteConflict,
@@ -193,7 +196,7 @@ export function ConflictDetail({ conflict, readOnly, onPin, chipDepth = 0 }: Con
         onResearch={handleResearchPrompt}
         onDebate={handleDebate}
         debateCreating={debateCreating}
-        onPin={onPin}
+        onPin={viewMode === 'advanced' ? onPin : undefined}
         readOnly={readOnly}
         onDelete={() => setShowDelete(true)}
       />
