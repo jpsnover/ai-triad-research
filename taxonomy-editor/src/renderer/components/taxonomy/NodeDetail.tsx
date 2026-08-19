@@ -403,7 +403,13 @@ export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, onRela
           <TheoryLink
             docPath="docs/taxonomy-ontology-guide.md"
             label="Help: taxonomy ontology guide"
-            size={14}
+            size={16}
+          />
+          <TheoryLink
+            docPath="research/comp-linguist/docs/soul-documents-analysis.md"
+            label="Soul documents analysis"
+            tooltip="Open Soul Documents Analysis in GitHub"
+            size={15}
           />
           <EditConflictBadge conflict={conflict} resolveUrl={resolveUrl} />
         </div>
