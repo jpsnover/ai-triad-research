@@ -350,7 +350,17 @@ export async function* generateOpEdSet(
         signal: request.signal,
       });
       const parsed = JSON.parse(stripCodeFences(briefRaw)) as SourceBrief;
-      if (parsed.readable !== false) sourceBrief = parsed;
+      if (parsed.readable !== false) {
+        sourceBrief = parsed;
+      } else {
+        // t/2807: Step-0 judged the supplied source unreadable — voices then generate
+        // from topic only, silently ignoring the source the caller provided. Record it
+        // so "source supplied but not represented" is diagnosable (via the host recorder).
+        deps.recorder?.record({
+          type: 'system.error', component: 'oped-generate', level: 'warn',
+          message: 'Op-ed source brief marked unreadable — generating from topic only despite a supplied source',
+        });
+      }
       yield { type: 'source_brief_done' };
     } catch (err) {
       yield { type: 'source_brief_failed', error: String(err) };

@@ -192,6 +192,39 @@ describe('generateOpEdSet — Step 0 source-brief comprehension (t/2722)', () =>
     expect(briefIdx).toBeLessThan(groundingIdx);
   });
 
+  it('records a warning when the source brief comes back readable:false (t/2807)', async () => {
+    const UNREADABLE_JSON = JSON.stringify({
+      thesis: '', author: '', actor_type: '', stance: '',
+      primary_recommendations: [], key_claims: [], readable: false,
+    });
+    const adapter = {
+      generateText: async (prompt: string) => {
+        if (prompt === 'source-brief-prompt') return UNREADABLE_JSON;
+        if (prompt === 'refl') return REFL_JSON;
+        return ESSAY_JSON;
+      },
+    };
+    const req = {
+      set_id: 's-unreadable', topic: 'AI safety',
+      params: { model: 'gemini-flash', wordCount: 800, outlet: 'nyt', newsHook: '', thesis: '' } as never,
+      povs: ['accelerationist'] as PovKey[],
+      sourceMaterial: 'Unparseable gibberish',
+    };
+    const record = vi.fn();
+    const deps = { adapter: adapter as never, promptsDir: join(REPO_ROOT, 'lib', 'oped', 'prompts'), repoRoot: REPO_ROOT, recorder: { record } };
+
+    const events: string[] = [];
+    for await (const ev of generateOpEdSet(req, deps) as AsyncGenerator<OpEdProgressEvent>) {
+      events.push(ev.type);
+    }
+
+    // Non-fatal: Step 0 still completes and the set generates (from topic only)…
+    expect(events).toContain('source_brief_done');
+    expect(events).toContain('complete');
+    // …but the supplied-but-unreadable source is recorded so it's diagnosable.
+    expect(record).toHaveBeenCalledWith(expect.objectContaining({ level: 'warn', component: 'oped-generate' }));
+  });
+
   it('yields source_brief_failed but still completes when comprehension throws', async () => {
     const adapter = {
       generateText: async (prompt: string) => {
