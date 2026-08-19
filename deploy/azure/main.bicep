@@ -392,6 +392,63 @@ resource stagingAnalyticsContainer 'Microsoft.Storage/storageAccounts/blobServic
   }
 }
 
+// ── Brief Export artifact containers (t/2821) ──
+// Dedicated containers isolate brief export blobs so the lifecycle policy
+// (managementPolicies below) can target them without touching user-content.
+// SYNC WITH Invoke-BlobContainerGateCheck.ps1: update the container list there too.
+
+resource briefExportsContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-05-01' = {
+  parent: blobService
+  name: 'brief-exports'
+  properties: {
+    publicAccess: 'None'
+  }
+}
+
+resource stagingBriefExportsContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-05-01' = {
+  parent: blobService
+  name: 'staging-brief-exports'
+  properties: {
+    publicAccess: 'None'
+  }
+}
+
+// ── Brief Export artifact lifecycle policy (t/2821) ──
+// 30-day flat delete on brief-exports and staging-brief-exports.
+// Zero runtime cost; runs even when the app is scaled to 0.
+// Count-quota (t/2831) handles live hygiene; this rule handles stale cleanup.
+resource briefExportsLifecyclePolicy 'Microsoft.Storage/storageAccounts/managementPolicies@2023-05-01' = {
+  parent: storageAccount
+  name: 'default'
+  properties: {
+    policy: {
+      rules: [
+        {
+          name: 'delete-stale-brief-exports'
+          enabled: true
+          type: 'Lifecycle'
+          definition: {
+            actions: {
+              baseBlob: {
+                delete: {
+                  daysAfterModificationGreaterThan: 30
+                }
+              }
+            }
+            filters: {
+              blobTypes: ['blockBlob']
+              prefixMatch: [
+                'brief-exports/'
+                'staging-brief-exports/'
+              ]
+            }
+          }
+        }
+      ]
+    }
+  }
+}
+
 // ── Staging Azure Files — writable state share (t/2643) ──
 // Class-A writes (flags, config, calibration, keys) from staging route here.
 // Prod's 'taxonomy-data' share is NOT declared here (managed externally) — it
