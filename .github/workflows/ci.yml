@@ -523,6 +523,10 @@ jobs:
         working-directory: lib
         run: pnpm exec tsc --noEmit -p debate/tsconfig.json
 
+      - name: TypeScript — lib/brief NodeNext module check (t/2832)
+        working-directory: lib
+        run: pnpm run typecheck:brief-nodenext
+
   # ── Schema version-bump gate — warn mode (t/2808) ───────────────────────
   # Diffs lib/brief/schemas/*.write.json against the PR base; warns when the
   # contract surface changes without a $id version bump. Warn-only (exit 0
