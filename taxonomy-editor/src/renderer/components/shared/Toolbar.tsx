@@ -4,7 +4,7 @@
 import { useState, useEffect, useRef, Fragment } from 'react';
 import {
   Search, LayoutGrid, MessageSquare, MessageCircle, ArrowLeft,
-  Ellipsis, CircleHelp, Star, Layers,
+  Ellipsis, CircleHelp, MessageSquareText, Layers,
   RefreshCw, Settings, User, Users, Shield, LogOut, Newspaper,
 } from 'lucide-react';
 import { useTaxonomyStore } from '../../hooks/useTaxonomyStore';
@@ -196,6 +196,7 @@ export function Toolbar() {
     previousView, navigateBack,
     loadAll, loading,
   } = useTaxonomyStore();
+  const adminFlag = useFlag('permission-admin-features');
   const [showHelp, setShowHelp] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showMore, setShowMore] = useState(false);
@@ -404,20 +405,22 @@ export function Toolbar() {
             aria-label="Feedback"
             data-tooltip="Feedback"
           >
-            <Star size="1.25em" />
+            <MessageSquareText size="1.25em" />
           </button>
           {showFeedback && <FeedbackPopover onClose={() => setShowFeedback(false)} />}
         </div>
         <ToolbarAuthButton />
-        <button
-          className={`toolbar-icon${loading ? ' toolbar-icon-spin' : ''}`}
-          onClick={() => { if (!loading) void loadAll(true); }}
-          disabled={loading}
-          aria-label="Reload taxonomy data"
-          data-tooltip="Reload taxonomy data"
-        >
-          <RefreshCw size="1.25em" />
-        </button>
+        {adminFlag && (
+          <button
+            className={`toolbar-icon${loading ? ' toolbar-icon-spin' : ''}`}
+            onClick={() => { if (!loading) void loadAll(true); }}
+            disabled={loading}
+            aria-label="Reload taxonomy data"
+            data-tooltip="Reload taxonomy data (admin)"
+          >
+            <RefreshCw size="1.25em" />
+          </button>
+        )}
         <button
           className="toolbar-icon"
           onClick={() => setShowSettings(true)}
