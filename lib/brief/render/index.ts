@@ -44,6 +44,8 @@ export interface RenderResult {
 }
 
 export async function render(input: RenderInput): Promise<RenderResult> {
+  // v2 (t/2838): combine template/potx-master merging (main) with framing-meta slide
+  // exclusion (T7-v2 WIP) — both touch this region.
   const { theme, warning } = await resolveTheme(input.template);
   const excludeSlides = input.framingMeta === false
     ? new Set<SlideKind>(['framing_meta'])
