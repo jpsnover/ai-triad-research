@@ -44,9 +44,18 @@ vi.mock('../ai/opedAdapter.js', () => ({ createWebOpEdAdapter: () => ({ generate
 
 // isSafeId comes from fileIO; mock it to the SAME whitelist as fileIO's SAFE_ID_RE
 // (/^[a-zA-Z0-9_-]+$/) so this test never pulls the heavy fileIO backend chain.
+// fetchUrlContent (t/2807) is also mocked here so the URL-source path is controllable
+// without the real network/SSRF stack (that stack is covered by t720Security.test.ts).
+const { fetchUrlContent } = vi.hoisted(() => ({ fetchUrlContent: vi.fn() }));
 vi.mock('../storage/fileIO.js', () => ({
   isSafeId: (v: string) => !!v && /^[a-zA-Z0-9_-]+$/.test(v),
+  fetchUrlContent,
 }));
+
+// t/2807: controllable generator so the URL happy-path can assert the request handed to
+// the core carries sourceMaterial, without driving real AI generation.
+const { generateOpEdSet } = vi.hoisted(() => ({ generateOpEdSet: vi.fn() }));
+vi.mock('../../../../lib/oped/generate.js', () => ({ generateOpEdSet }));
 
 import { registerOpedRoutes } from '../routes/oped.js';
 
@@ -67,6 +76,9 @@ function fakeRes(): ServerResponse & { _status?: number; _body?: string } {
     writeHead: vi.fn((s: number) => { res._status = s; }),
     end: vi.fn((b?: string) => { res._body = b; }),
     setHeader: vi.fn(),
+    // SSE path (t/2807 URL happy-path drives the stream): write/on must exist.
+    write: vi.fn(),
+    on: vi.fn(),
   } as unknown as ServerResponse & { _status?: number; _body?: string };
   return res;
 }
@@ -222,6 +234,8 @@ describe('POST /api/oped-sets create pre-start gate (t/2610)', () => {
     resolveTier.mockReset().mockReturnValue({ level: 'platform', allowedBackends: ['gemini', 'claude', 'groq'], pinnedModel: undefined });
     resolveBackend.mockReset().mockReturnValue('gemini');
     isRegisteredModel.mockReset().mockReturnValue(true);
+    fetchUrlContent.mockReset();
+    generateOpEdSet.mockReset();
     const r = makeRouter();
     registerOpedRoutes(r.router as never, {} as never);
     handlers = r.handlers;
@@ -273,10 +287,49 @@ describe('POST /api/oped-sets create pre-start gate (t/2610)', () => {
     expect(getOpedSetsQuotaStatus).not.toHaveBeenCalled(); // gated before quota + any generation
   });
 
-  it('400 on a URL/source path — P1 is FromTopic only', async () => {
+  it('400 on a file/PDF/DOCX `source` upload — still desktop-only (t/2807 keeps this blocked)', async () => {
+    const res = fakeRes();
+    await handlers['POST /api/oped-sets'](fakeReq('/api/oped-sets'), res, { ...validBody, source: { name: 'doc.pdf' } });
+    expect(res._status).toBe(400);
+    expect(fetchUrlContent).not.toHaveBeenCalled();
+  });
+
+  // t/2807 Part 1: URL source is fetched via the hardened fileIO.fetchUrlContent and
+  // flows into the generator as sourceMaterial.
+  it('URL source: fetches via fetchUrlContent and hands sourceMaterial to the generator', async () => {
+    fetchUrlContent.mockResolvedValue({ content: '# Fetched article\nBody.' });
+    let capturedReq: { sourceMaterial?: string } | undefined;
+    generateOpEdSet.mockImplementation(async function* (req: { set_id: string; topic: string; params: unknown; sourceMaterial?: string }) {
+      capturedReq = req;
+      yield { type: 'complete', set: { schema_version: 1, set_id: req.set_id, topic: req.topic, params: req.params, created_at: 'c', opeds: [] } };
+    });
+    finalizeOpedSet.mockResolvedValue(undefined);
     const res = fakeRes();
     await handlers['POST /api/oped-sets'](fakeReq('/api/oped-sets'), res, { ...validBody, url: 'https://example.com/article' });
-    expect(res._status).toBe(400);
+    // Fetch happened AFTER the gate (quota was checked) and BEFORE generation.
+    expect(getOpedSetsQuotaStatus).toHaveBeenCalled();
+    expect(fetchUrlContent).toHaveBeenCalledWith('https://example.com/article');
+    expect(res._status).toBe(200); // SSE committed → generation ran
+    expect(capturedReq?.sourceMaterial).toBe('# Fetched article\nBody.');
+  });
+
+  // t/2807 MUST: a fetch failure returns a clean HTTP error and NEVER proceeds with
+  // empty sourceMaterial (the t/2722 empty-source regression). No SSE, no generation.
+  it('URL source: a fetch failure returns 502 and does NOT start generation', async () => {
+    fetchUrlContent.mockResolvedValue({ content: '', error: 'blocked host' });
+    const res = fakeRes();
+    await handlers['POST /api/oped-sets'](fakeReq('/api/oped-sets'), res, { ...validBody, url: 'https://169.254.169.254/latest/meta-data' });
+    expect(res._status).toBe(502);
+    expect(generateOpEdSet).not.toHaveBeenCalled();
+    expect(finalizeOpedSet).not.toHaveBeenCalled();
+  });
+
+  it('URL source: fetch runs only AFTER the quota gate — an over-quota caller never triggers a fetch', async () => {
+    getOpedSetsQuotaStatus.mockResolvedValue({ allowed: false, resource: 'opeds', current: 15, limit: 15 });
+    const res = fakeRes();
+    await handlers['POST /api/oped-sets'](fakeReq('/api/oped-sets'), res, { ...validBody, url: 'https://example.com/article' });
+    expect(res._status).toBe(429);
+    expect(fetchUrlContent).not.toHaveBeenCalled();
   });
 
   it('400 when topic is missing/blank', async () => {
