@@ -68,24 +68,35 @@ describe('NewOpEdDialog — visibility', () => {
 });
 
 describe('NewOpEdDialog — voices + live count', () => {
-  it('shows the empty prompt then the 1-op-ed line', () => {
+  it('defaults to all three voices and updates the live count on toggle', () => {
     open();
-    expect(screen.getByText('Select at least one voice.')).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: 'Safetyist' }));
+    // t/2849: all three camps selected by default
+    expect(screen.getByText(/Will create 3 op-eds on the same topic/)).toBeTruthy();
+    // deselect two → the 1-op-ed line
+    fireEvent.click(screen.getByRole('button', { name: 'Accelerationist' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Skeptic' }));
     expect(screen.getByText('Will create 1 op-ed — Safetyist.')).toBeTruthy();
+    // deselect the last → the empty prompt
+    fireEvent.click(screen.getByRole('button', { name: 'Safetyist' }));
+    expect(screen.getByText('Select at least one voice.')).toBeTruthy();
   });
 
   it('shows the multi-voice line and relabels the submit button', () => {
     open();
-    fireEvent.click(screen.getByRole('button', { name: 'Safetyist' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Skeptic' }));
+    // default: all three selected
+    expect(screen.getByText(/Will create 3 op-eds on the same topic/)).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Draft 3 op-eds' })).toBeTruthy();
+    // deselect one → two
+    fireEvent.click(screen.getByRole('button', { name: 'Accelerationist' }));
     expect(screen.getByText(/Will create 2 op-eds on the same topic/)).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Draft 2 op-eds' })).toBeTruthy();
   });
 
-  it('marks a selected chip aria-pressed', () => {
+  it('toggles a chip aria-pressed (selected by default)', () => {
     open();
     const chip = screen.getByRole('button', { name: 'Skeptic' });
+    expect(chip.getAttribute('aria-pressed')).toBe('true');
+    fireEvent.click(chip);
     expect(chip.getAttribute('aria-pressed')).toBe('false');
     fireEvent.click(chip);
     expect(chip.getAttribute('aria-pressed')).toBe('true');
@@ -96,11 +107,15 @@ describe('NewOpEdDialog — Draft enablement', () => {
   it('disables Draft without a topic or voice, enables it with both', () => {
     open();
     const draft = () => screen.getByRole('button', { name: /Draft/ });
+    // voices default-selected, but no topic yet → disabled
     expect((draft() as HTMLButtonElement).disabled).toBe(true);
     fireEvent.change(screen.getByLabelText(/Topic/), { target: { value: 'Mandatory audits' } });
-    expect((draft() as HTMLButtonElement).disabled).toBe(true); // still no voice
-    fireEvent.click(screen.getByRole('button', { name: 'Safetyist' }));
+    // topic + default voices → enabled
     expect((draft() as HTMLButtonElement).disabled).toBe(false);
+    // deselect every voice → disabled again (needs a voice)
+    ['Accelerationist', 'Safetyist', 'Skeptic'].forEach(name =>
+      fireEvent.click(screen.getByRole('button', { name })));
+    expect((draft() as HTMLButtonElement).disabled).toBe(true);
   });
 });
 
@@ -168,7 +183,9 @@ describe('NewOpEdDialog — draft + progress + cancel', () => {
     open({ onCreated, onClose });
 
     fireEvent.change(screen.getByLabelText(/Topic/), { target: { value: 'Mandatory audits' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Safetyist' }));
+    // default selects all three (t/2849); narrow to a single Safetyist op-ed
+    fireEvent.click(screen.getByRole('button', { name: 'Accelerationist' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Skeptic' }));
     fireEvent.click(screen.getByRole('button', { name: 'Draft op-ed' }));
 
     // Progress panel appears and the subscription is active.
@@ -190,7 +207,9 @@ describe('NewOpEdDialog — draft + progress + cancel', () => {
     open();
 
     fireEvent.change(screen.getByLabelText(/Topic/), { target: { value: 'Mandatory audits' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Safetyist' }));
+    // default selects all three (t/2849); narrow to a single Safetyist op-ed
+    fireEvent.click(screen.getByRole('button', { name: 'Accelerationist' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Skeptic' }));
     fireEvent.click(screen.getByRole('button', { name: 'Draft op-ed' }));
 
     act(() => { fireProgress({ set_id: 'set-42', voice: 'safetyist', stage: 'queued' }); });
@@ -206,7 +225,9 @@ describe('NewOpEdDialog — draft + progress + cancel', () => {
     open();
 
     fireEvent.change(screen.getByLabelText(/Topic/), { target: { value: 'Mandatory audits' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Safetyist' }));
+    // default selects all three (t/2849); narrow to a single Safetyist op-ed
+    fireEvent.click(screen.getByRole('button', { name: 'Accelerationist' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Skeptic' }));
     fireEvent.click(screen.getByRole('button', { name: 'Draft op-ed' }));
 
     await waitFor(() => expect(screen.getByRole('alert')).toBeTruthy());

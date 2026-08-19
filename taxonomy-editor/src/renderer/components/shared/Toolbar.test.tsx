@@ -142,7 +142,7 @@ describe('Toolbar — primary Op-Eds button honors both build flags (t/2641)', (
 
   it('hides the Op-Eds button when neither build flag is set', () => {
     render(<Toolbar />);
-    expect(screen.queryByRole('button', { name: 'Op-Eds' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Op-Ed Studies' })).toBeNull();
   });
 
   // The web-reveal case the hardcoded env-electron-opeds gate missed: env-web-opeds ON,
@@ -151,12 +151,12 @@ describe('Toolbar — primary Op-Eds button honors both build flags (t/2641)', (
   it('shows the Op-Eds button when only env-web-opeds is on (web reveal)', () => {
     mockFlags.value = { 'env-web-opeds': true };
     render(<Toolbar />);
-    expect(screen.getByRole('button', { name: 'Op-Eds' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Op-Ed Studies' })).toBeInTheDocument();
   });
 
   it('shows the Op-Eds button when only env-electron-opeds is on (desktop, unchanged)', () => {
     mockFlags.value = { 'env-electron-opeds': true };
     render(<Toolbar />);
-    expect(screen.getByRole('button', { name: 'Op-Eds' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Op-Ed Studies' })).toBeInTheDocument();
   });
 });

@@ -131,7 +131,7 @@ function runGetOpEdSource(url: string, signal: AbortSignal): Promise<Record<stri
 
 function renderOpEdSetMarkdown(set: OpEdSet): string {
   const lines: string[] = [
-    `# Op-Ed Set: ${set.topic}`,
+    `# Op-Ed Studies Set: ${set.topic}`,
     '',
     `*Generated: ${set.created_at}*`,
     '',
@@ -143,6 +143,8 @@ function renderOpEdSetMarkdown(set: OpEdSet): string {
     }
     lines.push(`## ${member.pov}`, '', `### ${member.headline}`);
     if (member.subtitle) lines.push('', `*${member.subtitle}*`);
+    if (member.byline) lines.push('', `_${member.byline}_`);
+    if (member.disclosure) lines.push('', `> ${member.disclosure}`);
     lines.push('', member.body);
     if (member.grounding?.length) {
       lines.push('', '**Grounding:**', '');
@@ -150,6 +152,7 @@ function renderOpEdSetMarkdown(set: OpEdSet): string {
         lines.push(`- ${g.label} (${g.pov}): ${g.how_reflected}`);
       }
     }
+    if (member.rhetorical_meta) lines.push('', '### What this op-ed did', '', member.rhetorical_meta);
     lines.push('', '---', '');
   }
   return lines.join('\n');
@@ -338,7 +341,7 @@ export function registerOpEdHandlers(): void {
 
     const slug = set.topic.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').substring(0, 60);
     const result = await dialog.showSaveDialog(win, {
-      title: 'Export Op-Ed Set',
+      title: 'Export Op-Ed Studies Set',
       defaultPath: `oped-${slug}.md`,
       filters: [{ name: 'Markdown', extensions: ['md'] }],
     });

@@ -224,7 +224,7 @@ describe('OpEdTable — My variant', () => {
   it('renders a semantic table with an sr-only caption and sortable headers', () => {
     render(<OpEdTable {...noopMyProps} rows={[makeSummary()]} />);
     const table = screen.getByRole('table');
-    expect(within(table).getByText('My Op-Eds')).toBeTruthy();
+    expect(within(table).getByText('My Op-Ed Studies')).toBeTruthy();
     expect(screen.getByRole('columnheader', { name: /headline/i })).toBeTruthy();
   });
 

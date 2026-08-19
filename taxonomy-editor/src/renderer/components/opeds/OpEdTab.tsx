@@ -42,6 +42,8 @@ function buildOpEdMarkdown(set: OpEdSet): string {
     if (i > 0) lines.push('\n---\n');
     lines.push(`# ${m.headline}`);
     if (m.subtitle) lines.push(`\n*${m.subtitle}*`);
+    if (m.byline) lines.push(`\n_${m.byline}_`);
+    if (m.disclosure) lines.push(`\n> ${m.disclosure}`);
     lines.push('');
     if (m.status !== 'complete') {
       lines.push(`_(This voice ${m.status === 'failed' ? 'failed to generate' : 'was cancelled'}.)_`);
@@ -56,6 +58,10 @@ function buildOpEdMarkdown(set: OpEdSet): string {
         const type = g.node_id.startsWith('sit-') ? 'Situation' : 'BDI';
         lines.push(`| ${g.node_id} | ${type} | ${g.relevance || '—'} | ${g.how_reflected || '(not reported)'} |`);
       }
+    }
+    if (m.rhetorical_meta) {
+      lines.push('\n---\n\n## What this op-ed did\n');
+      lines.push(m.rhetorical_meta);
     }
   });
   return lines.join('\n');
@@ -243,7 +249,7 @@ function OpEdReaderView({
     <div className="two-column oped-tab-table-mode">
       <div className="oped-reader-shell">
         <div className="oped-reader-bar">
-          <button type="button" className="oped-reader-back" onClick={onBack}>‹ Op-Eds</button>
+          <button type="button" className="oped-reader-back" onClick={onBack}>‹ Op-Ed Studies</button>
           {status && <span className="oped-status">{status}</span>}
           {/* Share is web-only: electron-bridge rejects shareOpEdSet (t/2728). */}
           {readerSet && !isElectronMode() && <ShareOpEdControl setId={readerSet.set_id} />}
@@ -480,7 +486,7 @@ export function OpEdTab() {
     <div className={['two-column', isTableMode ? 'oped-tab-table-mode' : ''].filter(Boolean).join(' ')}>
       <div className="list-panel oped-list-panel">
         <div className="list-panel-header">
-          <h2>Op-Eds</h2>
+          <h2>Op-Ed Studies</h2>
           <OpEdHeaderActions
             listView={listView}
             editMode={editMode}

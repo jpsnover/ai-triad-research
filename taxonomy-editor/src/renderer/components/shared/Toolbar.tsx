@@ -337,10 +337,10 @@ export function Toolbar() {
           <button
             className={`toolbar-nav${activeTab === 'opeds' && toolbarPanel === null ? ' toolbar-nav-active' : ''}`}
             onClick={() => switchTab('opeds')}
-            aria-label="Op-Eds"
+            aria-label="Op-Ed Studies"
           >
             <Newspaper size="1.25em" />
-            <span className="toolbar-nav-label">Op-Eds</span>
+            <span className="toolbar-nav-label">Op-Ed Studies</span>
           </button>
         )}
       </div>

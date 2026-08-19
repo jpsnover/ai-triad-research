@@ -285,6 +285,35 @@
   padding: 0.5rem 0;
 }
 
+/* New OpEdMember fields (t/2849): byline, disclosure, rhetorical-meta closing section */
+.oped-byline {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  font-style: italic;
+  margin: 0.25rem 0 0.5rem;
+}
+
+.oped-disclosure {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  border-left: 3px solid var(--border-color);
+  padding: 0.35rem 0 0.35rem 0.75rem;
+  margin: 0 0 1rem;
+}
+
+.oped-rhetorical-meta {
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border-color);
+  color: var(--text-secondary);
+}
+
+.oped-rhetorical-meta-heading {
+  font-size: 0.95rem;
+  margin: 0 0 0.4rem;
+  color: var(--text-primary);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .oped-tab { transition: none; }
 }
