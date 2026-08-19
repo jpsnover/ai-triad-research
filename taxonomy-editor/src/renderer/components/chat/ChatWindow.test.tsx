@@ -17,6 +17,7 @@ vi.mock('../../hooks/useTaxonomyStore', () => ({
     { getState: () => ({ loadAll: mockLoadAll }) },
   ),
   initAIModels: (...args: unknown[]) => mockInitAIModels(...args),
+  MODELS_BY_BACKEND: {} as Record<string, unknown[]>,
 }));
 
 vi.mock('../../hooks/useChatStore', () => ({
