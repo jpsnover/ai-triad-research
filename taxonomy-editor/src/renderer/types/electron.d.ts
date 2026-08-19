@@ -163,7 +163,7 @@ export interface ElectronAPI {
   saveProposal: (filename: string, data: unknown) => Promise<{ saved?: boolean; error?: string }>;
 
   // PowerShell prompts
-  readPsPrompt: (promptName: string) => Promise<{ text: string | null; error?: string }>;
+  readPsPrompt: (promptName: string, dir?: string) => Promise<{ text: string | null; error?: string }>;
   listPsPrompts: () => Promise<string[]>;
 
   // Research file access

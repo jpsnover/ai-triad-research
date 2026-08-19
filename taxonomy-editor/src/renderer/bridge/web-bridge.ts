@@ -1182,7 +1182,7 @@ const rawApi: AppAPI = {
   saveProposal: (filename, data) => put(`/api/proposals/${encodeURIComponent(filename)}`, data),
 
   // PowerShell prompts
-  readPsPrompt: (name) => get(`/api/ps-prompts/${encodeURIComponent(name)}`),
+  readPsPrompt: (name, dir = 'ps') => get(`/api/ps-prompts/${encodeURIComponent(name)}?dir=${encodeURIComponent(dir)}`),
   listPsPrompts: () => get('/api/ps-prompts'),
 
   // Feedback & error reporting
