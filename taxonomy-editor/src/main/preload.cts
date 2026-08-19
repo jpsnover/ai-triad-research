@@ -36,6 +36,8 @@ console.log('[preload] starting...');
 // (happens with bootstrap.ts dynamic import indirection).
 let _bufferedDebateId: string | null = null;
 let _debateBufferActive = true;
+let _bufferedChatId: string | null = null;
+let _chatBufferActive = true;
 
 // Buffer the diagnostics-state-update push the same way (t/2694) — see
 // preloadBuffer.cts. The main window pushes the cached state once on the
@@ -264,11 +266,25 @@ try {
   closeDiagnosticsWindow: (): Promise<void> => ipcRenderer.invoke('close-diagnostics-window'),
 
   // Chat popout window
-  openChatWindow: (): Promise<void> => ipcRenderer.invoke('open-chat-window'),
-  onChatPopoutClosed: (callback: () => void) => {
-    const listener = () => callback();
+  openChatWindow: (chatId: string, source?: 'my' | 'community'): Promise<{ atCap: true } | void> => ipcRenderer.invoke('open-chat-window', chatId, source),
+  onChatPopoutClosed: (callback: (chatId: string) => void) => {
+    const listener = (_event: Electron.IpcRendererEvent, chatId: string) => callback(chatId);
     ipcRenderer.on('chat-popout-closed', listener);
     return () => { ipcRenderer.removeListener('chat-popout-closed', listener); };
+  },
+  onChatWindowLoad: (callback: (chatId: string) => void) => {
+    _chatBufferActive = false;
+    if (_bufferedChatId) {
+      const id = _bufferedChatId;
+      _bufferedChatId = null;
+      queueMicrotask(() => callback(id));
+    }
+    const listener = (_event: Electron.IpcRendererEvent, chatId: string) => callback(chatId);
+    ipcRenderer.on('chat-window-load', listener);
+    return () => {
+      ipcRenderer.removeListener('chat-window-load', listener);
+      _chatBufferActive = true;
+    };
   },
 
   // Data file diff window
@@ -645,6 +661,9 @@ try {
 try {
   ipcRenderer.on('debate-window-load', (_event, debateId: string) => {
     if (_debateBufferActive) _bufferedDebateId = debateId;
+  });
+  ipcRenderer.on('chat-window-load', (_event, chatId: string) => {
+    if (_chatBufferActive) _bufferedChatId = chatId;
   });
   ipcRenderer.on('diagnostics-state-update', (_event, state: unknown) => {
     _diagnosticsStateBuffer.onIpc(state);

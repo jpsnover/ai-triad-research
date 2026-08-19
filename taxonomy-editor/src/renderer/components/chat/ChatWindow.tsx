@@ -8,7 +8,8 @@ import { useChatStore } from '../../hooks/useChatStore';
 import { initDebateSessions } from '../../hooks/useDebateStore';
 import { usePopoutTheme } from '../../hooks/usePopoutTheme';
 import { parseHashParams } from '../../lib/parseHash';
-import { ChatTab } from './ChatTab';
+import { api } from '@bridge';
+import { ChatWorkspace } from './ChatWorkspace';
 import './ChatWindow.css';
 
 export function ChatWindow() {
@@ -17,14 +18,22 @@ export function ChatWindow() {
 
   useEffect(() => {
     let cancelled = false;
+    let unsubChatLoad: (() => void) | undefined;
     initAIModels()
       .then(() => useTaxonomyStore.getState().loadAll())
       .then(() => {
         initDebateSessions();
         if (!cancelled) {
           setReady(true);
+
+          // Dual delivery: hash param (always available) + IPC push (handles
+          // did-finish-load vs React-mount race via the preload buffer).
           const chatId = parseHashParams(window.location.hash).get('id');
           if (chatId) void useChatStore.getState().loadChat(chatId);
+
+          unsubChatLoad = api.onChatWindowLoad((id) => {
+            void useChatStore.getState().loadChat(id);
+          });
         }
       })
       .catch(err => {
@@ -37,7 +46,7 @@ export function ChatWindow() {
         });
         if (!cancelled) setReady(true);
       });
-    return () => { cancelled = true; };
+    return () => { cancelled = true; unsubChatLoad?.(); };
   }, []);
 
   if (!ready) {
@@ -50,7 +59,7 @@ export function ChatWindow() {
 
   return (
     <div className="chat-window-root">
-      <ChatTab />
+      <ChatWorkspace />
     </div>
   );
 }

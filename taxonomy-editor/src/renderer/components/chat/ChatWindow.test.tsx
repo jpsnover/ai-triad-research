@@ -10,6 +10,7 @@ const mockLoadAll = vi.fn().mockResolvedValue(undefined);
 const mockInitAIModels = vi.fn().mockResolvedValue(undefined);
 const mockInitDebateSessions = vi.fn();
 const mockLoadChat = vi.fn().mockResolvedValue(undefined);
+const mockOnChatWindowLoad = vi.fn().mockReturnValue(() => {});
 
 vi.mock('../../hooks/useTaxonomyStore', () => ({
   useTaxonomyStore: Object.assign(
@@ -17,6 +18,7 @@ vi.mock('../../hooks/useTaxonomyStore', () => ({
     { getState: () => ({ loadAll: mockLoadAll }) },
   ),
   initAIModels: (...args: unknown[]) => mockInitAIModels(...args),
+  MODELS_BY_BACKEND: {} as Record<string, unknown[]>,
 }));
 
 vi.mock('../../hooks/useChatStore', () => ({
@@ -30,8 +32,19 @@ vi.mock('../../hooks/useDebateStore', () => ({
   initDebateSessions: () => mockInitDebateSessions(),
 }));
 
-vi.mock('./ChatTab', () => ({
-  ChatTab: () => <div data-testid="chat-tab">ChatTab</div>,
+vi.mock('../../hooks/usePopoutTheme', () => ({
+  usePopoutTheme: () => {},
+}));
+
+// ChatWindow renders ChatWorkspace — mock it as a stub so we can assert "ready"
+vi.mock('./ChatWorkspace', () => ({
+  ChatWorkspace: () => <div data-testid="chat-tab">ChatWorkspace</div>,
+}));
+
+vi.mock('@bridge', () => ({
+  api: {
+    onChatWindowLoad: (...args: unknown[]) => mockOnChatWindowLoad(...args),
+  },
 }));
 
 vi.mock('@lib/flight-recorder/index', () => ({
@@ -62,6 +75,7 @@ describe('ChatWindow', () => {
     mockLoadAll.mockClear().mockResolvedValue(undefined);
     mockInitDebateSessions.mockClear();
     mockLoadChat.mockClear().mockResolvedValue(undefined);
+    mockOnChatWindowLoad.mockClear().mockReturnValue(() => {});
     window.location.hash = '';
   });
 

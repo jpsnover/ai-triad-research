@@ -332,7 +332,7 @@ export function Toolbar() {
         </button>
         <button
           className="toolbar-nav"
-          onClick={() => void api.openChatWindow()}
+          onClick={() => void api.openChatWindow(crypto.randomUUID())}
           aria-label="Chat"
         >
           <MessageCircle size="1.25em" />

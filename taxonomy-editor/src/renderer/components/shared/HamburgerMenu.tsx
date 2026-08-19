@@ -190,7 +190,7 @@ export function HamburgerMenu({ isOpen, onClose }: HamburgerMenuProps) {
         setToolbarPanel(null);
         if (['situations', 'conflicts', 'debate', 'chat', 'opeds', 'summaries', 'validation'].includes(activeTab)) setActiveTab('accelerationist');
       } else if (action.id === 'chat') {
-        void api.openChatWindow();
+        void api.openChatWindow(crypto.randomUUID());
       } else if (action.id === 'feedback') {
         setShowFeedback(true);
       } else if (action.id === 'help') {

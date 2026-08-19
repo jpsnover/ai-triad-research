@@ -1375,10 +1375,11 @@ const rawApi: AppAPI = {
     diagClosedCallbacks.add(cb);
     return () => { diagClosedCallbacks.delete(cb); };
   },
-  openChatWindow: async () => {
-    openAppWindow('chat-window');
+  openChatWindow: async (chatId, source) => {
+    openAppWindow(`chat-window?id=${encodeURIComponent(chatId)}${source ? `&source=${encodeURIComponent(source)}` : ''}`);
   },
   onChatPopoutClosed: () => () => {},
+  onChatWindowLoad: () => () => {},
   requestReExtractClaims: (entryId) => {
     diagChannel?.postMessage({ type: 're-extract-claims', entryId });
   },

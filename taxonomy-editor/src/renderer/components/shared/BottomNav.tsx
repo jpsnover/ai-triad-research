@@ -76,7 +76,7 @@ export function BottomNav({ onOpenMore }: BottomNavProps) {
             </button>
             <button
               className="bottom-nav-item"
-              onClick={() => void api.openChatWindow()}
+              onClick={() => void api.openChatWindow(crypto.randomUUID())}
             >
               {navIcon('chat')}
               <span className="bottom-nav-label">Chat</span>
