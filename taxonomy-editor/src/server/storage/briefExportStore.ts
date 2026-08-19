@@ -17,6 +17,7 @@ import { ActionableError } from '../../../../lib/debate/errors.js';
 import { log } from '../logger.js';
 import { getStorageUserId, isAnonymousUser } from '../security/userContext.js';
 import { getUserContentBackend, assertSafeId } from './fileIO.js';
+import { checkQuota, type QuotaCheckResult } from '../security/quotas.js';
 import { BRIEF_ARTIFACTS, type BriefArtifactName, type BriefPreset, type ModelSource, type ExportErrorCode } from '../../../../lib/brief/types.js';
 
 // ── Record shape (persisted + listed) ──
@@ -105,6 +106,14 @@ export async function saveBriefExport(rec: BriefExportRecord, artifacts: Artifac
   await upsertIndex(rec).catch((err) => {
     log.server.warn({ err, exportId: rec.exportId }, 'Brief-export index upsert failed (best-effort)');
   });
+}
+
+/** Brief-export quota status for the current (non-anonymous) user — exact count + cap.
+ *  Shared by saveBriefExport and the GET /api/brief-exports/quota-status pre-check so
+ *  they can never diverge (Shared Utility Rule, mirrors getOpedSetsQuotaStatus). */
+export async function getBriefExportsQuotaStatus(): Promise<QuotaCheckResult> {
+  const entries = await readIndex();
+  return checkQuota('brief-exports', entries.length);
 }
 
 /** List export records for the current user, optionally filtered to one debate (lineage). */
