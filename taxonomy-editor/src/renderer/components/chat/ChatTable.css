@@ -23,8 +23,8 @@
 .chat-table thead th {
   position: sticky;
   top: 0;
-  background: var(--color-surface, #fff);
-  border-bottom: 1px solid var(--color-border, #ddd);
+  background: var(--bg-primary);
+  border-bottom: 1px solid var(--border-color);
   padding: 6px 8px;
   text-align: left;
   font-weight: 600;
@@ -33,11 +33,11 @@
 }
 
 .chat-table tbody tr {
-  border-bottom: 1px solid var(--color-border-subtle, #eee);
+  border-bottom: 1px solid var(--border-subtle);
 }
 
 .chat-table tbody tr:hover {
-  background: var(--color-surface-hover, rgba(0,0,0,.03));
+  background: var(--bg-hover);
 }
 
 .chat-table td {
@@ -86,19 +86,19 @@
 .chat-table-action-btn {
   padding: 2px 8px;
   font-size: 0.8rem;
-  border: 1px solid var(--color-border, #ccc);
+  border: 1px solid var(--border-color);
   border-radius: 4px;
-  background: var(--color-surface, #fff);
+  background: var(--bg-primary);
   cursor: pointer;
   white-space: nowrap;
 }
 
 .chat-table-action-btn:hover {
-  background: var(--color-surface-hover, #f0f0f0);
+  background: var(--bg-hover);
 }
 
 .chat-table-action-btn.primary {
-  background: var(--color-primary, #0060df);
+  background: var(--focus-ring);
   color: #fff;
   border-color: transparent;
 }
@@ -111,9 +111,9 @@
   width: 100%;
   font: inherit;
   padding: 2px 4px;
-  border: 1px solid var(--color-primary, #0060df);
+  border: 1px solid var(--focus-ring);
   border-radius: 3px;
-  background: var(--color-surface, #fff);
+  background: var(--bg-primary);
 }
 
 .chat-table-title-text {
@@ -125,7 +125,7 @@
 
 .chat-table-title-secondary {
   font-size: 0.75rem;
-  color: var(--color-text-secondary, #666);
+  color: var(--text-secondary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -134,29 +134,29 @@
 .chat-table-empty-cell {
   padding: 24px 8px;
   text-align: center;
-  color: var(--color-text-secondary, #666);
+  color: var(--text-secondary);
 }
 
 /* Search bar above table */
 .chat-tab-search-wrap {
   padding: 6px 8px;
-  border-bottom: 1px solid var(--color-border-subtle, #eee);
+  border-bottom: 1px solid var(--border-subtle);
 }
 
 .chat-tab-search-input {
   width: 100%;
   padding: 5px 10px;
   font-size: 0.875rem;
-  border: 1px solid var(--color-border, #ccc);
+  border: 1px solid var(--border-color);
   border-radius: 4px;
-  background: var(--color-surface, #fff);
+  background: var(--bg-primary);
   color: inherit;
   box-sizing: border-box;
 }
 
 .chat-tab-search-input:focus {
   outline: none;
-  border-color: var(--color-primary, #0060df);
+  border-color: var(--focus-ring);
 }
 
 /* Table mode: list panel fills full width */
@@ -177,6 +177,6 @@
 @media (prefers-color-scheme: dark) {
   .chat-table thead th,
   .chat-table-rename-input {
-    background: var(--color-surface, #1a1a1a);
+    background: var(--bg-primary);
   }
 }
