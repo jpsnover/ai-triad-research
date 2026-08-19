@@ -185,7 +185,7 @@ export const createSearchSlice: StateCreator<TaxonomyStore, [], [], SearchSlice>
       set({
         semanticResults: [],
         embeddingLoading: false,
-        embeddingError: `Semantic search failed while computing embeddings for "${query}" using ${aiBackend}/${geminiModel}. ${detail}`,
+        embeddingError: `Semantic search failed while computing embeddings for "${query}". ${detail}`,
       });
     }
   },
