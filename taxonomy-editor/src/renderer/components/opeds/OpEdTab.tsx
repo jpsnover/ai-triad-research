@@ -91,12 +91,12 @@ function exportOpEdSet(set: OpEdSet, format: string): void {
 function filterSets(sets: OpEdSetSummary[], q: string): OpEdSetSummary[] {
   if (!q) return sets;
   // Index rows carry no bodies/headlines — filter on topic only (t/2605).
-  return sets.filter(s => s.topic?.toLowerCase().includes(q) ?? false);
+  return sets.filter(s => !q || (s.topic?.toLowerCase().includes(q) ?? false));
 }
 
 function filterCommunity(entries: OpEdCommunityEntry[], q: string): OpEdCommunityEntry[] {
   if (!q) return entries;
-  return entries.filter(c => c.topic?.toLowerCase().includes(q) ?? false);
+  return entries.filter(c => !q || (c.topic?.toLowerCase().includes(q) ?? false));
 }
 
 // ── Header actions (Edit / bulk-delete / disabled + New) ──────────────────────

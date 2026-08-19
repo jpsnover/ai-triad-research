@@ -5,10 +5,10 @@ import { describe, it, expect } from 'vitest';
 
 describe('OpEdTab filter — undefined topic guard', () => {
   const filterSets = (topic: string | undefined, q: string) =>
-    topic?.toLowerCase().includes(q) ?? false;
+    !q || (topic?.toLowerCase().includes(q) ?? false);
 
   const filterCommunity = (topic: string | undefined, q: string) =>
-    topic?.toLowerCase().includes(q) ?? false;
+    !q || (topic?.toLowerCase().includes(q) ?? false);
 
   it('filterSets: does not throw when topic is undefined', () => {
     expect(() => filterSets(undefined, 'ai')).not.toThrow();
