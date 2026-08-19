@@ -1357,9 +1357,17 @@ export async function loadDictionary(): Promise<{ standardized: unknown[]; collo
 
 // ── PowerShell prompts (project-root I/O — always local) ──
 
-export async function readPsPrompt(promptName: string): Promise<{ text: string | null; error?: string }> {
+// Allow-list of known prompt directories — the only values accepted for `dir`.
+const PROMPT_DIR_SEGMENTS: Record<string, string[]> = {
+  ps: ['scripts', 'AITriad', 'Prompts'],
+  oped: ['lib', 'oped', 'prompts'],
+};
+
+export async function readPsPrompt(promptName: string, dir = 'ps'): Promise<{ text: string | null; error?: string }> {
   assertSafeFilename(promptName, 'prompt name'); // block path traversal (M1)
-  const promptsDir = path.join(getProjectRoot(), 'scripts', 'AITriad', 'Prompts');
+  const segments = PROMPT_DIR_SEGMENTS[dir];
+  if (!segments) return { text: null, error: `Unknown prompt directory: ${dir}` };
+  const promptsDir = path.join(getProjectRoot(), ...segments);
   const filePath = path.join(promptsDir, `${promptName}.prompt`);
   try {
     return { text: await fs.readFile(filePath, 'utf-8') };
