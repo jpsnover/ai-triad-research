@@ -13,7 +13,7 @@
 }
 
 .pi-load-timeout {
-  color: var(--color-danger, #dc2626);
+  color: var(--danger);
   font-style: italic;
   font-size: var(--text-sm, 0.875rem);
 }
