@@ -14,7 +14,14 @@ const EXPORT_OPTIONS: { format: string; label: string }[] = [
  * Single "Export" toolbar button that reveals a PDF / JSON / Markdown menu (t/1031),
  * replacing three separate export buttons. Closes on outside-click or Escape.
  */
-export function ExportDropdown({ onExport }: { onExport: (format: string) => void }) {
+export function ExportDropdown({ onExport, onBrief, briefWebOnly }: {
+  onExport: (format: string) => void;
+  /** Optional async "Brief…" export (t/2805, T7) — opens a dialog rather than a file download. */
+  onBrief?: () => void;
+  /** Desktop build: brief export is web-only for v1 — show the item disabled with a reason
+   *  (TL condition, p/455#97) so desktop users see it exists and where to go, not a dead end. */
+  briefWebOnly?: boolean;
+}) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -61,6 +68,20 @@ export function ExportDropdown({ onExport }: { onExport: (format: string) => voi
               {label}
             </button>
           ))}
+          {onBrief && (
+            <button
+              type="button"
+              role="menuitem"
+              className="btn export-dropdown-item"
+              onClick={() => { if (!briefWebOnly) { setOpen(false); onBrief(); } }}
+              disabled={briefWebOnly}
+              title={briefWebOnly
+                ? 'Brief export is available in the AITriad web app (desktop coming)'
+                : 'Generate a slide brief from this debate'}
+            >
+              {briefWebOnly ? 'Brief… (web app)' : 'Brief…'}
+            </button>
+          )}
         </div>
       )}
     </div>

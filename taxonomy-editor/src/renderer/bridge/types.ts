@@ -83,6 +83,7 @@ import type { DebateDelta as _DebateDelta } from '@lib/debate/types';
 export type DebateDelta = _DebateDelta;
 
 import type { OpEdSet, OpEdSetSummary, PovKey } from '../../../../lib/oped/types';
+import type { BriefPreset, ExportJobState, ExportErrorCode, BriefArtifactName } from '../../../../lib/brief/types';
 
 /** Op-Ed generation params (PR#2) — maps to New-OpEd cmdlet params; topic + voices
  *  travel separately in the payload (one New-OpEd call per selected voice). */
@@ -103,6 +104,43 @@ export interface CreateOpEdParams {
 export interface CreateOpEdPayload { topic: string; url?: string; params: CreateOpEdParams; voices: PovKey[] }
 /** One 3-stage progress tick from the Electron generation IPC (t/2575 `oped-progress`). */
 export interface OpEdProgressEvent { set_id: string; voice: string; stage: string; error?: string }
+
+// Brief Export (t/2805, T7) — client shapes of the T6 REST API (server: routes/briefExports.ts).
+// Consumes T6's frozen job-state names, artifact names, and error taxonomy verbatim.
+export interface BriefExportRequest {
+  preset: BriefPreset;
+  /** Resolved model id; omit to let the server use its default. */
+  model?: string;
+  /** Provenance hint for the server's §6 resolution — 'global' = "Use current model". */
+  modelSource?: 'global' | 'explicit';
+  /** Optional maker-checker model (independently resolved server-side). */
+  checkerModel?: string;
+  options?: { skipNarration?: boolean };
+}
+export interface BriefExportJobView {
+  status: ExportJobState;
+  progressPct: number;
+  warnings: string[];
+  error: string | null;
+  errorCode: ExportErrorCode | null;
+  exportId: string | null;
+}
+export interface BriefExportRecord {
+  exportId: string;
+  debateId: string;
+  title: string;
+  preset: BriefPreset;
+  status: 'done' | 'failed';
+  errorCode?: ExportErrorCode;
+  narratorModel: string;
+  narratorModelSource: string;
+  checkerModel?: string | null;
+  formats: string[];
+  artifacts: BriefArtifactName[];
+  traceCoveragePct: number;
+  warnings: string[];
+  createdAt: string;
+}
 
 import type { EdgesFile as _EdgesFile } from '@lib/debate/taxonomyTypes';
 export type EdgesFile = _EdgesFile;
@@ -290,6 +328,13 @@ export interface AppAPI {
   exportDebateToFile: (session: unknown, format?: 'json' | 'markdown' | 'text' | 'pdf' | 'package', exportOptions?: { includeTaxonomyRefs?: boolean; includeReasoning?: boolean }) => Promise<{ cancelled: boolean; filePath?: string }>;
   loadDebateComments: (debateId: string) => Promise<unknown>;
   saveDebateComments: (debateId: string, data: unknown) => Promise<void>;
+
+  // --- Brief Export (t/2805, T7 — client of the T6 REST API; web-only v1, Electron parity tracked) ---
+  createBriefExport: (debateId: string, body: BriefExportRequest) => Promise<{ jobId: string }>;
+  getBriefExportJob: (jobId: string) => Promise<BriefExportJobView>;
+  listBriefExports: (debateId: string) => Promise<BriefExportRecord[]>;
+  downloadBriefArtifact: (exportId: string, name: BriefArtifactName) => Promise<Blob>;
+  deleteBriefExport: (exportId: string) => Promise<void>;
 
   // --- Op-Ed Studio (t/2576; personal library — submit/copy route via community store) ---
   listOpEdSets: () => Promise<OpEdSetSummary[]>;

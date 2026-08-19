@@ -1,0 +1,90 @@
+/* Brief Export dialog (t/2805, T7). Co-located per the styles.css-frozen rule.
+   Uses only DEFINED theme tokens (theme-token-completeness gate t/2567 — an undefined
+   custom property with a CSS fallback would render that fallback in every theme, i.e.
+   not theme-aware). */
+
+.bx-overlay {
+  position: fixed; inset: 0; z-index: 1000;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(0, 0, 0, 0.5);
+}
+.bx-dialog {
+  width: min(560px, 92vw); max-height: 88vh; overflow-y: auto;
+  background: var(--bg-panel);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  box-shadow: var(--dialog-shadow);
+  padding: 20px;
+}
+.bx-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.bx-title { font-size: var(--text-lg); margin: 0; }
+.bx-close {
+  background: none; border: none; font-size: 1.5rem; line-height: 1; cursor: pointer;
+  color: var(--text-muted);
+}
+.bx-close:hover { color: var(--text-primary); }
+
+.bx-notice {
+  background: var(--settings-warn-bg);
+  color: var(--text-primary);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm); padding: 10px 12px; margin-bottom: 12px; font-size: var(--text-sm);
+}
+.bx-notice-sub { color: var(--text-muted); }
+
+.bx-form { display: flex; flex-direction: column; gap: 14px; }
+.bx-fieldset { border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 10px 12px; margin: 0; }
+.bx-fieldset legend { font-weight: 600; padding: 0 6px; }
+.bx-radio { display: grid; grid-template-columns: auto 1fr; align-items: baseline; gap: 6px 8px; padding: 4px 0; }
+.bx-radio-label { font-weight: 500; }
+.bx-hint { grid-column: 2; color: var(--text-muted); font-size: var(--text-xs); }
+
+.bx-field { display: flex; flex-direction: column; gap: 4px; }
+.bx-field label { font-weight: 500; font-size: var(--text-sm); }
+.bx-field select {
+  padding: 6px 8px; border-radius: var(--radius-sm);
+  border: 1px solid var(--border-color);
+  background: var(--bg-input); color: var(--text-primary);
+}
+.bx-indent { margin-left: 22px; }
+.bx-check { display: flex; align-items: center; gap: 8px; font-size: var(--text-sm); }
+.bx-formats { font-size: var(--text-xs); color: var(--text-muted); margin: 0; }
+
+.bx-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px; }
+.bx-btn-primary {
+  padding: 7px 16px; border-radius: var(--radius-sm); border: none; cursor: pointer; font-weight: 600;
+  background: var(--accent-bg); color: var(--accent-text);
+}
+.bx-btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+.bx-btn-ghost {
+  padding: 7px 14px; border-radius: var(--radius-sm); cursor: pointer;
+  background: transparent; color: var(--text-primary);
+  border: 1px solid var(--border-color);
+}
+
+.bx-error, .bx-failed-msg {
+  background: var(--error-bg); color: var(--error-text);
+  border: 1px solid var(--error-border);
+  border-radius: var(--radius-sm); padding: 8px 10px; font-size: var(--text-sm);
+  white-space: pre-wrap; word-break: break-word; margin: 0;
+}
+
+.bx-progress { display: flex; flex-direction: column; gap: 10px; padding: 16px 0; }
+.bx-phase { font-weight: 600; }
+.bx-bar { height: 8px; border-radius: 4px; background: var(--bg-secondary); overflow: hidden; }
+.bx-bar-fill { height: 100%; background: var(--accent-bg); transition: width 0.3s ease; }
+
+.bx-warnings { margin: 4px 0; padding-left: 18px; color: var(--text-secondary); font-size: var(--text-sm); }
+
+.bx-done-head, .bx-failed-head { font-weight: 700; margin-bottom: 10px; }
+.bx-done-head { color: var(--success); }
+.bx-failed-head { color: var(--danger); }
+.bx-artifacts { list-style: none; margin: 0 0 10px; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.bx-artifacts li {
+  display: flex; align-items: center; justify-content: space-between;
+  border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 8px 10px;
+}
+.bx-artifact-name { font-size: var(--text-sm); }
+.bx-dl { padding: 4px 12px; }
+.bx-meta { color: var(--text-muted); font-size: var(--text-xs); margin-bottom: 10px; }

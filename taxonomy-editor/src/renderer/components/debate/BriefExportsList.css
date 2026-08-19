@@ -1,0 +1,27 @@
+/* Brief Exports section (t/2805, T7). Co-located; only DEFINED theme tokens (gate t/2567). */
+
+.bxl-section { margin-top: 12px; }
+.bxl-head { font-weight: 600; font-size: var(--text-sm); margin-bottom: 6px; color: var(--text-primary); }
+.bxl-loading, .bxl-empty { color: var(--text-muted); font-size: var(--text-sm); }
+.bxl-error {
+  color: var(--error-text); background: var(--error-bg);
+  border: 1px solid var(--error-border); border-radius: var(--radius-sm); padding: 6px 8px; font-size: var(--text-sm);
+}
+.bxl-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.bxl-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 6px 10px;
+}
+.bxl-row-failed { border-color: var(--error-border); }
+.bxl-row-main { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.bxl-preset { font-weight: 600; text-transform: capitalize; }
+.bxl-model { color: var(--text-muted); font-size: var(--text-xs); }
+.bxl-date { color: var(--text-muted); font-size: var(--text-xs); }
+.bxl-failed { color: var(--danger); font-size: var(--text-xs); }
+.bxl-dls { display: flex; gap: 6px; }
+.bxl-dl {
+  padding: 4px 10px; border-radius: var(--radius-sm); cursor: pointer; font-size: var(--text-xs);
+  background: transparent; color: var(--text-primary);
+  border: 1px solid var(--border-color);
+}
+.bxl-dl:hover { background: var(--bg-hover); }

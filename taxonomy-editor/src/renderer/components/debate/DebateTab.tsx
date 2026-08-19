@@ -16,6 +16,7 @@ import { NewDebateDialog } from './NewDebateDialog';
 import { DebateWorkspace } from '../debate-workspace';
 import { filterCommunityDebates } from './communityFilter';
 import { ExportDropdown } from './ExportDropdown';
+import { useDebateBriefExports } from './DebateBriefExports';
 import { useFlag } from '../../hooks/useFeatureFlags';
 import { useAuthStatus } from '../../hooks/useAuthStatus';
 import { SearchPreview } from '../edge-browser/SearchPreview';
@@ -939,6 +940,8 @@ function DebateDetailSummary({
 }) {
   const [showCalibration, setShowCalibration] = useState(false);
   const [shareStatus, setShareStatus] = useState<string | null>(null);
+  // Brief Export (t/2805, T7) — web-only v1; the menu item signals web-only on desktop.
+  const brief = useDebateBriefExports(debate, isElectronMode());
   // Calibration is an admin/power-user tool — show only for admins (t/1036).
   // Desktop (Electron) owners are admin-equivalent; web requires the admin flag.
   // useFlag is a hook — call it unconditionally, never inside the `||` short-circuit
@@ -996,7 +999,7 @@ function DebateDetailSummary({
           })}
         </div>
         <div className="debate-tab-spacer" />
-        <ExportDropdown onExport={onExport} />
+        <ExportDropdown onExport={onExport} onBrief={brief.openBrief} briefWebOnly={isElectronMode()} />
         {showAdminControls && viewMode !== 'simple' && (
           <button className="btn" onClick={() => setShowCalibration(!showCalibration)}>
             Calibration
@@ -1007,6 +1010,8 @@ function DebateDetailSummary({
         </button>
         {exportStatus && <span className="debate-detail-export-status">{exportStatus}</span>}
       </div>
+
+      {brief.node}
 
       {showCalibration && viewMode !== 'simple' && (
         <ParameterHistoryPanel onClose={() => setShowCalibration(false)} />
