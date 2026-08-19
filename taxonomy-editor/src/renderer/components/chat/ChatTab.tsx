@@ -524,7 +524,8 @@ export function ChatTab() {
           setPromptInspectorActive={setPromptInspectorActive}
         />
       ) : isTableMode ? (
-        <div className="list-panel chat-session-list" style={{ flex: 1, width: '100%' }}>
+        // eslint-disable-next-line local/no-inline-style -- dynamic resizable panel width
+        <div className="list-panel chat-session-list" style={{ width }}>
           <div className="list-panel-header">
             <h2>Chats</h2>
             <div className="list-panel-header-actions">
@@ -547,7 +548,7 @@ export function ChatTab() {
               </div>
               <ChatTable
                 variant="my"
-                rows={mySearchQuery ? sessions.filter(s => s.title.toLowerCase().includes(mySearchQuery.toLowerCase())) : sessions}
+                rows={mySearchQuery ? sessions.filter(s => (s.title ?? '').toLowerCase().includes(mySearchQuery.toLowerCase())) : sessions}
                 loading={sessionsLoading}
                 searchQuery={mySearchQuery}
                 renamingId={renamingId}
@@ -555,7 +556,8 @@ export function ChatTab() {
                 renameValue={renameValue}
                 setRenameValue={setRenameValue}
                 onRename={renameChat}
-                onOpen={id => { void api.openChatWindow(id, 'my'); }}
+                selectedId={activeChatId ?? undefined}
+                onOpen={id => { void loadChat(id); }}
                 onExport={handleExportChat}
                 onShare={handleShareChat}
               />
@@ -572,10 +574,11 @@ export function ChatTab() {
               </div>
               <ChatTable
                 variant="community"
-                rows={communitySearchQuery ? communityChats.filter(c => c.title.toLowerCase().includes(communitySearchQuery.toLowerCase())) : communityChats}
+                rows={communitySearchQuery ? communityChats.filter(c => (c.title ?? '').toLowerCase().includes(communitySearchQuery.toLowerCase())) : communityChats}
                 loading={communityLoading}
                 searchQuery={communitySearchQuery}
-                onOpen={id => { void api.openChatWindow(id, 'community'); }}
+                selectedId={selectedCommunityChat?.id}
+                onOpen={id => { const cc = communityChats.find(c => c.id === id); if (cc) setSelectedCommunityChat(cc); }}
                 onExport={handleExportChat}
                 onCopy={async cc => {
                   setCopyingId(cc.id);
@@ -631,8 +634,8 @@ export function ChatTab() {
         />
       )}
 
-      {/* Right pane: context-dependent; hidden in full-width table mode */}
-      {!isTableMode && <RightPane
+      {/* Right pane: shown whenever there is no toolbar panel (includes table mode) */}
+      {!toolbarPanel && <RightPane
         toolbarPanel={toolbarPanel}
         promptInspectorActive={promptInspectorActive}
         onMouseDown={onMouseDown}
