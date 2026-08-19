@@ -446,6 +446,17 @@ export function ChatTab() {
   const isTableMode = !toolbarPanel && !isPhone;
   const [mySearchQuery, setMySearchQuery] = useState('');
   const [communitySearchQuery, setCommunitySearchQuery] = useState('');
+  const [capNotice, setCapNotice] = useState<string | null>(null);
+
+  // t/2790 UAT: tables fill the tab; opening a chat launches a popout window
+  // (max 5 concurrent, deduped per chatId in chatWindowHandlers).
+  const openChatPopout = useCallback((id: string, source: 'my' | 'community') => {
+    api.openChatWindow(id, source).then((result) => {
+      setCapNotice(result && result.atCap ? 'Close a chat window — max 5 open' : null);
+    }).catch((err: Error) => {
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'chat-tab', level: 'warn', message: 'Failed to open chat popout window', error: { name: err.name ?? 'Error', message: String(err), stack: err.stack } });
+    });
+  }, []);
 
   const handleExportChat = useCallback((id: string, format: string) => {
     void api.loadChatSession(id).then((raw) => {
@@ -524,8 +535,8 @@ export function ChatTab() {
           setPromptInspectorActive={setPromptInspectorActive}
         />
       ) : isTableMode ? (
-        // eslint-disable-next-line local/no-inline-style -- dynamic resizable panel width
-        <div className="list-panel chat-session-list" style={{ width }}>
+        // eslint-disable-next-line local/no-inline-style -- table mode fills the tab width
+        <div className="list-panel chat-session-list" style={{ flex: 1, width: '100%' }}>
           <div className="list-panel-header">
             <h2>Chats</h2>
             <div className="list-panel-header-actions">
@@ -536,6 +547,7 @@ export function ChatTab() {
             <button className={`list-view-tab${listView === 'my' ? ' active' : ''}`} onClick={() => setListView('my')}>My ({sessions.length})</button>
             <button className={`list-view-tab${listView === 'community' ? ' active' : ''}`} onClick={() => setListView('community')}>Community ({communityChats.length})</button>
           </div>
+          {capNotice && <div className="chat-tab-cap-notice" role="status">{capNotice}</div>}
           {listView === 'my' ? (
             <>
               <div className="chat-tab-search-wrap">
@@ -557,7 +569,7 @@ export function ChatTab() {
                 setRenameValue={setRenameValue}
                 onRename={renameChat}
                 selectedId={activeChatId ?? undefined}
-                onOpen={id => { void loadChat(id); }}
+                onOpen={id => openChatPopout(id, 'my')}
                 onExport={handleExportChat}
                 onShare={handleShareChat}
               />
@@ -578,7 +590,7 @@ export function ChatTab() {
                 loading={communityLoading}
                 searchQuery={communitySearchQuery}
                 selectedId={selectedCommunityChat?.id}
-                onOpen={id => { const cc = communityChats.find(c => c.id === id); if (cc) setSelectedCommunityChat(cc); }}
+                onOpen={id => openChatPopout(id, 'community')}
                 onExport={handleExportChat}
                 onCopy={async cc => {
                   setCopyingId(cc.id);
@@ -634,8 +646,8 @@ export function ChatTab() {
         />
       )}
 
-      {/* Right pane: shown whenever there is no toolbar panel (includes table mode) */}
-      {!toolbarPanel && <RightPane
+      {/* Right pane: split view only — table mode fills the tab, chats open in popouts */}
+      {!toolbarPanel && !isTableMode && <RightPane
         toolbarPanel={toolbarPanel}
         promptInspectorActive={promptInspectorActive}
         onMouseDown={onMouseDown}
@@ -650,7 +662,7 @@ export function ChatTab() {
         selectedCommunityChat={selectedCommunityChat}
       />}
 
-      {showNewDialog && <NewChatDialog onClose={() => setShowNewDialog(false)} onCreated={(id) => { void loadChat(id); }} />}
+      {showNewDialog && <NewChatDialog onClose={() => setShowNewDialog(false)} />}
     </div>
   );
 }
