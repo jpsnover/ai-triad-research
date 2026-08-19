@@ -288,8 +288,6 @@ interface TaxonomyInputAreaProps {
   findMode: SearchMode;
   setFindMode: StoreState['setFindMode'];
   isOnline: boolean;
-  findCaseSensitive: boolean;
-  setFindCaseSensitive: StoreState['setFindCaseSensitive'];
   povFilter: PovFilter;
   setPovFilter: React.Dispatch<React.SetStateAction<PovFilter>>;
   bdiFilter: BdiFilter;
@@ -299,7 +297,7 @@ interface TaxonomyInputAreaProps {
 
 function TaxonomyInputArea({
   inputRef, findQuery, setFindQuery, isSemantic, runSemanticSearch,
-  findMode, setFindMode, isOnline, findCaseSensitive, setFindCaseSensitive,
+  findMode, setFindMode, isOnline,
   povFilter, setPovFilter, bdiFilter, setBdiFilter, mode,
 }: TaxonomyInputAreaProps) {
   return (
@@ -328,9 +326,7 @@ function TaxonomyInputArea({
             setFindMode(val);
           }}
         >
-          <option value="raw">Raw</option>
           <option value="wildcard">Wildcard</option>
-          <option value="regex">Regex</option>
           <option value="semantic" disabled={!isOnline}>Semantic{!isOnline ? ' (offline)' : ''}</option>
         </select>
       </div>
@@ -338,16 +334,6 @@ function TaxonomyInputArea({
         <div className="search-panel-offline-msg">Searching offline — semantic search unavailable</div>
       )}
       <div className="search-panel-filter-row">
-        {!isSemantic && (
-          <label className="search-panel-option">
-            <input
-              type="checkbox"
-              checked={findCaseSensitive}
-              onChange={(e) => setFindCaseSensitive(e.target.checked)}
-            />
-            Case sensitive
-          </label>
-        )}
         <select
           className="search-panel-pov-filter"
           value={povFilter}
@@ -632,7 +618,7 @@ export function SearchPanel({ onAnalyze, onSelectResult }: SearchPanelProps) {
     activeTab,
     getLabelForId,
     findQuery, findMode, findCaseSensitive,
-    setFindQuery, setFindMode, setFindCaseSensitive,
+    setFindQuery, setFindMode,
     hasApiKey, checkApiKey, runSemanticSearch,
     semanticResults, embeddingLoading, embeddingError,
     similarResults, similarLoading, similarStep, similarError, runSimilarSearch,
@@ -1041,8 +1027,6 @@ export function SearchPanel({ onAnalyze, onSelectResult }: SearchPanelProps) {
             findMode={findMode}
             setFindMode={setFindMode}
             isOnline={isOnline}
-            findCaseSensitive={findCaseSensitive}
-            setFindCaseSensitive={setFindCaseSensitive}
             povFilter={povFilter}
             setPovFilter={setPovFilter}
             bdiFilter={bdiFilter}
