@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useRef, Fragment } from 'react';
 import {
-  Search, LayoutGrid, MessageSquare, MessageCircle, ArrowLeft,
+  LayoutGrid, MessageSquare, MessageCircle, ArrowLeft,
   Ellipsis, CircleHelp, MessageSquareText, Layers,
   RefreshCw, Settings, User, Users, Shield, LogOut, Newspaper,
 } from 'lucide-react';
@@ -301,14 +301,8 @@ export function Toolbar() {
           </>
         )}
         {/* Primary nav — icon-over-label stacks */}
-        <button
-          className={`toolbar-nav${toolbarPanel === 'search' ? ' toolbar-nav-active' : ''}`}
-          onClick={() => toggle('search')}
-          aria-label="Search"
-        >
-          <Search size="1.25em" />
-          <span className="toolbar-nav-label">Search</span>
-        </button>
+        {/* t/2813: Search removed from the nav rail; entry points now live in the
+            Taxonomy panel header + POV detail header. toggle('search') still works. */}
         <button
           className={`toolbar-nav${isTaxonomyActive ? ' toolbar-nav-active' : ''}`}
           onClick={() => {

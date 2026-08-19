@@ -592,6 +592,10 @@ function NodeDetailHeaderTop({ pov, node, readOnly, err, update, maybeRegenAphor
       </div>
       <div className="nd-header-actions">
         {/* doc-link book relocated to the detail panel top-right (collapse-row / phone header) in PovTab — t/2412 */}
+        {/* t/2813: Search entry point in the POV detail header — opens the search panel (previousView captured for Back). */}
+        <button className="nd-header-btn" onClick={() => useTaxonomyStore.getState().setToolbarPanel('search')} title="Search taxonomy" aria-label="Search taxonomy">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        </button>
         {nodeTypeFromId(node.id) === 'pov' && (
           <CopyLinkButton hash={publicPovSharePath(node.id)} title="Copy public link" />
         )}
