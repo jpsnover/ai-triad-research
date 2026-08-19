@@ -242,6 +242,7 @@ export default defineConfig({
       '../../../lib/url-fetch/**/*.test.ts',
       '../../../lib/ai-config/**/*.test.ts',
       '../../../lib/embeddings/**/*.test.ts', // t/2060 — mock-based (fake onnxruntime-node), no native addon/model needed
+      '../../../lib/brief/**/*.test.ts',     // t/2800 — brief export pipeline (extract + schema utils)
       '../../../lib/*.test.ts',
       // translation tests excluded — depend on ai-triad-data dictionary not available in CI
     ],
