@@ -1,0 +1,27 @@
+/* Brief Exports section (t/2805, T7). Co-located; var(--token, fallback) for contrast safety. */
+
+.bxl-section { margin-top: 12px; }
+.bxl-head { font-weight: 600; font-size: 0.9rem; margin-bottom: 6px; color: var(--text-color, #1a1a1a); }
+.bxl-loading, .bxl-empty { color: var(--text-muted, #6b7280); font-size: 0.85rem; }
+.bxl-error {
+  color: var(--error-text, #991b1b); background: var(--error-bg, #fef2f2);
+  border: 1px solid var(--error-border, #fecaca); border-radius: 6px; padding: 6px 8px; font-size: 0.85rem;
+}
+.bxl-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.bxl-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  border: 1px solid var(--border-color, #d0d0d0); border-radius: 6px; padding: 6px 10px;
+}
+.bxl-row-failed { border-color: var(--error-border, #fecaca); }
+.bxl-row-main { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.bxl-preset { font-weight: 600; text-transform: capitalize; }
+.bxl-model { color: var(--text-muted, #6b7280); font-size: 0.82rem; }
+.bxl-date { color: var(--text-muted, #6b7280); font-size: 0.82rem; }
+.bxl-failed { color: var(--error-text, #991b1b); font-size: 0.82rem; }
+.bxl-dls { display: flex; gap: 6px; }
+.bxl-dl {
+  padding: 4px 10px; border-radius: 6px; cursor: pointer; font-size: 0.82rem;
+  background: transparent; color: var(--text-color, #1a1a1a);
+  border: 1px solid var(--border-color, #d0d0d0);
+}
+.bxl-dl:hover { background: var(--hover-bg, #f3f4f6); }

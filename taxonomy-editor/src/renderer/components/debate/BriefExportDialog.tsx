@@ -92,13 +92,14 @@ export function BriefExportDialog({ debateId, debateTitle, debatePhase, onClose,
     try {
       view = await api.getBriefExportJob(jobId);
     } catch {
+      /* telemetry — silent by design */
       // 404 (per-replica registry TTL, T6 §5): the job view is gone — fall back to the
       // durable exports list rather than treating expiry as an error.
       try {
         const list = await api.listBriefExports(debateId);
         const rec = list[0];
         if (rec) { setRecord(rec); setPhase(rec.status === 'failed' ? 'failed' : 'done'); if (rec.status !== 'failed') onExported?.(); return; }
-      } catch { /* fall through to a generic error */ }
+      } catch { /* telemetry — silent by design */ }
       setError('Lost track of the export job (it may have expired). Check the Exports list.');
       setPhase('failed');
       return;
@@ -122,6 +123,7 @@ export function BriefExportDialog({ debateId, debateTitle, debatePhase, onClose,
       const { jobId } = await api.createBriefExport(debateId, body);
       pollRef.current = setTimeout(() => void poll(jobId), POLL_MS);
     } catch (err) {
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'brief-export-ui', level: 'error', message: 'Failed to start brief export', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
       setError(err instanceof Error ? err.message : String(err));
       setPhase('failed');
     }
@@ -218,7 +220,10 @@ export function BriefExportDialog({ debateId, debateTitle, debatePhase, onClose,
         {phase === 'running' && (
           <div className="bx-progress" aria-live="polite">
             <div className="bx-phase">{PHASE_LABEL[job?.status ?? 'queued'] ?? 'Working…'}</div>
-            <div className="bx-bar"><div className="bx-bar-fill" style={{ width: `${job?.progressPct ?? 5}%` }} /></div>
+            <div className="bx-bar">
+              {/* eslint-disable-next-line local/no-inline-style -- dynamic: progress width % */}
+              <div className="bx-bar-fill" style={{ width: `${job?.progressPct ?? 5}%` }} />
+            </div>
             {(job?.warnings.length ?? 0) > 0 && (
               <ul className="bx-warnings">{job!.warnings.map((w, i) => <li key={i}>{w}</li>)}</ul>
             )}
