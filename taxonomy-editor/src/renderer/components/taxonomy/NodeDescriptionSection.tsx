@@ -6,7 +6,6 @@
 // exports, and behavior. Owns the search-highlight + Formal/Plain tab logic for the
 // node description field.
 
-import { type ReactNode } from 'react';
 import type { Pov, PovNode, Category } from '../../types/taxonomy';
 import type { MentionSegment } from '../shared/mentionText';
 import type { EntityRef } from '@lib/entities/types';
@@ -40,15 +39,13 @@ export interface DescriptionSectionProps {
   maybeRegenAphorism: () => void;
   update: (updates: Partial<PovNode>) => void;
   updatePovNode: (pov: Pov, id: string, updates: Partial<PovNode>) => void;
-  /** Renders a reconstructed container field's text with linkified entity mentions (t/1898); undefined = plain. */
-  renderMentionField?: (fieldName: string, fallback: string) => ReactNode;
   /** Mention segments for the formal `description` HighlightedTextarea (t/1908); undefined = no links. */
   descriptionMention?: DescriptionMention;
   /** t/2811: mention segments for the plain_description read-only highlight path; undefined = no links. */
   plainDescriptionMention?: DescriptionMention;
 }
 
-export function DescriptionSection({ pov, node, readOnly, err, descMode, setDescMode, maybeRegenAphorism, update, updatePovNode, renderMentionField, descriptionMention, plainDescriptionMention }: DescriptionSectionProps) {
+export function DescriptionSection({ pov, node, readOnly, err, descMode, setDescMode, maybeRegenAphorism, update, updatePovNode, descriptionMention, plainDescriptionMention }: DescriptionSectionProps) {
   const viewMode = usePreferencesStore(state => state.viewMode);
   const { findQuery, findMode, findCaseSensitive } = useTaxonomyStore();
   // t/2812: a search match in Formal-but-not-Plain surfaces the Formal tab (even under Simple

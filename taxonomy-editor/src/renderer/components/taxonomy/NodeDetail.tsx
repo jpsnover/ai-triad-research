@@ -464,7 +464,6 @@ export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, onRela
             setExpandedLineage={setExpandedLineage}
             showAttributeInfo={showAttributeInfo}
             hasGraphAttrs={hasGraphAttrs}
-            renderMentionField={renderMentionField}
             descriptionMention={descriptionMention}
             plainDescriptionMention={plainDescriptionMention}
           />
@@ -945,15 +944,13 @@ interface NodeDetailContentTabProps {
   setExpandedLineage: (v: string | null) => void;
   showAttributeInfo: (field: string, value: string) => void;
   hasGraphAttrs: boolean;
-  /** Renders a reconstructed container field's text with linkified entity mentions (t/1898). */
-  renderMentionField?: (fieldName: string, fallback: string) => ReactNode;
   /** Mention segments for the formal `description` HighlightedTextarea (t/1908). */
   descriptionMention?: DescriptionMention;
   /** t/2811: mention segments for the plain_description read-only highlight path. */
   plainDescriptionMention?: DescriptionMention;
 }
 
-function NodeDetailContentTab({ pov, node, readOnly, err, descMode, setDescMode, maybeRegenAphorism, update, updatePovNode, showDtDrilldown, setShowDtDrilldown, expandedLineage, setExpandedLineage, showAttributeInfo, hasGraphAttrs, renderMentionField, descriptionMention, plainDescriptionMention }: NodeDetailContentTabProps) {
+function NodeDetailContentTab({ pov, node, readOnly, err, descMode, setDescMode, maybeRegenAphorism, update, updatePovNode, showDtDrilldown, setShowDtDrilldown, expandedLineage, setExpandedLineage, showAttributeInfo, hasGraphAttrs, descriptionMention, plainDescriptionMention }: NodeDetailContentTabProps) {
   return (
     <>
       {node.category === 'Beliefs' && (
@@ -974,7 +971,6 @@ function NodeDetailContentTab({ pov, node, readOnly, err, descMode, setDescMode,
         maybeRegenAphorism={maybeRegenAphorism}
         update={update}
         updatePovNode={updatePovNode}
-        renderMentionField={renderMentionField}
         descriptionMention={descriptionMention}
         plainDescriptionMention={plainDescriptionMention}
       />
