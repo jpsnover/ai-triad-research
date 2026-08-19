@@ -357,6 +357,9 @@ jobs:
       always() && !cancelled() &&
       (github.event_name != 'pull_request' || needs.changes.outputs.electron == 'true')
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v6
 
@@ -366,6 +369,30 @@ jobs:
 
       - name: Static token-contrast check
         run: bash taxonomy-editor/scripts/check-contrast.sh
+
+      - name: Alert — contrast-check RED on main (t/2818)
+        if: failure() && github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          COMMIT_SHA: ${{ github.sha }}
+        run: |
+          TITLE="contrast-check RED on main — ceiling breach"
+          BODY="contrast-check failed on push to main.
+
+          Commit: ${COMMIT_SHA}
+          Run: ${RUN_URL}
+
+          DevOps + TL: fix before the next electron-path PR lands (it will block on this red gate)."
+
+          EXISTING=$(gh issue list --state open --search "in:title contrast-check RED on main" --json number --jq '.[0].number // empty')
+          if [ -n "$EXISTING" ]; then
+            gh issue comment "$EXISTING" --body "$BODY"
+            echo "::error::contrast-check RED on main — appended alert to existing issue #${EXISTING}"
+          else
+            gh issue create --title "$TITLE" --body "$BODY"
+            echo "::error::contrast-check RED on main — new alert issue created"
+          fi
 
   # ── Dependency audit: standalone security gate (t/1800) ──
   # SPLIT OUT of test-electron so a security-audit failure can never skip Test
