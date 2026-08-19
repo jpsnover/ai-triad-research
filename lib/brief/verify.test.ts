@@ -7,7 +7,7 @@
 
 import { describe, it, expect } from 'vitest';
 import JSZip from 'jszip';
-import Ajv from 'ajv';
+import { Ajv } from 'ajv';
 import { verify } from './verify.js';
 import type { VerifyInput } from './verify.js';
 import type { DeckSpec, Narration } from './types.js';

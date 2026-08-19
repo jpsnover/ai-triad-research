@@ -13,7 +13,7 @@
 // before returning (the T2 self-validation lesson — the manifest is itself an artifact).
 
 import { createHash } from 'node:crypto';
-import Ajv from 'ajv';
+import { Ajv } from 'ajv';
 import JSZip from 'jszip';
 import { ActionableError } from '../debate/errors.js';
 import { getGlobalRecorder } from '../flight-recorder/index.js';
