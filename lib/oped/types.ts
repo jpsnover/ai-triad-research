@@ -42,7 +42,6 @@ export interface OpEdMember {
   headline: string;
   subtitle: string;
   body: string;
-  pitch?: string;
   byline: string;
   disclosure: string;
   rhetorical_meta: string;
