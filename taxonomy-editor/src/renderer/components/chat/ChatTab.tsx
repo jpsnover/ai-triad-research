@@ -447,6 +447,8 @@ export function ChatTab() {
   const [mySearchQuery, setMySearchQuery] = useState('');
   const [communitySearchQuery, setCommunitySearchQuery] = useState('');
   const [capNotice, setCapNotice] = useState<string | null>(null);
+  // t/2790#6: Edit-mode parity with Debates/Op-Eds — discoverable rename affordance.
+  const [editMode, setEditMode] = useState(false);
 
   // t/2790 UAT: tables fill the tab; opening a chat launches a popout window
   // (max 5 concurrent, deduped per chatId in chatWindowHandlers).
@@ -540,12 +542,17 @@ export function ChatTab() {
           <div className="list-panel-header">
             <h2>Chats</h2>
             <div className="list-panel-header-actions">
+              {listView === 'my' && (editMode ? (
+                <button className="btn btn-sm btn-ghost" onClick={() => setEditMode(false)}>Done</button>
+              ) : (
+                <button className="btn btn-sm btn-ghost" title="Rename chats" onClick={() => setEditMode(true)}>Edit</button>
+              ))}
               <button className="btn btn-sm" onClick={() => { setShowNewDialog(true); setListView('my'); }}>+ New</button>
             </div>
           </div>
           <div className="list-view-tabs">
             <button className={`list-view-tab${listView === 'my' ? ' active' : ''}`} onClick={() => setListView('my')}>My ({sessions.length})</button>
-            <button className={`list-view-tab${listView === 'community' ? ' active' : ''}`} onClick={() => setListView('community')}>Community ({communityChats.length})</button>
+            <button className={`list-view-tab${listView === 'community' ? ' active' : ''}`} onClick={() => { setListView('community'); setEditMode(false); }}>Community ({communityChats.length})</button>
           </div>
           {capNotice && <div className="chat-tab-cap-notice" role="status">{capNotice}</div>}
           {listView === 'my' ? (
@@ -569,6 +576,7 @@ export function ChatTab() {
                 setRenameValue={setRenameValue}
                 onRename={renameChat}
                 selectedId={activeChatId ?? undefined}
+                editMode={editMode}
                 onOpen={id => openChatPopout(id, 'my')}
                 onExport={handleExportChat}
                 onShare={handleShareChat}

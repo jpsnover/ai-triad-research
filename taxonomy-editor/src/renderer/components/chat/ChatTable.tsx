@@ -30,6 +30,8 @@ export interface ChatTableMyProps {
   loading: boolean;
   searchQuery: string;
   selectedId?: string;
+  /** Edit mode swaps row actions for a Rename affordance (t/2790#6 parity with Debates/Op-Eds). */
+  editMode?: boolean;
   renamingId: string | null;
   setRenamingId: (id: string | null) => void;
   renameValue: string;
@@ -130,6 +132,7 @@ function SortHeader({
 interface ChatTableRowMyProps {
   s: ChatSessionSummary;
   selectedId?: string;
+  editMode?: boolean;
   renamingId: string | null;
   setRenamingId: (id: string | null) => void;
   renameValue: string;
@@ -141,7 +144,7 @@ interface ChatTableRowMyProps {
 }
 
 function ChatTableRowMy({
-  s, selectedId, renamingId, setRenamingId, renameValue, setRenameValue,
+  s, selectedId, editMode, renamingId, setRenamingId, renameValue, setRenameValue,
   onRename, onOpen, onExport, onShare,
 }: ChatTableRowMyProps) {
   const isRenaming = renamingId === s.id;
@@ -164,8 +167,8 @@ function ChatTableRowMy({
   return (
     <tr
       className={selectedId === s.id ? 'selected' : ''}
-      onClick={() => onOpen(s.id)}
-      style={{ cursor: 'pointer' }}
+      onClick={editMode ? undefined : () => onOpen(s.id)}
+      style={{ cursor: editMode ? 'default' : 'pointer' }}
     >
       <td className="col-created" title={s.created_at}>{formatDate(s.created_at)}</td>
       <td className="col-updated" title={s.updated_at}>{formatDate(s.updated_at)}</td>
@@ -174,25 +177,39 @@ function ChatTableRowMy({
       <td className="col-model" title={s.chat_model}>{s.chat_model || '—'}</td>
       <td className="col-actions" onClick={e => e.stopPropagation()}>
         <div className="chat-table-actions">
-          <button
-            type="button"
-            className="chat-table-action-btn"
-            title="Open in a chat window"
-            aria-label={`Open "${safeTitle}" in a chat window`}
-            onClick={() => onOpen(s.id)}
-          >
-            Open
-          </button>
-          <ChatExportDropdown onExport={fmt => onExport(s.id, fmt)} />
-          <button
-            type="button"
-            className="chat-table-action-btn"
-            title="Share to community"
-            aria-label={`Share "${safeTitle}" to community`}
-            onClick={() => onShare(s)}
-          >
-            Share
-          </button>
+          {editMode ? (
+            <button
+              type="button"
+              className="chat-table-action-btn"
+              title="Rename"
+              aria-label={`Rename "${safeTitle}"`}
+              onClick={() => { setRenamingId(s.id); setRenameValue(safeTitle); }}
+            >
+              Rename
+            </button>
+          ) : (
+            <>
+              <button
+                type="button"
+                className="chat-table-action-btn"
+                title="Open in a chat window"
+                aria-label={`Open "${safeTitle}" in a chat window`}
+                onClick={() => onOpen(s.id)}
+              >
+                Open
+              </button>
+              <ChatExportDropdown onExport={fmt => onExport(s.id, fmt)} />
+              <button
+                type="button"
+                className="chat-table-action-btn"
+                title="Share to community"
+                aria-label={`Share "${safeTitle}" to community`}
+                onClick={() => onShare(s)}
+              >
+                Share
+              </button>
+            </>
+          )}
         </div>
       </td>
       <td className="col-title">
@@ -336,7 +353,7 @@ export function ChatTable(props: ChatTableProps) {
 
 function MyTable(props: ChatTableMyProps & { sort: SortState; onSort: (col: SortColumn) => void }) {
   const {
-    rows, loading, searchQuery, selectedId, renamingId, setRenamingId, renameValue, setRenameValue,
+    rows, loading, searchQuery, selectedId, editMode, renamingId, setRenamingId, renameValue, setRenameValue,
     onRename, onOpen, onExport, onShare, sort, onSort,
   } = props;
   const sorted = applySortMy(rows, sort);
@@ -392,6 +409,7 @@ function MyTable(props: ChatTableMyProps & { sort: SortState; onSort: (col: Sort
               key={s.id}
               s={s}
               selectedId={selectedId}
+              editMode={editMode}
               renamingId={renamingId}
               setRenamingId={setRenamingId}
               renameValue={renameValue}
