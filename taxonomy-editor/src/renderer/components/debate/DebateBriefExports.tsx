@@ -6,14 +6,14 @@
 // v1: the exports list renders for closed debates on the web build; the dialog opens on
 // demand from the ExportDropdown "Brief…" item.
 
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { BriefExportDialog } from './BriefExportDialog';
 import { BriefExportsList } from './BriefExportsList';
 
 export function useDebateBriefExports(
   debate: { id: string; title: string; phase: string },
   isElectron: boolean,
-): { openBrief: () => void; node: JSX.Element } {
+): { openBrief: () => void; node: ReactNode } {
   const [showBrief, setShowBrief] = useState(false);
   const [refresh, setRefresh] = useState(0);
 
