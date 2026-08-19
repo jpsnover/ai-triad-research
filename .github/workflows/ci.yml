@@ -523,6 +523,31 @@ jobs:
         working-directory: lib
         run: pnpm exec tsc --noEmit -p debate/tsconfig.json
 
+  # ── Schema version-bump gate — warn mode (t/2808) ───────────────────────
+  # Diffs lib/brief/schemas/*.write.json against the PR base; warns when the
+  # contract surface changes without a $id version bump. Warn-only (exit 0
+  # always) until a green warn cycle confirms signal quality — then promote to
+  # --mode=block + add to ci-gate (Gate Promotion per AGENTS.md, requires TL
+  # sign-off per DevOps AGENTS.md Gate Promotion Discipline).
+  schema-version-bump:
+    needs: [changes]
+    if: >-
+      always() && !cancelled() &&
+      (github.event_name != 'pull_request' || needs.changes.outputs.lib == 'true')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v6
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v6
+        with:
+          node-version: '22'
+
+      - name: Schema version-bump check — warn mode (t/2808)
+        continue-on-error: true
+        run: node lib/brief/schemas/check-version-bump.mjs --mode=warn
+
   # ── Commit hygiene: flags anonymous / undersized commit subjects (t/1319) ──
   # Annotation-only by design — never flips (t/1319). Visibility, not friction.
   commit-hygiene:
