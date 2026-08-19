@@ -521,7 +521,7 @@ function MyTable(props: OpEdTableMyProps) {
   return (
     <div className="oped-table-wrap" role="region" aria-label="My op-eds table">
       <table className="oped-table">
-        <caption className="sr-only">My Op-Eds</caption>
+        <caption className="sr-only">My Op-Ed Studies</caption>
         <colgroup>
           {editMode && <col className="col-cb" />}
           <col className="col-camp" />
@@ -609,7 +609,7 @@ function CommunityTable(props: OpEdTableCommunityProps) {
   return (
     <div className="oped-table-wrap" role="region" aria-label="Community op-eds table">
       <table className="oped-table">
-        <caption className="sr-only">Community Op-Eds</caption>
+        <caption className="sr-only">Community Op-Ed Studies</caption>
         <colgroup>
           <col className="col-camp" />
           <col className="col-date" />

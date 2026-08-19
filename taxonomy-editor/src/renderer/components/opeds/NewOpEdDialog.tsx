@@ -652,7 +652,8 @@ export function NewOpEdDialog({ open, onClose, onCreated, allowUrlSource = true 
   const [fromWebPage, setFromWebPage] = useState(false);
   const [topic, setTopic] = useState('');
   const [url, setUrl] = useState('');
-  const [voices, setVoices] = useState<Set<PovKey>>(new Set());
+  // Default to all three camps selected (t/2849) — a study is normally the full triad.
+  const [voices, setVoices] = useState<Set<PovKey>>(new Set(['accelerationist', 'safetyist', 'skeptic']));
   const [outlet, setOutlet] = useState(DEFAULTS.outlet);
   const [newsHook, setNewsHook] = useState('');
 
