@@ -7,6 +7,7 @@ import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import type { SituationNode } from '../../types/taxonomy';
 import { interpretationText } from '../../types/taxonomy';
 import { useTaxonomyStore } from '../../hooks/useTaxonomyStore';
+import { usePreferencesStore } from '../../store/preferencesStore';
 import { DeleteConfirmDialog } from '../shared/DeleteConfirmDialog';
 import { HighlightedTextarea } from '../shared/HighlightedField';
 import { TypeaheadSelect } from '../shared/TypeaheadSelect';
@@ -592,6 +593,8 @@ function SitPovTab({
 
 export function SituationDetail({ node, readOnly, onPin, onRelated, onDebate, chipDepth = 0 }: SituationDetailProps) {
   const { updateSituationNode, deleteSituationNode, validationErrors, getAllNodeIds, getAllConflictIds, runAttributeFilter, showAttributeInfo, getLabelForId } = useTaxonomyStore();
+  // Bookmark (Pin-for-comparison) controls are Advanced-view only (t/2826).
+  const viewMode = usePreferencesStore(s => s.viewMode);
   const [descMode, setDescMode] = useDescriptionMode();
   const [showDelete, setShowDelete] = useState(false);
   const [activeTab, setActiveTab] = useState<SitTab>('overview');
@@ -689,7 +692,7 @@ export function SituationDetail({ node, readOnly, onPin, onRelated, onDebate, ch
         node={node}
         readOnly={readOnly}
         onDebate={onDebate}
-        onPin={onPin}
+        onPin={viewMode === 'advanced' ? onPin : undefined}
         err={err}
         hasErrors={hasErrors}
         update={update}
