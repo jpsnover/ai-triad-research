@@ -9,6 +9,7 @@
 import type { DeckSpec, Narration, BriefPreset } from '../types.js';
 import type { SlideModel } from './slideModel.js';
 import { assemble } from './assemble.js';
+import type { SlideKind } from './slideModel.js';
 import { resolveTheme } from './deckTheme.js';
 import { renderPptx } from './pptxRenderer.js';
 import { renderHtml } from './htmlRenderer.js';
@@ -23,6 +24,12 @@ export interface RenderInput {
    * `template_parse_error` warning is emitted if the bytes are not a valid zip.
    */
   template?: Uint8Array;
+  /**
+   * When explicitly false, removes the `framing_meta` slide from classroom exports (t/2838, T7-v2).
+   * Undefined / true → include it (preset default). Has no effect on policymaker/conference
+   * (neither preset includes `framing_meta`).
+   */
+  framingMeta?: boolean;
 }
 
 export interface RenderResult {
@@ -37,8 +44,13 @@ export interface RenderResult {
 }
 
 export async function render(input: RenderInput): Promise<RenderResult> {
+  // v2 (t/2838): combine template/potx-master merging (main) with framing-meta slide
+  // exclusion (T7-v2 WIP) — both touch this region.
   const { theme, warning } = await resolveTheme(input.template);
-  const { slides, warnings } = assemble(input.spec, input.narration, input.preset);
+  const excludeSlides = input.framingMeta === false
+    ? new Set<SlideKind>(['framing_meta'])
+    : undefined;
+  const { slides, warnings } = assemble(input.spec, input.narration, input.preset, excludeSlides ? { excludeSlides } : undefined);
   const allWarnings: string[] = warning ? [warning, ...warnings] : [...warnings];
 
   let pptxBytes = await renderPptx(slides, theme);

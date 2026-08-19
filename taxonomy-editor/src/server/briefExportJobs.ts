@@ -32,6 +32,8 @@ export interface ExportJobRequest {
   preset: BriefPreset;
   skipNarration: boolean;
   template?: Uint8Array;
+  /** When false, removes the framing_meta slide from classroom exports (t/2838). */
+  framingMeta?: boolean;
 }
 export interface ExportJob {
   jobId: string;
@@ -171,13 +173,15 @@ async function runExportJob(job: ExportJob, args: CreateJobArgs): Promise<void> 
     if (models.checkerModelId && !request.skipNarration) { setState(job, 'checking'); stage = 'checking'; }
     artifacts.push({ name: BRIEF_ARTIFACTS.narration, text: JSON.stringify(narration, null, 2) });
 
-    // ── render (pptx bytes; PDF is Electron-only, never here) ──
+    // ── render (pptx + htmlDoc; PDF is Electron-only, never here) ──
     setState(job, 'rendering'); stage = 'rendering';
-    const { pptxBytes, warnings: renderWarnings } = await render({
+    const { pptxBytes, htmlDoc, warnings: renderWarnings } = await render({
       spec, narration, preset: request.preset, template: request.template,
+      framingMeta: request.framingMeta,
     });
     job.warnings.push(...renderWarnings);
     artifacts.push({ name: BRIEF_ARTIFACTS.pptx, bytes: pptxBytes });
+    artifacts.push({ name: BRIEF_ARTIFACTS.htmlDoc, text: htmlDoc });
 
     // ── verify (build-fails-not-warns; manifest ALWAYS produced) ──
     setState(job, 'verifying'); stage = 'verifying';
@@ -250,7 +254,10 @@ async function persist(
     narratorModel: extra.narrator.modelId,
     narratorModelSource: extra.narrator.modelSource,
     checkerModel: extra.narrator.checkerModelId ?? null,
-    formats: artifacts.some(a => a.name === BRIEF_ARTIFACTS.pptx) ? ['pptx'] : [],
+    formats: [
+      ...(artifacts.some(a => a.name === BRIEF_ARTIFACTS.pptx) ? ['pptx'] : []),
+      ...(artifacts.some(a => a.name === BRIEF_ARTIFACTS.htmlDoc) ? ['html'] : []),
+    ],
     artifacts: artifacts.map(a => a.name),
     traceCoveragePct: extra.traceCoveragePct,
     warnings: extra.warnings,

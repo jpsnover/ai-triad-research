@@ -77,6 +77,7 @@ describe('render — outputs', () => {
     expect(r.pptxBytes[0]).toBe(0x50);
     expect(r.pptxBytes[1]).toBe(0x4b);
     expect(typeof r.htmlDoc).toBe('string');
+    expect(r.htmlDoc).toContain('<!DOCTYPE html');
     expect(r.slideModels.length).toBeGreaterThan(0);
   });
 });
@@ -100,6 +101,23 @@ describe('render — presets as masks', () => {
     expect(kinds).toContain('framing_meta');
     expect(kinds).toContain('glossary');
     expect(kinds).toContain('open_threads_appendix');
+  });
+
+  it('framingMeta:false removes framing_meta from classroom (t/2838)', async () => {
+    const r = await render({ spec: makeSpec(), narration: makeNarration(), preset: 'classroom', framingMeta: false });
+    expect(r.slideModels.map(s => s.kind)).not.toContain('framing_meta');
+    expect(r.slideModels.map(s => s.kind)).toContain('glossary'); // other classroom-only slides survive
+  });
+
+  it('framingMeta:true (explicit) keeps framing_meta for classroom', async () => {
+    const r = await render({ spec: makeSpec(), narration: makeNarration(), preset: 'classroom', framingMeta: true });
+    expect(r.slideModels.map(s => s.kind)).toContain('framing_meta');
+  });
+
+  it('framingMeta:false on conference/policymaker is a no-op (they never had the slide)', async () => {
+    const conf = await render({ spec: makeSpec(), narration: makeNarration(), preset: 'conference', framingMeta: false });
+    expect(conf.slideModels.map(s => s.kind)).not.toContain('framing_meta');
+    expect(conf.slideModels.length).toBe(11); // count unchanged
   });
 });
 
