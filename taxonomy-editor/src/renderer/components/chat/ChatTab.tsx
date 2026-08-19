@@ -548,7 +548,7 @@ export function ChatTab() {
               </div>
               <ChatTable
                 variant="my"
-                rows={mySearchQuery ? sessions.filter(s => s.title.toLowerCase().includes(mySearchQuery.toLowerCase())) : sessions}
+                rows={mySearchQuery ? sessions.filter(s => (s.title ?? '').toLowerCase().includes(mySearchQuery.toLowerCase())) : sessions}
                 loading={sessionsLoading}
                 searchQuery={mySearchQuery}
                 renamingId={renamingId}
@@ -574,7 +574,7 @@ export function ChatTab() {
               </div>
               <ChatTable
                 variant="community"
-                rows={communitySearchQuery ? communityChats.filter(c => c.title.toLowerCase().includes(communitySearchQuery.toLowerCase())) : communityChats}
+                rows={communitySearchQuery ? communityChats.filter(c => (c.title ?? '').toLowerCase().includes(communitySearchQuery.toLowerCase())) : communityChats}
                 loading={communityLoading}
                 searchQuery={communitySearchQuery}
                 selectedId={selectedCommunityChat?.id}
