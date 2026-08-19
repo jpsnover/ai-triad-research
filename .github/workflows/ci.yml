@@ -316,12 +316,15 @@ jobs:
   # imported a not-yet-landed lib/bandColor path; CI went green and the PR merged.
   # check-renderer-tsc.sh calls `tsc -p tsconfig.json --noEmit` and compares
   # error count against quality-gates.json tsc_error_ceilings (ceiling currently 0).
-  # Path-filtered to `electron` changes — docs/PS-only PRs skip (OK in ci-gate).
+  # Path-filtered to `electron` OR `lib` changes — lib types are renderer-consumed
+  # (e.g. BriefArtifactName) and a lib type widening must trigger renderer-tsc so
+  # exhaustive-map mismatches don't land on main silently (t/2854). PS/docs/analytics
+  # PRs still skip. Gate Verification required before relying on this to block (t/2854 AC).
   renderer-tsc:
     needs: [changes]
     if: >-
       always() && !cancelled() &&
-      (github.event_name != 'pull_request' || needs.changes.outputs.electron == 'true')
+      (github.event_name != 'pull_request' || needs.changes.outputs.electron == 'true' || needs.changes.outputs.lib == 'true')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v6
