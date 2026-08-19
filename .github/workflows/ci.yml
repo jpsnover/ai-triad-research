@@ -374,6 +374,7 @@ jobs:
         if: failure() && github.event_name == 'push'
         env:
           GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           COMMIT_SHA: ${{ github.sha }}
         run: |
@@ -401,6 +402,7 @@ jobs:
         if: success() && github.event_name == 'push'
         env:
           GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
           COMMIT_SHA: ${{ github.sha }}
         run: |
           LABEL="ci-alert:contrast"
