@@ -3409,6 +3409,27 @@ Institutional memory for failure patterns across the AI Triad Research project.
 
 ---
 
+## #170 [Build] Batch Filesystem Cleanup Aborts on First File-Lock — Remaining Items Undeleted
+
+**Pattern:** A batch `os.remove()` / `os.unlink()` loop (or equivalent) aborts on the first `WinError 32` (file locked by another process), leaving all subsequent items undeleted. The cleanup appears to succeed up to the failing file but silently abandons the rest.
+
+**Instances:**
+- 2026-08-15 — Tech Lead (t/2222 junk cleanup, p/335#40): Python batch `os.remove` loop hit `WinError 32` on `engineering/tech-lead/fail-open` (locked by a live process) and aborted — 1/17 files removed, 16 left. Fixed with per-item `try/except`; 16/17 cleaned, residual locked file harmless (frees when session closes).
+
+**Root Cause:** Batch cleanup without per-item exception handling treats the first failure as fatal. On Windows, file locks (`WinError 32`) are common when a file is open in another process (IDE, terminal, agent session). A single locked file should not block cleanup of the remaining items.
+
+**Prevention:**
+1. **Always wrap per-item filesystem operations (remove, rename, move) in per-item `try/except`** — collect and log failures, but continue the loop: `for f in files: try: os.remove(f) except OSError as e: failed.append((f, e))`.
+2. Log skipped items with the reason (lock error, permissions, not found) — silent skips make cleanup look complete when it isn't.
+3. On Windows: `WinError 32` ("The process cannot access the file because it is being used by another process") is expected for files open in live sessions — treat as a deferred skip, not a fatal error.
+4. After a best-effort cleanup, report counts: `removed N/M; skipped: <list>`.
+
+**Status:** Active — 1 instance (TL t/2222, p/335#40).
+
+**Applies To:** All agents writing Python/PowerShell batch cleanup scripts on Windows.
+
+---
+
 ## #169 [Process] `git worktree add` "invalid reference" — Repo Subdirectory Path in the commit-ish Slot
 
 **Pattern:** `git worktree add -b <branch> <path> <scope-hint>` fails "fatal: invalid reference: <scope-hint>" when a repo subdirectory path (e.g., `research/comp-linguist`) is passed as the `[<commit-ish>]` argument. The signature is `add [-b <branch>] <worktree-path> [<commit-ish>]` — the third positional is parsed as a git ref, not a directory hint.
