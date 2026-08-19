@@ -32,8 +32,13 @@ function Export-TriadDebateBrief {
         Optional fact-check model.
     .PARAMETER SkipNarration
         Deterministic brief with zero model calls.
-    .PARAMETER OutputPath
-        Output .pptx path (local mode). Default: the debate file name with .pptx.
+    .PARAMETER OutputDirectory
+        (Local) Output DIRECTORY for the artifacts (brief.pptx, deck_spec.json,
+        narration.json, audit-manifest.json). Default: a "<debate>-brief" folder
+        beside the debate JSON. Alias -OutDir / -OutputPath.
+    .PARAMETER AllowOpenDebate
+        (Local) Export a not-yet-closed debate as a watermarked snapshot
+        (meta.snapshot). Without it, a non-closed debate fails with DebateNotClosed.
     .PARAMETER AccessToken
         (Server) AAD bearer token → `Authorization: Bearer`. The cmdlet never spoofs
         identity or sets principal headers. Alias -Token.
@@ -84,7 +89,11 @@ function Export-TriadDebateBrief {
         [switch]$SkipNarration,
 
         [Parameter(ParameterSetName = 'Local')]
-        [string]$OutputPath,
+        [Alias('OutDir', 'OutputPath')]
+        [string]$OutputDirectory,
+
+        [Parameter(ParameterSetName = 'Local')]
+        [switch]$AllowOpenDebate,
 
         [Parameter(ParameterSetName = 'Server')]
         [Alias('Token')]
@@ -146,23 +155,36 @@ function Export-TriadDebateBrief {
             & $WriteExportError 'ModelUnavailable' 'Local mode requires -Model unless -SkipNarration (no global model to inherit offline).' $Path; return
         }
 
-        $Out = if ($OutputPath) { $OutputPath } else { [System.IO.Path]::ChangeExtension((Resolve-Path -LiteralPath $Path).Path, '.pptx') }
-        if ((Test-Path -LiteralPath $Out) -and -not $Force) {
-            & $WriteExportError 'RenderFailure' "Output already exists: $Out — use -Force to overwrite." $Out; return
+        # --out is a DIRECTORY: the CLI writes brief.pptx + deck_spec.json +
+        # narration.json + audit-manifest.json under it (paths come back in the
+        # TriadDeckExport). Default: a "<debate>-brief" dir beside the debate JSON.
+        $ResolvedPath = (Resolve-Path -LiteralPath $Path).Path
+        $OutDir = if ($OutputDirectory) {
+            $OutputDirectory
+        }
+        else {
+            $base = [System.IO.Path]::GetFileNameWithoutExtension($ResolvedPath)
+            Join-Path (Split-Path -Parent $ResolvedPath) "$base-brief"
+        }
+        if ((Test-Path -LiteralPath $OutDir) -and
+            @(Get-ChildItem -LiteralPath $OutDir -Force -ErrorAction SilentlyContinue).Count -gt 0 -and
+            -not $Force) {
+            & $WriteExportError 'RenderFailure' "Output directory is not empty: $OutDir — use -Force to overwrite." $OutDir; return
         }
 
         $resolvedModel = if ($SkipNarration) { '(none — narration skipped)' } else { $Model }
-        if (-not $PSCmdlet.ShouldProcess($Path, "export brief (preset=$Preset, model=$resolvedModel)")) { return }
+        if (-not $PSCmdlet.ShouldProcess($ResolvedPath, "export brief (preset=$Preset, model=$resolvedModel) → $OutDir")) { return }
 
         # Resolve the t/2837 CLI invocation. Returns @{ Exe; ArgPrefix } so the
-        # tsx-vs-compiled-bin decision (pending TL, t/2837) is abstracted away here;
-        # throws an actionable error until the CLI lands. Never hard-coded above.
+        # tsx-vs-compiled-bin entrypoint decision is abstracted to one place.
         $Inv = Resolve-BriefExportCli
 
-        # Frozen input flags (TL p/360#95): --path/--model/--preset/--skip-narration/--out.
-        $CliArgs = @('--path', $Path, '--preset', $Preset, '--out', $Out)
-        if ($SkipNarration) { $CliArgs += '--skip-narration' } else { $CliArgs += @('--model', $Model) }
-        if ($CheckerModel)  { $CliArgs += @('--checker-model', $CheckerModel) }
+        # Frozen CLI flags (lib/brief/cli.ts): --path/--model/--preset/--out (dir),
+        # optional --skip-narration/--checker-model/--allow-open.
+        $CliArgs = @('--path', $ResolvedPath, '--preset', $Preset, '--out', $OutDir)
+        if ($SkipNarration)   { $CliArgs += '--skip-narration' } else { $CliArgs += @('--model', $Model) }
+        if ($CheckerModel)    { $CliArgs += @('--checker-model', $CheckerModel) }
+        if ($AllowOpenDebate) { $CliArgs += '--allow-open' }
         $AllArgs = @($Inv.ArgPrefix) + $CliArgs
 
         $progressId = 2806
