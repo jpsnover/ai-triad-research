@@ -1326,7 +1326,10 @@ server.listen(PORT, BIND_HOST, () => {
   serverRecorder.record({ type: 'lifecycle', component: 'server', level: 'info', message: 'Server started', data: { port: PORT, host: BIND_HOST, version: SERVER_VERSION, dataRoot: getDataRoot(), platform: process.platform, arch: process.arch, storageMode: STORAGE_MODE } });
   log.server.info({ port: PORT, host: BIND_HOST }, 'Taxonomy Editor running');
   log.server.info({ dataRoot: getDataRoot() }, 'Data root');
-  void warmupEmbeddings().catch((err: unknown) => log.server.warn({ err: String(err) }, 't/2719: ONNX embedding warmup failed at boot (non-fatal — first grounding request pays the cold-load)'));
+  void warmupEmbeddings().catch((err: unknown) => {
+    log.server.error({ err: String(err) }, 'ONNX embedding warmup failed at boot');
+    getGlobalRecorder()?.record({ type: 'system.error', component: 'server', level: 'error', message: 'ONNX embedding warmup failed at boot', error: { name: (err as Error)?.name ?? 'Error', message: String(err), stack: (err as Error)?.stack } });
+  });
 
   // t/924: surface the free-tier key pool + effective RPM so rate-limit
   // behavior is observable from startup logs (not inferred from 429 timing).
