@@ -12,7 +12,7 @@ import {
   saveChatSession,
   deleteChatSession,
 } from '../chatIO.js';
-import { chatToMarkdown, chatToText, chatToPrintHtml, chatExportFilename, type ChatExportEntry, type ChatExportOptions } from '../../../../lib/chat/chatExportFormatters.js';
+import { chatToMarkdown, chatToText, chatToPrintHtml, chatToJson, chatExportFilename, type ChatExportEntry, type ChatExportOptions } from '../../../../lib/chat/chatExportFormatters.js';
 
 export function registerChatHandlers(): void {
   ipcMain.handle('list-chat-sessions', () => {
@@ -33,17 +33,18 @@ export function registerChatHandlers(): void {
 
   // Chat export (t/1485) — mirrors export-debate-to-file. Formatters live in lib/chat
   // (main-safe, like lib/debate); PDF is print-to-PDF via an offscreen window like debateToPdf.
-  ipcMain.handle('export-chat-to-file', async (event, entries: ChatExportEntry[], format: 'markdown' | 'text' | 'pdf', options: ChatExportOptions) => {
+  ipcMain.handle('export-chat-to-file', async (event, entries: ChatExportEntry[], format: 'markdown' | 'text' | 'pdf' | 'json', options: ChatExportOptions) => {
     const win = BrowserWindow.fromWebContents(event.sender);
     if (!win) return { cancelled: true };
 
     // Map requested format to a default extension and put it first in the filter list.
-    const formatExtMap: Record<string, string> = { markdown: 'md', text: 'txt', pdf: 'pdf' };
+    const formatExtMap: Record<string, string> = { markdown: 'md', text: 'txt', pdf: 'pdf', json: 'json' };
     const defaultExt = formatExtMap[format] || 'md';
     const allFilters = [
       { name: 'Markdown', extensions: ['md'] },
       { name: 'Plain Text', extensions: ['txt'] },
       { name: 'PDF', extensions: ['pdf'] },
+      { name: 'JSON', extensions: ['json'] },
     ];
     const selectedIdx = allFilters.findIndex(f => f.extensions[0] === defaultExt);
     const filters = selectedIdx > 0
@@ -80,6 +81,10 @@ export function registerChatHandlers(): void {
         } finally {
           pdfWindow.destroy();
         }
+        break;
+      }
+      case 'json': {
+        fs.writeFileSync(filePath, chatToJson(entries, options), 'utf-8');
         break;
       }
       case 'md':

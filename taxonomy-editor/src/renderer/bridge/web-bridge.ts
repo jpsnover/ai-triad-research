@@ -1100,7 +1100,7 @@ const rawApi: AppAPI = {
   saveChatSession: (session) => put('/api/chats', session).then(() => {}),
   deleteChatSession: (id) => del(`/api/chats/${encodeURIComponent(id)}`).then(() => {}),
   exportChatToFile: async (entries, format, options) => {
-    const { chatToMarkdown, chatToText, chatToPrintHtml, chatExportFilename } = await import('@lib/chat/chatExportFormatters');
+    const { chatToMarkdown, chatToText, chatToPrintHtml, chatToJson, chatExportFilename } = await import('@lib/chat/chatExportFormatters');
     const exportOpts = { title: options.title, mode: options.mode, pov: options.pov };
 
     switch (format) {
@@ -1129,6 +1129,17 @@ const rawApi: AppAPI = {
         const content = chatToText(entries, exportOpts);
         const filename = chatExportFilename(options.title, 'txt');
         const blob = new Blob([content], { type: 'text/plain' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = filename;
+        a.click();
+        URL.revokeObjectURL(a.href);
+        return { cancelled: false, filePath: filename };
+      }
+      case 'json': {
+        const content = chatToJson(entries, exportOpts);
+        const filename = chatExportFilename(options.title, 'json');
+        const blob = new Blob([content], { type: 'application/json' });
         const a = document.createElement('a');
         a.href = URL.createObjectURL(blob);
         a.download = filename;

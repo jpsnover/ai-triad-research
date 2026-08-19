@@ -316,7 +316,7 @@ export interface AppAPI {
   deleteChatSession: (id: string) => Promise<void>;
   exportChatToFile: (
     entries: { id: string; timestamp: string; speaker: string; content: string; taxonomy_refs: { node_id: string; label?: string; relevance: string }[] }[],
-    format: 'markdown' | 'text' | 'pdf',
+    format: 'markdown' | 'text' | 'pdf' | 'json',
     options: { title: string; mode: 'brainstorm' | 'inform' | 'decide'; pov: 'accelerationist' | 'safetyist' | 'skeptic' },
   ) => Promise<{ cancelled: boolean; filePath?: string }>;
 
