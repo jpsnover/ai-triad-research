@@ -380,23 +380,21 @@ jobs:
         run: |
           LABEL="ci-alert:contrast"
           TITLE="contrast-check RED on main — ceiling breach"
-          BODY="contrast-check failed on push to main.
-
-          Commit: ${COMMIT_SHA}
-          Run: ${RUN_URL}
-
-          DevOps + TL: fix before the next electron-path PR lands (it will block on this red gate)."
+          BODY_FILE=$(mktemp)
+          printf 'contrast-check failed on push to main.\n\nCommit: %s\nRun: %s\n\nDevOps + TL: fix before the next electron-path PR lands (it will block on this red gate).\n' \
+            "${COMMIT_SHA}" "${RUN_URL}" > "$BODY_FILE"
 
           gh label create "$LABEL" --color "B60205" --description "CI: contrast-check alert on main" 2>/dev/null || true
 
           EXISTING=$(gh issue list --state open --label "$LABEL" --json number --jq '.[0].number // empty')
           if [ -n "$EXISTING" ]; then
-            gh issue comment "$EXISTING" --body "$BODY"
+            gh issue comment "$EXISTING" --body-file "$BODY_FILE"
             echo "::error::contrast-check RED on main — appended to issue #${EXISTING}"
           else
-            gh issue create --title "$TITLE" --label "$LABEL" --body "$BODY"
-            echo "::error::contrast-check RED on main — new alert issue created"
+            ISSUE_URL=$(gh issue create --title "$TITLE" --label "$LABEL" --body-file "$BODY_FILE")
+            echo "::error::contrast-check RED on main — alert issue created: ${ISSUE_URL}"
           fi
+          rm -f "$BODY_FILE"
 
       - name: Auto-close contrast-alert issue on green main (t/2818)
         if: success() && github.event_name == 'push'

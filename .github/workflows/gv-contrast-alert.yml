@@ -27,31 +27,29 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          COMMIT_SHA: ${{ github.sha }}
         run: |
           LABEL="ci-alert:contrast"
           TITLE="contrast-check RED on main — ceiling breach"
-          BODY="[GV TEST] contrast-check failure simulation.
-
-          Run: ${RUN_URL}"
+          BODY_FILE=$(mktemp)
+          printf '[GV TEST] contrast-check failure simulation.\n\nRun: %s\n' "${RUN_URL}" > "$BODY_FILE"
 
           gh label create "$LABEL" --color "B60205" --description "CI: contrast-check alert on main" 2>/dev/null || true
 
           EXISTING=$(gh issue list --state open --label "$LABEL" --json number --jq '.[0].number // empty')
           if [ -n "$EXISTING" ]; then
-            gh issue comment "$EXISTING" --body "$BODY"
+            gh issue comment "$EXISTING" --body-file "$BODY_FILE"
             echo "::error::GV: appended to existing issue #${EXISTING}"
           else
-            NUMBER=$(gh issue create --title "$TITLE" --label "$LABEL" --body "$BODY" --json number --jq '.number')
-            echo "::error::GV: new alert issue #${NUMBER} created"
+            ISSUE_URL=$(gh issue create --title "$TITLE" --label "$LABEL" --body-file "$BODY_FILE")
+            echo "::error::GV: new alert issue created: ${ISSUE_URL}"
           fi
+          rm -f "$BODY_FILE"
 
       - name: Auto-close on green (GV)
         if: success()
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
-          COMMIT_SHA: ${{ github.sha }}
         run: |
           LABEL="ci-alert:contrast"
           EXISTING=$(gh issue list --state open --label "$LABEL" --json number --jq '.[0].number // empty')
