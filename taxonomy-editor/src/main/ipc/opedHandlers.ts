@@ -263,13 +263,13 @@ export function registerOpEdHandlers(): void {
             break;
           }
           case 'voice_failed': {
-            const failed: OpEdMember = { pov: evt.pov, status: 'failed', headline: '', subtitle: '', body: '', wordCount: 0, grounding: [] };
+            const failed: OpEdMember = { pov: evt.pov, status: 'failed', headline: '', subtitle: '', body: '', wordCount: 0, grounding: [], byline: '', disclosure: '', rhetorical_meta: '' };
             completedMembers.push(failed);
             send({ set_id: setId, voice: evt.pov, stage: 'failed', error: evt.error });
             break;
           }
           case 'voice_cancelled': {
-            const cancelled: OpEdMember = { pov: evt.pov, status: 'cancelled', headline: '', subtitle: '', body: '', wordCount: 0, grounding: [] };
+            const cancelled: OpEdMember = { pov: evt.pov, status: 'cancelled', headline: '', subtitle: '', body: '', wordCount: 0, grounding: [], byline: '', disclosure: '', rhetorical_meta: '' };
             completedMembers.push(cancelled);
             send({ set_id: setId, voice: evt.pov, stage: 'cancelled' });
             break;
