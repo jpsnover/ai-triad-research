@@ -227,6 +227,15 @@ describe('Brief Export routes (t/2804)', () => {
     expect(res._headers?.['Content-Disposition']).toMatch(/attachment/);
   });
 
+  it('GET artifact: brief.html ⇒ text/html content-type (t/2838)', async () => {
+    loadBriefArtifact.mockResolvedValue({ text: '<!DOCTYPE html><html></html>' });
+    const res = fakeRes();
+    await handlers['GET /api/exports/:exportId/artifacts/:name'](fakeReq(`/api/exports/e1/artifacts/${BRIEF_ARTIFACTS.htmlDoc}`), res, undefined);
+    expect(res._status).toBe(200);
+    expect(res._headers?.['Content-Type']).toMatch(/text\/html/);
+    expect(res._body).toBe('<!DOCTYPE html><html></html>');
+  });
+
   it('GET artifact: json ⇒ text/json body, 404 when absent', async () => {
     loadBriefArtifact.mockResolvedValue({ text: '{"a":1}' });
     const res = fakeRes();
