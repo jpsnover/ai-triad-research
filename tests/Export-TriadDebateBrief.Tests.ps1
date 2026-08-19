@@ -28,8 +28,12 @@ BeforeAll {
     $script:StubDir = Join-Path ([System.IO.Path]::GetTempPath()) "brief-stub-$(New-Guid)"
     New-Item -ItemType Directory -Path $script:StubDir -Force | Out-Null
 
+    # ok stub: records the exact CLI flags it received (so tests can assert flag
+    # pass-through) then emits a TriadDeckExport JSON line + a WARN: line.
+    $script:ArgsFile = Join-Path $script:StubDir 'last-args.txt'
     $script:OkStub = Join-Path $script:StubDir 'ok.ps1'
     Set-Content -LiteralPath $script:OkStub -Encoding UTF8 -Value @'
+$args -join "`n" | Set-Content -LiteralPath (Join-Path $PSScriptRoot 'last-args.txt') -Encoding UTF8
 [Console]::Error.WriteLine("WARN: symmetry tolerance 12% (soft)")
 $deck = @{
     debateId = "deb-123"; title = "Should we pause?"; preset = "policymaker"
@@ -104,25 +108,47 @@ Describe 'Export-TriadDebateBrief' -Tag 'debate' {
     }
 
     Context 'Local mode — happy path' {
-        It 'returns a [TriadDeckExport] parsed from CLI stdout and streams WARN: lines' {
+        BeforeEach {
             Mock -ModuleName AITriad Resolve-BriefExportCli {
                 @{ Exe = $script:PwshExe; ArgPrefix = @('-NoProfile', '-File', $script:OkStub) }
             }
+        }
+
+        It 'returns a [TriadDeckExport] parsed from CLI stdout, streams WARN:, passes --out as a directory' {
             $f = New-DebateFile
-            $out = Join-Path $script:StubDir 'out.pptx'
+            $out = Join-Path $script:StubDir 'out-happy'
             $warn = $null
-            $res = Export-TriadDebateBrief -Path $f -Model gemini-3.5-flash-lite -OutputPath $out -PassThru -WarningVariable warn -WarningAction SilentlyContinue
+            $res = Export-TriadDebateBrief -Path $f -Model gemini-3.5-flash-lite -OutputDirectory $out -PassThru -WarningVariable warn -WarningAction SilentlyContinue
             $res | Should -BeOfType ([TriadDeckExport])
             $res.DebateId | Should -Be 'deb-123'
             $res.TraceCoveragePct | Should -Be 100
             $res.Verdicts['Supported'] | Should -Be 3
             @($warn) -join ';' | Should -Match 'symmetry tolerance'
+
+            $sent = Get-Content -Raw -LiteralPath $script:ArgsFile
+            $sent | Should -Match '--out'
+            $sent | Should -Match ([regex]::Escape($out))
+            $sent | Should -Not -Match '--allow-open'
+        }
+
+        It 'passes --allow-open only when -AllowOpenDebate is set' {
+            $f = New-DebateFile
+            Export-TriadDebateBrief -Path $f -Model m -OutputDirectory (Join-Path $script:StubDir 'out-open') -AllowOpenDebate -WarningAction SilentlyContinue | Out-Null
+            (Get-Content -Raw -LiteralPath $script:ArgsFile) | Should -Match '--allow-open'
+        }
+
+        It 'passes --skip-narration (and no --model) under -SkipNarration' {
+            $f = New-DebateFile
+            Export-TriadDebateBrief -Path $f -SkipNarration -OutputDirectory (Join-Path $script:StubDir 'out-skip') -WarningAction SilentlyContinue | Out-Null
+            $sent = Get-Content -Raw -LiteralPath $script:ArgsFile
+            $sent | Should -Match '--skip-narration'
+            $sent | Should -Not -Match '--model'
         }
 
         It 'does not invoke the CLI under -WhatIf' {
             Mock -ModuleName AITriad Resolve-BriefExportCli { throw 'must not run under -WhatIf' }
             $f = New-DebateFile
-            { Export-TriadDebateBrief -Path $f -Model m -OutputPath (Join-Path $script:StubDir 'wi.pptx') -WhatIf } | Should -Not -Throw
+            { Export-TriadDebateBrief -Path $f -Model m -OutputDirectory (Join-Path $script:StubDir 'wi') -WhatIf } | Should -Not -Throw
             Should -Invoke -ModuleName AITriad Resolve-BriefExportCli -Times 0
         }
     }
@@ -134,7 +160,7 @@ Describe 'Export-TriadDebateBrief' -Tag 'debate' {
             }
             $f = New-DebateFile
             $err = $null
-            Export-TriadDebateBrief -Path $f -Model m -OutputPath (Join-Path $script:StubDir 'f.pptx') -ErrorVariable err -ErrorAction SilentlyContinue -WarningAction SilentlyContinue
+            Export-TriadDebateBrief -Path $f -Model m -OutputDirectory (Join-Path $script:StubDir 'out-fail') -ErrorVariable err -ErrorAction SilentlyContinue -WarningAction SilentlyContinue
             $err[0].FullyQualifiedErrorId | Should -Match 'TraceGateFailure'
         }
     }

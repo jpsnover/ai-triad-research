@@ -8,12 +8,17 @@ function Resolve-BriefExportCli {
     .DESCRIPTION
         Returns @{ Exe = <string>; ArgPrefix = <string[]> } so the caller invokes:
             & $inv.Exe @($inv.ArgPrefix + $flagArgs)
-        This isolates the tsx-vs-compiled-bin entrypoint decision (owned by lib/brief,
-        pending TL freeze on t/2837) from Export-TriadDebateBrief, which only knows the
-        frozen flag interface (--path/--model/--preset/--skip-narration/--out).
+        This isolates the tsx-vs-compiled-bin entrypoint decision (owned by lib/brief)
+        from Export-TriadDebateBrief, which only knows the flag interface
+        (--path/--model/--preset/--out + optional --skip-narration/--checker-model/--allow-open).
 
-        Until the CLI lands and its entrypoint is frozen, this throws an actionable error
-        rather than guessing a path. Tests mock this function.
+        The CLI (lib/brief/cli.ts) is a TypeScript module; lib/brief's tsconfig is noEmit,
+        so there is no committed cli.js. The repo's convention for running lib/*.ts without
+        a build is `tsx` (a root devDependency, used by the parity tests). We therefore run
+        the source via `npx tsx lib/brief/cli.ts`. (PROVISIONAL — confirming the canonical
+        invocation with Shared Lib on p/470 before un-drafting; if they prefer the
+        build:server output `dist/server/lib/brief/cli.js` or a dedicated npm script, only
+        this function changes.) Tests mock this function.
     #>
     [CmdletBinding()]
     [OutputType([hashtable])]
@@ -21,15 +26,20 @@ function Resolve-BriefExportCli {
 
     Set-StrictMode -Version Latest
 
-    # The entrypoint (tsx vs compiled bin) and its on-disk location are still being
-    # frozen by the Tech Lead on t/2837; Shared Lib will hand over the exact invocation.
-    # Deliberately not guessed here — resolve once, in one place, when it lands.
-    throw (New-ActionableError `
-            -Goal     'Run the offline brief-export pipeline (local mode)' `
-            -Problem  'The shared lib/brief full-pipeline CLI (t/2837) has not landed yet, so local-mode export cannot run. Its entrypoint is being frozen by the Tech Lead.' `
-            -Location 'Resolve-BriefExportCli' `
-            -NextSteps @(
-                'Track t/2837 (Shared Lib brief full-pipeline CLI) — local mode activates when it lands',
-                'Once frozen, wire the invocation here: @{ Exe = ''node''|''npx''; ArgPrefix = @(...) }'
-            ))
+    # Repo root = two levels up from the module (scripts/AITriad → repo root).
+    $repoRoot = [System.IO.Path]::GetFullPath((Join-Path $script:ModuleRoot '..' '..'))
+    $cliPath = Join-Path $repoRoot 'lib' 'brief' 'cli.ts'
+
+    if (-not (Test-Path -LiteralPath $cliPath -PathType Leaf)) {
+        throw (New-ActionableError `
+                -Goal     'Run the offline brief-export pipeline (local mode)' `
+                -Problem  "The brief full-pipeline CLI was not found at '$cliPath'. Local-mode export needs the lib/brief sources in the repo checkout." `
+                -Location 'Resolve-BriefExportCli' `
+                -NextSteps @(
+                    'Run from a full repo checkout (where lib/brief lives)',
+                    'Install dependencies (npm ci) — the pipeline needs tsx AND its runtime packages'
+                ))
+    }
+
+    return @{ Exe = 'npx'; ArgPrefix = @('--yes', 'tsx', $cliPath) }
 }
