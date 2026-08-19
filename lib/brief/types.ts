@@ -218,5 +218,7 @@ export const BRIEF_ARTIFACTS = {
   narration: 'narration.json',
   manifest: 'audit-manifest.json',
   pptx: 'brief.pptx',
+  /** Self-contained HTML for Electron printToPDF (t/2838, T7-v2). */
+  htmlDoc: 'brief.html',
 } as const;
 export type BriefArtifactName = typeof BRIEF_ARTIFACTS[keyof typeof BRIEF_ARTIFACTS];
