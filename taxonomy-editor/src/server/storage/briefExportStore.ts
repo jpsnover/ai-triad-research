@@ -16,7 +16,7 @@ import { resolveDataPath } from '../config.js';
 import { ActionableError } from '../../../../lib/debate/errors.js';
 import { log } from '../logger.js';
 import { getStorageUserId, isAnonymousUser } from '../security/userContext.js';
-import { getUserContentBackend, assertSafeId } from './fileIO.js';
+import { getBriefExportBackend, assertSafeId } from './fileIO.js';
 import { checkQuota, type QuotaCheckResult } from '../security/quotas.js';
 import { BRIEF_ARTIFACTS, type BriefArtifactName, type BriefPreset, type ModelSource, type ExportErrorCode } from '../../../../lib/brief/types.js';
 
@@ -60,12 +60,12 @@ const INDEX_FILE = '_index.json';
 // ── Index helpers ──
 
 async function readIndex(): Promise<BriefExportRecord[]> {
-  const raw = await getUserContentBackend().readFile(path.join(getExportsDir(), INDEX_FILE));
+  const raw = await getBriefExportBackend().readFile(path.join(getExportsDir(), INDEX_FILE));
   if (raw === null) return [];
   try { return JSON.parse(raw) as BriefExportRecord[]; } catch { /* telemetry — silent by design */ return []; }
 }
 async function writeIndex(entries: BriefExportRecord[]): Promise<void> {
-  await getUserContentBackend().writeFile(path.join(getExportsDir(), INDEX_FILE), JSON.stringify(entries, null, 2));
+  await getBriefExportBackend().writeFile(path.join(getExportsDir(), INDEX_FILE), JSON.stringify(entries, null, 2));
 }
 async function upsertIndex(rec: BriefExportRecord): Promise<void> {
   const entries = await readIndex();
@@ -95,7 +95,7 @@ export async function saveBriefExport(rec: BriefExportRecord, artifacts: Artifac
       nextSteps: ['Sign in to export debate briefs'],
     });
   }
-  const backend = getUserContentBackend();
+  const backend = getBriefExportBackend();
   const dir = getExportDir(rec.exportId);
   for (const a of artifacts) {
     const p = path.join(dir, a.name);
@@ -127,7 +127,7 @@ export async function listBriefExports(debateId?: string): Promise<BriefExportRe
 export async function loadBriefExportRecord(exportId: string): Promise<BriefExportRecord | null> {
   assertSafeId(exportId, 'export id');
   if (isAnonymousUser()) return null;
-  const raw = await getUserContentBackend().readFile(path.join(getExportDir(exportId), 'record.json'));
+  const raw = await getBriefExportBackend().readFile(path.join(getExportDir(exportId), 'record.json'));
   if (raw === null) return null;
   try { return JSON.parse(raw) as BriefExportRecord; } catch { /* telemetry — silent by design */ return null; }
 }
@@ -137,7 +137,7 @@ export async function loadBriefExportRecord(exportId: string): Promise<BriefExpo
 export async function loadBriefArtifact(exportId: string, name: BriefArtifactName): Promise<{ bytes: Buffer } | { text: string } | null> {
   assertSafeId(exportId, 'export id');
   if (isAnonymousUser()) return null;
-  const backend = getUserContentBackend();
+  const backend = getBriefExportBackend();
   const p = path.join(getExportDir(exportId), name);
   if (name === BRIEF_ARTIFACTS.pptx) {
     const bytes = await backend.readBinaryFile(p);
@@ -152,7 +152,7 @@ export async function loadBriefArtifact(exportId: string, name: BriefArtifactNam
 export async function deleteBriefExport(exportId: string): Promise<void> {
   assertSafeId(exportId, 'export id');
   if (isAnonymousUser()) return;
-  const backend = getUserContentBackend();
+  const backend = getBriefExportBackend();
   const dir = getExportDir(exportId);
   const names: string[] = [...Object.values(BRIEF_ARTIFACTS), 'record.json'];
   await Promise.all(names.map(n => backend.deleteFile(path.join(dir, n)).catch(() => { /* best-effort — file may be absent */ })));

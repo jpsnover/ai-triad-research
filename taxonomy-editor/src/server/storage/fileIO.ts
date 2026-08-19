@@ -44,6 +44,7 @@ export { listOpedSets, loadOpedSet, saveOpedSetInProgress, loadOpedSetInProgress
 // while `backend` stays on GitHubAPIBackend.
 let backend: StorageBackend = new FilesystemBackend();
 let userContentBackend: StorageBackend | null = null;
+let briefExportBackend: StorageBackend | null = null;
 
 // Parsed-entities cache — memoizes entities.json so repeated public getEntity
 // (t/1786) hits, an UNAUTHENTICATED read tier, never re-parse the file per request
@@ -74,6 +75,10 @@ export function setTaxonomyBackend(b: StorageBackend): void { backend = b; entit
 export function setUserContentBackend(b: StorageBackend): void { userContentBackend = b; }
 /** User-content backend; falls back to the taxonomy backend when unset. */
 export function getUserContentBackend(): StorageBackend { return userContentBackend ?? backend; }
+/** Set the backend for brief-export artifacts (t/2850 — dedicated container for lifecycle rule). */
+export function setBriefExportBackend(b: StorageBackend): void { briefExportBackend = b; }
+/** Brief-export backend; falls back to user-content backend when unset. */
+export function getBriefExportBackend(): StorageBackend { return briefExportBackend ?? getUserContentBackend(); }
 
 // ── Path safety ──
 
