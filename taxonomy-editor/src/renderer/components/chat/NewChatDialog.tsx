@@ -18,6 +18,8 @@ import './NewChatDialog.css';
 
 interface NewChatDialogProps {
   onClose: () => void;
+  /** Called with the new chat ID instead of opening a popout window. */
+  onCreated?: (id: string) => void;
 }
 const MODES: ChatMode[] = ['brainstorm', 'inform', 'decide'];
 
@@ -27,7 +29,7 @@ const MODE_ICONS: Record<ChatMode, string> = {
   decide: '\u2696\uFE0F',  // scales
 };
 
-export function NewChatDialog({ onClose }: NewChatDialogProps) {
+export function NewChatDialog({ onClose, onCreated }: NewChatDialogProps) {
   const { createChat } = useChatStore();
   const [mode, setMode] = useState<ChatMode>('brainstorm');
   const [pover, setPover] = useState<Exclude<SpeakerId, 'user'>>('accelerationist');
@@ -68,7 +70,11 @@ export function NewChatDialog({ onClose }: NewChatDialogProps) {
     setCreating(true);
     const chatModelOverride = useCustomModel && customModel !== globalModel ? customModel : undefined;
     const id = await createChat(mode, pover, topic.trim(), chatModelOverride);
-    void api.openChatWindow(id, 'my');
+    if (onCreated) {
+      onCreated(id);
+    } else {
+      void api.openChatWindow(id, 'my');
+    }
     onClose();
   };
 
