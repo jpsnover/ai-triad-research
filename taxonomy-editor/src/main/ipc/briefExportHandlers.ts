@@ -46,6 +46,8 @@ interface BriefExportRequestBody {
   checkerModel?: string;
   framingMeta?: boolean;
   options?: { skipNarration?: boolean };
+  /** Desktop-only: raw .potx bytes passed inline from the renderer (t/2853). */
+  template?: Uint8Array;
 }
 
 interface BriefRecord {
@@ -205,6 +207,7 @@ async function runJob(job: BriefJob, body: BriefExportRequestBody): Promise<void
         checkerModelId: body.checkerModel || undefined,
         checkerModelSource: body.checkerModel ? ('Explicit' as ModelSource) : undefined,
         framingMeta: body.framingMeta === false ? false : undefined,
+        template: body.template,
         // No allowOpen on desktop v1 — parity is closed-debate export (the GUI gates to closed).
         toolVersions: TOOL_VERSIONS,
         timestamp: new Date().toISOString(),

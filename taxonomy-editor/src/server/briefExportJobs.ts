@@ -17,6 +17,7 @@ import type { BriefPreset, ModelSource, ExportJobState, ExportErrorCode } from '
 import { BRIEF_ARTIFACTS } from '../../../lib/brief/types.js';
 import type { AIAdapter } from '../../../lib/debate/aiAdapter.js';
 import { saveBriefExport, type BriefExportRecord, type ArtifactBlob } from './storage/briefExportStore.js';
+import { loadTemplateBytes } from './storage/templateStore.js';
 
 export const MAX_CONCURRENT_EXPORT_JOBS = 1;      // per user — export is billable + heavy
 export const EXPORT_JOB_TTL_MS = 10 * 60_000;     // 10 min (mirrors oped; also the idempotency window)
@@ -30,6 +31,8 @@ export interface ExportJobRequest {
   preset: BriefPreset;
   skipNarration: boolean;
   template?: Uint8Array;
+  /** Server-stored template to use; resolved to bytes before the pipeline runs (t/2853). */
+  templateId?: string;
   /** When false, removes the framing_meta slide from classroom exports (t/2838). */
   framingMeta?: boolean;
   /** When true, export a non-closed (in-progress) debate as a watermarked snapshot
@@ -148,6 +151,14 @@ async function runExportJob(job: ExportJob, args: CreateJobArgs): Promise<void> 
   let title = args.debateId;   // fallback until extract yields the real deck title
   let stage: ExportJobState = 'extracting';
   try {
+    // Resolve templateId → bytes if provided (t/2853). Inline bytes (request.template) take
+    // precedence; templateId is the server-storage path (web build).
+    let resolvedTemplate = request.template;
+    if (!resolvedTemplate && request.templateId) {
+      const buf = await loadTemplateBytes(request.templateId);
+      if (buf) resolvedTemplate = new Uint8Array(buf);
+    }
+
     // ── run the shared 4-stage pipeline (t/2858 — retires the inlined copy). onStage drives
     //    job state + the local `stage` (so a throw still maps via codeForThrow); onArtifact
     //    captures each artifact the moment it's produced, so a later-stage throw still
@@ -162,7 +173,7 @@ async function runExportJob(job: ExportJob, args: CreateJobArgs): Promise<void> 
         modelSource: models.modelSource,
         checkerModelId: models.checkerModelId,
         checkerModelSource: models.checkerModelSource,
-        template: request.template,
+        template: resolvedTemplate,
         framingMeta: request.framingMeta,
         allowOpen: request.allowOpen,
         toolVersions: args.toolVersions,

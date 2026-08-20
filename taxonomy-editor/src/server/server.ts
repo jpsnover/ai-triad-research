@@ -405,7 +405,7 @@ function matchRoute(method: string, pathname: string): { handler: Handler; route
   return null;
 }
 
-type RawBodyReq = http.IncomingMessage & { __rawBody?: string };
+type RawBodyReq = http.IncomingMessage & { __rawBody?: string; __rawBodyBuffer?: Buffer };
 
 const MAX_BODY_BYTES = 50 * 1024 * 1024; // 50 MB — debate sessions can reach 10+ MB at 14 rounds
 
@@ -419,10 +419,13 @@ async function readBody(req: http.IncomingMessage): Promise<unknown> {
     if (totalBytes > MAX_BODY_BYTES) throw Object.assign(new Error('Request body too large'), { statusCode: 413 });
     chunks.push(chunk as Buffer);
   }
-  const raw = Buffer.concat(chunks).toString('utf-8');
+  const rawBuffer = Buffer.concat(chunks);
+  const raw = rawBuffer.toString('utf-8');
   // Stash raw bytes so HMAC-verified endpoints (webhook) can recompute the
   // signature. Parse-then-stringify would change whitespace and break it.
   (req as RawBodyReq).__rawBody = raw;
+  // Binary-safe buffer for handlers that need unmodified bytes (e.g. template upload).
+  (req as RawBodyReq).__rawBodyBuffer = rawBuffer;
   if (!raw) return {};
   try { return JSON.parse(raw); }
   catch (err) {

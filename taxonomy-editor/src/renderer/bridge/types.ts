@@ -117,6 +117,16 @@ export interface BriefExportRequest {
   /** When false, suppresses the framing_meta slide (classroom preset only). Default true server-side. */
   framingMeta?: boolean;
   options?: { skipNarration?: boolean };
+  /** Server-stored template id (web path — t/2853). Server resolves bytes before pipeline runs. */
+  templateId?: string;
+}
+
+/** A user-uploaded .potx template stored server-side (t/2853). */
+export interface BriefTemplateRecord {
+  templateId: string;
+  name: string;
+  size: number;
+  createdAt: string;
 }
 export interface BriefExportJobView {
   status: ExportJobState;
@@ -338,6 +348,10 @@ export interface AppAPI {
   deleteBriefExport: (exportId: string) => Promise<void>;
   /** Print brief.html to PDF. Electron: shows save dialog + uses printToPDF. Web: opens in new window for browser print. */
   printBriefToPdf: (html: string) => Promise<{ cancelled: boolean; filePath?: string }>;
+  // --- Brief Templates (t/2853) — upload/list/delete stored .potx templates (web); desktop returns stubs ---
+  uploadBriefTemplate: (file: File) => Promise<BriefTemplateRecord>;
+  listBriefTemplates: () => Promise<BriefTemplateRecord[]>;
+  deleteBriefTemplate: (templateId: string) => Promise<void>;
 
   // --- Op-Ed Studio (t/2576; personal library — submit/copy route via community store) ---
   listOpEdSets: () => Promise<OpEdSetSummary[]>;

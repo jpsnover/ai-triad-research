@@ -13,12 +13,12 @@
 // and the error taxonomy (shown as the verbatim gate message on failure).
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { api } from '@bridge';
+import { api, isElectronMode } from '@bridge';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { AI_BACKENDS, MODELS_BY_BACKEND } from '../../hooks/useTaxonomyStore';
 import { useTaxonomyStore } from '../../hooks/useTaxonomyStore';
 import { BRIEF_ARTIFACTS, type BriefPreset, type BriefArtifactName } from '../../../../../lib/brief/types';
-import type { BriefExportJobView, BriefExportRecord } from '../../bridge/types';
+import type { BriefExportJobView, BriefExportRecord, BriefTemplateRecord } from '../../bridge/types';
 import './BriefExportDialog.css';
 
 const PRESETS: { value: BriefPreset; label: string; hint: string }[] = [
@@ -73,6 +73,14 @@ export function BriefExportDialog({ debateId, debateTitle, debatePhase, onClose,
   const [pdfSaving, setPdfSaving] = useState(false);
   const [pdfError, setPdfError] = useState<string | null>(null);
 
+  // Template (t/2853): on web, upload → templateId; on desktop, read bytes inline.
+  const [templateFile, setTemplateFile] = useState<File | null>(null);
+  const [storedTemplates, setStoredTemplates] = useState<BriefTemplateRecord[]>([]);
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string>('');
+  const [templateUploading, setTemplateUploading] = useState(false);
+  const [templateError, setTemplateError] = useState<string | null>(null);
+  const isElectron = isElectronMode();
+
   const [phase, setPhase] = useState<Phase>('form');
   const [job, setJob] = useState<BriefExportJobView | null>(null);
   const [record, setRecord] = useState<BriefExportRecord | null>(null);
@@ -81,6 +89,35 @@ export function BriefExportDialog({ debateId, debateTitle, debatePhase, onClose,
 
   const stopPoll = useCallback(() => { if (pollRef.current) { clearTimeout(pollRef.current); pollRef.current = null; } }, []);
   useEffect(() => stopPoll, [stopPoll]);
+
+  // Load stored templates on web (t/2853).
+  useEffect(() => {
+    if (isElectron) return;
+    api.listBriefTemplates().then(setStoredTemplates).catch(() => { /* silent — templates are optional */ });
+  }, [isElectron]);
+
+  const handleTemplateFileChange = useCallback(async (file: File | null) => {
+    setTemplateFile(file);
+    setTemplateError(null);
+    if (!file || isElectron) return;
+    // Web: upload immediately so the user gets feedback before submitting.
+    setTemplateUploading(true);
+    try {
+      const rec = await api.uploadBriefTemplate(file);
+      setStoredTemplates(prev => [...prev.filter(t => t.templateId !== rec.templateId), rec]);
+      setSelectedTemplateId(rec.templateId);
+    } catch (err) {
+      setTemplateError(err instanceof Error ? err.message : 'Template upload failed');
+    } finally {
+      setTemplateUploading(false);
+    }
+  }, [isElectron]);
+
+  const deleteStoredTemplate = useCallback(async (templateId: string) => {
+    await api.deleteBriefTemplate(templateId).catch(() => { /* best-effort */ });
+    setStoredTemplates(prev => prev.filter(t => t.templateId !== templateId));
+    if (selectedTemplateId === templateId) setSelectedTemplateId('');
+  }, [selectedTemplateId]);
 
   const finishFromRecord = useCallback(async (exportId: string) => {
     // Terminal: pull the durable record (source of truth once the in-memory job expires).
@@ -123,6 +160,19 @@ export function BriefExportDialog({ debateId, debateTitle, debatePhase, onClose,
   const submit = useCallback(async () => {
     setError(null); setJob(null); setRecord(null); setPhase('running');
     try {
+      // Build template fields: web uses templateId; desktop passes bytes inline via IPC.
+      let templateId: string | undefined;
+      let templateBytes: Uint8Array | undefined;
+      if (templateFile) {
+        if (isElectron) {
+          templateBytes = new Uint8Array(await templateFile.arrayBuffer());
+        } else {
+          templateId = selectedTemplateId || undefined;
+        }
+      } else if (!isElectron && selectedTemplateId) {
+        templateId = selectedTemplateId;
+      }
+
       const body = {
         preset,
         model: modelChoice === CURRENT ? (geminiModel || undefined) : modelChoice,
@@ -130,15 +180,18 @@ export function BriefExportDialog({ debateId, debateTitle, debatePhase, onClose,
         ...(makerChecker && checkerModel ? { checkerModel } : {}),
         ...(preset === 'classroom' && !framingMeta ? { framingMeta: false } : {}),
         options: { skipNarration },
+        ...(templateId ? { templateId } : {}),
+        // Desktop only: bytes survive IPC structured-clone; never included in web JSON body.
+        ...(templateBytes ? { template: templateBytes } : {}),
       };
-      const { jobId } = await api.createBriefExport(debateId, body);
+      const { jobId } = await api.createBriefExport(debateId, body as Parameters<typeof api.createBriefExport>[1]);
       pollRef.current = setTimeout(() => void poll(jobId), POLL_MS);
     } catch (err) {
       getGlobalRecorder()?.record({ type: 'system.error', component: 'brief-export-ui', level: 'error', message: 'Failed to start brief export', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
       setError(err instanceof Error ? err.message : String(err));
       setPhase('failed');
     }
-  }, [preset, modelChoice, geminiModel, makerChecker, checkerModel, skipNarration, framingMeta, debateId, poll]);
+  }, [preset, modelChoice, geminiModel, makerChecker, checkerModel, skipNarration, framingMeta, debateId, poll, templateFile, selectedTemplateId, isElectron]);
 
   const savePdf = useCallback(async () => {
     if (!record) return;
@@ -240,6 +293,54 @@ export function BriefExportDialog({ debateId, debateTitle, debatePhase, onClose,
                 Include framing &amp; meta slide
               </label>
             )}
+
+            <fieldset className="bx-fieldset">
+              <legend>Slide template (.potx)</legend>
+              <div className="bx-field">
+                <label htmlFor="bx-template-file" className="bx-template-label">
+                  {templateFile ? templateFile.name : 'No file chosen'}
+                  {templateUploading && <span className="bx-hint"> Uploading…</span>}
+                </label>
+                <input
+                  id="bx-template-file"
+                  type="file"
+                  accept=".potx"
+                  className="bx-file-input"
+                  disabled={!isClosed || templateUploading}
+                  onChange={e => void handleTemplateFileChange(e.target.files?.[0] ?? null)}
+                />
+                <button
+                  type="button"
+                  className="bx-btn-ghost bx-btn-sm"
+                  disabled={!templateFile || templateUploading}
+                  onClick={() => { setTemplateFile(null); setSelectedTemplateId(''); setTemplateError(null); }}
+                >
+                  Clear
+                </button>
+              </div>
+              {templateError && <div className="bx-error bx-template-error" role="alert">{templateError}</div>}
+              {!isElectron && storedTemplates.length > 0 && (
+                <div className="bx-field bx-stored-templates">
+                  <label htmlFor="bx-template-select">Or select a stored template</label>
+                  <select
+                    id="bx-template-select"
+                    value={selectedTemplateId}
+                    onChange={e => { setSelectedTemplateId(e.target.value); setTemplateFile(null); }}
+                    disabled={!isClosed}
+                  >
+                    <option value="">— None —</option>
+                    {storedTemplates.map(t => (
+                      <option key={t.templateId} value={t.templateId}>{t.name}</option>
+                    ))}
+                  </select>
+                  {selectedTemplateId && (
+                    <button type="button" className="bx-btn-ghost bx-btn-sm" onClick={() => void deleteStoredTemplate(selectedTemplateId)}>
+                      Delete
+                    </button>
+                  )}
+                </div>
+              )}
+            </fieldset>
 
             <p className="bx-formats">Produces: <strong>PPTX</strong> + deck spec, narration &amp; audit manifest (JSON). PDF available after export.</p>
 

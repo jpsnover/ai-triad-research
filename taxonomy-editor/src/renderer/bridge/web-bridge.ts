@@ -1038,6 +1038,20 @@ const rawApi: AppAPI = {
     win.document.open(); win.document.write(html); win.document.close(); win.focus(); win.print(); return { cancelled: false };
   },
 
+  // Brief Templates (t/2853) — upload/list/delete stored .potx templates.
+  uploadBriefTemplate: async (file) => {
+    const bytes = await file.arrayBuffer();
+    const res = await fetchWithSessionRecovery('/api/templates', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/octet-stream', 'x-filename': file.name },
+      body: bytes,
+    }, { timeoutMs: 30_000, maxRetries: 1, critical: true, category: 'mutation' as EndpointCategory });
+    if (!res.ok) { const msg = await res.text().catch(() => String(res.status)); throw new Error(`Template upload failed: ${msg}`); }
+    return res.json();
+  },
+  listBriefTemplates: () => get('/api/templates'),
+  deleteBriefTemplate: (templateId) => del(`/api/templates/${encodeURIComponent(templateId)}`).then(() => {}),
+
   // Op-Ed Studio (t/2576) — real routes against t/2573's server API (on main). The
   // personal-library path is /api/oped-sets (t/2599 live-smoke found the bridge had
   // assumed /api/opeds). Rename persists topic-only via PUT /api/oped-sets/:id (t/2594).
