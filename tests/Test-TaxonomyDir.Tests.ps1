@@ -46,21 +46,25 @@ Describe 'Test-TaxonomyDir' -Tag 'taxonomy' {
         finally { Remove-Item -Path $Dir -Recurse -Force -ErrorAction SilentlyContinue }
     }
 
-    It 'Flags entity_extraction_log.json (nodes keyed node_id, not id) as a problem — t/2875' {
+    It 'Flags a stray node_id-keyed file (not in SKIP_FILES) as a problem — t/2875 Arm 2' {
+        # entity_extraction_log.json itself is name-skipped via SKIP_FILES (Arm 1, asserted
+        # in the Skip test below). Here we exercise the durable *shape* guard (Arm 2) with a
+        # differently-named stray file: a top-level nodes[] whose entries are keyed 'node_id'.
+        # Not in SKIP_FILES, not 'embeddings-*' → the loader would ingest it and crash on
+        # node["id"], so Test-TaxonomyDir must flag it. (t/2878: the fixture originally used
+        # entity_extraction_log.json, which the runtime SKIP_FILES parse now skips — the flag
+        # path has to be tested with a non-skipped name.)
         $Dir = New-TaxTempDir
         try {
             Set-Content -Path (Join-Path $Dir 'accelerationist.json') -Value '{"nodes":[{"id":"acc-beliefs-001"}]}'
-            # The exact incident shape: a top-level nodes[] whose entries are keyed
-            # 'node_id'. Not in SKIP_FILES, not 'embeddings-*' → the loader ingests
-            # it and crashes on node["id"].
-            Set-Content -Path (Join-Path $Dir 'entity_extraction_log.json') `
+            Set-Content -Path (Join-Path $Dir 'stray_extraction_log.json') `
                 -Value '{"node_count":1,"nodes":[{"node_id":"acc-beliefs-003","model":"claude-sonnet-4-6"}]}'
 
             $result = Test-TaxonomyDir -Path $Dir -PassThru 6>$null
             $result.Ok       | Should -BeFalse
             $result.Problems | Should -Be 1
 
-            $bad = @($result.Details | Where-Object { $_.File -eq 'entity_extraction_log.json' })
+            $bad = @($result.Details | Where-Object { $_.File -eq 'stray_extraction_log.json' })
             $bad.Count       | Should -Be 1
             $bad[0].Severity | Should -Be 'Error'
             $bad[0].Reason   | Should -Match "lack an 'id'"
@@ -79,15 +83,20 @@ Describe 'Test-TaxonomyDir' -Tag 'taxonomy' {
             # embeddings-* index artifact: 'nodes' is a dict keyed by ID. Must be
             # skipped by the prefix rule, never validated as POV data.
             Set-Content -Path (Join-Path $Dir 'embeddings-orgstance-6733.json') -Value '{"nodes":{"acc-1":[0.1,0.2]}}'
+            # entity_extraction_log.json is name-skipped via the runtime SKIP_FILES parse
+            # from embed_taxonomy.py (Arm 1, t/2875) — assert the parse actually picked it up.
+            Set-Content -Path (Join-Path $Dir 'entity_extraction_log.json') `
+                -Value '{"node_count":1,"nodes":[{"node_id":"acc-beliefs-003"}]}'
 
             $result = Test-TaxonomyDir -Path $Dir -PassThru 6>$null
             $result.Ok        | Should -BeTrue
-            $result.SkipCount | Should -Be 3
+            $result.SkipCount | Should -Be 4
 
             $skipped = @($result.Details | Where-Object { $_.Action -eq 'Skip' } | ForEach-Object { $_.File })
             $skipped | Should -Contain 'embeddings.json'
             $skipped | Should -Contain 'policy_actions.json'
             $skipped | Should -Contain 'embeddings-orgstance-6733.json'
+            $skipped | Should -Contain 'entity_extraction_log.json'
         }
         finally { Remove-Item -Path $Dir -Recurse -Force -ErrorAction SilentlyContinue }
     }
