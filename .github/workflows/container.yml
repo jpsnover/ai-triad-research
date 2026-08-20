@@ -46,6 +46,7 @@ jobs:
       - name: Verify container-relevant CI passed for this commit
         env:
           GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
           TARGET_SHA: ${{ inputs.sha || github.sha }}
         run: |
           echo "Checking CI status for ${TARGET_SHA}..."
