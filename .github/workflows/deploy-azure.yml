@@ -102,6 +102,7 @@ jobs:
       - name: Verify container-relevant CI passed for this commit
         env:
           GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
         run: |
           echo "Checking CI status for ${{ github.sha }}..."
 
@@ -127,6 +128,17 @@ jobs:
           if [ -z "$RUN_ID" ]; then
             echo "::error::No CI run found for commit ${{ github.sha }} or recent ancestors. CI must run before deploying."
             exit 1
+          fi
+
+          # Wait for the run to complete if it is still in progress.
+          RUN_STATUS=$(gh api "repos/${{ github.repository }}/actions/runs/${RUN_ID}" \
+            --jq '.status' 2>/dev/null || echo "")
+          if [ "$RUN_STATUS" = "in_progress" ] || [ "$RUN_STATUS" = "queued" ]; then
+            echo "CI run ${RUN_ID} is still ${RUN_STATUS} — waiting for completion..."
+            gh run watch "${RUN_ID}" --exit-status || {
+              echo "::error::CI run ${RUN_ID} failed. Deploy blocked until CI passes."
+              exit 1
+            }
           fi
 
           # Check only test-container — it needs: [test-powershell, test-electron]
