@@ -59,6 +59,9 @@ export interface DebateTableMyProps {
   onOpen: (id: string) => void;
   onExport: (session: SessionRowData, format: string) => void;
   onShare: (session: SessionRowData) => void;
+  /** Brief export from a table row (t/2805 follow-up). Undefined = item hidden. */
+  onBrief?: (session: SessionRowData) => void;
+  briefWebOnly?: boolean;
   /** Phone nav: row click pushes mobile navigation (desktop: noop). */
   onPhoneSelect: (session: SessionRowData) => void;
   isPhone: boolean;
@@ -243,6 +246,8 @@ interface DebateTableRowProps {
   onOpen: (id: string) => void;
   onExport: (session: SessionRowData, format: string) => void;
   onShare: (session: SessionRowData) => void;
+  onBrief?: (session: SessionRowData) => void;
+  briefWebOnly?: boolean;
   onPhoneSelect: (session: SessionRowData) => void;
   isPhone: boolean;
 }
@@ -250,7 +255,7 @@ interface DebateTableRowProps {
 export function DebateTableRow({
   s, idx, totalRows, isActive, editMode, isSelected,
   onToggleSelect, renamingId, setRenamingId, renameValue, setRenameValue,
-  onRename, onMoveSession, onOpen, onExport, onShare, onPhoneSelect, isPhone,
+  onRename, onMoveSession, onOpen, onExport, onShare, onBrief, briefWebOnly, onPhoneSelect, isPhone,
 }: DebateTableRowProps) {
   const isRenaming = renamingId === s.id;
   const colSpan = editMode ? 7 : 6;
@@ -384,7 +389,7 @@ export function DebateTableRow({
             >
               Open
             </button>
-            <ExportDropdown onExport={fmt => onExport(s, fmt)} />
+            <ExportDropdown onExport={fmt => onExport(s, fmt)} onBrief={onBrief ? () => onBrief(s) : undefined} briefWebOnly={briefWebOnly} />
             <button
               type="button"
               className="debate-table-action-btn"
@@ -602,7 +607,7 @@ function MyTable(props: DebateTableMyProps & { sort: SortState; onSort: (col: So
   const {
     rows, loading, searchQuery, editMode, selectedIds, onToggleSelect,
     renamingId, setRenamingId, renameValue, setRenameValue, onRename,
-    onMoveSession, onOpen, onExport, onShare, onPhoneSelect, isPhone,
+    onMoveSession, onOpen, onExport, onShare, onBrief, briefWebOnly, onPhoneSelect, isPhone,
     activeDebateId, sort, onSort,
   } = props;
 
@@ -678,6 +683,8 @@ function MyTable(props: DebateTableMyProps & { sort: SortState; onSort: (col: So
               onOpen={onOpen}
               onExport={onExport}
               onShare={onShare}
+              onBrief={onBrief}
+              briefWebOnly={briefWebOnly}
               onPhoneSelect={onPhoneSelect}
               isPhone={isPhone}
             />

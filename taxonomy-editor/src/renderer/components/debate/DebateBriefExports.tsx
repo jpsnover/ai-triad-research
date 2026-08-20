@@ -9,6 +9,7 @@
 import { useState, type ReactNode } from 'react';
 import { BriefExportDialog } from './BriefExportDialog';
 import { BriefExportsList } from './BriefExportsList';
+import type { SessionRowData } from './DebateTable';
 
 export function useDebateBriefExports(
   debate: { id: string; title: string; phase: string },
@@ -35,4 +36,21 @@ export function useDebateBriefExports(
   );
 
   return { openBrief: () => setShowBrief(true), node };
+}
+
+/** Row-level brief export: manages session selection + dialog mount (t/2805 follow-up). */
+export function useRowBriefExport(
+  isElectron: boolean,
+): { openRowBrief: (s: SessionRowData) => void; rowBriefNode: ReactNode } {
+  const [session, setSession] = useState<SessionRowData | null>(null);
+  const rowBriefNode = session && !isElectron ? (
+    <BriefExportDialog
+      debateId={session.id}
+      debateTitle={session.title}
+      debatePhase={session.phase}
+      onClose={() => setSession(null)}
+      onExported={() => setSession(null)}
+    />
+  ) : null;
+  return { openRowBrief: (s) => setSession(s), rowBriefNode };
 }

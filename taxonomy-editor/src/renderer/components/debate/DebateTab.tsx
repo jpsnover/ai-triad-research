@@ -16,7 +16,7 @@ import { NewDebateDialog } from './NewDebateDialog';
 import { DebateWorkspace } from '../debate-workspace';
 import { filterCommunityDebates } from './communityFilter';
 import { ExportDropdown } from './ExportDropdown';
-import { useDebateBriefExports } from './DebateBriefExports';
+import { useDebateBriefExports, useRowBriefExport } from './DebateBriefExports';
 import { useFlag } from '../../hooks/useFeatureFlags';
 import { useAuthStatus } from '../../hooks/useAuthStatus';
 import { SearchPreview } from '../edge-browser/SearchPreview';
@@ -95,6 +95,7 @@ interface DebateListProps {
   onRowExport: (session: SessionRowData, format: string) => void;
   onRowShare: (session: SessionRowData) => Promise<void>;
   onRowCommunityExport: (cd: CommunityDebate, format: string) => void;
+  onRowBrief: (session: SessionRowData) => void;
 }
 
 // Shared prop bag for the right (detail) pane subtree.
@@ -452,6 +453,8 @@ export function DebateTab() {
     }
   }, [runExport]);
 
+  const rowBrief = useRowBriefExport(isElectronMode());
+
   const listProps: DebateListProps = {
     width, listView, setListView, editMode, setEditMode, sessions, sessionsLoading,
     selectedIds, setSelectedIds, setShowBulkDeleteConfirm, customOrder, saveCustomOrder,
@@ -465,6 +468,7 @@ export function DebateTab() {
     onRowExport: (s, fmt) => { void handleRowExport(s, fmt); },
     onRowShare: handleRowShare,
     onRowCommunityExport: (cd, fmt) => { void handleRowCommunityExport(cd, fmt); },
+    onRowBrief: rowBrief.openRowBrief,
   };
 
   const rightPaneProps: DebateRightPaneProps = {
@@ -547,6 +551,7 @@ export function DebateTab() {
           }}
         />
       )}
+      {rowBrief.rowBriefNode}
       {showBulkDeleteConfirm && (
         <BulkDeleteDialog
           sessions={sessions}
@@ -668,7 +673,7 @@ function DebateMyList(props: DebateListProps) {
     filteredSessions, activeDebateId, selectedIds, setSelectedIds,
     renamingId, setRenamingId, renameValue, setRenameValue, renameDebate,
     moveSession, handleSelect, nav,
-    onRowOpen, onRowExport, onRowShare,
+    onRowOpen, onRowExport, onRowShare, onRowBrief,
   } = props;
   const isPhone = nav.isActive;
   return (
@@ -705,6 +710,8 @@ function DebateMyList(props: DebateListProps) {
         onOpen={onRowOpen}
         onExport={onRowExport}
         onShare={onRowShare}
+        onBrief={onRowBrief}
+        briefWebOnly={isElectronMode()}
         onPhoneSelect={handleSelect}
         isPhone={isPhone}
         activeDebateId={activeDebateId}
