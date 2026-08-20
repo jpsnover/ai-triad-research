@@ -143,38 +143,22 @@ describe('brief CLI entrypoint (subprocess)', () => {
       const stderr = (res.stderr ?? '').trim();
       const diag = `\n--- exit=${res.status} ---\nSTDOUT:\n${stdout}\nSTDERR:\n${stderr}`;
 
-      // ── The t/2868 contract: the entrypoint must RUN and emit a well-formed result.
-      // The bug was a SILENT no-op — exit 0 with empty stdout AND no error line — which
-      // an exit-code-only assertion misses. So assert on OUTPUT: runCli() ran iff it
-      // produced either the success line (stdout TriadDeckExport) or a mapped error line
-      // (stderr {errorCode,message}). A bare invokedDirectly=false produces NEITHER.
-      const emittedError = /"errorCode"\s*:/.test(stderr);
-      expect(
-        stdout !== '' || emittedError,
-        `entrypoint silently no-op'd — no stdout and no {errorCode} line (the t/2868 bug)${diag}`,
-      ).toBe(true);
+      // ── The t/2868 contract, tightened to success-only now that t/2871 (the OOXML
+      // canonical-order fix) is on main and the happy path produces a verify-clean deck.
+      // The original bug was a SILENT no-op (exit 0 + empty stdout), which an exit-code-
+      // only check misses — so assert on OUTPUT: exactly one TriadDeckExport line on
+      // stdout, exit 0, and the artifacts on disk. Empty stdout ⇒ the t/2868 regression.
+      expect(stdout, `entrypoint produced no stdout — the t/2868 silent no-op${diag}`).not.toBe('');
 
-      if (stdout !== '') {
-        // Success path — the CLI's exact T8/PowerShell contract: one TriadDeckExport line, exit 0.
-        const lines = stdout.split('\n').filter(Boolean);
-        const passthru = JSON.parse(lines[lines.length - 1]) as { debateId?: string; path?: string; manifestPath?: string };
-        expect(passthru.debateId, `stdout is not a TriadDeckExport${diag}`).toBe('sess-e2e-001');
-        expect(passthru.path, `TriadDeckExport.path missing${diag}`).toMatch(/brief\.pptx$/);
-        expect(passthru.manifestPath).toMatch(/audit-manifest\.json$/);
-        expect(res.status, `expected exit 0 on the success path${diag}`).toBe(0);
-        expect(readdirSync(outDir)).toEqual(
-          expect.arrayContaining(['deck_spec.json', 'narration.json', 'brief.pptx', 'audit-manifest.json']),
-        );
-      } else {
-        // Ran, but a stage/verify gate produced a mapped error — still PROVES the entrypoint
-        // executed (vs the silent no-op). Contract: one {errorCode,message} line, non-zero exit.
-        // (Currently exercised by the t/2871 OOXML-order verify failure; tighten to
-        // success-only once that lands.)
-        const errLine = stderr.split('\n').reverse().find(l => /"errorCode"\s*:/.test(l))!;
-        const parsed = JSON.parse(errLine) as { errorCode?: string; message?: string };
-        expect(parsed.errorCode, `error line is not a well-formed {errorCode,message}${diag}`).toBeTruthy();
-        expect(res.status, `a mapped error must exit non-zero${diag}`).not.toBe(0);
-      }
+      const lines = stdout.split('\n').filter(Boolean);
+      const passthru = JSON.parse(lines[lines.length - 1]) as { debateId?: string; path?: string; manifestPath?: string };
+      expect(passthru.debateId, `stdout is not a TriadDeckExport${diag}`).toBe('sess-e2e-001');
+      expect(passthru.path, `TriadDeckExport.path missing${diag}`).toMatch(/brief\.pptx$/);
+      expect(passthru.manifestPath).toMatch(/audit-manifest\.json$/);
+      expect(res.status, `expected exit 0 on the success path${diag}`).toBe(0);
+      expect(readdirSync(outDir)).toEqual(
+        expect.arrayContaining(['deck_spec.json', 'narration.json', 'brief.pptx', 'audit-manifest.json']),
+      );
     },
     130_000,
   );
