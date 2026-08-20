@@ -4,14 +4,16 @@
 // Brief Export dialog (t/2805, T7 — spec §7). Client of the T6 REST API: kicks off an
 // async export job, polls phase-level progress, and on completion lists the artifacts
 // with download buttons. Web-first v1 (pptx + json); t/2852 adds framingMeta toggle
-// (classroom preset) and Electron-only PDF download; closed-debate only (open shows an
-// explanatory notice — TL ruling A, t/2805#5).
+// (classroom preset) and a post-export "Save as PDF" action (shown whenever the run
+// produced an htmlDoc artifact) — the bridge routes it to the browser print dialog on
+// web and native printToPDF on Electron; closed-debate only (open shows an explanatory
+// notice — TL ruling A, t/2805#5).
 //
 // Consumes T6's frozen contract verbatim: job-state names, artifact names (BRIEF_ARTIFACTS),
 // and the error taxonomy (shown as the verbatim gate message on failure).
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { api, isElectronMode } from '@bridge';
+import { api } from '@bridge';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { AI_BACKENDS, MODELS_BY_BACKEND } from '../../hooks/useTaxonomyStore';
 import { useTaxonomyStore } from '../../hooks/useTaxonomyStore';
@@ -37,8 +39,9 @@ const ARTIFACT_LABEL: Record<BriefArtifactName, string> = {
   [BRIEF_ARTIFACTS.narration]: 'Narration (JSON)',
   [BRIEF_ARTIFACTS.manifest]: 'Audit manifest (JSON)',
   [BRIEF_ARTIFACTS.pptx]: 'Slides (PPTX)',
-  // brief.html is the printToPDF source (Electron-only, t/2838); label kept so the
-  // Record<BriefArtifactName> stays exhaustive after htmlDoc was added to BRIEF_ARTIFACTS.
+  // brief.html is the "Save as PDF" source (browser print on web, native printToPDF on
+  // Electron); label kept so Record<BriefArtifactName> stays exhaustive after htmlDoc
+  // was added to BRIEF_ARTIFACTS.
   [BRIEF_ARTIFACTS.htmlDoc]: 'HTML (PDF source)',
 };
 
@@ -144,12 +147,11 @@ export function BriefExportDialog({ debateId, debateTitle, debatePhase, onClose,
     try {
       const blob = await api.downloadBriefArtifact(record.exportId, BRIEF_ARTIFACTS.htmlDoc);
       const html = await blob.text();
-      const result = await api.printBriefToPdf(html);
-      if (result.cancelled) setPdfSaving(false);
-      else setPdfSaving(false);
+      await api.printBriefToPdf(html);
     } catch (err) {
       getGlobalRecorder()?.record({ type: 'system.error', component: 'brief-export-ui', level: 'error', message: 'PDF save failed', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
       setPdfError(err instanceof Error ? err.message : String(err));
+    } finally {
       setPdfSaving(false);
     }
   }, [record]);
@@ -239,7 +241,7 @@ export function BriefExportDialog({ debateId, debateTitle, debatePhase, onClose,
               </label>
             )}
 
-            <p className="bx-formats">Produces: <strong>PPTX</strong> + deck spec, narration &amp; audit manifest (JSON){isElectronMode() ? ' + PDF (desktop)' : ''}.</p>
+            <p className="bx-formats">Produces: <strong>PPTX</strong> + deck spec, narration &amp; audit manifest (JSON). PDF available after export.</p>
 
             {error && <div className="bx-error" role="alert">{error}</div>}
             <div className="bx-actions">
@@ -279,7 +281,7 @@ export function BriefExportDialog({ debateId, debateTitle, debatePhase, onClose,
                   ))}
                 </ul>
                 <div className="bx-meta">Trace coverage {record.traceCoveragePct}% · model {record.narratorModel}</div>
-                {isElectronMode() && record.artifacts.includes(BRIEF_ARTIFACTS.htmlDoc) && (
+                {record.artifacts.includes(BRIEF_ARTIFACTS.htmlDoc) && (
                   <div className="bx-pdf-row">
                     <button className="bx-btn-ghost" onClick={() => void savePdf()} disabled={pdfSaving}>
                       {pdfSaving ? 'Saving PDF…' : 'Save as PDF…'}
