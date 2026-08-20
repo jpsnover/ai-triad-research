@@ -326,7 +326,8 @@ jobs:
 
       # SYNC WITH main.bicep: analyticsContainer, stagingAnalyticsContainer,
       # userContentContainer, stagingUserContentContainer, communityContainer,
-      # stagingCommunityContainer. Update both if a container is added or removed.
+      # stagingCommunityContainer, briefExportsContainer, stagingBriefExportsContainer.
+      # Update both if a container is added or removed.
       # Discriminates ContainerNotFound (404) from RBAC failures (403) — t/2718.
       - name: Verify blob containers exist post-deploy
         shell: pwsh
