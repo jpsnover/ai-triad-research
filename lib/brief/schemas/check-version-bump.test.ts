@@ -7,7 +7,7 @@
 
 import { describe, it, expect } from 'vitest';
 // @ts-expect-error — plain ESM module, no type declarations needed for a test import.
-import { schemaVersion, contractSignature, detectViolation } from './check-version-bump.mjs';
+import { schemaVersion, contractSignature, detectViolation, isPathAbsentError } from './check-version-bump.mjs';
 
 function schema(version: string, extraProps: Record<string, unknown> = {}) {
   return {
@@ -97,5 +97,20 @@ describe('detectViolation', () => {
 
   it('ignores a deleted schema file', () => {
     expect(detectViolation('gone.write.json', schema('1.0'), null)).toBeNull();
+  });
+});
+
+describe('isPathAbsentError', () => {
+  it('is true for git\'s "path absent at ref" messages (new file → null, safe)', () => {
+    expect(isPathAbsentError("fatal: path 'lib/brief/schemas/deck_spec.write.json' does not exist in 'origin/main'")).toBe(true);
+    expect(isPathAbsentError("fatal: path 'x.write.json' exists on disk, but not in 'origin/main'")).toBe(true);
+  });
+
+  it('is false for real git failures (bad ref, shallow gap, unavailable) — must NOT false-pass', () => {
+    expect(isPathAbsentError("fatal: invalid object name 'origin/main'")).toBe(false);
+    expect(isPathAbsentError("fatal: bad revision 'origin/nope'")).toBe(false);
+    expect(isPathAbsentError("fatal: not a git repository")).toBe(false);
+    expect(isPathAbsentError('')).toBe(false);
+    expect(isPathAbsentError(undefined)).toBe(false);
   });
 });
