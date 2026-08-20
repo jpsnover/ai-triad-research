@@ -330,7 +330,12 @@ function Export-TriadDebateBrief {
             & $WriteExportError 'RenderFailure' "Output directory is not empty: $OutDir — use -Force to overwrite." $OutDir; return
         }
 
-        $resolvedModel = if ($SkipNarration) { '(none — narration skipped)' } else { $Model }
+        # The CLI REQUIRES --model on every run (it records the model field even in
+        # deterministic mode); -SkipNarration is additive, NOT a replacement for it.
+        # Omitting --model made the CLI exit 2 (arg error), so -SkipNarration was fully
+        # broken end-to-end (t/2874 E2E). Under skip without a model, record the sentinel
+        # 'deterministic' — the CLI accepts it and never calls a model.
+        $resolvedModel = if ($Model) { $Model } elseif ($SkipNarration) { 'deterministic' } else { $Model }
         Write-Verbose "Local mode: debate '$ResolvedPath'"
         Write-Verbose "  Preset=$Preset, model=$resolvedModel$(if ($CheckerModel) { ", checker=$CheckerModel" })$(if ($AllowOpenDebate) { ', allow-open snapshot' }). Output → $OutDir"
         if (-not $PSCmdlet.ShouldProcess($ResolvedPath, "export brief (preset=$Preset, model=$resolvedModel) → $OutDir")) { return }
@@ -342,8 +347,8 @@ function Export-TriadDebateBrief {
 
         # Frozen CLI flags (lib/brief/cli.ts): --path/--model/--preset/--out (dir),
         # optional --skip-narration/--checker-model/--allow-open.
-        $CliArgs = @('--path', $ResolvedPath, '--preset', $Preset, '--out', $OutDir)
-        if ($SkipNarration)   { $CliArgs += '--skip-narration' } else { $CliArgs += @('--model', $Model) }
+        $CliArgs = @('--path', $ResolvedPath, '--preset', $Preset, '--out', $OutDir, '--model', $resolvedModel)
+        if ($SkipNarration)   { $CliArgs += '--skip-narration' }
         if ($CheckerModel)    { $CliArgs += @('--checker-model', $CheckerModel) }
         if ($AllowOpenDebate) { $CliArgs += '--allow-open' }
         $AllArgs = @($Inv.ArgPrefix) + $CliArgs
@@ -378,9 +383,17 @@ function Export-TriadDebateBrief {
             & $WriteExportError $Id $Msg $Path; return
         }
 
+        # Assert OUTPUT, not just exit 0 (t/2874): a broken entrypoint can exit 0 with
+        # NO stdout (t/2868 Windows invokedDirectly misfire). Never let that parse into
+        # an all-null TriadDeckExport reported as success — treat it as a failure.
+        if ([string]::IsNullOrWhiteSpace((@($Stdout) -join ''))) {
+            & $WriteExportError 'RenderFailure' 'The brief CLI exited 0 but produced no output — treat as failure, not an empty export (broken entrypoint / t/2868).' $Path; return
+        }
+
         $Deck = $null
         try { $Deck = @($Stdout) -join "`n" | ConvertFrom-Json }
         catch { & $WriteExportError 'SpecSchemaFailure' 'Could not parse the brief CLI output as TriadDeckExport JSON.' $Path; return }
+        if ($null -eq $Deck) { & $WriteExportError 'SpecSchemaFailure' 'The brief CLI output parsed to null — no TriadDeckExport emitted.' $Path; return }
 
         $get = { param($n) if ($Deck -and $Deck.PSObject.Properties[$n]) { $Deck.$n } else { $null } }
         $verdicts = @{}
