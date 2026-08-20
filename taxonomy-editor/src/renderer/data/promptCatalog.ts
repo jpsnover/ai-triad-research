@@ -14,6 +14,8 @@
 
 import { DEFAULT_MODEL } from '@lib/ai-client/defaults';
 import { researchPrompt, conflictResearchPrompt } from '../prompts/research';
+import { vernacularPrompt } from '../prompts/vernacular';
+import { aphorismPrompt } from '../prompts/aphorism';
 import {
   distinctionAnalysisPrompt,
   clusterLabelPrompt,
@@ -147,6 +149,26 @@ export const PROMPT_CATALOG: PromptCatalogEntry[] = [
     group: 'taxonomy',
     purpose: 'Fires when the user requests a critique of a specific taxonomy node. Produces a structured analysis of systemic integration quality with proposed refinements in genus-differentia format.',
     applicableDataSources: ['taxonomyNodes', 'situationNodes', 'policyRegistry'],
+  },
+  {
+    id: 'vernacular-description',
+    title: 'Vernacular Description',
+    description: 'Rewrites an academic ontological node description into plain ~10th-grade language for display.',
+    source: 'prompts/vernacular.ts',
+    template: vernacularPrompt('{description}'),
+    group: 'taxonomy',
+    purpose: 'Fires when a user regenerates the plain-language ("vernacular") description of a taxonomy node (regeneratePlainDescription). Rewrites the genus-differentia academic description at ~10th-grade reading level, preserving the core claim and nuances while dropping ontological boundary markers.',
+    applicableDataSources: ['taxonomyNodes'],
+  },
+  {
+    id: 'aphorism',
+    title: 'Aphorism',
+    description: 'Generates one short camp-voiced aphorism (3-8 words) faithful to a node’s BDI register and differentia.',
+    source: 'prompts/aphorism.ts',
+    template: aphorismPrompt('{pov}', '{category}', '{label}', '{description}'),
+    group: 'taxonomy',
+    purpose: 'Fires when a user regenerates a node’s aphorism (regenerateAphorism). Produces a single sober maxim stated in the camp’s own voice, matched to the BDI register (Belief asserts how the world is / Desire what ought to be / Intention how to act), faithful to the node’s differentia.',
+    applicableDataSources: ['taxonomyNodes'],
   },
 
   // === Debate setup ===
