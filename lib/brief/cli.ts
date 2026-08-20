@@ -33,6 +33,7 @@ import { resolveRepoRoot } from '../debate/taxonomyLoader.js';
 import type { AIAdapter } from '../debate/aiAdapter.js';
 import type { DebateSession } from '../debate/types.js';
 import { runBriefPipeline, type BriefPipelineResult } from './pipeline.js';
+import { codeForHardFailures } from './errorMapping.js';
 import { BRIEF_ARTIFACTS } from './types.js';
 import type {
   BriefPreset, ModelSource, ExportErrorCode, ExportJobState, TriadDeckExport,
@@ -120,17 +121,9 @@ export function parseArgs(argv: string[]): CliArgs {
 }
 
 // ── Error-code mapping (CLI owns this — wire/host-specific, per the pipeline split) ──
-
-/** Map a verify() hardFailure string to its stable code. Order matters — schema
- *  before trace (a schema failure can cascade into trace strings). Mirrors T6. */
-function codeForHardFailures(hardFailures: string[]): ExportErrorCode {
-  const joined = hardFailures.join(' | ').toLowerCase();
-  if (joined.includes('schema')) return 'SpecSchemaFailure';
-  if (joined.includes('trace')) return 'TraceGateFailure';
-  if (joined.includes('symmetry')) return 'SymmetryFailure';
-  if (joined.includes('ooxml') || joined.includes('pptx') || joined.includes('lint')) return 'PptxLintFailure';
-  return 'PptxLintFailure'; // default within the verify-gate family
-}
+// codeForHardFailures is shared (lib/brief/errorMapping) — identical across T6, CLI,
+// and Electron (t/2840). codeForThrow stays CLI-local (its 'reading' stage +
+// DebateFileInvalid are CLI-only concerns).
 
 /** Map a thrown stage fault to a code, keyed off the stage that was running. */
 function codeForThrow(err: unknown, stage: ExportJobState | 'reading'): CliErrorCode {

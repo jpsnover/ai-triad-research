@@ -80,18 +80,32 @@ export interface BriefPipelineResult {
  * @param onStage optional progress sink — emits extracting|narrating|checking|
  *   rendering|verifying as each stage begins (`checking` only when a checker ran).
  *   The caller owns queued/done/failed.
+ * @param onArtifact optional per-artifact sink — invoked ONCE for each artifact the
+ *   moment it is produced (deck_spec after extract … audit-manifest after verify),
+ *   with the SAME object that lands in the returned `artifacts`. Lets a caller
+ *   persist incrementally — so a later stage throw still leaves the earlier
+ *   artifacts captured (T6 partial-persist-on-throw, t/2858; Electron parity,
+ *   t/2840) — built once here rather than re-derived per caller. On success the
+ *   returned `artifacts` equal the union of emitted artifacts, each exactly once.
  */
 export async function runBriefPipeline(
   input: BriefPipelineInput,
   adapter: AIAdapter,
   onStage?: (stage: ExportJobState) => void,
+  onArtifact?: (artifact: BriefArtifact) => void,
 ): Promise<BriefPipelineResult> {
   const artifacts: BriefArtifact[] = [];
+  // Single sink: push and emit the SAME object, so returned `artifacts` and the
+  // onArtifact stream can never diverge (each artifact appears in both, exactly once).
+  const emit = (artifact: BriefArtifact): void => {
+    artifacts.push(artifact);
+    onArtifact?.(artifact);
+  };
 
   // ── extract ──
   onStage?.('extracting');
   const spec = extractDeckSpec(input.session, { allowOpen: input.allowOpen });
-  artifacts.push({ name: BRIEF_ARTIFACTS.deckSpec, text: JSON.stringify(spec, null, 2) });
+  emit({ name: BRIEF_ARTIFACTS.deckSpec, text: JSON.stringify(spec, null, 2) });
 
   // ── narrate (+ optional maker-checker) ──
   onStage?.('narrating');
@@ -106,7 +120,7 @@ export async function runBriefPipeline(
   }, adapter);
   // `checking` is a sub-phase inside narrate(); surface it only when a checker ran.
   if (input.checkerModelId && !input.skipNarration) onStage?.('checking');
-  artifacts.push({ name: BRIEF_ARTIFACTS.narration, text: JSON.stringify(narration, null, 2) });
+  emit({ name: BRIEF_ARTIFACTS.narration, text: JSON.stringify(narration, null, 2) });
 
   // ── render (pptx + htmlDoc; PDF is Electron-only, never here) ──
   onStage?.('rendering');
@@ -117,8 +131,8 @@ export async function runBriefPipeline(
     template: input.template,
     framingMeta: input.framingMeta,
   });
-  artifacts.push({ name: BRIEF_ARTIFACTS.pptx, bytes: pptxBytes });
-  artifacts.push({ name: BRIEF_ARTIFACTS.htmlDoc, text: htmlDoc });
+  emit({ name: BRIEF_ARTIFACTS.pptx, bytes: pptxBytes });
+  emit({ name: BRIEF_ARTIFACTS.htmlDoc, text: htmlDoc });
 
   // ── verify (build-fails-not-warns; manifest ALWAYS produced) ──
   onStage?.('verifying');
@@ -129,7 +143,7 @@ export async function runBriefPipeline(
     meta: { toolVersions: input.toolVersions, timestamp: input.timestamp },
   });
   // Manifest is the output record, NOT a hashed input artifact — added here, not in verify().
-  artifacts.push({ name: BRIEF_ARTIFACTS.manifest, text: JSON.stringify(manifest, null, 2) });
+  emit({ name: BRIEF_ARTIFACTS.manifest, text: JSON.stringify(manifest, null, 2) });
 
   return {
     spec,
