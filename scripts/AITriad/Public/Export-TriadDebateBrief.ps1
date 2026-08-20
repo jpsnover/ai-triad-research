@@ -10,11 +10,14 @@ function Export-TriadDebateBrief {
           - LOCAL (-Path): runs the brief pipeline OFFLINE against an exported debate JSON
             via the shared lib/brief full-pipeline CLI (t/2837). No server, no auth, no
             billing — the CI/offline path. -Model is required unless -SkipNarration.
-          - SERVER (-DebateId): REST client of the T6 export API. DEFERRED — the billable
-            export endpoint 403s anonymous and needs an AAD bearer token, gated on DevOps
-            enabling AAD Easy Auth (t/2839) + an entitlement policy (t/2814/t/2831). The
-            flow is designed (t/2806#3) and lands when those clear; today it errors with
-            that guidance.
+          - SERVER (-DebateId): REST client of the T6 export API (t/2862). Creates an async
+            export job, polls it (Write-Progress from the job's progressPct; streams job
+            warnings), then downloads the artifacts (deck_spec.json, narration.json,
+            audit-manifest.json, brief.pptx) to -OutputDirectory and builds a
+            [TriadDeckExport] from the manifest + deck_spec. Billable + sign-in-gated: pass
+            an AAD bearer token via -AccessToken (never spoofs identity). Model resolution
+            is SERVER-side — the client sends the label, never guesses. PDF is Electron-only,
+            so server mode never requests it.
 
         Emits the artifact path as verbose; -PassThru returns a [TriadDeckExport] (field
         parity with lib/brief/types.ts). Per-item errors are NON-TERMINATING (a pipeline of
@@ -33,9 +36,10 @@ function Export-TriadDebateBrief {
     .PARAMETER SkipNarration
         Deterministic brief with zero model calls.
     .PARAMETER OutputDirectory
-        (Local) Output DIRECTORY for the artifacts (brief.pptx, deck_spec.json,
-        narration.json, audit-manifest.json). Default: a "<debate>-brief" folder
-        beside the debate JSON. Alias -OutDir / -OutputPath.
+        Output DIRECTORY for the artifacts (brief.pptx, deck_spec.json, narration.json,
+        audit-manifest.json). Local default: a "<debate>-brief" folder beside the debate
+        JSON. Server default: a "<debateId>-brief" folder in the current directory.
+        Alias -OutDir / -OutputPath.
     .PARAMETER AllowOpenDebate
         (Local) Export a not-yet-closed debate as a watermarked snapshot
         (meta.snapshot). Without it, a non-closed debate fails with DebateNotClosed.
@@ -56,6 +60,10 @@ function Export-TriadDebateBrief {
         Export-TriadDebateBrief -Path .\debate-abc.json -Model gemini-3.5-flash-lite -Preset conference
     .EXAMPLE
         Get-ChildItem *.json | Export-TriadDebateBrief -SkipNarration -PassThru
+    .EXAMPLE
+        # Server mode: authenticated headless export via the T6 REST API.
+        $tok = az account get-access-token --query accessToken -o tsv
+        Get-TriadDebate -Phase Closed | Export-TriadDebateBrief -AccessToken $tok -Preset conference -OutputDirectory .\out -PassThru
     .LINK
         Show-AITriadHelp
     .LINK
@@ -88,7 +96,7 @@ function Export-TriadDebateBrief {
         [Parameter()]
         [switch]$SkipNarration,
 
-        [Parameter(ParameterSetName = 'Local')]
+        [Parameter()]
         [Alias('OutDir', 'OutputPath')]
         [string]$OutputDirectory,
 
@@ -117,12 +125,15 @@ function Export-TriadDebateBrief {
         Set-StrictMode -Version Latest
 
         # ExportErrorCode (lib/brief/types.ts) + local DebateFileInvalid → PS category.
+        # Server mode adds two HTTP-level ids (429 quota/concurrency) that aren't job
+        # errorCodes but need a clean surface.
         $script:ExportErrorCategory = @{
             DebateNotFound    = 'ObjectNotFound';    DebateNotClosed = 'InvalidOperation'
             AuthFailure       = 'PermissionDenied';  ModelUnavailable = 'ResourceUnavailable'
             SpecSchemaFailure = 'InvalidData';       TraceGateFailure = 'InvalidData'
             SymmetryFailure   = 'InvalidData';       PptxLintFailure  = 'InvalidData'
             RenderFailure     = 'InvalidData';       DebateFileInvalid = 'InvalidData'
+            ExportQuotaExceeded    = 'QuotaExceeded'; ExportConcurrencyLimit = 'ResourceBusy'
         }
         $WriteExportError = {
             param([string]$Id, [string]$Message, $TargetObject)
@@ -135,16 +146,130 @@ function Export-TriadDebateBrief {
     }
 
     process {
-        # ── Server mode: deferred pending AAD auth infra (t/2839) + policy ──────────
+        # ── Server mode: T6 REST client (t/2862) ────────────────────────────────────
         if ($PSCmdlet.ParameterSetName -eq 'Server') {
-            throw (New-ActionableError `
-                    -Goal     "Export debate '$DebateId' via the server" `
-                    -Problem  'Server-mode export is not yet available: the billable endpoint 403s anonymous and requires an AAD bearer token, gated on DevOps enabling AAD Easy Auth (t/2839) and an entitlement policy (t/2814/t/2831).' `
-                    -Location 'Export-TriadDebateBrief' `
-                    -NextSteps @(
-                        'Use local mode: Export-TriadDebateBrief -Path <exported debate JSON> ...',
-                        'Track t/2839 (AAD Easy Auth) for server-mode auth'
-                    ))
+            $resolvedBase = if ($BaseUrl) { $BaseUrl.TrimEnd('/') } else { Get-TaxEditorBaseUrl }
+            # AAD bearer only. NEVER set x-ms-client-principal / spoof identity — Easy Auth
+            # strips client-set principal headers in prod, and a bypass defeats the billable gate.
+            $headers = @{}
+            if ($AccessToken) { $headers['Authorization'] = "Bearer $AccessToken" }
+
+            # Map an Invoke-RemoteCheck failure → { Id; Message } on the export taxonomy.
+            $MapHttp = {
+                param($Res, [string]$What)
+                $status = [int]$Res.StatusCode
+                $bodyErr = $null; $bodyMsg = $null
+                if ($Res.Body) {
+                    if ($Res.Body.PSObject.Properties['error'])   { $bodyErr = [string]$Res.Body.error }
+                    if ($Res.Body.PSObject.Properties['message']) { $bodyMsg = [string]$Res.Body.message }
+                }
+                $msg = if ($bodyMsg) { $bodyMsg } elseif ($Res.Error) { [string]$Res.Error } else { "$What failed (HTTP $status)." }
+                $id = switch ($status) {
+                    401 { 'AuthFailure' }
+                    403 { 'AuthFailure' }
+                    404 { 'DebateNotFound' }
+                    409 { 'DebateNotClosed' }
+                    400 { 'ModelUnavailable' }
+                    429 { if ($bodyErr -eq 'concurrency_limit') { 'ExportConcurrencyLimit' } else { 'ExportQuotaExceeded' } }
+                    default { 'RenderFailure' }
+                }
+                @{ Id = $id; Message = $msg }
+            }
+
+            $resolvedModel = if ($SkipNarration) { '(none — narration skipped)' }
+                             elseif ($Model)     { $Model }
+                             else                { '(server-resolved free tier)' }
+            if (-not $PSCmdlet.ShouldProcess("debate '$DebateId'", "export brief (preset=$Preset, model=$resolvedModel) via $resolvedBase")) { return }
+
+            # 1. Create the async export job (idempotent server-side).
+            $postBody = @{ preset = $Preset }
+            if ($SkipNarration) { $postBody['skipNarration'] = $true }
+            if ($Model)         { $postBody['model'] = $Model }
+            if ($CheckerModel)  { $postBody['checkerModel'] = $CheckerModel }
+            $post = Invoke-RemoteCheck -BaseUrl $resolvedBase -Path "/api/debates/$DebateId/exports" `
+                -Method POST -Body $postBody -ExtraHeaders $headers -AcceptableStatusCodes @(202) `
+                -TimeoutSec $TimeoutSec -ExpectJson
+            if (-not $post.Success) { $m = & $MapHttp $post 'Create export job'; & $WriteExportError $m.Id $m.Message $DebateId; return }
+            if (-not ($post.Body -and $post.Body.PSObject.Properties['jobId'] -and $post.Body.jobId)) {
+                & $WriteExportError 'RenderFailure' 'Export job creation returned no jobId (unexpected 202 body).' $DebateId; return
+            }
+            $jobId = [string]$post.Body.jobId
+
+            # 2. Poll the job to completion. Write-Progress from progressPct; stream new warnings.
+            $progressId = 2862
+            $streamed = [System.Collections.Generic.HashSet[string]]::new()
+            $deadline = (Get-Date).AddSeconds($TimeoutSec)
+            $exportId = $null
+            try {
+                while ($true) {
+                    $poll = Invoke-RemoteCheck -BaseUrl $resolvedBase -Path "/api/export-jobs/$jobId" `
+                        -Method GET -ExtraHeaders $headers -AcceptableStatusCodes @(200) -TimeoutSec $TimeoutSec -ExpectJson
+                    if (-not $poll.Success) { $m = & $MapHttp $poll 'Poll export job'; & $WriteExportError $m.Id $m.Message $DebateId; return }
+                    $job = $poll.Body
+                    $jobStatus = [string]$job.status
+                    $pct = if ($job.PSObject.Properties['progressPct'] -and $null -ne $job.progressPct) { [int]$job.progressPct } else { 0 }
+                    Write-Progress -Id $progressId -Activity "Exporting brief: $DebateId" -Status $jobStatus -PercentComplete ([Math]::Max(0, [Math]::Min(100, $pct)))
+                    if ($job.PSObject.Properties['warnings'] -and $job.warnings) {
+                        foreach ($w in @($job.warnings)) { if ($streamed.Add([string]$w)) { Write-Warning ([string]$w) } }
+                    }
+                    if ($jobStatus -eq 'done') { $exportId = [string]$job.exportId; break }
+                    if ($jobStatus -eq 'failed') {
+                        $eid = if ($job.PSObject.Properties['errorCode'] -and $job.errorCode) { [string]$job.errorCode } else { 'RenderFailure' }
+                        $emsg = if ($job.PSObject.Properties['error'] -and $job.error) { [string]$job.error } else { 'Export job failed.' }
+                        & $WriteExportError $eid $emsg $DebateId; return
+                    }
+                    if ((Get-Date) -gt $deadline) {
+                        & $WriteExportError 'RenderFailure' "Export job '$jobId' did not finish within $TimeoutSec s (last status: $jobStatus)." $DebateId; return
+                    }
+                    Start-Sleep -Seconds 2
+                }
+            }
+            finally { Write-Progress -Id $progressId -Activity "Exporting brief: $DebateId" -Completed }
+
+            # 3. Download the artifacts to the output directory (skip brief.html — Electron-only).
+            $OutDir = if ($OutputDirectory) { $OutputDirectory } else { Join-Path (Get-Location).Path "$DebateId-brief" }
+            if ((Test-Path -LiteralPath $OutDir) -and
+                @(Get-ChildItem -LiteralPath $OutDir -Force -ErrorAction SilentlyContinue).Count -gt 0 -and -not $Force) {
+                & $WriteExportError 'RenderFailure' "Output directory is not empty: $OutDir — use -Force to overwrite." $OutDir; return
+            }
+            $null = New-Item -ItemType Directory -Path $OutDir -Force
+            $paths = @{}
+            foreach ($name in @('deck_spec.json', 'narration.json', 'audit-manifest.json', 'brief.pptx')) {
+                $dest = Join-Path $OutDir $name
+                try {
+                    Save-BriefArtifact -BaseUrl $resolvedBase -ExportId $exportId -Name $name -Destination $dest -Headers $headers -TimeoutSec $TimeoutSec
+                    $paths[$name] = $dest
+                }
+                catch { & $WriteExportError 'RenderFailure' "Failed to download artifact '$name': $($_.Exception.Message)" $DebateId; return }
+            }
+
+            # 4. Build [TriadDeckExport] from the downloaded manifest + deck_spec.
+            $manifest = $null; $spec = $null
+            try { $manifest = Get-Content -Raw -LiteralPath $paths['audit-manifest.json'] | ConvertFrom-Json } catch { }
+            try { $spec     = Get-Content -Raw -LiteralPath $paths['deck_spec.json']     | ConvertFrom-Json } catch { }
+            $mget = { param($o, [string]$n) if ($o -and $o.PSObject.Properties[$n]) { $o.$n } else { $null } }
+            $verdicts = @{}
+            $vc = & $mget $manifest 'verdict_counts'
+            if ($vc) { foreach ($p in $vc.PSObject.Properties) { $verdicts[$p.Name] = [int]$p.Value } }
+            $mWarnings = @(& $mget $manifest 'warnings'); if (-not $mWarnings) { $mWarnings = @($streamed) }
+
+            $Export = [TriadDeckExport]@{
+                DebateId         = [string](& { $v = & $mget $manifest 'debate_id'; if ($v) { $v } else { $DebateId } })
+                Title            = [string](& $mget $spec 'title')
+                Preset           = $Preset
+                Model            = [string](& $mget $manifest 'narrator_model')
+                ModelSource      = [string](& $mget $manifest 'narrator_model_source')
+                CheckerModel     = [string](& $mget $manifest 'checker_model')
+                Path             = [string]$paths['brief.pptx']
+                SpecPath         = [string]$paths['deck_spec.json']
+                ManifestPath     = [string]$paths['audit-manifest.json']
+                TraceCoveragePct = [double](& { $v = & $mget $manifest 'trace_coverage_pct'; if ($null -ne $v) { $v } else { 0.0 } })
+                Verdicts         = $verdicts
+                Warnings         = @($mWarnings)
+            }
+            Write-Verbose "Exported brief (server): $($Export.Path)"
+            if ($PassThru) { $Export }
+            return
         }
 
         # ── Local mode (t/2837 full-pipeline CLI) ───────────────────────────────────

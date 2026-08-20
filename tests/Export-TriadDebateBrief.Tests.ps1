@@ -82,12 +82,104 @@ Describe 'Export-TriadDebateBrief' -Tag 'debate' {
         }
     }
 
-    Context 'Server mode (deferred, t/2839)' {
-        It 'throws an actionable error naming the auth gate and NOT touching the CLI' {
-            Mock -ModuleName AITriad Resolve-BriefExportCli { throw 'CLI must not be resolved in server mode' }
-            { Export-TriadDebateBrief -DebateId 'deb-123' -Preset policymaker -ErrorAction Stop } |
-                Should -Throw -ExpectedMessage '*t/2839*'
-            Should -Invoke -ModuleName AITriad Resolve-BriefExportCli -Times 0
+    Context 'Server mode (t/2862) — happy path (T6 REST client)' {
+        BeforeEach {
+            $script:SrvOut = Join-Path ([System.IO.Path]::GetTempPath()) "brief-srv-$(New-Guid)"
+            # POST create job → 202 { jobId }.
+            Mock -ModuleName AITriad Invoke-RemoteCheck -ParameterFilter { $Method -eq 'POST' } {
+                [pscustomobject]@{ Success = $true; StatusCode = 202; Body = [pscustomobject]@{ jobId = 'job-1' }; Error = $null }
+            }
+            # GET poll → done, with an exportId + a warning to stream.
+            Mock -ModuleName AITriad Invoke-RemoteCheck -ParameterFilter { $Method -eq 'GET' } {
+                [pscustomobject]@{ Success = $true; StatusCode = 200; Body = [pscustomobject]@{
+                        status = 'done'; progressPct = 100; warnings = @('symmetry tolerance 12% (soft)')
+                        error = $null; errorCode = $null; exportId = 'exp-1' }; Error = $null }
+            }
+            # Download → write fake manifest + deck_spec so the build step has fields.
+            Mock -ModuleName AITriad Save-BriefArtifact {
+                $content = switch ($Name) {
+                    'audit-manifest.json' { @{ debate_id = 'deb-123'; narrator_model = 'gemini-3.5-flash-lite'
+                            narrator_model_source = 'ServerResolved'; checker_model = $null; trace_coverage_pct = 100
+                            verdict_counts = @{ Supported = 3; Disputed = 1 }; warnings = @('symmetry tolerance 12% (soft)') } | ConvertTo-Json -Depth 6 }
+                    'deck_spec.json'      { @{ title = 'Should we pause?' } | ConvertTo-Json }
+                    default               { 'stub-artifact' }
+                }
+                $null = New-Item -ItemType Directory -Path (Split-Path -Parent $Destination) -Force
+                Set-Content -LiteralPath $Destination -Value $content -Encoding UTF8
+            }
+        }
+        AfterEach { if ($script:SrvOut -and (Test-Path $script:SrvOut)) { Remove-Item -Recurse -Force $script:SrvOut -ErrorAction SilentlyContinue } }
+
+        It 'creates job → polls → downloads → returns a [TriadDeckExport] with manifest+spec fields' {
+            $r = Export-TriadDebateBrief -DebateId 'deb-123' -Preset conference -SkipNarration `
+                -OutputDirectory $script:SrvOut -PassThru -WarningAction SilentlyContinue
+            $r.GetType().Name  | Should -Be 'TriadDeckExport'
+            $r.DebateId        | Should -Be 'deb-123'
+            $r.Title           | Should -Be 'Should we pause?'
+            $r.Preset          | Should -Be 'conference'
+            $r.Model           | Should -Be 'gemini-3.5-flash-lite'
+            $r.ModelSource     | Should -Be 'ServerResolved'
+            $r.TraceCoveragePct| Should -Be 100
+            $r.Verdicts['Supported'] | Should -Be 3
+            $r.Path            | Should -Match 'brief\.pptx$'
+            $r.ManifestPath    | Should -Match 'audit-manifest\.json$'
+        }
+
+        It 'downloads exactly the 4 artifacts and NEVER brief.html (PDF/HTML is Electron-only)' {
+            $null = Export-TriadDebateBrief -DebateId 'deb-123' -SkipNarration -OutputDirectory $script:SrvOut -WarningAction SilentlyContinue
+            Should -Invoke -ModuleName AITriad Save-BriefArtifact -Times 4
+            Should -Invoke -ModuleName AITriad Save-BriefArtifact -Times 0 -ParameterFilter { $Name -eq 'brief.html' }
+            Should -Invoke -ModuleName AITriad Save-BriefArtifact -Times 1 -ParameterFilter { $Name -eq 'brief.pptx' }
+        }
+
+        It '-AccessToken becomes Authorization: Bearer (never spoofs identity)' {
+            $null = Export-TriadDebateBrief -DebateId 'deb-123' -SkipNarration -AccessToken 'TESTTOK' -OutputDirectory $script:SrvOut -WarningAction SilentlyContinue
+            Should -Invoke -ModuleName AITriad Invoke-RemoteCheck -ParameterFilter { $ExtraHeaders['Authorization'] -eq 'Bearer TESTTOK' }
+        }
+
+        It 'streams the job warnings to Write-Warning' {
+            $wv = $null
+            $null = Export-TriadDebateBrief -DebateId 'deb-123' -SkipNarration -OutputDirectory $script:SrvOut -WarningVariable wv -WarningAction SilentlyContinue
+            ($wv -join '|') | Should -Match 'symmetry tolerance'
+        }
+
+        It '-WhatIf names the resolved model and makes NO HTTP call' {
+            $null = Export-TriadDebateBrief -DebateId 'deb-123' -Model 'gemini-3.5-flash-lite' -OutputDirectory $script:SrvOut -WhatIf
+            Should -Invoke -ModuleName AITriad Invoke-RemoteCheck -Times 0
+        }
+
+        It 'binds -DebateId from the pipeline by property name' {
+            $r = [pscustomobject]@{ DebateId = 'deb-123' } | Export-TriadDebateBrief -SkipNarration -OutputDirectory $script:SrvOut -PassThru -WarningAction SilentlyContinue
+            $r.DebateId | Should -Be 'deb-123'
+        }
+    }
+
+    Context 'Server mode (t/2862) — HTTP + job-failure error taxonomy' {
+        It 'maps <Status> → <ErrId>' -ForEach @(
+            @{ Status = 403; BodyErr = $null;             ErrId = 'AuthFailure' }
+            @{ Status = 404; BodyErr = $null;             ErrId = 'DebateNotFound' }
+            @{ Status = 409; BodyErr = $null;             ErrId = 'DebateNotClosed' }
+            @{ Status = 429; BodyErr = 'quota_exceeded';  ErrId = 'ExportQuotaExceeded' }
+            @{ Status = 429; BodyErr = 'concurrency_limit'; ErrId = 'ExportConcurrencyLimit' }
+        ) {
+            Mock -ModuleName AITriad Invoke-RemoteCheck -ParameterFilter { $Method -eq 'POST' } `
+                -MockWith ({ [pscustomobject]@{ Success = $false; StatusCode = $Status; Body = [pscustomobject]@{ error = $BodyErr; message = 'boom' }; Error = 'boom' } }.GetNewClosure())
+            $err = $null
+            Export-TriadDebateBrief -DebateId 'deb-x' -SkipNarration -ErrorVariable err -ErrorAction SilentlyContinue
+            $err[0].FullyQualifiedErrorId | Should -Match $ErrId
+        }
+
+        It 'maps a failed job errorCode (TraceGateFailure) to the non-terminating error id' {
+            Mock -ModuleName AITriad Invoke-RemoteCheck -ParameterFilter { $Method -eq 'POST' } {
+                [pscustomobject]@{ Success = $true; StatusCode = 202; Body = [pscustomobject]@{ jobId = 'job-1' }; Error = $null } }
+            Mock -ModuleName AITriad Invoke-RemoteCheck -ParameterFilter { $Method -eq 'GET' } {
+                [pscustomobject]@{ Success = $true; StatusCode = 200; Body = [pscustomobject]@{
+                        status = 'failed'; progressPct = 60; warnings = @(); error = 'trace coverage 87% < 100%'; errorCode = 'TraceGateFailure'; exportId = $null }; Error = $null } }
+            Mock -ModuleName AITriad Save-BriefArtifact { throw 'must not download on a failed job' }
+            $err = $null
+            Export-TriadDebateBrief -DebateId 'deb-x' -SkipNarration -ErrorVariable err -ErrorAction SilentlyContinue
+            $err[0].FullyQualifiedErrorId | Should -Match 'TraceGateFailure'
+            Should -Invoke -ModuleName AITriad Save-BriefArtifact -Times 0
         }
     }
 
