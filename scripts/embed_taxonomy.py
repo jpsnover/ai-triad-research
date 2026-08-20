@@ -132,7 +132,7 @@ def _classify_pairs_nli(nli_model, pairs):
     return results
 
 
-SKIP_FILES = {"embeddings.json", "edges.json", "policy_actions.json", "lineage_categories.json", "_archived_edges.json", "interpretation_embeddings.json"}
+SKIP_FILES = {"embeddings.json", "edges.json", "policy_actions.json", "lineage_categories.json", "_archived_edges.json", "interpretation_embeddings.json", "entity_extraction_log.json"}
 
 # Resolved at runtime from .aitriad.json
 CONFLICTS_DIR: Optional[Path] = None  # set in _resolve_taxonomy_dir
@@ -321,7 +321,18 @@ def _load_taxonomy_nodes():
             continue
 
         pov = path.stem.lower()
-        for node in data.get("nodes", []):
+        # Durable class guard (t/2875, a t/1652-class recurrence): a stray
+        # `nodes`-bearing file whose entries aren't POV nodes (e.g. log entries
+        # keyed `node_id`, not `id`) must be a logged skip, not a downstream
+        # KeyError that takes the whole pipeline down. Validate shape before ingest.
+        file_nodes = data.get("nodes", [])
+        if file_nodes and not all(isinstance(n, dict) and "id" in n for n in file_nodes):
+            print(
+                f"Warning: skipping {path.name}: 'nodes' entries lack 'id' (not a POV file)",
+                file=sys.stderr,
+            )
+            continue
+        for node in file_nodes:
             nodes.append((pov, node))
     return nodes
 
