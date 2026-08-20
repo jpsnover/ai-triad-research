@@ -76,21 +76,8 @@ function rejectOpEdIpc(goal: string, method: string): Promise<never> {
   }));
 }
 
-// Brief Export (t/2805, T7) is web-only for v1. Desktop parity is tracked as a follow-up:
-// the Electron IPC handler will call the shared `runBriefPipeline` in-process (blocked by
-// t/2837), NOT a reimplementation. Until then, reject LOUDLY (never a silent empty) so a
-// desktop user is told exactly where to go — the UI also gates the menu item (see DebateTab).
-function rejectBriefWebOnly(goal: string, method: string): Promise<never> {
-  return Promise.reject(new ActionableError({
-    goal: `Brief Export: ${goal}`,
-    problem: `Brief export runs in the AITriad web app; the desktop backend (${method}) is not available in this build yet.`,
-    location: 'electron-bridge · Brief Export',
-    nextSteps: [
-      'Open this debate in the AITriad web app to export a brief.',
-      'Desktop parity is tracked (blocked by the shared runBriefPipeline, t/2837).',
-    ],
-  }));
-}
+// Brief Export desktop parity landed in t/2840 — the 5 methods now delegate to the main-process
+// IPC handlers (which run the shared runBriefPipeline in-process). See the AppAPI block below.
 
 // Same-window diagnostics callbacks for the in-app drawer (mobile/narrow).
 // When a popout BrowserWindow is open, IPC delivers state to it directly.
@@ -306,12 +293,24 @@ export const api: AppAPI = {
   loadDebateComments: (id) => window.electronAPI.loadDebateComments(id),
   saveDebateComments: (id, data) => window.electronAPI.saveDebateComments(id, data),
 
-  // Brief Export (t/2805, T7) — web-only v1; desktop parity tracked (blocked by t/2837 runBriefPipeline).
-  createBriefExport: () => rejectBriefWebOnly('start a brief export', 'createBriefExport'),
-  getBriefExportJob: () => rejectBriefWebOnly('check a brief export job', 'getBriefExportJob'),
-  listBriefExports: () => rejectBriefWebOnly('list brief exports', 'listBriefExports'),
-  downloadBriefArtifact: () => rejectBriefWebOnly('download a brief export artifact', 'downloadBriefArtifact'),
-  deleteBriefExport: () => rejectBriefWebOnly('delete a brief export', 'deleteBriefExport'),
+  // Brief Export — desktop parity via main-process IPC (t/2840). Calls the shared runBriefPipeline
+  // in-process; download returns raw bytes wrapped into a Blob (Blob-returning AppAPI in both builds).
+  createBriefExport: (debateId, body) => window.electronAPI.createBriefExport(debateId, body),
+  getBriefExportJob: (jobId) => window.electronAPI.getBriefExportJob(jobId),
+  listBriefExports: (debateId) => window.electronAPI.listBriefExports(debateId),
+  downloadBriefArtifact: async (exportId, name) => {
+    const bytes = await window.electronAPI.downloadBriefArtifact(exportId, name);
+    if (bytes == null) {
+      throw new ActionableError({
+        goal: 'Download a brief export artifact',
+        problem: `Artifact "${name}" was not found for export "${exportId}"`,
+        location: 'electron-bridge · downloadBriefArtifact',
+        nextSteps: ['Re-check the export still exists in the debate exports list', 'Regenerate the export'],
+      });
+    }
+    return new Blob([bytes as BlobPart]);   // Uint8Array is a valid BlobPart at runtime (strict-generic cast)
+  },
+  deleteBriefExport: (exportId) => window.electronAPI.deleteBriefExport(exportId),
   // printBriefToPdf is available independently of the full brief export pipeline (t/2852).
   printBriefToPdf: (html) => window.electronAPI.printBriefToPdf(html),
 
