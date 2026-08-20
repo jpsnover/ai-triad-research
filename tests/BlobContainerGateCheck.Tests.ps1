@@ -22,7 +22,7 @@ Describe 'Invoke-BlobContainerGateCheck — error-class discrimination (t/2718)'
 
     BeforeAll {
         $script:GateScript = "$PSScriptRoot/../operations/devops/Invoke-BlobContainerGateCheck.ps1"
-        $script:AllContainers = @('analytics', 'staging-analytics', 'user-content', 'staging-user-content', 'community', 'staging-community')
+        $script:AllContainers = @('analytics', 'staging-analytics', 'user-content', 'staging-user-content', 'community', 'staging-community', 'brief-exports', 'staging-brief-exports')
 
         function script:Invoke-Gate ([string]$StorageAccount, [string[]]$Containers = $script:AllContainers) {
             & $script:GateScript -StorageAccount $StorageAccount -Containers $Containers
@@ -47,9 +47,9 @@ Describe 'Invoke-BlobContainerGateCheck — error-class discrimination (t/2718)'
             { script:Invoke-Gate -StorageAccount 'myaccount' } | Should -Not -Throw
         }
 
-        It 'prints verified count for all 6 containers' {
+        It 'prints verified count for all 8 containers' {
             $output = script:Capture-GateOutput -StorageAccount 'myaccount'
-            $output | Should -Match 'All 6 blob containers verified'
+            $output | Should -Match 'All 8 blob containers verified'
         }
     }
 
@@ -134,7 +134,7 @@ Describe 'Invoke-BlobContainerGateCheck — error-class discrimination (t/2718)'
     }
 
     Context 'Count guard' {
-        It 'throws sync error when container list is not exactly 6' {
+        It 'throws sync error when container list is not exactly 8' {
             function global:az { $global:LASTEXITCODE = 0 }
             try {
                 { script:Invoke-Gate -StorageAccount 'sa' -Containers @('analytics', 'staging-analytics') } |
