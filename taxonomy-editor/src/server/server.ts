@@ -235,6 +235,12 @@ if (STORAGE_MODE === 'github-api') {
       userContentContainer: process.env.AZURE_USER_CONTENT_CONTAINER || 'user-content',
       communityContainer: process.env.AZURE_COMMUNITY_CONTAINER || 'community',
     }));
+    const briefExportsContainer = process.env.AZURE_BRIEF_EXPORTS_CONTAINER || 'brief-exports';
+    fileIO.setBriefExportBackend(new AzureBlobBackend({
+      accountUrl: blobAccountUrl,
+      userContentContainer: briefExportsContainer,
+      communityContainer: briefExportsContainer,
+    }));
     serverRecorder.record({
       type: 'storage.mode', component: 'storage', level: 'info',
       message: 'User content storage: azure-blob',
