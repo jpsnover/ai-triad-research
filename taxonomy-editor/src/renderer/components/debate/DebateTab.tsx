@@ -16,7 +16,7 @@ import { NewDebateDialog } from './NewDebateDialog';
 import { DebateWorkspace } from '../debate-workspace';
 import { filterCommunityDebates } from './communityFilter';
 import { ExportDropdown } from './ExportDropdown';
-import { useDebateBriefExports, useRowBriefExport } from './DebateBriefExports';
+import { useDebateBriefExports, useRowBriefExport, type BriefTarget } from './DebateBriefExports';
 import { useFlag } from '../../hooks/useFeatureFlags';
 import { useAuthStatus } from '../../hooks/useAuthStatus';
 import { SearchPreview } from '../edge-browser/SearchPreview';
@@ -95,7 +95,7 @@ interface DebateListProps {
   onRowExport: (session: SessionRowData, format: string) => void;
   onRowShare: (session: SessionRowData) => Promise<void>;
   onRowCommunityExport: (cd: CommunityDebate, format: string) => void;
-  onRowBrief: (session: SessionRowData) => void;
+  onRowBrief: (target: BriefTarget) => void;
 }
 
 // Shared prop bag for the right (detail) pane subtree.
@@ -726,7 +726,7 @@ function DebateCommunityList(props: DebateListProps) {
     communityDebates, communityLoading, searchQuery, setSearchQuery,
     filteredCommunityDebates, selectedCommunityDebate, setSelectedCommunityDebate,
     copyingId, setCopyingId, copyItem, loadSessions, auth, nav,
-    onCommunityRowOpen, onRowCommunityExport,
+    onCommunityRowOpen, onRowCommunityExport, onRowBrief,
   } = props;
   const isPhone = nav.isActive;
 
@@ -778,6 +778,8 @@ function DebateCommunityList(props: DebateListProps) {
         selectedId={selectedCommunityDebate?.id ?? null}
         onOpen={onCommunityRowOpen}
         onExport={onRowCommunityExport}
+        onBrief={(cd) => onRowBrief({ id: cd.id, title: cd.title, phase: cd.phase ?? '' })}
+        briefWebOnly={isElectronMode()}
         onCopy={handleCopy}
         copyingId={copyingId}
         auth={auth}
