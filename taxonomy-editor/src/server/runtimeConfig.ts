@@ -170,7 +170,7 @@ const DEFAULTS: RuntimeConfig = {
     defaultMaxChats: 25,
     defaultMaxDebates: 15,
     defaultMaxOpEds: 15,
-    defaultMaxBriefExports: 25, // t/2831: TL/product to confirm limit; 25 matches maxChats as a conservative starting point
+    defaultMaxBriefExports: 25, // t/2831: product-confirmed (25/user) — billable-spend cap for any signed-in identity incl. headless AAD principals (entitlement: t/2862); matches maxChats
   },
   sessions: {
     anonymousTtlMs: 14_400_000,
