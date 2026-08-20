@@ -1038,17 +1038,7 @@ const rawApi: AppAPI = {
     win.document.open(); win.document.write(html); win.document.close(); win.focus(); win.print(); return { cancelled: false };
   },
 
-  // Brief Templates (t/2853) — upload/list/delete stored .potx templates.
-  uploadBriefTemplate: async (file) => {
-    const bytes = await file.arrayBuffer();
-    const res = await fetchWithSessionRecovery('/api/templates', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/octet-stream', 'x-filename': file.name },
-      body: bytes,
-    }, { timeoutMs: 30_000, maxRetries: 1, critical: true, category: 'mutation' as EndpointCategory });
-    if (!res.ok) { const msg = await res.text().catch(() => String(res.status)); throw new Error(`Template upload failed: ${msg}`); }
-    return res.json();
-  },
+  uploadBriefTemplate: async (file) => { const r = await fetchWithSessionRecovery('/api/templates', { method: 'POST', headers: { 'Content-Type': 'application/octet-stream', 'x-filename': file.name }, body: await file.arrayBuffer() }, { timeoutMs: 30_000, maxRetries: 1, critical: true, category: 'mutation' as EndpointCategory }); if (!r.ok) { const m = await r.text().catch(() => String(r.status)); throw new Error(`Template upload failed: ${m}`); } return r.json(); },
   listBriefTemplates: () => get('/api/templates'),
   deleteBriefTemplate: (templateId) => del(`/api/templates/${encodeURIComponent(templateId)}`).then(() => {}),
 

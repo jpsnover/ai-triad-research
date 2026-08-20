@@ -93,7 +93,7 @@ export function BriefExportDialog({ debateId, debateTitle, debatePhase, onClose,
   // Load stored templates on web (t/2853).
   useEffect(() => {
     if (isElectron) return;
-    api.listBriefTemplates().then(setStoredTemplates).catch(() => { /* silent — templates are optional */ });
+    api.listBriefTemplates().then(setStoredTemplates).catch(() => { /* telemetry — silent by design */ });
   }, [isElectron]);
 
   const handleTemplateFileChange = useCallback(async (file: File | null) => {
@@ -107,6 +107,7 @@ export function BriefExportDialog({ debateId, debateTitle, debatePhase, onClose,
       setStoredTemplates(prev => [...prev.filter(t => t.templateId !== rec.templateId), rec]);
       setSelectedTemplateId(rec.templateId);
     } catch (err) {
+      getGlobalRecorder()?.record({ event: 'template_upload_error', message: err instanceof Error ? err.message : String(err) });
       setTemplateError(err instanceof Error ? err.message : 'Template upload failed');
     } finally {
       setTemplateUploading(false);
@@ -114,7 +115,7 @@ export function BriefExportDialog({ debateId, debateTitle, debatePhase, onClose,
   }, [isElectron]);
 
   const deleteStoredTemplate = useCallback(async (templateId: string) => {
-    await api.deleteBriefTemplate(templateId).catch(() => { /* best-effort */ });
+    await api.deleteBriefTemplate(templateId).catch(() => { /* telemetry — silent by design */ });
     setStoredTemplates(prev => prev.filter(t => t.templateId !== templateId));
     if (selectedTemplateId === templateId) setSelectedTemplateId('');
   }, [selectedTemplateId]);

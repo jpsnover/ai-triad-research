@@ -35,7 +35,7 @@ function getTemplateDir(templateId: string): string {
 async function readIndex(): Promise<TemplateRecord[]> {
   const raw = await getBriefExportBackend().readFile(path.join(getTemplatesDir(), INDEX_FILE));
   if (raw === null) return [];
-  try { return JSON.parse(raw) as TemplateRecord[]; } catch { return []; }
+  try { return JSON.parse(raw) as TemplateRecord[]; } catch { /* telemetry — silent by design */ return []; }
 }
 async function writeIndex(entries: TemplateRecord[]): Promise<void> {
   await getBriefExportBackend().writeFile(path.join(getTemplatesDir(), INDEX_FILE), JSON.stringify(entries, null, 2));
