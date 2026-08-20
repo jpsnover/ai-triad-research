@@ -7,11 +7,11 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 
-const { createBriefExport, getBriefExportJob, listBriefExports, downloadBriefArtifact } = vi.hoisted(() => ({
-  createBriefExport: vi.fn(), getBriefExportJob: vi.fn(), listBriefExports: vi.fn(), downloadBriefArtifact: vi.fn(),
+const { createBriefExport, getBriefExportJob, listBriefExports, downloadBriefArtifact, printBriefToPdf } = vi.hoisted(() => ({
+  createBriefExport: vi.fn(), getBriefExportJob: vi.fn(), listBriefExports: vi.fn(), downloadBriefArtifact: vi.fn(), printBriefToPdf: vi.fn(),
 }));
 vi.mock('@bridge', () => ({
-  api: { createBriefExport, getBriefExportJob, listBriefExports, downloadBriefArtifact },
+  api: { createBriefExport, getBriefExportJob, listBriefExports, downloadBriefArtifact, printBriefToPdf },
   isElectronMode: () => false,
 }));
 vi.mock('@lib/flight-recorder/index', () => ({ getGlobalRecorder: () => ({ record: vi.fn() }) }));
@@ -35,6 +35,7 @@ describe('BriefExportDialog (t/2805)', () => {
     getBriefExportJob.mockReset();
     listBriefExports.mockReset().mockResolvedValue([]);
     downloadBriefArtifact.mockReset();
+    printBriefToPdf.mockReset().mockResolvedValue({ cancelled: false });
   });
   afterEach(() => { vi.useRealTimers(); });
 
@@ -81,6 +82,48 @@ describe('BriefExportDialog (t/2805)', () => {
     await vi.waitFor(() => expect(screen.getByText(/export complete/i)).toBeInTheDocument());
     expect(screen.getByText('Slides (PPTX)')).toBeInTheDocument();
     expect(screen.getByText('Audit manifest (JSON)')).toBeInTheDocument();
+  });
+
+  it('web mode: offers "Save as PDF" when an htmlDoc artifact is present and routes it through the bridge', async () => {
+    // Regression (t/2852): the PDF action was gated isElectronMode(), but the brief
+    // pipeline runs web-only — so the button was unreachable in both profiles. It must
+    // surface in web (where the run happens) whenever the run produced brief.html, and
+    // the bridge dispatches print (browser print on web, native printToPDF on Electron).
+    vi.useFakeTimers();
+    getBriefExportJob.mockResolvedValue({ status: 'done', progressPct: 100, warnings: [], error: null, errorCode: null, exportId: 'exp-1' });
+    listBriefExports.mockResolvedValue([{
+      exportId: 'exp-1', debateId: 'deb-1', title: 'Should AI pause?', preset: 'conference', status: 'done',
+      narratorModel: 'gemini-2.5-flash', narratorModelSource: 'Global', formats: ['pptx'],
+      artifacts: ['deck_spec.json', 'narration.json', 'audit-manifest.json', 'brief.pptx', 'brief.html'],
+      traceCoveragePct: 100, warnings: [], createdAt: '2026-08-19T00:00:00Z',
+    }]);
+    downloadBriefArtifact.mockResolvedValue({ text: async () => '<html>brief</html>' });
+    renderClosed();
+    fireEvent.click(screen.getByRole('button', { name: 'Export' }));
+    await vi.advanceTimersByTimeAsync(1600);
+    await vi.waitFor(() => expect(screen.getByText(/export complete/i)).toBeInTheDocument());
+
+    const pdfBtn = screen.getByRole('button', { name: /save as pdf/i });
+    expect(pdfBtn).toBeInTheDocument();
+    fireEvent.click(pdfBtn);
+    await vi.waitFor(() => expect(printBriefToPdf).toHaveBeenCalledWith('<html>brief</html>'));
+    expect(downloadBriefArtifact).toHaveBeenCalledWith('exp-1', 'brief.html');
+  });
+
+  it('web mode: no "Save as PDF" when the run produced no htmlDoc artifact', async () => {
+    vi.useFakeTimers();
+    getBriefExportJob.mockResolvedValue({ status: 'done', progressPct: 100, warnings: [], error: null, errorCode: null, exportId: 'exp-1' });
+    listBriefExports.mockResolvedValue([{
+      exportId: 'exp-1', debateId: 'deb-1', title: 'Should AI pause?', preset: 'conference', status: 'done',
+      narratorModel: 'gemini-2.5-flash', narratorModelSource: 'Global', formats: ['pptx'],
+      artifacts: ['deck_spec.json', 'narration.json', 'audit-manifest.json', 'brief.pptx'],
+      traceCoveragePct: 100, warnings: [], createdAt: '2026-08-19T00:00:00Z',
+    }]);
+    renderClosed();
+    fireEvent.click(screen.getByRole('button', { name: 'Export' }));
+    await vi.advanceTimersByTimeAsync(1600);
+    await vi.waitFor(() => expect(screen.getByText(/export complete/i)).toBeInTheDocument());
+    expect(screen.queryByRole('button', { name: /save as pdf/i })).not.toBeInTheDocument();
   });
 
   it('failed job: shows the gate message verbatim', async () => {
