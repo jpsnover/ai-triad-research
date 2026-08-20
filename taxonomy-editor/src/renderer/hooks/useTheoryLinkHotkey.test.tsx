@@ -10,6 +10,7 @@ vi.mock('@lib/flight-recorder/index', () => ({ getGlobalRecorder: () => ({ recor
 
 import { TheoryLink } from '../components/shared/TheoryLink';
 import { useTheoryLinkHotkey } from './useTheoryLinkHotkey';
+import { usePreferencesStore } from '../store/preferencesStore';
 
 // jsdom does no layout: offsetParent is null and getClientRects() is empty, so the
 // hook's visibility filter would drop every link. Make attached elements report visible.
@@ -33,7 +34,8 @@ function stubRect(el: Element, left: number, top: number) {
 }
 
 describe('useTheoryLinkHotkey', () => {
-  beforeEach(() => { openExternal.mockClear(); });
+  // t/2867: TheoryLink now gates on viewMode; the hotkey targets links, so advanced view must render them.
+  beforeEach(() => { openExternal.mockClear(); usePreferencesStore.setState({ viewMode: 'advanced' }); });
   afterEach(() => { document.body.innerHTML = ''; });
 
   it('F1 activates the TheoryLink in the focused element\'s enclosing section', () => {
