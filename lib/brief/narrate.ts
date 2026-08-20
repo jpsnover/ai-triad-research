@@ -263,6 +263,31 @@ async function buildNarratedNarration(
       });
     }
 
+    // Presence gate (t/2872): an empty entries array is AJV-schema-valid and trips
+    // neither the JSON-parse nor the bad-trace gate, but yields a narration the model
+    // never actually produced — downstream verify() then hard-fails symmetry for EVERY
+    // camp (0 slides each), a confusing far-away error. Retry with a targeted repair
+    // message; throw an actionable narrate-level error if exhausted. Mirrors the
+    // badTrace gate above; a distinct FR `reason:'empty-entries'` lets the next
+    // diagnosis tell "empty" from "bad traces".
+    if ((parsed.entries ?? []).length === 0) {
+      const msg = 'Model returned zero narration entries — narration must cover the deck_spec';
+      if (attempt < MAX_REPAIR_RETRIES) {
+        priorErrors = `${msg}. Emit at least one entry per deck_spec section, each with a valid RFC 6901 trace into the provided JSON.`;
+        recorder?.record({ type: 'system.error' as const, component: 'brief-narrate', level: 'warn' as const, message: msg, data: { reason: 'empty-entries' } });
+        continue;
+      }
+      throw new ActionableError({
+        goal: 'Narrate deck_spec into narration.json',
+        problem: msg,
+        location: LOCATION,
+        nextSteps: [
+          'The model returned an empty entries array (AJV-valid but empty) on every attempt.',
+          'Use a model with stronger structured-output compliance for narration — lite/economy tiers may fail this complex prompt.',
+        ],
+      });
+    }
+
     return {
       deck_spec_version: DECK_SPEC_VERSION,
       narration_mode: 'narrated',
