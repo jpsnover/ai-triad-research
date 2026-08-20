@@ -19,6 +19,13 @@ import { campColor } from './deckTheme.js';
 // at runtime: the CJS main's `module.exports` IS the class) to the exact API this
 // renderer uses, so it type-checks under BOTH bundler (vitest/renderer) and nodenext
 // (server build). A pptxgenjs swap or a types fix touches only this block.
+//
+// SECURITY (t/2866): this surface deliberately exposes NO addImage/addMedia. pptxgenjs
+// invokes its transitive `image-size` dep (CVE-2025-71329 / CVE-2025-71330 — ICNS/JXL/HEIF
+// parser infinite-loop DoS, no patched release exists) ONLY when measuring an embedded
+// image. Keeping image embedding out of this bounded surface keeps those parsers
+// unreachable — the basis on which the 4 Dependabot alerts were dismissed. Do NOT add
+// addImage/addMedia here without re-triaging t/2866 first.
 type Hex = string;
 interface PptxLine { color: Hex; width?: number; pt?: number }
 interface PptxTextOpts {
