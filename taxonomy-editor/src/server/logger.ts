@@ -67,14 +67,6 @@ const usePretty = !isProduction && hasPinoPretty();
 // path (pretty mode runs a worker transport that bypasses an in-process
 // destination); opt out with FR_DUMP_INCLUDE_LOGS=0.
 const teeLogs = !usePretty && process.env.FR_DUMP_INCLUDE_LOGS !== '0';
-const teeStream = new Writable({
-  write(chunk: Buffer | string, _enc, cb) {
-    const s = chunk.toString();
-    process.stdout.write(s);
-    recordServerLog(s);
-    cb();
-  },
-});
 
 // ── Log-line size caps (t/1475) ──
 // Azure Container Apps captures stdout via Fluent Bit, which slices lines past a
@@ -128,6 +120,75 @@ export function capLogObject(obj: Record<string, unknown>): Record<string, unkno
   return reduced;
 }
 
+// ── Emitted-line guard (t/2860) ──
+// capLogObject (formatters.log) only sees the merged OBJECT — pino appends `msg`/
+// `level`/`time` afterwards — so an oversized `msg`, the object-cap + msg + meta
+// compose-overflow (15K + 4K + meta ≈ 19K > 16K), and any non-pino line routed
+// through the sink all escape it. The guard below runs on the FINAL serialized line
+// (real bytes) as the hard backstop, so the actually-emitted stdout line can never
+// exceed the ACA/Fluent Bit slice limit.
+
+/** Reduce a parsed, over-cap emitted line to triage keys + truncated `msg` + err/error
+ *  + marker. Always small and valid JSON; keeps `requestId` for Get-ServerLog
+ *  correlation. Unlike capLogObject this sees the serialized line's pino-added fields. */
+export function reduceEmittedLine(obj: Record<string, unknown>): Record<string, unknown> {
+  const reduced: Record<string, unknown> = {};
+  for (const k of [...LOG_TRIAGE_KEYS, 'level', 'time', 'name', 'pid', 'hostname']) {
+    if (k in obj) reduced[k] = truncateLogValue(obj[k]);
+  }
+  if (typeof obj.msg === 'string') reduced.msg = truncateLogString(obj.msg);
+  const err = obj.err as { type?: string; message?: string } | undefined;
+  if (err && typeof err === 'object') reduced.err = { type: err.type, message: truncateLogString(String(err.message ?? '')) };
+  const error = obj.error as { name?: string; message?: string } | undefined;
+  if (error && typeof error === 'object') reduced.error = { name: error.name, message: truncateLogString(String(error.message ?? '')) };
+  reduced._log_truncated = `emitted line exceeded ${LOG_MAX_LINE_BYTES}B — reduced for ACA/Fluent Bit; full detail in the flight recorder`;
+  return reduced;
+}
+
+/** Last-resort fail-safe: byte-truncate a line that isn't valid JSON (or is still
+ *  over-cap after reduction). The result may not be valid JSON, but a self-contained
+ *  truncated line is strictly better than one Fluent Bit slices — a slice corrupts
+ *  the ADJACENT record too (the t/2860 `completed"}` tails). */
+function byteTruncateLine(line: string): string {
+  const marker = '…[truncated oversized log line]';
+  const budget = Math.max(0, LOG_MAX_LINE_BYTES - Buffer.byteLength(marker));
+  return Buffer.from(line, 'utf8').subarray(0, budget).toString('utf8') + marker;
+}
+
+/** Guarantee an emitted line is ≤ LOG_MAX_LINE_BYTES bytes. Structured-reduce when
+ *  parseable (keeps triage + requestId), else byte-truncate. Never throws — logging
+ *  must never take the process down. */
+export function capEmittedLine(line: string): string {
+  try {
+    if (Buffer.byteLength(line) <= LOG_MAX_LINE_BYTES) return line;
+    const obj = JSON.parse(line) as Record<string, unknown>;
+    const s = JSON.stringify(reduceEmittedLine(obj));
+    return Buffer.byteLength(s) <= LOG_MAX_LINE_BYTES ? s : byteTruncateLine(s);
+  } catch { /* telemetry — silent by design */ return byteTruncateLine(line); }
+}
+
+/** Writable that buffers partial chunks, splits on newline, and passes every complete
+ *  line through capEmittedLine before the sink. Fail-safe: never throws, never drops. */
+function makeGuardedDestination(sink: (line: string) => void): Writable {
+  let pending = '';
+  const emit = (raw: string) => { try { sink(capEmittedLine(raw)); } catch { /* never throw from logging */ } };
+  return new Writable({
+    write(chunk: Buffer | string, _enc, cb) {
+      try {
+        pending += chunk.toString();
+        let nl: number;
+        while ((nl = pending.indexOf('\n')) !== -1) {
+          const line = pending.slice(0, nl);
+          pending = pending.slice(nl + 1);
+          if (line.length > 0) emit(line);
+        }
+      } catch { /* never throw from logging */ }
+      cb();
+    },
+    final(cb) { if (pending.length > 0) { emit(pending); pending = ''; } cb(); },
+  });
+}
+
 const pinoOptions = {
   level: process.env.LOG_LEVEL || (isProduction ? 'info' : 'debug'),
   redact: {
@@ -177,9 +238,23 @@ const pinoOptions = {
   },
 };
 
-// In pretty mode pino owns its output via a worker transport; otherwise route
-// through the tee so log lines also land in the server-log buffer for dumps.
-const logger = teeLogs ? pino(pinoOptions, teeStream) : pino(pinoOptions);
+/** Default line sink: write the (line-guarded) line to stdout and, when teeing is
+ *  enabled, into the bounded server-log buffer for flight-recorder dumps. */
+function defaultSink(line: string): void {
+  const withNl = line.endsWith('\n') ? line : line + '\n';
+  process.stdout.write(withNl);
+  if (teeLogs) recordServerLog(withNl);
+}
+
+/** Build a logger with the production options. `sink` overrides the line destination
+ *  (tests capture emitted lines); default → stdout + server-log tee. In pretty mode
+ *  (dev) pino owns output via a worker transport, so the in-process sink is bypassed. */
+export function buildLogger(sink: (line: string) => void = defaultSink) {
+  if (usePretty) return pino(pinoOptions);
+  return pino(pinoOptions, makeGuardedDestination(sink));
+}
+
+const logger = buildLogger();
 
 // ── Component child loggers ──
 
