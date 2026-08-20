@@ -19,7 +19,9 @@ const TAB_LABELS: Record<Tab, string> = { debates: 'Debates', chats: 'Chats', op
 type CommunityItem = CommunityChat | CommunityDebate | OpEdCommunityEntry;
 
 function cardTitle(item: CommunityItem): string {
-  return 'title' in item ? item.title : item.topic;
+  // Op-eds title from `topic`; the store warns on a missing topic, so guard the UI too
+  // rather than render a blank card title (Design note, t/2891#2).
+  return 'title' in item ? item.title : (item.topic || 'Untitled study');
 }
 
 function cardSubmitter(item: CommunityItem): string | undefined {
