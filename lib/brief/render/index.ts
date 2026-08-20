@@ -13,6 +13,7 @@ import type { SlideKind } from './slideModel.js';
 import { resolveTheme } from './deckTheme.js';
 import { renderPptx } from './pptxRenderer.js';
 import { renderHtml } from './htmlRenderer.js';
+import { normalizePresentationOrder } from './normalizeOoxml.js';
 
 export interface RenderInput {
   spec: DeckSpec;
@@ -66,6 +67,13 @@ export async function render(input: RenderInput): Promise<RenderResult> {
       allWarnings.push(`template_masters_not_merged: slide-master injection failed — ${msg}`);
     }
   }
+
+  // FINAL byte step: normalize ppt/presentation.xml child order to ECMA-376 canonical
+  // (pptxgenjs emits notesMasterIdLst after sldIdLst on any deck with speaker notes,
+  // which the T5 OOXML lint rejects — t/2871). After the optional .potx merge so it
+  // also corrects any reordering that introduced. No-op (bytes unchanged) if already
+  // canonical.
+  pptxBytes = await normalizePresentationOrder(pptxBytes);
 
   const htmlDoc = renderHtml(slides, theme);
 
