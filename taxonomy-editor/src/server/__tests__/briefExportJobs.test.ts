@@ -141,7 +141,10 @@ describe('brief export runner (t/2804)', () => {
   it('allowOpen unset: a closed export passes no snapshot opts and adds no maturity warning (t/2851)', async () => {
     const job = startExportJob(baseArgs());
     await waitTerminal(job);
-    expect(extractDeckSpec).toHaveBeenCalledWith(expect.objectContaining({ phase: 'closed' }), undefined);
+    // Since t/2858 the call routes through runBriefPipeline, which always passes an opts object
+    // `{ allowOpen: input.allowOpen }` — so an unset allowOpen is `{ allowOpen: undefined }`, not
+    // bare `undefined`. Semantically identical (extract's opts.allowOpen is undefined either way).
+    expect(extractDeckSpec).toHaveBeenCalledWith(expect.objectContaining({ phase: 'closed' }), { allowOpen: undefined });
     expect(job.warnings.some(w => w.startsWith('in_progress_snapshot:'))).toBe(false);
   });
 

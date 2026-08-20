@@ -10,10 +10,8 @@
 import { randomUUID } from 'crypto';
 import { getGlobalRecorder } from '../../../lib/flight-recorder/index.js';
 import { ActionableError, errorMessage } from '../../../lib/debate/errors.js';
-import { extractDeckSpec } from '../../../lib/brief/extract.js';
-import { narrate } from '../../../lib/brief/narrate.js';
-import { render } from '../../../lib/brief/render/index.js';
-import { verify } from '../../../lib/brief/verify.js';
+import { runBriefPipeline, type BriefArtifact } from '../../../lib/brief/pipeline.js';
+import { codeForHardFailures } from '../../../lib/brief/errorMapping.js';
 import type { DebateSession } from '../../../lib/debate/types.js';
 import type { BriefPreset, ModelSource, ExportJobState, ExportErrorCode } from '../../../lib/brief/types.js';
 import { BRIEF_ARTIFACTS } from '../../../lib/brief/types.js';
@@ -97,17 +95,9 @@ export function sweepExportJobs(): void {
 
 // ── Error mapping (verify hardFailures + stage throws → stable ExportErrorCode) ──
 
-/** Map a verify() hardFailure string to its stable code. Order matters — schema before
- *  trace (a schema failure can cascade into trace strings). */
-function codeForHardFailures(hardFailures: string[]): ExportErrorCode {
-  const joined = hardFailures.join(' | ').toLowerCase();
-  if (joined.includes('schema')) return 'SpecSchemaFailure';
-  if (joined.includes('trace')) return 'TraceGateFailure';
-  if (joined.includes('symmetry')) return 'SymmetryFailure';
-  if (joined.includes('ooxml') || joined.includes('pptx') || joined.includes('lint')) return 'PptxLintFailure';
-  return 'PptxLintFailure'; // default within the verify gate family
-}
-
+// codeForHardFailures now lives in lib/brief/errorMapping.ts (t/2858 / t/2840) — one copy
+// shared by T6, the CLI, and the Electron handler. codeForThrow stays caller-local (below):
+// it maps a *stage throw* to a code, which is a T6-shell concern the shared pipeline doesn't own.
 function codeForThrow(err: unknown, stage: ExportJobState): ExportErrorCode {
   const msg = errorMessage(err).toLowerCase();
   if (msg.includes('not closed') || msg.includes('closed')) return 'DebateNotClosed';
@@ -158,55 +148,45 @@ async function runExportJob(job: ExportJob, args: CreateJobArgs): Promise<void> 
   let title = args.debateId;   // fallback until extract yields the real deck title
   let stage: ExportJobState = 'extracting';
   try {
-    // ── extract ──
-    setState(job, 'extracting'); stage = 'extracting';
-    const spec = extractDeckSpec(session, request.allowOpen ? { allowOpen: true } : undefined);
-    title = spec.meta.title;
-    // Maturity warning (t/2851): a live-snapshot export is partial, not a final export.
-    // Keyed on the actual snapshot flag (a closed debate + allowOpen still extracts normally),
-    // so the response never lets an in-progress snapshot masquerade as a concluded brief.
-    if (spec.meta.snapshot) {
+    // ── run the shared 4-stage pipeline (t/2858 — retires the inlined copy). onStage drives
+    //    job state + the local `stage` (so a throw still maps via codeForThrow); onArtifact
+    //    captures each artifact the moment it's produced, so a later-stage throw still
+    //    partial-persists the earlier ones. The sink emits the SAME objects the pipeline
+    //    returns on success, so `artifacts` is byte-identical to the old inlined path.
+    const result = await runBriefPipeline(
+      {
+        session,
+        preset: request.preset,
+        skipNarration: request.skipNarration,
+        modelId: models.modelId,
+        modelSource: models.modelSource,
+        checkerModelId: models.checkerModelId,
+        checkerModelSource: models.checkerModelSource,
+        template: request.template,
+        framingMeta: request.framingMeta,
+        allowOpen: request.allowOpen,
+        toolVersions: args.toolVersions,
+        timestamp: args.timestamp,
+      },
+      args.adapter,
+      (s) => { setState(job, s); stage = s; },
+      (a: BriefArtifact) => { artifacts.push(a); },
+    );
+
+    title = result.spec.meta.title;
+    // Maturity warning (t/2851): a live-snapshot export is a partial, watermarked snapshot,
+    // never a final export. This is a T6-shell concern — the shared pipeline doesn't emit it.
+    // Keyed on the actual meta.snapshot flag (a closed debate + allowOpen still extracts normally).
+    if (result.spec.meta.snapshot) {
       job.warnings.push(
         'in_progress_snapshot: exported from a non-closed debate — this is a partial, watermarked live snapshot (meta.snapshot=true), not a final export.',
       );
     }
-    artifacts.push({ name: BRIEF_ARTIFACTS.deckSpec, text: JSON.stringify(spec, null, 2) });
+    // `result.warnings` = render warnings ∪ manifest warnings (same set the inlined path pushed).
+    job.warnings.push(...result.warnings);
+    traceCoveragePct = result.manifest.trace_coverage_pct;
 
-    // ── narrate (+ optional maker-checker) ──
-    setState(job, 'narrating'); stage = 'narrating';
-    const { narration } = await narrate({
-      spec, preset: request.preset,
-      modelId: models.modelId, modelSource: models.modelSource,
-      checkerModelId: models.checkerModelId, checkerModelSource: models.checkerModelSource,
-      skipNarration: request.skipNarration,
-    }, args.adapter);
-    // `checking` is a sub-phase inside narrate(); surface it post-hoc when a checker ran.
-    if (models.checkerModelId && !request.skipNarration) { setState(job, 'checking'); stage = 'checking'; }
-    artifacts.push({ name: BRIEF_ARTIFACTS.narration, text: JSON.stringify(narration, null, 2) });
-
-    // ── render (pptx + htmlDoc; PDF is Electron-only, never here) ──
-    setState(job, 'rendering'); stage = 'rendering';
-    const { pptxBytes, htmlDoc, warnings: renderWarnings } = await render({
-      spec, narration, preset: request.preset, template: request.template,
-      framingMeta: request.framingMeta,
-    });
-    job.warnings.push(...renderWarnings);
-    artifacts.push({ name: BRIEF_ARTIFACTS.pptx, bytes: pptxBytes });
-    artifacts.push({ name: BRIEF_ARTIFACTS.htmlDoc, text: htmlDoc });
-
-    // ── verify (build-fails-not-warns; manifest ALWAYS produced) ──
-    setState(job, 'verifying'); stage = 'verifying';
-    const { manifest, hardFailures } = await verify({
-      spec, narration, pptxBytes,
-      meta: { toolVersions: args.toolVersions, timestamp: args.timestamp },
-    });
-    const manifestJson = JSON.stringify(manifest, null, 2);
-    traceCoveragePct = manifest.trace_coverage_pct;
-    job.warnings.push(...manifest.warnings);
-    // Manifest is always persisted (TL MUST — diagnosable failures) — it is the output
-    // record, NOT one of the hashed input artifacts, so it is added here, not in verify().
-    artifacts.push({ name: BRIEF_ARTIFACTS.manifest, text: manifestJson });
-
+    const hardFailures = result.hardFailures;
     const status: 'done' | 'failed' = hardFailures.length > 0 ? 'failed' : 'done';
     const errorCode = hardFailures.length > 0 ? codeForHardFailures(hardFailures) : undefined;
 
