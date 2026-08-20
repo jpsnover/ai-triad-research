@@ -109,9 +109,16 @@ function Test-BriefNarrationStage {
             & $WriteStageError $id $msg $ResolvedSpec; return
         }
 
+        # Assert OUTPUT, not just exit 0 (t/2874): a broken entrypoint can exit 0 with
+        # NO stdout — never let that parse into a fake zero-entry result.
+        if ([string]::IsNullOrWhiteSpace((@($Stdout) -join ''))) {
+            & $WriteStageError 'NarrateCliFailure' 'The narrate CLI exited 0 but produced no output — treat as failure, not an empty result (broken entrypoint / t/2868).' $ResolvedSpec; return
+        }
+
         $result = $null
         try { $result = @($Stdout) -join "`n" | ConvertFrom-Json }
         catch { & $WriteStageError 'NarrateCliFailure' 'Could not parse the narrate CLI output as JSON.' $ResolvedSpec; return }
+        if ($null -eq $result) { & $WriteStageError 'NarrateCliFailure' 'The narrate CLI output parsed to null — no result emitted.' $ResolvedSpec; return }
 
         $get = { param($n) if ($result -and $result.PSObject.Properties[$n]) { $result.$n } else { $null } }
 

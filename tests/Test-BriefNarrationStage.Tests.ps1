@@ -56,6 +56,10 @@ exit 0
 exit 1
 '@
 
+    # False-green (t/2874): a broken entrypoint exits 0 with NO stdout.
+    $script:EmptyStub = Join-Path $script:StubDir 'empty.ps1'
+    Set-Content -LiteralPath $script:EmptyStub -Encoding UTF8 -Value 'exit 0'
+
     function New-SpecFile {
         $f = Join-Path $script:StubDir "spec-$(New-Guid).json"
         Set-Content -LiteralPath $f -Value '{"deck_spec_version":"1.0"}' -Encoding UTF8
@@ -132,6 +136,20 @@ Describe 'Test-BriefNarrationStage' -Tag 'debate' {
             $r.Errors.Count | Should -Be 2
             ($r.Errors -join ';') | Should -Match 'unresolvable'
             $r.Narration | Should -BeNullOrEmpty
+        }
+    }
+
+    Context 'False-green guard: exit 0 with no output' {
+        It 'raises an error instead of returning an empty zero-entry result' {
+            Mock -ModuleName AITriad Resolve-BriefNarrateCli {
+                @{ Exe = $script:PwshExe; ArgPrefix = @('-NoProfile', '-File', $script:EmptyStub) }
+            }
+            $f = New-SpecFile
+            $err = $null
+            $out = Test-BriefNarrationStage -SpecPath $f -Model m -ErrorVariable err -ErrorAction SilentlyContinue
+            $out | Should -BeNullOrEmpty
+            $err[0].FullyQualifiedErrorId | Should -Match 'NarrateCliFailure'
+            $err[0].Exception.Message | Should -Match 'no output'
         }
     }
 
