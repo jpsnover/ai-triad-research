@@ -1032,13 +1032,10 @@ const rawApi: AppAPI = {
     return res.blob();
   },
   deleteBriefExport: (exportId) => del(`/api/exports/${encodeURIComponent(exportId)}`).then(() => {}),
-  // Web: open the HTML in a new window and trigger browser print-to-PDF. No filePath returned.
   printBriefToPdf: async (html) => {
     const win = window.open('about:blank', '_blank');
     if (!win) throw new ActionableError({ goal: 'Print brief to PDF', problem: 'Pop-up was blocked.', location: 'web-bridge · printBriefToPdf', nextSteps: ['Allow pop-ups for this site and try again.'] });
-    win.document.open(); win.document.write(html); win.document.close();
-    win.focus(); win.print();
-    return { cancelled: false };
+    win.document.open(); win.document.write(html); win.document.close(); win.focus(); win.print(); return { cancelled: false };
   },
 
   // Op-Ed Studio (t/2576) — real routes against t/2573's server API (on main). The
