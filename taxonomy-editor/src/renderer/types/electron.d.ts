@@ -5,9 +5,16 @@ import type { Organization, OrganizationEdge } from '@lib/organizations/types';
 import type { EntityDetail, EntitySummary, EntityListQuery } from '@lib/entities/types';
 import type { ContainerMentions } from '@lib/entities/mentionTypes';
 import type { EdgesFile } from '@lib/debate/taxonomyTypes';
-import type { UserPreferences } from '../bridge/types';
+import type { UserPreferences, BriefExportRequest, BriefExportJobView, BriefExportRecord } from '../bridge/types';
+import type { BriefArtifactName } from '@lib/brief/types';
 
 export interface ElectronAPI {
+  // Brief Export — desktop parity (t/2840). download returns raw bytes (the bridge wraps a Blob).
+  createBriefExport: (debateId: string, body: BriefExportRequest) => Promise<{ jobId: string }>;
+  getBriefExportJob: (jobId: string) => Promise<BriefExportJobView>;
+  listBriefExports: (debateId: string) => Promise<BriefExportRecord[]>;
+  downloadBriefArtifact: (exportId: string, name: BriefArtifactName) => Promise<Uint8Array | null>;
+  deleteBriefExport: (exportId: string) => Promise<void>;
   processVersions: Record<string, string | undefined>;
   osRelease: string;
   /** t/2766: performance.now() stamp from when contextBridge.exposeInMainWorld ran. */

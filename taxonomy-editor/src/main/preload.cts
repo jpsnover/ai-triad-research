@@ -644,6 +644,19 @@ try {
     ipcRenderer.invoke('delete-oped-set', setId),
   saveOpEdSet: (set: OpEdSet): Promise<void> =>
     ipcRenderer.invoke('save-oped-set', set),
+
+  // Brief Export — desktop parity (t/2840). Mirrors the web AppAPI; download returns raw bytes
+  // that the electron-bridge wraps into a Blob (Blob-returning AppAPI in both builds).
+  createBriefExport: (debateId: string, body: unknown): Promise<{ jobId: string }> =>
+    ipcRenderer.invoke('create-brief-export', debateId, body),
+  getBriefExportJob: (jobId: string): Promise<unknown> =>
+    ipcRenderer.invoke('get-brief-export-job', jobId),
+  listBriefExports: (debateId: string): Promise<unknown[]> =>
+    ipcRenderer.invoke('list-brief-exports', debateId),
+  downloadBriefArtifact: (exportId: string, name: string): Promise<Uint8Array | null> =>
+    ipcRenderer.invoke('download-brief-artifact', exportId, name),
+  deleteBriefExport: (exportId: string): Promise<void> =>
+    ipcRenderer.invoke('delete-brief-export', exportId),
   });
   console.log('[preload] electronAPI exposed');
   ipcRenderer.send('forward-flight-event', {
