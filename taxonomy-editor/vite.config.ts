@@ -138,8 +138,8 @@ export default defineConfig({
         ],
       },
       manifest: {
-        name: 'Taxonomy Editor',
-        short_name: 'Taxonomy',
+        name: 'AI Rosetta Stone',
+        short_name: 'Rosetta Stone',
         description: 'Multi-perspective research platform for AI policy taxonomy',
         start_url: '/',
         display: 'standalone',

@@ -138,7 +138,7 @@ function createWindow(): void {
     height: 800,
     minWidth: 900,
     minHeight: 600,
-    title: 'Taxonomy Editor',
+    title: 'AI Rosetta Stone',
     webPreferences: {
       preload: preloadPath,
       contextIsolation: true,
