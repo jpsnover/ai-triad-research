@@ -530,12 +530,10 @@ jobs:
         working-directory: lib
         run: pnpm run typecheck:brief-nodenext
 
-  # ── Schema version-bump gate — warn mode (t/2808) ───────────────────────
-  # Diffs lib/brief/schemas/*.write.json against the PR base; warns when the
-  # contract surface changes without a $id version bump. Warn-only (exit 0
-  # always) until a green warn cycle confirms signal quality — then promote to
-  # --mode=block + add to ci-gate (Gate Promotion per AGENTS.md, requires TL
-  # sign-off per DevOps AGENTS.md Gate Promotion Discipline).
+  # ── Schema version-bump gate — block mode (t/2808) ──────────────────────
+  # Diffs lib/brief/schemas/*.write.json against the PR base; fails when the
+  # contract surface changes without a $id version bump. Path-filtered to lib
+  # changes; skip = OK through ci-gate. TL GV sign-off received (p/27#18).
   schema-version-bump:
     needs: [changes]
     if: >-
@@ -553,9 +551,8 @@ jobs:
         with:
           node-version: '22'
 
-      - name: Schema version-bump check — warn mode (t/2808)
-        continue-on-error: true
-        run: node lib/brief/schemas/check-version-bump.mjs --mode=warn
+      - name: Schema version-bump check — block mode (t/2808)
+        run: node lib/brief/schemas/check-version-bump.mjs --mode=block
 
   # ── Commit hygiene: flags anonymous / undersized commit subjects (t/1319) ──
   # Annotation-only by design — never flips (t/1319). Visibility, not friction.
@@ -1089,9 +1086,11 @@ jobs:
   # permissions block required; always runs, no path filter.
   # bicep-env-drift (t/2631) is gated here: Bicep baseEnv ↔ deploy-azure.yml
   # ExpectedEnvVars sync check; path-filtered to those two files + parser, skip = OK.
+  # schema-version-bump (t/2808) is gated here: enforces $id version bump on
+  # lib/brief/schemas/*.write.json contract changes; path-filtered to lib, skip = OK.
   ci-gate:
     name: ci-gate
-    needs: [changes, test-powershell, test-electron, test-container, python-embed-smoke, dependency-coverage, lockfile-overrides-check, lib-lint, renderer-tsc, contrast-check, test-server-prod-config, workflow-lint, bicep-env-drift]
+    needs: [changes, test-powershell, test-electron, test-container, python-embed-smoke, dependency-coverage, lockfile-overrides-check, lib-lint, renderer-tsc, contrast-check, test-server-prod-config, workflow-lint, bicep-env-drift, schema-version-bump]
     if: always()
     runs-on: ubuntu-latest
     steps:
