@@ -606,6 +606,30 @@ function MainApp() {
     );
   }
 
+  // POV/Taxonomy tab header (Accelerationist/Safetyist/Skeptic) renders inside the content
+  // column (t/2857) so the left nav rail spans full window height, matching Debate/Chat/Op-Eds.
+  // showPovHeader mirrors the original TabBar visibility condition exactly. Layout-only.
+  const showPovHeader = toolbarPanel === null &&
+    !['situations', 'conflicts', 'cruxes', 'debate', 'chat', 'opeds', 'summaries', 'validation', 'organizations'].includes(activeTab);
+  const tabContent = (
+    <>
+      {activeTab === 'accelerationist' && <PovTab pov="accelerationist" />}
+      {activeTab === 'safetyist' && <PovTab pov="safetyist" />}
+      {activeTab === 'skeptic' && <PovTab pov="skeptic" />}
+      <Suspense fallback={<div className="loading"><div className="loading-title">Loading...</div></div>}>
+        {activeTab === 'situations' && <SituationsTab />}
+        {activeTab === 'conflicts' && <ConflictsTab />}
+        {activeTab === 'cruxes' && <CruxesTab />}
+        {activeTab === 'debate' && <DebateTab />}
+        {activeTab === 'chat' && <ChatTab />}
+        {activeTab === 'opeds' && opedsFlag && <OpEdTab />}
+        {activeTab === 'summaries' && summariesFlag && <SummariesTab />}
+        {activeTab === 'validation' && <ValidationTab />}
+        {activeTab === 'organizations' && <OrganizationsTab />}
+      </Suspense>
+    </>
+  );
+
   return (
     <div className="app">
       {/* Background loading indicator for remaining POVs */}
@@ -712,24 +736,17 @@ function MainApp() {
         </button>
         <span className="mobile-header-title">Taxonomy Editor</span>
       </div>
-      {toolbarPanel === null && !['situations', 'conflicts', 'cruxes', 'debate', 'chat', 'opeds', 'summaries', 'validation', 'organizations'].includes(activeTab) && <TabBar />}
       <div className="app-body">
         <Toolbar />
         <div className="tab-content">
-          {activeTab === 'accelerationist' && <PovTab pov="accelerationist" />}
-          {activeTab === 'safetyist' && <PovTab pov="safetyist" />}
-          {activeTab === 'skeptic' && <PovTab pov="skeptic" />}
-          <Suspense fallback={<div className="loading"><div className="loading-title">Loading...</div></div>}>
-            {activeTab === 'situations' && <SituationsTab />}
-            {activeTab === 'conflicts' && <ConflictsTab />}
-            {activeTab === 'cruxes' && <CruxesTab />}
-            {activeTab === 'debate' && <DebateTab />}
-            {activeTab === 'chat' && <ChatTab />}
-            {activeTab === 'opeds' && opedsFlag && <OpEdTab />}
-            {activeTab === 'summaries' && summariesFlag && <SummariesTab />}
-            {activeTab === 'validation' && <ValidationTab />}
-            {activeTab === 'organizations' && <OrganizationsTab />}
-          </Suspense>
+          {showPovHeader ? (
+            <div className="pov-tab-shell">
+              <TabBar />
+              <div className="pov-tab-shell-body">{tabContent}</div>
+            </div>
+          ) : (
+            tabContent
+          )}
         </div>
         {/* One app-level ref → DetailPane host for every main tab in this shell (t/1987).
             A ref-link click in PovTab/Situations/Conflicts/Cruxes/Debate sets the global
