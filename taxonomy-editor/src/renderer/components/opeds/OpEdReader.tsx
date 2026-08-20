@@ -202,11 +202,9 @@ function OpEdArticle({ member, outlet }: { member: OpEdMember; outlet?: string }
           {member.subtitle && <p className="oped-article-subtitle">{member.subtitle}</p>}
           {member.byline && <p className="oped-byline">{member.byline}</p>}
           {member.disclosure && <p className="oped-disclosure" role="note">{member.disclosure}</p>}
-
           <div className="oped-reader-body">
             <Markdown remarkPlugins={[remarkGfm]}>{member.body}</Markdown>
           </div>
-
           <GroundingSection grounding={member.grounding} />
 
           {member.rhetorical_meta && (
