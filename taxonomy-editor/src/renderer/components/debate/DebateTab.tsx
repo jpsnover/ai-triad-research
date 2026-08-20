@@ -16,8 +16,7 @@ import { NewDebateDialog } from './NewDebateDialog';
 import { DebateWorkspace } from '../debate-workspace';
 import { filterCommunityDebates } from './communityFilter';
 import { ExportDropdown } from './ExportDropdown';
-import { useDebateBriefExports } from './DebateBriefExports';
-import { BriefExportDialog } from './BriefExportDialog';
+import { useDebateBriefExports, useRowBriefExport } from './DebateBriefExports';
 import { useFlag } from '../../hooks/useFeatureFlags';
 import { useAuthStatus } from '../../hooks/useAuthStatus';
 import { SearchPreview } from '../edge-browser/SearchPreview';
@@ -454,9 +453,7 @@ export function DebateTab() {
     }
   }, [runExport]);
 
-  // Brief export triggered from a table row (t/2805 follow-up — wire row ExportDropdown).
-  const [briefRowSession, setBriefRowSession] = useState<SessionRowData | null>(null);
-  const handleRowBrief = useCallback((s: SessionRowData) => setBriefRowSession(s), []);
+  const rowBrief = useRowBriefExport(isElectronMode());
 
   const listProps: DebateListProps = {
     width, listView, setListView, editMode, setEditMode, sessions, sessionsLoading,
@@ -471,7 +468,7 @@ export function DebateTab() {
     onRowExport: (s, fmt) => { void handleRowExport(s, fmt); },
     onRowShare: handleRowShare,
     onRowCommunityExport: (cd, fmt) => { void handleRowCommunityExport(cd, fmt); },
-    onRowBrief: handleRowBrief,
+    onRowBrief: rowBrief.openRowBrief,
   };
 
   const rightPaneProps: DebateRightPaneProps = {
@@ -554,15 +551,7 @@ export function DebateTab() {
           }}
         />
       )}
-      {briefRowSession && !isElectronMode() && (
-        <BriefExportDialog
-          debateId={briefRowSession.id}
-          debateTitle={briefRowSession.title}
-          debatePhase={briefRowSession.phase}
-          onClose={() => setBriefRowSession(null)}
-          onExported={() => setBriefRowSession(null)}
-        />
-      )}
+      {rowBrief.rowBriefNode}
       {showBulkDeleteConfirm && (
         <BulkDeleteDialog
           sessions={sessions}
