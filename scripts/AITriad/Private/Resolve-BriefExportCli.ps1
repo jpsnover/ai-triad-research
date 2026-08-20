@@ -13,12 +13,11 @@ function Resolve-BriefExportCli {
         (--path/--model/--preset/--out + optional --skip-narration/--checker-model/--allow-open).
 
         The CLI (lib/brief/cli.ts) is a TypeScript module; lib/brief's tsconfig is noEmit,
-        so there is no committed cli.js. The repo's convention for running lib/*.ts without
-        a build is `tsx` (a root devDependency, used by the parity tests). We therefore run
-        the source via `npx tsx lib/brief/cli.ts`. (PROVISIONAL — confirming the canonical
-        invocation with Shared Lib on p/470 before un-drafting; if they prefer the
-        build:server output `dist/server/lib/brief/cli.js` or a dedicated npm script, only
-        this function changes.) Tests mock this function.
+        so there is no committed cli.js and no npm bin/script. Shared Lib froze the
+        canonical entrypoint as `tsx lib/brief/cli.ts` from repo root, no compiled bin
+        (t/2837#7 / Shared Lib p/44#47) — so we run the source via `npx tsx lib/brief/cli.ts`
+        (npx keeps it portable; `tsx` is a root devDependency). If the entrypoint ever
+        changes (a build output or npm script), only this function changes. Tests mock this.
     #>
     [CmdletBinding()]
     [OutputType([hashtable])]
