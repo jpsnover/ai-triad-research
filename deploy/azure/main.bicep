@@ -682,6 +682,9 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
         // reason in e247ef75, 2026-05-05) in exchange for scale-to-zero savings.
         minReplicas: 0
         // maxReplicas capped at 1 (t/2885, 2026-08-20): brief-export and oped job
+        // NOTE: the phrase "maxReplicas capped at 1" on this line is load-bearing —
+        // Test-InMemoryJobStoreScaleGuard.ps1 uses it as a regex anchor to locate
+        // the maxReplicas value. Do not edit this comment string without updating the gate.
         // stores are per-process in-memory Maps. Running >1 replica means a POST
         // that creates a job on replica A and a GET poll on replica B → 404.
         // DO NOT raise this above 1 until the job store is backed by shared blob

@@ -224,6 +224,13 @@ jobs:
           $config.CodeCoverage.CoveragePercentTarget = 5
           Invoke-Pester -Configuration $config
 
+      - name: In-memory job store scale guard (real files)
+        # Runs the gate against the ACTUAL main.bicep + briefExportJobs.ts — distinct
+        # from the Pester tests above, which use fixture files. This step IS the gate:
+        # it fires if maxReplicas > 1 while @INMEMORY_JOB_STORE is present. (t/2885)
+        shell: pwsh
+        run: ./operations/devops/Test-InMemoryJobStoreScaleGuard.ps1
+
       - name: Build module
         shell: pwsh
         run: ./scripts/Build-Module.ps1 -Clean
