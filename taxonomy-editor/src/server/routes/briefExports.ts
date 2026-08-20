@@ -42,7 +42,7 @@ interface ExportPostBody {
  *  complexity ceiling; the I/O gates (debate load, model resolution) remain inline. */
 type ExportPrecheck =
   | { ok: false; status: number; message: string }
-  | { ok: true; preset: BriefPreset; skipNarration: boolean };
+  | { ok: true; preset: BriefPreset; skipNarration: boolean; allowOpen: boolean };
 
 function precheckExportRequest(req: Parameters<Parameters<Router['post']>[1]>[0], b: ExportPostBody): ExportPrecheck {
   // Auth MUST (#5): export is billable — never anon.
@@ -57,13 +57,13 @@ function precheckExportRequest(req: Parameters<Parameters<Router['post']>[1]>[0]
     return { ok: false, status: 400, message: 'PDF requires the desktop app: the server renders .pptx (and spec). Open the AITriad desktop app to export a PDF (printToPDF is Electron-only).' };
   }
 
-  // allowOpen depends on snapshot extract (t/2816) — closed-only for v1; never silently downgrade.
+  // allowOpen (t/2851): snapshot extract is supported now (lib #1269, snapshot-aware verify t/2841).
+  // A non-closed debate exports a watermarked in-progress snapshot (meta.snapshot=true) with a
+  // maturity warning; the closed-phase gate below only fails closed when allowOpen is NOT set.
   const url = new URL(req.url ?? '', 'http://localhost');
-  if (url.searchParams.get('allowOpen') === 'true') {
-    return { ok: false, status: 400, message: 'Snapshot export of a live debate is not available yet (tracked in t/2816). Close the debate to export.' };
-  }
+  const allowOpen = url.searchParams.get('allowOpen') === 'true';
 
-  return { ok: true, preset, skipNarration: b.options?.skipNarration === true };
+  return { ok: true, preset, skipNarration: b.options?.skipNarration === true, allowOpen };
 }
 
 /** Resolve narrator + optional checker with the billable entitlement gate (MUST #5). Writes
@@ -108,7 +108,7 @@ export function registerBriefExportsRoutes(r: Router, _ctx: ServerCtx): void {
     const b = (body ?? {}) as ExportPostBody;
     const pre = precheckExportRequest(req, b);
     if (!pre.ok) { error(res, pre.message, pre.status); return; }
-    const { preset, skipNarration } = pre;
+    const { preset, skipNarration, allowOpen } = pre;
     const debateId = param(req, 'debateId', '/api/debates/:debateId/exports');
 
     // Load debate + closed-phase gate.
@@ -119,8 +119,8 @@ export function registerBriefExportsRoutes(r: Router, _ctx: ServerCtx): void {
       error(res, 'Debate not found', 404); return;
     }
     if (!session) { error(res, 'Debate not found', 404); return; }
-    if (session.phase !== 'closed') {
-      error(res, 'Only closed debates can be exported. Close the debate first (live-snapshot export is tracked in t/2816).', 409);
+    if (session.phase !== 'closed' && !allowOpen) {
+      error(res, 'Only closed debates can be exported. Close the debate first, or pass ?allowOpen=true to export a watermarked in-progress snapshot.', 409);
       return;
     }
 
@@ -149,7 +149,7 @@ export function registerBriefExportsRoutes(r: Router, _ctx: ServerCtx): void {
     const framingMeta = b.framingMeta === false ? false : undefined;
     const job = startExportJob({
       userId, session, debateId, models,
-      request: { preset, skipNarration, framingMeta },
+      request: { preset, skipNarration, framingMeta, allowOpen },
       toolVersions: TOOL_VERSIONS, timestamp: new Date().toISOString(),
       idempotencyKey, adapter: createWebOpEdAdapter(),
     });
