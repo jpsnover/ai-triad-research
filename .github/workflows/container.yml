@@ -70,7 +70,7 @@ jobs:
             # Dispatch CI manually and wait for it rather than failing with an
             # unhelpful "push to main" instruction that no longer applies.
             echo "No CI run found for ${TARGET_SHA} (docs-only tip skipped by paths-ignore). Dispatching CI..."
-            gh workflow run ci.yml --ref main
+            gh workflow run ci.yml --repo "${{ github.repository }}" --ref main
             # Allow ~20s for the dispatched run to register in GitHub's API
             sleep 20
             for i in $(seq 1 18); do
