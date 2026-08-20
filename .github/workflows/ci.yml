@@ -85,8 +85,11 @@ jobs:
             powershell:
               - 'scripts/**'
               - 'tests/**'
+              - 'operations/devops/**'
               - 'lib/**'
               - 'ai-models.json'
+              - 'deploy/azure/main.bicep'
+              - 'taxonomy-editor/src/server/briefExportJobs.ts'
               - '.github/workflows/ci.yml'
             electron:
               - 'taxonomy-editor/**'

@@ -1,6 +1,9 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
+// @INMEMORY_JOB_STORE — job registry is a per-process in-memory Map (not shared across replicas).
+// Remove this marker when migrated to blob-backed shared store (t/2885). The CI gate
+// Test-InMemoryJobStoreScaleGuard.ps1 reads this marker and blocks if maxReplicas > 1.
 // Brief Export async job runner + registry (t/2804, T6). Mirrors the oped run-registry
 // pattern (in-memory Map, per-user concurrency cap, TTL sweep) but exposes the
 // POST-202-jobId + GET-poll shape (not SSE). Durable truth is the exports list +
