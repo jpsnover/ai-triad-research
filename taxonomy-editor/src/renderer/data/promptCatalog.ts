@@ -51,15 +51,9 @@ import {
   newsReportPrompt,
   citeRetryPrompt,
   draftQualityCheckPrompt,
-  consensusSituationPrompt,
-  dolceComplianceRetryPrompt,
   decomposeResolutionPrompt,
 } from '@lib/debate/prompts';
-import { extractClaimsPrompt, classifyClaimsPrompt } from '@lib/debate/argumentNetwork';
-import { classifyConcessionsPrompt } from '@lib/debate/concessionTracker';
-import { documentAnalysisPrompt } from '@lib/debate/documentAnalysis';
 import { critiqueTopicPrompt } from '@lib/debate/topicCritique';
-import { buildRepairPrompt } from '@lib/debate/turnValidator';
 
 export type PromptGroup = 'debate-setup' | 'debate-turns' | 'debate-analysis' | 'moderator' | 'chat' | 'taxonomy' | 'research' | 'powershell' | 'oped';
 export type DataSourceId = 'taxonomyNodes' | 'situationNodes' | 'vulnerabilities' | 'fallacies' | 'policyRegistry' | 'sourceDocument' | 'commitments' | 'argumentNetwork' | 'establishedPoints';
@@ -86,6 +80,12 @@ export interface PromptCatalogEntry {
   promptDir?: 'ps' | 'oped';
   /** PS cmdlet parameters that configure this prompt at runtime */
   psParameters?: { name: string; type: string; default: string; description: string }[];
+  /** Prompt-builder fn names (exported from `lib/debate/prompts/*` or `renderer/prompts/*`)
+   *  this entry exposes. The registry lint (`__tests__/promptCatalog.lint.test.ts`, t/2834)
+   *  treats these as the machine-link for builders that aren't invoked in a `template` call
+   *  at build time (e.g. the StagePromptInput turn stages). Every name must resolve to a real
+   *  exported builder. Simple entries that call `builder('{x}')` in `template` need no entry here. */
+  builders?: string[];
 }
 
 export const PROMPT_CATALOG: PromptCatalogEntry[] = [
@@ -1142,5 +1142,139 @@ export const PROMPT_CATALOG: PromptCatalogEntry[] = [
     purpose: 'Pre-generation step. Reads {{SOURCE_MATERIAL}} and returns a structured JSON brief (key claims, evidence, positions) that grounds the subsequent op-ed. Returns JSON.',
     applicableDataSources: ['sourceDocument'],
     promptFiles: ['op-ed-source-brief'],
+  },
+
+  // === Debate turn pipeline (non-opening stages) + analytical builders (t/2834 / CL EXPOSE t/2835#1) ===
+  // These builders take runtime StagePromptInput and can't be invoked in a `template` at build time,
+  // so they declare `builders: [...]` as the registry-lint machine-link instead of a template call.
+  {
+    id: 'debate-plan-stage',
+    title: 'Debate: Plan (turn stage)',
+    description: 'Core turn-pipeline plan stage — the debater plans argument structure for a non-opening turn.',
+    source: 'lib/debate/prompts/turn-pipeline.ts',
+    template: '(Template requires runtime context — view in Prompt Inspector or Full Prompt tab)',
+    group: 'debate-turns',
+    purpose: 'Fires as the plan stage of each non-opening debater turn. The debater (in character) plans strategic goal, thesis, and argument structure before drafting. Feeds the Draft stage.',
+    phase: 'response',
+    applicableDataSources: ['taxonomyNodes', 'situationNodes'],
+    builders: ['planStagePrompt'],
+  },
+  {
+    id: 'debate-brief-stage',
+    title: 'Debate: Brief (turn stage)',
+    description: 'Core turn-pipeline brief stage — analytical situation brief identifying the strongest framing for a non-opening turn.',
+    source: 'lib/debate/prompts/turn-pipeline.ts',
+    template: '(Template requires runtime context — view in Prompt Inspector or Full Prompt tab)',
+    group: 'debate-turns',
+    purpose: 'Fires as the first stage of each non-opening debater turn. An analytical assistant assesses the current state and strongest angles; output feeds the Plan stage.',
+    phase: 'response',
+    applicableDataSources: ['taxonomyNodes', 'situationNodes', 'sourceDocument'],
+    builders: ['briefStagePrompt'],
+  },
+  {
+    id: 'debate-draft-stage',
+    title: 'Debate: Draft (turn stage)',
+    description: 'Core turn-pipeline draft stage — the debater writes their turn statement (phase-aware directives).',
+    source: 'lib/debate/prompts/turn-pipeline.ts',
+    template: '(Template requires runtime context — view in Prompt Inspector or Full Prompt tab)',
+    group: 'debate-turns',
+    purpose: 'Fires after the Plan stage. The debater (in character) writes the full turn statement grounded in taxonomy nodes, with phase-aware directives. Produces the statement text, claim sketches, and key assumptions.',
+    phase: 'response',
+    applicableDataSources: ['taxonomyNodes', 'situationNodes', 'sourceDocument', 'policyRegistry'],
+    builders: ['draftStagePrompt'],
+  },
+  {
+    id: 'debate-cite-stage',
+    title: 'Debate: Cite (turn stage)',
+    description: 'Core turn-pipeline cite stage — post-hoc grounding that maps a turn\'s claims to taxonomy nodes.',
+    source: 'lib/debate/prompts/turn-pipeline.ts',
+    template: '(Template requires runtime context — view in Prompt Inspector or Full Prompt tab)',
+    group: 'debate-turns',
+    purpose: 'Fires after the Draft stage. Verifies grounding by mapping the drafted claims to taxonomy/situation nodes; unresolved pointers surface as gaps.',
+    phase: 'response',
+    applicableDataSources: ['taxonomyNodes', 'situationNodes'],
+    builders: ['citeStagePrompt'],
+  },
+  {
+    id: 'debate-assumptions-extraction',
+    title: 'Debate: Assumptions Extraction',
+    description: 'Surfaces the implicit assumptions underlying a debate statement.',
+    source: 'lib/debate/prompts/turn-pipeline.ts',
+    template: '(Template requires runtime context — view in Prompt Inspector or Full Prompt tab)',
+    group: 'debate-analysis',
+    purpose: 'A distinct analytical prompt that reads a statement and extracts the assumptions it rests on — used to make hidden premises inspectable.',
+    applicableDataSources: [],
+    builders: ['assumptionsExtractionPrompt'],
+  },
+  {
+    id: 'debate-reflection',
+    title: 'Debate: Post-Debate Reflection',
+    description: 'Generates the post-debate reflection over the concluded transcript.',
+    source: 'lib/debate/prompts/reflection.ts',
+    template: '(Template requires runtime context — view in Prompt Inspector or Full Prompt tab)',
+    group: 'debate-analysis',
+    purpose: 'Fires after a debate concludes. Produces the reflection surfaced in the Post-Debate Reflections panel (cf. docs/debate-reflections.md) — proposed edits, new POV items, and convergence notes.',
+    phase: 'reflection',
+    applicableDataSources: ['taxonomyNodes'],
+    builders: ['reflectionPrompt'],
+  },
+  {
+    id: 'debate-taxonomy-refinement',
+    title: 'Debate: Taxonomy Refinement',
+    description: 'Post-debate synthesis prompt that proposes taxonomy refinements from the concluded debate.',
+    source: 'lib/debate/prompts/synthesis.ts',
+    template: '(Template requires runtime context — view in Prompt Inspector or Full Prompt tab)',
+    group: 'debate-analysis',
+    purpose: 'Fires during post-debate synthesis. Reads the concluded debate and proposes concrete taxonomy refinements (node edits/additions) grounded in what was argued.',
+    phase: 'synthesis',
+    applicableDataSources: ['taxonomyNodes'],
+    builders: ['taxonomyRefinementPrompt'],
+  },
+  {
+    id: 'debate-improve-topic',
+    title: 'Debate: Improve Topic',
+    description: 'User-facing topic sharpening — rewrites a debate topic to be crisper and more debatable.',
+    source: 'lib/debate/prompts/topic-crux.ts',
+    template: '(Template requires runtime context — view in Prompt Inspector or Full Prompt tab)',
+    group: 'debate-setup',
+    purpose: 'Fires from the debate-topic editor when the user asks to sharpen their topic. Rewrites the topic into a crisper, more debatable statement without changing its intent.',
+    phase: 'clarification',
+    applicableDataSources: [],
+    builders: ['improveDebateTopicPrompt'],
+  },
+  {
+    id: 'debate-extract-topic-structure',
+    title: 'Debate: Extract Topic Structure',
+    description: 'Debate setup — extracts the structured shape (dimensions, sub-claims) of a debate topic.',
+    source: 'lib/debate/prompts/topic-crux.ts',
+    template: '(Template requires runtime context — view in Prompt Inspector or Full Prompt tab)',
+    group: 'debate-setup',
+    purpose: 'Fires during debate setup. Parses the topic into its structural dimensions and sub-claims so the debate can be scoped and grounded.',
+    phase: 'clarification',
+    applicableDataSources: [],
+    builders: ['extractTopicStructurePrompt'],
+  },
+  {
+    id: 'debate-decontextualize-crux',
+    title: 'Debate: Decontextualize Crux',
+    description: 'Rewrites a crux into a self-contained, context-independent statement (CL calibration surface).',
+    source: 'lib/debate/prompts/topic-crux.ts',
+    template: '(Template requires runtime context — view in Prompt Inspector or Full Prompt tab)',
+    group: 'debate-setup',
+    purpose: 'Takes a crux that references debate-local context and rewrites it as a standalone claim, so cruxes can be compared and reused across debates.',
+    applicableDataSources: [],
+    builders: ['decontextualizeCruxPrompt'],
+  },
+  {
+    id: 'debate-topic-scope-extraction',
+    title: 'Debate: Topic Scope Extraction',
+    description: 'Debate setup — extracts the scope boundaries of a debate topic.',
+    source: 'lib/debate/prompts/topic-crux.ts',
+    template: '(Template requires runtime context — view in Prompt Inspector or Full Prompt tab)',
+    group: 'debate-setup',
+    purpose: 'Fires during debate setup. Identifies what is in- and out-of-scope for the topic so debaters stay bounded and the grounding stays relevant.',
+    phase: 'clarification',
+    applicableDataSources: [],
+    builders: ['topicScopeExtractionPrompt'],
   },
 ];
