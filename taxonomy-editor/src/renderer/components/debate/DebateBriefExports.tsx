@@ -9,7 +9,13 @@
 import { useState, type ReactNode } from 'react';
 import { BriefExportDialog } from './BriefExportDialog';
 import { BriefExportsList } from './BriefExportsList';
-import type { SessionRowData } from './DebateTable';
+
+/** Minimal shape a row must supply to open a brief export — satisfied by both a My-debate
+ *  SessionRowData and a Community CommunityDebate, so either list can trigger the dialog.
+ *  `phase` is required here; community rows carry an optional phase, so DebateTab coerces a
+ *  missing one to '' (⇒ not-'closed' ⇒ the dialog's closed-only explanation — brief is
+ *  closed-only for v1 per BriefExportDialog TL ruling A). */
+export type BriefTarget = { id: string; title: string; phase: string };
 
 export function useDebateBriefExports(
   debate: { id: string; title: string; phase: string },
@@ -41,8 +47,8 @@ export function useDebateBriefExports(
 /** Row-level brief export: manages session selection + dialog mount (t/2805 follow-up). */
 export function useRowBriefExport(
   isElectron: boolean,
-): { openRowBrief: (s: SessionRowData) => void; rowBriefNode: ReactNode } {
-  const [session, setSession] = useState<SessionRowData | null>(null);
+): { openRowBrief: (s: BriefTarget) => void; rowBriefNode: ReactNode } {
+  const [session, setSession] = useState<BriefTarget | null>(null);
   const rowBriefNode = session && !isElectron ? (
     <BriefExportDialog
       debateId={session.id}

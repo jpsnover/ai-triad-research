@@ -82,6 +82,9 @@ export interface DebateTableCommunityProps {
   selectedId: string | null;
   onOpen: (id: string) => void;
   onExport: (cd: CommunityDebate, format: string) => void;
+  /** Brief export from a community row (t/2805 follow-up). Undefined = item hidden. */
+  onBrief?: (cd: CommunityDebate) => void;
+  briefWebOnly?: boolean;
   onCopy: (cd: CommunityDebate) => Promise<void>;
   copyingId: string | null;
   auth: AuthStatus;
@@ -451,6 +454,8 @@ interface CommunityTableRowProps {
   isSelected: boolean;
   onOpen: (id: string) => void;
   onExport: (cd: CommunityDebate, format: string) => void;
+  onBrief?: (cd: CommunityDebate) => void;
+  briefWebOnly?: boolean;
   onCopy: (cd: CommunityDebate) => Promise<void>;
   copyingId: string | null;
   showCopy: boolean;
@@ -459,7 +464,7 @@ interface CommunityTableRowProps {
 }
 
 export function CommunityTableRow({
-  cd, isSelected, onOpen, onExport, onCopy, copyingId, showCopy,
+  cd, isSelected, onOpen, onExport, onBrief, briefWebOnly, onCopy, copyingId, showCopy,
   onPhoneSelect, isPhone,
 }: CommunityTableRowProps) {
   const isCopying = copyingId === cd.id;
@@ -522,7 +527,7 @@ export function CommunityTableRow({
           >
             Open
           </button>
-          <ExportDropdown onExport={fmt => onExport(cd, fmt)} />
+          <ExportDropdown onExport={fmt => onExport(cd, fmt)} onBrief={onBrief ? () => onBrief(cd) : undefined} briefWebOnly={briefWebOnly} />
           {showCopy && (
             <button
               type="button"
@@ -703,7 +708,7 @@ function CommunityTable(
   props: DebateTableCommunityProps & { sort: SortState; onSort: (col: SortColumn) => void },
 ) {
   const {
-    rows, loading, searchQuery, selectedId, onOpen, onExport, onCopy,
+    rows, loading, searchQuery, selectedId, onOpen, onExport, onBrief, briefWebOnly, onCopy,
     copyingId, auth, onPhoneSelect, isPhone, sort, onSort,
   } = props;
 
@@ -766,6 +771,8 @@ function CommunityTable(
               isSelected={selectedId === cd.id}
               onOpen={onOpen}
               onExport={onExport}
+              onBrief={onBrief}
+              briefWebOnly={briefWebOnly}
               onCopy={onCopy}
               copyingId={copyingId}
               showCopy={showCopy}
