@@ -53,6 +53,10 @@ exit 0
 exit 3
 '@
 
+    # False-green (t/2874): a broken entrypoint exits 0 with NO stdout.
+    $script:EmptyStub = Join-Path $script:StubDir 'empty.ps1'
+    Set-Content -LiteralPath $script:EmptyStub -Encoding UTF8 -Value 'exit 0'
+
     $script:PwshExe = (Get-Process -Id $PID).Path
 
     function New-DebateFile {
@@ -229,12 +233,13 @@ Describe 'Export-TriadDebateBrief' -Tag 'debate' {
             (Get-Content -Raw -LiteralPath $script:ArgsFile) | Should -Match '--allow-open'
         }
 
-        It 'passes --skip-narration (and no --model) under -SkipNarration' {
+        It 'passes --skip-narration AND --model (sentinel) under -SkipNarration (t/2874: CLI requires --model always)' {
             $f = New-DebateFile
             Export-TriadDebateBrief -Path $f -SkipNarration -OutputDirectory (Join-Path $script:StubDir 'out-skip') -WarningAction SilentlyContinue | Out-Null
             $sent = Get-Content -Raw -LiteralPath $script:ArgsFile
             $sent | Should -Match '--skip-narration'
-            $sent | Should -Not -Match '--model'
+            $sent | Should -Match '--model'
+            $sent | Should -Match 'deterministic'
         }
 
         It 'does not invoke the CLI under -WhatIf' {
@@ -254,6 +259,20 @@ Describe 'Export-TriadDebateBrief' -Tag 'debate' {
             $err = $null
             Export-TriadDebateBrief -Path $f -Model m -OutputDirectory (Join-Path $script:StubDir 'out-fail') -ErrorVariable err -ErrorAction SilentlyContinue -WarningAction SilentlyContinue
             $err[0].FullyQualifiedErrorId | Should -Match 'TraceGateFailure'
+        }
+    }
+
+    Context 'Local mode — false-green guard: exit 0 with no output (t/2874)' {
+        It 'raises an error instead of emitting an empty TriadDeckExport' {
+            Mock -ModuleName AITriad Resolve-BriefExportCli {
+                @{ Exe = $script:PwshExe; ArgPrefix = @('-NoProfile', '-File', $script:EmptyStub) }
+            }
+            $f = New-DebateFile
+            $err = $null
+            $out = Export-TriadDebateBrief -Path $f -Model m -OutputDirectory (Join-Path $script:StubDir 'out-empty') -PassThru -ErrorVariable err -ErrorAction SilentlyContinue -WarningAction SilentlyContinue
+            $out | Should -BeNullOrEmpty
+            $err[0].FullyQualifiedErrorId | Should -Match 'RenderFailure'
+            $err[0].Exception.Message | Should -Match 'no output'
         }
     }
 }
