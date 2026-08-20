@@ -22,7 +22,8 @@ import type {
   FactCheckVerdict, ModelSource,
 } from './types.js';
 import { BRIEF_ARTIFACTS } from './types.js';
-import { isResolvable, resolveTrace } from './traceResolver.js';
+import { isResolvable } from './traceResolver.js';
+import { expectedCamps, campOfTrace } from './campCoverage.js';
 import deckSpecSchema from './schemas/deck_spec.write.json' with { type: 'json' };
 import narrationSchema from './schemas/narration.write.json' with { type: 'json' };
 import auditManifestSchema from './schemas/audit-manifest.write.json' with { type: 'json' };
@@ -51,6 +52,14 @@ export interface VerifyInput {
   };
   /** Symmetry tolerance (percent). Defaults to 20. */
   tolerancePct?: number;
+  /**
+   * Camps the narrate stage backfilled from their real top_claim because the
+   * narrator model dropped them (t/2883). The presence-symmetry arm passes for
+   * these (the backfill gives them a slide), so the drop signal MUST NOT vanish:
+   * each is surfaced as a manifest `camp_backfill` warning here — the export-record
+   * half of the required observability (the FR event is emitted in narrate.ts).
+   */
+  backfilledCamps?: string[];
 }
 
 export interface VerifyResult {
@@ -92,7 +101,11 @@ export async function verify(input: VerifyInput): Promise<VerifyResult> {
   for (const msg of await lintOoxml(pptxBytes)) hardFailures.push(msg);
 
   // Warnings (recorded, never fail the build)
-  const warnings = [...computeWarnings(spec, symmetry, isSnapshot), ...snapshotSymmetryWarnings];
+  const warnings = [
+    ...computeWarnings(spec, symmetry, isSnapshot),
+    ...snapshotSymmetryWarnings,
+    ...backfillWarnings(input.backfilledCamps),
+  ];
 
   // Assemble the manifest — records reality regardless of pass/fail
   const manifest: AuditManifest = {
@@ -188,41 +201,10 @@ function checkTraceCoverage(
 }
 
 // ── Per-camp symmetry ─────────────────────────────────────────────────────────
-
-/**
- * Attribute a narration entry to a camp by resolving its trace to the spec node and
- * reading that node's `camp`. Camp-less sections (question, agreements, cruxes, framing)
- * resolve to nodes without a `camp` and are excluded (TL, e/112 MUST 3).
- */
-function campOfTrace(spec: DeckSpec, trace: string): string | null {
-  let node: unknown;
-  try {
-    node = resolveTrace(spec, trace);
-  } catch {
-    return null;
-  }
-  if (node && typeof node === 'object' && 'camp' in node) {
-    const camp = (node as { camp: unknown }).camp;
-    if (typeof camp === 'string' && camp.length > 0) return camp;
-  }
-  return null;
-}
-
-/**
- * The camps that MUST have per-camp parity — the debate's "positions" (spec §2.3
- * slide 5, one card per camp). Derived from `top_claims` camps: those are the
- * canonical camp positions the deck renders. Deliberately NOT the union of every
- * camp-bearing node type (argument_map/concessions can carry incidental or
- * cross-camp labels that don't warrant a slide) — a broader set would false-fire
- * the symmetry gate, which TL flagged as the next-incident risk (e/112#4).
- * Entry→camp ATTRIBUTION (campOfTrace) still reads all four node types per MUST 3;
- * only the EXPECTED set is narrowed here.
- */
-function expectedCamps(spec: DeckSpec): string[] {
-  const camps = new Set<string>();
-  for (const c of spec.top_claims) camps.add(c.camp);
-  return [...camps].sort();
-}
+//
+// `expectedCamps` (which camps must be covered) and `campOfTrace` (which camp an
+// entry covers) live in ./campCoverage.js so the narrate stage's completeness
+// check (repair + backfill, t/2883) and this presence arm can never drift.
 
 function countWords(text: string): number {
   const t = text.trim();
@@ -383,6 +365,19 @@ async function lintOoxml(pptxBytes: Uint8Array): Promise<string[]> {
 }
 
 // ── Warnings (recorded, never fail) ───────────────────────────────────────────
+
+/**
+ * Surface each narrate-stage camp backfill (t/2883) as a manifest warning naming
+ * the dropped camp. This is the export-record half of the required observability:
+ * B1 lets the presence arm pass on a backfilled camp, so without this the narrator
+ * drop-rate would be invisible in the export record (silent-degradation). The FR
+ * event is the other half, emitted in narrate.ts where the drop is detected.
+ */
+function backfillWarnings(backfilledCamps: string[] | undefined): string[] {
+  return (backfilledCamps ?? []).map(camp =>
+    `camp_backfill: narrator omitted camp "${camp}"; backfilled from its top_claim so the deck retains the camp's position`,
+  );
+}
 
 function computeWarnings(spec: DeckSpec, symmetry: SymmetryAudit, isSnapshot: boolean): string[] {
   const warnings: string[] = [];
