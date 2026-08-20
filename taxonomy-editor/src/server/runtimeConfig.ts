@@ -170,7 +170,7 @@ const DEFAULTS: RuntimeConfig = {
     defaultMaxChats: 25,
     defaultMaxDebates: 15,
     defaultMaxOpEds: 15,
-    defaultMaxBriefExports: 25, // t/2831: TL/product to confirm limit; 25 matches maxChats as a conservative starting point
+    defaultMaxBriefExports: 15, // t/2831: product-confirmed limit — matches maxOpEds (15) for a uniform per-artifact billable cap
   },
   sessions: {
     anonymousTtlMs: 14_400_000,
