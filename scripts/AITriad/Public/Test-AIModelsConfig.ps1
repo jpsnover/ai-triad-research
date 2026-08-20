@@ -130,7 +130,7 @@ function Test-AIModelsConfig {
     # Backends whose real provider API model names legitimately carry the vendor
     # name as a prefix (gemini-2.5-flash, claude-opus-4-6, deepseek-chat). For
     # every OTHER backend the friendly id is vendor-prefixed but the apiModelId is
-    # not (azure-gpt-4o -> gpt-4o, zai-glm-5-2 -> glm-5.2), so a prefixed apiModelId
+    # not (azure-gpt-4o -> gpt-4o, zai-glm-5-2 -> glm-5.3), so a prefixed apiModelId
     # means the friendly id leaked into it — the t/1703 class.
     $PrefixExemptBackends = @('gemini', 'claude', 'deepseek')
     $ModelIds = [System.Collections.Generic.List[string]]::new()
