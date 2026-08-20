@@ -17,6 +17,7 @@ import { DebateWorkspace } from '../debate-workspace';
 import { filterCommunityDebates } from './communityFilter';
 import { ExportDropdown } from './ExportDropdown';
 import { useDebateBriefExports } from './DebateBriefExports';
+import { BriefExportDialog } from './BriefExportDialog';
 import { useFlag } from '../../hooks/useFeatureFlags';
 import { useAuthStatus } from '../../hooks/useAuthStatus';
 import { SearchPreview } from '../edge-browser/SearchPreview';
@@ -95,6 +96,7 @@ interface DebateListProps {
   onRowExport: (session: SessionRowData, format: string) => void;
   onRowShare: (session: SessionRowData) => Promise<void>;
   onRowCommunityExport: (cd: CommunityDebate, format: string) => void;
+  onRowBrief: (session: SessionRowData) => void;
 }
 
 // Shared prop bag for the right (detail) pane subtree.
@@ -452,6 +454,10 @@ export function DebateTab() {
     }
   }, [runExport]);
 
+  // Brief export triggered from a table row (t/2805 follow-up — wire row ExportDropdown).
+  const [briefRowSession, setBriefRowSession] = useState<SessionRowData | null>(null);
+  const handleRowBrief = useCallback((s: SessionRowData) => setBriefRowSession(s), []);
+
   const listProps: DebateListProps = {
     width, listView, setListView, editMode, setEditMode, sessions, sessionsLoading,
     selectedIds, setSelectedIds, setShowBulkDeleteConfirm, customOrder, saveCustomOrder,
@@ -465,6 +471,7 @@ export function DebateTab() {
     onRowExport: (s, fmt) => { void handleRowExport(s, fmt); },
     onRowShare: handleRowShare,
     onRowCommunityExport: (cd, fmt) => { void handleRowCommunityExport(cd, fmt); },
+    onRowBrief: handleRowBrief,
   };
 
   const rightPaneProps: DebateRightPaneProps = {
@@ -545,6 +552,15 @@ export function DebateTab() {
               void runExport(fmt, opts);
             }
           }}
+        />
+      )}
+      {briefRowSession && !isElectronMode() && (
+        <BriefExportDialog
+          debateId={briefRowSession.id}
+          debateTitle={briefRowSession.title}
+          debatePhase={briefRowSession.phase}
+          onClose={() => setBriefRowSession(null)}
+          onExported={() => setBriefRowSession(null)}
         />
       )}
       {showBulkDeleteConfirm && (
@@ -668,7 +684,7 @@ function DebateMyList(props: DebateListProps) {
     filteredSessions, activeDebateId, selectedIds, setSelectedIds,
     renamingId, setRenamingId, renameValue, setRenameValue, renameDebate,
     moveSession, handleSelect, nav,
-    onRowOpen, onRowExport, onRowShare,
+    onRowOpen, onRowExport, onRowShare, onRowBrief,
   } = props;
   const isPhone = nav.isActive;
   return (
@@ -705,6 +721,8 @@ function DebateMyList(props: DebateListProps) {
         onOpen={onRowOpen}
         onExport={onRowExport}
         onShare={onRowShare}
+        onBrief={onRowBrief}
+        briefWebOnly={isElectronMode()}
         onPhoneSelect={handleSelect}
         isPhone={isPhone}
         activeDebateId={activeDebateId}
