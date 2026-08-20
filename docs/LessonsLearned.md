@@ -3410,6 +3410,27 @@ Institutional memory for failure patterns across the AI Triad Research project.
 
 ---
 
+## #171 [Build] Electron App Won't Launch in a Fresh Worktree — Missing node-pty Native Module + Vite Monorepo Hoisting Gap
+
+**Pattern:** A fresh `npm ci` inside a git worktree produces a broken Electron build: (1) `node-pty` native binary is absent (not rebuilt for the local Node ABI → `terminal.ts` crashes the main process on launch), and (2) `vite build` resolves the `vite` package from the repo-root `node_modules/.vite-temp` under monorepo hoisting — a path that a worktree-local install doesn't satisfy. Result: the app crashes at startup or the build fails, making visual/design review impossible from the worktree alone.
+
+**Instances:**
+- 2026-08-15 — Design (p/472#1): tried to launch taxonomy-editor Electron app inside a fresh worktree for PR design review. `npm ci` ran; app crashed on startup (node-pty missing native binary) and `vite build` couldn't resolve the hoisted vite package. Stopped the build yak-shave (correct anti-rabbit-hole call); fell back to reviewing implementer-provided screenshots.
+
+**Root Cause:** Two compounding gaps: (a) `node-pty` is a native Node addon — `npm ci` fetches it but does not rebuild it for the current Node ABI inside a new worktree context without an explicit `npm rebuild`; (b) Vite relies on a `.vite-temp` cache path in the monorepo root's `node_modules` for cache and HMR — a worktree's own `node_modules` doesn't have this path, so `vite build` falls through to a missing dependency. Both are monorepo-hoisting artifacts that don't surface in the main checkout where the root `node_modules` is already set up.
+
+**Prevention:**
+1. **Don't attempt a fresh Electron build inside a landing worktree for design review** — the native rebuild and hoisting setup cost is disproportionate to the review goal.
+2. **Preferred review path for visual/design review:** use implementer-provided screenshots or ask the implementer to run the `/smoke-ui` skill in the main checkout. If you need to run the app yourself, do it from the main checkout after the branch is merged (or cherry-picked to main tree).
+3. **If a worktree build is genuinely required:** (a) run `npm ci` from the repo ROOT first (not inside the worktree), so hoisted packages are present; (b) then `npm rebuild node-pty` from the package directory to rebuild the native binary for the current ABI; (c) then run `vite build` from within the package — it can now resolve the hoisted `.vite-temp`.
+4. A documented web-preview recipe (serve the renderer without Electron) would bypass both gaps — worth a follow-up ticket if design reviews from worktrees are a recurring need.
+
+**Status:** Active — 1 instance (Design p/472#1). Future fix tracked: root-level install + node-pty rebuild recipe, or web-preview alternative.
+
+**Applies To:** Design role and any agent attempting to launch Electron apps from a fresh worktree for review purposes.
+
+---
+
 ## #170 [Build] Batch Filesystem Cleanup Aborts on First File-Lock — Remaining Items Undeleted
 
 **Pattern:** A batch `os.remove()` / `os.unlink()` loop (or equivalent) aborts on the first `WinError 32` (file locked by another process), leaving all subsequent items undeleted. The cleanup appears to succeed up to the failing file but silently abandons the rest.
