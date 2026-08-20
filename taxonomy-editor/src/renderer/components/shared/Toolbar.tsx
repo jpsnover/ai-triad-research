@@ -340,7 +340,7 @@ export function Toolbar() {
             aria-label="Op-Ed Studies"
           >
             <Newspaper size="1.25em" />
-            <span className="toolbar-nav-label">Op-Ed Studies</span>
+            <span className="toolbar-nav-label">Op-Ed<br />Studies</span>
           </button>
         )}
       </div>
