@@ -810,6 +810,8 @@ Export-ModuleMember -Function @(
     'Update-PolicyRegistry'
     'Show-FallacyInfo'
     'Test-TaxonomyIntegrity'
+    # t/2876 — pre-validate taxonomy dir against embed_taxonomy.py loader contract
+    'Test-TaxonomyDir'
     'Invoke-HierarchyProposal'
     'Set-TaxonomyHierarchy'
     'Invoke-SchemaMigration'
