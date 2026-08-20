@@ -10,6 +10,8 @@
 //     --preset conference --out ./brief.pptx [--pdf]
 
 import { readFile, writeFile } from 'node:fs/promises';
+import { resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { ActionableError } from '../../debate/errors.js';
 import type { DeckSpec, Narration, BriefPreset } from '../types.js';
 import { render } from './index.js';
@@ -73,7 +75,7 @@ export async function runCli(argv: string[], log: (m: string) => void = console.
 }
 
 // Executed directly (not imported): run the CLI over process.argv.
-const invokedDirectly = process.argv[1] !== undefined && import.meta.url === `file://${process.argv[1].replace(/\\/g, '/')}`;
+const invokedDirectly = process.argv[1] !== undefined && fileURLToPath(import.meta.url) === resolve(process.argv[1]);
 if (invokedDirectly) {
   runCli(process.argv.slice(2)).catch((e: unknown) => {
     console.error(e instanceof ActionableError ? e.message : String(e));
