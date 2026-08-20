@@ -4,6 +4,7 @@
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
 import { render, screen, fireEvent, within } from '@testing-library/react';
 import { DebateWorkspace } from './DebateWorkspace';
+import { usePreferencesStore } from '../../store/preferencesStore';
 
 // ── Store mocks ───────────────────────────────────────────────
 
@@ -346,6 +347,8 @@ describe('phase routing', () => {
   beforeEach(() => {
     mockStore.debateLoading = false;
     mockStore.debateGenerating = null;
+    // t/2867: the header TheoryLink now gates on viewMode; advanced view renders it.
+    usePreferencesStore.setState({ viewMode: 'advanced' });
   });
 
   it('shows "Topic Refinement" phase title for clarification phase', () => {
