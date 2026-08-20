@@ -312,6 +312,8 @@ export const api: AppAPI = {
   listBriefExports: () => rejectBriefWebOnly('list brief exports', 'listBriefExports'),
   downloadBriefArtifact: () => rejectBriefWebOnly('download a brief export artifact', 'downloadBriefArtifact'),
   deleteBriefExport: () => rejectBriefWebOnly('delete a brief export', 'deleteBriefExport'),
+  // printBriefToPdf is available independently of the full brief export pipeline (t/2852).
+  printBriefToPdf: (html) => window.electronAPI.printBriefToPdf(html),
 
   // Op-Ed Studio (t/2576) — feature-detected IPC (lands with t/2575); see opEdIpc above.
   listOpEdSets: () => opEdIpc().listOpEdSets?.() ?? rejectOpEdIpc('list op-eds', 'listOpEdSets'),
