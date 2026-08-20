@@ -71,6 +71,7 @@
         'Update-PolicyRegistry'
         'Show-FallacyInfo'
         'Test-TaxonomyIntegrity'
+        'Test-TaxonomyDir'
         'Invoke-HierarchyProposal'
         'Set-TaxonomyHierarchy'
         'Invoke-SchemaMigration'
