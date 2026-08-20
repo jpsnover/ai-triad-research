@@ -189,6 +189,29 @@ function makeGuardedDestination(sink: (line: string) => void): Writable {
   });
 }
 
+// ── Framed NDJSON writer (t/2865) ──
+// The SIGUSR2 flight-recorder dump (githubAPIBackend) writes NDJSON straight to
+// stderr, bypassing pino and the destination guard above. This bounds each record
+// to the same ACA/Fluent Bit line limit so an oversized dump record can't slice.
+const FRAMED_TRUNCATION_MARKER = '...[line truncated: exceeded LOG_MAX_LINE_BYTES]';
+
+/** Write NDJSON line-by-line to `out`, bounding each line to LOG_MAX_LINE_BYTES.
+ *  Oversized records are character-sliced and suffixed with a truncation marker
+ *  so they stay under the ACA/Fluent Bit 16KB slice boundary. Never silently drops records. */
+export function writeFramedNdjson(ndjson: string, out: NodeJS.WritableStream): void {
+  const markerBytes = Buffer.byteLength(FRAMED_TRUNCATION_MARKER);
+  const limit = LOG_MAX_LINE_BYTES - markerBytes;
+  for (const line of ndjson.split('\n')) {
+    if (!line) continue;
+    if (Buffer.byteLength(line) <= LOG_MAX_LINE_BYTES) {
+      out.write(line + '\n');
+    } else {
+      // Slice by chars (≈ bytes for ASCII-dominant NDJSON) leaving room for the marker.
+      out.write(line.slice(0, limit) + FRAMED_TRUNCATION_MARKER + '\n');
+    }
+  }
+}
+
 const pinoOptions = {
   level: process.env.LOG_LEVEL || (isProduction ? 'info' : 'debug'),
   redact: {
