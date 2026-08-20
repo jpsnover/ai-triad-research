@@ -779,6 +779,7 @@ Export-ModuleMember -Function @(
     'Repair-PovAttributes'
     'Export-AggregatedCruxes'
     'Export-TriadDebateBrief'
+    'Test-BriefNarrationStage'
     'Get-Summary'
     'Invoke-AttributeExtraction'
     'Invoke-EdgeDiscovery'
