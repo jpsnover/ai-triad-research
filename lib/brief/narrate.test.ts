@@ -240,6 +240,17 @@ describe('narrate — narrated mode (mocked adapter)', () => {
     expect((adapter.generateText as ReturnType<typeof vi.fn>)).toHaveBeenCalledTimes(2); // 1 + repair retry
   });
 
+  it('retries then throws ActionableError on empty entries — not a silent symmetry breach (t/2872)', async () => {
+    // {entries:[]} is AJV-valid and has zero bad traces, so it slips past both the
+    // JSON and bad-trace gates. Without the presence gate it returned an empty
+    // narration that only failed far downstream at verify's symmetry check (0 slides
+    // per camp). The presence gate must retry once, then throw a narrate-level error.
+    const emptyResponse = { entries: [], audience_questions: [] };
+    const adapter = makeAdapter(emptyResponse);
+    await expect(narrate({ ...BASE_INPUT }, adapter)).rejects.toThrow(/zero narration entries/i);
+    expect((adapter.generateText as ReturnType<typeof vi.fn>)).toHaveBeenCalledTimes(2); // 1 + repair retry
+  });
+
   it('validates schema — rejects unknown property', async () => {
     // The model response is valid but the assembled Narration has extra fields
     // (tested by injecting a bad response that bypasses trace check)
