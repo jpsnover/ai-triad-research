@@ -107,7 +107,7 @@ export function BriefExportDialog({ debateId, debateTitle, debatePhase, onClose,
       setStoredTemplates(prev => [...prev.filter(t => t.templateId !== rec.templateId), rec]);
       setSelectedTemplateId(rec.templateId);
     } catch (err) {
-      getGlobalRecorder()?.record({ event: 'template_upload_error', message: err instanceof Error ? err.message : String(err) });
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'brief-export-ui', level: 'error', message: 'Template upload failed', error: { name: (err as Error).name ?? 'Error', message: err instanceof Error ? err.message : String(err) } });
       setTemplateError(err instanceof Error ? err.message : 'Template upload failed');
     } finally {
       setTemplateUploading(false);
