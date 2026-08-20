@@ -1035,14 +1035,9 @@ const rawApi: AppAPI = {
   // Web: open the HTML in a new window and trigger browser print-to-PDF. No filePath returned.
   printBriefToPdf: async (html) => {
     const win = window.open('about:blank', '_blank');
-    if (!win) {
-      throw new ActionableError({ goal: 'Print brief to PDF', problem: 'Pop-up was blocked.', location: 'web-bridge · printBriefToPdf', nextSteps: ['Allow pop-ups for this site and try again.'] });
-    }
-    win.document.open();
-    win.document.write(html);
-    win.document.close();
-    win.focus();
-    win.print();
+    if (!win) throw new ActionableError({ goal: 'Print brief to PDF', problem: 'Pop-up was blocked.', location: 'web-bridge · printBriefToPdf', nextSteps: ['Allow pop-ups for this site and try again.'] });
+    win.document.open(); win.document.write(html); win.document.close();
+    win.focus(); win.print();
     return { cancelled: false };
   },
 
