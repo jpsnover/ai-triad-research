@@ -671,8 +671,10 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
       ]
       scale: {
         // Scale-out restored after t/683 (ed489b9): AnonymousSessionStore is now
-        // file-backed on the shared /mnt/shared volume, so debate state is
-        // replica-independent — the single-replica stopgap is no longer needed.
+        // file-backed on the shared /mnt/shared volume — AnonymousSessionStore
+        // (debate/session state) IS replica-independent. HOWEVER: brief-export
+        // and oped job stores are still per-process in-memory Maps and are NOT
+        // replica-independent; see maxReplicas cap below (t/2885, 2026-08-20).
         // minReplicas reverted 1->0 (t/1354, 2026-07-07): prod was costing
         // ~$24 in its first 6 days of July alone (~$120+/mo projected) from
         // running 1 vCPU/2GiB continuously. Owner accepted the cold-start
