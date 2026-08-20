@@ -171,7 +171,7 @@ export function capEmittedLine(line: string): string {
  *  line through capEmittedLine before the sink. Fail-safe: never throws, never drops. */
 function makeGuardedDestination(sink: (line: string) => void): Writable {
   let pending = '';
-  const emit = (raw: string) => { try { sink(capEmittedLine(raw)); } catch { /* never throw from logging */ } };
+  const emit = (raw: string) => { try { sink(capEmittedLine(raw)); } catch { /* telemetry — silent by design (logging must never throw) */ } };
   return new Writable({
     write(chunk: Buffer | string, _enc, cb) {
       try {
@@ -182,7 +182,7 @@ function makeGuardedDestination(sink: (line: string) => void): Writable {
           pending = pending.slice(nl + 1);
           if (line.length > 0) emit(line);
         }
-      } catch { /* never throw from logging */ }
+      } catch { /* telemetry — silent by design (logging must never throw) */ }
       cb();
     },
     final(cb) { if (pending.length > 0) { emit(pending); pending = ''; } cb(); },
