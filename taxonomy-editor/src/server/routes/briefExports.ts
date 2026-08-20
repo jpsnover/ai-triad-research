@@ -33,7 +33,7 @@ const TOOL_VERSIONS: Record<string, string> = { node: process.version, brief: '1
 
 interface ExportPostBody {
   preset?: unknown; format?: unknown; model?: unknown; checkerModel?: unknown;
-  template?: unknown; modelSource?: unknown; framingMeta?: unknown;
+  template?: unknown; templateId?: unknown; modelSource?: unknown; framingMeta?: unknown;
   options?: { skipNarration?: unknown };
 }
 
@@ -147,9 +147,10 @@ export function registerBriefExportsRoutes(r: Router, _ctx: ServerCtx): void {
     }
 
     const framingMeta = b.framingMeta === false ? false : undefined;
+    const templateId = typeof b.templateId === 'string' ? b.templateId : undefined;
     const job = startExportJob({
       userId, session, debateId, models,
-      request: { preset, skipNarration, framingMeta, allowOpen },
+      request: { preset, skipNarration, framingMeta, allowOpen, templateId },
       toolVersions: TOOL_VERSIONS, timestamp: new Date().toISOString(),
       idempotencyKey, adapter: createWebOpEdAdapter(),
     });

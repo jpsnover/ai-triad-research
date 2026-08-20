@@ -11,7 +11,12 @@ const { createBriefExport, getBriefExportJob, listBriefExports, downloadBriefArt
   createBriefExport: vi.fn(), getBriefExportJob: vi.fn(), listBriefExports: vi.fn(), downloadBriefArtifact: vi.fn(), printBriefToPdf: vi.fn(),
 }));
 vi.mock('@bridge', () => ({
-  api: { createBriefExport, getBriefExportJob, listBriefExports, downloadBriefArtifact, printBriefToPdf },
+  api: {
+    createBriefExport, getBriefExportJob, listBriefExports, downloadBriefArtifact, printBriefToPdf,
+    listBriefTemplates: vi.fn().mockResolvedValue([]),
+    uploadBriefTemplate: vi.fn(),
+    deleteBriefTemplate: vi.fn(),
+  },
   isElectronMode: () => false,
 }));
 vi.mock('@lib/flight-recorder/index', () => ({ getGlobalRecorder: () => ({ record: vi.fn() }) }));

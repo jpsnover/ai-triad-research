@@ -314,6 +314,12 @@ export const api: AppAPI = {
   // printBriefToPdf is available independently of the full brief export pipeline (t/2852).
   printBriefToPdf: (html) => window.electronAPI.printBriefToPdf(html),
 
+  // Brief Templates (t/2853) — desktop passes bytes inline via IPC; server-side storage is web-only.
+  // uploadBriefTemplate is never called on desktop (dialog branches on isElectronMode).
+  uploadBriefTemplate: () => Promise.reject(new Error('Template upload is not available in the desktop app. Select a template file — it will be passed inline.')),
+  listBriefTemplates: () => Promise.resolve([]),
+  deleteBriefTemplate: () => Promise.resolve(),
+
   // Op-Ed Studio (t/2576) — feature-detected IPC (lands with t/2575); see opEdIpc above.
   listOpEdSets: () => opEdIpc().listOpEdSets?.() ?? rejectOpEdIpc('list op-eds', 'listOpEdSets'),
   loadOpEdSet: (id) => opEdIpc().loadOpEdSet?.(id) ?? rejectOpEdIpc('load an op-ed', 'loadOpEdSet'),
