@@ -39,8 +39,8 @@ function Get-AzContainerErrorClass ([string] $AzStderr) {
     return 'unknown'
 }
 
-if ($Containers.Count -ne 6) {
-    throw "Container list sync error: expected 6, got $($Containers.Count). Update deploy-azure.yml and main.bicep together."
+if ($Containers.Count -ne 8) {
+    throw "Container list sync error: expected 8, got $($Containers.Count). Update deploy-azure.yml and main.bicep together."
 }
 
 $Failed = @()
