@@ -73,6 +73,7 @@ Get-Help <CmdletName> -Full                     # full docs for any cmdlet
 | `Show-DebateDiagnostics` | Inspect debate internals |
 | `Repair-DebateOutput` | Fix malformed debate JSON |
 | `Export-TriadDebateBrief` | Export a closed debate to a presentation brief (.pptx). Local mode (`-Path`) runs the offline lib/brief pipeline; server mode (`-DebateId`) is deferred pending AAD auth (t/2839) |
+| `Test-BriefNarrationStage` | Run ONLY the brief narrate stage on a deck_spec + model to debug zero-entry/bad-trace failures without the full pipeline; returns entry count + validation errors (t/2873) |
 
 ### Op-Ed Generation
 | Cmdlet | Use when |
