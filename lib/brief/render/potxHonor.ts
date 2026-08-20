@@ -9,6 +9,12 @@
 // No new deps: JSZip is already in lib/package.json (used by verify.ts).
 // This is intentionally the ONLY place that reads .potx bytes; pptxRenderer.ts
 // stays the only pptxgenjs surface (TL build condition 1 preserved).
+//
+// SECURITY (t/2866): this is the ONLY reader of user-supplied .potx bytes, and it does so
+// via pure JSZip/OOXML text surgery — it never decodes embedded images. That keeps
+// pptxgenjs's transitive `image-size` (CVE-2025-71329 / CVE-2025-71330 — ICNS/JXL/HEIF DoS,
+// no patched release) unreachable, the basis for the Dependabot dismissal. Do NOT add
+// image-byte parsing of .potx content here without re-triaging t/2866.
 
 import JSZip from 'jszip';
 import type { DeckTheme } from './deckTheme.js';
