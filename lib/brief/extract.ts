@@ -52,6 +52,10 @@ const STRIP_LIST = new Set([
   'gap_injections', 'origin', 'perturbation_result', 'lookahead_filter_weak',
   'topic_structure', 'exploration_summary', 'exploration_source_id',
   'doc_meta', 'position_drift', 'per_claim_drift', 'run_id',
+  // Community-provenance bookkeeping added on submit/copy (t/2883): not deck content.
+  // Explicitly stripped so a community-copied debate doesn't emit misleading
+  // "unmapped field" warnings (which misdirected the t/2883 diagnosis).
+  'community_metadata', 'copied_from_community',
 ]);
 
 const KNOWN_FIELDS = new Set([...MAPPED_FIELDS, ...STRIP_LIST]);

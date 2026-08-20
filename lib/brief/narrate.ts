@@ -15,6 +15,7 @@ import type {
   NarrationEntry, AudienceQuestion, SymmetryAudit,
 } from './types.js';
 import { buildTrace, isResolvable, resolveTrace } from './traceResolver.js';
+import { missingCamps } from './campCoverage.js';
 import narrationWriteSchema from './schemas/narration.write.json' with { type: 'json' };
 
 const LOCATION = 'lib/brief/narrate.ts:narrate';
@@ -45,6 +46,13 @@ export interface CheckerReport {
 export interface NarrationResult {
   narration: Narration;
   checkerReport?: CheckerReport;
+  /**
+   * Camps the narrator dropped that were deterministically backfilled from their
+   * real top_claim (t/2883). Empty/absent when the narrator covered every camp (or
+   * in deterministic mode, which narrates all top_claims). The pipeline forwards
+   * this to verify() so each backfilled camp surfaces as an export-record warning.
+   */
+  backfilledCamps?: string[];
 }
 
 // ── Entry point ───────────────────────────────────────────────────────────────
@@ -56,10 +64,13 @@ export async function narrate(
   const { spec, preset, modelId, modelSource, checkerModelId, checkerModelSource, skipNarration } = input;
 
   let narration: Narration;
+  let backfilledCamps: string[] = [];
   if (skipNarration) {
+    // Deterministic mode narrates every top_claim, so every camp is covered by
+    // construction — no completeness repair/backfill is possible or needed.
     narration = buildDeterministicNarration(spec, preset, modelId, modelSource);
   } else {
-    narration = await buildNarratedNarration(spec, preset, modelId, modelSource, adapter);
+    ({ narration, backfilledCamps } = await buildNarratedNarration(spec, preset, modelId, modelSource, adapter));
   }
 
   // Self-validate: AJV schema + trace resolvability (the T2 lesson)
@@ -78,7 +89,7 @@ export async function narrate(
     validateNarration(narration, spec);
   }
 
-  return { narration, checkerReport };
+  return { narration, checkerReport, backfilledCamps: backfilledCamps.length ? backfilledCamps : undefined };
 }
 
 // ── skipNarration: deterministic mode ─────────────────────────────────────────
@@ -200,13 +211,38 @@ function buildNarrationPrompt(spec: DeckSpec, preset: BriefPreset, priorErrors?:
   ].join('\n');
 }
 
+/**
+ * Build one narration entry per dropped camp, tracing to that camp's REAL top_claim
+ * (t/2883 B1 backfill). Slides continue after the highest slide the narrator used.
+ * A camp whose top_claim has empty text is skipped (nothing real to show) — it stays
+ * missing and verify's presence arm correctly hard-fails on it, since we never
+ * fabricate narration. Every expected camp derives from `top_claims`, so a missing
+ * camp always has an index; the guard is defensive only.
+ */
+function buildCampBackfillEntries(
+  spec: DeckSpec,
+  existing: NarrationEntry[],
+  missing: string[],
+): { entries: NarrationEntry[]; camps: string[] } {
+  let nextSlide = existing.reduce((m, e) => Math.max(m, e.slide ?? 0), 0) + 1;
+  const entries: NarrationEntry[] = [];
+  const camps: string[] = [];
+  for (const camp of missing) {
+    const idx = spec.top_claims.findIndex(t => t.camp === camp);
+    if (idx < 0 || !spec.top_claims[idx].claim) continue;
+    entries.push({ trace: buildTrace(['top_claims', idx]), text: spec.top_claims[idx].claim, slide: nextSlide++ });
+    camps.push(camp);
+  }
+  return { entries, camps };
+}
+
 async function buildNarratedNarration(
   spec: DeckSpec,
   preset: BriefPreset,
   modelId: string,
   modelSource: ModelSource,
   adapter: AIAdapter,
-): Promise<Narration> {
+): Promise<{ narration: Narration; backfilledCamps: string[] }> {
   const recorder = getGlobalRecorder();
   let priorErrors: string | undefined;
 
@@ -288,17 +324,51 @@ async function buildNarratedNarration(
       });
     }
 
+    // Camp-completeness gate (t/2883): the narrator can silently drop a whole camp —
+    // its top_claim is in the deck_spec (so verify's presence-symmetry arm expects a
+    // slide) but the narrator emitted 0 entries covering it, hard-failing the export
+    // at the far-away verify stage. Mirror the presence gates above: one targeted
+    // REPAIR re-prompt naming the dropped camp(s); if still missing after repair,
+    // BACKFILL one entry per camp from its REAL top_claim (never fabricated text) so
+    // the deck keeps every camp's position and the export succeeds (B1, TL t/2883#2).
+    // The backfill is surfaced (FR event here + export-record warning in verify) so
+    // the narrator drop signal survives the block→repair-and-warn conversion.
+    let backfilledCamps: string[] = [];
+    const missing = missingCamps(spec, (parsed.entries ?? []).map(e => e.trace));
+    if (missing.length > 0) {
+      const msg = `Narrator omitted camp(s): ${missing.join(', ')} — every debate camp with a top_claim must appear on ≥1 slide`;
+      if (attempt < MAX_REPAIR_RETRIES) {
+        priorErrors = `${msg}. Emit at least one entry for each omitted camp, traced to that camp's /top_claims/<i> in the provided deck_spec.`;
+        recorder?.record({ type: 'system.error' as const, component: 'brief-narrate', level: 'warn' as const, message: msg, data: { reason: 'missing-camp', missing } });
+        continue;
+      }
+      // Repair exhausted → deterministic backfill from the real top_claim (B1).
+      const backfill = buildCampBackfillEntries(spec, parsed.entries ?? [], missing);
+      parsed.entries = [...(parsed.entries ?? []), ...backfill.entries];
+      backfilledCamps = backfill.camps;
+      if (backfilledCamps.length > 0) {
+        recorder?.record({
+          type: 'system.error' as const, component: 'brief-narrate', level: 'warn' as const,
+          message: `Narrator omitted camp(s) ${backfilledCamps.join(', ')}; backfilled from their top_claim (B1, t/2883)`,
+          data: { reason: 'camp-backfill', backfilledCamps },
+        });
+      }
+    }
+
     return {
-      deck_spec_version: DECK_SPEC_VERSION,
-      narration_mode: 'narrated',
-      preset,
-      narrator_model: modelId,
-      narrator_model_source: modelSource,
-      checker_model: null,
-      checker_model_source: null,
-      checker_passed: null,
-      entries: parsed.entries ?? [],
-      audience_questions: parsed.audience_questions ?? [],
+      narration: {
+        deck_spec_version: DECK_SPEC_VERSION,
+        narration_mode: 'narrated',
+        preset,
+        narrator_model: modelId,
+        narrator_model_source: modelSource,
+        checker_model: null,
+        checker_model_source: null,
+        checker_passed: null,
+        entries: parsed.entries ?? [],
+        audience_questions: parsed.audience_questions ?? [],
+      },
+      backfilledCamps,
     };
   }
 

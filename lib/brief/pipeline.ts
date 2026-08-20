@@ -109,7 +109,7 @@ export async function runBriefPipeline(
 
   // ── narrate (+ optional maker-checker) ──
   onStage?.('narrating');
-  const { narration } = await narrate({
+  const { narration, backfilledCamps } = await narrate({
     spec,
     preset: input.preset,
     modelId: input.modelId,
@@ -141,6 +141,7 @@ export async function runBriefPipeline(
     narration,
     pptxBytes,
     meta: { toolVersions: input.toolVersions, timestamp: input.timestamp },
+    backfilledCamps,
   });
   // Manifest is the output record, NOT a hashed input artifact — added here, not in verify().
   emit({ name: BRIEF_ARTIFACTS.manifest, text: JSON.stringify(manifest, null, 2) });
