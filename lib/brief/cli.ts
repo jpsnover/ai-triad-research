@@ -268,8 +268,12 @@ export async function runCli(argv: string[]): Promise<RunResult> {
 }
 
 // Executed directly (not imported): run over process.argv and set the exit code.
+// Compare RESOLVED PATHS, not a hand-built file:// string. The old string compare
+// (`import.meta.url === "file://" + argv[1]`) silently failed on Windows — Node emits
+// `file:///C:/…` (three slashes) but the template produced `file://C:/…` (two) — so
+// the guard was never true and the CLI exited 0 with no output (t/2868).
 const invokedDirectly = process.argv[1] !== undefined
-  && import.meta.url === `file://${process.argv[1].replace(/\\/g, '/')}`;
+  && fileURLToPath(import.meta.url) === path.resolve(process.argv[1]);
 if (invokedDirectly) {
   runCli(process.argv.slice(2))
     .then(r => { process.exitCode = r.exitCode; })

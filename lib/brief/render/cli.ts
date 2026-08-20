@@ -75,6 +75,9 @@ export async function runCli(argv: string[], log: (m: string) => void = console.
 }
 
 // Executed directly (not imported): run the CLI over process.argv.
+// Compare RESOLVED PATHS, not a hand-built file:// string — the string compare
+// silently failed on Windows (three-slash file:/// vs two), leaving the CLI a
+// no-op that exited 0 with no output (t/2868, same genus as lib/brief/cli.ts).
 const invokedDirectly = process.argv[1] !== undefined && fileURLToPath(import.meta.url) === resolve(process.argv[1]);
 if (invokedDirectly) {
   runCli(process.argv.slice(2)).catch((e: unknown) => {
