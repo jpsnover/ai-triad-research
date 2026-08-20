@@ -89,4 +89,4 @@
 .bx-dl { padding: 4px 12px; }
 .bx-meta { color: var(--text-muted); font-size: var(--text-xs); margin-bottom: 10px; }
 .bx-pdf-row { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
-.bx-pdf-error { color: var(--color-danger, #c00); font-size: var(--text-xs); }
+.bx-pdf-error { color: var(--danger); font-size: var(--text-xs); }
