@@ -90,6 +90,18 @@ jobs:
             }
           fi
 
+          # If the run is still in progress (found via fast path, not dispatched here),
+          # wait for it to complete before checking individual job conclusions.
+          RUN_STATUS=$(gh api "repos/${{ github.repository }}/actions/runs/${RUN_ID}" \
+            --jq '.status' 2>/dev/null || echo "")
+          if [ "$RUN_STATUS" = "in_progress" ] || [ "$RUN_STATUS" = "queued" ]; then
+            echo "CI run ${RUN_ID} is still ${RUN_STATUS} — waiting for completion..."
+            gh run watch "${RUN_ID}" --exit-status || {
+              echo "::error::CI run ${RUN_ID} failed. Container build blocked until CI passes."
+              exit 1
+            }
+          fi
+
           # Check only test-container — it needs: [test-powershell, test-electron]
           # so if it passed, all upstream jobs passed too. Checking test-electron
           # by name fails because the matrix creates per-app jobs (e.g. "test-electron (taxonomy-editor)").
