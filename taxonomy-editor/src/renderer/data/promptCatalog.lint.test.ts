@@ -112,6 +112,17 @@ describe('promptCatalog registry lint (t/2834)', () => {
   const imported = importedBuilders();
   const referencedBuilders = new Set([...imported, ...declaredBuilders]);
 
+  it('coverage integrity: every discovery dir exists (no vacuous forward arm) — TL t/2834#7', () => {
+    // findRepoRoot anchors lib/debate/prompts + scripts/AITriad/Prompts, but lib/oped/prompts and
+    // renderer/prompts are otherwise unanchored — if one is renamed/moved, its forward arm would
+    // pass vacuously and coverage would shrink silently (the silent-degradation class). Fail loud.
+    const missing = [...PROMPT_DIRS, ...BUILDER_DIRS].filter((d) => !fs.existsSync(path.join(ROOT, d)));
+    expect(
+      missing,
+      `Discovery dir(s) missing — a moved/renamed dir makes that arm pass vacuously. Update the dir list:\n  ${missing.join('\n  ')}`,
+    ).toEqual([]);
+  });
+
   it('forward (builders): every discovered *Prompt builder is catalogued or allowlisted', () => {
     const orphans = [...discovered]
       .filter((b) => !referencedBuilders.has(b) && !excludedNames.has(b))
