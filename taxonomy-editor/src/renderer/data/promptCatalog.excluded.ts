@@ -42,10 +42,8 @@ export const PROMPT_CATALOG_EXCLUDED: PromptExclusion[] = [
   { name: 'consensusSituationPrompt', reason: 'Niche convergence→enrichment sub-prompt (CL t/2835#1).' },
   { name: 'crossCuttingNodePrompt', reason: 'Niche convergence→enrichment sub-prompt (CL t/2835#1).' },
 
-  // ── PROVISIONAL (t/2859): renderer-prompt builders outside CL's t/2835 debate-builder scope.
-  //    Excluded to keep the gate green now; CL disposition tracked by t/2859 (TL ruling C, t/2834#5) —
-  //    time-bound, not silent-forever. Re-evaluate when t/2859 rules expose-vs-internal.
-  { name: 'vernacularPrompt', reason: 'Provisional: pending CL disposition, outside t/2835 scope — t/2859.' },
-  { name: 'aphorismPrompt', reason: 'Provisional: pending CL disposition, outside t/2835 scope — t/2859.' },
-  { name: 'generateDebateTitlePrompt', reason: 'Provisional: pending CL disposition, outside t/2835 scope — t/2859.' },
+  // ── CL INTERNAL (t/2859): trivial UI utility, not a user-inspected content prompt.
+  //    vernacularPrompt + aphorismPrompt ruled EXPOSE (now catalogued); this is the one
+  //    permanent INTERNAL exclusion replacing the provisional t/2859 block.
+  { name: 'generateDebateTitlePrompt', reason: 'Trivial UI utility — distils a debate topic into a <60-char title; no tunable substance, no data sources, no version. Utility micro-prompt class (CL ruling t/2859).' },
 ];
