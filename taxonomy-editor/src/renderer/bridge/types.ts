@@ -114,6 +114,8 @@ export interface BriefExportRequest {
   modelSource?: 'global' | 'explicit';
   /** Optional maker-checker model (independently resolved server-side). */
   checkerModel?: string;
+  /** When false, suppresses the framing_meta slide (classroom preset only). Default true server-side. */
+  framingMeta?: boolean;
   options?: { skipNarration?: boolean };
 }
 export interface BriefExportJobView {
@@ -334,6 +336,8 @@ export interface AppAPI {
   listBriefExports: (debateId: string) => Promise<BriefExportRecord[]>;
   downloadBriefArtifact: (exportId: string, name: BriefArtifactName) => Promise<Blob>;
   deleteBriefExport: (exportId: string) => Promise<void>;
+  /** Print brief.html to PDF. Electron: shows save dialog + uses printToPDF. Web: opens in new window for browser print. */
+  printBriefToPdf: (html: string) => Promise<{ cancelled: boolean; filePath?: string }>;
 
   // --- Op-Ed Studio (t/2576; personal library — submit/copy route via community store) ---
   listOpEdSets: () => Promise<OpEdSetSummary[]>;

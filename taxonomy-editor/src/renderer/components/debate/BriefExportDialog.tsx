@@ -3,14 +3,15 @@
 
 // Brief Export dialog (t/2805, T7 — spec §7). Client of the T6 REST API: kicks off an
 // async export job, polls phase-level progress, and on completion lists the artifacts
-// with download buttons. Web-first v1 (pptx + json); PDF/template/framing-meta deferred
-// to t/2838; closed-debate only (open shows an explanatory notice — TL ruling A, t/2805#5).
+// with download buttons. Web-first v1 (pptx + json); t/2852 adds framingMeta toggle
+// (classroom preset) and Electron-only PDF download; closed-debate only (open shows an
+// explanatory notice — TL ruling A, t/2805#5).
 //
 // Consumes T6's frozen contract verbatim: job-state names, artifact names (BRIEF_ARTIFACTS),
 // and the error taxonomy (shown as the verbatim gate message on failure).
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { api } from '@bridge';
+import { api, isElectronMode } from '@bridge';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { AI_BACKENDS, MODELS_BY_BACKEND } from '../../hooks/useTaxonomyStore';
 import { useTaxonomyStore } from '../../hooks/useTaxonomyStore';
@@ -65,6 +66,9 @@ export function BriefExportDialog({ debateId, debateTitle, debatePhase, onClose,
   const [makerChecker, setMakerChecker] = useState(false);
   const [checkerModel, setCheckerModel] = useState<string>(geminiModel || '');
   const [skipNarration, setSkipNarration] = useState(false);
+  const [framingMeta, setFramingMeta] = useState(true);
+  const [pdfSaving, setPdfSaving] = useState(false);
+  const [pdfError, setPdfError] = useState<string | null>(null);
 
   const [phase, setPhase] = useState<Phase>('form');
   const [job, setJob] = useState<BriefExportJobView | null>(null);
@@ -121,6 +125,7 @@ export function BriefExportDialog({ debateId, debateTitle, debatePhase, onClose,
         model: modelChoice === CURRENT ? (geminiModel || undefined) : modelChoice,
         modelSource: (modelChoice === CURRENT ? 'global' : 'explicit') as 'global' | 'explicit',
         ...(makerChecker && checkerModel ? { checkerModel } : {}),
+        ...(preset === 'classroom' && !framingMeta ? { framingMeta: false } : {}),
         options: { skipNarration },
       };
       const { jobId } = await api.createBriefExport(debateId, body);
@@ -130,7 +135,24 @@ export function BriefExportDialog({ debateId, debateTitle, debatePhase, onClose,
       setError(err instanceof Error ? err.message : String(err));
       setPhase('failed');
     }
-  }, [preset, modelChoice, geminiModel, makerChecker, checkerModel, skipNarration, debateId, poll]);
+  }, [preset, modelChoice, geminiModel, makerChecker, checkerModel, skipNarration, framingMeta, debateId, poll]);
+
+  const savePdf = useCallback(async () => {
+    if (!record) return;
+    setPdfError(null);
+    setPdfSaving(true);
+    try {
+      const blob = await api.downloadBriefArtifact(record.exportId, BRIEF_ARTIFACTS.htmlDoc);
+      const html = await blob.text();
+      const result = await api.printBriefToPdf(html);
+      if (result.cancelled) setPdfSaving(false);
+      else setPdfSaving(false);
+    } catch (err) {
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'brief-export-ui', level: 'error', message: 'PDF save failed', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+      setPdfError(err instanceof Error ? err.message : String(err));
+      setPdfSaving(false);
+    }
+  }, [record]);
 
   const download = useCallback(async (name: BriefArtifactName) => {
     if (!record) return;
@@ -210,7 +232,14 @@ export function BriefExportDialog({ debateId, debateTitle, debatePhase, onClose,
               Skip narration (deterministic, no model calls)
             </label>
 
-            <p className="bx-formats">Produces: <strong>PPTX</strong> + deck spec, narration & audit manifest (JSON). PDF & templates are desktop-only (t/2838).</p>
+            {preset === 'classroom' && (
+              <label className="bx-check">
+                <input type="checkbox" checked={framingMeta} onChange={e => setFramingMeta(e.target.checked)} disabled={!isClosed} />
+                Include framing &amp; meta slide
+              </label>
+            )}
+
+            <p className="bx-formats">Produces: <strong>PPTX</strong> + deck spec, narration &amp; audit manifest (JSON){isElectronMode() ? ' + PDF (desktop)' : ''}.</p>
 
             {error && <div className="bx-error" role="alert">{error}</div>}
             <div className="bx-actions">
@@ -250,6 +279,14 @@ export function BriefExportDialog({ debateId, debateTitle, debatePhase, onClose,
                   ))}
                 </ul>
                 <div className="bx-meta">Trace coverage {record.traceCoveragePct}% · model {record.narratorModel}</div>
+                {isElectronMode() && record.artifacts.includes(BRIEF_ARTIFACTS.htmlDoc) && (
+                  <div className="bx-pdf-row">
+                    <button className="bx-btn-ghost" onClick={() => void savePdf()} disabled={pdfSaving}>
+                      {pdfSaving ? 'Saving PDF…' : 'Save as PDF…'}
+                    </button>
+                    {pdfError && <span className="bx-pdf-error" role="alert">{pdfError}</span>}
+                  </div>
+                )}
               </>
             )}
             <div className="bx-actions"><button className="bx-btn-primary" onClick={onClose}>Done</button></div>
