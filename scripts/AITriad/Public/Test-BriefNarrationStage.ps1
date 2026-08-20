@@ -80,9 +80,14 @@ function Test-BriefNarrationStage {
         $ResolvedSpec = (Resolve-Path -LiteralPath $SpecPath).Path
         $Inv = Resolve-BriefNarrateCli
 
-        # Frozen flags (t/2873#2): --spec/--model + optional --preset/--checker-model/--skip-narration.
-        $CliArgs = @('--spec', $ResolvedSpec, '--preset', $Preset)
-        if ($SkipNarration) { $CliArgs += '--skip-narration' } else { $CliArgs += @('--model', $Model) }
+        # Frozen flags (t/2873#2): --spec/--model required + optional
+        # --preset/--checker-model/--skip-narration. The CLI requires --model on EVERY
+        # run (records it even in deterministic mode); -SkipNarration is additive, not a
+        # replacement — omitting --model makes the CLI exit non-zero (the t/2874 bug in
+        # the sibling Export cmdlet). Under skip without a model, pass the sentinel.
+        $resolvedModel = if ($Model) { $Model } elseif ($SkipNarration) { 'deterministic' } else { $Model }
+        $CliArgs = @('--spec', $ResolvedSpec, '--preset', $Preset, '--model', $resolvedModel)
+        if ($SkipNarration) { $CliArgs += '--skip-narration' }
         if ($CheckerModel)  { $CliArgs += @('--checker-model', $CheckerModel) }
         $AllArgs = @($Inv.ArgPrefix) + $CliArgs
 

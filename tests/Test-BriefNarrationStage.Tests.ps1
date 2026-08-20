@@ -113,13 +113,14 @@ Describe 'Test-BriefNarrationStage' -Tag 'debate' {
             $sent | Should -Not -Match '--skip-narration'
         }
 
-        It 'passes --skip-narration and no --model under -SkipNarration' {
+        It 'passes --skip-narration AND --model (sentinel) under -SkipNarration (CLI requires --model always)' {
             $f = New-SpecFile
             $r = Test-BriefNarrationStage -SpecPath $f -SkipNarration
             $r.Model | Should -Match 'skipped'
             $sent = Get-Content -Raw -LiteralPath $script:ArgsFile
             $sent | Should -Match '--skip-narration'
-            $sent | Should -Not -Match '--model'
+            $sent | Should -Match '--model'
+            $sent | Should -Match 'deterministic'
         }
     }
 
