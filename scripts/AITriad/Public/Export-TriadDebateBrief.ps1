@@ -143,12 +143,35 @@ function Export-TriadDebateBrief {
                 [System.Management.Automation.ErrorCategory]$cat, $TargetObject)
             $PSCmdlet.WriteError($rec)   # non-terminating; honors -ErrorAction Stop
         }
+
+        # Shared end-of-export verbose summary (both modes). Keeps the -Verbose trace's
+        # closing report identical for local + server so the two paths read the same.
+        $WriteExportSummary = {
+            param([string]$Mode, $Export)
+            Write-Verbose "──────── Brief export complete ($Mode) ────────"
+            Write-Verbose "  Debate:         $($Export.DebateId)"
+            Write-Verbose "  Title:          $($Export.Title)"
+            Write-Verbose "  Preset:         $($Export.Preset)"
+            Write-Verbose "  Model:          $($Export.Model)$(if ($Export.ModelSource) { " (source: $($Export.ModelSource))" })"
+            if ($Export.CheckerModel) { Write-Verbose "  Checker model:  $($Export.CheckerModel)" }
+            Write-Verbose ("  Trace coverage: {0:N1}%" -f $Export.TraceCoveragePct)
+            if ($Export.Verdicts -and $Export.Verdicts.Count -gt 0) {
+                $vs = ($Export.Verdicts.GetEnumerator() | Sort-Object Name | ForEach-Object { "$($_.Name)=$($_.Value)" }) -join ', '
+                Write-Verbose "  Verdicts:       $vs"
+            }
+            $wc = @($Export.Warnings).Count
+            Write-Verbose "  Warnings:       $wc"
+            Write-Verbose "  Deck (.pptx):   $($Export.Path)"
+            Write-Verbose "  Deck spec:      $($Export.SpecPath)"
+            Write-Verbose "  Audit manifest: $($Export.ManifestPath)"
+        }
     }
 
     process {
         # ── Server mode: T6 REST client (t/2862) ────────────────────────────────────
         if ($PSCmdlet.ParameterSetName -eq 'Server') {
             $resolvedBase = if ($BaseUrl) { $BaseUrl.TrimEnd('/') } else { Get-TaxEditorBaseUrl }
+            Write-Verbose "Server mode: exporting debate '$DebateId' via $resolvedBase (auth: $(if ($AccessToken) { 'bearer token' } else { 'none — anonymous' }))."
             # AAD bearer only. NEVER set x-ms-client-principal / spoof identity — Easy Auth
             # strips client-set principal headers in prod, and a bypass defeats the billable gate.
             $headers = @{}
@@ -194,12 +217,14 @@ function Export-TriadDebateBrief {
                 & $WriteExportError 'RenderFailure' 'Export job creation returned no jobId (unexpected 202 body).' $DebateId; return
             }
             $jobId = [string]$post.Body.jobId
+            Write-Verbose "Created async export job '$jobId' (preset=$Preset, model=$resolvedModel$(if ($CheckerModel) { ", checker=$CheckerModel" })). Polling every 2s (timeout ${TimeoutSec}s)."
 
             # 2. Poll the job to completion. Write-Progress from progressPct; stream new warnings.
             $progressId = 2862
             $streamed = [System.Collections.Generic.HashSet[string]]::new()
             $deadline = (Get-Date).AddSeconds($TimeoutSec)
             $exportId = $null
+            $lastStatus = $null
             try {
                 while ($true) {
                     $poll = Invoke-RemoteCheck -BaseUrl $resolvedBase -Path "/api/export-jobs/$jobId" `
@@ -208,6 +233,11 @@ function Export-TriadDebateBrief {
                     $job = $poll.Body
                     $jobStatus = [string]$job.status
                     $pct = if ($job.PSObject.Properties['progressPct'] -and $null -ne $job.progressPct) { [int]$job.progressPct } else { 0 }
+                    # Log only on status change to keep the -Verbose trace readable across many polls.
+                    if ($jobStatus -ne $lastStatus) {
+                        Write-Verbose "  job '$jobId': $jobStatus ($pct%)"
+                        $lastStatus = $jobStatus
+                    }
                     Write-Progress -Id $progressId -Activity "Exporting brief: $DebateId" -Status $jobStatus -PercentComplete ([Math]::Max(0, [Math]::Min(100, $pct)))
                     if ($job.PSObject.Properties['warnings'] -and $job.warnings) {
                         foreach ($w in @($job.warnings)) { if ($streamed.Add([string]$w)) { Write-Warning ([string]$w) } }
@@ -233,12 +263,15 @@ function Export-TriadDebateBrief {
                 & $WriteExportError 'RenderFailure' "Output directory is not empty: $OutDir — use -Force to overwrite." $OutDir; return
             }
             $null = New-Item -ItemType Directory -Path $OutDir -Force
+            Write-Verbose "Job done (exportId '$exportId'). Downloading 4 artifacts → $OutDir"
             $paths = @{}
             foreach ($name in @('deck_spec.json', 'narration.json', 'audit-manifest.json', 'brief.pptx')) {
                 $dest = Join-Path $OutDir $name
                 try {
                     Save-BriefArtifact -BaseUrl $resolvedBase -ExportId $exportId -Name $name -Destination $dest -Headers $headers -TimeoutSec $TimeoutSec
                     $paths[$name] = $dest
+                    $sizeKb = if (Test-Path -LiteralPath $dest) { '{0:N1} KB' -f ((Get-Item -LiteralPath $dest).Length / 1KB) } else { '?' }
+                    Write-Verbose "  ↓ $name ($sizeKb)"
                 }
                 catch { & $WriteExportError 'RenderFailure' "Failed to download artifact '$name': $($_.Exception.Message)" $DebateId; return }
             }
@@ -267,7 +300,7 @@ function Export-TriadDebateBrief {
                 Verdicts         = $verdicts
                 Warnings         = @($mWarnings)
             }
-            Write-Verbose "Exported brief (server): $($Export.Path)"
+            & $WriteExportSummary 'server' $Export
             if ($PassThru) { $Export }
             return
         }
@@ -298,11 +331,14 @@ function Export-TriadDebateBrief {
         }
 
         $resolvedModel = if ($SkipNarration) { '(none — narration skipped)' } else { $Model }
+        Write-Verbose "Local mode: debate '$ResolvedPath'"
+        Write-Verbose "  Preset=$Preset, model=$resolvedModel$(if ($CheckerModel) { ", checker=$CheckerModel" })$(if ($AllowOpenDebate) { ', allow-open snapshot' }). Output → $OutDir"
         if (-not $PSCmdlet.ShouldProcess($ResolvedPath, "export brief (preset=$Preset, model=$resolvedModel) → $OutDir")) { return }
 
         # Resolve the t/2837 CLI invocation. Returns @{ Exe; ArgPrefix } so the
         # tsx-vs-compiled-bin entrypoint decision is abstracted to one place.
         $Inv = Resolve-BriefExportCli
+        Write-Verbose "  CLI: $($Inv.Exe) $($Inv.ArgPrefix -join ' ')"
 
         # Frozen CLI flags (lib/brief/cli.ts): --path/--model/--preset/--out (dir),
         # optional --skip-narration/--checker-model/--allow-open.
@@ -324,6 +360,7 @@ function Export-TriadDebateBrief {
             Remove-Item -Path $StderrFile -Force -ErrorAction SilentlyContinue
             Write-Progress -Id $progressId -Activity "Exporting brief: $([System.IO.Path]::GetFileName($Path))" -Completed
         }
+        Write-Verbose "  Pipeline finished (exit code $Exit)."
 
         # Stream WARN: lines (proposed output contract, t/2806#6 — pending Shared Lib confirm).
         foreach ($Line in @(($Stderr -split "`n"))) {
@@ -365,7 +402,7 @@ function Export-TriadDebateBrief {
             Warnings         = @(& { $w = & $get 'warnings'; if ($w) { $w } else { @() } })
         }
 
-        Write-Verbose "Exported brief: $($Export.Path)"
+        & $WriteExportSummary 'local' $Export
         if ($PassThru) { $Export }
     }
 }
