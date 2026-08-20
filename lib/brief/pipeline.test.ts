@@ -117,3 +117,47 @@ describe('runBriefPipeline', () => {
     }));
   });
 });
+
+describe('runBriefPipeline onArtifact', () => {
+  it('emits each artifact once, in production order, as produced', async () => {
+    const emitted: string[] = [];
+    await runBriefPipeline(baseInput(), adapter, undefined, a => emitted.push(a.name));
+    expect(emitted).toEqual([
+      'deck_spec.json', 'narration.json', 'brief.pptx', 'brief.html', 'audit-manifest.json',
+    ]);
+  });
+
+  it('byte-identity: the emitted stream equals the returned artifacts, each object exactly once', async () => {
+    const emitted: unknown[] = [];
+    const result = await runBriefPipeline(baseInput(), adapter, undefined, a => emitted.push(a));
+    // Same values, same order …
+    expect(emitted).toEqual(result.artifacts);
+    // … and the SAME object references (push-and-emit share one object) — no divergence possible.
+    expect(emitted.length).toBe(result.artifacts.length);
+    expect(emitted.every((a, i) => a === result.artifacts[i])).toBe(true);
+  });
+
+  it('still emits the manifest on a verify-gate failure (partial-persist path)', async () => {
+    (verify as Mock).mockResolvedValue({ manifest: manifestFixture(), hardFailures: ['symmetry breach'] });
+    const emitted: string[] = [];
+    await runBriefPipeline(baseInput(), adapter, undefined, a => emitted.push(a.name));
+    expect(emitted).toContain('audit-manifest.json');
+  });
+
+  it('emits produced artifacts before a later-stage throw (T6 partial-persist-on-throw)', async () => {
+    (render as Mock).mockRejectedValue(new Error('render blew up'));
+    const emitted: string[] = [];
+    await expect(
+      runBriefPipeline(baseInput(), adapter, undefined, a => emitted.push(a.name)),
+    ).rejects.toThrow('render blew up');
+    // deck_spec + narration were emitted before render threw; pptx/manifest were not.
+    expect(emitted).toEqual(['deck_spec.json', 'narration.json']);
+  });
+
+  it('is optional — omitting onArtifact still returns the full artifact set', async () => {
+    const result = await runBriefPipeline(baseInput(), adapter);
+    expect(result.artifacts.map(a => a.name)).toEqual([
+      'deck_spec.json', 'narration.json', 'brief.pptx', 'brief.html', 'audit-manifest.json',
+    ]);
+  });
+});
