@@ -22,6 +22,7 @@ import type { PovKey } from '../../../../lib/oped/types.js';
 import { generateOpEdSet } from '../../../../lib/oped/generate.js';
 import type { GenerateOpEdRequest, OpEdGeneratorDeps } from '../../../../lib/oped/generate.js';
 import { makeElectronAIAdapter } from '../electronAIAdapter.js';
+import { validateCreateOpEdPayload } from './opedValidation.js';
 
 // Shared prompts dir: op-ed-*.prompt artifacts (relocated to lib/oped/prompts by t/2609).
 const PROMPTS_DIR = path.join(PROJECT_ROOT, 'lib', 'oped', 'prompts');
@@ -169,15 +170,10 @@ export function registerOpEdHandlers(): void {
   }) => {
     const { topic, url, params, voices } = payload;
 
-    // FromUrl mode sends url with an empty topic — accept url as an alternative source (t/2908).
-    if ((!topic?.trim() && !url?.trim()) || !voices?.length) {
-      throw new ActionableError({
-        goal: 'Create op-ed set',
-        problem: 'a topic or a web-page URL, and at least one voice, are required',
-        location: 'opedHandlers create-oped-set',
-        nextSteps: ['Provide a topic or a web-page URL', 'Select at least one voice'],
-      });
-    }
+    // A create needs a source (topic OR url — FromUrl sends an empty topic) plus a voice.
+    // Guard extracted to a pure, unit-tested validator (t/2910; regression fixed in t/2908).
+    const validationError = validateCreateOpEdPayload({ topic, url, voices });
+    if (validationError) throw validationError;
 
     const setId = crypto.randomUUID();
     const createdAt = new Date().toISOString();
