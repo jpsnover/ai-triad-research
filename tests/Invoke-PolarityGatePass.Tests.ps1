@@ -52,7 +52,7 @@ Describe 'Invoke-PolarityGatePass (t/2739)' -Tag 'summary' {
                 $r
             }
             $kp = New-Kp
-            $counts = Invoke-PolarityGatePass -KeyPoints @(@{ KeyPoint = $kp; POV = 'accelerationist' })
+            $counts = Invoke-PolarityGatePass -SkipJudge -KeyPoints @(@{ KeyPoint = $kp; POV = 'accelerationist' })
 
             $kp.stance | Should -Be 'strongly_opposed'
             $kp.stance_polarity_flag | Should -BeTrue
@@ -70,7 +70,7 @@ Describe 'Invoke-PolarityGatePass (t/2739)' -Tag 'summary' {
                 foreach ($p in @($Pair)) { $r.Add([PSCustomObject]@{ Id = $p.Id; Direction = 'unrelated'; Confidence = 0.0; Method = 'nli' }) }
                 $r
             }
-            Invoke-PolarityGatePass -KeyPoints @(@{ KeyPoint = (New-Kp); POV = 'accelerationist' }) | Out-Null
+            Invoke-PolarityGatePass -SkipJudge -KeyPoints @(@{ KeyPoint = (New-Kp); POV = 'accelerationist' }) | Out-Null
 
             $np = $script:CapturedPairs[0].NodeProp
             $np | Should -BeLike 'Argue AI Requires Entirely New Laws — *'
@@ -87,7 +87,7 @@ Describe 'Invoke-PolarityGatePass (t/2739)' -Tag 'summary' {
                 $r
             }
             $kp = New-Kp 'aligned'
-            $counts = Invoke-PolarityGatePass -KeyPoints @(@{ KeyPoint = $kp; POV = 'accelerationist' })
+            $counts = Invoke-PolarityGatePass -SkipJudge -KeyPoints @(@{ KeyPoint = $kp; POV = 'accelerationist' })
 
             $kp.stance | Should -Be 'aligned' -Because 'genuine agreement reads unrelated (not entailment) and must KEEP'
             ($kp.PSObject.Properties['stance_polarity_flag']) | Should -BeNullOrEmpty
@@ -104,7 +104,7 @@ Describe 'Invoke-PolarityGatePass (t/2739)' -Tag 'summary' {
                 $r
             }
             $kp = New-Kp 'strongly_aligned'
-            $counts = Invoke-PolarityGatePass -KeyPoints @(@{ KeyPoint = $kp; POV = 'accelerationist' })
+            $counts = Invoke-PolarityGatePass -SkipJudge -KeyPoints @(@{ KeyPoint = $kp; POV = 'accelerationist' })
 
             $kp.stance | Should -Be 'strongly_aligned' -Because 'a demotion gate fails safe by NOT demoting (t/2751#2)'
             ($kp.PSObject.Properties['stance_polarity_flag']) | Should -BeNullOrEmpty
@@ -127,7 +127,7 @@ Describe 'Invoke-PolarityGatePass (t/2739)' -Tag 'summary' {
                 @{ KeyPoint = (New-Kp 'aligned' 'acc-intentions-047' $true); POV = 'accelerationist' }  # low band → skip
                 @{ KeyPoint = (New-Kp 'aligned');                 POV = 'accelerationist' }  # gated
             )
-            $counts = Invoke-PolarityGatePass -KeyPoints $items
+            $counts = Invoke-PolarityGatePass -SkipJudge -KeyPoints $items
             $counts.gated | Should -Be 1
             $script:GatedSeen | Should -Be 1
         }
@@ -137,7 +137,7 @@ Describe 'Invoke-PolarityGatePass (t/2739)' -Tag 'summary' {
         InModuleScope AITriad {
             Mock Test-DirectionalAgreement -MockWith { throw 'should not be called' }
             $kp = New-Kp
-            $counts = Invoke-PolarityGatePass -KeyPoints @(@{ KeyPoint = $kp; POV = 'accelerationist' }) -SkipDirectionalGate
+            $counts = Invoke-PolarityGatePass -SkipJudge -KeyPoints @(@{ KeyPoint = $kp; POV = 'accelerationist' }) -SkipDirectionalGate
             $counts.gated   | Should -Be 0
             $counts.opposes | Should -Be 0
             $kp.stance | Should -Be 'aligned'
@@ -172,7 +172,7 @@ Describe 'Invoke-PolarityGatePass (t/2739)' -Tag 'summary' {
                 $r
             }
             $kp = New-MultiRepKp
-            $counts = Invoke-PolarityGatePass -KeyPoints @(@{ KeyPoint = $kp; POV = 'accelerationist' })
+            $counts = Invoke-PolarityGatePass -SkipJudge -KeyPoints @(@{ KeyPoint = $kp; POV = 'accelerationist' })
 
             $kp.stance | Should -Be 'strongly_opposed'
             $kp.stance_polarity_flag | Should -BeTrue
@@ -194,7 +194,7 @@ Describe 'Invoke-PolarityGatePass (t/2739)' -Tag 'summary' {
                 $r
             }
             $kp = New-MultiRepKp
-            $counts = Invoke-PolarityGatePass -KeyPoints @(@{ KeyPoint = $kp; POV = 'accelerationist' })
+            $counts = Invoke-PolarityGatePass -SkipJudge -KeyPoints @(@{ KeyPoint = $kp; POV = 'accelerationist' })
 
             $kp.stance | Should -Be 'aligned' -Because 'no rep opposes → keep (opposition-only, zero false-oppose)'
             ($kp.PSObject.Properties['stance_polarity_flag']) | Should -BeNullOrEmpty
@@ -219,7 +219,7 @@ Describe 'Invoke-PolarityGatePass (t/2739)' -Tag 'summary' {
                 stance = 'aligned'
                 retrieval_low_confidence = $false
             }
-            $counts = Invoke-PolarityGatePass -KeyPoints @(@{ KeyPoint = $kp; POV = 'accelerationist' })
+            $counts = Invoke-PolarityGatePass -SkipJudge -KeyPoints @(@{ KeyPoint = $kp; POV = 'accelerationist' })
             $script:SeenVerbatim | Should -Be 'span one. span two.'
             $counts.reps | Should -Be 2 -Because 'verbatim (joined) + canonical; attribution_text absent'
         }
@@ -245,7 +245,7 @@ Describe 'Polarity-gate disable switch (t/2896)' -Tag 'summary' {
                 retrieval_low_confidence = $false
                 verbatim                 = 'AI is delegated authority and acts non-deterministically.'
             }
-            $counts = Invoke-PolarityGatePass -KeyPoints @(@{ KeyPoint = $kp; POV = 'safetyist' })
+            $counts = Invoke-PolarityGatePass -SkipJudge -KeyPoints @(@{ KeyPoint = $kp; POV = 'safetyist' })
 
             $kp.stance               | Should -Be 'strongly_opposed'
             $kp.stance_polarity_flag | Should -BeTrue
@@ -266,7 +266,7 @@ Describe 'Polarity-gate disable switch (t/2896)' -Tag 'summary' {
                 retrieval_low_confidence = $false
                 verbatim                 = 'AI is delegated authority and acts non-deterministically.'
             }
-            $counts = Invoke-PolarityGatePass -KeyPoints @(@{ KeyPoint = $kp; POV = 'safetyist' }) -SkipDirectionalGate
+            $counts = Invoke-PolarityGatePass -SkipJudge -KeyPoints @(@{ KeyPoint = $kp; POV = 'safetyist' }) -SkipDirectionalGate
 
             $kp.stance                                      | Should -Be 'aligned'
             $kp.PSObject.Properties['stance_polarity_flag'] | Should -BeNullOrEmpty
