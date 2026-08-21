@@ -72,6 +72,7 @@
         'Show-FallacyInfo'
         'Test-TaxonomyIntegrity'
         'Test-TaxonomyDir'
+        'Assert-CleanDataTree'
         'Invoke-HierarchyProposal'
         'Set-TaxonomyHierarchy'
         'Invoke-SchemaMigration'

@@ -151,3 +151,8 @@ Get-Help <CmdletName> -Full                     # full docs for any cmdlet
 | `Register-AIBackend` | Configure AI backend credentials |
 | `Test-AIApiKey` | Verify an AI provider API key authenticates (auth-only probe of gemini/claude/groq/openai/azure; no token cost). Use `-All` to sweep every backend with a resolvable key. |
 | `Test-AIModelsConfig` | Validate `ai-models.json` — BOM, JSON parse, orphaned model refs in defaults/debateTiers/fallbackChains, incomplete `models[]` entries, and friendly-id-in-`apiModelId` (t/1705). Returns `{Pass; Issues}`; run in a Pester test / CI. |
+
+### Data-Write Safety
+| Cmdlet | Use when |
+|--------|----------|
+| `Assert-CleanDataTree` | Before a whole-file rewrite of a data-repo JSON, assert the target has no uncommitted changes — so a `ConvertFrom-Json \| ConvertTo-Json` (or Python `json.load`→`json.dump`) round-trip can't sweep concurrent working-tree state into the commit (t/2902; `-Force` downgrades the block to a warning). Also exposed as the opt-in `Write-Utf8NoBom -RequireCleanTree` switch. |
