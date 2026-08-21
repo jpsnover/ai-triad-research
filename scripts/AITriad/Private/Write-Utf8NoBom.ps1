@@ -12,7 +12,13 @@ function Write-Utf8NoBom {
         $Value,
 
         [switch]$NoNewline,
-        [switch]$Force
+        [switch]$Force,
+
+        # t/2902 — opt-in dirty-tree-sweep guard. When set, assert the target file
+        # has no uncommitted changes before overwriting it, so a whole-file rewrite
+        # cannot merge concurrent working-tree state into a later commit. Default
+        # OFF keeps every other writer's clean path zero-cost and zero-noise.
+        [switch]$RequireCleanTree
     )
     begin {
         $parts = New-Object System.Collections.Generic.List[string]
@@ -39,6 +45,12 @@ function Write-Utf8NoBom {
         if ($fileName -match '^(accelerationist|safetyist|skeptic|situations)\.json$' -and $text.Length -gt 10MB) {
             Write-Warning "Write-Utf8NoBom: BLOCKED write to $fileName — content is $([math]::Round($text.Length / 1MB, 1)) MB (likely corrupted). This prevents a runaway encoding bug."
             return
+        }
+        # t/2902 — opt-in: refuse to overwrite a target that already carries
+        # uncommitted changes (throws New-ActionableError), so a whole-file rewrite
+        # cannot sweep concurrent working-tree state into a later commit.
+        if ($RequireCleanTree) {
+            Assert-CleanDataTree -Path $Path
         }
         Set-Content -Path $Path -Value $text -Encoding utf8NoBOM -NoNewline
     }

@@ -813,6 +813,8 @@ Export-ModuleMember -Function @(
     'Test-TaxonomyIntegrity'
     # t/2876 — pre-validate taxonomy dir against embed_taxonomy.py loader contract
     'Test-TaxonomyDir'
+    # t/2902 — dirty-tree-sweep guard for whole-file data-repo writes
+    'Assert-CleanDataTree'
     'Invoke-HierarchyProposal'
     'Set-TaxonomyHierarchy'
     'Invoke-SchemaMigration'
