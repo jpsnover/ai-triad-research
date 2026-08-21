@@ -27,6 +27,8 @@ import { createRequire } from 'module';
 import { log } from '../logger.js';
 import { getGlobalRecorder } from '../../../../lib/flight-recorder/index.js';
 import { getCurrentUserId } from './userContext.js';
+import { STORAGE_MODE } from '../config.js';
+import { ActionableError } from '../../../../lib/debate/errors.js';
 
 const require = createRequire(import.meta.url);
 
@@ -193,11 +195,8 @@ async function getInstallationToken(): Promise<string | null> {
 // isolates each authenticated user's PAT.
 
 interface RuntimeCreds { repo: string | null; token: string | null }
-// @INMEMORY_JOB_STORE — per-user runtime GitHub creds (repo + PAT) live in a per-process Map,
-// NOT shared across replicas. Remove this marker when migrated to a shared store (t/2894). The
-// CI gate Test-InMemoryJobStoreScaleGuard.ps1 reads this marker and blocks maxReplicas > 1 while
-// it is present: at >1 replica a user's creds set on replica A are absent on replica B, so a
-// write routed to B silently loses auth (t/2884-class race, on the auth surface).
+// t/2895: per-user runtime creds deprecated in hosted mode (single-shared-repo; App-install token
+// is canonical). Scale-guard marker removed; map retained for filesystem/local-dev mode only.
 const runtimeCredsByUser = new Map<string, RuntimeCreds>();
 
 /**
@@ -206,6 +205,18 @@ const runtimeCredsByUser = new Map<string, RuntimeCreds>();
  * restarting the server.
  */
 export function setRuntimeCredentials(repo: string, token: string): void {
+  // t/2895: not supported in hosted mode — App-install token is canonical for single-shared-repo.
+  if (STORAGE_MODE !== 'filesystem') {
+    throw Object.assign(new ActionableError({
+      goal: 'Configure per-user GitHub credentials',
+      problem: 'Runtime per-user credential override is not supported in hosted mode. All hosted users share the repository configured at deployment time via the GitHub App installation token.',
+      location: 'security/githubAppAuth.ts → setRuntimeCredentials',
+      nextSteps: [
+        'In hosted mode, repository access is managed via the GitHub App installation token — no per-user override is needed.',
+        'Contact the deployment administrator to change the shared repository (GITHUB_REPO env var).',
+      ],
+    }), { statusCode: 409 });
+  }
   runtimeCredsByUser.set(getCurrentUserId(), {
     repo: repo && repo.includes('/') ? repo : null,
     token: token && token.trim() ? token.trim() : null,
@@ -213,6 +224,8 @@ export function setRuntimeCredentials(repo: string, token: string): void {
 }
 
 export function clearRuntimeCredentials(): void {
+  // t/2895: no-op in hosted mode — map is never populated there.
+  if (STORAGE_MODE !== 'filesystem') return;
   runtimeCredsByUser.delete(getCurrentUserId());
 }
 
@@ -220,6 +233,11 @@ export function clearRuntimeCredentials(): void {
 
 /** Repo in "owner/repo" form, or null when unset. */
 export function getRepoSlug(): string | null {
+  // t/2895: hosted mode is single-shared-repo — always use the deployment env var, never the per-user map.
+  if (STORAGE_MODE !== 'filesystem') {
+    const repo = process.env.GITHUB_REPO;
+    return repo && repo.includes('/') ? repo : null;
+  }
   const runtimeRepo = runtimeCredsByUser.get(getCurrentUserId())?.repo;
   if (runtimeRepo) return runtimeRepo;
   const repo = process.env.GITHUB_REPO;
@@ -239,8 +257,39 @@ export function getTokenExpiryMs(): number {
 /**
  * Returns a usable credential bundle, or null when no credentials are
  * configured. Callers should 503 (or render a disabled UI) on null.
+ *
+ * t/2895: in hosted (non-filesystem) mode the per-user runtime map is never
+ * consulted — App-install token → GITHUB_TOKEN env only. A FR error is emitted
+ * when all rungs are exhausted so auth failures are diagnosable.
  */
 export async function getCredentials(): Promise<SyncCredentials | null> {
+  if (STORAGE_MODE !== 'filesystem') {
+    // Hosted mode: single-shared-repo. Never consults per-user map (defense-in-depth, t/2895).
+    const repo = process.env.GITHUB_REPO ?? null;
+    const repoValid = repo != null && repo.includes('/');
+
+    const installToken = await getInstallationToken();
+    if (installToken && repoValid) return { repo: repo!, token: installToken, mode: 'app' };
+
+    const envPat = (process.env.GITHUB_TOKEN ?? '').trim() || null;
+    if (envPat && repoValid) return { repo: repo!, token: envPat, mode: 'pat' };
+
+    // All rungs exhausted — emit an observable signal so failures are diagnosable (t/2895 Condition 1).
+    const tried: string[] = [];
+    if (!installToken) tried.push('GitHub App installation token (GITHUB_APP_ID/INSTALLATION_ID/private key not configured or token mint failed)');
+    if (!envPat) tried.push('GITHUB_TOKEN env var (not set)');
+    if (!repoValid) tried.push(`GITHUB_REPO env var (${repo == null ? 'not set' : `"${repo}" is not in owner/repo form`})`);
+    getGlobalRecorder()?.record({
+      type: 'system.error',
+      component: 'github-auth',
+      level: 'error',
+      message: `getCredentials() resolved to null in hosted mode — credential rungs exhausted: ${tried.join('; ')}`,
+      error: { name: 'MissingCredentials', message: tried.join('; ') },
+    });
+    return null;
+  }
+
+  // Filesystem/single-user mode: existing priority order unchanged (t/847).
   const repo = getRepoSlug();
   if (!repo) return null;
 
