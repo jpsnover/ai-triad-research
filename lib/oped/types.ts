@@ -47,6 +47,8 @@ export interface OpEdMember {
   rhetorical_meta: string;
   wordCount: number;
   grounding: OpEdGroundingRef[];
+  /** Source claims extracted by the reflection pass (t/2890) — absent when no source brief or claims list is empty. */
+  claims?: { text: string; paragraph: number }[];
   /** Set when FABRICATED_LEDE_GUARD matched the lede on an empty-newsHook run (t/2730). */
   fabricated_lede?: true;
 }

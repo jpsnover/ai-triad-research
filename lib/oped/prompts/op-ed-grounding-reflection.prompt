@@ -13,4 +13,6 @@ For EACH element id above, judge against the actual essay text and write one sen
 
 Also, when SOURCE DOCUMENT KEY CLAIMS are provided above, list in "document_claims" the specific claims (copied verbatim from the numbered list) that THIS element engages, supports, or rebuts in the essay. Include a claim only if the essay actually connects this element to it. Use an empty array if the element engages no source claim, or if no source claims were provided.
 
-Return ONLY a JSON object: { "grounding_usage": [ { "id": "<the [id]>", "reflection": "<one sentence>", "document_claims": ["<verbatim claim>", ...] }, ... ] } with exactly one entry per element id shown above. No commentary outside the JSON.
+Additionally, when SOURCE DOCUMENT KEY CLAIMS are provided (not "(none)"), extract a top-level "claims" array: one entry per claim from the numbered list, with the claim text verbatim and the paragraph number (1-indexed) of the op-ed body where that claim is most directly engaged or addressed. If a claim is not addressed anywhere in the op-ed, use paragraph 0. If no source claims were provided, return "claims" as an empty array.
+
+Return ONLY a JSON object: { "grounding_usage": [ { "id": "<the [id]>", "reflection": "<one sentence>", "document_claims": ["<verbatim claim>", ...] }, ... ], "claims": [ { "text": "<verbatim claim text>", "paragraph": <integer> }, ... ] } with exactly one entry per element id shown above in grounding_usage. No commentary outside the JSON.

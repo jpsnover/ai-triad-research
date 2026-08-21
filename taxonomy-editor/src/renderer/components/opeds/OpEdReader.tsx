@@ -93,6 +93,35 @@ function GroundingDetailCard({ ref, onClose }: { ref: OpEdGroundingRef; onClose:
 }
 
 // ──────────────────────────────────────────────
+// Claims section (t/2890) — source claims above taxonomy grounding
+// ──────────────────────────────────────────────
+
+function ClaimsSection({ claims }: { claims: { text: string; paragraph: number }[] }) {
+  if (claims.length === 0) return null;
+  return (
+    <details className="oped-claims" open>
+      <summary className="oped-claims-summary">Claims ({claims.length})</summary>
+      <ol className="oped-claims-list">
+        {claims.map((c, i) => (
+          <li key={i} className="oped-claim-item">
+            {c.text}
+            {c.paragraph > 0 && (
+              <span
+                className="oped-claim-para"
+                title={`Paragraph ${c.paragraph}`}
+                aria-label={`Paragraph ${c.paragraph}`}
+              >
+                ¶{c.paragraph}
+              </span>
+            )}
+          </li>
+        ))}
+      </ol>
+    </details>
+  );
+}
+
+// ──────────────────────────────────────────────
 // Grounding section (collapsible table + inline expand)
 // ──────────────────────────────────────────────
 
@@ -205,6 +234,7 @@ function OpEdArticle({ member, outlet }: { member: OpEdMember; outlet?: string }
           <div className="oped-reader-body">
             <Markdown remarkPlugins={[remarkGfm]}>{member.body}</Markdown>
           </div>
+          {member.claims && member.claims.length > 0 && <ClaimsSection claims={member.claims} />}
           <GroundingSection grounding={member.grounding} />
 
           {member.rhetorical_meta && (

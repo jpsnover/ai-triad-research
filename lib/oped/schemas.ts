@@ -26,6 +26,7 @@ export const OpEdGroundingRefSchema = z.object({
   pov: PovKeySchema,         // full PovKey — rejects PS short-code "acc"/"saf"/"skp"
   relevance: z.string(),     // snake_case — rejects PS "Relevance"
   how_reflected: z.string(), // snake_case — rejects PS "HowReflected"
+  document_claims: z.array(z.string()).optional(),
 });
 
 export const OpEdMemberSchema = z.object({
@@ -42,6 +43,7 @@ export const OpEdMemberSchema = z.object({
   rhetorical_meta: z.string().optional().default(''),
   wordCount: z.number().int().optional().default(0),
   grounding: z.array(OpEdGroundingRefSchema),
+  claims: z.array(z.object({ text: z.string(), paragraph: z.number().int() })).optional(),
 });
 
 export const OpEdSetSchema = z.object({
