@@ -68,7 +68,12 @@ function Invoke-DocumentSummary {
         [Parameter(Mandatory)][string]$SummariesDir,
         [Parameter(Mandatory)][string]$Now,
         [switch]$IterativeExtraction,
-        [switch]$AutoFire
+        [switch]$AutoFire,
+
+        # t/2896 — re-enable switch for the directional polarity gate. DEFAULT OFF
+        # (the gate is disabled; see the point-of-use comment at the gate call).
+        # Preserved as a one-flag re-arm for the durable LLM-judge fix (t/2900).
+        [switch]$EnablePolarityGate
     )
 
     Set-StrictMode -Version Latest
@@ -870,7 +875,20 @@ function Finalize-Summary {
         }
     }
     if ($PolarityKps.Count -gt 0) {
-        $PolarityCounts = Invoke-PolarityGatePass -KeyPoints $PolarityKps.ToArray()
+        # ── DIRECTIONAL POLARITY GATE — DISABLED BY DEFAULT (t/2896) ──────────────
+        # WHY OFF: the gate's safety invariant ("false-demote structurally ~0") is
+        # FALSIFIED. deberta-v3-small false-flips genuine aligned agreements to
+        # strongly_opposed at NLI margins 3.4–7.5 — an order of magnitude above the
+        # ~1.4 real-contradiction ceiling, so no τ_contra separates them (provably not
+        # tunable). Root cause is a model reasoning gap: it can't infer agency→loss
+        # (AI-gains-agency ⊨ humans-lose-oversight), which is the DOMINANT
+        # safetyist/skeptic claim shape — so the gate corrupts precisely where it
+        # fires most (CL diagnosis t/2896#1; TL [Decision] e/117#3).
+        # RE-ENABLE CONDITION: a model that does agency→loss entailment, wired behind
+        # the LLM-judge directional fix (t/2900). The code path is PRESERVED, not
+        # deleted — re-arm is a single flag: -EnablePolarityGate.
+        $PolarityCounts = Invoke-PolarityGatePass -KeyPoints $PolarityKps.ToArray() `
+            -SkipDirectionalGate:(-not $EnablePolarityGate)
         if ($PolarityCounts.opposes -gt 0) {
             Write-Warn ("Polarity gate: {0} inversion(s) flagged (opposes) — counts o={0} a={1} u={2} x={3} over {4} gated" -f `
                 $PolarityCounts.opposes, $PolarityCounts.agrees, $PolarityCounts.unrelated, $PolarityCounts.unresolved, $PolarityCounts.gated)
