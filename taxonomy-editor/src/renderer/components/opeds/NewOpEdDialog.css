@@ -119,6 +119,36 @@
   margin: 0.3rem 0 0;
 }
 
+/* URL-in-topic-box steer (t/2899): a pasted URL silently produces a claim-less set,
+   so nudge desktop users to the web-page path that extracts and links claims. */
+.oped-url-steer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.35rem 0.5rem;
+  margin: 0.4rem 0 0;
+  padding: 0.4rem 0.55rem;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background: var(--bg-secondary);
+}
+.oped-url-steer-text {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+}
+.oped-url-steer-action {
+  background: none;
+  border: none;
+  color: var(--link-color, var(--text-secondary));
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 0;
+}
+.oped-url-steer-action:hover { text-decoration: underline; }
+.oped-url-steer-action:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+
 /* ── Voice chips (multi-select) ────────────────────────────────────────────── */
 
 .oped-voice-chips {
