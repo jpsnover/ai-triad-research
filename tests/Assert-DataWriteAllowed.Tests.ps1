@@ -1,0 +1,150 @@
+# Tag: summary (t/2902)
+# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+# Licensed under the MIT License. See LICENSE file in the project root.
+
+#Requires -Module Pester
+
+<#
+.SYNOPSIS
+    Centralized data-write dirty-tree guard (t/2902 Part 2) — both arms + mode +
+    data-root scoping, against a REAL temp git repo used as the data root.
+.DESCRIPTION
+    Assert-DataWriteAllowed is the sink chokepoint. It must:
+      - Block mode + dirty data-target   -> throw (sweep blocked).
+      - Warn  mode + dirty data-target   -> warn, no throw (warn-first promotion).
+      - Off   mode                       -> no-op.
+      - clean data-target (any mode)     -> no-op, silent.
+      - target OUTSIDE the data root      -> no-op even in Block (per-file, data-scoped;
+                                            NOT a whole-tree gate — the false-block trap).
+      - -AllowDirty                       -> bypass even in Block (sequential-rewriter opt-out).
+    Also proves Write-Utf8NoBom routes through the guard (Block + dirty -> throw).
+#>
+
+BeforeAll {
+    $ModulePath = Join-Path $PSScriptRoot '..' 'scripts' 'AITriad' 'AITriad.psm1'
+    Import-Module $ModulePath -Force -WarningAction SilentlyContinue
+
+    # Capture pre-existing env so AfterEach can RESTORE (not clobber) it — the full
+    # suite runs every test file in one process, and CI sets AI_TRIAD_DATA_ROOT.
+    $script:OrigDataRoot  = [Environment]::GetEnvironmentVariable('AI_TRIAD_DATA_ROOT')
+    $script:OrigGuardMode = [Environment]::GetEnvironmentVariable('AI_TRIAD_DATA_WRITE_GUARD')
+
+    function New-DataRepo {
+        param([string]$Root)
+        New-Item -ItemType Directory -Path $Root -Force | Out-Null
+        & git -C $Root init --quiet
+        & git -C $Root config user.email 'fixture@example.com'
+        & git -C $Root config user.name 'Fixture'
+        & git -C $Root config commit.gpgsign false
+        $sub = Join-Path $Root 'summaries'
+        New-Item -ItemType Directory -Path $sub -Force | Out-Null
+        $file = Join-Path $sub 'doc.json'
+        '{ "stance": "aligned" }' | Set-Content -Path $file -Encoding utf8NoBOM
+        & git -C $Root add -A
+        & git -C $Root commit --quiet -m 'seed'
+        return $file
+    }
+}
+
+Describe 'Assert-DataWriteAllowed — centralized data-write guard (t/2902)' -Tag 'summary' {
+
+    AfterEach {
+        # Restore the pre-existing values (do NOT blanket-remove — would clobber a
+        # CI-set AI_TRIAD_DATA_ROOT for every later test file in the shared process).
+        if ($null -eq $script:OrigDataRoot) { Remove-Item Env:\AI_TRIAD_DATA_ROOT -ErrorAction SilentlyContinue }
+        else { $env:AI_TRIAD_DATA_ROOT = $script:OrigDataRoot }
+        if ($null -eq $script:OrigGuardMode) { Remove-Item Env:\AI_TRIAD_DATA_WRITE_GUARD -ErrorAction SilentlyContinue }
+        else { $env:AI_TRIAD_DATA_WRITE_GUARD = $script:OrigGuardMode }
+    }
+
+    It 'Block mode + dirty data-target throws' {
+        $repo = Join-Path $TestDrive 'block-dirty'
+        $file = New-DataRepo -Root $repo
+        'mutated' | Set-Content -Path $file -Encoding utf8NoBOM   # make it dirty
+        $env:AI_TRIAD_DATA_ROOT = $repo
+        $env:AI_TRIAD_DATA_WRITE_GUARD = 'Block'
+        InModuleScope AITriad -Parameters @{ F = $file } {
+            param($F)
+            { Assert-DataWriteAllowed -Path $F } | Should -Throw -ExpectedMessage '*uncommitted changes*'
+        }
+    }
+
+    It 'Warn mode + dirty data-target warns but does not throw' {
+        $repo = Join-Path $TestDrive 'warn-dirty'
+        $file = New-DataRepo -Root $repo
+        'mutated' | Set-Content -Path $file -Encoding utf8NoBOM
+        $env:AI_TRIAD_DATA_ROOT = $repo
+        $env:AI_TRIAD_DATA_WRITE_GUARD = 'Warn'
+        InModuleScope AITriad -Parameters @{ F = $file } {
+            param($F)
+            $emitted = Assert-DataWriteAllowed -Path $F 3>&1
+            @($emitted).Count | Should -BeGreaterThan 0
+            "$emitted" | Should -BeLike '*uncommitted changes*'
+        }
+    }
+
+    It 'Off mode is a no-op even on a dirty data-target' {
+        $repo = Join-Path $TestDrive 'off-dirty'
+        $file = New-DataRepo -Root $repo
+        'mutated' | Set-Content -Path $file -Encoding utf8NoBOM
+        $env:AI_TRIAD_DATA_ROOT = $repo
+        $env:AI_TRIAD_DATA_WRITE_GUARD = 'Off'
+        InModuleScope AITriad -Parameters @{ F = $file } {
+            param($F)
+            $emitted = Assert-DataWriteAllowed -Path $F 3>&1
+            @($emitted).Count | Should -Be 0
+        }
+    }
+
+    It 'clean data-target is a silent no-op (Block mode)' {
+        $repo = Join-Path $TestDrive 'block-clean'
+        $file = New-DataRepo -Root $repo
+        $env:AI_TRIAD_DATA_ROOT = $repo
+        $env:AI_TRIAD_DATA_WRITE_GUARD = 'Block'
+        InModuleScope AITriad -Parameters @{ F = $file } {
+            param($F)
+            $emitted = Assert-DataWriteAllowed -Path $F 3>&1
+            @($emitted).Count | Should -Be 0
+        }
+    }
+
+    It 'target OUTSIDE the data root is not guarded even in Block mode' {
+        $repo = Join-Path $TestDrive 'scope-repo'
+        $null = New-DataRepo -Root $repo
+        # A dirty tracked file in a DIFFERENT git repo, not under the data root.
+        $other = Join-Path $TestDrive 'other'
+        $outsideFile = New-DataRepo -Root $other   # its own repo
+        'mutated' | Set-Content -Path $outsideFile -Encoding utf8NoBOM
+        $env:AI_TRIAD_DATA_ROOT = $repo            # data root is the FIRST repo
+        $env:AI_TRIAD_DATA_WRITE_GUARD = 'Block'
+        InModuleScope AITriad -Parameters @{ F = $outsideFile } {
+            param($F)
+            # Not under data root -> guard must not fire, even dirty + Block.
+            { Assert-DataWriteAllowed -Path $F } | Should -Not -Throw
+        }
+    }
+
+    It '-AllowDirty bypasses the guard even in Block mode' {
+        $repo = Join-Path $TestDrive 'allowdirty'
+        $file = New-DataRepo -Root $repo
+        'mutated' | Set-Content -Path $file -Encoding utf8NoBOM
+        $env:AI_TRIAD_DATA_ROOT = $repo
+        $env:AI_TRIAD_DATA_WRITE_GUARD = 'Block'
+        InModuleScope AITriad -Parameters @{ F = $file } {
+            param($F)
+            { Assert-DataWriteAllowed -Path $F -AllowDirty } | Should -Not -Throw
+        }
+    }
+
+    It 'Write-Utf8NoBom routes through the guard (Block + dirty data-target throws)' {
+        $repo = Join-Path $TestDrive 'wired'
+        $file = New-DataRepo -Root $repo
+        'mutated' | Set-Content -Path $file -Encoding utf8NoBOM
+        $env:AI_TRIAD_DATA_ROOT = $repo
+        $env:AI_TRIAD_DATA_WRITE_GUARD = 'Block'
+        InModuleScope AITriad -Parameters @{ F = $file } {
+            param($F)
+            { 'new' | Write-Utf8NoBom -Path $F } | Should -Throw -ExpectedMessage '*uncommitted changes*'
+        }
+    }
+}

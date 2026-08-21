@@ -156,3 +156,10 @@ Get-Help <CmdletName> -Full                     # full docs for any cmdlet
 | Cmdlet | Use when |
 |--------|----------|
 | `Assert-CleanDataTree` | Before a whole-file rewrite of a data-repo JSON, assert the target has no uncommitted changes — so a `ConvertFrom-Json \| ConvertTo-Json` (or Python `json.load`→`json.dump`) round-trip can't sweep concurrent working-tree state into the commit (t/2902; `-Force` downgrades the block to a warning). Also exposed as the opt-in `Write-Utf8NoBom -RequireCleanTree` switch. |
+
+**Centralized data-write guard (t/2902 Part 2).** Every data-of-record write in the module funnels through a guarded sink, so individual cmdlets need no per-callsite wiring:
+
+- **Content-string writes** go through `Write-Utf8NoBom`, which calls the internal `Assert-DataWriteAllowed` guard automatically. Writers using atomic `[IO.File]::WriteAllText`/`Move` sinks call the guard directly at the sink; Python re-writers call `assert_clean_data_tree` (`scripts/data_tree_guard.py`).
+- The guard fires **only** for a target **under the data root** (`Get-DataRoot`) that is **already dirty** — it is per-file, never a whole-tree assertion (the data tree is perpetually dirty).
+- **Mode** via `$env:AI_TRIAD_DATA_WRITE_GUARD` = `Warn` (default; surfaces a warning and proceeds) · `Block` (throws) · `Off`. Pass `-AllowDirty` on a sink call to opt a legitimate sequential rewriter out.
+- A detection test (`tests/DataWriteSinkGuard.Tests.ps1`) fails CI if any new data writer reaches disk bypassing the guarded sink — so coverage tracks growth.

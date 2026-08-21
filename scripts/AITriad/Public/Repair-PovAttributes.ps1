@@ -273,6 +273,7 @@ No markdown fences, no explanation.
     if ($TotalFixed -gt 0 -and -not $WhatIfPreference) {
         foreach ($PovName in $TaxData.Keys) {
             $FilePath = Join-Path $TaxDir "$PovName.json"
+            Assert-DataWriteAllowed -Path $FilePath  # t/2902
             $TaxData[$PovName] | ConvertTo-Json -Depth 20 | Set-Content -Path $FilePath -Encoding UTF8
         }
         Write-Host "`nSaved taxonomy files" -ForegroundColor Green

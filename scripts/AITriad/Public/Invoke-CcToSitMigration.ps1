@@ -319,6 +319,7 @@ function Invoke-CcToSitMigration {
             $orig = Get-Content -Raw -Path $s.Path -Encoding utf8
             $new  = $Pattern.Replace($orig, $Callback)
             if ($new -ne $orig) {
+                Assert-DataWriteAllowed -Path $s.Path  # t/2902
                 $tmp = $s.Path + '.tmp'
                 Set-Content -Path $tmp -Value $new -Encoding utf8NoBOM -NoNewline
                 [System.IO.File]::Move($tmp, $s.Path, $true)
@@ -355,6 +356,7 @@ function Invoke-CcToSitMigration {
         }
         foreach ($k in $Mapping.Keys) { $mappingObj.mapping[$k] = $Mapping[$k] }
         $json = ($mappingObj | ConvertTo-Json -Depth 8)
+        Assert-DataWriteAllowed -Path $MappingOut  # t/2902
         $tmp = $MappingOut + '.tmp'
         Set-Content -Path $tmp -Value $json -Encoding utf8NoBOM -NoNewline
         [System.IO.File]::Move($tmp, $MappingOut, $true)

@@ -221,6 +221,7 @@ function Write-EntityStoreAtomic {
         }
     }
 
+    Assert-DataWriteAllowed -Path $Path  # t/2902
     $temp = "$Path.tmp"
     $json = $Store | ConvertTo-Json -Depth 12
     try {
