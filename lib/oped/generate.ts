@@ -182,6 +182,17 @@ const REFLECTION_SCHEMA = {
         required: ['id', 'reflection'],
       },
     },
+    claims: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          text: { type: 'string' },
+          paragraph: { type: 'integer' },
+        },
+        required: ['text', 'paragraph'],
+      },
+    },
   },
   required: ['grounding_usage'],
 } as const;
@@ -199,6 +210,7 @@ interface EssayResponse {
 
 interface ReflectionResponse {
   grounding_usage: { id: string; reflection: string; document_claims?: string[] }[];
+  claims?: { text: string; paragraph: number }[];
 }
 
 async function runVoiceGeneration(
@@ -269,6 +281,7 @@ async function runVoiceGeneration(
   ];
 
   // Reflection pass — best-effort, maps grounding elements to where they appear
+  let reflClaims: { text: string; paragraph: number }[] | undefined;
   if (allGroundingRefs.length > 0 && body) {
     try {
       const groundingList = buildGroundingList(groundingNodes, sitNodes);
@@ -292,6 +305,7 @@ async function runVoiceGeneration(
           if (usage.document_claims?.length) ref.document_claims = usage.document_claims;
         }
       }
+      if (reflParsed.claims?.length) reflClaims = reflParsed.claims;
     } catch {
       // Reflection failure is non-fatal — how_reflected stays '(not reported)'
     }
@@ -319,6 +333,7 @@ async function runVoiceGeneration(
     rhetorical_meta: parsed.rhetorical_meta ?? '',
     wordCount: actualWordCount,
     grounding: allGroundingRefs,
+    ...(reflClaims && { claims: reflClaims }),
     ...(fabricatedLede && { fabricated_lede: true as const }),
   };
 }
