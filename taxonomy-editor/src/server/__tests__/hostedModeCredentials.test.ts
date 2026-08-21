@@ -116,6 +116,36 @@ describe('t/2895 hosted-mode credential gating (STORAGE_MODE !== filesystem)', (
     expect(call.message).toMatch(/getCredentials\(\) resolved to null in hosted mode/);
   });
 
+  it('getCredentials() absorbs getInstallationToken() throw and falls back to GITHUB_TOKEN env', async () => {
+    // App configured but network blips — fetch throws inside getInstallationToken().
+    // Must NOT propagate; must fall through to GITHUB_TOKEN and return it.
+    process.env.GITHUB_REPO = 'owner/repo';
+    process.env.GITHUB_TOKEN = 'pat-fallback';
+    process.env.GITHUB_APP_ID = 'app-123';
+    process.env.GITHUB_APP_INSTALLATION_ID = 'inst-456';
+    process.env.GITHUB_APP_PRIVATE_KEY = 'dummy-key-triggers-fetch';
+    mockFetch.mockRejectedValueOnce(new Error('network failure'));
+    const creds = await getCredentials();
+    // Must not throw; must return the PAT fallback
+    expect(creds).toEqual({ repo: 'owner/repo', token: 'pat-fallback', mode: 'pat' });
+    expect(frRecord).not.toHaveBeenCalled();
+  });
+
+  it('getCredentials() absorbs getInstallationToken() throw and emits FR error when no fallback', async () => {
+    // App configured, network blips, and no GITHUB_TOKEN → all rungs exhausted → null + FR error.
+    process.env.GITHUB_REPO = 'owner/repo';
+    process.env.GITHUB_APP_ID = 'app-123';
+    process.env.GITHUB_APP_INSTALLATION_ID = 'inst-456';
+    process.env.GITHUB_APP_PRIVATE_KEY = 'dummy-key-triggers-fetch';
+    mockFetch.mockRejectedValueOnce(new Error('network failure'));
+    const creds = await getCredentials();
+    expect(creds).toBeNull();
+    expect(frRecord).toHaveBeenCalledOnce();
+    const call = frRecord.mock.calls[0][0] as { type: string; level: string; message: string };
+    expect(call.type).toBe('system.error');
+    expect(call.message).toMatch(/getCredentials\(\) resolved to null in hosted mode/);
+  });
+
   it('getCredentials() emits FR system.error when GITHUB_REPO is unset', async () => {
     process.env.GITHUB_TOKEN = 'pat-env-token';
     // GITHUB_REPO not set → repo is invalid

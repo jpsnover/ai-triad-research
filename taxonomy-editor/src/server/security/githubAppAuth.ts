@@ -268,7 +268,10 @@ export async function getCredentials(): Promise<SyncCredentials | null> {
     const repo = process.env.GITHUB_REPO ?? null;
     const repoValid = repo != null && repo.includes('/');
 
-    const installToken = await getInstallationToken();
+    // t/2895: .catch(() => null) — a network blip or JSON parse error in getInstallationToken()
+    // must NOT throw out of getCredentials(), bypassing the GITHUB_TOKEN fallback and the
+    // Condition-1 FR-error/graceful-null path. Absorb the throw; treat mint failure as null.
+    const installToken = await getInstallationToken().catch(() => null);
     if (installToken && repoValid) return { repo: repo!, token: installToken, mode: 'app' };
 
     const envPat = (process.env.GITHUB_TOKEN ?? '').trim() || null;
