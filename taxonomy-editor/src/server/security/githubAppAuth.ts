@@ -193,6 +193,11 @@ async function getInstallationToken(): Promise<string | null> {
 // isolates each authenticated user's PAT.
 
 interface RuntimeCreds { repo: string | null; token: string | null }
+// @INMEMORY_JOB_STORE — per-user runtime GitHub creds (repo + PAT) live in a per-process Map,
+// NOT shared across replicas. Remove this marker when migrated to a shared store (t/2894). The
+// CI gate Test-InMemoryJobStoreScaleGuard.ps1 reads this marker and blocks maxReplicas > 1 while
+// it is present: at >1 replica a user's creds set on replica A are absent on replica B, so a
+// write routed to B silently loses auth (t/2884-class race, on the auth surface).
 const runtimeCredsByUser = new Map<string, RuntimeCreds>();
 
 /**
