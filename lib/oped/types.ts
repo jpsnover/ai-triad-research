@@ -66,6 +66,12 @@ export interface OpEdSet {
   params: OpEdParams;
   created_at: string;
   opeds: OpEdMember[];
+  /** Source provenance (t/2897): how this set was created. Absent on pre-existing sets. */
+  source_mode?: 'topic' | 'url';
+  /** The fetched source URL — url mode only. */
+  source_url?: string;
+  /** key_claims extracted by the comprehension pass (0 = brief failed/empty). url mode only. */
+  source_key_claims_count?: number;
 }
 
 // ── Local library listing summary (t/2591) ───────────────────────────────────

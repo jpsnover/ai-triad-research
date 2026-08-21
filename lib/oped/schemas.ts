@@ -53,6 +53,11 @@ export const OpEdSetSchema = z.object({
   params: OpEdParamsSchema,
   created_at: z.string(),
   opeds: z.array(OpEdMemberSchema),
+  // Source provenance (t/2898) — optional/additive so re-parse doesn't strip them
+  // (same strip-gap class fixed for document_claims in t/2890). Absent on legacy sets.
+  source_mode: z.enum(['topic', 'url']).optional(),
+  source_url: z.string().optional(),
+  source_key_claims_count: z.number().int().optional(),
 });
 
 /**
