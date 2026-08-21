@@ -29,7 +29,7 @@ import * as rateLimiter from '../security/rateLimiter.js';
 import * as ai from '../ai/aiBackends.js';
 import { resolveGenerationContext, enforceBackendAllowed } from './generationContext.js';
 import * as fileIO from '../storage/fileIO.js';
-import { beginEmbeddingCompute, endEmbeddingCompute, embeddingLoadSnapshot } from '../embeddingsLoad.js';
+import { beginEmbeddingCompute, endEmbeddingCompute, embeddingLoadSnapshot, evaluateEmbeddingLoadShed } from '../embeddingsLoad.js';
 
 // Pure mirror of the server.ts parseCookies helper (used by the logout /
 // fresh-login handlers). Depends only on the request headers; holds no state.
@@ -543,6 +543,21 @@ export function registerAiRoutes(r: Router, ctx: ServerCtx): void {
         { ...embeddingLoadSnapshot(), item_count: Array.isArray(texts) ? texts.length : 0 },
         'embeddings.compute: entry',
       );
+      // t/2905: load-shed to prevent the GC event-loop freeze that SIGKILL'd the
+      // container. Sheds when in-flight computes hit the concurrency cap OR the
+      // event-loop delay is already high. Warn-first by default (logs + proceeds);
+      // EMBEDDINGS_LOAD_SHED_MODE=block returns a typed 503 so the client circuit
+      // breaker retries instead of tripping on an opaque crash.
+      const shedDecision = evaluateEmbeddingLoadShed();
+      if (shedDecision.shed) {
+        if (shedDecision.mode === 'block') {
+          log.api.warn({ ...embeddingLoadSnapshot(), reason: shedDecision.reason }, 'embeddings.compute: load-shed 503');
+          res.writeHead(503, { 'Content-Type': 'application/json', 'Retry-After': String(Math.ceil(shedDecision.retryAfterMs / 1000)) });
+          res.end(JSON.stringify({ error: 'Embedding service is at capacity; retry shortly.', retryable: true, reason: shedDecision.reason, retryAfterMs: shedDecision.retryAfterMs }));
+          return;
+        }
+        log.api.warn({ ...embeddingLoadSnapshot(), reason: shedDecision.reason }, 'embeddings.compute: WOULD load-shed (warn-first; not blocking)');
+      }
       beginEmbeddingCompute();
       try {
         const vectors = await ai.computeEmbeddings(texts, ids, gate.key);

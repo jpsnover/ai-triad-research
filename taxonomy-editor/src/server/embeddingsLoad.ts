@@ -70,3 +70,86 @@ export function embeddingLoadSnapshot(): EmbeddingLoadSnapshot {
     in_flight_embedding_computes: inFlight,
   };
 }
+
+// ── t/2905: load-shed decision (concurrency cap + event-loop-delay backstop) ──
+//
+// The primary fix for the liveness-probe SIGKILL: bound the peak SIMULTANEOUS
+// embedding load so V8 GC can't thrash the event loop into a missed health check.
+// Two signals, either trips the shed:
+//   - in-flight embedding-compute count >= a concurrency cap (the trigger was 3
+//     parallel 702-item computes), OR
+//   - mean event-loop delay > a threshold (the DIRECT pre-liveness-miss signal,
+//     robust regardless of count — the mechanism this incident actually hit).
+//
+// Gate promotion (warn-first): ships in WARN mode — the route LOGS "would shed"
+// but proceeds, so the real concurrency + loop-delay distribution can be observed
+// (via the t/2904 snapshot logs) and the cap/threshold tuned from data BEFORE
+// promotion to BLOCK (503). Mode via EMBEDDINGS_LOAD_SHED_MODE = warn|block|off.
+
+export type LoadShedMode = 'warn' | 'block' | 'off';
+
+function intFromEnv(name: string, fallback: number): number {
+  const raw = process.env[name];
+  if (raw === undefined || raw.trim() === '') return fallback;
+  const n = Number.parseInt(raw, 10);
+  return Number.isFinite(n) && n > 0 ? n : fallback;
+}
+
+/** Resolve the load-shed mode: EMBEDDINGS_LOAD_SHED_MODE = warn|block|off (default warn). */
+export function embeddingLoadShedMode(): LoadShedMode {
+  const raw = (process.env.EMBEDDINGS_LOAD_SHED_MODE ?? '').trim().toLowerCase();
+  if (raw === 'block') return 'block';
+  if (raw === 'off') return 'off';
+  return 'warn'; // warn-first default (Gate Promotion)
+}
+
+export interface LoadShedDecision {
+  /** True when the current load exceeds a shed threshold. */
+  shed: boolean;
+  /** Active mode. In 'warn' the caller logs and proceeds; in 'block' it 503s. */
+  mode: LoadShedMode;
+  /** Which signal tripped (for the log / response). */
+  reason?: 'concurrency' | 'event_loop_delay';
+  /** Suggested Retry-After for a 503, in ms. */
+  retryAfterMs: number;
+  /** Signals at decision time (for the log). */
+  in_flight: number;
+  event_loop_delay_mean_ms: number;
+}
+
+/**
+ * Decide whether to shed a NEW embedding compute. Call at route entry BEFORE
+ * accepting the compute (so `in_flight` is the count of OTHER computes running).
+ * Env-tunable (warn-first):
+ *   EMBEDDINGS_MAX_CONCURRENT  (default 2)   — shed when in-flight >= this.
+ *   EMBEDDINGS_LOOP_SHED_MS    (default 250) — shed when mean loop delay > this.
+ *   EMBEDDINGS_RETRY_AFTER_MS  (default 2000)
+ *   EMBEDDINGS_LOAD_SHED_MODE  (default warn)
+ * Defaults are conservative starting points; tune from the t/2904 curve before
+ * promoting to block.
+ */
+export function evaluateEmbeddingLoadShed(): LoadShedDecision {
+  const mode = embeddingLoadShedMode();
+  const cap = intFromEnv('EMBEDDINGS_MAX_CONCURRENT', 2);
+  const loopShedMs = intFromEnv('EMBEDDINGS_LOOP_SHED_MS', 250);
+  const retryAfterMs = intFromEnv('EMBEDDINGS_RETRY_AFTER_MS', 2000);
+
+  const d = getLoopDelay();
+  const loopMeanMs = Number.isFinite(d.mean) ? d.mean / NS_PER_MS : 0;
+
+  let shed = false;
+  let reason: LoadShedDecision['reason'];
+  if (mode !== 'off') {
+    if (inFlight >= cap) { shed = true; reason = 'concurrency'; }
+    else if (loopMeanMs > loopShedMs) { shed = true; reason = 'event_loop_delay'; }
+  }
+
+  return {
+    shed,
+    mode,
+    reason,
+    retryAfterMs,
+    in_flight: inFlight,
+    event_loop_delay_mean_ms: Math.round(loopMeanMs * 10) / 10,
+  };
+}

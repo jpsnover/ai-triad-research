@@ -6,12 +6,14 @@
 // and the load snapshot. The counter is the same one the t/2905 concurrency cap
 // will read, so its increment/decrement/floor invariants are load-bearing.
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, afterEach } from 'vitest';
 import {
   beginEmbeddingCompute,
   endEmbeddingCompute,
   inFlightEmbeddingComputes,
   embeddingLoadSnapshot,
+  embeddingLoadShedMode,
+  evaluateEmbeddingLoadShed,
 } from '../embeddingsLoad.js';
 
 describe('embeddingsLoad (t/2904)', () => {
@@ -51,5 +53,67 @@ describe('embeddingsLoad (t/2904)', () => {
     } finally {
       endEmbeddingCompute();
     }
+  });
+});
+
+describe('embeddingsLoad load-shed (t/2905)', () => {
+  const ENV_KEYS = ['EMBEDDINGS_LOAD_SHED_MODE', 'EMBEDDINGS_MAX_CONCURRENT', 'EMBEDDINGS_LOOP_SHED_MS', 'EMBEDDINGS_RETRY_AFTER_MS'];
+
+  afterEach(() => {
+    for (const k of ENV_KEYS) delete process.env[k];
+    while (inFlightEmbeddingComputes() > 0) endEmbeddingCompute();
+  });
+
+  it('mode defaults to warn (warn-first Gate Promotion)', () => {
+    expect(embeddingLoadShedMode()).toBe('warn');
+  });
+
+  it('mode reads EMBEDDINGS_LOAD_SHED_MODE (block|off, case-insensitive), else warn', () => {
+    process.env.EMBEDDINGS_LOAD_SHED_MODE = 'block';    expect(embeddingLoadShedMode()).toBe('block');
+    process.env.EMBEDDINGS_LOAD_SHED_MODE = 'OFF';      expect(embeddingLoadShedMode()).toBe('off');
+    process.env.EMBEDDINGS_LOAD_SHED_MODE = 'nonsense'; expect(embeddingLoadShedMode()).toBe('warn');
+  });
+
+  it('BLOCK arm: at the concurrency cap → shed, mode=block, reason=concurrency', () => {
+    process.env.EMBEDDINGS_LOAD_SHED_MODE = 'block';
+    process.env.EMBEDDINGS_MAX_CONCURRENT = '2';
+    while (inFlightEmbeddingComputes() > 0) endEmbeddingCompute();
+    beginEmbeddingCompute();
+    beginEmbeddingCompute(); // in-flight = 2 = cap
+    const d = evaluateEmbeddingLoadShed();
+    expect(d.shed).toBe(true);
+    expect(d.mode).toBe('block');
+    expect(d.reason).toBe('concurrency');
+    expect(d.retryAfterMs).toBeGreaterThan(0);
+  });
+
+  it('WARN arm: at the cap → shed=true but mode=warn (route warns + proceeds)', () => {
+    process.env.EMBEDDINGS_MAX_CONCURRENT = '2'; // mode defaults warn
+    while (inFlightEmbeddingComputes() > 0) endEmbeddingCompute();
+    beginEmbeddingCompute();
+    beginEmbeddingCompute();
+    const d = evaluateEmbeddingLoadShed();
+    expect(d.shed).toBe(true);
+    expect(d.mode).toBe('warn');
+  });
+
+  it('PASS arm: under the cap (loop signal disabled) → no shed, no reason', () => {
+    process.env.EMBEDDINGS_LOAD_SHED_MODE = 'block';
+    process.env.EMBEDDINGS_MAX_CONCURRENT = '3';
+    process.env.EMBEDDINGS_LOOP_SHED_MS = '100000'; // rule out an incidental loop-delay trip
+    while (inFlightEmbeddingComputes() > 0) endEmbeddingCompute();
+    beginEmbeddingCompute(); // in-flight = 1 < cap 3
+    const d = evaluateEmbeddingLoadShed();
+    expect(d.shed).toBe(false);
+    expect(d.reason).toBeUndefined();
+  });
+
+  it('OFF mode never sheds even over the cap', () => {
+    process.env.EMBEDDINGS_LOAD_SHED_MODE = 'off';
+    process.env.EMBEDDINGS_MAX_CONCURRENT = '1';
+    while (inFlightEmbeddingComputes() > 0) endEmbeddingCompute();
+    beginEmbeddingCompute();
+    beginEmbeddingCompute(); // in-flight = 2 > cap 1
+    expect(evaluateEmbeddingLoadShed().shed).toBe(false);
   });
 });
