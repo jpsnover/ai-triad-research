@@ -21,6 +21,8 @@ import sys
 import time
 from pathlib import Path
 
+from data_tree_guard import assert_clean_data_tree  # t/2902
+
 _SCRIPT_DIR = Path(__file__).resolve().parent
 DEFAULT_MODEL = "all-MiniLM-L6-v2"
 
@@ -175,6 +177,7 @@ def main():
         "entries": new_entries,
     }
 
+    assert_clean_data_tree(embeddings_path)  # t/2902
     embeddings_path.write_text(json.dumps(output, indent=2, ensure_ascii=False), encoding="utf-8")
     print(
         f"Wrote {len(new_entries)} entries to {embeddings_path.relative_to(data_root)}",

@@ -14,11 +14,14 @@ function Write-Utf8NoBom {
         [switch]$NoNewline,
         [switch]$Force,
 
-        # t/2902 — opt-in dirty-tree-sweep guard. When set, assert the target file
-        # has no uncommitted changes before overwriting it, so a whole-file rewrite
-        # cannot merge concurrent working-tree state into a later commit. Default
-        # OFF keeps every other writer's clean path zero-cost and zero-noise.
-        [switch]$RequireCleanTree
+        # t/2902 — force a HARD block regardless of guard mode/scope (Part 1
+        # semantics): assert the target is clean and throw on dirty. Prefer letting
+        # the centralized guard (below) decide; this is the explicit caller opt-in.
+        [switch]$RequireCleanTree,
+
+        # t/2902 — opt a legitimate sequential rewriter out of the dirty-tree guard
+        # (a target intentionally left dirty by a prior pass in the same run).
+        [switch]$AllowDirty
     )
     begin {
         $parts = New-Object System.Collections.Generic.List[string]
@@ -46,11 +49,22 @@ function Write-Utf8NoBom {
             Write-Warning "Write-Utf8NoBom: BLOCKED write to $fileName — content is $([math]::Round($text.Length / 1MB, 1)) MB (likely corrupted). This prevents a runaway encoding bug."
             return
         }
-        # t/2902 — opt-in: refuse to overwrite a target that already carries
-        # uncommitted changes (throws New-ActionableError), so a whole-file rewrite
-        # cannot sweep concurrent working-tree state into a later commit.
+        # t/2902 — centralized dirty-tree-sweep guard. Every content-string data
+        # write funnels through here, so guarding this sink covers all such callers
+        # (current and future) without per-callsite wiring. The guard fires only for
+        # a target UNDER the data root that is ALREADY dirty (Warn-first by default,
+        # Block after promotion). -RequireCleanTree forces a hard block regardless of
+        # mode/scope (Part 1); -AllowDirty opts a legit sequential rewriter out.
+        # Best-effort: skip cleanly if the guard functions aren't loaded — Build-Module.ps1
+        # dot-sources THIS file standalone (without the guard chain) to write .aitriad.json,
+        # a build artifact under the module dir, never a data-of-record write (t/2902).
         if ($RequireCleanTree) {
-            Assert-CleanDataTree -Path $Path
+            if (-not $AllowDirty -and (Get-Command Assert-CleanDataTree -ErrorAction SilentlyContinue)) {
+                Assert-CleanDataTree -Path $Path
+            }
+        }
+        elseif (Get-Command Assert-DataWriteAllowed -ErrorAction SilentlyContinue) {
+            Assert-DataWriteAllowed -Path $Path -AllowDirty:$AllowDirty
         }
         Set-Content -Path $Path -Value $text -Encoding utf8NoBOM -NoNewline
     }

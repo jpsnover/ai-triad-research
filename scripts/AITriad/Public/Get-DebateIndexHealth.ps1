@@ -183,6 +183,7 @@ function Get-DebateIndexHealth {
             # Match the app's compact serialization (JSON.stringify — no pretty,
             # no BOM, no trailing newline; saveIndex in debateIO.ts).
             $Json = $Index | ConvertTo-Json -Depth 20 -Compress
+            Assert-DataWriteAllowed -Path $IndexPath  # t/2902
             [System.IO.File]::WriteAllText($IndexPath, $Json, [System.Text.UTF8Encoding]::new($false))
         }
     }

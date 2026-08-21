@@ -34,6 +34,9 @@ $PSNativeCommandUseErrorActionPreference = $false
 
 $RepoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 Import-Module (Join-Path $PSScriptRoot 'AIEnrich.psm1') -Force -WarningAction SilentlyContinue
+# t/2902 — standalone script: import AITriad for the dirty-tree-sweep guard
+# (Assert-CleanDataTree) used before the whole-file situations.json write below.
+Import-Module (Join-Path $PSScriptRoot 'AITriad' 'AITriad.psm1') -Force -WarningAction SilentlyContinue
 
 # ── Resolve situations.json path ─────────────────────────────────────────────
 if (-not $SituationsPath) {
@@ -325,6 +328,9 @@ if ($DryRun) {
 Write-Host ''
 Write-Host 'Writing situations.json...' -ForegroundColor Cyan
 $json = $Raw | ConvertTo-Json -Depth 20
+# t/2902 — guard against sweeping concurrent uncommitted situations.json edits into
+# this whole-file rewrite. Warn-first (-Force warns and proceeds); drop -Force to block.
+Assert-CleanDataTree -Path $SituationsPath -Force
 [System.IO.File]::WriteAllText($SituationsPath, $json, (New-Object System.Text.UTF8Encoding $false))
 Write-Host 'Done.' -ForegroundColor Green
 

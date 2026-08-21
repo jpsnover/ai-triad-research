@@ -235,6 +235,7 @@ function Repair-PovLineage {
                 }
             }
             if ($PovMod) {
+                Assert-DataWriteAllowed -Path $FilePath  # t/2902
                 $TaxFileData | ConvertTo-Json -Depth 20 | Set-Content -Path $FilePath -Encoding UTF8
                 Write-Host "  Saved $PovName.json" -ForegroundColor Green
             }
@@ -461,6 +462,7 @@ Return a JSON object mapping node_id to an array of updated lineage entries:
                 }
             }
 
+            Assert-DataWriteAllowed -Path $FilePath  # t/2902
             $Data | ConvertTo-Json -Depth 20 | Set-Content -Path $FilePath -Encoding UTF8
             Write-Host "  Saved $PovName.json" -ForegroundColor Green
         }
@@ -667,6 +669,7 @@ Return a JSON object mapping node_id to an array of updated lineage entries:
                     }
                     if ($PovModified) {
                         $FilePath = Join-Path $TaxDir "$PovName.json"
+                        Assert-DataWriteAllowed -Path $FilePath  # t/2902
                         $Data | ConvertTo-Json -Depth 20 | Set-Content -Path $FilePath -Encoding UTF8
                     }
                 }
@@ -974,6 +977,7 @@ Example: [{"name":"Effective Altruism","description":"A philosophical movement..
 
         if ($Modified) {
             $FilePath = Join-Path $TaxDir "$PovName.json"
+            Assert-DataWriteAllowed -Path $FilePath  # t/2902
             $Data | ConvertTo-Json -Depth 20 | Set-Content -Path $FilePath -Encoding UTF8
             Write-Host "  Saved $PovName.json" -ForegroundColor Green
         }

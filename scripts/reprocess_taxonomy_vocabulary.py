@@ -24,6 +24,8 @@ from copy import deepcopy
 from datetime import date
 from pathlib import Path
 
+from data_tree_guard import assert_clean_data_tree  # t/2902
+
 _SCRIPT_DIR = Path(__file__).resolve().parent
 TODAY = date.today().isoformat()
 
@@ -452,6 +454,7 @@ def main():
         if not args.dry_run:
             data["nodes"] = new_nodes
             data["last_modified"] = TODAY
+            assert_clean_data_tree(fpath)  # t/2902
             fpath.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
             print(f"  Wrote {fpath.name}", file=sys.stderr)
 
