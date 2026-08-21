@@ -29,6 +29,7 @@ import * as rateLimiter from '../security/rateLimiter.js';
 import * as ai from '../ai/aiBackends.js';
 import { resolveGenerationContext, enforceBackendAllowed } from './generationContext.js';
 import * as fileIO from '../storage/fileIO.js';
+import { beginEmbeddingCompute, endEmbeddingCompute, embeddingLoadSnapshot } from '../embeddingsLoad.js';
 
 // Pure mirror of the server.ts parseCookies helper (used by the logout /
 // fresh-login handlers). Depends only on the request headers; holds no state.
@@ -535,8 +536,20 @@ export function registerAiRoutes(r: Router, ctx: ServerCtx): void {
     try {
       const gate = freeTierEmbeddingGate(req, res);
       if (gate.blocked) return;
-      const vectors = await ai.computeEmbeddings(texts, ids, gate.key);
-      json(res, { vectors });
+      // t/2904: emit the pre-freeze load signals (event-loop delay + heap + rss +
+      // in-flight count) at INFO so a liveness-probe kill under concurrent embedding
+      // load is diagnosable in the ACA container logs — the 2026-08-21 crash had none.
+      log.api.info(
+        { ...embeddingLoadSnapshot(), item_count: Array.isArray(texts) ? texts.length : 0 },
+        'embeddings.compute: entry',
+      );
+      beginEmbeddingCompute();
+      try {
+        const vectors = await ai.computeEmbeddings(texts, ids, gate.key);
+        json(res, { vectors });
+      } finally {
+        endEmbeddingCompute();
+      }
     } catch (err) { getGlobalRecorder()?.record({ type: 'system.error', component: 'server', level: 'error', message: 'Failed to compute embeddings', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } }); error(res, String(err), 500, err); }
   }));
 
