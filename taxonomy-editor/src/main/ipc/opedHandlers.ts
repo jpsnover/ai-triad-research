@@ -169,12 +169,13 @@ export function registerOpEdHandlers(): void {
   }) => {
     const { topic, url, params, voices } = payload;
 
-    if (!topic?.trim() || !voices?.length) {
+    // FromUrl mode sends url with an empty topic — accept url as an alternative source (t/2908).
+    if ((!topic?.trim() && !url?.trim()) || !voices?.length) {
       throw new ActionableError({
         goal: 'Create op-ed set',
-        problem: 'topic and at least one voice are required',
+        problem: 'a topic or a web-page URL, and at least one voice, are required',
         location: 'opedHandlers create-oped-set',
-        nextSteps: ['Provide a topic and select at least one voice'],
+        nextSteps: ['Provide a topic or a web-page URL', 'Select at least one voice'],
       });
     }
 
