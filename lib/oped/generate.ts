@@ -24,6 +24,9 @@ export interface GenerateOpEdRequest {
   povs: PovKey[];
   /** Raw source markdown (pre-fetched from URL). Omit for topic-only requests. */
   sourceMaterial?: string;
+  /** The URL `sourceMaterial` was fetched from — persisted as OpEdSet.source_url for
+   *  provenance (t/2898). The app-half handler passes it; absent for topic runs. */
+  sourceUrl?: string;
   signal?: AbortSignal;
 }
 
@@ -40,7 +43,7 @@ export interface OpEdGeneratorDeps {
 // ── Progress event union ──────────────────────────────────────────────────────
 
 export type OpEdProgressEvent =
-  | { type: 'source_brief_done' }
+  | { type: 'source_brief_done'; keyClaimsCount: number }
   | { type: 'source_brief_failed'; error: string }
   | { type: 'grounding_done'; nodeCount: number }
   | { type: 'grounding_failed'; error: string }
@@ -306,10 +309,29 @@ async function runVoiceGeneration(
         }
       }
       if (reflParsed.claims?.length) reflClaims = reflParsed.claims;
-    } catch {
-      // Reflection failure is non-fatal — how_reflected stays '(not reported)'
+    } catch (err) {
+      // Reflection failure is non-fatal — how_reflected stays '(not reported)' and
+      // claims are absent. The bare swallow here is why four claims-extraction
+      // failures were undiagnosable (t/2897); record it so it's visible. Uses
+      // 'system.error'+level:'warn' — the file's valid-EventType warn convention
+      // ('system.warning' is not in the union; TL confirmed the mapping, p/342#133).
+      deps.recorder?.record({
+        type: 'system.error', component: 'opedGenerate', level: 'warn',
+        message: `Op-ed reflection pass failed for pov=${pov} set=${request.set_id}: ${String(err)} — grounding how_reflected + claims will be absent`,
+      });
     }
   }
+
+  // Claims-extraction observability (t/2898): record a per-member count — including
+  // the 0 case — so "zero claims extracted" is a visible recorded fact, not an
+  // inference from an absent field. document_claims_refs = grounding refs the
+  // reflection pass tied back to a source claim.
+  const documentClaimsRefs = allGroundingRefs.filter(r => r.document_claims?.length).length;
+  deps.recorder?.record({
+    type: 'system.info', component: 'opedGenerate', level: 'info',
+    message: `Op-ed claims extracted for pov=${pov} set=${request.set_id}: claims=${reflClaims?.length ?? 0} document_claims_refs=${documentClaimsRefs}`,
+    data: { pov, set_id: request.set_id, claims_extracted: reflClaims?.length ?? 0, document_claims_refs: documentClaimsRefs },
+  });
 
   // Guard scan: when newsHook was empty, check the lede (first 500 chars) for
   // fabricated dated-event markers. Flag without mutating the body (t/2730).
@@ -317,7 +339,9 @@ async function runVoiceGeneration(
   const fabricatedLede = emptyHook && FABRICATED_LEDE_GUARD.test(body.slice(0, 500));
   if (fabricatedLede) {
     deps.recorder?.record({
-      type: 'system.warning', component: 'opedGenerate', level: 'warn',
+      // 'system.error'+level:'warn' — 'system.warning' is not in the EventType union
+      // (fixed in-scope, t/2898; TL-confirmed p/342#133).
+      type: 'system.error', component: 'opedGenerate', level: 'warn',
       message: `FABRICATED_LEDE_GUARD matched for pov=${pov} set=${request.set_id} — empty-hook lede may contain invented dated event`,
     });
   }
@@ -378,7 +402,9 @@ export async function* generateOpEdSet(
           message: 'Op-ed source brief marked unreadable — generating from topic only despite a supplied source',
         });
       }
-      yield { type: 'source_brief_done' };
+      // keyClaimsCount surfaces the comprehension result in-stream (t/2898) — 0 when
+      // the brief was unreadable/absent so the handler sees "source present, 0 claims".
+      yield { type: 'source_brief_done', keyClaimsCount: sourceBrief?.key_claims?.length ?? 0 };
     } catch (err) {
       yield { type: 'source_brief_failed', error: String(err) };
     }
@@ -488,6 +514,11 @@ export async function* generateOpEdSet(
   const memberMap = new Map(members.map(({ pov, member }) => [pov, member]));
   const orderedMembers = request.povs.map(pov => memberMap.get(pov)!).filter(Boolean);
 
+  // Source provenance (t/2897/t/2898): source_mode is ALWAYS set on new sets so a
+  // topic run (a URL pasted into the topic box → no source fetched → no claims) is
+  // distinguishable from the file alone. url mode also carries the fetched URL and the
+  // comprehension-pass claim count (0 = brief failed/unreadable/empty).
+  const isUrlMode = !!request.sourceMaterial;
   const set: OpEdSet = {
     schema_version: 1,
     set_id: request.set_id,
@@ -495,6 +526,9 @@ export async function* generateOpEdSet(
     params: request.params,
     created_at: new Date().toISOString(),
     opeds: orderedMembers,
+    source_mode: isUrlMode ? 'url' : 'topic',
+    ...(isUrlMode && request.sourceUrl ? { source_url: request.sourceUrl } : {}),
+    ...(isUrlMode ? { source_key_claims_count: sourceBrief?.key_claims?.length ?? 0 } : {}),
   };
 
   yield { type: 'complete', set };

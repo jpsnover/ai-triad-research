@@ -35,7 +35,9 @@ vi.mock('./promptLoader.js', () => ({
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { generateOpEdSet, type OpEdProgressEvent } from './generate.js';
+import { parseOpEdSet } from './schemas.js';
 import type { PovKey } from '../debate/types.js';
+import type { OpEdSet } from './types.js';
 
 const REPO_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 
@@ -274,5 +276,133 @@ describe('generateOpEdSet — Step 0 source-brief comprehension (t/2722)', () =>
     expect(events).not.toContain('source_brief_done');
     expect(events).not.toContain('source_brief_failed');
     expect(events).toContain('complete');
+  });
+});
+
+describe('generateOpEdSet — source provenance + reflection observability (t/2898)', () => {
+  const ESSAY_JSON = JSON.stringify({ headline: 'H', subtitle: '', body_markdown: 'Body.', word_count: 1 });
+  const REFL_JSON = JSON.stringify({ grounding_usage: [] });
+  const BRIEF_JSON = JSON.stringify({
+    thesis: 'AI labs must share safety research', author: 'Test Org', actor_type: 'think tank',
+    stance: 'FOR', primary_recommendations: ['Mandate sharing'],
+    key_claims: ['Incidents doubled', 'Only 3 labs share'], readable: true,
+  });
+  const PROMPTS = join(REPO_ROOT, 'lib', 'oped', 'prompts');
+
+  async function collect(req: Record<string, unknown>, deps: Record<string, unknown>): Promise<OpEdSet> {
+    let set: OpEdSet | undefined;
+    for await (const ev of generateOpEdSet(req as never, deps as never) as AsyncGenerator<OpEdProgressEvent>) {
+      if (ev.type === 'complete') set = ev.set;
+    }
+    if (!set) throw new Error('no complete event');
+    return set;
+  }
+
+  it('topic-mode set reads source_mode:"topic" with no url/count — distinguishable from the file alone', async () => {
+    const adapter = { generateText: async (p: string) => (p === 'refl' ? REFL_JSON : ESSAY_JSON) };
+    const set = await collect(
+      { set_id: 't-topic', topic: 'AI policy', params: { model: 'm', wordCount: 800, outlet: 'nyt', newsHook: '', thesis: '' }, povs: ['accelerationist'] },
+      { adapter, promptsDir: PROMPTS, repoRoot: REPO_ROOT },
+    );
+    expect(set.source_mode).toBe('topic');
+    expect(set.source_url).toBeUndefined();
+    expect(set.source_key_claims_count).toBeUndefined();
+  });
+
+  it('url-mode set reads source_mode:"url", source_url, and the key-claims count', async () => {
+    const adapter = {
+      generateText: async (p: string) => (p === 'source-brief-prompt' ? BRIEF_JSON : p === 'refl' ? REFL_JSON : ESSAY_JSON),
+    };
+    const set = await collect(
+      { set_id: 't-url', topic: 'AI safety', params: { model: 'm', wordCount: 800, outlet: 'nyt', newsHook: '', thesis: '' }, povs: ['accelerationist'], sourceMaterial: 'Doc text', sourceUrl: 'https://example.org/report' },
+      { adapter, promptsDir: PROMPTS, repoRoot: REPO_ROOT },
+    );
+    expect(set.source_mode).toBe('url');
+    expect(set.source_url).toBe('https://example.org/report');
+    expect(set.source_key_claims_count).toBe(2);
+  });
+
+  it('url-mode count is 0 when the source brief is unreadable (brief failed/empty)', async () => {
+    const UNREADABLE = JSON.stringify({ thesis: '', author: '', actor_type: '', stance: '', primary_recommendations: [], key_claims: [], readable: false });
+    const adapter = {
+      generateText: async (p: string) => (p === 'source-brief-prompt' ? UNREADABLE : p === 'refl' ? REFL_JSON : ESSAY_JSON),
+    };
+    const set = await collect(
+      { set_id: 't-url0', topic: 'AI safety', params: { model: 'm', wordCount: 800, outlet: 'nyt', newsHook: '', thesis: '' }, povs: ['accelerationist'], sourceMaterial: 'gibberish', sourceUrl: 'https://example.org/x' },
+      { adapter, promptsDir: PROMPTS, repoRoot: REPO_ROOT },
+    );
+    expect(set.source_mode).toBe('url');
+    expect(set.source_key_claims_count).toBe(0);
+  });
+
+  it('source_brief_done carries keyClaimsCount', async () => {
+    const adapter = {
+      generateText: async (p: string) => (p === 'source-brief-prompt' ? BRIEF_JSON : p === 'refl' ? REFL_JSON : ESSAY_JSON),
+    };
+    let count: number | undefined;
+    for await (const ev of generateOpEdSet(
+      { set_id: 't-evt', topic: 'AI', params: { model: 'm', wordCount: 800, outlet: 'nyt', newsHook: '', thesis: '' }, povs: ['accelerationist'], sourceMaterial: 'Doc' } as never,
+      { adapter, promptsDir: PROMPTS, repoRoot: REPO_ROOT } as never,
+    ) as AsyncGenerator<OpEdProgressEvent>) {
+      if (ev.type === 'source_brief_done') count = ev.keyClaimsCount;
+    }
+    expect(count).toBe(2);
+  });
+
+  it('reflection-pass failure emits a recorder warning naming the pov — no longer silent', async () => {
+    const adapter = {
+      // 'refl' returns non-JSON → JSON.parse throws inside the reflection block.
+      generateText: async (p: string) => (p === 'refl' ? 'not json at all' : ESSAY_JSON),
+    };
+    const record = vi.fn();
+    let member: { pov: string } | undefined;
+    for await (const ev of generateOpEdSet(
+      { set_id: 't-refl', topic: 'AI', params: { model: 'm', wordCount: 800, outlet: 'nyt', newsHook: 'hook', thesis: '' }, povs: ['accelerationist'] } as never,
+      { adapter, promptsDir: PROMPTS, repoRoot: REPO_ROOT, recorder: { record } } as never,
+    ) as AsyncGenerator<OpEdProgressEvent>) {
+      if (ev.type === 'voice_complete') member = ev.member;
+    }
+    // Non-fatal: the voice still completes …
+    expect(member?.pov).toBe('accelerationist');
+    // … but the reflection failure is now recorded (valid EventType, names the pov).
+    expect(record).toHaveBeenCalledWith(expect.objectContaining({
+      type: 'system.error', level: 'warn', component: 'opedGenerate',
+      message: expect.stringContaining('reflection pass failed for pov=accelerationist'),
+    }));
+  });
+
+  it('records a per-member claims_extracted count — including the zero case', async () => {
+    const adapter = { generateText: async (p: string) => (p === 'refl' ? REFL_JSON : ESSAY_JSON) };
+    const record = vi.fn();
+    for await (const _ev of generateOpEdSet(
+      { set_id: 't-count', topic: 'AI', params: { model: 'm', wordCount: 800, outlet: 'nyt', newsHook: 'hook', thesis: '' }, povs: ['accelerationist'] } as never,
+      { adapter, promptsDir: PROMPTS, repoRoot: REPO_ROOT, recorder: { record } } as never,
+    ) as AsyncGenerator<OpEdProgressEvent>) { /* drain */ }
+    expect(record).toHaveBeenCalledWith(expect.objectContaining({
+      type: 'system.info', component: 'opedGenerate',
+      data: expect.objectContaining({ claims_extracted: 0, pov: 'accelerationist' }),
+    }));
+  });
+
+  it('schema round-trip retains the three new provenance fields (no strip)', () => {
+    const raw: OpEdSet = {
+      schema_version: 1, set_id: 's', topic: 't',
+      params: { model: 'm', wordCount: 800 }, created_at: '2026-08-21T00:00:00Z',
+      opeds: [],
+      source_mode: 'url', source_url: 'https://example.org/a', source_key_claims_count: 4,
+    };
+    const round = parseOpEdSet(JSON.parse(JSON.stringify(raw)));
+    expect(round.source_mode).toBe('url');
+    expect(round.source_url).toBe('https://example.org/a');
+    expect(round.source_key_claims_count).toBe(4);
+  });
+
+  it('legacy set without provenance fields still parses (no migration)', () => {
+    const legacy = {
+      schema_version: 1, set_id: 's', topic: 't',
+      params: { model: 'm', wordCount: 800 }, created_at: '2026-08-21T00:00:00Z', opeds: [],
+    };
+    const round = parseOpEdSet(legacy);
+    expect(round.source_mode).toBeUndefined();
   });
 });
