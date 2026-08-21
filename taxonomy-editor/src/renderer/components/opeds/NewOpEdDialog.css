@@ -130,7 +130,7 @@
   padding: 0.4rem 0.55rem;
   border: 1px solid var(--border-color);
   border-radius: 4px;
-  background: var(--surface-muted, var(--surface-secondary, transparent));
+  background: var(--bg-secondary);
 }
 .oped-url-steer-text {
   font-size: 0.78rem;
