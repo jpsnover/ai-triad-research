@@ -225,3 +225,72 @@ Describe 'Invoke-PolarityGatePass (t/2739)' -Tag 'summary' {
         }
     }
 }
+
+# ── t/2896: disable Gate Verification (both arms of the -EnablePolarityGate switch) ──
+# The directional polarity flip is disabled by default (falsified safety invariant —
+# e/117#3). These prove the SWITCH works both ways so re-enabling behind the durable
+# LLM-judge fix (t/2900) is a one-flag flip. Test-DirectionalAgreement is mocked (no model).
+Describe 'Polarity-gate disable switch (t/2896)' -Tag 'summary' {
+
+    It 'ARM ON: gate active flips a genuine contradiction to strongly_opposed' {
+        InModuleScope AITriad {
+            Mock Test-DirectionalAgreement {
+                @($Pair) | ForEach-Object {
+                    [PSCustomObject]@{ Id = $_.Id; Direction = 'opposes'; Confidence = 5.0 }
+                }
+            }
+            $kp = [PSCustomObject]@{
+                stance                   = 'aligned'
+                taxonomy_node_id         = 'saf-beliefs-017'
+                retrieval_low_confidence = $false
+                verbatim                 = 'AI is delegated authority and acts non-deterministically.'
+            }
+            $counts = Invoke-PolarityGatePass -KeyPoints @(@{ KeyPoint = $kp; POV = 'safetyist' })
+
+            $kp.stance               | Should -Be 'strongly_opposed'
+            $kp.stance_polarity_flag | Should -BeTrue
+            $counts.opposes          | Should -BeGreaterThan 0
+        }
+    }
+
+    It 'ARM OFF: -SkipDirectionalGate makes the same verdict a no-op (the disable)' {
+        InModuleScope AITriad {
+            Mock Test-DirectionalAgreement {
+                @($Pair) | ForEach-Object {
+                    [PSCustomObject]@{ Id = $_.Id; Direction = 'opposes'; Confidence = 5.0 }
+                }
+            }
+            $kp = [PSCustomObject]@{
+                stance                   = 'aligned'
+                taxonomy_node_id         = 'saf-beliefs-017'
+                retrieval_low_confidence = $false
+                verbatim                 = 'AI is delegated authority and acts non-deterministically.'
+            }
+            $counts = Invoke-PolarityGatePass -KeyPoints @(@{ KeyPoint = $kp; POV = 'safetyist' }) -SkipDirectionalGate
+
+            $kp.stance                                      | Should -Be 'aligned'
+            $kp.PSObject.Properties['stance_polarity_flag'] | Should -BeNullOrEmpty
+            $counts.opposes                                 | Should -Be 0
+            $counts.gated                                   | Should -Be 0
+            Should -Invoke Test-DirectionalAgreement -Times 0 -Exactly -Because 'a skipped gate must not even call the engine'
+        }
+    }
+}
+
+Describe 'Invoke-DocumentSummary polarity wiring (t/2896)' -Tag 'summary' {
+
+    It 'exposes -EnablePolarityGate as a switch that defaults OFF (gate disabled by default)' {
+        InModuleScope AITriad {
+            $p = (Get-Command Invoke-DocumentSummary).Parameters['EnablePolarityGate']
+            $p                 | Should -Not -BeNullOrEmpty
+            $p.SwitchParameter | Should -BeTrue
+        }
+    }
+
+    It 'call-site contract: -EnablePolarityGate negates into -SkipDirectionalGate' {
+        $off = [switch]$false
+        (-not $off) | Should -BeTrue  -Because 'default-off routes -SkipDirectionalGate:$true (gate skipped)'
+        $on  = [switch]$true
+        (-not $on)  | Should -BeFalse -Because '-EnablePolarityGate routes -SkipDirectionalGate:$false (gate active)'
+    }
+}
