@@ -505,6 +505,13 @@ function New-OpEd {
             $ReflPrompt = Get-Prompt -Name 'op-ed-grounding-reflection' -PromptsDir $OPedPromptsDir -Replacements @{
                 OPED_BODY      = $Body
                 GROUNDING_LIST = $glb.ToString().TrimEnd()
+                # Mirror generate.ts:291-293 reflection pass: numbered key_claims list,
+                # "(none)" fallback when absent. Without this the shared prompt's
+                # {{SOURCE_CLAIMS}} slot (t/2890) rendered literally on the PS path (t/2911).
+                SOURCE_CLAIMS  = if ($null -ne $SBrief -and $SBrief.PSObject.Properties.Name -contains 'key_claims' -and $null -ne $SBrief.key_claims -and @($SBrief.key_claims).Count -gt 0) {
+                    $ReflClaims = @($SBrief.key_claims)
+                    (0..($ReflClaims.Count - 1) | ForEach-Object { "  $($_ + 1). $($ReflClaims[$_])" }) -join "`n"
+                } else { '(none)' }
             }
             $ReflSchema = @{
                 type       = 'object'
