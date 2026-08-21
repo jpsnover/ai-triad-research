@@ -75,6 +75,13 @@ export function getExportJob(jobId: string, userId: string): ExportJob | null {
   return job && job.userId === userId ? job : null;
 }
 
+/** Raw registry membership (any user) — lets the GET handler distinguish "not in this
+ *  process's Map at all" (the cross-replica-404 signal, t/2887) from "present but wrong
+ *  user" (an auth/scoping issue). Does NOT leak the job; boolean only. */
+export function hasExportJob(jobId: string): boolean {
+  return jobs.has(jobId);
+}
+
 export function countRunningExportJobs(userId: string): number {
   let n = 0;
   for (const j of jobs.values()) {
