@@ -54,13 +54,38 @@ def is_data_tree_clean(path) -> bool:
     return proc.stdout.strip() == ""
 
 
-def assert_clean_data_tree(path, force: bool = False) -> None:
-    """Raise ``DirtyTreeError`` if ``path`` already carries uncommitted changes.
+def _data_write_guard_mode() -> str:
+    """Resolve the guard mode from ``$AI_TRIAD_DATA_WRITE_GUARD``: ``block`` |
+    ``warn`` | ``off`` (default ``warn``). Mirrors the PowerShell
+    ``Get-DataWriteGuardMode`` so both languages promote together (t/2902 cond. 4:
+    warn-first, then Block after a clean cycle)."""
+    raw = (os.environ.get("AI_TRIAD_DATA_WRITE_GUARD") or "").strip().lower()
+    if raw in ("block", "warn", "off"):
+        return raw
+    if raw:
+        print(f"WARNING: AI_TRIAD_DATA_WRITE_GUARD='{raw}' is not block/warn/off "
+              f"— defaulting to warn.", file=sys.stderr)
+    return "warn"
 
-    Stops a whole-file rewrite from sweeping concurrent working-tree state into
-    the commit (t/2902). ``force=True`` downgrades the block to a stderr warning
-    and returns.
+
+def assert_clean_data_tree(path, force: bool = False) -> None:
+    """Guard a whole-file data-repo rewrite against a dirty-tree sweep (t/2902).
+
+    Warn-first by default; the mode comes from ``$AI_TRIAD_DATA_WRITE_GUARD``
+    (mirrors the PowerShell guard so both languages promote in lockstep):
+      - ``off``                       -> no-op.
+      - clean target (any mode)       -> no-op.
+      - dirty + ``warn`` (default)    -> stderr warning, return (does NOT raise).
+      - dirty + ``block``             -> raise ``DirtyTreeError``.
+
+    ``force=True`` opts out entirely (mirrors PowerShell ``-AllowDirty``) — for a
+    writer that legitimately rewrites a target left dirty by a prior pass.
     """
+    if force:
+        return
+    mode = _data_write_guard_mode()
+    if mode == "off":
+        return
     if is_data_tree_clean(path):
         return
     msg = (
@@ -68,7 +93,6 @@ def assert_clean_data_tree(path, force: bool = False) -> None:
         f"that concurrent state into your commit (t/2902). Commit/stash it first, or "
         f"write only the fields you mean to change."
     )
-    if force:
-        print(f"WARNING: {msg} (proceeding, force=True)", file=sys.stderr)
-        return
-    raise DirtyTreeError(msg)
+    if mode == "block":
+        raise DirtyTreeError(msg)
+    print(f"WARNING: {msg}", file=sys.stderr)  # warn-first: surface, don't block

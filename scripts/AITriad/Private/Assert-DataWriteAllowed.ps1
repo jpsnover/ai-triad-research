@@ -9,6 +9,11 @@
 # perpetually dirty; a whole-tree gate would false-block at scale). Delegates the
 # actual git check to Assert-CleanDataTree (Part 1).
 #
+# SCOPE (CL, t/2902#16): this guards the SAME-FILE sweep (t/2896 — a whole-file
+# rewrite bundling concurrent edits to that file). It does NOT cover the CROSS-FILE
+# `git add -A` sweep (the license-drift sibling) — that is the explicit-paths
+# staging rule's job (root AGENTS.md junk-file-hygiene), not this per-file guard.
+#
 # Gate promotion (t/2902 condition 4): default mode is WARN (surface, don't block)
 # so a ≥1-cycle warn-first period can flush any false-fire on legitimate sequential
 # dirty-target rewrites before promotion to BLOCK. Override with the env var
