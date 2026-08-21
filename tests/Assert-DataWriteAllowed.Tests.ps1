@@ -148,3 +148,24 @@ Describe 'Assert-DataWriteAllowed — centralized data-write guard (t/2902)' -Ta
         }
     }
 }
+
+Describe 'Write-Utf8NoBom Build-Module contract (t/2902 regression)' -Tag 'summary' {
+    # Build-Module.ps1 dot-sources Private/Write-Utf8NoBom.ps1 STANDALONE (without the
+    # guard chain) to write .aitriad.json. The centralized guard must therefore be
+    # best-effort: a standalone dot-source must still write, not fail on a missing
+    # Assert-DataWriteAllowed. Verified in a FRESH pwsh process (real isolation — the
+    # in-process module would otherwise make the guard resolvable and mask the break).
+    It 'a standalone dot-source writes without requiring the guard chain' {
+        $writer = (Resolve-Path (Join-Path $PSScriptRoot '..' 'scripts' 'AITriad' 'Private' 'Write-Utf8NoBom.ps1')).Path
+        $out    = Join-Path $TestDrive 'standalone-build.json'
+        $mini   = Join-Path $TestDrive 'mini-build.ps1'
+        # Write the harness to a file (avoids -Command quoting hazards, Shell Quoting Rule).
+        Set-Content -Path $mini -Encoding utf8NoBOM -Value @(
+            ". `"$writer`""
+            "'hello-build' | Write-Utf8NoBom -Path `"$out`""
+        )
+        $p = Start-Process -FilePath 'pwsh' -ArgumentList '-NoProfile', '-File', $mini -Wait -PassThru -NoNewWindow
+        $p.ExitCode | Should -Be 0
+        (Get-Content -Raw -Path $out).Trim() | Should -Be 'hello-build'
+    }
+}

@@ -55,10 +55,15 @@ function Write-Utf8NoBom {
         # a target UNDER the data root that is ALREADY dirty (Warn-first by default,
         # Block after promotion). -RequireCleanTree forces a hard block regardless of
         # mode/scope (Part 1); -AllowDirty opts a legit sequential rewriter out.
+        # Best-effort: skip cleanly if the guard functions aren't loaded — Build-Module.ps1
+        # dot-sources THIS file standalone (without the guard chain) to write .aitriad.json,
+        # a build artifact under the module dir, never a data-of-record write (t/2902).
         if ($RequireCleanTree) {
-            if (-not $AllowDirty) { Assert-CleanDataTree -Path $Path }
+            if (-not $AllowDirty -and (Get-Command Assert-CleanDataTree -ErrorAction SilentlyContinue)) {
+                Assert-CleanDataTree -Path $Path
+            }
         }
-        else {
+        elseif (Get-Command Assert-DataWriteAllowed -ErrorAction SilentlyContinue) {
             Assert-DataWriteAllowed -Path $Path -AllowDirty:$AllowDirty
         }
         Set-Content -Path $Path -Value $text -Encoding utf8NoBOM -NoNewline
