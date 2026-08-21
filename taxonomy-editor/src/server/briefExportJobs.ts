@@ -205,7 +205,9 @@ async function runExportJob(job: ExportJob, args: CreateJobArgs): Promise<void> 
     const errorCode = hardFailures.length > 0 ? codeForHardFailures(hardFailures) : undefined;
 
     await persist(job, args, exportId, status, artifacts, {
-      narrator: models, traceCoveragePct, warnings: job.warnings, errorCode, title,
+      narrator: models, traceCoveragePct, warnings: job.warnings, errorCode,
+      reason: status === 'failed' ? `Export verify gate failed: ${hardFailures.join('; ')}` : undefined,
+      title,
     });
 
     if (status === 'failed') {
@@ -229,7 +231,9 @@ async function runExportJob(job: ExportJob, args: CreateJobArgs): Promise<void> 
     });
     try {
       await persist(job, args, exportId, 'failed', artifacts, {
-        narrator: models, traceCoveragePct, warnings: job.warnings, errorCode, title,
+        narrator: models, traceCoveragePct, warnings: job.warnings, errorCode,
+        reason: job.error, // the thrown-stage message (set above)
+        title,
       });
     } catch (perr) {
       getGlobalRecorder()?.record({
@@ -247,7 +251,7 @@ async function runExportJob(job: ExportJob, args: CreateJobArgs): Promise<void> 
 async function persist(
   job: ExportJob, args: CreateJobArgs, exportId: string,
   status: 'done' | 'failed', artifacts: ArtifactBlob[],
-  extra: { narrator: ResolvedModels; traceCoveragePct: number; warnings: string[]; errorCode?: ExportErrorCode; title: string },
+  extra: { narrator: ResolvedModels; traceCoveragePct: number; warnings: string[]; errorCode?: ExportErrorCode; reason?: string; title: string },
 ): Promise<void> {
   const rec: BriefExportRecord = {
     exportId,
@@ -256,6 +260,7 @@ async function persist(
     preset: args.request.preset,
     status,
     errorCode: extra.errorCode,
+    reason: extra.reason,
     narratorModel: extra.narrator.modelId,
     narratorModelSource: extra.narrator.modelSource,
     checkerModel: extra.narrator.checkerModelId ?? null,

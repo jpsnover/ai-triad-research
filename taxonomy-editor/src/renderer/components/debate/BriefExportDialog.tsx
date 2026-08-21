@@ -126,7 +126,7 @@ export function BriefExportDialog({ debateId, debateTitle, debatePhase, onClose,
       const list = await api.listBriefExports(debateId);
       const rec = list.find(r => r.exportId === exportId) ?? null;
       setRecord(rec);
-      if (rec?.status === 'failed') { setError(`Export failed: ${rec.errorCode ?? 'unknown gate'}`); setPhase('failed'); }
+      if (rec?.status === 'failed') { setError(`Export failed: ${rec.reason ?? rec.errorCode ?? 'unknown gate'}`); setPhase('failed'); }
       else { setPhase('done'); onExported?.(); }
     } catch (err) {
       getGlobalRecorder()?.record({ type: 'system.error', component: 'brief-export-ui', level: 'error', message: 'Failed to load export record', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
@@ -146,9 +146,19 @@ export function BriefExportDialog({ debateId, debateTitle, debatePhase, onClose,
       try {
         const list = await api.listBriefExports(debateId);
         const rec = list[0];
-        if (rec) { setRecord(rec); setPhase(rec.status === 'failed' ? 'failed' : 'done'); if (rec.status !== 'failed') onExported?.(); return; }
+        if (rec) {
+          setRecord(rec);
+          // A durable record exists — surface the REAL reason for a failure (t/2888/t/2889),
+          // not a generic "lost track". reason (verify message) ?? errorCode (the gate).
+          if (rec.status === 'failed') { setError(`Export failed: ${rec.reason ?? rec.errorCode ?? 'unknown gate'}`); setPhase('failed'); }
+          else { setPhase('done'); onExported?.(); }
+          return;
+        }
       } catch { /* telemetry — silent by design */ }
-      setError('Lost track of the export job (it may have expired). Check the Exports list.');
+      // No durable record either: the in-memory job view is gone (per-replica TTL / cross-replica)
+      // AND nothing was persisted. Don't imply expiry — it may still be finishing on another
+      // replica; point at the Exports list rather than asserting a cause we don't know (t/2889).
+      setError('Could not retrieve this export’s status — it may still be finishing on the server. Check the Exports list in a moment.');
       setPhase('failed');
       return;
     }

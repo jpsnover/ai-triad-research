@@ -143,6 +143,9 @@ export interface BriefExportRecord {
   preset: BriefPreset;
   status: 'done' | 'failed';
   errorCode?: ExportErrorCode;
+  /** Human-readable failure reason (verify message / thrown error) — shown by the export
+   *  dialog's list fallback so a failed export explains WHY, not just a code (t/2888). */
+  reason?: string;
   narratorModel: string;
   narratorModelSource: string;
   checkerModel?: string | null;
