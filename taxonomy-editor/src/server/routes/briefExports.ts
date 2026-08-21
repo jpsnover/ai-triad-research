@@ -20,7 +20,7 @@ import { createWebOpEdAdapter } from '../ai/opedAdapter.js';
 import { resolveExportModel, type ClientModelSource } from './exportModel.js';
 import { enforceBackendAllowed } from './generationContext.js';
 import {
-  startExportJob, getExportJob, sweepExportJobs, countRunningExportJobs,
+  startExportJob, getExportJob, hasExportJob, sweepExportJobs, countRunningExportJobs,
   findIdempotentJob, MAX_CONCURRENT_EXPORT_JOBS, type ResolvedModels,
 } from '../briefExportJobs.js';
 import { listBriefExports, loadBriefExportRecord, loadBriefArtifact, deleteBriefExport, getBriefExportsQuotaStatus } from '../storage/briefExportStore.js';
@@ -161,7 +161,19 @@ export function registerBriefExportsRoutes(r: Router, _ctx: ServerCtx): void {
   get('/api/export-jobs/:jobId', (req, res) => {
     const jobId = param(req, 'jobId', '/api/export-jobs/:jobId');
     const job = getExportJob(jobId, getStorageUserId());
-    if (!job) { error(res, 'Export job not found (it may have expired — check the debate exports list).', 404); return; }
+    if (!job) {
+      // t/2887: record the miss so a poll 404 is diagnosable in server FR (was invisible, t/2884).
+      // `inMap` distinguishes "not in THIS process's registry at all" — the cross-replica-404
+      // signal (job created on another replica; see t/2885 cap) — from "present but wrong user".
+      // We log the 404 (the failure) but NOT the frequent 200 polls, which would flood the FR
+      // ring and evict this very event (deliberate deviation from the ticket's "every GET").
+      getGlobalRecorder()?.record({
+        type: 'system.error', component: 'brief-export', level: 'warn',
+        message: 'export-job poll 404',
+        data: { jobId, status: 404, found: false, inMap: hasExportJob(jobId) },
+      });
+      error(res, 'Export job not found (it may have expired — check the debate exports list).', 404); return;
+    }
     json(res, { status: job.status, progressPct: job.progressPct, warnings: job.warnings, error: job.error, errorCode: job.errorCode ?? null, exportId: job.exportId });
   });
 
