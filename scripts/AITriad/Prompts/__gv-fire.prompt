@@ -1,0 +1,5 @@
+# GV fire-arm probe — DELETE ME
+# This file is intentionally NOT registered in PROMPT_CATALOG.
+# Purpose: verify that promptCatalog.lint fires (goes red) when an uncatalogued
+# prompt is added to scripts/AITriad/Prompts with no taxonomy-editor/** changes.
+# Opened as a draft PR; close + delete after confirming lint failure.
