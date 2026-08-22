@@ -115,7 +115,7 @@ jobs:
               - 'lib/**'
               - '.github/workflows/ci.yml'
             python:
-              - 'scripts/requirements*.txt'
+              - 'scripts/**'
               - '.github/ci/**'
               - '.github/workflows/ci.yml'
             # 'container' gates test-container (t/2094). SOUNDNESS: ci-gate treats
@@ -863,6 +863,55 @@ jobs:
         if: always()
         run: docker rm -f smoke-test || true
 
+  # ── test-python: run scripts/test_*.py under pytest (t/2933) ─────────────
+  # Five test files (test_data_tree_guard, test_embed_envelope, test_generate_guard,
+  # test_nli_classify, test_load_taxonomy_nodes) previously ran nowhere in CI —
+  # self-attested only. This job wires them as a required gate.
+  # Setup mirrors python-embed-smoke (torch CPU, requirements.txt) so the scripts
+  # being tested can be imported. HF_HUB_OFFLINE=1 causes model-dependent arms to
+  # skip rather than fail — only the `test_richness_guard_real_model` arm needs a
+  # live model; it is marked to skip offline. A no-silent-skip guard asserts ≥5
+  # tests are collected — exits 1 if fewer, catching the "collected 0, exits 0"
+  # false-green trap. python filter now covers scripts/** so production-script edits
+  # also trigger this job (previously only requirements.txt/.github/ci/** triggered).
+  test-python:
+    needs: [changes]
+    if: >-
+      always() && !cancelled() &&
+      (github.event_name != 'pull_request' || needs.changes.outputs.python == 'true')
+    runs-on: ubuntu-latest
+    env:
+      PYTHONUTF8: '1'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v6
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: scripts/requirements.txt
+      - name: Install Python deps (CPU-only torch to cut install weight)
+        working-directory: scripts
+        run: |
+          python -m pip install --upgrade pip
+          pip install torch --index-url https://download.pytorch.org/whl/cpu
+          pip install -r requirements.txt
+          pip install pytest
+      - name: No-silent-skip guard — assert ≥5 tests collected
+        working-directory: scripts
+        run: |
+          COUNT=$(python -m pytest test_*.py --collect-only -q 2>&1 | grep -E "^[0-9]+ test" | awk '{print $1}')
+          echo "Collected ${COUNT:-0} tests"
+          if [ "${COUNT:-0}" -lt 5 ]; then
+            echo "::error::pytest collected fewer than 5 tests — possible silent-skip; expected ≥5 from 5 test_*.py files (t/2933)"
+            exit 1
+          fi
+      - name: Run Python tests (pytest)
+        working-directory: scripts
+        env:
+          HF_HUB_OFFLINE: '1'
+          TRANSFORMERS_OFFLINE: '1'
+        run: python -m pytest test_*.py -v
+
   # ── python-embed-smoke: validate the pip embedding stack (t/1989) ──────────
   # The pip ecosystem (scripts/requirements.txt) was never installed or exercised
   # in CI, so a dependency change could pass ci-gate with ZERO signal (#191). This
@@ -1117,9 +1166,11 @@ jobs:
   # ExpectedEnvVars sync check; path-filtered to those two files + parser, skip = OK.
   # schema-version-bump (t/2808) is gated here: enforces $id version bump on
   # lib/brief/schemas/*.write.json contract changes; path-filtered to lib, skip = OK.
+  # test-python (t/2933) is gated here: runs scripts/test_*.py under pytest;
+  # path-filtered to scripts/** changes, skip = OK.
   ci-gate:
     name: ci-gate
-    needs: [changes, test-powershell, test-electron, test-container, python-embed-smoke, dependency-coverage, lockfile-overrides-check, lib-lint, renderer-tsc, contrast-check, test-server-prod-config, workflow-lint, bicep-env-drift, schema-version-bump]
+    needs: [changes, test-powershell, test-electron, test-container, python-embed-smoke, test-python, dependency-coverage, lockfile-overrides-check, lib-lint, renderer-tsc, contrast-check, test-server-prod-config, workflow-lint, bicep-env-drift, schema-version-bump]
     if: always()
     runs-on: ubuntu-latest
     steps:
