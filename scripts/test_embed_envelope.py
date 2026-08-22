@@ -59,11 +59,6 @@ def test_package_version_unknown_for_missing_package():
     assert embed_taxonomy._package_version("no-such-package-xyz-1994") == "unknown"
 
 
-# GV FIRE ARM — deliberate failure to prove test-python gates CI (t/2933). REVERT BEFORE MERGE.
-def test_gv_fire_arm():
-    assert False, "GV fire arm — this must fail CI (t/2933)"
-
-
 if __name__ == "__main__":
     test_envelope_stamps_encoder_versions_and_composition()
     test_composition_descriptor_reflects_actual_weights()
