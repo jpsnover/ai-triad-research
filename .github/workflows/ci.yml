@@ -99,6 +99,7 @@ jobs:
               - 'lib/**'
               - 'ai-models.json'
               - '.github/workflows/ci.yml'
+              - 'scripts/AITriad/Prompts/**'  # promptCatalog.lint validates this dir; must re-run when prompts change here (t/2915)
             debate:
               - 'lib/debate/**'
               - 'evals/**'
