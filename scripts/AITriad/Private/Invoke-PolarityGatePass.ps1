@@ -107,10 +107,9 @@ function Invoke-PolarityGatePass {
         if (-not $pov.PSObject.Properties['nodes']) { continue }
         foreach ($n in @($pov.nodes)) {
             if (-not $n.PSObject.Properties['id']) { continue }
-            $lbl = if ($n.PSObject.Properties['label']) { [string]$n.label } else { '' }
-            $dsc = if ($n.PSObject.Properties['description'] -and $n.description) { [string]$n.description } else { '' }
-            $dsc = $dsc -replace '(?s)\s*(Encompasses|Excludes)\s*:.*$', ''
-            $nodeTextById[[string]$n.id] = if ($dsc) { "$lbl — $($dsc.Trim())" } else { $lbl }
+            # Single-sourced via Get-NodePropText (t/2900) so the gate and the
+            # acceptance harness build byte-identical node_prop.
+            $nodeTextById[[string]$n.id] = Get-NodePropText -Node $n
         }
     }
 

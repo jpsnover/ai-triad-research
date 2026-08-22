@@ -165,13 +165,15 @@
       "arm": "MUST_NOT_FLIP",
       "query": {
         "pov": "safetyist",
-        "canonical_proposition": "AI systems ingest and act across blurred data boundaries through delegated action, expanding the attack surface and eroding organizational visibility and control.",
+        "canonical_proposition": "AI deployment speed and agentic autonomy erode organizational visibility and control over data.",
+        "verbatim": "AI infers, summarizes, remembers, ranks, and increasingly acts across blurred boundaries and in a non-determistic manner. That shifts AI into a category closer to delegated action. And this delegated action relationship creates a different risk profile and attack surface for privacy harms.",
         "node_id": "saf-beliefs-017",
-        "claim_note": "The exact stored verbatim is the saf-beliefs-017 key_point (CL t/2900#1). The claim ASSERTS the belief — a genuine agreement. CL to confirm verbatim on review."
+        "source_key_point": "summaries/ai-doesnt-rewrite-privacy-law-it-changes-where-compliance-2026.json — the saf-beliefs-017-mapped key_point demoted under t/2896. REAL stored text (recovered via the t/2896 revert 128ce8f4; that revert changed only stance, not text). Replaces the earlier paraphrase, which did not reproduce (CL t/2900#12/#15).",
+        "claim_note": "The claim ASSERTS the belief (AI gains agency → loss of visibility/control) — a genuine agreement; must NOT flip."
       },
       "correct_stance": "aligned",
       "correct_disposition": { "type": "no_flip", "note": "The claim agrees with saf-017's proposition; must NOT be demoted." },
-      "observed_deberta": { "direction": "opposes", "margin": 7.51, "note": "FALSE positive — reads agency/capability language as contradicting the loss-of-control proposition (cannot infer AI-gains-agency ⊨ humans-lose-oversight). Node richness makes it worse (6.71→7.51); τ_contra cannot fix." },
+      "observed_deberta": { "direction": "opposes", "margin": 6.34, "note": "FALSE positive on CURRENT node text via the gate-exact node_prop (Get-NodePropText: label — Core) — reads agency/capability language as contradicting the loss-of-control proposition (cannot infer AI-gains-agency ⊨ humans-lose-oversight); τ_contra cannot fix. No node drift (a869fb48 only ADDED plain_description; gate reads description). Pinned from the committed acceptance harness (CL t/2900#15)." },
       "expected_judge": { "direction": "unrelated", "flip": false, "note": "LLM-judge must NOT confirm the flip → KEEP." },
       "error_type": ["stance_polarity_false_demote", "agency_to_loss_pattern"],
       "exercises": ["t/2900"]
@@ -183,7 +185,9 @@
       "ticket": "t/2900",
       "claim": {
         "pov": "accelerationist",
-        "canonical_proposition": "Treating artificial intelligence as exempt from ordinary privacy law is fallacious because established data protection principles continue to govern responsible use."
+        "canonical_proposition": "Existing legal frameworks govern AI without requiring entirely new statutes.",
+        "verbatim": "AI presents new privacy challenges, but treating AI as if it lives outside the parameters of ordinary privacy law is fallacious. The emerging lesson from privacy regulators and enforcers is increasingly clear: there is no AI exceptionalism. The same principles that have long governed responsible data use still apply.",
+        "source_key_point": "summaries/ai-doesnt-rewrite-privacy-law-it-changes-where-compliance-2026.json — the acc-intentions-127-mapped key_point demoted under t/2896. REAL stored text (replaces the earlier paraphrase, which did not reproduce)."
       },
       "pairings": [
         {
@@ -191,7 +195,7 @@
           "pole": "matching (existing laws already govern AI)",
           "arm": "MUST_NOT_FLIP",
           "correct_stance": "aligned",
-          "observed_deberta": { "direction": "opposes", "margin": 1.61, "note": "FALSE positive — the t/2896 demote of acc-127." },
+          "observed_deberta": { "direction": "opposes", "margin": 1.09, "note": "FALSE positive on CURRENT node text (gate-exact node_prop). Pinned from the committed acceptance harness (opposes-if-any over the rep set; CL t/2900#15)." },
           "expected_judge": { "direction": "agrees", "flip": false }
         },
         {
@@ -199,11 +203,11 @@
           "pole": "opposite (AI requires entirely new laws)",
           "arm": "MUST_FLIP",
           "correct_stance": "strongly_opposed",
-          "observed_deberta": { "direction": "opposes", "margin": 4.91 },
+          "observed_deberta": { "direction": "opposes", "margin": 4.91, "trigger_rep": "verbatim", "note": "Genuine inversion. opposes via VERBATIM@4.91; canonical→agrees@5.08 — the gate is opposes-if-any, so the candidate fires on verbatim. Confirmed t/2900#14." },
           "expected_judge": { "direction": "opposes", "flip": true }
         }
       ],
-      "key_finding": "deberta returns opposes for BOTH poles of the same claim (1.61 and 4.91) — it cannot tell agreement from opposition when the poles are topically near-identical. The matching-pole false positive (1.61) sits ABOVE case_1's genuine inversion (1.42), so no τ_contra separates the class; discrimination must be semantic. The LLM-judge separates all four arms (16/16 stable, t/2900#3).",
+      "key_finding": "deberta returns opposes for BOTH poles of the same claim (matching acc-127 AND opposite acc-047) — it cannot tell agreement from opposition when the poles are topically near-identical. No τ_contra separates the class (the matching-pole false positive sits near/above genuine inversions); discrimination must be semantic. The LLM-judge separates all four arms (16/16 stable t/2900#3; re-verified live 4/4 by TL t/2900#9). Multi-rep note: deberta is run opposes-if-any over {verbatim, canonical} — acc-047 flags only on verbatim (canonical→agrees), so the acceptance harness asserts the candidate fires over the full rep set and fails loudly if none do (CL t/2900#16).",
       "error_type": ["pole_confusion"],
       "exercises": ["t/2900"]
     }
