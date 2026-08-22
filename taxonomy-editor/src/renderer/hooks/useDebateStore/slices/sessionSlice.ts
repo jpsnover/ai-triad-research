@@ -60,6 +60,12 @@ export interface SessionSlice {
   renameDebate: (id: string, newTitle: string) => Promise<void>;
   closeDebate: () => void;
   addTranscriptEntry: (entry: Omit<TranscriptEntry, 'id' | 'timestamp'>) => string;
+  // Slot-first opening lifecycle (t/2907). upsert inserts a per-speaker opening slot
+  // at generation start (or returns the existing slot's id — no duplicate), and update
+  // mutates it in place through generating→retrying→done/error, so a retry cycles one
+  // card instead of appending new panels + system retry-toast entries.
+  upsertTranscriptEntry: (entry: Omit<TranscriptEntry, 'id' | 'timestamp'>) => string;
+  updateTranscriptEntry: (id: string, patch: Partial<TranscriptEntry>) => void;
   deleteTranscriptEntries: (entryIds: string[]) => Promise<void>;
   togglePover: (poverId: SpeakerId) => Promise<void>;
   updatePhase: (phase: DebateSession['phase']) => void;
@@ -316,6 +322,36 @@ function computeSaveErrorState(err: unknown, activeDebate: DebateSession): { isD
     debateError = mapErrorToUserMessage(err);
   }
   return { isDurableSaveLoss, atRiskTurns, debateError };
+}
+
+/**
+ * Opening/statement vocabulary disambiguation (t/2907). Extracted so BOTH the
+ * append path (addTranscriptEntry) and the slot-completion path (updateTranscriptEntry,
+ * used when a generating opening slot resolves to its final statement) apply identical
+ * enrichment — otherwise slot-first openings would silently lose vocabulary_resolutions.
+ * Mutates `entry.metadata` in place; no-op for non-debater entries or when no colloquial
+ * terms are loaded.
+ */
+function applyVocabularyResolutions(
+  entry: TranscriptEntry,
+  vocabularyTerms: { colloquial?: ColloquialTerm[] } | null | undefined,
+): void {
+  if (!vocabularyTerms?.colloquial) return;
+  if (entry.type !== 'opening' && entry.type !== 'statement') return;
+  if (entry.speaker === 'system' || entry.speaker === 'moderator' || entry.speaker === 'user') return;
+  const poverPov = POVER_INFO[entry.speaker as Exclude<SpeakerId, 'user'>]?.pov as CampOrigin | undefined;
+  if (!poverPov) return;
+  const result = disambiguateTerms(entry.content, poverPov, vocabularyTerms.colloquial);
+  if (result.terms.length === 0) return;
+  entry.metadata = entry.metadata ?? {};
+  entry.metadata.vocabulary_resolutions = result.terms
+    .filter(t => !t.ambiguous)
+    .map(t => ({ colloquial: t.bare, canonical: t.canonical, confidence: t.confidence, offset: t.offset }));
+  if (result.ambiguousCount > 0) {
+    entry.metadata.vocabulary_ambiguities = result.terms
+      .filter(t => t.ambiguous)
+      .map(t => ({ colloquial: t.bare, offset: t.offset }));
+  }
 }
 
 export const createSessionSlice: StateCreator<DebateStore, [], [], SessionSlice> = (set, get) => ({
@@ -828,25 +864,7 @@ export const createSessionSlice: StateCreator<DebateStore, [], [], SessionSlice>
       timestamp: nowISO(),
     };
 
-    if (vocabularyTerms?.colloquial &&
-        (full.type === 'opening' || full.type === 'statement') &&
-        full.speaker !== 'system' && full.speaker !== 'moderator' && full.speaker !== 'user') {
-      const poverPov = POVER_INFO[full.speaker as Exclude<SpeakerId, 'user'>]?.pov as CampOrigin | undefined;
-      if (poverPov) {
-        const result = disambiguateTerms(full.content, poverPov, vocabularyTerms.colloquial);
-        if (result.terms.length > 0) {
-          full.metadata = full.metadata ?? {};
-          full.metadata.vocabulary_resolutions = result.terms
-            .filter(t => !t.ambiguous)
-            .map(t => ({ colloquial: t.bare, canonical: t.canonical, confidence: t.confidence, offset: t.offset }));
-          if (result.ambiguousCount > 0) {
-            full.metadata.vocabulary_ambiguities = result.terms
-              .filter(t => t.ambiguous)
-              .map(t => ({ colloquial: t.bare, offset: t.offset }));
-          }
-        }
-      }
-    }
+    applyVocabularyResolutions(full, vocabularyTerms);
 
     const updated: DebateSession = {
       ...activeDebate,
@@ -866,6 +884,44 @@ export const createSessionSlice: StateCreator<DebateStore, [], [], SessionSlice>
     }
 
     return entryId;
+  },
+
+  // Slot-first opening lifecycle (t/2907). Insert a per-speaker opening slot when
+  // generation begins, or return the existing slot's id if one is already present —
+  // so retries mutate one card rather than appending panels. Idempotent by
+  // (type:'opening', speaker); mirrors the addTranscriptEntry duplicate-opening guard,
+  // which stays as the safety net (now ~unreachable since this is the primary path).
+  upsertTranscriptEntry: (entry) => {
+    const { activeDebate } = get();
+    if (!activeDebate) return generateId();
+    if (entry.type === 'opening' && entry.speaker !== 'system') {
+      const existing = activeDebate.transcript.find(
+        e => e.type === 'opening' && e.speaker === entry.speaker,
+      );
+      if (existing) return existing.id;
+    }
+    return get().addTranscriptEntry(entry);
+  },
+
+  // Shallow-merge a patch into the entry with `id` (t/2907) — the in-place slot
+  // mutation for status/content/errorMessage transitions. No-op if the id is gone
+  // (e.g. the debate was switched mid-generation).
+  updateTranscriptEntry: (id, patch) => {
+    const { activeDebate, vocabularyTerms } = get();
+    if (!activeDebate) return;
+    let found = false;
+    const transcript = activeDebate.transcript.map(e => {
+      if (e.id !== id) return e;
+      found = true;
+      const merged: TranscriptEntry = { ...e, ...patch };
+      // Parity with addTranscriptEntry: when this update supplies the prose content
+      // (the slot-completion path, t/2907), run the same opening/statement vocabulary
+      // enrichment so slot-first openings don't lose vocabulary_resolutions.
+      if (patch.content !== undefined && merged.content) applyVocabularyResolutions(merged, vocabularyTerms);
+      return merged;
+    });
+    if (!found) return;
+    set({ activeDebate: { ...activeDebate, transcript, updated_at: nowISO() } });
   },
 
   deleteTranscriptEntries: async (entryIds) => {
