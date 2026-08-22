@@ -67,7 +67,9 @@ _BLOCK_TIER_FILES = frozenset({
     "organization_edges.json",
     "entities.json",
     "entity_mentions.json",
-    ".debate-index.json",
+    # NOTE: .debate-index.json is intentionally WARN, not BLOCK (t/2909#5 GV): the
+    # debate flow (lib/debate/debateIndex.ts) rewrites it every run -> perpetually
+    # dirty, so Block would false-fire on the occasional PS repair.
 })
 
 
