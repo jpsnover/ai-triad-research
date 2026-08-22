@@ -14,35 +14,59 @@
 # `git add -A` sweep (the license-drift sibling) — that is the explicit-paths
 # staging rule's job (root AGENTS.md junk-file-hygiene), not this per-file guard.
 #
-# Gate promotion (t/2902 condition 4): default mode is WARN (surface, don't block)
-# so a ≥1-cycle warn-first period can flush any false-fire on legitimate sequential
-# dirty-target rewrites before promotion to BLOCK. Override with the env var
-# AI_TRIAD_DATA_WRITE_GUARD = Warn | Block | Off.
+# TIERED mode (t/2909, TL ruling t/2909#3) — the guard mode is per-TARGET, not global:
+#   BLOCK tier — low-traffic / usually-clean / high-sensitivity files: situations.json,
+#     organization_stance_claims.json, and the registries. Real sweep prevention with
+#     near-zero false-fire (usually clean between writes).
+#   WARN tier  — high-traffic perpetually-dirty files (POV camp files, edges.json,
+#     embeddings.json, summaries): ~always dirty from concurrent pipeline WIP, so
+#     per-file Block can't tell own-WIP from foreign-WIP and would throw constantly.
+#     The durable fix there is FIELD-SURGICAL writes (t/2916), not Block.
+# $env:AI_TRIAD_DATA_WRITE_GUARD (Block|Warn|Off) is a GLOBAL override that wins over
+# the tier for every path (testing / emergency de-escalation).
 
-$script:DataWriteGuardMode = $null   # in-process override (tests / callers); env wins if set
+# BLOCK-tier targets by basename (case-insensitive). Keep in LOCKSTEP with the Python
+# guard's _BLOCK_TIER_FILES (scripts/data_tree_guard.py) — update both together.
+$script:BlockTierFiles = @(
+    'situations.json'
+    'organization_stance_claims.json'
+    'policy_actions.json'
+    'organizations.json'
+    'organization_edges.json'
+    'entities.json'
+    'entity_mentions.json'
+    '.debate-index.json'
+)
+$script:DataWriteGuardMode = $null   # in-process GLOBAL override (tests); env wins if set
 
 function Get-DataWriteGuardMode {
     <#
     .SYNOPSIS
-        Resolve the active guard mode: Block | Warn | Off. Priority:
-        $env:AI_TRIAD_DATA_WRITE_GUARD > $script:DataWriteGuardMode > 'Warn' (default).
+        Resolve the guard mode for a TARGET path: Block | Warn | Off. Priority:
+        $env:AI_TRIAD_DATA_WRITE_GUARD (global override) > $script:DataWriteGuardMode
+        (in-process global override) > per-target TIER (Block for a BLOCK-tier basename,
+        else Warn). Tiered ruling t/2909#3.
     #>
     [OutputType([string])]
-    param()
+    param([string]$Path)
+
     $envMode = [Environment]::GetEnvironmentVariable('AI_TRIAD_DATA_WRITE_GUARD')
     if (-not [string]::IsNullOrWhiteSpace($envMode)) {
         switch -Regex ($envMode.Trim()) {
             '^(?i)block$' { return 'Block' }
             '^(?i)warn$'  { return 'Warn' }
             '^(?i)off$'   { return 'Off' }
-            default {
-                Write-Warning "AI_TRIAD_DATA_WRITE_GUARD='$envMode' is not Block/Warn/Off — defaulting to Warn."
-                return 'Warn'
-            }
+            default { Write-Warning "AI_TRIAD_DATA_WRITE_GUARD='$envMode' is not Block/Warn/Off — falling back to the per-target tier." }
         }
     }
     if ($script:DataWriteGuardMode) { return $script:DataWriteGuardMode }
-    return 'Warn'   # warn-first default
+
+    # Per-target tier (the default): BLOCK the sensitive low-traffic set; WARN otherwise.
+    if (-not [string]::IsNullOrWhiteSpace($Path)) {
+        $leaf = Split-Path -Leaf $Path
+        if ($script:BlockTierFiles -contains $leaf) { return 'Block' }
+    }
+    return 'Warn'
 }
 
 function Test-IsUnderDataRoot {
@@ -90,7 +114,7 @@ function Assert-DataWriteAllowed {
         [switch]$AllowDirty
     )
     if ($AllowDirty) { return }
-    $mode = Get-DataWriteGuardMode
+    $mode = Get-DataWriteGuardMode -Path $Path   # per-target tier (t/2909)
     if ($mode -eq 'Off') { return }
     if (-not (Test-IsUnderDataRoot -Path $Path)) { return }
 

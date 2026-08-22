@@ -50,8 +50,10 @@ is_data_tree_clean = data_tree_guard.is_data_tree_clean
 DirtyTreeError = data_tree_guard.DirtyTreeError
 
 
-def _make_repo(root: Path) -> Path:
+def _make_repo(root: Path, name: str = "data.json") -> Path:
     """Init a throwaway git repo with one committed, clean file; return its path.
+    ``name`` sets the basename (drives the t/2909 tier: BLOCK for a BLOCK-tier
+    basename, WARN otherwise).
 
     Identity + signing are set LOCAL to this fixture repo only (CI has no signing
     key) — it is a disposable fixture, not a project repo.
@@ -61,9 +63,9 @@ def _make_repo(root: Path) -> Path:
     subprocess.run(["git", "-C", str(root), "config", "user.email", "fixture@example.com"], check=True)
     subprocess.run(["git", "-C", str(root), "config", "user.name", "Fixture"], check=True)
     subprocess.run(["git", "-C", str(root), "config", "commit.gpgsign", "false"], check=True)
-    f = root / "data.json"
+    f = root / name
     f.write_text('{ "stance": "aligned" }\n', encoding="utf-8")
-    subprocess.run(["git", "-C", str(root), "add", "data.json"], check=True)
+    subprocess.run(["git", "-C", str(root), "add", name], check=True)
     subprocess.run(["git", "-C", str(root), "commit", "--quiet", "-m", "seed"], check=True)
     return f
 
@@ -135,6 +137,48 @@ def test_non_git_path_does_not_block():
         loose.write_text("x\n", encoding="utf-8")  # tmp is not a git work tree
         assert is_data_tree_clean(loose) is True
         assert_clean_data_tree(loose)  # must not raise
+
+
+def test_tier_block_file_raises_without_env():
+    # t/2909: a BLOCK-tier basename (situations.json) raises on a dirty target with NO
+    # env override — the tier decides.
+    with tempfile.TemporaryDirectory() as tmp:
+        f = _make_repo(Path(tmp) / "tb", name="situations.json")
+        f.write_text("mutated\n", encoding="utf-8")
+        raised = False
+        with _guard_mode(None):  # no env -> per-target tier
+            try:
+                assert_clean_data_tree(f)
+            except DirtyTreeError:
+                raised = True
+        assert raised, "BLOCK-tier situations.json must raise on a dirty target without env override"
+
+
+def test_tier_warn_file_warns_without_env():
+    # t/2909: a WARN-tier basename (high-traffic POV file) warns, does NOT raise, with
+    # no env override.
+    with tempfile.TemporaryDirectory() as tmp:
+        f = _make_repo(Path(tmp) / "tw", name="accelerationist.json")
+        f.write_text("mutated\n", encoding="utf-8")
+        with _guard_mode(None):
+            err = io.StringIO()
+            with contextlib.redirect_stderr(err):
+                assert_clean_data_tree(f)  # WARN tier -> no raise
+            assert "uncommitted changes" in err.getvalue()
+
+
+def test_env_override_wins_over_tier():
+    # t/2909: env=block forces block even on a WARN-tier file.
+    with tempfile.TemporaryDirectory() as tmp:
+        f = _make_repo(Path(tmp) / "ov", name="accelerationist.json")
+        f.write_text("mutated\n", encoding="utf-8")
+        raised = False
+        with _guard_mode("Block"):
+            try:
+                assert_clean_data_tree(f)
+            except DirtyTreeError:
+                raised = True
+        assert raised, "env=Block must override the WARN tier"
 
 
 if __name__ == "__main__":

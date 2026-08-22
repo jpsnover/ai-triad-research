@@ -54,17 +54,36 @@ def is_data_tree_clean(path) -> bool:
     return proc.stdout.strip() == ""
 
 
-def _data_write_guard_mode() -> str:
-    """Resolve the guard mode from ``$AI_TRIAD_DATA_WRITE_GUARD``: ``block`` |
-    ``warn`` | ``off`` (default ``warn``). Mirrors the PowerShell
-    ``Get-DataWriteGuardMode`` so both languages promote together (t/2902 cond. 4:
-    warn-first, then Block after a clean cycle)."""
+# BLOCK-tier targets by basename (t/2909, TL ruling t/2909#3). Kept in LOCKSTEP with
+# the PowerShell guard's $script:BlockTierFiles (Assert-DataWriteAllowed.ps1) — update
+# both together. BLOCK = low-traffic / usually-clean / high-sensitivity files; every
+# other data file is WARN tier (high-traffic perpetually-dirty; durable fix = field-
+# surgical writes, t/2916).
+_BLOCK_TIER_FILES = frozenset({
+    "situations.json",
+    "organization_stance_claims.json",
+    "policy_actions.json",
+    "organizations.json",
+    "organization_edges.json",
+    "entities.json",
+    "entity_mentions.json",
+    ".debate-index.json",
+})
+
+
+def _data_write_guard_mode(path=None) -> str:
+    """Resolve the guard mode for a TARGET path: ``block`` | ``warn`` | ``off``.
+    Priority: ``$AI_TRIAD_DATA_WRITE_GUARD`` (global override) > per-target TIER
+    (block for a BLOCK-tier basename, else warn). Mirrors the PowerShell
+    ``Get-DataWriteGuardMode`` so both languages stay in lockstep (t/2909#3)."""
     raw = (os.environ.get("AI_TRIAD_DATA_WRITE_GUARD") or "").strip().lower()
     if raw in ("block", "warn", "off"):
         return raw
     if raw:
         print(f"WARNING: AI_TRIAD_DATA_WRITE_GUARD='{raw}' is not block/warn/off "
-              f"— defaulting to warn.", file=sys.stderr)
+              f"— falling back to the per-target tier.", file=sys.stderr)
+    if path is not None and os.path.basename(os.fspath(path)) in _BLOCK_TIER_FILES:
+        return "block"
     return "warn"
 
 
@@ -83,7 +102,7 @@ def assert_clean_data_tree(path, force: bool = False) -> None:
     """
     if force:
         return
-    mode = _data_write_guard_mode()
+    mode = _data_write_guard_mode(path)   # per-target tier (t/2909)
     if mode == "off":
         return
     if is_data_tree_clean(path):
