@@ -10,6 +10,7 @@ import { interpretationText } from '../../types/taxonomy';
 import { buildSearchRegex } from '../../utils/searchRegex';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { useOnlineStatus } from '../../hooks/useOnlineStatus';
+import './SearchPanel.css';
 
 type SearchPanelMode =
   | 'taxonomy'
@@ -295,7 +296,8 @@ interface TaxonomyInputAreaProps {
   mode: SearchPanelMode;
 }
 
-function TaxonomyInputArea({
+// Exported for unit test (t/2929 clear-button AC); presentational, no hooks.
+export function TaxonomyInputArea({
   inputRef, findQuery, setFindQuery, isSemantic, runSemanticSearch,
   findMode, setFindMode, isOnline,
   povFilter, setPovFilter, bdiFilter, setBdiFilter, mode,
@@ -303,20 +305,38 @@ function TaxonomyInputArea({
   return (
     <div className="search-panel-taxonomy">
       <div className="search-panel-input-row">
-        <input
-          ref={inputRef}
-          className="search-panel-text-input"
-          type="text"
-          value={findQuery}
-          onChange={(e) => setFindQuery(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && isSemantic) {
-              void runSemanticSearch(findQuery, new Set(), new Set());
-            }
-            // Let arrow keys bubble up to panel handler
-          }}
-          placeholder={isSemantic ? 'Describe what you\'re looking for...' : 'Search taxonomy...'}
-        />
+        <div className={`search-panel-input-clearable${findQuery.length > 0 ? ' has-value' : ''}`}>
+          <input
+            ref={inputRef}
+            className="search-panel-text-input"
+            type="text"
+            value={findQuery}
+            onChange={(e) => setFindQuery(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && isSemantic) {
+                void runSemanticSearch(findQuery, new Set(), new Set());
+              }
+              // Let arrow keys bubble up to panel handler
+            }}
+            placeholder={isSemantic ? 'Describe what you\'re looking for...' : 'Search taxonomy...'}
+          />
+          {findQuery.length > 0 && (
+            // Clear via the same setFindQuery that drives wildcard + POV/BDI + results, so
+            // clearing resets results identically to deleting the text (t/2929, no-regression).
+            // onMouseDown preventDefault keeps the input from blurring before onClick, so the
+            // refocus keeps the caret/mobile keyboard active for immediate re-typing.
+            <button
+              type="button"
+              className="search-panel-clear-btn"
+              aria-label="Clear search"
+              title="Clear search"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => { setFindQuery(''); inputRef.current?.focus(); }}
+            >
+              &#x2715;
+            </button>
+          )}
+        </div>
         <select
           className="search-panel-search-mode"
           value={findMode}
