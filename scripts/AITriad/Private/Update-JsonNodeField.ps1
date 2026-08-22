@@ -11,6 +11,15 @@
 # the result and assert (order-insensitively) that it equals the original with EXACTLY
 # the intended field change — anything else throws New-ActionableError and writes
 # nothing. That invariant is what makes byte-surgery safe regardless of splice edge cases.
+#
+# LIMITATION (scalar-only field values): the in-place splice locates the field's value
+# token via a regex that matches only JSON SCALARS (string / number / bool / null). If
+# the target field currently holds an OBJECT or ARRAY, the value token is not matched and
+# the code falls to the absent-key insert branch — producing a DUPLICATE key. That is a
+# safe failure, not a corrupting one: the re-parse-VERIFY step rejects it (PS7
+# ConvertFrom-Json throws on duplicate keys) so the helper throws New-ActionableError and
+# writes nothing. Callers needing to rewrite object/array-valued fields must use a
+# different mechanism; this helper is for the scalar node-field backfills (t/2916 scope).
 
 function ConvertTo-CanonicalForm {
     # Recursively normalize a ConvertFrom-Json value into order-insensitive canonical

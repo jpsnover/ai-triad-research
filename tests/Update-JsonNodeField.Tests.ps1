@@ -104,4 +104,47 @@ Describe 'Update-JsonNodeField — adversarial anti-sweep (t/2916)' -Tag 'summar
                 Should -Throw
         }
     }
+
+    It '7. multi-node sequential composition: chained edits all land AND foreign WIP survives byte-identical' {
+        # The actual batch-writer pattern (TL GV t/2916#5): feed each call's output as the
+        # next call's RawText. Each call re-parses from scratch, so there is no cross-call
+        # offset state — but an offset bug would hide HERE, so prove it end-to-end.
+        InModuleScope AITriad -Parameters @{ Raw = $script:Fixture } {
+            param($Raw)
+            $out1 = Update-JsonNodeField -RawText $Raw  -NodeId 'sit-001' -Field 'disagreement_type' -Value 'normative'
+            $out2 = Update-JsonNodeField -RawText $out1 -NodeId 'sit-002' -Field 'disagreement_type' -Value 'insufficient'
+
+            $o = @($out2 | ConvertFrom-Json | Select-Object -ExpandProperty nodes)
+            (@($o | Where-Object { $_.id -eq 'sit-001' })[0]).disagreement_type | Should -Be 'normative'    # first edit persisted
+            (@($o | Where-Object { $_.id -eq 'sit-002' })[0]).disagreement_type | Should -Be 'insufficient' # second edit landed
+            (@($o | Where-Object { $_.id -eq 'sit-002' })[0]).label             | Should -Be 'no dtype yet'  # existing field preserved
+
+            # Foreign WIP on the untouched node survives byte-identical across BOTH edits.
+            $out2 | Should -BeLike '*"resolved_node_id": "sit-477"*'
+            $out2 | Should -BeLike '*"ratio": 3.0*'
+            # Exactly two lines differ from the original (one per edit); no churn, no line drift.
+            $origLines = @($Raw  -split "`n")
+            $newLines  = @($out2 -split "`n")
+            $newLines.Count | Should -Be $origLines.Count
+            $diff = for ($i = 0; $i -lt $origLines.Count; $i++) { if ($origLines[$i] -ne $newLines[$i]) { $i } }
+            @($diff).Count | Should -Be 2
+        }
+    }
+
+    It '8. scalar-only limitation: an object/array-valued field is a SAFE THROW, not corruption (writes nothing)' {
+        # Documented limitation (see helper header): the in-place splice matches only scalar
+        # value tokens. An object/array-valued field falls to the insert branch → duplicate
+        # key → re-parse-VERIFY rejects it. Prove it fails safe rather than corrupting.
+        InModuleScope AITriad {
+            $objFixture = @'
+{
+  "nodes": [
+    { "id": "sit-obj", "meta": { "a": 1 }, "note": "has an object-valued field" }
+  ]
+}
+'@ -replace "`r`n", "`n"
+            { Update-JsonNodeField -RawText $objFixture -NodeId 'sit-obj' -Field 'meta' -Value 'scalar' } |
+                Should -Throw
+        }
+    }
 }
