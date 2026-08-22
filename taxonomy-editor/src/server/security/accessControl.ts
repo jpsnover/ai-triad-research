@@ -15,6 +15,12 @@ import { getGlobalRecorder } from '../../../../lib/flight-recorder/index.js';
 // colon, still block path separators / dots / encoded sequences.
 const GROUP_ID_RE = /^[a-zA-Z0-9_:-]+$/;
 
+// Container ids are "type:id" (e.g. "node:sit-021", "sei:abc") — the colon is
+// structural, so isSafeId (which rejects ':') would 400 every one (t/2930). Same
+// anchored + character-classed safe set as GROUP_ID_RE: permits ':' but still
+// rejects '.', '/', '\', null bytes, and thus '..'/%2e%2e traversal.
+const CONTAINER_ID_RE = /^[a-zA-Z0-9_:-]+$/;
+
 /**
  * t/810: routing-layer path-param validation. Given a matched route pattern and
  * the request pathname, return the name of the first user-provided `:param`
@@ -44,12 +50,14 @@ export function invalidRouteParam(routePath: string, pathname: string): string |
       name === 'pov' ? 'isSafePov'
         : (name === 'filename' || name === 'name') ? 'isSafeFilename'
           : name === 'groupId' ? 'GROUP_ID_RE'
-            : 'isSafeId';
+            : name === 'containerId' ? 'CONTAINER_ID_RE'
+              : 'isSafeId';
     const ok =
       name === 'pov' ? isSafePov(value)
         : (name === 'filename' || name === 'name') ? isSafeFilename(value)
           : name === 'groupId' ? GROUP_ID_RE.test(value)
-            : isSafeId(value);
+            : name === 'containerId' ? CONTAINER_ID_RE.test(value)
+              : isSafeId(value);
     if (!ok) {
       getGlobalRecorder()?.record({
         type: 'system.error', component: 'server', level: 'warn',
