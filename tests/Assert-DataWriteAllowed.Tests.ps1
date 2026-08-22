@@ -30,15 +30,14 @@ BeforeAll {
     $script:OrigGuardMode = [Environment]::GetEnvironmentVariable('AI_TRIAD_DATA_WRITE_GUARD')
 
     function New-DataRepo {
-        param([string]$Root)
+        param([string]$Root, [string]$RelPath = 'summaries/doc.json')
         New-Item -ItemType Directory -Path $Root -Force | Out-Null
         & git -C $Root init --quiet
         & git -C $Root config user.email 'fixture@example.com'
         & git -C $Root config user.name 'Fixture'
         & git -C $Root config commit.gpgsign false
-        $sub = Join-Path $Root 'summaries'
-        New-Item -ItemType Directory -Path $sub -Force | Out-Null
-        $file = Join-Path $sub 'doc.json'
+        $file = Join-Path $Root $RelPath
+        New-Item -ItemType Directory -Path (Split-Path $file -Parent) -Force | Out-Null
         '{ "stance": "aligned" }' | Set-Content -Path $file -Encoding utf8NoBOM
         & git -C $Root add -A
         & git -C $Root commit --quiet -m 'seed'
@@ -167,5 +166,66 @@ Describe 'Write-Utf8NoBom Build-Module contract (t/2902 regression)' -Tag 'summa
         $p = Start-Process -FilePath 'pwsh' -ArgumentList '-NoProfile', '-File', $mini -Wait -PassThru -NoNewWindow
         $p.ExitCode | Should -Be 0
         (Get-Content -Raw -Path $out).Trim() | Should -Be 'hello-build'
+    }
+}
+
+Describe 'Assert-DataWriteAllowed — tiered mode (t/2909)' -Tag 'summary' {
+    # Default (no env override): BLOCK-tier basenames throw on a dirty target; WARN-tier
+    # basenames only warn. The global env override still wins over the tier.
+    AfterEach {
+        if ($null -eq $script:OrigDataRoot) { Remove-Item Env:\AI_TRIAD_DATA_ROOT -ErrorAction SilentlyContinue }
+        else { $env:AI_TRIAD_DATA_ROOT = $script:OrigDataRoot }
+        if ($null -eq $script:OrigGuardMode) { Remove-Item Env:\AI_TRIAD_DATA_WRITE_GUARD -ErrorAction SilentlyContinue }
+        else { $env:AI_TRIAD_DATA_WRITE_GUARD = $script:OrigGuardMode }
+    }
+
+    It 'BLOCK tier (situations.json) + dirty + NO env → throws' {
+        $repo = Join-Path $TestDrive 'tier-block'
+        $file = New-DataRepo -Root $repo -RelPath 'taxonomy/Origin/situations.json'
+        'mutated' | Set-Content -Path $file -Encoding utf8NoBOM
+        $env:AI_TRIAD_DATA_ROOT = $repo
+        Remove-Item Env:\AI_TRIAD_DATA_WRITE_GUARD -ErrorAction SilentlyContinue   # tier decides
+        InModuleScope AITriad -Parameters @{ F = $file } {
+            param($F)
+            { Assert-DataWriteAllowed -Path $F } | Should -Throw -ExpectedMessage '*uncommitted changes*'
+        }
+    }
+
+    It 'WARN tier (accelerationist.json — high-traffic) + dirty + NO env → warns, does NOT throw' {
+        $repo = Join-Path $TestDrive 'tier-warn'
+        $file = New-DataRepo -Root $repo -RelPath 'taxonomy/Origin/accelerationist.json'
+        'mutated' | Set-Content -Path $file -Encoding utf8NoBOM
+        $env:AI_TRIAD_DATA_ROOT = $repo
+        Remove-Item Env:\AI_TRIAD_DATA_WRITE_GUARD -ErrorAction SilentlyContinue
+        InModuleScope AITriad -Parameters @{ F = $file } {
+            param($F)
+            $emitted = Assert-DataWriteAllowed -Path $F 3>&1
+            @($emitted).Count | Should -BeGreaterThan 0
+            "$emitted" | Should -BeLike '*uncommitted changes*'
+        }
+    }
+
+    It 'env override wins over tier: WARN-tier file + env=Block → throws' {
+        $repo = Join-Path $TestDrive 'tier-override-block'
+        $file = New-DataRepo -Root $repo -RelPath 'taxonomy/Origin/accelerationist.json'
+        'mutated' | Set-Content -Path $file -Encoding utf8NoBOM
+        $env:AI_TRIAD_DATA_ROOT = $repo
+        $env:AI_TRIAD_DATA_WRITE_GUARD = 'Block'
+        InModuleScope AITriad -Parameters @{ F = $file } {
+            param($F)
+            { Assert-DataWriteAllowed -Path $F } | Should -Throw -ExpectedMessage '*uncommitted changes*'
+        }
+    }
+
+    It 'env override wins over tier: BLOCK-tier file + env=Warn → warns, does NOT throw' {
+        $repo = Join-Path $TestDrive 'tier-override-warn'
+        $file = New-DataRepo -Root $repo -RelPath 'taxonomy/Origin/situations.json'
+        'mutated' | Set-Content -Path $file -Encoding utf8NoBOM
+        $env:AI_TRIAD_DATA_ROOT = $repo
+        $env:AI_TRIAD_DATA_WRITE_GUARD = 'Warn'
+        InModuleScope AITriad -Parameters @{ F = $file } {
+            param($F)
+            { Assert-DataWriteAllowed -Path $F } | Should -Not -Throw
+        }
     }
 }
