@@ -814,6 +814,21 @@ export const PROMPT_CATALOG: PromptCatalogEntry[] = [
     ],
   },
   {
+    id: 'ps-directional-judge',
+    title: 'Directional Agreement Judge',
+    description: 'Judges whether a claim OPPOSES, AGREES with, or is UNRELATED to a same-camp taxonomy node proposition — the polarity gate\'s directional pass (t/2900).',
+    source: 'AITriad/Prompts/directional-judge.prompt',
+    template: '(Loading from disk...)',
+    group: 'powershell',
+    purpose: 'Used by Invoke-DirectionalJudge (two-stage LLM-judge polarity gate, t/2900). Given a camp, a claim attributed to it, and a same-camp node proposition, decides propositional stance (opposes/agrees/unrelated) — judging propositional content, not topical overlap.',
+    applicableDataSources: ['taxonomyNodes'],
+    promptFiles: ['directional-judge'],
+    psParameters: [
+      { name: '-Model', type: 'string', default: DEFAULT_MODEL, description: 'AI model' },
+      { name: '-Temperature', type: 'number', default: '0.1', description: 'Sampling temperature' },
+    ],
+  },
+  {
     id: 'ps-edge-weight-evaluation',
     title: 'Edge Weight Evaluation',
     description: 'Scores the strength/weight of edges between taxonomy nodes on a normalized scale.',
