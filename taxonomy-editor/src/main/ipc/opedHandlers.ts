@@ -23,6 +23,7 @@ import { generateOpEdSet } from '../../../../lib/oped/generate.js';
 import type { GenerateOpEdRequest, OpEdGeneratorDeps } from '../../../../lib/oped/generate.js';
 import { makeElectronAIAdapter } from '../electronAIAdapter.js';
 import { validateCreateOpEdPayload } from './opedValidation.js';
+import { parseShimLine, decodeB64Fields } from './opedShimTransport.js';
 
 // Shared prompts dir: op-ed-*.prompt artifacts (relocated to lib/oped/prompts by t/2609).
 const PROMPTS_DIR = path.join(PROJECT_ROOT, 'lib', 'oped', 'prompts');
@@ -58,11 +59,7 @@ interface OpEdProgressEvent {
   error?: string;
 }
 
-// ── Shim stdout line shapes (Stage-A only) ────────────────────────────────────
-
-interface ShimStageLine { type: 'stage'; stage: string }
-interface ShimResultLine { type: 'result'; data: Record<string, unknown> }
-type ShimLine = ShimStageLine | ShimResultLine;
+// Shim stdout line shapes + parse/decode transport live in ./opedShimTransport (pure, unit-tested).
 
 // ── Stage-A: source prep runner ───────────────────────────────────────────────
 
@@ -105,10 +102,22 @@ function runGetOpEdSource(url: string, signal: AbortSignal): Promise<Record<stri
       for (const line of lines) {
         const trimmed = line.trim();
         if (!trimmed) continue;
-        let msg: ShimLine;
-        try { msg = JSON.parse(trimmed) as ShimLine; } catch { /* telemetry — silent by design */ continue; }
-        if (msg.type === 'result') {
-          settle(() => resolve((msg as ShimResultLine).data ?? {}));
+        let msg;
+        try {
+          msg = parseShimLine(trimmed);
+        } catch (err) {
+          // A result-looking line that fails to parse is a hard serialization failure — record it
+          // and surface it, never swallow into the opaque close-handler "No result received" (t/2928).
+          getGlobalRecorder()?.record({
+            type: 'system.error', component: 'opedHandlers', level: 'error',
+            message: 'Get-OpEdSource emitted an unparseable result line',
+            error: { name: (err as Error).name ?? 'Error', message: String((err as Error).message ?? err), stack: (err as Error).stack },
+          });
+          settle(() => reject(err));
+          return;
+        }
+        if (msg && msg.type === 'result') {
+          settle(() => resolve(decodeB64Fields(msg.data ?? {})));
         }
       }
     });
