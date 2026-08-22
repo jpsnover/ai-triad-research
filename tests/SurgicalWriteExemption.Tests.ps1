@@ -28,6 +28,25 @@
 
 BeforeAll {
     Import-Module (Join-Path $PSScriptRoot '..' 'scripts' 'AITriad' 'AITriad.psm1') -Force -WarningAction SilentlyContinue
+
+    # Shared detector (t/2916#10 hardening) — defined in BeforeAll so it is visible to It
+    # blocks at run time. Scans REPO-WIDE *.ps1 (InModuleScope reach — a writer can live
+    # outside scripts/), and matches ABBREVIATED params: `-Surg` binds -SurgicalWrite and
+    # evades a -SimpleMatch on the full name. The negative lookbehind `(?<![\w-])` requires
+    # a real parameter boundary before the dash, so the English word "field-surgical" in a
+    # comment (preceded by a word char) is NOT a false positive, while " -SurgicalWrite" /
+    # " -Surg" (preceded by whitespace) is. Vendored/checkout trees are excluded.
+    function Get-SurgicalExemptionViolations {
+        param([Parameter(Mandatory)][string]$Root, [Parameter(Mandatory)][string[]]$Allowed)
+        $rx = '(?<![\w-])-Surg\w*'
+        @(
+            Get-ChildItem -Path $Root -Recurse -Filter '*.ps1' -File -ErrorAction SilentlyContinue |
+                Where-Object { $_.FullName -notmatch '[\\/](node_modules|\.git|\.worktrees|\.claude)[\\/]' } |
+                Where-Object { $_.Name -notin $Allowed } |
+                Where-Object { Select-String -Path $_.FullName -Pattern $rx -Quiet } |
+                ForEach-Object { $_.FullName }
+        )
+    }
 }
 
 Describe 'Surgical-write exemption — both-arms GV (t/2916 Fork 2)' -Tag 'summary' {
@@ -69,18 +88,38 @@ Describe 'Surgical-write exemption — both-arms GV (t/2916 Fork 2)' -Tag 'summa
 
 Describe 'Surgical-write exemption — reachable ONLY via the orchestrator (detection gate)' -Tag 'summary' {
 
-    It 'no data writer other than Save-JsonNodeFieldEdits claims -SurgicalWrite' {
-        # Enforces TL t/2916#8: the exemption is claimed ONLY inside the orchestrator, so a
-        # whole-file writer cannot regress to whole-file and silently keep the bypass.
-        # Allowed: the orchestrator (claims it), the sink (forwards it), the guard (declares it).
-        $scriptsRoot = (Resolve-Path (Join-Path $PSScriptRoot '..' 'scripts')).Path
-        $allowed = @('Save-JsonNodeFieldEdits.ps1', 'Write-Utf8NoBom.ps1', 'Assert-DataWriteAllowed.ps1')
-        $violations = @(
-            Get-ChildItem -Path $scriptsRoot -Recurse -Filter '*.ps1' -File |
-                Where-Object { $_.Name -notin $allowed } |
-                Where-Object { Select-String -Path $_.FullName -Pattern '-SurgicalWrite' -SimpleMatch -Quiet } |
-                ForEach-Object { $_.FullName }
+    # Allowed to reference the exemption: the orchestrator (claims it), the sink (forwards
+    # it), the guard (declares it), and THIS both-arms test (exercises it directly).
+    BeforeAll {
+        $script:Allowed = @(
+            'Save-JsonNodeFieldEdits.ps1'
+            'Write-Utf8NoBom.ps1'
+            'Assert-DataWriteAllowed.ps1'
+            'SurgicalWriteExemption.Tests.ps1'
         )
-        $violations | Should -BeNullOrEmpty -Because 'only Save-JsonNodeFieldEdits may claim the surgical exemption; a whole-file writer must not bypass the BLOCK tier'
+    }
+
+    It 'CLEAN arm — repo-wide, only the allowlisted files reference the exemption' {
+        $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
+        Get-SurgicalExemptionViolations -Root $repoRoot -Allowed $script:Allowed |
+            Should -BeNullOrEmpty -Because 'only Save-JsonNodeFieldEdits may claim the surgical exemption; a whole-file writer must not bypass the BLOCK tier'
+    }
+
+    It 'FIRE arm — the detector FLAGS a non-allowlisted writer that claims the exemption (via an abbreviated -Surg)' {
+        # A detection gate never proven to fire is assumed, not verified (TL t/2916#10).
+        # The rogue writer uses the ABBREVIATED form to also prove the grep catches it.
+        $rogue = Join-Path $TestDrive 'Rogue-Writer.ps1'
+        Set-Content -LiteralPath $rogue -Value 'Write-Utf8NoBom -Path $p -Value $x -Surg' -Encoding utf8
+        $found = Get-SurgicalExemptionViolations -Root $TestDrive -Allowed $script:Allowed
+        @($found).Count | Should -BeGreaterThan 0
+        ($found -join ';')            | Should -Match 'Rogue-Writer'
+    }
+
+    It 'the "field-surgical" prose in a comment is NOT a false positive (lookbehind boundary)' {
+        $benign = Join-Path $TestDrive 'Benign-Comment.ps1'
+        Set-Content -LiteralPath $benign -Value '# performs a field-surgical, byte-surgical write; see byte-surgery notes' -Encoding utf8
+        Get-SurgicalExemptionViolations -Root $TestDrive -Allowed $script:Allowed |
+            Where-Object { $_ -match 'Benign-Comment' } |
+            Should -BeNullOrEmpty
     }
 }
