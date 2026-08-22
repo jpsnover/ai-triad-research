@@ -20,65 +20,13 @@
 # ConvertFrom-Json throws on duplicate keys) so the helper throws New-ActionableError and
 # writes nothing. Callers needing to rewrite object/array-valued fields must use a
 # different mechanism; this helper is for the scalar node-field backfills (t/2916 scope).
-
-function ConvertTo-CanonicalForm {
-    # Recursively normalize a ConvertFrom-Json value into order-insensitive canonical
-    # form (sorted hashtable keys) so the verify compares DATA, not key order/formatting.
-    param([Parameter(Mandatory)][AllowNull()]$Value)
-    if ($null -eq $Value) { return $null }
-    if ($Value -is [System.Management.Automation.PSCustomObject]) {
-        $out = [ordered]@{}
-        foreach ($p in ($Value.PSObject.Properties | Sort-Object Name)) {
-            $out[$p.Name] = ConvertTo-CanonicalForm -Value $p.Value
-        }
-        return $out
-    }
-    if ($Value -is [System.Collections.IEnumerable] -and $Value -isnot [string]) {
-        return @($Value | ForEach-Object { ConvertTo-CanonicalForm -Value $_ })
-    }
-    return $Value
-}
-
-function Test-JsonSemanticEqual {
-    param([Parameter(Mandatory)][AllowNull()]$A, [Parameter(Mandatory)][AllowNull()]$B)
-    $ca = ConvertTo-CanonicalForm -Value $A | ConvertTo-Json -Depth 100 -Compress
-    $cb = ConvertTo-CanonicalForm -Value $B | ConvertTo-Json -Depth 100 -Compress
-    return $ca -eq $cb
-}
-
-function Find-JsonObjectSpan {
-    # Single-pass, string/escape-aware forward scan: given a char index KNOWN to be
-    # inside a { } object, return @{ Start; End } for the INNERMOST enclosing object
-    # (indices of its '{' and matching '}'). A brace stack tracks nesting; at the inner
-    # index we capture the innermost open '{', then return when its matching '}' pops.
-    param([Parameter(Mandatory)][string]$Text, [Parameter(Mandatory)][int]$InnerIndex)
-
-    $stack = New-Object System.Collections.Generic.Stack[int]
-    $inStr = $false; $esc = $false; $targetOpen = -1
-    for ($i = 0; $i -lt $Text.Length; $i++) {
-        $c = $Text[$i]
-        if ($inStr) {
-            if ($esc) { $esc = $false }
-            elseif ($c -eq '\') { $esc = $true }
-            elseif ($c -eq '"') { $inStr = $false }
-        }
-        else {
-            if ($c -eq '"') { $inStr = $true }
-            elseif ($c -eq '{') { $stack.Push($i) }
-            elseif ($c -eq '}') {
-                if ($stack.Count -eq 0) { return $null }
-                $popped = $stack.Pop()
-                if ($targetOpen -ge 0 -and $popped -eq $targetOpen) { return @{ Start = $targetOpen; End = $i } }
-            }
-        }
-        # Once we reach the inner index, the innermost currently-open '{' is our object.
-        if ($i -eq $InnerIndex -and $targetOpen -lt 0) {
-            if ($stack.Count -eq 0) { return $null }
-            $targetOpen = $stack.Peek()
-        }
-    }
-    return $null
-}
+#
+# SHARED INTERNALS (t/2921#2 Q3): ConvertTo-CanonicalForm, Test-JsonSemanticEqual, and
+# Find-JsonObjectSpan were extracted to Private/JsonSurgeryCore.ps1 so this depth-1 writer
+# and the nested-path writer (Update-JsonNodePath) share one re-parse-verify + span scanner.
+# The depth-1 logic below is UNCHANGED (TL t/2921#2: don't touch the proven,
+# situations.json-critical path); it just calls the extracted helpers, which the module
+# dot-sources alongside it.
 
 function Update-JsonNodeField {
     <#
