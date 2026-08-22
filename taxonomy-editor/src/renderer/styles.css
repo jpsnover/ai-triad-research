@@ -9698,41 +9698,10 @@ a.vocab-term,
 /* ─── New Debate Dialog (NDD two-column redesign) ───── */
 
 /* ── Header ── */
-.ndd-close-btn {
-  background: none;
-  border: none;
-  font-size: var(--text-xl);
-  color: var(--text-muted);
-  cursor: pointer;
-  padding: 4px 8px;
-  border-radius: var(--radius-sm);
-}
-.ndd-close-btn:hover {
-  background: var(--bg-hover, var(--bg-hover));
-  color: var(--text-primary);
-}
 
 /* ── Two-column body ── */
 
-.ndd-field-label {
-  display: block;
-  font-size: var(--text-sm);
-  font-weight: 600;
-  color: var(--text-secondary);
-  margin-top: 14px;
-  margin-bottom: 6px;
-}
-.ndd-field-label:first-of-type {
-  margin-top: 0;
-}
-
 /* ── Source type radios ── */
-.ndd-source-option.active {
-  color: var(--text-primary);
-  font-weight: 600;
-  border-color: var(--focus-ring);
-  background: color-mix(in srgb, var(--focus-ring) 8%, var(--bg-secondary));
-}
 
 /* ── Topic input ── */
 
@@ -9741,33 +9710,16 @@ a.vocab-term,
 /* ── URL input ── */
 
 /* ── Potential Topics (scrollable situation cards) ── */
-.ndd-topic-card.selected {
-  border-color: var(--focus-ring);
-  border-left-color: var(--focus-ring);
-  background: color-mix(in srgb, var(--focus-ring) 12%, var(--bg-primary));
-}
 
 /* ── Format cards (right column) ── */
-.ndd-format-card.active {
-  border-color: var(--focus-ring);
-  background: color-mix(in srgb, var(--focus-ring) 8%, var(--bg-primary));
-}
 
 /* ── AI Model ── */
 
 /* ── Model Configuration Modal ── */
 
 /* ── Pacing ── */
-.ndd-pacing-card.active {
-  border-color: var(--focus-ring);
-  background: color-mix(in srgb, var(--focus-ring) 8%, var(--bg-primary));
-}
 
 /* ── Dialectical Style ── */
-.ndd-style-card.active {
-  border-color: var(--focus-ring);
-  background: color-mix(in srgb, var(--focus-ring) 8%, var(--bg-primary));
-}
 .ndd-style-desc {
   font-size: var(--text-2xs);
   color: var(--text-muted);
@@ -9782,10 +9734,6 @@ a.vocab-term,
 /* ── Temperature ── */
 
 /* ── Audience ── */
-.ndd-audience-card.active {
-  border-color: var(--focus-ring);
-  background: color-mix(in srgb, var(--focus-ring) 8%, var(--bg-primary));
-}
 
 /* ── Debaters ── */
 .ndd-hint-error {
@@ -9795,29 +9743,8 @@ a.vocab-term,
 }
 
 /* ── Footer ── */
-.ndd-cancel-btn {
-  background: none;
-  border: none;
-  color: var(--text-secondary);
-  font-size: var(--text-md);
-  cursor: pointer;
-  padding: 6px 16px;
-}
-.ndd-cancel-btn:hover {
-  color: var(--text-primary);
-}
-.ndd-start-btn {
-  padding: 8px 28px;
-  font-size: var(--text-md);
-  font-weight: 600;
-}
 
 /* ── Other source: tab bar ── */
-.ndd-other-tab.active {
-  color: var(--focus-ring, #4a90d9);
-  border-bottom-color: var(--focus-ring, #4a90d9);
-  font-weight: 600;
-}
 
 /* ── Responsive: stack columns on narrow screens ── */
 
