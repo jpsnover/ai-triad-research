@@ -180,6 +180,13 @@ const REFLECTION_SCHEMA = {
         properties: {
           id: { type: 'string' },
           reflection: { type: 'string' },
+          // t/2938: per-element claim linkage is now emitted as claim NUMBERS
+          // (integers into the numbered SOURCE_CLAIMS list) rather than re-copied
+          // verbatim text — lower emission friction lifts the model off the empty
+          // default, and code-side resolution (below) is authoritative, avoiding
+          // paraphrase/mismatch drift. Legacy verbatim `document_claims` still
+          // accepted for backward-compat with older prompts/callers.
+          document_claim_refs: { type: 'array', items: { type: 'integer' } },
           document_claims: { type: 'array', items: { type: 'string' } },
         },
         required: ['id', 'reflection'],
@@ -212,7 +219,7 @@ interface EssayResponse {
 }
 
 interface ReflectionResponse {
-  grounding_usage: { id: string; reflection: string; document_claims?: string[] }[];
+  grounding_usage: { id: string; reflection: string; document_claim_refs?: number[]; document_claims?: string[] }[];
   claims?: { text: string; paragraph: number }[];
 }
 
@@ -287,9 +294,31 @@ async function runVoiceGeneration(
   let reflClaims: { text: string; paragraph: number }[] | undefined;
   if (allGroundingRefs.length > 0 && body) {
     const groundingList = buildGroundingList(groundingNodes, sitNodes);
-    const keyClaimsCount = sourceBrief?.key_claims?.length ?? 0;
+    const keyClaims = sourceBrief?.key_claims ?? [];
+    const keyClaimsCount = keyClaims.length;
+    // t/2938: resolve model-emitted claim NUMBERS (1-indexed into the numbered
+    // SOURCE_CLAIMS list) to authoritative verbatim claim text. Out-of-range/0/dup
+    // refs are dropped — the model never re-copies claim text, so persisted
+    // document_claims can't drift from the source brief. Legacy verbatim arrays
+    // (older prompts) pass through unchanged via resolveDocumentClaims's fallback.
+    const resolveDocumentClaims = (
+      refs: number[] | undefined,
+      legacy: string[] | undefined,
+    ): string[] => {
+      if (refs?.length) {
+        const seen = new Set<string>();
+        const out: string[] = [];
+        for (const n of refs) {
+          if (!Number.isInteger(n) || n < 1 || n > keyClaims.length) continue;
+          const text = keyClaims[n - 1];
+          if (!seen.has(text)) { seen.add(text); out.push(text); }
+        }
+        return out;
+      }
+      return legacy?.length ? legacy : [];
+    };
     const sourceClaims = keyClaimsCount > 0
-      ? sourceBrief!.key_claims!.map((c, i) => `  ${i + 1}. ${c}`).join('\n')
+      ? keyClaims.map((c, i) => `  ${i + 1}. ${c}`).join('\n')
       : '(none)';
     const reflPrompt = assembleReflectionPrompt(deps.promptsDir, body, groundingList, sourceClaims);
     const reflMaxTokens = Math.max(4000, allGroundingRefs.length * 150 + 3000);
@@ -312,7 +341,8 @@ async function runVoiceGeneration(
           const usage = usageMap.get(ref.node_id);
           if (usage) {
             ref.how_reflected = usage.reflection;
-            if (usage.document_claims?.length) ref.document_claims = usage.document_claims;
+            const resolved = resolveDocumentClaims(usage.document_claim_refs, usage.document_claims);
+            if (resolved.length) ref.document_claims = resolved;
           }
         }
         if (reflParsed.claims?.length) reflClaims = reflParsed.claims;
