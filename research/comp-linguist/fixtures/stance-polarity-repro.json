@@ -173,7 +173,7 @@
       },
       "correct_stance": "aligned",
       "correct_disposition": { "type": "no_flip", "note": "The claim agrees with saf-017's proposition; must NOT be demoted." },
-      "observed_deberta": { "direction": "opposes", "margin": 6.34, "note": "FALSE positive on CURRENT node text via the gate-exact node_prop (Get-NodePropText: label — Core) — reads agency/capability language as contradicting the loss-of-control proposition (cannot infer AI-gains-agency ⊨ humans-lose-oversight); τ_contra cannot fix. No node drift (a869fb48 only ADDED plain_description; gate reads description). Pinned from the committed acceptance harness (CL t/2900#15)." },
+      "observed_deberta": { "direction": "opposes", "margin": 7.51, "note": "FALSE positive on CURRENT node text via the gate-exact node_prop (Get-NodePropText: label — Core) — reads agency/capability language as contradicting the loss-of-control proposition (cannot infer AI-gains-agency ⊨ humans-lose-oversight); τ_contra cannot fix. No node drift (a869fb48 only ADDED plain_description; gate reads description). Margin reproduces the ORIGINAL t/2896 value on the real stored verbatim (CL t/2900#17)." },
       "expected_judge": { "direction": "unrelated", "flip": false, "note": "LLM-judge must NOT confirm the flip → KEEP." },
       "error_type": ["stance_polarity_false_demote", "agency_to_loss_pattern"],
       "exercises": ["t/2900"]
@@ -195,7 +195,7 @@
           "pole": "matching (existing laws already govern AI)",
           "arm": "MUST_NOT_FLIP",
           "correct_stance": "aligned",
-          "observed_deberta": { "direction": "opposes", "margin": 1.09, "note": "FALSE positive on CURRENT node text (gate-exact node_prop). Pinned from the committed acceptance harness (opposes-if-any over the rep set; CL t/2900#15)." },
+          "observed_deberta": { "direction": "opposes", "margin": 1.61, "note": "FALSE positive on CURRENT node text (gate-exact node_prop, opposes-if-any over the rep set). Margin reproduces the ORIGINAL t/2896 value on the real stored verbatim (CL t/2900#17)." },
           "expected_judge": { "direction": "agrees", "flip": false }
         },
         {
