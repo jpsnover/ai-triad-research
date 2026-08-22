@@ -409,6 +409,18 @@ describe('invalidRouteParam (t/810)', () => {
     expect(invalidRouteParam('/api/admin/review/detail/:groupId', '/api/admin/review/detail/%2e%2e%2fx')).toBe('groupId');
   });
 
+  // t/2930: containerId is "type:id" (node:sit-021, sei:abc); the colon is structural so
+  // isSafeId 400'd every one. Both arms — colon passes; traversal still rejected (the proof).
+  it('allows colon in container ids but blocks traversal', () => {
+    expect(invalidRouteParam('/api/container-mentions/:containerId', '/api/container-mentions/node%3Asit-021')).toBeNull();
+    expect(invalidRouteParam('/api/container-mentions/:containerId', '/api/container-mentions/sei%3Aabc')).toBeNull();
+    // negative arm (security): encoded/decoded traversal + separators + null byte must still 400
+    expect(invalidRouteParam('/api/container-mentions/:containerId', '/api/container-mentions/node%3A%2e%2e%2fsecret')).toBe('containerId'); // node:../secret
+    expect(invalidRouteParam('/api/container-mentions/:containerId', '/api/container-mentions/%2e%2e')).toBe('containerId');                 // ..
+    expect(invalidRouteParam('/api/container-mentions/:containerId', '/api/container-mentions/node%3A..%2Fx')).toBe('containerId');          // node:../x
+    expect(invalidRouteParam('/api/container-mentions/:containerId', '/api/container-mentions/node%3Ax%00')).toBe('containerId');            // null byte
+  });
+
   it('rejects invalid pov names', () => {
     expect(invalidRouteParam('/api/taxonomy/:pov', '/api/taxonomy/%2e%2e')).toBe('pov');
     expect(invalidRouteParam('/api/taxonomy/:pov', '/api/taxonomy/ACC')).toBe('pov'); // uppercase not allowed
