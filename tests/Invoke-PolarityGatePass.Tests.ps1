@@ -279,18 +279,21 @@ Describe 'Polarity-gate disable switch (t/2896)' -Tag 'summary' {
 
 Describe 'Invoke-DocumentSummary polarity wiring (t/2896)' -Tag 'summary' {
 
-    It 'exposes -EnablePolarityGate as a switch that defaults OFF (gate disabled by default)' {
+    It 'exposes -EnablePolarityGate as [bool] defaulting ON (t/2912 promotion; kill switch -EnablePolarityGate:$false)' {
         InModuleScope AITriad {
-            $p = (Get-Command Invoke-DocumentSummary).Parameters['EnablePolarityGate']
-            $p                 | Should -Not -BeNullOrEmpty
-            $p.SwitchParameter | Should -BeTrue
+            $ast = (Get-Command Invoke-DocumentSummary).ScriptBlock.Ast
+            $param = $ast.FindAll({
+                $args[0] -is [System.Management.Automation.Language.ParameterAst] -and
+                $args[0].Name.VariablePath.UserPath -eq 'EnablePolarityGate'
+            }, $true) | Select-Object -First 1
+            $param | Should -Not -BeNullOrEmpty
+            $param.StaticType.Name | Should -Be 'Boolean'            # promoted from [switch] to [bool]
+            $param.DefaultValue.Extent.Text | Should -Be '$true'     # gate ACTIVE by default
         }
     }
 
-    It 'call-site contract: -EnablePolarityGate negates into -SkipDirectionalGate' {
-        $off = [switch]$false
-        (-not $off) | Should -BeTrue  -Because 'default-off routes -SkipDirectionalGate:$true (gate skipped)'
-        $on  = [switch]$true
-        (-not $on)  | Should -BeFalse -Because '-EnablePolarityGate routes -SkipDirectionalGate:$false (gate active)'
+    It 'call-site contract: default-ON routes the gate active; -EnablePolarityGate:$false disables' {
+        (-not $true)  | Should -BeFalse -Because 'default -EnablePolarityGate=$true routes -SkipDirectionalGate:$false (gate ACTIVE)'
+        (-not $false) | Should -BeTrue  -Because '-EnablePolarityGate:$false routes -SkipDirectionalGate:$true (gate skipped)'
     }
 }

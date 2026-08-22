@@ -70,10 +70,12 @@ function Invoke-DocumentSummary {
         [switch]$IterativeExtraction,
         [switch]$AutoFire,
 
-        # t/2896 — re-enable switch for the directional polarity gate. DEFAULT OFF
-        # (the gate is disabled; see the point-of-use comment at the gate call).
-        # Preserved as a one-flag re-arm for the durable LLM-judge fix (t/2900).
-        [switch]$EnablePolarityGate
+        # Directional polarity gate. DEFAULT ON as of t/2912 — promoted after the
+        # durable two-stage LLM-judge fix (t/2900) cleared both-arms GV + a clean
+        # observe cycle (121 deberta false-positives caught, 0 bad flips on a real
+        # sample). It was default-OFF under t/2896 while deberta over-flagged solo.
+        # Kill switch: pass -EnablePolarityGate:$false to disable.
+        [bool]$EnablePolarityGate = $true
     )
 
     Set-StrictMode -Version Latest
