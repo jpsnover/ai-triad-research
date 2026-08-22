@@ -136,7 +136,12 @@
       "license": "MIT"
     },
     {
-      "name": "@img/sharp-win32-x64",
+      "name": "@img/sharp-libvips-linux-x64",
+      "version": "1.3.2",
+      "license": "LGPL-3.0-or-later"
+    },
+    {
+      "name": "@img/sharp-linux-x64",
       "version": "0.35.3",
       "license": "Apache-2.0"
     },
@@ -1686,7 +1691,17 @@
     {
       "packages": [
         {
-          "name": "@img/sharp-win32-x64",
+          "name": "@img/sharp-libvips-linux-x64",
+          "version": "1.3.2"
+        }
+      ],
+      "licenseType": "LGPL-3.0-or-later",
+      "licenseText": "LGPL-3.0-or-later"
+    },
+    {
+      "packages": [
+        {
+          "name": "@img/sharp-linux-x64",
           "version": "0.35.3"
         },
         {
