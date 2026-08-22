@@ -114,6 +114,57 @@ describe('generateOpEdSet — document_claims propagation (t/2722)', () => {
   });
 });
 
+describe('generateOpEdSet — document_claim_refs resolution (t/2938)', () => {
+  it('resolves model-emitted claim NUMBERS to verbatim source claim text (dedup, drop out-of-range)', async () => {
+    const KEY_CLAIMS = ['First claim', 'Second claim', 'Third claim'];
+    let call = 0;
+    const adapter = {
+      generateText: async () => {
+        call++;
+        if (call === 1) {
+          // Source-brief pass (triggered by request.sourceMaterial)
+          return JSON.stringify({
+            thesis: 't', author: 'a', actor_type: 'x', stance: 's',
+            primary_recommendations: [], key_claims: KEY_CLAIMS, readable: true,
+          });
+        }
+        if (call === 2) {
+          // Essay generation
+          return JSON.stringify({ headline: 'H', subtitle: '', body_markdown: 'Body text here.', word_count: 3 });
+        }
+        // Reflection — emit claim NUMBERS, not verbatim text. acc-bel-001 links
+        // 1 & 3 (with a dup and an out-of-range 99 that must be dropped); sit-001 none.
+        return JSON.stringify({
+          grounding_usage: [
+            { id: 'acc-bel-001', reflection: 'used in lede', document_claim_refs: [1, 3, 3, 99] },
+            { id: 'sit-001', reflection: 'used as evidence', document_claim_refs: [] },
+          ],
+          claims: [{ text: 'First claim', paragraph: 1 }],
+        });
+      },
+    };
+    const req = {
+      set_id: 's3', topic: 'AI policy',
+      sourceMaterial: 'Some source article text.',
+      params: { model: 'gemini-flash', wordCount: 800, outlet: 'nyt', newsHook: '', thesis: '' } as never,
+      povs: ['accelerationist'] as PovKey[],
+    };
+    const deps = { adapter: adapter as never, promptsDir: join(REPO_ROOT, 'lib', 'oped', 'prompts'), repoRoot: REPO_ROOT };
+
+    let member: { grounding: { node_id: string; document_claims?: string[] }[] } | undefined;
+    for await (const ev of generateOpEdSet(req, deps) as AsyncGenerator<OpEdProgressEvent>) {
+      if (ev.type === 'voice_complete') member = ev.member as typeof member;
+    }
+
+    expect(member).toBeDefined();
+    const bdiRef = member!.grounding.find(r => r.node_id === 'acc-bel-001');
+    // Numbers → verbatim text, deduped, out-of-range dropped.
+    expect(bdiRef?.document_claims).toEqual(['First claim', 'Third claim']);
+    const sitRef = member!.grounding.find(r => r.node_id === 'sit-001');
+    expect(sitRef?.document_claims).toBeUndefined();
+  });
+});
+
 describe('generateOpEdSet — FABRICATED_LEDE_GUARD integration (t/2730)', () => {
   const makeAdapter = (body: string) => ({
     generateText: async () => JSON.stringify({ headline: 'H', subtitle: '', body_markdown: body, word_count: body.split(/\s+/).length }),
