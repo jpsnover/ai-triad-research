@@ -46,13 +46,26 @@ export function invalidRouteParam(routePath: string, pathname: string): string |
       });
       return name; // malformed percent-encoding — reject
     }
+    const validator =
+      name === 'pov' ? 'isSafePov'
+        : (name === 'filename' || name === 'name') ? 'isSafeFilename'
+          : name === 'groupId' ? 'GROUP_ID_RE'
+            : name === 'containerId' ? 'CONTAINER_ID_RE'
+              : 'isSafeId';
     const ok =
       name === 'pov' ? isSafePov(value)
         : (name === 'filename' || name === 'name') ? isSafeFilename(value)
           : name === 'groupId' ? GROUP_ID_RE.test(value)
             : name === 'containerId' ? CONTAINER_ID_RE.test(value)
               : isSafeId(value);
-    if (!ok) return name;
+    if (!ok) {
+      getGlobalRecorder()?.record({
+        type: 'system.error', component: 'server', level: 'warn',
+        message: `invalidRouteParam: rejected '${name}' value=${JSON.stringify(value)} validator=${validator}`,
+        data: { param: name, value, validator },
+      });
+      return name;
+    }
   }
   return null;
 }
