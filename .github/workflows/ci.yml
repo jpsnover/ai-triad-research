@@ -312,6 +312,24 @@ jobs:
         working-directory: ${{ matrix.app }}
         run: pnpm run build
 
+      # ── License-notices staleness warn (t/2918 — warn-first phase) ──
+      # The build step above already ran `npm run licenses`, regenerating
+      # THIRD-PARTY-NOTICES.txt + src/renderer/data/oss-licenses.json from the
+      # current pnpm lockfile. If the committed versions differ from what the
+      # generator produced, the files are stale (dep bump without re-committing).
+      # Warn-first: emits ::warning:: but does NOT fail CI yet. After ≥1 green
+      # warn cycle with zero false-fires and determinism confirmed (CRLF + sort
+      # stability), promote to exit 1 — separate PR, TL sign-off required (t/2918).
+      - name: Check license notices are up to date (warn-only — t/2918)
+        if: matrix.app == 'taxonomy-editor'
+        working-directory: ${{ matrix.app }}
+        continue-on-error: true
+        run: |
+          if ! git diff --exit-code THIRD-PARTY-NOTICES.txt src/renderer/data/oss-licenses.json; then
+            echo "::warning::License notices are stale — run 'npm run licenses' in taxonomy-editor/ and commit the updated THIRD-PARTY-NOTICES.txt + src/renderer/data/oss-licenses.json before merging (t/2918)"
+            exit 1
+          fi
+
       - name: Preload self-contained gate (t/2776)
         if: matrix.app == 'taxonomy-editor'
         shell: pwsh
