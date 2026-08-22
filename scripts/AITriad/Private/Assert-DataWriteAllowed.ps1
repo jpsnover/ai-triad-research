@@ -103,6 +103,20 @@ function Assert-DataWriteAllowed {
     .PARAMETER AllowDirty
         Opt-out for a writer that legitimately rewrites a target left dirty by a
         prior pass in the same sequence (t/2902 condition 4). Bypasses the guard.
+        Semantics: "the tree is dirty and I am choosing to ignore that" — a blanket
+        override. Do NOT use it for surgical writes; use -SurgicalWrite (below).
+    .PARAMETER SurgicalWrite
+        Distinct, semantically-honest exemption for a FIELD-SURGICAL write (t/2916,
+        TL ruling t/2916#8). Its claim is NOT "ignore the dirty tree" but "this write
+        is sweep-proof BY CONSTRUCTION, so the dirty-tree check is N/A." Earned only by
+        Save-JsonNodeFieldEdits, whose every write goes through Update-JsonNodeField's
+        re-parse-verify invariant + byte-identical foreign-WIP preservation (proven in
+        Update-JsonNodeField tests 5/7 and SurgicalWriteExemption.Tests.ps1). Kept
+        SEPARATE from -AllowDirty on purpose: the two carry different risk profiles, and
+        overloading one flag would make a `grep -AllowDirty` unable to tell "provably
+        safe surgical" from "blanket override — scrutinize." Reachable only via the
+        orchestrator (enforced by the detection gate in SurgicalWriteExemption.Tests.ps1),
+        so a whole-file writer cannot claim it and bypass the BLOCK tier.
     .OUTPUTS
         None. In Block mode a dirty data-target throws (New-ActionableError via
         Assert-CleanDataTree); in Warn mode it warns and proceeds.
@@ -113,8 +127,16 @@ function Assert-DataWriteAllowed {
         [Parameter(Mandatory)]
         [string]$Path,
 
-        [switch]$AllowDirty
+        [switch]$AllowDirty,
+
+        [switch]$SurgicalWrite
     )
+    # t/2916 Fork 2 (TL t/2916#8) — surgical-write exemption. A field-surgical write is
+    # sweep-proof by construction (re-parse-verify + byte-identical preservation), so the
+    # dirty-tree check is N/A: return BEFORE consulting the tier or the tree. This is the
+    # one write that is SAFE on a dirty BLOCK-tier file; blocking it would defeat t/2916.
+    # Kept distinct from -AllowDirty (blanket override) so the audit trail stays honest.
+    if ($SurgicalWrite) { return }
     if ($AllowDirty) { return }
     $mode = Get-DataWriteGuardMode -Path $Path   # per-target tier (t/2909)
     if ($mode -eq 'Off') { return }

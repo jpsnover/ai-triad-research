@@ -21,7 +21,14 @@ function Write-Utf8NoBom {
 
         # t/2902 — opt a legitimate sequential rewriter out of the dirty-tree guard
         # (a target intentionally left dirty by a prior pass in the same run).
-        [switch]$AllowDirty
+        [switch]$AllowDirty,
+
+        # t/2916 Fork 2 (TL t/2916#8) — forward the FIELD-SURGICAL exemption to the guard.
+        # A surgical write is sweep-proof by construction, so the dirty-tree check is N/A.
+        # This is a PASS-THROUGH conduit only: it must be set solely by Save-JsonNodeFieldEdits
+        # (enforced by the detection gate in SurgicalWriteExemption.Tests.ps1). A whole-file
+        # writer must never set it — that would let it bypass the BLOCK tier.
+        [switch]$SurgicalWrite
     )
     begin {
         $parts = New-Object System.Collections.Generic.List[string]
@@ -64,7 +71,8 @@ function Write-Utf8NoBom {
             }
         }
         elseif (Get-Command Assert-DataWriteAllowed -ErrorAction SilentlyContinue) {
-            Assert-DataWriteAllowed -Path $Path -AllowDirty:$AllowDirty
+            # t/2916 — forward the surgical exemption (set only by Save-JsonNodeFieldEdits).
+            Assert-DataWriteAllowed -Path $Path -AllowDirty:$AllowDirty -SurgicalWrite:$SurgicalWrite
         }
         Set-Content -Path $Path -Value $text -Encoding utf8NoBOM -NoNewline
     }
