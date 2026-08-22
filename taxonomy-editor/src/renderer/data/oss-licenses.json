@@ -77,17 +77,17 @@
     },
     {
       "name": "@azure/msal-browser",
-      "version": "5.17.3",
+      "version": "5.18.0",
       "license": "MIT"
     },
     {
       "name": "@azure/msal-common",
-      "version": "16.11.3",
+      "version": "16.12.0",
       "license": "MIT"
     },
     {
       "name": "@azure/msal-node",
-      "version": "5.4.3",
+      "version": "5.5.0",
       "license": "MIT"
     },
     {
@@ -97,7 +97,7 @@
     },
     {
       "name": "@azure/storage-common",
-      "version": "12.4.1",
+      "version": "12.5.0",
       "license": "MIT"
     },
     {
@@ -227,7 +227,12 @@
     },
     {
       "name": "@types/node",
-      "version": "26.1.2",
+      "version": "18.19.130",
+      "license": "MIT"
+    },
+    {
+      "name": "@types/node",
+      "version": "26.2.0",
       "license": "MIT"
     },
     {
@@ -278,6 +283,11 @@
     {
       "name": "agent-base",
       "version": "7.1.4",
+      "license": "MIT"
+    },
+    {
+      "name": "ajv",
+      "version": "8.20.0",
       "license": "MIT"
     },
     {
@@ -496,6 +506,16 @@
       "license": "MIT"
     },
     {
+      "name": "fast-deep-equal",
+      "version": "3.1.3",
+      "license": "MIT"
+    },
+    {
+      "name": "fast-uri",
+      "version": "3.1.5",
+      "license": "BSD-2-Clause"
+    },
+    {
       "name": "fast-xml-builder",
       "version": "1.3.0",
       "license": "MIT"
@@ -571,8 +591,18 @@
       "license": "MIT"
     },
     {
+      "name": "https",
+      "version": "1.0.0",
+      "license": "ISC"
+    },
+    {
       "name": "https-proxy-agent",
       "version": "7.0.6",
+      "license": "MIT"
+    },
+    {
+      "name": "image-size",
+      "version": "1.2.1",
       "license": "MIT"
     },
     {
@@ -642,6 +672,11 @@
     },
     {
       "name": "isarray",
+      "version": "1.0.0",
+      "license": "MIT"
+    },
+    {
+      "name": "json-schema-traverse",
       "version": "1.0.0",
       "license": "MIT"
     },
@@ -732,7 +767,7 @@
     },
     {
       "name": "lucide-react",
-      "version": "1.28.0",
+      "version": "1.31.0",
       "license": "ISC"
     },
     {
@@ -1086,6 +1121,11 @@
       "license": "MIT"
     },
     {
+      "name": "pptxgenjs",
+      "version": "3.12.0",
+      "license": "MIT"
+    },
+    {
       "name": "process-nextick-args",
       "version": "2.0.1",
       "license": "MIT"
@@ -1108,6 +1148,11 @@
     {
       "name": "qrcode",
       "version": "1.5.4",
+      "license": "MIT"
+    },
+    {
+      "name": "queue",
+      "version": "6.0.2",
       "license": "MIT"
     },
     {
@@ -1171,6 +1216,11 @@
       "license": "MIT"
     },
     {
+      "name": "require-from-string",
+      "version": "2.0.2",
+      "license": "MIT"
+    },
+    {
       "name": "require-main-filename",
       "version": "2.0.0",
       "license": "ISC"
@@ -1191,6 +1241,11 @@
       "license": "MIT"
     },
     {
+      "name": "safe-buffer",
+      "version": "5.2.1",
+      "license": "MIT"
+    },
+    {
       "name": "safe-stable-stringify",
       "version": "2.5.0",
       "license": "MIT"
@@ -1199,11 +1254,6 @@
       "name": "scheduler",
       "version": "0.27.0",
       "license": "MIT"
-    },
-    {
-      "name": "semver",
-      "version": "7.8.1",
-      "license": "ISC"
     },
     {
       "name": "semver",
@@ -1337,6 +1387,11 @@
     },
     {
       "name": "undici-types",
+      "version": "5.26.5",
+      "license": "MIT"
+    },
+    {
+      "name": "undici-types",
       "version": "8.3.0",
       "license": "MIT"
     },
@@ -1397,7 +1452,7 @@
     },
     {
       "name": "ws",
-      "version": "8.21.1",
+      "version": "8.21.3",
       "license": "MIT"
     },
     {
@@ -1432,7 +1487,7 @@
     },
     {
       "name": "zustand",
-      "version": "5.0.14",
+      "version": "5.0.15",
       "license": "MIT"
     },
     {
@@ -1526,11 +1581,11 @@
       "packages": [
         {
           "name": "@azure/msal-browser",
-          "version": "5.17.3"
+          "version": "5.18.0"
         },
         {
           "name": "@azure/msal-common",
-          "version": "16.11.3"
+          "version": "16.12.0"
         }
       ],
       "licenseType": "MIT",
@@ -1540,7 +1595,7 @@
       "packages": [
         {
           "name": "@azure/msal-node",
-          "version": "5.4.3"
+          "version": "5.5.0"
         }
       ],
       "licenseType": "MIT",
@@ -1550,7 +1605,7 @@
       "packages": [
         {
           "name": "@azure/storage-common",
-          "version": "12.4.1"
+          "version": "12.5.0"
         }
       ],
       "licenseType": "MIT",
@@ -1679,6 +1734,10 @@
         {
           "name": "onnxruntime-web",
           "version": "1.26.0-dev.20260416-b7804b056c"
+        },
+        {
+          "name": "undici-types",
+          "version": "5.26.5"
         }
       ],
       "licenseType": "MIT",
@@ -1764,7 +1823,11 @@
         },
         {
           "name": "@types/node",
-          "version": "26.1.2"
+          "version": "18.19.130"
+        },
+        {
+          "name": "@types/node",
+          "version": "26.2.0"
         },
         {
           "name": "@types/react",
@@ -1843,6 +1906,16 @@
       ],
       "licenseType": "MIT",
       "licenseText": "(The MIT License)\n\nCopyright (c) 2013 Nathan Rajlich <nathan@tootallnate.net>\n\nPermission is hereby granted, free of charge, to any person obtaining\na copy of this software and associated documentation files (the\n'Software'), to deal in the Software without restriction, including\nwithout limitation the rights to use, copy, modify, merge, publish,\ndistribute, sublicense, and/or sell copies of the Software, and to\npermit persons to whom the Software is furnished to do so, subject to\nthe following conditions:\n\nThe above copyright notice and this permission notice shall be\nincluded in all copies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED 'AS IS', WITHOUT WARRANTY OF ANY KIND,\nEXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF\nMERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.\nIN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY\nCLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,\nTORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE\nSOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE."
+    },
+    {
+      "packages": [
+        {
+          "name": "ajv",
+          "version": "8.20.0"
+        }
+      ],
+      "licenseType": "MIT",
+      "licenseText": "The MIT License (MIT)\n\nCopyright (c) 2015-2021 Evgeny Poberezkin\n\nPermission is hereby granted, free of charge, to any person obtaining a copy\nof this software and associated documentation files (the \"Software\"), to deal\nin the Software without restriction, including without limitation the rights\nto use, copy, modify, merge, publish, distribute, sublicense, and/or sell\ncopies of the Software, and to permit persons to whom the Software is\nfurnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all\ncopies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\nIMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\nFITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\nAUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\nLIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\nOUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\nSOFTWARE."
     },
     {
       "packages": [
@@ -2521,6 +2594,30 @@
     {
       "packages": [
         {
+          "name": "fast-deep-equal",
+          "version": "3.1.3"
+        },
+        {
+          "name": "json-schema-traverse",
+          "version": "1.0.0"
+        }
+      ],
+      "licenseType": "MIT",
+      "licenseText": "MIT License\n\nCopyright (c) 2017 Evgeny Poberezkin\n\nPermission is hereby granted, free of charge, to any person obtaining a copy\nof this software and associated documentation files (the \"Software\"), to deal\nin the Software without restriction, including without limitation the rights\nto use, copy, modify, merge, publish, distribute, sublicense, and/or sell\ncopies of the Software, and to permit persons to whom the Software is\nfurnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all\ncopies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\nIMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\nFITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\nAUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\nLIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\nOUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\nSOFTWARE."
+    },
+    {
+      "packages": [
+        {
+          "name": "fast-uri",
+          "version": "3.1.5"
+        }
+      ],
+      "licenseType": "BSD-2-Clause",
+      "licenseText": "Copyright (c) 2011-2021, Gary Court until https://github.com/garycourt/uri-js/commit/a1acf730b4bba3f1097c9f52e7d9d3aba8cdcaae\nCopyright (c) 2021-present The Fastify team <https://github.com/fastify/fastify#team>\nAll rights reserved.\n\nRedistribution and use in source and binary forms, with or without\nmodification, are permitted provided that the following conditions are met:\n    * Redistributions of source code must retain the above copyright\n      notice, this list of conditions and the following disclaimer.\n    * Redistributions in binary form must reproduce the above copyright\n      notice, this list of conditions and the following disclaimer in the\n      documentation and/or other materials provided with the distribution.\n    * The names of any contributors may not be used to endorse or promote\n      products derived from this software without specific prior written\n      permission.\n\nTHIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS \"AS IS\" AND\nANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED\nWARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE\nDISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDERS AND CONTRIBUTORS BE LIABLE FOR ANY\nDIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES\n(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;\nLOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND\nON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT\n(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS\nSOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.\n\n                                  *   *   *\n\nThe complete list of contributors can be found at:\n- https://github.com/garycourt/uri-js/graphs/contributors"
+    },
+    {
+      "packages": [
+        {
           "name": "fast-xml-parser",
           "version": "5.10.1"
         }
@@ -2587,6 +2684,10 @@
         {
           "name": "guid-typescript",
           "version": "1.0.9"
+        },
+        {
+          "name": "https",
+          "version": "1.0.0"
         }
       ],
       "licenseType": "ISC",
@@ -2611,6 +2712,16 @@
       ],
       "licenseType": "MIT",
       "licenseText": "(The MIT License)\n\nCopyright (c) Titus Wormer\n\nPermission is hereby granted, free of charge, to any person obtaining a copy\nof this software and associated documentation files (the \"Software\"), to deal\nin the Software without restriction, including without limitation the rights\nto use, copy, modify, merge, publish, distribute, sublicense, and/or sell\ncopies of the Software, and to permit persons to whom the Software is\nfurnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in\nall copies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\nIMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\nFITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\nAUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\nLIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\nOUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN\nTHE SOFTWARE."
+    },
+    {
+      "packages": [
+        {
+          "name": "image-size",
+          "version": "1.2.1"
+        }
+      ],
+      "licenseType": "MIT",
+      "licenseText": "The MIT License (MIT)\n\nCopyright © 2013-Present Aditya Yadav, http://netroy.in\n\nPermission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the “Software”), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE."
     },
     {
       "packages": [
@@ -2647,10 +2758,6 @@
         {
           "name": "json-stringify-safe",
           "version": "5.0.1"
-        },
-        {
-          "name": "semver",
-          "version": "7.8.1"
         },
         {
           "name": "semver",
@@ -2766,7 +2873,7 @@
       "packages": [
         {
           "name": "lucide-react",
-          "version": "1.28.0"
+          "version": "1.31.0"
         }
       ],
       "licenseType": "ISC",
@@ -2933,6 +3040,16 @@
     {
       "packages": [
         {
+          "name": "pptxgenjs",
+          "version": "3.12.0"
+        }
+      ],
+      "licenseType": "MIT",
+      "licenseText": "The MIT License (MIT)\n\nCopyright (c) 2015-2022 Brent Ely\n\nPermission is hereby granted, free of charge, to any person obtaining a copy\nof this software and associated documentation files (the \"Software\"), to deal\nin the Software without restriction, including without limitation the rights\nto use, copy, modify, merge, publish, distribute, sublicense, and/or sell\ncopies of the Software, and to permit persons to whom the Software is\nfurnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all\ncopies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\nIMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\nFITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\nAUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\nLIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\nOUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\nSOFTWARE."
+    },
+    {
+      "packages": [
+        {
           "name": "process-nextick-args",
           "version": "2.0.1"
         }
@@ -2969,6 +3086,16 @@
       ],
       "licenseType": "MIT",
       "licenseText": "The MIT License (MIT)\n\nCopyright (c) 2012 Ryan Day\n\nPermission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the \"Software\"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE."
+    },
+    {
+      "packages": [
+        {
+          "name": "queue",
+          "version": "6.0.2"
+        }
+      ],
+      "licenseType": "MIT",
+      "licenseText": "The MIT License (MIT)\nCopyright (c) 2014 Jesse Tane <jesse.tane@gmail.com>\n\nPermission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the \"Software\"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE."
     },
     {
       "packages": [
@@ -3063,6 +3190,16 @@
     {
       "packages": [
         {
+          "name": "require-from-string",
+          "version": "2.0.2"
+        }
+      ],
+      "licenseType": "MIT",
+      "licenseText": "The MIT License (MIT)\n\nCopyright (c) Vsevolod Strukchinsky <floatdrop@gmail.com> (github.com/floatdrop)\n\nPermission is hereby granted, free of charge, to any person obtaining a copy\nof this software and associated documentation files (the \"Software\"), to deal\nin the Software without restriction, including without limitation the rights\nto use, copy, modify, merge, publish, distribute, sublicense, and/or sell\ncopies of the Software, and to permit persons to whom the Software is\nfurnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in\nall copies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\nIMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\nFITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\nAUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\nLIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\nOUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN\nTHE SOFTWARE."
+    },
+    {
+      "packages": [
+        {
           "name": "require-main-filename",
           "version": "2.0.0"
         },
@@ -3083,6 +3220,10 @@
         {
           "name": "safe-buffer",
           "version": "5.1.2"
+        },
+        {
+          "name": "safe-buffer",
+          "version": "5.2.1"
         }
       ],
       "licenseType": "MIT",
@@ -3274,7 +3415,7 @@
       "packages": [
         {
           "name": "ws",
-          "version": "8.21.1"
+          "version": "8.21.3"
         }
       ],
       "licenseType": "MIT",
@@ -3314,7 +3455,7 @@
       "packages": [
         {
           "name": "zustand",
-          "version": "5.0.14"
+          "version": "5.0.15"
         }
       ],
       "licenseType": "MIT",
