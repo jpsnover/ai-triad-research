@@ -563,12 +563,13 @@ Institutional memory for failure patterns across the AI Triad Research project.
 - 2026-07-17 — Computational Linguist: `git --git-dir=.orca-git add research/comp-linguist/AGENTS.md` failed "paths ignored by .gitignore" even though the file was **already tracked AND already staged** (the `research/` exclusion still blocks a re-`add`). Resolved by **skipping `add` entirely and committing the staged pathspec directly** — `commit -- <path>`. Refines the rule: `-f` is for the *first* stage of a not-yet-tracked file; an already-tracked/staged overlay file needs no re-add at all (p/7#39).
 - 2026-08-01 — Orca Support (p/13#24, e2bfe23): **RECURRENCE of the run-from-subdir facet** — overlay `commit` from the `orca-support/` subdir failed (`.orca-git` not visible from subdirs; Bash cwd = role scope, not repo root); re-ran from the repo root → committed `e2bfe23`. Same agent, same facet ~1 month after p/13#10; rule + hook exist but it still bites from a role subdir. Loud + self-correcting, not escalating.
 - 2026-08-09 — DebateWorkspace (p/124#12): `ogit` returned "command not found" in the Bash tool — non-interactive shell, aliases not loaded. Switched to `git --git-dir=.orca-git --work-tree=.`; status/log/audit all succeeded.
+- 2026-08-13 — Design (p/472#3): `git --git-dir=.orca-git add engineering/design/AGENTS.md` (no `-f`) failed "paths ignored: engineering" on an **already-tracked** nested AGENTS.md (editing, not creating). Fix: `ogit add -f` + `agent-file-owner.sh --audit` (clean) + commit. Clarifies the rule: `-f` is required for any `add` on a nested AGENTS.md under a gitignored parent — whether it's a new file or an edit to an already-tracked file. The "skip add entirely" path (p/7#39) applies only when the edit is already staged.
 
 **Root Cause:** (1) `ogit` is defined as a shell alias (`alias ogit='git --git-dir=.orca-git --work-tree=.'`), which is only loaded in interactive shell sessions — the Bash tool runs non-interactive. (2) The overlay repo shares the working tree with the main repo, so `.gitignore` affects `ogit add`. Negation patterns (`!**/AGENTS.md`) cannot re-include files when a parent directory is already excluded by a broader rule — this bites on every new per-directory AGENTS.md. (3) Multiple agents update overlay files in parallel, causing push contention. (4) Git argument ordering: `-- <pathspec>` must come last — placing it before flags like `-m` causes git to treat the flag as a pathspec.
 
 **Prevention:**
 1. **Never use `ogit` in the Bash tool** — expand it to `git --git-dir=.orca-git --work-tree=.` since shell aliases aren't available in non-interactive shells.
-2. Use `-f` (force) when **first staging** a not-yet-tracked overlay file — they are gitignored by the main repo by design, especially nested `AGENTS.md` files under already-excluded parent directories. But if the file is **already tracked/staged**, don't re-`add` at all (the parent-dir ignore still rejects a bare `add`, even with the change staged) — just `commit -- <path>` the pathspec directly (p/7#39).
+2. **Always use `-f` when staging any nested overlay file under a gitignored parent dir** — `ogit add -f <path>` — whether it's a new file or an edit to an already-tracked file (Design p/472#3 confirmed `-f` required even for edits; the parent-dir `.gitignore` exclusion blocks bare `add` regardless of tracking status). Exception: if the edit is **already staged**, skip `add` entirely and `commit -- <path>` directly (p/7#39 — re-`add` of an already-staged file still fails).
 3. Before pushing, run `git --git-dir=.orca-git --work-tree=. pull --rebase` to incorporate remote changes.
 4. Must be run from the repo root — `.orca-git` is not visible from subdirectories.
 5. Never use `git add` or `git commit` for overlay-tracked files — always use the expanded overlay git command.
@@ -2322,6 +2323,7 @@ Institutional memory for failure patterns across the AI Triad Research project.
 - 2026-08-09 — Server Community (p/160#5): **9th instance, Facet 3 (new).** `gh pr merge --delete-branch` exits 1 with "remote ref does not exist" — GitHub had already auto-deleted the branch on merge. Error is benign/redundant; confirmed MERGED, worktree removed. Fix: omit `--delete-branch` when GitHub auto-delete-on-merge is enabled (the flag is redundant and noisy).
 - 2026-08-12 — Technical Lead (p/335#29): **10th instance, Facet 4 (new — `gh pr close`).** `gh pr close --delete-branch` exits 1 when the branch is checked out in a git worktree. PR closed and remote branch deleted fine; only the local `git branch -D` was refused. Fix: `git worktree remove` first, then `git branch -D`. Same root as Facet 2 — `--delete-branch`'s local cleanup blocked by an active worktree — triggered via `close`, not `merge`.
 - 2026-08-13 — ElectronMain (p/98#17): **11th instance, 8th independent agent.** `gh pr merge --delete-branch` failed when branch was checked out by a worktree. Fix: dropped `--delete-branch` (GitHub auto-deletes on merge), then removed worktree + `git branch -D` for local cleanup.
+- 2026-08-22 — DevOps (p/26#89): **12th instance, Facet 4.** `gh pr close --delete-branch` failed on GV probe PR #1385 — branch still held by a worktree. Fix: `git worktree remove --force`, then `git branch -D`, then `git push origin --delete <branch>`.
 
 **Root Cause:** `--delete-branch` cleans up the merged head branch locally too, and gh switches the working copy to the base branch (`git checkout main`) to do so. Git's one-branch-per-worktree rule blocks checking out `main` while the primary worktree has it → `fatal`. The remote merge + branch delete already happened via the API; only the local checkout/cleanup fails. Bookkeeping-≠-artifact family — the exit code describes post-success cleanup, not the merge.
 
@@ -3401,3 +3403,23 @@ Institutional memory for failure patterns across the AI Triad Research project.
 **Status:** Active — 1 instance (PowerShell 2 t/2673, p/228#15).
 
 **Applies To:** All agents opening PRs on branches that may be behind origin/main.
+
+---
+
+## #167 [Build] `git worktree add <dir> origin/<branch>` Without `-b` Creates a Detached HEAD — Pre-Commit Hook Blocks the Commit
+
+**Pattern:** `git worktree add <dir> origin/<branch>` (no `-b` flag) checks out the remote ref in a detached-HEAD state instead of creating a local named branch. The orphaned-commit guard (t/2009 pre-commit hook) then refuses any commit in that worktree: "refusing to commit on detached HEAD." The fix is `git switch -c <local-branch>` in the worktree to attach HEAD to a branch; commits then proceed normally and can be pushed with `git push origin HEAD:<remote-branch>`.
+
+**Instances:**
+- 2026-08-20 — Tech Lead (p/335#42): `git worktree add <dir> origin/<branch>` without `-b` produced a detached HEAD; the pre-commit hook refused the commit; fixed by `git switch -c <local-branch>` in the worktree, then committed and pushed with `git push origin HEAD:<remote-branch>`.
+
+**Root Cause:** Without `-b`, `git worktree add <dir> <ref>` treats the ref as a commit-ish to check out directly — a detached HEAD, not a branch checkout. This is correct git behavior but surprising when the ref is an existing remote branch: the intent is "base my work on this branch," but the result is "detach onto this commit." The t/2009 guard exists precisely to catch this state and prevent orphaned commits.
+
+**Prevention:**
+1. **Always use `-b` when you intend to commit from the worktree:** `git worktree add -b <local-branch> <dir> origin/<remote-branch>`. Creates a named local branch in the worktree, not a detached checkout.
+2. **If you land in a detached-HEAD worktree, recover with `git switch -c <branch>`** — no need to re-create the worktree; `switch -c` attaches HEAD to a new branch in place. Push with `git push origin HEAD:refs/heads/<branch>`.
+3. **The t/2009 pre-commit hook firing is the signal** — "refusing to commit on detached HEAD" means you need a named branch, not a worktree recreate. See also #104 (detached-HEAD push needs fully-qualified ref).
+
+**Status:** Active — 1 instance (Tech Lead p/335#42).
+
+**Applies To:** All agents creating worktrees based on an existing remote branch (e.g., rebasing or amending a PR in a worktree).
