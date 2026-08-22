@@ -156,6 +156,7 @@ Get-Help <CmdletName> -Full                     # full docs for any cmdlet
 | Cmdlet | Use when |
 |--------|----------|
 | `Assert-CleanDataTree` | Before a whole-file rewrite of a data-repo JSON, assert the target has no uncommitted changes — so a `ConvertFrom-Json \| ConvertTo-Json` (or Python `json.load`→`json.dump`) round-trip can't sweep concurrent working-tree state into the commit (t/2902; `-Force` downgrades the block to a warning). Also exposed as the opt-in `Write-Utf8NoBom -RequireCleanTree` switch. |
+| `Save-JsonNodeFieldEdits` | Use when a writer needs to set scalar `nodes[]` fields in a data-repo JSON without a whole-file round-trip. Reads fresh, splices ONLY the target fields via a re-parse-verified byte-preserving primitive, writes once through the guarded sink — so it cannot sweep concurrent WIP and is safe even on the perpetually-dirty BLOCK-tier `situations.json` (t/2916). Returns a summary (Applied + NotFound). Pair with explicit-path staging at commit. |
 
 **Centralized data-write guard (t/2902 Part 2).** Every data-of-record write in the module funnels through a guarded sink, so individual cmdlets need no per-callsite wiring:
 

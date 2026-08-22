@@ -34,8 +34,9 @@ $PSNativeCommandUseErrorActionPreference = $false
 
 $RepoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 Import-Module (Join-Path $PSScriptRoot 'AIEnrich.psm1') -Force -WarningAction SilentlyContinue
-# t/2902 — standalone script: import AITriad for the dirty-tree-sweep guard
-# (Assert-CleanDataTree) used before the whole-file situations.json write below.
+# t/2916 — standalone script: import AITriad for the field-surgical durable writer
+# (Save-JsonNodeFieldEdits) used for the situations.json write below (t/2902 whole-file
+# guard superseded by byte-preserving surgical writes).
 Import-Module (Join-Path $PSScriptRoot 'AITriad' 'AITriad.psm1') -Force -WarningAction SilentlyContinue
 
 # ── Resolve situations.json path ─────────────────────────────────────────────
@@ -256,6 +257,9 @@ $counts = @{ definitional = 0; interpretive = 0; structural = 0; insufficient = 
 $written = 0
 $skipped = 0
 $errors  = 0
+# t/2916 — collect field-surgical edits; apply them via Save-JsonNodeFieldEdits at the end
+# instead of a whole-file round-trip (which would sweep concurrent situations.json WIP).
+$edits = [System.Collections.Generic.List[hashtable]]::new()
 
 for ($i = 0; $i -lt $toClassify.Count; $i++) {
     $node   = $toClassify[$i]
@@ -296,13 +300,10 @@ for ($i = 0; $i -lt $toClassify.Count; $i++) {
 
     $counts[$label]++
 
-    # Mutate the live node object (same reference as in $Raw.nodes)
-    $liveNode = @($Raw.nodes | Where-Object { $_.id -eq $nodeId })[0]
-    if ($liveNode.PSObject.Properties['disagreement_type']) {
-        $liveNode.disagreement_type = $label
-    } else {
-        $liveNode | Add-Member -NotePropertyName 'disagreement_type' -NotePropertyValue $label -Force
-    }
+    # t/2916 — record a field-surgical edit (scalar disagreement_type on this node).
+    # The byte-preserving splice happens at write time via Save-JsonNodeFieldEdits, which
+    # re-reads situations.json fresh; no live whole-file object is mutated here.
+    $edits.Add(@{ NodeId = $nodeId; Field = 'disagreement_type'; Value = $label })
     $written++
 }
 
@@ -323,15 +324,21 @@ if ($DryRun) {
     exit 0
 }
 
-# Serialize and write using the situations.json writer contract:
-# ConvertTo-Json -Depth 20, UTF-8 without BOM.
+# ── Write results — field-surgical (t/2916), NOT a whole-file round-trip ─────────
+# Save-JsonNodeFieldEdits re-reads situations.json FRESH, splices ONLY disagreement_type
+# on each classified node (every other byte preserved), and writes once through the guarded
+# sink with the surgical exemption. Sweep-proof by construction: it cannot bundle concurrent
+# situation-node WIP into the write regardless of tree state (the sit-477 sweep, t/2896) —
+# which also lets it proceed on the perpetually-dirty BLOCK-tier situations.json. PAIR WITH
+# EXPLICIT-PATH STAGING at commit — never `git add -A` — the other half of sweep prevention
+# (TL t/2916#3, #8).
 Write-Host ''
-Write-Host 'Writing situations.json...' -ForegroundColor Cyan
-$json = $Raw | ConvertTo-Json -Depth 20
-# t/2902 — guard against sweeping concurrent uncommitted situations.json edits into
-# this whole-file rewrite. Warn-first (-Force warns and proceeds); drop -Force to block.
-Assert-CleanDataTree -Path $SituationsPath -Force
-[System.IO.File]::WriteAllText($SituationsPath, $json, (New-Object System.Text.UTF8Encoding $false))
+Write-Host 'Writing situations.json (field-surgical)...' -ForegroundColor Cyan
+$saveResult = Save-JsonNodeFieldEdits -Path $SituationsPath -Edits $edits.ToArray()
+Write-Host "  Applied $($saveResult.Applied) surgical edit(s)." -ForegroundColor Green
+if (@($saveResult.NotFound).Count -gt 0) {
+    Write-Warning "situations.json: $(@($saveResult.NotFound).Count) classified node(s) not found at write time (skipped): $($saveResult.NotFound -join ', ')"
+}
 Write-Host 'Done.' -ForegroundColor Green
 
 # ── Summary for t/2170 comment ────────────────────────────────────────────────
