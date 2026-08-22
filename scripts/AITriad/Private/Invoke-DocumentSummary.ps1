@@ -886,24 +886,31 @@ function Finalize-Summary {
         # (AI-gains-agency ⊨ humans-lose-oversight), which is the DOMINANT
         # safetyist/skeptic claim shape — so the gate corrupts precisely where it
         # fires most (CL diagnosis t/2896#1; TL [Decision] e/117#3).
-        # RE-ENABLE CONDITION: a model that does agency→loss entailment, wired behind
-        # the LLM-judge directional fix (t/2900). The code path is PRESERVED, not
-        # deleted — re-arm is a single flag: -EnablePolarityGate.
+        # STATUS (t/2912): the gate is ACTIVE BY DEFAULT. The durable two-stage
+        # LLM-judge fix (t/2900) resolved the agency→loss false-demote — deberta
+        # proposes 'opposes' candidates, the gemini-3.1-pro-preview judge disposes
+        # (unanimous-opposes-to-flip @ temp 0.3; fail-safe unresolved/error → KEEP) —
+        # promoted after both-arms GV + a clean observe cycle (121 deberta FPs the
+        # judge rejected, 0 bad flips). Kill switch: -EnablePolarityGate:$false.
         $PolarityCounts = Invoke-PolarityGatePass -KeyPoints $PolarityKps.ToArray() `
             -SkipDirectionalGate:(-not $EnablePolarityGate)
-        if ($PolarityCounts.opposes -gt 0) {
-            Write-Warn ("Polarity gate: {0} inversion(s) flagged (opposes) — counts o={0} a={1} u={2} x={3} over {4} gated" -f `
-                $PolarityCounts.opposes, $PolarityCounts.agrees, $PolarityCounts.unrelated, $PolarityCounts.unresolved, $PolarityCounts.gated)
-        } elseif ($PolarityCounts.reps -gt 0 -and $PolarityCounts.unresolved -eq $PolarityCounts.reps) {
+        if ($EnablePolarityGate -and $PolarityCounts.gated -gt 0) {
+            # t/2900/t/2912 two-stage telemetry — emitted EVERY run so the judge's
+            # flip / false-positive-kept / self-heal rates are observable in prod
+            # (TL GV condition t/2912#3). judge_kept = deberta false-positives the
+            # judge rejected (the payoff); judge_flipped = confirmed demotes;
+            # self_healed = prior false-flips auto-reverted.
+            $polLine = "Polarity gate (two-stage): judge_flipped={0} judge_kept={1} self_healed={2} over {3} gated key_point(s), {4} deberta rep-pair(s)" -f `
+                $PolarityCounts.judge_flipped, $PolarityCounts.judge_kept, $PolarityCounts.self_healed, $PolarityCounts.gated, $PolarityCounts.reps
+            if ($PolarityCounts.judge_flipped -gt 0) { Write-Warn $polLine } else { Write-Info $polLine }
             # Silent-degradation detector: every claim-rep pair unresolved ⇒ the
             # directional engine likely failed for the whole run (fail-safe kept all
             # mappings). Surface by default so a dead engine does not pass unnoticed
             # (TL GV t/2739#6).
-            Write-Warn ("Polarity gate: all {0} claim-rep pair(s) over {1} gated key_point(s) unresolved — directional engine may be down (no inversion detection this run)" -f `
-                $PolarityCounts.reps, $PolarityCounts.gated)
-        } else {
-            Write-Verbose ("Polarity gate: no inversions — counts o=0 a={0} u={1} x={2} over {3} gated" -f `
-                $PolarityCounts.agrees, $PolarityCounts.unrelated, $PolarityCounts.unresolved, $PolarityCounts.gated)
+            if ($PolarityCounts.reps -gt 0 -and $PolarityCounts.unresolved -eq $PolarityCounts.reps) {
+                Write-Warn ("Polarity gate: all {0} claim-rep pair(s) over {1} gated key_point(s) unresolved — directional engine may be down (no inversion detection this run)" -f `
+                    $PolarityCounts.reps, $PolarityCounts.gated)
+            }
         }
     }
 
