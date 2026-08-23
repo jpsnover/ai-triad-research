@@ -10,6 +10,7 @@
 # FLIPPED — enforcing now (continue-on-error removed):
 #   quality-gates (t/1292; .ts/.tsx LOC moved to ESLint max-lines per ADR-007, t/1692)
 #   doc-accuracy  doc-link steps (t/2093; repo at zero dead links after t/2092)
+#   license-notices staleness (t/2920; ≥1 green warn cycle + platform-determinism fixed)
 # FLIP-PENDING (remove continue-on-error to enforce):
 #   doc-accuracy  doc-claims + REPO_MAP steps (t/1324)
 # NEVER-FLIP (annotation-only by design — continue-on-error stays permanently):
@@ -312,21 +313,19 @@ jobs:
         working-directory: ${{ matrix.app }}
         run: pnpm run build
 
-      # ── License-notices staleness warn (t/2918 — warn-first phase) ──
+      # ── License-notices staleness gate (t/2918, promoted t/2920) ──
       # The build step above already ran `npm run licenses`, regenerating
       # THIRD-PARTY-NOTICES.txt + src/renderer/data/oss-licenses.json from the
       # current pnpm lockfile. If the committed versions differ from what the
       # generator produced, the files are stale (dep bump without re-committing).
-      # Warn-first: emits ::warning:: but does NOT fail CI yet. After ≥1 green
-      # warn cycle with zero false-fires and determinism confirmed (CRLF + sort
-      # stability), promote to exit 1 — separate PR, TL sign-off required (t/2918).
-      - name: Check license notices are up to date (warn-only — t/2918)
+      # Observed ≥1 green warn cycle with zero false-fires (PR #1425 also fixed
+      # cross-platform @img/sharp-* determinism). Now enforcing (t/2920, TL GV).
+      - name: Check license notices are up to date (t/2918)
         if: matrix.app == 'taxonomy-editor'
         working-directory: ${{ matrix.app }}
-        continue-on-error: true
         run: |
           if ! git diff --exit-code THIRD-PARTY-NOTICES.txt src/renderer/data/oss-licenses.json; then
-            echo "::warning::License notices are stale — run 'npm run licenses' in taxonomy-editor/ and commit the updated THIRD-PARTY-NOTICES.txt + src/renderer/data/oss-licenses.json before merging (t/2918)"
+            echo "::error::License notices are stale — run 'npm run licenses' in taxonomy-editor/ and commit the updated THIRD-PARTY-NOTICES.txt + src/renderer/data/oss-licenses.json before merging (t/2918)"
             exit 1
           fi
 
