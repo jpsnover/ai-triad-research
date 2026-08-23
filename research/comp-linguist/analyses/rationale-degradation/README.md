@@ -21,6 +21,40 @@ shorter and may drop a node-id while keeping the content. The content-collapse g
 separates a paraphrase from a truncation; it was added after a labelled-sample false positive on an
 aggressive-compression control (empirical tuning, t/2294).
 
+### Sensitivity edge — what this detector does NOT catch (t/2964)
+
+Measured, not estimated: a uniform truncation of a median-length rationale was run through
+`flag_transition` at every retention level from 90% down to 20%. The detection boundary sits
+**between 0.50 and 0.45 retention**:
+
+| retention | char ratio | content-word ratio | signals |
+|---|---|---|---|
+| 90% → 55% | 0.90–0.55 | 0.92–0.54 | *(none)* |
+| **50%** | 0.50 | 0.50 | *(none)* — boundary, not detected |
+| **45%** | 0.45 | 0.46 | `length_collapse` |
+| 30% | 0.30 | 0.29 | `length_collapse` |
+| 20% | 0.20 | 0.21 | `length_collapse`, `short_and_shell` |
+
+**A truncation that retains ≥50% of the text with content words intact is NOT detected.** That is
+a deliberate consequence of `COLLAPSE_RATIO`=0.5 (a strict `<`), not an oversight: real revisions in
+git history are enrichments, and flagging every mild shortening would make the flag noisy enough to
+be ignored. But it means a rationale halved to a still-fluent 55% summary passes silently. Anyone
+reading a green `--diff` should read it as "no *collapse*", not "no quality loss".
+
+### Boundary false positive — known and bounded (t/2964)
+
+The 60-char floor is a hard cut, so a **substantive** rationale below it flags. Real example:
+
+```
+"Compute scaling underwrites transformative abundance."   # 53 chars, 5 content words
+  -> ['short_and_shell']    # false positive: this is terse but substantive
+```
+
+Corpus exposure is ~p0.03 (9 of 33,448 rationales are ≤60 chars), so this is a claim-precision
+issue rather than a correctness one — but the zero-FP result should be read with it in mind. The
+clean controls now reach down to **68 chars** (see below), so the claim is "no FP within ~1.13× the
+floor", not the old "no FP within 2× the floor". Below the floor, FPs exist by construction.
+
 ## Thresholds — provenance `derived` (register: `docs/metric-provenance-register.md`)
 
 Derived from the **33,448 real `ba3128f5` rationales**: char length p5=130 / median=215 / p90=271;
@@ -33,19 +67,44 @@ median=18; only 17/33,448 (0.051%) fall below 6, and the gate removes exactly on
 
 ## Evidence
 
-Both-arms + false-positive check against a **73-row CL-labelled sample** (`labelled_sample.json`:
-62 clean, 11 constructed-degraded; 28 `observed`, 45 `constructed` per t/2294). The clean rows
+Both-arms + false-positive check against a **78-row CL-labelled sample** (`labelled_sample.json`:
+65 clean, 13 constructed-degraded; 28 `observed`, 50 `constructed` per t/2294). The clean rows
 include 25 real standalone rationales, the 3 real enrichment revisions, a same-scale paraphrase, a
-referent-free-but-substantive control, **26 non-vacuous diff-mode controls** (t/2963, below), and
-**6 faithful sub-boundary controls** (t/2965, below); the degraded rows include **5 sub-boundary
-degradations** (t/2965):
+referent-free-but-substantive control, **26 non-vacuous diff-mode controls** (t/2963, below),
+**6 faithful sub-boundary controls** (t/2965, below), and **3 boundary-adjacent controls**
+(t/2964, 68–74 chars); the degraded rows include **5 sub-boundary degradations** (t/2965) and the
+**2 signal-isolation rows** (t/2964):
 
 ```
 $ python detect.py --validate labelled_sample.json
-  degraded flagged (TP): 11   missed (FN): 0
-  clean quiet   (TN): 62   false-flagged (FP): 0
+  degraded flagged (TP): 13   missed (FN): 0
+  clean quiet   (TN): 65   false-flagged (FP): 0
+  signal isolation (t/2964): 2 ok, 0 broken
   BOTH ARMS: PASS
 ```
+
+### Signal isolation (t/2964)
+
+In the original t/2948 sample every degraded transition landed *below* the 60-char floor, so
+`short_and_shell` co-fired on all four — `length_collapse` and `referent_loss` were never observed
+firing alone and were therefore **asserted, not validated**. Two above-floor rows now put each
+transition signal on the record in isolation:
+
+| row | old → new | char ratio | content words | fires |
+|---|---|---|---|---|
+| `isolates: length_collapse` | 369 → 92 ch | 0.25 | 33 → 8 | `length_collapse` only |
+| `isolates: referent_loss` | 253 → 159 ch | 0.63 | 22 → 7 | `referent_loss` only |
+
+The first is above the floor with a referent-free source, so neither shell nor referent loss can
+co-fire. The second **retains 63% of its length** (so the `length_collapse` conjunct is false) and
+stays above the floor, but drops both node-ids and collapses content — the "vague filler of similar
+length" shape that only `referent_loss` catches.
+
+A row's `isolates` field is a machine-checked claim, not a comment: `--validate` asserts the signal
+list equals exactly `[isolates]` and **fails** otherwise, so a future threshold change that lets a
+second signal co-fire breaks the build instead of silently reverting to the un-isolated state.
+Both arms of that check are proven — falsifying one row's `isolates` value yields
+`ISOLATION BROKEN: expected exactly ['referent_loss'], got ['length_collapse']` and exit 1.
 
 ### Diff-mode false-positive floor as a distribution (t/2963)
 
@@ -130,17 +189,26 @@ python detect.py --baseline <edges.json>            # standalone flag rate
 python detect.py --diff <old.json> <new.json>       # score rationale changes (restore/save diff)
 python detect.py --validate <labelled_sample.json>  # both-arms + FP check (exit 0 iff PASS)
 python diff_fp_sweep.py labelled_sample.json        # diff-mode FP rate binned by compression ratio
-python build_sample.py                              # regenerate labelled_sample.json (needs AI_TRIAD_DATA_ROOT or default data path)
+python build_sample.py                              # regenerate labelled_sample.json
+python build_sample.py --data-root ../../ai-triad-data   # explicit data checkout
 ```
+
+`build_sample.py` resolves the data root as **`--data-root` > `$AI_TRIAD_DATA_ROOT` >
+`.aitriad.json` `data_root` (relative to the repo root) > the `../ai-triad-data` sibling** — the
+same priority as the rest of the project (root `AGENTS.md`, "Two-Repo Split"). No absolute path is
+baked in, so it regenerates from any clean checkout or worktree; it exits with a named path and the
+three ways to fix it if the data root is missing.
 
 ## Files
 
 - `detect.py` — the detector (signals + baseline/diff/validate modes; `--diff` composite-key
   near-key limitation documented inline).
 - `labelled_sample.json` — the CL-labelled validation sample (both arms + FP controls, incl. the 26
-  t/2963 diff-mode controls and the 11 t/2965 sub-boundary controls).
-- `build_sample.py` — regenerates the full `labelled_sample.json` (paths relative; data root via
-  `AI_TRIAD_DATA_ROOT`). Imports `build_diff_controls` so one command rebuilds the whole sample.
+  t/2963 diff-mode controls, the 11 t/2965 sub-boundary controls, and the t/2964 isolation +
+  boundary-adjacent rows).
+- `build_sample.py` — regenerates the full `labelled_sample.json` (paths repo-relative; data root
+  via `--data-root` / env / `.aitriad.json`). Imports `build_diff_controls` so one command rebuilds
+  the whole sample.
 - `build_diff_controls.py` — authors the 26 faithful-paraphrase diff-mode controls (t/2963,
   `build_rows`) and the 11 sub-boundary controls (t/2965, `build_subboundary_rows`).
 - `diff_fp_sweep.py` — reports the diff-mode FP rate as a distribution over compression ratio,
