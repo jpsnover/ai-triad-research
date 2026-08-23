@@ -1,0 +1,254 @@
+[
+ {
+  "label": "clean",
+  "provenance": "observed",
+  "source_key": "acc-beliefs-003|saf-intentions-027|WEAKENS",
+  "text": "While the source node highlights AI's positive impact on productivity, the existence of AI running 'influence campaigns' (saf-intentions-027) presents a negative societal outcome that weakens the source's broad claim that AI is inherently 'driving progress in our society.'",
+  "note": "real ba3128f5 rationale, CL-labelled substantive"
+ },
+ {
+  "label": "clean",
+  "provenance": "observed",
+  "source_key": "acc-beliefs-003|saf-intentions-160|TENSION_WITH",
+  "text": "The 'balanced approach' (acc-beliefs-003) often critiques the rigid, restrictive governance frameworks proposed by safetyists (saf-intentions-160).",
+  "note": "real ba3128f5 rationale, CL-labelled substantive"
+ },
+ {
+  "label": "clean",
+  "provenance": "observed",
+  "source_key": "acc-beliefs-003|skp-beliefs-014|WEAKENS",
+  "text": "The source node claims AI is 'boosting work' and driving 'progress,' but `skp-beliefs-014` suggests that AI can create an appearance of competence without true understanding, which weakens the quality and depth of the 'progress' claimed.",
+  "note": "real ba3128f5 rationale, CL-labelled substantive"
+ },
+ {
+  "label": "clean",
+  "provenance": "observed",
+  "source_key": "acc-beliefs-003|skp-beliefs-064|WEAKENS",
+  "text": "While the source node claims AI is 'boosting work' across demanding jobs, `skp-beliefs-015` highlights AI's 'jagged ability line,' meaning it excels in some areas but fails in others, which weakens the universality of the 'boosting work' claim.",
+  "note": "real ba3128f5 rationale, CL-labelled substantive"
+ },
+ {
+  "label": "clean",
+  "provenance": "observed",
+  "source_key": "acc-beliefs-003|skp-beliefs-202|TENSION_WITH",
+  "text": "The source node highlights AI boosting work in 'demanding jobs like programming, law, and science,' which are knowledge work. `skp-beliefs-025` argues that these high-wage knowledge jobs are precisely where AI causes displacement, creating tension with the idea of a universally positive 'boost.'",
+  "note": "real ba3128f5 rationale, CL-labelled substantive"
+ },
+ {
+  "label": "clean",
+  "provenance": "observed",
+  "source_key": "acc-beliefs-003|skp-beliefs-204|TENSION_WITH",
+  "text": "The source node emphasizes AI 'boosting work' and driving 'progress,' but `skp-intentions-036` argues that AI-driven productivity gains can lead to a 'ratchet effect' of increased targets, negating worker benefits and creating tension with the idea of holistic societal progress.",
+  "note": "real ba3128f5 rationale, CL-labelled substantive"
+ },
+ {
+  "label": "clean",
+  "provenance": "observed",
+  "source_key": "acc-beliefs-005|acc-intentions-100|ASSUMES",
+  "text": "The source node discusses how 'giant AI models' that 'know a lot' can be trained for action, implicitly assuming that this 'more knowledge' comes from scaling up, as described in acc-beliefs-001.",
+  "note": "real ba3128f5 rationale, CL-labelled substantive"
+ },
+ {
+  "label": "clean",
+  "provenance": "observed",
+  "source_key": "acc-beliefs-005|saf-beliefs-001|WEAKENS",
+  "text": "The source node implies that 'special training methods' effectively teach AI to 'get things done' as intended, while saf-beliefs-001 provides evidence that AIs often fail to follow rules, undermining the reliability of such training.",
+  "note": "real ba3128f5 rationale, CL-labelled substantive"
+ },
+ {
+  "label": "clean",
+  "provenance": "observed",
+  "source_key": "acc-beliefs-003|acc-beliefs-039|SUPPORTS",
+  "text": "The current observed improvements and boosting of work by AI (target) provide empirical evidence for the rapid progress cited in the source node, bolstering the prediction of human-level AI's near-term arrival.",
+  "note": "real ba3128f5 rationale, CL-labelled substantive"
+ },
+ {
+  "label": "clean",
+  "provenance": "observed",
+  "source_key": "acc-beliefs-003|acc-beliefs-043|TENSION_WITH",
+  "text": "The belief in a balanced approach is in tension with the reality of the obstacles and critiques described in the governance node.",
+  "note": "real ba3128f5 rationale, CL-labelled substantive"
+ },
+ {
+  "label": "clean",
+  "provenance": "observed",
+  "source_key": "acc-beliefs-003|acc-beliefs-053|SUPPORTS",
+  "text": "The source node's evidence of AI making work 'faster and cheaper' directly supports the economic theory that new technology lowers prices and boosts real income for society.",
+  "note": "real ba3128f5 rationale, CL-labelled substantive"
+ },
+ {
+  "label": "clean",
+  "provenance": "observed",
+  "source_key": "acc-beliefs-003|acc-beliefs-086|SUPPORTS",
+  "text": "The source's description of AI making professionals 'get more done, faster and cheaper' directly illustrates the concept of making genius abundant and free.",
+  "note": "real ba3128f5 rationale, CL-labelled substantive"
+ },
+ {
+  "label": "clean",
+  "provenance": "observed",
+  "source_key": "acc-beliefs-003|acc-desires-001|SUPPORTS",
+  "text": "The observed 'real-world gains' and 'driving progress in our society' in the source node directly support the accelerationist goal of AI creating a world of plenty.",
+  "note": "real ba3128f5 rationale, CL-labelled substantive"
+ },
+ {
+  "label": "clean",
+  "provenance": "observed",
+  "source_key": "acc-beliefs-003|acc-desires-009|SUPPORTS",
+  "text": "The source node's empirical evidence of AI's pervasive impact on demanding jobs and its role in 'driving progress' provides a foundation for the accelerationist vision of AI becoming a foundational 'control layer' for society.",
+  "note": "real ba3128f5 rationale, CL-labelled substantive"
+ },
+ {
+  "label": "clean",
+  "provenance": "observed",
+  "source_key": "acc-beliefs-003|acc-desires-026|SUPPORTS",
+  "text": "A balanced approach to development is viewed as the prerequisite for successfully orchestrating AI for complex societal systems.",
+  "note": "real ba3128f5 rationale, CL-labelled substantive"
+ },
+ {
+  "label": "clean",
+  "provenance": "observed",
+  "source_key": "acc-beliefs-003|acc-desires-035|SUPPORTS",
+  "text": "The source node's assertion that AI is 'the key to driving progress in our society' provides a practical, empirical foundation that supports the broader, philosophical accelerationist argument that building AI is humanity's cosmic purpose.",
+  "note": "real ba3128f5 rationale, CL-labelled substantive"
+ },
+ {
+  "label": "clean",
+  "provenance": "observed",
+  "source_key": "acc-beliefs-003|acc-desires-037|SUPPORTS",
+  "text": "The success of current AI in boosting work, as described in the source, serves as a justification for the accelerationist goal of developing even more powerful AI.",
+  "note": "real ba3128f5 rationale, CL-labelled substantive"
+ },
+ {
+  "label": "clean",
+  "provenance": "observed",
+  "source_key": "acc-beliefs-003|acc-intentions-005|SUPPORTS",
+  "text": "The observed productivity gains and cost reductions from AI in the source node exemplify the positive feedback loop between technology and free markets described in the target node.",
+  "note": "real ba3128f5 rationale, CL-labelled substantive"
+ },
+ {
+  "label": "clean",
+  "provenance": "observed",
+  "source_key": "acc-beliefs-003|acc-intentions-015|CONTRADICTS",
+  "text": "A balanced approach with human oversight is logically incompatible with the view that AI is an autonomous force that should not be resisted.",
+  "note": "real ba3128f5 rationale, CL-labelled substantive"
+ },
+ {
+  "label": "clean",
+  "provenance": "observed",
+  "source_key": "acc-beliefs-003|acc-intentions-055|SUPPORTS",
+  "text": "A balanced approach to development provides the framework that allows for the successful implementation of human-AI augmentation.",
+  "note": "real ba3128f5 rationale, CL-labelled substantive"
+ },
+ {
+  "label": "clean",
+  "provenance": "observed",
+  "source_key": "acc-beliefs-003|acc-intentions-100|SUPPORTS",
+  "text": "The empirical evidence of AI boosting work (source) implicitly supports the idea that increasing AI's capabilities (often tied to computational power, target) leads to beneficial outcomes.",
+  "note": "real ba3128f5 rationale, CL-labelled substantive"
+ },
+ {
+  "label": "clean",
+  "provenance": "observed",
+  "source_key": "acc-beliefs-003|saf-beliefs-017|TENSION_WITH",
+  "text": "The source celebrates AI's ability to get 'more done, faster and cheaper,' which is in tension with the safetyist concern that such velocity can lead to a 'Velocity Induced Security Governance Collapse'.",
+  "note": "real ba3128f5 rationale, CL-labelled substantive"
+ },
+ {
+  "label": "clean",
+  "provenance": "observed",
+  "source_key": "acc-beliefs-003|saf-beliefs-204|TENSION_WITH",
+  "text": "The source node's optimistic portrayal of AI's current benefits and role in driving progress is in tension with the safetyist concern that advanced AI, especially in competitive environments, could develop power-seeking behaviors detrimental to humanity.",
+  "note": "real ba3128f5 rationale, CL-labelled substantive"
+ },
+ {
+  "label": "clean",
+  "provenance": "observed",
+  "source_key": "acc-beliefs-003|saf-beliefs-206|CONTRADICTS",
+  "text": "The source's assertion that AI is 'the key to driving progress in our society' based on current positive gains directly contradicts the safetyist claim of a serious chance of AI disaster.",
+  "note": "real ba3128f5 rationale, CL-labelled substantive"
+ },
+ {
+  "label": "clean",
+  "provenance": "observed",
+  "source_key": "acc-beliefs-003|saf-desires-001|TENSION_WITH",
+  "text": "The source emphasizes the immediate, positive, measurable benefits of AI, which implicitly downplays or ignores the catastrophic risks highlighted by the target node.",
+  "note": "real ba3128f5 rationale, CL-labelled substantive"
+ },
+ {
+  "label": "clean",
+  "provenance": "observed",
+  "source_key": "acc-beliefs-051|acc-desires-001|SUPPORTS",
+  "old": "Cross-category link converted: belief supports the desire for AI-powered abundance.",
+  "new": "The source node's rejection of stagnation and embrace of radical change provides the philosophical underpinning for desiring transformative AI as a primary force for global progress.",
+  "note": "real revision (enrichment: new ~2x longer) — must NOT flag as degradation"
+ },
+ {
+  "label": "clean",
+  "provenance": "observed",
+  "source_key": "acc-beliefs-069|acc-intentions-054|SUPPORTS",
+  "old": "Belief about output-based understanding supports the intention for empirical safety evaluation.",
+  "new": "The source node's emphasis on observable, falsifiable metrics and measurable behaviors directly underpins the approach of prioritizing observable actions and real-world testing for AI safety.",
+  "note": "real revision (enrichment: new ~2x longer) — must NOT flag as degradation"
+ },
+ {
+  "label": "clean",
+  "provenance": "observed",
+  "source_key": "acc-intentions-100|acc-beliefs-039|SUPPORTS",
+  "old": "Belief in AI as civilizational infrastructure supports the intention to automate scientific discovery.",
+  "new": "The continuous and predictable scaling of AI intelligence with compute power, as described in acc-beliefs-001, provides a strong basis for the prediction that human-level AI is imminent.",
+  "note": "real revision (enrichment: new ~2x longer) — must NOT flag as degradation"
+ },
+ {
+  "label": "degraded",
+  "provenance": "constructed",
+  "old": "While the source node highlights AI's positive impact on productivity, the existence of AI running 'influence campaigns' (saf-intentions-027) presents a negative societal outcome that weakens the source's broad claim that AI is inherently 'driving progress in our society.'",
+  "new": "Related.",
+  "note": "total collapse to a stub"
+ },
+ {
+  "label": "degraded",
+  "provenance": "constructed",
+  "old": "The 'balanced approach' (acc-beliefs-003) often critiques the rigid, restrictive governance frameworks proposed by safetyists (saf-intentions-160).",
+  "new": "This edge supports the target.",
+  "note": "generic shell, referent lost"
+ },
+ {
+  "label": "degraded",
+  "provenance": "constructed",
+  "old": "While the source node highlights AI's positive impact on productivity, the existence of AI running 'influence campaigns' (saf-intentions-027) presents a negative societal outcome that weakens the source's broad claim that AI is inherently 'driving progress in our society.'",
+  "new": "While the source node highlights AI's ",
+  "note": "truncated fragment (<40 chars)"
+ },
+ {
+  "label": "degraded",
+  "provenance": "constructed",
+  "old": "The 'balanced approach' (acc-beliefs-003) often critiques the rigid, restrictive governance frameworks proposed by safetyists (saf-intentions-160).",
+  "new": "The 'balanced approach' (the node) often critiques the ",
+  "note": "referent-stripped + truncated"
+ },
+ {
+  "label": "degraded",
+  "provenance": "constructed",
+  "text": "Cross-category link.",
+  "note": "standalone boilerplate shell"
+ },
+ {
+  "label": "degraded",
+  "provenance": "constructed",
+  "text": "Supports.",
+  "note": "standalone one-word stub"
+ },
+ {
+  "label": "clean",
+  "provenance": "constructed",
+  "old": "The source node's belief that observable, falsifiable metrics are the only reliable basis for judgment directly grounds the intention to build empirical safety evaluations for advanced systems.",
+  "new": "Because the source treats measurable, testable indicators as the sole trustworthy basis for judgement, it directly motivates constructing rigorous empirical safety evaluations for advanced AI systems.",
+  "note": "legitimate same-scale paraphrase (reworded, comparable length + content) — must NOT flag"
+ },
+ {
+  "label": "clean",
+  "provenance": "constructed",
+  "new": "The belief in unbounded compute-driven scaling directly underwrites the desire for transformative, abundance-creating artificial intelligence.",
+  "note": "substantive, referent-free, above the short floor — must NOT flag"
+ }
+]
