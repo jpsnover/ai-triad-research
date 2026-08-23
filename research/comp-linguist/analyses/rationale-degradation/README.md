@@ -25,7 +25,9 @@ aggressive-compression control (empirical tuning, t/2294).
 
 Derived from the **33,448 real `ba3128f5` rationales**: char length p5=130 / median=215 / p90=271;
 only 9 (~0.03%) are ≤60 chars; 10% carry a node-id referent. So `SHORT_CHARS`=60 is the ~p0.03
-floor. Real non-empty→non-empty revisions in git history (3673d3ee→ba3128f5) were **enrichments**
+floor. `MIN_CONTENT_WORDS`=6 is floored the same way — content-word counts run p1=9 / p5=11 /
+median=18; only 17/33,448 (0.051%) fall below 6, and the gate removes exactly one real rationale
+(9→8). The `_STOP` lexicon and ≥4-char token rule defining `content_words` are **stipulated**. Real non-empty→non-empty revisions in git history (3673d3ee→ba3128f5) were **enrichments**
 (new ~2× longer), so a *collapse* is the anomaly. NOT derived from the ticket's illustrative strings
 ("Related.", "This edge supports the target.") — those are illustrations, not observed data.
 
@@ -47,7 +49,7 @@ Real baselines (mechanical-flag rate):
 ```
 $ python detect.py --baseline <ba3128f5 edges.json>   # 33,448 rationales
   mechanical-flag: 8  rate=0.024%   # 8 genuinely-truncated real rationales ("The premise", "The acceleration", …)
-$ python detect.py --baseline ../../../../ai-triad-data/taxonomy/Origin/edges.json   # live
+$ python detect.py --baseline ../../../../ai-triad-data/taxonomy/Origin/edges.json   # live (n=8 rationale-bearing edges)
   mechanical-flag: 0  rate=0.000%
 ```
 
