@@ -1,7 +1,41 @@
 # Edge Rationale Coverage: Exploration and Remediation Plan
 
-**Last updated:** 2026-08-11
-**Ticket:** t/2444 (PI-requested) · **Status:** exploration + plan only, routed to Main (TL) for review; PI approves any backfill spend.
+**Last updated:** 2026-08-23
+**Ticket:** t/2444 (PI-requested) · **Status:** ⚠️ **root cause CORRECTED 2026-08-23 — see banner below; the backfill plan is superseded by a git-restore.**
+
+> ## ⚠️ CORRECTION (2026-08-23): root cause was misdiagnosed — this is recoverable data loss, not an origin gap
+>
+> The Summary and Deliverable 1 below (written 2026-08-11) concluded the ~33k edges "never had"
+> a rationale — "created before the rationale-required prompt landed." **The git history of
+> `../ai-triad-data` refutes this** (traced by CL.Investigate1, e/119; empirically reproduced by Main):
+>
+> | commit | date | edges w/ non-empty rationale |
+> |---|---|---|
+> | `ba3128f5` | 2026-07-24 | **33,448 / 33,454** (incl. **25,759 / 25,765 approved**) |
+> | `904feb92` | 2026-08-08 | 165 ← **WIPE #1** (workflow-app v1.0.0 "automated data pipeline update", full-tree rebuild drops the field) |
+> | `b5a76c8e` | 2026-08-15 | 2,440 ← t/2679 LLM backfill adds ~2,275 approved |
+> | `9d019c9e` | 2026-08-20 | **2** ← **WIPE #2** (same pipeline destroys the backfill) |
+>
+> Every one of the ~33k edges **carried a discovery-time rationale from May through 07-24**; two
+> destructive writes by the workflow-app data pipeline wiped them. The 08-11 scan below read the
+> post-wipe-#1 state (165) and mistook a symptom for an origin gap. The writer inventory (1a) is
+> not wrong about the inventoried writers — but it **omitted the actual destroyer** (the workflow-app
+> full-tree pipeline, which rebuilds edge objects from a source that omits `rationale`, upstream of
+> the serializer, which is not at fault). **t/2679's backfill is void** (wiped 5 days later).
+>
+> **Revised fix (supersedes Deliverable 2):**
+> 1. **Restore, don't backfill.** git-restore the original discovery-time rationales from
+>    `ba3128f5:taxonomy/Origin/edges.json` by edge id — original quality, near-zero cost. Beats an
+>    LLM reconstruction of 33k edges on both axes.
+> 2. **Fix the destroyer.** Audit/fix the workflow-app pipeline's edge-build step so it preserves
+>    `rationale` (and every other non-rebuilt field). *Outside CL scope — routed to the pipeline owner.*
+> 3. **Regression/count-floor gate**, not the new-edge assertion in 2a. The 2a gate would NOT have
+>    caught either wipe (the pipeline rewrites ALL edges and is not an inventoried writer). The gate
+>    that catches this fails a write that **drops rationale from edges that previously had it**.
+> 4. **Sequencing:** restore is pointless before the pipeline fix — the next pipeline run wipes it
+>    again (that is literally what happened to t/2679). Restore is **blocked on** the pipeline fix.
+>
+> Everything below 2026-08-11 is retained as the (superseded) exploration record.
 
 ## Summary
 

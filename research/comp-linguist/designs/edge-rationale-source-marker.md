@@ -6,12 +6,15 @@
 
 ## Problem
 
-A backfilled rationale is a **post-hoc reconstruction** from node content, not the
-contemporaneous discovery reasoning. Today nothing distinguishes the two: a reviewer
-reading an edge's rationale cannot tell whether it justified the edge *when it was
-created* or was generated months later from labels + descriptions. Before any backfill
-run writes ~25–33k rationales, the field must carry its own provenance so a reconstruction
-is never mistaken for original justification.
+Rationale text can reach an edge three different ways, and a reviewer cannot currently
+tell them apart: (a) the **contemporaneous discovery reasoning** written when the edge was
+created; (b) a **git-restore** of that original text after a data-loss event (the actual
+situation — the workflow-app pipeline wiped ~33k discovery-time rationales twice, recoverable
+from `ba3128f5`; see the t/2444 correction banner); or (c) a **post-hoc LLM reconstruction**
+from node content (the t/2679 backfill, now void). These have very different trust levels —
+(a) and (b) are the original justification; (c) is a reconstruction. The field must carry its
+own provenance so a reconstruction is never mistaken for the original, and so a restore is
+recognisable as such.
 
 ## Decision: add a `rationale_source` field on edges
 
@@ -22,7 +25,8 @@ Closed vocabulary (string enum). Absent/empty = **legacy/unknown** (the pre-mark
 | `discovery` | LLM classification at edge-discovery time (contemporaneous) | `Invoke-EdgeDiscovery` (per-node + batch LLM paths) |
 | `embedding-template` | Templated from similarity; no LLM justified it | `Invoke-EdgeDiscovery` embedding-first path (see plan 2a.3) |
 | `reflection` | Emitted by a debate reflection proposal | `debateReflectionSlice` |
-| `backfill` | Post-hoc reconstruction from node content | `Invoke-EdgeRationaleBackfill` |
+| `restore` | Original discovery-time text git-restored after a data-loss event (e.g. from `ba3128f5`) | the restore script (t/2444 correction) |
+| `backfill` | Post-hoc LLM reconstruction from node content (last resort; t/2679, now void) | `Invoke-EdgeRationaleBackfill` |
 | `human` | Manually authored/edited by a curator | editor / `Set-Edge` when a human sets rationale |
 | *(absent)* | Legacy edge, pre-marker | — |
 

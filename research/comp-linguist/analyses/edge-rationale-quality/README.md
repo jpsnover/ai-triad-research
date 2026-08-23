@@ -2,10 +2,17 @@
 
 **Tranche:** follow-up to t/2444 (edge-rationale coverage plan) · **Author:** Computational Linguist
 
-An **automated, no-hand-grading** quality screen for the AI-generated `rationale`
-field that `Invoke-EdgeRationaleBackfill` writes onto taxonomy edges. It answers one
-question before a 25–33k-edge backfill spend commits: *is the output good enough, or
-is it spraying label-restatements?*
+An **automated, no-hand-grading** quality screen for the `rationale` field on taxonomy
+edges. It answers one question about a batch of rationale text: *is it good, or is it
+empty / off-type / label-restatement junk?*
+
+> **Context (t/2444 correction, 2026-08-23):** the ~33k missing rationales were **not**
+> "never generated" — the workflow-app pipeline **wiped** original discovery-time
+> rationales twice; they are git-restorable intact from `ba3128f5`. The remediation is a
+> **git-restore + pipeline fix + regression gate**, not an LLM backfill. This harness is
+> therefore primarily a **restore-verifier** (confirm the restored text is the good
+> original, not corrupted/empty) and a general screen for any future rationale — it is
+> *not* gating a 33k-edge backfill spend (that path is superseded).
 
 ## Two layers
 
@@ -49,10 +56,13 @@ The judge verdict is a **junk screen** (catches empty / off-type / label-restate
 do not promote these thresholds to `derived` without an evidence pointer (a labeled
 sample the thresholds were tuned against).
 
-## Intended use in the tranche sequence
+## Intended use
 
-This is the automated bar the **E′ pilot** measures against: run
-`Invoke-EdgeRationaleBackfill -Limit 150` on one edge type, point this harness at the
-result, and read the flag/verdict distribution. A low flag rate is the evidence PI
-needs to approve (or a high rate the reason to fix the prompt first) — before the full
-backfill spend.
+**Restore-verifier (primary).** After the git-restore lands rationales from `ba3128f5`,
+point this harness at the restored `edges.json`. A low flag rate confirms the restore
+recovered the good original text; a spike in `empty`/`too_short` flags would mean the
+restore missed edges or pulled corrupted rows. This is the cheap automated check that the
+restore did what it claims — before trusting 25k reviewer-facing rationales.
+
+**General screen (secondary).** Run it over any batch of rationale text — new discovery-time
+output, or a residual LLM backfill of the ~6 edges that never had one — to catch obvious junk.
