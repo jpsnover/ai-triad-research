@@ -114,10 +114,60 @@ function main() {
   const seen = new Set();
   const unique = rows.filter(r => (seen.has(r.id) ? false : seen.add(r.id)));
 
+  // ── @img/sharp-* cross-platform normalization ────────────────────────────
+  // pnpm licenses list only returns packages installed on the *current*
+  // platform. @img/sharp-* are optional native-binary shims — Linux CI
+  // installs @img/sharp-linux-x64 while Windows installs @img/sharp-win32-x64
+  // — causing non-deterministic output across platforms (t/2920 blocker 2).
+  // Fix: enumerate ALL @img/sharp-* variants from pnpm-lock.yaml and replace
+  // the platform-installed set so output is identical on any OS.
+  //
+  // SPDX mapping (stable for the sharp package family):
+  //   @img/sharp-libvips-*  → LGPL-3.0-or-later  (libvips native C library)
+  //   @img/sharp-*          → Apache-2.0           (sharp platform binary shim)
+  const SHARP_RE = /^@img\/sharp-/;
+  // Pre-populate spdxTextCache from installed packages before stripping sharp.
+  // Apache-2.0 is always available via sharp@0.35.x (installed on every OS).
+  // LGPL-3.0-or-later falls back to the SPDX identifier when libvips is not
+  // installed locally — @img/sharp-libvips-* do not ship a LICENSE file, so
+  // readLicenseText returns the SPDX string in all cases anyway.
+  const spdxTextCache = new Map();
+  for (const r of unique) {
+    if (!spdxTextCache.has(r.spdx)) {
+      const t = readLicenseText(r.dir, r.spdx);
+      if (t !== r.spdx) spdxTextCache.set(r.spdx, t);
+    }
+  }
+  // Read ALL @img/sharp-* packages from the root pnpm-lock.yaml.
+  const lockPath = path.resolve('..', 'pnpm-lock.yaml');
+  const sharpAll = [];
+  if (fs.existsSync(lockPath)) {
+    const lockContent = fs.readFileSync(lockPath, 'utf-8');
+    const pkgRe = /^\s+'(@img\/sharp-[^']+)@([^']+)':/gm;
+    const seenSharp = new Set();
+    let m;
+    while ((m = pkgRe.exec(lockContent)) !== null) {
+      const id = `${m[1]}@${m[2]}`;
+      if (!seenSharp.has(id)) {
+        seenSharp.add(id);
+        const spdx = m[1].startsWith('@img/sharp-libvips-') ? 'LGPL-3.0-or-later' : 'Apache-2.0';
+        sharpAll.push({ id, dir: '', spdx });
+      }
+    }
+  }
+  // Replace platform-installed @img/sharp-* with the canonical cross-platform set.
+  const resolvedRows = sharpAll.length > 0
+    ? [...unique.filter(r => !SHARP_RE.test(r.id)), ...sharpAll]
+    : unique;
+
   // Group packages that share identical license text into one block.
   const groups = new Map(); // licenseText -> Set(id)
-  for (const r of unique) {
-    const text = readLicenseText(r.dir, r.spdx);
+  for (const r of resolvedRows) {
+    // For lockfile-sourced entries (no local install, dir=''), use spdxTextCache
+    // populated from the installed peer; fall back to the SPDX identifier.
+    const text = r.dir
+      ? readLicenseText(r.dir, r.spdx)
+      : (spdxTextCache.get(r.spdx) ?? r.spdx);
     if (!groups.has(text)) groups.set(text, new Set());
     groups.get(text).add(r.id);
   }
@@ -153,11 +203,11 @@ function main() {
       console.error(`generate-notices: ${args.output} is out of date — run "npm run licenses" and commit.`);
       process.exit(1);
     }
-    console.log(`generate-notices: ${args.output} is up to date (${unique.length} packages).`);
+    console.log(`generate-notices: ${args.output} is up to date (${resolvedRows.length} packages).`);
     return;
   }
   fs.writeFileSync(outPath, output, 'utf-8');
-  console.log(`generate-notices: wrote ${args.output} (${unique.length} packages, ${blocks.length} license blocks).`);
+  console.log(`generate-notices: wrote ${args.output} (${resolvedRows.length} packages, ${blocks.length} license blocks).`);
 }
 
 main();

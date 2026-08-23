@@ -3285,23 +3285,25 @@ Institutional memory for failure patterns across the AI Triad Research project.
 
 ---
 
-## #161 [Build] `git ls-files --others` Recurses Into Linked `.worktrees/` Directories — Unbounded Enumeration Times Out in a Busy Repo
+## #161 [Build] Unbounded Filesystem Traversal From Repo Root Times Out — `git ls-files --others`, `find .`, and Similar Commands Hit the Worktree Explosion
 
-**Pattern:** `git ls-files --others --exclude-standard` without a pathspec recurses into every linked worktree directory under `.worktrees/<name>/` — enumerating thousands of files across all active worktrees. Unlike `git status`, `ls-files --others` does not skip linked worktree paths. In a repo with many linked worktrees, this times out the 2-minute Bash cap.
+**Pattern:** Any unbounded filesystem traversal launched from the repo root recurses into every linked worktree directory under `.worktrees/<name>/` — enumerating thousands of files across all active worktrees (~60 worktrees × ~3k files each = ~180k entries). Commands affected: `git ls-files --others` (no worktree-awareness), `find . -name ...` (no git awareness), and any shell glob expansion from root. All time out at the 2-minute Bash cap on this repo.
 
 **Instances:**
 - 2026-08-11 — Rosetta Stone (p/6#52): `git ls-files --others --exclude-standard` piped into a per-file diff loop timed out at 2 min. Root cause: recursed into populated `.worktrees/` dirs. Fix: scope with pathspec (`-- docs research`) or exclude pattern (`:(exclude).worktrees`).
+- 2026-08-22 — Computational Linguist (p/7#63): `find . -name <pattern>` from the repo root timed out at 2 min — same root cause (~60 worktrees). Resolved by switching to `git ls-tree`/Glob tool instead.
 
-**Root Cause:** `git ls-files --others` doesn't have `git status`'s worktree-awareness. Linked worktrees under `.worktrees/` appear as ordinary subdirectories to an unbounded `ls-files` traversal, and each worktree contains a full checkout of the repo (~3k files).
+**Root Cause:** The repo has ~60 linked worktrees, each a full checkout (~3k files). Any traversal that doesn't exclude `.worktrees/` multiplies the file set by ~60. `git ls-files --others` lacks `git status`'s worktree-awareness; `find .` is purely filesystem-level and has no git awareness at all.
 
 **Prevention:**
-1. **Never run `git ls-files --others` unbounded** in a repo with many active linked worktrees — always scope with a pathspec: `git ls-files --others -- <scope>`.
-2. Alternatively, exclude the worktree dir: `git ls-files --others ':(exclude).worktrees'`.
-3. If the goal is checking untracked files in your scope only, `git status -- <scope>` is safer (worktree-aware).
+1. **Never run `git ls-files --others` unbounded** — always scope: `git ls-files --others -- <scope>` or exclude: `git ls-files --others ':(exclude).worktrees'`.
+2. **Never run `find .` from the repo root** — use the Glob tool (path-aware, doesn't recurse into worktrees) or `git ls-tree -r HEAD --name-only -- <scope>` for git-tracked files.
+3. `git status -- <scope>` is safer than `git ls-files --others` for untracked-file checks (worktree-aware).
+4. For locating a file by name: `git ls-tree -r HEAD --name-only | grep <pattern>` scopes to the commit tree; Glob tool handles pattern matching without filesystem recursion.
 
-**Status:** Active — 1 instance (Rosetta Stone p/6#52).
+**Status:** Active — 2 instances; applies to all filesystem-traversal commands at repo root.
 
-**Applies To:** All agents running untracked-file checks in the main repo.
+**Applies To:** All agents running file-discovery or untracked-file checks in the main repo.
 
 ---
 
@@ -3466,3 +3468,41 @@ Institutional memory for failure patterns across the AI Triad Research project.
 **Status:** Active — 1 instance (CL.Investigate1 p/40#15).
 
 **Applies To:** All agents on Windows dev environment that write temp files in Bash and read them in Python/PowerShell (or vice versa).
+## #168 [Test] Compositional Validation Trap — "A Works + B Works" Does Not Imply "A→B Works"
+
+**Pattern:** A recurring user-facing bug is "fixed" multiple times because each fix is validated at a sub-chain layer (unit test, harness, or shim→handler boundary) that enters the pipeline mid-chain. The bug lives in an **unexercised seam** — a step upstream of where the test enters. Each fix passes its local gate, the bug resurfaces, and the cycle repeats. The accumulated cost is N debugging sessions and N false-confidence merges.
+
+**Instances:**
+- 2026-08-20 — Op-ed pipeline (t/2897, p/335#44, t/2928): bug recurred 5×. Each of the 4 prior "fixes" was validated at the shim→handler boundary or below; the real defect was a `ConvertTo-Json` serialization failure on real web content that only surfaced at the full shim→handler→generate→reader path. A silent catch hid the failure for rounds 1–4. Fix on round 5: end-to-end closure gate on the real app with real web-page input + surfacing via flight-recorder (t/2897#11).
+
+**Root Cause:** Testing at a sub-chain boundary proves only that the boundary layer is correct — it does not exercise the seams above it. A serialization defect between component A (producer) and component B (consumer) is invisible if the test injects pre-serialized data directly into B. "A passes unit tests + B passes unit tests" provides no guarantee that A's actual output is valid input for B. A silent catch compounding this hides the signal entirely, so each failed fix looks like a transient and the team re-enters the same debugging cycle.
+
+**Prevention:**
+1. **For a recurring user-facing bug, the closure gate must exercise EVERY seam on the real app with real inputs.** A test that enters mid-chain does not close the bug — it only verifies the chain from that entry point down. Draw the full data-flow path; if the failing seam is above your test entry point, the test cannot catch a regression there.
+2. **Enumerate the seams explicitly before writing the fix test:** list each interface boundary on the path from real input to user-visible output. Ask: does my test inject data at or before the first seam? If not, it is a partial test, not a closure gate.
+3. **Pair the fix with loud degradation at the failing seam** — a silent catch that swallows errors lets bugs recur invisibly for N rounds. The catch should surface + flight-record before re-raising; silence is not a safe default for unexpected failures on a user-facing path.
+4. **Recurrence is the diagnostic:** a bug that resurfaces after a "fix" almost always means the fix was validated below the real failure seam. Before the next fix attempt, map the seams, identify which was unexercised, and move the test entry point upstream.
+
+**Status:** Active — 1 instance (Op-ed pipeline t/2897, p/335#44).
+
+**Applies To:** Any multi-stage pipeline where tests enter mid-chain — serialization/deserialization boundaries, IPC shims, process-spawn hand-offs, format-conversion layers.
+
+---
+
+## #169 [Process] Disk-Path File Resolution Is Racy During Active Fleet Work — Use Git Refs Instead
+
+**Pattern:** During an active landing (PR open, merge in flight), a file that `ls` or a prior `Read` shows at a disk path becomes inaccessible seconds later — it has moved between the shared checkout and a worktree or been committed/deleted by a peer. File access by absolute disk path is not atomic relative to concurrent git operations; the shared checkout's working tree can change at any moment when other agents are landing or checking out branches.
+
+**Instances:**
+- 2026-08-22 — Computational Linguist (p/7#63): `Read` on a path shown by a prior `ls` failed seconds later — a peer instance was concurrently landing that file via PR (moved into a worktree/branch). Resolved by locating the file via `git ls-tree`/`git cat-file -e` across refs, which are stable regardless of working-tree state.
+
+**Root Cause:** The shared checkout's working tree is mutable by any agent at any time through git operations (checkout, worktree add/remove, merge). A disk path reflects the current working-tree state, which can change between the `ls` that showed it and the `Read` that consumes it. Git object refs and commit trees are immutable once created — a SHA or `HEAD:path` is stable even while the working tree changes around it.
+
+**Prevention:**
+1. **During active fleet work, resolve peer-owned artifacts through git refs, not disk paths.** Use `git show HEAD:<path>`, `git ls-tree HEAD -- <scope>`, or `git cat-file -e <ref>:<path>` — these are stable regardless of working-tree churn.
+2. **If a disk-path Read fails unexpectedly, check whether a concurrent landing moved the file** — `git log --oneline -5 origin/main` shows recent merges; `git ls-tree origin/main -- <path>` shows if the file exists on origin.
+3. For peer-owned files specifically, prefer reading from `origin/main` ref rather than the working-tree disk path: `git show origin/main:<path>` (or via PowerShell tool for Windows paths).
+
+**Status:** Active — 1 instance (CL p/7#63).
+
+**Applies To:** All agents reading files in another role's scope during periods of concurrent fleet activity.

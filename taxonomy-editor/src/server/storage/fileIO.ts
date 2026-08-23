@@ -25,6 +25,7 @@ import type { OrganizationEdge } from '../../../../lib/organizations/types.js';
 import type { Entity } from '../../../../lib/entities/types.js';
 import type { EntityMentionsFile, ContainerMentions } from '../../../../lib/entities/mentionTypes.js';
 import { serializeEdgesJson } from '../../../../lib/edges/serializeEdges.js';
+import { ABSENT_BASELINE, type EdgesData } from '../../../../lib/edges/mergeEdgesPreservingRationale.js';
 
 // ── Extracted sub-modules (ADR-007, t/1688) — cohesion splits behind a stable
 // barrel: importers keep importing these symbols from './fileIO.js'. Each module
@@ -698,6 +699,27 @@ export async function readEdgesFile(): Promise<unknown | null> {
     /* telemetry — silent by design */
     return null;
   }
+}
+
+/**
+ * Read the on-disk edges.json as a WRITE baseline for the rationale re-merge (t/2957),
+ * strictly discriminating genuine absence from a read/parse failure — unlike `readEdgesFile`
+ * above, which deliberately collapses both to `null` for its degrade-to-empty DISPLAY callers
+ * (GET, updateEdgeStatus). The whole-file save re-merges rationale from this baseline; treating
+ * a transient read error as "absent" would make the save write the stripped payload and wipe
+ * on-disk rationale (the t/2945 incident), so a read or parse failure MUST propagate (refuse the
+ * save) and never resolve to ABSENT_BASELINE. This is where the t/2957 #6.1 BLOCKER truly closes.
+ *
+ * `backend.readFile` returns `null` ONLY for genuine not-found (ENOENT / blob-not-found) and
+ * THROWS on any other read error — verified in filesystemBackend.ts:53-54 (`code==='ENOENT'`
+ * → null; else `throw err`) and azureBlobBackend.ts:149-155 (`isNotFound` → null; else throw).
+ * So `raw === null` here is a TRUE absence, and `JSON.parse` throws on a corrupt file. Both
+ * failure modes propagate to the caller; only a real ENOENT yields ABSENT_BASELINE.
+ */
+export async function readEdgesForSaveBaseline(): Promise<EdgesData | typeof ABSENT_BASELINE> {
+  const raw = await backend.readFile(getEdgesPath());
+  if (raw === null) return ABSENT_BASELINE;
+  return JSON.parse(raw) as EdgesData;
 }
 
 export async function writeEdgesFile(data: unknown): Promise<void> {
