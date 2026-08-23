@@ -118,6 +118,8 @@ On some Windows agents, MSYS path conversion mangles the `<path>` half of a git 
 
 All unrecoverable errors must use `New-ActionableError` (PowerShell) or `ActionableError` (TypeScript) with four fields: **Goal**, **Problem**, **Location**, **Next Steps**. Never use bare `throw "message"`. Prefer recovery (retry, fallback, partial results) over failure. See `docs/error-handling.md`.
 
+**Rendered surface labels differ from the field names (PowerShell) — assert against the rendered labels.** The four fields above are the *parameter* names (`-Goal` / `-Problem` / `-Location` / `-NextSteps`), but `New-ActionableError` renders the emitted message with labels **`Goal:` / `Error:` / `Location:` / `Resolve:`** — i.e. `-Problem` prints as `Error:` and `-NextSteps` prints as `Resolve:`. Any test, log scraper, or reviewer assertion written against the *emitted text* must match the rendered labels (`Error:` / `Resolve:`), not the convention/parameter vocabulary — an assertion written honestly from the field names above will spuriously fail against a correctly-formed error (t/2952).
+
 ## Token Efficiency
 
 - Batch ToolSearch: always fetch all needed schemas in one call (select:t1,t2,t3)
