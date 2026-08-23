@@ -67,14 +67,24 @@ $ python diff_fp_sweep.py labelled_sample.json
   DIFF-MODE FP FLOOR: PASS (0 FP across 0.53-0.97 char-ratio band, n=26)
 ```
 
-**Why 0 FP even at 0.53× length:** degradation requires the *conjunction* of length collapse **and**
-content collapse. A faithful paraphrase keeps its content words (and referents), so even a
-half-length rewrite retains ≥0.5× content and stays quiet — one control drops to 0.47 content
-retention yet is still not flagged, because its *length* was preserved (only one half of the
-conjunction). The band **0.53–0.97 is chosen by construction** to bracket the `COLLAPSE_RATIO`=0.5
-boundary from above; it is **stipulated**, not derived from the control distribution (`COLLAPSE_RATIO`
-itself stays `derived`). Below ~0.5 a "faithful" rewrite genuinely starts shedding content, at which
-point a flag is correct, not a false positive — so the FP floor is characterised *above* the boundary.
+**What this establishes — an FP floor *above* the 0.5 boundary, not a mechanism.** Every control
+sits at char-ratio ≥ 0.53, so the `length_collapse` conjunct (ratio < 0.50) is FALSE for **0/26** —
+the length∧content conjunction short-circuits on the length half and is *never exercised* by this
+set. So these controls do **not** demonstrate the conjunction; they establish only that faithful
+paraphrases in the **0.53–0.97** band do not flag. That band is **stipulated** (chosen by
+construction to bracket `COLLAPSE_RATIO`=0.5 from above); `COLLAPSE_RATIO`=0.5 itself stays `derived`.
+
+The informative datapoint is the single control at ratio ≈ 0.62 with content retention **0.47**:
+content-collapsed, yet quiet only because its length held. That a *faithful* paraphrase can reach
+0.47 retention suggests one below ratio 0.5 at similar retention would fire — but whether such a
+flag is a true positive (genuine degradation) or a false positive (aggressive-but-faithful rewrite)
+is **uncharacterised**: zero controls sit in the < 0.5 region the threshold actually governs. The
+claim "below ~0.5 a flag is correct" is therefore **conjecture** (t/2294 — not asserted from run
+data), pending the sub-boundary controls tracked in **t/2965**.
+
+**Independence caveat (R-1):** the 26 controls derive from only **7 distinct source rationales**
+(3–4 paraphrases each), so per-bin `n` overstates statistical independence — read the distribution
+as 7 source-anchored families, not 26 independent draws. Wider source diversity is in t/2965.
 
 Real baselines (mechanical-flag rate):
 

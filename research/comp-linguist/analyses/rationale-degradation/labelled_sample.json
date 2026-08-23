@@ -491,7 +491,7 @@
   "new": "The 'Errant Tool Problem' (saf-intentions-073) — literal interpretation over intent — produces saf-beliefs-098's 'unpredictable AI behavior' and misread objectives.",
   "target_ratio": "~0.55x",
   "actual_ratio": 0.599,
-  "note": "faithful near-boundary paraphrase (target ~0.55x) — densifies the 0.50-0.60 bin, MUST NOT flag"
+  "note": "faithful near-boundary paraphrase (target ~0.55x; 3 land in 0.50-0.60, 2 higher at ~0.61/0.72) — MUST NOT flag"
  },
  {
   "label": "clean",
@@ -502,7 +502,7 @@
   "new": "'Swivel Chair Governance' — humans manually managing disparate AI tools — grounds the skeptic 'Emergence of Human AI-Management Roles'.",
   "target_ratio": "~0.55x",
   "actual_ratio": 0.525,
-  "note": "faithful near-boundary paraphrase (target ~0.55x) — densifies the 0.50-0.60 bin, MUST NOT flag"
+  "note": "faithful near-boundary paraphrase (target ~0.55x; 3 land in 0.50-0.60, 2 higher at ~0.61/0.72) — MUST NOT flag"
  },
  {
   "label": "clean",
@@ -513,7 +513,7 @@
   "new": "saf-beliefs-100's deskilling and 'negative impacts on society, skills, economic stability' underpin sit-158's 'systemic risks' and 'skill obsolescence'.",
   "target_ratio": "~0.55x",
   "actual_ratio": 0.61,
-  "note": "faithful near-boundary paraphrase (target ~0.55x) — densifies the 0.50-0.60 bin, MUST NOT flag"
+  "note": "faithful near-boundary paraphrase (target ~0.55x; 3 land in 0.50-0.60, 2 higher at ~0.61/0.72) — MUST NOT flag"
  },
  {
   "label": "clean",
@@ -524,7 +524,7 @@
   "new": "AI's evolutionary mismatch (skp-beliefs-035) grounds the skill-decay concern via an AI-failure scenario raising human reliance and skill loss.",
   "target_ratio": "~0.55x",
   "actual_ratio": 0.594,
-  "note": "faithful near-boundary paraphrase (target ~0.55x) — densifies the 0.50-0.60 bin, MUST NOT flag"
+  "note": "faithful near-boundary paraphrase (target ~0.55x; 3 land in 0.50-0.60, 2 higher at ~0.61/0.72) — MUST NOT flag"
  },
  {
   "label": "clean",
@@ -535,6 +535,6 @@
   "new": "The policy of resisting 'regulatory frameworks justified primarily by catastrophic AI risk scenarios' backs the accelerationist critique of AI regulation.",
   "target_ratio": "~0.55x",
   "actual_ratio": 0.723,
-  "note": "faithful near-boundary paraphrase (target ~0.55x) — densifies the 0.50-0.60 bin, MUST NOT flag"
+  "note": "faithful near-boundary paraphrase (target ~0.55x; 3 land in 0.50-0.60, 2 higher at ~0.61/0.72) — MUST NOT flag"
  }
 ]

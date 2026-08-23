@@ -133,7 +133,7 @@ def build_rows():
             "source_key": k, "old": old, "new": new,
             "target_ratio": "~0.55x",
             "actual_ratio": round(len(new) / max(1, len(old)), 3),
-            "note": "faithful near-boundary paraphrase (target ~0.55x) — densifies the 0.50-0.60 bin, MUST NOT flag",
+            "note": "faithful near-boundary paraphrase (target ~0.55x; 3 land in 0.50-0.60, 2 higher at ~0.61/0.72) — MUST NOT flag",
         })
     return rows
 
