@@ -3213,8 +3213,7 @@ body {
   margin: -2px -6px;
   width: 100%;
   min-width: 0;
-  text-overflow: ellipsis;
-  overflow: hidden;
+  overflow: hidden; resize: none; field-sizing: content; /* t/2937: <textarea> title wraps + auto-grows, no ellipsis (dropped text-overflow) */
   transition: border-color var(--transition-fast), background-color var(--transition-fast);
 }
 
