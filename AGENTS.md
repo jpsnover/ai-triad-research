@@ -131,6 +131,7 @@ All unrecoverable errors must use `New-ActionableError` (PowerShell) or `Actiona
 ## Incident Response
 
 - **Live incident: claim follow-ups before filing.** Before `create_ticket` for a follow-up during an active incident, claim it on the incident anchor thread (or route through the incident coordinator) — prevents concurrent duplicate filings across roles (this bit twice: t/2053+t/2054, t/2061+t/2062).
+- **The claim binds per-instance, and to writes — not just filings (t/2945).** The rule above bit again *inside a single role*: concurrent same-role background jobs, each with its own context and blind to each other's writes, produced t/2945's authorship oscillation and two duplicate filings (t/2954+t/2956, t/2959+t/2960). So during a live incident, claim per **instance / background-job** (not per role) on the anchor **before any shared-tree write** (data or code repo) *and* before any ticket filing. The anchor is a **visibility** point, not a lock: it makes concurrent actors see each other, it does not serialize them. Where actual serialization is required, use the stronger form — claim, then re-read the anchor before acting.
 - The Technical Lead coordinates incidents (runs `/tl-incident-response`); the anchor ticket is the source of truth for status and follow-up claims.
 
 ### Prevention-per-incident: every diagnosis files observability AND prevention (t/2379)
