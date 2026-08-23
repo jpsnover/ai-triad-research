@@ -35,11 +35,21 @@ import {
   loadDataConfig,
 } from '../fileIO.js';
 import { ActionableError } from '../../../../lib/debate/errors.js';
+import { mergeEdgesPreservingRationale, ABSENT_BASELINE, type EdgesData, type EdgeMergeWarn } from '../../../../lib/edges/mergeEdgesPreservingRationale.js';
 import { renameSyncWithRetry } from '../../../../lib/debate/persistence.js';
 import { recordLockHolder } from '../../../../lib/debate/lockHolder.js';
 import { stampNodeAuthorship } from '../../server/storage/editMeta.js';
 import { getGlobalRecorder } from '../../../../lib/flight-recorder/index.js';
 import { VALID_POV } from '../ipcSchemas.js';
+
+// Recorder-backed sink for the rationale re-merge's "baseline twin matched no incoming edge"
+// case: a real rationale isn't written, logged so a systematic tie-break mismatch is
+// discoverable (CL Issue 4). Payload is IDs/counts only — no rationale content is recorded.
+const onEdgeMergeWarn: EdgeMergeWarn = (e) =>
+  getGlobalRecorder()?.record({
+    type: 'system.error', component: 'ipc-save-edges', level: 'warn',
+    message: `${e.message} ${JSON.stringify(e.data)}`,
+  });
 
 /**
  * Stamp _edit_meta / _edit_history authorship onto a save's nodes (mirroring the server's
@@ -391,15 +401,28 @@ export function registerTaxonomyHandlers(): void {
       });
     }
     try {
-      writeEdgesFile(data);
+      // t/2957: the editor loads the edge list rationale-stripped, then saves the WHOLE file —
+      // persisting the stripped set would wipe on-disk rationale. Re-merge it from the on-disk
+      // baseline first. `readEdgesFile` returns null ONLY for a genuinely absent edges.json
+      // (existsSync guard) and THROWS (via parseJsonFile / readFileSync) on a corrupt or
+      // unreadable file — so `== null` is a true first-write (write as-is), never a masked
+      // read failure. A read/parse throw or an indistinguishable-twin refusal propagates below.
+      const raw = readEdgesFile();
+      const baseline = raw == null ? ABSENT_BASELINE : (raw as EdgesData);
+      const merged = mergeEdgesPreservingRationale(data as EdgesData, baseline, onEdgeMergeWarn);
+      writeEdgesFile(merged);
     } catch (err) {
       getGlobalRecorder()?.record({
         type: 'system.error',
         component: 'ipc-save-edges',
         level: 'error',
-        message: 'Failed to persist edges.json',
+        message: 'Failed to persist edges.json (rationale-preserving save)',
         error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
+      // A merge refusal (unreadable baseline / indistinguishable twins) is already an
+      // ActionableError with the precise Goal/Problem/Location/NextSteps — surface it verbatim
+      // rather than masking it behind the generic write-failure message. Only wrap a raw fs error.
+      if (err instanceof ActionableError) throw err;
       throw new ActionableError({
         goal: 'Persist the taxonomy edges to disk',
         problem: 'Could not write edges.json to the active taxonomy directory',

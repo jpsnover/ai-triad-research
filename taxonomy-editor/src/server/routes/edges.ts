@@ -15,7 +15,17 @@ import { json, error, param, query } from '../httpKit.js';
 import { getGlobalRecorder } from '../../../../lib/flight-recorder/index.js';
 import * as fileIO from '../storage/fileIO.js';
 import { stripEdgeRationale, type EdgesData } from '../community/edgesApi.js';
+import { mergeEdgesPreservingRationale, type EdgeMergeWarn } from '../../../../lib/edges/mergeEdgesPreservingRationale.js';
 import { getAllFlags } from '../featureFlags.js';
+
+// Recorder-backed sink for the merge's "baseline twin matched no incoming edge" case: a real
+// rationale isn't written, logged so a systematic tie-break mismatch is discoverable (CL Issue 4).
+// The payload is IDs/counts only — no rationale content ever enters the recorder.
+const onEdgeMergeWarn: EdgeMergeWarn = (e) =>
+  getGlobalRecorder()?.record({
+    type: 'system.error', component: 'edges-route', level: 'warn',
+    message: `${e.message} ${JSON.stringify(e.data)}`,
+  });
 
 export function registerEdgesRoutes(r: Router, _ctx: ServerCtx): void {
   const { get, put } = r;
@@ -63,9 +73,25 @@ export function registerEdgesRoutes(r: Router, _ctx: ServerCtx): void {
       error(res, 'edges file must be an object with an edges array', 400);
       return;
     }
-    await fileIO.writeEdgesFile(data);
-    edgesCache = data;
-    json(res, stripEdgeRationale(edgesCache));
+    // t/2957: the editor loads the edge list rationale-stripped, then saves the WHOLE file —
+    // persisting the stripped set would wipe on-disk rationale. Re-merge it from the on-disk
+    // baseline BEFORE the write. The baseline read discriminates genuine absence (first write →
+    // write as-is) from a read/parse failure (throws → refuse, never a stripped write); an
+    // indistinguishable-twin baseline also throws (refuse-and-log, never guesses).
+    try {
+      const baseline = await fileIO.readEdgesForSaveBaseline();
+      const merged = mergeEdgesPreservingRationale(data, baseline, onEdgeMergeWarn);
+      await fileIO.writeEdgesFile(merged);
+      edgesCache = merged;
+      json(res, stripEdgeRationale(edgesCache));
+    } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error', component: 'edges-route', level: 'error',
+        message: 'PUT /api/edges rationale-preserving save refused/failed',
+        error: { name: (err as Error).name ?? 'Error', message: String((err as Error).message), stack: (err as Error).stack },
+      });
+      error(res, (err as Error).message, 500);
+    }
   });
 
   put('/api/edges/status', async (_req, res, body) => {
