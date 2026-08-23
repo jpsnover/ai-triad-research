@@ -19,6 +19,13 @@
 # on the live 33,580-edge file 3 keys carry 2 genuinely distinct edges each. Benign for THIS
 # guard today; twin-aware identity lives in the shared re-merge util + restore (t/2946 AC).
 #
+# EDGE SHAPE (t/2955): edge field reads go through Test-EdgeHasField / Get-EdgeField so a raw
+# [hashtable]/[IDictionary] edge is CHECKED, not skipped — a hashtable's PSObject.Properties are
+# Count/Keys/Values, not its entries, so a naive `$e.PSObject.Properties['source']` silently
+# skipped hashtable edges and a rationale wipe delivered that way passed the gate. Symmetric with
+# Get-EdgesArray's document-level IDictionary branch; Write-EdgesFile serializes both shapes (AC#4).
+# t/2953: a committed-but-EMPTY `edges` baseline now emits its own distinguishable fail-open line.
+#
 # GATE PROMOTION (t/2683): Phase 1 WARN landed (#1430 / 491c7554). Phase 2 hardening
 # (fail-open + observability + caching) landed (#1433 / 21a69608). THIS is the promotion:
 # default -> BLOCK, gated on CL's ba3128f5-as-HEAD positive real-data cycle + TL GV (t/2947).
@@ -75,7 +82,16 @@ function Get-EdgesFromHead {
         }
         else {
             $parsed = ($json -join "`n") | ConvertFrom-Json
-            if ($parsed.PSObject.Properties['edges']) { $result = @($parsed.edges) }
+            if ($parsed.PSObject.Properties['edges']) {
+                $result = @($parsed.edges)
+                # t/2953: a committed-but-EMPTY `edges` array is a real read, not a lookup failure,
+                # but @() unrolls to $null on return so the caller short-circuits at the `$null -eq
+                # $BaselineEdges` check — previously with NO verbose (the only silent fail-open path
+                # on the first/uncached resolution; the cache-hit path already annotates it). Emit a
+                # DISTINGUISHABLE line naming the shape so a payload scan can classify it into exactly
+                # one class, non-overlapping with 'has no edges array' (missing key) and 'not found'.
+                if ($result.Count -eq 0) { Write-Verbose "edge-rationale baseline: HEAD '$rel' has an EMPTY edges array — no committed baseline to protect — fail-open." }
+            }
             else { Write-Verbose 'edge-rationale baseline: HEAD edges.json has no edges array — fail-open.' }
         }
         if ($headSha) { $script:EdgeHeadBaselineCache[$cacheKey] = $result }
@@ -99,6 +115,31 @@ function Get-EdgesArray {
     }
     if ($EdgesData.PSObject -and $EdgesData.PSObject.Properties['edges']) { return @{ HasKey = $true; Edges = @($EdgesData.edges) } }
     return @{ HasKey = $false; Edges = @() }
+}
+
+function Test-EdgeHasField {
+    # Is a named field present on an edge ELEMENT that may be a PSCustomObject (the common
+    # ConvertFrom-Json shape) OR a raw [IDictionary]/[hashtable]? Element-level symmetry with
+    # Get-EdgesArray's document-level IDictionary branch (t/2955): a hashtable's PSObject.Properties
+    # are Count/Keys/Values — NOT its entries — so `$e.PSObject.Properties['source']` finds nothing
+    # for a hashtable edge and the edge is wrongly bucketed as "missing key fields" and skipped.
+    param($Edge, [string]$Name)
+    if ($null -eq $Edge) { return $false }
+    if ($Edge -is [System.Collections.IDictionary]) { return $Edge.Contains($Name) }
+    return [bool]($Edge.PSObject -and $Edge.PSObject.Properties[$Name])
+}
+
+function Get-EdgeField {
+    # Read a named field's value from an edge element (PSCustomObject OR [IDictionary]); $null when
+    # absent. Paired with Test-EdgeHasField so field reads work uniformly across both shapes (t/2955).
+    param($Edge, [string]$Name)
+    if ($null -eq $Edge) { return $null }
+    if ($Edge -is [System.Collections.IDictionary]) {
+        if ($Edge.Contains($Name)) { return $Edge[$Name] }
+        return $null
+    }
+    if ($Edge.PSObject -and $Edge.PSObject.Properties[$Name]) { return $Edge.PSObject.Properties[$Name].Value }
+    return $null
 }
 
 function Test-EdgeRationaleRegression {
@@ -146,10 +187,11 @@ function Test-EdgeRationaleRegression {
 
         $hadRationale = @{}
         foreach ($e in @($BaselineEdges)) {
-            if (-not ($e.PSObject.Properties['source'] -and $e.PSObject.Properties['type'] -and $e.PSObject.Properties['target'])) { continue }
-            $r = if ($e.PSObject.Properties['rationale']) { [string]$e.rationale } else { '' }
+            if (-not ((Test-EdgeHasField $e 'source') -and (Test-EdgeHasField $e 'type') -and (Test-EdgeHasField $e 'target'))) { continue }
+            $rv = Get-EdgeField $e 'rationale'
+            $r  = if ($null -ne $rv) { [string]$rv } else { '' }
             if (-not [string]::IsNullOrWhiteSpace($r)) {
-                $hadRationale["$($e.source)|$($e.type)|$($e.target)"] = $true
+                $hadRationale["$(Get-EdgeField $e 'source')|$(Get-EdgeField $e 'type')|$(Get-EdgeField $e 'target')"] = $true
             }
         }
         if ($hadRationale.Count -eq 0) { Write-Verbose 'edge-rationale guard: HEAD baseline carries no rationaled edges — nothing to protect.'; return 0 }
@@ -165,11 +207,12 @@ function Test-EdgeRationaleRegression {
 
         $checked = 0; $skipped = 0
         foreach ($e in $writeEdges) {
-            if (-not ($e.PSObject.Properties['source'] -and $e.PSObject.Properties['type'] -and $e.PSObject.Properties['target'])) { $skipped++; continue }
+            if (-not ((Test-EdgeHasField $e 'source') -and (Test-EdgeHasField $e 'type') -and (Test-EdgeHasField $e 'target'))) { $skipped++; continue }
             $checked++
-            $key = "$($e.source)|$($e.type)|$($e.target)"
+            $key = "$(Get-EdgeField $e 'source')|$(Get-EdgeField $e 'type')|$(Get-EdgeField $e 'target')"
             if ($hadRationale.ContainsKey($key)) {
-                $r = if ($e.PSObject.Properties['rationale']) { [string]$e.rationale } else { '' }
+                $rv = Get-EdgeField $e 'rationale'
+                $r  = if ($null -ne $rv) { [string]$rv } else { '' }
                 if ([string]::IsNullOrWhiteSpace($r)) { [void]$lost.Add($key) }
             }
         }
