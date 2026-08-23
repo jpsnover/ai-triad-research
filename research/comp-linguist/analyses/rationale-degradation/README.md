@@ -33,16 +33,48 @@ median=18; only 17/33,448 (0.051%) fall below 6, and the gate removes exactly on
 
 ## Evidence
 
-Both-arms + false-positive check against a **35-row CL-labelled sample** (`labelled_sample.json`:
-30 clean incl. a same-scale paraphrase and referent-free-but-substantive controls; 6 constructed
-degraded; observed cases labelled `observed`, constructed `constructed` per t/2294):
+Both-arms + false-positive check against a **62-row CL-labelled sample** (`labelled_sample.json`:
+56 clean, 6 constructed-degraded; 28 `observed`, 34 `constructed` per t/2294). The 56 clean rows
+include 25 real standalone rationales, the 3 real enrichment revisions, a same-scale paraphrase, a
+referent-free-but-substantive control, and **26 non-vacuous diff-mode controls** (t/2963, below):
 
 ```
 $ python detect.py --validate labelled_sample.json
   degraded flagged (TP): 6   missed (FN): 0
-  clean quiet   (TN): 30   false-flagged (FP): 0
+  clean quiet   (TN): 56   false-flagged (FP): 0
   BOTH ARMS: PASS
 ```
+
+### Diff-mode false-positive floor as a distribution (t/2963)
+
+The transition signals (`length_collapse`, `referent_loss`) are the ones AC#2 (the t/2946
+restore-verifier `--diff` run) actually uses, yet the only *real* non-empty→non-empty revisions in
+git history are enrichments (new ~2× longer) — structurally incapable of tripping a collapse rule,
+so near-vacuous as clean controls. So we built **26 faithful same-edge paraphrases** across the
+compression band (7 sources × 3 tiers + 5 near-boundary), every one a legitimate rewrite that
+**must not flag**. The FP rate is reported as a *distribution over compression ratio*, not a point
+estimate (R-1 reasoning) — `diff_fp_sweep.py`:
+
+```
+$ python diff_fp_sweep.py labelled_sample.json
+  char-ratio band      n   FP  FP-rate   content-word retention (min/median/max)
+  0.50-0.60            5    0     0.0%   0.55 / 0.58 / 0.70
+  0.60-0.70            6    0     0.0%   0.47 / 0.67 / 0.70
+  0.70-0.80            7    0     0.0%   0.70 / 0.72 / 0.82
+  0.80-0.95            6    0     0.0%   0.80 / 0.93 / 0.96
+  >= 0.95              2    0     0.0%   0.88 / 0.95 / 0.95
+  overall: 26 controls, 0 false positives (0.0%)
+  DIFF-MODE FP FLOOR: PASS (0 FP across 0.53-0.97 char-ratio band, n=26)
+```
+
+**Why 0 FP even at 0.53× length:** degradation requires the *conjunction* of length collapse **and**
+content collapse. A faithful paraphrase keeps its content words (and referents), so even a
+half-length rewrite retains ≥0.5× content and stays quiet — one control drops to 0.47 content
+retention yet is still not flagged, because its *length* was preserved (only one half of the
+conjunction). The band **0.53–0.97 is chosen by construction** to bracket the `COLLAPSE_RATIO`=0.5
+boundary from above; it is **stipulated**, not derived from the control distribution (`COLLAPSE_RATIO`
+itself stays `derived`). Below ~0.5 a "faithful" rewrite genuinely starts shedding content, at which
+point a flag is correct, not a false positive — so the FP floor is characterised *above* the boundary.
 
 Real baselines (mechanical-flag rate):
 
@@ -62,16 +94,26 @@ detector catches real degradation, at a near-zero base rate (no false-positive s
 python detect.py --baseline <edges.json>            # standalone flag rate
 python detect.py --diff <old.json> <new.json>       # score rationale changes (restore/save diff)
 python detect.py --validate <labelled_sample.json>  # both-arms + FP check (exit 0 iff PASS)
+python diff_fp_sweep.py labelled_sample.json        # diff-mode FP rate binned by compression ratio
+python build_sample.py                              # regenerate labelled_sample.json (needs AI_TRIAD_DATA_ROOT or default data path)
 ```
 
 ## Files
 
-- `detect.py` — the detector (signals + baseline/diff/validate modes).
-- `labelled_sample.json` — the CL-labelled validation sample (both arms + FP controls).
-- `build_sample.py` — regenerates `labelled_sample.json` from real `ba3128f5` data + constructed cases.
+- `detect.py` — the detector (signals + baseline/diff/validate modes; `--diff` composite-key
+  near-key limitation documented inline).
+- `labelled_sample.json` — the CL-labelled validation sample (both arms + FP controls, incl. the 26
+  diff-mode controls).
+- `build_sample.py` — regenerates the full `labelled_sample.json` (paths relative; data root via
+  `AI_TRIAD_DATA_ROOT`). Imports `build_diff_controls` so one command rebuilds the whole sample.
+- `build_diff_controls.py` — authors the 26 faithful-paraphrase diff-mode controls (t/2963).
+- `diff_fp_sweep.py` — reports the diff-mode FP rate as a distribution over compression ratio.
 
 ## Follow-up
 
+- **Diff-mode FP floor (t/2963)** — **done**: 26 non-vacuous clean transition controls, 0 FP across
+  the 0.53–0.97 compression band (distribution above). This is the calibration that lets the AC#2
+  `--diff` output be read as evidence rather than uncalibrated.
 - **Restore-verifier arm (t/2948 AC#2)** — "run against the restore output (t/2946)" is **not
   satisfiable yet**: t/2946 (the 33k restore) is Backlog, blocked by t/2945 + t/2957 + t/2958. This
   harness lands the live-baseline + both-arms now; the restore-verifier run fires as `--diff HEAD

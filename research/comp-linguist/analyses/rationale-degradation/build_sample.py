@@ -1,6 +1,7 @@
-import json, re, subprocess, random
-DATA = r"C:\Users\jsnov\repos\ai-triad-data"
-OUT = r"C:\Users\jsnov\repos\ai-triad-research\.worktrees\rat-degrade\research\comp-linguist\analyses\rationale-degradation\labelled_sample.json"
+import json, re, subprocess, os
+import build_diff_controls   # t/2963 diff-mode controls — one regenerable pipeline
+DATA = os.environ.get("AI_TRIAD_DATA_ROOT", r"C:\Users\jsnov\repos\ai-triad-data")
+OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "labelled_sample.json")  # relative — regenerable anywhere
 
 def edges_at(ref):
     return json.loads(subprocess.run(["git","-C",DATA,"show",f"{ref}:taxonomy/Origin/edges.json"],
@@ -12,11 +13,12 @@ _ID=re.compile(r"\b(?:acc|saf|skp|cc|sit|pol)-[a-z]+-\d+\b",re.I)
 
 src=edges_at("ba3128f5")
 rats=[(key(e),rat(e)) for e in src if rat(e)]
-# deterministic pick: sort by key, take a spread of 25 diverse real rationales (some with referents, some without)
+# deterministic pick: sort by composite key, then take the alphabetically-FIRST 8 referent-bearing
+# + 17 referent-free rationales (a fixed slice, not a statistical spread) — 25 real, CL-labelled clean
 rats.sort(key=lambda kr: "|".join(kr[0]))
 with_ref=[kr for kr in rats if _ID.search(kr[1])]
 without_ref=[kr for kr in rats if not _ID.search(kr[1])]
-picks = with_ref[:8] + without_ref[:17]   # 25 real, CL-labelled clean
+picks = with_ref[:8] + without_ref[:17]   # 25 real, CL-labelled clean (alphabetically-first slice)
 
 sample=[]
 for k,r in picks:
@@ -52,8 +54,15 @@ sample += [
   "note":"substantive, referent-free, above the short floor — must NOT flag"},
 ]
 
+# t/2963 — NON-VACUOUS clean diff-mode controls: 26 faithful same-edge paraphrases across
+# compression ratios 0.53-0.97, so the transition signals (length_collapse/referent_loss) are
+# exercised on real clean data, not only the 3 near-vacuous enrichments above. Every one MUST
+# stay quiet; the ratio-binned FP distribution is reported by diff_fp_sweep.py.
+sample += build_diff_controls.build_rows()
+
 json.dump(sample, open(OUT,"w",encoding="utf-8"), ensure_ascii=False, indent=1)
 from collections import Counter
 print("wrote",len(sample),"rows ->",OUT)
 print("labels:",dict(Counter(r["label"] for r in sample)),
       "provenance:",dict(Counter(r["provenance"] for r in sample)))
+print("diff_ratio controls:",sum(1 for r in sample if r.get("control")=="diff_ratio"))
