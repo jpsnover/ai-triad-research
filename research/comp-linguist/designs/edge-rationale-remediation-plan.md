@@ -18,20 +18,28 @@
 >
 > Every one of the ~33k edges **carried a discovery-time rationale from May through 07-24**; two
 > destructive writes by the workflow-app data pipeline wiped them. The 08-11 scan below read the
-> post-wipe-#1 state (165) and mistook a symptom for an origin gap. The writer inventory (1a) is
-> not wrong about the inventoried writers — but it **omitted the actual destroyer** (the workflow-app
-> full-tree pipeline, which rebuilds edge objects from a source that omits `rationale`, upstream of
-> the serializer, which is not at fault). **t/2679's backfill is void** (wiped 5 days later).
+> post-wipe-#1 state (165) and mistook a symptom for an origin gap. **The destroyer is an *inventoried*
+> writer** (TL trace, e/120#5/#7; CL-confirmed): `workflow-app/src/main/pipeline.ts:289` shells out to
+> `Invoke-EdgeDiscovery -Verbose`, which on a full-tree run loads the existing edges and composite-keys
+> them but **fails to carry forward the existing `rationale`** when it re-proposes an edge — then writes
+> through `Write-EdgesFile` (L723/746). The serializer is not at fault: it faithfully persists edge
+> objects whose `rationale` was already dropped upstream in `Invoke-EdgeDiscovery`. The 1a inventory's
+> error was reading discovery's rationale handling as "generates + persists" without noticing the
+> re-propose drop. **t/2679's backfill is void** (wiped 5 days later).
 >
 > **Revised fix (supersedes Deliverable 2):**
 > 1. **Restore, don't backfill.** git-restore the original discovery-time rationales from
->    `ba3128f5:taxonomy/Origin/edges.json` by edge id — original quality, near-zero cost. Beats an
->    LLM reconstruction of 33k edges on both axes.
-> 2. **Fix the destroyer.** Audit/fix the workflow-app pipeline's edge-build step so it preserves
->    `rationale` (and every other non-rebuilt field). *Outside CL scope — routed to the pipeline owner.*
-> 3. **Regression/count-floor gate**, not the new-edge assertion in 2a. The 2a gate would NOT have
->    caught either wipe (the pipeline rewrites ALL edges and is not an inventoried writer). The gate
->    that catches this fails a write that **drops rationale from edges that previously had it**.
+>    `ba3128f5:taxonomy/Origin/edges.json` by **composite key `(source,target,type)`** (edges carry no
+>    id) — original quality, near-zero cost. 33,399/33,580 restorable (99.5%); byte-safety proven by
+>    `analyses/t2444-rationale-restore/apply_restore.py`. Beats an LLM reconstruction on both axes. (t/2946)
+> 2. **Fix the destroyer.** `Invoke-EdgeDiscovery` (PowerShell-owned, in-repo) must carry forward the
+>    existing `rationale` by composite key on a full-tree re-propose instead of dropping it. Routed to
+>    PowerShell under t/2945.
+> 3. **Two-arm regression gate**, not the §2a new-edge assertion (which would have caught neither wipe).
+>    **Arm 1 (primary):** a per-edge regression assertion in `Write-EdgesFile` — throw if a write drops
+>    `rationale` from an edge that had it. Because the pipeline writes *through* this sink, Arm 1 throws
+>    *before* the wipe. **Arm 2 (defense-in-depth):** a CI diff-gate (committed `edges.json` vs HEAD) for
+>    any future path that bypasses the serializer. TL owns Gate Verification under t/2945.
 > 4. **Sequencing:** restore is pointless before the pipeline fix — the next pipeline run wipes it
 >    again (that is literally what happened to t/2679). Restore is **blocked on** the pipeline fix.
 >
