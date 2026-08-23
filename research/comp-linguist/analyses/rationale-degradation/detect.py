@@ -99,6 +99,8 @@ def rat(e):
     return r if isinstance(r, str) and r.strip() else None
 def key(e):
     return (e.get("source"), e.get("target"), e.get("type"))
+def kstr(k):
+    return "|".join(x or "" for x in k)   # a null source/target/type would else TypeError in join
 
 
 def run_baseline(path):
@@ -110,11 +112,15 @@ def run_baseline(path):
     print(f"  rationale-bearing edges: {len(rats)}")
     print(f"  mechanical-flag (short_and_shell): {len(hits)}  rate={100*len(hits)/max(1,len(rats)):.3f}%")
     for k, r, s in hits[:10]:
-        print(f"    {'|'.join(k)}  {s}  :: {r[:80]!r}")
+        print(f"    {kstr(k)}  {s}  :: {r[:80]!r}")
     return len(rats), len(hits)
 
 
 def run_diff(old_path, new_path):
+    # KNOWN LIMITATION: edges are identified by the composite (source,target,type), which is a
+    # NEAR-key — a handful of edge pairs (3/33k in ba3128f5) share one composite. This dict collapses
+    # them (last wins), so at most those few edges may be mis-paired in diff mode. Acceptable for an
+    # advisory flag; a byte-exact restore verifier should pair on line identity, not composite.
     old_by = {key(e): rat(e) for e in load_edges(old_path) if rat(e)}
     new_edges = load_edges(new_path)
     changed = 0; flagged = []
@@ -129,7 +135,7 @@ def run_diff(old_path, new_path):
     print(f"  non-empty->non-empty rationale changes: {changed}")
     print(f"  DEGRADATION-flagged: {len(flagged)}")
     for k, o, n, s in flagged[:10]:
-        print(f"    {'|'.join(k)}  {s}\n       old: {o[:80]!r}\n       new: {n[:80]!r}")
+        print(f"    {kstr(k)}  {s}\n       old: {o[:80]!r}\n       new: {n[:80]!r}")
     return changed, len(flagged)
 
 
