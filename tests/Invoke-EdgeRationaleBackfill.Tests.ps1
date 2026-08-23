@@ -89,6 +89,36 @@ Describe 'Invoke-EdgeRationaleBackfill (t/2679)' -Tag 'taxonomy' {
         }
     }
 
+    It 'stamps rationale_source=backfill on a backfilled edge (t/2944 write-together invariant)' {
+        InModuleScope AITriad {
+            $dir = Join-Path ([System.IO.Path]::GetTempPath()) "erb-$([guid]::NewGuid().ToString('N').Substring(0,8))"
+            New-Item -ItemType Directory -Path $dir -Force | Out-Null
+            @{ nodes = @(
+                @{ id = 'acc-b-1'; label = 'A'; description = 'Desc A' }
+                @{ id = 'acc-b-2'; label = 'B'; description = 'Desc B' }
+            ) } | ConvertTo-Json -Depth 5 | Set-Content -Path (Join-Path $dir 'accelerationist.json')
+            @{
+                _schema_version = '1.0.0'; _doc = 't'; last_modified = '2026-01-01'
+                edge_types = @(@{ type = 'SUPPORTS'; bidirectional = $false; definition = 'Source strengthens target.' })
+                edges = @(@{ source = 'acc-b-1'; target = 'acc-b-2'; type = 'SUPPORTS'; confidence = 0.8; status = 'approved' })
+            } | ConvertTo-Json -Depth 6 | Set-Content -Path (Join-Path $dir 'edges.json')
+
+            Mock Get-TaxonomyDir { $dir }
+            Mock Resolve-AIApiKey { 'fake-key' }
+            Mock Invoke-AIApi { [PSCustomObject]@{ Text = '{"rationale":"Generated reason"}' } }
+            $script:Captured = $null
+            Mock Write-EdgesFile { $script:Captured = $EdgesData }
+
+            try {
+                $r = Invoke-EdgeRationaleBackfill -Scope UIVisible -CheckpointEvery 0 6>$null
+                $r.Backfilled | Should -Be 1
+                # The rationale and its provenance move together in the same write.
+                $script:Captured.edges[0].rationale        | Should -Be 'Generated reason'
+                $script:Captured.edges[0].rationale_source | Should -Be 'backfill'
+            } finally { Remove-Item -Path $dir -Recurse -Force -ErrorAction SilentlyContinue }
+        }
+    }
+
     It 'is idempotent + scope-aware: -Scope All includes proposed, excludes already-populated' {
         InModuleScope AITriad {
             $dir = Join-Path ([System.IO.Path]::GetTempPath()) "erb-$([guid]::NewGuid().ToString('N').Substring(0,8))"

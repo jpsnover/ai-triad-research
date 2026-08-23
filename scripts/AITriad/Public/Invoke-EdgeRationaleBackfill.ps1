@@ -267,6 +267,14 @@ function Invoke-EdgeRationaleBackfill {
         } else {
             Add-Member -InputObject $Edge -NotePropertyName 'rationale' -NotePropertyValue $Rationale -Force
         }
+        # t/2944 write-together invariant: this edge just received a non-empty rationale (the empty case
+        # returned above via the silent-blank contract), so stamp its provenance in the SAME write —
+        # backfill = post-hoc LLM reconstruction (edge-rationale-source-marker.md).
+        if ($Edge.PSObject.Properties['rationale_source']) {
+            $Edge.rationale_source = 'backfill'
+        } else {
+            Add-Member -InputObject $Edge -NotePropertyName 'rationale_source' -NotePropertyValue 'backfill' -Force
+        }
         $Backfilled++
 
         if ($CheckpointEvery -gt 0 -and ($Backfilled % $CheckpointEvery) -eq 0) {

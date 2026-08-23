@@ -200,3 +200,53 @@ Describe 'Rationale silent-blank observability (t/2674)' -Tag 'taxonomy' {
         }
     }
 }
+
+Describe 'rationale_source provenance stamping (t/2944)' -Tag 'taxonomy' {
+
+    It 'stamps rationale_source=discovery on a discovered edge that carries a rationale, and leaves it ABSENT when the rationale is absent' {
+        InModuleScope AITriad {
+            $TempDir = Join-Path ([System.IO.Path]::GetTempPath()) "edge-src-$([guid]::NewGuid().ToString('N').Substring(0,8))"
+            New-Item -ItemType Directory -Path $TempDir -Force | Out-Null
+            $TaxJson = @{
+                nodes = @(
+                    @{ id = 'acc-beliefs-001'; label = 'A'; description = 'A'; category = 'Beliefs' }
+                    @{ id = 'saf-beliefs-001'; label = 'B'; description = 'B'; category = 'Beliefs' }
+                )
+            } | ConvertTo-Json -Depth 5
+            Set-Content -Path (Join-Path $TempDir 'accelerationist.json') -Value $TaxJson
+            Set-Content -Path (Join-Path $TempDir 'safetyist.json') -Value '{"nodes":[]}'
+            Set-Content -Path (Join-Path $TempDir 'skeptic.json') -Value '{"nodes":[]}'
+            Set-Content -Path (Join-Path $TempDir 'situations.json') -Value '{"nodes":[]}'
+
+            Mock Get-TaxonomyDir { $TempDir }
+            Mock Resolve-AIApiKey { 'fake-key' }
+            $script:CapturedEdgesJson = $null
+            Mock Write-Utf8NoBom { if ($Path -like '*edges.json') { $script:CapturedEdgesJson = $Value } }
+
+            Mock Invoke-NodeEdgeDiscovery {
+                [PSCustomObject]@{
+                    NodeId = $Node.id
+                    RawEdges = @(
+                        [PSCustomObject]@{ target = 'saf-beliefs-001'; type = 'SUPPORTS'; confidence = 0.8; rationale = 'because it supports' }  # carries rationale
+                        [PSCustomObject]@{ target = 'saf-beliefs-001'; type = 'WEAKENS';  confidence = 0.8 }                                      # NO rationale
+                    )
+                    NewEdgeTypes = @(); Error = $null; ElapsedSec = 0.5
+                }
+            }
+
+            $null = Invoke-EdgeDiscovery -NodeId 'acc-beliefs-001' -Force -MaxConcurrent 1 -RepoRoot $TempDir -WarningAction SilentlyContinue 3>$null 6>$null
+            $written = $script:CapturedEdgesJson | ConvertFrom-Json
+
+            $withRat = @($written.edges | Where-Object { $_.type -eq 'SUPPORTS' })[0]
+            $noRat   = @($written.edges | Where-Object { $_.type -eq 'WEAKENS'  })[0]
+
+            # write-together invariant: a non-empty rationale gets 'discovery'...
+            $withRat.rationale        | Should -Be 'because it supports'
+            $withRat.rationale_source | Should -Be 'discovery'
+            # ...and a rationale-less edge is NOT given a source (absent, not coerced to null — absent != null)
+            $noRat.PSObject.Properties['rationale_source'] | Should -BeNullOrEmpty
+
+            Remove-Item -Path $TempDir -Recurse -Force -ErrorAction SilentlyContinue
+        }
+    }
+}
