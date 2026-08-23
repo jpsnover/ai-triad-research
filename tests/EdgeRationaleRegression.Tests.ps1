@@ -526,6 +526,29 @@ Describe 'Test-EdgeRationaleRegression — twin-aware edge identity (t/2956)' -T
         }
     }
 
+    It 'AC#7 (CL PR review): a twin whose discriminator is MUTATED while its rationale is dropped is SURFACED, not silent' {
+        # Baseline: a distinguishable twin key; twin A carries a rationale under model gemini-2.5-flash.
+        $baseline = @(
+            (New-TwinEdge 'acc-beliefs-051' 'SUPPORTS' 'acc-desires-001' '2026-04-06' 'gemini-2.5-flash' 'twin A carried this'),
+            (New-TwinEdge 'acc-beliefs-051' 'SUPPORTS' 'acc-desires-001' '2026-06-11' 'llm_proposed')   # innocent twin, distinct discriminator
+        )
+        # Payload rewrites twin A's MODEL (gemini-2.5-flash -> mutated) AND drops its rationale. Its new
+        # identity matches no baseline twin, so it can't be attributed — but it must not be silent.
+        $write = New-EdgesData @(
+            (New-TwinEdge 'acc-beliefs-051' 'SUPPORTS' 'acc-desires-001' '2026-04-06' 'MUTATED-MODEL'),
+            (New-TwinEdge 'acc-beliefs-051' 'SUPPORTS' 'acc-desires-001' '2026-06-11' 'llm_proposed')   # innocent twin, unchanged: NOT surfaced
+        )
+        InModuleScope AITriad -Parameters @{ W = $write; B = $baseline } {
+            param($W, $B)
+            $v = (Test-EdgeRationaleRegression -EdgesData $W -BaselineEdges $B -Mode Warn -Verbose -WarningAction SilentlyContinue 4>&1) | Out-String
+            # Non-blocking (can't attribute), but NOT silent — surfaced in the scan line, exactly once.
+            Test-EdgeRationaleRegression -EdgesData $W -BaselineEdges $B -Mode Warn -WarningAction SilentlyContinue | Should -Be 0
+            { Test-EdgeRationaleRegression -EdgesData $W -BaselineEdges $B -Mode Block } | Should -Not -Throw
+            $v | Should -Match 'Surfaced 1 empty edge\(s\) on a rationaled twin key'
+            $v | Should -Match 'discriminator may have been mutated'
+        }
+    }
+
     # --- Non-empty predicate conformance with the TS hasRationale (CL t/2956#4; twin-independent) ---
     It 'CONFORMANCE: rationale of "" or whitespace counts as ABSENT (a drop), matching the TS hasRationale' {
         $baseline = @( (New-Edge 'acc-001' 'SUPPORTS' 'saf-002' 'because X reinforces Y') )

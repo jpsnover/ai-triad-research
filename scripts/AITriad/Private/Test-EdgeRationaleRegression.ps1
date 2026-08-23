@@ -29,6 +29,10 @@
 #   ActionableError; the guard must FAIL-OPEN (distinguishable Write-Verbose, no throw) — the Arm-1
 #   fail-open contract (CL e/120#30 F1 / TL #32) outranks mirroring the TS disposition. Same identity
 #   model, different disposition on ambiguity. (CL ruling t/2956#4.)
+#   AC#7 (CL PR review t/2956#8): a write that MUTATES a twin's discriminator (discovered_at/model)
+#   while dropping its rationale yields an identity that matches no baseline twin — unattributable, so
+#   not blocked, but COUNTED and surfaced in the payload-scanned line (the tie-break-0 case) so it is
+#   never silent. Innocent twins (own discriminator, never rationaled) stay unflagged via TwinIdentities.
 #
 # EDGE SHAPE (t/2955): edge field reads go through Test-EdgeHasField / Get-EdgeField so a raw
 # [hashtable]/[IDictionary] edge is CHECKED, not skipped — a hashtable's PSObject.Properties are
@@ -203,9 +207,11 @@ function New-EdgeBaselineModel {
         [void]$byNearKey[$nk].Add($entry)
     }
 
-    $hadRationale  = @{}
-    $twinKeys      = [System.Collections.Generic.HashSet[string]]::new()
-    $ambiguousKeys = [System.Collections.Generic.HashSet[string]]::new()
+    $hadRationale       = @{}
+    $twinKeys           = [System.Collections.Generic.HashSet[string]]::new()
+    $ambiguousKeys      = [System.Collections.Generic.HashSet[string]]::new()
+    $twinIdentities     = [System.Collections.Generic.HashSet[string]]::new()   # every baseline twin's full identity (t/2956 AC#7)
+    $rationaledTwinKeys = [System.Collections.Generic.HashSet[string]]::new()   # twin near-keys with >=1 rationaled twin
     foreach ($nk in $byNearKey.Keys) {
         $group = $byNearKey[$nk]
         if ($group.Count -eq 1) {
@@ -225,10 +231,18 @@ function New-EdgeBaselineModel {
         }
         [void]$twinKeys.Add($nk)
         foreach ($g in $group) {
-            if ($g.HasRat) { $hadRationale["$nk|$($g.Da)|$($g.Model)"] = $true }
+            $id = "$nk|$($g.Da)|$($g.Model)"
+            [void]$twinIdentities.Add($id)                                    # every baseline twin identity (rationaled or not)
+            if ($g.HasRat) { $hadRationale[$id] = $true; [void]$rationaledTwinKeys.Add($nk) }
         }
     }
-    return @{ HadRationale = $hadRationale; TwinKeys = $twinKeys; AmbiguousKeys = $ambiguousKeys }
+    return @{
+        HadRationale       = $hadRationale
+        TwinKeys           = $twinKeys
+        AmbiguousKeys      = $ambiguousKeys
+        TwinIdentities     = $twinIdentities
+        RationaledTwinKeys = $rationaledTwinKeys
+    }
 }
 
 function Test-EdgeRationaleRegression {
@@ -290,9 +304,11 @@ function Test-EdgeRationaleRegression {
             $model = New-EdgeBaselineModel -BaselineEdges $BaselineEdges   # twin-aware (t/2956)
             if ($mapKey) { $script:EdgeHadRationaleCache[$mapKey] = $model }
         }
-        $hadRationale  = $model.HadRationale
-        $twinKeys      = $model.TwinKeys
-        $ambiguousKeys = $model.AmbiguousKeys
+        $hadRationale       = $model.HadRationale
+        $twinKeys           = $model.TwinKeys
+        $ambiguousKeys      = $model.AmbiguousKeys
+        $twinIdentities     = $model.TwinIdentities
+        $rationaledTwinKeys = $model.RationaledTwinKeys
         if ($hadRationale.Count -eq 0) { Write-Verbose 'edge-rationale guard: HEAD baseline carries no rationaled edges — nothing to protect.'; return 0 }
         # Finding 3 (CL e/120#43/#52): POSITIVE baseline-resolved signal — a healthy run must not
         # rely on the ABSENCE of a fail-open line to prove the baseline resolved.
@@ -304,7 +320,7 @@ function Test-EdgeRationaleRegression {
         if (-not $extract.HasKey) { Write-Verbose 'edge-rationale guard: write payload has no edges KEY (missing) — fail-open (nothing to check).'; return 0 }
         $writeEdges = @($extract.Edges)
 
-        $checked = 0; $skipped = 0; $skippedNull = 0; $skippedFault = 0; $skippedAmbiguous = 0
+        $checked = 0; $skipped = 0; $skippedNull = 0; $skippedFault = 0; $skippedAmbiguous = 0; $unmatchedTwin = 0
         foreach ($e in $writeEdges) {
             # t/2951: per-element resilience. Before, a $null element (or any element whose field
             # read threw) tripped the whole-body try/catch below into a SILENT whole-file fail-open
@@ -329,10 +345,20 @@ function Test-EdgeRationaleRegression {
                 $identity = if ($twinKeys.Contains($nearKey)) {
                     "$nearKey|$([string](Get-EdgeField $e 'discovered_at'))|$([string](Get-EdgeField $e 'model'))"
                 } else { $nearKey }
+                $rv = Get-EdgeField $e 'rationale'
+                $isEmpty = [string]::IsNullOrWhiteSpace([string]$rv)   # non-empty predicate — matches TS hasRationale (CL t/2956#4)
                 if ($hadRationale.ContainsKey($identity)) {
-                    $rv = Get-EdgeField $e 'rationale'
-                    $r  = if ($null -ne $rv) { [string]$rv } else { '' }
-                    if ([string]::IsNullOrWhiteSpace($r)) { [void]$lost.Add($identity) }
+                    if ($isEmpty) { [void]$lost.Add($identity) }
+                }
+                elseif ($isEmpty -and $twinKeys.Contains($nearKey) -and $rationaledTwinKeys.Contains($nearKey) -and (-not $twinIdentities.Contains($identity))) {
+                    # t/2956 AC#7 (CL PR review, tie-break-0 case): this edge is on a twin key that HAS a
+                    # rationaled twin, is empty, but its discovered_at+model matches NO baseline twin — the
+                    # discriminator may have been mutated on a write that also dropped the rationale, so a
+                    # baseline rationale could be going unwritten UNATTRIBUTABLY. We cannot safely attribute
+                    # it to a specific twin (it may be a legitimately new edge), so do NOT block — but COUNT
+                    # and surface it so the case is never SILENT (byte-identical to a clean pass). The
+                    # onWarn-analog of the TS util's tie-break-0 log.
+                    $unmatchedTwin++
                 }
             } catch {
                 $skippedFault++
@@ -349,6 +375,9 @@ function Test-EdgeRationaleRegression {
         }
         if ($skippedAmbiguous -gt 0) {
             $scanMsg += " Skipped $skippedAmbiguous edge(s) on indistinguishable twin key(s) — refuse-and-log, fail-open (t/2956)."
+        }
+        if ($unmatchedTwin -gt 0) {
+            $scanMsg += " Surfaced $unmatchedTwin empty edge(s) on a rationaled twin key whose discovered_at+model matches NO baseline twin — discriminator may have been mutated; potential unattributable drop, surfaced not blocked (t/2956 AC#7)."
         }
         Write-Verbose $scanMsg
     } catch {
