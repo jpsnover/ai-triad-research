@@ -36,6 +36,16 @@ function Write-EdgesFile {
         [string]$Path
     )
 
+    # t/2945 Arm 1 (warn-first) — edge-rationale-regression guard. Every PS edge write funnels
+    # through this sink, so guarding here covers all in-repo PS writers + the pipeline re-emit
+    # (Invoke-EdgeDiscovery append-preserves an upstream-stripped set and re-writes it here).
+    # Best-effort: skip cleanly if the guard isn't loaded (Build-Module standalone dot-sources
+    # this file without the guard chain, like the t/2902 sink). Fail-open on any baseline miss.
+    # Phase 1 = WARN (does not throw); $env:AI_TRIAD_EDGE_RATIONALE_GATE=Block promotes it.
+    if (Get-Command Test-EdgeRationaleRegression -ErrorAction SilentlyContinue) {
+        $null = Test-EdgeRationaleRegression -EdgesData $EdgesData -Path $Path
+    }
+
     $sb = [System.Text.StringBuilder]::new()
     [void]$sb.Append("{`n")
 
