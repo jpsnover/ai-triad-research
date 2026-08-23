@@ -141,15 +141,27 @@ def run_diff(old_path, new_path):
 
 def run_validate(sample_path):
     """Both-arms + false-positive check against a labelled sample (label: 'clean' | 'degraded')."""
-    sample = json.load(open(sample_path, encoding="utf-8"))
+    with open(sample_path, encoding="utf-8") as f:   # context-managed: no leaked descriptor
+        sample = json.load(f)
     tp = fp = tn = fn = 0
     misses = []
+    iso_ok, iso_bad = 0, []
     for row in sample:
         label = row["label"]
         if "old" in row and "new" in row:
-            flagged = bool(flag_transition(row["old"], row["new"]))
+            sig = flag_transition(row["old"], row["new"])
+            flagged = bool(sig)
         else:
-            flagged = bool(flag_standalone(row.get("text") or row.get("new") or ""))
+            sig = flag_standalone(row.get("text") or row.get("new") or "")
+            flagged = bool(sig)
+        # t/2964 — signal ISOLATION assertion. A row tagged `isolates: X` claims X fires and
+        # nothing else does. Checked mechanically so the claim can't rot: if a threshold moves and
+        # a second signal starts co-firing, this fails instead of silently degrading back to the
+        # t/2948 state where length_collapse/referent_loss were only ever observed co-fired.
+        want = row.get("isolates")
+        if want:
+            if sig == [want]: iso_ok += 1
+            else: iso_bad.append((want, sig, row.get("note", "")))
         if label == "degraded" and flagged: tp += 1
         elif label == "degraded" and not flagged: fn += 1; misses.append(("FN", row))
         elif label == "clean" and flagged: fp += 1; misses.append(("FP", row))
@@ -160,8 +172,13 @@ def run_validate(sample_path):
     for kind, row in misses:
         who = row.get("provenance", "?")
         print(f"    {kind}: [{who}] {row.get('note','')}")
-    ok = (fp == 0 and fn == 0)
-    print(f"  BOTH ARMS: {'PASS' if ok else 'FAIL'} (every degraded flagged, zero false positives)")
+    if iso_ok or iso_bad:
+        print(f"  signal isolation (t/2964): {iso_ok} ok, {len(iso_bad)} broken")
+        for want, got, note in iso_bad:
+            print(f"    ISOLATION BROKEN: expected exactly ['{want}'], got {got} :: {note}")
+    ok = (fp == 0 and fn == 0 and not iso_bad)
+    print(f"  BOTH ARMS: {'PASS' if ok else 'FAIL'} (every degraded flagged, zero false positives, "
+          f"isolation claims hold)")
     return ok
 
 

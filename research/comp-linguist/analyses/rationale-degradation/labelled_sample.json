@@ -252,6 +252,43 @@
   "note": "substantive, referent-free, above the short floor — must NOT flag"
  },
  {
+  "label": "degraded",
+  "provenance": "constructed",
+  "isolates": "length_collapse",
+  "old": "The source node's commitment to unbounded compute scaling as the primary driver of capability gains directly underwrites its desire for transformative economic abundance, because sustained exponential investment in training infrastructure is treated as both necessary and sufficient for the broad deployment of general-purpose automation across every productive sector.",
+  "new": "Sustained investment in training infrastructure is treated as the route to broad automation.",
+  "note": "ABOVE-FLOOR truncation: fires length_collapse ALONE (ratio 0.25, content 33->8 words, new 92ch > 60ch floor, old referent-free so referent_loss cannot co-fire) — t/2964 AC1"
+ },
+ {
+  "label": "degraded",
+  "provenance": "constructed",
+  "isolates": "referent_loss",
+  "old": "The belief encoded in acc-beliefs-051 that rapid capability gains are strictly compute-bound provides the mechanistic justification for acc-desires-001, namely the pursuit of transformative abundance through aggressive scaling of frontier training runs.",
+  "new": "This node is connected to the other node in the way that is described, and it is on that basis that the one is said to be related to the other as stated above.",
+  "note": "ABOVE-FLOOR referent strip: fires referent_loss ALONE (ratio 0.63 so length_collapse is false, new 159ch > 60ch floor so shell is false, content 22->7 words, both node-ids dropped) — t/2964 AC1"
+ },
+ {
+  "label": "clean",
+  "provenance": "constructed",
+  "control": "boundary_adjacent",
+  "new": "Scaling compute underwrites the desire for transformative abundance.",
+  "note": "boundary-adjacent clean control (68ch, just above the 60ch floor) — must NOT flag"
+ },
+ {
+  "label": "clean",
+  "provenance": "constructed",
+  "control": "boundary_adjacent",
+  "new": "Falsifiable metrics ground the intention to build empirical evaluations.",
+  "note": "boundary-adjacent clean control (72ch) — must NOT flag"
+ },
+ {
+  "label": "clean",
+  "provenance": "constructed",
+  "control": "boundary_adjacent",
+  "new": "The belief in compute-bound capability gains motivates aggressive scaling.",
+  "note": "boundary-adjacent clean control (74ch) — must NOT flag"
+ },
+ {
   "label": "clean",
   "provenance": "constructed",
   "control": "diff_ratio",
