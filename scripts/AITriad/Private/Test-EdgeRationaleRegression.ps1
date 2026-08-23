@@ -25,6 +25,10 @@
 # skipped hashtable edges and a rationale wipe delivered that way passed the gate. Symmetric with
 # Get-EdgesArray's document-level IDictionary branch; Write-EdgesFile serializes both shapes (AC#4).
 # t/2953: a committed-but-EMPTY `edges` baseline now emits its own distinguishable fail-open line.
+# t/2951: (a) the derived hadRationale map is memoized under the same path@HEAD-sha key as the
+# baseline array (the residual warm cost was rebuilding it every call); (b) the payload scan is
+# per-element resilient — a $null or field-read-faulting element is skipped and COUNTED, no longer
+# tripping the whole-body catch into a silent whole-file fail-open (raised in cost by the Block flip).
 #
 # GATE PROMOTION (t/2683): Phase 1 WARN landed (#1430 / 491c7554). Phase 2 hardening
 # (fail-open + observability + caching) landed (#1433 / 21a69608). THIS is the promotion:
@@ -46,12 +50,25 @@
 # invalidates; $null (dead-lookup) results cached too.
 $script:EdgeHeadBaselineCache = @{}
 
+# t/2951: memoize the DERIVED hadRationale map (composite-key -> $true) under the SAME
+# path@HEAD-sha key as the baseline array. After the array cache landed (warm 9.2s->2.2s,
+# CL e/120#54), the residual ~2.2s per Write-EdgesFile call is rebuilding this map — a full
+# 33k-edge walk — from the already-cached array on every call. The map is a PURE function of
+# the cached baseline, so it shares the baseline's invalidation exactly (new commit -> new sha
+# -> new key -> both caches miss together); no new invalidation surface. Get-EdgesFromHead
+# publishes the key it resolved into $script:LastEdgeBaselineKey so the caller can memoize
+# under it WITHOUT a second git round-trip. Only used when the baseline came from HEAD;
+# injected-baseline callers/tests never touch either cache.
+$script:EdgeHadRationaleCache = @{}
+$script:LastEdgeBaselineKey = $null
+
 function Get-EdgesFromHead {
     # Return the `edges` array from the committed (HEAD) version of $Path, or $null on any
     # failure (fail-open, with a distinguishable Write-Verbose per cause). git via PowerShell
     # (not the Bash tool) to avoid the MSYS colon-revspec path-mangling caveat.
     [OutputType([object[]])]
     param([string]$Path)
+    $script:LastEdgeBaselineKey = $null   # t/2951: reset per call; set only once a real key is resolved
     if ([string]::IsNullOrWhiteSpace($Path)) { Write-Verbose 'edge-rationale baseline: no path supplied — fail-open.'; return $null }
     try {
         $full = [System.IO.Path]::GetFullPath($Path)
@@ -66,6 +83,9 @@ function Get-EdgesFromHead {
         $headSha = & git -C $top rev-parse HEAD 2>$null
         $headSha = if ($LASTEXITCODE -eq 0) { ([string]$headSha).Trim() } else { '' }
         $cacheKey = "$top|$rel@$headSha"
+        # t/2951: publish the resolved key (only when we have a HEAD sha to key on, matching the
+        # array cache's own $headSha gate) so the caller can memoize the derived map under it.
+        if ($headSha) { $script:LastEdgeBaselineKey = $cacheKey }
         if ($headSha -and $script:EdgeHeadBaselineCache.ContainsKey($cacheKey)) {
             # S-1 (CL e/120#43, TL #45): branch the cache-hit message on $null so a DEAD-lookup
             # (no committed baseline) is not reported identically to a RESOLVED one on calls 2..N.
@@ -180,19 +200,34 @@ function Test-EdgeRationaleRegression {
     #    block, so a genuine regression still blocks while an un-analyzable input never does.
     $lost = [System.Collections.Generic.List[string]]::new()
     try {
+        $baselineFromHead = $false
         if ($null -eq $BaselineEdges) {
             $BaselineEdges = Get-EdgesFromHead -Path $Path
             if ($null -eq $BaselineEdges) { return 0 }   # Get-EdgesFromHead already Write-Verbose'd the cause
+            $baselineFromHead = $true
         }
 
-        $hadRationale = @{}
-        foreach ($e in @($BaselineEdges)) {
-            if (-not ((Test-EdgeHasField $e 'source') -and (Test-EdgeHasField $e 'type') -and (Test-EdgeHasField $e 'target'))) { continue }
-            $rv = Get-EdgeField $e 'rationale'
-            $r  = if ($null -ne $rv) { [string]$rv } else { '' }
-            if (-not [string]::IsNullOrWhiteSpace($r)) {
-                $hadRationale["$(Get-EdgeField $e 'source')|$(Get-EdgeField $e 'type')|$(Get-EdgeField $e 'target')"] = $true
+        # t/2951: memoize the derived hadRationale map under the same path@HEAD-sha key as the
+        # baseline array — but ONLY when the baseline came from HEAD (an injected baseline has no
+        # stable cache identity; those callers/tests rebuild every call, unchanged). The key was
+        # published by Get-EdgesFromHead into $script:LastEdgeBaselineKey, so no extra git call.
+        $mapKey = if ($baselineFromHead) { $script:LastEdgeBaselineKey } else { $null }
+        if ($mapKey -and $script:EdgeHadRationaleCache.ContainsKey($mapKey)) {
+            $hadRationale = $script:EdgeHadRationaleCache[$mapKey]
+            Write-Verbose "edge-rationale guard: hadRationale map cache hit — $($hadRationale.Count) rationaled key(s) reused (memoized, t/2951)."
+        }
+        else {
+            $hadRationale = @{}
+            foreach ($e in @($BaselineEdges)) {
+                if ($null -eq $e) { continue }
+                if (-not ((Test-EdgeHasField $e 'source') -and (Test-EdgeHasField $e 'type') -and (Test-EdgeHasField $e 'target'))) { continue }
+                $rv = Get-EdgeField $e 'rationale'
+                $r  = if ($null -ne $rv) { [string]$rv } else { '' }
+                if (-not [string]::IsNullOrWhiteSpace($r)) {
+                    $hadRationale["$(Get-EdgeField $e 'source')|$(Get-EdgeField $e 'type')|$(Get-EdgeField $e 'target')"] = $true
+                }
             }
+            if ($mapKey) { $script:EdgeHadRationaleCache[$mapKey] = $hadRationale }
         }
         if ($hadRationale.Count -eq 0) { Write-Verbose 'edge-rationale guard: HEAD baseline carries no rationaled edges — nothing to protect.'; return 0 }
         # Finding 3 (CL e/120#43/#52): POSITIVE baseline-resolved signal — a healthy run must not
@@ -205,21 +240,38 @@ function Test-EdgeRationaleRegression {
         if (-not $extract.HasKey) { Write-Verbose 'edge-rationale guard: write payload has no edges KEY (missing) — fail-open (nothing to check).'; return 0 }
         $writeEdges = @($extract.Edges)
 
-        $checked = 0; $skipped = 0
+        $checked = 0; $skipped = 0; $skippedNull = 0; $skippedFault = 0
         foreach ($e in $writeEdges) {
-            if (-not ((Test-EdgeHasField $e 'source') -and (Test-EdgeHasField $e 'type') -and (Test-EdgeHasField $e 'target'))) { $skipped++; continue }
-            $checked++
-            $key = "$(Get-EdgeField $e 'source')|$(Get-EdgeField $e 'type')|$(Get-EdgeField $e 'target')"
-            if ($hadRationale.ContainsKey($key)) {
-                $rv = Get-EdgeField $e 'rationale'
-                $r  = if ($null -ne $rv) { [string]$rv } else { '' }
-                if ([string]::IsNullOrWhiteSpace($r)) { [void]$lost.Add($key) }
+            # t/2951: per-element resilience. Before, a $null element (or any element whose field
+            # read threw) tripped the whole-body try/catch below into a SILENT whole-file fail-open
+            # — the guard yielded NO regression signal for all 33k edges rather than skipping the one
+            # bad element. After the Block flip the fail-open is the only thing standing between a
+            # real rationale drop and a throw, so a single malformed element must not disable
+            # detection for the whole file. Skip the offending element individually and COUNT it, so
+            # the positive "payload scanned" line below stays honest instead of reading a clean 0.
+            try {
+                if ($null -eq $e) { $skippedNull++; continue }
+                if (-not ((Test-EdgeHasField $e 'source') -and (Test-EdgeHasField $e 'type') -and (Test-EdgeHasField $e 'target'))) { $skipped++; continue }
+                $checked++
+                $key = "$(Get-EdgeField $e 'source')|$(Get-EdgeField $e 'type')|$(Get-EdgeField $e 'target')"
+                if ($hadRationale.ContainsKey($key)) {
+                    $rv = Get-EdgeField $e 'rationale'
+                    $r  = if ($null -ne $rv) { [string]$rv } else { '' }
+                    if ([string]::IsNullOrWhiteSpace($r)) { [void]$lost.Add($key) }
+                }
+            } catch {
+                $skippedFault++
             }
         }
         # POSITIVE payload-scanned signal (CL e/120#44 Note 1 + #46 two-positive AC): reports the
         # edges actually examined + those skipped for missing key fields, so "0 regressions" is
-        # never indistinguishable from "nothing was scanned".
-        Write-Verbose "edge-rationale guard: payload scanned — checked $checked edge(s), skipped $skipped (missing key fields)."
+        # never indistinguishable from "nothing was scanned". t/2951: null/faulted elements are
+        # counted separately and only surfaced when non-zero — zero new noise on the all-valid path.
+        $scanMsg = "edge-rationale guard: payload scanned — checked $checked edge(s), skipped $skipped (missing key fields)."
+        if (($skippedNull + $skippedFault) -gt 0) {
+            $scanMsg += " Skipped individually, scan continued (t/2951): $skippedNull null element(s), $skippedFault faulted element(s)."
+        }
+        Write-Verbose $scanMsg
     } catch {
         Write-Verbose "edge-rationale guard: unexpected error analyzing the write, fail-open (no throw): $($_.Exception.Message)"
         return 0

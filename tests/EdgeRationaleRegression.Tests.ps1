@@ -344,3 +344,96 @@ Describe 'Test-EdgeRationaleRegression — HEAD baseline resolution + caching (g
         }
     }
 }
+
+Describe 'Test-EdgeRationaleRegression — hadRationale map memoization (t/2951)' -Tag 'edges' {
+
+    It 'memoizes the derived map under path@HEAD-sha: call 2 reports a map cache hit and still fires' {
+        $repo = Join-Path $TestDrive 'maprepo'
+        $tax  = Join-Path $repo 'taxonomy/Origin'
+        New-Item -ItemType Directory -Path $tax -Force | Out-Null
+        $edgesPath = Join-Path $tax 'edges.json'
+        $committed = New-EdgesData @( (New-Edge 'acc-001' 'SUPPORTS' 'saf-002' 'committed rationale') )
+        $strip     = New-EdgesData @( (New-Edge 'acc-001' 'SUPPORTS' 'saf-002') )
+        InModuleScope AITriad -Parameters @{ Committed = $committed; Strip = $strip; EdgesPath = $edgesPath; Repo = $repo } {
+            param($Committed, $Strip, $EdgesPath, $Repo)
+            Write-EdgesFile -EdgesData $Committed -Path $EdgesPath
+            Push-Location $Repo
+            try { git init -q 2>$null; git config user.email 't@t' 2>$null; git config user.name 't' 2>$null; git add -A 2>$null; git commit -q -m b 2>$null } finally { Pop-Location }
+            $script:EdgeHeadBaselineCache = @{}
+            $script:EdgeHadRationaleCache = @{}
+            # Call 1: builds the map (cold) — reports the resolved baseline, NOT a map cache hit.
+            $v1 = (Test-EdgeRationaleRegression -EdgesData $Strip -Path $EdgesPath -Mode Warn -Verbose -WarningAction SilentlyContinue 4>&1) | Out-String
+            $v1 | Should -Match 'HEAD baseline resolved — 1 rationaled key'
+            $v1 | Should -Not -Match 'map cache hit'
+            @($script:EdgeHadRationaleCache.Keys).Count | Should -BeGreaterThan 0
+            # Call 2: same path@HEAD -> the memoized map is reused, and the verdict is unchanged.
+            $n2 = Test-EdgeRationaleRegression -EdgesData $Strip -Path $EdgesPath -Mode Warn -Verbose -WarningVariable w -WarningAction SilentlyContinue -InformationAction SilentlyContinue
+            $v2 = (Test-EdgeRationaleRegression -EdgesData $Strip -Path $EdgesPath -Mode Warn -Verbose -WarningAction SilentlyContinue 4>&1) | Out-String
+            $n2 | Should -Be 1                                  # still fires — memoization changes cost, not verdict
+            $v2 | Should -Match 'hadRationale map cache hit — 1 rationaled key'
+        }
+    }
+
+    It 'does NOT memoize an INJECTED baseline: the map cache stays empty and never reports a hit' {
+        $baseline = @( (New-Edge 'acc-001' 'SUPPORTS' 'saf-002' 'because X reinforces Y') )
+        $strip    = New-EdgesData @( (New-Edge 'acc-001' 'SUPPORTS' 'saf-002') )
+        InModuleScope AITriad -Parameters @{ B = $baseline; W = $strip } {
+            param($B, $W)
+            $script:EdgeHadRationaleCache = @{}
+            $v = (Test-EdgeRationaleRegression -EdgesData $W -BaselineEdges $B -Mode Warn -Verbose -WarningAction SilentlyContinue 4>&1) | Out-String
+            (Test-EdgeRationaleRegression -EdgesData $W -BaselineEdges $B -Mode Warn -WarningAction SilentlyContinue) | Should -Be 1
+            $v | Should -Not -Match 'map cache hit'
+            @($script:EdgeHadRationaleCache.Keys).Count | Should -Be 0   # injected baselines have no cache identity
+        }
+    }
+}
+
+Describe 'Test-EdgeRationaleRegression — per-element null/fault resilience in the payload scan (t/2951)' -Tag 'edges' {
+
+    BeforeEach {
+        $script:Baseline = @(
+            (New-Edge 'acc-001' 'SUPPORTS'    'saf-002' 'because X reinforces Y'),
+            (New-Edge 'acc-003' 'CONTRADICTS' 'skp-004' 'because Z conflicts with W')
+        )
+    }
+
+    It 'a $null element does NOT whole-file fail-open: the surviving edges are still evaluated and a real regression is still detected' {
+        # A $null between two real edges — one of which strips a HEAD-rationaled edge. Before t/2951
+        # the $null tripped the whole-body catch and the guard returned 0 (silent fail-open) for the
+        # entire file, missing the wipe. Now the $null is skipped individually and the wipe still fires.
+        $write = New-EdgesData @(
+            (New-Edge 'acc-001' 'SUPPORTS'    'saf-002'),                                 # strips rationale (regression)
+            $null,                                                                          # malformed element
+            (New-Edge 'acc-003' 'CONTRADICTS' 'skp-004' 'because Z conflicts with W')      # preserved
+        )
+        InModuleScope AITriad -Parameters @{ W = $write; B = $script:Baseline } {
+            param($W, $B)
+            Test-EdgeRationaleRegression -EdgesData $W -BaselineEdges $B -Mode Warn -WarningAction SilentlyContinue | Should -Be 1
+            { Test-EdgeRationaleRegression -EdgesData $W -BaselineEdges $B -Mode Block } | Should -Throw
+        }
+    }
+
+    It 'surfaces the null-skip count in the payload-scanned line, distinct from the missing-key-fields skip' {
+        $write = New-EdgesData @(
+            (New-Edge 'acc-001' 'SUPPORTS' 'saf-002' 'because X reinforces Y'),           # checked
+            $null                                                                          # null-skipped
+        )
+        InModuleScope AITriad -Parameters @{ W = $write; B = $script:Baseline } {
+            param($W, $B)
+            $v = (Test-EdgeRationaleRegression -EdgesData $W -BaselineEdges $B -Mode Warn -Verbose -WarningAction SilentlyContinue 4>&1) | Out-String
+            $v | Should -Match 'payload scanned — checked 1 edge\(s\), skipped 0 \(missing key fields\)'
+            $v | Should -Match '1 null element'
+        }
+    }
+
+    It 'ZERO new noise on the all-valid path: no null/faulted clause when there are none' {
+        $write = New-EdgesData @( (New-Edge 'acc-001' 'SUPPORTS' 'saf-002' 'because X reinforces Y') )
+        InModuleScope AITriad -Parameters @{ W = $write; B = $script:Baseline } {
+            param($W, $B)
+            $v = (Test-EdgeRationaleRegression -EdgesData $W -BaselineEdges $B -Mode Warn -Verbose -WarningAction SilentlyContinue 4>&1) | Out-String
+            $v | Should -Match 'payload scanned — checked 1 edge'
+            $v | Should -Not -Match 'null element'
+            $v | Should -Not -Match 'faulted element'
+        }
+    }
+}
