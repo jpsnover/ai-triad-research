@@ -21,6 +21,10 @@ const h = vi.hoisted(() => ({
   handlers: new Map<string, (...a: unknown[]) => unknown>(),
   writeEdgesArg: undefined as unknown,
   writeThrows: null as Error | null,
+  // The on-disk baseline the rationale re-merge reads (t/2957). null = genuine absence (ABSENT_BASELINE
+  // → write as-is); readThrows models a corrupt/unreadable edges.json (parseJsonFile/readFileSync throw).
+  readEdgesReturn: null as unknown,
+  readThrows: null as Error | null,
 }));
 
 vi.mock('electron', () => ({
@@ -33,7 +37,8 @@ vi.mock('../fileIO.js', () => {
   return {
     readTaxonomyFile: stub, writeTaxonomyFile: stub, readAllConflictFiles: stub,
     readConflictClusters: stub, writeConflictFile: stub, createConflictFile: stub,
-    deleteConflictFile: stub, readEdgesFile: stub,
+    deleteConflictFile: stub,
+    readEdgesFile: (): unknown => { if (h.readThrows) throw h.readThrows; return h.readEdgesReturn; },
     writeEdgesFile: (data: unknown): void => { if (h.writeThrows) throw h.writeThrows; h.writeEdgesArg = data; },
     getTaxonomyDirs: stub, getActiveTaxonomyDirName: stub, setActiveTaxonomyDir: stub,
     buildNodeSourceIndex: stub, buildPolicySourceIndex: stub, readPolicyRegistry: stub,
@@ -59,6 +64,8 @@ beforeEach(() => {
   h.handlers.clear();
   h.writeEdgesArg = undefined;
   h.writeThrows = null;
+  h.readEdgesReturn = null; // default: genuine absence → write payload as-is
+  h.readThrows = null;
   registerTaxonomyHandlers();
 });
 
@@ -88,5 +95,38 @@ describe('save-edges IPC handler (t/1822)', () => {
   it('surfaces a write failure as an ActionableError (not a raw fs error)', () => {
     h.writeThrows = new Error('EACCES: permission denied');
     expect(() => saveEdges({ edges: [] })).toThrow(ActionableError);
+  });
+});
+
+describe('save-edges IPC — rationale re-merge on save (t/2957)', () => {
+  const key = { source: 'a', type: 'SUPPORTS', target: 'b' };
+
+  it('REPRO: a stripped whole-file save restores rationale from the on-disk baseline before writing', () => {
+    h.readEdgesReturn = { edges: [{ ...key, confidence: 0.9, rationale: 'ON-DISK rationale', model: 'm', discovered_at: 't1' }] };
+    saveEdges({ edges: [{ ...key, confidence: 0.9, model: 'm', discovered_at: 't1' }] }); // stripped payload
+    const written = h.writeEdgesArg as { edges: Record<string, unknown>[] };
+    expect(written.edges[0].rationale).toBe('ON-DISK rationale'); // NOT wiped
+  });
+
+  it('BLOCKER arm 1 — genuine absence (readEdgesFile null): first write persists the payload as-is', () => {
+    h.readEdgesReturn = null; // no edges.json yet → ABSENT_BASELINE
+    const body = { edges: [{ ...key, rationale: 'fresh', model: 'm', discovered_at: 't1' }] };
+    saveEdges(body);
+    expect(h.writeEdgesArg).toEqual(body);
+  });
+
+  it('BLOCKER arm 2 — a read/parse FAILURE refuses the save (ActionableError) and writes NOTHING', () => {
+    h.readThrows = new Error('EACCES: permission denied'); // transient read error, NOT absence
+    expect(() => saveEdges({ edges: [{ ...key, model: 'm', discovered_at: 't1' }] })).toThrow(ActionableError);
+    expect(h.writeEdgesArg).toBeUndefined(); // no stripped write
+  });
+
+  it('refuses indistinguishable twins (same key AND discovered_at AND model) — ActionableError, no write', () => {
+    h.readEdgesReturn = { edges: [
+      { ...key, rationale: 'twin-A', model: 'm', discovered_at: 't' },
+      { ...key, rationale: 'twin-B', model: 'm', discovered_at: 't' },
+    ] };
+    expect(() => saveEdges({ edges: [{ ...key, model: 'm', discovered_at: 't' }] })).toThrow(/Ambiguous rationale attribution/);
+    expect(h.writeEdgesArg).toBeUndefined();
   });
 });
