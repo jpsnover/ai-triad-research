@@ -49,7 +49,19 @@ function Write-EdgesFile {
     $sb = [System.Text.StringBuilder]::new()
     [void]$sb.Append("{`n")
 
-    $props = @($EdgesData.PSObject.Properties)
+    # Top-level shape normalization (t/2955 AC#4): iterate a uniform [{Name;Value}] list whether
+    # the document is the usual PSCustomObject (ConvertFrom-Json) OR a raw [IDictionary]/[hashtable].
+    # Without this branch a hashtable document's `.PSObject.Properties` yields Count/Keys/Values
+    # (NOT its entries), so the whole document would mis-serialize — the "half-support" the
+    # edge-rationale guard's document-level IDictionary branch would otherwise protect but this
+    # sink could not honor. Use [ordered]@{} upstream for deterministic key order (a bare hashtable
+    # has no defined order). Per-edge shape is already handled below via ConvertTo-Json.
+    $props =
+        if ($EdgesData -is [System.Collections.IDictionary]) {
+            @($EdgesData.Keys | ForEach-Object { [PSCustomObject]@{ Name = $_; Value = $EdgesData[$_] } })
+        } else {
+            @($EdgesData.PSObject.Properties)
+        }
     for ($i = 0; $i -lt $props.Count; $i++) {
         $prop     = $props[$i]
         $keyJson  = $prop.Name | ConvertTo-Json -Compress

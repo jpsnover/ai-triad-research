@@ -29,6 +29,15 @@ BeforeAll {
         param([object[]]$Edges)
         [PSCustomObject]@{ _schema_version = '1.0.0'; edges = @($Edges) }
     }
+    # t/2955: a RAW [hashtable] edge (NOT cast to PSCustomObject). A hashtable's PSObject.Properties
+    # are Count/Keys/Values, so a naive `$e.PSObject.Properties['source']` finds nothing and the edge
+    # was silently skipped by the guard. -Rationale omitted => the field is absent (a genuine wipe).
+    function New-HashEdge {
+        param([string]$Source, [string]$Type, [string]$Target, [string]$Rationale)
+        $h = @{ source = $Source; type = $Type; target = $Target; confidence = 0.95; status = 'approved' }
+        if ($PSBoundParameters.ContainsKey('Rationale')) { $h['rationale'] = $Rationale }
+        $h
+    }
 }
 
 Describe 'Test-EdgeRationaleRegression — Arm 1 both-arms (t/2945)' -Tag 'edges' {
@@ -175,6 +184,79 @@ Describe 'Test-EdgeRationaleRegression — Block flip + positive observability (
     }
 }
 
+Describe 'Test-EdgeRationaleRegression — edge SHAPE coverage: hashtable edges are checked, not skipped (t/2955)' -Tag 'edges' {
+
+    BeforeEach {
+        $script:Baseline = @(
+            (New-Edge 'acc-001' 'SUPPORTS'    'saf-002' 'because X reinforces Y'),
+            (New-Edge 'acc-003' 'CONTRADICTS' 'skp-004' 'because Z conflicts with W')
+        )
+    }
+
+    It 'FIRE: a rationale wipe delivered as a hashtable edge in a PSCustomObject doc THROWS in Block (was silently skipped)' {
+        $write = New-EdgesData @( (New-HashEdge 'acc-001' 'SUPPORTS' 'saf-002') )   # hashtable edge, rationale absent
+        InModuleScope AITriad -Parameters @{ W = $write; B = $script:Baseline } {
+            param($W, $B)
+            { Test-EdgeRationaleRegression -EdgesData $W -BaselineEdges $B -Mode Block } | Should -Throw
+            Test-EdgeRationaleRegression -EdgesData $W -BaselineEdges $B -Mode Warn -WarningAction SilentlyContinue | Should -Be 1
+        }
+    }
+
+    It 'FIRE: a rationale wipe delivered as a hashtable edge in a HASHTABLE doc THROWS in Block' {
+        $write = @{ _schema_version = '1.0.0'; edges = @( (New-HashEdge 'acc-001' 'SUPPORTS' 'saf-002') ) }  # doc AND edge are hashtables
+        InModuleScope AITriad -Parameters @{ W = $write; B = $script:Baseline } {
+            param($W, $B)
+            { Test-EdgeRationaleRegression -EdgesData $W -BaselineEdges $B -Mode Block } | Should -Throw
+            Test-EdgeRationaleRegression -EdgesData $W -BaselineEdges $B -Mode Warn -WarningAction SilentlyContinue | Should -Be 1
+        }
+    }
+
+    It 'CONTROL: the same wipe as a PSCustomObject edge also throws (parity across shapes)' {
+        $write = New-EdgesData @( (New-Edge 'acc-001' 'SUPPORTS' 'saf-002') )
+        InModuleScope AITriad -Parameters @{ W = $write; B = $script:Baseline } {
+            param($W, $B)
+            { Test-EdgeRationaleRegression -EdgesData $W -BaselineEdges $B -Mode Block } | Should -Throw
+        }
+    }
+
+    It 'CLEAN: a rationale-PRESERVING hashtable edge passes SILENTLY with zero noise (both-arms clean case)' {
+        $write = New-EdgesData @( (New-HashEdge 'acc-001' 'SUPPORTS' 'saf-002' 'because X reinforces Y') )
+        InModuleScope AITriad -Parameters @{ W = $write; B = $script:Baseline } {
+            param($W, $B)
+            $n = Test-EdgeRationaleRegression -EdgesData $W -BaselineEdges $B -Mode Warn -WarningVariable w -WarningAction SilentlyContinue
+            $n | Should -Be 0
+            @($w).Count | Should -Be 0
+        }
+    }
+
+    It 'SKIPPED counter is accurate: a well-formed hashtable edge is CHECKED (checked 1, skipped 0), not skipped for its container type' {
+        $write = New-EdgesData @( (New-HashEdge 'acc-001' 'SUPPORTS' 'saf-002' 'because X reinforces Y') )
+        InModuleScope AITriad -Parameters @{ W = $write; B = $script:Baseline } {
+            param($W, $B)
+            $v = (Test-EdgeRationaleRegression -EdgesData $W -BaselineEdges $B -Mode Warn -Verbose 4>&1) | Out-String
+            $v | Should -Match 'payload scanned — checked 1 edge\(s\), skipped 0'
+        }
+    }
+
+    It 'SKIPPED counter still counts a genuinely malformed edge (missing key fields), regardless of container type' {
+        $write = New-EdgesData @( (New-HashEdge 'acc-001' 'SUPPORTS' 'saf-002' 'keep me'), @{ confidence = 0.5 } )  # 2nd edge lacks source/type/target
+        InModuleScope AITriad -Parameters @{ W = $write; B = $script:Baseline } {
+            param($W, $B)
+            $v = (Test-EdgeRationaleRegression -EdgesData $W -BaselineEdges $B -Mode Warn -Verbose 4>&1) | Out-String
+            $v | Should -Match 'payload scanned — checked 1 edge\(s\), skipped 1'
+        }
+    }
+
+    It 'BASELINE shape: a hashtable baseline edge is honored too (its rationale protects the key)' {
+        $hashBaseline = @( (New-HashEdge 'acc-001' 'SUPPORTS' 'saf-002' 'committed rationale') )
+        $write        = New-EdgesData @( (New-Edge 'acc-001' 'SUPPORTS' 'saf-002') )   # drops it
+        InModuleScope AITriad -Parameters @{ W = $write; B = $hashBaseline } {
+            param($W, $B)
+            Test-EdgeRationaleRegression -EdgesData $W -BaselineEdges $B -Mode Warn -WarningAction SilentlyContinue | Should -Be 1
+        }
+    }
+}
+
 Describe 'Test-EdgeRationaleRegression — HEAD baseline resolution + caching (git-backed, real repo)' -Tag 'edges' {
 
     It 'resolves the baseline from HEAD and fires on a same-file rationale strip; clean on add-only' {
@@ -215,6 +297,30 @@ Describe 'Test-EdgeRationaleRegression — HEAD baseline resolution + caching (g
             @($script:EdgeHeadBaselineCache.Keys).Count | Should -BeGreaterThan 0
             $v = (Test-EdgeRationaleRegression -EdgesData $Strip -Path $EdgesPath -Mode Warn -Verbose -WarningAction SilentlyContinue 4>&1) | Out-String
             $v | Should -Match 'cache hit — 1 committed baseline edge'   # resolved baseline, not dead-lookup
+        }
+    }
+
+    It 't/2953: a committed-but-EMPTY edges array baseline fails open with its OWN distinguishable verbose on the FIRST (uncached) resolution' {
+        $repo = Join-Path $TestDrive 'emptybaselinerepo'
+        $tax  = Join-Path $repo 'taxonomy/Origin'
+        New-Item -ItemType Directory -Path $tax -Force | Out-Null
+        $edgesPath = Join-Path $tax 'edges.json'
+        $committed = New-EdgesData @()                                        # committed { "edges": [] }
+        $write     = New-EdgesData @( (New-Edge 'acc-001' 'SUPPORTS' 'saf-002' 'new edge') )
+        InModuleScope AITriad -Parameters @{ Committed = $committed; Write = $write; EdgesPath = $edgesPath; Repo = $repo } {
+            param($Committed, $Write, $EdgesPath, $Repo)
+            Write-EdgesFile -EdgesData $Committed -Path $EdgesPath
+            Push-Location $Repo
+            try { git init -q 2>$null; git config user.email 't@t' 2>$null; git config user.name 't' 2>$null; git add -A 2>$null; git commit -q -m empty 2>$null } finally { Pop-Location }
+            $script:EdgeHeadBaselineCache = @{}
+            # FIRST (uncached) resolution: returns 0 (fail-open) AND emits ≥1 verbose naming the empty shape.
+            $v = (Test-EdgeRationaleRegression -EdgesData $Write -Path $EdgesPath -Mode Warn -Verbose 4>&1) | Out-String
+            (Test-EdgeRationaleRegression -EdgesData $Write -Path $EdgesPath -Mode Block) | Should -Be 0   # fails OPEN, no throw
+            $v | Should -Match 'EMPTY edges array'
+            # Distinct from the other fail-open strings (not conflatable by a payload-scan classifier).
+            $v | Should -Not -Match 'has no edges array'
+            $v | Should -Not -Match 'not found in the repo'
+            $v | Should -Not -Match 'payload scanned'
         }
     }
 
