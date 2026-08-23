@@ -33,15 +33,17 @@ median=18; only 17/33,448 (0.051%) fall below 6, and the gate removes exactly on
 
 ## Evidence
 
-Both-arms + false-positive check against a **62-row CL-labelled sample** (`labelled_sample.json`:
-56 clean, 6 constructed-degraded; 28 `observed`, 34 `constructed` per t/2294). The 56 clean rows
+Both-arms + false-positive check against a **73-row CL-labelled sample** (`labelled_sample.json`:
+62 clean, 11 constructed-degraded; 28 `observed`, 45 `constructed` per t/2294). The clean rows
 include 25 real standalone rationales, the 3 real enrichment revisions, a same-scale paraphrase, a
-referent-free-but-substantive control, and **26 non-vacuous diff-mode controls** (t/2963, below):
+referent-free-but-substantive control, **26 non-vacuous diff-mode controls** (t/2963, below), and
+**6 faithful sub-boundary controls** (t/2965, below); the degraded rows include **5 sub-boundary
+degradations** (t/2965):
 
 ```
 $ python detect.py --validate labelled_sample.json
-  degraded flagged (TP): 6   missed (FN): 0
-  clean quiet   (TN): 56   false-flagged (FP): 0
+  degraded flagged (TP): 11   missed (FN): 0
+  clean quiet   (TN): 62   false-flagged (FP): 0
   BOTH ARMS: PASS
 ```
 
@@ -57,34 +59,57 @@ estimate (R-1 reasoning) — `diff_fp_sweep.py`:
 
 ```
 $ python diff_fp_sweep.py labelled_sample.json
-  char-ratio band      n   FP  FP-rate   content-word retention (min/median/max)
-  0.50-0.60            5    0     0.0%   0.55 / 0.58 / 0.70
-  0.60-0.70            6    0     0.0%   0.47 / 0.67 / 0.70
-  0.70-0.80            7    0     0.0%   0.70 / 0.72 / 0.82
-  0.80-0.95            6    0     0.0%   0.80 / 0.93 / 0.96
-  >= 0.95              2    0     0.0%   0.88 / 0.95 / 0.95
-  overall: 26 controls, 0 false positives (0.0%)
-  DIFF-MODE FP FLOOR: PASS (0 FP across 0.53-0.97 char-ratio band, n=26)
+  char-ratio band    n  src   FP  FP-rate   content-word retention (min/median/max)
+  < 0.50             6    6    0     0.0%   0.50 / 0.57 / 0.63
+  0.50-0.60          5    4    0     0.0%   0.55 / 0.58 / 0.70
+  0.60-0.70          6    6    0     0.0%   0.47 / 0.67 / 0.70
+  0.70-0.80          7    6    0     0.0%   0.70 / 0.72 / 0.82
+  0.80-0.95          6    5    0     0.0%   0.80 / 0.93 / 0.96
+  >= 0.95            2    2    0     0.0%   0.88 / 0.95 / 0.95
+  overall: 32 controls, 0 false positives (0.0%)
+  per-source clustering (R-1): 32 draws from 13 distinct sources (2.5 draws/source; …)
+  DIFF-MODE FP FLOOR: PASS (0 FP across 0.44-0.97 char-ratio band, n=32 from 13 sources)
 ```
 
-**What this establishes — an FP floor *above* the 0.5 boundary, not a mechanism.** Every control
-sits at char-ratio ≥ 0.53, so the `length_collapse` conjunct (ratio < 0.50) is FALSE for **0/26** —
-the length∧content conjunction short-circuits on the length half and is *never exercised* by this
-set. So these controls do **not** demonstrate the conjunction; they establish only that faithful
-paraphrases in the **0.53–0.97** band do not flag. That band is **stipulated** (chosen by
-construction to bracket `COLLAPSE_RATIO`=0.5 from above); `COLLAPSE_RATIO`=0.5 itself stays `derived`.
+**What this establishes.** The t/2963 rows all sat at char-ratio ≥ 0.53, so the `length_collapse`
+conjunct (ratio < 0.50) was FALSE for all of them — the length∧content conjunction short-circuited
+on the length half and was *never exercised*, so that set established only that faithful paraphrases
+in the **0.53–0.97** band do not flag (an FP floor *above* the boundary, not the mechanism below it).
+The t/2965 `< 0.50` bin closes that gap: **6 faithful sub-boundary controls at char-ratio 0.44–0.49
+(length conjunct TRUE) with content-word retention ≥ 0.50 (content conjunct FALSE) all stay quiet
+(0 FP)** — the conjunction is now *exercised* and demonstrated, not asserted. The 0.40–0.49 target
+band is **stipulated** (chosen by construction); `COLLAPSE_RATIO`=0.5 stays `derived`.
 
-The informative datapoint is the single control at ratio ≈ 0.62 with content retention **0.47**:
-content-collapsed, yet quiet only because its length held. That a *faithful* paraphrase can reach
-0.47 retention suggests one below ratio 0.5 at similar retention would fire — but whether such a
-flag is a true positive (genuine degradation) or a false positive (aggressive-but-faithful rewrite)
-is **uncharacterised**: zero controls sit in the < 0.5 region the threshold actually governs. The
-claim "below ~0.5 a flag is correct" is therefore **conjecture** (t/2294 — not asserted from run
-data), pending the sub-boundary controls tracked in **t/2965**.
+### Characterising the faithful/lossy boundary below 0.5 from both sides (t/2965)
 
-**Independence caveat (R-1):** the 26 controls derive from only **7 distinct source rationales**
-(3–4 paraphrases each), so per-bin `n` overstates statistical independence — read the distribution
-as 7 source-anchored families, not 26 independent draws. Wider source diversity is in t/2965.
+The load-bearing finding is that **below ~0.5 the discriminator is the faithful/lossy (content)
+judgement, not the length ratio** — so it is characterised from both sides at the same length band,
+not asserted. `detect.py --validate` scores both:
+
+- **Faithful (clean, must stay quiet):** 6 telegraphic compressions of glue-heavy sources at
+  char-ratio 0.44–0.49, each keeping ≥ 50% of the source's content words and its node-id/quoted
+  referents. Length conjunct TRUE, content conjunct FALSE ⇒ **0 flags**. Empirically these were the
+  *only* way to hold retention ≥ 0.5 while pushing char-ratio below 0.5 — a complete, faithful
+  rationale resists sub-boundary compression, which is itself the finding.
+- **Lossy (degraded, must flag):** 5 genuine degradations that shed the mechanism clause and the
+  referents (content retention < 0.5). Two sit **in-band** (~0.46–0.48) to pin the same-length
+  comparison against the faithful set — at an identical length ratio, only the content-collapsed one
+  flags; three are lower-ratio (~0.25–0.31) mechanism-drop truncations. All 5 flag via
+  `length_collapse` / `referent_loss`.
+
+So a flag below ratio 0.5 is a **true positive when content has collapsed and a (correctly avoided)
+false positive when it has not** — the earlier "below ~0.5 a flag is correct" conjecture is now
+demonstrated to hold *conditional on content collapse*, exactly the conjunction the detector encodes.
+All 6 sub-boundary sources are **disjoint from the t/2963 seven** (enforced in
+`build_subboundary_rows`), widening the corpus to 13 distinct sources across four camps and four
+edge types.
+
+**Independence caveat (R-1):** the 32 clean controls derive from only **13 distinct source
+rationales** (2.5 draws/source), so per-bin `n` overstates statistical independence — read the
+distribution as ~13 source-anchored families, not 32 independent draws (the sweep prints the
+per-source clustering explicitly). The `< 0.50` bin in particular is 6 draws from 6 distinct
+sources (1 each) — no within-source clustering there, but n=6 is small; treat the sub-boundary FP
+floor as indicative, not a tight bound.
 
 Real baselines (mechanical-flag rate):
 
@@ -113,17 +138,23 @@ python build_sample.py                              # regenerate labelled_sample
 - `detect.py` — the detector (signals + baseline/diff/validate modes; `--diff` composite-key
   near-key limitation documented inline).
 - `labelled_sample.json` — the CL-labelled validation sample (both arms + FP controls, incl. the 26
-  diff-mode controls).
+  t/2963 diff-mode controls and the 11 t/2965 sub-boundary controls).
 - `build_sample.py` — regenerates the full `labelled_sample.json` (paths relative; data root via
   `AI_TRIAD_DATA_ROOT`). Imports `build_diff_controls` so one command rebuilds the whole sample.
-- `build_diff_controls.py` — authors the 26 faithful-paraphrase diff-mode controls (t/2963).
-- `diff_fp_sweep.py` — reports the diff-mode FP rate as a distribution over compression ratio.
+- `build_diff_controls.py` — authors the 26 faithful-paraphrase diff-mode controls (t/2963,
+  `build_rows`) and the 11 sub-boundary controls (t/2965, `build_subboundary_rows`).
+- `diff_fp_sweep.py` — reports the diff-mode FP rate as a distribution over compression ratio,
+  including the `< 0.50` bin and per-source clustering (t/2965).
 
 ## Follow-up
 
 - **Diff-mode FP floor (t/2963)** — **done**: 26 non-vacuous clean transition controls, 0 FP across
   the 0.53–0.97 compression band (distribution above). This is the calibration that lets the AC#2
   `--diff` output be read as evidence rather than uncalibrated.
+- **Sub-boundary characterisation (t/2965)** — **done**: a `< 0.50` bin (6 faithful controls, 0 FP)
+  plus 5 lossy sub-boundary degradations characterise the faithful/lossy boundary below 0.5 from both
+  sides. The length∧content conjunction is now *exercised* and demonstrated, not asserted; source
+  diversity widened from 7 to 13 sources with per-source clustering reported.
 - **Restore-verifier arm (t/2948 AC#2)** — "run against the restore output (t/2946)" is **not
   satisfiable yet**: t/2946 (the 33k restore) is Backlog, blocked by t/2945 + t/2957 + t/2958. This
   harness lands the live-baseline + both-arms now; the restore-verifier run fires as `--diff HEAD
