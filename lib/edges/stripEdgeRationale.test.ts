@@ -27,4 +27,34 @@ describe('stripEdgeRationale (shared lib/edges home, t/2949)', () => {
     expect(out.last_modified).toBe('x');
     expect(input.edges[0].rationale).toBe('R'); // input not mutated
   });
+
+  // Defensive-input coverage ported verbatim from the deleted server edgesApi.test.ts (t/2949 —
+  // the strip is now single-homed here). Non-object / bad-shape input is returned unchanged (by
+  // reference where applicable) so a null cache or unexpected shape never throws.
+  it('returns undefined / string input unchanged', () => {
+    expect(stripEdgeRationale(undefined)).toBeUndefined();
+    expect(stripEdgeRationale('nope')).toBe('nope');
+  });
+
+  it('returns input by reference when edges is missing or not an array', () => {
+    const noEdges = { version: 1 };
+    expect(stripEdgeRationale(noEdges)).toBe(noEdges);
+    const badEdges = { edges: 'not-an-array' };
+    expect(stripEdgeRationale(badEdges)).toBe(badEdges);
+  });
+
+  it('handles an empty edges array', () => {
+    const out = stripEdgeRationale({ edges: [] }) as { edges: unknown[] };
+    expect(out.edges).toEqual([]);
+  });
+
+  it('strips rationale from every edge across a multi-edge file', () => {
+    const input = { version: 1, edges: [
+      { source: 'a', target: 'b', status: 'pending', rationale: 'long text 1' },
+      { source: 'c', target: 'd', status: 'approved', rationale: 'long text 2' },
+    ] };
+    const out = stripEdgeRationale(input) as { edges: Record<string, unknown>[] };
+    expect(out.edges[0]).toEqual({ source: 'a', target: 'b', status: 'pending' });
+    expect(out.edges[1]).toEqual({ source: 'c', target: 'd', status: 'approved' });
+  });
 });

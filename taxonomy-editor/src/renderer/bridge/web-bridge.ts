@@ -772,7 +772,7 @@ const rawApi: AppAPI = {
   loadPolicyRegistry: () => get('/api/policy-registry'),
   loadLineageCategories: () => get('/api/lineage-categories'),
   loadLineageInfo: () => get<Record<string, unknown>>('/api/lineage-info'),
-  loadEdges: () => get('/api/edges'),
+  loadEdges: () => get('/api/edges?include=rationale'), // t/2949: load the FULL set (rationale) so a whole-file save can't drop it; server strips by default
   getEdgeDetail: (index) => get(`/api/edges/${index}`),
   updateEdgeStatus: (index, status) => put('/api/edges/status', { index, status }),
   swapEdgeDirection: (index) => put('/api/edges/swap', { index }),

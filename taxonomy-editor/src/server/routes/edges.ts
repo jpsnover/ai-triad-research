@@ -14,7 +14,7 @@ import type { ServerCtx } from './context.js';
 import { json, error, param, query } from '../httpKit.js';
 import { getGlobalRecorder } from '../../../../lib/flight-recorder/index.js';
 import * as fileIO from '../storage/fileIO.js';
-import { stripEdgeRationale, type EdgesData } from '../community/edgesApi.js';
+import { stripEdgeRationale, type EdgesData } from '../../../../lib/edges/stripEdgeRationale.js';
 import { mergeEdgesPreservingRationale, type EdgeMergeWarn } from '../../../../lib/edges/mergeEdgesPreservingRationale.js';
 import { getAllFlags } from '../featureFlags.js';
 
