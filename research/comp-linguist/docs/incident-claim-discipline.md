@@ -29,9 +29,19 @@ That changes how you speak and how you check.
 
 The pre-existing root rule ("Live incident: claim follow-ups before filing") covers only the second class. The write class is the addition. This incident's most expensive failure was a write nobody could attribute, not a filing.
 
-### 3. The anchor is the single serialization point
+### 3. The anchor gives visibility, not a lock
 
-Both claim classes land as comments on the incident anchor ticket, so any actor can read the complete set of in-flight claims in one place. Claims scattered across email threads, pings, and per-role tickets do not serialize. They only look like they do.
+Both claim classes land as comments on the incident anchor ticket, so any actor can read the complete set of in-flight claims in one place. Claims scattered across email threads, pings, and per-role tickets do not give you that one place to look. They only look like they do.
+
+What the anchor does **not** do is order anything. A ticket comment is not a mutex. Two background jobs can each post a claim and each proceed, because neither posting blocks the other. Treating the anchor as a lock is the failure mode one step removed from having no claim at all. You believe you hold exclusive access, so you skip the check that would have told you otherwise.
+
+Where actual serialization matters, use the stronger form:
+
+> **Claim, then re-read the anchor before acting.**
+
+The re-read is what converts visibility into exclusion. It is cheap, it happens after any competing claim would have landed, and it is the only step that catches a peer who claimed while you were preparing your write.
+
+*Wording aligned with the root `AGENTS.md` **Incident Response** rule (t/2961, PI-approved).* An earlier revision of this section called the anchor "the single serialization point," which overstated it. Corrected here so the CL-scope statement cannot drift from the root rule it elaborates.
 
 ## Evidence base
 
