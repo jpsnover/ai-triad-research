@@ -15,38 +15,34 @@
 # be written rationale-less (composite key source|type|target). Baseline is HEAD (committed),
 # NOT on-disk — an intra-run checkpoint write can poison an on-disk baseline (CL Main e/120#13).
 #
-# NEAR-KEY NOTE (CL e/120#30, restore pre-flight t/2946#4): source|type|target is a NEAR-key,
-# not a strict key — on the live 33,580-edge file 3 keys carry 2 genuinely distinct edges each
-# (differing discovered_at/model/confidence). Benign for THIS guard today (0 of the 3 have
-# mixed rationale presence), but it is set semantics: if two edges share a key and only one had
-# rationale, the guard reasons over the key, not the specific edge. The twin-aware identity
-# (disambiguate on discovered_at+model, else refuse-and-log) lives in the shared re-merge util
-# + restore (TL e/120#37, t/2946 AC) — this presence guard can't see cross-attribution.
+# NEAR-KEY NOTE (CL e/120#30, restore pre-flight t/2946#4): source|type|target is a NEAR-key;
+# on the live 33,580-edge file 3 keys carry 2 genuinely distinct edges each. Benign for THIS
+# guard today; twin-aware identity lives in the shared re-merge util + restore (t/2946 AC).
 #
-# Gate Promotion / warn-first (t/2683): Phase 1 = WARN (landed, PR #1430 / 491c7554). Phase 2
-# (this) = fail-open hardening + observability + baseline caching; Block (throw) flips default
-# only after the positive real-data cycle + TL GV (t/2947). Mode resolves from
-# $env:AI_TRIAD_EDGE_RATIONALE_GATE (Off|Warn|Block); default Warn.
+# GATE PROMOTION (t/2683): Phase 1 WARN landed (#1430 / 491c7554). Phase 2 hardening
+# (fail-open + observability + caching) landed (#1433 / 21a69608). THIS is the promotion:
+# default -> BLOCK, gated on CL's ba3128f5-as-HEAD positive real-data cycle + TL GV (t/2947).
+# Mode still resolves from $env:AI_TRIAD_EDGE_RATIONALE_GATE (Off|Warn|Block); the DEFAULT
+# (env unset) is now Block.
 #
-# FAIL-OPEN CONTRACT (CL e/120#30 Finding 1, TL #32): the guard must NEVER throw except on a
+# FAIL-OPEN CONTRACT (CL e/120#30 Finding 1, TL #32): the guard NEVER throws except on a
 # genuine Block-mode regression. Any inability to analyze the input (no HEAD baseline, an
-# edges-less/odd-shaped payload, a parse error) returns 0 without throwing — a guard that cannot
-# read its baseline must not block a legitimate write. Every fail-open branch emits a
-# DISTINGUISHABLE Write-Verbose (CL #30 Finding 2) so a permanently-dead gate is not
-# byte-identical to a clean pass; the promotion evidence asserts the baseline RESOLVED
-# (positive), not merely that nothing warned.
+# edges-less/odd-shaped payload, a parse error) returns 0 without throwing. Every fail-open
+# AND every resolved-positive path emits a DISTINGUISHABLE Write-Verbose (CL #30 Finding 2 +
+# e/120#43/#52 Finding 3): a healthy run positively reports "baseline resolved — N key(s)"
+# and "payload scanned — checked N", so a dead gate is never inferred from mere absence, and
+# a "no edges KEY" payload is never conflated with an "emptied edges array".
 
-# Per-run HEAD-baseline cache (TL e/120#27 (a) / #34): `git show HEAD:edges.json` + parse of a
-# ~19 MB file fires on EVERY Write-EdgesFile call, and Invoke-EdgeDiscovery has ~5 sink calls
-# per run. Resolve once per (repo-relative path @ HEAD sha) and reuse within the process. Keyed
-# by HEAD sha so a new commit mid-process invalidates; $null (fail-open) results are cached too
-# to avoid re-running a failing lookup every call.
+# Per-run HEAD-baseline cache (TL e/120#27(a)): `git show HEAD:edges.json` + parse of a ~19 MB
+# file fires on every Write-EdgesFile call (~5/run in Invoke-EdgeDiscovery). Resolve once per
+# (repo-relative path @ HEAD sha) and reuse in-process; keyed by HEAD sha so a new commit
+# invalidates; $null (dead-lookup) results cached too.
 $script:EdgeHeadBaselineCache = @{}
 
 function Get-EdgesFromHead {
     # Return the `edges` array from the committed (HEAD) version of $Path, or $null on any
-    # failure (fail-open, with a distinguishable Write-Verbose per cause). git is invoked via
-    # PowerShell (not the Bash tool) to avoid the MSYS colon-revspec path-mangling caveat.
+    # failure (fail-open, with a distinguishable Write-Verbose per cause). git via PowerShell
+    # (not the Bash tool) to avoid the MSYS colon-revspec path-mangling caveat.
     [OutputType([object[]])]
     param([string]$Path)
     if ([string]::IsNullOrWhiteSpace($Path)) { Write-Verbose 'edge-rationale baseline: no path supplied — fail-open.'; return $null }
@@ -59,13 +55,17 @@ function Get-EdgesFromHead {
         $top = ([string]$top).Trim()
         $rel = ([System.IO.Path]::GetRelativePath($top, $full)) -replace '\\', '/'
 
-        # Per-run cache keyed by path @ HEAD sha (TL e/120#27(a)).
+        # Per-run cache keyed by path @ HEAD sha (TL e/120#27a).
         $headSha = & git -C $top rev-parse HEAD 2>$null
         $headSha = if ($LASTEXITCODE -eq 0) { ([string]$headSha).Trim() } else { '' }
         $cacheKey = "$top|$rel@$headSha"
         if ($headSha -and $script:EdgeHeadBaselineCache.ContainsKey($cacheKey)) {
-            Write-Verbose "edge-rationale baseline: cache hit for '$rel@$($headSha.Substring(0,[Math]::Min(8,$headSha.Length)))'."
-            return $script:EdgeHeadBaselineCache[$cacheKey]
+            # S-1 (CL e/120#43, TL #45): branch the cache-hit message on $null so a DEAD-lookup
+            # (no committed baseline) is not reported identically to a RESOLVED one on calls 2..N.
+            $cached = $script:EdgeHeadBaselineCache[$cacheKey]
+            if ($null -eq $cached) { Write-Verbose "edge-rationale baseline: cache hit — NO committed baseline (dead-lookup) for '$rel'." }
+            else { Write-Verbose "edge-rationale baseline: cache hit — $(@($cached).Count) committed baseline edge(s) for '$rel'." }
+            return $cached
         }
 
         $result = $null
@@ -78,7 +78,7 @@ function Get-EdgesFromHead {
             if ($parsed.PSObject.Properties['edges']) { $result = @($parsed.edges) }
             else { Write-Verbose 'edge-rationale baseline: HEAD edges.json has no edges array — fail-open.' }
         }
-        if ($headSha) { $script:EdgeHeadBaselineCache[$cacheKey] = $result }   # cache incl. $null (dead-lookup) results
+        if ($headSha) { $script:EdgeHeadBaselineCache[$cacheKey] = $result }
         return $result
     } catch {
         Write-Verbose "edge-rationale baseline: could not read/parse HEAD edges.json ($($_.Exception.Message)) — fail-open."
@@ -87,25 +87,26 @@ function Get-EdgesFromHead {
 }
 
 function Get-EdgesArray {
-    # Robustly extract the edges array from an edges document that may be a PSCustomObject
-    # (the common ConvertFrom-Json shape) OR a hashtable, without throwing under StrictMode.
-    # Returns $null when there is no edges array (an edges-less doc is a legitimate write that
-    # Write-EdgesFile handles — it is generic over top-level keys).
+    # Extract the edges array from an edges document (PSCustomObject OR hashtable) without a
+    # StrictMode deref. Returns @{ HasKey; Edges } so the caller can distinguish a MISSING
+    # `edges` key from a present-but-EMPTY array (CL e/120#52/#53 — the two must not share a
+    # scannable message, else (c)'s payload-scanned positive is not independently attributable).
     param($EdgesData)
-    if ($null -eq $EdgesData) { return $null }
+    if ($null -eq $EdgesData) { return @{ HasKey = $false; Edges = @() } }
     if ($EdgesData -is [System.Collections.IDictionary]) {
-        if ($EdgesData.Contains('edges')) { return $EdgesData['edges'] }
-        return $null
+        if ($EdgesData.Contains('edges')) { return @{ HasKey = $true; Edges = @($EdgesData['edges']) } }
+        return @{ HasKey = $false; Edges = @() }
     }
-    if ($EdgesData.PSObject -and $EdgesData.PSObject.Properties['edges']) { return $EdgesData.edges }
-    return $null
+    if ($EdgesData.PSObject -and $EdgesData.PSObject.Properties['edges']) { return @{ HasKey = $true; Edges = @($EdgesData.edges) } }
+    return @{ HasKey = $false; Edges = @() }
 }
 
 function Test-EdgeRationaleRegression {
     <#
     .SYNOPSIS
-        Arm 1 guard (t/2945). Warn (or in Block mode, throw) when a write to edges.json would
-        drop `rationale` from an edge that carries one in HEAD. Composite-keyed (source|type|target).
+        Arm 1 guard (t/2945). In Block mode (now the default) throws when a write to edges.json
+        would drop `rationale` from an edge that carries one in HEAD; in Warn mode warns instead.
+        Composite-keyed (source|type|target).
     .OUTPUTS
         [int] the number of regressing edges (0 = clean). NEVER throws in Warn/Off mode, and in
         Block mode throws ONLY on a genuine rationale regression — any inability to analyze the
@@ -116,8 +117,6 @@ function Test-EdgeRationaleRegression {
     param(
         [Parameter(Mandatory)] $EdgesData,
         [string]$Path = '',
-        # Injectable baseline (array of edge objects) — for tests/callers with a known baseline.
-        # When $null, the baseline is resolved from HEAD:$Path.
         $BaselineEdges = $null,
         [ValidateSet('', 'Off', 'Warn', 'Block')]
         [string]$Mode = ''
@@ -128,11 +127,12 @@ function Test-EdgeRationaleRegression {
         $envMode = [Environment]::GetEnvironmentVariable('AI_TRIAD_EDGE_RATIONALE_GATE')
         $Mode = switch -Regex ("$envMode") {
             '^(?i)off$'   { 'Off' }
+            '^(?i)warn$'  { 'Warn' }
             '^(?i)block$' { 'Block' }
-            default       { 'Warn' }
+            default       { 'Block' }   # t/2947 Block flip: default is now Block (was Warn)
         }
     }
-    if ($Mode -eq 'Off') { return 0 }
+    if ($Mode -eq 'Off') { Write-Verbose 'edge-rationale guard: mode=Off — guard disabled, no check performed.'; return 0 }
 
     # ── Analyze (fail-OPEN): any error building the baseline map or scanning the write payload
     #    returns 0 without throwing. The intended Block-mode regression throw happens AFTER this
@@ -144,7 +144,6 @@ function Test-EdgeRationaleRegression {
             if ($null -eq $BaselineEdges) { return 0 }   # Get-EdgesFromHead already Write-Verbose'd the cause
         }
 
-        # Composite keys that carry a non-empty rationale in the baseline.
         $hadRationale = @{}
         foreach ($e in @($BaselineEdges)) {
             if (-not ($e.PSObject.Properties['source'] -and $e.PSObject.Properties['type'] -and $e.PSObject.Properties['target'])) { continue }
@@ -154,22 +153,31 @@ function Test-EdgeRationaleRegression {
             }
         }
         if ($hadRationale.Count -eq 0) { Write-Verbose 'edge-rationale guard: HEAD baseline carries no rationaled edges — nothing to protect.'; return 0 }
+        # Finding 3 (CL e/120#43/#52): POSITIVE baseline-resolved signal — a healthy run must not
+        # rely on the ABSENCE of a fail-open line to prove the baseline resolved.
+        Write-Verbose "edge-rationale guard: HEAD baseline resolved — $($hadRationale.Count) rationaled key(s) protected."
 
-        # Robustly extract the write payload's edges (edges-less / odd-shaped doc -> fail-open).
-        $writeEdges = Get-EdgesArray -EdgesData $EdgesData
-        if ($null -eq $writeEdges) { Write-Verbose 'edge-rationale guard: write payload has no edges array — fail-open (nothing to check).'; return 0 }
+        # Distinguish a MISSING edges key (fail-open) from a present-but-empty array (scan finds
+        # nothing) — distinct, non-overlapping messages (CL e/120#52/#53 hard (c) precondition).
+        $extract = Get-EdgesArray -EdgesData $EdgesData
+        if (-not $extract.HasKey) { Write-Verbose 'edge-rationale guard: write payload has no edges KEY (missing) — fail-open (nothing to check).'; return 0 }
+        $writeEdges = @($extract.Edges)
 
-        foreach ($e in @($writeEdges)) {
-            if (-not ($e.PSObject.Properties['source'] -and $e.PSObject.Properties['type'] -and $e.PSObject.Properties['target'])) { continue }
+        $checked = 0; $skipped = 0
+        foreach ($e in $writeEdges) {
+            if (-not ($e.PSObject.Properties['source'] -and $e.PSObject.Properties['type'] -and $e.PSObject.Properties['target'])) { $skipped++; continue }
+            $checked++
             $key = "$($e.source)|$($e.type)|$($e.target)"
             if ($hadRationale.ContainsKey($key)) {
                 $r = if ($e.PSObject.Properties['rationale']) { [string]$e.rationale } else { '' }
                 if ([string]::IsNullOrWhiteSpace($r)) { [void]$lost.Add($key) }
             }
         }
+        # POSITIVE payload-scanned signal (CL e/120#44 Note 1 + #46 two-positive AC): reports the
+        # edges actually examined + those skipped for missing key fields, so "0 regressions" is
+        # never indistinguishable from "nothing was scanned".
+        Write-Verbose "edge-rationale guard: payload scanned — checked $checked edge(s), skipped $skipped (missing key fields)."
     } catch {
-        # Belt-and-suspenders (TL #32): a guard that cannot analyze the input MUST NOT block a
-        # legitimate write, in any mode. Distinguishable so a dead gate isn't silent.
         Write-Verbose "edge-rationale guard: unexpected error analyzing the write, fail-open (no throw): $($_.Exception.Message)"
         return 0
     }
@@ -189,7 +197,6 @@ function Test-EdgeRationaleRegression {
         throw (New-ActionableError -Goal "Preserve edge rationale on write to '$leaf'" `
             -Problem $problem -Location 'Write-EdgesFile / Test-EdgeRationaleRegression' -NextSteps $steps -PassThru)
     }
-    # Phase 1 — WARN (loud, does not throw).
-    Write-Warning ("EDGE-RATIONALE REGRESSION (would-block; t/2945 Arm 1, warn-first) — $problem Next steps: " + ($steps -join ' | '))
+    Write-Warning ("EDGE-RATIONALE REGRESSION (would-block; t/2945 Arm 1) — $problem Next steps: " + ($steps -join ' | '))
     return $lost.Count
 }

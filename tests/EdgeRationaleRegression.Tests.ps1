@@ -6,15 +6,14 @@
 
 <#
 .SYNOPSIS
-    Both-arms GV for the Arm-1 edge-rationale-regression guard (t/2945; Phase-2 hardening t/2947).
+    GV suite for the Arm-1 edge-rationale-regression guard (t/2945; Block flip t/2947).
     FIRE  = a write dropping rationale from an edge rationaled in the baseline -> Block throws /
-            Warn emits a loud warning and reports the count.
-    CLEAN = a normal add-only, rationale-preserving write -> passes SILENTLY, zero noise.
-    Plus (Phase 2): fail-OPEN on odd-shaped input (CL e/120#30 Finding 1) and per-run HEAD
-    baseline caching (TL e/120#27(a)). Baseline is HEAD/committed (composite-keyed).
+            Warn warns and reports the count.
+    CLEAN = a rationale-preserving write -> passes SILENTLY, zero noise.
+    Plus: fail-OPEN on odd-shaped input, HEAD-baseline caching (incl. dead-lookup distinction),
+    default -> Block (the flip), and POSITIVE observability (baseline resolved + payload scanned;
+    emptied-array vs missing-key split). Baseline is HEAD/committed (composite-keyed).
     Edge objects are built in test scope and passed into InModuleScope (the guard is Private).
-    Coverage note (CL.Investigate1 e/120#22): this PS-sink guard covers PS writers + the pipeline
-    re-emit; the editor/server saves use the TS writeEdgesFile twin and are guarded separately.
 #>
 
 BeforeAll {
@@ -97,10 +96,6 @@ Describe 'Test-EdgeRationaleRegression — Arm 1 both-arms (t/2945)' -Tag 'edges
     }
 
     It 'FAIL-OPEN: an edges-less document returns 0 and does NOT throw — even with a rationaled baseline, even in Block mode' {
-        # CL e/120#30 Finding 1: the fail-closed deref is DOWNSTREAM of the hadRationale.Count==0
-        # early return, so it only manifests with a NON-empty baseline. Write-EdgesFile is generic
-        # over top-level keys — an edges-less doc is a legit write it handles; the guard must fail
-        # OPEN on it, not hard-throw.
         $noEdgesObj  = [PSCustomObject]@{ nodes = @() }
         $noEdgesHash = @{ nodes = @() }
         InModuleScope AITriad -Parameters @{ O = $noEdgesObj; H = $noEdgesHash; B = $script:Baseline } {
@@ -114,6 +109,72 @@ Describe 'Test-EdgeRationaleRegression — Arm 1 both-arms (t/2945)' -Tag 'edges
     }
 }
 
+Describe 'Test-EdgeRationaleRegression — Block flip + positive observability (t/2947)' -Tag 'edges' {
+
+    BeforeEach {
+        $script:Baseline = @(
+            (New-Edge 'acc-001' 'SUPPORTS'    'saf-002' 'because X reinforces Y'),
+            (New-Edge 'acc-003' 'CONTRADICTS' 'skp-004' 'because Z conflicts with W')
+        )
+    }
+
+    It 'DEFAULT mode is now Block (the flip): a regression throws with no -Mode and env unset' {
+        $write = New-EdgesData @( (New-Edge 'acc-001' 'SUPPORTS' 'saf-002') )
+        InModuleScope AITriad -Parameters @{ W = $write; B = $script:Baseline } {
+            param($W, $B)
+            $prev = [Environment]::GetEnvironmentVariable('AI_TRIAD_EDGE_RATIONALE_GATE')
+            [Environment]::SetEnvironmentVariable('AI_TRIAD_EDGE_RATIONALE_GATE', $null)
+            try {
+                { Test-EdgeRationaleRegression -EdgesData $W -BaselineEdges $B } | Should -Throw          # default = Block
+                # env override still wins: Warn downgrades to a warning
+                Test-EdgeRationaleRegression -EdgesData $W -BaselineEdges $B -Mode Warn -WarningAction SilentlyContinue | Should -Be 1
+            } finally {
+                [Environment]::SetEnvironmentVariable('AI_TRIAD_EDGE_RATIONALE_GATE', $prev)
+            }
+        }
+    }
+
+    It 'DEFAULT Block: a rationale-preserving write passes (0, no throw) with no -Mode' {
+        $write = New-EdgesData @(
+            (New-Edge 'acc-001' 'SUPPORTS'    'saf-002' 'because X reinforces Y'),
+            (New-Edge 'acc-003' 'CONTRADICTS' 'skp-004' 'because Z conflicts with W')
+        )
+        InModuleScope AITriad -Parameters @{ W = $write; B = $script:Baseline } {
+            param($W, $B)
+            $prev = [Environment]::GetEnvironmentVariable('AI_TRIAD_EDGE_RATIONALE_GATE')
+            [Environment]::SetEnvironmentVariable('AI_TRIAD_EDGE_RATIONALE_GATE', $null)
+            try { { Test-EdgeRationaleRegression -EdgesData $W -BaselineEdges $B } | Should -Not -Throw }
+            finally { [Environment]::SetEnvironmentVariable('AI_TRIAD_EDGE_RATIONALE_GATE', $prev) }
+        }
+    }
+
+    It 'POSITIVE observability: emits "HEAD baseline resolved — N" and "payload scanned — checked N"' {
+        $write = New-EdgesData @( (New-Edge 'acc-001' 'SUPPORTS' 'saf-002' 'because X reinforces Y') )
+        InModuleScope AITriad -Parameters @{ W = $write; B = $script:Baseline } {
+            param($W, $B)
+            $v = (Test-EdgeRationaleRegression -EdgesData $W -BaselineEdges $B -Mode Warn -Verbose 4>&1) | Out-String
+            $v | Should -Match 'HEAD baseline resolved — 2 rationaled key'
+            $v | Should -Match 'payload scanned — checked 1 edge'
+        }
+    }
+
+    It 'MESSAGE SPLIT: a missing edges KEY and an emptied edges array emit DISTINCT, non-overlapping text (CL (c) precondition)' {
+        $missingKey = [PSCustomObject]@{ nodes = @() }
+        $emptyArray = [PSCustomObject]@{ edges = @() }
+        InModuleScope AITriad -Parameters @{ MK = $missingKey; EA = $emptyArray; B = $script:Baseline } {
+            param($MK, $EA, $B)
+            $vMiss  = (Test-EdgeRationaleRegression -EdgesData $MK -BaselineEdges $B -Mode Warn -Verbose 4>&1) | Out-String
+            $vEmpty = (Test-EdgeRationaleRegression -EdgesData $EA -BaselineEdges $B -Mode Warn -Verbose 4>&1) | Out-String
+            # Missing key: reports "no edges KEY"; NOT a payload scan.
+            $vMiss  | Should -Match 'no edges KEY'
+            $vMiss  | Should -Not -Match 'payload scanned'
+            # Emptied array: reports a payload scan (checked 0); NOT "no edges KEY".
+            $vEmpty | Should -Match 'payload scanned — checked 0 edge'
+            $vEmpty | Should -Not -Match 'no edges KEY'
+        }
+    }
+}
+
 Describe 'Test-EdgeRationaleRegression — HEAD baseline resolution + caching (git-backed, real repo)' -Tag 'edges' {
 
     It 'resolves the baseline from HEAD and fires on a same-file rationale strip; clean on add-only' {
@@ -121,48 +182,59 @@ Describe 'Test-EdgeRationaleRegression — HEAD baseline resolution + caching (g
         $tax  = Join-Path $repo 'taxonomy/Origin'
         New-Item -ItemType Directory -Path $tax -Force | Out-Null
         $edgesPath = Join-Path $tax 'edges.json'
-
         $committed = New-EdgesData @( (New-Edge 'acc-001' 'SUPPORTS' 'saf-002' 'committed rationale') )
         $strip     = New-EdgesData @( (New-Edge 'acc-001' 'SUPPORTS' 'saf-002') )
         $ok        = New-EdgesData @(
             (New-Edge 'acc-001' 'SUPPORTS' 'saf-002' 'committed rationale'),
             (New-Edge 'acc-007' 'WEAKENS'  'saf-008' 'new')
         )
-
         InModuleScope AITriad -Parameters @{ Committed = $committed; Strip = $strip; Ok = $ok; EdgesPath = $edgesPath; Repo = $repo } {
             param($Committed, $Strip, $Ok, $EdgesPath, $Repo)
             Write-EdgesFile -EdgesData $Committed -Path $EdgesPath
             Push-Location $Repo
-            try {
-                git init -q 2>$null
-                git config user.email 't@t' 2>$null; git config user.name 't' 2>$null
-                git add -A 2>$null; git commit -q -m 'baseline' 2>$null
-            } finally { Pop-Location }
-
+            try { git init -q 2>$null; git config user.email 't@t' 2>$null; git config user.name 't' 2>$null; git add -A 2>$null; git commit -q -m 'baseline' 2>$null } finally { Pop-Location }
             Test-EdgeRationaleRegression -EdgesData $Strip -Path $EdgesPath -Mode Warn -WarningAction SilentlyContinue | Should -Be 1
             Test-EdgeRationaleRegression -EdgesData $Ok -Path $EdgesPath -Mode Warn | Should -Be 0
         }
     }
 
-    It 'caches the HEAD baseline per (path @ HEAD) — repeated calls in a run reuse it (TL e/120#27a)' {
+    It 'caches the HEAD baseline per (path @ HEAD); the second call reports its cache hit' {
         $repo = Join-Path $TestDrive 'cacherepo'
         $tax  = Join-Path $repo 'taxonomy/Origin'
         New-Item -ItemType Directory -Path $tax -Force | Out-Null
         $edgesPath = Join-Path $tax 'edges.json'
         $committed = New-EdgesData @( (New-Edge 'acc-001' 'SUPPORTS' 'saf-002' 'committed rationale') )
         $strip     = New-EdgesData @( (New-Edge 'acc-001' 'SUPPORTS' 'saf-002') )
-
         InModuleScope AITriad -Parameters @{ Committed = $committed; Strip = $strip; EdgesPath = $edgesPath; Repo = $repo } {
             param($Committed, $Strip, $EdgesPath, $Repo)
             Write-EdgesFile -EdgesData $Committed -Path $EdgesPath
             Push-Location $Repo
             try { git init -q 2>$null; git config user.email 't@t' 2>$null; git config user.name 't' 2>$null; git add -A 2>$null; git commit -q -m b 2>$null } finally { Pop-Location }
-
             $script:EdgeHeadBaselineCache = @{}
             Test-EdgeRationaleRegression -EdgesData $Strip -Path $EdgesPath -Mode Warn -WarningAction SilentlyContinue | Should -Be 1
-            @($script:EdgeHeadBaselineCache.Keys).Count | Should -BeGreaterThan 0   # baseline cached after first call
-            # Second call resolves from cache and is still correct.
-            Test-EdgeRationaleRegression -EdgesData $Strip -Path $EdgesPath -Mode Warn -WarningAction SilentlyContinue | Should -Be 1
+            @($script:EdgeHeadBaselineCache.Keys).Count | Should -BeGreaterThan 0
+            $v = (Test-EdgeRationaleRegression -EdgesData $Strip -Path $EdgesPath -Mode Warn -Verbose -WarningAction SilentlyContinue 4>&1) | Out-String
+            $v | Should -Match 'cache hit — 1 committed baseline edge'   # resolved baseline, not dead-lookup
+        }
+    }
+
+    It 'S-1: a DEAD-lookup (edges.json not committed) reports a DISTINCT cache-hit message on call 2' {
+        $repo = Join-Path $TestDrive 'deadrepo'
+        $tax  = Join-Path $repo 'taxonomy/Origin'
+        New-Item -ItemType Directory -Path $tax -Force | Out-Null
+        $edgesPath = Join-Path $tax 'edges.json'
+        $strip     = New-EdgesData @( (New-Edge 'acc-001' 'SUPPORTS' 'saf-002') )
+        InModuleScope AITriad -Parameters @{ Strip = $strip; EdgesPath = $edgesPath; Repo = $repo; Tax = $tax } {
+            param($Strip, $EdgesPath, $Repo, $Tax)
+            # Commit SOMETHING so HEAD exists, but leave edges.json uncommitted -> HEAD:edges.json is absent.
+            Set-Content -Path (Join-Path $Repo 'readme.txt') -Value 'x' -Encoding utf8
+            Write-EdgesFile -EdgesData $Strip -Path $EdgesPath   # on-disk only, never committed
+            Push-Location $Repo
+            try { git init -q 2>$null; git config user.email 't@t' 2>$null; git config user.name 't' 2>$null; git add readme.txt 2>$null; git commit -q -m init 2>$null } finally { Pop-Location }
+            $script:EdgeHeadBaselineCache = @{}
+            Test-EdgeRationaleRegression -EdgesData $Strip -Path $EdgesPath -Mode Warn | Should -Be 0   # no baseline -> fail-open
+            $v = (Test-EdgeRationaleRegression -EdgesData $Strip -Path $EdgesPath -Mode Warn -Verbose 4>&1) | Out-String
+            $v | Should -Match 'cache hit — NO committed baseline \(dead-lookup\)'
         }
     }
 }
