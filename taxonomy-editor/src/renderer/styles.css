@@ -9720,12 +9720,7 @@ a.vocab-term,
 /* ── Pacing ── */
 
 /* ── Dialectical Style ── */
-.ndd-style-desc {
-  font-size: var(--text-2xs);
-  color: var(--text-muted);
-  margin-top: 2px;
-  line-height: 1.3;
-}
+/* .ndd-style-desc moved to components/debate/NewDebateDialog.css (t/2939 dedup) */
 
 /* ── Adaptive staging toggle ── */
 
@@ -9736,11 +9731,7 @@ a.vocab-term,
 /* ── Audience ── */
 
 /* ── Debaters ── */
-.ndd-hint-error {
-  font-size: var(--text-xs);
-  color: var(--danger);
-  margin-top: 8px;
-}
+/* .ndd-hint-error moved to components/debate/NewDebateDialog.css (t/2939 dedup) */
 
 /* ── Footer ── */
 
