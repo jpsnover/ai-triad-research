@@ -15,9 +15,20 @@
 # be written rationale-less (composite key source|type|target). Baseline is HEAD (committed),
 # NOT on-disk — an intra-run checkpoint write can poison an on-disk baseline (CL Main e/120#13).
 #
-# NEAR-KEY NOTE (CL e/120#30, restore pre-flight t/2946#4): source|type|target is a NEAR-key;
-# on the live 33,580-edge file 3 keys carry 2 genuinely distinct edges each. Benign for THIS
-# guard today; twin-aware identity lives in the shared re-merge util + restore (t/2946 AC).
+# TWIN-AWARE IDENTITY (t/2956; was the near-key NOTE, CL e/120#30 / t/2946#4). source|type|target
+# is a NEAR-key, not a strict key — on the live 33,580-edge file 3 keys carry 2 genuinely distinct
+# edges each (differing discovered_at/model). The guard now identifies edges the SAME way as the
+# shared TS `mergeEdgesPreservingRationale` util (t/2957) and the t/2946 restore — ONE model across
+# guard + re-merge + restore so the three cannot drift: primary key source|type|target; where that
+# key is non-unique in the baseline, disambiguate the twin on discovered_at+model; if a twin group
+# is INDISTINGUISHABLE (same key AND discovered_at AND model), refuse-and-log — never guess. PS cannot
+# import the TS util, so conformance is proven against the shared research/comp-linguist/analyses/
+# t2444-rationale-restore/twin-fixture.json (the exact bytes the TS suite reads), not by code sharing
+# — the sanctioned parallel-writer pattern (cf. lib/edges/edgesWriterGuard.test.ts, t/2945#10).
+#   ONE DELIBERATE DIVERGENCE from the TS util: on an indistinguishable twin the TS util THROWS
+#   ActionableError; the guard must FAIL-OPEN (distinguishable Write-Verbose, no throw) — the Arm-1
+#   fail-open contract (CL e/120#30 F1 / TL #32) outranks mirroring the TS disposition. Same identity
+#   model, different disposition on ambiguity. (CL ruling t/2956#4.)
 #
 # EDGE SHAPE (t/2955): edge field reads go through Test-EdgeHasField / Get-EdgeField so a raw
 # [hashtable]/[IDictionary] edge is CHECKED, not skipped — a hashtable's PSObject.Properties are
@@ -162,6 +173,64 @@ function Get-EdgeField {
     return $null
 }
 
+function New-EdgeBaselineModel {
+    # t/2956: build the TWIN-AWARE baseline identity model from a baseline edge array. Returns
+    # @{ HadRationale; TwinKeys; AmbiguousKeys }:
+    #   HadRationale  - identity -> $true for every baseline edge carrying a NON-EMPTY rationale
+    #                   (predicate matches the TS util's hasRationale: null/''/whitespace = absent).
+    #                   Identity = the near-key `source|type|target` for a UNIQUE near-key, or
+    #                   `source|type|target|discovered_at|model` for a DISTINGUISHABLE twin group.
+    #   TwinKeys      - HashSet of near-keys that are distinguishable twin groups (the payload scan
+    #                   must key those on the FULL identity, not the bare near-key).
+    #   AmbiguousKeys - HashSet of near-keys whose twins are INDISTINGUISHABLE on discovered_at+model
+    #                   — refuse-and-log: never guarded, never guessed (fail-open, logged here).
+    # Same identity model as the shared TS mergeEdgesPreservingRationale util (t/2957) + t/2946
+    # restore — proven by the shared twin-fixture.json, not by code sharing (PS can't import TS).
+    param($BaselineEdges)
+
+    $byNearKey = @{}
+    foreach ($e in @($BaselineEdges)) {
+        if ($null -eq $e) { continue }
+        if (-not ((Test-EdgeHasField $e 'source') -and (Test-EdgeHasField $e 'type') -and (Test-EdgeHasField $e 'target'))) { continue }
+        $nk = "$(Get-EdgeField $e 'source')|$(Get-EdgeField $e 'type')|$(Get-EdgeField $e 'target')"
+        $rv = Get-EdgeField $e 'rationale'
+        $entry = @{
+            HasRat = -not [string]::IsNullOrWhiteSpace([string]$rv)
+            Da     = [string](Get-EdgeField $e 'discovered_at')
+            Model  = [string](Get-EdgeField $e 'model')
+        }
+        if (-not $byNearKey.ContainsKey($nk)) { $byNearKey[$nk] = [System.Collections.Generic.List[object]]::new() }
+        [void]$byNearKey[$nk].Add($entry)
+    }
+
+    $hadRationale  = @{}
+    $twinKeys      = [System.Collections.Generic.HashSet[string]]::new()
+    $ambiguousKeys = [System.Collections.Generic.HashSet[string]]::new()
+    foreach ($nk in $byNearKey.Keys) {
+        $group = $byNearKey[$nk]
+        if ($group.Count -eq 1) {
+            if ($group[0].HasRat) { $hadRationale[$nk] = $true }   # unique near-key -> identity IS the near-key
+            continue
+        }
+        # Twin group: distinguishable iff every (discovered_at, model) discriminator is unique.
+        $discSeen  = [System.Collections.Generic.HashSet[string]]::new()
+        $ambiguous = $false
+        foreach ($g in $group) {
+            if (-not $discSeen.Add("$($g.Da)|$($g.Model)")) { $ambiguous = $true; break }
+        }
+        if ($ambiguous) {
+            [void]$ambiguousKeys.Add($nk)
+            Write-Verbose "edge-rationale guard: twin near-key '$nk' has $($group.Count) edges INDISTINGUISHABLE on discovered_at+model — refuse-and-log (t/2956): fail-open for this key, not guarded, not guessed."
+            continue
+        }
+        [void]$twinKeys.Add($nk)
+        foreach ($g in $group) {
+            if ($g.HasRat) { $hadRationale["$nk|$($g.Da)|$($g.Model)"] = $true }
+        }
+    }
+    return @{ HadRationale = $hadRationale; TwinKeys = $twinKeys; AmbiguousKeys = $ambiguousKeys }
+}
+
 function Test-EdgeRationaleRegression {
     <#
     .SYNOPSIS
@@ -207,28 +276,23 @@ function Test-EdgeRationaleRegression {
             $baselineFromHead = $true
         }
 
-        # t/2951: memoize the derived hadRationale map under the same path@HEAD-sha key as the
-        # baseline array — but ONLY when the baseline came from HEAD (an injected baseline has no
-        # stable cache identity; those callers/tests rebuild every call, unchanged). The key was
-        # published by Get-EdgesFromHead into $script:LastEdgeBaselineKey, so no extra git call.
+        # t/2951: memoize the derived baseline MODEL (twin-aware, t/2956) under the same path@HEAD-sha
+        # key as the baseline array — but ONLY when the baseline came from HEAD (an injected baseline
+        # has no stable cache identity; those callers/tests rebuild every call, unchanged). The key
+        # was published by Get-EdgesFromHead into $script:LastEdgeBaselineKey, so no extra git call.
+        # The model is a pure function of the baseline, so it shares the array cache's invalidation.
         $mapKey = if ($baselineFromHead) { $script:LastEdgeBaselineKey } else { $null }
         if ($mapKey -and $script:EdgeHadRationaleCache.ContainsKey($mapKey)) {
-            $hadRationale = $script:EdgeHadRationaleCache[$mapKey]
-            Write-Verbose "edge-rationale guard: hadRationale map cache hit — $($hadRationale.Count) rationaled key(s) reused (memoized, t/2951)."
+            $model = $script:EdgeHadRationaleCache[$mapKey]
+            Write-Verbose "edge-rationale guard: hadRationale map cache hit — $($model.HadRationale.Count) rationaled key(s) reused (memoized, t/2951)."
         }
         else {
-            $hadRationale = @{}
-            foreach ($e in @($BaselineEdges)) {
-                if ($null -eq $e) { continue }
-                if (-not ((Test-EdgeHasField $e 'source') -and (Test-EdgeHasField $e 'type') -and (Test-EdgeHasField $e 'target'))) { continue }
-                $rv = Get-EdgeField $e 'rationale'
-                $r  = if ($null -ne $rv) { [string]$rv } else { '' }
-                if (-not [string]::IsNullOrWhiteSpace($r)) {
-                    $hadRationale["$(Get-EdgeField $e 'source')|$(Get-EdgeField $e 'type')|$(Get-EdgeField $e 'target')"] = $true
-                }
-            }
-            if ($mapKey) { $script:EdgeHadRationaleCache[$mapKey] = $hadRationale }
+            $model = New-EdgeBaselineModel -BaselineEdges $BaselineEdges   # twin-aware (t/2956)
+            if ($mapKey) { $script:EdgeHadRationaleCache[$mapKey] = $model }
         }
+        $hadRationale  = $model.HadRationale
+        $twinKeys      = $model.TwinKeys
+        $ambiguousKeys = $model.AmbiguousKeys
         if ($hadRationale.Count -eq 0) { Write-Verbose 'edge-rationale guard: HEAD baseline carries no rationaled edges — nothing to protect.'; return 0 }
         # Finding 3 (CL e/120#43/#52): POSITIVE baseline-resolved signal — a healthy run must not
         # rely on the ABSENCE of a fail-open line to prove the baseline resolved.
@@ -240,7 +304,7 @@ function Test-EdgeRationaleRegression {
         if (-not $extract.HasKey) { Write-Verbose 'edge-rationale guard: write payload has no edges KEY (missing) — fail-open (nothing to check).'; return 0 }
         $writeEdges = @($extract.Edges)
 
-        $checked = 0; $skipped = 0; $skippedNull = 0; $skippedFault = 0
+        $checked = 0; $skipped = 0; $skippedNull = 0; $skippedFault = 0; $skippedAmbiguous = 0
         foreach ($e in $writeEdges) {
             # t/2951: per-element resilience. Before, a $null element (or any element whose field
             # read threw) tripped the whole-body try/catch below into a SILENT whole-file fail-open
@@ -252,12 +316,23 @@ function Test-EdgeRationaleRegression {
             try {
                 if ($null -eq $e) { $skippedNull++; continue }
                 if (-not ((Test-EdgeHasField $e 'source') -and (Test-EdgeHasField $e 'type') -and (Test-EdgeHasField $e 'target'))) { $skipped++; continue }
+                $nearKey = "$(Get-EdgeField $e 'source')|$(Get-EdgeField $e 'type')|$(Get-EdgeField $e 'target')"
+                # t/2956: an INDISTINGUISHABLE twin near-key was refuse-and-logged at baseline build —
+                # fail-open for it here too (cannot attribute a per-twin drop without guessing), and
+                # surface the count so a memo-hit run (which skips the build-time verbose) still reports it.
+                if ($ambiguousKeys.Contains($nearKey)) { $skippedAmbiguous++; continue }
                 $checked++
-                $key = "$(Get-EdgeField $e 'source')|$(Get-EdgeField $e 'type')|$(Get-EdgeField $e 'target')"
-                if ($hadRationale.ContainsKey($key)) {
+                # t/2956: identify the SPECIFIC edge, not just the near-key. For a distinguishable twin
+                # group, the identity is near-key|discovered_at|model — so a drop on the twin that carried
+                # a rationale is attributed to THAT twin, and an innocent twin (never had one) written
+                # empty is NOT false-flagged as a drop. For a unique near-key the identity IS the near-key.
+                $identity = if ($twinKeys.Contains($nearKey)) {
+                    "$nearKey|$([string](Get-EdgeField $e 'discovered_at'))|$([string](Get-EdgeField $e 'model'))"
+                } else { $nearKey }
+                if ($hadRationale.ContainsKey($identity)) {
                     $rv = Get-EdgeField $e 'rationale'
                     $r  = if ($null -ne $rv) { [string]$rv } else { '' }
-                    if ([string]::IsNullOrWhiteSpace($r)) { [void]$lost.Add($key) }
+                    if ([string]::IsNullOrWhiteSpace($r)) { [void]$lost.Add($identity) }
                 }
             } catch {
                 $skippedFault++
@@ -267,9 +342,13 @@ function Test-EdgeRationaleRegression {
         # edges actually examined + those skipped for missing key fields, so "0 regressions" is
         # never indistinguishable from "nothing was scanned". t/2951: null/faulted elements are
         # counted separately and only surfaced when non-zero — zero new noise on the all-valid path.
+        # t/2956: edges on an indistinguishable-twin key are counted + surfaced likewise.
         $scanMsg = "edge-rationale guard: payload scanned — checked $checked edge(s), skipped $skipped (missing key fields)."
         if (($skippedNull + $skippedFault) -gt 0) {
             $scanMsg += " Skipped individually, scan continued (t/2951): $skippedNull null element(s), $skippedFault faulted element(s)."
+        }
+        if ($skippedAmbiguous -gt 0) {
+            $scanMsg += " Skipped $skippedAmbiguous edge(s) on indistinguishable twin key(s) — refuse-and-log, fail-open (t/2956)."
         }
         Write-Verbose $scanMsg
     } catch {
@@ -282,7 +361,8 @@ function Test-EdgeRationaleRegression {
     $sample  = (@($lost) | Select-Object -First 3) -join ', '
     $leaf    = if ($Path) { [System.IO.Path]::GetFileName($Path) } else { 'edges.json' }
     $problem = "$($lost.Count) edge(s) carrying a rationale in HEAD would be written WITHOUT one " +
-               "(composite key source|type|target). Sample: $sample. This is the edge-rationale wipe class (t/2945)."
+               "(twin-aware identity source|type|target, disambiguated on discovered_at+model for twin keys). " +
+               "Sample: $sample. This is the edge-rationale wipe class (t/2945)."
     $steps   = @(
         'A whole-file edges save MUST re-merge rationale from HEAD/on-disk by composite key before writing — never persist a rationale-stripped list payload (the taxonomy-editor load-list->save round-trip, t/2945).',
         'If this removal is intentional, set $env:AI_TRIAD_EDGE_RATIONALE_GATE=Off for the run.'
