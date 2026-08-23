@@ -60,6 +60,12 @@ function saveEdges(data: unknown): unknown {
   return fn({}, data);
 }
 
+function loadEdges(): unknown {
+  const fn = h.handlers.get('load-edges');
+  if (!fn) throw new Error('load-edges not registered');
+  return fn({});
+}
+
 beforeEach(() => {
   h.handlers.clear();
   h.writeEdgesArg = undefined;
@@ -128,5 +134,34 @@ describe('save-edges IPC — rationale re-merge on save (t/2957)', () => {
     ] };
     expect(() => saveEdges({ edges: [{ ...key, model: 'm', discovered_at: 't' }] })).toThrow(/Ambiguous rationale attribution/);
     expect(h.writeEdgesArg).toBeUndefined();
+  });
+});
+
+describe('load-edges IPC — returns the COMPLETE set + lossless round-trip (t/2949)', () => {
+  const key = { source: 'a', type: 'SUPPORTS', target: 'b' };
+
+  it('load-edges returns FULL edges (rationale included) — the former inline strip is gone', () => {
+    h.readEdgesReturn = { edges: [{ ...key, rationale: 'ON-DISK rationale', model: 'm', discovered_at: 't1' }] };
+    const loaded = loadEdges() as { edges: Record<string, unknown>[] };
+    expect(loaded.edges[0].rationale).toBe('ON-DISK rationale'); // NOT stripped on load
+  });
+
+  it('AC3 round-trip: a full-rationale load saved straight back preserves rationale on disk', () => {
+    const onDisk = { edges: [{ ...key, confidence: 0.9, rationale: 'R', model: 'm', discovered_at: 't1' }] };
+    h.readEdgesReturn = onDisk;
+    const loaded = loadEdges(); // complete set (rationale present)
+    saveEdges(loaded);          // save the loaded payload back unchanged
+    expect((h.writeEdgesArg as { edges: Record<string, unknown>[] }).edges[0].rationale).toBe('R');
+  });
+
+  it('AC4 (t/2294): appending a new edge to the loaded set preserves existing rationale', () => {
+    const onDisk = { edges: [{ ...key, rationale: 'existing R', model: 'm', discovered_at: 't1' }] };
+    h.readEdgesReturn = onDisk;
+    const loaded = loadEdges() as { edges: Record<string, unknown>[] };
+    const withNew = { ...loaded, edges: [...loaded.edges, { source: 'c', type: 'SUPPORTS', target: 'd', rationale: 'brand new', model: 'm', discovered_at: 't2' }] };
+    saveEdges(withNew);
+    const written = h.writeEdgesArg as { edges: Record<string, unknown>[] };
+    expect(written.edges[0].rationale).toBe('existing R'); // survives the add-edge save
+    expect(written.edges[1].rationale).toBe('brand new');
   });
 });

@@ -268,12 +268,13 @@ export function registerTaxonomyHandlers(): void {
   });
 
   ipcMain.handle('load-edges', () => {
-    const data = readEdgesFile() as { edges: Record<string, unknown>[]; [k: string]: unknown } | null;
-    if (!data?.edges) return data;
-    return {
-      ...data,
-      edges: data.edges.map(({ rationale, ...rest }) => rest),
-    };
+    // t/2949 defense-in-depth: return the FULL edges (rationale included) so the renderer's
+    // in-memory set is COMPLETE — a whole-file save physically cannot drop what it never lost.
+    // (The write-side re-merge in save-edges stays the primary, durable guard.) The former inline
+    // rationale-strip here was a DUPLICATE of the server's stripEdgeRationale (the t/2945
+    // duplication hazard); removing it leaves the single shared strip (lib/edges) for the server
+    // list endpoint only. Mirrors the web bridge's `?include=rationale` load (web-bridge.ts:775).
+    return readEdgesFile();
   });
 
   ipcMain.handle('load-edge-detail', (_event, index: number) => {
@@ -412,6 +413,12 @@ export function registerTaxonomyHandlers(): void {
       const merged = mergeEdgesPreservingRationale(data as EdgesData, baseline, onEdgeMergeWarn);
       writeEdgesFile(merged);
     } catch (err) {
+      // A merge refusal (unreadable baseline / indistinguishable twins) is already an
+      // ActionableError with the precise Goal/Problem/Location/NextSteps — surface it verbatim,
+      // and do NOT record it as a persist-FAILURE: it is a deliberate, self-describing refusal, not
+      // a write error (the no-match tie-break case is already logged via onEdgeMergeWarn). Only a
+      // raw fs error is a genuine persist failure worth the error record + generic wrap.
+      if (err instanceof ActionableError) throw err;
       getGlobalRecorder()?.record({
         type: 'system.error',
         component: 'ipc-save-edges',
@@ -419,10 +426,6 @@ export function registerTaxonomyHandlers(): void {
         message: 'Failed to persist edges.json (rationale-preserving save)',
         error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
-      // A merge refusal (unreadable baseline / indistinguishable twins) is already an
-      // ActionableError with the precise Goal/Problem/Location/NextSteps — surface it verbatim
-      // rather than masking it behind the generic write-failure message. Only wrap a raw fs error.
-      if (err instanceof ActionableError) throw err;
       throw new ActionableError({
         goal: 'Persist the taxonomy edges to disk',
         problem: 'Could not write edges.json to the active taxonomy directory',
