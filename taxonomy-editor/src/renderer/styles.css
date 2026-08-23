@@ -447,50 +447,6 @@ body {
   color: var(--text-secondary);
 }
 
-/* ─── Tab Bar ──────────────────────────────────────────── */
-
-.tab-bar {
-  display: flex;
-  background: var(--bg-secondary);
-  border-bottom: none;
-  padding: 0 8px;
-  -webkit-app-region: drag;
-  position: relative;
-  z-index: 10;
-}
-
-.tab-bar button {
-  -webkit-app-region: no-drag;
-  padding: var(--sp-2) var(--sp-4);
-  border: none;
-  background: none;
-  color: var(--text-secondary);
-  cursor: pointer;
-  font-size: var(--text-sm);
-  font-weight: 500;
-  border-bottom: 2px solid transparent;
-  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
-  transition: color 0.2s, border-color 0.2s, background 0.2s;
-  display: flex;
-  align-items: center;
-  gap: var(--sp-1);
-}
-
-.tab-bar button:hover {
-  color: var(--text-primary);
-}
-
-.tab-bar button.active {
-  font-weight: 600;
-}
-
-.tab-bar button[data-tab="accelerationist"].active { border-bottom-color: var(--color-acc); color: var(--color-acc); background: var(--tint-acc); }
-.tab-bar button[data-tab="safetyist"].active       { border-bottom-color: var(--color-saf); color: var(--color-saf); background: var(--tint-saf); }
-.tab-bar button[data-tab="skeptic"].active          { border-bottom-color: var(--color-skp); color: var(--color-skp); background: var(--tint-skp); }
-.tab-bar button[data-tab="situations"].active    { border-bottom-color: var(--color-sit);  color: var(--color-sit); background: var(--tint-sit); }
-.tab-bar button[data-tab="conflicts"].active        { border-bottom-color: var(--color-conflicts); color: var(--color-conflicts); }
-.tab-bar button[data-tab="debate"].active           { border-bottom-color: var(--text-primary); color: var(--text-primary); }
-
 /* ─── App body (toolbar + tab content) ─────────────────── */
 
 /* ─── Data update banner ─────────────────────────────── */
@@ -1240,14 +1196,6 @@ body {
 .toolbar-back:hover {
   color: #fff;
   background: var(--focus-ring);
-}
-
-/* ─── Tab Content ──────────────────────────────────────── */
-
-.tab-content {
-  flex: 1;
-  overflow: hidden;
-  display: flex;
 }
 
 /* ─── Two-column layout ────────────────────────────────── */
@@ -4104,32 +4052,6 @@ body {
   background: var(--scrollbar-thumb-hover, var(--text-muted));
 }
 
-/* ─── Theme selector ──────────────────────────────────────── */
-
-.tab-bar-actions {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  margin-left: auto;
-  -webkit-app-region: no-drag;
-}
-
-.tab-bar-menu-btn {
-  padding: 3px 8px;
-  border: none;
-  border-radius: var(--radius-sm);
-  background: transparent;
-  color: var(--text-muted);
-  font-size: var(--text-xs);
-  cursor: pointer;
-  transition: background 0.15s, color 0.15s;
-}
-
-.tab-bar-menu-btn:hover {
-  background: var(--bg-hover);
-  color: var(--text-primary);
-}
-
 /* ─── Taxonomy directory switcher ─────────────────────── */
 
 /* ─── Settings dialog ─────────────────────────────────── */
@@ -6290,17 +6212,6 @@ body {
   white-space: nowrap;
   max-width: 200px;
 }
-.pov-badge {
-  font-size: var(--text-2xs);
-  font-weight: 700;
-  padding: 1px 4px;
-  border-radius: var(--radius-sm);
-  flex-shrink: 0;
-}
-.pov-badge-acc { color: var(--color-acc); border: 1px solid var(--color-acc); }
-.pov-badge-saf { color: var(--color-saf); border: 1px solid var(--color-saf); }
-.pov-badge-skp { color: var(--color-skp); border: 1px solid var(--color-skp); }
-
 .lineage-detail-secondary {
   margin-top: 16px;
   padding: 12px 14px;
@@ -14972,10 +14883,6 @@ th[data-tooltip]::after {
 /* ─── Auto-rotation: phone landscape (t/364) ──────────── */
 
 @media (orientation: landscape) and (max-height: 500px) {
-  .tab-bar {
-    display: none;
-  }
-
   .bottom-nav {
     display: none !important;
   }
@@ -15057,21 +14964,6 @@ th[data-tooltip]::after {
 /* ─── Responsive: phone enhancements (t/360) ──────────── */
 
 @media (max-width: 767px) {
-  .tab-bar {
-    overflow-x: auto;
-    overflow-y: hidden;
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: none;
-    white-space: nowrap;
-  }
-  .tab-bar::-webkit-scrollbar { display: none; }
-
-  .tab-bar button {
-    padding: 8px 16px;
-    min-height: 44px;
-    flex-shrink: 0;
-  }
-
   .list-panel-header {
     flex-wrap: wrap;
     gap: 4px;
@@ -15160,11 +15052,6 @@ th[data-tooltip]::after {
   .toolbar-icon {
     width: 44px;
     height: 44px;
-  }
-
-  .tab-bar button {
-    padding: 8px 16px;
-    min-height: 44px;
   }
 
   .node-item {

@@ -26,3 +26,24 @@
   min-height: 0;
   display: flex;
 }
+
+/* ─── Tab Content ──────────────────────────────────────── */
+
+.tab-content {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+}
+
+/* ─── POV Badge (shared across analysis, conflict, debate, lineage, validation) ── */
+
+.pov-badge {
+  font-size: var(--text-2xs);
+  font-weight: 700;
+  padding: 1px 4px;
+  border-radius: var(--radius-sm);
+  flex-shrink: 0;
+}
+.pov-badge-acc { color: var(--color-acc); border: 1px solid var(--color-acc); }
+.pov-badge-saf { color: var(--color-saf); border: 1px solid var(--color-saf); }
+.pov-badge-skp { color: var(--color-skp); border: 1px solid var(--color-skp); }
