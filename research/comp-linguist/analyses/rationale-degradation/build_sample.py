@@ -60,9 +60,17 @@ sample += [
 # stay quiet; the ratio-binned FP distribution is reported by diff_fp_sweep.py.
 sample += build_diff_controls.build_rows()
 
+# t/2965 — SUB-BOUNDARY (<0.5x) controls: 6 faithful compressions (ratio 0.40-0.49, retention >=0.5,
+# MUST stay quiet — the length-TRUE/content-FALSE demonstration) + 5 lossy degradations (retention
+# <0.5, MUST flag) from 6 NEW sources disjoint from the t/2963 seven. Drives the detector into the
+# <0.5 region COLLAPSE_RATIO governs and characterises the faithful/lossy boundary from both sides.
+sample += build_diff_controls.build_subboundary_rows()
+
 json.dump(sample, open(OUT,"w",encoding="utf-8"), ensure_ascii=False, indent=1)
 from collections import Counter
 print("wrote",len(sample),"rows ->",OUT)
 print("labels:",dict(Counter(r["label"] for r in sample)),
       "provenance:",dict(Counter(r["provenance"] for r in sample)))
-print("diff_ratio controls:",sum(1 for r in sample if r.get("control")=="diff_ratio"))
+print("diff_ratio controls:",sum(1 for r in sample if str(r.get("control","")).startswith("diff_ratio")))
+print("  t/2963 band:",sum(1 for r in sample if r.get("control")=="diff_ratio"),
+      "| t/2965 sub-boundary:",sum(1 for r in sample if str(r.get("control","")).startswith("diff_ratio_subboundary")))

@@ -536,5 +536,121 @@
   "target_ratio": "~0.55x",
   "actual_ratio": 0.723,
   "note": "faithful near-boundary paraphrase (target ~0.55x; 3 land in 0.50-0.60, 2 higher at ~0.61/0.72) — MUST NOT flag"
+ },
+ {
+  "label": "clean",
+  "provenance": "constructed",
+  "control": "diff_ratio_subboundary",
+  "source_key": "saf-intentions-089|saf-intentions-047|SUPPORTS",
+  "old": "saf-intentions-089 addresses the vulnerability of AI-driven governance to adversarial attacks. If AI is used for \"System Intelligence Governance\" as described in saf-intentions-047, then securing these critical AI governance systems becomes even more crucial, thus saf-intentions-089 supports the need for saf-intentions-047 to be robust.",
+  "new": "saf-intentions-089 secures AI-driven governance against adversarial attacks, supporting robust 'System Intelligence Governance' (saf-intentions-047).",
+  "target_ratio": "~0.45x",
+  "actual_ratio": 0.441,
+  "note": "faithful sub-boundary compression (ratio 0.40-0.49, retention >=0.5, referents kept) — length conjunct TRUE, content conjunct FALSE, MUST NOT flag"
+ },
+ {
+  "label": "clean",
+  "provenance": "constructed",
+  "control": "diff_ratio_subboundary",
+  "source_key": "saf-beliefs-129|saf-intentions-074|TENSION_WITH",
+  "old": "Both nodes frame AI risks as 'tool problems,' but 'The Errant Tool Problem' (saf-intentions-073) focuses on AI unintentionally misinterpreting intent, while 'The Bad Tool Problem' (saf-intentions-074) focuses on malicious human use of AI, creating a tension in how AI's fundamental risk as a 'tool' is conceptualized.",
+  "new": "'Tool problems': 'Errant Tool Problem' (saf-intentions-073) unintended misreading of intent; 'Bad Tool Problem' (saf-intentions-074), malicious human misuse.",
+  "target_ratio": "~0.45x",
+  "actual_ratio": 0.495,
+  "note": "faithful sub-boundary compression (ratio 0.40-0.49, retention >=0.5, referents kept) — length conjunct TRUE, content conjunct FALSE, MUST NOT flag"
+ },
+ {
+  "label": "clean",
+  "provenance": "constructed",
+  "control": "diff_ratio_subboundary",
+  "source_key": "sit-298|acc-beliefs-048|TENSION_WITH",
+  "old": "The accelerationist interpretation of the Data Merger Incipiency Standard (sit-298) views it as a potential barrier to rapid scaling, creating 'transitional costs.' This stands in tension with the accelerationist belief that such Transitional Costs are Manageable Systemic Friction (acc-beliefs-048), as it implies a different valuation of the impact of regulatory friction.",
+  "new": "Accelerationists read the Data Merger Incipiency Standard (sit-298) as a scaling barrier imposing 'transitional costs,' tensioning acc-beliefs-048's Manageable Systemic Friction.",
+  "target_ratio": "~0.45x",
+  "actual_ratio": 0.476,
+  "note": "faithful sub-boundary compression (ratio 0.40-0.49, retention >=0.5, referents kept) — length conjunct TRUE, content conjunct FALSE, MUST NOT flag"
+ },
+ {
+  "label": "clean",
+  "provenance": "constructed",
+  "control": "diff_ratio_subboundary",
+  "source_key": "saf-intentions-001|acc-intentions-027|RESPONDS_TO",
+  "old": "`acc-intentions-027` directly targets the 'better safe than sorry' mindset, which is the core principle behind `saf-intentions-001`'s call to 'Pause Building More Powerful AI,' making `saf-intentions-001` a direct example of what `acc-intentions-027` is responding to.",
+  "new": "acc-intentions-027 targets the 'better safe than sorry' mindset behind saf-intentions-001's 'Pause Building More Powerful AI.'",
+  "target_ratio": "~0.45x",
+  "actual_ratio": 0.47,
+  "note": "faithful sub-boundary compression (ratio 0.40-0.49, retention >=0.5, referents kept) — length conjunct TRUE, content conjunct FALSE, MUST NOT flag"
+ },
+ {
+  "label": "clean",
+  "provenance": "constructed",
+  "control": "diff_ratio_subboundary",
+  "source_key": "sit-163|saf-beliefs-051|SUPPORTS",
+  "old": "'Implicit Bias as Discriminatory Indicator' (saf-beliefs-051) supports 'Data-Driven Harms and AI Bias' (sit-163) by asserting that implicit biases, which can arise from data, predict real-world discriminatory decision-making, thus highlighting a significant consequence of the harms.",
+  "new": "saf-beliefs-051's implicit-bias indicator supports 'Data-Driven Harms and AI Bias' (sit-163): biases predict discriminatory decisions.",
+  "target_ratio": "~0.45x",
+  "actual_ratio": 0.473,
+  "note": "faithful sub-boundary compression (ratio 0.40-0.49, retention >=0.5, referents kept) — length conjunct TRUE, content conjunct FALSE, MUST NOT flag"
+ },
+ {
+  "label": "clean",
+  "provenance": "constructed",
+  "control": "diff_ratio_subboundary",
+  "source_key": "acc-beliefs-003|skp-beliefs-202|TENSION_WITH",
+  "old": "The source node highlights AI boosting work in 'demanding jobs like programming, law, and science,' which are knowledge work. `skp-beliefs-025` argues that these high-wage knowledge jobs are precisely where AI causes displacement, creating tension with the idea of a universally positive 'boost.'",
+  "new": "skp-beliefs-025 argues high-wage knowledge jobs are exactly where AI displaces workers, tensioning the source's universal 'boost.'",
+  "target_ratio": "~0.45x",
+  "actual_ratio": 0.439,
+  "note": "faithful sub-boundary compression (ratio 0.40-0.49, retention >=0.5, referents kept) — length conjunct TRUE, content conjunct FALSE, MUST NOT flag"
+ },
+ {
+  "label": "degraded",
+  "provenance": "constructed",
+  "control": "diff_ratio_subboundary_tp",
+  "source_key": "saf-intentions-089|saf-intentions-047|SUPPORTS",
+  "old": "saf-intentions-089 addresses the vulnerability of AI-driven governance to adversarial attacks. If AI is used for \"System Intelligence Governance\" as described in saf-intentions-047, then securing these critical AI governance systems becomes even more crucial, thus saf-intentions-089 supports the need for saf-intentions-047 to be robust.",
+  "new": "Governance security matters, so the source node supports the target node's robustness.",
+  "actual_ratio": 0.254,
+  "note": "sub-boundary degradation (mechanism-drop truncation (referents + attack/oversight mechanism gone)) — content retention < 0.5, MUST flag"
+ },
+ {
+  "label": "degraded",
+  "provenance": "constructed",
+  "control": "diff_ratio_subboundary_tp",
+  "source_key": "sit-298|acc-beliefs-048|TENSION_WITH",
+  "old": "The accelerationist interpretation of the Data Merger Incipiency Standard (sit-298) views it as a potential barrier to rapid scaling, creating 'transitional costs.' This stands in tension with the accelerationist belief that such Transitional Costs are Manageable Systemic Friction (acc-beliefs-048), as it implies a different valuation of the impact of regulatory friction.",
+  "new": "The source node's view of the standard stands in tension with the accelerationist belief about transitional costs.",
+  "actual_ratio": 0.305,
+  "note": "sub-boundary degradation (mechanism-drop truncation (node-ids + 'Manageable Systemic Friction' mechanism gone)) — content retention < 0.5, MUST flag"
+ },
+ {
+  "label": "degraded",
+  "provenance": "constructed",
+  "control": "diff_ratio_subboundary_tp",
+  "source_key": "sit-163|saf-beliefs-051|SUPPORTS",
+  "old": "'Implicit Bias as Discriminatory Indicator' (saf-beliefs-051) supports 'Data-Driven Harms and AI Bias' (sit-163) by asserting that implicit biases, which can arise from data, predict real-world discriminatory decision-making, thus highlighting a significant consequence of the harms.",
+  "new": "Implicit bias supports the belief about data-driven harms and discrimination.",
+  "actual_ratio": 0.272,
+  "note": "sub-boundary degradation (mechanism-drop truncation (referents + prediction mechanism gone)) — content retention < 0.5, MUST flag"
+ },
+ {
+  "label": "degraded",
+  "provenance": "constructed",
+  "control": "diff_ratio_subboundary_tp",
+  "source_key": "saf-beliefs-129|saf-intentions-074|TENSION_WITH",
+  "old": "Both nodes frame AI risks as 'tool problems,' but 'The Errant Tool Problem' (saf-intentions-073) focuses on AI unintentionally misinterpreting intent, while 'The Bad Tool Problem' (saf-intentions-074) focuses on malicious human use of AI, creating a tension in how AI's fundamental risk as a 'tool' is conceptualized.",
+  "new": "Both nodes are about tool problems, and so this source node is, in a way, the one that stands in tension with the target node about the two of them here.",
+  "actual_ratio": 0.483,
+  "note": "sub-boundary degradation (in-band (~0.48) hollow restatement — topic kept, both tool-problem mechanisms + referents gone) — content retention < 0.5, MUST flag"
+ },
+ {
+  "label": "degraded",
+  "provenance": "constructed",
+  "control": "diff_ratio_subboundary_tp",
+  "source_key": "saf-intentions-001|acc-intentions-027|RESPONDS_TO",
+  "old": "`acc-intentions-027` directly targets the 'better safe than sorry' mindset, which is the core principle behind `saf-intentions-001`'s call to 'Pause Building More Powerful AI,' making `saf-intentions-001` a direct example of what `acc-intentions-027` is responding to.",
+  "new": "This target node responds to the source node here, so the two of them are, in a way, said to be tied together on it overall.",
+  "actual_ratio": 0.463,
+  "note": "sub-boundary degradation (in-band (~0.46) hollow restatement — 'better safe than sorry' mechanism + referents gone) — content retention < 0.5, MUST flag"
  }
 ]

@@ -138,8 +138,112 @@ def build_rows():
     return rows
 
 
+# ---------------------------------------------------------------------------
+# t/2965 — SUB-BOUNDARY (< 0.5x) controls: demonstrate the length/content
+# conjunction instead of asserting it.
+#
+# WHY. The t/2963 controls (build_rows above) all sit at char-ratio >= 0.53, so the
+# `length_collapse` length conjunct (`len(new) < 0.5*len(old)`) is FALSE for all of them —
+# the conjunction short-circuits on the length half and is NEVER exercised. The README's
+# "0 FP even at 0.53x because degradation needs the *conjunction*" was therefore an un-run
+# inference for the length arm (the class of claim t/2294 forbids asserting without running).
+# This set drives the detector INTO the < 0.5 region the COLLAPSE_RATIO=0.5 threshold governs,
+# and characterises the faithful/lossy boundary there from BOTH sides:
+#
+#   FAITHFUL (clean, MUST NOT flag): char-ratio 0.40-0.49 (length conjunct TRUE) but content-word
+#       retention >= 0.5 (content conjunct FALSE) + referents preserved. These are the missing
+#       demonstration — the length-TRUE / content-FALSE path that keeps a dense faithful
+#       compression quiet below 0.5. Empirically the ONLY way to hold retention >= 0.5 while
+#       pushing char-ratio below 0.5 is a telegraphic compression of a glue-heavy source; that is
+#       itself the finding (below 0.5 the load-bearing judgement is faithful-vs-lossy, not ratio).
+#   LOSSY (degraded, SHOULD flag): genuine sub-boundary degradations — the mechanism clause and
+#       node-id/quoted referents are dropped (content retention < 0.5). Two sit in-band (~0.46-0.48)
+#       to pin the same-length comparison against the faithful set; three are lower-ratio
+#       mechanism-drop truncations (~0.25-0.31). All flag via length_collapse / referent_loss.
+#
+# SOURCE DIVERSITY (t/2965 AC). These 6 sources are DISJOINT from the 7 used by build_rows above
+# (checked at build time), widening the control corpus to 13 distinct source rationales and spanning
+# four camps (saf/sit/acc/skp) and four edge types (SUPPORTS/TENSION_WITH/RESPONDS_TO).
+#
+# PROVENANCE (t/2294 + register). `old` side is `observed` (byte-exact from ba3128f5). Both the
+# faithful compressions and the lossy degradations are `constructed` — hand-authored by the CL and
+# EMPIRICALLY SCORED (detect.flag_transition) before landing, not inferred from description text.
+# The faithful/lossy label and the 0.40-0.49 target band are `stipulated`; COLLAPSE_RATIO=0.5 stays
+# `derived`. Every string below was verified: FAITHFUL -> [] (quiet), LOSSY -> non-empty signals.
+
+# key -> faithful telegraphic compression: char-ratio 0.40-0.49, retention >= 0.5, referent kept.
+SUB_BOUNDARY_FAITHFUL = {
+    "saf-intentions-089|saf-intentions-047|SUPPORTS":
+        "saf-intentions-089 secures AI-driven governance against adversarial attacks, supporting robust 'System Intelligence Governance' (saf-intentions-047).",
+    "saf-beliefs-129|saf-intentions-074|TENSION_WITH":
+        "'Tool problems': 'Errant Tool Problem' (saf-intentions-073) unintended misreading of intent; 'Bad Tool Problem' (saf-intentions-074), malicious human misuse.",
+    "sit-298|acc-beliefs-048|TENSION_WITH":
+        "Accelerationists read the Data Merger Incipiency Standard (sit-298) as a scaling barrier imposing 'transitional costs,' tensioning acc-beliefs-048's Manageable Systemic Friction.",
+    "saf-intentions-001|acc-intentions-027|RESPONDS_TO":
+        "acc-intentions-027 targets the 'better safe than sorry' mindset behind saf-intentions-001's 'Pause Building More Powerful AI.'",
+    "sit-163|saf-beliefs-051|SUPPORTS":
+        "saf-beliefs-051's implicit-bias indicator supports 'Data-Driven Harms and AI Bias' (sit-163): biases predict discriminatory decisions.",
+    "acc-beliefs-003|skp-beliefs-202|TENSION_WITH":
+        "skp-beliefs-025 argues high-wage knowledge jobs are exactly where AI displaces workers, tensioning the source's universal 'boost.'",
+}
+
+# key -> (degraded new text, kind): genuine sub-boundary degradation, retention < 0.5, MUST flag.
+SUB_BOUNDARY_LOSSY = {
+    "saf-intentions-089|saf-intentions-047|SUPPORTS":
+        ("Governance security matters, so the source node supports the target node's robustness.",
+         "mechanism-drop truncation (referents + attack/oversight mechanism gone)"),
+    "sit-298|acc-beliefs-048|TENSION_WITH":
+        ("The source node's view of the standard stands in tension with the accelerationist belief about transitional costs.",
+         "mechanism-drop truncation (node-ids + 'Manageable Systemic Friction' mechanism gone)"),
+    "sit-163|saf-beliefs-051|SUPPORTS":
+        ("Implicit bias supports the belief about data-driven harms and discrimination.",
+         "mechanism-drop truncation (referents + prediction mechanism gone)"),
+    "saf-beliefs-129|saf-intentions-074|TENSION_WITH":
+        ("Both nodes are about tool problems, and so this source node is, in a way, the one that stands in tension with the target node about the two of them here.",
+         "in-band (~0.48) hollow restatement — topic kept, both tool-problem mechanisms + referents gone"),
+    "saf-intentions-001|acc-intentions-027|RESPONDS_TO":
+        ("This target node responds to the source node here, so the two of them are, in a way, said to be tied together on it overall.",
+         "in-band (~0.46) hollow restatement — 'better safe than sorry' mechanism + referents gone"),
+}
+
+
+def build_subboundary_rows():
+    """Return the t/2965 sub-boundary control rows (faithful clean + lossy degraded).
+
+    Importable by build_sample.py — one regenerable pipeline. Sources are asserted disjoint from
+    build_rows' 7 (AC: source diversity widened beyond 7)."""
+    src_by = {key(e): rat(e) for e in edges_at("ba3128f5") if rat(e)}
+    keys = list(SUB_BOUNDARY_FAITHFUL) + list(SUB_BOUNDARY_LOSSY)
+    missing = [k for k in keys if k not in src_by]
+    if missing:
+        raise SystemExit(f"sub-boundary source keys not found in ba3128f5: {missing}")
+    overlap = set(keys) & (set(PARAPHRASES) | set(NEAR_BOUNDARY))
+    if overlap:
+        raise SystemExit(f"t/2965 sources must be disjoint from the t/2963 set; overlap: {overlap}")
+    rows = []
+    for k, new in SUB_BOUNDARY_FAITHFUL.items():
+        old = src_by[k]
+        rows.append({
+            "label": "clean", "provenance": "constructed", "control": "diff_ratio_subboundary",
+            "source_key": k, "old": old, "new": new,
+            "target_ratio": "~0.45x",
+            "actual_ratio": round(len(new) / max(1, len(old)), 3),
+            "note": "faithful sub-boundary compression (ratio 0.40-0.49, retention >=0.5, referents kept) "
+                    "— length conjunct TRUE, content conjunct FALSE, MUST NOT flag",
+        })
+    for k, (new, kind) in SUB_BOUNDARY_LOSSY.items():
+        old = src_by[k]
+        rows.append({
+            "label": "degraded", "provenance": "constructed", "control": "diff_ratio_subboundary_tp",
+            "source_key": k, "old": old, "new": new,
+            "actual_ratio": round(len(new) / max(1, len(old)), 3),
+            "note": f"sub-boundary degradation ({kind}) — content retention < 0.5, MUST flag",
+        })
+    return rows
+
+
 if __name__ == "__main__":
-    rows = build_rows()
+    rows = build_rows() + build_subboundary_rows()
     json.dump(rows, open(OUT, "w", encoding="utf-8"), ensure_ascii=False, indent=1)
     print(f"wrote {len(rows)} diff-mode controls -> {OUT}")
     ratios = sorted(r["actual_ratio"] for r in rows)
