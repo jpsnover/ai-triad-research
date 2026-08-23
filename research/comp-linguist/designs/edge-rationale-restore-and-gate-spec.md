@@ -47,10 +47,18 @@ on two surfaces:
   strip (its own doc comment states the invariant it violates: "on-disk file keep full data");
   served by `GET /api/edges`, whole-file save via `PUT /api/edges`.
 
-The "`workflow-app` pipeline" attribution was the full-tree `git add` **capturing** an
-editor/server whole-file save — not the pipeline edge-build. Both surfaces write through the **TS**
-serializer (`lib/edges/serializeEdges.ts`), *not* the PS `Write-EdgesFile.ps1` — load-bearing for
-the gate placement (Part B).
+**The `workflow-app` trailer is the courier, not the author (e/120#28).** The pipeline commit step
+stages via `git add -A` / scoped top-level surfaces (`pipeline.ts:226,230-231`), which sweeps
+**pre-existing uncommitted working-tree changes** into the run's commit. An interactive editor save
+that stripped `rationale` therefore lands in the *next* pipeline run's commit, wearing
+`Tool: workflow-app v1.0.0` / `Triggered-By: user:jsnov` trailers it did not earn. This reconciles
+the whole investigation: every `Invoke-EdgeDiscovery` reproduce came back clean because the cmdlet
+*is* clean — the strip predates the run it was committed in. **Corollary:** commit timestamps
+bound the wipe **from above only** (the save can be any time between the prior commit and the
+pipeline run). t/2945's "pipeline wipes rationale" title is **wrong on mechanism, right on impact.**
+Both save surfaces write through the **TS** serializer (`lib/edges/serializeEdges.ts` via
+`taxonomy-editor/src/main|server/…/fileIO.ts`), *not* the PS `Write-EdgesFile.ps1` — load-bearing
+for the gate placement (Part B).
 
 **Consequence:** the fix is not LLM backfill of 33k edges. It is (A) **git-restore** of the
 original discovery-time text (PR #1428 tool); (B) a **site fix** — a shared re-merge helper so the
@@ -107,6 +115,13 @@ commit-time backstop**. **PS Arm 1 alone is not sufficient** — the site writes
 serializer, not the PS `Write-EdgesFile`, so PS Arm 1 never fires on the actual add-edge-save
 vector (see Part B coverage map).
 
+> **⚠ LIVE RISK (until the site fix lands, e/120#28):** the trigger is a human editing edges in
+> the taxonomy editor — there is *no automated caller* of load-edges+save-edges. So the exposure
+> is closable today, independent of the ownership decision: **do not save edges in the taxonomy
+> editor (desktop or web) until the re-merge lands** — any edge edit-and-save re-wipes `rationale`
+> from all existing edges (wipe #3). This gates the restore too: restoring before the save path is
+> fixed just re-arms the same vector (the t/2679 shape).
+
 ## Part B — Regression / count-floor gate spec
 
 **Requirement (e/119 ask #1):** the gate must fire when a write **drops `rationale` from edges
@@ -136,6 +151,16 @@ ownerless). **Test both arms:** a save preserves on-disk `rationale` for existin
 `edgesApi.test.ts` covers only read-strip *purity*, not save-preservation). Verify per t/2294:
 add an edge in the UI / POST a new edge → confirm existing edges' `rationale` survives.
 
+**Load-side lever (defense-in-depth, complement not substitute — e/120#25/#28).** Have the list
+load request the full payload (`GET /api/edges?include=rationale`) so the renderer's in-memory set
+is complete and a save physically cannot drop it. Keep it **alongside** the write-boundary re-merge
+(never trust the payload) — either alone closes the vector; both is belt-and-suspenders.
+**Caveat — the strip is DUPLICATED across two sites, not one:** the server helper
+`stripEdgeRationale` (`edgesApi.ts`) fed by `web-bridge.ts:775` (`get('/api/edges')`, no include),
+**and an inline copy** at `taxonomyHandlers.ts:260-267` (main-process code does not import the
+server helper). Fixing only the web bridge leaves the Electron path stripping. The duplicated
+projection is itself the latent hazard — **collapse both to one implementation** as part of the fix.
+
 ### Placement — three-arm coverage map (final, e/120#24; supersedes the e/120#4–#7 framing)
 Two serializers exist by design (`serializeEdges.ts` for TS ↔ `Write-EdgesFile.ps1` for PS, kept
 byte-identical so they "cannot drift"). The site writes through the **TS** path; the pipeline
@@ -152,8 +177,10 @@ not be written rationale-less.*
    of the fix. Lands in taxonomy-editor (ownerless).
 3. **Arm 2 — CI diff vs committed HEAD on `../ai-triad-data`.** Commit-time backstop; catches
    **any** writer including a direct editor/server save. **Co-primary / required, not deferrable**
-   — it is the only arm that catches a save that bypasses both serializers. Home = DevOps if
-   `ai-triad-data` has push CI (TL scoping).
+   — it is the only arm that catches a save that bypasses both serializers, and (e/120#28) the only
+   arm positioned **where the `git add -A` sweep reveals the damage** (the courier commit). That
+   puts it **on the restore's critical path**, not beside it. Home = DevOps if `ai-triad-data` has
+   push CI (TL scoping).
 
 **Restore-protection rule:** the restore is durable behind **the site fix OR Arm 1-TS**, with Arm 2
 as the commit-time backstop — **not** behind PS Arm 1 alone.
