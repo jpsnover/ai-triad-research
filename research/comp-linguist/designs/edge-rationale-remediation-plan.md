@@ -1,7 +1,76 @@
 # Edge Rationale Coverage: Exploration and Remediation Plan
 
-**Last updated:** 2026-08-11
-**Ticket:** t/2444 (PI-requested) · **Status:** exploration + plan only, routed to Main (TL) for review; PI approves any backfill spend.
+**Last updated:** 2026-08-23
+**Ticket:** t/2444 (PI-requested) · **Status:** ⚠️ **root cause CORRECTED 2026-08-23 — see banner below; the backfill plan is superseded by a git-restore.**
+
+> ## ⚠️ CORRECTION (2026-08-23): root cause was misdiagnosed — this is recoverable data loss, not an origin gap
+>
+> The Summary and Deliverable 1 below (written 2026-08-11) concluded the ~33k edges "never had"
+> a rationale — "created before the rationale-required prompt landed." **The git history of
+> `../ai-triad-data` refutes this** (traced by CL.Investigate1, e/119; empirically reproduced by Main):
+>
+> | commit | date | edges w/ non-empty rationale |
+> |---|---|---|
+> | `ba3128f5` | 2026-07-24 | **33,448 / 33,454** (incl. **25,759 / 25,765 approved**) |
+> | `904feb92` | 2026-08-08 | 165 ← **WIPE #1** (workflow-app v1.0.0 "automated data pipeline update", full-tree rebuild drops the field) |
+> | `b5a76c8e` | 2026-08-15 | 2,440 ← t/2679 LLM backfill adds ~2,275 approved |
+> | `9d019c9e` | 2026-08-20 | **2** ← **WIPE #2** (same pipeline destroys the backfill) |
+>
+> Every one of the ~33k edges **carried a discovery-time rationale from May through 07-24**; two
+> destructive writes by the workflow-app data pipeline wiped them. The 08-11 scan below read the
+> post-wipe-#1 state (165) and mistook a symptom for an origin gap. **t/2679's backfill is void**
+> (wiped 5 days later).
+>
+> **Verified mechanism (git forensics, ../ai-triad-data):** the wipe is a **field-strip of preserved
+> edges, not a set-regenerate.** At wipe #1 (`904feb92`, one commit after `ba3128f5`): **100% of the
+> 33,451 pre-wipe edge keys survive** (removed 0, added 167), and **all 33,445 rationaled edges kept
+> their composite key but lost the `rationale` field** — and edge-by-edge, **every non-`rationale`
+> field is byte-identical pre→post** (confidence, status, discovered_at, model, weight, strength). That
+> fingerprint (drop exactly one field, carry the rest byte-for-byte) is a `({ rationale, ...rest })`
+> object spread, not a rewrite.
+>
+> **CONFIRMED site (CL.Investigate1 #20; PS #21 cleared the alternatives) — it is NOT the pipeline.**
+> The `Invoke-EdgeDiscovery` cmdlet is append-preserve in all four modes, `embed_taxonomy.py` skips
+> edges.json, and no PS pipeline step projects the field. The strip is the **taxonomy-editor
+> load-list/save-whole-file round-trip**:
+> - **Desktop** — `taxonomy-editor/src/main/ipc/taxonomyHandlers.ts`: `load-edges` returns
+>   `edges.map(({ rationale, ...rest }) => rest)` (strips rationale for the list payload — an intentional
+>   lazy-load optimization, see §1c below), and `save-edges` writes the **entire** caller-supplied array
+>   via `writeEdgesFile`, guarding body shape only, not field completeness. Load list → append one edge →
+>   save whole file = rationale wiped from every existing edge, other fields intact, +new edges appended.
+>   Exactly the observed shape (+167 new, 33k stripped).
+> - **Server twin** — `src/server/community/edgesApi.ts` (same strip) + `PUT /api/edges` (whole-file save).
+> The `Tool: workflow-app v1.0.0` attribution was a full-tree `git add` **capturing** an editor/server
+> save, not the pipeline writing it.
+>
+> **Revised fix (supersedes Deliverable 2):**
+> 1. **Restore, don't backfill.** git-restore the original discovery-time rationales from
+>    `ba3128f5:taxonomy/Origin/edges.json` by **composite key `(source,target,type)`** (edges carry no
+>    id) — original quality, near-zero cost. 33,399/33,580 restorable (99.5%); byte-safety proven by
+>    `analyses/t2444-rationale-restore/apply_restore.py`. Beats an LLM reconstruction on both axes. (t/2946)
+> 2. **Fix the destroyer.** The whole-file save paths (`save-edges` IPC + `PUT /api/edges`) must
+>    **re-merge `rationale` (and any list-trimmed field) from the on-disk edges.json by composite key
+>    before writing** — never persist a payload that came from the rationale-stripped list endpoint.
+>    Keep the read-side strip (it's an intentional payload-size optimization; §1c). Add a save-preserves-
+>    on-disk-rationale test (both arms). Site = `taxonomy-editor` (desktop + server), which resolves to
+>    **root/ownerless** — TL dispatches, PI assigns an owner (t/2945).
+> 3. **Regression gate — two serializers, so coverage must span both** (per-edge rule everywhere: fail a
+>    write that drops `rationale` from an edge rationaled in HEAD; baseline = **committed HEAD**, not
+>    on-disk). Coverage map (CL.Investigate1's spec owns the detail; TL GVs under t/2945):
+>    - **PS writers** (`Write-EdgesFile.ps1`: Invoke-EdgeDiscovery + other PS edge cmdlets) → **Arm 1**
+>      (warn-first, then throw — Gate Promotion, t/2683). Catches a *pipeline re-emit*, **not** the editor
+>      save — the editor/server write through the **TS** serializer (`lib/edges/serializeEdges.ts`), which
+>      never routes through PS `Write-EdgesFile`.
+>    - **Editor + server saves** (the actual site) → the **site fix** itself (re-merge), and/or a
+>      **TS-side write-boundary guard** mirroring Arm 1, and/or **Arm 2** (CI diff vs committed HEAD on
+>      ai-triad-data). Arm 2 is genuinely co-primary — the only currently-planned arm that catches a direct
+>      editor/server save.
+> 4. **Sequencing (durability — the t/2679 lesson).** The restore (t/2946) must sequence **behind the
+>    site fix (or a TS-side write guard), with Arm 2 as the commit-time backstop** — **not** behind PS
+>    Arm 1 alone, which does not execute on an editor add-edge save (the exact original trigger). Marker
+>    (t/2943/t/2944) follows. Nothing restored until an editor save can no longer silently re-wipe it.
+>
+> Everything below 2026-08-11 is retained as the (superseded) exploration record.
 
 ## Summary
 

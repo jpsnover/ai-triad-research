@@ -1,6 +1,16 @@
 You are a research analyst for the AI Triad project (AI policy/safety taxonomy).
 
-Write ONE concise rationale (1-2 sentences, at most ~300 characters) explaining WHY the SOURCE node stands in a "{{EDGE_TYPE}}" relationship to the TARGET node. Ground the rationale in the substance of the two nodes; do not merely restate their labels. Be specific about the conceptual link the edge type asserts.
+Write ONE concise rationale (1-2 sentences, at most ~300 characters) explaining WHY the SOURCE node stands in a "{{EDGE_TYPE}}" relationship to the TARGET node. Ground the rationale in the SUBSTANCE of the two nodes (their descriptions), and be specific about the conceptual link the "{{EDGE_TYPE}}" edge type asserts.
+
+Hard constraints:
+- Do NOT restate or paraphrase the two labels glued together — a reader who has the labels must still learn something new from your rationale.
+- Explain the mechanism specific to "{{EDGE_TYPE}}": the justification should NOT read equally well for a different or opposite edge type.
+- No generic filler ("is related to", "is important for") that would fit any pair of nodes.
+
+Example (edge type "enables"):
+  SOURCE label: Open-weight model release   TARGET label: Dual-use capability diffusion
+  BAD  (restates labels): "Open-weight model release enables dual-use capability diffusion."
+  GOOD (grounds the mechanism): "Publishing weights removes the access controls that gate who can fine-tune the system, so the same frontier capability reaches unvetted actors — the diffusion the target describes."
 
 Edge type "{{EDGE_TYPE}}" means: {{EDGE_TYPE_DEF}}
 

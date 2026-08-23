@@ -203,6 +203,19 @@ Parameters declared in approved-pending designs; rows move to §1/§5 when the i
 Rows for the Debate-Tested tier instrument moved to §1 on 2026-07-15 (Phase 0 implemented, t/1545 `7f4b85f8`; renamed per t/1533). Testing-deficit ladder and importance weights moved to §1 on 2026-07-15 (Phase 3 implemented, t/1587 `c968fbc7`); WELL_TESTED_EXCLUSION constants added to §1 same date.
 | External evidence pointer (`external_evidence[]`: `{url, note, added_by, added_at}` on cruxes; same shape planned on Debate-Tested `revisions[]` entries) | t/1535 (external review suggestion, t/1523) | `metadata` | Human-entered record of real-world evidence a reviewer found when investigating a crux or high-impact revision. Not computed, not an instrument — carries no evidence pointer because it doesn't measure anything, it records outside-the-loop input. **Hard rule:** MUST NOT be read by any scoring, sort-key, or tier-computation code path. A PR that adds such a read reopens the exact self-corroboration risk t/1523's rename closed and should be blocked outright, not merely flagged. |
 
+## 9. Edge-rationale quality screen (t/2444 A′ tranche)
+
+Automated, no-hand-grading screen over the AI-generated edge `rationale` field
+(`Invoke-EdgeRationaleBackfill` output). Tool: `analyses/edge-rationale-quality/`
+(`check_rationale_quality.py` mechanical layer + `judge-prompt.txt` LLM-judge layer).
+Both layers are **stipulated screens for obvious junk — NOT proofs of rationale
+quality**; a judge `pass` is not ground truth.
+
+| Instrument / threshold | Provenance | Evidence / notes |
+|---|---|---|
+| Mechanical thresholds — `MIN_CHARS=40`, `MAX_CHARS=400`, `MIN_NOVEL_WORDS=4`, `RESTATEMENT_OVERLAP=0.60`, `RESTATEMENT_NOVEL_MAX=6` | **stipulated** | Token-heuristic flags (`empty` / `too_short` / `too_long` / `low_novelty` / `restatement` / `both_labels_verbatim`). Values asserted by design; `MAX_CHARS` tracks the backfill prompt's ~300-char target with slack. Two-arm proven in `test_check_rationale_quality.py` (good rationale → 0 flags; each defect → its flag) but never tuned against a labeled sample. **Path off stipulated:** score flags against a hand-labeled rationale sample; promote to `derived` only with that evidence pointer. |
+| LLM-judge verdict (`grounded` 0–2, `specific_to_type` 0–2, `not_restatement` 0–1; verdict `pass`/`weak`/`fail`) | **stipulated** | `judge-prompt.txt` rubric asserted by design. A junk screen (catches empty / off-type / label-restatement), not a calibrated quality metric — the model's own scores do not transport across backends. **Path off stipulated:** agreement study vs a human-labeled rationale sample; until then never read a `pass` as validated quality. |
+
 ## Maintenance
 
 - Every PR adding or modifying a metric, threshold, weight, or lexicon must state its provenance class and update this register in the same PR (CL review checklist item).
