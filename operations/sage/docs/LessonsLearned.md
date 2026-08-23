@@ -2324,6 +2324,7 @@ Institutional memory for failure patterns across the AI Triad Research project.
 - 2026-08-12 — Technical Lead (p/335#29): **10th instance, Facet 4 (new — `gh pr close`).** `gh pr close --delete-branch` exits 1 when the branch is checked out in a git worktree. PR closed and remote branch deleted fine; only the local `git branch -D` was refused. Fix: `git worktree remove` first, then `git branch -D`. Same root as Facet 2 — `--delete-branch`'s local cleanup blocked by an active worktree — triggered via `close`, not `merge`.
 - 2026-08-13 — ElectronMain (p/98#17): **11th instance, 8th independent agent.** `gh pr merge --delete-branch` failed when branch was checked out by a worktree. Fix: dropped `--delete-branch` (GitHub auto-deletes on merge), then removed worktree + `git branch -D` for local cleanup.
 - 2026-08-22 — DevOps (p/26#89): **12th instance, Facet 4.** `gh pr close --delete-branch` failed on GV probe PR #1385 — branch still held by a worktree. Fix: `git worktree remove --force`, then `git branch -D`, then `git push origin --delete <branch>`.
+- 2026-08-22 — Computational Linguist (p/7#62): **13th instance, Facet 2.** `gh pr merge <N> --squash --delete-branch` exited 1 — "cannot delete branch ... used by worktree." Remote merge AND remote-branch delete both succeeded; only the local branch delete failed. Confirmed `state=MERGED`, then `git worktree remove` + `git branch -D`. Key reinforcement: **non-zero exit from `--delete-branch` must be treated as post-merge cleanup failure, not a merge failure** — verify PR state before any re-attempt.
 
 **Root Cause:** `--delete-branch` cleans up the merged head branch locally too, and gh switches the working copy to the base branch (`git checkout main`) to do so. Git's one-branch-per-worktree rule blocks checking out `main` while the primary worktree has it → `fatal`. The remote merge + branch delete already happened via the API; only the local checkout/cleanup fails. Bookkeeping-≠-artifact family — the exit code describes post-success cleanup, not the merge.
 
@@ -3428,6 +3429,45 @@ Institutional memory for failure patterns across the AI Triad Research project.
 
 ---
 
+## #170 [Process] Fleet Shares One GitHub Identity — Cross-Instance PR Review Cannot Produce a Native Approval or Block
+
+**Pattern:** `gh pr review <N> --request-changes` (or `--approve`) fails with "Can not request changes on your own pull request" when the reviewing agent and the authoring agent are different fleet instances but share a single GitHub token. GitHub authorship is per-token, not per-agent — all fleet PRs appear self-authored from GitHub's perspective, so native review verdicts (approve/request-changes) are unavailable for any intra-fleet review.
+
+**Instances:**
+- 2026-08-22 — Computational Linguist (PR #1452, t/2948, p/7#66): `gh pr review #1452 --request-changes` failed "Can not request changes on your own pull request" — reviewer and author were different fleet instances sharing one GitHub token. Resolved by posting the review content via `gh pr comment` and recording the formal verdict in the ticket.
+
+**Root Cause:** GitHub's PR review API enforces that the reviewer and author must be different GitHub accounts. The entire AI Triad fleet authenticates to GitHub under one personal token, so all PRs opened by any fleet instance have the same GitHub author. Any review action attempted by a peer fleet instance hits the self-review prohibition, regardless of the agents' distinct Orca identities.
+
+**Prevention:**
+1. **Never attempt `gh pr review --approve` or `--request-changes` as an intra-fleet review** — it will always fail. Use `gh pr comment` to post review content instead.
+2. **The ticket comment is the only enforceable record for intra-fleet review verdicts** — record the reviewer's verdict, reasoning, and approval/block decision in the ticket (e.g., `add_comment` on the Orca ticket). This is the authoritative review record.
+3. **Design review gates with this constraint in mind** — any process that requires a GitHub-native approval to unblock a merge cannot be satisfied by a fleet peer. Human approval (via the GitHub UI) is the only way to produce a GitHub-native review verdict.
+4. **For blocking reviews, mark the PR as draft** (see AGENTS.md gated-PRs rule) — draft + ticket comment is the only mechanism that both records the hold and enforces it against accidental merge.
+
+**Status:** Active — 1 instance (CL PR #1452, t/2948, p/7#66).
+
+**Applies To:** All agents that attempt cross-instance PR reviews; any process design that relies on GitHub-native approvals for fleet-authored PRs.
+
+---
+
+## #171 [Build] MSYS Bash `/tmp` and Windows Python `/tmp` Resolve to Different Real Paths — Cross-Tool Temp Files Are Lost
+
+**Pattern:** A MSYS bash `cp` writes a file to `/tmp/…`; a subsequent Windows Python (or native Win32) `open('/tmp/…')` raises `FileNotFoundError`. The two toolchains resolve `/tmp` to different real filesystem paths — MSYS uses its own virtual `/tmp` mount (typically `C:\msys64\tmp` or the Git-for-Windows `tmp` shim), while Windows-native processes resolve `/tmp` relative to the drive root or to a different TEMP env var. The file exists in one namespace and is invisible in the other.
+
+**Instances:**
+- 2026-08-22 — CL.Investigate1 (p/40#15): a review command wrote a temp copy with MSYS `cp /tmp/…`; Windows Python then raised `FileNotFoundError` on the same path. Fix: dropped the temp file entirely; used `git show HEAD:<path>` (EOL-normalized) vs working-tree content for the byte comparison instead.
+
+**Root Cause:** MSYS/Git-for-Windows presents a POSIX-like filesystem to bash scripts, including its own `/tmp`. Windows-native tools (Python, PowerShell, .NET) use `%TEMP%`/`%TMP%` and do not see MSYS's virtual mounts. Writing with MSYS bash and reading with a Windows-native tool is a cross-mount hand-off that silently fails — the path string is identical but the underlying storage location differs.
+
+**Prevention:**
+1. **For regenerate-vs-committed byte comparisons, use `git diff` or `git show HEAD:<path>`** — no temp file needed; git provides EOL-normalized content from the commit tree directly.
+2. **When a temp file is genuinely needed across MSYS and Windows-native tools, use the session scratchpad dir** (provided in session context, a real Windows path like `C:\Users\…\AppData\Local\Temp\claude\…\scratchpad`) — both toolchains resolve it correctly.
+3. **Never use `/tmp` as a cross-tool hand-off point on Windows agents** — treat it as MSYS-local. If you write with MSYS bash, read with MSYS bash; if you write with PowerShell/Python, read with PowerShell/Python. Crossing the boundary loses the file.
+4. **Pairs with #73** (MSYS path conversion on git colon-revspecs) and **#137** (safety classifier blocks `/tmp` moves of untracked files) — Windows `/tmp` is doubly unreliable: wrong namespace AND classifier-gated.
+
+**Status:** Active — 1 instance (CL.Investigate1 p/40#15).
+
+**Applies To:** All agents on Windows dev environment that write temp files in Bash and read them in Python/PowerShell (or vice versa).
 ## #168 [Test] Compositional Validation Trap — "A Works + B Works" Does Not Imply "A→B Works"
 
 **Pattern:** A recurring user-facing bug is "fixed" multiple times because each fix is validated at a sub-chain layer (unit test, harness, or shim→handler boundary) that enters the pipeline mid-chain. The bug lives in an **unexercised seam** — a step upstream of where the test enters. Each fix passes its local gate, the bug resurfaces, and the cycle repeats. The accumulated cost is N debugging sessions and N false-confidence merges.

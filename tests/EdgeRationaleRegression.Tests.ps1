@@ -344,3 +344,263 @@ Describe 'Test-EdgeRationaleRegression — HEAD baseline resolution + caching (g
         }
     }
 }
+
+Describe 'Test-EdgeRationaleRegression — hadRationale map memoization (t/2951)' -Tag 'edges' {
+
+    It 'memoizes the derived map under path@HEAD-sha: call 2 reports a map cache hit and still fires' {
+        $repo = Join-Path $TestDrive 'maprepo'
+        $tax  = Join-Path $repo 'taxonomy/Origin'
+        New-Item -ItemType Directory -Path $tax -Force | Out-Null
+        $edgesPath = Join-Path $tax 'edges.json'
+        $committed = New-EdgesData @( (New-Edge 'acc-001' 'SUPPORTS' 'saf-002' 'committed rationale') )
+        $strip     = New-EdgesData @( (New-Edge 'acc-001' 'SUPPORTS' 'saf-002') )
+        InModuleScope AITriad -Parameters @{ Committed = $committed; Strip = $strip; EdgesPath = $edgesPath; Repo = $repo } {
+            param($Committed, $Strip, $EdgesPath, $Repo)
+            Write-EdgesFile -EdgesData $Committed -Path $EdgesPath
+            Push-Location $Repo
+            try { git init -q 2>$null; git config user.email 't@t' 2>$null; git config user.name 't' 2>$null; git add -A 2>$null; git commit -q -m b 2>$null } finally { Pop-Location }
+            $script:EdgeHeadBaselineCache = @{}
+            $script:EdgeHadRationaleCache = @{}
+            # Call 1: builds the map (cold) — reports the resolved baseline, NOT a map cache hit.
+            $v1 = (Test-EdgeRationaleRegression -EdgesData $Strip -Path $EdgesPath -Mode Warn -Verbose -WarningAction SilentlyContinue 4>&1) | Out-String
+            $v1 | Should -Match 'HEAD baseline resolved — 1 rationaled key'
+            $v1 | Should -Not -Match 'map cache hit'
+            @($script:EdgeHadRationaleCache.Keys).Count | Should -BeGreaterThan 0
+            # Call 2: same path@HEAD -> the memoized map is reused, and the verdict is unchanged.
+            $n2 = Test-EdgeRationaleRegression -EdgesData $Strip -Path $EdgesPath -Mode Warn -Verbose -WarningVariable w -WarningAction SilentlyContinue -InformationAction SilentlyContinue
+            $v2 = (Test-EdgeRationaleRegression -EdgesData $Strip -Path $EdgesPath -Mode Warn -Verbose -WarningAction SilentlyContinue 4>&1) | Out-String
+            $n2 | Should -Be 1                                  # still fires — memoization changes cost, not verdict
+            $v2 | Should -Match 'hadRationale map cache hit — 1 rationaled key'
+        }
+    }
+
+    It 'does NOT memoize an INJECTED baseline: the map cache stays empty and never reports a hit' {
+        $baseline = @( (New-Edge 'acc-001' 'SUPPORTS' 'saf-002' 'because X reinforces Y') )
+        $strip    = New-EdgesData @( (New-Edge 'acc-001' 'SUPPORTS' 'saf-002') )
+        InModuleScope AITriad -Parameters @{ B = $baseline; W = $strip } {
+            param($B, $W)
+            $script:EdgeHadRationaleCache = @{}
+            $v = (Test-EdgeRationaleRegression -EdgesData $W -BaselineEdges $B -Mode Warn -Verbose -WarningAction SilentlyContinue 4>&1) | Out-String
+            (Test-EdgeRationaleRegression -EdgesData $W -BaselineEdges $B -Mode Warn -WarningAction SilentlyContinue) | Should -Be 1
+            $v | Should -Not -Match 'map cache hit'
+            @($script:EdgeHadRationaleCache.Keys).Count | Should -Be 0   # injected baselines have no cache identity
+        }
+    }
+}
+
+Describe 'Test-EdgeRationaleRegression — per-element null/fault resilience in the payload scan (t/2951)' -Tag 'edges' {
+
+    BeforeEach {
+        $script:Baseline = @(
+            (New-Edge 'acc-001' 'SUPPORTS'    'saf-002' 'because X reinforces Y'),
+            (New-Edge 'acc-003' 'CONTRADICTS' 'skp-004' 'because Z conflicts with W')
+        )
+    }
+
+    It 'a $null element does NOT whole-file fail-open: the surviving edges are still evaluated and a real regression is still detected' {
+        # A $null between two real edges — one of which strips a HEAD-rationaled edge. Before t/2951
+        # the $null tripped the whole-body catch and the guard returned 0 (silent fail-open) for the
+        # entire file, missing the wipe. Now the $null is skipped individually and the wipe still fires.
+        $write = New-EdgesData @(
+            (New-Edge 'acc-001' 'SUPPORTS'    'saf-002'),                                 # strips rationale (regression)
+            $null,                                                                          # malformed element
+            (New-Edge 'acc-003' 'CONTRADICTS' 'skp-004' 'because Z conflicts with W')      # preserved
+        )
+        InModuleScope AITriad -Parameters @{ W = $write; B = $script:Baseline } {
+            param($W, $B)
+            Test-EdgeRationaleRegression -EdgesData $W -BaselineEdges $B -Mode Warn -WarningAction SilentlyContinue | Should -Be 1
+            { Test-EdgeRationaleRegression -EdgesData $W -BaselineEdges $B -Mode Block } | Should -Throw
+        }
+    }
+
+    It 'surfaces the null-skip count in the payload-scanned line, distinct from the missing-key-fields skip' {
+        $write = New-EdgesData @(
+            (New-Edge 'acc-001' 'SUPPORTS' 'saf-002' 'because X reinforces Y'),           # checked
+            $null                                                                          # null-skipped
+        )
+        InModuleScope AITriad -Parameters @{ W = $write; B = $script:Baseline } {
+            param($W, $B)
+            $v = (Test-EdgeRationaleRegression -EdgesData $W -BaselineEdges $B -Mode Warn -Verbose -WarningAction SilentlyContinue 4>&1) | Out-String
+            $v | Should -Match 'payload scanned — checked 1 edge\(s\), skipped 0 \(missing key fields\)'
+            $v | Should -Match '1 null element'
+        }
+    }
+
+    It 'ZERO new noise on the all-valid path: no null/faulted clause when there are none' {
+        $write = New-EdgesData @( (New-Edge 'acc-001' 'SUPPORTS' 'saf-002' 'because X reinforces Y') )
+        InModuleScope AITriad -Parameters @{ W = $write; B = $script:Baseline } {
+            param($W, $B)
+            $v = (Test-EdgeRationaleRegression -EdgesData $W -BaselineEdges $B -Mode Warn -Verbose -WarningAction SilentlyContinue 4>&1) | Out-String
+            $v | Should -Match 'payload scanned — checked 1 edge'
+            $v | Should -Not -Match 'null element'
+            $v | Should -Not -Match 'faulted element'
+        }
+    }
+}
+
+Describe 'Test-EdgeRationaleRegression — twin-aware edge identity (t/2956)' -Tag 'edges' {
+
+    BeforeAll {
+        # An edge with discovered_at + optional model, for building twin (shared-near-key) cases.
+        function New-TwinEdge {
+            param([string]$Source, [string]$Type, [string]$Target, [string]$DiscoveredAt, [string]$Model, [string]$Rationale)
+            $o = [ordered]@{ source = $Source; type = $Type; target = $Target; confidence = 0.85; status = 'approved'; discovered_at = $DiscoveredAt }
+            if ($PSBoundParameters.ContainsKey('Model'))     { $o['model'] = $Model }
+            if ($PSBoundParameters.ContainsKey('Rationale')) { $o['rationale'] = $Rationale }
+            [pscustomobject]$o
+        }
+        # CL directive (t/2956#4): load the SHARED fixture by PATH — do not transcribe it. Reading the
+        # exact bytes the TS suite reads is what makes drift detectable; a copied fixture defeats it.
+        $script:TwinFixturePath = Join-Path $PSScriptRoot '..' 'research' 'comp-linguist' 'analyses' 't2444-rationale-restore' 'twin-fixture.json'
+    }
+
+    # --- Real near-key defect: the current bare-near-key guard FALSE-POSITIVES on an innocent twin
+    #     (never had rationale) written empty on a key another twin rationaled → a spurious Block.
+    #     Twin-aware identity attributes per specific edge, so the innocent twin is not flagged. ---
+    It 'does NOT false-flag an innocent twin (never had rationale) written empty on a rationaled twin key' {
+        $baseline = @(
+            (New-TwinEdge 'acc-beliefs-051' 'SUPPORTS' 'acc-desires-001' '2026-04-06' 'gemini-2.5-flash' 'twin A carried this'),
+            (New-TwinEdge 'acc-beliefs-051' 'SUPPORTS' 'acc-desires-001' '2026-06-11' 'llm_proposed')   # twin B: never had one
+        )
+        $write = New-EdgesData @(
+            (New-TwinEdge 'acc-beliefs-051' 'SUPPORTS' 'acc-desires-001' '2026-04-06' 'gemini-2.5-flash' 'twin A carried this'),  # kept
+            (New-TwinEdge 'acc-beliefs-051' 'SUPPORTS' 'acc-desires-001' '2026-06-11' 'llm_proposed')                             # empty, legitimately
+        )
+        InModuleScope AITriad -Parameters @{ W = $write; B = $baseline } {
+            param($W, $B)
+            Test-EdgeRationaleRegression -EdgesData $W -BaselineEdges $B -Mode Warn -WarningAction SilentlyContinue | Should -Be 0
+            { Test-EdgeRationaleRegression -EdgesData $W -BaselineEdges $B -Mode Block } | Should -Not -Throw
+        }
+    }
+
+    It 'detects a drop on the rationaled twin PRECISELY (count 1, not 2) while its innocent twin is written empty' {
+        $baseline = @(
+            (New-TwinEdge 'acc-beliefs-051' 'SUPPORTS' 'acc-desires-001' '2026-04-06' 'gemini-2.5-flash' 'twin A carried this'),
+            (New-TwinEdge 'acc-beliefs-051' 'SUPPORTS' 'acc-desires-001' '2026-06-11' 'llm_proposed')   # never had one
+        )
+        $write = New-EdgesData @(
+            (New-TwinEdge 'acc-beliefs-051' 'SUPPORTS' 'acc-desires-001' '2026-04-06' 'gemini-2.5-flash'),  # DROP (twin A stripped)
+            (New-TwinEdge 'acc-beliefs-051' 'SUPPORTS' 'acc-desires-001' '2026-06-11' 'llm_proposed')       # empty, never had one
+        )
+        InModuleScope AITriad -Parameters @{ W = $write; B = $baseline } {
+            param($W, $B)
+            Test-EdgeRationaleRegression -EdgesData $W -BaselineEdges $B -Mode Warn -WarningAction SilentlyContinue | Should -Be 1
+            { Test-EdgeRationaleRegression -EdgesData $W -BaselineEdges $B -Mode Block } | Should -Throw
+        }
+    }
+
+    It 'AC#3: INDISTINGUISHABLE twins (same key AND discovered_at AND model) -> refuse-and-log, fail-open, NO throw, distinguishable verbose' {
+        $baseline = @(
+            (New-TwinEdge 'acc-beliefs-069' 'SUPPORTS' 'acc-intentions-054' '2026-04-06' 'gemini-2.5-flash' 'twin A rationale'),
+            (New-TwinEdge 'acc-beliefs-069' 'SUPPORTS' 'acc-intentions-054' '2026-04-06' 'gemini-2.5-flash' 'twin B rationale')  # same discriminator
+        )
+        $write = New-EdgesData @(
+            (New-TwinEdge 'acc-beliefs-069' 'SUPPORTS' 'acc-intentions-054' '2026-04-06' 'gemini-2.5-flash'),   # both stripped
+            (New-TwinEdge 'acc-beliefs-069' 'SUPPORTS' 'acc-intentions-054' '2026-04-06' 'gemini-2.5-flash')
+        )
+        InModuleScope AITriad -Parameters @{ W = $write; B = $baseline } {
+            param($W, $B)
+            $v = (Test-EdgeRationaleRegression -EdgesData $W -BaselineEdges $B -Mode Warn -Verbose -WarningAction SilentlyContinue 4>&1) | Out-String
+            (Test-EdgeRationaleRegression -EdgesData $W -BaselineEdges $B -Mode Block) | Should -Be 0   # fail-OPEN, never throws
+            $v | Should -Match 'INDISTINGUISHABLE'
+            $v | Should -Match 'refuse-and-log'
+        }
+    }
+
+    It 'mixed: an indistinguishable twin key is skipped + surfaced in the payload scan while other keys are still guarded' {
+        $baseline = @(
+            (New-Edge 'acc-001' 'SUPPORTS' 'saf-002' 'guarded singleton'),
+            (New-TwinEdge 'x-1' 'SUPPORTS' 'y-1' '2026-01-01' 'm' 'twin A'),
+            (New-TwinEdge 'x-1' 'SUPPORTS' 'y-1' '2026-01-01' 'm' 'twin B')   # indistinguishable
+        )
+        $write = New-EdgesData @(
+            (New-Edge 'acc-001' 'SUPPORTS' 'saf-002' 'guarded singleton'),    # kept
+            (New-TwinEdge 'x-1' 'SUPPORTS' 'y-1' '2026-01-01' 'm'),           # stripped
+            (New-TwinEdge 'x-1' 'SUPPORTS' 'y-1' '2026-01-01' 'm')            # stripped
+        )
+        InModuleScope AITriad -Parameters @{ W = $write; B = $baseline } {
+            param($W, $B)
+            $v = (Test-EdgeRationaleRegression -EdgesData $W -BaselineEdges $B -Mode Warn -Verbose -WarningAction SilentlyContinue 4>&1) | Out-String
+            Test-EdgeRationaleRegression -EdgesData $W -BaselineEdges $B -Mode Warn -WarningAction SilentlyContinue | Should -Be 0
+            $v | Should -Match 'Skipped 2 edge\(s\) on indistinguishable twin key'
+        }
+    }
+
+    It 'AC#7 (CL PR review): a twin whose discriminator is MUTATED while its rationale is dropped is SURFACED, not silent' {
+        # Baseline: a distinguishable twin key; twin A carries a rationale under model gemini-2.5-flash.
+        $baseline = @(
+            (New-TwinEdge 'acc-beliefs-051' 'SUPPORTS' 'acc-desires-001' '2026-04-06' 'gemini-2.5-flash' 'twin A carried this'),
+            (New-TwinEdge 'acc-beliefs-051' 'SUPPORTS' 'acc-desires-001' '2026-06-11' 'llm_proposed')   # innocent twin, distinct discriminator
+        )
+        # Payload rewrites twin A's MODEL (gemini-2.5-flash -> mutated) AND drops its rationale. Its new
+        # identity matches no baseline twin, so it can't be attributed — but it must not be silent.
+        $write = New-EdgesData @(
+            (New-TwinEdge 'acc-beliefs-051' 'SUPPORTS' 'acc-desires-001' '2026-04-06' 'MUTATED-MODEL'),
+            (New-TwinEdge 'acc-beliefs-051' 'SUPPORTS' 'acc-desires-001' '2026-06-11' 'llm_proposed')   # innocent twin, unchanged: NOT surfaced
+        )
+        InModuleScope AITriad -Parameters @{ W = $write; B = $baseline } {
+            param($W, $B)
+            $v = (Test-EdgeRationaleRegression -EdgesData $W -BaselineEdges $B -Mode Warn -Verbose -WarningAction SilentlyContinue 4>&1) | Out-String
+            # Non-blocking (can't attribute), but NOT silent — surfaced in the scan line, exactly once.
+            Test-EdgeRationaleRegression -EdgesData $W -BaselineEdges $B -Mode Warn -WarningAction SilentlyContinue | Should -Be 0
+            { Test-EdgeRationaleRegression -EdgesData $W -BaselineEdges $B -Mode Block } | Should -Not -Throw
+            $v | Should -Match 'Surfaced 1 empty edge\(s\) on a rationaled twin key'
+            $v | Should -Match 'discriminator may have been mutated'
+        }
+    }
+
+    # --- Non-empty predicate conformance with the TS hasRationale (CL t/2956#4; twin-independent) ---
+    It 'CONFORMANCE: rationale of "" or whitespace counts as ABSENT (a drop), matching the TS hasRationale' {
+        $baseline = @( (New-Edge 'acc-001' 'SUPPORTS' 'saf-002' 'because X reinforces Y') )
+        $emptyStr = New-EdgesData @( (New-Edge 'acc-001' 'SUPPORTS' 'saf-002' '') )
+        $wsOnly   = New-EdgesData @( (New-Edge 'acc-001' 'SUPPORTS' 'saf-002' '   ') )
+        InModuleScope AITriad -Parameters @{ E = $emptyStr; Wsp = $wsOnly; B = $baseline } {
+            param($E, $Wsp, $B)
+            Test-EdgeRationaleRegression -EdgesData $E   -BaselineEdges $B -Mode Warn -WarningAction SilentlyContinue | Should -Be 1
+            Test-EdgeRationaleRegression -EdgesData $Wsp -BaselineEdges $B -Mode Warn -WarningAction SilentlyContinue | Should -Be 1
+            { Test-EdgeRationaleRegression -EdgesData $E -BaselineEdges $B -Mode Block } | Should -Throw
+        }
+    }
+
+    It 'CLEAN (AC#5): distinguishable twins that each KEEP their own rationale pass silently, zero noise' {
+        $baseline = @(
+            (New-TwinEdge 'acc-beliefs-051' 'SUPPORTS' 'acc-desires-001' '2026-04-06' 'gemini-2.5-flash' 'twin A rationale'),
+            (New-TwinEdge 'acc-beliefs-051' 'SUPPORTS' 'acc-desires-001' '2026-06-11' 'llm_proposed'      'twin B rationale')
+        )
+        $write = New-EdgesData @(
+            (New-TwinEdge 'acc-beliefs-051' 'SUPPORTS' 'acc-desires-001' '2026-04-06' 'gemini-2.5-flash' 'twin A rationale'),
+            (New-TwinEdge 'acc-beliefs-051' 'SUPPORTS' 'acc-desires-001' '2026-06-11' 'llm_proposed'      'twin B rationale')
+        )
+        InModuleScope AITriad -Parameters @{ W = $write; B = $baseline } {
+            param($W, $B)
+            $n = Test-EdgeRationaleRegression -EdgesData $W -BaselineEdges $B -Mode Warn -WarningVariable w -WarningAction SilentlyContinue
+            $n | Should -Be 0
+            @($w).Count | Should -Be 0
+        }
+    }
+
+    # --- Conformance against the SHARED fixture (loaded by path), so the PS model provably matches
+    #     the TS mergeEdgesPreservingRationale model rather than drifting. ---
+    It 'FIXTURE case_a (observed): distinguishable twins, both stripped on save -> both drops detected' {
+        $fx = Get-Content -Raw -LiteralPath $script:TwinFixturePath | ConvertFrom-Json
+        $baseline = @($fx.case_a_distinguishable.on_disk.edges)
+        $write    = [pscustomobject]@{ _schema_version = '1.0.0'; edges = @($fx.case_a_distinguishable.save_payload.edges) }
+        InModuleScope AITriad -Parameters @{ W = $write; B = $baseline } {
+            param($W, $B)
+            Test-EdgeRationaleRegression -EdgesData $W -BaselineEdges $B -Mode Warn -WarningAction SilentlyContinue | Should -Be 2
+            { Test-EdgeRationaleRegression -EdgesData $W -BaselineEdges $B -Mode Block } | Should -Throw
+        }
+    }
+
+    It 'FIXTURE case_b (constructed): indistinguishable twins -> refuse-and-log, fail-open, NO throw' {
+        $fx = Get-Content -Raw -LiteralPath $script:TwinFixturePath | ConvertFrom-Json
+        $baseline = @($fx.case_b_indistinguishable.on_disk.edges)
+        $write    = [pscustomobject]@{ _schema_version = '1.0.0'; edges = @($fx.case_b_indistinguishable.save_payload.edges) }
+        InModuleScope AITriad -Parameters @{ W = $write; B = $baseline } {
+            param($W, $B)
+            $v = (Test-EdgeRationaleRegression -EdgesData $W -BaselineEdges $B -Mode Warn -Verbose -WarningAction SilentlyContinue 4>&1) | Out-String
+            (Test-EdgeRationaleRegression -EdgesData $W -BaselineEdges $B -Mode Block) | Should -Be 0   # fail-open, never throws
+            $v | Should -Match 'INDISTINGUISHABLE'
+        }
+    }
+}

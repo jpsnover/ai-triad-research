@@ -231,7 +231,10 @@ export function buildGitCommitCommand(dataRoot: string, config: Record<string, u
       `See data-repo CONTRIBUTING.md section 5.'; git add -A`;
   }
 
-  return `Set-Location '${dataRoot}'; ${stage}; git commit -m '${message}'`;
+  // Activate the data-repo rationale-drop hook (t/2958 Arm 2 Option B).
+  // Idempotent; no-op if already set. Hook is warn-first until TL GV promotes it.
+  const activateHook = `git config core.hooksPath .githooks`;
+  return `Set-Location '${dataRoot}'; ${activateHook}; ${stage}; git commit -m '${message}'`;
 }
 
 function buildPsCommand(stepId: string, config: Record<string, unknown>): string {
