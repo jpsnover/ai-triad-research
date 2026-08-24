@@ -292,11 +292,7 @@ function ChatTableRowCommunity({
       </td>
       <td className="col-title">
         <div className="chat-table-title-text" title={cc.title}>{cc.title}</div>
-        {cc.community_metadata?.submitted_by_display && (
-          <div className="chat-table-title-secondary">
-            by {cc.community_metadata.submitted_by_display}
-          </div>
-        )}
+
       </td>
     </tr>
   );
