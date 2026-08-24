@@ -305,6 +305,10 @@ export function OpEdMyRow({
     }
   }, [editMode, onOpen, set.set_id]);
 
+  const handleRowDoubleClick = useCallback(() => {
+    if (!editMode) onOpen(set.set_id);
+  }, [editMode, onOpen, set.set_id]);
+
   const commitRename = useCallback(() => {
     const v = renameValue.trim();
     if (v && v !== headline) onRename(set.set_id, v);
@@ -318,6 +322,7 @@ export function OpEdMyRow({
       tabIndex={0}
       onClick={handleRowClick}
       onKeyDown={handleKeyDown}
+      onDoubleClick={handleRowDoubleClick}
     >
       {editMode && (
         <td className="col-cb" onClick={e => e.stopPropagation()}>

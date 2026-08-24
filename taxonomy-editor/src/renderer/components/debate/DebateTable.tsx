@@ -291,6 +291,11 @@ export function DebateTableRow({
     }
   }, [editMode, isPhone, s, onPhoneSelect, onOpen]);
 
+  const handleRowDoubleClick = useCallback(() => {
+    if (editMode) return;
+    if (isPhone) { onPhoneSelect(s); } else { onOpen(s.id); }
+  }, [editMode, isPhone, s, onPhoneSelect, onOpen]);
+
   const handleDoubleClick = useCallback((e: React.MouseEvent) => {
     // Double-click title cell to rename (only when not in edit-mode bulk flow)
     e.stopPropagation();
@@ -315,6 +320,7 @@ export function DebateTableRow({
       tabIndex={0}
       onClick={handleRowClick}
       onKeyDown={handleKeyDown}
+      onDoubleClick={handleRowDoubleClick}
     >
       {editMode && (
         <td className="col-cb" onClick={e => e.stopPropagation()}>
