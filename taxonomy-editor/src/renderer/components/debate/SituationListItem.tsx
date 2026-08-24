@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { useRef, useEffect } from 'react';
+import { getGlobalRecorder } from '@lib/flight-recorder/index';
 
 const REL_LABELS: Record<string, string> = {
   is_a: 'is a',
@@ -27,6 +28,18 @@ export function SituationListItem({ id, label, isSelected, onSelect, indent, rel
       ref.current.scrollIntoView({ block: 'nearest' });
     }
   }, [isSelected]);
+
+  useEffect(() => {
+    if (divergence != null && typeof divergence !== 'number') {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'SituationListItem',
+        level: 'warn',
+        message: `non-numeric divergence prop suppressed: ${JSON.stringify({ divergence_type: typeof divergence, divergence_value: String(divergence), node_id: id })}`,
+        error: { name: 'TypeError', message: `divergence is ${typeof divergence}, expected number`, stack: undefined },
+      });
+    }
+  }, [divergence, id]);
 
   return (
     <div
