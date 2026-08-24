@@ -1,3 +1,85 @@
+/* ── D-Q3: Claim Strength Cards ─────────────────────── */
+.diag-qbaf-card {
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: 6px 8px;
+  margin-bottom: 6px;
+  font-size: var(--text-xs);
+}
+.diag-qbaf-pending {
+  border-style: dashed;
+  border-color: var(--warning, #d97706);
+}
+.diag-qbaf-card-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 3px;
+}
+.diag-qbaf-claim-text {
+  font-size: var(--text-2xs);
+  color: var(--text-secondary);
+  margin-bottom: 4px;
+  line-height: 1.3;
+}
+.diag-qbaf-strength-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--text-2xs);
+  margin-bottom: 4px;
+}
+.diag-qbaf-arrow {
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+}
+.diag-qbaf-edges {
+  padding-left: 6px;
+  margin-bottom: 4px;
+}
+.diag-qbaf-edge {
+  font-size: var(--text-2xs);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin: 2px 0;
+  flex-wrap: wrap;
+}
+.diag-qbaf-attack { color: #dc2626; }
+.diag-qbaf-support { color: #16a34a; }
+.diag-qbaf-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--text-2xs);
+  margin-top: 3px;
+}
+.diag-qbaf-slider-row {
+  margin-top: 4px;
+  padding-top: 4px;
+  border-top: 1px dashed var(--border-color);
+}
+
+/* ── D-Q5: Strength Timeline Chart ──────────────────── */
+.diag-timeline-svg {
+  width: 100%;
+  max-height: 200px;
+  background: var(--bg-primary);
+  border-radius: var(--radius-sm);
+  margin-bottom: 4px;
+}
+.diag-timeline-tooltip {
+  font-size: var(--text-2xs);
+  padding: 4px 6px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  margin-bottom: 4px;
+}
+
+
+/* ─── Monolith-extracted QBAF/timeline styles (Phase 3 co-location, t/2989) ─── */
+
 /* ArgStrengthTab — ast-* prefix (t/2658) */
 
 .ast-root {

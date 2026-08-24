@@ -1,0 +1,104 @@
+/* WhatIfSection.css — D-Q6 what-if mode styles */
+
+/* ── D-Q6: What-If Mode ─────────────────────────────── */
+.whatif-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.whatif-toggle {
+  font-size: var(--text-2xs);
+}
+.whatif-toggle-active {
+  background: rgba(59, 130, 246, 0.15);
+  color: #3b82f6;
+  border-color: #3b82f6;
+}
+.whatif-reset {
+  font-size: var(--text-2xs);
+  color: var(--text-muted);
+}
+.whatif-status {
+  font-size: var(--text-2xs);
+  color: var(--text-muted);
+  font-style: italic;
+}
+.whatif-node-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.whatif-node {
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: 5px 8px;
+  font-size: var(--text-xs);
+}
+.whatif-node-modified {
+  border-color: #3b82f6;
+  background: rgba(59, 130, 246, 0.04);
+}
+.whatif-node-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.whatif-node-reset-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: var(--text-2xs);
+  padding: 0 3px;
+  margin-left: auto;
+}
+.whatif-node-reset-btn:hover {
+  color: var(--text-primary);
+}
+.whatif-node-text {
+  font-size: var(--text-2xs);
+  color: var(--text-secondary);
+  margin: 2px 0 4px;
+}
+.whatif-slider-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--text-2xs);
+}
+.whatif-slider {
+  flex: 1;
+  max-width: 160px;
+  height: 4px;
+  accent-color: #3b82f6;
+}
+.whatif-slider-value {
+  font-weight: 600;
+  min-width: 28px;
+  text-align: right;
+}
+.whatif-orig-value {
+  color: var(--text-muted);
+  font-size: var(--text-2xs);
+}
+.whatif-result-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--text-2xs);
+  margin-top: 2px;
+}
+.whatif-new-value {
+  font-weight: 600;
+}
+.whatif-up { color: #22c55e; }
+.whatif-down { color: #ef4444; }
+.whatif-delta {
+  font-size: var(--text-2xs);
+  font-weight: 600;
+  margin-left: 2px;
+}
+.whatif-delta-up { color: #22c55e; }
+.whatif-delta-down { color: #ef4444; }
+
