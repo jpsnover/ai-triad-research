@@ -7,12 +7,14 @@ import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import type { SituationNode } from '../../types/taxonomy';
 import { interpretationText } from '../../types/taxonomy';
 import { useTaxonomyStore } from '../../hooks/useTaxonomyStore';
+import { usePreferencesStore } from '../../store/preferencesStore';
 import { DeleteConfirmDialog } from '../shared/DeleteConfirmDialog';
 import { HighlightedTextarea } from '../shared/HighlightedField';
 import { TypeaheadSelect } from '../shared/TypeaheadSelect';
 import { EmptyState } from '../shared/EmptyState';
 import { FieldHelp } from '../shared/FieldHelp';
 import { LinkedChip } from '../shared/LinkedChip';
+import { InlineEditTitle } from '../shared/InlineEditTitle';
 import { useMentionRenderer } from '../shared/MentionField';
 import { reconstructNodeContainer } from '../shared/mentionText';
 import { GraphAttributesPanel } from '../taxonomy/GraphAttributesPanel';
@@ -132,13 +134,12 @@ function SitHeader({ node, readOnly, onDebate, onPin, err, hasErrors, update, la
           {readOnly ? (
             <span className="nd-header-label" title={node.label}>{labelContent ?? node.label}</span>
           ) : (
-            <input
-              className={`nd-header-label nd-header-label-editable ${err('label') ? 'has-error' : ''}`}
+            <InlineEditTitle
               value={node.label}
-              onChange={(e) => update({ label: e.target.value })}
+              onChange={(v) => update({ label: v })}
+              hasError={!!err('label')}
               placeholder="Label"
-              aria-label="Label"
-              title={node.label}
+              ariaLabel="Label"
             />
           )}
           <span className="nd-header-id">{node.id}</span>
@@ -592,6 +593,8 @@ function SitPovTab({
 
 export function SituationDetail({ node, readOnly, onPin, onRelated, onDebate, chipDepth = 0 }: SituationDetailProps) {
   const { updateSituationNode, deleteSituationNode, validationErrors, getAllNodeIds, getAllConflictIds, runAttributeFilter, showAttributeInfo, getLabelForId } = useTaxonomyStore();
+  // Bookmark (Pin-for-comparison) controls are Advanced-view only (t/2826).
+  const viewMode = usePreferencesStore(s => s.viewMode);
   const [descMode, setDescMode] = useDescriptionMode();
   const [showDelete, setShowDelete] = useState(false);
   const [activeTab, setActiveTab] = useState<SitTab>('overview');
@@ -689,7 +692,7 @@ export function SituationDetail({ node, readOnly, onPin, onRelated, onDebate, ch
         node={node}
         readOnly={readOnly}
         onDebate={onDebate}
-        onPin={onPin}
+        onPin={viewMode === 'advanced' ? onPin : undefined}
         err={err}
         hasErrors={hasErrors}
         update={update}

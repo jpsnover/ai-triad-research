@@ -158,9 +158,14 @@ function Get-ServerLog {
             if ($p) { return $p.Value } else { return $null }
         }
 
+        # az writes connection chrome to the stream (captured via 2>&1). These are
+        # not container logs — strip them so -Raw and structured output stay clean.
+        $azNoiseRegex = '^(Connecting to the container|Successfully Connected to container|No log entries|Show logs)'
+
         $parseAndEmit = {
             param([string]$rawLine)
             if ([string]::IsNullOrWhiteSpace($rawLine)) { return }
+            if ($rawLine -match $azNoiseRegex) { return }   # az connection chrome, not a log
 
             # ACA wraps container stdout as {"Log":"<pino-json>","TimeStamp":"..."}.
             $pinoLine = $rawLine
@@ -175,7 +180,15 @@ function Get-ServerLog {
 
             $entry = $null
             try { $entry = $pinoLine | ConvertFrom-Json -ErrorAction Stop }
-            catch { if ($Raw) { Write-Output $pinoLine }; return }
+            catch {
+                # Unparseable: almost always a pino line sliced at ACA/Fluent Bit's
+                # ~16KB boundary (t/2860). A HEAD slice still starts with '{' and
+                # carries requestId — worth surfacing under -Raw; a TAIL slice (e.g.
+                # 'completed"}') is noise. Count either way so the run can warn.
+                $script:GslUnparsedCount++
+                if ($Raw -and $pinoLine.TrimStart().StartsWith('{')) { Write-Output $pinoLine }
+                return
+            }
 
             $entryLevel     = & $getField $entry 'level'
             $entryComponent = & $getField $entry 'component'
@@ -221,6 +234,7 @@ function Get-ServerLog {
 
     process {
         Set-StrictMode -Version Latest
+        $script:GslUnparsedCount = 0
 
         if ($isFollow) {
             & az @azArgs | ForEach-Object { & $parseAndEmit $_ }
@@ -243,6 +257,10 @@ function Get-ServerLog {
             foreach ($line in @($rawLines)) {
                 & $parseAndEmit ([string]$line)
             }
+        }
+
+        if ($script:GslUnparsedCount -gt 0) {
+            Write-Warning ("{0} log line(s) were unparseable — likely pino lines sliced at Azure's ~16KB Fluent Bit boundary (t/2860). requestId correlation may be incomplete; HEAD slices are shown under -Raw." -f $script:GslUnparsedCount)
         }
     }
 }

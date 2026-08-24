@@ -226,6 +226,27 @@ class GhcrImage {
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
+# TriadDeckExport — typed -PassThru result from Export-TriadDebateBrief (T8).
+# Cross-surface wire contract; field parity with lib/brief/types.ts:182
+# (TriadDeckExport) is enforced by a Pester parity test. Optional TS fields
+# (checkerModel, specPath) map to nullable PS properties.
+# ─────────────────────────────────────────────────────────────────────────────
+class TriadDeckExport {
+    [string]    $DebateId
+    [string]    $Title
+    [string]    $Preset
+    [string]    $Model
+    [string]    $ModelSource
+    [string]    $CheckerModel
+    [string]    $Path
+    [string]    $SpecPath
+    [string]    $ManifestPath
+    [double]    $TraceCoveragePct
+    [hashtable] $Verdicts
+    [string[]]  $Warnings
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
 # DataCommit — typed result from Get-TaxEditorDataCommit
 # ─────────────────────────────────────────────────────────────────────────────
 class DataCommit {
@@ -757,6 +778,8 @@ Export-ModuleMember -Function @(
     'Repair-PovLineage'
     'Repair-PovAttributes'
     'Export-AggregatedCruxes'
+    'Export-TriadDebateBrief'
+    'Test-BriefNarrationStage'
     'Get-Summary'
     'Invoke-AttributeExtraction'
     'Invoke-EdgeDiscovery'
@@ -788,6 +811,12 @@ Export-ModuleMember -Function @(
     'Update-PolicyRegistry'
     'Show-FallacyInfo'
     'Test-TaxonomyIntegrity'
+    # t/2876 — pre-validate taxonomy dir against embed_taxonomy.py loader contract
+    'Test-TaxonomyDir'
+    # t/2902 — dirty-tree-sweep guard for whole-file data-repo writes
+    'Assert-CleanDataTree'
+    # t/2916 — durable batch writer: field-surgical node-field edits (sweep-proof)
+    'Save-JsonNodeFieldEdits'
     'Invoke-HierarchyProposal'
     'Set-TaxonomyHierarchy'
     'Invoke-SchemaMigration'
@@ -911,6 +940,7 @@ Export-ModuleMember -Function @(
     'Get-ContainerAppRevision'
     # t/1499 — GH workflow run queries
     'Get-GitHubWorkflowRun'
+    'Get-CIFailureSummary'
     # t/1550 — POV aphorism backfill
     'Invoke-AphorismBatch'
     # t/1553 Stage 0 — org PUBLISHED edge seeding

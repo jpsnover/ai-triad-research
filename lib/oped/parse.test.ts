@@ -9,24 +9,19 @@ const VALID_ESSAY = JSON.stringify({
   subtitle: 'The safety case',
   body_markdown: 'The essay body text here.',
   word_count: 5,
-  pitch_email: 'Dear editor,',
   stance: 'extend',
 });
 
 describe('essay parse — fence stripping (t/2618)', () => {
   it('parses clean JSON unchanged', () => {
     const result = JSON.parse(stripCodeFences(VALID_ESSAY));
-    expect(result.headline).toBe('AI Audits Are Overdue');
-    expect(result.pitch_email).toBe('Dear editor,');
-  });
+    expect(result.headline).toBe('AI Audits Are Overdue');  });
 
   it('strips ```json fence and parses structured fields', () => {
     const fenced = '```json\n' + VALID_ESSAY + '\n```';
     const result = JSON.parse(stripCodeFences(fenced));
     expect(result.headline).toBe('AI Audits Are Overdue');
-    expect(result.subtitle).toBe('The safety case');
-    expect(result.pitch_email).toBe('Dear editor,');
-  });
+    expect(result.subtitle).toBe('The safety case');  });
 
   it('strips bare ``` fence and parses structured fields', () => {
     const fenced = '```\n' + VALID_ESSAY + '\n```';

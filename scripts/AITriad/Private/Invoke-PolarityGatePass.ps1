@@ -65,13 +65,37 @@ function Invoke-PolarityGatePass {
         [double]$DirectionalTauContra = 1.0,
 
         [Parameter()]
-        [switch]$SkipDirectionalGate
+        [switch]$SkipDirectionalGate,
+
+        # t/2900 — stage-2 LLM-judge (deberta proposes → judge disposes). The judge
+        # confirms deberta's 'opposes' candidates before any flip; unanimous 'opposes'
+        # required, fail-safe KEEP. See Invoke-DirectionalJudge.
+        [Parameter()]
+        [string]$JudgeModel = 'gemini-3.1-pro-preview',
+
+        [Parameter()]
+        [ValidateRange(0.0, 2.0)]
+        [double]$JudgeTemperature = 0.3,
+
+        [Parameter()]
+        [ValidateRange(1, 9)]
+        [int]$JudgeDraws = 3,
+
+        # Bypass the LLM judge and treat every deberta 'opposes' as confirmed (stage-1
+        # only). For deterministic unit tests that mock the judge's disposition; NOT
+        # for production (would reintroduce the false-demote the judge exists to stop).
+        [Parameter()]
+        [switch]$SkipJudge
     )
 
     Set-StrictMode -Version Latest
     $ErrorActionPreference = 'Stop'
 
-    $counts = @{ opposes = 0; agrees = 0; unrelated = 0; unresolved = 0; gated = 0; reps = 0 }
+    # judge_flipped/judge_kept = the judge's disposition of deberta's opposes candidates
+    # (judge_kept measures the false-positive rate the judge catches — t/2900 telemetry).
+    # self_healed = prior false-flips reverted on this pass.
+    $counts = @{ opposes = 0; agrees = 0; unrelated = 0; unresolved = 0; gated = 0; reps = 0
+                 judge_flipped = 0; judge_kept = 0; self_healed = 0 }
     $items = @($KeyPoints)
     if ($SkipDirectionalGate -or $items.Count -eq 0) { return $counts }
 
@@ -83,15 +107,18 @@ function Invoke-PolarityGatePass {
         if (-not $pov.PSObject.Properties['nodes']) { continue }
         foreach ($n in @($pov.nodes)) {
             if (-not $n.PSObject.Properties['id']) { continue }
-            $lbl = if ($n.PSObject.Properties['label']) { [string]$n.label } else { '' }
-            $dsc = if ($n.PSObject.Properties['description'] -and $n.description) { [string]$n.description } else { '' }
-            $dsc = $dsc -replace '(?s)\s*(Encompasses|Excludes)\s*:.*$', ''
-            $nodeTextById[[string]$n.id] = if ($dsc) { "$lbl — $($dsc.Trim())" } else { $lbl }
+            # Single-sourced via Get-NodePropText (t/2900) so the gate and the
+            # acceptance harness build byte-identical node_prop.
+            $nodeTextById[[string]$n.id] = Get-NodePropText -Node $n
         }
     }
 
     # ── Select gated key_points ────────────────────────────────────────────────
-    # aligned-family stance + non-null assigned node + HIGH topical band.
+    # aligned-family stance + non-null assigned node + HIGH topical band. ALSO
+    # re-gate rows a PRIOR pass flipped (stance is now 'strongly_opposed' but
+    # stance_pre_gate records an aligned-family original) so the judge can re-evaluate
+    # and SELF-HEAL a stale false-flip (t/2900#7) — a flipped row is no longer
+    # aligned-family, so without this it would be invisible to the gate forever.
     $alignedFamily = @('aligned', 'strongly_aligned')
     $gated = [System.Collections.Generic.List[PSObject]]::new()
     foreach ($item in $items) {
@@ -103,7 +130,9 @@ function Invoke-PolarityGatePass {
         if ([string]::IsNullOrWhiteSpace([string]$nodeId)) { continue }
 
         $stance = if ($kp.PSObject.Properties['stance']) { [string]$kp.stance } else { '' }
-        if ($stance -notin $alignedFamily) { continue }
+        $preGate = if ($kp.PSObject.Properties['stance_pre_gate']) { [string]$kp.stance_pre_gate } else { $null }
+        $wasFlipped = ($null -ne $preGate) -and ($preGate -in $alignedFamily)
+        if (($stance -notin $alignedFamily) -and (-not $wasFlipped)) { continue }
 
         # HIGH topical band: reuse the existing retrieval-confidence band — gate only
         # where the assigned node is NOT retrieval_low_confidence (no new threshold).
@@ -165,20 +194,77 @@ function Invoke-PolarityGatePass {
             $kpi  = [int]$pairMeta[$pid].KpIndex
             $conf = if ($v -and $v.PSObject.Properties['Confidence']) { [double]$v.Confidence } else { 0.0 }
             if (-not $kpOpposes.ContainsKey($kpi) -or $conf -gt $kpOpposes[$kpi].Conf) {
-                $kpOpposes[$kpi] = @{ Conf = $conf; Rep = [string]$pairMeta[$pid].Rep }
+                # carry the flagged pair's texts so stage-2 judges the SAME rep deberta flagged.
+                $kpOpposes[$kpi] = @{
+                    Conf     = $conf
+                    Rep      = [string]$pairMeta[$pid].Rep
+                    Claim    = [string]$pairs[$pid].ClaimProp
+                    NodeProp = [string]$pairs[$pid].NodeProp
+                    ClaimPov = [string]$pairs[$pid].ClaimPov
+                    NodePov  = [string]$pairs[$pid].NodePov
+                }
             }
         }
         # agrees / unrelated / unresolved → no opposition from this rep.
     }
 
-    # opposes-if-any: flip to opposed-family + surface when ANY rep opposed. Node
-    # mapping preserved (the claim disputes THAT node's proposition).
-    foreach ($kpi in $kpOpposes.Keys) {
-        $kp = $gated[$kpi].KeyPoint
-        $kp | Add-Member -NotePropertyName 'stance'                     -NotePropertyValue 'strongly_opposed'    -Force
-        $kp | Add-Member -NotePropertyName 'stance_polarity_flag'       -NotePropertyValue $true                 -Force
-        $kp | Add-Member -NotePropertyName 'stance_polarity_confidence' -NotePropertyValue $kpOpposes[$kpi].Conf -Force
-        $kp | Add-Member -NotePropertyName 'stance_polarity_source'     -NotePropertyValue $kpOpposes[$kpi].Rep  -Force
+    # ── Stage 2: LLM-judge disposition + flip / self-heal (t/2900) ─────────────
+    # deberta (stage 1) proposed 'opposes' for the kps in $kpOpposes. The judge
+    # confirms before any destructive flip: a kp flips to opposed-family ONLY if
+    # deberta AND the judge both oppose. Otherwise KEEP — and if the row carries a
+    # prior flip (stance_pre_gate), SELF-HEAL it to the pristine pre-gate stance.
+    for ($kpi = 0; $kpi -lt $gated.Count; $kpi++) {
+        $kp         = $gated[$kpi].KeyPoint
+        $nodeId     = $gated[$kpi].NodeId
+        $hasPreGate = [bool]$kp.PSObject.Properties['stance_pre_gate']
+        $isCandidate = $kpOpposes.ContainsKey($kpi)
+
+        $confirmed = $false
+        if ($isCandidate) {
+            $cand = $kpOpposes[$kpi]
+            $camp = if ($cand.ClaimPov) { $cand.ClaimPov } else { $cand.NodePov }
+            $judged = if ($SkipJudge) {
+                'opposes'   # unit tests bypass the live judge; stage-1 stands in
+            } else {
+                Invoke-DirectionalJudge -Claim $cand.Claim -NodeProp $cand.NodeProp -Camp $camp `
+                    -Model $JudgeModel -Temperature $JudgeTemperature -Draws $JudgeDraws
+            }
+            $confirmed = ($judged -eq 'opposes')
+            if ($confirmed) {
+                $counts.judge_flipped++
+            } else {
+                # false positive the judge caught — the t/2900 FP-rate telemetry (no PS
+                # flight-recorder emit API; surfaced via counts + this greppable line).
+                $counts.judge_kept++
+                Write-Verbose "PolarityGate: judge KEPT deberta opposes-candidate $nodeId → '$judged' (false-positive caught)."
+            }
+        }
+
+        if ($confirmed) {
+            $cand = $kpOpposes[$kpi]
+            # write-once: never clobber the pristine pre-gate stance on a repeat pass.
+            if (-not $hasPreGate) {
+                $orig = if ($kp.PSObject.Properties['stance']) { [string]$kp.stance } else { '' }
+                $kp | Add-Member -NotePropertyName 'stance_pre_gate' -NotePropertyValue $orig -Force
+            }
+            $kp | Add-Member -NotePropertyName 'stance'                     -NotePropertyValue 'strongly_opposed' -Force
+            $kp | Add-Member -NotePropertyName 'stance_polarity_flag'       -NotePropertyValue $true              -Force
+            $kp | Add-Member -NotePropertyName 'stance_polarity_confidence' -NotePropertyValue $cand.Conf         -Force
+            $kp | Add-Member -NotePropertyName 'stance_polarity_source'     -NotePropertyValue $cand.Rep          -Force
+        }
+        elseif ($hasPreGate) {
+            # KEEP over a prior flip → self-heal to pristine (t/2900#7). Restore stance,
+            # drop the flip fields AND the pre-gate marker (row is no longer flipped, so
+            # stance_pre_gate presence-as-flip-marker stays truthful).
+            $restore = [string]$kp.stance_pre_gate
+            $kp | Add-Member -NotePropertyName 'stance' -NotePropertyValue $restore -Force
+            foreach ($f in @('stance_polarity_flag', 'stance_polarity_confidence', 'stance_polarity_source', 'stance_pre_gate')) {
+                if ($kp.PSObject.Properties[$f]) { $kp.PSObject.Properties.Remove($f) }
+            }
+            $counts.self_healed++
+            Write-Verbose "PolarityGate: self-healed $nodeId → restored stance '$restore' (judge KEEP reverted a stale flip)."
+        }
+        # else: fresh aligned row, judge KEEP or no deberta candidate → no-op.
     }
 
     return $counts

@@ -149,6 +149,18 @@ describe('OpEdMyRow', () => {
     renderRow(makeSummary(), { editMode: true });
     expect(screen.getByRole('checkbox', { name: /select/i })).toBeTruthy();
   });
+
+  // t/2797 Part B: the export menu offers Markdown / Plain text / JSON; JSON is new.
+  it('export menu includes a JSON option that fires onExport with "json"', () => {
+    const onExport = vi.fn();
+    const set = makeSummary();
+    renderRow(set, { onExport });
+    fireEvent.click(screen.getByRole('button', { name: /export/i }));
+    const jsonItem = screen.getByRole('menuitem', { name: /^json$/i });
+    expect(jsonItem).toBeTruthy();
+    fireEvent.click(jsonItem);
+    expect(onExport).toHaveBeenCalledWith(set, 'json');
+  });
 });
 
 describe('OpEdCommunityRow', () => {
@@ -212,7 +224,7 @@ describe('OpEdTable — My variant', () => {
   it('renders a semantic table with an sr-only caption and sortable headers', () => {
     render(<OpEdTable {...noopMyProps} rows={[makeSummary()]} />);
     const table = screen.getByRole('table');
-    expect(within(table).getByText('My Op-Eds')).toBeTruthy();
+    expect(within(table).getByText('My Op-Ed Studies')).toBeTruthy();
     expect(screen.getByRole('columnheader', { name: /headline/i })).toBeTruthy();
   });
 

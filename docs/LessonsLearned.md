@@ -384,6 +384,7 @@ Institutional memory for failure patterns across the AI Triad Research project.
 - 2026-08-01 — Technical Lead (p/8#158): **2nd `jq` instance** — a Bash `jq` command parsing `~/.claude` JSON exited **127 "command not found"** (`jq` not installed in the Bash tool's Git Bash). Resolved via the **PowerShell tool (`ConvertFrom-Json`)**. Distinct from the p/20#21 python-`jq`-shim (that was for a CI script that hard-depends on jq); for **ad-hoc JSON reads, read in PowerShell, don't shim** — win32 "host/file/JSON ops belong in the PowerShell tool" rule.
 - 2026-08-11 — ServerAPI (p/79#27): **3rd `jq` instance** — `gh pr view ... | jq` exited 127 ("jq: command not found") in the Bash tool. Fix: use `gh`'s built-in `--json <fields> --jq '<expr>'` flags — `gh` ships its own jq evaluator, no separate install needed.
 - 2026-08-11 — ServerAPI (p/79#29): **4th `jq` instance** — `gh pr checks | jq` exited 127 in the Bash tool; the same missing `jq` also silently broke a **Monitor CI-watch loop** (per-iteration jq failed with no output → loop emitted nothing → timed out at 15 min). **New amplifier: a missing tool inside a Monitor poll loop causes a silent 15-min timeout, not an immediate error.** Fix: use `gh pr checks --json ... --jq '...'` built-in.
+- 2026-08-15 — Shared Lib (p/5#27): **5th `jq` instance** — `gh pr checks N | jq` → exit 127 "jq: command not found" in the Bash tool. Risk: misread as a CI failure rather than a tooling gap. Fix: `gh pr checks N --json bucket --jq '...'` — `gh`'s built-in jq evaluator, no separate install needed.
 
 **Root Cause:** Dev environment may lack CLI tools (Azure CLI not installed, `jq` not on PATH) or required background services (Docker Desktop daemon not running). CI runners often have tools the dev shell doesn't, so a script that passes in CI fails locally. Both fail silently or with unhelpful exit codes.
 
@@ -2837,16 +2838,18 @@ Institutional memory for failure patterns across the AI Triad Research project.
 
 **Instances:**
 - 2026-08-03 — DevOps (p/26#44): Edit tool inferred `file_path` from scope/context knowledge without confirming the active worktree root first. `git add` found nothing staged. Fixed by re-applying the edit to the correct worktree absolute path.
+- 2026-08-15 — DebateTool (p/70#17): **Ordering variant — worktree not yet created at time of edit.** Edited `lib/debate/affectSignals.ts` via the shared-tree absolute path before running `git worktree add`. Shared-tree write guard (t/2449) fired post-edit. Fix: `git restore` reverted the shared-tree edit; re-applied inside `.worktrees/t2819-affect-baselines` after creating the worktree. Key rule: **create the worktree first, edit second** — the worktree path doesn't exist until after `git worktree add`.
 
-**Root Cause:** The Edit/Write tools take an absolute path and do not validate it against the active worktree. Agents know their scope's canonical path (e.g. `operations/devops/`) and naturally infer `file_path` by prepending the repo root they know from context — but in a worktree, the root is different. Without explicitly confirming the worktree root via `git worktree list`, the inferred path silently targets the shared checkout instead. Distinct from #128 (Bash tool `ls` on wrong POSIX path due to depth miscount) — here the failure is a wrong absolute path to Edit/Write.
+**Root Cause:** The Edit/Write tools take an absolute path and do not validate it against the active worktree. Agents know their scope's canonical path (e.g. `operations/devops/`) and naturally infer `file_path` by prepending the repo root they know from context — but in a worktree, the root is different. Without explicitly confirming the worktree root via `git worktree list`, the inferred path silently targets the shared checkout instead. Distinct from #128 (Bash tool `ls` on wrong POSIX path due to depth miscount) — here the failure is a wrong absolute path to Edit/Write. A second ordering failure class (#134b): creating the worktree AFTER an edit means the edit always lands in the wrong tree.
 
 **Prevention:**
-1. **At the start of every worktree workflow, record the worktree's absolute root** from `git worktree list` output (or the `git worktree add` output line `HEAD is now at …`).
-2. **All Edit/Write calls must use paths prefixed with the worktree root** — never with the main-checkout repo root, even if the scope's relative path is well-known.
-3. **Confirm before first Edit:** `git worktree list | grep <branch-name>` gives the canonical absolute path.
-4. Sibling of #128 — both produce an edit-to-wrong-tree; #128 affects Bash tool path access, #134 affects Edit/Write tool file_path.
+1. **Create the worktree before making any edits** — `git worktree add -b <branch> .worktrees/<name> main` first, then Edit/Write to paths under the worktree root.
+2. **At the start of every worktree workflow, record the worktree's absolute root** from `git worktree list` output (or the `git worktree add` output line `HEAD is now at …`).
+3. **All Edit/Write calls must use paths prefixed with the worktree root** — never with the main-checkout repo root, even if the scope's relative path is well-known.
+4. **Confirm before first Edit:** `git worktree list | grep <branch-name>` gives the canonical absolute path.
+5. Sibling of #128 — both produce an edit-to-wrong-tree; #128 affects Bash tool path access, #134 affects Edit/Write tool file_path.
 
-**Status:** Active — 1 instance (DevOps p/26#44). 4th env/path hazard in the worktree-land cluster.
+**Status:** Active — 2 instances (DevOps p/26#44; DebateTool p/70#17). 4th env/path hazard in the worktree-land cluster.
 
 **Applies To:** All agents using Edit or Write tool during a worktree landing workflow.
 
@@ -3404,6 +3407,68 @@ Institutional memory for failure patterns across the AI Triad Research project.
 **Status:** Active — 1 instance (PowerShell 2 t/2673, p/228#15).
 
 **Applies To:** All agents opening PRs on branches that may be behind origin/main.
+
+---
+
+## #171 [Build] Electron App Won't Launch in a Fresh Worktree — Missing node-pty Native Module + Vite Monorepo Hoisting Gap
+
+**Pattern:** A fresh `npm ci` inside a git worktree produces a broken Electron build: (1) `node-pty` native binary is absent (not rebuilt for the local Node ABI → `terminal.ts` crashes the main process on launch), and (2) `vite build` resolves the `vite` package from the repo-root `node_modules/.vite-temp` under monorepo hoisting — a path that a worktree-local install doesn't satisfy. Result: the app crashes at startup or the build fails, making visual/design review impossible from the worktree alone.
+
+**Instances:**
+- 2026-08-15 — Design (p/472#1): tried to launch taxonomy-editor Electron app inside a fresh worktree for PR design review. `npm ci` ran; app crashed on startup (node-pty missing native binary) and `vite build` couldn't resolve the hoisted vite package. Stopped the build yak-shave (correct anti-rabbit-hole call); fell back to reviewing implementer-provided screenshots.
+
+**Root Cause:** Two compounding gaps: (a) `node-pty` is a native Node addon — `npm ci` fetches it but does not rebuild it for the current Node ABI inside a new worktree context without an explicit `npm rebuild`; (b) Vite relies on a `.vite-temp` cache path in the monorepo root's `node_modules` for cache and HMR — a worktree's own `node_modules` doesn't have this path, so `vite build` falls through to a missing dependency. Both are monorepo-hoisting artifacts that don't surface in the main checkout where the root `node_modules` is already set up.
+
+**Prevention:**
+1. **Don't attempt a fresh Electron build inside a landing worktree for design review** — the native rebuild and hoisting setup cost is disproportionate to the review goal.
+2. **Preferred review path for visual/design review:** use implementer-provided screenshots or ask the implementer to run the `/smoke-ui` skill in the main checkout. If you need to run the app yourself, do it from the main checkout after the branch is merged (or cherry-picked to main tree).
+3. **If a worktree build is genuinely required:** (a) run `npm ci` from the repo ROOT first (not inside the worktree), so hoisted packages are present; (b) then `npm rebuild node-pty` from the package directory to rebuild the native binary for the current ABI; (c) then run `vite build` from within the package — it can now resolve the hoisted `.vite-temp`.
+4. A documented web-preview recipe (serve the renderer without Electron) would bypass both gaps — worth a follow-up ticket if design reviews from worktrees are a recurring need.
+
+**Status:** Active — 1 instance (Design p/472#1). Future fix tracked: root-level install + node-pty rebuild recipe, or web-preview alternative.
+
+**Applies To:** Design role and any agent attempting to launch Electron apps from a fresh worktree for review purposes.
+
+---
+
+## #170 [Build] Batch Filesystem Cleanup Aborts on First File-Lock — Remaining Items Undeleted
+
+**Pattern:** A batch `os.remove()` / `os.unlink()` loop (or equivalent) aborts on the first `WinError 32` (file locked by another process), leaving all subsequent items undeleted. The cleanup appears to succeed up to the failing file but silently abandons the rest.
+
+**Instances:**
+- 2026-08-15 — Tech Lead (t/2222 junk cleanup, p/335#40): Python batch `os.remove` loop hit `WinError 32` on `engineering/tech-lead/fail-open` (locked by a live process) and aborted — 1/17 files removed, 16 left. Fixed with per-item `try/except`; 16/17 cleaned, residual locked file harmless (frees when session closes).
+
+**Root Cause:** Batch cleanup without per-item exception handling treats the first failure as fatal. On Windows, file locks (`WinError 32`) are common when a file is open in another process (IDE, terminal, agent session). A single locked file should not block cleanup of the remaining items.
+
+**Prevention:**
+1. **Always wrap per-item filesystem operations (remove, rename, move) in per-item `try/except`** — collect and log failures, but continue the loop: `for f in files: try: os.remove(f) except OSError as e: failed.append((f, e))`.
+2. Log skipped items with the reason (lock error, permissions, not found) — silent skips make cleanup look complete when it isn't.
+3. On Windows: `WinError 32` ("The process cannot access the file because it is being used by another process") is expected for files open in live sessions — treat as a deferred skip, not a fatal error.
+4. After a best-effort cleanup, report counts: `removed N/M; skipped: <list>`.
+
+**Status:** Active — 1 instance (TL t/2222, p/335#40).
+
+**Applies To:** All agents writing Python/PowerShell batch cleanup scripts on Windows.
+
+---
+
+## #169 [Process] `git worktree add` "invalid reference" — Repo Subdirectory Path in the commit-ish Slot
+
+**Pattern:** `git worktree add -b <branch> <path> <scope-hint>` fails "fatal: invalid reference: <scope-hint>" when a repo subdirectory path (e.g., `research/comp-linguist`) is passed as the `[<commit-ish>]` argument. The signature is `add [-b <branch>] <worktree-path> [<commit-ish>]` — the third positional is parsed as a git ref, not a directory hint.
+
+**Instances:**
+- 2026-08-15 — CL.Investigate1 (p/40#13): `git worktree add -b <br> <path> research/comp-linguist` → `fatal: invalid reference: research/comp-linguist`. Intended as a scope hint; not a valid commit-ish. Fix: `git worktree add -b <br> .worktrees/<name> main`; scope the worktree via cwd inside it, not a path argument.
+
+**Root Cause:** `git worktree add` takes `[<commit-ish>]` as its last positional — a starting point for the new branch/checkout, not a scope or context hint. A bare subdirectory path like `research/comp-linguist` is not a valid ref, so git rejects it with "invalid reference." The error message does not explain the expected argument shape.
+
+**Prevention:**
+1. The full signature is `git worktree add [-b <new-branch>] <worktree-path> [<commit-ish>]`. Valid `<commit-ish>` values: `main`, `origin/main`, a SHA, a tag — not a directory path.
+2. To scope work to a subdirectory, `cd` into the worktree after creation: `git worktree add -b <br> .worktrees/<name> main && cd .worktrees/<name> && <work in scope>`.
+3. When the error is "invalid reference" on a `worktree add`, check whether the last argument looks like a path rather than a ref.
+
+**Status:** Active — 1 instance (CL.Investigate1 p/40#13).
+
+**Applies To:** All agents creating worktrees, especially when scoping work to a sub-role path.
 
 ---
 

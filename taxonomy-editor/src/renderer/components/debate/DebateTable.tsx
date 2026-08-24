@@ -59,6 +59,9 @@ export interface DebateTableMyProps {
   onOpen: (id: string) => void;
   onExport: (session: SessionRowData, format: string) => void;
   onShare: (session: SessionRowData) => void;
+  /** Brief export from a table row (t/2805 follow-up). Undefined = item hidden. */
+  onBrief?: (session: SessionRowData) => void;
+  briefWebOnly?: boolean;
   /** Phone nav: row click pushes mobile navigation (desktop: noop). */
   onPhoneSelect: (session: SessionRowData) => void;
   isPhone: boolean;
@@ -79,6 +82,9 @@ export interface DebateTableCommunityProps {
   selectedId: string | null;
   onOpen: (id: string) => void;
   onExport: (cd: CommunityDebate, format: string) => void;
+  /** Brief export from a community row (t/2805 follow-up). Undefined = item hidden. */
+  onBrief?: (cd: CommunityDebate) => void;
+  briefWebOnly?: boolean;
   onCopy: (cd: CommunityDebate) => Promise<void>;
   copyingId: string | null;
   auth: AuthStatus;
@@ -243,6 +249,8 @@ interface DebateTableRowProps {
   onOpen: (id: string) => void;
   onExport: (session: SessionRowData, format: string) => void;
   onShare: (session: SessionRowData) => void;
+  onBrief?: (session: SessionRowData) => void;
+  briefWebOnly?: boolean;
   onPhoneSelect: (session: SessionRowData) => void;
   isPhone: boolean;
 }
@@ -250,7 +258,7 @@ interface DebateTableRowProps {
 export function DebateTableRow({
   s, idx, totalRows, isActive, editMode, isSelected,
   onToggleSelect, renamingId, setRenamingId, renameValue, setRenameValue,
-  onRename, onMoveSession, onOpen, onExport, onShare, onPhoneSelect, isPhone,
+  onRename, onMoveSession, onOpen, onExport, onShare, onBrief, briefWebOnly, onPhoneSelect, isPhone,
 }: DebateTableRowProps) {
   const isRenaming = renamingId === s.id;
   const colSpan = editMode ? 7 : 6;
@@ -384,7 +392,7 @@ export function DebateTableRow({
             >
               Open
             </button>
-            <ExportDropdown onExport={fmt => onExport(s, fmt)} />
+            <ExportDropdown onExport={fmt => onExport(s, fmt)} onBrief={onBrief ? () => onBrief(s) : undefined} briefWebOnly={briefWebOnly} />
             <button
               type="button"
               className="debate-table-action-btn"
@@ -446,6 +454,8 @@ interface CommunityTableRowProps {
   isSelected: boolean;
   onOpen: (id: string) => void;
   onExport: (cd: CommunityDebate, format: string) => void;
+  onBrief?: (cd: CommunityDebate) => void;
+  briefWebOnly?: boolean;
   onCopy: (cd: CommunityDebate) => Promise<void>;
   copyingId: string | null;
   showCopy: boolean;
@@ -454,7 +464,7 @@ interface CommunityTableRowProps {
 }
 
 export function CommunityTableRow({
-  cd, isSelected, onOpen, onExport, onCopy, copyingId, showCopy,
+  cd, isSelected, onOpen, onExport, onBrief, briefWebOnly, onCopy, copyingId, showCopy,
   onPhoneSelect, isPhone,
 }: CommunityTableRowProps) {
   const isCopying = copyingId === cd.id;
@@ -517,7 +527,7 @@ export function CommunityTableRow({
           >
             Open
           </button>
-          <ExportDropdown onExport={fmt => onExport(cd, fmt)} />
+          <ExportDropdown onExport={fmt => onExport(cd, fmt)} onBrief={onBrief ? () => onBrief(cd) : undefined} briefWebOnly={briefWebOnly} />
           {showCopy && (
             <button
               type="button"
@@ -602,7 +612,7 @@ function MyTable(props: DebateTableMyProps & { sort: SortState; onSort: (col: So
   const {
     rows, loading, searchQuery, editMode, selectedIds, onToggleSelect,
     renamingId, setRenamingId, renameValue, setRenameValue, onRename,
-    onMoveSession, onOpen, onExport, onShare, onPhoneSelect, isPhone,
+    onMoveSession, onOpen, onExport, onShare, onBrief, briefWebOnly, onPhoneSelect, isPhone,
     activeDebateId, sort, onSort,
   } = props;
 
@@ -678,6 +688,8 @@ function MyTable(props: DebateTableMyProps & { sort: SortState; onSort: (col: So
               onOpen={onOpen}
               onExport={onExport}
               onShare={onShare}
+              onBrief={onBrief}
+              briefWebOnly={briefWebOnly}
               onPhoneSelect={onPhoneSelect}
               isPhone={isPhone}
             />
@@ -696,7 +708,7 @@ function CommunityTable(
   props: DebateTableCommunityProps & { sort: SortState; onSort: (col: SortColumn) => void },
 ) {
   const {
-    rows, loading, searchQuery, selectedId, onOpen, onExport, onCopy,
+    rows, loading, searchQuery, selectedId, onOpen, onExport, onBrief, briefWebOnly, onCopy,
     copyingId, auth, onPhoneSelect, isPhone, sort, onSort,
   } = props;
 
@@ -759,6 +771,8 @@ function CommunityTable(
               isSelected={selectedId === cd.id}
               onOpen={onOpen}
               onExport={onExport}
+              onBrief={onBrief}
+              briefWebOnly={briefWebOnly}
               onCopy={onCopy}
               copyingId={copyingId}
               showCopy={showCopy}

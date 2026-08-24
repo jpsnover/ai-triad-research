@@ -42,13 +42,18 @@ function buildOpEdMarkdown(set: OpEdSet): string {
     if (i > 0) lines.push('\n---\n');
     lines.push(`# ${m.headline}`);
     if (m.subtitle) lines.push(`\n*${m.subtitle}*`);
+    if (m.byline) lines.push(`\n_${m.byline}_`);
+    if (m.disclosure) lines.push(`\n> ${m.disclosure}`);
     lines.push('');
     if (m.status !== 'complete') {
       lines.push(`_(This voice ${m.status === 'failed' ? 'failed to generate' : 'was cancelled'}.)_`);
       return;
     }
+    if (m.byline) lines.push(`\n*${m.byline}*`);
+    if (m.disclosure) lines.push(`\n> ${m.disclosure}`);
+    lines.push('');
     lines.push(m.body);
-    if (m.pitch) { lines.push('\n---\n\n## Pitch cover email\n'); lines.push(m.pitch); }
+    if (m.rhetorical_meta) lines.push(`\n---\n\n## What this op-ed did\n\n${m.rhetorical_meta}`);
     if (m.grounding.length > 0) {
       lines.push('\n---\n\n## Taxonomy grounding\n');
       lines.push('| Element | Type | Relevance | Reflected in the op-ed |');
@@ -57,6 +62,10 @@ function buildOpEdMarkdown(set: OpEdSet): string {
         const type = g.node_id.startsWith('sit-') ? 'Situation' : 'BDI';
         lines.push(`| ${g.node_id} | ${type} | ${g.relevance || '—'} | ${g.how_reflected || '(not reported)'} |`);
       }
+    }
+    if (m.rhetorical_meta) {
+      lines.push('\n---\n\n## What this op-ed did\n');
+      lines.push(m.rhetorical_meta);
     }
   });
   return lines.join('\n');
@@ -83,8 +92,10 @@ function slugify(s: string): string {
   return (s || 'op-ed').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60) || 'op-ed';
 }
 
-function exportOpEdSet(set: OpEdSet, format: string): void {
-  if (format === 'text') downloadFile(`${slugify(set.topic)}.txt`, buildOpEdText(set), 'text/plain');
+// Exported for unit testing (t/2797 JSON regression).
+export function exportOpEdSet(set: OpEdSet, format: string): void {
+  if (format === 'json') downloadFile(`${slugify(set.topic)}.json`, JSON.stringify(set, null, 2), 'application/json');
+  else if (format === 'text') downloadFile(`${slugify(set.topic)}.txt`, buildOpEdText(set), 'text/plain');
   else downloadFile(`${slugify(set.topic)}.md`, buildOpEdMarkdown(set), 'text/markdown');
 }
 
@@ -242,7 +253,7 @@ function OpEdReaderView({
     <div className="two-column oped-tab-table-mode">
       <div className="oped-reader-shell">
         <div className="oped-reader-bar">
-          <button type="button" className="oped-reader-back" onClick={onBack}>‹ Op-Eds</button>
+          <button type="button" className="oped-reader-back" onClick={onBack}>‹ Op-Ed Studies</button>
           {status && <span className="oped-status">{status}</span>}
           {/* Share is web-only: electron-bridge rejects shareOpEdSet (t/2728). */}
           {readerSet && !isElectronMode() && <ShareOpEdControl setId={readerSet.set_id} />}
@@ -479,7 +490,7 @@ export function OpEdTab() {
     <div className={['two-column', isTableMode ? 'oped-tab-table-mode' : ''].filter(Boolean).join(' ')}>
       <div className="list-panel oped-list-panel">
         <div className="list-panel-header">
-          <h2>Op-Eds</h2>
+          <h2>Op-Ed Studies</h2>
           <OpEdHeaderActions
             listView={listView}
             editMode={editMode}

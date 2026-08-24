@@ -108,6 +108,8 @@ Configured in `ai-models.json` (single source of truth for PS and Electron). Bac
 
 When writing, editing, or executing code containing special shell characters (template literals, nested quotes, apostrophes, backticks, `$` variables, f-strings), **always use Edit/Write tools** instead of Bash `sed`, `awk`, or heredocs. When running Python/PowerShell scripts that contain quotes or f-strings, write the script to a temp file with the `Write` tool and execute it, rather than inlining in a heredoc or `bash -c`. Shell escaping is the #1 source of silent corruption bugs.
 
+**Junk-file hygiene (t/2112).** A mis-quoted Bash command (stray backtick, unbalanced `)`/`{`, a `$(...)` fragment, an inlined interval like `30s`) word-splits into **0-byte files** named after the fragment — e.g. `0)`, `void`, `30s`, `15000\``, `{,+`. They are never committed, so no gate catches them, but they clutter `git status` and a careless `git add -A` sweeps them into a commit. **Before any `git add`, scan `git status --short` for bare-fragment filenames and `rm --` them.** Prefer `git add <explicit paths>` over `git add -A`/`-u`. The advisory `t/2112` hook warns on these at commit time but does not block — treat its warning as a stop-and-clean signal.
+
 ## Git Forensics on the Bash Tool
 
 On some Windows agents, MSYS path conversion mangles the `<path>` half of a git colon-revspec (`git show <ref>:<path>`, `cat-file`, `rev-parse <ref>:<path>`) — a **valid** ref then reports a spurious `unknown revision or path`, masquerading as a missing commit/file. It is environment-dependent (varies by Git-for-Windows install; confirmed on ≥2 agents, not reproduced on others), so don't dismiss a peer's report as "just their config." Discriminator: valid ref + `unknown revision` = suspect MSYS, not a real absence. Fix: prefix `MSYS_NO_PATHCONV=1`, or run the git command via the PowerShell tool.
@@ -115,6 +117,8 @@ On some Windows agents, MSYS path conversion mangles the `<path>` half of a git 
 ## Error Handling Convention
 
 All unrecoverable errors must use `New-ActionableError` (PowerShell) or `ActionableError` (TypeScript) with four fields: **Goal**, **Problem**, **Location**, **Next Steps**. Never use bare `throw "message"`. Prefer recovery (retry, fallback, partial results) over failure. See `docs/error-handling.md`.
+
+**Rendered surface labels differ from the field names (PowerShell) — assert against the rendered labels.** The four fields above are the *parameter* names (`-Goal` / `-Problem` / `-Location` / `-NextSteps`), but `New-ActionableError` renders the emitted message with labels **`Goal:` / `Error:` / `Location:` / `Resolve:`** — i.e. `-Problem` prints as `Error:` and `-NextSteps` prints as `Resolve:`. Any test, log scraper, or reviewer assertion written against the *emitted text* must match the rendered labels (`Error:` / `Resolve:`), not the convention/parameter vocabulary — an assertion written honestly from the field names above will spuriously fail against a correctly-formed error (t/2952).
 
 ## Token Efficiency
 
@@ -127,6 +131,7 @@ All unrecoverable errors must use `New-ActionableError` (PowerShell) or `Actiona
 ## Incident Response
 
 - **Live incident: claim follow-ups before filing.** Before `create_ticket` for a follow-up during an active incident, claim it on the incident anchor thread (or route through the incident coordinator) — prevents concurrent duplicate filings across roles (this bit twice: t/2053+t/2054, t/2061+t/2062).
+- **The claim binds per-instance, and to writes — not just filings (t/2945).** The rule above bit again *inside a single role*: concurrent same-role background jobs, each with its own context and blind to each other's writes, produced t/2945's authorship oscillation and two duplicate filings (t/2954+t/2956, t/2959+t/2960). So during a live incident, claim per **instance / background-job** (not per role) on the anchor **before any shared-tree write** (data or code repo) *and* before any ticket filing. The anchor is a **visibility** point, not a lock: it makes concurrent actors see each other, it does not serialize them. Where actual serialization is required, use the stronger form — claim, then re-read the anchor before acting.
 - The Technical Lead coordinates incidents (runs `/tl-incident-response`); the anchor ticket is the source of truth for status and follow-up claims.
 
 ### Prevention-per-incident: every diagnosis files observability AND prevention (t/2379)

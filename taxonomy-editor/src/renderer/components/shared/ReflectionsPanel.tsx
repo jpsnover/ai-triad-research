@@ -12,6 +12,7 @@ import { POVER_INFO } from '../../types/debate';
 import type { SpeakerId } from '../../types/debate';
 import { checkDolceCompliance, type ComplianceViolation } from '../../utils/dolceCompliance';
 import { DescriptionToggle, resolveDescription, useDescriptionMode } from './DescriptionToggle';
+import { TheoryLink } from './TheoryLink';
 import { generatePlainPreview } from '../../utils/regeneratePlainDescription';
 import './ReflectionsPanel.css';
 
@@ -1148,6 +1149,12 @@ export function ReflectionsPanel({ onClose }: { onClose: () => void }) {
           style={{ cursor: dragRef.current ? 'grabbing' : 'grab' }}
         >
           <h3 className="rp-modal-title">Post-Debate Reflections</h3>
+          <TheoryLink
+            docPath="docs/debate-reflections.md"
+            label="Post-Debate Reflections — how it works"
+            tooltip="Open the Reflections theory-of-operations doc"
+            size={15}
+          />
           {reflections.length > 0 && totalPending > 0 && (
             <>
               <button className="btn btn-primary rp-btn-sm" onClick={approveAll}>

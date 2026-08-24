@@ -6,7 +6,7 @@
 // fix holds. Also asserts Simple/Advanced tab visibility gate works correctly.
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import type { PovNode } from '../../types/taxonomy';
 
 // ── Store mocks ──────────────────────────────────────────────────────────────
@@ -198,5 +198,23 @@ describe('NodeDetail — Zustand scalar selector regression (t/2142)', () => {
     expect(screen.getByRole('button', { name: /related/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /attributes/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /research/i })).toBeInTheDocument();
+  });
+
+  // t/2826 — the Pin-for-comparison ("bookmark") control is Advanced-view only.
+  it('omits Pin for Comparison from the actions menu in simple mode', () => {
+    render(
+      <NodeDetail pov="acc" node={mockNode} readOnly={false} onPin={vi.fn()} onSimilarSearch={vi.fn()} onRelated={vi.fn()} />,
+    );
+    fireEvent.click(screen.getByTitle('More actions'));
+    expect(screen.queryByRole('menuitem', { name: /pin for comparison/i })).not.toBeInTheDocument();
+  });
+
+  it('includes Pin for Comparison in the actions menu in advanced mode', () => {
+    mockPrefsState.viewMode = 'advanced';
+    render(
+      <NodeDetail pov="acc" node={mockNode} readOnly={false} onPin={vi.fn()} onSimilarSearch={vi.fn()} onRelated={vi.fn()} />,
+    );
+    fireEvent.click(screen.getByTitle('More actions'));
+    expect(screen.getByRole('menuitem', { name: /pin for comparison/i })).toBeInTheDocument();
   });
 });

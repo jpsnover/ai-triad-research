@@ -13,6 +13,7 @@ import {
 } from '../flightRecorderDumps.js';
 import { setGlobalRecorder } from '../../../../lib/flight-recorder/index.js';
 import type { FlightRecorder, RecordInput } from '../../../../lib/flight-recorder/flightRecorder.js';
+import { writeFramedNdjson, LOG_MAX_LINE_BYTES } from '../logger.js';
 
 describe('isValidDumpId (t/908)', () => {
   it('accepts UUID-safe ids, rejects traversal/empty/oversized', () => {
@@ -262,5 +263,33 @@ describe('readMergedDump (t/939)', () => {
       { _type: 'event', _wall: '2026-01-01T00:00:01Z', type: 'api' },
     ));
     expect(await readMergedDump(root, 'srvonly', { includeServer: false })).toBeNull();
+  });
+});
+
+describe('writeFramedNdjson (t/2865 — SIGUSR2 dump line cap)', () => {
+  it('writes each record on its own line, all within LOG_MAX_LINE_BYTES', () => {
+    const lines: string[] = [];
+    const fakeOut = { write: (s: string) => { lines.push(s); } } as unknown as NodeJS.WritableStream;
+
+    const normal = JSON.stringify({ _type: 'event', msg: 'ok' });
+    const oversized = JSON.stringify({ _type: 'event', payload: 'x'.repeat(LOG_MAX_LINE_BYTES + 1000) });
+    writeFramedNdjson([normal, oversized, normal].join('\n'), fakeOut);
+
+    expect(lines).toHaveLength(3);
+    for (const line of lines) {
+      expect(Buffer.byteLength(line.replace(/\n$/, ''))).toBeLessThanOrEqual(LOG_MAX_LINE_BYTES);
+    }
+    // oversized record is truncated with a marker, not silently dropped
+    expect(lines[1]).toContain('[line truncated');
+    // normal records are written verbatim
+    expect(lines[0].trim()).toBe(normal);
+    expect(lines[2].trim()).toBe(normal);
+  });
+
+  it('skips empty lines and does not emit blank writes', () => {
+    const lines: string[] = [];
+    const fakeOut = { write: (s: string) => { lines.push(s); } } as unknown as NodeJS.WritableStream;
+    writeFramedNdjson('\n\n', fakeOut);
+    expect(lines).toHaveLength(0);
   });
 });

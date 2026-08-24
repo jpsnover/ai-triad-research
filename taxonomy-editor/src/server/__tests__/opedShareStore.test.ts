@@ -2,9 +2,9 @@
 //
 // t/2727 — op-ed public-share projection (the info-leak control). projectPublicOpEd
 // is a POSITIVE field allowlist: an OpEdSet laden with generation params (model,
-// prompts, thesis, authorBio, newsHook), per-voice pitch-email drafts, and grounding
-// internals must project to EXACTLY the public wire shape and nothing more. This is
-// what guarantees no private field is ever written to the public copy at rest.
+// prompts, thesis, authorBio, newsHook) and grounding internals must project to
+// EXACTLY the public wire shape and nothing more. This is what guarantees no private
+// field is ever written to the public copy at rest.
 
 import { describe, it, expect } from 'vitest';
 import { projectPublicOpEd } from '../storage/opedShareStore.js';
@@ -31,7 +31,6 @@ const ladenSet = {
       headline: 'The case for speed',
       subtitle: 'Why caution costs lives',
       body: 'Full essay body text.',
-      pitch: 'PRIVATE pitch email draft to the editor',
       wordCount: 812,
       grounding: [
         { node_id: 'acc-beliefs-095', label: 'internal', category: 'beliefs', pov: 'accelerationist', relevance: '0.9', how_reflected: 'internal note' },
@@ -52,7 +51,7 @@ describe('projectPublicOpEd — positive allowlist (info-leak guard, t/2727)', (
     expect(pub).not.toHaveProperty('params');
   });
 
-  it('per-voice members carry EXACTLY the public fields — no pitch, no grounding', () => {
+  it('per-voice members carry EXACTLY the public fields — no grounding', () => {
     const pub = projectPublicOpEd(ladenSet, 'share-xyz');
     expect(pub.opeds).toHaveLength(1);
     expect(Object.keys(pub.opeds[0]).sort()).toEqual(
@@ -67,7 +66,6 @@ describe('projectPublicOpEd — positive allowlist (info-leak guard, t/2727)', (
       'PRIVATE thesis',                // params.thesis
       'PRIVATE author bio',            // params.authorBio
       'PRIVATE news hook',             // params.newsHook
-      'PRIVATE pitch email',           // member.pitch
       'gemini-3.5-flash-lite',         // params.model
       'how_reflected', 'node_id',      // grounding internals
       'acc-beliefs-095',

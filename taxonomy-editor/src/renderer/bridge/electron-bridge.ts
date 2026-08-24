@@ -76,6 +76,9 @@ function rejectOpEdIpc(goal: string, method: string): Promise<never> {
   }));
 }
 
+// Brief Export desktop parity landed in t/2840 — the 5 methods now delegate to the main-process
+// IPC handlers (which run the shared runBriefPipeline in-process). See the AppAPI block below.
+
 // Same-window diagnostics callbacks for the in-app drawer (mobile/narrow).
 // When a popout BrowserWindow is open, IPC delivers state to it directly.
 // When the drawer is used instead, we also deliver to local callbacks.
@@ -290,6 +293,33 @@ export const api: AppAPI = {
   loadDebateComments: (id) => window.electronAPI.loadDebateComments(id),
   saveDebateComments: (id, data) => window.electronAPI.saveDebateComments(id, data),
 
+  // Brief Export — desktop parity via main-process IPC (t/2840). Calls the shared runBriefPipeline
+  // in-process; download returns raw bytes wrapped into a Blob (Blob-returning AppAPI in both builds).
+  createBriefExport: (debateId, body) => window.electronAPI.createBriefExport(debateId, body),
+  getBriefExportJob: (jobId) => window.electronAPI.getBriefExportJob(jobId),
+  listBriefExports: (debateId) => window.electronAPI.listBriefExports(debateId),
+  downloadBriefArtifact: async (exportId, name) => {
+    const bytes = await window.electronAPI.downloadBriefArtifact(exportId, name);
+    if (bytes == null) {
+      throw new ActionableError({
+        goal: 'Download a brief export artifact',
+        problem: `Artifact "${name}" was not found for export "${exportId}"`,
+        location: 'electron-bridge · downloadBriefArtifact',
+        nextSteps: ['Re-check the export still exists in the debate exports list', 'Regenerate the export'],
+      });
+    }
+    return new Blob([bytes as BlobPart]);   // Uint8Array is a valid BlobPart at runtime (strict-generic cast)
+  },
+  deleteBriefExport: (exportId) => window.electronAPI.deleteBriefExport(exportId),
+  // printBriefToPdf is available independently of the full brief export pipeline (t/2852).
+  printBriefToPdf: (html) => window.electronAPI.printBriefToPdf(html),
+
+  // Brief Templates (t/2853) — desktop passes bytes inline via IPC; server-side storage is web-only.
+  // uploadBriefTemplate is never called on desktop (dialog branches on isElectronMode).
+  uploadBriefTemplate: () => Promise.reject(new Error('Template upload is not available in the desktop app. Select a template file — it will be passed inline.')),
+  listBriefTemplates: () => Promise.resolve([]),
+  deleteBriefTemplate: () => Promise.resolve(),
+
   // Op-Ed Studio (t/2576) — feature-detected IPC (lands with t/2575); see opEdIpc above.
   listOpEdSets: () => opEdIpc().listOpEdSets?.() ?? rejectOpEdIpc('list op-eds', 'listOpEdSets'),
   loadOpEdSet: (id) => opEdIpc().loadOpEdSet?.(id) ?? rejectOpEdIpc('load an op-ed', 'loadOpEdSet'),
@@ -329,7 +359,7 @@ export const api: AppAPI = {
   saveProposal: (f, d) => window.electronAPI.saveProposal(f, d),
 
   // PowerShell prompts
-  readPsPrompt: (name) => window.electronAPI.readPsPrompt(name),
+  readPsPrompt: (name, dir = 'ps') => window.electronAPI.readPsPrompt(name, dir),
   listPsPrompts: () => window.electronAPI.listPsPrompts(),
 
   // Research file access

@@ -487,6 +487,9 @@ try {
   exportDebateToFile: (session: unknown, format?: string, exportOptions?: { includeTaxonomyRefs?: boolean; includeReasoning?: boolean }): Promise<{ cancelled: boolean; filePath?: string }> =>
     ipcRenderer.invoke('export-debate-to-file', session, format, exportOptions),
 
+  printBriefToPdf: (html: string): Promise<{ cancelled: boolean; filePath?: string }> =>
+    ipcRenderer.invoke('brief:html-to-pdf', html),
+
   exportChatToFile: (
     entries: { id: string; timestamp: string; speaker: string; content: string; taxonomy_refs: { node_id: string; label?: string; relevance: string }[] }[],
     format: 'markdown' | 'text' | 'pdf',
@@ -554,8 +557,8 @@ try {
     ipcRenderer.invoke('save-proposal', filename, data),
 
   // PowerShell prompt files (for Prompt Inspector)
-  readPsPrompt: (promptName: string): Promise<{ text: string | null; error?: string }> =>
-    ipcRenderer.invoke('read-ps-prompt', promptName),
+  readPsPrompt: (promptName: string, dir = 'ps'): Promise<{ text: string | null; error?: string }> =>
+    ipcRenderer.invoke('read-ps-prompt', promptName, dir),
   listPsPrompts: (): Promise<string[]> =>
     ipcRenderer.invoke('list-ps-prompts'),
 
@@ -622,7 +625,7 @@ try {
     ipcRenderer.invoke('admin-remove-community-item', type, id, reason),
 
   // Op-Ed Studio (t/2575, t/2591)
-  createOpEdSet: (payload: { topic: string; params: unknown; voices: string[] }): Promise<{ set_id: string }> =>
+  createOpEdSet: (payload: { topic: string; url?: string; params: unknown; voices: string[] }): Promise<{ set_id: string }> =>
     ipcRenderer.invoke('create-oped-set', payload),
   cancelOpEdSet: (setId: string): void =>
     void ipcRenderer.invoke('cancel-oped-set', setId),
@@ -641,6 +644,19 @@ try {
     ipcRenderer.invoke('delete-oped-set', setId),
   saveOpEdSet: (set: OpEdSet): Promise<void> =>
     ipcRenderer.invoke('save-oped-set', set),
+
+  // Brief Export — desktop parity (t/2840). Mirrors the web AppAPI; download returns raw bytes
+  // that the electron-bridge wraps into a Blob (Blob-returning AppAPI in both builds).
+  createBriefExport: (debateId: string, body: unknown): Promise<{ jobId: string }> =>
+    ipcRenderer.invoke('create-brief-export', debateId, body),
+  getBriefExportJob: (jobId: string): Promise<unknown> =>
+    ipcRenderer.invoke('get-brief-export-job', jobId),
+  listBriefExports: (debateId: string): Promise<unknown[]> =>
+    ipcRenderer.invoke('list-brief-exports', debateId),
+  downloadBriefArtifact: (exportId: string, name: string): Promise<Uint8Array | null> =>
+    ipcRenderer.invoke('download-brief-artifact', exportId, name),
+  deleteBriefExport: (exportId: string): Promise<void> =>
+    ipcRenderer.invoke('delete-brief-export', exportId),
   });
   console.log('[preload] electronAPI exposed');
   ipcRenderer.send('forward-flight-event', {

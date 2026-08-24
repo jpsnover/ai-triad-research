@@ -29,7 +29,7 @@ vi.mock('../security/userContext.js', () => ({ getStorageUserId: vi.fn().mockRet
 vi.mock('../community/community.js', () => ({ isAdmin: vi.fn().mockReturnValue(false) }));
 vi.mock('../runtimeConfig.js', () => ({
   getConfig: vi.fn().mockReturnValue({
-    quotas: { defaultMaxChats: 25, defaultMaxDebates: 15, defaultMaxOpEds: 15 },
+    quotas: { defaultMaxChats: 25, defaultMaxDebates: 15, defaultMaxOpEds: 15, defaultMaxBriefExports: 25 },
     cache: { defaultTtlMs: 5000 },
   }),
 }));
@@ -127,6 +127,7 @@ describe('quotas config load — fd path (t/2023)', () => {
     expect(limits.maxChats).toBe(25);
     expect(limits.maxDebates).toBe(15);
     expect(limits.maxOpEds).toBe(15);
+    expect(limits.maxBriefExports).toBe(25);
     // fd was never opened → finally must not attempt to close it.
     expect(fsMock.closeSync).not.toHaveBeenCalled();
   });
@@ -180,5 +181,17 @@ describe('checkQuota', () => {
     const { checkQuota } = await loadModule();
     const result = checkQuota('opeds', 15, 'testuser');
     expect(result).toMatchObject({ allowed: false, current: 15, limit: 15 });
+  });
+
+  it('allows brief-exports under the limit', async () => {
+    const { checkQuota } = await loadModule();
+    const result = checkQuota('brief-exports', 10, 'testuser');
+    expect(result).toMatchObject({ allowed: true, current: 10, limit: 25, resource: 'brief-exports' });
+  });
+
+  it('blocks when at the brief-exports limit', async () => {
+    const { checkQuota } = await loadModule();
+    const result = checkQuota('brief-exports', 25, 'testuser');
+    expect(result).toMatchObject({ allowed: false, current: 25, limit: 25 });
   });
 });

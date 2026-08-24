@@ -14,6 +14,7 @@ export interface QuotaLimits {
   maxChats: number;
   maxDebates: number;
   maxOpEds: number;
+  maxBriefExports: number;
 }
 
 interface ElevatedEntry {
@@ -21,6 +22,7 @@ interface ElevatedEntry {
   maxChats?: number;
   maxDebates?: number;
   maxOpEds?: number;
+  maxBriefExports?: number;
 }
 
 interface QuotaConfig {
@@ -33,7 +35,7 @@ interface QuotaConfig {
 // `defaults` override layered on top.
 function runtimeQuotaDefaults(): QuotaLimits {
   const q = getRuntimeConfig().quotas;
-  return { maxChats: q.defaultMaxChats, maxDebates: q.defaultMaxDebates, maxOpEds: q.defaultMaxOpEds };
+  return { maxChats: q.defaultMaxChats, maxDebates: q.defaultMaxDebates, maxOpEds: q.defaultMaxOpEds, maxBriefExports: q.defaultMaxBriefExports };
 }
 
 // ── Config loading with mtime cache (follows proxyTiers.ts pattern) ──
@@ -87,26 +89,31 @@ function getConfig(): QuotaConfig {
 
 export function getQuotaLimits(userId?: string): QuotaLimits {
   const uid = userId ?? getStorageUserId();
-  if (isAdmin(uid)) return { maxChats: Infinity, maxDebates: Infinity, maxOpEds: Infinity };
+  if (isAdmin(uid)) return { maxChats: Infinity, maxDebates: Infinity, maxOpEds: Infinity, maxBriefExports: Infinity };
   const config = getConfig();
   const entry = config.elevated.find(e => e.userId === uid);
   return {
     maxChats: entry?.maxChats ?? config.defaults.maxChats,
     maxDebates: entry?.maxDebates ?? config.defaults.maxDebates,
     maxOpEds: entry?.maxOpEds ?? config.defaults.maxOpEds,
+    maxBriefExports: entry?.maxBriefExports ?? config.defaults.maxBriefExports,
   };
 }
 
 export interface QuotaCheckResult {
   allowed: boolean;
-  resource: 'chats' | 'debates' | 'opeds';
+  resource: 'chats' | 'debates' | 'opeds' | 'brief-exports';
   current: number;
   limit: number;
 }
 
-export function checkQuota(resource: 'chats' | 'debates' | 'opeds', currentCount: number, userId?: string): QuotaCheckResult {
+export function checkQuota(resource: 'chats' | 'debates' | 'opeds' | 'brief-exports', currentCount: number, userId?: string): QuotaCheckResult {
   const limits = getQuotaLimits(userId);
-  const limit = resource === 'chats' ? limits.maxChats : resource === 'debates' ? limits.maxDebates : limits.maxOpEds;
+  let limit: number;
+  if (resource === 'chats') limit = limits.maxChats;
+  else if (resource === 'debates') limit = limits.maxDebates;
+  else if (resource === 'opeds') limit = limits.maxOpEds;
+  else limit = limits.maxBriefExports;
   return {
     allowed: currentCount < limit,
     resource,

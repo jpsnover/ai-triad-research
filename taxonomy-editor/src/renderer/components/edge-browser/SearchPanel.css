@@ -1,0 +1,55 @@
+/* Copyright (c) 2026 Jeffrey Snover. All rights reserved. */
+/* Licensed under the MIT License. See LICENSE file in the project root. */
+
+/* Inline clear (✕) affordance for the taxonomy Search-panel input (t/2929).
+   styles.css is frozen, so this co-located sheet holds the new selectors. The wrapper
+   takes over the input's former `flex: 1` role inside .search-panel-input-row so layout
+   is unchanged; the ✕ is absolutely positioned inside the input's right edge. Colors are
+   design tokens only → legible + theme-aware across light / dark / BKC / Harvard. */
+
+.search-panel-input-clearable {
+  position: relative;
+  flex: 1;            /* the input was the flex:1 child; the wrapper now fills that role */
+  display: flex;
+  min-width: 0;       /* allow the input to shrink within the row instead of overflowing */
+}
+
+.search-panel-input-clearable .search-panel-text-input {
+  flex: 1;
+  width: 100%;
+}
+
+/* Only reserve right-padding when the ✕ is shown, so placeholder/empty state is unchanged. */
+.search-panel-input-clearable.has-value .search-panel-text-input {
+  padding-right: 26px;
+}
+
+.search-panel-clear-btn {
+  position: absolute;
+  right: 3px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.search-panel-clear-btn:hover {
+  color: var(--text-primary);
+  background: var(--bg-hover);
+}
+
+.search-panel-clear-btn:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
+}

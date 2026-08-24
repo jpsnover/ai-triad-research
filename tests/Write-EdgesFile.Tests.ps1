@@ -97,3 +97,84 @@ Describe 'Write-EdgesFile (t/1943: edges.json byte contract)' -Tag 'taxonomy' {
         }
     }
 }
+
+Describe 'Write-EdgesFile — rationale_source provenance survives round-trip (t/2950)' -Tag 'taxonomy' {
+    # CL design edge-rationale-source-marker.md: edges carry an optional rationale_source with a
+    # closed vocabulary (discovery|embedding-template|reflection|restore|backfill|human); absent =
+    # legacy/unknown. Write-EdgesFile is structurally field-agnostic (ConvertTo-Json over the whole
+    # edge PSObject), so it SHOULD preserve the field untouched — this pins that a future refactor to
+    # explicit property projection can't silently drop a provenance marker (invisible in the data:
+    # a dropped marker looks exactly like a legacy edge). Test-only; no production change expected.
+
+    It 'preserves rationale_source value AND its key position, and keeps a legacy edge field-absent' {
+        $OutPath = Join-Path ([System.IO.Path]::GetTempPath()) "write-edges-ratsrc-$(Get-Random).json"
+        try {
+            # Edge 1 carries rationale_source=restore (positioned right after rationale). Edge 2 is a
+            # legacy edge with the field ABSENT — it must stay absent, never materialized as null.
+            $withSource = [PSCustomObject][ordered]@{
+                source = 'acc-001'; type = 'SUPPORTS'; target = 'saf-002'
+                confidence = 0.95; rationale = 'because X'; rationale_source = 'restore'
+            }
+            $legacy = [PSCustomObject][ordered]@{
+                source = 'acc-003'; type = 'CONTRADICTS'; target = 'skp-004'
+                confidence = 0.9; rationale = 'because Z'
+            }
+            $Data = [PSCustomObject][ordered]@{ _schema_version = '1.0.0'; edges = @($withSource, $legacy) }
+
+            InModuleScope AITriad -Parameters @{ Data = $Data; OutPath = $OutPath } {
+                param($Data, $OutPath)
+                Write-EdgesFile -EdgesData $Data -Path $OutPath
+            }
+
+            $Text     = [System.IO.File]::ReadAllText($OutPath)
+            $Reparsed = $Text | ConvertFrom-Json
+
+            # Value preserved on re-read.
+            $e1 = $Reparsed.edges[0]
+            $e1.rationale_source | Should -Be 'restore' -Because 'the provenance marker must survive serialization'
+
+            # Key POSITION preserved: rationale_source serialized immediately after rationale (compact contract).
+            $Text | Should -Match '"rationale":"because X","rationale_source":"restore"' -Because 'key order is preserved exactly'
+
+            # Legacy edge stays field-absent — not materialized as null/empty. Exactly ONE edge carries the marker.
+            $e2 = $Reparsed.edges[1]
+            $e2.PSObject.Properties['rationale_source'] | Should -BeNullOrEmpty -Because 'an absent marker must not be materialized'
+            ([regex]::Matches($Text, 'rationale_source')).Count | Should -Be 1 -Because 'only the one edge that had the field keeps it'
+        }
+        finally {
+            if (Test-Path -LiteralPath $OutPath) { Remove-Item -LiteralPath $OutPath -Force }
+        }
+    }
+}
+
+Describe 'Write-EdgesFile — top-level hashtable document serializes correctly (t/2955 AC#4)' -Tag 'taxonomy' {
+    # AC#4: the edge-rationale guard's document-level IDictionary branch protects a shape the sink
+    # must actually be able to write. A raw [IDictionary] document's .PSObject.Properties are
+    # Count/Keys/Values, so without the normalization branch the whole document mis-serializes.
+
+    It 'round-trips an [ordered] hashtable document (top-level keys + edges) to valid, correct JSON' {
+        $OutPath = Join-Path ([System.IO.Path]::GetTempPath()) "write-edges-hashdoc-$(Get-Random).json"
+        try {
+            # Document is a hashtable; edge is a hashtable too. [ordered] for deterministic key order.
+            $Data = [ordered]@{
+                _schema_version = '1.0.0'
+                edges = @( [ordered]@{ source = 'acc-001'; type = 'SUPPORTS'; target = 'saf-002'; confidence = 0.95; rationale = 'r1' } )
+            }
+            InModuleScope AITriad -Parameters @{ Data = $Data; OutPath = $OutPath } {
+                param($Data, $OutPath)
+                Write-EdgesFile -EdgesData $Data -Path $OutPath
+            }
+            $Text     = [System.IO.File]::ReadAllText($OutPath)
+            $Reparsed = $Text | ConvertFrom-Json
+            $Reparsed._schema_version | Should -Be '1.0.0' -Because 'top-level hashtable keys must serialize, not Count/Keys/Values'
+            @($Reparsed.edges).Count  | Should -Be 1
+            $Reparsed.edges[0].source | Should -Be 'acc-001'
+            $Reparsed.edges[0].rationale | Should -Be 'r1'
+            # No hashtable-internals leaked into the document.
+            $Text | Should -Not -Match '"(Count|Keys|Values|IsReadOnly|IsFixedSize)"' -Because 'hashtable internals must never serialize as document keys'
+        }
+        finally {
+            if (Test-Path -LiteralPath $OutPath) { Remove-Item -LiteralPath $OutPath -Force }
+        }
+    }
+}

@@ -11,6 +11,8 @@ const mockInitAIModels = vi.fn().mockResolvedValue(undefined);
 const mockInitDebateSessions = vi.fn();
 const mockLoadChat = vi.fn().mockResolvedValue(undefined);
 const mockOnChatWindowLoad = vi.fn().mockReturnValue(() => {});
+const mockFetchChats = vi.fn().mockResolvedValue(undefined);
+let mockCommunityChats: Array<{ id: string; title: string }> = [];
 
 vi.mock('../../hooks/useTaxonomyStore', () => ({
   useTaxonomyStore: Object.assign(
@@ -39,6 +41,20 @@ vi.mock('../../hooks/usePopoutTheme', () => ({
 // ChatWindow renders ChatWorkspace — mock it as a stub so we can assert "ready"
 vi.mock('./ChatWorkspace', () => ({
   ChatWorkspace: () => <div data-testid="chat-tab">ChatWorkspace</div>,
+}));
+
+// ChatWindow reuses ChatTab's CommunityChatDetail for the read-only community popout (t/2879).
+vi.mock('./ChatTab', () => ({
+  CommunityChatDetail: ({ chat }: { chat: { id: string } }) => (
+    <div data-testid="community-chat-detail">{chat.id}</div>
+  ),
+}));
+
+vi.mock('../../hooks/useCommunityStore', () => ({
+  useCommunityStore: Object.assign(
+    () => ({}),
+    { getState: () => ({ fetchChats: mockFetchChats, chats: mockCommunityChats }) },
+  ),
 }));
 
 vi.mock('@bridge', () => ({
@@ -76,6 +92,8 @@ describe('ChatWindow', () => {
     mockInitDebateSessions.mockClear();
     mockLoadChat.mockClear().mockResolvedValue(undefined);
     mockOnChatWindowLoad.mockClear().mockReturnValue(() => {});
+    mockFetchChats.mockClear().mockResolvedValue(undefined);
+    mockCommunityChats = [];
     window.location.hash = '';
   });
 
@@ -119,5 +137,18 @@ describe('ChatWindow', () => {
       expect(screen.getByTestId('chat-tab')).toBeInTheDocument();
     });
     expect(mockLoadChat).not.toHaveBeenCalled();
+  });
+
+  it('renders the read-only community detail (not the workspace) when source=community', async () => {
+    mockCommunityChats = [{ id: 'cc-1', title: 'Shared chat' }];
+    window.location.hash = '#chat-window?id=cc-1&source=community';
+    render(<ChatWindow />);
+    await waitFor(() => {
+      expect(screen.getByTestId('community-chat-detail')).toBeInTheDocument();
+    });
+    expect(mockFetchChats).toHaveBeenCalled();
+    // Community deep-link must NOT hit the personal load path or the editable workspace.
+    expect(mockLoadChat).not.toHaveBeenCalled();
+    expect(screen.queryByTestId('chat-tab')).not.toBeInTheDocument();
   });
 });

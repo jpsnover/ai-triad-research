@@ -208,6 +208,17 @@ COPY --chown=aitriad:aitriad taxonomy-editor/src/main/pty-broker.py ./src/main/p
 #    For local builds: mkdir -p taxonomy-snapshot && echo '{}' > taxonomy-snapshot/snapshot-meta.json
 COPY --chown=aitriad:aitriad taxonomy-snapshot/ ./fallback-data/
 
+# 7. PowerShell Core — required for the web console ("Console (pwsh + AITriad)") (t/2824)
+# hadolint ignore=DL3008
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    curl -fsSL "https://packages.microsoft.com/config/debian/13/packages-microsoft-prod.deb" \
+      -o /tmp/ms-prod.deb \
+    && dpkg -i /tmp/ms-prod.deb \
+    && rm /tmp/ms-prod.deb \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends powershell
+
 USER aitriad
 
 EXPOSE 7862

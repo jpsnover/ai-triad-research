@@ -22,7 +22,7 @@ import { json, error, param } from '../httpKit.js';
 import { getGlobalRecorder } from '../../../../lib/flight-recorder/index.js';
 import { ActionableError } from '../../../../lib/debate/errors.js';
 import { clientSafeMessage } from '../security/accessControl.js';
-import { isSafeId } from '../storage/fileIO.js';
+import { isSafeId, fetchUrlContent } from '../storage/fileIO.js';
 import { listOpedSets, loadOpedSet, deleteOpedSet, getOpedSetsQuotaStatus, finalizeOpedSet } from '../storage/opedStore.js';
 import type { OpEdSet, OpEdMember, OpEdParams, PovKey } from '../../../../lib/oped/types.js';
 import type { GenerateOpEdRequest, OpEdGeneratorDeps, OpEdProgressEvent } from '../../../../lib/oped/generate.js';
@@ -61,6 +61,11 @@ interface OpEdRun {
   perVoice: Record<string, VoiceState>;
   startedAt: number;
 }
+// @INMEMORY_JOB_STORE — active op-ed generation runs (status, SSE progress, cancel signal,
+// per-voice state) live in a per-process Map, NOT shared across replicas. Remove this marker
+// when migrated to a shared/blob store (t/2893). The CI gate Test-InMemoryJobStoreScaleGuard.ps1
+// reads this marker and blocks maxReplicas > 1 while it is present (t/2884-class race: an SSE
+// stream or cancel routed to a different replica than the one running the job 404s silently).
 const opedRuns = new Map<string, OpEdRun>();
 
 function sweepOpedRuns(): void {
@@ -75,12 +80,16 @@ function countRunningOpedRuns(userId: string): number {
   return n;
 }
 
-// ── create-request parsing (P1 FromTopic only) ──
-interface ParsedOpEdCreate { topic: string; povs: string[]; params: OpEdParams }
+// ── create-request parsing (FromTopic + FromSource-URL) ──
+interface ParsedOpEdCreate { topic: string; povs: string[]; params: OpEdParams; url?: string }
 function parseOpEdCreate(body: unknown): { ok: true; value: ParsedOpEdCreate } | { ok: false; status: number; message: string } {
   const b = (body ?? {}) as { topic?: unknown; params?: OpEdParams; povs?: unknown; url?: unknown; source?: unknown };
-  // P1 is FromTopic only (TL) — never present a submit path the server can't run.
-  if (b.url != null || b.source != null) return { ok: false, status: 400, message: 'URL sources require the desktop app — open the desktop app to generate an op-ed from a URL' };
+  // t/2807: `url` sources are now supported on web — fetched via the SSRF-hardened
+  // fileIO.fetchUrlContent (the same path debates use). `source` (file/PDF/DOCX
+  // uploads) still requires the desktop DocConverters path — keep blocking it here
+  // (remaining gap tracked as a follow-up; t/2604 P2/P3).
+  if (b.source != null) return { ok: false, status: 400, message: 'File/PDF/DOCX sources require the desktop app — paste a URL, or use the desktop app for document uploads' };
+  const url = typeof b.url === 'string' && b.url.trim() ? b.url.trim() : undefined;
   const topic = typeof b.topic === 'string' ? b.topic.trim() : '';
   const povs = Array.isArray(b.povs) ? b.povs.filter((p): p is string => typeof p === 'string') : [];
   const params = b.params;
@@ -92,7 +101,16 @@ function parseOpEdCreate(body: unknown): { ok: true; value: ParsedOpEdCreate } |
   // so requiring it 400'd every default web op-ed (t/2685). Coerce absent/invalid/≤0 to the band sentinel 0
   // (mirrors schemas.ts .optional().default(0); generate.ts treats `wordCount > 0 ? … : band.words`).
   const wordCount = typeof params.wordCount === 'number' && params.wordCount > 0 ? params.wordCount : 0;
-  return { ok: true, value: { topic, povs, params: { ...params, wordCount } } };
+  return { ok: true, value: { topic, povs, params: { ...params, wordCount }, url } };
+}
+
+/** Adapt the global FlightRecorder to OpEdGeneratorDeps.recorder's looser param type
+ *  (t/2807). deps.recorder takes Record<string,unknown>; FlightRecorder.record takes the
+ *  stricter RecordInput. generate.ts always passes a valid RecordInput shape, so the
+ *  forward is safe. Module-level so it doesn't add branch-complexity to driveOpEdRun. */
+function toOpEdRecorder(): OpEdGeneratorDeps['recorder'] {
+  const r = getGlobalRecorder();
+  return r ? { record: (e: Record<string, unknown>) => r.record(e as never) } : null;
 }
 
 function applyEventToRun(run: OpEdRun, event: OpEdProgressEvent, completed: OpEdMember[]): void {
@@ -128,6 +146,9 @@ async function driveOpEdRun(
       // companion Dockerfile COPY (Rosetta, repo-root-anchored). Repo-root anchor matches.
       promptsDir: path.join(getProjectRoot(), 'lib', 'oped', 'prompts'),
       repoRoot: getProjectRoot(),
+      // t/2807: give the core a recorder so Step-0 can flag a supplied-but-unreadable
+      // URL source (otherwise it silently degrades to a topic-only op-ed).
+      recorder: toOpEdRecorder(),
     };
     for await (const event of generateOpEdSet(request, deps) as AsyncGenerator<OpEdProgressEvent>) {
       applyEventToRun(run, event, completed);
@@ -193,7 +214,7 @@ export function registerOpedRoutes(r: Router, _ctx: ServerCtx): void {
     if (isAnonymousUser()) { error(res, 'Sign in to create op-eds', 403); return; }
     const parsed = parseOpEdCreate(body);
     if (!parsed.ok) { error(res, parsed.message, parsed.status); return; }
-    const { topic, povs, params } = parsed.value;
+    const { topic, povs, params, url } = parsed.value;
     // Tier-backend entitlement via the shared helper (t/2635 — folds op-ed onto the ONE
     // entitlement path in routes/generationContext.ts, replacing the local resolveOpEdModel
     // mirror). Free tier's model is pinned; a free/restricted caller can't reach a premium
@@ -213,6 +234,24 @@ export function registerOpedRoutes(r: Router, _ctx: ServerCtx): void {
     if (!quota.allowed) { json(res, { error: 'quota_exceeded', resource: quota.resource, current: quota.current, limit: quota.limit }, 429); return; }
     if (countRunningOpedRuns(userId) >= MAX_CONCURRENT_OPED_RUNS) {
       json(res, { error: 'concurrency_limit', message: 'You already have an op-ed generating; wait for it to finish.', limit: MAX_CONCURRENT_OPED_RUNS }, 429); return;
+    }
+
+    // ── URL source fetch (t/2807) ──
+    // Reuse the SSRF-hardened fileIO.fetchUrlContent — the SAME path debates use
+    // (t/720-hardened: HTTPS-only, no creds-in-URL, blocks IP-literals/localhost/
+    // .local/.internal/.corp, timeout + size-cap + content-type + redirect re-validation).
+    // NO second fetch path. Placed AFTER the auth/tier/quota/concurrency gate so an
+    // unentitled or over-quota caller can never use this endpoint as a fetch trigger,
+    // and BEFORE the SSE stream commits so a fetch failure returns a clean HTTP error
+    // instead of a mid-stream frame — never proceed with empty sourceMaterial (t/2722). (TL MUST)
+    let sourceMaterial: string | undefined;
+    if (url) {
+      const fetched = await fetchUrlContent(url);
+      if (fetched.error || !fetched.content) {
+        error(res, `Could not fetch that URL: ${fetched.error || 'no readable content returned'}`, 502);
+        return;
+      }
+      sourceMaterial = fetched.content;
     }
 
     // ── Commit SSE — no JSON error responses after this point ──
@@ -238,7 +277,7 @@ export function registerOpedRoutes(r: Router, _ctx: ServerCtx): void {
 
     writeFrame({ type: 'run_started', runId });
     // Generate with the entitlement-resolved (free-tier-pinned) model, not the raw request.
-    const request: GenerateOpEdRequest = { set_id: setId, topic, params: { ...params, model }, povs: povs as PovKey[], signal: ac.signal };
+    const request: GenerateOpEdRequest = { set_id: setId, topic, params: { ...params, model }, povs: povs as PovKey[], sourceMaterial, signal: ac.signal };
     await driveOpEdRun(res, run, request, writeFrame, heartbeat, () => clientGone);
   });
 
