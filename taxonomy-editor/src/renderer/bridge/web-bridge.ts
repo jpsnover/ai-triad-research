@@ -384,7 +384,7 @@ async function put<T = unknown>(path: string, body?: unknown, opts?: FetchOption
       nextSteps: ['Sign in or navigate to /.auth/anonymous to start an anonymous session'],
     });
   }
-  return res.json();
+  return res.status === 204 ? (undefined as T) : res.json(); // 204 No Content has no body — res.json() would throw (t/2980)
 }
 
 async function del<T = unknown>(path: string, opts?: FetchOptions): Promise<T> {
@@ -429,7 +429,7 @@ async function del<T = unknown>(path: string, opts?: FetchOptions): Promise<T> {
       nextSteps: ['Sign in or navigate to /.auth/anonymous to start an anonymous session'],
     });
   }
-  return res.json();
+  return res.status === 204 ? (undefined as T) : res.json(); // 204 No Content has no body (standard for DELETE) — res.json() would throw (t/2980)
 }
 
 /**
