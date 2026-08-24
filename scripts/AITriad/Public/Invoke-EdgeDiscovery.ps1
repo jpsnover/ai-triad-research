@@ -273,7 +273,9 @@ function Invoke-EdgeDiscovery {
     # ── Step 3: Load existing edges ──
     $EdgesPath = Join-Path $TaxDir 'edges.json'
     if (Test-Path $EdgesPath) {
-        $EdgesData = Get-Content -Raw -Path $EdgesPath | ConvertFrom-Json
+        # t/2974: coercion-free read so existing edges' discovered_at is not coerced to [datetime]
+        # and truncated (.440Z -> .44Z) when this run re-writes the whole file.
+        $EdgesData = Read-EdgesFile -Path $EdgesPath
     } else {
         $EdgesData = [PSCustomObject]@{
             _schema_version = '1.0.0'

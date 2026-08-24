@@ -121,7 +121,9 @@ function Invoke-EdgeRationaleBackfill {
             -Location 'Invoke-EdgeRationaleBackfill' `
             -NextSteps 'Verify the data root (Get-TaxonomyDir) or pass -RepoRoot to the repo containing taxonomy/Origin/edges.json.')
     }
-    $EdgesData = Get-Content -Raw -Path $EdgesPath | ConvertFrom-Json
+    # t/2974: read via the coercion-free reader so discovered_at (and any ISO timestamp) is NOT
+    # coerced to [datetime] and truncated on the whole-file write-back below.
+    $EdgesData = Read-EdgesFile -Path $EdgesPath
 
     # ── Build node id → {label, description} map from all node files ──────
     $NodeText = @{}
