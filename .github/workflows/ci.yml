@@ -276,8 +276,18 @@ jobs:
           cache: 'pnpm'
           cache-dependency-path: 'pnpm-lock.yaml'
 
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile --side-effects-cache
+      - name: Install dependencies (retry on transient nuget/network failures — t/2968)
+        run: |
+          for i in 1 2 3; do
+            pnpm install --frozen-lockfile --side-effects-cache && break
+            if [ "$i" -lt 3 ]; then
+              echo "pnpm install attempt $i failed; retry in $((i * 15))s"
+              sleep $((i * 15))
+            else
+              echo "::error::pnpm install failed after $i attempts"
+              exit 1
+            fi
+          done
 
       # NOTE: dependency audit + provenance moved OUT of this job into the
       # standalone `dependency-audit` job below (t/1800). They used to sit here

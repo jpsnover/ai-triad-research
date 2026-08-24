@@ -122,6 +122,41 @@ def predecessor_of(edge):
     return ks[ri - 1] if ri > 0 else None
 
 
+def twin_id(e):
+    """The discriminator used to tell apart two edges sharing one composite key."""
+    return (e.get("discovered_at"), e.get("model"))
+
+
+def resolve_source(cur_edge, candidates):
+    """Twin-aware identity (t/2946 AC; TL-prescribed e/120#37).
+
+    The composite (source, target, type) is a NEAR-key, not a key: on the live file 3 keys carry
+    2 genuinely distinct edges each, and ba3128f5 carries a DIFFERENT rationale on each twin of
+    all three. Indexing the source by composite key alone is last-one-wins, which hands both
+    current twins the same text and mis-attributes half of them.
+
+    Same model as `lib/edges/mergeEdgesPreservingRationale` (t/2957) and the PS Arm-1 guard
+    (t/2956), validated against the shared `twin-fixture.json`:
+      primary key source|type|target -> tie-break on (discovered_at, model) -> refuse, never guess.
+
+    Returns (source_edge_or_None, disposition):
+      'unique'         - the key resolves to exactly one rationale-bearing source edge
+      'twin-resolved'  - non-unique key, the discriminator picked exactly one
+      'twin-unmatched' - non-unique key, no candidate matches this edge's discriminator
+      'twin-ambiguous' - non-unique key, the discriminator does not separate the candidates
+    The last two restore NOTHING. Guessing is the failure mode; a wrong rationale is invisible to
+    both the strip-back and position proofs.
+    """
+    if len(candidates) == 1:
+        return candidates[0], "unique"
+    matches = [c for c in candidates if twin_id(c) == twin_id(cur_edge)]
+    if len(matches) == 1:
+        return matches[0], "twin-resolved"
+    if not matches:
+        return None, "twin-unmatched"
+    return None, "twin-ambiguous"
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--current", required=True, help="path to live edges.json to restore into")
@@ -131,7 +166,8 @@ def main():
     args = ap.parse_args()
 
     cur_doc = load(args.current)
-    cur_blob = open(args.current, encoding="utf-8", newline="").read()
+    with open(args.current, encoding="utf-8", newline="") as f:   # context-managed: no leaked fd
+        cur_blob = f.read()
     src = load(args.source)["edges"]
 
     # Self-check: our serializer must reproduce the current file byte-for-byte before we trust it.
@@ -139,39 +175,73 @@ def main():
         sys.exit("ABORT: serializer does not round-trip the current file byte-for-byte; "
                  "the file's byte format has changed — update serialize() before restoring.")
 
-    # Keep the whole source edge (not just its rationale text) so we can restore the original slot.
-    src_by = {ckey(e): e for e in src if has_rat(e)}
-    had = {ckey(e) for e in cur_doc["edges"] if has_rat(e)}
+    # Keep whole source edges (not just rationale text) so we can restore the original slot.
+    # GROUPED, not a dict comp (t/2946#16): a dict keyed on the composite is last-one-wins on a
+    # duplicated key, which silently hands both current twins the same rationale.
+    from collections import Counter, defaultdict
+    src_groups = defaultdict(list)
+    for e in src:
+        if has_rat(e):
+            src_groups[ckey(e)].append(e)
 
     restored = kept = gap = 0
-    slot_mismatches = []   # (key, expected_pred, actual_pred) — must be empty
+    slot_mismatches = []      # (key, expected_pred, actual_pred) — must be empty
+    attribution_bad = []      # (key, cur_twin_id, src_twin_id) — must be empty
+    refusals = []             # (key, disposition, cur_twin_id) — restored nothing, logged
+    restored_idx = set()      # positions we added rationale to (strip-back is index-exact)
     new_edges = []
-    from collections import Counter
     placement = Counter()
-    for e in cur_doc["edges"]:
+    disposition = Counter()
+    for i, e in enumerate(cur_doc["edges"]):
         if has_rat(e):
             kept += 1
             new_edges.append(e)
             continue
         k = ckey(e)
-        if k in src_by:
-            src_e = src_by[k]
-            new_e, used_pred = restore_rationale(e, src_e)
-            new_edges.append(new_e)
-            restored += 1
-            placement[f"after:{used_pred}"] += 1
-            # POSITION PROOF (per edge): rationale must sit after the source predecessor whenever
-            # that predecessor is present in the current edge.
-            exp = source_predecessor(src_e)
-            if exp is not None and exp in e:
-                act = predecessor_of(new_e)
-                if act != exp:
-                    slot_mismatches.append((k, exp, act))
-        else:
+        cands = src_groups.get(k)
+        if not cands:
             new_edges.append(e)
             gap += 1
+            continue
+
+        src_e, disp = resolve_source(e, cands)
+        disposition[disp] += 1
+        if src_e is None:
+            # twin-unmatched / twin-ambiguous → refuse-and-log, restore nothing for this edge.
+            refusals.append((k, disp, twin_id(e)))
+            new_edges.append(e)
+            continue
+
+        new_e, used_pred = restore_rationale(e, src_e)
+        new_edges.append(new_e)
+        restored_idx.add(i)
+        restored += 1
+        placement[f"after:{used_pred}"] += 1
+
+        # POSITION PROOF (per edge): rationale must sit after the source predecessor whenever
+        # that predecessor is present in the current edge.
+        exp = source_predecessor(src_e)
+        if exp is not None and exp in e:
+            act = predecessor_of(new_e)
+            if act != exp:
+                slot_mismatches.append((k, exp, act))
+
+        # ATTRIBUTION PROOF (per edge, t/2946#16): on a NON-UNIQUE key the rationale must come
+        # from the twin whose (discovered_at, model) matches this edge. Strip-back is blind to
+        # this (it removes exactly what it inserted) and so is the position proof (it checks the
+        # slot, not whose text landed there) — so mis-attribution needs its own assertion.
+        if len(cands) > 1 and twin_id(src_e) != twin_id(e):
+            attribution_bad.append((k, twin_id(e), twin_id(src_e)))
     cur_doc["edges"] = new_edges
     out_blob = serialize(cur_doc)
+
+    # ATTRIBUTION PROOF: no restored rationale may come from the wrong twin.
+    if attribution_bad:
+        sample = "; ".join(f"{'|'.join(map(str, k))}: edge{ct} got source{st}"
+                           for k, ct, st in attribution_bad[:3])
+        sys.exit(f"ABORT: attribution proof failed — {len(attribution_bad)} restored edge(s) took "
+                 f"rationale from a twin with a different (discovered_at, model). Nothing written. "
+                 f"e.g. {sample}")
 
     # POSITION PROOF: no restored edge may sit in the wrong slot.
     if slot_mismatches:
@@ -181,9 +251,12 @@ def main():
                  f"rationale in the wrong slot vs the ba3128f5 source. Nothing written. e.g. {sample}")
 
     # STRIP-BACK PROOF: strip only the rationales we added; must equal the original current file.
+    # Index-exact (t/2946#16): the previous version stripped by composite key, which on a twin key
+    # would strip BOTH twins even when only one was restored — the same near-key blindness that
+    # produced the mis-attribution. Edge order is preserved, so positions align.
     check = json.loads(out_blob)
-    for e in check["edges"]:
-        if ckey(e) not in had:
+    for i, e in enumerate(check["edges"]):
+        if i in restored_idx:
             e.pop("rationale", None)
     if serialize(check) != cur_blob:
         sys.exit("ABORT: strip-back proof failed — the restore changed more than rationale. "
@@ -197,8 +270,20 @@ def main():
     print(f"restored={restored}  kept_existing={kept}  generation_gap(new edges)={gap}")
     print(f"final edges with rationale = {final} / {len(new_edges)}")
     print(f"rationale placement (at source-original slot): {dict(placement)}")
-    print("position proof: PASS (every restored edge in its ba3128f5 slot)")
-    print("strip-back proof: PASS (only rationale changed)")
+    print(f"key disposition: {dict(disposition)}")
+    print("position proof:    PASS (every restored edge in its ba3128f5 slot)")
+    print("strip-back proof:  PASS (only rationale changed)")
+    print("attribution proof: PASS (no rationale taken from a mismatched twin)")
+    if refusals:
+        print(f"\nREFUSED (twin could not be resolved — restored nothing, never guessed): "
+              f"{len(refusals)}")
+        for k, disp, ct in refusals[:10]:
+            print(f"  {'|'.join(map(str, k))}  [{disp}]  edge discovered_at/model={ct}")
+        if len(refusals) > 10:
+            print(f"  ... and {len(refusals) - 10} more")
+        print("  These edges keep no rationale. Route them to the Phase-2 residual cohort.")
+    else:
+        print("refusals: 0 (every non-unique key resolved by the discovered_at+model tie-break)")
     print(f"wrote: {out_path}")
     if gap:
         print(f"\n{gap} edges have no source in ba3128f5 (created after the wipe) and still need "
