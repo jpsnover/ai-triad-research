@@ -558,7 +558,7 @@ export function registerAdminRoutes(r: Router, ctx: ServerCtx): void {
       // t/837: persist via the user-content backend so client error reports
       // survive container restarts (was raw fs to ephemeral /tmp).
       await fileIO.saveErrorReport(entry);
-      serverRecorder.record({ type: 'system.error', component: 'server', level: 'warn', message: `Client error reported: ${report.error.message ?? 'unknown'}`, data: { userId } });
+      serverRecorder.record({ type: 'system.error', component: 'server', level: 'warn', message: `Client error reported: ${report.error.message ?? 'unknown'}`, data: { userId, errorName: report.error.name, stack: report.error.stack } });
 
       json(res, { ok: true, id: entry.id });
     } catch (err) {
