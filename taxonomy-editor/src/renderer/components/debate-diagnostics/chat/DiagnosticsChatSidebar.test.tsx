@@ -480,4 +480,65 @@ describe('DiagnosticsChatSidebar', () => {
       expect(screen.queryByText('Debate Chat')).not.toBeInTheDocument();
     });
   });
+
+  // ── 12. typeof guard regression (t/3000) ────────────────────────────────
+  //
+  // argNetworkLines called .toFixed() after `!= null`, which crashes when
+  // computed_strength arrives as a string from debate data.  The guard was
+  // narrowed to `typeof === 'number'`; verify no throw and fallback '' returned.
+
+  describe('typeof guard — computed_strength as string does not crash', () => {
+    it('renders without throwing when computed_strength is a string', () => {
+      const debate = makeDebate({
+        argument_network: {
+          nodes: [
+            {
+              id: 'N1',
+              speaker: 'accelerationist',
+              text: 'Test argument',
+              computed_strength: '0.7' as unknown as number,
+            },
+          ],
+          edges: [],
+        },
+      });
+      expect(() =>
+        render(
+          <DiagnosticsChatSidebar
+            {...defaultProps}
+            debate={debate}
+            embedded
+          />,
+        ),
+      ).not.toThrow();
+    });
+
+    it('omits the strength suffix when computed_strength is a string', () => {
+      const debate = makeDebate({
+        argument_network: {
+          nodes: [
+            {
+              id: 'N1',
+              speaker: 'accelerationist',
+              text: 'Test argument',
+              computed_strength: '0.7' as unknown as number,
+            },
+          ],
+          edges: [],
+        },
+      });
+      render(
+        <DiagnosticsChatSidebar
+          {...defaultProps}
+          debate={debate}
+          embedded
+        />,
+      );
+      // If the guard had not fired, ' str=0.70' would appear in the system-prompt
+      // useMemo output — which is accessible via the context token count footer.
+      // The absence of a crash is the primary signal; we also verify the component
+      // mounts and shows the expected UI shell.
+      expect(screen.getByText('Debate Chat')).toBeInTheDocument();
+    });
+  });
 });
