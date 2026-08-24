@@ -813,6 +813,10 @@ Export-ModuleMember -Function @(
     'Test-TaxonomyIntegrity'
     # t/2876 — pre-validate taxonomy dir against embed_taxonomy.py loader contract
     'Test-TaxonomyDir'
+    # t/2902 — dirty-tree-sweep guard for whole-file data-repo writes
+    'Assert-CleanDataTree'
+    # t/2916 — durable batch writer: field-surgical node-field edits (sweep-proof)
+    'Save-JsonNodeFieldEdits'
     'Invoke-HierarchyProposal'
     'Set-TaxonomyHierarchy'
     'Invoke-SchemaMigration'
@@ -936,6 +940,7 @@ Export-ModuleMember -Function @(
     'Get-ContainerAppRevision'
     # t/1499 — GH workflow run queries
     'Get-GitHubWorkflowRun'
+    'Get-CIFailureSummary'
     # t/1550 — POV aphorism backfill
     'Invoke-AphorismBatch'
     # t/1553 Stage 0 — org PUBLISHED edge seeding

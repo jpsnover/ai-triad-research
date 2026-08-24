@@ -772,7 +772,7 @@ const rawApi: AppAPI = {
   loadPolicyRegistry: () => get('/api/policy-registry'),
   loadLineageCategories: () => get('/api/lineage-categories'),
   loadLineageInfo: () => get<Record<string, unknown>>('/api/lineage-info'),
-  loadEdges: () => get('/api/edges'),
+  loadEdges: () => get('/api/edges?include=rationale'), // t/2949: load the FULL set (rationale) so a whole-file save can't drop it; server strips by default
   getEdgeDetail: (index) => get(`/api/edges/${index}`),
   updateEdgeStatus: (index, status) => put('/api/edges/status', { index, status }),
   swapEdgeDirection: (index) => put('/api/edges/swap', { index }),
@@ -991,7 +991,7 @@ const rawApi: AppAPI = {
   getProxyUsage: () => get('/api/proxy/usage'),
 
   // Embeddings & NLI
-  computeEmbeddings: (texts, ids) => post('/api/embeddings/compute', { texts, ids }),
+  computeEmbeddings: (texts, ids) => post('/api/embeddings/compute', { texts, ids }, { idempotent: true }), // idempotent:true → 1 retry so a load-shed 503 (retryable:true+Retry-After) recovers; embeddings are a pure fn of inputs (t/2922)
   // Web transport: the server embedding backend (Python/Gemini) has no DirectML GPU-OOM failure
   // mode, so nothing goes stale on this path → always [] (t/2060 staleNodeIds contract). If the
   // server route later reports partial failures, thread them through here.

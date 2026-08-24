@@ -73,4 +73,23 @@ describe('serializeEdgesJson', () => {
   it('throws an ActionableError (not a bare TypeError) on a top-level undefined value', () => {
     expect(() => serializeEdgesJson({ a: 1, bad: undefined, edges: [] })).toThrow(/undefined value/);
   });
+
+  // t/2943: the serializer emits each edge via JSON.stringify(edge), so it preserves every
+  // field including the new rationale_source marker — confirm round-trip survival explicitly.
+  it('preserves an edge rationale_source through serialize→parse (t/2943)', () => {
+    const edge = {
+      source: 'acc-beliefs-001', target: 'saf-beliefs-042', type: 'SUPPORTS',
+      rationale: 'saf-042 grants the premise acc-001 asserts', rationale_source: 'backfill',
+    };
+    const output = serializeEdgesJson({ _schema_version: '1.0.0', edges: [edge] });
+    const round = JSON.parse(output);
+    expect(round.edges[0].rationale_source).toBe('backfill');
+    expect(round.edges[0]).toEqual(edge); // whole edge unchanged, field order intact
+  });
+
+  it('leaves an edge without rationale_source unchanged — absent stays absent (t/2943)', () => {
+    const edge = { source: 'acc-beliefs-001', target: 'saf-beliefs-042', type: 'SUPPORTS' };
+    const round = JSON.parse(serializeEdgesJson({ edges: [edge] }));
+    expect('rationale_source' in round.edges[0]).toBe(false);
+  });
 });

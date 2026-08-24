@@ -46,9 +46,11 @@ describe('runOpeningStatements — superseded run writes no opening (t/2505)', (
     );
     expect(interrupted).toHaveLength(1);
 
-    // …and NO opening is written, and nothing follows the interrupted line (the TL's
-    // negative assertion): the abandoned run does not produce a duplicate/mixed-model opening.
-    expect(transcript.filter((e) => e.type === 'opening')).toHaveLength(0);
+    // …and NO DELIVERED opening is written (the TL's negative assertion): the abandoned
+    // run does not produce a duplicate/mixed-model opening. Under slot-first (t/2907) an
+    // empty 'generating' slot may exist (it gets reused by the fresh run or lives on a
+    // superseded debate) — the real invariant is that no opening with CONTENT lands.
+    expect(transcript.filter((e) => e.type === 'opening' && !!e.content && e.content.trim().length > 0)).toHaveLength(0);
     expect(transcript[transcript.length - 1]).toBe(interrupted[0]);
 
     // Pipeline entered exactly once (aborted on the first speaker; the run bails, no re-loop).

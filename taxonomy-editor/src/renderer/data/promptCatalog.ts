@@ -799,6 +799,22 @@ export const PROMPT_CATALOG: PromptCatalogEntry[] = [
     ],
   },
   {
+    id: 'ps-directional-judge',
+    title: 'Directional Agreement Judge',
+    description: 'Stage-2 LLM judge for the aligned-family polarity gate — decides whether a claim opposes, agrees with, or is unrelated to a taxonomy node proposition (t/2900).',
+    source: 'AITriad/Prompts/directional-judge.prompt',
+    template: '(Loading from disk...)',
+    group: 'powershell',
+    purpose: 'Used by Invoke-DirectionalJudge (stage 2 of the polarity gate). Confirms deberta\'s opposes candidates before a stance flip — unanimous opposes required across N draws, fail-safe KEEP (t/2900).',
+    applicableDataSources: ['taxonomyNodes'],
+    promptFiles: ['directional-judge'],
+    psParameters: [
+      { name: '-Model', type: 'string', default: DEFAULT_MODEL, description: 'Judge model (gemini-3.1-pro-preview)' },
+      { name: '-Temperature', type: 'number', default: '0.3', description: 'Sampling temperature (draw variance for the unanimity bar)' },
+      { name: '-Draws', type: 'number', default: '3', description: 'Independent draws; unanimity required to confirm opposes' },
+    ],
+  },
+  {
     id: 'ps-direction-check',
     title: 'Edge Direction Check',
     description: 'Verifies the correct direction of edges in the taxonomy knowledge graph.',

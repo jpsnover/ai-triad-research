@@ -61,6 +61,11 @@ interface OpEdRun {
   perVoice: Record<string, VoiceState>;
   startedAt: number;
 }
+// @INMEMORY_JOB_STORE — active op-ed generation runs (status, SSE progress, cancel signal,
+// per-voice state) live in a per-process Map, NOT shared across replicas. Remove this marker
+// when migrated to a shared/blob store (t/2893). The CI gate Test-InMemoryJobStoreScaleGuard.ps1
+// reads this marker and blocks maxReplicas > 1 while it is present (t/2884-class race: an SSE
+// stream or cancel routed to a different replica than the one running the job 404s silently).
 const opedRuns = new Map<string, OpEdRun>();
 
 function sweepOpedRuns(): void {

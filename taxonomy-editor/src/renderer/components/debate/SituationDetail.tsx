@@ -14,6 +14,7 @@ import { TypeaheadSelect } from '../shared/TypeaheadSelect';
 import { EmptyState } from '../shared/EmptyState';
 import { FieldHelp } from '../shared/FieldHelp';
 import { LinkedChip } from '../shared/LinkedChip';
+import { InlineEditTitle } from '../shared/InlineEditTitle';
 import { useMentionRenderer } from '../shared/MentionField';
 import { reconstructNodeContainer } from '../shared/mentionText';
 import { GraphAttributesPanel } from '../taxonomy/GraphAttributesPanel';
@@ -133,13 +134,12 @@ function SitHeader({ node, readOnly, onDebate, onPin, err, hasErrors, update, la
           {readOnly ? (
             <span className="nd-header-label" title={node.label}>{labelContent ?? node.label}</span>
           ) : (
-            <input
-              className={`nd-header-label nd-header-label-editable ${err('label') ? 'has-error' : ''}`}
+            <InlineEditTitle
               value={node.label}
-              onChange={(e) => update({ label: e.target.value })}
+              onChange={(v) => update({ label: v })}
+              hasError={!!err('label')}
               placeholder="Label"
-              aria-label="Label"
-              title={node.label}
+              ariaLabel="Label"
             />
           )}
           <span className="nd-header-id">{node.id}</span>

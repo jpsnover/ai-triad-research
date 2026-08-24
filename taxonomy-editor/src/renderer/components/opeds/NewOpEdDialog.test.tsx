@@ -130,6 +130,48 @@ describe('NewOpEdDialog — topic / URL toggle', () => {
   });
 });
 
+describe('NewOpEdDialog — URL-in-topic steer (t/2899)', () => {
+  const STEER = /This looks like a web page/;
+
+  it('shows the steer hint when the topic box holds a URL (desktop)', () => {
+    open();
+    expect(screen.queryByText(STEER)).toBeNull();
+    fireEvent.change(screen.getByLabelText(/Topic/), { target: { value: 'https://example.com/post' } });
+    expect(screen.getByText(STEER)).toBeTruthy();
+  });
+
+  it('is absent for a plain-text topic', () => {
+    open();
+    fireEvent.change(screen.getByLabelText(/Topic/), { target: { value: 'Mandatory pre-deployment audits' } });
+    expect(screen.queryByText(STEER)).toBeNull();
+  });
+
+  it('migrates the URL into the web-page field and switches modes on click', () => {
+    open();
+    fireEvent.change(screen.getByLabelText(/Topic/), { target: { value: 'https://example.com/post' } });
+    fireEvent.click(screen.getByRole('button', { name: /Use as web page/ }));
+    // now in URL mode: the URL input carries the value, the topic box is gone
+    const urlInput = screen.getByLabelText(/Web page URL/) as HTMLInputElement;
+    expect(urlInput.value).toBe('https://example.com/post');
+    expect(screen.queryByLabelText(/^Topic/)).toBeNull();
+    // the steer hint no longer applies in URL mode
+    expect(screen.queryByText(STEER)).toBeNull();
+  });
+
+  it('is absent in URL mode even if the topic previously looked like a URL', () => {
+    open();
+    fireEvent.click(screen.getByRole('button', { name: /From a web page instead/ }));
+    fireEvent.change(screen.getByLabelText(/Web page URL/), { target: { value: 'https://example.com/post' } });
+    expect(screen.queryByText(STEER)).toBeNull();
+  });
+
+  it('is absent on web (allowUrlSource=false), where there is no URL path to steer to', () => {
+    open({ allowUrlSource: false });
+    fireEvent.change(screen.getByLabelText(/Topic/), { target: { value: 'https://example.com/post' } });
+    expect(screen.queryByText(STEER)).toBeNull();
+  });
+});
+
 describe('NewOpEdDialog — settings drawer', () => {
   it('opens the More options drawer and applies changes', () => {
     open();

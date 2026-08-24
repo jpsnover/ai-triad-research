@@ -225,6 +225,7 @@ Rules:
 
         # Write back if modified
         if ($Modified -and -not $WhatIfPreference) {
+            Assert-DataWriteAllowed -Path $FilePath  # t/2902
             $Data | ConvertTo-Json -Depth 20 | Set-Content -Path $FilePath -Encoding UTF8
             Write-Host "  Saved $FilePath" -ForegroundColor Green
         }

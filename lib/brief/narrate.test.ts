@@ -190,6 +190,9 @@ describe('narrate — narrated mode (mocked adapter)', () => {
       entries: [
         { trace: '/question', text: 'Should AI be paused?', slide: 1 },
         { trace: '/cruxes/0', text: 'Key crux: scaling', slide: 2 },
+        // Cover the single top_claims camp ('saf') so the t/2883 completeness gate
+        // is satisfied — a realistic narration slides every camp's position.
+        { trace: '/top_claims/0', text: 'Pause reduces risk', slide: 3 },
       ],
       audience_questions: [
         { trace: '/cruxes/0', question: 'Will scaling cause AGI?' },
@@ -255,7 +258,10 @@ describe('narrate — narrated mode (mocked adapter)', () => {
     // The model response is valid but the assembled Narration has extra fields
     // (tested by injecting a bad response that bypasses trace check)
     const goodResponse = {
-      entries: [{ trace: '/question', text: 'ok', slide: 1 }],
+      entries: [
+        { trace: '/question', text: 'ok', slide: 1 },
+        { trace: '/top_claims/0', text: 'ok claim', slide: 2 }, // cover camp 'saf' (t/2883 gate)
+      ],
       audience_questions: [{ trace: '/cruxes/0', question: 'ok?' }],
     };
     const adapter = makeAdapter(goodResponse);
@@ -268,7 +274,11 @@ describe('narrate — narrated mode (mocked adapter)', () => {
 describe('narrate — Maker-Checker', () => {
   const spec = makeSpec();
   const goodNarratedResponse = {
-    entries: [{ trace: '/question', text: 'Pause debate', slide: 1 }],
+    entries: [
+      { trace: '/question', text: 'Pause debate', slide: 1 },
+      // Cover the single top_claims camp ('saf') — the t/2883 completeness gate.
+      { trace: '/top_claims/0', text: 'Pause reduces risk', slide: 2 },
+    ],
     audience_questions: [{ trace: '/cruxes/0', question: 'Will scaling cause AGI?' }],
   };
   const checkerPass = {

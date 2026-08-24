@@ -72,6 +72,8 @@
         'Show-FallacyInfo'
         'Test-TaxonomyIntegrity'
         'Test-TaxonomyDir'
+        'Assert-CleanDataTree'
+        'Save-JsonNodeFieldEdits'
         'Invoke-HierarchyProposal'
         'Set-TaxonomyHierarchy'
         'Invoke-SchemaMigration'
@@ -192,6 +194,7 @@
         'Get-ContainerAppRevision'
         # t/1499 — GH workflow run queries
         'Get-GitHubWorkflowRun'
+        'Get-CIFailureSummary'
         # t/1550 — POV aphorism backfill
         'Invoke-AphorismBatch'
         # t/1553 Stage 0 — org PUBLISHED edge seeding

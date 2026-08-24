@@ -402,6 +402,7 @@ function Set-TaxonomyHierarchy {
         }
         if ($PSCmdlet.ShouldProcess($FileEntry.Path, 'Write updated taxonomy file')) {
             try {
+                Assert-DataWriteAllowed -Path $FileEntry.Path  # t/2902
                 Set-Content -Path $FileEntry.Path -Value ($Json -replace "`r`n", "`n") -Encoding utf8NoBOM -NoNewline
                 Write-OK "Saved $PovKey ($($FileEntry.Path))"
             }

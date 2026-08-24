@@ -808,7 +808,9 @@ function CommunityChatTranscript({ full }: { full: ChatSession | null }) {
   );
 }
 
-function CommunityChatDetail({ chat }: { chat: CommunityChat }) {
+// Exported so the community chat deep-link popout (ChatWindow, t/2879) can render the same
+// read-only detail view as the in-tab community browser — no duplicated transcript logic.
+export function CommunityChatDetail({ chat }: { chat: CommunityChat }) {
   const [full, setFull] = useState<ChatSession | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);

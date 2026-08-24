@@ -30,6 +30,9 @@ export interface BriefExportRecord {
   preset: BriefPreset;
   status: 'done' | 'failed';
   errorCode?: ExportErrorCode;
+  /** Human-readable failure reason (the verify message / thrown error) — durable copy of
+   *  job.error so the exports-list fallback can show WHY it failed, not just the code (t/2888). */
+  reason?: string;
   narratorModel: string;
   narratorModelSource: ModelSource;
   checkerModel?: string | null;

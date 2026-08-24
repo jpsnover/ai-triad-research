@@ -36,10 +36,32 @@ function Write-EdgesFile {
         [string]$Path
     )
 
+    # t/2945 Arm 1 (warn-first) — edge-rationale-regression guard. Every PS edge write funnels
+    # through this sink, so guarding here covers all in-repo PS writers + the pipeline re-emit
+    # (Invoke-EdgeDiscovery append-preserves an upstream-stripped set and re-writes it here).
+    # Best-effort: skip cleanly if the guard isn't loaded (Build-Module standalone dot-sources
+    # this file without the guard chain, like the t/2902 sink). Fail-open on any baseline miss.
+    # Phase 1 = WARN (does not throw); $env:AI_TRIAD_EDGE_RATIONALE_GATE=Block promotes it.
+    if (Get-Command Test-EdgeRationaleRegression -ErrorAction SilentlyContinue) {
+        $null = Test-EdgeRationaleRegression -EdgesData $EdgesData -Path $Path
+    }
+
     $sb = [System.Text.StringBuilder]::new()
     [void]$sb.Append("{`n")
 
-    $props = @($EdgesData.PSObject.Properties)
+    # Top-level shape normalization (t/2955 AC#4): iterate a uniform [{Name;Value}] list whether
+    # the document is the usual PSCustomObject (ConvertFrom-Json) OR a raw [IDictionary]/[hashtable].
+    # Without this branch a hashtable document's `.PSObject.Properties` yields Count/Keys/Values
+    # (NOT its entries), so the whole document would mis-serialize — the "half-support" the
+    # edge-rationale guard's document-level IDictionary branch would otherwise protect but this
+    # sink could not honor. Use [ordered]@{} upstream for deterministic key order (a bare hashtable
+    # has no defined order). Per-edge shape is already handled below via ConvertTo-Json.
+    $props =
+        if ($EdgesData -is [System.Collections.IDictionary]) {
+            @($EdgesData.Keys | ForEach-Object { [PSCustomObject]@{ Name = $_; Value = $EdgesData[$_] } })
+        } else {
+            @($EdgesData.PSObject.Properties)
+        }
     for ($i = 0; $i -lt $props.Count; $i++) {
         $prop     = $props[$i]
         $keyJson  = $prop.Name | ConvertTo-Json -Compress

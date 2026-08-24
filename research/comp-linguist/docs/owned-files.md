@@ -61,6 +61,8 @@ Files the Computational Linguist holds **mandatory review authority** over. Chan
 | `scripts/AITriad/Private/Get-EmbeddingClusters.ps1` | Embeddings | Mandatory |
 | `validation-report.json` | Validation outputs | Mandatory (sign-off) |
 | `research/comp-linguist/docs/frame-survival-metric-spec.md` | Frame-survival metric family — definitions, thresholds, validation gates (t/2042) | Mandatory |
+| `research/comp-linguist/analyses/edge-rationale-quality/check_rationale_quality.py` | Edge-rationale mechanical quality screen — stipulated flag thresholds (t/2444 A′) | Mandatory |
+| `research/comp-linguist/analyses/edge-rationale-quality/judge-prompt.txt` | Edge-rationale LLM-judge scoring prompt (t/2444 A′) | Mandatory |
 
 ## Maintenance rule
 

@@ -38,6 +38,7 @@ import { usePreferencesStore } from '../../store/preferencesStore';
 import { EmptyState } from '../shared/EmptyState';
 import { OverflowMenu, type OverflowMenuEntry } from '../shared/OverflowMenu';
 import { CopyLinkButton } from '../shared/CopyLinkButton';
+import { InlineEditTitle } from '../shared/InlineEditTitle';
 import { publicPovSharePath } from '../../utils/shareLinks';
 import { DebateTestedChip } from './DebateTestedChip';
 import { DebateTestedDrilldown } from './DebateTestedDrilldown';
@@ -585,14 +586,13 @@ function NodeDetailHeaderTop({ pov, node, readOnly, err, update, maybeRegenAphor
         {readOnly ? (
           <span className="nd-header-label" title={node.label}>{labelContent ?? node.label}</span>
         ) : (
-          <input
-            className={`nd-header-label nd-header-label-editable ${err('label') ? 'has-error' : ''}`}
+          <InlineEditTitle
             value={node.label}
-            onChange={(e) => update({ label: e.target.value })}
+            onChange={(v) => update({ label: v })}
             onBlur={maybeRegenAphorism}
+            hasError={!!err('label')}
             placeholder="Label"
-            aria-label="Label"
-            title={node.label}
+            ariaLabel="Label"
           />
         )}
       </div>

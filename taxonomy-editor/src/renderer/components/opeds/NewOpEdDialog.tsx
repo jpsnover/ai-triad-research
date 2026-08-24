@@ -480,6 +480,10 @@ interface CreateFormProps {
   setTopic: (v: string) => void;
   url: string;
   setUrl: (v: string) => void;
+  /** Topic-box content looks like a web page URL (matches ^https?://) — only meaningful in topic mode. */
+  topicLooksLikeUrl: boolean;
+  /** Move the URL-shaped topic value into the URL field and switch to web-page mode. */
+  onMigrateTopicToUrl: () => void;
   isAnonymous: boolean;
   voices: Set<PovKey>;
   toggleVoice: (pov: PovKey) => void;
@@ -523,6 +527,16 @@ function OpEdCreateForm(p: CreateFormProps) {
               <button type="button" className="oped-source-toggle" onClick={() => p.setFromWebPage(true)}>
                 ⌥ From a web page instead →
               </button>
+            )}
+            {p.allowUrlSource && p.topicLooksLikeUrl && (
+              <div className="oped-url-steer" role="status">
+                <span className="oped-url-steer-text">
+                  This looks like a web page. Switch to “From web page” to extract and link its claims.
+                </span>
+                <button type="button" className="oped-url-steer-action" onClick={p.onMigrateTopicToUrl}>
+                  Use as web page →
+                </button>
+              </div>
             )}
           </div>
         ) : (
@@ -731,6 +745,15 @@ export function NewOpEdDialog({ open, onClose, onCreated, allowUrlSource = true 
   const hasSource = fromWebPage ? url.trim().length > 0 : topic.trim().length > 0;
   const canStart = hasSource && orderedVoices.length >= 1 && modelHasKey;
 
+  // A URL pasted into the topic box → FromTopic → no source brief → no claims, silently (t/2899).
+  // Detect it so we can steer the user to the web-page path (desktop only; web has no URL path).
+  const topicLooksLikeUrl = !fromWebPage && /^https?:\/\//i.test(topic.trim());
+  const handleMigrateTopicToUrl = () => {
+    setFromWebPage(true);
+    setUrl(topic.trim());
+    setTopic('');
+  };
+
   const settingsDiffCount = SETTINGS_SECTIONS.filter(s =>
     sectionHasDiff(s.id, { outlet, wordCount, thesis, authorBio, ground, maxGroundingNodes, maxSituations, model, temperature }, globalModel),
   ).length;
@@ -846,6 +869,8 @@ export function NewOpEdDialog({ open, onClose, onCreated, allowUrlSource = true 
             setTopic={setTopic}
             url={url}
             setUrl={setUrl}
+            topicLooksLikeUrl={topicLooksLikeUrl}
+            onMigrateTopicToUrl={handleMigrateTopicToUrl}
             isAnonymous={isAnonymous}
             voices={voices}
             toggleVoice={toggleVoice}
