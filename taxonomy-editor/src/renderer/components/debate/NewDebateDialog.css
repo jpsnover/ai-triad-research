@@ -1,3 +1,109 @@
+/* ─── New Debate Dialog (NDD two-column redesign) ───── */
+
+/* ── Header ── */
+
+/* ── Two-column body ── */
+
+/* ── Source type radios ── */
+
+/* ── Topic input ── */
+
+/* ── File picker ── */
+
+/* ── URL input ── */
+
+/* ── Potential Topics (scrollable situation cards) ── */
+
+/* ── Format cards (right column) ── */
+
+/* ── AI Model ── */
+
+/* ── Model Configuration Modal ── */
+
+/* ── Pacing ── */
+
+/* ── Dialectical Style ── */
+/* .ndd-style-desc moved to components/debate/NewDebateDialog.css (t/2939 dedup) */
+
+/* ── Adaptive staging toggle ── */
+
+/* ── Advanced toggle ── */
+
+/* ── Temperature ── */
+
+/* ── Audience ── */
+
+/* ── Debaters ── */
+/* .ndd-hint-error moved to components/debate/NewDebateDialog.css (t/2939 dedup) */
+
+/* ── Footer ── */
+
+/* ── Other source: tab bar ── */
+
+/* ── Responsive: stack columns on narrow screens ── */
+
+/* Debate source panel (Pane 2 for document/URL debates) */
+
+.debate-source-panel {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  overflow: hidden;
+}
+
+.debate-source-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border-color);
+  flex-shrink: 0;
+}
+.debate-source-header .debate-source-ref {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.debate-source-header .pane-collapse-btn {
+  flex-shrink: 0;
+}
+
+.debate-source-title {
+  font-size: var(--text-md);
+  font-weight: 600;
+  color: var(--text-secondary);
+  display: block;
+}
+
+.debate-source-ref {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  font-family: 'Cascadia Code', 'Fira Code', Consolas, monospace;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: block;
+  margin-top: 2px;
+}
+
+.debate-source-body {
+  flex: 1;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.debate-source-body .webview-frame {
+  flex: 1;
+  width: 100%;
+  height: 100%;
+}
+
+
+/* ─── Monolith-extracted styles (NDD two-column) (Phase 3 co-location, t/2989) ─── */
+
 /* Copyright (c) 2026 Jeffrey Snover. All rights reserved.
    Licensed under the MIT License. See LICENSE file in the project root. */
 

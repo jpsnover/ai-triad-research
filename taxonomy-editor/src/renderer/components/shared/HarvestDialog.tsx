@@ -24,6 +24,7 @@ import {
   generateConflictSlug,
 } from '../../utils/harvestUtils';
 import type {
+import './HarvestDialog.css';
   HarvestConflictItem,
   HarvestSteelmanItem,
   HarvestDebateRefItem,

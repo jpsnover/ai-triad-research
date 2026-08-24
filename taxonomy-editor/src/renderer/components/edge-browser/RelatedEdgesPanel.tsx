@@ -6,6 +6,7 @@ import { useTaxonomyStore } from '../../hooks/useTaxonomyStore';
 import type { Edge, EdgeType, EdgeStatus } from '../../types/taxonomy';
 import { POV_META, povKeyFromNodeId, type PovMetaKey } from '@lib/electron-shared/povMeta';
 import { TheoryLink } from '../shared/TheoryLink';
+import './RelatedEdgesPanel.css';
 
 interface RelatedEdgesPanelProps {
   width?: number;
