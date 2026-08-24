@@ -1,0 +1,75 @@
+=== HEAD DISCIPLINE ===
+code worktree HEAD : 775537b30c1fafe0c58039fb6df5a3df69305825
+data worktree HEAD : ba3128f51de23cbbed47703ab899c0cef6120bf7
+guard file sha     : 40870ae92b8ce3bd70de9c22e3b3e916e6e5f612
+env gate           : '' (unset => default)
+payload edges      : 33454 (load+parse 2.0s)
+
+=== ARM 1: CLEAN (uncached baseline resolve) ===
+  V: edge-rationale guard: HEAD baseline resolved — 33445 rationaled key(s) protected.
+  V: edge-rationale guard: payload scanned — checked 33454 edge(s), skipped 0 (missing key fields).
+  return   : 0
+  warnings : 0
+  threw    : False
+  wall     : 10.02s
+
+=== ARM 1b: CLEAN repeat (cache hit) ===
+  V: edge-rationale baseline: cache hit — 33454 committed baseline edge(s) for 'taxonomy/Origin/edges.json'.
+  V: edge-rationale guard: HEAD baseline resolved — 33445 rationaled key(s) protected.
+  V: edge-rationale guard: payload scanned — checked 33454 edge(s), skipped 0 (missing key fields).
+  return   : 0   wall: 2.96s
+
+=== ARM 2: FIRE (deliberate rationale strip, in-memory copy) ===
+  stripped 5 edge(s); keys: acc-desires-001|SUPPORTS|acc-desires-037 ; acc-desires-001|ASSUMES|acc-desires-039 ; acc-desires-001|SUPPORTS|acc-intentions-100 ; acc-desires-001|SUPPORTS|acc-beliefs-039 ; acc-desires-001|SUPPORTS|acc-beliefs-086
+  return   : 
+  warnings : 0
+  THREW    : yes
+  --- error text ---
+
+  Goal:     Preserve edge rationale on write to 'edges.json'
+  Error:    5 edge(s) carrying a rationale in HEAD would be written WITHOUT one (composite key source|type|target). Sample: acc-desires-001|SUPPORTS|acc-desires-037, acc-desires-001|ASSUMES|acc-desires-039, acc-desires-001|SUPPORTS|acc-intentions-100. This is the edge-rationale wipe class (t/2945).
+  Location: Write-EdgesFile / Test-EdgeRationaleRegression
+  Resolve:
+   1. A whole-file edges save MUST re-merge rationale from HEAD/on-disk by composite key before writing — never persist a rationale-stripped list payload (the taxonomy-editor load-list->save round-trip, t/2945).
+   2. If this removal is intentional, set $env:AI_TRIAD_EDGE_RATIONALE_GATE=Off for the run.
+  --- end ---
+  wall     : 2.65s
+
+=== ARM 3: emptied-array vs missing-key message split ===
+  emptied-array verbose:
+    V: edge-rationale baseline: cache hit — 33454 committed baseline edge(s) for 'taxonomy/Origin/edges.json'.
+    V: edge-rationale guard: HEAD baseline resolved — 33445 rationaled key(s) protected.
+    V: edge-rationale guard: payload scanned — checked 0 edge(s), skipped 0 (missing key fields).
+  missing-key   verbose:
+    V: edge-rationale baseline: cache hit — 33454 committed baseline edge(s) for 'taxonomy/Origin/edges.json'.
+    V: edge-rationale guard: HEAD baseline resolved — 33445 rationaled key(s) protected.
+    V: edge-rationale guard: write payload has no edges KEY (missing) — fail-open (nothing to check).
+  'payload scanned' -> emptied:1 missing:0
+  'no edges KEY'    -> emptied:0 missing:1
+
+=== (c) ASSERTIONS ===
+  PASS  positive #1 baseline-resolved emitted, count > 0 (count=33445)
+  PASS  positive #2 payload-scanned emitted, checked > 0 (checked=33454)
+  PASS  positive #2 skipped == 0 (skipped=0)
+  PASS  payload-scanned checked == payload edge count (33454 vs 33454)
+  PASS  clean arm returns 0 
+  PASS  clean arm emits ZERO warnings (n=0)
+  PASS  clean arm does not throw 
+  PASS  FIRE arm THROWS on default (Block flip) 
+  PASS  throw carries Goal 
+  PASS  throw carries Problem 
+  PASS  throw carries Location 
+  PASS  throw carries NextSteps 
+  PASS  throw names the strip count 
+  PASS  FIRE arm emits no Write-Warning (throw, not warn) (n=0)
+  PASS  split: emptied array reports payload scanned 
+  PASS  split: emptied array does NOT report no-edges-KEY 
+  PASS  split: missing key reports no-edges-KEY 
+  PASS  split: missing key does NOT report payload scanned 
+
+=== WALL CLOCK ===
+  clean (uncached baseline resolve) : 10.02s
+  clean (cache hit)                 : 2.96s
+  fire  (cache hit)                 : 2.65s
+
+=== RESULT: PASS (0 failed assertion(s)) ===

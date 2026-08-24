@@ -20,6 +20,10 @@ Every unrecoverable error must include these four fields:
 | **Location** | Function/file where it occurred | "Import-AITriadDocument (Public/Import-AITriadDocument.ps1:42)" |
 | **Next Steps** | Specific actions to resolve | "1. Verify the file path exists 2. Check file permissions" |
 
+> **Rendered labels ≠ field names (PowerShell).** The names above are the *field / parameter* names. The PowerShell `New-ActionableError` renderer emits the message surface with **different labels**: `Goal:` / **`Error:`** / `Location:` / **`Resolve:`** — i.e. the `-Problem` field prints under `Error:` and `-NextSteps` prints under `Resolve:`. This is the authoritative emitted vocabulary. When you write a test, log parser, or review assertion against the *emitted text* of a PowerShell actionable error, match `Error:` and `Resolve:` — matching the field names `Problem` / `Next Steps` will spuriously fail against a correctly-formed error (t/2952). (The TypeScript `ActionableError` is a separate surface and is not covered by this note.)
+
+A worked example of the exact rendered shape is in the PowerShell section below.
+
 ---
 
 ## PowerShell
@@ -50,6 +54,29 @@ catch {
         -Location '...' -NextSteps @('...') -InnerError $_
 }
 ```
+
+**Rendered output shape.** `New-ActionableError` renders the message with the surface labels `Goal:` / `Error:` / `Location:` / `Resolve:` — note `-Problem` prints as **`Error:`** and `-NextSteps` prints as **`Resolve:`**. Given:
+
+```powershell
+New-ActionableError -Goal 'Loading taxonomy' `
+    -Problem 'File not found: accelerationist.json' `
+    -Location 'Get-Tax (Public/Get-Tax.ps1)' `
+    -NextSteps @('Run Install-AITriadData to clone the data repository',
+                 'Verify $env:AI_TRIAD_DATA_ROOT points to the correct directory') -PassThru
+```
+
+the emitted text is:
+
+```text
+  Goal:     Loading taxonomy
+  Error:    File not found: accelerationist.json
+  Location: Get-Tax (Public/Get-Tax.ps1)
+  Resolve:
+   1. Run Install-AITriadData to clone the data repository
+   2. Verify $env:AI_TRIAD_DATA_ROOT points to the correct directory
+```
+
+Assert against `Error:` / `Resolve:` (the rendered labels), not `Problem` / `Next Steps` (the field names). With `-InnerError`, an extra `Inner error: <message>` line is appended under `Error:`.
 
 #### `Invoke-WithRecovery` — Retry + fallback + actionable error
 

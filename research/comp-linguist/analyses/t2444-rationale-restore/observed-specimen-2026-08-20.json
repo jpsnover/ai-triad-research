@@ -1,0 +1,190 @@
+{
+  "_doc": "REAL captured specimen of the live t/2945 TS-path wipe in ../ai-triad-data working tree, preserved 2026-08-23 by CL.Investigate1 per TL e/120#63 BEFORE the scoped re-merge that clears it. provenance class: observed (t/2294). This is the ground-truth artifact the site-fix / twin-aware AC fixture is anchored on.",
+  "mechanism": "debateReflectionSlice.ts applyReflectionProposal append-in-memory -> taxStore.save() -> TS writeEdgesFile (PUT /api/edges or save-edges IPC), whole-file re-serialize, NO rationale re-merge; renderer list came from a rationale-stripping load path. Wipe write stamped 2026-08-20T21:05:39.830Z.",
+  "fingerprint": "6 existing debate-reflection edges lost rationale with every non-rationale field byte-identical; 2 new skp-beliefs-303 edges appended carrying rationale. Exact wipe-class shape.",
+  "regressed_edges": [
+    {
+      "key": "acc-beliefs-122|acc-intentions-003|SUPPORTS",
+      "HEAD_with_rationale": {
+        "source": "acc-beliefs-122",
+        "target": "acc-intentions-003",
+        "type": "SUPPORTS",
+        "bidirectional": false,
+        "confidence": 0.8,
+        "weight": 0.8,
+        "rationale": "It reinforces output-based evaluation by focusing safety enforcement on external API actions rather than internal model weights.",
+        "status": "proposed",
+        "discovered_at": "2026-08-20T18:55:33.440Z",
+        "model": "debate-reflection"
+      },
+      "working_tree_stripped": {
+        "source": "acc-beliefs-122",
+        "target": "acc-intentions-003",
+        "type": "SUPPORTS",
+        "bidirectional": false,
+        "confidence": 0.8,
+        "weight": 0.8,
+        "status": "proposed",
+        "discovered_at": "2026-08-20T18:55:33.440Z",
+        "model": "debate-reflection"
+      }
+    },
+    {
+      "key": "acc-beliefs-122|acc-beliefs-003|SUPPORTS",
+      "HEAD_with_rationale": {
+        "source": "acc-beliefs-122",
+        "target": "acc-beliefs-003",
+        "type": "SUPPORTS",
+        "bidirectional": false,
+        "confidence": 0.85,
+        "weight": 0.85,
+        "rationale": "This node supports the targeted telemetry architecture by explaining why perimeter permission isolation works better than internal model wrappers.",
+        "status": "proposed",
+        "discovered_at": "2026-08-20T18:55:33.440Z",
+        "model": "debate-reflection"
+      },
+      "working_tree_stripped": {
+        "source": "acc-beliefs-122",
+        "target": "acc-beliefs-003",
+        "type": "SUPPORTS",
+        "bidirectional": false,
+        "confidence": 0.85,
+        "weight": 0.85,
+        "status": "proposed",
+        "discovered_at": "2026-08-20T18:55:33.440Z",
+        "model": "debate-reflection"
+      }
+    },
+    {
+      "key": "saf-intentions-246|saf-intentions-115|SUPPORTS",
+      "HEAD_with_rationale": {
+        "source": "saf-intentions-246",
+        "target": "saf-intentions-115",
+        "type": "SUPPORTS",
+        "bidirectional": false,
+        "confidence": 0.85,
+        "weight": 0.85,
+        "rationale": "This strategy operationalizes the goal of allocating specific trust duties to each actor across the supply chain.",
+        "status": "proposed",
+        "discovered_at": "2026-08-20T18:54:52.279Z",
+        "model": "debate-reflection"
+      },
+      "working_tree_stripped": {
+        "source": "saf-intentions-246",
+        "target": "saf-intentions-115",
+        "type": "SUPPORTS",
+        "bidirectional": false,
+        "confidence": 0.85,
+        "weight": 0.85,
+        "status": "proposed",
+        "discovered_at": "2026-08-20T18:54:52.279Z",
+        "model": "debate-reflection"
+      }
+    },
+    {
+      "key": "skp-beliefs-302|skp-beliefs-006|SUPPORTS",
+      "HEAD_with_rationale": {
+        "source": "skp-beliefs-302",
+        "target": "skp-beliefs-006",
+        "type": "SUPPORTS",
+        "bidirectional": false,
+        "confidence": 0.85,
+        "weight": 0.85,
+        "rationale": "Automated telemetry logs reinforce corporate opacity by creating a procedural paper trail that insulates decision-makers from substantive tort scrutiny.",
+        "status": "proposed",
+        "discovered_at": "2026-08-20T18:53:35.878Z",
+        "model": "debate-reflection"
+      },
+      "working_tree_stripped": {
+        "source": "skp-beliefs-302",
+        "target": "skp-beliefs-006",
+        "type": "SUPPORTS",
+        "bidirectional": false,
+        "confidence": 0.85,
+        "weight": 0.85,
+        "status": "proposed",
+        "discovered_at": "2026-08-20T18:53:35.878Z",
+        "model": "debate-reflection"
+      }
+    },
+    {
+      "key": "skp-beliefs-302|skp-intentions-040|TENSION_WITH",
+      "HEAD_with_rationale": {
+        "source": "skp-beliefs-302",
+        "target": "skp-intentions-040",
+        "type": "TENSION_WITH",
+        "bidirectional": false,
+        "confidence": 0.8,
+        "weight": 0.8,
+        "rationale": "Using compliance telemetry as an affirmative defense undermines genuine risk-utility balancing by stopping claims at summary judgment before juries can assess alternative designs.",
+        "status": "proposed",
+        "discovered_at": "2026-08-20T18:53:35.878Z",
+        "model": "debate-reflection"
+      },
+      "working_tree_stripped": {
+        "source": "skp-beliefs-302",
+        "target": "skp-intentions-040",
+        "type": "TENSION_WITH",
+        "bidirectional": false,
+        "confidence": 0.8,
+        "weight": 0.8,
+        "status": "proposed",
+        "discovered_at": "2026-08-20T18:53:35.878Z",
+        "model": "debate-reflection"
+      }
+    },
+    {
+      "key": "saf-intentions-246|saf-beliefs-126|RESPONDS_TO",
+      "HEAD_with_rationale": {
+        "source": "saf-intentions-246",
+        "target": "saf-beliefs-126",
+        "type": "RESPONDS_TO",
+        "bidirectional": false,
+        "confidence": 0.9,
+        "weight": 0.9,
+        "rationale": "This intention directly resolves the problem of fault fragmentation across AI supply chains identified in saf-beliefs-126.",
+        "status": "proposed",
+        "discovered_at": "2026-08-20T18:54:52.279Z",
+        "model": "debate-reflection"
+      },
+      "working_tree_stripped": {
+        "source": "saf-intentions-246",
+        "target": "saf-beliefs-126",
+        "type": "RESPONDS_TO",
+        "bidirectional": false,
+        "confidence": 0.9,
+        "weight": 0.9,
+        "status": "proposed",
+        "discovered_at": "2026-08-20T18:54:52.279Z",
+        "model": "debate-reflection"
+      }
+    }
+  ],
+  "appended_edges": [
+    {
+      "source": "skp-beliefs-303",
+      "target": "skp-beliefs-006",
+      "type": "SUPPORTS",
+      "bidirectional": false,
+      "confidence": 0.9,
+      "weight": 0.9,
+      "rationale": "Procedural telemetry shields extend corporate opacity by substituting automated paperwork for substantive tort liability.",
+      "status": "proposed",
+      "discovered_at": "2026-08-20T21:05:39.830Z",
+      "model": "debate-reflection"
+    },
+    {
+      "source": "skp-beliefs-303",
+      "target": "skp-beliefs-239",
+      "type": "TENSION_WITH",
+      "bidirectional": false,
+      "confidence": 0.85,
+      "weight": 0.85,
+      "rationale": "While solvency mechanisms try to locate a payer, procedural telemetry shields work to ensure no payer is ever found liable in court.",
+      "status": "proposed",
+      "discovered_at": "2026-08-20T21:05:39.830Z",
+      "model": "debate-reflection"
+    }
+  ],
+  "correct_remerge_end_state_note": "A twin-aware re-merge (t/2946 owner) must restore each of the 6 edges' HEAD rationale by composite key AND keep the 2 appended edges. A git checkout -- would restore the 6 but DISCARD the 2 new edges — wrong. None of the 6 keys is a near-key twin, so no disambiguation needed here."
+}

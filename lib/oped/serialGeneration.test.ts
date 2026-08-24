@@ -114,6 +114,57 @@ describe('generateOpEdSet — document_claims propagation (t/2722)', () => {
   });
 });
 
+describe('generateOpEdSet — document_claim_refs resolution (t/2938)', () => {
+  it('resolves model-emitted claim NUMBERS to verbatim source claim text (dedup, drop out-of-range)', async () => {
+    const KEY_CLAIMS = ['First claim', 'Second claim', 'Third claim'];
+    let call = 0;
+    const adapter = {
+      generateText: async () => {
+        call++;
+        if (call === 1) {
+          // Source-brief pass (triggered by request.sourceMaterial)
+          return JSON.stringify({
+            thesis: 't', author: 'a', actor_type: 'x', stance: 's',
+            primary_recommendations: [], key_claims: KEY_CLAIMS, readable: true,
+          });
+        }
+        if (call === 2) {
+          // Essay generation
+          return JSON.stringify({ headline: 'H', subtitle: '', body_markdown: 'Body text here.', word_count: 3 });
+        }
+        // Reflection — emit claim NUMBERS, not verbatim text. acc-bel-001 links
+        // 1 & 3 (with a dup and an out-of-range 99 that must be dropped); sit-001 none.
+        return JSON.stringify({
+          grounding_usage: [
+            { id: 'acc-bel-001', reflection: 'used in lede', document_claim_refs: [1, 3, 3, 99] },
+            { id: 'sit-001', reflection: 'used as evidence', document_claim_refs: [] },
+          ],
+          claims: [{ text: 'First claim', paragraph: 1 }],
+        });
+      },
+    };
+    const req = {
+      set_id: 's3', topic: 'AI policy',
+      sourceMaterial: 'Some source article text.',
+      params: { model: 'gemini-flash', wordCount: 800, outlet: 'nyt', newsHook: '', thesis: '' } as never,
+      povs: ['accelerationist'] as PovKey[],
+    };
+    const deps = { adapter: adapter as never, promptsDir: join(REPO_ROOT, 'lib', 'oped', 'prompts'), repoRoot: REPO_ROOT };
+
+    let member: { grounding: { node_id: string; document_claims?: string[] }[] } | undefined;
+    for await (const ev of generateOpEdSet(req, deps) as AsyncGenerator<OpEdProgressEvent>) {
+      if (ev.type === 'voice_complete') member = ev.member as typeof member;
+    }
+
+    expect(member).toBeDefined();
+    const bdiRef = member!.grounding.find(r => r.node_id === 'acc-bel-001');
+    // Numbers → verbatim text, deduped, out-of-range dropped.
+    expect(bdiRef?.document_claims).toEqual(['First claim', 'Third claim']);
+    const sitRef = member!.grounding.find(r => r.node_id === 'sit-001');
+    expect(sitRef?.document_claims).toBeUndefined();
+  });
+});
+
 describe('generateOpEdSet — FABRICATED_LEDE_GUARD integration (t/2730)', () => {
   const makeAdapter = (body: string) => ({
     generateText: async () => JSON.stringify({ headline: 'H', subtitle: '', body_markdown: body, word_count: body.split(/\s+/).length }),
@@ -404,5 +455,73 @@ describe('generateOpEdSet — source provenance + reflection observability (t/28
     };
     const round = parseOpEdSet(legacy);
     expect(round.source_mode).toBeUndefined();
+  });
+});
+
+// ── Reflection retry-on-empty insurance (t/2919) ──────────────────────────────
+// The ~50% systematic emission defect was FALSIFIED by measurement (22/22, t/2919#1);
+// this single fail-safe retry guards only a rare transient LLM empty when a source brief
+// with key_claims existed but the reflection came back with no claims. Mirrors the narrate
+// empty-entries presence gate (t/2872). Fires ONLY on "should-have-but-didn't" (url mode);
+// never on a legitimate topic-mode empty.
+describe('generateOpEdSet — reflection retry-on-empty (t/2919)', () => {
+  const ESSAY = JSON.stringify({ headline: 'H', subtitle: '', body_markdown: 'Body text here.', word_count: 3 });
+  const BRIEF = JSON.stringify({ thesis: 't', author: 'a', actor_type: 'x', stance: 's', primary_recommendations: ['r'], key_claims: ['claim one', 'claim two'], readable: true });
+  const REFL_EMPTY = JSON.stringify({ grounding_usage: [{ id: 'acc-bel-001', reflection: 'used' }] }); // no top-level claims
+  const REFL_FULL = JSON.stringify({ grounding_usage: [{ id: 'acc-bel-001', reflection: 'used', document_claims: ['claim one'] }], claims: [{ text: 'claim one', paragraph: 1 }] });
+  const PROMPTS = join(REPO_ROOT, 'lib', 'oped', 'prompts');
+
+  it('retries once and recovers claims when a source brief has key_claims but the first reflection returned none', async () => {
+    let reflCall = 0;
+    const adapter = { generateText: async (p: string) => {
+      if (p === 'source-brief-prompt') return BRIEF;
+      if (p === 'refl') { reflCall++; return reflCall === 1 ? REFL_EMPTY : REFL_FULL; }
+      return ESSAY;
+    } };
+    const record = vi.fn();
+    let member: { claims?: { text: string; paragraph: number }[] } | undefined;
+    for await (const ev of generateOpEdSet(
+      { set_id: 's-retry', topic: 'AI', params: { model: 'm', wordCount: 800, outlet: 'nyt', newsHook: '', thesis: '' }, povs: ['accelerationist'], sourceMaterial: 'Doc', sourceUrl: 'https://example.org/x' } as never,
+      { adapter, promptsDir: PROMPTS, repoRoot: REPO_ROOT, recorder: { record } } as never,
+    ) as AsyncGenerator<OpEdProgressEvent>) {
+      if (ev.type === 'voice_complete') member = ev.member as typeof member;
+    }
+    expect(reflCall).toBe(2);                    // retry fired
+    expect(member?.claims?.length).toBe(1);      // retry recovered the claims
+    expect(record).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ reason: 'reflection-retry' }) }));
+    expect(record).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ reason: 'reflection-retry-outcome', succeeded: true }) }));
+  });
+
+  it('does NOT retry in topic mode (no source brief) even when the reflection has no claims', async () => {
+    let reflCall = 0;
+    const adapter = { generateText: async (p: string) => {
+      if (p === 'refl') { reflCall++; return REFL_EMPTY; }
+      return ESSAY;
+    } };
+    const record = vi.fn();
+    for await (const _ev of generateOpEdSet(
+      { set_id: 's-topic', topic: 'AI', params: { model: 'm', wordCount: 800, outlet: 'nyt', newsHook: '', thesis: '' }, povs: ['accelerationist'] } as never, // no sourceMaterial
+      { adapter, promptsDir: PROMPTS, repoRoot: REPO_ROOT, recorder: { record } } as never,
+    ) as AsyncGenerator<OpEdProgressEvent>) { /* drain */ }
+    expect(reflCall).toBe(1);                     // no retry — legitimately-empty topic-mode reflection
+    expect(record).not.toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ reason: 'reflection-retry' }) }));
+  });
+
+  it('does NOT retry when the first reflection already produced claims', async () => {
+    let reflCall = 0;
+    const adapter = { generateText: async (p: string) => {
+      if (p === 'source-brief-prompt') return BRIEF;
+      if (p === 'refl') { reflCall++; return REFL_FULL; }
+      return ESSAY;
+    } };
+    let member: { claims?: unknown[] } | undefined;
+    for await (const ev of generateOpEdSet(
+      { set_id: 's-ok', topic: 'AI', params: { model: 'm', wordCount: 800, outlet: 'nyt', newsHook: '', thesis: '' }, povs: ['accelerationist'], sourceMaterial: 'Doc', sourceUrl: 'https://example.org/x' } as never,
+      { adapter, promptsDir: PROMPTS, repoRoot: REPO_ROOT } as never,
+    ) as AsyncGenerator<OpEdProgressEvent>) {
+      if (ev.type === 'voice_complete') member = ev.member as typeof member;
+    }
+    expect(reflCall).toBe(1);                     // no retry needed
+    expect(member?.claims?.length).toBe(1);
   });
 });

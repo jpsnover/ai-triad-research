@@ -180,6 +180,13 @@ const REFLECTION_SCHEMA = {
         properties: {
           id: { type: 'string' },
           reflection: { type: 'string' },
+          // t/2938: per-element claim linkage is now emitted as claim NUMBERS
+          // (integers into the numbered SOURCE_CLAIMS list) rather than re-copied
+          // verbatim text — lower emission friction lifts the model off the empty
+          // default, and code-side resolution (below) is authoritative, avoiding
+          // paraphrase/mismatch drift. Legacy verbatim `document_claims` still
+          // accepted for backward-compat with older prompts/callers.
+          document_claim_refs: { type: 'array', items: { type: 'integer' } },
           document_claims: { type: 'array', items: { type: 'string' } },
         },
         required: ['id', 'reflection'],
@@ -212,7 +219,7 @@ interface EssayResponse {
 }
 
 interface ReflectionResponse {
-  grounding_usage: { id: string; reflection: string; document_claims?: string[] }[];
+  grounding_usage: { id: string; reflection: string; document_claim_refs?: number[]; document_claims?: string[] }[];
   claims?: { text: string; paragraph: number }[];
 }
 
@@ -283,41 +290,97 @@ async function runVoiceGeneration(
     })),
   ];
 
-  // Reflection pass — best-effort, maps grounding elements to where they appear
+  // Reflection pass — best-effort, maps grounding elements to where they appear.
   let reflClaims: { text: string; paragraph: number }[] | undefined;
   if (allGroundingRefs.length > 0 && body) {
-    try {
-      const groundingList = buildGroundingList(groundingNodes, sitNodes);
-      const sourceClaims = sourceBrief?.key_claims?.length
-        ? sourceBrief.key_claims.map((c, i) => `  ${i + 1}. ${c}`).join('\n')
-        : '(none)';
-      const reflPrompt = assembleReflectionPrompt(deps.promptsDir, body, groundingList, sourceClaims);
-      const reflMaxTokens = Math.max(4000, allGroundingRefs.length * 150 + 3000);
-      const reflRaw = await deps.adapter.generateText(reflPrompt, request.params.model, {
-        maxTokens: reflMaxTokens,
-        temperature: 0.2,
-        responseSchema: REFLECTION_SCHEMA as Record<string, unknown>,
-        signal: request.signal,
-      });
-      const reflParsed = JSON.parse(stripCodeFences(reflRaw)) as ReflectionResponse;
-      const usageMap = new Map(reflParsed.grounding_usage.map(u => [u.id, u]));
-      for (const ref of allGroundingRefs) {
-        const usage = usageMap.get(ref.node_id);
-        if (usage) {
-          ref.how_reflected = usage.reflection;
-          if (usage.document_claims?.length) ref.document_claims = usage.document_claims;
+    const groundingList = buildGroundingList(groundingNodes, sitNodes);
+    const keyClaims = sourceBrief?.key_claims ?? [];
+    const keyClaimsCount = keyClaims.length;
+    // t/2938: resolve model-emitted claim NUMBERS (1-indexed into the numbered
+    // SOURCE_CLAIMS list) to authoritative verbatim claim text. Out-of-range/0/dup
+    // refs are dropped — the model never re-copies claim text, so persisted
+    // document_claims can't drift from the source brief. Legacy verbatim arrays
+    // (older prompts) pass through unchanged via resolveDocumentClaims's fallback.
+    const resolveDocumentClaims = (
+      refs: number[] | undefined,
+      legacy: string[] | undefined,
+    ): string[] => {
+      if (refs?.length) {
+        const seen = new Set<string>();
+        const out: string[] = [];
+        for (const n of refs) {
+          if (!Number.isInteger(n) || n < 1 || n > keyClaims.length) continue;
+          const text = keyClaims[n - 1];
+          if (!seen.has(text)) { seen.add(text); out.push(text); }
         }
+        return out;
       }
-      if (reflParsed.claims?.length) reflClaims = reflParsed.claims;
-    } catch (err) {
-      // Reflection failure is non-fatal — how_reflected stays '(not reported)' and
-      // claims are absent. The bare swallow here is why four claims-extraction
-      // failures were undiagnosable (t/2897); record it so it's visible. Uses
-      // 'system.error'+level:'warn' — the file's valid-EventType warn convention
-      // ('system.warning' is not in the union; TL confirmed the mapping, p/342#133).
+      return legacy?.length ? legacy : [];
+    };
+    const sourceClaims = keyClaimsCount > 0
+      ? keyClaims.map((c, i) => `  ${i + 1}. ${c}`).join('\n')
+      : '(none)';
+    const reflPrompt = assembleReflectionPrompt(deps.promptsDir, body, groundingList, sourceClaims);
+    const reflMaxTokens = Math.max(4000, allGroundingRefs.length * 150 + 3000);
+
+    // One reflection attempt. Applies how_reflected + document_claims onto allGroundingRefs
+    // and sets reflClaims; returns true iff it produced any top-level claims. Fail-safe: a
+    // throw is recorded (t/2897 diagnosability) and treated as "no claims" — never rethrown,
+    // so a reflection failure can never block generation.
+    const runReflection = async (temperature: number): Promise<boolean> => {
+      try {
+        const reflRaw = await deps.adapter.generateText(reflPrompt, request.params.model, {
+          maxTokens: reflMaxTokens,
+          temperature,
+          responseSchema: REFLECTION_SCHEMA as Record<string, unknown>,
+          signal: request.signal,
+        });
+        const reflParsed = JSON.parse(stripCodeFences(reflRaw)) as ReflectionResponse;
+        const usageMap = new Map(reflParsed.grounding_usage.map(u => [u.id, u]));
+        for (const ref of allGroundingRefs) {
+          const usage = usageMap.get(ref.node_id);
+          if (usage) {
+            ref.how_reflected = usage.reflection;
+            const resolved = resolveDocumentClaims(usage.document_claim_refs, usage.document_claims);
+            if (resolved.length) ref.document_claims = resolved;
+          }
+        }
+        if (reflParsed.claims?.length) reflClaims = reflParsed.claims;
+        return !!reflParsed.claims?.length;
+      } catch (err) {
+        // Non-fatal — how_reflected stays '(not reported)', claims absent. Recorded so
+        // it's visible (the bare swallow made four failures undiagnosable, t/2897).
+        // 'system.error'+level:'warn' — the file's valid-EventType warn convention.
+        deps.recorder?.record({
+          type: 'system.error', component: 'opedGenerate', level: 'warn',
+          message: `Op-ed reflection pass failed for pov=${pov} set=${request.set_id}: ${String(err)} — grounding how_reflected + claims will be absent`,
+        });
+        return false;
+      }
+    };
+
+    const gotClaims = await runReflection(0.2);
+
+    // Retry-on-empty insurance (t/2919): the reflection came back with no claims even
+    // though a source brief WITH key_claims existed — a "should-have-but-didn't". The
+    // ~50% systematic defect was FALSIFIED (22/22 on measurement, t/2919#1); this guards
+    // only the one residual a clean measurement can't exclude — a rare transient LLM
+    // empty/malformed response — the last un-excludable cause of the t/2897 "no Claims
+    // section" after topic-mode (t/2899), stale-build, and the validation regression
+    // (t/2908) were fixed. NOT reached for a legitimately-empty topic-mode reflection
+    // (keyClaimsCount === 0). Single retry at temp 0, fail-safe, logged so any real prod
+    // transient-empty rate becomes visible. Mirrors the narrate empty-entries gate (t/2872).
+    if (!gotClaims && keyClaimsCount > 0) {
       deps.recorder?.record({
-        type: 'system.error', component: 'opedGenerate', level: 'warn',
-        message: `Op-ed reflection pass failed for pov=${pov} set=${request.set_id}: ${String(err)} — grounding how_reflected + claims will be absent`,
+        type: 'system.info', component: 'opedGenerate', level: 'info',
+        message: `Op-ed reflection returned no claims despite ${keyClaimsCount} source key_claims (pov=${pov} set=${request.set_id}) — retrying once (t/2919)`,
+        data: { reason: 'reflection-retry', pov, set_id: request.set_id, key_claims: keyClaimsCount },
+      });
+      const retried = await runReflection(0);
+      deps.recorder?.record({
+        type: 'system.info', component: 'opedGenerate', level: 'info',
+        message: `Op-ed reflection retry ${retried ? 'succeeded' : 'still empty'} (pov=${pov} set=${request.set_id}) (t/2919)`,
+        data: { reason: 'reflection-retry-outcome', pov, set_id: request.set_id, succeeded: retried },
       });
     }
   }

@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useRef, Fragment } from 'react';
 import {
-  LayoutGrid, MessageSquare, MessageCircle, ArrowLeft,
+  LayoutGrid, MessageSquare, MessageCircle,
   Ellipsis, CircleHelp, MessageSquareText, Layers,
   RefreshCw, Settings, User, Users, Shield, LogOut, Newspaper,
 } from 'lucide-react';
@@ -193,7 +193,6 @@ export function Toolbar() {
     clearAttributeFilter,
     attributeInfo, showAttributeInfo,
     clearAttributeInfo,
-    previousView, navigateBack,
     loadAll, loading,
   } = useTaxonomyStore();
   const adminFlag = useFlag('permission-admin-features');
@@ -231,20 +230,6 @@ export function Toolbar() {
   const moreHasActive = secondaryGroups.flatMap(g => g.items).some(i => isNavItemActive(i));
   const viewMode = usePreferencesStore(state => state.viewMode);
   const setViewMode = usePreferencesStore(state => state.setViewMode);
-
-  // Escape key navigates back
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && previousView && !showHelp && !showSettings) {
-        const target = e.target as HTMLElement;
-        if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT') return;
-        e.preventDefault();
-        navigateBack();
-      }
-    };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  }, [previousView, navigateBack, showHelp, showSettings]);
 
   const clearCurrentPanel = () => {
     if (toolbarPanel === 'search') clearSimilarSearch();
@@ -287,19 +272,6 @@ export function Toolbar() {
   return (
     <nav className="toolbar" aria-label="Primary">
       <div className="toolbar-top">
-        {previousView && toolbarPanel !== null && activeTab !== 'debate' && (
-          <>
-            <button
-              className="toolbar-icon toolbar-back"
-              onClick={navigateBack}
-              aria-label="Back"
-              data-tooltip="Back"
-            >
-              <ArrowLeft size="1.25em" />
-            </button>
-            <div className="toolbar-separator" />
-          </>
-        )}
         {/* Primary nav — icon-over-label stacks */}
         {/* t/2813: Search removed from the nav rail; entry points now live in the
             Taxonomy panel header + POV detail header. toggle('search') still works. */}

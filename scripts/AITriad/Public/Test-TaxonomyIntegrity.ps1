@@ -160,7 +160,7 @@ function Test-TaxonomyIntegrity {
     $BadEdges = 0
     $SelfLoopEdges = 0
     if (Test-Path $EdgesPath) {
-        $EdgesData = Get-Content -Raw -Path $EdgesPath | ConvertFrom-Json
+        $EdgesData = Read-EdgesFile -Path $EdgesPath   # t/2974: coercion-free read (preserve discovered_at strings)
         $ValidIds = [System.Collections.Generic.HashSet[string]]::new($AllNodeIds)
         if ($Registry) { foreach ($Pol in $Registry.policies) { [void]$ValidIds.Add($Pol.id) } }
 
@@ -419,7 +419,7 @@ function Test-TaxonomyIntegrity {
         # Fix dangling edges
         $EdgesPath = Join-Path $TaxDir 'edges.json'
         if ($BadEdges -gt 0 -and (Test-Path $EdgesPath)) {
-            $EdgesData = Get-Content -Raw -Path $EdgesPath | ConvertFrom-Json
+            $EdgesData = Read-EdgesFile -Path $EdgesPath   # t/2974: coercion-free read (preserve discovered_at strings)
             $ValidIds = [System.Collections.Generic.HashSet[string]]::new($AllNodeIds)
             if ($Registry) { foreach ($Pol in $Registry.policies) { [void]$ValidIds.Add($Pol.id) } }
             $OrigCount = $EdgesData.edges.Count
@@ -435,7 +435,7 @@ function Test-TaxonomyIntegrity {
         # Fix self-loop edges (source == target). Re-read from disk so this composes
         # correctly after the dangling-edge fix above may have rewritten the file.
         if ($SelfLoopEdges -gt 0 -and (Test-Path $EdgesPath)) {
-            $EdgesData = Get-Content -Raw -Path $EdgesPath | ConvertFrom-Json
+            $EdgesData = Read-EdgesFile -Path $EdgesPath   # t/2974: coercion-free read (preserve discovered_at strings)
             $OrigCount = @($EdgesData.edges).Count
             $EdgesData.edges = @($EdgesData.edges | Where-Object { $_.source -ne $_.target })
             $Removed = $OrigCount - @($EdgesData.edges).Count
