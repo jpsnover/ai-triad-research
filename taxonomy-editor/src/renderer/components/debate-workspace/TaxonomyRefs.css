@@ -1,3 +1,101 @@
+/* ─── Debate Taxonomy Pills ───────────────────────────── */
+
+.debate-taxonomy-refs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 8px;
+}
+
+.debate-taxonomy-pill {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+  font-size: var(--text-2xs);
+  font-family: monospace;
+  background: var(--chip-bg);
+  color: var(--text-secondary);
+  transition: background 0.15s;
+}
+
+.debate-taxonomy-pill-clickable {
+  cursor: pointer;
+  border: 1px solid currentColor;
+  background: transparent;
+}
+
+.debate-taxonomy-pill-clickable:hover {
+  background: var(--focus-ring);
+  color: #fff;
+  border-color: var(--focus-ring);
+}
+
+.debate-taxonomy-pill-primary {
+  font-weight: 600;
+  border-width: 2px;
+}
+
+.debate-taxonomy-refs-section {
+  margin-top: 8px;
+}
+
+.debate-taxonomy-refs-section > .debate-taxonomy-refs {
+  margin-top: 0;
+  align-items: center;
+}
+
+.debate-reasoning-toggle {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: var(--text-2xs);
+  cursor: pointer;
+  padding: 1px 4px;
+  text-decoration: underline;
+  text-decoration-style: dotted;
+}
+
+.debate-reasoning-toggle:hover {
+  color: var(--text-primary);
+}
+
+.debate-reasoning-list {
+  margin-top: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-left: 2px;
+  border-left: 2px solid var(--border-color);
+}
+
+.debate-reasoning-item {
+  display: flex;
+  flex-direction: column;
+  padding: 3px 0 3px 8px;
+  gap: 1px;
+}
+
+.debate-reasoning-node {
+  font-family: monospace;
+  font-size: var(--text-2xs);
+  font-weight: 600;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  text-underline-offset: 2px;
+}
+
+.debate-reasoning-node:hover {
+  text-decoration-style: solid;
+}
+
+
+/* ─── Monolith-extracted styles (debate-taxonomy-pills) (Phase 3 co-location, t/2989) ─── */
+
 /* ── Coverage Badge (CT-2) ──────────────────────────────── */
 .coverage-badge {
   font-size: var(--text-2xs);

@@ -1,3 +1,25 @@
+/* ─── Vocabulary Annotations (t/212) ──────────────────── */
+
+a.vocab-term,
+.vocab-term {
+  color: inherit;
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  text-decoration-color: rgba(168, 85, 247, 0.35);
+  text-underline-offset: 2px;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  transition: background 0.15s, text-decoration-color 0.15s;
+}
+
+.vocab-term:hover {
+  text-decoration-color: rgba(168, 85, 247, 0.8);
+  background: rgba(168, 85, 247, 0.08);
+}
+
+
+/* ─── Monolith-extracted styles (vocab-annotations) (Phase 3 co-location, t/2989) ─── */
+
 /* ── Vocabulary Panel ──────────────────────────── */
 .vocabulary-panel { padding: 8px 12px; height: 100%; overflow-y: auto; font-size: var(--text-sm); }
 .vocabulary-panel.loading { display: flex; align-items: center; justify-content: center; color: var(--text-muted); }
