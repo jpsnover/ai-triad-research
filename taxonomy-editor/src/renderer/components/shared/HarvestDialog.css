@@ -1,0 +1,143 @@
+/* HarvestDialog.css — harvest concession dialog styles */
+
+/* ═══════════════════════════════════════════════════════════
+   Harvest Dialog
+   ═══════════════════════════════════════════════════════════ */
+.harvest-dialog {
+  max-width: 700px;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+.harvest-subtitle {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  margin-bottom: 12px;
+}
+.harvest-section {
+  margin-bottom: 16px;
+}
+.harvest-section h3 {
+  font-size: var(--text-md);
+  margin: 0 0 8px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--border-color);
+}
+.harvest-item {
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  margin-bottom: 6px;
+  padding: 8px 10px;
+  background: var(--bg-primary);
+}
+.harvest-item-checked {
+  border-color: var(--focus-ring);
+  background: color-mix(in srgb, var(--focus-ring) 5%, var(--bg-primary));
+}
+.harvest-item-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  cursor: pointer;
+  font-size: var(--text-sm);
+}
+.harvest-item-header input[type="checkbox"] { margin-top: 2px; flex-shrink: 0; }
+.harvest-item-title { flex: 1; }
+.harvest-badge {
+  font-size: var(--text-2xs);
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-hover);
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+.harvest-badge-muted {
+  font-style: italic;
+  opacity: 0.8;
+}
+.harvest-item-body {
+  margin-top: 8px;
+  padding-top: 6px;
+  border-top: 1px solid var(--border-color);
+  font-size: var(--text-xs);
+}
+.harvest-position { margin: 2px 0; }
+.harvest-generated { margin-top: 6px; display: flex; flex-direction: column; gap: 4px; }
+.harvest-generated label { display: flex; flex-direction: column; gap: 2px; font-weight: 600; font-size: var(--text-xs); }
+.harvest-generated input, .harvest-generated textarea {
+  font-size: var(--text-xs);
+  padding: 4px 6px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+}
+.harvest-warnings { margin-top: 4px; }
+.harvest-warning {
+  font-size: var(--text-xs);
+  color: #d97706;
+  padding: 2px 0;
+}
+.harvest-warning::before { content: "! "; font-weight: 700; }
+.harvest-steelman-current, .harvest-steelman-proposed, .harvest-steelman-source {
+  margin: 4px 0;
+  font-size: var(--text-xs);
+}
+.harvest-steelman-proposed textarea {
+  width: 100%;
+  font-size: var(--text-xs);
+  padding: 4px 6px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  margin-top: 4px;
+}
+.harvest-empty {
+  padding: 20px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: var(--text-md);
+}
+.harvest-result-summary {
+  padding: 16px;
+  text-align: center;
+  font-size: var(--text-md);
+  color: var(--text-primary);
+}
+.debate-audience-select {
+  font-size: var(--text-sm);
+  padding: 4px 6px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.debate-audience-select:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.debate-audience-badge {
+  display: inline-block;
+  font-size: var(--text-xs);
+  padding: 2px 8px;
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--focus-ring) 20%, var(--bg-secondary));
+  color: var(--text-secondary);
+  margin-left: 8px;
+  vertical-align: middle;
+}
+.debate-model-badge {
+  display: inline-block;
+  font-size: var(--text-xs);
+  padding: 2px 8px;
+  border-radius: var(--radius-md);
+  background: rgba(139, 92, 246, 0.12);
+  color: #8b5cf6;
+  margin-left: 6px;
+  vertical-align: middle;
+  font-family: monospace;
+}
+

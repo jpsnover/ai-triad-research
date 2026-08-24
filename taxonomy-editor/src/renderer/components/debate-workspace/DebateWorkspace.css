@@ -1,3 +1,281 @@
+/* ─── Refined Topic Editor ────────────────────────────── */
+
+.debate-refined-topic {
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+  flex-shrink: 0;
+}
+
+.debate-refined-topic-label {
+  font-size: var(--text-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+
+.debate-refined-topic-text {
+  font-size: var(--text-md);
+  color: var(--text-primary);
+  line-height: 1.5;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  border: 1px dashed transparent;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.debate-refined-topic-text:hover {
+  border-color: var(--border-color);
+  background: var(--bg-hover);
+}
+
+.debate-refined-topic-edit {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.debate-refined-topic-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.debate-refine-nudge {
+  background: rgba(124, 58, 237, 0.08);
+  border: 1px solid rgba(124, 58, 237, 0.25);
+  border-radius: var(--radius-md);
+  padding: 8px 12px;
+  color: var(--text-primary);
+}
+
+/* Statement type styling */
+.debate-type-system {
+  background: transparent;
+  border: 1px dashed var(--border-color);
+  opacity: 0.8;
+}
+
+.debate-type-system .debate-statement-speaker {
+  color: var(--text-muted) !important;
+}
+
+.debate-type-clarification .debate-statement-content {
+  white-space: pre-wrap;
+}
+
+.debate-type-answer {
+  border-left: 3px solid var(--focus-ring);
+}
+
+.debate-type-opening {
+  border-left: 3px solid var(--text-muted);
+}
+
+.debate-type-opening .debate-statement-content {
+  font-size: var(--text-md);
+  line-height: 1.7;
+}
+
+.debate-speaker-accelerationist .debate-type-opening,
+.debate-type-opening.debate-speaker-accelerationist {
+  border-left-color: var(--color-acc);
+}
+
+.debate-type-opening.debate-speaker-safetyist {
+  border-left-color: var(--color-saf);
+}
+
+.debate-type-opening.debate-speaker-skeptic {
+  border-left-color: var(--color-skp);
+}
+
+.debate-type-opening.debate-speaker-user {
+  border-left-color: var(--focus-ring);
+}
+
+.debate-type-question {
+  border-left: 3px solid var(--focus-ring);
+  background: var(--bg-hover);
+}
+
+.debate-type-statement.debate-speaker-accelerationist {
+  border-left: 3px solid var(--color-acc);
+}
+
+.debate-type-statement.debate-speaker-safetyist {
+  border-left: 3px solid var(--color-saf);
+}
+
+.debate-type-statement.debate-speaker-skeptic {
+  border-left: 3px solid var(--color-skp);
+}
+
+/* ─── Debate Context Menu (Phase 7) ─────────────────────── */
+
+.debate-context-menu {
+  position: fixed;
+  z-index: 1000;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-2);
+  min-width: 200px;
+  padding: 4px 0;
+}
+
+.debate-context-menu-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 6px 14px;
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+  background: none;
+  border: none;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 350px;
+}
+
+.debate-context-menu-item:hover {
+  background: var(--bg-hover);
+}
+
+.debate-context-menu-item:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.debate-context-menu-fact-check {
+  border-top: 1px solid var(--border-color);
+  margin-top: 2px;
+  padding-top: 8px;
+  font-weight: 600;
+}
+
+/* ─── Fact Check Card (Phase 7) ──────────────────────────── */
+
+.debate-type-fact-check {
+  border-left: 3px solid var(--text-muted);
+  background: var(--bg-secondary);
+}
+
+.debate-type-fact-check.debate-fact-check-supported {
+  border-left-color: #22c55e;
+}
+
+.debate-type-fact-check.debate-fact-check-disputed {
+  border-left-color: #f59e0b;
+}
+
+.debate-type-fact-check.debate-fact-check-unverifiable {
+  border-left-color: var(--text-muted);
+}
+
+.debate-type-fact-check.debate-fact-check-false {
+  border-left-color: #ef4444;
+}
+
+.debate-fact-check-verdict {
+  font-size: var(--text-2xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-hover);
+}
+
+.debate-fact-check-verdict.debate-fact-check-supported {
+  color: #22c55e;
+}
+
+.debate-fact-check-verdict.debate-fact-check-disputed {
+  color: #f59e0b;
+}
+
+.debate-fact-check-verdict.debate-fact-check-unverifiable {
+  color: var(--text-muted);
+}
+
+.debate-fact-check-verdict.debate-fact-check-false {
+  color: #ef4444;
+}
+
+.debate-fact-check-sources-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  flex-wrap: wrap;
+}
+.debate-fact-check-sources-inline-label {
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  margin-right: 2px;
+}
+.debate-fact-check-sources-inline-link {
+  color: var(--focus-ring, #60a5fa);
+  text-decoration: none;
+  padding: 0 2px;
+  border-radius: var(--radius-sm);
+}
+.debate-fact-check-sources-inline-link:hover {
+  background: var(--bg-hover);
+  text-decoration: underline;
+}
+.debate-fact-check-sources-inline-link-disabled {
+  color: var(--text-muted);
+  cursor: default;
+}
+.debate-fact-check-sources-inline-link-disabled:hover {
+  background: transparent;
+  text-decoration: none;
+}
+
+.debate-fact-check-web-toggle {
+  margin-left: auto;
+  font-size: var(--text-2xs);
+  opacity: 0.7;
+}
+.debate-fact-check-web-toggle:hover {
+  opacity: 1;
+}
+.debate-fact-check-web-evidence {
+  margin-top: 8px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+.debate-fact-check-web-evidence-header {
+  padding: 6px 10px;
+  font-size: var(--text-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-color);
+}
+.debate-fact-check-web-evidence-body {
+  padding: 8px 12px;
+  font-size: var(--text-sm);
+  max-height: 300px;
+  overflow-y: auto;
+  background: var(--bg-primary);
+}
+
+
+/* ─── Monolith-extracted styles (refined-topic, context-menu, fact-check, Phase 3, t/2989) ─── */
+
 /* ── Reasoning collapsible sections (BRIEF / PLAN / BDI) ── */
 .debate-reasoning-section {
   margin: 2px 0;

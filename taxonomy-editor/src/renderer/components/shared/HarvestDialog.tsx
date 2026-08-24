@@ -31,6 +31,7 @@ import type {
   HarvestConceptItem,
   HarvestManifestItem,
 } from '../../utils/harvestUtils';
+import './HarvestDialog.css';
 
 interface HarvestDialogProps {
   onClose: () => void;

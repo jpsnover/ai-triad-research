@@ -1,3 +1,67 @@
+/* ─── Debate Clarification Phase ──────────────────────── */
+
+.debate-action-hint {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  margin-bottom: 8px;
+}
+
+.debate-clarification-input {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.debate-answer-textarea {
+  width: 100%;
+  padding: 8px 12px;
+  font-size: var(--text-md);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--bg-input);
+  color: var(--text-primary);
+  resize: vertical;
+  font-family: inherit;
+  line-height: 1.5;
+}
+
+.debate-answer-textarea:focus-visible {
+  border-color: var(--focus-ring);
+}
+
+.debate-answer-textarea:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.debate-initial-rounds {
+  margin: 8px 0;
+}
+.debate-initial-rounds-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+.debate-clarification-buttons {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  position: sticky;
+  bottom: 0;
+  background: var(--bg-primary);
+  padding: 12px 0;
+  z-index: 2;
+}
+
+.debate-begin-btn {
+  font-weight: 700;
+}
+
+
+/* ─── Monolith-extracted styles (debate-clarification-phase) (Phase 3 co-location, t/2989) ─── */
+
 /* ── Clarification Question Pills (CQ-2) ─────────────── */
 .cq-questions { display: flex; flex-direction: column; gap: 12px; }
 .cq-question-card {
