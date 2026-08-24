@@ -24,7 +24,6 @@ import {
   generateConflictSlug,
 } from '../../utils/harvestUtils';
 import type {
-import './HarvestDialog.css';
   HarvestConflictItem,
   HarvestSteelmanItem,
   HarvestDebateRefItem,
@@ -32,6 +31,7 @@ import './HarvestDialog.css';
   HarvestConceptItem,
   HarvestManifestItem,
 } from '../../utils/harvestUtils';
+import './HarvestDialog.css';
 
 interface HarvestDialogProps {
   onClose: () => void;
