@@ -240,14 +240,16 @@ function ShareOpEdControl({ setId }: { setId: string }) {
 
 // ── Reader view (back bar + article/loading/error) ────────────────────────────
 
-function OpEdReaderView({
-  readerSet, readerLoading, readerError, status, onBack,
+export function OpEdReaderView({
+  readerSet, readerLoading, readerError, status, onBack, canShare,
 }: {
   readerSet: OpEdSet | null;
   readerLoading: boolean;
   readerError: string | null;
   status: string | null;
   onBack: () => void;
+  /** t/2987: only the user's OWN op-eds are shareable — community ones 404 the share endpoint. */
+  canShare: boolean;
 }) {
   return (
     <div className="two-column oped-tab-table-mode">
@@ -255,8 +257,10 @@ function OpEdReaderView({
         <div className="oped-reader-bar">
           <button type="button" className="oped-reader-back" onClick={onBack}>‹ Op-Ed Studies</button>
           {status && <span className="oped-status">{status}</span>}
-          {/* Share is web-only: electron-bridge rejects shareOpEdSet (t/2728). */}
-          {readerSet && !isElectronMode() && <ShareOpEdControl setId={readerSet.set_id} />}
+          {/* Share is web-only (electron-bridge rejects shareOpEdSet, t/2728) AND only for the
+              user's OWN op-eds — a community op-ed isn't in the user's oped-sets store, so its
+              share endpoint 404s (t/2987). Design: Share (My) / Copy (Community). */}
+          {readerSet && canShare && !isElectronMode() && <ShareOpEdControl setId={readerSet.set_id} />}
         </div>
         {readerLoading && <p className="oped-reader-loading">Loading op-ed…</p>}
         {readerError && <p className="oped-reader-error">{readerError}</p>}
@@ -297,6 +301,10 @@ export function OpEdTab() {
   // The set currently open in the reader — may come from the personal store (My)
   // or a community load (Community). null = table view.
   const [readerSet, setReaderSet] = useState<OpEdSet | null>(null);
+  // t/2987: which store the open op-ed came from. 'my' sets are shareable (they live in the
+  // user's oped-sets store); 'community' ones are NOT — the share endpoint reads the user's own
+  // store, so sharing a community-loaded op-ed 404s. Design: Share (My) / Copy (Community).
+  const [readerSource, setReaderSource] = useState<'my' | 'community' | null>(null);
   const [readerLoading, setReaderLoading] = useState(false);
   const [readerError, setReaderError] = useState<string | null>(null);
 
@@ -363,6 +371,7 @@ export function OpEdTab() {
   const openMy = useCallback((id: string) => {
     // The My list holds index summaries (no body) — load the full doc for the reader.
     selectSet(id);
+    setReaderSource('my'); // t/2987: My sets are shareable.
     setReaderError(null);
     setReaderSet(null);
     setReaderLoading(true);
@@ -376,7 +385,9 @@ export function OpEdTab() {
 
   const openCommunity = useCallback((id: string) => {
     selectSet(id);
+    setReaderSource('community'); // t/2987: community op-eds are NOT shareable (Copy, not Share).
     setReaderError(null);
+    setReaderSet(null);
     setReaderLoading(true);
     api.loadCommunityOpEd(id).then(set => {
       setReaderSet(set);
@@ -389,6 +400,7 @@ export function OpEdTab() {
   const closeReader = useCallback(() => {
     selectSet(null);
     setReaderSet(null);
+    setReaderSource(null);
     setReaderError(null);
   }, [selectSet]);
 
@@ -398,6 +410,7 @@ export function OpEdTab() {
     await loadSets();
     // loadSets returns index summaries (no body) — load the full doc for the reader.
     selectSet(setId);
+    setReaderSource('my'); // t/2987: a freshly-created set is the user's own → shareable.
     setReaderError(null);
     setReaderSet(null);
     setReaderLoading(true);
@@ -480,6 +493,7 @@ export function OpEdTab() {
         readerError={readerError}
         status={status}
         onBack={closeReader}
+        canShare={readerSource === 'my'}
       />
     );
   }
