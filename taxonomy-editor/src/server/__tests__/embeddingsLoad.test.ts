@@ -14,6 +14,8 @@ import {
   embeddingLoadSnapshot,
   embeddingLoadShedMode,
   evaluateEmbeddingLoadShed,
+  decideLoadShed,
+  readRecentLoopDelayMaxMs,
 } from '../embeddingsLoad.js';
 
 describe('embeddingsLoad (t/2904)', () => {
@@ -115,5 +117,60 @@ describe('embeddingsLoad load-shed (t/2905)', () => {
     beginEmbeddingCompute();
     beginEmbeddingCompute(); // in-flight = 2 > cap 1
     expect(evaluateEmbeddingLoadShed().shed).toBe(false);
+  });
+});
+
+// t/2914 item 1 — the `event_loop_delay` shed branch is unreachable through
+// evaluateEmbeddingLoadShed() in a test env (real loop delay ≈ 0). decideLoadShed
+// takes the already-read signals, so that branch is exercised deterministically.
+describe('decideLoadShed — deterministic shed logic (t/2914 item 1)', () => {
+  const base = { cap: 2, loopShedMs: 250, retryAfterMs: 2000 };
+
+  it('event_loop_delay branch: recent-window max over threshold → shed, reason=event_loop_delay', () => {
+    const d = decideLoadShed({ ...base, mode: 'block', inFlight: 0, loopMaxMs: 300 });
+    expect(d.shed).toBe(true);
+    expect(d.reason).toBe('event_loop_delay');
+    expect(d.event_loop_delay_max_ms).toBe(300);
+  });
+
+  it('event_loop_delay branch fires in warn mode too (shed=true, mode=warn)', () => {
+    const d = decideLoadShed({ ...base, mode: 'warn', inFlight: 0, loopMaxMs: 251 });
+    expect(d.shed).toBe(true);
+    expect(d.mode).toBe('warn');
+    expect(d.reason).toBe('event_loop_delay');
+  });
+
+  it('concurrency takes precedence over loop delay when both trip', () => {
+    const d = decideLoadShed({ ...base, mode: 'block', inFlight: 5, loopMaxMs: 9999 });
+    expect(d.shed).toBe(true);
+    expect(d.reason).toBe('concurrency');
+  });
+
+  it('exactly at the loop-delay threshold does NOT shed (strict >)', () => {
+    const d = decideLoadShed({ ...base, mode: 'block', inFlight: 0, loopMaxMs: 250 });
+    expect(d.shed).toBe(false);
+    expect(d.reason).toBeUndefined();
+  });
+
+  it('under both thresholds → no shed', () => {
+    expect(decideLoadShed({ ...base, mode: 'block', inFlight: 1, loopMaxMs: 10 }).shed).toBe(false);
+  });
+
+  it('off mode never sheds even with a huge loop delay', () => {
+    const d = decideLoadShed({ ...base, mode: 'off', inFlight: 99, loopMaxMs: 9999 });
+    expect(d.shed).toBe(false);
+    expect(d.reason).toBeUndefined();
+  });
+
+  it('rounds the reported max to 0.1 ms', () => {
+    expect(decideLoadShed({ ...base, mode: 'warn', inFlight: 0, loopMaxMs: 12.345 }).event_loop_delay_max_ms).toBe(12.3);
+  });
+});
+
+describe('readRecentLoopDelayMaxMs — recent-window signal (t/2914 item 1)', () => {
+  it('returns a finite, non-negative number', () => {
+    const v = readRecentLoopDelayMaxMs();
+    expect(Number.isFinite(v)).toBe(true);
+    expect(v).toBeGreaterThanOrEqual(0);
   });
 });
