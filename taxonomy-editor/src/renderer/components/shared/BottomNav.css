@@ -1,0 +1,51 @@
+/* BottomNav.css — Bottom navigation bar styles */
+
+/* ─── Bottom Navigation Bar ───────────────────────────── */
+
+.bottom-nav {
+  display: none;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 48px;
+  padding-bottom: env(safe-area-inset-bottom);
+  background: var(--bg-secondary);
+  border-top: 1px solid var(--border-color);
+  align-items: center;
+  justify-content: space-around;
+  z-index: 100;
+}
+
+.bottom-nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 4px 12px;
+  border: none;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  gap: 2px;
+  transition: color 0.15s, background 0.15s;
+}
+
+.bottom-nav-item:hover {
+  background: var(--bg-hover, var(--bg-hover));
+  color: var(--text-primary);
+}
+
+.bottom-nav-item.active {
+  color: var(--focus-ring);
+}
+
+.bottom-nav-label {
+  font-size: var(--text-2xs);
+  font-weight: 500;
+  line-height: 1;
+}
+
