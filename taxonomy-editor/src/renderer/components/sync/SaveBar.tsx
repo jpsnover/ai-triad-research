@@ -75,6 +75,8 @@ export function SaveBar() {
     return groups;
   }, [validationErrors]);
 
+  if (!adminFlag) return null;
+
   return (
     <div className="save-bar">
       {!isOnline && <span className="save-bar-offline">Offline</span>}
