@@ -1,3 +1,56 @@
+/* ── Argument Graph (CG-1 + CG-2) ───────────────────── */
+.ag-container { position: relative; }
+.ag-svg { width: 100%; height: auto; background: var(--bg-secondary); border-radius: var(--radius-md); }
+.ag-node { transition: opacity 0.15s; }
+.ag-node:hover { opacity: 1 !important; }
+.ag-node-selected circle, .ag-node-selected polygon, .ag-node-selected rect { filter: drop-shadow(0 0 4px rgba(255,255,255,0.6)); }
+.ag-node-new circle, .ag-node-new polygon, .ag-node-new rect { animation: ag-pulse 0.6s ease-out; }
+@keyframes ag-pulse { 0% { transform: scale(1.3); } 100% { transform: scale(1); } }
+.ag-node-label { pointer-events: none; }
+.ag-bdi-badge { pointer-events: none; font-weight: 700; }
+.ag-edge-label { font-size: var(--text-2xs); pointer-events: none; }
+.ag-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  font-size: var(--text-2xs);
+  color: var(--text-muted);
+  padding: 4px 8px;
+}
+.ag-legend-title { font-weight: 600; }
+.ag-legend-item { display: flex; align-items: center; gap: 3px; }
+.ag-legend-dot { width: 8px; height: 8px; display: inline-block; }
+.ag-legend-sep { color: var(--border-color); }
+/* Node detail panel */
+.ag-detail-panel {
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 10px;
+  margin-top: 8px;
+  font-size: var(--text-xs);
+}
+.ag-detail-header { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.ag-detail-id { font-weight: 700; font-size: var(--text-md); }
+.ag-detail-bdi { font-size: var(--text-2xs); padding: 1px 5px; border-radius: var(--radius-sm); background: var(--bg-hover); color: var(--text-muted); }
+.ag-detail-close { margin-left: auto; border: none; background: none; font-size: var(--text-lg); cursor: pointer; color: var(--text-muted); }
+.ag-detail-claim { line-height: 1.4; margin-bottom: 6px; }
+.claim-attribution-text { font-size: var(--text-xs); color: var(--text-muted); line-height: 1.35; margin-top: 2px; font-style: italic; }
+.claim-attribution-label { font-weight: 600; font-style: normal; margin-right: 4px; font-size: var(--text-2xs); text-transform: uppercase; letter-spacing: 0.03em; opacity: 0.7; }
+.ag-detail-meta { display: flex; flex-wrap: wrap; gap: 10px; font-size: var(--text-2xs); color: var(--text-muted); margin-bottom: 4px; }
+.ag-detail-refs { font-size: var(--text-2xs); color: var(--text-muted); margin-bottom: 4px; }
+.ag-detail-edges { font-size: var(--text-2xs); margin-top: 4px; }
+.ag-detail-edge { margin: 2px 0; }
+.ag-detail-weight { font-size: var(--text-2xs); color: var(--text-muted); margin-left: 4px; }
+.ag-detail-attribution { margin-top: 8px; padding: 6px 8px; background: rgba(245,158,11,0.06); border-radius: var(--radius-sm); border-left: 2px solid rgba(245,158,11,0.4); }
+.ag-detail-explanation { font-size: var(--text-2xs); color: var(--text-secondary); font-style: italic; margin-bottom: 4px; }
+.ag-detail-attr-list { font-size: var(--text-2xs); }
+.ag-detail-attr-row { display: flex; align-items: center; gap: 4px; margin-top: 1px; }
+.ag-detail-attr-source { color: var(--text-muted); }
+.ag-detail-attr-scheme { color: var(--text-muted); font-style: italic; }
+
+/* ─── Monolith-extracted styles (Phase 3 co-location, t/2989) ─── */
+
 /* ArgumentGraph — static styles extracted from inline style props (t/1849). */
 /* Dynamic (computed positions/sizes/data-driven colors) remain inline with eslint-disable comments. */
 

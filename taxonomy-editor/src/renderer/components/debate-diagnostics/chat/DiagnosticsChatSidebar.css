@@ -1,3 +1,19 @@
+/* ─── Diagnostics Chat Sidebar ────────────────────────── */
+.diag-chat-markdown p { margin: 0 0 4px; }
+.diag-chat-markdown p:last-child { margin: 0; }
+.diag-chat-markdown ul, .diag-chat-markdown ol { margin: 2px 0; padding-left: 16px; }
+.diag-chat-markdown li { margin: 1px 0; }
+.diag-chat-markdown code { background: rgba(255,255,255,0.08); padding: 1px 4px; border-radius: var(--radius-sm); font-size: var(--text-xs); }
+.diag-chat-markdown pre { background: rgba(255,255,255,0.06); padding: 6px 8px; border-radius: var(--radius-sm); overflow-x: auto; font-size: var(--text-2xs); margin: 4px 0; }
+.diag-chat-markdown pre code { background: none; padding: 0; }
+.diag-chat-markdown strong { color: #f59e0b; }
+.diag-chat-markdown table { border-collapse: collapse; font-size: var(--text-2xs); margin: 4px 0; }
+.diag-chat-markdown th, .diag-chat-markdown td { border: 1px solid var(--border-color); padding: 2px 6px; }
+.diag-chat-markdown th { background: rgba(255,255,255,0.05); }
+
+
+/* ─── Monolith-extracted styles (Phase 3 co-location, t/2989) ─── */
+
 /* Copyright (c) 2026 Jeffrey Snover. All rights reserved. */
 /* DiagnosticsChatSidebar — co-located styles (prefix: diag-chat-) */
 

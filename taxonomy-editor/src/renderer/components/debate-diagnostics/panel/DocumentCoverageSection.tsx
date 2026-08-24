@@ -4,6 +4,7 @@
 import { useMemo } from 'react';
 import type { CoverageMap, StrengthWeightedCoverage } from '@lib/debate/coverageTracker';
 import { CollapsibleSection } from './helpers';
+import './DocumentCoverageSection.css';
 
 /** Document Coverage section (CT-3/CT-4): shows per-claim coverage status sorted uncovered-first.
  *  Click-to-steer (CT-4): uncovered/partial claims are clickable — injects a steering question into the debate. */

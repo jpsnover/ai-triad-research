@@ -1,0 +1,12 @@
+/* TimelineScrubber.css — timeline scrubber (CG-3) */
+
+/* ── Timeline Scrubber (CG-3) ────────────────────────── */
+.ts-container { display: flex; flex-direction: column; gap: 6px; }
+.ts-empty { text-align: center; padding: 20px; color: var(--text-muted); }
+.ts-controls { display: flex; align-items: center; gap: 4px; }
+.ts-slider { flex: 1; height: 4px; cursor: pointer; accent-color: var(--text-primary); }
+.ts-turn-label { font-size: var(--text-xs); white-space: nowrap; min-width: 100px; }
+.ts-speaker { color: var(--text-muted); }
+.ts-stats { display: flex; gap: 10px; font-size: var(--text-2xs); color: var(--text-muted); }
+.ts-stat-new { color: #16a34a; font-weight: 600; }
+

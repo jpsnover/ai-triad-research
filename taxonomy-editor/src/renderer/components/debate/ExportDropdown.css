@@ -1,3 +1,35 @@
+/* ── Export format dropdown ── */
+.export-format-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  z-index: 100;
+  min-width: 120px;
+  margin-top: 2px;
+  padding: 4px 0;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-2);
+}
+.export-format-item {
+  display: block;
+  width: 100%;
+  padding: 6px 12px;
+  border: none;
+  background: none;
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+  text-align: left;
+  cursor: pointer;
+}
+.export-format-item:hover {
+  background: var(--bg-hover, var(--bg-secondary));
+}
+
+
+/* ─── Monolith-extracted styles (Phase 3 co-location, t/2989) ─── */
+
 /* t/1869 inline-style migration — ExportDropdown */
 
 .export-dropdown {

@@ -1,3 +1,19 @@
+/* ── Coverage Badge (CT-2) ──────────────────────────────── */
+.coverage-badge {
+  font-size: var(--text-2xs);
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: var(--radius-md);
+  white-space: nowrap;
+  line-height: 1.4;
+}
+.coverage-badge-green { background: rgba(34,197,94,0.15); color: #16a34a; }
+.coverage-badge-yellow { background: rgba(234,179,8,0.15); color: #a16207; }
+.coverage-badge-red { background: rgba(239,68,68,0.15); color: #dc2626; }
+
+
+/* ─── Monolith-extracted styles (Phase 3 co-location, t/2989) ─── */
+
 /* TaxonomyRefs — mechanical CSS migration of static inline styles (t/1866) */
 
 /* Selected BDI ref chip — persistent "active" look while its inline detail is open.

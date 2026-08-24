@@ -1,3 +1,48 @@
+/* ── Parameter History Panel ── */
+.param-history-panel { padding: 12px; font-size: var(--text-sm); }
+.param-history-header { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+.param-history-header h3 { margin: 0; font-size: var(--text-lg); }
+.param-history-subtitle { font-size: var(--text-xs); color: var(--text-muted); }
+.param-history-placeholder { color: var(--text-muted); font-style: italic; font-size: var(--text-sm); }
+.param-history-section { margin-bottom: 16px; }
+.param-history-section h4 { margin: 0 0 8px; font-size: var(--text-sm); color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+
+.param-history-table { border-collapse: collapse; font-size: var(--text-xs); }
+.param-history-table th { text-align: left; padding: 4px 8px; border-bottom: 1px solid var(--border-color); color: var(--text-muted); font-weight: 500; font-size: var(--text-2xs); text-transform: uppercase; white-space: nowrap; }
+.param-history-table td { padding: 4px 8px; border-bottom: 1px solid var(--border-color); }
+.param-name { font-weight: 500; white-space: nowrap; }
+.param-value { font-family: monospace; color: var(--focus-ring); white-space: nowrap; }
+.param-sparkline { width: 90px; }
+
+.param-history-timeline { display: flex; flex-direction: column; gap: 4px; }
+.param-history-entry { border: 1px solid var(--border-color); border-radius: var(--radius-sm); overflow: hidden; }
+.param-history-entry-header { display: flex; align-items: center; gap: 8px; padding: 6px 8px; font-size: var(--text-xs); }
+.param-history-entry-header:hover { background: var(--bg-secondary); }
+
+.param-source-badge { font-size: var(--text-2xs); font-weight: 600; padding: 1px 6px; border-radius: var(--radius-sm); text-transform: uppercase; letter-spacing: 0.3px; }
+.param-source-initial { background: rgba(99,102,241,0.15); color: #6366f1; }
+.param-source-optimizer { background: rgba(34,197,94,0.15); color: #22c55e; }
+.param-source-manual { background: rgba(245,158,11,0.15); color: #f59e0b; }
+
+.param-history-date { color: var(--text-muted); font-size: var(--text-2xs); }
+.param-history-meta { color: var(--text-muted); font-size: var(--text-2xs); margin-left: auto; }
+.param-history-count { font-size: var(--text-2xs); color: var(--text-muted); }
+
+.param-history-changes { padding: 6px 8px 8px; border-top: 1px solid var(--border-color); background: var(--bg-secondary); }
+.param-history-change { margin: 6px 0; padding-bottom: 6px; border-bottom: 1px dashed var(--border-color); }
+.param-history-change:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+.param-change-header { display: flex; gap: 6px; align-items: baseline; font-size: var(--text-xs); }
+.param-confidence-badge { font-size: var(--text-2xs); font-weight: 600; text-transform: uppercase; }
+.param-change-diff { display: flex; gap: 6px; align-items: center; font-family: monospace; font-size: var(--text-xs); margin-top: 2px; }
+.param-change-from { color: #ef4444; text-decoration: line-through; opacity: 0.7; }
+.param-change-arrow { color: var(--text-muted); }
+.param-change-to { color: #22c55e; font-weight: 600; }
+.param-change-rationale { font-size: var(--text-2xs); color: var(--text-muted); font-style: italic; margin-top: 2px; }
+
+
+
+/* ─── Monolith-extracted styles (Phase 3 co-location, t/2989) ─── */
+
 /* Copyright (c) 2026 Jeffrey Snover. All rights reserved. */
 /* Licensed under the MIT License. See LICENSE file in the project root. */
 
