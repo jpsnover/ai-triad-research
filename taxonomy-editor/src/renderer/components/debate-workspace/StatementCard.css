@@ -1,3 +1,203 @@
+/* ─── Lineage Links (t/201) ──────────────────────────── */
+
+/* ── Concluding statement collapsible sections ── */
+.concluding-collapsed-section {
+  margin: 12px 0;
+}
+.concluding-collapsed-section > summary {
+  cursor: pointer;
+  list-style: none;
+}
+.concluding-collapsed-section > summary::-webkit-details-marker {
+  display: none;
+}
+.concluding-collapsed-section > summary h2 {
+  display: inline;
+  font-size: var(--text-lg);
+  font-weight: 700;
+  color: var(--text-secondary);
+}
+.concluding-collapsed-section > summary h2::before {
+  content: '▶ ';
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+.concluding-collapsed-section[open] > summary h2::before {
+  content: '▼ ';
+}
+.concluding-collapsible-bullet {
+  margin: 2px 0;
+}
+.concluding-bullet-top {
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+}
+.concluding-toggle-arrow {
+  font-size: var(--text-2xs);
+  color: var(--text-muted);
+  margin-top: 6px;
+  flex-shrink: 0;
+  user-select: none;
+}
+.concluding-bullet-top p {
+  margin: 0;
+}
+.concluding-bullet-subs {
+  padding-left: 20px;
+}
+.concluding-bullet-subs ul {
+  margin: 2px 0;
+  padding-left: 16px;
+}
+
+a.lineage-link,
+.lineage-link {
+  color: inherit;
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  text-decoration-color: rgba(249, 115, 22, 0.35);
+  text-underline-offset: 2px;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  transition: background 0.15s, text-decoration-color 0.15s;
+}
+
+.lineage-link:hover {
+  text-decoration-color: rgba(249, 115, 22, 0.8);
+  background: rgba(249, 115, 22, 0.08);
+}
+
+.lineage-link-qualifier {
+  font-size: var(--text-xs);
+  opacity: 0.6;
+  font-style: italic;
+}
+
+/* ─── Detail Tier Pills (DT-3) ────────────────────────── */
+
+/* Outer row — holds Mode group + separator + Sub-option group (+ optional match-global btn) */
+.debate-tier-pills {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 8px;
+  flex-wrap: wrap;           /* sub-option group wraps below ~360px (AC10) */
+}
+
+
+/* Legacy pill classes kept for any remaining usages (e.g. detail-dropdown fallback) */
+.debate-tier-pill {
+  background: var(--bg-primary);
+  border: none;
+  color: var(--text-muted);
+  font-size: var(--text-2xs);
+  font-weight: 600;
+  padding: 1px 6px;
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  transition: background 0.1s, color 0.1s;
+}
+
+.debate-tier-pill:hover {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+}
+
+.debate-tier-pill-active {
+  background: var(--focus-ring);   /* was: var(--focus-ring, #3b82f6) — undefined token, always blue */
+  color: #fff;
+}
+
+.debate-detail-dropdown {
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  color: var(--text-muted);
+  font-size: var(--text-2xs);
+  font-weight: 600;
+  padding: 0 4px;
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  border-radius: var(--radius-sm);
+  height: 18px;
+}
+.debate-detail-dropdown:hover {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+}
+.debate-detail-dropdown:focus {
+  outline: 1px solid var(--focus-ring);
+}
+
+.debate-tier-truncated {
+  display: inline-block;
+  margin-top: 4px;
+  font-size: var(--text-xs);
+  color: var(--focus-ring);
+  cursor: pointer;
+  opacity: 0.8;
+}
+.debate-tier-truncated:hover {
+  opacity: 1;
+  text-decoration: underline;
+}
+
+.debate-tier-global {
+  font-size: var(--text-2xs);
+}
+
+.debate-diagnose-btn {
+  margin-left: auto;
+  background: none;
+  border: 1px solid var(--border-color);
+  color: var(--text-muted);
+  font-size: var(--text-2xs);
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s, color 0.1s, border-color 0.1s;
+}
+.debate-statement:hover .debate-diagnose-btn {
+  opacity: 1;
+}
+.debate-diagnose-btn:hover {
+  color: #f59e0b;
+  border-color: #f59e0b;
+}
+
+.debate-generating {
+  opacity: 0.7;
+}
+
+.debate-generating-dots {
+  display: flex;
+  gap: 4px;
+  padding: 4px 0;
+}
+
+.debate-generating-dots span {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--text-muted);
+  animation: debate-dot-pulse 1.2s ease-in-out infinite;
+}
+
+.debate-generating-dots span:nth-child(2) { animation-delay: 0.2s; }
+.debate-generating-dots span:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes debate-dot-pulse {
+  0%, 80%, 100% { opacity: 0.3; transform: scale(0.8); }
+  40% { opacity: 1; transform: scale(1); }
+}
+
+
+/* ─── Monolith-extracted styles (lineage+concluding+tier-pills) (Phase 3 co-location, t/2989) ─── */
+
 /* StatementCard — Design Elevation Phase 4b (t/1371) */
 
 /* Card recipe: shadow + left-border accent, no full border */

@@ -1,3 +1,504 @@
+/* ─── Debate Action Bar ───────────────────────────────── */
+
+.debate-action-bar {
+  flex-shrink: 0;
+  border-top: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+  padding: 10px 16px;
+}
+
+.debate-error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--text-xs);
+  color: var(--danger);
+  margin-bottom: 8px;
+  padding: 6px 10px;
+  background: color-mix(in srgb, var(--danger) 8%, transparent);
+  border-radius: var(--radius-md);
+}
+.debate-error-text {
+  flex: 1;
+}
+.debate-error-retry {
+  font-size: var(--text-xs);
+  padding: 2px 10px;
+  border: 1px solid var(--danger);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--danger);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.debate-error-retry:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--danger) 15%, transparent);
+}
+.debate-error-retry:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.debate-error-dismiss {
+  font-size: var(--text-lg);
+  line-height: 1;
+  padding: 0 4px;
+  border: none;
+  background: transparent;
+  color: var(--danger);
+  cursor: pointer;
+  opacity: 0.6;
+}
+.debate-error-dismiss:hover {
+  opacity: 1;
+}
+.debate-daily-limit {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--text-xs);
+  color: var(--warning, #e6a700);
+  margin-bottom: 8px;
+  padding: 6px 10px;
+  background: color-mix(in srgb, var(--warning, #e6a700) 8%, transparent);
+  border-radius: var(--radius-md);
+}
+.debate-daily-limit-text {
+  flex: 1;
+}
+.debate-daily-limit-dismiss {
+  font-size: var(--text-lg);
+  line-height: 1;
+  padding: 0 4px;
+  border: none;
+  background: transparent;
+  color: var(--warning, #e6a700);
+  cursor: pointer;
+  opacity: 0.6;
+}
+.debate-daily-limit-dismiss:hover {
+  opacity: 1;
+}
+.token-budget-indicator {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-size: var(--text-2xs);
+  color: var(--text-secondary);
+  margin-bottom: 4px;
+}
+.token-budget-indicator.warning {
+  color: var(--warning, #e6a700);
+}
+.token-budget-indicator.urgent {
+  color: var(--danger, #ef4444);
+}
+.token-budget-bar {
+  width: 60px;
+  height: 4px;
+  background: var(--border-color);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+.token-budget-fill {
+  height: 100%;
+  background: var(--focus-ring);
+  border-radius: var(--radius-sm);
+  transition: width 0.3s ease;
+}
+.token-budget-indicator.warning .token-budget-fill {
+  background: var(--warning, #e6a700);
+}
+.token-budget-indicator.urgent .token-budget-fill {
+  background: var(--danger, #ef4444);
+}
+.token-budget-label {
+  white-space: nowrap;
+}
+.token-budget-banner {
+  flex-basis: 100%;
+  font-size: var(--text-xs);
+  font-weight: 500;
+  line-height: 1.3;
+}
+.token-budget-reset {
+  font-weight: 400;
+  opacity: 0.8;
+}
+
+.debate-action-bar-inner {
+  display: flex;
+  gap: 8px;
+}
+
+.debate-opening-order {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.debate-opening-order-label {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+
+.debate-opening-order-list {
+  display: flex;
+  gap: 4px;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.debate-opening-order-item {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: 2px 8px;
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.debate-opening-order-btns {
+  display: flex;
+  flex-direction: row;
+  margin-left: 2px;
+}
+
+.debate-opening-order-btn {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: var(--text-xs);
+  line-height: 1;
+  padding: 0 2px;
+}
+
+.debate-opening-order-btn:hover:not(:disabled) {
+  color: var(--text-primary);
+}
+
+.debate-opening-order-btn:disabled {
+  opacity: 0.25;
+  cursor: default;
+}
+
+.debate-input {
+  flex: 1;
+  padding: 8px 12px;
+  font-size: var(--text-md);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--bg-input);
+  color: var(--text-primary);
+  transition: border-color var(--transition-fast);
+}
+
+.debate-input:focus-visible {
+  border-color: var(--focus-ring);
+}
+
+.debate-input:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.debate-input-wrapper {
+  position: relative;
+  flex: 1;
+}
+
+.debate-input-wrapper .debate-input {
+  width: 100%;
+}
+
+.debate-mention-dropdown {
+  position: absolute;
+  bottom: calc(100% + 4px);
+  left: 0;
+  min-width: 160px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-2);
+  z-index: 50;
+  overflow: hidden;
+}
+
+.debate-mention-item {
+  padding: 6px 12px;
+  cursor: pointer;
+  font-size: var(--text-md);
+}
+
+.debate-mention-item:hover,
+.debate-mention-item.selected {
+  background: var(--bg-hover, var(--bg-hover));
+}
+
+.debate-length-select {
+  padding: 4px 6px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--bg-input);
+  color: var(--text-primary);
+  font-size: var(--text-xs);
+  flex-shrink: 0;
+}
+
+/* ─── Step mode phase selector ─── */
+.debate-step-phase-selector {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 0;
+}
+.debate-step-phase-label {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  font-weight: 600;
+}
+.debate-step-phase-pill {
+  font-size: var(--text-xs);
+  padding: 2px 10px;
+  border-radius: var(--radius-lg);
+  border: 1.5px solid var(--border-color);
+  background: transparent;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.debate-step-phase-pill.active {
+  font-weight: 600;
+}
+.debate-step-phase-pill:hover:not(:disabled):not(.active) {
+  background: var(--bg-hover);
+}
+.debate-step-phase-pill:disabled {
+  cursor: default;
+}
+
+/* ─── Phase override buttons (adaptive staging) ─── */
+.debate-override-btn {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+}
+.debate-override-keep {
+  border-color: #f59e0b !important;
+  color: #f59e0b;
+}
+.debate-override-keep:hover:not(:disabled) {
+  background: rgba(245, 158, 11, 0.1) !important;
+}
+.debate-override-force {
+  border-color: #10b981 !important;
+  color: #10b981;
+}
+.debate-override-force:hover:not(:disabled) {
+  background: rgba(16, 185, 129, 0.1) !important;
+}
+
+/* ─── Adaptive Phase Progress Bar ──────────────────── */
+.adaptive-phase-bar {
+  padding: 6px 16px;
+  border-bottom: 1px solid var(--border-color);
+}
+.adaptive-phase-segments {
+  display: flex;
+  gap: 3px;
+  height: 24px;
+}
+.adaptive-phase-segment {
+  flex: 1;
+  position: relative;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.adaptive-phase-segment.active {
+  border-color: color-mix(in srgb, currentColor 40%, var(--border-color));
+}
+.adaptive-phase-segment.completed {
+  opacity: 0.6;
+}
+.adaptive-phase-fill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 100%;
+  opacity: 0.2;
+  transition: width 0.4s ease;
+}
+.adaptive-phase-segment.active .adaptive-phase-fill {
+  opacity: 0.25;
+}
+.adaptive-phase-segment.completed .adaptive-phase-fill {
+  opacity: 0.15;
+}
+.adaptive-phase-label {
+  position: relative;
+  z-index: 1;
+  font-size: var(--text-2xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+.adaptive-phase-segment.active .adaptive-phase-label {
+  color: var(--text-primary);
+}
+.adaptive-phase-transition-hint {
+  display: inline-block;
+  margin-top: 3px;
+  font-size: var(--text-2xs);
+  font-weight: 600;
+  color: var(--success-text); /* was #10b981 (~2.6:1 AA fail on light); now theme-aware (t/2260) */
+  animation: phase-hint-pulse 2s ease-in-out infinite;
+}
+@keyframes phase-hint-pulse {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
+}
+.adaptive-phase-rationale {
+  display: block;
+  margin-top: 2px;
+  font-size: var(--text-2xs);
+  color: var(--text-muted);
+  font-style: italic;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ─── Session Phase Stepper ───────────────────────── */
+.session-stepper {
+  display: flex;
+  align-items: center;
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--border-color);
+  gap: 0;
+}
+.session-step {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+.session-step-dot {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 2px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--text-2xs);
+  font-weight: 700;
+  color: var(--text-muted);
+  background: var(--bg-secondary);
+  flex-shrink: 0;
+  transition: all 0.25s ease;
+}
+.session-step.active .session-step-dot {
+  border-color: var(--focus-ring, #3b82f6);
+  background: var(--focus-ring, #3b82f6);
+  color: #fff;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--focus-ring, #3b82f6) 20%, transparent);
+}
+.session-step.completed .session-step-dot {
+  border-color: #10b981;
+  background: #10b981;
+  color: #fff;
+}
+.session-step-label {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+.session-step.active .session-step-label {
+  color: var(--text-primary);
+}
+.session-step.completed .session-step-label {
+  color: #10b981;
+}
+.session-step-line {
+  width: 24px;
+  height: 2px;
+  background: var(--border-color);
+  margin: 0 4px;
+  flex-shrink: 0;
+  transition: background 0.25s ease;
+}
+.session-step-line.completed {
+  background: #10b981;
+}
+
+/* ─── Phase Transition Cards ───────────────────────── */
+.phase-transition-card {
+  margin: 8px 0;
+  padding: 10px 14px;
+  border-radius: var(--radius-md);
+  border-left: 4px solid;
+}
+.phase-transition-synthesis {
+  border-left-color: #10b981;
+  background: rgba(16, 185, 129, 0.06);
+}
+.phase-transition-regression {
+  border-left-color: #f59e0b;
+  background: rgba(245, 158, 11, 0.06);
+}
+.phase-transition-commit {
+  border-left-color: #8b5cf6;
+  background: rgba(139, 92, 246, 0.06);
+}
+.phase-transition-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.phase-transition-icon {
+  font-weight: 700;
+  font-size: var(--text-sm);
+  letter-spacing: 2px;
+}
+.phase-transition-synthesis .phase-transition-icon { color: #10b981; }
+.phase-transition-regression .phase-transition-icon { color: #f59e0b; }
+.phase-transition-commit .phase-transition-icon { color: #8b5cf6; }
+.phase-transition-label {
+  font-size: var(--text-sm);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.phase-transition-synthesis .phase-transition-label { color: #10b981; }
+.phase-transition-regression .phase-transition-label { color: #f59e0b; }
+.phase-transition-commit .phase-transition-label { color: #8b5cf6; }
+.phase-transition-content {
+  font-size: var(--text-sm);
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+
+/* ─── Monolith-extracted styles (action-bar+adaptive-phase) (Phase 3 co-location, t/2989) ─── */
+
 /* Copyright (c) 2026 Jeffrey Snover. All rights reserved. */
 /* Licensed under the MIT License. See LICENSE file in the project root. */
 
