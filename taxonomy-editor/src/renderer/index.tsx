@@ -11,6 +11,7 @@ import { App } from './App';
 import { PublicPovView } from './components/PublicPovView';
 import { PublicOpEdView } from './components/PublicOpEdView';
 import './styles.css';
+import './responsive.css';
 
 // Public share link (t/1790, t/2728): a fully logged-out visitor to `/share/pov/:id`
 // or `/share/oped/:shareId` gets the slim read-only view — NOT the main app.
