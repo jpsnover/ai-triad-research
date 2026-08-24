@@ -167,7 +167,7 @@ export const PROMPT_CATALOG: PromptCatalogEntry[] = [
     source: 'prompts/aphorism.ts',
     template: aphorismPrompt('{pov}', '{category}', '{label}', '{description}'),
     group: 'taxonomy',
-    purpose: 'Fires when a user regenerates a node’s aphorism (regenerateAphorism). Produces a single sober maxim stated in the camp’s own voice, matched to the BDI register (Belief asserts how the world is / Desire what ought to be / Intention how to act), faithful to the node’s differentia.',
+    purpose: 'Reference template for a node’s aphorism — AI generation was retired (t/3004); aphorisms are now authored and edited manually. Produces a single sober maxim stated in the camp’s own voice, matched to the BDI register (Belief asserts how the world is / Desire what ought to be / Intention how to act), faithful to the node’s differentia.',
     applicableDataSources: ['taxonomyNodes'],
   },
 

@@ -32,7 +32,6 @@ import { api } from '@bridge';
 import { useContainerMentionKit } from '../shared/MentionField';
 import { reconstructNodeContainer } from '../shared/mentionText';
 import { EditConflictBadge, type NodeConflict } from '../conflict/edit-conflicts';
-import { generateAphorism } from '../../utils/regenerateAphorism';
 import { useDescriptionMode, resolveDescription } from '../shared/DescriptionToggle';
 import { usePreferencesStore } from '../../store/preferencesStore';
 import { EmptyState } from '../shared/EmptyState';
@@ -111,11 +110,6 @@ type NodeDetailTabId = 'content' | 'related' | 'attributes' | 'conflicts' | 'phr
 /** Edit-history entry count for the History tab badge (extracted so the optional-chain access doesn't add to NodeDetail's own complexity count). */
 function getEditHistoryLength(node: PovNode): number | undefined {
   return node._edit_history?.length;
-}
-
-/** Current aphorism value, if any (extracted so the optional-chain access doesn't add to NodeDetail's own complexity count). */
-function getNodeAphorism(node: PovNode): string | undefined {
-  return node.graph_attributes?.aphorism;
 }
 
 export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, onRelated, onOpenSoulDoc, chipDepth = 0, conflict, resolveUrl }: NodeDetailProps) {
@@ -254,41 +248,13 @@ export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, onRela
   const [researchCopied, setResearchCopied] = useState(false);
   const researchTextareaRef = useRef<HTMLTextAreaElement>(null);
 
-  // Aphorism editing / regeneration state
+  // Aphorism editing state (manual authoring only; AI generation removed t/3004)
   const [aphorismEditing, setAphorismEditing] = useState(false);
   const [aphorismDraft, setAphorismDraft] = useState('');
-  const [aphorismProposal, setAphorismProposal] = useState<string | null>(null);
-  const [aphorismGenerating, setAphorismGenerating] = useState(false);
-
-  const aphorismBaseLabel = useRef(node.label);
-  const aphorismBaseDesc = useRef(node.description);
 
   useEffect(() => {
     setAphorismEditing(false);
-    setAphorismProposal(null);
-    setAphorismGenerating(false);
-    aphorismBaseLabel.current = node.label;
-    aphorismBaseDesc.current = node.description;
   }, [node.id]);
-
-  const handleAphorismRegenerate = useCallback(() => {
-    if (aphorismGenerating) return;
-    setAphorismGenerating(true);
-    const povKey = nodePovFromId(node.id) ?? pov;
-    void generateAphorism(povKey, node.category, node.label, node.description)
-      .then(result => {
-        if (result) setAphorismProposal(result);
-      })
-      .finally(() => setAphorismGenerating(false));
-  }, [node.id, pov, node.category, node.label, node.description, aphorismGenerating]);
-
-  const maybeRegenAphorism = useCallback(() => {
-    if (readOnly || !node.graph_attributes?.aphorism) return;
-    if (node.label === aphorismBaseLabel.current && node.description === aphorismBaseDesc.current) return;
-    aphorismBaseLabel.current = node.label;
-    aphorismBaseDesc.current = node.description;
-    handleAphorismRegenerate();
-  }, [readOnly, getNodeAphorism(node), node.label, node.description, handleAphorismRegenerate]);
 
   // Generate research prompt when tab is selected or node changes
   useEffect(() => {
@@ -389,7 +355,6 @@ export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, onRela
           readOnly={readOnly}
           err={err}
           update={update}
-          maybeRegenAphorism={maybeRegenAphorism}
           onSimilarSearch={onSimilarSearch}
           onPin={viewMode === 'advanced' ? onPin : undefined}
           moveTargets={moveTargets}
@@ -429,10 +394,6 @@ export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, onRela
           setAphorismEditing={setAphorismEditing}
           aphorismDraft={aphorismDraft}
           setAphorismDraft={setAphorismDraft}
-          aphorismProposal={aphorismProposal}
-          setAphorismProposal={setAphorismProposal}
-          aphorismGenerating={aphorismGenerating}
-          handleAphorismRegenerate={handleAphorismRegenerate}
         />
       </div>
 
@@ -463,7 +424,6 @@ export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, onRela
             err={err}
             descMode={descMode}
             setDescMode={setDescMode}
-            maybeRegenAphorism={maybeRegenAphorism}
             update={update}
             updatePovNode={updatePovNode}
             showDtDrilldown={showDtDrilldown}
@@ -570,7 +530,6 @@ interface NodeDetailHeaderTopProps {
   readOnly?: boolean;
   err: (field: string) => string | undefined;
   update: (updates: Partial<PovNode>) => void;
-  maybeRegenAphorism: () => void;
   onSimilarSearch?: () => void;
   onPin?: () => void;
   moveTargets: MoveTarget[];
@@ -579,7 +538,7 @@ interface NodeDetailHeaderTopProps {
   labelContent?: ReactNode;
 }
 
-function NodeDetailHeaderTop({ pov, node, readOnly, err, update, maybeRegenAphorism, onSimilarSearch, onPin, moveTargets, setShowDelete, labelContent }: NodeDetailHeaderTopProps) {
+function NodeDetailHeaderTop({ pov, node, readOnly, err, update, onSimilarSearch, onPin, moveTargets, setShowDelete, labelContent }: NodeDetailHeaderTopProps) {
   return (
     <div className="nd-header-top">
       <div className="nd-header-title">
@@ -589,7 +548,6 @@ function NodeDetailHeaderTop({ pov, node, readOnly, err, update, maybeRegenAphor
           <InlineEditTitle
             value={node.label}
             onChange={(v) => update({ label: v })}
-            onBlur={maybeRegenAphorism}
             hasError={!!err('label')}
             placeholder="Label"
             ariaLabel="Label"
@@ -638,13 +596,9 @@ interface NodeDetailAphorismSectionProps {
   setAphorismEditing: (v: boolean) => void;
   aphorismDraft: string;
   setAphorismDraft: (v: string) => void;
-  aphorismProposal: string | null;
-  setAphorismProposal: (v: string | null) => void;
-  aphorismGenerating: boolean;
-  handleAphorismRegenerate: () => void;
 }
 
-function NodeDetailAphorismSection({ node, readOnly, update, aphorismEditing, setAphorismEditing, aphorismDraft, setAphorismDraft, aphorismProposal, setAphorismProposal, aphorismGenerating, handleAphorismRegenerate }: NodeDetailAphorismSectionProps) {
+function NodeDetailAphorismSection({ node, readOnly, update, aphorismEditing, setAphorismEditing, aphorismDraft, setAphorismDraft }: NodeDetailAphorismSectionProps) {
   return (
     <>
       {/* Aphorism display */}
@@ -684,32 +638,7 @@ function NodeDetailAphorismSection({ node, readOnly, update, aphorismEditing, se
             >&#9998;</button>
           )}
         </div>
-      ) : !readOnly ? (
-        <div className="nd-aphorism-empty">
-          <button
-            className="nd-aphorism-edit-btn nd-aphorism-edit-btn-visible"
-            onClick={handleAphorismRegenerate}
-            disabled={aphorismGenerating}
-          >{aphorismGenerating ? 'Generating…' : '+ Generate aphorism'}</button>
-        </div>
       ) : null}
-
-      {/* Aphorism regeneration proposal */}
-      {aphorismProposal && !readOnly && (
-        <div className="nd-aphorism-regen">
-          <span className="nd-aphorism-regen-text">&ldquo;{aphorismProposal}&rdquo;</span>
-          <button onClick={() => {
-            update({ graph_attributes: { ...node.graph_attributes!, aphorism: aphorismProposal } });
-            setAphorismProposal(null);
-          }}>Accept</button>
-          <button onClick={() => {
-            setAphorismDraft(aphorismProposal);
-            setAphorismProposal(null);
-            setAphorismEditing(true);
-          }}>Edit</button>
-          <button onClick={() => setAphorismProposal(null)}>Reject</button>
-        </div>
-      )}
     </>
   );
 }
@@ -942,7 +871,6 @@ interface NodeDetailContentTabProps {
   err: (field: string) => string | undefined;
   descMode: 'formal' | 'plain';
   setDescMode: (mode: 'formal' | 'plain') => void;
-  maybeRegenAphorism: () => void;
   update: (updates: Partial<PovNode>) => void;
   updatePovNode: (pov: Pov, id: string, updates: Partial<PovNode>) => void;
   showDtDrilldown: boolean;
@@ -957,7 +885,7 @@ interface NodeDetailContentTabProps {
   plainDescriptionMention?: DescriptionMention;
 }
 
-function NodeDetailContentTab({ pov, node, readOnly, err, descMode, setDescMode, maybeRegenAphorism, update, updatePovNode, showDtDrilldown, setShowDtDrilldown, expandedLineage, setExpandedLineage, showAttributeInfo, hasGraphAttrs, descriptionMention, plainDescriptionMention }: NodeDetailContentTabProps) {
+function NodeDetailContentTab({ pov, node, readOnly, err, descMode, setDescMode, update, updatePovNode, showDtDrilldown, setShowDtDrilldown, expandedLineage, setExpandedLineage, showAttributeInfo, hasGraphAttrs, descriptionMention, plainDescriptionMention }: NodeDetailContentTabProps) {
   return (
     <>
       {node.category === 'Beliefs' && (
@@ -975,7 +903,6 @@ function NodeDetailContentTab({ pov, node, readOnly, err, descMode, setDescMode,
         err={err}
         descMode={descMode}
         setDescMode={setDescMode}
-        maybeRegenAphorism={maybeRegenAphorism}
         update={update}
         updatePovNode={updatePovNode}
         descriptionMention={descriptionMention}

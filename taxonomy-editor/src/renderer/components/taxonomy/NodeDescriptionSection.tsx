@@ -36,7 +36,6 @@ export interface DescriptionSectionProps {
   err: (field: string) => string | undefined;
   descMode: 'formal' | 'plain';
   setDescMode: (mode: 'formal' | 'plain') => void;
-  maybeRegenAphorism: () => void;
   update: (updates: Partial<PovNode>) => void;
   updatePovNode: (pov: Pov, id: string, updates: Partial<PovNode>) => void;
   /** Mention segments for the formal `description` HighlightedTextarea (t/1908); undefined = no links. */
@@ -45,7 +44,7 @@ export interface DescriptionSectionProps {
   plainDescriptionMention?: DescriptionMention;
 }
 
-export function DescriptionSection({ pov, node, readOnly, err, descMode, setDescMode, maybeRegenAphorism, update, updatePovNode, descriptionMention, plainDescriptionMention }: DescriptionSectionProps) {
+export function DescriptionSection({ pov, node, readOnly, err, descMode, setDescMode, update, updatePovNode, descriptionMention, plainDescriptionMention }: DescriptionSectionProps) {
   const viewMode = usePreferencesStore(state => state.viewMode);
   const { findQuery, findMode, findCaseSensitive } = useTaxonomyStore();
   // t/2812: a search match in Formal-but-not-Plain surfaces the Formal tab (even under Simple
@@ -64,7 +63,7 @@ export function DescriptionSection({ pov, node, readOnly, err, descMode, setDesc
         {viewMode === 'advanced' && <DescriptionToggle mode={descMode} onToggle={setDescMode} hasPlainDescription={!!node.plain_description} />}
       </div>
       {effectiveDescMode === 'formal' ? (
-        <div className="prose" onBlur={maybeRegenAphorism}>
+        <div className="prose">
           <HighlightedTextarea
             value={node.description}
             onChange={(v) => update({ description: v })}

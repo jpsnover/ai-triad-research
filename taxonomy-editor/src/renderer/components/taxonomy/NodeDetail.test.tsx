@@ -102,7 +102,6 @@ vi.mock('../shared/MentionField', () => ({
   MentionField: () => null,
 }));
 vi.mock('../../utils/regeneratePlainDescription', () => ({ triggerPovNodeRegeneration: vi.fn() }));
-vi.mock('../../utils/regenerateAphorism', () => ({ generateAphorism: vi.fn() }));
 vi.mock('../../data/lineageLookup', () => ({ getLineageInfo: () => null }));
 vi.mock('../../prompts/research', () => ({ researchPrompt: () => '' }));
 vi.mock('../../utils/shareLinks', () => ({ publicPovSharePath: () => '' }));
