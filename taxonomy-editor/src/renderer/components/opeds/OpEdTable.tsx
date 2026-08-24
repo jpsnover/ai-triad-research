@@ -94,7 +94,7 @@ export function applySortMy(rows: OpEdSetSummary[], sort: SortState): OpEdSetSum
     switch (sort.col) {
       case 'headline': return mul * (a.topic ?? '').localeCompare(b.topic ?? '');
       case 'camp':     return mul * opEdCamps(a).join(',').localeCompare(opEdCamps(b).join(','));
-      // outlet/words are NOT on OpEdSetSummary — those columns are dropped from My (t/2605).
+      case 'outlet':   return mul * (a.outlet ?? '').localeCompare(b.outlet ?? '');
       case 'date':     return mul * (new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
       default:         return 0;
     }
@@ -108,8 +108,9 @@ export function applySortCommunity(rows: OpEdCommunityEntry[], sort: SortState):
     switch (sort.col) {
       case 'headline': return mul * (a.topic ?? '').localeCompare(b.topic ?? '');
       case 'camp':     return mul * (a.camps ?? []).join(',').localeCompare((b.camps ?? []).join(','));
+      case 'outlet':   return mul * (a.outlet ?? '').localeCompare(b.outlet ?? '');
       case 'date':     return mul * (new Date(a.updated_at).getTime() - new Date(b.updated_at).getTime());
-      default:         return 0; // outlet/words not carried on the community index entry
+      default:         return 0;
     }
   });
 }
@@ -343,9 +344,8 @@ export function OpEdMyRow({
       {/* Date */}
       <td className="col-date" title={set.created_at}>{formatDate(set.created_at)}</td>
 
-      {/* Outlet — OpEdSetSummary carries no outlet data; placeholder dash (t/2724:
-          the column is always shown for parity with the Community table). */}
-      <td className="col-outlet">—</td>
+      {/* Outlet — forwarded from params.outlet at finalize time (t/2993); absent on older sets. */}
+      <td className="col-outlet">{set.outlet ?? '—'}</td>
 
       {/* Actions */}
       <td className="col-actions" onClick={e => e.stopPropagation()}>
@@ -449,7 +449,7 @@ export function OpEdCommunityRow({
           always-"—" Words column is dropped so both tables share one column set. */}
       <td className="col-camp"><CampChips camps={entry.camps} /></td>
       <td className="col-date" title={entry.updated_at}>{formatDate(entry.updated_at)}</td>
-      <td className="col-outlet">—</td>
+      <td className="col-outlet">{entry.outlet ?? '—'}</td>
       <td className="col-actions" onClick={e => e.stopPropagation()}>
         <div className="oped-table-actions">
           <button
@@ -544,7 +544,9 @@ function MyTable(props: OpEdTableMyProps) {
             <th scope="col" className="col-date" aria-sort={getSortAttr('date', sort)}>
               <SortHeader label="Date" col="date" sort={sort} onSort={onSort} />
             </th>
-            <th scope="col" className="col-outlet">Outlet</th>
+            <th scope="col" className="col-outlet" aria-sort={getSortAttr('outlet', sort)}>
+              <SortHeader label="Outlet" col="outlet" sort={sort} onSort={onSort} />
+            </th>
             <th scope="col" className="col-actions">Actions</th>
             <th scope="col" className="col-headline" aria-sort={getSortAttr('headline', sort)}>
               <SortHeader label="Headline" col="headline" sort={sort} onSort={onSort} />
@@ -630,7 +632,9 @@ function CommunityTable(props: OpEdTableCommunityProps) {
             <th scope="col" className="col-date" aria-sort={getSortAttr('date', sort)}>
               <SortHeader label="Date" col="date" sort={sort} onSort={onSort} />
             </th>
-            <th scope="col" className="col-outlet">Outlet</th>
+            <th scope="col" className="col-outlet" aria-sort={getSortAttr('outlet', sort)}>
+              <SortHeader label="Outlet" col="outlet" sort={sort} onSort={onSort} />
+            </th>
             <th scope="col" className="col-actions">Actions</th>
             <th scope="col" className="col-headline" aria-sort={getSortAttr('headline', sort)}>
               <SortHeader label="Headline" col="headline" sort={sort} onSort={onSort} />
