@@ -274,7 +274,7 @@ function ConnectionStatusSection({
       </KV>
       {diag.mode === 'github-api' && (
         <>
-          <KV label="Cache Hit Rate">{diag.cache_hit_rate != null ? `${(diag.cache_hit_rate * 100).toFixed(1)}%` : '--'}</KV>
+          <KV label="Cache Hit Rate">{typeof diag.cache_hit_rate === 'number' ? `${(diag.cache_hit_rate * 100).toFixed(1)}%` : '--'}</KV>
           <KV label="Cached Files">{diag.cache_file_count ?? '--'}</KV>
           <KV label="Circuit Breaker">
             <StatusDot ok={diag.circuit_state === 'closed'} />{' '}
