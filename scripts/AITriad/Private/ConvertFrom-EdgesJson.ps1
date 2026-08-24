@@ -52,12 +52,24 @@ function ConvertFrom-EdgesJson {
 
     $doc = $null
     try { $doc = [System.Text.Json.JsonDocument]::Parse($Json) }
-    catch { return $obj }   # ConvertFrom-Json already parsed it; if STJ can't, return as-is (fail-open)
+    catch {
+        # Fail-open, but NOT silent (TL review t/2974#3): if STJ can't parse (ConvertFrom-Json already
+        # did), fall back to the coercing result — a distinguishable line so the timestamp-truncation
+        # regression is observable, never a silent revert to the buggy path.
+        Write-Verbose "edges read: System.Text.Json could not parse for timestamp restoration ($($_.Exception.Message)) — falling back to ConvertFrom-Json; discovered_at may lose trailing-zero ms (t/2974)."
+        return $obj
+    }
 
     try {
         $root = $doc.RootElement
-        if ($root.ValueKind -ne [System.Text.Json.JsonValueKind]::Object) { return $obj }
-        if (-not ($obj -is [System.Management.Automation.PSCustomObject])) { return $obj }
+        if ($root.ValueKind -ne [System.Text.Json.JsonValueKind]::Object) {
+            Write-Verbose 'edges read: top-level JSON is not an object — no timestamp restoration applied, using ConvertFrom-Json result as-is (t/2974).'
+            return $obj
+        }
+        if (-not ($obj -is [System.Management.Automation.PSCustomObject])) {
+            Write-Verbose 'edges read: parsed document is not a PSCustomObject — no timestamp restoration applied, using ConvertFrom-Json result as-is (t/2974).'
+            return $obj
+        }
 
         # (a) Top-level coerced datetimes (general — few fields), by name.
         foreach ($p in $obj.PSObject.Properties) {
