@@ -606,18 +606,24 @@ const EMBEDDING_COMPUTE_CHUNK = 256;
 // Resolve a (possibly large) batch in chunks, yielding the event loop between chunks. Safe
 // because resolveEmbeddings is order-preserving and per-text pure (local cache-hit or chain
 // compute), so concatenating per-chunk results is identical to resolving the whole batch at
-// once. Exported for unit test. `chunkSize` is injectable so a test can force chunking small.
+// once. Exported for unit test. `chunkSize` and `chunkTimeoutMs` are injectable so tests can
+// force chunking small and verify per-chunk timeout behaviour (t/2985).
 export async function resolveEmbeddingsChunked(
   texts: string[],
   ids: string[] | undefined,
   local: EmbeddingsFile | null,
   chain: EmbeddingFallback[],
   chunkSize: number = EMBEDDING_COMPUTE_CHUNK,
+  chunkTimeoutMs: number = EMBEDDINGS_REQUEST_TIMEOUT_MS,
 ): Promise<number[][]> {
-  if (texts.length <= chunkSize) return resolveEmbeddings(texts, ids, local, chain);
+  // t/2985: timeout is per-chunk, not aggregate — large healthy batches complete while a
+  // stuck chunk still gets bounded. The outer withTimeout (aggregate) was removed.
+  const resolveChunk = (t: string[], i: string[] | undefined) =>
+    withTimeout(resolveEmbeddings(t, i, local, chain), chunkTimeoutMs, 'embeddings-chunk');
+  if (texts.length <= chunkSize) return resolveChunk(texts, ids);
   const out: number[][] = [];
   for (let i = 0; i < texts.length; i += chunkSize) {
-    const vecs = await resolveEmbeddings(texts.slice(i, i + chunkSize), ids?.slice(i, i + chunkSize), local, chain);
+    const vecs = await resolveChunk(texts.slice(i, i + chunkSize), ids?.slice(i, i + chunkSize));
     for (const v of vecs) out.push(v);
     // Yield the loop between chunks so a big compute can't monopolize it past the liveness deadline.
     if (i + chunkSize < texts.length) await new Promise<void>((r) => setImmediate(r));
@@ -657,11 +663,8 @@ export async function computeEmbeddings(texts: string[], ids?: string[], _explic
   }
 
   try {
-    const result = await withTimeout(
-      resolveEmbeddingsChunked(texts, ids, local, chain),
-      EMBEDDINGS_REQUEST_TIMEOUT_MS,
-      'embeddings-compute',
-    );
+    // t/2985: timeout is now per-chunk inside resolveEmbeddingsChunked — no aggregate ceiling.
+    const result = await resolveEmbeddingsChunked(texts, ids, local, chain);
     const elapsedMs = Date.now() - startMs;
     getGlobalRecorder()?.record({
       type: 'ai.response', component: 'ai-backends', level: 'info',
@@ -677,6 +680,20 @@ export async function computeEmbeddings(texts: string[], ids?: string[], _explic
       error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       data: { inputCount: texts.length, elapsedMs, chainMembers: chain.map(c => c.name) },
     });
+    // t/2985: distinguish a per-chunk timeout from an empty-chain init failure so triage
+    // isn't misdirected to a packaging cause when the encoder worked but timed out.
+    const msg = err instanceof Error ? err.message : String(err);
+    if (msg.includes('timed out')) {
+      throw new ActionableError({
+        goal: 'Compute embeddings',
+        problem: `Embedding chunk timed out after ${elapsedMs}ms (${texts.length} inputs) — a ${EMBEDDING_COMPUTE_CHUNK}-text chunk exceeded the ${EMBEDDINGS_REQUEST_TIMEOUT_MS / 1000}s per-chunk budget`,
+        location: 'aiBackends.computeEmbeddings',
+        nextSteps: [
+          `Increase EMBEDDINGS_REQUEST_TIMEOUT_MS (currently ${EMBEDDINGS_REQUEST_TIMEOUT_MS}ms) if ONNX compute on this host is slower than expected`,
+          'Or reduce the batch size sent to /api/embeddings/compute',
+        ],
+      });
+    }
     throw new ActionableError({
       goal: 'Compute embeddings',
       problem: `No local embedding encoder available after ${elapsedMs}ms — the Python sentence-transformers venv is absent and the in-process ONNX all-MiniLM-L6-v2 fallback failed to initialize`,
