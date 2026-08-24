@@ -25,6 +25,7 @@ Get-Help <CmdletName> -Full                     # full docs for any cmdlet
 | `Repair-SituationReciprocity` | Reconcile situation `linked_nodes` ⇄ POV-node `situation_refs` so the two directions are mutual (t/2979); a dry-run-first RECOVERY tool, clean-tree-required, no commit/push. Use when the reciprocity check flags drift |
 | `Test-TaxonomyDir` | Pre-validate the taxonomy dir against the embed_taxonomy.py loader contract before `Update-TaxEmbeddings` — reports which files would be ingested vs skipped and flags any ingested file whose `nodes` lack `id` (the shape that crashes the embed run, t/2875) |
 | `Test-OntologyCompliance` | Check nodes against ontology rules |
+| `Test-SituationBdiCompliance` | Data-boundary gate validator: assert situations carry full per-POV BDI decomposition (belief+desire+intention across acc/saf/skp). `-ChangedOnly -BaseRef <ref>` scopes to new/modified situations vs a git baseline; `-FailOnViolation` throws (non-zero exit) for CI/hook gate use (t/3011) |
 | `Get-NodeTestingRecord` | Debate-Tested Phase 2 research surface — filter/sort POV nodes by tier, stale-hash, or importance×deficit (t/1579) |
 | `Update-NodeTestingRecord -RecomputeOnly` | Recompute tier + sort_key across all nodes after a constant change; historical record[] never touched; idempotent (t/1579) |
 

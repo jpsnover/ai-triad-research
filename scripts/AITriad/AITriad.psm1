@@ -833,6 +833,8 @@ Export-ModuleMember -Function @(
     'Repair-DebateOutput'
     'Get-AITSBOM'
     'Test-OntologyCompliance'
+    # t/3011 — data-boundary gate validator for situation per-POV BDI decomposition
+    'Test-SituationBdiCompliance'
     'Get-RelevantTaxonomyNodes'
     'Invoke-QbafConflictAnalysis'
     'Test-ExtractionQuality'
