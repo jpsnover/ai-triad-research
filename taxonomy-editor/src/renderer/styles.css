@@ -677,129 +677,6 @@ body {
   color: var(--text-secondary, #999);
 }
 
-/* ─── Data update banner ─────────────────────────────── */
-
-.data-update-banner {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 16px;
-  background: rgba(37, 99, 235, 0.12);
-  border-bottom: 1px solid rgba(37, 99, 235, 0.25);
-  font-size: var(--text-sm);
-  flex-shrink: 0;
-}
-
-.data-update-text {
-  color: var(--text-primary);
-  font-weight: 600;
-}
-
-.data-update-btn {
-  background: var(--focus-ring, #2563eb) !important;
-  color: #fff !important;
-  border: none !important;
-}
-
-.data-update-dismiss {
-  background: none;
-  border: none;
-  color: var(--text-secondary);
-  cursor: pointer;
-  font-size: var(--text-lg);
-  padding: 0 4px;
-  line-height: 1;
-  margin-left: auto;
-}
-
-.data-update-dismiss:hover {
-  color: var(--text-primary);
-}
-
-.data-update-result {
-  font-size: var(--text-sm);
-  font-weight: 600;
-}
-.data-update-result.success {
-  color: #22c55e;
-}
-.data-update-result.error {
-  color: #ef4444;
-}
-
-.data-update-files {
-  padding: 6px 16px 8px;
-  background: rgba(37, 99, 235, 0.06);
-  border-bottom: 1px solid rgba(37, 99, 235, 0.15);
-  font-size: var(--text-sm);
-  max-height: 200px;
-  overflow-y: auto;
-}
-
-.data-update-file-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 3px 0;
-}
-
-.data-update-file-status {
-  display: inline-block;
-  min-width: 36px;
-  text-align: center;
-  font-size: var(--text-xs);
-  font-weight: 700;
-  padding: 1px 5px;
-  border-radius: var(--radius-sm);
-  text-transform: uppercase;
-}
-
-.data-update-file-status-M {
-  background: rgba(234, 179, 8, 0.18);
-  color: #b45309;
-}
-
-.data-update-file-status-A {
-  background: rgba(34, 197, 94, 0.18);
-  color: #15803d;
-}
-
-.data-update-file-status-D {
-  background: rgba(239, 68, 68, 0.18);
-  color: #dc2626;
-}
-
-.data-update-file-path {
-  flex: 1;
-  color: var(--text-primary);
-  font-family: var(--font-mono, monospace);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.data-update-file-diff-btn {
-  background: none;
-  border: 1px solid var(--border-color, #ddd);
-  color: var(--text-secondary);
-  cursor: pointer;
-  font-size: var(--text-xs);
-  padding: 1px 8px;
-  border-radius: var(--radius-sm);
-  white-space: nowrap;
-}
-
-.data-update-file-diff-btn:hover,
-.data-update-file-diff-btn.active {
-  background: rgba(37, 99, 235, 0.1);
-  color: var(--focus-ring, #2563eb);
-  border-color: var(--focus-ring, #2563eb);
-}
-
-.data-update-diff-content .diff-add { color: #22863a; background: #f0fff4; }
-.data-update-diff-content .diff-del { color: #cb2431; background: #ffeef0; }
-.data-update-diff-content .diff-hunk { color: #6f42c1; }
-
 /* ─── Git Progress Banner ─────────────────────────────── */
 
 .git-progress-banner {
@@ -4360,32 +4237,6 @@ body {
 .phrases-item-text {
   color: var(--text-primary);
   flex: 1;
-}
-
-.phrases-audience-badge {
-  font-size: var(--text-2xs);
-  padding: 1px 5px;
-  border-radius: var(--radius-sm);
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.3px;
-  flex-shrink: 0;
-  margin-top: 2px;
-}
-
-.phrases-audience-industry_leader {
-  background: rgba(37, 99, 235, 0.1);
-  color: #2563eb;
-}
-
-.phrases-audience-policymaker {
-  background: rgba(147, 51, 234, 0.1);
-  color: #7c3aed;
-}
-
-.phrases-audience-technical_researcher {
-  background: rgba(13, 148, 136, 0.1);
-  color: #0d9488;
 }
 
 /* ── Feedback Popover (toolbar-anchored) ──────────────────────────────── */
@@ -8581,22 +8432,6 @@ a.vocab-term,
 .vocab-term:hover {
   text-decoration-color: rgba(168, 85, 247, 0.8);
   background: rgba(168, 85, 247, 0.08);
-}
-
-.vocab-confidence-high {
-  text-decoration-color: rgba(34, 197, 94, 0.4);
-}
-.vocab-confidence-high:hover {
-  text-decoration-color: rgba(34, 197, 94, 0.8);
-  background: rgba(34, 197, 94, 0.08);
-}
-
-.vocab-confidence-low {
-  text-decoration-color: rgba(239, 68, 68, 0.4);
-}
-.vocab-confidence-low:hover {
-  text-decoration-color: rgba(239, 68, 68, 0.8);
-  background: rgba(239, 68, 68, 0.08);
 }
 
 /* ─── Detail Tier Pills (DT-3) ────────────────────────── */
