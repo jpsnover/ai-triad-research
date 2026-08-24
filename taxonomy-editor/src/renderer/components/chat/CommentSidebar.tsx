@@ -5,6 +5,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { useCommentStore, COMMENT_TYPE_META, COMMENT_TYPES } from '../../hooks/useCommentStore';
 import { useUsernameStore } from '../../hooks/useUsernameStore';
 import type { Comment, CommentReply, CommentType } from '@lib/debate/comments';
+import './CommentSidebar.css';
 
 export function CommentSidebar() {
   const {
