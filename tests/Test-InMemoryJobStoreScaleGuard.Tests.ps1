@@ -21,6 +21,7 @@ Describe 'Test-InMemoryJobStoreScaleGuard — both arms (t/2885)' {
     BeforeAll {
         $script:GateScript = "$PSScriptRoot/../operations/devops/Test-InMemoryJobStoreScaleGuard.ps1"
 
+        # Helpers to create temp fixture files
         function script:New-BicepFixture ([int]$MaxReplicas) {
             $f = [System.IO.Path]::GetTempFileName()
             Set-Content -Path $f -Value @"
@@ -30,6 +31,17 @@ Describe 'Test-InMemoryJobStoreScaleGuard — both arms (t/2885)' {
 // blob-backed store lands (t/2885 deferred).
 maxReplicas: $MaxReplicas
 "@
+            return $f
+        }
+
+        function script:New-JobStoreFixture ([bool]$WithMarker) {
+            $f = [System.IO.Path]::GetTempFileName()
+            $content = if ($WithMarker) {
+                '// @INMEMORY_JOB_STORE — remove when migrated to blob-backed shared store (t/2885)'
+            } else {
+                '// job store migrated to shared blob storage'
+            }
+            Set-Content -Path $f -Value $content
             return $f
         }
 
@@ -50,6 +62,32 @@ maxReplicas: $MaxReplicas
                 Set-Content -Path $full -Value '// job store migrated to shared blob storage'
             }
             return $dir
+        }
+    }
+
+    # ── Fire arm (legacy single-file): maxReplicas > 1 + marker present ──────
+    Context 'FIRE ARM — maxReplicas=2, marker present, single-file mode (must block)' {
+        It 'throws and blocks CI' {
+            $bicep = script:New-BicepFixture -MaxReplicas 2
+            $store = script:New-JobStoreFixture -WithMarker $true
+            try {
+                { & $script:GateScript -BicepPath $bicep -JobStorePath $store } |
+                    Should -Throw -ExpectedMessage '*scale guard FAILED*'
+            } finally {
+                Remove-Item $bicep, $store -ErrorAction SilentlyContinue
+            }
+        }
+
+        It 'emits ::error:: lines mentioning maxReplicas and the race' {
+            $bicep = script:New-BicepFixture -MaxReplicas 2
+            $store = script:New-JobStoreFixture -WithMarker $true
+            $output = & { try { & $script:GateScript -BicepPath $bicep -JobStorePath $store } catch {} } 6>&1 | Out-String
+            try {
+                $output | Should -Match '::error::.*maxReplicas=2'
+                $output | Should -Match '::error::.*cross-replica 404'
+            } finally {
+                Remove-Item $bicep, $store -ErrorAction SilentlyContinue
+            }
         }
     }
 
@@ -96,8 +134,21 @@ maxReplicas: $MaxReplicas
         }
     }
 
-    # ── Pass arm: maxReplicas = 1 + marker present ───────────────────────────
-    Context 'PASS ARM — maxReplicas=1, marker present (must pass)' {
+    # ── Pass arm (legacy single-file): maxReplicas = 1 + marker present ──────
+    Context 'PASS ARM — maxReplicas=1, marker present, single-file mode (must pass)' {
+        It 'does not throw' {
+            $bicep = script:New-BicepFixture -MaxReplicas 1
+            $store = script:New-JobStoreFixture -WithMarker $true
+            try {
+                { & $script:GateScript -BicepPath $bicep -JobStorePath $store } | Should -Not -Throw
+            } finally {
+                Remove-Item $bicep, $store -ErrorAction SilentlyContinue
+            }
+        }
+    }
+
+    # ── Pass arm: maxReplicas = 1 + marker present in dir ────────────────────
+    Context 'PASS ARM — maxReplicas=1, marker present in dir (must pass)' {
         It 'does not throw' {
             $bicep = script:New-BicepFixture -MaxReplicas 1
             $dir   = script:New-ServerDirFixture -MarkerFiles @('briefExportJobs.ts')
@@ -106,6 +157,19 @@ maxReplicas: $MaxReplicas
             } finally {
                 Remove-Item $bicep -ErrorAction SilentlyContinue
                 Remove-Item $dir -Recurse -ErrorAction SilentlyContinue
+            }
+        }
+    }
+
+    # ── Safe pass (legacy): marker absent (store migrated) ───────────────────
+    Context 'No marker — store migrated, any maxReplicas, single-file mode (must pass)' {
+        It 'passes even when maxReplicas=5' {
+            $bicep = script:New-BicepFixture -MaxReplicas 5
+            $store = script:New-JobStoreFixture -WithMarker $false
+            try {
+                { & $script:GateScript -BicepPath $bicep -JobStorePath $store } | Should -Not -Throw
+            } finally {
+                Remove-Item $bicep, $store -ErrorAction SilentlyContinue
             }
         }
     }
@@ -129,13 +193,12 @@ maxReplicas: $MaxReplicas
         It 'throws mentioning parse failure' {
             $bicep = [System.IO.Path]::GetTempFileName()
             Set-Content -Path $bicep -Value 'maxReplicas: 1'  # no cap comment — regex won't match
-            $dir   = script:New-ServerDirFixture -MarkerFiles @('briefExportJobs.ts')
+            $store = script:New-JobStoreFixture -WithMarker $true
             try {
-                { & $script:GateScript -BicepPath $bicep -ServerDir $dir } |
+                { & $script:GateScript -BicepPath $bicep -JobStorePath $store } |
                     Should -Throw -ExpectedMessage '*could not parse*'
             } finally {
-                Remove-Item $bicep -ErrorAction SilentlyContinue
-                Remove-Item $dir -Recurse -ErrorAction SilentlyContinue
+                Remove-Item $bicep, $store -ErrorAction SilentlyContinue
             }
         }
     }

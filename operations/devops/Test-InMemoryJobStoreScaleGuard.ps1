@@ -17,22 +17,34 @@
 .PARAMETER ServerDir
     Directory to search for @INMEMORY_JOB_STORE markers. Defaults to
     taxonomy-editor/src/server. All *.ts files are checked recursively.
+.PARAMETER JobStorePath
+    Legacy single-file mode: checks only one .ts file for the marker. Superseded by
+    -ServerDir (multi-file directory scan). Provided for backward compatibility with
+    tests and scripts that pre-date the directory-scan approach (t/2885).
 #>
 [CmdletBinding()]
 param(
-    [string] $BicepPath = "$PSScriptRoot/../../deploy/azure/main.bicep",
-    [string] $ServerDir = "$PSScriptRoot/../../taxonomy-editor/src/server"
+    [string] $BicepPath    = "$PSScriptRoot/../../deploy/azure/main.bicep",
+    [string] $ServerDir    = "$PSScriptRoot/../../taxonomy-editor/src/server",
+    [string] $JobStorePath = ''
 )
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
-# ── 1. Check for in-memory store markers across all server files ───────────────
-$markedFiles = @(Get-ChildItem -Path $ServerDir -Recurse -Filter '*.ts' |
-    Where-Object { Select-String -Path $_.FullName -Pattern '@INMEMORY_JOB_STORE' -Quiet })
+# ── 1. Check for in-memory store markers ─────────────────────────────────────
+# Single-file legacy mode (-JobStorePath) or directory scan (-ServerDir, default).
+if ($JobStorePath) {
+    $markedFiles = @(if ((Select-String -Path $JobStorePath -Pattern '@INMEMORY_JOB_STORE' -Quiet) -eq $true) {
+        [System.IO.FileInfo]$JobStorePath
+    })
+} else {
+    $markedFiles = @(Get-ChildItem -Path $ServerDir -Recurse -Filter '*.ts' |
+        Where-Object { Select-String -Path $_.FullName -Pattern '@INMEMORY_JOB_STORE' -Quiet })
+}
 
 if ($markedFiles.Count -eq 0) {
-    Write-Host "InMemoryJobStore scale guard: no @INMEMORY_JOB_STORE markers found in $ServerDir — all stores migrated. Gate passes unconditionally."
+    Write-Host "InMemoryJobStore scale guard: no @INMEMORY_JOB_STORE markers found — all stores migrated. Gate passes unconditionally."
     return
 }
 
@@ -41,6 +53,7 @@ if ($markedFiles.Count -eq 0) {
 # string is load-bearing for this gate (Gate Co-Location, t/2885). Rewording the
 # cap comment in main.bicep requires updating the regex here.
 $bicepContent = Get-Content -Path $BicepPath -Raw
+
 $match = [regex]::Match($bicepContent, 'maxReplicas capped at 1[\s\S]*?maxReplicas:\s*(\d+)')
 if (-not $match.Success) {
     throw "InMemoryJobStore scale guard: could not parse taxonomy-editor maxReplicas from $BicepPath. Ensure the t/2885 cap comment and maxReplicas line are present and intact."
