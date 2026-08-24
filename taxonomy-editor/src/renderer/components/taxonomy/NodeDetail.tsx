@@ -128,7 +128,7 @@ export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, onRela
 
   // Reset to a visible tab when switching to Simple (which hides most tabs).
   useEffect(() => {
-    if (viewMode === 'simple' && activeTab !== 'content' && activeTab !== 'related') {
+    if (viewMode === 'simple' && activeTab !== 'content' && activeTab !== 'related' && activeTab !== 'attributes') {
       setActiveTab('content');
     }
   }, [viewMode]);
@@ -727,11 +727,11 @@ interface NodeDetailTabBarProps {
 }
 
 function NodeDetailTabBar({ activeTab, setActiveTab, conflictCount, cruxCount, factCount, editHistoryLength, viewMode }: NodeDetailTabBarProps) {
-  // Content + Related always show; the rest are Advanced-only (t/2120).
+  // Content + Related + Attributes always show; the rest are Advanced-only (t/2120, t/3003).
   const tabs: { id: NodeDetailTabId; label: string; advanced?: boolean }[] = [
     { id: 'content', label: 'Content' },
     { id: 'related', label: 'Related' },
-    { id: 'attributes', label: 'Attributes', advanced: true },
+    { id: 'attributes', label: 'Attributes' },
     { id: 'conflicts', label: `Conflicts${conflictCount > 0 ? ` (${conflictCount})` : ''}`, advanced: true },
     { id: 'cruxes', label: `Cruxes${cruxCount > 0 ? ` (${cruxCount})` : ''}`, advanced: true },
     { id: 'phrases', label: 'Phrases', advanced: true },

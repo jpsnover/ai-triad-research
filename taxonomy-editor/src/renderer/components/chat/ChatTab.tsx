@@ -234,9 +234,7 @@ function CommunityChatsList({
                 {MODE_LABELS[cc.mode as ChatMode] || cc.mode}
               </span>
             )}
-            {cc.community_metadata?.submitted_by_display && (
-              <span className="chat-community-submitter">{cc.community_metadata.submitted_by_display}</span>
-            )}
+
             <span className="chat-session-item-date">{formatDate(cc.updated_at)}</span>
           </div>
           <div className="chat-community-copy-row">
@@ -748,10 +746,7 @@ function CommunityChatMetaGrid({ metadataExpanded, full, chat }: { metadataExpan
       {chat.community_metadata && (
         <div className="debate-detail-section">
           <h3>Community Info</h3>
-          <div className="debate-detail-meta-row">
-            <span className="debate-detail-label">Shared by:</span>
-            <span>{chat.community_metadata.submitted_by_display}</span>
-          </div>
+
           <div className="debate-detail-meta-row">
             <span className="debate-detail-label">Submitted:</span>
             <span>{formatDate(chat.community_metadata.submitted_at)}</span>

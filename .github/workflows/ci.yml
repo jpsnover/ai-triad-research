@@ -228,7 +228,7 @@ jobs:
           $config.Run.Path = './tests/'
           # Live-data SituationBDI compliance decoupled to compliance-live.yml
           # (t/2331, t/2324#1): data-corpus state must not block code PRs.
-          $config.Run.ExcludePath = @('./tests/data-compliance/')
+          $config.Run.ExcludePath = @('*/data-compliance/*')
           $config.Output.Verbosity = 'Detailed'
           $config.Run.Exit = $true
           $config.CodeCoverage.Enabled = $true

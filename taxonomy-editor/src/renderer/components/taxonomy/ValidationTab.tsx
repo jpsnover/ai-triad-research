@@ -9,6 +9,7 @@ import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import type { GoldenClaim, Verdict, SpeakerFilter, VerdictFilter } from '../../types/validation';
 import type { PovNode } from '../../types/taxonomy';
 import { useDescriptionMode, resolveDescription } from '../shared/DescriptionToggle';
+import './ValidationTab.css';
 
 type SearchPovFilter = 'same' | 'all' | 'accelerationist' | 'safetyist' | 'skeptic';
 

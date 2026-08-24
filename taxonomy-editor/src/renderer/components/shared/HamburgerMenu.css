@@ -1,3 +1,161 @@
+/* ─── Mobile Header ───────────────────────────────────── */
+
+.mobile-header {
+  display: none;
+  height: 48px;
+  align-items: center;
+  padding: 0 12px;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-color);
+  flex-shrink: 0;
+  gap: 8px;
+}
+
+.mobile-header-hamburger {
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.mobile-header-hamburger:hover {
+  background: var(--bg-hover, var(--bg-hover));
+}
+
+.mobile-header-title {
+  font-weight: 600;
+  font-size: var(--text-lg);
+  color: var(--text-primary);
+}
+
+/* ─── Hamburger Menu ──────────────────────────────────── */
+
+.hamburger-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 1000;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease;
+}
+
+.hamburger-backdrop.open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.hamburger-drawer {
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 280px;
+  max-width: 85vw;
+  background: var(--bg-primary);
+  z-index: 1001;
+  display: flex;
+  flex-direction: column;
+  box-shadow: var(--shadow-3);
+  transform: translateX(-100%);
+  transition: transform 0.25s ease;
+  overflow: hidden;
+}
+
+.hamburger-drawer.open {
+  transform: translateX(0);
+}
+
+.hamburger-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 48px;
+  padding: 0 12px;
+  border-bottom: 1px solid var(--border-color);
+  flex-shrink: 0;
+}
+
+.hamburger-close {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.hamburger-close:hover {
+  background: var(--bg-hover, var(--bg-hover));
+  color: var(--text-primary);
+}
+
+.hamburger-title {
+  font-weight: 600;
+  font-size: var(--text-lg);
+  color: var(--text-primary);
+}
+
+.hamburger-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px;
+}
+
+.hamburger-section {
+  font-size: var(--text-2xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  padding: 12px 10px 4px;
+}
+
+.hamburger-divider {
+  height: 1px;
+  background: var(--border-color);
+  margin: 6px 0;
+}
+
+.hamburger-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 10px 10px;
+  border: none;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--text-primary);
+  cursor: pointer;
+  font-size: var(--text-md);
+  text-align: left;
+  min-height: 44px;
+  transition: background 0.15s;
+}
+
+.hamburger-item:hover {
+  background: var(--bg-hover, var(--bg-hover));
+}
+
+.hamburger-item.active {
+  background: var(--focus-ring);
+  color: #fff;
+}
+
+
+/* ─── Monolith-extracted mobile nav styles (Phase 3 co-location, t/2989) ─── */
+
 /* HamburgerMenu — static styles migrated from inline (t/1849) */
 
 .hamburger-link {

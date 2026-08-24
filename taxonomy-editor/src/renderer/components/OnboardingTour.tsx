@@ -4,6 +4,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { SettingsDialog } from './settings/SettingsDialog';
+import './OnboardingTour.css';
 
 const STORAGE_KEY = 'taxonomy-editor-onboarding-dismissed';
 

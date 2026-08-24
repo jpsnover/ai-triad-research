@@ -2325,6 +2325,7 @@ Institutional memory for failure patterns across the AI Triad Research project.
 - 2026-08-13 — ElectronMain (p/98#17): **11th instance, 8th independent agent.** `gh pr merge --delete-branch` failed when branch was checked out by a worktree. Fix: dropped `--delete-branch` (GitHub auto-deletes on merge), then removed worktree + `git branch -D` for local cleanup.
 - 2026-08-22 — DevOps (p/26#89): **12th instance, Facet 4.** `gh pr close --delete-branch` failed on GV probe PR #1385 — branch still held by a worktree. Fix: `git worktree remove --force`, then `git branch -D`, then `git push origin --delete <branch>`.
 - 2026-08-22 — Computational Linguist (p/7#62): **13th instance, Facet 2.** `gh pr merge <N> --squash --delete-branch` exited 1 — "cannot delete branch ... used by worktree." Remote merge AND remote-branch delete both succeeded; only the local branch delete failed. Confirmed `state=MERGED`, then `git worktree remove` + `git branch -D`. Key reinforcement: **non-zero exit from `--delete-branch` must be treated as post-merge cleanup failure, not a merge failure** — verify PR state before any re-attempt.
+- 2026-08-24 — DebateDiagnostics (p/514#1): **14th instance, Facet 2.** `gh pr merge --delete-branch` failed — branch still checked out in an active worktree. Fix: `git worktree remove` first. Self-noted: `/land-from-worktree` skill already omits `--delete-branch` for this exact reason; using the skill would have avoided the failure entirely.
 
 **Root Cause:** `--delete-branch` cleans up the merged head branch locally too, and gh switches the working copy to the base branch (`git checkout main`) to do so. Git's one-branch-per-worktree rule blocks checking out `main` while the primary worktree has it → `fatal`. The remote merge + branch delete already happened via the API; only the local checkout/cleanup fails. Bookkeeping-≠-artifact family — the exit code describes post-success cleanup, not the merge.
 
@@ -3307,23 +3308,25 @@ Institutional memory for failure patterns across the AI Triad Research project.
 
 ---
 
-## #162 [Process] Same-Role Duplicate Implementation from Session/Context Loss — Self-Race
+## #162 [Process] Duplicate Implementation Without Checking Current State — Self-Race
 
-**Pattern:** An agent loses context between passes (session boundary, context compression) and implements the same ticket twice — opening a second PR unaware the first has already merged. The second PR is based on pre-merge state, diverges from the landed implementation, and requires manual reconciliation.
+**Pattern:** An agent implements a ticket (or acts on a delegated task) without first verifying whether the work has already landed on main. The second implementation opens a PR that is either a duplicate or conflicts with the landed state, requiring manual reconciliation. Trigger variants: (A) session/context loss — agent resumes from ticket description, unaware a prior pass already merged; (B) delegated ping — agent acts on an incoming delegation without checking `git log`/ticket state first.
 
 **Instances:**
-- 2026-08-11 — ServerAPI (t/2474): PR #849 merged at 18:55 (co-authored); PR #850 opened at 19:01 from a pre-#849 base, evidently unaware #849 had landed. Likely caused by session/context loss between passes. TL merged #850's variant over it (265de260); details t/2474#4-5.
+- 2026-08-11 — ServerAPI (t/2474): PR #849 merged at 18:55 (co-authored); PR #850 opened at 19:01 from a pre-#849 base, evidently unaware #849 had landed. Likely caused by session/context loss between passes. TL merged #850's variant over it (265de260); details t/2474#4-5. *(Trigger A: context loss)*
+- 2026-08-24 — ServerAPI (PR #1506, p/504#1): acted on a delegated ping without checking whether the ticket was already landed on main — skipped `git log`/ticket-state check. PR #1506 merged as a no-op duplicate (identical single-line change); no revert needed. *(Trigger B: delegated ping)*
 
-**Root Cause:** Context window exhaustion or session restart causes an agent to lose awareness of prior work completed in the same ticket. The agent resumes from the ticket description, not from the merged state. Without an explicit "check existing PRs" step, the agent begins fresh implementation.
+**Root Cause:** The pre-implementation state check ("has this already landed?") is skipped. For Trigger A, context loss is the proximate cause; for Trigger B, the urgency of a direct delegation bypasses the check. In both cases, the gap is the same: the agent starts implementing from the task description rather than the current main state.
 
 **Prevention:**
 1. **Before opening a PR, search open AND merged PRs for the ticket key:** `gh pr list --state all --search "t/XXXX" -R jpsnover/ai-triad-research`. If a merged PR exists, read its diff before writing any code.
-2. After a context boundary (session restart, long gap, context compression), re-read the ticket's latest comments before starting implementation — the ticket anchor is where completed work is recorded.
-3. If a merged PR is found for the ticket, close any draft/stale work and redirect to a follow-up ticket rather than overwriting the landed implementation.
+2. **For delegated pings, run `git log --oneline origin/main -- <files>` before acting** — if the delegated change is already in the log, reply "already landed" rather than re-implementing.
+3. After a context boundary (session restart, long gap, context compression), re-read the ticket's latest comments before starting implementation — the ticket anchor is where completed work is recorded.
+4. If a merged PR is found for the ticket, close any draft/stale work and redirect to a follow-up ticket rather than overwriting the landed implementation.
 
-**Status:** Active — 1 instance (ServerAPI t/2474, p/335#24).
+**Status:** Active — 2 instances (ServerAPI t/2474, p/335#24; ServerAPI PR #1506, p/504#1).
 
-**Applies To:** All agents implementing tickets across session boundaries.
+**Applies To:** All agents implementing tickets or acting on delegated pings — especially after context boundaries or when receiving task handoffs from other agents.
 
 ---
 
@@ -3506,3 +3509,24 @@ Institutional memory for failure patterns across the AI Triad Research project.
 **Status:** Active — 1 instance (CL p/7#63).
 
 **Applies To:** All agents reading files in another role's scope during periods of concurrent fleet activity.
+
+---
+
+## #172 [Build] Silent Exclusion Guard + Hardcoded Live-Data Baseline in a Required CI Gate — Two Landmines in One
+
+**Pattern:** A CI gate meant to decouple from live data contains two silent failure modes that only reveal themselves when the corpus grows: (1) an `ExcludePath` (or similar filter) that never actually matched — tests kept running against live data because the path pattern was wrong, but the gate stayed green while live data happened to satisfy a hardcoded baseline; (2) the hardcoded baseline itself — a count (`440/440`) baked into a required lane that goes red the moment the corpus adds one node. The combination: a guard that looks verified (passing) but was never actually decoupled, plus a count that is guaranteed to rot. Result: `main` goes red and every code PR is blocked when the corpus grows past the stale count.
+
+**Instances:**
+- 2026-08-24 — Pester BDI data-compliance gate (t/3007, p/335#47): `ExcludePath=@('./tests/data-compliance/')` never matched; the live-data BDI test kept running in the required `test-powershell` lane. Passed while corpus = 440 (coincidental satisfaction of the hardcoded baseline); corpus grew to 442 → red main → all code PRs blocked. Prevention ticket t/3010.
+
+**Root Cause:** Two independent failure classes compounded. (1) The exclusion guard was never verified to actually exclude — it passed because live data satisfied the baseline, not because decoupling worked. A guard that passes without actually firing gives false confidence; the correct signal is the guard preventing the test from running entirely. (2) A hardcoded count of live-data content in a required gate is a time-bomb: it will rot the moment the corpus changes, and the gate becomes a prod-blocking false-red rather than a signal.
+
+**Prevention:**
+1. **Verify every exclusion/filter guard with a both-arms test:** confirm (a) it excludes (the target test does NOT run in the gated lane) AND (b) the clean case passes with zero noise. "The gate is green" is not evidence it excludes — the test may have run and passed coincidentally.
+2. **Never hardcode live-data counts in a required CI gate.** Live-data content (node counts, corpus sizes, enrichment scores) belongs in a non-required lane or behind a dynamic baseline that updates with the corpus. A required gate with a hardcoded live-data value will go red the moment the data changes.
+3. **For decouple-via-exclusion patterns, add a smoke assertion:** after the `Invoke-Pester` call with `ExcludePath`, assert that the excluded test file was not collected (e.g., check `Result.Tests` for the excluded path). A guard that silently runs the excluded tests is as bad as having no guard at all.
+4. **Gate signal integrity (class: exclusion guard):** both arms — force-include the excluded path and confirm red; normal run with exclusion and confirm green. A gate untested on the failure arm may never fire. (Pairs with AGENTS.md gate-verification rule.)
+
+**Status:** Active — 1 instance (Pester BDI gate t/3007, p/335#47). Prevention t/3010 filed.
+
+**Applies To:** Any CI gate that uses path exclusions, ExcludePath filters, or hardcoded live-data baselines — especially Pester and vitest scoped runs.

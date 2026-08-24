@@ -68,11 +68,16 @@ research/**/fine_tuned_model/
 research/**/training_corpus*.json
 research/**/results/
 
+# Git worktrees — large checkouts, must not pollute git status
+.worktrees/
+
 # Orca — all runtime artifacts, configs, and generated files
 .orca.yaml
 **/.orca.yaml
 .orca/
 **/.orca/
+.agents/
+**/.agents/
 orca-support/
 roles/
 

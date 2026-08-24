@@ -5,6 +5,7 @@ import { Ellipsis } from 'lucide-react';
 import { useTaxonomyStore } from '../../hooks/useTaxonomyStore';
 import { useBreakpoint } from '../../hooks/useBreakpoint';
 import { NAV_ITEMS } from '../../data/navConfig';
+import './BottomNav.css';
 
 interface BottomNavProps {
   onOpenMore?: () => void;

@@ -1,3 +1,165 @@
+/* ─── New Chat Dialog ────────────────────────────────── */
+
+.new-chat-dialog {
+  width: 480px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.new-chat-label {
+  display: block;
+  margin: 12px 0 4px;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.new-chat-modes {
+  display: flex;
+  gap: 8px;
+}
+
+.new-chat-mode-card {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 12px 8px;
+  border: 2px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--bg-secondary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.new-chat-mode-card:hover {
+  border-color: var(--text-muted);
+}
+
+.new-chat-mode-card.selected {
+  border-color: var(--focus-ring);
+  background: var(--bg-hover);
+}
+
+.new-chat-mode-card.selected[data-mode="brainstorm"] {
+  border-color: #e67e22;
+  background: rgba(255, 159, 67, 0.08);
+}
+
+.new-chat-mode-card.selected[data-mode="inform"] {
+  border-color: #3498db;
+  background: rgba(52, 152, 219, 0.08);
+}
+
+.new-chat-mode-card.selected[data-mode="decide"] {
+  border-color: #27ae60;
+  background: rgba(46, 204, 113, 0.08);
+}
+
+.new-chat-mode-icon {
+  font-size: var(--text-xl);
+}
+
+.new-chat-mode-label {
+  font-weight: 600;
+  font-size: var(--text-md);
+  color: var(--text-primary);
+}
+
+.new-chat-mode-desc {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.new-chat-povers {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.new-chat-pover-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  border: 2px solid transparent;
+  transition: all 0.15s ease;
+}
+
+.new-chat-pover-option:hover {
+  background: var(--bg-hover);
+}
+
+.new-chat-pover-option.selected {
+  background: var(--bg-hover);
+  border-color: var(--focus-ring);
+}
+
+.new-chat-pover-option input[type="radio"] {
+  display: none;
+}
+
+.new-chat-pover-name {
+  font-weight: 600;
+  font-size: var(--text-md);
+}
+
+.new-chat-pover-desc {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.new-chat-topic {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--bg-input);
+  color: var(--text-primary);
+  font-size: var(--text-md);
+  font-family: inherit;
+  resize: vertical;
+}
+
+.new-chat-topic:focus-visible {
+  border-color: var(--focus-ring);
+}
+
+.new-chat-model-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.new-chat-model-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+
+.new-chat-model-select {
+  padding: 4px 8px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--bg-input);
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+}
+
+.new-chat-model-info {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+
+/* ─── Monolith-extracted new-chat styles (Phase 3 co-location, t/2989) ─── */
+
 /* NewChatDialog — inline-style migration (t/1868). Values verbatim; no theme change. */
 
 .new-chat-model-fields {

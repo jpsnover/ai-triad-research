@@ -8,6 +8,7 @@ import { useFlag } from '../../hooks/useFeatureFlags';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { TOAST_DURATION_INFO, TOAST_DURATION_ERROR } from '../../constants';
 import { mapErrorToUserMessage } from '../../utils/errorMessages';
+import './CommunityLibrary.css';
 
 type Tab = 'chats' | 'debates' | 'opeds';
 
@@ -22,10 +23,6 @@ function cardTitle(item: CommunityItem): string {
   // Op-eds title from `topic`; the store warns on a missing topic, so guard the UI too
   // rather than render a blank card title (Design note, t/2891#2).
   return 'title' in item ? item.title : (item.topic || 'Untitled study');
-}
-
-function cardSubmitter(item: CommunityItem): string | undefined {
-  return (item.community_metadata as { submitted_by_display?: string } | null | undefined)?.submitted_by_display;
 }
 
 function formatDate(iso: string): string {
@@ -71,9 +68,6 @@ function RemoveConfirmPopover({ item, onConfirm, onCancel }: {
       <div className="community-remove-popover-title">Remove from Community Library?</div>
       <div className="community-remove-popover-detail">
         <strong>{cardTitle(item)}</strong>
-        {cardSubmitter(item) && (
-          <span> by {cardSubmitter(item)}</span>
-        )}
       </div>
       <textarea
         className="community-remove-reason"
@@ -123,9 +117,6 @@ function CommunityCard({ item, isAdmin, onCopy, onRemove }: {
         )}
       </div>
       <div className="community-card-meta">
-        {cardSubmitter(item) && (
-          <span>by {cardSubmitter(item)}</span>
-        )}
         <span>{formatDate(item.updated_at || item.created_at)}</span>
         {'phase' in item && item.phase && <span className="community-card-badge">{item.phase}</span>}
         {'mode' in item && item.mode && <span className="community-card-badge">{item.mode}</span>}

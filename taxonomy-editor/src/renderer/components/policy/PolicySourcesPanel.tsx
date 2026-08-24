@@ -4,6 +4,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { api } from '@bridge';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
+import './PolicySourcesPanel.css';
 
 export interface PolicySourceReference {
   docId: string;

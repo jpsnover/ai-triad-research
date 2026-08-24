@@ -9,6 +9,7 @@ import type { EdgesFile } from '../../types/taxonomy';
 import { PolicySourcesPanel, getPolicySourceIndex } from '../policy/PolicySourcesPanel';
 import type { PolicySourceReference } from '../policy/PolicySourcesPanel';
 import { StakeholderSection } from '../organizations/StakeholderSection';
+import './PolicyDashboard.css';
 
 const POV_COLORS: Record<string, string> = {
   accelerationist: 'var(--color-acc)',

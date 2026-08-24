@@ -97,7 +97,7 @@ function argNetworkLines(debate: DebateSession): string[] {
     lines.push('\n## Argument Network Nodes');
     for (const n of debate.argument_network.nodes) {
       const speaker = POVER_INFO[n.speaker as keyof typeof POVER_INFO]?.label ?? n.speaker;
-      const strength = n.computed_strength != null ? ` str=${n.computed_strength.toFixed(2)}` : '';
+      const strength = typeof n.computed_strength === 'number' ? ` str=${n.computed_strength.toFixed(2)}` : '';
       lines.push(`- ${n.id} (${speaker}${strength}): ${n.text.slice(0, 120)}`);
     }
     lines.push('\n## Argument Network Edges');

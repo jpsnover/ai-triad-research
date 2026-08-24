@@ -36,4 +36,21 @@ describe('SituationListItem', () => {
     expect(container.querySelector('.node-item-divergence.high')).toBeTruthy();
     expect(screen.getByText('0.55')).toBeTruthy();
   });
+
+  // t/2996 regression: string divergence from JSON must not crash (t/2994 failure class)
+  it('does not render divergence badge when divergence is a string (t/2996)', () => {
+    const { container } = render(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      <SituationListItem id="sit-5" label="String div" isSelected={false} onSelect={() => {}} divergence={'0.5' as any} />,
+    );
+    expect(container.querySelector('.node-item-divergence')).toBeNull();
+  });
+
+  it('renders divergence badge with correct formatted value for numeric divergence', () => {
+    const { container } = render(
+      <SituationListItem id="sit-6" label="Num div" isSelected={false} onSelect={() => {}} divergence={0.3} />,
+    );
+    expect(container.querySelector('.node-item-divergence.medium')).toBeTruthy();
+    expect(screen.getByText('0.30')).toBeTruthy();
+  });
 });

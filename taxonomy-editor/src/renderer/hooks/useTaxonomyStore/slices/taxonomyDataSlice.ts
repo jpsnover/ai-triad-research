@@ -20,6 +20,7 @@ import type {
   TextEditSource,
 } from '../../../types/taxonomy';
 import { interpretationText } from '../../../types/taxonomy';
+import { coerceSituationDivergence } from '../../../bridge/coerceSituationDivergence';
 import {
   povTaxonomyFileSchema,
   crossCuttingFileSchema as situationsFileSchema,
@@ -310,7 +311,7 @@ export const createTaxonomyDataSlice: StateCreator<TaxonomyStore, [], [], Taxono
       set({
         safetyist: saf as PovTaxonomyFile,
         skeptic: skp as PovTaxonomyFile,
-        situations: cc as SituationsFile,
+        situations: coerceSituationDivergence(cc) as SituationsFile, // t/3002: guard interpretation_divergence type at load
         policyRegistry: regData?.policies ?? null,
         backgroundLoading: false,
         embeddingDirty: true,

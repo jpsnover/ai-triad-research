@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { useRef, useEffect } from 'react';
+import { getGlobalRecorder } from '@lib/flight-recorder/index';
 
 const REL_LABELS: Record<string, string> = {
   is_a: 'is a',
@@ -28,6 +29,18 @@ export function SituationListItem({ id, label, isSelected, onSelect, indent, rel
     }
   }, [isSelected]);
 
+  useEffect(() => {
+    if (divergence != null && typeof divergence !== 'number') {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'SituationListItem',
+        level: 'warn',
+        message: `non-numeric divergence prop suppressed: ${JSON.stringify({ divergence_type: typeof divergence, divergence_value: String(divergence), node_id: id })}`,
+        error: { name: 'TypeError', message: `divergence is ${typeof divergence}, expected number`, stack: undefined },
+      });
+    }
+  }, [divergence, id]);
+
   return (
     <div
       ref={ref}
@@ -38,7 +51,7 @@ export function SituationListItem({ id, label, isSelected, onSelect, indent, rel
       <div className="node-item-id">
         {id}
         {relationship && <span className="node-item-rel">{REL_LABELS[relationship] || relationship}</span>}
-        {divergence != null && (
+        {typeof divergence === 'number' && (
           <span
             className={`node-item-divergence${divergence > 0.4 ? ' high' : divergence >= 0.2 ? ' medium' : ' low'}`}
             title={`Interpretation divergence: ${divergence.toFixed(3)}`}

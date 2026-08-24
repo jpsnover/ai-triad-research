@@ -165,7 +165,7 @@ describe('NodeDetail — Zustand scalar selector regression (t/2142)', () => {
     ).not.toThrow();
   });
 
-  it('shows only Content and Related tabs in simple mode', () => {
+  it('surfaces Content, Related, and Attributes in simple mode; other advanced tabs stay hidden (t/3003)', () => {
     render(
       <NodeDetail
         pov="acc"
@@ -178,7 +178,7 @@ describe('NodeDetail — Zustand scalar selector regression (t/2142)', () => {
     );
     expect(screen.getByRole('button', { name: /content/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /related/i })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /attributes/i })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /attributes/i })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /research/i })).not.toBeInTheDocument();
   });
 
