@@ -31,6 +31,34 @@ function getLoopDelay(): IntervalHistogram {
   return loopDelay;
 }
 
+// Separate RECENT-WINDOW histogram for the load-shed decision (t/2914 item 1).
+// `loopDelay` above is lifetime — good for the t/2904 trend log, but a weak freeze
+// *trigger*: a current freeze barely moves a mean taken since process start. The
+// shed decision reads THIS histogram's max and resets it on every read, so each
+// decision sees only the delay accrued since the previous embedding request, and
+// gates on the max (a freeze spikes the max, not the average). Kept separate so
+// resetting it never perturbs the obs snapshot.
+let shedLoopDelay: IntervalHistogram | undefined;
+function getShedLoopDelay(): IntervalHistogram {
+  if (!shedLoopDelay) {
+    shedLoopDelay = monitorEventLoopDelay({ resolution: 20 });
+    shedLoopDelay.enable();
+  }
+  return shedLoopDelay;
+}
+
+/**
+ * Max event-loop delay (ms) since the previous call, then reset the window.
+ * Recent-window signal for the shed decision (t/2914 item 1) — distinct from the
+ * lifetime obs value in `embeddingLoadSnapshot()`. NaN before the first sample → 0.
+ */
+export function readRecentLoopDelayMaxMs(): number {
+  const d = getShedLoopDelay();
+  const maxMs = Number.isFinite(d.max) ? d.max / NS_PER_MS : 0;
+  d.reset();
+  return maxMs;
+}
+
 let inFlight = 0;
 
 /** Increment the in-flight embedding-compute counter (call before the compute). */
@@ -78,8 +106,10 @@ export function embeddingLoadSnapshot(): EmbeddingLoadSnapshot {
 // Two signals, either trips the shed:
 //   - in-flight embedding-compute count >= a concurrency cap (the trigger was 3
 //     parallel 702-item computes), OR
-//   - mean event-loop delay > a threshold (the DIRECT pre-liveness-miss signal,
-//     robust regardless of count — the mechanism this incident actually hit).
+//   - recent-window MAX event-loop delay > a threshold (the DIRECT pre-liveness-
+//     miss signal, robust regardless of count — the mechanism this incident hit).
+//     Windowed max, reset each read, NOT the lifetime mean — a current freeze
+//     barely moves a since-process-start mean, so it would rarely trip (t/2914 item 1).
 //
 // Gate promotion (warn-first): ships in WARN mode — the route LOGS "would shed"
 // but proceeds, so the real concurrency + loop-delay distribution can be observed
@@ -114,42 +144,66 @@ export interface LoadShedDecision {
   retryAfterMs: number;
   /** Signals at decision time (for the log). */
   in_flight: number;
-  event_loop_delay_mean_ms: number;
+  /** Recent-window MAX event-loop delay (ms) the decision gated on (t/2914 item 1). */
+  event_loop_delay_max_ms: number;
+}
+
+/** Already-read signals for a shed decision. */
+export interface LoadShedInput {
+  mode: LoadShedMode;
+  /** In-flight OTHER embedding computes at decision time. */
+  inFlight: number;
+  /** Recent-window MAX event-loop delay (ms) since the last decision. */
+  loopMaxMs: number;
+  /** Shed when inFlight >= this. */
+  cap: number;
+  /** Shed when loopMaxMs > this. */
+  loopShedMs: number;
+  retryAfterMs: number;
 }
 
 /**
- * Decide whether to shed a NEW embedding compute. Call at route entry BEFORE
- * accepting the compute (so `in_flight` is the count of OTHER computes running).
- * Env-tunable (warn-first):
- *   EMBEDDINGS_MAX_CONCURRENT  (default 2)   — shed when in-flight >= this.
- *   EMBEDDINGS_LOOP_SHED_MS    (default 250) — shed when mean loop delay > this.
- *   EMBEDDINGS_RETRY_AFTER_MS  (default 2000)
- *   EMBEDDINGS_LOAD_SHED_MODE  (default warn)
- * Defaults are conservative starting points; tune from the t/2904 curve before
- * promoting to block.
+ * Pure shed decision from already-read signals (t/2914 item 1). Split out from the
+ * signal reads so the `event_loop_delay` branch is deterministically testable — a
+ * real test-env loop sits at ~0 delay and can't exercise it. Concurrency takes
+ * precedence over loop delay (it's the cheaper, more direct trigger).
  */
-export function evaluateEmbeddingLoadShed(): LoadShedDecision {
-  const mode = embeddingLoadShedMode();
-  const cap = intFromEnv('EMBEDDINGS_MAX_CONCURRENT', 2);
-  const loopShedMs = intFromEnv('EMBEDDINGS_LOOP_SHED_MS', 250);
-  const retryAfterMs = intFromEnv('EMBEDDINGS_RETRY_AFTER_MS', 2000);
-
-  const d = getLoopDelay();
-  const loopMeanMs = Number.isFinite(d.mean) ? d.mean / NS_PER_MS : 0;
-
+export function decideLoadShed(input: LoadShedInput): LoadShedDecision {
+  const { mode, inFlight, loopMaxMs, cap, loopShedMs, retryAfterMs } = input;
   let shed = false;
   let reason: LoadShedDecision['reason'];
   if (mode !== 'off') {
     if (inFlight >= cap) { shed = true; reason = 'concurrency'; }
-    else if (loopMeanMs > loopShedMs) { shed = true; reason = 'event_loop_delay'; }
+    else if (loopMaxMs > loopShedMs) { shed = true; reason = 'event_loop_delay'; }
   }
-
   return {
     shed,
     mode,
     reason,
     retryAfterMs,
     in_flight: inFlight,
-    event_loop_delay_mean_ms: Math.round(loopMeanMs * 10) / 10,
+    event_loop_delay_max_ms: Math.round(loopMaxMs * 10) / 10,
   };
+}
+
+/**
+ * Decide whether to shed a NEW embedding compute. Call at route entry BEFORE
+ * accepting the compute (so `inFlight` is the count of OTHER computes running).
+ * Reads the live signals and delegates to `decideLoadShed`. Env-tunable (warn-first):
+ *   EMBEDDINGS_MAX_CONCURRENT  (default 2)   — shed when in-flight >= this.
+ *   EMBEDDINGS_LOOP_SHED_MS    (default 250) — shed when recent-window MAX loop delay > this.
+ *   EMBEDDINGS_RETRY_AFTER_MS  (default 2000)
+ *   EMBEDDINGS_LOAD_SHED_MODE  (default warn)
+ * Defaults are conservative starting points; tune from the t/2904 curve before
+ * promoting to block. Reading the shed signal RESETS its recent window.
+ */
+export function evaluateEmbeddingLoadShed(): LoadShedDecision {
+  return decideLoadShed({
+    mode: embeddingLoadShedMode(),
+    inFlight,
+    loopMaxMs: readRecentLoopDelayMaxMs(),
+    cap: intFromEnv('EMBEDDINGS_MAX_CONCURRENT', 2),
+    loopShedMs: intFromEnv('EMBEDDINGS_LOOP_SHED_MS', 250),
+    retryAfterMs: intFromEnv('EMBEDDINGS_RETRY_AFTER_MS', 2000),
+  });
 }
