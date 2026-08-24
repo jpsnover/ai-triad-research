@@ -26,6 +26,7 @@ export const OpEdGroundingRefSchema = z.object({
   pov: PovKeySchema,         // full PovKey — rejects PS short-code "acc"/"saf"/"skp"
   relevance: z.string(),     // snake_case — rejects PS "Relevance"
   how_reflected: z.string(), // snake_case — rejects PS "HowReflected"
+  document_claims: z.array(z.string()).optional(),
 });
 
 export const OpEdMemberSchema = z.object({
@@ -42,6 +43,7 @@ export const OpEdMemberSchema = z.object({
   rhetorical_meta: z.string().optional().default(''),
   wordCount: z.number().int().optional().default(0),
   grounding: z.array(OpEdGroundingRefSchema),
+  claims: z.array(z.object({ text: z.string(), paragraph: z.number().int() })).optional(),
 });
 
 export const OpEdSetSchema = z.object({
@@ -51,6 +53,11 @@ export const OpEdSetSchema = z.object({
   params: OpEdParamsSchema,
   created_at: z.string(),
   opeds: z.array(OpEdMemberSchema),
+  // Source provenance (t/2898) — optional/additive so re-parse doesn't strip them
+  // (same strip-gap class fixed for document_claims in t/2890). Absent on legacy sets.
+  source_mode: z.enum(['topic', 'url']).optional(),
+  source_url: z.string().optional(),
+  source_key_claims_count: z.number().int().optional(),
 });
 
 /**

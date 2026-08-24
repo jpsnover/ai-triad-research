@@ -441,6 +441,7 @@ function Invoke-OrgStanceExtraction {
     }
 
     if ($writtenNew -gt 0) {
+        Assert-DataWriteAllowed -Path $OutputPath  # t/2902
         $temp = "$OutputPath.tmp"
         $json = $store | ConvertTo-Json -Depth 8
         Set-Content -Path $temp -Value $json -Encoding utf8NoBOM

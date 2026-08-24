@@ -289,6 +289,25 @@ export type CanonicalEdgeType =
 /** Accept both canonical and legacy edge types — backward-compat handler (kept permanently). */
 export type EdgeType = CanonicalEdgeType | (string & {});
 
+/**
+ * Provenance of an edge's `rationale` (t/2943, CL design edge-rationale-source-marker.md).
+ * Closed vocabulary; absent = legacy/unknown (the pre-marker era):
+ *   - `discovery`          — LLM classification at edge-discovery time (contemporaneous)
+ *   - `embedding-template` — templated from similarity; no LLM justified it
+ *   - `reflection`         — emitted by a debate reflection proposal
+ *   - `restore`            — original discovery-time text git-restored after a data-loss event
+ *   - `backfill`           — post-hoc LLM reconstruction from node content (last resort; t/2679, now void)
+ *   - `human`              — manually authored/edited by a curator
+ * No validation gate here — that's the separate prospective-gate tranche (t/2444 plan 2a).
+ */
+export type EdgeRationaleSource =
+  | 'discovery'
+  | 'embedding-template'
+  | 'reflection'
+  | 'restore'
+  | 'backfill'
+  | 'human';
+
 export interface Edge {
   source: string;
   target: string;
@@ -299,6 +318,13 @@ export interface Edge {
   /** Weight modulated by endpoint confidence/priority. Computed by modulateEdgeWeights.ts. */
   modulated_weight?: number;
   rationale?: string;
+  /**
+   * Provenance of `rationale` (t/2943). One of {@link EdgeRationaleSource}; absent = legacy/unknown.
+   * `(string & {})` keeps the closed vocabulary as documentation/autocomplete while tolerating any
+   * value (no validation gate yet — prospective-gate tranche). Invariant (writers): set alongside a
+   * non-empty `rationale` in the same write; a rationale without a source is valid only for legacy rows.
+   */
+  rationale_source?: EdgeRationaleSource | (string & {});
   status: EdgeStatus;
   discovered_at: string;
   model: string;

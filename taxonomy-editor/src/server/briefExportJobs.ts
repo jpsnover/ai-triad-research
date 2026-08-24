@@ -75,6 +75,13 @@ export function getExportJob(jobId: string, userId: string): ExportJob | null {
   return job && job.userId === userId ? job : null;
 }
 
+/** Raw registry membership (any user) — lets the GET handler distinguish "not in this
+ *  process's Map at all" (the cross-replica-404 signal, t/2887) from "present but wrong
+ *  user" (an auth/scoping issue). Does NOT leak the job; boolean only. */
+export function hasExportJob(jobId: string): boolean {
+  return jobs.has(jobId);
+}
+
 export function countRunningExportJobs(userId: string): number {
   let n = 0;
   for (const j of jobs.values()) {
@@ -205,7 +212,9 @@ async function runExportJob(job: ExportJob, args: CreateJobArgs): Promise<void> 
     const errorCode = hardFailures.length > 0 ? codeForHardFailures(hardFailures) : undefined;
 
     await persist(job, args, exportId, status, artifacts, {
-      narrator: models, traceCoveragePct, warnings: job.warnings, errorCode, title,
+      narrator: models, traceCoveragePct, warnings: job.warnings, errorCode,
+      reason: status === 'failed' ? `Export verify gate failed: ${hardFailures.join('; ')}` : undefined,
+      title,
     });
 
     if (status === 'failed') {
@@ -229,7 +238,9 @@ async function runExportJob(job: ExportJob, args: CreateJobArgs): Promise<void> 
     });
     try {
       await persist(job, args, exportId, 'failed', artifacts, {
-        narrator: models, traceCoveragePct, warnings: job.warnings, errorCode, title,
+        narrator: models, traceCoveragePct, warnings: job.warnings, errorCode,
+        reason: job.error, // the thrown-stage message (set above)
+        title,
       });
     } catch (perr) {
       getGlobalRecorder()?.record({
@@ -247,7 +258,7 @@ async function runExportJob(job: ExportJob, args: CreateJobArgs): Promise<void> 
 async function persist(
   job: ExportJob, args: CreateJobArgs, exportId: string,
   status: 'done' | 'failed', artifacts: ArtifactBlob[],
-  extra: { narrator: ResolvedModels; traceCoveragePct: number; warnings: string[]; errorCode?: ExportErrorCode; title: string },
+  extra: { narrator: ResolvedModels; traceCoveragePct: number; warnings: string[]; errorCode?: ExportErrorCode; reason?: string; title: string },
 ): Promise<void> {
   const rec: BriefExportRecord = {
     exportId,
@@ -256,6 +267,7 @@ async function persist(
     preset: args.request.preset,
     status,
     errorCode: extra.errorCode,
+    reason: extra.reason,
     narratorModel: extra.narrator.modelId,
     narratorModelSource: extra.narrator.modelSource,
     checkerModel: extra.narrator.checkerModelId ?? null,

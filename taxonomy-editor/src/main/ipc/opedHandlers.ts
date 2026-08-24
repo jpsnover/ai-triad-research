@@ -22,6 +22,8 @@ import type { PovKey } from '../../../../lib/oped/types.js';
 import { generateOpEdSet } from '../../../../lib/oped/generate.js';
 import type { GenerateOpEdRequest, OpEdGeneratorDeps } from '../../../../lib/oped/generate.js';
 import { makeElectronAIAdapter } from '../electronAIAdapter.js';
+import { validateCreateOpEdPayload } from './opedValidation.js';
+import { parseShimLine, decodeB64Fields } from './opedShimTransport.js';
 
 // Shared prompts dir: op-ed-*.prompt artifacts (relocated to lib/oped/prompts by t/2609).
 const PROMPTS_DIR = path.join(PROJECT_ROOT, 'lib', 'oped', 'prompts');
@@ -57,11 +59,7 @@ interface OpEdProgressEvent {
   error?: string;
 }
 
-// ── Shim stdout line shapes (Stage-A only) ────────────────────────────────────
-
-interface ShimStageLine { type: 'stage'; stage: string }
-interface ShimResultLine { type: 'result'; data: Record<string, unknown> }
-type ShimLine = ShimStageLine | ShimResultLine;
+// Shim stdout line shapes + parse/decode transport live in ./opedShimTransport (pure, unit-tested).
 
 // ── Stage-A: source prep runner ───────────────────────────────────────────────
 
@@ -104,10 +102,22 @@ function runGetOpEdSource(url: string, signal: AbortSignal): Promise<Record<stri
       for (const line of lines) {
         const trimmed = line.trim();
         if (!trimmed) continue;
-        let msg: ShimLine;
-        try { msg = JSON.parse(trimmed) as ShimLine; } catch { /* telemetry — silent by design */ continue; }
-        if (msg.type === 'result') {
-          settle(() => resolve((msg as ShimResultLine).data ?? {}));
+        let msg;
+        try {
+          msg = parseShimLine(trimmed);
+        } catch (err) {
+          // A result-looking line that fails to parse is a hard serialization failure — record it
+          // and surface it, never swallow into the opaque close-handler "No result received" (t/2928).
+          getGlobalRecorder()?.record({
+            type: 'system.error', component: 'opedHandlers', level: 'error',
+            message: 'Get-OpEdSource emitted an unparseable result line',
+            error: { name: (err as Error).name ?? 'Error', message: String((err as Error).message ?? err), stack: (err as Error).stack },
+          });
+          settle(() => reject(err));
+          return;
+        }
+        if (msg && msg.type === 'result') {
+          settle(() => resolve(decodeB64Fields(msg.data ?? {})));
         }
       }
     });
@@ -169,14 +179,10 @@ export function registerOpEdHandlers(): void {
   }) => {
     const { topic, url, params, voices } = payload;
 
-    if (!topic?.trim() || !voices?.length) {
-      throw new ActionableError({
-        goal: 'Create op-ed set',
-        problem: 'topic and at least one voice are required',
-        location: 'opedHandlers create-oped-set',
-        nextSteps: ['Provide a topic and select at least one voice'],
-      });
-    }
+    // A create needs a source (topic OR url — FromUrl sends an empty topic) plus a voice.
+    // Guard extracted to a pure, unit-tested validator (t/2910; regression fixed in t/2908).
+    const validationError = validateCreateOpEdPayload({ topic, url, voices });
+    if (validationError) throw validationError;
 
     const setId = crypto.randomUUID();
     const createdAt = new Date().toISOString();
@@ -218,6 +224,24 @@ export function registerOpEdHandlers(): void {
       }
     }
 
+    // Source provenance (t/2897/t/2899): url mode ⟺ a source brief was fetched — mirror
+    // the lib's own `request.sourceMaterial ? 'url':'topic'` test so the handler-built temp/
+    // partial literals below never disagree with the lib's authoritative `complete` set.
+    const isUrlMode = Boolean(sourceBrief);
+    // key_claims count from the comprehension pass, captured in-stream (url mode only).
+    let sourceKeyClaimsCount: number | undefined;
+    // Provenance for the handler-built literals (temp-save + abort partial-finalize). The
+    // lib writes these itself on the `complete` set; these two paths bypass the lib, so they
+    // carry provenance explicitly. Read at call time — the count is captured mid-stream.
+    // Topic mode omits url + count entirely (absent, not 0) per the t/2898 contract.
+    const provenanceFields = (): {
+      source_mode: 'topic' | 'url'; source_url?: string; source_key_claims_count?: number;
+    } => ({
+      source_mode: isUrlMode ? 'url' : 'topic',
+      ...(isUrlMode && url ? { source_url: url } : {}),
+      ...(isUrlMode ? { source_key_claims_count: sourceKeyClaimsCount ?? 0 } : {}),
+    });
+
     // Fire queued for each voice — renderer stores set_id for cancellation
     for (const voice of voices) {
       send({ set_id: setId, voice, stage: 'queued' });
@@ -229,6 +253,7 @@ export function registerOpEdHandlers(): void {
       params,
       povs: voices,
       sourceMaterial: sourceBrief,
+      sourceUrl: url,   // persisted as OpEdSet.source_url by the lib on the `complete` set (url mode)
       signal: controller.signal,
     };
 
@@ -244,6 +269,10 @@ export function registerOpEdHandlers(): void {
     try {
       for await (const evt of generateOpEdSet(request, deps)) {
         switch (evt.type) {
+          case 'source_brief_done':
+            // url mode only — capture for the handler-built temp/partial literals below.
+            sourceKeyClaimsCount = evt.keyClaimsCount;
+            break;
           case 'grounding_done':
             send({ set_id: setId, stage: 'grounding' });
             break;
@@ -259,7 +288,7 @@ export function registerOpEdHandlers(): void {
           case 'voice_complete': {
             completedMembers.push(evt.member);
             try {
-              saveOpEdSetTemp({ schema_version: 1, set_id: setId, topic, params, created_at: createdAt, opeds: [...completedMembers] });
+              saveOpEdSetTemp({ schema_version: 1, set_id: setId, topic, params, created_at: createdAt, opeds: [...completedMembers], ...provenanceFields() });
             } catch { /* telemetry — silent by design; temp save is best-effort */ }
             send({ set_id: setId, voice: evt.pov, stage: 'complete' });
             break;
@@ -287,7 +316,7 @@ export function registerOpEdHandlers(): void {
       // Abort before complete: persist partial set so completed voices aren't lost.
       if (!finalized && completedMembers.length > 0) {
         try {
-          finalizeOpEdSet({ schema_version: 1, set_id: setId, topic, params, created_at: createdAt, opeds: completedMembers });
+          finalizeOpEdSet({ schema_version: 1, set_id: setId, topic, params, created_at: createdAt, opeds: completedMembers, ...provenanceFields() });
         } catch { /* telemetry — silent by design */ }
       }
     }

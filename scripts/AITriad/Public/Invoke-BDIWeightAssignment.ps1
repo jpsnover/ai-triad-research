@@ -304,6 +304,7 @@ function Invoke-BDIWeightAssignment {
 
         # Write back
         if (-not $DryRun -and $PSCmdlet.ShouldProcess("$PovName.json", 'Write confidence + priority + operationality')) {
+            Assert-DataWriteAllowed -Path $FilePath  # t/2902
             $Data | ConvertTo-Json -Depth 20 | Set-Content -Path $FilePath -Encoding UTF8
             Write-Host "  Saved $PovName.json" -ForegroundColor Green
         }

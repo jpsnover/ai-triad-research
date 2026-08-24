@@ -114,6 +114,15 @@ export interface TranscriptEntry {
   model?: string;
   /** True when this turn's brief or plan parse retries were exhausted and degraded gracefully (t/2229). */
   degraded?: boolean;
+  /**
+   * Opening-slot lifecycle (t/2907). Only `opening` entries use these — the slot is
+   * inserted `status:'generating'` when generation begins and mutated in place through
+   * retrying/error/done, so a retry updates one card instead of appending new panels.
+   * Absent on every other entry type and on legacy openings (back-compat).
+   */
+  status?: 'generating' | 'retrying' | 'error' | 'done';
+  /** User-facing message shown inline on the card in the 'retrying'/'error' states (t/2907). */
+  errorMessage?: string;
 }
 
 export type ModelTier = 'basic' | 'advanced';

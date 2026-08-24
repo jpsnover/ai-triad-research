@@ -880,6 +880,7 @@ function Invoke-EntityExtraction {
             node_count      = @($ExistingLogNodes).Count
             nodes           = @($ExistingLogNodes)
         }
+        Assert-DataWriteAllowed -Path $OutputPath  # t/2902
         $Temp = "$OutputPath.tmp"
         $Json = $LogStore | ConvertTo-Json -Depth 8
         Set-Content -Path $Temp -Value $Json -Encoding utf8NoBOM

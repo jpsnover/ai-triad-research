@@ -15,6 +15,7 @@
 .githooks/pre-commit text eol=lf
 # Web / config: LF
 *.md   text eol=lf
+*.txt  text eol=lf
 *.json text eol=lf
 *.yml  text eol=lf
 *.yaml text eol=lf

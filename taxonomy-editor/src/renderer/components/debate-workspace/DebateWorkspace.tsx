@@ -635,6 +635,41 @@ function TranscriptEntryRow({
 
   const hairline = computeTranscriptHairline(entry, idx, activeDebate.transcript);
 
+  // Slot-first opening lifecycle (t/2907): a 'generating'/'retrying'/'error' opening
+  // slot renders its state INLINE on the speaker's own card (content is empty until
+  // 'done'), so one card cycles through the states instead of spawning new panels +
+  // system retry toasts. 'done' and legacy openings (no status) fall through to the
+  // normal StatementCard below.
+  if (entry.type === 'opening' && entry.status && entry.status !== 'done') {
+    const isError = entry.status === 'error';
+    const typeLabel = entry.status === 'generating' ? 'thinking…' : entry.status === 'retrying' ? 'retrying…' : 'failed';
+    return (
+      <Fragment>
+        {hairline}
+        <div id={`debate-entry-${entry.id}`} className="debate-entry-wrapper">
+          <div className={`debate-statement debate-generating${isError ? ' debate-slot-error' : ''}`}>
+            <div className="debate-statement-header">
+              <span className="debate-statement-speaker" style={{ color: speakerColor(entry.speaker) || undefined }}>
+                {speakerLabel(entry.speaker)}
+              </span>
+              <span className="debate-statement-type">{typeLabel}</span>
+            </div>
+            {isError ? (
+              <div className="debate-slot-error-message">
+                {entry.errorMessage ?? 'Opening statement failed.'}
+              </div>
+            ) : (
+              <>
+                <StatementProgressIndicator />
+                {entry.errorMessage && <div className="debate-slot-retry-note">{entry.errorMessage}</div>}
+              </>
+            )}
+          </div>
+        </div>
+      </Fragment>
+    );
+  }
+
   const isStatement = entry.type !== 'probing' && entry.type !== 'fact-check';
   const card = entry.type === 'probing'
     ? <ProbingCard key={entry.id} entry={entry} statementId={statementId} />
@@ -695,7 +730,13 @@ function DebateTranscriptColumn({
         />
       ))}
       </div>
-      {debateGenerating && (
+      {/* Global "thinking" card for generation WITHOUT its own slot (clarification,
+          synthesis, cross-respond statements). During opening generation the speaker
+          has an active opening slot that renders its own inline spinner (t/2907), so
+          suppress this one then — otherwise it double-cards. */}
+      {debateGenerating && !activeDebate.transcript.some(
+        e => e.type === 'opening' && e.speaker === debateGenerating && e.status && e.status !== 'done',
+      ) && (
         <div className="debate-statement debate-generating">
           <div className="debate-statement-header">
             <span className="debate-statement-speaker" style={{ color: speakerColor(debateGenerating) || undefined }}>

@@ -3,12 +3,30 @@
 
 import { useEffect, useState, useRef } from 'react';
 import { useCommunityStore, type CommunityChat, type CommunityDebate } from '../../hooks/useCommunityStore';
+import type { OpEdCommunityEntry } from '../../../../../lib/oped/types';
 import { useFlag } from '../../hooks/useFeatureFlags';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { TOAST_DURATION_INFO, TOAST_DURATION_ERROR } from '../../constants';
 import { mapErrorToUserMessage } from '../../utils/errorMessages';
 
-type Tab = 'chats' | 'debates';
+type Tab = 'chats' | 'debates' | 'opeds';
+
+/** Owner-facing tab labels (t/2891) — the raw key 'opeds' must never surface in UI copy. */
+const TAB_LABELS: Record<Tab, string> = { debates: 'Debates', chats: 'Chats', opeds: 'Op-Ed Studies' };
+
+/** A community card renders any of the three shared item types. Op-eds carry `topic` (not
+ *  `title`) and an `unknown`-typed community_metadata, so title/submitter go through helpers. */
+type CommunityItem = CommunityChat | CommunityDebate | OpEdCommunityEntry;
+
+function cardTitle(item: CommunityItem): string {
+  // Op-eds title from `topic`; the store warns on a missing topic, so guard the UI too
+  // rather than render a blank card title (Design note, t/2891#2).
+  return 'title' in item ? item.title : (item.topic || 'Untitled study');
+}
+
+function cardSubmitter(item: CommunityItem): string | undefined {
+  return (item.community_metadata as { submitted_by_display?: string } | null | undefined)?.submitted_by_display;
+}
 
 function formatDate(iso: string): string {
   if (!iso) return '';
@@ -27,7 +45,7 @@ function formatDate(iso: string): string {
 }
 
 function RemoveConfirmPopover({ item, onConfirm, onCancel }: {
-  item: CommunityChat | CommunityDebate;
+  item: CommunityItem;
   onConfirm: (reason: string) => void;
   onCancel: () => void;
 }) {
@@ -52,9 +70,9 @@ function RemoveConfirmPopover({ item, onConfirm, onCancel }: {
     <div className="community-remove-popover" ref={ref}>
       <div className="community-remove-popover-title">Remove from Community Library?</div>
       <div className="community-remove-popover-detail">
-        <strong>{item.title}</strong>
-        {item.community_metadata?.submitted_by_display && (
-          <span> by {item.community_metadata.submitted_by_display}</span>
+        <strong>{cardTitle(item)}</strong>
+        {cardSubmitter(item) && (
+          <span> by {cardSubmitter(item)}</span>
         )}
       </div>
       <textarea
@@ -75,7 +93,7 @@ function RemoveConfirmPopover({ item, onConfirm, onCancel }: {
 }
 
 function CommunityCard({ item, isAdmin, onCopy, onRemove }: {
-  item: CommunityChat | CommunityDebate;
+  item: CommunityItem;
   isAdmin: boolean;
   onCopy: () => void;
   onRemove: (reason: string) => void;
@@ -92,7 +110,7 @@ function CommunityCard({ item, isAdmin, onCopy, onRemove }: {
   return (
     <div className={`community-card${removing ? ' community-card-removing' : ''}`}>
       <div className="community-card-header">
-        <div className="community-card-title">{item.title}</div>
+        <div className="community-card-title">{cardTitle(item)}</div>
         {isAdmin && (
           <button
             className="btn btn-icon btn-ghost community-card-remove"
@@ -105,8 +123,8 @@ function CommunityCard({ item, isAdmin, onCopy, onRemove }: {
         )}
       </div>
       <div className="community-card-meta">
-        {item.community_metadata?.submitted_by_display && (
-          <span>by {item.community_metadata.submitted_by_display}</span>
+        {cardSubmitter(item) && (
+          <span>by {cardSubmitter(item)}</span>
         )}
         <span>{formatDate(item.updated_at || item.created_at)}</span>
         {'phase' in item && item.phase && <span className="community-card-badge">{item.phase}</span>}
@@ -135,19 +153,19 @@ function CommunityCard({ item, isAdmin, onCopy, onRemove }: {
 }
 
 export function CommunityLibrary() {
-  const { chats, debates, loading, error, fetchChats, fetchDebates, copyItem, removeItem } = useCommunityStore();
+  const { chats, debates, opeds, loading, error, fetchChats, fetchDebates, fetchOpeds, copyItem, removeItem } = useCommunityStore();
   const [tab, setTab] = useState<Tab>('debates');
   const [toastMsg, setToastMsg] = useState<{ text: string; type: 'info' | 'error' } | null>(null);
   const isAdmin = useFlag('permission-admin-features');
 
-  useEffect(() => { void fetchChats(); void fetchDebates(); }, []);
+  useEffect(() => { void fetchChats(); void fetchDebates(); void fetchOpeds(); }, []);
 
   const showToast = (text: string, type: 'info' | 'error' = 'info', durationMs = TOAST_DURATION_INFO) => {
     setToastMsg({ text, type });
     setTimeout(() => setToastMsg(null), durationMs);
   };
 
-  const handleCopy = async (type: 'chats' | 'debates', id: string) => {
+  const handleCopy = async (type: 'chats' | 'debates' | 'opeds', id: string) => {
     try {
       await copyItem(type, id);
       showToast('Copied to your library!');
@@ -157,7 +175,7 @@ export function CommunityLibrary() {
     }
   };
 
-  const handleRemove = async (type: 'chats' | 'debates', id: string, reason: string) => {
+  const handleRemove = async (type: 'chats' | 'debates' | 'opeds', id: string, reason: string) => {
     try {
       await removeItem(type, id, reason || undefined);
       showToast('Removed from community library.');
@@ -169,7 +187,7 @@ export function CommunityLibrary() {
 
   const handleBack = () => { window.location.hash = ''; window.location.reload(); };
 
-  const items = tab === 'chats' ? chats : debates;
+  const items: CommunityItem[] = tab === 'opeds' ? opeds : tab === 'chats' ? chats : debates;
 
   return (
     <div className="community-library">
@@ -199,6 +217,12 @@ export function CommunityLibrary() {
         >
           Chats ({chats.length})
         </button>
+        <button
+          className={`community-tab ${tab === 'opeds' ? 'active' : ''}`}
+          onClick={() => setTab('opeds')}
+        >
+          Op-Ed Studies ({opeds.length})
+        </button>
       </div>
 
       {toastMsg && (
@@ -210,7 +234,7 @@ export function CommunityLibrary() {
 
       <div className="community-grid">
         {loading && items.length === 0 && <div className="community-empty">Loading...</div>}
-        {!loading && items.length === 0 && <div className="community-empty">No community {tab} yet. Be the first to submit!</div>}
+        {!loading && items.length === 0 && <div className="community-empty">No community {TAB_LABELS[tab]} yet. Be the first to submit!</div>}
         {items.map(item => (
           <CommunityCard
             key={item.id}

@@ -72,6 +72,8 @@
         'Show-FallacyInfo'
         'Test-TaxonomyIntegrity'
         'Test-TaxonomyDir'
+        'Assert-CleanDataTree'
+        'Save-JsonNodeFieldEdits'
         'Invoke-HierarchyProposal'
         'Set-TaxonomyHierarchy'
         'Invoke-SchemaMigration'

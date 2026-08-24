@@ -7,11 +7,18 @@
   gap: var(--sp-3);
 }
 
+/* t/2937: wrap the title to N lines instead of clamping to 2 with an ellipsis.
+   flex:1 + min-width:0 lets the title column take remaining width and shrink so the
+   label wraps within it (min-width:0 defeats the flex-item min-content floor that
+   would otherwise force overflow); overflow-wrap keeps a very long single token from
+   spilling past the actions. Sidebar list already wraps — this matches it. */
+.nd-header-title {
+  flex: 1;
+  min-width: 0;
+}
+
 .nd-header-title > span.nd-header-label {
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  overflow: hidden;
+  overflow-wrap: anywhere;
 }
 
 .nd-header-meta {

@@ -151,3 +151,16 @@ Get-Help <CmdletName> -Full                     # full docs for any cmdlet
 | `Register-AIBackend` | Configure AI backend credentials |
 | `Test-AIApiKey` | Verify an AI provider API key authenticates (auth-only probe of gemini/claude/groq/openai/azure; no token cost). Use `-All` to sweep every backend with a resolvable key. |
 | `Test-AIModelsConfig` | Validate `ai-models.json` — BOM, JSON parse, orphaned model refs in defaults/debateTiers/fallbackChains, incomplete `models[]` entries, and friendly-id-in-`apiModelId` (t/1705). Returns `{Pass; Issues}`; run in a Pester test / CI. |
+
+### Data-Write Safety
+| Cmdlet | Use when |
+|--------|----------|
+| `Assert-CleanDataTree` | Before a whole-file rewrite of a data-repo JSON, assert the target has no uncommitted changes — so a `ConvertFrom-Json \| ConvertTo-Json` (or Python `json.load`→`json.dump`) round-trip can't sweep concurrent working-tree state into the commit (t/2902; `-Force` downgrades the block to a warning). Also exposed as the opt-in `Write-Utf8NoBom -RequireCleanTree` switch. |
+| `Save-JsonNodeFieldEdits` | Use when a writer needs to set scalar `nodes[]` fields in a data-repo JSON without a whole-file round-trip. Reads fresh, splices ONLY the target fields via a re-parse-verified byte-preserving primitive, writes once through the guarded sink — so it cannot sweep concurrent WIP and is safe even on the perpetually-dirty BLOCK-tier `situations.json` (t/2916). Returns a summary (Applied + NotFound). Pair with explicit-path staging at commit. |
+
+**Centralized data-write guard (t/2902 Part 2).** Every data-of-record write in the module funnels through a guarded sink, so individual cmdlets need no per-callsite wiring:
+
+- **Content-string writes** go through `Write-Utf8NoBom`, which calls the internal `Assert-DataWriteAllowed` guard automatically. Writers using atomic `[IO.File]::WriteAllText`/`Move` sinks call the guard directly at the sink; Python re-writers call `assert_clean_data_tree` (`scripts/data_tree_guard.py`).
+- The guard fires **only** for a target **under the data root** (`Get-DataRoot`) that is **already dirty** — it is per-file, never a whole-tree assertion (the data tree is perpetually dirty).
+- **Mode is TIERED per target** (t/2909): **BLOCK** tier = low-traffic/usually-clean/high-sensitivity files (`situations.json`, `organization_stance_claims.json`, and the registries — `policy_actions`/`organizations`/`organization_edges`/`entities`/`entity_mentions`) → throws on a dirty target; **WARN** tier = everything else (high-traffic perpetually-dirty: POV camp files, `edges.json`, `embeddings.json`, summaries, and `.debate-index.json` — rewritten every debate run) → warns and proceeds (the durable fix there is field-surgical writes, t/2916). `$env:AI_TRIAD_DATA_WRITE_GUARD` = `Block`|`Warn`|`Off` is a **global override** that wins over the tier. Pass `-AllowDirty` on a sink call to opt a legitimate sequential rewriter out. Tier membership is co-located in `Assert-DataWriteAllowed.ps1` / `data_tree_guard.py` (lockstep).
+- A detection test (`tests/DataWriteSinkGuard.Tests.ps1`) fails CI if any new data writer reaches disk bypassing the guarded sink — so coverage tracks growth.

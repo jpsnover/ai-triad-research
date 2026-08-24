@@ -89,6 +89,24 @@ describe('BriefExportDialog (t/2805)', () => {
     expect(screen.getByText('Audit manifest (JSON)')).toBeInTheDocument();
   });
 
+  it('poll 404 + persisted failed record: shows the real reason, not "lost track" (t/2888/t/2889)', async () => {
+    vi.useFakeTimers();
+    getBriefExportJob.mockRejectedValue(new Error('404 not found')); // per-replica registry miss
+    listBriefExports.mockResolvedValue([{
+      exportId: 'exp-1', debateId: 'deb-1', title: 'Should AI pause?', preset: 'conference',
+      status: 'failed', errorCode: 'symmetry_fail',
+      reason: 'Export verify gate failed: accelerationist camp produced 0 slides',
+      narratorModel: 'gemini-2.5-flash', narratorModelSource: 'Global', formats: [], artifacts: [],
+      traceCoveragePct: 0, warnings: [], createdAt: '2026-08-19T00:00:00Z',
+    }]);
+    renderClosed();
+    fireEvent.click(screen.getByRole('button', { name: 'Export' }));
+    await vi.advanceTimersByTimeAsync(1600); // first poll → 404 → durable-list fallback
+    // The fallback must surface the persisted reason, and must NOT show the old "lost track" copy.
+    await vi.waitFor(() => expect(screen.getByText(/accelerationist camp produced 0 slides/i)).toBeInTheDocument());
+    expect(screen.queryByText(/lost track/i)).not.toBeInTheDocument();
+  });
+
   it('web mode: offers "Save as PDF" when an htmlDoc artifact is present and routes it through the bridge', async () => {
     // Regression (t/2852): the PDF action was gated isElectronMode(), but the brief
     // pipeline runs web-only — so the button was unreachable in both profiles. It must
