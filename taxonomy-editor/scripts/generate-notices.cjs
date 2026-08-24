@@ -143,6 +143,40 @@ function main() {
   const sharpAll = [];
   if (fs.existsSync(lockPath)) {
     const lockContent = fs.readFileSync(lockPath, 'utf-8');
+    // Guard: fail loudly if a new platform-conditional prod dep appears outside the
+    // @img/sharp-* normalizer — prevents a silent false-fire on the blocking gate.
+    // Triggered? Extend the normalization block in this script to cover the new family.
+    // Scans packages: section only (not snapshots/importers); resets on every entry
+    // (scoped or not) to prevent cpu/os from non-scoped packages bleeding across boundaries.
+    { const gLines = lockContent.split('\n');
+      const platformIds = new Set();
+      let inPkgs = false; let curPkg = null; let hasCpuOs = false;
+      for (const ln of gLines) {
+        if (ln === 'packages:') { inPkgs = true; continue; }
+        if (inPkgs && /^\S/.test(ln)) { // new top-level section — end of packages:
+          if (curPkg && hasCpuOs) platformIds.add(curPkg);
+          inPkgs = false; curPkg = null; hasCpuOs = false; continue;
+        }
+        if (!inPkgs) continue;
+        if (/^  \S/.test(ln)) { // any package entry at 2-space indent
+          if (curPkg && hasCpuOs) platformIds.add(curPkg);
+          const gm = /^  '?(@[^'@]+)@([^':\s]+)'?:/.exec(ln);
+          curPkg = gm ? `${gm[1].replace(/\\/g, '/')}@${gm[2]}` : null;
+          hasCpuOs = false;
+        } else if (curPkg && /^\s+(cpu:|os:)/.test(ln)) { hasCpuOs = true; }
+      }
+      if (inPkgs && curPkg && hasCpuOs) platformIds.add(curPkg);
+      const unexpected = unique.filter(r => {
+        const name = r.id.lastIndexOf('@') > 0 ? r.id.slice(0, r.id.lastIndexOf('@')) : r.id;
+        return platformIds.has(r.id) && !SHARP_RE.test(name);
+      });
+      if (unexpected.length > 0) {
+        console.error(`generate-notices: platform-specific prod dep(s) outside the @img/sharp-* ` +
+          `normalizer detected: ${unexpected.map(r => r.id).join(', ')}. ` +
+          `Extend the lockfile normalization block in generate-notices.cjs to cover the new family.`);
+        process.exit(1);
+      }
+    }
     const pkgRe = /^\s+'(@img\/sharp-[^']+)@([^']+)':/gm;
     const seenSharp = new Set();
     let m;
