@@ -133,6 +133,13 @@ GitHub has its own task tracker ("Issues"). **We don't use it.** Work is tracked
 | **auto-merge** | GitHub merges by itself the instant checks go green; banned here on any gated PR |
 | **`gh`** | The command-line tool for GitHub (PRs, checks, merging) |
 | **stranded commit** | A commit that exists only locally (or on a dead branch): real work, invisible to everyone |
+| **fast-forward (ff)** | Your bookmark simply slides forward to catch up; no new merge commit, nothing to reconcile |
+| **rebase** | Replay your commits on top of a newer base, rewriting them as new commits (new SHAs) |
+| **amend** | Replace your most recent commit with a corrected version (new SHA) |
+| **force-push** | Overwrite the remote branch with your rewritten history; use `--force-with-lease` only, never bare `--force` |
+| **revert** | A *new* commit that undoes an earlier one; history grows, nothing is rewritten |
+| **reset** | Move a branch bookmark backward, discarding commits from its history; dangerous on anything shared |
+| **stash** | A temporary shelf for uncommitted edits (`git stash` / `git stash pop`) so you can get a clean tree |
 
 ---
 
@@ -192,6 +199,121 @@ The unifying idea: **the PR page is a lobby display, not the ground truth. SHAs 
 
 - Weird git errors on Windows agents (`unknown revision` on a ref you know exists) may be MSYS path-mangling, not a missing commit. Retry via PowerShell or prefix `MSYS_NO_PATHCONV=1`.
 - High-stakes calls (irreversible changes, shared infrastructure like CI gates and branch protection, novel territory, security surfaces) go to a **Second Opinion consult** before they land. That review exists because git will happily record a bad decision as faithfully as a good one.
+
+---
+
+## Part 5: Common scenarios, step by step
+
+The situations that come up over and over here, each with the mental model and the moves. Commands assume you've read Part 4; every feature-work command runs inside a worktree (`cd .worktrees/<name> && ...` in one line).
+
+### 5.1 Starting a piece of work
+
+```
+git worktree add -b my-fix .worktrees/my-fix     # new branch + new folder, one command
+cd .worktrees/my-fix && <edit, test>
+cd .worktrees/my-fix && git add <files> && git commit -m "fix: ..."
+```
+
+What's happening: you planted a new bookmark (`my-fix`) on the current tip of `main` and got a private folder for it. The shared checkout never moved. Commit as often as you like; the mess gets squashed away at landing time.
+
+### 5.2 Fast-forward: catching up when you have nothing new
+
+You'll see the word "fast-forward" constantly, and it is the simplest thing in git. Suppose `main` on GitHub has moved ahead and your local `main` has no commits of its own:
+
+```
+your main:    A ← B
+origin/main:  A ← B ← C ← D
+```
+
+Your bookmark is simply *behind* on the same road. A **fast-forward** slides it forward to D. No merging, no conflicts, nothing to reconcile, because there is nothing on your side to reconcile.
+
+```
+git pull --ff-only
+```
+
+The `--ff-only` flag is the safety catch this project uses on the shared checkout. It means "update me only if a pure slide-forward is possible; if I somehow have local commits, stop and tell me instead of inventing a merge." On the shared tree a refusal is itself a signal that something is wrong (a commit landed where it shouldn't have). This is the command that updates the shared checkout after every PR merge.
+
+### 5.3 Landing finished work: the squash merge
+
+The standard landing, start to finish:
+
+```
+cd .worktrees/my-fix && git push -u origin my-fix
+cd .worktrees/my-fix && gh pr create --base main --title "fix: ..." --body "..."
+# wait for CI green, run the four checks from 4.5
+cd .worktrees/my-fix && gh pr merge <N> --squash
+```
+
+What squash does to history is turn your branch's five commits into **one new commit** on `main` with a fresh SHA. GitHub then deletes the remote branch. Afterward, clean up locally from the *shared tree* (the worktree must be removed before its branch can be deleted):
+
+```
+git worktree remove .worktrees/my-fix
+git branch -D my-fix
+git pull --ff-only          # bring the squashed commit into the shared checkout
+```
+
+One practical lesson from experience is to run `gh pr merge` *without* `--delete-branch` when working from a worktree. That flag tries to switch your local checkout back to `main`, which fails because the shared tree already holds `main`. Merge first, clean up after.
+
+### 5.4 Main moved while you were working
+
+You branched from `main` on Monday; by Wednesday other PRs have landed and your branch is stale. Two questions decide what to do.
+
+**Do you even need to update?** If your files don't overlap with what landed, no. The PR merge will combine them fine. Update when you *do* overlap, when CI needs the newer code, or when the PR page says "conflicts."
+
+**If yes, merge main into your branch** (in the worktree):
+
+```
+cd .worktrees/my-fix && git fetch origin && git merge origin/main
+```
+
+If there's a conflict, git marks the clashing sections in each file with `<<<<<<<` / `=======` / `>>>>>>>` fences. Edit each file to keep what's right, delete the fences, then `git add` the resolved files and `git commit`. The extra "merge commit" this creates on your branch is fine; the squash at landing time erases it anyway. (Rebase is the tidier-history alternative, but since squash-merge flattens everything at the end, the tidiness is wasted effort here; merge is simpler and doesn't rewrite SHAs.)
+
+### 5.5 Fixing a commit you already pushed
+
+You pushed, then spotted a typo in the change (or the commit message). Amend rewrites the last commit, which changes its SHA, which means the remote now has *different* history than you do. Plain push will be refused; you must force-push:
+
+```
+cd .worktrees/my-fix && git commit --amend
+cd .worktrees/my-fix && git push --force-with-lease
+```
+
+Always `--force-with-lease`, never bare `--force`. The lease version refuses to overwrite the remote if someone else pushed to the branch in the meantime; bare force would silently destroy their work. And remember the stale-head rule from 4.5: after any force-push, re-check that the PR's head SHA equals your new commit before merging. GitHub can lag, and merging the old head ships the typo you just fixed.
+
+This is safe *only* on your own feature branch. Never rewrite history on `main` or on any branch someone else is building on; their repos still point at the old commits, and the divergence poisons everything downstream.
+
+### 5.6 Undoing something that already landed on main
+
+Wrong change merged? Do not reach for reset, and do not try to rewrite `main`. The tool is **revert**:
+
+```
+git revert <sha-of-the-bad-commit>
+```
+
+Revert creates a *new* commit whose content is the exact opposite of the bad one. History only grows; nothing is rewritten; every other agent's repo stays consistent. The revert goes through the normal PR flow like any other change. (This is also the pattern for backing out a feature flag or config change: a forward-moving undo, never a history rewrite.)
+
+`git reset` has legitimate local uses (unstaging, abandoning uncommitted experiments), but on anything shared it is the wrong tool. The distinction in one line: **revert adds an undo commit; reset pretends the commit never happened.** Shared history must never pretend.
+
+### 5.7 "I staged or committed something I didn't mean to" (still local)
+
+Caught it before pushing? Everything is cheap to fix locally.
+
+- Staged the wrong file: `git restore --staged <file>` takes it back off the loading dock; the file itself is untouched.
+- Junk files in `git status` (the 0-byte word-split debris from 4.3): `rm -- <file>`, and re-check before adding.
+- Last commit is wrong: `git commit --amend` (no force-push needed if you never pushed).
+- Need a clean tree for a minute but don't want to commit: `git stash` shelves your edits, `git stash pop` brings them back.
+
+### 5.8 Figuring out what happened
+
+The read-only tools, safe to run anywhere, anytime:
+
+- `git log --oneline -15`: the last 15 commits, one line each.
+- `git show <sha>`: one commit's full diff and message.
+- `git status --short`: what's edited, staged, untracked right now.
+- `git diff` / `git diff --staged`: unstaged vs staged edits.
+- `gh pr view <N>`: a PR's state, base, head SHA, checks.
+- `gh run list --commit <sha>`: which CI runs vouch for that exact commit.
+
+When history looks confusing, these six answer nearly every question before you touch anything that writes.
 
 ---
 
