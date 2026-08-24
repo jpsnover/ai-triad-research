@@ -117,12 +117,14 @@ export function registerEdgesRoutes(r: Router, _ctx: ServerCtx): void {
 
   // ── Source indexes ──
 
-  let nodeSourceIndexCache: { value: unknown } | null = null;
+  let nodeSourceIndexCache: { value: unknown; builtAt: number } | null = null;
+  const NODE_SOURCE_INDEX_TTL_MS = 60_000;
 
   get('/api/node-source-index', async (_req, res) => {
-    const fromCache = nodeSourceIndexCache !== null;
-    if (!fromCache) nodeSourceIndexCache = { value: await fileIO.buildNodeSourceIndex() };
-    getGlobalRecorder()?.record({ type: fromCache ? 'cache.hit' : 'cache.miss', component: 'node-source-index', level: 'info', message: 'node-source-index served', data: { source: fromCache ? 'cache' : 'compute' } });
+    const now = Date.now();
+    const fromCache = nodeSourceIndexCache !== null && (now - nodeSourceIndexCache.builtAt) < NODE_SOURCE_INDEX_TTL_MS;
+    if (!fromCache) nodeSourceIndexCache = { value: await fileIO.buildNodeSourceIndex(), builtAt: now };
+    getGlobalRecorder()?.record({ type: 'system.info', component: 'node-source-index', level: 'info', message: 'node-source-index served', data: { source: fromCache ? 'cache' : 'compute' } });
     json(res, nodeSourceIndexCache!.value);
   });
 

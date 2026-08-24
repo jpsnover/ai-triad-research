@@ -784,7 +784,7 @@ type NodeSourceMeta = { title: string; url: string | null; sourceType: string; d
 async function loadNodeMetaCache(sourcesDir: string | null): Promise<Record<string, NodeSourceMeta>> {
   const metaCache: Record<string, NodeSourceMeta> = {};
   const sourceEntries = sourcesDir ? await backend.listDirectory(sourcesDir) : [];
-  for (const name of sourceEntries) {
+  await Promise.all(sourceEntries.map(async (name) => {
     const metaPath = path.join(sourcesDir!, name, 'metadata.json');
     try {
       const metaRaw = await backend.readFile(metaPath);
@@ -798,7 +798,7 @@ async function loadNodeMetaCache(sourcesDir: string | null): Promise<Record<stri
         };
       }
     } catch { /* telemetry — silent by design;  skip */ }
-  }
+  }));
   return metaCache;
 }
 
@@ -840,10 +840,9 @@ async function indexSummaryFile(
 async function indexSummaryFiles(
   summaryFiles: string[], summariesDir: string, metaCache: Record<string, NodeSourceMeta>, index: NodeSourceIndex,
 ): Promise<void> {
-  for (const file of summaryFiles) {
-    if (!file.endsWith('.json')) continue;
-    await indexSummaryFile(summariesDir, file, metaCache, index);
-  }
+  await Promise.all(
+    summaryFiles.filter(f => f.endsWith('.json')).map(file => indexSummaryFile(summariesDir, file, metaCache, index))
+  );
 }
 
 /**
