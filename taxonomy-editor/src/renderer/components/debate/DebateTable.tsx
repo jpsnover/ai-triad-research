@@ -491,8 +491,6 @@ export function CommunityTableRow({
     }
   }, [isPhone, cd, onPhoneSelect, onOpen]);
 
-  const submitter = cd.community_metadata?.submitted_by_display;
-
   return (
     <tr
       className={isSelected ? 'selected' : ''}
@@ -554,11 +552,6 @@ export function CommunityTableRow({
         <div className="debate-table-title-text" title={cd.title}>
           {cd.title}
         </div>
-        {submitter && (
-          <div className="debate-table-title-secondary">
-            by {submitter}
-          </div>
-        )}
       </td>
     </tr>
   );

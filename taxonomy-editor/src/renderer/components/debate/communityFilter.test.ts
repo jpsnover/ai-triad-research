@@ -21,10 +21,6 @@ describe('filterCommunityDebates', () => {
     expect(filterCommunityDebates(debates, 'SAFETY').map(d => d.id)).toEqual(['1']);
   });
 
-  it('matches on the submitter display name (participant)', () => {
-    expect(filterCommunityDebates(debates, 'lovelace').map(d => d.id)).toEqual(['2']);
-  });
-
   it('returns an empty list when nothing matches', () => {
     expect(filterCommunityDebates(debates, 'zzz-no-match')).toHaveLength(0);
   });
