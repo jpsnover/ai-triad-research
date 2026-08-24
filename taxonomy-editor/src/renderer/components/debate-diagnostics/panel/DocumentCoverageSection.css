@@ -1,0 +1,57 @@
+/* DocumentCoverageSection.css — document coverage panel (CT-3) */
+
+/* ── Document Coverage Panel (CT-3) ─────────────────────── */
+.coverage-summary-row {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 8px;
+  font-size: var(--text-xs);
+  font-weight: 600;
+}
+.coverage-stat-covered { color: #16a34a; }
+.coverage-stat-partial { color: #a16207; }
+.coverage-stat-uncovered { color: #dc2626; }
+.coverage-strength-row { margin-top: -4px; font-style: italic; opacity: 0.85; }
+.coverage-claim-list { display: flex; flex-direction: column; gap: 4px; }
+.coverage-claim-row {
+  padding: 4px 6px;
+  border-radius: var(--radius-sm);
+  border-left: 3px solid transparent;
+}
+.coverage-claim-uncovered { border-left-color: #dc2626; background: rgba(239,68,68,0.05); }
+.coverage-claim-partially_covered { border-left-color: #eab308; background: rgba(234,179,8,0.05); }
+.coverage-claim-covered { border-left-color: #16a34a; background: rgba(34,197,94,0.05); }
+.coverage-claim-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--text-2xs);
+}
+.coverage-claim-id { font-weight: 600; color: var(--focus-ring); }
+.coverage-claim-score { color: var(--text-muted); margin-left: auto; }
+.coverage-claim-text { font-size: var(--text-xs); color: var(--text-primary); margin: 2px 0 2px 18px; }
+.coverage-matched-nodes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 2px 0 0 18px;
+  align-items: center;
+}
+.coverage-status-icon { font-size: var(--text-xs); }
+.coverage-status-covered { color: #16a34a; }
+.coverage-status-partial { color: #eab308; }
+.coverage-status-uncovered { color: #dc2626; }
+
+/* CT-4: Click-to-steer for uncovered claims */
+.coverage-claim-steerable { cursor: pointer; transition: background 0.15s, border-left-color 0.15s; }
+.coverage-claim-steerable:hover { background: rgba(59,130,246,0.1); border-left-color: #3b82f6; }
+.coverage-claim-steerable:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
+.coverage-steer-hint {
+  font-size: var(--text-2xs);
+  color: var(--text-muted);
+  opacity: 0;
+  transition: opacity 0.15s;
+  font-style: italic;
+}
+.coverage-claim-steerable:hover .coverage-steer-hint { opacity: 1; }
+

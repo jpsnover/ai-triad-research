@@ -1,0 +1,30 @@
+/* ProposalReviewDialog.css — proposal review dialog (TA-3) */
+
+/* ── Proposal Review Dialog (TA-3) ───────────────────── */
+.proposal-dialog { max-width: 800px; max-height: 80vh; overflow-y: auto; }
+.proposal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.proposal-header h3 { margin: 0; }
+.proposal-file-selector select { font: inherit; font-size: var(--text-xs); padding: 2px 6px; }
+.proposal-meta { display: flex; gap: 12px; font-size: var(--text-2xs); color: var(--text-muted); margin-bottom: 8px; }
+.proposal-bulk-actions { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
+.proposal-counts { font-size: var(--text-xs); color: var(--text-muted); margin-left: auto; }
+.proposal-list { display: flex; flex-direction: column; gap: 8px; max-height: 50vh; overflow-y: auto; }
+.proposal-item { border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 8px 10px; }
+.proposal-item-approved { border-left: 3px solid #16a34a; }
+.proposal-item-rejected { border-left: 3px solid #dc2626; opacity: 0.6; }
+.proposal-item-header { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
+.proposal-action-badge { font-size: var(--text-2xs); font-weight: 700; color: #fff; padding: 1px 6px; border-radius: var(--radius-sm); }
+.proposal-pov-badge { font-size: var(--text-2xs); font-weight: 600; }
+.proposal-category { font-size: var(--text-2xs); color: var(--text-muted); }
+.proposal-item-actions { margin-left: auto; display: flex; gap: 4px; }
+.proposal-item-label { font-size: var(--text-sm); font-weight: 600; margin-bottom: 2px; }
+.proposal-item-desc { font-size: var(--text-xs); color: var(--text-secondary); line-height: 1.3; }
+.proposal-item-rationale { font-size: var(--text-2xs); color: var(--text-muted); margin-top: 4px; }
+.proposal-item-evidence { font-size: var(--text-2xs); color: var(--text-muted); margin-top: 2px; }
+.proposal-item-id { font-size: var(--text-2xs); color: var(--text-muted); margin-top: 2px; }
+.proposal-item-id code { background: var(--bg-hover); padding: 0 3px; border-radius: var(--radius-sm); }
+.proposal-footer { display: flex; gap: 8px; align-items: center; margin-top: 12px; padding-top: 8px; border-top: 1px solid var(--border-color); }
+.proposal-save-result { font-size: var(--text-xs); color: var(--text-muted); }
+.proposal-empty-state { text-align: center; padding: 20px; color: var(--text-muted); }
+.proposal-empty-state code { background: var(--bg-hover); padding: 1px 4px; border-radius: var(--radius-sm); font-size: var(--text-xs); }
+.proposal-error { color: #dc2626; font-size: var(--text-xs); padding: 8px; }

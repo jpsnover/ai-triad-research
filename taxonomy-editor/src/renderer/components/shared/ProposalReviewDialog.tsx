@@ -10,6 +10,7 @@
 import { useState, useEffect } from 'react';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { api } from '@bridge';
+import './ProposalReviewDialog.css';
 
 interface Proposal {
   action: string;

@@ -7,6 +7,8 @@
  * Used in debate workspace (claim extraction) and fact-check UI.
  */
 
+import './FireProgressIndicator.css';
+
 export interface FireProgress {
   claimIndex: number;
   totalClaims: number;

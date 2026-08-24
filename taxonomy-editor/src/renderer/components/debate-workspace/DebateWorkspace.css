@@ -1,3 +1,37 @@
+/* ── Reasoning collapsible sections (BRIEF / PLAN / BDI) ── */
+.debate-reasoning-section {
+  margin: 2px 0;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+.debate-reasoning-section[open] {
+  margin-bottom: 6px;
+}
+.debate-reasoning-section-title {
+  cursor: pointer;
+  font-size: var(--text-xs);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  background: rgba(128, 128, 128, 0.06);
+  user-select: none;
+}
+.debate-reasoning-section-title:hover {
+  background: rgba(128, 128, 128, 0.12);
+}
+.debate-reasoning-section-body {
+  padding: 6px 8px 8px;
+  font-size: var(--text-xs);
+  line-height: 1.5;
+}
+.debate-reasoning-section-body .markdown-body {
+  font-size: var(--text-xs);
+}
+
+
+/* ─── Monolith-extracted styles (Phase 3 co-location, t/2989) ─── */
+
 /* DebateWorkspace — Design Elevation Phase 4b (t/1371) */
 
 /* Transcript column: full panel width (panel bounds provide readability constraint) */

@@ -1,3 +1,55 @@
+/* ── Clarification Question Pills (CQ-2) ─────────────── */
+.cq-questions { display: flex; flex-direction: column; gap: 12px; }
+.cq-question-card {
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 10px;
+}
+.cq-question-text {
+  font-size: var(--text-sm);
+  font-weight: 500;
+  margin-bottom: 8px;
+}
+.cq-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.cq-option-pill {
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  background: none;
+  font: inherit;
+  font-size: var(--text-xs);
+  padding: 4px 12px;
+  cursor: pointer;
+  color: var(--text-secondary);
+  transition: all 0.15s;
+}
+.cq-option-pill:hover { border-color: var(--text-primary); color: var(--text-primary); }
+.cq-option-pill.selected {
+  background: var(--bg-hover);
+  border-color: var(--text-primary);
+  color: var(--text-primary);
+  font-weight: 600;
+}
+.cq-check { font-size: var(--text-2xs); }
+.cq-option-pill-other { font-style: italic; }
+.cq-option-other-input {
+  display: block;
+  width: 100%;
+  margin-top: 6px;
+  font: inherit;
+  font-size: var(--text-xs);
+  padding: 4px 8px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--bg-input);
+  color: var(--text-primary);
+}
+
+/* ─── Monolith-extracted styles (Phase 3 co-location, t/2989) ─── */
+
 /* Debate setup footer — single bar with options trigger + actions */
 
 .debate-setup-footer {

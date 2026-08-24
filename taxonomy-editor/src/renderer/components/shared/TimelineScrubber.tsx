@@ -12,6 +12,7 @@ import { useDebateStore } from '../../hooks/useDebateStore';
 import { POVER_INFO } from '../../types/debate';
 import type { ArgumentNetworkNode, ArgumentNetworkEdge } from '../../types/debate';
 import { ArgumentGraph, GraphNodeDetailPanel } from '../taxonomy/ArgumentGraph';
+import './TimelineScrubber.css';
 
 interface TimelineScrubberProps {
   nodes: ArgumentNetworkNode[];
