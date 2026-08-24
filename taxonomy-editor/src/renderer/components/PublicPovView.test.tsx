@@ -122,7 +122,25 @@ describe('PublicPovView (t/1790)', () => {
     );
   });
 
-  it('aborts the in-flight fetch on unmount (t/2755)', async () => {
+  it('aborts the in-flight fetch when the component unmounts — signal inspection (t/2755)', async () => {
+    let resolveResponse!: (r: Response) => void;
+    mockFetch.mockReturnValue(new Promise(res => { resolveResponse = res; }));
+
+    const { unmount } = render(<PublicPovView />);
+    await Promise.resolve();
+
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+    const signal = mockFetch.mock.calls[0][1]?.signal as AbortSignal;
+    expect(signal).toBeDefined();
+    expect(signal.aborted).toBe(false);
+
+    unmount();
+    expect(signal.aborted).toBe(true);
+
+    resolveResponse(fakeResponse({ body: SAMPLE }));
+  });
+
+  it('aborts the in-flight fetch on unmount — AbortController spy (t/2755)', async () => {
     const abortSpy = vi.fn();
     const origAbortController = globalThis.AbortController;
     globalThis.AbortController = class extends origAbortController {
