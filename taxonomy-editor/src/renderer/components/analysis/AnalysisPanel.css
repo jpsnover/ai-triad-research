@@ -1,3 +1,417 @@
+/* ─── Analysis panel (Pane 4) ────────────────────────── */
+
+.analysis-panel {
+  min-width: 300px;
+  border-left: none;
+  overflow-y: auto;
+  padding: 16px;
+  background: var(--bg-primary);
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 1;
+}
+
+.analysis-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.analysis-panel-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--text-sm);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.analysis-panel-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.analysis-cached-badge {
+  font-size: var(--text-2xs);
+  text-transform: lowercase;
+  letter-spacing: 0;
+  font-weight: 500;
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+  background: var(--accent-bg, #e8f0fe);
+  color: var(--focus-ring, #1a73e8);
+}
+
+.analysis-elements {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 14px;
+  padding: 10px;
+  background: var(--bg-secondary);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-color);
+  flex-shrink: 0;
+}
+
+.analysis-element {
+  flex: 1;
+  min-width: 0;
+}
+
+.analysis-element-tag {
+  font-size: var(--text-2xs);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight: 700;
+  color: var(--text-muted);
+  margin-bottom: 2px;
+}
+
+.analysis-element-category {
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: 0;
+  opacity: 0.75;
+}
+
+.analysis-element-label {
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.analysis-vs {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--text-muted);
+  flex-shrink: 0;
+  padding: 0 2px;
+}
+
+/* ─── Stepped progress indicator ─────────────────────── */
+
+.analysis-steps {
+  margin-bottom: 14px;
+  padding: 10px 12px;
+  background: var(--bg-secondary);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-color);
+  flex-shrink: 0;
+}
+
+.analysis-step {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+  font-size: var(--text-sm);
+  line-height: 1.4;
+}
+
+.analysis-step-indicator {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  font-size: var(--text-xs);
+}
+
+.analysis-step-done .analysis-step-indicator {
+  color: var(--success);
+  font-weight: 700;
+}
+
+.analysis-step-done .analysis-step-label {
+  color: var(--text-muted);
+}
+
+.analysis-step-active .analysis-step-label {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.analysis-step-active .analysis-step-indicator .search-spinner {
+  width: 14px;
+  height: 14px;
+}
+
+.analysis-step-pending .analysis-step-label {
+  color: var(--text-muted);
+}
+
+.analysis-step-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--border-color);
+}
+
+.analysis-retry-info {
+  margin-left: 26px;
+  font-size: var(--text-xs);
+  padding: 2px 0 6px;
+}
+
+.analysis-retry-headline {
+  color: var(--warning, #e69500);
+  font-weight: 600;
+}
+
+.analysis-retry-detail {
+  color: var(--text-muted, #888);
+  margin-top: 1px;
+}
+
+.analysis-result {
+  flex: 1;
+  overflow-y: auto;
+  font-size: var(--text-sm);
+  line-height: 1.6;
+  color: var(--text-secondary);
+}
+
+.analysis-result.markdown-body h1,
+.analysis-result.markdown-body h2,
+.analysis-result.markdown-body h3,
+.analysis-result.markdown-body h4 {
+  color: var(--text-primary);
+  margin-top: 12px;
+  margin-bottom: 4px;
+  font-size: var(--text-md);
+  font-weight: 700;
+}
+
+.analysis-result.markdown-body h1 { font-size: var(--text-lg); }
+.analysis-result.markdown-body h2 { font-size: var(--text-md); }
+
+.analysis-result.markdown-body p {
+  margin-bottom: 6px;
+}
+
+.analysis-result.markdown-body ul,
+.analysis-result.markdown-body ol {
+  margin: 4px 0 8px 18px;
+}
+
+.analysis-result.markdown-body li {
+  margin-bottom: 2px;
+}
+
+.analysis-result.markdown-body strong {
+  color: var(--text-primary);
+  font-weight: 700;
+}
+
+.analysis-result.markdown-body code {
+  background: var(--bg-secondary, #f5f5f5);
+  padding: 1px 4px;
+  border-radius: var(--radius-sm);
+  font-size: var(--text-sm);
+}
+
+.analysis-result.markdown-body pre {
+  background: var(--bg-secondary, #f5f5f5);
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  overflow-x: auto;
+  margin: 6px 0;
+}
+
+.analysis-result.markdown-body pre code {
+  background: none;
+  padding: 0;
+}
+
+.analysis-result.markdown-body blockquote {
+  border-left: 3px solid var(--border-color);
+  padding-left: 10px;
+  margin: 6px 0;
+  color: var(--text-muted);
+}
+
+.analysis-result.markdown-body table {
+  border-collapse: collapse;
+  margin: 8px 0;
+  width: 100%;
+}
+
+.analysis-result.markdown-body th,
+.analysis-result.markdown-body td {
+  border: 1px solid var(--border-color);
+  padding: 4px 8px;
+  text-align: left;
+  font-size: var(--text-sm);
+}
+
+.analysis-result.markdown-body th {
+  font-weight: 600;
+  background: var(--bg-secondary, #f5f5f5);
+}
+
+.analysis-result.markdown-body hr {
+  border: none;
+  border-top: 1px solid var(--border-color);
+  margin: 10px 0;
+}
+
+/* ─── Analysis Diffs ─────────────────────────────────── */
+.analysis-diffs {
+  border-top: 1px solid var(--border-color);
+  padding: 12px 16px;
+}
+.analysis-diffs-header {
+  font-size: var(--text-sm);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 10px;
+  color: var(--text-secondary);
+}
+.analysis-diff-item {
+  margin-bottom: 12px;
+  padding: 8px 10px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm, 4px);
+  background: var(--bg-secondary, var(--bg-secondary, #f8f8f8));
+}
+.analysis-diff-field {
+  font-size: var(--text-xs);
+  font-weight: 700;
+  margin-bottom: 6px;
+  color: var(--text-primary);
+}
+.analysis-diff-values {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+.analysis-diff-old,
+.analysis-diff-new {
+  font-size: var(--text-xs);
+}
+.analysis-diff-tag {
+  font-size: var(--text-2xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  color: var(--text-muted);
+  display: block;
+  margin-bottom: 2px;
+}
+.analysis-diff-old pre,
+.analysis-diff-new pre {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: var(--text-xs);
+  max-height: 120px;
+  overflow-y: auto;
+  padding: 4px 6px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-primary, #fff);
+  border: 1px solid var(--border-color);
+}
+.analysis-diff-new pre {
+  border-color: var(--color-acc, #27AE60);
+}
+.analysis-critique-summary {
+  padding: 8px 12px;
+  margin-bottom: 12px;
+  border-left: 3px solid var(--color-acc, #27AE60);
+  font-size: var(--text-sm);
+  line-height: 1.5;
+}
+.analysis-critique-summary p {
+  margin: 0 0 6px;
+}
+.analysis-critique-additional {
+  padding: 8px 16px;
+  font-size: var(--text-xs);
+}
+.analysis-diff-rationale {
+  font-size: var(--text-xs);
+  line-height: 1.45;
+  margin-bottom: 8px;
+  padding: 6px 8px;
+  border-left: 2px solid var(--text-muted);
+  color: var(--text-secondary);
+}
+.analysis-diff-rationale p {
+  margin: 0 0 4px;
+}
+.analysis-diff-rationale strong {
+  color: var(--text-primary);
+}
+.analysis-diff-attrs {
+  margin-bottom: 8px;
+}
+.analysis-diff-attrs-summary {
+  font-size: var(--text-2xs);
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+.analysis-diff-attr-row {
+  margin-bottom: 6px;
+  padding: 4px 6px;
+  border-radius: var(--radius-sm);
+}
+.analysis-diff-attr-changed {
+  background: color-mix(in srgb, var(--color-acc, #27AE60) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-acc, #27AE60) 25%, transparent);
+}
+.analysis-diff-attr-row:not(.analysis-diff-attr-changed) {
+  opacity: 0.5;
+}
+.analysis-diff-attr-key {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  font-family: monospace;
+  margin-bottom: 2px;
+}
+.analysis-diff-attr-values {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.analysis-diff-attr-unchanged {
+  font-size: var(--text-2xs);
+  color: var(--text-muted);
+  font-style: italic;
+}
+.analysis-diff-accept-btn {
+  background: var(--color-acc, #27AE60);
+  color: #fff;
+  border: none;
+  cursor: pointer;
+}
+.analysis-diff-accept-btn:hover {
+  opacity: 0.85;
+}
+.analysis-diff-accepted {
+  display: inline-block;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--color-acc, #27AE60);
+  padding: 2px 8px;
+}
+
+
+/* ─── Monolith-extracted .analysis-* base styles (Phase 3 co-location, t/2989) ─── */
+
 /* Copyright (c) 2026 Jeffrey Snover. All rights reserved. */
 /* Licensed under the MIT License. See LICENSE file in the project root. */
 
