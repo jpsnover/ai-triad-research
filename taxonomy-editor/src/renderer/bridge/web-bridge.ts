@@ -384,10 +384,7 @@ async function put<T = unknown>(path: string, body?: unknown, opts?: FetchOption
       nextSteps: ['Sign in or navigate to /.auth/anonymous to start an anonymous session'],
     });
   }
-  // 204 No Content has an empty body — res.json() would throw SyntaxError (t/2980).
-  // e.g. PUT /api/preferences returns 204; the caller discards the value with .then(() => {}).
-  if (res.status === 204) return undefined as T;
-  return res.json();
+  return res.status === 204 ? (undefined as T) : res.json(); // 204 No Content has no body — res.json() would throw (t/2980)
 }
 
 async function del<T = unknown>(path: string, opts?: FetchOptions): Promise<T> {
@@ -432,10 +429,7 @@ async function del<T = unknown>(path: string, opts?: FetchOptions): Promise<T> {
       nextSteps: ['Sign in or navigate to /.auth/anonymous to start an anonymous session'],
     });
   }
-  // 204 No Content has an empty body — res.json() would throw SyntaxError (t/2980).
-  // DELETE endpoints returning 204 on success are standard REST; guard defensively.
-  if (res.status === 204) return undefined as T;
-  return res.json();
+  return res.status === 204 ? (undefined as T) : res.json(); // 204 No Content has no body (standard for DELETE) — res.json() would throw (t/2980)
 }
 
 /**
