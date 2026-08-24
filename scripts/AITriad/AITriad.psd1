@@ -38,6 +38,8 @@
         'Repair-PovLineage'
         'Repair-PovAttributes'
         'Export-AggregatedCruxes'
+        'Export-TriadDebateBrief'
+        'Test-BriefNarrationStage'
         'Get-Summary'
         'Invoke-AttributeExtraction'
         'Invoke-EdgeDiscovery'
@@ -69,6 +71,9 @@
         'Update-PolicyRegistry'
         'Show-FallacyInfo'
         'Test-TaxonomyIntegrity'
+        'Test-TaxonomyDir'
+        'Assert-CleanDataTree'
+        'Save-JsonNodeFieldEdits'
         'Invoke-HierarchyProposal'
         'Set-TaxonomyHierarchy'
         'Invoke-SchemaMigration'
@@ -125,6 +130,7 @@
         'Get-ImportReport'
         'Get-CalibrationTrend'
         'Test-TaxEditorHealth'
+        'Test-EmbeddingHealth'
         'Test-TaxEditorEndpoints'
         'Test-AnonymousDebateFlow'
         'Test-PersonaEndpoints'
@@ -133,6 +139,7 @@
         'Invoke-DebateBatch'
         'Get-FreeTierStatus'
         'Invoke-TaxEditorSmokeTest'
+        'Test-PreloadHealth'
         'Test-AnalyticsBackend'
         'Test-AnalyticsBlobHealth'
         'Get-AnalyticsEventTypes'
@@ -187,6 +194,7 @@
         'Get-ContainerAppRevision'
         # t/1499 — GH workflow run queries
         'Get-GitHubWorkflowRun'
+        'Get-CIFailureSummary'
         # t/1550 — POV aphorism backfill
         'Invoke-AphorismBatch'
         # t/1553 Stage 0 — org PUBLISHED edge seeding
@@ -216,12 +224,16 @@
         'Get-ViteDevStatus'
         # t/2330 — Debate session state diagnostic
         'Get-DebateSessionState'
-        # t/2335 — Debate index field-type integrity check
+        # t/2335 — Debate index field-type integrity check (per-session files)
         'Test-DebateIndexIntegrity'
+        # t/2735 — Debate index (.debate-index.json) type-invalid entry scan + repair
+        'Get-DebateIndexHealth'
         # t/2367 — Debate blob existence check in Azure storage
         'Test-DebateSession'
         # t/2545 — Pre-flight atomic write+rename probe for debate output dir
         'Test-DebatePersistence'
+        # t/2765 — ACA server log retrieval with requestId correlation
+        'Get-ServerLog'
     )
 
     # Aliases exported from this module

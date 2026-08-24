@@ -1,8 +1,11 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-import { describe, it, expect } from 'vitest';
-import { extractSummary } from './debateIndex.js';
+import { describe, it, expect, afterEach } from 'vitest';
+import fs from 'fs';
+import path from 'path';
+import os from 'os';
+import { extractSummary, listDebateSessionsIndexed } from './debateIndex.js';
 
 describe('extractSummary', () => {
   it('uses data.title when it is a string', () => {
@@ -224,5 +227,52 @@ describe('extractSummary', () => {
       },
     });
     expect(result.repetition_rate).toBeCloseTo(0.5, 5);
+  });
+});
+
+describe('listDebateSessionsIndexed', () => {
+  let tmpDir: string;
+
+  afterEach(() => {
+    if (tmpDir) fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it('returns string title when cached index entry has object title', () => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'debate-index-test-'));
+
+    // Write a real debate file so the cache-miss re-read path has valid data
+    const debateData = {
+      id: 'test-d1',
+      title: 'Real Title',
+      topic: { final: 'Real Title', original: 'backup' },
+      created_at: '2026-01-01T00:00:00Z',
+      updated_at: '2026-01-02T00:00:00Z',
+      phase: 'completed',
+      transcript: [],
+    };
+    const debateFile = path.join(tmpDir, 'debate-test-d1.json');
+    fs.writeFileSync(debateFile, JSON.stringify(debateData), 'utf-8');
+    const mtime = fs.statSync(debateFile).mtimeMs;
+
+    // Write a stale index where title is an object (the bug shape from t/2729)
+    const staleIndex = {
+      version: 1,
+      entries: {
+        'test-d1': {
+          id: 'test-d1',
+          title: { final: 'Real Title', original: 'backup' },
+          created_at: '2026-01-01T00:00:00Z',
+          updated_at: '2026-01-02T00:00:00Z',
+          phase: 'completed',
+          file_mtime: mtime,
+        },
+      },
+    };
+    fs.writeFileSync(path.join(tmpDir, 'debates-index.json'), JSON.stringify(staleIndex), 'utf-8');
+
+    const results = listDebateSessionsIndexed(tmpDir);
+    expect(results).toHaveLength(1);
+    expect(typeof results[0].title).toBe('string');
+    expect(results[0].title).toBe('Real Title');
   });
 });

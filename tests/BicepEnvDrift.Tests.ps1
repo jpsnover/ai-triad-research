@@ -34,10 +34,13 @@ Describe 'Test-BicepEnvDrift' {
     It 'Fire arm: exits 1 when Bicep literal differs from ExpectedEnvVars' {
         # drifted-main.bicep has NODE_ENV=staging vs good-deploy-azure.yml's
         # NODE_ENV=production — detector must catch the mismatch and exit 1.
+        # -SuppressAnnotations prevents ::error:: lines from surfacing in the
+        # CI top-level log and being mistaken for real production drift (t/2881).
         $proc = Start-Process pwsh `
             -ArgumentList '-NonInteractive', '-File', $driftScript,
                           '-BicepPath', $driftedBicep,
-                          '-DeployYmlPath', $goodYml `
+                          '-DeployYmlPath', $goodYml,
+                          '-SuppressAnnotations' `
             -PassThru -Wait -NoNewWindow
         $proc.ExitCode | Should -Be 1
     }
@@ -55,7 +58,8 @@ var baseEnv = [
         $proc = Start-Process pwsh `
             -ArgumentList '-NonInteractive', '-File', $driftScript,
                           '-BicepPath', $tmpBicep,
-                          '-DeployYmlPath', $goodYml `
+                          '-DeployYmlPath', $goodYml,
+                          '-SuppressAnnotations' `
             -PassThru -Wait -NoNewWindow
         $proc.ExitCode | Should -Be 1
     }

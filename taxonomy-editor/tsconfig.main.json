@@ -31,6 +31,8 @@
     "../lib/flight-recorder/**/*"
   ],
   "exclude": [
-    "../lib/**/*.test.ts"
+    "../lib/**/*.test.ts",
+    "src/main/__tests__/**",
+    "**/*.test.ts"
   ]
 }

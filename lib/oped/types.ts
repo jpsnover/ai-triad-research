@@ -25,6 +25,7 @@ export interface OpEdGroundingRef {
   pov: PovKey;
   relevance: string;
   how_reflected: string;
+  document_claims?: string[];  // source claims this BDI element responds to (absent when no source brief)
 }
 
 // ── Per-voice member (self-contained — e/91#2 condition 3) ───────────────────
@@ -41,9 +42,15 @@ export interface OpEdMember {
   headline: string;
   subtitle: string;
   body: string;
-  pitch?: string;
+  byline: string;
+  disclosure: string;
+  rhetorical_meta: string;
   wordCount: number;
   grounding: OpEdGroundingRef[];
+  /** Source claims extracted by the reflection pass (t/2890) — absent when no source brief or claims list is empty. */
+  claims?: { text: string; paragraph: number }[];
+  /** Set when FABRICATED_LEDE_GUARD matched the lede on an empty-newsHook run (t/2730). */
+  fabricated_lede?: true;
 }
 
 // ── Set wrapper (e/91#2 conditions 2 & 4) ────────────────────────────────────
@@ -59,6 +66,12 @@ export interface OpEdSet {
   params: OpEdParams;
   created_at: string;
   opeds: OpEdMember[];
+  /** Source provenance (t/2897): how this set was created. Absent on pre-existing sets. */
+  source_mode?: 'topic' | 'url';
+  /** The fetched source URL — url mode only. */
+  source_url?: string;
+  /** key_claims extracted by the comprehension pass (0 = brief failed/empty). url mode only. */
+  source_key_claims_count?: number;
 }
 
 // ── Local library listing summary (t/2591) ───────────────────────────────────

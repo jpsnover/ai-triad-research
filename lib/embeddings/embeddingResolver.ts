@@ -35,6 +35,14 @@ export async function resolveEmbeddings(
     const missingIds = ids ? missingIndices.map(i => ids[i]) : undefined;
     let computed: number[][] | null = null;
 
+    getGlobalRecorder()?.record({
+      type: 'ai.request',
+      component: 'embedding-resolver',
+      level: 'info',
+      message: 'computing embeddings',
+      data: { chainMembers: fallbackChain.map(f => f.name) },
+    });
+
     for (const fallback of fallbackChain) {
       try {
         computed = await fallback.compute(missingTexts, missingIds);
@@ -45,6 +53,7 @@ export async function resolveEmbeddings(
           component: 'embedding-resolver',
           level: 'warn',
           message: `Embedding fallback "${fallback.name}" failed, trying next`,
+          data: { chainMembers: fallbackChain.map(f => f.name) },
           error: { name: (err as Error).name ?? 'Error', message: String(err) },
         });
       }

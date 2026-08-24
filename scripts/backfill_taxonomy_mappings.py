@@ -23,6 +23,8 @@ import time
 from pathlib import Path
 from typing import Optional
 
+from data_tree_guard import assert_clean_data_tree  # t/2902
+
 import numpy as np
 
 SCRIPT_DIR = Path(__file__).resolve().parent
@@ -320,6 +322,7 @@ def main():
         }
 
     for fpath, data in files_to_update.items():
+        assert_clean_data_tree(fpath)  # t/2902
         Path(fpath).write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8", newline="\n")
 
     print(f"  Updated {len(files_to_update)} summary files.", file=sys.stderr)

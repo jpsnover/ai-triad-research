@@ -45,15 +45,15 @@ export async function setupDoctrinalAnchoring(engine: DebateEngineInternals): Pr
   }
 
   // Run anchoring against each POV's Belief nodes
-  for (const [pov, vectors] of Object.entries(engine._boundaryEmbeddings)) {
-    if (vectors.length === 0) continue;
+  for (const [pov, entry] of Object.entries(engine._boundaryEmbeddings)) {
+    if (entry.vectors.length === 0) continue;
     const povNodes = engine.taxonomy[pov as PovKey]?.nodes ?? [];
     const beliefs = povNodes.filter(n => n.category === 'Beliefs');
     if (beliefs.length === 0) continue;
 
     const weights = boundaryWeights[pov];
     const results = computeDoctrinalAnchoring(
-      beliefs, vectors, engine.taxonomy.embeddings, weights,
+      beliefs, entry.vectors, engine.taxonomy.embeddings, weights, undefined, entry.isRejection,
     );
 
     // Check for threshold anomalies

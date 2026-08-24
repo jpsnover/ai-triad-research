@@ -3,6 +3,7 @@
 
 import { useState } from 'react';
 import { useTaxonomyStore, type PinnedData } from '../../hooks/useTaxonomyStore';
+import { usePreferencesStore } from '../../store/preferencesStore';
 import { NodeDetail } from '../taxonomy/NodeDetail';
 import { SituationDetail } from '../debate/SituationDetail';
 import { ConflictDetail } from '../conflict/ConflictDetail';
@@ -50,7 +51,11 @@ function PinnedPanelEntry({ data, depth, onClose }: {
 
 export function PinnedPanel() {
   const { pinnedStack, closePinnedFromDepth } = useTaxonomyStore();
+  // Bookmark (Pin-for-comparison) surface is Advanced-view only — the shared gate for all
+  // three tabs that render it. Subscribing here re-renders on view toggle (no reload, t/2826).
+  const viewMode = usePreferencesStore(s => s.viewMode);
 
+  if (viewMode !== 'advanced') return null;
   if (pinnedStack.length === 0) return null;
 
   return (

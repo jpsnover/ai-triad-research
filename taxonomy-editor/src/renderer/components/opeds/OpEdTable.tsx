@@ -41,6 +41,7 @@ export interface OpEdTableMyProps {
   renameValue: string;
   setRenameValue: (v: string) => void;
   onRename: (id: string, topic: string) => void;
+  onMoveSet: (id: string, dir: 'up' | 'down') => void;
   onOpen: (id: string) => void;
   onExport: (set: OpEdSetSummary, format: string) => void;
   onShare: (set: OpEdSetSummary) => void;
@@ -204,6 +205,7 @@ function OpEdExportMenu({ onExport }: { onExport: (format: string) => void }) {
         <span role="menu" className="oped-export-menu-list">
           <button type="button" role="menuitem" className="oped-export-menu-item" onClick={() => pick('markdown')}>Markdown</button>
           <button type="button" role="menuitem" className="oped-export-menu-item" onClick={() => pick('text')}>Plain text</button>
+          <button type="button" role="menuitem" className="oped-export-menu-item" onClick={() => pick('json')}>JSON</button>
         </span>
       )}
     </span>
@@ -262,11 +264,13 @@ function OpEdHeadlineCell({
 }
 
 export function OpEdMyRow({
-  set, isActive, editMode, isSelected, onToggleSelect,
-  renamingId, setRenamingId, renameValue, setRenameValue, onRename,
+  set, idx, totalRows, isActive, editMode, isSelected, onToggleSelect,
+  renamingId, setRenamingId, renameValue, setRenameValue, onRename, onMoveSet,
   onOpen, onExport, onShare,
 }: {
   set: OpEdSetSummary;
+  idx: number;
+  totalRows: number;
   isActive: boolean;
   editMode: boolean;
   isSelected: boolean;
@@ -276,6 +280,7 @@ export function OpEdMyRow({
   renameValue: string;
   setRenameValue: (v: string) => void;
   onRename: (id: string, topic: string) => void;
+  onMoveSet: (id: string, dir: 'up' | 'down') => void;
   onOpen: (id: string) => void;
   onExport: (set: OpEdSetSummary, format: string) => void;
   onShare: (set: OpEdSetSummary) => void;
@@ -325,33 +330,45 @@ export function OpEdMyRow({
         </td>
       )}
 
-      {/* Headline — flexible column, wraps then clamps */}
-      <td className="col-headline">
-        <OpEdHeadlineCell
-          headline={headline}
-          subtitle={subtitle}
-          voiceCount={voiceCount}
-          isRenaming={isRenaming}
-          editMode={editMode}
-          renameValue={renameValue}
-          setRenameValue={setRenameValue}
-          onCommit={commitRename}
-          onCancel={() => setRenamingId(null)}
-          onStartRename={() => { setRenamingId(set.set_id); setRenameValue(headline); }}
-        />
-      </td>
+      {/* Column order (t/2724): Camp · Date · Outlet · Actions · Headline. */}
 
       {/* Camp */}
       <td className="col-camp"><CampChips camps={camps} /></td>
 
-      {/* Outlet + Words dropped (t/2605): OpEdSetSummary carries neither. */}
-
       {/* Date */}
       <td className="col-date" title={set.created_at}>{formatDate(set.created_at)}</td>
+
+      {/* Outlet — OpEdSetSummary carries no outlet data; placeholder dash (t/2724:
+          the column is always shown for parity with the Community table). */}
+      <td className="col-outlet">—</td>
 
       {/* Actions */}
       <td className="col-actions" onClick={e => e.stopPropagation()}>
         <div className="oped-table-actions">
+          {editMode && (
+            <>
+              <button
+                type="button"
+                className="oped-table-action-btn"
+                title="Move up"
+                aria-label={`Move "${headline}" up`}
+                disabled={idx === 0}
+                onClick={() => onMoveSet(set.set_id, 'up')}
+              >
+                &#9650;
+              </button>
+              <button
+                type="button"
+                className="oped-table-action-btn"
+                title="Move down"
+                aria-label={`Move "${headline}" down`}
+                disabled={idx === totalRows - 1}
+                onClick={() => onMoveSet(set.set_id, 'down')}
+              >
+                &#9660;
+              </button>
+            </>
+          )}
           <button
             type="button"
             className="oped-table-action-btn primary"
@@ -372,6 +389,22 @@ export function OpEdMyRow({
             Share
           </button>
         </div>
+      </td>
+
+      {/* Headline — flexible column, rightmost so it expands with window width (t/2724) */}
+      <td className="col-headline">
+        <OpEdHeadlineCell
+          headline={headline}
+          subtitle={subtitle}
+          voiceCount={voiceCount}
+          isRenaming={isRenaming}
+          editMode={editMode}
+          renameValue={renameValue}
+          setRenameValue={setRenameValue}
+          onCommit={commitRename}
+          onCancel={() => setRenamingId(null)}
+          onStartRename={() => { setRenamingId(set.set_id); setRenameValue(headline); }}
+        />
       </td>
     </tr>
   );
@@ -407,14 +440,11 @@ export function OpEdCommunityRow({
       tabIndex={0}
       onKeyDown={handleKeyDown}
     >
-      <td className="col-headline">
-        <div className="oped-table-headline-text" title={headline}>{headline}</div>
-        {voiceCount > 1 && <div className="oped-table-headline-secondary">▸ {voiceCount} voices</div>}
-      </td>
+      {/* Column order (t/2724): Camp · Date · Outlet · Actions · Headline. The
+          always-"—" Words column is dropped so both tables share one column set. */}
       <td className="col-camp"><CampChips camps={entry.camps} /></td>
-      <td className="col-outlet">—</td>
-      <td className="col-words">—</td>
       <td className="col-date" title={entry.updated_at}>{formatDate(entry.updated_at)}</td>
+      <td className="col-outlet">—</td>
       <td className="col-actions" onClick={e => e.stopPropagation()}>
         <div className="oped-table-actions">
           <button
@@ -441,6 +471,12 @@ export function OpEdCommunityRow({
           )}
         </div>
       </td>
+
+      {/* Headline — rightmost so it expands with window width (t/2724) */}
+      <td className="col-headline">
+        <div className="oped-table-headline-text" title={headline}>{headline}</div>
+        {voiceCount > 1 && <div className="oped-table-headline-secondary">▸ {voiceCount} voices</div>}
+      </td>
     </tr>
   );
 }
@@ -449,8 +485,8 @@ export function OpEdCommunityRow({
 // Table shell
 // ──────────────────────────────────────────────
 
-function useSort(): [SortState, (col: SortColumn) => void] {
-  const [sort, setSort] = useState<SortState>({ col: 'date', dir: 'desc' });
+function useSort(defaultCol: SortColumn | null = 'date'): [SortState, (col: SortColumn) => void] {
+  const [sort, setSort] = useState<SortState>({ col: defaultCol, dir: defaultCol ? 'desc' : 'none' });
   const onSort = useCallback((col: SortColumn) => {
     setSort(prev => {
       if (prev.col !== col) return { col, dir: 'asc' };
@@ -470,39 +506,44 @@ export function OpEdTable(props: OpEdTableProps) {
 function MyTable(props: OpEdTableMyProps) {
   const {
     rows, loading, searchQuery, editMode, selectedIds, onToggleSelect,
-    renamingId, setRenamingId, renameValue, setRenameValue, onRename,
+    renamingId, setRenamingId, renameValue, setRenameValue, onRename, onMoveSet,
     onOpen, onExport, onShare, onNew, selectedSetId,
   } = props;
-  const [sort, onSort] = useSort();
+  // Default to no internal sort (col: null) so the caller's custom order (t/2796)
+  // shows through; clicking a sort header still overrides it, matching DebateTable.
+  const [sort, onSort] = useSort(null);
   const sortedRows = applySortMy(rows, sort);
-  // Columns: [cb?] headline · camp · date · actions — Outlet/Words dropped (t/2605,
-  // not on OpEdSetSummary).
-  const colSpan = editMode ? 5 : 4;
+  // Columns (t/2724): [cb?] camp · date · outlet · actions · headline. Headline is
+  // rightmost so it expands with window width; Outlet is always shown (placeholder
+  // dash — OpEdSetSummary carries no outlet data).
+  const colSpan = editMode ? 6 : 5;
 
   return (
     <div className="oped-table-wrap" role="region" aria-label="My op-eds table">
       <table className="oped-table">
-        <caption className="sr-only">My Op-Eds</caption>
+        <caption className="sr-only">My Op-Ed Studies</caption>
         <colgroup>
           {editMode && <col className="col-cb" />}
-          <col className="col-headline" />
           <col className="col-camp" />
           <col className="col-date" />
+          <col className="col-outlet" />
           <col className="col-actions" />
+          <col className="col-headline" />
         </colgroup>
         <thead>
           <tr>
             {editMode && <th scope="col" className="col-cb" aria-label="Select row" />}
-            <th scope="col" className="col-headline" aria-sort={getSortAttr('headline', sort)}>
-              <SortHeader label="Headline" col="headline" sort={sort} onSort={onSort} />
-            </th>
             <th scope="col" className="col-camp" aria-sort={getSortAttr('camp', sort)}>
               <SortHeader label="Camp" col="camp" sort={sort} onSort={onSort} />
             </th>
             <th scope="col" className="col-date" aria-sort={getSortAttr('date', sort)}>
               <SortHeader label="Date" col="date" sort={sort} onSort={onSort} />
             </th>
+            <th scope="col" className="col-outlet">Outlet</th>
             <th scope="col" className="col-actions">Actions</th>
+            <th scope="col" className="col-headline" aria-sort={getSortAttr('headline', sort)}>
+              <SortHeader label="Headline" col="headline" sort={sort} onSort={onSort} />
+            </th>
           </tr>
         </thead>
         <tbody>
@@ -522,10 +563,12 @@ function MyTable(props: OpEdTableMyProps) {
           {searchQuery && sortedRows.length === 0 && rows.length > 0 && (
             <tr><td colSpan={colSpan} className="oped-table-empty-cell">No op-eds match &ldquo;{searchQuery}&rdquo;</td></tr>
           )}
-          {sortedRows.map(set => (
+          {sortedRows.map((set, idx) => (
             <OpEdMyRow
               key={set.set_id}
               set={set}
+              idx={idx}
+              totalRows={sortedRows.length}
               isActive={set.set_id === selectedSetId}
               editMode={editMode}
               isSelected={selectedIds.has(set.set_id)}
@@ -535,6 +578,7 @@ function MyTable(props: OpEdTableMyProps) {
               renameValue={renameValue}
               setRenameValue={setRenameValue}
               onRename={onRename}
+              onMoveSet={onMoveSet}
               onOpen={onOpen}
               onExport={onExport}
               onShare={onShare}
@@ -565,40 +609,38 @@ function CommunityTable(props: OpEdTableCommunityProps) {
   return (
     <div className="oped-table-wrap" role="region" aria-label="Community op-eds table">
       <table className="oped-table">
-        <caption className="sr-only">Community Op-Eds</caption>
+        <caption className="sr-only">Community Op-Ed Studies</caption>
         <colgroup>
-          <col className="col-headline" />
           <col className="col-camp" />
-          <col className="col-outlet" />
-          <col className="col-words" />
           <col className="col-date" />
+          <col className="col-outlet" />
           <col className="col-actions" />
+          <col className="col-headline" />
         </colgroup>
         <thead>
           <tr>
-            <th scope="col" className="col-headline" aria-sort={getSortAttr('headline', sort)}>
-              <SortHeader label="Headline" col="headline" sort={sort} onSort={onSort} />
-            </th>
             <th scope="col" className="col-camp" aria-sort={getSortAttr('camp', sort)}>
               <SortHeader label="Camp" col="camp" sort={sort} onSort={onSort} />
             </th>
-            <th scope="col" className="col-outlet">Outlet</th>
-            <th scope="col" className="col-words">Words</th>
             <th scope="col" className="col-date" aria-sort={getSortAttr('date', sort)}>
               <SortHeader label="Date" col="date" sort={sort} onSort={onSort} />
             </th>
+            <th scope="col" className="col-outlet">Outlet</th>
             <th scope="col" className="col-actions">Actions</th>
+            <th scope="col" className="col-headline" aria-sort={getSortAttr('headline', sort)}>
+              <SortHeader label="Headline" col="headline" sort={sort} onSort={onSort} />
+            </th>
           </tr>
         </thead>
         <tbody>
           {loading && rows.length === 0 && (
-            <tr><td colSpan={6} className="oped-table-empty-cell">Loading community op-eds…</td></tr>
+            <tr><td colSpan={5} className="oped-table-empty-cell">Loading community op-eds…</td></tr>
           )}
           {!loading && rows.length === 0 && (
-            <tr><td colSpan={6} className="oped-table-empty-cell">No community op-eds available yet.</td></tr>
+            <tr><td colSpan={5} className="oped-table-empty-cell">No community op-eds available yet.</td></tr>
           )}
           {searchQuery && sortedRows.length === 0 && rows.length > 0 && (
-            <tr><td colSpan={6} className="oped-table-empty-cell">No community op-eds match &ldquo;{searchQuery}&rdquo;</td></tr>
+            <tr><td colSpan={5} className="oped-table-empty-cell">No community op-eds match &ldquo;{searchQuery}&rdquo;</td></tr>
           )}
           {sortedRows.map(entry => (
             <OpEdCommunityRow

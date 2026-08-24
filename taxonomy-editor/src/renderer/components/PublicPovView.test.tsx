@@ -67,7 +67,7 @@ describe('PublicPovView (t/1790)', () => {
     vi.stubGlobal('fetch', mockFetch);
   });
 
-  it('fetches the node via a raw GET to the public endpoint — no session minted', async () => {
+  it('fetches the node via a raw GET to the public endpoint -- no session minted', async () => {
     mockFetch.mockResolvedValue(fakeResponse({ body: SAMPLE }));
     render(<PublicPovView />);
 
@@ -91,7 +91,7 @@ describe('PublicPovView (t/1790)', () => {
     expect(screen.getByText('Accelerationist')).toBeInTheDocument();
     expect(screen.getByText('Beliefs')).toBeInTheDocument();
     expect(screen.getByText(SAMPLE.description)).toBeInTheDocument();
-    expect(screen.getByText(`“${SAMPLE.aphorism}”`)).toBeInTheDocument();
+    expect(document.querySelector('.ppv-aphorism')?.textContent).toContain(SAMPLE.aphorism);
     expect(screen.getByText(SAMPLE.nodeId)).toBeInTheDocument();
 
     // Read-only: no inputs, textareas, or actionable buttons on this path.
@@ -116,9 +116,28 @@ describe('PublicPovView (t/1790)', () => {
   it('shows an error state and records to the flight recorder on network failure', async () => {
     mockFetch.mockRejectedValue(new Error('network down'));
     render(<PublicPovView />);
-    await screen.findByText(/Couldn’t load this item/);
+    await screen.findByText(/Couldn.t load this item/);
     expect(mockRecord).toHaveBeenCalledWith(
       expect.objectContaining({ type: 'system.error', component: 'PublicPovView', level: 'error' }),
     );
+  });
+
+  it('aborts the in-flight fetch on unmount (t/2755)', async () => {
+    const abortSpy = vi.fn();
+    const origAbortController = globalThis.AbortController;
+    globalThis.AbortController = class extends origAbortController {
+      abort(...args: unknown[]) { abortSpy(); super.abort(...(args as [])); }
+    } as typeof AbortController;
+
+    let resolveFetch!: (r: Response) => void;
+    mockFetch.mockReturnValue(new Promise<Response>(res => { resolveFetch = res; }));
+
+    const { unmount } = render(<PublicPovView />);
+    unmount();
+
+    expect(abortSpy).toHaveBeenCalled();
+    // Resolve to avoid unhandled-rejection noise in test output
+    resolveFetch(fakeResponse({ status: 200, body: SAMPLE }));
+    globalThis.AbortController = origAbortController;
   });
 });

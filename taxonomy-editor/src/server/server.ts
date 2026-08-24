@@ -19,6 +19,7 @@ import { fileURLToPath } from 'url';
 import { createRequire } from 'module';
 import { spawn, execFile, ChildProcess } from 'child_process';
 import { getGlobalRecorder, setGlobalRecorder } from '../../../lib/flight-recorder/index.js';
+import { warmup as warmupEmbeddings } from '../../../lib/embeddings/onnxEmbedding.js';
 
 const require = createRequire(import.meta.url);
 
@@ -34,8 +35,7 @@ import {
 } from './config.js';
 import { GitHubAPIBackend } from './storage/githubAPIBackend.js';
 import { SessionBranchManager } from './storage/sessionBranchManager.js';
-import { runWithUser, getCurrentUserId, setSessionBranchName, deriveStorageUserId } from './security/userContext.js';
-import type { UserContext } from './security/userContext.js';
+import { runWithUser, getCurrentUserId, setSessionBranchName, deriveStorageUserId, type UserContext } from './security/userContext.js';
 import { isAuthDisabledAllowed, isPathWithinDir, isTerminalAccessAllowed, isAnonAllowedRoute, invalidRouteParam, missingApiKeyError, resolveTestPersonaOverride } from './security/accessControl.js';
 import { sanitizeUserText } from './security/contentSanitizer.js';
 import { isFreeTierAiPath } from './anonAiRoutes.js';
@@ -48,29 +48,9 @@ import { json, error, param, query, getClientIp, createRouter, withEndpointTimeo
 import { computeIsPublicPath } from './publicPaths.js';
 import { resolveAllowedOrigins, corsOriginFor, resolveBindHost, isNonLoopbackDevBind, enforceCrossOriginMutationGuard, isWebSocketOriginAllowed } from './networkSecurity.js';
 import { parseCookies } from './httpCookies.js';
-import { registerDebatesRoutes } from './routes/debates.js';
-import { registerSyncRoutes } from './routes/sync.js';
-import { registerAdminRoutes } from './routes/admin.js';
-import { registerKeysRoutes } from './routes/keys.js';
-import { registerCommunityRoutes } from './routes/community.js';
-import { registerHarvestRoutes } from './routes/harvest.js';
-import { registerOrganizationsRoutes } from './routes/organizations.js';
-import { registerEntityRoutes } from './routes/entity.js';
-import { registerMentionsRoutes } from './routes/mentions.js';
-import { registerPublicShareRoutes } from './routes/publicShare.js';
-import { registerTaxonomyRoutes } from './routes/taxonomy.js';
-import { registerMetaRoutes } from './routes/meta.js';
-import { registerEdgesRoutes } from './routes/edges.js';
-import { registerConflictsRoutes, invalidateConflictsCache, warmConflictsCache } from './routes/conflicts.js';
-import { registerDataRoutes } from './routes/data.js';
-import { registerAiRoutes } from './routes/ai.js';
-import { registerChatRoutes } from './routes/chat.js';
-import { registerDiagnosticsRoutes } from './routes/diagnostics.js';
-import { registerSupportRoutes } from './routes/support.js';
-import { registerSourcesRoutes } from './routes/sources.js';
-import { registerSessionRoutes, anonSessionCookiesWithCreated } from './routes/session.js';
-import { registerPreferencesRoutes } from './routes/preferences.js';
-import { registerOpedRoutes } from './routes/oped.js';
+import { registerAllRoutes } from './routes/all.js';
+import { invalidateConflictsCache, warmConflictsCache } from './routes/conflicts.js';
+import { anonSessionCookiesWithCreated } from './routes/session.js';
 import { buildLoginPage, FORBIDDEN_PAGE, SW_HEAL_SCRIPT_CSP_HASH, loginPageHeaders } from './loginPage.js';
 import type { ServerCtx } from './routes/context.js';
 import { listFlags, setFlag, deleteFlag, type FlagDef } from './featureFlags.js';
@@ -81,8 +61,7 @@ import * as community from './community/community.js';
 import * as fileIO from './storage/fileIO.js';
 import { FEEDBACK_CATEGORIES, isFeedbackCategory, paginateFeedback } from './storage/feedbackStore.js';
 import { stampNodeAuthorship, diffNodes, changedFields } from './storage/editMeta.js';
-import { computeNodeConflicts } from './community/nodeConflicts.js';
-import type { TaxNode, NodeConflict } from './community/nodeConflicts.js';
+import { computeNodeConflicts, type TaxNode, type NodeConflict } from './community/nodeConflicts.js';
 import { getConfig, getConfigState, writeConfig, forceReload as reloadRuntimeConfig, diffFromDefaults } from './runtimeConfig.js';
 import { setRuntimeCredentials, clearRuntimeCredentials, getCredentials } from './security/githubAppAuth.js';
 import * as proxyTiers from './ai/proxyTiers.js';
@@ -256,6 +235,12 @@ if (STORAGE_MODE === 'github-api') {
       userContentContainer: process.env.AZURE_USER_CONTENT_CONTAINER || 'user-content',
       communityContainer: process.env.AZURE_COMMUNITY_CONTAINER || 'community',
     }));
+    const briefExportsContainer = process.env.AZURE_BRIEF_EXPORTS_CONTAINER || 'brief-exports';
+    fileIO.setBriefExportBackend(new AzureBlobBackend({
+      accountUrl: blobAccountUrl,
+      userContentContainer: briefExportsContainer,
+      communityContainer: briefExportsContainer,
+    }));
     serverRecorder.record({
       type: 'storage.mode', component: 'storage', level: 'info',
       message: 'User content storage: azure-blob',
@@ -346,110 +331,9 @@ const serverCtx: ServerCtx = {
 // ingress sets it) else the socket address. (M7)
 // getClientIp moved to httpKit.ts (t/1347) — shared by server.ts + routes/*.ts.
 
-// ── Meta / liveness / taxonomy-dirs (t/1687: extracted to routes/meta.ts) ──
-// Registers before registerTaxonomyRoutes, preserving the routeTable snapshot order.
-registerMetaRoutes(router, serverCtx);
-
-// ── Taxonomy: synthetic corpus + CRUD + node edit history ──
-// t/1383: /api/taxonomy/* cluster extracted to routes/taxonomy.ts (registrar at group position;
-// synthetic-embeddings registers before :pov, preserving the collision-pair order).
-registerTaxonomyRoutes(router, serverCtx);
-
-// ── Conflicts / cruxes / policy-registry (t/1687: extracted to routes/conflicts.ts) ──
-// Registers between registerTaxonomyRoutes and registerOrganizationsRoutes, preserving
-// the routeTable snapshot order. The module owns conflictsCache; its exported
-// invalidateConflictsCache() is wired into serverCtx above so harvest can null it.
-registerConflictsRoutes(router, serverCtx);
-
-// ── Organizations (t/1225) ──
-// t/1383: /api/organizations/* cluster extracted to routes/organizations.ts (registrar at group position).
-registerOrganizationsRoutes(router, serverCtx);
-
-// ── Entity resolver (t/1786) ──
-// GET /api/entity/:ref — public read; resolves the entity-ref discriminated union
-// (lib/entities/types.ts) to the record type that owns each kind. Grouped with
-// organizations (shares the public read tier). Brand-new path — no collision.
-registerEntityRoutes(router, serverCtx);
-
-// ── Container mentions (t/1902) ──
-// GET /api/container-mentions/:containerId — the entity mentions extracted for one
-// container (web transport for C's fileIO.readContainerMentions). Session-gated;
-// an absent container → 200 null (designed miss, not 404). Brand-new path — no collision.
-registerMentionsRoutes(router, serverCtx);
-
-// ── Public share (t/1788) ──
-// GET /api/public/pov/:pov/node/:nodeId — public, no-login, read-only POV node
-// share. Grouped with organizations/entity (public read tier). Brand-new path —
-// no collision. The auth-exemption is the isPublicPath '/api/public/' clause.
-registerPublicShareRoutes(router, serverCtx);
-
-// ── Lineage / edges / source-indexes / data-availability / flags (t/1687: routes/edges.ts) ──
-// Registers between organizations and admin, preserving the routeTable snapshot order.
-registerEdgesRoutes(router, serverCtx);
-
-// ── Admin (35 routes, 6 scattered runs) extracted to routes/admin.ts — t/1295 ──
-registerAdminRoutes(router, serverCtx);
-
-// ── Data management + AI models (t/1687: extracted to routes/data.ts) ──
-// Registers between registerAdminRoutes and registerKeysRoutes, preserving the routeTable snapshot order.
-registerDataRoutes(router, serverCtx);
-
-// t/1347: /api/keys/* cluster extracted to routes/keys.ts, registered here at the
-// cluster's original first-route position (the interspersed /api/auth/* routes stay).
-registerKeysRoutes(router, serverCtx);
-
-// ── Auth-logout / AI generation / proxy-info / embeddings+NLI + SSE chat (t/1687, t/2457) ──
-registerAiRoutes(router, serverCtx);
-registerChatRoutes(router, serverCtx);
-
-// ── Debate sessions ──
-// t/1295: the /api/debates cluster (9 routes) moved to routes/debates.ts. This
-// single registration replaces both former debates blocks (was here + ~L1831),
-// registering all 9 at this position to preserve collision-pair order.
-registerDebatesRoutes(router, serverCtx);
-
-// t/1687: the calibration / flight-recorder / chat-sessions route run moved to
-// routes/diagnostics.ts (registered here at its former position, between
-// registerDebatesRoutes and registerCommunityRoutes, to preserve snapshot order).
-registerDiagnosticsRoutes(router, serverCtx);
-
-// ── Community Library ──
-
-// t/1347: /api/community/* cluster extracted to routes/community.ts (registered here at
-// the group's position; the community-only respondRateLimited helper moved with it).
-registerCommunityRoutes(router, serverCtx);
-registerOpedRoutes(router, serverCtx); // t/2573: /api/oped-sets library (list/load/delete); no v1 create route — see routes/oped.ts
-// t/1687: the public client-config + support-cases route run moved to
-// routes/support.ts (registered here at its former position, between
-// registerCommunityRoutes and registerHarvestRoutes, to preserve snapshot order).
-registerSupportRoutes(router, serverCtx);
-
-
-// ── Harvest ──
-// t/1347: /api/harvest/* cluster extracted to routes/harvest.ts (registrar at group position).
-registerHarvestRoutes(router, serverCtx);
-
-// t/1687: the summaries / sources / source-documents / dictionary / source-
-// evidence / evidence-qbaf / proposals / ps-prompts / fetch-url / upload-document
-// route run moved to routes/sources.ts (registered here at its former position,
-// between registerHarvestRoutes and registerSyncRoutes, to preserve snapshot
-// order). Its two module-local caches moved in with it.
-registerSourcesRoutes(router, serverCtx);
-
-// ── Git sync ── (17 routes extracted to routes/sync.ts — t/1295)
-registerSyncRoutes(router, serverCtx);
-
-// t/1687: the auth-identity / analytics / diagnostics-beacon / focus-node /
-// trace-channel route run moved to routes/session.ts (registered here at its
-// former position, immediately after registerSyncRoutes and before the static-
-// file pipeline, to preserve snapshot order). /focus-node broadcasts via the new
-// ctx.broadcastEvent (broadcastEvent stays in server.ts with the WebSocket set).
-registerSessionRoutes(router, serverCtx);
-
-// ── User preferences (t/2119) ──
-// GET /api/preferences + PUT /api/preferences — per-user JSON file storage for
-// the web build. Brand-new paths — no collision.
-registerPreferencesRoutes(router, serverCtx);
+// ── Route registration (t/2749: consolidated into routes/registerAll.ts) ──
+// Order is preserved verbatim — see registerAll.ts for the per-cluster comments.
+registerAllRoutes(router, serverCtx);
 
 // ── Static file serving ──
 
@@ -521,7 +405,7 @@ function matchRoute(method: string, pathname: string): { handler: Handler; route
   return null;
 }
 
-type RawBodyReq = http.IncomingMessage & { __rawBody?: string };
+type RawBodyReq = http.IncomingMessage & { __rawBody?: string; __rawBodyBuffer?: Buffer };
 
 const MAX_BODY_BYTES = 50 * 1024 * 1024; // 50 MB — debate sessions can reach 10+ MB at 14 rounds
 
@@ -535,10 +419,13 @@ async function readBody(req: http.IncomingMessage): Promise<unknown> {
     if (totalBytes > MAX_BODY_BYTES) throw Object.assign(new Error('Request body too large'), { statusCode: 413 });
     chunks.push(chunk as Buffer);
   }
-  const raw = Buffer.concat(chunks).toString('utf-8');
+  const rawBuffer = Buffer.concat(chunks);
+  const raw = rawBuffer.toString('utf-8');
   // Stash raw bytes so HMAC-verified endpoints (webhook) can recompute the
   // signature. Parse-then-stringify would change whitespace and break it.
   (req as RawBodyReq).__rawBody = raw;
+  // Binary-safe buffer for handlers that need unmodified bytes (e.g. template upload).
+  (req as RawBodyReq).__rawBodyBuffer = rawBuffer;
   if (!raw) return {};
   try { return JSON.parse(raw); }
   catch (err) {
@@ -1314,7 +1201,10 @@ function handleTerminalConnection(ws: WebSocket) {
   const pythonCmd = process.platform === 'win32' ? 'python' : 'python3';
   terminalProcess = spawn(pythonCmd, [BROKER_SCRIPT], {
     cwd: getProjectRoot(),
-    env: { ...safeEnv, TERM: 'xterm-256color', PTY_COLS: '120', PTY_ROWS: '30' },
+    // AITRIAD_MODULE (t/2830): the broker imports this into the pwsh console on launch.
+    // Resolved via the server's SCRIPTS_DIR (config.ts, .aitriad.json-anchored) so it works
+    // in the container (/app/scripts) and dev alike — never a hardcoded path.
+    env: { ...safeEnv, TERM: 'xterm-256color', PTY_COLS: '120', PTY_ROWS: '30', AITRIAD_MODULE: path.join(SCRIPTS_DIR, 'AITriad', 'AITriad.psd1') },
     stdio: ['pipe', 'pipe', 'pipe'],
   });
 
@@ -1448,6 +1338,10 @@ server.listen(PORT, BIND_HOST, () => {
   serverRecorder.record({ type: 'lifecycle', component: 'server', level: 'info', message: 'Server started', data: { port: PORT, host: BIND_HOST, version: SERVER_VERSION, dataRoot: getDataRoot(), platform: process.platform, arch: process.arch, storageMode: STORAGE_MODE } });
   log.server.info({ port: PORT, host: BIND_HOST }, 'Taxonomy Editor running');
   log.server.info({ dataRoot: getDataRoot() }, 'Data root');
+  void warmupEmbeddings().catch((err: unknown) => {
+    log.server.error({ err: String(err) }, 'ONNX embedding warmup failed at boot');
+    getGlobalRecorder()?.record({ type: 'system.error', component: 'server', level: 'error', message: 'ONNX embedding warmup failed at boot', error: { name: (err as Error)?.name ?? 'Error', message: String(err), stack: (err as Error)?.stack } });
+  });
 
   // t/924: surface the free-tier key pool + effective RPM so rate-limit
   // behavior is observable from startup logs (not inferred from 429 timing).
@@ -1461,9 +1355,9 @@ server.listen(PORT, BIND_HOST, () => {
   analytics.initAnalytics(
     getStateRoot(), // t/2643: analytics NDJSON is class-A writable state — isolate the fs-fallback root by construction (not by AZURE_STORAGE_ACCOUNT_URL being set). No-op on prod (stateRoot===dataRoot).
     analyticsBlobUrl ? { accountUrl: analyticsBlobUrl, container: analyticsContainer } : undefined,
-  ).then(() => {
-    log.analytics.info({ backend: analyticsBlobUrl ? 'azure-blob' : 'filesystem' }, 'Analytics initialized');
-  }).catch((e) => { /* telemetry — silent by design */ log.analytics.warn({ err: e }, 'Analytics init failed'); });
+    // t/2704: reportStartupProbe logs "initialized" then probes the store, so a broken/empty pipeline is observable at boot (would have surfaced t/2699) instead of as a silent empty dashboard.
+  ).then(() => analytics.reportStartupProbe(analyticsBlobUrl ? 'azure-blob' : 'filesystem', analyticsContainer))
+    .catch((e) => { /* telemetry — silent by design */ log.analytics.warn({ err: e }, 'Analytics init failed'); });
 
   if (githubBackend) {
     // Initialize GitHubAPIBackend (token + cache check) AFTER health check is

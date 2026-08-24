@@ -2,6 +2,8 @@ import { describe, it, expect } from 'vitest';
 import {
   checkClaimExclusionBoundary,
   checkDraftScopeBoundary,
+  filterByExclusionAbsolute,
+  filterByExclusionRatio,
   EXCLUSION_RATIO_THRESHOLD,
   SCOPE_BOUNDARY_THRESHOLD,
 } from './exclusionGuard.js';
@@ -207,5 +209,99 @@ describe('checkDraftScopeBoundary', () => {
     );
     expect(result.length).toBe(1);
     expect(result[0].node_id).toBe('n1');
+  });
+});
+
+describe('filterByExclusionAbsolute — fail-closed on missing exclusion_vector', () => {
+  function makeVec(seed: number, dim = 384): number[] {
+    const v = new Array(dim).fill(0);
+    v[0] = Math.cos(seed);
+    v[1] = Math.sin(seed);
+    return v;
+  }
+
+  it('does not pass a node when exclusion_vector is absent', () => {
+    const embeddings = {
+      'n1': { pov: 'acc', vector: makeVec(0) }, // no exclusion_vector
+    };
+    const result = filterByExclusionAbsolute(['n1'], makeVec(0), embeddings);
+    expect(result.passed).not.toContain('n1');
+  });
+
+  it('places missing-vector node in flagged_no_vector', () => {
+    const embeddings = {
+      'n1': { pov: 'acc', vector: makeVec(0) },
+    };
+    const result = filterByExclusionAbsolute(['n1'], makeVec(0), embeddings);
+    expect(result.flagged_no_vector).toContain('n1');
+  });
+
+  it('passes node normally when exclusion_vector is present and below threshold', () => {
+    const embeddings = {
+      'n1': { pov: 'acc', vector: makeVec(0), exclusion_vector: makeVec(Math.PI) },
+    };
+    const result = filterByExclusionAbsolute(['n1'], makeVec(0), embeddings);
+    expect(result.passed).toContain('n1');
+    expect(result.flagged_no_vector).toHaveLength(0);
+  });
+
+  it('mixes correctly: missing-vector goes to flagged, checked nodes route normally', () => {
+    const embeddings = {
+      'safe': { pov: 'acc', vector: makeVec(0), exclusion_vector: makeVec(Math.PI) },
+      'excluded': { pov: 'acc', vector: makeVec(0), exclusion_vector: makeVec(0.1) },
+      'unverifiable': { pov: 'acc', vector: makeVec(0) },
+    };
+    const result = filterByExclusionAbsolute(['safe', 'excluded', 'unverifiable'], makeVec(0.1), embeddings);
+    expect(result.passed).toContain('safe');
+    expect(result.skipped.map(s => s.node_id)).toContain('excluded');
+    expect(result.flagged_no_vector).toContain('unverifiable');
+    expect(result.passed).not.toContain('unverifiable');
+  });
+});
+
+describe('filterByExclusionRatio — fail-closed on missing exclusion_vector', () => {
+  function makeVec(seed: number, dim = 384): number[] {
+    const v = new Array(dim).fill(0);
+    v[0] = Math.cos(seed);
+    v[1] = Math.sin(seed);
+    return v;
+  }
+
+  it('does not pass a node when exclusion_vector is absent', () => {
+    const embeddings = {
+      'n1': { pov: 'acc', vector: makeVec(0) },
+    };
+    const result = filterByExclusionRatio(['n1'], makeVec(0), embeddings);
+    expect(result.passed).not.toContain('n1');
+  });
+
+  it('places missing-vector node in flagged_no_vector', () => {
+    const embeddings = {
+      'n1': { pov: 'acc', vector: makeVec(0) },
+    };
+    const result = filterByExclusionRatio(['n1'], makeVec(0), embeddings);
+    expect(result.flagged_no_vector).toContain('n1');
+  });
+
+  it('passes node normally when exclusion_vector is present and ratio is safe', () => {
+    const embeddings = {
+      'n1': { pov: 'acc', vector: makeVec(0.1), exclusion_vector: makeVec(Math.PI) },
+    };
+    const result = filterByExclusionRatio(['n1'], makeVec(0.1), embeddings);
+    expect(result.passed).toContain('n1');
+    expect(result.flagged_no_vector).toHaveLength(0);
+  });
+
+  it('mixes correctly: missing-vector flagged, checked nodes route normally', () => {
+    const embeddings = {
+      'safe': { pov: 'acc', vector: makeVec(0.1), exclusion_vector: makeVec(Math.PI) },
+      'demoted': { pov: 'acc', vector: makeVec(2.0), exclusion_vector: makeVec(0.1) },
+      'unverifiable': { pov: 'acc', vector: makeVec(0) },
+    };
+    const result = filterByExclusionRatio(['safe', 'demoted', 'unverifiable'], makeVec(0.1), embeddings);
+    expect(result.passed).toContain('safe');
+    expect(result.demoted.map(d => d.node_id)).toContain('demoted');
+    expect(result.flagged_no_vector).toContain('unverifiable');
+    expect(result.passed).not.toContain('unverifiable');
   });
 });

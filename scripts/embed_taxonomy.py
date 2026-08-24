@@ -50,32 +50,47 @@ TAXONOMY_DIR: Path = _FALLBACK_TAXONOMY_DIR
 EMBEDDINGS_FILE: Path = _FALLBACK_TAXONOMY_DIR / "embeddings.json"
 
 
-def _resolve_taxonomy_dir(override=None):
-    """Resolve the taxonomy directory from override, .aitriad.json, or default."""
+def _resolve_taxonomy_dir(override=None, conflicts_override=None):
+    """Resolve the taxonomy + conflicts directories from override, .aitriad.json, or default.
+
+    t/2877: `.aitriad.json` is consulted for the conflicts dir even when
+    `--taxonomy-dir` overrides the taxonomy location. Previously an override left
+    CONFLICTS_DIR on the script-parent fallback, which silently dropped conflicts
+    when generate ran from an unusual cwd/worktree. Precedence for conflicts:
+    explicit `conflicts_override` (--conflicts-dir) > .aitriad.json > fallback.
+    """
     global TAXONOMY_DIR, EMBEDDINGS_FILE, CONFLICTS_DIR
 
     data_base = _SCRIPT_DIR.parent  # fallback
+    cfg_conflicts = None
+
+    # Always read config (independent of --taxonomy-dir) so conflicts resolve
+    # against the configured data root, not the script-parent fallback.
+    config_path = _SCRIPT_DIR.parent / ".aitriad.json"
+    if config_path.exists():
+        try:
+            cfg = json.loads(config_path.read_text(encoding="utf-8"))
+            data_root = cfg.get("data_root", ".")
+            tax_dir = cfg.get("taxonomy_dir", "taxonomy/Origin")
+            conflicts_dir = cfg.get("conflicts_dir", "conflicts")
+            base = Path(data_root) if Path(data_root).is_absolute() else (_SCRIPT_DIR.parent / data_root)
+            data_base = base.resolve()
+            cfg_conflicts = (base / conflicts_dir).resolve()
+            if not override:
+                TAXONOMY_DIR = (base / tax_dir).resolve()
+        except (json.JSONDecodeError, OSError):
+            pass  # fall through to default
 
     if override:
         TAXONOMY_DIR = Path(override).resolve()
-    else:
-        # Try .aitriad.json
-        config_path = _SCRIPT_DIR.parent / ".aitriad.json"
-        if config_path.exists():
-            try:
-                cfg = json.loads(config_path.read_text(encoding="utf-8"))
-                data_root = cfg.get("data_root", ".")
-                tax_dir = cfg.get("taxonomy_dir", "taxonomy/Origin")
-                conflicts_dir = cfg.get("conflicts_dir", "conflicts")
-                base = Path(data_root) if Path(data_root).is_absolute() else (_SCRIPT_DIR.parent / data_root)
-                data_base = base.resolve()
-                TAXONOMY_DIR = (base / tax_dir).resolve()
-                CONFLICTS_DIR = (base / conflicts_dir).resolve()
-            except (json.JSONDecodeError, OSError):
-                pass  # fall through to default
 
     EMBEDDINGS_FILE = TAXONOMY_DIR / "embeddings.json"
-    if CONFLICTS_DIR is None or not CONFLICTS_DIR.exists():
+
+    if conflicts_override:
+        CONFLICTS_DIR = Path(conflicts_override).resolve()
+    elif cfg_conflicts is not None:
+        CONFLICTS_DIR = cfg_conflicts
+    else:
         CONFLICTS_DIR = data_base / "conflicts"
     return TAXONOMY_DIR
 
@@ -132,7 +147,7 @@ def _classify_pairs_nli(nli_model, pairs):
     return results
 
 
-SKIP_FILES = {"embeddings.json", "edges.json", "policy_actions.json", "lineage_categories.json", "_archived_edges.json", "interpretation_embeddings.json"}
+SKIP_FILES = {"embeddings.json", "edges.json", "policy_actions.json", "lineage_categories.json", "_archived_edges.json", "interpretation_embeddings.json", "entity_extraction_log.json"}
 
 # Resolved at runtime from .aitriad.json
 CONFLICTS_DIR: Optional[Path] = None  # set in _resolve_taxonomy_dir
@@ -321,7 +336,18 @@ def _load_taxonomy_nodes():
             continue
 
         pov = path.stem.lower()
-        for node in data.get("nodes", []):
+        # Durable class guard (t/2875, a t/1652-class recurrence): a stray
+        # `nodes`-bearing file whose entries aren't POV nodes (e.g. log entries
+        # keyed `node_id`, not `id`) must be a logged skip, not a downstream
+        # KeyError that takes the whole pipeline down. Validate shape before ingest.
+        file_nodes = data.get("nodes", [])
+        if file_nodes and not all(isinstance(n, dict) and "id" in n for n in file_nodes):
+            print(
+                f"Warning: skipping {path.name}: 'nodes' entries lack 'id' (not a POV file)",
+                file=sys.stderr,
+            )
+            continue
+        for node in file_nodes:
             nodes.append((pov, node))
     return nodes
 
@@ -370,6 +396,60 @@ def _load_conflict_nodes():
         return []
 
 
+def _assert_corpus_complete(node_count, conflict_count, conflicts_dir, allow_missing_conflicts):
+    """Fail loud if the regenerated corpus is missing a node class the source contains (t/2877).
+
+    Prevents the silent-degradation class (ADR-001): a path/cwd quirk that drops a whole
+    class (e.g. conflicts) while `generate` still exits 0 with a truncated corpus. Raises
+    ValueError (→ non-zero exit) with an actionable Goal/Problem/Next-Steps message; returns
+    None on success. Pure (no model encode) so it is unit-testable.
+
+    The crux (why not just "corpus conflicts > 0"): the incident's mis-resolution made the
+    SOURCE look empty, so a >0 check would not fire. This asserts the conflicts source
+    RESOLVED to a real conflicts.json and that the corpus count EXACTLY matches its entries —
+    catching total AND partial drops regardless of cause.
+    """
+    def _err(problem, next_steps):
+        return ValueError(
+            "Goal: Regenerate a complete embeddings.json (all node classes the source contains)\n"
+            f"Problem: {problem}\n"
+            "Location: embed_taxonomy.py cmd_generate / _assert_corpus_complete\n"
+            f"Next Steps: {next_steps}"
+        )
+
+    if node_count == 0:
+        raise _err(
+            f"0 taxonomy POV nodes loaded — source empty or TAXONOMY_DIR mis-resolved ({TAXONOMY_DIR}).",
+            "Check --taxonomy-dir / cwd / .aitriad.json so the POV JSON files are found.",
+        )
+
+    conflicts_file = (Path(conflicts_dir) / "conflicts.json") if conflicts_dir else None
+    if conflicts_file is None or not conflicts_file.exists():
+        if allow_missing_conflicts:
+            return
+        raise _err(
+            f"CONFLICTS_DIR did not resolve to an existing conflicts.json (looked at {conflicts_file}); "
+            "conflicts would be silently dropped from the corpus.",
+            "Pass --conflicts-dir <dir>, fix cwd/.aitriad.json so conflicts resolve, "
+            "or pass --allow-missing-conflicts if this run is intentionally conflict-free.",
+        )
+
+    try:
+        expected = len(json.loads(conflicts_file.read_text(encoding="utf-8")).get("conflicts", []))
+    except (json.JSONDecodeError, OSError) as exc:
+        raise _err(
+            f"could not read conflicts source {conflicts_file}: {exc}",
+            "Verify the conflicts.json file is valid JSON and readable.",
+        )
+
+    if conflict_count != expected:
+        raise _err(
+            f"conflict count mismatch: corpus has {conflict_count} but source {conflicts_file} "
+            f"has {expected} — a partial or total conflict drop.",
+            "Check CONFLICTS_DIR resolution and the conflict load path; do not ship a truncated corpus.",
+        )
+
+
 def cmd_generate(args):
     """Rebuild embeddings.json from all taxonomy JSON files and policy registry.
 
@@ -395,6 +475,17 @@ def cmd_generate(args):
 
     if not nodes and not policies and not conflicts:
         print("Error: no taxonomy nodes, policies, or conflicts found.", file=sys.stderr)
+        sys.exit(1)
+
+    # t/2877 — fail loud BEFORE the expensive encode if a whole node class was silently
+    # dropped (e.g. conflicts, via a path/cwd mis-resolution). Never ship a truncated corpus.
+    try:
+        _assert_corpus_complete(
+            len(nodes), len(conflicts), CONFLICTS_DIR,
+            getattr(args, "allow_missing_conflicts", False),
+        )
+    except ValueError as exc:
+        print(f"Error: {exc}", file=sys.stderr)
         sys.exit(1)
 
     # Parse weights
@@ -972,6 +1063,24 @@ def main():
             "production embeddings (t/1553 Stage 2 needs a 0.67/0.33 variant per t/524)."
         ),
     )
+    gen.add_argument(
+        "--conflicts-dir",
+        default=None,
+        help=(
+            "Override the conflicts directory (default: resolved from .aitriad.json). "
+            "Use when running from an unusual cwd/worktree where the relative data_root "
+            "does not resolve, so conflicts are not silently dropped (t/2877)."
+        ),
+    )
+    gen.add_argument(
+        "--allow-missing-conflicts",
+        action="store_true",
+        help=(
+            "Permit a run whose conflicts source does not resolve (intentionally "
+            "conflict-free data). Without this, generate aborts rather than silently "
+            "shipping a corpus with no conflicts (t/2877)."
+        ),
+    )
 
     # query
     q = sub.add_parser("query", help="Semantic search over taxonomy nodes")
@@ -1051,7 +1160,7 @@ def main():
     sm.add_argument("--include-policies", action="store_true", help="Include pol-* nodes in matrix")
 
     args = parser.parse_args()
-    _resolve_taxonomy_dir(args.taxonomy_dir)
+    _resolve_taxonomy_dir(args.taxonomy_dir, getattr(args, "conflicts_dir", None))
 
     if args.command == "generate":
         cmd_generate(args)

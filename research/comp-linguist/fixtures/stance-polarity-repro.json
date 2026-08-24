@@ -1,0 +1,223 @@
+{
+  "$fixture": "stance-polarity-repro",
+  "ticket": "t/2742",
+  "epic": "t/2743",
+  "origin_ticket": "t/2737",
+  "author": "Computational Linguist",
+  "created": "2026-08-17",
+  "purpose": "Shared ground-truth fixture for the stance-polarity-inversion bundle (epic t/2743). Consumed by the summary-pipeline gate (t/2739), the shared directional-agreement gate (t/2744), and the V-surface remediations (V1/V2 t/2745, V3/V4/V5 t/2746). Pins the observed origin inversion, the empirically-confirmed correct disposition (unmap + taxonomy gap), and the node_prop-richness requirement on the NLI gate (see nli_probe — the gate's recall depends on a contrastive label+Core node_prop, NOT on POV framing). Do NOT fork per-consumer copies — extend this file.",
+
+  "defect_class": "A key point (or claim) that asserts the NEGATION of a taxonomy node's proposition embeds NEAR that node (cosine of a proposition and its negation is HIGH — shared content words), is selected by similarity, and is assigned/assumed 'aligned' with no direction (assert-P vs assert-not-P) check. All similarity-based gates false-green it.",
+
+  "contrast_with_saf_167_repro": "saf-167-repro/case_1 was a LOW-retrieval-confidence miss: the wrong node was ABSENT from the key_point's bi-encoder top-80, so the t/2288 confidence gate FLAGS it. This case is the opposite and harder: the wrong node is the TOP topical match at HIGH confidence (0.7133 >> 0.45 gate) precisely BECAUSE it is the negation — topically near-identical. The confidence gate, the M5 top-3 pass, and the excludes-veto ALL pass it. Only a directional (NLI/entailment) signal catches it. That is why this bundle needs a new gate (t/2744), not a threshold tweak.",
+
+  "empirical_findings": {
+    "observed_source": "summaries/ai-doesnt-rewrite-privacy-law-it-changes-where-compliance-2026.json — pov_summaries.accelerationist.key_points[] entry with taxonomy_node_id 'acc-intentions-047'. Real pipeline assignment, human-inspectable.",
+    "run_metadata": "model_info: model=gemini-3.5-flash-lite, temperature=0.1, extraction_mode=fire (all_confident, 0 iterations), taxonomy_filter=rag, taxonomy_nodes=40 (doc-level RAG). acc-intentions-047 entered the 40-node candidate set on topic overlap (AI + privacy + law), then the LLM free-SELECTED it and assigned stance=aligned. This is an LLM-selection + stance-polarity error, and NOT a retrieval-confidence miss (confidence was high) nor an excludes-boundary case.",
+    "taxonomy_gap_confirmed": "Searched acc/saf/skp taxonomy for an anti-exceptionalism / 'adapt existing law to AI' counterpart node (terms: adapt+law, existing law, exceptionalism, ordinary+law). NONE exists — acc-intentions-047 (the 'new laws' pole) is the only near node. The correct positive home does not exist in the taxonomy; hence disposition = unmap + taxonomy gap (see t/2740).",
+    "nli_probe": {
+      "engine": "scripts/embed_taxonomy.py nli-classify (cross-encoder/nli-deberta-v3-small)",
+      "finding": "CORRECTED (t/2744#7, verified against the shipped scripts/nli_classify.py). The lever is node-proposition RICHNESS, NOT POV framing. A controlled 2x2 on the origin claim shows framing is INERT; the node's contrastive label+Core ('...Not Adapted Old Ones... rather than adapted existing laws') is what flips the verdict. The earlier 'framing-sensitivity' reading was CONFOUNDED — the two original probes differed in both framing AND node richness, so the flip was mis-attributed to framing.",
+      "controlled_2x2": {
+        "claim_prop": "Treating artificial intelligence as exempt from ordinary privacy law is fallacious because established data protection principles continue to govern responsible use.",
+        "rich_node_prop": "Argue That AI Requires Entirely New Laws, Not Adapted Old Ones — asserts emerging technologies are so transformative they require entirely new legal frameworks rather than adapted existing laws.",
+        "bare_node_prop": "AI requires entirely new legal frameworks rather than adapted existing laws.",
+        "rich_framed":     { "nli_label": "contradiction", "direction": "opposes", "confidence": 4.67 },
+        "rich_no_framing": { "nli_label": "contradiction", "direction": "opposes", "confidence": 4.30 },
+        "bare_framed":     { "nli_label": "entailment",    "direction": "agrees",  "confidence": 4.78 },
+        "bare_no_framing": { "nli_label": "entailment",    "direction": "agrees",  "confidence": 4.85 },
+        "conclusion": "Framing had ZERO effect (rich->opposes both ways; bare->agrees both ways). node_prop richness fully determined the verdict."
+      },
+      "node_prop_construction": {
+        "label_only":      { "direction": "agrees",  "note": "MISSES the inversion — label alone is insufficient" },
+        "label_plus_core": { "direction": "opposes", "confidence": 1.42, "note": "REQUIRED form: 'label — Core' (description with the Encompasses:/Excludes: tail stripped). Matches V1 calibration (PS smoke opposes@1.2746, tau_contra 1.0)." },
+        "label_full_desc": { "direction": "opposes", "confidence": 2.17 },
+        "desc_only":       { "direction": "opposes", "confidence": 3.27 }
+      },
+      "claim_field_dependence": {
+        "finding": "CL t/2756#1 (real deberta on stored case_1, POV-framed). The winning claim field is CASE-DEPENDENT — no single field suffices. The live gate missed case_1 because it fed attribution_text alone.",
+        "verbatim":              { "direction": "opposes", "nli_label": "contradiction",      "margin": 5.22 },
+        "canonical_proposition": { "direction": "opposes", "nli_label": "contradiction",      "margin": 1.42 },
+        "attribution_text":      { "direction": "agrees",  "nli_label": "entailment (FALSE)", "margin": 6.88, "note": "meta-descriptive schema wrapper ('A Belief within <camp> discourse that rejecting X ensures Y without Z') confuses NLI direction — false-ENTAIL, not false-oppose (still fail-safe under opposes-only)." },
+        "cross_case": "Opposite of t/2745 #1184 org-stance case (there attribution caught it, canonical missed). Hence the contract runs ALL fields, opposes-if-any.",
+        "contract": "Run the gate over {verbatim, canonical_proposition, attribution_text}, emit opposes if ANY returns contradiction (t/2744#10). Implemented in t/2757 (PowerShell)."
+      },
+      "requirement": "judgeDirection node_prop MUST be 'label — Core' (description with the Encompasses:/Excludes: tail stripped; label-only fallback), IDENTICAL across PS (V1/V2) and TS (V3/V4/V5) so every surface feeds the engine the same text (TL cross-surface ruling). The POV-framing wrapper is retained but is NOT the safeguard. Passing label-only or a terse/bare node_prop causes MISSED inversions.",
+      "recall_limitation": "SUPERSEDED (CL t/2756#1): the origin miss is NOT terse node text — acc-047's stored label+Core already fires opposes (verbatim margin 5.22, canonical 1.42). The recall lever is CLAIM-FIELD choice: attribution_text false-ENTAILS here while verbatim/canonical catch it (opposite of #1184). DO NOT enrich node descriptions to raise recall — tested counterproductive: a longer, more-explicit acc-047 Core NEUTRALIZED the working canonical contradiction (verbose text dilutes the NLI signal). Correct lever: run the gate over multiple claim fields, opposes-if-any (t/2744#10, implemented t/2757). Every failure mode here is false-ENTAIL (kept), never false-oppose — safe under opposes-only."
+    }
+  },
+
+  "nodes": {
+    "acc-intentions-047": {
+      "label": "Argue That AI Requires Entirely New Laws, Not Adapted Old Ones",
+      "category": "Intentions",
+      "in_scope_core": "An Intention within accelerationist discourse that asserts emerging technologies are so transformative they require entirely new legal frameworks rather than adapted existing laws. Proponents use this to justify sweeping regulatory changes tailored specifically for novel AI capabilities. Encompasses: bespoke AI legislation, regulatory sandboxes.",
+      "excludes_clause": "general arguments that caution hinders advancement or critiques of regulatory institutional inertia.",
+      "source": "taxonomy/Origin/accelerationist.json (node id acc-intentions-047)",
+      "note": "The node asserts the 'new laws, NOT adapted old ones' pole. The observed source argues the exact opposite (no AI exceptionalism; existing law applies). The excludes_clause names sibling topics, NOT the negation — which is why the t/2286 excludes-veto (a sibling-topic test) cannot catch this inversion."
+    },
+    "correct_counterpart_node": {
+      "type": "absent — taxonomy gap",
+      "note": "No positive 'adapt existing law to AI / anti-exceptionalism' accelerationist Intention node exists. Proposing one is t/2740. Until it lands, the correct disposition is unmap + unmapped_concept."
+    },
+    "saf-beliefs-017": {
+      "label": "AI Deployment Speed Erodes Organizational Visibility and Control",
+      "category": "Beliefs",
+      "in_scope_core": "A Belief within safetyist discourse that describes how the rapid adoption of AI systems undermines security governance by creating a systemic loss of visibility and control over data.",
+      "source": "taxonomy/Origin/safetyist.json (node id saf-beliefs-017)",
+      "note": "t/2900 case_4: the agency→loss shape. A key_point that ASSERTS this belief (AI acts across blurred boundaries → loss of control) is a genuine AGREEMENT, but deberta reads the agency/capability language as CONTRADICTING the loss-of-control proposition — it cannot infer AI-gains-agency ⊨ humans-lose-oversight. This is the dominant safetyist/skeptic false-demote shape."
+    },
+    "acc-intentions-127": {
+      "label": "Argue That Existing Laws Already Govern AI, Requiring No New AI-Specific Statutes",
+      "category": "Intentions",
+      "in_scope_core": "An Intention within accelerationist discourse that asserts AI is not legally exceptional — existing, technology-neutral bodies of law already reach AI's harms and capabilities, so bespoke AI-specific legislation is unnecessary.",
+      "source": "taxonomy/Origin/accelerationist.json (node id acc-intentions-127)",
+      "note": "t/2900 case_5: the MATCHING pole of the anti-exceptionalism claim. The claim AGREES with acc-127 (both: existing law governs AI, no new statutes) — correct = no-flip — yet deberta returns opposes @ 1.61. Paired with acc-intentions-047 (the OPPOSITE pole, correct = flip) this is the pole-discrimination pair: deberta says opposes for BOTH poles of the same claim; only a reasoning judge tells agreement from opposition."
+    }
+  },
+
+  "cases": [
+    {
+      "id": "case_1_privacy_law_anti_exceptionalism",
+      "provenance": "observed",
+      "provenance_evidence": "summaries/ai-doesnt-rewrite-privacy-law-it-changes-where-compliance-2026.json, accelerationist key_point with taxonomy_node_id 'acc-intentions-047'.",
+      "stored_key_point": {
+        "verbatim": "AI presents new privacy challenges, but treating AI as if it lives outside the parameters of ordinary privacy law is fallacious. The emerging lesson from privacy regulators and enforcers is increasingly clear: there is no AI exceptionalism. The same principles that have long governed responsible data use still apply. What changes is where those principles need to be built.",
+        "canonical_proposition": "Treating artificial intelligence as exempt from ordinary privacy law is fallacious because established data protection principles continue to govern responsible use.",
+        "attribution_text": "A Belief within accelerationist discourse that rejecting AI exceptionalism ensures existing privacy principles remain the baseline for technological deployment without requiring novel regulatory regimes. Encompasses: absence of AI exceptionalism, applicability of traditional privacy principles, operational translation over legal novelty.",
+        "category": "Beliefs"
+      },
+      "wrong_output": {
+        "taxonomy_node_id": "acc-intentions-047",
+        "stance": "aligned",
+        "extraction_confidence": 0.95,
+        "retrieval_confidence": 0.7133,
+        "retrieval_low_confidence": false,
+        "category_mismatch": "key_point.category='Beliefs' but acc-intentions-047.category='Intentions' — a corroborating symptom of a topical (not propositional) match."
+      },
+      "correct_disposition": {
+        "type": "unmap_plus_gap",
+        "taxonomy_node_id": null,
+        "unmapped_concept": {
+          "suggested_label": "Adapting Existing Law to AI",
+          "concept": "Anti-exceptionalism: AI is governed by ordinary privacy/data-protection law; existing principles continue to apply and should be operationalized in new places rather than replaced by novel AI-specific legal regimes."
+        },
+        "fallback_if_counterpart_node_lands": {
+          "type": "aligned_to_counterpart",
+          "note": "If t/2740's anti-exceptionalism node lands first, map there with stance=aligned instead of unmapping.",
+          "alternative_on_acc_047": "stance=strongly_opposed on acc-intentions-047 is also faithful (the source disputes that node's proposition), but is dispreferred due to the Belief-vs-Intentions category mismatch."
+        }
+      },
+      "error_type": ["stance_polarity_inversion", "llm_selection_from_broad_candidate_set", "category_mismatch"],
+      "exercises": ["t/2739", "t/2744"],
+      "NOT_a_repro_for": "t/2288 retrieval-confidence gate (confidence was HIGH, 0.71) and t/2286 excludes-veto (excludes clause names sibling topics, not the negation). Neither can catch this — that is the point.",
+      "expectations": {
+        "existing_gates": "MUST all pass/false-green (documents the gap): retrieval_low_confidence=false @ 0.7133; M5 top-3 includes acc-intentions-047 (it IS the top topical match); excludes-veto MUST NOT fire.",
+        "judgeDirection_label_plus_core": "MUST return direction='opposes' (NLI contradiction) when node_prop is the full 'label — Core' (conf ~1.42, above tau_contra 1.0).",
+        "judgeDirection_node_richness_guard": "REQUIRED richness guard (replaces the retracted framing guard, t/2744#7): with a BARE node_prop the gate MISSES (returns 'agrees'); with the full 'label — Core' node_prop it CATCHES ('opposes'). See nli_probe.node_prop_construction. The V-surfaces MUST build node_prop as label+Core.",
+        "gate_action": "On direction='opposes' where stance='aligned' was claimed: set stance_polarity_flag=true and either unmap (+unmapped_concept) or set opposed-family stance. Do NOT silently auto-flip without surfacing.",
+        "final_correct_output": "taxonomy_node_id=null + unmapped_concept (case correct_disposition)."
+      },
+      "notes": "extraction_confidence 0.95 is the LLM's self-report — a different instrument from both retrieval_confidence and the directional gate. High self-report + high topical retrieval + WRONG direction is exactly the divergence judgeDirection exists to surface."
+    },
+    {
+      "id": "case_2_genuine_agreement_control",
+      "provenance": "constructed",
+      "provenance_evidence": "Constructed negative control — a key point that genuinely ASSERTS acc-intentions-047's proposition. Exercises the gate's 'MUST NOT fire' arm (zero false-flag on true agreement).",
+      "query": {
+        "pov": "accelerationist",
+        "canonical_proposition": "AI is so transformative that it requires entirely new, bespoke legal frameworks rather than adapting existing laws.",
+        "attribution_text": "An Intention within accelerationist discourse that novel AI capabilities demand purpose-built legislation and regulatory sandboxes rather than incremental adaptation of existing statutes. Encompasses: bespoke AI legislation, regulatory sandboxes, framework novelty."
+      },
+      "correct_node": "acc-intentions-047",
+      "correct_stance": "aligned",
+      "error_type": [],
+      "exercises": ["t/2744"],
+      "expectations": {
+        "judgeDirection": "MUST NOT return 'opposes' (under POV framing a genuine agreement reads neutral -> direction='unrelated', per the t/2751#3 asymmetry ruling; the gate acts ONLY on 'opposes'). The correct assignment survives with zero false-flag.",
+        "gate_action": "No flag; stance='aligned' stands (unrelated/agrees both mean 'no opposition detected' -> keep the edge)."
+      },
+      "notes": "Guards against an over-eager gate that flags genuine agreement. Required for the both-arms Gate Verification (t/2744)."
+    },
+    {
+      "id": "case_3_signal_absent_failsafe",
+      "provenance": "constructed",
+      "provenance_evidence": "Constructed to exercise the fail-safe: when no directional signal is available (NLI engine unavailable AND node has no exclusion_vector), the gate MUST resolve 'unresolved', never 'agrees'.",
+      "query": {
+        "pov": "accelerationist",
+        "canonical_proposition": "(reuse case_1 canonical_proposition)",
+        "node_id": "acc-intentions-047",
+        "simulated_conditions": "nliClassify unavailable; node.exclusion_vector absent"
+      },
+      "error_type": [],
+      "exercises": ["t/2744", "t/2747"],
+      "expectations": {
+        "judgeDirection": "MUST return direction='unresolved', method='none'.",
+        "gate_action": "Caller MUST NOT assert agreement: downgrade to flag/neutral/unmap. Specifically closes the Find-SituationCandidates default-'entailment' fallback and the opt-in exclusion guard (t/2747)."
+      },
+      "notes": "Absence of a directional signal must never default to aligned — the load-bearing failure-semantics rule from t/2744#1."
+    },
+    {
+      "id": "case_4_agency_to_loss_false_demote",
+      "provenance": "observed",
+      "provenance_evidence": "t/2896 production misfire — a safetyist key_point asserting saf-beliefs-017 (agency→loss) was demoted to strongly_opposed by the polarity gate. Empirical verdicts pinned by CL, t/2900#1.",
+      "ticket": "t/2900",
+      "arm": "MUST_NOT_FLIP",
+      "query": {
+        "pov": "safetyist",
+        "canonical_proposition": "AI deployment speed and agentic autonomy erode organizational visibility and control over data.",
+        "verbatim": "AI infers, summarizes, remembers, ranks, and increasingly acts across blurred boundaries and in a non-determistic manner. That shifts AI into a category closer to delegated action. And this delegated action relationship creates a different risk profile and attack surface for privacy harms.",
+        "node_id": "saf-beliefs-017",
+        "source_key_point": "summaries/ai-doesnt-rewrite-privacy-law-it-changes-where-compliance-2026.json — the saf-beliefs-017-mapped key_point demoted under t/2896. REAL stored text (recovered via the t/2896 revert 128ce8f4; that revert changed only stance, not text). Replaces the earlier paraphrase, which did not reproduce (CL t/2900#12/#15).",
+        "claim_note": "The claim ASSERTS the belief (AI gains agency → loss of visibility/control) — a genuine agreement; must NOT flip."
+      },
+      "correct_stance": "aligned",
+      "correct_disposition": { "type": "no_flip", "note": "The claim agrees with saf-017's proposition; must NOT be demoted." },
+      "observed_deberta": { "direction": "opposes", "margin": 7.51, "note": "FALSE positive on CURRENT node text via the gate-exact node_prop (Get-NodePropText: label — Core) — reads agency/capability language as contradicting the loss-of-control proposition (cannot infer AI-gains-agency ⊨ humans-lose-oversight); τ_contra cannot fix. No node drift (a869fb48 only ADDED plain_description; gate reads description). Margin reproduces the ORIGINAL t/2896 value on the real stored verbatim (CL t/2900#17)." },
+      "expected_judge": { "direction": "unrelated", "flip": false, "note": "LLM-judge must NOT confirm the flip → KEEP." },
+      "error_type": ["stance_polarity_false_demote", "agency_to_loss_pattern"],
+      "exercises": ["t/2900"]
+    },
+    {
+      "id": "case_5_pole_discrimination_pair",
+      "provenance": "observed",
+      "provenance_evidence": "t/2896 — the anti-exceptionalism claim (case_1) run live vs BOTH accelerationist poles. Empirical verdicts pinned by CL, t/2900#1.",
+      "ticket": "t/2900",
+      "claim": {
+        "pov": "accelerationist",
+        "canonical_proposition": "Existing legal frameworks govern AI without requiring entirely new statutes.",
+        "verbatim": "AI presents new privacy challenges, but treating AI as if it lives outside the parameters of ordinary privacy law is fallacious. The emerging lesson from privacy regulators and enforcers is increasingly clear: there is no AI exceptionalism. The same principles that have long governed responsible data use still apply.",
+        "source_key_point": "summaries/ai-doesnt-rewrite-privacy-law-it-changes-where-compliance-2026.json — the acc-intentions-127-mapped key_point demoted under t/2896. REAL stored text (replaces the earlier paraphrase, which did not reproduce)."
+      },
+      "pairings": [
+        {
+          "node_id": "acc-intentions-127",
+          "pole": "matching (existing laws already govern AI)",
+          "arm": "MUST_NOT_FLIP",
+          "correct_stance": "aligned",
+          "observed_deberta": { "direction": "opposes", "margin": 1.61, "note": "FALSE positive on CURRENT node text (gate-exact node_prop, opposes-if-any over the rep set). Margin reproduces the ORIGINAL t/2896 value on the real stored verbatim (CL t/2900#17)." },
+          "expected_judge": { "direction": "agrees", "flip": false }
+        },
+        {
+          "node_id": "acc-intentions-047",
+          "pole": "opposite (AI requires entirely new laws)",
+          "arm": "MUST_FLIP",
+          "correct_stance": "strongly_opposed",
+          "observed_deberta": { "direction": "opposes", "margin": 4.91, "trigger_rep": "verbatim", "note": "Genuine inversion. opposes via VERBATIM@4.91; canonical→agrees@5.08 — the gate is opposes-if-any, so the candidate fires on verbatim. Confirmed t/2900#14." },
+          "expected_judge": { "direction": "opposes", "flip": true }
+        }
+      ],
+      "key_finding": "deberta returns opposes for BOTH poles of the same claim (matching acc-127 AND opposite acc-047) — it cannot tell agreement from opposition when the poles are topically near-identical. No τ_contra separates the class (the matching-pole false positive sits near/above genuine inversions); discrimination must be semantic. The LLM-judge separates all four arms (16/16 stable t/2900#3; re-verified live 4/4 by TL t/2900#9). Multi-rep note: deberta is run opposes-if-any over {verbatim, canonical} — acc-047 flags only on verbatim (canonical→agrees), so the acceptance harness asserts the candidate fires over the full rep set and fails loudly if none do (CL t/2900#16).",
+      "error_type": ["pole_confusion"],
+      "exercises": ["t/2900"]
+    }
+  ],
+
+  "consumer_map": {
+    "t/2739_summary_p1_gate": "case_1 (PRIMARY) — the summary pipeline must, on case_1, produce unmap+gap (or opposed-family), not aligned. case_2 negative (must keep aligned).",
+    "t/2744_shared_gate": "case_1 (opposes), case_2 (not-opposes/unrelated), case_3 (unresolved) — the three-arm test set. PLUS the rich-vs-bare node_prop pair in empirical_findings.nli_probe.controlled_2x2 as the required node-richness guard (replaces the retracted framing-regression guard, t/2744#7).",
+    "t/2745_org_and_qbaf": "case_1 canonical_proposition vs matched node exercises the V1/V2 directional gate (no ADVOCATES_FOR / supports edge on an inversion).",
+    "t/2746_debate_surfaces": "case_1 exercises V3 (attribution not aligned) and, framed as evidence-vs-claim, V4 (contradiction not 'supports'). V5 uses the REJECT:-preservation principle, not this case directly.",
+    "t/2740_taxonomy_gap": "correct_counterpart_node (absent) motivates the anti-exceptionalism node proposal; once it lands, case_1 fallback_if_counterpart_node_lands applies."
+  }
+}

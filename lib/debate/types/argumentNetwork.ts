@@ -108,7 +108,7 @@ export interface ClaimTaxonomyAttribution {
   /** Secondary refs above the 0.40 threshold. */
   secondary_refs?: { node_id: string; similarity: number }[];
   /** Reason the claim was unattributed, if applicable. */
-  unattributed_reason?: 'novel_argument' | 'no_embedding';
+  unattributed_reason?: 'novel_argument' | 'no_embedding' | 'direction_mismatch';
 }
 
 export interface ArgumentNetworkEdge {

@@ -15,6 +15,7 @@ import fs from 'fs';
 import path from 'path';
 import { getConfig } from '../runtimeConfig.js';
 import { log } from '../logger.js';
+import { getGlobalRecorder } from '../../../../lib/flight-recorder/index.js';
 
 // ── Types ──
 
@@ -79,6 +80,12 @@ export interface AnalyticsBackend {
   readLines(date: string): Promise<string[]>;
   listDates(): Promise<string[]>;
   prune(cutoffDate: string): Promise<void>;
+  /**
+   * t/2704: startup health probe. Surfaces backend inaccessibility by THROWING —
+   * unlike listDates()/readLines(), which swallow errors and return [] (so they can't
+   * distinguish "broken" from "empty"). Resolves when the store is reachable.
+   */
+  probe(): Promise<void>;
 }
 
 export interface AnalyticsBlobConfig {
@@ -125,6 +132,12 @@ class FsAnalyticsBackend implements AnalyticsBackend {
       }
     } catch { /* telemetry — silent by design;  best-effort cleanup */ }
   }
+
+  async probe(): Promise<void> {
+    // The constructor already mkdir -p'd the dir; a readdir confirms it is accessible.
+    // Unlike listDates() this does NOT swallow — an inaccessible dir throws.
+    await fs.promises.readdir(this.dir);
+  }
 }
 
 // ── Module state ──
@@ -151,6 +164,45 @@ export async function initAnalytics(dataRoot: string, blobConfig?: AnalyticsBlob
     backend = new FsAnalyticsBackend(path.join(dataRoot, 'analytics'));
   }
   await backend.prune(cutoffStr());
+}
+
+/**
+ * Startup health report (t/2704). Exercises the analytics backend so a broken or empty
+ * pipeline is observable at startup instead of surfacing later as a silently empty
+ * dashboard (t/2699). `backend.probe()` throws on inaccessibility (auth/network/missing
+ * container) → logged at error + a flight-recorder `system.error`. A reachable store then
+ * reports its partition count, so "reachable but empty" — the state that masquerades as
+ * broken — is a distinct warn, not an error. Called once, right after initAnalytics.
+ */
+export async function reportStartupProbe(backendKind: string, container: string): Promise<void> {
+  log.analytics.info({ backend: backendKind }, 'Analytics initialized');
+  if (!backend) {
+    log.analytics.error({ backend: backendKind, container }, 'Analytics store startup probe: backend not initialized');
+    getGlobalRecorder()?.record({
+      type: 'system.error', component: 'analytics', level: 'error',
+      message: 'Analytics store not initialized at startup probe',
+      data: { backend: backendKind, container },
+    });
+    return;
+  }
+  try {
+    await backend.probe();
+  } catch (err) {
+    log.analytics.error({ backend: backendKind, container, err }, 'Analytics store startup probe failed — pipeline may be broken');
+    getGlobalRecorder()?.record({
+      type: 'system.error', component: 'analytics', level: 'error',
+      message: 'Analytics store startup probe failed',
+      data: { backend: backendKind, container },
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+    });
+    return;
+  }
+  const dates = await backend.listDates();
+  if (dates.length === 0) {
+    log.analytics.warn({ backend: backendKind, dateCount: 0 }, 'Analytics store reachable but contains no data');
+  } else {
+    log.analytics.info({ backend: backendKind, dateCount: dates.length }, 'Analytics store probe OK');
+  }
 }
 
 /** Append a batch of events. Fire-and-forget safe — errors are recorded, not thrown. */

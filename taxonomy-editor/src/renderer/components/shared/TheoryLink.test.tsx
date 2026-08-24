@@ -9,6 +9,12 @@ const openExternal = vi.fn().mockResolvedValue(undefined);
 vi.mock('@bridge', () => ({ api: { openExternal: (url: string) => openExternal(url) } }));
 const { recorderRecord } = vi.hoisted(() => ({ recorderRecord: vi.fn() }));
 vi.mock('@lib/flight-recorder/index', () => ({ getGlobalRecorder: () => ({ record: recorderRecord }) }));
+// t/2867: TheoryLink now gates on viewMode. Default 'advanced' keeps the existing render
+// assertions valid; the gate tests below flip it to 'simple'.
+const { viewModeRef } = vi.hoisted(() => ({ viewModeRef: { current: 'advanced' as 'simple' | 'advanced' } }));
+vi.mock('../../store/preferencesStore', () => ({
+  usePreferencesStore: (sel: (s: { viewMode: 'simple' | 'advanced' }) => unknown) => sel({ viewMode: viewModeRef.current }),
+}));
 
 import { TheoryLink, DocLink, buildDocUrl, humanizeDocName, type TheoryLinkProps } from './TheoryLink';
 
@@ -33,7 +39,7 @@ describe('humanizeDocName', () => {
 });
 
 describe('TheoryLink', () => {
-  beforeEach(() => { openExternal.mockClear(); recorderRecord.mockClear(); });
+  beforeEach(() => { openExternal.mockClear(); recorderRecord.mockClear(); viewModeRef.current = 'advanced'; });
 
   it('DocLink is an alias of TheoryLink', () => {
     expect(DocLink).toBe(TheoryLink);
@@ -117,5 +123,28 @@ describe('TheoryLink', () => {
     const { container } = render(<TheoryLink {...({ url: URL, docPath: 'docs/x.md' } as unknown as TheoryLinkProps)} />);
     expect(container).toBeEmptyDOMElement();
     expect(recorderRecord).toHaveBeenCalledWith(expect.objectContaining({ type: 'system.error', component: 'theory-link' }));
+  });
+
+  // ── viewMode gate (t/2867): Simple view hides all doc/help links, single-point ──
+  it('renders nothing in Simple view', () => {
+    viewModeRef.current = 'simple';
+    const { container } = render(<TheoryLink url={URL} label="Help" />);
+    expect(container).toBeEmptyDOMElement();
+    expect(screen.queryByRole('button')).toBeNull();
+  });
+
+  it('renders the link in Advanced view', () => {
+    viewModeRef.current = 'advanced';
+    render(<TheoryLink url={URL} label="Help" />);
+    expect(screen.getByRole('button', { name: 'Help' })).toHaveAttribute('data-theory-link');
+  });
+
+  it('toggling Advanced→Simple hides it live (store subscription, no reload)', () => {
+    viewModeRef.current = 'advanced';
+    const { rerender, container } = render(<TheoryLink url={URL} label="Help" />);
+    expect(screen.getByRole('button', { name: 'Help' })).toBeTruthy();
+    viewModeRef.current = 'simple';
+    rerender(<TheoryLink url={URL} label="Help" />);
+    expect(container).toBeEmptyDOMElement();
   });
 });

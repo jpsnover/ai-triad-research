@@ -16,6 +16,7 @@ export interface ChatSessionSummary {
   updated_at: string;
   mode: string;
   pover: string;
+  chat_model?: string;
 }
 
 function ensureChatsDir(): void {
@@ -44,6 +45,7 @@ export function listChatSessions(): ChatSessionSummary[] {
         updated_at: data.updated_at,
         mode: data.mode,
         pover: data.pover,
+        ...(typeof data.chat_model === 'string' ? { chat_model: data.chat_model } : {}),
       });
     } catch {
       /* telemetry — silent by design */

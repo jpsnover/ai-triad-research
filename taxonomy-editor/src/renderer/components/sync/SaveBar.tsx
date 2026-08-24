@@ -7,7 +7,6 @@ import { useTaxonomyStore } from '../../hooks/useTaxonomyStore';
 import { useSyncStatus } from '../../hooks/useSyncStatus';
 import { type SyncStatus } from '../../utils/syncApi';
 import { useOnlineStatus } from '../../hooks/useOnlineStatus';
-import { triggerManualDump } from '../../lib/flightRecorderInit';
 import { useFlag } from '../../hooks/useFeatureFlags';
 import { TheoryLink } from '../shared';
 import { UnsyncedChangesDrawer } from './UnsyncedChangesDrawer';
@@ -22,8 +21,7 @@ function formatFileKey(key: string): string {
 }
 
 export function SaveBar() {
-  const { dirty, save, saveError, dismissSaveError, validationErrors, integrityIssues, fixIntegrityErrors, zoomLevel, zoomIn, zoomOut, zoomReset } = useTaxonomyStore();
-  const analyticsFlag = useFlag('env-web-analytics-dashboard');
+  const { dirty, save, saveError, dismissSaveError, validationErrors, integrityIssues, fixIntegrityErrors } = useTaxonomyStore();
   const adminFlag = useFlag('permission-admin-features');
   const isOnline = useOnlineStatus();
   const isDirty = dirty.size > 0;
@@ -101,28 +99,22 @@ export function SaveBar() {
           onOpenDrawer={() => setSyncDrawerOpen(true)}
           onOpenDiffPanel={() => setDiffPanelOpen(true)}
         />
-        <button
-          type="button"
-          className="save-bar-sync-diag"
-          onClick={() => setSyncDiagOpen(true)}
-          title="Sync diagnostics"
-        >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-        </button>
-        <button
-          type="button"
-          className="save-bar-sync-diag"
-          onClick={triggerManualDump}
-          title="Dump flight recorder (⌃⌥D)"
-        >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-        </button>
-        {analyticsFlag && (
+        {adminFlag && (
+          <button
+            type="button"
+            className="save-bar-sync-diag"
+            onClick={() => setSyncDiagOpen(true)}
+            title="Sync diagnostics (admin)"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          </button>
+        )}
+        {adminFlag && (
           <button
             type="button"
             className="save-bar-sync-diag"
             onClick={() => { window.location.hash = '#analytics'; }}
-            title="Usage Analytics"
+            title="Usage Analytics (admin)"
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
           </button>
@@ -141,17 +133,6 @@ export function SaveBar() {
           docPath="docs/architecture-overview.md"
           label="Help: architecture overview"
         />
-        <div className="zoom-controls">
-          <button className="btn btn-ghost btn-sm" onClick={zoomOut} title="Zoom out (Ctrl+-)">-</button>
-          <button
-            className="btn btn-ghost btn-sm zoom-level"
-            onClick={zoomReset}
-            title="Reset zoom (Ctrl+0)"
-          >
-            {zoomLevel}%
-          </button>
-          <button className="btn btn-ghost btn-sm" onClick={zoomIn} title="Zoom in (Ctrl+=)">+</button>
-        </div>
         <button
           className="btn btn-primary"
           onClick={save}

@@ -35,11 +35,21 @@ import {
   loadDataConfig,
 } from '../fileIO.js';
 import { ActionableError } from '../../../../lib/debate/errors.js';
+import { mergeEdgesPreservingRationale, ABSENT_BASELINE, type EdgesData, type EdgeMergeWarn } from '../../../../lib/edges/mergeEdgesPreservingRationale.js';
 import { renameSyncWithRetry } from '../../../../lib/debate/persistence.js';
 import { recordLockHolder } from '../../../../lib/debate/lockHolder.js';
 import { stampNodeAuthorship } from '../../server/storage/editMeta.js';
 import { getGlobalRecorder } from '../../../../lib/flight-recorder/index.js';
 import { VALID_POV } from '../ipcSchemas.js';
+
+// Recorder-backed sink for the rationale re-merge's "baseline twin matched no incoming edge"
+// case: a real rationale isn't written, logged so a systematic tie-break mismatch is
+// discoverable (CL Issue 4). Payload is IDs/counts only — no rationale content is recorded.
+const onEdgeMergeWarn: EdgeMergeWarn = (e) =>
+  getGlobalRecorder()?.record({
+    type: 'system.error', component: 'ipc-save-edges', level: 'warn',
+    message: `${e.message} ${JSON.stringify(e.data)}`,
+  });
 
 /**
  * Stamp _edit_meta / _edit_history authorship onto a save's nodes (mirroring the server's
@@ -258,12 +268,13 @@ export function registerTaxonomyHandlers(): void {
   });
 
   ipcMain.handle('load-edges', () => {
-    const data = readEdgesFile() as { edges: Record<string, unknown>[]; [k: string]: unknown } | null;
-    if (!data?.edges) return data;
-    return {
-      ...data,
-      edges: data.edges.map(({ rationale, ...rest }) => rest),
-    };
+    // t/2949 defense-in-depth: return the FULL edges (rationale included) so the renderer's
+    // in-memory set is COMPLETE — a whole-file save physically cannot drop what it never lost.
+    // (The write-side re-merge in save-edges stays the primary, durable guard.) The former inline
+    // rationale-strip here was a DUPLICATE of the server's stripEdgeRationale (the t/2945
+    // duplication hazard); removing it leaves the single shared strip (lib/edges) for the server
+    // list endpoint only. Mirrors the web bridge's `?include=rationale` load (web-bridge.ts:775).
+    return readEdgesFile();
   });
 
   ipcMain.handle('load-edge-detail', (_event, index: number) => {
@@ -391,13 +402,28 @@ export function registerTaxonomyHandlers(): void {
       });
     }
     try {
-      writeEdgesFile(data);
+      // t/2957: the editor loads the edge list rationale-stripped, then saves the WHOLE file —
+      // persisting the stripped set would wipe on-disk rationale. Re-merge it from the on-disk
+      // baseline first. `readEdgesFile` returns null ONLY for a genuinely absent edges.json
+      // (existsSync guard) and THROWS (via parseJsonFile / readFileSync) on a corrupt or
+      // unreadable file — so `== null` is a true first-write (write as-is), never a masked
+      // read failure. A read/parse throw or an indistinguishable-twin refusal propagates below.
+      const raw = readEdgesFile();
+      const baseline = raw == null ? ABSENT_BASELINE : (raw as EdgesData);
+      const merged = mergeEdgesPreservingRationale(data as EdgesData, baseline, onEdgeMergeWarn);
+      writeEdgesFile(merged);
     } catch (err) {
+      // A merge refusal (unreadable baseline / indistinguishable twins) is already an
+      // ActionableError with the precise Goal/Problem/Location/NextSteps — surface it verbatim,
+      // and do NOT record it as a persist-FAILURE: it is a deliberate, self-describing refusal, not
+      // a write error (the no-match tie-break case is already logged via onEdgeMergeWarn). Only a
+      // raw fs error is a genuine persist failure worth the error record + generic wrap.
+      if (err instanceof ActionableError) throw err;
       getGlobalRecorder()?.record({
         type: 'system.error',
         component: 'ipc-save-edges',
         level: 'error',
-        message: 'Failed to persist edges.json',
+        message: 'Failed to persist edges.json (rationale-preserving save)',
         error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
       throw new ActionableError({

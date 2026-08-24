@@ -8,6 +8,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import { RankedSelectCell, ConfidenceCell } from './GraphAttributesPanel';
+import { usePreferencesStore } from '../../store/preferencesStore';
 
 const openExternal = vi.fn().mockResolvedValue(undefined);
 vi.mock('@bridge', () => ({ api: { openExternal: (...args: unknown[]) => openExternal(...args) } }));
@@ -16,7 +17,8 @@ vi.mock('@lib/flight-recorder/index', () => ({ getGlobalRecorder: () => null }))
 const BDI_DOC_URL = 'https://github.com/jpsnover/ai-triad-research/blob/main/docs/bdi-scales.md';
 
 describe('GraphAttributesPanel — BDI scale doc-links (t/2448)', () => {
-  beforeEach(() => { openExternal.mockClear(); cleanup(); });
+  // t/2867: TheoryLink now gates on viewMode; advanced view shows the doc-links these tests assert.
+  beforeEach(() => { openExternal.mockClear(); cleanup(); usePreferencesStore.setState({ viewMode: 'advanced' }); });
 
   it('renders the doc link beside a RankedSelectCell label and opens docs/bdi-scales.md', () => {
     render(<RankedSelectCell label="Priority" value={3} options={[{ value: 3, label: '3 — Important' }]} />);

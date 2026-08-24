@@ -39,8 +39,14 @@ function getDebatesDir(): string {
 
 const DEBATE_INDEX_FILE = '_index.json';
 
+/** One row of the lightweight debate index. `model`/`turn_count` are part of the schema
+ *  (t/2725) — the upsert path MUST populate them or the table renders "—" for those rows
+ *  while full-rebuild rows show real values (t/2892). `turn_count` is always a number
+ *  (0 when no transcript) so it doubles as the schema-drift sentinel. */
+type DebateIndexEntry = { id: string; title: string; created_at: string; updated_at: string; phase: string; model?: string; turn_count?: number };
+
 /** Read the lightweight debate index (one file read).  Returns null if the index doesn't exist. */
-async function readDebateIndex(): Promise<{ id: string; title: string; created_at: string; updated_at: string; phase: string }[] | null> {
+async function readDebateIndex(): Promise<DebateIndexEntry[] | null> {
   const backend = getUserContentBackend();
   const raw = await backend.readFile(path.join(getDebatesDir(), DEBATE_INDEX_FILE));
   if (raw === null) return null;
@@ -48,7 +54,7 @@ async function readDebateIndex(): Promise<{ id: string; title: string; created_a
 }
 
 /** Write the debate index to disk. */
-async function writeDebateIndex(entries: { id: string; title: string; created_at: string; updated_at: string; phase: string }[]): Promise<void> {
+async function writeDebateIndex(entries: DebateIndexEntry[]): Promise<void> {
   const backend = getUserContentBackend();
   await backend.writeFile(
     path.join(getDebatesDir(), DEBATE_INDEX_FILE),
@@ -57,7 +63,7 @@ async function writeDebateIndex(entries: { id: string; title: string; created_at
 }
 
 /** Upsert a single debate entry in the index. */
-async function upsertDebateIndex(summary: { id: string; title: string; created_at: string; updated_at: string; phase: string }): Promise<void> {
+async function upsertDebateIndex(summary: DebateIndexEntry): Promise<void> {
   const entries = (await readDebateIndex()) ?? [];
   const idx = entries.findIndex(e => e.id === summary.id);
   if (idx >= 0) entries[idx] = summary;
@@ -78,12 +84,27 @@ async function removeFromDebateIndex(id: string): Promise<void> {
  * Falls back to full scan (listDebateSessions) and rebuilds the index on first call
  * or when the file count in the tree doesn't match the index (staleness check).
  */
+/**
+ * t/2725: a cached index whose rows predate the model/turn_count summary fields must be
+ * rebuilt — the count-only staleness check below can't detect a schema ADDITION (row count
+ * is unchanged), so it would keep serving fieldless rows (Turns/Model render empty).
+ */
+export function isDebateIndexSchemaStale(cached: unknown[]): boolean {
+  // Scan EVERY row, not just cached[0] (t/2892): the upsert path historically wrote rows
+  // without turn_count, so an index can be mixed — new rows have it, older upsert rows don't.
+  // Key on turn_count only: it is always a number after rebuild/upsert (0 when no transcript),
+  // so it never false-triggers a rebuild loop the way an optional `model` would.
+  return cached.some(r => !('turn_count' in (r as Record<string, unknown>)));
+}
+
 export async function listDebateSessionsMeta(): Promise<unknown[]> {
   if (isAnonymousUser()) { const a = getAnonStore(); return a ? await a.store.listDebatesMeta(a.sessionId) : []; }
   const backend = getUserContentBackend();
   const dir = getDebatesDir();
   const cached = await readDebateIndex();
   if (cached !== null && cached.length > 0) {
+    // t/2725: rebuild synchronously on schema drift so this request returns populated fields.
+    if (isDebateIndexSchemaStale(cached)) return rebuildDebateIndex();
     // Lightweight staleness check: compare file count from tree with index size.
     // listDirectory() uses the in-memory repoTree — zero API calls.
     try {
@@ -205,13 +226,8 @@ export async function saveDebateSession(session: unknown, caller: string): Promi
   await backend.writeFile(debatePath, json);
   log.server.info({ caller, debateId: s.id, backendName: backend.backendName, blobKey: debatePath, bytes: json.length, writeAck: true }, 'Debate session saved');
   // Maintain the lightweight index
-  void upsertDebateIndex({
-    id: s.id,
-    title: s.title || s.topic?.final || s.topic?.original || 'Untitled',
-    created_at: s.created_at || '',
-    updated_at: s.updated_at || s.created_at || '',
-    phase: s.phase || 'unknown',
-  }).catch((err) => { log.server.warn({ err }, 'Debate index upsert failed (best-effort)'); });
+  void upsertDebateIndex(buildDebateIndexEntry(s.id, session as DebateSession))
+    .catch((err) => { log.server.warn({ err }, 'Debate index upsert failed (best-effort)'); });
 }
 
 /** Build the typed 409 version-conflict error carrying the server's current
@@ -256,14 +272,19 @@ async function applyDeltaAnon(delta: DebateDelta): Promise<{ newVersion: number 
   return { newVersion: merged._saveVersion ?? 0 };
 }
 
-function buildDebateIndexEntry(id: string, merged: DebateSession): { id: string; title: string; created_at: string; updated_at: string; phase: string } {
-  const m = merged as { title?: string; topic?: { final?: string; original?: string }; created_at?: string; updated_at?: string; phase?: string };
+function buildDebateIndexEntry(id: string, merged: DebateSession): DebateIndexEntry {
+  const m = merged as { title?: string; topic?: { final?: string; original?: string }; created_at?: string; updated_at?: string; phase?: string; debate_model?: string; transcript?: { type?: string }[] };
+  // model + turn_count mirror the full-rebuild path (listDebateSessions) so upsert-written
+  // rows carry the same fields — else Turns/Model render "—" for saved debates (t/2892).
+  const transcript = Array.isArray(m.transcript) ? m.transcript : [];
   return {
     id,
     title: m.title || m.topic?.final || m.topic?.original || 'Untitled',
     created_at: m.created_at || '',
     updated_at: m.updated_at || m.created_at || '',
     phase: m.phase || 'unknown',
+    model: m.debate_model,
+    turn_count: transcript.filter(t => t.type === 'statement' || t.type === 'opening').length,
   };
 }
 

@@ -1,0 +1,16 @@
+{
+  "//": "Standalone nodenext typecheck for the WHOLE brief pipeline (t/2832). lib/brief is a three-config surface (bundler + nodenext + renderer-tsc); this asserts every module is nodenext-clean independent of any consumer, so latent server-build (build:server, nodenext) errors are caught at authoring time — not one-consumer-at-a-time (the #1259/#1261 failure mode). Bundler-over-lib is already gated by renderer-tsc.",
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "noEmit": true
+  },
+  "include": ["**/*.ts"],
+  "exclude": ["node_modules", "**/*.test.ts"]
+}

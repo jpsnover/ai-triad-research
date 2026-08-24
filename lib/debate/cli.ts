@@ -193,9 +193,10 @@ async function main(): Promise<void> {
       configText = fs.readFileSync(resolvedConfig, 'utf-8');
     } catch (err) {
       getGlobalRecorder()?.record({ type: 'state.error', component: 'cli', level: 'error', message: `Failed to read config file ${resolvedConfig}`, error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
+      const errMsg = err instanceof Error ? err.message : String(err);
       throw new ActionableError({
         goal: 'Load debate configuration',
-        problem: `Failed to read config file ${resolvedConfig}: ${err instanceof Error ? err.message : err}`,
+        problem: `Failed to read config file ${resolvedConfig}: ${errMsg}`,
         location: 'cli.main',
         nextSteps: [
           'Check that you have read permissions on the file',
@@ -211,9 +212,10 @@ async function main(): Promise<void> {
     config = JSON.parse(configText);
   } catch (err) {
     getGlobalRecorder()?.record({ type: 'state.error', component: 'cli', level: 'error', message: 'Config file contains invalid JSON', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
+    const errMsg = err instanceof Error ? err.message : String(err);
     throw new ActionableError({
       goal: 'Parse debate configuration',
-      problem: `Config file contains invalid JSON: ${err instanceof Error ? err.message : err}`,
+      problem: `Config file contains invalid JSON: ${errMsg}`,
       location: 'cli.main',
       nextSteps: [
         'Validate the config file with a JSON linter (e.g. jsonlint or VS Code)',
@@ -454,9 +456,10 @@ async function main(): Promise<void> {
     fs.mkdirSync(outputDir, { recursive: true });
   } catch (mkdirErr) {
     getGlobalRecorder()?.record({ type: 'state.error', component: 'cli', level: 'error', message: `Failed to create output directory '${outputDir}'`, error: { name: (mkdirErr as Error).name ?? 'Error', message: String(mkdirErr), stack: (mkdirErr as Error).stack } });
+    const errMsg = mkdirErr instanceof Error ? mkdirErr.message : String(mkdirErr);
     throw new ActionableError({
       goal: 'Create debate output directory',
-      problem: `Failed to create output directory '${outputDir}': ${mkdirErr instanceof Error ? mkdirErr.message : mkdirErr}`,
+      problem: `Failed to create output directory '${outputDir}': ${errMsg}`,
       location: 'cli.main',
       nextSteps: [
         `Check that the parent directory of '${outputDir}' exists`,
@@ -552,9 +555,10 @@ async function main(): Promise<void> {
       log(`Wrote ${description}: ${filePath}`);
     } catch (err) {
       getGlobalRecorder()?.record({ type: 'state.error', component: 'cli', level: 'error', message: `Failed to write ${description} to '${filePath}'`, error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
+      const errMsg = err instanceof Error ? err.message : String(err);
       throw new ActionableError({
         goal: 'Write debate output file',
-        problem: `Failed to write ${description} to '${filePath}': ${err instanceof Error ? err.message : err}`,
+        problem: `Failed to write ${description} to '${filePath}': ${errMsg}`,
         location: 'cli.writeOutput',
         nextSteps: [
           'Check available disk space',
@@ -584,9 +588,10 @@ async function main(): Promise<void> {
     log(`Wrote debate JSON (atomic): ${jsonPath}`);
   } catch (err) {
     getGlobalRecorder()?.record({ type: 'state.error', component: 'cli', level: 'error', message: `Failed to write debate JSON to '${jsonPath}'`, error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
+    const errMsg = err instanceof Error ? err.message : String(err);
     throw new ActionableError({
       goal: 'Write debate output file',
-      problem: `Failed to write debate JSON to '${jsonPath}': ${err instanceof Error ? err.message : err}`,
+      problem: `Failed to write debate JSON to '${jsonPath}': ${errMsg}`,
       location: 'cli.writeOutput',
       nextSteps: [
         'Check available disk space',
@@ -628,23 +633,8 @@ async function main(): Promise<void> {
     writeOutput(explorationDiagPath, JSON.stringify(buildDiagnosticsOutput(explorationSession), null, 2), 'exploration diagnostics');
   }
 
-  // Log calibration data point (non-blocking)
-  try {
-    const { extractCalibrationData, appendCalibrationLog } = await import('./calibrationLogger.js');
-    // When outputDir is explicitly configured, write the cal log inside it so
-    // experimental/isolated runs don't contaminate the main data-root log (t/2216).
-    // path.dirname(outputDir) would still land in the main data root when the
-    // scratch dir is a direct child of it (e.g. ../ai-triad-data/debates-t2192).
-    const calDataRoot = config.outputDir != null ? outputDir : dataRoot;
-    const dataPoint = extractCalibrationData(session, 'local', {
-      explorationSummary: engineConfig.explorationSummary,
-    });
-    appendCalibrationLog(dataPoint, calDataRoot);
-    log(`Calibration data logged to ${calDataRoot}/calibration/users/${dataPoint.origin || 'local'}/calibration-log.jsonl`);
-  } catch (err) {
-    getGlobalRecorder()?.record({ type: 'system.error', component: 'cli', level: 'warn', message: 'Calibration logging failed', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
-    log(`Calibration logging failed (non-critical): ${err instanceof Error ? err.message : err}`);
-  }
+  // Calibration data is written by the engine (debateEngine.ts) using calibrationDataRoot.
+  // The CLI previously wrote a second identical copy here (t/2716); removed — one write per debate.
 
   // Dump flight recorder to output directory
   const recorderDump = recorder.dumpToFile(path.join(outputDir, `${slug}-flight-recorder.jsonl`));

@@ -87,10 +87,11 @@ export async function generateViaZai(
   const text = choice.message.content;
   if (!text) {
     const reasoningExhausted = choice.finish_reason === 'length' && !!choice.message.reasoning_content;
+    const reasoningPreview = choice.message.reasoning_content?.slice(0, 150) ?? '';
     throw new ActionableError({
       goal: 'Generate text via Z.AI',
       problem: reasoningExhausted
-        ? `Z.AI exhausted token budget on reasoning_content (finish_reason: "length"), producing 0 output chars. Reasoning preview: ${choice.message.reasoning_content!.slice(0, 150)}`
+        ? `Z.AI exhausted token budget on reasoning_content (finish_reason: "length"), producing 0 output chars. Reasoning preview: ${reasoningPreview}`
         : `Z.AI returned empty content (0 chars) after ${response.status} — model may not support this prompt format or response_format. Raw: ${bodyText.slice(0, 300)}`,
       location: 'ai-client.generateViaZai',
       nextSteps: reasoningExhausted

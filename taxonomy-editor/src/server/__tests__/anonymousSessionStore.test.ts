@@ -88,6 +88,22 @@ describe('AnonymousSessionStore (file-backed, t/683)', () => {
       expect((list[0] as { id: string }).id).toBe('d2');
     });
 
+    it('projects model + turn_count into the summary (t/2725 — was empty on web)', async () => {
+      await store.saveDebate('s1', {
+        id: 'd1', title: 'T', created_at: '2026-01-01', updated_at: '2026-01-01',
+        debate_model: 'gemini-3.5-flash-lite',
+        transcript: [
+          { type: 'opening', speaker: 'acc' },
+          { type: 'statement', speaker: 'saf' },
+          { type: 'statement', speaker: 'skp' },
+          { type: 'system', speaker: 'x' }, // not a turn — excluded from the count
+        ],
+      });
+      const [row] = (await store.listDebates('s1')) as { model?: string; turn_count?: number }[];
+      expect(row.model).toBe('gemini-3.5-flash-lite');
+      expect(row.turn_count).toBe(3); // opening + 2 statements; 'system' excluded
+    });
+
     it('deletes debate and its comments', async () => {
       await store.saveDebate('s1', { id: 'd1', title: 'Test' });
       await store.saveDebateComments('s1', 'd1', { comments: ['a'] });

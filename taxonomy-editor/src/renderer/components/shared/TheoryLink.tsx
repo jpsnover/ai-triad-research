@@ -22,6 +22,7 @@
 
 import { api } from '@bridge';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
+import { usePreferencesStore } from '../../store/preferencesStore';
 import './TheoryLink.css';
 
 /** Canonical GitHub repo for doc links — single source of truth (t/2410, TL-confirmed org). */
@@ -67,6 +68,13 @@ export type TheoryLinkProps =
 
 export function TheoryLink(props: TheoryLinkProps) {
   const { label, tooltip, size = 15, className } = props;
+
+  // t/2867: Simple view hides ALL doc/help links app-wide — a single-point gate here
+  // (mirrors PinnedPanel, t/2826) instead of ~40 per-site conditionals, which removes the
+  // missed-surface risk. Store subscription ⇒ Simple↔Advanced toggles live with no reload.
+  // (Redundant-but-harmless on the diagnostics surfaces that are already Advanced-only.)
+  const viewMode = usePreferencesStore((s) => s.viewMode);
+  if (viewMode !== 'advanced') return null;
 
   // Runtime guard (t/2410): exactly one of `url` / `docPath`. The discriminated union
   // catches static callers; this catches spread / `as any` / JS-caller bypasses — record a

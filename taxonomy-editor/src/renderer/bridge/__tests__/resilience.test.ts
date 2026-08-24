@@ -251,6 +251,71 @@ describe('resilience', () => {
     });
   });
 
+  // GV arms for t/2922: a load-shed 503 carrying { retryable: true } + Retry-After is typed
+  // backpressure (server healthy, shedding) — retry it and DON'T trip the breaker; a genuine-down
+  // 503 (no retryable:true, or a non-JSON body) still fails fast + trips exactly as before.
+  describe('resilientFetch — typed backpressure retryable 503 (t/2922)', () => {
+    const shed503 = (retryAfter = '1') =>
+      mockFetchResponse(503, { error: 'shedding', retryable: true, reason: 'concurrency', retryAfterMs: 1000 }, { 'Retry-After': retryAfter });
+
+    // A 503 whose body is not JSON (e.g. an HTML error page from a genuinely-down server):
+    // clone().json() rejects → not backpressure.
+    function mockNonJson503(): Response {
+      const res = mockFetchResponse(503, {});
+      (res as unknown as { json: () => Promise<unknown> }).json = () => Promise.reject(new SyntaxError('Unexpected token < in JSON'));
+      (res as unknown as { clone: () => Response }).clone = () => mockNonJson503();
+      return res;
+    }
+
+    it('retries a retryable:true 503 after Retry-After, recovers, and does NOT trip the breaker', async () => {
+      fetchSpy
+        .mockResolvedValueOnce(shed503('1'))
+        .mockResolvedValueOnce(mockFetchResponse(200, { ok: true }));
+      const promise = resilientFetch('/api/embeddings/compute', { method: 'POST' }, defaultOpts({ category: 'mutation', maxRetries: 1 }));
+      await vi.advanceTimersByTimeAsync(5000);
+      const res = await promise;
+      expect(res.ok).toBe(true);
+      expect(fetchSpy).toHaveBeenCalledTimes(2);
+      const c = getResilienceState().circuits.mutation;
+      expect(c.state).toBe('CLOSED');
+      expect(c.consecutiveFailures).toBe(0);
+    });
+
+    it('fails fast and trips the breaker on a genuine-down 503 (no retryable:true), unchanged', async () => {
+      fetchSpy.mockResolvedValueOnce(mockFetchResponse(503, { error: 'down' }));
+      const res = await resilientFetch('/api/embeddings/compute', { method: 'POST' }, defaultOpts({ category: 'mutation' }));
+      expect(res.status).toBe(503);
+      expect(fetchSpy).toHaveBeenCalledTimes(1);
+      expect(getResilienceState().circuits.mutation.consecutiveFailures).toBe(1);
+    });
+
+    it('treats a non-JSON 503 body as a genuine failure (not backpressure)', async () => {
+      fetchSpy.mockResolvedValueOnce(mockNonJson503());
+      await resilientFetch('/api/embeddings/compute', { method: 'POST' }, defaultOpts({ category: 'mutation' }));
+      expect(getResilienceState().circuits.mutation.consecutiveFailures).toBe(1);
+    });
+
+    it('surfaces the 503 after retries on a persistent shed — no hang, no breaker trip', async () => {
+      fetchSpy
+        .mockResolvedValueOnce(shed503('1'))
+        .mockResolvedValueOnce(shed503('1'));
+      const promise = resilientFetch('/api/embeddings/compute', { method: 'POST' }, defaultOpts({ category: 'mutation', maxRetries: 1 }));
+      await vi.advanceTimersByTimeAsync(5000);
+      const res = await promise;
+      expect(res.status).toBe(503);
+      expect(fetchSpy).toHaveBeenCalledTimes(2);
+      expect(getResilienceState().circuits.mutation.consecutiveFailures).toBe(0);
+    });
+
+    it('skips retry when a retryable 503 Retry-After exceeds the cap, still no breaker trip', async () => {
+      fetchSpy.mockResolvedValueOnce(shed503('120'));
+      const res = await resilientFetch('/api/embeddings/compute', { method: 'POST' }, defaultOpts({ category: 'mutation', maxRetries: 3 }));
+      expect(res.status).toBe(503);
+      expect(fetchSpy).toHaveBeenCalledTimes(1);
+      expect(getResilienceState().circuits.mutation.consecutiveFailures).toBe(0);
+    });
+  });
+
   describe('circuit breaker', () => {
     it('opens after 5 consecutive failures', async () => {
       for (let i = 0; i < 5; i++) {

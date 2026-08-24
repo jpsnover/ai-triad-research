@@ -454,6 +454,16 @@ function Start-LegacyElectronMode {
         }
     }
 
+    # Warn on orphaned worktrees (t/2769). A leftover dir under .worktrees/ that git
+    # no longer tracks can pollute node_modules resolution for `npm run dev`, surfacing
+    # as TS errors that look like source bugs (t/2768). Non-blocking.
+    $Orphaned = @(Get-OrphanedWorktree -RepoRoot $CodeRoot)
+    if ($Orphaned.Count -gt 0) {
+        $OrphanRel = $Orphaned | ForEach-Object { [System.IO.Path]::GetRelativePath($CodeRoot, $_) }
+        Write-Warn "Orphaned worktrees detected (not registered): $($OrphanRel -join ', ')"
+        Write-Info '   These can pollute node_modules resolution. Run: git worktree prune'
+    }
+
     # Clear any stale process on port 5173 (vite dev server port) before launching
     $staleConn = Get-NetTCPConnection -LocalPort 5173 -State Listen -ErrorAction SilentlyContinue
     if ($staleConn) {

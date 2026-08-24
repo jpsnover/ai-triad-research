@@ -69,8 +69,8 @@
     },
     {
       "id": "zai-glm-5-2",
-      "apiModelId": "glm-5.2",
-      "label": "GLM 5.2",
+      "apiModelId": "glm-5.3",
+      "label": "GLM 5.3",
       "backend": "zai"
     },
     {

@@ -89,6 +89,24 @@ RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
     chmod +x /tmp/pnpm && \
     PATH="/tmp:$PATH" npm run build:container
 
+# ── Stage 1b: ONNX model download ──
+# Bakes all-MiniLM-L6-v2 (fp32, equivalence-anchored at t/1651) into the image
+# so onnxEmbedding.ts runs fully offline. Without this, each cold-start downloads
+# from HuggingFace at runtime, hitting the 50s route timeout (t/2784).
+# fp32 is required — quantized output diverges from the stored embeddings.json corpus.
+FROM node:22.23.2-trixie-slim@sha256:db8a96a63e5264607ada2d206758876ebbed6a12be2ada7517793cbfb0c2a29c AS onnx-model
+# hadolint ignore=DL3008
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    apt-get update && apt-get install -y --no-install-recommends curl ca-certificates
+RUN mkdir -p /onnx/all-MiniLM-L6-v2 \
+ && curl -fsSL "https://huggingface.co/Xenova/all-MiniLM-L6-v2/resolve/main/onnx/model.onnx" \
+         -o /onnx/all-MiniLM-L6-v2/model.onnx \
+ && curl -fsSL "https://huggingface.co/Xenova/all-MiniLM-L6-v2/resolve/main/tokenizer.json" \
+         -o /onnx/all-MiniLM-L6-v2/tokenizer.json \
+ && curl -fsSL "https://huggingface.co/Xenova/all-MiniLM-L6-v2/resolve/main/tokenizer_config.json" \
+         -o /onnx/all-MiniLM-L6-v2/tokenizer_config.json
+
 # ── Stage 2: Production dependencies (with build tools for native modules) ──
 FROM node:22.23.2-trixie-slim@sha256:db8a96a63e5264607ada2d206758876ebbed6a12be2ada7517793cbfb0c2a29c AS prod-deps
 
@@ -137,6 +155,8 @@ ENV TAXONOMY_CACHE_DIR=/tmp/taxonomy-cache
 ENV PORT=7862
 ENV NODE_ENV=production
 ENV PYTHONUNBUFFERED=1
+# Baked ONNX model dir — makes onnxEmbedding.ts run fully offline (t/2784, t/1641).
+ENV AI_TRIAD_ONNX_MODEL_DIR=/app/onnx-models/all-MiniLM-L6-v2
 # PYTHONUTF8=1: PEP 540 UTF-8 Mode — forces UTF-8 for stdio AND open() on all platforms.
 # Prevents UnicodeEncodeError/DecodeError on non-ASCII from pty-broker.py (t/2046).
 ENV PYTHONUTF8=1
@@ -164,6 +184,9 @@ COPY --chown=aitriad:aitriad lib/oped/prompts/ ./lib/oped/prompts/
 # (= /app/lib/debate/soul-docs/); tsc does not emit .json data files, so copy explicitly.
 COPY --chown=aitriad:aitriad lib/debate/soul-docs/ ./lib/debate/soul-docs/
 
+# 2b. ONNX model files (baked offline; change only when model contract changes — t/2784)
+COPY --from=onnx-model --chown=aitriad:aitriad /onnx/all-MiniLM-L6-v2/ ./onnx-models/all-MiniLM-L6-v2/
+
 # 3. Built artifacts (change on every code edit — LAST for fastest rebuilds)
 # tsc outputs to dist/server/{taxonomy-editor/src/server/,lib/} due to rootDir=../
 # Keep the full structure so compiled require() paths work, then symlink
@@ -184,6 +207,17 @@ COPY --chown=aitriad:aitriad taxonomy-editor/src/main/pty-broker.py ./src/main/p
 #    Contains snapshot-meta.json with generation timestamp for stale-data banner.
 #    For local builds: mkdir -p taxonomy-snapshot && echo '{}' > taxonomy-snapshot/snapshot-meta.json
 COPY --chown=aitriad:aitriad taxonomy-snapshot/ ./fallback-data/
+
+# 7. PowerShell Core — required for the web console ("Console (pwsh + AITriad)") (t/2824)
+# hadolint ignore=DL3008
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    curl -fsSL "https://packages.microsoft.com/config/debian/13/packages-microsoft-prod.deb" \
+      -o /tmp/ms-prod.deb \
+    && dpkg -i /tmp/ms-prod.deb \
+    && rm /tmp/ms-prod.deb \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends powershell
 
 USER aitriad
 

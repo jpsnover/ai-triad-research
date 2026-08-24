@@ -98,7 +98,10 @@
   border-radius: 10px;
   font-size: 0.7rem;
   font-weight: 600;
-  background: var(--status-color);
+  /* --status-color is set inline per-status (MyCases.tsx). Defined dark fallback (t/2817):
+     resolves the contrast-gate "undefined token" finding and gives a visible slate default
+     with guaranteed contrast against the #fff text across all themes. */
+  background: var(--status-color, #4b5563);
   color: #fff;
   flex-shrink: 0;
 }

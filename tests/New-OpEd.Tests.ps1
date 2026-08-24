@@ -11,7 +11,6 @@ Describe 'New-OpEd' -Tag 'oped' {
             subtitle      = 'The cost of delay is measured in trust'
             body_markdown = "First paragraph makes the case.`n`nSecond paragraph adds evidence."
             word_count    = 11
-            pitch_email   = 'Subject: Op-Ed Submission: Stop Stalling on AI Safety'
         } | ConvertTo-Json
 
         # Reflection call (no SystemInstruction) returns this. Deliberately reports
@@ -92,11 +91,6 @@ Describe 'New-OpEd' -Tag 'oped' {
             (New-OpEd -Topic 'x' -Pov acc).Pov | Should -Be 'accelerationist'
             (New-OpEd -Topic 'x' -Pov saf).Pov | Should -Be 'safetyist'
             (New-OpEd -Topic 'x' -Pov skp).Pov | Should -Be 'skeptic'
-        }
-
-        It 'Emits a pitch email only when -IncludePitch is set' {
-            (New-OpEd -Topic 'x' -Pov skeptic).Pitch                 | Should -BeNullOrEmpty
-            (New-OpEd -Topic 'x' -Pov skeptic -IncludePitch).Pitch   | Should -Match 'Op-Ed Submission'
         }
 
         It 'Writes a Markdown file when -OutputPath is supplied' {

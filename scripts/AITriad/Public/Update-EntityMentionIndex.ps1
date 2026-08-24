@@ -363,6 +363,7 @@ function Update-EntityMentionIndex {
 
     if ($PSCmdlet.ShouldProcess($OutPath, "Write entity_mentions.json ($($result.ContainerCount) containers, $TotalMentions mentions)")) {
         $json = ConvertTo-Json $file -Depth 8
+        Assert-DataWriteAllowed -Path $OutPath  # t/2902
         $tmp = "$OutPath.tmp"
         try {
             Set-Content -LiteralPath $tmp -Value $json -Encoding utf8NoBOM

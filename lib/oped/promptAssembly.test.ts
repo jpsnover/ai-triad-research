@@ -6,13 +6,14 @@ import { mkdtempSync, writeFileSync, rmSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
 import { loadAndAssemblePrompt, assembleReflectionPrompt, type PromptContext } from './promptLoader.js';
+import { FABRICATED_LEDE_GUARD } from './opedGuards.js';
 
 // Fixture prompt templates — minimal placeholders that cover every interpolation key
 const SYSTEM_TEMPLATE =
   'SYSTEM|{{POV_LABEL}}|{{VOICE_BLOCK}}|{{WORD_COUNT}}|{{OUTLET_GUIDANCE}}';
 const USER_TEMPLATE =
   'USER|{{TOPIC}}|{{WORD_COUNT}}|{{OUTLET_GUIDANCE}}|{{NEWS_HOOK}}|{{THESIS}}|{{AUTHOR_BIO}}' +
-  '|{{SOURCE_MATERIAL}}|{{GROUNDING_NODES}}|{{SITUATIONS}}|{{PITCH_INSTRUCTION}}' +
+  '|{{SOURCE_MATERIAL}}|{{GROUNDING_NODES}}|{{SITUATIONS}}' +
   '|{{SOURCE_AUTHOR}}|{{SOURCE_ACTOR_TYPE}}|{{SOURCE_THESIS}}|{{SOURCE_STANCE}}' +
   '|{{SOURCE_RECOMMENDATIONS}}';
 const REFLECTION_TEMPLATE = 'REFL|{{OPED_BODY}}|{{GROUNDING_LIST}}';
@@ -82,6 +83,32 @@ describe('loadAndAssemblePrompt', () => {
     };
     const { user } = loadAndAssemblePrompt(promptsDir, ctx);
     expect(user).toContain('none supplied');
+  });
+
+  it('empty newsHook fallback does not invite fabrication of a dated event', () => {
+    const ctx: PromptContext = {
+      ...FIXTURE_CTX,
+      params: { ...FIXTURE_CTX.params, newsHook: undefined },
+    };
+    const { user } = loadAndAssemblePrompt(promptsDir, ctx);
+    // Must not contain fabrication-inviting language (t/2721 — the old fallback said "invent a plausible")
+    expect(user).not.toMatch(/invent a plausible/i);
+    expect(user).not.toMatch(/plausible.*news hook/i);
+    expect(user).toContain('do NOT invent');
+    expect(user).toContain('enduring stakes');
+  });
+
+
+  it('FABRICATED_LEDE_GUARD matches known fabricated regulatory text', () => {
+    const fabricated =
+      'This week, as federal regulators draft new rules requiring multi-month pre-clearance audits before developers can release advanced AI models…';
+    expect(FABRICATED_LEDE_GUARD.test(fabricated)).toBe(true);
+  });
+
+  it('FABRICATED_LEDE_GUARD does not flag timeless stakes framing', () => {
+    const timeless =
+      'The question of who controls artificial intelligence has never been more consequential. A structural tension at the heart of the field — speed versus safety — demands a clear answer.';
+    expect(FABRICATED_LEDE_GUARD.test(timeless)).toBe(false);
   });
 
   it('interpolates sourceBrief fields when present', () => {

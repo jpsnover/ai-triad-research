@@ -217,4 +217,95 @@ Describe 'Invoke-QbafConflictAnalysis Stage A/B monotonicity (t/1403 AC#3)' -Tag
             $r.StageBConfirmed | Should -Be 0
         }
     }
+
+    Context 'Stage A directional gate (t/2745 V2, shared engine t/2751) — opposition-only' {
+        # Two cross-doc claims sharing a node, BOTH doc_position=supports. The
+        # legacy rule emits a `supports` edge from position-equality alone; the
+        # gate instead judges the actual claim↔claim direction via the shared
+        # engine (opposition-only: opposes→attacks, everything else keeps the
+        # support edge). Get-TextEmbedding is mocked null (Stage B off) so the
+        # only python call is the nli_classify engine, which the shadow controls
+        # (items carry .claim_prop; the shadow returns [{id,direction,...}]).
+        BeforeEach {
+            $script:V2Dir       = Join-Path ([System.IO.Path]::GetTempPath()) "qbaf-v2-$(Get-Random)"
+            $script:V2Summaries = Join-Path $script:V2Dir 'summaries'
+            $null = New-Item -ItemType Directory -Path $script:V2Summaries -Force
+            @{ factual_claims = @(@{ claim='Third-party audits improve frontier-model safety.'
+                claim_label='C1'; linked_taxonomy_nodes=@('saf-desires-002'); doc_position='supports' }) } |
+                ConvertTo-Json -Depth 5 | Set-Content -Path (Join-Path $script:V2Summaries 'docC.json') -Encoding utf8NoBOM
+            @{ factual_claims = @(@{ claim='Third-party audits do NOT improve frontier-model safety.'
+                claim_label='D1'; linked_taxonomy_nodes=@('saf-desires-002'); doc_position='supports' }) } |
+                ConvertTo-Json -Depth 5 | Set-Content -Path (Join-Path $script:V2Summaries 'docD.json') -Encoding utf8NoBOM
+
+            InModuleScope AITriad -Parameters @{ SD = $script:V2Summaries; FD = $script:V2Dir } {
+                param($SD, $FD)
+                Mock Get-SummariesDir -MockWith ({ $SD }.GetNewClosure())
+                Mock Get-DataRoot     -MockWith ({ $FD }.GetNewClosure())
+                Mock Get-TextEmbedding -MockWith { $null }   # Stage B off
+            }
+        }
+        AfterEach {
+            if ($script:V2Dir -and (Test-Path $script:V2Dir)) {
+                Remove-Item -Recurse -Force -Path $script:V2Dir -ErrorAction SilentlyContinue
+            }
+        }
+
+        It 'INVERSION ARM: opposes flips the equal-doc_position support to an attack' {
+            InModuleScope AITriad {
+                function python {
+                    process {
+                        $items = @($input | Out-String | ConvertFrom-Json)
+                        $out = foreach ($it in $items) {
+                            [pscustomobject]@{ id=$it.id; direction='opposes'; confidence=1.5; method='nli' }
+                        }
+                        ConvertTo-Json -InputObject @($out) -Depth 5
+                    }
+                }
+                $r = Invoke-QbafConflictAnalysis -DryRun -PassThru 6>$null
+                $r.SupportCount             | Should -Be 0 -Because 'the false support is caught'
+                $r.AttackCount              | Should -Be 1 -Because 'contradicting claims become an attack'
+                $r.EdgeCount                | Should -Be 1
+                $r.DirectionalCounts.opposes | Should -Be 1
+            }
+        }
+
+        It 'KEEP ARM: a non-opposes verdict (unrelated) keeps the support edge' {
+            InModuleScope AITriad {
+                function python {
+                    process {
+                        $items = @($input | Out-String | ConvertFrom-Json)
+                        $out = foreach ($it in $items) {
+                            [pscustomobject]@{ id=$it.id; direction='unrelated'; confidence=0.1; method='nli' }
+                        }
+                        ConvertTo-Json -InputObject @($out) -Depth 5
+                    }
+                }
+                $r = Invoke-QbafConflictAnalysis -DryRun -PassThru 6>$null
+                $r.SupportCount               | Should -Be 1
+                $r.AttackCount                | Should -Be 0
+                $r.EdgeCount                  | Should -Be 1
+                $r.DirectionalCounts.unrelated | Should -Be 1
+            }
+        }
+
+        It 'FAIL-SAFE ARM: unresolved KEEPS the support edge (never a false attack) and records the count' {
+            InModuleScope AITriad {
+                function python { process { $null = $input } }   # engine unavailable
+                $r = Invoke-QbafConflictAnalysis -DryRun -PassThru 6>$null
+                $r.SupportCount                | Should -Be 1 -Because 'unresolved → keep (no false demotion)'
+                $r.AttackCount                 | Should -Be 0
+                $r.EdgeCount                   | Should -Be 1
+                $r.DirectionalCounts.unresolved | Should -Be 1
+            }
+        }
+
+        It 'LEGACY ARM: -SkipDirectionalGate restores the polarity-blind supports edge' {
+            InModuleScope AITriad {
+                function python { process { throw 'gate must not call python when skipped' } }
+                $r = Invoke-QbafConflictAnalysis -DryRun -PassThru -SkipDirectionalGate 6>$null
+                $r.SupportCount | Should -Be 1 -Because 'gate off → equal doc_position emits supports'
+                $r.EdgeCount    | Should -Be 1
+            }
+        }
+    }
 }

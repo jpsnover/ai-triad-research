@@ -10,6 +10,7 @@ import { interpretationText } from '../../types/taxonomy';
 import { buildSearchRegex } from '../../utils/searchRegex';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { useOnlineStatus } from '../../hooks/useOnlineStatus';
+import './SearchPanel.css';
 
 type SearchPanelMode =
   | 'taxonomy'
@@ -288,8 +289,6 @@ interface TaxonomyInputAreaProps {
   findMode: SearchMode;
   setFindMode: StoreState['setFindMode'];
   isOnline: boolean;
-  findCaseSensitive: boolean;
-  setFindCaseSensitive: StoreState['setFindCaseSensitive'];
   povFilter: PovFilter;
   setPovFilter: React.Dispatch<React.SetStateAction<PovFilter>>;
   bdiFilter: BdiFilter;
@@ -297,28 +296,47 @@ interface TaxonomyInputAreaProps {
   mode: SearchPanelMode;
 }
 
-function TaxonomyInputArea({
+// Exported for unit test (t/2929 clear-button AC); presentational, no hooks.
+export function TaxonomyInputArea({
   inputRef, findQuery, setFindQuery, isSemantic, runSemanticSearch,
-  findMode, setFindMode, isOnline, findCaseSensitive, setFindCaseSensitive,
+  findMode, setFindMode, isOnline,
   povFilter, setPovFilter, bdiFilter, setBdiFilter, mode,
 }: TaxonomyInputAreaProps) {
   return (
     <div className="search-panel-taxonomy">
       <div className="search-panel-input-row">
-        <input
-          ref={inputRef}
-          className="search-panel-text-input"
-          type="text"
-          value={findQuery}
-          onChange={(e) => setFindQuery(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && isSemantic) {
-              void runSemanticSearch(findQuery, new Set(), new Set());
-            }
-            // Let arrow keys bubble up to panel handler
-          }}
-          placeholder={isSemantic ? 'Describe what you\'re looking for...' : 'Search taxonomy...'}
-        />
+        <div className={`search-panel-input-clearable${findQuery.length > 0 ? ' has-value' : ''}`}>
+          <input
+            ref={inputRef}
+            className="search-panel-text-input"
+            type="text"
+            value={findQuery}
+            onChange={(e) => setFindQuery(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && isSemantic) {
+                void runSemanticSearch(findQuery, new Set(), new Set());
+              }
+              // Let arrow keys bubble up to panel handler
+            }}
+            placeholder={isSemantic ? 'Describe what you\'re looking for...' : 'Search taxonomy...'}
+          />
+          {findQuery.length > 0 && (
+            // Clear via the same setFindQuery that drives wildcard + POV/BDI + results, so
+            // clearing resets results identically to deleting the text (t/2929, no-regression).
+            // onMouseDown preventDefault keeps the input from blurring before onClick, so the
+            // refocus keeps the caret/mobile keyboard active for immediate re-typing.
+            <button
+              type="button"
+              className="search-panel-clear-btn"
+              aria-label="Clear search"
+              title="Clear search"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => { setFindQuery(''); inputRef.current?.focus(); }}
+            >
+              &#x2715;
+            </button>
+          )}
+        </div>
         <select
           className="search-panel-search-mode"
           value={findMode}
@@ -328,9 +346,7 @@ function TaxonomyInputArea({
             setFindMode(val);
           }}
         >
-          <option value="raw">Raw</option>
           <option value="wildcard">Wildcard</option>
-          <option value="regex">Regex</option>
           <option value="semantic" disabled={!isOnline}>Semantic{!isOnline ? ' (offline)' : ''}</option>
         </select>
       </div>
@@ -338,16 +354,6 @@ function TaxonomyInputArea({
         <div className="search-panel-offline-msg">Searching offline — semantic search unavailable</div>
       )}
       <div className="search-panel-filter-row">
-        {!isSemantic && (
-          <label className="search-panel-option">
-            <input
-              type="checkbox"
-              checked={findCaseSensitive}
-              onChange={(e) => setFindCaseSensitive(e.target.checked)}
-            />
-            Case sensitive
-          </label>
-        )}
         <select
           className="search-panel-pov-filter"
           value={povFilter}
@@ -632,7 +638,7 @@ export function SearchPanel({ onAnalyze, onSelectResult }: SearchPanelProps) {
     activeTab,
     getLabelForId,
     findQuery, findMode, findCaseSensitive,
-    setFindQuery, setFindMode, setFindCaseSensitive,
+    setFindQuery, setFindMode,
     hasApiKey, checkApiKey, runSemanticSearch,
     semanticResults, embeddingLoading, embeddingError,
     similarResults, similarLoading, similarStep, similarError, runSimilarSearch,
@@ -1041,8 +1047,6 @@ export function SearchPanel({ onAnalyze, onSelectResult }: SearchPanelProps) {
             findMode={findMode}
             setFindMode={setFindMode}
             isOnline={isOnline}
-            findCaseSensitive={findCaseSensitive}
-            setFindCaseSensitive={setFindCaseSensitive}
             povFilter={povFilter}
             setPovFilter={setPovFilter}
             bdiFilter={bdiFilter}

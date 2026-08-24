@@ -24,6 +24,32 @@ import type { OpEdSet, OpEdSetSummary } from '../../../../lib/oped/types';
 notifyBridgeFallback();
 void tryInitLocalEmbedding();
 
+// t/2767: exported for App.tsx's mount gate — resolves once window.electronAPI is set.
+// Timeout default is 2000ms so a cold-start machine with slow preload still succeeds.
+export function waitForElectronAPI(timeoutMs = 2000): Promise<void> {
+  if (window.electronAPI) return Promise.resolve();
+  return new Promise((resolve, reject) => {
+    const start = performance.now();
+    const id = setInterval(() => {
+      if (window.electronAPI) {
+        clearInterval(id);
+        resolve();
+      } else if (performance.now() - start > timeoutMs) {
+        clearInterval(id);
+        reject(new ActionableError({
+          goal: 'Initialize Electron bridge',
+          problem: `window.electronAPI not available after ${timeoutMs}ms — preload may have failed`,
+          location: 'electron-bridge.waitForElectronAPI',
+          nextSteps: [
+            'Launch via npm run electron:dev',
+            'Check preload.cts for errors in DevTools console',
+          ],
+        }));
+      }
+    }, 5);
+  });
+}
+
 // Op-Ed Studio (t/2576) — the op-ed persistence IPC surface is added to the preload
 // API by t/2575. Until that lands, the methods are absent from window.electronAPI, so
 // we feature-detect (optional-chained cast) and reject with an honest ActionableError.
@@ -49,6 +75,9 @@ function rejectOpEdIpc(goal: string, method: string): Promise<never> {
     ],
   }));
 }
+
+// Brief Export desktop parity landed in t/2840 — the 5 methods now delegate to the main-process
+// IPC handlers (which run the shared runBriefPipeline in-process). See the AppAPI block below.
 
 // Same-window diagnostics callbacks for the in-app drawer (mobile/narrow).
 // When a popout BrowserWindow is open, IPC delivers state to it directly.
@@ -264,6 +293,33 @@ export const api: AppAPI = {
   loadDebateComments: (id) => window.electronAPI.loadDebateComments(id),
   saveDebateComments: (id, data) => window.electronAPI.saveDebateComments(id, data),
 
+  // Brief Export — desktop parity via main-process IPC (t/2840). Calls the shared runBriefPipeline
+  // in-process; download returns raw bytes wrapped into a Blob (Blob-returning AppAPI in both builds).
+  createBriefExport: (debateId, body) => window.electronAPI.createBriefExport(debateId, body),
+  getBriefExportJob: (jobId) => window.electronAPI.getBriefExportJob(jobId),
+  listBriefExports: (debateId) => window.electronAPI.listBriefExports(debateId),
+  downloadBriefArtifact: async (exportId, name) => {
+    const bytes = await window.electronAPI.downloadBriefArtifact(exportId, name);
+    if (bytes == null) {
+      throw new ActionableError({
+        goal: 'Download a brief export artifact',
+        problem: `Artifact "${name}" was not found for export "${exportId}"`,
+        location: 'electron-bridge · downloadBriefArtifact',
+        nextSteps: ['Re-check the export still exists in the debate exports list', 'Regenerate the export'],
+      });
+    }
+    return new Blob([bytes as BlobPart]);   // Uint8Array is a valid BlobPart at runtime (strict-generic cast)
+  },
+  deleteBriefExport: (exportId) => window.electronAPI.deleteBriefExport(exportId),
+  // printBriefToPdf is available independently of the full brief export pipeline (t/2852).
+  printBriefToPdf: (html) => window.electronAPI.printBriefToPdf(html),
+
+  // Brief Templates (t/2853) — desktop passes bytes inline via IPC; server-side storage is web-only.
+  // uploadBriefTemplate is never called on desktop (dialog branches on isElectronMode).
+  uploadBriefTemplate: () => Promise.reject(new Error('Template upload is not available in the desktop app. Select a template file — it will be passed inline.')),
+  listBriefTemplates: () => Promise.resolve([]),
+  deleteBriefTemplate: () => Promise.resolve(),
+
   // Op-Ed Studio (t/2576) — feature-detected IPC (lands with t/2575); see opEdIpc above.
   listOpEdSets: () => opEdIpc().listOpEdSets?.() ?? rejectOpEdIpc('list op-eds', 'listOpEdSets'),
   loadOpEdSet: (id) => opEdIpc().loadOpEdSet?.(id) ?? rejectOpEdIpc('load an op-ed', 'loadOpEdSet'),
@@ -272,6 +328,10 @@ export const api: AppAPI = {
   createOpEdSet: (payload) => opEdIpc().createOpEdSet?.(payload) ?? rejectOpEdIpc('create an op-ed', 'createOpEdSet'),
   cancelOpEdSet: (setId) => { opEdIpc().cancelOpEdSet?.(setId); },
   onOpEdProgress: (cb) => opEdIpc().onOpEdProgress?.(cb) ?? (() => {}),
+  // t/2728: op-ed public sharing is a hosted-web feature (needs the public server route);
+  // desktop has no public URL, so reject with the standard web-only actionable error.
+  shareOpEdSet: () => rejectOpEdIpc('share an op-ed', 'shareOpEdSet'),
+  unshareOpEdSet: () => rejectOpEdIpc('un-share an op-ed', 'unshareOpEdSet'),
 
   // News Report
   generateNewsReport: (debateId) => window.electronAPI.generateNewsReport(debateId),
@@ -299,7 +359,7 @@ export const api: AppAPI = {
   saveProposal: (f, d) => window.electronAPI.saveProposal(f, d),
 
   // PowerShell prompts
-  readPsPrompt: (name) => window.electronAPI.readPsPrompt(name),
+  readPsPrompt: (name, dir = 'ps') => window.electronAPI.readPsPrompt(name, dir),
   listPsPrompts: () => window.electronAPI.listPsPrompts(),
 
   // Research file access
@@ -453,8 +513,9 @@ export const api: AppAPI = {
     return () => { localDiagCallbacks.delete(cb); unsub(); };
   },
   onDiagnosticsPopoutClosed: (cb) => window.electronAPI.onDiagnosticsPopoutClosed(cb),
-  openChatWindow: () => window.electronAPI.openChatWindow(),
+  openChatWindow: (chatId, source) => window.electronAPI.openChatWindow(chatId, source),
   onChatPopoutClosed: (cb) => window.electronAPI.onChatPopoutClosed(cb),
+  onChatWindowLoad: (cb) => window.electronAPI.onChatWindowLoad(cb),
   requestReExtractClaims: (entryId) => window.electronAPI.requestReExtractClaims(entryId),
   onReExtractClaims: (cb) => window.electronAPI.onReExtractClaims(cb),
   onDebateWindowLoad: (cb) => window.electronAPI.onDebateWindowLoad(cb),

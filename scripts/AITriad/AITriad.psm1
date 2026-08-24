@@ -226,6 +226,27 @@ class GhcrImage {
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
+# TriadDeckExport — typed -PassThru result from Export-TriadDebateBrief (T8).
+# Cross-surface wire contract; field parity with lib/brief/types.ts:182
+# (TriadDeckExport) is enforced by a Pester parity test. Optional TS fields
+# (checkerModel, specPath) map to nullable PS properties.
+# ─────────────────────────────────────────────────────────────────────────────
+class TriadDeckExport {
+    [string]    $DebateId
+    [string]    $Title
+    [string]    $Preset
+    [string]    $Model
+    [string]    $ModelSource
+    [string]    $CheckerModel
+    [string]    $Path
+    [string]    $SpecPath
+    [string]    $ManifestPath
+    [double]    $TraceCoveragePct
+    [hashtable] $Verdicts
+    [string[]]  $Warnings
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
 # DataCommit — typed result from Get-TaxEditorDataCommit
 # ─────────────────────────────────────────────────────────────────────────────
 class DataCommit {
@@ -757,6 +778,8 @@ Export-ModuleMember -Function @(
     'Repair-PovLineage'
     'Repair-PovAttributes'
     'Export-AggregatedCruxes'
+    'Export-TriadDebateBrief'
+    'Test-BriefNarrationStage'
     'Get-Summary'
     'Invoke-AttributeExtraction'
     'Invoke-EdgeDiscovery'
@@ -788,6 +811,12 @@ Export-ModuleMember -Function @(
     'Update-PolicyRegistry'
     'Show-FallacyInfo'
     'Test-TaxonomyIntegrity'
+    # t/2876 — pre-validate taxonomy dir against embed_taxonomy.py loader contract
+    'Test-TaxonomyDir'
+    # t/2902 — dirty-tree-sweep guard for whole-file data-repo writes
+    'Assert-CleanDataTree'
+    # t/2916 — durable batch writer: field-surgical node-field edits (sweep-proof)
+    'Save-JsonNodeFieldEdits'
     'Invoke-HierarchyProposal'
     'Set-TaxonomyHierarchy'
     'Invoke-SchemaMigration'
@@ -842,6 +871,8 @@ Export-ModuleMember -Function @(
     'Get-ImportReport'
     'Get-CalibrationTrend'
     'Test-TaxEditorHealth'
+    # t/2787 — smoke-test /api/embeddings/compute in production
+    'Test-EmbeddingHealth'
     'Test-TaxEditorEndpoints'
     'Test-AnonymousDebateFlow'
     'Test-PersonaEndpoints'
@@ -851,6 +882,8 @@ Export-ModuleMember -Function @(
     'Get-FreeTierStatus'
     'Invoke-TaxEditorSmokeTest'
     # t/2668 — analytics storage round-trip diagnosis
+    # t/2775 — validate the built preload.cjs artifact before launch
+    'Test-PreloadHealth'
     'Test-AnalyticsBackend'
     # t/2702 — analytics blob container health (exists/accessible/recent data)
     'Test-AnalyticsBlobHealth'
@@ -907,6 +940,7 @@ Export-ModuleMember -Function @(
     'Get-ContainerAppRevision'
     # t/1499 — GH workflow run queries
     'Get-GitHubWorkflowRun'
+    'Get-CIFailureSummary'
     # t/1550 — POV aphorism backfill
     'Invoke-AphorismBatch'
     # t/1553 Stage 0 — org PUBLISHED edge seeding
@@ -936,8 +970,10 @@ Export-ModuleMember -Function @(
     'Get-ViteDevStatus'
     # t/2330 — Debate session state diagnostic
     'Get-DebateSessionState'
-    # t/2335 — Debate index field-type integrity check
+    # t/2335 — Debate index field-type integrity check (per-session files)
     'Test-DebateIndexIntegrity'
+    # t/2735 — Debate index (.debate-index.json) type-invalid entry scan + repair
+    'Get-DebateIndexHealth'
     # t/2367 — Debate blob existence check in Azure storage
     'Test-DebateSession'
     # t/2545 — Pre-flight atomic write+rename probe for debate output dir
@@ -946,6 +982,8 @@ Export-ModuleMember -Function @(
     'New-OpEd'
     # Fetch + convert + validate a source URL for op-ed generation (once per URL)
     'Get-OpEdSource'
+    # t/2765 — ACA server log retrieval with requestId correlation
+    'Get-ServerLog'
 ) -Alias @(
     'Import-Document'
     'TaxonomyEditor'

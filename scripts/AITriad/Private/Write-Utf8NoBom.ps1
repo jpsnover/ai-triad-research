@@ -12,7 +12,23 @@ function Write-Utf8NoBom {
         $Value,
 
         [switch]$NoNewline,
-        [switch]$Force
+        [switch]$Force,
+
+        # t/2902 — force a HARD block regardless of guard mode/scope (Part 1
+        # semantics): assert the target is clean and throw on dirty. Prefer letting
+        # the centralized guard (below) decide; this is the explicit caller opt-in.
+        [switch]$RequireCleanTree,
+
+        # t/2902 — opt a legitimate sequential rewriter out of the dirty-tree guard
+        # (a target intentionally left dirty by a prior pass in the same run).
+        [switch]$AllowDirty,
+
+        # t/2916 Fork 2 (TL t/2916#8) — forward the FIELD-SURGICAL exemption to the guard.
+        # A surgical write is sweep-proof by construction, so the dirty-tree check is N/A.
+        # This is a PASS-THROUGH conduit only: it must be set solely by Save-JsonNodeFieldEdits
+        # (enforced by the detection gate in SurgicalWriteExemption.Tests.ps1). A whole-file
+        # writer must never set it — that would let it bypass the BLOCK tier.
+        [switch]$SurgicalWrite
     )
     begin {
         $parts = New-Object System.Collections.Generic.List[string]
@@ -39,6 +55,24 @@ function Write-Utf8NoBom {
         if ($fileName -match '^(accelerationist|safetyist|skeptic|situations)\.json$' -and $text.Length -gt 10MB) {
             Write-Warning "Write-Utf8NoBom: BLOCKED write to $fileName — content is $([math]::Round($text.Length / 1MB, 1)) MB (likely corrupted). This prevents a runaway encoding bug."
             return
+        }
+        # t/2902 — centralized dirty-tree-sweep guard. Every content-string data
+        # write funnels through here, so guarding this sink covers all such callers
+        # (current and future) without per-callsite wiring. The guard fires only for
+        # a target UNDER the data root that is ALREADY dirty (Warn-first by default,
+        # Block after promotion). -RequireCleanTree forces a hard block regardless of
+        # mode/scope (Part 1); -AllowDirty opts a legit sequential rewriter out.
+        # Best-effort: skip cleanly if the guard functions aren't loaded — Build-Module.ps1
+        # dot-sources THIS file standalone (without the guard chain) to write .aitriad.json,
+        # a build artifact under the module dir, never a data-of-record write (t/2902).
+        if ($RequireCleanTree) {
+            if (-not $AllowDirty -and (Get-Command Assert-CleanDataTree -ErrorAction SilentlyContinue)) {
+                Assert-CleanDataTree -Path $Path
+            }
+        }
+        elseif (Get-Command Assert-DataWriteAllowed -ErrorAction SilentlyContinue) {
+            # t/2916 — forward the surgical exemption (set only by Save-JsonNodeFieldEdits).
+            Assert-DataWriteAllowed -Path $Path -AllowDirty:$AllowDirty -SurgicalWrite:$SurgicalWrite
         }
         Set-Content -Path $Path -Value $text -Encoding utf8NoBOM -NoNewline
     }

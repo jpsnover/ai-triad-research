@@ -563,12 +563,13 @@ Institutional memory for failure patterns across the AI Triad Research project.
 - 2026-07-17 — Computational Linguist: `git --git-dir=.orca-git add research/comp-linguist/AGENTS.md` failed "paths ignored by .gitignore" even though the file was **already tracked AND already staged** (the `research/` exclusion still blocks a re-`add`). Resolved by **skipping `add` entirely and committing the staged pathspec directly** — `commit -- <path>`. Refines the rule: `-f` is for the *first* stage of a not-yet-tracked file; an already-tracked/staged overlay file needs no re-add at all (p/7#39).
 - 2026-08-01 — Orca Support (p/13#24, e2bfe23): **RECURRENCE of the run-from-subdir facet** — overlay `commit` from the `orca-support/` subdir failed (`.orca-git` not visible from subdirs; Bash cwd = role scope, not repo root); re-ran from the repo root → committed `e2bfe23`. Same agent, same facet ~1 month after p/13#10; rule + hook exist but it still bites from a role subdir. Loud + self-correcting, not escalating.
 - 2026-08-09 — DebateWorkspace (p/124#12): `ogit` returned "command not found" in the Bash tool — non-interactive shell, aliases not loaded. Switched to `git --git-dir=.orca-git --work-tree=.`; status/log/audit all succeeded.
+- 2026-08-13 — Design (p/472#3): `git --git-dir=.orca-git add engineering/design/AGENTS.md` (no `-f`) failed "paths ignored: engineering" on an **already-tracked** nested AGENTS.md (editing, not creating). Fix: `ogit add -f` + `agent-file-owner.sh --audit` (clean) + commit. Clarifies the rule: `-f` is required for any `add` on a nested AGENTS.md under a gitignored parent — whether it's a new file or an edit to an already-tracked file. The "skip add entirely" path (p/7#39) applies only when the edit is already staged.
 
 **Root Cause:** (1) `ogit` is defined as a shell alias (`alias ogit='git --git-dir=.orca-git --work-tree=.'`), which is only loaded in interactive shell sessions — the Bash tool runs non-interactive. (2) The overlay repo shares the working tree with the main repo, so `.gitignore` affects `ogit add`. Negation patterns (`!**/AGENTS.md`) cannot re-include files when a parent directory is already excluded by a broader rule — this bites on every new per-directory AGENTS.md. (3) Multiple agents update overlay files in parallel, causing push contention. (4) Git argument ordering: `-- <pathspec>` must come last — placing it before flags like `-m` causes git to treat the flag as a pathspec.
 
 **Prevention:**
 1. **Never use `ogit` in the Bash tool** — expand it to `git --git-dir=.orca-git --work-tree=.` since shell aliases aren't available in non-interactive shells.
-2. Use `-f` (force) when **first staging** a not-yet-tracked overlay file — they are gitignored by the main repo by design, especially nested `AGENTS.md` files under already-excluded parent directories. But if the file is **already tracked/staged**, don't re-`add` at all (the parent-dir ignore still rejects a bare `add`, even with the change staged) — just `commit -- <path>` the pathspec directly (p/7#39).
+2. **Always use `-f` when staging any nested overlay file under a gitignored parent dir** — `ogit add -f <path>` — whether it's a new file or an edit to an already-tracked file (Design p/472#3 confirmed `-f` required even for edits; the parent-dir `.gitignore` exclusion blocks bare `add` regardless of tracking status). Exception: if the edit is **already staged**, skip `add` entirely and `commit -- <path>` directly (p/7#39 — re-`add` of an already-staged file still fails).
 3. Before pushing, run `git --git-dir=.orca-git --work-tree=. pull --rebase` to incorporate remote changes.
 4. Must be run from the repo root — `.orca-git` is not visible from subdirectories.
 5. Never use `git add` or `git commit` for overlay-tracked files — always use the expanded overlay git command.
@@ -2322,6 +2323,8 @@ Institutional memory for failure patterns across the AI Triad Research project.
 - 2026-08-09 — Server Community (p/160#5): **9th instance, Facet 3 (new).** `gh pr merge --delete-branch` exits 1 with "remote ref does not exist" — GitHub had already auto-deleted the branch on merge. Error is benign/redundant; confirmed MERGED, worktree removed. Fix: omit `--delete-branch` when GitHub auto-delete-on-merge is enabled (the flag is redundant and noisy).
 - 2026-08-12 — Technical Lead (p/335#29): **10th instance, Facet 4 (new — `gh pr close`).** `gh pr close --delete-branch` exits 1 when the branch is checked out in a git worktree. PR closed and remote branch deleted fine; only the local `git branch -D` was refused. Fix: `git worktree remove` first, then `git branch -D`. Same root as Facet 2 — `--delete-branch`'s local cleanup blocked by an active worktree — triggered via `close`, not `merge`.
 - 2026-08-13 — ElectronMain (p/98#17): **11th instance, 8th independent agent.** `gh pr merge --delete-branch` failed when branch was checked out by a worktree. Fix: dropped `--delete-branch` (GitHub auto-deletes on merge), then removed worktree + `git branch -D` for local cleanup.
+- 2026-08-22 — DevOps (p/26#89): **12th instance, Facet 4.** `gh pr close --delete-branch` failed on GV probe PR #1385 — branch still held by a worktree. Fix: `git worktree remove --force`, then `git branch -D`, then `git push origin --delete <branch>`.
+- 2026-08-22 — Computational Linguist (p/7#62): **13th instance, Facet 2.** `gh pr merge <N> --squash --delete-branch` exited 1 — "cannot delete branch ... used by worktree." Remote merge AND remote-branch delete both succeeded; only the local branch delete failed. Confirmed `state=MERGED`, then `git worktree remove` + `git branch -D`. Key reinforcement: **non-zero exit from `--delete-branch` must be treated as post-merge cleanup failure, not a merge failure** — verify PR state before any re-attempt.
 
 **Root Cause:** `--delete-branch` cleans up the merged head branch locally too, and gh switches the working copy to the base branch (`git checkout main`) to do so. Git's one-branch-per-worktree rule blocks checking out `main` while the primary worktree has it → `fatal`. The remote merge + branch delete already happened via the API; only the local checkout/cleanup fails. Bookkeeping-≠-artifact family — the exit code describes post-success cleanup, not the merge.
 
@@ -3282,23 +3285,25 @@ Institutional memory for failure patterns across the AI Triad Research project.
 
 ---
 
-## #161 [Build] `git ls-files --others` Recurses Into Linked `.worktrees/` Directories — Unbounded Enumeration Times Out in a Busy Repo
+## #161 [Build] Unbounded Filesystem Traversal From Repo Root Times Out — `git ls-files --others`, `find .`, and Similar Commands Hit the Worktree Explosion
 
-**Pattern:** `git ls-files --others --exclude-standard` without a pathspec recurses into every linked worktree directory under `.worktrees/<name>/` — enumerating thousands of files across all active worktrees. Unlike `git status`, `ls-files --others` does not skip linked worktree paths. In a repo with many linked worktrees, this times out the 2-minute Bash cap.
+**Pattern:** Any unbounded filesystem traversal launched from the repo root recurses into every linked worktree directory under `.worktrees/<name>/` — enumerating thousands of files across all active worktrees (~60 worktrees × ~3k files each = ~180k entries). Commands affected: `git ls-files --others` (no worktree-awareness), `find . -name ...` (no git awareness), and any shell glob expansion from root. All time out at the 2-minute Bash cap on this repo.
 
 **Instances:**
 - 2026-08-11 — Rosetta Stone (p/6#52): `git ls-files --others --exclude-standard` piped into a per-file diff loop timed out at 2 min. Root cause: recursed into populated `.worktrees/` dirs. Fix: scope with pathspec (`-- docs research`) or exclude pattern (`:(exclude).worktrees`).
+- 2026-08-22 — Computational Linguist (p/7#63): `find . -name <pattern>` from the repo root timed out at 2 min — same root cause (~60 worktrees). Resolved by switching to `git ls-tree`/Glob tool instead.
 
-**Root Cause:** `git ls-files --others` doesn't have `git status`'s worktree-awareness. Linked worktrees under `.worktrees/` appear as ordinary subdirectories to an unbounded `ls-files` traversal, and each worktree contains a full checkout of the repo (~3k files).
+**Root Cause:** The repo has ~60 linked worktrees, each a full checkout (~3k files). Any traversal that doesn't exclude `.worktrees/` multiplies the file set by ~60. `git ls-files --others` lacks `git status`'s worktree-awareness; `find .` is purely filesystem-level and has no git awareness at all.
 
 **Prevention:**
-1. **Never run `git ls-files --others` unbounded** in a repo with many active linked worktrees — always scope with a pathspec: `git ls-files --others -- <scope>`.
-2. Alternatively, exclude the worktree dir: `git ls-files --others ':(exclude).worktrees'`.
-3. If the goal is checking untracked files in your scope only, `git status -- <scope>` is safer (worktree-aware).
+1. **Never run `git ls-files --others` unbounded** — always scope: `git ls-files --others -- <scope>` or exclude: `git ls-files --others ':(exclude).worktrees'`.
+2. **Never run `find .` from the repo root** — use the Glob tool (path-aware, doesn't recurse into worktrees) or `git ls-tree -r HEAD --name-only -- <scope>` for git-tracked files.
+3. `git status -- <scope>` is safer than `git ls-files --others` for untracked-file checks (worktree-aware).
+4. For locating a file by name: `git ls-tree -r HEAD --name-only | grep <pattern>` scopes to the commit tree; Glob tool handles pattern matching without filesystem recursion.
 
-**Status:** Active — 1 instance (Rosetta Stone p/6#52).
+**Status:** Active — 2 instances; applies to all filesystem-traversal commands at repo root.
 
-**Applies To:** All agents running untracked-file checks in the main repo.
+**Applies To:** All agents running file-discovery or untracked-file checks in the main repo.
 
 ---
 
@@ -3401,3 +3406,103 @@ Institutional memory for failure patterns across the AI Triad Research project.
 **Status:** Active — 1 instance (PowerShell 2 t/2673, p/228#15).
 
 **Applies To:** All agents opening PRs on branches that may be behind origin/main.
+
+---
+
+## #167 [Build] `git worktree add <dir> origin/<branch>` Without `-b` Creates a Detached HEAD — Pre-Commit Hook Blocks the Commit
+
+**Pattern:** `git worktree add <dir> origin/<branch>` (no `-b` flag) checks out the remote ref in a detached-HEAD state instead of creating a local named branch. The orphaned-commit guard (t/2009 pre-commit hook) then refuses any commit in that worktree: "refusing to commit on detached HEAD." The fix is `git switch -c <local-branch>` in the worktree to attach HEAD to a branch; commits then proceed normally and can be pushed with `git push origin HEAD:<remote-branch>`.
+
+**Instances:**
+- 2026-08-20 — Tech Lead (p/335#42): `git worktree add <dir> origin/<branch>` without `-b` produced a detached HEAD; the pre-commit hook refused the commit; fixed by `git switch -c <local-branch>` in the worktree, then committed and pushed with `git push origin HEAD:<remote-branch>`.
+
+**Root Cause:** Without `-b`, `git worktree add <dir> <ref>` treats the ref as a commit-ish to check out directly — a detached HEAD, not a branch checkout. This is correct git behavior but surprising when the ref is an existing remote branch: the intent is "base my work on this branch," but the result is "detach onto this commit." The t/2009 guard exists precisely to catch this state and prevent orphaned commits.
+
+**Prevention:**
+1. **Always use `-b` when you intend to commit from the worktree:** `git worktree add -b <local-branch> <dir> origin/<remote-branch>`. Creates a named local branch in the worktree, not a detached checkout.
+2. **If you land in a detached-HEAD worktree, recover with `git switch -c <branch>`** — no need to re-create the worktree; `switch -c` attaches HEAD to a new branch in place. Push with `git push origin HEAD:refs/heads/<branch>`.
+3. **The t/2009 pre-commit hook firing is the signal** — "refusing to commit on detached HEAD" means you need a named branch, not a worktree recreate. See also #104 (detached-HEAD push needs fully-qualified ref).
+
+**Status:** Active — 1 instance (Tech Lead p/335#42).
+
+**Applies To:** All agents creating worktrees based on an existing remote branch (e.g., rebasing or amending a PR in a worktree).
+
+---
+
+## #170 [Process] Fleet Shares One GitHub Identity — Cross-Instance PR Review Cannot Produce a Native Approval or Block
+
+**Pattern:** `gh pr review <N> --request-changes` (or `--approve`) fails with "Can not request changes on your own pull request" when the reviewing agent and the authoring agent are different fleet instances but share a single GitHub token. GitHub authorship is per-token, not per-agent — all fleet PRs appear self-authored from GitHub's perspective, so native review verdicts (approve/request-changes) are unavailable for any intra-fleet review.
+
+**Instances:**
+- 2026-08-22 — Computational Linguist (PR #1452, t/2948, p/7#66): `gh pr review #1452 --request-changes` failed "Can not request changes on your own pull request" — reviewer and author were different fleet instances sharing one GitHub token. Resolved by posting the review content via `gh pr comment` and recording the formal verdict in the ticket.
+
+**Root Cause:** GitHub's PR review API enforces that the reviewer and author must be different GitHub accounts. The entire AI Triad fleet authenticates to GitHub under one personal token, so all PRs opened by any fleet instance have the same GitHub author. Any review action attempted by a peer fleet instance hits the self-review prohibition, regardless of the agents' distinct Orca identities.
+
+**Prevention:**
+1. **Never attempt `gh pr review --approve` or `--request-changes` as an intra-fleet review** — it will always fail. Use `gh pr comment` to post review content instead.
+2. **The ticket comment is the only enforceable record for intra-fleet review verdicts** — record the reviewer's verdict, reasoning, and approval/block decision in the ticket (e.g., `add_comment` on the Orca ticket). This is the authoritative review record.
+3. **Design review gates with this constraint in mind** — any process that requires a GitHub-native approval to unblock a merge cannot be satisfied by a fleet peer. Human approval (via the GitHub UI) is the only way to produce a GitHub-native review verdict.
+4. **For blocking reviews, mark the PR as draft** (see AGENTS.md gated-PRs rule) — draft + ticket comment is the only mechanism that both records the hold and enforces it against accidental merge.
+
+**Status:** Active — 1 instance (CL PR #1452, t/2948, p/7#66).
+
+**Applies To:** All agents that attempt cross-instance PR reviews; any process design that relies on GitHub-native approvals for fleet-authored PRs.
+
+---
+
+## #171 [Build] MSYS Bash `/tmp` and Windows Python `/tmp` Resolve to Different Real Paths — Cross-Tool Temp Files Are Lost
+
+**Pattern:** A MSYS bash `cp` writes a file to `/tmp/…`; a subsequent Windows Python (or native Win32) `open('/tmp/…')` raises `FileNotFoundError`. The two toolchains resolve `/tmp` to different real filesystem paths — MSYS uses its own virtual `/tmp` mount (typically `C:\msys64\tmp` or the Git-for-Windows `tmp` shim), while Windows-native processes resolve `/tmp` relative to the drive root or to a different TEMP env var. The file exists in one namespace and is invisible in the other.
+
+**Instances:**
+- 2026-08-22 — CL.Investigate1 (p/40#15): a review command wrote a temp copy with MSYS `cp /tmp/…`; Windows Python then raised `FileNotFoundError` on the same path. Fix: dropped the temp file entirely; used `git show HEAD:<path>` (EOL-normalized) vs working-tree content for the byte comparison instead.
+
+**Root Cause:** MSYS/Git-for-Windows presents a POSIX-like filesystem to bash scripts, including its own `/tmp`. Windows-native tools (Python, PowerShell, .NET) use `%TEMP%`/`%TMP%` and do not see MSYS's virtual mounts. Writing with MSYS bash and reading with a Windows-native tool is a cross-mount hand-off that silently fails — the path string is identical but the underlying storage location differs.
+
+**Prevention:**
+1. **For regenerate-vs-committed byte comparisons, use `git diff` or `git show HEAD:<path>`** — no temp file needed; git provides EOL-normalized content from the commit tree directly.
+2. **When a temp file is genuinely needed across MSYS and Windows-native tools, use the session scratchpad dir** (provided in session context, a real Windows path like `C:\Users\…\AppData\Local\Temp\claude\…\scratchpad`) — both toolchains resolve it correctly.
+3. **Never use `/tmp` as a cross-tool hand-off point on Windows agents** — treat it as MSYS-local. If you write with MSYS bash, read with MSYS bash; if you write with PowerShell/Python, read with PowerShell/Python. Crossing the boundary loses the file.
+4. **Pairs with #73** (MSYS path conversion on git colon-revspecs) and **#137** (safety classifier blocks `/tmp` moves of untracked files) — Windows `/tmp` is doubly unreliable: wrong namespace AND classifier-gated.
+
+**Status:** Active — 1 instance (CL.Investigate1 p/40#15).
+
+**Applies To:** All agents on Windows dev environment that write temp files in Bash and read them in Python/PowerShell (or vice versa).
+## #168 [Test] Compositional Validation Trap — "A Works + B Works" Does Not Imply "A→B Works"
+
+**Pattern:** A recurring user-facing bug is "fixed" multiple times because each fix is validated at a sub-chain layer (unit test, harness, or shim→handler boundary) that enters the pipeline mid-chain. The bug lives in an **unexercised seam** — a step upstream of where the test enters. Each fix passes its local gate, the bug resurfaces, and the cycle repeats. The accumulated cost is N debugging sessions and N false-confidence merges.
+
+**Instances:**
+- 2026-08-20 — Op-ed pipeline (t/2897, p/335#44, t/2928): bug recurred 5×. Each of the 4 prior "fixes" was validated at the shim→handler boundary or below; the real defect was a `ConvertTo-Json` serialization failure on real web content that only surfaced at the full shim→handler→generate→reader path. A silent catch hid the failure for rounds 1–4. Fix on round 5: end-to-end closure gate on the real app with real web-page input + surfacing via flight-recorder (t/2897#11).
+
+**Root Cause:** Testing at a sub-chain boundary proves only that the boundary layer is correct — it does not exercise the seams above it. A serialization defect between component A (producer) and component B (consumer) is invisible if the test injects pre-serialized data directly into B. "A passes unit tests + B passes unit tests" provides no guarantee that A's actual output is valid input for B. A silent catch compounding this hides the signal entirely, so each failed fix looks like a transient and the team re-enters the same debugging cycle.
+
+**Prevention:**
+1. **For a recurring user-facing bug, the closure gate must exercise EVERY seam on the real app with real inputs.** A test that enters mid-chain does not close the bug — it only verifies the chain from that entry point down. Draw the full data-flow path; if the failing seam is above your test entry point, the test cannot catch a regression there.
+2. **Enumerate the seams explicitly before writing the fix test:** list each interface boundary on the path from real input to user-visible output. Ask: does my test inject data at or before the first seam? If not, it is a partial test, not a closure gate.
+3. **Pair the fix with loud degradation at the failing seam** — a silent catch that swallows errors lets bugs recur invisibly for N rounds. The catch should surface + flight-record before re-raising; silence is not a safe default for unexpected failures on a user-facing path.
+4. **Recurrence is the diagnostic:** a bug that resurfaces after a "fix" almost always means the fix was validated below the real failure seam. Before the next fix attempt, map the seams, identify which was unexercised, and move the test entry point upstream.
+
+**Status:** Active — 1 instance (Op-ed pipeline t/2897, p/335#44).
+
+**Applies To:** Any multi-stage pipeline where tests enter mid-chain — serialization/deserialization boundaries, IPC shims, process-spawn hand-offs, format-conversion layers.
+
+---
+
+## #169 [Process] Disk-Path File Resolution Is Racy During Active Fleet Work — Use Git Refs Instead
+
+**Pattern:** During an active landing (PR open, merge in flight), a file that `ls` or a prior `Read` shows at a disk path becomes inaccessible seconds later — it has moved between the shared checkout and a worktree or been committed/deleted by a peer. File access by absolute disk path is not atomic relative to concurrent git operations; the shared checkout's working tree can change at any moment when other agents are landing or checking out branches.
+
+**Instances:**
+- 2026-08-22 — Computational Linguist (p/7#63): `Read` on a path shown by a prior `ls` failed seconds later — a peer instance was concurrently landing that file via PR (moved into a worktree/branch). Resolved by locating the file via `git ls-tree`/`git cat-file -e` across refs, which are stable regardless of working-tree state.
+
+**Root Cause:** The shared checkout's working tree is mutable by any agent at any time through git operations (checkout, worktree add/remove, merge). A disk path reflects the current working-tree state, which can change between the `ls` that showed it and the `Read` that consumes it. Git object refs and commit trees are immutable once created — a SHA or `HEAD:path` is stable even while the working tree changes around it.
+
+**Prevention:**
+1. **During active fleet work, resolve peer-owned artifacts through git refs, not disk paths.** Use `git show HEAD:<path>`, `git ls-tree HEAD -- <scope>`, or `git cat-file -e <ref>:<path>` — these are stable regardless of working-tree churn.
+2. **If a disk-path Read fails unexpectedly, check whether a concurrent landing moved the file** — `git log --oneline -5 origin/main` shows recent merges; `git ls-tree origin/main -- <path>` shows if the file exists on origin.
+3. For peer-owned files specifically, prefer reading from `origin/main` ref rather than the working-tree disk path: `git show origin/main:<path>` (or via PowerShell tool for Windows paths).
+
+**Status:** Active — 1 instance (CL p/7#63).
+
+**Applies To:** All agents reading files in another role's scope during periods of concurrent fleet activity.

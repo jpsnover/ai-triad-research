@@ -32,6 +32,7 @@ import { entailmentRepairPrompt, cruxRefreshPrompt } from '../prompts.js';
 import { callByUsage } from '../../ai-client/usageRegistry.js';
 import { getGlobalRecorder } from '../../flight-recorder/index.js';
 import { hashString, looksTruncated, updateExtractionSummary } from './helpers.js';
+import { runNliDirectionGate, buildNliNodeProp } from './nliDirectionGate.js';
 import type { ClaimExtractionContext } from './context.js';
 
 export async function extractClaims(
@@ -233,6 +234,37 @@ export async function extractClaims(
       trace.attribution_missing_embedding = attrResult.missing_embedding;
       trace.attribution_novel_argument = attrResult.novel_argument;
       trace.attribution_decisions = attrResult.decisions;
+
+      // V4 NLI direction gate (t/2746): demote 'opposes' claims to direction_mismatch
+      const nodeTextById = new Map(povNodes.map(n => [n.id, buildNliNodeProp(n.label, n.description)]));
+      const nliResult = runNliDirectionGate(claimsResult.newNodes, nodeTextById, speakerPov);
+      const { opposingIds, counts: nliCounts } = nliResult;
+      getGlobalRecorder()?.record({
+        type: 'an.nli_direction_gate', component: 'debate-engine', level: 'info',
+        speaker, debate_id: ctx.session?.id,
+        message: `NLI gate: ${opposingIds.size} demoted`,
+        data: { ...nliCounts },
+      });
+      if (opposingIds.size > 0) {
+        for (const node of claimsResult.newNodes) {
+          if (!opposingIds.has(node.id)) continue;
+          node.claim_taxonomy_attribution = {
+            primary_ref: '',
+            attribution_confidence: node.claim_taxonomy_attribution?.attribution_confidence ?? 0,
+            unattributed_reason: 'direction_mismatch',
+          };
+          const dec = trace.attribution_decisions?.find(d => d.claim_id === node.id);
+          if (dec) {
+            dec.primary_ref = null;
+            dec.unattributed_reason = 'direction_mismatch';
+            dec.secondary_refs_count = 0;
+          }
+        }
+        const nliDemoted = opposingIds.size;
+        trace.attribution_attributed = (trace.attribution_attributed ?? 0) - nliDemoted;
+        trace.attribution_unattributed = (trace.attribution_unattributed ?? 0) + nliDemoted;
+        trace.attribution_novel_argument = (trace.attribution_novel_argument ?? 0) + nliDemoted;
+      }
 
       // Log warning if zero statement-level taxonomy_refs (injection may have failed upstream)
       if (taxonomyRefIds.length === 0 && claimsResult.newNodes.length > 0) {

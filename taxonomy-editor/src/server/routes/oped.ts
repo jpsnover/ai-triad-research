@@ -20,13 +20,16 @@ import type { Router } from '../httpKit.js';
 import type { ServerCtx } from './context.js';
 import { json, error, param } from '../httpKit.js';
 import { getGlobalRecorder } from '../../../../lib/flight-recorder/index.js';
-import { isSafeId } from '../storage/fileIO.js';
+import { ActionableError } from '../../../../lib/debate/errors.js';
+import { clientSafeMessage } from '../security/accessControl.js';
+import { isSafeId, fetchUrlContent } from '../storage/fileIO.js';
 import { listOpedSets, loadOpedSet, deleteOpedSet, getOpedSetsQuotaStatus, finalizeOpedSet } from '../storage/opedStore.js';
 import type { OpEdSet, OpEdMember, OpEdParams, PovKey } from '../../../../lib/oped/types.js';
 import type { GenerateOpEdRequest, OpEdGeneratorDeps, OpEdProgressEvent } from '../../../../lib/oped/generate.js';
-import { getStorageUserId, isAnonymousUser, getCurrentUser } from '../security/userContext.js';
-import { callerTierIdentity } from '../security/accessControl.js';
-import * as proxyTiers from '../ai/proxyTiers.js';
+import { getStorageUserId, isAnonymousUser } from '../security/userContext.js';
+import { checkRate } from '../security/rateLimiter.js';
+import { publishOpedShare, unpublishOpedShare } from '../storage/opedShareStore.js';
+import { resolveGenerationContext, enforceBackendAllowed } from './generationContext.js';
 import { resolveBackend, isRegisteredModel } from '../ai/aiBackends.js';
 import { DEFAULT_MODEL } from '../../../../lib/ai-client/index.js';
 import { getProjectRoot } from '../config.js';
@@ -58,6 +61,11 @@ interface OpEdRun {
   perVoice: Record<string, VoiceState>;
   startedAt: number;
 }
+// @INMEMORY_JOB_STORE — active op-ed generation runs (status, SSE progress, cancel signal,
+// per-voice state) live in a per-process Map, NOT shared across replicas. Remove this marker
+// when migrated to a shared/blob store (t/2893). The CI gate Test-InMemoryJobStoreScaleGuard.ps1
+// reads this marker and blocks maxReplicas > 1 while it is present (t/2884-class race: an SSE
+// stream or cancel routed to a different replica than the one running the job 404s silently).
 const opedRuns = new Map<string, OpEdRun>();
 
 function sweepOpedRuns(): void {
@@ -72,12 +80,16 @@ function countRunningOpedRuns(userId: string): number {
   return n;
 }
 
-// ── create-request parsing (P1 FromTopic only) ──
-interface ParsedOpEdCreate { topic: string; povs: string[]; params: OpEdParams }
+// ── create-request parsing (FromTopic + FromSource-URL) ──
+interface ParsedOpEdCreate { topic: string; povs: string[]; params: OpEdParams; url?: string }
 function parseOpEdCreate(body: unknown): { ok: true; value: ParsedOpEdCreate } | { ok: false; status: number; message: string } {
   const b = (body ?? {}) as { topic?: unknown; params?: OpEdParams; povs?: unknown; url?: unknown; source?: unknown };
-  // P1 is FromTopic only (TL) — never present a submit path the server can't run.
-  if (b.url != null || b.source != null) return { ok: false, status: 400, message: 'URL/source op-eds are desktop-only in v1 — use a topic' };
+  // t/2807: `url` sources are now supported on web — fetched via the SSRF-hardened
+  // fileIO.fetchUrlContent (the same path debates use). `source` (file/PDF/DOCX
+  // uploads) still requires the desktop DocConverters path — keep blocking it here
+  // (remaining gap tracked as a follow-up; t/2604 P2/P3).
+  if (b.source != null) return { ok: false, status: 400, message: 'File/PDF/DOCX sources require the desktop app — paste a URL, or use the desktop app for document uploads' };
+  const url = typeof b.url === 'string' && b.url.trim() ? b.url.trim() : undefined;
   const topic = typeof b.topic === 'string' ? b.topic.trim() : '';
   const povs = Array.isArray(b.povs) ? b.povs.filter((p): p is string => typeof p === 'string') : [];
   const params = b.params;
@@ -89,28 +101,16 @@ function parseOpEdCreate(body: unknown): { ok: true; value: ParsedOpEdCreate } |
   // so requiring it 400'd every default web op-ed (t/2685). Coerce absent/invalid/≤0 to the band sentinel 0
   // (mirrors schemas.ts .optional().default(0); generate.ts treats `wordCount > 0 ? … : band.words`).
   const wordCount = typeof params.wordCount === 'number' && params.wordCount > 0 ? params.wordCount : 0;
-  return { ok: true, value: { topic, povs, params: { ...params, wordCount } } };
+  return { ok: true, value: { topic, povs, params: { ...params, wordCount }, url } };
 }
 
-/** Tier-backend entitlement (mirrors chat.ts resolveGenerationContext, t/2610#11): a free
- *  user must not invoke a premium backend via `params.model`, and the free tier's model is
- *  pinned. Returns the EFFECTIVE model to generate with (pinned for free). */
-function resolveOpEdModel(params: OpEdParams): { ok: true; model: string } | { ok: false; status: number; message: string } {
-  const { principalName, idp } = callerTierIdentity(getCurrentUser());
-  const tier = proxyTiers.resolveTier(principalName, idp);
-  const model = (tier.level === 'free' ? (tier.pinnedModel ?? params.model) : params.model) || DEFAULT_MODEL;
-  // t/2687: reject an UNREGISTERED model before committing the SSE stream. resolveBackend only
-  // prefix-guesses (unknown → 'gemini'), so without this an unregistered id reaches the provider
-  // and fails silently mid-generation ("voice failed — 0 words"). Free tier is pinned to a
-  // registered model, so this only rejects a caller-chosen unregistered id.
-  if (!isRegisteredModel(model)) {
-    return { ok: false, status: 400, message: `Model '${model}' is not available — choose another model in Settings.` };
-  }
-  const backend = resolveBackend(model);
-  if (!proxyTiers.isBackendAllowed(tier, backend)) {
-    return { ok: false, status: 403, message: `Your plan can't use the ${backend} backend — choose an allowed model` };
-  }
-  return { ok: true, model };
+/** Adapt the global FlightRecorder to OpEdGeneratorDeps.recorder's looser param type
+ *  (t/2807). deps.recorder takes Record<string,unknown>; FlightRecorder.record takes the
+ *  stricter RecordInput. generate.ts always passes a valid RecordInput shape, so the
+ *  forward is safe. Module-level so it doesn't add branch-complexity to driveOpEdRun. */
+function toOpEdRecorder(): OpEdGeneratorDeps['recorder'] {
+  const r = getGlobalRecorder();
+  return r ? { record: (e: Record<string, unknown>) => r.record(e as never) } : null;
 }
 
 function applyEventToRun(run: OpEdRun, event: OpEdProgressEvent, completed: OpEdMember[]): void {
@@ -146,6 +146,9 @@ async function driveOpEdRun(
       // companion Dockerfile COPY (Rosetta, repo-root-anchored). Repo-root anchor matches.
       promptsDir: path.join(getProjectRoot(), 'lib', 'oped', 'prompts'),
       repoRoot: getProjectRoot(),
+      // t/2807: give the core a recorder so Step-0 can flag a supplied-but-unreadable
+      // URL source (otherwise it silently degrades to a topic-only op-ed).
+      recorder: toOpEdRecorder(),
     };
     for await (const event of generateOpEdSet(request, deps) as AsyncGenerator<OpEdProgressEvent>) {
       applyEventToRun(run, event, completed);
@@ -170,12 +173,19 @@ async function driveOpEdRun(
     if (run.status === 'running') run.status = 'complete';
   } catch (err) {
     run.status = 'error';
-    getGlobalRecorder()?.record({ type: 'system.error', component: 'oped', level: 'error', message: 'Op-ed generation failed', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
+    const opedErrMsg = err instanceof ActionableError
+      ? `Op-ed generation failed — goal: ${err.goal} | problem: ${err.problem}`
+      : 'Op-ed generation failed';
+    getGlobalRecorder()?.record({ type: 'system.error', component: 'oped', level: 'error', message: opedErrMsg, error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
     if (completed.length > 0) {
       try { await finalizeOpedSet({ schema_version: 1, set_id: request.set_id, topic: request.topic, params: request.params, created_at: new Date().toISOString(), opeds: completed } as OpEdSet); }
       catch { /* telemetry — silent by design (best-effort partial persist) */ }
     }
-    writeFrame({ type: 'error', message: String(err) });
+    writeFrame({
+      type: 'error',
+      ...(err instanceof ActionableError ? { goal: err.goal, problem: clientSafeMessage(err.problem, err) } : {}),
+      message: clientSafeMessage(String(err), err),
+    });
   } finally {
     clearInterval(heartbeat);
     run.startedAt = Date.now(); // restart the TTL clock from the terminal state (status-GET window)
@@ -204,11 +214,19 @@ export function registerOpedRoutes(r: Router, _ctx: ServerCtx): void {
     if (isAnonymousUser()) { error(res, 'Sign in to create op-eds', 403); return; }
     const parsed = parseOpEdCreate(body);
     if (!parsed.ok) { error(res, parsed.message, parsed.status); return; }
-    const { topic, povs, params } = parsed.value;
-    // Tier-backend entitlement — a free user can't pick a premium backend via params.model
-    // (mirrors chat.ts:236); free tier's model is pinned. Must precede any generation.
-    const ent = resolveOpEdModel(params);
-    if (!ent.ok) { error(res, ent.message, ent.status); return; }
+    const { topic, povs, params, url } = parsed.value;
+    // Tier-backend entitlement via the shared helper (t/2635 — folds op-ed onto the ONE
+    // entitlement path in routes/generationContext.ts, replacing the local resolveOpEdModel
+    // mirror). Free tier's model is pinned; a free/restricted caller can't reach a premium
+    // backend via params.model. Must precede any generation (JSON errors before the SSE headers).
+    const { tier, effectiveModel, backend } = resolveGenerationContext(req, params.model);
+    const model = effectiveModel || DEFAULT_MODEL;
+    // t/2687: reject an UNREGISTERED model before committing the SSE stream — the shared helper
+    // doesn't (resolveBackend only prefix-guesses unknown → 'gemini', so an unregistered id would
+    // reach the provider and fail silently mid-generation, "voice failed — 0 words"). Free tier is
+    // pinned to a registered model, so this only rejects a caller-chosen unregistered id.
+    if (!isRegisteredModel(model)) { error(res, `Model '${model}' is not available — choose another model in Settings.`, 400); return; }
+    if (enforceBackendAllowed(res, tier, backend)) return;
 
     const userId = getStorageUserId();
     sweepOpedRuns();
@@ -216,6 +234,24 @@ export function registerOpedRoutes(r: Router, _ctx: ServerCtx): void {
     if (!quota.allowed) { json(res, { error: 'quota_exceeded', resource: quota.resource, current: quota.current, limit: quota.limit }, 429); return; }
     if (countRunningOpedRuns(userId) >= MAX_CONCURRENT_OPED_RUNS) {
       json(res, { error: 'concurrency_limit', message: 'You already have an op-ed generating; wait for it to finish.', limit: MAX_CONCURRENT_OPED_RUNS }, 429); return;
+    }
+
+    // ── URL source fetch (t/2807) ──
+    // Reuse the SSRF-hardened fileIO.fetchUrlContent — the SAME path debates use
+    // (t/720-hardened: HTTPS-only, no creds-in-URL, blocks IP-literals/localhost/
+    // .local/.internal/.corp, timeout + size-cap + content-type + redirect re-validation).
+    // NO second fetch path. Placed AFTER the auth/tier/quota/concurrency gate so an
+    // unentitled or over-quota caller can never use this endpoint as a fetch trigger,
+    // and BEFORE the SSE stream commits so a fetch failure returns a clean HTTP error
+    // instead of a mid-stream frame — never proceed with empty sourceMaterial (t/2722). (TL MUST)
+    let sourceMaterial: string | undefined;
+    if (url) {
+      const fetched = await fetchUrlContent(url);
+      if (fetched.error || !fetched.content) {
+        error(res, `Could not fetch that URL: ${fetched.error || 'no readable content returned'}`, 502);
+        return;
+      }
+      sourceMaterial = fetched.content;
     }
 
     // ── Commit SSE — no JSON error responses after this point ──
@@ -241,7 +277,7 @@ export function registerOpedRoutes(r: Router, _ctx: ServerCtx): void {
 
     writeFrame({ type: 'run_started', runId });
     // Generate with the entitlement-resolved (free-tier-pinned) model, not the raw request.
-    const request: GenerateOpEdRequest = { set_id: setId, topic, params: { ...params, model: ent.model }, povs: povs as PovKey[], signal: ac.signal };
+    const request: GenerateOpEdRequest = { set_id: setId, topic, params: { ...params, model }, povs: povs as PovKey[], sourceMaterial, signal: ac.signal };
     await driveOpEdRun(res, run, request, writeFrame, heartbeat, () => clientGone);
   });
 
@@ -303,6 +339,41 @@ export function registerOpedRoutes(r: Router, _ctx: ServerCtx): void {
       json(res, { ok: true });
     } catch (err) {
       getGlobalRecorder()?.record({ type: 'system.error', component: 'oped', level: 'error', message: 'Failed to delete oped-set', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
+      error(res, String(err), 500, err);
+    }
+  });
+
+  // ── Op-ed public share (t/2727; design t/2723#3, SO-approved e/106#2) ──
+  // Pattern A: publish-on-share to a user-agnostic public copy; the public read is
+  // GET /api/public/oped/:shareId (routes/opedShare.ts). Owner-only: publishOpedShare
+  // reads via the caller's getStorageUserId scope, so a non-owner/absent set is an
+  // indistinguishable 404. 5-segment path → no collision with the :id wildcard.
+  const SHARE_ROUTE = '/api/oped-sets/:setId/share';
+  post('/api/oped-sets/:setId/share', async (req, res) => {
+    const setId = param(req, 'setId', SHARE_ROUTE);
+    if (rejectUnsafeId(res, setId)) return;
+    // Modest per-user rate guard — this writes to a public container.
+    if (!checkRate(`oped-share-write:${getStorageUserId()}`, 20, 60_000).allowed) {
+      json(res, { error: 'rate_limited' }, 429); return;
+    }
+    try {
+      const result = await publishOpedShare(setId);
+      if (!result) { error(res, 'Op-ed set not found', 404); return; }
+      json(res, { shareId: result.shareId, url: `/share/oped/${result.shareId}` });
+    } catch (err) {
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'oped', level: 'error', message: 'Failed to publish oped share', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
+      error(res, String(err), 500, err);
+    }
+  });
+
+  del('/api/oped-sets/:setId/share', async (req, res) => {
+    const setId = param(req, 'setId', SHARE_ROUTE);
+    if (rejectUnsafeId(res, setId)) return;
+    try {
+      const existed = await unpublishOpedShare(setId);
+      json(res, { ok: existed });
+    } catch (err) {
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'oped', level: 'error', message: 'Failed to unpublish oped share', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
       error(res, String(err), 500, err);
     }
   });

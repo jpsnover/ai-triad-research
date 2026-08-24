@@ -6,6 +6,7 @@ import { api } from '@bridge';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { bridgeGet, bridgePost } from '../bridge/web-bridge';
 import { useTaxonomyStore } from './useTaxonomyStore';
+import { mapErrorToUserMessage } from '../utils/errorMessages';
 import type { OpEdCommunityEntry } from '../../../../lib/oped/types';
 
 export interface CommunityItem {
@@ -23,6 +24,7 @@ export interface CommunityItem {
 
 export interface CommunityChat extends CommunityItem {
   mode?: string;
+  model?: string;
 }
 
 export interface CommunityDebate extends CommunityItem {
@@ -90,7 +92,7 @@ export const useCommunityStore = create<CommunityStore>((set) => ({
       api.trackEvent('community_browse', 'community', { type: 'chats', count: chats.length });
     } catch (err) {
       getGlobalRecorder()?.record({ type: 'system.error', component: 'community-store', level: 'error', message: 'Failed to fetch community chats', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
-      set({ error: String(err), loading: false });
+      set({ error: mapErrorToUserMessage(err), loading: false });
     }
   },
 
@@ -103,7 +105,7 @@ export const useCommunityStore = create<CommunityStore>((set) => ({
       api.trackEvent('community_browse', 'community', { type: 'debates', count: debates.length });
     } catch (err) {
       getGlobalRecorder()?.record({ type: 'system.error', component: 'community-store', level: 'error', message: 'Failed to fetch community debates', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
-      set({ error: String(err), loading: false });
+      set({ error: mapErrorToUserMessage(err), loading: false });
     }
   },
 
@@ -112,11 +114,15 @@ export const useCommunityStore = create<CommunityStore>((set) => ({
     set({ loading: true, error: null });
     try {
       const opeds = await bridgeGet<OpEdCommunityEntry[]>('/api/community/opeds');
+      const missing = opeds.filter(e => !e.topic);
+      if (missing.length > 0) {
+        getGlobalRecorder()?.record({ type: 'system.error', component: 'community-store', level: 'warn', message: `community opeds missing topic on ${missing.length} entr${missing.length === 1 ? 'y' : 'ies'}: ${missing.map(e => e.id).join(', ')}` });
+      }
       set({ opeds, loading: false });
       api.trackEvent('community_browse', 'community', { type: 'opeds', count: opeds.length });
     } catch (err) {
       getGlobalRecorder()?.record({ type: 'system.error', component: 'community-store', level: 'error', message: 'Failed to fetch community op-eds', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
-      set({ error: String(err), loading: false });
+      set({ error: mapErrorToUserMessage(err), loading: false });
     }
   },
 
@@ -129,7 +135,7 @@ export const useCommunityStore = create<CommunityStore>((set) => ({
       set({ submissions, loading: false });
     } catch (err) {
       getGlobalRecorder()?.record({ type: 'system.error', component: 'community-store', level: 'error', message: 'Failed to fetch submissions', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
-      set({ error: String(err), loading: false });
+      set({ error: mapErrorToUserMessage(err), loading: false });
     }
   },
 

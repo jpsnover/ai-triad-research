@@ -97,28 +97,25 @@ export function getOrderedNodeIds(
   return ids;
 }
 
+// Collapse state is backed by sessionStorage (not localStorage) so every session
+// starts fully collapsed (t/2720): a fresh app launch / new tab has no stored state
+// → loadCollapsed() returns all categories collapsed. In-session toggles, POV switches,
+// and keyboard-nav auto-expand still persist for the life of the session.
 const COLLAPSE_STORAGE_KEY = 'taxonomy-editor-collapsed-categories';
-const COLLAPSE_VERSION_KEY = 'taxonomy-editor-collapsed-version';
-const COLLAPSE_VERSION = 2; // bump to reset all users to collapsed-by-default
 
 function loadCollapsed(): Set<string> {
   try {
-    const version = Number(localStorage.getItem(COLLAPSE_VERSION_KEY) || '0');
-    if (version >= COLLAPSE_VERSION) {
-      const raw = localStorage.getItem(COLLAPSE_STORAGE_KEY);
-      if (raw) return new Set(JSON.parse(raw));
-    }
-    // First run or version bump — default collapsed & store the version
-    localStorage.setItem(COLLAPSE_VERSION_KEY, String(COLLAPSE_VERSION));
+    const raw = sessionStorage.getItem(COLLAPSE_STORAGE_KEY);
+    if (raw) return new Set(JSON.parse(raw));
   } catch (err) {
     getGlobalRecorder()?.record({ type: 'system.error', component: 'node-tree', level: 'warn', message: 'collapsed state load failed', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
   }
-  // Default: all categories collapsed
+  // Session start (or no stored state): all categories collapsed.
   return new Set(CATEGORY_ORDER);
 }
 
 function saveCollapsed(collapsed: Set<string>) {
-  localStorage.setItem(COLLAPSE_STORAGE_KEY, JSON.stringify([...collapsed]));
+  sessionStorage.setItem(COLLAPSE_STORAGE_KEY, JSON.stringify([...collapsed]));
 }
 
 function computeVisibleIds(

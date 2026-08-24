@@ -14,6 +14,8 @@ export interface ExclusionDemotion {
 export interface ExclusionFilterResult {
   passed: string[];
   demoted: ExclusionDemotion[];
+  /** Nodes held back because no exclusion_vector was available — never asserted as aligned. */
+  flagged_no_vector: string[];
 }
 
 export interface ExclusionViolation {
@@ -96,6 +98,8 @@ export function checkDraftScopeBoundary(
 export interface SituationExclusionResult {
   passed: string[];
   skipped: { node_id: string; similarity_exclusion: number }[];
+  /** Nodes held back because no exclusion_vector was available — never asserted as aligned. */
+  flagged_no_vector: string[];
 }
 
 export function filterByExclusionAbsolute(
@@ -106,11 +110,12 @@ export function filterByExclusionAbsolute(
 ): SituationExclusionResult {
   const passed: string[] = [];
   const skipped: { node_id: string; similarity_exclusion: number }[] = [];
+  const flagged_no_vector: string[] = [];
 
   for (const nodeId of candidateNodeIds) {
     const entry = nodeEmbeddings[nodeId];
     if (!entry?.exclusion_vector) {
-      passed.push(nodeId);
+      flagged_no_vector.push(nodeId);
       continue;
     }
 
@@ -122,7 +127,7 @@ export function filterByExclusionAbsolute(
     }
   }
 
-  return { passed, skipped };
+  return { passed, skipped, flagged_no_vector };
 }
 
 export function filterByExclusionRatio(
@@ -133,11 +138,12 @@ export function filterByExclusionRatio(
 ): ExclusionFilterResult {
   const passed: string[] = [];
   const demoted: ExclusionDemotion[] = [];
+  const flagged_no_vector: string[] = [];
 
   for (const nodeId of candidateNodeIds) {
     const entry = nodeEmbeddings[nodeId];
     if (!entry?.exclusion_vector) {
-      passed.push(nodeId);
+      flagged_no_vector.push(nodeId);
       continue;
     }
 
@@ -151,5 +157,5 @@ export function filterByExclusionRatio(
     }
   }
 
-  return { passed, demoted };
+  return { passed, demoted, flagged_no_vector };
 }

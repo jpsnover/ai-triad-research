@@ -22,6 +22,7 @@ Get-Help <CmdletName> -Full                     # full docs for any cmdlet
 | `Get-TaxonomyHealth` | Check node/edge counts, orphans, structural issues |
 | `Compare-Taxonomy` | Diff two taxonomy states |
 | `Test-TaxonomyIntegrity` | Validate referential integrity — dangling refs, edge source/target resolution, and self-loop edges (source == target); `-Repair` strips bad/self-loop edges (see `Test-OrganizationIntegrity` for the Organization slice) |
+| `Test-TaxonomyDir` | Pre-validate the taxonomy dir against the embed_taxonomy.py loader contract before `Update-TaxEmbeddings` — reports which files would be ingested vs skipped and flags any ingested file whose `nodes` lack `id` (the shape that crashes the embed run, t/2875) |
 | `Test-OntologyCompliance` | Check nodes against ontology rules |
 | `Get-NodeTestingRecord` | Debate-Tested Phase 2 research surface — filter/sort POV nodes by tier, stale-hash, or importance×deficit (t/1579) |
 | `Update-NodeTestingRecord -RecomputeOnly` | Recompute tier + sort_key across all nodes after a constant change; historical record[] never touched; idempotent (t/1579) |
@@ -72,6 +73,8 @@ Get-Help <CmdletName> -Full                     # full docs for any cmdlet
 | `Watch-DebateProgress` | Live-updating table of a running batch's per-debate status (hung detection) |
 | `Show-DebateDiagnostics` | Inspect debate internals |
 | `Repair-DebateOutput` | Fix malformed debate JSON |
+| `Export-TriadDebateBrief` | Export a closed debate to a presentation brief (.pptx). Local mode (`-Path`) runs the offline lib/brief pipeline; server mode (`-DebateId`) is deferred pending AAD auth (t/2839) |
+| `Test-BriefNarrationStage` | Run ONLY the brief narrate stage on a deck_spec + model to debug zero-entry/bad-trace failures without the full pipeline; returns entry count + validation errors (t/2873) |
 
 ### Op-Ed Generation
 | Cmdlet | Use when |
@@ -107,6 +110,7 @@ Get-Help <CmdletName> -Full                     # full docs for any cmdlet
 | Cmdlet | Use when |
 |--------|----------|
 | `Test-TaxEditorHealth` | Production liveness/readiness check (supports `-MaxAttempts` polling for post-deploy waits, t/1491) |
+| `Test-EmbeddingHealth` | Smoke-test `POST /api/embeddings/compute` in prod (anon session + x-request-id) — reports Healthy/status/duration/vector dims + a `Get-ServerLog`-traceable requestId on failure (t/2787) |
 | `Test-TaxEditorEndpoints` | Smoke-test 16 endpoints |
 | `Test-AnonymousDebateFlow` | End-to-end smoke test of the anonymous/free-tier user journey |
 | `Test-PersonaEndpoints` | Auth-gate regression matrix across anonymous/authenticated/admin personas |
@@ -120,13 +124,17 @@ Get-Help <CmdletName> -Full                     # full docs for any cmdlet
 | `Test-AIApiKey` | Probe AI backend auth endpoints (no tokens consumed) — confirm a key is present and accepted before running jobs |
 | `Test-AIBackendHealth` | Full completion round-trip probe per backend — use before a debate run to surface degraded/unreachable models (t/2212) |
 | `Test-DebateIndexIntegrity` | Validate debate-*.json field types for UI-crash regressions — catches the object-as-title bug (t/2335) |
+| `Get-DebateIndexHealth` | Scan the aggregated `.debate-index.json` for type-invalid entries (object-as-title etc.); `-Repair` deletes bad entries for re-extraction on next launch (t/2735) |
 | `Test-DebatePersistence` | Pre-flight atomic write+rename probe for the debates output dir — call before AI generation to surface LOCKED/NO_PERMISSION early (t/2545) |
 | `Get-ContainerAppRevision` | Query ACA revisions by mode (Active/Stale/Fqdn) — replaces raw `az containerapp revision` calls (t/1498) |
+| `Get-ServerLog` | Retrieve + filter ACA server logs, correlate by Pino requestId — `-RequestId`/`-Recent`/`-StartTime`/`-Pattern` sets, `-Level`/`-Component`/`-Follow`/`-Raw` (t/2765) |
+| `Test-PreloadHealth` | Validate the built `preload.cjs` before launch — exists, calls `contextBridge.exposeInMainWorld`, self-contained (no relative `require('./…')`), optional `node --check` (t/2775, t/2777) |
 | `New-ContainerAppRevision` | Blue-green: deploy a new ACA revision at 0% traffic; returns real `RevisionName` for the promotion chain (t/1500 Phase 3) |
 | `Set-ContainerAppTraffic` | Shift traffic to a named revision with retry — call BEFORE `Disable-ContainerAppRevision` in rollback (t/1500 Phase 3) |
 | `Disable-ContainerAppRevision` | Deactivate an ACA revision (stale cleanup or rollback tail); non-fatal on failure — matches deploy YAML's `\|\| true` semantics (t/1500 Phase 3) |
 | `Get-ContainerAppDiagnostics` | Combined revision-show + console + system logs for failure triage; polls 30s for logs to appear before declaring unavailable (t/1500 Phase 3) |
 | `Get-GitHubWorkflowRun` | Fetch a workflow run + per-job conclusions for a commit SHA or run ID (t/1499) |
+| `Get-CIFailureSummary` | One-call CI triage — pull failing Pester tests + real infra errors from a gh run log (t/2882) |
 | `Remove-StaleContainerImages` | GHCR cleanup — paginate → filter → delete untagged image versions with `-WhatIf` (t/1492) |
 | `Get-TaxonomySnapshot` | Fetch the 11-file taxonomy + conflict snapshot from ai-triad-data with commit-SHA stamping (t/1493) |
 | `Test-TaxonomyDirContents` | Pre-embedding TAXONOMY_DIR validation — flags files whose `nodes` field would crash `Update-TaxEmbeddings` (dict/null instead of a list of objects); mirrors embed_taxonomy.py skip logic (t/1654) |
@@ -143,3 +151,16 @@ Get-Help <CmdletName> -Full                     # full docs for any cmdlet
 | `Register-AIBackend` | Configure AI backend credentials |
 | `Test-AIApiKey` | Verify an AI provider API key authenticates (auth-only probe of gemini/claude/groq/openai/azure; no token cost). Use `-All` to sweep every backend with a resolvable key. |
 | `Test-AIModelsConfig` | Validate `ai-models.json` — BOM, JSON parse, orphaned model refs in defaults/debateTiers/fallbackChains, incomplete `models[]` entries, and friendly-id-in-`apiModelId` (t/1705). Returns `{Pass; Issues}`; run in a Pester test / CI. |
+
+### Data-Write Safety
+| Cmdlet | Use when |
+|--------|----------|
+| `Assert-CleanDataTree` | Before a whole-file rewrite of a data-repo JSON, assert the target has no uncommitted changes — so a `ConvertFrom-Json \| ConvertTo-Json` (or Python `json.load`→`json.dump`) round-trip can't sweep concurrent working-tree state into the commit (t/2902; `-Force` downgrades the block to a warning). Also exposed as the opt-in `Write-Utf8NoBom -RequireCleanTree` switch. |
+| `Save-JsonNodeFieldEdits` | Use when a writer needs to set scalar `nodes[]` fields in a data-repo JSON without a whole-file round-trip. Reads fresh, splices ONLY the target fields via a re-parse-verified byte-preserving primitive, writes once through the guarded sink — so it cannot sweep concurrent WIP and is safe even on the perpetually-dirty BLOCK-tier `situations.json` (t/2916). Returns a summary (Applied + NotFound). Pair with explicit-path staging at commit. |
+
+**Centralized data-write guard (t/2902 Part 2).** Every data-of-record write in the module funnels through a guarded sink, so individual cmdlets need no per-callsite wiring:
+
+- **Content-string writes** go through `Write-Utf8NoBom`, which calls the internal `Assert-DataWriteAllowed` guard automatically. Writers using atomic `[IO.File]::WriteAllText`/`Move` sinks call the guard directly at the sink; Python re-writers call `assert_clean_data_tree` (`scripts/data_tree_guard.py`).
+- The guard fires **only** for a target **under the data root** (`Get-DataRoot`) that is **already dirty** — it is per-file, never a whole-tree assertion (the data tree is perpetually dirty).
+- **Mode is TIERED per target** (t/2909): **BLOCK** tier = low-traffic/usually-clean/high-sensitivity files (`situations.json`, `organization_stance_claims.json`, and the registries — `policy_actions`/`organizations`/`organization_edges`/`entities`/`entity_mentions`) → throws on a dirty target; **WARN** tier = everything else (high-traffic perpetually-dirty: POV camp files, `edges.json`, `embeddings.json`, summaries, and `.debate-index.json` — rewritten every debate run) → warns and proceeds (the durable fix there is field-surgical writes, t/2916). `$env:AI_TRIAD_DATA_WRITE_GUARD` = `Block`|`Warn`|`Off` is a **global override** that wins over the tier. Pass `-AllowDirty` on a sink call to opt a legitimate sequential rewriter out. Tier membership is co-located in `Assert-DataWriteAllowed.ps1` / `data_tree_guard.py` (lockstep).
+- A detection test (`tests/DataWriteSinkGuard.Tests.ps1`) fails CI if any new data writer reaches disk bypassing the guarded sink — so coverage tracks growth.

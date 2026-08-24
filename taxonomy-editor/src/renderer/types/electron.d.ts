@@ -5,11 +5,20 @@ import type { Organization, OrganizationEdge } from '@lib/organizations/types';
 import type { EntityDetail, EntitySummary, EntityListQuery } from '@lib/entities/types';
 import type { ContainerMentions } from '@lib/entities/mentionTypes';
 import type { EdgesFile } from '@lib/debate/taxonomyTypes';
-import type { UserPreferences } from '../bridge/types';
+import type { UserPreferences, BriefExportRequest, BriefExportJobView, BriefExportRecord } from '../bridge/types';
+import type { BriefArtifactName } from '@lib/brief/types';
 
 export interface ElectronAPI {
+  // Brief Export — desktop parity (t/2840). download returns raw bytes (the bridge wraps a Blob).
+  createBriefExport: (debateId: string, body: BriefExportRequest) => Promise<{ jobId: string }>;
+  getBriefExportJob: (jobId: string) => Promise<BriefExportJobView>;
+  listBriefExports: (debateId: string) => Promise<BriefExportRecord[]>;
+  downloadBriefArtifact: (exportId: string, name: BriefArtifactName) => Promise<Uint8Array | null>;
+  deleteBriefExport: (exportId: string) => Promise<void>;
   processVersions: Record<string, string | undefined>;
   osRelease: string;
+  /** t/2766: performance.now() stamp from when contextBridge.exposeInMainWorld ran. */
+  preloadTimestamp: number;
   getEmbeddingInfo: () => Promise<{ backend: string; execution_provider?: string; calibration_version?: number }>;
 
   // User preferences (t/2118) — optional until handler confirmed present
@@ -130,6 +139,7 @@ export interface ElectronAPI {
   saveDebateSession: (session: unknown, caller: string) => Promise<void>;
   deleteDebateSession: (id: string) => Promise<void>;
   exportDebateToFile: (session: unknown, format?: string, exportOptions?: { includeTaxonomyRefs?: boolean; includeReasoning?: boolean }) => Promise<{ cancelled: boolean; filePath?: string }>;
+  printBriefToPdf: (html: string) => Promise<{ cancelled: boolean; filePath?: string }>;
   loadDebateComments: (debateId: string) => Promise<unknown>;
   saveDebateComments: (debateId: string, data: unknown) => Promise<void>;
   generateNewsReport: (debateId: string) => Promise<{ article: string }>;
@@ -161,7 +171,7 @@ export interface ElectronAPI {
   saveProposal: (filename: string, data: unknown) => Promise<{ saved?: boolean; error?: string }>;
 
   // PowerShell prompts
-  readPsPrompt: (promptName: string) => Promise<{ text: string | null; error?: string }>;
+  readPsPrompt: (promptName: string, dir?: string) => Promise<{ text: string | null; error?: string }>;
   listPsPrompts: () => Promise<string[]>;
 
   // Research file access
@@ -205,8 +215,9 @@ export interface ElectronAPI {
   openPromptDiffWindow: (debateId: string, entryId: string) => Promise<void>;
 
   // Chat popout
-  openChatWindow: () => Promise<void>;
-  onChatPopoutClosed: (callback: () => void) => () => void;
+  openChatWindow: (chatId: string, source?: 'my' | 'community') => Promise<{ atCap: true } | void>;
+  onChatPopoutClosed: (callback: (chatId: string) => void) => () => void;
+  onChatWindowLoad: (callback: (chatId: string) => void) => () => void;
 
   // Flight recorder
   dumpFlightRecorder: (ndjson: string, dumpId?: string) => Promise<{ filePath: string; filename: string }>;

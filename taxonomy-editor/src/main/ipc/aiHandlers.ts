@@ -172,24 +172,25 @@ export function registerAiHandlers(): void {
         });
         throw err;
       }
+      const problem = err instanceof ActionableError ? err.problem : (err instanceof Error ? err.message : String(err));
       getGlobalRecorder()?.record({
         type: 'system.error',
         component: 'ipc-handlers',
         level: 'error',
-        message: 'Operation failed',
+        message: `generate-text failed: ${problem}`,
         error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
-      const msg = err instanceof Error ? err.message : String(err);
-      console.error('[IPC] generate-text failed:', msg);
+      console.error('[IPC] generate-text failed:', problem);
       throw new ActionableError({
         goal: 'Generate text via AI backend',
-        problem: `AI generation failed: ${msg}`,
+        problem: `AI generation failed: ${problem}`,
         location: 'ipcHandlers.generateText',
         nextSteps: [
           'Verify your API key is set (Settings > API Keys)',
           'Check that the selected AI model is available and not rate-limited',
           'Try a different AI backend if the current one is unreachable',
         ],
+        innerError: err,
       });
     } finally {
       if (requestId) activeGenerations.delete(requestId);
@@ -279,24 +280,25 @@ export function registerAiHandlers(): void {
     try {
       return await generateTextWithSearch(prompt, model);
     } catch (err) {
+      const problem = err instanceof ActionableError ? err.problem : (err instanceof Error ? err.message : String(err));
       getGlobalRecorder()?.record({
         type: 'system.error',
         component: 'ipc-handlers',
         level: 'error',
-        message: 'Operation failed',
+        message: `generate-text-with-search failed: ${problem}`,
         error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
-      const msg = err instanceof Error ? err.message : String(err);
-      console.error('[IPC] generate-text-with-search failed:', msg);
+      console.error('[IPC] generate-text-with-search failed:', problem);
       throw new ActionableError({
         goal: 'Generate AI text with grounded web search',
-        problem: `AI grounded search failed: ${msg}`,
+        problem: `AI grounded search failed: ${problem}`,
         location: 'ipcHandlers.generateTextWithSearch',
         nextSteps: [
           'Verify your API key is set (Settings > API Keys)',
           'Check that the selected model supports grounded search (e.g. Gemini)',
           'Try the request again — transient network errors are common',
         ],
+        innerError: err,
       });
     }
   });
