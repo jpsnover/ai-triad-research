@@ -319,6 +319,15 @@ export function getResolvedApiModelId(friendlyId: string): string {
   return getApiModelId(friendlyId);
 }
 
+/**
+ * Whether `model` is a registered friendly id in ai-models.json (t/2687). `resolveBackend` /
+ * `resolveModel` fall back to a prefix guess for unknown ids, so they never reject — callers that
+ * must NOT send an unregistered id to a provider (e.g. the op-ed create boundary) use this to gate.
+ */
+export function isRegisteredModel(model: string): boolean {
+  return loadModelConfig().entryMap[model] !== undefined;
+}
+
 // Normalize the caller-supplied key(s) to a filtered array, or undefined when the
 // caller passed nothing (→ fall back to the stored keys for each backend).
 function normalizeExplicitKeys(explicitApiKey: string | string[] | undefined): string[] | undefined {
@@ -585,6 +594,37 @@ function loadEmbeddingsFile(): EmbeddingsFile | null {
 
 const EMBEDDINGS_REQUEST_TIMEOUT_MS = 45_000;
 
+// Chunk-and-yield ceiling for a single computeEmbeddings call (t/2914 item 2). One large
+// in-process ONNX batch blocks the event loop for the whole compute — a real prod 2389-text
+// batch froze it ~46.8s → 500, past ACA's liveness deadline, and the t/2905 concurrency cap
+// can't catch a *single* request. Splitting the batch and yielding (setImmediate) between
+// chunks keeps the loop responsive to health checks + other work during a big compute.
+// TUNE from the first post-deploy large-compute trace (t/2904 loop-delay/heap observability);
+// 256 is the pre-calibration default.
+const EMBEDDING_COMPUTE_CHUNK = 256;
+
+// Resolve a (possibly large) batch in chunks, yielding the event loop between chunks. Safe
+// because resolveEmbeddings is order-preserving and per-text pure (local cache-hit or chain
+// compute), so concatenating per-chunk results is identical to resolving the whole batch at
+// once. Exported for unit test. `chunkSize` is injectable so a test can force chunking small.
+export async function resolveEmbeddingsChunked(
+  texts: string[],
+  ids: string[] | undefined,
+  local: EmbeddingsFile | null,
+  chain: EmbeddingFallback[],
+  chunkSize: number = EMBEDDING_COMPUTE_CHUNK,
+): Promise<number[][]> {
+  if (texts.length <= chunkSize) return resolveEmbeddings(texts, ids, local, chain);
+  const out: number[][] = [];
+  for (let i = 0; i < texts.length; i += chunkSize) {
+    const vecs = await resolveEmbeddings(texts.slice(i, i + chunkSize), ids?.slice(i, i + chunkSize), local, chain);
+    for (const v of vecs) out.push(v);
+    // Yield the loop between chunks so a big compute can't monopolize it past the liveness deadline.
+    if (i + chunkSize < texts.length) await new Promise<void>((r) => setImmediate(r));
+  }
+  return out;
+}
+
 // t/1641/t/1643: `_explicitApiKey` is retained for call-site arity (server.ts passes
 // the free-tier key) but is no longer consumed — embeddings are computed by the local
 // Python encoder or the in-process ONNX fallback, both 384-dim/all-MiniLM-L6-v2, no API.
@@ -618,7 +658,7 @@ export async function computeEmbeddings(texts: string[], ids?: string[], _explic
 
   try {
     const result = await withTimeout(
-      resolveEmbeddings(texts, ids, local, chain),
+      resolveEmbeddingsChunked(texts, ids, local, chain),
       EMBEDDINGS_REQUEST_TIMEOUT_MS,
       'embeddings-compute',
     );
@@ -1047,17 +1087,19 @@ export async function classifyNli(
         },
       });
       if (apiErr instanceof ActionableError) throw apiErr;
+      const apiErrMsg = apiErr instanceof Error ? apiErr.message : String(apiErr);
       throw new ActionableError({
         goal: 'Classify NLI pairs',
         problem: isTimeout
           ? `Local Python NLI subprocess timed out after ${NLI_TIMEOUT_MS / 1000}s and the API fallback also failed (${pairs.length} pairs)`
-          : `Local Python NLI encoder failed and the API fallback also failed: ${String((apiErr as Error).message ?? apiErr)}`,
+          : `Local Python NLI encoder failed and the API fallback also failed: ${apiErrMsg}`,
         location: 'aiBackends.classifyNli',
         nextSteps: [
           'Verify the AI backend is reachable and a valid API key was supplied for the fallback',
           'If the local encoder should be available, verify Python sentence-transformers is installed',
           'Reduce the number of pairs per request',
         ],
+        innerError: apiErr,
       });
     }
   }

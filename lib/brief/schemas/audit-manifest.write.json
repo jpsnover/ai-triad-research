@@ -1,0 +1,86 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://aitriad.local/schemas/audit-manifest/1.0",
+  "title": "AuditManifest",
+  "description": "Strict write-time schema for audit-manifest.json. The trace_coverage_pct==100 gate is enforced by T5 (verify stage) for mode=narrated, not by this schema.",
+  "type": "object",
+  "required": [
+    "debate_id", "run_id", "deck_spec_version", "timestamp", "tool_versions",
+    "artifacts", "narrator_model", "narrator_model_source", "narration_mode",
+    "trace_coverage_pct", "symmetry", "verdict_counts", "warnings"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "debate_id":             { "type": "string" },
+    "run_id":                { "type": "string" },
+    "deck_spec_version":     { "type": "string", "pattern": "^1\\.\\d+$" },
+    "timestamp":             { "type": "string", "format": "date-time" },
+    "tool_versions": {
+      "type": "object",
+      "additionalProperties": { "type": "string" },
+      "description": "Key: tool name, value: semver string"
+    },
+    "artifacts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "sha256"],
+        "additionalProperties": false,
+        "properties": {
+          "name":   { "type": "string" },
+          "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+        }
+      }
+    },
+    "narrator_model":        { "type": "string" },
+    "narrator_model_source": { "type": "string", "enum": ["Explicit", "Global", "Default"] },
+    "checker_model":         { "type": ["string", "null"] },
+    "checker_model_source":  { "type": ["string", "null"], "enum": ["Explicit", "Global", "Default", null] },
+    "narration_mode": {
+      "type": "string",
+      "enum": ["narrated", "deterministic"]
+    },
+    "trace_coverage_pct": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 100,
+      "description": "% of narration entries with a resolvable trace. For mode=narrated, must equal 100 (enforced by T5 verify gate, not this schema). Omitted or null in deterministic mode."
+    },
+    "symmetry": {
+      "type": "object",
+      "required": ["camps", "within_tolerance", "tolerance_pct"],
+      "additionalProperties": false,
+      "properties": {
+        "camps": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["camp", "slide_count", "headline_count", "word_budget"],
+            "additionalProperties": false,
+            "properties": {
+              "camp":           { "type": "string" },
+              "slide_count":    { "type": "integer", "minimum": 0 },
+              "headline_count": { "type": "integer", "minimum": 0 },
+              "word_budget":    { "type": "integer", "minimum": 0 }
+            }
+          }
+        },
+        "within_tolerance": { "type": "boolean" },
+        "tolerance_pct":    { "type": "number", "default": 20 }
+      }
+    },
+    "verdict_counts": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "Supported":    { "type": "integer", "minimum": 0 },
+        "Disputed":     { "type": "integer", "minimum": 0 },
+        "Unverifiable": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "warnings": {
+      "type": "array",
+      "items": { "type": "string" }
+    }
+  }
+}

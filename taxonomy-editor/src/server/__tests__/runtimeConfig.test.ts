@@ -24,7 +24,7 @@ describe('getDefaults (t/926)', () => {
     const d = getDefaults();
     expect(d.resilience.circuitThreshold).toBe(5);
     expect(d.resilience.throttleEnterFactor).toBe(2.0);
-    expect(d.tiers.free.pinnedModel).toBe('gemini-flash-lite-latest');
+    expect(d.tiers.free.pinnedModel).toBe('gemini-3.5-flash-lite'); // = DEFAULT_MODEL (t/2687)
     // t/1513: platform/byok expose every system backend; key-presence gates real availability.
     expect(d.tiers.platform.allowedBackends).toEqual(['gemini', 'claude', 'groq', 'openai', 'deepseek', 'azure', 'zai', 'moonshot', 'xai', 'ollama']);
     expect(d.tiers.byok.allowedBackends).toEqual(['gemini', 'claude', 'groq', 'openai', 'deepseek', 'azure', 'zai', 'moonshot', 'xai', 'ollama']);
@@ -208,7 +208,7 @@ describe('validateAndMerge — malformed / forward-compat (AC#4, AC#6)', () => {
 
   it('falls back to default for a wrong-typed pinnedModel', () => {
     const { config, errors } = validateAndMerge({ tiers: { free: { pinnedModel: 123 } } }, defaults());
-    expect(config.tiers.free.pinnedModel).toBe('gemini-flash-lite-latest');
+    expect(config.tiers.free.pinnedModel).toBe('gemini-3.5-flash-lite'); // = DEFAULT_MODEL (t/2687)
     expect(errors.some(e => e.includes('pinnedModel'))).toBe(true);
   });
 });

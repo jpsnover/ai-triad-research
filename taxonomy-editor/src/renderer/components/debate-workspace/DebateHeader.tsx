@@ -48,13 +48,14 @@ export function deriveHeaderTitle(topicFinal: string, sourceRef: string | null |
  *  resolved phase label are passed in to keep this component free of the toolbar/
  *  PHASE_TITLES dependency (no import cycle with DebateWorkspace.tsx). */
 export function DebateHeader({
-  activeDebate, coverageMap, strengthWeighted, phaseLabel, actions,
+  activeDebate, coverageMap, strengthWeighted, phaseLabel, actions, onShowSetup,
 }: {
   activeDebate: ActiveDebateSession;
   coverageMap: CoverageMap | null;
   strengthWeighted: StrengthWeightedCoverage | null;
   phaseLabel: string;
   actions: ReactNode;
+  onShowSetup?: () => void;
 }) {
   // POVs actually present, in canonical acc → saf → skp order; falls back to all three
   // if the session doesn't declare active_povers (spec §edge cases).
@@ -71,7 +72,22 @@ export function DebateHeader({
       <div className="debate-hdr-band debate-hdr-band1">
         <div className="debate-hdr-title-block">
           <div className="debate-hdr-title-row">
-            <h2 className="debate-hdr-title" title={activeDebate.topic.final}>{displayTitle}</h2>
+            {onShowSetup ? (
+              <h2
+                className="debate-hdr-title"
+                title={activeDebate.topic.final}
+                role="button"
+                tabIndex={0}
+                aria-label="Show full topic and setup"
+                style={{ cursor: 'pointer' }}
+                onClick={onShowSetup}
+                onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && onShowSetup()}
+              >
+                {displayTitle}
+              </h2>
+            ) : (
+              <h2 className="debate-hdr-title" title={activeDebate.topic.final}>{displayTitle}</h2>
+            )}
             <TheoryLink
               docPath="docs/debate-system-overview.md"
               label="Help: debate system overview"

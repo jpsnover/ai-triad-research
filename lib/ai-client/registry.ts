@@ -377,9 +377,10 @@ export function loadModelRegistry(repoRoot: string): ModelRegistry {
   try {
     return JSON.parse(fs.readFileSync(configPath, 'utf-8')) as ModelRegistry;
   } catch (err) {
+    const errMsg = err instanceof Error ? err.message : String(err);
     throw new ActionableError({
       goal: 'Parse AI model registry',
-      problem: `Failed to parse model registry at ${configPath}: ${err instanceof Error ? err.message : err}`,
+      problem: `Failed to parse model registry at ${configPath}: ${errMsg}`,
       location: 'registry.loadModelRegistry',
       nextSteps: ['Check ai-models.json for JSON syntax errors'],
       innerError: err,

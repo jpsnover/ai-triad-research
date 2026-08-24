@@ -25,6 +25,7 @@ import type { OrganizationEdge } from '../../../../lib/organizations/types.js';
 import type { Entity } from '../../../../lib/entities/types.js';
 import type { EntityMentionsFile, ContainerMentions } from '../../../../lib/entities/mentionTypes.js';
 import { serializeEdgesJson } from '../../../../lib/edges/serializeEdges.js';
+import { ABSENT_BASELINE, type EdgesData } from '../../../../lib/edges/mergeEdgesPreservingRationale.js';
 
 // ── Extracted sub-modules (ADR-007, t/1688) — cohesion splits behind a stable
 // barrel: importers keep importing these symbols from './fileIO.js'. Each module
@@ -44,6 +45,7 @@ export { listOpedSets, loadOpedSet, saveOpedSetInProgress, loadOpedSetInProgress
 // while `backend` stays on GitHubAPIBackend.
 let backend: StorageBackend = new FilesystemBackend();
 let userContentBackend: StorageBackend | null = null;
+let briefExportBackend: StorageBackend | null = null;
 
 // Parsed-entities cache — memoizes entities.json so repeated public getEntity
 // (t/1786) hits, an UNAUTHENTICATED read tier, never re-parse the file per request
@@ -74,6 +76,10 @@ export function setTaxonomyBackend(b: StorageBackend): void { backend = b; entit
 export function setUserContentBackend(b: StorageBackend): void { userContentBackend = b; }
 /** User-content backend; falls back to the taxonomy backend when unset. */
 export function getUserContentBackend(): StorageBackend { return userContentBackend ?? backend; }
+/** Set the backend for brief-export artifacts (t/2850 — dedicated container for lifecycle rule). */
+export function setBriefExportBackend(b: StorageBackend): void { briefExportBackend = b; }
+/** Brief-export backend; falls back to user-content backend when unset. */
+export function getBriefExportBackend(): StorageBackend { return briefExportBackend ?? getUserContentBackend(); }
 
 // ── Path safety ──
 
@@ -693,6 +699,27 @@ export async function readEdgesFile(): Promise<unknown | null> {
     /* telemetry — silent by design */
     return null;
   }
+}
+
+/**
+ * Read the on-disk edges.json as a WRITE baseline for the rationale re-merge (t/2957),
+ * strictly discriminating genuine absence from a read/parse failure — unlike `readEdgesFile`
+ * above, which deliberately collapses both to `null` for its degrade-to-empty DISPLAY callers
+ * (GET, updateEdgeStatus). The whole-file save re-merges rationale from this baseline; treating
+ * a transient read error as "absent" would make the save write the stripped payload and wipe
+ * on-disk rationale (the t/2945 incident), so a read or parse failure MUST propagate (refuse the
+ * save) and never resolve to ABSENT_BASELINE. This is where the t/2957 #6.1 BLOCKER truly closes.
+ *
+ * `backend.readFile` returns `null` ONLY for genuine not-found (ENOENT / blob-not-found) and
+ * THROWS on any other read error — verified in filesystemBackend.ts:53-54 (`code==='ENOENT'`
+ * → null; else `throw err`) and azureBlobBackend.ts:149-155 (`isNotFound` → null; else throw).
+ * So `raw === null` here is a TRUE absence, and `JSON.parse` throws on a corrupt file. Both
+ * failure modes propagate to the caller; only a real ENOENT yields ABSENT_BASELINE.
+ */
+export async function readEdgesForSaveBaseline(): Promise<EdgesData | typeof ABSENT_BASELINE> {
+  const raw = await backend.readFile(getEdgesPath());
+  if (raw === null) return ABSENT_BASELINE;
+  return JSON.parse(raw) as EdgesData;
 }
 
 export async function writeEdgesFile(data: unknown): Promise<void> {
@@ -1357,9 +1384,17 @@ export async function loadDictionary(): Promise<{ standardized: unknown[]; collo
 
 // ── PowerShell prompts (project-root I/O — always local) ──
 
-export async function readPsPrompt(promptName: string): Promise<{ text: string | null; error?: string }> {
+// Allow-list of known prompt directories — the only values accepted for `dir`.
+const PROMPT_DIR_SEGMENTS: Record<string, string[]> = {
+  ps: ['scripts', 'AITriad', 'Prompts'],
+  oped: ['lib', 'oped', 'prompts'],
+};
+
+export async function readPsPrompt(promptName: string, dir = 'ps'): Promise<{ text: string | null; error?: string }> {
   assertSafeFilename(promptName, 'prompt name'); // block path traversal (M1)
-  const promptsDir = path.join(getProjectRoot(), 'scripts', 'AITriad', 'Prompts');
+  const segments = PROMPT_DIR_SEGMENTS[dir];
+  if (!segments) return { text: null, error: `Unknown prompt directory: ${dir}` };
+  const promptsDir = path.join(getProjectRoot(), ...segments);
   const filePath = path.join(promptsDir, `${promptName}.prompt`);
   try {
     return { text: await fs.readFile(filePath, 'utf-8') };

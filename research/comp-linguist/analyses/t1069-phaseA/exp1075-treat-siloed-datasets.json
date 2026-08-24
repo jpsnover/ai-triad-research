@@ -1,0 +1,14 @@
+{
+  "topic": "To what extent and under what specific regulatory and technological conditions would a Congressional mandate, targeting large language model providers like OpenAI and Google and enforced by agencies such as the FTC or NIST, for the utilization of siloed datasets\u2014defined as restricted access tiers where models train on specific information without cross-referencing external user data\u2014effectively mitigate unauthorized data exfiltration and corporate surveillance?",
+  "name": "exp1075-treat-siloed-datasets",
+  "model": "claude-opus-4-8",
+  "stageModels": {
+    "evaluator": "gemini-3.5-flash-lite"
+  },
+  "useAdaptiveStaging": true,
+  "pacing": "moderate",
+  "outputFormat": "all",
+  "throttleMs": 2000,
+  "maxTotalRounds": 20,
+  "outputDir": "C:/tmp/exp1075-out"
+}

@@ -90,6 +90,14 @@ export function registerSyncRoutes(r: Router, ctx: ServerCtx): void {
     if (STORAGE_MODE !== 'filesystem' && isAnonymousUser()) {
       error(res, 'Authentication required to set sync credentials', 401); return;
     }
+    // t/2895: runtime per-user credential override is deprecated in hosted mode.
+    // Clear is a no-op (success); set is rejected 409.
+    if (STORAGE_MODE !== 'filesystem') {
+      const data = body as { clear?: boolean };
+      if (data.clear) { json(res, { ok: true, configured: false }); return; }
+      error(res, 'Runtime per-user credential override is not supported in hosted mode. Repository access uses the GitHub App installation token configured at deployment time.', 409);
+      return;
+    }
     try {
       const data = body as { repo?: string; token?: string; clear?: boolean };
       if (data.clear) {

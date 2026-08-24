@@ -16,6 +16,8 @@ import { bridgeGet } from '../../bridge/web-bridge';
 import { useUserProfile } from '../../hooks/useAuthStatus';
 import {
   type TreeNode,
+  type WireEngagementTree,
+  engagementTreeToTreeNode,
   CAMP_COLORS, CAMP_LABELS,
   fmtDuration, fmtNumber, categoryLabel,
   sumByCamp, sumByCategoryForCamp, collectLeafNodes,
@@ -25,7 +27,9 @@ import './YourActivityPanel.css';
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 interface ActivityResult {
-  user?: TreeNode;  // caller's own subtree (t/2467#2); absent if no events yet
+  // Server wire shape: `.user` is an EngagementTree, converted to TreeNode at the
+  // fetch boundary via engagementTreeToTreeNode (t/2709).
+  user?: WireEngagementTree;  // caller's own subtree (t/2467#2); absent if no events yet
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -176,7 +180,7 @@ function useFetchUserActivity(userId: string | null, isAnonymous: boolean): Fetc
     // Non-admin path: server returns .user for the caller's own userId and strips
     // all other-user data server-side. (verified seam: t/2469#3)
     bridgeGet<ActivityResult>(`/api/analytics/engagement?user=${encodeURIComponent(userId)}&from=${from}&to=${to}`)
-      .then(d => { setUserTree(d.user ?? null); setLoading(false); })
+      .then(d => { setUserTree(engagementTreeToTreeNode(d.user)); setLoading(false); })
       .catch(err => {
         getGlobalRecorder()?.record({
           type: 'system.error',

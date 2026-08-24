@@ -79,8 +79,8 @@ function makeSet(id: string, overrides: Partial<OpEdSet> = {}): OpEdSet {
     params: { wordCount: 800, model: 'claude-sonnet-5' },
     created_at: '2026-08-13T10:00:00.000Z',
     opeds: [
-      { pov: 'accelerationist', status: 'complete', headline: 'H1', subtitle: 'S1', body: 'B1', wordCount: 800, grounding: [] },
-      { pov: 'safetyist', status: 'complete', headline: 'H2', subtitle: 'S2', body: 'B2', wordCount: 800, grounding: [] },
+      { pov: 'accelerationist', status: 'complete', headline: 'H1', subtitle: 'S1', body: 'B1', wordCount: 800, grounding: [], byline: '', disclosure: '', rhetorical_meta: '' },
+      { pov: 'safetyist', status: 'complete', headline: 'H2', subtitle: 'S2', body: 'B2', wordCount: 800, grounding: [], byline: '', disclosure: '', rhetorical_meta: '' },
     ],
     ...overrides,
   };

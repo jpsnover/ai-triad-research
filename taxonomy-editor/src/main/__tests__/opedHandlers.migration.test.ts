@@ -9,11 +9,16 @@
 //   (d) STOPGAP helpers (normalizePov / normalizeGrounding) are gone
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { EventEmitter } from 'events';
 import type { IpcMainInvokeEvent } from 'electron';
 import type { OpEdMember } from '../../../../lib/oped/types.js';
 import type { OpEdProgressEvent as LibEvent } from '../../../../lib/oped/generate.js';
 
 // ── Module mocks ──────────────────────────────────────────────────────────────
+
+// Stage-A source prep spawns Get-OpEdSource — mock it so url-mode tests can drive it.
+const mockSpawn = vi.hoisted(() => vi.fn());
+vi.mock('child_process', () => ({ default: { spawn: mockSpawn }, spawn: mockSpawn }));
 
 vi.mock('electron', () => ({
   ipcMain: { handle: vi.fn() },
@@ -86,7 +91,6 @@ const FAKE_MEMBER: OpEdMember = {
   status: 'complete',
   headline: 'Test Headline',
   subtitle: 'Test Subtitle',
-  pitch: 'Test Pitch',
   body: 'Body text.',
   wordCount: 2,
   grounding: [{ node_id: 'acc-bel-001', label: 'Node A', category: 'Beliefs', pov: 'accelerationist', relevance: 'High', how_reflected: 'Directly cited' }],
@@ -99,6 +103,7 @@ beforeEach(() => {
   vi.mocked(finalizeOpEdSet).mockClear();
   vi.mocked(saveOpEdSetTemp).mockClear();
   mockGenerateOpEdSet.mockClear();
+  mockSpawn.mockClear();
   registerOpEdHandlers();
 });
 
@@ -234,5 +239,126 @@ describe('t/2611 migration: create-oped-set uses lib/oped in-process', () => {
     const mod = await import('../ipc/opedHandlers.js');
     expect((mod as Record<string, unknown>).normalizePov).toBeUndefined();
     expect((mod as Record<string, unknown>).normalizeGrounding).toBeUndefined();
+  });
+});
+
+// ── Source provenance persistence (t/2899) ───────────────────────────────────
+// A URL pasted into the topic box silently produced a claim-less set (t/2897). These
+// prove a persisted set is distinguishable topic-vs-url from the JSON alone, and that
+// the count is present in url mode and ABSENT (not 0) in topic mode.
+
+interface PrepChild extends EventEmitter {
+  stdin: { write: ReturnType<typeof vi.fn>; end: ReturnType<typeof vi.fn> };
+  stdout: EventEmitter;
+  stderr: EventEmitter;
+  kill: ReturnType<typeof vi.fn>;
+}
+
+function makePrepChild(): PrepChild {
+  const child = new EventEmitter() as PrepChild;
+  child.stdin  = { write: vi.fn(), end: vi.fn() };
+  child.stdout = new EventEmitter();
+  child.stderr = new EventEmitter();
+  child.kill   = vi.fn();
+  return child;
+}
+
+const FAKE_SOURCE_PREP = {
+  Url: 'https://example.com/article',
+  SourceMarkdown: '# Article\n\nSome content.',
+  SourceFormat: 'markdown',
+  ReadableWords: 500,
+  ReadableRatio: 0.85,
+  ContentHash: 'abc123',
+};
+
+function emitPrepResult(child: PrepChild, data: Record<string, unknown>): void {
+  child.stdout.emit('data', Buffer.from(JSON.stringify({ type: 'result', data }) + '\n'));
+  child.emit('close', 0);
+}
+
+const SET_ID_ANY = 'x';
+function completeSet(opeds: OpEdMember[]) {
+  return { schema_version: 1 as const, set_id: SET_ID_ANY, topic: 'topic', params: {}, created_at: '2026-08-13T00:00:00.000Z', opeds };
+}
+
+describe('t/2899: source provenance persisted on the set', () => {
+  it('topic mode: temp-save records source_mode "topic" and omits url + count', async () => {
+    mockGenerateOpEdSet.mockImplementation(() => makeGenerator([
+      { type: 'voice_start', pov: 'accelerationist' },
+      { type: 'voice_complete', pov: 'accelerationist', member: FAKE_MEMBER },
+      { type: 'complete', set: completeSet([FAKE_MEMBER]) },
+    ] as LibEvent[]));
+
+    const handler = captureHandler('create-oped-set');
+    await handler(fakeEvent(makeSender()), { topic: 'topic', params: {}, voices: ['accelerationist'] });
+
+    expect(mockSpawn).not.toHaveBeenCalled();
+    const tempSet = vi.mocked(saveOpEdSetTemp).mock.calls[0][0];
+    expect(tempSet.source_mode).toBe('topic');
+    expect(tempSet.source_url).toBeUndefined();
+    expect(tempSet.source_key_claims_count).toBeUndefined();
+  });
+
+  it('topic mode: partial-finalize on abort records source_mode "topic", no url/count', async () => {
+    mockGenerateOpEdSet.mockImplementation(async function* () {
+      yield { type: 'voice_complete', pov: 'accelerationist', member: FAKE_MEMBER } as LibEvent;
+      throw Object.assign(new Error('aborted'), { name: 'AbortError' });
+    });
+
+    const handler = captureHandler('create-oped-set');
+    try { await handler(fakeEvent(makeSender()), { topic: 'topic', params: {}, voices: ['accelerationist'] }); } catch { /* abort */ }
+
+    const partial = vi.mocked(finalizeOpEdSet).mock.calls[0][0];
+    expect(partial.source_mode).toBe('topic');
+    expect(partial.source_url).toBeUndefined();
+    expect(partial.source_key_claims_count).toBeUndefined();
+  });
+
+  it('url mode: temp-save records source_mode "url" + source_url + key-claims count, and sourceUrl is wired to the lib', async () => {
+    const prep = makePrepChild();
+    mockSpawn.mockReturnValue(prep);
+    mockGenerateOpEdSet.mockImplementation(() => makeGenerator([
+      { type: 'source_brief_done', keyClaimsCount: 3 },
+      { type: 'voice_start', pov: 'accelerationist' },
+      { type: 'voice_complete', pov: 'accelerationist', member: FAKE_MEMBER },
+      { type: 'complete', set: completeSet([FAKE_MEMBER]) },
+    ] as LibEvent[]));
+
+    const handler = captureHandler('create-oped-set');
+    const p = handler(fakeEvent(makeSender()), { topic: 'topic', url: 'https://example.com/article', params: {}, voices: ['accelerationist'] });
+    await Promise.resolve();
+    emitPrepResult(prep, FAKE_SOURCE_PREP);
+    await p;
+
+    const tempSet = vi.mocked(saveOpEdSetTemp).mock.calls[0][0];
+    expect(tempSet.source_mode).toBe('url');
+    expect(tempSet.source_url).toBe('https://example.com/article');
+    expect(tempSet.source_key_claims_count).toBe(3);
+
+    // The lib gets sourceUrl so its authoritative `complete` set also carries source_url.
+    const [request] = mockGenerateOpEdSet.mock.calls[0] as [{ sourceUrl?: string }];
+    expect(request.sourceUrl).toBe('https://example.com/article');
+  });
+
+  it('url mode: partial-finalize on abort carries full provenance (mode + url + count)', async () => {
+    const prep = makePrepChild();
+    mockSpawn.mockReturnValue(prep);
+    mockGenerateOpEdSet.mockImplementation(async function* () {
+      yield { type: 'source_brief_done', keyClaimsCount: 5 } as LibEvent;
+      yield { type: 'voice_complete', pov: 'accelerationist', member: FAKE_MEMBER } as LibEvent;
+      throw Object.assign(new Error('aborted'), { name: 'AbortError' });
+    });
+
+    const handler = captureHandler('create-oped-set');
+    const p = handler(fakeEvent(makeSender()), { topic: 'topic', url: 'https://example.com/article', params: {}, voices: ['accelerationist'] });
+    await Promise.resolve();
+    emitPrepResult(prep, FAKE_SOURCE_PREP);
+    try { await p; } catch { /* abort */ }
+
+    const partial = vi.mocked(finalizeOpEdSet).mock.calls[0][0];
+    expect(partial.source_mode).toBe('url');
+    expect(partial.source_url).toBe('https://example.com/article');
+    expect(partial.source_key_claims_count).toBe(5);
   });
 });

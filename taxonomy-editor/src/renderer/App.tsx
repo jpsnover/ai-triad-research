@@ -24,8 +24,7 @@ import { initClientConfig } from './lib/clientConfig';
 import { initFlightRecorder } from './lib/flightRecorderInit';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { recordingLazy } from './utils/recordingLazy';
-import { initAnalytics } from './lib/analyticsEmitter';
-import { initDwellTracker } from './lib/dwellTracker';
+import { initAnalyticsSession } from './lib/initAnalyticsSession';
 import { useBreakpoint } from './hooks/useBreakpoint';
 import { useIsTouchDevice } from './hooks/useIsTouchDevice';
 import { BottomNav } from './components/shared/BottomNav';
@@ -185,6 +184,45 @@ export function App() {
   // covers the main app and every window mode App renders (t/2343).
   useTheoryLinkHotkey();
 
+  // t/2767: defer all child mounts until window.electronAPI is ready.
+  // In web mode bridgeReady starts true (no preload exists), so the gate is transparent.
+  // Inline polling (not imported waitForElectronAPI) to avoid bundling electron-bridge into
+  // the web build. clearInterval in cleanup handles StrictMode's discarded first mount.
+  const [bridgeReady, setBridgeReady] = useState(import.meta.env.VITE_TARGET === 'web');
+  const [bridgeError, setBridgeError] = useState<string | null>(null);
+  useEffect(() => {
+    if (import.meta.env.VITE_TARGET === 'web') return;
+    if (window.electronAPI) { setBridgeReady(true); return; }
+    const TIMEOUT_MS = 2000;
+    const start = performance.now();
+    let done = false;
+    const id = setInterval(() => {
+      if (window.electronAPI) {
+        clearInterval(id);
+        if (done) return; done = true;
+        getGlobalRecorder()?.record({
+          type: 'lifecycle', component: 'electron-bridge', level: 'info',
+          message: `bridge-available after ${Math.round(performance.now() - start)}ms`,
+          data: { preloadTimestamp: window.electronAPI.preloadTimestamp },
+        });
+        setBridgeReady(true);
+      } else if (performance.now() - start > TIMEOUT_MS) {
+        clearInterval(id);
+        if (done) return; done = true;
+        getGlobalRecorder()?.record({
+          type: 'system.error', component: 'electron-bridge', level: 'error',
+          message: `window.electronAPI not available after ${TIMEOUT_MS}ms — preload may have failed`,
+          error: { name: 'BridgeInitError', message: 'Preload did not run in time' },
+        });
+        setBridgeError('Desktop bridge unavailable — restart the app');
+      }
+    }, 5);
+    return () => { clearInterval(id); done = true; };
+  }, []);
+
+  if (bridgeError) return <div className="app-bridge-error">{bridgeError}</div>;
+  if (!bridgeReady) return null;
+
   // If this window was opened as a diagnostics popout, render only that
   if (hash === '#diagnostics-window') {
     return <ErrorBoundary buildInfo={BUILD_FINGERPRINT}><Suspense fallback={null}><DiagnosticsWindow /></Suspense></ErrorBoundary>;
@@ -201,7 +239,7 @@ export function App() {
   if (hash.startsWith('#diff-window')) {
     return <ErrorBoundary buildInfo={BUILD_FINGERPRINT}><Suspense fallback={null}><DiffWindow /></Suspense></ErrorBoundary>;
   }
-  if (hash === '#chat-window') {
+  if (hash.startsWith('#chat-window')) {
     return <ErrorBoundary buildInfo={BUILD_FINGERPRINT}><Suspense fallback={null}><ChatWindow /></Suspense></ErrorBoundary>;
   }
   if (hash === '#analytics' && analyticsFlag) {
@@ -287,7 +325,7 @@ function MainApp() {
       if (!available) {
         setShowFirstRun(true);
       } else {
-        void initAIModels().then(() => { void useTaxonomyStore.getState().loadAll(); void initDwellTracker().then(() => initAnalytics()); initDebateSessions(); });
+        void initAIModels().then(() => { void useTaxonomyStore.getState().loadAll(); initAnalyticsSession(); initDebateSessions(); });
       }
     });
   }, []);
@@ -328,7 +366,7 @@ function MainApp() {
             if (available) {
               setShowFirstRun(false);
               setCopyStatus(null);
-              void initAIModels().then(() => { void useTaxonomyStore.getState().loadAll(); void initAnalytics(); initDebateSessions(); });
+              void initAIModels().then(() => { void useTaxonomyStore.getState().loadAll(); initAnalyticsSession(); initDebateSessions(); });
             }
             // If still not available after copy complete, DeploymentErrorScreen will show
           });
@@ -523,12 +561,12 @@ function MainApp() {
 
   const handleFirstRunComplete = () => {
     setShowFirstRun(false);
-    void initAIModels().then(() => { void loadAll(); void initDwellTracker().then(() => initAnalytics()); initDebateSessions(); });
+    void initAIModels().then(() => { void loadAll(); initAnalyticsSession(); initDebateSessions(); });
   };
 
   const handleFirstRunSkip = () => {
     setShowFirstRun(false);
-    void initAIModels().then(() => { void loadAll(); void initDwellTracker().then(() => initAnalytics()); initDebateSessions(); });
+    void initAIModels().then(() => { void loadAll(); initAnalyticsSession(); initDebateSessions(); });
   };
 
   if (showFirstRun) {
@@ -567,6 +605,30 @@ function MainApp() {
       </div>
     );
   }
+
+  // POV/Taxonomy tab header (Accelerationist/Safetyist/Skeptic) renders inside the content
+  // column (t/2857) so the left nav rail spans full window height, matching Debate/Chat/Op-Eds.
+  // showPovHeader mirrors the original TabBar visibility condition exactly. Layout-only.
+  const showPovHeader = toolbarPanel === null &&
+    !['situations', 'conflicts', 'cruxes', 'debate', 'chat', 'opeds', 'summaries', 'validation', 'organizations'].includes(activeTab);
+  const tabContent = (
+    <>
+      {activeTab === 'accelerationist' && <PovTab pov="accelerationist" />}
+      {activeTab === 'safetyist' && <PovTab pov="safetyist" />}
+      {activeTab === 'skeptic' && <PovTab pov="skeptic" />}
+      <Suspense fallback={<div className="loading"><div className="loading-title">Loading...</div></div>}>
+        {activeTab === 'situations' && <SituationsTab />}
+        {activeTab === 'conflicts' && <ConflictsTab />}
+        {activeTab === 'cruxes' && <CruxesTab />}
+        {activeTab === 'debate' && <DebateTab />}
+        {activeTab === 'chat' && <ChatTab />}
+        {activeTab === 'opeds' && opedsFlag && <OpEdTab />}
+        {activeTab === 'summaries' && summariesFlag && <SummariesTab />}
+        {activeTab === 'validation' && <ValidationTab />}
+        {activeTab === 'organizations' && <OrganizationsTab />}
+      </Suspense>
+    </>
+  );
 
   return (
     <div className="app">
@@ -674,23 +736,17 @@ function MainApp() {
         </button>
         <span className="mobile-header-title">Taxonomy Editor</span>
       </div>
-      {toolbarPanel === null && !['situations', 'conflicts', 'cruxes', 'debate', 'chat', 'opeds', 'summaries', 'validation', 'organizations'].includes(activeTab) && <TabBar />}
       <div className="app-body">
         <Toolbar />
         <div className="tab-content">
-          {activeTab === 'accelerationist' && <PovTab pov="accelerationist" />}
-          {activeTab === 'safetyist' && <PovTab pov="safetyist" />}
-          {activeTab === 'skeptic' && <PovTab pov="skeptic" />}
-          <Suspense fallback={<div className="loading"><div className="loading-title">Loading...</div></div>}>
-            {activeTab === 'situations' && <SituationsTab />}
-            {activeTab === 'conflicts' && <ConflictsTab />}
-            {activeTab === 'cruxes' && <CruxesTab />}
-            {activeTab === 'debate' && <DebateTab />}
-            {activeTab === 'opeds' && opedsFlag && <OpEdTab />}
-            {activeTab === 'summaries' && summariesFlag && <SummariesTab />}
-            {activeTab === 'validation' && <ValidationTab />}
-            {activeTab === 'organizations' && <OrganizationsTab />}
-          </Suspense>
+          {showPovHeader ? (
+            <div className="pov-tab-shell">
+              <TabBar />
+              <div className="pov-tab-shell-body">{tabContent}</div>
+            </div>
+          ) : (
+            tabContent
+          )}
         </div>
         {/* One app-level ref → DetailPane host for every main tab in this shell (t/1987).
             A ref-link click in PovTab/Situations/Conflicts/Cruxes/Debate sets the global

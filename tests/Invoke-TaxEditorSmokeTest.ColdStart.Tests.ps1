@@ -51,10 +51,14 @@ Describe 'Invoke-TaxEditorSmokeTest Health-phase cold-start tolerance (t/1696)' 
             $script:CsQuery = 0
             Mock Invoke-RemoteCheck -ParameterFilter { $Path -eq '/api/analytics/query' } -MockWith {
                 $script:CsQuery++
-                $total = if ($script:CsQuery -eq 1) { 0 } else { 1 }
+                $total      = if ($script:CsQuery -eq 1) { 0 } else { 1 }
+                $dwellCount = if ($script:CsQuery -eq 1) { 0 } else { 1 }
                 [PSCustomObject]@{
                     Success = $true; StatusCode = 200; ResponseMs = 5
-                    Body = [PSCustomObject]@{ summary = [PSCustomObject]@{ totalEvents = $total } }
+                    Body = [PSCustomObject]@{
+                        summary    = [PSCustomObject]@{ totalEvents = $total }
+                        eventTypes = [PSCustomObject]@{ 'view.dwell' = $dwellCount }
+                    }
                     ContentType = 'application/json'; RawBody = ''; Error = $null
                 }
             }
@@ -62,6 +66,14 @@ Describe 'Invoke-TaxEditorSmokeTest Health-phase cold-start tolerance (t/1696)' 
                 [PSCustomObject]@{
                     Success = $true; StatusCode = 200; ResponseMs = 5
                     Body = [PSCustomObject]@{ ok = $true; count = 1 }
+                    ContentType = 'application/json'; RawBody = ''; Error = $null
+                }
+            }
+            # Phase 7 (t/2689) — stub oped-files check so ColdStart tests focus on the health phase.
+            Mock Invoke-RemoteCheck -ParameterFilter { $Path -eq '/api/health/oped-files' } -MockWith {
+                [PSCustomObject]@{
+                    Success = $true; StatusCode = 200; ResponseMs = 5
+                    Body = [PSCustomObject]@{ ok = $true; assets = @() }
                     ContentType = 'application/json'; RawBody = ''; Error = $null
                 }
             }

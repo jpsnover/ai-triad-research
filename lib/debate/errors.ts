@@ -4,6 +4,17 @@
 /**
  * Standardized actionable error for humans and AI agents.
  * Every error must state: goal, problem, location, and next steps.
+ *
+ * ## Convention: re-wrapping a caught error
+ * Pass the original as `innerError`; never copy a caught error's `.message`
+ * into `problem`. Write a fresh one-line `problem` for this layer's context.
+ * When you need the inner text inline:
+ *   `err instanceof ActionableError ? err.problem : errorMessage(err)`
+ * Never use `.message` directly — it is the multi-line formatted block.
+ *
+ * ## Convention: user-facing display
+ * UI code never renders `.message`. Use `mapErrorToUserMessage(err)`
+ * (renderer/utils/errorMessages.ts), which already prefers `.problem`.
  */
 export class ActionableError extends Error {
   public readonly goal: string;

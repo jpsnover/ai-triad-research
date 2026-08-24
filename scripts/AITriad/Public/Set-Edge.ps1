@@ -108,7 +108,7 @@ function Set-Edge {
             return
         }
 
-        $EdgesData = Get-Content -Raw -Path $EdgesPath | ConvertFrom-Json
+        $EdgesData = Read-EdgesFile -Path $EdgesPath   # t/2974: coercion-free read (preserve discovered_at strings)
         $MaxIndex  = $EdgesData.edges.Count - 1
 
         # Track whether any modifications were made

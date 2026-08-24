@@ -2,7 +2,7 @@
 
 **Last updated:** 2026-08-15
 **Owner:** Diagnostics (source analysis) / Tech Lead (review checklist)
-**Source:** e/84 systemic quality analysis of the 2026-08-09 Azure production bug sweep; Class 6 added from the 2026-08-15 dual-build / staging-isolation sweep (t/2669).
+**Source:** e/84 systemic quality analysis of the 2026-08-09 Azure production bug sweep; Class 6 added from the 2026-08-15 dual-build / staging-prod-isolation sweep (t/2669).
 
 Purpose: turn post-incident hindsight into foresight. Before landing a change — especially at a producer/consumer seam, on a deploy path, or touching config — ask **"which of these classes could this change introduce?"** and require the corresponding test or gate. Each incident maps to one of six structural classes.
 
@@ -47,17 +47,17 @@ A gate that was sufficient when written, outgrown as the system added surfaces.
 
 ## Class 6 — Silent degradation under single-context validation
 
-A change is validated in **one** context (local, one build target, one env, one identity), and when it fails in an **un**-validated context a graceful-degradation path — empty result, swallowed error, success-return — **hides** the failure. The failure is invisible, not loud. This is the amplifier class: it usually rides on a Class 2 (identity) or Class 3 (environment) gap, but what makes it pernicious is the second half — **single-context validation misses it, AND silent degradation hides it in prod**, so it passes every green check while visibly broken.
+A failure that **returns a success-shaped result** (empty list + HTTP 200, swallowed write + continue, "renders without error" on zero data) in a code path that was **validated in only one context** (local not hosted, staging not prod, authenticated not anonymous). The two properties are lethal *together*: single-context validation means the broken context is never exercised, and silent degradation means that when it does run, it looks like success. The failure is invisible in the context you checked and silent in the one you didn't.
 
-- **Examples (2026-08-15 dual-build / staging-isolation sweep):**
-  - **Dual-build read parity** — Entities/Organizations rendered locally (Electron/filesystem) but returned empty on hosted web: the github-api read fetched the session branch, not `main` (missing `{ ref: 'main' }`), and ADR-001 graceful-empty rendered zero **silently**. The deploy smoke went **26/26 green** because it asserted "endpoints respond," not "data populates" (t/2648/t/2661).
+- **Examples (2026-08-15 dual-build / staging-prod-isolation sweep):**
+  - **Dual-build read parity** — Entities/Organizations render locally (Electron/filesystem) but return `[]` on hosted web — the github-api read fell through to empty and ADR-001 graceful-empty rendered zero with no error (t/2648/t/2661); the github-api backend read the session branch not `main`, and `toRepoPath` stripped `cacheDir` not `getDataRoot()`, so a divergent staging cache mount 404'd every read into a silent empty (t/2662/t/2670). The deploy smoke went **26/26 green while entities were visibly broken** because it asserted "endpoints respond," not "data populates" (t/2669).
   - **Swallow-and-continue** — analytics `appendEvents` swallowed a blob error and returned success → events dropped invisibly (t/2664); a route-layer `log.error` that never fired because `log` was a child-logger map (PR #1065).
-  - **Deploy/env false-greens** — AUTH_OPTIONAL smoke reclassified the cookie-less Sign-In **HTML interstitial** as a PASS for JSON endpoints; a durability "revision restart" validated a warm pod instead of scale-to-zero (t/2642); a staging `AI_TRIAD_DATA_ROOT` pointed at the empty cache mount so reads were silently empty (t/2670).
+  - **Deploy/env false-greens** — AUTH_OPTIONAL smoke reclassified the cookie-less Sign-In **HTML interstitial** as a PASS for JSON endpoints; a durability check passed on `revision restart` (≠ scale-to-zero), a false-positive from validating the wrong condition (t/2642); a staging `AI_TRIAD_DATA_ROOT` pointed at the empty cache mount so reads were silently empty (t/2670).
   - **Concurrency swallow** — a multi-replica stale-cache clobber overwrote a prod feature flag and returned success (t/2644).
-- **Prevention (the three moves, always together — any one alone leaves the hole):**
-  1. **Verify in the deployed context** — the hosted web / github-api path against **real deployed data**, and the prod identity (anonymous session), not just local + authenticated. "Works on my machine" is not sign-off for a dual-build or multi-env feature.
-  2. **Assert the positive outcome** — smokes assert **data presence** (count > 0 / expected shape), not "renders / responds without error." A liveness-only smoke passes while the feature is broken.
-  3. **Make degradation observable** — graceful-empty (ADR-001) and any swallow-and-continue must emit a detectable signal (log/metric: "loaded 0 / write failed") so a zero/failed result is **detectable, not invisible**.
+- **Prevention (three coupled countermeasures — one alone is insufficient):**
+  1. **Validate in the deployed context, not a proxy for it.** A dual-build/data-reading feature is verified on the **hosted web profile via the github-api path against real deployed data** before Done — "works locally" is not sign-off (tech-lead `AGENTS.md` Cross-Profile Impact; t/2669 AC2).
+  2. **Assert the positive outcome, not the absence of error.** Smokes assert **data presence** (count > 0 / expected shape), never "renders" / "endpoint responds" — a graceful-empty page and a broken page are indistinguishable to a renders-without-error check (t/2671 data-presence smoke).
+  3. **Make degradation observable.** Every graceful-empty (ADR-001) and swallow-and-continue path emits a log/metric ("loaded 0 / write failed") so a zero/failed result is **detectable**, not invisible — this turns "silently empty" into "detectably empty" (t/2664 analytics signal; Server-Storage graceful-empty observability).
 - **Tickets:** t/2669 (process-gap epic), t/2671 (hosted data-presence smoke), t/2672 (graceful-empty observability), t/2664 (analytics swallow signal). Process rule landed in the tech-lead `AGENTS.md` **Cross-Profile Impact** ("Data-read parity").
 
 ## How to use this

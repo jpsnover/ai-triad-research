@@ -62,6 +62,7 @@ export interface RuntimeConfig {
     defaultMaxChats: number;
     defaultMaxDebates: number;
     defaultMaxOpEds: number;
+    defaultMaxBriefExports: number;
   };
   sessions: {
     anonymousTtlMs: number;
@@ -169,6 +170,7 @@ const DEFAULTS: RuntimeConfig = {
     defaultMaxChats: 25,
     defaultMaxDebates: 15,
     defaultMaxOpEds: 15,
+    defaultMaxBriefExports: 25, // t/2831: product-confirmed (25/user) — billable-spend cap for any signed-in identity incl. headless AAD principals (entitlement: t/2862); matches maxChats
   },
   sessions: {
     anonymousTtlMs: 14_400_000,
@@ -396,6 +398,7 @@ export function validateAndMerge(raw: unknown, defaults: RuntimeConfig): { confi
       defaultMaxChats: vNum(q.defaultMaxChats, defaults.quotas.defaultMaxChats, { min: 1, max: QUOTA_MAX, integer: true }, 'quotas.defaultMaxChats', errors),
       defaultMaxDebates: vNum(q.defaultMaxDebates, defaults.quotas.defaultMaxDebates, { min: 1, max: QUOTA_MAX, integer: true }, 'quotas.defaultMaxDebates', errors),
       defaultMaxOpEds: vNum(q.defaultMaxOpEds, defaults.quotas.defaultMaxOpEds, { min: 1, max: QUOTA_MAX, integer: true }, 'quotas.defaultMaxOpEds', errors),
+      defaultMaxBriefExports: vNum(q.defaultMaxBriefExports, defaults.quotas.defaultMaxBriefExports, { min: 1, max: QUOTA_MAX, integer: true }, 'quotas.defaultMaxBriefExports', errors),
     },
     sessions: {
       anonymousTtlMs: vNum(sess.anonymousTtlMs, defaults.sessions.anonymousTtlMs, { min: 0, max: DURATION_MAX }, 'sessions.anonymousTtlMs', errors),

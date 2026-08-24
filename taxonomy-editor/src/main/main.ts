@@ -138,7 +138,7 @@ function createWindow(): void {
     height: 800,
     minWidth: 900,
     minHeight: 600,
-    title: 'Taxonomy Editor',
+    title: 'AI Rosetta Stone',
     webPreferences: {
       preload: preloadPath,
       contextIsolation: true,
@@ -162,6 +162,20 @@ function createWindow(): void {
   }
 
   console.log('[main] BrowserWindow created, setting up event handlers...');
+
+  // Preload failures are otherwise silent in the terminal — the renderer just
+  // never gets window.electronAPI and shows "Desktop bridge unavailable".
+  mainWindow.webContents.on('preload-error', (_event, _preloadPath, error) => {
+    console.error('[main] PRELOAD ERROR (bridge will be unavailable):', error);
+  });
+
+  // Confirm bridge landed after the page finishes loading.
+  mainWindow.webContents.on('did-finish-load', () => {
+    void mainWindow?.webContents
+      .executeJavaScript('typeof window.electronAPI')
+      .then(type => { console.log('[main] window.electronAPI type after did-finish-load:', type); })
+      .catch(err => { console.error('[main] bridge check executeJavaScript failed:', err); });
+  });
 
   // S6: Restrict webview to HTTPS URLs only — prevent loading arbitrary content
   mainWindow.webContents.on('will-attach-webview', (_event, webPreferences, params) => {
@@ -419,6 +433,17 @@ void app.whenReady().then(() => {
       void diagWindow.loadFile(path.join(PROJECT_ROOT, 'taxonomy-editor/dist/renderer/index.html'), { hash: 'diagnostics-window' });
     }
     diagWindow.webContents.on('did-finish-load', () => {
+      // t/2692: record whether the buffered state existed the moment the diag window
+      // finished loading. This is the seam where an IPC-after-load race would strand the
+      // popout (Issue 2): lastStateAvailable=false at load, with no later push, is the
+      // failure signature — previously only assessable as PLAUSIBLE, now CONFIRMABLE.
+      getGlobalRecorder()?.record({
+        type: 'lifecycle',
+        component: 'diagnostics-window',
+        level: 'info',
+        message: 'diagnostics-window did-finish-load',
+        data: { lastStateAvailable: !!_lastDiagnosticsState },
+      });
       if (_lastDiagnosticsState && diagWindow && !diagWindow.isDestroyed()) {
         diagWindow.webContents.send('diagnostics-state-update', _lastDiagnosticsState);
       }

@@ -185,10 +185,11 @@ describe('computeAffectEvidence', () => {
     expect(ev.fear).not.toContain('dire');
   });
 
-  it('keeps inflected forms (risk→"risks")', () => {
-    const text = pad('The risks of this approach are significant and the threats multiply as benefits decrease.');
+  it('keeps inflected forms (danger→"dangers")', () => {
+    // 'risk' removed from fear lexicon (t/2677 — neutral noun); inflection tested via 'danger'/'dangers'.
+    const text = pad('The dangers of this approach are significant and the threats multiply as benefits decrease.');
     const ev = computeAffectEvidence(text);
-    expect(ev.fear).toContain('risk');
+    expect(ev.fear).toContain('danger');
     expect(ev.fear).toContain('threat');
   });
 });

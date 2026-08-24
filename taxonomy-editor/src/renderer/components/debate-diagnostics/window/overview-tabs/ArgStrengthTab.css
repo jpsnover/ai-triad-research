@@ -49,6 +49,52 @@
   color: var(--text-muted);
 }
 
+/* t/2686: per-POV collapse toggle (whole label is the click target) */
+.ast-pov-toggle {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  background: transparent;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+
+.ast-pov-caret {
+  font-size: var(--text-2xs);
+  color: var(--text-secondary);
+  align-self: center;
+}
+
+/* t/2686: per-POV Top-5 filter toggle */
+.ast-top5-btn {
+  margin-left: auto;
+  font-size: var(--text-2xs);
+  padding: 1px 8px;
+  background: transparent;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.ast-top5-btn:hover:not(:disabled) {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.ast-top5-btn.active {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+  border-color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.ast-top5-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
 .ast-node-wrap {
   position: relative;
 }

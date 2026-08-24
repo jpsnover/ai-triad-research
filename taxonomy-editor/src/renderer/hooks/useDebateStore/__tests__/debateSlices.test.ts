@@ -205,7 +205,7 @@ describe('Config slice: getConfiguredModel behavior', () => {
     await useDebateStore.getState().runClarification();
 
     const call = mockApi.generateText.mock.calls[0];
-    expect(call[1]).toBe('gemini-flash-lite-latest');
+    expect(call[1]).toBe('gemini-3.5-flash-lite'); // = DEFAULT_MODEL (t/2687)
   });
 
   it('setResponseLength clears per-entry display_tier overrides', () => {
@@ -1055,7 +1055,29 @@ describe('Synthesis slice: propose_new apply (t/1773, ruling B)', () => {
     const persisted = edgeCall!.edgesFile!.edges as Array<Record<string, unknown>>;
     expect(persisted).toHaveLength(1);
     expect(persisted[0]).toMatchObject({ source: 'new-node-id', target: 'acc-B-001', type: 'SUPPORTS', status: 'proposed' });
+    // t/2975: the reflection edge writer stamps rationale_source alongside its non-empty
+    // rationale (write-together invariant, marker spec).
+    expect(persisted[0]).toMatchObject({ rationale: 'why the edge', rationale_source: 'reflection' });
     expect(useDebateStore.getState().newItemProposalStatus['accelerationist#0']).toBe('approved');
+  });
+
+  it('leaves rationale_source ABSENT when the proposed edge carries no rationale (t/2975 absent≠null)', async () => {
+    mockTaxonomyState.saveError = null;
+    mockTaxonomyState.accelerationist.nodes = [{ id: 'acc-B-001' }];
+    // Proposal whose edge has an empty rationale: the writer must NOT invent provenance.
+    const reflections = makeProposalReflections();
+    reflections[0].new_item_proposals[0].proposed_edges[0].rationale = '';
+    useDebateStore.setState({ reflections: reflections as any, newItemProposalStatus: {}, activeDebateId: 'debate-1' });
+
+    const result = await useDebateStore.getState().applyReflectionProposal('accelerationist', 0);
+
+    expect(result).toMatchObject({ ok: true, createdNodeId: 'new-node-id' });
+    const edgeCall = vi.mocked(useTaxonomyStore.setState).mock.calls
+      .map(c => c[0] as { edgesFile?: { edges: unknown[] } })
+      .find(arg => arg && arg.edgesFile);
+    const persisted = edgeCall!.edgesFile!.edges as Array<Record<string, unknown>>;
+    expect(persisted).toHaveLength(1);
+    expect(persisted[0]).not.toHaveProperty('rationale_source');
   });
 
   it('refuses to create an orphan when no edge target resolves to a live node (AC2 anti-orphan)', async () => {

@@ -212,6 +212,32 @@ export function registerDebateHandlers(): void {
     return { cancelled: false, filePath };
   });
 
+  // ── Brief HTML → PDF (t/2852) ────────────────────────────
+  // Render brief.html to PDF via an offscreen BrowserWindow, mirroring debateToPdf.
+  ipcMain.handle('brief:html-to-pdf', async (_event, html: string) => {
+    const { canceled, filePath } = await dialog.showSaveDialog({
+      title: 'Save brief as PDF',
+      defaultPath: 'brief.pdf',
+      filters: [{ name: 'PDF Files', extensions: ['pdf'] }],
+    });
+    if (canceled || !filePath) return { cancelled: true };
+
+    const pdfWindow = new BrowserWindow({
+      show: false,
+      width: 1024,
+      height: 768,
+      webPreferences: { offscreen: true, sandbox: true, contextIsolation: true },
+    });
+    try {
+      await pdfWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`);
+      const pdfBuffer = await pdfWindow.webContents.printToPDF({ printBackground: true, preferCSSPageSize: true });
+      fs.writeFileSync(filePath, Buffer.from(pdfBuffer));
+      return { cancelled: false, filePath };
+    } finally {
+      pdfWindow.destroy();
+    }
+  });
+
   // ── Harvest IPC handlers ──────────────────────────────────
 
   ipcMain.handle('harvest-create-conflict', async (_event, conflict: Record<string, unknown>) => {

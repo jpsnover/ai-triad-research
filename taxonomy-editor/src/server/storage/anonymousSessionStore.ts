@@ -319,13 +319,21 @@ export class AnonymousSessionStore {
 
   async listDebates(sessionId: string): Promise<unknown[]> {
     const debates = await this.listKind(sessionId, 'debates');
-    return debates.map(d => ({
-      id: d.id,
-      title: d.title || d.topic || 'Untitled Debate',
-      created_at: d.created_at || '',
-      updated_at: d.updated_at || d.created_at || '',
-      phase: d.phase || 'unknown',
-    })).sort((a, b) => String(b.updated_at || '').localeCompare(String(a.updated_at || '')));
+    return debates.map(d => {
+      // t/2725: project model + turn_count so the debate table's Turns/Model columns populate
+      // for anon hosted-web users. Mirrors debateStore.listDebateSessions / main/debateIO.ts —
+      // this producer previously dropped both, leaving both columns empty ("—") on web.
+      const transcript = Array.isArray(d.transcript) ? (d.transcript as { type?: string }[]) : [];
+      return {
+        id: d.id,
+        title: d.title || d.topic || 'Untitled Debate',
+        created_at: d.created_at || '',
+        updated_at: d.updated_at || d.created_at || '',
+        phase: d.phase || 'unknown',
+        model: d.debate_model,
+        turn_count: transcript.filter(t => t.type === 'statement' || t.type === 'opening').length,
+      };
+    }).sort((a, b) => String(b.updated_at || '').localeCompare(String(a.updated_at || '')));
   }
 
   async listDebatesMeta(sessionId: string): Promise<unknown[]> {

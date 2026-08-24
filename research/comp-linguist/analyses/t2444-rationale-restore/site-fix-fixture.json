@@ -1,0 +1,48 @@
+{
+  "_doc": "Acceptance fixture for the edge-rationale site fix (t/2949 / mergeEdgesPreservingRationale). ANCHORED ON A REAL OBSERVED SPECIMEN (label: observed, per t/2294) — a live, uncommitted t/2945 wipe found in ../ai-triad-data working tree on 2026-08-23, forensically confirmed by CL.Investigate1 (matches CL Main e/120#60 / t/2947#15).",
+  "provenance": {
+    "class": "observed",
+    "source": "../ai-triad-data working-tree taxonomy/Origin/edges.json vs HEAD, 2026-08-23",
+    "mechanism": "debateReflectionSlice.ts applyReflectionProposal appends in memory then taxStore.save() -> TS writeEdgesFile (PUT /api/edges or save-edges IPC) whole-file re-serialize with NO rationale re-merge; the renderer's edge list came from a load path that strips rationale (server routes/edges.ts:42 stripEdgeRationale; main taxonomyHandlers.ts:260-266 inline copy). Second write's payload is the stripped product of the first read.",
+    "wipe_write_stamp": "2026-08-20T21:05:39.830Z",
+    "observed_regressions": 6,
+    "observed_appends": 2,
+    "fingerprint": "every regressed edge kept ALL non-rationale fields byte-identical; only rationale dropped; new edges appended WITH rationale — confirms load-strip -> whole-file-save-persists-stripped-set + append.",
+    "real_regressed_keys": [
+      "acc-beliefs-122|SUPPORTS|acc-intentions-003",
+      "acc-beliefs-122|SUPPORTS|acc-beliefs-003",
+      "saf-intentions-246|SUPPORTS|saf-intentions-115",
+      "skp-beliefs-302|SUPPORTS|skp-beliefs-006",
+      "skp-beliefs-302|TENSION_WITH|skp-intentions-040",
+      "saf-intentions-246|RESPONDS_TO|saf-beliefs-126"
+    ],
+    "real_appended_keys": [
+      "skp-beliefs-303|SUPPORTS|skp-beliefs-006",
+      "skp-beliefs-303|TENSION_WITH|skp-beliefs-239"
+    ]
+  },
+  "_note": "Minimal reproduction below (2 existing + 1 append), same shape as the real specimen. The site fix must make expected_merged the result of merging save_payload against on_disk. A naive whole-file save of save_payload reproduces the wipe (existing edge loses rationale).",
+  "on_disk": {
+    "edges": [
+      {"source": "skp-beliefs-302", "type": "SUPPORTS", "target": "skp-beliefs-006", "confidence": 0.9, "rationale": "Reflection R1 established that the belief materially supports the target.", "status": "approved", "model": "debate-reflection", "discovered_at": "2026-08-20T18:53:35.878Z"},
+      {"source": "saf-intentions-246", "type": "RESPONDS_TO", "target": "saf-beliefs-126", "confidence": 0.85, "rationale": "Reflection R1 traced this intention as a response to the belief.", "status": "approved", "model": "debate-reflection", "discovered_at": "2026-08-20T18:54:52.279Z"}
+    ]
+  },
+  "save_payload": {
+    "_comment": "What the renderer sends to save-edges / PUT /api/edges: the two existing edges came from the rationale-STRIPPED list endpoint (no rationale), plus one genuinely new edge that carries rationale.",
+    "edges": [
+      {"source": "skp-beliefs-302", "type": "SUPPORTS", "target": "skp-beliefs-006", "confidence": 0.9, "status": "approved", "model": "debate-reflection", "discovered_at": "2026-08-20T18:53:35.878Z"},
+      {"source": "saf-intentions-246", "type": "RESPONDS_TO", "target": "saf-beliefs-126", "confidence": 0.85, "status": "approved", "model": "debate-reflection", "discovered_at": "2026-08-20T18:54:52.279Z"},
+      {"source": "skp-beliefs-303", "type": "SUPPORTS", "target": "skp-beliefs-006", "confidence": 0.8, "rationale": "New reflection R2 proposal: introduces skp-beliefs-303 as an additional supporter.", "status": "proposed", "model": "debate-reflection", "discovered_at": "2026-08-20T21:05:39.830Z"}
+    ]
+  },
+  "expected_merged": {
+    "_comment": "mergeEdgesPreservingRationale(save_payload, on_disk): existing edges KEEP their on-disk rationale (composite key source|type|target); the new edge is added as-is. Zero rationale regressions.",
+    "edges": [
+      {"source": "skp-beliefs-302", "type": "SUPPORTS", "target": "skp-beliefs-006", "confidence": 0.9, "rationale": "Reflection R1 established that the belief materially supports the target.", "status": "approved", "model": "debate-reflection", "discovered_at": "2026-08-20T18:53:35.878Z"},
+      {"source": "saf-intentions-246", "type": "RESPONDS_TO", "target": "saf-beliefs-126", "confidence": 0.85, "rationale": "Reflection R1 traced this intention as a response to the belief.", "status": "approved", "model": "debate-reflection", "discovered_at": "2026-08-20T18:54:52.279Z"},
+      {"source": "skp-beliefs-303", "type": "SUPPORTS", "target": "skp-beliefs-006", "confidence": 0.8, "rationale": "New reflection R2 proposal: introduces skp-beliefs-303 as an additional supporter.", "status": "proposed", "model": "debate-reflection", "discovered_at": "2026-08-20T21:05:39.830Z"}
+    ]
+  },
+  "twin_aware_note": "For the 3 real near-key collisions (source|type|target non-unique), the merge must disambiguate the twin on discovered_at+model before attributing rationale, else refuse-and-log — same identity model as the restore (t/2946) and PS Arm 1. None of the 6 observed regressed keys is a near-key twin, so this fixture does not exercise the twin path; a separate twin fixture is required for that AC."
+}

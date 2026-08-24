@@ -4,53 +4,8 @@
 # POLICY (t/2006): no silent suppression. Every entry MUST carry: the CVE, the
 # affected package, WHY it is ignored, and a concrete REVISIT trigger. Anything
 # with an available upstream fix must be patched (base rebuild), not ignored.
-# Last reviewed: 2026-08-12 (Docker).
-
-# ── perl-modules-5.36 (Debian bookworm) — NO UPSTREAM FIX AVAILABLE ─────────────
-# CVE-2026-13221  perl regex trie overflow (>65535 alternation branches)
-# CVE-2026-57433  Storable signed-integer overflow on crafted SX_HOOK deserialize
-#
-# Package:   perl-modules-5.36  (installed 5.36.0-7+deb12u3)
-# Fix state: Debian bookworm has published NO fixed version — Trivy reports an
-#            empty "Fixed Version" as of 2026-07-30. An `apt-get upgrade` base
-#            rebuild therefore cannot clear these (nothing to upgrade to).
-# Exposure:  perl is present only as a transitive dependency of git + pandoc in
-#            the base image. The Node/TS application does not invoke perl on
-#            untrusted input — there is no path that compiles an attacker-supplied
-#            regex or thaws an untrusted Storable blob. Exploitability in our
-#            context is negligible.
-# REVISIT:   drop each entry when Debian ships a fixed perl-modules-5.36
-#            (deb12u4+), OR when the node-26 / newer-Debian base lands
-#            (t/1990, ~2026-10-28) — whichever is first. Re-scan and remove any
-#            entry Trivy no longer reports.
-CVE-2026-13221
-CVE-2026-57433
-
-# ── CVE-2026-8376 — perl-modules-5.36, 32-bit regex only; no fix available ──────
-# Package:   perl-modules-5.36 (Debian bookworm)
-# Fix state: no upstream fix; Fixed Version empty as of 2026-08-03.
-# Exposure:  32-bit integer overflow in regex engine — not reachable on x86_64.
-#            Container runs x86_64 only; this path is not exploitable.
-# REVISIT:   drop when Debian ships a fixed perl-modules-5.36 or the node-26 base
-#            lands (t/1990, ~2026-10-28); re-scan and remove if cleared.
-CVE-2026-8376  # perl-modules-5.36, 32-bit regex only; no fix available; container is x86_64
-
-# ── perl (all sub-packages, Debian bookworm) — NO UPSTREAM FIX AVAILABLE ────────
-# CVE-2026-57432  perl use-after-free in regexp engine (distinct from CVE-2026-57433)
-# CVE-2026-7017   perl integer underflow in sprintf (note severity)
-#
-# Packages:  perl, perl-base, libperl5.36, perl-modules-5.36 (bookworm 5.36.0-7+deb12u3)
-# Fix state: Debian bookworm has published NO fixed version for either CVE as of
-#            2026-08-05 (Fixed Version field empty in Trivy). `apt-get upgrade`
-#            in the :2026-08-05 base rebuild did not clear these. (t/2158)
-# Exposure:  perl is present only as a transitive dependency of git + pandoc in the
-#            base image. The application does not invoke perl directly or on
-#            untrusted input — no attacker-controlled path reaches the regexp engine
-#            or sprintf code paths that trigger these bugs.
-# REVISIT:   drop when Debian ships a fixed perl (deb12u4+) or the node-26 /
-#            newer-Debian base lands (t/1990, ~2026-10-28). Re-scan and remove.
-CVE-2026-57432
-CVE-2026-7017
+# Last reviewed: 2026-08-15 (Docker). Trixie migration complete (t/2681) — re-scan
+# will confirm which entries below are cleared by Trixie's newer package versions.
 
 # ── util-linux (Debian bookworm) — NO UPSTREAM FIX AVAILABLE ────────────────────
 # CVE-2026-13595  util-linux mount privilege-escalation via crafted fstab (warning)
@@ -65,40 +20,6 @@ CVE-2026-7017
 #            node-26 / newer-Debian base lands (t/1990, ~2026-10-28). Re-scan.
 CVE-2026-13595
 
-# ── python3.11-venv (Debian bookworm) — NO UPSTREAM FIX AVAILABLE ───────────────
-# CVE-2026-15308  python3.11-venv arbitrary code execution via crafted venv (error)
-# CVE-2026-11940  python3.11-venv privilege escalation in venv activation (error)
-# CVE-2026-11972  python3.11-venv path traversal in venv pip integration (warning)
-# CVE-2026-0864   python3.11-venv insecure temp file in venv creation (warning)
-# CVE-2026-6879   python3.11-venv integer overflow in bytecode compiler (note)
-#
-# Package:   python3-venv / python3.11-venv (installed 3.11.2-6+deb12u8)
-# Fix state: Debian bookworm has published NO fixed version for any of these CVEs
-#            as of 2026-08-05 (Fixed Version empty in Trivy).
-# Exposure:  python3-venv is installed only to support pty-broker.py (the PTY
-#            subprocess broker for the terminal UI). It does not process untrusted
-#            user input or create venvs on behalf of external callers. The venv
-#            attack surfaces (crafted pip packages, path traversal, activation
-#            scripts) are not reachable in our deployment.
-# REVISIT:   drop when Debian ships a fixed python3.11-venv for bookworm (deb12u9+),
-#            OR when the node-26 / newer-Debian base lands (t/1990, ~2026-10-28).
-CVE-2026-15308
-CVE-2026-11940
-CVE-2026-11972
-CVE-2026-0864
-CVE-2026-6879
-
-# ── python3-pip-whl (Debian bookworm) — NO UPSTREAM FIX AVAILABLE ───────────────
-# CVE-2026-13346  pip arbitrary package install via malicious index URL (warning)
-#
-# Package:   python3-pip-whl (installed 23.0.1+dfsg-1)
-# Fix state: Debian bookworm has published NO fixed version as of 2026-08-05.
-# Exposure:  pip is present as a transitive dep of python3-venv. The application
-#            does not invoke pip at runtime or use it to install packages from
-#            external sources — no attacker-controlled index URL is reachable.
-# REVISIT:   drop when Debian ships a fixed python3-pip-whl for bookworm, or the
-#            node-26 / newer-Debian base lands (t/1990, ~2026-10-28).
-CVE-2026-13346
 
 # ── libtiff6 (Debian bookworm) — NO UPSTREAM FIX AVAILABLE ──────────────────────
 # CVE-2026-12912  libtiff out-of-bounds read in TIFFReadDirectory (error)
@@ -114,23 +35,6 @@ CVE-2026-13346
 #            / newer-Debian base lands (t/1990, ~2026-10-28).
 CVE-2026-12912
 
-# ── libcurl4 (Debian bookworm) — NO UPSTREAM FIX AVAILABLE ──────────────────────
-# CVE-2026-8924   libcurl SSRF via crafted URL redirect (warning)
-# CVE-2026-8932   libcurl cookie-jar information disclosure (warning)
-# CVE-2026-9547   libcurl integer overflow in chunked-encoding (note)
-#
-# Package:   libcurl4 (installed 7.88.1-10+deb12u15)
-# Fix state: Debian bookworm has published NO fixed version for any of these CVEs
-#            as of 2026-08-05 (Fixed Version empty in Trivy).
-# Exposure:  libcurl4 is present as a transitive dep of git. The application does
-#            not use libcurl directly at runtime; all outbound HTTP is via Node.js
-#            undici or the fetch API. git operations in the container are internal
-#            (clone at build time only). Cookie-jar and SSRF paths are not reachable.
-# REVISIT:   drop when Debian ships a fixed libcurl4 for bookworm (deb12u16+), or
-#            the node-26 / newer-Debian base lands (t/1990, ~2026-10-28).
-CVE-2026-8924
-CVE-2026-8932
-CVE-2026-9547
 
 # ── libnghttp2-14 (Debian bookworm) — NO UPSTREAM FIX AVAILABLE ─────────────────
 # CVE-2026-58055  nghttp2 HTTP/2 CONTINUATION frame DoS (warning)
@@ -159,23 +63,6 @@ CVE-2026-58055
 CVE-2026-13757
 CVE-2026-18938
 
-# ── libssh2-1 (Debian bookworm) — NO UPSTREAM FIX AVAILABLE ─────────────────────
-# CVE-2026-66032  libssh2 use-after-free in key exchange (warning)
-# CVE-2026-66033  libssh2 heap overflow in SCP path parsing (warning)
-# CVE-2026-66034  libssh2 integer overflow in SFTP (warning)
-# CVE-2026-66035  libssh2 null-deref in channel close (warning)
-#
-# Package:   libssh2-1 (Debian bookworm)
-# Fix state: Debian bookworm has published NO fixed version for any of these CVEs
-#            as of 2026-08-05 (Fixed Version empty in Trivy).
-# Exposure:  libssh2-1 is a transitive dep of libcurl4 (git dep). The application
-#            does not make SSH connections at runtime — git operations are HTTPS only.
-#            The libssh2 code paths are unreachable in our deployment.
-# REVISIT:   drop when Debian ships a fixed libssh2-1, or the node-26 base lands.
-CVE-2026-66032
-CVE-2026-66033
-CVE-2026-66034
-CVE-2026-66035
 
 # ── libsqlite3-0 (Debian bookworm) — NO UPSTREAM FIX AVAILABLE ──────────────────
 # CVE-2026-50812  SQLite use-after-free in window function (warning)
@@ -238,35 +125,6 @@ CVE-2026-53910
 CVE-2026-56391
 CVE-2026-56392
 
-# ── curl / libcurl4 (Debian bookworm) — Wave 3; NO UPSTREAM FIX AVAILABLE ────────
-# Error-severity:
-#   CVE-2026-8286   curl TLS config mismatch (error; ai-triad-base #5247/#5263/#5272)
-#   CVE-2026-12064  curl SSH host verification bypass (error; #5246/#5262/#5271)
-#   CVE-2026-8927   curl proxy auth info disclosure (error; #5244/#5260/#5269)
-# Warning-severity:
-#   CVE-2026-10536  libcurl use-after-free DoS (warning; #5245/#5261/#5270)
-#   CVE-2026-11856  curl Digest auth header reuse info disclosure (warning; #5243/#5259/#5268)
-#   CVE-2026-8458   libcurl wrong connection reuse (warning; #5248/#5264/#5273)
-#
-# Package:   curl + libcurl4 (bookworm 7.88.1-10+deb12u15)
-# Fix state: Debian bookworm has published NO fixed version for any of these CVEs
-#            as of 2026-08-06 (Fixed Version empty in Trivy; consistent with the
-#            libcurl4 CVEs already baselined: CVE-2026-8924/8932/9547).
-# Exposure:  curl is installed in the base image but used ONLY at image build time
-#            (RUN curl -fSL … to download ONNX model files). The application does
-#            NOT invoke curl at runtime — all outbound HTTP uses Node.js undici/fetch.
-#            TLS mismatch, SSH bypass, proxy auth disclosure, and wrong connection
-#            reuse are not reachable in our runtime. SSH variant (12064) is moot:
-#            the container makes no SSH connections.
-# REVISIT:   drop each entry when Debian ships a fixed libcurl4/curl for bookworm
-#            (deb12u16+), OR when the node-26 / newer-Debian base lands
-#            (t/1990, ~2026-10-28). Re-scan and remove any entry Trivy no longer reports.
-CVE-2026-8286
-CVE-2026-12064
-CVE-2026-8927
-CVE-2026-10536
-CVE-2026-11856
-CVE-2026-8458
 
 # ── acl (Debian bookworm) — NO UPSTREAM FIX AVAILABLE ───────────────────────────
 # CVE-2026-54369  acl symlink traversal privilege escalation (error; ai-triad-base #5255)
@@ -358,9 +216,9 @@ CVE-2026-15157
 GHSA-r292-9mhp-454m
 
 # ==============================================================================
-# Wave 4 — Bulk OS CVE suppression (t/2194, 2026-08-06)
+# Wave 4 — Bulk OS CVE suppression (t/2194, 2026-08-06; updated for Trixie t/2681)
 # All entries below: fix exists upstream but is NOT yet backported to
-# debian:bookworm stable repos. The Dockerfile runs apt-get upgrade -y at every
+# debian:trixie stable repos. The Dockerfile runs apt-get upgrade -y at every
 # build, so any Debian-available fix is applied automatically. These entries
 # suppress the remaining alerts until Debian ships the backport.
 # Policy: t/2006 — CVE + package + justification + REVISIT trigger required.
@@ -396,11 +254,11 @@ CVE-2022-3219  # gpgv: gnupg: denial of service issue (resource consumption) usi
 CVE-2025-30258  # gpgv: gnupg: verification DoS due to a malicious subkey in the keyring
 CVE-2025-68972  # gpgv: gnupg: GnuPG: Signature bypass via form feed character in signed messages
 
-# -- libapt-pkg6.0 (APT package management library) -- fix not backported to debian:bookworm
-# node:22-bookworm-slim base; apt-get upgrade -y at build time installs all available Debian
-# security updates. These CVEs have no debian:bookworm package fix available yet.
-# REVISIT: when Debian issues a security update for libapt-pkg6.0 or image removes the package.
-CVE-2011-3374  # libapt-pkg6.0: It was found that apt-key in apt, all versions, do not correctly valid ...
+# -- libapt-pkg7.0 (APT package management library) -- fix not backported to debian:trixie
+# node:22-trixie-slim base; apt-get upgrade -y at build time installs all available Debian
+# security updates. These CVEs have no debian:trixie package fix available yet.
+# REVISIT: when Debian issues a security update for libapt-pkg7.0 or image removes the package.
+CVE-2011-3374  # libapt-pkg7.0: It was found that apt-key in apt, all versions, do not correctly valid ...
 
 # -- libbz2-1.0 (bzip2 compression) -- fix not backported to debian:bookworm
 # node:22-bookworm-slim base; apt-get upgrade -y at build time installs all available Debian
@@ -436,22 +294,22 @@ CVE-2019-6461  # libcairo2: cairo: assertion problem in _cairo_arc_in_direction 
 CVE-2019-6462  # libcairo2: cairo: infinite loop in the function _arc_error_normalized in the file cairo-...
 CVE-2025-50422  # libcairo2: poppler: Poppler crash on malformed input
 
-# -- libcurl4 (curl HTTP library) -- fix not backported to debian:bookworm
-# node:22-bookworm-slim base; apt-get upgrade -y at build time installs all available Debian
-# security updates. These CVEs have no debian:bookworm package fix available yet.
-# REVISIT: when Debian issues a security update for libcurl4 or image removes the package.
-CVE-2024-2379  # libcurl4: curl: QUIC certificate check bypass with wolfSSL
-CVE-2025-0725  # libcurl4: libcurl: Buffer Overflow in libcurl via zlib Integer Overflow
-CVE-2025-10966  # libcurl4: curl: Curl missing SFTP host verification with wolfSSH backend
-CVE-2025-14017  # libcurl4: curl: curl: Security bypass due to global TLS option changes in multi-threade...
-CVE-2025-15079  # libcurl4: curl: Host verification bypass during SSH transfers
-CVE-2025-15224  # libcurl4: curl: libssh key passphrase bypass without agent set
-CVE-2026-1965  # libcurl4: curl: curl: Authentication bypass due to incorrect connection reuse with Nego...
-CVE-2026-4873  # libcurl4: curl: curl: Information disclosure due to incorrect TLS connection reuse
-CVE-2026-5545  # libcurl4: curl: libcurl: Authentication bypass due to incorrect HTTP Negotiate connecti...
-CVE-2026-6253  # libcurl4: curl: curl: Proxy credential disclosure via redirects to unauthenticated proxies
-CVE-2026-6276  # libcurl4: curl: libcurl: Information disclosure due to cookie leak when reusing connect...
-CVE-2026-6429  # libcurl4: curl: libcurl: Credential leak via reused proxy connection during HTTP redirects
+# -- libcurl4t64 (curl HTTP library) -- fix not backported to debian:trixie
+# node:22-trixie-slim base; apt-get upgrade -y at build time installs all available Debian
+# security updates. These CVEs have no debian:trixie package fix available yet.
+# REVISIT: when Debian issues a security update for libcurl4t64 or image removes the package.
+CVE-2024-2379  # libcurl4t64: curl: QUIC certificate check bypass with wolfSSL
+CVE-2025-0725  # libcurl4t64: libcurl: Buffer Overflow in libcurl via zlib Integer Overflow
+CVE-2025-10966  # libcurl4t64: curl: Curl missing SFTP host verification with wolfSSH backend
+CVE-2025-14017  # libcurl4t64: curl: curl: Security bypass due to global TLS option changes in multi-threade...
+CVE-2025-15079  # libcurl4t64: curl: Host verification bypass during SSH transfers
+CVE-2025-15224  # libcurl4t64: curl: libssh key passphrase bypass without agent set
+CVE-2026-1965  # libcurl4t64: curl: curl: Authentication bypass due to incorrect connection reuse with Nego...
+CVE-2026-4873  # libcurl4t64: curl: curl: Information disclosure due to incorrect TLS connection reuse
+CVE-2026-5545  # libcurl4t64: curl: libcurl: Authentication bypass due to incorrect HTTP Negotiate connecti...
+CVE-2026-6253  # libcurl4t64: curl: curl: Proxy credential disclosure via redirects to unauthenticated proxies
+CVE-2026-6276  # libcurl4t64: curl: libcurl: Information disclosure due to cookie leak when reusing connect...
+CVE-2026-6429  # libcurl4t64: curl: libcurl: Credential leak via reused proxy connection during HTTP redirects
 
 # -- libexpat1 (XML parser) -- fix not backported to debian:bookworm
 # node:22-bookworm-slim base; apt-get upgrade -y at build time installs all available Debian
@@ -481,7 +339,6 @@ CVE-2026-56409  # libexpat1: xmlwf in libexpat before 2.8.2 has an integer overf
 CVE-2026-56410  # libexpat1: libexpat: libexpat: Integer overflow in xmlwf can lead to information disclos...
 CVE-2026-56411  # libexpat1: expat: libexpat: Integer Overflow Vulnerability Leading to Information Disclo...
 CVE-2026-56412  # libexpat1: libexpat: libexpat: Use-after-free vulnerability due to improper handling of ...
-CVE-2026-72522  # libexpat1: libexpat: no Debian fix as of 2026-08-12 (t/2547)
 
 # -- libgcrypt20 (GnuPG cryptographic library) -- fix not backported to debian:bookworm
 # node:22-bookworm-slim base; apt-get upgrade -y at build time installs all available Debian
@@ -490,11 +347,11 @@ CVE-2026-72522  # libexpat1: libexpat: no Debian fix as of 2026-08-12 (t/2547)
 CVE-2018-6829  # libgcrypt20: libgcrypt: ElGamal implementation doesn't have semantic security due to incor...
 CVE-2024-2236  # libgcrypt20: libgcrypt: vulnerable to Marvin Attack
 
-# -- libgnutls30 (GnuTLS TLS library) -- fix not backported to debian:bookworm
-# node:22-bookworm-slim base; apt-get upgrade -y at build time installs all available Debian
-# security updates. These CVEs have no debian:bookworm package fix available yet.
-# REVISIT: when Debian issues a security update for libgnutls30 or image removes the package.
-CVE-2011-3389  # libgnutls30: HTTPS: block-wise chosen-plaintext attack against SSL/TLS (BEAST)
+# -- libgnutls30t64 (GnuTLS TLS library) -- fix not backported to debian:trixie
+# node:22-trixie-slim base; apt-get upgrade -y at build time installs all available Debian
+# security updates. These CVEs have no debian:trixie package fix available yet.
+# REVISIT: when Debian issues a security update for libgnutls30t64 or image removes the package.
+CVE-2011-3389  # libgnutls30t64: HTTPS: block-wise chosen-plaintext attack against SSL/TLS (BEAST)
 
 # -- libjbig0 (JBIG image compression) -- fix not backported to debian:bookworm
 # node:22-bookworm-slim base; apt-get upgrade -y at build time installs all available Debian
@@ -517,16 +374,16 @@ CVE-2026-11850  # libkrb5support0: krb5: krb5: integer underflow in berval2tl_da
 # REVISIT: when Debian issues a security update for liblcms2-2 or image removes the package.
 CVE-2025-29070  # liblcms2-2: A heap buffer overflow vulnerability has been identified in thesmooth2 ...
 
-# -- libldap-2.5-0 (OpenLDAP client library) -- fix not backported to debian:bookworm
-# node:22-bookworm-slim base; apt-get upgrade -y at build time installs all available Debian
-# security updates. These CVEs have no debian:bookworm package fix available yet.
-# REVISIT: when Debian issues a security update for libldap-2.5-0 or image removes the package.
-CVE-2015-3276  # libldap-2.5-0: openldap: incorrect multi-keyword mode cipherstring parsing
-CVE-2017-14159  # libldap-2.5-0: openldap: Privilege escalation via PID file manipulation
-CVE-2017-17740  # libldap-2.5-0: openldap: contrib/slapd-modules/nops/nops.c attempts to free stack buffer all...
-CVE-2020-15719  # libldap-2.5-0: openldap: Certificate validation incorrectly matches name against CN-ID
-CVE-2023-2953  # libldap-2.5-0: openldap: null pointer dereference in ber_memalloc_x function
-CVE-2026-22185  # libldap-2.5-0: OpenLDAP: OpenLDAP LMDB: Denial of Service and Information Disclosure via Hea...
+# -- libldap2 (OpenLDAP client library) -- fix not backported to debian:trixie
+# node:22-trixie-slim base; apt-get upgrade -y at build time installs all available Debian
+# security updates. These CVEs have no debian:trixie package fix available yet.
+# REVISIT: when Debian issues a security update for libldap2 or image removes the package.
+CVE-2015-3276  # libldap2: openldap: incorrect multi-keyword mode cipherstring parsing
+CVE-2017-14159  # libldap2: openldap: Privilege escalation via PID file manipulation
+CVE-2017-17740  # libldap2: openldap: contrib/slapd-modules/nops/nops.c attempts to free stack buffer all...
+CVE-2020-15719  # libldap2: openldap: Certificate validation incorrectly matches name against CN-ID
+CVE-2023-2953  # libldap2: openldap: null pointer dereference in ber_memalloc_x function
+CVE-2026-22185  # libldap2: OpenLDAP: OpenLDAP LMDB: Denial of Service and Information Disclosure via Hea...
 
 # -- libnss3 (Mozilla NSS crypto library) -- fix not backported to debian:bookworm
 # node:22-bookworm-slim base; apt-get upgrade -y at build time installs all available Debian
@@ -571,14 +428,14 @@ CVE-2026-54411  # libpam0g: linux-pam: Plaintext password recovery via timing di
 # REVISIT: when Debian issues a security update for libpixman-1-0 or image removes the package.
 CVE-2023-37769  # libpixman-1-0: stress-test master commit e4c878 was discovered to contain a FPE vulne ...
 
-# -- libpng16-16 (PNG image library) -- fix not backported to debian:bookworm
-# node:22-bookworm-slim base; apt-get upgrade -y at build time installs all available Debian
-# security updates. These CVEs have no debian:bookworm package fix available yet.
-# REVISIT: when Debian issues a security update for libpng16-16 or image removes the package.
-CVE-2021-4214  # libpng16-16: libpng: hardcoded value leads to heap-overflow
-CVE-2025-28162  # libpng16-16: libpng: libpng: Denial of Service via buffer overflow in pngimage utility
-CVE-2025-28164  # libpng16-16: libpng: libpng: Denial of Service via buffer overflow in png_create_read_stru...
-CVE-2026-3713  # libpng16-16: libpng: libpng: Heap-based buffer overflow in pnm2png allows information disc...
+# -- libpng16-16t64 (PNG image library) -- fix not backported to debian:trixie
+# node:22-trixie-slim base; apt-get upgrade -y at build time installs all available Debian
+# security updates. These CVEs have no debian:trixie package fix available yet.
+# REVISIT: when Debian issues a security update for libpng16-16t64 or image removes the package.
+CVE-2021-4214  # libpng16-16t64: libpng: hardcoded value leads to heap-overflow
+CVE-2025-28162  # libpng16-16t64: libpng: libpng: Denial of Service via buffer overflow in pngimage utility
+CVE-2025-28164  # libpng16-16t64: libpng: libpng: Denial of Service via buffer overflow in png_create_read_stru...
+CVE-2026-3713  # libpng16-16t64: libpng: libpng: Heap-based buffer overflow in pnm2png allows information disc...
 
 # -- libsqlite3-0 (SQLite) -- fix not backported to debian:bookworm
 # node:22-bookworm-slim base; apt-get upgrade -y at build time installs all available Debian
@@ -592,16 +449,14 @@ CVE-2025-7709  # libsqlite3-0: An integer overflow exists in the FTS5 https://sq
 CVE-2026-11822  # libsqlite3-0: SQLite before 3.53.2 contains memory corruption vulnerabilities in the ...
 CVE-2026-11824  # libsqlite3-0: SQLite before 3.53.2 contains a heap-based buffer overflow vulnerabili ...
 
-# -- libssh2-1 (SSH2 client library) -- fix not backported to debian:bookworm
-# node:22-bookworm-slim base; apt-get upgrade -y at build time installs all available Debian
-# security updates. These CVEs have no debian:bookworm package fix available yet.
-# REVISIT: when Debian issues a security update for libssh2-1 or image removes the package.
-CVE-2025-15661  # libssh2-1: libssh2: libssh2: Information disclosure and denial of service via crafted SF...
-CVE-2026-55199  # libssh2-1: libssh2: libssh2: Denial of Service via crafted SSH_MSG_EXT_INFO message
-CVE-2026-55200  # libssh2-1: libssh2: libssh2 - Out-of-Bounds Write via Unchecked packet_length in transpo...
-CVE-2026-7598  # libssh2-1: libssh2: integer overflow via large username or password arguments
-CVE-2026-58050  # libssh2-1: libssh2: HIGH; no Debian fix as of 2026-08-12; recheck on next rebuild (t/2547)
-CVE-2026-58051  # libssh2-1: libssh2: MEDIUM; no Debian fix as of 2026-08-12 (t/2547)
+# -- libssh2-1t64 (SSH2 client library) -- fix not backported to debian:trixie
+# node:22-trixie-slim base; apt-get upgrade -y at build time installs all available Debian
+# security updates. These CVEs have no debian:trixie package fix available yet.
+# REVISIT: when Debian issues a security update for libssh2-1t64 or image removes the package.
+CVE-2025-15661  # libssh2-1t64: libssh2: libssh2: Information disclosure and denial of service via crafted SF...
+CVE-2026-55199  # libssh2-1t64: libssh2: libssh2: Denial of Service via crafted SSH_MSG_EXT_INFO message
+CVE-2026-55200  # libssh2-1t64: libssh2: libssh2 - Out-of-Bounds Write via Unchecked packet_length in transpo...
+CVE-2026-7598  # libssh2-1t64: libssh2: integer overflow via large username or password arguments
 
 # -- libstdc++6 (GNU C++ standard library) -- fix not backported to debian:bookworm
 # node:22-bookworm-slim base; apt-get upgrade -y at build time installs all available Debian
@@ -678,22 +533,21 @@ CVE-2007-5686  # passwd: initscripts in rPath Linux 1 sets insecure permissions 
 CVE-2024-56433  # passwd: shadow-utils: Default subordinate ID configuration in /etc/login.defs could l...
 TEMP-0628843-DBAD28  # passwd: [more related to CVE-2005-4890]
 
-# -- perl-modules-5.36 (Perl runtime modules) -- fix not backported to debian:bookworm
-# node:22-bookworm-slim base; apt-get upgrade -y at build time installs all available Debian
-# security updates. These CVEs have no debian:bookworm package fix available yet.
-# REVISIT: when Debian issues a security update for perl-modules-5.36 or image removes the package.
-CVE-2011-4116  # perl-modules-5.36: perl: File:: Temp insecure temporary file handling
-CVE-2023-31486  # perl-modules-5.36: http-tiny: perl: insecure TLS cert default
-CVE-2025-15649  # perl-modules-5.36: perl-IO-Compress: perl-IO-Compress: Denial of Service via malformed DOS date ...
-CVE-2026-12087  # perl-modules-5.36: perl-Socket: perl-Socket: Information Disclosure due to Out-of-Bounds Read
-CVE-2026-42496  # perl-modules-5.36: perl-archive-tar: perl-archive-tar: Path traversal via crafted symlinks allow...
-CVE-2026-42497  # perl-modules-5.36: perl-Archive-Tar: perl-Archive-Tar: Arbitrary file modification via crafted h...
-CVE-2026-48959  # perl-modules-5.36: perl-IO-Compress: perl-IO-Compress: CPU exhaustion via per-byte read loop in ...
-CVE-2026-48961  # perl-modules-5.36: perl-IO-Compress: IO::Compress: Denial of Service in zipdetails CLI tool via ...
-CVE-2026-48962  # perl-modules-5.36: perl-IO-Compress: perl-IO-Compress: Arbitrary code execution via attacker-con...
-CVE-2026-7010  # perl-modules-5.36: HTTP::Tiny versions before 0.093 for Perl do not validate CRLF in HTTP ...
-CVE-2026-9538  # perl-modules-5.36: perl-Archive-Tar: perl-Archive-Tar: Denial of Service via crafted tar header ...
-CVE-2026-15534  # perl-modules-5.36: perl: no Debian fix as of 2026-08-12 (t/2547)
+# -- perl-modules-5.40 (Perl runtime modules) -- fix not backported to debian:trixie
+# node:22-trixie-slim base; apt-get upgrade -y at build time installs all available Debian
+# security updates. These CVEs have no debian:trixie package fix available yet.
+# REVISIT: when Debian issues a security update for perl-modules-5.40 or image removes the package.
+CVE-2011-4116  # perl-modules-5.40: perl: File:: Temp insecure temporary file handling
+CVE-2023-31486  # perl-modules-5.40: http-tiny: perl: insecure TLS cert default
+CVE-2025-15649  # perl-modules-5.40: perl-IO-Compress: perl-IO-Compress: Denial of Service via malformed DOS date ...
+CVE-2026-12087  # perl-modules-5.40: perl-Socket: perl-Socket: Information Disclosure due to Out-of-Bounds Read
+CVE-2026-42496  # perl-modules-5.40: perl-archive-tar: perl-archive-tar: Path traversal via crafted symlinks allow...
+CVE-2026-42497  # perl-modules-5.40: perl-Archive-Tar: perl-Archive-Tar: Arbitrary file modification via crafted h...
+CVE-2026-48959  # perl-modules-5.40: perl-IO-Compress: perl-IO-Compress: CPU exhaustion via per-byte read loop in ...
+CVE-2026-48961  # perl-modules-5.40: perl-IO-Compress: IO::Compress: Denial of Service in zipdetails CLI tool via ...
+CVE-2026-48962  # perl-modules-5.40: perl-IO-Compress: perl-IO-Compress: Arbitrary code execution via attacker-con...
+CVE-2026-7010  # perl-modules-5.40: HTTP::Tiny versions before 0.093 for Perl do not validate CRLF in HTTP ...
+CVE-2026-9538  # perl-modules-5.40: perl-Archive-Tar: perl-Archive-Tar: Denial of Service via crafted tar header ...
 
 # -- poppler-utils (PDF rendering library) -- fix not backported to debian:bookworm
 # node:22-bookworm-slim base; apt-get upgrade -y at build time installs all available Debian
@@ -719,24 +573,24 @@ CVE-2026-3219  # python3-pip-whl: pip: pip: Incorrect file installation due to i
 CVE-2026-6357  # python3-pip-whl: pip: pip: Arbitrary code execution or information disclosure via malicious wh...
 CVE-2026-8643  # python3-pip-whl: python-pip: Path traversal via malicious entry point name in pip wheel instal...
 
-# -- python3.11-venv (Python venv) -- fix not backported to debian:bookworm
-# node:22-bookworm-slim base; apt-get upgrade -y at build time installs all available Debian
-# security updates. These CVEs have no debian:bookworm package fix available yet.
-# REVISIT: when Debian issues a security update for python3.11-venv or image removes the package.
-CVE-2025-12781  # python3.11-venv: cpython: base64.b64decode() always accepts "+/" characters, despite setting a...
-CVE-2025-15366  # python3.11-venv: cpython: IMAP command injection in user-controlled commands
-CVE-2025-15367  # python3.11-venv: cpython: POP3 command injection in user-controlled commands
-CVE-2025-69534  # python3.11-venv: python-markdown: denial of service via malformed HTML-like sequences
-CVE-2026-12003  # python3.11-venv: To allow builds of Python to be run from an in-tree layout (rather tha ...
-CVE-2026-1502  # python3.11-venv: python: Python: HTTP header injection via CR/LF in proxy tunnel headers
-CVE-2026-3276  # python3.11-venv: python: Python unicodedata: Denial of Service due to excessive CPU consumption
-CVE-2026-3446  # python3.11-venv: python: Python base64: Incomplete data decoding due to premature stop at padding
-CVE-2026-3479  # python3.11-venv: python: Python pkgutil.get_data(): Path Traversal via improper resource argum...
-CVE-2026-3644  # python3.11-venv: cpython: Incomplete control character validation in http.cookies
-CVE-2026-6019  # python3.11-venv: python: Python: Cross-Site Scripting (XSS) vulnerability in http.cookies module
-CVE-2026-7210  # python3.11-venv: python: expat: Python/Expat: Denial of Service via crafted XML document
-CVE-2026-8328  # python3.11-venv: The ftpcp() function in Lib/ftplib.py was not updated when CVE-2021-4 ...
-CVE-2026-9669  # python3.11-venv: python: Python: Denial of Service via out-of-bounds write in BZ2 decompression
+# -- python3.13/python3.13-venv (Python venv) -- fix not backported to debian:trixie
+# node:22-trixie-slim base; apt-get upgrade -y at build time installs all available Debian
+# security updates. These CVEs have no debian:trixie package fix available yet.
+# REVISIT: when Debian issues a security update for python3.13 or image removes the package.
+CVE-2025-12781  # python3.13-venv: cpython: base64.b64decode() always accepts "+/" characters, despite setting a...
+CVE-2025-15366  # python3.13-venv: cpython: IMAP command injection in user-controlled commands
+CVE-2025-15367  # python3.13-venv: cpython: POP3 command injection in user-controlled commands
+CVE-2025-69534  # python3.13-venv: python-markdown: denial of service via malformed HTML-like sequences
+CVE-2026-12003  # python3.13-venv: To allow builds of Python to be run from an in-tree layout (rather tha ...
+CVE-2026-1502  # python3.13-venv: python: Python: HTTP header injection via CR/LF in proxy tunnel headers
+CVE-2026-3276  # python3.13-venv: python: Python unicodedata: Denial of Service due to excessive CPU consumption
+CVE-2026-3446  # python3.13-venv: python: Python base64: Incomplete data decoding due to premature stop at padding
+CVE-2026-3479  # python3.13-venv: python: Python pkgutil.get_data(): Path Traversal via improper resource argum...
+CVE-2026-3644  # python3.13-venv: cpython: Incomplete control character validation in http.cookies
+CVE-2026-6019  # python3.13-venv: python: Python: Cross-Site Scripting (XSS) vulnerability in http.cookies module
+CVE-2026-7210  # python3.13-venv: python: expat: Python/Expat: Denial of Service via crafted XML document
+CVE-2026-8328  # python3.13-venv: The ftpcp() function in Lib/ftplib.py was not updated when CVE-2021-4 ...
+CVE-2026-9669  # python3.13-venv: python: Python: Denial of Service via out-of-bounds write in BZ2 decompression
 
 # -- sysvinit-utils (SysV init utilities) -- fix not backported to debian:bookworm
 # node:22-bookworm-slim base; apt-get upgrade -y at build time installs all available Debian
@@ -763,11 +617,84 @@ CVE-2026-3184  # util-linux-extra: util-linux: util-linux: Access control bypass
 CVE-2026-53613  # util-linux-extra: [Local Privilege Escalation via TOCTOU in mount(8) - Target Path Redirection]
 CVE-2026-53615  # util-linux-extra: [Integer Overflow or Wraparound in libblkid/src/partitions/dos.c]
 
-# -- zlib1g (zlib compression library) -- fix not backported to debian:bookworm
-# node:22-bookworm-slim base; apt-get upgrade -y at build time installs all available Debian
-# security updates. These CVEs have no debian:bookworm package fix available yet.
+# -- zlib1g (zlib compression library) -- fix not backported to debian:trixie
+# node:22-trixie-slim base; apt-get upgrade -y at build time installs all available Debian
+# security updates. These CVEs have no debian:trixie package fix available yet.
 # REVISIT: when Debian issues a security update for zlib1g or image removes the package.
 CVE-2023-45853  # zlib1g: zlib: integer overflow and resultant heap-based buffer overflow in zipOpenNew...
 CVE-2026-27171  # zlib1g: zlib: zlib: Denial of Service via infinite loop in CRC32 combine functions
+
+# ==============================================================================
+# Wave 5 — Trixie migration new CVEs (t/2681, 2026-08-15)
+# CVEs first seen after upgrading from debian:bookworm → debian:trixie.
+# All entries: no fixed version available in debian:trixie as of 2026-08-15.
+# Policy: t/2006 — CVE + package + justification + REVISIT trigger required.
+# ==============================================================================
+
+# ── libcurl4t64 / curl (Trixie 8.14.1-2+deb13u4) — NO UPSTREAM FIX AVAILABLE ──
+# CVE-2026-8926   curl: MEDIUM — no Trixie fix as of 2026-08-15 (t/2681)
+# CVE-2026-9079   curl: MEDIUM — no Trixie fix as of 2026-08-15 (t/2681)
+# CVE-2026-9080   curl: MEDIUM — no Trixie fix as of 2026-08-15 (t/2681)
+# CVE-2026-9545   curl: MEDIUM — no Trixie fix as of 2026-08-15 (t/2681)
+#
+# Packages:  libcurl4t64, libcurl3t64-gnutls, curl (trixie 8.14.1-2+deb13u4)
+# Fix state: Debian trixie has published NO fixed version for any of these CVEs
+#            as of 2026-08-15 (Fixed Version empty in Trivy GitHub Code Scanning).
+# Exposure:  curl is installed in the base image but used ONLY at image build time
+#            (RUN curl -fSL … to download ONNX model files). The application does
+#            NOT invoke curl at runtime — all outbound HTTP uses Node.js undici/fetch.
+#            These CVE attack surfaces are not reachable in the deployed container.
+# REVISIT:   drop when Debian trixie ships a fixed curl (deb13u5+). Re-scan.
+CVE-2026-8926
+CVE-2026-9079
+CVE-2026-9080
+CVE-2026-9545
+
+# ── GnuPG (Trixie 2.4.7-21+deb13u1) — NO UPSTREAM FIX AVAILABLE ─────────────
+# CVE-2026-24882  gnupg: HIGH — no Trixie fix as of 2026-08-15 (t/2681)
+#
+# Packages:  gnupg, gpg, gpg-agent, gpgconf, gpgsm, gnupg-l10n, dirmngr
+#            (trixie 2.4.7-21+deb13u1)
+# Fix state: Debian trixie has published NO fixed version as of 2026-08-15.
+# Exposure:  GnuPG is a transitive dep of apt/git. The application does not parse
+#            GPG messages or invoke gpg on untrusted input at runtime. The vulnerable
+#            path is not reachable in our deployment.
+# REVISIT:   drop when Debian trixie ships a fixed gnupg (deb13u2+). Re-scan.
+CVE-2026-24882
+
+# ── python3-wheel (Trixie 0.46.1-2) — NO UPSTREAM FIX AVAILABLE ─────────────
+# CVE-2026-24049  python3-wheel: MEDIUM — no Trixie fix as of 2026-08-15 (t/2681)
+#
+# Package:   python3-wheel (trixie 0.46.1-2)
+# Fix state: Debian trixie has published NO fixed version as of 2026-08-15.
+# Exposure:  python3-wheel is a transitive dep of pip/python3-venv. The application
+#            does not invoke wheel at runtime or install wheel packages from external
+#            sources — not reachable in our deployment.
+# REVISIT:   drop when Debian trixie ships a fixed python3-wheel. Re-scan.
+CVE-2026-24049
+
+# ── python3-setuptools-whl (Trixie 78.1.1-0.1) — NO UPSTREAM FIX AVAILABLE ──
+# CVE-2026-23949  python3-setuptools-whl: HIGH — no Trixie fix as of 2026-08-15 (t/2681)
+#
+# Package:   python3-setuptools-whl (trixie 78.1.1-0.1)
+# Fix state: Debian trixie has published NO fixed version as of 2026-08-15.
+# Exposure:  python3-setuptools-whl is a transitive dep of pip, not used at runtime.
+#            The application does not install packages via setuptools at runtime.
+#            Not reachable in our deployment.
+# REVISIT:   drop when Debian trixie ships a fixed python3-setuptools-whl. Re-scan.
+CVE-2026-23949
+
+# ── python3.13 (Trixie 3.13.5-2+deb13u4) — NO UPSTREAM FIX AVAILABLE ────────
+# CVE-2026-4360   python3.13: MEDIUM — no Trixie fix as of 2026-08-15 (t/2681)
+#
+# Packages:  python3.13, python3.13-venv, python3.13-minimal,
+#            libpython3.13-stdlib, libpython3.13-minimal (trixie 3.13.5-2+deb13u4)
+# Fix state: Debian trixie has published NO fixed version as of 2026-08-15.
+# Exposure:  python3 is installed for pty-broker.py (the PTY subprocess broker for
+#            the terminal UI). The venv attack surface is not reachable in our
+#            deployment — no untrusted venv creation or pip package installs occur
+#            at runtime.
+# REVISIT:   drop when Debian trixie ships a fixed python3.13 (deb13u5+). Re-scan.
+CVE-2026-4360
 
 

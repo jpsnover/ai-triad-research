@@ -231,7 +231,10 @@ export function buildGitCommitCommand(dataRoot: string, config: Record<string, u
       `See data-repo CONTRIBUTING.md section 5.'; git add -A`;
   }
 
-  return `Set-Location '${dataRoot}'; ${stage}; git commit -m '${message}'`;
+  // Activate the data-repo rationale-drop hook (t/2958 Arm 2 Option B).
+  // Idempotent; no-op if already set. Hook is warn-first until TL GV promotes it.
+  const activateHook = `git config core.hooksPath .githooks`;
+  return `Set-Location '${dataRoot}'; ${activateHook}; ${stage}; git commit -m '${message}'`;
 }
 
 function buildPsCommand(stepId: string, config: Record<string, unknown>): string {
@@ -284,7 +287,7 @@ function buildPsCommand(stepId: string, config: Record<string, unknown>): string
     case 'backfill':
       return `${moduleImport}; Repair-ResolvedBackfill -Verbose`;
     case 'embeddings':
-      return `${moduleImport}; Update-TaxEmbeddings -Verbose`;
+      return `${moduleImport}; Update-TaxEmbeddings -AutoCommit:$false -Verbose`;
     case 'edges':
       return `${moduleImport}; Invoke-EdgeDiscovery -Verbose`;
     case 'attributes':
@@ -306,12 +309,56 @@ function buildPsCommand(stepId: string, config: Record<string, unknown>): string
 
 let activeProcess: ChildProcess | null = null;
 
+// Tracks whether embeddings.json was written this pipeline run without a
+// following git-commit. Used to auto-restore on abort/quit (t/2753 Fix 2).
+let embeddingsWritten = false;
+let gitCommitAttempted = false;
+let gitCommitDone = false;
+
+export function resetPipelineState(): void {
+  embeddingsWritten = false;
+  gitCommitAttempted = false;
+  gitCommitDone = false;
+}
+
+/**
+ * Restores embeddings.json to HEAD in the data repo if the embeddings step
+ * completed but git-commit was never attempted. Call on pipeline cancel/app quit.
+ * Does nothing if git-commit was attempted (user should retry commit, not lose data).
+ * Never throws.
+ */
+export function restoreEmbeddingsIfAbandoned(): boolean {
+  if (!embeddingsWritten || gitCommitAttempted) return false;
+  try {
+    const { execSync } = require('child_process') as typeof import('child_process');
+    const dataRoot = getDataRoot();
+    execSync('git restore taxonomy/Origin/embeddings.json', { cwd: dataRoot });
+    console.warn('[pipeline] restoreEmbeddingsIfAbandoned: restored embeddings.json to HEAD (embeddings ran, git-commit never attempted)');
+    embeddingsWritten = false;
+    return true;
+  } catch (err) {
+    console.warn('[pipeline] restoreEmbeddingsIfAbandoned: git restore failed (may already be clean):', err);
+    return false;
+  }
+}
+
 export function runStep(
   stepId: string,
   config: Record<string, unknown>,
   onData: (text: string) => void,
   onError: (text: string) => void,
 ): Promise<{ exitCode: number }> {
+  // Reset state at the start of a fresh embeddings run so prior abandoned state
+  // doesn't carry over when the user reruns embeddings without committing.
+  if (stepId === 'embeddings') {
+    embeddingsWritten = false;
+    gitCommitAttempted = false;
+    gitCommitDone = false;
+  }
+  if (stepId === 'git-commit') {
+    gitCommitAttempted = true;
+  }
+
   return new Promise((resolve, reject) => {
     try {
       const psCommand = buildPsCommand(stepId, config);
@@ -344,7 +391,10 @@ export function runStep(
 
       child.on('close', (code) => {
         activeProcess = null;
-        resolve({ exitCode: code ?? 1 });
+        const exitCode = code ?? 1;
+        if (stepId === 'embeddings' && exitCode === 0) embeddingsWritten = true;
+        if (stepId === 'git-commit' && exitCode === 0) gitCommitDone = true;
+        resolve({ exitCode });
       });
 
       child.on('error', (err) => {

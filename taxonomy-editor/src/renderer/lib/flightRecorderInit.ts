@@ -226,7 +226,7 @@ async function persistDump(
  */
 function createPopupShim(origin: string): FlightRecorder {
   // Create a minimal recorder (capacity 1 — we don't buffer locally)
-  const shim = new FlightRecorder({ capacity: 1, dumpOnError: false });
+  const shim = new FlightRecorder({ capacity: 1, dumpOnError: false, shim: true }); // t/2691: mark dumps as popup-shim in the FR header
 
   const electronAPI = (window as unknown as { electronAPI: { forwardFlightEvent: (event: RecordInput) => void } }).electronAPI;
 
@@ -280,7 +280,7 @@ function createPopupShim(origin: string): FlightRecorder {
  * Mirrors createPopupShim but uses BroadcastChannel instead of Electron IPC.
  */
 function createWebPopupShim(origin: string): FlightRecorder {
-  const shim = new FlightRecorder({ capacity: 1, dumpOnError: false });
+  const shim = new FlightRecorder({ capacity: 1, dumpOnError: false, shim: true }); // t/2691: mark dumps as popup-shim in the FR header
   const channel = new BroadcastChannel('aitriad-flight-recorder');
 
   shim.record = (input: RecordInput) => {
@@ -331,6 +331,14 @@ function createWebPopupShim(origin: string): FlightRecorder {
 // ── Initialization ───────────────────────────────────────────────────────
 
 let initialized = false;
+
+// In a popup window, the real (capacity-5000) recorder lives in the MAIN window;
+// this window holds only a capacity-1 forwarding shim. Set in the popup init path
+// below to the popup's dump handler (IPC / BroadcastChannel → main window) so that
+// triggerManualDump() — imported directly by the "Dump Log" UI buttons — delegates
+// to it instead of persisting the empty local shim buffer (t/2690). null in the
+// main window, where triggerManualDump persists the real recorder directly.
+let _popupDumpHandler: (() => void) | null = null;
 
 // Defer store import to avoid circular dependency — resolved on first context/dump call.
 // Module-scoped so both initFlightRecorder and dumpOnReactError can access it.
@@ -469,8 +477,12 @@ export function initFlightRecorder(): FlightRecorder {
         }
       };
 
-      // Set up manual dump trigger for popup — request main window to dump
-      (globalThis as unknown as { __triggerManualDump: () => Promise<void> | void }).__triggerManualDump = () => {
+      // Set up manual dump trigger for popup — request main window to dump.
+      // Stored in module-level _popupDumpHandler AND on globalThis so both the
+      // error-boundary hook (globalThis) and the "Dump Log" UI buttons (which
+      // import triggerManualDump directly) route through this IPC/BroadcastChannel
+      // forwarder instead of persisting the empty local shim buffer (t/2690).
+      const popupDumpHandler = () => {
         shim.record({ type: 'lifecycle', component: 'flight-recorder', level: 'info', message: 'Manual dump requested from popup' });
         if (hasElectronIPC) {
           try {
@@ -488,6 +500,8 @@ export function initFlightRecorder(): FlightRecorder {
           ch.close();
         }
       };
+      _popupDumpHandler = popupDumpHandler;
+      (globalThis as unknown as { __triggerManualDump: () => Promise<void> | void }).__triggerManualDump = popupDumpHandler;
 
       return shim;
     }
@@ -924,6 +938,15 @@ export function isDumpInProgress(): boolean { return _dumpInFlight; }
  * Shows an immediate pending toast, guards against overlapping dumps.
  */
 export async function triggerManualDump(): Promise<void> {
+  // In a popup window the real recorder lives in the MAIN window; the local
+  // recorder is a capacity-1 forwarding shim. Delegate to the popup's dump handler
+  // (IPC / BroadcastChannel → main window) instead of persisting the empty shim.
+  // The "Dump Log" buttons import this function directly, bypassing the
+  // globalThis.__triggerManualDump hook, so the popup check must live here (t/2690).
+  if (_popupDumpHandler) {
+    _popupDumpHandler();
+    return;
+  }
   const recorder = getGlobalRecorder();
   if (!recorder || _dumpInFlight) return;
   _dumpInFlight = true;
@@ -948,6 +971,16 @@ function snapshotStoresForCrash(): Record<string, unknown> | undefined {
     const taxState = (stores.useTaxonomyStore as { getState: () => Record<string, unknown> }).getState();
     const debateState = (stores.useDebateStore as { getState: () => Record<string, unknown> }).getState();
     const debate = debateState.activeDebate as Record<string, unknown> | null;
+    // Session index-shape audit (t/2732): a session whose `title` is not a string
+    // is the class of bad index entry that crashed BulkDeleteDialog (t/2729 —
+    // rendered `{final, original}` as a React child). Surfacing the offending
+    // session ids here cuts diagnosis from reading `listDebateSessionsIndexed`
+    // end-to-end to a glance at the dump. Empty when every title is well-typed.
+    const sessions = debateState.sessions as Array<{ id?: string; title?: unknown }> | undefined;
+    const badSessionTitleIds = (sessions ?? [])
+      .filter(s => typeof s?.title !== 'string')
+      .map(s => s?.id)
+      .filter((id): id is string => typeof id === 'string');
     return {
       active_tab: taxState.activeTab ?? null,
       toolbar_panel: taxState.toolbarPanel ?? null,
@@ -957,6 +990,13 @@ function snapshotStoresForCrash(): Record<string, unknown> | undefined {
       debate_phase: debate?.phase ?? null,
       debate_generating: !!debateState.debateGenerating,
       dirty_files: [...((taxState.dirty as Set<string>) ?? [])],
+      // t/2732: surface sessions with non-string titles so index-shape bugs name the
+      // offending session IDs immediately rather than after reading the full call path.
+      debate_sessions_non_string_title_ids: (() => {
+        const sessions = debateState.sessions as Array<{ id: string; title: unknown }> | undefined;
+        const bad = (sessions ?? []).filter(s => typeof s.title !== 'string').map(s => s.id);
+        return bad.length > 0 ? bad : undefined;
+      })(),
     };
   } catch {
     /* flight recorder init — silent by design (store may be corrupted) */
@@ -983,6 +1023,20 @@ function extractExternalizedModule(error: Error): { module: string; accessed?: s
 }
 
 /**
+ * A React "invalid child" crash — rendering a non-primitive where a child is
+ * expected — throws with a message like `Objects are not valid as a React child
+ * (found: object with keys {final, original})`. Surface those keys as a first-class
+ * dump field so the NEXT such crash names the offending shape instead of requiring a
+ * human to read the producing code path (t/2732; the BulkDeleteDialog index-shape
+ * crash, t/2729). Mirrors the extractExternalizedModule pattern above. Returns
+ * undefined for ordinary errors.
+ */
+function extractInvalidReactChildKeys(error: Error): string[] | undefined {
+  const m = /found: object with keys \{([^}]+)\}/.exec(String(error?.message ?? ''));
+  return m ? m[1].split(',').map(k => k.trim()).filter(Boolean) : undefined;
+}
+
+/**
  * Called from ErrorBoundary.componentDidCatch to dump on React render errors.
  */
 export function dumpOnReactError(
@@ -997,11 +1051,12 @@ export function dumpOnReactError(
 
   const stateSnapshot = snapshotStoresForCrash();
   const externalizedModule = extractExternalizedModule(error);
-
+  const invalidReactChildKeys = extractInvalidReactChildKeys(error);
   const baseData: Record<string, unknown> = {
     ...(componentStack ? { component_stack: componentStack.slice(0, 1000) } : {}),
     ...(stateSnapshot ? { state_snapshot: stateSnapshot } : {}),
     ...(externalizedModule ? { externalized_module: externalizedModule } : {}),
+    ...(invalidReactChildKeys ? { invalid_react_child_keys: invalidReactChildKeys } : {}),
   };
 
   // Record the crash SYNCHRONOUSLY, before any async work (t/2297). This guarantees

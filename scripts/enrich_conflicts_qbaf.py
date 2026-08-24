@@ -27,6 +27,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
+from data_tree_guard import assert_clean_data_tree  # t/2902
+
 import numpy as np
 
 _SCRIPT_DIR = Path(__file__).resolve().parent
@@ -520,6 +522,7 @@ def main():
         from datetime import timezone
         wrapper["last_modified"] = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
         wrapper["conflict_count"] = len(wrapper.get("conflicts", []))
+        assert_clean_data_tree(conflicts_file)  # t/2902
         conflicts_file.write_text(
             json.dumps(wrapper, indent=2, ensure_ascii=False) + "\n",
             encoding="utf-8", newline="\n",

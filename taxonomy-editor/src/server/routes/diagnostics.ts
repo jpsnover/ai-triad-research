@@ -28,6 +28,7 @@ import { getRequestId } from '../logger.js';
 import { log } from '../logger.js';
 import * as community from '../community/community.js';
 import * as fileIO from '../storage/fileIO.js';
+import { getWarmupStatus, computeEmbedding } from '../../../../lib/embeddings/onnxEmbedding.js';
 
 export function registerDiagnosticsRoutes(r: Router, ctx: ServerCtx): void {
   const { get, post, put, del } = r;
@@ -273,6 +274,68 @@ document.addEventListener('DOMContentLoaded', function() {
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
       res.end(outputHtml);
     } catch (err) { getGlobalRecorder()?.record({ type: 'system.error', component: 'server', level: 'error', message: 'Failed to render flight-recorder viewer', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } }); error(res, String(err), 500, err); }
+  });
+
+  // ── Oped-files runtime asset health (t/2689 AC3) ──
+  // No-auth endpoint: asserts all disk-read runtime data assets are present in the
+  // container image — soul-docs (three named .soul.json files) and lib/oped/prompts
+  // (directory + all files). Returns 200 { ok, assets } or 500 { ok, missing, present }.
+  get('/api/health/oped-files', (_req, res) => {
+    try {
+      const root = getProjectRoot();
+      const soulDocsDir = path.join(root, 'lib', 'debate', 'soul-docs');
+      const promptsDir  = path.join(root, 'lib', 'oped', 'prompts');
+
+      const missing: string[] = [];
+      const present: string[] = [];
+
+      for (const pov of ['accelerationist', 'safetyist', 'skeptic']) {
+        const rel = `lib/debate/soul-docs/${pov}.soul.json`;
+        if (fs.existsSync(path.join(soulDocsDir, `${pov}.soul.json`))) { present.push(rel); }
+        else { missing.push(rel); }
+      }
+
+      if (!fs.existsSync(promptsDir)) {
+        missing.push('lib/oped/prompts/ (directory missing)');
+      } else {
+        const files = fs.readdirSync(promptsDir);
+        if (files.length === 0) {
+          missing.push('lib/oped/prompts/ (empty — no prompt files)');
+        } else {
+          for (const f of files) { present.push(`lib/oped/prompts/${f}`); }
+        }
+      }
+
+      if (missing.length === 0) {
+        json(res, { ok: true, assets: present });
+      } else {
+        json(res, { ok: false, missing, present }, 500);
+      }
+    } catch (err) { getGlobalRecorder()?.record({ type: 'system.error', component: 'server', level: 'error', message: 'Failed to check oped runtime assets', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } }); error(res, String(err), 500, err); }
+  });
+
+  // ── Embedding health (t/2789 Part 2) ──
+  // No-auth endpoint: fast-fails on cached warmup status, then runs a 1-vector
+  // self-test (compute one embedding, assert 384-dim non-empty). Does NOT gate
+  // /healthz — embedding failure is degraded-but-non-fatal.
+  get('/api/health/embeddings', async (_req, res) => {
+    const status = getWarmupStatus();
+    if (!status.ready) {
+      json(res, { ok: false, error: status.error ?? 'not ready' }, 503);
+      return;
+    }
+    try {
+      const vector = await computeEmbedding('health check');
+      const dims = vector.length;
+      if (dims !== 384) {
+        json(res, { ok: false, error: `unexpected embedding dims: ${dims}` }, 503);
+        return;
+      }
+      json(res, { ok: true, dims });
+    } catch (err) {
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'server', level: 'error', message: 'Embedding health self-test failed', error: { name: (err as Error)?.name ?? 'Error', message: String(err), stack: (err as Error)?.stack } });
+      json(res, { ok: false, error: String(err) }, 503);
+    }
   });
 
   // ── Chat sessions ──

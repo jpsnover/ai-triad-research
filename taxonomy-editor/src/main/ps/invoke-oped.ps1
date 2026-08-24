@@ -44,9 +44,6 @@ if ($null -ne $p.PSObject.Properties['SourcePrep'] -and $null -ne $p.SourcePrep)
 if ($null -ne $p.PSObject.Properties['WordCount'] -and $null -ne $p.WordCount) {
     $splat['WordCount'] = [int]$p.WordCount
 }
-if ($null -ne $p.PSObject.Properties['IncludePitch'] -and $null -ne $p.IncludePitch) {
-    $splat['IncludePitch'] = [bool]$p.IncludePitch
-}
 
 # Run New-OpEd, intercepting the verbose stream (4>&1) to emit stage events
 $lastResult = $null

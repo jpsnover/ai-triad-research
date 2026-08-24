@@ -17,7 +17,8 @@ import type { DebateSession, ArgumentNetworkNode, TrackedCrux } from '../types.j
 import type { CalibrationDataPoint } from './schema.js';
 import type { NeutralEvaluation } from '../neutralEvaluator.js';
 import { meanSentenceLength, lexicalDiversity, jargonDensity } from '../clarityMetrics.js';
-import { computeAffectIntensity, computeAffectProfile, computeAffectAppropriateness } from '../affectSignals.js';
+import { computeAffectIntensity, computeAffectProfile, computeAffectAppropriateness, AFFECT_CATEGORIES } from '../affectSignals.js';
+import type { AffectProfile } from '../affectSignals.js';
 import { computeCampInsularityRate } from '../schemeStagnation.js';
 
 type ArgNetwork = DebateSession['argument_network'];
@@ -401,6 +402,44 @@ export function computeAffectSignals(
     ? affectAppropScores.reduce((a, b) => a + b, 0) / affectAppropScores.length
     : null;
   return { affectIntensityMean, affectIntensityVariance, affectAppropMean };
+}
+
+/** Per-phase share-normalized affect profile aggregate (t/2676). Re-fit input for AFFECT_PHASE_BASELINES. */
+export function computeAffectProfileByPhase(
+  session: DebateSession,
+  rounds: number,
+): Partial<Record<'confrontation' | 'argumentation' | 'concluding', { profile_mean: AffectProfile; n_turns: number }>> | undefined {
+  type PhaseKey = 'confrontation' | 'argumentation' | 'concluding';
+  const PHASE_KEYS: PhaseKey[] = ['confrontation', 'argumentation', 'concluding'];
+  const zero = (): AffectProfile => ({ urgency: 0, fear: 0, hope: 0, outrage: 0, empathy: 0 });
+  const sums: Record<PhaseKey, AffectProfile> = { confrontation: zero(), argumentation: zero(), concluding: zero() };
+  const counts: Record<PhaseKey, number> = { confrontation: 0, argumentation: 0, concluding: 0 };
+  for (const entry of session.transcript ?? []) {
+    if (entry.type !== 'opening' && entry.type !== 'statement') continue;
+    if (entry.speaker === 'system' || entry.speaker === 'moderator') continue;
+    if (!entry.content) continue;
+    const profile = computeAffectProfile(entry.content);
+    if (!profile) continue;
+    const total = AFFECT_CATEGORIES.reduce((s, c) => s + profile[c], 0);
+    if (total <= 0) continue; // mirror computeAffectAppropriateness: skip zero-affect turns
+    const entryRound = (entry.metadata as Record<string, unknown>)?.round as number ?? 1;
+    const phase = getDebatePhase(entryRound, rounds);
+    if (phase === 'terminated' || !(phase in sums)) continue;
+    const ph = phase as PhaseKey;
+    for (const cat of AFFECT_CATEGORIES) sums[ph][cat] += profile[cat] / total;
+    counts[ph]++;
+  }
+  const result: Partial<Record<PhaseKey, { profile_mean: AffectProfile; n_turns: number }>> = {};
+  for (const ph of PHASE_KEYS) {
+    const n = counts[ph];
+    if (n === 0) continue;
+    const profile_mean = {} as AffectProfile;
+    for (const cat of AFFECT_CATEGORIES) {
+      profile_mean[cat] = Math.round((sums[ph][cat] / n) * 10000) / 10000;
+    }
+    result[ph] = { profile_mean, n_turns: n };
+  }
+  return Object.keys(result).length > 0 ? result : undefined;
 }
 
 /** Camp insularity (BEA: Reflective User Engagement, t/1117) — mean and max same-camp citation rate. */

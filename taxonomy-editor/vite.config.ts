@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-import { defineConfig } from 'vite';
+import { defineConfig, transformWithEsbuild } from 'vite';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 import { execSync } from 'child_process';
@@ -92,6 +92,21 @@ function getGitSha(): string {
 
 export default defineConfig({
   plugins: [
+    // t/2698: vite classifies `.cts` as CommonJS and routes it through a script
+    // transform that rejects TypeScript syntax, so a typed `.cts` (e.g. a preload
+    // helper) throws a parse error when imported by vitest. Run esbuild's TS
+    // transform on `.cts` first so such modules are importable + unit-testable.
+    // Renderer bundle imports no `.cts`, so this only affects test/dev resolution.
+    {
+      name: 'transform-cts-as-ts',
+      enforce: 'pre' as const,
+      async transform(code: string, id: string) {
+        if (id.split('?')[0].endsWith('.cts')) {
+          return transformWithEsbuild(code, id, { loader: 'ts', format: 'esm' });
+        }
+        return null;
+      },
+    },
     rendererNodeBuiltinGate(),
     react(),
     ...(isWeb ? [VitePWA({
@@ -123,8 +138,8 @@ export default defineConfig({
         ],
       },
       manifest: {
-        name: 'Taxonomy Editor',
-        short_name: 'Taxonomy',
+        name: 'AI Rosetta Stone',
+        short_name: 'Rosetta Stone',
         description: 'Multi-perspective research platform for AI policy taxonomy',
         start_url: '/',
         display: 'standalone',
@@ -210,6 +225,7 @@ export default defineConfig({
       '**/*.test.{ts,tsx}',
       '../main/**/*.test.ts',
       '../server/__tests__/**/*.test.ts',
+      '../../../taxonomy-editor/scripts/__tests__/**/*.test.ts', // t/2973 — generate-notices guard unit tests
       '../../../lib/ai-client/**/*.test.ts',
       '../../../lib/chat/**/*.test.ts',
       '../../../lib/electron-shared/**/*.test.ts',
@@ -222,8 +238,12 @@ export default defineConfig({
       '../../../lib/search/**/*.test.ts',
       '../../../lib/entities/**/*.test.ts',
       '../../../lib/sanitize/**/*.test.ts',
+      // t/720 consolidation: the shared SSRF-guarded fetcher backs POST /api/fetch-url,
+      // so its suite must gate CI. It was absent from this list since t/2482 landed.
+      '../../../lib/url-fetch/**/*.test.ts',
       '../../../lib/ai-config/**/*.test.ts',
       '../../../lib/embeddings/**/*.test.ts', // t/2060 — mock-based (fake onnxruntime-node), no native addon/model needed
+      '../../../lib/brief/**/*.test.ts',     // t/2800 — brief export pipeline (extract + schema utils)
       '../../../lib/*.test.ts',
       // translation tests excluded — depend on ai-triad-data dictionary not available in CI
     ],

@@ -332,3 +332,61 @@ describe('computeClaimTaxonomyAttribution', () => {
     expect(result.decisions[0].attribution_confidence).toBeCloseTo(1.0);
   });
 });
+
+// ── V3 directional gate (t/2746) ─────────────────────────
+
+describe('computeClaimTaxonomyAttribution — V3 direction_mismatch gate', () => {
+  it('demotes to direction_mismatch when exclusion_vector is as close as main vector', () => {
+    // claim embedding = same direction as acc-B-001's exclusion_vector
+    const claimEmb = makeEmbedding(5);
+    const nodes = [makeNode('AN-1', 'accelerationist', claimEmb)];
+
+    // acc-B-001 has main vector also pointing at dim 5, so similarity = 1.0.
+    // Its exclusion_vector also points at dim 5 → excSim / mainSim = 1.0 >= EXCLUSION_RATIO_THRESHOLD (0.95).
+    const embeddings: Record<string, { pov: string; vector: number[]; exclusion_vector?: number[] }> = {
+      'acc-B-001': {
+        pov: 'accelerationist',
+        vector: makeEmbedding(5),
+        exclusion_vector: makeEmbedding(5), // identical to claim — triggers gate
+      },
+    };
+
+    const result = computeClaimTaxonomyAttribution(nodes, 'accelerationist', embeddings, BELIEF_IDS);
+    expect(result.attributed).toBe(0);
+    expect(result.unattributed).toBe(1);
+    expect(result.decisions[0].unattributed_reason).toBe('direction_mismatch');
+    expect(nodes[0].claim_taxonomy_attribution!.unattributed_reason).toBe('direction_mismatch');
+  });
+
+  it('attributes normally when exclusion_vector is far from claim', () => {
+    const claimEmb = makeEmbedding(5);
+    const nodes = [makeNode('AN-1', 'accelerationist', claimEmb)];
+
+    // exclusion_vector is orthogonal (dim 6) — no direction conflict
+    const embeddings: Record<string, { pov: string; vector: number[]; exclusion_vector?: number[] }> = {
+      'acc-B-001': {
+        pov: 'accelerationist',
+        vector: makeEmbedding(5),
+        exclusion_vector: makeEmbedding(6), // orthogonal → excSim ≈ 0
+      },
+    };
+
+    const result = computeClaimTaxonomyAttribution(nodes, 'accelerationist', embeddings, BELIEF_IDS);
+    expect(result.attributed).toBe(1);
+    expect(result.decisions[0].primary_ref).toBe('acc-B-001');
+    expect(result.decisions[0].unattributed_reason).toBeUndefined();
+  });
+
+  it('attributes normally when no exclusion_vector is present', () => {
+    const claimEmb = makeEmbedding(5);
+    const nodes = [makeNode('AN-1', 'accelerationist', claimEmb)];
+
+    const embeddings: Record<string, { pov: string; vector: number[] }> = {
+      'acc-B-001': { pov: 'accelerationist', vector: makeEmbedding(5) },
+    };
+
+    const result = computeClaimTaxonomyAttribution(nodes, 'accelerationist', embeddings, BELIEF_IDS);
+    expect(result.attributed).toBe(1);
+    expect(result.decisions[0].primary_ref).toBe('acc-B-001');
+  });
+});

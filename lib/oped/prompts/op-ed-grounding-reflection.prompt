@@ -6,6 +6,17 @@ THE FINISHED OP-ED:
 THE ELEMENTS THAT WERE PROVIDED AS SOURCE MATERIAL (each with its [id] and a short label):
 {{GROUNDING_LIST}}
 
+THE SOURCE DOCUMENT'S KEY CLAIMS (numbered). Empty if this op-ed had no source document:
+{{SOURCE_CLAIMS}}
+
 For EACH element id above, judge against the actual essay text and write one sentence saying HOW and WHERE it is reflected — name the concrete structural place it most influenced (the lede, the thesis, the first / second / third evidence pillar, the "To Be Sure" counterargument, the solution/call-to-action, or the closing) and what it contributed. If an element is not actually reflected in the essay, set its reflection to exactly "not directly used". Be honest: only claim a placement that is really present in the text.
 
-Return ONLY a JSON object: { "grounding_usage": [ { "id": "<the [id]>", "reflection": "<one sentence>" }, ... ] } with exactly one entry per element id shown above. No commentary outside the JSON.
+Also, when SOURCE DOCUMENT KEY CLAIMS are provided above, populate "document_claim_refs" for each element. Work claim by claim through the numbered list and link claim N to this element only if BOTH hold:
+(a) Shared locus — the passage where this element influenced the essay (the same structural place named in its reflection, or an immediately adjacent passage) is also where the essay takes up claim N. If the element shaped the lede but claim N is engaged only in a distant, unrelated part of the essay (e.g. the third pillar), they do not share a locus — do not link.
+(b) Acts on the proposition — at that shared locus the essay does one of these to what claim N actually asserts: asserts it, builds an argument on it, cites evidence for it, qualifies or narrows it, or pushes back against it. Merely touching the same topic, entity, or keyword as claim N is NOT engagement — the passage must do something to the claim's proposition.
+List the NUMBERS of every claim that passes both parts (e.g. [2, 5]). Judge each claim independently, on the text alone: a number earns its place only by passing the test, and an empty array is correct when none do. Do not link out of topical adjacency, and do not withhold a link the text genuinely supports — a wrong link is worse than an omitted one. (or no source claims were provided → empty array.)
+Example — source claim 4 is "NIST advises halting development when catastrophic risks are present." An element whose reflection places it in the call-to-action, where the essay argues Congress should adopt NIST's halt criterion, engages claim 4 (builds on it) → include 4. An element about racing dynamics that only mentions "safety standards" in passing, without taking up the halt criterion, does not → omit.
+
+Additionally, when SOURCE DOCUMENT KEY CLAIMS are provided (not "(none)"), extract a top-level "claims" array: one entry per claim from the numbered list, with the claim text verbatim and the paragraph number (1-indexed) of the op-ed body where that claim is most directly engaged or addressed. If a claim is not addressed anywhere in the op-ed, use paragraph 0. If no source claims were provided, return "claims" as an empty array.
+
+Return ONLY a JSON object: { "grounding_usage": [ { "id": "<the [id]>", "reflection": "<one sentence>", "document_claim_refs": [<claim number>, ...] }, ... ], "claims": [ { "text": "<verbatim claim text>", "paragraph": <integer> }, ... ] } with exactly one entry per element id shown above in grounding_usage. No commentary outside the JSON.

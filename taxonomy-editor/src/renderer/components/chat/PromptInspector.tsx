@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import './PromptInspector.css';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { PROMPT_CATALOG, type PromptCatalogEntry, type PromptGroup, type DataSourceId } from '../../data/promptCatalog';
 import { useDebateStore } from '../../hooks/useDebateStore';
@@ -21,11 +22,12 @@ const GROUP_LABELS: Record<PromptGroup, string> = {
   'taxonomy': 'Taxonomy',
   'research': 'Research',
   'powershell': 'PowerShell Backend',
+  'oped': 'Op-Ed Generation',
 };
 
 const GROUP_ORDER: PromptGroup[] = [
   'debate-setup', 'debate-turns', 'debate-analysis', 'moderator',
-  'chat', 'taxonomy', 'research', 'powershell',
+  'chat', 'taxonomy', 'research', 'powershell', 'oped',
 ];
 
 // Data source labels/descriptions moved to DataSourceCard.tsx
@@ -245,6 +247,27 @@ function PromptSelectorPane({
   );
 }
 
+function DiskLoadingIndicator() {
+  const [elapsed, setElapsed] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setElapsed(s => s + 1), 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  if (elapsed >= 30) {
+    return (
+      <span className="pi-load-timeout">
+        Load timed out after 30s — check that the project path is accessible
+      </span>
+    );
+  }
+  return (
+    <span className="pi-load-live">
+      {elapsed > 0 ? `Loading from disk… ${elapsed}s` : 'Loading from disk…'}
+    </span>
+  );
+}
+
 function TemplateSection({
   selected, showTemplate, setShowTemplate, psPromptContent, psPromptLoading,
 }: {
@@ -269,7 +292,7 @@ function TemplateSection({
                 ~{estimateTokens(selected.promptFiles.map(f => psPromptContent[f] ?? '').join('\n')).toLocaleString()} tokens
               </span>
             )}
-            {psPromptLoading && <span className="pi-template-tokens">loading...</span>}
+            {psPromptLoading && <span className="pi-load-live pi-template-tokens">loading…</span>}
           </button>
           {showTemplate && selected.promptFiles.map(fileName => (
             <div key={fileName} className="pi-prompt-file">
@@ -282,7 +305,7 @@ function TemplateSection({
               <pre className="pi-template">
                 {psPromptContent[fileName]
                   ? highlightPsPlaceholders(psPromptContent[fileName])
-                  : 'Loading...'}
+                  : <DiskLoadingIndicator />}
               </pre>
             </div>
           ))}
@@ -474,9 +497,10 @@ export function PromptInspector() {
     if (filesToLoad.length === 0) return;
 
     setPsPromptLoading(true);
+    const promptDir = selected.promptDir ?? 'ps';
     void Promise.all(
       filesToLoad.map(async (name) => {
-        const result = await api.readPsPrompt(name);
+        const result = await api.readPsPrompt(name, promptDir);
         return [name, result.text ?? `(Error: ${result.error})`] as [string, string];
       })
     ).then(results => {

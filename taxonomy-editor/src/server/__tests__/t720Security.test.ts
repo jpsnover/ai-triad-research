@@ -133,4 +133,25 @@ describe('L5: SSRF / DNS-rebinding guard', () => {
     expect(creds.error).toMatch(/credentials/);
     expect(lookup).not.toHaveBeenCalled();
   });
+
+  it('rejects a bracketed IPv6 literal before any DNS lookup', async () => {
+    const lookup = vi.spyOn(dns.promises, 'lookup');
+    const res = await fileIO.fetchUrlContent('https://[::1]/page');
+    expect(res.content).toBe('');
+    expect(res.error).toMatch(/private\/internal/);
+    expect(lookup).not.toHaveBeenCalled();
+  });
+
+  it('does not treat a domain name as an IPv6 literal (fd*/ff* hostnames)', async () => {
+    // Regression guard: isPrivateIp classifies IPv6 by string prefix, so an
+    // ungated literal check would reject every host starting fc/fd (ULA) or ff
+    // (multicast) — fdsa.com, ffmpeg.org. Reaching DNS at all is the assertion;
+    // the request is then blocked on the *resolved* address, as it should be.
+    const lookup = vi.spyOn(dns.promises, 'lookup').mockResolvedValue(
+      [{ address: '127.0.0.1', family: 4 }] as never,
+    );
+    const res = await fileIO.fetchUrlContent('https://fdsa.com/page');
+    expect(lookup).toHaveBeenCalled();
+    expect(res.error).toMatch(/private\/internal/);
+  });
 });

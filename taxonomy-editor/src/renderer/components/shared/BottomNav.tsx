@@ -3,7 +3,6 @@
 
 import { Ellipsis } from 'lucide-react';
 import { useTaxonomyStore } from '../../hooks/useTaxonomyStore';
-import { api } from '@bridge';
 import { useBreakpoint } from '../../hooks/useBreakpoint';
 import { NAV_ITEMS } from '../../data/navConfig';
 
@@ -75,8 +74,8 @@ export function BottomNav({ onOpenMore }: BottomNavProps) {
               <span className="bottom-nav-label">Debate</span>
             </button>
             <button
-              className="bottom-nav-item"
-              onClick={() => void api.openChatWindow()}
+              className={`bottom-nav-item${activeTab === 'chat' ? ' active' : ''}`}
+              onClick={() => switchTab('chat')}
             >
               {navIcon('chat')}
               <span className="bottom-nav-label">Chat</span>

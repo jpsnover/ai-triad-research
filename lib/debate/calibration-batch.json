@@ -2,7 +2,7 @@
   {
     "topic": "Should frontier AI labs be required to share safety research?",
     "name": "cal-batch-01-safety-sharing",
-    "activePovers": ["prometheus", "sentinel", "cassandra"],
+    "activePovers": ["accelerationist", "safetyist", "skeptic"],
     "model": "gemini-3.1-flash-lite-preview",
     "useAdaptiveStaging": true,
     "pacing": "tight",
@@ -11,7 +11,7 @@
   {
     "topic": "Is compute governance an effective lever for AI safety?",
     "name": "cal-batch-02-compute-governance",
-    "activePovers": ["prometheus", "sentinel", "cassandra"],
+    "activePovers": ["accelerationist", "safetyist", "skeptic"],
     "model": "gemini-3.1-flash-lite-preview",
     "useAdaptiveStaging": true,
     "pacing": "tight",
@@ -20,7 +20,7 @@
   {
     "topic": "Will open-source AI accelerate or hinder catastrophic risk?",
     "name": "cal-batch-03-open-source-risk",
-    "activePovers": ["prometheus", "sentinel", "cassandra"],
+    "activePovers": ["accelerationist", "safetyist", "skeptic"],
     "model": "gemini-3.1-flash-lite-preview",
     "useAdaptiveStaging": true,
     "pacing": "tight",
@@ -29,7 +29,7 @@
   {
     "topic": "Should AI systems be required to have kill switches that humans can activate at any time?",
     "name": "cal-batch-04-kill-switches",
-    "activePovers": ["prometheus", "sentinel", "cassandra"],
+    "activePovers": ["accelerationist", "safetyist", "skeptic"],
     "model": "gemini-3.1-flash-lite-preview",
     "useAdaptiveStaging": true,
     "pacing": "tight",
@@ -38,7 +38,7 @@
   {
     "topic": "Is differential technology development a viable strategy for AI safety?",
     "name": "cal-batch-05-differential-dev",
-    "activePovers": ["prometheus", "sentinel", "cassandra"],
+    "activePovers": ["accelerationist", "safetyist", "skeptic"],
     "model": "gemini-3.1-flash-lite-preview",
     "useAdaptiveStaging": true,
     "pacing": "tight",
@@ -47,7 +47,7 @@
   {
     "topic": "Should liability for AI-caused harms follow strict liability or negligence standards?",
     "name": "cal-batch-06-liability-regime",
-    "activePovers": ["prometheus", "sentinel", "cassandra"],
+    "activePovers": ["accelerationist", "safetyist", "skeptic"],
     "model": "gemini-3.1-flash-lite-preview",
     "useAdaptiveStaging": true,
     "pacing": "tight",
@@ -56,7 +56,7 @@
   {
     "topic": "Can scalable oversight solve the alignment problem before AGI arrives?",
     "name": "cal-batch-07-scalable-oversight",
-    "activePovers": ["prometheus", "sentinel", "cassandra"],
+    "activePovers": ["accelerationist", "safetyist", "skeptic"],
     "model": "gemini-3.1-flash-lite-preview",
     "useAdaptiveStaging": true,
     "pacing": "tight",
@@ -65,7 +65,7 @@
   {
     "topic": "Are regulatory sandboxes an effective approach to governing frontier AI development?",
     "name": "cal-batch-08-regulatory-sandboxes",
-    "activePovers": ["prometheus", "sentinel", "cassandra"],
+    "activePovers": ["accelerationist", "safetyist", "skeptic"],
     "model": "gemini-3.1-flash-lite-preview",
     "useAdaptiveStaging": true,
     "pacing": "tight",
@@ -74,7 +74,7 @@
   {
     "topic": "Does the race to deploy agentic AI systems create unacceptable systemic risk?",
     "name": "cal-batch-09-agentic-risk",
-    "activePovers": ["prometheus", "sentinel", "cassandra"],
+    "activePovers": ["accelerationist", "safetyist", "skeptic"],
     "model": "gemini-3.1-flash-lite-preview",
     "useAdaptiveStaging": true,
     "pacing": "tight",
@@ -83,7 +83,7 @@
   {
     "topic": "Should governments mandate pre-deployment verification for AI models above a capability threshold?",
     "name": "cal-batch-10-pre-deploy-verification",
-    "activePovers": ["prometheus", "sentinel", "cassandra"],
+    "activePovers": ["accelerationist", "safetyist", "skeptic"],
     "model": "gemini-3.1-flash-lite-preview",
     "useAdaptiveStaging": true,
     "pacing": "tight",

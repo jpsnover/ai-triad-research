@@ -85,7 +85,10 @@ function embedBoundariesLocal(repoRoot: string): BoundaryEmbeddings {
     const { hardcoded, softcoded } = info.boundaries;
     const allBoundaries = [...hardcoded, ...softcoded];
     console.log(`  Embedding ${allBoundaries.length} boundary strings for ${pov} (${hardcoded.length} hardcoded, ${softcoded.length} softcoded)...`);
-    result[pov] = allBoundaries.map(s => embedTextLocal(script, s.replace(/^REJECT:\s*/i, '')));
+    result[pov] = {
+      vectors: allBoundaries.map(s => embedTextLocal(script, s)),
+      isRejection: allBoundaries.map(s => /^REJECT:\s*/i.test(s)),
+    };
   }
   return result;
 }
@@ -174,8 +177,9 @@ async function main(): Promise<void> {
     // ── Doctrinal anchoring ───────────────────────────
     let anchoringResults: AnchoringResult[] = [];
     if (boundaryEmbeddings?.[key]) {
+      const be = boundaryEmbeddings[key];
       anchoringResults = computeDoctrinalAnchoring(
-        nodes, boundaryEmbeddings[key], nodeEmbeddings,
+        nodes, be.vectors, nodeEmbeddings, undefined, undefined, be.isRejection,
       );
       const anchored = anchoringResults.filter(r => r.anchored).length;
       const floored = anchoringResults.filter(r => r.floorApplied).length;

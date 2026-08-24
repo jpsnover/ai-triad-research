@@ -55,10 +55,16 @@ export interface SearchSlice {
 
 export const createSearchSlice: StateCreator<TaxonomyStore, [], [], SearchSlice> = (set, get) => ({
   findQuery: '',
-  findMode: 'raw' as SearchMode,
+  findMode: 'wildcard' as SearchMode,
   findCaseSensitive: false,
   setFindQuery: (query) => set({ findQuery: query }),
-  setFindMode: (mode) => set({ findMode: mode }),
+  // Clear a stale semantic embeddingError when leaving semantic mode, so it doesn't stick
+  // in the wildcard/raw taxonomy view (t/2931). runSemanticSearch resets it at start, so a
+  // NEW semantic failure still surfaces — this only clears on mode-leave, never suppresses.
+  setFindMode: (mode) => {
+    getGlobalRecorder()?.record({ type: 'ui.select', component: 'search-panel', level: 'debug', message: 'search.mode', data: { mode } });
+    set({ findMode: mode, ...(mode !== 'semantic' ? { embeddingError: null } : {}) });
+  },
   setFindCaseSensitive: (cs) => set({ findCaseSensitive: cs }),
 
   embeddingCache: new Map(),
@@ -185,7 +191,7 @@ export const createSearchSlice: StateCreator<TaxonomyStore, [], [], SearchSlice>
       set({
         semanticResults: [],
         embeddingLoading: false,
-        embeddingError: `Semantic search failed while computing embeddings for "${query}" using ${aiBackend}/${geminiModel}. ${detail}`,
+        embeddingError: `Semantic search failed while computing embeddings for "${query}". ${detail}`,
       });
     }
   },

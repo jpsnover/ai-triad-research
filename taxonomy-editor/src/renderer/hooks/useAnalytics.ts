@@ -19,8 +19,10 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { bridgeGet } from '../bridge/web-bridge';
+import { mapErrorToUserMessage } from '../utils/errorMessages';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
-import type { TreeNode } from '../components/analysis/engagementTree';
+import type { TreeNode, WireEngagementTree } from '../components/analysis/engagementTree';
+import { engagementTreeToTreeNode } from '../components/analysis/engagementTree';
 
 // ── Contract types (frozen; published at t/2560#1) ───────────────────────────
 
@@ -102,7 +104,15 @@ export interface UseAnalyticsResult {
 // below simply become identity passthroughs.
 
 interface WireSessionRow { session: string; startTime: string; engagedMs: number; nodeCount: number }
-type WireEngagementResult = Omit<EngagementResult, 'sessions'> & { sessions?: WireSessionRow[] };
+// aggregate/user arrive as the server's EngagementTree ({tool,camps,tabs}), NOT the
+// frozen-contract TreeNode — the boundary adapter (below) converts them via
+// engagementTreeToTreeNode. Typing them honestly here is what makes the conversion
+// mandatory instead of an unchecked cast (the t/2709 empty-dashboard bug).
+type WireEngagementResult = Omit<EngagementResult, 'sessions' | 'aggregate' | 'user'> & {
+  aggregate: WireEngagementTree;
+  user?: WireEngagementTree;
+  sessions?: WireSessionRow[];
+};
 type WireSubjectRow =
   | { user: string; engagedMs: number; visits: number }
   | { session: string; engagedMs: number; visits: number };
@@ -171,10 +181,14 @@ export function useAnalytics({ range, scope = { kind: 'all' } }: UseAnalyticsOpt
     bridgeGet<WireEngagementResult>(engagementQuery(from, to, scope))
       .then(raw => {
         if (id !== engReq.current) return;
-        // Adapt §7.2 sessions: server row field `session` → frozen contract `id` (t/2560#6/#7).
-        const { sessions: wireSessions, ...rest } = raw;
+        // Adapt the server wire shape to the frozen contract (t/2560#6/#7, t/2709):
+        //   • aggregate/user: EngagementTree {tool,camps,tabs} → hierarchical TreeNode
+        //   • §7.2 sessions: server row field `session` → contract `id`
+        const { sessions: wireSessions, aggregate: wireAggregate, user: wireUser, ...rest } = raw;
         const d: EngagementResult = {
           ...rest,
+          aggregate: engagementTreeToTreeNode(wireAggregate),
+          ...(wireUser ? { user: engagementTreeToTreeNode(wireUser) } : {}),
           ...(wireSessions
             ? { sessions: wireSessions.map(s => ({ id: s.session, startTime: s.startTime, engagedMs: s.engagedMs, nodeCount: s.nodeCount })) }
             : {}),
@@ -184,7 +198,7 @@ export function useAnalytics({ range, scope = { kind: 'all' } }: UseAnalyticsOpt
       .catch(err => {
         if (id !== engReq.current) return;
         recordError('Engagement query failed', err);
-        setEngagement({ data: null, loading: false, error: String(err), isEmpty: false });
+        setEngagement({ data: null, loading: false, error: mapErrorToUserMessage(err), isEmpty: false });
       });
     // Deps are the primitives from/to/scopeKey — scopeKey encodes every scope field,
     // so a semantic scope change re-runs the fetch without depending on the object identity.
@@ -211,7 +225,7 @@ export function useAnalytics({ range, scope = { kind: 'all' } }: UseAnalyticsOpt
       .catch(err => {
         if (id !== subjReq.current) return;
         recordError('Subject breakdown query failed', err);
-        setSubject({ data: null, loading: false, error: String(err), isEmpty: false });
+        setSubject({ data: null, loading: false, error: mapErrorToUserMessage(err), isEmpty: false });
       });
   }, []);
 

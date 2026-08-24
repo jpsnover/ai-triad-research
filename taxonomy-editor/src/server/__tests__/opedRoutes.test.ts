@@ -23,16 +23,17 @@ const { listOpedSets, loadOpedSet, deleteOpedSet, getOpedSetsQuotaStatus, finali
 vi.mock('../storage/opedStore.js', () => ({ listOpedSets, loadOpedSet, deleteOpedSet, getOpedSetsQuotaStatus, finalizeOpedSet }));
 
 // Controllable auth + tier context for the create-route pre-start gate (t/2610).
-const { isAnonymousUser, getStorageUserId, getCurrentUser, resolveTier, resolveBackend } = vi.hoisted(() => ({
+const { isAnonymousUser, getStorageUserId, getCurrentUser, resolveTier, resolveBackend, isRegisteredModel } = vi.hoisted(() => ({
   isAnonymousUser: vi.fn(() => false),
   getStorageUserId: vi.fn(() => 'user-1'),
   getCurrentUser: vi.fn(() => ({ principalName: 'u', idp: 'aad', isAnonymous: false })),
   resolveTier: vi.fn(() => ({ level: 'platform', allowedBackends: ['gemini', 'claude', 'groq'], pinnedModel: undefined })),
   resolveBackend: vi.fn(() => 'gemini'),
+  isRegisteredModel: vi.fn(() => true),
 }));
 vi.mock('../security/userContext.js', () => ({ isAnonymousUser, getStorageUserId, getCurrentUser }));
 vi.mock('../ai/proxyTiers.js', () => ({ resolveTier, isBackendAllowed: (tier: { allowedBackends: string[] }, b: string) => tier.allowedBackends.includes(b) }));
-vi.mock('../ai/aiBackends.js', () => ({ resolveBackend }));
+vi.mock('../ai/aiBackends.js', () => ({ resolveBackend, isRegisteredModel }));
 // accessControl (callerTierIdentity, clientSafeMessage) is pure — use the real module
 // so httpKit's error() path keeps clientSafeMessage. Only the tier/backend + user context
 // need controlling, and those are mocked above.
@@ -43,9 +44,18 @@ vi.mock('../ai/opedAdapter.js', () => ({ createWebOpEdAdapter: () => ({ generate
 
 // isSafeId comes from fileIO; mock it to the SAME whitelist as fileIO's SAFE_ID_RE
 // (/^[a-zA-Z0-9_-]+$/) so this test never pulls the heavy fileIO backend chain.
+// fetchUrlContent (t/2807) is also mocked here so the URL-source path is controllable
+// without the real network/SSRF stack (that stack is covered by t720Security.test.ts).
+const { fetchUrlContent } = vi.hoisted(() => ({ fetchUrlContent: vi.fn() }));
 vi.mock('../storage/fileIO.js', () => ({
   isSafeId: (v: string) => !!v && /^[a-zA-Z0-9_-]+$/.test(v),
+  fetchUrlContent,
 }));
+
+// t/2807: controllable generator so the URL happy-path can assert the request handed to
+// the core carries sourceMaterial, without driving real AI generation.
+const { generateOpEdSet } = vi.hoisted(() => ({ generateOpEdSet: vi.fn() }));
+vi.mock('../../../../lib/oped/generate.js', () => ({ generateOpEdSet }));
 
 import { registerOpedRoutes } from '../routes/oped.js';
 
@@ -66,6 +76,9 @@ function fakeRes(): ServerResponse & { _status?: number; _body?: string } {
     writeHead: vi.fn((s: number) => { res._status = s; }),
     end: vi.fn((b?: string) => { res._body = b; }),
     setHeader: vi.fn(),
+    // SSE path (t/2807 URL happy-path drives the stream): write/on must exist.
+    write: vi.fn(),
+    on: vi.fn(),
   } as unknown as ServerResponse & { _status?: number; _body?: string };
   return res;
 }
@@ -220,6 +233,9 @@ describe('POST /api/oped-sets create pre-start gate (t/2610)', () => {
     getCurrentUser.mockReset().mockReturnValue({ principalName: 'u', idp: 'aad', isAnonymous: false });
     resolveTier.mockReset().mockReturnValue({ level: 'platform', allowedBackends: ['gemini', 'claude', 'groq'], pinnedModel: undefined });
     resolveBackend.mockReset().mockReturnValue('gemini');
+    isRegisteredModel.mockReset().mockReturnValue(true);
+    fetchUrlContent.mockReset();
+    generateOpEdSet.mockReset();
     const r = makeRouter();
     registerOpedRoutes(r.router as never, {} as never);
     handlers = r.handlers;
@@ -231,7 +247,26 @@ describe('POST /api/oped-sets create pre-start gate (t/2610)', () => {
     const res = fakeRes();
     await handlers['POST /api/oped-sets'](fakeReq('/api/oped-sets'), res, { ...validBody, params: { model: 'claude-opus-4', wordCount: 800 } });
     expect(res._status).toBe(403);
+    // t/2635: entitlement now flows through the shared enforceBackendAllowed
+    // (routes/generationContext.ts), whose 403 carries the tier context — asserting the
+    // body shape locks the op-ed route onto the ONE consolidated gate, not the old mirror.
+    expect(JSON.parse(res._body ?? '{}')).toMatchObject({ tier_level: 'platform', requested_backend: 'claude' });
     expect(getOpedSetsQuotaStatus).not.toHaveBeenCalled(); // gated before quota + any generation
+  });
+
+  it('free tier is PINNED — a premium request is not 403’d, it proceeds on the pinned backend (t/2635)', async () => {
+    // The consolidation's core behaviour via resolveGenerationContext: a free user asking for a
+    // premium model is served the tier's pinned model (an allowed backend), NOT rejected. We stop
+    // at the quota gate (429) to prove entitlement passed without kicking off real generation.
+    resolveTier.mockReturnValue({ level: 'free', allowedBackends: ['gemini'], pinnedModel: 'gemini-2.5-flash' });
+    resolveBackend.mockReturnValue('gemini'); // effectiveModel = pinned gemini-2.5-flash → gemini backend
+    getOpedSetsQuotaStatus.mockResolvedValue({ allowed: false, resource: 'opeds', current: 15, limit: 15 });
+    // Free-tier limit-keying calls getClientIp, so this req needs headers + socket (bare fakeReq doesn't).
+    const freeReq = { url: '/api/oped-sets', headers: {}, socket: { remoteAddress: '127.0.0.1' } } as unknown as IncomingMessage;
+    const res = fakeRes();
+    await handlers['POST /api/oped-sets'](freeReq, res, { ...validBody, params: { model: 'claude-opus-4', wordCount: 800 } });
+    expect(res._status).toBe(429); // reached quota ⇒ entitlement did NOT 403 the pinned free user
+    expect(getOpedSetsQuotaStatus).toHaveBeenCalled();
   });
 
   it('403 for anonymous users (no anonymous op-ed tier)', async () => {
@@ -242,10 +277,59 @@ describe('POST /api/oped-sets create pre-start gate (t/2610)', () => {
     expect(getOpedSetsQuotaStatus).not.toHaveBeenCalled();
   });
 
-  it('400 on a URL/source path — P1 is FromTopic only', async () => {
+  it('400 when the model is not a registered id — rejected before any generation (t/2687)', async () => {
+    // Prevents an unregistered model (e.g. a stale/misconfigured default) from reaching the
+    // provider and silently failing mid-generation ("voice failed — 0 words").
+    isRegisteredModel.mockReturnValue(false);
+    const res = fakeRes();
+    await handlers['POST /api/oped-sets'](fakeReq('/api/oped-sets'), res, { ...validBody, params: { model: 'gemini-flash-lite-latest', wordCount: 800 } });
+    expect(res._status).toBe(400);
+    expect(getOpedSetsQuotaStatus).not.toHaveBeenCalled(); // gated before quota + any generation
+  });
+
+  it('400 on a file/PDF/DOCX `source` upload — still desktop-only (t/2807 keeps this blocked)', async () => {
+    const res = fakeRes();
+    await handlers['POST /api/oped-sets'](fakeReq('/api/oped-sets'), res, { ...validBody, source: { name: 'doc.pdf' } });
+    expect(res._status).toBe(400);
+    expect(fetchUrlContent).not.toHaveBeenCalled();
+  });
+
+  // t/2807 Part 1: URL source is fetched via the hardened fileIO.fetchUrlContent and
+  // flows into the generator as sourceMaterial.
+  it('URL source: fetches via fetchUrlContent and hands sourceMaterial to the generator', async () => {
+    fetchUrlContent.mockResolvedValue({ content: '# Fetched article\nBody.' });
+    let capturedReq: { sourceMaterial?: string } | undefined;
+    generateOpEdSet.mockImplementation(async function* (req: { set_id: string; topic: string; params: unknown; sourceMaterial?: string }) {
+      capturedReq = req;
+      yield { type: 'complete', set: { schema_version: 1, set_id: req.set_id, topic: req.topic, params: req.params, created_at: 'c', opeds: [] } };
+    });
+    finalizeOpedSet.mockResolvedValue(undefined);
     const res = fakeRes();
     await handlers['POST /api/oped-sets'](fakeReq('/api/oped-sets'), res, { ...validBody, url: 'https://example.com/article' });
-    expect(res._status).toBe(400);
+    // Fetch happened AFTER the gate (quota was checked) and BEFORE generation.
+    expect(getOpedSetsQuotaStatus).toHaveBeenCalled();
+    expect(fetchUrlContent).toHaveBeenCalledWith('https://example.com/article');
+    expect(res._status).toBe(200); // SSE committed → generation ran
+    expect(capturedReq?.sourceMaterial).toBe('# Fetched article\nBody.');
+  });
+
+  // t/2807 MUST: a fetch failure returns a clean HTTP error and NEVER proceeds with
+  // empty sourceMaterial (the t/2722 empty-source regression). No SSE, no generation.
+  it('URL source: a fetch failure returns 502 and does NOT start generation', async () => {
+    fetchUrlContent.mockResolvedValue({ content: '', error: 'blocked host' });
+    const res = fakeRes();
+    await handlers['POST /api/oped-sets'](fakeReq('/api/oped-sets'), res, { ...validBody, url: 'https://169.254.169.254/latest/meta-data' });
+    expect(res._status).toBe(502);
+    expect(generateOpEdSet).not.toHaveBeenCalled();
+    expect(finalizeOpedSet).not.toHaveBeenCalled();
+  });
+
+  it('URL source: fetch runs only AFTER the quota gate — an over-quota caller never triggers a fetch', async () => {
+    getOpedSetsQuotaStatus.mockResolvedValue({ allowed: false, resource: 'opeds', current: 15, limit: 15 });
+    const res = fakeRes();
+    await handlers['POST /api/oped-sets'](fakeReq('/api/oped-sets'), res, { ...validBody, url: 'https://example.com/article' });
+    expect(res._status).toBe(429);
+    expect(fetchUrlContent).not.toHaveBeenCalled();
   });
 
   it('400 when topic is missing/blank', async () => {
@@ -260,10 +344,21 @@ describe('POST /api/oped-sets create pre-start gate (t/2610)', () => {
     expect(res._status).toBe(400);
   });
 
-  it('400 when params.model / wordCount are missing', async () => {
+  it('400 when params.model is missing', async () => {
     const res = fakeRes();
-    await handlers['POST /api/oped-sets'](fakeReq('/api/oped-sets'), res, { topic: 'x', povs: ['acc'] });
+    await handlers['POST /api/oped-sets'](fakeReq('/api/oped-sets'), res, { topic: 'x', povs: ['acc'], params: { wordCount: 800 } });
     expect(res._status).toBe(400);
+  });
+
+  it('wordCount is OPTIONAL — a default create (no wordCount ⇒ outlet band) passes validation, not a 400 (t/2685)', async () => {
+    // Regression for the UAT bug: the default create ("Use outlet band") sends no wordCount and
+    // was wrongly 400'd. Prove it now passes validation by advancing to the quota gate (429) —
+    // if wordCount were still required this would 400 BEFORE quota is ever checked.
+    getOpedSetsQuotaStatus.mockResolvedValue({ allowed: false, resource: 'opeds', current: 15, limit: 15 });
+    const res = fakeRes();
+    await handlers['POST /api/oped-sets'](fakeReq('/api/oped-sets'), res, { topic: 'x', povs: ['acc'], params: { model: 'gemini-2.5-flash' } });
+    expect(res._status).toBe(429);
+    expect(JSON.parse(res._body!).error).toBe('quota_exceeded');
   });
 
   it('429 quota_exceeded when the op-ed quota is full — BEFORE any generation', async () => {

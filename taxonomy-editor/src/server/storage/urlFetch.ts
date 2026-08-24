@@ -5,80 +5,63 @@
  * URL content fetching with SSRF defenses — extracted from fileIO.ts (ADR-007).
  *
  * Fetches a remote HTTPS page and converts it to Markdown (markitdown, with an
- * HTML-strip fallback). All requests are vetted against private/internal address
- * ranges both at the hostname literal and at the DNS-resolved IP (t/720 L5,
- * DNS-rebinding / SSRF defense). Re-exported from fileIO.ts for a stable surface.
+ * HTML-strip fallback). Re-exported from fileIO.ts for a stable surface.
+ *
+ * TRANSPORT IS NOT IMPLEMENTED HERE. Every request goes through
+ * `lib/url-fetch/fetchUrlForPrompt` — the single hardened fetcher (t/2482).
+ * This module contributes only the two things that are specific to the server's
+ * `POST /api/fetch-url` route:
+ *
+ *   1. A STRICTER pre-flight than the shared fetcher applies (HTTPS-only, no
+ *      credentials in the URL, no local/internal hostname suffixes). The shared
+ *      fetcher permits http: for the debate path; this route must not.
+ *   2. markitdown HTML→Markdown conversion of the fetched body, which is why it
+ *      asks for `rawBody` rather than the fetcher's tag-stripped extraction.
+ *
+ * WHY THE DELEGATION (t/720 → t/2482 consolidation): this module previously ran
+ * its own DNS pre-check and then called `fetch(url)`, which re-resolved the
+ * hostname at connect time — a DNS-rebinding TOCTOU window. `fetchUrlForPrompt`
+ * closes it by connecting to the IP it just validated (with SNI/Host preserved),
+ * and additionally brings a request timeout, a response size cap with mid-stream
+ * abort, a content-type gate, and per-hop redirect re-validation, none of which
+ * existed here. Keeping two implementations is what let the weaker one end up on
+ * the internet-facing route; do not reintroduce a local transport.
  */
 
 import fs from 'fs/promises';
 import os from 'os';
 import path from 'path';
-import dns from 'dns';
 import { execFile } from 'child_process';
 import { getGlobalRecorder } from '../../../../lib/flight-recorder/index.js';
-
-function isPrivateIP(hostname: string): boolean {
-  const parts = hostname.split('.').map(Number);
-  if (parts.length !== 4 || parts.some(n => isNaN(n))) return false;
-  // RFC 1918
-  if (parts[0] === 10) return true;
-  if (parts[0] === 172 && parts[1] >= 16 && parts[1] <= 31) return true;
-  if (parts[0] === 192 && parts[1] === 168) return true;
-  // Loopback
-  if (parts[0] === 127) return true;
-  // Link-local (includes Azure IMDS 169.254.169.254)
-  if (parts[0] === 169 && parts[1] === 254) return true;
-  // CGNAT
-  if (parts[0] === 100 && parts[1] >= 64 && parts[1] <= 127) return true;
-  return false;
-}
+import { fetchUrlForPrompt, isPrivateIp } from '../../../../lib/url-fetch/fetchUrlForPrompt.js';
+import type { UrlFetchResult } from '../../../../lib/url-fetch/types.js';
 
 /**
- * L5 (t/720): classify a resolved IP literal (IPv4 or IPv6) as private/internal.
- * Extends isPrivateIP with IPv6 loopback/ULA/link-local + IPv4-mapped handling,
- * for vetting addresses DNS returns (rebinding / SSRF defense).
+ * L5 (t/720): classify an IP literal (IPv4 or IPv6) as private/internal.
+ *
+ * Thin adapter over the shared `isPrivateIp` — it normalizes the address forms
+ * DNS and URL parsing produce (surrounding whitespace, IPv6 zone ids like
+ * `fe80::1%eth0`, bracketed literals like `[::1]`) and then applies the single
+ * shared range table. Kept exported because `fileIO` re-exports it and the t/720
+ * suite asserts against it directly.
  */
 export function isBlockedAddress(addr: string): boolean {
-  let ip = addr.trim().toLowerCase().split('%')[0]; // drop IPv6 zone id (fe80::1%eth0)
-  const mapped = ip.match(/^::ffff:(\d+\.\d+\.\d+\.\d+)$/); // IPv4-mapped IPv6
-  if (mapped) ip = mapped[1];
-
-  if (ip.includes(':')) { // IPv6
-    if (ip === '::1' || ip === '::') return true;                 // loopback / unspecified
-    if (ip.startsWith('fc') || ip.startsWith('fd')) return true;  // fc00::/7 unique-local
-    if (/^fe[89ab]/.test(ip)) return true;                        // fe80::/10 link-local
-    return false;
-  }
-  // IPv4 — reuse isPrivateIP, plus the 0.0.0.0/8 "this-network" block.
-  if (Number(ip.split('.')[0]) === 0) return true;
-  return isPrivateIP(ip);
+  const ip = addr.trim().toLowerCase()
+    .replace(/^\[|\]$/g, '')  // bracketed IPv6 literal from URL.hostname
+    .split('%')[0];            // IPv6 zone id
+  return isPrivateIp(ip);
 }
 
 /**
- * L5: resolve `hostname` and reject if ANY resolved address is private/internal.
- * Defends against DNS rebinding where a public-looking host resolves to an
- * internal IP (e.g. cloud metadata 169.254.169.254). Residual TOCTOU is
- * minimized by checking immediately before the fetch.
+ * True when `host` is an IP literal rather than a domain name. Gating the
+ * literal check on this is load-bearing: `isPrivateIp` classifies IPv6 by
+ * string prefix, so feeding it a domain name would block every host beginning
+ * `fc`/`fd` (ULA) or `ff` (multicast) — `fdsa.com`, `ffmpeg.org`. URL parsing
+ * brackets IPv6 literals and normalizes every numeric IPv4 form (decimal,
+ * octal, hex) to dotted-quad, so these two shapes are exhaustive.
  */
-async function assertHostnameResolvesPublic(hostname: string): Promise<string | null> {
-  let addresses: { address: string }[];
-  try {
-    addresses = await dns.promises.lookup(hostname, { all: true });
-  } catch (err) {
-    getGlobalRecorder()?.record({
-      type: 'system.error',
-      component: 'file-io',
-      level: 'warn',
-      message: `DNS resolution failed for fetch host "${hostname}"`,
-      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
-    });
-    return 'DNS resolution failed';
-  }
-  if (addresses.length === 0) return 'DNS resolution returned no addresses';
-  for (const a of addresses) {
-    if (isBlockedAddress(a.address)) return 'URL resolves to a private/internal address';
-  }
-  return null;
+function isIpLiteral(host: string): boolean {
+  return host.startsWith('[') || /^\d{1,3}(\.\d{1,3}){3}$/.test(host);
 }
 
 function validateFetchUrl(url: string): string | null {
@@ -88,7 +71,11 @@ function validateFetchUrl(url: string): string | null {
   if (parsed.protocol !== 'https:') return 'Only HTTPS URLs are allowed';
   if (parsed.username || parsed.password) return 'URLs with credentials are not allowed';
 
-  if (isPrivateIP(parsed.hostname)) return 'URLs targeting private/internal addresses are not allowed';
+  // Hostname-literal check. The authoritative check is the resolved-IP one
+  // inside fetchUrlForPrompt; this one fails fast with a precise message and
+  // catches bracketed IPv6 literals before they reach DNS.
+  if (isIpLiteral(parsed.hostname) && isBlockedAddress(parsed.hostname))
+    return 'URLs targeting private/internal addresses are not allowed';
   if (parsed.hostname === 'localhost' || parsed.hostname.endsWith('.local'))
     return 'URLs targeting local addresses are not allowed';
   if (parsed.hostname.endsWith('.internal') || parsed.hostname.endsWith('.corp'))
@@ -97,31 +84,44 @@ function validateFetchUrl(url: string): string | null {
   return null;
 }
 
+/** Map a shared-fetcher failure onto this route's user-facing error string. */
+function describeFailure(result: Extract<UrlFetchResult, { ok: false }>): string {
+  switch (result.reason) {
+    // Wording preserved from the pre-consolidation implementation — the t/720
+    // suite matches on /private\/internal/.
+    case 'ssrf-blocked': return 'URL resolves to a private/internal address';
+    case 'http-error': return result.status ? `HTTP ${result.status}` : 'HTTP request failed';
+    case 'timeout': return 'Request timed out';
+    case 'too-large': return 'Response exceeded the maximum allowed size';
+    case 'unsupported-content': return 'Only HTML and plain-text URLs can be fetched';
+    case 'too-many-redirects': return 'Too many redirects';
+    case 'network': return 'Network request failed (DNS, TLS, or connection error)';
+  }
+}
+
 export async function fetchUrlContent(url: string): Promise<{ content: string; error?: string }> {
   const validationError = validateFetchUrl(url);
   if (validationError) return { content: '', error: validationError };
-  // L5 (t/720): vet the resolved IP, not just the hostname literal (DNS rebinding / SSRF).
-  const dnsError = await assertHostnameResolvesPublic(new URL(url).hostname);
-  if (dnsError) return { content: '', error: dnsError };
 
   try {
-    const resp = await fetch(url, { redirect: 'manual' });
-    if (resp.status >= 300 && resp.status < 400) {
-      const location = resp.headers.get('location') || '';
-      const redirectError = validateFetchUrl(location);
-      if (redirectError) return { content: '', error: `Redirect blocked: ${redirectError}` };
-      const redirectDnsError = await assertHostnameResolvesPublic(new URL(location).hostname);
-      if (redirectDnsError) return { content: '', error: `Redirect blocked: ${redirectDnsError}` };
-      const resp2 = await fetch(location, { redirect: 'manual' });
-      if (!resp2.ok) return { content: '', error: `HTTP ${resp2.status}` };
-      const html = await resp2.text();
-      const markdown = await htmlToMarkdown(html);
-      return { content: markdown };
+    // rawBody: markitdown converts the original markup; the fetcher's own
+    // tag-stripped extraction would defeat the conversion.
+    const result = await fetchUrlForPrompt(url, { rawBody: true });
+    if (!result.ok) {
+      const error = describeFailure(result);
+      // Keep failed fetches diagnosable — the pre-consolidation code recorded
+      // DNS failures here, and an ssrf-blocked result is a signal worth seeing
+      // in the recorder rather than only in the caller's response body.
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'file-io',
+        level: result.reason === 'ssrf-blocked' ? 'warn' : 'info',
+        message: `URL fetch rejected (${result.reason})`,
+        data: { url, reason: result.reason, status: result.status },
+      });
+      return { content: '', error };
     }
-    if (!resp.ok) return { content: '', error: `HTTP ${resp.status}` };
-    const html = await resp.text();
-    const markdown = await htmlToMarkdown(html);
-    return { content: markdown };
+    return { content: await htmlToMarkdown(result.text) };
   } catch (err) {
     getGlobalRecorder()?.record({
       type: 'system.error',

@@ -4,20 +4,60 @@
 import { contextBridge, ipcRenderer } from 'electron';
 import type { OpEdSet, OpEdSetSummary } from '../../../lib/oped/types.js';
 
+// Inlined from preloadBuffer.cts — sandboxed preloads (sandbox:true) cannot
+// require sibling files at runtime; inlining avoids the require('./preloadBuffer.cjs')
+// that tsc emits, which throws "module not found" before exposeInMainWorld runs (t/2772).
+interface LatestValueBuffer<T> {
+  onIpc(value: T): void;
+  onSubscribe(deliver: (value: T) => void): void;
+  onUnsubscribe(): void;
+}
+
+export function createLatestValueBuffer<T>(): LatestValueBuffer<T> {
+  let buffered: T | null = null;
+  let active = true;
+  return {
+    onIpc(value: T): void { if (active) buffered = value; },
+    onSubscribe(deliver: (value: T) => void): void {
+      active = false;
+      if (buffered !== null) {
+        const value = buffered;
+        buffered = null;
+        queueMicrotask(() => deliver(value));
+      }
+    },
+    onUnsubscribe(): void { active = true; },
+  };
+}
+
+console.log('[preload] starting...');
+
 // Buffer debate-window-load IPC so it isn't lost if React mounts after did-finish-load
 // (happens with bootstrap.ts dynamic import indirection).
 let _bufferedDebateId: string | null = null;
 let _debateBufferActive = true;
-ipcRenderer.on('debate-window-load', (_event, debateId: string) => {
-  if (_debateBufferActive) _bufferedDebateId = debateId;
-});
+let _bufferedChatId: string | null = null;
+let _chatBufferActive = true;
 
-contextBridge.exposeInMainWorld('electronAPI', {
+// Buffer the diagnostics-state-update push the same way (t/2694) — see
+// preloadBuffer.cts. The main window pushes the cached state once on the
+// diagnostics popup's did-finish-load, but useDiagnosticsState subscribes only
+// after React mounts; a push arriving first was silently dropped, and for an idle
+// debate (no follow-up pushes) the window stayed on "Loading debate…" forever.
+// Also covers the PovProgression window (same channel). Logic extracted to the
+// pure helper so it's unit-tested (preloadBuffer.test.ts, unblocked by t/2698).
+const _diagnosticsStateBuffer = createLatestValueBuffer<unknown>();
+
+try {
+  contextBridge.exposeInMainWorld('electronAPI', {
   // Synchronous system info — available without IPC round-trip
   processVersions: { ...process.versions },
   osRelease: process.getSystemVersion?.() ?? process.platform,
   osPlatform: process.platform,
   osArch: process.arch,
+  // t/2766: stamp when contextBridge.exposeInMainWorld ran — lets renderer compute
+  // the preload→bridge-available delta for the bridge-available FR lifecycle event.
+  preloadTimestamp: (typeof performance !== 'undefined' && typeof performance.now === 'function') ? performance.now() : Date.now(),
   getEmbeddingInfo: (): Promise<{ backend: string; execution_provider?: string; calibration_version?: number }> =>
     ipcRenderer.invoke('get-embedding-info'),
 
@@ -226,11 +266,25 @@ contextBridge.exposeInMainWorld('electronAPI', {
   closeDiagnosticsWindow: (): Promise<void> => ipcRenderer.invoke('close-diagnostics-window'),
 
   // Chat popout window
-  openChatWindow: (): Promise<void> => ipcRenderer.invoke('open-chat-window'),
-  onChatPopoutClosed: (callback: () => void) => {
-    const listener = () => callback();
+  openChatWindow: (chatId: string, source?: 'my' | 'community'): Promise<{ atCap: true } | void> => ipcRenderer.invoke('open-chat-window', chatId, source),
+  onChatPopoutClosed: (callback: (chatId: string) => void) => {
+    const listener = (_event: Electron.IpcRendererEvent, chatId: string) => callback(chatId);
     ipcRenderer.on('chat-popout-closed', listener);
     return () => { ipcRenderer.removeListener('chat-popout-closed', listener); };
+  },
+  onChatWindowLoad: (callback: (chatId: string) => void) => {
+    _chatBufferActive = false;
+    if (_bufferedChatId) {
+      const id = _bufferedChatId;
+      _bufferedChatId = null;
+      queueMicrotask(() => callback(id));
+    }
+    const listener = (_event: Electron.IpcRendererEvent, chatId: string) => callback(chatId);
+    ipcRenderer.on('chat-window-load', listener);
+    return () => {
+      ipcRenderer.removeListener('chat-window-load', listener);
+      _chatBufferActive = true;
+    };
   },
 
   // Data file diff window
@@ -272,9 +326,15 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
   sendDiagnosticsState: (state: unknown): void => ipcRenderer.send('diagnostics-state-update', state),
   onDiagnosticsStateUpdate: (callback: (state: unknown) => void) => {
+    // Flush a push that arrived before the component mounted (t/2694), then the
+    // buffer stops; live pushes come through the listener registered below.
+    _diagnosticsStateBuffer.onSubscribe(callback);
     const listener = (_event: Electron.IpcRendererEvent, state: unknown) => callback(state);
     ipcRenderer.on('diagnostics-state-update', listener);
-    return () => { ipcRenderer.removeListener('diagnostics-state-update', listener); };
+    return () => {
+      ipcRenderer.removeListener('diagnostics-state-update', listener);
+      _diagnosticsStateBuffer.onUnsubscribe(); // re-arm for the next reload cycle
+    };
   },
   requestReExtractClaims: (entryId: string): void => ipcRenderer.send('request-re-extract-claims', entryId),
   onReExtractClaims: (callback: (entryId: string) => void) => {
@@ -427,6 +487,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   exportDebateToFile: (session: unknown, format?: string, exportOptions?: { includeTaxonomyRefs?: boolean; includeReasoning?: boolean }): Promise<{ cancelled: boolean; filePath?: string }> =>
     ipcRenderer.invoke('export-debate-to-file', session, format, exportOptions),
 
+  printBriefToPdf: (html: string): Promise<{ cancelled: boolean; filePath?: string }> =>
+    ipcRenderer.invoke('brief:html-to-pdf', html),
+
   exportChatToFile: (
     entries: { id: string; timestamp: string; speaker: string; content: string; taxonomy_refs: { node_id: string; label?: string; relevance: string }[] }[],
     format: 'markdown' | 'text' | 'pdf',
@@ -494,8 +557,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('save-proposal', filename, data),
 
   // PowerShell prompt files (for Prompt Inspector)
-  readPsPrompt: (promptName: string): Promise<{ text: string | null; error?: string }> =>
-    ipcRenderer.invoke('read-ps-prompt', promptName),
+  readPsPrompt: (promptName: string, dir = 'ps'): Promise<{ text: string | null; error?: string }> =>
+    ipcRenderer.invoke('read-ps-prompt', promptName, dir),
   listPsPrompts: (): Promise<string[]> =>
     ipcRenderer.invoke('list-ps-prompts'),
 
@@ -562,7 +625,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('admin-remove-community-item', type, id, reason),
 
   // Op-Ed Studio (t/2575, t/2591)
-  createOpEdSet: (payload: { topic: string; params: unknown; voices: string[] }): Promise<{ set_id: string }> =>
+  createOpEdSet: (payload: { topic: string; url?: string; params: unknown; voices: string[] }): Promise<{ set_id: string }> =>
     ipcRenderer.invoke('create-oped-set', payload),
   cancelOpEdSet: (setId: string): void =>
     void ipcRenderer.invoke('cancel-oped-set', setId),
@@ -581,4 +644,46 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('delete-oped-set', setId),
   saveOpEdSet: (set: OpEdSet): Promise<void> =>
     ipcRenderer.invoke('save-oped-set', set),
-});
+
+  // Brief Export — desktop parity (t/2840). Mirrors the web AppAPI; download returns raw bytes
+  // that the electron-bridge wraps into a Blob (Blob-returning AppAPI in both builds).
+  createBriefExport: (debateId: string, body: unknown): Promise<{ jobId: string }> =>
+    ipcRenderer.invoke('create-brief-export', debateId, body),
+  getBriefExportJob: (jobId: string): Promise<unknown> =>
+    ipcRenderer.invoke('get-brief-export-job', jobId),
+  listBriefExports: (debateId: string): Promise<unknown[]> =>
+    ipcRenderer.invoke('list-brief-exports', debateId),
+  downloadBriefArtifact: (exportId: string, name: string): Promise<Uint8Array | null> =>
+    ipcRenderer.invoke('download-brief-artifact', exportId, name),
+  deleteBriefExport: (exportId: string): Promise<void> =>
+    ipcRenderer.invoke('delete-brief-export', exportId),
+  });
+  console.log('[preload] electronAPI exposed');
+  ipcRenderer.send('forward-flight-event', {
+    type: 'lifecycle', component: 'preload', level: 'info',
+    message: 'contextBridge.exposeInMainWorld completed',
+  });
+} catch (e) {
+  ipcRenderer.send('forward-flight-event', {
+    type: 'system.error', component: 'preload', level: 'error',
+    message: 'contextBridge.exposeInMainWorld failed — window.electronAPI will not be set',
+    error: { name: e instanceof Error ? e.name : 'Error', message: String(e) },
+  });
+  throw e;
+}
+
+// Wire IPC listeners AFTER exposeInMainWorld so window.electronAPI is always set
+// even if a listener registration throws (t/2772).
+try {
+  ipcRenderer.on('debate-window-load', (_event, debateId: string) => {
+    if (_debateBufferActive) _bufferedDebateId = debateId;
+  });
+  ipcRenderer.on('chat-window-load', (_event, chatId: string) => {
+    if (_chatBufferActive) _bufferedChatId = chatId;
+  });
+  ipcRenderer.on('diagnostics-state-update', (_event, state: unknown) => {
+    _diagnosticsStateBuffer.onIpc(state);
+  });
+} catch (e) {
+  console.error('[preload] listener wiring failed', e);
+}

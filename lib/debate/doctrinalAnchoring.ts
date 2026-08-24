@@ -31,8 +31,8 @@ export const DEFAULT_ANCHORING_CONFIG: DoctrinalAnchoringConfig = {
 // ── Boundary embeddings ─────────────────────────────────
 
 export interface BoundaryEmbeddings {
-  /** POV key → array of 4 boundary embedding vectors. */
-  [pov: string]: number[][];
+  /** POV key → boundary vectors + per-position rejection flags (t/2746 V5). */
+  [pov: string]: { vectors: number[][]; isRejection: boolean[] };
 }
 
 /**
@@ -50,13 +50,18 @@ export async function embedDoctrinalBoundaries(
 
   for (const [pov, strings] of Object.entries(boundaries)) {
     const vectors: number[][] = [];
+    const isRejection: boolean[] = [];
     for (const s of strings) {
       try {
-        const vec = await embedFn(s.replace(/^REJECT:\s*/i, ''));
-        if (vec && vec.length > 0) vectors.push(vec);
+        // Preserve REJECT: prefix so embrace/reject distinction survives (t/2746 V5).
+        const vec = await embedFn(s);
+        if (vec && vec.length > 0) {
+          vectors.push(vec);
+          isRejection.push(/^REJECT:\s*/i.test(s));
+        }
       } catch { /* embedding failure silently skipped */ }
     }
-    result[pov] = vectors;
+    result[pov] = { vectors, isRejection };
   }
 
   return result;
@@ -85,6 +90,8 @@ export interface AnchoringResult {
  * @param nodeEmbeddings - Taxonomy node embeddings (keyed by node ID)
  * @param boundaryWeights - Per-boundary weight (hardcoded=1.0, softcoded=0.7). Scales similarity.
  * @param config - Threshold and floor configuration
+ * @param boundaryIsRejection - Per-boundary flag: true = boundary is a REJECT: string (t/2746 V5).
+ *   A node matching a rejection boundary is NOT anchored and does NOT receive the confidence floor.
  */
 export function computeDoctrinalAnchoring(
   nodes: PovNode[],
@@ -92,6 +99,7 @@ export function computeDoctrinalAnchoring(
   nodeEmbeddings: Record<string, { pov: string; vector: number[] }>,
   boundaryWeights?: number[],
   config: DoctrinalAnchoringConfig = DEFAULT_ANCHORING_CONFIG,
+  boundaryIsRejection?: boolean[],
 ): AnchoringResult[] {
   const results: AnchoringResult[] = [];
 
@@ -122,7 +130,10 @@ export function computeDoctrinalAnchoring(
       }
     }
 
-    const anchored = maxSim >= config.threshold;
+    // A REJECT: boundary match means the POV disavows the proposition — do not anchor or floor (t/2746 V5).
+    const cosineMatch = maxSim >= config.threshold;
+    const rejectionMatch = cosineMatch && bestIdx >= 0 && (boundaryIsRejection?.[bestIdx] ?? false);
+    const anchored = cosineMatch && !rejectionMatch;
     node.doctrinally_anchored = anchored || undefined; // only set if true
 
     let floorApplied = false;
@@ -175,7 +186,7 @@ export function calibrateDoctrinalThresholds(
       const beliefs = nodes.filter(n => n.category === 'Beliefs');
       totalBeliefs[pov] = beliefs.length;
 
-      const boundaryVecs = boundaryEmbeddings[pov] ?? [];
+      const boundaryVecs = boundaryEmbeddings[pov]?.vectors ?? [];
       if (boundaryVecs.length === 0) {
         counts[pov] = 0;
         percentages[pov] = 0;

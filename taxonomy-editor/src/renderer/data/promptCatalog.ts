@@ -14,6 +14,8 @@
 
 import { DEFAULT_MODEL } from '@lib/ai-client/defaults';
 import { researchPrompt, conflictResearchPrompt } from '../prompts/research';
+import { vernacularPrompt } from '../prompts/vernacular';
+import { aphorismPrompt } from '../prompts/aphorism';
 import {
   distinctionAnalysisPrompt,
   clusterLabelPrompt,
@@ -51,17 +53,11 @@ import {
   newsReportPrompt,
   citeRetryPrompt,
   draftQualityCheckPrompt,
-  consensusSituationPrompt,
-  dolceComplianceRetryPrompt,
   decomposeResolutionPrompt,
 } from '@lib/debate/prompts';
-import { extractClaimsPrompt, classifyClaimsPrompt } from '@lib/debate/argumentNetwork';
-import { classifyConcessionsPrompt } from '@lib/debate/concessionTracker';
-import { documentAnalysisPrompt } from '@lib/debate/documentAnalysis';
 import { critiqueTopicPrompt } from '@lib/debate/topicCritique';
-import { buildRepairPrompt } from '@lib/debate/turnValidator';
 
-export type PromptGroup = 'debate-setup' | 'debate-turns' | 'debate-analysis' | 'moderator' | 'chat' | 'taxonomy' | 'research' | 'powershell';
+export type PromptGroup = 'debate-setup' | 'debate-turns' | 'debate-analysis' | 'moderator' | 'chat' | 'taxonomy' | 'research' | 'powershell' | 'oped';
 export type DataSourceId = 'taxonomyNodes' | 'situationNodes' | 'vulnerabilities' | 'fallacies' | 'policyRegistry' | 'sourceDocument' | 'commitments' | 'argumentNetwork' | 'establishedPoints';
 
 export interface PromptCatalogEntry {
@@ -82,8 +78,16 @@ export interface PromptCatalogEntry {
   applicableDataSources: DataSourceId[];
   /** PS prompt file names (without .prompt extension) — loaded from disk via IPC */
   promptFiles?: string[];
+  /** Prompt directory key for disk-backed entries; defaults to 'ps' (scripts/AITriad/Prompts) */
+  promptDir?: 'ps' | 'oped';
   /** PS cmdlet parameters that configure this prompt at runtime */
   psParameters?: { name: string; type: string; default: string; description: string }[];
+  /** Prompt-builder fn names (exported from `lib/debate/prompts/*` or `renderer/prompts/*`)
+   *  this entry exposes. The registry lint (`__tests__/promptCatalog.lint.test.ts`, t/2834)
+   *  treats these as the machine-link for builders that aren't invoked in a `template` call
+   *  at build time (e.g. the StagePromptInput turn stages). Every name must resolve to a real
+   *  exported builder. Simple entries that call `builder('{x}')` in `template` need no entry here. */
+  builders?: string[];
 }
 
 export const PROMPT_CATALOG: PromptCatalogEntry[] = [
@@ -145,6 +149,26 @@ export const PROMPT_CATALOG: PromptCatalogEntry[] = [
     group: 'taxonomy',
     purpose: 'Fires when the user requests a critique of a specific taxonomy node. Produces a structured analysis of systemic integration quality with proposed refinements in genus-differentia format.',
     applicableDataSources: ['taxonomyNodes', 'situationNodes', 'policyRegistry'],
+  },
+  {
+    id: 'vernacular-description',
+    title: 'Vernacular Description',
+    description: 'Rewrites an academic ontological node description into plain ~10th-grade language for display.',
+    source: 'prompts/vernacular.ts',
+    template: vernacularPrompt('{description}'),
+    group: 'taxonomy',
+    purpose: 'Fires when a user regenerates the plain-language ("vernacular") description of a taxonomy node (regeneratePlainDescription). Rewrites the genus-differentia academic description at ~10th-grade reading level, preserving the core claim and nuances while dropping ontological boundary markers.',
+    applicableDataSources: ['taxonomyNodes'],
+  },
+  {
+    id: 'aphorism',
+    title: 'Aphorism',
+    description: 'Generates one short camp-voiced aphorism (3-8 words) faithful to a node’s BDI register and differentia.',
+    source: 'prompts/aphorism.ts',
+    template: aphorismPrompt('{pov}', '{category}', '{label}', '{description}'),
+    group: 'taxonomy',
+    purpose: 'Fires when a user regenerates a node’s aphorism (regenerateAphorism). Produces a single sober maxim stated in the camp’s own voice, matched to the BDI register (Belief asserts how the world is / Desire what ought to be / Intention how to act), faithful to the node’s differentia.',
+    applicableDataSources: ['taxonomyNodes'],
   },
 
   // === Debate setup ===
@@ -628,7 +652,7 @@ export const PROMPT_CATALOG: PromptCatalogEntry[] = [
     source: 'AITriad/Prompts/fallacy-analysis.prompt',
     template: '(Loading from disk...)',
     group: 'powershell',
-    purpose: 'Used by Invoke-FallacyAnalysis. Identifies possible fallacies with tiered classification (formal, informal_structural, informal_contextual, cognitive_bias) and confidence levels.',
+    purpose: 'Used by Find-PossibleFallacy. Identifies possible fallacies with tiered classification (formal, informal_structural, informal_contextual, cognitive_bias) and confidence levels.',
     applicableDataSources: ['taxonomyNodes'],
     promptFiles: ['fallacy-analysis', 'fallacy-analysis-schema'],
     psParameters: [
@@ -659,7 +683,7 @@ export const PROMPT_CATALOG: PromptCatalogEntry[] = [
     source: 'AITriad/Prompts/metadata-extraction.prompt',
     template: '(Loading from disk...)',
     group: 'powershell',
-    purpose: 'Used by Import-AITriadDocument. Extracts structured metadata from source documents during ingestion: title, authors, publication date, abstract, topic tags, POV tags.',
+    purpose: 'Runs during document ingestion via the enrichment.metadata-extraction usage (AIEnrich.psm1, Invoke-AIByUsage). Extracts structured metadata from source documents: title, authors, publication date, abstract, topic tags, POV tags.',
     applicableDataSources: ['sourceDocument'],
     promptFiles: ['metadata-extraction'],
     psParameters: [
@@ -722,7 +746,7 @@ export const PROMPT_CATALOG: PromptCatalogEntry[] = [
     group: 'powershell',
     purpose: 'Used for topic analysis. Generates human-readable labels for clusters identified by word frequency and co-occurrence analysis across taxonomy node descriptions.',
     applicableDataSources: ['taxonomyNodes'],
-    promptFiles: ['topic-frequency-label'],
+    promptFiles: ['topic-frequency-label', 'topic-frequency-label-schema'],
     psParameters: [
       { name: '-Model', type: 'string', default: DEFAULT_MODEL, description: 'AI model' },
       { name: '-Temperature', type: 'number', default: '0.1', description: 'Sampling temperature' },
@@ -775,6 +799,22 @@ export const PROMPT_CATALOG: PromptCatalogEntry[] = [
     ],
   },
   {
+    id: 'ps-directional-judge',
+    title: 'Directional Agreement Judge',
+    description: 'Stage-2 LLM judge for the aligned-family polarity gate — decides whether a claim opposes, agrees with, or is unrelated to a taxonomy node proposition (t/2900).',
+    source: 'AITriad/Prompts/directional-judge.prompt',
+    template: '(Loading from disk...)',
+    group: 'powershell',
+    purpose: 'Used by Invoke-DirectionalJudge (stage 2 of the polarity gate). Confirms deberta\'s opposes candidates before a stance flip — unanimous opposes required across N draws, fail-safe KEEP (t/2900).',
+    applicableDataSources: ['taxonomyNodes'],
+    promptFiles: ['directional-judge'],
+    psParameters: [
+      { name: '-Model', type: 'string', default: DEFAULT_MODEL, description: 'Judge model (gemini-3.1-pro-preview)' },
+      { name: '-Temperature', type: 'number', default: '0.3', description: 'Sampling temperature (draw variance for the unanimity bar)' },
+      { name: '-Draws', type: 'number', default: '3', description: 'Independent draws; unanimity required to confirm opposes' },
+    ],
+  },
+  {
     id: 'ps-direction-check',
     title: 'Edge Direction Check',
     description: 'Verifies the correct direction of edges in the taxonomy knowledge graph.',
@@ -821,21 +861,6 @@ export const PROMPT_CATALOG: PromptCatalogEntry[] = [
     ],
   },
   {
-    id: 'ps-hierarchy-placement',
-    title: 'Hierarchy Placement',
-    description: 'Places a single new node into the existing hierarchy by selecting the best parent.',
-    source: 'AITriad/Prompts/hierarchy-placement.prompt',
-    template: '(Loading from disk...)',
-    group: 'powershell',
-    purpose: 'Used for incremental taxonomy building. Given a new node and the existing hierarchy, determines the optimal parent_id placement.',
-    applicableDataSources: ['taxonomyNodes'],
-    promptFiles: ['hierarchy-placement'],
-    psParameters: [
-      { name: '-Model', type: 'string', default: DEFAULT_MODEL, description: 'AI model' },
-      { name: '-Temperature', type: 'number', default: '0.1', description: 'Sampling temperature' },
-    ],
-  },
-  {
     id: 'ps-policy-actions',
     title: 'Policy Action Extraction',
     description: 'Extracts concrete policy actions from taxonomy nodes and maps them to the canonical policy registry.',
@@ -850,6 +875,118 @@ export const PROMPT_CATALOG: PromptCatalogEntry[] = [
       { name: '-Temperature', type: 'number', default: '0.1', description: 'Sampling temperature' },
       { name: '-BatchSize', type: 'number', default: '5', description: 'Nodes processed per API call' },
     ],
+  },
+
+  // === PowerShell pipeline: incremental / single-node & analysis prompts (t/2822) ===
+  {
+    id: 'ps-attribute-extraction-single',
+    title: 'Attribute Extraction (Single Node)',
+    description: 'Generates rich analytical attributes for one taxonomy node — the single-node variant of batch Attribute Extraction.',
+    source: 'AITriad/Prompts/attribute-extraction-single.prompt',
+    template: '(Loading from disk...)',
+    group: 'powershell',
+    purpose: 'Single-node path of Invoke-AttributeExtraction. Populates graph_attributes (epistemic_type, rhetorical_strategy, intellectual_lineage, etc.) for one node — used on incremental additions rather than a full batch pass.',
+    applicableDataSources: ['taxonomyNodes'],
+    promptFiles: ['attribute-extraction-single', 'attribute-vocabulary.fragment', 'attribute-extraction-schema'],
+  },
+  {
+    id: 'ps-edge-discovery-batch',
+    title: 'Edge Discovery (Batch)',
+    description: 'Discovers typed, directed edges among a group of related taxonomy nodes — proposing edges between any pair with a meaningful relationship.',
+    source: 'AITriad/Prompts/edge-discovery-batch.prompt',
+    template: '(Loading from disk...)',
+    group: 'powershell',
+    purpose: 'Batch mode of Invoke-EdgeDiscovery. Receives a group of related nodes and proposes AIF-aligned edges (SUPPORTS, CONTRADICTS, ASSUMES, …) between any pair, with confidence and rationale.',
+    applicableDataSources: ['taxonomyNodes', 'situationNodes'],
+    promptFiles: ['edge-discovery-batch', 'edge-discovery-batch-schema'],
+  },
+  {
+    id: 'ps-edge-discovery-single',
+    title: 'Edge Discovery (Single Node)',
+    description: 'Discovers edges between a newly created taxonomy node and existing nodes.',
+    source: 'AITriad/Prompts/edge-discovery-single.prompt',
+    template: '(Loading from disk...)',
+    group: 'powershell',
+    purpose: 'Incremental path of Invoke-EdgeDiscovery. Connects a single new node into the existing graph by proposing typed, directed edges to existing nodes.',
+    applicableDataSources: ['taxonomyNodes', 'situationNodes'],
+    promptFiles: ['edge-discovery-single', 'edge-type-vocabulary.fragment', 'edge-discovery-schema'],
+  },
+  {
+    id: 'ps-edge-screen',
+    title: 'Edge Discovery: Fast Screen',
+    description: 'Fast binary screen selecting which candidate nodes have a meaningful relationship with the source node, before full edge discovery.',
+    source: 'AITriad/Prompts/edge-screen.prompt',
+    template: '(Loading from disk...)',
+    group: 'powershell',
+    purpose: 'Pre-filter stage of Invoke-EdgeDiscovery. A cheap yes/no screen over a candidate list that narrows the pairs sent to the more expensive edge-discovery prompt.',
+    applicableDataSources: ['taxonomyNodes'],
+    promptFiles: ['edge-screen'],
+  },
+  {
+    id: 'ps-edge-rationale-backfill',
+    title: 'Edge Rationale Backfill',
+    description: 'Writes one concise rationale explaining why a source node stands in a given edge relationship to a target node.',
+    source: 'AITriad/Prompts/edge-rationale-backfill.prompt',
+    template: '(Loading from disk...)',
+    group: 'powershell',
+    purpose: 'Used by Invoke-EdgeRationaleBackfill. For an existing edge lacking a rationale, writes a specific 1–2 sentence justification grounded in the substance of the two nodes and the edge type\'s meaning.',
+    applicableDataSources: ['taxonomyNodes'],
+    promptFiles: ['edge-rationale-backfill'],
+  },
+  {
+    id: 'ps-hierarchy-placement-single',
+    title: 'Hierarchy Placement (Single Node)',
+    description: 'Places one new parentless taxonomy node into an existing hierarchy within its POV and category.',
+    source: 'AITriad/Prompts/hierarchy-placement-single.prompt',
+    template: '(Loading from disk...)',
+    group: 'powershell',
+    purpose: 'Ontology-engineering step that assigns a new node its parent by comparing it against existing nodes in the same POV/category, choosing an is-a placement rather than a sibling relation.',
+    applicableDataSources: ['taxonomyNodes'],
+    promptFiles: ['hierarchy-placement-single', 'hierarchy-relationship.fragment', 'hierarchy-proposal-schema'],
+  },
+  {
+    id: 'ps-lineage-regenerate',
+    title: 'Lineage Regeneration',
+    description: 'Writes substantive, contextualized descriptions for each intellectual-lineage entry on a taxonomy node.',
+    source: 'AITriad/Prompts/lineage-regenerate.prompt',
+    template: '(Loading from disk...)',
+    group: 'powershell',
+    purpose: 'Used by Repair-PovLineage. For each intellectual tradition cited on a node, explains how and why that tradition specifically informs the node\'s position (rather than a generic label).',
+    applicableDataSources: ['taxonomyNodes'],
+    promptFiles: ['lineage-regenerate'],
+  },
+  {
+    id: 'ps-org-stance-extraction',
+    title: 'Organization Stance Extraction',
+    description: 'Extracts an organization\'s own asserted or opposed positions from a document it published.',
+    source: 'AITriad/Prompts/org-stance-extraction.prompt',
+    template: '(Loading from disk...)',
+    group: 'powershell',
+    purpose: 'Used by Invoke-OrgStanceExtraction. Extracts only positions the organization itself asserts or opposes — excluding positions it merely reports, quotes, or attributes to others, and background facts carrying no stance.',
+    applicableDataSources: ['sourceDocument'],
+    promptFiles: ['org-stance-extraction'],
+  },
+  {
+    id: 'ps-pov-aphorism',
+    title: 'POV Aphorism',
+    description: 'Produces one short, camp-voiced aphorism (3–8 words) for a taxonomy node.',
+    source: 'AITriad/Prompts/pov-aphorism.prompt',
+    template: '(Loading from disk...)',
+    group: 'powershell',
+    purpose: 'Used by Invoke-AphorismBatch. Generates a sober, camp-voiced maxim stating the node\'s position as the camp itself would assert it — matching the camp\'s characteristic voice.',
+    applicableDataSources: ['taxonomyNodes'],
+    promptFiles: ['pov-aphorism'],
+  },
+  {
+    id: 'ps-qbaf-pair-confirm',
+    title: 'QBAF Pair Confirmation',
+    description: 'Assesses whether two factual claims from different documents stand in an argumentative (support/attack) relation.',
+    source: 'AITriad/Prompts/qbaf-pair-confirm.prompt',
+    template: '(Loading from disk...)',
+    group: 'powershell',
+    purpose: 'Used by Invoke-QbafConflictAnalysis. Confirms the argumentative relation between a candidate pair of cross-document claims, feeding the quantitative bipolar argumentation framework (QBAF).',
+    applicableDataSources: ['taxonomyNodes'],
+    promptFiles: ['qbaf-pair-confirm'],
   },
 
   // === Debate pipeline: Quality & repair prompts ===
@@ -993,5 +1130,189 @@ export const PROMPT_CATALOG: PromptCatalogEntry[] = [
     group: 'taxonomy',
     purpose: 'Fires after debate reflection creates new taxonomy nodes. Generates the same rich attributes as the PowerShell attribute extraction pipeline: epistemic_type, rhetorical_strategy, assumes, falsifiability, audience, emotional_register, intellectual_lineage, steelman_vulnerability, and node_scope.',
     applicableDataSources: ['taxonomyNodes'],
+  },
+
+  // === Op-Ed Generation (lib/oped/prompts) ===
+  {
+    id: 'ps-oped-generation-system',
+    title: 'Op-Ed Generation (System)',
+    description: 'System prompt that configures the model to ghost-write a publication-ready op-ed in the voice of a specific POV camp.',
+    source: 'lib/oped/prompts/op-ed-generation-system.prompt',
+    template: '(Loading from disk...)',
+    group: 'oped' as const,
+    promptDir: 'oped' as const,
+    purpose: 'Used by the op-ed generation pipeline. Establishes tone, voice, and structural requirements for the guest essay. Accepts {{POV_LABEL}}, {{VOICE_BLOCK}}, and {{WORD_COUNT}} placeholders.',
+    applicableDataSources: ['taxonomyNodes', 'sourceDocument'],
+    promptFiles: ['op-ed-generation-system'],
+  },
+  {
+    id: 'ps-oped-generation-user',
+    title: 'Op-Ed Generation (User Turn)',
+    description: 'User turn that triggers the actual op-ed generation, specifying topic, word count, and outlet guidance.',
+    source: 'lib/oped/prompts/op-ed-generation-user.prompt',
+    template: '(Loading from disk...)',
+    group: 'oped' as const,
+    promptDir: 'oped' as const,
+    purpose: 'Paired with the system prompt. Passes {{TOPIC}}, {{WORD_COUNT}}, and {{OUTLET_GUIDANCE}} — plus the grounding/source/situation context ({{THESIS}}, {{NEWS_HOOK}}, {{GROUNDING_NODES}}, {{SITUATIONS}}, the {{SOURCE_*}} brief fields, {{AUTHOR_BIO}}) — to produce the draft op-ed body.',
+    applicableDataSources: ['sourceDocument', 'taxonomyNodes', 'situationNodes'],
+    promptFiles: ['op-ed-generation-user'],
+  },
+  {
+    id: 'ps-oped-grounding-reflection',
+    title: 'Op-Ed Grounding Reflection',
+    description: 'Audit prompt that checks how a finished op-ed used (or omitted) grounded source positions.',
+    source: 'lib/oped/prompts/op-ed-grounding-reflection.prompt',
+    template: '(Loading from disk...)',
+    group: 'oped' as const,
+    promptDir: 'oped' as const,
+    purpose: 'Post-generation quality check. Compares the drafted op-ed against the grounding list and source claims to surface unsupported assertions or missed opportunities. Accepts {{OPED_BODY}}, {{GROUNDING_LIST}}, {{SOURCE_CLAIMS}}.',
+    applicableDataSources: ['sourceDocument', 'taxonomyNodes'],
+    promptFiles: ['op-ed-grounding-reflection'],
+  },
+  {
+    id: 'ps-oped-source-brief',
+    title: 'Op-Ed Source Brief',
+    description: 'Neutral analyst prompt that extracts a structured brief from a source document for use in op-ed generation.',
+    source: 'lib/oped/prompts/op-ed-source-brief.prompt',
+    template: '(Loading from disk...)',
+    group: 'oped' as const,
+    promptDir: 'oped' as const,
+    purpose: 'Pre-generation step. Reads {{SOURCE_MATERIAL}} and returns a structured JSON brief (key claims, evidence, positions) that grounds the subsequent op-ed. Returns JSON.',
+    applicableDataSources: ['sourceDocument'],
+    promptFiles: ['op-ed-source-brief'],
+  },
+
+  // === Debate turn pipeline (non-opening stages) + analytical builders (t/2834 / CL EXPOSE t/2835#1) ===
+  // These builders take runtime StagePromptInput and can't be invoked in a `template` at build time,
+  // so they declare `builders: [...]` as the registry-lint machine-link instead of a template call.
+  {
+    id: 'debate-plan-stage',
+    title: 'Debate: Plan (turn stage)',
+    description: 'Core turn-pipeline plan stage — the debater plans argument structure for a non-opening turn.',
+    source: 'lib/debate/prompts/turn-pipeline.ts',
+    template: '(Template requires runtime context — view in Prompt Inspector or Full Prompt tab)',
+    group: 'debate-turns',
+    purpose: 'Fires as the plan stage of each non-opening debater turn. The debater (in character) plans strategic goal, thesis, and argument structure before drafting. Feeds the Draft stage.',
+    phase: 'response',
+    applicableDataSources: ['taxonomyNodes', 'situationNodes'],
+    builders: ['planStagePrompt'],
+  },
+  {
+    id: 'debate-brief-stage',
+    title: 'Debate: Brief (turn stage)',
+    description: 'Core turn-pipeline brief stage — analytical situation brief identifying the strongest framing for a non-opening turn.',
+    source: 'lib/debate/prompts/turn-pipeline.ts',
+    template: '(Template requires runtime context — view in Prompt Inspector or Full Prompt tab)',
+    group: 'debate-turns',
+    purpose: 'Fires as the first stage of each non-opening debater turn. An analytical assistant assesses the current state and strongest angles; output feeds the Plan stage.',
+    phase: 'response',
+    applicableDataSources: ['taxonomyNodes', 'situationNodes', 'sourceDocument'],
+    builders: ['briefStagePrompt'],
+  },
+  {
+    id: 'debate-draft-stage',
+    title: 'Debate: Draft (turn stage)',
+    description: 'Core turn-pipeline draft stage — the debater writes their turn statement (phase-aware directives).',
+    source: 'lib/debate/prompts/turn-pipeline.ts',
+    template: '(Template requires runtime context — view in Prompt Inspector or Full Prompt tab)',
+    group: 'debate-turns',
+    purpose: 'Fires after the Plan stage. The debater (in character) writes the full turn statement grounded in taxonomy nodes, with phase-aware directives. Produces the statement text, claim sketches, and key assumptions.',
+    phase: 'response',
+    applicableDataSources: ['taxonomyNodes', 'situationNodes', 'sourceDocument', 'policyRegistry'],
+    builders: ['draftStagePrompt'],
+  },
+  {
+    id: 'debate-cite-stage',
+    title: 'Debate: Cite (turn stage)',
+    description: 'Core turn-pipeline cite stage — post-hoc grounding that maps a turn\'s claims to taxonomy nodes.',
+    source: 'lib/debate/prompts/turn-pipeline.ts',
+    template: '(Template requires runtime context — view in Prompt Inspector or Full Prompt tab)',
+    group: 'debate-turns',
+    purpose: 'Fires after the Draft stage. Verifies grounding by mapping the drafted claims to taxonomy/situation nodes; unresolved pointers surface as gaps.',
+    phase: 'response',
+    applicableDataSources: ['taxonomyNodes', 'situationNodes'],
+    builders: ['citeStagePrompt'],
+  },
+  {
+    id: 'debate-assumptions-extraction',
+    title: 'Debate: Assumptions Extraction',
+    description: 'Surfaces the implicit assumptions underlying a debate statement.',
+    source: 'lib/debate/prompts/turn-pipeline.ts',
+    template: '(Template requires runtime context — view in Prompt Inspector or Full Prompt tab)',
+    group: 'debate-analysis',
+    purpose: 'A distinct analytical prompt that reads a statement and extracts the assumptions it rests on — used to make hidden premises inspectable.',
+    applicableDataSources: [],
+    builders: ['assumptionsExtractionPrompt'],
+  },
+  {
+    id: 'debate-reflection',
+    title: 'Debate: Post-Debate Reflection',
+    description: 'Generates the post-debate reflection over the concluded transcript.',
+    source: 'lib/debate/prompts/reflection.ts',
+    template: '(Template requires runtime context — view in Prompt Inspector or Full Prompt tab)',
+    group: 'debate-analysis',
+    purpose: 'Fires after a debate concludes. Produces the reflection surfaced in the Post-Debate Reflections panel (cf. docs/debate-reflections.md) — proposed edits, new POV items, and convergence notes.',
+    phase: 'reflection',
+    applicableDataSources: ['taxonomyNodes'],
+    builders: ['reflectionPrompt'],
+  },
+  {
+    id: 'debate-taxonomy-refinement',
+    title: 'Debate: Taxonomy Refinement',
+    description: 'Post-debate synthesis prompt that proposes taxonomy refinements from the concluded debate.',
+    source: 'lib/debate/prompts/synthesis.ts',
+    template: '(Template requires runtime context — view in Prompt Inspector or Full Prompt tab)',
+    group: 'debate-analysis',
+    purpose: 'Fires during post-debate synthesis. Reads the concluded debate and proposes concrete taxonomy refinements (node edits/additions) grounded in what was argued.',
+    phase: 'synthesis',
+    applicableDataSources: ['taxonomyNodes'],
+    builders: ['taxonomyRefinementPrompt'],
+  },
+  {
+    id: 'debate-improve-topic',
+    title: 'Debate: Improve Topic',
+    description: 'User-facing topic sharpening — rewrites a debate topic to be crisper and more debatable.',
+    source: 'lib/debate/prompts/topic-crux.ts',
+    template: '(Template requires runtime context — view in Prompt Inspector or Full Prompt tab)',
+    group: 'debate-setup',
+    purpose: 'Fires from the debate-topic editor when the user asks to sharpen their topic. Rewrites the topic into a crisper, more debatable statement without changing its intent.',
+    phase: 'clarification',
+    applicableDataSources: [],
+    builders: ['improveDebateTopicPrompt'],
+  },
+  {
+    id: 'debate-extract-topic-structure',
+    title: 'Debate: Extract Topic Structure',
+    description: 'Debate setup — extracts the structured shape (dimensions, sub-claims) of a debate topic.',
+    source: 'lib/debate/prompts/topic-crux.ts',
+    template: '(Template requires runtime context — view in Prompt Inspector or Full Prompt tab)',
+    group: 'debate-setup',
+    purpose: 'Fires during debate setup. Parses the topic into its structural dimensions and sub-claims so the debate can be scoped and grounded.',
+    phase: 'clarification',
+    applicableDataSources: [],
+    builders: ['extractTopicStructurePrompt'],
+  },
+  {
+    id: 'debate-decontextualize-crux',
+    title: 'Debate: Decontextualize Crux',
+    description: 'Rewrites a crux into a self-contained, context-independent statement (CL calibration surface).',
+    source: 'lib/debate/prompts/topic-crux.ts',
+    template: '(Template requires runtime context — view in Prompt Inspector or Full Prompt tab)',
+    group: 'debate-setup',
+    purpose: 'Takes a crux that references debate-local context and rewrites it as a standalone claim, so cruxes can be compared and reused across debates.',
+    applicableDataSources: [],
+    builders: ['decontextualizeCruxPrompt'],
+  },
+  {
+    id: 'debate-topic-scope-extraction',
+    title: 'Debate: Topic Scope Extraction',
+    description: 'Debate setup — extracts the scope boundaries of a debate topic.',
+    source: 'lib/debate/prompts/topic-crux.ts',
+    template: '(Template requires runtime context — view in Prompt Inspector or Full Prompt tab)',
+    group: 'debate-setup',
+    purpose: 'Fires during debate setup. Identifies what is in- and out-of-scope for the topic so debaters stay bounded and the grounding stays relevant.',
+    phase: 'clarification',
+    applicableDataSources: [],
+    builders: ['topicScopeExtractionPrompt'],
   },
 ];

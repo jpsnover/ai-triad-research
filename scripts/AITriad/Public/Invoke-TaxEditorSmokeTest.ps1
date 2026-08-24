@@ -12,7 +12,9 @@ function Invoke-TaxEditorSmokeTest {
         counts, response time stats, and per-category breakdowns. The analytics
         probe reads aggregated totalEvents, POSTs a synthetic event, and re-reads
         to confirm the count increased — catching silent blob-storage drops that
-        still return HTTP 200.
+        still return HTTP 200. With -AssertDataPresence, an additional phase (t/2671)
+        asserts entities/organizations/taxonomy-nodes return JSON with > 0 rows over
+        an anonymous session — catching empty data and auth-interstitial false-greens.
     .PARAMETER BaseUrl
         The base URL of the deployed Taxonomy Editor site.
     .PARAMETER TimeoutSec
@@ -33,6 +35,14 @@ function Invoke-TaxEditorSmokeTest {
         the deploy workflow immediately after a push (t/2639).
     .PARAMETER Detailed
         Show per-endpoint results in addition to the summary.
+    .PARAMETER AssertDataPresence
+        Run the data-presence phase (t/2671): establish an anonymous session, then
+        assert /api/entities, /api/organizations, and /api/taxonomy/<pov> return
+        JSON with > 0 rows — not just HTTP 200. Off by default so local runs (which
+        may not point at a data-populated instance) are unaffected; the deploy
+        workflow passes it. Catches the escape where the endpoint smoke went 26/26
+        green while data was empty on web, and where an auth Sign-In interstitial
+        (200 text/html) is mistaken for real data.
     .EXAMPLE
         Invoke-TaxEditorSmokeTest
     .EXAMPLE
@@ -75,7 +85,10 @@ function Invoke-TaxEditorSmokeTest {
         [string]$DeployedSha = '',
 
         [Parameter()]
-        [switch]$Detailed
+        [switch]$Detailed,
+
+        [Parameter()]
+        [switch]$AssertDataPresence
     )
 
     Set-StrictMode -Version Latest
@@ -157,6 +170,15 @@ function Invoke-TaxEditorSmokeTest {
         $Color = if ($Check.Pass) { 'Green' } else { 'Red' }
         Write-Host "  $Icon $($Check.Check) — $($Check.Detail)" -ForegroundColor $Color
     }
+    # t/2673 — GitHub health (status page, rate limits, GHCR) is a monitoring
+    # signal, not app health. A transient GitHub API flap must NOT sink the gate
+    # when the app itself is fully healthy — it caused a false-negative rollback on
+    # the step-1 staging isolation deploy (run 31890116255, 2026-08-15). Surface a
+    # degraded GitHub check as a CI warning; OverallPass gates only on
+    # Health/Endpoints/Azure (see the $OverallPass computation below).
+    if (-not $GitHub.Healthy) {
+        Write-Host "::warning::GitHub services degraded — monitoring signal only, does not block the traffic shift. See '=== GitHub Services ===' above."
+    }
     Write-Host ''
 
     # ── Phase 5: Analytics write/read round-trip (t/2667) ────────────────
@@ -186,14 +208,31 @@ function Invoke-TaxEditorSmokeTest {
         return $null
     }
 
+    # Establish an anonymous session first. Both /api/analytics/event (POST) and
+    # /api/analytics/query (GET) are anon-allowed, BUT in AUTH_OPTIONAL a cookie-less
+    # request receives a 200 text/html Sign-In interstitial (see Phase 6 note below,
+    # and lines 302-303) — so a session-less round-trip POSTs into the interstitial
+    # (event never reaches the handler) and reads the interstitial back as delta 0,
+    # a false "silent drop" that blocked prod+staging deploys (t/2683 → t/2684).
+    # Mirror the t/2671 data-presence phase: get the anon cookies, thread them
+    # through all three calls. If the session can't be established, warn explicitly
+    # so a resulting read failure is not mistaken for a persistence drop.
+    $AnalyticsSession = New-AnonymousWebSession -BaseUrl $BaseUrl -TimeoutSec $TimeoutSec
+    if (-not $AnalyticsSession) {
+        Write-Host '  (anonymous session not established — analytics round-trip may hit the auth interstitial; delta cannot be trusted)' -ForegroundColor DarkYellow
+    }
+
     # Baseline read BEFORE the write.
-    $BaselineCheck = Invoke-RemoteCheck -BaseUrl $BaseUrl -Path '/api/analytics/query' `
-        -Method GET -TimeoutSec $TimeoutSec -AcceptableStatusCodes @(200)
+    $BaselineParams = @{ BaseUrl = $BaseUrl; Path = '/api/analytics/query'; Method = 'GET'; TimeoutSec = $TimeoutSec; AcceptableStatusCodes = @(200) }
+    if ($AnalyticsSession) { $BaselineParams.Session = $AnalyticsSession }
+    $BaselineCheck = Invoke-RemoteCheck @BaselineParams
     $Before = & $GetTotalEvents $BaselineCheck
 
     # Write probe — reachability only (200 + ok:true). NOT a drop detector.
     # Build the body as an explicit JSON string so the single-element `events`
     # array is never unwrapped to an object (the server requires an array — 400 otherwise).
+    # Two events in one batch: smoke-probe (system category) + view.dwell (engagement)
+    # so the after-read can assert eventTypes['view.dwell'] >= 1 (t/2706 AC).
     $ProbeStamp   = [DateTimeOffset]::UtcNow.ToString('o')
     $ProbeSession = "smoke-$([DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds())"
     $ProbeEvent   = @{
@@ -204,10 +243,19 @@ function Invoke-TaxEditorSmokeTest {
         category   = 'system'
         detail     = @{}
     }
-    $EventJson = '{"events":[' + ($ProbeEvent | ConvertTo-Json -Depth 6 -Compress) + ']}'
+    $DwellEvent   = @{
+        user       = 'smoke-probe'
+        session_id = $ProbeSession
+        timestamp  = $ProbeStamp
+        event_type = 'view.dwell'
+        category   = 'engagement'
+        detail     = @{ duration_ms = 100 }
+    }
+    $EventJson = '{"events":[' + ($ProbeEvent | ConvertTo-Json -Depth 6 -Compress) + ',' + ($DwellEvent | ConvertTo-Json -Depth 6 -Compress) + ']}'
 
-    $WriteCheck = Invoke-RemoteCheck -BaseUrl $BaseUrl -Path '/api/analytics/event' `
-        -Method POST -Body $EventJson -TimeoutSec $TimeoutSec -AcceptableStatusCodes @(200)
+    $WriteParams = @{ BaseUrl = $BaseUrl; Path = '/api/analytics/event'; Method = 'POST'; Body = $EventJson; TimeoutSec = $TimeoutSec; AcceptableStatusCodes = @(200) }
+    if ($AnalyticsSession) { $WriteParams.Session = $AnalyticsSession }
+    $WriteCheck = Invoke-RemoteCheck @WriteParams
     $WriteOk = $false
     if ($WriteCheck.Success -and $WriteCheck.Body -and $WriteCheck.Body.PSObject.Properties['ok']) {
         $WriteOk = [bool]$WriteCheck.Body.ok
@@ -235,8 +283,9 @@ function Invoke-TaxEditorSmokeTest {
     Start-Sleep -Seconds 2
 
     # Read-back AFTER the write — the delta is the detector.
-    $AfterCheck = Invoke-RemoteCheck -BaseUrl $BaseUrl -Path '/api/analytics/query' `
-        -Method GET -TimeoutSec $TimeoutSec -AcceptableStatusCodes @(200)
+    $AfterParams = @{ BaseUrl = $BaseUrl; Path = '/api/analytics/query'; Method = 'GET'; TimeoutSec = $TimeoutSec; AcceptableStatusCodes = @(200) }
+    if ($AnalyticsSession) { $AfterParams.Session = $AnalyticsSession }
+    $AfterCheck = Invoke-RemoteCheck @AfterParams
     $After = & $GetTotalEvents $AfterCheck
 
     $DeltaPass = $false
@@ -264,6 +313,38 @@ function Invoke-TaxEditorSmokeTest {
     $DeltaResult.Error       = $DeltaErr
     $Analytics += $DeltaResult
 
+    # t/2706 — assert view.dwell event_type is recorded in eventTypes.
+    # The write batch above includes a view.dwell event; the after-read's
+    # eventTypes map (QueryResult.eventTypes: Record<string,number>) must
+    # contain 'view.dwell' >= 1. This catches a class of routing bug where
+    # the event is accepted (200 ok) but silently discarded or mis-typed.
+    $DwellPass = $false
+    $DwellErr  = $null
+    if (-not $AfterCheck.Success) {
+        $DwellErr = "after-read failed (status=$($AfterCheck.StatusCode)) — cannot check eventTypes"
+    } elseif (-not $AfterCheck.Body -or -not $AfterCheck.Body.PSObject.Properties['eventTypes']) {
+        $DwellErr = "eventTypes field missing from /api/analytics/query response"
+    } else {
+        $EventTypes  = $AfterCheck.Body.eventTypes
+        $DwellProp   = $EventTypes.PSObject.Properties['view.dwell']
+        $DwellCount  = if ($DwellProp) { [int]$DwellProp.Value } else { 0 }
+        $DwellPass   = ($DwellCount -ge 1)
+        if (-not $DwellPass) {
+            $DwellErr = "view.dwell absent or zero in eventTypes after probe write (count=$DwellCount) — event not persisted or event_type mis-routed"
+        }
+    }
+
+    $DwellResult = [EndpointTestResult]::new()
+    $DwellResult.Endpoint    = 'GET /api/analytics/query (view.dwell eventType)'
+    $DwellResult.Category    = 'Analytics'
+    $DwellResult.Description = 'view.dwell event_type present in analytics after write (t/2706)'
+    $DwellResult.Status      = $AfterCheck.StatusCode
+    $DwellResult.Pass        = $DwellPass
+    $DwellResult.Ms          = $AfterCheck.ResponseMs
+    $DwellResult.NodeCount   = $null
+    $DwellResult.Error       = $DwellErr
+    $Analytics += $DwellResult
+
     foreach ($Ep in $Analytics) {
         $Icon = if ($Ep.Pass) { '[PASS]' } else { '[FAIL]' }
         $Color = if ($Ep.Pass) { 'Green' } else { 'Red' }
@@ -274,8 +355,118 @@ function Invoke-TaxEditorSmokeTest {
     }
     Write-Host ''
 
+    # ── Phase 6: Data presence (t/2671) — opt-in via -AssertDataPresence ──
+    # The endpoint smoke passed 26/26 green while Entities/Organizations were empty
+    # on web (t/2648/t/2661): it asserts endpoints RESPOND, not that data POPULATES.
+    # Worse, in AUTH_OPTIONAL a cookie-less GET returns a 200 text/html Sign-In
+    # interstitial that a status-only check reads as PASS. This phase establishes an
+    # anonymous session (so the app serves real JSON, not the interstitial —
+    # accessControl.ts:335 anon-allows GETs; no admin token needed) and asserts each
+    # data route returns application/json with > 0 rows. Failures flow into
+    # FailedEndpoints → OverallPass. Off by default; the deploy workflow passes the switch.
+    $DataPresence = @()
+    if ($AssertDataPresence) {
+        Write-Host '=== Data Presence ===' -ForegroundColor Cyan
+        $DataSession = New-AnonymousWebSession -BaseUrl $BaseUrl -TimeoutSec $TimeoutSec
+        if (-not $DataSession) {
+            Write-Host '  (anonymous session not established — data GETs may return the auth interstitial)' -ForegroundColor DarkYellow
+        }
+
+        $DataRoutes = @(
+            @{ Path = '/api/entities';                 Field = '';      Label = 'entities' }
+            @{ Path = '/api/organizations';            Field = '';      Label = 'organizations' }
+            @{ Path = '/api/taxonomy/accelerationist'; Field = 'nodes'; Label = 'taxonomy nodes' }
+        )
+        foreach ($R in $DataRoutes) {
+            $Params = @{ BaseUrl = $BaseUrl; Path = $R.Path; Method = 'GET'; TimeoutSec = $TimeoutSec; ExpectJson = $true }
+            if ($DataSession) { $Params.Session = $DataSession }
+            $Check  = Invoke-RemoteCheck @Params
+            $Assert = Test-DataPresenceAssertion -Body $Check.Body -ContentType $Check.ContentType `
+                -CountField $R.Field -Label $R.Label
+
+            $Res = [EndpointTestResult]::new()
+            $Res.Endpoint    = "GET $($R.Path)"
+            $Res.Category    = 'DataPresence'
+            $Res.Description = "Data presence: $($R.Label) > 0"
+            $Res.Status      = $Check.StatusCode
+            $Res.Pass        = $Assert.Pass
+            $Res.Ms          = $Check.ResponseMs
+            $Res.NodeCount   = $Assert.Count
+            if (-not $Assert.Pass) {
+                $Res.Error = "$($R.Label): $($Assert.Reason)$(if ($Check.Error) { " (http: $($Check.Error))" })"
+            }
+            $DataPresence += $Res
+        }
+
+        foreach ($Ep in $DataPresence) {
+            $Icon = if ($Ep.Pass) { '[PASS]' } else { '[FAIL]' }
+            $Color = if ($Ep.Pass) { 'Green' } else { 'Red' }
+            Write-Host "  $Icon $($Ep.Endpoint) — $($Ep.Status) ($($Ep.NodeCount) rows) $($Ep.Ms)ms" -ForegroundColor $Color
+            if (-not $Ep.Pass -and $Ep.Error) {
+                Write-Host "        $($Ep.Error)" -ForegroundColor DarkRed
+            }
+        }
+        Write-Host ''
+    }
+
+    # ── Phase 7: Oped-files runtime asset health (t/2689 AC3) ──────────────────
+    # Asserts soul-docs + lib/oped/prompts are present in the container image.
+    # Both-arms gate verified (#1124) + clean real-env cycle (#1122) — now blocking.
+    Write-Host '=== Oped Files Health ===' -ForegroundColor Cyan
+    # Accept both 200 (ok) and 500 (missing files) so Invoke-WebRequest doesn't throw on the
+    # failure arm; we discriminate via ok:true/false in the body, not the HTTP status.
+    $OpedFilesCheck = Invoke-RemoteCheck -BaseUrl $BaseUrl -Path '/api/health/oped-files' `
+        -Method 'GET' -TimeoutSec $TimeoutSec -AcceptableStatusCodes @(200, 500)
+    # Parse body explicitly — Invoke-RemoteCheck.Body may arrive as a raw string or as a
+    # PSCustomObject depending on how ConvertFrom-Json behaved for this response. Parse
+    # defensively so the ok/missing checks always operate on a structured object.
+    # (t/2689: smoke false-warned on a valid {ok:true} response — body not parsed as object)
+    $OpedFilesJson = if ($OpedFilesCheck.Body -is [string]) {
+        try { $OpedFilesCheck.Body | ConvertFrom-Json -ErrorAction SilentlyContinue } catch { $null }
+    } else { $OpedFilesCheck.Body }
+    # Require JSON content-type + ok:true — a 200 text/html response is the Sign-In
+    # interstitial (any unknown GET before the endpoint is in PUBLIC_EXACT_PATHS).
+    $OpedFilesJsonOk  = $OpedFilesCheck.ContentType -and ($OpedFilesCheck.ContentType -like '*json*')
+    $OpedFilesBodyOk  = $OpedFilesJson -and
+        $OpedFilesJson.PSObject.Properties['ok'] -and [bool]$OpedFilesJson.ok
+    $OpedFilesPass = $OpedFilesCheck.Success -and $OpedFilesJsonOk -and $OpedFilesBodyOk
+    $OpedFilesDetail = if ($OpedFilesPass) {
+        $count = if ($OpedFilesJson -and $OpedFilesJson.PSObject.Properties['assets']) {
+            @($OpedFilesJson.assets).Count
+        } else { 0 }
+        "all assets present ($count files)"
+    } elseif (-not $OpedFilesJsonOk) {
+        "non-JSON response (content-type=$($OpedFilesCheck.ContentType), status=$($OpedFilesCheck.StatusCode)) — endpoint unreachable or returned interstitial"
+    } elseif (-not $OpedFilesBodyOk) {
+        $missing = if ($OpedFilesJson -and $OpedFilesJson.PSObject.Properties['missing']) {
+            ($OpedFilesJson.missing -join ', ')
+        } else { 'ok:false (no missing list)' }
+        "MISSING: $missing (status=$($OpedFilesCheck.StatusCode))"
+    } else {
+        "failed (status=$($OpedFilesCheck.StatusCode))"
+    }
+    $OFIcon  = if ($OpedFilesPass) { '[PASS]' } else { '[FAIL]' }
+    $OFColor = if ($OpedFilesPass) { 'Green' } else { 'Red' }
+    Write-Host "  $OFIcon GET /api/health/oped-files — $($OpedFilesCheck.StatusCode) $($OpedFilesCheck.ResponseMs)ms — $OpedFilesDetail" -ForegroundColor $OFColor
+    if (-not $OpedFilesPass) {
+        Write-Host "::error::Oped-files health check failed: $OpedFilesDetail"
+    }
+    Write-Host ''
+
+    $OpedFilesResult = [EndpointTestResult]::new()
+    $OpedFilesResult.Endpoint    = 'GET /api/health/oped-files'
+    $OpedFilesResult.Category    = 'OpedFiles'
+    $OpedFilesResult.Description = 'Soul-docs + oped prompts present in container image'
+    $OpedFilesResult.Status      = $OpedFilesCheck.StatusCode
+    $OpedFilesResult.Pass        = $OpedFilesPass
+    $OpedFilesResult.Ms          = $OpedFilesCheck.ResponseMs
+    $OpedFilesResult.NodeCount   = $null
+    if (-not $OpedFilesPass) {
+        $OpedFilesResult.Error = $OpedFilesDetail
+    }
+
     # ── Summary ──────────────────────────────────────────────────────────
-    $AllResults = @($Endpoints) + @($AnonEndpoints) + @($Analytics)
+    $AllResults = @($Endpoints) + @($AnonEndpoints) + @($Analytics) + @($DataPresence) + @($OpedFilesResult)
     $Passed = @($AllResults | Where-Object { $_.Pass }).Count
     $Failed = @($AllResults | Where-Object { -not $_.Pass }).Count
     $Total = $AllResults.Count
@@ -300,7 +491,10 @@ function Invoke-TaxEditorSmokeTest {
     }
 
     $Duration = (Get-Date) - $StartTime
-    $OverallPass = $Health.Healthy -and $Failed -eq 0 -and $Azure.Healthy -and $GitHub.Healthy
+    # t/2673 — gate on app health only (Health + Endpoints + Azure). GitHubOk is
+    # reported below and surfaced as a warning when degraded, but is intentionally
+    # excluded here so a transient GitHub API flap cannot false-red the deploy gate.
+    $OverallPass = $Health.Healthy -and $Failed -eq 0 -and $Azure.Healthy
 
     Write-Host '=== Summary ===' -ForegroundColor Cyan
     $SummaryColor = if ($OverallPass) { 'Green' } else { 'Red' }
@@ -328,6 +522,7 @@ function Invoke-TaxEditorSmokeTest {
         HealthOk        = $Health.Healthy
         AzureOk         = $Azure.Healthy
         GitHubOk        = $GitHub.Healthy
+        OpedFilesOk     = $OpedFilesPass
         EndpointsPassed = $Passed
         EndpointsFailed = $Failed
         EndpointsTotal  = $Total

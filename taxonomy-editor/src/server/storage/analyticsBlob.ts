@@ -106,6 +106,16 @@ export class BlobAnalyticsBackend implements AnalyticsBackend {
     return dates;
   }
 
+  async probe(): Promise<void> {
+    // t/2704: container `exists()` surfaces auth/network failures by THROWING (unlike
+    // listDates, which swallows). A reachable-but-missing container returns false —
+    // also fatal to the analytics pipeline — so treat it as an error too.
+    const exists = await this.client.exists();
+    if (!exists) {
+      throw new Error(`analytics container not found: ${this.client.containerName}`);
+    }
+  }
+
   async prune(cutoffDate: string): Promise<void> {
     try {
       const dates = await this.listDates();

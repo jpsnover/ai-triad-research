@@ -47,6 +47,21 @@ Describe 'Invoke-TaxEditorSmokeTest analytics round-trip probe (t/2667)' -Tag 'h
             Mock Test-GitHubHealth -MockWith { [PSCustomObject]@{ Healthy = $true; Checks = @() } }
             Mock Start-Sleep -MockWith { }
 
+            # Phase 5 now establishes an anon session (t/2684) before the round-trip —
+            # stub it so the tests stay offline and fast. Default: a real session so
+            # the -Session param is threaded through the three calls; individual tests
+            # override to $null to exercise the unavailable path.
+            Mock New-AnonymousWebSession -MockWith { [Microsoft.PowerShell.Commands.WebRequestSession]::new() }
+
+            # Phase 7 (t/2689) runs before analytics — stub it so analytics tests focus on their phase.
+            Mock Invoke-RemoteCheck -ParameterFilter { $Path -eq '/api/health/oped-files' } -MockWith {
+                [PSCustomObject]@{
+                    Success = $true; StatusCode = 200; ResponseMs = 5
+                    Body = [PSCustomObject]@{ ok = $true; assets = @() }
+                    ContentType = 'application/json'; RawBody = ''; Error = $null
+                }
+            }
+
             # Helper builds an Invoke-RemoteCheck-shaped result.
             function script:New-RCResult ($Success, $Status, $Body) {
                 [PSCustomObject]@{
@@ -63,7 +78,10 @@ Describe 'Invoke-TaxEditorSmokeTest analytics round-trip probe (t/2667)' -Tag 'h
             Mock Invoke-RemoteCheck -ParameterFilter { $Path -eq '/api/analytics/query' } -MockWith {
                 $script:QueryCall++
                 $total = if ($script:QueryCall -eq 1) { 5 } else { 6 }   # +1 after write
-                New-RCResult $true 200 ([PSCustomObject]@{ summary = [PSCustomObject]@{ totalEvents = $total } })
+                New-RCResult $true 200 ([PSCustomObject]@{
+                    summary    = [PSCustomObject]@{ totalEvents = $total }
+                    eventTypes = [PSCustomObject]@{ 'view.dwell' = if ($script:QueryCall -ge 2) { 1 } else { 0 } }
+                })
             }
             Mock Invoke-RemoteCheck -ParameterFilter { $Path -eq '/api/analytics/event' } -MockWith {
                 New-RCResult $true 200 ([PSCustomObject]@{ ok = $true; count = 1 })
@@ -138,6 +156,58 @@ Describe 'Invoke-TaxEditorSmokeTest analytics round-trip probe (t/2667)' -Tag 'h
             $delta = $result.FailedEndpoints | Where-Object { $_.Endpoint -like '*delta read-back*' }
             $delta | Should -Not -BeNullOrEmpty
             $delta.Error | Should -Match 'Baseline read failed'
+        }
+    }
+
+    It 'ANON SESSION: establishes one and threads it through all three Phase-5 calls (t/2684)' {
+        InModuleScope AITriad {
+            $script:QueryCall = 0
+            Mock Invoke-RemoteCheck -ParameterFilter { $Path -eq '/api/analytics/query' } -MockWith {
+                $script:QueryCall++
+                $total = if ($script:QueryCall -eq 1) { 5 } else { 6 }
+                New-RCResult $true 200 ([PSCustomObject]@{
+                    summary    = [PSCustomObject]@{ totalEvents = $total }
+                    eventTypes = [PSCustomObject]@{ 'view.dwell' = if ($script:QueryCall -ge 2) { 1 } else { 0 } }
+                })
+            }
+            Mock Invoke-RemoteCheck -ParameterFilter { $Path -eq '/api/analytics/event' } -MockWith {
+                New-RCResult $true 200 ([PSCustomObject]@{ ok = $true; count = 1 })
+            }
+
+            Invoke-TaxEditorSmokeTest -BaseUrl 'https://stub' 6>$null | Out-Null
+
+            # The anon session is established exactly once for the phase.
+            Should -Invoke New-AnonymousWebSession -Times 1 -Exactly
+
+            # …and threaded to all three analytics calls (baseline GET, POST event,
+            # read-back GET) — the fix for the cookie-less interstitial false-positive.
+            Should -Invoke Invoke-RemoteCheck -Times 3 -Exactly -ParameterFilter {
+                ($Path -eq '/api/analytics/query' -or $Path -eq '/api/analytics/event') -and $null -ne $Session
+            }
+        }
+    }
+
+    It 'ANON SESSION UNAVAILABLE: warns and proceeds session-less, does not throw (t/2684)' {
+        InModuleScope AITriad {
+            Mock New-AnonymousWebSession -MockWith { $null }
+            $script:QueryCall = 0
+            Mock Invoke-RemoteCheck -ParameterFilter { $Path -eq '/api/analytics/query' } -MockWith {
+                $script:QueryCall++
+                $total = if ($script:QueryCall -eq 1) { 5 } else { 6 }
+                New-RCResult $true 200 ([PSCustomObject]@{
+                    summary    = [PSCustomObject]@{ totalEvents = $total }
+                    eventTypes = [PSCustomObject]@{ 'view.dwell' = if ($script:QueryCall -ge 2) { 1 } else { 0 } }
+                })
+            }
+            Mock Invoke-RemoteCheck -ParameterFilter { $Path -eq '/api/analytics/event' } -MockWith {
+                New-RCResult $true 200 ([PSCustomObject]@{ ok = $true; count = 1 })
+            }
+
+            # No -Session flows through when the session could not be established.
+            { Invoke-TaxEditorSmokeTest -BaseUrl 'https://stub' 6>$null } | Should -Not -Throw
+            Should -Invoke Invoke-RemoteCheck -Times 3 -Exactly -ParameterFilter {
+                ($Path -eq '/api/analytics/query' -or $Path -eq '/api/analytics/event') -and $null -eq $Session
+            }
         }
     }
 }

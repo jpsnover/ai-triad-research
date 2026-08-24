@@ -25,6 +25,7 @@ export type EventType =
   | 'an.extraction_confidence_delta'
   | 'an.extraction_coverage_error'
   | 'an.exclusion_violation'
+  | 'an.nli_direction_gate'
   // Turn pipeline
   | 'turn.stage'
   | 'turn.validate'
@@ -225,6 +226,7 @@ export interface FlightRecorderConfig {
   maxDumpFiles: number;          // Retain last N dumps (default: 10)
   maxDumpBytes: number;          // Total disk budget in bytes (default: 50 MB)
   includeSystemContext: boolean;  // Include OS/app info in dump header (default: true)
+  shim?: boolean;                // Marks this as an intentional capacity-1 popup shim recorder
 }
 
 export const DEFAULT_CONFIG: FlightRecorderConfig = {

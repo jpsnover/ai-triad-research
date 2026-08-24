@@ -68,7 +68,14 @@ function Invoke-DocumentSummary {
         [Parameter(Mandatory)][string]$SummariesDir,
         [Parameter(Mandatory)][string]$Now,
         [switch]$IterativeExtraction,
-        [switch]$AutoFire
+        [switch]$AutoFire,
+
+        # Directional polarity gate. DEFAULT ON as of t/2912 — promoted after the
+        # durable two-stage LLM-judge fix (t/2900) cleared both-arms GV + a clean
+        # observe cycle (121 deberta false-positives caught, 0 bad flips on a real
+        # sample). It was default-OFF under t/2896 while deberta over-flagged solo.
+        # Kill switch: pass -EnablePolarityGate:$false to disable.
+        [bool]$EnablePolarityGate = $true
     )
 
     Set-StrictMode -Version Latest
@@ -851,6 +858,59 @@ function Finalize-Summary {
         if ($AllKpsForConf.Count -gt 0) {
             Invoke-RetrievalConfidencePass -KeyPoints $AllKpsForConf.ToArray() `
                 -Threshold $script:RetrievalConfidenceThreshold
+        }
+    }
+
+    # -- Polarity/contradiction gate (t/2739 P1) -------------------------------
+    # Runs after the confidence pass (retrieval_low_confidence populated). Asks the
+    # shared directional engine whether each aligned, high-topical-band key_point
+    # OPPOSES its ASSIGNED node's proposition; flips to strongly_opposed +
+    # stance_polarity_flag on 'opposes' (opposition-only; unresolved keeps). The
+    # residual that similarity + the prompt (t/2738) cannot catch.
+    $PolarityKps = [System.Collections.Generic.List[object]]::new()
+    foreach ($Camp in $Camps) {
+        $CampDataPol = $SummaryObject.pov_summaries.$Camp
+        if (-not $CampDataPol -or -not (Has-Field $CampDataPol 'key_points')) { continue }
+        $kpListPol = Get-Field $CampDataPol 'key_points'
+        if ($kpListPol) {
+            foreach ($kp in @($kpListPol)) { [void]$PolarityKps.Add(@{ KeyPoint = $kp; POV = $Camp }) }
+        }
+    }
+    if ($PolarityKps.Count -gt 0) {
+        # ── DIRECTIONAL POLARITY GATE — DISABLED BY DEFAULT (t/2896) ──────────────
+        # WHY OFF: the gate's safety invariant ("false-demote structurally ~0") is
+        # FALSIFIED. deberta-v3-small false-flips genuine aligned agreements to
+        # strongly_opposed at NLI margins 3.4–7.5 — an order of magnitude above the
+        # ~1.4 real-contradiction ceiling, so no τ_contra separates them (provably not
+        # tunable). Root cause is a model reasoning gap: it can't infer agency→loss
+        # (AI-gains-agency ⊨ humans-lose-oversight), which is the DOMINANT
+        # safetyist/skeptic claim shape — so the gate corrupts precisely where it
+        # fires most (CL diagnosis t/2896#1; TL [Decision] e/117#3).
+        # STATUS (t/2912): the gate is ACTIVE BY DEFAULT. The durable two-stage
+        # LLM-judge fix (t/2900) resolved the agency→loss false-demote — deberta
+        # proposes 'opposes' candidates, the gemini-3.1-pro-preview judge disposes
+        # (unanimous-opposes-to-flip @ temp 0.3; fail-safe unresolved/error → KEEP) —
+        # promoted after both-arms GV + a clean observe cycle (121 deberta FPs the
+        # judge rejected, 0 bad flips). Kill switch: -EnablePolarityGate:$false.
+        $PolarityCounts = Invoke-PolarityGatePass -KeyPoints $PolarityKps.ToArray() `
+            -SkipDirectionalGate:(-not $EnablePolarityGate)
+        if ($EnablePolarityGate -and $PolarityCounts.gated -gt 0) {
+            # t/2900/t/2912 two-stage telemetry — emitted EVERY run so the judge's
+            # flip / false-positive-kept / self-heal rates are observable in prod
+            # (TL GV condition t/2912#3). judge_kept = deberta false-positives the
+            # judge rejected (the payoff); judge_flipped = confirmed demotes;
+            # self_healed = prior false-flips auto-reverted.
+            $polLine = "Polarity gate (two-stage): judge_flipped={0} judge_kept={1} self_healed={2} over {3} gated key_point(s), {4} deberta rep-pair(s)" -f `
+                $PolarityCounts.judge_flipped, $PolarityCounts.judge_kept, $PolarityCounts.self_healed, $PolarityCounts.gated, $PolarityCounts.reps
+            if ($PolarityCounts.judge_flipped -gt 0) { Write-Warn $polLine } else { Write-Info $polLine }
+            # Silent-degradation detector: every claim-rep pair unresolved ⇒ the
+            # directional engine likely failed for the whole run (fail-safe kept all
+            # mappings). Surface by default so a dead engine does not pass unnoticed
+            # (TL GV t/2739#6).
+            if ($PolarityCounts.reps -gt 0 -and $PolarityCounts.unresolved -eq $PolarityCounts.reps) {
+                Write-Warn ("Polarity gate: all {0} claim-rep pair(s) over {1} gated key_point(s) unresolved — directional engine may be down (no inversion detection this run)" -f `
+                    $PolarityCounts.reps, $PolarityCounts.gated)
+            }
         }
     }
 

@@ -36,8 +36,8 @@ export const NAV_ITEMS: readonly NavItem[] = [
   { id: 'search', label: 'Search', icon: Search, tier: 'primary', action: { type: 'togglePanel', target: 'search' } },
   { id: 'taxonomy', label: 'Taxonomy', icon: LayoutGrid, tier: 'primary', action: { type: 'custom', id: 'taxonomy' } },
   { id: 'debate', label: 'Debate', icon: MessageSquare, tier: 'primary', action: { type: 'switchTab', target: 'debate' } },
-  { id: 'chat', label: 'Chat', icon: MessageCircle, tier: 'primary', action: { type: 'custom', id: 'chat' } },
-  { id: 'opeds', label: 'Op-Eds', icon: Newspaper, tier: 'primary', action: { type: 'switchTab', target: 'opeds' }, gate: { anyFlag: ['env-electron-opeds', 'env-web-opeds'] } },
+  { id: 'chat', label: 'Chat', icon: MessageCircle, tier: 'primary', action: { type: 'switchTab', target: 'chat' } },
+  { id: 'opeds', label: 'Op-Ed Studies', icon: Newspaper, tier: 'primary', action: { type: 'switchTab', target: 'opeds' }, gate: { anyFlag: ['env-electron-opeds', 'env-web-opeds'] } },
 
   // ── Secondary tier — browse group ──
   { id: 'situations', label: 'Situations', icon: Crosshair, tier: 'secondary', group: 'browse', action: { type: 'switchTab', target: 'situations' } },

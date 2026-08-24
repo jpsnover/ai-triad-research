@@ -316,7 +316,8 @@ export function registerSourcesRoutes(r: Router, _ctx: ServerCtx): void {
   get('/api/ps-prompts', async (_req, res) => { json(res, await fileIO.listPsPrompts()); });
 
   get('/api/ps-prompts/:name', async (req, res) => {
-    json(res, await fileIO.readPsPrompt(param(req, 'name', '/api/ps-prompts/:name')));
+    const dir = new URL(req.url ?? '', 'http://localhost').searchParams.get('dir') ?? 'ps';
+    json(res, await fileIO.readPsPrompt(param(req, 'name', '/api/ps-prompts/:name'), dir));
   });
 
   // ── URL content ──

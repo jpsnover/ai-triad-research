@@ -1,0 +1,23 @@
+{
+  "confrontation": {
+    "urgency": 0.1597,
+    "fear": 0.4191,
+    "hope": 0.1927,
+    "outrage": 0.0695,
+    "empathy": 0.1589
+  },
+  "argumentation": {
+    "urgency": 0.1715,
+    "fear": 0.4128,
+    "hope": 0.133,
+    "outrage": 0.087,
+    "empathy": 0.1957
+  },
+  "concluding": {
+    "urgency": 0.1759,
+    "fear": 0.4428,
+    "hope": 0.2071,
+    "outrage": 0.0378,
+    "empathy": 0.1364
+  }
+}

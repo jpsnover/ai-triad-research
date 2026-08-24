@@ -36,6 +36,14 @@ on:
           - optional
           - required
           - disabled
+      staging_shared_read_only:
+        description: 'Mount staging shared volume read-only (true = RO flip for arm-A verification, t/2643)'
+        required: false
+        default: 'false'
+        type: choice
+        options:
+          - 'false'
+          - 'true'
       # enable_git_sync removed — GitHub API-first mode is always on (STORAGE_MODE=github-api)
 
 permissions:
@@ -94,16 +102,43 @@ jobs:
       - name: Verify container-relevant CI passed for this commit
         env:
           GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
         run: |
           echo "Checking CI status for ${{ github.sha }}..."
 
-          # Get the latest CI run for this commit
-          RUN_ID=$(gh api "repos/${{ github.repository }}/actions/workflows/ci.yml/runs?head_sha=${{ github.sha }}&per_page=1" \
-            --jq '.workflow_runs[0].id // empty' 2>/dev/null || echo "")
+          # Get the latest CI run for this commit (or its nearest ancestor).
+          # Docs-only pushes to main are intentionally skipped by ci.yml paths-ignore
+          # (**.md, docs/**, deploy/azure/runbooks/**), so HEAD may have no CI run.
+          # Walk back up to 10 commits to find the last green ancestor — safe because
+          # docs-only commits cannot affect the container image.
+          COMMITS=$(gh api "repos/${{ github.repository }}/commits?sha=${{ github.sha }}&per_page=10" \
+            --jq '.[].sha' 2>/dev/null || echo "")
+          RUN_ID=""
+          for COMMIT in $COMMITS; do
+            RUN_ID=$(gh api "repos/${{ github.repository }}/actions/workflows/ci.yml/runs?head_sha=${COMMIT}&per_page=1" \
+              --jq '.workflow_runs[0].id // empty' 2>/dev/null || echo "")
+            if [ -n "$RUN_ID" ]; then
+              if [ "$COMMIT" != "${{ github.sha }}" ]; then
+                echo "HEAD ${{ github.sha }} has no CI run (docs-only skip). Using ancestor ${COMMIT} (run ${RUN_ID})."
+              fi
+              break
+            fi
+          done
 
           if [ -z "$RUN_ID" ]; then
-            echo "::error::No CI run found for commit ${{ github.sha }}. CI must run before deploying."
+            echo "::error::No CI run found for commit ${{ github.sha }} or recent ancestors. CI must run before deploying."
             exit 1
+          fi
+
+          # Wait for the run to complete if it is still in progress.
+          RUN_STATUS=$(gh api "repos/${{ github.repository }}/actions/runs/${RUN_ID}" \
+            --jq '.status' 2>/dev/null || echo "")
+          if [ "$RUN_STATUS" = "in_progress" ] || [ "$RUN_STATUS" = "queued" ]; then
+            echo "CI run ${RUN_ID} is still ${RUN_STATUS} — waiting for completion..."
+            gh run watch "${RUN_ID}" --exit-status || {
+              echo "::error::CI run ${RUN_ID} failed. Deploy blocked until CI passes."
+              exit 1
+            }
           fi
 
           # Check only test-container — it needs: [test-powershell, test-electron]
@@ -180,7 +215,7 @@ jobs:
           echo "Deploying image tag: $(cat $GITHUB_OUTPUT | grep tag= | cut -d= -f2)"
 
       - name: Log in to Azure
-        uses: azure/login@532459ea530d8321f2fb9bb10d1e0bcf23869a43  # v3
+        uses: azure/login@f5d393ae46f8fde4be8b75f32e3fc50e654ad0ca  # v3
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
@@ -247,6 +282,7 @@ jobs:
               freeTierGeminiKey=${{ secrets.FREE_TIER_GEMINI_KEY }} \
               geminiPaidKey=${{ secrets.GEMINI_PAID_KEY }} \
               budgetAlertEmail=${{ vars.ALERT_EMAIL }} \
+              stagingSharedReadOnly=${{ inputs.staging_shared_read_only == 'true' && 'true' || 'false' }} \
             --no-pretty-print 2>&1) || true
           echo "$RESULT"
 
@@ -292,12 +328,24 @@ jobs:
             budgetAlertEmail=${{ vars.ALERT_EMAIL }}
             trafficPinRevisionName=${{ steps.current_revision.outputs.revision }}
             trafficPinRevisionNameStaging=${{ steps.current_revision.outputs.staging_revision }}
+            stagingSharedReadOnly=${{ inputs.staging_shared_read_only == 'true' && 'true' || 'false' }}
 
       # NOTE: the current active revision is now captured BEFORE the Bicep apply
       # (see "Capture current active revisions" above) so it can be passed as the
       # traffic pin. steps.current_revision.outputs.revision remains the rollback
       # target below — and, with the pin, that revision holds 100% throughout the
       # deploy, so it can never drop to 0% / go stale / be GC'd mid-deploy (t/2047).
+
+      # SYNC WITH main.bicep: analyticsContainer, stagingAnalyticsContainer,
+      # userContentContainer, stagingUserContentContainer, communityContainer,
+      # stagingCommunityContainer, briefExportsContainer, stagingBriefExportsContainer.
+      # Update both if a container is added or removed.
+      # Discriminates ContainerNotFound (404) from RBAC failures (403) — t/2718.
+      - name: Verify blob containers exist post-deploy
+        shell: pwsh
+        run: |
+          ./operations/devops/Invoke-BlobContainerGateCheck.ps1 `
+            -StorageAccount '${{ steps.deploy.outputs.storageAccountName }}'
 
       - name: Cleanup stale revisions
         shell: pwsh
@@ -391,7 +439,7 @@ jobs:
           # Invoke-TaxEditorSmokeTest covers all 6 endpoint categories + health +
           # Azure + GitHub checks against the zero-traffic revision before any traffic
           # is shifted — mandatory pre-promotion gate (t/2376).
-          $SmokeResult = Invoke-TaxEditorSmokeTest -BaseUrl $BaseUrl -Detailed
+          $SmokeResult = Invoke-TaxEditorSmokeTest -BaseUrl $BaseUrl -Detailed -AssertDataPresence
           Write-Host ""
           Write-Host "=== Smoke: $($SmokeResult.EndpointsPassed)/$($SmokeResult.EndpointsTotal) endpoints passed ==="
 
@@ -403,7 +451,17 @@ jobs:
             Write-Host "  GitHub: $(if ($SmokeResult.GitHubOk) { 'OK' } else { 'FAIL' })"
             foreach ($F in $SmokeResult.FailedEndpoints) { Write-Host "  FAIL  $($F.Endpoint): $($F.Error)" }
           } else {
-            Add-Content -Path $env:GITHUB_OUTPUT -Value 'accepted=true'
+            # Embedding health check — blocks traffic shift if ONNX encoder is down (t/2786).
+            # Must assert a real 384-dim vector, not just HTTP 200 — silent-degradation guard.
+            Write-Host ""
+            Write-Host "=== Embedding health check (pre-traffic shift) ==="
+            $EmbedHealth = Test-EmbeddingHealth -BaseUrl $BaseUrl
+            if (-not $EmbedHealth.Healthy) {
+              Add-Content -Path $env:GITHUB_OUTPUT -Value 'accepted=false'
+              Write-Host "::error::Embedding health FAILED ($($EmbedHealth.Error)) — NOT shifting traffic. Trace: Get-ServerLog -RequestId $($EmbedHealth.RequestId)"
+            } else {
+              Add-Content -Path $env:GITHUB_OUTPUT -Value 'accepted=true'
+            }
           }
 
       - name: Persona matrix (pre-traffic shift)
@@ -512,7 +570,7 @@ jobs:
 
       - name: Re-authenticate before rollback
         if: always() && (steps.health_check.outputs.healthy != 'true' || steps.acceptance.outputs.accepted == 'false' || steps.persona.outputs.accepted == 'false') && steps.current_revision.outputs.revision != ''
-        uses: azure/login@532459ea530d8321f2fb9bb10d1e0bcf23869a43  # v3
+        uses: azure/login@f5d393ae46f8fde4be8b75f32e3fc50e654ad0ca  # v3
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}

@@ -18,6 +18,7 @@
 import tseslint from 'typescript-eslint';
 import reactHooks from 'eslint-plugin-react-hooks';
 import requireFlightRecorderInCatch from '../lib/eslint-rules/require-flight-recorder-in-catch.js';
+import noActionableErrorMessageNesting from '../lib/eslint-rules/no-actionable-error-message-nesting.js';
 import noUnmanagedModuleResources from './eslint-rules/no-unmanaged-module-resources.js';
 import noInlineStyle from './eslint-rules/no-inline-style.js';
 
@@ -26,6 +27,7 @@ const localPlugin = {
     'require-flight-recorder-in-catch': requireFlightRecorderInCatch,
     'no-unmanaged-module-resources': noUnmanagedModuleResources,
     'no-inline-style': noInlineStyle,
+    'no-actionable-error-message-nesting': noActionableErrorMessageNesting,
   },
 };
 
@@ -76,6 +78,10 @@ export default tseslint.config(
       // flight recorder. Flipped warn→error once the tree was clean (0 violations).
       'local/require-flight-recorder-in-catch': 'error',
       'max-lines': MAX_LINES_SRC,
+      // ActionableError nesting gate (t/2764 / t/2761): forbid err.message in problem:.
+      // Custom rule (not no-restricted-syntax) so it restricts to error-named identifiers
+      // and unwraps TSAsExpression — no false positives on data.message HTTP response fields.
+      'local/no-actionable-error-message-nesting': 'error',
     },
   },
   {
