@@ -192,6 +192,7 @@ export async function finalizeOpedSet(set: OpEdSet): Promise<void> {
     voice_count: set.opeds.length,
     created_at: set.created_at,
     updated_at: now,
+    outlet: set.params.outlet,
   };
   await upsertOpedSetIndex(summary).catch((err) => {
     log.server.warn({ err, setId: set.set_id }, 'Oped-set index upsert failed (best-effort)');

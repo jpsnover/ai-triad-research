@@ -86,6 +86,8 @@ export interface OpEdSetSummary {
   updated_at?: string;
   camps: PovKey[];
   voice_count: number;
+  /** t/2993: forwarded from OpEdSet.params.outlet at finalize time. Absent on older sets → render '—'. */
+  outlet?: string;
 }
 
 // ── Community index entry (e/91#2 condition 5) ────────────────────────────────
@@ -101,4 +103,6 @@ export interface OpEdCommunityEntry {
   camps: PovKey[];
   voice_count: number;
   community_metadata: unknown;
+  /** t/2993: forwarded from the stored op-ed's params.outlet at index-build time. */
+  outlet?: string;
 }

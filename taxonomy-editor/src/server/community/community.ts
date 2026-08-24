@@ -54,7 +54,7 @@ const COMMUNITY_INDEX_FILE = '_index.json';
 // Bump when toEntry shape changes so stale caches are replaced on next list.
 const CHAT_INDEX_VERSION = 'chat-v2'; // v2: added model (t/2779)
 const DEBATE_INDEX_VERSION = 'debate-v2'; // v2: added model + turn_count (t/2362/t/2384)
-const OPED_INDEX_VERSION = 'oped-v1';
+const OPED_INDEX_VERSION = 'oped-v2'; // v2: added outlet (t/2993)
 
 interface ListingIndexSpec<T> {
   dir: string;
@@ -221,6 +221,7 @@ export async function listCommunityOpEds(): Promise<unknown[]> {
         ? [...new Set<string>((parsed.opeds as { pov?: string }[]).map(m => m.pov).filter((p): p is string => Boolean(p)))]
         : [],
       voice_count: Array.isArray(parsed.opeds) ? (parsed.opeds as unknown[]).length : 0,
+      outlet: typeof parsed.params?.outlet === 'string' ? parsed.params.outlet : undefined,
     }),
   });
   return [...items].sort((a, b) => (b.updated_at || '').localeCompare(a.updated_at || ''));
