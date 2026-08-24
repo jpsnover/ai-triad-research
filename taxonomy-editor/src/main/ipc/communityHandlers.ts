@@ -18,6 +18,7 @@ import {
 } from '../communityReviewIO.js';
 import { ActionableError } from '../../../../lib/debate/errors.js';
 import { getGlobalRecorder } from '../../../../lib/flight-recorder/index.js';
+import { communitySubmitPayloadSchema } from './communitySubmitSchema.js';
 
 export function registerCommunityHandlers(): void {
   // Submit a debate/chat to the remote Community Library.
@@ -34,9 +35,10 @@ export function registerCommunityHandlers(): void {
       if (!/^https?:\/\//i.test(base)) {
         throw new Error('Community server URL must be an http(s) URL. Set it in Settings to share debates.');
       }
-      const submitPayload = z
-        .object({ type: z.enum(['chat', 'debate']), data: z.unknown(), note: z.string().optional() })
-        .parse(payload);
+      // t/2986: 'oped' MUST be in the enum — the op-ed share sends type:'oped', which
+      // the client bridge type + server already accept. Schema single-sourced +
+      // tested in communitySubmitSchema.ts to prevent this drift recurring.
+      const submitPayload = communitySubmitPayloadSchema.parse(payload);
       const url = `${base}/api/community/submit`;
       try {
         const res = await net.fetch(url, {
