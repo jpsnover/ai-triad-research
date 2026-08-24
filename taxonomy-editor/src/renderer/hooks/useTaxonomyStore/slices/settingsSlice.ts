@@ -126,7 +126,7 @@ export const MODELS_BY_BACKEND: Record<AIBackend, AIModelEntry[]> = {
     { value: 'ollama-gemma4-e4b-it-q4-k-m', label: 'Gemma 4 E4B (default)' },
   ],
   zai: [
-    { value: 'zai-glm-5-2', label: 'GLM 5.2' },
+    { value: 'zai-glm-5-2', label: 'GLM 5.3' },
   ],
   moonshot: [
     { value: 'moonshot-kimi-k3', label: 'Kimi K3' },

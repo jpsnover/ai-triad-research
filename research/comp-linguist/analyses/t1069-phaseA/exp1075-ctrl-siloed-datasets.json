@@ -9,5 +9,6 @@
   "pacing": "moderate",
   "outputFormat": "all",
   "throttleMs": 2000,
+  "maxTotalRounds": 20,
   "outputDir": "C:/tmp/exp1075-out"
 }

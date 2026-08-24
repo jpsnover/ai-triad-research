@@ -77,7 +77,7 @@ function Approve-Edge {
         return
     }
 
-    $EdgesData = Get-Content -Raw -Path $EdgesPath | ConvertFrom-Json
+    $EdgesData = Read-EdgesFile -Path $EdgesPath   # t/2974: coercion-free read (preserve discovered_at strings)
 
     if ($Interactive) {
         $Proposed = @()

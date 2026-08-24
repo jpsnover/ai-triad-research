@@ -1,0 +1,19 @@
+=== P1: rationaled EDGES vs distinct rationaled KEYS at ba3128f5 ===
+  total edges                 : 33454
+  edges carrying a rationale  : 33448
+  DISTINCT rationaled keys    : 33445
+  collisions (key seen >1x)   : 3
+    dup x2: acc-beliefs-051|SUPPORTS|acc-desires-001
+    dup x2: acc-beliefs-069|SUPPORTS|acc-intentions-054
+    dup x2: acc-intentions-100|SUPPORTS|acc-beliefs-039
+  => edges - keys = 3
+
+=== P2: committed edges.json with an EMPTY edges array ===
+  sandbox HEAD: db96b1f
+  return       : 0
+  verbose lines: 0
+  => SILENT fail-open (no verbose emitted) — Finding-2 contract gap
+
+  -- P2b: same sandbox, second call (cache-hit path) --
+  return       : 
+    V: edge-rationale baseline: cache hit — 0 committed baseline edge(s) for 'edges.json'.

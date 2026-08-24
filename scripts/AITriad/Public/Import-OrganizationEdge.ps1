@@ -191,6 +191,7 @@ function Import-OrganizationEdge {
     }
 
     # Atomic write: temp + File.Move
+    Assert-DataWriteAllowed -Path $path  # t/2902
     $temp = "$path.tmp"
     $json = $store | ConvertTo-Json -Depth 8
     try {

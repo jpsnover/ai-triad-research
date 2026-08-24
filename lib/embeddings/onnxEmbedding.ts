@@ -86,6 +86,8 @@ let _ort: OrtModule | null = null;
 let _session: OrtSession | null = null;
 let _tokenizer: WordPieceTokenizer | null = null;
 let _initPromise: Promise<void> | null = null;
+let _warmupResult: boolean | null = null;
+let _warmupError: string | undefined;
 let _modelDir: string | null = null;
 let _offline = false; // true when the model dir came from MODEL_DIR_ENV — authoritative, never fetch
 let _selectedEP: string = 'none';
@@ -481,10 +483,15 @@ export async function warmup(): Promise<void> {
  * Consumers can use this to decide whether to fall back to Python subprocess.
  */
 export async function tryWarmup(): Promise<boolean> {
+  if (_warmupResult !== null) return _warmupResult;
   try {
     await ensureReady();
+    _warmupResult = true;
+    _warmupError = undefined;
     return true;
   } catch (err) {
+    _warmupResult = false;
+    _warmupError = String(err);
     console.warn(`[onnxEmbedding] Initialization failed, Python fallback recommended: ${err}`);
     return false;
   }
@@ -493,6 +500,12 @@ export async function tryWarmup(): Promise<boolean> {
 /** Check if the model is loaded and ready for inference. */
 export function isReady(): boolean {
   return _session != null && _tokenizer != null;
+}
+
+/** Report cached warmup status for health endpoints. */
+export function getWarmupStatus(): { ready: boolean; error?: string } {
+  if (_warmupResult === null) return { ready: false, error: 'warmup not yet attempted' };
+  return _warmupResult ? { ready: true } : { ready: false, error: _warmupError };
 }
 
 /** Return the active execution provider ('openvino', 'dml', 'cpu', or 'none' if not initialized). */

@@ -193,9 +193,10 @@ async function main(): Promise<void> {
       configText = fs.readFileSync(resolvedConfig, 'utf-8');
     } catch (err) {
       getGlobalRecorder()?.record({ type: 'state.error', component: 'cli', level: 'error', message: `Failed to read config file ${resolvedConfig}`, error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
+      const errMsg = err instanceof Error ? err.message : String(err);
       throw new ActionableError({
         goal: 'Load debate configuration',
-        problem: `Failed to read config file ${resolvedConfig}: ${err instanceof Error ? err.message : err}`,
+        problem: `Failed to read config file ${resolvedConfig}: ${errMsg}`,
         location: 'cli.main',
         nextSteps: [
           'Check that you have read permissions on the file',
@@ -211,9 +212,10 @@ async function main(): Promise<void> {
     config = JSON.parse(configText);
   } catch (err) {
     getGlobalRecorder()?.record({ type: 'state.error', component: 'cli', level: 'error', message: 'Config file contains invalid JSON', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
+    const errMsg = err instanceof Error ? err.message : String(err);
     throw new ActionableError({
       goal: 'Parse debate configuration',
-      problem: `Config file contains invalid JSON: ${err instanceof Error ? err.message : err}`,
+      problem: `Config file contains invalid JSON: ${errMsg}`,
       location: 'cli.main',
       nextSteps: [
         'Validate the config file with a JSON linter (e.g. jsonlint or VS Code)',
@@ -454,9 +456,10 @@ async function main(): Promise<void> {
     fs.mkdirSync(outputDir, { recursive: true });
   } catch (mkdirErr) {
     getGlobalRecorder()?.record({ type: 'state.error', component: 'cli', level: 'error', message: `Failed to create output directory '${outputDir}'`, error: { name: (mkdirErr as Error).name ?? 'Error', message: String(mkdirErr), stack: (mkdirErr as Error).stack } });
+    const errMsg = mkdirErr instanceof Error ? mkdirErr.message : String(mkdirErr);
     throw new ActionableError({
       goal: 'Create debate output directory',
-      problem: `Failed to create output directory '${outputDir}': ${mkdirErr instanceof Error ? mkdirErr.message : mkdirErr}`,
+      problem: `Failed to create output directory '${outputDir}': ${errMsg}`,
       location: 'cli.main',
       nextSteps: [
         `Check that the parent directory of '${outputDir}' exists`,
@@ -552,9 +555,10 @@ async function main(): Promise<void> {
       log(`Wrote ${description}: ${filePath}`);
     } catch (err) {
       getGlobalRecorder()?.record({ type: 'state.error', component: 'cli', level: 'error', message: `Failed to write ${description} to '${filePath}'`, error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
+      const errMsg = err instanceof Error ? err.message : String(err);
       throw new ActionableError({
         goal: 'Write debate output file',
-        problem: `Failed to write ${description} to '${filePath}': ${err instanceof Error ? err.message : err}`,
+        problem: `Failed to write ${description} to '${filePath}': ${errMsg}`,
         location: 'cli.writeOutput',
         nextSteps: [
           'Check available disk space',
@@ -584,9 +588,10 @@ async function main(): Promise<void> {
     log(`Wrote debate JSON (atomic): ${jsonPath}`);
   } catch (err) {
     getGlobalRecorder()?.record({ type: 'state.error', component: 'cli', level: 'error', message: `Failed to write debate JSON to '${jsonPath}'`, error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
+    const errMsg = err instanceof Error ? err.message : String(err);
     throw new ActionableError({
       goal: 'Write debate output file',
-      problem: `Failed to write debate JSON to '${jsonPath}': ${err instanceof Error ? err.message : err}`,
+      problem: `Failed to write debate JSON to '${jsonPath}': ${errMsg}`,
       location: 'cli.writeOutput',
       nextSteps: [
         'Check available disk space',

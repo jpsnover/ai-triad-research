@@ -191,9 +191,11 @@ export async function runChatStream(fetchFn: ChatFetch, args: ChatStreamArgs): P
         case 'done':
           if (typeof evt.fullText === 'string') fullText = evt.fullText;
           break;
-        case 'error':
-          streamError = new ActionableError({ goal: 'Stream chat response', problem: typeof evt.message === 'string' ? evt.message : 'The chat stream failed on the server.', location: 'chatStream.startChatStream', nextSteps: ['Try sending your message again', 'Check server logs for errors'] });
+        case 'error': {
+          const evtProblem = typeof evt.problem === 'string' ? evt.problem : (typeof evt.message === 'string' ? evt.message : 'The chat stream failed on the server.');
+          streamError = new ActionableError({ goal: 'Stream chat response', problem: evtProblem, location: 'chatStream.startChatStream', nextSteps: ['Try sending your message again', 'Check server logs for errors'] });
           break;
+        }
       }
     });
   } catch (err) {

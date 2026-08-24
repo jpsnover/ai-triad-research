@@ -6,6 +6,7 @@
 ────────────────────────────────────────────── */
 .debate-table-wrap {
   flex: 1;
+  width: 100%; /* span the list panel so the 100%-wide table fills it — no empty gutter (t/2892) */
   overflow: auto;
   min-height: 0;
   padding-bottom: 1rem;
@@ -117,11 +118,14 @@
   font-size: 0.875rem;
 }
 
-/* Title cell wraps up to 3 lines */
+/* Title cell wraps up to 3 lines. min-width:0 lets the width:auto column (table-layout:fixed)
+   claim all width left by the fixed columns instead of pinning to the title's min-content,
+   so TITLE fills the row and truncates only when genuinely out of room (t/2892). */
 .debate-table td.col-title {
   white-space: normal;
   overflow-wrap: anywhere;
   vertical-align: top;
+  min-width: 0;
 }
 
 .debate-table-title-text {

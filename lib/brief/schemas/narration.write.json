@@ -1,0 +1,65 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://aitriad.local/schemas/narration/1.0",
+  "title": "Narration",
+  "description": "Strict write-time schema for narration.json. Validate on write; use derived read variant on read.",
+  "type": "object",
+  "required": [
+    "deck_spec_version", "narrator_model", "narrator_model_source",
+    "narration_mode", "preset", "entries", "audience_questions"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "deck_spec_version": {
+      "type": "string",
+      "pattern": "^1\\.\\d+$"
+    },
+    "narration_mode": {
+      "type": "string",
+      "enum": ["narrated", "deterministic"],
+      "description": "narrated = model-generated entries with traces; deterministic = skipNarration mode, verbatim spec text, entries may be empty."
+    },
+    "preset": {
+      "type": "string",
+      "enum": ["policymaker", "conference", "classroom"],
+      "description": "Preset this narration was produced for. Required for re-render and audit."
+    },
+    "narrator_model":        { "type": "string" },
+    "narrator_model_source": { "type": "string", "enum": ["Explicit", "Global", "Default"] },
+    "checker_model":         { "type": ["string", "null"] },
+    "checker_model_source":  { "type": ["string", "null"], "enum": ["Explicit", "Global", "Default", null] },
+    "checker_passed":        { "type": ["boolean", "null"] },
+    "entries": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["trace", "text"],
+        "additionalProperties": false,
+        "properties": {
+          "trace": {
+            "type": "string",
+            "pattern": "^(/([^~/]|~[01])*)+$",
+            "description": "RFC 6901 JSON Pointer into deck_spec. E.g. /cruxes/1, /resolution_analysis/stronger_camp_findings/0."
+          },
+          "text":  { "type": "string" },
+          "slide": { "type": "integer", "minimum": 1 }
+        }
+      }
+    },
+    "audience_questions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["trace", "question"],
+        "additionalProperties": false,
+        "properties": {
+          "trace": {
+            "type": "string",
+            "pattern": "^(/([^~/]|~[01])*)+$"
+          },
+          "question": { "type": "string" }
+        }
+      }
+    }
+  }
+}

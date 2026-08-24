@@ -41,6 +41,7 @@ export interface OpEdTableMyProps {
   renameValue: string;
   setRenameValue: (v: string) => void;
   onRename: (id: string, topic: string) => void;
+  onMoveSet: (id: string, dir: 'up' | 'down') => void;
   onOpen: (id: string) => void;
   onExport: (set: OpEdSetSummary, format: string) => void;
   onShare: (set: OpEdSetSummary) => void;
@@ -204,6 +205,7 @@ function OpEdExportMenu({ onExport }: { onExport: (format: string) => void }) {
         <span role="menu" className="oped-export-menu-list">
           <button type="button" role="menuitem" className="oped-export-menu-item" onClick={() => pick('markdown')}>Markdown</button>
           <button type="button" role="menuitem" className="oped-export-menu-item" onClick={() => pick('text')}>Plain text</button>
+          <button type="button" role="menuitem" className="oped-export-menu-item" onClick={() => pick('json')}>JSON</button>
         </span>
       )}
     </span>
@@ -262,11 +264,13 @@ function OpEdHeadlineCell({
 }
 
 export function OpEdMyRow({
-  set, isActive, editMode, isSelected, onToggleSelect,
-  renamingId, setRenamingId, renameValue, setRenameValue, onRename,
+  set, idx, totalRows, isActive, editMode, isSelected, onToggleSelect,
+  renamingId, setRenamingId, renameValue, setRenameValue, onRename, onMoveSet,
   onOpen, onExport, onShare,
 }: {
   set: OpEdSetSummary;
+  idx: number;
+  totalRows: number;
   isActive: boolean;
   editMode: boolean;
   isSelected: boolean;
@@ -276,6 +280,7 @@ export function OpEdMyRow({
   renameValue: string;
   setRenameValue: (v: string) => void;
   onRename: (id: string, topic: string) => void;
+  onMoveSet: (id: string, dir: 'up' | 'down') => void;
   onOpen: (id: string) => void;
   onExport: (set: OpEdSetSummary, format: string) => void;
   onShare: (set: OpEdSetSummary) => void;
@@ -340,6 +345,30 @@ export function OpEdMyRow({
       {/* Actions */}
       <td className="col-actions" onClick={e => e.stopPropagation()}>
         <div className="oped-table-actions">
+          {editMode && (
+            <>
+              <button
+                type="button"
+                className="oped-table-action-btn"
+                title="Move up"
+                aria-label={`Move "${headline}" up`}
+                disabled={idx === 0}
+                onClick={() => onMoveSet(set.set_id, 'up')}
+              >
+                &#9650;
+              </button>
+              <button
+                type="button"
+                className="oped-table-action-btn"
+                title="Move down"
+                aria-label={`Move "${headline}" down`}
+                disabled={idx === totalRows - 1}
+                onClick={() => onMoveSet(set.set_id, 'down')}
+              >
+                &#9660;
+              </button>
+            </>
+          )}
           <button
             type="button"
             className="oped-table-action-btn primary"
@@ -456,8 +485,8 @@ export function OpEdCommunityRow({
 // Table shell
 // ──────────────────────────────────────────────
 
-function useSort(): [SortState, (col: SortColumn) => void] {
-  const [sort, setSort] = useState<SortState>({ col: 'date', dir: 'desc' });
+function useSort(defaultCol: SortColumn | null = 'date'): [SortState, (col: SortColumn) => void] {
+  const [sort, setSort] = useState<SortState>({ col: defaultCol, dir: defaultCol ? 'desc' : 'none' });
   const onSort = useCallback((col: SortColumn) => {
     setSort(prev => {
       if (prev.col !== col) return { col, dir: 'asc' };
@@ -477,10 +506,12 @@ export function OpEdTable(props: OpEdTableProps) {
 function MyTable(props: OpEdTableMyProps) {
   const {
     rows, loading, searchQuery, editMode, selectedIds, onToggleSelect,
-    renamingId, setRenamingId, renameValue, setRenameValue, onRename,
+    renamingId, setRenamingId, renameValue, setRenameValue, onRename, onMoveSet,
     onOpen, onExport, onShare, onNew, selectedSetId,
   } = props;
-  const [sort, onSort] = useSort();
+  // Default to no internal sort (col: null) so the caller's custom order (t/2796)
+  // shows through; clicking a sort header still overrides it, matching DebateTable.
+  const [sort, onSort] = useSort(null);
   const sortedRows = applySortMy(rows, sort);
   // Columns (t/2724): [cb?] camp · date · outlet · actions · headline. Headline is
   // rightmost so it expands with window width; Outlet is always shown (placeholder
@@ -490,7 +521,7 @@ function MyTable(props: OpEdTableMyProps) {
   return (
     <div className="oped-table-wrap" role="region" aria-label="My op-eds table">
       <table className="oped-table">
-        <caption className="sr-only">My Op-Eds</caption>
+        <caption className="sr-only">My Op-Ed Studies</caption>
         <colgroup>
           {editMode && <col className="col-cb" />}
           <col className="col-camp" />
@@ -532,10 +563,12 @@ function MyTable(props: OpEdTableMyProps) {
           {searchQuery && sortedRows.length === 0 && rows.length > 0 && (
             <tr><td colSpan={colSpan} className="oped-table-empty-cell">No op-eds match &ldquo;{searchQuery}&rdquo;</td></tr>
           )}
-          {sortedRows.map(set => (
+          {sortedRows.map((set, idx) => (
             <OpEdMyRow
               key={set.set_id}
               set={set}
+              idx={idx}
+              totalRows={sortedRows.length}
               isActive={set.set_id === selectedSetId}
               editMode={editMode}
               isSelected={selectedIds.has(set.set_id)}
@@ -545,6 +578,7 @@ function MyTable(props: OpEdTableMyProps) {
               renameValue={renameValue}
               setRenameValue={setRenameValue}
               onRename={onRename}
+              onMoveSet={onMoveSet}
               onOpen={onOpen}
               onExport={onExport}
               onShare={onShare}
@@ -575,7 +609,7 @@ function CommunityTable(props: OpEdTableCommunityProps) {
   return (
     <div className="oped-table-wrap" role="region" aria-label="Community op-eds table">
       <table className="oped-table">
-        <caption className="sr-only">Community Op-Eds</caption>
+        <caption className="sr-only">Community Op-Ed Studies</caption>
         <colgroup>
           <col className="col-camp" />
           <col className="col-date" />

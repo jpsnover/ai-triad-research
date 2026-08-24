@@ -1,7 +1,7 @@
 {
   "$comment": "Non-LOC quality gates only (ADR-007 Gate Co-Location). ESLint `max-lines`, co-located in the eslint configs (lib/eslint.config.mjs, taxonomy-editor/eslint.config.mjs), is the SINGLE source of truth for .ts/.tsx LOC — do NOT re-add .ts ceilings here. styles.css stays: CSS is not covered by the TS eslint configs. See docs/design/adr/007-file-size-budget.md.",
   "loc_ceilings": {
-    "taxonomy-editor/src/renderer/styles.css": 17800
+    "taxonomy-editor/src/renderer/styles.css": 16348
   },
   "max_file_bytes": 5242880,
   "tsc_error_ceilings": {

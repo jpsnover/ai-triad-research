@@ -3,8 +3,8 @@
 
 import { useState, useEffect, useRef, Fragment } from 'react';
 import {
-  Search, LayoutGrid, MessageSquare, MessageCircle, ArrowLeft,
-  Ellipsis, CircleHelp, Star, Layers,
+  LayoutGrid, MessageSquare, MessageCircle,
+  Ellipsis, CircleHelp, MessageSquareText, Layers,
   RefreshCw, Settings, User, Users, Shield, LogOut, Newspaper,
 } from 'lucide-react';
 import { useTaxonomyStore } from '../../hooks/useTaxonomyStore';
@@ -193,9 +193,9 @@ export function Toolbar() {
     clearAttributeFilter,
     attributeInfo, showAttributeInfo,
     clearAttributeInfo,
-    previousView, navigateBack,
     loadAll, loading,
   } = useTaxonomyStore();
+  const adminFlag = useFlag('permission-admin-features');
   const [showHelp, setShowHelp] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showMore, setShowMore] = useState(false);
@@ -230,20 +230,6 @@ export function Toolbar() {
   const moreHasActive = secondaryGroups.flatMap(g => g.items).some(i => isNavItemActive(i));
   const viewMode = usePreferencesStore(state => state.viewMode);
   const setViewMode = usePreferencesStore(state => state.setViewMode);
-
-  // Escape key navigates back
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && previousView && !showHelp && !showSettings) {
-        const target = e.target as HTMLElement;
-        if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT') return;
-        e.preventDefault();
-        navigateBack();
-      }
-    };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  }, [previousView, navigateBack, showHelp, showSettings]);
 
   const clearCurrentPanel = () => {
     if (toolbarPanel === 'search') clearSimilarSearch();
@@ -286,28 +272,9 @@ export function Toolbar() {
   return (
     <nav className="toolbar" aria-label="Primary">
       <div className="toolbar-top">
-        {previousView && toolbarPanel !== null && activeTab !== 'debate' && (
-          <>
-            <button
-              className="toolbar-icon toolbar-back"
-              onClick={navigateBack}
-              aria-label="Back"
-              data-tooltip="Back"
-            >
-              <ArrowLeft size="1.25em" />
-            </button>
-            <div className="toolbar-separator" />
-          </>
-        )}
         {/* Primary nav — icon-over-label stacks */}
-        <button
-          className={`toolbar-nav${toolbarPanel === 'search' ? ' toolbar-nav-active' : ''}`}
-          onClick={() => toggle('search')}
-          aria-label="Search"
-        >
-          <Search size="1.25em" />
-          <span className="toolbar-nav-label">Search</span>
-        </button>
+        {/* t/2813: Search removed from the nav rail; entry points now live in the
+            Taxonomy panel header + POV detail header. toggle('search') still works. */}
         <button
           className={`toolbar-nav${isTaxonomyActive ? ' toolbar-nav-active' : ''}`}
           onClick={() => {
@@ -331,8 +298,8 @@ export function Toolbar() {
           <span className="toolbar-nav-label">Debate</span>
         </button>
         <button
-          className="toolbar-nav"
-          onClick={() => void api.openChatWindow()}
+          className={`toolbar-nav${activeTab === 'chat' && toolbarPanel === null ? ' toolbar-nav-active' : ''}`}
+          onClick={() => switchTab('chat')}
           aria-label="Chat"
         >
           <MessageCircle size="1.25em" />
@@ -342,10 +309,10 @@ export function Toolbar() {
           <button
             className={`toolbar-nav${activeTab === 'opeds' && toolbarPanel === null ? ' toolbar-nav-active' : ''}`}
             onClick={() => switchTab('opeds')}
-            aria-label="Op-Eds"
+            aria-label="Op-Ed Studies"
           >
             <Newspaper size="1.25em" />
-            <span className="toolbar-nav-label">Op-Eds</span>
+            <span className="toolbar-nav-label">Op-Ed<br />Studies</span>
           </button>
         )}
       </div>
@@ -404,20 +371,22 @@ export function Toolbar() {
             aria-label="Feedback"
             data-tooltip="Feedback"
           >
-            <Star size="1.25em" />
+            <MessageSquareText size="1.25em" />
           </button>
           {showFeedback && <FeedbackPopover onClose={() => setShowFeedback(false)} />}
         </div>
         <ToolbarAuthButton />
-        <button
-          className={`toolbar-icon${loading ? ' toolbar-icon-spin' : ''}`}
-          onClick={() => { if (!loading) void loadAll(true); }}
-          disabled={loading}
-          aria-label="Reload taxonomy data"
-          data-tooltip="Reload taxonomy data"
-        >
-          <RefreshCw size="1.25em" />
-        </button>
+        {adminFlag && (
+          <button
+            className={`toolbar-icon${loading ? ' toolbar-icon-spin' : ''}`}
+            onClick={() => { if (!loading) void loadAll(true); }}
+            disabled={loading}
+            aria-label="Reload taxonomy data"
+            data-tooltip="Reload taxonomy data (admin)"
+          >
+            <RefreshCw size="1.25em" />
+          </button>
+        )}
         <button
           className="toolbar-icon"
           onClick={() => setShowSettings(true)}

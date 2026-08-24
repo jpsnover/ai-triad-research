@@ -865,13 +865,18 @@ export const createClarificationSlice: StateCreator<DebateStore, [], [], Clarifi
       (p) => activeDebate.active_povers.includes(p),
     );
 
-    // Idempotency: collect prior statements from existing openings (supports resume after interruption)
+    // Idempotency: collect prior statements from DELIVERED openings (supports resume
+    // after interruption). Slot-first (t/2907) means a speaker can have an in-progress
+    // opening slot with empty content ('generating'/'retrying'/'error') — those are NOT
+    // delivered and must not suppress (re)generation, so "delivered" requires prose.
+    const isDeliveredOpening = (e: TranscriptEntry): boolean =>
+      e.type === 'opening' && e.speaker !== 'system' && !!e.content && e.content.trim().length > 0;
     const existingOpenings = new Set(
-      activeDebate.transcript.filter(e => e.type === 'opening').map(e => e.speaker),
+      activeDebate.transcript.filter(isDeliveredOpening).map(e => e.speaker),
     );
     const priorStatements: { speaker: string; statement: string }[] = [];
     for (const poverId of aiPovers) {
-      const existing = activeDebate.transcript.find(e => e.type === 'opening' && e.speaker === poverId);
+      const existing = activeDebate.transcript.find(e => isDeliveredOpening(e) && e.speaker === poverId);
       if (existing) {
         const info = POVER_INFO[poverId];
         priorStatements.push({ speaker: info.label, statement: existing.content });
@@ -910,8 +915,8 @@ export const createClarificationSlice: StateCreator<DebateStore, [], [], Clarifi
 
     for (const poverId of aiPovers) {
       const freshTranscript = get().activeDebate?.transcript ?? [];
-      if (freshTranscript.some(e => e.type === 'opening' && e.speaker === poverId)) {
-        console.log(`[debate-store] Skipping ${poverId} — already has opening (live check)`);
+      if (freshTranscript.some(e => isDeliveredOpening(e) && e.speaker === poverId)) {
+        console.log(`[debate-store] Skipping ${poverId} — already has a delivered opening (live check)`);
         continue;
       }
       // Skip POVers who already delivered an opening (idempotency after interruption)
@@ -922,6 +927,10 @@ export const createClarificationSlice: StateCreator<DebateStore, [], [], Clarifi
 
       set({ debateGenerating: poverId, debateStepStartedAt: Date.now() });
       const info = POVER_INFO[poverId];
+      // Slot-first (t/2907): insert (or reuse) this speaker's opening panel NOW in
+      // 'generating' state, so the transcript shows ONE card that mutates through
+      // retrying/error/done — instead of a fresh card + a system retry-toast per pass.
+      const slotId = get().upsertTranscriptEntry({ type: 'opening', speaker: poverId, status: 'generating', content: '', taxonomy_refs: [] });
 
       try {
         const stageGenerate = makeStageGenerate(set as (partial: Record<string, unknown>) => void, getSpeakerModel(activeDebate, poverId, model));
@@ -1061,9 +1070,12 @@ export const createClarificationSlice: StateCreator<DebateStore, [], [], Clarifi
         // Serialize source tracking for diagnostics display
         const relevanceSources = serializeNodeSourceMap(ctx.nodeSourceMap, taxonomyRefs);
 
-        addTranscriptEntry({
-          type: 'opening',
-          speaker: poverId,
+        // Slot-first success (t/2907): complete the existing 'generating' slot in place
+        // rather than appending a new entry — one card, no duplicate panel. Clearing
+        // errorMessage wipes any retry note from a prior failed pass.
+        get().updateTranscriptEntry(slotId, {
+          status: 'done',
+          errorMessage: undefined,
           content: statement,
           taxonomy_refs: taxonomyRefs,
           policy_refs: meta.policy_refs,
@@ -1075,7 +1087,9 @@ export const createClarificationSlice: StateCreator<DebateStore, [], [], Clarifi
             injection_manifest: ctx.injectionManifest,
           },
         });
-        const lastEntry = get().activeDebate?.transcript.slice(-1)[0];
+        // Key diagnostics/summary/claim-extraction off the SLOT id, not slice(-1):
+        // the slot is not necessarily the last entry under slot-first (t/2907).
+        const lastEntry = get().activeDebate?.transcript.find(e => e.id === slotId);
 
         // Record diagnostics with full stage data
         if (lastEntry) {
@@ -1131,6 +1145,9 @@ export const createClarificationSlice: StateCreator<DebateStore, [], [], Clarifi
         console.error(`[debate] ${info.label} opening statement failed (status=${httpStatus ?? 'unknown'}, retry=${retryReason}):`, err);
         getGlobalRecorder()?.record({ type: 'system.error', debate_id: activeDebate?.id, component: 'debate-engine', level: 'error', message: `Opening statement failed: ${info.label} (status=${httpStatus ?? 'unknown'})`, data: { retry_reason: retryReason, retryable: isRetryable, retry_pass: openingRetryPass }, error: { name: (err as Error).name ?? 'Error', message: (err as Error).message ?? String(err), stack: (err as Error).stack?.slice(0, 500) } });
         if (isDailyLimitError(err)) {
+          // Terminal for the whole run: settle this speaker's slot to 'error' so its
+          // spinner doesn't stick (t/2907), and keep the run-level system notice + banner.
+          get().updateTranscriptEntry(slotId, { status: 'error', errorMessage: DAILY_LIMIT_MESSAGE });
           addTranscriptEntry({
             type: 'system',
             speaker: 'system',
@@ -1142,14 +1159,13 @@ export const createClarificationSlice: StateCreator<DebateStore, [], [], Clarifi
           await saveDebate('runOpeningStatements:dailyLimit');
           return;
         }
-        addTranscriptEntry({
-          type: 'system',
-          speaker: 'system',
-          content: isRetryable
-            ? `${info.label} ${retryReasonLabel(retryReason)} — retrying automatically…`
-            : `${info.label} failed to deliver opening statement: ${mapErrorToUserMessage(err)}`,
-          taxonomy_refs: [],
-        });
+        // Slot-first (t/2907): reflect the failure ON the speaker's own opening card
+        // instead of appending a system toast entry (the transcript-clutter source).
+        // Retryable → 'retrying' with the reason; terminal → 'error' with a friendly
+        // message (t/2906 mapping). One card, mutated in place.
+        get().updateTranscriptEntry(slotId, isRetryable
+          ? { status: 'retrying', errorMessage: `${info.label} ${retryReasonLabel(retryReason)} — retrying automatically…` }
+          : { status: 'error', errorMessage: mapErrorToUserMessage(err) });
         failedSpeakers.push(info.label);
         if (isRetryable) {
           hasRetryableFailure = true;

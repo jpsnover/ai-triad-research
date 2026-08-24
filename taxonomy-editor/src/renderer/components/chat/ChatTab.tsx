@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { useChatStore } from '../../hooks/useChatStore';
@@ -11,6 +11,7 @@ import type { CommunityChat } from '../../hooks/useCommunityStore';
 import { useResizablePanel } from '../../hooks/useResizablePanel';
 import { useBreakpoint } from '../../hooks/useBreakpoint';
 import { NewChatDialog } from './NewChatDialog';
+import { ChatTable } from './ChatTable';
 import { ChatWorkspace } from './ChatWorkspace';
 import { SearchPreview } from '../edge-browser/SearchPreview';
 import { PromptDetailPanel } from './PromptsPanel';
@@ -299,11 +300,9 @@ function SessionListPanel({
       <div className="list-panel-header">
         <h2>Chats</h2>
         <div className="list-panel-header-actions">
-          {listView === 'my' && (
-            <button className="btn btn-sm" onClick={() => setShowNewDialog(true)}>
-              + New
-            </button>
-          )}
+          <button className="btn btn-sm" onClick={() => { setShowNewDialog(true); setListView('my'); }}>
+            + New
+          </button>
           <button className="pane-collapse-btn" onClick={() => setListCollapsed(true)} title="Collapse" aria-label="Collapse panel">&lsaquo;</button>
         </div>
       </div>
@@ -444,6 +443,43 @@ export function ChatTab() {
   const { chats: communityChats, loading: communityLoading, fetchChats: fetchCommunityChats, copyItem } = useCommunityStore();
   const [copyingId, setCopyingId] = useState<string | null>(null);
   const [selectedCommunityChat, setSelectedCommunityChat] = useState<CommunityChat | null>(null);
+  const isTableMode = !toolbarPanel && !isPhone;
+  const [mySearchQuery, setMySearchQuery] = useState('');
+  const [communitySearchQuery, setCommunitySearchQuery] = useState('');
+  const [capNotice, setCapNotice] = useState<string | null>(null);
+  // t/2790#6: Edit-mode parity with Debates/Op-Eds — discoverable rename affordance.
+  const [editMode, setEditMode] = useState(false);
+
+  // t/2790 UAT: tables fill the tab; opening a chat launches a popout window
+  // (max 5 concurrent, deduped per chatId in chatWindowHandlers).
+  const openChatPopout = useCallback((id: string, source: 'my' | 'community') => {
+    api.openChatWindow(id, source).then((result) => {
+      setCapNotice(result && result.atCap ? 'Close a chat window — max 5 open' : null);
+    }).catch((err: Error) => {
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'chat-tab', level: 'warn', message: 'Failed to open chat popout window', error: { name: err.name ?? 'Error', message: String(err), stack: err.stack } });
+    });
+  }, []);
+
+  const handleExportChat = useCallback((id: string, format: string) => {
+    void api.loadChatSession(id).then((raw) => {
+      const session = raw as ChatSession;
+      return api.exportChatToFile(
+        session.transcript,
+        format as 'markdown' | 'text' | 'pdf' | 'json',
+        { title: session.topic, mode: session.mode, pov: session.pover },
+      );
+    }).catch((err: unknown) => {
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'chat-tab', level: 'error', message: 'Export failed', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+    });
+  }, []);
+
+  const handleShareChat = useCallback((session: ChatSessionSummary) => {
+    void api.loadChatSession(session.id).then((full) => {
+      return api.submitToCommunity('chat', full as unknown);
+    }).catch((err: unknown) => {
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'chat-tab', level: 'error', message: 'Share failed', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+    });
+  }, []);
 
   useEffect(() => {
     void loadSessions();
@@ -455,6 +491,25 @@ export function ChatTab() {
     if (sessionsLoading) return;
     setListView(sessions.length > 0 ? 'my' : 'community');
   }, [listView, sessionsLoading, sessions.length]);
+
+  // Auto-select the most-recent chat into pane 2 on first open (t/2760).
+  // Suppressed on phone: the phone layout is list-first and the user initiates detail view by tapping.
+  useEffect(() => {
+    if (isPhone) return;
+    if (activeChatId || selectedCommunityChat) return;
+    if (sessionsLoading || communityLoading) return;
+    if (sessions.length > 0) {
+      const newest = [...sessions].sort((a, b) =>
+        new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
+      )[0];
+      void loadChat(newest.id);
+    } else if (communityChats.length > 0) {
+      const newest = [...communityChats].sort((a, b) =>
+        new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
+      )[0];
+      setSelectedCommunityChat(newest);
+    }
+  }, [isPhone, activeChatId, selectedCommunityChat, sessionsLoading, communityLoading, sessions, communityChats, loadChat]);
 
   const handleSelect = (session: ChatSessionSummary) => {
     if (session.id !== activeChatId) {
@@ -468,7 +523,7 @@ export function ChatTab() {
   };
 
   return (
-    <div className={`two-column${isPhone ? ' phone-mode' : ''}${(isPhone && activeChatId && !toolbarPanel) ? ' has-selection' : ''}`}>
+    <div className={`two-column${isPhone ? ' phone-mode' : ''}${(isPhone && activeChatId && !toolbarPanel) ? ' has-selection' : ''}${isTableMode ? ' chat-tab-table-mode' : ''}`}>
       {/* Left pane: Session list OR toolbar panel */}
       {toolbarPanel ? (
         <ToolbarLeftPanel
@@ -481,6 +536,86 @@ export function ChatTab() {
           setSelectedPromptEntry={setSelectedPromptEntry}
           setPromptInspectorActive={setPromptInspectorActive}
         />
+      ) : isTableMode ? (
+        // eslint-disable-next-line local/no-inline-style -- table mode fills the tab width
+        <div className="list-panel chat-session-list" style={{ flex: 1, width: '100%' }}>
+          <div className="list-panel-header">
+            <h2>Chats</h2>
+            <div className="list-panel-header-actions">
+              {listView === 'my' && (editMode ? (
+                <button className="btn btn-sm btn-ghost" onClick={() => setEditMode(false)}>Done</button>
+              ) : (
+                <button className="btn btn-sm btn-ghost" title="Rename chats" onClick={() => setEditMode(true)}>Edit</button>
+              ))}
+              <button className="btn btn-sm" onClick={() => { setShowNewDialog(true); setListView('my'); }}>+ New</button>
+            </div>
+          </div>
+          <div className="list-view-tabs">
+            <button className={`list-view-tab${listView === 'my' ? ' active' : ''}`} onClick={() => setListView('my')}>My ({sessions.length})</button>
+            <button className={`list-view-tab${listView === 'community' ? ' active' : ''}`} onClick={() => { setListView('community'); setEditMode(false); }}>Community ({communityChats.length})</button>
+          </div>
+          {capNotice && <div className="chat-tab-cap-notice" role="status">{capNotice}</div>}
+          {listView === 'my' ? (
+            <>
+              <div className="chat-tab-search-wrap">
+                <input
+                  className="chat-tab-search-input"
+                  placeholder="Search chats…"
+                  value={mySearchQuery}
+                  onChange={e => setMySearchQuery(e.target.value)}
+                />
+              </div>
+              <ChatTable
+                variant="my"
+                rows={mySearchQuery ? sessions.filter(s => (s.title ?? '').toLowerCase().includes(mySearchQuery.toLowerCase())) : sessions}
+                loading={sessionsLoading}
+                searchQuery={mySearchQuery}
+                renamingId={renamingId}
+                setRenamingId={setRenamingId}
+                renameValue={renameValue}
+                setRenameValue={setRenameValue}
+                onRename={renameChat}
+                selectedId={activeChatId ?? undefined}
+                editMode={editMode}
+                onOpen={id => openChatPopout(id, 'my')}
+                onExport={handleExportChat}
+                onShare={handleShareChat}
+              />
+            </>
+          ) : (
+            <>
+              <div className="chat-tab-search-wrap">
+                <input
+                  className="chat-tab-search-input"
+                  placeholder="Search community chats…"
+                  value={communitySearchQuery}
+                  onChange={e => setCommunitySearchQuery(e.target.value)}
+                />
+              </div>
+              <ChatTable
+                variant="community"
+                rows={communitySearchQuery ? communityChats.filter(c => (c.title ?? '').toLowerCase().includes(communitySearchQuery.toLowerCase())) : communityChats}
+                loading={communityLoading}
+                searchQuery={communitySearchQuery}
+                selectedId={selectedCommunityChat?.id}
+                onOpen={id => openChatPopout(id, 'community')}
+                onExport={handleExportChat}
+                onCopy={async cc => {
+                  setCopyingId(cc.id);
+                  try {
+                    await copyItem('chats', cc.id);
+                    void loadSessions();
+                  } catch (err) {
+                    getGlobalRecorder()?.record({ type: 'system.error', component: 'chat-tab', level: 'error', message: 'Failed to copy community chat', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+                  } finally {
+                    setCopyingId(null);
+                  }
+                }}
+                copyingId={copyingId}
+              />
+            </>
+          )}
+        </div>
       ) : listCollapsed ? (
         <div className="pane-collapsed pane-collapsed-list" onClick={() => setListCollapsed(false)} title="Expand list">
           <span className="pane-collapsed-label">Chats</span>
@@ -519,8 +654,8 @@ export function ChatTab() {
         />
       )}
 
-      {/* Right pane: context-dependent */}
-      <RightPane
+      {/* Right pane: split view only — table mode fills the tab, chats open in popouts */}
+      {!toolbarPanel && !isTableMode && <RightPane
         toolbarPanel={toolbarPanel}
         promptInspectorActive={promptInspectorActive}
         onMouseDown={onMouseDown}
@@ -533,7 +668,7 @@ export function ChatTab() {
         activeChatId={activeChatId}
         listView={listView}
         selectedCommunityChat={selectedCommunityChat}
-      />
+      />}
 
       {showNewDialog && <NewChatDialog onClose={() => setShowNewDialog(false)} />}
     </div>
@@ -673,7 +808,9 @@ function CommunityChatTranscript({ full }: { full: ChatSession | null }) {
   );
 }
 
-function CommunityChatDetail({ chat }: { chat: CommunityChat }) {
+// Exported so the community chat deep-link popout (ChatWindow, t/2879) can render the same
+// read-only detail view as the in-tab community browser — no duplicated transcript logic.
+export function CommunityChatDetail({ chat }: { chat: CommunityChat }) {
   const [full, setFull] = useState<ChatSession | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);

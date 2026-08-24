@@ -86,3 +86,36 @@ describe('parseOpEdSet', () => {
     expect(() => parseOpEdSet(bad)).toThrow();
   });
 });
+
+// ── t/2917 Step-7 prevention #2: claims/document_claims survive the store round-trip ──
+// The op-ed-claims recurrence (t/2897) was "claims never reach the persisted set". The live
+// test proves the extraction chain PRODUCES claims; this no-AI test proves they SURVIVE the
+// store's serialize → Zod-reparse persist path (the half the live test doesn't isolate). A
+// schema regression that silently drops `claims` or `grounding[].document_claims` fails here.
+describe('parseOpEdSet — claims + document_claims survive save/reparse (t/2917)', () => {
+  const CLAIMS = [
+    { text: 'Safety incidents doubled year over year', paragraph: 1 },
+    { text: 'Only three frontier labs share proactively', paragraph: 3 },
+  ];
+  const DOC_CLAIMS = ['Safety incidents doubled year over year', 'Only three frontier labs share proactively'];
+
+  it('round-trips claims (text+paragraph) and grounding.document_claims through the exact serialize→Zod persist path', () => {
+    const set = makeSet({
+      opeds: [makeMember({
+        claims: CLAIMS,
+        grounding: [makeGrounding({ document_claims: DOC_CLAIMS })],
+      })],
+    });
+    // Same path opedIO/opedStore use on persist: JSON serialize → JSON parse → parseOpEdSet (Zod).
+    const round = parseOpEdSet(JSON.parse(JSON.stringify(set)));
+    expect(round.opeds[0].claims).toEqual(CLAIMS);
+    expect(round.opeds[0].grounding[0].document_claims).toEqual(DOC_CLAIMS);
+  });
+
+  it('a member with no claims and grounding without document_claims still parses (fields optional)', () => {
+    const set = makeSet(); // makeMember() has no claims, makeGrounding() has no document_claims
+    const round = parseOpEdSet(JSON.parse(JSON.stringify(set)));
+    expect(round.opeds[0].claims).toBeUndefined();
+    expect(round.opeds[0].grounding[0].document_claims).toBeUndefined();
+  });
+});

@@ -138,8 +138,8 @@ export default defineConfig({
         ],
       },
       manifest: {
-        name: 'Taxonomy Editor',
-        short_name: 'Taxonomy',
+        name: 'AI Rosetta Stone',
+        short_name: 'Rosetta Stone',
         description: 'Multi-perspective research platform for AI policy taxonomy',
         start_url: '/',
         display: 'standalone',
@@ -225,6 +225,7 @@ export default defineConfig({
       '**/*.test.{ts,tsx}',
       '../main/**/*.test.ts',
       '../server/__tests__/**/*.test.ts',
+      '../../../taxonomy-editor/scripts/__tests__/**/*.test.ts', // t/2973 — generate-notices guard unit tests
       '../../../lib/ai-client/**/*.test.ts',
       '../../../lib/chat/**/*.test.ts',
       '../../../lib/electron-shared/**/*.test.ts',
@@ -242,6 +243,7 @@ export default defineConfig({
       '../../../lib/url-fetch/**/*.test.ts',
       '../../../lib/ai-config/**/*.test.ts',
       '../../../lib/embeddings/**/*.test.ts', // t/2060 — mock-based (fake onnxruntime-node), no native addon/model needed
+      '../../../lib/brief/**/*.test.ts',     // t/2800 — brief export pipeline (extract + schema utils)
       '../../../lib/*.test.ts',
       // translation tests excluded — depend on ai-triad-data dictionary not available in CI
     ],

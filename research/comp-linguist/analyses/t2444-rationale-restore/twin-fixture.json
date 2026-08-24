@@ -1,0 +1,56 @@
+{
+  "_doc": "Twin-aware identity fixture for the shared lib/edges re-merge util (t/2957) + restore (t/2946), requested by Shared Lib (p/22#35). Companion to site-fix-fixture.json, which deliberately does NOT exercise the near-key twin path. Two cases: (a) distinguishable twins → per-twin restore; (b) indistinguishable twins → refuse-and-log ActionableError. Identity model per TL e/120#37: primary key source|type|target; when non-unique, disambiguate on discovered_at+model; if still ambiguous, refuse-and-log (never guess).",
+  "identity_rule": "key = (source, type, target). If >1 edge shares the key in the target file, disambiguate the twin on (discovered_at, model) before attributing any rationale. If the (discovered_at, model) discriminator does NOT uniquely resolve, RAISE ActionableError (refuse-and-log) — do not guess. Same model across restore (t/2946), re-merge Option 1, and TS write-guard Option 2, so the three cannot drift.",
+
+  "case_a_distinguishable": {
+    "provenance": "observed — the real acc-beliefs-051|SUPPORTS|acc-desires-001 twin pair from ba3128f5 (t/2294). The two edges share the composite key but differ on discovered_at (2026-04-06 vs 2026-06-11) and model (gemini-2.5-flash vs absent), so (discovered_at, model) resolves each uniquely. Each carries its OWN distinct rationale; cross-attribution is the failure mode this case guards.",
+    "on_disk": {
+      "edges": [
+        {"source": "acc-beliefs-051", "target": "acc-desires-001", "type": "SUPPORTS", "bidirectional": false, "confidence": 0.85, "rationale": "The source node's rejection of stagnation and embrace of radical change provides the philosophical underpinning for desiring transformative AI as a primary force for global progress.", "status": "approved", "discovered_at": "2026-04-06", "model": "gemini-2.5-flash", "direction_flag": "ok"},
+        {"source": "acc-beliefs-051", "target": "acc-desires-001", "type": "SUPPORTS", "bidirectional": false, "confidence": 0.8, "rationale": "Cross-category link converted: belief supports the desire for AI-powered abundance.", "status": "approved", "discovered_at": "2026-06-11", "llm_proposed": true}
+      ]
+    },
+    "save_payload": {
+      "_comment": "The two twins as delivered by the rationale-stripping list endpoint (rationale absent), same order, no new edge.",
+      "edges": [
+        {"source": "acc-beliefs-051", "target": "acc-desires-001", "type": "SUPPORTS", "bidirectional": false, "confidence": 0.85, "status": "approved", "discovered_at": "2026-04-06", "model": "gemini-2.5-flash", "direction_flag": "ok"},
+        {"source": "acc-beliefs-051", "target": "acc-desires-001", "type": "SUPPORTS", "bidirectional": false, "confidence": 0.8, "status": "approved", "discovered_at": "2026-06-11", "llm_proposed": true}
+      ]
+    },
+    "expected_merged": {
+      "_comment": "Each twin gets ITS OWN on-disk rationale back, matched by (discovered_at, model). The 04-06/gemini twin must NOT receive the 06-11 rationale and vice-versa. Rationale restored at its original slot (after confidence here). No error.",
+      "edges": [
+        {"source": "acc-beliefs-051", "target": "acc-desires-001", "type": "SUPPORTS", "bidirectional": false, "confidence": 0.85, "rationale": "The source node's rejection of stagnation and embrace of radical change provides the philosophical underpinning for desiring transformative AI as a primary force for global progress.", "status": "approved", "discovered_at": "2026-04-06", "model": "gemini-2.5-flash", "direction_flag": "ok"},
+        {"source": "acc-beliefs-051", "target": "acc-desires-001", "type": "SUPPORTS", "bidirectional": false, "confidence": 0.8, "rationale": "Cross-category link converted: belief supports the desire for AI-powered abundance.", "status": "approved", "discovered_at": "2026-06-11", "llm_proposed": true}
+      ]
+    }
+  },
+
+  "case_b_indistinguishable": {
+    "provenance": "constructed (t/2294) — no such pair exists in the live data (all 3 real twin keys are distinguishable on discovered_at+model). Constructed to exercise the refuse-and-log path: two edges share the composite key AND the same (discovered_at, model), so the discriminator cannot resolve which on-disk rationale belongs to which. The util MUST refuse rather than guess.",
+    "on_disk": {
+      "edges": [
+        {"source": "acc-beliefs-069", "target": "acc-intentions-054", "type": "SUPPORTS", "bidirectional": false, "confidence": 0.85, "rationale": "Twin A: belief in falsifiable metrics supports empirical-evaluation intention.", "status": "approved", "discovered_at": "2026-04-06", "model": "gemini-2.5-flash"},
+        {"source": "acc-beliefs-069", "target": "acc-intentions-054", "type": "SUPPORTS", "bidirectional": false, "confidence": 0.85, "rationale": "Twin B: distinct rationale, but SAME discovered_at and model as Twin A.", "status": "approved", "discovered_at": "2026-04-06", "model": "gemini-2.5-flash"}
+      ]
+    },
+    "save_payload": {
+      "_comment": "Both twins rationale-stripped. On save, the util keys (source,type,target)+(discovered_at,model) and finds two on-disk candidates that are indistinguishable — cannot attribute safely.",
+      "edges": [
+        {"source": "acc-beliefs-069", "target": "acc-intentions-054", "type": "SUPPORTS", "bidirectional": false, "confidence": 0.85, "status": "approved", "discovered_at": "2026-04-06", "model": "gemini-2.5-flash"},
+        {"source": "acc-beliefs-069", "target": "acc-intentions-054", "type": "SUPPORTS", "bidirectional": false, "confidence": 0.85, "status": "approved", "discovered_at": "2026-04-06", "model": "gemini-2.5-flash"}
+      ]
+    },
+    "expected_result": {
+      "outcome": "refuse-and-log",
+      "raises": "ActionableError (New-ActionableError on the PS/restore side)",
+      "must_not": "attribute either rationale, or write ANY rationale for this key — guessing is the failure mode",
+      "error_fields": {
+        "Goal": "Preserve edge rationale across a whole-file save / restore",
+        "Problem": "composite key acc-beliefs-069|SUPPORTS|acc-intentions-054 has 2 on-disk edges that are indistinguishable on (discovered_at, model); cannot attribute rationale without guessing",
+        "Location": "lib/edges mergeEdgesPreservingRationale (twin disambiguation)",
+        "NextSteps": ["Add a stronger per-edge discriminator, or resolve the duplicate key manually before restore/save; the offending key + count are named in the error"]
+      }
+    }
+  }
+}

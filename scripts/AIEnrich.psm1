@@ -643,7 +643,7 @@ function Invoke-AIApi {
             $Body = $GroqBody | ConvertTo-Json -Depth 10
         }
 
-        # t/1437 — z.ai / GLM-5.2 exposes an OpenAI-compatible /chat/completions endpoint
+        # t/1437 — z.ai / GLM-5.3 exposes an OpenAI-compatible /chat/completions endpoint
         # at https://api.z.ai/api/paas/v4/. Request shape matches Groq exactly; the only
         # differences are the URL and that we point at $ApiModelId directly. 1M-token
         # context ($script:ContextWindows.zai) so the pre-flight token check tolerates
@@ -1100,7 +1100,7 @@ function Invoke-AIApi {
                 return $null
             }
         }
-        # t/1437 — z.ai / GLM-5.2 response shape mirrors Groq/OpenAI.
+        # t/1437 — z.ai / GLM-5.3 response shape mirrors Groq/OpenAI.
         'zai' {
             try {
                 $Choice = $Response.choices[0]

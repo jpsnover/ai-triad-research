@@ -78,7 +78,7 @@ function Invoke-EdgeWeightEvaluation {
     }
 
     # ── Load data ──
-    $EdgesData = Get-Content -Raw -Path $EdgesPath | ConvertFrom-Json
+    $EdgesData = Read-EdgesFile -Path $EdgesPath   # t/2974: coercion-free read (preserve discovered_at strings)
     $AllEdges  = $EdgesData.edges
 
     # ── Build label + description lookup ──

@@ -121,7 +121,9 @@ function Invoke-EdgeRationaleBackfill {
             -Location 'Invoke-EdgeRationaleBackfill' `
             -NextSteps 'Verify the data root (Get-TaxonomyDir) or pass -RepoRoot to the repo containing taxonomy/Origin/edges.json.')
     }
-    $EdgesData = Get-Content -Raw -Path $EdgesPath | ConvertFrom-Json
+    # t/2974: read via the coercion-free reader so discovered_at (and any ISO timestamp) is NOT
+    # coerced to [datetime] and truncated on the whole-file write-back below.
+    $EdgesData = Read-EdgesFile -Path $EdgesPath
 
     # ── Build node id → {label, description} map from all node files ──────
     $NodeText = @{}
@@ -266,6 +268,14 @@ function Invoke-EdgeRationaleBackfill {
             $Edge.rationale = $Rationale
         } else {
             Add-Member -InputObject $Edge -NotePropertyName 'rationale' -NotePropertyValue $Rationale -Force
+        }
+        # t/2944 write-together invariant: this edge just received a non-empty rationale (the empty case
+        # returned above via the silent-blank contract), so stamp its provenance in the SAME write —
+        # backfill = post-hoc LLM reconstruction (edge-rationale-source-marker.md).
+        if ($Edge.PSObject.Properties['rationale_source']) {
+            $Edge.rationale_source = 'backfill'
+        } else {
+            Add-Member -InputObject $Edge -NotePropertyName 'rationale_source' -NotePropertyValue 'backfill' -Force
         }
         $Backfilled++
 

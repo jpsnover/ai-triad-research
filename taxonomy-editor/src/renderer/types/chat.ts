@@ -36,6 +36,7 @@ export interface ChatSessionSummary {
   updated_at: string;
   mode: ChatMode;
   pover: Exclude<SpeakerId, 'user'>;
+  chat_model?: string;
 }
 
 export const CHAT_MODE_INFO: Record<ChatMode, {

@@ -96,6 +96,35 @@
   outline-offset: 2px;
 }
 
+/* ── Public share control (web-only; t/2728) ── */
+.oped-share {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-left: auto; /* push to the far end of the reader bar */
+}
+.oped-share-status {
+  font-size: 0.75rem;
+  color: var(--text-secondary, var(--text-muted));
+  white-space: nowrap;
+}
+.oped-share-url {
+  font: inherit;
+  font-size: 0.75rem;
+  padding: 0.2rem 0.4rem;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  width: 15rem;
+  max-width: 34vw;
+}
+.oped-share-error {
+  font-size: 0.75rem;
+  color: var(--danger, #c0392b);
+  white-space: nowrap;
+}
+
 .oped-reader-loading,
 .oped-reader-error {
   padding: 1.5rem;

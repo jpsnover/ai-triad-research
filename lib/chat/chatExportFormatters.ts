@@ -217,6 +217,21 @@ ${entriesHtml}
 </html>`;
 }
 
+export function chatToJson(entries: ChatExportEntry[], options: ChatExportOptions): string {
+  return JSON.stringify(
+    {
+      schema: 'ai-triad-chat-export/1',
+      title: options.title,
+      pov: options.pov,
+      mode: options.mode,
+      exportedAt: new Date().toISOString(),
+      messages: entries,
+    },
+    null,
+    2,
+  );
+}
+
 export function chatExportFilename(title: string, ext: string): string {
   const slug = slugify(title);
   const date = new Date().toISOString().slice(0, 10).replace(/-/g, '');

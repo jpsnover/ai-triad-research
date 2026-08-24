@@ -28,6 +28,7 @@ import type { FlightRecorder, RecordInput } from '../../../../lib/flight-recorde
 import { getCurrentUserId, getSessionBranchName } from '../security/userContext.js';
 import { GitHubRestClient, normalizeErrorForEvent, type CircuitState } from './githubRestClient.js';
 import { getDataRoot } from '../config.js';
+import { writeFramedNdjson } from '../logger.js';
 
 // ── Types ────────────────────────────────────────────────────────────────
 
@@ -1751,7 +1752,7 @@ export class GitHubAPIBackend implements StorageBackend {
     process.on('SIGUSR2', () => {
       if (!this.recorder) return;
       const dump = this.recorder.buildDump('manual', undefined, { trigger: 'SIGUSR2' });
-      process.stderr.write(dump.ndjson + '\n');
+      writeFramedNdjson(dump.ndjson, process.stderr);
     });
   }
 

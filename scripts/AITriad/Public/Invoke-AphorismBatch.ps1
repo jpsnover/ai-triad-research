@@ -306,6 +306,7 @@ function Invoke-AphorismBatch {
         }
 
         if ($PSCmdlet.ShouldProcess($FilePath, 'Save aphorisms')) {
+            Assert-DataWriteAllowed -Path $FilePath  # t/2902
             $TaxData | ConvertTo-Json -Depth 20 | Set-Content -Path $FilePath -Encoding UTF8
             $FileName = Split-Path $FilePath -Leaf
             Write-Verbose "Updated $($FileResults.Count) nodes in $FileName"

@@ -10,6 +10,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   cancelStep: (): Promise<void> =>
     ipcRenderer.invoke('cancel-step'),
 
+  restoreEmbeddingsIfAbandoned: (): Promise<boolean> =>
+    ipcRenderer.invoke('restore-embeddings-if-abandoned'),
+
   getGitStatus: (): Promise<{ summary: string; hasChanges: boolean }> =>
     ipcRenderer.invoke('get-git-status'),
 

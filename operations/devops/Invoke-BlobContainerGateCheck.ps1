@@ -4,7 +4,7 @@
 
 <#
 .SYNOPSIS
-    Post-deploy gate: verify all 6 blob containers exist and are accessible.
+    Post-deploy gate: verify all 8 blob containers exist and are accessible.
 .DESCRIPTION
     Called by deploy-azure.yml after the Bicep deploy, before traffic switch.
     Discriminates ContainerNotFound (404) from RBAC failures (403) so on-call
@@ -16,11 +16,13 @@ param(
     [Parameter(Mandatory)] [string] $StorageAccount,
     # SYNC WITH main.bicep: analyticsContainer, stagingAnalyticsContainer,
     # userContentContainer, stagingUserContentContainer, communityContainer,
-    # stagingCommunityContainer. Update both if a container is added or removed.
+    # stagingCommunityContainer, briefExportsContainer, stagingBriefExportsContainer.
+    # Update both if a container is added or removed.
     [string[]] $Containers = @(
         'analytics', 'staging-analytics',
         'user-content', 'staging-user-content',
-        'community', 'staging-community'
+        'community', 'staging-community',
+        'brief-exports', 'staging-brief-exports'
     )
 )
 
@@ -37,8 +39,8 @@ function Get-AzContainerErrorClass ([string] $AzStderr) {
     return 'unknown'
 }
 
-if ($Containers.Count -ne 6) {
-    throw "Container list sync error: expected 6, got $($Containers.Count). Update deploy-azure.yml and main.bicep together."
+if ($Containers.Count -ne 8) {
+    throw "Container list sync error: expected 8, got $($Containers.Count). Update deploy-azure.yml and main.bicep together."
 }
 
 $Failed = @()

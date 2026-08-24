@@ -64,9 +64,10 @@ export function loadSoulDocuments(): Map<CharacterId, SoulDocument> {
 
     const result = SoulDocumentSchema.safeParse(parsed);
     if (!result.success) {
+      const validationSummary = result.error.issues.map(i => `${i.path.join('.')}: ${i.message}`).join('; ');
       throw new ActionableError({
         goal: `Validate soul document for ${pov}`,
-        problem: `Schema validation failed: ${result.error.issues.map(i => `${i.path.join('.')}: ${i.message}`).join('; ')}`,
+        problem: `Schema validation failed: ${validationSummary}`,
         location: 'soulDocLoader.ts:loadSoulDocuments',
         nextSteps: ['Fix the validation errors in the soul document JSON', 'Run the soul doc schema tests'],
       });

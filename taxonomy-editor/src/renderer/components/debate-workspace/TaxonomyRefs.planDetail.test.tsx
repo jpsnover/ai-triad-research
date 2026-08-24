@@ -50,6 +50,7 @@ vi.mock('../taxonomy/TaxonomyRefDetail', () => ({
 }));
 
 import { TaxonomyRefsSection } from './TaxonomyRefs';
+import { usePreferencesStore } from '../../store/preferencesStore';
 
 const ANCHOR = 'acc-B-001';
 
@@ -70,7 +71,8 @@ function renderPlan() {
 }
 
 describe('TaxonomyRefsSection — PLAN anchor → inline POV detail (t/1724)', () => {
-  beforeEach(() => { vi.clearAllMocks(); });
+  // t/2867: TheoryLink now gates on viewMode; advanced view shows the help icons these tests assert.
+  beforeEach(() => { vi.clearAllMocks(); usePreferencesStore.setState({ viewMode: 'advanced' }); });
 
   it('renders the anchor as a keyboard-accessible button, no detail until clicked', () => {
     renderPlan();

@@ -28,7 +28,7 @@ function prefersReducedMotion(): boolean {
 // Inline grounding-element detail card (§6 clickable grounding)
 // ──────────────────────────────────────────────
 
-function GroundingDetailCard({ ref, onClose }: { ref: OpEdGroundingRef; onClose: () => void }) {
+function GroundingDetailCard({ ref, onClose, claims }: { ref: OpEdGroundingRef; onClose: () => void; claims?: { text: string; paragraph: number }[] }) {
   const cardRef = useRef<HTMLDivElement>(null);
   const state = useTaxonomyStore.getState();
 
@@ -79,8 +79,58 @@ function GroundingDetailCard({ ref, onClose }: { ref: OpEdGroundingRef; onClose:
           <span className="oped-grounding-card-reflected-label">Reflected in this op-ed:</span> {ref.how_reflected}
         </div>
       )}
+      {ref.document_claims && ref.document_claims.length > 0 && (
+        <div className="oped-grounding-card-claims">
+          <span className="oped-grounding-card-claims-label">Addresses these source claims:</span>
+          <ul className="oped-grounding-card-claims-list">
+            {ref.document_claims.map((c, i) => {
+              const matchIdx = claims?.findIndex(cl => cl.text === c) ?? -1;
+              const claimNum = matchIdx >= 0 ? matchIdx + 1 : null;
+              const para = matchIdx >= 0 ? claims![matchIdx].paragraph : null;
+              return (
+                <li key={i}>
+                  {claimNum != null && <strong>Claim #{claimNum} · </strong>}
+                  {c}
+                  {para != null && para > 0 && (
+                    <span className="oped-claim-para" title={`Paragraph ${para}`} aria-label={`Paragraph ${para}`}>¶{para}</span>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      )}
       {body}
     </div>
+  );
+}
+
+// ──────────────────────────────────────────────
+// Claims section (t/2890) — source claims above taxonomy grounding
+// ──────────────────────────────────────────────
+
+function ClaimsSection({ claims }: { claims: { text: string; paragraph: number }[] }) {
+  if (claims.length === 0) return null;
+  return (
+    <details className="oped-claims" open>
+      <summary className="oped-claims-summary">Claims ({claims.length})</summary>
+      <ol className="oped-claims-list">
+        {claims.map((c, i) => (
+          <li key={i} className="oped-claim-item">
+            {c.text}
+            {c.paragraph > 0 && (
+              <span
+                className="oped-claim-para"
+                title={`Paragraph ${c.paragraph}`}
+                aria-label={`Paragraph ${c.paragraph}`}
+              >
+                ¶{c.paragraph}
+              </span>
+            )}
+          </li>
+        ))}
+      </ol>
+    </details>
   );
 }
 
@@ -88,7 +138,7 @@ function GroundingDetailCard({ ref, onClose }: { ref: OpEdGroundingRef; onClose:
 // Grounding section (collapsible table + inline expand)
 // ──────────────────────────────────────────────
 
-function GroundingSection({ grounding }: { grounding: OpEdGroundingRef[] }) {
+function GroundingSection({ grounding, claims }: { grounding: OpEdGroundingRef[]; claims?: { text: string; paragraph: number }[] }) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [showUnused, setShowUnused] = useState(false);
 
@@ -159,7 +209,7 @@ function GroundingSection({ grounding }: { grounding: OpEdGroundingRef[] }) {
           {showUnused ? 'Hide' : 'Show'} {unused.length} unused element{unused.length !== 1 ? 's' : ''}
         </button>
       )}
-      {expandedRef && <GroundingDetailCard ref={expandedRef} onClose={() => setExpandedId(null)} />}
+      {expandedRef && <GroundingDetailCard ref={expandedRef} onClose={() => setExpandedId(null)} claims={claims} />}
     </details>
   );
 }
@@ -192,21 +242,20 @@ function OpEdArticle({ member, outlet }: { member: OpEdMember; outlet?: string }
         <>
           <h1 className="oped-article-headline">{member.headline}</h1>
           {member.subtitle && <p className="oped-article-subtitle">{member.subtitle}</p>}
-
+          {member.byline && <p className="oped-byline">{member.byline}</p>}
+          {member.disclosure && <p className="oped-disclosure" role="note">{member.disclosure}</p>}
           <div className="oped-reader-body">
             <Markdown remarkPlugins={[remarkGfm]}>{member.body}</Markdown>
           </div>
+          {member.claims && member.claims.length > 0 && <ClaimsSection claims={member.claims} />}
+          <GroundingSection grounding={member.grounding} claims={member.claims} />
 
-          {member.pitch && (
-            <details className="oped-pitch">
-              <summary className="oped-pitch-summary">Pitch cover email</summary>
-              <div className="oped-reader-body oped-pitch-body">
-                <Markdown remarkPlugins={[remarkGfm]}>{member.pitch}</Markdown>
-              </div>
-            </details>
+          {member.rhetorical_meta && (
+            <section className="oped-rhetorical-meta" aria-label="What this op-ed did">
+              <h2 className="oped-rhetorical-meta-heading">What this op-ed did</h2>
+              <p>{member.rhetorical_meta}</p>
+            </section>
           )}
-
-          <GroundingSection grounding={member.grounding} />
         </>
       )}
     </article>

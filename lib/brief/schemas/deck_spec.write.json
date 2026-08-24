@@ -1,0 +1,226 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://aitriad.local/schemas/deck_spec/1.0",
+  "title": "DeckSpec",
+  "description": "Strict write-time schema for deck_spec.json v1.x. Validate on write (hard error); use the derived read variant (additionalProperties stripped) on read.",
+  "type": "object",
+  "required": [
+    "deck_spec_version", "meta", "question", "framing_critique",
+    "agreements", "disagreements", "cruxes", "resolution_analysis",
+    "unresolved_questions", "argument_map", "fact_checks",
+    "concessions", "top_claims", "convergence", "open_threads"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "deck_spec_version": {
+      "type": "string",
+      "pattern": "^1\\.\\d+$",
+      "description": "Major-line version. Writers emit exact version (e.g. '1.0'); readers accept any 1.x via pattern."
+    },
+    "meta": {
+      "type": "object",
+      "required": ["id", "run_id", "title", "model", "protocol", "phase"],
+      "additionalProperties": false,
+      "properties": {
+        "id":                   { "type": "string" },
+        "run_id":               { "type": "string" },
+        "title":                { "type": "string" },
+        "model":                { "type": "string" },
+        "protocol":             { "type": "string" },
+        "phase":                { "type": "string", "enum": ["concluding", "closed", "open"] },
+        "transition_rationale": { "type": "string" },
+        "snapshot": {
+          "type": "boolean",
+          "description": "True when exported via allowOpen=true (watermark/maturity semantics). Drives render watermark."
+        },
+        "snapshot_note": { "type": "string" }
+      }
+    },
+    "question": {
+      "type": "object",
+      "required": ["core_proposition"],
+      "additionalProperties": false,
+      "properties": {
+        "core_proposition": { "type": "string" },
+        "tensions":         { "type": "array", "items": { "type": "string" } },
+        "qualifiers":       { "type": "array", "items": { "type": "string" } },
+        "exclusions":       { "type": "array", "items": { "type": "string" } },
+        "time_horizon":     { "type": "string" }
+      }
+    },
+    "framing_critique": {
+      "type": "object",
+      "required": ["rating", "composite"],
+      "additionalProperties": false,
+      "properties": {
+        "rating":           { "type": "string" },
+        "composite":        { "type": "number" },
+        "rewritten_motion": { "type": "string" }
+      }
+    },
+    "agreements":            { "type": "array", "items": { "$ref": "#/$defs/TextNode" } },
+    "disagreements": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["text", "kind", "resolution_path"],
+        "additionalProperties": false,
+        "properties": {
+          "text":            { "type": "string" },
+          "kind":            { "type": "string", "enum": ["EMPIRICAL", "VALUES"] },
+          "resolution_path": { "type": "string" },
+          "source_ref":      { "type": "string" }
+        }
+      }
+    },
+    "cruxes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["text", "kind", "if_yes", "if_no"],
+        "additionalProperties": false,
+        "properties": {
+          "text":   { "type": "string" },
+          "kind":   { "type": "string", "enum": ["EMPIRICAL", "VALUES"] },
+          "if_yes": { "type": "string" },
+          "if_no":  { "type": "string" }
+        }
+      }
+    },
+    "resolution_analysis": {
+      "type": "object",
+      "required": ["stronger_camp_findings"],
+      "additionalProperties": false,
+      "properties": {
+        "stronger_camp_findings": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["camp", "finding"],
+            "additionalProperties": false,
+            "properties": {
+              "camp":    { "type": "string" },
+              "finding": { "type": "string" }
+            }
+          }
+        },
+        "would_change_if": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["camp", "falsifier"],
+            "additionalProperties": false,
+            "properties": {
+              "camp":      { "type": "string" },
+              "falsifier": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+    "unresolved_questions": { "type": "array", "items": { "$ref": "#/$defs/TextNode" } },
+    "argument_map": {
+      "type": "object",
+      "required": ["nodes", "relations"],
+      "additionalProperties": false,
+      "properties": {
+        "nodes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "camp", "label"],
+            "additionalProperties": false,
+            "properties": {
+              "id":       { "type": "string" },
+              "camp":     { "type": "string" },
+              "label":    { "type": "string" },
+              "strength": { "type": "number" }
+            }
+          }
+        },
+        "relations": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["from", "to", "type"],
+            "additionalProperties": false,
+            "properties": {
+              "from": { "type": "string" },
+              "to":   { "type": "string" },
+              "type": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+    "fact_checks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["claim", "verdict"],
+        "additionalProperties": false,
+        "properties": {
+          "claim":       { "type": "string" },
+          "verdict":     { "type": "string", "enum": ["Supported", "Disputed", "Unverifiable"] },
+          "sources":     { "type": "array", "items": { "type": "string" } },
+          "explanation": { "type": "string" },
+          "speaker": {
+            "type": "string",
+            "description": "speaker='system' indicates neutral evidence injected by fact-checker, never a camp claim. Sentinel enforced in extract/render logic, not schema."
+          }
+        }
+      }
+    },
+    "concessions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["camp", "asserted", "conceded", "challenged"],
+        "additionalProperties": false,
+        "properties": {
+          "camp":       { "type": "string" },
+          "asserted":   { "type": "integer", "minimum": 0 },
+          "conceded":   { "type": "integer", "minimum": 0 },
+          "challenged": { "type": "integer", "minimum": 0 }
+        }
+      }
+    },
+    "top_claims": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["camp", "claim", "strength"],
+        "additionalProperties": false,
+        "properties": {
+          "camp":     { "type": "string" },
+          "claim":    { "type": "string" },
+          "strength": { "type": "number" }
+        }
+      }
+    },
+    "convergence": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["issue", "score"],
+        "additionalProperties": false,
+        "properties": {
+          "issue": { "type": "string" },
+          "score": { "type": "number", "minimum": 0, "maximum": 1 }
+        }
+      }
+    },
+    "open_threads": { "type": "array", "items": { "$ref": "#/$defs/TextNode" } }
+  },
+  "$defs": {
+    "TextNode": {
+      "type": "object",
+      "required": ["text"],
+      "additionalProperties": false,
+      "properties": {
+        "text":       { "type": "string" },
+        "source_ref": { "type": "string" }
+      }
+    }
+  }
+}

@@ -188,11 +188,17 @@ describe('GET /api/public/pov/:pov/node/:nodeId (t/1788)', () => {
       expect(publicByNamespace('/api/conflicts')).toBe(false);
     });
 
-    it('the ONLY route under /api/public/ is GET /api/public/pov/:pov/node/:nodeId', () => {
+    it('the routes under /api/public/ are exactly the POV-node + op-ed share GETs', () => {
+      // t/2727 added the op-ed share as the second tenant of the namespace. Keeping
+      // this an EXACT list (order-independent) means any future /api/public/ route
+      // must be a deliberate, reviewed addition — the allowlist can't grow silently.
       const publicRoutes = extractRoutes(serverEntry)
         .filter(r => r.path.startsWith('/api/public/'))
-        .map(r => `${r.method} ${r.path}`);
-      expect(publicRoutes).toEqual(['GET /api/public/pov/:pov/node/:nodeId']);
+        .map(r => `${r.method} ${r.path}`)
+        .sort();
+      expect(publicRoutes).toEqual(
+        ['GET /api/public/oped/:shareId', 'GET /api/public/pov/:pov/node/:nodeId'].sort(),
+      );
     });
   });
 

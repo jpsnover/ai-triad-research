@@ -45,7 +45,17 @@ def set_winsize(fd, cols, rows):
 
 def main():
     shell = find_shell()
-    shell_args = [shell, "-NoLogo"] if "pwsh" in shell else [shell]
+    if "pwsh" in shell:
+        shell_args = [shell, "-NoLogo"]
+        # Import the AITriad module on launch so cmdlets are available in the console (t/2830).
+        # The path comes from the server (AITRIAD_MODULE env), resolved the same way the app
+        # resolves scripts/ (config.ts SCRIPTS_DIR) — never hardcoded. -NoExit keeps the session
+        # interactive after the import; a missing module degrades gracefully to a plain pwsh shell.
+        module = os.environ.get("AITRIAD_MODULE")
+        if module and os.path.isfile(module):
+            shell_args += ["-NoExit", "-Command", "Import-Module '{}' -Force".format(module)]
+    else:
+        shell_args = [shell]
 
     pid = -1
     master_fd = -1
