@@ -1388,10 +1388,6 @@ function CommunityInfoSection({ debate }: { debate: CommunityDebate }) {
     <div className="debate-detail-section">
       <h3>Community Info</h3>
       <div className="debate-detail-meta-row">
-        <span className="debate-detail-label">Shared by:</span>
-        <span>{debate.community_metadata.submitted_by_display}</span>
-      </div>
-      <div className="debate-detail-meta-row">
         <span className="debate-detail-label">Submitted:</span>
         <span>{formatDateLong(debate.community_metadata.submitted_at)}</span>
       </div>
