@@ -8,6 +8,7 @@ import { useFlag } from '../../hooks/useFeatureFlags';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { TOAST_DURATION_INFO, TOAST_DURATION_ERROR } from '../../constants';
 import { mapErrorToUserMessage } from '../../utils/errorMessages';
+import './CommunityLibrary.css';
 
 type Tab = 'chats' | 'debates' | 'opeds';
 
