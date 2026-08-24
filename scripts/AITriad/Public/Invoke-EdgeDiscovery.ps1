@@ -698,6 +698,14 @@ Omit pairs with no relationship. No markdown fences.
                         }
 
                         if ([string]::IsNullOrWhiteSpace($NewEdge.rationale)) { $MissingRationaleCount++ }
+                        # t/2944 write-together invariant: stamp provenance iff a non-empty rationale is
+                        # set (absent != null contract). NOTE: this is the embedding-FIRST candidate path
+                        # (pairs found by similarity), BUT the rationale here is LLM-authored — it comes
+                        # from the Classify prompt / Invoke-AIByUsage 'enrichment.edge-discovery.classify'
+                        # response above, not a similarity template. So provenance is 'discovery', NOT
+                        # 'embedding-template' (which the design reserves for a no-LLM template path; that
+                        # path does not exist in this cmdlet today — flagged to CL, edge-rationale-source-marker.md).
+                        if (-not [string]::IsNullOrWhiteSpace([string]$NewEdge.rationale)) { $NewEdge['rationale_source'] = 'discovery' }
                         $EdgesList.Add([PSCustomObject]$NewEdge)
                         $null = $ExistingEdgeKeys.Add($EdgeKey)
                         $BatchNewEdges++
@@ -947,6 +955,10 @@ $BatchSchemaPrompt
                 }
                 if ($Edge.PSObject.Properties['strength'] -and $Edge.strength) { $EdgeObj['strength'] = $Edge.strength }
                 if ($Edge.PSObject.Properties['notes']    -and $Edge.notes)    { $EdgeObj['notes']    = $Edge.notes    }
+                # t/2944 write-together invariant: stamp provenance iff a non-empty rationale is set —
+                # never emit rationale_source:null where the rationale is absent (absent != null contract,
+                # e/120#88/#91). LLM discovery path -> 'discovery' (edge-rationale-source-marker.md).
+                if (-not [string]::IsNullOrWhiteSpace([string]$Rationale)) { $EdgeObj['rationale_source'] = 'discovery' }
 
                 $EdgesList.Add([PSCustomObject]$EdgeObj)
                 [void]$ExistingEdgeKeys.Add($EdgeKey)
@@ -1277,6 +1289,10 @@ $SchemaPrompt
                 }
                 if ($Edge.PSObject.Properties['strength'] -and $Edge.strength) { $EdgeObj['strength'] = $Edge.strength }
                 if ($Edge.PSObject.Properties['notes']    -and $Edge.notes)    { $EdgeObj['notes']    = $Edge.notes    }
+                # t/2944 write-together invariant: stamp provenance iff a non-empty rationale is set —
+                # never emit rationale_source:null where the rationale is absent (absent != null contract,
+                # e/120#88/#91). LLM discovery path -> 'discovery' (edge-rationale-source-marker.md).
+                if (-not [string]::IsNullOrWhiteSpace([string]$Rationale)) { $EdgeObj['rationale_source'] = 'discovery' }
 
                 $EdgesList.Add([PSCustomObject]$EdgeObj)
                 [void]$ExistingEdgeKeys.Add($EdgeKey)
@@ -1408,6 +1424,10 @@ $SchemaPrompt
                 }
                 if ($Edge.PSObject.Properties['strength'] -and $Edge.strength) { $EdgeObj['strength'] = $Edge.strength }
                 if ($Edge.PSObject.Properties['notes']    -and $Edge.notes)    { $EdgeObj['notes']    = $Edge.notes    }
+                # t/2944 write-together invariant: stamp provenance iff a non-empty rationale is set —
+                # never emit rationale_source:null where the rationale is absent (absent != null contract,
+                # e/120#88/#91). LLM discovery path -> 'discovery' (edge-rationale-source-marker.md).
+                if (-not [string]::IsNullOrWhiteSpace([string]$Rationale)) { $EdgeObj['rationale_source'] = 'discovery' }
 
                 $EdgesList.Add([PSCustomObject]$EdgeObj)
                 [void]$ExistingEdgeKeys.Add($EdgeKey)
