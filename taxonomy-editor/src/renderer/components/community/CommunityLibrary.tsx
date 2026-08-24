@@ -24,10 +24,6 @@ function cardTitle(item: CommunityItem): string {
   return 'title' in item ? item.title : (item.topic || 'Untitled study');
 }
 
-function cardSubmitter(item: CommunityItem): string | undefined {
-  return (item.community_metadata as { submitted_by_display?: string } | null | undefined)?.submitted_by_display;
-}
-
 function formatDate(iso: string): string {
   if (!iso) return '';
   try {
@@ -71,9 +67,6 @@ function RemoveConfirmPopover({ item, onConfirm, onCancel }: {
       <div className="community-remove-popover-title">Remove from Community Library?</div>
       <div className="community-remove-popover-detail">
         <strong>{cardTitle(item)}</strong>
-        {cardSubmitter(item) && (
-          <span> by {cardSubmitter(item)}</span>
-        )}
       </div>
       <textarea
         className="community-remove-reason"
@@ -123,9 +116,6 @@ function CommunityCard({ item, isAdmin, onCopy, onRemove }: {
         )}
       </div>
       <div className="community-card-meta">
-        {cardSubmitter(item) && (
-          <span>by {cardSubmitter(item)}</span>
-        )}
         <span>{formatDate(item.updated_at || item.created_at)}</span>
         {'phase' in item && item.phase && <span className="community-card-badge">{item.phase}</span>}
         {'mode' in item && item.mode && <span className="community-card-badge">{item.mode}</span>}
