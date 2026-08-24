@@ -113,6 +113,10 @@ function readLicenseText(pkgDir, spdx, pkgId) {
   return fallback;
 }
 
+function guardShouldRefuse(branch, isLinkedWorktree, isCI) {
+  return branch === 'main' && !isLinkedWorktree && !isCI;
+}
+
 function main() {
   const args = parseArgs(process.argv.slice(2));
   const pkgJsonPath = path.resolve('package.json');
@@ -147,7 +151,7 @@ function main() {
     const branch = execFileSync('git', ['rev-parse', '--abbrev-ref', 'HEAD'],
       { encoding: 'utf-8', stdio: ['ignore', 'pipe', 'pipe'] }).trim();
     const isLinkedWorktree = /[/\\]worktrees[/\\]/.test(gitDir);
-    if (branch === 'main' && !isLinkedWorktree && !process.env.CI) {
+    if (guardShouldRefuse(branch, isLinkedWorktree, Boolean(process.env.CI))) {
       console.error(
         'generate-notices: refusing to run on the shared main checkout — ' +
         'use a linked worktree instead: git worktree add -b <branch> .worktrees/<name>'
@@ -344,4 +348,7 @@ function main() {
   console.log(`generate-notices: wrote ${args.output} (${resolvedRows.length} packages, ${blocks.length} license blocks).`);
 }
 
-main();
+if (require.main === module) main();
+
+// Exported for unit testing only (t/2973).
+module.exports = { _guardShouldRefuse: guardShouldRefuse };
