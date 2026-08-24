@@ -147,7 +147,7 @@ function main() {
     const branch = execFileSync('git', ['rev-parse', '--abbrev-ref', 'HEAD'],
       { encoding: 'utf-8', stdio: ['ignore', 'pipe', 'pipe'] }).trim();
     const isLinkedWorktree = /[/\\]worktrees[/\\]/.test(gitDir);
-    if (branch === 'main' && !isLinkedWorktree) {
+    if (branch === 'main' && !isLinkedWorktree && !process.env.CI) {
       console.error(
         'generate-notices: refusing to run on the shared main checkout — ' +
         'use a linked worktree instead: git worktree add -b <branch> .worktrees/<name>'
