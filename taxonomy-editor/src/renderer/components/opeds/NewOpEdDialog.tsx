@@ -3,7 +3,7 @@
 
 // NewOpEdDialog — Op-Ed Studio create flow (t/2576 PR#2, §5). Two screens mirroring
 // NewDebateDialog: Screen A is the essential form (topic/url, multi-select voices,
-// outlet, news hook, pitch); Screen B is the "More options" settings drawer. On Draft
+// outlet, news hook); Screen B is the "More options" settings drawer. On Draft
 // the dialog shows a live progress panel (not a spinner) fed by api.onOpEdProgress and
 // finalizes by opening the created set in the reader. The bridge trio (createOpEdSet /
 // cancelOpEdSet / onOpEdProgress) is Electron-only; web keeps the disabled affordance.
@@ -480,6 +480,10 @@ interface CreateFormProps {
   setTopic: (v: string) => void;
   url: string;
   setUrl: (v: string) => void;
+  /** Topic-box content looks like a web page URL (matches ^https?://) — only meaningful in topic mode. */
+  topicLooksLikeUrl: boolean;
+  /** Move the URL-shaped topic value into the URL field and switch to web-page mode. */
+  onMigrateTopicToUrl: () => void;
   isAnonymous: boolean;
   voices: Set<PovKey>;
   toggleVoice: (pov: PovKey) => void;
@@ -488,8 +492,6 @@ interface CreateFormProps {
   setOutlet: (v: string) => void;
   newsHook: string;
   setNewsHook: (v: string) => void;
-  includePitch: boolean;
-  setIncludePitch: (v: boolean) => void;
   settingsDiffCount: number;
   onOpenSettings: () => void;
   startError: ActionableShape | null;
@@ -525,6 +527,16 @@ function OpEdCreateForm(p: CreateFormProps) {
               <button type="button" className="oped-source-toggle" onClick={() => p.setFromWebPage(true)}>
                 ⌥ From a web page instead →
               </button>
+            )}
+            {p.allowUrlSource && p.topicLooksLikeUrl && (
+              <div className="oped-url-steer" role="status">
+                <span className="oped-url-steer-text">
+                  This looks like a web page. Switch to “From web page” to extract and link its claims.
+                </span>
+                <button type="button" className="oped-url-steer-action" onClick={p.onMigrateTopicToUrl}>
+                  Use as web page →
+                </button>
+              </div>
             )}
           </div>
         ) : (
@@ -623,10 +635,6 @@ function OpEdCreateForm(p: CreateFormProps) {
           </div>
         )}
         <div className="oped-footer-actions">
-          <label className="oped-pitch-row">
-            <input type="checkbox" checked={p.includePitch} onChange={e => p.setIncludePitch(e.target.checked)} />
-            Pitch email too
-          </label>
           <div className="oped-footer-right">
             <button type="button" className="btn" onClick={p.onClose}>Cancel</button>
             <button
@@ -658,10 +666,11 @@ export function NewOpEdDialog({ open, onClose, onCreated, allowUrlSource = true 
   const [fromWebPage, setFromWebPage] = useState(false);
   const [topic, setTopic] = useState('');
   const [url, setUrl] = useState('');
-  const [voices, setVoices] = useState<Set<PovKey>>(new Set());
+  // Default to all three camps selected (t/2849) — a study is normally the full triad.
+  const [voices, setVoices] = useState<Set<PovKey>>(new Set(['accelerationist', 'safetyist', 'skeptic']));
   const [outlet, setOutlet] = useState(DEFAULTS.outlet);
   const [newsHook, setNewsHook] = useState('');
-  const [includePitch, setIncludePitch] = useState(false);
+
 
   // Screen B–owned
   const [wordCount, setWordCount] = useState<number | null>(DEFAULTS.wordCount);
@@ -736,6 +745,15 @@ export function NewOpEdDialog({ open, onClose, onCreated, allowUrlSource = true 
   const hasSource = fromWebPage ? url.trim().length > 0 : topic.trim().length > 0;
   const canStart = hasSource && orderedVoices.length >= 1 && modelHasKey;
 
+  // A URL pasted into the topic box → FromTopic → no source brief → no claims, silently (t/2899).
+  // Detect it so we can steer the user to the web-page path (desktop only; web has no URL path).
+  const topicLooksLikeUrl = !fromWebPage && /^https?:\/\//i.test(topic.trim());
+  const handleMigrateTopicToUrl = () => {
+    setFromWebPage(true);
+    setUrl(topic.trim());
+    setTopic('');
+  };
+
   const settingsDiffCount = SETTINGS_SECTIONS.filter(s =>
     sectionHasDiff(s.id, { outlet, wordCount, thesis, authorBio, ground, maxGroundingNodes, maxSituations, model, temperature }, globalModel),
   ).length;
@@ -769,13 +787,13 @@ export function NewOpEdDialog({ open, onClose, onCreated, allowUrlSource = true 
       authorBio: authorBio.trim() || undefined,
       model: activeModel,
       temperature,
-      includePitch: includePitch || undefined,
     };
     if (fromWebPage && url.trim()) params.url = url.trim();
     if (wordCount != null) params.wordCount = wordCount;
     if (!ground) params.voiceOnly = true;
     else { params.maxGroundingNodes = maxGroundingNodes; params.maxSituations = maxSituations; }
-    return { topic: topic.trim(), params, voices: orderedVoices };
+    const sourceUrl = fromWebPage && url.trim() ? url.trim() : undefined;
+    return { topic: topic.trim(), url: sourceUrl, params, voices: orderedVoices };
   };
 
   const handleCancel = () => {
@@ -851,6 +869,8 @@ export function NewOpEdDialog({ open, onClose, onCreated, allowUrlSource = true 
             setTopic={setTopic}
             url={url}
             setUrl={setUrl}
+            topicLooksLikeUrl={topicLooksLikeUrl}
+            onMigrateTopicToUrl={handleMigrateTopicToUrl}
             isAnonymous={isAnonymous}
             voices={voices}
             toggleVoice={toggleVoice}
@@ -859,8 +879,6 @@ export function NewOpEdDialog({ open, onClose, onCreated, allowUrlSource = true 
             setOutlet={setOutlet}
             newsHook={newsHook}
             setNewsHook={setNewsHook}
-            includePitch={includePitch}
-            setIncludePitch={setIncludePitch}
             settingsDiffCount={settingsDiffCount}
             onOpenSettings={() => setShowSettings(true)}
             startError={startError}

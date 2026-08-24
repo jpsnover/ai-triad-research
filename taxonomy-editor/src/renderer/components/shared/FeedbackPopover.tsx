@@ -6,6 +6,7 @@ import { api } from '@bridge';
 import { useTaxonomyStore } from '../../hooks/useTaxonomyStore';
 import { useBreakpoint } from '../../hooks/useBreakpoint';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
+import { triggerManualDump } from '../../lib/flightRecorderInit';
 
 type FeedbackCategory = 'bug' | 'feature_request' | 'confusing' | 'general';
 type FeedbackStep = 'rating' | 'text' | 'submitted' | 'cooldown';
@@ -148,6 +149,8 @@ export function FeedbackPopover({ onClose }: FeedbackPopoverProps) {
     );
   }
 
+  const handleDumpFR = () => { void triggerManualDump(); };
+
   return (
     <div className="feedback-popover-toolbar" ref={popoverRef}>
       {step === 'rating' && (
@@ -202,6 +205,10 @@ export function FeedbackPopover({ onClose }: FeedbackPopoverProps) {
           </div>
         </>
       )}
+      <hr className="feedback-divider" />
+      <button className="feedback-dump-btn" onClick={handleDumpFR} title="⌃⌥D">
+        ⤓ Dump flight recorder
+      </button>
     </div>
   );
 }

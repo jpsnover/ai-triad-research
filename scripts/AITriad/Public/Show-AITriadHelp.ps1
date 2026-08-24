@@ -90,6 +90,7 @@ function Show-AITriadHelp {
         'Update-PolicyRegistry' = 'Taxonomy Data'; 'Invoke-PolicyRefinement' = 'Taxonomy Data'
         'Get-TaxonomyHealth' = 'Taxonomy Data'; 'Compare-Taxonomy' = 'Taxonomy Data'
         'Test-TaxonomyIntegrity' = 'Taxonomy Data'; 'Test-OntologyCompliance' = 'Taxonomy Data'
+        'Test-TaxonomyDir' = 'Taxonomy Data'
         'Get-RelevantTaxonomyNodes' = 'Taxonomy Data'; 'Measure-TaxonomyBaseline' = 'Taxonomy Data'
         'Get-TaxonomyProcess' = 'Taxonomy Data'; 'Update-TaxEmbeddings' = 'Taxonomy Data'
         'Set-TaxonomyHierarchy' = 'Taxonomy Data'; 'Approve-TaxonomyProposal' = 'Taxonomy Data'

@@ -138,6 +138,7 @@ function Update-NodeTestingRecord {
     if ($dirtyFiles.Count -gt 0 -and -not $WhatIfPreference) {
         foreach ($povName in $dirtyFiles.Keys) {
             $filePath = Join-Path $taxDir "$povName.json"
+            Assert-DataWriteAllowed -Path $filePath  # t/2902
             $dirtyFiles[$povName] | ConvertTo-Json -Depth 20 | Set-Content -Path $filePath -Encoding utf8NoBOM
             Write-Verbose "Update-NodeTestingRecord: wrote $filePath"
         }

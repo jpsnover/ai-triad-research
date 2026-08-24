@@ -9,7 +9,7 @@ import { useTaxonomyStore } from '../../hooks/useTaxonomyStore';
 import type { AggregatedCrux } from '../../hooks/useTaxonomyStore';
 import { useDebateStore } from '../../hooks/useDebateStore';
 import { DeleteConfirmDialog } from '../shared/DeleteConfirmDialog';
-import { HighlightedTextarea } from '../shared/HighlightedField';
+import { DescriptionSection, type DescriptionMention } from './NodeDescriptionSection';
 import { TypeaheadSelect } from '../shared/TypeaheadSelect';
 import { FieldHelp } from '../shared/FieldHelp';
 import { TheoryLink } from '../shared/TheoryLink';
@@ -30,16 +30,15 @@ import { nodeTypeFromId, nodePovFromId } from '@lib/debate/nodeIdUtils';
 import { POV_KEYS } from '@lib/debate/types';
 import { api } from '@bridge';
 import { useContainerMentionKit } from '../shared/MentionField';
-import { reconstructNodeContainer, type MentionSegment } from '../shared/mentionText';
-import type { EntityRef } from '@lib/entities/types';
+import { reconstructNodeContainer } from '../shared/mentionText';
 import { EditConflictBadge, type NodeConflict } from '../conflict/edit-conflicts';
-import { triggerPovNodeRegeneration } from '../../utils/regeneratePlainDescription';
 import { generateAphorism } from '../../utils/regenerateAphorism';
-import { useDescriptionMode, resolveDescription, DescriptionToggle } from '../shared/DescriptionToggle';
+import { useDescriptionMode, resolveDescription } from '../shared/DescriptionToggle';
 import { usePreferencesStore } from '../../store/preferencesStore';
 import { EmptyState } from '../shared/EmptyState';
 import { OverflowMenu, type OverflowMenuEntry } from '../shared/OverflowMenu';
 import { CopyLinkButton } from '../shared/CopyLinkButton';
+import { InlineEditTitle } from '../shared/InlineEditTitle';
 import { publicPovSharePath } from '../../utils/shareLinks';
 import { DebateTestedChip } from './DebateTestedChip';
 import { DebateTestedDrilldown } from './DebateTestedDrilldown';
@@ -83,6 +82,8 @@ interface NodeDetailProps {
   onPin?: () => void;
   onSimilarSearch?: () => void;
   onRelated?: () => void;
+  /** Opens the camp Soul Document dialog (t/2827) — rendered in the header icon row, Advanced-view only. */
+  onOpenSoulDoc?: () => void;
   chipDepth?: number;
   conflict?: NodeConflict;
   resolveUrl?: string | null;
@@ -99,11 +100,6 @@ const BDI_GUIDANCE: Record<Category, string> = {
 };
 
 /** Singular form with article for genus-differentia descriptions */
-const CATEGORY_SINGULAR: Record<Category, string> = {
-  'Beliefs': 'A Belief',
-  'Desires': 'A Desire',
-  'Intentions': 'An Intention',
-};
 const POV_LABELS: Record<Pov, string> = {
   accelerationist: POV_META.accelerationist.label,
   safetyist: POV_META.safetyist.label,
@@ -122,7 +118,7 @@ function getNodeAphorism(node: PovNode): string | undefined {
   return node.graph_attributes?.aphorism;
 }
 
-export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, onRelated, chipDepth = 0, conflict, resolveUrl }: NodeDetailProps) {
+export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, onRelated, onOpenSoulDoc, chipDepth = 0, conflict, resolveUrl }: NodeDetailProps) {
   const { updatePovNode, deletePovNode, movePovNodeCategory, movePovNode, validationErrors, getAllNodeIds, getAllConflictIds, runAttributeFilter, showAttributeInfo, navigateToLineage, setToolbarPanel, selectedEdge, relatedNodeId, loadEdges, edgesFile, setSelectedNodeId, getLabelForId, aggregatedCruxes, showCruxDetail, conflicts } = useTaxonomyStore();
   const viewMode = usePreferencesStore(state => state.viewMode);
   const [descMode, setDescMode] = useDescriptionMode();
@@ -159,6 +155,12 @@ export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, onRela
   const descSegments = readOnly ? mentionKit.segmentsFor('description') : [];
   const descriptionMention: DescriptionMention | undefined = descSegments.some(s => s.ref)
     ? { segments: descSegments, onSelectRef: mentionKit.onSelectRef }
+    : undefined;
+  // t/2811: plain-description read-only view also needs search highlight; build its mention
+  // segments so it can render through the same HighlightedTextarea readOnly path.
+  const plainSegments = readOnly ? mentionKit.segmentsFor('plain_description') : [];
+  const plainDescriptionMention: DescriptionMention | undefined = plainSegments.length > 0
+    ? { segments: plainSegments, onSelectRef: mentionKit.onSelectRef }
     : undefined;
 
   // Eagerly load facts index so count badge is available
@@ -389,7 +391,7 @@ export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, onRela
           update={update}
           maybeRegenAphorism={maybeRegenAphorism}
           onSimilarSearch={onSimilarSearch}
-          onPin={onPin}
+          onPin={viewMode === 'advanced' ? onPin : undefined}
           moveTargets={moveTargets}
           setShowDelete={setShowDelete}
           labelContent={labelContent}
@@ -403,8 +405,19 @@ export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, onRela
           <TheoryLink
             docPath="docs/taxonomy-ontology-guide.md"
             label="Help: taxonomy ontology guide"
-            size={14}
+            size={16}
           />
+          <TheoryLink
+            docPath="research/comp-linguist/docs/soul-documents-analysis.md"
+            label="Soul documents analysis"
+            tooltip="Open Soul Documents Analysis in GitHub"
+            size={15}
+          />
+          {/* Soul-doc bookmark relocated here (t/2827), right of the soul-doc icon; Advanced-view
+              only (same bookmark-control gate as t/2826 — not an always-visible control). */}
+          {viewMode === 'advanced' && onOpenSoulDoc && (
+            <button className="nd-header-btn" onClick={onOpenSoulDoc} title="Soul document" aria-label="Soul document">&#x1f4dc;</button>
+          )}
           <EditConflictBadge conflict={conflict} resolveUrl={resolveUrl} />
         </div>
 
@@ -459,8 +472,8 @@ export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, onRela
             setExpandedLineage={setExpandedLineage}
             showAttributeInfo={showAttributeInfo}
             hasGraphAttrs={hasGraphAttrs}
-            renderMentionField={renderMentionField}
             descriptionMention={descriptionMention}
+            plainDescriptionMention={plainDescriptionMention}
           />
         )}
 
@@ -573,19 +586,22 @@ function NodeDetailHeaderTop({ pov, node, readOnly, err, update, maybeRegenAphor
         {readOnly ? (
           <span className="nd-header-label" title={node.label}>{labelContent ?? node.label}</span>
         ) : (
-          <input
-            className={`nd-header-label nd-header-label-editable ${err('label') ? 'has-error' : ''}`}
+          <InlineEditTitle
             value={node.label}
-            onChange={(e) => update({ label: e.target.value })}
+            onChange={(v) => update({ label: v })}
             onBlur={maybeRegenAphorism}
+            hasError={!!err('label')}
             placeholder="Label"
-            aria-label="Label"
-            title={node.label}
+            ariaLabel="Label"
           />
         )}
       </div>
       <div className="nd-header-actions">
         {/* doc-link book relocated to the detail panel top-right (collapse-row / phone header) in PovTab — t/2412 */}
+        {/* t/2813: Search entry point in the POV detail header — opens the search panel (previousView captured for Back). */}
+        <button className="nd-header-btn" onClick={() => useTaxonomyStore.getState().setToolbarPanel('search')} title="Search taxonomy" aria-label="Search taxonomy">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        </button>
         {nodeTypeFromId(node.id) === 'pov' && (
           <CopyLinkButton hash={publicPovSharePath(node.id)} title="Copy public link" />
         )}
@@ -775,80 +791,7 @@ function BeliefsMetricsRow({ node, showDtDrilldown, setShowDtDrilldown }: Belief
   );
 }
 
-// ── Content tab: Description section (extracted from NodeDetail for complexity) ──
-
-/** Entity-mention render segments for the read-only `description` field + their click handler (t/1908). */
-interface DescriptionMention {
-  segments: readonly MentionSegment[];
-  onSelectRef: (ref: EntityRef) => void;
-}
-
-interface DescriptionSectionProps {
-  pov: Pov;
-  node: PovNode;
-  readOnly?: boolean;
-  err: (field: string) => string | undefined;
-  descMode: 'formal' | 'plain';
-  setDescMode: (mode: 'formal' | 'plain') => void;
-  maybeRegenAphorism: () => void;
-  update: (updates: Partial<PovNode>) => void;
-  updatePovNode: (pov: Pov, id: string, updates: Partial<PovNode>) => void;
-  /** Renders a reconstructed container field's text with linkified entity mentions (t/1898); undefined = plain. */
-  renderMentionField?: (fieldName: string, fallback: string) => ReactNode;
-  /** Mention segments for the formal `description` HighlightedTextarea (t/1908); undefined = no links. */
-  descriptionMention?: DescriptionMention;
-}
-
-function DescriptionSection({ pov, node, readOnly, err, descMode, setDescMode, maybeRegenAphorism, update, updatePovNode, renderMentionField, descriptionMention }: DescriptionSectionProps) {
-  const viewMode = usePreferencesStore(state => state.viewMode);
-  const effectiveDescMode = viewMode === 'simple' ? 'plain' as const : descMode;
-  return (
-    <div className={`form-group ${err('description') ? 'has-error' : ''}`}>
-      <div className="description-header">
-        <label>
-          Description
-          <FieldHelp text={`Genus-differentia format:\n"${CATEGORY_SINGULAR[node.category]} within [POV] discourse that [differentia].\nEncompasses: ...\nExcludes: ..."\nEncompasses and Excludes must each start on a new line.`} />
-        </label>
-        {viewMode === 'advanced' && <DescriptionToggle mode={descMode} onToggle={setDescMode} hasPlainDescription={!!node.plain_description} />}
-      </div>
-      {effectiveDescMode === 'formal' ? (
-        <div className="prose" onBlur={maybeRegenAphorism}>
-          <HighlightedTextarea
-            value={node.description}
-            onChange={(v) => update({ description: v })}
-            rows={6}
-            readOnly={readOnly}
-            mentionSegments={descriptionMention?.segments}
-            onSelectRef={descriptionMention?.onSelectRef}
-          />
-          {err('description') && <div className="error-text">{err('description')}</div>}
-        </div>
-      ) : (
-        <>
-          {node.plain_description === null ? (
-            <div className="plain-description-box plain-description-generating">Regenerating…</div>
-          ) : (
-            <div className="plain-description-box">
-              {readOnly && renderMentionField
-                ? renderMentionField(node.plain_description ? 'plain_description' : 'description', node.plain_description ?? node.description)
-                : (node.plain_description ?? node.description)}
-            </div>
-          )}
-          {!readOnly && (
-            <button
-              type="button"
-              className="plain-description-regen"
-              disabled={node.plain_description === null}
-              onClick={() => triggerPovNodeRegeneration(pov, node.id, node.description, updatePovNode)}
-            >
-              ↻ Regenerate
-            </button>
-          )}
-        </>
-      )}
-    </div>
-  );
-}
+// DescriptionSection extracted to ./NodeDescriptionSection (ADR-007 file-size ceiling; t/2811/t/2812).
 
 // ── Content tab: Steelman Vulnerability section (extracted from NodeDetail for complexity) ──
 
@@ -1008,13 +951,13 @@ interface NodeDetailContentTabProps {
   setExpandedLineage: (v: string | null) => void;
   showAttributeInfo: (field: string, value: string) => void;
   hasGraphAttrs: boolean;
-  /** Renders a reconstructed container field's text with linkified entity mentions (t/1898). */
-  renderMentionField?: (fieldName: string, fallback: string) => ReactNode;
   /** Mention segments for the formal `description` HighlightedTextarea (t/1908). */
   descriptionMention?: DescriptionMention;
+  /** t/2811: mention segments for the plain_description read-only highlight path. */
+  plainDescriptionMention?: DescriptionMention;
 }
 
-function NodeDetailContentTab({ pov, node, readOnly, err, descMode, setDescMode, maybeRegenAphorism, update, updatePovNode, showDtDrilldown, setShowDtDrilldown, expandedLineage, setExpandedLineage, showAttributeInfo, hasGraphAttrs, renderMentionField, descriptionMention }: NodeDetailContentTabProps) {
+function NodeDetailContentTab({ pov, node, readOnly, err, descMode, setDescMode, maybeRegenAphorism, update, updatePovNode, showDtDrilldown, setShowDtDrilldown, expandedLineage, setExpandedLineage, showAttributeInfo, hasGraphAttrs, descriptionMention, plainDescriptionMention }: NodeDetailContentTabProps) {
   return (
     <>
       {node.category === 'Beliefs' && (
@@ -1035,8 +978,8 @@ function NodeDetailContentTab({ pov, node, readOnly, err, descMode, setDescMode,
         maybeRegenAphorism={maybeRegenAphorism}
         update={update}
         updatePovNode={updatePovNode}
-        renderMentionField={renderMentionField}
         descriptionMention={descriptionMention}
+        plainDescriptionMention={plainDescriptionMention}
       />
 
       {hasGraphAttrs && (

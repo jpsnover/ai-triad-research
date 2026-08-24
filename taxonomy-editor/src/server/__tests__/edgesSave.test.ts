@@ -9,15 +9,17 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import type { IncomingMessage, ServerResponse } from 'http';
 
-const { writeEdgesFileMock, readEdgesFileMock } = vi.hoisted(() => ({
+const { writeEdgesFileMock, readBaselineMock } = vi.hoisted(() => ({
   writeEdgesFileMock: vi.fn(async () => {}),
-  readEdgesFileMock: vi.fn(async () => ({ edges: [] })),
+  // The write-baseline read (t/2957): default to a genuinely-empty baseline (nothing to restore).
+  // 'absent' is ABSENT_BASELINE; a rejecting impl models a read/parse failure (must refuse, no write).
+  readBaselineMock: vi.fn(async (): Promise<unknown> => ({ edges: [] })),
 }));
 
 // Partial mock: override the two edge fileIO calls, keep everything else real.
 vi.mock('../storage/fileIO.js', async (importActual) => {
   const actual = await importActual<typeof import('../storage/fileIO.js')>();
-  return { ...actual, writeEdgesFile: writeEdgesFileMock, readEdgesFile: readEdgesFileMock };
+  return { ...actual, writeEdgesFile: writeEdgesFileMock, readEdgesForSaveBaseline: readBaselineMock };
 });
 
 import type { ServerCtx } from '../routes/context.js';
@@ -46,7 +48,11 @@ async function putEdges(body: unknown): Promise<InvokeResult> {
 }
 
 describe('PUT /api/edges — whole-file edge save (t/1821)', () => {
-  beforeEach(() => { writeEdgesFileMock.mockClear(); readEdgesFileMock.mockClear(); });
+  beforeEach(() => {
+    writeEdgesFileMock.mockClear();
+    readBaselineMock.mockReset();
+    readBaselineMock.mockResolvedValue({ edges: [] }); // default: empty baseline, nothing to restore
+  });
 
   it('persists a valid EdgesFile body via the atomic writeEdgesFile', async () => {
     const file = { edges: [{ source: 'a', target: 'b', type: 'supports', status: 'proposed' }] };
@@ -77,6 +83,48 @@ describe('PUT /api/edges — whole-file edge save (t/1821)', () => {
   it('rejects a body whose edges is not an array with 400 and does NOT write', async () => {
     const res = await putEdges({ edges: 'nope' });
     expect(res.status).toBe(400);
+    expect(writeEdgesFileMock).not.toHaveBeenCalled();
+  });
+});
+
+describe('PUT /api/edges — rationale re-merge on save (t/2957)', () => {
+  const key = { source: 'a', type: 'SUPPORTS', target: 'b' };
+  beforeEach(() => {
+    writeEdgesFileMock.mockClear();
+    readBaselineMock.mockReset();
+  });
+
+  it('REPRO: a stripped whole-file save restores rationale from the on-disk baseline before writing', async () => {
+    // The editor loaded the list rationale-stripped; the save payload has no rationale.
+    readBaselineMock.mockResolvedValue({ edges: [{ ...key, confidence: 0.9, rationale: 'ON-DISK rationale', model: 'm', discovered_at: 't1' }] });
+    const strippedBody = { edges: [{ ...key, confidence: 0.9, model: 'm', discovered_at: 't1' }] };
+    const res = await putEdges(strippedBody);
+    expect(res.status).toBe(200);
+    expect(writeEdgesFileMock).toHaveBeenCalledTimes(1);
+    const written = writeEdgesFileMock.mock.calls[0][0] as { edges: Record<string, unknown>[] };
+    expect(written.edges[0].rationale).toBe('ON-DISK rationale'); // NOT wiped
+  });
+
+  it('BLOCKER arm 1 — genuine absence (ABSENT_BASELINE): first write persists the payload as-is', async () => {
+    readBaselineMock.mockResolvedValue('absent'); // ABSENT_BASELINE — no edges.json yet
+    const body = { edges: [{ ...key, rationale: 'fresh', model: 'm', discovered_at: 't1' }] };
+    const res = await putEdges(body);
+    expect(res.status).toBe(200);
+    expect(writeEdgesFileMock).toHaveBeenCalledTimes(1);
+    expect(writeEdgesFileMock).toHaveBeenCalledWith(body);
+  });
+
+  it('BLOCKER arm 2 — a read/parse FAILURE refuses the save with 500 and writes NOTHING (never a stripped write)', async () => {
+    readBaselineMock.mockRejectedValue(new Error('EACCES: permission denied')); // transient read error, NOT absence
+    const res = await putEdges({ edges: [{ ...key, model: 'm', discovered_at: 't1' }] });
+    expect(res.status).toBe(500);
+    expect(writeEdgesFileMock).not.toHaveBeenCalled();
+  });
+
+  it('BLOCKER arm 2b — a malformed baseline object refuses with 500 and writes NOTHING', async () => {
+    readBaselineMock.mockResolvedValue({ edges: 'not-an-array' }); // corrupt parse result reaching the util
+    const res = await putEdges({ edges: [{ ...key, model: 'm', discovered_at: 't1' }] });
+    expect(res.status).toBe(500);
     expect(writeEdgesFileMock).not.toHaveBeenCalled();
   });
 });

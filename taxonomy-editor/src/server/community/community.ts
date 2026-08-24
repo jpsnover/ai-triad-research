@@ -52,7 +52,7 @@ export function isAdmin(userId?: string): boolean {
 const COMMUNITY_INDEX_FILE = '_index.json';
 
 // Bump when toEntry shape changes so stale caches are replaced on next list.
-const CHAT_INDEX_VERSION = 'chat-v1';
+const CHAT_INDEX_VERSION = 'chat-v2'; // v2: added model (t/2779)
 const DEBATE_INDEX_VERSION = 'debate-v2'; // v2: added model + turn_count (t/2362/t/2384)
 const OPED_INDEX_VERSION = 'oped-v1';
 
@@ -148,7 +148,7 @@ async function listViaIndex<T>(spec: ListingIndexSpec<T>): Promise<T[]> {
 
 interface CommunityChatEntry {
   id: unknown; title: string; created_at: string; updated_at: string;
-  mode: string; community_metadata: unknown;
+  mode: string; community_metadata: unknown; chat_model?: string;
 }
 
 interface CommunityDebateEntry {
@@ -158,7 +158,7 @@ interface CommunityDebateEntry {
 }
 
 interface CommunityOpEdEntry {
-  id: unknown; title: string; created_at: string; updated_at: string;
+  id: unknown; topic: string; created_at: string; updated_at: string;
   community_metadata: unknown;
   camps: string[];
   voice_count: number;
@@ -177,6 +177,7 @@ export async function listCommunityChats(): Promise<unknown[]> {
       updated_at: parsed.updated_at || parsed.created_at || '',
       mode: parsed.mode || '',
       community_metadata: stripOriginalId(parsed.community_metadata || null), // t/856
+      ...(typeof parsed.chat_model === 'string' ? { model: parsed.chat_model } : {}),
     }),
   });
   return [...items].sort((a, b) => (b.updated_at || '').localeCompare(a.updated_at || ''));
@@ -212,7 +213,7 @@ export async function listCommunityOpEds(): Promise<unknown[]> {
     malformedMessage: 'Skipping malformed community op-ed file',
     toEntry: (parsed) => ({
       id: parsed.id,
-      title: typeof parsed.topic === 'string' ? parsed.topic || 'Untitled' : 'Untitled',
+      topic: typeof parsed.topic === 'string' ? parsed.topic || 'Untitled' : 'Untitled',
       created_at: parsed.created_at || '',
       updated_at: parsed.updated_at || parsed.created_at || '',
       community_metadata: stripOriginalId(parsed.community_metadata || null),

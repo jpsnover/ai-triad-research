@@ -482,8 +482,8 @@ export function SummariesTab() {
     if (filter) {
       const q = filter.toLowerCase();
       result = result.filter(s =>
-        s.title.toLowerCase().includes(q) ||
-        s.id.toLowerCase().includes(q) ||
+        (s.title ?? '').toLowerCase().includes(q) ||
+        (s.id ?? '').toLowerCase().includes(q) ||
         s.authors.some(a => a.toLowerCase().includes(q)) ||
         s.tags.some(t => t.toLowerCase().includes(q))
       );

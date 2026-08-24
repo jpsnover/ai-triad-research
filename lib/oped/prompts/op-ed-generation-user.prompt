@@ -36,14 +36,12 @@ YOUR CAMP'S REGISTERED POSITIONS — these are this camp's actual belief / desir
 CONCRETE STRESS-CASE SITUATIONS from your camp's situation library (most relevant first), each prefixed with its [id] — you may use one or two as the opening scene or as an evidence pillar, grounding an abstract position in a specific scenario:
 {{SITUATIONS}}
 
-{{PITCH_INSTRUCTION}}
-
 Return ONLY a JSON object with these fields:
 - "headline": a suggested headline (editors write their own, but propose a strong one — active, specific, under ~12 words)
 - "subtitle": a one-line deck/subtitle that sharpens the thesis (may be empty string)
 - "body_markdown": the full essay as Markdown. Short paragraphs. No section labels or headers inside the body — it must read as continuous prose. Do NOT repeat the headline inside the body.
 - "word_count": your integer count of the words in body_markdown
-- "pitch_email": the pitch cover email if one was requested above, otherwise an empty string
 - "stance": your camp's relationship to the source document ("agree", "rebut", or "extend"), matching what you actually wrote (empty string if no source material was provided)
+- "rhetorical_meta": 2–3 sentences of meta-commentary on the rhetorical strategy this piece used — which framing devices, emotional appeals, or argumentative structure you employed and why they serve this camp's voice
 
 Do not include any commentary outside the JSON.

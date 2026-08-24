@@ -9,7 +9,7 @@
 //
 // Create is PR#2 — the "+ New Op-Ed" button is present but DISABLED here (t/2570#3).
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { api, isElectronMode } from '@bridge';
@@ -18,6 +18,7 @@ import { useAuthStatus } from '../../hooks/useAuthStatus';
 import { useOpEdStore } from '../../hooks/useOpEdStore';
 import { useCommunityStore } from '../../hooks/useCommunityStore';
 import type { OpEdSet, OpEdSetSummary, OpEdCommunityEntry } from '../../../../../lib/oped/types';
+import { mapErrorToUserMessage } from '../../utils/errorMessages';
 import { OpEdTable } from './OpEdTable';
 import { OpEdReader } from './OpEdReader';
 import { NewOpEdDialog } from './NewOpEdDialog';
@@ -41,13 +42,18 @@ function buildOpEdMarkdown(set: OpEdSet): string {
     if (i > 0) lines.push('\n---\n');
     lines.push(`# ${m.headline}`);
     if (m.subtitle) lines.push(`\n*${m.subtitle}*`);
+    if (m.byline) lines.push(`\n_${m.byline}_`);
+    if (m.disclosure) lines.push(`\n> ${m.disclosure}`);
     lines.push('');
     if (m.status !== 'complete') {
       lines.push(`_(This voice ${m.status === 'failed' ? 'failed to generate' : 'was cancelled'}.)_`);
       return;
     }
+    if (m.byline) lines.push(`\n*${m.byline}*`);
+    if (m.disclosure) lines.push(`\n> ${m.disclosure}`);
+    lines.push('');
     lines.push(m.body);
-    if (m.pitch) { lines.push('\n---\n\n## Pitch cover email\n'); lines.push(m.pitch); }
+    if (m.rhetorical_meta) lines.push(`\n---\n\n## What this op-ed did\n\n${m.rhetorical_meta}`);
     if (m.grounding.length > 0) {
       lines.push('\n---\n\n## Taxonomy grounding\n');
       lines.push('| Element | Type | Relevance | Reflected in the op-ed |');
@@ -56,6 +62,10 @@ function buildOpEdMarkdown(set: OpEdSet): string {
         const type = g.node_id.startsWith('sit-') ? 'Situation' : 'BDI';
         lines.push(`| ${g.node_id} | ${type} | ${g.relevance || '—'} | ${g.how_reflected || '(not reported)'} |`);
       }
+    }
+    if (m.rhetorical_meta) {
+      lines.push('\n---\n\n## What this op-ed did\n');
+      lines.push(m.rhetorical_meta);
     }
   });
   return lines.join('\n');
@@ -82,34 +92,38 @@ function slugify(s: string): string {
   return (s || 'op-ed').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60) || 'op-ed';
 }
 
-function exportOpEdSet(set: OpEdSet, format: string): void {
-  if (format === 'text') downloadFile(`${slugify(set.topic)}.txt`, buildOpEdText(set), 'text/plain');
+// Exported for unit testing (t/2797 JSON regression).
+export function exportOpEdSet(set: OpEdSet, format: string): void {
+  if (format === 'json') downloadFile(`${slugify(set.topic)}.json`, JSON.stringify(set, null, 2), 'application/json');
+  else if (format === 'text') downloadFile(`${slugify(set.topic)}.txt`, buildOpEdText(set), 'text/plain');
   else downloadFile(`${slugify(set.topic)}.md`, buildOpEdMarkdown(set), 'text/markdown');
 }
 
 function filterSets(sets: OpEdSetSummary[], q: string): OpEdSetSummary[] {
   if (!q) return sets;
   // Index rows carry no bodies/headlines — filter on topic only (t/2605).
-  return sets.filter(s => s.topic.toLowerCase().includes(q));
+  return sets.filter(s => !q || (s.topic?.toLowerCase().includes(q) ?? false));
 }
 
 function filterCommunity(entries: OpEdCommunityEntry[], q: string): OpEdCommunityEntry[] {
   if (!q) return entries;
-  return entries.filter(c => c.topic.toLowerCase().includes(q));
+  return entries.filter(c => !q || (c.topic?.toLowerCase().includes(q) ?? false));
 }
 
 // ── Header actions (Edit / bulk-delete / disabled + New) ──────────────────────
 
 function OpEdHeaderActions({
-  listView, editMode, hasSets, selectedCount,
-  onBulkDelete, onClearSelected, onExitEdit, onEnterEdit, onNew,
+  listView, editMode, hasSets, selectedCount, hasCustomOrder,
+  onBulkDelete, onClearSelected, onResetOrder, onExitEdit, onEnterEdit, onNew,
 }: {
   listView: 'my' | 'community';
   editMode: boolean;
   hasSets: boolean;
   selectedCount: number;
+  hasCustomOrder: boolean;
   onBulkDelete: () => void;
   onClearSelected: () => void;
+  onResetOrder: () => void;
   onExitEdit: () => void;
   onEnterEdit: () => void;
   onNew: () => void;
@@ -122,6 +136,9 @@ function OpEdHeaderActions({
           <button className="btn btn-sm btn-danger" onClick={onBulkDelete}>Delete {selectedCount}</button>
         )}
         <button className="btn btn-sm btn-ghost" onClick={onClearSelected}>None</button>
+        {hasCustomOrder && (
+          <button className="btn btn-sm btn-ghost" onClick={onResetOrder} title="Reset to default sort order">Reset Order</button>
+        )}
         <button className="btn btn-sm btn-ghost" onClick={onExitEdit}>Done</button>
       </div>
     );
@@ -129,7 +146,7 @@ function OpEdHeaderActions({
   return (
     <div className="list-panel-header-actions">
       {hasSets && (
-        <button className="btn btn-sm btn-ghost" onClick={onEnterEdit} title="Rename or delete op-eds">Edit</button>
+        <button className="btn btn-sm btn-ghost" onClick={onEnterEdit} title="Rename, reorder, or delete op-eds">Edit</button>
       )}
       {/* Create — both builds (t/2614). Desktop runs the in-process core; web streams the
           shared lib/oped core via POST /api/oped-sets (topic-only; URL toggle hidden on web). */}
@@ -162,9 +179,7 @@ function ShareOpEdControl({ setId }: { setId: string }) {
       await navigator.clipboard.writeText(url);
       setState({ status: 'shared', url, copied: true });
     } catch {
-      /* telemetry — silent by design */
-      // Clipboard denied (permissions/insecure context) — still show the link so
-      // the user can copy manually; this is not a share failure, so no record.
+      /* clipboard denied — silent by design; link shown for manual copy */
       setState({ status: 'shared', url, copied: false });
     }
   }, []);
@@ -181,7 +196,7 @@ function ShareOpEdControl({ setId }: { setId: string }) {
         message: 'Failed to publish an op-ed share link',
         error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
-      setState({ status: 'error', message: err instanceof Error ? err.message : 'Could not create the share link.' });
+      setState({ status: 'error', message: mapErrorToUserMessage(err) });
     }
   }, [setId, copy]);
 
@@ -196,7 +211,7 @@ function ShareOpEdControl({ setId }: { setId: string }) {
         message: 'Failed to revoke an op-ed share link',
         error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
-      setState({ status: 'error', message: err instanceof Error ? err.message : 'Could not revoke the share link.' });
+      setState({ status: 'error', message: mapErrorToUserMessage(err) });
     }
   }, [setId]);
 
@@ -238,7 +253,7 @@ function OpEdReaderView({
     <div className="two-column oped-tab-table-mode">
       <div className="oped-reader-shell">
         <div className="oped-reader-bar">
-          <button type="button" className="oped-reader-back" onClick={onBack}>‹ Op-Eds</button>
+          <button type="button" className="oped-reader-back" onClick={onBack}>‹ Op-Ed Studies</button>
           {status && <span className="oped-status">{status}</span>}
           {/* Share is web-only: electron-bridge rejects shareOpEdSet (t/2728). */}
           {readerSet && !isElectronMode() && <ShareOpEdControl setId={readerSet.set_id} />}
@@ -296,6 +311,52 @@ export function OpEdTab() {
   }, []);
 
   const exitEditMode = useCallback(() => { setEditMode(false); setRenamingId(null); }, [setEditMode]);
+
+  // ── Custom sort order (persisted to localStorage) — mirrors DebateTab (t/2796). ──
+  const [customOrder, setCustomOrder] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem('oped-custom-order');
+      return saved ? JSON.parse(saved) : [];
+    } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error', component: 'oped-tab', level: 'warn',
+        message: 'Failed to load custom op-ed order from localStorage',
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+      });
+      return [];
+    }
+  });
+
+  const saveCustomOrder = useCallback((order: string[]) => {
+    setCustomOrder(order);
+    localStorage.setItem('oped-custom-order', JSON.stringify(order));
+  }, []);
+
+  // Apply custom ordering: sets not yet in the custom order (e.g. newly created)
+  // float to the top in server order (newest-first), followed by manually-ordered
+  // sets in their saved order. Mirrors DebateTab.orderedSessions.
+  const orderedSets = useMemo(() => {
+    if (customOrder.length === 0) return sets;
+    const orderMap = new Map(customOrder.map((id, i) => [id, i]));
+    return [...sets].sort((a, b) => {
+      const ai = orderMap.get(a.set_id);
+      const bi = orderMap.get(b.set_id);
+      if (ai !== undefined && bi !== undefined) return ai - bi;
+      if (ai !== undefined) return 1;  // a pinned, b new — new (b) first
+      if (bi !== undefined) return -1; // b pinned, a new — new (a) first
+      return 0;                        // both unordered — keep server order
+    });
+  }, [sets, customOrder]);
+
+  const moveSet = useCallback((id: string, direction: 'up' | 'down') => {
+    const ids = orderedSets.map(s => s.set_id);
+    const idx = ids.indexOf(id);
+    if (idx < 0) return;
+    const targetIdx = direction === 'up' ? idx - 1 : idx + 1;
+    if (targetIdx < 0 || targetIdx >= ids.length) return;
+    [ids[idx], ids[targetIdx]] = [ids[targetIdx], ids[idx]];
+    saveCustomOrder(ids);
+  }, [orderedSets, saveCustomOrder]);
 
   // ── Reader open/close ──
 
@@ -404,7 +465,7 @@ export function OpEdTab() {
   // ── Filtering ──
 
   const q = searchQuery.trim().toLowerCase();
-  const filteredSets = filterSets(sets, q);
+  const filteredSets = filterSets(orderedSets, q);
   const filteredCommunity = filterCommunity(communityOpeds, q);
 
   const isTableMode = !isPhone;
@@ -429,14 +490,16 @@ export function OpEdTab() {
     <div className={['two-column', isTableMode ? 'oped-tab-table-mode' : ''].filter(Boolean).join(' ')}>
       <div className="list-panel oped-list-panel">
         <div className="list-panel-header">
-          <h2>Op-Eds</h2>
+          <h2>Op-Ed Studies</h2>
           <OpEdHeaderActions
             listView={listView}
             editMode={editMode}
             hasSets={sets.length > 0}
             selectedCount={selectedIds.size}
+            hasCustomOrder={customOrder.length > 0}
             onBulkDelete={handleBulkDelete}
             onClearSelected={clearSelected}
+            onResetOrder={() => saveCustomOrder([])}
             onExitEdit={exitEditMode}
             onEnterEdit={() => setEditMode(true)}
             onNew={() => setShowNewDialog(true)}
@@ -484,6 +547,7 @@ export function OpEdTab() {
             renameValue={renameValue}
             setRenameValue={setRenameValue}
             onRename={handleRename}
+            onMoveSet={moveSet}
             onOpen={openMy}
             onExport={handleExportMy}
             onShare={handleShare}

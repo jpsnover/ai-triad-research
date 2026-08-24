@@ -5,7 +5,7 @@
  * Web bridge — implements AppAPI via REST and WebSocket calls to the server.
  * Used when the app runs in a browser served by the container.
  */
-import type { AppAPI, SourceDocumentResolution, DebateDelta, UserPreferences } from './types';
+import type { AppAPI, SourceDocumentResolution, DebateDelta, UserPreferences, BriefExportJobView, BriefExportRecord } from './types';
 import { instrumentBridge } from './instrumentBridge';
 import { makeCancellationError } from './cancellation';
 import { ActionableError } from '@lib/debate/errors';
@@ -772,7 +772,7 @@ const rawApi: AppAPI = {
   loadPolicyRegistry: () => get('/api/policy-registry'),
   loadLineageCategories: () => get('/api/lineage-categories'),
   loadLineageInfo: () => get<Record<string, unknown>>('/api/lineage-info'),
-  loadEdges: () => get('/api/edges'),
+  loadEdges: () => get('/api/edges?include=rationale'), // t/2949: load the FULL set (rationale) so a whole-file save can't drop it; server strips by default
   getEdgeDetail: (index) => get(`/api/edges/${index}`),
   updateEdgeStatus: (index, status) => put('/api/edges/status', { index, status }),
   swapEdgeDirection: (index) => put('/api/edges/swap', { index }),
@@ -991,7 +991,7 @@ const rawApi: AppAPI = {
   getProxyUsage: () => get('/api/proxy/usage'),
 
   // Embeddings & NLI
-  computeEmbeddings: (texts, ids) => post('/api/embeddings/compute', { texts, ids }),
+  computeEmbeddings: (texts, ids) => post('/api/embeddings/compute', { texts, ids }, { idempotent: true }), // idempotent:true → 1 retry so a load-shed 503 (retryable:true+Retry-After) recovers; embeddings are a pure fn of inputs (t/2922)
   // Web transport: the server embedding backend (Python/Gemini) has no DirectML GPU-OOM failure
   // mode, so nothing goes stale on this path → always [] (t/2060 staleNodeIds contract). If the
   // server route later reports partial failures, thread them through here.
@@ -1016,6 +1016,31 @@ const rawApi: AppAPI = {
   deleteDebateSession: (id) => del(`/api/debates/${encodeURIComponent(id)}`).then(() => {}),
   loadDebateComments: (id) => get(`/api/debates/${encodeURIComponent(id)}/comments`),
   saveDebateComments: (id, data) => put(`/api/debates/${encodeURIComponent(id)}/comments`, data).then(() => {}),
+
+  // Brief Export (t/2805, T7) — client of the T6 REST API (server: routes/briefExports.ts).
+  createBriefExport: (debateId, body) => post<{ jobId: string }>(`/api/debates/${encodeURIComponent(debateId)}/exports`, body),
+  getBriefExportJob: (jobId) => get<BriefExportJobView>(`/api/export-jobs/${encodeURIComponent(jobId)}`),
+  listBriefExports: (debateId) => get<BriefExportRecord[]>(`/api/debates/${encodeURIComponent(debateId)}/exports`),
+  downloadBriefArtifact: async (exportId, name) => {
+    // Binary-capable read (pptx is bytes; json artifacts also come back as a Blob) — mirrors
+    // downloadCaseAttachment. The route validates the artifact name; we encode defensively.
+    const res = await resilientFetch(
+      `/api/exports/${encodeURIComponent(exportId)}/artifacts/${encodeURIComponent(name)}`,
+      {}, { timeoutMs: 30_000, maxRetries: 1, critical: true, category: 'read' as EndpointCategory },
+    );
+    if (!res.ok) throw new Error(`Artifact download failed: ${res.status}`);
+    return res.blob();
+  },
+  deleteBriefExport: (exportId) => del(`/api/exports/${encodeURIComponent(exportId)}`).then(() => {}),
+  printBriefToPdf: async (html) => {
+    const win = window.open('about:blank', '_blank');
+    if (!win) throw new ActionableError({ goal: 'Print brief to PDF', problem: 'Pop-up was blocked.', location: 'web-bridge · printBriefToPdf', nextSteps: ['Allow pop-ups for this site and try again.'] });
+    win.document.open(); win.document.write(html); win.document.close(); win.focus(); win.print(); return { cancelled: false };
+  },
+
+  uploadBriefTemplate: async (file) => { const r = await fetchWithSessionRecovery('/api/templates', { method: 'POST', headers: { 'Content-Type': 'application/octet-stream', 'x-filename': file.name }, body: await file.arrayBuffer() }, { timeoutMs: 30_000, maxRetries: 1, critical: true, category: 'mutation' as EndpointCategory }); if (!r.ok) { const m = await r.text().catch(() => String(r.status)); throw new Error(`Template upload failed: ${m}`); } return r.json(); },
+  listBriefTemplates: () => get('/api/templates'),
+  deleteBriefTemplate: (templateId) => del(`/api/templates/${encodeURIComponent(templateId)}`).then(() => {}),
 
   // Op-Ed Studio (t/2576) — real routes against t/2573's server API (on main). The
   // personal-library path is /api/oped-sets (t/2599 live-smoke found the bridge had
@@ -1100,7 +1125,7 @@ const rawApi: AppAPI = {
   saveChatSession: (session) => put('/api/chats', session).then(() => {}),
   deleteChatSession: (id) => del(`/api/chats/${encodeURIComponent(id)}`).then(() => {}),
   exportChatToFile: async (entries, format, options) => {
-    const { chatToMarkdown, chatToText, chatToPrintHtml, chatExportFilename } = await import('@lib/chat/chatExportFormatters');
+    const { chatToMarkdown, chatToText, chatToPrintHtml, chatToJson, chatExportFilename } = await import('@lib/chat/chatExportFormatters');
     const exportOpts = { title: options.title, mode: options.mode, pov: options.pov };
 
     switch (format) {
@@ -1136,6 +1161,17 @@ const rawApi: AppAPI = {
         URL.revokeObjectURL(a.href);
         return { cancelled: false, filePath: filename };
       }
+      case 'json': {
+        const content = chatToJson(entries, exportOpts);
+        const filename = chatExportFilename(options.title, 'json');
+        const blob = new Blob([content], { type: 'application/json' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = filename;
+        a.click();
+        URL.revokeObjectURL(a.href);
+        return { cancelled: false, filePath: filename };
+      }
     }
   },
 
@@ -1155,7 +1191,7 @@ const rawApi: AppAPI = {
   saveProposal: (filename, data) => put(`/api/proposals/${encodeURIComponent(filename)}`, data),
 
   // PowerShell prompts
-  readPsPrompt: (name) => get(`/api/ps-prompts/${encodeURIComponent(name)}`),
+  readPsPrompt: (name, dir = 'ps') => get(`/api/ps-prompts/${encodeURIComponent(name)}?dir=${encodeURIComponent(dir)}`),
   listPsPrompts: () => get('/api/ps-prompts'),
 
   // Feedback & error reporting
@@ -1364,10 +1400,11 @@ const rawApi: AppAPI = {
     diagClosedCallbacks.add(cb);
     return () => { diagClosedCallbacks.delete(cb); };
   },
-  openChatWindow: async () => {
-    openAppWindow('chat-window');
+  openChatWindow: async (chatId, source) => {
+    openAppWindow(`chat-window?id=${encodeURIComponent(chatId)}${source ? `&source=${encodeURIComponent(source)}` : ''}`);
   },
   onChatPopoutClosed: () => () => {},
+  onChatWindowLoad: () => () => {},
   requestReExtractClaims: (entryId) => {
     diagChannel?.postMessage({ type: 're-extract-claims', entryId });
   },

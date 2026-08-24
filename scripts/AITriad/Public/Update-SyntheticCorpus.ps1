@@ -133,6 +133,7 @@ function Update-SyntheticCorpus {
             $Cleaned = @($Corpus.entries | Where-Object { -not $OrphanedNodes.Contains($_.node_id) })
             $Corpus.entries = $Cleaned
             $Corpus.entry_count = $Cleaned.Count
+            Assert-DataWriteAllowed -Path $CorpusPath  # t/2902
             $Corpus | ConvertTo-Json -Depth 10 -Compress | Set-Content -Path $CorpusPath -Encoding UTF8
         }
         Write-Host "  Removed $($OrphanedNodes.Count) orphaned node entries." -ForegroundColor Yellow

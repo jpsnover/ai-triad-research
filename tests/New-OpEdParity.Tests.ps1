@@ -182,7 +182,6 @@ process.stdout.write(out);
                     SOURCE_MATERIAL        = '(no external source supplied — argue from the topic and general knowledge)'
                     GROUNDING_NODES        = '- [saf-bel-001] [Belief] AI is dangerous: Detail here.'
                     SITUATIONS             = '- [sit-001] Runaway model: Bad outcome.'
-                    PITCH_INSTRUCTION      = 'Write a short pitch email.'
                     SOURCE_AUTHOR          = ''
                     SOURCE_ACTOR_TYPE      = ''
                     SOURCE_THESIS          = ''
@@ -198,7 +197,7 @@ import { readFileSync } from 'fs';
 import { join } from 'path';
 const dir = "$($script:PromptsDirFwd)";
 const tpl = readFileSync(join(dir, 'op-ed-generation-user.prompt'), 'utf-8').trimEnd();
-const vars = {"TOPIC":"Mandatory AI audits","WORD_COUNT":"800","OUTLET_GUIDANCE":"Generic: ~800 words","NEWS_HOOK":"Senate AI bill hearing next week","THESIS":"Audits prevent catastrophic failures","AUTHOR_BIO":"A researcher at MIT","SOURCE_MATERIAL":"(no external source supplied — argue from the topic and general knowledge)","GROUNDING_NODES":"- [saf-bel-001] [Belief] AI is dangerous: Detail here.","SITUATIONS":"- [sit-001] Runaway model: Bad outcome.","PITCH_INSTRUCTION":"Write a short pitch email.","SOURCE_AUTHOR":"","SOURCE_ACTOR_TYPE":"","SOURCE_THESIS":"","SOURCE_STANCE":"","SOURCE_RECOMMENDATIONS":"","SOURCE_KEY_CLAIMS":"  1. Audits catch failures early\n  2. Voluntary compliance is insufficient"};
+const vars = {"TOPIC":"Mandatory AI audits","WORD_COUNT":"800","OUTLET_GUIDANCE":"Generic: ~800 words","NEWS_HOOK":"Senate AI bill hearing next week","THESIS":"Audits prevent catastrophic failures","AUTHOR_BIO":"A researcher at MIT","SOURCE_MATERIAL":"(no external source supplied — argue from the topic and general knowledge)","GROUNDING_NODES":"- [saf-bel-001] [Belief] AI is dangerous: Detail here.","SITUATIONS":"- [sit-001] Runaway model: Bad outcome.","SOURCE_AUTHOR":"","SOURCE_ACTOR_TYPE":"","SOURCE_THESIS":"","SOURCE_STANCE":"","SOURCE_RECOMMENDATIONS":"","SOURCE_KEY_CLAIMS":"  1. Audits catch failures early\n  2. Voluntary compliance is insufficient"};
 const out = tpl.replace(/\{\{(\w+)\}\}/g, (_, k) => vars[k] ?? '');
 process.stdout.write(out);
 "@
@@ -206,6 +205,55 @@ process.stdout.write(out);
 
         ($PsUser -replace '\r\n', "`n").TrimEnd() |
             Should -Be ($TsUser -replace '\r\n', "`n").TrimEnd()
+    }
+
+    # t/2911 regression: the shared grounding-reflection prompt gained a
+    # {{SOURCE_CLAIMS}} slot (t/2890) wired into the TS loader but not the PS
+    # New-OpEd render, so PS shipped the literal placeholder to the model.
+    It 'PS and TS assemble byte-identical grounding-reflection prompt (t/2911)' {
+        if (-not $script:TsxAvailable) { Set-ItResult -Skipped -Because 'tsx not available'; return }
+
+        # PS side — mirror New-OpEd's reflection render keys exactly.
+        $PsRefl = InModuleScope AITriad -Parameters @{ PromptsDir = $script:OPedPromptsDir } {
+            param([string]$PromptsDir)
+            Get-Prompt -Name 'op-ed-grounding-reflection' -PromptsDir $PromptsDir -AllowUnresolved `
+                -Replacements @{
+                    OPED_BODY     = 'PARITY_FIXTURE_BODY paragraph one.'
+                    GROUNDING_LIST = '- [saf-bel-001] (bdi/Belief) AI is dangerous'
+                    SOURCE_CLAIMS = "  1. Audits catch failures early`n  2. Voluntary compliance is insufficient"
+                }
+        }
+
+        $TsCode = @"
+import { readFileSync } from 'fs';
+import { join } from 'path';
+const dir = "$($script:PromptsDirFwd)";
+const tpl = readFileSync(join(dir, 'op-ed-grounding-reflection.prompt'), 'utf-8').trimEnd();
+const vars = {"OPED_BODY":"PARITY_FIXTURE_BODY paragraph one.","GROUNDING_LIST":"- [saf-bel-001] (bdi/Belief) AI is dangerous","SOURCE_CLAIMS":"  1. Audits catch failures early\n  2. Voluntary compliance is insufficient"};
+const out = tpl.replace(/\{\{(\w+)\}\}/g, (_, k) => vars[k] ?? '');
+process.stdout.write(out);
+"@
+        $TsRefl = & $script:TsxHelper $TsCode
+
+        ($PsRefl -replace '\r\n', "`n").TrimEnd() |
+            Should -Be ($TsRefl -replace '\r\n', "`n").TrimEnd()
+    }
+
+    # Direct symptom guard (no tsx): rendering with the exact keys New-OpEd
+    # supplies must leave ZERO unresolved {{…}} placeholders. Catches a future
+    # shared-prompt placeholder the PS render forgets to fill (the t/2911 class).
+    It 'PS grounding-reflection render leaves no unresolved placeholders (t/2911)' {
+        $Rendered = InModuleScope AITriad -Parameters @{ PromptsDir = $script:OPedPromptsDir } {
+            param([string]$PromptsDir)
+            Get-Prompt -Name 'op-ed-grounding-reflection' -PromptsDir $PromptsDir -AllowUnresolved `
+                -Replacements @{
+                    OPED_BODY      = 'body'
+                    GROUNDING_LIST = '- [saf-bel-001] (bdi/Belief) x'
+                    SOURCE_CLAIMS  = '(none)'
+                }
+        }
+        $Rendered | Should -Not -Match '\{\{[A-Za-z0-9_-]+\}\}' `
+            -Because 'every placeholder in the shared reflection prompt must be supplied by the PS render (t/2911)'
     }
 
     # Deliberate-divergence proof: confirms the gate is sensitive to PS-side changes.

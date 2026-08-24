@@ -16,6 +16,7 @@ import { NewDebateDialog } from './NewDebateDialog';
 import { DebateWorkspace } from '../debate-workspace';
 import { filterCommunityDebates } from './communityFilter';
 import { ExportDropdown } from './ExportDropdown';
+import { useDebateBriefExports, useRowBriefExport, type BriefTarget } from './DebateBriefExports';
 import { useFlag } from '../../hooks/useFeatureFlags';
 import { useAuthStatus } from '../../hooks/useAuthStatus';
 import { SearchPreview } from '../edge-browser/SearchPreview';
@@ -94,6 +95,7 @@ interface DebateListProps {
   onRowExport: (session: SessionRowData, format: string) => void;
   onRowShare: (session: SessionRowData) => Promise<void>;
   onRowCommunityExport: (cd: CommunityDebate, format: string) => void;
+  onRowBrief: (target: BriefTarget) => void;
 }
 
 // Shared prop bag for the right (detail) pane subtree.
@@ -451,6 +453,8 @@ export function DebateTab() {
     }
   }, [runExport]);
 
+  const rowBrief = useRowBriefExport(isElectronMode());
+
   const listProps: DebateListProps = {
     width, listView, setListView, editMode, setEditMode, sessions, sessionsLoading,
     selectedIds, setSelectedIds, setShowBulkDeleteConfirm, customOrder, saveCustomOrder,
@@ -464,6 +468,7 @@ export function DebateTab() {
     onRowExport: (s, fmt) => { void handleRowExport(s, fmt); },
     onRowShare: handleRowShare,
     onRowCommunityExport: (cd, fmt) => { void handleRowCommunityExport(cd, fmt); },
+    onRowBrief: rowBrief.openRowBrief,
   };
 
   const rightPaneProps: DebateRightPaneProps = {
@@ -546,6 +551,7 @@ export function DebateTab() {
           }}
         />
       )}
+      {rowBrief.rowBriefNode}
       {showBulkDeleteConfirm && (
         <BulkDeleteDialog
           sessions={sessions}
@@ -667,7 +673,7 @@ function DebateMyList(props: DebateListProps) {
     filteredSessions, activeDebateId, selectedIds, setSelectedIds,
     renamingId, setRenamingId, renameValue, setRenameValue, renameDebate,
     moveSession, handleSelect, nav,
-    onRowOpen, onRowExport, onRowShare,
+    onRowOpen, onRowExport, onRowShare, onRowBrief,
   } = props;
   const isPhone = nav.isActive;
   return (
@@ -704,6 +710,8 @@ function DebateMyList(props: DebateListProps) {
         onOpen={onRowOpen}
         onExport={onRowExport}
         onShare={onRowShare}
+        onBrief={onRowBrief}
+        briefWebOnly={isElectronMode()}
         onPhoneSelect={handleSelect}
         isPhone={isPhone}
         activeDebateId={activeDebateId}
@@ -718,7 +726,7 @@ function DebateCommunityList(props: DebateListProps) {
     communityDebates, communityLoading, searchQuery, setSearchQuery,
     filteredCommunityDebates, selectedCommunityDebate, setSelectedCommunityDebate,
     copyingId, setCopyingId, copyItem, loadSessions, auth, nav,
-    onCommunityRowOpen, onRowCommunityExport,
+    onCommunityRowOpen, onRowCommunityExport, onRowBrief,
   } = props;
   const isPhone = nav.isActive;
 
@@ -770,6 +778,8 @@ function DebateCommunityList(props: DebateListProps) {
         selectedId={selectedCommunityDebate?.id ?? null}
         onOpen={onCommunityRowOpen}
         onExport={onRowCommunityExport}
+        onBrief={(cd) => onRowBrief({ id: cd.id, title: cd.title, phase: cd.phase ?? '' })}
+        briefWebOnly={isElectronMode()}
         onCopy={handleCopy}
         copyingId={copyingId}
         auth={auth}
@@ -939,6 +949,8 @@ function DebateDetailSummary({
 }) {
   const [showCalibration, setShowCalibration] = useState(false);
   const [shareStatus, setShareStatus] = useState<string | null>(null);
+  // Brief Export (t/2805, T7) — web-only v1; the menu item signals web-only on desktop.
+  const brief = useDebateBriefExports(debate, isElectronMode());
   // Calibration is an admin/power-user tool — show only for admins (t/1036).
   // Desktop (Electron) owners are admin-equivalent; web requires the admin flag.
   // useFlag is a hook — call it unconditionally, never inside the `||` short-circuit
@@ -996,7 +1008,7 @@ function DebateDetailSummary({
           })}
         </div>
         <div className="debate-tab-spacer" />
-        <ExportDropdown onExport={onExport} />
+        <ExportDropdown onExport={onExport} onBrief={brief.openBrief} briefWebOnly={isElectronMode()} />
         {showAdminControls && viewMode !== 'simple' && (
           <button className="btn" onClick={() => setShowCalibration(!showCalibration)}>
             Calibration
@@ -1007,6 +1019,8 @@ function DebateDetailSummary({
         </button>
         {exportStatus && <span className="debate-detail-export-status">{exportStatus}</span>}
       </div>
+
+      {brief.node}
 
       {showCalibration && viewMode !== 'simple' && (
         <ParameterHistoryPanel onClose={() => setShowCalibration(false)} />

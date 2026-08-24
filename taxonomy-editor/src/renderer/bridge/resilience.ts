@@ -284,6 +284,30 @@ function parseRetryAfter(res: Response): number | null {
   return null;
 }
 
+/** A typed backpressure signal — the server is healthy but shedding load / rate-limiting and
+ *  wants the client to honor Retry-After and re-offer the request (t/2922). Two shapes converge
+ *  on one concept:
+ *    - HTTP 429 (rate limit — backpressure by status), and
+ *    - any retryable status whose JSON body carries `retryable: true` — the load-shed 503
+ *      (t/2905, `routes/ai.ts`) and the upstream-429 mapping both set this.
+ *  Backpressure resets the breaker (`onCircuitSuccess`) rather than tripping it. A genuine-down
+ *  503 (no `retryable: true`, or a non-JSON/empty body) is NOT backpressure — it fails fast and
+ *  trips the breaker, unchanged. The 429 disjunct is retained so a non-retryable `tokens_per_day`
+ *  429 stays on the healthy path (a pure `retryable`-key would regress it into a breaker trip).
+ *  Peeks a clone so the original body stays intact for the retry-path cancel or the caller's
+ *  final read. */
+async function isBackpressure(res: Response): Promise<boolean> {
+  if (res.status === 429) return true;
+  try {
+    const data = await res.clone().json() as { retryable?: unknown } | null;
+    return data?.retryable === true;
+  } catch {
+    // silent by design: a non-JSON / empty body means this is not a typed-backpressure
+    // response (e.g. a genuinely-down 503) — treat as a real failure, not backpressure.
+    return false;
+  }
+}
+
 // ── Main entry point ──
 
 export async function resilientFetch(
@@ -314,15 +338,19 @@ export async function resilientFetch(
         return res;
       }
 
-      // Retryable HTTP status — 429 is rate-limiting (server healthy), not a failure
-      if (res.status === 429) {
+      // Retryable HTTP status. Typed backpressure (429, or a retryable:true body — the
+      // load-shed 503) means the server is healthy but shedding: honor Retry-After and
+      // re-offer, and treat it as a success for the breaker. Anything else is a real
+      // failure that trips the breaker (t/2922).
+      const backpressure = await isBackpressure(res);
+      if (backpressure) {
         onCircuitSuccess(category);
       } else {
         onCircuitFailure(category, `HTTP ${res.status}`, path, init.method);
       }
 
       if (attempt < maxRetries) {
-        const retryAfterMs = res.status === 429 ? parseRetryAfter(res) : null;
+        const retryAfterMs = backpressure ? parseRetryAfter(res) : null;
         if (retryAfterMs !== null && retryAfterMs > cfg().maxRetryAfterMs) {
           return res;
         }

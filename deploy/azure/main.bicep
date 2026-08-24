@@ -363,10 +363,10 @@ resource analyticsContainer 'Microsoft.Storage/storageAccounts/blobServices/cont
 // use these container names (BLOB_CONTAINER_PREFIX=staging-).
 //
 // SYNC WITH deploy-azure.yml: the "Verify blob containers exist post-deploy"
-// step (t/2701 gate) holds a hard-coded list of these 6 container names
+// step (t/2701 gate) holds a hard-coded list of these 8 container names
 // (analytics, staging-analytics, user-content, staging-user-content, community,
-// staging-community). Adding or removing a container resource here requires
-// updating that list in the workflow.
+// staging-community, brief-exports, staging-brief-exports). Adding or removing
+// a container resource here requires updating that list in the workflow.
 
 resource stagingUserContentContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-05-01' = {
   parent: blobService
@@ -389,6 +389,63 @@ resource stagingAnalyticsContainer 'Microsoft.Storage/storageAccounts/blobServic
   name: 'staging-analytics'
   properties: {
     publicAccess: 'None'
+  }
+}
+
+// ── Brief Export artifact containers (t/2821) ──
+// Dedicated containers isolate brief export blobs so the lifecycle policy
+// (managementPolicies below) can target them without touching user-content.
+// SYNC WITH Invoke-BlobContainerGateCheck.ps1: update the container list there too.
+
+resource briefExportsContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-05-01' = {
+  parent: blobService
+  name: 'brief-exports'
+  properties: {
+    publicAccess: 'None'
+  }
+}
+
+resource stagingBriefExportsContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-05-01' = {
+  parent: blobService
+  name: 'staging-brief-exports'
+  properties: {
+    publicAccess: 'None'
+  }
+}
+
+// ── Brief Export artifact lifecycle policy (t/2821) ──
+// 30-day flat delete on brief-exports and staging-brief-exports.
+// Zero runtime cost; runs even when the app is scaled to 0.
+// Count-quota (t/2831) handles live hygiene; this rule handles stale cleanup.
+resource briefExportsLifecyclePolicy 'Microsoft.Storage/storageAccounts/managementPolicies@2023-05-01' = {
+  parent: storageAccount
+  name: 'default'
+  properties: {
+    policy: {
+      rules: [
+        {
+          name: 'delete-stale-brief-exports'
+          enabled: true
+          type: 'Lifecycle'
+          definition: {
+            actions: {
+              baseBlob: {
+                delete: {
+                  daysAfterModificationGreaterThan: 30
+                }
+              }
+            }
+            filters: {
+              blobTypes: ['blockBlob']
+              prefixMatch: [
+                'brief-exports/'
+                'staging-brief-exports/'
+              ]
+            }
+          }
+        }
+      ]
+    }
   }
 }
 
@@ -614,15 +671,26 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
       ]
       scale: {
         // Scale-out restored after t/683 (ed489b9): AnonymousSessionStore is now
-        // file-backed on the shared /mnt/shared volume, so debate state is
-        // replica-independent — the single-replica stopgap is no longer needed.
+        // file-backed on the shared /mnt/shared volume — AnonymousSessionStore
+        // (debate/session state) IS replica-independent. HOWEVER: brief-export
+        // and oped job stores are still per-process in-memory Maps and are NOT
+        // replica-independent; see maxReplicas cap below (t/2885, 2026-08-20).
         // minReplicas reverted 1->0 (t/1354, 2026-07-07): prod was costing
         // ~$24 in its first 6 days of July alone (~$120+/mo projected) from
         // running 1 vCPU/2GiB continuously. Owner accepted the cold-start
         // latency tradeoff this reintroduces (previously fixed for the same
         // reason in e247ef75, 2026-05-05) in exchange for scale-to-zero savings.
         minReplicas: 0
-        maxReplicas: 5
+        // maxReplicas capped at 1 (t/2885, 2026-08-20): brief-export and oped job
+        // NOTE: the phrase "maxReplicas capped at 1" on this line is load-bearing —
+        // Test-InMemoryJobStoreScaleGuard.ps1 uses it as a regex anchor to locate
+        // the maxReplicas value. Do not edit this comment string without updating the gate.
+        // stores are per-process in-memory Maps. Running >1 replica means a POST
+        // that creates a job on replica A and a GET poll on replica B → 404.
+        // DO NOT raise this above 1 until the job store is backed by shared blob
+        // storage (t/2885 deferred). Raising it silently reintroduces the t/2884
+        // export-404 race with no error at startup.
+        maxReplicas: 1
         rules: [
           {
             name: 'http-scaler'

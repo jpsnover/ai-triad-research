@@ -24,7 +24,7 @@ import './PublicOpEdView.css';
  * Public projection of a shared op-ed set — MUST mirror the server-side
  * `PublicOpEd` / `PublicOpEdMember` positive allowlist (opedShareStore.ts). Exactly
  * these fields are public; generation params (model/prompts/thesis/authorBio),
- * the pitch draft, grounding internals, userId and the storage set_id are never exposed.
+ * grounding internals, userId and the storage set_id are never exposed.
  */
 export interface PublicOpEdMember {
   pov: string;
@@ -131,7 +131,11 @@ export function PublicOpEdView() {
         clearTimeout(timeout);
       }
     })();
-    return () => { cancelled = true; clearTimeout(timeout); };
+    // Abort the in-flight fetch on unmount, not just clear the timer — clearing
+    // the timeout alone suppresses the timer-driven abort, so the request would
+    // otherwise run to completion after the component is gone. The sibling
+    // PublicPovView fix (t/2755) missed this view; same one-line cleanup here.
+    return () => { cancelled = true; clearTimeout(timeout); controller.abort(); };
   }, []);
 
   if (state.status === 'loading') {

@@ -44,6 +44,7 @@ const noopMyProps = {
   renameValue: '',
   setRenameValue: vi.fn(),
   onRename: vi.fn(),
+  onMoveSet: vi.fn(),
   onOpen: vi.fn(),
   onExport: vi.fn(),
   onShare: vi.fn(),
@@ -148,6 +149,18 @@ describe('OpEdMyRow', () => {
     renderRow(makeSummary(), { editMode: true });
     expect(screen.getByRole('checkbox', { name: /select/i })).toBeTruthy();
   });
+
+  // t/2797 Part B: the export menu offers Markdown / Plain text / JSON; JSON is new.
+  it('export menu includes a JSON option that fires onExport with "json"', () => {
+    const onExport = vi.fn();
+    const set = makeSummary();
+    renderRow(set, { onExport });
+    fireEvent.click(screen.getByRole('button', { name: /export/i }));
+    const jsonItem = screen.getByRole('menuitem', { name: /^json$/i });
+    expect(jsonItem).toBeTruthy();
+    fireEvent.click(jsonItem);
+    expect(onExport).toHaveBeenCalledWith(set, 'json');
+  });
 });
 
 describe('OpEdCommunityRow', () => {
@@ -211,7 +224,7 @@ describe('OpEdTable — My variant', () => {
   it('renders a semantic table with an sr-only caption and sortable headers', () => {
     render(<OpEdTable {...noopMyProps} rows={[makeSummary()]} />);
     const table = screen.getByRole('table');
-    expect(within(table).getByText('My Op-Eds')).toBeTruthy();
+    expect(within(table).getByText('My Op-Ed Studies')).toBeTruthy();
     expect(screen.getByRole('columnheader', { name: /headline/i })).toBeTruthy();
   });
 
@@ -270,6 +283,31 @@ describe('OpEdTable — My variant', () => {
     render(<OpEdTable {...noopMyProps} rows={[makeSummary()]} totalCount={1} />);
     const heads = screen.getAllByRole('columnheader').map(th => (th.textContent || '').replace(/[^A-Za-z]/g, ''));
     expect(heads).toEqual(['Camp', 'Date', 'Outlet', 'Actions', 'Headline']);
+  });
+
+  // t/2796: reorder controls appear only in edit mode; ends are disabled; onMoveSet fires.
+  it('edit mode: shows move up/down per row, disables at the ends, fires onMoveSet', () => {
+    const onMoveSet = vi.fn();
+    const rows = [
+      makeSummary({ set_id: 'a', topic: 'First' }),
+      makeSummary({ set_id: 'b', topic: 'Second' }),
+    ];
+    render(<OpEdTable {...noopMyProps} rows={rows} totalCount={2} editMode onMoveSet={onMoveSet} />);
+    const firstRow = screen.getByText('First').closest('tr')!;
+    const secondRow = screen.getByText('Second').closest('tr')!;
+    // Top row: Up disabled, Down enabled. Bottom row: the reverse.
+    expect(within(firstRow).getByRole('button', { name: /move "first" up/i })).toBeDisabled();
+    const firstDown = within(firstRow).getByRole('button', { name: /move "first" down/i });
+    expect(firstDown).toBeEnabled();
+    expect(within(secondRow).getByRole('button', { name: /move "second" down/i })).toBeDisabled();
+    fireEvent.click(firstDown);
+    expect(onMoveSet).toHaveBeenCalledWith('a', 'down');
+  });
+
+  it('non-edit mode: no move controls are rendered', () => {
+    render(<OpEdTable {...noopMyProps} rows={[makeSummary({ topic: 'Solo' })]} totalCount={1} />);
+    expect(screen.queryByRole('button', { name: /move .* up/i })).toBeNull();
+    expect(screen.queryByRole('button', { name: /move .* down/i })).toBeNull();
   });
 });
 

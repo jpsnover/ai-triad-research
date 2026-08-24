@@ -95,9 +95,10 @@ function loadRegistry(repoRoot: string): ModelRegistry {
     _registry = JSON.parse(fs.readFileSync(configPath, 'utf-8')) as ModelRegistry;
   } catch (err) {
     getGlobalRecorder()?.record({ type: 'state.error', component: 'ai-adapter', level: 'error', message: `Failed to parse model registry at ${configPath}`, error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
+    const errMsg = err instanceof Error ? err.message : String(err);
     throw new ActionableError({
       goal: 'Parse AI model registry',
-      problem: `Failed to parse model registry at ${configPath}: ${err instanceof Error ? err.message : err}`,
+      problem: `Failed to parse model registry at ${configPath}: ${errMsg}`,
       location: 'aiAdapter.loadRegistry',
       nextSteps: ['Run from the ai-triad-research repo root', 'Check ai-models.json exists'],
       innerError: err,

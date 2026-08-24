@@ -76,6 +76,33 @@ export function mapErrorToUserMessage(err: unknown): string {
     return 'Operation timed out. The AI service may be slow — try again or switch to a faster model.';
   }
 
+  // HTTP 500 / bare 5xx server error (t/2906). Above the generic HTTP guard so it wins.
+  if (msg.includes('500') || msg.toLowerCase().includes('internal server error')) {
+    return 'The AI service ran into a problem. Retrying automatically — hang tight.';
+  }
+
+  // HTTP 502 / 504 gateway errors (t/2906)
+  if (msg.includes('502') || msg.includes('504') || msg.toLowerCase().includes('bad gateway') || msg.toLowerCase().includes('gateway timeout')) {
+    return 'A gateway error occurred. Retrying shortly.';
+  }
+
+  // AbortError / network interruption not caught by the timeout guard above (t/2906).
+  // Genuine aborts only — user-cancel is intercepted by isCancellationError before this maps.
+  if (err instanceof Error && err.name === 'AbortError') {
+    return 'Connection interrupted. Retrying…';
+  }
+
+  // Circuit breaker open — the sentinel string emitted by the breaker (t/2906)
+  if (msg.toLowerCase().includes('circuit') && msg.toLowerCase().includes('open')) {
+    return 'The service is temporarily unavailable. Your debate is paused — it will resume automatically.';
+  }
+
+  // Generic HTTP 4xx/5xx not caught above (400, 401, 422, etc.) — last, so specific
+  // guards (429, 500, 502/504, 503) always win over this catch-all (t/2906).
+  if (/HTTP [4-5]\d{2}/.test(msg)) {
+    return 'An unexpected error occurred. If this persists, try reloading.';
+  }
+
   // Default: truncate the raw message
   return msg.length > 200 ? msg.slice(0, 200) + '...' : msg;
 }

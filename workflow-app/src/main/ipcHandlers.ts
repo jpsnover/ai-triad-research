@@ -8,6 +8,7 @@ import {
   listProposalFiles,
   readProposalFile,
   getDataRoot,
+  restoreEmbeddingsIfAbandoned,
 } from './pipeline';
 
 export function registerIpcHandlers(getWindow: () => BrowserWindow | null): void {
@@ -28,6 +29,10 @@ export function registerIpcHandlers(getWindow: () => BrowserWindow | null): void
 
   ipcMain.handle('cancel-step', () => {
     cancelStep();
+  });
+
+  ipcMain.handle('restore-embeddings-if-abandoned', () => {
+    return restoreEmbeddingsIfAbandoned();
   });
 
   ipcMain.handle('get-git-status', () => {

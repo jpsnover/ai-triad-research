@@ -19,15 +19,31 @@
 
 .PARAMETER DeployYmlPath
     Path to .github/workflows/deploy-azure.yml. Defaults to repo-relative.
+
+.PARAMETER SuppressAnnotations
+    When set, emits plain DRIFT-ERROR: lines instead of ::error:: workflow
+    annotations. Use in test subprocess calls to avoid polluting the CI log
+    with annotations that look like real production drift (t/2881).
 #>
 [CmdletBinding()]
 param(
     [string]$BicepPath,
-    [string]$DeployYmlPath
+    [string]$DeployYmlPath,
+    [switch]$SuppressAnnotations
 )
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
+
+function Write-CIError([string]$msg) {
+    if ($SuppressAnnotations) { Write-Host "DRIFT-ERROR: $msg" }
+    else { Write-Host "::error::$msg" }
+}
+
+function Write-CIFileError([string]$file, [string]$msg) {
+    if ($SuppressAnnotations) { Write-Host "DRIFT-ERROR: $msg" }
+    else { Write-Host "::error file=${file}::$msg" }
+}
 
 $repoRoot = Split-Path (Split-Path $PSScriptRoot -Parent) -Parent
 if (-not $BicepPath)     { $BicepPath     = Join-Path $repoRoot 'deploy/azure/main.bicep' }
@@ -38,7 +54,7 @@ $parserScript  = Join-Path $PSScriptRoot 'Get-BicepBaseEnv.ps1'
 $bicepLiterals = . $parserScript -BicepPath $BicepPath
 
 if ($bicepLiterals.Keys.Count -eq 0) {
-    Write-Host "::error::Get-BicepBaseEnv returned zero entries — check main.bicep baseEnv block"
+    Write-CIError 'Get-BicepBaseEnv returned zero entries — check main.bicep baseEnv block'
     exit 1
 }
 
@@ -64,7 +80,7 @@ foreach ($line in $yamlLines) {
 }
 
 if ($yamlEnv.Keys.Count -eq 0) {
-    Write-Host "::error::No simple-literal entries parsed from deploy-azure.yml ExpectedEnvVars — block missing or format changed"
+    Write-CIError 'No simple-literal entries parsed from deploy-azure.yml ExpectedEnvVars — block missing or format changed'
     exit 1
 }
 
@@ -78,11 +94,11 @@ foreach ($key in ($bicepLiterals.Keys | Sort-Object)) {
 
     if ($null -eq $yamlVal) {
         $rows.Add([PSCustomObject]@{ Key=$key; Bicep=$bicepVal; ExpectedEnvVars='(missing)'; Status='FAIL' })
-        Write-Host "::error file=.github/workflows/deploy-azure.yml::DRIFT: '$key' is in Bicep baseEnv ('$bicepVal') but missing from ExpectedEnvVars table"
+        Write-CIFileError '.github/workflows/deploy-azure.yml' "DRIFT: '$key' is in Bicep baseEnv ('$bicepVal') but missing from ExpectedEnvVars table"
         $pass = $false
     } elseif ($yamlVal -ne $bicepVal) {
         $rows.Add([PSCustomObject]@{ Key=$key; Bicep=$bicepVal; ExpectedEnvVars=$yamlVal; Status='FAIL' })
-        Write-Host "::error file=.github/workflows/deploy-azure.yml::DRIFT: '$key' — Bicep='$bicepVal' vs ExpectedEnvVars='$yamlVal'"
+        Write-CIFileError '.github/workflows/deploy-azure.yml' "DRIFT: '$key' — Bicep='$bicepVal' vs ExpectedEnvVars='$yamlVal'"
         $pass = $false
     } else {
         $rows.Add([PSCustomObject]@{ Key=$key; Bicep=$bicepVal; ExpectedEnvVars=$yamlVal; Status='OK' })
@@ -93,8 +109,8 @@ $rows | Format-Table Key, Bicep, ExpectedEnvVars, Status -AutoSize | Out-String 
 
 if (-not $pass) {
     Write-Host ''
-    Write-Host "::error::Bicep baseEnv is out of sync with deploy-azure.yml ExpectedEnvVars."
-    Write-Host "::error::Fix: update both files in the same PR. See t/2631."
+    Write-CIError 'Bicep baseEnv is out of sync with deploy-azure.yml ExpectedEnvVars.'
+    Write-CIError 'Fix: update both files in the same PR. See t/2631.'
     exit 1
 }
 

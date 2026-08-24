@@ -10,6 +10,7 @@
 # FLIPPED — enforcing now (continue-on-error removed):
 #   quality-gates (t/1292; .ts/.tsx LOC moved to ESLint max-lines per ADR-007, t/1692)
 #   doc-accuracy  doc-link steps (t/2093; repo at zero dead links after t/2092)
+#   license-notices staleness (t/2920; ≥1 green warn cycle + platform-determinism fixed)
 # FLIP-PENDING (remove continue-on-error to enforce):
 #   doc-accuracy  doc-claims + REPO_MAP steps (t/1324)
 # NEVER-FLIP (annotation-only by design — continue-on-error stays permanently):
@@ -85,8 +86,11 @@ jobs:
             powershell:
               - 'scripts/**'
               - 'tests/**'
+              - 'operations/devops/**'
               - 'lib/**'
               - 'ai-models.json'
+              - 'deploy/azure/main.bicep'
+              - 'taxonomy-editor/src/server/briefExportJobs.ts'
               - '.github/workflows/ci.yml'
             electron:
               - 'taxonomy-editor/**'
@@ -96,6 +100,7 @@ jobs:
               - 'lib/**'
               - 'ai-models.json'
               - '.github/workflows/ci.yml'
+              - 'scripts/AITriad/Prompts/**'  # promptCatalog.lint validates this dir; must re-run when prompts change here (t/2915)
             debate:
               - 'lib/debate/**'
               - 'evals/**'
@@ -111,7 +116,7 @@ jobs:
               - 'lib/**'
               - '.github/workflows/ci.yml'
             python:
-              - 'scripts/requirements*.txt'
+              - 'scripts/**'
               - '.github/ci/**'
               - '.github/workflows/ci.yml'
             # 'container' gates test-container (t/2094). SOUNDNESS: ci-gate treats
@@ -221,6 +226,13 @@ jobs:
           $config.CodeCoverage.CoveragePercentTarget = 5
           Invoke-Pester -Configuration $config
 
+      - name: In-memory job store scale guard (real files)
+        # Runs the gate against the ACTUAL main.bicep + briefExportJobs.ts — distinct
+        # from the Pester tests above, which use fixture files. This step IS the gate:
+        # it fires if maxReplicas > 1 while @INMEMORY_JOB_STORE is present. (t/2885)
+        shell: pwsh
+        run: ./operations/devops/Test-InMemoryJobStoreScaleGuard.ps1
+
       - name: Build module
         shell: pwsh
         run: ./scripts/Build-Module.ps1 -Clean
@@ -264,8 +276,18 @@ jobs:
           cache: 'pnpm'
           cache-dependency-path: 'pnpm-lock.yaml'
 
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile --side-effects-cache
+      - name: Install dependencies (retry on transient nuget/network failures — t/2968)
+        run: |
+          for i in 1 2 3; do
+            pnpm install --frozen-lockfile --side-effects-cache && break
+            if [ "$i" -lt 3 ]; then
+              echo "pnpm install attempt $i failed; retry in $((i * 15))s"
+              sleep $((i * 15))
+            else
+              echo "::error::pnpm install failed after $i attempts"
+              exit 1
+            fi
+          done
 
       # NOTE: dependency audit + provenance moved OUT of this job into the
       # standalone `dependency-audit` job below (t/1800). They used to sit here
@@ -301,6 +323,30 @@ jobs:
         working-directory: ${{ matrix.app }}
         run: pnpm run build
 
+      # ── License-notices staleness gate (t/2918, promoted t/2920) ──
+      # The build step above already ran `npm run licenses`, regenerating
+      # THIRD-PARTY-NOTICES.txt + src/renderer/data/oss-licenses.json from the
+      # current pnpm lockfile. If the committed versions differ from what the
+      # generator produced, the files are stale (dep bump without re-committing).
+      # Observed ≥1 green warn cycle with zero false-fires (PR #1425 also fixed
+      # cross-platform @img/sharp-* determinism). Now enforcing (t/2920, TL GV).
+      - name: Check license notices are up to date (t/2918)
+        if: matrix.app == 'taxonomy-editor'
+        working-directory: ${{ matrix.app }}
+        run: |
+          if ! git diff --exit-code THIRD-PARTY-NOTICES.txt src/renderer/data/oss-licenses.json; then
+            echo "::error::License notices are stale — run 'npm run licenses' in taxonomy-editor/ and commit the updated THIRD-PARTY-NOTICES.txt + src/renderer/data/oss-licenses.json before merging (t/2918)"
+            exit 1
+          fi
+
+      - name: Preload self-contained gate (t/2776)
+        if: matrix.app == 'taxonomy-editor'
+        shell: pwsh
+        run: |
+          Import-Module ./scripts/AITriad/AITriad.psd1 -Force
+          $r = Test-PreloadHealth -CheckSyntax
+          if (-not $r.Healthy) { $r.Checks | Where-Object { -not $_.Pass } | ForEach-Object { Write-Error $_.Detail }; exit 1 }
+
   # ── renderer-tsc: renderer type-check gate (t/2252) ──
   # CI ran `tsc --noEmit -p tsconfig.main.json` for main-process code but NEVER
   # ran renderer tsc — a renderer import error / unresolved module passes all CI
@@ -308,12 +354,15 @@ jobs:
   # imported a not-yet-landed lib/bandColor path; CI went green and the PR merged.
   # check-renderer-tsc.sh calls `tsc -p tsconfig.json --noEmit` and compares
   # error count against quality-gates.json tsc_error_ceilings (ceiling currently 0).
-  # Path-filtered to `electron` changes — docs/PS-only PRs skip (OK in ci-gate).
+  # Path-filtered to `electron` OR `lib` changes — lib types are renderer-consumed
+  # (e.g. BriefArtifactName) and a lib type widening must trigger renderer-tsc so
+  # exhaustive-map mismatches don't land on main silently (t/2854). PS/docs/analytics
+  # PRs still skip. Gate Verification required before relying on this to block (t/2854 AC).
   renderer-tsc:
     needs: [changes]
     if: >-
       always() && !cancelled() &&
-      (github.event_name != 'pull_request' || needs.changes.outputs.electron == 'true')
+      (github.event_name != 'pull_request' || needs.changes.outputs.electron == 'true' || needs.changes.outputs.lib == 'true')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v6
@@ -349,6 +398,9 @@ jobs:
       always() && !cancelled() &&
       (github.event_name != 'pull_request' || needs.changes.outputs.electron == 'true')
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v6
 
@@ -358,6 +410,45 @@ jobs:
 
       - name: Static token-contrast check
         run: bash taxonomy-editor/scripts/check-contrast.sh
+
+      - name: Alert — contrast-check RED on main (t/2818)
+        if: failure() && github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          COMMIT_SHA: ${{ github.sha }}
+        run: |
+          LABEL="ci-alert:contrast"
+          TITLE="contrast-check RED on main — ceiling breach"
+          BODY_FILE=$(mktemp)
+          printf 'contrast-check failed on push to main.\n\nCommit: %s\nRun: %s\n\nDevOps + TL: fix before the next electron-path PR lands (it will block on this red gate).\n' \
+            "${COMMIT_SHA}" "${RUN_URL}" > "$BODY_FILE"
+
+          gh label create "$LABEL" --color "B60205" --description "CI: contrast-check alert on main" 2>/dev/null || true
+
+          EXISTING=$(gh issue list --state open --label "$LABEL" --json number --jq '.[0].number // empty')
+          if [ -n "$EXISTING" ]; then
+            gh issue comment "$EXISTING" --body-file "$BODY_FILE"
+            echo "::error::contrast-check RED on main — appended to issue #${EXISTING}"
+          else
+            ISSUE_URL=$(gh issue create --title "$TITLE" --label "$LABEL" --body-file "$BODY_FILE")
+            echo "::error::contrast-check RED on main — alert issue created: ${ISSUE_URL}"
+          fi
+          rm -f "$BODY_FILE"
+
+      - name: Auto-close contrast-alert issue on green main (t/2818)
+        if: success() && github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          COMMIT_SHA: ${{ github.sha }}
+        run: |
+          LABEL="ci-alert:contrast"
+          EXISTING=$(gh issue list --state open --label "$LABEL" --json number --jq '.[0].number // empty')
+          if [ -n "$EXISTING" ]; then
+            gh issue close "$EXISTING" --comment "contrast-check passed on main (commit: ${COMMIT_SHA}). Auto-closing."
+          fi
 
   # ── Dependency audit: standalone security gate (t/1800) ──
   # SPLIT OUT of test-electron so a security-audit failure can never skip Test
@@ -472,6 +563,34 @@ jobs:
       - name: TypeScript check — lib/debate (t/2217)
         working-directory: lib
         run: pnpm exec tsc --noEmit -p debate/tsconfig.json
+
+      - name: TypeScript — lib/brief NodeNext module check (t/2832)
+        working-directory: lib
+        run: pnpm run typecheck:brief-nodenext
+
+  # ── Schema version-bump gate — block mode (t/2808) ──────────────────────
+  # Diffs lib/brief/schemas/*.write.json against the PR base; fails when the
+  # contract surface changes without a $id version bump. Path-filtered to lib
+  # changes; skip = OK through ci-gate. TL GV sign-off received (p/27#18).
+  schema-version-bump:
+    needs: [changes]
+    if: >-
+      always() && !cancelled() &&
+      (github.event_name != 'pull_request' || needs.changes.outputs.lib == 'true')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v6
+        with:
+          fetch-depth: 0  # required: script runs `git show origin/<base>:<file>` (t/2808 GV)
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v6
+        with:
+          node-version: '22'
+
+      - name: Schema version-bump check — block mode (t/2808)
+        run: node lib/brief/schemas/check-version-bump.mjs --mode=block
 
   # ── Commit hygiene: flags anonymous / undersized commit subjects (t/1319) ──
   # Annotation-only by design — never flips (t/1319). Visibility, not friction.
@@ -753,6 +872,55 @@ jobs:
         if: always()
         run: docker rm -f smoke-test || true
 
+  # ── test-python: run scripts/test_*.py under pytest (t/2933) ─────────────
+  # Five test files (test_data_tree_guard, test_embed_envelope, test_generate_guard,
+  # test_nli_classify, test_load_taxonomy_nodes) previously ran nowhere in CI —
+  # self-attested only. This job wires them as a required gate.
+  # Setup mirrors python-embed-smoke (torch CPU, requirements.txt) so the scripts
+  # being tested can be imported. HF_HUB_OFFLINE=1 causes model-dependent arms to
+  # skip rather than fail — only the `test_richness_guard_real_model` arm needs a
+  # live model; it is marked to skip offline. A no-silent-skip guard asserts ≥5
+  # tests are collected — exits 1 if fewer, catching the "collected 0, exits 0"
+  # false-green trap. python filter now covers scripts/** so production-script edits
+  # also trigger this job (previously only requirements.txt/.github/ci/** triggered).
+  test-python:
+    needs: [changes]
+    if: >-
+      always() && !cancelled() &&
+      (github.event_name != 'pull_request' || needs.changes.outputs.python == 'true')
+    runs-on: ubuntu-latest
+    env:
+      PYTHONUTF8: '1'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v6
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: scripts/requirements.txt
+      - name: Install Python deps (CPU-only torch to cut install weight)
+        working-directory: scripts
+        run: |
+          python -m pip install --upgrade pip
+          pip install torch --index-url https://download.pytorch.org/whl/cpu
+          pip install -r requirements.txt
+          pip install pytest
+      - name: No-silent-skip guard — assert ≥5 tests collected
+        working-directory: scripts
+        run: |
+          COUNT=$(python -m pytest test_*.py --collect-only -q 2>&1 | grep -E "^[0-9]+ test" | awk '{print $1}')
+          echo "Collected ${COUNT:-0} tests"
+          if [ "${COUNT:-0}" -lt 5 ]; then
+            echo "::error::pytest collected fewer than 5 tests — possible silent-skip; expected ≥5 from 5 test_*.py files (t/2933)"
+            exit 1
+          fi
+      - name: Run Python tests (pytest)
+        working-directory: scripts
+        env:
+          HF_HUB_OFFLINE: '1'
+          TRANSFORMERS_OFFLINE: '1'
+        run: python -m pytest test_*.py -v
+
   # ── python-embed-smoke: validate the pip embedding stack (t/1989) ──────────
   # The pip ecosystem (scripts/requirements.txt) was never installed or exercised
   # in CI, so a dependency change could pass ci-gate with ZERO signal (#191). This
@@ -1005,9 +1173,13 @@ jobs:
   # permissions block required; always runs, no path filter.
   # bicep-env-drift (t/2631) is gated here: Bicep baseEnv ↔ deploy-azure.yml
   # ExpectedEnvVars sync check; path-filtered to those two files + parser, skip = OK.
+  # schema-version-bump (t/2808) is gated here: enforces $id version bump on
+  # lib/brief/schemas/*.write.json contract changes; path-filtered to lib, skip = OK.
+  # test-python (t/2933) is gated here: runs scripts/test_*.py under pytest;
+  # path-filtered to scripts/** changes, skip = OK.
   ci-gate:
     name: ci-gate
-    needs: [changes, test-powershell, test-electron, test-container, python-embed-smoke, dependency-coverage, lockfile-overrides-check, lib-lint, renderer-tsc, contrast-check, test-server-prod-config, workflow-lint, bicep-env-drift]
+    needs: [changes, test-powershell, test-electron, test-container, python-embed-smoke, test-python, dependency-coverage, lockfile-overrides-check, lib-lint, renderer-tsc, contrast-check, test-server-prod-config, workflow-lint, bicep-env-drift, schema-version-bump]
     if: always()
     runs-on: ubuntu-latest
     steps:
