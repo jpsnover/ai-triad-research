@@ -67,7 +67,8 @@ export const AFFECT_SATURATION_RATE: Record<AffectCategory, number> = {
 };
 
 // Pooled 2-model derived fit (gemini + haiku, 56-debate corpus); promoted to DERIVED (t/2714, t/2819).
-// Fifth non-comparability cutover for affect_appropriateness. MAX_ACCEPTABLE_DEVIATION (0.35) unchanged.
+// Supersedes provisional v2 fit (t/2680, 66-debate pruned-lexicon corpus; conf/arg re-fit on pruned
+// lexicon t/2677). Fifth non-comparability cutover for affect_appropriateness. MAX_ACCEPTABLE_DEVIATION (0.35) unchanged.
 export const AFFECT_PHASE_BASELINES: Record<Exclude<DebatePhase, 'terminated'>, AffectProfile> = {
   confrontation: { urgency: 0.15, fear: 0.45, hope: 0.18, outrage: 0.07, empathy: 0.15 },
   argumentation: { urgency: 0.19, fear: 0.39, hope: 0.15, outrage: 0.09, empathy: 0.18 },
