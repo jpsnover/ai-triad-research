@@ -894,6 +894,11 @@ export const createDebateReflectionSlice: StateCreator<DebateStore, [], [], Deba
         confidence,
         weight: confidence,
         rationale: pe.rationale,
+        // Write-together invariant (t/2975, marker spec): this is the debate-reflection edge
+        // writer, so stamp `rationale_source = 'reflection'` in the SAME write that sets a
+        // non-empty `rationale`. An absent/empty rationale leaves the field absent — never
+        // coerced to null/empty (absent≠null contract, t/2943).
+        ...(pe.rationale ? { rationale_source: 'reflection' as const } : {}),
         status: 'proposed',
         discovered_at: nowISO(),
         model: 'debate-reflection',
