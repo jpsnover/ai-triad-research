@@ -90,6 +90,7 @@
         'Show-DebateHarvest'
         'Get-AITSBOM'
         'Test-OntologyCompliance'
+        'Test-SituationBdiCompliance'
         'Get-RelevantTaxonomyNodes'
         'Invoke-QbafConflictAnalysis'
         'Test-ExtractionQuality'
