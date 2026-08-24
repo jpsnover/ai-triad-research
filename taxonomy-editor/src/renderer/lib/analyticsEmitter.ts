@@ -70,19 +70,36 @@ async function flush(): Promise<void> {
   }
 }
 
+/**
+ * Resolve the analytics event `user` id (t/2978). It MUST equal the id the reads
+ * query by, or per-user analytics silently mismatch: authenticated users key on the
+ * DERIVED storage id (`/api/user/profile`.userId = deriveStorageUserId) — the same id
+ * "Your Activity" and the engagement self-filter (analytics.ts) use — NOT the raw
+ * principal from `/api/auth/me` (which rewrites e.g. `a@b.com` → `a-at-b-com`, so a
+ * raw-written event never matches a derived-id query). Anonymous users keep the
+ * per-session/cookie anon key (auth/me.user): profile.userId for anon would collapse
+ * every anonymous user into the single id deriveStorageUserId('_local','_local').
+ */
+export async function resolveAnalyticsUser(): Promise<string> {
+  try {
+    const [profRes, meRes] = await Promise.all([
+      fetch('/api/user/profile'),
+      fetch('/api/auth/me'),
+    ]);
+    const prof = profRes.ok ? (await profRes.json()) as { userId?: string; isAnonymous?: boolean } : null;
+    if (prof && prof.isAnonymous === false && prof.userId) return prof.userId;
+    const me = meRes.ok ? (await meRes.json()) as { user?: string } : null;
+    return me?.user || '_anonymous';
+  } catch { /* telemetry — silent by design */ return '_anonymous'; }
+}
+
 /** Initialize analytics. Call once after app loads. No-op in Electron. */
 export async function initAnalytics(): Promise<void> {
   if (!isWeb || initialized) return;
   initialized = true;
 
-  // Resolve user identity
-  try {
-    const res = await fetch('/api/auth/me');
-    if (res.ok) {
-      const data = await res.json() as { user: string };
-      user = data.user || '_anonymous';
-    }
-  } catch { /* telemetry — silent by design */ }
+  // Resolve user identity — MUST match the read-side id (t/2978).
+  user = await resolveAnalyticsUser();
 
   // Session start event
   emit('session.start', 'navigation', { userAgent: navigator.userAgent });
