@@ -29,4 +29,17 @@ describe('sortSituationNodes', () => {
     sortSituationNodes(nodes, 'id');
     expect(nodes.map(n => n.id)).toEqual(before);
   });
+
+  // t/2998 regression: string interpretation_divergence must not crash the sort comparator
+  it('handles string interpretation_divergence without throwing (t/2998 sort-path)', () => {
+    const mixed = [
+      { id: 'a', label: 'A', interpretation_divergence: '0.5' as unknown as number },
+      { id: 'b', label: 'B', interpretation_divergence: 0.8 },
+      { id: 'c', label: 'C' },
+    ] as unknown as SituationNode[];
+    expect(() => sortSituationNodes(mixed, 'divergence')).not.toThrow();
+    const sorted = sortSituationNodes(mixed, 'divergence');
+    expect(sorted).toHaveLength(3);
+    expect(sorted[0].id).toBe('b');
+  });
 });

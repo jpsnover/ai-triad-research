@@ -162,7 +162,7 @@ function SituationsListPane({
                         onSelect={setSelectedNodeId}
                         indent
                         relationship={child.parent_relationship}
-                        divergence={sitSortMode === 'divergence' ? child.interpretation_divergence : undefined}
+                        divergence={sitSortMode === 'divergence' && typeof child.interpretation_divergence === 'number' ? child.interpretation_divergence : undefined}
                       />
                     ))}
                   </div>
@@ -178,7 +178,7 @@ function SituationsListPane({
                   label={node.label}
                   isSelected={selectedNodeId === node.id}
                   onSelect={setSelectedNodeId}
-                  divergence={sitSortMode === 'divergence' ? node.interpretation_divergence : undefined}
+                  divergence={sitSortMode === 'divergence' && typeof node.interpretation_divergence === 'number' ? node.interpretation_divergence : undefined}
                 />
               ))}
             </>
