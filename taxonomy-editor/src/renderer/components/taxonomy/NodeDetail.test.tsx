@@ -285,3 +285,47 @@ describe('NodeDetail — History tab viewMode gating (t/3021)', () => {
     expect(screen.getByRole('button', { name: /content/i }).className).toContain('node-detail-tab-active');
   });
 });
+
+// ── Simple-view last-edited line (t/3022, Option 3) ───────────────────────────
+// The full History tab stays Advanced-only; Simple view surfaces just the
+// who/when last-edited datum inline. Sourced from _edit_meta, falling back to the
+// most-recent _edit_history entry.
+
+describe('NodeDetail — Simple-view last-edited line (t/3022)', () => {
+  const nodeWithMeta: PovNode = {
+    ...mockNode,
+    _edit_meta: { last_edited_by: 'editor@test.com', last_edited_at: '2026-02-03T10:00:00Z' },
+  };
+  const nodeWithHistoryOnly: PovNode = {
+    ...mockNode,
+    _edit_history: [{ user: 'histuser@test.com', timestamp: '2026-02-04T10:00:00Z', fields_changed: ['label'] }],
+  };
+
+  beforeEach(() => {
+    mockPrefsState.viewMode = 'simple';
+    vi.clearAllMocks();
+  });
+
+  it('shows the last-edited line in Simple view from _edit_meta (username, domain stripped)', () => {
+    render(<NodeDetail pov="acc" node={nodeWithMeta} readOnly={false} onPin={vi.fn()} onSimilarSearch={vi.fn()} onRelated={vi.fn()} />);
+    expect(screen.getByText(/last edited by/i)).toBeInTheDocument();
+    expect(screen.getByText('editor')).toBeInTheDocument();
+  });
+
+  it('falls back to the most-recent _edit_history entry when _edit_meta is absent', () => {
+    render(<NodeDetail pov="acc" node={nodeWithHistoryOnly} readOnly={false} onPin={vi.fn()} onSimilarSearch={vi.fn()} onRelated={vi.fn()} />);
+    expect(screen.getByText(/last edited by/i)).toBeInTheDocument();
+    expect(screen.getByText('histuser')).toBeInTheDocument();
+  });
+
+  it('omits the last-edited line in Advanced view (the History tab covers it)', () => {
+    mockPrefsState.viewMode = 'advanced';
+    render(<NodeDetail pov="acc" node={nodeWithMeta} readOnly={false} onPin={vi.fn()} onSimilarSearch={vi.fn()} onRelated={vi.fn()} />);
+    expect(screen.queryByText(/last edited by/i)).not.toBeInTheDocument();
+  });
+
+  it('omits the last-edited line when the node has no edit metadata', () => {
+    render(<NodeDetail pov="acc" node={mockNode} readOnly={false} onPin={vi.fn()} onSimilarSearch={vi.fn()} onRelated={vi.fn()} />);
+    expect(screen.queryByText(/last edited by/i)).not.toBeInTheDocument();
+  });
+});
