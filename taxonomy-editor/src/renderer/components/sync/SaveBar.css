@@ -11,6 +11,10 @@
   border-top: 1px solid var(--border-color);
   min-height: 44px;
   position: relative;
+  /* Fixed bottom bar: never shrink/scroll away. SaveBar is a flex child of `.app`
+     below the `overflow:hidden` `.app-body` scroll region, so it stays pinned; this
+     guards against compression on very short viewports (e.g. landscape phone). t/3017 */
+  flex-shrink: 0;
 }
 
 .save-bar-status {
