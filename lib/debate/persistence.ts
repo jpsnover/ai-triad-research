@@ -129,7 +129,7 @@ export async function renameWithRetry(oldPath: string, newPath: string, maxRetri
 export function atomicWriteSync(
   filePath: string,
   content: string,
-  onLockExhausted?: (filePath: string) => void,
+  onLockExhausted?: (filePath: string) => string | undefined,
 ): void {
   // codeql[js/insecure-temporary-file] FP: same-directory atomic write via rename, not an os.tmpdir() temp file
   const tmpPath = `${filePath}.tmp`;
@@ -137,8 +137,15 @@ export function atomicWriteSync(
   // t/2546: scale retry budget with payload size — AV scan time grows with file size.
   const bytes = Buffer.byteLength(content, 'utf-8');
   const wallClockCapMs = bytes > 200 * 1024 ? 30_000 : undefined;
+  // Capture the lock-holder description returned by the callback (t/3019).
+  // ??= keeps the first capture — both rename attempts target the same file,
+  // so the second call would return the same process anyway.
+  let lockHolderDesc: string | undefined;
+  const wrappedOnLockExhausted: ((p: string) => void) | undefined = onLockExhausted
+    ? (p: string) => { lockHolderDesc ??= onLockExhausted(p); }
+    : undefined;
   try {
-    renameSyncWithRetry(tmpPath, filePath, 7, wallClockCapMs, onLockExhausted);
+    renameSyncWithRetry(tmpPath, filePath, 7, wallClockCapMs, wrappedOnLockExhausted);
     return;
   } catch (renameErr) {
     const renameCode = (renameErr as NodeJS.ErrnoException).code;
@@ -165,7 +172,7 @@ export function atomicWriteSync(
     try {
       fs.writeFileSync(tmp2Path, content, 'utf-8');
       // writeFileSync closes the handle on return, flushing OS write buffers.
-      renameSyncWithRetry(tmp2Path, filePath, 7, wallClockCapMs, onLockExhausted);
+      renameSyncWithRetry(tmp2Path, filePath, 7, wallClockCapMs, wrappedOnLockExhausted);
       // .tmp2 rename succeeded — clean up the original .tmp (best-effort)
       try { fs.unlinkSync(tmpPath); } catch { /* best-effort */ }
       getGlobalRecorder()?.record({
@@ -197,14 +204,18 @@ export function atomicWriteSync(
           stack: (tmp2Err as Error).stack,
         },
       });
+      const lockerText = lockHolderDesc ?? 'an unidentified process (lock holder detection unavailable)';
+      const isSelfLock = /^electron/i.test(lockHolderDesc ?? '');
       throw new ActionableError({
         goal: `Persist ${bytes} bytes to ${filePath}`,
-        problem: `Atomic rename and .tmp2 rename fallback were both denied (rename ${firstRenameCode}, fallback ${tmp2Code}) — the target is held by another process (Windows antivirus/indexer) longer than the retry budget allows.`,
+        problem: `Atomic rename and .tmp2 rename fallback were both denied (rename ${firstRenameCode}, fallback ${tmp2Code}) — the target is held by ${lockerText} longer than the retry budget allows.`,
         location: 'lib/debate/persistence.ts atomicWriteSync',
         nextSteps: [
           `The new content is preserved at ${tmpPath} and was NOT deleted — it is the only durable copy of this write. Do not remove it.`,
           `Retry the save once the lock clears: a subsequent successful atomicWriteSync replaces ${filePath}, after which ${tmpPath} may be removed.`,
-          `If saves keep failing, exclude the debates directory from antivirus/search-indexer scanning.`,
+          ...(isSelfLock
+            ? [`The locker is the Electron process itself (${lockerText}) — check for overlapping write operations or an unclosed read handle in the same process.`]
+            : [`If saves keep failing, exclude the debates directory from antivirus/search-indexer scanning.`]),
         ],
         innerError: tmp2Err,
       });

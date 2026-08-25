@@ -13,6 +13,7 @@ import { setGlobalRecorder, clearGlobalRecorder, type FlightRecorder } from '../
 import type { RecordInput } from '../../flight-recorder/types.js';
 
 import { atomicWriteSync, renameSyncWithRetry } from '../persistence.js';
+import { ActionableError } from '../errors.js';
 
 // ── Hermetic isolation ────────────────────────────────────
 beforeAll(() => {
@@ -213,5 +214,72 @@ describe('renameSyncWithRetry — onLockExhausted callback (t/2544)', () => {
     // Callback fired at least once (primary rename + .tmp2 fallback may both exhaust)
     expect(onLockExhausted).toHaveBeenCalled();
     cleanup(target);
+  });
+
+  // t/3019: lock-holder interpolation in ActionableError message
+  describe('atomicWriteSync ActionableError interpolates lock_holder (t/3019)', () => {
+    function setupEpermRenames() {
+      vi.spyOn(Atomics, 'wait').mockReturnValue('ok');
+      vi.spyOn(fs, 'renameSync').mockImplementation(() => {
+        throw makeStorageError('EPERM', 'operation not permitted');
+      });
+    }
+
+    afterEach(() => { vi.restoreAllMocks(); });
+
+    it('names the lock holder process in problem when callback returns a description', () => {
+      setupEpermRenames();
+      const target = tmpPath('lock-holder-named.json');
+      const onLockExhausted = vi.fn().mockReturnValue('MsMpEng.exe (pid 1234)');
+
+      let ae: unknown;
+      try { atomicWriteSync(target, '{"x":1}', onLockExhausted); } catch (e) { ae = e; }
+
+      expect(ae).toBeInstanceOf(ActionableError);
+      expect((ae as ActionableError).problem).toContain('MsMpEng.exe (pid 1234)');
+      expect((ae as ActionableError).nextSteps.join(' ')).toContain('antivirus');
+      cleanup(target);
+    });
+
+    it('emits self-lock guidance when lock holder is electron.exe', () => {
+      setupEpermRenames();
+      const target = tmpPath('self-lock.json');
+      const onLockExhausted = vi.fn().mockReturnValue('electron.exe (pid 52308)');
+
+      let ae: unknown;
+      try { atomicWriteSync(target, '{"x":1}', onLockExhausted); } catch (e) { ae = e; }
+
+      expect(ae).toBeInstanceOf(ActionableError);
+      expect((ae as ActionableError).problem).toContain('electron.exe (pid 52308)');
+      const steps = (ae as ActionableError).nextSteps.join(' ');
+      expect(steps).toContain('Electron process itself');
+      expect(steps).not.toContain('antivirus');
+      cleanup(target);
+    });
+
+    it('falls back to "unidentified process" when callback returns undefined', () => {
+      setupEpermRenames();
+      const target = tmpPath('lock-holder-unavailable.json');
+      const onLockExhausted = vi.fn().mockReturnValue(undefined);
+
+      let ae: unknown;
+      try { atomicWriteSync(target, '{"x":1}', onLockExhausted); } catch (e) { ae = e; }
+
+      expect(ae).toBeInstanceOf(ActionableError);
+      expect((ae as ActionableError).problem).toContain('unidentified process');
+      cleanup(target);
+    });
+
+    it('falls back to "unidentified process" when no callback is provided', () => {
+      setupEpermRenames();
+      const target = tmpPath('lock-holder-no-callback.json');
+
+      let ae: unknown;
+      try { atomicWriteSync(target, '{"x":1}'); } catch (e) { ae = e; }
+
+      expect(ae).toBeInstanceOf(ActionableError);
+      expect((ae as ActionableError).problem).toContain('unidentified process');
+      cleanup(target);
+    });
   });
 });
