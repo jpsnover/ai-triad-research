@@ -273,8 +273,15 @@ async function runVoiceGeneration(
   let parsed: EssayResponse;
   try {
     parsed = JSON.parse(stripCodeFences(rawText)) as EssayResponse;
-  } catch {
-    parsed = { headline: '', body_markdown: rawText, word_count: undefined };
+  } catch (err) {
+    // t/3013 sibling: a NON-empty but non-JSON essay response (the empty case is guarded above).
+    // Most often a truncated response (token-budget exhaustion) leaving unterminated JSON, or the
+    // model emitting prose / ```json fences that survive stripCodeFences. The old silent fallback
+    // stored that raw text as body_markdown, which <Markdown> renders as a monospace code block
+    // with an always-empty headline — a garbage-looking tab, not a clean failure. Throw instead so
+    // runVoice's catch marks the voice status:'failed' + emits voice_failed → the existing
+    // OpEdArticle failed-state notice renders cleanly.
+    throw new Error(`Voice generation returned invalid JSON (pov=${pov}): ${String(err)}`);
   }
 
   const body = parsed.body_markdown ?? '';
