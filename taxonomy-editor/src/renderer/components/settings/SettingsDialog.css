@@ -1,3 +1,197 @@
+/* ─── Taxonomy directory switcher ─────────────────────── */
+
+/* ─── Settings dialog ─────────────────────────────────── */
+
+.settings-dialog {
+  min-width: 360px;
+  max-width: 420px;
+}
+
+.settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.settings-label {
+  font-size: var(--text-md);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.settings-select {
+  padding: 5px 10px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--bg-input);
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+  cursor: pointer;
+  min-width: 180px;
+}
+
+.settings-select:focus-visible {
+  border-color: var(--focus-ring);
+}
+
+.settings-divider {
+  border-top: 1px solid var(--border-color);
+  margin: 12px 0;
+}
+
+.settings-radio-group {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
+
+.settings-radio-label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--text-md);
+  cursor: pointer;
+  color: var(--text-primary);
+}
+
+.settings-radio-label input[type="radio"] {
+  accent-color: var(--focus-ring);
+}
+
+.settings-key-section {
+  margin-bottom: 10px;
+}
+
+.settings-key-row {
+  display: flex;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.settings-key-input {
+  flex: 1;
+  padding: 5px 10px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--bg-input);
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+  font-family: monospace;
+}
+
+.settings-key-input:focus-visible {
+  border-color: var(--focus-ring);
+}
+
+.settings-key-status {
+  color: var(--text-secondary);
+  font-weight: 400;
+  font-size: var(--text-sm);
+}
+
+.settings-key-error {
+  color: #dc2626;
+  font-size: var(--text-sm);
+  margin-top: 4px;
+}
+
+.settings-key-success {
+  color: #16a34a;
+  font-size: var(--text-sm);
+  margin-top: 4px;
+}
+.settings-key-actions-row {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  margin: 4px 0;
+}
+.settings-key-summary {
+  width: 100%;
+  margin-top: 6px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 6px 8px;
+  font-size: var(--text-sm);
+}
+.settings-key-summary-row {
+  display: grid;
+  grid-template-columns: 140px 120px 1fr;
+  gap: 8px;
+  padding: 4px 0;
+  border-bottom: 1px solid var(--border-color);
+  align-items: baseline;
+}
+.settings-key-summary-row:last-child { border-bottom: none; }
+.settings-key-summary-row.no-key { opacity: 0.5; }
+.settings-key-summary-backend { font-weight: 600; }
+.settings-key-summary-masked {
+  font-family: var(--font-mono, monospace);
+  font-size: var(--text-xs);
+  color: var(--text-secondary, #666);
+}
+.settings-key-summary-models {
+  font-size: var(--text-xs);
+  color: var(--text-secondary, #888);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.settings-model-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.settings-model-row .settings-select {
+  flex: 1;
+}
+
+.settings-refresh-btn {
+  white-space: nowrap;
+  font-size: var(--text-xs) !important;
+  padding: 4px 8px !important;
+}
+
+.settings-refresh-result {
+  background: var(--bg-secondary, #f5f5f5);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+  margin-top: 6px;
+  font-size: var(--text-sm);
+}
+
+.settings-refresh-line {
+  display: flex;
+  justify-content: space-between;
+  padding: 2px 0;
+  color: var(--text-secondary);
+}
+
+.settings-refresh-line.settings-refresh-warn {
+  color: #d97706;
+}
+
+.settings-refresh-backend {
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.settings-refresh-total {
+  border-top: 1px solid var(--border-color);
+  margin-top: 4px;
+  padding-top: 4px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+
+/* ─── Monolith-extracted styles (taxonomy-dir-switcher+settings-dialog) (Phase 3 co-location, t/2989) ─── */
+
 /* Copyright (c) 2026 Jeffrey Snover. All rights reserved. */
 /* Licensed under the MIT License. See LICENSE file in the project root. */
 

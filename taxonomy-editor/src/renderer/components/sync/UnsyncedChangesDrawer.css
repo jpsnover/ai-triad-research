@@ -1,3 +1,210 @@
+/* ─── Unsynced changes badge + drawer ──────────────────── */
+
+.save-bar-unsynced {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-color, #d0d7de);
+  background: var(--bg-secondary, #f6f8fa);
+  color: var(--text-primary, #1f2328);
+  font-size: var(--text-xs);
+  cursor: pointer;
+}
+.save-bar-unsynced:hover {
+  background: var(--bg-panel, #eaeef2);
+}
+.save-bar-unsynced-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #d4a72c; /* amber */
+}
+
+.save-bar-upstream {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: var(--radius-lg);
+  border: 1px solid rgba(130, 80, 223, 0.4);
+  background: rgba(130, 80, 223, 0.08);
+  color: #6639bd;
+  font-size: var(--text-xs);
+  cursor: pointer;
+}
+.save-bar-upstream:hover { background: rgba(130, 80, 223, 0.16); }
+.save-bar-upstream-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #8250df;
+}
+
+.save-bar-rebase {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: var(--radius-lg);
+  border: 1px solid rgba(207, 34, 46, 0.4);
+  background: rgba(207, 34, 46, 0.08);
+  color: #b91c25;
+  font-size: var(--text-xs);
+  cursor: pointer;
+}
+.save-bar-rebase:hover { background: rgba(207, 34, 46, 0.16); }
+.save-bar-rebase-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #cf222e;
+  animation: save-bar-rebase-pulse 1.8s ease-in-out infinite;
+}
+@keyframes save-bar-rebase-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
+}
+
+.save-bar-conflict-banner {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: var(--radius-lg);
+  border: 1px solid rgba(234, 134, 0, 0.5);
+  background: rgba(234, 134, 0, 0.1);
+  color: #ea8600;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  cursor: pointer;
+  animation: save-bar-rebase-pulse 1.8s ease-in-out infinite;
+}
+.save-bar-conflict-banner:hover { background: rgba(234, 134, 0, 0.2); }
+
+.save-bar-sync-diag {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+}
+.save-bar-sync-diag:hover {
+  color: var(--text-primary);
+  background: var(--bg-hover, rgba(0,0,0,0.06));
+}
+
+
+/* PR creation form (t/240) */
+.pr-form {
+  margin-top: 12px;
+  padding: 12px;
+  border: 1px solid var(--border-color, #d0d7de);
+  border-radius: var(--radius-md);
+  background: var(--bg-secondary, #f6f8fa);
+}
+.pr-form-section {
+  margin-bottom: 10px;
+}
+.pr-form-label {
+  display: block;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  margin-bottom: 4px;
+  color: var(--text-muted, #636c76);
+}
+.pr-form-file-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 120px;
+  overflow-y: auto;
+  font-size: var(--text-sm);
+  padding: 4px 0;
+}
+.pr-form-file-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 4px;
+}
+.pr-form-file-item code {
+  font-size: var(--text-xs);
+}
+.pr-form-input {
+  width: 100%;
+  padding: 5px 8px;
+  font-size: var(--text-sm);
+  border: 1px solid var(--border-color, #d0d7de);
+  border-radius: var(--radius-sm);
+  background: var(--bg, #fff);
+  color: var(--text-primary, #1f2328);
+  box-sizing: border-box;
+}
+.pr-form-textarea {
+  width: 100%;
+  padding: 5px 8px;
+  font-size: var(--text-sm);
+  font-family: var(--font-mono, monospace);
+  border: 1px solid var(--border-color, #d0d7de);
+  border-radius: var(--radius-sm);
+  background: var(--bg, #fff);
+  color: var(--text-primary, #1f2328);
+  resize: vertical;
+  box-sizing: border-box;
+}
+.pr-form-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+
+.sync-dialog {
+  min-width: 520px;
+  max-width: 640px;
+}
+.sync-dialog-label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 12px 0;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+.sync-dialog-label input,
+.sync-dialog-label textarea {
+  padding: 8px 10px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--bg-input);
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: var(--text-md);
+}
+.sync-dialog-label textarea {
+  font-family: 'Cascadia Code', 'Fira Code', Consolas, monospace;
+  font-size: var(--text-sm);
+  resize: vertical;
+  min-height: 120px;
+}
+.sync-dialog-options {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 16px 0;
+}
+.sync-dialog-options .btn {
+  justify-content: flex-start;
+  text-align: left;
+}
+
+
+/* ─── Monolith-extracted styles (unsynced-badge+drawer) (Phase 3 co-location, t/2989) ─── */
+
 /* Copyright (c) 2026 Jeffrey Snover. All rights reserved. */
 /* Licensed under the MIT License. See LICENSE file in the project root. */
 /* Unsynced Changes Drawer — extracted from styles.css (t/1302) */

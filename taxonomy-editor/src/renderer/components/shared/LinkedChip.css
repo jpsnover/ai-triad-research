@@ -1,0 +1,80 @@
+/* LinkedChip.css — chip and chip-list styles */
+
+/* ─── Chips ────────────────────────────────────────────── */
+
+.chip-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 8px;
+  background: var(--chip-bg, var(--bg-panel));
+  border-radius: var(--radius-lg);
+  font-size: var(--text-xs);
+  color: var(--text-primary);
+}
+
+.chip-id {
+  font-family: 'Cascadia Code', 'Fira Code', Consolas, monospace;
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  min-width: 120px;
+  flex-shrink: 0;
+}
+
+.chip-label {
+  color: var(--text-primary);
+  font-size: var(--text-xs);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 200px;
+}
+
+.chip-content {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  border-radius: var(--radius-md);
+  transition: background 0.15s;
+}
+
+.chip-content:hover {
+  background: rgba(96, 165, 250, 0.12);
+}
+
+.chip-content:hover .chip-id {
+  color: var(--focus-ring);
+}
+
+.chip button {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: var(--text-sm);
+  padding: 0 2px;
+}
+
+.chip button:hover {
+  color: var(--danger);
+}
+
+.chip-expanded {
+  background: rgba(96, 165, 250, 0.15);
+  border: 1px solid rgba(96, 165, 250, 0.3);
+}
+
+.chip-expand-indicator {
+  font-size: var(--text-2xs);
+  color: var(--text-muted);
+  margin-left: 2px;
+}
+

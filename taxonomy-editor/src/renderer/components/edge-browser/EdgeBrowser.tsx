@@ -15,6 +15,7 @@ import type { Edge, EdgeType, EdgeStatus, EdgesFile } from '../../types/taxonomy
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { SearchWithHistory } from '../shared/SearchWithHistory';
 import { useEdgeRationale } from './EdgeDetailPanel';
+import './EdgeBrowser.css';
 
 // ── Types ────────────────────────────────────────────────
 

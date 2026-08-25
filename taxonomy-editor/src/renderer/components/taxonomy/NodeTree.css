@@ -1,3 +1,75 @@
+/* ── Tree hierarchy ────────────────────────────────── */
+
+.node-tree-parent-group {
+  margin-bottom: 2px;
+}
+
+.node-tree-parent-header {
+  padding: 6px 12px;
+  cursor: pointer;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  border-radius: var(--radius-md);
+  border-left: 3px solid transparent;
+  user-select: none;
+}
+
+.node-tree-parent-header[data-cat="Desires"]       { border-left-color: var(--cat-desires); }
+.node-tree-parent-header[data-cat="Beliefs"]         { border-left-color: var(--cat-beliefs); }
+.node-tree-parent-header[data-cat="Intentions"]  { border-left-color: var(--cat-intentions); }
+
+.node-tree-parent-header:hover {
+  background: var(--bg-hover);
+}
+
+[data-pane-spacing="concise"] .node-tree-parent-group { margin-bottom: 0; }
+[data-pane-spacing="concise"] .node-tree-parent-header { padding: 3px 10px; font-size: var(--text-sm); }
+[data-pane-spacing="concise"] .node-item-child { padding-left: 24px; }
+[data-pane-spacing="concise"] .node-item-id { font-size: var(--text-2xs); margin-top: 0; }
+
+.node-tree-parent-header.selected {
+  background: var(--bg-panel);
+}
+
+.node-tree-parent-label {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.node-tree-parent-count {
+  font-size: var(--text-2xs);
+  font-weight: 400;
+  color: var(--text-muted);
+  background: var(--bg-panel);
+  padding: 0 5px;
+  border-radius: var(--radius-md);
+  min-width: 18px;
+  text-align: center;
+}
+
+.node-item-child {
+  padding-left: 28px;
+}
+
+.node-item-rel {
+  font-size: var(--text-2xs);
+  font-style: italic;
+  color: var(--text-muted);
+  margin-left: 4px;
+}
+
+/* ── Hierarchy section in Content tab ──────────────── */
+
+/* ─── Detail category banner ───────────────────────────── */
+
+
+/* ─── Monolith-extracted styles (tree-hierarchy) (Phase 3 co-location, t/2989) ─── */
+
 /* NodeTree Phase 4a — hoisted inline styles + POV-tinted selection */
 
 .node-tree-cluster-loading {

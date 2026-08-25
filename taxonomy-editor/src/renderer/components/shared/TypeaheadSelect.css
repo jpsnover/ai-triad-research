@@ -1,0 +1,97 @@
+/* TypeaheadSelect.css — typeahead select styles */
+
+/* ─── Typeahead select ─────────────────────────────────── */
+
+.typeahead {
+  position: relative;
+  margin-top: 6px;
+}
+
+.typeahead-input {
+  width: 100%;
+  padding: 6px 10px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--bg-input);
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+  font-family: inherit;
+}
+
+.typeahead-input:focus-visible {
+  border-color: var(--focus-ring);
+  box-shadow: var(--shadow-1);
+}
+
+.typeahead-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  margin-top: 2px;
+  max-height: 200px;
+  overflow-y: auto;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  box-shadow: 0 4px 16px var(--dialog-shadow, rgba(0, 0, 0, 0.2));
+  z-index: 50;
+}
+
+.typeahead-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  cursor: pointer;
+  font-size: var(--text-sm);
+  transition: background 0.1s;
+}
+
+.typeahead-option:hover,
+.typeahead-option.highlighted {
+  background: var(--bg-hover);
+}
+
+.typeahead-option-id {
+  font-family: 'Cascadia Code', 'Fira Code', Consolas, monospace;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  min-width: 160px;
+  flex-shrink: 0;
+}
+
+.typeahead-option-label {
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.typeahead-empty {
+  padding: 8px 10px;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  text-align: center;
+}
+
+/* ─── Scrollbar ────────────────────────────────────────── */
+
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--scrollbar-track, var(--bg-primary));
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb, var(--border-color));
+  border-radius: var(--radius-sm);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover, var(--text-muted));
+}
+

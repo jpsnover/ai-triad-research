@@ -1,0 +1,83 @@
+/* LinkedNodePreview.css — linked node inline preview */
+
+/* ─── Linked node inline preview ──────────────────────── */
+
+.linked-node-preview {
+  margin: 8px 0;
+  padding: 10px 12px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-color);
+  border-left: 3px solid var(--focus-ring);
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm);
+}
+
+.linked-node-preview-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.linked-node-preview-pov {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  color: var(--focus-ring);
+  letter-spacing: 0.04em;
+}
+
+.linked-node-preview-category {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  text-transform: capitalize;
+}
+
+.linked-node-preview-id {
+  font-family: 'Cascadia Code', 'Fira Code', Consolas, monospace;
+  font-size: var(--text-2xs);
+  color: var(--text-muted);
+  margin-left: auto;
+}
+
+.linked-node-preview-label {
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+
+.linked-node-preview-description {
+  color: var(--text-secondary);
+  line-height: 1.45;
+  margin-bottom: 6px;
+}
+
+.linked-node-preview-attrs {
+  display: flex;
+  gap: 6px;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  margin-top: 4px;
+}
+
+.linked-node-preview-attr-label {
+  font-weight: 600;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.linked-node-preview-keypoints {
+  margin: 0;
+  padding-left: 16px;
+  list-style: disc;
+}
+
+.linked-node-preview-keypoints li {
+  margin-bottom: 2px;
+}
+
+.linked-node-preview-more {
+  color: var(--text-muted);
+  font-style: italic;
+}
+

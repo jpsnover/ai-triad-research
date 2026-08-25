@@ -5,6 +5,7 @@ import { POV_META, type PovMetaKey } from '@lib/electron-shared/povMeta';
 import { useTaxonomyStore } from '../../hooks/useTaxonomyStore';
 import type { GraphAttributes } from '../../types/taxonomy';
 import { useDescriptionMode, resolveDescription } from './DescriptionToggle';
+import './LinkedNodePreview.css';
 
 const POV_LABELS: Record<string, string> = Object.fromEntries(
   Object.entries(POV_META).map(([k, v]) => [k, v.label]),
