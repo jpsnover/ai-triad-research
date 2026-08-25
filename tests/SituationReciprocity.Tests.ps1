@@ -35,9 +35,9 @@ BeforeAll {
     function New-PovNode  { param($Id, $Refs = @())   [ordered]@{ id = $Id; category = 'Beliefs'; label = $Id; situation_refs = @($Refs) } }
 }
 
-Describe 'Test-TaxonomyIntegrity — situation reciprocity guard (t/2979, warn-first)' -Tag 'taxonomy' {
+Describe 'Test-TaxonomyIntegrity — situation reciprocity guard (t/2979, Error-tier)' -Tag 'taxonomy' {
 
-    It 'FIRE: reports BOTH asymmetry classes (forward-only + reverse-only) as a Warning' {
+    It 'FIRE: reports BOTH asymmetry classes (forward-only + reverse-only) as an Error' {
         $root = New-ReciprocityFixture `
             -Sits @( (New-SitNode 'sit-001' @('acc-b-1')), (New-SitNode 'sit-002' @()) ) `
             -Acc  @( (New-PovNode 'acc-b-1' @()) ) `
@@ -49,7 +49,7 @@ Describe 'Test-TaxonomyIntegrity — situation reciprocity guard (t/2979, warn-f
                 $r = Test-TaxonomyIntegrity -PassThru 6>$null
                 $recip = @($r.Details | Where-Object { $_.Check -eq 'SituationReciprocity' })
                 @($recip).Count | Should -Be 1
-                $recip[0].Severity | Should -Be 'Warning'
+                $recip[0].Severity | Should -Be 'Error'
                 $recip[0].Count    | Should -Be 2   # 1 forward-only + 1 reverse-only
                 $recip[0].Detail   | Should -Match 'forward-only'
                 $recip[0].Detail   | Should -Match 'reverse-only'
