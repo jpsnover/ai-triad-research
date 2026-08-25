@@ -260,6 +260,16 @@ async function runVoiceGeneration(
     signal: request.signal,
   });
 
+  // t/3013: an empty AI response comes back as '' WITHOUT throwing — e.g. Gemini returns a
+  // candidate with empty/absent text parts on a safety block or certain truncations, and
+  // generateViaGemini joins those to ''. Left unguarded, JSON.parse('') below fails into the
+  // raw-text fallback, so the voice returns status:'complete' with an empty body — the blank
+  // op-ed tab with no error state. Throw here so runVoice's catch marks the voice failed and
+  // emits voice_failed (which the OpEdArticle failed-state notice then renders).
+  if (!rawText.trim()) {
+    throw new Error(`Voice generation returned empty response (pov=${pov})`);
+  }
+
   let parsed: EssayResponse;
   try {
     parsed = JSON.parse(stripCodeFences(rawText)) as EssayResponse;

@@ -525,3 +525,53 @@ describe('generateOpEdSet — reflection retry-on-empty (t/2919)', () => {
     expect(member?.claims?.length).toBe(1);
   });
 });
+
+// ── Empty voice response → failed, not blank-complete (t/3013) ────────────────
+// An empty AI response ('' — Gemini can return a candidate with empty/absent text parts on a
+// safety block or certain truncations, which generateViaGemini joins to '') previously fell
+// through JSON.parse('') into the raw-text fallback, so the voice finalized status:'complete'
+// with an empty body — a blank op-ed tab with no error state. runVoiceGeneration's empty-text
+// guard now throws, so runVoice marks the voice failed and emits voice_failed.
+describe('generateOpEdSet — empty voice response finalizes as failed, not blank-complete (t/3013)', () => {
+  it('a voice whose essay comes back empty yields voice_failed + status:failed; other voices unaffected', async () => {
+    let essayCall = 0;
+    const adapter = {
+      // Reflection calls use the 'refl' prompt (mocked) and don't increment the essay counter,
+      // so essayCall maps 1:1 to voices in request.povs order → the 2nd voice (safetyist) gets ''.
+      generateText: async (prompt: string) => {
+        if (prompt === 'refl') return JSON.stringify({ grounding_usage: [] });
+        essayCall++;
+        if (essayCall === 2) return ''; // safetyist essay comes back empty (empty Gemini candidate)
+        return JSON.stringify({ headline: 'H', subtitle: '', body_markdown: 'Body.', word_count: 1 });
+      },
+    };
+    const req = {
+      set_id: 's-empty', topic: 'AI policy',
+      params: { model: 'gemini-flash', wordCount: 800, outlet: 'nyt', newsHook: '', thesis: '' } as never,
+      povs: ['accelerationist', 'safetyist', 'skeptic'] as PovKey[],
+    };
+    const deps = { adapter: adapter as never, promptsDir: join(REPO_ROOT, 'lib', 'oped', 'prompts'), repoRoot: REPO_ROOT };
+
+    const failed: PovKey[] = [];
+    const completed: PovKey[] = [];
+    let set: OpEdSet | undefined;
+    for await (const ev of generateOpEdSet(req, deps) as AsyncGenerator<OpEdProgressEvent>) {
+      if (ev.type === 'voice_failed') failed.push(ev.pov);
+      if (ev.type === 'voice_complete') completed.push(ev.pov);
+      if (ev.type === 'complete') set = ev.set;
+    }
+
+    // The empty voice now surfaces as a failure (previously a silent empty-complete → blank tab).
+    expect(failed).toEqual(['safetyist']);
+    expect(completed.sort()).toEqual(['accelerationist', 'skeptic']);
+
+    // …and it finalizes in the set as status:'failed' with an empty body — the render layer's
+    // OpEdArticle failed-state notice keys on status !== 'complete', so the tab is no longer blank.
+    const members = set!.opeds as unknown as { pov: string; status: string; body: string }[];
+    expect(members.find(m => m.pov === 'safetyist')?.status).toBe('failed');
+    expect(members.find(m => m.pov === 'safetyist')?.body).toBe('');
+    // Unaffected voices still complete normally.
+    expect(members.find(m => m.pov === 'accelerationist')?.status).toBe('complete');
+    expect(members.find(m => m.pov === 'skeptic')?.status).toBe('complete');
+  });
+});
