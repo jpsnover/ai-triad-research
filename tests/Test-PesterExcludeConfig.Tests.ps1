@@ -2,47 +2,54 @@
 #
 # Prevention for t/3010 (incident t/2971 / t/3007): the ExcludePath decouple silently
 # "worked" only because live data happened to pass (440/440 coincidence). This test proves
-# the exclusion pattern actually matches data-compliance file paths via Pester's own -like
-# mechanism, using the shared helper that ci.yml also dot-sources.
+# the exclusion pattern actually filters data-compliance containers via real Pester discovery
+# (not re-implemented glob matching), using the shared helper that ci.yml also dot-sources.
 #
-# Empirically confirmed (2026-08-24): Pester 5 PassThru $result.Containers is post-filter —
-# excluded containers are absent entirely (not present with ShouldRun=$false). Assertion
-# uses the same -like matching Pester applies internally to ExcludePath (confirmed via source).
+# Design: TestDrive fixture tree (no live-data needed) + Invoke-Pester with SkipRun so only
+# discovery runs. Containers is post-filter in Pester 5/6 — excluded paths absent entirely
+# (confirmed empirically 2026-08-24 with probe; SkipRun also confirmed to populate Containers).
 #
-# CLEAN arm: Get-PesterExcludePaths pattern matches data-compliance FullName → excluded.
-# FIRE arm:  Old broken pattern './tests/data-compliance/' does NOT match FullName (relative
-#            vs absolute) → files leak. Flip: swap helper to broken pattern → CLEAN arm fails.
+# CLEAN arm: Get-PesterExcludePaths + SkipRun → dc container absent, sibling present.
+# FIRE arm:  broken './tests/data-compliance/' + SkipRun → dc container leaks into Containers.
+# Automated flip: swap helper to broken pattern → CLEAN assertion fails (dc appears).
 
 BeforeAll {
     . "$PSScriptRoot/../operations/devops/Get-PesterExcludePaths.ps1"
-    # Normalize to forward slashes: Pester applies ExcludePath via -like against normalized
-    # paths (confirmed empirically 2026-08-24 — probe showed correct exclusion on Windows
-    # with */data-compliance/* glob despite backslash FullName).
-    $script:dcPath   = (Get-Item "$PSScriptRoot/data-compliance/Test-SituationBDI.LiveData.Tests.ps1").FullName.Replace('\', '/')
-    $script:selfPath = (Get-Item "$PSScriptRoot/Test-PesterExcludeConfig.Tests.ps1").FullName.Replace('\', '/')
 }
 
 Describe "Pester ExcludePath configuration — data-compliance isolation (t/3010)" {
-
-    It "CLEAN: Get-PesterExcludePaths pattern matches data-compliance file path (Pester would exclude it)" {
-        $paths = Get-PesterExcludePaths
-        $matched = $paths | Where-Object { $script:dcPath -like $_ }
-        $matched | Should -Not -BeNullOrEmpty -Because "'*/data-compliance/*' must match the data-compliance FullName"
+    BeforeAll {
+        New-Item -ItemType Directory "$TestDrive/data-compliance" -Force | Out-Null
+        Set-Content "$TestDrive/data-compliance/Fixture.Compliance.Tests.ps1" `
+            "Describe 'Fixture DC' { It 'stub' { `$true | Should -BeTrue } }"
+        Set-Content "$TestDrive/Fixture.Other.Tests.ps1" `
+            "Describe 'Fixture Other' { It 'stub' { `$true | Should -BeTrue } }"
     }
 
-    It "CLEAN: Get-PesterExcludePaths pattern does NOT match non-data-compliance files (no over-exclusion)" {
-        $paths = Get-PesterExcludePaths
-        $matched = $paths | Where-Object { $script:selfPath -like $_ }
-        $matched | Should -BeNullOrEmpty -Because "pattern must not accidentally exclude tests outside data-compliance"
+    It "CLEAN: correct ExcludePath excludes data-compliance from real Pester discovery" {
+        $cfg = New-PesterConfiguration
+        $cfg.Run.Path = "$TestDrive"
+        $cfg.Run.ExcludePath = Get-PesterExcludePaths
+        $cfg.Run.PassThru = $true
+        $cfg.Run.SkipRun = $true
+        $cfg.Output.Verbosity = 'None'
+        $result = Invoke-Pester -Configuration $cfg
+
+        $dcContainers = $result.Containers | Where-Object { $_.Item.FullName -like '*data-compliance*' }
+        $dcContainers | Should -BeNullOrEmpty -Because "correct ExcludePath must prevent data-compliance containers from appearing in discovery"
+        $result.Containers.Count | Should -BeGreaterThan 0 -Because "non-data-compliance sibling must still be discovered"
     }
 
-    It "FIRE: old broken pattern './tests/data-compliance/' fails to match data-compliance FullName (regression bait)" {
-        # Pre-fix pattern used a relative path. Pester matches ExcludePath against FullName
-        # (absolute), so a relative pattern never matches — data-compliance tests leaked into CI.
-        # This It-block is green when the broken pattern correctly fails.
-        # Flip evidence: replace Get-PesterExcludePaths return value with this pattern → CLEAN arm above fails.
-        $brokenPattern = @('./tests/data-compliance/')
-        $matched = $brokenPattern | Where-Object { $script:dcPath -like $_ }
-        $matched | Should -BeNullOrEmpty -Because "broken relative-path pattern must fail to match FullName"
+    It "FIRE: broken ExcludePath leaks data-compliance into real Pester discovery" {
+        $cfg = New-PesterConfiguration
+        $cfg.Run.Path = "$TestDrive"
+        $cfg.Run.ExcludePath = @('./tests/data-compliance/')  # old broken relative-path pattern
+        $cfg.Run.PassThru = $true
+        $cfg.Run.SkipRun = $true
+        $cfg.Output.Verbosity = 'None'
+        $result = Invoke-Pester -Configuration $cfg
+
+        $dcContainers = $result.Containers | Where-Object { $_.Item.FullName -like '*data-compliance*' }
+        $dcContainers | Should -Not -BeNullOrEmpty -Because "broken ExcludePath must fail to exclude data-compliance containers (proving the regression)"
     }
 }
