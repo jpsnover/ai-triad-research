@@ -20,6 +20,7 @@ import {
   type RebaseState,
 } from '../../utils/syncApi';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
+import './RebaseConflictModal.css';
 
 interface Props {
   open: boolean;

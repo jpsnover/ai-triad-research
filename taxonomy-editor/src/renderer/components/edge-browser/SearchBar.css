@@ -1,0 +1,273 @@
+/* SearchBar.css — search bar, dropdown, find scope, highlighted overlay */
+
+/* ─── Search bar (inline in tab bar) ───────────────────── */
+
+.search-bar-wrapper {
+  flex: 0 0 auto;
+  position: relative;
+  display: flex;
+  align-items: center;
+  -webkit-app-region: no-drag;
+  padding: 3px 8px;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.search-bar-inline {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+}
+
+.find-input {
+  flex: 1;
+  min-width: 100px;
+  padding: 3px 8px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--bg-input);
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+  font-family: inherit;
+}
+
+.find-input:focus-visible {
+  border-color: var(--focus-ring);
+}
+
+.find-mode-select {
+  padding: 3px 6px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--bg-input);
+  color: var(--text-primary);
+  font-size: var(--text-xs);
+  flex-shrink: 0;
+}
+
+.find-count {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  flex-shrink: 0;
+  min-width: 20px;
+  text-align: center;
+}
+
+.btn-ghost.has-filters {
+  color: var(--focus-ring);
+}
+
+/* ─── Search dropdown panel ───────────────────────────── */
+
+.search-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  margin-top: 6px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  box-shadow: 0 6px 24px var(--dialog-shadow, rgba(0, 0, 0, 0.15));
+  z-index: 80;
+  padding: 8px 12px;
+  min-width: 340px;
+}
+
+.search-dropdown-options {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.search-dropdown-options label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+/* ─── Find scope filters ──────────────────────────────── */
+
+.find-scopes {
+  display: flex;
+  gap: 12px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+
+.find-scope-group {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.find-scope-label {
+  font-size: var(--text-2xs);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+  font-weight: 600;
+  margin-right: 2px;
+}
+
+.find-scope-chip {
+  padding: 2px 8px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.find-scope-chip:hover {
+  background: var(--bg-hover);
+  color: var(--text-secondary);
+}
+
+.find-scope-chip.active {
+  color: var(--text-primary);
+  background: var(--bg-panel);
+  border-color: var(--text-secondary);
+}
+
+.find-scope-chip.active[data-tab="accelerationist"] { border-color: var(--color-acc); color: var(--color-acc); }
+.find-scope-chip.active[data-tab="safetyist"]       { border-color: var(--color-saf); color: var(--color-saf); }
+.find-scope-chip.active[data-tab="skeptic"]          { border-color: var(--color-skp); color: var(--color-skp); }
+.find-scope-chip.active[data-tab="situations"]    { border-color: var(--color-sit);  color: var(--color-sit); }
+.find-scope-chip.active[data-tab="conflicts"]        { border-color: var(--color-conflicts); color: var(--color-conflicts); }
+
+.find-scope-chip.active[data-cat="Desires"] { border-color: var(--cat-desires); color: var(--cat-desires); }
+.find-scope-chip.active[data-cat="Beliefs"]   { border-color: var(--cat-beliefs);  color: var(--cat-beliefs); }
+.find-scope-chip.active[data-cat="Intentions"]      { border-color: var(--cat-intentions); color: var(--cat-intentions); }
+
+.find-results-panel {
+  margin-top: 8px;
+  max-height: 300px;
+  overflow-y: auto;
+  border-top: 1px solid var(--border-color);
+  padding-top: 8px;
+}
+
+.find-result-item {
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: var(--text-sm);
+  line-height: 1.4;
+  margin-bottom: 2px;
+  border-left: 3px solid var(--border-color);
+}
+
+.find-result-item:hover {
+  background: var(--bg-hover);
+}
+
+.find-result-item.active {
+  background: var(--bg-panel);
+  border-left-color: var(--focus-ring);
+}
+
+.find-result-id {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  font-family: 'Cascadia Code', 'Fira Code', Consolas, monospace;
+}
+
+.find-result-match {
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+
+.find-result-match mark {
+  background: var(--hl-mark-bg);
+  color: var(--hl-mark-color);
+  border-radius: var(--radius-sm);
+  padding: 0 1px;
+}
+
+/* ─── Highlighted field overlay ─────────────────────────── */
+
+.hl-field-wrap {
+  position: relative;
+}
+
+.hl-field-wrap-textarea {
+  display: flex;
+  flex-direction: column;
+}
+
+.hl-backdrop {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 8px 12px;
+  font-size: var(--text-md);
+  font-family: inherit;
+  line-height: inherit;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  overflow: hidden;
+  pointer-events: none;
+  color: var(--text-primary);
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+}
+
+.hl-backdrop-textarea {
+  overflow: hidden;
+}
+
+.hl-backdrop mark {
+  background: var(--hl-mark-bg);
+  color: inherit;
+  border-radius: var(--radius-sm);
+  padding: 1px 0;
+  box-shadow: 0 0 0 1px var(--hl-mark-bg);
+}
+
+.hl-backdrop strong {
+  font-weight: 700;
+  color: inherit;
+}
+
+.hl-readonly-display {
+  font-size: var(--text-md);
+  line-height: 1.6;
+  color: var(--text-primary);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.hl-readonly-display mark {
+  background: var(--hl-mark-bg);
+  color: inherit;
+  border-radius: var(--radius-sm);
+  padding: 1px 0;
+  box-shadow: 0 0 0 1px var(--hl-mark-bg);
+}
+
+.hl-field-wrap input.hl-transparent,
+.hl-field-wrap textarea.hl-transparent {
+  background: transparent;
+  color: transparent;
+  caret-color: var(--text-primary);
+  position: relative;
+  z-index: 1;
+}
+
+.hl-field-wrap input.hl-transparent::selection,
+.hl-field-wrap textarea.hl-transparent::selection {
+  background: var(--hl-mark-bg, rgba(250, 204, 21, 0.45));
+  color: transparent;
+}
+

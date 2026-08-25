@@ -14,6 +14,7 @@ import './styles.css';
 import './responsive.css';
 import './Tooltip.css';
 import './components/shared/ContextMenu.css';
+import './components/shared/DialogOverlay.css';
 
 // Public share link (t/1790, t/2728): a fully logged-out visitor to `/share/pov/:id`
 // or `/share/oped/:shareId` gets the slim read-only view — NOT the main app.

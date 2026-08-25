@@ -4,6 +4,7 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { useTaxonomyStore } from '../../hooks/useTaxonomyStore';
+import './TypeaheadSelect.css';
 
 interface TypeaheadSelectProps {
   options: string[];

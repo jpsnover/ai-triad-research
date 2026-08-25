@@ -13,6 +13,7 @@ import { UnsyncedChangesDrawer } from './UnsyncedChangesDrawer';
 import { SyncDiagnosticsDialog } from './SyncDiagnosticsDialog';
 import { TaxonomyDiffPanel } from './TaxonomyDiffPanel';
 import { TaxonomyUpdateToast } from './TaxonomyUpdateToast';
+import './SaveBar.css';
 
 function formatFileKey(key: string): string {
   if (key === 'situations') return 'Situations';

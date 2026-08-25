@@ -4,6 +4,7 @@
 import { useMemo } from 'react';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import type { EditHistoryEntry, NodeEditMeta, TextHistoryEntry } from '../../types/taxonomy';
+import './NodeEditHistory.css';
 
 interface NodeEditHistoryProps {
   editMeta?: NodeEditMeta;

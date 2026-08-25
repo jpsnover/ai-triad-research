@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { useState, useRef, useEffect } from 'react';
+import './OverflowMenu.css';
 
 export type OverflowMenuEntry =
   | { type: 'item'; key: string; label: string; onClick: () => void; danger?: boolean; className?: string }

@@ -9,6 +9,7 @@ import { interpretationText } from '../../types/taxonomy';
 import { buildSearchRegex } from '../../utils/searchRegex';
 import { ApiKeyDialog } from '../settings/ApiKeyDialog';
 import { ApiKeyErrorMessage } from '../settings/ApiKeyErrorMessage';
+import './SearchBar.css';
 
 interface SearchResult {
   id: string;

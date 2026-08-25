@@ -1,0 +1,145 @@
+/* SaveBar.css — save bar styles */
+
+/* ─── Save Bar ─────────────────────────────────────────── */
+
+.save-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 16px;
+  background: var(--bg-secondary);
+  border-top: 1px solid var(--border-color);
+  min-height: 44px;
+  position: relative;
+}
+
+.save-bar-status {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.save-bar-status.dirty {
+  color: var(--color-skp);
+  font-weight: 600;
+}
+
+.save-bar-error-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  justify-content: center;
+  min-width: 0;
+}
+
+.save-bar-error {
+  font-size: var(--text-sm);
+  color: var(--danger);
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.save-bar-error.clickable {
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-style: dotted;
+}
+
+.save-bar-fix-btn {
+  flex: none;
+  background: var(--focus-ring, #3b82f6);
+  color: #fff;
+  border: none;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.save-bar-fix-btn:hover {
+  filter: brightness(1.15);
+}
+
+.save-bar-error-dismiss {
+  flex: none;
+  background: transparent;
+  border: 1px solid var(--border-color, rgba(127,127,127,0.3));
+  color: var(--text-secondary, inherit);
+  width: 20px;
+  height: 20px;
+  line-height: 1;
+  font-size: var(--text-lg);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.save-bar-error-dismiss:hover {
+  background: var(--bg-hover, rgba(127,127,127,0.15));
+  color: var(--danger);
+}
+
+.save-bar-error-panel {
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--bg-secondary);
+  border: 1px solid var(--danger, #d32f2f);
+  border-radius: var(--radius-md);
+  padding: 10px 14px;
+  min-width: 340px;
+  max-width: 520px;
+  max-height: 260px;
+  overflow-y: auto;
+  box-shadow: var(--shadow-3);
+  z-index: 50;
+  font-size: var(--text-sm);
+}
+
+.save-bar-error-group {
+  margin-bottom: 8px;
+}
+
+.save-bar-error-group:last-child {
+  margin-bottom: 0;
+}
+
+.save-bar-error-file {
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 3px;
+  font-size: var(--text-sm);
+}
+
+.save-bar-error-item {
+  display: flex;
+  gap: 6px;
+  padding: 1px 0;
+  color: var(--text-secondary);
+}
+
+.save-bar-error-path {
+  color: var(--text-muted);
+  font-family: monospace;
+  font-size: var(--text-xs);
+  white-space: nowrap;
+}
+
+.save-bar-error-msg {
+  color: var(--danger, #d32f2f);
+}
+
+.save-bar-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+

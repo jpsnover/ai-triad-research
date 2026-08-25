@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { useTaxonomyStore } from '../../hooks/useTaxonomyStore';
+import './LinkedChip.css';
 
 interface LinkedChipProps {
   id: string;
