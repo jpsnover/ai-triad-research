@@ -778,6 +778,8 @@ Export-ModuleMember -Function @(
     'Repair-PovLineage'
     'Repair-PovAttributes'
     'Repair-SituationReciprocity'
+    # t/3015 — WS-B Stage 2: commit embedding-proposed evidence links (provenance-stamped, purgeable)
+    'Add-SituationEvidenceLink'
     'Export-AggregatedCruxes'
     'Export-TriadDebateBrief'
     'Test-BriefNarrationStage'
