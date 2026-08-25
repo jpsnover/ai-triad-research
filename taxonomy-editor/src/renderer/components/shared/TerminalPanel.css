@@ -1,0 +1,37 @@
+/* TerminalPanel.css — terminal panel styles */
+
+/* ─── Terminal Panel ───────────────────────────────────── */
+
+.terminal-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  background: #1e1e2e;
+}
+
+.terminal-panel-header {
+  display: flex;
+  align-items: center;
+  padding: 6px 12px;
+  background: #181825;
+  border-bottom: 1px solid #313244;
+  flex-shrink: 0;
+}
+
+.terminal-panel-title {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: #cdd6f4;
+}
+
+.terminal-container {
+  flex: 1;
+  padding: 4px;
+  overflow: hidden;
+}
+
+.terminal-container .xterm {
+  height: 100%;
+}
+

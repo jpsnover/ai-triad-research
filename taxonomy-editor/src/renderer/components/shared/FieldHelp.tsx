@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { useState, useRef, useEffect } from 'react';
+import './FieldHelp.css';
 
 interface FieldHelpProps {
   text: string;

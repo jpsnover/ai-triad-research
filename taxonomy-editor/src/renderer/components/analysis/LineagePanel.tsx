@@ -10,6 +10,7 @@ import {
 } from '../../data/lineageCategories';
 import { getAllLineages, getLineageInfo, lookupLineage } from '../../data/lineageLookup';
 import { SearchWithHistory } from '../shared/SearchWithHistory';
+import './LineagePanel.css';
 
 interface LineagePanelProps {
   onSelectValue?: (value: string) => void;

@@ -1,3 +1,52 @@
+/* ─── Help dialog ─────────────────────────────────────────── */
+
+.help-dialog {
+  max-width: none;
+  max-height: none;
+  overflow: visible;
+  position: relative;
+}
+
+.help-section {
+  margin-bottom: 16px;
+}
+
+.help-section h4 {
+  font-size: var(--text-md);
+  color: var(--text-primary);
+  margin-bottom: 6px;
+  font-weight: 600;
+}
+
+.help-section p {
+  margin-bottom: 6px;
+}
+
+.help-shortcuts {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.help-shortcuts td {
+  padding: 4px 8px;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.help-key {
+  font-family: 'Cascadia Code', 'Fira Code', Consolas, monospace;
+  font-size: var(--text-xs) !important;
+  color: var(--text-primary) !important;
+  white-space: nowrap;
+  min-width: 120px;
+}
+
+/* ─── Help button in tab bar ──────────────────────────────── */
+
+
+/* ─── Monolith-extracted styles (help-dialog+help-btn) (Phase 3 co-location, t/2989) ─── */
+
 /* Copyright (c) 2026 Jeffrey Snover. All rights reserved. */
 /* Licensed under the MIT License. See LICENSE file in the project root. */
 

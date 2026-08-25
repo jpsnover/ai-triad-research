@@ -1,0 +1,65 @@
+/* FieldHelp.css — field help tooltip styles */
+
+/* ─── Field help tooltip ──────────────────────────────────── */
+
+.field-help {
+  position: relative;
+  display: inline-flex;
+  margin-left: 4px;
+  vertical-align: middle;
+}
+
+/* contrast-nontext */ .field-help-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 1px solid var(--text-muted);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: var(--text-2xs);
+  font-weight: 700;
+  cursor: default;
+  padding: 0;
+  line-height: 1;
+  transition: all 0.15s;
+}
+
+.field-help-btn:hover {
+  border-color: var(--focus-ring);
+  color: var(--focus-ring);
+  background: rgba(96, 165, 250, 0.08);
+}
+
+.field-help-tooltip {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 6px 10px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  box-shadow: 0 4px 12px var(--dialog-shadow, rgba(0, 0, 0, 0.2));
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  white-space: normal;
+  min-width: 180px;
+  max-width: 280px;
+  z-index: 60;
+  line-height: 1.45;
+  font-weight: 400;
+}
+
+.field-help-tooltip::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 5px solid transparent;
+  border-top-color: var(--border-color);
+}
+

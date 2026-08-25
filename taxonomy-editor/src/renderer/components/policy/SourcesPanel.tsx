@@ -4,6 +4,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { api } from '@bridge';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
+import './SourcesPanel.css';
 
 export interface SourceReference {
   docId: string;

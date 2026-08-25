@@ -7,6 +7,7 @@ import { POV_KEYS } from '@lib/debate/types';
 import { useTaxonomyStore } from '../../hooks/useTaxonomyStore';
 import { ApiKeyErrorMessage } from '../settings/ApiKeyErrorMessage';
 import { useDescriptionMode, resolveDescription } from '../shared/DescriptionToggle';
+import './SimilarSearchPanel.css';
 
 type SortKey = 'match' | 'id' | 'label' | 'description';
 type SortDir = 'asc' | 'desc';
