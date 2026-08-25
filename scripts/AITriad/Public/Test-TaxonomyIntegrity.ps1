@@ -324,15 +324,17 @@ function Test-TaxonomyIntegrity {
         $Issues.Add([PSCustomObject]@{ Check = 'DanglingLinked'; Severity = 'Warning'; Count = $DanglingLinked.Count; Detail = "linked_nodes ref non-existent nodes: $Detail" })
     } else { $Passed++ }
 
-    # ── Check 10: Situation <-> POV-node reciprocity (t/2979, WARN-first) ──
+    # ── Check 10: Situation <-> POV-node reciprocity (t/2979) ──
     # linked_nodes (situation -> POV node) and situation_refs (POV node -> situation) must be
     # MUTUAL: N in S.linked_nodes  <=>  S in N.situation_refs. The two directions were free to
     # diverge — creation sites init both empty, and this cmdlet only PRUNES dangling refs (Checks
     # 8/9), it never reciprocates — so evidence authored on one side is invisible on the other.
-    # That silent drift is the t/2979 root cause. WARN-first / observability only: ~7 reverse-only
-    # situations diverge today, so a hard Error would false-block; report BOTH asymmetry classes so
-    # the drift is visible and cannot grow. Only links whose BOTH endpoints exist are evaluated — a
-    # ref to a non-existent node/situation is a dangling-ref issue (Checks 8/9), not an asymmetry.
+    # That silent drift is the t/2979 root cause. PROMOTED Warning -> Error (t/2979): the WS-A
+    # reciprocity backfill is pushed and the live corpus is confirmed fully mutual
+    # (Repair-SituationReciprocity -DryRun = 0/0), so the false-block risk that kept this warn-first
+    # is gone; any NEW drift is now a hard failure. Report BOTH asymmetry classes. Only links whose
+    # BOTH endpoints exist are evaluated — a ref to a non-existent node/situation is a dangling-ref
+    # issue (Checks 8/9), not an asymmetry.
     $Checks++
     $SitLinked = @{}    # situation id -> HashSet of its linked node ids
     if ($LoadedFiles.ContainsKey('situations')) {
@@ -377,7 +379,7 @@ function Test-TaxonomyIntegrity {
     if ($AsymCount -gt 0) {
         $FwdPart = if ($ForwardOnly.Count -gt 0) { " forward-only (in linked_nodes, missing situation_refs back-ref) [$($ForwardOnly.Count)]: $((@($ForwardOnly) | Select-Object -First 5) -join '; ')$(if ($ForwardOnly.Count -gt 5) { ' ...' })" } else { '' }
         $RevPart = if ($ReverseOnly.Count -gt 0) { " reverse-only (in situation_refs, missing linked_nodes back-ref) [$($ReverseOnly.Count)]: $((@($ReverseOnly) | Select-Object -First 5) -join '; ')$(if ($ReverseOnly.Count -gt 5) { ' ...' })" } else { '' }
-        $Issues.Add([PSCustomObject]@{ Check = 'SituationReciprocity'; Severity = 'Warning'; Count = $AsymCount; Detail = "situation.linked_nodes and POV situation_refs are not mutual (t/2979) —$FwdPart$RevPart. WARN-first: a reciprocity backfill / UI-union recovers these; the two directions must not silently drift." })
+        $Issues.Add([PSCustomObject]@{ Check = 'SituationReciprocity'; Severity = 'Error'; Count = $AsymCount; Detail = "situation.linked_nodes and POV situation_refs are not mutual (t/2979) —$FwdPart$RevPart. Fix: run Repair-SituationReciprocity -DryRun to preview, then Repair-SituationReciprocity to reconcile both directions. The two directions must stay mutual." })
     } else { $Passed++ }
 
     # ── BDI weight range validation ──
