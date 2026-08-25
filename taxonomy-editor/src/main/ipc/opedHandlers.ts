@@ -291,11 +291,19 @@ export function registerOpEdHandlers(): void {
               saveOpEdSetTemp({ schema_version: 1, set_id: setId, topic, params, created_at: createdAt, opeds: [...completedMembers], ...provenanceFields() });
             } catch { /* telemetry — silent by design; temp save is best-effort */ }
             send({ set_id: setId, voice: evt.pov, stage: 'complete' });
+            getGlobalRecorder()?.record({
+              type: 'system.info', component: 'opedHandlers', level: 'info',
+              message: `Op-ed voice complete for set ${setId} pov=${evt.pov}: wordCount=${evt.member.wordCount} grounding=${evt.member.grounding.length}`,
+            });
             break;
           }
           case 'voice_failed': {
             const failed: OpEdMember = { pov: evt.pov, status: 'failed', headline: '', subtitle: '', body: '', wordCount: 0, grounding: [], byline: '', disclosure: '', rhetorical_meta: '' };
             completedMembers.push(failed);
+            getGlobalRecorder()?.record({
+              type: 'system.error', component: 'opedHandlers', level: 'error',
+              message: `Op-ed voice failed for set ${setId} pov=${evt.pov}: ${evt.error}`,
+            });
             send({ set_id: setId, voice: evt.pov, stage: 'failed', error: evt.error });
             break;
           }
