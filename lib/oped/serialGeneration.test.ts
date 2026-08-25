@@ -575,3 +575,49 @@ describe('generateOpEdSet — empty voice response finalizes as failed, not blan
     expect(members.find(m => m.pov === 'skeptic')?.status).toBe('complete');
   });
 });
+
+// ── Non-JSON / truncated voice response → failed, not garbage-complete (t/3013 sibling) ───────
+// A NON-empty but non-JSON essay response (a truncated response leaving unterminated JSON, or
+// prose / ```json fences surviving stripCodeFences) previously fell into the JSON.parse raw-text
+// fallback, which stored the raw text as body_markdown → rendered as a monospace code block with
+// an always-empty headline. runVoiceGeneration now throws on a JSON.parse failure, so runVoice
+// marks the voice failed + emits voice_failed → the existing OpEdArticle notice renders cleanly.
+describe('generateOpEdSet — non-JSON voice response finalizes as failed, not garbage-complete (t/3013 sibling)', () => {
+  it('a voice whose essay is non-empty but invalid JSON yields voice_failed + status:failed; others unaffected', async () => {
+    let essayCall = 0;
+    const adapter = {
+      generateText: async (prompt: string) => {
+        if (prompt === 'refl') return JSON.stringify({ grounding_usage: [] });
+        essayCall++;
+        // Truncated JSON (token-budget exhaustion): non-empty, no code fences, JSON.parse throws on the unterminated string.
+        if (essayCall === 2) return '{"headline":"H","body_markdown":"Lorem ipsum dolor sit';
+        return JSON.stringify({ headline: 'H', subtitle: '', body_markdown: 'Body.', word_count: 1 });
+      },
+    };
+    const req = {
+      set_id: 's-badjson', topic: 'AI policy',
+      params: { model: 'gemini-flash', wordCount: 800, outlet: 'nyt', newsHook: '', thesis: '' } as never,
+      povs: ['accelerationist', 'safetyist', 'skeptic'] as PovKey[],
+    };
+    const deps = { adapter: adapter as never, promptsDir: join(REPO_ROOT, 'lib', 'oped', 'prompts'), repoRoot: REPO_ROOT };
+
+    const failed: PovKey[] = [];
+    const completed: PovKey[] = [];
+    let set: OpEdSet | undefined;
+    for await (const ev of generateOpEdSet(req, deps) as AsyncGenerator<OpEdProgressEvent>) {
+      if (ev.type === 'voice_failed') failed.push(ev.pov);
+      if (ev.type === 'voice_complete') completed.push(ev.pov);
+      if (ev.type === 'complete') set = ev.set;
+    }
+
+    // The invalid-JSON voice fails (previously a silent garbage-complete → code-block tab with empty headline).
+    expect(failed).toEqual(['safetyist']);
+    expect(completed.sort()).toEqual(['accelerationist', 'skeptic']);
+
+    const members = set!.opeds as unknown as { pov: string; status: string; body: string }[];
+    expect(members.find(m => m.pov === 'safetyist')?.status).toBe('failed');
+    expect(members.find(m => m.pov === 'safetyist')?.body).toBe(''); // the raw garbage is NOT stored as the body
+    expect(members.find(m => m.pov === 'accelerationist')?.status).toBe('complete');
+    expect(members.find(m => m.pov === 'skeptic')?.status).toBe('complete');
+  });
+});
