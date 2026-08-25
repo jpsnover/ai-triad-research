@@ -877,3 +877,14 @@
 .nd-split-height {
   height: var(--nd-split-height, auto);
 }
+
+/* Simple-view last-edited line (t/3022) */
+.nd-last-edited {
+  margin-top: 6px;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+.nd-last-edited-user {
+  color: var(--text-secondary);
+  font-weight: 500;
+}
