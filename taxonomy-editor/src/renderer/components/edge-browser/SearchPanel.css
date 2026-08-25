@@ -1,3 +1,344 @@
+/* ─── Search Panel (unified search in Pane 1) ─────────── */
+
+.search-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+.search-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border-color);
+  flex-shrink: 0;
+}
+
+.search-panel-title {
+  font-size: var(--text-md);
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.search-panel-mode {
+  padding: 6px 12px;
+  flex-shrink: 0;
+}
+
+.search-panel-mode-select {
+  width: 100%;
+  padding: 4px 8px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+}
+
+.search-panel-input {
+  padding: 0 12px 8px;
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.search-panel-taxonomy {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.search-panel-input-row {
+  display: flex;
+  gap: 4px;
+}
+
+.search-panel-text-input {
+  flex: 1;
+  padding: 4px 8px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+}
+
+.search-panel-text-input:focus-visible {
+  border-color: var(--focus-ring);
+}
+
+.search-panel-search-mode {
+  padding: 4px 6px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: var(--text-xs);
+}
+
+.search-panel-filter-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.search-panel-pov-filter {
+  font-size: var(--text-xs);
+  padding: 2px 6px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+.search-panel-related {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.search-panel-selected-node {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  background: var(--bg-hover, var(--bg-hover));
+  border-radius: var(--radius-sm);
+  font-size: var(--text-sm);
+}
+
+.search-panel-selected-id {
+  font-family: 'Cascadia Code', 'Fira Code', Consolas, monospace;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.search-panel-selected-label {
+  flex: 1;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.search-panel-typeahead {
+  position: relative;
+}
+
+.search-panel-typeahead-list {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  max-height: 200px;
+  overflow-y: auto;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  z-index: 20;
+  box-shadow: var(--shadow-2);
+}
+
+.search-panel-typeahead-item {
+  padding: 4px 8px;
+  cursor: pointer;
+  display: flex;
+  gap: 6px;
+  align-items: baseline;
+  font-size: var(--text-sm);
+}
+
+.search-panel-typeahead-item:hover {
+  background: var(--bg-hover, var(--bg-hover));
+}
+
+.search-panel-typeahead-id {
+  font-family: 'Cascadia Code', 'Fira Code', Consolas, monospace;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.search-panel-typeahead-label {
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.search-panel-attr-select {
+  width: 100%;
+  padding: 4px 8px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+}
+
+.search-panel-results {
+  flex: 1;
+  overflow-y: auto;
+  padding: 4px 0;
+}
+
+.search-panel-count {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  padding: 2px 12px;
+}
+
+.search-panel-result-item {
+  padding: 6px 12px;
+  cursor: pointer;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.search-panel-result-item:hover {
+  background: var(--bg-hover, var(--bg-hover));
+}
+
+.search-panel-result-item.selected {
+  background: var(--focus-ring);
+  color: #fff;
+}
+
+.search-panel-result-item.selected .search-panel-result-id,
+.search-panel-result-item.selected .search-panel-result-score,
+.search-panel-result-item.selected .search-panel-result-label {
+  color: #fff;
+}
+
+
+.search-panel-result-header {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font-size: var(--text-xs);
+}
+
+.search-panel-result-pov {
+  font-weight: 700;
+  text-transform: uppercase;
+  font-size: var(--text-2xs);
+  letter-spacing: 0.04em;
+}
+
+.search-panel-result-id {
+  font-family: 'Cascadia Code', 'Fira Code', Consolas, monospace;
+  color: var(--text-muted);
+}
+
+.search-panel-result-score {
+  margin-left: auto;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.search-panel-result-label {
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+  margin-top: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.search-panel-result-label mark {
+  background: var(--focus-ring);
+  color: #fff;
+  padding: 0 2px;
+  border-radius: var(--radius-sm);
+}
+
+.search-panel-status {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  padding: 12px;
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.search-panel-error {
+  font-size: var(--text-sm);
+  color: #dc2626;
+  padding: 8px 12px;
+}
+
+.search-panel-empty {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  padding: 12px;
+  text-align: center;
+}
+
+.search-panel-attr-empty {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  padding: 4px 0;
+}
+
+.search-panel-related-filters {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 4px 0;
+  border-top: 1px solid var(--border-color);
+}
+
+.search-panel-threshold-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+}
+
+.search-panel-threshold-row label {
+  flex-shrink: 0;
+  font-weight: 500;
+}
+
+.search-panel-threshold-row input[type="range"] {
+  flex: 1;
+  min-width: 60px;
+  height: 4px;
+}
+
+.search-panel-threshold-value {
+  flex-shrink: 0;
+  min-width: 32px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.search-panel-type-filters {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.search-panel-type-filter {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  cursor: pointer;
+  user-select: none;
+}
+
+.search-panel-type-filter input[type="checkbox"] {
+  margin: 0;
+}
+
+
+/* ─── Monolith-extracted styles (search-panel) (Phase 3 co-location, t/2989) ─── */
+
 /* Copyright (c) 2026 Jeffrey Snover. All rights reserved. */
 /* Licensed under the MIT License. See LICENSE file in the project root. */
 

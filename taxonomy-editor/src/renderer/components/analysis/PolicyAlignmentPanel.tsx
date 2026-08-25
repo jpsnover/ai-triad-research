@@ -5,6 +5,7 @@ import { useState, useMemo } from 'react';
 import { POV_META, type PovMetaKey } from '@lib/electron-shared/povMeta';
 import { useTaxonomyStore } from '../../hooks/useTaxonomyStore';
 import type { Pov } from '../../types/taxonomy';
+import './PolicyAlignmentPanel.css';
 
 interface PolicyUsage {
   nodeId: string;

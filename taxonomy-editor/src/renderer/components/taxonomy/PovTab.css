@@ -1,3 +1,42 @@
+/* ─── Webview Pane (Pane 3, embedded browser) ─────────── */
+
+.webview-pane {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 300px;
+  background: var(--bg-primary);
+}
+
+.webview-pane-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 8px;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-color);
+  flex-shrink: 0;
+}
+
+.webview-pane-url {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  font-family: 'Cascadia Code', 'Fira Code', Consolas, monospace;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  margin-right: 8px;
+}
+
+.webview-frame {
+  flex: 1;
+  border: none;
+}
+
+
+/* ─── Monolith-extracted styles (webview-pane) (Phase 3 co-location, t/2989) ─── */
+
 /* Left group in the list-panel header: soul-doc icon sits immediately left of the POV name (t/2348) */
 .list-panel-header-title {
   display: flex;

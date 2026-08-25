@@ -1,0 +1,149 @@
+/* PolicyAlignmentPanel.css — policy alignment panel styles */
+
+/* ─── Policy Alignment Panel ─────────────────────────── */
+.policy-alignment-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+.policy-alignment-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border-color);
+}
+.policy-alignment-title {
+  font-size: var(--text-sm);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+}
+.policy-alignment-controls {
+  display: flex;
+  gap: 4px;
+  padding: 6px 10px;
+}
+.policy-alignment-filter {
+  font-size: var(--text-xs);
+  padding: 3px 6px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+}
+.policy-alignment-search {
+  flex: 1;
+  font-size: var(--text-xs);
+  padding: 3px 6px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+}
+.policy-alignment-count {
+  padding: 0 10px 4px;
+  font-size: var(--text-2xs);
+  color: var(--text-muted);
+}
+.policy-alignment-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0 6px;
+}
+.policy-alignment-item {
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  margin-bottom: 4px;
+}
+.policy-alignment-item-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 6px 8px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  font-size: var(--text-xs);
+  color: var(--text-primary);
+}
+.policy-alignment-item-header:hover {
+  background: var(--bg-secondary);
+}
+.policy-alignment-arrow {
+  font-size: var(--text-2xs);
+  flex-shrink: 0;
+  color: var(--text-muted);
+}
+.policy-alignment-id {
+  font-family: monospace;
+  font-size: var(--text-2xs);
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+.policy-alignment-povs {
+  display: flex;
+  gap: 3px;
+  flex-shrink: 0;
+}
+.policy-alignment-pov-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+.policy-alignment-action {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.policy-alignment-usage-count {
+  font-size: var(--text-2xs);
+  color: var(--text-muted);
+  flex-shrink: 0;
+  background: var(--bg-secondary);
+  padding: 1px 5px;
+  border-radius: var(--radius-md);
+}
+.policy-alignment-detail {
+  padding: 6px 8px 8px 24px;
+  border-top: 1px solid var(--border-color);
+}
+.policy-alignment-framings {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.policy-alignment-framing {
+  padding: 4px 8px;
+  border-left: 3px solid var(--border-color);
+  border-radius: var(--radius-sm);
+}
+.policy-alignment-framing-header {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 2px;
+}
+.policy-alignment-framing-pov {
+  font-size: var(--text-2xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+.policy-alignment-framing-node {
+  font-family: monospace;
+  font-size: var(--text-2xs);
+  color: var(--text-muted);
+}
+.policy-alignment-framing-text {
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+

@@ -1,3 +1,8 @@
+/* ─── Graph Attributes Panel ─────────────────────────── */
+
+
+/* ─── Monolith-extracted styles (graph-attributes) (Phase 3 co-location, t/2989) ─── */
+
 /* Scale label + its doc-link (t/2448) — keep them on one line inside the cell so the
    fixed attribute grid columns don't shift. */
 .ga-label-row {

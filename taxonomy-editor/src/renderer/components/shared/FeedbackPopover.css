@@ -1,0 +1,165 @@
+/* FeedbackPopover.css — toolbar-anchored feedback popover */
+
+/* ── Feedback Popover (toolbar-anchored) ──────────────────────────────── */
+
+.toolbar-feedback-wrap {
+  position: relative;
+}
+
+.feedback-popover-toolbar {
+  position: absolute;
+  left: calc(100% + 8px);
+  bottom: 0;
+  width: 280px;
+  background: var(--bg-primary, #ffffff);
+  border: 1px solid var(--border-color, #e2e8f0);
+  border-radius: var(--radius-md);
+  box-shadow: var(--dialog-shadow, 0 4px 24px rgba(0, 0, 0, 0.15));
+  padding: 16px;
+  z-index: 1000;
+  animation: feedback-fade-in 0.15s ease-out;
+}
+
+@keyframes feedback-fade-in {
+  from { opacity: 0; transform: translateX(-4px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+.feedback-popover-title {
+  font-size: var(--text-md);
+  font-weight: 600;
+  color: var(--text-primary);
+  text-align: center;
+  margin-bottom: 12px;
+}
+
+.feedback-rating-row {
+  display: flex;
+  justify-content: center;
+  gap: 24px;
+  margin-bottom: 12px;
+}
+
+.feedback-rating-btn {
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-color, #e2e8f0);
+  background: transparent;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.1s, border-color 0.1s;
+}
+
+.feedback-rating-btn:hover {
+  background: var(--bg-hover, #f1f5f9);
+  border-color: var(--focus-ring, #3b82f6);
+}
+
+.feedback-thumb {
+  font-size: var(--text-xl);
+}
+
+.feedback-category-row {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.feedback-category-chip {
+  padding: 3px 10px;
+  border: 1px solid var(--border-color, #e2e8f0);
+  border-radius: var(--radius-lg);
+  background: transparent;
+  color: var(--text-secondary, #64748b);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.1s, border-color 0.1s, color 0.1s;
+}
+
+.feedback-category-chip:hover {
+  background: var(--bg-hover, #f1f5f9);
+}
+
+.feedback-category-chip.active {
+  background: color-mix(in srgb, var(--focus-ring, #3b82f6) 12%, transparent);
+  border-color: var(--focus-ring, #3b82f6);
+  color: var(--focus-ring, #3b82f6);
+}
+
+.feedback-textarea {
+  width: 100%;
+  resize: none;
+  border: 1px solid var(--border-color, #e2e8f0);
+  border-radius: var(--radius-md);
+  padding: 8px;
+  font-size: var(--text-sm);
+  font-family: inherit;
+  background: var(--bg-primary, #ffffff);
+  color: var(--text-primary);
+  box-sizing: border-box;
+}
+
+.feedback-textarea:focus-visible {
+  border-color: var(--focus-ring, #3b82f6);
+}
+
+.feedback-snapshot-row {
+  margin-top: 8px;
+}
+
+.feedback-snapshot-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--text-xs);
+  color: var(--text-muted, #94a3b8);
+  cursor: pointer;
+}
+
+.feedback-snapshot-label input[type="checkbox"] {
+  accent-color: var(--focus-ring, #3b82f6);
+}
+
+.feedback-text-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 8px;
+}
+
+.feedback-char-count {
+  font-size: var(--text-xs);
+  color: var(--text-muted, #94a3b8);
+}
+
+.feedback-send-btn {
+  padding: 4px 14px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: var(--focus-ring, #3b82f6);
+  color: #fff;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.1s;
+}
+
+.feedback-send-btn:hover {
+  opacity: 0.9;
+}
+
+@media (max-width: 600px) {
+  .feedback-popover-toolbar {
+    position: fixed;
+    left: 16px;
+    right: 16px;
+    bottom: calc(48px + env(safe-area-inset-bottom) + 16px);
+    width: auto;
+  }
+}
+

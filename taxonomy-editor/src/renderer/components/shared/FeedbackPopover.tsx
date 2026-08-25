@@ -7,6 +7,7 @@ import { useTaxonomyStore } from '../../hooks/useTaxonomyStore';
 import { useBreakpoint } from '../../hooks/useBreakpoint';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { triggerManualDump } from '../../lib/flightRecorderInit';
+import './FeedbackPopover.css';
 
 type FeedbackCategory = 'bug' | 'feature_request' | 'confusing' | 'general';
 type FeedbackStep = 'rating' | 'text' | 'submitted' | 'cooldown';
