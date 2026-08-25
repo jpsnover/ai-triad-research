@@ -157,6 +157,87 @@ Describe 'Situation BDI-decomposition classification logic (fixture-based, t/233
     }
 }
 
+Describe 'Situation BDI-decomposition null-sentinel rejection (t/3018)' -Tag 'taxonomy' {
+    # Hardening arm (t/3018): a B/D/I field whose whole value is a null-sentinel
+    # ("null"/"none"/"n/a"/"tbd"/"-", case-insensitive) is non-empty but carries no
+    # interpretation, so it must fail decomposition like a blank field. Isolated
+    # fixture so the count assertions above stay stable. Both arms + a substring
+    # false-positive guard.
+
+    BeforeAll {
+        $script:SentinelJson = @'
+{
+  "nodes": [
+    {
+      "id": "sit-sentinel-clean",
+      "description": "A situation fully decomposed with real interpretations.",
+      "interpretations": {
+        "accelerationist": { "belief": "real belief", "desire": "real desire", "intention": "real intention" },
+        "safetyist":       { "belief": "real belief", "desire": "real desire", "intention": "real intention" },
+        "skeptic":         { "belief": "real belief", "desire": "real desire", "intention": "real intention" }
+      }
+    },
+    {
+      "id": "sit-sentinel-allnull",
+      "description": "A situation whose fields are the literal null-sentinel strings.",
+      "interpretations": {
+        "accelerationist": { "belief": "null", "desire": "null", "intention": "null" },
+        "safetyist":       { "belief": "None", "desire": "N/A", "intention": "tbd" },
+        "skeptic":         { "belief": "-",    "desire": "null", "intention": "none" }
+      }
+    },
+    {
+      "id": "sit-sentinel-onefield",
+      "description": "A situation with one sentinel field in an otherwise real block.",
+      "interpretations": {
+        "accelerationist": { "belief": "real belief", "desire": "TBD", "intention": "real intention" },
+        "safetyist":       { "belief": "real belief", "desire": "real desire", "intention": "real intention" },
+        "skeptic":         { "belief": "real belief", "desire": "real desire", "intention": "real intention" }
+      }
+    },
+    {
+      "id": "sit-sentinel-substring",
+      "description": "A situation whose real prose merely contains sentinel words as substrings.",
+      "interpretations": {
+        "accelerationist": { "belief": "None of the current models are safe.", "desire": "Leave no ambiguity in policy.", "intention": "Treat n/a-status vendors with caution." },
+        "safetyist":       { "belief": "real belief", "desire": "real desire", "intention": "real intention" },
+        "skeptic":         { "belief": "real belief", "desire": "real desire", "intention": "real intention" }
+      }
+    }
+  ]
+}
+'@
+        $script:SentinelFixture = $script:SentinelJson | ConvertFrom-Json
+        $script:SentinelResult = InModuleScope AITriad -Parameters @{ Nodes = $script:SentinelFixture.nodes } {
+            param($Nodes)
+            Test-SituationBdiDecomposition -Node $Nodes
+        }
+    }
+
+    It 'Passes the clean situation (clean arm)' {
+        $script:SentinelResult.NonDecomposedIds | Should -Not -Contain 'sit-sentinel-clean'
+    }
+
+    It 'Flags an all-sentinel situation as non-decomposed (failure arm)' {
+        $script:SentinelResult.NonDecomposedIds | Should -Contain 'sit-sentinel-allnull'
+    }
+
+    It 'Flags a situation with a single sentinel field as non-decomposed' {
+        $script:SentinelResult.NonDecomposedIds | Should -Contain 'sit-sentinel-onefield'
+    }
+
+    It 'Does NOT flag prose that merely contains sentinel words as substrings (whole-value match only)' {
+        $script:SentinelResult.NonDecomposedIds | Should -Not -Contain 'sit-sentinel-substring'
+    }
+
+    It 'Counts exactly the two sentinel-bearing situations as non-decomposed' {
+        # 4 nodes: clean + substring pass; allnull + onefield fail. None are empty/deprecated.
+        $script:SentinelResult.NonDecomposed | Should -Be 2
+        $script:SentinelResult.Pass | Should -Be 2
+        $script:SentinelResult.Empty | Should -Be 0
+    }
+}
+
 Describe 'Ingestion no-op confirmation (t/1312 Part 2)' -Tag 'taxonomy' {
 
     It 'No PowerShell public cmdlet writes new situation nodes (grep sanity)' {

@@ -44,6 +44,15 @@ function Test-SituationBdiDecomposition {
         $pass = 0; $empty = 0; $nonDecomposed = 0; $nonDep = 0; $deprecated = 0
         $nonDecomposedIds = [System.Collections.Generic.List[string]]::new()
         $emptyIds         = [System.Collections.Generic.List[string]]::new()
+
+        # Null-sentinel placeholders (t/3018, CL-owned predicate): a B/D/I field
+        # whose whole value is one of these is non-empty but carries no real
+        # interpretation, so it must fail decomposition like a blank field.
+        # Case-insensitive, whole-value match only (a sentence containing 'none'
+        # is not a sentinel).
+        $nullSentinels = [System.Collections.Generic.HashSet[string]]::new(
+            [string[]]@('null', 'none', 'n/a', 'tbd', '-'),
+            [System.StringComparer]::OrdinalIgnoreCase)
     }
 
     process {
@@ -86,10 +95,14 @@ function Test-SituationBdiDecomposition {
                 if (-not $p -or -not $p.PSObject.Properties['belief'] -or -not $p.PSObject.Properties['desire'] -or -not $p.PSObject.Properties['intention']) {
                     $allOk = $false; break
                 }
-                $b = if ($p.belief)    { [string]$p.belief    } else { '' }
-                $d = if ($p.desire)    { [string]$p.desire    } else { '' }
-                $i = if ($p.intention) { [string]$p.intention } else { '' }
-                if (-not $b.Trim() -or -not $d.Trim() -or -not $i.Trim()) { $allOk = $false; break }
+                $b = if ($p.belief)    { ([string]$p.belief).Trim()    } else { '' }
+                $d = if ($p.desire)    { ([string]$p.desire).Trim()    } else { '' }
+                $i = if ($p.intention) { ([string]$p.intention).Trim() } else { '' }
+                # Fail on empty-after-Trim OR a null-sentinel whole-value (t/3018).
+                if (-not $b -or -not $d -or -not $i -or
+                    $nullSentinels.Contains($b) -or $nullSentinels.Contains($d) -or $nullSentinels.Contains($i)) {
+                    $allOk = $false; break
+                }
             }
             if ($allOk) {
                 $pass++
