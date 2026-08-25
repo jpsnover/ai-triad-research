@@ -26,6 +26,9 @@
       via enrichment.situation-bdi-decomposition, merged with CL sign-off.
     - 435->440 (t/2323): sit-471..475 added with flat-string interpretations; decomposed
       via enrichment.situation-bdi-decomposition.
+    - 440->442 (t/3009): sit-476/477 added by pipeline sync (78c943cf) with flat-string
+      interpretations; CL-authored per-POV BDI decomposition (t/3009#1). Recurring
+      pipeline gap tracked as t/3011 (decompose-on-emit).
     When this trip-wire fires, run the backfill on the flagged ids, then bump the count.
 #>
 
@@ -45,9 +48,9 @@ Describe 'Situation BDI-decomposition live-data baseline (t/1312, relocated t/23
         $script:BdiCheck | Should -Not -BeNullOrEmpty
     }
 
-    It 'Live-data baseline: 440 / 440 non-deprecated situations pass, 1 exempt (post-t/2323 backfill)' {
+    It 'Live-data baseline: 442 / 442 non-deprecated situations pass, 1 exempt (post-t/3009 backfill)' {
         $script:BdiCheck.Status | Should -Be 'pass'
-        $script:BdiCheck.Detail | Should -Match '440 / 440'
+        $script:BdiCheck.Detail | Should -Match '442 / 442'
         $script:BdiCheck.Detail | Should -Match '1 exempt via \[DEPRECATED\] prefix'
     }
 
