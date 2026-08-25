@@ -81,6 +81,25 @@ export async function generateViaClaude(
     }
     return parseClaudeResponse(retryBodyText);
   }
+  // t/3020: Claude returns HTTP 400 `invalid_request_error` for MONTHLY QUOTA EXHAUSTION (not an
+  // auth/model problem) — e.g. "You have reached your specified API usage limits. You will regain
+  // access on 2026-09-01 at 00:00 UTC." Without this branch it falls into the generic error below,
+  // whose "Check your API key / Verify the model ID" steps misattribute the cause (t/2985 pattern
+  // class). Derive the Resolve steps from the actual condition: wait for reset / upgrade / switch.
+  if (response.status === 400 && bodyText.includes('invalid_request_error') && /usage limits|regain access/i.test(bodyText)) {
+    const resetMatch = bodyText.match(/regain access on ([^"]+)/i);
+    const resetDate = resetMatch ? resetMatch[1].trim().replace(/\.$/, '') : 'the date shown in the error message';
+    throw new ActionableError({
+      goal: 'Generate text via Claude',
+      problem: `Monthly API usage limit reached — access resets on ${resetDate}`,
+      location: 'ai-client.generateViaClaude',
+      nextSteps: [
+        `Wait until ${resetDate} for the quota to reset automatically`,
+        'Upgrade the plan at console.anthropic.com',
+        'Switch to a different backend (Gemini or Groq) in Settings → AI Model',
+      ],
+    });
+  }
   if (!response.ok) {
     throw new ActionableError({
       goal: 'Generate text via Claude',
