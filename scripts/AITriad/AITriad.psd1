@@ -38,6 +38,7 @@
         'Repair-PovLineage'
         'Repair-PovAttributes'
         'Repair-SituationReciprocity'
+        'Add-SituationEvidenceLink'
         'Export-AggregatedCruxes'
         'Export-TriadDebateBrief'
         'Test-BriefNarrationStage'
