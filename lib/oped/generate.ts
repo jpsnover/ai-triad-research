@@ -262,10 +262,10 @@ async function runVoiceGeneration(
 
   // t/3013: an empty AI response comes back as '' WITHOUT throwing — e.g. Gemini returns a
   // candidate with empty/absent text parts on a safety block or certain truncations, and
-  // generateViaGemini joins those to ''. Left unguarded, JSON.parse('') below fails into the
-  // raw-text fallback, so the voice returns status:'complete' with an empty body — the blank
-  // op-ed tab with no error state. Throw here so runVoice's catch marks the voice failed and
-  // emits voice_failed (which the OpEdArticle failed-state notice then renders).
+  // generateViaGemini joins those to ''. Left unguarded, JSON.parse('') below would throw and
+  // the voice would finalize status:'complete' with the raw garbage as the body. Throw here so
+  // runVoice's catch marks the voice failed and emits voice_failed (which the OpEdArticle
+  // failed-state notice then renders).
   if (!rawText.trim()) {
     throw new Error(`Voice generation returned empty response (pov=${pov})`);
   }
@@ -273,8 +273,14 @@ async function runVoiceGeneration(
   let parsed: EssayResponse;
   try {
     parsed = JSON.parse(stripCodeFences(rawText)) as EssayResponse;
-  } catch {
-    parsed = { headline: '', body_markdown: rawText, word_count: undefined };
+  } catch (err) {
+    // Same failure class as t/3013: the raw-text fallback stores rawText (including ```json
+    // fences) as body_markdown, which <Markdown> renders as a monospace code block and the
+    // headline is always empty. A truncated AI response (token-budget exhaustion) is the
+    // common trigger — JSON.parse fails on the unterminated string. Throw so runVoice's catch
+    // marks the voice status:'failed' and emits voice_failed, which the existing
+    // OpEdArticle failed-state notice renders cleanly instead of showing raw JSON.
+    throw new Error(`Voice generation returned invalid JSON (pov=${pov}): ${String(err)}`);
   }
 
   const body = parsed.body_markdown ?? '';
