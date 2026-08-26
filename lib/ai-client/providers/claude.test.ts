@@ -27,6 +27,16 @@ const QUOTA_BODY = JSON.stringify({
   message: 'You have reached your specified API usage limits. You will regain access on 2026-09-01 at 00:00 UTC.',
 });
 
+// The REAL Anthropic 400 wire format nests the code under `error` (t/3028): the detection is
+// substring-based, so it must fire on the nested envelope too — this locks that against a refactor.
+const QUOTA_BODY_NESTED = JSON.stringify({
+  type: 'error',
+  error: {
+    type: 'invalid_request_error',
+    message: 'You have reached your specified API usage limits. You will regain access on 2026-09-01 at 00:00 UTC.',
+  },
+});
+
 async function callFor(bodyText: string, status: number): Promise<ActionableError> {
   return generateViaClaude(makeFetch(bodyText, status), 'p', 'claude-x', 'key', { timeoutMs: 5000 })
     .then(() => { throw new Error('expected generateViaClaude to throw'); })
@@ -44,6 +54,17 @@ describe('generateViaClaude — quota-exhaustion error mapping (t/3020)', () => 
     expect(steps).toContain('console.anthropic.com');         // upgrade path
     expect(steps.toLowerCase()).toContain('gemini');          // switch backend
     expect(steps).not.toContain('Check your API key');        // NOT the misleading generic step
+  });
+
+  it('maps the REAL nested Anthropic 400 envelope (error.type=invalid_request_error) to the same quota steps (t/3028)', async () => {
+    const err = await callFor(QUOTA_BODY_NESTED, 400);
+    expect(err).toBeInstanceOf(ActionableError);
+    expect(err.problem).toContain('Monthly API usage limit reached');
+    expect(err.problem).toContain('2026-09-01 at 00:00 UTC'); // reset date extracted from the nested message
+    const steps = err.nextSteps.join(' ');
+    expect(steps).toContain('2026-09-01 at 00:00 UTC');
+    expect(steps).not.toContain('Check your API key');        // detection fires on the nested wire format too
+    expect(steps).not.toContain('Verify the model ID');
   });
 
   it('keeps the generic Resolve steps for a non-quota 400 (branch is narrow)', async () => {
