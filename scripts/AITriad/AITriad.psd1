@@ -51,6 +51,7 @@
         'Approve-Edge'
         'Approve-TaxonomyProposal'
         'Get-Edge'
+        'Get-Situation'
         'Set-Edge'
         'Invoke-GraphQuery'
         'Get-ConflictEvolution'

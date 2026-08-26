@@ -18,6 +18,7 @@ Get-Help <CmdletName> -Full                     # full docs for any cmdlet
 | `Get-Tax` | Load full taxonomy (nodes, edges, metadata) |
 | `Get-GraphNode` | Look up a specific node by ID |
 | `Get-Edge` | Fetch edges (filter by source/target/type) |
+| `Get-Situation` | List/filter situations (by id/label/text/linked-node/camp); reports per-POV supporting-evidence counts derived from `linked_nodes` |
 | `Get-Policy` | Look up policy actions from the registry |
 | `Get-TaxonomyHealth` | Check node/edge counts, orphans, structural issues |
 | `Compare-Taxonomy` | Diff two taxonomy states |
