@@ -105,6 +105,9 @@ export function SituationDebatePanel({ node, onLaunched }: SituationDebatePanelP
 
       setActiveTab('debate');
       onLaunched();
+      // Kick off the first clarification turn — situation debates auto-start generation.
+      // runClarification handles its own error surfacing internally.
+      void store.runClarification();
     } catch (err) {
       getGlobalRecorder()?.record({ type: 'system.error', component: 'situation-debate', level: 'error', message: 'debate launch failed', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
     } finally {

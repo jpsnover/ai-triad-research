@@ -240,8 +240,18 @@ export const createClarificationSlice: StateCreator<DebateStore, [], [], Clarifi
     if (!activeDebate) return;
 
     // Guard: don't run if already generating or if clarification already exists
-    if (debateGenerating) return;
-    if (activeDebate.transcript.some(e => e.type === 'clarification')) return;
+    if (debateGenerating) {
+      if (activeDebate.source_type === 'situations') {
+        getGlobalRecorder()?.record({ type: 'situation_debate.generation_skipped', component: 'situation-debate', level: 'info', debate_id: activeDebate.id, message: 'Situation debate generation skipped — already generating', data: { reason: 'already_generating' } });
+      }
+      return;
+    }
+    if (activeDebate.transcript.some(e => e.type === 'clarification')) {
+      if (activeDebate.source_type === 'situations') {
+        getGlobalRecorder()?.record({ type: 'situation_debate.generation_skipped', component: 'situation-debate', level: 'info', debate_id: activeDebate.id, message: 'Situation debate generation skipped — clarification exists', data: { reason: 'clarification_exists' } });
+      }
+      return;
+    }
 
     const isStillValid = createDebateGuard(get);
     set({ debateError: null, debateWarnings: [] });
@@ -255,6 +265,9 @@ export const createClarificationSlice: StateCreator<DebateStore, [], [], Clarifi
       : (activeDebate.source_type === 'document' || activeDebate.source_type === 'url')
         ? documentClarificationPrompt(topic, activeDebate.source_content, activeDebate.audience, lineageCtx)
         : buildClarificationPrompt(topic, activeDebate.source_content || undefined, activeDebate.audience, lineageCtx);
+    if (activeDebate.source_type === 'situations') {
+      getGlobalRecorder()?.record({ type: 'situation_debate.generation_trigger', component: 'situation-debate', level: 'info', debate_id: activeDebate.id, message: 'Situation debate generation triggered', data: { model, phase: 'clarification' } });
+    }
     try {
       const { text } = await generateTextWithProgress(prompt, model, `Generating clarifying questions (${model})`, set);
       if (!isStillValid()) { getGlobalRecorder()?.record({ type: 'debate.lifecycle', component: 'debate-store', level: 'warn', debate_id: activeDebate?.id, message: 'runClarification aborted: guard failed after question generation' }); return; }
@@ -287,6 +300,9 @@ export const createClarificationSlice: StateCreator<DebateStore, [], [], Clarifi
         message: 'Failed to generate clarifying questions',
         error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
+      if (activeDebate?.source_type === 'situations') {
+        getGlobalRecorder()?.record({ type: 'situation_debate.generation_error', component: 'situation-debate', level: 'error', debate_id: activeDebate.id, message: 'Situation debate generation failed', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+      }
       addTranscriptEntry({
         type: 'system',
         speaker: 'system',
