@@ -30,7 +30,9 @@ function Get-Situation {
     .PARAMETER First
         Return only the first N matching situations.
     .PARAMETER RepoRoot
-        Path to the repository root.
+        Test/override hook only. When set, situations.json is read from
+        <RepoRoot>/taxonomy/Origin. Left empty in production so the path resolves via
+        Get-TaxonomyDir (→ .aitriad.json → the data repo, where situations.json lives).
     .EXAMPLE
         Get-Situation
         # All situations.
@@ -79,7 +81,11 @@ function Get-Situation {
 
         [int]$First = 0,
 
-        [string]$RepoRoot = $script:RepoRoot
+        # Test/override hook only — left empty in production so the taxonomy dir resolves via
+        # Get-TaxonomyDir (→ .aitriad.json → data repo). Defaulting to the code-repo root sent
+        # the reader to <code-repo>\taxonomy\Origin, which does not exist — situations.json
+        # lives in the DATA repo — so Get-Situation always reported "No situations.json found".
+        [string]$RepoRoot = ''
     )
 
     Set-StrictMode -Version Latest
