@@ -239,9 +239,17 @@ export const createClarificationSlice: StateCreator<DebateStore, [], [], Clarifi
     const { activeDebate, addTranscriptEntry, saveDebate, debateGenerating } = get();
     if (!activeDebate) return;
 
-    // Guard: don't run if already generating or if clarification already exists
-    if (debateGenerating) return;
-    if (activeDebate.transcript.some(e => e.type === 'clarification')) return;
+    // Guard: don't run if already generating or if clarification already exists.
+    // t/3032: emit a skipped marker at each guard so a dump distinguishes
+    // "trigger fired but declined to generate (with reason)" from "never fired".
+    if (debateGenerating) {
+      getGlobalRecorder()?.record({ type: 'situation_debate.generation_skipped', component: 'debate-store', level: 'info', debate_id: activeDebate.id, message: 'situation_debate.generation_skipped', data: { reason: 'already_generating' } });
+      return;
+    }
+    if (activeDebate.transcript.some(e => e.type === 'clarification')) {
+      getGlobalRecorder()?.record({ type: 'situation_debate.generation_skipped', component: 'debate-store', level: 'info', debate_id: activeDebate.id, message: 'situation_debate.generation_skipped', data: { reason: 'clarification_exists' } });
+      return;
+    }
 
     const isStillValid = createDebateGuard(get);
     set({ debateError: null, debateWarnings: [] });
@@ -256,6 +264,9 @@ export const createClarificationSlice: StateCreator<DebateStore, [], [], Clarifi
         ? documentClarificationPrompt(topic, activeDebate.source_content, activeDebate.audience, lineageCtx)
         : buildClarificationPrompt(topic, activeDebate.source_content || undefined, activeDebate.audience, lineageCtx);
     try {
+      // t/3032: the clarification trigger point — emitted immediately before the first AI call
+      // dispatches, so a dump shows the trigger fired (vs. never firing → absent ai.request).
+      getGlobalRecorder()?.record({ type: 'situation_debate.generation_trigger', component: 'debate-store', level: 'info', debate_id: activeDebate.id, message: 'situation_debate.generation_trigger', data: { model, phase: 'clarification' } });
       const { text } = await generateTextWithProgress(prompt, model, `Generating clarifying questions (${model})`, set);
       if (!isStillValid()) { getGlobalRecorder()?.record({ type: 'debate.lifecycle', component: 'debate-store', level: 'warn', debate_id: activeDebate?.id, message: 'runClarification aborted: guard failed after question generation' }); return; }
       let questions: string[];
@@ -287,6 +298,10 @@ export const createClarificationSlice: StateCreator<DebateStore, [], [], Clarifi
         message: 'Failed to generate clarifying questions',
         error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
+      // t/3032: dedicated observability marker (greppable by type) so a dump distinguishes
+      // trigger-fired-and-failed from trigger-never-fired. The ADR-003 system.error above
+      // carries the stack; this marker carries the spec's { debate_id, error.name, error.message }.
+      getGlobalRecorder()?.record({ type: 'situation_debate.generation_error', component: 'debate-store', level: 'error', debate_id: activeDebate?.id, message: 'situation_debate.generation_error', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
       addTranscriptEntry({
         type: 'system',
         speaker: 'system',
