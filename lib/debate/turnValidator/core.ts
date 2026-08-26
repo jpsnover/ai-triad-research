@@ -433,6 +433,16 @@ function parseJudgeVerdict(raw: string): JudgeVerdict {
   }
 }
 
+// ── Judge failure classifier ────────────────────────────
+
+function classifyJudgeFailureReason(err: unknown): string {
+  const msg = String(err);
+  if (/quota|rate.?limit|429/i.test(msg)) return 'quota_exhausted';
+  if (/unavailable|overload|503/i.test(msg)) return 'model_unavailable';
+  if (/network|ECONNRESET|ETIMEDOUT|fetch failed/i.test(msg)) return 'network_error';
+  return 'unknown';
+}
+
 // ── Orchestrator ─────────────────────────────────────────
 
 export async function validateTurn(p: ValidateTurnParams): Promise<TurnValidation> {
@@ -480,7 +490,7 @@ export async function validateTurn(p: ValidateTurnParams): Promise<TurnValidatio
       judge = parseJudgeVerdict(raw);
       judgeUsed = true;
       judgeModel = p.config.judgeModel;
-    } catch {
+    } catch (primaryErr) {
       // Primary judge failed (e.g. missing Anthropic key) — try fallback model.
       if (p.callJudgeFallback) {
         try {
@@ -488,9 +498,12 @@ export async function validateTurn(p: ValidateTurnParams): Promise<TurnValidatio
           judge = parseJudgeVerdict(raw);
           judgeUsed = true;
           judgeModel = 'fallback';
-        } catch {
+        } catch (fallbackErr) {
+          getGlobalRecorder()?.record({ type: 'judge.skipped', component: 'turn-validator', level: 'warn', message: 'Judge abandoned — primary and fallback both failed', data: { reason: classifyJudgeFailureReason(fallbackErr), model: p.config.judgeModel, speaker: p.speaker, round: p.round, phase: p.phase } });
           judge = null;
         }
+      } else {
+        getGlobalRecorder()?.record({ type: 'judge.skipped', component: 'turn-validator', level: 'warn', message: 'Judge abandoned — primary failed, no fallback', data: { reason: classifyJudgeFailureReason(primaryErr), model: p.config.judgeModel, speaker: p.speaker, round: p.round, phase: p.phase } });
       }
     }
   }
