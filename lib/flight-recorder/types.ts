@@ -154,6 +154,8 @@ export type EventType =
   | 'sw.update_found'
   // Embed / external content
   | 'embed.load-failure'
+  // Judge (turn validator)
+  | 'judge.skipped'
   // System
   | 'system.error'
   | 'system.info'

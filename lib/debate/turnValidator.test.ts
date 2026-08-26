@@ -1,7 +1,12 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+
+const mockRecord = vi.hoisted(() => vi.fn());
+vi.mock('../flight-recorder/index.js', () => ({
+  getGlobalRecorder: () => ({ record: mockRecord }),
+}));
 import { resolveTurnValidationConfig, validateTurn, validatePlanStage, validateCiteStage, validateDraftStage, checkDirectiveContentCompliance, isFillerRelevance, parseDraftQualityResult, checkBoundaryConcession } from './turnValidator.js';
 import type { ValidateTurnParams } from './turnValidator.js';
 import type {
@@ -997,6 +1002,37 @@ describe('judge parse failures', () => {
     // With no judge and no Stage-A errors, advancement.pass depends on judgeAttempted
     // judgeAttempted=true but judge=null, so advancement.pass = stageA.pass && !judgeAttempted = false
     expect(r.dimensions.advancement.pass).toBe(false);
+  });
+
+  describe('judge.skipped FR event', () => {
+    beforeEach(() => { mockRecord.mockClear(); });
+
+    it('emits judge.skipped with reason=quota_exhausted when primary fails with quota error and no fallback', async () => {
+      const cfg = resolveTurnValidationConfig({ enabled: true, deterministicOnly: false });
+      const p = makeParams({
+        config: cfg,
+        callJudge: async () => { throw new Error('429 quota exhausted'); },
+      });
+      await validateTurn(p);
+      const skipped = mockRecord.mock.calls.find(([e]) => e.type === 'judge.skipped');
+      expect(skipped).toBeDefined();
+      expect(skipped![0].data.reason).toBe('quota_exhausted');
+      expect(skipped![0].data.model).toBe(cfg.judgeModel);
+    });
+
+    it('emits judge.skipped when both primary and fallback fail', async () => {
+      const p = makeParams({
+        config: resolveTurnValidationConfig({ enabled: true, deterministicOnly: false }),
+        callJudge: async () => { throw new Error('primary down'); },
+        callJudgeFallback: async () => { throw new Error('fallback down'); },
+      });
+      await validateTurn(p);
+      const skipped = mockRecord.mock.calls.find(([e]) => e.type === 'judge.skipped');
+      expect(skipped).toBeDefined();
+      expect(skipped![0].level).toBe('warn');
+      expect(skipped![0].data.speaker).toBeDefined();
+      expect(skipped![0].data.round).toBeDefined();
+    });
   });
 });
 
