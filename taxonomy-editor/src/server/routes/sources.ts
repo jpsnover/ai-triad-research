@@ -203,7 +203,7 @@ export function registerSourcesRoutes(r: Router, _ctx: ServerCtx): void {
         error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
       log.api.warn({ err, docId }, 'source-document file serve failed');
-      error(res, String(err));
+      error(res, String(err), (err as { statusCode?: number }).statusCode ?? 500);
     }
   });
 

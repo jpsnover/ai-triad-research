@@ -103,6 +103,7 @@ export function SituationDebatePanel({ node, onLaunched }: SituationDebatePanelP
         await store.saveDebate('SituationDebatePanel:applyConfig');
       }
 
+      void store.runClarification();
       setActiveTab('debate');
       onLaunched();
       // Kick off the first clarification turn — situation debates auto-start generation.

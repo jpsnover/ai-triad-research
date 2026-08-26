@@ -336,14 +336,18 @@ export function CommunityReviewViewer({ groupId, onActionComplete }: CommunityRe
       setToast('Submission promoted');
       onActionComplete?.();
     } catch (err) {
+      // adminReviewAction throws "POST action failed: HTTP {N}" — extract via regex to
+      // avoid substring false-positives. Degrades gracefully to generic toast on format drift.
+      const httpStatus = /HTTP (\d+)/.exec((err as Error).message ?? '')?.[1];
+      const is409 = httpStatus === '409';
       getGlobalRecorder()?.record({
         type: 'system.error',
         component: 'CommunityReviewViewer',
-        level: 'error',
-        message: 'Failed to promote community submission',
+        level: is409 ? 'info' : 'error',
+        message: is409 ? 'Promote 409 — already promoted (benign)' : 'Failed to promote community submission',
         error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
-      setToast(`Error: ${(err as Error).message}`);
+      setToast(is409 ? 'Already promoted — no action needed.' : `Error: ${(err as Error).message}`);
     } finally {
       setBusy(null);
       setTimeout(() => setToast(null), 4000);

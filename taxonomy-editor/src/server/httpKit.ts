@@ -48,6 +48,7 @@ function recordServerError(route: string, status: number, message: string, cause
     level: 'error',
     message: `${route}: server error (detail withheld from client)`,
     error: { name: (cause as Error)?.name ?? 'Error', message, stack: (cause as Error)?.stack },
+    data: { response_status: status },
   });
 }
 

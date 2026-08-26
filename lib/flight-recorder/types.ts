@@ -131,6 +131,7 @@ export type EventType =
   | 'lookahead.regen'
   // Situation
   | 'situation.divergence-summary'
+  // Situation-debate clarification startup observability (t/3032)
   | 'situation_debate.generation_trigger'
   | 'situation_debate.generation_skipped'
   | 'situation_debate.generation_error'
@@ -157,6 +158,8 @@ export type EventType =
   | 'sw.update_found'
   // Embed / external content
   | 'embed.load-failure'
+  // Judge (turn validator)
+  | 'judge.skipped'
   // System
   | 'system.error'
   | 'system.info'

@@ -67,7 +67,7 @@ export function registerCommunityRoutes(r: Router, ctx: ServerCtx): void {
         message: 'Failed to list community chats',
         error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
-      error(res, String(err));
+      error(res, String(err), (err as { statusCode?: number }).statusCode ?? 500);
     }
   });
 
@@ -102,7 +102,7 @@ export function registerCommunityRoutes(r: Router, ctx: ServerCtx): void {
         message: 'Failed to list community debates',
         error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
-      error(res, String(err));
+      error(res, String(err), (err as { statusCode?: number }).statusCode ?? 500);
     }
   });
 
@@ -140,7 +140,7 @@ export function registerCommunityRoutes(r: Router, ctx: ServerCtx): void {
         message: 'Failed to list community opeds',
         error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
-      error(res, String(err));
+      error(res, String(err), (err as { statusCode?: number }).statusCode ?? 500);
     }
   });
 
