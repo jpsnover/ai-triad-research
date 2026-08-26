@@ -18,7 +18,7 @@ export function resolveTurnValidationConfig(
     enabled: src.enabled ?? true,
     maxRetries: clamped as 0 | 1 | 2 | 3 | 4,
     deterministicOnly: src.deterministicOnly ?? false,
-    judgeModel: src.judgeModel ?? 'claude-haiku-4-5-20251001',
+    judgeModel: src.judgeModel ?? 'gemini-3.5-flash-lite',
     sampleRate: {
       'confrontation': src.sampleRate?.['confrontation'] ?? 1,
       argumentation: src.sampleRate?.argumentation ?? 1,
