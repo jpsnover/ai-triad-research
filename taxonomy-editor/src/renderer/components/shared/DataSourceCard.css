@@ -1,0 +1,17 @@
+/* DataSourceCard styles — owned by the component that uses them (t/3025).
+   Moved from debate/DebateTab.css, which only loads on the debate tab; DataSourceCard
+   renders inside the chat Prompt Inspector, so the RAG node-count preview was unstyled
+   there (same failure class as the t/3024 .ga-* incident). */
+
+/* RAG parameter preview (RAG-4) */
+.pi-node-count-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 4px 0;
+  border-bottom: 1px solid var(--border-color);
+  margin-bottom: 4px;
+}
+.pi-node-count-main { font-size: var(--text-xs); font-weight: 500; }
+.pi-node-count-breakdown { font-size: var(--text-2xs); color: var(--text-muted); }
+.pi-node-count-breakdown s { opacity: 0.4; }

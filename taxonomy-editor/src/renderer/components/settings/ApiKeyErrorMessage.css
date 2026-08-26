@@ -1,0 +1,25 @@
+/* ApiKeyErrorMessage styles — owned by the component (t/3025).
+   `.api-key-error-link` moved from edge-browser/SimilarSearchPanel.css, which only
+   loads on the search surface; this message also renders in AnalysisPanel and other
+   non-search surfaces, so the link was unstyled there (t/3024 failure class).
+   `.search-error` is duplicated here (the component's container class) so the message
+   is fully styled everywhere — the search panel keeps its own copy. */
+
+.search-error {
+  font-size: var(--text-xs);
+  color: var(--danger);
+  padding: 4px 0;
+}
+
+.api-key-error-link {
+  background: none;
+  border: none;
+  color: var(--focus-ring);
+  text-decoration: underline;
+  cursor: pointer;
+  font-size: var(--text-xs);
+  padding: 0;
+}
+.api-key-error-link:hover {
+  color: var(--accent-hover, var(--focus-ring));
+}

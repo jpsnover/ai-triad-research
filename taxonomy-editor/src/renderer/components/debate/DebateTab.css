@@ -448,18 +448,8 @@
 .harvest-concession-speaker { color: var(--text-muted); white-space: nowrap; }
 .harvest-concession-text { color: var(--text-secondary); font-style: italic; }
 .harvest-concession-warning { font-size: var(--text-2xs); color: #dc2626; margin-top: 6px; padding: 4px 8px; border-left: 3px solid #dc2626; background: rgba(220, 38, 38, 0.05); }
-/* RAG parameter preview (RAG-4) */
-.pi-node-count-preview {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: 4px 0;
-  border-bottom: 1px solid var(--border-color);
-  margin-bottom: 4px;
-}
-.pi-node-count-main { font-size: var(--text-xs); font-weight: 500; }
-.pi-node-count-breakdown { font-size: var(--text-2xs); color: var(--text-muted); }
-.pi-node-count-breakdown s { opacity: 0.4; }
+/* RAG parameter preview (.pi-node-count-*) moved to shared/DataSourceCard.css
+   (t/3025) — owned by DataSourceCard, which renders in the chat Prompt Inspector. */
 /* Moderator diagnostics (t/160) */
 .diag-mod-candidates { margin: 4px 0; }
 .diag-mod-candidate { display: flex; gap: 8px; align-items: center; font-size: var(--text-xs); padding: 2px 0; }
