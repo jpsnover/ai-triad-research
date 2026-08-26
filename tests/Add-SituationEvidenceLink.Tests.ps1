@@ -164,3 +164,80 @@ Describe 'Add-SituationEvidenceLink — purge round-trip (t/3015)' -Tag 'taxonom
         } finally { Remove-Item -Path $root -Recurse -Force -ErrorAction SilentlyContinue }
     }
 }
+
+Describe 'Add-SituationEvidenceLink — collision-guard completeness (t/3030)' -Tag 'taxonomy' {
+    # The guard fires on ($linkedHas -or $refsHas). The t/3015 'COLLISION GUARD' test covers the
+    # SYMMETRIC authored link (present in BOTH directions). These add the ASYMMETRIC cases — an
+    # authored link present in only ONE direction — which are realistic: WS-A reciprocity can add an
+    # authored link on a single side after the proposal was snapshotted (cmdlet docstring; CL
+    # p/23#204). The guard must still skip: never overwrite, never stamp, and never silently
+    # "complete" the missing reciprocal edge (that repair is WS-A's job, not this cmdlet's).
+
+    It 'FIRE (asymmetric — situation side only): authored linked_nodes, no reverse ref → skipped, unstamped, reverse ref NOT added' {
+        $root = New-WsbFixture `
+            -Sits @( (New-SitNode 'sit-001' @('acc-beliefs-001')) ) `
+            -Acc  @( (New-PovNode 'acc-beliefs-001') )              # node has NO situation_refs (asymmetric)
+        $prop = New-Proposal $root @( (New-Link 'sit-001' 'acc' 'acc-beliefs-001' 0.7 1) )
+        try {
+            $sum = Add-SituationEvidenceLink -ProposalPath $prop -RepoRoot $root 6>$null
+            $sum.LinksAdded      | Should -Be 0
+            $sum.SkippedAuthored | Should -Be 1
+            $sit = Get-Sit $root 'sit-001'
+            @(@($sit.linked_nodes) | Where-Object { $_ -eq 'acc-beliefs-001' }).Count | Should -Be 1   # not duplicated
+            ($sit.PSObject.Properties['evidence_provenance']) | Should -BeNullOrEmpty                   # never stamped
+            $node = Get-Pov $root 'accelerationist' 'acc-beliefs-001'
+            @($node.situation_refs) | Should -Not -Contain 'sit-001'   # guard did NOT complete the reverse ref
+        } finally { Remove-Item -Path $root -Recurse -Force -ErrorAction SilentlyContinue }
+    }
+
+    It 'FIRE (asymmetric — node side only): authored situation_refs, no forward link → skipped, unstamped, forward link NOT added' {
+        # situation has NO linked_nodes; node carries an authored situation_ref (asymmetric).
+        $root = New-WsbFixture `
+            -Sits @( (New-SitNode 'sit-001') ) `
+            -Acc  @( (New-PovNode 'acc-beliefs-001' @('sit-001')) )
+        $prop = New-Proposal $root @( (New-Link 'sit-001' 'acc' 'acc-beliefs-001' 0.7 1) )
+        try {
+            $sum = Add-SituationEvidenceLink -ProposalPath $prop -RepoRoot $root 6>$null
+            $sum.LinksAdded      | Should -Be 0
+            $sum.SkippedAuthored | Should -Be 1
+            $sit = Get-Sit $root 'sit-001'
+            @($sit.linked_nodes) | Should -Not -Contain 'acc-beliefs-001'   # guard did NOT complete the forward link
+            ($sit.PSObject.Properties['evidence_provenance']) | Should -BeNullOrEmpty
+            $node = Get-Pov $root 'accelerationist' 'acc-beliefs-001'
+            @(@($node.situation_refs) | Where-Object { $_ -eq 'sit-001' }).Count | Should -Be 1   # authored ref not duplicated
+        } finally { Remove-Item -Path $root -Recurse -Force -ErrorAction SilentlyContinue }
+    }
+
+    It 'FIRE (symmetric): authored link in BOTH directions → skipped; the NODE side is also not duplicated (assertion the t/3015 test lacked)' {
+        $root = New-WsbFixture `
+            -Sits @( (New-SitNode 'sit-001' @('acc-beliefs-001')) ) `
+            -Acc  @( (New-PovNode 'acc-beliefs-001' @('sit-001')) )
+        $prop = New-Proposal $root @( (New-Link 'sit-001' 'acc' 'acc-beliefs-001' 0.7 1) )
+        try {
+            $sum = Add-SituationEvidenceLink -ProposalPath $prop -RepoRoot $root 6>$null
+            $sum.SkippedAuthored | Should -Be 1
+            $node = Get-Pov $root 'accelerationist' 'acc-beliefs-001'
+            @(@($node.situation_refs) | Where-Object { $_ -eq 'sit-001' }).Count | Should -Be 1   # node-side authored ref not duplicated
+        } finally { Remove-Item -Path $root -Recurse -Force -ErrorAction SilentlyContinue }
+    }
+
+    It 'CLEAN (control): a genuinely-new pair alongside an asymmetric authored one → new added+stamped, authored untouched' {
+        $root = New-WsbFixture `
+            -Sits @( (New-SitNode 'sit-001' @('acc-beliefs-001')) ) `
+            -Acc  @( (New-PovNode 'acc-beliefs-001'), (New-PovNode 'acc-beliefs-002') )
+        $prop = New-Proposal $root @(
+            (New-Link 'sit-001' 'acc' 'acc-beliefs-001' 0.7 1),   # asymmetric authored → skipped
+            (New-Link 'sit-001' 'acc' 'acc-beliefs-002' 0.8 2)    # brand-new → added + stamped
+        )
+        try {
+            $sum = Add-SituationEvidenceLink -ProposalPath $prop -RepoRoot $root 6>$null
+            $sum.LinksAdded      | Should -Be 1
+            $sum.SkippedAuthored | Should -Be 1
+            $sit = Get-Sit $root 'sit-001'
+            @($sit.linked_nodes) | Should -Contain 'acc-beliefs-002'
+            $sit.evidence_provenance.'acc-beliefs-002'.origin | Should -Be 'machine'
+            # the authored pair got no machine stamp
+            ($sit.evidence_provenance.PSObject.Properties['acc-beliefs-001']) | Should -BeNullOrEmpty
+        } finally { Remove-Item -Path $root -Recurse -Force -ErrorAction SilentlyContinue }
+    }
+}
