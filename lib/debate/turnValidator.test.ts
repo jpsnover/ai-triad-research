@@ -94,7 +94,7 @@ describe('resolveTurnValidationConfig', () => {
     expect(c.enabled).toBe(true);
     expect(c.maxRetries).toBe(0);
     expect(c.deterministicOnly).toBe(false);
-    expect(c.judgeModel).toBe('claude-haiku-4-5-20251001');
+    expect(c.judgeModel).toBe('gemini-3.5-flash-lite');
     expect(c.sampleRate['confrontation']).toBe(1);
     expect(c.sampleRate.argumentation).toBe(1);
     expect(c.sampleRate.concluding).toBe(1);
