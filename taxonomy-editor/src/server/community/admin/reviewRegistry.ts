@@ -213,7 +213,7 @@ export async function executeReviewAction(action: ReviewAction): Promise<void> {
     getGlobalRecorder()?.record({
       type: 'system.error',
       component: 'admin-review',
-      level: 'error',
+      level: ((err as { statusCode?: number }).statusCode ?? 500) < 500 ? 'warn' : 'error',
       message: `Review handler "${handler.domain}" failed during executeAction:${action.action}`,
       error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
     });

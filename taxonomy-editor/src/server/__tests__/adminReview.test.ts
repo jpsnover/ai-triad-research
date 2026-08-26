@@ -202,6 +202,23 @@ describe('admin review registry', () => {
     await expect(getReviewDetail('ghost:u1')).rejects.toThrow(/ghost/);
   });
 
+  // t/3034 regression: err.statusCode must survive executeReviewAction so the
+  // route handler propagates 409 → HTTP 409 (not 500 from the two-arg error())
+  it('preserves err.statusCode through executeReviewAction (double-submit → 409 not 500)', async () => {
+    const alreadyApproved = Object.assign(new Error('Submission already approved'), { statusCode: 409 });
+    registerReviewHandler({
+      domain: 'calibration',
+      async getPendingItems() { return []; },
+      async getDetailForViewer() { return {}; },
+      async executeAction() { throw alreadyApproved; },
+    });
+    const caught = await executeReviewAction({
+      domain: 'calibration', groupId: 'calibration:u1', action: 'promote', itemIds: ['x'],
+    }).catch(e => e);
+    expect(caught).toBe(alreadyApproved);
+    expect((caught as { statusCode?: number }).statusCode).toBe(409);
+  });
+
   // AC#3 — admin middleware
   it('rejects non-admin callers with 403', () => {
     const m = mockRes();

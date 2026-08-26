@@ -176,7 +176,7 @@ export function registerAdminRoutes(r: Router, ctx: ServerCtx): void {
         message: 'Failed to list community submissions',
         error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
-      error(res, String(err));
+      error(res, String(err), (err as { statusCode?: number }).statusCode ?? 500);
     }
   });
 
@@ -229,7 +229,7 @@ export function registerAdminRoutes(r: Router, ctx: ServerCtx): void {
         error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
       log.api.warn({ err }, 'calibration pending failed');
-      error(res, String(err));
+      error(res, String(err), (err as { statusCode?: number }).statusCode ?? 500);
     }
   });
 
@@ -257,7 +257,7 @@ export function registerAdminRoutes(r: Router, ctx: ServerCtx): void {
         error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
       log.api.warn({ err }, 'calibration promote failed');
-      error(res, String(err));
+      error(res, String(err), (err as { statusCode?: number }).statusCode ?? 500);
     }
   });
 
@@ -280,7 +280,7 @@ export function registerAdminRoutes(r: Router, ctx: ServerCtx): void {
         error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
       log.api.warn({ err }, 'calibration reject failed');
-      error(res, String(err));
+      error(res, String(err), (err as { statusCode?: number }).statusCode ?? 500);
     }
   });
 
@@ -407,7 +407,7 @@ export function registerAdminRoutes(r: Router, ctx: ServerCtx): void {
         error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
       log.api.warn({ err }, 'admin review queue failed');
-      error(res, String(err));
+      error(res, String(err), (err as { statusCode?: number }).statusCode ?? 500);
     }
   });
 
@@ -424,7 +424,7 @@ export function registerAdminRoutes(r: Router, ctx: ServerCtx): void {
         error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
       log.api.warn({ err }, 'admin review stats failed');
-      error(res, String(err));
+      error(res, String(err), (err as { statusCode?: number }).statusCode ?? 500);
     }
   });
 
@@ -442,7 +442,7 @@ export function registerAdminRoutes(r: Router, ctx: ServerCtx): void {
         error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
       log.api.warn({ err }, 'admin review detail failed');
-      error(res, String(err));
+      error(res, String(err), (err as { statusCode?: number }).statusCode ?? 500);
     }
   });
 
@@ -459,12 +459,12 @@ export function registerAdminRoutes(r: Router, ctx: ServerCtx): void {
       getGlobalRecorder()?.record({
         type: 'system.error',
         component: 'server',
-        level: 'error',
+        level: ((err as { statusCode?: number }).statusCode ?? 500) < 500 ? 'warn' : 'error',
         message: 'Operation failed',
         error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
       log.api.warn({ err }, 'admin review action failed');
-      error(res, String(err));
+      error(res, String(err), (err as { statusCode?: number }).statusCode ?? 500);
     }
   });
 
@@ -501,7 +501,7 @@ export function registerAdminRoutes(r: Router, ctx: ServerCtx): void {
       json(res, { ok: true, id: entry.id });
     } catch (err) {
       getGlobalRecorder()?.record({ type: 'system.error', component: 'server', level: 'error', message: 'Failed to store feedback', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
-      error(res, String(err));
+      error(res, String(err), (err as { statusCode?: number }).statusCode ?? 500);
     }
   });
 
@@ -537,7 +537,7 @@ export function registerAdminRoutes(r: Router, ctx: ServerCtx): void {
         error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
       log.api.warn({ err }, 'admin feedback list failed');
-      error(res, String(err));
+      error(res, String(err), (err as { statusCode?: number }).statusCode ?? 500);
     }
   });
 
@@ -563,7 +563,7 @@ export function registerAdminRoutes(r: Router, ctx: ServerCtx): void {
       json(res, { ok: true, id: entry.id });
     } catch (err) {
       getGlobalRecorder()?.record({ type: 'system.error', component: 'server', level: 'error', message: 'Failed to store error report', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
-      error(res, String(err));
+      error(res, String(err), (err as { statusCode?: number }).statusCode ?? 500);
     }
   });
 
@@ -595,7 +595,7 @@ export function registerAdminRoutes(r: Router, ctx: ServerCtx): void {
         message: 'Failed to build admin status report',
         error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
-      error(res, String(err));
+      error(res, String(err), (err as { statusCode?: number }).statusCode ?? 500);
     }
   });
 
@@ -753,7 +753,7 @@ export function registerAdminRoutes(r: Router, ctx: ServerCtx): void {
       json(res, { ok: true });
     } catch (err) {
       getGlobalRecorder()?.record({ type: 'system.error', component: 'server', level: 'error', message: 'Failed to write telemetry event', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
-      error(res, String(err));
+      error(res, String(err), (err as { statusCode?: number }).statusCode ?? 500);
     }
   });
 
@@ -813,7 +813,7 @@ export function registerAdminRoutes(r: Router, ctx: ServerCtx): void {
         message: 'Failed to build telemetry summaries',
         error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
-      error(res, String(err));
+      error(res, String(err), (err as { statusCode?: number }).statusCode ?? 500);
     }
   });
 
