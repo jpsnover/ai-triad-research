@@ -36,18 +36,8 @@
   padding: 4px 0;
 }
 
-.api-key-error-link {
-  background: none;
-  border: none;
-  color: var(--focus-ring);
-  text-decoration: underline;
-  cursor: pointer;
-  font-size: var(--text-xs);
-  padding: 0;
-}
-.api-key-error-link:hover {
-  color: var(--accent-hover, var(--focus-ring));
-}
+/* .api-key-error-link moved to settings/ApiKeyErrorMessage.css (t/3025) —
+   owned by ApiKeyErrorMessage, which renders outside the search surface. */
 
 /* ─── Similar Search panel (Pane 3) ──────────────────── */
 

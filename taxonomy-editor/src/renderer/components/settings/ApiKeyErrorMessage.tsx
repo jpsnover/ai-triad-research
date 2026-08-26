@@ -3,6 +3,7 @@
 
 import { useState } from 'react';
 import { ApiKeyDialog } from './ApiKeyDialog';
+import './ApiKeyErrorMessage.css';
 
 interface ApiKeyErrorMessageProps {
   error: string;

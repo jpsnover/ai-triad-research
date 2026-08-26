@@ -7,6 +7,7 @@ import { useTaxonomyStore } from '../../hooks/useTaxonomyStore';
 import { buildSearchRegex } from '../../utils/searchRegex';
 import { RefLinkButton } from './MentionField';
 import type { MentionSegment } from './mentionText';
+import './HighlightedField.css';
 
 interface HighlightedInputProps {
   value: string;

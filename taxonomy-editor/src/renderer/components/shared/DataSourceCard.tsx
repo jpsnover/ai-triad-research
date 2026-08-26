@@ -11,6 +11,7 @@ import type { DataSourceId } from '../../data/promptCatalog';
 import { usePromptConfigStore, PROMPT_CONFIG_DEFAULTS } from '../../hooks/usePromptConfigStore';
 import { useTaxonomyStore } from '../../hooks/useTaxonomyStore';
 import { POV_KEYS } from '@lib/debate/types';
+import './DataSourceCard.css';
 
 interface DataSourceCardProps {
   dsId: DataSourceId;
