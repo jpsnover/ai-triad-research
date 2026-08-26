@@ -103,6 +103,7 @@ export function SituationDebatePanel({ node, onLaunched }: SituationDebatePanelP
         await store.saveDebate('SituationDebatePanel:applyConfig');
       }
 
+      void store.runClarification();
       setActiveTab('debate');
       onLaunched();
     } catch (err) {
