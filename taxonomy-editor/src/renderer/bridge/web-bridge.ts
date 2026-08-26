@@ -1477,7 +1477,7 @@ const rawApi: AppAPI = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(action),
     });
-    if (!res.ok) throw new Error(`POST action failed: HTTP ${res.status}`);
+    if (!res.ok) throwHttpError(res.status, new ActionableError({ goal: 'Perform admin review action', problem: `POST /api/admin/review/action failed with HTTP ${res.status}`, location: 'web-bridge.adminReviewAction', nextSteps: ['Retry the action', 'Check the admin review server logs if it persists'] }));
   },
   adminRemoveCommunityItem: async (type, id, reason) => {
     const res = await fetch(`/api/community/${encodeURIComponent(type)}/${encodeURIComponent(id)}`, {
