@@ -131,6 +131,9 @@ export type EventType =
   | 'lookahead.regen'
   // Situation
   | 'situation.divergence-summary'
+  | 'situation_debate.generation_trigger'
+  | 'situation_debate.generation_skipped'
+  | 'situation_debate.generation_error'
   // Topic scope
   | 'topic.critique'
   | 'topic_scope_extracted'
