@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 vi.mock('@bridge', () => ({ api: {} }));
@@ -10,10 +10,11 @@ vi.mock('@lib/flight-recorder/index', () => ({
 const mockFetchSubmissions = vi.fn().mockResolvedValue(undefined);
 const mockApproveSubmission = vi.fn().mockResolvedValue(undefined);
 const mockRejectSubmission = vi.fn().mockResolvedValue(undefined);
+let mockSubmissions: Array<{ id: string; type: string; originalId: string; submittedBy: string; submittedAt: string; status: string }> = [];
 
 vi.mock('../../hooks/useCommunityStore', () => ({
   useCommunityStore: () => ({
-    submissions: [],
+    submissions: mockSubmissions,
     fetchSubmissions: mockFetchSubmissions,
     approveSubmission: mockApproveSubmission,
     rejectSubmission: mockRejectSubmission,
@@ -45,10 +46,23 @@ vi.mock('zustand/react/shallow', () => ({
 
 import { AdminPanel } from './AdminPanel';
 
+const SAMPLE_SUBMISSION = {
+  id: 'sub-1',
+  type: 'debate',
+  originalId: 'orig-abc123',
+  submittedBy: 'user@test.com',
+  submittedAt: '2026-01-01T00:00:00Z',
+  status: 'pending',
+};
+
 describe('AdminPanel', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockProfile = { isAdmin: true };
+    mockSubmissions = [];
+    mockFetchSubmissions.mockResolvedValue(undefined);
+    mockApproveSubmission.mockResolvedValue(undefined);
+    mockRejectSubmission.mockResolvedValue(undefined);
   });
 
   it('renders the admin header and tab bar', () => {
@@ -98,5 +112,26 @@ describe('AdminPanel', () => {
     await user.click(screen.getByText('Enrichment'));
     expect(screen.getByText('Enrichment Repair')).toBeInTheDocument();
     expect(screen.getByText('All nodes are fully enriched.')).toBeInTheDocument();
+  });
+
+  it('shows "Already approved" toast when approve returns 409', async () => {
+    const user = userEvent.setup();
+    mockSubmissions = [SAMPLE_SUBMISSION];
+    const err409 = Object.assign(new Error('conflict'), { httpStatus: 409 });
+    mockApproveSubmission.mockRejectedValueOnce(err409);
+    render(<AdminPanel />);
+    await user.click(screen.getByRole('button', { name: 'Approve' }));
+    await waitFor(() => expect(screen.getByText(/Already approved/)).toBeInTheDocument());
+    expect(screen.queryByText(/^Error:/)).not.toBeInTheDocument();
+  });
+
+  it('shows generic error toast when approve returns a non-409 error', async () => {
+    const user = userEvent.setup();
+    mockSubmissions = [SAMPLE_SUBMISSION];
+    mockApproveSubmission.mockRejectedValueOnce(new Error('Server error'));
+    render(<AdminPanel />);
+    await user.click(screen.getByRole('button', { name: 'Approve' }));
+    await waitFor(() => expect(screen.getByText(/Error: Server error/)).toBeInTheDocument());
+    expect(screen.queryByText(/Already approved/)).not.toBeInTheDocument();
   });
 });

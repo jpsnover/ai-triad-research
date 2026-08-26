@@ -186,8 +186,9 @@ export function AdminPanel() {
       setMsg('Submission approved');
       void fetchSubmissions(filter || undefined);
     } catch (err) {
-      getGlobalRecorder()?.record({ type: 'system.error', component: 'AdminPanel', level: 'error', message: 'Failed to approve submission', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
-      setMsg(`Error: ${err instanceof Error ? err.message : String(err)}`);
+      const is409 = (err as { httpStatus?: number }).httpStatus === 409;
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'AdminPanel', level: is409 ? 'info' : 'error', message: is409 ? 'Approve 409 — already approved (benign)' : 'Failed to approve submission', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
+      setMsg(is409 ? 'Already approved — no action needed.' : `Error: ${err instanceof Error ? err.message : String(err)}`);
     }
     setTimeout(() => setMsg(null), TOAST_DURATION_INFO);
   };
