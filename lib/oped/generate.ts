@@ -274,12 +274,13 @@ async function runVoiceGeneration(
   try {
     parsed = JSON.parse(stripCodeFences(rawText)) as EssayResponse;
   } catch (err) {
-    // Same failure class as t/3013: the raw-text fallback stores rawText (including ```json
-    // fences) as body_markdown, which <Markdown> renders as a monospace code block and the
-    // headline is always empty. A truncated AI response (token-budget exhaustion) is the
-    // common trigger — JSON.parse fails on the unterminated string. Throw so runVoice's catch
-    // marks the voice status:'failed' and emits voice_failed, which the existing
-    // OpEdArticle failed-state notice renders cleanly instead of showing raw JSON.
+    // t/3013 sibling: a NON-empty but non-JSON essay response (the empty case is guarded above).
+    // Most often a truncated response (token-budget exhaustion) leaving unterminated JSON, or the
+    // model emitting prose / ```json fences that survive stripCodeFences. The old silent fallback
+    // stored that raw text as body_markdown, which <Markdown> renders as a monospace code block
+    // with an always-empty headline — a garbage-looking tab, not a clean failure. Throw instead so
+    // runVoice's catch marks the voice status:'failed' + emits voice_failed → the existing
+    // OpEdArticle failed-state notice renders cleanly.
     throw new Error(`Voice generation returned invalid JSON (pov=${pov}): ${String(err)}`);
   }
 

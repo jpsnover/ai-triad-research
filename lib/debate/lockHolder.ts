@@ -31,16 +31,20 @@ function queryLockHolder(filePath: string): LockHolderInfo {
 }
 
 /**
- * Query the lock holder for filePath and emit an io.lock-holder FR event.
+ * Query the lock holder for filePath, emit an io.lock-holder FR event, and
+ * return a human-readable description (e.g. "electron.exe (pid 52308)") or
+ * undefined when detection is unavailable. The return value is consumed by
+ * atomicWriteSync to build a lock-holder-specific ActionableError message.
  * Pass as the onLockExhausted callback to atomicWriteSync / renameSyncWithRetry.
  */
-export function recordLockHolder(filePath: string): void {
-  const lockHolder = queryLockHolder(filePath);
+export function recordLockHolder(filePath: string): string | undefined {
+  const info = queryLockHolder(filePath);
   getGlobalRecorder()?.record({
     type: 'io.lock-holder', component: 'persistence', level: 'warn',
-    message: lockHolder.unavailable
-      ? `io.lock-holder: unavailable (${lockHolder.reason})`
-      : `io.lock-holder: ${lockHolder.processName} pid ${lockHolder.pid}`,
-    data: { filePath, ...lockHolder },
+    message: info.unavailable
+      ? `io.lock-holder: unavailable (${info.reason})`
+      : `io.lock-holder: ${info.processName} pid ${info.pid}`,
+    data: { filePath, ...info },
   });
+  return info.unavailable ? undefined : `${info.processName} (pid ${info.pid})`;
 }

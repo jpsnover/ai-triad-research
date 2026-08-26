@@ -112,6 +112,29 @@ function getEditHistoryLength(node: PovNode): number | undefined {
   return node._edit_history?.length;
 }
 
+// ── Simple-view last-edited line (t/3022, TL Option-3 ruling) ─────────────────
+// Surfaces the who/when accountability datum in Simple view, where the full
+// History tab is Advanced-only (t/3021 locks that gating). Prefers the canonical
+// _edit_meta last-edited fields, falling back to the most-recent _edit_history
+// entry. Formatting mirrors NodeEditHistory but is kept local here to avoid a new
+// cross-module export (trivial-change scope).
+function NodeLastEditedLine({ node, viewMode }: { node: PovNode; viewMode: 'simple' | 'advanced' }) {
+  if (viewMode !== 'simple') return null; // Advanced view has the full History tab.
+  const latest = node._edit_history?.[node._edit_history.length - 1];
+  const user = node._edit_meta?.last_edited_by ?? latest?.user;
+  const when = node._edit_meta?.last_edited_at ?? latest?.timestamp;
+  if (!user || !when) return null;
+  const name = user === '_local' ? 'Local (Electron)' : user.includes('@') ? user.slice(0, user.indexOf('@')) : user;
+  const parsed = new Date(when);
+  const date = Number.isNaN(parsed.getTime()) ? when : parsed.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+  return (
+    <div className="nd-last-edited">
+      Last edited by <span className="nd-last-edited-user">{name}</span>
+      <span className="nd-last-edited-time"> · {date}</span>
+    </div>
+  );
+}
+
 export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, onRelated, onOpenSoulDoc, chipDepth = 0, conflict, resolveUrl }: NodeDetailProps) {
   const { updatePovNode, deletePovNode, movePovNodeCategory, movePovNode, validationErrors, getAllNodeIds, getAllConflictIds, runAttributeFilter, showAttributeInfo, navigateToLineage, setToolbarPanel, selectedEdge, relatedNodeId, loadEdges, edgesFile, setSelectedNodeId, getLabelForId, aggregatedCruxes, showCruxDetail, conflicts } = useTaxonomyStore();
   const viewMode = usePreferencesStore(state => state.viewMode);
@@ -395,6 +418,7 @@ export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, onRela
           aphorismDraft={aphorismDraft}
           setAphorismDraft={setAphorismDraft}
         />
+        <NodeLastEditedLine node={node} viewMode={viewMode} />
       </div>
 
       {hasErrors && (

@@ -217,3 +217,115 @@ describe('NodeDetail — Zustand scalar selector regression (t/2142)', () => {
     expect(screen.getByRole('menuitem', { name: /pin for comparison/i })).toBeInTheDocument();
   });
 });
+
+// ── History tab viewMode gating (t/3021) ──────────────────────────────────────
+// Locks the current policy: History is an Advanced-only tab (NodeDetail.tsx:670,
+// advanced: true → filtered out of the tab bar in Simple view) and the activeTab
+// reset effect forces 'content' whenever the view drops to Simple off a hidden
+// tab. The t/3022 Option-3 ruling keeps this gating (it adds a *separate* Simple
+// last-edited line, not the tab), so these assertions stay valid.
+
+describe('NodeDetail — History tab viewMode gating (t/3021)', () => {
+  const nodeWithHistory: PovNode = {
+    ...mockNode,
+    _edit_history: [
+      { user: 'first@test.com', timestamp: '2026-01-01T00:00:00Z', fields_changed: ['label'] },
+      { user: 'second@test.com', timestamp: '2026-01-02T00:00:00Z', fields_changed: ['description'] },
+    ],
+  };
+
+  beforeEach(() => {
+    mockPrefsState.viewMode = 'simple';
+    vi.clearAllMocks();
+  });
+
+  it('shows the History tab in advanced mode when edit history exists', () => {
+    mockPrefsState.viewMode = 'advanced';
+    render(
+      <NodeDetail pov="acc" node={nodeWithHistory} readOnly={false} onPin={vi.fn()} onSimilarSearch={vi.fn()} onRelated={vi.fn()} />,
+    );
+    expect(screen.getByRole('button', { name: /history/i })).toBeInTheDocument();
+  });
+
+  it('hides the History tab in simple mode even when edit history exists', () => {
+    mockPrefsState.viewMode = 'simple';
+    render(
+      <NodeDetail pov="acc" node={nodeWithHistory} readOnly={false} onPin={vi.fn()} onSimilarSearch={vi.fn()} onRelated={vi.fn()} />,
+    );
+    expect(screen.queryByRole('button', { name: /history/i })).not.toBeInTheDocument();
+  });
+
+  it('hides the History tab in simple mode when there is no edit history', () => {
+    mockPrefsState.viewMode = 'simple';
+    render(
+      <NodeDetail pov="acc" node={mockNode} readOnly={false} onPin={vi.fn()} onSimilarSearch={vi.fn()} onRelated={vi.fn()} />,
+    );
+    expect(screen.queryByRole('button', { name: /history/i })).not.toBeInTheDocument();
+  });
+
+  it('resets the active tab to Content when switching advanced→simple while on History', () => {
+    mockPrefsState.viewMode = 'advanced';
+    const { rerender } = render(
+      <NodeDetail pov="acc" node={nodeWithHistory} readOnly={false} onPin={vi.fn()} onSimilarSearch={vi.fn()} onRelated={vi.fn()} />,
+    );
+
+    // Open the History tab — it becomes the active tab.
+    const historyTab = screen.getByRole('button', { name: /history/i });
+    fireEvent.click(historyTab);
+    expect(historyTab.className).toContain('node-detail-tab-active');
+
+    // Drop to Simple view. The reset effect keys on viewMode → forces activeTab back to 'content'.
+    mockPrefsState.viewMode = 'simple';
+    rerender(
+      <NodeDetail pov="acc" node={nodeWithHistory} readOnly={false} onPin={vi.fn()} onSimilarSearch={vi.fn()} onRelated={vi.fn()} />,
+    );
+
+    // History tab is gone, and Content is now the active tab (not a stale hidden 'history').
+    expect(screen.queryByRole('button', { name: /history/i })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /content/i }).className).toContain('node-detail-tab-active');
+  });
+});
+
+// ── Simple-view last-edited line (t/3022, Option 3) ───────────────────────────
+// The full History tab stays Advanced-only; Simple view surfaces just the
+// who/when last-edited datum inline. Sourced from _edit_meta, falling back to the
+// most-recent _edit_history entry.
+
+describe('NodeDetail — Simple-view last-edited line (t/3022)', () => {
+  const nodeWithMeta: PovNode = {
+    ...mockNode,
+    _edit_meta: { last_edited_by: 'editor@test.com', last_edited_at: '2026-02-03T10:00:00Z' },
+  };
+  const nodeWithHistoryOnly: PovNode = {
+    ...mockNode,
+    _edit_history: [{ user: 'histuser@test.com', timestamp: '2026-02-04T10:00:00Z', fields_changed: ['label'] }],
+  };
+
+  beforeEach(() => {
+    mockPrefsState.viewMode = 'simple';
+    vi.clearAllMocks();
+  });
+
+  it('shows the last-edited line in Simple view from _edit_meta (username, domain stripped)', () => {
+    render(<NodeDetail pov="acc" node={nodeWithMeta} readOnly={false} onPin={vi.fn()} onSimilarSearch={vi.fn()} onRelated={vi.fn()} />);
+    expect(screen.getByText(/last edited by/i)).toBeInTheDocument();
+    expect(screen.getByText('editor')).toBeInTheDocument();
+  });
+
+  it('falls back to the most-recent _edit_history entry when _edit_meta is absent', () => {
+    render(<NodeDetail pov="acc" node={nodeWithHistoryOnly} readOnly={false} onPin={vi.fn()} onSimilarSearch={vi.fn()} onRelated={vi.fn()} />);
+    expect(screen.getByText(/last edited by/i)).toBeInTheDocument();
+    expect(screen.getByText('histuser')).toBeInTheDocument();
+  });
+
+  it('omits the last-edited line in Advanced view (the History tab covers it)', () => {
+    mockPrefsState.viewMode = 'advanced';
+    render(<NodeDetail pov="acc" node={nodeWithMeta} readOnly={false} onPin={vi.fn()} onSimilarSearch={vi.fn()} onRelated={vi.fn()} />);
+    expect(screen.queryByText(/last edited by/i)).not.toBeInTheDocument();
+  });
+
+  it('omits the last-edited line when the node has no edit metadata', () => {
+    render(<NodeDetail pov="acc" node={mockNode} readOnly={false} onPin={vi.fn()} onSimilarSearch={vi.fn()} onRelated={vi.fn()} />);
+    expect(screen.queryByText(/last edited by/i)).not.toBeInTheDocument();
+  });
+});
