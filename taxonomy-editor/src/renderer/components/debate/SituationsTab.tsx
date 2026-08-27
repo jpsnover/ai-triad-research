@@ -11,6 +11,7 @@ import { useResizablePanel, useResizableRightPanel } from '../../hooks/useResiza
 import { SituationDetail } from './SituationDetail';
 import { FallacyDetailPanel } from '../analysis/FallacyPanel';
 import { PinnedPanel } from '../shared/PinnedPanel';
+import { DocLink } from '../shared/TheoryLink';
 import { ExternalEmbed } from '../shared/ExternalEmbed';
 import { SearchPreview } from '../edge-browser/SearchPreview';
 import { EdgeDetailPanel } from '../edge-browser/EdgeDetailPanel';
@@ -110,6 +111,7 @@ function SituationsListPane({
       >
         <div className="list-panel-header">
           <h2>Situations</h2>
+          <DocLink docPath="research/comp-linguist/docs/theory-of-success/theory-of-success-situations.md" label="Theory of success: Situations" tooltip="Open the Situations theory-of-success doc in GitHub" />
           <div className="list-panel-header-actions">
             <select
               className="sort-select"

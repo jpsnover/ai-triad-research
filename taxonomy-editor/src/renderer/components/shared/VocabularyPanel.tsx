@@ -4,6 +4,7 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { bridgeGet } from '../../bridge/web-bridge';
+import { DocLink } from './TheoryLink';
 import type { StandardizedTerm, ColloquialTerm, LintViolation, CampOrigin, CoinageStatus } from '@lib/dictionary';
 
 const POV_COLORS: Record<string, string> = {
@@ -113,6 +114,7 @@ export function VocabularyPanel() {
     <div className="vocabulary-panel">
       <div className="vocab-header">
         <h3>Vocabulary</h3>
+        <DocLink docPath="research/comp-linguist/docs/theory-of-success/theory-of-success-vocabulary.md" label="Theory of success: Vocabulary" tooltip="Open the Vocabulary theory-of-success doc in GitHub" />
         <span className="vocab-stats">
           {standardized.length} terms / {colloquial.length} colloquial
           {lintResults.length > 0 && (
