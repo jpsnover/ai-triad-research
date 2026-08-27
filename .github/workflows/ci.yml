@@ -358,6 +358,85 @@ jobs:
           $r = Test-PreloadHealth -CheckSyntax
           if (-not $r.Healthy) { $r.Checks | Where-Object { -not $_.Pass } | ForEach-Object { Write-Error $_.Detail }; exit 1 }
 
+  # ── render-smoke: "surface renders styled" gate (t/3026 / t/3059) ──
+  # Catches the failure class "a component's CSS lives in a lazy tab-chunk that is NOT
+  # loaded on the surface that uses the classes → the surface renders UNSTYLED with no
+  # error" (the .ga-* t/3024 incident + the t/3025 orphans). jsdom/vitest cannot compute
+  # stylesheet cascade → a unit test is a false-green; this must run in a REAL browser
+  # (Playwright-Chromium) against a PROD web build served by the real server, so lazy CSS
+  # code-splitting behaves exactly as in prod. Harness: taxonomy-editor/smoke/ (PR #1589).
+  #
+  # WARN-PHASE — NON-BLOCKING (t/3026#4 promotion discipline): render-smoke is deliberately
+  # NOT in ci-gate's `needs` and is NOT a required status context (only ci-gate + CodeQL
+  # are required), so a RED here does NOT block merge. It reports true pass/fail for ≥1
+  # green real-env cycle. The warn→block flip is a SEPARATE draft PR held for TL sign-off
+  # after real-env both-arms (deliberate CSS-misfile → red; clean → green, zero noise).
+  #
+  # NODE 22 PIN IS LOAD-BEARING (t/3026#10 cond3 / t/3059 Part3): the @playwright/test
+  # runner hangs on Node ≥24.16.0 (yauzl stream-destruction regression; 24.15.0 is the only
+  # non-hanging 24). Pinned @playwright/test 1.60.0 vendors the fix (microsoft/playwright#40747),
+  # and Node 22 is belt-and-suspenders. Do NOT bump this job to Node 24 unless 1.60.0+ is
+  # re-verified green on the runner — a silent hang would wedge a by-then-blocking gate.
+  #
+  # NOTE: Playwright browser caching (~/.cache/ms-playwright) intentionally deferred to the
+  # warn→block promotion PR — it needs the repo's first SHA-pinned actions/cache, and this
+  # non-blocking job tolerates the ~1min chromium install per run. (t/3059 follow-up.)
+  render-smoke:
+    needs: [changes]
+    if: >-
+      always() && !cancelled() &&
+      (github.event_name != 'pull_request' || needs.changes.outputs.electron == 'true')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v6
+
+      - name: Checkout data repo
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v6
+        continue-on-error: true
+        with:
+          repository: jpsnover/ai-triad-data
+          path: ai-triad-data
+          fetch-depth: 1
+
+      - name: Symlink data repo to expected location
+        run: ln -s "$GITHUB_WORKSPACE/ai-triad-data" ../ai-triad-data
+        continue-on-error: true
+
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86  # v6.0.10
+        with:
+          version: '11.20.0'
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v6
+        with:
+          node-version: '22'   # PIN — load-bearing; see header (Playwright runner hangs on Node 24)
+          cache: 'pnpm'
+          cache-dependency-path: 'pnpm-lock.yaml'
+
+      - name: Install dependencies (retry on transient failures — t/2968)
+        run: |
+          for i in 1 2 3; do
+            pnpm install --frozen-lockfile --side-effects-cache && break
+            if [ "$i" -lt 3 ]; then
+              echo "pnpm install attempt $i failed; retry in $((i * 15))s"
+              sleep $((i * 15))
+            else
+              echo "::error::pnpm install failed after $i attempts"
+              exit 1
+            fi
+          done
+
+      - name: Install Chromium (Playwright, pinned @playwright/test 1.60.0)
+        working-directory: taxonomy-editor
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Build prod web artifact + server (build:container)
+        working-directory: taxonomy-editor
+        run: pnpm run build:container
+
+      - name: Render smoke — styled surfaces (warn-phase, non-blocking)
+        working-directory: taxonomy-editor
+        run: pnpm run smoke:styled
+
   # ── renderer-tsc: renderer type-check gate (t/2252) ──
   # CI ran `tsc --noEmit -p tsconfig.main.json` for main-process code but NEVER
   # ran renderer tsc — a renderer import error / unresolved module passes all CI
