@@ -2326,6 +2326,7 @@ Institutional memory for failure patterns across the AI Triad Research project.
 - 2026-08-22 — DevOps (p/26#89): **12th instance, Facet 4.** `gh pr close --delete-branch` failed on GV probe PR #1385 — branch still held by a worktree. Fix: `git worktree remove --force`, then `git branch -D`, then `git push origin --delete <branch>`.
 - 2026-08-22 — Computational Linguist (p/7#62): **13th instance, Facet 2.** `gh pr merge <N> --squash --delete-branch` exited 1 — "cannot delete branch ... used by worktree." Remote merge AND remote-branch delete both succeeded; only the local branch delete failed. Confirmed `state=MERGED`, then `git worktree remove` + `git branch -D`. Key reinforcement: **non-zero exit from `--delete-branch` must be treated as post-merge cleanup failure, not a merge failure** — verify PR state before any re-attempt.
 - 2026-08-24 — DebateDiagnostics (p/514#1): **14th instance, Facet 2.** `gh pr merge --delete-branch` failed — branch still checked out in an active worktree. Fix: `git worktree remove` first. Self-noted: `/land-from-worktree` skill already omits `--delete-branch` for this exact reason; using the skill would have avoided the failure entirely.
+- 2026-08-26 — ServerAPI (p/504#3): **15th instance, Facet 2.** `gh pr merge --delete-branch` errored — worktree held the branch. Resolved by removing the worktree first (PR was already merged). Self-noted: `/land-from-worktree` omits `--delete-branch` for this reason; skill adherence would have prevented it.
 
 **Root Cause:** `--delete-branch` cleans up the merged head branch locally too, and gh switches the working copy to the base branch (`git checkout main`) to do so. Git's one-branch-per-worktree rule blocks checking out `main` while the primary worktree has it → `fatal`. The remote merge + branch delete already happened via the API; only the local checkout/cleanup fails. Bookkeeping-≠-artifact family — the exit code describes post-success cleanup, not the merge.
 
@@ -3530,3 +3531,49 @@ Institutional memory for failure patterns across the AI Triad Research project.
 **Status:** Active — 1 instance (Pester BDI gate t/3007, p/335#47). Prevention t/3010 filed.
 
 **Applies To:** Any CI gate that uses path exclusions, ExcludePath filters, or hardcoded live-data baselines — especially Pester and vitest scoped runs.
+
+---
+
+## #173 [Runtime] Periodic 5s Health-Probe Spikes in ACA Web Container — GC Pause or GitHub API Poll Blocking Event Loop
+
+**Pattern:** The ACA web container health-probe occasionally logs "Cold-start spike excluded: ~5000ms (>50× baseline 3ms)" at ~35s intervals throughout a session. The cold-start exclusion logic correctly excludes these from the baseline (so the probe does not false-positive), but the spikes are real event-loop blocks of ~5s. They co-occurred with a dictionary timeout cascade in at least one session.
+
+**Instances:**
+- 2026-08-26 — FR `merged-b0045e04`, build 374d037a (Diagnostics p/9#69): 6 cold-start spikes logged at ~35s intervals over a 533s session. Probe correctly excluded each. Likely cause: ACA GC pause or periodic GitHub API polling blocking the Node.js event loop. No user-visible impact isolated to the spikes alone; co-occurred with a dictionary timeout cascade.
+
+**Root Cause:** Unconfirmed — two candidates: (1) ACA container GC pause (~35s period is consistent with periodic GC in a memory-constrained container); (2) a periodic GitHub API poll (e.g., rate-limit refresh, auth-token renewal) blocking the event loop synchronously. Either would cause a ~5s stall that triggers the spike exclusion heuristic.
+
+**Prevention / Watch Criteria:**
+1. **Monitor frequency and duration** — 6 spikes in 533s at ~5s each is ~5.6% probe-time overhead; tolerable but load-bearing for the cold-start exclusion logic working correctly.
+2. **Escalate if:** spike frequency increases above 1/30s, duration exceeds 8s, or spikes begin co-occurring with user-visible errors (not just log noise). The 50× threshold in the exclusion heuristic may need tuning if baseline latency drifts.
+3. **Correlate with dictionary timeout cascades** — if future incidents show spikes immediately preceding cascades, the event-loop block is the proximate cause, not a co-incidence.
+4. **Candidate investigation:** add a flight-recorder mark immediately before and after the periodic GitHub API calls (if any) to distinguish GC from API-poll as the root cause.
+
+**Status:** Monitoring — not yet a confirmed failure; watch if frequency or duration increases. 1 instance (Diagnostics p/9#69, build 374d037a).
+
+**Applies To:** ACA web container operations; anyone diagnosing event-loop latency spikes in the health-probe log.
+
+---
+
+## #174 [Build] This Repo Has No Committed `package-lock.json` — Use `npm install`, Not `npm ci`; Install in Both `taxonomy-editor/` and `lib/`
+
+**Pattern:** `npm ci` in a fresh worktree fails immediately with EUSAGE — "no package-lock.json found." This repo does not commit a lockfile; `npm install` is the correct install command. A second failure follows if only `taxonomy-editor/` is installed: `tsc -p tsconfig.main.json` reports spurious "module not found" errors for lib files — because `lib/`'s own dependencies (e.g., `pptxgenjs`) live in `lib/node_modules` and are required for TypeScript compilation of files that transitively import from `lib/`.
+
+**Instances:**
+- 2026-08-27 — Rosetta Stone 2 (p/195#14): `npm ci` in a fresh worktree failed EUSAGE (no lockfile). Switched to `npm install`. Then `tsc -p tsconfig.main.json` failed with spurious module-not-found for `pptxgenjs` — resolved by also running `npm install` in `lib/`.
+
+**Root Cause:** The repo intentionally omits a committed lockfile (flexible dependency resolution). `npm ci` requires one; `npm install` does not. The two-directory install requirement comes from the multi-package layout: `taxonomy-editor/` and `lib/` each have their own `node_modules`, and `lib/`'s transitive deps are not hoisted into `taxonomy-editor/node_modules`. Skipping the `lib/` install produces false tsc errors on any file that imports from `lib/`.
+
+**Prevention:**
+1. **In any fresh worktree, run `npm install` (NOT `npm ci`) in BOTH directories:**
+   ```
+   cd taxonomy-editor && npm install
+   cd ../lib && npm install
+   ```
+2. **`npm ci` will always fail in this repo** — there is no `package-lock.json` to consume. If a skill or playbook references `npm ci`, treat it as `npm install`.
+3. **"Module not found" tsc errors after install in only one dir** — run `npm install` in `lib/` as well; the error is a missing transitive dep, not a code bug.
+4. **/land-from-worktree note:** the install step should use `npm install`, not `npm ci`. Flag to skill owner (TL) if the skill references `npm ci`.
+
+**Status:** Active — 1 instance (Rosetta Stone 2 p/195#14). Applies to all agents setting up fresh worktrees for taxonomy-editor or lib work.
+
+**Applies To:** All agents creating fresh worktrees for taxonomy-editor, lib, or cross-package TypeScript compilation.
