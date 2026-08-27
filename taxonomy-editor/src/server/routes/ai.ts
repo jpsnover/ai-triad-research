@@ -577,14 +577,13 @@ export function registerAiRoutes(r: Router, ctx: ServerCtx): void {
       beginEmbeddingCompute();
       try {
         // t/3061: local ONNX — no Gemini call, no key needed.
-        const vectors = await ai.computeEmbeddings(texts, ids, undefined);
+        const { vectors, cacheHits, cacheMisses } = await ai.computeEmbeddings(texts, ids, undefined);
         markEmbeddingModelWarm();
-        // t/3079: item_count added so a merged FR dump captures row count alongside
-        // duration — completes the server-side counterpart to t/3071's client batch_size.
+        // t/3079: item_count; t/3086: cache_hits/cache_misses (sustained 0% hit = t/3085 condition).
         getGlobalRecorder()?.record({
           type: 'system.info', component: 'embeddings-compute', level: 'info',
           message: 'embedding.compute',
-          data: { duration_ms: Date.now() - t0, item_count: texts.length, model_cold_start: !modelWarm, in_flight_at_entry: inFlightAtEntry },
+          data: { duration_ms: Date.now() - t0, item_count: texts.length, model_cold_start: !modelWarm, in_flight_at_entry: inFlightAtEntry, cache_hits: cacheHits, cache_misses: cacheMisses },
         });
         json(res, { vectors });
       } finally {

@@ -20,7 +20,7 @@ import { createRequire } from 'module';
 import { spawn, execFile, ChildProcess } from 'child_process';
 import { getGlobalRecorder, setGlobalRecorder } from '../../../lib/flight-recorder/index.js';
 import { warmup as warmupEmbeddings } from '../../../lib/embeddings/onnxEmbedding.js';
-import { prewarmEmbeddingsCache } from './ai/aiBackends.js';
+import { prewarmEmbeddingsCache, getEmbeddingsCacheStatus } from './ai/aiBackends.js';
 
 const require = createRequire(import.meta.url);
 
@@ -1351,7 +1351,20 @@ server.listen(PORT, BIND_HOST, () => {
   });
   // t/3085: pre-warm the embeddings.json cache at startup so the first debate request
   // gets the precomputed vectors. Emits an FR signal "embeddings.json loaded: N nodes".
-  void prewarmEmbeddingsCache().catch((err: unknown) => {
+  // t/3086: after prewarm resolves, emit a Pino startup probe (both arms) so the cache
+  // state is visible in server logs and in /health without reading the FR dump.
+  void prewarmEmbeddingsCache().then(() => {
+    const { present, nodeCount } = getEmbeddingsCacheStatus();
+    if (present) {
+      log.server.info({ embeddings_node_count: nodeCount }, 'startup probe: embeddings.json cache ready');
+    } else {
+      log.server.warn({}, 'startup probe: embeddings.json ABSENT — debates will re-embed ~3600 texts per session (check t/3085 DevOps half)');
+      getGlobalRecorder()?.record({
+        type: 'system.error', component: 'server', level: 'warn',
+        message: 'startup probe: embeddings.json cache absent',
+      });
+    }
+  }).catch((err: unknown) => {
     getGlobalRecorder()?.record({ type: 'system.error', component: 'server', level: 'warn', message: 'embeddings.json pre-warm failed at boot', error: { name: (err as Error)?.name ?? 'Error', message: String(err), stack: (err as Error)?.stack } });
   });
 

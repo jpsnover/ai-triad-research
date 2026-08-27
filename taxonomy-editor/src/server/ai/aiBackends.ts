@@ -586,10 +586,21 @@ export async function prewarmEmbeddingsCache(): Promise<void> {
   await loadEmbeddingsFileAsync();
 }
 
+/** t/3086: probe result after prewarmEmbeddingsCache() resolves. */
+export function getEmbeddingsCacheStatus(): { present: boolean; nodeCount: number | null } {
+  if (!embeddingsCache) return { present: false, nodeCount: null };
+  return { present: true, nodeCount: Object.keys(embeddingsCache.nodes ?? {}).length };
+}
+
 /** Reset the embeddings cache — test isolation only. */
 export function _resetEmbeddingsCacheForTest(): void {
   embeddingsCache = null;
   embeddingsLoadInFlight = null;
+}
+
+/** Pre-set Python availability without spawning the probe — test isolation only. */
+export function _setPythonAvailableForTest(v: boolean): void {
+  _pythonAvailable = v;
 }
 
 const EMBEDDINGS_REQUEST_TIMEOUT_MS = 45_000;
@@ -645,9 +656,16 @@ export async function resolveEmbeddingsChunked(
 // t/1641/t/1643: `_explicitApiKey` is retained for call-site arity (server.ts passes
 // the free-tier key) but is no longer consumed — embeddings are computed by the local
 // Python encoder or the in-process ONNX fallback, both 384-dim/all-MiniLM-L6-v2, no API.
-export async function computeEmbeddings(texts: string[], ids?: string[], _explicitApiKey?: string): Promise<number[][]> {
+export async function computeEmbeddings(
+  texts: string[], ids?: string[], _explicitApiKey?: string,
+): Promise<{ vectors: number[][]; cacheHits: number; cacheMisses: number }> {
   const startMs = Date.now();
   const local = await loadEmbeddingsFileAsync();
+  // t/3086: pre-pass hit count (cheap dict lookup, same data resolveEmbeddings uses).
+  const cacheHits = (ids && local)
+    ? ids.filter(id => id != null && local.nodes[id] != null).length
+    : 0;
+  const cacheMisses = texts.length - cacheHits;
   const chain: EmbeddingFallback[] = [];
 
   // Local Python encoder stays primary when present (TL ruling t/1641#10).
@@ -680,9 +698,9 @@ export async function computeEmbeddings(texts: string[], ids?: string[], _explic
     getGlobalRecorder()?.record({
       type: 'ai.response', component: 'ai-backends', level: 'info',
       message: `computeEmbeddings completed: ${texts.length} inputs in ${elapsedMs}ms`,
-      data: { inputCount: texts.length, dimensions: result[0]?.length ?? 0, elapsedMs, chainMembers: chain.map(c => c.name) },
+      data: { inputCount: texts.length, dimensions: result[0]?.length ?? 0, elapsedMs, chainMembers: chain.map(c => c.name), cacheHits, cacheMisses },
     });
-    return result;
+    return { vectors: result, cacheHits, cacheMisses };
   } catch (err) {
     const elapsedMs = Date.now() - startMs;
     getGlobalRecorder()?.record({
