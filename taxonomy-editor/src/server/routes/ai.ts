@@ -86,7 +86,7 @@ function enforceAiRateLimits(res: http.ServerResponse, isFree: boolean, limitKey
       message: `RPM limit reached (${rpmCheck.current}/${rpmCheck.limit})`,
       data: { type: 'requests_per_minute', limitKey, limit: rpmCheck.limit, current: rpmCheck.current, retryAfterMs: rpmCheck.retryAfterMs, backend, tier: tier.level },
     });
-    res.writeHead(429); res.end(JSON.stringify({ error: 'Rate limit exceeded', limitType: 'requests_per_minute', retryAfterMs: rpmCheck.retryAfterMs, limit: rpmCheck.limit, current: rpmCheck.current })); return true;
+    res.writeHead(429); res.end(JSON.stringify({ error: 'Rate limit exceeded', limitType: 'requests_per_minute', rate_limit_source: 'per_ip_rpm', rate_limit_type: 'api_call', retryAfterMs: rpmCheck.retryAfterMs, limit: rpmCheck.limit, current: rpmCheck.current })); return true;
   }
   const tokenCheck = rateLimiter.checkTokenLimit(limitKey, tier.limits.tokensPerDay);
   if (!tokenCheck.allowed) {
@@ -96,7 +96,7 @@ function enforceAiRateLimits(res: http.ServerResponse, isFree: boolean, limitKey
       message: `Daily token limit reached (${tokenCheck.current}/${tokenCheck.limit})`,
       data: { type: 'tokens_per_day', limitKey, limit: tokenCheck.limit, current: tokenCheck.current, backend, tier: tier.level },
     });
-    res.writeHead(429); res.end(JSON.stringify({ error: 'Daily token limit exceeded', limitType: 'tokens_per_day', limit: tokenCheck.limit, current: tokenCheck.current })); return true;
+    res.writeHead(429); res.end(JSON.stringify({ error: 'Daily token limit exceeded', limitType: 'tokens_per_day', rate_limit_source: 'daily_token', rate_limit_type: 'api_call', limit: tokenCheck.limit, current: tokenCheck.current })); return true;
   }
   return false;
 }
@@ -257,7 +257,7 @@ function respondIfUpstream429(res: http.ServerResponse, err: unknown, modelLabel
   });
   res.setHeader('Retry-After', String(Math.max(1, Math.ceil(retry / 1000))));
   res.writeHead(429, { 'Content-Type': 'application/json' });
-  res.end(JSON.stringify({ error: 'Upstream AI provider rate limit — retry shortly', limitType: 'upstream_rate_limit', retryAfterMs: retry, retryable: true }));
+  res.end(JSON.stringify({ error: 'Upstream AI provider rate limit — retry shortly', limitType: 'upstream_rate_limit', rate_limit_source: 'api_key_exhausted', rate_limit_type: 'api_call', retryAfterMs: retry, retryable: true }));
   return true;
 }
 
@@ -273,7 +273,7 @@ function respondAiSearchError(res: http.ServerResponse, err: unknown): void {
     const retry = ai.retryAfterMs(err);
     res.setHeader('Retry-After', String(Math.max(1, Math.ceil(retry / 1000))));
     res.writeHead(429, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ error: 'Upstream AI provider rate limit — retry shortly', limitType: 'upstream_rate_limit', retryAfterMs: retry, retryable: true }));
+    res.end(JSON.stringify({ error: 'Upstream AI provider rate limit — retry shortly', limitType: 'upstream_rate_limit', rate_limit_source: 'api_key_exhausted', rate_limit_type: 'api_call', retryAfterMs: retry, retryable: true }));
     return;
   }
   error(res, String(err), 500, err);
@@ -525,7 +525,7 @@ export function registerAiRoutes(r: Router, ctx: ServerCtx): void {
     const limitKey = `embed:${getClientIp(req)}`;
     const rpmCheck = rateLimiter.checkRate(limitKey, proxyTiers.LOCAL_EMBED_RPM_PER_IP, 60_000);
     if (!rpmCheck.allowed) {
-      res.writeHead(429); res.end(JSON.stringify({ error: 'Rate limit exceeded', limitType: 'embed_requests_per_minute', retryAfterMs: rpmCheck.retryAfterMs, limit: rpmCheck.limit, current: rpmCheck.current }));
+      res.writeHead(429); res.end(JSON.stringify({ error: 'Rate limit exceeded', limitType: 'embed_requests_per_minute', rate_limit_source: 'per_ip_rpm', rate_limit_type: 'local_compute', retryAfterMs: rpmCheck.retryAfterMs, limit: rpmCheck.limit, current: rpmCheck.current }));
       return { blocked: true };
     }
     return { blocked: false };
