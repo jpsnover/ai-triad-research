@@ -269,7 +269,7 @@ async function post<T = unknown>(path: string, body?: unknown, opts?: FetchOptio
       location: 'web-bridge.post',
       nextSteps: ['Wait for the rate limit to reset', 'Use your own API key to avoid shared limits'],
     });
-    (err as ActionableError & { limitType: string }).limitType = String(data.limitType ?? '');
+    Object.assign(err, { limitType: String(data.limitType ?? ''), retryAfterS: Math.ceil((data.retryAfterMs as number || 60000) / 1000) }); // + 429 retry_after_s for FR (t/3054)
     throwHttpError(429, err);
   }
   if (res.status === 400 && (path === '/api/ai/generate' || path === '/api/ai/search')) {

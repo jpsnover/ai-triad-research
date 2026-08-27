@@ -18,9 +18,15 @@ function apiRejectingWith(method: string, httpStatus?: number): AppAPI {
   return { [method]: () => Promise.reject(err) } as unknown as AppAPI;
 }
 
+/** Build a minimal AppAPI whose only method rejects with a 429 carrying a structured retryAfterS. */
+function apiRejecting429(method: string, retryAfterS?: number): AppAPI {
+  const err = Object.assign(new Error('Rate limit exceeded'), { httpStatus: 429, retryAfterS });
+  return { [method]: () => Promise.reject(err) } as unknown as AppAPI;
+}
+
 /** Return the failure-record the wrapped call emitted (the last recorded event). */
-function lastRecord(): { level: string; message: string; data?: { http_status?: number } } {
-  return mockRecord.mock.calls.at(-1)?.[0] as { level: string; message: string; data?: { http_status?: number } };
+function lastRecord(): { level: string; message: string; data?: { http_status?: number; retry_after_s?: number } } {
+  return mockRecord.mock.calls.at(-1)?.[0] as { level: string; message: string; data?: { http_status?: number; retry_after_s?: number } };
 }
 
 /** Find the ok-completion event for a bridge method (its enriched result meta). */
@@ -90,6 +96,38 @@ describe('instrumentBridge — loadOpEdSet grounding presence (t/2621)', () => {
     expect(ok?.data?.member_count).toBe(2);
     expect(ok?.data?.has_grounding).toBe(false);
     expect(ok?.data?.grounded_member_count).toBe(0);
+  });
+});
+
+describe('instrumentBridge — structured 429 retry_after_s (t/3054)', () => {
+  beforeEach(() => { vi.clearAllMocks(); });
+
+  it('records retry_after_s on a 429 failure when the error carries retryAfterS', async () => {
+    const api = instrumentBridge(apiRejecting429('generateText', 22));
+    await expect((api as unknown as { generateText: () => Promise<unknown> }).generateText()).rejects.toThrow();
+
+    const rec = lastRecord();
+    expect(rec.data?.http_status).toBe(429);
+    expect(rec.data?.retry_after_s).toBe(22);
+  });
+
+  it('omits retry_after_s when the 429 error has no structured cooldown', async () => {
+    const api = instrumentBridge(apiRejecting429('generateText'));
+    await expect((api as unknown as { generateText: () => Promise<unknown> }).generateText()).rejects.toThrow();
+
+    const rec = lastRecord();
+    expect(rec.data?.http_status).toBe(429);
+    expect(rec.data?.retry_after_s).toBeUndefined();
+  });
+
+  it('omits retry_after_s for a non-429 status even if retryAfterS is present', async () => {
+    const err = Object.assign(new Error('boom'), { httpStatus: 500, retryAfterS: 9 });
+    const api = instrumentBridge({ generateText: () => Promise.reject(err) } as unknown as AppAPI);
+    await expect((api as unknown as { generateText: () => Promise<unknown> }).generateText()).rejects.toThrow();
+
+    const rec = lastRecord();
+    expect(rec.data?.http_status).toBe(500);
+    expect(rec.data?.retry_after_s).toBeUndefined();
   });
 });
 
