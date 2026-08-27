@@ -107,6 +107,7 @@ export type EventType =
   // Storage / IO
   | 'storage.mode'
   | 'storage.fallback'
+  | 'data_read_empty'  // t/3092: readDataFile guard — absent, empty, or validation-failed read
   | 'flight-recorder.dump.written' // t/1352: dump persisted — records which backend received it
   | 'io.retry'
   | 'io.recovered'    // t/1627: atomicWriteSync recovered a rename-exhausted write via in-place copy fallback
