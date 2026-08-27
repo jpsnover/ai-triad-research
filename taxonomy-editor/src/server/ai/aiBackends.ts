@@ -344,7 +344,7 @@ export async function generateText(
   onRetry?: (p: GenerateTextProgress) => void,
   timeoutMs?: number,
   explicitApiKey?: string | string[],
-  options?: { temperature?: number; signal?: AbortSignal; responseSchema?: Record<string, unknown>; maxTokens?: number; isServerFreeTier?: boolean },
+  options?: { temperature?: number; signal?: AbortSignal; responseSchema?: Record<string, unknown>; maxTokens?: number },
 ): Promise<GenerateResult> {
   const resolved = model || DEFAULT_MODEL;
   const explicitKeys = normalizeExplicitKeys(explicitApiKey);
@@ -382,9 +382,9 @@ export async function generateText(
     );
 
     try {
-      // t/3052+t/3056: rotate across the free-tier key pool (round-robin + 429 cooldown)
-      // and pace each key's calls to FREE_TIER_RPM_PER_KEY RPM via per-key GCRA bucket.
-      const result = await callWithKeyRotation(backend, keys, !!options?.isServerFreeTier, runWithRetry);
+      // t/3052+t/3056: rotate across the key pool (round-robin + 429 cooldown);
+      // callWithKeyRotation paces free-tier keys automatically via pool membership.
+      const result = await callWithKeyRotation(backend, keys, runWithRetry);
 
       if (mi > 0) {
         getGlobalRecorder()?.record({
@@ -420,7 +420,6 @@ export type { GroundingSegment } from '../../../../lib/ai-client/providers/gemin
 
 export async function generateTextWithSearch(
   prompt: string, model?: string, explicitApiKey?: string | string[],
-  isServerFreeTier?: boolean,
 ): Promise<{ text: string; searchQueries?: string[]; citations?: SharedGroundingCitation[] }> {
   const resolved = model || DEFAULT_MODEL;
   const backend = resolveBackend(resolved);
@@ -436,7 +435,7 @@ export async function generateTextWithSearch(
         searchDepth: 'basic',
       });
       const { augmentedPrompt, searchQueries, citations: searchCitations } = buildSearchAugmentedPrompt(prompt, searchResult);
-      const { text } = await generateText(augmentedPrompt, resolved, undefined, undefined, explicitApiKey, { isServerFreeTier });
+      const { text } = await generateText(augmentedPrompt, resolved, undefined, undefined, explicitApiKey);
       const citations: SharedGroundingCitation[] = searchCitations.map(c => ({
         uri: c.uri,
         title: c.title,
@@ -448,7 +447,7 @@ export async function generateTextWithSearch(
         citations: citations.length ? citations : undefined,
       };
     }
-    const result = await generateText(prompt, resolved, undefined, undefined, explicitApiKey, { isServerFreeTier });
+    const result = await generateText(prompt, resolved, undefined, undefined, explicitApiKey);
     return { text: result.text };
   }
 
@@ -481,7 +480,6 @@ export async function generateTextByUsage(
   onRetry?: (p: GenerateTextProgress) => void,
   explicitApiKey?: string | string[],
   signal?: AbortSignal, // t/2510: caller cancellation (client disconnect) → provider fetch
-  isServerFreeTier?: boolean, // t/3052: pace free-tier server calls
 ): Promise<GenerateResult> {
   const repoRoot = getProjectRoot();
   const config = getUsage(usageId, repoRoot);
@@ -497,7 +495,7 @@ export async function generateTextByUsage(
     data: { usageId, model: merged.model, hasOverrides: !!overrides, valueKeys: Object.keys(values) },
   });
 
-  return generateText(prompt, merged.model, onRetry, merged.timeoutMs, explicitApiKey, { temperature: merged.temperature, signal, isServerFreeTier });
+  return generateText(prompt, merged.model, onRetry, merged.timeoutMs, explicitApiKey, { temperature: merged.temperature, signal });
 }
 
 /**
@@ -511,7 +509,6 @@ export async function generateTextWithSearchByUsage(
   values: Record<string, string>,
   overrides?: Partial<UsageConfig>,
   explicitApiKey?: string | string[],
-  isServerFreeTier?: boolean, // t/3052: pace free-tier server calls
 ): Promise<{ text: string; searchQueries?: string[]; citations?: SharedGroundingCitation[] }> {
   const repoRoot = getProjectRoot();
   const config = getUsage(usageId, repoRoot);
@@ -527,7 +524,7 @@ export async function generateTextWithSearchByUsage(
     data: { usageId, model: merged.model, hasOverrides: !!overrides, valueKeys: Object.keys(values) },
   });
 
-  return generateTextWithSearch(prompt, merged.model, explicitApiKey, isServerFreeTier);
+  return generateTextWithSearch(prompt, merged.model, explicitApiKey);
 }
 
 // ── Embeddings ──

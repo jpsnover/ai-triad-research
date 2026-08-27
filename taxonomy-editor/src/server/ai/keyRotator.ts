@@ -7,7 +7,7 @@
 
 import { getLimiter } from './rpmLimiter.js';
 import { is429Error, retryAfterMs } from './providerErrors.js';
-import { FREE_TIER_RPM_PER_KEY } from './proxyTiers.js';
+import { FREE_TIER_RPM_PER_KEY, parseFreeTierKeys } from './proxyTiers.js';
 
 const _cursors = new Map<string, number>();   // backend → next-cursor index
 const _cooldowns = new Map<string, number>();  // full api key → cooldown expiry ms
@@ -36,22 +36,36 @@ function markKeyCooled(key: string, delayMs: number): void {
   _cooldowns.set(key, Date.now() + delayMs);
 }
 
+// Lazily-evaluated free-tier key set — reads the env var once per process lifetime.
+// Using a function (not a module-level constant) keeps tests that mutate process.env
+// working without cache invalidation logic.
+function freeTierKeySet(): Set<string> {
+  return new Set(parseFreeTierKeys(process.env.FREE_TIER_GEMINI_KEY));
+}
+
 /**
- * Select the next available key (round-robin, 429-cooldown-aware), optionally
- * pace it via a per-key GCRA bucket at FREE_TIER_RPM_PER_KEY RPM, call fn(key),
- * and on 429 mark the key cooled so subsequent calls skip it until Retry-After.
+ * Select the next available key (round-robin, 429-cooldown-aware), pace it if it
+ * belongs to the free-tier pool (detected via parseFreeTierKeys — no flag to
+ * thread or forget), call fn(key), and on 429 mark the key cooled until Retry-After.
  *
- * isServerFreeTier=false bypasses pacing — used for paid/BYOK paths that carry
- * their own key and don't share the free pool.
+ * Pacing applies automatically to every caller that uses a free-tier key — paid /
+ * BYOK paths carry their own keys and are never in the pool, so they bypass pacing
+ * with no per-call configuration.
+ *
+ * Per-caller audit (t/3052 #4 completeness): primary debate path (generateWithPaidFallback),
+ * /api/ai/search, /api/ai/generate, chat-stream, sources evidence-eval (sources.ts),
+ * news-report (debates.ts), web op-ed (opedAdapter.ts), and generateWithSearch all
+ * route through callWithKeyRotation. Those that pass the FREE_TIER_GEMINI_KEY pool
+ * explicitly are paced. Those that pass getApiKeys() keys (BYOK/platform GEMINI_API_KEY)
+ * are not in the pool and correctly bypass pacing — no flag to thread or forget.
  */
 export async function callWithKeyRotation<T>(
   backend: string,
   keys: string[],
-  isServerFreeTier: boolean,
   fn: (key: string) => Promise<T>,
 ): Promise<T> {
   const key = nextKey(backend, keys);
-  if (isServerFreeTier) {
+  if (freeTierKeySet().has(key)) {
     await getLimiter(key, FREE_TIER_RPM_PER_KEY).acquire();
   }
   try {

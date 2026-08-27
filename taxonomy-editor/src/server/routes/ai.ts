@@ -165,7 +165,7 @@ async function generateWithPaidFallback(
 ): Promise<Awaited<ReturnType<typeof ai.generateText>>> {
   const { isFree, backend, requestModel, t0, onRetry, signal } = ctx;
   try {
-    return await ai.generateTextByUsage('server.chat-response', { prompt }, usageOverrides, onRetry, explicitKey, signal, isFree);
+    return await ai.generateTextByUsage('server.chat-response', { prompt }, usageOverrides, onRetry, explicitKey, signal);
   } catch (genErr) {
     const paidKey = (ai.is429Error(genErr) && isFree) ? await getPaidGeminiFallbackKey() : null;
     if (!paidKey) throw genErr; // non-free, non-429, or no paid key → outer 429 mapping records it
@@ -213,10 +213,10 @@ async function generateWithSearch(
   prompt: string,
   effectiveModel: string | undefined,
   explicitKey: string | string[] | undefined,
-  ctx: { backend: AIBackend; requestModel: string; t0: number; isServerFreeTier?: boolean },
+  ctx: { backend: AIBackend; requestModel: string; t0: number },
 ): Promise<Awaited<ReturnType<typeof ai.generateTextWithSearchByUsage>>> {
-  const { backend, requestModel, t0, isServerFreeTier } = ctx;
-  const result = await ai.generateTextWithSearchByUsage('server.search', { prompt }, effectiveModel ? { model: effectiveModel } : undefined, explicitKey, isServerFreeTier);
+  const { backend, requestModel, t0 } = ctx;
+  const result = await ai.generateTextWithSearchByUsage('server.search', { prompt }, effectiveModel ? { model: effectiveModel } : undefined, explicitKey);
   getGlobalRecorder()?.record({
     type: 'ai.response', component: 'ai-generate', level: 'info',
     duration_ms: Date.now() - t0,
@@ -379,7 +379,7 @@ export function registerAiRoutes(r: Router, ctx: ServerCtx): void {
       };
 
       if (search) {
-        json(res, await generateWithSearch(prompt, effectiveModel, explicitKey, { backend, requestModel, t0, isServerFreeTier: isFree }));
+        json(res, await generateWithSearch(prompt, effectiveModel, explicitKey, { backend, requestModel, t0 }));
       } else {
         const result = await generateWithPaidFallback(prompt, usageOverrides, explicitKey, {
           isFree, backend, requestModel, t0,
