@@ -3,11 +3,12 @@
 // t/1789 — /share/* serves the SPA shell to fully logged-out visitors (public
 // POV share links), the auth-exemption half of the public share feature (t/1787).
 //
-// isPublicPath, the auth gate, the anonymous-session mint guards, and serveStatic
-// are all INLINE in server.ts — which calls server.listen() at import time, so it
-// cannot be imported without booting the HTTP server. Per the same static-scan
-// discipline the route-table + publicShare suites use, these tests anchor to the
-// real server.ts source text rather than a copy. Two invariants (t/1787#2):
+// isPublicPath, the auth gate, and the anonymous-session mint guards are INLINE in
+// server.ts — which calls server.listen() at import time, so it cannot be imported
+// without booting the HTTP server. serveStatic was extracted to staticServe.ts (t/3084)
+// so it can be unit-tested directly; these source-scan tests follow it there. Per the
+// same static-scan discipline the route-table + publicShare suites use, they anchor to
+// the real source text rather than a copy. Two invariants (t/1787#2):
 //   (a) /share/ is auth-exempt (in isPublicPath) and tightly scoped — a static
 //       SPA-shell prefix, no /api/ dynamic surface.
 //   (b) serving the shell to a logged-out visitor mints NO session cookie — the
@@ -23,12 +24,15 @@ import { computeIsPublicPath, PUBLIC_PATH_PREFIXES } from '../publicPaths.js';
 const here = path.dirname(fileURLToPath(import.meta.url));
 const serverSrc = fs.readFileSync(path.join(here, '..', 'server.ts'), 'utf-8');
 // t/1910: isPublicPath moved to the import-safe publicPaths.ts (asserted behaviorally
-// below); serverSrc is still read for the serveStatic no-Set-Cookie invariant.
+// below); serverSrc is still read for the anonymous-session mint-guard invariants.
+
+// t/3084: serveStatic was extracted to staticServe.ts — read it there.
+const staticServeSrc = fs.readFileSync(path.join(here, '..', 'staticServe.ts'), 'utf-8');
 
 // The serveStatic function body — the code path that delivers the SPA shell.
-const serveStaticBody = serverSrc.slice(
-  serverSrc.indexOf('function serveStatic('),
-  serverSrc.indexOf('\n}', serverSrc.indexOf('function serveStatic(')) + 2,
+const serveStaticBody = staticServeSrc.slice(
+  staticServeSrc.indexOf('function serveStatic('),
+  staticServeSrc.indexOf('\n}', staticServeSrc.indexOf('function serveStatic(')) + 2,
 );
 
 describe('/share/ public SPA-shell exemption (t/1789)', () => {
