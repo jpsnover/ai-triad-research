@@ -184,6 +184,28 @@ describe('mergeDumps (t/939)', () => {
     expect(header.total_events).toBe(1);
   });
 
+  it('t/3081: client-only merge stamps server_source with omission reason', () => {
+    const client = ndjson({ _type: 'header' }, { _type: 'event', _wall: '2026-01-01T00:00:01Z', type: 'click' });
+    const merged = mergeDumps(client, null, 'anonymous-session');
+    const header = JSON.parse(merged.trim().split('\n')[0]);
+    expect(header.server_source).toEqual({ attempted: false, reason: 'anonymous-session' });
+  });
+
+  it('t/3081: client+server merge stamps server_source attempted:true', () => {
+    const client = ndjson({ _type: 'header' }, { _type: 'event', _wall: '2026-01-01T00:00:01Z', type: 'click' });
+    const server = ndjson({ _type: 'header' }, { _type: 'event', _wall: '2026-01-01T00:00:02Z', type: 'api' });
+    const merged = mergeDumps(client, server);
+    const header = JSON.parse(merged.trim().split('\n')[0]);
+    expect(header.server_source).toEqual({ attempted: true });
+  });
+
+  it('t/3081: no serverOmissionReason → reason defaults to "unknown"', () => {
+    const client = ndjson({ _type: 'header' }, { _type: 'event', _wall: '2026-01-01T00:00:01Z', type: 'click' });
+    const merged = mergeDumps(client, null); // no reason provided
+    const header = JSON.parse(merged.trim().split('\n')[0]);
+    expect(header.server_source).toEqual({ attempted: false, reason: 'unknown' });
+  });
+
   it('tags triggers with _source from each side', () => {
     const client = ndjson(
       { _type: 'header' },
@@ -263,6 +285,26 @@ describe('readMergedDump (t/939)', () => {
       { _type: 'event', _wall: '2026-01-01T00:00:01Z', type: 'api' },
     ));
     expect(await readMergedDump(root, 'srvonly', { includeServer: false })).toBeNull();
+  });
+
+  it('t/3081: includeServer:false + serverOmissionReason → stamped in merged header', async () => {
+    await writeDump(root, 'client', 'anon', ndjson(
+      { _type: 'header' },
+      { _type: 'event', _wall: '2026-01-01T00:00:01Z', type: 'click' },
+    ));
+    await writeDump(root, 'server', 'anon', ndjson(
+      { _type: 'header' },
+      { _type: 'event', _wall: '2026-01-01T00:00:02Z', type: 'api' },
+    ));
+    const merged = await readMergedDump(root, 'anon', {
+      includeServer: false,
+      serverOmissionReason: 'anonymous-session',
+    });
+    expect(merged).not.toBeNull();
+    const header = JSON.parse(merged!.trim().split('\n')[0]);
+    expect(header.sources).toEqual(['client']);
+    expect(header.server_source).toEqual({ attempted: false, reason: 'anonymous-session' });
+    expect(header.total_events).toBe(1); // server events withheld
   });
 });
 
