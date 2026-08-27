@@ -29,7 +29,7 @@ import * as rateLimiter from '../security/rateLimiter.js';
 import * as ai from '../ai/aiBackends.js';
 import { resolveGenerationContext, enforceBackendAllowed } from './generationContext.js';
 import * as fileIO from '../storage/fileIO.js';
-import { beginEmbeddingCompute, endEmbeddingCompute, embeddingLoadSnapshot, evaluateEmbeddingLoadShed } from '../embeddingsLoad.js';
+import { beginEmbeddingCompute, endEmbeddingCompute, embeddingLoadSnapshot, evaluateEmbeddingLoadShed, isEmbeddingModelWarm, markEmbeddingModelWarm } from '../embeddingsLoad.js';
 
 // Pure mirror of the server.ts parseCookies helper (used by the logout /
 // fresh-login handlers). Depends only on the request headers; holds no state.
@@ -558,9 +558,18 @@ export function registerAiRoutes(r: Router, ctx: ServerCtx): void {
         }
         log.api.warn({ ...embeddingLoadSnapshot(), reason: shedDecision.reason }, 'embeddings.compute: WOULD load-shed (warn-first; not blocking)');
       }
+      const modelWarm = isEmbeddingModelWarm();
+      const t0 = Date.now();
+      const inFlightAtEntry = embeddingLoadSnapshot().in_flight_embedding_computes;
       beginEmbeddingCompute();
       try {
         const vectors = await ai.computeEmbeddings(texts, ids, gate.key);
+        markEmbeddingModelWarm();
+        getGlobalRecorder()?.record({
+          type: 'system.info', component: 'embeddings-compute', level: 'info',
+          message: 'embedding.compute',
+          data: { duration_ms: Date.now() - t0, model_cold_start: !modelWarm, in_flight_at_entry: inFlightAtEntry },
+        });
         json(res, { vectors });
       } finally {
         endEmbeddingCompute();
