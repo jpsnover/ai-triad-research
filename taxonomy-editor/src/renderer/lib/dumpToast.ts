@@ -54,7 +54,6 @@ export function showDumpToast(opts: {
   isWeb: boolean;
   onCopy?: () => void;
   onOpen?: () => void;
-  serverFilename?: string;
   dumpId?: string;
 }): void {
   const container = getOrCreateContainer();
@@ -87,10 +86,14 @@ export function showDumpToast(opts: {
   toast.appendChild(title);
 
   if (opts.isWeb) {
-    // Merged dump link (primary — interleaves client + server events by timestamp)
     if (opts.dumpId) {
+      // Merged dump is THE download — one prominent button, no separate Client:/Server:
+      // links (users grabbed the client-only file → 6/8 prod dumps were client-only,
+      // t/3067/t/3068). The endpoint interleaves client + server events by timestamp;
+      // its isAdmin() gate means non-admins silently get a client-only merged file
+      // (diagnostics.ts:163), which is the same content the old Client: link served.
       const mergedLink = document.createElement('a');
-      mergedLink.textContent = 'Download merged dump';
+      mergedLink.textContent = 'Download dump';
       Object.assign(mergedLink.style, {
         display: 'block',
         color: 'var(--focus-ring, #89b4fa)',
@@ -110,7 +113,7 @@ export function showDumpToast(opts: {
             if (diag && (diag.goal || diag.problem)) {
               showDiagnosticPanel(diag);
             } else {
-              mergedLink.textContent = `Merged download failed (${resp.status})`;
+              mergedLink.textContent = `Download failed (${resp.status})`;
             }
             return;
           }
@@ -121,67 +124,35 @@ export function showDumpToast(opts: {
           a.download = `merged-${opts.dumpId}.jsonl`;
           a.click();
           URL.revokeObjectURL(url);
-        } catch (err) { mergedLink.textContent = `Merged download failed: ${err}`; /* flight recorder UI — silent by design (error shown in toast) */ }
+        } catch (err) { mergedLink.textContent = `Download failed: ${err}`; /* flight recorder UI — silent by design (error shown in toast) */ }
       };
       toast.appendChild(mergedLink);
-    }
-
-    // Individual client dump link
-    const link = document.createElement('a');
-    link.textContent = opts.dumpId ? `Client: ${opts.filename}` : opts.filename;
-    Object.assign(link.style, {
-      display: 'block',
-      color: 'var(--focus-ring, #89b4fa)',
-      textDecoration: 'underline',
-      cursor: 'pointer',
-      wordBreak: 'break-all',
-      fontSize: opts.dumpId ? '0.8em' : '1em',
-      marginTop: opts.dumpId ? '4px' : '0',
-    });
-    link.onclick = async (e) => {
-      e.preventDefault();
-      try {
-        const resp = await fetch(`/api/flight-recorder/download/${encodeURIComponent(opts.filename)}`);
-        if (!resp.ok) { link.textContent = `Download failed (${resp.status})`; return; }
-        const blob = await resp.blob();
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = opts.filename;
-        a.click();
-        URL.revokeObjectURL(url);
-      } catch (err) { link.textContent = `Download failed: ${err}`; /* flight recorder UI — silent by design (error shown in toast) */ }
-    };
-    toast.appendChild(link);
-
-    // Server dump link (if available)
-    if (opts.serverFilename) {
-      const serverLink = document.createElement('a');
-      serverLink.textContent = `Server: ${opts.serverFilename}`;
-      Object.assign(serverLink.style, {
+    } else {
+      // No server correlation (dumpId absent) — the client dump is the only download.
+      const link = document.createElement('a');
+      link.textContent = opts.filename;
+      Object.assign(link.style, {
         display: 'block',
         color: 'var(--focus-ring, #89b4fa)',
         textDecoration: 'underline',
         cursor: 'pointer',
         wordBreak: 'break-all',
-        fontSize: '0.8em',
-        marginTop: '4px',
       });
-      serverLink.onclick = async (e) => {
+      link.onclick = async (e) => {
         e.preventDefault();
         try {
-          const resp = await fetch(`/api/flight-recorder/download/${encodeURIComponent(opts.serverFilename!)}`);
-          if (!resp.ok) { serverLink.textContent = `Server download failed (${resp.status})`; return; }
+          const resp = await fetch(`/api/flight-recorder/download/${encodeURIComponent(opts.filename)}`);
+          if (!resp.ok) { link.textContent = `Download failed (${resp.status})`; return; }
           const blob = await resp.blob();
           const url = URL.createObjectURL(blob);
           const a = document.createElement('a');
           a.href = url;
-          a.download = opts.serverFilename!;
+          a.download = opts.filename;
           a.click();
           URL.revokeObjectURL(url);
-        } catch (err) { serverLink.textContent = `Server download failed: ${err}`; /* flight recorder UI — silent by design (error shown in toast) */ }
+        } catch (err) { link.textContent = `Download failed: ${err}`; /* flight recorder UI — silent by design (error shown in toast) */ }
       };
-      toast.appendChild(serverLink);
+      toast.appendChild(link);
     }
   } else {
     // Electron mode: file path + Copy + Open buttons
