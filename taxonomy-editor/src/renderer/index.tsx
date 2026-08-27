@@ -10,6 +10,7 @@ import '@fontsource-variable/jetbrains-mono';
 import { App } from './App';
 import { PublicPovView } from './components/PublicPovView';
 import { PublicOpEdView } from './components/PublicOpEdView';
+import { installVitePreloadRecovery } from './lib/vitePreloadRecovery';
 import './styles.css';
 import './responsive.css';
 import './Tooltip.css';
@@ -22,6 +23,11 @@ import './components/shared/DialogOverlay.css';
 // recovering bridge helper) and mount MainApp/loadAll (auth + `/ws`), all of which
 // would mint a session and violate the no-session invariant (TL, t/1787#2). Branch
 // before App renders.
+// Self-heal transient/stale CSS+chunk preload misses (t/3080). Registered before
+// createRoot so it's live for any runtime dynamic import; App's import already ran
+// initFlightRecorder(), so getGlobalRecorder() is available to the handler.
+installVitePreloadRecovery();
+
 const path = window.location.pathname;
 const publicView = path.startsWith('/share/pov/')
   ? <PublicPovView />
