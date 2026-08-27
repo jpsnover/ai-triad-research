@@ -16,3 +16,15 @@ PowerShell cmdlets for checking production health, shared by the Diagnostics / D
 All accept `-BaseUrl` to target staging or other instances. Default is the production URL.
 
 **Triage workflow:** when a flight recorder shows errors → `Test-TaxEditorHealth` (is it still live?) → `Test-TaxEditorEndpoints -Category <relevant>` (which endpoints are failing?) → `Test-AzureHealth` or `Test-GitHubHealth` (is it infra or platform?).
+
+## Evidence retrieval
+
+The cmdlets above probe liveness; the ones below pull the underlying evidence.
+
+| Cmdlet | Use When |
+|---|---|
+| `Get-ServerLog` | Trace a request through the **live-tail** ACA buffer by Pino requestId (shallow, seconds-to-minutes of history) |
+| `Get-TaxEditorServerLogs` | Query **Log Analytics** for history deeper than the live-tail buffer — `-From`/`-To`/`-RequestId`/`-Pattern`, parsed Pino fields, `-System` for revision/restart events. This is the cmdlet form of the hand-written `az monitor log-analytics query` KQL that debate-500 diagnoses used to require (t/3082) |
+| `Get-DebateRateLimitSummary` | Summarize 429/rate-limit buckets from a flight recorder dump (t/3065) |
+
+Both `Get-*ServerLog*` cmdlets require the az CLI logged in with reader access; `Get-TaxEditorServerLogs` resolves the Log Analytics workspace automatically (override with `$env:TAXEDITOR_LOG_WORKSPACE_ID`).
