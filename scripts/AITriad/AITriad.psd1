@@ -241,6 +241,8 @@
         'Test-DebatePersistence'
         # t/2765 — ACA server log retrieval with requestId correlation
         'Get-ServerLog'
+        # t/3082 — Log Analytics server-log query (deep history) by window/requestId/pattern
+        'Get-TaxEditorServerLogs'
     )
 
     # Aliases exported from this module

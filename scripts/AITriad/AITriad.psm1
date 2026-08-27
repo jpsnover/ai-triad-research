@@ -993,6 +993,8 @@ Export-ModuleMember -Function @(
     'Get-OpEdSource'
     # t/2765 — ACA server log retrieval with requestId correlation
     'Get-ServerLog'
+    # t/3082 — Log Analytics server-log query (deep history) by window/requestId/pattern
+    'Get-TaxEditorServerLogs'
 ) -Alias @(
     'Import-Document'
     'TaxonomyEditor'

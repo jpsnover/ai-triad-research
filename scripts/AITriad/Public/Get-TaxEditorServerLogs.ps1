@@ -1,0 +1,271 @@
+# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+# Licensed under the MIT License. See LICENSE file in the project root.
+
+<#
+.SYNOPSIS
+    Pulls production taxonomy-editor server logs from Azure Log Analytics by time window /
+    requestId / pattern, parsing Pino JSON fields.
+.DESCRIPTION
+    Where Get-ServerLog wraps the shallow `az containerapp logs show` live-tail buffer, this
+    cmdlet queries Log Analytics directly (`az monitor log-analytics query`) for history deeper
+    than the buffer — the evidence source the t/3078 debate-500 diagnosis had to hand-write KQL for.
+
+    Queries ContainerAppConsoleLogs_CL (or ContainerAppSystemLogs_CL with -System), filters by
+    time window (default: last 15 min), requestId, and/or a substring pattern, then parses each
+    row's Log_s (the raw Pino JSON line) into structured fields: Level, RequestId, Component,
+    Method, Path, Status, DurationMs, Message. Non-JSON / boundary-sliced lines (t/2860) are still
+    surfaced as rows with Level='unparsed' so no evidence is lost, and counted.
+
+    Requires the az CLI logged in with reader access to the Log Analytics workspace. No AI calls.
+
+    Auth: the workspace customerId is resolved once (first workspace named 'log-aitriad*' in the
+    resource group) and cached for the session; override with $env:TAXEDITOR_LOG_WORKSPACE_ID.
+.PARAMETER From
+    Lower bound of the window (UTC-compared). Default: 15 minutes before -To.
+.PARAMETER To
+    Upper bound. Default: now (UTC).
+.PARAMETER RequestId
+    Correlate one request end-to-end. Console logs only (system logs are not per-request).
+.PARAMETER Pattern
+    Case-insensitive substring matched server-side against the raw log line (KQL `contains`).
+.PARAMETER App
+    Container app to query (ContainerAppName_s). Default 'taxonomy-editor'.
+.PARAMETER System
+    Query ContainerAppSystemLogs_CL (revision/replica/restart events) instead of console logs.
+    System rows are emitted raw (Type/Reason/Message), not Pino-parsed.
+.PARAMETER ResourceGroup
+    Azure resource group. Default 'ai-triad'.
+.PARAMETER Max
+    Row cap (KQL `take`). Default 1000.
+.PARAMETER Raw
+    Emit the raw Log_s string per row instead of a structured object (console mode only).
+.OUTPUTS
+    [PSCustomObject] AITriad.ServerLogEntry (console) or AITriad.ServerSystemLogEntry (-System),
+    or raw strings with -Raw.
+.EXAMPLE
+    Get-TaxEditorServerLogs -From (Get-Date).AddHours(-1) -Pattern '500'
+    # Every line containing '500' in the last hour.
+.EXAMPLE
+    Get-TaxEditorServerLogs -RequestId req-6f1c... -From (Get-Date).AddHours(-6)
+    # Trace one request across the deeper Log Analytics history.
+.EXAMPLE
+    Get-TaxEditorServerLogs -System -From (Get-Date).AddHours(-2)
+    # Revision/replica/restart events (e.g. correlate a 500 spike with a restart).
+.LINK
+    Get-ServerLog
+.LINK
+    Get-DebateRateLimitSummary
+.LINK
+    Show-AITriadHelp
+#>
+function Get-TaxEditorServerLogs {
+    [CmdletBinding()]
+    [OutputType([PSCustomObject])]
+    param(
+        [Parameter()]
+        [datetime]$From,
+
+        [Parameter()]
+        [datetime]$To,
+
+        [Parameter()]
+        [string]$RequestId,
+
+        [Parameter()]
+        [string]$Pattern,
+
+        [Parameter()]
+        [ValidateSet('taxonomy-editor', 'taxonomy-editor-staging')]
+        [string]$App = 'taxonomy-editor',
+
+        [Parameter()]
+        [switch]$System,
+
+        [Parameter()]
+        [string]$ResourceGroup = 'ai-triad',
+
+        [Parameter()]
+        [ValidateRange(1, 50000)]
+        [int]$Max = 1000,
+
+        [Parameter()]
+        [switch]$Raw
+    )
+
+    process {
+        Set-StrictMode -Version Latest
+
+        Assert-AzCli -CallerName 'Get-TaxEditorServerLogs'
+
+        # ── Window (default last 15 min) ──────────────────────────────────
+        $toUtc   = if ($PSBoundParameters.ContainsKey('To'))   { $To.ToUniversalTime() }   else { [datetime]::UtcNow }
+        $fromUtc = if ($PSBoundParameters.ContainsKey('From')) { $From.ToUniversalTime() } else { $toUtc.AddMinutes(-15) }
+        if ($fromUtc -gt $toUtc) {
+            throw (New-ActionableError `
+                -Goal     'Query server logs over a time window' `
+                -Problem  "-From ($fromUtc) is after -To ($toUtc)." `
+                -Location 'Get-TaxEditorServerLogs' `
+                -NextSteps @('Pass -From earlier than -To, or omit both for the last 15 minutes.'))
+        }
+
+        # ── Resolve + cache the Log Analytics workspace customerId ─────────
+        $workspaceId = if ($env:TAXEDITOR_LOG_WORKSPACE_ID) {
+            $env:TAXEDITOR_LOG_WORKSPACE_ID
+        } elseif ($script:TaxEditorLogWorkspaceId) {
+            $script:TaxEditorLogWorkspaceId
+        } else {
+            $wsRaw = Invoke-Az -CallerName 'Get-TaxEditorServerLogs' -Arguments @(
+                'monitor', 'log-analytics', 'workspace', 'list',
+                '--resource-group', $ResourceGroup,
+                '--query', "[?starts_with(name,'log-aitriad')].customerId | [0]",
+                '--output', 'tsv')
+            $wsId = if ($wsRaw) { ([string]$wsRaw).Trim() } else { $null }
+            if ([string]::IsNullOrWhiteSpace($wsId)) {
+                throw (New-ActionableError `
+                    -Goal     'Resolve the Log Analytics workspace for the container app' `
+                    -Problem  "No workspace named 'log-aitriad*' found in resource group '$ResourceGroup'." `
+                    -Location 'Get-TaxEditorServerLogs' `
+                    -NextSteps @(
+                        "List workspaces: az monitor log-analytics workspace list -g $ResourceGroup -o table"
+                        'Or set $env:TAXEDITOR_LOG_WORKSPACE_ID to the workspace customerId (GUID).'
+                    ))
+            }
+            $script:TaxEditorLogWorkspaceId = $wsId
+            $wsId
+        }
+
+        # ── Build the KQL (single-quote escape every interpolated value) ───
+        $esc = { param($s) if ($null -eq $s) { '' } else { ([string]$s).Replace('\', '\\').Replace("'", "\'") } }
+        $fromZ = $fromUtc.ToString('yyyy-MM-ddTHH:mm:ssZ')
+        $toZ   = $toUtc.ToString('yyyy-MM-ddTHH:mm:ssZ')
+        $table = if ($System) { 'ContainerAppSystemLogs_CL' } else { 'ContainerAppConsoleLogs_CL' }
+
+        $kql = [System.Collections.Generic.List[string]]::new()
+        $kql.Add($table)
+        $kql.Add("| where ContainerAppName_s == '$(& $esc $App)'")
+        $kql.Add("| where TimeGenerated between (datetime('$fromZ') .. datetime('$toZ'))")
+
+        if ($RequestId) {
+            if ($System) {
+                Write-Warning '-RequestId is ignored with -System (system logs are not per-request).'
+            } else {
+                if ($RequestId -notmatch '^[\w.:\-]+$') {
+                    throw (New-ActionableError `
+                        -Goal     'Filter server logs by requestId' `
+                        -Problem  "RequestId '$RequestId' contains characters outside the allowed set [A-Za-z0-9._:-]." `
+                        -Location 'Get-TaxEditorServerLogs' `
+                        -NextSteps @('Pass the requestId as emitted by the server (e.g. req-<uuid>).'))
+                }
+                $kql.Add("| where Log_s has '$(& $esc $RequestId)'")
+            }
+        }
+        if ($Pattern) { $kql.Add("| where Log_s contains '$(& $esc $Pattern)'") }
+
+        if ($System) { $kql.Add('| project TimeGenerated, Log_s, Type_s, Reason_s, RevisionName_s') }
+        else         { $kql.Add('| project TimeGenerated, Log_s, RevisionName_s') }
+        $kql.Add('| order by TimeGenerated asc')
+        $kql.Add("| take $Max")
+        $analyticsQuery = $kql -join "`n"
+        Write-Verbose "KQL:`n$analyticsQuery"
+
+        # ── Run the query ─────────────────────────────────────────────────
+        $json = Invoke-Az -CallerName 'Get-TaxEditorServerLogs' -Arguments @(
+            'monitor', 'log-analytics', 'query',
+            '--workspace', $workspaceId,
+            '--analytics-query', $analyticsQuery,
+            '--output', 'json')
+        $rows = if ($json) { @($json | ConvertFrom-Json) } else { @() }
+
+        # ── StrictMode-safe field read (absent property -> $null) ──────────
+        $getField = {
+            param($obj, [string]$name)
+            if ($null -eq $obj) { return $null }
+            $p = $obj.PSObject.Properties[$name]
+            if ($p) { return $p.Value } else { return $null }
+        }
+        $parseTime = {
+            param($iso)
+            if ([string]::IsNullOrWhiteSpace($iso)) { return $null }
+            try { return [datetimeoffset]::Parse([string]$iso).UtcDateTime } catch { return [string]$iso }
+        }
+
+        # ── System logs: emit raw rows, no Pino parse ──────────────────────
+        if ($System) {
+            foreach ($row in $rows) {
+                [PSCustomObject]@{
+                    PSTypeName = 'AITriad.ServerSystemLogEntry'
+                    Time       = & $parseTime (& $getField $row 'TimeGenerated')
+                    Type       = & $getField $row 'Type_s'
+                    Reason     = & $getField $row 'Reason_s'
+                    Revision   = & $getField $row 'RevisionName_s'
+                    Message    = & $getField $row 'Log_s'
+                }
+            }
+            return
+        }
+
+        # ── Console logs: parse Log_s as Pino JSON ─────────────────────────
+        $pinoLevelMap = @{ 10 = 'trace'; 20 = 'debug'; 30 = 'info'; 40 = 'warn'; 50 = 'error'; 60 = 'fatal' }
+        $unparsed = 0
+
+        foreach ($row in $rows) {
+            $logStr = & $getField $row 'Log_s'
+            $tg     = & $getField $row 'TimeGenerated'
+            $rev    = & $getField $row 'RevisionName_s'
+            if ([string]::IsNullOrWhiteSpace($logStr)) { continue }
+
+            if ($Raw) { Write-Output ([string]$logStr); continue }
+
+            $entry = $null
+            try { $entry = [string]$logStr | ConvertFrom-Json -ErrorAction Stop } catch { }
+
+            if ($null -eq $entry) {
+                # Boundary-sliced (t/2860) or non-JSON stdout — surface it, don't drop it.
+                $unparsed++
+                [PSCustomObject]@{
+                    PSTypeName = 'AITriad.ServerLogEntry'
+                    Time       = & $parseTime $tg
+                    Level      = 'unparsed'
+                    RequestId  = $null
+                    Component  = $null
+                    Method     = $null
+                    Path       = $null
+                    Status     = $null
+                    DurationMs = $null
+                    Message    = [string]$logStr
+                    Revision   = $rev
+                    Raw        = [string]$logStr
+                }
+                continue
+            }
+
+            $entryRequestId = & $getField $entry 'requestId'
+            # KQL `has` is token-coarse; confirm the exact requestId on the parsed field.
+            if ($RequestId -and $entryRequestId -ne $RequestId) { continue }
+
+            $entryLevel = & $getField $entry 'level'
+            $levelName  = if ($null -ne $entryLevel -and $pinoLevelMap.ContainsKey([int]$entryLevel)) {
+                $pinoLevelMap[[int]$entryLevel]
+            } else { "$entryLevel" }
+
+            [PSCustomObject]@{
+                PSTypeName = 'AITriad.ServerLogEntry'
+                Time       = & $parseTime $tg
+                Level      = $levelName
+                RequestId  = $entryRequestId
+                Component  = & $getField $entry 'component'
+                Method     = & $getField $entry 'method'
+                Path       = & $getField $entry 'path'
+                Status     = & $getField $entry 'status'
+                DurationMs = & $getField $entry 'duration_ms'
+                Message    = & $getField $entry 'msg'
+                Revision   = $rev
+                Raw        = $entry
+            }
+        }
+
+        if ($unparsed -gt 0) {
+            Write-Warning ("{0} log line(s) were unparseable (emitted with Level='unparsed') — likely Pino lines sliced at Azure's ~16KB Fluent Bit boundary (t/2860)." -f $unparsed)
+        }
+    }
+}
