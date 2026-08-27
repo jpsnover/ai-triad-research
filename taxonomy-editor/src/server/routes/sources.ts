@@ -28,7 +28,7 @@ import type { Router } from '../httpKit.js';
 import type { ServerCtx } from './context.js';
 import { json, error, param } from '../httpKit.js';
 import { getGlobalRecorder } from '../../../../lib/flight-recorder/index.js';
-import { DEFAULT_MODEL } from '../../../../lib/ai-client/index.js';
+import { DEFAULT_MODEL, withTimeout } from '../../../../lib/ai-client/index.js';
 import { log } from '../logger.js';
 import * as ai from '../ai/aiBackends.js';
 import { resolveGenerationContext, enforceBackendAllowed } from './generationContext.js';
@@ -209,8 +209,21 @@ export function registerSourcesRoutes(r: Router, _ctx: ServerCtx): void {
 
   // ── Dictionary ──
 
+  const DICTIONARY_TIMEOUT_MS = 10_000;
+
   get('/api/dictionary', async (_req, res) => {
-    json(res, await fileIO.loadDictionary());
+    const t0 = Date.now();
+    try {
+      json(res, await withTimeout(fileIO.loadDictionary(), DICTIONARY_TIMEOUT_MS, 'dictionary-github'));
+    } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error', component: 'dictionary', level: 'warn',
+        message: 'dictionary.github.timeout',
+        data: { duration_ms: Date.now() - t0 },
+        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      });
+      json(res, { standardized: [], colloquial: [], lintViolations: [] });
+    }
   });
 
   // ── Source evidence ──

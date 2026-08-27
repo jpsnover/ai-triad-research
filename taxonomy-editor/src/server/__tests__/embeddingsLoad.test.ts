@@ -6,7 +6,7 @@
 // and the load snapshot. The counter is the same one the t/2905 concurrency cap
 // will read, so its increment/decrement/floor invariants are load-bearing.
 
-import { describe, it, expect, afterEach } from 'vitest';
+import { describe, it, expect, afterEach, beforeEach } from 'vitest';
 import {
   beginEmbeddingCompute,
   endEmbeddingCompute,
@@ -16,6 +16,9 @@ import {
   evaluateEmbeddingLoadShed,
   decideLoadShed,
   readRecentLoopDelayMaxMs,
+  isEmbeddingModelWarm,
+  markEmbeddingModelWarm,
+  resetEmbeddingModelWarm,
 } from '../embeddingsLoad.js';
 
 describe('embeddingsLoad (t/2904)', () => {
@@ -172,5 +175,28 @@ describe('readRecentLoopDelayMaxMs — recent-window signal (t/2914 item 1)', ()
     const v = readRecentLoopDelayMaxMs();
     expect(Number.isFinite(v)).toBe(true);
     expect(v).toBeGreaterThanOrEqual(0);
+  });
+});
+
+// t/3046 — model-warm flag drives the async-vs-keep-warm architecture decision.
+// If the flag is silently wrong, the wrong architecture gets chosen.
+describe('embeddingModelWarm flag (t/3046)', () => {
+  beforeEach(() => { resetEmbeddingModelWarm(); });
+
+  it('starts cold before any compute', () => {
+    // model_cold_start = !isEmbeddingModelWarm() = true for the first request
+    expect(isEmbeddingModelWarm()).toBe(false);
+  });
+
+  it('first mark → warm; second compute sees model_cold_start: false', () => {
+    expect(isEmbeddingModelWarm()).toBe(false); // first compute: model_cold_start = true
+    markEmbeddingModelWarm();
+    expect(isEmbeddingModelWarm()).toBe(true);  // subsequent: model_cold_start = false
+  });
+
+  it('reset restores cold state (test isolation)', () => {
+    markEmbeddingModelWarm();
+    resetEmbeddingModelWarm();
+    expect(isEmbeddingModelWarm()).toBe(false);
   });
 });
