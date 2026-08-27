@@ -1196,3 +1196,13 @@
   font-size: var(--text-2xs);
   color: var(--text-muted);
 }
+
+/* ── QBAF badge / delta (co-located from QbafOverlay.css; t/3075) ── */
+.qbaf-badge { display: inline-flex; align-items: center; gap: 3px; font-size: var(--text-2xs); padding: 1px 5px; border-radius: var(--radius-sm); font-weight: 600; white-space: nowrap; }
+.qbaf-strong { background: rgba(22,163,74,0.15); color: #16a34a; }
+.qbaf-moderate { background: rgba(37,99,235,0.15); color: #2563eb; }
+.qbaf-weak { background: rgba(217,119,6,0.15); color: #d97706; }
+.qbaf-very-weak { background: rgba(220,38,38,0.15); color: #dc2626; }
+.qbaf-delta { font-size: var(--text-2xs); font-weight: 400; }
+.qbaf-delta-up { color: #16a34a; }
+.qbaf-delta-down { color: #dc2626; }
