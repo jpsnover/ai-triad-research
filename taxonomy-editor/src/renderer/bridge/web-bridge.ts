@@ -15,6 +15,7 @@ import type { OpEdSet, OpEdSetSummary } from '../../../../lib/oped/types';
 import { encryptKeysForSharing, decryptKeysFromSharing } from '../utils/keyShareCrypto';
 import { resilientFetch, categorizeEndpoint, registerConnectionPoolProvider, type EndpointCategory } from './resilience';
 import { nextStepsForStatus } from './httpErrorSteps';
+import { computeEmbeddingsChunked } from './embeddingsBatch';
 import { runChatStream, chatStreamBus } from './chatStream';
 import { runOpEdCreate, cancelActiveOpEdRun, opedProgressBus } from './opedStream';
 import { onQuotaMilestone } from '../hooks/useQuotaWarning';
@@ -991,10 +992,9 @@ const rawApi: AppAPI = {
   getProxyUsage: () => get('/api/proxy/usage'),
 
   // Embeddings & NLI
-  computeEmbeddings: (texts, ids) => post('/api/embeddings/compute', { texts, ids }, { idempotent: true }), // idempotent:true → 1 retry so a load-shed 503 (retryable:true+Retry-After) recovers; embeddings are a pure fn of inputs (t/2922)
-  // Web transport: the server embedding backend (Python/Gemini) has no DirectML GPU-OOM failure
-  // mode, so nothing goes stale on this path → always [] (t/2060 staleNodeIds contract). If the
-  // server route later reports partial failures, thread them through here.
+  computeEmbeddings: (texts, ids) => computeEmbeddingsChunked(post, texts, ids), // ≤EMBEDDINGS_MAX_BATCH sequential chunks so an oversized batch can't blow the 50s server timeout (t/3072)
+  // Web transport: server embedding backend (Python/Gemini) has no DirectML GPU-OOM mode, so nothing
+  // goes stale → always [] (t/2060 staleNodeIds contract; thread partial failures here if the route adds them).
   updateNodeEmbeddings: (nodes) => post('/api/embeddings/update-nodes', { nodes }).then(() => ({ staleNodeIds: [] as string[] })),
   computeQueryEmbedding: (text) => post('/api/embeddings/query', { text }),
   nliClassify: (pairs) => post('/api/nli/classify', { pairs }),
