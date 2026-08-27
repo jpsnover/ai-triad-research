@@ -130,6 +130,7 @@ Get-Help <CmdletName> -Full                     # full docs for any cmdlet
 | `Test-AIBackendQuota` | Per-backend quota probe — flags quota-exhausted backends (Status='quota') with a best-effort ResetAt; use at session start to catch quota exhaustion before a wall of judge failures (t/3029) |
 | `Test-DebateIndexIntegrity` | Validate debate-*.json field types for UI-crash regressions — catches the object-as-title bug (t/2335) |
 | `Get-DebateIndexHealth` | Scan the aggregated `.debate-index.json` for type-invalid entries (object-as-title etc.); `-Repair` deletes bad entries for re-extraction on next launch (t/2735) |
+| `Get-DebateRateLimitSummary` | Summarize 429/rate-limit patterns from a flight recorder dump — per-bucket (`embed:<ip>`/`free:<ip>`) count, first/last, retry-after min/max/mean/distinct; reuses `Get-FlightRecorderReport` (t/3065) |
 | `Test-DebatePersistence` | Pre-flight atomic write+rename probe for the debates output dir — call before AI generation to surface LOCKED/NO_PERMISSION early (t/2545) |
 | `Get-ContainerAppRevision` | Query ACA revisions by mode (Active/Stale/Fqdn) — replaces raw `az containerapp revision` calls (t/1498) |
 | `Get-ServerLog` | Retrieve + filter ACA server logs, correlate by Pino requestId — `-RequestId`/`-Recent`/`-StartTime`/`-Pattern` sets, `-Level`/`-Component`/`-Follow`/`-Raw` (t/2765) |

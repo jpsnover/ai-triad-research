@@ -981,6 +981,8 @@ Export-ModuleMember -Function @(
     'Test-DebateIndexIntegrity'
     # t/2735 — Debate index (.debate-index.json) type-invalid entry scan + repair
     'Get-DebateIndexHealth'
+    # t/3065 — 429/rate-limit pattern summary from a flight recorder dump
+    'Get-DebateRateLimitSummary'
     # t/2367 — Debate blob existence check in Azure storage
     'Test-DebateSession'
     # t/2545 — Pre-flight atomic write+rename probe for debate output dir
