@@ -184,3 +184,7 @@ taxonomy/proposals/
 # worktree model each tracked LAST_SESSION.md would be a per-session PR. Notes
 # live locally per worktree; disposable (acceptably lost on a hub re-clone).
 LAST_SESSION.md
+
+# Junk-spray attribution log (t/3058): check-shared-drift.ps1 appends a per-role
+# tally of auto-removed word-split fragments here. Local rolling log, not committed.
+operations/devops/junk-attribution.jsonl
