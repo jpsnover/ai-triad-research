@@ -43,4 +43,16 @@ describe('resolveEmbeddingsChunked per-chunk timeout (t/2985)', () => {
       resolveEmbeddingsChunked(texts, undefined, null, chain, 10, 50),
     ).rejects.toThrow('timed out');
   });
+
+  it('t/3074 TL-GV: stuck chunk carries .timeout=true — stamped at throw site, not via message-match', async () => {
+    // Verifies the full chain: stuck chunk → resolveChunk timeout fires → .timeout=true stamped.
+    // A wording drift in the timeout message would NOT revert to 500 because the marker
+    // is set structurally (not via message.includes) — this test would still catch any regression.
+    const chain = [{
+      name: 'stuck',
+      compute: async (_: string[]) => new Promise<number[][]>(() => { /* never resolves */ }),
+    }];
+    const err = await resolveEmbeddingsChunked(['a'], undefined, null, chain, 10, 50).catch(e => e);
+    expect((err as { timeout?: boolean }).timeout).toBe(true);
+  });
 });

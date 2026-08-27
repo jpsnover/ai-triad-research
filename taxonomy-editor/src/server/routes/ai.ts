@@ -531,8 +531,19 @@ export function registerAiRoutes(r: Router, ctx: ServerCtx): void {
     return { blocked: false };
   }
 
+  // Invariant: MAX_EMBED_BATCH must be ≥ the client's chunk size (currently 512 per t/3072).
+  // A server cap below the client chunk size would 413 every legitimate request.
+  const MAX_EMBED_BATCH = 512;
+
   post('/api/embeddings/compute', (req, res, body) => withEndpointTimeout(res, 50_000, 'embeddings-compute', async () => {
     const { texts, ids } = body as { texts: string[]; ids?: string[] };
+    // t/3074 Gap 1: reject oversized batches before they enter the compute path.
+    // Client (t/3072) chunks to ≤MAX_EMBED_BATCH; this is the server-side backstop.
+    if (!Array.isArray(texts) || texts.length > MAX_EMBED_BATCH) {
+      const count = Array.isArray(texts) ? texts.length : 'non-array';
+      error(res, `Batch too large (${count}) — max ${MAX_EMBED_BATCH} texts per request`, 413);
+      return;
+    }
     try {
       const gate = freeTierEmbeddingGate(req, res);
       if (gate.blocked) return;
@@ -575,7 +586,19 @@ export function registerAiRoutes(r: Router, ctx: ServerCtx): void {
       } finally {
         endEmbeddingCompute();
       }
-    } catch (err) { getGlobalRecorder()?.record({ type: 'system.error', component: 'server', level: 'error', message: 'Failed to compute embeddings', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } }); error(res, String(err), 500, err); }
+    } catch (err) {
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'server', level: 'error', message: 'Failed to compute embeddings', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
+      // t/3074 Sub-change B: per-chunk timeout is transient (server under load) → retryable 503
+      // so the client backs off instead of receiving an opaque 500. Branch on the typed
+      // .timeout marker set by resolveEmbeddingsChunked (not fragile-prose — t/2952).
+      // Deterministic errors (bad input, init failure) have no .timeout → remain 500.
+      if ((err as { timeout?: boolean }).timeout === true) {
+        res.writeHead(503, { 'Content-Type': 'application/json', 'Retry-After': '5' });
+        res.end(JSON.stringify({ error: 'Embedding compute timed out — retry after backoff', retryable: true, retryAfterMs: 5000 }));
+        return;
+      }
+      error(res, String(err), 500, err);
+    }
   }));
 
   // t/1171: same free-tier exemption + rate limiting + key as /compute, so anonymous
