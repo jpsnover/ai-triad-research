@@ -145,6 +145,10 @@ Every incident diagnosis produces **two** kinds of follow-up, not one:
 
 **Gate-touching prevention tickets** (a new/changed CI step, deploy gate, verify script, or config validation) route to **Main (TL)** for Gate Verification: proven with **both arms** (a deliberate failure fires the gate; the clean case passes with zero noise), reliable enough to block prod (a flaky blocking gate is the *next* incident), and config co-located at point of use. See the *Gate signal integrity* rules under **Code Review & Quality** (the tech-lead scope's `AGENTS.md`).
 
+### Second recurrence → baseline validation (t/3085)
+
+When an incident maps to a failure class that has **already recurred at least once**, the diagnosis MUST include a **baseline-validation pass**: state explicitly what load, latency, or behavior the diagnosis treats as "normal," then verify that baseline against **design intent** — docs, precomputation assets, the original PR/ticket — not merely against recent observations. A recurring class whose fixes keep landing at the symptom layer is itself the signal that the **assumed baseline is the bug**, one level upstream of every prior diagnosis. (t/3085: three incidents in the embedding-saturation class were each diagnosed one level downstream of the real cause — a silently-dead embeddings cache since the May 14 API-First migration — because each treated "the server re-embeds ~800 static texts per debate" as normal load instead of challenging why that baseline existed at all.)
+
 ## Second Opinion
 
 Any Main instance may consult `main.engineering-second-opinion@ai-triad-research.orca.local` when **any one** of these conditions holds:
