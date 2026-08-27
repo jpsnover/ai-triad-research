@@ -586,8 +586,17 @@ export async function resolveEmbeddingsChunked(
 ): Promise<number[][]> {
   // t/2985: timeout is per-chunk, not aggregate — large healthy batches complete while a
   // stuck chunk still gets bounded. The outer withTimeout (aggregate) was removed.
-  const resolveChunk = (t: string[], i: string[] | undefined) =>
-    withTimeout(resolveEmbeddings(t, i, local, chain), chunkTimeoutMs, 'embeddings-chunk');
+  // Add a typed .timeout marker so the route-level catch can branch without fragile-prose
+  // string matching (t/2952). String check is internal to this call site (the only one that
+  // calls withTimeout for embeddings) — callers use (err as any).timeout === true.
+  const resolveChunk = async (t: string[], i: string[] | undefined): Promise<number[][]> => {
+    try {
+      return await withTimeout(resolveEmbeddings(t, i, local, chain), chunkTimeoutMs, 'embeddings-chunk');
+    } catch (err) {
+      if (err instanceof Error && err.message.includes('timed out after')) Object.assign(err, { timeout: true });
+      throw err;
+    }
+  };
   if (texts.length <= chunkSize) return resolveChunk(texts, ids);
   const out: number[][] = [];
   for (let i = 0; i < texts.length; i += chunkSize) {
