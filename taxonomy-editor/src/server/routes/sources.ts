@@ -32,8 +32,6 @@ import { DEFAULT_MODEL, withTimeout } from '../../../../lib/ai-client/index.js';
 import { log } from '../logger.js';
 import * as ai from '../ai/aiBackends.js';
 import { resolveGenerationContext, enforceBackendAllowed } from './generationContext.js';
-import { getDataRoot } from '../config.js';
-import { greatestHitsPath } from '../../../../lib/debate/corpusCoverage.js';
 import * as fileIO from '../storage/fileIO.js';
 import { readDataFile } from '../storage/readDataFile.js';
 
@@ -122,11 +120,10 @@ function loadDocTitles(): DocMetaMap | null {
  * [] }` → exclusion silently no-ops. The response contract (`{ node_ids: string[] }`)
  * is unchanged — the renderer builds the Set + filters vs. live nodes.
  */
-export function loadGreatestHitsNodeIds(): { node_ids: string[] } | null {
+export async function loadGreatestHitsNodeIds(): Promise<{ node_ids: string[] } | null> {
   try {
-    const p = greatestHitsPath(getDataRoot());
-    if (!fs.existsSync(p)) return null;
-    const parsed = JSON.parse(fs.readFileSync(p, 'utf-8')) as {
+    const buf = await readDataFile('calibration/greatest-hits.json');
+    const parsed = JSON.parse(buf.toString('utf-8')) as {
       node_ids?: unknown;
       nodes?: Array<{ node_id?: unknown }>;
     };
@@ -240,8 +237,8 @@ export function registerSourcesRoutes(r: Router, _ctx: ServerCtx): void {
   // `{ node_ids }` or null (absent file) — never the Set that loadGreatestHitsFile
   // yields (JSON.stringify(new Set()) → {}). Renderer builds the Set + filters vs.
   // live nodes, so no server-side knownNodeIds filtering here.
-  get('/api/greatest-hits', (_req, res) => {
-    json(res, loadGreatestHitsNodeIds());
+  get('/api/greatest-hits', async (_req, res) => {
+    json(res, await loadGreatestHitsNodeIds());
   });
 
   post('/api/source-evidence', async (_req, res, body) => {
