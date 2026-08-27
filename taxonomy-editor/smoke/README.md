@@ -60,12 +60,17 @@ npm run smoke:styled
 
 ## Both-arms proof (Gate Verification) — CAPTURED
 
-Assertion logic proven live (2026-08-27) via the probe against the prod web build:
+Assertion logic proven live (2026-08-27) via the probe against the prod web build. **Every active
+assertion has its own proven failure arm** (t/3026#10 cond 1 — a passive always-pass control on a
+known-orphan surface would be a false-green):
 
-- **Clean arm (pass):** `.ga-grid-3col` → `grid-template-columns: "610px 305px 305px"` (3 tracks) → assertion `≥3` **passes**.
-- **Deliberate-unload arm (fail):** comment out the `.ga-grid-3col` rule in `GraphAttributesPanel.css`
-  → `build:web` (rule absent from all built CSS) → `grid-template-columns: "none"` (1 track) → assertion **fails**.
-  `.hl-backdrop` stayed `absolute` throughout (isolated negative control). Reverted after.
+- **Attributes `.ga-grid-3col`** — clean → `"610px 305px 305px"` (3 tracks) → `≥3` **passes**;
+  comment the rule → `build:web` (absent from all built CSS) → `"none"` (1 track) → **fails**.
+- **HighlightedField `.hl-backdrop`** — clean → `position: absolute` → **passes**; comment the rule →
+  `build:web` → `position: static` → **fails** (`.ga-grid-3col` stayed 3 tracks — isolated).
+
+Both rules reverted after. Rebuilding (not DOM-hiding) is required — it exercises the Vite
+chunk-graph, which is the actual failure class.
 
 ## STATUS — harness validated; CI wiring is the DevOps handoff
 
@@ -78,6 +83,14 @@ where the runner is unaffected — so this does not block the gate.
 
 **DevOps handoff (CI wiring):** add the pinned `@playwright/test@1.48.2` devDep + lockfile sync
 (deferred here to avoid lockfile churn), `npx playwright install --with-deps chromium`, cache
-`~/.cache/ms-playwright`, wire the job **non-blocking** on Node 22 for ≥1 green real-env cycle, then
-a separate draft PR flips warn→block held for TL sign-off (t/3026#4 promotion discipline). Enable the
-two `fixme` surfaces once the job boots the app with `chat`/settings tabs flagged on.
+`~/.cache/ms-playwright`, wire the job **non-blocking** on **Node 22** for ≥1 green real-env cycle,
+then a separate draft PR flips warn→block held for TL sign-off (t/3026#4 promotion discipline).
+Pin Node 22 explicitly — the runner **hangs on Node 24**, so a future Node bump would silently wedge
+a blocking gate.
+
+**Coverage (honest, per "no silent caps"):** this harness covers **2 of the 4** t/3026#1 surfaces
+active + both-arms-proven (Attributes `.ga-*`, HighlightedField `.hl-*`). DataSourceCard and
+ApiKeyErrorMessage are `test.fixme` (unreachable / TBD in the default web boot), and the 3-MEDIUM
+adjudication (`vocab-*`/`qbaf-*`/`claim-attribution-*`) is not done. A green check here is **not**
+full-class coverage. Those, plus enabling the 2 fixme surfaces and the Node-24 runner fix, are
+tracked in **t/3059**.
