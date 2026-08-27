@@ -28,7 +28,6 @@ import { getSessionBranchName } from '../security/userContext.js';
 import { filterSessionEvents } from './sessionScopedDump.js';
 import { getRequestId } from '../logger.js';
 import { log } from '../logger.js';
-import * as community from '../community/community.js';
 import * as fileIO from '../storage/fileIO.js';
 import { getWarmupStatus, computeEmbedding } from '../../../../lib/embeddings/onnxEmbedding.js';
 
@@ -157,22 +156,18 @@ export function registerDiagnosticsRoutes(r: Router, ctx: ServerCtx): void {
 
   // t/939: download a single merged (client+server) dump for a dumpId. Mirrors the
   // Merge-FlightRecorderDumps cmdlet — interleaves events by _wall, tags _source,
-  // merges headers/dictionaries/contexts; handles a single side gracefully. Admin
-  // only: the merge includes the full server ring buffer (other users' internals).
+  // merges headers/dictionaries/contexts; handles a single side gracefully.
   get('/api/flight-recorder/download-merged/:dumpId', async (req, res) => {
     const dumpId = param(req, 'dumpId', '/api/flight-recorder/download-merged/:dumpId');
     if (!isValidDumpId(dumpId)) { error(res, 'dumpId must be a UUID-safe string', 400); return; }
-    // t/1064: the download must NOT fail just because the caller isn't an admin —
-    // local/Electron users are '_local' (never admin), so the old blanket
-    // requireAdmin gate 403'd the very users running this diagnostic locally. The
-    // server ring buffer (other users' internals) stays gated: it's merged in only
-    // for admins or single-user/local deployments (no other users). Non-admin web
-    // callers still get their own client dump.
-    const includeServer = community.isAdmin() || STORAGE_MODE !== 'github-api';
+    // t/1064: local/Electron users are '_local' (never admin) — old blanket requireAdmin
+    // gate 403'd them. Server dump stays excluded only for anonymous sessions (no branch).
+    // t/3070: gate widened from isAdmin() to any authenticated session — the server-side
+    // dump is already session-scoped at write time (t/3067 filterSessionEvents), so a
+    // non-admin authenticated user only ever receives their own events.
+    const includeServer = getSessionBranchName() !== undefined || STORAGE_MODE !== 'github-api';
     // t/3081: derive why server is absent so the merged header is never silently missing it.
-    const serverOmissionReason = !includeServer
-      ? (getSessionBranchName() === undefined ? 'anonymous-session' : 'not-admin')
-      : undefined;
+    const serverOmissionReason = !includeServer ? 'anonymous-session' : undefined;
     try {
       const merged = await readMergedDump(getDataRoot(), dumpId, { includeServer, serverOmissionReason });
       if (merged === null) {
