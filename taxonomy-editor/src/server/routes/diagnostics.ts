@@ -77,7 +77,25 @@ export function registerDiagnosticsRoutes(r: Router, ctx: ServerCtx): void {
       if (dumpId !== undefined) {
         if (!isValidDumpId(dumpId)) { error(res, 'dumpId must be a UUID-safe string', 400); return; }
         const filePath = await writeDump(getDataRoot(), 'client', dumpId, ndjson);
-        json(res, { filePath, filename: path.basename(filePath), dumpId });
+
+        // t/3049: auto-write paired server FR dump so the merged download includes
+        // both sources in one artifact. Best-effort — a server-dump write failure
+        // must never fail the client dump response.
+        let serverDumpWritten = false;
+        try {
+          const serverNdjson = appendServerLogs(serverRecorder.buildDump('manual').ndjson);
+          await writeDump(getDataRoot(), 'server', dumpId, serverNdjson);
+          serverDumpWritten = true;
+        } catch (serverErr) {
+          getGlobalRecorder()?.record({
+            type: 'system.error', component: 'flight-recorder-dump', level: 'warn',
+            message: 'fr.auto_server_dump.failed',
+            data: { dumpId },
+            error: { name: (serverErr as Error).name ?? 'Error', message: String(serverErr) },
+          });
+        }
+
+        json(res, { filePath, filename: path.basename(filePath), dumpId, serverDumpWritten });
         return;
       }
 

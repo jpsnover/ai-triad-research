@@ -184,13 +184,17 @@ export function byokGeminiFallbackKey(
   return freeKeys.length === 1 ? freeKeys[0] : freeKeys;
 }
 
+/** Per-Gemini-key free-tier RPM — single source of truth (also used by keyRotator.ts). */
+export const FREE_TIER_RPM_PER_KEY = 6;
+
 /**
  * Free-tier per-minute request budget scaled by the key-pool size (t/906): each
- * Gemini key carries its own 6 RPM and the rotator spreads load across them, so
- * the server limit is 6 × keyCount, capped at 30 to bound abuse.
+ * Gemini key carries its own FREE_TIER_RPM_PER_KEY RPM and the rotator spreads
+ * load across them, so the server limit is FREE_TIER_RPM_PER_KEY × keyCount,
+ * capped at 30 to bound abuse.
  */
 export function scaledFreeTierRpm(keyCount: number): number {
-  return Math.min(6 * Math.max(0, keyCount), 30);
+  return Math.min(FREE_TIER_RPM_PER_KEY * Math.max(0, keyCount), 30);
 }
 
 export function resolveTier(principalName: string, idp: string): ResolvedTier {

@@ -148,6 +148,17 @@ function isExpectedStatus(method: string, httpStatus: number | undefined): boole
   return httpStatus !== undefined && (EXPECTED_STATUS[method]?.has(httpStatus) ?? false);
 }
 
+/**
+ * Structured 429 cooldown for FR `ai.error` events (t/3054). web-bridge attaches
+ * `retryAfterS` to the thrown ActionableError; surface it as `retry_after_s` so a
+ * consumer can honor the cooldown without regex-parsing the message string.
+ */
+function retryAfterSFromError(err: unknown, httpStatus: number | undefined): number | undefined {
+  if (httpStatus !== 429) return undefined;
+  const v = (err as { retryAfterS?: unknown }).retryAfterS;
+  return typeof v === 'number' ? v : undefined;
+}
+
 /** Categorize bridge methods for the recorder. */
 function inferCategory(method: string): string {
   if (method.startsWith('generate') || method.startsWith('startChat') || method === 'nliClassify') return 'ai';
@@ -199,6 +210,7 @@ export function instrumentBridge(raw: AppAPI): AppAPI {
           ? (err as { httpStatus: number }).httpStatus
           : undefined;
         const expected = !isAI && isExpectedStatus(key, httpStatus);
+        const retryAfterS = retryAfterSFromError(err, httpStatus);
         getGlobalRecorder()?.record({
           type: isAI ? 'ai.error' : 'system.error',
           component: recorder?.intern('component', 'bridge') as string | number,
@@ -206,7 +218,7 @@ export function instrumentBridge(raw: AppAPI): AppAPI {
           message: expected ? `bridge.${key} expected ${httpStatus} (sync)` : `bridge.${key} failed (sync)`,
           duration_ms,
           error: normalizeError(err),
-          data: { method: key, category, ...(httpStatus !== undefined && { http_status: httpStatus }) },
+          data: { method: key, category, ...(httpStatus !== undefined && { http_status: httpStatus }), ...(retryAfterS !== undefined && { retry_after_s: retryAfterS }) },
         });
         throw err;
       }
@@ -244,6 +256,7 @@ export function instrumentBridge(raw: AppAPI): AppAPI {
             ? (err as { httpStatus: number }).httpStatus
             : undefined;
           const expected = !isAI && isExpectedStatus(key, httpStatus);
+          const retryAfterS = retryAfterSFromError(err, httpStatus);
           recorder?.record({
             type: isAI ? 'ai.error' : 'system.error',
             component: recorder.intern('component', 'bridge') as string | number,
@@ -251,7 +264,7 @@ export function instrumentBridge(raw: AppAPI): AppAPI {
             message: expected ? `bridge.${key} expected ${httpStatus}` : `bridge.${key} failed`,
             duration_ms,
             error: normalizeError(err),
-            data: { method: key, category, ...(httpStatus !== undefined && { http_status: httpStatus }) },
+            data: { method: key, category, ...(httpStatus !== undefined && { http_status: httpStatus }), ...(retryAfterS !== undefined && { retry_after_s: retryAfterS }) },
           });
           throw err;
         },

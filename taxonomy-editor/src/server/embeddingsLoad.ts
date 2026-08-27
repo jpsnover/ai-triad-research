@@ -68,6 +68,15 @@ export function endEmbeddingCompute(): void { inFlight = Math.max(0, inFlight - 
 /** Current number of in-flight embedding computes on this replica. */
 export function inFlightEmbeddingComputes(): number { return inFlight; }
 
+// t/3046: tracks whether the embedding model has been warmed (first successful
+// computeEmbeddings call per container). Used to split cold-start vs compute
+// latency in the FR event — drives the async-vs-keep-warm architecture decision.
+let embeddingModelWarm = false;
+export function isEmbeddingModelWarm(): boolean { return embeddingModelWarm; }
+export function markEmbeddingModelWarm(): void { embeddingModelWarm = true; }
+/** Reset the warm flag — test isolation only. */
+export function resetEmbeddingModelWarm(): void { embeddingModelWarm = false; }
+
 export interface EmbeddingLoadSnapshot {
   heap_used_mb: number;
   heap_total_mb: number;

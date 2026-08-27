@@ -71,3 +71,14 @@ export function retryReasonLabel(reason: RetryReason): string {
     default: return 'failed';
   }
 }
+
+/**
+ * The server's advertised retry window for a rate-limit failure, in ms, if present.
+ * The renderer only receives it embedded in the error message ("Retry in Ns") today; this
+ * surfaces it structured so it can be stamped onto FR data and reused for backoff (t/3048).
+ * Returns undefined when no window is advertised (caller falls back to a default backoff).
+ */
+export function parseRetryAfterMs(err: unknown): number | undefined {
+  const m = String(err).match(/Retry in (\d+)s/);
+  return m ? parseInt(m[1], 10) * 1000 : undefined;
+}
