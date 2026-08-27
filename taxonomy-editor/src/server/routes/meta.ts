@@ -19,6 +19,7 @@ import { getGlobalRecorder } from '../../../../lib/flight-recorder/index.js';
 import { getProjectRoot, getDataRoot, hasApiKey, STORAGE_MODE } from '../config.js';
 import { getConfig } from '../runtimeConfig.js';
 import * as proxyTiers from '../ai/proxyTiers.js';
+import { getEmbeddingsCacheStatus } from '../ai/aiBackends.js';
 import * as community from '../community/community.js';
 import * as fileIO from '../storage/fileIO.js';
 import { log } from '../logger.js';
@@ -113,6 +114,10 @@ export function registerMetaRoutes(r: Router, ctx: ServerCtx): void {
       freeTierKeyPoolSize: freeKeyPoolSize,
       freeTierLimits: freeKeyPoolSize > 0 ? { requestsPerMinute: proxyTiers.scaledFreeTierRpm(freeKeyPoolSize), tokensPerDay: getConfig().tiers.free.tokensPerDay } : null,
     };
+
+    // t/3086: embeddings cache probe result — surfaces t/3085 condition in /health without FR access.
+    const embeddingsStatus = getEmbeddingsCacheStatus();
+    base.embeddings = { cachePresent: embeddingsStatus.present, nodeCount: embeddingsStatus.nodeCount };
 
     const githubBackend = ctx.getGithubBackend();
     if (githubBackend) {

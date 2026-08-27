@@ -166,7 +166,7 @@ describe('POST /api/embeddings/compute — batch cap + typed-timeout 503 (t/3074
 
   beforeEach(() => {
     evaluateEmbeddingLoadShed.mockReturnValue({ shed: false });
-    computeEmbeddings.mockResolvedValue([[0.1, 0.2]]);
+    computeEmbeddings.mockResolvedValue({ vectors: [[0.1, 0.2]], cacheHits: 1, cacheMisses: 0 });
 
     const { router, handlers } = makeRouter();
     registerAiRoutes(router as never, makeCtx());
@@ -184,7 +184,7 @@ describe('POST /api/embeddings/compute — batch cap + typed-timeout 503 (t/3074
   it('arm 2 — 200 when texts.length === MAX_EMBED_BATCH (boundary pass)', async () => {
     const texts = Array.from({ length: MAX_EMBED_BATCH }, (_, i) => `text-${i}`);
     const vectors = texts.map(() => [0.1]);
-    computeEmbeddings.mockResolvedValueOnce(vectors);
+    computeEmbeddings.mockResolvedValueOnce({ vectors, cacheHits: 0, cacheMisses: vectors.length });
     const res = fakeRes();
     await computeHandler({} as IncomingMessage, res, { texts });
     expect(res._statusCode).not.toBe(413);
