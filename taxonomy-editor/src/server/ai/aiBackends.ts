@@ -371,20 +371,22 @@ export async function generateText(
     const apiModel = getApiModelId(currentModel);
     const opts = buildGenerateOptions(options, timeoutMs, currentModel, entryMap);
 
-    const runWithRetry = (apiKey: string) => withRetry(
-      () => callProvider(fetch, backend, prompt, apiModel, apiKey, opts),
-      SERVER_RETRY_CONFIG,
-      `${backend}/${apiModel}`,
-      (msg: string) => reportProviderRetry(msg, backend, apiModel, onRetry),
-      // t/2510: signal-aware backoff + pre-attempt abort check; an AbortError is
-      // rethrown non-retryable so a deliberate cancel never enters the retry ladder.
-      options?.signal,
-    );
-
     try {
       // t/3052+t/3056: rotate across the key pool (round-robin + 429 cooldown);
       // callWithKeyRotation paces free-tier keys automatically via pool membership.
-      const result = await callWithKeyRotation(backend, keys, runWithRetry);
+      // t/3062: withRetry wraps callWithKeyRotation (not inside it) so a 429 bubbles
+      // out to the rotation loop immediately; the inner loop exhausts the key pool
+      // before outer withRetry ever sees the error and backs off for 120s.
+      // t/2510: signal-aware backoff + pre-attempt abort check; an AbortError is
+      // rethrown non-retryable so a deliberate cancel never enters the retry ladder.
+      const result = await withRetry(
+        () => callWithKeyRotation(backend, keys,
+          (apiKey) => callProvider(fetch, backend, prompt, apiModel, apiKey, opts)),
+        SERVER_RETRY_CONFIG,
+        `${backend}/${apiModel}`,
+        (msg: string) => reportProviderRetry(msg, backend, apiModel, onRetry),
+        options?.signal,
+      );
 
       if (mi > 0) {
         getGlobalRecorder()?.record({
