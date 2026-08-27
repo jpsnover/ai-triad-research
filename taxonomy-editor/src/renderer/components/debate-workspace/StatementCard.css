@@ -728,3 +728,11 @@ a.lineage-link,
   animation: spin 0.8s linear infinite;
   flex-shrink: 0;
 }
+
+/* ── QBAF net-delta chip (t/3076) ── co-located from QbafOverlay.css so the
+   debate chunk (which never imports QbafOverlay) renders the strength delta. */
+.qbaf-delta-up { color: #16a34a; }
+.qbaf-delta-down { color: #dc2626; }
+.qbaf-net-delta { margin-left: auto; font-size: var(--text-2xs); font-weight: 600; white-space: nowrap; padding: 1px 5px; border-radius: var(--radius-sm); }
+.qbaf-net-delta.qbaf-delta-up { background: rgba(22,163,74,0.1); }
+.qbaf-net-delta.qbaf-delta-down { background: rgba(220,38,38,0.1); }
