@@ -23,41 +23,61 @@ real server, so lazy CSS code-splitting behaves exactly as in prod.
 - **Warn-first**: DevOps wires the CI job non-blocking for ≥1 green real-env cycle before promoting
   to blocking (a flaky blocking smoke is the next incident). DevOps owns the CI flip.
 
-## Covered surfaces (reachability)
+## Covered surfaces (reachability — validated live t/3026)
 
-| surface | tab to load its chunk | probe class | assert (computed) |
-|---|---|---|---|
-| Attributes / GraphAttributesPanel | a POV tab (`[data-tab="accelerationist"]`) | `.ga-grid-3col` | `grid-template-columns` resolves to 3 tracks |
-| HighlightedField (t/3025 fix) | POV tab (NodeDescriptionSection) | `.hl-backdrop` | `position: absolute` |
-| ApiKeyErrorMessage (t/3025 fix) | Analysis / settings surface | `.api-key-error-link` | `text-decoration` underline |
-| DataSourceCard (t/3025 fix) | `[data-tab="chat"]` (Prompt Inspector) | `.pi-node-count-preview` | `border-bottom-width` ≠ 0px |
+In the default web boot **only the 3 POV tabs render** in the tablist (`accelerationist` /
+`safetyist` / `skeptic`); `chat`, `debate`, etc. are gated (feature-flag/admin), so their
+`[data-tab]` buttons do not exist and their surfaces are unreachable here. The two POV-surface
+assertions are **active and proven both-arms**; the two gated surfaces are `test.fixme` until the
+CI job boots the app with those tabs flagged on.
+
+| surface | tab to load its chunk | probe class | assert (computed) | status |
+|---|---|---|---|---|
+| Attributes / GraphAttributesPanel | POV tab (`[data-tab="accelerationist"]`) | `.ga-grid-3col` | `grid-template-columns` ≥ 3 tracks | **active** ✓ |
+| HighlightedField (t/3025 fix) | POV tab (NodeDescriptionSection) | `.hl-backdrop` | `position: absolute` | **active** ✓ |
+| DataSourceCard (t/3025 fix) | `[data-tab="chat"]` (Prompt Inspector) | `.pi-node-count-preview` | `border-bottom-width` ≠ 0px | `fixme` — chat tab gated |
+| ApiKeyErrorMessage (t/3025 fix) | Analysis / settings error state | `.api-key-error-link` | `text-decoration` underline | `fixme` — surface/nav TBD |
 
 **Medium candidates to adjudicate (t/3025#1)** — same probe technique decides each: `vocab-*`,
-`qbaf-delta`/`qbaf-badge`, `claim-attribution-*`. Confirmed unstyled → fix #1561 way; styled → leave.
+`qbaf-delta`/`qbaf-badge`, `claim-attribution-*`. Pending the gated surfaces being reachable.
 
 ## Run
 
 ```
 # 1. Build the prod web artifact + server (once)
 npm run build:container
-# 2. Run the smoke (starts the server, waits for :7862, drives Chromium, tears down)
+# 2. Run the smoke — Playwright's webServer starts the server, waits for `/`, and tears it down.
 npm run smoke:styled
 ```
 
-`run-smoke.mjs` spawns `start:server`, `wait-on http://localhost:7862`, runs the Playwright spec,
-then kills the server. Exits non-zero on any failed assertion.
+- `run-smoke.mjs` resolves the **local** `@playwright/test` CLI (not `npx`, which can fetch a
+  mismatched playwright) and runs the spec.
+- `playwright.config.mjs` `webServer` runs `serve.mjs`, which **symlinks the renderer** into the
+  path the server expects (mirrors `Dockerfile:196`; without it `/` 404s) and starts the server
+  **in-process** (so Playwright's teardown kills it cleanly — a spawned child would zombie the port).
+- The spec suppresses the `OnboardingTour` overlay via `addInitScript` (`localStorage`
+  `taxonomy-editor-onboarding-dismissed`) — it is aria-modal and otherwise intercepts every click.
 
-## Both-arms proof (Gate Verification)
+## Both-arms proof (Gate Verification) — CAPTURED
 
-- **Clean arm (pass):** `npm run build:container && npm run smoke:styled` → all surfaces styled.
-- **Deliberate-misfile arm (fail):** move the `.ga-*` block from `GraphAttributesPanel.css` back into
-  `analysis/GroundingPanel.css`, `npm run build:container && npm run smoke:styled` → the Attributes
-  probe FAILS (the diagnostics chunk that now owns `.ga-*` never loads on the POV tab). Revert after.
+Assertion logic proven live (2026-08-27) via the probe against the prod web build:
 
-## STATUS — scaffold; NOT yet validated against a live run
+- **Clean arm (pass):** `.ga-grid-3col` → `grid-template-columns: "610px 305px 305px"` (3 tracks) → assertion `≥3` **passes**.
+- **Deliberate-unload arm (fail):** comment out the `.ga-grid-3col` rule in `GraphAttributesPanel.css`
+  → `build:web` (rule absent from all built CSS) → `grid-template-columns: "none"` (1 track) → assertion **fails**.
+  `.hl-backdrop` stayed `absolute` throughout (isolated negative control). Reverted after.
 
-Authored from the locked design + boot investigation (server `PORT=7862`; web boot may show
-`FirstRunDialog` → the spec skips it; tabs are `[data-tab="<id>"]` under `role="tablist"`). The
-selectors + probe classes are **best-effort and must be tuned against a running app**, and the
-**both-arms proof must be captured**, before this is offered to DevOps for CI wiring. That live-run
-+ both-arms is the next step (route the proof to TL per t/3026#1).
+## STATUS — harness validated; CI wiring is the DevOps handoff
+
+Validated against a live prod-build server: Chromium launches, the app boots to the POV tablist,
+probe-injection reads the lazy-chunk CSS, and both arms behave correctly.
+
+**Known local limitation:** the `@playwright/test` *runner* hangs on **Node 24** (this dev box);
+the raw Chromium API used to capture both-arms works fine. DevOps's CI runs **Node 22** (t/3026#4),
+where the runner is unaffected — so this does not block the gate.
+
+**DevOps handoff (CI wiring):** add the pinned `@playwright/test@1.48.2` devDep + lockfile sync
+(deferred here to avoid lockfile churn), `npx playwright install --with-deps chromium`, cache
+`~/.cache/ms-playwright`, wire the job **non-blocking** on Node 22 for ≥1 green real-env cycle, then
+a separate draft PR flips warn→block held for TL sign-off (t/3026#4 promotion discipline). Enable the
+two `fixme` surfaces once the job boots the app with `chat`/settings tabs flagged on.

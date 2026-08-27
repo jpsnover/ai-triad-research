@@ -1,34 +1,28 @@
-// Render-smoke orchestrator (t/3026): start:server → wait for :7862 → run the Playwright
-// spec → tear down. Assumes `npm run build:container` has produced dist/ (prod web artifact +
-// server). Exits non-zero on any failed assertion. DevOps owns the CI job wiring (t/3026#4).
+// Render-smoke entry (t/3026): run the Playwright spec against the prod web artifact.
+// Playwright's `webServer` (see playwright.config.mjs) owns the server: it runs smoke/serve.mjs
+// — which symlinks the renderer and starts the server in-process — waits for `/` to answer,
+// and tears it down afterward. Assumes `npm run build:container` has produced dist/.
+//
+// We resolve the LOCAL @playwright/test CLI instead of shelling to `npx playwright`: npx on
+// some machines fails to find the local binary and downloads a mismatched playwright into its
+// cache, which then can't resolve @playwright/test (ERR_MODULE_NOT_FOUND). require.resolve
+// pins the exact installed CLI. DevOps owns the CI job wiring (t/3026#4).
 import { spawn } from 'node:child_process';
-import { dirname, resolve } from 'node:path';
+import { dirname, resolve, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { existsSync } from 'node:fs';
 
-const SMOKE_DIR = dirname(fileURLToPath(import.meta.url));
-const APP_DIR = resolve(SMOKE_DIR, '..');
-const PORT = process.env.PORT || '7862';
-const BASE = `http://localhost:${PORT}`;
-const useShell = process.platform === 'win32';
-
-function launch(cmd, args, opts = {}) {
-  return spawn(cmd, args, { stdio: 'inherit', shell: useShell, cwd: APP_DIR, ...opts });
+const APP_DIR = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+// Direct file path, not require.resolve('@playwright/test/cli.js'): that subpath is not in the
+// package's `exports` map (ERR_PACKAGE_PATH_NOT_EXPORTED) — the .bin shim execs the file directly.
+const cli = join(APP_DIR, 'node_modules', '@playwright', 'test', 'cli.js');
+if (!existsSync(cli)) {
+  console.error(`[run-smoke] @playwright/test not installed at ${cli} — run \`npm install @playwright/test\` + \`npx playwright install chromium\``);
+  process.exit(1);
 }
-const waitExit = (child) => new Promise((res) => child.on('exit', (c) => res(c ?? 1)));
 
-const server = launch('node', ['dist/server/taxonomy-editor/src/server/server.js']);
-let code = 1;
-try {
-  const waited = await waitExit(launch('npx', ['wait-on', '-t', '120000', BASE]));
-  if (waited !== 0) throw new Error(`wait-on failed for ${BASE} (exit ${waited}) — is build:container built?`);
-  code = await waitExit(
-    launch('npx', ['playwright', 'test', '-c', 'smoke/playwright.config.mjs'], {
-      env: { ...process.env, SMOKE_BASE_URL: BASE },
-    }),
-  );
-} catch (err) {
-  console.error(`[run-smoke] ${err instanceof Error ? err.message : String(err)}`);
-} finally {
-  server.kill();
-}
-process.exit(code);
+const child = spawn(process.execPath, [cli, 'test', '-c', 'smoke/playwright.config.mjs'], {
+  stdio: 'inherit',
+  cwd: APP_DIR,
+});
+child.on('exit', (code) => process.exit(code ?? 1));
