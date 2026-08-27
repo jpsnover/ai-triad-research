@@ -5,6 +5,7 @@
 // If replicas scale beyond 1, the effective per-key call rate becomes N×actual
 // and this must be replaced with a shared counter (Redis / Durable Object).
 
+import { createHash } from 'node:crypto';
 import { getLimiter } from './rpmLimiter.js';
 import { is429Error, retryAfterMs } from './providerErrors.js';
 import { FREE_TIER_RPM_PER_KEY, parseFreeTierKeys } from './proxyTiers.js';
@@ -13,24 +14,31 @@ import { log } from '../logger.js';
 const _cursors = new Map<string, number>();   // backend → next-cursor index
 const _cooldowns = new Map<string, number>();  // full api key → cooldown expiry ms
 
+function keyHash(key: string): string {
+  // codeql[js/insufficient-password-hash] -- not password storage; partial-key (75%) SHA-256 truncated to 8-char log-safe fingerprint, never stored or verified as a credential.
+  return createHash('sha256').update(key.slice(0, Math.floor(key.length * 0.75))).digest('hex').slice(0, 8);
+}
+
 // Round-robin across keys, skipping any in their 429 cooldown window.
 // No within-call rotation — a single callWithKeyRotation picks one key and uses
 // it for the duration of that call; rotation applies across successive calls (v1).
-function nextKey(backend: string, keys: string[]): string {
+function nextKey(backend: string, keys: string[]): { key: string; slot: number } {
   const base = _cursors.get(backend) ?? 0;
   const N = keys.length;
   const now = Date.now();
   for (let i = 0; i < N; i++) {
-    const k = keys[(base + i) % N];
+    const slot = (base + i) % N;
+    const k = keys[slot];
     const exp = _cooldowns.get(k);
     if (!exp || now >= exp) {
-      _cursors.set(backend, (base + i + 1) % N);
-      return k;
+      _cursors.set(backend, (slot + 1) % N);
+      return { key: k, slot };
     }
   }
   // All keys cooled — fall through to base-slot key; outer withRetry handles the 429.
+  const slot = base % N;
   _cursors.set(backend, (base + 1) % N);
-  return keys[base % N];
+  return { key: keys[slot], slot };
 }
 
 function markKeyCooled(key: string, delayMs: number): void {
@@ -73,7 +81,9 @@ export async function callWithKeyRotation<T>(
   const pool = freeTierKeySet();
   // keys.length > 0 guard: [].every() is vacuously true; empty keys should fail before here.
   const allFree = keys.length > 0 && keys.every(k => pool.has(k));
-  const key = allFree ? nextKey(backend, keys) : keys[0];
+  const { key, slot } = allFree ? nextKey(backend, keys) : { key: keys[0], slot: undefined };
+  const kh = keyHash(key);
+  log.api.debug({ key_hash: kh, key_slot: slot, backend }, 'keyRotator: selected');
   if (allFree) {
     await getLimiter(key, FREE_TIER_RPM_PER_KEY).acquire();
   }
@@ -83,7 +93,7 @@ export async function callWithKeyRotation<T>(
     if (is429Error(err)) {
       const delay = retryAfterMs(err);
       markKeyCooled(key, delay);
-      log.api.warn('keyRotator: 429 on key, cooling for %dms', delay);
+      log.api.warn({ key_hash: kh, key_slot: slot, delay_ms: delay }, 'keyRotator: 429 on key, cooling');
     }
     throw err;
   }
