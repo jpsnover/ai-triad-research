@@ -64,6 +64,23 @@
 .ovr-td-muted { padding: 3px 8px; font-size: var(--text-2xs); color: var(--text-muted); }
 .ovr-td-center { padding: 3px 8px; text-align: center; }
 .ovr-td-conf { padding: 3px 8px; text-align: center; font-weight: 600; }
+/* Base rule co-located here because VocabularyPanel.css (the single source) only loads
+   in the debate chunk — the diagnostics-window chunk never imports that panel (t/3077). */
+a.vocab-term,
+.vocab-term {
+  color: inherit;
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  text-decoration-color: rgba(168,85,247,0.35);
+  text-underline-offset: 2px;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  transition: background 0.15s, text-decoration-color 0.15s;
+}
+.vocab-term:hover {
+  text-decoration-color: rgba(168,85,247,0.8);
+  background: rgba(168,85,247,0.08);
+}
 .ovr-vocab-term { text-decoration: none; cursor: default; }
 .ovr-ambiguous { padding: 6px 10px; background: color-mix(in srgb, var(--warning) 6%, transparent); border-left: 3px solid var(--warning); border-radius: 4px; font-size: var(--text-2xs); }
 .ovr-ambiguous-title { font-weight: 600; color: var(--warning); margin-bottom: 4px; }
