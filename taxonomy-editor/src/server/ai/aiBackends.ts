@@ -534,6 +534,9 @@ export async function generateTextWithSearchByUsage(
 let embeddingsCache: EmbeddingsFile | null = null;
 // Hydrate-once dedup: coalesce concurrent callers onto one fs.readFile (t/3085).
 let embeddingsLoadInFlight: Promise<EmbeddingsFile | null> | null = null;
+// t/3086: Python availability probe result. Declared here so _setPythonAvailableForTest (below)
+// satisfies no-use-before-define. Populated lazily by isPythonEmbeddingAvailable().
+let _pythonAvailable: boolean | null = null;
 
 function getEmbeddingsPath(): string {
   return path.join(resolveDataPath('taxonomy/Origin'), 'embeddings.json');
@@ -762,8 +765,6 @@ function computeBatchViaLocalPython(texts: string[], ids: string[]): Promise<num
 }
 
 // ── Python embedding availability probe ──
-
-let _pythonAvailable: boolean | null = null;
 
 function isPythonEmbeddingAvailable(): Promise<boolean> {
   if (_pythonAvailable !== null) return Promise.resolve(_pythonAvailable);
