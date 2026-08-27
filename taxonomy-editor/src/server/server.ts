@@ -79,6 +79,7 @@ import {
 import type { ReviewAction } from './community/admin/types.js';
 import { calibrationReviewHandler } from './community/admin/calibrationHandler.js';
 import { communityReviewHandler } from './community/admin/communityReviewHandler.js';
+import { serveStatic } from './staticServe.js';
 
 // Register review domain handlers at startup so the unified admin endpoints
 // (queue/stats/action/detail) can delegate to them (t/646, t/647, t/650).
@@ -344,54 +345,6 @@ registerAllRoutes(router, serverCtx);
 // ── Static file serving ──
 
 const STATIC_DIR = path.resolve(__dirname, '../renderer');
-const MIME_TYPES: Record<string, string> = {
-  '.html': 'text/html',
-  '.js': 'text/javascript',
-  '.css': 'text/css',
-  '.json': 'application/json',
-  '.png': 'image/png',
-  '.svg': 'image/svg+xml',
-  '.ico': 'image/x-icon',
-  '.woff': 'font/woff',
-  '.woff2': 'font/woff2',
-};
-
-function serveStatic(req: http.IncomingMessage, res: http.ServerResponse): boolean {
-  const url = new URL(req.url!, 'http://localhost');
-
-  // t/854: never serve source maps in production — *.js.map lets anyone recover
-  // the full client source (API shapes, auth flows, internal logic). 404 them.
-  if (process.env.NODE_ENV === 'production' && url.pathname.endsWith('.map')) {
-    res.writeHead(404, { 'Content-Type': 'text/plain' });
-    res.end('Not found');
-    return true;
-  }
-
-  let filePath = path.join(STATIC_DIR, url.pathname === '/' ? 'index.html' : url.pathname);
-
-  // Security: prevent directory traversal
-  if (!filePath.startsWith(STATIC_DIR)) {
-    res.writeHead(403);
-    res.end('Forbidden');
-    return true;
-  }
-
-  if (!fs.existsSync(filePath)) {
-    // SPA fallback: serve index.html for non-API routes
-    if (!url.pathname.startsWith('/api/') && !url.pathname.startsWith('/ws/') && !url.pathname.startsWith('/health')) {
-      filePath = path.join(STATIC_DIR, 'index.html');
-    } else {
-      return false;
-    }
-  }
-
-  const ext = path.extname(filePath);
-  const contentType = MIME_TYPES[ext] || 'application/octet-stream';
-  const content = fs.readFileSync(filePath);
-  res.writeHead(200, { 'Content-Type': contentType });
-  res.end(content);
-  return true;
-}
 
 // ── Request router ──
 
@@ -650,9 +603,9 @@ async function handleRequestInner(
       return;
     }
 
-    // Static file serving (SPA)
-    if (req.method === 'GET') {
-      if (serveStatic(req, res)) return;
+    // Static file serving (SPA) — t/3084: HEAD must also hit serveStatic, not the catch-all 404
+    if (req.method === 'GET' || req.method === 'HEAD') {
+      if (serveStatic(req, res, STATIC_DIR)) return;
     }
 
     res.writeHead(404);
