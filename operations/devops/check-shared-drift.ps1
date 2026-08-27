@@ -46,6 +46,35 @@ function Invoke-Git {
     } catch { return $null }
 }
 
+# t/3058: attribute shell-word-split junk to the scope-owning role by path prefix.
+# Each Orca agent's shell cwd is its own scope dir, so a word-split fragment lands in
+# the CREATING role's directory — the junk file's path IS the attribution. Ordered
+# longest-prefix-first so deeper scopes (e.g. .../src/server) win over their parents.
+$scopeRoleMap = [ordered]@{
+    'taxonomy-editor/src/renderer/components/debate' = 'DebateUI'
+    'taxonomy-editor/src/server'                     = 'ServerAPI'
+    'taxonomy-editor'                                = 'Rosetta Stone'
+    'lib/debate'                                     = 'DebateTool'
+    'lib'                                            = 'Shared Lib'
+    'engineering/tech-lead'                          = 'Tech Lead'
+    'operations/devops'                              = 'DevOps'
+    'operations/sage'                                = 'Sage'
+    'operations/diagnostics'                         = 'Diagnostics'
+    'scripts'                                        = 'PowerShell'
+}
+function Get-OwningScope {
+    param([string]$Path)
+    $p = ($Path -replace '\\', '/')
+    foreach ($prefix in $scopeRoleMap.Keys) {
+        if ($p -eq $prefix -or $p.StartsWith("$prefix/")) {
+            return [PSCustomObject]@{ Scope = $prefix; Role = $scopeRoleMap[$prefix] }
+        }
+    }
+    # Unmapped path — log the top segment as scope so it stays attributable/coachable.
+    $seg = ($p -split '/')[0]
+    return [PSCustomObject]@{ Scope = $seg; Role = "unmapped:$seg" }
+}
+
 $result = [PSCustomObject]@{
     Alarm            = $false
     BehindCount      = 0
@@ -54,6 +83,7 @@ $result = [PSCustomObject]@{
     JunkPaths        = @()
     SuspiciousPaths  = @()
     AutoRemoved      = @()
+    Attribution      = @{}
     RemediationHint  = ''
 }
 
@@ -119,6 +149,8 @@ try {
     $overlayGitDir = Join-Path $RepoRoot '.orca-git'
     $autoRemoved = @()
     $remainingJunk = @()
+    $attribution = @{}            # t/3058: role -> count for this run
+    $attributionDetail = @()      # t/3058: per-file {Path, Role, Scope, Mtime, Removed}
     foreach ($f in $junkPaths) {
         $fullPath = Join-Path $RepoRoot $f
         try {
@@ -129,15 +161,49 @@ try {
             if ((Test-Path $overlayGitDir) -and (Invoke-Git @('-C', $RepoRoot, '--git-dir', $overlayGitDir, 'ls-files', $f))) {
                 $remainingJunk += $f; continue
             }
-            # Guard (c): re-stat — file must still be 0 bytes at deletion time
-            if ((Get-Item $fullPath -ErrorAction Stop).Length -ne 0) { $remainingJunk += $f; continue }
+            # Guard (c): re-stat — file must still be 0 bytes at deletion time (TOCTOU).
+            # Capture mtime here (t/3058) so attribution survives the delete.
+            $item = Get-Item $fullPath -ErrorAction Stop
+            if ($item.Length -ne 0) { $remainingJunk += $f; continue }
+            $mtime = $item.LastWriteTime.ToString('o')
 
             Remove-Item $fullPath -Force -ErrorAction Stop
             $autoRemoved += $fullPath  # full path per t/2476#1 observability requirement
+
+            # t/3058: attribute the removed fragment to the scope-owning role (path-derived).
+            $owner = Get-OwningScope -Path $f
+            $attribution[$owner.Role] = ([int]($attribution[$owner.Role]) + 1)
+            $attributionDetail += [PSCustomObject]@{ Path = $f; Role = $owner.Role; Scope = $owner.Scope; Mtime = $mtime; Removed = $true }
         } catch { $remainingJunk += $f }
     }
     $result.JunkPaths = $remainingJunk
     $result.AutoRemoved = $autoRemoved
+
+    # t/3058: also attribute non-removed spray (guard-blocked junk + suspicious files) so the
+    # tally covers every fragment, not just the auto-cleaned ones. mtime best-effort (may be gone).
+    foreach ($f in @($remainingJunk + $suspiciousPaths)) {
+        $mtime = $null
+        try { $mtime = (Get-Item (Join-Path $RepoRoot $f) -ErrorAction Stop).LastWriteTime.ToString('o') } catch { }
+        $owner = Get-OwningScope -Path $f
+        $attribution[$owner.Role] = ([int]($attribution[$owner.Role]) + 1)
+        $attributionDetail += [PSCustomObject]@{ Path = $f; Role = $owner.Role; Scope = $owner.Scope; Mtime = $mtime; Removed = $false }
+    }
+    $result.Attribution = $attribution
+
+    # t/3058: append a per-role tally + per-file detail to a rolling log so recurring spray
+    # offenders are visible over time (the log itself is gitignored — see operations/devops
+    # entry in .gitignore). Best-effort; never let logging break the guard.
+    if ($attributionDetail.Count -gt 0) {
+        try {
+            $logPath = Join-Path $RepoRoot 'operations/devops/junk-attribution.jsonl'
+            $logLine = [PSCustomObject]@{
+                ts      = (Get-Date).ToString('o')
+                perRole = $attribution
+                detail  = $attributionDetail
+            } | ConvertTo-Json -Depth 6 -Compress
+            Add-Content -Path $logPath -Value $logLine -ErrorAction Stop
+        } catch { }
+    }
 
     # 6. Determine alarm + remediation hint
     $alarm = $behind -gt 0 -or $dirtyFiles.Count -gt 0 -or $remainingJunk.Count -gt 0 -or $suspiciousPaths.Count -gt 0
