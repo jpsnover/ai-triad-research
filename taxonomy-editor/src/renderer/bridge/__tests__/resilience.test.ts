@@ -6,6 +6,7 @@ import {
   resetResilience,
   subscribeResilience,
   setThrottleFromProbe,
+  isCircuitOpenError,
   type EndpointCategory,
   type ResilientFetchOptions,
 } from '../resilience';
@@ -92,6 +93,23 @@ describe('resilience', () => {
       expect(categorizeEndpoint('/api/taxonomy/acc', 'PUT')).toBe('mutation');
       expect(categorizeEndpoint('/api/debates', 'POST')).toBe('mutation');
       expect(categorizeEndpoint('/api/debates/abc', 'DELETE')).toBe('mutation');
+    });
+
+    it('routes embedding-compute to the ai breaker, NOT the save/mutation breaker (t/3073)', () => {
+      // A read-like compute must never share a breaker with data-saving writes.
+      expect(categorizeEndpoint('/api/embeddings/compute', 'POST')).toBe('ai');
+      expect(categorizeEndpoint('/api/embeddings/compute', 'PUT')).toBe('ai');
+    });
+
+    it('gives debate-session writes a dedicated save breaker (t/3073)', () => {
+      expect(categorizeEndpoint('/api/debates', 'PUT')).toBe('save');            // full save
+      expect(categorizeEndpoint('/api/debates/abc-123', 'PATCH')).toBe('save');  // delta save
+      // Deeper debate paths and non-save methods stay on the general 'mutation' breaker.
+      expect(categorizeEndpoint('/api/debates/abc/comments', 'PUT')).toBe('mutation');
+      expect(categorizeEndpoint('/api/debates/abc/exports', 'POST')).toBe('mutation');
+      expect(categorizeEndpoint('/api/debates/abc', 'DELETE')).toBe('mutation');
+      expect(categorizeEndpoint('/api/debates', 'GET')).toBe('read');
+      expect(categorizeEndpoint('/api/debates/list', 'GET')).toBe('read');
     });
   });
 
@@ -325,6 +343,31 @@ describe('resilience', () => {
       const state = getResilienceState();
       expect(state.circuits.read.state).toBe('OPEN');
       expect(state.circuits.read.consecutiveFailures).toBe(5);
+    });
+
+    it('isolation: embedding-compute failures open the ai breaker but leave save CLOSED (t/3073)', async () => {
+      // 5 consecutive 500s on the ai (embeddings-compute) breaker.
+      for (let i = 0; i < 5; i++) {
+        fetchSpy.mockResolvedValueOnce(mockFetchResponse(500));
+        await resilientFetch('/api/embeddings/compute', { method: 'POST' }, defaultOpts({ category: 'ai' }));
+      }
+      expect(getResilienceState().circuits.ai.state).toBe('OPEN');
+      // The save breaker is untouched, so a concurrent debate save is NOT blocked — the
+      // coupling that caused the incident is gone.
+      expect(getResilienceState().circuits.save.state).toBe('CLOSED');
+      fetchSpy.mockResolvedValueOnce(mockFetchResponse(200, { ok: true }));
+      const res = await resilientFetch('/api/debates', { method: 'PUT' }, defaultOpts({ category: 'save' }));
+      expect(res.ok).toBe(true);
+    });
+
+    it('circuit-open error carries the typed circuitOpen discriminator (t/3073)', async () => {
+      for (let i = 0; i < 5; i++) {
+        fetchSpy.mockResolvedValueOnce(mockFetchResponse(500));
+        await resilientFetch('/api/debates', { method: 'PUT' }, defaultOpts({ category: 'save' }));
+      }
+      const err = await resilientFetch('/api/debates', { method: 'PUT' }, defaultOpts({ category: 'save' })).catch((e: unknown) => e);
+      expect(isCircuitOpenError(err)).toBe(true);
+      expect((err as { circuitCategory?: string }).circuitCategory).toBe('save');
     });
 
     it('rejects immediately when circuit is OPEN', async () => {

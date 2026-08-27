@@ -3,7 +3,7 @@ import { useResilienceStatus } from './useResilienceStatus';
 import type { ResilienceStatus, EndpointCategory, CircuitState, ThrottleState } from '../bridge/resilience';
 
 vi.mock('../bridge/resilience', () => {
-  const ALL: EndpointCategory[] = ['read', 'mutation', 'ai', 'admin', 'telemetry'];
+  const ALL: EndpointCategory[] = ['read', 'mutation', 'save', 'ai', 'admin', 'telemetry'];
   const mkState = (
     overrides?: Partial<Record<EndpointCategory, { state: CircuitState; consecutiveFailures: number }>>,
     throttleOverrides?: Partial<Record<EndpointCategory, { state: ThrottleState; p95Ms: number; baselineMs: number }>>,
@@ -40,8 +40,8 @@ describe('useResilienceStatus', () => {
     useResilienceStatus.setState({
       alerts: [],
       toasts: [],
-      _prevCircuits: { read: 'CLOSED', mutation: 'CLOSED', ai: 'CLOSED', admin: 'CLOSED', telemetry: 'CLOSED' },
-      _prevThrottles: { read: 'NORMAL', mutation: 'NORMAL', ai: 'NORMAL', admin: 'NORMAL', telemetry: 'NORMAL' },
+      _prevCircuits: { read: 'CLOSED', mutation: 'CLOSED', save: 'CLOSED', ai: 'CLOSED', admin: 'CLOSED', telemetry: 'CLOSED' },
+      _prevThrottles: { read: 'NORMAL', mutation: 'NORMAL', save: 'NORMAL', ai: 'NORMAL', admin: 'NORMAL', telemetry: 'NORMAL' },
     });
   });
 
@@ -156,7 +156,14 @@ describe('useResilienceStatus', () => {
 
   describe('category labels', () => {
     it('uses correct label for mutation category', () => {
+      // Saves moved to their own breaker (t/3073); the generic mutation breaker is now "Edits".
       simulate(mkState({ mutation: { state: 'OPEN', consecutiveFailures: 5 } }));
+      const { alerts } = useResilienceStatus.getState();
+      expect(alerts[0].message).toContain('Edits unavailable');
+    });
+
+    it('uses correct label for the dedicated save category (t/3073)', () => {
+      simulate(mkState({ save: { state: 'OPEN', consecutiveFailures: 5 } }));
       const { alerts } = useResilienceStatus.getState();
       expect(alerts[0].message).toContain('Save unavailable');
     });

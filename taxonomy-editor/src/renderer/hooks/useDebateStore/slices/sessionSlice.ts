@@ -14,6 +14,7 @@ import type {
 } from '../../../types/debate';
 import { POVER_INFO, AI_POVERS, POV_KEYS, normalizeActivePovers, migrateSpeakerId } from '../../../types/debate';
 import { api, setActiveDebateId, isElectronMode } from '@bridge';
+import { isCircuitOpenError, getCircuitCooldownMs } from '../../../bridge/resilience';
 import { buildDebateDelta } from './buildDebateDelta';
 import { getDocTitles } from '../shared/docTitles';
 import type { DocMetaMap } from '@lib/debate/evidenceFromSummaries';
@@ -86,6 +87,13 @@ export interface SessionSlice {
   // these (the store routes Electron saves through the full path).
   _lastSyncedVersion: number | null;
   _lastSyncedSnapshot: DebateSession | null;
+  // Save-durability under an OPEN 'save' circuit breaker (t/3073). When a save is rejected
+  // because the breaker is open, it is NOT dropped: it is flagged degraded and re-attempted
+  // after the breaker cooldown. `_breakerRetryCount` counts consecutive breaker-blocked
+  // attempts (reset to 0 on any successful save); `_breakerRetryScheduled` guards against
+  // scheduling more than one cooldown retry when several callers race the open breaker.
+  _breakerRetryCount: number;
+  _breakerRetryScheduled: boolean;
   toggleStepMode: () => Promise<void>;
   setDebatePhase: (phase: 'confrontation' | 'argumentation' | 'concluding') => Promise<void>;
 }
@@ -302,13 +310,18 @@ async function persistDebateToServer(activeDebate: DebateSession, saveDiag: Save
  *      with stable markers.
  * The at-risk count is recomputed locally from the transcript (not string-scraped).
  */
-function computeSaveErrorState(err: unknown, activeDebate: DebateSession): { isDurableSaveLoss: boolean; atRiskTurns: number; debateError: string } {
+function computeSaveErrorState(err: unknown, activeDebate: DebateSession): { isDurableSaveLoss: boolean; isBreakerBlocked: boolean; atRiskTurns: number; debateError: string } {
   const rawMessage = String((err as Error)?.message ?? '');
   const httpStatus = (err as { httpStatus?: number }).httpStatus;
   const isAuthQuotaFailure = httpStatus === 401 || httpStatus === 402 || httpStatus === 403;
   const isDiskLoss =
     rawMessage.includes('taxonomy-editor/src/main/debateIO.ts saveDebateSession') &&
     (rawMessage.includes('only durable copy') || rawMessage.includes('at risk of being lost'));
+  // Breaker-blocked (t/3073): the 'save' circuit is OPEN, so this save never reached the
+  // server. Detected via the TYPED discriminator, never a message substring (t/2952). This
+  // is a recoverable degraded state — flagged (never silent), then queued for cooldown retry
+  // by the caller — so it counts as save_degraded but is NOT a durable (terminal) loss.
+  const isBreakerBlocked = isCircuitOpenError(err);
   const isDurableSaveLoss = isAuthQuotaFailure || isDiskLoss;
   const atRiskTurns = activeDebate.transcript.filter(
     (t) => t.type === 'statement' || t.type === 'opening',
@@ -318,10 +331,55 @@ function computeSaveErrorState(err: unknown, activeDebate: DebateSession): { isD
     debateError = `Save failed: the server rejected this save (HTTP ${httpStatus}). ${atRiskTurns} ${atRiskTurns === 1 ? 'turn is' : 'turns are'} at risk of being lost. Check your API key and account status in Settings.`;
   } else if (isDiskLoss) {
     debateError = `Save failed: this debate couldn't be written to disk — a file lock (often antivirus or a file indexer) is holding the file. ${atRiskTurns} ${atRiskTurns === 1 ? 'turn is' : 'turns are'} at risk. A recovery copy was preserved on disk; retry the save once the lock clears, and don't close the app before it succeeds.`;
+  } else if (isBreakerBlocked) {
+    debateError = `Saving is paused while the server recovers. ${atRiskTurns} ${atRiskTurns === 1 ? 'turn is' : 'turns are'} not yet saved — this will retry automatically. Keep the app open.`;
   } else {
     debateError = mapErrorToUserMessage(err);
   }
-  return { isDurableSaveLoss, atRiskTurns, debateError };
+  return { isDurableSaveLoss, isBreakerBlocked, atRiskTurns, debateError };
+}
+
+/** Max consecutive breaker-blocked save attempts before auto-retry stops and the state
+ *  escalates to the LOUD terminal message (t/3073). */
+const BREAKER_RETRY_CAP = 5;
+
+/**
+ * A save rejected by an OPEN 'save' circuit breaker (t/3073). Never dropped:
+ *   - Under the cap: surface the degraded state and schedule ONE retry after the breaker
+ *     cooldown (a `_breakerRetryScheduled` guard keeps racing callers from stacking timers).
+ *     The retry rides the normal saveDebate path, whose HALF_OPEN probe either closes the
+ *     breaker (save succeeds, counters reset in saveDebate's try) or re-queues.
+ *   - At the cap: auto-retry stops and we emit a LOUD, actionable terminal state (TL
+ *     refinement) — exact unsaved-turn count + "export a local copy now" — never a silent
+ *     give-up. Saves still self-heal on the next natural save (each new turn calls
+ *     saveDebate); a success there resets the counters.
+ */
+function handleBreakerBlockedSave(
+  activeDebate: DebateSession,
+  caller: string,
+  atRiskTurns: number,
+  degradedError: string,
+  get: SessionGet,
+  set: SessionSet,
+): void {
+  const attempts = get()._breakerRetryCount;
+  if (attempts >= BREAKER_RETRY_CAP) {
+    const loudError = `Save failed: the server stayed unreachable through ${attempts} automatic retries. ${atRiskTurns} ${atRiskTurns === 1 ? 'turn is' : 'turns are'} unsaved. Export this debate now (Export ▸ Download) to keep a local copy — saving retries on your next turn once the server recovers.`;
+    set({ debateError: loudError, _breakerRetryScheduled: false });
+    getGlobalRecorder()?.record({ type: 'state.error', component: 'debate-store', level: 'error', debate_id: activeDebate.id, message: 'Debate save abandoned after breaker-retry cap — turns unsaved, local export advised', error: { name: 'SaveBreakerExhaustedError', message: `save circuit OPEN through ${attempts} retries` }, data: { caller, turn_count: activeDebate.transcript.length, save_degraded: true, breaker_retry_exhausted: true, at_risk_turns: atRiskTurns } });
+    return;
+  }
+  // Degraded but recoverable: surface it (observable — never save_degraded:false), then
+  // schedule one cooldown retry unless a peer caller already did.
+  set({ debateError: degradedError });
+  getGlobalRecorder()?.record({ type: 'state.error', component: 'debate-store', level: 'warn', debate_id: activeDebate.id, message: 'Debate save paused — save circuit OPEN, retrying after cooldown', error: { name: 'SaveBreakerBlockedError', message: 'save circuit breaker OPEN' }, data: { caller, turn_count: activeDebate.transcript.length, save_degraded: true, breaker_retry: attempts + 1, at_risk_turns: atRiskTurns } });
+  if (get()._breakerRetryScheduled) return;
+  set({ _breakerRetryScheduled: true, _breakerRetryCount: attempts + 1 });
+  const delay = getCircuitCooldownMs() + Math.random() * 500;
+  setTimeout(() => {
+    set({ _breakerRetryScheduled: false });
+    void get().saveDebate('breaker-cooldown-retry');
+  }, delay);
 }
 
 /**
@@ -365,6 +423,8 @@ export const createSessionSlice: StateCreator<DebateStore, [], [], SessionSlice>
   _loadInFlight: {},
   _lastSyncedVersion: null,
   _lastSyncedSnapshot: null,
+  _breakerRetryCount: 0,
+  _breakerRetryScheduled: false,
 
   loadSessions: async () => {
     set({ sessionsLoading: true });
@@ -1070,18 +1130,30 @@ export const createSessionSlice: StateCreator<DebateStore, [], [], SessionSlice>
       const saveDiag = buildSaveDiag(activeDebate, caller);
       // Save-path selection + post-save bookkeeping (t/1637) — see persistDebateToServer.
       await persistDebateToServer(activeDebate, saveDiag, get, set);
+      // Save reached the server: clear any breaker-retry degradation left by prior
+      // blocked attempts (t/3073). Only touch debateError when we were actually retrying,
+      // so a successful save never clobbers an unrelated error.
+      if (get()._breakerRetryCount > 0) {
+        set({ _breakerRetryCount: 0, debateError: null });
+      }
     } catch (err) {
       const errorCode = (err as Error & { errorCode?: string }).errorCode;
       if (errorCode === 'save_in_progress') {
         set({ _saveDirty: true });
         getGlobalRecorder()?.record({ type: 'state.save-coalesced', component: 'debate-store', level: 'info', debate_id: activeDebate.id, message: 'Server 409 save_in_progress — will retry via coalesced follow-up' });
       } else {
-        // Distinguish a durable-save loss from an ordinary save error (t/1639) so the
-        // user is told their debate is at risk — see computeSaveErrorState. record()
-        // stays inline here per ADR-003.
-        const { isDurableSaveLoss, atRiskTurns, debateError } = computeSaveErrorState(err, activeDebate);
-        getGlobalRecorder()?.record({ type: 'state.error', component: 'debate-store', level: 'error', debate_id: activeDebate.id, message: isDurableSaveLoss ? 'Durable debate save failed — recovery copy preserved' : 'Failed to save debate', error: { name: isDurableSaveLoss ? 'DurableSaveError' : 'SaveError', message: String(err), stack: (err as Error).stack }, data: { caller, payload_bytes: JSON.stringify(activeDebate).length, turn_count: activeDebate.transcript.length, save_degraded: isDurableSaveLoss, at_risk_turns: atRiskTurns } });
-        set({ debateError });
+        // Distinguish durable-save loss, breaker-blocked (recoverable), and ordinary errors
+        // (t/1639, t/3073) so the user is told their debate is at risk — see
+        // computeSaveErrorState. record() stays inline here per ADR-003.
+        const { isDurableSaveLoss, isBreakerBlocked, atRiskTurns, debateError } = computeSaveErrorState(err, activeDebate);
+        if (isBreakerBlocked) {
+          // Save never reached the server (save circuit OPEN). Flag degraded + queue a
+          // cooldown retry — never a silent drop (t/3073).
+          handleBreakerBlockedSave(activeDebate, caller, atRiskTurns, debateError, get, set);
+        } else {
+          getGlobalRecorder()?.record({ type: 'state.error', component: 'debate-store', level: 'error', debate_id: activeDebate.id, message: isDurableSaveLoss ? 'Durable debate save failed — recovery copy preserved' : 'Failed to save debate', error: { name: isDurableSaveLoss ? 'DurableSaveError' : 'SaveError', message: String(err), stack: (err as Error).stack }, data: { caller, payload_bytes: JSON.stringify(activeDebate).length, turn_count: activeDebate.transcript.length, save_degraded: isDurableSaveLoss, at_risk_turns: atRiskTurns } });
+          set({ debateError });
+        }
       }
     } finally {
       const wasDirty = get()._saveDirty;

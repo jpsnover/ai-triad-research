@@ -27,7 +27,8 @@ export interface RecoveryToast {
 
 const CATEGORY_LABELS: Record<EndpointCategory, string> = {
   read: 'Data',
-  mutation: 'Save',
+  mutation: 'Edits',
+  save: 'Save',           // dedicated debate-save breaker (t/3073)
   ai: 'AI service',
   admin: 'Admin',
   telemetry: 'Telemetry',
