@@ -49,9 +49,14 @@ function freeTierKeySet(): Set<string> {
  * belongs to the free-tier pool (detected via parseFreeTierKeys — no flag to
  * thread or forget), call fn(key), and on 429 mark the key cooled until Retry-After.
  *
- * Pacing applies automatically to every caller that uses a free-tier key — paid /
- * BYOK paths carry their own keys and are never in the pool, so they bypass pacing
- * with no per-call configuration.
+ * Rotation and pacing share one discriminator: allFree = every key in `keys` is a
+ * free-tier pool member. BYOK/platform callers pass a single non-pool key → allFree
+ * is false → they bypass both rotation (cursor untouched) and pacing (no rate limit).
+ * This prevents BYOK keys[0] (len=1) from resetting the shared free-tier cursor to 0
+ * and skewing round-robin distribution (t/3057).
+ *
+ * v1 assumption: non-pool callers always pass a single key. If multi-key non-pool
+ * callers are ever added, they will always receive keys[0] without rotation — revisit.
  *
  * Per-caller audit (t/3052 #4 completeness): primary debate path (generateWithPaidFallback),
  * /api/ai/search, /api/ai/generate, chat-stream, sources evidence-eval (sources.ts),
@@ -65,8 +70,11 @@ export async function callWithKeyRotation<T>(
   keys: string[],
   fn: (key: string) => Promise<T>,
 ): Promise<T> {
-  const key = nextKey(backend, keys);
-  if (freeTierKeySet().has(key)) {
+  const pool = freeTierKeySet();
+  // keys.length > 0 guard: [].every() is vacuously true; empty keys should fail before here.
+  const allFree = keys.length > 0 && keys.every(k => pool.has(k));
+  const key = allFree ? nextKey(backend, keys) : keys[0];
+  if (allFree) {
     await getLimiter(key, FREE_TIER_RPM_PER_KEY).acquire();
   }
   try {

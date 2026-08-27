@@ -9,14 +9,15 @@ import * as rpmLimiterMod from '../ai/rpmLimiter.js';
 const KEYS = ['key-pool-a', 'key-pool-b', 'key-pool-c'];
 const BACKEND = 'gemini';
 
-// Rotation/cooldown tests: leave FREE_TIER_GEMINI_KEY unset so these keys are NOT
-// in the pool and pacing is never acquired — avoids real setTimeout delays in CI.
+// Rotation/cooldown tests: put KEYS in the pool so allFree=true and rotation fires.
+// Pacing acquire() resolves immediately for calls within the burst (< RPM_PER_KEY per
+// key), which all tests below satisfy — no real setTimeout delays in CI.
 
 beforeEach(() => {
   resetRotator();
   resetLimiters();
   vi.restoreAllMocks();
-  delete process.env.FREE_TIER_GEMINI_KEY;
+  process.env.FREE_TIER_GEMINI_KEY = KEYS.join(',');
 });
 
 afterEach(() => {
@@ -125,6 +126,33 @@ describe('callWithKeyRotation — free-tier pool discriminator (t/3052)', () => 
 
     await callWithKeyRotation(BACKEND, ['byok-paid-key-xyz'], async (k) => k);
     expect(getLimiterSpy).not.toHaveBeenCalled();
+  });
+});
+
+describe('callWithKeyRotation — BYOK cursor isolation (t/3057)', () => {
+  it('BYOK call does not reset the free-tier pool cursor', async () => {
+    process.env.FREE_TIER_GEMINI_KEY = KEYS.join(',');
+    const poolUsed: string[] = [];
+    const byokUsed: string[] = [];
+    const fn = (store: string[]) => async (k: string) => { store.push(k); return k; };
+
+    // First free-tier call: cursor advances pool[0] → pool[1]
+    await callWithKeyRotation(BACKEND, KEYS, fn(poolUsed));
+    // Interleaved BYOK call (single non-pool key): must NOT reset the cursor
+    await callWithKeyRotation(BACKEND, ['byok-key-xyz'], fn(byokUsed));
+    // Second free-tier call: cursor should pick pool[1], not pool[0]
+    await callWithKeyRotation(BACKEND, KEYS, fn(poolUsed));
+
+    expect(poolUsed[0]).toBe(KEYS[0]);   // first free-tier call
+    expect(byokUsed[0]).toBe('byok-key-xyz'); // BYOK always gets its own key
+    expect(poolUsed[1]).toBe(KEYS[1]);   // cursor not reset — pool[0] would mean it was
+  });
+
+  it('BYOK call always returns keys[0] regardless of cursor position', async () => {
+    const used: string[] = [];
+    await callWithKeyRotation(BACKEND, ['byok-only'], async (k) => { used.push(k); return k; });
+    await callWithKeyRotation(BACKEND, ['byok-only'], async (k) => { used.push(k); return k; });
+    expect(used).toEqual(['byok-only', 'byok-only']);
   });
 });
 
