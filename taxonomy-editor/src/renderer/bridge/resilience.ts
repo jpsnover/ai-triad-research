@@ -7,13 +7,23 @@ import { getClientConfig } from '../lib/clientConfig';
 
 // ── Public types ──
 
-export type EndpointCategory = 'read' | 'mutation' | 'ai' | 'admin' | 'telemetry';
+export type EndpointCategory = 'read' | 'mutation' | 'save' | 'ai' | 'admin' | 'telemetry';
 export type CircuitState = 'CLOSED' | 'OPEN' | 'HALF_OPEN';
 export type ThrottleState = 'NORMAL' | 'THROTTLED';
 
 export interface ResilienceStatus {
   circuits: Record<EndpointCategory, { state: CircuitState; consecutiveFailures: number; recentFailures: string[] }>;
   throttles: Record<EndpointCategory, { state: ThrottleState; p95Ms: number; baselineMs: number }>;
+}
+
+/** Typed discriminator for a request rejected because its circuit breaker is OPEN (t/3073).
+ *  A save that fails with this is NOT an ordinary error — it must be flagged degraded and
+ *  queued for retry, never silently dropped. Keyed off a structured field so downstream
+ *  logic never string-matches the message (fragile-prose class, t/2952). */
+export interface CircuitOpenError { circuitOpen: true; circuitCategory: EndpointCategory }
+
+export function isCircuitOpenError(err: unknown): err is CircuitOpenError {
+  return typeof err === 'object' && err !== null && (err as { circuitOpen?: unknown }).circuitOpen === true;
 }
 
 export interface ResilientFetchOptions {
@@ -47,15 +57,31 @@ function anySignal(caller: AbortSignal | undefined, timeout: AbortSignal): Abort
 
 function cfg() { return getClientConfig().resilience; }
 
-const ALL_CATEGORIES: EndpointCategory[] = ['read', 'mutation', 'ai', 'admin', 'telemetry'];
+const ALL_CATEGORIES: EndpointCategory[] = ['read', 'mutation', 'save', 'ai', 'admin', 'telemetry'];
+
+/** Cooldown before an OPEN circuit admits a HALF_OPEN probe. Exposed so the debate
+ *  save-durability path can schedule its post-breaker retry off the same source of
+ *  truth as the breaker itself (t/3073). */
+export function getCircuitCooldownMs(): number { return cfg().circuitCooldownMs; }
 
 // ── Endpoint categorization ──
 
 export function categorizeEndpoint(path: string, method: string): EndpointCategory {
   if (path === '/api/admin/telemetry' || path === '/api/admin/errors') return 'telemetry';
   if (path.startsWith('/api/ai/')) return 'ai';
+  // Embedding compute is a read-like AI compute (returns vectors, mutates no user data).
+  // It must NOT share a breaker with data-saving writes — a compute outage tripping the
+  // save breaker escalates a recoverable failure into user data loss (t/3073). The 'ai'
+  // breaker is its natural home.
+  if (path.startsWith('/api/embeddings/')) return 'ai';
   if (path.startsWith('/api/admin/')) return 'admin';
   if (method === 'GET') return 'read';
+  // Debate-session writes get a DEDICATED breaker so no unrelated mutation's failures can
+  // open the save path — saves are the highest-integrity op (t/3073). Full save =
+  // PUT /api/debates; delta save = PATCH /api/debates/:id. Deeper debate paths
+  // (comments/exports/news-report) and POST/DELETE stay on the general 'mutation' breaker.
+  if (method === 'PUT' && path === '/api/debates') return 'save';
+  if (method === 'PATCH' && /^\/api\/debates\/[^/]+$/.test(path)) return 'save';
   return 'mutation';
 }
 
@@ -132,12 +158,16 @@ function checkCircuit(cat: EndpointCategory, path: string): void {
     const remaining = Math.ceil((cfg().circuitCooldownMs - elapsed) / 1000);
     const failureSummary = summarizeFailures(c.recentFailures.map(f => f.reason));
     const detail = failureSummary ? `\nLast failures: ${failureSummary}` : '';
-    throw new ActionableError({
+    const circuitErr = new ActionableError({
       goal: `Make request to ${path}`,
       problem: `Circuit breaker OPEN for '${cat}' after ${c.consecutiveFailures} consecutive failures. ${remaining}s cooldown remaining.${detail}`,
       location: 'web-bridge/resilience',
       nextSteps: ['Wait for the cooldown period to expire', 'Check whether the server is healthy'],
     });
+    // Typed discriminator (t/3073, TL refinement): downstream save-durability logic keys off
+    // this structured field, never a message substring — the fragile-prose class (t/2952).
+    Object.assign(circuitErr, { circuitOpen: true, circuitCategory: cat } satisfies CircuitOpenError);
+    throw circuitErr;
   }
   // HALF_OPEN — allow one probe request through
 }

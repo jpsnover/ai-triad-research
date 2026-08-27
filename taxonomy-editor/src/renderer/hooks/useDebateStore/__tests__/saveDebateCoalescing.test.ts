@@ -1,4 +1,4 @@
-﻿import { describe, it, expect, beforeEach, vi, type Mock } from 'vitest';
+﻿import { describe, it, expect, beforeEach, afterEach, vi, type Mock } from 'vitest';
 import { create } from 'zustand';
 import type { DebateStore } from '../types';
 import { createSessionSlice } from '../slices/sessionSlice';
@@ -286,5 +286,86 @@ describe('saveDebate degraded-save surfacing (t/1639)', () => {
     const errorEvents = mockRecords.filter(r => r.type === 'state.error');
     expect(errorEvents.length).toBe(1);
     expect(errorEvents[0].data).toMatchObject({ save_degraded: true, at_risk_turns: 3 });
+  });
+});
+
+// t/3073 — a save rejected because the 'save' circuit breaker is OPEN must never be
+// silently dropped. The incident recorded save_degraded:false on a breaker-blocked save
+// and queued nothing. It must now: flag save_degraded:true (observable), surface a paused
+// message, queue a cooldown retry that flushes on recovery, and — after the retry cap —
+// escalate to a LOUD, actionable terminal state rather than a silent give-up.
+describe('saveDebate breaker-blocked durability (t/3073)', () => {
+  let store: ReturnType<typeof createTestStore>;
+
+  // Mirrors the typed circuit-open ActionableError from web-bridge/resilience — the
+  // discriminator is the structured `circuitOpen` field, never a message substring (t/2952).
+  const breakerError = () => Object.assign(new Error('save circuit breaker OPEN'), { circuitOpen: true, circuitCategory: 'save' });
+
+  function debateWithTurns() {
+    return {
+      ...makeMinimalDebate(),
+      transcript: [{ type: 'opening' }, { type: 'statement' }, { type: 'statement' }],
+    };
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockRecords.length = 0;
+    vi.useFakeTimers();
+    store = createTestStore();
+  });
+  afterEach(() => { vi.useRealTimers(); });
+
+  it('arm2a: flags save_degraded=true (not false) + surfaces a paused message + queues a retry — never silent', async () => {
+    mockSaveDebateSession.mockRejectedValueOnce(breakerError());
+    store.setState({ activeDebate: debateWithTurns() as unknown as DebateStore['activeDebate'] });
+
+    await store.getState().saveDebate('breaker-block');
+
+    const err = store.getState().debateError ?? '';
+    expect(err.toLowerCase()).toContain('saving is paused');
+    expect(err).toContain('3 turns');
+    const errorEvents = mockRecords.filter(r => r.type === 'state.error');
+    expect(errorEvents.length).toBe(1);
+    // The incident's exact defect: a breaker-blocked save recorded save_degraded:false.
+    expect(errorEvents[0].data).toMatchObject({ save_degraded: true, at_risk_turns: 3 });
+    // A cooldown retry is queued (not dropped).
+    expect(store.getState()._breakerRetryScheduled).toBe(true);
+    expect(store.getState()._breakerRetryCount).toBe(1);
+  });
+
+  it('arm2b: flushes the queued save on cooldown and clears the degraded state on success', async () => {
+    mockSaveDebateSession
+      .mockRejectedValueOnce(breakerError())   // first attempt — breaker OPEN
+      .mockResolvedValueOnce(undefined);        // cooldown retry — server recovered
+    store.setState({ activeDebate: debateWithTurns() as unknown as DebateStore['activeDebate'] });
+
+    await store.getState().saveDebate('breaker-block');
+    expect(store.getState().debateError).toBeTruthy();
+
+    // Advance past the breaker cooldown so the scheduled retry fires.
+    await vi.advanceTimersByTimeAsync(61_000);
+
+    expect(mockSaveDebateSession).toHaveBeenCalledTimes(2);
+    expect(store.getState().debateError).toBeNull();       // cleared on the recovered save
+    expect(store.getState()._breakerRetryCount).toBe(0);   // counter reset
+  });
+
+  it('arm3: escalates to a LOUD, actionable terminal state after the retry cap — never a silent give-up', async () => {
+    mockSaveDebateSession.mockRejectedValue(breakerError());   // every attempt blocked
+    // Preset the counter at the cap so this attempt is the terminal one.
+    store.setState({ activeDebate: debateWithTurns() as unknown as DebateStore['activeDebate'], _breakerRetryCount: 5 });
+
+    await store.getState().saveDebate('breaker-block-final');
+
+    const err = store.getState().debateError ?? '';
+    // Loud + actionable: exact unsaved-turn count + local-export escape hatch.
+    expect(err).toContain('3 turns');
+    expect(err.toLowerCase()).toContain('export');
+    const exhausted = mockRecords.filter(r => r.type === 'state.error' && (r.data as Record<string, unknown> | undefined)?.breaker_retry_exhausted === true);
+    expect(exhausted.length).toBe(1);
+    expect((exhausted[0].data as Record<string, unknown>).save_degraded).toBe(true);
+    // Terminal: auto-retry stops (no new timer scheduled).
+    expect(store.getState()._breakerRetryScheduled).toBe(false);
   });
 });
