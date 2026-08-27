@@ -23,23 +23,40 @@ real server, so lazy CSS code-splitting behaves exactly as in prod.
 - **Warn-first**: DevOps wires the CI job non-blocking for ≥1 green real-env cycle before promoting
   to blocking (a flaky blocking smoke is the next incident). DevOps owns the CI flip.
 
-## Covered surfaces (reachability — validated live t/3026)
+## Covered surfaces (reachability — validated live t/3026 + t/3059)
 
 In the default web boot **only the 3 POV tabs render** in the tablist (`accelerationist` /
-`safetyist` / `skeptic`); `chat`, `debate`, etc. are gated (feature-flag/admin), so their
-`[data-tab]` buttons do not exist and their surfaces are unreachable here. The two POV-surface
-assertions are **active and proven both-arms**; the two gated surfaces are `test.fixme` until the
-CI job boots the app with those tabs flagged on.
+`safetyist` / `skeptic`); `chat`, `debate`, etc. are gated (feature-flag/admin). But a surface's
+CSS is reachable whenever its rule ships in a **chunk that loads at boot** — not only when its own
+tab is clicked. All five active surfaces below ride the **main entry chunk** (their components are
+statically imported via `App.tsx → PovTab`), so their rules are present at boot and probeable on
+any POV tab. **All five are active and proven both-arms** (t/3059).
 
 | surface | tab to load its chunk | probe class | assert (computed) | status |
 |---|---|---|---|---|
 | Attributes / GraphAttributesPanel | POV tab (`[data-tab="accelerationist"]`) | `.ga-grid-3col` | `grid-template-columns` ≥ 3 tracks | **active** ✓ |
 | HighlightedField (t/3025 fix) | POV tab (NodeDescriptionSection) | `.hl-backdrop` | `position: absolute` | **active** ✓ |
-| DataSourceCard (t/3025 fix) | `[data-tab="chat"]` (Prompt Inspector) | `.pi-node-count-preview` | `border-bottom-width` ≠ 0px | `fixme` — chat tab gated |
-| ApiKeyErrorMessage (t/3025 fix) | Analysis / settings error state | `.api-key-error-link` | `text-decoration` underline | `fixme` — surface/nav TBD |
+| DataSourceCard (t/3025 fix) | POV tab (main chunk via PromptInspector) | `.pi-node-count-preview` | `border-bottom-width` ≠ 0px | **active** ✓ (t/3059) |
+| ApiKeyErrorMessage (t/3025 fix) | POV tab (main chunk via AnalysisPanel) | `.api-key-error-link` | `text-decoration` underline | **active** ✓ (t/3059) |
+| claim-attribution (t/3025/t/3059 fix) | POV tab (NodeDetail) | `.claim-attribution-label` | `text-transform: uppercase` | **active** ✓ (t/3059) |
 
-**Medium candidates to adjudicate (t/3025#1)** — same probe technique decides each: `vocab-*`,
-`qbaf-delta`/`qbaf-badge`, `claim-attribution-*`. Pending the gated surfaces being reachable.
+> The DataSourceCard/ApiKeyErrorMessage `fixme`s were **over-conservative** — both ride the main
+> chunk, so no `chat`/settings tab flagging was needed (t/3059). Enabled + proven on a POV tab.
+
+**Medium-3 adjudication (t/3025#1) — DONE (t/3059). All three are CONFIRMED orphans** (single
+component-local definition each, no `styles.css` fallback; used cross-component on surfaces whose
+chunk does not load the defining sheet):
+
+| class | sole CSS home (chunk) | live usage off that chunk | verdict | action |
+|---|---|---|---|---|
+| `claim-attribution-*` | ArgumentGraph.css — imported only by `ArgumentGraph ← TimelineScrubber`, **never rendered → tree-shaken → ships in NO chunk** | NodeDetail (POV, main), ReflectionsPanel, 3 diagnostics surfaces | **CONFIRMED** — unstyled on the POV tab today | **FIXED here**: relocated to NodeDetail.css (main chunk) + active smoke assertion above |
+| `qbaf-delta` / `qbaf-badge` | QbafOverlay.css — loads only in diagnostics + harvest chunks | ConflictDetail (conflict chunk), StatementCard (debate chunk) | **CONFIRMED** — unstyled on conflict + debate surfaces | **Routed** → Conflict (ConflictDetail.css) + DebateWorkspace (StatementCard.css) |
+| `vocab-term` | VocabularyPanel.css — loads only in the debate chunk | OverviewTabRouter (diagnostics-window chunk) | **CONFIRMED** — unstyled on the diagnostics overview surface | **Routed** → DebateDiagnostics (OverviewTabRouter.css) |
+
+> qbaf/vocab consumers live on **gated** surfaces (conflict/debate/diagnostics) whose fix lands in
+> child-role scopes; those fixes are routed, not done here, and are **not** added as smoke
+> assertions — the gate stays POV-scoped and low-flake per TL (t/3026#10). claim-attribution is the
+> one confirmed orphan that renders on the POV surface, so it is both fixed and asserted here.
 
 ## Run
 
@@ -68,29 +85,37 @@ known-orphan surface would be a false-green):
   comment the rule → `build:web` (absent from all built CSS) → `"none"` (1 track) → **fails**.
 - **HighlightedField `.hl-backdrop`** — clean → `position: absolute` → **passes**; comment the rule →
   `build:web` → `position: static` → **fails** (`.ga-grid-3col` stayed 3 tracks — isolated).
+- **DataSourceCard `.pi-node-count-preview`** (t/3059) — clean → `border-bottom-width: 1px` →
+  **passes**; neuter the rule → `build:web` → `0px` → **fails**.
+- **ApiKeyErrorMessage `.api-key-error-link`** (t/3059) — clean → `text-decoration: underline` →
+  **passes**; neuter the rule → `build:web` → `none` → **fails**.
+- **claim-attribution `.claim-attribution-label`** (t/3059) — clean → `text-transform: uppercase` →
+  **passes**; neuter the rule → `build:web` → `none` → **fails** (`.ga`/`.hl` stayed styled — isolated).
 
-Both rules reverted after. Rebuilding (not DOM-hiding) is required — it exercises the Vite
-chunk-graph, which is the actual failure class.
+Both/all arms captured 2026-08-27 via the `@playwright/test` runner (v1.60.0, Node 24.15.0) against
+the prod web build: clean = **5 passed**; all-three-neutered = **3 failed / 2 passed**. Rules
+reverted after. Rebuilding (not DOM-hiding) is required — it exercises the Vite chunk-graph, which
+is the actual failure class.
 
-## STATUS — harness validated; CI wiring is the DevOps handoff
+## STATUS — harness validated; live CI gate wired (non-blocking)
 
 Validated against a live prod-build server: Chromium launches, the app boots to the POV tablist,
-probe-injection reads the lazy-chunk CSS, and both arms behave correctly.
+probe-injection reads the main-chunk CSS, and every arm behaves correctly.
 
-**Known local limitation:** the `@playwright/test` *runner* hangs on **Node 24** (this dev box);
-the raw Chromium API used to capture both-arms works fine. DevOps's CI runs **Node 22** (t/3026#4),
-where the runner is unaffected — so this does not block the gate.
+**Node-24 runner:** fixed. The `@playwright/test` runner previously hung on Node 24 (yauzl
+stream-destruction regression, Node ≥24.16); **v1.60.0 vendored the fix** and DevOps pinned it in
+the CI job (#1599). The runner now runs clean on Node 22 (CI) and Node 24.15.0 (this dev box).
 
-**DevOps handoff (CI wiring):** add the pinned `@playwright/test@1.48.2` devDep + lockfile sync
-(deferred here to avoid lockfile churn), `npx playwright install --with-deps chromium`, cache
-`~/.cache/ms-playwright`, wire the job **non-blocking** on **Node 22** for ≥1 green real-env cycle,
-then a separate draft PR flips warn→block held for TL sign-off (t/3026#4 promotion discipline).
-Pin Node 22 explicitly — the runner **hangs on Node 24**, so a future Node bump would silently wedge
-a blocking gate.
+**CI status:** DevOps wired the non-blocking render-smoke job on **Node 22**, pinned
+`@playwright/test@1.60.0`, `build:container` → `smoke:styled`, cached `~/.cache/ms-playwright`
+(#1599). It runs on every electron PR + main push. Promotion warn→block is a separate TL-signed
+draft PR gated on DevOps's real-env both-arms — unchanged, DevOps-owned (t/3026#10 cond 4).
 
-**Coverage (honest, per "no silent caps"):** this harness covers **2 of the 4** t/3026#1 surfaces
-active + both-arms-proven (Attributes `.ga-*`, HighlightedField `.hl-*`). DataSourceCard and
-ApiKeyErrorMessage are `test.fixme` (unreachable / TBD in the default web boot), and the 3-MEDIUM
-adjudication (`vocab-*`/`qbaf-*`/`claim-attribution-*`) is not done. A green check here is **not**
-full-class coverage. Those, plus enabling the 2 fixme surfaces and the Node-24 runner fix, are
-tracked in **t/3059**.
+**Coverage (honest, per "no silent caps"):** this harness now covers **5 active + both-arms-proven**
+POV-surface assertions (Attributes `.ga-*`, HighlightedField `.hl-*`, DataSourceCard `.pi-*`,
+ApiKeyErrorMessage `.api-key-error-*`, claim-attribution `.claim-attribution-*`). The medium-3
+adjudication is **done** (all CONFIRMED orphans): claim-attribution is fixed + asserted here;
+`qbaf-*` and `vocab-*` render only on **gated** surfaces (conflict/debate/diagnostics) — their fixes
+are **routed to the owning child roles** (Conflict, DebateWorkspace, DebateDiagnostics) and are
+deliberately **not** asserted here (the gate stays POV-scoped + low-flake). Those routed fixes are
+tracked in **t/3059**. A green check here covers the five POV surfaces above, not the gated ones.
