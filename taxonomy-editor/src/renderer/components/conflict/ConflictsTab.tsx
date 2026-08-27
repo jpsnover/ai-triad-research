@@ -8,6 +8,7 @@ import { useKeyboardNav } from '../../hooks/useKeyboardNav';
 import { useResizablePanel } from '../../hooks/useResizablePanel';
 import { ConflictDetail } from './ConflictDetail';
 import { PinnedPanel } from '../shared/PinnedPanel';
+import { DocLink } from '../shared/TheoryLink';
 import { SearchPreview } from '../edge-browser/SearchPreview';
 import { FallacyDetailPanel } from '../analysis/FallacyPanel';
 import { PromptDetailPanel } from '../chat/PromptsPanel';
@@ -417,6 +418,7 @@ function ConflictListColumn({
     <div className="list-panel" style={{ width }}>
       <div className="list-panel-header">
         <h2>Conflicts</h2>
+        <DocLink docPath="research/comp-linguist/docs/theory-of-success/theory-of-success-conflicts.md" label="Theory of success: Conflicts" tooltip="Open the Conflicts theory-of-success doc in GitHub" />
         <div className="list-panel-header-actions">
           <button className="btn btn-sm" onClick={() => setShowNew(true)}>
             + New
