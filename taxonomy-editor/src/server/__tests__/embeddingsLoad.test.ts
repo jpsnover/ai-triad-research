@@ -69,14 +69,20 @@ describe('embeddingsLoad load-shed (t/2905)', () => {
     while (inFlightEmbeddingComputes() > 0) endEmbeddingCompute();
   });
 
-  it('mode defaults to warn (warn-first Gate Promotion)', () => {
+  it('t/3078 Gate Promotion: mode defaults to block (kill switch: set to warn)', () => {
+    expect(embeddingLoadShedMode()).toBe('block');
+  });
+
+  it('t/3078 kill switch: EMBEDDINGS_LOAD_SHED_MODE=warn reverts default block→warn instantly', () => {
+    process.env.EMBEDDINGS_LOAD_SHED_MODE = 'warn';
     expect(embeddingLoadShedMode()).toBe('warn');
   });
 
-  it('mode reads EMBEDDINGS_LOAD_SHED_MODE (block|off, case-insensitive), else warn', () => {
+  it('mode reads EMBEDDINGS_LOAD_SHED_MODE (warn|off|block, case-insensitive), else block', () => {
+    process.env.EMBEDDINGS_LOAD_SHED_MODE = 'warn';     expect(embeddingLoadShedMode()).toBe('warn');
     process.env.EMBEDDINGS_LOAD_SHED_MODE = 'block';    expect(embeddingLoadShedMode()).toBe('block');
     process.env.EMBEDDINGS_LOAD_SHED_MODE = 'OFF';      expect(embeddingLoadShedMode()).toBe('off');
-    process.env.EMBEDDINGS_LOAD_SHED_MODE = 'nonsense'; expect(embeddingLoadShedMode()).toBe('warn');
+    process.env.EMBEDDINGS_LOAD_SHED_MODE = 'nonsense'; expect(embeddingLoadShedMode()).toBe('block');
   });
 
   it('BLOCK arm: at the concurrency cap → shed, mode=block, reason=concurrency', () => {
@@ -92,8 +98,20 @@ describe('embeddingsLoad load-shed (t/2905)', () => {
     expect(d.retryAfterMs).toBeGreaterThan(0);
   });
 
-  it('WARN arm: at the cap → shed=true but mode=warn (route warns + proceeds)', () => {
-    process.env.EMBEDDINGS_MAX_CONCURRENT = '2'; // mode defaults warn
+  it('t/3078 both-arms A — default (no env var): shed → mode=block (gate promoted)', () => {
+    // mode defaults to block; in-flight at cap → 503 path
+    process.env.EMBEDDINGS_MAX_CONCURRENT = '2';
+    while (inFlightEmbeddingComputes() > 0) endEmbeddingCompute();
+    beginEmbeddingCompute();
+    beginEmbeddingCompute();
+    const d = evaluateEmbeddingLoadShed();
+    expect(d.shed).toBe(true);
+    expect(d.mode).toBe('block');
+  });
+
+  it('t/3078 both-arms B — kill switch (LOAD_SHED_MODE=warn): shed → mode=warn, proceeds', () => {
+    process.env.EMBEDDINGS_LOAD_SHED_MODE = 'warn';
+    process.env.EMBEDDINGS_MAX_CONCURRENT = '2';
     while (inFlightEmbeddingComputes() > 0) endEmbeddingCompute();
     beginEmbeddingCompute();
     beginEmbeddingCompute();
