@@ -15,8 +15,8 @@ const _cursors = new Map<string, number>();   // backend → next-cursor index
 const _cooldowns = new Map<string, number>();  // full api key → cooldown expiry ms
 
 function keyHash(key: string): string {
-  // codeql[js/insufficient-password-hash] -- not password storage; SHA-256 truncated to 8-char log-safe fingerprint for log correlation, never stored or verified as a credential.
-  return createHash('sha256').update(key).digest('hex').slice(0, 8);
+  // codeql[js/insufficient-password-hash] -- not password storage; partial-key (75%) SHA-256 truncated to 8-char log-safe fingerprint, never stored or verified as a credential.
+  return createHash('sha256').update(key.slice(0, Math.floor(key.length * 0.75))).digest('hex').slice(0, 8);
 }
 
 // Round-robin across keys, skipping any in their 429 cooldown window.
