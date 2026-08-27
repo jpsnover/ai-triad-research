@@ -20,6 +20,7 @@ import { createRequire } from 'module';
 import { spawn, execFile, ChildProcess } from 'child_process';
 import { getGlobalRecorder, setGlobalRecorder } from '../../../lib/flight-recorder/index.js';
 import { warmup as warmupEmbeddings } from '../../../lib/embeddings/onnxEmbedding.js';
+import { prewarmEmbeddingsCache } from './ai/aiBackends.js';
 
 const require = createRequire(import.meta.url);
 
@@ -1347,6 +1348,11 @@ server.listen(PORT, BIND_HOST, () => {
   void warmupEmbeddings().catch((err: unknown) => {
     log.server.error({ err: String(err) }, 'ONNX embedding warmup failed at boot');
     getGlobalRecorder()?.record({ type: 'system.error', component: 'server', level: 'error', message: 'ONNX embedding warmup failed at boot', error: { name: (err as Error)?.name ?? 'Error', message: String(err), stack: (err as Error)?.stack } });
+  });
+  // t/3085: pre-warm the embeddings.json cache at startup so the first debate request
+  // gets the precomputed vectors. Emits an FR signal "embeddings.json loaded: N nodes".
+  void prewarmEmbeddingsCache().catch((err: unknown) => {
+    getGlobalRecorder()?.record({ type: 'system.error', component: 'server', level: 'warn', message: 'embeddings.json pre-warm failed at boot', error: { name: (err as Error)?.name ?? 'Error', message: String(err), stack: (err as Error)?.stack } });
   });
 
   // t/924: surface the free-tier key pool + effective RPM so rate-limit
