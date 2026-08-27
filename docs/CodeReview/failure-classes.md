@@ -1,10 +1,10 @@
 # Failure-Class Taxonomy — Prospective Review Checklist
 
-**Last updated:** 2026-08-15
+**Last updated:** 2026-08-27
 **Owner:** Diagnostics (source analysis) / Tech Lead (review checklist)
-**Source:** e/84 systemic quality analysis of the 2026-08-09 Azure production bug sweep; Class 6 added from the 2026-08-15 dual-build / staging-prod-isolation sweep (t/2669).
+**Source:** e/84 systemic quality analysis of the 2026-08-09 Azure production bug sweep; Class 6 added from the 2026-08-15 dual-build / staging-prod-isolation sweep (t/2669); Class 7 added from the 2026-08-27 embeddings-cache incident (t/3085).
 
-Purpose: turn post-incident hindsight into foresight. Before landing a change — especially at a producer/consumer seam, on a deploy path, or touching config — ask **"which of these classes could this change introduce?"** and require the corresponding test or gate. Each incident maps to one of six structural classes.
+Purpose: turn post-incident hindsight into foresight. Before landing a change — especially at a producer/consumer seam, on a deploy path, or touching config — ask **"which of these classes could this change introduce?"** and require the corresponding test or gate. Each incident maps to one of seven structural classes.
 
 ## The Core Gap
 
@@ -59,6 +59,18 @@ A failure that **returns a success-shaped result** (empty list + HTTP 200, swall
   2. **Assert the positive outcome, not the absence of error.** Smokes assert **data presence** (count > 0 / expected shape), never "renders" / "endpoint responds" — a graceful-empty page and a broken page are indistinguishable to a renders-without-error check (t/2671 data-presence smoke).
   3. **Make degradation observable.** Every graceful-empty (ADR-001) and swallow-and-continue path emits a log/metric ("loaded 0 / write failed") so a zero/failed result is **detectable**, not invisible — this turns "silently empty" into "detectably empty" (t/2664 analytics signal; Server-Storage graceful-empty observability).
 - **Tickets:** t/2669 (process-gap epic), t/2671 (hosted data-presence smoke), t/2672 (graceful-empty observability), t/2664 (analytics swallow signal). Process rule landed in the tech-lead `AGENTS.md` **Cross-Profile Impact** ("Data-read parity").
+
+## Class 7 — Migration remnant / incomplete-abstraction bypass
+
+A migration moves data consumers behind a shared abstraction (storage backend, resolver, client) but leaves **one consumer on the old raw path**. That straggler silently diverges — the abstraction's guarantees (hydration, freshness, observability, error handling) never apply to it, so it reads a stale, absent, or empty source and returns a success-shaped result. Distinct from Class 1: there is no *seam* between two live components, just the one consumer the migration forgot.
+
+- **Examples:** the 2026-08-27 debate re-embed storm — `loadEmbeddingsFile` kept a raw `fs.readFileSync` of the data-root `embeddings.json` after the May-14 API-First migration routed every *other* taxonomy consumer through `StorageBackend`. When the share held a **stale 36MB file** (vs the 63MB / 4,144-node canonical), the precomputed-cache lookup missed and every debate re-embedded ~3,600 static texts in-process for ~3.5 months — invisible, because the file was **present** (no ENOENT) and **non-empty** (no empty-guard trip), so neither an absence check nor a presence>0 check would have caught it (t/3085/t/3090).
+- **Prevention (three coupled):**
+  1. **A single sanctioned reader.** All data-root reads route through one storage-owned function (`readDataFile()`, t/3092) that owns the large-file branch, hydration, and the guard — no consumer touches a resolver result with raw `fs`.
+  2. **A shape/freshness guard, not just presence.** The sanctioned reader asserts *expected shape/count* (a stale/short file is non-empty and non-ENOENT — presence>0 passes it); an empty/missing/invalid read emits a loud `ActionableError` + flight-recorder event, never a silent empty result.
+  3. **An empty-baseline conjunction gate** (t/3087) flags any file outside `storage/` that calls a data-root resolver *and* raw `fs.readFile*` — catching the next straggler at review time.
+- **Convention — data-root reader location:** any new exported function whose return value is a data-root path (wraps `resolveDataPath`, `getTaxonomyDir`, or `getEmbeddingsPath`) must live in `src/server/storage/` or `src/server/config.ts` — not a separate helper module. This closes the cross-file data-flow hole the conjunction gate cannot statically track: a caller importing `getEmbeddingsPath` from an outside module and passing it straight to `fs.readFile` never trips the same-file conjunction.
+- **Tickets:** t/3085 (root cause), t/3090 (delivery fix), t/3092 (`readDataFile`), t/3087 (gate + convention).
 
 ## How to use this
 
