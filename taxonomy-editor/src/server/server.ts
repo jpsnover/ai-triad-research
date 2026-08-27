@@ -35,7 +35,7 @@ import {
 } from './config.js';
 import { GitHubAPIBackend } from './storage/githubAPIBackend.js';
 import { SessionBranchManager } from './storage/sessionBranchManager.js';
-import { runWithUser, getCurrentUserId, setSessionBranchName, deriveStorageUserId, type UserContext } from './security/userContext.js';
+import { runWithUser, getCurrentUserId, getSessionBranchName, setSessionBranchName, deriveStorageUserId, type UserContext } from './security/userContext.js';
 import { isAuthDisabledAllowed, isPathWithinDir, isTerminalAccessAllowed, isAnonAllowedRoute, invalidRouteParam, missingApiKeyError, resolveTestPersonaOverride } from './security/accessControl.js';
 import { sanitizeUserText } from './security/contentSanitizer.js';
 import { isFreeTierAiPath } from './anonAiRoutes.js';
@@ -92,7 +92,9 @@ const serverRecorder = new FlightRecorder({ capacity: 2000, dumpOnError: false }
 // correlate to the originating HTTP request. An explicit request_id passed to
 // record() still wins; outside a request the field is omitted.
 const _baseServerRecord = serverRecorder.record.bind(serverRecorder);
-serverRecorder.record = (input) => _baseServerRecord({ request_id: getRequestId(), ...input });
+// t/3067: stamp _sessionBranch on every event so session-scoped dump filtering
+// can isolate this user's events from the global ring buffer at write time.
+serverRecorder.record = (input) => _baseServerRecord({ request_id: getRequestId(), _sessionBranch: getSessionBranchName() ?? null, ...input });
 serverRecorder.intern('component', 'server');
 serverRecorder.intern('component', 'git');
 serverRecorder.intern('component', 'data-pull');
