@@ -88,3 +88,40 @@ export function deriveKeyErrorMessage(status: number, reason: string | undefined
   // Unknown non-200 — status-aware fallback still beats a bald verdict.
   return `Provider rejected the key (HTTP ${status})`;
 }
+
+// ── Runtime 429 / rate-limit classification (t/835, t/3052) ──
+// Pure string-matching helpers — no imports needed. Exported here so both
+// aiBackends.ts and keyRotator.ts can import without a circular dependency.
+
+/**
+ * t/997: Gemini returns RESOURCE_EXHAUSTED for BOTH RPM/TPM rate limits AND a
+ * too-long context window. Only the rate-limit variant is a 429 — context
+ * overflow is a 400-class error, so it must not trigger 429 handling or retries.
+ */
+export function isContextTooLongError(err: unknown): boolean {
+  const s = String((err as Error)?.message ?? err).toLowerCase();
+  return /context[ _-]?(length|window)/.test(s)
+    || /(input|prompt) (is )?too long/.test(s)
+    || /(input )?token count[^.]{0,40}exceed/.test(s)
+    || /exceeds the maximum (number of )?(input |context )?tokens/.test(s)
+    || /request (payload|entity)[^.]{0,40}(too large|exceeds|limit)/.test(s);
+}
+
+/** Heuristic 429/rate-limit detection from a provider error (t/835). */
+export function is429Error(err: unknown): boolean {
+  if (isContextTooLongError(err)) return false;
+  const s = String((err as Error)?.message ?? err);
+  return /\b429\b/.test(s) || /rate.?limit/i.test(s) || /RESOURCE_EXHAUSTED/i.test(s)
+    || /\bquota\b/i.test(s) || /too many requests/i.test(s);
+}
+
+/** Best-effort retry-after (ms) parsed from a provider error; defaults to 30s. */
+export function retryAfterMs(err: unknown): number {
+  const s = String((err as Error)?.message ?? err);
+  const m = s.match(/retry[- ]?after[^0-9]*(\d+)\s*(ms|s|sec|seconds)?/i) || s.match(/\b(\d+)\s*(s|sec|seconds)\b/i);
+  if (m) {
+    const n = parseInt(m[1], 10);
+    return (m[2] ?? 's').toLowerCase().startsWith('ms') ? n : n * 1000;
+  }
+  return 30_000;
+}
