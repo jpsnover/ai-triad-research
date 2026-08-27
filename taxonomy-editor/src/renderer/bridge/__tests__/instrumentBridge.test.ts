@@ -175,3 +175,38 @@ describe('instrumentBridge — expected-status downgrade (t/2395)', () => {
     expect(failure).toBeDefined();
   });
 });
+
+describe('instrumentBridge — embedding batch_size (t/3071)', () => {
+  beforeEach(() => { vi.clearAllMocks(); });
+
+  /** Find the request/start event for a bridge method (message `bridge.<method>`, no suffix). */
+  function startRecord(method: string): { data?: Record<string, unknown> } | undefined {
+    return mockRecord.mock.calls
+      .map((c) => c[0] as { message: string; data?: Record<string, unknown> })
+      .find((e) => e.message === `bridge.${method}`);
+  }
+
+  it('records batch_size = texts.length on the computeEmbeddings request event (the 2587 incident)', async () => {
+    const texts = Array.from({ length: 2587 }, (_v, i) => `t${i}`);
+    const api = instrumentBridge({ computeEmbeddings: () => Promise.resolve({ vectors: [] }) } as unknown as AppAPI);
+    await (api as unknown as { computeEmbeddings: (t: string[]) => Promise<unknown> }).computeEmbeddings(texts);
+
+    expect(startRecord('computeEmbeddings')?.data?.batch_size).toBe(2587);
+  });
+
+  it('records batch_size = 1 for a single-text computeQueryEmbedding', async () => {
+    const api = instrumentBridge({ computeQueryEmbedding: () => Promise.resolve({ vector: [] }) } as unknown as AppAPI);
+    await (api as unknown as { computeQueryEmbedding: (t: string) => Promise<unknown> }).computeQueryEmbedding('hello');
+
+    expect(startRecord('computeQueryEmbedding')?.data?.batch_size).toBe(1);
+  });
+
+  it('omits batch_size for a non-embedding AI method (field is embedding-scoped)', async () => {
+    const api = instrumentBridge({ generateText: () => Promise.resolve('ok') } as unknown as AppAPI);
+    await (api as unknown as { generateText: () => Promise<unknown> }).generateText();
+
+    const start = startRecord('generateText');
+    expect(start).toBeDefined();
+    expect(start?.data?.batch_size).toBeUndefined();
+  });
+});
