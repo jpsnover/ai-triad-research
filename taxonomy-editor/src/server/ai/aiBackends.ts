@@ -554,7 +554,18 @@ async function loadEmbeddingsFileAsync(): Promise<EmbeddingsFile | null> {
   if (embeddingsLoadInFlight) return embeddingsLoadInFlight;
   embeddingsLoadInFlight = (async () => {
     try {
-      const buf = await readDataFile('taxonomy/Origin/embeddings.json', { largeFile: true });
+      const buf = await readDataFile('taxonomy/Origin/embeddings.json', {
+        largeFile: true,
+        // t/3085/t/3092#2: stale-file guard — a present-but-short file (e.g. 36MB vs 63MB
+        // canonical) passes empty+missing guards but is still wrong. Parse once here to
+        // assert node_count ≥ 1000; the loadEmbeddingsFileAsync parse below reuses the buf.
+        validate: (b) => {
+          const { node_count } = JSON.parse(b.toString('utf-8')) as { node_count?: number };
+          if ((node_count ?? 0) < 1000) {
+            throw new Error(`embeddings.json stale or truncated: ${node_count ?? 0} nodes (expected ≥1000; t/3085)`);
+          }
+        },
+      });
       const parsed = JSON.parse(buf.toString('utf-8')) as EmbeddingsFile;
       embeddingsCache = parsed;
       const nodeCount = Object.keys(parsed.nodes ?? {}).length;

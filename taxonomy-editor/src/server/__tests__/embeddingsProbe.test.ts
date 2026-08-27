@@ -23,7 +23,7 @@ const { mockReadFile, mockRecorder } = vi.hoisted(() => {
 const FAKE_EMBEDDINGS = JSON.stringify({
   model: 'all-MiniLM-L6-v2',
   dimension: 384,
-  node_count: 3,
+  node_count: 1000, // ≥1000 so the readDataFile validate guard (t/3092#2) passes
   nodes: {
     'acc-bel-001': { vector: Array(384).fill(0.1) },
     'saf-bel-001': { vector: Array(384).fill(0.2) },
