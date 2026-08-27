@@ -532,32 +532,64 @@ export async function generateTextWithSearchByUsage(
 // ── Embeddings ──
 
 let embeddingsCache: EmbeddingsFile | null = null;
+// Hydrate-once dedup: coalesce concurrent callers onto one fs.readFile (t/3085).
+let embeddingsLoadInFlight: Promise<EmbeddingsFile | null> | null = null;
 
 function getEmbeddingsPath(): string {
   return path.join(resolveDataPath('taxonomy/Origin'), 'embeddings.json');
 }
 
-function loadEmbeddingsFile(): EmbeddingsFile | null {
-  try {
-    const p = getEmbeddingsPath();
-    if (embeddingsCache) return embeddingsCache;
-    embeddingsCache = JSON.parse(fs.readFileSync(p, 'utf-8'));
-    return embeddingsCache;
-  } catch (err) {
-    // ENOENT is expected (no precomputed cache) → fall through to fresh
-    // embedding. Anything else (corrupt JSON, permissions) silently re-embeds
-    // against the API quota, so surface it at warn.
-    const code = (err as NodeJS.ErrnoException).code;
-    getGlobalRecorder()?.record({
-      type: 'system.error', component: 'ai-backends',
-      level: code === 'ENOENT' ? 'info' : 'warn',
-      message: code === 'ENOENT'
-        ? 'No embeddings cache file — computing fresh'
-        : 'Embeddings cache unreadable — falling back to full re-embed (API quota)',
-      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
-    });
-    return null;
-  }
+/**
+ * Load the precomputed embeddings.json once, asynchronously, with promise coalescing so
+ * concurrent callers all await the same read rather than each issuing a separate disk I/O.
+ * t/3085: replaces sync fs.readFileSync; ENOENT promoted to warn because in prod ACA
+ * (github-api mode) the file never reaches /tmp — every absence fires this path.
+ */
+async function loadEmbeddingsFileAsync(): Promise<EmbeddingsFile | null> {
+  if (embeddingsCache) return embeddingsCache;
+  if (embeddingsLoadInFlight) return embeddingsLoadInFlight;
+  embeddingsLoadInFlight = (async () => {
+    try {
+      const p = getEmbeddingsPath();
+      const raw = await fs.promises.readFile(p, 'utf-8');
+      const parsed = JSON.parse(raw) as EmbeddingsFile;
+      embeddingsCache = parsed;
+      const nodeCount = Object.keys(parsed.nodes ?? {}).length;
+      getGlobalRecorder()?.record({
+        type: 'system.info', component: 'ai-backends', level: 'info',
+        message: `embeddings.json loaded: ${nodeCount} nodes`,
+        data: { embeddings_node_count: nodeCount, embeddings_model: parsed.model },
+      });
+      return embeddingsCache;
+    } catch (err) {
+      const code = (err as NodeJS.ErrnoException).code;
+      // t/3085: ENOENT promoted to warn — in prod ACA (github-api mode) the file never
+      // reaches /tmp, so every request hits this path. It is not a normal miss; it is the
+      // root-cause symptom that triggers ~3,600 ONNX re-embeds per debate.
+      getGlobalRecorder()?.record({
+        type: 'system.error', component: 'ai-backends', level: 'warn',
+        message: code === 'ENOENT'
+          ? 'embeddings.json not found — re-embedding all taxonomy texts (quota impact in prod)'
+          : 'embeddings.json unreadable — falling back to full re-embed (API quota)',
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+      });
+      return null;
+    } finally {
+      embeddingsLoadInFlight = null;
+    }
+  })();
+  return embeddingsLoadInFlight;
+}
+
+/** Pre-warm the embeddings cache at server startup (t/3085). Fire-and-forget; errors are FR-recorded. */
+export async function prewarmEmbeddingsCache(): Promise<void> {
+  await loadEmbeddingsFileAsync();
+}
+
+/** Reset the embeddings cache — test isolation only. */
+export function _resetEmbeddingsCacheForTest(): void {
+  embeddingsCache = null;
+  embeddingsLoadInFlight = null;
 }
 
 const EMBEDDINGS_REQUEST_TIMEOUT_MS = 45_000;
@@ -615,7 +647,7 @@ export async function resolveEmbeddingsChunked(
 // Python encoder or the in-process ONNX fallback, both 384-dim/all-MiniLM-L6-v2, no API.
 export async function computeEmbeddings(texts: string[], ids?: string[], _explicitApiKey?: string): Promise<number[][]> {
   const startMs = Date.now();
-  const local = loadEmbeddingsFile();
+  const local = await loadEmbeddingsFileAsync();
   const chain: EmbeddingFallback[] = [];
 
   // Local Python encoder stays primary when present (TL ruling t/1641#10).
@@ -912,6 +944,7 @@ export async function updateNodeEmbeddings(nodes: { id: string; text: string; po
   data.node_count = Object.keys(data.nodes).length;
   fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf-8');
   embeddingsCache = null;
+  embeddingsLoadInFlight = null; // bust any in-flight read that would return the stale file
 }
 
 // ── NLI classification ──
