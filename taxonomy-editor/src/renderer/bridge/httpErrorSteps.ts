@@ -44,5 +44,16 @@ export function nextStepsForStatus(status: number, responseText: string): string
       ];
     }
   }
+  if (status >= 500 && responseText.trim() === '') {
+    // Empty-body 5xx = middleware/infra-generated, not an application error: our Express
+    // handlers ALWAYS emit a JSON error body, so no body ⇒ the response came from the ACA
+    // EasyAuth middleware / platform (Node unresponsive → "Connection reset by peer"). The
+    // generic "Verify your authentication" actively misled during the 2026-08-27 saturation
+    // incident — auth was fine, the server was overloaded/restarting (t/3083). Match the shape.
+    return [
+      'The server appears overloaded or restarting — wait ~30s and retry',
+      'If it persists, check production health',
+    ];
+  }
   return ['Check the server is running', 'Verify your authentication'];
 }
