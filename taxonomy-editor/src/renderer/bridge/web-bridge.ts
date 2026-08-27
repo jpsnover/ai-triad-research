@@ -260,20 +260,16 @@ async function post<T = unknown>(path: string, body?: unknown, opts?: FetchOptio
     if (data.limitType === 'tokens_per_day' && !budgetWarning) {
       onQuotaMilestone(100, (data.resetsAt as string | undefined));
     }
-    const retryAfterS = Math.ceil((data.retryAfterMs as number || 60000) / 1000);
     const msg = data.limitType === 'tokens_per_day'
       ? 'Daily token limit exceeded. Try again tomorrow or use your own API key.'
-      : `Rate limit exceeded. Retry in ${retryAfterS}s.`;
+      : `Rate limit exceeded. Retry in ${Math.ceil((data.retryAfterMs as number || 60000) / 1000)}s.`;
     const err = new ActionableError({
       goal: 'Call AI backend',
       problem: msg,
       location: 'web-bridge.post',
       nextSteps: ['Wait for the rate limit to reset', 'Use your own API key to avoid shared limits'],
     });
-    (err as ActionableError & { limitType: string }).limitType = String(data.limitType ?? '');
-    // Structured cooldown (t/3054) — carry the retry-after seconds on the error so the
-    // FR `ai.error` event can record it as a field instead of forcing a message-string regex.
-    (err as ActionableError & { retryAfterS: number }).retryAfterS = retryAfterS;
+    Object.assign(err, { limitType: String(data.limitType ?? ''), retryAfterS: Math.ceil((data.retryAfterMs as number || 60000) / 1000) }); // + 429 retry_after_s for FR (t/3054)
     throwHttpError(429, err);
   }
   if (res.status === 400 && (path === '/api/ai/generate' || path === '/api/ai/search')) {
