@@ -134,12 +134,17 @@ function intFromEnv(name: string, fallback: number): number {
   return Number.isFinite(n) && n > 0 ? n : fallback;
 }
 
-/** Resolve the load-shed mode: EMBEDDINGS_LOAD_SHED_MODE = warn|block|off (default warn). */
+/**
+ * Resolve the load-shed mode: EMBEDDINGS_LOAD_SHED_MODE = warn|block|off (default block).
+ * t/3078 Gate Promotion (TL GV p/522#64): real-env evidence showed loop-delay fires at
+ * 3001–4290 ms (13–17× threshold) with zero false-positives; default promoted to block.
+ * Kill switch: set EMBEDDINGS_LOAD_SHED_MODE=warn to revert to observe-only instantly.
+ */
 export function embeddingLoadShedMode(): LoadShedMode {
   const raw = (process.env.EMBEDDINGS_LOAD_SHED_MODE ?? '').trim().toLowerCase();
-  if (raw === 'block') return 'block';
+  if (raw === 'warn') return 'warn'; // kill switch — revert to observe-only instantly
   if (raw === 'off') return 'off';
-  return 'warn'; // warn-first default (Gate Promotion)
+  return 'block'; // default: block (t/3078 Gate Promotion, TL GV p/522#64)
 }
 
 export interface LoadShedDecision {
@@ -198,20 +203,21 @@ export function decideLoadShed(input: LoadShedInput): LoadShedDecision {
 /**
  * Decide whether to shed a NEW embedding compute. Call at route entry BEFORE
  * accepting the compute (so `inFlight` is the count of OTHER computes running).
- * Reads the live signals and delegates to `decideLoadShed`. Env-tunable (warn-first):
- *   EMBEDDINGS_MAX_CONCURRENT  (default 2)   — shed when in-flight >= this.
+ * Reads the live signals and delegates to `decideLoadShed`. Env-tunable:
+ *   EMBEDDINGS_MAX_CONCURRENT  (default 4)   — shed when in-flight >= this.
+ *     Raised 2→4 (t/3078): prod evidence showed in_flight 0–1 under real load, so
+ *     cap=2 had untested FP risk for concurrent multi-user sessions.
  *   EMBEDDINGS_LOOP_SHED_MS    (default 250) — shed when recent-window MAX loop delay > this.
  *   EMBEDDINGS_RETRY_AFTER_MS  (default 2000)
- *   EMBEDDINGS_LOAD_SHED_MODE  (default warn)
- * Defaults are conservative starting points; tune from the t/2904 curve before
- * promoting to block. Reading the shed signal RESETS its recent window.
+ *   EMBEDDINGS_LOAD_SHED_MODE  (default block) — kill switch: set to 'warn' to revert.
+ * Reading the shed signal RESETS its recent window.
  */
 export function evaluateEmbeddingLoadShed(): LoadShedDecision {
   return decideLoadShed({
     mode: embeddingLoadShedMode(),
     inFlight,
     loopMaxMs: readRecentLoopDelayMaxMs(),
-    cap: intFromEnv('EMBEDDINGS_MAX_CONCURRENT', 2),
+    cap: intFromEnv('EMBEDDINGS_MAX_CONCURRENT', 4), // t/3078: raised from 2 (FP risk; evidence showed in_flight 0–1)
     loopShedMs: intFromEnv('EMBEDDINGS_LOOP_SHED_MS', 250),
     retryAfterMs: intFromEnv('EMBEDDINGS_RETRY_AFTER_MS', 2000),
   });
