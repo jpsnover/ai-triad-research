@@ -169,8 +169,12 @@ export function registerDiagnosticsRoutes(r: Router, ctx: ServerCtx): void {
     // for admins or single-user/local deployments (no other users). Non-admin web
     // callers still get their own client dump.
     const includeServer = community.isAdmin() || STORAGE_MODE !== 'github-api';
+    // t/3081: derive why server is absent so the merged header is never silently missing it.
+    const serverOmissionReason = !includeServer
+      ? (getSessionBranchName() === undefined ? 'anonymous-session' : 'not-admin')
+      : undefined;
     try {
-      const merged = await readMergedDump(getDataRoot(), dumpId, { includeServer });
+      const merged = await readMergedDump(getDataRoot(), dumpId, { includeServer, serverOmissionReason });
       if (merged === null) {
         // Actionable, copy-pasteable diagnostics (ADR-001 shape) instead of a bare
         // "failed" — relative paths only, no secrets/absolute fs layout.

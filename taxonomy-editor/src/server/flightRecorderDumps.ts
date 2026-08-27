@@ -224,8 +224,14 @@ function parseDumpNdjson(ndjson: string): ParsedDump {
  * Events are sorted by `_wall` timestamp and tagged with `_source` and `_merged_seq`.
  * Mirrors the `Merge-FlightRecorderDumps` PowerShell cmdlet.
  */
-/** Merged header line: overall metadata + per-source timestamps/capacity. */
-function buildMergedHeaderLine(client: ParsedDump | null, server: ParsedDump | null): string {
+/** Merged header line: overall metadata + per-source timestamps/capacity.
+ * t/3081: stamps `server_source` so a missing server half is never silently absent —
+ * callers see whether the server was omitted intentionally (reason) or included. */
+function buildMergedHeaderLine(
+  client: ParsedDump | null,
+  server: ParsedDump | null,
+  serverOmissionReason?: string,
+): string {
   const mergedHeader: Record<string, unknown> = {
     _type: 'header',
     merged: true,
@@ -233,6 +239,10 @@ function buildMergedHeaderLine(client: ParsedDump | null, server: ParsedDump | n
     sources: [client && 'client', server && 'server'].filter(Boolean),
     total_events: (client?.events.length ?? 0) + (server?.events.length ?? 0),
   };
+  // t/3081: explicit server_source annotation — never leave the absence silent.
+  mergedHeader.server_source = server !== null
+    ? { attempted: true }
+    : { attempted: false, reason: serverOmissionReason ?? 'unknown' };
   for (const [src, dump] of [['client', client], ['server', server]] as const) {
     if (!dump?.header) continue;
     const h = dump.header;
@@ -306,13 +316,13 @@ function buildTriggerLines(client: ParsedDump | null, server: ParsedDump | null)
   return lines;
 }
 
-export function mergeDumps(clientNdjson: string | null, serverNdjson: string | null): string {
+export function mergeDumps(clientNdjson: string | null, serverNdjson: string | null, serverOmissionReason?: string): string {
   const client = clientNdjson ? parseDumpNdjson(clientNdjson) : null;
   const server = serverNdjson ? parseDumpNdjson(serverNdjson) : null;
 
   // Section order is the dump contract: header → dictionary → context → events → triggers.
   const lines: string[] = [
-    buildMergedHeaderLine(client, server),
+    buildMergedHeaderLine(client, server, server === null ? serverOmissionReason : undefined),
     ...buildMergedDictionaryLines(client, server),
     buildMergedContextLine(client, server),
     ...buildInterleavedEventLines(client, server),
@@ -333,7 +343,7 @@ export function mergeDumps(clientNdjson: string | null, serverNdjson: string | n
 export async function readMergedDump(
   dataRoot: string,
   dumpId: string,
-  opts: { includeServer?: boolean } = {},
+  opts: { includeServer?: boolean; serverOmissionReason?: string } = {},
 ): Promise<string | null> {
   const includeServer = opts.includeServer !== false;
   const backend = getUserContentBackend();
@@ -345,5 +355,6 @@ export async function readMergedDump(
     : null;
   if (clientNdjson === null && serverNdjson === null) return null;
 
-  return mergeDumps(clientNdjson, serverNdjson);
+  // t/3081: pass the omission reason so the merged header stamps server_source explicitly.
+  return mergeDumps(clientNdjson, serverNdjson, !includeServer ? opts.serverOmissionReason : undefined);
 }
