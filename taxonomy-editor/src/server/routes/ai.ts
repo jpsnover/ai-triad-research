@@ -21,7 +21,7 @@ import { getGlobalRecorder } from '../../../../lib/flight-recorder/index.js';
 import { callerTierIdentity, missingApiKeyError, expiredAuthCookies } from '../security/accessControl.js';
 import { getCurrentUser, getCurrentUserId } from '../security/userContext.js';
 import type { GenerateTextProgress } from '../ai/aiBackends.js';
-import { log, getRequestContext } from '../logger.js';
+import { log, getRequestContext, getRequestId } from '../logger.js';
 import { DEFAULT_MODEL } from '../../../../lib/ai-client/index.js';
 import { hasApiKey, getPaidGeminiFallbackKey, type AIBackend } from '../config.js';
 import * as proxyTiers from '../ai/proxyTiers.js';
@@ -550,8 +550,10 @@ export function registerAiRoutes(r: Router, ctx: ServerCtx): void {
       // t/2904: emit the pre-freeze load signals (event-loop delay + heap + rss +
       // in-flight count) at INFO so a liveness-probe kill under concurrent embedding
       // load is diagnosable in the ACA container logs — the 2026-08-21 crash had none.
+      // t/3079: requestId added so Get-DebateRateLimitSummary-style cmdlets can
+      // correlate a client 504/500 to the server-side cause.
       log.api.info(
-        { ...embeddingLoadSnapshot(), item_count: Array.isArray(texts) ? texts.length : 0 },
+        { ...embeddingLoadSnapshot(), item_count: Array.isArray(texts) ? texts.length : 0, request_id: getRequestId() },
         'embeddings.compute: entry',
       );
       // t/2905: load-shed to prevent the GC event-loop freeze that SIGKILL'd the
@@ -577,10 +579,12 @@ export function registerAiRoutes(r: Router, ctx: ServerCtx): void {
         // t/3061: local ONNX — no Gemini call, no key needed.
         const vectors = await ai.computeEmbeddings(texts, ids, undefined);
         markEmbeddingModelWarm();
+        // t/3079: item_count added so a merged FR dump captures row count alongside
+        // duration — completes the server-side counterpart to t/3071's client batch_size.
         getGlobalRecorder()?.record({
           type: 'system.info', component: 'embeddings-compute', level: 'info',
           message: 'embedding.compute',
-          data: { duration_ms: Date.now() - t0, model_cold_start: !modelWarm, in_flight_at_entry: inFlightAtEntry },
+          data: { duration_ms: Date.now() - t0, item_count: texts.length, model_cold_start: !modelWarm, in_flight_at_entry: inFlightAtEntry },
         });
         json(res, { vectors });
       } finally {
@@ -593,6 +597,9 @@ export function registerAiRoutes(r: Router, ctx: ServerCtx): void {
       // .timeout marker set by resolveEmbeddingsChunked (not fragile-prose — t/2952).
       // Deterministic errors (bad input, init failure) have no .timeout → remain 500.
       if ((err as { timeout?: boolean }).timeout === true) {
+        // t/3079: log at warn (not error — this is a transient backpressure signal, not a fault)
+        // with requestId so the client 503 is correlatable to the server-side stall.
+        log.api.warn({ request_id: getRequestId(), item_count: Array.isArray(texts) ? texts.length : 0 }, 'embeddings.compute: chunk timeout → 503');
         res.writeHead(503, { 'Content-Type': 'application/json', 'Retry-After': '5' });
         res.end(JSON.stringify({ error: 'Embedding compute timed out — retry after backoff', retryable: true, retryAfterMs: 5000 }));
         return;
