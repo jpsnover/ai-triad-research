@@ -49,20 +49,35 @@ test('HighlightedField: .hl-backdrop overlay rule is loaded (t/3025)', async ({ 
   expect(await probe(page, 'hl-backdrop', 'position')).toBe('absolute');
 });
 
-// VALIDATE(live t/3026): in the default web boot only the 3 POV tabs render in the tablist —
-// `chat`/`debate`/etc. are gated (feature-flag/admin), so [data-tab="chat"] does not exist and
-// the DataSourceCard (Prompt Inspector) surface is unreachable here. Enable once the CI job
-// boots the app with those tabs flagged on, then point openTab() at the chat surface.
-test.fixme('DataSourceCard: .pi-node-count-preview rule is loaded (t/3025)', async ({ page }) => {
-  await openTab(page, 'chat'); // Prompt Inspector renders DataSourceCard
+// t/3059: DataSourceCard's CSS is NOT chat-gated — it rides the main entry chunk. The chain is
+// all static: DataSourceCard ← PromptInspector ← PromptsPanel ← ToolbarPaneRenderer ← PovTab
+// (App.tsx statically imports PovTab), so DataSourceCard.css is injected at boot and present on
+// every POV tab. The earlier `[data-tab="chat"]` assumption was over-conservative — probe on a
+// POV tab. `.pi-node-count-preview` sets `border-bottom: 1px` → styled = 1px, unstyled = 0px.
+test('DataSourceCard: .pi-node-count-preview rule is loaded (t/3025, enabled t/3059)', async ({ page }) => {
+  await openTab(page, 'accelerationist');
   const bw = await probe(page, 'pi-node-count-preview', 'border-bottom-width');
   expect(bw, `pi-node-count-preview border-bottom-width="${bw}"`).not.toBe('0px');
 });
 
-// VALIDATE(live): confirm which surface renders ApiKeyErrorMessage in the web build (its error
-// state), then point openTab() at it. Marked fixme until that nav is confirmed.
-test.fixme('ApiKeyErrorMessage: .api-key-error-link rule is loaded (t/3025)', async ({ page }) => {
-  await openTab(page, 'accelerationist'); // TODO: correct surface + trigger the error state
+// t/3059: ApiKeyErrorMessage.css also rides the main chunk — ApiKeyErrorMessage ← AnalysisPanel,
+// which PovTab statically imports (PovTab.tsx:23) and renders. So the rule is loaded at boot on
+// the POV tabs; probe-injection needs only the rule present, not the error state triggered.
+// `.api-key-error-link` sets `text-decoration: underline` → styled = 'underline', unstyled = 'none'.
+test('ApiKeyErrorMessage: .api-key-error-link rule is loaded (t/3025, enabled t/3059)', async ({ page }) => {
+  await openTab(page, 'accelerationist');
   const td = await probe(page, 'api-key-error-link', 'text-decoration-line');
   expect(td, `api-key-error-link text-decoration-line="${td}"`).toContain('underline');
+});
+
+// t/3059: `.claim-attribution-*` was a CONFIRMED orphan — used LIVE on the POV Attributes/Research
+// tab (NodeDetail.tsx renders `.claim-attribution-text`/`-label`) but its only CSS home was
+// ArgumentGraph.css, imported solely by ArgumentGraph ← TimelineScrubber, which is NEVER rendered
+// → tree-shaken → the rule shipped in NO chunk → unstyled on the POV tab. Fixed the #1561 way in
+// this PR by relocating the two rules into NodeDetail.css (main chunk → present on every consuming
+// surface). `.claim-attribution-label` sets `text-transform: uppercase` → styled, unstyled = 'none'.
+test('claim-attribution: .claim-attribution-label rule is loaded (t/3025/t/3059 orphan fix)', async ({ page }) => {
+  await openTab(page, 'accelerationist'); // NodeDetail renders claim-attribution on the POV surface
+  const tt = await probe(page, 'claim-attribution-label', 'text-transform');
+  expect(tt, `claim-attribution-label text-transform="${tt}"`).toBe('uppercase');
 });
