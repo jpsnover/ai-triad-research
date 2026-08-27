@@ -93,4 +93,31 @@ describe('filterSessionEvents (t/3067)', () => {
 
     expect(lines.find(l => l.type === 'storage.mode')).toBeUndefined();
   });
+
+  it('fail-CLOSED: falsy sessionBranch arg returns only a trailing newline', () => {
+    const ndjson = makeNdjson([
+      { _type: 'header', _version: 1, schema_version: '1.0.0' },
+      { type: 'lifecycle', _sessionBranch: SESSION_A },
+    ]);
+    expect(filterSessionEvents(ndjson, '')).toBe('\n');
+  });
+
+  // TL 6th vector (p/522#53): dictionary is the process-GLOBAL intern table.
+  // A B-only intern entry must NOT appear in A's dump — the dict is always emitted
+  // with empty entries so the format is structurally valid without leaking.
+  it('dictionary line is emptied: B-only intern entries are absent from A\'s dump', () => {
+    const ndjson = makeNdjson([
+      { _type: 'header', _version: 1, schema_version: '1.0.0' },
+      { _type: 'dictionary', entries: ['users/bob/session', 'users/alice/session', 'some/path'] },
+      { type: 'lifecycle', _sessionBranch: SESSION_A },
+      { _type: 'trigger', trigger_type: 'manual' },
+    ]);
+    const lines = filterSessionEvents(ndjson, SESSION_A)
+      .trim().split('\n').filter(Boolean).map(l => JSON.parse(l));
+
+    const dict = lines.find(l => l._type === 'dictionary');
+    expect(dict).toBeDefined();
+    // Intern table must be empty — no cross-session entries leak
+    expect(dict.entries).toEqual([]);
+  });
 });

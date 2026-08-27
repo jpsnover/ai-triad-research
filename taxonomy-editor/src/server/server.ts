@@ -94,7 +94,11 @@ const serverRecorder = new FlightRecorder({ capacity: 2000, dumpOnError: false }
 const _baseServerRecord = serverRecorder.record.bind(serverRecorder);
 // t/3067: stamp _sessionBranch on every event so session-scoped dump filtering
 // can isolate this user's events from the global ring buffer at write time.
-serverRecorder.record = (input) => _baseServerRecord({ request_id: getRequestId(), _sessionBranch: getSessionBranchName() ?? null, ...input });
+// Object.assign avoids the object-literal excess-property check (RecordInput
+// doesn't declare _sessionBranch; Shared Lib owns that type).
+serverRecorder.record = (input) => _baseServerRecord(
+  Object.assign({}, input, { request_id: getRequestId(), _sessionBranch: getSessionBranchName() ?? null }),
+);
 serverRecorder.intern('component', 'server');
 serverRecorder.intern('component', 'git');
 serverRecorder.intern('component', 'data-pull');

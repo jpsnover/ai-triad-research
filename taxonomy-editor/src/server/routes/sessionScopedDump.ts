@@ -19,6 +19,9 @@
  * request handler without side effects.
  */
 export function filterSessionEvents(ndjson: string, sessionBranch: string): string {
+  // Fail-CLOSED: empty/null caller → return nothing rather than leaking everything.
+  if (!sessionBranch) return '\n';
+
   const kept: string[] = [];
   for (const line of ndjson.split('\n')) {
     const trimmed = line.trim();
@@ -26,8 +29,14 @@ export function filterSessionEvents(ndjson: string, sessionBranch: string): stri
     let parsed: Record<string, unknown>;
     try { parsed = JSON.parse(trimmed); } catch { continue; }
     const lineType = parsed._type as string | undefined;
-    if (lineType === 'header' || lineType === 'dictionary' || lineType === 'trigger') {
+    if (lineType === 'header' || lineType === 'trigger') {
       kept.push(trimmed);
+    } else if (lineType === 'dictionary') {
+      // The intern table is process-GLOBAL — it crosses session boundaries (latent
+      // leak once paths/userIds are interned). The serializer already expands handles
+      // into each event, so the table is redundant in a session-scoped dump. Emit an
+      // empty placeholder so the NDJSON format remains structurally valid.
+      kept.push(JSON.stringify({ _type: 'dictionary', entries: [] }));
     } else if (lineType === 'context') {
       // Always global — exclude from session-scoped dump
     } else if (parsed._sessionBranch === sessionBranch) {
