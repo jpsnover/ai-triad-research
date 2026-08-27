@@ -60,6 +60,8 @@ $scopeRoleMap = [ordered]@{
     'operations/devops'                              = 'DevOps'
     'operations/sage'                                = 'Sage'
     'operations/diagnostics'                         = 'Diagnostics'
+    'research/comp-linguist'                         = 'Computational Linguist'
+    'research/collaborator'                          = 'Collaborator'
     'scripts'                                        = 'PowerShell'
 }
 function Get-OwningScope {
