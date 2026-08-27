@@ -2,7 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { describe, it, expect } from 'vitest';
-import { classifyAiRetry, retryReasonLabel } from './retryClassifier';
+import { classifyAiRetry, retryReasonLabel, parseRetryAfterMs } from './retryClassifier';
 
 // Helper: build an error carrying an httpStatus (as the bridge attaches it).
 function httpErr(status: number, message = 'boom'): Error & { httpStatus: number } {
@@ -69,5 +69,22 @@ describe('retryReasonLabel (t/2492)', () => {
     expect(retryReasonLabel('timeout')).toMatch(/timed out/i);
     expect(retryReasonLabel('network')).toMatch(/network/i);
     expect(retryReasonLabel('non_retryable')).toMatch(/failed/i);
+  });
+});
+
+describe('parseRetryAfterMs (t/3048) — structured retry window for FR data + backoff', () => {
+  it.each([
+    ['Rate limited. Retry in 8s', 8000],
+    ['429 Too Many Requests — Retry in 11s before the next attempt', 11000],
+    ['Retry in 120s', 120000],
+  ])('parses %j → %ims', (message, expected) => {
+    expect(parseRetryAfterMs(new Error(message))).toBe(expected);
+    expect(parseRetryAfterMs(message)).toBe(expected); // also works on a bare string
+  });
+
+  it('returns undefined when no retry window is advertised', () => {
+    expect(parseRetryAfterMs(new Error('Rate limited, please slow down'))).toBeUndefined();
+    expect(parseRetryAfterMs(new Error('boom'))).toBeUndefined();
+    expect(parseRetryAfterMs(undefined)).toBeUndefined();
   });
 });

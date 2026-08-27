@@ -20,7 +20,7 @@ import { api, emitBriefTimeout, emitBriefRetriesExhausted } from '@bridge';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { generateId, nowISO, parseAIJson, parsePoverResponse, formatRecentTranscript } from '@lib/debate/helpers';
 import { formatTaxonomyContext } from '../../../utils/taxonomyContext';
-import { classifyAiRetry, retryReasonLabel } from '../../../utils/retryClassifier';
+import { classifyAiRetry, retryReasonLabel, parseRetryAfterMs } from '../../../utils/retryClassifier';
 import { formatCommitments, formatEstablishedPoints } from '../../../prompts/argumentNetwork';
 import { formatVocabularyContext } from '@lib/debate/vocabularyContext';
 import {
@@ -1161,8 +1161,10 @@ export const createClarificationSlice: StateCreator<DebateStore, [], [], Clarifi
         const httpStatus = (err as { httpStatus?: number }).httpStatus;
         // Broadened classification (t/2492): transient timeout/5xx/network now auto-retry, not just 429.
         const { retryable: isRetryable, reason: retryReason } = classifyAiRetry(err);
+        // t/3048: surface the server's advertised retry window structured in FR data (not just the message string).
+        const retryInMs = retryReason === 'rate_limit' ? parseRetryAfterMs(err) : undefined;
         console.error(`[debate] ${info.label} opening statement failed (status=${httpStatus ?? 'unknown'}, retry=${retryReason}):`, err);
-        getGlobalRecorder()?.record({ type: 'system.error', debate_id: activeDebate?.id, component: 'debate-engine', level: 'error', message: `Opening statement failed: ${info.label} (status=${httpStatus ?? 'unknown'})`, data: { retry_reason: retryReason, retryable: isRetryable, retry_pass: openingRetryPass }, error: { name: (err as Error).name ?? 'Error', message: (err as Error).message ?? String(err), stack: (err as Error).stack?.slice(0, 500) } });
+        getGlobalRecorder()?.record({ type: 'system.error', debate_id: activeDebate?.id, component: 'debate-engine', level: 'error', message: `Opening statement failed: ${info.label} (status=${httpStatus ?? 'unknown'})`, data: { retry_reason: retryReason, retryable: isRetryable, retry_pass: openingRetryPass, ...(retryInMs !== undefined && { retry_in_ms: retryInMs }) }, error: { name: (err as Error).name ?? 'Error', message: (err as Error).message ?? String(err), stack: (err as Error).stack?.slice(0, 500) } });
         if (isDailyLimitError(err)) {
           // Terminal for the whole run: settle this speaker's slot to 'error' so its
           // spinner doesn't stick (t/2907), and keep the run-level system notice + banner.
@@ -1190,9 +1192,8 @@ export const createClarificationSlice: StateCreator<DebateStore, [], [], Clarifi
           hasRetryableFailure = true;
           lastRetryReason = retryReasonLabel(retryReason);
           if (retryReason === 'rate_limit') {
-            // Honor the server's advertised Retry-After when present.
-            const msgMatch = String(err).match(/Retry in (\d+)s/);
-            retryBackoffMs = msgMatch ? parseInt(msgMatch[1], 10) * 1000 : 5000;
+            // Honor the server's advertised Retry-After when present (parsed once above, t/3048).
+            retryBackoffMs = retryInMs ?? 5000;
           } else {
             // Exponential backoff for transient timeout/5xx/network (5s, 10s, …), capped at 30s.
             retryBackoffMs = Math.min(5000 * 2 ** openingRetryPass, 30_000);
