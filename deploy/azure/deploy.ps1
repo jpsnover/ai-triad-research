@@ -253,6 +253,38 @@ if ($SeedData) {
             --account-key $storageKey `
             --output none
 
+        # Write seed manifest to share for the freshness gate (t/3091).
+        # Records embedded file sizes + seed timestamp so Invoke-ShareFreshnessGateCheck.ps1
+        # can detect absence, truncation, and silent lag without re-downloading the data.
+        Write-OK 'Writing seed manifest...'
+        $manifestFiles  = [ordered]@{}
+        $assertedPaths  = @('taxonomy/Origin/embeddings.json')
+        foreach ($rel in $assertedPaths) {
+            $localPath = Join-Path $tempDir ($rel -replace '/', [IO.Path]::DirectorySeparatorChar)
+            if (Test-Path $localPath) {
+                $manifestFiles[$rel] = @{ size_bytes = (Get-Item $localPath).Length }
+            }
+        }
+        $manifestJson  = [ordered]@{ seeded_at = [DateTimeOffset]::UtcNow.ToString('o'); files = $manifestFiles } |
+                         ConvertTo-Json -Depth 3
+        $tmpManifest   = [IO.Path]::GetTempFileName()
+        try {
+            [IO.File]::WriteAllText($tmpManifest, $manifestJson, [Text.Encoding]::UTF8)
+            az storage file upload `
+                --share-name  $shareName `
+                --source      $tmpManifest `
+                --path        'seed-manifest.json' `
+                --account-name $storageAcct `
+                --account-key  $storageKey `
+                --output none
+            $embSize = if ($manifestFiles['taxonomy/Origin/embeddings.json']) {
+                [math]::Round($manifestFiles['taxonomy/Origin/embeddings.json'].size_bytes / 1MB, 1)
+            } else { '?' }
+            Write-OK "Seed manifest written (embeddings.json: $embSize MB)"
+        } finally {
+            Remove-Item $tmpManifest -Force -ErrorAction SilentlyContinue
+        }
+
         Write-OK 'Data seeded successfully'
     }
     finally {
