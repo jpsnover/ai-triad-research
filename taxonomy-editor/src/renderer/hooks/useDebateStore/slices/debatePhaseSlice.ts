@@ -84,6 +84,7 @@ import { computeOperationality } from '@lib/debate/intentionOperationality';
 import { useTaxonomyStore } from '../../useTaxonomyStore';
 import { usePromptConfigStore } from '../../usePromptConfigStore';
 import { mapErrorToUserMessage } from '../../../utils/errorMessages';
+import { classifyAiRetry, parseRetryAfterMs } from '../../../utils/retryClassifier';
 import { cosineSimilarity, scoreNodesLexical } from '../../../utils/taxonomyRelevance';
 import { getConfiguredModel, getSpeakerModel } from '../shared/modelConfig';
 import { generateTextWithProgress, phaseGuardedSet, summarizeTranscriptEntry, makeStageGenerate, routeTurnValidatorHintsIntoSuggestions, getSourceEvidenceIndex, getDocTitles } from '../shared/generation';
@@ -414,12 +415,21 @@ export const createDebatePhaseSlice: StateCreator<DebateStore, [], [], DebatePha
         getGlobalRecorder()?.record({ type: 'debate.lifecycle', component: 'debate-store', level: 'info', debate_id: activeDebate.id, message: 'debate.paused', data: { reason: 'daily_token_limit', round: crossRespondRound, speaker: responderPover } });
         return;
       }
-      addTranscriptEntry({
-        type: 'system',
-        speaker: 'system',
-        content: `${info.label} failed to cross-respond: ${mapErrorToUserMessage(err)}`,
-        taxonomy_refs: [],
-      });
+      // t/3053: idempotent per-round turn-failure marker (mirror t/2907 slot-lifecycle). Each retry
+      // for a failed turn adds no statement, so the round is stable — refresh ONE marker for this
+      // round instead of appending a fresh one every pass (the S6→S7 dupes). Matched anywhere in the
+      // transcript (not trailing-only), keyed on the round.
+      const turnFailureContent = `${info.label} failed to cross-respond: ${mapErrorToUserMessage(err)}`;
+      const existingFailure = get().activeDebate?.transcript.find(
+        e => e.type === 'system'
+          && (e.metadata as Record<string, unknown> | undefined)?.turn_failure === true
+          && (e.metadata as Record<string, unknown> | undefined)?.round === crossRespondRound,
+      );
+      if (existingFailure) {
+        get().updateTranscriptEntry(existingFailure.id, { content: turnFailureContent, metadata: { turn_failure: true, round: crossRespondRound } });
+      } else {
+        addTranscriptEntry({ type: 'system', speaker: 'system', content: turnFailureContent, taxonomy_refs: [], metadata: { turn_failure: true, round: crossRespondRound } });
+      }
       getGlobalRecorder()?.record({ type: 'debate.lifecycle', component: 'debate-store', level: 'error', debate_id: activeDebate.id, message: 'debate.turn_failed', data: { reason: 'pipeline_error', round: crossRespondRound, speaker: responderPover, error: String(err) } });
     }
 
@@ -1413,33 +1423,59 @@ function buildModeratorTrace(activeDebate: DebateSession, aiPovers: _AiPover[], 
 }
 
 async function runModeratorStep(selectionInput: ModeratorSelectionInput, selectionCallbacks: ModeratorSelectionCallbacks, activeDebate: DebateSession, crossRespondRound: number, phase: DebatePhase, isStillValid: () => boolean, get: _Get, set: _Set, saveDebate: _SaveDebate): Promise<_ModResult | null> {
-    let modResult: Awaited<ReturnType<typeof runModeratorSelection>>;
-    try {
-      modResult = await runModeratorSelection(selectionInput, selectionCallbacks);
-      if (!isStillValid()) {
-        getGlobalRecorder()?.record({ type: 'debate.lifecycle', component: 'debate-store', level: 'info', debate_id: activeDebate.id, message: 'crossRespond aborted post-moderator — debate no longer valid' });
-        releaseDebateDriver(); return null;
+    // t/3053: bounded backoff loop around moderator selection. A transient 429 previously propagated
+    // straight to debate.ended with no wait, so the UI re-entered immediately → 3× loop in 130ms.
+    // Now, on a retryable rate-limit, await the server's cooldown (driving debateProgress so the
+    // DebateActionBar countdown lights up) and retry — up to MAX_MOD_RETRIES within a budget. Never
+    // sleep past the remaining budget or the 30s resilientFetch cap (TL t/3053#3): fall through to
+    // the manual debateError banner instead of freezing.
+    const MAX_MOD_RETRIES = 2;
+    const MOD_RETRY_BUDGET_MS = 2 * 60 * 1000;
+    const MOD_RETRY_CAP_MS = 30_000;
+    const modStartedAt = Date.now();
+    let modResult!: Awaited<ReturnType<typeof runModeratorSelection>>;
+    for (let modPass = 0; ; modPass++) {
+      try {
+        modResult = await runModeratorSelection(selectionInput, selectionCallbacks);
+        if (!isStillValid()) {
+          getGlobalRecorder()?.record({ type: 'debate.lifecycle', component: 'debate-store', level: 'info', debate_id: activeDebate.id, message: 'crossRespond aborted post-moderator — debate no longer valid' });
+          releaseDebateDriver(); set({ debateProgress: null }); return null;
+        }
+        set({ debateProgress: null }); // clear the retry countdown on success
+        break;
+      } catch (err) {
+        // User cancel / model switch (t/2508) — bail quietly, no error toast (helper logged info).
+        if (isCancellationError(err)) { releaseDebateDriver(); set({ debateGenerating: null, debateActivity: null, debateProgress: null }); return null; }
+        const { retryable } = classifyAiRetry(err);
+        const cooldownMs = parseRetryAfterMs(err) ?? 5000;
+        const remainingMs = MOD_RETRY_BUDGET_MS - (Date.now() - modStartedAt);
+        if (retryable && !isDailyLimitError(err) && modPass < MAX_MOD_RETRIES && cooldownMs <= remainingMs && cooldownMs <= MOD_RETRY_CAP_MS) {
+          getGlobalRecorder()?.record({ type: 'debate.lifecycle', component: 'debate-store', level: 'warn', debate_id: activeDebate.id, message: 'Cross-respond moderator selection rate-limited — backing off', data: { round: crossRespondRound, attempt: modPass + 1, retry_in_ms: cooldownMs } });
+          set({ debateProgress: { attempt: modPass + 1, maxRetries: MAX_MOD_RETRIES, backoffSeconds: Math.ceil(cooldownMs / 1000), phase: 'retry' } });
+          await new Promise(resolve => setTimeout(resolve, cooldownMs));
+          if (!isStillValid()) { releaseDebateDriver(); set({ debateGenerating: null, debateProgress: null }); return null; }
+          continue; // retry the moderator selection after the cooldown
+        }
+        // Terminal: non-retryable, or budget/cap/pass exhausted, or daily-limit.
+        getGlobalRecorder()?.record({
+          type: 'system.error',
+          debate_id: activeDebate?.id,
+          component: 'debate-store',
+          level: 'error',
+          message: 'Cross-respond moderator selection failed',
+          error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+        });
+        releaseDebateDriver();
+        set({ debateProgress: null });
+        if (isDailyLimitError(err)) {
+          set({ debateError: DAILY_LIMIT_MESSAGE, dailyLimitPaused: true, debateGenerating: null });
+          getGlobalRecorder()?.record({ type: 'debate.lifecycle', component: 'debate-store', level: 'info', debate_id: activeDebate.id, message: 'debate.paused', data: { reason: 'daily_token_limit' } });
+        } else {
+          set({ debateError: `Cross-respond selection failed: ${mapErrorToUserMessage(err)}`, debateRetryAction: 'crossRespond', debateGenerating: null });
+          getGlobalRecorder()?.record({ type: 'debate.lifecycle', component: 'debate-store', level: 'info', debate_id: activeDebate.id, message: 'debate.ended', data: { reason: 'error', error: String(err) } });
+        }
+        return null;
       }
-    } catch (err) {
-      // User cancel / model switch (t/2508) — bail quietly, no error toast (helper logged info).
-      if (isCancellationError(err)) { releaseDebateDriver(); set({ debateGenerating: null, debateActivity: null }); return null; }
-      getGlobalRecorder()?.record({
-        type: 'system.error',
-        debate_id: activeDebate?.id,
-        component: 'debate-store',
-        level: 'error',
-        message: 'Cross-respond moderator selection failed',
-        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
-      });
-      releaseDebateDriver();
-      if (isDailyLimitError(err)) {
-        set({ debateError: DAILY_LIMIT_MESSAGE, dailyLimitPaused: true, debateGenerating: null });
-        getGlobalRecorder()?.record({ type: 'debate.lifecycle', component: 'debate-store', level: 'info', debate_id: activeDebate.id, message: 'debate.paused', data: { reason: 'daily_token_limit' } });
-      } else {
-        set({ debateError: `Cross-respond selection failed: ${mapErrorToUserMessage(err)}`, debateRetryAction: 'crossRespond', debateGenerating: null });
-        getGlobalRecorder()?.record({ type: 'debate.lifecycle', component: 'debate-store', level: 'info', debate_id: activeDebate.id, message: 'debate.ended', data: { reason: 'error', error: String(err) } });
-      }
-      return null;
     }
 
     if (modResult.earlyReturn && modResult.agreementDetected) {
