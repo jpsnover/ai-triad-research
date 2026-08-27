@@ -189,6 +189,7 @@
         'Invoke-CcToSitMigration'
         'Test-AIApiKey'
         'Test-AIBackendHealth'
+        'Test-AIBackendQuota'
         'Test-AIModelsConfig'
         # t/1492 — GHCR cleanup
         'Remove-StaleContainerImages'

@@ -72,62 +72,29 @@ function Test-AIBackendHealth {
     $Config  = Get-Content -Raw $ConfigPath | ConvertFrom-Json
     $Defaults = $Config.defaults
 
-    # ── Inner probe ──────────────────────────────────────────────────────
-    function _Probe-Backend {
+    # ── Project the shared probe to this cmdlet's latency-focused columns ──
+    # The probe (Private/Invoke-AIBackendProbe) is the single source of the ping + classification,
+    # shared with Test-AIBackendQuota. Health reports latency and drops the quota-specific ResetAt.
+    function _HealthRow {
         param([string]$B, [string]$ModelId, [int]$Timeout)
-
-        $Row = [ordered]@{
-            Backend      = $B
-            Model        = $ModelId
-            Status       = 'error'
-            LatencyMs    = $null
-            ErrorMessage = $null
-            TestedAt     = [datetime]::UtcNow
+        $P = Invoke-AIBackendProbe -Backend $B -ModelId $ModelId -TimeoutSec $Timeout
+        [PSCustomObject]@{
+            Backend      = $P.Backend
+            Model        = $P.Model
+            Status       = $P.Status
+            LatencyMs    = $P.LatencyMs
+            ErrorMessage = $P.ErrorMessage
+            TestedAt     = $P.TestedAt
         }
-
-        if ([string]::IsNullOrEmpty($ModelId)) {
-            $Row['ErrorMessage'] = "No default model configured for backend '$B' in ai-models.json."
-            return [PSCustomObject]$Row
-        }
-
-        $Sw = [System.Diagnostics.Stopwatch]::StartNew()
-        $AIResult = Invoke-AIApi `
-            -Prompt         'ping' `
-            -Model          $ModelId `
-            -MaxTokens      5 `
-            -TimeoutSec     $Timeout `
-            -MaxRetries     0 `
-            -Temperature    0.0 `
-            -SkipTokenCheck `
-            -WarningVariable WarnVar
-        $Sw.Stop()
-
-        $Row['LatencyMs'] = [int]$Sw.ElapsedMilliseconds
-
-        if ($null -ne $AIResult -and $AIResult.PSObject.Properties['Text']) {
-            $Row['Status'] = 'ok'
-        } else {
-            $WarnText = if (@($WarnVar).Count -gt 0) { "$($WarnVar[0])" } else { $null }
-            $IsTimeout = ($Sw.ElapsedMilliseconds -ge ($Timeout * 1000 - 500)) -or
-                         ($WarnText -match 'timeout|timed.out|TaskCanceled|OperationCanceled')
-            $Row['Status']       = if ($IsTimeout) { 'timeout' } else { 'error' }
-            $Row['ErrorMessage'] = if ($WarnText) { $WarnText } else {
-                if ($IsTimeout) { "Backend '$B' did not respond within ${Timeout}s." }
-                else            { "Invoke-AIApi returned null for backend '$B'." }
-            }
-        }
-
-        return [PSCustomObject]$Row
     }
 
     # ── Dispatch ─────────────────────────────────────────────────────────
     if ($PSCmdlet.ParameterSetName -eq 'All') {
         foreach ($B in $Defaults.PSObject.Properties.Name) {
-            $MId = $Defaults.$B
-            _Probe-Backend -B $B -ModelId $MId -Timeout $TimeoutSec
+            _HealthRow -B $B -ModelId $Defaults.$B -Timeout $TimeoutSec
         }
     } else {
         $MId = if ($Defaults.PSObject.Properties[$Backend]) { $Defaults.$Backend } else { $null }
-        _Probe-Backend -B $Backend -ModelId $MId -Timeout $TimeoutSec
+        _HealthRow -B $Backend -ModelId $MId -Timeout $TimeoutSec
     }
 }

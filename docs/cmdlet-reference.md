@@ -127,6 +127,7 @@ Get-Help <CmdletName> -Full                     # full docs for any cmdlet
 | `Test-GitHubHealth` | GitHub platform + CI status |
 | `Test-AIApiKey` | Probe AI backend auth endpoints (no tokens consumed) — confirm a key is present and accepted before running jobs |
 | `Test-AIBackendHealth` | Full completion round-trip probe per backend — use before a debate run to surface degraded/unreachable models (t/2212) |
+| `Test-AIBackendQuota` | Per-backend quota probe — flags quota-exhausted backends (Status='quota') with a best-effort ResetAt; use at session start to catch quota exhaustion before a wall of judge failures (t/3029) |
 | `Test-DebateIndexIntegrity` | Validate debate-*.json field types for UI-crash regressions — catches the object-as-title bug (t/2335) |
 | `Get-DebateIndexHealth` | Scan the aggregated `.debate-index.json` for type-invalid entries (object-as-title etc.); `-Repair` deletes bad entries for re-extraction on next launch (t/2735) |
 | `Test-DebatePersistence` | Pre-flight atomic write+rename probe for the debates output dir — call before AI generation to surface LOCKED/NO_PERMISSION early (t/2545) |
