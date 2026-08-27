@@ -178,9 +178,13 @@ async function persistDump(
           const serverResult = await resp.json() as { filename: string; filePath: string };
           serverFilename = serverResult.filename;
           console.log(`[flight-recorder] Server dump saved: ${serverResult.filePath}`);
+        } else {
+          // Best-effort still, but no longer silent: a non-ok status left the merged file
+          // sources:["client"] with no clue the server side was attempted (t/3069).
+          console.warn(`[flight-recorder] Server dump failed: HTTP ${resp.status} — merged dump will be client-only`);
         }
       // eslint-disable-next-line local/require-flight-recorder-in-catch -- flight recorder dump code cannot record to itself
-      } catch { /* server dump is best-effort */ }
+      } catch (err) { console.warn(`[flight-recorder] Server dump call errored: ${String(err)} — merged dump will be client-only`); }
 
       // Fire-and-forget: trigger admin-level server dump correlated by dumpId.
       // Non-admins/anon get 403 — that's expected and ignored.
