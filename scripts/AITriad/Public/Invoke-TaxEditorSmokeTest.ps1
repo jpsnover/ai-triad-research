@@ -88,7 +88,14 @@ function Invoke-TaxEditorSmokeTest {
         [switch]$Detailed,
 
         [Parameter()]
-        [switch]$AssertDataPresence
+        [switch]$AssertDataPresence,
+
+        # t/3088 — wall-time ceiling (seconds) for the embedding-latency perf probe.
+        # The cache-hit path is well under 1s post-t/3085; a regressed cache re-embeds
+        # in-process at 25-48s/chunk. Over this ceiling the probe reports `degraded`.
+        [Parameter()]
+        [ValidateRange(0.1, 60)]
+        [double]$EmbeddingCeilingSec = 2
     )
 
     Set-StrictMode -Version Latest
@@ -465,6 +472,35 @@ function Invoke-TaxEditorSmokeTest {
         $OpedFilesResult.Error = $OpedFilesDetail
     }
 
+    # ── Phase 8: Embedding latency (t/3088) — perf-regression probe, its OWN category ──
+    # embeddings.json was unreachable in prod for 3.5 months (t/3085): every debate
+    # re-embedded ~3,600 static texts in-process at 25-48s/chunk where a cache hit is
+    # milliseconds — invisible to error-rate gates because nothing FAILED. This probe
+    # POSTs a small batch of known cached node ids and times the round-trip. Like the
+    # GitHub check (t/2673), a breach is a monitoring signal surfaced as a ::warning::,
+    # NOT a hard failure: it is EXCLUDED from $OverallPass (below) so a slow embed can't
+    # false-red Health/Endpoints/Azure. Warn-first — promote to gating only after the
+    # ceiling is calibrated against real post-t/3085 prod timings.
+    Write-Host '=== Embedding Latency ===' -ForegroundColor Cyan
+    $EmbeddingStatus = 'ok'
+    $EmbeddingMs     = 0
+    try {
+        $Perf = Measure-EmbeddingLatency -BaseUrl $BaseUrl -CeilingSec $EmbeddingCeilingSec -TimeoutSec $TimeoutSec
+        $EmbeddingStatus = $Perf.Status
+        $EmbeddingMs     = $Perf.DurationMs
+        $PerfIcon  = if ($Perf.Status -eq 'ok') { '[PASS]' } else { '[DEGRADED]' }
+        $PerfColor = if ($Perf.Status -eq 'ok') { 'Green' } else { 'Yellow' }
+        Write-Host "  $PerfIcon embeddings.compute — $($Perf.DurationMs)ms (ceiling $($EmbeddingCeilingSec)s, $($Perf.Count) vectors, http $($Perf.HttpStatus))" -ForegroundColor $PerfColor
+    } catch {
+        # New-ActionableError from an unreachable server — report degraded, do NOT crash the smoke.
+        $EmbeddingStatus = 'unreachable'
+        Write-Host "  [DEGRADED] embeddings.compute — unreachable: $($_.Exception.Message)" -ForegroundColor Yellow
+    }
+    if ($EmbeddingStatus -ne 'ok') {
+        Write-Host "::warning::Embedding latency $EmbeddingStatus — ${EmbeddingMs}ms vs ${EmbeddingCeilingSec}s ceiling (perf-regression probe t/3088; monitoring signal, does not block the gate). A sustained breach is the t/3085 cache-miss class."
+    }
+    Write-Host ''
+
     # ── Summary ──────────────────────────────────────────────────────────
     $AllResults = @($Endpoints) + @($AnonEndpoints) + @($Analytics) + @($DataPresence) + @($OpedFilesResult)
     $Passed = @($AllResults | Where-Object { $_.Pass }).Count
@@ -523,6 +559,9 @@ function Invoke-TaxEditorSmokeTest {
         AzureOk         = $Azure.Healthy
         GitHubOk        = $GitHub.Healthy
         OpedFilesOk     = $OpedFilesPass
+        EmbeddingStatus     = $EmbeddingStatus
+        EmbeddingLatencyMs  = $EmbeddingMs
+        EmbeddingCeilingSec = $EmbeddingCeilingSec
         EndpointsPassed = $Passed
         EndpointsFailed = $Failed
         EndpointsTotal  = $Total
