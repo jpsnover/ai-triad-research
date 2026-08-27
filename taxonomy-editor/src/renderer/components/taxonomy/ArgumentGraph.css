@@ -35,8 +35,10 @@
 .ag-detail-bdi { font-size: var(--text-2xs); padding: 1px 5px; border-radius: var(--radius-sm); background: var(--bg-hover); color: var(--text-muted); }
 .ag-detail-close { margin-left: auto; border: none; background: none; font-size: var(--text-lg); cursor: pointer; color: var(--text-muted); }
 .ag-detail-claim { line-height: 1.4; margin-bottom: 6px; }
-.claim-attribution-text { font-size: var(--text-xs); color: var(--text-muted); line-height: 1.35; margin-top: 2px; font-style: italic; }
-.claim-attribution-label { font-weight: 600; font-style: normal; margin-right: 4px; font-size: var(--text-2xs); text-transform: uppercase; letter-spacing: 0.03em; opacity: 0.7; }
+/* .claim-attribution-text / .claim-attribution-label relocated to NodeDetail.css (t/3059):
+   they render on POV NodeDetail / ReflectionsPanel / diagnostics surfaces, but this sheet's
+   only importer (ArgumentGraph ← TimelineScrubber) is never rendered → tree-shaken → the rules
+   shipped in no chunk and rendered unstyled everywhere they were used (t/3025 confirmed orphan). */
 .ag-detail-meta { display: flex; flex-wrap: wrap; gap: 10px; font-size: var(--text-2xs); color: var(--text-muted); margin-bottom: 4px; }
 .ag-detail-refs { font-size: var(--text-2xs); color: var(--text-muted); margin-bottom: 4px; }
 .ag-detail-edges { font-size: var(--text-2xs); margin-top: 4px; }

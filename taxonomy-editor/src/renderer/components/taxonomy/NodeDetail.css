@@ -6,6 +6,13 @@
   vertical-align: -0.05em;
 }
 
+/* Claim attribution (relocated from ArgumentGraph.css, t/3059). NodeDetail renders these on the
+   POV Attributes/Research surface; ReflectionsPanel and the diagnostics windows render them too.
+   NodeDetail is in the always-loaded main chunk, so co-locating here makes the rules present on
+   every consuming surface — the ArgumentGraph.css home shipped in no chunk (dead importer). */
+.claim-attribution-text { font-size: var(--text-xs); color: var(--text-muted); line-height: 1.35; margin-top: 2px; font-style: italic; }
+.claim-attribution-label { font-weight: 600; font-style: normal; margin-right: 4px; font-size: var(--text-2xs); text-transform: uppercase; letter-spacing: 0.03em; opacity: 0.7; }
+
 /* ─── Node detail toolbar (pill buttons) ────────────────── */
 
 .node-detail-toolbar {
