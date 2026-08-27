@@ -27,7 +27,7 @@ export function filterSessionEvents(ndjson: string, sessionBranch: string): stri
     const trimmed = line.trim();
     if (!trimmed) continue;
     let parsed: Record<string, unknown>;
-    try { parsed = JSON.parse(trimmed); } catch { continue; }
+    try { parsed = JSON.parse(trimmed); } catch { /* telemetry — silent by design */ continue; }
     const lineType = parsed._type as string | undefined;
     if (lineType === 'header' || lineType === 'trigger') {
       kept.push(trimmed);
