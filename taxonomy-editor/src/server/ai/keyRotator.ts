@@ -8,6 +8,7 @@
 import { getLimiter } from './rpmLimiter.js';
 import { is429Error, retryAfterMs } from './providerErrors.js';
 import { FREE_TIER_RPM_PER_KEY, parseFreeTierKeys } from './proxyTiers.js';
+import { log } from '../logger.js';
 
 const _cursors = new Map<string, number>();   // backend → next-cursor index
 const _cooldowns = new Map<string, number>();  // full api key → cooldown expiry ms
@@ -71,7 +72,11 @@ export async function callWithKeyRotation<T>(
   try {
     return await fn(key);
   } catch (err) {
-    if (is429Error(err)) markKeyCooled(key, retryAfterMs(err));
+    if (is429Error(err)) {
+      const delay = retryAfterMs(err);
+      markKeyCooled(key, delay);
+      log.api.warn('keyRotator: 429 on key, cooling for %dms', delay);
+    }
     throw err;
   }
 }
