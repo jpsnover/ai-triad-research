@@ -168,32 +168,13 @@ async function persistDump(
     const result = await api.dumpFlightRecorder(ndjson, dumpId);
     console.log(`[flight-recorder] Dump saved: ${result.filePath} (dumpId=${dumpId})`);
 
-    // In web/container mode, also dump the server-side flight recorder
-    // so server events (git ops, GitHub API, cache) are captured alongside client events.
-    let serverFilename: string | undefined;
-    if (isWeb) {
-      try {
-        const resp = await fetch('/api/flight-recorder/server-dump', { method: 'POST' });
-        if (resp.ok) {
-          const serverResult = await resp.json() as { filename: string; filePath: string };
-          serverFilename = serverResult.filename;
-          console.log(`[flight-recorder] Server dump saved: ${serverResult.filePath}`);
-        } else {
-          // Best-effort still, but no longer silent: a non-ok status left the merged file
-          // sources:["client"] with no clue the server side was attempted (t/3069).
-          console.warn(`[flight-recorder] Server dump failed: HTTP ${resp.status} — merged dump will be client-only`);
-        }
-      // eslint-disable-next-line local/require-flight-recorder-in-catch -- flight recorder dump code cannot record to itself
-      } catch (err) { console.warn(`[flight-recorder] Server dump call errored: ${String(err)} — merged dump will be client-only`); }
-
-      // Fire-and-forget: trigger admin-level server dump correlated by dumpId.
-      // Non-admins/anon get 403 — that's expected and ignored.
-      void fetch('/api/admin/flight-recorder/dump', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ dumpId }),
-      }).catch(() => { /* admin dump is best-effort */ });
-    }
+    // In web mode the server writes its own dump correlated by dumpId inside the dump POST
+    // (t/3049); the merged download (t/3068) serves both client + server by dumpId. No
+    // separate server-dump call or admin trigger is needed here:
+    //   - the fire-and-forget POST /api/admin/flight-recorder/dump was redundant since t/3049
+    //     and only produced 403 noise for non-admins;
+    //   - the uncorrelated POST /api/flight-recorder/server-dump call only fed the removed
+    //     Server: link (its output was never part of the merged file).
 
     showDumpToast({
       filename: result.filename,
@@ -201,7 +182,6 @@ async function persistDump(
       isWeb,
       onCopy: () => { void api.clipboardWriteText(result.filePath); },
       onOpen: () => { void api.openFlightRecorderViewer(result.filePath); },
-      serverFilename,
       dumpId: isWeb ? dumpId : undefined,
     });
   } catch (err) {
