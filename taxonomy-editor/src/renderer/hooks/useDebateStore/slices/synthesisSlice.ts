@@ -985,6 +985,20 @@ export const createSynthesisSlice: StateCreator<DebateStore, [], [], SynthesisSl
       api.trackEvent('debate_complete', 'debate', { debateId: activeDebate?.id, rounds: turnCount });
       trackDebateComplete(activeDebate?.id, turnCount, durationMs);
 
+      // Per-run AI-call counter, logged at debate end (t/3054) — surfaces burst patterns
+      // (e.g. 20+ calls during opening statements) without post-hoc log aggregation.
+      // Read from the freshest store state: post-synthesis passes above run more AI calls
+      // after `activeDebate` was captured at the top of the function.
+      const aiCallsTotal = get().activeDebate?.diagnostics?.overview.total_ai_calls ?? 0;
+      getGlobalRecorder()?.record({
+        type: 'debate.phase',
+        component: 'debate-store',
+        level: 'info',
+        debate_id: activeDebate?.id,
+        message: 'debate.end',
+        data: { phase: 'closed', ai_calls_total: aiCallsTotal, turn_count: turnCount, duration_ms: durationMs },
+      });
+
       runLineageDebateSummary(get, activeDebate);
     } catch (err) {
       // User cancel / model switch (t/2508) — bail quietly, no error toast (helper logged info).
