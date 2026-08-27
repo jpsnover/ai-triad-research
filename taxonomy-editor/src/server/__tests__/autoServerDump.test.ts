@@ -46,6 +46,8 @@ vi.mock('../../../../lib/embeddings/onnxEmbedding.js', () => ({
 }));
 vi.mock('../flightRecorderViewer.js', () => ({ escapeForInlineScript: (s: string) => s }));
 vi.mock('../security/accessControl.js', () => ({ clientSafeMessage: (s: string) => s }));
+vi.mock('../security/userContext.js', () => ({ getSessionBranchName: () => 'test-branch' }));
+vi.mock('../routes/sessionScopedDump.js', () => ({ filterSessionEvents: (ndjson: string) => ndjson }));
 vi.mock('../logger.js', () => ({
   getRequestId: () => 'req-test',
   log: { fr: { info: vi.fn() } },
