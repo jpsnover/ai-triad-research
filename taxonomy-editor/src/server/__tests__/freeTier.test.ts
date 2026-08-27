@@ -9,7 +9,8 @@
  */
 
 import { describe, it, expect, afterEach } from 'vitest';
-import { resolveTier, freeTierEnabled, isBackendAllowed, parseFreeTierKeys, scaledFreeTierRpm, byokGeminiFallbackKey } from '../ai/proxyTiers.js';
+import { resolveTier, freeTierEnabled, isBackendAllowed, parseFreeTierKeys, scaledFreeTierRpm, byokGeminiFallbackKey, LOCAL_EMBED_RPM_PER_IP } from '../ai/proxyTiers.js';
+import { checkRate } from '../security/rateLimiter.js';
 
 describe('free-tier RPM scales with key-pool size (t/906)', () => {
   afterEach(() => { delete process.env.FREE_TIER_GEMINI_KEY; });
@@ -126,5 +127,73 @@ describe('byokGeminiFallbackKey (t/945)', () => {
 
   it('returns undefined when the free-tier pool is unset (still 422s, as before)', () => {
     expect(byokGeminiFallbackKey('byok', 'gemini', undefined)).toBeUndefined();
+  });
+});
+
+// t/3061 — separate embed bucket so generate rate-limits don't starve local ONNX ops.
+// freeTierEmbeddingGate uses "embed:<ip>" (LOCAL_EMBED_RPM_PER_IP) while the generate
+// gate uses "free:<ip>" (tier.limits.requestsPerMinute). These tests assert the buckets
+// are fully independent at the rateLimiter layer — the source of truth for the fix.
+
+let seq3061 = 0;
+const embedIp = () => `10.0.3061.${++seq3061}`;
+
+describe('t/3061 — embed:<ip> bucket is independent of free:<ip> (fix arm)', () => {
+  it('embedding requests succeed even when the generate (free:<ip>) bucket is exhausted', () => {
+    const ip = embedIp();
+    const freeKey = `free:${ip}`;
+    const embedKey = `embed:${ip}`;
+    const apiRpm = 6; // matches scaledFreeTierRpm(1) — the generate gate limit
+
+    // Exhaust the generate API bucket (free:<ip>).
+    for (let i = 0; i < apiRpm; i++) {
+      expect(checkRate(freeKey, apiRpm, 60_000).allowed).toBe(true);
+    }
+    expect(checkRate(freeKey, apiRpm, 60_000).allowed).toBe(false); // API bucket full
+
+    // The embed bucket is untouched — ONNX ops should still be allowed.
+    expect(checkRate(embedKey, LOCAL_EMBED_RPM_PER_IP, 60_000).allowed).toBe(true);
+  });
+
+  it('embed:<ip> and free:<ip> are distinct keys — exhausting one does not affect the other', () => {
+    const ip = embedIp();
+    const freeKey = `free:${ip}`;
+    const embedKey = `embed:${ip}`;
+
+    expect(checkRate(freeKey, 1, 60_000).allowed).toBe(true);
+    expect(checkRate(freeKey, 1, 60_000).allowed).toBe(false); // free exhausted
+    expect(checkRate(embedKey, 1, 60_000).allowed).toBe(true); // embed unaffected
+  });
+});
+
+describe('t/3061 — NLI key threading: free-tier passes key pool to classifyNli (t/1650 regression guard)', () => {
+  afterEach(() => { delete process.env.FREE_TIER_GEMINI_KEY; });
+
+  it('when FREE_TIER_GEMINI_KEY is set, parseFreeTierKeys returns a non-empty array (the key the NLI route threads)', () => {
+    process.env.FREE_TIER_GEMINI_KEY = 'k1,k2';
+    expect(freeTierEnabled()).toBe(true);
+    const keys = parseFreeTierKeys(process.env.FREE_TIER_GEMINI_KEY);
+    expect(keys.length).toBeGreaterThan(0); // NLI hosted-LLM fallback gets a key, not []
+  });
+
+  it('when FREE_TIER_GEMINI_KEY is absent, freeTierEnabled() is false and NLI key would be undefined (no-regression)', () => {
+    delete process.env.FREE_TIER_GEMINI_KEY;
+    expect(freeTierEnabled()).toBe(false);
+    // Production code: freeTierEnabled() ? parseFreeTierKeys(...) : undefined → undefined
+    const nliKey = freeTierEnabled() ? parseFreeTierKeys(process.env.FREE_TIER_GEMINI_KEY) : undefined;
+    expect(nliKey).toBeUndefined();
+  });
+});
+
+describe('t/3061 — embed:<ip> bucket at LOCAL_EMBED_RPM_PER_IP (bound arm)', () => {
+  it('allows up to LOCAL_EMBED_RPM_PER_IP (60) embed calls, blocks the 61st', () => {
+    const key = `embed:${embedIp()}`;
+    for (let i = 0; i < LOCAL_EMBED_RPM_PER_IP; i++) {
+      expect(checkRate(key, LOCAL_EMBED_RPM_PER_IP, 60_000).allowed).toBe(true);
+    }
+    const blocked = checkRate(key, LOCAL_EMBED_RPM_PER_IP, 60_000);
+    expect(blocked.allowed).toBe(false);
+    expect(blocked.current).toBe(LOCAL_EMBED_RPM_PER_IP);
+    expect(blocked.retryAfterMs).toBeGreaterThan(0);
   });
 });

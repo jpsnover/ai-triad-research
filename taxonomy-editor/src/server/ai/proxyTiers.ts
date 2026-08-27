@@ -188,6 +188,13 @@ export function byokGeminiFallbackKey(
 export const FREE_TIER_RPM_PER_KEY = 6;
 
 /**
+ * Per-IP RPM for LOCAL embedding + NLI ops (ONNX / Python encoder — zero Gemini quota).
+ * Separate from the API RPM bucket so generate rate-limits don't block local compute.
+ * Generous (10× API limit) but bounded to prevent CPU-abuse from anon burst (t/3061).
+ */
+export const LOCAL_EMBED_RPM_PER_IP = 60;
+
+/**
  * Free-tier per-minute request budget scaled by the key-pool size (t/906): each
  * Gemini key carries its own FREE_TIER_RPM_PER_KEY RPM and the rotator spreads
  * load across them, so the server limit is FREE_TIER_RPM_PER_KEY × keyCount,

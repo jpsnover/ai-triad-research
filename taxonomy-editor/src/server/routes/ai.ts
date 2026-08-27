@@ -28,6 +28,7 @@ import * as proxyTiers from '../ai/proxyTiers.js';
 import * as rateLimiter from '../security/rateLimiter.js';
 import * as ai from '../ai/aiBackends.js';
 import { resolveGenerationContext, enforceBackendAllowed } from './generationContext.js';
+
 import * as fileIO from '../storage/fileIO.js';
 import { beginEmbeddingCompute, endEmbeddingCompute, embeddingLoadSnapshot, evaluateEmbeddingLoadShed, isEmbeddingModelWarm, markEmbeddingModelWarm } from '../embeddingsLoad.js';
 
@@ -508,27 +509,26 @@ export function registerAiRoutes(r: Router, ctx: ServerCtx): void {
 
   // ── Embeddings & NLI ──
 
-  // t/1062 / t/1171: shared free-tier gate for the embeddings routes. For free-tier
-  // callers (anonymous, server-provided key) it enforces the per-IP RPM + daily-token
-  // limits — writing a 429 and returning { blocked: true } if exceeded — and resolves
-  // the server free-tier key. Non-free callers pass through with no key (unchanged).
-  function freeTierEmbeddingGate(req: http.IncomingMessage, res: http.ServerResponse): { blocked: boolean; key?: string } {
+  // t/1062 / t/1171: shared free-tier gate for the embeddings + NLI routes.
+  // t/3061 (corrected): embeddings/NLI use LOCAL ONNX / Python — zero Gemini API calls.
+  // Applying the API per-IP RPM bucket here starved embeddings whenever generate calls
+  // exhausted it. Fix: use a SEPARATE "embed:<ip>" bucket at LOCAL_EMBED_RPM_PER_IP
+  // (generous vs API RPM, bounded to prevent CPU-abuse). No token check — no quota consumed.
+  // Non-free callers pass through immediately (no bucket to hit).
+  // NLI note: when the local Python encoder is unavailable, classifyNli falls back to
+  // generateTextByUsage which routes through the generate chokepoint (#1586) — the
+  // hosted-LLM path is quota-paced there; no double-wrapping needed here.
+  function freeTierEmbeddingGate(req: http.IncomingMessage, res: http.ServerResponse): { blocked: boolean } {
     const { principalName, idp } = callerIdentity();
     const tier = proxyTiers.resolveTier(principalName, idp);
     if (tier.level !== 'free') return { blocked: false };
-    const limitKey = `free:${getClientIp(req)}`;
-    const rpmCheck = rateLimiter.checkRate(limitKey, tier.limits.requestsPerMinute, 60_000);
+    const limitKey = `embed:${getClientIp(req)}`;
+    const rpmCheck = rateLimiter.checkRate(limitKey, proxyTiers.LOCAL_EMBED_RPM_PER_IP, 60_000);
     if (!rpmCheck.allowed) {
-      res.writeHead(429); res.end(JSON.stringify({ error: 'Rate limit exceeded', limitType: 'requests_per_minute', retryAfterMs: rpmCheck.retryAfterMs, limit: rpmCheck.limit, current: rpmCheck.current }));
+      res.writeHead(429); res.end(JSON.stringify({ error: 'Rate limit exceeded', limitType: 'embed_requests_per_minute', retryAfterMs: rpmCheck.retryAfterMs, limit: rpmCheck.limit, current: rpmCheck.current }));
       return { blocked: true };
     }
-    const tokenCheck = rateLimiter.checkTokenLimit(limitKey, tier.limits.tokensPerDay);
-    if (!tokenCheck.allowed) {
-      res.writeHead(429); res.end(JSON.stringify({ error: 'Daily token limit exceeded', limitType: 'tokens_per_day', limit: tokenCheck.limit, current: tokenCheck.current }));
-      return { blocked: true };
-    }
-    const key = tier.serverProvidedKey ? proxyTiers.parseFreeTierKeys(process.env.FREE_TIER_GEMINI_KEY)[0] : undefined;
-    return { blocked: false, key };
+    return { blocked: false };
   }
 
   post('/api/embeddings/compute', (req, res, body) => withEndpointTimeout(res, 50_000, 'embeddings-compute', async () => {
@@ -563,7 +563,8 @@ export function registerAiRoutes(r: Router, ctx: ServerCtx): void {
       const inFlightAtEntry = embeddingLoadSnapshot().in_flight_embedding_computes;
       beginEmbeddingCompute();
       try {
-        const vectors = await ai.computeEmbeddings(texts, ids, gate.key);
+        // t/3061: local ONNX — no Gemini call, no key needed.
+        const vectors = await ai.computeEmbeddings(texts, ids, undefined);
         markEmbeddingModelWarm();
         getGlobalRecorder()?.record({
           type: 'system.info', component: 'embeddings-compute', level: 'info',
@@ -584,7 +585,7 @@ export function registerAiRoutes(r: Router, ctx: ServerCtx): void {
     try {
       const gate = freeTierEmbeddingGate(req, res);
       if (gate.blocked) return;
-      const vector = await ai.computeQueryEmbedding(text, gate.key);
+      const vector = await ai.computeQueryEmbedding(text, undefined);
       json(res, { vector });
     } catch (err) { getGlobalRecorder()?.record({ type: 'system.error', component: 'server', level: 'error', message: 'Failed to compute query embedding', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } }); error(res, String(err), 500, err); }
   }));
@@ -600,13 +601,16 @@ export function registerAiRoutes(r: Router, ctx: ServerCtx): void {
   post('/api/nli/classify', (req, res, body) => withEndpointTimeout(res, 35_000, 'nli-classify', async () => {
     const { pairs } = body as { pairs: { text_a: string; text_b: string }[] };
     try {
-      // t/1650: resolve a per-request BYOK/free-tier key (same gate as embeddings) so the
-      // hosted-LLM fallback in classifyNli has a key once the local Python venv is removed
-      // (t/1642). Local Python stays primary; the key is only consumed on fallback. BYOK —
-      // key rides the request, never baked, never logged.
+      // t/3061: embed gate for RPM (separate "embed:<ip>" bucket, not the API bucket).
+      // t/1650: classifyNli needs the free-tier key pool because the local Python venv was
+      // removed (t/1642) — the hosted-LLM fallback is the ACTIVE prod path; without a key
+      // anon callers get [] → fail. Embeddings stay key-free (true local ONNX, no fallback).
       const gate = freeTierEmbeddingGate(req, res);
       if (gate.blocked) return;
-      const results = await ai.classifyNli(pairs, gate.key);
+      const nliKeys = proxyTiers.freeTierEnabled()
+        ? proxyTiers.parseFreeTierKeys(process.env.FREE_TIER_GEMINI_KEY)
+        : undefined;
+      const results = await ai.classifyNli(pairs, nliKeys && nliKeys.length > 0 ? nliKeys : undefined);
       json(res, { results });
     } catch (err) { getGlobalRecorder()?.record({ type: 'system.error', component: 'server', level: 'error', message: 'Failed to classify NLI pairs', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } }); error(res, String(err), 500, err); }
   }));
