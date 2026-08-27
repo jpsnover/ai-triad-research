@@ -20,8 +20,6 @@ function keyHash(key: string): string {
 }
 
 // Round-robin across keys, skipping any in their 429 cooldown window.
-// No within-call rotation — a single callWithKeyRotation picks one key and uses
-// it for the duration of that call; rotation applies across successive calls (v1).
 function nextKey(backend: string, keys: string[]): { key: string; slot: number } {
   const base = _cursors.get(backend) ?? 0;
   const N = keys.length;
@@ -66,12 +64,22 @@ function freeTierKeySet(): Set<string> {
  * v1 assumption: non-pool callers always pass a single key. If multi-key non-pool
  * callers are ever added, they will always receive keys[0] without rotation — revisit.
  *
- * Per-caller audit (t/3052 #4 completeness): primary debate path (generateWithPaidFallback),
- * /api/ai/search, /api/ai/generate, chat-stream, sources evidence-eval (sources.ts),
- * news-report (debates.ts), web op-ed (opedAdapter.ts), and generateWithSearch all
- * route through callWithKeyRotation. Those that pass the FREE_TIER_GEMINI_KEY pool
- * explicitly are paced. Those that pass getApiKeys() keys (BYOK/platform GEMINI_API_KEY)
- * are not in the pool and correctly bypass pacing — no flag to thread or forget.
+ * On 429, the cooled key is marked and the loop immediately tries the next available
+ * key (up to keys.length attempts for free-tier). This prevents outer withRetry from
+ * burning its 120s minimum backoff against the same exhausted key (t/3062). When all
+ * keys are 429'd the last error is rethrown so outer withRetry backs off normally.
+ * AbortError bypasses rotation and propagates immediately.
+ *
+ * Per-caller audit (t/3052 #4, updated t/3061+t/3062): all server paths using the
+ * FREE_TIER_GEMINI_KEY pool were audited:
+ * - Generate: generateWithPaidFallback, /api/ai/search, /api/ai/generate, chat-stream,
+ *   sources.ts, debates.ts, opedAdapter.ts, generateWithSearch → all route here ✓
+ * - Embeddings: /api/embeddings/compute + /api/embeddings/query → local ONNX, key=undefined,
+ *   bypass pacing (zero Gemini quota); separate embed:<ip> bucket guards CPU-abuse (t/3061) ✓
+ * - NLI: /api/nli/classify → passes key pool directly to classifyNli (t/3061 t/1650 restore) ✓
+ * - resolveExplicitAiKey (routes/ai.ts + chat.ts): returns full array for callWithKeyRotation ✓
+ * - server.ts + meta.ts: pool size diagnostic only, no AI calls ✓
+ * BYOK/platform pass a single non-pool key → allFree=false → bypass pacing (no flag to thread).
  */
 export async function callWithKeyRotation<T>(
   backend: string,
@@ -81,22 +89,35 @@ export async function callWithKeyRotation<T>(
   const pool = freeTierKeySet();
   // keys.length > 0 guard: [].every() is vacuously true; empty keys should fail before here.
   const allFree = keys.length > 0 && keys.every(k => pool.has(k));
-  const { key, slot } = allFree ? nextKey(backend, keys) : { key: keys[0], slot: undefined };
-  const kh = keyHash(key);
-  log.api.debug({ key_hash: kh, key_slot: slot, backend }, 'keyRotator: selected');
-  if (allFree) {
-    await getLimiter(key, FREE_TIER_RPM_PER_KEY).acquire();
-  }
-  try {
-    return await fn(key);
-  } catch (err) {
-    if (is429Error(err)) {
-      const delay = retryAfterMs(err);
-      markKeyCooled(key, delay);
-      log.api.warn({ key_hash: kh, key_slot: slot, delay_ms: delay }, 'keyRotator: 429 on key, cooling');
+  // Free-tier: try each key at most once before letting outer withRetry back off.
+  // BYOK: single attempt — no rotation.
+  const maxAttempts = allFree ? keys.length : 1;
+  let lastErr: unknown;
+
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    const { key, slot } = allFree ? nextKey(backend, keys) : { key: keys[0], slot: undefined };
+    const kh = keyHash(key);
+    log.api.debug({ key_hash: kh, key_slot: slot, backend, attempt }, 'keyRotator: selected');
+    if (allFree) {
+      await getLimiter(key, FREE_TIER_RPM_PER_KEY).acquire();
     }
-    throw err;
+    try {
+      return await fn(key);
+    } catch (err) {
+      // Abort must never rotate — propagate immediately.
+      if ((err as { name?: unknown } | null)?.name === 'AbortError') throw err;
+      if (is429Error(err)) {
+        const delay = retryAfterMs(err);
+        markKeyCooled(key, delay);
+        log.api.warn({ key_hash: kh, key_slot: slot, delay_ms: delay, attempt }, 'keyRotator: 429 on key, cooling — trying next');
+        lastErr = err;
+        continue; // immediately try next key; no sleep
+      }
+      throw err;
+    }
   }
+  // All keys 429'd — rethrow so outer withRetry sees the 429 and backs off.
+  throw lastErr;
 }
 
 /** Reset all rotator state — for test isolation only. */

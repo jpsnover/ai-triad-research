@@ -50,47 +50,69 @@ describe('callWithKeyRotation — round-robin distribution (t/3056)', () => {
   });
 });
 
-describe('callWithKeyRotation — 429 cooldown skipping (t/3056)', () => {
-  it('skips a key that returned 429 until its cooldown expires', async () => {
+describe('callWithKeyRotation — within-call 429 rotation (t/3062)', () => {
+  it('immediately tries next key on 429 within the same call', async () => {
     const used: string[] = [];
-    const fn = async (k: string) => { used.push(k); return k; };
-
-    // First call: key[0] is selected and throws 429.
     const err429 = new Error('429 Too Many Requests, retry-after: 60s');
-    let firstCall = true;
-    const failThenSucceed = async (k: string) => {
+
+    // key[0] always 429s; key[1] succeeds.
+    const fn = async (k: string) => {
       used.push(k);
-      if (firstCall) { firstCall = false; throw err429; }
+      if (k === KEYS[0]) throw err429;
       return k;
     };
 
-    await expect(callWithKeyRotation(BACKEND, KEYS, failThenSucceed)).rejects.toThrow('429');
-    // key[0] is now cooled; next two calls should use key[1] and key[2].
-    await callWithKeyRotation(BACKEND, KEYS, fn);
-    await callWithKeyRotation(BACKEND, KEYS, fn);
-
-    expect(used[0]).toBe(KEYS[0]); // original 429 attempt
-    expect(used[1]).toBe(KEYS[1]); // skipped key[0]
-    expect(used[2]).toBe(KEYS[2]); // skipped key[0]
+    const result = await callWithKeyRotation(BACKEND, KEYS, fn);
+    expect(result).toBe(KEYS[1]);
+    expect(used).toEqual([KEYS[0], KEYS[1]]); // tried key[0], rotated to key[1]
   });
 
-  it('falls through to the cooled key when all keys are cooled', async () => {
+  it('cools 429 key and subsequent calls skip it', async () => {
+    const used: string[] = [];
+    const err429 = new Error('429 Too Many Requests, retry-after: 60s');
+
+    // First call: key[0] 429s, key[1] succeeds internally.
+    await callWithKeyRotation(BACKEND, KEYS, async (k) => {
+      used.push(k);
+      if (k === KEYS[0]) throw err429;
+      return k;
+    });
+
+    // Next call: cursor is at key[2]; key[0] is cooled but key[2] is available.
+    await callWithKeyRotation(BACKEND, KEYS, async (k) => { used.push(k); return k; });
+
+    expect(used[0]).toBe(KEYS[0]); // first attempt, cooled
+    expect(used[1]).toBe(KEYS[1]); // rotation within first call
+    expect(used[2]).toBe(KEYS[2]); // second top-level call advances cursor
+  });
+
+  it('rethrows after exhausting all keys on 429 (all-cooled arm)', async () => {
     const err429 = new Error('429 Too Many Requests');
 
-    // Cool all 3 keys by throwing 429 on each.
-    for (const _ of KEYS) {
-      await expect(
-        callWithKeyRotation(BACKEND, KEYS, async (_k) => { throw err429; })
-      ).rejects.toThrow('429');
-    }
+    // Single call exhausts all 3 keys (each 429s), then rethrows.
+    await expect(
+      callWithKeyRotation(BACKEND, KEYS, async () => { throw err429; })
+    ).rejects.toThrow('429');
 
-    // All keys cooled — next call must still pick a key (no infinite loop / undefined).
+    // All keys are now cooled; next call still picks a key (no infinite loop).
     const used: string[] = [];
     await expect(
       callWithKeyRotation(BACKEND, KEYS, async (k) => { used.push(k); throw new Error('still failing'); })
     ).rejects.toThrow('still failing');
     expect(used).toHaveLength(1);
     expect(KEYS).toContain(used[0]);
+  });
+
+  it('AbortError short-circuits rotation immediately without trying other keys', async () => {
+    const used: string[] = [];
+    const abortErr = Object.assign(new Error('The operation was aborted'), { name: 'AbortError' });
+
+    await expect(
+      callWithKeyRotation(BACKEND, KEYS, async (k) => { used.push(k); throw abortErr; })
+    ).rejects.toMatchObject({ name: 'AbortError' });
+    // Must not have rotated to key[1] or key[2].
+    expect(used).toHaveLength(1);
+    expect(used[0]).toBe(KEYS[0]);
   });
 });
 
