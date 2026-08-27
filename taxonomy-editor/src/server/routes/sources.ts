@@ -35,6 +35,7 @@ import { resolveGenerationContext, enforceBackendAllowed } from './generationCon
 import { getDataRoot } from '../config.js';
 import { greatestHitsPath } from '../../../../lib/debate/corpusCoverage.js';
 import * as fileIO from '../storage/fileIO.js';
+import { readDataFile } from '../storage/readDataFile.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -43,13 +44,12 @@ const __dirname = path.dirname(__filename);
 
 type SourceEvidenceIndex = import('../../../../lib/debate/evidenceFromSummaries.js').SourceEvidenceIndex;
 let _evidenceIndex: SourceEvidenceIndex | null = null;
-function loadEvidenceIndex(): SourceEvidenceIndex | null {
+async function loadEvidenceIndex(): Promise<SourceEvidenceIndex | null> {
   if (_evidenceIndex) return _evidenceIndex;
   try {
-    const taxDir = fileIO.getTaxonomyDir();
-    const indexPath = path.join(taxDir, 'source_evidence_index.json');
-    if (!fs.existsSync(indexPath)) return null;
-    _evidenceIndex = JSON.parse(fs.readFileSync(indexPath, 'utf-8'));
+    const relPath = path.join('taxonomy', fileIO.getActiveTaxonomyDirName(), 'source_evidence_index.json');
+    const buf = await readDataFile(relPath);
+    _evidenceIndex = JSON.parse(buf.toString('utf-8')) as SourceEvidenceIndex;
     return _evidenceIndex;
   } catch { /* telemetry — silent by design */ return null; }
 }
@@ -228,8 +228,8 @@ export function registerSourcesRoutes(r: Router, _ctx: ServerCtx): void {
 
   // ── Source evidence ──
 
-  get('/api/source-evidence-index', (_req, res) => {
-    json(res, loadEvidenceIndex());
+  get('/api/source-evidence-index', async (_req, res) => {
+    json(res, await loadEvidenceIndex());
   });
 
   get('/api/doc-titles', (_req, res) => {
@@ -247,7 +247,7 @@ export function registerSourcesRoutes(r: Router, _ctx: ServerCtx): void {
   post('/api/source-evidence', async (_req, res, body) => {
     const { nodeIds, pov } = body as { nodeIds: string[]; pov: string };
     const emptyResult = { facts: [], keyPoints: [], formattedBlock: '', nodesCovered: [], totalCandidates: 0 };
-    const index = loadEvidenceIndex();
+    const index = await loadEvidenceIndex();
     if (!index) { json(res, emptyResult); return; }
     try {
       const { retrieveSourceEvidence } = await import('../../../../lib/debate/evidenceFromSummaries.js');

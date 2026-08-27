@@ -21,6 +21,7 @@ import { ActionableError } from '../../../../lib/debate/errors.js';
 import { parseJsonRobust } from '../../../../lib/debate/helpers.js';
 import { extractProviderReason, deriveKeyErrorMessage } from './providerErrors.js';
 import { readFileWithMtime } from './fsCache.js';
+import { readDataFile } from '../storage/readDataFile.js';
 import { tavilySearch, buildSearchAugmentedPrompt } from '../../../../lib/search/tavily.js';
 import { resolveEmbeddings, type EmbeddingFallback } from '../../../../lib/embeddings/embeddingResolver.js';
 import type { EmbeddingsFile } from '../../../../lib/electron-shared/embeddingIO.js';
@@ -553,9 +554,8 @@ async function loadEmbeddingsFileAsync(): Promise<EmbeddingsFile | null> {
   if (embeddingsLoadInFlight) return embeddingsLoadInFlight;
   embeddingsLoadInFlight = (async () => {
     try {
-      const p = getEmbeddingsPath();
-      const raw = await fs.promises.readFile(p, 'utf-8');
-      const parsed = JSON.parse(raw) as EmbeddingsFile;
+      const buf = await readDataFile('taxonomy/Origin/embeddings.json', { largeFile: true });
+      const parsed = JSON.parse(buf.toString('utf-8')) as EmbeddingsFile;
       embeddingsCache = parsed;
       const nodeCount = Object.keys(parsed.nodes ?? {}).length;
       getGlobalRecorder()?.record({
@@ -565,15 +565,12 @@ async function loadEmbeddingsFileAsync(): Promise<EmbeddingsFile | null> {
       });
       return embeddingsCache;
     } catch (err) {
-      const code = (err as NodeJS.ErrnoException).code;
-      // t/3085: ENOENT promoted to warn — in prod ACA (github-api mode) the file never
-      // reaches /tmp, so every request hits this path. It is not a normal miss; it is the
-      // root-cause symptom that triggers ~3,600 ONNX re-embeds per debate.
+      // readDataFile already emits a data_read_empty FR event; log the fallback decision.
+      // t/3085: promoted to warn — in prod ACA (github-api mode) the file never reaches
+      // /tmp, so every absence triggers ~3,600 ONNX re-embeds per debate.
       getGlobalRecorder()?.record({
         type: 'system.error', component: 'ai-backends', level: 'warn',
-        message: code === 'ENOENT'
-          ? 'embeddings.json not found — re-embedding all taxonomy texts (quota impact in prod)'
-          : 'embeddings.json unreadable — falling back to full re-embed (API quota)',
+        message: 'embeddings.json unavailable — re-embedding all taxonomy texts (quota impact in prod)',
         error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
       return null;
@@ -948,8 +945,10 @@ export async function updateNodeEmbeddings(nodes: { id: string; text: string; po
     : {};
 
   let data: EmbeddingsFile;
-  try { data = JSON.parse(fs.readFileSync(filePath, 'utf-8')); }
-  catch { /* telemetry — silent by design */ data = { model: 'all-MiniLM-L6-v2', dimension: 384, node_count: 0, nodes: {} }; }
+  try {
+    const buf = await readDataFile('taxonomy/Origin/embeddings.json', { largeFile: true });
+    data = JSON.parse(buf.toString('utf-8')) as EmbeddingsFile;
+  } catch { /* telemetry — silent by design */ data = { model: 'all-MiniLM-L6-v2', dimension: 384, node_count: 0, nodes: {} }; }
 
   for (const node of nodes) {
     if (vectors[node.id]) {
