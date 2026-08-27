@@ -6,6 +6,7 @@ import './OrganizationsTab.css';
 import { useOrganizationStore } from '../../hooks/useOrganizationStore';
 import { useResizablePanel } from '../../hooks/useResizablePanel';
 import { OrganizationDetail, OrgLogo } from './OrganizationDetail';
+import { DocLink } from '../shared/TheoryLink';
 import type { Organization, PovStance, PovAlignmentTier } from '../../bridge/types';
 
 const POV_COLORS: Record<string, string> = {
@@ -90,6 +91,7 @@ export function OrganizationsTab() {
       >
         <div className="list-panel-header">
           <h2>Organizations</h2>
+          <DocLink docPath="research/comp-linguist/docs/theory-of-success/theory-of-success-organizations.md" label="Theory of success: Organizations" tooltip="Open the Organizations theory-of-success doc in GitHub" />
           <span className="orgs-tab-muted-075">
             {filtered.length}{filtered.length !== organizations.length ? ` / ${organizations.length}` : ''}
           </span>

@@ -13,6 +13,7 @@ import './CruxesTab.css';
 import { useKeyboardNav } from '../../hooks/useKeyboardNav';
 import { useResizablePanel } from '../../hooks/useResizablePanel';
 import { SearchWithHistory } from '../shared/SearchWithHistory';
+import { DocLink } from '../shared/TheoryLink';
 import { SearchPreview } from '../edge-browser/SearchPreview';
 import { FallacyDetailPanel } from '../analysis/FallacyPanel';
 import { PromptDetailPanel } from '../chat/PromptsPanel';
@@ -233,6 +234,7 @@ function CruxListPane({
     >
       <div className="list-panel-header">
         <h2>Cruxes</h2>
+        <DocLink docPath="research/comp-linguist/docs/theory-of-success/theory-of-success-cruxes.md" label="Theory of success: Cruxes" tooltip="Open the Cruxes theory-of-success doc in GitHub" />
         <div className="list-panel-header-actions">
           <span className="crux-count-label">{filteredCruxes.length} of {cruxes.length}</span>
           <button className="pane-collapse-btn" onClick={() => setListCollapsed(true)} title="Collapse" aria-label="Collapse panel">&lsaquo;</button>

@@ -16,6 +16,7 @@ import { TypeBadge } from './DetailPrimitives';
 import { coerceStringArray } from '@lib/entities/entityResolve';
 import { DetailPane } from './DetailPane';
 import { EmptyState } from './EmptyState';
+import { DocLink } from './TheoryLink';
 import './EntityBrowserPanel.css';
 
 type SortKey = 'name' | 'type' | 'status' | 'confidence' | 'modified';
@@ -194,6 +195,7 @@ export function EntityBrowserPanel() {
       <div className="ebp-list-col">
         <div className="ebp-header">
           <h3 className="ebp-title">Entities</h3>
+          <DocLink docPath="research/comp-linguist/docs/theory-of-success/theory-of-success-entities.md" label="Theory of success: Entities" tooltip="Open the Entities theory-of-success doc in GitHub" />
         </div>
 
         <div className="ebp-controls">
