@@ -24,6 +24,8 @@ import { getDataRoot, getStateRoot, getProjectRoot, STORAGE_MODE } from '../conf
 import { writeDump, isValidDumpId, readMergedDump } from '../flightRecorderDumps.js';
 import { escapeForInlineScript } from '../flightRecorderViewer.js';
 import { clientSafeMessage } from '../security/accessControl.js';
+import { getSessionBranchName } from '../security/userContext.js';
+import { filterSessionEvents } from './sessionScopedDump.js';
 import { getRequestId } from '../logger.js';
 import { log } from '../logger.js';
 import * as community from '../community/community.js';
@@ -78,14 +80,20 @@ export function registerDiagnosticsRoutes(r: Router, ctx: ServerCtx): void {
         if (!isValidDumpId(dumpId)) { error(res, 'dumpId must be a UUID-safe string', 400); return; }
         const filePath = await writeDump(getDataRoot(), 'client', dumpId, ndjson);
 
-        // t/3049: auto-write paired server FR dump so the merged download includes
-        // both sources in one artifact. Best-effort — a server-dump write failure
-        // must never fail the client dump response.
+        // t/3049: auto-write paired server FR dump.
+        // t/3067: filter ring buffer to requesting session (fail-CLOSED: anon/no-session
+        // → no server dump). Pino tee lines (appendServerLogs) are global and excluded
+        // from the session-scoped path to prevent cross-user log-line exposure.
         let serverDumpWritten = false;
         try {
-          const serverNdjson = appendServerLogs(serverRecorder.buildDump('manual').ndjson);
-          await writeDump(getDataRoot(), 'server', dumpId, serverNdjson);
-          serverDumpWritten = true;
+          const sessionBranch = getSessionBranchName();
+          if (sessionBranch !== undefined) {
+            const rawNdjson = serverRecorder.buildDump('manual').ndjson;
+            const filteredNdjson = filterSessionEvents(rawNdjson, sessionBranch);
+            await writeDump(getDataRoot(), 'server', dumpId, filteredNdjson);
+            serverDumpWritten = true;
+          }
+          // sessionBranch undefined → fail-CLOSED: anon session gets client-only dump
         } catch (serverErr) {
           getGlobalRecorder()?.record({
             type: 'system.error', component: 'flight-recorder-dump', level: 'warn',
