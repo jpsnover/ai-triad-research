@@ -21,6 +21,7 @@ import requireFlightRecorderInCatch from '../lib/eslint-rules/require-flight-rec
 import noActionableErrorMessageNesting from '../lib/eslint-rules/no-actionable-error-message-nesting.js';
 import noUnmanagedModuleResources from './eslint-rules/no-unmanaged-module-resources.js';
 import noInlineStyle from './eslint-rules/no-inline-style.js';
+import noRawDataRootRead from './eslint-rules/no-raw-data-root-read.js';
 
 const localPlugin = {
   rules: {
@@ -28,6 +29,7 @@ const localPlugin = {
     'no-unmanaged-module-resources': noUnmanagedModuleResources,
     'no-inline-style': noInlineStyle,
     'no-actionable-error-message-nesting': noActionableErrorMessageNesting,
+    'no-raw-data-root-read': noRawDataRootRead,
   },
 };
 
@@ -103,6 +105,22 @@ export default tseslint.config(
         message:
           'Module-level call expressions are banned in server/storage — they fire at import time and can crash Vitest collection or the container on startup. Move invariant checks into a constructor or explicit init function. See undiciInvariant.ts + GitHubRestClient constructor as the canonical pattern. (t/2113, t/2114)',
       }],
+    },
+  },
+  // ── Block A-dataroot: data-root read gate (t/3093 / t/3087) ──
+  // Flags a raw fs read whose path traces to a data-root resolver (the t/3085 migration-remnant
+  // class). Ships as `warn` first; TL promotes to `error` after >=1 green CI cycle.
+  // tripwire: green != verified — a new hit is a true positive; silence it only with an inline
+  // eslint-disable + TL-approved rationale at the call site, never by baselining here.
+  {
+    files: ['src/server/**/*.ts'],
+    ignores: [
+      ...TEST_GLOBS,             // tests hit resolver + fs.read constantly — not migration remnants
+      'src/server/storage/**',   // sanctioned home for data-root reads (readDataFile lives here)
+      'src/server/config.ts',    // defines the resolver functions themselves
+    ],
+    rules: {
+      'local/no-raw-data-root-read': 'warn',
     },
   },
   // ── Block B: LOC budget for test source (syntactic parse; tests are outside the

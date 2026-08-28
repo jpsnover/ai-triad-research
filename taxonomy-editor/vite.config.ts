@@ -226,6 +226,7 @@ export default defineConfig({
       '../main/**/*.test.ts',
       '../server/__tests__/**/*.test.ts',
       '../../../taxonomy-editor/scripts/__tests__/**/*.test.ts', // t/2973 — generate-notices guard unit tests
+      '../../../taxonomy-editor/eslint-rules/__tests__/**/*.test.ts', // t/3093 — custom ESLint rule RuleTester specs
       '../../../lib/ai-client/**/*.test.ts',
       '../../../lib/chat/**/*.test.ts',
       '../../../lib/electron-shared/**/*.test.ts',
