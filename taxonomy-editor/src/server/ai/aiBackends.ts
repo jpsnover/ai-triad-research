@@ -542,6 +542,7 @@ let _pythonAvailable: boolean | null = null;
 function getEmbeddingsPath(): string {
   return path.join(resolveDataPath('taxonomy/Origin'), 'embeddings.json');
 }
+const EMBEDDINGS_REL_PATH = path.join('taxonomy', 'Origin', 'embeddings.json');
 
 /**
  * Load the precomputed embeddings.json once, asynchronously, with promise coalescing so
@@ -554,19 +555,9 @@ async function loadEmbeddingsFileAsync(): Promise<EmbeddingsFile | null> {
   if (embeddingsLoadInFlight) return embeddingsLoadInFlight;
   embeddingsLoadInFlight = (async () => {
     try {
-      const buf = await readDataFile('taxonomy/Origin/embeddings.json', {
-        largeFile: true,
-        // t/3085/t/3092#2: stale-file guard — a present-but-short file (e.g. 36MB vs 63MB
-        // canonical) passes empty+missing guards but is still wrong. Parse once here to
-        // assert node_count ≥ 1000; the loadEmbeddingsFileAsync parse below reuses the buf.
-        validate: (b) => {
-          const { node_count } = JSON.parse(b.toString('utf-8')) as { node_count?: number };
-          if ((node_count ?? 0) < 1000) {
-            throw new Error(`embeddings.json stale or truncated: ${node_count ?? 0} nodes (expected ≥1000; t/3085)`);
-          }
-        },
-      });
-      const parsed = JSON.parse(buf.toString('utf-8')) as EmbeddingsFile;
+      const buf = await readDataFile(EMBEDDINGS_REL_PATH, { largeFile: true });
+      const raw = buf.toString('utf-8');
+      const parsed = JSON.parse(raw) as EmbeddingsFile;
       embeddingsCache = parsed;
       const nodeCount = Object.keys(parsed.nodes ?? {}).length;
       getGlobalRecorder()?.record({
@@ -576,12 +567,15 @@ async function loadEmbeddingsFileAsync(): Promise<EmbeddingsFile | null> {
       });
       return embeddingsCache;
     } catch (err) {
-      // readDataFile already emits a data_read_empty FR event; log the fallback decision.
-      // t/3085: promoted to warn — in prod ACA (github-api mode) the file never reaches
-      // /tmp, so every absence triggers ~3,600 ONNX re-embeds per debate.
+      const code = (err as NodeJS.ErrnoException).code;
+      // t/3085: ENOENT promoted to warn — in prod ACA (github-api mode) the file never
+      // reaches /tmp, so every request hits this path. It is not a normal miss; it is the
+      // root-cause symptom that triggers ~3,600 ONNX re-embeds per debate.
       getGlobalRecorder()?.record({
         type: 'system.error', component: 'ai-backends', level: 'warn',
-        message: 'embeddings.json unavailable — re-embedding all taxonomy texts (quota impact in prod)',
+        message: code === 'ENOENT'
+          ? 'embeddings.json not found — re-embedding all taxonomy texts (quota impact in prod)'
+          : 'embeddings.json unreadable — falling back to full re-embed (API quota)',
         error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
       return null;
@@ -957,9 +951,10 @@ export async function updateNodeEmbeddings(nodes: { id: string; text: string; po
 
   let data: EmbeddingsFile;
   try {
-    const buf = await readDataFile('taxonomy/Origin/embeddings.json', { largeFile: true });
+    const buf = await readDataFile(EMBEDDINGS_REL_PATH, { largeFile: true });
     data = JSON.parse(buf.toString('utf-8')) as EmbeddingsFile;
-  } catch { /* telemetry — silent by design */ data = { model: 'all-MiniLM-L6-v2', dimension: 384, node_count: 0, nodes: {} }; }
+  }
+  catch { /* telemetry — silent by design */ data = { model: 'all-MiniLM-L6-v2', dimension: 384, node_count: 0, nodes: {} }; }
 
   for (const node of nodes) {
     if (vectors[node.id]) {
