@@ -13,7 +13,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 const { mockReadFile, frRecords, mockRecorder } = vi.hoisted(() => {
   const frRecords: Array<Record<string, unknown>> = [];
   const mockRecorder = { record: vi.fn((r: Record<string, unknown>) => { frRecords.push(r); }) };
-  const mockReadFile = vi.fn<[string, string], Promise<string>>();
+  const mockReadFile = vi.fn<[string], Promise<Buffer>>();
   return { mockReadFile, frRecords, mockRecorder };
 });
 
@@ -22,7 +22,7 @@ const { mockReadFile, frRecords, mockRecorder } = vi.hoisted(() => {
 const FAKE_EMBEDDINGS = JSON.stringify({
   model: 'all-MiniLM-L6-v2',
   dimension: 384,
-  node_count: 3,
+  node_count: 1000,
   nodes: { 'acc-bel-001': {}, 'saf-bel-001': {}, 'skp-bel-001': {} },
 });
 
@@ -38,6 +38,12 @@ vi.mock('../../../../lib/flight-recorder/index.js', () => ({
 vi.mock('fs', async (importActual) => {
   const actual = await importActual<typeof import('fs')>();
   return { ...actual, default: { ...actual, promises: { ...actual.promises, readFile: mockReadFile } } };
+});
+
+// readDataFile imports 'fs/promises' directly; mock it so the large-file read path is intercepted.
+vi.mock('fs/promises', async (importActual) => {
+  const actual = await importActual<typeof import('fs/promises')>();
+  return { ...actual, default: { ...actual, readFile: mockReadFile } };
 });
 
 // ── config mock ───────────────────────────────────────────────────────────────
@@ -98,13 +104,13 @@ describe('embeddingsCache async hydration (t/3085)', () => {
     const err = Object.assign(new Error('ENOENT'), { code: 'ENOENT' });
     mockReadFile.mockRejectedValue(err);
     await prewarmEmbeddingsCache();
-    const enoentRec = frRecords.find(r => typeof r.message === 'string' && r.message.includes('not found'));
+    const enoentRec = frRecords.find(r => typeof r.message === 'string' && r.message.includes('unavailable'));
     expect(enoentRec).toBeDefined();
     expect(enoentRec!.level).toBe('warn');
   });
 
   it('success → "embeddings.json loaded: N nodes" signal', async () => {
-    mockReadFile.mockResolvedValue(FAKE_EMBEDDINGS);
+    mockReadFile.mockResolvedValue(Buffer.from(FAKE_EMBEDDINGS));
     await prewarmEmbeddingsCache();
     const loaded = frRecords.find(r => typeof r.message === 'string' && r.message.includes('embeddings.json loaded'));
     expect(loaded).toBeDefined();
@@ -112,13 +118,13 @@ describe('embeddingsCache async hydration (t/3085)', () => {
   });
 
   it('t/3085 hydrate-once: concurrent calls share one in-flight readFile', async () => {
-    mockReadFile.mockResolvedValue(FAKE_EMBEDDINGS);
+    mockReadFile.mockResolvedValue(Buffer.from(FAKE_EMBEDDINGS));
     await Promise.all([prewarmEmbeddingsCache(), prewarmEmbeddingsCache(), prewarmEmbeddingsCache()]);
     expect(mockReadFile).toHaveBeenCalledTimes(1);
   });
 
   it('second sequential call is a cache hit (no second readFile)', async () => {
-    mockReadFile.mockResolvedValue(FAKE_EMBEDDINGS);
+    mockReadFile.mockResolvedValue(Buffer.from(FAKE_EMBEDDINGS));
     await prewarmEmbeddingsCache();
     mockReadFile.mockClear();
     await prewarmEmbeddingsCache();
@@ -126,7 +132,7 @@ describe('embeddingsCache async hydration (t/3085)', () => {
   });
 
   it('_resetEmbeddingsCacheForTest clears the cache (next call re-reads)', async () => {
-    mockReadFile.mockResolvedValue(FAKE_EMBEDDINGS);
+    mockReadFile.mockResolvedValue(Buffer.from(FAKE_EMBEDDINGS));
     await prewarmEmbeddingsCache();
     _resetEmbeddingsCacheForTest();
     mockReadFile.mockClear();

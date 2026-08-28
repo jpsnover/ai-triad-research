@@ -32,9 +32,8 @@ import { DEFAULT_MODEL, withTimeout } from '../../../../lib/ai-client/index.js';
 import { log } from '../logger.js';
 import * as ai from '../ai/aiBackends.js';
 import { resolveGenerationContext, enforceBackendAllowed } from './generationContext.js';
-import { getDataRoot } from '../config.js';
-import { greatestHitsPath } from '../../../../lib/debate/corpusCoverage.js';
 import * as fileIO from '../storage/fileIO.js';
+import { readDataFile } from '../storage/readDataFile.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -43,13 +42,12 @@ const __dirname = path.dirname(__filename);
 
 type SourceEvidenceIndex = import('../../../../lib/debate/evidenceFromSummaries.js').SourceEvidenceIndex;
 let _evidenceIndex: SourceEvidenceIndex | null = null;
-function loadEvidenceIndex(): SourceEvidenceIndex | null {
+async function loadEvidenceIndex(): Promise<SourceEvidenceIndex | null> {
   if (_evidenceIndex) return _evidenceIndex;
   try {
-    const taxDir = fileIO.getTaxonomyDir();
-    const indexPath = path.join(taxDir, 'source_evidence_index.json');
-    if (!fs.existsSync(indexPath)) return null;
-    _evidenceIndex = JSON.parse(fs.readFileSync(indexPath, 'utf-8'));
+    const relPath = path.join('taxonomy', fileIO.getActiveTaxonomyDirName(), 'source_evidence_index.json');
+    const buf = await readDataFile(relPath);
+    _evidenceIndex = JSON.parse(buf.toString('utf-8')) as SourceEvidenceIndex;
     return _evidenceIndex;
   } catch { /* telemetry — silent by design */ return null; }
 }
@@ -122,11 +120,10 @@ function loadDocTitles(): DocMetaMap | null {
  * [] }` → exclusion silently no-ops. The response contract (`{ node_ids: string[] }`)
  * is unchanged — the renderer builds the Set + filters vs. live nodes.
  */
-export function loadGreatestHitsNodeIds(): { node_ids: string[] } | null {
+export async function loadGreatestHitsNodeIds(): Promise<{ node_ids: string[] } | null> {
   try {
-    const p = greatestHitsPath(getDataRoot());
-    if (!fs.existsSync(p)) return null;
-    const parsed = JSON.parse(fs.readFileSync(p, 'utf-8')) as {
+    const buf = await readDataFile('calibration/greatest-hits.json');
+    const parsed = JSON.parse(buf.toString('utf-8')) as {
       node_ids?: unknown;
       nodes?: Array<{ node_id?: unknown }>;
     };
@@ -228,8 +225,8 @@ export function registerSourcesRoutes(r: Router, _ctx: ServerCtx): void {
 
   // ── Source evidence ──
 
-  get('/api/source-evidence-index', (_req, res) => {
-    json(res, loadEvidenceIndex());
+  get('/api/source-evidence-index', async (_req, res) => {
+    json(res, await loadEvidenceIndex());
   });
 
   get('/api/doc-titles', (_req, res) => {
@@ -240,14 +237,14 @@ export function registerSourcesRoutes(r: Router, _ctx: ServerCtx): void {
   // `{ node_ids }` or null (absent file) — never the Set that loadGreatestHitsFile
   // yields (JSON.stringify(new Set()) → {}). Renderer builds the Set + filters vs.
   // live nodes, so no server-side knownNodeIds filtering here.
-  get('/api/greatest-hits', (_req, res) => {
-    json(res, loadGreatestHitsNodeIds());
+  get('/api/greatest-hits', async (_req, res) => {
+    json(res, await loadGreatestHitsNodeIds());
   });
 
   post('/api/source-evidence', async (_req, res, body) => {
     const { nodeIds, pov } = body as { nodeIds: string[]; pov: string };
     const emptyResult = { facts: [], keyPoints: [], formattedBlock: '', nodesCovered: [], totalCandidates: 0 };
-    const index = loadEvidenceIndex();
+    const index = await loadEvidenceIndex();
     if (!index) { json(res, emptyResult); return; }
     try {
       const { retrieveSourceEvidence } = await import('../../../../lib/debate/evidenceFromSummaries.js');
