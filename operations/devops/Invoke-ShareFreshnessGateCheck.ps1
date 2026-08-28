@@ -38,7 +38,7 @@ $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'ShareFreshnessPredicate.ps1')
 
 $authArgs = if ($StorageKey) { @('--account-key', $StorageKey) }
-            else             { @('--auth-mode', 'login') }
+            else             { @('--auth-mode', 'login', '--enable-file-backup-request-intent') }
 
 # ── Download seed-manifest.json ──────────────────────────────────────────────
 $tmp = [IO.Path]::GetTempFileName()
