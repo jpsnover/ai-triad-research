@@ -84,7 +84,7 @@ function enforceAiRateLimits(res: http.ServerResponse, isFree: boolean, limitKey
     getGlobalRecorder()?.record({
       type: 'ai.error', component: 'rate-limiter', level: 'warn',
       message: `RPM limit reached (${rpmCheck.current}/${rpmCheck.limit})`,
-      data: { type: 'requests_per_minute', limitKey, limit: rpmCheck.limit, current: rpmCheck.current, retryAfterMs: rpmCheck.retryAfterMs, backend, tier: tier.level },
+      data: { type: 'requests_per_minute', rate_limit_source: 'per_ip_rpm', limitKey, limit: rpmCheck.limit, current: rpmCheck.current, retryAfterMs: rpmCheck.retryAfterMs, backend, tier: tier.level },
     });
     res.writeHead(429); res.end(JSON.stringify({ error: 'Rate limit exceeded', limitType: 'requests_per_minute', rate_limit_source: 'per_ip_rpm', rate_limit_type: 'api_call', retryAfterMs: rpmCheck.retryAfterMs, limit: rpmCheck.limit, current: rpmCheck.current })); return true;
   }
@@ -94,7 +94,7 @@ function enforceAiRateLimits(res: http.ServerResponse, isFree: boolean, limitKey
     getGlobalRecorder()?.record({
       type: 'ai.error', component: 'rate-limiter', level: 'warn',
       message: `Daily token limit reached (${tokenCheck.current}/${tokenCheck.limit})`,
-      data: { type: 'tokens_per_day', limitKey, limit: tokenCheck.limit, current: tokenCheck.current, backend, tier: tier.level },
+      data: { type: 'tokens_per_day', rate_limit_source: 'daily_token', limitKey, limit: tokenCheck.limit, current: tokenCheck.current, backend, tier: tier.level },
     });
     res.writeHead(429); res.end(JSON.stringify({ error: 'Daily token limit exceeded', limitType: 'tokens_per_day', rate_limit_source: 'daily_token', rate_limit_type: 'api_call', limit: tokenCheck.limit, current: tokenCheck.current })); return true;
   }
@@ -253,7 +253,7 @@ function respondIfUpstream429(res: http.ServerResponse, err: unknown, modelLabel
   getGlobalRecorder()?.record({
     type: 'ai.error', component: 'ai-generate', level: 'warn',
     message: 'AI generate upstream rate-limited',
-    data: { model: modelLabel, retryAfterMs: retry, source: 'upstream' },
+    data: { model: modelLabel, retryAfterMs: retry, source: 'upstream', rate_limit_source: 'api_key_exhausted' },
   });
   res.setHeader('Retry-After', String(Math.max(1, Math.ceil(retry / 1000))));
   res.writeHead(429, { 'Content-Type': 'application/json' });
@@ -446,7 +446,7 @@ export function registerAiRoutes(r: Router, ctx: ServerCtx): void {
         type: 'ai.error', component: 'ai-search', level: expected ? 'warn' : 'error',
         message: `AI search failed: ${String(err)}`,
         error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
-        data: { model: model ?? 'default', promptLength: prompt?.length, source: ai.isContextTooLongError(err) ? 'context_overflow' : ai.is429Error(err) ? 'upstream' : 'error' },
+        data: { model: model ?? 'default', promptLength: prompt?.length, source: ai.isContextTooLongError(err) ? 'context_overflow' : ai.is429Error(err) ? 'upstream' : 'error', ...(ai.is429Error(err) ? { rate_limit_source: 'api_key_exhausted', retryAfterMs: ai.retryAfterMs(err) } : {}) },
       });
       if (ai.isContextTooLongError(err)) log.server.warn({ component: 'ai-search', model: model ?? 'default' }, 'AI search input exceeds model context window');
       else if (ai.is429Error(err)) log.server.warn({ component: 'ai-search', model: model ?? 'default', retryAfterMs: ai.retryAfterMs(err) }, 'AI search upstream rate-limited — returning 429');
