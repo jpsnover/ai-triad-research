@@ -81,6 +81,22 @@ export function registerMetaRoutes(r: Router, ctx: ServerCtx): void {
     json(res, { status: 'unhealthy', state: readiness.state, reason: readiness.reason, dataRoot }, 503);
   });
 
+  // t/3112: deploy warm-gate. Constraint #1 (t/3090#11): no traffic to an un-warmed
+  // revision. /healthz gates on DATA load only; the embeddings.json cache is pre-warmed
+  // fire-and-forget (server.ts), so a revision can be /healthz-ready while debates would
+  // still re-embed ~3600 texts. /readyz reports 200 ONLY when the precomputed-vector cache
+  // is loaded (present AND nodeCount>0); the ACA deploy gate polls it and blocks the
+  // traffic-shift until 200. Distinct from /api/health/embeddings (that reflects the ONNX
+  // model warmup, not this cache). Anon (PUBLIC_EXACT_PATHS) so the pre-auth probe reaches it.
+  get('/readyz', (_req, res) => {
+    const { present, nodeCount } = getEmbeddingsCacheStatus();
+    if (present && (nodeCount ?? 0) > 0) {
+      json(res, { status: 'ready', nodeCount });
+      return;
+    }
+    json(res, { status: 'warming', present, nodeCount }, 503);
+  });
+
   get('/health', async (_req, res) => {
     // M5: liveness probes (unauthenticated) get a minimal OK. Operational detail
     // (versions, storage internals, GitHub rate limits, paths) only for admins.
