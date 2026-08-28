@@ -31,8 +31,7 @@ export function registerPreferencesRoutes(r: Router, _ctx: ServerCtx): void {
       const relPath = path.join('preferences', `${getStorageUserId()}.json`);
       const buf = await readDataFile(relPath);
       json(res, JSON.parse(buf.toString('utf8')));
-    } catch {
-      // Absent (new user) or unreadable — readDataFile already emits FR event; fall back to null.
+    } catch { /* telemetry — silent by design: readDataFile already emits FR event; absent/unreadable → null */
       json(res, null);
     }
   });
