@@ -6,21 +6,22 @@
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import type { IncomingMessage, ServerResponse } from 'http';
+import { ActionableError } from '../../../../lib/debate/errors.js';
 
-const { readDataFileMock, writeFileSyncMock, mkdirSyncMock, recordMock, getStorageUserIdMock, resolveDataPathMock } = vi.hoisted(() => ({
-  readDataFileMock: vi.fn<[string, unknown?], Promise<Buffer>>(),
+const { writeFileSyncMock, mkdirSyncMock, recordMock, getStorageUserIdMock, resolveDataPathMock, readDataFileMock } = vi.hoisted(() => ({
   writeFileSyncMock: vi.fn(),
   mkdirSyncMock: vi.fn(),
   recordMock: vi.fn(),
   getStorageUserIdMock: vi.fn(() => '_local'),
   resolveDataPathMock: vi.fn((p: string) => `/data/${p}`),
+  readDataFileMock: vi.fn(),
 }));
 
-vi.mock('../storage/readDataFile.js', () => ({ readDataFile: readDataFileMock }));
 vi.mock('fs', () => ({ default: { writeFileSync: writeFileSyncMock, mkdirSync: mkdirSyncMock } }));
 vi.mock('../../../../lib/flight-recorder/index.js', () => ({ getGlobalRecorder: () => ({ record: recordMock }) }));
 vi.mock('../security/userContext.js', () => ({ getStorageUserId: getStorageUserIdMock }));
 vi.mock('../config.js', () => ({ resolveDataPath: resolveDataPathMock }));
+vi.mock('../storage/readDataFile.js', () => ({ readDataFile: readDataFileMock }));
 
 import type { ServerCtx } from '../routes/context.js';
 import { createRouter, type Handler } from '../httpKit.js';
@@ -66,14 +67,14 @@ describe('GET /api/preferences (t/2119)', () => {
   beforeEach(() => { readDataFileMock.mockReset(); recordMock.mockReset(); });
 
   it('returns null when no prefs file exists (ENOENT)', async () => {
-    readDataFileMock.mockRejectedValue(new Error('ENOENT'));
+    readDataFileMock.mockRejectedValue(new ActionableError({ goal: 'test', problem: 'not found', location: 'test', nextSteps: [] }));
     const { status, body } = await invokeGet();
     expect(status).toBe(200);
     expect(body).toBeNull();
   });
 
   it('returns stored prefs when file exists', async () => {
-    readDataFileMock.mockResolvedValue(Buffer.from(JSON.stringify({ viewMode: 'advanced' }), 'utf8'));
+    readDataFileMock.mockResolvedValue(Buffer.from(JSON.stringify({ viewMode: 'advanced' })));
     const { status, body } = await invokeGet();
     expect(status).toBe(200);
     expect(body).toEqual({ viewMode: 'advanced' });

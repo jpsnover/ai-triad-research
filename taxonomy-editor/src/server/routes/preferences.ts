@@ -16,6 +16,7 @@ import { getGlobalRecorder } from '../../../../lib/flight-recorder/index.js';
 import { resolveDataPath } from '../config.js';
 import { getStorageUserId } from '../security/userContext.js';
 import { readDataFile } from '../storage/readDataFile.js';
+import { ActionableError } from '../../../../lib/debate/errors.js';
 
 const UserPreferencesSchema = z.object({
   viewMode: z.enum(['simple', 'advanced']),
@@ -31,8 +32,15 @@ export function registerPreferencesRoutes(r: Router, _ctx: ServerCtx): void {
       const relPath = path.join('preferences', `${getStorageUserId()}.json`);
       const buf = await readDataFile(relPath);
       json(res, JSON.parse(buf.toString('utf8')));
-    } catch { /* telemetry — silent by design: readDataFile already emits FR event; absent/unreadable → null */
-      json(res, null);
+    } catch (err) {
+      // readDataFile throws ActionableError for missing/empty file — no prefs yet.
+      if (err instanceof ActionableError) { json(res, null); return; }
+      getGlobalRecorder()?.record({
+        type: 'system.error', component: 'server', level: 'error',
+        message: 'Failed to read preferences',
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+      });
+      error(res, String(err), 500, err);
     }
   });
 
@@ -44,9 +52,9 @@ export function registerPreferencesRoutes(r: Router, _ctx: ServerCtx): void {
         error(res, 'Invalid preferences: ' + parsed.error.message, 400);
         return;
       }
-      const absPath = resolveDataPath(path.join('preferences', `${getStorageUserId()}.json`));
-      fs.mkdirSync(path.dirname(absPath), { recursive: true });
-      fs.writeFileSync(absPath, JSON.stringify(parsed.data), 'utf8');
+      const filePath = resolveDataPath(path.join('preferences', `${getStorageUserId()}.json`));
+      fs.mkdirSync(path.dirname(filePath), { recursive: true });
+      fs.writeFileSync(filePath, JSON.stringify(parsed.data), 'utf8');
       json(res, null, 204);
     } catch (err) {
       getGlobalRecorder()?.record({

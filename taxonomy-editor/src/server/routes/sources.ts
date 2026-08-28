@@ -32,8 +32,10 @@ import { DEFAULT_MODEL, withTimeout } from '../../../../lib/ai-client/index.js';
 import { log } from '../logger.js';
 import * as ai from '../ai/aiBackends.js';
 import { resolveGenerationContext, enforceBackendAllowed } from './generationContext.js';
-import * as fileIO from '../storage/fileIO.js';
+import { getDataRoot } from '../config.js';
 import { readDataFile } from '../storage/readDataFile.js';
+import { greatestHitsPath } from '../../../../lib/debate/corpusCoverage.js';
+import * as fileIO from '../storage/fileIO.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -45,7 +47,8 @@ let _evidenceIndex: SourceEvidenceIndex | null = null;
 async function loadEvidenceIndex(): Promise<SourceEvidenceIndex | null> {
   if (_evidenceIndex) return _evidenceIndex;
   try {
-    const relPath = path.join('taxonomy', fileIO.getActiveTaxonomyDirName(), 'source_evidence_index.json');
+    const taxDir = fileIO.getTaxonomyDir();
+    const relPath = path.relative(getDataRoot(), path.join(taxDir, 'source_evidence_index.json'));
     const buf = await readDataFile(relPath);
     _evidenceIndex = JSON.parse(buf.toString('utf-8')) as SourceEvidenceIndex;
     return _evidenceIndex;
@@ -122,7 +125,9 @@ function loadDocTitles(): DocMetaMap | null {
  */
 export async function loadGreatestHitsNodeIds(): Promise<{ node_ids: string[] } | null> {
   try {
-    const buf = await readDataFile('calibration/greatest-hits.json');
+    const absPath = greatestHitsPath(getDataRoot());
+    const relPath = path.relative(getDataRoot(), absPath);
+    const buf = await readDataFile(relPath);
     const parsed = JSON.parse(buf.toString('utf-8')) as {
       node_ids?: unknown;
       nodes?: Array<{ node_id?: unknown }>;

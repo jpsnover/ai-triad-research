@@ -10,12 +10,11 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // ── Hoisted fns ───────────────────────────────────────────────────────────────
 
-const { mockReadFile, mockRecorder } = vi.hoisted(() => {
+const { mockReadFile, mockRecorder, readDataFileMock } = vi.hoisted(() => {
   const mockRecorder = { record: vi.fn() };
-  // readDataFile (used by loadEmbeddingsFileAsync) imports 'fs/promises' and calls
-  // fs.readFile(path) without encoding — returns Buffer. Mock returns Buffer.
-  const mockReadFile = vi.fn<[string], Promise<Buffer>>();
-  return { mockReadFile, mockRecorder };
+  const mockReadFile = vi.fn<[string, string], Promise<string>>();
+  const readDataFileMock = vi.fn();
+  return { mockReadFile, mockRecorder, readDataFileMock };
 });
 
 // ── Fake data ─────────────────────────────────────────────────────────────────
@@ -23,7 +22,7 @@ const { mockReadFile, mockRecorder } = vi.hoisted(() => {
 const FAKE_EMBEDDINGS = JSON.stringify({
   model: 'all-MiniLM-L6-v2',
   dimension: 384,
-  node_count: 1000, // ≥1000 so the readDataFile validate guard (t/3092#2) passes
+  node_count: 3,
   nodes: {
     'acc-bel-001': { vector: Array(384).fill(0.1) },
     'saf-bel-001': { vector: Array(384).fill(0.2) },
@@ -43,13 +42,6 @@ vi.mock('fs', async (importActual) => {
   return { ...actual, default: { ...actual, promises: { ...actual.promises, readFile: mockReadFile } } };
 });
 
-// readDataFile (used by loadEmbeddingsFileAsync) imports 'fs/promises' directly;
-// mock it here so the precompute path is intercepted by mockReadFile.
-vi.mock('fs/promises', async (importActual) => {
-  const actual = await importActual<typeof import('fs/promises')>();
-  return { ...actual, default: { ...actual, readFile: mockReadFile } };
-});
-
 vi.mock('../config.js', async (importActual) => {
   const actual = await importActual<typeof import('../config.js')>();
   return {
@@ -61,6 +53,7 @@ vi.mock('../config.js', async (importActual) => {
   };
 });
 
+vi.mock('../storage/readDataFile.js', () => ({ readDataFile: readDataFileMock }));
 vi.mock('../ai/fsCache.js', () => ({ readFileWithMtime: vi.fn(() => ({ content: '{}', mtimeMs: 1 })) }));
 vi.mock('../../../../lib/embeddings/onnxEmbedding.js', () => ({
   warmup: vi.fn(async () => false),
@@ -97,6 +90,7 @@ describe('getEmbeddingsCacheStatus (t/3086)', () => {
     _resetEmbeddingsCacheForTest();
     _setPythonAvailableForTest(false);
     mockRecorder.record.mockClear();
+    readDataFileMock.mockReset();
     vi.restoreAllMocks();
   });
 
@@ -105,13 +99,13 @@ describe('getEmbeddingsCacheStatus (t/3086)', () => {
   });
 
   it('returns absent when file is missing (ENOENT)', async () => {
-    mockReadFile.mockRejectedValue(Object.assign(new Error('ENOENT'), { code: 'ENOENT' }));
+    readDataFileMock.mockRejectedValue(Object.assign(new Error('ENOENT'), { code: 'ENOENT' }));
     await prewarmEmbeddingsCache();
     expect(getEmbeddingsCacheStatus()).toEqual({ present: false, nodeCount: null });
   });
 
   it('returns present with nodeCount after successful load', async () => {
-    mockReadFile.mockResolvedValue(Buffer.from(FAKE_EMBEDDINGS, 'utf-8'));
+    readDataFileMock.mockResolvedValue(Buffer.from(FAKE_EMBEDDINGS));
     await prewarmEmbeddingsCache();
     expect(getEmbeddingsCacheStatus()).toEqual({ present: true, nodeCount: 3 });
   });
@@ -124,11 +118,12 @@ describe('computeEmbeddings cache_hits / cache_misses (t/3086)', () => {
     _resetEmbeddingsCacheForTest();
     _setPythonAvailableForTest(false);
     mockRecorder.record.mockClear();
+    readDataFileMock.mockReset();
     vi.restoreAllMocks();
   });
 
   it('all misses when file absent (cacheHits=0)', async () => {
-    mockReadFile.mockRejectedValue(Object.assign(new Error('ENOENT'), { code: 'ENOENT' }));
+    readDataFileMock.mockRejectedValue(Object.assign(new Error('ENOENT'), { code: 'ENOENT' }));
     await prewarmEmbeddingsCache();
     const result = await computeEmbeddings(['text1', 'text2'], ['acc-bel-001', 'saf-bel-001']);
     expect(result.cacheHits).toBe(0);
@@ -137,7 +132,7 @@ describe('computeEmbeddings cache_hits / cache_misses (t/3086)', () => {
   });
 
   it('all hits when every id is in the file', async () => {
-    mockReadFile.mockResolvedValue(Buffer.from(FAKE_EMBEDDINGS, 'utf-8'));
+    readDataFileMock.mockResolvedValue(Buffer.from(FAKE_EMBEDDINGS));
     await prewarmEmbeddingsCache();
     const result = await computeEmbeddings(
       ['text1', 'text2'],
@@ -149,7 +144,7 @@ describe('computeEmbeddings cache_hits / cache_misses (t/3086)', () => {
   });
 
   it('partial hit/miss when only some ids match', async () => {
-    mockReadFile.mockResolvedValue(Buffer.from(FAKE_EMBEDDINGS, 'utf-8'));
+    readDataFileMock.mockResolvedValue(Buffer.from(FAKE_EMBEDDINGS));
     await prewarmEmbeddingsCache();
     const result = await computeEmbeddings(
       ['text1', 'text2', 'text3'],
@@ -160,7 +155,7 @@ describe('computeEmbeddings cache_hits / cache_misses (t/3086)', () => {
   });
 
   it('all misses when no ids provided (text-only batch)', async () => {
-    mockReadFile.mockResolvedValue(Buffer.from(FAKE_EMBEDDINGS, 'utf-8'));
+    readDataFileMock.mockResolvedValue(Buffer.from(FAKE_EMBEDDINGS));
     await prewarmEmbeddingsCache();
     const result = await computeEmbeddings(['text1', 'text2']);
     expect(result.cacheHits).toBe(0);
