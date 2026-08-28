@@ -14,7 +14,11 @@
  * Watch the flip pair: `/sw.js` is EXACT, `/workbox-` is a PREFIX.
  */
 
-/** Exact-match public paths (were `urlPath === X`). */
+/** Exact-match public paths (were `urlPath === X`).
+ *  ⚠️ Adding/removing an entry trips TWO count-guards — update BOTH or CI goes red
+ *  (t/3112): `publicPaths.test.ts` (PUBLIC_EXACT_PATHS.size + samples.length) AND, if the
+ *  path is also a new route, `routeTable.test.ts` (route count + snapshot). Missing the
+ *  twin is an easy slip — the /readyz add caught the routeTable count but missed this one. */
 export const PUBLIC_EXACT_PATHS: ReadonlySet<string> = new Set<string>([
   '/health',
   '/healthz',
