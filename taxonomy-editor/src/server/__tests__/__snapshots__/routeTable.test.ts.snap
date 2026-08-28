@@ -4,6 +4,7 @@ exports[`server.ts route table (t/1295 — zero-behaviour-change guard) > ordere
 [
   "GET /third-party-notices",
   "GET /healthz",
+  "GET /readyz",
   "GET /health",
   "GET /llms.txt",
   "GET /api/taxonomy-dirs",
@@ -354,6 +355,7 @@ exports[`server.ts route table (t/1295 — zero-behaviour-change guard) > route 
   "GET /health",
   "GET /healthz",
   "GET /llms.txt",
+  "GET /readyz",
   "GET /third-party-notices",
   "PATCH /api/debates/:id",
   "POST /api/admin/calibration/promote",

@@ -18,6 +18,7 @@
 export const PUBLIC_EXACT_PATHS: ReadonlySet<string> = new Set<string>([
   '/health',
   '/healthz',
+  '/readyz',                // t/3112: deploy warm-gate — 200 only when embeddings.json cache present (nodeCount>0); anon so the ACA deploy probe can poll pre-auth
   '/status',
   '/api/models',            // pre-auth model catalog from ai-models.json (labels/ids, no secrets)
   '/api/data/available',
