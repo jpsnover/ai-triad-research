@@ -131,6 +131,44 @@ describe('instrumentBridge — structured 429 retry_after_s (t/3054)', () => {
   });
 });
 
+describe('instrumentBridge — 429 rate-limit discriminators (t/3107)', () => {
+  beforeEach(() => { vi.clearAllMocks(); });
+
+  it('surfaces rate_limit_source + limit + current on the ai.error event for a 429', async () => {
+    const err = Object.assign(new Error('Rate limit exceeded'), {
+      httpStatus: 429, rateLimitSource: 'per_ip_rpm', limit: 20, current: 21,
+    });
+    const api = instrumentBridge({ generateText: () => Promise.reject(err) } as unknown as AppAPI);
+    await expect((api as unknown as { generateText: () => Promise<unknown> }).generateText()).rejects.toThrow();
+
+    const data = lastRecord().data as Record<string, unknown>;
+    expect(data.rate_limit_source).toBe('per_ip_rpm');
+    expect(data.limit).toBe(20);
+    expect(data.current).toBe(21);
+  });
+
+  it('omits the rate-limit fields for a non-429 status', async () => {
+    const err = Object.assign(new Error('boom'), { httpStatus: 500, rateLimitSource: 'per_ip_rpm', limit: 20, current: 21 });
+    const api = instrumentBridge({ generateText: () => Promise.reject(err) } as unknown as AppAPI);
+    await expect((api as unknown as { generateText: () => Promise<unknown> }).generateText()).rejects.toThrow();
+
+    const data = lastRecord().data as Record<string, unknown>;
+    expect(data.rate_limit_source).toBeUndefined();
+    expect(data.limit).toBeUndefined();
+  });
+
+  it('omits fields absent from a partial 429 body (only what the server sent)', async () => {
+    const err = Object.assign(new Error('Rate limit exceeded'), { httpStatus: 429, rateLimitSource: 'api_key_exhausted' });
+    const api = instrumentBridge({ generateText: () => Promise.reject(err) } as unknown as AppAPI);
+    await expect((api as unknown as { generateText: () => Promise<unknown> }).generateText()).rejects.toThrow();
+
+    const data = lastRecord().data as Record<string, unknown>;
+    expect(data.rate_limit_source).toBe('api_key_exhausted');
+    expect(data.limit).toBeUndefined();
+    expect(data.current).toBeUndefined();
+  });
+});
+
 describe('instrumentBridge — expected-status downgrade (t/2395)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
