@@ -173,6 +173,23 @@ function retryAfterSFromError(err: unknown, httpStatus: number | undefined): num
   return typeof v === 'number' ? v : undefined;
 }
 
+/**
+ * 429 rate-limit discriminators for FR `ai.error` events (t/3107). web-bridge attaches the
+ * parsed 429 body fields to the thrown error; surface them as named fields so a CLIENT-ONLY dump
+ * (all an anonymous free-tier user can produce — server dumps are gated to authed sessions) can
+ * tell a per-IP front-door 429 (`per_ip_rpm`) from a key-rotation-exhaustion 429
+ * (`api_key_exhausted`) without any server correlation.
+ */
+function rateLimitFieldsFromError(err: unknown, httpStatus: number | undefined): Record<string, unknown> {
+  if (httpStatus !== 429) return {};
+  const e = err as { rateLimitSource?: unknown; limit?: unknown; current?: unknown };
+  const out: Record<string, unknown> = {};
+  if (typeof e.rateLimitSource === 'string') out.rate_limit_source = e.rateLimitSource;
+  if (typeof e.limit === 'number') out.limit = e.limit;
+  if (typeof e.current === 'number') out.current = e.current;
+  return out;
+}
+
 /** Categorize bridge methods for the recorder. */
 function inferCategory(method: string): string {
   if (method.startsWith('generate') || method.startsWith('startChat') || method === 'nliClassify') return 'ai';
@@ -232,7 +249,7 @@ export function instrumentBridge(raw: AppAPI): AppAPI {
           message: expected ? `bridge.${key} expected ${httpStatus} (sync)` : `bridge.${key} failed (sync)`,
           duration_ms,
           error: normalizeError(err),
-          data: { method: key, category, ...(httpStatus !== undefined && { http_status: httpStatus }), ...(retryAfterS !== undefined && { retry_after_s: retryAfterS }) },
+          data: { method: key, category, ...(httpStatus !== undefined && { http_status: httpStatus }), ...(retryAfterS !== undefined && { retry_after_s: retryAfterS }), ...rateLimitFieldsFromError(err, httpStatus) },
         });
         throw err;
       }
@@ -278,7 +295,7 @@ export function instrumentBridge(raw: AppAPI): AppAPI {
             message: expected ? `bridge.${key} expected ${httpStatus}` : `bridge.${key} failed`,
             duration_ms,
             error: normalizeError(err),
-            data: { method: key, category, ...(httpStatus !== undefined && { http_status: httpStatus }), ...(retryAfterS !== undefined && { retry_after_s: retryAfterS }) },
+            data: { method: key, category, ...(httpStatus !== undefined && { http_status: httpStatus }), ...(retryAfterS !== undefined && { retry_after_s: retryAfterS }), ...rateLimitFieldsFromError(err, httpStatus) },
           });
           throw err;
         },
