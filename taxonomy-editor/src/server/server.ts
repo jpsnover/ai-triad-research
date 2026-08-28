@@ -440,6 +440,7 @@ function loadAuthorizedUsers(): AuthorizedUsersFile | null {
   for (const p of candidates) {
     try {
       if (fs.existsSync(p)) {
+        // eslint-disable-next-line local/no-raw-data-root-read -- auth allowlist is mount-sourced (/data volume) with an existsSync fallback loop BY DESIGN; routing through readDataFile would flip the trust source from the mount to the data-repo-via-API (auth surface — t/3093#3, ServerAPI route-b)
         const data = JSON.parse(fs.readFileSync(p, 'utf-8')) as AuthorizedUsersFile;
         log.auth.info({ count: data.users.length, path: p }, 'Loaded authorized users');
         return data;
