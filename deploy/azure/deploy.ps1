@@ -253,6 +253,49 @@ if ($SeedData) {
             --account-key $storageKey `
             --output none
 
+        # Write seed manifest to share for the freshness gate (t/3091).
+        # Records data-repo commit SHA + per-file blob_sha (canonical freshness signal) and
+        # size_bytes (upload truncation guard). The gate compares blob_sha against the data
+        # repo's current canonical tree — not self-referential. (Design: e/126#4)
+        Write-OK 'Writing seed manifest...'
+        $dataRepoCommit = (git -C $tempDir rev-parse HEAD 2>$null).Trim()
+        $manifestFiles  = [ordered]@{}
+        $assertedPaths  = @('taxonomy/Origin/embeddings.json')
+        foreach ($rel in $assertedPaths) {
+            $localPath = Join-Path $tempDir ($rel -replace '/', [IO.Path]::DirectorySeparatorChar)
+            if (Test-Path $localPath) {
+                # git ls-tree output: "<mode> blob <sha>\t<path>"
+                $lsLine   = git -C $tempDir ls-tree HEAD -- $rel 2>$null
+                $blobSha  = if ($lsLine) { ($lsLine -split '\s+')[2] } else { '' }
+                $manifestFiles[$rel] = [ordered]@{
+                    size_bytes = (Get-Item $localPath).Length
+                    blob_sha   = $blobSha
+                }
+            }
+        }
+        $manifestJson  = ([ordered]@{
+            seeded_at        = [DateTimeOffset]::UtcNow.ToString('o')
+            data_repo_commit = $dataRepoCommit
+            files            = $manifestFiles
+        }) | ConvertTo-Json -Depth 3
+        $tmpManifest   = [IO.Path]::GetTempFileName()
+        try {
+            [IO.File]::WriteAllText($tmpManifest, $manifestJson, [Text.Encoding]::UTF8)
+            az storage file upload `
+                --share-name  $shareName `
+                --source      $tmpManifest `
+                --path        'seed-manifest.json' `
+                --account-name $storageAcct `
+                --account-key  $storageKey `
+                --output none
+            $embSize = if ($manifestFiles['taxonomy/Origin/embeddings.json']) {
+                [math]::Round($manifestFiles['taxonomy/Origin/embeddings.json'].size_bytes / 1MB, 1)
+            } else { '?' }
+            Write-OK "Seed manifest written (embeddings.json: $embSize MB)"
+        } finally {
+            Remove-Item $tmpManifest -Force -ErrorAction SilentlyContinue
+        }
+
         Write-OK 'Data seeded successfully'
     }
     finally {
