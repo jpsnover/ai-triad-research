@@ -496,6 +496,24 @@ jobs:
             Add-Content -Path $env:GITHUB_OUTPUT -Value 'accepted=true'
           }
 
+      - name: Warm-gate observe (/readyz) — OBSERVE-ONLY, does not gate (t/3114, t/2683)
+        id: warm_gate
+        if: steps.health_check.outputs.healthy == 'true'
+        shell: pwsh
+        run: |
+          # t/3114 OBSERVE-ONLY (Gate Promotion t/2683, real-env-first): compute + LOG whether the
+          # new revision's embeddings.json vector-cache is warm (/readyz 200) BEFORE traffic shifts,
+          # but do NOT gate — this step is intentionally absent from every success/rollback
+          # if-condition. It validates real-env warm detection (FQDN resolves, real 503->200, no
+          # false timeout) on >=1 real deploy; a follow-up flip PR then wires it as the peer-blocking
+          # gate (require warm==true to shift; rollback on warm==false) — that wiring is already GV'd
+          # offline (t/3114#3). -ObserveOnly => a warm timeout logs ::warning:: and exits 0 (never
+          # blocks). The printed /readyz body lets us confirm the real 200 is {status:ready}, not the
+          # SPA index.html fallback (ServerAPI p/542#74); the flip couples a body-shape check.
+          $BaseUrl = "${{ steps.health_check.outputs.base_url }}"
+          & ./operations/devops/Invoke-ReadyzWarmGateCheck.ps1 -BaseUrl $BaseUrl -TimeoutSec 300 -PollIntervalSec 10 -ObserveOnly
+          Write-Host "warm-gate observe: /readyz probe complete (observe-only, non-gating)."
+
       - name: Shift traffic to new revision
         if: steps.health_check.outputs.healthy == 'true' && steps.acceptance.outputs.accepted == 'true' && steps.persona.outputs.accepted == 'true'
         shell: pwsh
