@@ -91,8 +91,16 @@ function Invoke-TaxEditorSmokeTest {
         [switch]$AssertDataPresence,
 
         # t/3088 — wall-time ceiling (seconds) for the embedding-latency perf probe.
-        # The cache-hit path is well under 1s post-t/3085; a regressed cache re-embeds
-        # in-process at 25-48s/chunk. Over this ceiling the probe reports `degraded`.
+        # Calibrated against real prod post-t/3085 numbers (Diagnostics verify, deploy-64c7772):
+        #   cache-HIT embeddings.compute is <200ms server-side (1ms pure hit / 183ms warm max
+        #   incl. ~4 genuine dynamic-text misses); a regressed cache-MISS runs 24-56s (some
+        #   500-ing at the 50s ONNX-init timeout) — a ~130x gap.
+        # 2s = ~11x headroom over the warm max (safe for client-side network variance and the
+        # thin n=2 sample) and ~12x below the miss floor, so it catches the regression with
+        # margin without false-warning on normal jitter. Deliberately NOT set below ~1s: a
+        # request landing on a cold revision before prewarm completes transiently recomputes
+        # (the 24-56s spikes; t/3112 /readyz will gate this), so the category stays WARN-FIRST
+        # (excluded from OverallPass) — a breach is a monitoring signal, not a hard failure.
         [Parameter()]
         [ValidateRange(0.1, 60)]
         [double]$EmbeddingCeilingSec = 2
