@@ -4,31 +4,38 @@
 
 <#
 .SYNOPSIS
-    Post-deploy gate: verify the Azure Files share is seeded with fresh, full-size data.
+    Post-deploy gate (warn-only): verify the Azure Files share is seeded with data current
+    to the data-repo canonical. Catches silent seed-lag (t/3090 pattern).
 .DESCRIPTION
     Reads seed-manifest.json from the share root (written by deploy.ps1 -SeedData).
-    Fails if:
-      - manifest is missing (share never seeded or seeded before t/3091 fix)
-      - any asserted file is absent from the share
-      - any asserted file is undersized vs the manifest (>10% shrinkage — stale/truncated)
-      - seeded_at age exceeds -MaxAgeDays (silent lag detection; catches the t/3090 pattern)
+    Uses the GitHub Git Trees API to fetch the current canonical blob sha for each asserted
+    file — no 1 MB content limit, just metadata. Compares canonical sha vs seeded sha to
+    detect seed-lag (data repo advanced since seed). Also checks share file size vs seeded
+    size for upload truncation (independent failure class).
 
-    Requires the calling identity to have Storage File Data SMB Share Reader role on
-    the storage account, or pass -StorageKey for key-based auth.
+    seeded_at is kept as diagnostic metadata in the warning message; it is NOT a gate condition
+    (age is the wrong signal — sha divergence is). (t/3091 design: e/126#4)
 
-    GV FIRE arm:  delete seed-manifest.json OR upload a stale/undersized manifest → gate fires.
-    GV CLEAN arm: present, fresh, correctly-sized manifest → passes silently, zero noise.
+    WARN-ONLY phase: wired with continue-on-error: true in deploy-azure.yml until ≥1 green
+    cycle confirmed against the real share. Flip-to-blocking is a separate Gate-Promotion PR.
+
+    GV FIRE arm:  data repo advances past seed (sha mismatch) OR share file undersized → warns.
+    GV CLEAN arm: seed current, share full-size → passes silently, zero output.
 #>
 [CmdletBinding()]
 param(
     [Parameter(Mandatory)] [string] $StorageAccount,
-    [string] $ShareName  = 'taxonomy-data',
-    [int]    $MaxAgeDays = 180,
-    [string] $StorageKey = ''
+    [Parameter(Mandatory)] [string] $GitHubToken,
+    [string] $ShareName    = 'taxonomy-data',
+    [string] $DataRepo     = 'jpsnover/ai-triad-data',
+    [string] $StorageKey   = ''
 )
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
+
+# Load pure predicate (dot-sourceable; no I/O)
+. (Join-Path $PSScriptRoot 'ShareFreshnessPredicate.ps1')
 
 $authArgs = if ($StorageKey) { @('--account-key', $StorageKey) }
             else             { @('--auth-mode', 'login') }
@@ -46,71 +53,66 @@ try {
     if ($LASTEXITCODE -ne 0) {
         $errText = ($dlOut | Out-String).Trim()
         if ($errText -match 'ResourceNotFound|does not exist|The specified resource does not exist') {
-            Write-Host ("::error::Share freshness gate FAIL: seed-manifest.json not found on " +
-                "share '$ShareName' (account=$StorageAccount). " +
-                "Run deploy.ps1 -SeedData to seed the share. (t/3091)")
+            Write-Host ("::warning::Share freshness: seed-manifest.json not found on share '$ShareName' " +
+                "(account=$StorageAccount). Run deploy.ps1 -SeedData to seed the share and write the manifest. (t/3091)")
         } else {
-            Write-Host "::error::Share freshness gate FAIL: could not read seed-manifest.json — $errText (t/3091)"
+            Write-Host "::warning::Share freshness: could not read seed-manifest.json — $errText (t/3091)"
         }
-        throw "Share freshness gate failed — manifest missing or inaccessible"
+        return  # warn-only: do not exit 1
     }
 
-    $manifest = Get-Content $tmp -Raw | ConvertFrom-Json
+    $manifest  = Get-Content $tmp -Raw | ConvertFrom-Json
+    $seededAt  = $manifest.seeded_at
 
-    # ── Check seeded_at age ──────────────────────────────────────────────────
-    $seededAt = [DateTimeOffset]::Parse($manifest.seeded_at)
-    $ageDays  = ([DateTimeOffset]::UtcNow - $seededAt).TotalDays
-    if ($ageDays -gt $MaxAgeDays) {
-        Write-Host ("::error::Share freshness gate FAIL: share data is {0:F0} days old " +
-            "(seeded_at={1}, threshold={2} days). Re-run deploy.ps1 -SeedData. (t/3091)") `
-            -f $ageDays, $manifest.seeded_at, $MaxAgeDays
-        throw "Share freshness gate failed — data stale ($([math]::Round($ageDays,0)) days > $MaxAgeDays)"
+    # ── Fetch canonical tree from GitHub Git Trees API ───────────────────────
+    $headers   = @{
+        Authorization        = "Bearer $GitHubToken"
+        'X-GitHub-Api-Version' = '2022-11-28'
+        Accept               = 'application/vnd.github+json'
     }
-    Write-Host "  [OK] seeded_at=$($manifest.seeded_at) ($([math]::Round($ageDays,1)) days ago)"
+    $treeUrl   = "https://api.github.com/repos/$DataRepo/git/trees/HEAD?recursive=1"
+    $treeResp  = Invoke-RestMethod -Uri $treeUrl -Headers $headers -ErrorAction Stop
+    $treeEntries = @($treeResp.tree)
 
-    # ── Check each asserted file against the manifest ────────────────────────
-    $failed = @()
-    foreach ($entry in $manifest.files.PSObject.Properties) {
-        $filePath      = $entry.Name
-        $expectedBytes = [long]$entry.Value.size_bytes
-        $minBytes      = [long][math]::Floor($expectedBytes * 0.9)  # 10% tolerance
-
-        $showRaw = az storage file show `
+    # ── Collect share file sizes ─────────────────────────────────────────────
+    $shareFileSizes = @{}
+    foreach ($prop in $manifest.files.PSObject.Properties) {
+        $filePath = $prop.Name
+        $showRaw  = az storage file show `
             --account-name $StorageAccount `
             --share-name   $ShareName `
             --path         $filePath `
             @authArgs `
             --output json 2>&1
-        if ($LASTEXITCODE -ne 0) {
-            Write-Host ("::error::  [$filePath] MISSING from share " +
-                "(expected ~$([math]::Round($expectedBytes/1MB,1)) MB). (t/3091)")
-            $failed += $filePath
-            continue
+        if ($LASTEXITCODE -eq 0) {
+            $info        = ($showRaw | Out-String) | ConvertFrom-Json
+            $props2      = $info.properties
+            $actualBytes = if ($null -ne $info.contentLength)         { [long]$info.contentLength }
+                           elseif ($null -ne $props2 -and
+                                   $null -ne $props2.contentLength)   { [long]$props2.contentLength }
+                           else                                       { 0L }
+            $shareFileSizes[$filePath] = $actualBytes
         }
-        $fileInfo    = ($showRaw | Out-String) | ConvertFrom-Json
-        # az storage file show places size at .contentLength or .properties.contentLength
-        $props       = $fileInfo.properties
-        $actualBytes = if ($null -ne $fileInfo.contentLength)             { [long]$fileInfo.contentLength }
-                       elseif ($null -ne $props -and
-                               $null -ne $props.contentLength)            { [long]$props.contentLength }
-                       else                                               { 0L }
-
-        if ($actualBytes -lt $minBytes) {
-            Write-Host ("::error::  [{0}] UNDERSIZED: {1:F1} MB on share, " +
-                "expected >= {2:F1} MB (manifest={3:F1} MB). Share may be stale or truncated. (t/3091)") `
-                -f $filePath, ($actualBytes/1MB), ($minBytes/1MB), ($expectedBytes/1MB)
-            $failed += $filePath
-        } else {
-            Write-Host "  [OK] $filePath — $([math]::Round($actualBytes/1MB,1)) MB"
-        }
+        # If show fails (file missing), leave it absent from hashtable — predicate handles it
     }
 
-    if ($failed.Count -gt 0) {
-        throw "Share freshness gate failed — $($failed.Count) file(s) missing or undersized: $($failed -join ', ')"
-    }
+    # ── Run pure predicate ───────────────────────────────────────────────────
+    $result = Test-ShareManifestPredicate `
+        -Manifest       $manifest `
+        -CanonicalTree  $treeEntries `
+        -ShareFileSizes $shareFileSizes
 
-    $fileCount = @($manifest.files.PSObject.Properties).Count
-    Write-Host "Share freshness gate passed: manifest valid, $fileCount file(s) verified. (t/3091)"
+    if (-not $result.Pass) {
+        foreach ($reason in $result.Reasons) {
+            Write-Host ("::warning::Share freshness [seeded=$seededAt, account=$StorageAccount]: $reason (t/3091)")
+        }
+        Write-Host ("::warning::Share data may be stale — re-run deploy.ps1 -SeedData if the above is unexpected. " +
+            "This gate is warn-only pending promotion GV. (t/3091)")
+    } else {
+        # CLEAN: silent pass — zero noise per GV requirement
+        $fileCount = @($manifest.files.PSObject.Properties).Count
+        Write-Host "Share freshness gate passed: $fileCount file(s) current to canonical. (t/3091)"
+    }
 
 } finally {
     Remove-Item $tmp -Force -ErrorAction SilentlyContinue

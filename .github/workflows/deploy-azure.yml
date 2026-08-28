@@ -347,14 +347,17 @@ jobs:
           ./operations/devops/Invoke-BlobContainerGateCheck.ps1 `
             -StorageAccount '${{ steps.deploy.outputs.storageAccountName }}'
 
-      # Asserts seed-manifest.json exists on the share, seeded_at within 180 days,
-      # and key data files (embeddings.json) within 10% of their seeded size.
-      # Catches the silent lag pattern from t/3090 (share 3.5 months stale). (t/3091)
-      - name: Verify share data freshness
+      # Warn-only: compares share data against the data-repo canonical blob sha via
+      # GitHub Git Trees API. Catches seed-lag (t/3090 pattern — share stale relative
+      # to data repo). Flip to blocking is a separate Gate-Promotion PR after ≥1 green
+      # cycle on the real share. (t/3091)
+      - name: Verify share data freshness (warn-only — t/3091)
         shell: pwsh
+        continue-on-error: true
         run: |
           ./operations/devops/Invoke-ShareFreshnessGateCheck.ps1 `
-            -StorageAccount '${{ steps.deploy.outputs.storageAccountName }}'
+            -StorageAccount '${{ steps.deploy.outputs.storageAccountName }}' `
+            -GitHubToken    '${{ github.token }}'
 
       - name: Cleanup stale revisions
         shell: pwsh

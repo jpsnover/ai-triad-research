@@ -254,19 +254,30 @@ if ($SeedData) {
             --output none
 
         # Write seed manifest to share for the freshness gate (t/3091).
-        # Records embedded file sizes + seed timestamp so Invoke-ShareFreshnessGateCheck.ps1
-        # can detect absence, truncation, and silent lag without re-downloading the data.
+        # Records data-repo commit SHA + per-file blob_sha (canonical freshness signal) and
+        # size_bytes (upload truncation guard). The gate compares blob_sha against the data
+        # repo's current canonical tree — not self-referential. (Design: e/126#4)
         Write-OK 'Writing seed manifest...'
+        $dataRepoCommit = (git -C $tempDir rev-parse HEAD 2>$null).Trim()
         $manifestFiles  = [ordered]@{}
         $assertedPaths  = @('taxonomy/Origin/embeddings.json')
         foreach ($rel in $assertedPaths) {
             $localPath = Join-Path $tempDir ($rel -replace '/', [IO.Path]::DirectorySeparatorChar)
             if (Test-Path $localPath) {
-                $manifestFiles[$rel] = @{ size_bytes = (Get-Item $localPath).Length }
+                # git ls-tree output: "<mode> blob <sha>\t<path>"
+                $lsLine   = git -C $tempDir ls-tree HEAD -- $rel 2>$null
+                $blobSha  = if ($lsLine) { ($lsLine -split '\s+')[2] } else { '' }
+                $manifestFiles[$rel] = [ordered]@{
+                    size_bytes = (Get-Item $localPath).Length
+                    blob_sha   = $blobSha
+                }
             }
         }
-        $manifestJson  = [ordered]@{ seeded_at = [DateTimeOffset]::UtcNow.ToString('o'); files = $manifestFiles } |
-                         ConvertTo-Json -Depth 3
+        $manifestJson  = ([ordered]@{
+            seeded_at        = [DateTimeOffset]::UtcNow.ToString('o')
+            data_repo_commit = $dataRepoCommit
+            files            = $manifestFiles
+        }) | ConvertTo-Json -Depth 3
         $tmpManifest   = [IO.Path]::GetTempFileName()
         try {
             [IO.File]::WriteAllText($tmpManifest, $manifestJson, [Text.Encoding]::UTF8)
