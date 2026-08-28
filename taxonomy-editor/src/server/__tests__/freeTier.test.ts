@@ -15,19 +15,26 @@ import { checkRate } from '../security/rateLimiter.js';
 describe('free-tier RPM scales with key-pool size (t/906)', () => {
   afterEach(() => { delete process.env.FREE_TIER_GEMINI_KEY; });
 
-  it('scaledFreeTierRpm = 6 per key, capped at 30 (AC#1, #3)', () => {
-    expect(scaledFreeTierRpm(1)).toBe(6);
-    expect(scaledFreeTierRpm(2)).toBe(12);
+  // t/3104: FREE_TIER_RPM_PER_KEY raised 6→24 so one key clears a debate's T≈20
+  // opening burst. The 30 hard cap is untouched, so 2+ keys now saturate at 30.
+  it('scaledFreeTierRpm = 24 per key, capped at 30 (AC#1, #3; t/3104)', () => {
+    expect(scaledFreeTierRpm(1)).toBe(24);
+    expect(scaledFreeTierRpm(2)).toBe(30); // 24×2=48 → capped at 30
     expect(scaledFreeTierRpm(5)).toBe(30);
     expect(scaledFreeTierRpm(6)).toBe(30); // capped
     expect(scaledFreeTierRpm(0)).toBe(0);
   });
 
+  it('one key clears a debate opening burst (T≈20 ≤ 24 = scaledFreeTierRpm(1)) (t/3104)', () => {
+    // The bug: at 6 RPM a single debate (~20 generate/min) self-throttled mid-openings.
+    expect(scaledFreeTierRpm(1)).toBeGreaterThanOrEqual(24);
+  });
+
   it('resolveTier applies the scaled RPM for keyless free-tier users', () => {
     process.env.FREE_TIER_GEMINI_KEY = 'k1,k2';
-    expect(resolveTier('', 'github').limits.requestsPerMinute).toBe(12);
+    expect(resolveTier('', 'github').limits.requestsPerMinute).toBe(30); // 24×2 → capped
     process.env.FREE_TIER_GEMINI_KEY = 'k1';
-    expect(resolveTier('', 'github').limits.requestsPerMinute).toBe(6);
+    expect(resolveTier('', 'github').limits.requestsPerMinute).toBe(24);
     process.env.FREE_TIER_GEMINI_KEY = 'k1,k2,k3,k4,k5,k6,k7';
     expect(resolveTier('', 'github').limits.requestsPerMinute).toBe(30); // capped
   });
@@ -69,7 +76,7 @@ describe('free tier (t/793)', () => {
     expect(tier.pinnedModel).toBe('gemini-3.5-flash-lite'); // = DEFAULT_MODEL (t/2687)
     // t/812: no per-prompt char cap — cost is bounded by tokensPerDay + per-IP RPM.
     expect(tier.maxPromptChars).toBeUndefined();
-    expect(tier.limits).toEqual({ requestsPerMinute: 6, tokensPerDay: 500_000 });
+    expect(tier.limits).toEqual({ requestsPerMinute: 24, tokensPerDay: 500_000 }); // t/3104: 6→24 (single-key debate burst)
     expect(tier.allowedBackends).toEqual(['gemini']);
   });
 
@@ -143,7 +150,7 @@ describe('t/3061 — embed:<ip> bucket is independent of free:<ip> (fix arm)', (
     const ip = embedIp();
     const freeKey = `free:${ip}`;
     const embedKey = `embed:${ip}`;
-    const apiRpm = 6; // matches scaledFreeTierRpm(1) — the generate gate limit
+    const apiRpm = 6; // arbitrary small bucket limit — this test asserts bucket independence, not the RPM value (scaledFreeTierRpm(1) is 24 since t/3104)
 
     // Exhaust the generate API bucket (free:<ip>).
     for (let i = 0; i < apiRpm; i++) {
