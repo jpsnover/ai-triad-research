@@ -7,8 +7,8 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import type { IncomingMessage, ServerResponse } from 'http';
 
-const { readFileSyncMock, writeFileSyncMock, mkdirSyncMock, recordMock, getStorageUserIdMock, resolveDataPathMock } = vi.hoisted(() => ({
-  readFileSyncMock: vi.fn(),
+const { readDataFileMock, writeFileSyncMock, mkdirSyncMock, recordMock, getStorageUserIdMock, resolveDataPathMock } = vi.hoisted(() => ({
+  readDataFileMock: vi.fn<[string, unknown?], Promise<Buffer>>(),
   writeFileSyncMock: vi.fn(),
   mkdirSyncMock: vi.fn(),
   recordMock: vi.fn(),
@@ -16,7 +16,8 @@ const { readFileSyncMock, writeFileSyncMock, mkdirSyncMock, recordMock, getStora
   resolveDataPathMock: vi.fn((p: string) => `/data/${p}`),
 }));
 
-vi.mock('fs', () => ({ default: { readFileSync: readFileSyncMock, writeFileSync: writeFileSyncMock, mkdirSync: mkdirSyncMock } }));
+vi.mock('../storage/readDataFile.js', () => ({ readDataFile: readDataFileMock }));
+vi.mock('fs', () => ({ default: { writeFileSync: writeFileSyncMock, mkdirSync: mkdirSyncMock } }));
 vi.mock('../../../../lib/flight-recorder/index.js', () => ({ getGlobalRecorder: () => ({ record: recordMock }) }));
 vi.mock('../security/userContext.js', () => ({ getStorageUserId: getStorageUserIdMock }));
 vi.mock('../config.js', () => ({ resolveDataPath: resolveDataPathMock }));
@@ -62,17 +63,17 @@ async function invokePut(body: unknown): Promise<{ status: number }> {
 }
 
 describe('GET /api/preferences (t/2119)', () => {
-  beforeEach(() => { readFileSyncMock.mockReset(); recordMock.mockReset(); });
+  beforeEach(() => { readDataFileMock.mockReset(); recordMock.mockReset(); });
 
   it('returns null when no prefs file exists (ENOENT)', async () => {
-    readFileSyncMock.mockImplementation(() => { throw Object.assign(new Error('ENOENT'), { code: 'ENOENT' }); });
+    readDataFileMock.mockRejectedValue(new Error('ENOENT'));
     const { status, body } = await invokeGet();
     expect(status).toBe(200);
     expect(body).toBeNull();
   });
 
   it('returns stored prefs when file exists', async () => {
-    readFileSyncMock.mockReturnValue(JSON.stringify({ viewMode: 'advanced' }));
+    readDataFileMock.mockResolvedValue(Buffer.from(JSON.stringify({ viewMode: 'advanced' }), 'utf8'));
     const { status, body } = await invokeGet();
     expect(status).toBe(200);
     expect(body).toEqual({ viewMode: 'advanced' });
