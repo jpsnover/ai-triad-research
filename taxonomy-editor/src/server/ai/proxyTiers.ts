@@ -184,8 +184,14 @@ export function byokGeminiFallbackKey(
   return freeKeys.length === 1 ? freeKeys[0] : freeKeys;
 }
 
-/** Per-Gemini-key free-tier RPM — single source of truth (also used by keyRotator.ts). */
-export const FREE_TIER_RPM_PER_KEY = 6;
+/** Per-Gemini-key free-tier RPM — single source of truth (also used by keyRotator.ts).
+ * t/3104: raised 6→24. A single debate's opening burst peaks at T≈20 generate/min
+ * (title + topic-critique + 3 openings + inline verify + search); at 6 RPM one debate
+ * self-throttled mid-openings with a front-door per_ip_rpm 429. 24 ≈ 1.2·T (demand
+ * margin) and sits far under the key project's upstream ceiling (Tier-2 = 10,000 RPM,
+ * so 0.8·P ≈ 8,000 — no upstream-429 risk). Per-IP daily cost stays bounded by the
+ * unchanged tokensPerDay budget; this only widens the per-minute burst, not daily spend. */
+export const FREE_TIER_RPM_PER_KEY = 24;
 
 /**
  * Per-IP RPM for LOCAL embedding + NLI ops (ONNX / Python encoder — zero Gemini quota).
