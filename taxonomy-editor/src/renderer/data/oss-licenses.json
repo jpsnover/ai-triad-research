@@ -357,7 +357,7 @@
     },
     {
       "name": "@types/node",
-      "version": "18.19.130",
+      "version": "22.20.1",
       "license": "MIT"
     },
     {
@@ -1252,7 +1252,7 @@
     },
     {
       "name": "pptxgenjs",
-      "version": "3.12.0",
+      "version": "4.0.1",
       "license": "MIT"
     },
     {
@@ -1517,7 +1517,7 @@
     },
     {
       "name": "undici-types",
-      "version": "5.26.5",
+      "version": "6.21.0",
       "license": "MIT"
     },
     {
@@ -1964,10 +1964,6 @@
         {
           "name": "onnxruntime-web",
           "version": "1.26.0-dev.20260416-b7804b056c"
-        },
-        {
-          "name": "undici-types",
-          "version": "5.26.5"
         }
       ],
       "licenseType": "MIT",
@@ -2053,7 +2049,7 @@
         },
         {
           "name": "@types/node",
-          "version": "18.19.130"
+          "version": "22.20.1"
         },
         {
           "name": "@types/node",
@@ -3271,7 +3267,7 @@
       "packages": [
         {
           "name": "pptxgenjs",
-          "version": "3.12.0"
+          "version": "4.0.1"
         }
       ],
       "licenseType": "MIT",
@@ -3595,6 +3591,10 @@
     },
     {
       "packages": [
+        {
+          "name": "undici-types",
+          "version": "6.21.0"
+        },
         {
           "name": "undici-types",
           "version": "8.3.0"
