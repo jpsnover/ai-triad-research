@@ -31,33 +31,25 @@ updates:
       - dependency-name: undici
         update-types: [version-update:semver-major]
 
-  - package-ecosystem: npm
-    directory: /workflow-app
-    schedule:
-      interval: weekly
-    groups:
-      minor-and-patch:
-        update-types: [minor, patch]
-    open-pull-requests-limit: 2
-
-  - package-ecosystem: npm
-    directory: /poviewer
-    schedule:
-      interval: weekly
-    groups:
-      minor-and-patch:
-        update-types: [minor, patch]
-    open-pull-requests-limit: 2
-
-  - package-ecosystem: npm
-    directory: /summary-viewer
-    schedule:
-      interval: weekly
-    groups:
-      minor-and-patch:
-        update-types: [minor, patch]
-    open-pull-requests-limit: 2
-
+  # ── npm workspace ROOT — owns the pnpm workspace's lockfile-less members ──
+  # poviewer / summary-viewer / workflow-app / lib are pnpm-WORKSPACE members
+  # (pnpm-workspace.yaml) with NO in-dir lockfile — they share the ONE root
+  # pnpm-lock.yaml. A per-app `directory:` entry bumps only that member's
+  # package.json and can't reach the root lockfile, so `pnpm install
+  # --frozen-lockfile` reds with ERR_PNPM_OUTDATED_LOCKFILE before build/test
+  # ever runs (t/3116; surfaced by electron 43→44 #1645/#1648/#1649). A single
+  # workspace ROOT entry updates member manifests + the shared root lockfile in
+  # the SAME PR, so frozen-install stays green. Do NOT re-add per-app entries
+  # for these four members.
+  #
+  # taxonomy-editor + lib/debate are ALSO workspace members but keep their own
+  # entries (above/below): each carries an in-dir STANDALONE lockfile (Docker /
+  # isolated build, synced via scripts/sync-standalone-lockfile.mjs +
+  # lockfile-overrides-check, t/2188) that Dependabot updates correctly per
+  # directory. WATCH-ITEM (t/3116): confirm the first post-merge Dependabot
+  # cycle does not ALSO emit workspace-root PRs for those two (double-manage);
+  # if it does, add per-dependency ignores here. Fallback if root-lockfile
+  # regen proves unreliable: a lockfile-heal step on member PRs (t/3116 opt B).
   - package-ecosystem: npm
     directory: /
     schedule:
@@ -65,16 +57,7 @@ updates:
     groups:
       minor-and-patch:
         update-types: [minor, patch]
-    open-pull-requests-limit: 2
-
-  - package-ecosystem: npm
-    directory: /lib
-    schedule:
-      interval: weekly
-    groups:
-      minor-and-patch:
-        update-types: [minor, patch]
-    open-pull-requests-limit: 2
+    open-pull-requests-limit: 4
 
   - package-ecosystem: npm
     directory: /lib/debate
