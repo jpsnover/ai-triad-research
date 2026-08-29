@@ -138,7 +138,7 @@ RUN --mount=type=cache,target=/root/.local/share/pnpm/store pnpm install --prod 
 # root cause was t/2061 (isDataAvailable path mismatch, app-side). Bumped to :2026-08-15 for
 # Debian 13 Trixie upgrade + .trivyignore cleanup (t/2681).
 # Gate base bumps on staging /healthz, not CI green.
-FROM ghcr.io/jpsnover/ai-triad-base:2026-08-15@sha256:60a955b4523340536e9ed3e20a737304b58b56fe3a150fe643fb61699a58ca63 AS runtime
+FROM ghcr.io/jpsnover/ai-triad-base:2026-08-24@sha256:5411f603a80b1f752d95e4430f03fe8c1607d5ed2cd2e9044fdbf33e0eebe358 AS runtime
 
 LABEL org.opencontainers.image.source="https://github.com/jpsnover/ai-triad-research"
 LABEL org.opencontainers.image.description="AI Triad Taxonomy Editor"
