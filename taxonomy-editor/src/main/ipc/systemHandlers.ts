@@ -42,7 +42,10 @@ export function registerSystemHandlers(): void {
 
   // Clipboard (Electron 40: renderer clipboard API deprecated → use main process)
   ipcMain.handle('clipboard-write-text', (_event, text: string) => {
-    clipboard.writeText(text);
+    // Fire-and-forget: Electron 44 types clipboard.writeText as a Promise; a copy-to-clipboard
+    // has no meaningful completion value for the caller, so void it (mirrors `void shell.openPath`
+    // above). Handler contract stays void — no behavioural change (t/electron-44 bump #1652).
+    void clipboard.writeText(text);
   });
 
   // PowerShell prompt file reader (for Prompt Inspector)
