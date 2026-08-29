@@ -109,7 +109,11 @@ export default tseslint.config(
   },
   // ── Block A-dataroot: data-root read gate (t/3093 / t/3087) ──
   // Flags a raw fs read whose path traces to a data-root resolver (the t/3085 migration-remnant
-  // class). Ships as `warn` first; TL promotes to `error` after >=1 green CI cycle.
+  // class). Promoted warn->error after >=1 green CI cycle since #1633 (TL GV p/336#231, promotion
+  // p/392#21; flip t/3113).
+  // exit-2 = ESLint unmatched-pattern on explicit file targets; lint by DIRECTORY (`eslint src/`) —
+  // a directory target never yields the No-files-matching exit-2, so this error-level gate is
+  // deterministic (t/3109).
   // tripwire: green != verified — a new hit is a true positive; silence it only with an inline
   // eslint-disable + TL-approved rationale at the call site, never by baselining here.
   {
@@ -120,7 +124,7 @@ export default tseslint.config(
       'src/server/config.ts',    // defines the resolver functions themselves
     ],
     rules: {
-      'local/no-raw-data-root-read': 'warn',
+      'local/no-raw-data-root-read': 'error',
     },
   },
   // ── Block B: LOC budget for test source (syntactic parse; tests are outside the
