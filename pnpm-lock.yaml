@@ -335,8 +335,8 @@ importers:
         specifier: ^18.2.0
         version: 18.2.0
       electron:
-        specifier: ^43.4.1
-        version: 43.4.1(supports-color@10.2.2)
+        specifier: ^44.0.0
+        version: 44.0.0(supports-color@10.2.2)
       electron-builder:
         specifier: ^26.15.3
         version: 26.15.3(electron-builder-squirrel-windows@26.15.3)(supports-color@10.2.2)
