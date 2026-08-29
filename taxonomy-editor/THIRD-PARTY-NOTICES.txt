@@ -856,7 +856,6 @@ The following npm packages may be included in this product:
  - onnxruntime-node@1.24.3
  - onnxruntime-node@1.27.0
  - onnxruntime-web@1.26.0-dev.20260416-b7804b056c
- - undici-types@5.26.5
 
 These packages each contain the following license:
 
@@ -945,7 +944,7 @@ The following npm packages may be included in this product:
  - @types/hast@3.0.5
  - @types/mdast@4.0.4
  - @types/ms@2.1.0
- - @types/node@18.19.130
+ - @types/node@22.20.1
  - @types/node@26.2.0
  - @types/react@19.2.18
  - @types/unist@2.0.11
@@ -4227,7 +4226,7 @@ THE SOFTWARE.
 
 The following npm package may be included in this product:
 
- - pptxgenjs@3.12.0
+ - pptxgenjs@4.0.1
 
 This package contains the following license:
 
@@ -5259,6 +5258,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 The following npm packages may be included in this product:
 
+ - undici-types@6.21.0
  - undici-types@8.3.0
  - undici@6.28.0
 
