@@ -222,6 +222,19 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     && apt-get update \
     && apt-get install -y --no-install-recommends powershell
 
+# 8. Strip global npm from the runtime image (t/3135). npm is NOT reachable at
+# runtime — CMD is a direct `node`; npm/pnpm are used only in the discarded
+# builder/prod-deps stages; the web console spawns pwsh (not npm); there is no
+# start-time npm script. Removing it deletes the entire npm-bundled-dep CVE class
+# (e.g. tar CVE-2026-73566 under .../node_modules/npm/node_modules/tar) from the
+# deployed image in one shot. The `command -v npm` guard fails the build loudly if
+# a future base layout leaves npm behind, so the strip can't silently regress.
+RUN rm -rf /usr/local/lib/node_modules/npm \
+           /usr/local/bin/npm \
+           /usr/local/bin/npx \
+    && if command -v npm >/dev/null 2>&1; then echo "[t/3135] ERROR: npm still on PATH after strip" && exit 1; fi \
+    && echo "[t/3135] npm/npx stripped from runtime image"
+
 USER aitriad
 
 EXPOSE 7862
