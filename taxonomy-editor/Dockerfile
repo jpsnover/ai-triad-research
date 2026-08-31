@@ -137,8 +137,11 @@ RUN --mount=type=cache,target=/root/.local/share/pnpm/store pnpm install --prod 
 # (deploy-staging.yml Test-TaxEditorHealth /healthz). :2026-07-30 was exonerated in t/2047 —
 # root cause was t/2061 (isDataAvailable path mismatch, app-side). Bumped to :2026-08-15 for
 # Debian 13 Trixie upgrade + .trivyignore cleanup (t/2681).
+# Bumped to :2026-08-31 for the cache-bust security rebuild (t/3137) — the base now
+# genuinely re-runs apt/npm upgrades: openssl 3.5.7-1~deb13u2 (CVE-2026-14456) and
+# npm's bundled tar 7.5.21 (CVE-2026-73566), both proven by the base build tripwires.
 # Gate base bumps on staging /healthz, not CI green.
-FROM ghcr.io/jpsnover/ai-triad-base:2026-08-24@sha256:5411f603a80b1f752d95e4430f03fe8c1607d5ed2cd2e9044fdbf33e0eebe358 AS runtime
+FROM ghcr.io/jpsnover/ai-triad-base:2026-08-31@sha256:8dc5517233bb06d1e6e863fa16b531b3508a5831941a49f3d59c9488ac6e6a09 AS runtime
 
 LABEL org.opencontainers.image.source="https://github.com/jpsnover/ai-triad-research"
 LABEL org.opencontainers.image.description="AI Triad Taxonomy Editor"
