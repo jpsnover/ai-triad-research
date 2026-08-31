@@ -266,10 +266,10 @@ function Import-Entity {
             # EntityVectorRecord type) fingerprints the EXACT embedded source so a re-import and
             # Update-EntityEmbeddings (t/3121 D) can skip unchanged records idempotently
             # (staleness guard, t/3085 class). Hash over the same text the writer embeds.
-            $aliasText = @($rec.aliases) -join ' '
-            $nameText  = if ($aliasText) { "$($rec.name) $aliasText" } else { [string]$rec.name }
-            $descText  = [string]$rec.description
-            $srcHash   = Get-TextSha256 -Text "$nameText`n$descText"
+            # Get-EntityVectorSource is the SHARED source-text + fingerprint builder (also used by
+            # Update-EntityEmbeddings) so both writers compute a byte-identical `_src_hash`.
+            $src      = Get-EntityVectorSource -Name ([string]$rec.name) -Aliases @($rec.aliases) -Description ([string]$rec.description)
+            $srcHash  = $src.SrcHash
 
             $priorHash = if ($embStore.PSObject.Properties['_src_hashes'] -and $embStore._src_hashes.PSObject.Properties[$newId]) { [string]$embStore._src_hashes.$newId } else { '' }
             $hasV2Rec  = $embStore.PSObject.Properties['vectors'] -and $embStore.vectors.PSObject.Properties[$newId] -and ($embStore.vectors.$newId -isnot [array])
@@ -279,14 +279,12 @@ function Import-Entity {
             }
             else {
                 $subIds   = @("$newId#name")
-                $subTexts = @($nameText)
-                if ($descText) { $subIds += "$newId#desc"; $subTexts += $descText }
+                $subTexts = @($src.NameText)
+                if ($src.DescText) { $subIds += "$newId#desc"; $subTexts += $src.DescText }
                 $vecMap = Get-TextEmbedding -Texts $subTexts -Ids $subIds
                 if ($vecMap -and $vecMap.ContainsKey("$newId#name")) {
-                    $vrec = [PSCustomObject]@{ name_vector = @($vecMap["$newId#name"]) }
-                    if ($descText -and $vecMap.ContainsKey("$newId#desc")) {
-                        Add-Member -InputObject $vrec -MemberType NoteProperty -Name 'description_vector' -Value (@($vecMap["$newId#desc"]))
-                    }
+                    $descVec = if ($src.DescText -and $vecMap.ContainsKey("$newId#desc")) { $vecMap["$newId#desc"] } else { $null }
+                    $vrec = New-EntityVectorRecord -NameVector $vecMap["$newId#name"] -DescriptionVector $descVec
                     if (-not $embStore.PSObject.Properties['vectors']) {
                         Add-Member -InputObject $embStore -MemberType NoteProperty -Name 'vectors' -Value ([PSCustomObject]@{})
                     }
