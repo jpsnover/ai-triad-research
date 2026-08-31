@@ -126,6 +126,7 @@ Get-Help <CmdletName> -Full                     # full docs for any cmdlet
 | `Get-AnalyticsEventTypes` | Read-side analytics check — per-event-type counts from `GET /api/analytics/query` (surfaces instrumentation gaps like `view.dwell: 0`); `-Days`/`-Env prod\|staging` |
 | `Test-GitHubHealth` | GitHub platform + CI status |
 | `Test-AIApiKey` | Probe AI backend auth endpoints (no tokens consumed) — confirm a key is present and accepted before running jobs |
+| `Test-GeminiKeyPool` | Definitive count + per-key validity of the Gemini free-key pool from a key file (AIza + AQ. formats) via the auth-only probe; masked fingerprints only, never raw keys (t/3141) |
 | `Test-AIBackendHealth` | Full completion round-trip probe per backend — use before a debate run to surface degraded/unreachable models (t/2212) |
 | `Test-AIBackendQuota` | Per-backend quota probe — flags quota-exhausted backends (Status='quota') with a best-effort ResetAt; use at session start to catch quota exhaustion before a wall of judge failures (t/3029) |
 | `Test-DebateIndexIntegrity` | Validate debate-*.json field types for UI-crash regressions — catches the object-as-title bug (t/2335) |
