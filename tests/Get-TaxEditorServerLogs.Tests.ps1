@@ -124,6 +124,32 @@ Describe 'Get-TaxEditorServerLogs' -Tag 'diagnostics' {
             $script:capturedQueryArg | Should -Match 'take '                          # take survives (the tell)
             $script:capturedQueryArg | Should -Match "todatetime\('"                  # window bound uses todatetime (valid KQL)
             $script:capturedQueryArg | Should -Not -Match "between \(datetime\('"     # not the quoted-datetime() literal
+            $script:capturedQueryArg | Should -Match 'order by TimeGenerated desc'    # t/3150: cap keeps NEWEST N, not oldest
+        }
+    }
+
+    It 'keeps the newest rows at the cap, re-sorts ascending for display, and warns on cap-hit (t/3150)' {
+        InModuleScope AITriad {
+            $script:TaxEditorLogWorkspaceId = 'ws-guid-abc'
+            Mock Assert-AzCli { }
+            # Query returns rows newest-first (as desc+take yields); scrambled here to prove the cmdlet
+            # re-sorts ascending regardless of input order.
+            $rows = @(
+                @{ TimeGenerated = '2026-08-31T10:00:03Z'; RevisionName_s = 'r'; Log_s = (@{ level = 30; requestId = 'c'; msg = 'newest' } | ConvertTo-Json -Compress) }
+                @{ TimeGenerated = '2026-08-31T10:00:01Z'; RevisionName_s = 'r'; Log_s = (@{ level = 30; requestId = 'a'; msg = 'oldest' } | ConvertTo-Json -Compress) }
+                @{ TimeGenerated = '2026-08-31T10:00:02Z'; RevisionName_s = 'r'; Log_s = (@{ level = 30; requestId = 'b'; msg = 'mid' } | ConvertTo-Json -Compress) }
+            )
+            $queryJson = $rows | ConvertTo-Json -Depth 6
+            Mock Invoke-Az -ParameterFilter { $Arguments -contains 'query' } -MockWith { $queryJson }.GetNewClosure()
+
+            $warn = @()
+            $r = @(Get-TaxEditorServerLogs -Max 3 -WarningVariable warn)   # returned count == -Max → cap-hit
+            $r.Count | Should -Be 3
+            # re-sorted ascending (oldest → newest) regardless of the query's return order
+            $r[0].RequestId | Should -Be 'a'
+            $r[1].RequestId | Should -Be 'b'
+            $r[2].RequestId | Should -Be 'c'
+            ($warn -join ' ') | Should -Match 'Hit the -Max cap'
         }
     }
 

@@ -167,7 +167,11 @@ function Get-TaxEditorServerLogs {
 
         if ($System) { $kql.Add('| project TimeGenerated, Log_s, Type_s, Reason_s, RevisionName_s') }
         else         { $kql.Add('| project TimeGenerated, Log_s, RevisionName_s') }
-        $kql.Add('| order by TimeGenerated asc')
+        # t/3150: order DESC then take, so the cap keeps the NEWEST $Max rows. (asc+take silently
+        # returned the OLDEST $Max and dropped the most recent events — a triage footgun; the
+        # silent-wrong-subset class, same as t/3117.) The set is re-sorted ascending below for
+        # chronological display; the emitted row shape is unchanged.
+        $kql.Add('| order by TimeGenerated desc')
         $kql.Add("| take $Max")
         # t/3117: MUST be a SINGLE LINE (join with space, not newline). The query is passed inline
         # as one `--analytics-query` arg to `& az`; an embedded newline truncates the arg at the
@@ -185,6 +189,14 @@ function Get-TaxEditorServerLogs {
             '--analytics-query', $analyticsQuery,
             '--output', 'json')
         $rows = if ($json) { @($json | ConvertFrom-Json) } else { @() }
+
+        # t/3150: the query returns the NEWEST $Max (desc+take); re-sort ascending for chronological
+        # display (TimeGenerated is ISO-8601 → a lexical sort is chronological). Warn on a cap hit —
+        # older events in the window were dropped; never silently return a wrong subset.
+        $rows = @($rows | Sort-Object { [string]$_.TimeGenerated })
+        if ($rows.Count -ge $Max) {
+            Write-Warning "Hit the -Max cap ($Max): the window has at least $Max matching lines — showing the NEWEST $Max; older events were dropped. Narrow -From/-To or raise -Max to see them."
+        }
 
         # ── StrictMode-safe field read (absent property -> $null) ──────────
         $getField = {
