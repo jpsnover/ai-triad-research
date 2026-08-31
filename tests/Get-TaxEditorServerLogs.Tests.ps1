@@ -73,6 +73,11 @@ Describe 'Get-TaxEditorServerLogs' -Tag 'diagnostics' {
             $script:capturedKql | Should -Match "ContainerAppName_s == 'taxonomy-editor'"
             $script:capturedKql | Should -Match "Log_s has 'req-abc'"
             $script:capturedKql | Should -Match "Log_s contains 'GEMINI'"
+            # t/3117 regression guard: the window bound MUST use todatetime('<iso>'); the KQL
+            # datetime() literal wrapped around a quoted string silently no-ops the filter
+            # (returns full retention + out-of-window rows).
+            $script:capturedKql | Should -Match "TimeGenerated between \(todatetime\('"
+            $script:capturedKql | Should -Not -Match "between \(datetime\('"
         }
     }
 

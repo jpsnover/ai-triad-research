@@ -143,7 +143,11 @@ function Get-TaxEditorServerLogs {
         $kql = [System.Collections.Generic.List[string]]::new()
         $kql.Add($table)
         $kql.Add("| where ContainerAppName_s == '$(& $esc $App)'")
-        $kql.Add("| where TimeGenerated between (datetime('$fromZ') .. datetime('$toZ'))")
+        # t/3117: MUST be todatetime('<iso>'), NOT datetime('<iso>'). KQL's datetime() literal is
+        # unquoted (datetime(2026-08-28T…)); wrapping a QUOTED string in datetime() silently fails to
+        # constrain the `between`, so the query returns full Log Analytics retention (116K rows, timeout)
+        # AND leaks out-of-window rows into results. todatetime() is the string→datetime conversion fn.
+        $kql.Add("| where TimeGenerated between (todatetime('$fromZ') .. todatetime('$toZ'))")
 
         if ($RequestId) {
             if ($System) {
