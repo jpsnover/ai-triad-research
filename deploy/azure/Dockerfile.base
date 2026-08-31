@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1.7
 
 # AI Triad Base Image — heavy system dependencies, rebuilt monthly.
-# Last rebuild forced: 2026-08-15 (Debian 13 Trixie upgrade, t/2681)
+# Last rebuild forced: 2026-08-31 (CACHE_BUST added so security upgrades stop cache-hitting, t/3137)
 #
 # Contains: Node 22, system packages, a build-time-baked flat ONNX embedding
 # model (all-MiniLM-L6-v2, read in-process via onnxruntime-node), and the
@@ -27,13 +27,36 @@ LABEL org.opencontainers.image.source="https://github.com/jpsnover/ai-triad-rese
 LABEL org.opencontainers.image.description="AI Triad Research — base image with Node 22 and baked ONNX embedding model"
 LABEL org.opencontainers.image.licenses="MIT"
 
+# ── Cache-bust for security rebuilds (t/3137) ──
+# The `npm install -g npm@latest` and `apt-get upgrade -y` RUN layers below are
+# BYTE-IDENTICAL build-to-build, so with `cache-from: type=gha` they are CACHE HITS:
+# a monthly-cron or workflow_dispatch "rebuild" restores the OLD layers and silently
+# upgrades NOTHING. That is why image CVEs (openssl, npm's bundled tar, perl, …)
+# persisted across the 2026-08-24 rebuild + the monthly cron despite `apt-get upgrade`
+# already being present — a green rebuild that did nothing (the "assumed baseline is
+# the bug" class, t/3135/t/3137). base-image.yml passes CACHE_BUST=<date-tag> on every
+# build; a changing value invalidates the referencing RUN (the npm layer) and every
+# layer below it, so the npm + apt security upgrades genuinely re-run. The version
+# tripwires further down (bundled-tar / openssl-family) print the ACTUALLY-INSTALLED
+# versions to the build log, so any residual same-day cache-hit no-op stays detectable
+# (prevention-per-incident: a silent no-op must never recur).
+ARG CACHE_BUST=dev
+
 # Upgrade bundled npm to pull in security fixes for CVEs in npm's own deps
 # (tar CRITICAL CVE-2026-59873/59874, brace-expansion CVE-2026-69152/14257/13149,
 # ip-address CVE-2026-69192, sigstore CVE-2026-48815). Node 22 ships npm 10.x;
 # npm 11.x bundles patched versions of all these. Not pinned to exact patch to allow
 # CI Trivy scan to confirm clearance — pin after first successful scan. (t/2174)
+# Referencing ${CACHE_BUST} makes a changing build-arg value invalidate this layer
+# (and every layer below), forcing npm@latest to actually re-fetch — otherwise the
+# monthly rebuild cache-hits and the whole security chain silently no-ops (t/3137).
+# Tripwire: log npm's DEFAULT bundled-tar version here (npm@latest 12.0.2 still ships
+# tar 7.5.19 — it does NOT bundle the CVE-2026-73566 fix, so the explicit override
+# below is required; do not remove it expecting npm@latest to carry 7.5.21).
 # hadolint ignore=DL3016
-RUN npm install -g npm@latest
+RUN echo "[t/3137] CACHE_BUST=${CACHE_BUST}; forcing npm/apt security re-run" \
+    && npm install -g npm@latest \
+    && echo "[t/3137 tripwire] npm=$(npm --version) npm-default-bundled-tar=$(node -p 'require("/usr/local/lib/node_modules/npm/node_modules/tar/package.json").version')"
 # ip-address 10.3.1 fixes CVE-2026-69192 (HIGH). npm@latest bundles 10.2.0;
 # upgrade explicitly within npm's own bundle until npm ships 10.3.1+. (t/2177)
 # Use npm pack + direct extraction instead of `npm install` inside the npm package
@@ -53,6 +76,19 @@ RUN npm pack brace-expansion@5.0.9 --pack-destination /tmp \
     && tar -xzf /tmp/brace-expansion-5.0.9.tgz --strip-components=1 \
          -C /usr/local/lib/node_modules/npm/node_modules/brace-expansion \
     && rm /tmp/brace-expansion-5.0.9.tgz
+# tar 7.5.21 fixes CVE-2026-73566 (HIGH). npm@latest (12.0.2) still bundles tar 7.5.19,
+# so — confirmed by the tripwire above — a cache-busted npm re-install alone does NOT
+# clear this CVE; override explicitly within npm's own bundle, same npm pack + direct
+# extraction pattern as ip-address / brace-expansion above. Re-check on npm bumps: drop
+# this block once npm@latest bundles tar >= 7.5.21. (t/3137). `tar -xzf` uses the OS tar,
+# not npm's bundled copy, so this is safe to run while replacing npm's tar.
+RUN npm pack tar@7.5.21 --pack-destination /tmp \
+    && rm -rf /usr/local/lib/node_modules/npm/node_modules/tar \
+    && mkdir -p /usr/local/lib/node_modules/npm/node_modules/tar \
+    && tar -xzf /tmp/tar-7.5.21.tgz --strip-components=1 \
+         -C /usr/local/lib/node_modules/npm/node_modules/tar \
+    && rm /tmp/tar-7.5.21.tgz \
+    && echo "[t/3137 tripwire] npm bundled-tar after override=$(node -p 'require("/usr/local/lib/node_modules/npm/node_modules/tar/package.json").version') (expect 7.5.21)"
 
 # System dependencies (runtime only — build tools like make/g++ live in the app
 # Dockerfile's builder stage, not here).
@@ -70,6 +106,14 @@ RUN apt-get update \
     libicu76 \
     tini \
     && rm -rf /var/lib/apt/lists/*
+
+# Tripwire (t/3137): log the ACTUALLY-INSTALLED openssl-family versions post-upgrade.
+# This RUN is downstream of the CACHE_BUST-referencing npm layer, so it re-runs whenever
+# the security upgrades re-run — surfacing a silent cache-hit no-op (a stale apt layer)
+# in the build log instead of only in a later Trivy scan. Expect openssl >= 3.5.7-1~deb13u2
+# (CVE-2026-14456). `|| true` keeps a not-installed package from failing the build.
+RUN echo "[t/3137 tripwire] installed openssl-family versions (expect openssl >= 3.5.7-1~deb13u2):" \
+    && dpkg-query -W -f='${Package} ${Version}\n' openssl libssl3t64 openssl-provider-legacy 2>/dev/null || true
 
 # Build-time-baked embedding model (flat ONNX, ~90 MB) — read in-process at
 # runtime via onnxruntime-node (lib/embeddings/onnxEmbedding.ts). Setting

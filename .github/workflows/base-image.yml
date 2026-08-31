@@ -93,6 +93,12 @@ jobs:
           tags: |
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.date_tag.outputs.tag }}
+          # CACHE_BUST invalidates the npm@latest + apt-get upgrade layers so security
+          # upgrades genuinely re-run instead of restoring a stale cached layer (t/3137).
+          # Date-tag granularity busts on the real rebuild cadence (monthly cron / new-day
+          # dispatch); the in-image version tripwires catch any residual same-day no-op.
+          build-args: |
+            CACHE_BUST=${{ steps.date_tag.outputs.tag }}
           cache-from: type=gha,scope=shared-docker
           cache-to: type=gha,scope=shared-docker,mode=min
           platforms: linux/amd64
