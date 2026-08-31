@@ -57,6 +57,41 @@ Describe 'Get-TaxEditorServerLogs' -Tag 'diagnostics' {
         }
     }
 
+    It 'parses tz-naive TimeGenerated as UTC — no DST offset shift (t/3129)' {
+        InModuleScope AITriad {
+            # Force a DST-observing zone so a naive-as-local parse would shift by +1h (BST on 2026-08-31).
+            # $env:TZ + ClearCachedData drives TimeZoneInfo.Local on Linux CI; on a machine that ignores
+            # $env:TZ the assertion still holds for the fixed (AssumeUniversal) code and only the old
+            # local-assume code fails — so this never false-fails, and catches the bug on any DST host.
+            $origTZ = $env:TZ
+            try {
+                $env:TZ = 'Europe/London'
+                [System.TimeZoneInfo]::ClearCachedData()
+
+                $script:TaxEditorLogWorkspaceId = 'ws-guid-abc'
+                Mock Assert-AzCli { }
+                # tz-NAIVE TimeGenerated (no 'Z'/offset), exactly as `az --output json | ConvertFrom-Json` yields.
+                $rows = @(
+                    @{ TimeGenerated = '2026-08-31T06:42:47'; RevisionName_s = 'rev-1'
+                       Log_s = (@{ level = 30; requestId = 'req-tz'; msg = 'hi' } | ConvertTo-Json -Compress) }
+                )
+                $queryJson = $rows | ConvertTo-Json -Depth 6
+                Mock Invoke-Az -ParameterFilter { $Arguments -contains 'query' } -MockWith { $queryJson }.GetNewClosure()
+
+                $r = @(Get-TaxEditorServerLogs -WarningAction SilentlyContinue)
+                $r.Count | Should -Be 1
+                # UTC wall-clock preserved (06:42), NOT shifted to 05:42 by the local +1 DST offset.
+                # $parseTime is shared by the console and -System paths, so this covers both call sites.
+                $r[0].Time.Hour   | Should -Be 6
+                $r[0].Time.Minute | Should -Be 42
+                $r[0].Time.Kind   | Should -Be 'Utc'
+            } finally {
+                $env:TZ = $origTZ
+                [System.TimeZoneInfo]::ClearCachedData()
+            }
+        }
+    }
+
     It 'builds console KQL with the app filter, requestId has-clause, and pattern contains-clause' {
         InModuleScope AITriad {
             $script:TaxEditorLogWorkspaceId = 'ws-guid-abc'   # pre-seed cache: skip workspace list
