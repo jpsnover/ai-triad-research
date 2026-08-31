@@ -7,7 +7,7 @@
 # (see deploy/azure/Dockerfile.base)
 
 # ── Stage 1: Build ──
-FROM node:22.23.2-trixie-slim@sha256:db8a96a63e5264607ada2d206758876ebbed6a12be2ada7517793cbfb0c2a29c AS builder
+FROM node:22.23.2-trixie-slim@sha256:7b8a0c89c54499bee567618f96578e1a12a800f062fbdbfd1fb6a443fa6f6284 AS builder
 
 WORKDIR /build
 
@@ -94,7 +94,7 @@ RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
 # so onnxEmbedding.ts runs fully offline. Without this, each cold-start downloads
 # from HuggingFace at runtime, hitting the 50s route timeout (t/2784).
 # fp32 is required — quantized output diverges from the stored embeddings.json corpus.
-FROM node:22.23.2-trixie-slim@sha256:db8a96a63e5264607ada2d206758876ebbed6a12be2ada7517793cbfb0c2a29c AS onnx-model
+FROM node:22.23.2-trixie-slim@sha256:7b8a0c89c54499bee567618f96578e1a12a800f062fbdbfd1fb6a443fa6f6284 AS onnx-model
 # hadolint ignore=DL3008
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \
@@ -108,7 +108,7 @@ RUN mkdir -p /onnx/all-MiniLM-L6-v2 \
          -o /onnx/all-MiniLM-L6-v2/tokenizer_config.json
 
 # ── Stage 2: Production dependencies (with build tools for native modules) ──
-FROM node:22.23.2-trixie-slim@sha256:db8a96a63e5264607ada2d206758876ebbed6a12be2ada7517793cbfb0c2a29c AS prod-deps
+FROM node:22.23.2-trixie-slim@sha256:7b8a0c89c54499bee567618f96578e1a12a800f062fbdbfd1fb6a443fa6f6284 AS prod-deps
 
 # node-pty requires make/g++/python3 for compilation when prebuilds
 # are unavailable. The runtime base image is intentionally slim (no
