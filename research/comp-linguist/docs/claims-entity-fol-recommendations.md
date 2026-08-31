@@ -229,6 +229,44 @@ Also structural, beyond the pilot-never-scaled story: the extraction corpus is p
 
 Ticket impact: adds two tickets to §9 — T10/t/3118 (curation + approval pass on existing 78, precedes T1) and T11/t/3123 (scaled Phase 1 run over remaining corpus, follows T1); T1's description gains the approved-set trigger; the liveness check folds into T5/t/3125.
 
+## 12. Addendum: entities vs concepts, and the reuse-gate discipline (decision 2026-08-31)
+
+Question raised 2026-08-31, after the human read the register's coverage of the BDI corpus: should concepts become first-class entities, so that one register maps every BDI element under a common vocabulary instead of inventing per-node terms? Decision after discussion: **no.** Concepts and entities keep distinct *types*; they gain *unified addressing*, not a unified type. This confirms the split already assumed in R1.2 and R4.1 (kinds and classes live in the dictionary `term:*`; named particulars live in the register `ent-*`) and hardens it against a merge that was actively considered and rejected.
+
+### 12.1 Why the types stay distinct
+
+Entities are DOLCE particulars (endurants and perdurants: this OpenAI, that Manhattan Project, this 2025 export-control event). Concepts are universals (kinds, properties, and predicates: "frontier model", "liability shield", "safety audit"). The bridge between them is `instance_of`, exactly R4's relation. Merging the two into one register type erases that boundary, and the boundary is load-bearing in three places already built or planned:
+
+1. **FOL sort-checking (§7).** The neo-Davidsonian frame types an argument slot as an endurant, a perdurant, or a universal. A prover that cannot tell "GPT-4" (particular) from "large language model" (kind) cannot sort-check a single conjecture.
+2. **Subsumption is directional; cosine is not (R6.2).** "EU AI Act" `instance_of` "AI regulation" holds one way only. That structure lives in symbolic `relations[]`, and it only makes sense if instances and kinds are distinguishable node types.
+3. **Resolution has two different jobs.** Resolving a named particular ("the Brussels privacy regime" -> `ent-071`) and resolving a kind term ("frontier models" -> `term:frontier-model`) are different retrieval problems against different candidate sets. Unified addressing lets a claim reference either from the same `*_refs[]` slot; distinct types keep the two candidate pools, and their two approval disciplines, apart.
+
+Unified addressing delivers the human's actual goal (map every BDI element with common terms, stop inventing per-node vocabulary) without the category error: a BDI statement's participants resolve to `ent-*` when they are particulars and `term:*` when they are universals, and both are first-class referents.
+
+### 12.2 Evidence: three probes on the live BDI corpus
+
+The decision is not taken on principle alone. Three probes over the full BDI corpus (all POV node descriptions plus all situation belief/desire/intention text, 4,882 statements) measured what actually populates these statements.
+
+1. **Register coverage.** Of the 78 register entities, only **3** appear in the BDI corpus. The register was extracted from per-node evidence facts (§11), a different text surface. Consequence: the register is not the vehicle for grounding BDI statements. The BDI corpus is concept-dense, not entity-dense, so its grounding routes primarily to the concept dictionary (`term:*`), with named particulars the minority case. This redirects the BDI-grounding effort, and it is why curating the 78 (T10) does not by itself ground the debate corpus.
+2. **Reuse distribution.** A heuristic surface extractor (multiword TitleCase, acronyms, model tokens) over the 4,882 statements found 302 candidate surfaces. **56.6% are hapax** (one statement only); **43.4% (131) recur in >=2 distinct statements**, 69 in >=3, 25 in >=5, 3 in >=10. The reused core is concept-dominated. This is the empirical basis for a reuse gate: most surfaces are singletons that should stay raw mentions, and a minority genuinely recur and earn a node.
+3. **Hidden reuse under synonymy.** Because exact-surface counting over-states the hapax rate whenever one meaning wears several spellings, a synonym-collapse probe embedded all surfaces and re-counted reuse per near-synonym cluster. Result: only **11 to 14 of the 171 hapaxes (about 8%)** join a reused cluster once collapsed; the true hapax rate falls from 56.6% to roughly 48 to 52%, not further. The collapses are almost all trivial morphological variants ("Manhattan Project" / "Manhattan-Project", "Liability Shield" / "Liability Shielding", "First Amendment" / "Current First Amendment"), foldable by deterministic normalization. Genuine "different words, same meaning" is rare, and where the embedding reached for it, it also over-merged ("Safety Audits" / "Safety Checks" / "Safety Warnings" are three different things) and false-merged ("TTL" / "TTP"). Cosine proposes; it cannot dispose.
+
+### 12.3 The reuse-gate and two-stage resolution
+
+The register and the concept dictionary both take a **surface earns a node only at reuse >=2** gate, applied to *resolved* surfaces, not raw strings. Resolution runs in two stages, and only the first is automatic:
+
+1. **Deterministic normalization** folds trivial variants (case, hyphenation, plural, leading article, redundant modifier). Cheap, safe, and it captures essentially all of the real hidden reuse the synonymy question was worried about (probe 3).
+2. **Embedding proposes deeper synonym candidates; a human confirms.** Never an auto-merge. The same probe run that correctly folds "Manhattan-Project" also wrongly fuses "Safety Audits" with "Safety Warnings", so cosine output is a proposal queue, not a commit. This is the propose-then-confirm discipline already used at the WS-B polarity gate and the resolution ladder's advisory near-variant surfacing.
+
+The gate runs after stage 1. A surface below threshold stays a raw mention with offsets, never a minted `ent-*` or `term:*` node, which is what keeps the space small and structured (the human's stated goal) instead of an infinite dictionary of never-reused terms. The DOLCE sort/type filter before cosine (R6.5) applies unchanged: an event-slot mention resolves only against perdurants, a kind mention only against `term:*`.
+
+### 12.4 Ticket impact
+
+- **T10/t/3118 (curate the 78):** premise corrected. The 78 are not a BDI-grounding set (probe 1), so curation targets the register's *own* soundness, not debate coverage: author person descriptions (the approval hard-block), merge the obvious variant (ent-076 -> ent-049), and approve sound records so the embedding rung lights up. Do not scale entity extraction expecting BDI coverage from it.
+- **BDI-concept grounding routes to the dictionary.** The high-payoff BDI-grounding work is concept extraction into `term:*` under the reuse gate, parallel to (not merged with) entity resolution. This is a re-scope of the R2/T3 resolution pass to run two gated ladders sharing the stage-1 normalizer, and it warrants its own ticket rather than riding entity extraction.
+- **T2/t/3122, T3/t/3124:** the mention-index extension and resolution pass gain the two-stage normalizer and the reuse gate as explicit steps; `match_level` already carries the instance/kind distinction from R4.
+- No change to the FOL track (T6 to T8) or to R6's symbol-is-identity rule.
+
 ---
 
 *Survey basis: full-repo exploration 2026-08-31 (claim schemas in `summaries/`, `entities.json`/`entity_mentions.json`/`entity_embeddings.json`, `lib/entities/types.ts`, extraction cmdlets and passes in `scripts/AITriad/`, `embeddings.json` header, ontology docs). Facts stated in §2 were verified against the live files, not recalled.*
