@@ -169,8 +169,14 @@ function Get-TaxEditorServerLogs {
         else         { $kql.Add('| project TimeGenerated, Log_s, RevisionName_s') }
         $kql.Add('| order by TimeGenerated asc')
         $kql.Add("| take $Max")
-        $analyticsQuery = $kql -join "`n"
-        Write-Verbose "KQL:`n$analyticsQuery"
+        # t/3117: MUST be a SINGLE LINE (join with space, not newline). The query is passed inline
+        # as one `--analytics-query` arg to `& az`; an embedded newline truncates the arg at the
+        # PowerShell→az native-command boundary, so az receives only the first line
+        # (`ContainerAppConsoleLogs_CL`) and dumps the whole table — every where/project/order/take
+        # clause is silently lost (Diagnostics proof: multi-line → 116k full dump; single-line → 3
+        # in-window rows). KQL is whitespace-insensitive between `|` stages, so space-join is valid.
+        $analyticsQuery = $kql -join ' '
+        Write-Verbose "KQL (single-line arg to az): $analyticsQuery"
 
         # ── Run the query ─────────────────────────────────────────────────
         $json = Invoke-Az -CallerName 'Get-TaxEditorServerLogs' -Arguments @(
