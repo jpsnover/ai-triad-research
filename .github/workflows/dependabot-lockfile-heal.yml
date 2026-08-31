@@ -1,0 +1,188 @@
+# ─── Dependabot Standalone-Lockfile + License-Notices Heal (t/3116 / t/3134) ───
+# What:  When a Dependabot PR bumps a taxonomy-editor workspace dependency, the
+#        single root `/` Dependabot entry updates member manifests + the shared
+#        root pnpm-lock.yaml — but NOT taxonomy-editor's in-dir STANDALONE lockfile
+#        (Docker prod-deps) or its generated license notices. Those go stale →
+#        test-container / test-electron(taxonomy-editor) red. This workflow
+#        re-syncs both and commits them back onto the PR branch so it goes green.
+#
+# Design: Second Opinion e/127#2 (Option B), TL-approved (t/3116#7). This is the
+#        CORRECTED re-introduction after #1668 was reverted (#1674) — the prior
+#        version healed on EVERY ecosystem and failed without the credential
+#        (t/3134). Fixes here:
+#          1. SCOPE: job runs only on npm_and_yarn Dependabot branches, and heals
+#             only when the PR diff actually touches taxonomy-editor/package.json
+#             (the "Scope guard" step). An unrelated PR produces ZERO commits —
+#             this is the GV arm-2 property the prior version failed.
+#          2. CREDENTIAL GUARD: if the DEPENDABOT_HEAL_APP_ID secret is absent the
+#             job SUCCEEDS as a no-op (never fails the mint step).
+#
+# SECURITY (do not refactor without re-reading e/127#2):
+#   * App token minted AFTER every dependency-touching step, referenced ONLY by
+#     the push step (step ordering IS the security boundary — see marked step).
+#   * `--lockfile-only` (inside sync-standalone-lockfile.mjs) + `--ignore-scripts`
+#     belt → no registry lifecycle script executes during a resolve.
+#   * Guard requires actor == dependabot[bot] AND same-repo head → forks excluded.
+#   * The App-token push (unlike GITHUB_TOKEN) DOES retrigger CI so the heal
+#     commit gets fresh checks. Do not "simplify" to the default token.
+#   * Auth is passed via http.extraheader (not the remote URL) so the token is
+#     never materialized in a URL or log line.
+#
+# CREDENTIAL (owner/admin, provisioned 2026-08-31): a GitHub App with
+#   contents:write on this repo, installed, App ID + private key stored as
+#   DEPENDABOT secrets (Dependabot-triggered runs read the Dependabot secret
+#   store, not the Actions store):
+#     - DEPENDABOT_HEAL_APP_ID
+#     - DEPENDABOT_HEAL_APP_PRIVATE_KEY
+#
+# NOTE: lib/debate is NOT healed here — its root-workspace importer is empty (the
+#   root entry never bumps it); its standalone lockfile is managed by the
+#   /lib/debate Dependabot entry. Extend sync-standalone-lockfile.mjs + this scope
+#   guard if that ever changes.
+
+name: Dependabot Lockfile Heal
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dependabot-heal-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  heal:
+    # actor + same-repo head + npm-workspace ecosystem only (skips docker/actions/pip).
+    if: >-
+      github.actor == 'dependabot[bot]' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      startsWith(github.head_ref, 'dependabot/npm_and_yarn/')
+    runs-on: ubuntu-latest
+    # Scripts-off belt via env (pnpm/npm honor NPM_CONFIG_*) — do NOT append to the
+    # tracked root .npmrc: that dirties git status and breaks the scoped drift gate
+    # below (GV blocker A, t/3134).
+    env:
+      NPM_CONFIG_IGNORE_SCRIPTS: "true"
+    steps:
+      - name: Checkout PR head
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v6
+        with:
+          ref: ${{ github.head_ref }}
+          fetch-depth: 0            # need base to diff what the PR changed
+          persist-credentials: false
+
+      # SCOPE GUARD: heal only when THIS PR changes taxonomy-editor's manifest.
+      # An unrelated npm PR (e.g. a poviewer-only bump) leaves this false → the
+      # whole heal is skipped → zero commits (GV arm-2). Without this, a branch
+      # that is merely behind main would show standalone-lockfile drift and get a
+      # spurious heal commit (the #1668 defect).
+      - name: Scope guard — does this PR touch taxonomy-editor deps?
+        id: scope
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          git fetch origin "$BASE_REF" --depth=1
+          # Two-dot (endpoint compare), NOT three-dot: a shallow depth-1 base fetch
+          # has no merge-base commit once main moves, so `A...HEAD` errors and the
+          # heal never runs (GV blocker B, t/3134).
+          if git diff --name-only "origin/${BASE_REF}" HEAD | grep -qx 'taxonomy-editor/package.json'; then
+            echo "relevant=true" >> "$GITHUB_OUTPUT"
+            echo "PR changes taxonomy-editor/package.json — heal in scope."
+          else
+            echo "relevant=false" >> "$GITHUB_OUTPUT"
+            echo "PR does not touch taxonomy-editor/package.json — nothing to heal."
+          fi
+
+      - name: Set up pnpm
+        if: steps.scope.outputs.relevant == 'true'
+        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86  # v6.0.10 (repo-standard pin)
+        with:
+          run_install: false
+
+      - name: Set up Node
+        if: steps.scope.outputs.relevant == 'true'
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v6 (repo-standard pin)
+        with:
+          node-version: 22
+
+      - name: Sync standalone lockfile
+        if: steps.scope.outputs.relevant == 'true'
+        run: node scripts/sync-standalone-lockfile.mjs
+
+      - name: Regenerate license notices
+        if: steps.scope.outputs.relevant == 'true'
+        working-directory: taxonomy-editor
+        run: |
+          pnpm install --frozen-lockfile --ignore-scripts
+          npm run licenses
+
+      # Drift = changes to the 3 COMMITTED paths only. Scoping this to exactly
+      # what the push step stages is load-bearing: on the healed-head re-run the
+      # files are already in sync, so drift=false and the job no-ops — a whole-tree
+      # `git status` would flag unrelated churn and drive an empty commit → red
+      # (GV blocker A, t/3134).
+      - name: Detect drift
+        id: drift
+        if: steps.scope.outputs.relevant == 'true'
+        run: |
+          CHANGED="$(git status --porcelain -- \
+            taxonomy-editor/pnpm-lock.yaml \
+            taxonomy-editor/THIRD-PARTY-NOTICES.txt \
+            taxonomy-editor/src/renderer/data/oss-licenses.json)"
+          if [ -n "$CHANGED" ]; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            echo "Heal produced changes:"; echo "$CHANGED"
+          else
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "Already in sync — nothing to heal."
+          fi
+
+      # Credential guard: no-op (success) when the secret is absent — never fail.
+      - name: Check heal credential
+        id: cred
+        if: steps.drift.outputs.changed == 'true'
+        env:
+          APP_ID: ${{ secrets.DEPENDABOT_HEAL_APP_ID }}
+        run: |
+          if [ -n "$APP_ID" ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::DEPENDABOT_HEAL_APP_ID not set — drift detected but heal skipped (no-op)."
+          fi
+
+      # ── SECURITY BOUNDARY ─────────────────────────────────────────────────
+      # Mint the write credential ONLY here, AFTER every dependency/script step
+      # above. Do NOT move earlier; do NOT expose `token` to any step but push.
+      - name: Mint GitHub App token
+        id: app-token
+        if: steps.drift.outputs.changed == 'true' && steps.cred.outputs.present == 'true'
+        uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349  # v2.2.2
+        with:
+          app-id: ${{ secrets.DEPENDABOT_HEAL_APP_ID }}
+          private-key: ${{ secrets.DEPENDABOT_HEAL_APP_PRIVATE_KEY }}
+
+      - name: Commit and push heal
+        if: steps.drift.outputs.changed == 'true' && steps.cred.outputs.present == 'true'
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          git config user.name "dependabot-heal[bot]"
+          git config user.email "dependabot-heal[bot]@users.noreply.github.com"
+          git add taxonomy-editor/pnpm-lock.yaml \
+                  taxonomy-editor/THIRD-PARTY-NOTICES.txt \
+                  taxonomy-editor/src/renderer/data/oss-licenses.json
+          # Belt: never attempt an empty commit (would exit non-zero → red). The
+          # scoped drift gate already guarantees staged content; this guards the edge.
+          if git diff --cached --quiet; then
+            echo "Nothing staged — skipping commit/push (no-op)."
+            exit 0
+          fi
+          git commit -m "ci(deps): heal standalone lockfile + license notices [dependabot-heal]"
+          # Auth via extraheader so the token never appears in the remote URL/logs.
+          git config --local http.https://github.com/.extraheader \
+            "AUTHORIZATION: basic $(printf 'x-access-token:%s' "$GH_TOKEN" | base64 | tr -d '\n')"
+          git push origin "HEAD:${{ github.head_ref }}"
