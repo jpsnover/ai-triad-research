@@ -100,6 +100,28 @@ function Import-Entity {
         $mergedInto  = [string](& $prop $p 'merged_into' '')
         $descProv    = [string](& $prop $p 'description_provenance' '')   # t/3131: '' = unset/legacy
 
+        # t/3133: reject UNKNOWN proposal fields loudly instead of silently dropping them. The t/3118
+        # near-miss: a stale (pre-t/3131) module didn't read description_provenance, dropped it, and
+        # the grandfather rule would have auto-approved unedited AI drafts. Erroring turns any
+        # stale-code / typo'd-field case into an immediate failure, not silent data-correctness drift.
+        # Top-level keys only (nested shapes like discovered_by.{usage_id,model} are not recursed);
+        # allowlist = the Entity contract (Get-EntityProposalFieldName, kept in sync by the parity test).
+        $knownFields   = Get-EntityProposalFieldName
+        $provKeys      = if ($p -is [hashtable]) { @($p.Keys) } else { @($p.PSObject.Properties.Name) }
+        $unknownFields = @($provKeys | Where-Object { $_ -notin $knownFields })
+        if ($unknownFields.Count -gt 0) {
+            $idLabel = if ($propId) { $propId } elseif ($name) { $name } else { '(unnamed)' }
+            throw (New-ActionableError -PassThru `
+                -Goal 'Import an entity proposal' `
+                -Problem "Proposal '$idLabel' carries unrecognized field(s): $($unknownFields -join ', ')" `
+                -Location 'Import-Entity' `
+                -NextSteps @(
+                    'Remove the unrecognized field(s) from the proposal, OR'
+                    'If a field is a new Entity contract field, add it to lib/entities/types.ts AND Get-EntityProposalFieldName (the drift-parity test guards the pairing)'
+                    'Older module versions silently DROP unknown fields — this refusal prevents a stale-module field-drop (t/3133)'
+                ))
+        }
+
         $idx = if ($propId) { & $findIndex $propId } else { -1 }
         $isUpdate = ($idx -ge 0)
 

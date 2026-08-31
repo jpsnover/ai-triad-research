@@ -100,6 +100,18 @@ Describe 'Import-Entity — curation write (t/1804 §4)' -Tag 'unit' {
         (Get-Content -Raw -Path $tmp | ConvertFrom-Json).entity_count | Should -Be 20
     }
 
+    It 'Rejects a proposal carrying an UNRECOGNIZED field — loud, not silent drop (t/3133)' {
+        $tmp = Join-Path $TestDrive 'entities-unknownfield.json'
+        $p = New-Prop @{ bogus_field = 'oops' }
+        { Import-Entity -Proposal @($p) -Path $tmp -SkipEmbedding } | Should -Throw -ExpectedMessage '*bogus_field*'
+    }
+
+    It 'Accepts a proposal whose fields are all recognized — guard does not false-reject (t/3133)' {
+        $tmp = Join-Path $TestDrive 'entities-knownfields.json'
+        $p = New-Prop @{ status = 'proposed'; aliases = @('GPT4'); description_provenance = 'ai-drafted'; confidence = 0.9 }
+        { Import-Entity -Proposal @($p) -Path $tmp -SkipEmbedding } | Should -Not -Throw
+    }
+
     It 'Rejects approving a PERSON record with no human description (§4/§9.3)' {
         $tmp = Join-Path $TestDrive 'entities-person.json'
         $p = @{ name = 'Jane Doe'; entity_type = 'person'; dolce_category = 'agentive-physical-object'; status = 'approved' }
@@ -330,6 +342,15 @@ Describe 'Entity shape parity with lib/entities/types.ts (contract drift gate, T
     It 'GATE-VERIFY: a MISSING required key makes parity FAIL' {
         $keysMissingId = @($script:RequiredFields | Where-Object { $_ -ne 'id' }) + @('external_refs', 'source_refs')
         (Test-EntityKeyParity -RecordKeys $keysMissingId -Required $script:RequiredFields -Optional $script:OptionalFields) | Should -BeFalse
+    }
+
+    It 'Import-Entity unknown-field allowlist stays in sync with the Entity contract (t/3133)' {
+        # The t/3133 guard rejects any proposal field not in Get-EntityProposalFieldName. That
+        # allowlist MUST equal the contract field set, else a newly-added contract field would be
+        # silently rejected (or a removed one silently accepted). Private fn → read via InModuleScope.
+        $allow    = @(InModuleScope AITriad { Get-EntityProposalFieldName }) | Sort-Object
+        $contract = (@($script:RequiredFields) + @($script:OptionalFields)) | Sort-Object
+        ($allow -join ',') | Should -Be ($contract -join ',')
     }
 }
 
