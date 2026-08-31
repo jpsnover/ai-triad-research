@@ -262,6 +262,9 @@ Describe 'Entity shape parity with lib/entities/types.ts (contract drift gate, T
         $script:RequiredFields | Should -Contain 'id'
         $script:RequiredFields | Should -Contain 'status'
         $script:OptionalFields | Should -Contain 'merged_into'
+        # t/3132: person-approval provenance marker — locks it as a known OPTIONAL contract field
+        # (absent = legacy/grandfathered) so a later removal from the TS Entity interface is caught here.
+        $script:OptionalFields | Should -Contain 'description_provenance'
     }
 
     It 'A record written by Import-Entity satisfies the contract (required present, no forked keys)' {
