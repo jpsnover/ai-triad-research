@@ -15,26 +15,31 @@ import { checkRate } from '../security/rateLimiter.js';
 describe('free-tier RPM scales with key-pool size (t/906)', () => {
   afterEach(() => { delete process.env.FREE_TIER_GEMINI_KEY; });
 
-  // t/3104: FREE_TIER_RPM_PER_KEY raised 6→24 so one key clears a debate's T≈20
-  // opening burst. The 30 hard cap is untouched, so 2+ keys now saturate at 30.
-  it('scaledFreeTierRpm = 24 per key, capped at 30 (AC#1, #3; t/3104)', () => {
-    expect(scaledFreeTierRpm(1)).toBe(24);
-    expect(scaledFreeTierRpm(2)).toBe(30); // 24×2=48 → capped at 30
+  // t/3111: FREE_TIER_RPM_PER_KEY reverted 24→12 (the t/3104 24 was sized against a paid
+  // Tier-2 key; on a real free key P_free≈15, so 12=0.8·P is the safe per-key value). The
+  // ~20/min debate burst is cleared by POOL SIZE (K=2 → min(12×2,30)=24), not one hot key.
+  // 30 hard cap untouched → 3+ keys saturate at 30.
+  it('scaledFreeTierRpm = 12 per key, capped at 30 (AC#1, #3; t/3111)', () => {
+    expect(scaledFreeTierRpm(1)).toBe(12);
+    expect(scaledFreeTierRpm(2)).toBe(24); // 12×2=24, under the 30 cap
+    expect(scaledFreeTierRpm(3)).toBe(30); // 12×3=36 → capped at 30
     expect(scaledFreeTierRpm(5)).toBe(30);
     expect(scaledFreeTierRpm(6)).toBe(30); // capped
     expect(scaledFreeTierRpm(0)).toBe(0);
   });
 
-  it('one key clears a debate opening burst (T≈20 ≤ 24 = scaledFreeTierRpm(1)) (t/3104)', () => {
-    // The bug: at 6 RPM a single debate (~20 generate/min) self-throttled mid-openings.
-    expect(scaledFreeTierRpm(1)).toBeGreaterThanOrEqual(24);
+  it('the locked K=2 free pool clears a debate opening burst (T≈20 ≤ 24 = scaledFreeTierRpm(2)) (t/3111)', () => {
+    // One key (12) intentionally does NOT clear ~20/min — pool size is the lever; the
+    // paid fallback (generateWithPaidFallback) catches rare bursts above 24.
+    expect(scaledFreeTierRpm(2)).toBeGreaterThanOrEqual(24);
+    expect(scaledFreeTierRpm(1)).toBeLessThan(20);
   });
 
   it('resolveTier applies the scaled RPM for keyless free-tier users', () => {
     process.env.FREE_TIER_GEMINI_KEY = 'k1,k2';
-    expect(resolveTier('', 'github').limits.requestsPerMinute).toBe(30); // 24×2 → capped
+    expect(resolveTier('', 'github').limits.requestsPerMinute).toBe(24); // 12×2, under the cap
     process.env.FREE_TIER_GEMINI_KEY = 'k1';
-    expect(resolveTier('', 'github').limits.requestsPerMinute).toBe(24);
+    expect(resolveTier('', 'github').limits.requestsPerMinute).toBe(12);
     process.env.FREE_TIER_GEMINI_KEY = 'k1,k2,k3,k4,k5,k6,k7';
     expect(resolveTier('', 'github').limits.requestsPerMinute).toBe(30); // capped
   });
@@ -76,7 +81,7 @@ describe('free tier (t/793)', () => {
     expect(tier.pinnedModel).toBe('gemini-3.5-flash-lite'); // = DEFAULT_MODEL (t/2687)
     // t/812: no per-prompt char cap — cost is bounded by tokensPerDay + per-IP RPM.
     expect(tier.maxPromptChars).toBeUndefined();
-    expect(tier.limits).toEqual({ requestsPerMinute: 24, tokensPerDay: 500_000 }); // t/3104: 6→24 (single-key debate burst)
+    expect(tier.limits).toEqual({ requestsPerMinute: 12, tokensPerDay: 500_000 }); // t/3111: 24→12 (free-tier-safe per-key; pool size K=2 clears the burst)
     expect(tier.allowedBackends).toEqual(['gemini']);
   });
 

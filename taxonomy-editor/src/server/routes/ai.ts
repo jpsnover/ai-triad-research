@@ -158,7 +158,9 @@ export function shouldAbortOnClientClose(finished: boolean, responseEnded: boole
  *  free pool exhausted, retry ONCE with the admin-registered paid Gemini key after a
  *  deliberate 3s throttle (t/948). Re-throws the original error when there's no paid
  *  path or the paid retry also fails. The paid key never enters the round-robin pool. */
-async function generateWithPaidFallback(
+// Exported for the t/3111 fallback-ordering test (free pool tried first; paid reached
+// ONLY on a free-tier 429; paid never in the rotation). Otherwise an internal helper.
+export async function generateWithPaidFallback(
   prompt: string,
   usageOverrides: Record<string, unknown>,
   explicitKey: string | string[] | undefined,
