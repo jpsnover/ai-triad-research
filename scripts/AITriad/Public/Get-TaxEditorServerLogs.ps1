@@ -196,7 +196,11 @@ function Get-TaxEditorServerLogs {
         $parseTime = {
             param($iso)
             if ([string]::IsNullOrWhiteSpace($iso)) { return $null }
-            try { return [datetimeoffset]::Parse([string]$iso).UtcDateTime } catch { return [string]$iso }
+            # t/3129: Log Analytics TimeGenerated is UTC, but `az --output json | ConvertFrom-Json`
+            # yields a timezone-NAIVE value. A bare Parse() assumes LOCAL time, so on a DST-observing
+            # machine it applies the summer offset then .UtcDateTime subtracts it → Time shifted by the
+            # offset (e.g. 06:42Z shown as 05:42 on BST). AssumeUniversal parses the naive value as UTC.
+            try { return [datetimeoffset]::Parse([string]$iso, $null, [System.Globalization.DateTimeStyles]::AssumeUniversal).UtcDateTime } catch { return [string]$iso }
         }
 
         # ── System logs: emit raw rows, no Pino parse ──────────────────────
