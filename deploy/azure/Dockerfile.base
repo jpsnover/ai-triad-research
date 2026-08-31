@@ -49,13 +49,14 @@ ARG CACHE_BUST=dev
 # CI Trivy scan to confirm clearance — pin after first successful scan. (t/2174)
 # Referencing ${CACHE_BUST} makes a changing build-arg value invalidate this layer
 # (and every layer below), forcing npm@latest to actually re-fetch — otherwise the
-# monthly rebuild cache-hits and never picks up npm's newer bundled tar (t/3137).
-# Tripwire: echo the installed bundled-tar version so a future cache-hit no-op is
-# visible in the build log. Expect tar >= 7.5.21 (CVE-2026-73566).
+# monthly rebuild cache-hits and the whole security chain silently no-ops (t/3137).
+# Tripwire: log npm's DEFAULT bundled-tar version here (npm@latest 12.0.2 still ships
+# tar 7.5.19 — it does NOT bundle the CVE-2026-73566 fix, so the explicit override
+# below is required; do not remove it expecting npm@latest to carry 7.5.21).
 # hadolint ignore=DL3016
 RUN echo "[t/3137] CACHE_BUST=${CACHE_BUST}; forcing npm/apt security re-run" \
     && npm install -g npm@latest \
-    && echo "[t/3137 tripwire] npm=$(npm --version) bundled-tar=$(node -p 'require("/usr/local/lib/node_modules/npm/node_modules/tar/package.json").version')"
+    && echo "[t/3137 tripwire] npm=$(npm --version) npm-default-bundled-tar=$(node -p 'require("/usr/local/lib/node_modules/npm/node_modules/tar/package.json").version')"
 # ip-address 10.3.1 fixes CVE-2026-69192 (HIGH). npm@latest bundles 10.2.0;
 # upgrade explicitly within npm's own bundle until npm ships 10.3.1+. (t/2177)
 # Use npm pack + direct extraction instead of `npm install` inside the npm package
@@ -75,6 +76,19 @@ RUN npm pack brace-expansion@5.0.9 --pack-destination /tmp \
     && tar -xzf /tmp/brace-expansion-5.0.9.tgz --strip-components=1 \
          -C /usr/local/lib/node_modules/npm/node_modules/brace-expansion \
     && rm /tmp/brace-expansion-5.0.9.tgz
+# tar 7.5.21 fixes CVE-2026-73566 (HIGH). npm@latest (12.0.2) still bundles tar 7.5.19,
+# so — confirmed by the tripwire above — a cache-busted npm re-install alone does NOT
+# clear this CVE; override explicitly within npm's own bundle, same npm pack + direct
+# extraction pattern as ip-address / brace-expansion above. Re-check on npm bumps: drop
+# this block once npm@latest bundles tar >= 7.5.21. (t/3137). `tar -xzf` uses the OS tar,
+# not npm's bundled copy, so this is safe to run while replacing npm's tar.
+RUN npm pack tar@7.5.21 --pack-destination /tmp \
+    && rm -rf /usr/local/lib/node_modules/npm/node_modules/tar \
+    && mkdir -p /usr/local/lib/node_modules/npm/node_modules/tar \
+    && tar -xzf /tmp/tar-7.5.21.tgz --strip-components=1 \
+         -C /usr/local/lib/node_modules/npm/node_modules/tar \
+    && rm /tmp/tar-7.5.21.tgz \
+    && echo "[t/3137 tripwire] npm bundled-tar after override=$(node -p 'require("/usr/local/lib/node_modules/npm/node_modules/tar/package.json").version') (expect 7.5.21)"
 
 # System dependencies (runtime only — build tools like make/g++ live in the app
 # Dockerfile's builder stage, not here).
