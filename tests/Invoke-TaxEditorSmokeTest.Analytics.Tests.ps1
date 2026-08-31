@@ -47,6 +47,14 @@ Describe 'Invoke-TaxEditorSmokeTest analytics round-trip probe (t/2667)' -Tag 'h
             Mock Test-GitHubHealth -MockWith { [PSCustomObject]@{ Healthy = $true; Checks = @() } }
             Mock Start-Sleep -MockWith { }
 
+            # Fallback for any path not explicitly stubbed (e.g. Phase 9 /readyz cache probe,
+            # t/3088) — a benign reachable 200. Specific -ParameterFilter mocks below take
+            # precedence, so analytics call-count assertions are unaffected.
+            Mock Invoke-RemoteCheck -MockWith {
+                [PSCustomObject]@{ Success = $true; StatusCode = 200; ResponseMs = 5
+                    Body = $null; ContentType = 'application/json'; RawBody = ''; Error = $null }
+            }
+
             # Phase 5 now establishes an anon session (t/2684) before the round-trip —
             # stub it so the tests stay offline and fast. Default: a real session so
             # the -Session param is threaded through the three calls; individual tests

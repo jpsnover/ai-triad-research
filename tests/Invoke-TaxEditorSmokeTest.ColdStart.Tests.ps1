@@ -43,6 +43,14 @@ Describe 'Invoke-TaxEditorSmokeTest Health-phase cold-start tolerance (t/1696)' 
             Mock Test-GitHubHealth -MockWith { [PSCustomObject]@{ Healthy = $true; Checks = @() } }
             Mock Start-Sleep -MockWith { }
 
+            # Fallback for any path not explicitly stubbed below (e.g. Phase 9 /readyz cache
+            # probe, t/3088) — a benign reachable 200 so an un-enumerated call can't sink the
+            # health phase under test. Specific -ParameterFilter mocks below take precedence.
+            Mock Invoke-RemoteCheck -MockWith {
+                [PSCustomObject]@{ Success = $true; StatusCode = 200; ResponseMs = 5
+                    Body = $null; ContentType = 'application/json'; RawBody = ''; Error = $null }
+            }
+
             # t/2667 — the Analytics phase (Phase 5) calls the Private Invoke-RemoteCheck
             # for a delta read-back. Stub it to a clean round-trip (totalEvents 0 → 1)
             # so the analytics phase passes and OverallPass hinges solely on the health

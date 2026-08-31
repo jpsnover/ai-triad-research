@@ -509,6 +509,31 @@ function Invoke-TaxEditorSmokeTest {
     }
     Write-Host ''
 
+    # ── Phase 9: Embeddings cache presence (t/3088 follow-up #1) ────────────────
+    # t/3085/t/3086: the precomputed embeddings.json cache was silently dead for 3.5 months.
+    # /health exposes embeddings.cachePresent but ONLY to admins (meta.ts anon branch returns
+    # status+ai and early-returns), so an anon smoke can't read it. The anon /readyz (t/3112,
+    # PUBLIC_EXACT_PATHS) returns 200 IFF the precomputed-vector cache is loaded (present AND
+    # nodeCount>0) — the anon-accessible "cache present" signal this probe asserts, no creds.
+    # WARN-FIRST like Phase 8 (embedding latency): a fresh revision can be /healthz-ready but
+    # /readyz-503 during fire-and-forget prewarm, so a 503 surfaces as ::warning:: (a real but
+    # often transient signal), NOT a hard failure — EXCLUDED from $OverallPass so a cold-revision
+    # warmup can't false-red Health/Endpoints/Azure.
+    Write-Host '=== Embeddings Cache Presence ===' -ForegroundColor Cyan
+    $CacheCheck = Invoke-RemoteCheck -BaseUrl $BaseUrl -Path '/readyz' `
+        -Method 'GET' -TimeoutSec $TimeoutSec -AcceptableStatusCodes @(200, 503)
+    $EmbeddingCachePresent = ($CacheCheck.StatusCode -eq 200)
+    $EmbeddingCacheStatus  = if ($EmbeddingCachePresent) { 'present' }
+        elseif ($CacheCheck.StatusCode -eq 503) { 'warming' }
+        else { 'unreachable' }
+    $CCIcon  = if ($EmbeddingCachePresent) { '[PASS]' } else { '[DEGRADED]' }
+    $CCColor = if ($EmbeddingCachePresent) { 'Green' } else { 'Yellow' }
+    Write-Host "  $CCIcon GET /readyz — $($CacheCheck.StatusCode) $($CacheCheck.ResponseMs)ms — embeddings cache $EmbeddingCacheStatus" -ForegroundColor $CCColor
+    if (-not $EmbeddingCachePresent) {
+        Write-Host "::warning::Embeddings cache not present (/readyz=$($CacheCheck.StatusCode), $EmbeddingCacheStatus) — monitoring signal, does not block the gate. A sustained 'warming'/'unreachable' is the t/3085 dead-cache class."
+    }
+    Write-Host ''
+
     # ── Summary ──────────────────────────────────────────────────────────
     $AllResults = @($Endpoints) + @($AnonEndpoints) + @($Analytics) + @($DataPresence) + @($OpedFilesResult)
     $Passed = @($AllResults | Where-Object { $_.Pass }).Count
@@ -570,6 +595,8 @@ function Invoke-TaxEditorSmokeTest {
         EmbeddingStatus     = $EmbeddingStatus
         EmbeddingLatencyMs  = $EmbeddingMs
         EmbeddingCeilingSec = $EmbeddingCeilingSec
+        EmbeddingCachePresent = $EmbeddingCachePresent
+        EmbeddingCacheStatus  = $EmbeddingCacheStatus
         EndpointsPassed = $Passed
         EndpointsFailed = $Failed
         EndpointsTotal  = $Total
