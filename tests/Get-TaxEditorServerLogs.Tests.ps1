@@ -61,9 +61,13 @@ Describe 'Get-TaxEditorServerLogs' -Tag 'diagnostics' {
         InModuleScope AITriad {
             $script:TaxEditorLogWorkspaceId = 'ws-guid-abc'   # pre-seed cache: skip workspace list
             $script:capturedKql = $null
+            $script:capturedQueryArg = $null
             Mock Assert-AzCli { }
             Mock Invoke-Az -ParameterFilter { $Arguments -contains 'query' } -MockWith {
                 $script:capturedKql = ($Arguments -join ' ')
+                # capture the exact --analytics-query value (the single arg az receives)
+                $qi = [array]::IndexOf($Arguments, '--analytics-query')
+                $script:capturedQueryArg = if ($qi -ge 0 -and ($qi + 1) -lt $Arguments.Count) { $Arguments[$qi + 1] } else { $null }
                 '[]'
             }
 
@@ -73,11 +77,18 @@ Describe 'Get-TaxEditorServerLogs' -Tag 'diagnostics' {
             $script:capturedKql | Should -Match "ContainerAppName_s == 'taxonomy-editor'"
             $script:capturedKql | Should -Match "Log_s has 'req-abc'"
             $script:capturedKql | Should -Match "Log_s contains 'GEMINI'"
-            # t/3117 regression guard: the window bound MUST use todatetime('<iso>'); the KQL
-            # datetime() literal wrapped around a quoted string silently no-ops the filter
-            # (returns full retention + out-of-window rows).
-            $script:capturedKql | Should -Match "TimeGenerated between \(todatetime\('"
-            $script:capturedKql | Should -Not -Match "between \(datetime\('"
+            # t/3117 REAL root cause: the query is passed inline as ONE --analytics-query arg to
+            # `& az`; an embedded NEWLINE truncates the arg at the PS→az boundary, so az sees only
+            # the first line and dumps the whole table (where/project/order/take all lost — `take`
+            # returning full retention was the tell). Guard the single-line-transport invariant on
+            # the ACTUAL arg, and confirm the full pipeline survives inside that one arg. A
+            # content-only assertion on the query string can't catch this — the bug is in transport.
+            $script:capturedQueryArg | Should -Not -BeNullOrEmpty
+            $script:capturedQueryArg | Should -Not -Match "`n"                        # single line: no embedded newline
+            $script:capturedQueryArg | Should -Match 'where TimeGenerated between'    # window clause reaches az
+            $script:capturedQueryArg | Should -Match 'take '                          # take survives (the tell)
+            $script:capturedQueryArg | Should -Match "todatetime\('"                  # window bound uses todatetime (valid KQL)
+            $script:capturedQueryArg | Should -Not -Match "between \(datetime\('"     # not the quoted-datetime() literal
         }
     }
 
