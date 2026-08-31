@@ -9,6 +9,7 @@ import {
   ENTITY_RESOLUTION_MARGIN,
   type ApprovedEntityView,
 } from './nameResolver.js';
+import { nameVectorOf, type EntityVectorRecord } from './entityVectors.js';
 
 // Two entities sharing the exact alias "Chris" — the canonical alias-collision fixture.
 const CHRIS_OLAH: ApprovedEntityView = { id: 'ent-010', name: 'Chris Olah', aliases: ['Chris', 'Olah'] };
@@ -16,8 +17,12 @@ const CHRIS_MANNING: ApprovedEntityView = { id: 'ent-011', name: 'Chris Manning'
 const BENGIO: ApprovedEntityView = { id: 'ent-001', name: 'Yoshua Bengio', aliases: ['Bengio'] };
 const ANTHROPIC: ApprovedEntityView = { id: 'org-001', name: 'Anthropic', aliases: ['Anthropic PBC'] };
 
-// A trivial vector store keyed by entity id.
+// A trivial v1 vector store keyed by entity id (flat number[]).
 function vectorStore(map: Record<string, number[]>): (id: string) => number[] | undefined {
+  return (id) => map[id];
+}
+// A v2 vector store — per-entity { name_vector, description_vector? } record (t/3121 back-compat).
+function vectorStoreV2(map: Record<string, EntityVectorRecord>): (id: string) => EntityVectorRecord | undefined {
   return (id) => map[id];
 }
 const noVectors = (): number[] | undefined => undefined;
@@ -107,6 +112,22 @@ describe('resolveEntityName — embedding tie-break among alias collisions', () 
     expect(r.score).toBeCloseTo(1, 5);
   });
 
+  it('breaks a v2-record collision using name_vector, tolerating a missing description_vector (t/3121)', () => {
+    const r = resolveEntityName(
+      { name: 'Chris', contextVector: [1, 0, 0] },
+      collided,
+      vectorStoreV2({
+        // ent-010's DESCRIPTION vector points away ([0,0,1]); only name_vector must be scored.
+        'ent-010': { name_vector: [1, 0, 0], description_vector: [0, 0, 1] },
+        'ent-011': { name_vector: [0, 1, 0] }, // description_vector absent — must be tolerated
+      }),
+    );
+    expect(r.status).toBe('resolved');
+    expect(r.via).toBe('embedding');
+    expect(r.ref).toEqual({ kind: 'entity', id: 'ent-010' });
+    expect(r.score).toBeCloseTo(1, 5); // scored name_vector [1,0,0], NOT description_vector [0,0,1]
+  });
+
   it('refuses (ambiguous) when separation is below the margin', () => {
     const r = resolveEntityName(
       { name: 'Chris', contextVector: [1, 1, 0] },
@@ -161,5 +182,21 @@ describe('exported thresholds', () => {
   it('pins the documented defaults', () => {
     expect(ENTITY_RESOLUTION_MIN_COSINE).toBe(0.6);
     expect(ENTITY_RESOLUTION_MARGIN).toBe(0.05);
+  });
+});
+
+describe('nameVectorOf — v1/v2 back-compat name-vector selection (t/3121)', () => {
+  it('returns a v1 flat array as-is', () => {
+    expect(nameVectorOf([1, 0, 0])).toEqual([1, 0, 0]);
+  });
+  it('returns a v2 record\'s name_vector (not description_vector)', () => {
+    const rec: EntityVectorRecord = { name_vector: [1, 0], description_vector: [0, 1] };
+    expect(nameVectorOf(rec)).toEqual([1, 0]);
+  });
+  it('tolerates a v2 record with no description_vector', () => {
+    expect(nameVectorOf({ name_vector: [0, 1] })).toEqual([0, 1]);
+  });
+  it('returns undefined for an absent entry', () => {
+    expect(nameVectorOf(undefined)).toBeUndefined();
   });
 });

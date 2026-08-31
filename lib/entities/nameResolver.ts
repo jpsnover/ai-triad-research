@@ -16,6 +16,7 @@
 import type { EntityRef } from './types.js';
 import { parseEntityRef } from './types.js';
 import { cosineSimilarity } from '../embeddings/similarity.js';
+import { nameVectorOf, type EntityVectorStored } from './entityVectors.js';
 
 /**
  * Resolution-seam cosine floor. Reuses the §7 entity-linking cosine (0.60, stipulated,
@@ -107,13 +108,15 @@ function refsOf(entities: ApprovedEntityView[]): EntityRef[] {
 
 /**
  * Resolve a surface name to an {@link EntityRef}, or refuse. Pure. See file header for the
- * three-step contract. `getVector` maps an entity id to its approved name+description vector
- * (entity_embeddings.json), returning undefined when absent.
+ * three-step contract. `getVector` maps an entity id to its stored vector value in
+ * entity_embeddings.json — either v1 (a flat `number[]`) or v2 ({@link EntityVectorRecord}),
+ * returning undefined when absent. The cosine tie-break uses the NAME vector, selected across
+ * both schema versions via {@link nameVectorOf} (v1 array as-is, v2 `.name_vector`) — t/3121.
  */
 export function resolveEntityName(
   query: NameQuery,
   approved: ApprovedEntityView[],
-  getVector: (id: string) => number[] | undefined,
+  getVector: (id: string) => EntityVectorStored | undefined,
   opts?: { minCosine?: number; margin?: number },
 ): NameResolution {
   const minCosine = opts?.minCosine ?? ENTITY_RESOLUTION_MIN_COSINE;
@@ -156,7 +159,7 @@ export function resolveEntityName(
   const scored: { ref: EntityRef; score: number }[] = [];
   for (const e of matches) {
     const ref = parseEntityRef(e.id);
-    const vec = getVector(e.id);
+    const vec = nameVectorOf(getVector(e.id)); // v1 flat array or v2 name_vector (t/3121)
     if (!ref || !vec) continue;
     scored.push({ ref, score: cosineSimilarity(cv, vec) });
   }
