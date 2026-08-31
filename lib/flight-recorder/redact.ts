@@ -5,6 +5,7 @@ const REDACTED = '[REDACTED]';
 
 const API_KEY_PATTERNS: RegExp[] = [
   /AIzaSy[A-Za-z0-9_-]{33}/g,
+  /AQ\.[A-Za-z0-9_\-.]{20,}/g, // t/3139: newer Gemini key format (AQ.<...>) — bypassed the AIzaSy-only screen
   /\bsk-[A-Za-z0-9]{20,}/g,
   /\bgsk_[A-Za-z0-9]{20,}/g,
   /\bkey-[A-Za-z0-9]{20,}/g,

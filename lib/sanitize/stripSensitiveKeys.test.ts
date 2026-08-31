@@ -23,6 +23,11 @@ describe('stripSensitiveKeys', () => {
     expect(out).toEqual({ c: 'S(normal)' }); // a + b dropped by SECRET_PREFIX_RE
   });
 
+  it('object branch: drops newer-format Gemini AQ. key values (t/3139)', () => {
+    const out = stripSensitiveKeys({ k: 'AQ.FakeKeyForTesting1234567890123456', c: 'normal' }, tag);
+    expect(out).toEqual({ c: 'S(normal)' }); // AQ. value dropped by SECRET_PREFIX_RE
+  });
+
   it('array branch: redacts secret-prefixed elements to "" and sanitizes the rest in place', () => {
     const out = stripSensitiveKeys(['sk-abc', 'hello', 'Bearer tok'], tag);
     expect(out).toEqual(['', 'S(hello)', '']); // shape preserved; secrets blanked, not dropped
@@ -58,6 +63,7 @@ describe('stripSensitiveKeys', () => {
     expect(SENSITIVE_KEYS.size).toBe(19); // drift guard — a dropped/added key trips this
     expect(SECRET_PREFIX_RE.test('sk-abc')).toBe(true);
     expect(SECRET_PREFIX_RE.test('AIzaXYZ')).toBe(true);
+    expect(SECRET_PREFIX_RE.test('AQ.FakeKey123')).toBe(true); // t/3139 newer Gemini key format
     expect(SECRET_PREFIX_RE.test('Bearer tok')).toBe(true);
     expect(SECRET_PREFIX_RE.test('normal-text')).toBe(false);
   });

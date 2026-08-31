@@ -795,6 +795,11 @@ describe('redactString', () => {
     expect(redactString(input)).toBe('key=[REDACTED]');
   });
 
+  it('redacts newer-format Gemini keys (AQ. prefix) — t/3139', () => {
+    const input = 'key=AQ.FakeKeyForTesting1234567890123456';
+    expect(redactString(input)).toBe('key=[REDACTED]');
+  });
+
   it('redacts OpenAI/Anthropic keys (sk- prefix)', () => {
     const input = 'Authorization: sk-abcdefghijklmnopqrstuvwxyz';
     expect(redactString(input)).toBe('Authorization: [REDACTED]');
@@ -939,6 +944,19 @@ describe('serializer redaction integration', () => {
 
     expect(eventLine.message).toContain('[REDACTED]');
     expect(eventLine.message).not.toContain('AIzaSy');
+  });
+
+  it('redacts AQ.-format Gemini keys in an event message within dumps (t/3139)', () => {
+    recorder.record(makeInput({
+      message: 'API call failed with key AQ.FakeKeyForTesting1234567890123456',
+    }));
+
+    const { ndjson } = recorder.buildDump('explicit');
+    const lines = ndjson.trim().split('\n');
+    const eventLine = JSON.parse(lines[2]);
+
+    expect(eventLine.message).toContain('[REDACTED]');
+    expect(eventLine.message).not.toContain('AQ.FakeKeyForTesting');
   });
 
   it('redacts trigger error.message and context', () => {

@@ -30,7 +30,7 @@ export const SENSITIVE_KEYS: ReadonlySet<string> = new Set<string>([
  * two-branches-one-updated drift the t/2032 fix closed). Kept byte-identical to the
  * original community.ts copy.
  */
-export const SECRET_PREFIX_RE = /^(sk-|AIza|gsk_|key-|xai-|Bearer\s)/;
+export const SECRET_PREFIX_RE = /^(sk-|AIza|AQ\.|gsk_|key-|xai-|Bearer\s)/; // AQ\. — t/3139 newer Gemini key format
 
 /**
  * Recursively strip sensitive keys + secret-prefixed strings and sanitize the rest,
