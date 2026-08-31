@@ -12,9 +12,12 @@ function Import-Entity {
         ever added, updated, tombstoned (`merged_into`), or `deprecated` — NEVER hard-deleted.
         That is the invariant the monotonic id allocator depends on (design §3, TL t/1804#2 Q3).
 
-        Person exception (owner decision, design §4/§9.3): a `person` record cannot be
-        `approved` without a human-authored `description` — approving one with an empty
-        description throws an ActionableError (no LLM ever drafts a person description).
+        Person policy (owner decision 2026-08-31, design §4/§9.3, t/3131): a `person` description
+        may be AI-DRAFTED, but approval requires a human editor. A `person` is `approved` only when
+        `description` is non-empty AND `description_provenance` is `human-edited` / `human-authored`
+        (or unset — grandfathered legacy, safe while no AI path drafts a person description without
+        stamping `ai-drafted`). Approving a `person` whose provenance is still `ai-drafted`, or whose
+        description is empty, throws an ActionableError directing the human to edit + set provenance.
 
         Approved records get one all-MiniLM-L6-v2 embedding (name + genus-differentia line)
         written to a SEPARATE entity_embeddings.json via the existing Get-TextEmbedding path
@@ -26,7 +29,8 @@ function Import-Entity {
         1-20 proposal records (hashtable or PSCustomObject). New records require `name`,
         `entity_type`, `dolce_category`; optional `description`, `aliases`, `source_refs`,
         `external_refs`, `discovered_by`, `confidence`, `status` (default 'proposed'), `id`
-        (to update an existing record), `merged_into` (to tombstone/merge into a canonical id).
+        (to update an existing record), `merged_into` (to tombstone/merge into a canonical id),
+        `description_provenance` (`ai-drafted` | `human-edited` | `human-authored`; gates person approval).
     .PARAMETER Path
         Override entities.json path (fixtures/tests). Defaults to Get-EntitiesFilePath.
     .PARAMETER EmbeddingsPath
@@ -94,6 +98,7 @@ function Import-Entity {
         $description = [string](& $prop $p 'description' '')
         $status      = [string](& $prop $p 'status' 'proposed')
         $mergedInto  = [string](& $prop $p 'merged_into' '')
+        $descProv    = [string](& $prop $p 'description_provenance' '')   # t/3131: '' = unset/legacy
 
         $idx = if ($propId) { & $findIndex $propId } else { -1 }
         $isUpdate = ($idx -ge 0)
@@ -106,18 +111,48 @@ function Import-Entity {
         if ($isUpdate -and -not $description -and $existing[$idx].PSObject.Properties['description']) {
             $description = [string]$existing[$idx].description
         }
+        # t/3131: resolve effective provenance from the existing record on updates, so an approval
+        # can't dodge the person gate by omitting description_provenance on the update. An explicit
+        # value on the proposal (e.g. flipping ai-drafted -> human-edited) still wins.
+        if ($isUpdate -and -not $descProv -and $existing[$idx].PSObject.Properties['description_provenance']) {
+            $descProv = [string]$existing[$idx].description_provenance
+        }
 
-        # Person-approval gate (design §4/§9.3): no approval without a human description.
-        if ($entityType -eq 'person' -and $status -eq 'approved' -and [string]::IsNullOrWhiteSpace($description)) {
-            throw (New-ActionableError -PassThru `
-                -Goal 'Approve a person entity' `
-                -Problem "Person entity '$(if ($propId) { $propId } else { $name })' cannot be approved without a human-authored description" `
-                -Location 'Import-Entity' `
-                -NextSteps @(
-                    'Author a genus-differentia description ("A person who ...") for the record',
-                    'The LLM never drafts person descriptions — a human writes every one (design §4)',
-                    'Re-run Import-Entity with the description populated'
-                ))
+        # Person-approval gate (design §4/§9.3, revised t/3131): AI may DRAFT a person description,
+        # but approval still requires a human. A person is approvable iff `description` is non-empty
+        # AND provenance is human (human-edited / human-authored) OR unset. It is NOT approvable when
+        # provenance is 'ai-drafted' (an unedited AI draft) or the description is empty.
+        #
+        # GRANDFATHER SAFETY INVARIANT (t/3131, TL-required): unset provenance is treated as
+        # human-authored ONLY because no code path AI-drafts a person description without stamping
+        # 'ai-drafted' — verified: Invoke-EntityExtraction mints person proposals with NO description
+        # (:40-43/:766). Any FUTURE person AI-drafter MUST stamp description_provenance='ai-drafted',
+        # or an unedited draft would land as unset+non-empty and be silently auto-approved here.
+        # ORDERING (t/3131): this cmdlet must READ+PERSIST description_provenance before any
+        # ai-drafted person is imported (else the marker drops -> grandfather misfires).
+        if ($entityType -eq 'person' -and $status -eq 'approved') {
+            $idLabel = if ($propId) { $propId } else { $name }
+            if ([string]::IsNullOrWhiteSpace($description)) {
+                throw (New-ActionableError -PassThru `
+                    -Goal 'Approve a person entity' `
+                    -Problem "Person entity '$idLabel' cannot be approved without a description" `
+                    -Location 'Import-Entity' `
+                    -NextSteps @(
+                        'Provide a genus-differentia description ("A person who ...")',
+                        "Set description_provenance to 'human-edited' (an AI draft a human edited) or 'human-authored'",
+                        'Re-run Import-Entity'
+                    ))
+            }
+            if ($descProv -eq 'ai-drafted') {
+                throw (New-ActionableError -PassThru `
+                    -Goal 'Approve a person entity' `
+                    -Problem "Person entity '$idLabel' has an AI draft that no human has edited" `
+                    -Location 'Import-Entity' `
+                    -NextSteps @(
+                        "Edit the drafted description and set description_provenance to 'human-edited', then re-run"
+                    ))
+            }
+            # else: description non-empty AND provenance in {human-edited, human-authored, unset} -> approvable.
         }
 
         if ($isUpdate) {
@@ -156,6 +191,15 @@ function Import-Entity {
         $rec.description   = $description
         $rec.status        = $status
         $rec.last_modified = $now
+
+        # t/3131 (TL-required): READ + PERSIST description_provenance so an imported 'ai-drafted'
+        # marker survives on the stored record (that's what keeps the grandfather rule safe — an
+        # unedited AI draft stays blockable instead of degrading to unset+non-empty). Optional enum:
+        # only written when set; never write '' (not a valid contract value).
+        if ($descProv) {
+            if ($rec.PSObject.Properties['description_provenance']) { $rec.description_provenance = $descProv }
+            else { Add-Member -InputObject $rec -MemberType NoteProperty -Name 'description_provenance' -Value $descProv }
+        }
 
         foreach ($fld in @(
             @{ k = 'aliases';       d = @() },

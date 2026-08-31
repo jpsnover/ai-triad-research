@@ -106,11 +106,52 @@ Describe 'Import-Entity — curation write (t/1804 §4)' -Tag 'unit' {
         { Import-Entity -Proposal @($p) -Path $tmp -SkipEmbedding } | Should -Throw -ExpectedMessage '*description*'
     }
 
-    It 'Allows approving a PERSON record WITH a human description' {
+    It 'Allows approving a PERSON record WITH a human description (unset provenance = grandfathered, t/3131)' {
         $tmp = Join-Path $TestDrive 'entities-person-ok.json'
         $p = @{ name = 'Jane Doe'; entity_type = 'person'; dolce_category = 'agentive-physical-object'; status = 'approved'; description = 'A person who researches AI policy.' }
         { Import-Entity -Proposal @($p) -Path $tmp -SkipEmbedding } | Should -Not -Throw
         (Get-Content -Raw -Path $tmp | ConvertFrom-Json).entities[0].status | Should -Be 'approved'
+    }
+
+    It 'Blocks approving a PERSON with an ai-drafted (unedited) description — deliberate-fail arm (t/3131)' {
+        $tmp = Join-Path $TestDrive 'entities-person-aidraft.json'
+        $p = @{ name = 'Jane Doe'; entity_type = 'person'; dolce_category = 'agentive-physical-object'; status = 'approved'; description = 'A person who researches AI policy.'; description_provenance = 'ai-drafted' }
+        { Import-Entity -Proposal @($p) -Path $tmp -SkipEmbedding } | Should -Throw -ExpectedMessage '*AI draft*'
+    }
+
+    It 'Allows approving a PERSON once provenance is human-edited — clean arm (t/3131)' {
+        $tmp = Join-Path $TestDrive 'entities-person-edited.json'
+        $p = @{ name = 'Jane Doe'; entity_type = 'person'; dolce_category = 'agentive-physical-object'; status = 'approved'; description = 'A person who researches AI policy.'; description_provenance = 'human-edited' }
+        { Import-Entity -Proposal @($p) -Path $tmp -SkipEmbedding } | Should -Not -Throw
+        $stored = (Get-Content -Raw -Path $tmp | ConvertFrom-Json).entities[0]
+        $stored.status                 | Should -Be 'approved'
+        $stored.description_provenance  | Should -Be 'human-edited'
+    }
+
+    It 'Allows PROPOSING (not approving) a PERSON with an ai-drafted description (t/3131)' {
+        $tmp = Join-Path $TestDrive 'entities-person-propose.json'
+        $p = @{ name = 'Jane Doe'; entity_type = 'person'; dolce_category = 'agentive-physical-object'; status = 'proposed'; description = 'A person who researches AI policy.'; description_provenance = 'ai-drafted' }
+        { Import-Entity -Proposal @($p) -Path $tmp -SkipEmbedding } | Should -Not -Throw
+        $stored = (Get-Content -Raw -Path $tmp | ConvertFrom-Json).entities[0]
+        $stored.status                 | Should -Be 'proposed'
+        $stored.description_provenance  | Should -Be 'ai-drafted'
+    }
+
+    It 'PERSISTS ai-drafted on import; the stored marker blocks a later approval that omits provenance (persist + anti-dodge, t/3131)' {
+        $tmp = Join-Path $TestDrive 'entities-person-persist.json'
+        # 1) propose an ai-drafted person → provenance must PERSIST on the stored record
+        $prop = @{ name = 'Jane Doe'; entity_type = 'person'; dolce_category = 'agentive-physical-object'; status = 'proposed'; description = 'A person who researches AI policy.'; description_provenance = 'ai-drafted' }
+        $r1 = Import-Entity -Proposal @($prop) -Path $tmp -SkipEmbedding
+        $id = $r1[0].Id
+        (Get-Content -Raw -Path $tmp | ConvertFrom-Json).entities[0].description_provenance | Should -Be 'ai-drafted'
+        # 2) approve WITHOUT re-supplying provenance → anti-dodge resolves the persisted 'ai-drafted'
+        #    → still blocked (proves the marker survived import; grandfather cannot misfire)
+        { Import-Entity -Proposal @(@{ id = $id; status = 'approved' }) -Path $tmp -SkipEmbedding } | Should -Throw -ExpectedMessage '*AI draft*'
+        # 3) human edits + flips to human-edited → approval succeeds
+        { Import-Entity -Proposal @(@{ id = $id; status = 'approved'; description_provenance = 'human-edited' }) -Path $tmp -SkipEmbedding } | Should -Not -Throw
+        $final = (Get-Content -Raw -Path $tmp | ConvertFrom-Json).entities[0]
+        $final.status                 | Should -Be 'approved'
+        $final.description_provenance  | Should -Be 'human-edited'
     }
 
     It 'NEVER hard-deletes: deprecate + merge leave the record count monotonic (§3, TL Q3)' {
