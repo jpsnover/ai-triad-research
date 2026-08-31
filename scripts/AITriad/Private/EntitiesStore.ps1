@@ -64,13 +64,19 @@ function New-EmptyEntityEmbeddingsStore {
     #>
     [CmdletBinding()]
     param()
+    # _schema_version '2.0.0' (t/3121): vectors[<id>] is an EntityVectorRecord
+    # { name_vector, description_vector? } — see lib/entities/entityVectors.ts. `_src_hashes`
+    # is a PS-owned envelope map { <id>: sha256(name+aliases\ndescription) } used by the
+    # writer + Update-EntityEmbeddings to skip unchanged records (staleness guard, t/3085
+    # class). It is deliberately NOT part of the EntityVectorRecord type — readers ignore it.
     return [PSCustomObject]@{
-        _schema_version = '1.0.0'
+        _schema_version = '2.0.0'
         _doc            = 'Entity vectors for linking and dedup ONLY. Never an input to debate relevance.'
         model           = 'all-MiniLM-L6-v2'
         dim             = 384
         last_modified   = (Get-Date).ToString('yyyy-MM-dd')
         vectors         = [PSCustomObject]@{}
+        _src_hashes     = [PSCustomObject]@{}
     }
 }
 

@@ -258,16 +258,54 @@ function Import-Entity {
             if ($null -eq $embStore) {
                 $embStore = if (Test-Path $embPath) { Get-Content -Raw -Path $embPath -Encoding utf8 | ConvertFrom-Json } else { New-EmptyEntityEmbeddingsStore }
             }
-            $text = if ($description) { "$name`n$description" } else { $name }
-            $vecMap = Get-TextEmbedding -Texts @($text) -Ids @($newId)
-            if ($vecMap -and $vecMap.ContainsKey($newId)) {
-                if (-not $embStore.PSObject.Properties['vectors']) {
-                    Add-Member -InputObject $embStore -MemberType NoteProperty -Name 'vectors' -Value ([PSCustomObject]@{})
-                }
-                if ($embStore.vectors.PSObject.Properties[$newId]) { $embStore.vectors.$newId = @($vecMap[$newId]) }
-                else { Add-Member -InputObject $embStore.vectors -MemberType NoteProperty -Name $newId -Value (@($vecMap[$newId])) }
-                $embDirty = $true
+            # t/3121 v2 multi-vector: name_vector embeds label + aliases (drives the resolution
+            # ladder's cosine tie-break); description_vector embeds the description (future R6
+            # rung), OMITTED when description is empty (Shared Lib readers tolerate absence,
+            # entityVectors.ts nameVectorOf). One sub-id batch → one embed subprocess.
+            # `_src_hash` (envelope-side `_src_hashes` map, PS-owned — deliberately NOT in the
+            # EntityVectorRecord type) fingerprints the EXACT embedded source so a re-import and
+            # Update-EntityEmbeddings (t/3121 D) can skip unchanged records idempotently
+            # (staleness guard, t/3085 class). Hash over the same text the writer embeds.
+            $aliasText = @($rec.aliases) -join ' '
+            $nameText  = if ($aliasText) { "$($rec.name) $aliasText" } else { [string]$rec.name }
+            $descText  = [string]$rec.description
+            $srcHash   = Get-TextSha256 -Text "$nameText`n$descText"
+
+            $priorHash = if ($embStore.PSObject.Properties['_src_hashes'] -and $embStore._src_hashes.PSObject.Properties[$newId]) { [string]$embStore._src_hashes.$newId } else { '' }
+            $hasV2Rec  = $embStore.PSObject.Properties['vectors'] -and $embStore.vectors.PSObject.Properties[$newId] -and ($embStore.vectors.$newId -isnot [array])
+            if ($hasV2Rec -and $priorHash -eq $srcHash) {
+                # Already current (v2 record + matching fingerprint): carries a vector, no re-embed.
                 $embedded = $true
+            }
+            else {
+                $subIds   = @("$newId#name")
+                $subTexts = @($nameText)
+                if ($descText) { $subIds += "$newId#desc"; $subTexts += $descText }
+                $vecMap = Get-TextEmbedding -Texts $subTexts -Ids $subIds
+                if ($vecMap -and $vecMap.ContainsKey("$newId#name")) {
+                    $vrec = [PSCustomObject]@{ name_vector = @($vecMap["$newId#name"]) }
+                    if ($descText -and $vecMap.ContainsKey("$newId#desc")) {
+                        Add-Member -InputObject $vrec -MemberType NoteProperty -Name 'description_vector' -Value (@($vecMap["$newId#desc"]))
+                    }
+                    if (-not $embStore.PSObject.Properties['vectors']) {
+                        Add-Member -InputObject $embStore -MemberType NoteProperty -Name 'vectors' -Value ([PSCustomObject]@{})
+                    }
+                    if ($embStore.vectors.PSObject.Properties[$newId]) { $embStore.vectors.$newId = $vrec }
+                    else { Add-Member -InputObject $embStore.vectors -MemberType NoteProperty -Name $newId -Value $vrec }
+
+                    if (-not $embStore.PSObject.Properties['_src_hashes']) {
+                        Add-Member -InputObject $embStore -MemberType NoteProperty -Name '_src_hashes' -Value ([PSCustomObject]@{})
+                    }
+                    if ($embStore._src_hashes.PSObject.Properties[$newId]) { $embStore._src_hashes.$newId = $srcHash }
+                    else { Add-Member -InputObject $embStore._src_hashes -MemberType NoteProperty -Name $newId -Value $srcHash }
+
+                    # This store now holds a v2 record — declare the schema (bumps a loaded v1 envelope).
+                    if ($embStore.PSObject.Properties['_schema_version']) { $embStore._schema_version = '2.0.0' }
+                    else { Add-Member -InputObject $embStore -MemberType NoteProperty -Name '_schema_version' -Value '2.0.0' }
+
+                    $embDirty = $true
+                    $embedded = $true
+                }
             }
         }
 

@@ -362,3 +362,91 @@ Describe 'Entity cmdlets - manifest' -Tag 'unit' {
         $manifest.ExportedFunctions.Keys | Should -Contain 'Import-Entity'
     }
 }
+
+Describe 'Import-Entity — v2 multi-vector embed (t/3121 C)' -Tag 'unit' {
+
+    BeforeEach {
+        # Deterministic embed: name (or any non-#desc id) → 0.1×384; description (#desc) → 0.2×384.
+        Mock -ModuleName AITriad Get-TextEmbedding {
+            $m = @{}
+            foreach ($id in $Ids) {
+                $fill = if ($id -like '*#desc') { 0.2 } else { 0.1 }
+                $m[$id] = @(1..384 | ForEach-Object { $fill })
+            }
+            return $m
+        }
+    }
+
+    It 'Writes a v2 EntityVectorRecord {name_vector, description_vector} + _src_hash for an approved entity with a description' {
+        $ent = Join-Path $TestDrive 'v2-ent.json'
+        $emb = Join-Path $TestDrive 'v2-emb.json'
+        $r = Import-Entity -Proposal @((New-Prop @{ status = 'approved'; aliases = @('GPT4', 'GPT-four') })) -Path $ent -EmbeddingsPath $emb
+        $r[0].Embedded | Should -BeTrue
+        Should -Invoke -ModuleName AITriad Get-TextEmbedding -Times 1 -Exactly
+
+        $store = Get-Content -Raw -Path $emb | ConvertFrom-Json
+        $store._schema_version | Should -Be '2.0.0'
+        $rec = $store.vectors.'ent-001'
+        @($rec.name_vector).Count        | Should -Be 384
+        @($rec.description_vector).Count | Should -Be 384
+        $rec.name_vector[0]        | Should -Be 0.1
+        $rec.description_vector[0] | Should -Be 0.2
+        $store._src_hashes.'ent-001' | Should -Match '^[0-9a-f]{64}$'
+    }
+
+    It 'OMITS description_vector when the entity has no description (readers tolerate absence)' {
+        $ent = Join-Path $TestDrive 'v2-nodesc-ent.json'
+        $emb = Join-Path $TestDrive 'v2-nodesc-emb.json'
+        Import-Entity -Proposal @((New-Prop @{ status = 'approved'; description = '' })) -Path $ent -EmbeddingsPath $emb | Out-Null
+        $rec = (Get-Content -Raw -Path $emb | ConvertFrom-Json).vectors.'ent-001'
+        @($rec.name_vector).Count | Should -Be 384
+        $rec.PSObject.Properties['description_vector'] | Should -BeNullOrEmpty
+    }
+
+    It 'Batches name + description in ONE Get-TextEmbedding call (sub-id #name/#desc)' {
+        $ent = Join-Path $TestDrive 'v2-batch-ent.json'
+        $emb = Join-Path $TestDrive 'v2-batch-emb.json'
+        Import-Entity -Proposal @((New-Prop @{ status = 'approved' })) -Path $ent -EmbeddingsPath $emb | Out-Null
+        Should -Invoke -ModuleName AITriad Get-TextEmbedding -Times 1 -Exactly -ParameterFilter {
+            ($Ids -contains 'ent-001#name') -and ($Ids -contains 'ent-001#desc')
+        }
+    }
+
+    It 'Is idempotent — a re-approve with unchanged source does NOT re-embed (_src_hash staleness guard)' {
+        $ent = Join-Path $TestDrive 'v2-idem-ent.json'
+        $emb = Join-Path $TestDrive 'v2-idem-emb.json'
+        Import-Entity -Proposal @((New-Prop @{ status = 'approved' })) -Path $ent -EmbeddingsPath $emb | Out-Null
+        $r2 = Import-Entity -Proposal @((New-Prop @{ id = 'ent-001'; status = 'approved' })) -Path $ent -EmbeddingsPath $emb
+        $r2[0].Embedded | Should -BeTrue   # still carries a vector
+        Should -Invoke -ModuleName AITriad Get-TextEmbedding -Times 1 -Exactly   # not re-embedded
+    }
+
+    It 'Re-embeds when the source changed (hash mismatch → fresh vectors)' {
+        $ent = Join-Path $TestDrive 'v2-change-ent.json'
+        $emb = Join-Path $TestDrive 'v2-change-emb.json'
+        Import-Entity -Proposal @((New-Prop @{ status = 'approved' })) -Path $ent -EmbeddingsPath $emb | Out-Null
+        Import-Entity -Proposal @((New-Prop @{ id = 'ent-001'; status = 'approved'; description = 'A different description entirely.' })) -Path $ent -EmbeddingsPath $emb | Out-Null
+        Should -Invoke -ModuleName AITriad Get-TextEmbedding -Times 2 -Exactly
+    }
+
+    It 'Upgrades a v1 flat-array record to a v2 record on the next approval (back-compat)' {
+        $ent = Join-Path $TestDrive 'v1up-ent.json'
+        $emb = Join-Path $TestDrive 'v1up-emb.json'
+        # Seed a v1 store: vectors[id] is a flat number[] (single blended vector), schema 1.0.0.
+        @{
+            _schema_version = '1.0.0'
+            model           = 'all-MiniLM-L6-v2'
+            dim             = 384
+            vectors         = @{ 'ent-001' = @(1..384 | ForEach-Object { 0.5 }) }
+        } | ConvertTo-Json -Depth 6 | Set-Content -Path $emb -Encoding utf8
+        Import-Entity -Proposal @((New-Prop)) -Path $ent -SkipEmbedding | Out-Null   # ent-001, proposed, no embed
+        Import-Entity -Proposal @((New-Prop @{ id = 'ent-001'; status = 'approved' })) -Path $ent -EmbeddingsPath $emb | Out-Null
+
+        $store = Get-Content -Raw -Path $emb | ConvertFrom-Json
+        $store._schema_version | Should -Be '2.0.0'
+        $rec = $store.vectors.'ent-001'
+        $rec -is [array]          | Should -BeFalse   # no longer a flat array
+        @($rec.name_vector).Count | Should -Be 384    # now a v2 record
+        Should -Invoke -ModuleName AITriad Get-TextEmbedding -Times 1 -Exactly   # v1 array ≠ v2 → re-embedded
+    }
+}
