@@ -274,17 +274,17 @@ For concepts suggested as situations (cross-POV), the AI also produces three int
 
 ## 5. Taxonomy Mapping — How Claims Match Nodes
 
-Taxonomy mapping is performed **by the AI model during summary generation**, not as a separate post-processing step. The full taxonomy (all four files, ~200+ nodes) is injected into the prompt, and the AI is instructed to:
+Taxonomy mapping is performed **by the AI model during summary generation**, but the AI maps against a **RAG-narrowed candidate set** (not the full taxonomy), and its assignments are verified by mechanical embedding and NLI passes afterward. The flow:
 
-1. **Search all four taxonomy files** (accelerationist, safetyist, skeptic, situations) for a matching node
-2. **Set `taxonomy_node_id`** to the exact node ID (e.g., `acc-desires-001`, `saf-beliefs-002`, `cc-003`)
-3. **Cross-POV search**: Before declaring a concept unmapped, search all POVs — a safetyist claim might map to an accelerationist node that addresses the same phenomenon from a different angle
-4. **Set `taxonomy_node_id: null`** only if no existing node captures the concept
+1. **RAG pre-filter** (`Get-RelevantTaxonomyNodes`): the claim/chunk is embedded locally (all-MiniLM-L6-v2 via `embed_taxonomy.py`, no API key) and cosine-matched against the precomputed node vectors in `taxonomy/embeddings.json`. Selection is adaptive — a top-K with a similarity floor, a per-BDI-category minimum, and a cap (cmdlet defaults `TopK=40`, `Threshold=0.20`, `MinPerCategory=3`, `MaxTotal=50`; the summary pipeline raises the cap via `-RagMaxTotal`, default 300). This narrowed candidate block — not the full four-file taxonomy — is what gets injected into the prompt.
+2. **Cross-encoder rerank** (optional, `-CrossEncoderRerank`, default off): re-scores the top-N bi-encoder candidates with a cross-encoder (`cross-encoder/ms-marco-MiniLM-L-6-v2` via `evaluate_embeddings.py rerank`) and re-sorts; degrades gracefully to bi-encoder order on any failure.
+3. **AI extraction/mapping** against the narrowed set. The AI is instructed to:
+   - **Cross-POV search** — before declaring a concept unmapped, search all four POVs (accelerationist, safetyist, skeptic, situations); a safetyist claim may map to an accelerationist node addressing the same phenomenon from a different angle.
+   - **Set `taxonomy_node_id`** to the exact node ID (e.g. `acc-desires-001`, `saf-beliefs-002`, `cc-003`) — the structured prefix (POV + category) helps the model navigate.
+   - **Set `taxonomy_node_id: null`** only if no candidate captures the concept (→ unmapped-concept proposal, §6).
+4. **Post-hoc verification over the AI's assignments** (finalize stage): a retrieval **embedding-confidence** pass scores each mapping and surfaces top-3 alternates (flagging `retrieval_low_confidence`); an **NLI polarity gate** (`Invoke-PolarityGatePass`, active by default since t/2912) checks whether a claim actually *opposes* its assigned node — deberta-v3-small proposes, an LLM judge disposes — and on confirmed opposition keeps the node mapping but flags `stance='strongly_opposed'`. A Mechanism-5 re-retrieval pass and an excludes-veto pass surface better candidates.
 
-There is no embedding similarity, NLI, or vector search in the mapping step. The AI model performs semantic matching against the full taxonomy provided in the prompt context. This works because:
-- The taxonomy is small enough (~200 nodes, ~50KB of JSON) to fit in the prompt
-- The AI model has the full node descriptions available for semantic comparison
-- Node IDs are structured (prefix encodes POV and category), which helps the model navigate
+The AI still makes the actual assignment; **RAG/rerank narrow what it sees, and the embedding/NLI passes verify what it chose** — mapping is neither full-taxonomy-injection nor fully mechanical. Pass `-FullTaxonomy` to bypass RAG and inject the entire taxonomy (small corpora / debugging).
 
 ### Policy Mapping
 
@@ -391,9 +391,8 @@ After a summary is written, the system examines its `factual_claims` for cross-P
 
 For clarity, here is what the pipeline does **not** do:
 
-- **No embedding similarity for taxonomy mapping.** The AI model performs semantic matching using the full taxonomy in the prompt context. There is no vector database or cosine similarity step during ingestion.
-- **No NLI (Natural Language Inference)** during ingestion. NLI is used in the Electron app for semantic search, not in the PowerShell pipeline.
 - **No automatic taxonomy modification.** Unmapped concepts generate proposals for human review. The taxonomy is never auto-updated by the ingestion pipeline.
+- **No served vector database.** Embedding similarity IS used in mapping — RAG pre-filtering, optional cross-encoder rerank, and an NLI polarity gate (see §5) — but against a flat precomputed `embeddings.json` and local models, not a hosted vector DB. (Earlier revisions of this doc claimed "no embedding similarity / no NLI during ingestion"; that was superseded when RAG/rerank/NLI landed — corrected t/3120.)
 - **No cross-document aggregation during ingestion.** Each document is summarized independently. Cross-document analysis (conflict detection, health metrics) runs as a separate step.
 - **No sliding window chunking.** Chunks are non-overlapping with semantic boundary detection.
 - **No parallel chunk processing.** Chunks are processed sequentially to respect API rate limits.
