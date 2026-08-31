@@ -496,26 +496,28 @@ jobs:
             Add-Content -Path $env:GITHUB_OUTPUT -Value 'accepted=true'
           }
 
-      - name: Warm-gate observe (/readyz) — OBSERVE-ONLY, does not gate (t/3114, t/2683)
+      - name: Warm-gate (/readyz) — PEER-BLOCKING (t/3148, promoted from observe-only)
         id: warm_gate
         if: steps.health_check.outputs.healthy == 'true'
         shell: pwsh
         run: |
-          # t/3114 OBSERVE-ONLY (Gate Promotion t/2683, real-env-first): compute + LOG whether the
-          # new revision's embeddings.json vector-cache is warm (/readyz 200) BEFORE traffic shifts,
-          # but do NOT gate — this step is intentionally absent from every success/rollback
-          # if-condition. It validates real-env warm detection (FQDN resolves, real 503->200, no
-          # false timeout) on >=1 real deploy; a follow-up flip PR then wires it as the peer-blocking
-          # gate (require warm==true to shift; rollback on warm==false) — that wiring is already GV'd
-          # offline (t/3114#3). -ObserveOnly => a warm timeout logs ::warning:: and exits 0 (never
-          # blocks). The printed /readyz body lets us confirm the real 200 is {status:ready}, not the
-          # SPA index.html fallback (ServerAPI p/542#74); the flip couples a body-shape check.
+          # t/3148 BLOCKING flip (mechanism B, TL-decided p/542#108; real-env evidence run
+          # 33434586564: "Warm-gate PASSED after 1 poll … {status:ready,nodeCount:4144}"). Poll the
+          # new revision's /readyz until the embeddings.json cache is warm, then emit warm=true/false.
+          # This step is a PEER of the acceptance/persona gates: 'Shift traffic' requires
+          # warm=='true'; warm=='false' takes the SAME full rollback path as an acceptance failure.
+          # The runner is FAIL-CLOSED (warm defaults false; only a proven-warm 200 with body
+          # {status:ready,nodeCount>0} sets true) and always exits 0 — the gate is OUTPUT-driven,
+          # not exit-code-driven. A non-JSON SPA index.html 200 is NOT warm (body-shape check,
+          # ServerAPI p/542#74). warm is UNSET only when this step is SKIPPED (health!='true'),
+          # which every rollback condition already covers via its health!='true' clause (no limbo).
           $BaseUrl = "${{ steps.health_check.outputs.base_url }}"
-          & ./operations/devops/Invoke-ReadyzWarmGateCheck.ps1 -BaseUrl $BaseUrl -TimeoutSec 300 -PollIntervalSec 10 -ObserveOnly
-          Write-Host "warm-gate observe: /readyz probe complete (observe-only, non-gating)."
+          & ./operations/devops/Invoke-ReadyzWarmGateCheck.ps1 -BaseUrl $BaseUrl -TimeoutSec 300 -PollIntervalSec 10
 
       - name: Shift traffic to new revision
-        if: steps.health_check.outputs.healthy == 'true' && steps.acceptance.outputs.accepted == 'true' && steps.persona.outputs.accepted == 'true'
+        # t/3148: warm_gate is now a peer gate — traffic shifts only when the /readyz warm-gate
+        # reports warm=='true' (embeddings.json cache proven warm), alongside acceptance/persona.
+        if: steps.health_check.outputs.healthy == 'true' && steps.acceptance.outputs.accepted == 'true' && steps.persona.outputs.accepted == 'true' && steps.warm_gate.outputs.warm == 'true'
         shell: pwsh
         run: |
           Import-Module ./scripts/AITriad/AITriad.psm1 -Force
@@ -578,7 +580,9 @@ jobs:
           Write-Host "Config verification passed ($($ConfigChecks.Count) checks)"
 
       - name: Collect failure diagnostics
-        if: steps.health_check.outputs.healthy != 'true' || steps.acceptance.outputs.accepted == 'false' || steps.persona.outputs.accepted == 'false'
+        # t/3148: warm_gate is a peer failure trigger — a warm-timeout (warm=='false') collects
+        # diagnostics on the same footing as an acceptance/persona failure.
+        if: steps.health_check.outputs.healthy != 'true' || steps.acceptance.outputs.accepted == 'false' || steps.persona.outputs.accepted == 'false' || steps.warm_gate.outputs.warm == 'false'
         continue-on-error: true
         shell: pwsh
         run: |
@@ -599,7 +603,7 @@ jobs:
           else { Write-Host '(no system logs available)' }
 
       - name: Re-authenticate before rollback
-        if: always() && (steps.health_check.outputs.healthy != 'true' || steps.acceptance.outputs.accepted == 'false' || steps.persona.outputs.accepted == 'false') && steps.current_revision.outputs.revision != ''
+        if: always() && (steps.health_check.outputs.healthy != 'true' || steps.acceptance.outputs.accepted == 'false' || steps.persona.outputs.accepted == 'false' || steps.warm_gate.outputs.warm == 'false') && steps.current_revision.outputs.revision != ''
         uses: azure/login@7ddb5af1ef8758cf1353cf3b42f940aee27ba21c  # v3
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
@@ -607,7 +611,7 @@ jobs:
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
       - name: Rollback on failure
-        if: always() && (steps.health_check.outputs.healthy != 'true' || steps.acceptance.outputs.accepted == 'false' || steps.persona.outputs.accepted == 'false') && steps.current_revision.outputs.revision != ''
+        if: always() && (steps.health_check.outputs.healthy != 'true' || steps.acceptance.outputs.accepted == 'false' || steps.persona.outputs.accepted == 'false' || steps.warm_gate.outputs.warm == 'false') && steps.current_revision.outputs.revision != ''
         shell: pwsh
         run: |
           Import-Module ./scripts/AITriad/AITriad.psm1 -Force
@@ -632,7 +636,7 @@ jobs:
           exit 1
 
       - name: Fail if unhealthy (no previous revision to rollback to)
-        if: (steps.health_check.outputs.healthy != 'true' || steps.acceptance.outputs.accepted == 'false' || steps.persona.outputs.accepted == 'false') && steps.current_revision.outputs.revision == ''
+        if: (steps.health_check.outputs.healthy != 'true' || steps.acceptance.outputs.accepted == 'false' || steps.persona.outputs.accepted == 'false' || steps.warm_gate.outputs.warm == 'false') && steps.current_revision.outputs.revision == ''
         run: |
           echo "::error::Health check failed and no previous revision exists for rollback"
           exit 1
