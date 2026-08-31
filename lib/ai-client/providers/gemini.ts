@@ -295,7 +295,7 @@ export function mapGeminiError(status: number, bodyText: string): ActionableErro
         problem: `Gemini 401 UNAUTHENTICATED: credential is an OAuth access token, not an API key. ${bodyText.slice(0, 300)}`,
         location: 'ai-client.generateViaGemini',
         nextSteps: [
-          'Your Gemini credential looks like an OAuth access token, not an API key. Gemini API keys start with AIza.',
+          'Your Gemini credential looks like an OAuth access token, not an API key. Gemini API keys start with AIza or AQ. (t/3139).',
           'Re-register a valid key (Settings → API Keys, or Register-AIBackend)',
         ],
       });
