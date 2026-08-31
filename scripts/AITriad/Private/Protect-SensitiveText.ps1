@@ -49,7 +49,8 @@ function Protect-SensitiveText {
         #    "Bearer" eaten as the value, leaving the token behind.
         $patterns = @(
             '(?i)\bBearer\s+[A-Za-z0-9._\-]+'
-            'AIza[0-9A-Za-z\-_]{20,}'        # Google API key
+            'AIza[0-9A-Za-z\-_]{20,}'        # Google API key (AIza… classic)
+            'AQ\.[0-9A-Za-z\-_\.]{20,}'      # Google API key (AQ.… newer format, t/3140)
             'sk-[A-Za-z0-9\-_]{16,}'         # OpenAI / Anthropic style
             'gsk_[A-Za-z0-9]{16,}'           # Groq
             '(?i)\bkey=[^&\s"'']+'           # ?key= query parameter

@@ -36,6 +36,7 @@ function Test-FlightRecorderPII {
 
         $patterns = @(
             @{ Name = 'API Key (Google)';    Regex = 'AIzaSy[A-Za-z0-9_-]{33}' }
+            @{ Name = 'API Key (Google AQ.)'; Regex = 'AQ\.[0-9A-Za-z\-_.]{20,}' }   # newer Gemini key format (t/3140)
             @{ Name = 'API Key (OpenAI)';    Regex = 'sk-[A-Za-z0-9]{20,}' }
             @{ Name = 'API Key (Groq)';      Regex = 'gsk_[A-Za-z0-9]{20,}' }
             @{ Name = 'API Key (xAI)';       Regex = 'xai-[A-Za-z0-9]{20,}' }
