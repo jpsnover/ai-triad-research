@@ -1,0 +1,139 @@
+# ─── Dependabot Standalone-Lockfile + License-Notices Heal (t/3116) ───
+# What:  On a Dependabot PR that bumps a workspace dependency, the single root
+#        `/` Dependabot entry updates member manifests + the shared root
+#        pnpm-lock.yaml — but it CANNOT update taxonomy-editor's in-dir STANDALONE
+#        lockfile (Docker prod-deps) or its generated license notices. Those go
+#        stale → test-container / test-electron(taxonomy-editor) red. This
+#        workflow re-syncs them and commits the result back onto the PR branch,
+#        so the Dependabot PR carries all three artifacts and goes green.
+#
+# Design: Second Opinion e/127#2 (Option B), TL-approved (t/3116#7). A plain
+#        `pull_request` trigger (never pull_request_target — Dependabot runs
+#        already receive Dependabot secrets, so no elevated base-repo context is
+#        needed, and the RCE-class footprint is avoided entirely). Write access
+#        comes from a runtime-minted GitHub App installation token, NOT the
+#        read-only default GITHUB_TOKEN.
+#
+# SECURITY (do not refactor without re-reading e/127#2):
+#   * The App token is minted AFTER every dependency-touching step and is
+#     referenced ONLY by the push step (step-level env). Step ordering IS the
+#     security boundary — moving the mint earlier exposes a write credential to
+#     dependency/script execution. See the marked step below.
+#   * `pnpm install --lockfile-only` (inside sync-standalone-lockfile.mjs) and the
+#     license install both run with scripts disabled (`--ignore-scripts` + an
+#     `.npmrc` belt) so no registry postinstall hook executes during a resolve.
+#   * Job guard requires BOTH actor == dependabot[bot] AND a same-repo head, so a
+#     fork PR can never reach the write path.
+#   * The App/PAT push (unlike a GITHUB_TOKEN push) DOES retrigger CI — that is
+#     load-bearing: the heal commit must get fresh checks. Do not "simplify" to
+#     the default token.
+#
+# CREDENTIAL PREREQUISITE (owner/admin, one-time): a GitHub App with
+#   `contents: write` on this repo, installed, with its App ID + private key
+#   stored as DEPENDABOT secrets (NOT Actions secrets — Dependabot-triggered runs
+#   read the Dependabot secret store):
+#     - DEPENDABOT_HEAL_APP_ID
+#     - DEPENDABOT_HEAL_APP_PRIVATE_KEY
+#   Fine-grained single-repo PAT (contents:write, 90-day) is the accepted fallback
+#   (swap the mint step for a `token:` referencing a DEPENDABOT_HEAL_PAT secret).
+#
+# NOTE (t/3116): lib/debate is NOT healed here — its root-workspace importer is
+#   empty (the root Dependabot entry never bumps it), so its standalone lockfile
+#   is managed only by the /lib/debate Dependabot entry. If that ever changes,
+#   extend scripts/sync-standalone-lockfile.mjs to cover lib/debate and add it here.
+
+name: Dependabot Lockfile Heal
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+# Read-only by default; the write credential is the minted App token, not this.
+permissions:
+  contents: read
+
+# One heal at a time per PR — a Dependabot rebase/force-push mid-heal must not
+# interleave two pushes (e/127#2).
+concurrency:
+  group: dependabot-heal-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  heal:
+    # actor AND same-repo head — a fork PR can never reach the write path.
+    if: >-
+      github.actor == 'dependabot[bot]' &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout PR head
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v6
+        with:
+          ref: ${{ github.head_ref }}
+          # Do not persist the default (read-only) token; we push with the App token.
+          persist-credentials: false
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86  # v6.0.10 (repo-standard pin)
+        with:
+          run_install: false
+
+      - name: Set up Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v6 (repo-standard pin)
+        with:
+          node-version: 22
+
+      # Belt: forbid lifecycle scripts for every install in this job.
+      - name: Disable install scripts (defense-in-depth)
+        run: echo "ignore-scripts=true" >> ./.npmrc
+
+      # 1) Re-sync taxonomy-editor's standalone lockfile (runs pnpm install
+      #    --lockfile-only internally; no packages built, no scripts).
+      - name: Sync standalone lockfile
+        run: node scripts/sync-standalone-lockfile.mjs
+
+      # 2) Regenerate taxonomy-editor license notices. generate-notices.cjs scans
+      #    node_modules, so a real (scripts-disabled) install is required first.
+      - name: Regenerate license notices
+        working-directory: taxonomy-editor
+        run: |
+          pnpm install --frozen-lockfile --ignore-scripts
+          npm run licenses
+
+      # 3) Nothing changed → no commit, no CI noise (idempotency).
+      - name: Detect drift
+        id: drift
+        run: |
+          if [ -n "$(git status --porcelain)" ]; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            echo "Heal produced changes:"; git status --short
+          else
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "Already in sync — nothing to heal."
+          fi
+
+      # ── SECURITY BOUNDARY ─────────────────────────────────────────────────
+      # Mint the write credential ONLY here, AFTER every dependency/script step
+      # above. Do NOT move this earlier and do NOT expose `token` to any step but
+      # the push below. (e/127#2)
+      - name: Mint GitHub App token
+        id: app-token
+        if: steps.drift.outputs.changed == 'true'
+        uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349  # v2.2.2
+        with:
+          app-id: ${{ secrets.DEPENDABOT_HEAL_APP_ID }}
+          private-key: ${{ secrets.DEPENDABOT_HEAL_APP_PRIVATE_KEY }}
+
+      - name: Commit and push heal
+        if: steps.drift.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          git config user.name "dependabot-heal[bot]"
+          git config user.email "dependabot-heal[bot]@users.noreply.github.com"
+          git add taxonomy-editor/pnpm-lock.yaml \
+                  taxonomy-editor/THIRD-PARTY-NOTICES.txt \
+                  taxonomy-editor/src/renderer/data/oss-licenses.json
+          git commit -m "ci(deps): heal standalone lockfile + license notices [dependabot-heal]"
+          git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git"
+          git push origin "HEAD:${{ github.head_ref }}"
