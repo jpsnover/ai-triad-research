@@ -936,6 +936,7 @@ Export-ModuleMember -Function @(
     # t/1308 — cc→sit migration
     'Invoke-CcToSitMigration'
     'Test-AIApiKey'
+    'Test-GeminiKeyPool'
     'Test-AIBackendHealth'
     'Test-AIBackendQuota'
     'Test-AIModelsConfig'
