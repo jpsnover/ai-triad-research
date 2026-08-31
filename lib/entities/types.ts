@@ -65,6 +65,17 @@ export type DolceCategory =
   | 'agentive-physical-object' | 'non-agentive-functional-artifact'
   | 'perdurant' | 'normative-description' | 'non-agentive-social-object';
 
+/**
+ * Provenance of an Entity's `description` (t/3131). Drives the person-approval gate in
+ * Import-Entity: a `person` is approvable only when this is `human-edited`/`human-authored`
+ * (or ABSENT with a non-empty description — grandfathered as human-authored, since the LLM
+ * never drafted person descriptions before t/3131). `ai-drafted` is proposable but NOT
+ * approvable until a human edits it. Any AI-drafting path for a person description MUST stamp
+ * `ai-drafted` at draft time — the grandfather rule (absent ⟺ legacy human-authored) rests
+ * entirely on no un-stamped AI draft ever existing (TL t/3131#2 safety condition).
+ */
+export type EntityDescriptionProvenance = 'ai-drafted' | 'human-edited' | 'human-authored';
+
 /** The new entity record (ent-*), stored in entities.json. */
 export interface Entity {
   id: string;                     // ent-NNN
@@ -72,8 +83,12 @@ export interface Entity {
   aliases: string[];
   entity_type: EntityType;
   dolce_category: DolceCategory;
-  /** Genus-differentia: "A [type] that [differentia]...". Human-authored for `person`. */
+  /** Genus-differentia: "A [type] that [differentia]...". For a `person`, AI may draft it but
+   *  approval requires a human edit — see `description_provenance` and the Import-Entity gate (t/3131). */
   description: string;
+  /** Provenance of `description` — gates person approval (t/3131). Absent = legacy/unset
+   *  (grandfathered as human-authored when the description is non-empty). See {@link EntityDescriptionProvenance}. */
+  description_provenance?: EntityDescriptionProvenance;
   external_refs?: { label: string; url: string }[];
   source_refs?: string[];         // doc_ids
   status: 'proposed' | 'approved' | 'deprecated';
