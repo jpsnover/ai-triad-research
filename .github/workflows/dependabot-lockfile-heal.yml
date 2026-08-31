@@ -61,6 +61,11 @@ jobs:
       github.event.pull_request.head.repo.full_name == github.repository &&
       startsWith(github.head_ref, 'dependabot/npm_and_yarn/')
     runs-on: ubuntu-latest
+    # Scripts-off belt via env (pnpm/npm honor NPM_CONFIG_*) — do NOT append to the
+    # tracked root .npmrc: that dirties git status and breaks the scoped drift gate
+    # below (GV blocker A, t/3134).
+    env:
+      NPM_CONFIG_IGNORE_SCRIPTS: "true"
     steps:
       - name: Checkout PR head
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v6
@@ -80,7 +85,10 @@ jobs:
           BASE_REF: ${{ github.base_ref }}
         run: |
           git fetch origin "$BASE_REF" --depth=1
-          if git diff --name-only "origin/${BASE_REF}...HEAD" | grep -qx 'taxonomy-editor/package.json'; then
+          # Two-dot (endpoint compare), NOT three-dot: a shallow depth-1 base fetch
+          # has no merge-base commit once main moves, so `A...HEAD` errors and the
+          # heal never runs (GV blocker B, t/3134).
+          if git diff --name-only "origin/${BASE_REF}" HEAD | grep -qx 'taxonomy-editor/package.json'; then
             echo "relevant=true" >> "$GITHUB_OUTPUT"
             echo "PR changes taxonomy-editor/package.json — heal in scope."
           else
@@ -100,10 +108,6 @@ jobs:
         with:
           node-version: 22
 
-      - name: Disable install scripts (defense-in-depth)
-        if: steps.scope.outputs.relevant == 'true'
-        run: echo "ignore-scripts=true" >> ./.npmrc
-
       - name: Sync standalone lockfile
         if: steps.scope.outputs.relevant == 'true'
         run: node scripts/sync-standalone-lockfile.mjs
@@ -115,13 +119,22 @@ jobs:
           pnpm install --frozen-lockfile --ignore-scripts
           npm run licenses
 
+      # Drift = changes to the 3 COMMITTED paths only. Scoping this to exactly
+      # what the push step stages is load-bearing: on the healed-head re-run the
+      # files are already in sync, so drift=false and the job no-ops — a whole-tree
+      # `git status` would flag unrelated churn and drive an empty commit → red
+      # (GV blocker A, t/3134).
       - name: Detect drift
         id: drift
         if: steps.scope.outputs.relevant == 'true'
         run: |
-          if [ -n "$(git status --porcelain)" ]; then
+          CHANGED="$(git status --porcelain -- \
+            taxonomy-editor/pnpm-lock.yaml \
+            taxonomy-editor/THIRD-PARTY-NOTICES.txt \
+            taxonomy-editor/src/renderer/data/oss-licenses.json)"
+          if [ -n "$CHANGED" ]; then
             echo "changed=true" >> "$GITHUB_OUTPUT"
-            echo "Heal produced changes:"; git status --short
+            echo "Heal produced changes:"; echo "$CHANGED"
           else
             echo "changed=false" >> "$GITHUB_OUTPUT"
             echo "Already in sync — nothing to heal."
@@ -162,6 +175,12 @@ jobs:
           git add taxonomy-editor/pnpm-lock.yaml \
                   taxonomy-editor/THIRD-PARTY-NOTICES.txt \
                   taxonomy-editor/src/renderer/data/oss-licenses.json
+          # Belt: never attempt an empty commit (would exit non-zero → red). The
+          # scoped drift gate already guarantees staged content; this guards the edge.
+          if git diff --cached --quiet; then
+            echo "Nothing staged — skipping commit/push (no-op)."
+            exit 0
+          fi
           git commit -m "ci(deps): heal standalone lockfile + license notices [dependabot-heal]"
           # Auth via extraheader so the token never appears in the remote URL/logs.
           git config --local http.https://github.com/.extraheader \
