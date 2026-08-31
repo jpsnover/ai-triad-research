@@ -39,6 +39,15 @@
 #   root entry never bumps it); its standalone lockfile is managed by the
 #   /lib/debate Dependabot entry. Extend sync-standalone-lockfile.mjs + this scope
 #   guard if that ever changes.
+#
+# POST-MERGE WATCH-ITEM (GV condition, t/3134): the App-token push retriggering CI
+#   is only observable once this workflow is on main (a pull_request workflow runs
+#   from the BASE branch). VERIFY on the FIRST taxonomy-editor-touching Dependabot
+#   npm PR after merge: the heal commits → the App-token push retriggers CI → the
+#   PR goes GREEN including this heal job. If instead it loops/reds (e.g. the push
+#   fails to retrigger, or an empty commit), REVERT immediately per #1674 and
+#   re-open t/3134. Offline both-arms were proven at GV (#1676 evidence); this is
+#   the one arm only main can exercise.
 
 name: Dependabot Lockfile Heal
 
