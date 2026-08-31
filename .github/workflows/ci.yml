@@ -366,11 +366,14 @@ jobs:
   # (Playwright-Chromium) against a PROD web build served by the real server, so lazy CSS
   # code-splitting behaves exactly as in prod. Harness: taxonomy-editor/smoke/ (PR #1589).
   #
-  # WARN-PHASE — NON-BLOCKING (t/3026#4 promotion discipline): render-smoke is deliberately
-  # NOT in ci-gate's `needs` and is NOT a required status context (only ci-gate + CodeQL
-  # are required), so a RED here does NOT block merge. It reports true pass/fail for ≥1
-  # green real-env cycle. The warn→block flip is a SEPARATE draft PR held for TL sign-off
-  # after real-env both-arms (deliberate CSS-misfile → red; clean → green, zero noise).
+  # BLOCKING (t/3026 promotion — flipped from warn-phase): render-smoke is now in ci-gate's
+  # `needs`, so a RED render-smoke fails ci-gate (the required status context) and blocks merge.
+  # It is NOT itself a separately-required context — enforcement rides ci-gate, so a SKIPPED
+  # render-smoke (a non-electron PR) is treated as satisfied, exactly like every other gated job.
+  # Promotion evidence: 8 consecutive green real-env cycles on main (zero warn-phase noise) +
+  # real-env both-arms in the CI runner (deliberate .ga-* misfile → red; clean → green) + TL GV
+  # PASS. If this ever flakes it now blocks electron PRs — DEMOTE first (pull from ci-gate needs),
+  # then fix, per gate-signal integrity (a flaky blocking gate is the next incident).
   #
   # NODE 22 PIN IS LOAD-BEARING (t/3026#10 cond3 / t/3059 Part3): the @playwright/test
   # runner hangs on Node ≥24.16.0 (yauzl stream-destruction regression; 24.15.0 is the only
@@ -378,9 +381,8 @@ jobs:
   # and Node 22 is belt-and-suspenders. Do NOT bump this job to Node 24 unless 1.60.0+ is
   # re-verified green on the runner — a silent hang would wedge a by-then-blocking gate.
   #
-  # NOTE: Playwright browser caching (~/.cache/ms-playwright) intentionally deferred to the
-  # warn→block promotion PR — it needs the repo's first SHA-pinned actions/cache, and this
-  # non-blocking job tolerates the ~1min chromium install per run. (t/3059 follow-up.)
+  # Playwright browser caching (~/.cache/ms-playwright) is now wired (below) via the repo's first
+  # SHA-pinned actions/cache — trims the ~1min chromium download now that the gate blocks. (t/3059.)
   render-smoke:
     needs: [changes]
     if: >-
@@ -425,6 +427,18 @@ jobs:
             fi
           done
 
+      # Cache the Playwright browser binary — trims the ~1min chromium download now that
+      # render-smoke is a blocking gate (t/3026). Keyed on the standalone lockfile (which pins
+      # @playwright/test), so a Playwright bump busts the cache and re-fetches the matching
+      # browser. First SHA-pinned actions/cache in the repo.
+      - name: Cache Playwright browsers (~/.cache/ms-playwright)
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
+        with:
+          path: ~/.cache/ms-playwright
+          key: ms-playwright-${{ runner.os }}-${{ hashFiles('taxonomy-editor/pnpm-lock.yaml') }}
+          restore-keys: |
+            ms-playwright-${{ runner.os }}-
+
       - name: Install Chromium (Playwright, pinned @playwright/test 1.60.0)
         working-directory: taxonomy-editor
         run: pnpm exec playwright install --with-deps chromium
@@ -433,7 +447,7 @@ jobs:
         working-directory: taxonomy-editor
         run: pnpm run build:container
 
-      - name: Render smoke — styled surfaces (warn-phase, non-blocking)
+      - name: Render smoke — styled surfaces (BLOCKING gate via ci-gate, t/3026)
         working-directory: taxonomy-editor
         run: pnpm run smoke:styled
 
@@ -1289,7 +1303,7 @@ jobs:
   # path-filtered to scripts/** changes, skip = OK.
   ci-gate:
     name: ci-gate
-    needs: [changes, test-powershell, test-electron, test-container, python-embed-smoke, test-python, dependency-coverage, lockfile-overrides-check, lib-lint, renderer-tsc, contrast-check, test-server-prod-config, workflow-lint, bicep-env-drift, schema-version-bump]
+    needs: [changes, test-powershell, test-electron, test-container, python-embed-smoke, test-python, dependency-coverage, lockfile-overrides-check, lib-lint, renderer-tsc, contrast-check, test-server-prod-config, workflow-lint, bicep-env-drift, schema-version-bump, render-smoke]
     if: always()
     runs-on: ubuntu-latest
     steps:
