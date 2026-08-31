@@ -10,7 +10,7 @@ markdownify>=1.2.3
 trafilatura>=2.2.0
 
 # PDF text extraction
-pypdf>=6.16.1
+pypdf>=6.16.2
 pdfminer.six>=20260107
 
 # URL/slug utilities
@@ -20,11 +20,11 @@ python-slugify>=8.0.4
 waybackpy>=3.0.6
 
 # AI API clients (install whichever you use)
-anthropic>=0.124.0
+anthropic>=1.1.0
 # google-generativeai>=0.7
 
 # Git inspection
-gitpython>=3.1.59
+gitpython>=3.1.60
 
 # Semantic embeddings (all-MiniLM-L6-v2) and NLI cross-encoder
 # (cross-encoder/nli-deberta-v3-small) for taxonomy search and
