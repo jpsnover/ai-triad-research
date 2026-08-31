@@ -9,6 +9,13 @@
 import { describe, it, expect } from 'vitest';
 import { PUBLIC_EXACT_PATHS, computeIsPublicPath } from '../publicPaths.js';
 
+// t/3114 shared body-contract fixture. This SAME file is read by the deploy warm-gate's
+// Pester (tests/ReadyzWarmGate.Tests.ps1) as the "real 200 body" it feeds to the predicate.
+// The coupling: the assertion below forces this fixture to track the handler's actual output,
+// and the Pester forces the gate to parse whatever key the fixture uses — so a coordinated
+// status-field rename can't silently pass both (it goes red on one side or the other).
+import readyBody from './fixtures/readyz-ready-body.json';
+
 // ── publicPaths ──────────────────────────────────────────────────────────────
 
 describe('publicPaths — /readyz', () => {
@@ -64,5 +71,26 @@ describe('GET /readyz — response shape (t/3112)', () => {
   it('503 when present but nodeCount is null (guards the ?? 0 branch)', () => {
     const { statusCode } = simulateReadyz({ present: true, nodeCount: null });
     expect(statusCode).toBe(503);
+  });
+});
+
+// ── shared body-contract fixture ↔ handler coupling (t/3114) ──────────────────
+// This is the guard TL required for promoting the deploy warm-gate to BLOCKING: a
+// blocking gate whose expected body drifts from the handler = block-every-deploy.
+// readyz-ready-body.json is the single literal BOTH sides reference — here (producer
+// side) and the gate's Pester (consumer side, feeds it to the predicate). The first
+// assertion forces the fixture to track the handler's real 200 output; the Pester
+// forces the gate to parse whatever key the fixture uses. A coordinated rename of
+// `status` can't pass both — it goes red here (fixture no longer matches the handler)
+// or in the Pester (gate parses the old key, gets a non-'ready' body → wait).
+describe('/readyz shared body-contract fixture (t/3114)', () => {
+  it('fixture equals the handler\'s real 200 ready body (producer-side pin)', () => {
+    const real = simulateReadyz({ present: true, nodeCount: readyBody.nodeCount }).body;
+    expect(real).toEqual(readyBody);
+  });
+
+  it('fixture carries the contract invariant the gate keys on: status==="ready", nodeCount>0', () => {
+    expect(readyBody.status).toBe('ready');
+    expect(readyBody.nodeCount).toBeGreaterThan(0);
   });
 });

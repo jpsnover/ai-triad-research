@@ -88,3 +88,27 @@ describe('serveStatic HEAD support (t/3084)', () => {
     expect(head.headers['Content-Length']).toBe(get.headers['Content-Length']);
   });
 });
+
+// t/3114 — /readyz is excluded from the SPA fallback, so an UNREGISTERED /readyz returns a
+// clean 404 (serveStatic returns false → caller writes 404) instead of a 200 index.html page.
+describe('serveStatic /readyz SPA-fallback exclusion (t/3114)', () => {
+  const staticDir = path.resolve('/fake/static');
+
+  it('unregistered /readyz (file absent) → returns false (404 path), NOT index.html', () => {
+    mockExistsSync.mockReturnValue(false); // no /readyz file on disk
+    const res = makeRes();
+    const handled = serveStatic(makeReq('GET', '/readyz'), res as unknown as http.ServerResponse, staticDir);
+    expect(handled).toBe(false);          // falls through → server.ts 404s
+    expect(res.statusCode).toBe(0);       // serveStatic wrote nothing (no index.html 200)
+    expect(res.body.length).toBe(0);
+  });
+
+  it('contrast: a normal absent SPA route DOES fall back to index.html (200)', () => {
+    mockExistsSync.mockReturnValue(false);
+    mockReadFileSync.mockReturnValue(Buffer.from('<!doctype html>'));
+    const res = makeRes();
+    const handled = serveStatic(makeReq('GET', '/some/spa/route'), res as unknown as http.ServerResponse, staticDir);
+    expect(handled).toBe(true);
+    expect(res.statusCode).toBe(200);     // index.html served — proves the exclusion is /readyz-specific
+  });
+});

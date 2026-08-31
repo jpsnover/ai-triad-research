@@ -45,8 +45,13 @@ export function serveStatic(
   }
 
   if (!fs.existsSync(filePath)) {
-    // SPA fallback: serve index.html for non-API routes
-    if (!url.pathname.startsWith('/api/') && !url.pathname.startsWith('/ws/') && !url.pathname.startsWith('/health')) {
+    // SPA fallback: serve index.html for non-API routes.
+    // t/3114: /readyz is excluded so an UNREGISTERED /readyz (a routing regression, or an
+    // image predating the route) returns a clean 404 instead of a 200 index.html page — the
+    // deploy warm-gate treats a non-{status:ready} 200 as not-warm anyway (block), but a real
+    // 404 is unambiguous and keeps the gate's health signal honest.
+    if (!url.pathname.startsWith('/api/') && !url.pathname.startsWith('/ws/')
+        && !url.pathname.startsWith('/health') && !url.pathname.startsWith('/readyz')) {
       filePath = path.join(staticDir, 'index.html');
     } else {
       return false;
