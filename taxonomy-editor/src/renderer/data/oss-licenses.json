@@ -362,7 +362,7 @@
     },
     {
       "name": "@types/node",
-      "version": "26.2.0",
+      "version": "26.4.0",
       "license": "MIT"
     },
     {
@@ -897,7 +897,7 @@
     },
     {
       "name": "lucide-react",
-      "version": "1.33.0",
+      "version": "1.35.0",
       "license": "ISC"
     },
     {
@@ -1167,7 +1167,7 @@
     },
     {
       "name": "onnxruntime-common",
-      "version": "1.27.0",
+      "version": "1.29.0",
       "license": "MIT"
     },
     {
@@ -1177,7 +1177,7 @@
     },
     {
       "name": "onnxruntime-node",
-      "version": "1.27.0",
+      "version": "1.29.0",
       "license": "MIT"
     },
     {
@@ -1272,7 +1272,7 @@
     },
     {
       "name": "protobufjs",
-      "version": "7.6.5",
+      "version": "7.6.6",
       "license": "BSD-3-Clause"
     },
     {
@@ -1951,7 +1951,7 @@
         },
         {
           "name": "onnxruntime-common",
-          "version": "1.27.0"
+          "version": "1.29.0"
         },
         {
           "name": "onnxruntime-node",
@@ -1959,7 +1959,7 @@
         },
         {
           "name": "onnxruntime-node",
-          "version": "1.27.0"
+          "version": "1.29.0"
         },
         {
           "name": "onnxruntime-web",
@@ -2053,7 +2053,7 @@
         },
         {
           "name": "@types/node",
-          "version": "26.2.0"
+          "version": "26.4.0"
         },
         {
           "name": "@types/react",
@@ -3099,7 +3099,7 @@
       "packages": [
         {
           "name": "lucide-react",
-          "version": "1.33.0"
+          "version": "1.35.0"
         }
       ],
       "licenseType": "ISC",
@@ -3297,7 +3297,7 @@
       "packages": [
         {
           "name": "protobufjs",
-          "version": "7.6.5"
+          "version": "7.6.6"
         }
       ],
       "licenseType": "BSD-3-Clause",
