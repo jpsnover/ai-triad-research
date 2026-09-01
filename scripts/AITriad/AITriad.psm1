@@ -895,6 +895,7 @@ Export-ModuleMember -Function @(
     'Watch-DebateProgress'
     'Invoke-DebateBatch'
     'Get-FreeTierStatus'
+    'Sync-FreeTierKeys'
     'Invoke-TaxEditorSmokeTest'
     # t/2668 — analytics storage round-trip diagnosis
     # t/2775 — validate the built preload.cjs artifact before launch
