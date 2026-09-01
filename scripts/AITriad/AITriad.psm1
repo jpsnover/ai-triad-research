@@ -975,6 +975,8 @@ Export-ModuleMember -Function @(
     'Get-EntityReport'
     # t/1894 — Entity ontology Phase 2-B: batch mention indexer (entity_mentions.json)
     'Update-EntityMentionIndex'
+    # t/3124 — Claim-side entity grounding: writes entity_refs[] onto summary claims
+    'Update-ClaimEntityRef'
     # t/2196 — Vite dev server diagnostic
     'Get-ViteDevStatus'
     # t/2330 — Debate session state diagnostic
