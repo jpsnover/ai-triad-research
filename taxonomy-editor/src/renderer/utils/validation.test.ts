@@ -47,6 +47,33 @@ describe('povTaxonomyFileSchema', () => {
     expect(result.success).toBe(false);
   });
 
+  it('accepts + RETAINS t/3157 entity_refs/concept_refs (survive the node write, not stripped)', () => {
+    const result = povTaxonomyFileSchema.safeParse(validFile({
+      entity_refs: [{ ref: 'ent-001', surface: 'Anthropic', method: 'alias', link_confidence: 1.0, match_level: 'exact', status: 'linked' }],
+      concept_refs: [{ ref: 'term:alignment', surface: 'alignment', method: 'surface', link_confidence: 0.8, status: 'proposed' }],
+    }));
+    expect(result.success).toBe(true);
+    if (result.success) {
+      const node = result.data.nodes[0] as Record<string, unknown>;
+      expect(node.entity_refs).toHaveLength(1);  // retained — this is the whole point of G1
+      expect(node.concept_refs).toHaveLength(1);
+      expect((node.entity_refs as { status: string }[])[0].status).toBe('linked');
+      expect((node.concept_refs as { status: string }[])[0].status).toBe('proposed');
+    }
+  });
+
+  it('rejects an entity_ref with an invalid status (schema validates the link shape, not just passthrough)', () => {
+    const result = povTaxonomyFileSchema.safeParse(validFile({
+      entity_refs: [{ ref: 'ent-001', surface: 'x', method: 'alias', link_confidence: 1, match_level: 'exact', status: 'guessed' }],
+    }));
+    expect(result.success).toBe(false);
+  });
+
+  it('omits entity_refs/concept_refs entirely on a legacy node (optional, absence is legal)', () => {
+    const result = povTaxonomyFileSchema.safeParse(validFile());
+    expect(result.success).toBe(true);
+  });
+
   it('accepts all three POV prefixes', () => {
     for (const [pov, prefix] of [['accelerationist', 'acc'], ['safetyist', 'saf'], ['skeptic', 'skp']] as const) {
       const result = povTaxonomyFileSchema.safeParse({
