@@ -174,9 +174,18 @@ function pump(): void {
 
 function spawnWorker(): EmbeddingWorkerLike {
   const w = _workerFactory();
-  w.on('message', onWorkerMessage as (arg: never) => void);
-  w.on('error', ((err: Error) => onWorkerDown('crash', err instanceof Error ? err.message : String(err))) as (arg: never) => void);
-  w.on('exit', ((code: number) => { if (code !== 0) onWorkerDown('exit', `worker exited with code ${code}`); }) as (arg: never) => void);
+  // IDENTITY-GUARD every handler on the specific worker instance `w`: after a respawn the OLD
+  // (terminated) worker can still emit a late 'exit'/'error'/'message'. Without this guard that
+  // stale event would act on the CURRENT module state — e.g. an old worker's late 'exit' would
+  // call onWorkerDown and tear down the HEALTHY new worker (reject its task, terminate, re-respawn).
+  // `w !== _worker` means the event came from a superseded worker → drop it. (TL GV required fix.)
+  w.on('message', ((msg: WorkerMessage) => { if (w === _worker) onWorkerMessage(msg); }) as (arg: never) => void);
+  w.on('error', ((err: Error) => {
+    if (w === _worker) onWorkerDown('crash', err instanceof Error ? err.message : String(err));
+  }) as (arg: never) => void);
+  w.on('exit', ((code: number) => {
+    if (w === _worker && code !== 0) onWorkerDown('exit', `worker exited with code ${code}`);
+  }) as (arg: never) => void);
   return w;
 }
 

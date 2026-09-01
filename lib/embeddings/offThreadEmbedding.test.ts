@@ -126,6 +126,39 @@ describe('offThreadEmbedding — arm (b): crash → reject + respawn with backof
   });
 });
 
+describe('offThreadEmbedding — respawn survives a stale event from the superseded worker (identity-guard)', () => {
+  it('ignores a late exit/message from the old terminated worker; the fresh worker keeps serving', async () => {
+    vi.useFakeTimers();
+    const workers: FakeWorker[] = [];
+    __setEmbeddingWorkerFactory(() => { const w = new FakeWorker(); workers.push(w); return w; });
+
+    // Task 1 dispatched on worker1, then worker1 crashes → reject + respawn-backoff.
+    const p1 = computeEmbeddingsOffThread(['x'], { requester: 'first' });
+    const p1Rejected = expect(p1).rejects.toThrow(/worker crash/i);
+    workers[0].emit('error', new Error('boom'));
+    await p1Rejected;
+    const staleId = workers[0].lastId();
+
+    // Clear the backoff gap and dispatch task 2 on a fresh worker2.
+    await vi.advanceTimersByTimeAsync(300);
+    const p2 = computeEmbeddingsOffThread(['y'], { requester: 'second' });
+    expect(workers).toHaveLength(2);
+    const liveId = workers[1].lastId();
+    const warnsBefore = warns().length;
+
+    // The OLD (terminated) worker fires late events — the identity-guard must DROP them so the
+    // healthy new worker is neither torn down nor its in-flight task disturbed.
+    workers[0].emit('exit', 137);
+    workers[0].emit('message', resultFor(staleId, [[9, 9, 9, 9]]));
+    expect(workers[1].terminated).toBe(false);   // new worker untouched
+    expect(warns().length).toBe(warnsBefore);    // no crash/wedge WARN from the stale events
+
+    // worker2 completes task 2 normally → resolves cleanly (respawn survived).
+    workers[1].emit('message', resultFor(liveId, [[1, 0, 0, 0]]));
+    await expect(p2).resolves.toHaveLength(1);
+  });
+});
+
 describe('offThreadEmbedding — arm (c): wedge (heartbeat stall) → terminate + respawn + WARN', () => {
   it('terminates + respawns + WARNs when no heartbeat arrives within the watchdog window', async () => {
     vi.useFakeTimers();
