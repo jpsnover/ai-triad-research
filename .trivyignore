@@ -725,4 +725,22 @@ CVE-2026-8376
 # REVISIT:   drop when Debian trixie ships a fixed libtiff6. Re-scan.
 CVE-2026-52490
 
+# ── image-size (npm) — HIGH — NO UPSTREAM FIX AVAILABLE ─────────────────────
+# CVE-2025-71329  image-size: HIGH — vulnerable range <= 2.0.2, firstPatchedVersion: none
+# CVE-2025-71330  image-size: HIGH — vulnerable range <= 2.0.2, firstPatchedVersion: none
+#
+# Package:   image-size (npm, transitive dep of pptxgenjs@4.0.1)
+# Fix state: No upstream fix available as of 2026-09-01; GH advisory confirms
+#            both CVEs affect all released versions including 2.0.2 (the bump
+#            from 1.2.1→2.0.2 cleared CVE-2025-71319 but not these two).
+# Exposure:  image-size is used by pptxgenjs for image dimension detection
+#            during PPTX generation. pptxgenjs is not used at container runtime —
+#            it is only referenced in the taxonomy-editor Electron renderer for
+#            local slide export, not in the server bundle. The vulnerable code
+#            path (parsing attacker-controlled image files) is not reachable
+#            from the server image.
+# REVISIT:   drop when image-size ships a patched release. Re-scan.
+CVE-2025-71329
+CVE-2025-71330
+
 
