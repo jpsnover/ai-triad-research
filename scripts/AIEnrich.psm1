@@ -120,6 +120,12 @@ if (Test-Path $_aiModelsPath) {
         Write-Warning "AIEnrich: failed to load ai-models.json — $($_.Exception.Message). Using hardcoded fallback."
     }
 }
+else {
+    # Fallback-Path Logging (docs/error-handling.md; t/3179 Finding 7): the file-not-found path is
+    # as anomalous as a parse failure (which warns above) — warn rather than silently dropping to
+    # the hardcoded registry, which may be stale relative to ai-models.json.
+    Write-Warning "AIEnrich: ai-models.json not found at any candidate path (last tried: $_aiModelsPath) — using hardcoded fallback model list (may be stale)."
+}
 
 # Fallback if ai-models.json missing or empty
 if ($script:ModelRegistry.Count -eq 0) {
@@ -281,7 +287,10 @@ function Measure-PromptTokens {
                 Accurate   = $true
             }
         } catch {
-            Write-Verbose "Measure-PromptTokens: Gemini countTokens failed — $($_.Exception.Message). Using heuristic."
+            # Fallback-Path Logging (docs/error-handling.md; t/3179 Finding 6): WARN, not Verbose.
+            # The pre-flight token-overflow check downstream depends on this count, so a silent
+            # heuristic undercount can suppress that warning — surface the degraded accuracy.
+            Write-Warning "Measure-PromptTokens: Gemini countTokens failed ($($_.Exception.Message)) — falling back to character heuristic (Accurate=`$false)"
         }
     }
 
