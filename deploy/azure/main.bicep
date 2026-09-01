@@ -1419,6 +1419,94 @@ resource prodBackoffAlert 'Microsoft.Insights/scheduledQueryRules@2023-03-15-pre
   }
 }
 
+// ── Ingress 5xx Observability Alerts (t/3167) ──
+// Root cause: ACA ingress fabricates empty-body 5xx when Node event loop is starved
+// (no server-side record — only the client sees it). ACA exposes no per-request Envoy
+// access log, so we can't grep upstream_response_time directly (platform limitation).
+//
+// Two-arm detection:
+//   PRIMARY  — event-loop-lag WARN (server-side, fires BEFORE ingress fabricates the 5xx)
+//   BACKSTOP — ACA Requests/5xx metric rate (advisory; whether it counts envoy-fabricated
+//              5xx unverified — deferred to natural repro or controlled synthetic)
+//
+// Diagnosis: AppInsights `requests` absent + client log present → envoy-fabricated.
+// See operational-commands.md for the KQL cross-reference runbook.
+
+resource eventLoopLagAlert 'Microsoft.Insights/scheduledQueryRules@2023-03-15-preview' = {
+  name: 'alert-event-loop-blocked'
+  location: location
+  tags: tags
+  properties: {
+    displayName: 'Event Loop Blocked (>1s starvation) — t/3167'
+    description: '''Node.js event loop blocked >1s — leading indicator of ingress-fabricated 5xx under load (t/3165 pattern).
+Signal: Pino WARN "event loop blocked" fires ONLY on blocks >EVENT_LOOP_LAG_WARN_MS (1000ms); routine 5s gauges say "event-loop max…" without "blocked" and do not trip this.
+Structured fields: component="event-loop", level=warn(40). Primary detector for t/3167. (t/3167)'''
+    severity: 1
+    enabled: true
+    scopes: [ logAnalytics.id ]
+    evaluationFrequency: 'PT1M'
+    windowSize: 'PT5M'
+    criteria: {
+      allOf: [
+        {
+          query: '''
+            ContainerAppConsoleLogs_CL
+            | where Log_s has "event loop blocked"
+          '''
+          timeAggregation: 'Count'
+          operator: 'GreaterThan'
+          threshold: 0
+        }
+      ]
+    }
+    actions: {
+      actionGroups: budgetAlertConfigured ? [ restartAlertActionGroup.id ] : []
+    }
+  }
+}
+
+resource ingressFiveXxBackstopAlert 'Microsoft.Insights/metricAlerts@2018-03-01' = {
+  // Metric alerts must use 'global' location regardless of resource region.
+  name: 'alert-ingress-5xx-backstop'
+  location: 'global'
+  tags: tags
+  properties: {
+    description: '''Advisory backstop: ACA Requests metric >2 5xx in 5 min → possible ingress-fabricated 500 or app error burst.
+Threshold 2/5min: incident window (t/3165, 07:14–07:15 UTC) showed 3–4 5xx; normal baseline outside incident is 0–1/5min.
+NOT load-bearing: whether this metric counts envoy-fabricated 5xx (Node-never-ran) is unverified — deferred to natural repro.
+Primary detector is eventLoopLagAlert. (t/3167)'''
+    severity: 2
+    enabled: true
+    scopes: [ containerApp.id ]
+    evaluationFrequency: 'PT1M'
+    windowSize: 'PT5M'
+    criteria: {
+      'odata.type': 'Microsoft.Azure.Monitor.SingleResourceMultipleMetricCriteria'
+      allOf: [
+        {
+          name: '5xx-rate'
+          criterionType: 'StaticThresholdCriterion'
+          metricName: 'Requests'
+          metricNamespace: 'Microsoft.App/containerApps'
+          dimensions: [
+            {
+              name: 'statusCodeCategory'
+              operator: 'Include'
+              values: [ '5xx' ]
+            }
+          ]
+          operator: 'GreaterThan'
+          threshold: 2
+          timeAggregation: 'Total'
+        }
+      ]
+    }
+    actions: budgetAlertConfigured ? [
+      { actionGroupId: restartAlertActionGroup.id }
+    ] : []
+  }
+}
+
 // ── Ephemeral Runner Module ──
 module ephemeralRunner 'runner/runner.bicep' = {
   name: 'ephemeral-runner'
