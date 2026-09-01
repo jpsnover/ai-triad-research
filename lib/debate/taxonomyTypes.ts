@@ -5,6 +5,10 @@
 // TE's types/taxonomy.ts re-exports these; TE-only types stay there.
 
 import type { PovKey } from './types.js';
+// Type-only import (erased at runtime) — entities/types.ts already type-imports PovNode from here,
+// so keeping this `import type` prevents a runtime cycle (t/3157). Link-ref shapes are homed in
+// lib/entities (the entity contract) and reused by both BDI nodes and claim containers (t/3124).
+import type { EntityLinkRef, ConceptLinkRef } from '../entities/types.js';
 export type Pov = PovKey;
 export type Category = 'Desires' | 'Beliefs' | 'Intentions';
 
@@ -180,6 +184,14 @@ export interface PovNode {
   plain_description?: string | null;
   /** Model+prompt version string (e.g., "flash-lite:v1") for staleness detection. */
   plain_description_version?: string | null;
+  /** Forward grounding links to register entities (t/3157, epic t/3156 §13). Optional; absent = no
+   *  links. Each is an {@link EntityLinkRef} carrying method/status so a confirmed link is never
+   *  confused with a speculative embedding proposal. Written by the resolution pass (G2/G3); the
+   *  reverse map is entities' used_by_nodes. */
+  entity_refs?: EntityLinkRef[];
+  /** Forward grounding links to dictionary concepts (term:*) (t/3157). Optional; {@link ConceptLinkRef}
+   *  (no match_level — a concept ref already names a kind). */
+  concept_refs?: ConceptLinkRef[];
   _edit_meta?: NodeEditMeta;
   _edit_history?: EditHistoryEntry[];
 }

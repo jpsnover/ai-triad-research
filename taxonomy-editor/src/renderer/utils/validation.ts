@@ -6,6 +6,25 @@ import { POV_KEYS } from '@lib/debate/types';
 
 const categoryEnum = z.enum(['Desires', 'Beliefs', 'Intentions']);
 
+// t/3157 forward-grounding link refs — Zod mirror of lib/entities EntityLinkRef/ConceptLinkRef so a
+// reflection/node write validates + KEEPS them. The node schema already .passthrough()es unknowns,
+// but making these explicit is what G1 gates the forward write on. Inner .passthrough() = fwd-compat.
+const entityLinkRefSchema = z.object({
+  ref: z.string(),
+  surface: z.string(),
+  method: z.enum(['exact', 'alias', 'embedding']),
+  link_confidence: z.number(),
+  match_level: z.enum(['exact', 'instance_of', 'subclass', 'superclass', 'related']),
+  status: z.enum(['linked', 'proposed']),
+}).passthrough();
+const conceptLinkRefSchema = z.object({
+  ref: z.string(),
+  surface: z.string(),
+  method: z.enum(['surface', 'embedding']),
+  link_confidence: z.number(),
+  status: z.enum(['linked', 'proposed']),
+}).passthrough();
+
 const povNodeSchema = z.object({
   id: z.string().regex(/^(acc|saf|skp)-(desires|beliefs|intentions)-\d{3}$/, 'ID must match {pov}-{category}-{NNN}'),
   category: categoryEnum,
@@ -19,6 +38,8 @@ const povNodeSchema = z.object({
   confidence: z.number().min(0).max(1).nullish(),
   priority: z.number().int().min(1).max(5).nullish(),
   operationality: z.number().int().min(1).max(5).nullish(),
+  entity_refs: z.array(entityLinkRefSchema).optional(),   // t/3157 forward grounding
+  concept_refs: z.array(conceptLinkRefSchema).optional(), // t/3157 forward grounding
 }).passthrough();
 
 export const povTaxonomyFileSchema = z.object({

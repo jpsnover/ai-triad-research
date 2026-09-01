@@ -87,6 +87,48 @@ export type EntityDescriptionProvenance = 'ai-drafted' | 'human-edited' | 'human
  */
 export type EntityMatchLevel = 'exact' | 'instance_of' | 'subclass' | 'superclass' | 'related';
 
+/**
+ * Confirmation state of a link (t/3157, CL p/3#153). LOAD-BEARING — it's what lets a precise link
+ * coexist with a speculative one without contaminating it: `linked` = confirmed (a surface/exact/
+ * alias match, or a human/threshold-confirmed embedding hit); `proposed` = an unconfirmed embedding
+ * candidate that must NOT count until confirmed (the "Andreessen cos-matches 45 nodes it doesn't
+ * mention" problem). Required on every link ref — an unstatused ref is indistinguishable from a
+ * confirmed one, which is the failure this field exists to prevent.
+ */
+export type EntityLinkStatus = 'linked' | 'proposed';
+
+/**
+ * A resolved link from a container (a BDI node's `entity_refs[]` — t/3157 — or a claim's
+ * `entity_refs[]` — t/3124) to a register entity. ONE shape serves both containers (CL p/3#154).
+ * `ref` is the raw `ent-*` token (parsed on read via {@link parseEntityRef}); `method` records how
+ * it was found; `match_level` how it matched relative to the register ({@link EntityMatchLevel});
+ * `link_confidence` the method-dependent score (exact/alias = 1.0; embedding = cosine); `status`
+ * gates whether it counts. Assignment semantics (which label/method/status) are owned by the
+ * resolution pass (t/3124) — this is the persisted shape only.
+ */
+export interface EntityLinkRef {
+  ref: string;                                   // ent-* raw token
+  surface: string;                               // matched surface form
+  method: 'exact' | 'alias' | 'embedding';
+  link_confidence: number;                       // [0,1] — method-dependent: 1.0 for exact/alias, cosine for embedding
+  match_level: EntityMatchLevel;
+  status: EntityLinkStatus;
+}
+
+/**
+ * A resolved link from a BDI node's `concept_refs[]` to a dictionary concept (`term:*`) — t/3157.
+ * Parallel to {@link EntityLinkRef} but simpler: NO `match_level`, because a concept ref already
+ * names a kind/class, so there is no subsumption hop to record (CL p/3#154). `method` is narrower
+ * (a concept is matched by surface or embedding, never an alias table).
+ */
+export interface ConceptLinkRef {
+  ref: string;                                   // term:<slug> raw token
+  surface: string;
+  method: 'surface' | 'embedding';
+  link_confidence: number;                       // [0,1] — method-dependent: 1.0 for exact/alias, cosine for embedding
+  status: EntityLinkStatus;
+}
+
 /** The new entity record (ent-*), stored in entities.json. */
 export interface Entity {
   id: string;                     // ent-NNN
