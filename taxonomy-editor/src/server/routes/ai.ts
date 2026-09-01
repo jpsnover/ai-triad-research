@@ -211,22 +211,58 @@ function applyTokenBudgetHeaders(res: http.ServerResponse, result: Awaited<Retur
   }
 }
 
-/** Search-grounded generation (server.search usage) + success record. */
-async function generateWithSearch(
+/** Search-grounded generation (server.search usage) + success record.
+ *  t/3175: full parity with generateWithPaidFallback — the in-backend fix routes the
+ *  grounded-search provider call through key rotation + retry; this adds the same
+ *  route-level paid-overflow safety net: on a free-tier 429 with the whole free pool
+ *  exhausted, retry ONCE with the admin paid key after a 3s throttle (the paid key never
+ *  enters the free rotation). No-op until GEMINI_PAID_KEY is set (t/3143). */
+export async function generateWithSearch(
   prompt: string,
   effectiveModel: string | undefined,
   explicitKey: string | string[] | undefined,
-  ctx: { backend: AIBackend; requestModel: string; t0: number },
+  ctx: { isFree: boolean; backend: AIBackend; requestModel: string; t0: number },
 ): Promise<Awaited<ReturnType<typeof ai.generateTextWithSearchByUsage>>> {
-  const { backend, requestModel, t0 } = ctx;
-  const result = await ai.generateTextWithSearchByUsage('server.search', { prompt }, effectiveModel ? { model: effectiveModel } : undefined, explicitKey);
-  getGlobalRecorder()?.record({
-    type: 'ai.response', component: 'ai-generate', level: 'info',
-    duration_ms: Date.now() - t0,
-    message: `generate+search success ${backend}/${requestModel}`,
-    data: { model: requestModel, backend, responseLength: result.text?.length ?? 0, search: true },
-  });
-  return result;
+  const { isFree, backend, requestModel, t0 } = ctx;
+  const overrides = effectiveModel ? { model: effectiveModel } : undefined;
+  const recordSuccess = (result: Awaited<ReturnType<typeof ai.generateTextWithSearchByUsage>>, fallback?: 'paid') => {
+    getGlobalRecorder()?.record({
+      type: 'ai.response', component: 'ai-generate', level: 'info',
+      duration_ms: Date.now() - t0,
+      message: `generate+search success ${backend}/${requestModel}${fallback ? ' (paid fallback)' : ''}`,
+      data: { model: requestModel, backend, responseLength: result.text?.length ?? 0, search: true, ...(fallback ? { fallback } : {}) },
+    });
+  };
+  try {
+    const result = await ai.generateTextWithSearchByUsage('server.search', { prompt }, overrides, explicitKey);
+    recordSuccess(result);
+    return result;
+  } catch (searchErr) {
+    const paidKey = (ai.is429Error(searchErr) && isFree) ? await getPaidGeminiFallbackKey() : null;
+    if (!paidKey) throw searchErr; // non-free, non-429, or no paid key → outer catch maps to 429
+    // t/3175 (TL GV): WARN, not info — free-pool exhaustion is the second-front signal we
+    // want visible (Fallback-Path Logging rule, docs/error-handling.md); at info it's below
+    // the detectable threshold. Records THAT the paid fallback fired and WHY (free 429).
+    getGlobalRecorder()?.record({
+      type: 'ai.fallback', component: 'ai-generate', level: 'warn',
+      message: 'Free-tier search keys exhausted (429) — falling back to paid key after 3s throttle',
+      data: { model: requestModel, backend, fallback: 'paid', delayMs: 3000, search: true, freeKeyCount: proxyTiers.parseFreeTierKeys(process.env.FREE_TIER_GEMINI_KEY).length },
+    });
+    await new Promise(r => setTimeout(r, 3000));
+    try {
+      const result = await ai.generateTextWithSearchByUsage('server.search:paid-fallback', { prompt }, overrides, paidKey);
+      recordSuccess(result, 'paid');
+      return result;
+    } catch (fallbackErr) {
+      getGlobalRecorder()?.record({
+        type: 'ai.error', component: 'ai-generate', level: 'warn',
+        message: 'Paid search fallback also failed',
+        data: { model: requestModel, backend, fallback: 'paid', search: true },
+        error: { name: (fallbackErr as Error).name ?? 'Error', message: String(fallbackErr), stack: (fallbackErr as Error).stack },
+      });
+      throw searchErr; // both exhausted → outer catch maps to a client 429
+    }
+  }
 }
 
 /** t/997: Gemini surfaces a too-long context window as RESOURCE_EXHAUSTED — a 400-class
@@ -382,7 +418,7 @@ export function registerAiRoutes(r: Router, ctx: ServerCtx): void {
       };
 
       if (search) {
-        json(res, await generateWithSearch(prompt, effectiveModel, explicitKey, { backend, requestModel, t0 }));
+        json(res, await generateWithSearch(prompt, effectiveModel, explicitKey, { isFree, backend, requestModel, t0 }));
       } else {
         const result = await generateWithPaidFallback(prompt, usageOverrides, explicitKey, {
           isFree, backend, requestModel, t0,
