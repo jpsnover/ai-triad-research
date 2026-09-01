@@ -284,16 +284,22 @@
         },
         "resolution": {
           "type": "object",
-          "description": "Optional: which claim prevails after QBAF computation.",
+          "description": "Optional: which claim prevails after QBAF computation. When the top−runner-up margin is below the margin floor (QBAF_MARGIN_FLOOR, t/3151), the sides are not meaningfully separated: verdict is 'undecided' and prevailing_claim/prevailing_strength are null.",
           "properties": {
-            "prevailing_claim": {
+            "verdict": {
               "type": "string",
-              "description": "ID of the claim with highest computed_strength."
+              "enum": ["decided", "undecided"],
+              "description": "Whether QBAF meaningfully separated the sides (t/3151). 'undecided' when the top−runner-up margin is below the margin floor; 'decided' otherwise."
+            },
+            "prevailing_claim": {
+              "type": ["string", "null"],
+              "description": "ID of the claim with highest computed_strength. null when verdict is 'undecided'."
             },
             "prevailing_strength": {
-              "type": "number",
+              "type": ["number", "null"],
               "minimum": 0.0,
-              "maximum": 1.0
+              "maximum": 1.0,
+              "description": "Computed strength of the prevailing claim. null when verdict is 'undecided'."
             },
             "margin": {
               "type": "number",
@@ -303,6 +309,10 @@
               "type": "string",
               "enum": ["qbaf_computed_strength"],
               "description": "Resolution method used."
+            },
+            "reason": {
+              "type": "string",
+              "description": "Human-readable explanation, present on the 'undecided' path (e.g. 'margin below floor — sides not meaningfully separated')."
             }
           }
         },
