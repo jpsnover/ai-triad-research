@@ -252,13 +252,30 @@ def resolve(n, terms, ents, nv, sense):
             mentions.append({"entity_ref": eid, "quote": txt[off:off + len(s)], "offset": off, "discovered_by": meth})
     return crefs, erefs, mentions
 
+def _vocab_sha(terms, ents):
+    """Hash of the resolver vocabulary (term phrases + entity surfaces). If this changes, already-
+    resolved nodes may be STALE even when their own text is unchanged (vocabulary churn — a term's
+    characteristic_phrases or an entity's aliases were edited). The full sweep stores it as the
+    `_vocab_sha` sidecar sentinel and invalidates the per-node hash gate when it differs (G9, t/3164)."""
+    tv = sorted(p for t in terms for p in t.get("phrases", []))
+    ev = sorted(s for _, surfs in ents for _, s in surfs)
+    return sha(json.dumps([tv, ev], ensure_ascii=False))  # unambiguous canonical serialization
+
 # ---------- core reconcile (in-memory) ----------
 def reconcile(pov_data, mentions_store, sidecar, terms, ents, nv, sense, situations=()):
     """Mutates pov_data nodes + mentions_store node:* + returns stats. Pure over inputs.
     `situations` = [(sit_id, text)] whose node:sit-* entity-mention containers are also owned here
     (TL ruling: all node:* is node-grounding). Situation forward concept_refs/entity_refs await a
-    situation-schema field and are out of scope for this pass."""
+    situation-schema field and are out of scope for this pass.
+
+    Vocabulary-churn gate (G9, t/3164): this FULL sweep also compares the vocabulary hash against the
+    `_vocab_sha` sentinel; on a mismatch it re-resolves EVERY node (not just text-changed ones), since a
+    dictionary/alias edit can stale any node's concept_refs. Sentinel keys (`_`-prefixed) are never
+    treated as node ids — excluded from removal-purge. Vocab-churn rides this sweep, not the inline
+    scoped path (which is node-PUT-scoped and can't see dictionary edits)."""
     now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    vsha = _vocab_sha(terms, ents)
+    vocab_changed = sidecar.get("_vocab_sha") != vsha
     current_ids = set()
     changed = skipped = 0
     for data in pov_data.values():
@@ -267,7 +284,7 @@ def reconcile(pov_data, mentions_store, sidecar, terms, ents, nv, sense, situati
                 continue
             nid = n["id"]; current_ids.add(nid)
             h = sha(node_text(n))
-            if sidecar.get(nid) == h:
+            if not vocab_changed and sidecar.get(nid) == h:
                 skipped += 1; continue
             crefs, erefs, mentions = resolve(n, terms, ents, nv, sense)
             if crefs: n["concept_refs"] = crefs
@@ -284,7 +301,7 @@ def reconcile(pov_data, mentions_store, sidecar, terms, ents, nv, sense, situati
     for sid, stext in situations:
         current_ids.add(sid)
         h = sha(stext)
-        if sidecar.get(sid) == h:
+        if not vocab_changed and sidecar.get(sid) == h:
             skipped += 1; continue
         mentions = entity_mentions_for(stext, stext.lower(), ents)
         key = "node:" + sid
@@ -293,11 +310,12 @@ def reconcile(pov_data, mentions_store, sidecar, terms, ents, nv, sense, situati
         elif key in mentions_store["containers"]:
             del mentions_store["containers"][key]
         sidecar[sid] = h; changed += 1
-    # purge removed nodes from ALL reverse maps (condition 5)
-    removed = [nid for nid in list(sidecar) if nid not in current_ids]
+    # purge removed nodes from ALL reverse maps (condition 5) — `_`-prefixed sentinels are NOT node ids
+    removed = [nid for nid in list(sidecar) if not nid.startswith("_") and nid not in current_ids]
     for nid in removed:
         del sidecar[nid]
         mentions_store["containers"].pop("node:" + nid, None)
+    sidecar["_vocab_sha"] = vsha  # stamp current vocabulary state (G9, t/3164)
     # derive used_by_nodes from forward concept_refs (condition 4)
     by_term = {}
     for data in pov_data.values():
@@ -438,6 +456,21 @@ def selftest():
     assert victim not in sc, "FAIL: removed node still in sidecar"
     assert ("node:" + victim) not in ms["containers"], "FAIL: removed node still has node:* mention"
     assert all(victim not in v for v in ubn4.values()), "FAIL: removed node still in used_by_nodes"
+    # VOCAB-CHURN (G9, t/3164): editing a term's phrases invalidates the gate -> full re-resolve even
+    # though no node text changed; the `_vocab_sha` sentinel persists (never purged, not a node id).
+    vt, ve, vpov, vms, vnv, vse, vsit = _fixtures()
+    vsc = {}
+    reconcile(vpov, vms, vsc, vt, ve, vnv, vse, vsit)                      # cold
+    rvw, _ = reconcile(vpov, vms, vsc, vt, ve, vnv, vse, vsit)             # warm -> 0 changed
+    assert rvw["changed"] == 0, f"FAIL: vocab warm run changed {rvw['changed']}"
+    assert "_vocab_sha" in vsc, "FAIL: _vocab_sha sentinel not stamped"
+    vt[0]["phrases"] = vt[0]["phrases"] + ["adaptive oversight regime"]    # churn ONE term's phrases
+    n_units = sum(len(d["nodes"]) for d in vpov.values()) + len(vsit)
+    rvc, _ = reconcile(vpov, vms, vsc, vt, ve, vnv, vse, vsit)
+    assert rvc["changed"] == n_units, f"FAIL: vocab churn re-resolved {rvc['changed']}, expected all {n_units}"
+    assert rvc["removed"] == 0, "FAIL: sentinel wrongly counted as a removed node"
+    rvw2, _ = reconcile(vpov, vms, vsc, vt, ve, vnv, vse, vsit)            # settles back to idempotent
+    assert rvw2["changed"] == 0 and "_vocab_sha" in vsc, "FAIL: sentinel purged or not idempotent after churn"
     # SCOPED (G8a, t/3171): re-resolve only the dirty-set; non-dirty nodes preserved; consistency holds
     _t2, _e2, pov2, ms2, _nv2, _s2, _sit2 = _fixtures()  # fresh synthetic tree (hermetic, t/3189)
     sc2 = {}
@@ -483,7 +516,7 @@ def selftest():
     with grounding_lock("t", path=lp, wait_sec=1, stale_sec=120):  # stale -> broken + re-acquired
         assert os.path.exists(lp), "FAIL: stale lock not re-acquired"
     assert not os.path.exists(lp), "FAIL: lock file not removed after stale-break run"
-    print("SELFTEST PASS: consistency, disjoint-scope, idempotence, change-detection, removal-purge, scoped, lock")
+    print("SELFTEST PASS: consistency, disjoint-scope, idempotence, change-detection, removal-purge, vocab-churn, scoped, lock")
     print(f"  cold run: {s1}   used_by_nodes terms: {len(ubn)}")
 
 if SELFTEST:
