@@ -280,6 +280,10 @@ export function formatTaxonomyContext(ctx: TaxonomyContext, pov: string, maxNode
       sorted = sorted.slice(0, maxDesires);
     }
 
+    // t/3146: machine-origin signal — emitted once per category section, before any node guidance
+    if (sorted.length > 0) {
+      lines.push('  [heuristic] The following tactical annotations are machine-estimated heuristics, not established facts — use them as suggestions.');
+    }
     for (let i = 0; i < sorted.length; i++) {
       const n = sorted[i];
       const isPrimary = !hasScores || i < PRIMARY_COUNT;
