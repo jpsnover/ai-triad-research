@@ -1,9 +1,21 @@
 ﻿// Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-import { describe, it, expect } from 'vitest';
-import { resolveMultiProviderModels } from './modelRouter.js';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { resolveMultiProviderModels, resolveModelForPurpose, probeOllama, TaskTier } from './modelRouter.js';
 import type { ModelRegistry } from './registry.js';
+import type { FetchFn } from './types.js';
+
+// ── Mocks for the Ollama-fallback logging tests (t/3178) ────────────────────
+const mockIsOllamaAvailable = vi.fn();
+const mockRecord = vi.fn();
+
+vi.mock('./providers/ollama.js', () => ({
+  isOllamaAvailable: (...args: unknown[]) => mockIsOllamaAvailable(...args),
+}));
+vi.mock('../flight-recorder/index.js', () => ({
+  getGlobalRecorder: () => ({ record: mockRecord }),
+}));
 
 const TEST_REGISTRY: ModelRegistry = {
   backends: [],
@@ -105,5 +117,57 @@ describe('resolveMultiProviderModels', () => {
     for (const m of models) {
       expect(m).not.toBe('claude-haiku-4-5');
     }
+  });
+});
+
+describe('resolveModelForPurpose — Ollama→cloud fallback logging (t/3178)', () => {
+  const fakeFetch = (() => Promise.resolve(undefined)) as unknown as FetchFn;
+
+  beforeEach(async () => {
+    // Baseline every test as "Ollama available" so state + the warn-once gate start clean.
+    mockRecord.mockClear();
+    mockIsOllamaAvailable.mockReset().mockResolvedValue(true);
+    await probeOllama(fakeFetch);
+    mockRecord.mockClear();
+  });
+
+  it('emits an ai.fallback WARN with purpose + substituted model when Ollama is unavailable', async () => {
+    mockIsOllamaAvailable.mockResolvedValue(false);
+    await probeOllama(fakeFetch);
+
+    const routed = await resolveModelForPurpose('summarization');
+    expect(routed).toMatchObject({ model: 'gemini-3.5-flash-lite', isLocal: false, tier: TaskTier.LOCAL, purpose: 'summarization' });
+
+    expect(mockRecord).toHaveBeenCalledTimes(1);
+    const ev = mockRecord.mock.calls[0][0];
+    expect(ev.type).toBe('ai.fallback');
+    expect(ev.level).toBe('warn');
+    expect(ev.data).toMatchObject({ purpose: 'summarization', substitutedModel: 'gemini-3.5-flash-lite', reason: 'ollama_unavailable' });
+  });
+
+  it('warns once per unavailable episode, not on every routed call', async () => {
+    mockIsOllamaAvailable.mockResolvedValue(false);
+    await probeOllama(fakeFetch);
+    await resolveModelForPurpose('summarization');
+    await resolveModelForPurpose('fallacy_analysis');
+    expect(mockRecord).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not warn when Ollama is available (local route taken)', async () => {
+    const routed = await resolveModelForPurpose('summarization');
+    expect(routed).toMatchObject({ model: 'ollama-gemma4-e4b', isLocal: true });
+    expect(mockRecord).not.toHaveBeenCalled();
+  });
+
+  it('re-arms the warning after a fresh probe (new outage episode)', async () => {
+    mockIsOllamaAvailable.mockResolvedValue(false);
+    await probeOllama(fakeFetch);
+    await resolveModelForPurpose('summarization'); // episode 1 → warn
+    mockIsOllamaAvailable.mockResolvedValue(true);
+    await probeOllama(fakeFetch);                  // recovery re-arms the gate
+    mockIsOllamaAvailable.mockResolvedValue(false);
+    await probeOllama(fakeFetch);                  // episode 2
+    await resolveModelForPurpose('summarization'); // → warn again
+    expect(mockRecord).toHaveBeenCalledTimes(2);
   });
 });
