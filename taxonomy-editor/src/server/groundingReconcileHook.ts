@@ -28,7 +28,7 @@
 import { execFile } from 'child_process';
 import { RECONCILE_SCRIPT } from './config.js';
 import { getGlobalRecorder } from '../../../lib/flight-recorder/index.js';
-import { ActionableError } from '../../../lib/debate/errors.js';
+import { errorMessage } from '../../../lib/debate/errors.js';
 import { log } from './logger.js';
 
 // Mirrors aiBackends.ts:63 — the reconciler is a python3 script (win32 dev uses `python`).
@@ -88,7 +88,7 @@ export function parseStats(stdout: string): ReconcilerStats {
       const s = JSON.parse(m[0]) as Partial<ReconcilerStats>;
       return { changed: s.changed ?? null, skipped: s.skipped ?? null, removed: s.removed ?? null };
     }
-  } catch { /* observability only — never throw on a stdout parse */ }
+  } catch { /* telemetry — silent by design: a stdout parse miss yields null stats, never throws (observability field only) */ }
   return { changed: null, skipped: null, removed: null };
 }
 
@@ -135,23 +135,16 @@ async function flush(): Promise<void> {
     });
   } catch (err) {
     // Fallback-Path Logging: a failed/skipped reconcile must be visible (silently-stale grounding is
-    // invisible degradation) — WARN it — but NEVER propagate: the taxonomy write already succeeded.
-    const ae = new ActionableError({
-      goal: 'Refresh grounding for the just-written taxonomy nodes',
-      problem: `Inline grounding reconcile failed for ${ids.length} node(s): ${(err as Error).message}`,
-      location: 'groundingReconcileHook.flush',
-      nextSteps: [
-        'The taxonomy write itself succeeded — this only affects derived grounding freshness',
-        'The scheduled G8b sweep is the backstop; check reconcile_grounding.py availability/deps in this env',
-      ],
-    });
+    // invisible degradation) — WARN it — but NEVER propagate: the taxonomy write already succeeded,
+    // and the scheduled G8b sweep is the backstop (the #1737 masked-error lesson). Not an
+    // ActionableError: this path is caught + logged, never thrown, so a plain WARN record is correct.
     getGlobalRecorder()?.record({
       type: 'system.error', component: 'grounding-reconcile', level: 'warn',
-      message: `grounding_reconcile_inline: reconcile FAILED for ${ids.length} node(s) — grounding may be stale until the next sweep`,
+      message: `grounding_reconcile_inline: reconcile FAILED for ${ids.length} node(s) — grounding may be stale until the next G8b sweep`,
       data: { node_ids: ids, duration_ms: Date.now() - startedMs },
-      error: { name: (err as Error).name ?? 'Error', message: ae.message, stack: (err as Error).stack },
+      error: { name: (err as Error).name ?? 'Error', message: errorMessage(err), stack: (err as Error).stack },
     });
-    log.server.warn({ component: 'grounding-reconcile', node_ids: ids, err: (err as Error).message }, 'inline grounding reconcile failed (non-fatal)');
+    log.server.warn({ component: 'grounding-reconcile', node_ids: ids, err: errorMessage(err) }, 'inline grounding reconcile failed (non-fatal)');
   } finally {
     running = false;
     // ids enqueued while the child ran are still pending → start a fresh debounce window for them.
