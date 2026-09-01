@@ -367,6 +367,9 @@ export async function generateText(
           message: `Skipping ${currentModel}: no ${backend} API key — trying next fallback`,
           data: { model: currentModel, backend, fallbackIndex: mi, chain: modelsToTry },
         });
+        // t/3176 (Fallback-Path Logging): the FR record above is info-only → invisible in prod log
+        // dashboards. WARN so a silent key-gap that degrades the model chain is greppable.
+        log.api.warn({ model: currentModel, backend, fallbackIndex: mi }, 'generateText: no API key for backend — skipping to next fallback chain entry');
         continue;
       }
       throwNoApiKeyError(backend, modelsToTry);
@@ -453,6 +456,9 @@ export async function generateTextWithSearch(
         citations: citations.length ? citations : undefined,
       };
     }
+    // t/3176 (Fallback-Path Logging): no Tavily key → search is silently omitted and we degrade to
+    // plain generation. WARN so a missing-key regression (answers ungrounded) is visible, not silent.
+    log.api.warn({ model: resolved, backend }, 'generateTextWithSearch: no Tavily key — falling back to plain generation (search omitted)');
     const result = await generateText(prompt, resolved, undefined, undefined, explicitApiKey);
     return { text: result.text };
   }
@@ -650,6 +656,11 @@ export function _resetEmbeddingsCacheForTest(): void {
 /** Pre-set Python availability without spawning the probe — test isolation only. */
 export function _setPythonAvailableForTest(v: boolean): void {
   _pythonAvailable = v;
+}
+
+/** Clear the cached Python-availability probe result so the next call re-runs it — test isolation only. */
+export function _resetPythonAvailableForTest(): void {
+  _pythonAvailable = null;
 }
 
 const EMBEDDINGS_REQUEST_TIMEOUT_MS = 45_000;
@@ -865,7 +876,9 @@ function isPythonEmbeddingAvailable(): Promise<boolean> {
   return new Promise(resolve => {
     execFile(PYTHON, ['-c', 'import sentence_transformers'], { timeout: 10_000 }, (err) => {
       _pythonAvailable = !err;
-      if (!_pythonAvailable) log.server.info('[embeddings] Python sentence-transformers unavailable — using API only');
+      // t/3176 (Fallback-Path Logging): unavailable Python → the compute path silently degrades to
+      // the ONNX/API fallback for the process lifetime. WARN (not info) so it surfaces in prod logs.
+      if (!_pythonAvailable) log.server.warn('[embeddings] Python sentence-transformers unavailable — using API only');
       resolve(_pythonAvailable);
     });
   });
@@ -1046,7 +1059,16 @@ export async function updateNodeEmbeddings(nodes: { id: string; text: string; po
     const buf = await readDataFile(EMBEDDINGS_REL_PATH, { largeFile: true });
     data = JSON.parse(buf.toString('utf-8')) as EmbeddingsFile;
   }
-  catch { /* telemetry — silent by design */ data = { model: 'all-MiniLM-L6-v2', dimension: 384, node_count: 0, nodes: {} }; }
+  catch (err) {
+    // t/3176 (Fallback-Path Logging): a read failure here silently starts from an EMPTY baseline —
+    // this write only re-adds the current nodes, so any embeddings the file held for OTHER nodes are
+    // dropped until the next full re-embed. That data-losing degradation must not be silent. WARN.
+    log.api.warn(
+      { err: (err as Error).message, path: EMBEDDINGS_REL_PATH },
+      'updateNodeEmbeddings: embeddings file unreadable — continuing with an EMPTY baseline (other nodes’ stored embeddings are discarded this write; they re-populate on the next full embed)',
+    );
+    data = { model: 'all-MiniLM-L6-v2', dimension: 384, node_count: 0, nodes: {} };
+  }
 
   for (const node of nodes) {
     if (vectors[node.id]) {
