@@ -14,6 +14,12 @@ guarantees forward<->reverse consistency, which a union cannot). Removed nodes a
 ALL reverse maps incl. node:* mentions (condition 5).
 
 Usage: --selftest (tests, no write) | --apply (write) | default dry-run summary.
+       --nodes id1,id2,... : G8a scoped mode (t/3171) — re-resolve ONLY those node ids (the
+       inline write-hook's dirty-set), leaving every other node's stored grounding untouched.
+       used_by_nodes is still re-derived globally so forward<->reverse consistency holds under
+       partial refresh; writes are bounded to touched POV files + changed dict files. Combine
+       with --apply to persist. The CALLER MUST serialize this against Update-EntityMentionIndex
+       (shared entity_mentions.json is a full read-merge-write; TL concurrency caveat t/3160#7).
 """
 import json, re, os, glob, sys, hashlib
 from datetime import datetime, timezone
@@ -27,6 +33,19 @@ SIDECAR = os.path.join(O, "grounding_index.json")
 CON_TAU = 0.55
 APPLY = "--apply" in sys.argv
 SELFTEST = "--selftest" in sys.argv
+
+def _arg(flag):
+    if flag in sys.argv:
+        i = sys.argv.index(flag)
+        if i + 1 < len(sys.argv):
+            return sys.argv[i + 1]
+    return None
+
+# G8a scoped mode: --nodes id1,id2,... limits re-resolution to the caller's declared dirty-set.
+# Guard against a following flag being swallowed as a value (e.g. `--nodes --apply`).
+SCOPED = "--nodes" in sys.argv
+SCOPED_IDS = [x.strip() for x in (_arg("--nodes") or "").split(",")
+              if x.strip() and not x.strip().startswith("--")]
 
 def sha(text):
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
@@ -197,6 +216,73 @@ def reconcile(pov_data, mentions_store, sidecar, terms, ents, nv, sense, situati
                 by_term.setdefault(r["ref"][len("term:"):], set()).add(n["id"])
     return {"changed": changed, "skipped": skipped, "removed": len(removed)}, by_term
 
+# ---------- scoped reconcile (G8a inline entry point, t/3171) ----------
+def reconcile_scoped(pov_data, mentions_store, sidecar, dirty_ids, terms, ents, nv, sense, situations=()):
+    """Re-resolve ONLY nodes whose id is in `dirty_ids` (the PUT's changed set); every other node's
+    stored grounding is left untouched. used_by_nodes is STILL re-derived globally from the current
+    forward concept_refs (dirty nodes freshly resolved, all others as-stored) so the forward<->reverse
+    consistency invariant (condition 4) holds under partial refresh. A dirty id absent from the current
+    taxonomy+situations is a removal and is purged from ALL reverse maps (condition 5). Non-dirty nodes
+    whose text changed are intentionally NOT re-resolved here — the caller declares the dirty-set and the
+    scheduled full sweep (G8b) is the backstop. Returns (stats, by_term, touched_povs).
+
+    The hash-gate still applies within the dirty-set (a dirty id whose text is unchanged is skipped), so
+    this stays idempotent. Same disjoint-scope contract as reconcile(): sei:*/summary:* are never written.
+    Caller MUST serialize against Update-EntityMentionIndex (shared-file read-merge-write; TL #7)."""
+    now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    dirty = set(dirty_ids)
+    sit_map = dict(situations)
+    current_ids = {n["id"] for data in pov_data.values() for n in data["nodes"]} | set(sit_map)
+    changed = skipped = removed = 0
+    touched_povs = set()
+    for pov_name, data in pov_data.items():
+        for n in data["nodes"]:
+            nid = n["id"]
+            if nid not in dirty or not n.get("description"):
+                continue
+            h = sha(node_text(n))
+            if sidecar.get(nid) == h:
+                skipped += 1; continue
+            crefs, erefs, mentions = resolve(n, terms, ents, nv, sense)
+            if crefs: n["concept_refs"] = crefs
+            elif "concept_refs" in n: del n["concept_refs"]
+            if erefs: n["entity_refs"] = erefs
+            elif "entity_refs" in n: del n["entity_refs"]
+            key = "node:" + nid
+            if mentions:
+                mentions_store["containers"][key] = {"text_sha256": h, "extracted_at": now, "mentions": mentions}
+            elif key in mentions_store["containers"]:
+                del mentions_store["containers"][key]
+            sidecar[nid] = h; changed += 1; touched_povs.add(pov_name)
+    # dirty situations (sit-*): own node:sit-* containers
+    for sid in dirty:
+        if sid not in sit_map:
+            continue
+        stext = sit_map[sid]
+        h = sha(stext)
+        if sidecar.get(sid) == h:
+            skipped += 1; continue
+        mentions = entity_mentions_for(stext, stext.lower(), ents)
+        key = "node:" + sid
+        if mentions:
+            mentions_store["containers"][key] = {"text_sha256": h, "extracted_at": now, "mentions": mentions}
+        elif key in mentions_store["containers"]:
+            del mentions_store["containers"][key]
+        sidecar[sid] = h; changed += 1
+    # removal-purge: dirty ids no longer present in taxonomy+situations (condition 5), scoped to the dirty-set
+    for nid in dirty:
+        if nid not in current_ids:
+            if nid in sidecar:
+                del sidecar[nid]; removed += 1
+            mentions_store["containers"].pop("node:" + nid, None)
+    # derive used_by_nodes GLOBALLY from current forward concept_refs (condition 4 holds under partial refresh)
+    by_term = {}
+    for data in pov_data.values():
+        for n in data["nodes"]:
+            for r in (n.get("concept_refs") or []):
+                by_term.setdefault(r["ref"][len("term:"):], set()).add(n["id"])
+    return {"changed": changed, "skipped": skipped, "removed": removed}, by_term, touched_povs
+
 # ---------- selftest ----------
 def selftest():
     terms, ents = load_terms(), load_entities()
@@ -238,7 +324,32 @@ def selftest():
     assert victim not in sc, "FAIL: removed node still in sidecar"
     assert ("node:" + victim) not in ms["containers"], "FAIL: removed node still has node:* mention"
     assert all(victim not in v for v in ubn4.values()), "FAIL: removed node still in used_by_nodes"
-    print("SELFTEST PASS: consistency, disjoint-scope, idempotence, change-detection, removal-purge")
+    # SCOPED (G8a, t/3171): re-resolve only the dirty-set; non-dirty nodes preserved; consistency holds
+    pov2 = {p: load_json(os.path.join(O, p + ".json")) for p in ("accelerationist", "safetyist", "skeptic")}
+    ms2 = {"containers": dict(load_json(MENTIONS).get("containers", {}))}
+    sc2 = {}
+    reconcile(pov2, ms2, sc2, terms, ents, nv, sense, sit)  # cold baseline: full refs + sidecar
+    a, b = pov2["accelerationist"]["nodes"][0], pov2["accelerationist"]["nodes"][1]
+    bump = " adaptive governance oversight, strict liability regime."
+    a["description"] = (a.get("description") or "") + bump
+    b["description"] = (b.get("description") or "") + bump  # b edited too but NOT in the scoped set
+    b_refs_before = b.get("concept_refs")
+    ssc, sub, touched = reconcile_scoped(pov2, ms2, sc2, [a["id"]], terms, ents, nv, sense, sit)
+    assert ssc["changed"] == 1, f"FAIL: scoped re-resolved {ssc['changed']} nodes, expected 1"
+    assert b.get("concept_refs") == b_refs_before, "FAIL: scoped run mutated a non-dirty node's refs"
+    assert touched == {"accelerationist"}, f"FAIL: scoped touched_povs {touched}, expected {{accelerationist}}"
+    fwd2 = {}
+    for data in pov2.values():
+        for n in data["nodes"]:
+            for r in (n.get("concept_refs") or []):
+                fwd2.setdefault(r["ref"][len("term:"):], set()).add(n["id"])
+    assert fwd2 == {k: v for k, v in sub.items()}, "FAIL: scoped forward<->reverse mismatch"
+    assert {k for k in ms2["containers"] if k.startswith("sei:")} == sei_before, "FAIL: scoped touched sei:*"
+    assert {k for k in ms2["containers"] if k.startswith("summary:")} == summary_before, "FAIL: scoped touched summary:*"
+    # SCOPED removal: a dirty id absent from taxonomy is purged; a re-run over unchanged dirty-set = 0 changed
+    ssc2, _, _ = reconcile_scoped(pov2, ms2, sc2, [a["id"]], terms, ents, nv, sense, sit)
+    assert ssc2["changed"] == 0, f"FAIL: scoped not idempotent, {ssc2['changed']} changed on re-run"
+    print("SELFTEST PASS: consistency, disjoint-scope, idempotence, change-detection, removal-purge, scoped")
     print(f"  cold run: {s1}   used_by_nodes terms: {len(ubn)}")
 
 if SELFTEST:
@@ -251,19 +362,42 @@ sit = load_situations()
 pov = {p: load_json(os.path.join(O, p + ".json")) for p in ("accelerationist", "safetyist", "skeptic")}
 ms = load_json(MENTIONS)
 sc = load_json(SIDECAR) if os.path.exists(SIDECAR) else {}
-stats, ubn = reconcile(pov, ms, sc, terms, ents, nv, sense, sit)
-print(json.dumps(stats, indent=2))
-print(f"used_by_nodes terms: {len(ubn)}  total node-links: {sum(len(v) for v in ubn.values())}")
-if APPLY:
-    for p, data in pov.items():
-        dump_json(os.path.join(O, p + ".json"), data)
-    # write used_by_nodes into standardized files
-    for t in terms:
-        d = load_json(t["file"])
-        d["used_by_nodes"] = sorted(ubn.get(t["cf"], set()))
-        dump_json(t["file"], d)
-    dump_json(MENTIONS, ms)
-    dump_json(SIDECAR, sc)
-    print("APPLIED")
+if SCOPED:
+    # G8a scoped mode (t/3171): re-resolve only the dirty-set; bound writes to touched POV + changed dict files.
+    # Presence of --nodes forces scoped mode; an empty/malformed id list is a safe no-op, NEVER a full apply.
+    stats, ubn, touched = reconcile_scoped(pov, ms, sc, SCOPED_IDS, terms, ents, nv, sense, sit)
+    print(json.dumps(stats, indent=2))
+    print(f"scoped nodes: {len(SCOPED_IDS)}  touched POVs: {sorted(touched)}  used_by_nodes terms: {len(ubn)}")
+    if APPLY:
+        for p in touched:
+            dump_json(os.path.join(O, p + ".json"), pov[p])
+        dict_writes = 0
+        for t in terms:
+            d = load_json(t["file"])
+            new = sorted(ubn.get(t["cf"], set()))
+            if d.get("used_by_nodes") != new:  # write only terms whose reverse-set actually changed
+                d["used_by_nodes"] = new
+                dump_json(t["file"], d)
+                dict_writes += 1
+        dump_json(MENTIONS, ms)
+        dump_json(SIDECAR, sc)
+        print(f"APPLIED (scoped): {len(touched)} POV file(s), {dict_writes} dict file(s)")
+    else:
+        print("DRY RUN (scoped)")
 else:
-    print("DRY RUN")
+    stats, ubn = reconcile(pov, ms, sc, terms, ents, nv, sense, sit)
+    print(json.dumps(stats, indent=2))
+    print(f"used_by_nodes terms: {len(ubn)}  total node-links: {sum(len(v) for v in ubn.values())}")
+    if APPLY:
+        for p, data in pov.items():
+            dump_json(os.path.join(O, p + ".json"), data)
+        # write used_by_nodes into standardized files
+        for t in terms:
+            d = load_json(t["file"])
+            d["used_by_nodes"] = sorted(ubn.get(t["cf"], set()))
+            dump_json(t["file"], d)
+        dump_json(MENTIONS, ms)
+        dump_json(SIDECAR, sc)
+        print("APPLIED")
+    else:
+        print("DRY RUN")
