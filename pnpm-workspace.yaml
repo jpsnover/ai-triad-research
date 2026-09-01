@@ -15,6 +15,7 @@ overrides:
   uuid: ">=11.1.1"
   "@opentelemetry/core": ">=2.8.0"
   js-yaml: ">=4.3.1"
+  image-size: ">=1.2.2"
 
 allowBuilds:
   '@google/genai': true

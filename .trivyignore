@@ -4,8 +4,8 @@
 # POLICY (t/2006): no silent suppression. Every entry MUST carry: the CVE, the
 # affected package, WHY it is ignored, and a concrete REVISIT trigger. Anything
 # with an available upstream fix must be patched (base rebuild), not ignored.
-# Last reviewed: 2026-08-15 (Docker). Trixie migration complete (t/2681) — re-scan
-# will confirm which entries below are cleared by Trixie's newer package versions.
+# Last reviewed: 2026-09-01 (t/3135). Added perl CRITICALs + libtiff6 CVE-2026-52490
+# (no-fix dismissals). image-size bumped to 2.0.2 via override (no longer suppressed here).
 
 # ── util-linux (Debian bookworm) — NO UPSTREAM FIX AVAILABLE ────────────────────
 # CVE-2026-13595  util-linux mount privilege-escalation via crafted fstab (warning)
@@ -696,5 +696,33 @@ CVE-2026-23949
 #            at runtime.
 # REVISIT:   drop when Debian trixie ships a fixed python3.13 (deb13u5+). Re-scan.
 CVE-2026-4360
+
+# ── perl (Trixie) — CRITICAL — NO UPSTREAM FIX AVAILABLE ─────────────────────
+# CVE-2026-13221  perl: CRITICAL — no Trixie fix as of 2026-09-01 (t/3135)
+# CVE-2026-8376   perl: CRITICAL — no Trixie fix as of 2026-09-01 (t/3135)
+#
+# Package:   perl (trixie, transitive dep of dpkg maintenance scripts)
+# Fix state: Debian trixie has published NO fixed version for either CVE.
+# Exposure:  perl is pulled in transitively by dpkg/dpkg-dev post-install hooks;
+#            it cannot be stripped from the runtime image without breaking package
+#            management. No exec surface: the container CMD is a direct `node`
+#            invocation; the web console spawns pwsh (not perl); perl is not
+#            callable from any external-facing interface.
+# REVISIT:   drop when Debian trixie ships a fixed perl. Re-scan.
+CVE-2026-13221
+CVE-2026-8376
+
+# ── libtiff6 (Trixie) — HIGH — NO UPSTREAM FIX AVAILABLE ────────────────────
+# CVE-2026-52490  libtiff6: HIGH — no Trixie fix as of 2026-09-01 (t/3135)
+#
+# Package:   libtiff6 (trixie, transitive dep of poppler-utils)
+# Fix state: Debian trixie has published NO fixed version as of 2026-09-01.
+# Exposure:  libtiff6 is a transitive dep of poppler-utils (PDF text extraction).
+#            The application processes academic PDFs via pandoc/poppler for text
+#            only; the vulnerable TIFFReadDirectory path is not invoked by our
+#            PDF pipeline (we extract text, not TIFF images embedded in PDFs).
+#            Practical exploitability is negligible.
+# REVISIT:   drop when Debian trixie ships a fixed libtiff6. Re-scan.
+CVE-2026-52490
 
 
