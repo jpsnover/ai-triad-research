@@ -1065,12 +1065,24 @@ function Invoke-AIApi {
         $SafeMsg = Protect-SensitiveText -Text $LastError.Exception.Message -Secret $ResolvedKey
         Write-Warning "$($Backend): API call failed (HTTP $StatusCode) — $SafeMsg"
         if ($Hint) { Write-Warning "$($Backend): $Hint" }
+        # Capture the HTTP error BODY — it carries the real reason (e.g. a 400's message). t/3196:
+        # Invoke-RestMethod (HttpClient) surfaces the response body on $_.ErrorDetails.Message, NOT
+        # on Exception.Response.GetResponseStream() (the old WebRequest shape) — so the previous
+        # read silently caught nothing on every HttpClient failure, and the body was invisible
+        # (this masked the t/3123 400 during diagnosis). Prefer ErrorDetails.Message; fall back to
+        # the WebRequest stream for any caller still on that path.
         try {
-            if ($LastError.Exception.Response) {
+            $ErrBody = $null
+            if ($LastError.PSObject.Properties['ErrorDetails'] -and $LastError.ErrorDetails -and $LastError.ErrorDetails.Message) {
+                $ErrBody = [string]$LastError.ErrorDetails.Message
+            }
+            elseif ($LastError.Exception.Response -and ($LastError.Exception.Response | Get-Member -Name GetResponseStream -MemberType Method -ErrorAction SilentlyContinue)) {
                 $ErrStream = $LastError.Exception.Response.GetResponseStream()
                 $ErrReader = [System.IO.StreamReader]::new($ErrStream)
                 $ErrBody   = $ErrReader.ReadToEnd()
                 $ErrReader.Close()
+            }
+            if (-not [string]::IsNullOrWhiteSpace($ErrBody)) {
                 $SafeBody = Protect-SensitiveText -Text $ErrBody -Secret $ResolvedKey
                 Write-Warning "$($Backend): Response body: $SafeBody"
             }
