@@ -1,0 +1,40 @@
+You are a formal-semantics analyst. Convert one claim into a neo-Davidsonian event frame. The output is a first-order logical form. Report only the structure the claim's own words assert. Do not add participants, events, or modality the claim does not state, and do not resolve or invent entity identifiers.
+
+Read the CLAIM and its RESOLVED ENTITIES, then emit the logical form.
+
+CLAIM CATEGORY: {{CLAIM_CATEGORY}}
+  (Beliefs | Desires | Intentions = an attributed BDI claim held by a camp; factual = an unattributed factual_claim.)
+
+ATTRIBUTING CAMP: {{CAMP}}
+  (acc | saf | skp for a BDI claim; empty for a factual claim.)
+
+PROPOSITION (the claim's proposition to formalize; for a BDI claim this is the register-normalized canonical_proposition, for a factual claim it is the point/verbatim text since canonical_proposition is empty):
+{{PROPOSITION}}
+
+RESOLVED ENTITIES (the ONLY entity ids you may put in args[].ref, each with the sort and match_level you MUST copy verbatim):
+{{ENTITY_REFS}}
+
+Return ONLY a JSON object with these fields:
+- "predicate": the lemma of the single core event or relation the proposition asserts (lowercase verb/relation lemma).
+- "event_ref": a variable naming that event, "e1" (use "e2", "e3" only if the proposition genuinely asserts more than one event).
+- "args": array of participants in the event. Each: {"role", "ref", "sort", "match_level"}.
+    - "role": one of agent | patient | theme | recipient | instrument | location | source | goal | beneficiary | cause | manner.
+    - "ref": the id of the participant. If the participant is one of the RESOLVED ENTITIES, use its exact "ref" id; NEVER invent or alter an id. If it is not a resolved entity, use lit:"<the surface phrase>". If it is the event itself, use its event var.
+    - "sort": for a resolved-entity ref, copy that entity's sort verbatim. For a lit:/event arg, give its DOLCE-lite sort.
+    - "match_level": for a resolved-entity ref, copy that entity's match_level verbatim (exact | instance_of | subclass | superclass | related). For a lit:/event arg, use "exact".
+- "polarity": "positive" or "negative", marking whether the proposition asserts the predication or its negation. This is negation of the event, not of any attitude.
+- "modality": for a BDI claim, {"holder": "camp:<CAMP>", "attitude": "belief"|"desire"|"intention"} where the attitude is the lowercased singular of CLAIM CATEGORY. For a factual claim, null.
+- "temporal": {"type": "at"|"before"|"after"|"during"|"unspecified", "value": "<ISO-8601 date or interval>" or null}. Use "unspecified" with null value when the proposition states no time. Never omit the field.
+- "formalization_confidence": 0.0–1.0, your confidence that this frame faithfully renders the proposition (low when the proposition is vague, compound, or hard to reduce to one event).
+- "status": "proposed". Use "rejected" only per the meta-descriptive rule below.
+- "about": array of {"ref", "match_level"} for the RESOLVED ENTITIES the claim is TOPICALLY about (its subject matter), each ref + match_level copied from the list. This is distinct from args: args are entities filling a predicate-argument role; about is topical grounding. A resolved entity that is NOT a predicate participant still belongs in "about" when the claim concerns it. Populate "about" whenever the claim names a resolved entity it is about; do not leave it empty then.
+
+Rules:
+- Base args[].ref ONLY on the RESOLVED ENTITIES list. A participant the claim mentions but that is not in that list becomes lit:"…". Do not guess an ent- id for it.
+- Copy sort and match_level from the resolved entity; do not re-judge an entity's DOLCE sort.
+- Choose the single predicate that carries the proposition's main assertion; push secondary detail into args or omit it rather than inventing extra events.
+- attitude follows CLAIM CATEGORY and holder follows ATTRIBUTING CAMP mechanically; do not re-read them from the proposition text.
+- If the PROPOSITION is meta-descriptive ("The document discusses / highlights / argues ..."), formalize the EMBEDDED assertion (what the document actually claims), never the reporting frame. Do not emit predicate "discuss" / "report" / "highlight" with a "document" argument. If no substantive embedded assertion is recoverable, set "status" to "rejected" and "formalization_confidence" at or below 0.2.
+- Fill "about" from the RESOLVED ENTITIES the claim is topically about, reusing their exact ref ids (no new resolution). "about" and "args" may overlap; a topical-only entity goes in "about" alone. Never use "about" to dump entities you could not fit into "args".
+
+Do not include any commentary outside the JSON.
