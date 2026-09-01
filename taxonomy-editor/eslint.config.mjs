@@ -18,6 +18,7 @@
 import tseslint from 'typescript-eslint';
 import reactHooks from 'eslint-plugin-react-hooks';
 import requireFlightRecorderInCatch from '../lib/eslint-rules/require-flight-recorder-in-catch.js';
+import requireWarnOnDegradedCatchReturn from '../lib/eslint-rules/require-warn-on-degraded-catch-return.js';
 import noActionableErrorMessageNesting from '../lib/eslint-rules/no-actionable-error-message-nesting.js';
 import noUnmanagedModuleResources from './eslint-rules/no-unmanaged-module-resources.js';
 import noInlineStyle from './eslint-rules/no-inline-style.js';
@@ -26,6 +27,7 @@ import noRawDataRootRead from './eslint-rules/no-raw-data-root-read.js';
 const localPlugin = {
   rules: {
     'require-flight-recorder-in-catch': requireFlightRecorderInCatch,
+    'require-warn-on-degraded-catch-return': requireWarnOnDegradedCatchReturn,
     'no-unmanaged-module-resources': noUnmanagedModuleResources,
     'no-inline-style': noInlineStyle,
     'no-actionable-error-message-nesting': noActionableErrorMessageNesting,
@@ -79,6 +81,11 @@ export default tseslint.config(
       // ADR-003 enforcement (t/1323, repo-review B-401): every catch records to the
       // flight recorder. Flipped warn→error once the tree was clean (0 violations).
       'local/require-flight-recorder-in-catch': 'error',
+      // t/3200 (Fallback-Path Logging): a degraded-default return from a data/IO catch must record
+      // at WARN/ERROR. Shipped 'warn' (non-blocking visibility) — separate rule from the base one so
+      // this severity is independent. Promotion to 'error' is a separate GV-gated step once the
+      // t/3169 cleanup lands the WARNs and the flagged count reaches zero (TL t/3200#2).
+      'local/require-warn-on-degraded-catch-return': 'warn',
       'max-lines': MAX_LINES_SRC,
       // ActionableError nesting gate (t/2764 / t/2761): forbid err.message in problem:.
       // Custom rule (not no-restricted-syntax) so it restricts to error-named identifiers
