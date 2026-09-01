@@ -57,7 +57,7 @@ function Get-EntityReport {
     [OutputType([PSCustomObject])]
     param(
         [Parameter()]
-        [ValidateSet('near-duplicate', 'provenance-orphan', 'dictionary-candidate', 'merge-chain', 'all')]
+        [ValidateSet('near-duplicate', 'provenance-orphan', 'dictionary-candidate', 'merge-chain', 'relation-dag', 'all')]
         [string]$Report = 'all',
 
         [Parameter()]
@@ -96,6 +96,7 @@ function Get-EntityReport {
         ProvenanceOrphan    = $null
         DictionaryCandidate = $null
         MergeChainDefects   = $null
+        RelationDag         = $null
     }
 
     # ── near-duplicate ──────────────────────────────────────────────────────────────
@@ -225,6 +226,35 @@ function Get-EntityReport {
             }
         }
         $Result.MergeChainDefects = @($Defects)
+    }
+
+    # ── relation-dag (t/3170): store-wide EntityRelation DAG invariants ───────────────
+    # The SAME acyclic + depth<=3 + target invariants the write-side gate enforces
+    # (Assert-EntityRelationsValid), run over the whole store's persisted relations[]. Surfaces
+    # any PRE-EXISTING violation (TL GV cond 4: a store violation is a finding, not silent pass).
+    # ent-* existence is checked against the store; term:* existence is deferred (Q4, Shared Lib)
+    # so well-formed term targets are treated as known here too — well-formedness/acyclic/depth
+    # still bind.
+    if ($WantAll -or $Report -eq 'relation-dag') {
+        $Edges = [System.Collections.Generic.List[object]]::new()
+        $KnownTerms = [System.Collections.Generic.HashSet[string]]::new()
+        foreach ($e in $Entities) {
+            if (-not $e.PSObject.Properties['relations'] -or -not $e.relations) { continue }
+            $eid = [string]$e.id
+            foreach ($r in @($e.relations)) {
+                $tgt = if ($r.PSObject.Properties['target']) { [string]$r.target } else { '' }
+                $typ = if ($r.PSObject.Properties['type']) { [string]$r.type } else { '' }
+                $Edges.Add(@{ Source = $eid; Type = $typ; Target = $tgt })
+                if ($tgt -like 'term:*') { [void]$KnownTerms.Add($tgt) }   # Q4 deferral: accept well-formed terms
+            }
+        }
+        $KnownIds = @($Entities | Where-Object { $_.PSObject.Properties['id'] } | ForEach-Object { [string]$_.id })
+        $Violations = Test-EntityRelationGraph -Edge @($Edges) -KnownEntityId $KnownIds -KnownTermRef @($KnownTerms) -MaxDepth 3
+        $Result.RelationDag = [PSCustomObject]@{
+            Label      = 'relation-dag (t/3170): target/acyclic/depth<=3 invariants over persisted relations[]. term:* existence deferred (Q4). Empty Violations = clean.'
+            EdgeCount  = @($Edges).Count
+            Violations = @($Violations)
+        }
     }
 
     return $Result
