@@ -623,7 +623,17 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
           name: 'taxonomy-editor'
           image: containerImage
           resources: {
-            cpu: json('1.0')
+            // 2 vCPU is the CORRECTNESS FLOOR for the embedding worker-offload
+            // (t/3182 / t/2977 C1). The off-thread ONNX worker (EMBEDDING_WORKER_OFFLOAD)
+            // needs a REAL second core: on 1 vCPU the worker time-slices the same core
+            // as the event loop, so a big embed still starves liveness (defeats the
+            // offload). 2 vCPU keeps the loop responsive while the worker computes.
+            // Stays within the ACA Consumption plan (0.25-4 vCPU) - one-line resources
+            // edit, no workload-profile/topology migration. Cost ~$0 (free grant, t/2977#4).
+            // Memory unchanged: incident RSS peaked ~650MB/2048 + ~250MB worker model
+            // copy ~= 900MB, comfortably within 2Gi (embeddings.json is NOT copied to the
+            // worker - the cache resolve stays main-thread, only miss-texts marshal).
+            cpu: json('2.0')
             memory: '2Gi'
           }
           env: containerEnv
