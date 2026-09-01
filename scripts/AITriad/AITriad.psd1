@@ -245,6 +245,8 @@
         'Get-ServerLog'
         # t/3082 — Log Analytics server-log query (deep history) by window/requestId/pattern
         'Get-TaxEditorServerLogs'
+        # t/3168 — one-shot embeddings-cache resolving/re-computing verdict on the live revision
+        'Test-EmbeddingsCacheHealth'
     )
 
     # Aliases exported from this module

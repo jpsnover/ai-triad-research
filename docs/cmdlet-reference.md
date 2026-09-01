@@ -137,6 +137,7 @@ Get-Help <CmdletName> -Full                     # full docs for any cmdlet
 | `Get-ContainerAppRevision` | Query ACA revisions by mode (Active/Stale/Fqdn) — replaces raw `az containerapp revision` calls (t/1498) |
 | `Get-ServerLog` | Retrieve + filter ACA server logs, correlate by Pino requestId — `-RequestId`/`-Recent`/`-StartTime`/`-Pattern` sets, `-Level`/`-Component`/`-Follow`/`-Raw` (t/2765) |
 | `Get-TaxEditorServerLogs` | Pull **deep** server-log history from Log Analytics (past the live-tail buffer) by `-From`/`-To`/`-RequestId`/`-Pattern`; parses Pino fields (Level/RequestId/Component/Method/Path/Status/DurationMs); `-System` for revision/restart events (t/3082) |
+| `Test-EmbeddingsCacheHealth` | One-shot `resolving`/`re-computing`/`no-traffic`/`unknown` verdict on whether the precomputed embeddings cache is serving on the live revision — compute p50/p95, load-shed 503s, cache-ready signal over `-From`/`-To` (default 30m); baseline-validation for the embedding-saturation class (t/3168) |
 | `Test-PreloadHealth` | Validate the built `preload.cjs` before launch — exists, calls `contextBridge.exposeInMainWorld`, self-contained (no relative `require('./…')`), optional `node --check` (t/2775, t/2777) |
 | `New-ContainerAppRevision` | Blue-green: deploy a new ACA revision at 0% traffic; returns real `RevisionName` for the promotion chain (t/1500 Phase 3) |
 | `Set-ContainerAppTraffic` | Shift traffic to a named revision with retry — call BEFORE `Disable-ContainerAppRevision` in rollback (t/1500 Phase 3) |
