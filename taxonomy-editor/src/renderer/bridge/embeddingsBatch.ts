@@ -1,6 +1,8 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
+import { getGlobalRecorder } from '@lib/flight-recorder/index';
+
 // Client-side batch chunking for POST /api/embeddings/compute (t/3072).
 //
 // The server processes the whole request inside a single 50s withEndpointTimeout('embeddings-compute')
@@ -30,6 +32,48 @@ type EmbeddingsPost = <T = unknown>(
 ) => Promise<T>;
 
 /**
+ * Compute response. `cacheHits`/`cacheMisses`/`corpusNodeCount` were added server-side in #1704
+ * (t/3165); optional here so an older/other server that returns only `vectors` still type-checks.
+ */
+interface ComputeResponse {
+  vectors: number[][];
+  cacheHits?: number;
+  cacheMisses?: number;
+  corpusNodeCount?: number;
+}
+
+/**
+ * Record the compute cache-resolution stats into the RENDERER flight recorder (t/3173, t/3165 Q3a).
+ * The server's own `embedding.compute` record is excluded from an anonymous debate's merged dump
+ * (anon has no session branch → the whole server dump is dropped), so the client half is what makes
+ * "novel-text volume vs keyed cache-miss" visible in the anon dump: high item_count + cacheHits=0 +
+ * no ids = volume (t/2977); cacheHits=0 WITH ids = a keyed miss (the t/3165 shape). Summed across
+ * chunks so one logical compute = one record. Best-effort: skipped if the server omitted the stats.
+ */
+function recordComputeCacheStats(
+  itemCount: number,
+  hasIds: boolean,
+  hits: number | undefined,
+  misses: number | undefined,
+  corpusNodeCount: number | undefined,
+): void {
+  if (hits === undefined && misses === undefined) return; // server didn't report stats — nothing to record
+  getGlobalRecorder()?.record({
+    type: 'system.info',
+    component: 'embeddings-compute-client',
+    level: 'info',
+    message: 'embedding.compute (client)',
+    data: {
+      item_count: itemCount,
+      has_ids: hasIds,
+      cache_hits: hits ?? 0,
+      cache_misses: misses ?? 0,
+      ...(corpusNodeCount !== undefined && { corpus_node_count: corpusNodeCount }),
+    },
+  });
+}
+
+/**
  * Split texts/ids into ≤EMBEDDINGS_MAX_BATCH slices and POST them SEQUENTIALLY — never
  * concurrently, which would re-burst the very server this guards (TL, t/3072). Vectors are
  * concatenated in input order, so the return shape is identical to a single compute call. Each
@@ -41,20 +85,28 @@ export async function computeEmbeddingsChunked(
   texts: string[],
   ids?: string[],
 ): Promise<{ vectors: number[][] }> {
-  if (texts.length <= EMBEDDINGS_MAX_BATCH) {
-    return post<{ vectors: number[][] }>(EMBEDDINGS_COMPUTE_PATH, { texts, ids }, { idempotent: true });
-  }
   const vectors: number[][] = [];
+  let hits = 0;
+  let misses = 0;
+  let sawStats = false;
+  let corpusNodeCount: number | undefined;
   for (let i = 0; i < texts.length; i += EMBEDDINGS_MAX_BATCH) {
     const textChunk = texts.slice(i, i + EMBEDDINGS_MAX_BATCH);
     const idChunk = ids ? ids.slice(i, i + EMBEDDINGS_MAX_BATCH) : undefined;
     // Awaited in the loop → strictly sequential; the next chunk starts only after this one resolves.
-    const res = await post<{ vectors: number[][] }>(
+    const res = await post<ComputeResponse>(
       EMBEDDINGS_COMPUTE_PATH,
       { texts: textChunk, ids: idChunk },
       { idempotent: true },
     );
     vectors.push(...res.vectors);
+    if (res.cacheHits !== undefined || res.cacheMisses !== undefined) {
+      sawStats = true;
+      hits += res.cacheHits ?? 0;
+      misses += res.cacheMisses ?? 0;
+      if (res.corpusNodeCount !== undefined) corpusNodeCount = res.corpusNodeCount;
+    }
   }
+  recordComputeCacheStats(texts.length, !!ids, sawStats ? hits : undefined, sawStats ? misses : undefined, corpusNodeCount);
   return { vectors };
 }
