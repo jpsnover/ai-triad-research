@@ -476,6 +476,8 @@ export function createCLIAdapter(repoRoot: string, explicitApiKey?: string): Ext
         return { text, searchQueries: searchQueries.length ? searchQueries : undefined, citations: citations.length ? citations : undefined };
       }
 
+      // t/3177: Fallback-Path Logging — TAVILY_API_KEY absent, no search available
+      getGlobalRecorder()?.record({ type: 'ai.fallback', component: 'ai-adapter', level: 'warn', message: `generateTextWithSearch: TAVILY_API_KEY not set — returning plain generation (no search). model=${resolved} backend=${backend}` });
       const text = await doGenerateText(prompt, resolved);
       return { text };
     },
