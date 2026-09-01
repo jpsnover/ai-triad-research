@@ -40,6 +40,7 @@
     "test:watch": "vitest",
     "test:changed": "vitest run --changed",
     "smoke:styled": "node smoke/run-smoke.mjs",
+    "smoke:invariance:capture": "cross-env SMOKE_CAPTURE=1 node smoke/run-smoke.mjs",
     "lint": "eslint src/",
     "lint:fix": "eslint src/ --fix",
     "depgraph": "node scripts/depgraph.mjs --stats",
