@@ -244,8 +244,8 @@ Rules:
     # plain_description and plain_description_version are both depth-1 scalars;
     # absent-key INSERT at the node level is supported by Update-JsonNodeField (t/2916).
     # The surgical exemption to the dirty-tree guard is claimed inside
-    # Save-JsonNodeFieldEdits (Write-Utf8NoBom -SurgicalWrite), so Assert-DataWriteAllowed
-    # is not called explicitly here.
+    # Save-JsonNodeFieldEdits (which propagates the surgical signal to Write-Utf8NoBom),
+    # so Assert-DataWriteAllowed is not called explicitly here.
     foreach ($FilePath in $Results.Keys) {
         $FileResults = $Results[$FilePath]
         if ($FileResults.Count -eq 0) { continue }
