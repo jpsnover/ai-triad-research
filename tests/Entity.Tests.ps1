@@ -112,6 +112,21 @@ Describe 'Import-Entity — curation write (t/1804 §4)' -Tag 'unit' {
         { Import-Entity -Proposal @($p) -Path $tmp -SkipEmbedding } | Should -Not -Throw
     }
 
+    It 'ACCEPTS but DROPS relations — allowlisted, not yet persisted (t/3119 fast-follow safety)' {
+        # relations is on the contract + allowlist (so it is NOT loud-rejected), but Import-Entity
+        # applies only NAMED fields — there is no copy-all step — so relations is NOT written to the
+        # record. This is the inert accepted-but-dropped window that lets the type land before the
+        # DAG/acyclic/depth≤3 validator (TL p/342#218). The drop-assertion is load-bearing: if a
+        # future writer starts PERSISTING relations without validation, this test reds and stops it.
+        $tmp = Join-Path $TestDrive 'entities-relations-dropped.json'
+        $p = New-Prop @{ relations = @(@{ type = 'instance_of'; target = 'term:language-model' }) }
+        # (1) allowlisted → no loud reject.
+        { Import-Entity -Proposal @($p) -Path $tmp -SkipEmbedding } | Should -Not -Throw
+        # (2) the persisted record carries NO relations property (dropped, not persisted).
+        $stored = (Get-Content -Raw -Path $tmp | ConvertFrom-Json).entities[0]
+        $stored.PSObject.Properties['relations'] | Should -BeNullOrEmpty
+    }
+
     It 'Rejects approving a PERSON record with no human description (§4/§9.3)' {
         $tmp = Join-Path $TestDrive 'entities-person.json'
         $p = @{ name = 'Jane Doe'; entity_type = 'person'; dolce_category = 'agentive-physical-object'; status = 'approved' }
