@@ -1010,6 +1010,9 @@ Export-ModuleMember -Function @(
     'Get-TaxEditorServerLogs'
     # t/3168 — one-shot embeddings-cache resolving/re-computing verdict on the live revision
     'Test-EmbeddingsCacheHealth'
+    # t/3195 — parse JSON tolerating truncation (recovers the valid prefix; exported so the
+    # Invoke-EntityExtraction parallel runspace can call it)
+    'ConvertFrom-TruncatableJson'
 ) -Alias @(
     'Import-Document'
     'TaxonomyEditor'

@@ -249,6 +249,8 @@
         'Get-TaxEditorServerLogs'
         # t/3168 — one-shot embeddings-cache resolving/re-computing verdict on the live revision
         'Test-EmbeddingsCacheHealth'
+        # t/3195 — parse JSON tolerating truncation (recovers the valid prefix)
+        'ConvertFrom-TruncatableJson'
     )
 
     # Aliases exported from this module
