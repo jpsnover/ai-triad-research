@@ -1,0 +1,1768 @@
+{
+  "ticket": "t/3149",
+  "model": "gemini-2.5-flash",
+  "temperature": 0.7,
+  "seed": 3149,
+  "records": [
+    {
+      "situation_id": "sit-220",
+      "camp": "acc",
+      "node_id": "acc-intentions-109",
+      "score": 0.444959,
+      "rank": 2,
+      "band": "<0.45",
+      "labels": [
+        {
+          "genuine_support": false,
+          "reason": "Situation concerns IHRL/dignity for AWS, not developer liability conditional on telemetry mandates."
+        },
+        {
+          "genuine_support": false,
+          "reason": "Claim is about developer liability and telemetry; situation is about IHRL, dignity, and AWS harms."
+        },
+        {
+          "genuine_support": false,
+          "reason": "Situation concerns IHRL/dignity for AWS, not developer liability or telemetry mandates."
+        }
+      ]
+    },
+    {
+      "situation_id": "sit-373",
+      "camp": "skp",
+      "node_id": "skp-beliefs-268",
+      "score": 0.436749,
+      "rank": 1,
+      "band": "<0.45",
+      "labels": [
+        {
+          "genuine_support": false,
+          "reason": "Situation concerns interpretability method limitations, not model's persistent inferential profiling capacity."
+        },
+        {
+          "genuine_support": false,
+          "reason": "Situation concerns interpretability method accuracy, not direct evidence for persistent inferential profiling capacity."
+        },
+        {
+          "genuine_support": true,
+          "reason": "Interpretability method might obscure inferential profiling, making model's internal logic opaque."
+        }
+      ]
+    },
+    {
+      "situation_id": "sit-417",
+      "camp": "acc",
+      "node_id": "acc-intentions-003",
+      "score": 0.391112,
+      "rank": 3,
+      "band": "<0.45",
+      "labels": [
+        {
+          "genuine_support": false,
+          "reason": "Situation describes a functional limitation and architectural solution, not support for a specific verification regime."
+        },
+        {
+          "genuine_support": false,
+          "reason": "Situation describes an AI reasoning flaw; claim details a specific verification regime. Not direct support."
+        },
+        {
+          "genuine_support": false,
+          "reason": "Situation describes AI reasoning output issue; claim is about specific verification methodologies."
+        }
+      ]
+    },
+    {
+      "situation_id": "sit-440",
+      "camp": "acc",
+      "node_id": "acc-beliefs-046",
+      "score": 0.344772,
+      "rank": 3,
+      "band": "<0.45",
+      "labels": [
+        {
+          "genuine_support": false,
+          "reason": "Claim argues simulation failure requires live telemetry; situation improves a simulation's effectiveness, not its failure."
+        },
+        {
+          "genuine_support": false,
+          "reason": "Situation describes pre-deployment evaluation of simulations, which claim argues systematically fail for real-world harms."
+        },
+        {
+          "genuine_support": true,
+          "reason": "Framework optimizes live adversarial interactions, supporting real-world telemetry over pre-deployment simulation."
+        }
+      ]
+    },
+    {
+      "situation_id": "sit-440",
+      "camp": "skp",
+      "node_id": "skp-beliefs-076",
+      "score": 0.446267,
+      "rank": 3,
+      "band": "<0.45",
+      "labels": [
+        {
+          "genuine_support": true,
+          "reason": "Illustrates real-world verification challenges, mirroring why open weights alone aren't comprehensive safety transparency."
+        },
+        {
+          "genuine_support": false,
+          "reason": "Situation concerns evaluation validity of honeypots, not open-weight models' transparency for safety."
+        },
+        {
+          "genuine_support": true,
+          "reason": "Illustrates challenges of real-world AI verification and transparency, aligning with claim's skepticism."
+        }
+      ]
+    },
+    {
+      "situation_id": "sit-302",
+      "camp": "acc",
+      "node_id": "acc-desires-006",
+      "score": 0.384235,
+      "rank": 3,
+      "band": "<0.45",
+      "labels": [
+        {
+          "genuine_support": false,
+          "reason": "Situation describes general robotics training, not specific AI integration into military command infrastructure."
+        },
+        {
+          "genuine_support": false,
+          "reason": "Situation is general robotics training; claim is specific to military AI command integration."
+        },
+        {
+          "genuine_support": false,
+          "reason": "Situation details robotics training for deployment; claim targets AI in military command for strategic intelligence/simulation."
+        }
+      ]
+    },
+    {
+      "situation_id": "sit-382",
+      "camp": "saf",
+      "node_id": "saf-beliefs-044",
+      "score": 0.442081,
+      "rank": 3,
+      "band": "<0.45",
+      "labels": [
+        {
+          "genuine_support": true,
+          "reason": "Situation illustrates how regulations weaken, creating conditions datacenters exploit per the claim."
+        },
+        {
+          "genuine_support": true,
+          "reason": "Illustrates how local pressure weakens regulations, creating conditions datacenters exploit."
+        },
+        {
+          "genuine_support": true,
+          "reason": "Describes a mechanism creating 'weak regulation' regions datacenters exploit for cost reduction."
+        }
+      ]
+    },
+    {
+      "situation_id": "sit-259",
+      "camp": "acc",
+      "node_id": "acc-intentions-118",
+      "score": 0.350372,
+      "rank": 3,
+      "band": "<0.45",
+      "labels": [
+        {
+          "genuine_support": false,
+          "reason": "Situation is about improving model accuracy/applicability, not explanation interfaces."
+        },
+        {
+          "genuine_support": false,
+          "reason": "Situation is about improving model performance; claim is about explaining diverse models."
+        },
+        {
+          "genuine_support": false,
+          "reason": "Situation is about model performance improvement, not unified explanation interfaces."
+        }
+      ]
+    },
+    {
+      "situation_id": "sit-114",
+      "camp": "saf",
+      "node_id": "saf-intentions-168",
+      "score": 0.398897,
+      "rank": 1,
+      "band": "<0.45",
+      "labels": [
+        {
+          "genuine_support": false,
+          "reason": "Claim is about biological synthesis; situation is about digital content's cognitive health impact."
+        },
+        {
+          "genuine_support": false,
+          "reason": "Claim is AI-bio synthesis regulation; situation is digital content's effect on cognitive health. No overlap."
+        },
+        {
+          "genuine_support": false,
+          "reason": "Situation focuses on digital content's cognitive impact, not AI design's physical-biological synthesis interface."
+        }
+      ]
+    },
+    {
+      "situation_id": "sit-422",
+      "camp": "skp",
+      "node_id": "skp-beliefs-129",
+      "score": 0.409085,
+      "rank": 3,
+      "band": "<0.45",
+      "labels": [
+        {
+          "genuine_support": false,
+          "reason": "Metaphor for crisis communication, not AI safety-gating or corporate regulatory strategy. Too abstract/domain-mismatched."
+        },
+        {
+          "genuine_support": false,
+          "reason": "Situation concerns crisis communication framing, not safety-gating narratives for regulatory consolidation or excluding developers."
+        },
+        {
+          "genuine_support": false,
+          "reason": "Critiques power in crisis communication, not AI safety-gating for regulatory consolidation and market exclusion."
+        }
+      ]
+    },
+    {
+      "situation_id": "sit-212",
+      "camp": "saf",
+      "node_id": "saf-beliefs-247",
+      "score": 0.448387,
+      "rank": 2,
+      "band": "<0.45",
+      "labels": [
+        {
+          "genuine_support": true,
+          "reason": "Demonstrates how centralized infrastructure's access points can be manipulated, impeding regulatory oversight."
+        },
+        {
+          "genuine_support": true,
+          "reason": "Demonstrates exploitation of centralized infrastructure (grid) leading to system distortion, aligning with regulatory capture."
+        },
+        {
+          "genuine_support": true,
+          "reason": "Exploitation of grid access for data centers exemplifies how infrastructure control facilitates regulatory capture."
+        }
+      ]
+    },
+    {
+      "situation_id": "sit-236",
+      "camp": "saf",
+      "node_id": "saf-beliefs-206",
+      "score": 0.449086,
+      "rank": 2,
+      "band": "<0.45",
+      "labels": [
+        {
+          "genuine_support": true,
+          "reason": "The situation describes a scenario directly exemplifying irreversible civilizational harm from unconstrained AI."
+        },
+        {
+          "genuine_support": true,
+          "reason": "Scenario directly exemplifies potential for irreversible civilizational harm from unconstrained AI, supporting caution and governance."
+        },
+        {
+          "genuine_support": true,
+          "reason": "Scenario exemplifies potential irreversible civilizational harm from advanced capabilities, warranting extreme caution and governance."
+        }
+      ]
+    },
+    {
+      "situation_id": "sit-424",
+      "camp": "acc",
+      "node_id": "acc-beliefs-080",
+      "score": 0.391226,
+      "rank": 3,
+      "band": "<0.45",
+      "labels": [
+        {
+          "genuine_support": false,
+          "reason": "Situation concerns discourse moderation, not AI verification or agentic intent disconnect."
+        },
+        {
+          "genuine_support": false,
+          "reason": "Situation is about discourse assessment, not verification limits or agentic intent disconnect."
+        },
+        {
+          "genuine_support": false,
+          "reason": "Situation describes practical application; claim is about fundamental limits of formal systems and semantic intent."
+        }
+      ]
+    },
+    {
+      "situation_id": "sit-277",
+      "camp": "acc",
+      "node_id": "acc-intentions-102",
+      "score": 0.425856,
+      "rank": 3,
+      "band": "<0.45",
+      "labels": [
+        {
+          "genuine_support": false,
+          "reason": "Situation highlights data's economic role, but not the specific theoretical treatment as a distinct factor of production."
+        },
+        {
+          "genuine_support": true,
+          "reason": "Situation exemplifies data's unique economic role, necessitating distinct analysis as a factor of production."
+        },
+        {
+          "genuine_support": true,
+          "reason": "Situation exemplifies data's economic role, supporting its treatment as a distinct factor of production."
+        }
+      ]
+    },
+    {
+      "situation_id": "sit-202",
+      "camp": "acc",
+      "node_id": "acc-desires-009",
+      "score": 0.447046,
+      "rank": 3,
+      "band": "<0.45",
+      "labels": [
+        {
+          "genuine_support": true,
+          "reason": "Tracking/tracing forms infrastructure for AI-driven resource allocation, per the claim."
+        },
+        {
+          "genuine_support": true,
+          "reason": "Camp frames tracking/tracing as AI infrastructure for macro-scale resource allocation, directly matching claim."
+        },
+        {
+          "genuine_support": true,
+          "reason": "Camp's reading frames tracking/tracing as automated infrastructure for macro-scale resource allocation."
+        }
+      ]
+    },
+    {
+      "situation_id": "sit-114",
+      "camp": "acc",
+      "node_id": "acc-beliefs-023",
+      "score": 0.438006,
+      "rank": 2,
+      "band": "<0.45",
+      "labels": [
+        {
+          "genuine_support": false,
+          "reason": "Situation uses cognitive metaphors, not actual thermodynamic or energy cost comparisons for AI/human development."
+        },
+        {
+          "genuine_support": false,
+          "reason": "Situation is about cognitive health metaphors, not thermodynamic cost of AI vs. human biological energy."
+        },
+        {
+          "genuine_support": false,
+          "reason": "The situation's cognitive health metaphors don't address AI's thermodynamic costs or biological energy alignment."
+        }
+      ]
+    },
+    {
+      "situation_id": "sit-467",
+      "camp": "skp",
+      "node_id": "skp-beliefs-146",
+      "score": 0.439536,
+      "rank": 3,
+      "band": "<0.45",
+      "labels": [
+        {
+          "genuine_support": false,
+          "reason": "Situation focuses on societal impact, surveillance, and regulation, not organizational implementation challenges."
+        },
+        {
+          "genuine_support": false,
+          "reason": "Situation concerns user-side design/ethics; claim is about internal organizational implementation/scaling challenges."
+        },
+        {
+          "genuine_support": false,
+          "reason": "Situation focuses on user friction/power dynamics, not organizational challenges like documentation or scaling."
+        }
+      ]
+    },
+    {
+      "situation_id": "sit-417",
+      "camp": "acc",
+      "node_id": "acc-beliefs-082",
+      "score": 0.391867,
+      "rank": 2,
+      "band": "<0.45",
+      "labels": [
+        {
+          "genuine_support": false,
+          "reason": "Situation describes premature convergence, not diminishing returns from scaling self-correction attempts."
+        },
+        {
+          "genuine_support": false,
+          "reason": "Situation describes a solvable limitation, not diminishing returns when scaling self-correction attempts."
+        },
+        {
+          "genuine_support": false,
+          "reason": "Situation is about uncertainty preservation and premature convergence; claim is about diminishing returns from self-correction scaling."
+        }
+      ]
+    },
+    {
+      "situation_id": "sit-444",
+      "camp": "acc",
+      "node_id": "acc-intentions-119",
+      "score": 0.347615,
+      "rank": 2,
+      "band": "<0.45",
+      "labels": [
+        {
+          "genuine_support": false,
+          "reason": "Situation describes browser isolation for risk mitigation; claim is about bug bounty ecosystems for vulnerability disclosure."
+        },
+        {
+          "genuine_support": false,
+          "reason": "The situation concerns workspace isolation for operational speed, not bug bounty ecosystems for vulnerability disclosure."
+        },
+        {
+          "genuine_support": false,
+          "reason": "The situation describes secure workspaces, not decentralized bug bounty ecosystems for vulnerability disclosure."
+        }
+      ]
+    },
+    {
+      "situation_id": "sit-465",
+      "camp": "acc",
+      "node_id": "acc-beliefs-119",
+      "score": 0.424853,
+      "rank": 3,
+      "band": "<0.45",
+      "labels": [
+        {
+          "genuine_support": false,
+          "reason": "Situation is about opinion ambiguity; claim is about filters for parasocial dependency. Different problems."
+        },
+        {
+          "genuine_support": false,
+          "reason": "Situation concerns opinion ambiguity and engagement, not parasocial dependency or its mitigation filters."
+        },
+        {
+          "genuine_support": false,
+          "reason": "Situation concerns opinion ambiguity, not parasocial dependency or its mitigation filters."
+        }
+      ]
+    },
+    {
+      "situation_id": "sit-391",
+      "camp": "acc",
+      "node_id": "acc-intentions-045",
+      "score": 0.547543,
+      "rank": 3,
+      "band": "0.45-0.55",
+      "labels": [
+        {
+          "genuine_support": false,
+          "reason": "Situation is about perceiving AI's value, not its role as a collaborative team member."
+        },
+        {
+          "genuine_support": false,
+          "reason": "Situation is about measuring AI's value, not AI's role as a collaborative team member."
+        },
+        {
+          "genuine_support": false,
+          "reason": "Situation concerns AI value visibility, not AI's role as a collaborative team member or social participant."
+        }
+      ]
+    },
+    {
+      "situation_id": "sit-311",
+      "camp": "saf",
+      "node_id": "saf-beliefs-248",
+      "score": 0.521601,
+      "rank": 3,
+      "band": "0.45-0.55",
+      "labels": [
+        {
+          "genuine_support": false,
+          "reason": "Situation concerns stale explanations, not recursive model outputs shaping their own evaluation data."
+        },
+        {
+          "genuine_support": false,
+          "reason": "Describes explanation staleness, not circular evaluation due to outputs shaping evaluation data."
+        },
+        {
+          "genuine_support": false,
+          "reason": "Situation describes stale explanations from system dynamics, not auditing circularity from output-data feedback."
+        }
+      ]
+    },
+    {
+      "situation_id": "sit-119",
+      "camp": "acc",
+      "node_id": "acc-desires-026",
+      "score": 0.52772,
+      "rank": 2,
+      "band": "0.45-0.55",
+      "labels": [
+        {
+          "genuine_support": false,
+          "reason": "Claim is about macro-scale societal management; situation's reading is about individual cognitive enhancement, which is excluded."
+        },
+        {
+          "genuine_support": false,
+          "reason": "Claim excludes individual cognitive enhancement; situation's proposed solution is precisely that."
+        },
+        {
+          "genuine_support": false,
+          "reason": "Camp's response focuses on individual cognitive enhancement, explicitly excluded by the claim's scope."
+        }
+      ]
+    },
+    {
+      "situation_id": "sit-438",
+      "camp": "skp",
+      "node_id": "skp-beliefs-254",
+      "score": 0.498694,
+      "rank": 2,
+      "band": "0.45-0.55",
+      "labels": [
+        {
+          "genuine_support": true,
+          "reason": "The situation provides a conceptual framework for understanding the exploitation of attention for commercial gain."
+        },
+        {
+          "genuine_support": true,
+          "reason": "Interpretation directly describes systematic exploitation of attention/cognition for commercial gain."
+        },
+        {
+          "genuine_support": true,
+          "reason": "Situation exemplifies how platforms exploit attention (distraction) for commercial gain, suppressing cognitive resources (curiosity)."
+        }
+      ]
+    },
+    {
+      "situation_id": "sit-359",
+      "camp": "skp",
+      "node_id": "skp-beliefs-069",
+      "score": 0.472151,
+      "rank": 2,
+      "band": "0.45-0.55",
+      "labels": [
+        {
+          "genuine_support": false,
+          "reason": "Situation concerns LLM output quality and evaluation metrics, not correlated failures in AI-driven verification."
+        },
+        {
+          "genuine_support": false,
+          "reason": "Discusses AI code quality and evaluation, not correlated failures in AI-driven verification from shared data/vendors."
+        },
+        {
+          "genuine_support": false,
+          "reason": "Situation concerns AI output quality metrics, not correlated failures in AI-driven verification from shared training/vendors."
+        }
+      ]
+    },
+    {
+      "situation_id": "sit-282",
+      "camp": "acc",
+      "node_id": "acc-beliefs-102",
+      "score": 0.518741,
+      "rank": 2,
+      "band": "0.45-0.55",
+      "labels": [
+        {
+          "genuine_support": false,
+          "reason": "Claim is on governance layer/enforcement; situation is on agent-level contextual norms, not governance."
+        },
+        {
+          "genuine_support": false,
+          "reason": "Situation describes agent-level privacy rules, not the systemic governance layer or enforcement mechanism for AI-agent privacy harm."
+        },
+        {
+          "genuine_support": false,
+          "reason": "Claim is about governance layer/anchor; situation is about agent-level contextual norm application."
+        }
+      ]
+    },
+    {
+      "situation_id": "sit-075",
+      "camp": "skp",
+      "node_id": "skp-beliefs-029",
+      "score": 0.519457,
+      "rank": 2,
+      "band": "0.45-0.55",
+      "labels": [
+        {
+          "genuine_support": false,
+          "reason": "Discusses technical error analysis frameworks, not victim knowledge imbalance for proving harm."
+        },
+        {
+          "genuine_support": false,
+          "reason": "Situation describes a technical analysis method for AI errors, not information asymmetry hindering victims' proof of harm."
+        },
+        {
+          "genuine_support": false,
+          "reason": "Situation is a technical debate on error modeling, not victim's struggle proving harm due to knowledge imbalance."
+        }
+      ]
+    },
+    {
+      "situation_id": "sit-383",
+      "camp": "skp",
+      "node_id": "skp-desires-082",
+      "score": 0.549052,
+      "rank": 1,
+      "band": "0.45-0.55",
+      "labels": [
+        {
+          "genuine_support": true,
+          "reason": "Situation exemplifies the need for mandatory audits and transparency in specific AI architectures to prevent bias."
+        },
+        {
+          "genuine_support": true,
+          "reason": "Situation highlights need for audits, transparency in evolving AI; directly applies claim's demands."
+        },
+        {
+          "genuine_support": true,
+          "reason": "Situation exemplifies challenge to audits, reinforcing claim's need for transparency and oversight."
+        }
+      ]
+    },
+    {
+      "situation_id": "sit-296",
+      "camp": "saf",
+      "node_id": "saf-intentions-020",
+      "score": 0.528584,
+      "rank": 3,
+      "band": "0.45-0.55",
+      "labels": [
+        {
+          "genuine_support": true,
+          "reason": "Unstable safety rankings undermine ability to reliably rate AI flaws, necessitating a standardized system."
+        },
+        {
+          "genuine_support": true,
+          "reason": "Highlights unreliability of current safety signals, proving urgency for a standardized flaw rating system."
+        },
+        {
+          "genuine_support": true,
+          "reason": "Situation highlights current safety evaluation fragility, directly supporting urgency for standardized flaw rating/prioritization."
+        }
+      ]
+    },
+    {
+      "situation_id": "sit-235",
+      "camp": "acc",
+      "node_id": "acc-desires-023",
+      "score": 0.545221,
+      "rank": 2,
+      "band": "0.45-0.55",
+      "labels": [
+        {
+          "genuine_support": true,
+          "reason": "Describes societal resistance impacting applicability of parental obligation to use enhancement technologies."
+        },
+        {
+          "genuine_support": true,
+          "reason": "Situation describes societal resistance directly impeding adoption of technologies parents are claimed to have a moral obligation to use."
+        },
+        {
+          "genuine_support": true,
+          "reason": "Describes societal barrier impeding claim's adoption/applicability."
+        }
+      ]
+    },
+    {
+      "situation_id": "sit-339",
+      "camp": "skp",
+      "node_id": "skp-beliefs-205",
+      "score": 0.532453,
+      "rank": 3,
+      "band": "0.45-0.55",
+      "labels": [
+        {
+          "genuine_support": true,
+          "reason": "Situation exemplifies AI as an incremental addition, directly supporting the claim against transformative hype."
+        },
+        {
+          "genuine_support": true,
+          "reason": "Situation exemplifies incremental tech adoption, directly supporting the claim's emphasis on gradual AI integration and deflating hype."
+        },
+        {
+          "genuine_support": true,
+          "reason": "Situation exemplifies AI as incremental addition, not transformative, supporting gradual adoption patterns."
+        }
+      ]
+    },
+    {
+      "situation_id": "sit-264",
+      "camp": "skp",
+      "node_id": "skp-beliefs-201",
+      "score": 0.488685,
+      "rank": 2,
+      "band": "0.45-0.55",
+      "labels": [
+        {
+          "genuine_support": false,
+          "reason": "Situation concerns AI's internal generalization; claim is about AI's impact on human cognition."
+        },
+        {
+          "genuine_support": false,
+          "reason": "Situation critiques AI generalization, not AI's impact on human cognitive abilities."
+        },
+        {
+          "genuine_support": false,
+          "reason": "Situation describes AI model limitations, not human cognitive degradation from AI use."
+        }
+      ]
+    },
+    {
+      "situation_id": "sit-383",
+      "camp": "acc",
+      "node_id": "acc-beliefs-070",
+      "score": 0.527532,
+      "rank": 2,
+      "band": "0.45-0.55",
+      "labels": [
+        {
+          "genuine_support": true,
+          "reason": "It exemplifies independent verification data for evaluating AI behavior, matching the claim's condition."
+        },
+        {
+          "genuine_support": true,
+          "reason": "Secondary agent provides independent verification of primary agent's outputs/claims."
+        },
+        {
+          "genuine_support": true,
+          "reason": "Secondary agent provides independent verification of outputs, fulfilling claim's condition for sufficiency."
+        }
+      ]
+    },
+    {
+      "situation_id": "sit-404",
+      "camp": "skp",
+      "node_id": "skp-beliefs-117",
+      "score": 0.537336,
+      "rank": 2,
+      "band": "0.45-0.55",
+      "labels": [
+        {
+          "genuine_support": false,
+          "reason": "Situation is a concept about standard-setting; claim is about government using direct democracy for mandates."
+        },
+        {
+          "genuine_support": true,
+          "reason": "Exemplifies participatory processes used to legitimize decisions by dominant actors without genuine deliberation."
+        },
+        {
+          "genuine_support": false,
+          "reason": "Standardisation processes aren't direct democracy for government actions; claim is too specific."
+        }
+      ]
+    },
+    {
+      "situation_id": "sit-377",
+      "camp": "skp",
+      "node_id": "skp-intentions-144",
+      "score": 0.491716,
+      "rank": 2,
+      "band": "0.45-0.55",
+      "labels": [
+        {
+          "genuine_support": true,
+          "reason": "Situation exemplifies inadequate automated metrics, reinforcing the claim's need for robust bias evaluations."
+        },
+        {
+          "genuine_support": true,
+          "reason": "Situation exemplifies flawed metrics, underscoring the claim's advocacy for robust, genuine bias evaluation."
+        },
+        {
+          "genuine_support": false,
+          "reason": "Skeptic in situation rejects 'false objectivity of mathematical scores' for bias, advocating human-in-loop, contrary to claim's automated metrics."
+        }
+      ]
+    },
+    {
+      "situation_id": "sit-380",
+      "camp": "acc",
+      "node_id": "acc-beliefs-079",
+      "score": 0.525704,
+      "rank": 1,
+      "band": "0.45-0.55",
+      "labels": [
+        {
+          "genuine_support": false,
+          "reason": "Describes capital flow into AI infrastructure, not opportunity costs from delaying product launches for safeguards."
+        },
+        {
+          "genuine_support": false,
+          "reason": "Describes capital flow to AI, not specific opportunity costs of delaying AI product launches for safeguards."
+        },
+        {
+          "genuine_support": false,
+          "reason": "Situation concerns AI funding, not specific market costs of delaying product launches for safeguards."
+        }
+      ]
+    },
+    {
+      "situation_id": "sit-233",
+      "camp": "skp",
+      "node_id": "skp-beliefs-139",
+      "score": 0.515787,
+      "rank": 3,
+      "band": "0.45-0.55",
+      "labels": [
+        {
+          "genuine_support": false,
+          "reason": "Claim focuses on AI automation breaking social contract; situation on life extension causing gerontocracy."
+        },
+        {
+          "genuine_support": false,
+          "reason": "The situation focuses on life-extension and gerontocracy, not AI-driven automation making work obsolete, as per the claim."
+        },
+        {
+          "genuine_support": false,
+          "reason": "Situation is about life-extension, not AI-driven automation making jobs obsolete or breaking the social contract."
+        }
+      ]
+    },
+    {
+      "situation_id": "sit-347",
+      "camp": "acc",
+      "node_id": "acc-beliefs-122",
+      "score": 0.520493,
+      "rank": 1,
+      "band": "0.45-0.55",
+      "labels": [
+        {
+          "genuine_support": true,
+          "reason": "Situation describes a specific perimeter isolation strategy, directly exemplifying the claim's core tenet."
+        },
+        {
+          "genuine_support": true,
+          "reason": "Situation exemplifies runtime perimeter isolation for AI safety via external permission boundaries."
+        },
+        {
+          "genuine_support": true,
+          "reason": "Partitioning is a concrete method of runtime perimeter isolation for AI execution safety."
+        }
+      ]
+    },
+    {
+      "situation_id": "sit-457",
+      "camp": "acc",
+      "node_id": "acc-beliefs-122",
+      "score": 0.481148,
+      "rank": 3,
+      "band": "0.45-0.55",
+      "labels": [
+        {
+          "genuine_support": true,
+          "reason": "Situation exemplifies how token conflation challenges runtime perimeter isolation, directly addressed by claim."
+        },
+        {
+          "genuine_support": true,
+          "reason": "It exemplifies how instruction-data conflation bypasses runtime perimeters, per the claim's 'unless' clause."
+        },
+        {
+          "genuine_support": true,
+          "reason": "Situation exemplifies how shared token-space conflation bypasses runtime permission boundaries, validating claim's \"unless\" clause."
+        }
+      ]
+    },
+    {
+      "situation_id": "sit-378",
+      "camp": "skp",
+      "node_id": "skp-beliefs-173",
+      "score": 0.494808,
+      "rank": 1,
+      "band": "0.45-0.55",
+      "labels": [
+        {
+          "genuine_support": true,
+          "reason": "Situation exemplifies the model behaviors (bias, shallow understanding) CAT aims to evaluate via context."
+        },
+        {
+          "genuine_support": true,
+          "reason": "Situation exemplifies model sensitivity to linguistic context, reinforcing CAT's utility in detecting bias/shallow understanding."
+        },
+        {
+          "genuine_support": true,
+          "reason": "Situation describes model behavior highly relevant to CAT's mechanism and measured capabilities."
+        }
+      ]
+    },
+    {
+      "situation_id": "sit-300",
+      "camp": "saf",
+      "node_id": "saf-beliefs-206",
+      "score": 0.632188,
+      "rank": 2,
+      "band": "0.55-0.65",
+      "labels": [
+        {
+          "genuine_support": true,
+          "reason": "Plural Futures, as read by the camp, identifies new risk vectors contributing to civilizational harm."
+        },
+        {
+          "genuine_support": false,
+          "reason": "Situation broadens risk imaginaries, implicitly challenging singular catastrophism, not supporting core existential risk."
+        },
+        {
+          "genuine_support": false,
+          "reason": "Situation explicitly excludes singular catastrophism, contrasting the claim's core focus."
+        }
+      ]
+    },
+    {
+      "situation_id": "sit-272",
+      "camp": "skp",
+      "node_id": "skp-beliefs-102",
+      "score": 0.596037,
+      "rank": 3,
+      "band": "0.55-0.65",
+      "labels": [
+        {
+          "genuine_support": true,
+          "reason": "Documentation inadequacy exemplifies corporate trade secrecy walls, making legal discovery ineffective for transparency."
+        },
+        {
+          "genuine_support": true,
+          "reason": "Documentation inadequacy exemplifies corporate trade secrecy and information asymmetry, hindering legal discovery."
+        },
+        {
+          "genuine_support": true,
+          "reason": "Situation exemplifies corporate information asymmetry and deliberate withholding, a core reason discovery fails per the claim."
+        }
+      ]
+    },
+    {
+      "situation_id": "sit-159",
+      "camp": "skp",
+      "node_id": "skp-intentions-104",
+      "score": 0.609321,
+      "rank": 2,
+      "band": "0.55-0.65",
+      "labels": [
+        {
+          "genuine_support": true,
+          "reason": "The situation's proposed policy (architectural disclosure) directly supports the claim's focus on targeted accountability measures."
+        },
+        {
+          "genuine_support": true,
+          "reason": "Situation exemplifies targeted policy measures for accountability via architectural disclosure, per the claim."
+        },
+        {
+          "genuine_support": true,
+          "reason": "Situation's 'intention' directly proposes concrete, targeted policies for accountability, matching the claim."
+        }
+      ]
+    },
+    {
+      "situation_id": "sit-008",
+      "camp": "saf",
+      "node_id": "saf-beliefs-091",
+      "score": 0.615528,
+      "rank": 2,
+      "band": "0.55-0.65",
+      "labels": [
+        {
+          "genuine_support": true,
+          "reason": "Situation describes recursive self-improvement, a mechanism explicitly encompassed by the claim for unrecoverable control."
+        },
+        {
+          "genuine_support": true,
+          "reason": "Situation is a concrete instance of recursive self-improvement, a core component of the claim."
+        },
+        {
+          "genuine_support": true,
+          "reason": "Situation directly exemplifies recursive self-improvement, a core mechanism cited in the claim."
+        }
+      ]
+    },
+    {
+      "situation_id": "sit-401",
+      "camp": "saf",
+      "node_id": "saf-desires-004",
+      "score": 0.645613,
+      "rank": 1,
+      "band": "0.55-0.65",
+      "labels": [
+        {
+          "genuine_support": true,
+          "reason": "The situation describes the risk (vulnerability) that the claim's solutions (boundaries, ceilings) aim to mitigate."
+        },
+        {
+          "genuine_support": true,
+          "reason": "Situation describes the problem that the claim's specific engineering solutions (e.g., capability ceilings) address."
+        },
+        {
+          "genuine_support": true,
+          "reason": "Situation describes the risk that the claim's solutions (ceilings, containment) aim to mitigate."
+        }
+      ]
+    },
+    {
+      "situation_id": "sit-126",
+      "camp": "acc",
+      "node_id": "acc-intentions-071",
+      "score": 0.622019,
+      "rank": 2,
+      "band": "0.55-0.65",
+      "labels": [
+        {
+          "genuine_support": false,
+          "reason": "Claim is about human data for AI development; situation is about provenance of AI-generated content."
+        },
+        {
+          "genuine_support": false,
+          "reason": "Claim is about human data provenance; situation is about AI-generated content provenance. Topical adjacency only."
+        },
+        {
+          "genuine_support": false,
+          "reason": "Claim is about input data provenance; situation is about AI-generated output provenance."
+        }
+      ]
+    },
+    {
+      "situation_id": "sit-288",
+      "camp": "saf",
+      "node_id": "saf-intentions-112",
+      "score": 0.553355,
+      "rank": 1,
+      "band": "0.55-0.65",
+      "labels": [
+        {
+          "genuine_support": true,
+          "reason": "Situation describes design strategies (audits, fixed sequences) for human engagement and control of AI execution."
+        },
+        {
+          "genuine_support": false,
+          "reason": "Situation ensures AI adheres to audited intent; claim demands cognitive friction for human overseer engagement."
+        },
+        {
+          "genuine_support": false,
+          "reason": "Situation focuses on agent control-flow integrity, not cognitive friction for human overseers against automation bias."
+        }
+      ]
+    },
+    {
+      "situation_id": "sit-137",
+      "camp": "saf",
+      "node_id": "saf-intentions-078",
+      "score": 0.611282,
+      "rank": 1,
+      "band": "0.55-0.65",
+      "labels": [
+        {
+          "genuine_support": true,
+          "reason": "It exemplifies how current intellectual frameworks are insufficient for defining AI values/risks, requiring a broader 'evolution' of thought."
+        },
+        {
+          "genuine_support": false,
+          "reason": "Situation concerns academic methodology, not direct evidence for societal moral/cultural evolution."
+        },
+        {
+          "genuine_support": false,
+          "reason": "Situation is about academic integration, not societal moral/cultural evolution."
+        }
+      ]
+    },
+    {
+      "situation_id": "sit-089",
+      "camp": "acc",
+      "node_id": "acc-beliefs-107",
+      "score": 0.561677,
+      "rank": 1,
+      "band": "0.55-0.65",
+      "labels": [
+        {
+          "genuine_support": true,
+          "reason": "Situation directly contrasts intent vs. training-driven behavior, central to the claim."
+        },
+        {
+          "genuine_support": true,
+          "reason": "Situation directly contrasts AI intent vs. training dynamics as behavioral drivers, supporting the claim's core tenet."
+        },
+        {
+          "genuine_support": true,
+          "reason": "Situation directly contrasts intent vs. training dynamics for AI behavior."
+        }
+      ]
+    },
+    {
+      "situation_id": "sit-292",
+      "camp": "skp",
+      "node_id": "skp-intentions-154",
+      "score": 0.617548,
+      "rank": 3,
+      "band": "0.55-0.65",
+      "labels": [
+        {
+          "genuine_support": true,
+          "reason": "Situation highlights why mandated external verification is crucial and how it functions."
+        },
+        {
+          "genuine_support": true,
+          "reason": "Skeptic's reading of 'Many Eyes' details conditions for effective external verification, supporting the claim."
+        },
+        {
+          "genuine_support": true,
+          "reason": "Situation exemplifies need for robust, mandated external verification."
+        }
+      ]
+    },
+    {
+      "situation_id": "sit-238",
+      "camp": "skp",
+      "node_id": "skp-beliefs-133",
+      "score": 0.560863,
+      "rank": 3,
+      "band": "0.55-0.65",
+      "labels": [
+        {
+          "genuine_support": true,
+          "reason": "Siloed AI tools and poor interoperability directly exemplify the integration failures preventing scaling."
+        },
+        {
+          "genuine_support": true,
+          "reason": "Siloed tools and manual switching exemplify failure to integrate AI pilots into scaled, coherent enterprise workflows."
+        },
+        {
+          "genuine_support": true,
+          "reason": "Siloed tools and poor interoperability exemplify failure to integrate and scale AI solutions."
+        }
+      ]
+    },
+    {
+      "situation_id": "sit-328",
+      "camp": "acc",
+      "node_id": "acc-intentions-069",
+      "score": 0.59566,
+      "rank": 3,
+      "band": "0.55-0.65",
+      "labels": [
+        {
+          "genuine_support": false,
+          "reason": "The situation describes an ethical framework, not evidence for AI's economic or societal benefits."
+        },
+        {
+          "genuine_support": false,
+          "reason": "Situation is a philosophical concept, not evidence for AI's specific economic/societal benefits."
+        },
+        {
+          "genuine_support": false,
+          "reason": "The situation is an ethical concept, not evidence for AI's specific economic prosperity claims."
+        }
+      ]
+    },
+    {
+      "situation_id": "sit-360",
+      "camp": "saf",
+      "node_id": "saf-intentions-215",
+      "score": 0.591161,
+      "rank": 1,
+      "band": "0.55-0.65",
+      "labels": [
+        {
+          "genuine_support": true,
+          "reason": "Knowledge voids make models un-auditable; provenance and evaluation (claim) address this directly."
+        },
+        {
+          "genuine_support": true,
+          "reason": "Knowledge voids exemplify the problem provenance metadata and pre-release evaluation aim to solve for auditable AI."
+        },
+        {
+          "genuine_support": true,
+          "reason": "Exemplifies why provenance/evaluation (CLAIM) are crucial to prevent un-auditable \"knowledge voids\" (SITUATION)."
+        }
+      ]
+    },
+    {
+      "situation_id": "sit-138",
+      "camp": "saf",
+      "node_id": "saf-beliefs-201",
+      "score": 0.631627,
+      "rank": 3,
+      "band": "0.55-0.65",
+      "labels": [
+        {
+          "genuine_support": true,
+          "reason": "Situation's interpretation highlights how AI behavior can mask misaligned objectives, directly supporting the claim."
+        },
+        {
+          "genuine_support": true,
+          "reason": "The situation, via the triad, highlights AI potentially masking misaligned objectives, supporting the claim."
+        },
+        {
+          "genuine_support": true,
+          "reason": "Reading links triad to AI masking misaligned objectives, requiring rigorous testing before deployment."
+        }
+      ]
+    },
+    {
+      "situation_id": "sit-258",
+      "camp": "saf",
+      "node_id": "saf-intentions-027",
+      "score": 0.575809,
+      "rank": 3,
+      "band": "0.55-0.65",
+      "labels": [
+        {
+          "genuine_support": false,
+          "reason": "Situation is about AI detection failure; claim is about AI autonomously executing influence campaigns."
+        },
+        {
+          "genuine_support": false,
+          "reason": "AI failing to detect subtle harm differs from AI autonomously initiating influence campaigns."
+        },
+        {
+          "genuine_support": false,
+          "reason": "Situation concerns AI detection failure; claim is about AI-initiated influence campaigns."
+        }
+      ]
+    },
+    {
+      "situation_id": "sit-446",
+      "camp": "saf",
+      "node_id": "saf-intentions-008",
+      "score": 0.583614,
+      "rank": 2,
+      "band": "0.55-0.65",
+      "labels": [
+        {
+          "genuine_support": true,
+          "reason": "Situation describes critical aspects of effective honeypot testing for AI alignment, central to the claim."
+        },
+        {
+          "genuine_support": true,
+          "reason": "Situation details honeypot design prioritizing deception/interaction for AI threat evaluation, as claimed."
+        },
+        {
+          "genuine_support": true,
+          "reason": "Directly details honeypot testing considerations for emergent AI threats."
+        }
+      ]
+    },
+    {
+      "situation_id": "sit-030",
+      "camp": "skp",
+      "node_id": "skp-beliefs-119",
+      "score": 0.560164,
+      "rank": 3,
+      "band": "0.55-0.65",
+      "labels": [
+        {
+          "genuine_support": true,
+          "reason": "Skeptic's reading links AI's impact on states to concentrated power, threatening democratic systems."
+        },
+        {
+          "genuine_support": true,
+          "reason": "Skeptic reading links nation-state erosion to unaccountable elite power, aligning with wealth concentration threatening democracy."
+        },
+        {
+          "genuine_support": true,
+          "reason": "Skeptic's reading links AI's impact on states to elite power concentration, threatening democracy."
+        }
+      ]
+    },
+    {
+      "situation_id": "sit-462",
+      "camp": "acc",
+      "node_id": "acc-intentions-127",
+      "score": 0.604023,
+      "rank": 1,
+      "band": "0.55-0.65",
+      "labels": [
+        {
+          "genuine_support": false,
+          "reason": "The situation describes a legal gap requiring reform, contradicting the claim that existing law is sufficient."
+        },
+        {
+          "genuine_support": false,
+          "reason": "Camp's reading identifies a gap in existing law, contradicting the claim that existing law is sufficient."
+        },
+        {
+          "genuine_support": false,
+          "reason": "Situation highlights a legal gap for AI, contradicting the claim that existing law is sufficient."
+        }
+      ]
+    },
+    {
+      "situation_id": "sit-109",
+      "camp": "acc",
+      "node_id": "acc-intentions-054",
+      "score": 0.592747,
+      "rank": 1,
+      "band": "0.55-0.65",
+      "labels": [
+        {
+          "genuine_support": true,
+          "reason": "Iterative deployment for emergent safety aligns with real-world testing and continuous learning for safety."
+        },
+        {
+          "genuine_support": true,
+          "reason": "System-level emergent properties necessitate real-world testing and continuous learning for safety, as per the claim."
+        },
+        {
+          "genuine_support": true,
+          "reason": "Situation exemplifies applying real-world testing and continuous learning to complex, emergent system safety."
+        }
+      ]
+    },
+    {
+      "situation_id": "sit-230",
+      "camp": "acc",
+      "node_id": "acc-intentions-073",
+      "score": 0.619722,
+      "rank": 1,
+      "band": "0.55-0.65",
+      "labels": [
+        {
+          "genuine_support": false,
+          "reason": "Situation describes *where* risks are high; claim specifies *how* to manage them. No direct support for specific mechanisms."
+        },
+        {
+          "genuine_support": false,
+          "reason": "Situation defines deployment *targets* and *attitude* to risk, not specific *mechanisms* for risk management like insurance/liability."
+        },
+        {
+          "genuine_support": false,
+          "reason": "Situation defines deployment context; claim specifies a risk management mechanism. Not direct support."
+        }
+      ]
+    },
+    {
+      "situation_id": "sit-476",
+      "camp": "skp",
+      "node_id": "skp-intentions-146",
+      "score": 0.654828,
+      "rank": 2,
+      "band": ">=0.65",
+      "labels": [
+        {
+          "genuine_support": true,
+          "reason": "It highlights the need for audits to cover internal work, supporting pre-deployment safety and anti-gaming safeguards."
+        },
+        {
+          "genuine_support": true,
+          "reason": "Expands scope for claim's pre-deployment audits and anti-gaming safeguards, preventing evasion via internal work."
+        },
+        {
+          "genuine_support": true,
+          "reason": "Situation exemplifies applying pre-deployment safety & anti-gaming safeguards to internal AI activities."
+        }
+      ]
+    },
+    {
+      "situation_id": "sit-169",
+      "camp": "skp",
+      "node_id": "skp-beliefs-047",
+      "score": 0.797617,
+      "rank": 1,
+      "band": ">=0.65",
+      "labels": [
+        {
+          "genuine_support": true,
+          "reason": "Directly exemplifies how AI challenges legal frameworks, state power, and corporate responsibility via political action."
+        },
+        {
+          "genuine_support": true,
+          "reason": "Situation exemplifies how AI challenges legal frameworks, corporate responsibility via federal actions on liability."
+        },
+        {
+          "genuine_support": true,
+          "reason": "Situation exemplifies state power challenging legal frameworks re: AI and corporate responsibility."
+        }
+      ]
+    },
+    {
+      "situation_id": "sit-276",
+      "camp": "skp",
+      "node_id": "skp-desires-076",
+      "score": 0.669607,
+      "rank": 1,
+      "band": ">=0.65",
+      "labels": [
+        {
+          "genuine_support": true,
+          "reason": "The distinction justifies why reporting training data is crucial for creator rights and accountability."
+        },
+        {
+          "genuine_support": true,
+          "reason": "Provides a conceptual basis for why reporting training data is crucial for creator rights and legislative reform."
+        },
+        {
+          "genuine_support": true,
+          "reason": "This distinction justifies legal reporting, enabling compensation/opt-out for generative AI training data."
+        }
+      ]
+    },
+    {
+      "situation_id": "sit-076",
+      "camp": "acc",
+      "node_id": "acc-beliefs-086",
+      "score": 0.664221,
+      "rank": 2,
+      "band": ">=0.65",
+      "labels": [
+        {
+          "genuine_support": true,
+          "reason": "Situation directly tests claim's assertion that market dynamics override transitional economic frictions."
+        },
+        {
+          "genuine_support": true,
+          "reason": "It exemplifies a 'transitional friction' that the claim states market dynamics will override."
+        },
+        {
+          "genuine_support": true,
+          "reason": "Situation tests if market dynamics override friction to produce universally positive outcomes."
+        }
+      ]
+    },
+    {
+      "situation_id": "sit-155",
+      "camp": "skp",
+      "node_id": "skp-intentions-055",
+      "score": 0.716,
+      "rank": 1,
+      "band": ">=0.65",
+      "labels": [
+        {
+          "genuine_support": false,
+          "reason": "The situation focuses on prioritizing harms, which the claim explicitly excludes from its scope."
+        },
+        {
+          "genuine_support": false,
+          "reason": "Situation focuses on harm prioritization and accountability, which the claim explicitly excludes."
+        },
+        {
+          "genuine_support": false,
+          "reason": "The claim excludes prioritizing specific AI harms, which is the situation's core focus."
+        }
+      ]
+    },
+    {
+      "situation_id": "sit-173",
+      "camp": "saf",
+      "node_id": "saf-beliefs-211",
+      "score": 0.774379,
+      "rank": 1,
+      "band": ">=0.65",
+      "labels": [
+        {
+          "genuine_support": true,
+          "reason": "Situation directly examines structural challenges and institutional design, exemplifying the claim's domain."
+        },
+        {
+          "genuine_support": true,
+          "reason": "Situation directly examines structural challenges in AI governance frameworks and institutional design."
+        },
+        {
+          "genuine_support": true,
+          "reason": "Situation directly concerns institutional design and governance challenges, core to the claim."
+        }
+      ]
+    },
+    {
+      "situation_id": "sit-234",
+      "camp": "acc",
+      "node_id": "acc-intentions-005",
+      "score": 0.662195,
+      "rank": 2,
+      "band": ">=0.65",
+      "labels": [
+        {
+          "genuine_support": false,
+          "reason": "Situation describes regulatory lag, not the market-innovation cycle; it's a critique of regulation, not direct evidence for the claim's mechanism."
+        },
+        {
+          "genuine_support": false,
+          "reason": "Situation describes regulatory failure, not the innovation-market cycle itself. It informs policy against regulation."
+        },
+        {
+          "genuine_support": false,
+          "reason": "Situation describes regulatory lag; claim is about the innovation-market cycle. Not direct support for the claim's core mechanism."
+        }
+      ]
+    },
+    {
+      "situation_id": "sit-005",
+      "camp": "saf",
+      "node_id": "saf-intentions-016",
+      "score": 0.778936,
+      "rank": 1,
+      "band": ">=0.65",
+      "labels": [
+        {
+          "genuine_support": true,
+          "reason": "Situation describes the debate over prioritizing risks, directly engaging the claim's core intention to prioritize catastrophic risks."
+        },
+        {
+          "genuine_support": true,
+          "reason": "Situation describes the core debate about risk prioritization that the claim directly addresses."
+        },
+        {
+          "genuine_support": true,
+          "reason": "The situation describes the core debate that the claim's specific prioritization method directly addresses."
+        }
+      ]
+    },
+    {
+      "situation_id": "sit-064",
+      "camp": "saf",
+      "node_id": "saf-intentions-074",
+      "score": 0.718276,
+      "rank": 2,
+      "band": ">=0.65",
+      "labels": [
+        {
+          "genuine_support": false,
+          "reason": "Situation addresses risks from unaligned AI, not malicious actors leveraging AI for harmful plans."
+        },
+        {
+          "genuine_support": false,
+          "reason": "Claim is about malicious human use; situation is about risks from AI's lack of intent."
+        },
+        {
+          "genuine_support": false,
+          "reason": "Claim is about malicious human use amplified by AI; situation is about AI's lack of intent."
+        }
+      ]
+    },
+    {
+      "situation_id": "sit-044",
+      "camp": "skp",
+      "node_id": "skp-beliefs-095",
+      "score": 0.731811,
+      "rank": 1,
+      "band": ">=0.65",
+      "labels": [
+        {
+          "genuine_support": true,
+          "reason": "Situation exemplifies AI-generated content contaminating data and causing lasting informational/reputational harms."
+        },
+        {
+          "genuine_support": true,
+          "reason": "Describes how indelible AI-generated content degrades data quality, causing epistemic/informational harms (reputational damage, trust erosion)."
+        },
+        {
+          "genuine_support": true,
+          "reason": "Situation exemplifies AI-generated content contaminating data and causing lasting informational/reputational harms."
+        }
+      ]
+    },
+    {
+      "situation_id": "sit-010",
+      "camp": "saf",
+      "node_id": "saf-intentions-081",
+      "score": 0.734059,
+      "rank": 2,
+      "band": ">=0.65",
+      "labels": [
+        {
+          "genuine_support": true,
+          "reason": "Highlights the need for systemic frameworks and international treaties proposed by the claim."
+        },
+        {
+          "genuine_support": true,
+          "reason": "Situation exemplifies need for systemic frameworks/treaties due to 'race to bottom'."
+        },
+        {
+          "genuine_support": true,
+          "reason": "Situation exemplifies the problem (race-to-bottom) that claim's systemic solutions address."
+        }
+      ]
+    },
+    {
+      "situation_id": "sit-454",
+      "camp": "skp",
+      "node_id": "skp-beliefs-213",
+      "score": 0.666504,
+      "rank": 2,
+      "band": ">=0.65",
+      "labels": [
+        {
+          "genuine_support": true,
+          "reason": "Situation exemplifies corporate strategies to evade accountability and enables power concentration."
+        },
+        {
+          "genuine_support": true,
+          "reason": "Situation exemplifies corporate strategies to evade accountability and regulatory scrutiny."
+        },
+        {
+          "genuine_support": true,
+          "reason": "Situation exemplifies corporate strategies to evade accountability through opacity in internal AI deployment."
+        }
+      ]
+    },
+    {
+      "situation_id": "sit-398",
+      "camp": "acc",
+      "node_id": "acc-beliefs-074",
+      "score": 0.699552,
+      "rank": 3,
+      "band": ">=0.65",
+      "labels": [
+        {
+          "genuine_support": true,
+          "reason": "Liability classification (product vs. intermediary) reflects claim's focus on harms over diffuse benefits, causing 'chilling effect'."
+        },
+        {
+          "genuine_support": true,
+          "reason": "Judicial categorization directly determines liability focus, exemplifying the claim's tension between harms/benefits."
+        },
+        {
+          "genuine_support": true,
+          "reason": "Judicial categorization directly impacts liability focus on harms vs. enabling benefits."
+        }
+      ]
+    },
+    {
+      "situation_id": "sit-098",
+      "camp": "skp",
+      "node_id": "skp-beliefs-170",
+      "score": 0.727903,
+      "rank": 2,
+      "band": ">=0.65",
+      "labels": [
+        {
+          "genuine_support": false,
+          "reason": "Situation is a general debate about regulatory approach, not specific corporate actions or circumvention tactics."
+        },
+        {
+          "genuine_support": true,
+          "reason": "Camp's reading frames regulatory debate as a site for corporate influence, exemplifying claim."
+        },
+        {
+          "genuine_support": true,
+          "reason": "Skeptic's reading directly links regulatory debate to corporate lobbying, power, and entrenchment, exemplifying the claim."
+        }
+      ]
+    },
+    {
+      "situation_id": "sit-021",
+      "camp": "saf",
+      "node_id": "saf-beliefs-057",
+      "score": 0.731392,
+      "rank": 2,
+      "band": ">=0.65",
+      "labels": [
+        {
+          "genuine_support": true,
+          "reason": "Situation directly exemplifies challenges in ensuring reliable AI performance and tests if these are fundamental constraints."
+        },
+        {
+          "genuine_support": true,
+          "reason": "Situation exemplifies fundamental difficulties in ensuring reliable AI performance due to unpredictable capabilities."
+        },
+        {
+          "genuine_support": true,
+          "reason": "Unpredictable AI performance directly exemplifies fundamental difficulties ensuring reliable system performance and certification."
+        }
+      ]
+    },
+    {
+      "situation_id": "sit-268",
+      "camp": "acc",
+      "node_id": "acc-intentions-127",
+      "score": 0.773047,
+      "rank": 2,
+      "band": ">=0.65",
+      "labels": [
+        {
+          "genuine_support": true,
+          "reason": "Describes the strategic framing used to argue existing tech-neutral laws apply, resisting new legislation."
+        },
+        {
+          "genuine_support": true,
+          "reason": "Describes the mechanism (framing AI as 'tool') to apply existing law, supporting the claim."
+        },
+        {
+          "genuine_support": true,
+          "reason": "Describes the strategy (framing AI as a tool) to advance the claim's core resistance to new AI laws."
+        }
+      ]
+    },
+    {
+      "situation_id": "sit-049",
+      "camp": "saf",
+      "node_id": "saf-beliefs-016",
+      "score": 0.748741,
+      "rank": 2,
+      "band": ">=0.65",
+      "labels": [
+        {
+          "genuine_support": true,
+          "reason": "Situation directly exemplifies risks multiplying across multiple interacting AIs, causing systemic failures."
+        },
+        {
+          "genuine_support": true,
+          "reason": "Situation describes multiple AIs amplifying risks, leading to systemic/cascading failures, directly matching the claim."
+        },
+        {
+          "genuine_support": true,
+          "reason": "Situation describes multi-AI interaction causing amplified/cascading risks, directly matching the claim's core idea."
+        }
+      ]
+    },
+    {
+      "situation_id": "sit-021",
+      "camp": "skp",
+      "node_id": "skp-beliefs-035",
+      "score": 0.664294,
+      "rank": 2,
+      "band": ">=0.65",
+      "labels": [
+        {
+          "genuine_support": false,
+          "reason": "Situation describes jagged capabilities, which claim explicitly excludes. Not about environmental mismatch."
+        },
+        {
+          "genuine_support": false,
+          "reason": "The claim explicitly excludes 'jagged ability line,' which is the core subject of the situation."
+        },
+        {
+          "genuine_support": false,
+          "reason": "Claim explicitly excludes 'Jagged Ability Line,' which is the core of the situation's description."
+        }
+      ]
+    },
+    {
+      "situation_id": "sit-081",
+      "camp": "skp",
+      "node_id": "skp-desires-070",
+      "score": 0.721217,
+      "rank": 1,
+      "band": ">=0.65",
+      "labels": [
+        {
+          "genuine_support": true,
+          "reason": "Situation directly describes the 'divergent attitudes toward AI' mindset the claim advocates for."
+        },
+        {
+          "genuine_support": true,
+          "reason": "Situation directly describes the core mindset of balancing AI benefits with critical vigilance, matching the claim."
+        },
+        {
+          "genuine_support": true,
+          "reason": "Situation directly describes the core mindset/stance the claim desires, providing context for debate."
+        }
+      ]
+    },
+    {
+      "situation_id": "sit-174",
+      "camp": "saf",
+      "node_id": "saf-desires-012",
+      "score": 0.745799,
+      "rank": 2,
+      "band": ">=0.65",
+      "labels": [
+        {
+          "genuine_support": true,
+          "reason": "Situation directly addresses liability, accountability, and financial responsibility mechanisms for AI harms."
+        },
+        {
+          "genuine_support": true,
+          "reason": "Situation directly addresses liability frameworks and developer accountability, central to the claim's focus."
+        },
+        {
+          "genuine_support": true,
+          "reason": "Situation directly discusses liability frameworks and accountability, central to the claim's financial responsibility focus."
+        }
+      ]
+    }
+  ]
+}
