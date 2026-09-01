@@ -643,6 +643,15 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
               httpGet: { path: '/healthz', port: 7862 }
               periodSeconds: 30
               failureThreshold: 3
+              // timeoutSeconds made EXPLICIT (was defaulting to ACA's ~1s). This is
+              // the DETERMINISTIC liveness deadline the storm-replay canary gates on
+              // (t/3182/t/3199, Diagnostics p/168#13): /healthz can't answer while the
+              // event loop is ONNX-blocked, so a loop-block > this timeout fails
+              // liveness → 503/kill. The worker-offload must keep p99 loop-lag under
+              // this with margin. Explicit (not defaulted) so the pass line is a
+              // documented value, not a silent platform default. 1s preserves current
+              // prod behavior (the ACA default) — it does NOT loosen liveness.
+              timeoutSeconds: 1
             }
             {
               type: 'Readiness'
