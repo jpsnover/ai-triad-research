@@ -26,11 +26,13 @@ function Update-EntityMentionIndex {
           - POV / situation nodes: container id `node:<node_id>`, text = `label`, then
             `description`, then `plain_description` (present fields only), newline-separated.
           - Summary key points (t/3122, claims-entity-fol-recommendations.md §4/R2.2 T2):
-            container id `summary:<doc_id>#kp-<n>`, text = the key point's `point` field.
-            `<n>` is a 0-based index over the concatenation of `pov_summaries.accelerationist
-            .key_points`, then `.safetyist.key_points`, then `.skeptic.key_points`, in that
-            fixed order (matching the POV order used elsewhere for summary claims, e.g.
-            Remove-DuplicateClaims) — one running counter per document, not per POV.
+            container id `summary:<doc_id>#<pov>-kp-<n>` where <pov> ∈ acc/saf/skp, text = the
+            key point's `point` field. `<n>` is a 0-based index reset PER POV array
+            (`pov_summaries.<pov>.key_points`). POV-scoping (CL ruling p/23#220-221) confines
+            renumber-churn to a single POV array instead of cascading a running counter across
+            all three; key_points carry no stable per-claim id (taxonomy_node_id is a non-unique
+            node reference), so positional is the pragmatic key and inserts within a POV still
+            churn that array's tail (the reconciler must tolerate it).
           - Summary factual claims (t/3122, same doc §4/R2.2 T2): container id
             `summary:<doc_id>#fc-<n>`, text = the `factual_claims[n].claim` field, `<n>` the
             0-based index into that array.
@@ -268,19 +270,25 @@ function Update-EntityMentionIndex {
         if (-not $summary.PSObject.Properties['doc_id'] -or -not $summary.doc_id) { continue }
         $docId = [string]$summary.doc_id
 
-        # key_points: ONE running 0-based index over the concatenation of the three POV
-        # arrays in fixed order — not per-POV — so `summary:<doc_id>#kp-<n>` is unique per
-        # document (the container-id shape carries no POV segment).
+        # key_points: POV-SCOPED 0-based index — `summary:<doc_id>#<pov>-kp-<n>` (<pov> ∈
+        # acc/saf/skp), `<n>` reset per POV array. CL ruling (p/23#220-221): a single running
+        # counter across the three arrays is positionally fragile — inserting/removing a
+        # key_point in one POV renumbers every later container id, churning unrelated refs and
+        # spuriously staling their text_sha256. No stable per-claim id exists on a key_point
+        # (taxonomy_node_id is a non-unique node reference), so POV-scoped positional is the
+        # pragmatic key; inserts WITHIN a POV array still churn that array's tail.
         if ($summary.PSObject.Properties['pov_summaries'] -and $summary.pov_summaries) {
-            $kpIndex = 0
+            $povCode = @{ accelerationist = 'acc'; safetyist = 'saf'; skeptic = 'skp' }
             foreach ($povName in @('accelerationist', 'safetyist', 'skeptic')) {
                 if (-not $summary.pov_summaries.PSObject.Properties[$povName]) { continue }
                 $povData = $summary.pov_summaries.$povName
                 if (-not $povData -or -not $povData.PSObject.Properties['key_points'] -or -not $povData.key_points) { continue }
+                $code = $povCode[$povName]
+                $kpIndex = 0
                 foreach ($kp in @($povData.key_points)) {
                     $pointVal = if ($kp.PSObject.Properties['point']) { $kp.point } else { $null }
                     $text = Get-MentionContainerText -Kind 'kp' -Fields @($pointVal)
-                    if ($text -ne '') { $Containers["summary:$docId#kp-$kpIndex"] = $text }
+                    if ($text -ne '') { $Containers["summary:$docId#$code-kp-$kpIndex"] = $text }
                     $kpIndex++
                 }
             }
