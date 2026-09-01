@@ -16,7 +16,13 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
-const { recordSpy } = vi.hoisted(() => ({ recordSpy: vi.fn() }));
+const { recordSpy, mockExecFile } = vi.hoisted(() => ({
+  recordSpy: vi.fn(),
+  // node-style execFile(file, args, opts, cb) — cb(err, stdout, stderr). Default: success stats.
+  mockExecFile: vi.fn((_file: string, _args: string[], _opts: unknown, cb: (e: Error | null, o: string, s: string) => void) =>
+    cb(null, '{"changed":1,"skipped":0,"removed":0}\nAPPLIED (scoped): 1 POV file(s), 0 dict file(s)', '')),
+}));
+vi.mock('child_process', () => ({ execFile: mockExecFile }));
 vi.mock('../../../../lib/flight-recorder/index.js', () => ({ getGlobalRecorder: () => ({ record: recordSpy }) }));
 vi.mock('../logger.js', () => ({
   log: { server: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() }, api: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() } },
@@ -138,6 +144,21 @@ describe('groundingReconcileHook (t/3171 G8a)', () => {
     await vi.advanceTimersByTimeAsync(DEBOUNCE_QUIET_MS + 10);
     expect(runner).toHaveBeenCalledTimes(2);
     expect(runner.mock.calls[1][0]).toEqual(['b']);
+  });
+
+  it('defaultRunner spawns execFile with the scoped --nodes/--apply args (child_process mock)', async () => {
+    __setReconcilerRunnerForTest(null); // use the REAL defaultRunner (execFile) path
+    mockExecFile.mockClear();
+
+    enqueueGroundingReconcile(['acc-beliefs-003', 'pol-004']);
+    await vi.advanceTimersByTimeAsync(DEBOUNCE_QUIET_MS + 10);
+
+    expect(mockExecFile).toHaveBeenCalledTimes(1);
+    const [file, args, opts] = mockExecFile.mock.calls[0];
+    expect(String(file)).toMatch(/python3?$/);                         // hardcoded PYTHON, not user-supplied
+    expect(args[0]).toMatch(/reconcile_grounding\.py$/);
+    expect(args.slice(1)).toEqual(['--nodes', 'acc-beliefs-003,pol-004', '--apply']);
+    expect(opts).toMatchObject({ timeout: expect.any(Number), maxBuffer: expect.any(Number) });
   });
 
   it('sanitizeNodeIds drops anything outside the node-id charset before the subprocess', () => {
