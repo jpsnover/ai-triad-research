@@ -623,7 +623,17 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
           name: 'taxonomy-editor'
           image: containerImage
           resources: {
-            cpu: json('1.0')
+            // 2 vCPU is the CORRECTNESS FLOOR for the embedding worker-offload
+            // (t/3182 / t/2977 C1). The off-thread ONNX worker (EMBEDDING_WORKER_OFFLOAD)
+            // needs a REAL second core: on 1 vCPU the worker time-slices the same core
+            // as the event loop, so a big embed still starves liveness (defeats the
+            // offload). 2 vCPU keeps the loop responsive while the worker computes.
+            // Stays within the ACA Consumption plan (0.25-4 vCPU) - one-line resources
+            // edit, no workload-profile/topology migration. Cost ~$0 (free grant, t/2977#4).
+            // Memory unchanged: incident RSS peaked ~650MB/2048 + ~250MB worker model
+            // copy ~= 900MB, comfortably within 2Gi (embeddings.json is NOT copied to the
+            // worker - the cache resolve stays main-thread, only miss-texts marshal).
+            cpu: json('2.0')
             memory: '2Gi'
           }
           env: containerEnv
@@ -633,6 +643,15 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
               httpGet: { path: '/healthz', port: 7862 }
               periodSeconds: 30
               failureThreshold: 3
+              // timeoutSeconds made EXPLICIT (was defaulting to ACA's ~1s). This is
+              // the DETERMINISTIC liveness deadline the storm-replay canary gates on
+              // (t/3182/t/3199, Diagnostics p/168#13): /healthz can't answer while the
+              // event loop is ONNX-blocked, so a loop-block > this timeout fails
+              // liveness → 503/kill. The worker-offload must keep p99 loop-lag under
+              // this with margin. Explicit (not defaulted) so the pass line is a
+              // documented value, not a silent platform default. 1s preserves current
+              // prod behavior (the ACA default) — it does NOT loosen liveness.
+              timeoutSeconds: 1
             }
             {
               type: 'Readiness'
