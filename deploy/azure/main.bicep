@@ -1306,6 +1306,46 @@ resource fallbackActive 'Microsoft.Insights/scheduledQueryRules@2023-03-15-previ
   }
 }
 
+// Paid Gemini fallback overflow (t/3110). The anon key pool is free-primary +
+// single paid key as overflow-only fallback (t/3111); the default path is free,
+// so paid-fallback usage should be ~0. Any sustained nonzero is a real operational
+// signal that the free pool is under-provisioned or throttling — NOT steady-state
+// cost. Keys on the `Paid fallback succeeded` log emitted at routes/ai.ts:187 when
+// generateWithPaidFallback completes a billed call. 60-min window distinguishes
+// sustained overflow from a lone transient.
+resource paidFallbackOverflow 'Microsoft.Insights/scheduledQueryRules@2023-03-15-preview' = {
+  name: 'alert-paid-fallback-overflow'
+  location: location
+  tags: tags
+  properties: {
+    displayName: 'Paid Gemini Fallback Overflow'
+    description: 'The paid Gemini fallback key served a request (expected ~0 on the free-primary path). Sustained hits mean the free key pool is under-provisioned or throttling into billable overflow — consider adding a free key.'
+    severity: 2
+    enabled: true
+    scopes: [ logAnalytics.id ]
+    evaluationFrequency: 'PT15M'
+    windowSize: 'PT1H'
+    criteria: {
+      allOf: [
+        {
+          query: '''
+            ContainerAppConsoleLogs_CL
+            | where Log_s contains "Paid fallback succeeded"
+            | summarize PaidFallbacks = count()
+            | where PaidFallbacks > 0
+          '''
+          timeAggregation: 'Count'
+          operator: 'GreaterThan'
+          threshold: 0
+        }
+      ]
+    }
+    actions: {
+      actionGroups: budgetAlertConfigured ? [ restartAlertActionGroup.id ] : []
+    }
+  }
+}
+
 resource branchDivergence 'Microsoft.Insights/scheduledQueryRules@2023-03-15-preview' = {
   name: 'alert-branch-divergence'
   location: location
