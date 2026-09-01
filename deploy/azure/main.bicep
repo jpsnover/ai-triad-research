@@ -1013,8 +1013,8 @@ resource authConfigStaging 'Microsoft.App/containerApps/authConfigs@2024-10-02-p
 @description('Email address for budget alerts')
 param budgetAlertEmail string = ''
 
-@description('First day of the current month at deploy time — Azure Consumption budgets reject a monthly startDate prior to the current month')
-param budgetStartDate string = utcNow('yyyy-MM-01')
+@description('IMMUTABLE start date of budget-aitriad-monthly, pinned to its original creation month (2026-08-01). Azure Consumption Budgets FORBID updating startDate in place ("Start date of budgets cannot be updated"), so this MUST NOT be recomputed per-deploy with utcNow() — doing so rolls the date forward each month and fails every deploy in a later month (t/3155). For a brand-new environment with no existing budget, override this param to the first of the current month at create time.')
+param budgetStartDate string = '2026-08-01'
 
 var budgetAlertConfigured = !empty(budgetAlertEmail)
 
