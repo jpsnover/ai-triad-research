@@ -229,7 +229,13 @@ export async function generateWithSearch(
     getGlobalRecorder()?.record({
       type: 'ai.response', component: 'ai-generate', level: 'info',
       duration_ms: Date.now() - t0,
-      message: `generate+search success ${backend}/${requestModel}${fallback ? ' (paid fallback)' : ''}`,
+      // t/3110: paid-success carries the shared "Paid fallback succeeded" marker DevOps's
+      // overflow-cost alert (#1733) keys on — the same token the non-search
+      // generateWithPaidFallback path emits — so the alert also counts debate-search overflow.
+      // Marker is on the SUCCESS record only (billed overflow), never the attempt/failure logs.
+      message: fallback === 'paid'
+        ? `Paid fallback succeeded (search) ${backend}/${requestModel}`
+        : `generate+search success ${backend}/${requestModel}`,
       data: { model: requestModel, backend, responseLength: result.text?.length ?? 0, search: true, ...(fallback ? { fallback } : {}) },
     });
   };

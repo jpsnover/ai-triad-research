@@ -1,0 +1,64 @@
+{
+  "ticket": "t/3149",
+  "instrument": "LLM genuine-support judge (disclosed criterion)",
+  "model": "gemini-2.5-flash",
+  "temperature": 0.7,
+  "seed": 3149,
+  "sample_per_band": 20,
+  "sample_total": 80,
+  "passes": 3,
+  "band_population": {
+    "0": 158,
+    "1": 907,
+    "2": 1792,
+    "3": 1121
+  },
+  "population_weights": {
+    "<0.45": 0.0397,
+    "0.45-0.55": 0.228,
+    "0.55-0.65": 0.4505,
+    ">=0.65": 0.2818
+  },
+  "precision_at_3": {
+    "per_pass": [
+      0.6731,
+      0.6311,
+      0.6142
+    ],
+    "mean": 0.6395,
+    "sd_across_passes_RUN_INSTABILITY": 0.0303,
+    "bootstrap95_within_pass0_ESTIMATION_UNCERTAINTY": {
+      "lo": 0.5573,
+      "hi": 0.7833,
+      "iters": 2000
+    }
+  },
+  "per_band_precision": {
+    "<0.45": {
+      "mean": 0.3,
+      "sd": 0.08660254037844388,
+      "n_per_pass": 20
+    },
+    "0.45-0.55": {
+      "mean": 0.5,
+      "sd": 0.05000000000000002,
+      "n_per_pass": 20
+    },
+    "0.55-0.65": {
+      "mean": 0.65,
+      "sd": 0.08660254037844388,
+      "n_per_pass": 20
+    },
+    ">=0.65": {
+      "mean": 0.7833333333333333,
+      "sd": 0.028867513459481315,
+      "n_per_pass": 20
+    }
+  },
+  "parse_or_api_errors": 0,
+  "baseline_t2990": {
+    "precision_at_3": 0.63,
+    "instrument": "CL-agent labels (single draw, not persisted)"
+  },
+  "notes": "Instrument change (CL-agent -> LLM judge) is a non-comparability boundary. SD across passes = run-instability (arXiv run-drift); bootstrap CI = estimation-uncertainty."
+}

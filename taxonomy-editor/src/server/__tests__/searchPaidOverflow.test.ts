@@ -112,5 +112,13 @@ describe('generateWithSearch — paid-overflow arm (t/3175)', () => {
     const fired = frRecords.find(r => r.type === 'ai.fallback');
     expect(fired).toBeDefined();
     expect((fired!.data as Record<string, unknown>).fallback).toBe('paid');
+    // t/3110: the paid-SUCCESS record must carry the shared "Paid fallback succeeded" marker
+    // DevOps's overflow-cost alert (#1733) keys on — same token as generateWithPaidFallback.
+    const paidSuccess = frRecords.find(r => r.type === 'ai.response' && String(r.message).includes('Paid fallback succeeded'));
+    expect(paidSuccess).toBeDefined();
+    expect((paidSuccess!.data as Record<string, unknown>).fallback).toBe('paid');
+    // The marker must NOT appear on the attempt log (only billed successes count).
+    const attempt = frRecords.find(r => r.type === 'ai.fallback');
+    expect(String(attempt!.message)).not.toContain('Paid fallback succeeded');
   });
 });
