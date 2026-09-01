@@ -1,0 +1,148 @@
+// @vitest-environment node
+// Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+// Licensed under the MIT License. See LICENSE file in the project root.
+
+// t/3172 (G8b) — scheduled full-taxonomy grounding sweep. The headline proof is the TWO GV ARMS the
+// ticket requires: a stale-hash tree reconciles (nodes_reconciled >= 1) and a clean tree does not
+// (nodes_reconciled == 0). The other three lock the contract: an overlapping tick SKIPS rather than
+// stacking a 2nd child, a child failure is caught + recorded and NEVER rethrown (must not crash the
+// host), and the flag gate leaves the timer un-armed when GROUNDING_SWEEP_ENABLED is OFF (default).
+//
+// The reconciler child is injected via __setSweepRunnerForTest, so no python is spawned; the flag
+// only gates timer-arming in startGroundingSweep, so the arm tests drive runSweep directly.
+
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+
+const { records } = vi.hoisted(() => ({
+  records: [] as Array<{ type?: string; level?: string; message?: string; data?: Record<string, unknown> }>,
+}));
+
+// Capture FR records so the grounding.sweep events are assertable.
+vi.mock('../../../../lib/flight-recorder/index.js', () => ({
+  getGlobalRecorder: () => ({ record: (r: unknown) => { records.push(r as { type?: string }); } }),
+  setGlobalRecorder: vi.fn(),
+}));
+
+import {
+  startGroundingSweep,
+  stopGroundingSweep,
+  __setSweepRunnerForTest,
+  __runSweepOnceForTest,
+  __resetSweepForTest,
+  __stateForTest,
+} from '../groundingSweepScheduler.js';
+import type { ReconcilerStats } from '../groundingReconcileHook.js';
+
+/** All grounding-sweep FR events captured this test. FR EventType has no 'grounding.sweep' member
+ *  (closed Shared-Lib union) — the component tag is the greppable identity, per G8a precedent. */
+function sweepEvents(): typeof records {
+  return records.filter((r) => (r as { component?: string }).component === 'grounding-sweep');
+}
+
+const ORIG_FLAG = process.env.GROUNDING_SWEEP_ENABLED;
+
+describe('G8b groundingSweepScheduler (t/3172)', () => {
+  beforeEach(() => {
+    records.length = 0;
+    __resetSweepForTest();
+    __setSweepRunnerForTest(null); // restore default; individual tests inject their own
+    delete process.env.GROUNDING_SWEEP_ENABLED;
+  });
+  afterEach(() => {
+    stopGroundingSweep();
+    __resetSweepForTest();
+    __setSweepRunnerForTest(null);
+    if (ORIG_FLAG === undefined) delete process.env.GROUNDING_SWEEP_ENABLED;
+    else process.env.GROUNDING_SWEEP_ENABLED = ORIG_FLAG;
+  });
+
+  // ── GV FAIL ARM: a stale-hash node reconciles ────────────────────────────────
+  it('GV/stale: a stale-hash tree reconciles → FR grounding.sweep with nodes_reconciled >= 1', async () => {
+    const stats: ReconcilerStats = { changed: 2, skipped: 4140, removed: 0 };
+    __setSweepRunnerForTest(async () => stats);
+
+    await __runSweepOnceForTest();
+
+    const done = sweepEvents().find((e) => e.data?.skipped === false && e.level === 'info');
+    expect(done).toBeDefined();
+    expect(done?.data?.nodes_reconciled).toBe(2);
+    expect(done?.data?.nodes_reconciled as number).toBeGreaterThanOrEqual(1);
+    expect(done?.data?.nodes_checked).toBe(2 + 4140 + 0); // changed + skipped + removed
+    expect(__stateForTest().inFlight).toBe(false); // flag cleared after the run
+  });
+
+  // ── GV CLEAN ARM: an up-to-date tree does zero reconciles ────────────────────
+  it('GV/clean: a fully up-to-date tree → FR grounding.sweep with nodes_reconciled == 0 (hash gate)', async () => {
+    const stats: ReconcilerStats = { changed: 0, skipped: 4144, removed: 0 };
+    __setSweepRunnerForTest(async () => stats);
+
+    await __runSweepOnceForTest();
+
+    const done = sweepEvents().find((e) => e.data?.skipped === false && e.level === 'info');
+    expect(done).toBeDefined();
+    expect(done?.data?.nodes_reconciled).toBe(0);
+    expect(done?.data?.nodes_checked).toBe(4144);
+    // No error/warn event on a clean run.
+    expect(sweepEvents().some((e) => e.level === 'error' || e.level === 'warn')).toBe(false);
+  });
+
+  // ── Non-overlapping: a 2nd tick while one is in flight SKIPS, does not stack ──
+  it('overlap: a concurrent tick is skipped (warn, skipped:true) and does not run the reconciler twice', async () => {
+    let releaseFirst!: () => void;
+    let calls = 0;
+    __setSweepRunnerForTest(() => {
+      calls++;
+      return new Promise<ReconcilerStats>((resolve) => {
+        releaseFirst = () => resolve({ changed: 1, skipped: 0, removed: 0 });
+      });
+    });
+
+    const first = __runSweepOnceForTest();  // enters, sets inFlight, awaits the held runner
+    await Promise.resolve();                // let the first microtask reach the await
+    expect(__stateForTest().inFlight).toBe(true);
+
+    await __runSweepOnceForTest();          // second tick — must skip immediately
+    const skip = sweepEvents().find((e) => e.level === 'warn' && e.data?.skipped === true);
+    expect(skip).toBeDefined();
+    expect(calls).toBe(1);                  // runner NOT invoked a second time
+
+    releaseFirst();
+    await first;
+    expect(__stateForTest().inFlight).toBe(false);
+    expect(calls).toBe(1);
+  });
+
+  // ── Failure containment: a child failure is recorded and NEVER rethrown ──────
+  it('failure: reconciler rejection is caught (no throw), recorded as error, inFlight cleared', async () => {
+    __setSweepRunnerForTest(async () => { throw new Error('reconcile_grounding.py exited 1: boom'); });
+
+    // Must resolve, not reject — an unhandled rejection on the bare setInterval would crash the host.
+    await expect(__runSweepOnceForTest()).resolves.toBeUndefined();
+
+    const err = sweepEvents().find((e) => e.level === 'error');
+    expect(err).toBeDefined();
+    expect(err?.data?.skipped).toBe(false);
+    expect(String(err?.message)).toMatch(/failed/i);
+    expect(__stateForTest().inFlight).toBe(false); // reset in finally → next tick can run
+  });
+
+  // ── Flag gate: default OFF → timer never armed ───────────────────────────────
+  it('flag OFF (default): startGroundingSweep does not arm the timer and returns a callable stop fn', () => {
+    delete process.env.GROUNDING_SWEEP_ENABLED;
+    const stop = startGroundingSweep(50);
+    expect(__stateForTest().armed).toBe(false);
+    expect(typeof stop).toBe('function');
+    stop(); // no-op, must not throw
+    expect(__stateForTest().armed).toBe(false);
+  });
+
+  it('flag ON: startGroundingSweep arms the timer; stop disarms it; a 2nd start is idempotent', () => {
+    process.env.GROUNDING_SWEEP_ENABLED = '1';
+    const stop = startGroundingSweep(50);
+    expect(__stateForTest().armed).toBe(true);
+    startGroundingSweep(50); // idempotent — still one timer
+    expect(__stateForTest().armed).toBe(true);
+    stop();
+    expect(__stateForTest().armed).toBe(false);
+  });
+});
