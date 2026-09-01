@@ -18,6 +18,7 @@ import { isElectronMode } from '@bridge';
 import { useFlag } from '../../hooks/useFeatureFlags';
 import { triggerManualDump } from '../../lib/flightRecorderInit';
 import { bandColor, BUDGET_BANDS } from '../../lib/bandColor';
+import { useSettingsDialog } from '../../hooks/useSettingsDialog';
 import './DebateActionBar.css';
 
 export function ProgressIndicator() {
@@ -384,10 +385,14 @@ function DebateErrorBanner({
   onRetry: () => void;
   onDismiss: () => void;
 }) {
+  const openSettings = useSettingsDialog(s => s.open);
   return (
     <div className={dailyLimitPaused ? 'debate-daily-limit' : 'debate-error'}>
       <span className={dailyLimitPaused ? 'debate-daily-limit-text' : 'debate-error-text'}>{debateError}</span>
-      {!dailyLimitPaused && (
+      {dailyLimitPaused ? (
+        // "Continue now" path for the daily cap is registering a BYOK key (t/3190).
+        <button className="debate-daily-limit-action" onClick={openSettings}>Add API key</button>
+      ) : (
         <button className="debate-error-retry" onClick={onRetry} disabled={disableAnalysis}>Retry</button>
       )}
       <button className={dailyLimitPaused ? 'debate-daily-limit-dismiss' : 'debate-error-dismiss'} onClick={onDismiss} title="Dismiss" aria-label="Dismiss">&times;</button>

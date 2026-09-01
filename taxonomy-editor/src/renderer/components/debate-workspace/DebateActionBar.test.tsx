@@ -3,8 +3,9 @@
 
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
 import { useRef } from 'react';
-import { render, screen, act } from '@testing-library/react';
+import { render, screen, act, fireEvent } from '@testing-library/react';
 import { ProgressIndicator, PhaseProgressBar, DebaterToggles, TokenBudgetIndicator, DebateActions } from './DebateActionBar';
+import { useSettingsDialog } from '../../hooks/useSettingsDialog';
 
 // ── Mocks ────────────────────────────────────────────────────
 
@@ -451,5 +452,19 @@ describe('DebateActions — exhaustion error banner', () => {
     mockStore.debateError = null;
     render(<DebateActions {...actionsProps} />);
     expect(screen.queryByRole('button', { name: 'Retry' })).toBeNull();
+  });
+
+  // t/3190: daily-cap banner offers an "Add API key" deep-link to Settings (the
+  // "continue now" path), and no Retry (the cap is not retryable).
+  it('daily-limit banner shows "Add API key" (not Retry) and opens Settings on click', () => {
+    useSettingsDialog.setState({ isOpen: false });
+    mockStore.debateError = 'Daily AI usage limit reached (resets at midnight UTC).';
+    mockStore.dailyLimitPaused = true;
+    render(<DebateActions {...actionsProps} />);
+    expect(screen.queryByRole('button', { name: 'Retry' })).toBeNull();
+    const addKey = screen.getByRole('button', { name: 'Add API key' });
+    fireEvent.click(addKey);
+    expect(useSettingsDialog.getState().isOpen).toBe(true);
+    useSettingsDialog.setState({ isOpen: false });
   });
 });
