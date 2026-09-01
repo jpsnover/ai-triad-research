@@ -39,7 +39,7 @@ permissions:
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
   FLOOR: '2'
-  PAGE_ENABLED: 'false'   # observe-only until TL promotes (see header)
+  PAGE_ENABLED: 'true'    # PROMOTED to paging (TL auth p/331#829) after 1 green real-env observe cycle (run 33536887620: usable=4, alert=False, NetworkErr quiet). See header for the observe→paging rule.
   OWNER_HANDLE: 'jpsnover'
 
 jobs:
