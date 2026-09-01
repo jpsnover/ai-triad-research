@@ -20,8 +20,16 @@ Usage: --selftest (tests, no write) | --apply (write) | default dry-run summary.
        partial refresh; writes are bounded to touched POV files + changed dict files. Combine
        with --apply to persist. The CALLER MUST serialize this against Update-EntityMentionIndex
        (shared entity_mentions.json is a full read-merge-write; TL concurrency caveat t/3160#7).
+
+CROSS-TOOL WRITE-LOCK CONTRACT (TL, t/3163#1 / t/3194): both writers of the shared
+entity_mentions.json — this reconciler AND Update-EntityMentionIndex.ps1 — coordinate on ONE
+advisory lockfile `entity_mentions.lock` beside it. Acquire = atomic O_CREAT|O_EXCL create;
+a holder older than LOCK_STALE_SEC (by mtime) is presumed dead and broken; every file write is
+tmp-file + atomic rename so no reader sees a torn file. Staleness is by MTIME (language-agnostic)
+so the PS cmdlet honors the identical rule. The lock is held only around the live apply
+read-merge-write; dry-run/selftest never lock.
 """
-import json, re, os, glob, sys, hashlib
+import json, re, os, glob, sys, hashlib, time, socket, contextlib
 from datetime import datetime, timezone
 import numpy as np
 
@@ -30,6 +38,10 @@ O = os.path.join(D, "taxonomy", "Origin")
 STD = os.path.join(D, "dictionary", "standardized")
 MENTIONS = os.path.join(O, "entity_mentions.json")
 SIDECAR = os.path.join(O, "grounding_index.json")
+LOCKFILE = os.path.join(O, "entity_mentions.lock")
+LOCK_WAIT_SEC = 60    # max wait for a live lock before erroring
+LOCK_STALE_SEC = 120  # a holder older than this (by mtime) is presumed dead and broken
+LOCK_POLL_SEC = 0.5
 CON_TAU = 0.55
 APPLY = "--apply" in sys.argv
 SELFTEST = "--selftest" in sys.argv
@@ -65,8 +77,57 @@ def load_json(path):
         return json.load(f)
 
 def dump_json(path, obj):
-    with open(path, "w", encoding="utf-8") as f:
+    # atomic write: tmp + rename, so no reader (incl. the PS cmdlet) ever sees a torn file (t/3194)
+    tmp = path + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
         f.write(json.dumps(obj, indent=2, ensure_ascii=False) + "\n")
+    os.replace(tmp, path)
+
+@contextlib.contextmanager
+def grounding_lock(holder="reconciler", path=LOCKFILE, wait_sec=LOCK_WAIT_SEC,
+                   stale_sec=LOCK_STALE_SEC, poll_sec=LOCK_POLL_SEC):
+    """Cross-tool advisory write-lock for entity_mentions.json (shared with Update-EntityMentionIndex).
+    Acquire = atomic O_CREAT|O_EXCL create of `path`; a holder older than `stale_sec` (by mtime) is
+    presumed dead and broken (WARN). Waits up to `wait_sec` for a live holder, then raises. Released on
+    exit. The PS cmdlet MUST honor the SAME lockfile + mtime-staleness rule (TL contract, t/3163#1)."""
+    payload = json.dumps({"holder": holder, "pid": os.getpid(), "host": socket.gethostname(),
+                          "acquired_at": datetime.now(timezone.utc).isoformat()})
+    start = time.monotonic()
+    while True:
+        try:
+            fd = os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+            with os.fdopen(fd, "w", encoding="utf-8") as f:
+                f.write(payload)
+            break
+        except FileExistsError:
+            try:
+                age = time.time() - os.path.getmtime(path)
+            except FileNotFoundError:
+                continue  # released between the failed create and the stat — retry acquire
+            if age > stale_sec:
+                # Fallback path (root AGENTS.md): a stale lock is being broken — record that + why.
+                sys.stderr.write(f"WARN grounding_lock: breaking stale lock (mtime age {age:.0f}s "
+                                 f"> {stale_sec}s) at {path}; prior holder presumed dead\n")
+                try:
+                    os.unlink(path)
+                except FileNotFoundError:
+                    pass
+                continue
+            if time.monotonic() - start > wait_sec:
+                raise RuntimeError(
+                    "Goal: acquire the grounding write-lock to reconcile entity_mentions.json safely. "
+                    f"Error: lock held by another writer for >{wait_sec}s and not stale (mtime age "
+                    f"{age:.0f}s < {stale_sec}s). Location: {path}. "
+                    "Resolve: another reconciler or Update-EntityMentionIndex run is in progress — let "
+                    "it finish; if it is hung, remove the lockfile after confirming no writer is active.")
+            time.sleep(poll_sec)
+    try:
+        yield
+    finally:
+        try:
+            os.unlink(path)
+        except FileNotFoundError:
+            pass
 
 # ---------- load resolver inputs ----------
 def load_terms():
@@ -349,55 +410,88 @@ def selftest():
     # SCOPED removal: a dirty id absent from taxonomy is purged; a re-run over unchanged dirty-set = 0 changed
     ssc2, _, _ = reconcile_scoped(pov2, ms2, sc2, [a["id"]], terms, ents, nv, sense, sit)
     assert ssc2["changed"] == 0, f"FAIL: scoped not idempotent, {ssc2['changed']} changed on re-run"
-    print("SELFTEST PASS: consistency, disjoint-scope, idempotence, change-detection, removal-purge, scoped")
+    # LOCK (t/3194): acquire creates the file; a held lock blocks a bounded second acquire; release removes it;
+    # a stale (old-mtime) lock is broken. Uses a tempdir path so the data repo is untouched.
+    import tempfile
+    lp = os.path.join(tempfile.gettempdir(), f"grounding_selftest_{os.getpid()}.lock")
+    if os.path.exists(lp):
+        os.unlink(lp)
+    with grounding_lock("t", path=lp, wait_sec=1, stale_sec=9999):
+        assert os.path.exists(lp), "FAIL: lock file not created on acquire"
+        try:
+            with grounding_lock("t2", path=lp, wait_sec=1, stale_sec=9999):
+                assert False, "FAIL: acquired an already-held lock"
+        except RuntimeError:
+            pass  # expected: bounded wait elapsed while the lock was held
+    assert not os.path.exists(lp), "FAIL: lock file not removed on release"
+    with open(lp, "w", encoding="utf-8") as f:
+        f.write("stale")
+    old = time.time() - 10000
+    os.utime(lp, (old, old))
+    with grounding_lock("t", path=lp, wait_sec=1, stale_sec=120):  # stale -> broken + re-acquired
+        assert os.path.exists(lp), "FAIL: stale lock not re-acquired"
+    assert not os.path.exists(lp), "FAIL: lock file not removed after stale-break run"
+    print("SELFTEST PASS: consistency, disjoint-scope, idempotence, change-detection, removal-purge, scoped, lock")
     print(f"  cold run: {s1}   used_by_nodes terms: {len(ubn)}")
 
 if SELFTEST:
     selftest(); sys.exit(0)
 
 # ---------- dry-run / apply over live data ----------
+# Resolver inputs are read-only + atomic-safe (tmp+rename) — loaded OUTSIDE the lock to keep hold time short.
 terms, ents = load_terms(), load_entities()
 nv, sense = load_vectors()
 sit = load_situations()
-pov = {p: load_json(os.path.join(O, p + ".json")) for p in ("accelerationist", "safetyist", "skeptic")}
-ms = load_json(MENTIONS)
-sc = load_json(SIDECAR) if os.path.exists(SIDECAR) else {}
-if SCOPED:
-    # G8a scoped mode (t/3171): re-resolve only the dirty-set; bound writes to touched POV + changed dict files.
-    # Presence of --nodes forces scoped mode; an empty/malformed id list is a safe no-op, NEVER a full apply.
-    stats, ubn, touched = reconcile_scoped(pov, ms, sc, SCOPED_IDS, terms, ents, nv, sense, sit)
-    print(json.dumps(stats, indent=2))
-    print(f"scoped nodes: {len(SCOPED_IDS)}  touched POVs: {sorted(touched)}  used_by_nodes terms: {len(ubn)}")
-    if APPLY:
-        for p in touched:
-            dump_json(os.path.join(O, p + ".json"), pov[p])
-        dict_writes = 0
-        for t in terms:
-            d = load_json(t["file"])
-            new = sorted(ubn.get(t["cf"], set()))
-            if d.get("used_by_nodes") != new:  # write only terms whose reverse-set actually changed
-                d["used_by_nodes"] = new
+
+def run_live():
+    """Load the contested files (pov/mentions/sidecar), reconcile, and write. When APPLY, this whole
+    read-merge-write runs under grounding_lock (see below) so it never races Update-EntityMentionIndex
+    or a concurrent reconciler on the shared entity_mentions.json."""
+    pov = {p: load_json(os.path.join(O, p + ".json")) for p in ("accelerationist", "safetyist", "skeptic")}
+    ms = load_json(MENTIONS)
+    sc = load_json(SIDECAR) if os.path.exists(SIDECAR) else {}
+    if SCOPED:
+        # G8a scoped mode (t/3171): re-resolve only the dirty-set; bound writes to touched POV + changed dict files.
+        # Presence of --nodes forces scoped mode; an empty/malformed id list is a safe no-op, NEVER a full apply.
+        stats, ubn, touched = reconcile_scoped(pov, ms, sc, SCOPED_IDS, terms, ents, nv, sense, sit)
+        print(json.dumps(stats, indent=2))
+        print(f"scoped nodes: {len(SCOPED_IDS)}  touched POVs: {sorted(touched)}  used_by_nodes terms: {len(ubn)}")
+        if APPLY:
+            for p in touched:
+                dump_json(os.path.join(O, p + ".json"), pov[p])
+            dict_writes = 0
+            for t in terms:
+                d = load_json(t["file"])
+                new = sorted(ubn.get(t["cf"], set()))
+                if d.get("used_by_nodes") != new:  # write only terms whose reverse-set actually changed
+                    d["used_by_nodes"] = new
+                    dump_json(t["file"], d)
+                    dict_writes += 1
+            dump_json(MENTIONS, ms)
+            dump_json(SIDECAR, sc)
+            print(f"APPLIED (scoped): {len(touched)} POV file(s), {dict_writes} dict file(s)")
+        else:
+            print("DRY RUN (scoped)")
+    else:
+        stats, ubn = reconcile(pov, ms, sc, terms, ents, nv, sense, sit)
+        print(json.dumps(stats, indent=2))
+        print(f"used_by_nodes terms: {len(ubn)}  total node-links: {sum(len(v) for v in ubn.values())}")
+        if APPLY:
+            for p, data in pov.items():
+                dump_json(os.path.join(O, p + ".json"), data)
+            # write used_by_nodes into standardized files
+            for t in terms:
+                d = load_json(t["file"])
+                d["used_by_nodes"] = sorted(ubn.get(t["cf"], set()))
                 dump_json(t["file"], d)
-                dict_writes += 1
-        dump_json(MENTIONS, ms)
-        dump_json(SIDECAR, sc)
-        print(f"APPLIED (scoped): {len(touched)} POV file(s), {dict_writes} dict file(s)")
-    else:
-        print("DRY RUN (scoped)")
+            dump_json(MENTIONS, ms)
+            dump_json(SIDECAR, sc)
+            print("APPLIED")
+        else:
+            print("DRY RUN")
+
+if APPLY:
+    with grounding_lock("reconciler"):  # serialize the read-merge-write vs the PS cmdlet / concurrent sweeps
+        run_live()
 else:
-    stats, ubn = reconcile(pov, ms, sc, terms, ents, nv, sense, sit)
-    print(json.dumps(stats, indent=2))
-    print(f"used_by_nodes terms: {len(ubn)}  total node-links: {sum(len(v) for v in ubn.values())}")
-    if APPLY:
-        for p, data in pov.items():
-            dump_json(os.path.join(O, p + ".json"), data)
-        # write used_by_nodes into standardized files
-        for t in terms:
-            d = load_json(t["file"])
-            d["used_by_nodes"] = sorted(ubn.get(t["cf"], set()))
-            dump_json(t["file"], d)
-        dump_json(MENTIONS, ms)
-        dump_json(SIDECAR, sc)
-        print("APPLIED")
-    else:
-        print("DRY RUN")
+    run_live()  # dry-run/selftest are read-only — no lock
