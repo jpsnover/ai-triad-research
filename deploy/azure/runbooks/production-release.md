@@ -146,6 +146,7 @@ All alerts route to the `ag-aitriad-restart-alert` action group, which emails `A
 | `alert-github-api-error-spike` | 1 (Error) | 5+ GitHub API errors | 5min / 5min |
 | `alert-cache-degraded` | 2 (Warning) | 50+ cache misses | 5min / 5min |
 | `alert-fallback-active` | 1 (Error) | App serving from fallback data | 5min / 5min |
+| `alert-paid-fallback-overflow` | 2 (Warning) | Paid Gemini fallback key served a request (free pool exhausted → billable overflow; expect ~0) | 15min / 60min |
 | `alert-branch-divergence` | 3 (Info) | Session branch 10+ commits behind | 15min / 15min |
 
 ### External Availability Probe (GitHub Actions)
