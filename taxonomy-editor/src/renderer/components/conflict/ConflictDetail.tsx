@@ -802,8 +802,14 @@ function QbafConflictPanel({ qbaf }: { qbaf: ConflictQbaf }) {
         <div className="conflict-qbaf-resolution">
           <div className="conflict-qbaf-resolution-header">Resolution Analysis</div>
           <div className="conflict-qbaf-resolution-body">
-            <span>Prevailing: <strong>{graph.nodes.find(n => n.id === resolution.prevailing_claim)?.text.slice(0, 60) ?? resolution.prevailing_claim}</strong></span>
-            <span>Strength: {(resolution.prevailing_strength ?? 0).toFixed(2)} (margin: {(resolution.margin ?? 0).toFixed(2)})</span>
+            {resolution.verdict === 'undecided' ? (
+              <span><em>Undecided — sides not meaningfully separated (margin &lt; 0.05)</em></span>
+            ) : (
+              <>
+                <span>Prevailing: <strong>{graph.nodes.find(n => n.id === resolution.prevailing_claim)?.text.slice(0, 60) ?? resolution.prevailing_claim}</strong></span>
+                <span>Strength: {(resolution.prevailing_strength ?? 0).toFixed(2)} (margin: {(resolution.margin ?? 0).toFixed(2)})</span>
+              </>
+            )}
             <span>Criterion: {resolution.criterion.replace(/_/g, ' ')}</span>
           </div>
         </div>
