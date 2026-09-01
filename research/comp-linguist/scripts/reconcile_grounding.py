@@ -41,6 +41,14 @@ def word_span(surface, text_lower):
     m = re.search(r"\b" + re.escape(surface.lower()) + r"\b", text_lower)
     return m.start() if m else None
 
+def load_json(path):
+    with open(path, encoding="utf-8") as f:
+        return json.load(f)
+
+def dump_json(path, obj):
+    with open(path, "w", encoding="utf-8") as f:
+        f.write(json.dumps(obj, indent=2, ensure_ascii=False) + "\n")
+
 # ---------- load resolver inputs ----------
 def load_terms():
     out = []
@@ -52,7 +60,8 @@ def load_terms():
     return out
 
 def load_entities():
-    store = json.load(open(os.path.join(O, "entities.json"), encoding="utf-8"))
+    with open(os.path.join(O, "entities.json"), encoding="utf-8") as f:
+        store = json.load(f)
     out = []
     for e in store["entities"]:
         if e.get("status") != "approved":
@@ -63,6 +72,36 @@ def load_entities():
         elif isinstance(al, str) and al: surfs.append(("alias", al))
         out.append((e["id"], [(m, s) for m, s in surfs if s and len(s) > 2]))
     return out
+
+def load_situations():
+    """Situation nodes (sit-*) own node:sit-* mention containers (TL ruling: all node:* is
+    node-grounding). Text = concatenated interpretation belief/desire/intention across POVs."""
+    p = os.path.join(O, "situations.json")
+    if not os.path.exists(p):
+        return []
+    with open(p, encoding="utf-8") as f:
+        raw = json.load(f)
+    out = []
+    for s in raw.get("nodes", []):
+        parts = []
+        for v in (s.get("interpretations") or {}).values():
+            if isinstance(v, dict):
+                parts += [str(v[k]) for k in ("belief", "desire", "intention") if v.get(k)]
+            elif isinstance(v, str) and v:
+                parts.append(v)
+        text = "\n".join(parts)
+        if text.strip():
+            out.append((s["id"], text))
+    return out
+
+def entity_mentions_for(text, low, ents):
+    mentions = []
+    for eid, surfs in ents:
+        hit = next(((meth, s, word_span(s, low)) for meth, s in surfs if word_span(s, low) is not None), None)
+        if hit:
+            meth, s, off = hit
+            mentions.append({"entity_ref": eid, "quote": text[off:off + len(s)], "offset": off, "discovered_by": meth})
+    return mentions
 
 def load_vectors():
     emb = json.load(open(os.path.join(O, "embeddings.json"), encoding="utf-8")).get("nodes", {})
@@ -105,8 +144,11 @@ def resolve(n, terms, ents, nv, sense):
     return crefs, erefs, mentions
 
 # ---------- core reconcile (in-memory) ----------
-def reconcile(pov_data, mentions_store, sidecar, terms, ents, nv, sense):
-    """Mutates pov_data nodes + mentions_store node:* + returns stats. Pure over inputs."""
+def reconcile(pov_data, mentions_store, sidecar, terms, ents, nv, sense, situations=()):
+    """Mutates pov_data nodes + mentions_store node:* + returns stats. Pure over inputs.
+    `situations` = [(sit_id, text)] whose node:sit-* entity-mention containers are also owned here
+    (TL ruling: all node:* is node-grounding). Situation forward concept_refs/entity_refs await a
+    situation-schema field and are out of scope for this pass."""
     now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     current_ids = set()
     changed = skipped = 0
@@ -129,6 +171,19 @@ def reconcile(pov_data, mentions_store, sidecar, terms, ents, nv, sense):
             elif key in mentions_store["containers"]:
                 del mentions_store["containers"][key]
             sidecar[nid] = h; changed += 1
+    # situations (sit-*): own their node:sit-* entity-mention containers (TL ruling)
+    for sid, stext in situations:
+        current_ids.add(sid)
+        h = sha(stext)
+        if sidecar.get(sid) == h:
+            skipped += 1; continue
+        mentions = entity_mentions_for(stext, stext.lower(), ents)
+        key = "node:" + sid
+        if mentions:
+            mentions_store["containers"][key] = {"text_sha256": h, "extracted_at": now, "mentions": mentions}
+        elif key in mentions_store["containers"]:
+            del mentions_store["containers"][key]
+        sidecar[sid] = h; changed += 1
     # purge removed nodes from ALL reverse maps (condition 5)
     removed = [nid for nid in list(sidecar) if nid not in current_ids]
     for nid in removed:
@@ -142,24 +197,21 @@ def reconcile(pov_data, mentions_store, sidecar, terms, ents, nv, sense):
                 by_term.setdefault(r["ref"][len("term:"):], set()).add(n["id"])
     return {"changed": changed, "skipped": skipped, "removed": len(removed)}, by_term
 
-def assert_disjoint(mentions_store):
-    # no reconciler write ever creates/keeps a sei:* under our ownership beyond preservation;
-    # the contract is we only WRITE node:* — assert we never emit a sei:* key from resolve().
-    # (Structural: resolve() only produces node:* keys; this asserts the store still has sei:* preserved untouched.)
-    return True
-
 # ---------- selftest ----------
 def selftest():
     terms, ents = load_terms(), load_entities()
     nv, sense = load_vectors()
-    pov = {p: json.load(open(os.path.join(O, p + ".json"), encoding="utf-8")) for p in ("accelerationist", "safetyist", "skeptic")}
+    sit = load_situations()
+    pov = {p: load_json(os.path.join(O, p + ".json")) for p in ("accelerationist", "safetyist", "skeptic")}
     ms = {"containers": {}}
-    for c, v in json.load(open(MENTIONS, encoding="utf-8")).get("containers", {}).items():
+    for c, v in load_json(MENTIONS).get("containers", {}).items():
         ms["containers"][c] = v
     sc = {}
     sei_before = {k for k in ms["containers"] if k.startswith("sei:")}
     # run 1 (cold): everything changes
-    s1, ubn = reconcile(pov, ms, sc, terms, ents, nv, sense)
+    s1, ubn = reconcile(pov, ms, sc, terms, ents, nv, sense, sit)
+    # SITUATION coverage: node:sit-* containers are owned + written here
+    assert any(k.startswith("node:sit") for k in ms["containers"]), "FAIL: no node:sit-* container written"
     # CONSISTENCY (load-bearing): used_by_nodes == {nodes whose concept_refs include term}
     fwd = {}
     for data in pov.values():
@@ -171,16 +223,16 @@ def selftest():
     sei_after = {k for k in ms["containers"] if k.startswith("sei:")}
     assert sei_before == sei_after, "FAIL: sei:* containers modified (double-write)"
     # IDEMPOTENCE: run 2 (warm) with same sidecar -> 0 changed
-    s2, _ = reconcile(pov, ms, sc, terms, ents, nv, sense)
+    s2, _ = reconcile(pov, ms, sc, terms, ents, nv, sense, sit)
     assert s2["changed"] == 0, f"FAIL: not idempotent, {s2['changed']} changed on warm run"
     # CHANGE-DETECTION: edit one node -> only it re-resolves
     tgt = pov["accelerationist"]["nodes"][0]; tgt["description"] = (tgt.get("description") or "") + " strict liability regime."
-    s3, _ = reconcile(pov, ms, sc, terms, ents, nv, sense)
+    s3, _ = reconcile(pov, ms, sc, terms, ents, nv, sense, sit)
     assert s3["changed"] == 1, f"FAIL: change-detection re-resolved {s3['changed']} nodes, expected 1"
     # REMOVAL-PURGE: drop a node -> purged from mentions + sidecar
     victim = pov["safetyist"]["nodes"][0]["id"]
     pov["safetyist"]["nodes"] = pov["safetyist"]["nodes"][1:]
-    s4, ubn4 = reconcile(pov, ms, sc, terms, ents, nv, sense)
+    s4, ubn4 = reconcile(pov, ms, sc, terms, ents, nv, sense, sit)
     assert victim not in sc, "FAIL: removed node still in sidecar"
     assert ("node:" + victim) not in ms["containers"], "FAIL: removed node still has node:* mention"
     assert all(victim not in v for v in ubn4.values()), "FAIL: removed node still in used_by_nodes"
@@ -193,24 +245,23 @@ if SELFTEST:
 # ---------- dry-run / apply over live data ----------
 terms, ents = load_terms(), load_entities()
 nv, sense = load_vectors()
-pov = {p: json.load(open(os.path.join(O, p + ".json"), encoding="utf-8")) for p in ("accelerationist", "safetyist", "skeptic")}
-ms = json.load(open(MENTIONS, encoding="utf-8"))
-sc = json.load(open(SIDECAR, encoding="utf-8")) if os.path.exists(SIDECAR) else {}
-stats, ubn = reconcile(pov, ms, sc, terms, ents, nv, sense)
+sit = load_situations()
+pov = {p: load_json(os.path.join(O, p + ".json")) for p in ("accelerationist", "safetyist", "skeptic")}
+ms = load_json(MENTIONS)
+sc = load_json(SIDECAR) if os.path.exists(SIDECAR) else {}
+stats, ubn = reconcile(pov, ms, sc, terms, ents, nv, sense, sit)
 print(json.dumps(stats, indent=2))
 print(f"used_by_nodes terms: {len(ubn)}  total node-links: {sum(len(v) for v in ubn.values())}")
 if APPLY:
-    def dump_file(path, obj):
-        open(path, "w", encoding="utf-8").write(json.dumps(obj, indent=2, ensure_ascii=False) + "\n")
     for p, data in pov.items():
-        dump_file(os.path.join(O, p + ".json"), data)
+        dump_json(os.path.join(O, p + ".json"), data)
     # write used_by_nodes into standardized files
     for t in terms:
-        d = json.load(open(t["file"], encoding="utf-8"))
+        d = load_json(t["file"])
         d["used_by_nodes"] = sorted(ubn.get(t["cf"], set()))
-        dump_file(t["file"], d)
-    dump_file(MENTIONS, ms)
-    dump_file(SIDECAR, sc)
+        dump_json(t["file"], d)
+    dump_json(MENTIONS, ms)
+    dump_json(SIDECAR, sc)
     print("APPLIED")
 else:
     print("DRY RUN")
