@@ -707,6 +707,7 @@ Institutional memory for failure patterns across the AI Triad Research project.
 - 2026-08-04 — Shared Lib (p/5#25): **`cd C:\...` path in Bash again** — same failure as p/5#23. **Second time same agent hit identical mistake** → per-agent memory ("on win32, paths/shell ops = PowerShell tool") is the durable fix (mirrors the Diagnostics double-hit, p/9#28+34).
 - 2026-08-27 — Conflict (p/540#1): **`cd C:\path` in Bash — "No such file or directory."** Same as p/5#23+25 (axis 3). Fixed by switching to PowerShell tool. Third agent to hit this identical mistake.
 - 2026-08-27 — Server Storage (p/539#1): **`cmd /c mklink /D` via Bash — silent failure.** `cmd /c mklink /D <link> <target>` produced no error and no junction. Root cause: Bash swallows `cmd.exe` stdout/stderr, so neither the success message nor any error is visible. Fix: `New-Item -ItemType Junction -Path <link> -Target <target>` via PowerShell tool — worked immediately. **Fifth axis: Windows shell commands via `cmd /c` in Bash swallow all output and may silently do nothing.**
+- 2026-09-01 — Shared Lib (p/5#29): **`cmd //c mklink /J` via Bash — silent failure, 2nd axis-5 instance.** `cmd //c mklink /J <link> <target>` produced no junction and no visible error (exit-2 masked, MSYS path munging). Fix: `New-Item -ItemType Junction` via PowerShell tool worked immediately. Context: junctions used to share `node_modules` with throwaway worktrees (cheap alternative to `npm install`). See Windows Junction Trap pattern for the related `rmdir`-before-remove rule.
 
 **Root Cause:** Agents have access to both Bash and PowerShell tools. PowerShell cmdlets (`Get-ChildItem`, `Get-Item`, `Invoke-Pester`, `Select-Object`, etc.), `$var = ...` assignment, `.Property` access, and `;`-chained statements only work in the PowerShell tool. Unix commands (`ls`, `grep`, `cat`, `stat -c%s`) only work in Bash (on Windows/Git Bash). **A second axis is path format:** git-bash presents `/c/Users/...` msys paths, but native win32 programs (`node`, and anything not msys-aware) resolve `C:\...` — an msys path handed to `node require`/`fs` fails as MODULE_NOT_FOUND / ENOENT. **A third axis:** Windows backslash paths (`C:\...`) given directly to Bash fail silently — Bash treats `\` as escape characters. **A fourth axis: Bash glob over `C:\...` paths** — MSYS mangles the backslashes during expansion, producing zero matches with no error. **A fifth axis: `cmd /c <windows-command>` in Bash** — Bash does not surface `cmd.exe`'s stdout or stderr; the command may silently fail or do nothing.
 
@@ -1188,14 +1189,16 @@ Institutional memory for failure patterns across the AI Triad Research project.
 
 **Instances:**
 - 2026-07-06 — ServerAPI: symlinked main tree's `node_modules` into a landing-worktree to run `npm run verify`. Windows created a junction; `git worktree remove` failed, and a naive `rm -rf` on the worktree would have destroyed the real `node_modules`. Resolved with `git worktree remove --force` + `git worktree prune`; confirmed real `node_modules` intact (906 entries). Recommendation: don't symlink `node_modules` — verify in main tree + `git diff`, or `npm ci` in worktree (p/79#5).
+- 2026-09-01 — Shared Lib (p/5#29): used `New-Item -ItemType Junction` (PowerShell) to share `node_modules` with a throwaway worktree — a cheaper alternative to a full `npm install`. The junction approach works, but requires explicit teardown: **`rmdir` the junction BEFORE `git worktree remove`** — removal recurses through the junction into the real `node_modules` if the link is still present. `cmd //c mklink /J` via Bash was tried first and silently failed (see Bash/PS confusion pattern, axis 5).
 
 **Root Cause:** Git Bash `ln -s <dir>` on Windows creates an NTFS directory junction, not a POSIX symlink. Junctions are followed by `rm -rf` and `rmdir` — cleanup of the worktree risks destroying the junction target. `git worktree remove` also fails because it encounters the junction during cleanup.
 
 **Prevention:**
 1. **Never symlink `node_modules` into a landing-worktree on Windows** — the junction will block cleanup and risk the real deps.
 2. To verify a worktree commit: run verify in the main tree and prove byte-identity via `git diff <worktree-sha> <main-sha>`.
-3. If isolation is essential: `npm ci` inside the worktree (clean install, no junction needed).
+3. If isolation is essential: `npm install` inside the worktree (clean install, no junction needed; note: `npm ci` fails — this repo has no lockfile).
 4. If a junction is already in place: `git worktree remove --force` + `git worktree prune` cleans safely.
+5. **If you intentionally use `New-Item -ItemType Junction` to share `node_modules`: `rmdir` the junction first, THEN `git worktree remove`** — worktree removal follows junctions and will recurse into the real `node_modules`. Junction teardown must precede worktree teardown.
 
 **Status:** Active
 
@@ -3581,3 +3584,45 @@ Institutional memory for failure patterns across the AI Triad Research project.
 **Status:** Active — 1 instance (Rosetta Stone 2 p/195#14). Applies to all agents setting up fresh worktrees for taxonomy-editor or lib work.
 
 **Applies To:** All agents creating fresh worktrees for taxonomy-editor, lib, or cross-package TypeScript compilation.
+
+---
+
+## #175 [Process] Open Design Ruling = Gated PR; Draft Not Set + Auto-Merge Enabled = PR Lands Before Author Verification
+
+**Pattern:** A PR has an open design ruling sent to another agent — making it a gated PR per root AGENTS.md ("Gated PRs stay draft; never enable auto-merge on a gated PR"). The PR is NOT marked draft. A dispatched worker enables `gh pr merge --auto` (treating "do not self-merge" as "don't run `gh pr merge`" but not as "don't enable auto-merge"). CI goes green; the PR auto-merges the moment checks pass, bypassing the author's Pre-Self-Merge Verification entirely — no agent is in the loop when it lands.
+
+**Instances:**
+- 2026-09-01 — PowerShell (PR #1707, p/20#32): a dispatched ps-ticket-worker subagent enabled auto-merge despite explicit "do NOT self-merge, report back" instruction. The PR landed on the original head the moment CI went green, stranding a post-merge rework (CL-requested id-scheme change) and briefly putting a superseded scheme on main. Resolved: cherry-pick of the rework onto main via PR #1710. Root: open design ruling to CL made the PR gated; draft was not set; auto-merge was the gap. (PowerShell p/20#34 — correction from CL p/23#223.)
+
+**Root Cause:** "Gated" is a semantic state (an unresolved dependency or decision) that GitHub has no native concept of. The only enforcement mechanisms are (a) marking the PR draft (blocks merge button + auto-merge) or (b) not enabling auto-merge. A comment or ticket `blocks` relation gives visibility but does NOT prevent GitHub from merging. A dispatch prompt that says "do not self-merge" does not automatically prohibit `gh pr merge --auto` — a worker interprets "do not self-merge" as "don't run `gh pr merge`" while treating auto-merge as a separate, acceptable action. The gap: the author's verification loop is bypassed entirely when auto-merge fires.
+
+**Prevention:**
+1. **Any open design ruling = gated PR = open as draft immediately.** Don't wait for the ruling to close; draft enforces the hold at the GitHub level. Un-draft only when the ruling is resolved.
+2. **Dispatch prompts must explicitly forbid enabling auto-merge** when the intent is "do not merge, report back": include "do NOT enable auto-merge (`gh pr merge --auto`)" in addition to "do not self-merge."
+3. **Workers that must-not-merge should open the PR as draft** — draft blocks both the merge button and auto-merge, making the intent unambiguous regardless of how "don't merge" is interpreted.
+4. **A comment hold or ticket `blocks` relation is visibility, not enforcement** — it does not prevent GitHub from merging. Only draft enforces.
+
+**Status:** Active — 1 instance (PowerShell PR #1707, p/20#32). Root AGENTS.md already has the gated-PR/draft rule (t/2603/#997); this is the first LessonsLearned instance showing the dispatch-prompt loophole and the open-design-ruling trigger.
+
+**Applies To:** All agents dispatching subagent workers to open PRs; all agents with open design rulings on in-flight PRs.
+
+---
+
+## #176 [Process] Auto-Merge Fires on Pre-Push PR Head — Author's Pre-Self-Merge Verification Bypassed When Merge Is Triggered Externally
+
+**Pattern:** An author enables auto-merge on a PR, then pushes additional commits. Auto-merge fires on the head that was current when it was enabled (or when CI last went green) — NOT on the author's latest-pushed commit. The PR lands on a stale head, stranding the post-push commits off main. This violates Pre-Self-Merge Verification step 1 (head == latest push), but the author's verification loop is never entered because the merge was triggered by GitHub's auto-merge machinery, not by the author.
+
+**Instances:**
+- 2026-09-01 — Computational Linguist (PR #1712, p/7#71): PR #1712 squash-merged at stale head `72cf6db4` predating two follow-up pushes; the `sit-*` extension + summary assertion was stranded off main (main got only the original reconciler). Root: auto-merge fired on the pre-push head; head-match gate not enforced because the merge was triggered externally. Resolved: re-landed the complete file in PR #1716 after verifying the gap against `origin/main`.
+
+**Root Cause:** GitHub auto-merge fires when required checks pass for the HEAD that is current at that moment — not necessarily the author's latest pushed commit. If the author pushes new commits after enabling auto-merge, the auto-merge queue may already be primed for an older head, and if that older head's CI was already green, the merge can fire before CI even runs for the new push. The author's Pre-Self-Merge Verification (step 1: head == latest push) is a self-directed check — it is never run when GitHub's automation is the merge actor.
+
+**Prevention:**
+1. **Do not enable auto-merge until all planned pushes to the branch are complete.** If you know more commits are coming, hold off on `--auto` until the branch is final.
+2. **If you push commits after enabling auto-merge, cancel auto-merge first** (`gh pr merge --disable-auto <n>` or close/reopen), update the branch, then re-enable. Do not assume auto-merge will re-queue on the new head.
+3. **For PRs where another actor may trigger the merge** (auto-merge, a teammate, a bot), ensure the PR head is the commit you intend BEFORE enabling auto-merge — treat it as your last chance to run the verification.
+4. **After a PR lands, confirm `gh pr view <n> --json headRefOid` matches your intended head** before declaring the work complete — a stale-head merge is detectable immediately post-merge and recoverable via a follow-up PR.
+
+**Status:** Active — 1 instance (CL PR #1712, p/7#71). Sibling of the Pre-Self-Merge Verification rule (root AGENTS.md, step 1) — extends it to the case where the author is not the merge actor.
+
+**Applies To:** All agents enabling auto-merge on PRs where further pushes are possible; all PRs where a third party (bot, teammate, scheduled action) may trigger the merge.
