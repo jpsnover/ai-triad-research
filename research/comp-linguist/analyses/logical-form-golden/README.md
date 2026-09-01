@@ -1,5 +1,7 @@
 # logical_form Golden Set (t/3126 D3a) — with input-substrate findings
 
+**Status (post-#1778 review):** `about[]` ADOPTED as a first-class schema field (TL p/571; conditions (a)–(e) in `logical-form-schema.md`); `args[].sort` pinned to the register `DolceCategory` set (5 values, `lib/entities/types.ts`); prompt updated (emit `about[]` + meta-descriptive guard + factual→`point`/`verbatim`). The "reshape recommendations" below are now IMPLEMENTED in the schema/prompt — retained as the rationale of record.
+
 Reference set + scorer for the `logical_form` formalization pass (schema: `docs/logical-form-schema.md`;
 prompt: `scripts/AITriad/Prompts/logical-form-formalization.prompt`). Empirically grounded in the live
 summaries corpus per t/2294 — every observed row is a real claim with its real `entity_refs`; the

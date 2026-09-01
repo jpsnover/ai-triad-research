@@ -8,19 +8,51 @@
       "category": "Beliefs",
       "camp": "skp",
       "proposition": "Massive capital requirements for AI infrastructure consolidate control among a small number of hardware-owning firms, creating proprietary bottlenecks.",
-      "entity_refs": [{"ref": "ent-048", "surface": "CHIPS Act", "match_level": "exact"}],
+      "entity_refs": [
+        {
+          "ref": "ent-048",
+          "surface": "CHIPS Act",
+          "match_level": "exact"
+        }
+      ],
       "reference": {
         "predicate": "consolidate",
         "event_ref": "e1",
         "args": [
-          {"role": "agent",  "ref": "lit:\"massive capital requirements for AI infrastructure\"", "sort": "abstract", "match_level": "exact"},
-          {"role": "patient","ref": "lit:\"control over AI infrastructure\"", "sort": "abstract", "match_level": "exact"},
-          {"role": "beneficiary","ref": "lit:\"a small number of hardware-owning firms\"", "sort": "agentive-social-object", "match_level": "exact"}
+          {
+            "role": "agent",
+            "ref": "lit:\"massive capital requirements for AI infrastructure\"",
+            "sort": "non-agentive-social-object",
+            "match_level": "exact"
+          },
+          {
+            "role": "patient",
+            "ref": "lit:\"control over AI infrastructure\"",
+            "sort": "non-agentive-social-object",
+            "match_level": "exact"
+          },
+          {
+            "role": "beneficiary",
+            "ref": "lit:\"a small number of hardware-owning firms\"",
+            "sort": "agentive-physical-object",
+            "match_level": "exact"
+          }
         ],
         "polarity": "positive",
-        "modality": {"holder": "camp:skp", "attitude": "belief"},
-        "temporal": {"type": "unspecified", "value": null},
-        "about": [{"ref": "ent-048", "match_level": "exact"}],
+        "modality": {
+          "holder": "camp:skp",
+          "attitude": "belief"
+        },
+        "temporal": {
+          "type": "unspecified",
+          "value": null
+        },
+        "about": [
+          {
+            "ref": "ent-048",
+            "match_level": "exact"
+          }
+        ],
         "formalization_confidence": 0.7,
         "status": "proposed",
         "_ref_note": "CHIPS Act is TOPICAL, not a participant -> about[], not args. No resolved entity is a core arg; participants are lit:. Illustrates the 88%-single-topical-ref reality."
@@ -33,20 +65,57 @@
       "category": "Beliefs",
       "camp": "skp",
       "proposition": "Generative AI developers systematically exploit unauthorized copyrighted works for model training, bypassing creator consent.",
-      "entity_refs": [{"ref": "ent-034", "surface": "Claude", "match_level": "exact"}],
+      "entity_refs": [
+        {
+          "ref": "ent-034",
+          "surface": "Claude",
+          "match_level": "exact"
+        }
+      ],
       "reference": {
         "predicate": "exploit",
         "event_ref": "e1",
         "args": [
-          {"role": "agent",  "ref": "lit:\"generative AI developers\"", "sort": "agentive-social-object", "match_level": "exact"},
-          {"role": "patient","ref": "lit:\"unauthorized copyrighted works\"", "sort": "non-agentive-social-object", "match_level": "exact"},
-          {"role": "goal",   "ref": "lit:\"model training\"", "sort": "perdurant", "match_level": "exact"},
-          {"role": "manner", "ref": "lit:\"bypassing creator consent\"", "sort": "perdurant", "match_level": "exact"}
+          {
+            "role": "agent",
+            "ref": "lit:\"generative AI developers\"",
+            "sort": "agentive-physical-object",
+            "match_level": "exact"
+          },
+          {
+            "role": "patient",
+            "ref": "lit:\"unauthorized copyrighted works\"",
+            "sort": "non-agentive-functional-artifact",
+            "match_level": "exact"
+          },
+          {
+            "role": "goal",
+            "ref": "lit:\"model training\"",
+            "sort": "perdurant",
+            "match_level": "exact"
+          },
+          {
+            "role": "manner",
+            "ref": "lit:\"bypassing creator consent\"",
+            "sort": "perdurant",
+            "match_level": "exact"
+          }
         ],
         "polarity": "positive",
-        "modality": {"holder": "camp:skp", "attitude": "belief"},
-        "temporal": {"type": "unspecified", "value": null},
-        "about": [{"ref": "ent-034", "match_level": "exact"}],
+        "modality": {
+          "holder": "camp:skp",
+          "attitude": "belief"
+        },
+        "temporal": {
+          "type": "unspecified",
+          "value": null
+        },
+        "about": [
+          {
+            "ref": "ent-034",
+            "match_level": "exact"
+          }
+        ],
         "formalization_confidence": 0.75,
         "status": "proposed",
         "_ref_note": "Claude is an instance of the developers' output -> topical about[], not an arg."
@@ -59,18 +128,45 @@
       "category": "Beliefs",
       "camp": "saf",
       "proposition": "Popular interactive toys fail to securely encrypt data traffic and silently collect children's information.",
-      "entity_refs": [{"ref": "ent-071", "surface": "General Data Protection Regulation", "match_level": "exact"}],
+      "entity_refs": [
+        {
+          "ref": "ent-071",
+          "surface": "General Data Protection Regulation",
+          "match_level": "exact"
+        }
+      ],
       "reference": {
         "predicate": "collect",
         "event_ref": "e1",
         "args": [
-          {"role": "agent",  "ref": "lit:\"popular interactive toys\"", "sort": "physical-object", "match_level": "exact"},
-          {"role": "patient","ref": "lit:\"children's information\"", "sort": "abstract", "match_level": "exact"}
+          {
+            "role": "agent",
+            "ref": "lit:\"popular interactive toys\"",
+            "sort": "non-agentive-functional-artifact",
+            "match_level": "exact"
+          },
+          {
+            "role": "patient",
+            "ref": "lit:\"children's information\"",
+            "sort": "non-agentive-social-object",
+            "match_level": "exact"
+          }
         ],
         "polarity": "positive",
-        "modality": {"holder": "camp:saf", "attitude": "belief"},
-        "temporal": {"type": "unspecified", "value": null},
-        "about": [{"ref": "ent-071", "match_level": "exact"}],
+        "modality": {
+          "holder": "camp:saf",
+          "attitude": "belief"
+        },
+        "temporal": {
+          "type": "unspecified",
+          "value": null
+        },
+        "about": [
+          {
+            "ref": "ent-071",
+            "match_level": "exact"
+          }
+        ],
         "formalization_confidence": 0.55,
         "status": "proposed",
         "_ref_note": "COMPOUND proposition (fail-to-encrypt AND collect). Reference picks the primary event (collect) per the single-predicate rule; low confidence flags the compression. GDPR is topical -> about[]. A candidate that instead formalizes 'fail_to_encrypt' is not wrong on predicate alone — scored as a near-miss."
@@ -83,17 +179,44 @@
       "category": "Beliefs",
       "camp": "acc",
       "proposition": "Anthropic released Claude.",
-      "entity_refs": [{"ref": "ent-057b", "surface": "Anthropic", "match_level": "exact"}, {"ref": "ent-034", "surface": "Claude", "match_level": "exact"}],
+      "entity_refs": [
+        {
+          "ref": "ent-057b",
+          "surface": "Anthropic",
+          "match_level": "exact"
+        },
+        {
+          "ref": "ent-034",
+          "surface": "Claude",
+          "match_level": "exact"
+        }
+      ],
       "reference": {
         "predicate": "release",
         "event_ref": "e1",
         "args": [
-          {"role": "agent",  "ref": "ent-057b", "sort": "agentive-social-object", "match_level": "exact"},
-          {"role": "patient","ref": "ent-034", "sort": "non-agentive-social-object", "match_level": "exact"}
+          {
+            "role": "agent",
+            "ref": "ent-057b",
+            "sort": "agentive-physical-object",
+            "match_level": "exact"
+          },
+          {
+            "role": "patient",
+            "ref": "ent-034",
+            "sort": "non-agentive-functional-artifact",
+            "match_level": "exact"
+          }
         ],
         "polarity": "positive",
-        "modality": {"holder": "camp:acc", "attitude": "belief"},
-        "temporal": {"type": "unspecified", "value": null},
+        "modality": {
+          "holder": "camp:acc",
+          "attitude": "belief"
+        },
+        "temporal": {
+          "type": "unspecified",
+          "value": null
+        },
         "about": [],
         "formalization_confidence": 0.95,
         "status": "proposed"
@@ -106,17 +229,36 @@
       "category": "factual",
       "camp": "",
       "proposition": "As of 2024, compute thresholds did not reliably predict model risk.",
-      "entity_refs": [{"ref": "ent-090", "surface": "large language models", "match_level": "superclass"}],
+      "entity_refs": [
+        {
+          "ref": "ent-090",
+          "surface": "large language models",
+          "match_level": "superclass"
+        }
+      ],
       "reference": {
         "predicate": "predict",
         "event_ref": "e1",
         "args": [
-          {"role": "agent", "ref": "lit:\"compute thresholds\"", "sort": "abstract", "match_level": "exact"},
-          {"role": "patient","ref": "ent-090", "sort": "non-agentive-social-object", "match_level": "superclass"}
+          {
+            "role": "agent",
+            "ref": "lit:\"compute thresholds\"",
+            "sort": "non-agentive-social-object",
+            "match_level": "exact"
+          },
+          {
+            "role": "patient",
+            "ref": "ent-090",
+            "sort": "non-agentive-functional-artifact",
+            "match_level": "superclass"
+          }
         ],
         "polarity": "negative",
         "modality": null,
-        "temporal": {"type": "at", "value": "2024"},
+        "temporal": {
+          "type": "at",
+          "value": "2024"
+        },
         "about": [],
         "formalization_confidence": 0.8,
         "status": "proposed",

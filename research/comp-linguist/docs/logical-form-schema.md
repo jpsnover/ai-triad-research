@@ -3,7 +3,7 @@
 **Ticket:** t/3126 (T6). **Depends on:** t/3124 (entity_refs resolution, Done).
 **Design of record:** `claims-entity-fol-recommendations.md` §7.2 (Phase 1), §7.3 (reification), §7.4 (ownership).
 **Owner:** CL (schema + prompt); PowerShell implements the formalization pass. Mandatory-review surface.
-**Status:** DRAFT — deliverable 1 of 3 (schema → prompt → golden set). Not yet landed.
+**Status:** Under review — PR #1778 (schema + prompt + golden seed). `about[]` adopted (TL p/571 / t/3126#6).
 
 ## Purpose
 
@@ -29,9 +29,10 @@ live claim shape (summaries, post-t/3124):
   ... , logical_form { … } }        ← this spec
 ```
 
-The formalization pass reads `canonical_proposition` (register-normalized) as the proposition to
-formalize, `category` for the attitude, the camp for the holder, and `entity_refs[]` for the
-argument bindings. It never re-extracts entities.
+The formalization pass reads the proposition from `canonical_proposition` (register-normalized) for
+BDI claims, and from `point`/`verbatim` for `factual_claims` (whose `canonical_proposition` is empty
+for 100% of them — D3a); `category` for the attitude, the camp for the holder, and `entity_refs[]`
+for both the argument bindings and the `about[]` projection. It never re-extracts entities.
 
 ## Schema
 
@@ -40,12 +41,13 @@ argument bindings. It never re-extracts entities.
   "predicate": "acquire",
   "event_ref": "e1",
   "args": [
-    {"role": "agent",   "ref": "ent-034", "sort": "agentive-social-object", "match_level": "exact"},
-    {"role": "patient", "ref": "ent-055", "sort": "agentive-social-object", "match_level": "exact"}
+    {"role": "agent",   "ref": "ent-034", "sort": "agentive-physical-object", "match_level": "exact"},
+    {"role": "patient", "ref": "ent-055", "sort": "non-agentive-functional-artifact", "match_level": "exact"}
   ],
   "polarity": "positive",
   "modality": {"holder": "camp:acc", "attitude": "belief"},
   "temporal": {"type": "at", "value": "2025-02"},
+  "about": [{"ref": "ent-055", "match_level": "exact"}],
   "formalization_confidence": 0.85,
   "status": "proposed"
 }
@@ -60,8 +62,9 @@ argument bindings. It never re-extracts entities.
 | `args[]` | array | Participants in the event. |
 | `args[].role` | enum | Thematic role: `agent \| patient \| theme \| recipient \| instrument \| location \| source \| goal \| beneficiary \| cause \| manner`. (Neo-Davidsonian participation predicates; extend only with CL sign-off + register note.) |
 | `args[].ref` | string | **MUST be an `ent-*` id drawn from this claim's `entity_refs[].ref`** — never a re-invented id (t/2294). If the participant is not a registered entity, use a literal `lit:"…"` or an event var; record `sort` regardless. |
-| `args[].sort` | enum | The DOLCE-lite sort — **bound to the entity register's `dolce_category` closed set** (e.g. `agentive-social-object`, `non-agentive-social-object`, `perdurant`, `abstract`, `physical-object`, …). ⚠ PIN this enum to the live `dolce_category` values in the entity register before landing; do not hardcode a guessed list. Copied from the referenced entity's `dolce_category`, or CL-assigned for `lit:`/event args. |
+| `args[].sort` | enum | The entity's DOLCE-lite sort, **pinned to the register's `DolceCategory` closed set** (`lib/entities/types.ts`): `agentive-physical-object \| non-agentive-functional-artifact \| perdurant \| normative-description \| non-agentive-social-object`. Copied verbatim from the referenced entity's `dolce_category`; for a `lit:`/event arg, CL-assigned from the same 5-value set. Copy-not-judge (rule 2). |
 | `args[].match_level` | enum | Copied verbatim from the entity_ref: `exact \| instance_of \| subclass \| superclass \| related`. Load-bearing for the prover — a claim about a superclass matched to an instance is a different assertion (§6, R4). |
+| `about[]` | array | **Topical grounding (additive, optional):** `[{ref, match_level}]` — the `ent-*` ids the claim is *about* (its topical subject), as distinct from `args[]` (entities filling a formal predicate role). Same ids as the claim's `entity_refs[]` (a logical-form projection, **no new resolution**). Governed by the `about[]` conditions below. |
 | `polarity` | enum | `positive \| negative`. Negation of the core predication (`¬acquire(e1)`), not attitude negation. |
 | `modality` | object \| null | **`null` for `factual_claims`** (unattributed fact). Present for BDI/POV claims. |
 | `modality.holder` | enum | `camp:acc \| camp:saf \| camp:skp` (the attributing camp). Derived from the claim's POV/`stance`. |
@@ -103,6 +106,25 @@ holds(camp_acc, belief, p1) ∧ about(p1, ent_055) ∧ acquire(e1) ∧ agent(e1,
    formalization bug; an explicit `unspecified` is a valid reading (the same "timeout is a result"
    discipline §7.2 Phase 2 applies to the prover).
 
+5. **`about[]` is topical projection, not a dumping bucket.** Populate `about[]` with the `ent-*` ids
+   the claim is *about*, reusing the claim's already-resolved `entity_refs[]` ids (no new resolution).
+
+### `about[]` conditions (TL adopt + CL review, p/571 / t/3126#6)
+
+- **(a) Additive + optional.** Pure §7.2 delta; existing consumers ignore it, no migration.
+- **(b) Crisp boundary.** `about[]` = the topical subject the claim is *about*; `args[]` = entities
+  filling a formal predicate-argument role. A ref may appear in both, or in `about[]` only. It is
+  **never a "couldn't-formalize" dumping bucket.**
+- **(c) Non-substitute.** A cleanly-formalizable claim still populates `args[]`; `about[]` is never an
+  excuse to skip formalization.
+- **(d) Earns its place on the non-formalizable majority.** With 54% of claims carrying an empty
+  `canonical_proposition` (100% of factual) and 71% of BDI props meta-descriptive (D3a), `about[]`
+  MUST be populated there — that is its whole value. Empty-there = not earning the field.
+- **(e) Reconciles with the `summary:*` entity_mention layer (t/3160).** `about[]` is the *logical-form
+  projection of the claim's already-resolved `entity_refs[]`* — same `ent-` ids, no new resolution —
+  so it does NOT double-ground what the mention-index layer captures. Different layer (LF topical
+  grounding vs mention occurrences), same identities.
+
 ## Calibration + provenance (deliverable 3 preview)
 
 - **Metric:** `formalization_accuracy` — golden-set agreement between the pass's `logical_form` and the
@@ -117,9 +139,10 @@ holds(camp_acc, belief, p1) ∧ about(p1, ent_055) ∧ acquire(e1) ∧ agent(e1,
   measured, then annotated with the figure. `formalization_confidence` is a pass self-rating
   (stipulated) until correlated with golden-set correctness.
 
-## Open items before landing (review checklist)
+## Open items (post-review)
 
-- [ ] Pin the `args[].sort` enum to the live entity-register `dolce_category` values (not the guessed list above).
-- [ ] Confirm with PowerShell the persistence slot (derived field on the summaries claim objects; same pass-slot family as `Invoke-RetrievalConfidencePass`).
-- [ ] Confirm `event_ref` scope (per-claim vs per-summary) with the t/3127 TPTP generator's expectations.
-- [ ] TL loop if the `holds/3` reified layer implies any cross-role interface beyond the approved design doc.
+- [x] `args[].sort` enum pinned to the live register `DolceCategory` set (`lib/entities/types.ts`) — the 5 values above.
+- [x] `about[]` adopted as a first-class field with conditions (a)–(e) (TL p/571 / t/3126#6; CL review #1778 issue 2).
+- [ ] **PowerShell contract** (handed off): persistence slot (derived field on the claim objects, same pass-slot family as `Invoke-RetrievalConfidencePass`); `{{ENTITY_REFS}}` must join `dolce_category`→`sort`; the factual arm reads `point`/`verbatim`.
+- [ ] `event_ref` scope (per-claim vs per-summary) — reconcile with the t/3127 TPTP generator.
+- [ ] `holds/3` cross-role interface question deferred to t/3127 (TPTP export), per CL review.

@@ -14,6 +14,8 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ROLES = {"agent","patient","theme","recipient","instrument","location","source","goal","beneficiary","cause","manner"}
 ATTITUDES = {"belief","desire","intention"}
 MATCH_LEVELS = {"exact","instance_of","subclass","superclass","related"}
+DOLCE_SORTS = {"agentive-physical-object","non-agentive-functional-artifact","perdurant",
+               "normative-description","non-agentive-social-object"}  # pinned to lib/entities/types.ts DolceCategory
 TEMPORAL_TYPES = {"at","before","after","during","unspecified"}
 STATUSES = {"proposed","accepted","rejected"}
 
@@ -27,6 +29,7 @@ def schema_errors(lf):
     for i, a in enumerate(lf.get("args") or []):
         if a.get("role") not in ROLES: e.append(f"args[{i}].role invalid: {a.get('role')}")
         if not a.get("ref"): e.append(f"args[{i}].ref missing")
+        if a.get("sort") not in DOLCE_SORTS: e.append(f"args[{i}].sort invalid (not a DolceCategory): {a.get('sort')}")
         if a.get("match_level") not in MATCH_LEVELS: e.append(f"args[{i}].match_level invalid: {a.get('match_level')}")
     if lf.get("polarity") not in {"positive","negative"}: e.append(f"polarity invalid: {lf.get('polarity')}")
     m = lf.get("modality", "MISSING")
