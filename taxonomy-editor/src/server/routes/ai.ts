@@ -217,7 +217,7 @@ function applyTokenBudgetHeaders(res: http.ServerResponse, result: Awaited<Retur
  *  route-level paid-overflow safety net: on a free-tier 429 with the whole free pool
  *  exhausted, retry ONCE with the admin paid key after a 3s throttle (the paid key never
  *  enters the free rotation). No-op until GEMINI_PAID_KEY is set (t/3143). */
-async function generateWithSearch(
+export async function generateWithSearch(
   prompt: string,
   effectiveModel: string | undefined,
   explicitKey: string | string[] | undefined,
@@ -240,9 +240,12 @@ async function generateWithSearch(
   } catch (searchErr) {
     const paidKey = (ai.is429Error(searchErr) && isFree) ? await getPaidGeminiFallbackKey() : null;
     if (!paidKey) throw searchErr; // non-free, non-429, or no paid key → outer catch maps to 429
+    // t/3175 (TL GV): WARN, not info — free-pool exhaustion is the second-front signal we
+    // want visible (Fallback-Path Logging rule, docs/error-handling.md); at info it's below
+    // the detectable threshold. Records THAT the paid fallback fired and WHY (free 429).
     getGlobalRecorder()?.record({
-      type: 'ai.fallback', component: 'ai-generate', level: 'info',
-      message: 'Free-tier search keys exhausted — waiting 3s before paid fallback',
+      type: 'ai.fallback', component: 'ai-generate', level: 'warn',
+      message: 'Free-tier search keys exhausted (429) — falling back to paid key after 3s throttle',
       data: { model: requestModel, backend, fallback: 'paid', delayMs: 3000, search: true, freeKeyCount: proxyTiers.parseFreeTierKeys(process.env.FREE_TIER_GEMINI_KEY).length },
     });
     await new Promise(r => setTimeout(r, 3000));
