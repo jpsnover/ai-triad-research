@@ -20,11 +20,10 @@ function Update-EntityMentionIndex {
         populated statuses are recorded in the envelope's `indexed_status`, so a curated
         index is distinguishable from a preview by inspecting the file.
 
-        Container sources (the curated batch tier — facts + POV, design §5):
+        Container sources — alias-first mention indexing over NON-NODE content text
+        (source-evidence facts + summary content):
           - Source-Evidence-Index facts: container id `sei:<sei_key>`, text = the entry's
             `facts[].claim` values joined by newline in file order.
-          - POV / situation nodes: container id `node:<node_id>`, text = `label`, then
-            `description`, then `plain_description` (present fields only), newline-separated.
           - Summary key points (t/3122, claims-entity-fol-recommendations.md §4/R2.2 T2):
             container id `summary:<doc_id>#<pov>-kp-<n>` where <pov> ∈ acc/saf/skp, text = the
             key point's `point` field. `<n>` is a 0-based index reset PER POV array
@@ -37,6 +36,15 @@ function Update-EntityMentionIndex {
             `summary:<doc_id>#fc-<n>`, text = the `factual_claims[n].claim` field, `<n>` the
             0-based index into that array.
         Live statement-side (debate/chat, `<debate_id>#<entry_id>`) is Phase 2b — NOT here.
+
+        DISJOINT-SCOPE BOUNDARY (t/3160 G7, TL-approved contract t/3160#2-#3): this cmdlet
+        owns ONLY {sei:*, summary:*} — alias-first mention indexing over source-evidence and
+        summary content text. `node:*` mentions are NODE-GROUNDING (resolved from node text
+        alongside concept_refs / entity_refs / used_by_nodes) and are owned by CL's hash-gated
+        Python reconciler (research/comp-linguist/scripts/reconcile_grounding.py), not here.
+        This cmdlet NEVER emits a `node:*` key; the two tools write disjoint container sets
+        (asserted in the test suite). node:* was moved out here after the reconciler shipped
+        (#1712) and covered pov+sit nodes — the sequenced no-orphan handoff.
 
         Per-container `text_sha256` (lowercase hex over the exact text's UTF-8 bytes) is the
         idempotency + supersession guard: re-running on unchanged input is a byte-stable
@@ -55,10 +63,6 @@ function Update-EntityMentionIndex {
     .PARAMETER SourceEvidenceIndexPath
         Override source_evidence_index.json path. Defaults to
         Join-Path (Get-TaxonomyDir) 'source_evidence_index.json'. Absent file = skipped.
-    .PARAMETER PovPath
-        Override the POV/situation node files to scan. Defaults to the four canonical files
-        under Get-TaxonomyDir (accelerationist/safetyist/skeptic/situations). Pass @() to
-        skip POV containers entirely. Absent files are skipped (non-fatal).
     .PARAMETER SummariesPath
         Override the summary JSON files to scan for `summary:<doc_id>#kp-<n>` /
         `#fc-<n>` containers (t/3122). Defaults to every `*.json` file directly under
@@ -78,9 +82,7 @@ function Update-EntityMentionIndex {
     .EXAMPLE
         Update-EntityMentionIndex
     .EXAMPLE
-        Update-EntityMentionIndex -PovPath @()   # facts-only re-index
-    .EXAMPLE
-        Update-EntityMentionIndex -SummariesPath @()   # skip summary key-point/claim containers
+        Update-EntityMentionIndex -SummariesPath @()   # sei:*-only re-index (skip summary containers)
     .LINK
         Invoke-EntityExtraction
     .LINK
@@ -94,9 +96,6 @@ function Update-EntityMentionIndex {
 
         [Parameter()]
         [string]$SourceEvidenceIndexPath,
-
-        [Parameter()]
-        [string[]]$PovPath,
 
         [Parameter()]
         [string[]]$SummariesPath,
@@ -119,14 +118,6 @@ function Update-EntityMentionIndex {
     $EntPath = if ($EntitiesPath) { $EntitiesPath } else { Get-EntitiesFilePath }
     $SeiPath = if ($SourceEvidenceIndexPath) { $SourceEvidenceIndexPath } else { Join-Path (Get-TaxonomyDir) 'source_evidence_index.json' }
     $OutPath = if ($OutputPath) { $OutputPath } else { Get-EntityMentionsFilePath }
-    if ($PSBoundParameters.ContainsKey('PovPath')) {
-        $PovFiles = @($PovPath)
-    }
-    else {
-        $TaxDir = Get-TaxonomyDir
-        $PovFiles = @('accelerationist.json', 'safetyist.json', 'skeptic.json', 'situations.json') |
-            ForEach-Object { Join-Path $TaxDir $_ }
-    }
     if ($PSBoundParameters.ContainsKey('SummariesPath')) {
         $SummaryFiles = @($SummariesPath)
     }
@@ -240,25 +231,10 @@ function Update-EntityMentionIndex {
         Write-Verbose "SEI not found at $SeiPath; skipping fact containers."
     }
 
-    foreach ($povFile in $PovFiles) {
-        if (-not (Test-Path -LiteralPath $povFile)) {
-            Write-Verbose "POV file not found: $povFile; skipping."
-            continue
-        }
-        $pov = Get-Content -Raw -LiteralPath $povFile -Encoding utf8 | ConvertFrom-Json
-        if (-not $pov.PSObject.Properties['nodes']) { continue }
-        foreach ($node in @($pov.nodes)) {
-            if (-not $node.PSObject.Properties['id']) { continue }
-            # Pass field values in fixed order ($null for absent); the helper applies the
-            # omission rule (null/"" omitted, whitespace kept) and the "\n\n" join + NFC.
-            $vals = foreach ($field in @('label', 'description', 'plain_description')) {
-                if ($node.PSObject.Properties[$field]) { $node.$field } else { $null }
-            }
-            $text = Get-MentionContainerText -Kind 'node' -Fields @($vals)
-            if ($text -eq '') { continue }
-            $Containers["node:$($node.id)"] = $text
-        }
-    }
+    # node:* (POV/situation node grounding) is NO LONGER built here — it moved to CL's
+    # hash-gated Python reconciler (reconcile_grounding.py) under the t/3160 G7 disjoint-scope
+    # contract. This cmdlet owns {sei:*, summary:*} only; the disjoint-scope test asserts no
+    # node:* key is ever emitted.
 
     # --- Summary key points + factual claims (t/3122, §4/R2.2 T2) -------------------------
     foreach ($summaryFile in $SummaryFiles) {
@@ -409,39 +385,71 @@ function Update-EntityMentionIndex {
         }
     }
 
-    # --- Idempotency: unchanged iff same container key-set AND no container content changed.
-    # $AnyContentChanged already flags added/content-changed containers (fresh timestamp);
-    # a removed container drops its key, so the key-set check catches deletions.
-    $newKeys = @($NewContainers.Keys | Sort-Object)
+    # --- Disjoint-scope preservation (t/3160 G7) -----------------------------------------
+    # entity_mentions.json is a SHARED file. This cmdlet OWNS {sei:*, summary:*} and rewrites
+    # ONLY those. CL's Python reconciler owns node:* (node grounding) and read-merge-writes the
+    # SAME file, preserving our sei:*/summary:* (it asserts sei:* unchanged). We MUST symmetrically
+    # preserve THEIR containers: every existing container this cmdlet does NOT own is carried
+    # forward VERBATIM, so a mention-index rebuild never clobbers reconciler-owned node:* — the
+    # no-orphan half of the disjoint-scope contract. Without this, the full-file write below would
+    # DELETE node:* on every rebuild.
+    $IsOwnedKey = { param($k) ($k -like 'sei:*') -or ($k -like 'summary:*') }
+
+    # Defensive disjoint-scope guard: this cmdlet must never itself BUILD a non-owned key.
+    $ownBuiltForeign = @($NewContainers.Keys | Where-Object { -not (& $IsOwnedKey $_) })
+    if ($ownBuiltForeign.Count -gt 0) {
+        throw (New-ActionableError `
+                -Goal     'Rebuild the entity mention index within its {sei:*, summary:*} scope' `
+                -Problem  "Built container key(s) outside scope: $($ownBuiltForeign -join ', '). node:* grounding is owned by the CL reconciler (t/3160 G7)." `
+                -Location 'Update-EntityMentionIndex' `
+                -NextSteps @('Disjoint-scope regression — the cmdlet must only produce sei:*/summary:* keys. Check the container-collection blocks.'))
+    }
+
+    # Final map = preserved foreign (verbatim) + freshly-built own, key-sorted for a stable file.
+    $FinalContainers = [ordered]@{}
+    $PreservedForeign = 0
+    $mergedKeys = [System.Collections.Generic.List[string]]::new()
+    foreach ($k in $ExistingById.Keys) { if (-not (& $IsOwnedKey $k)) { $mergedKeys.Add([string]$k); $PreservedForeign++ } }
+    foreach ($k in $NewContainers.Keys) { $mergedKeys.Add([string]$k) }
+    foreach ($cid in ($mergedKeys | Sort-Object)) {
+        $FinalContainers[$cid] = if ($NewContainers.Contains($cid)) { $NewContainers[$cid] } else { $ExistingById[$cid] }
+    }
+
+    # --- Idempotency: unchanged iff same FINAL container key-set AND no OWN content changed.
+    # Preserved foreign containers are verbatim (never drive a rewrite); $AnyContentChanged tracks
+    # own-container content, and the key-set check catches own add/remove (a removed own container
+    # drops its key). Comparing the FINAL key-set (own + preserved) vs the existing file's keys.
+    $newKeys = @($FinalContainers.Keys | Sort-Object)
     $oldKeys = @($ExistingById.Keys | Sort-Object)
     $sameKeys = (($newKeys -join "`n") -eq ($oldKeys -join "`n"))
     $unchanged = $sameKeys -and (-not $AnyContentChanged)
     $lastModified = if ($unchanged -and $ExistingLastModified) { $ExistingLastModified } else { (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ") }
 
     $result = [PSCustomObject]@{
-        OutputPath     = $OutPath
-        ContainerCount = @($NewContainers.Keys).Count
-        MentionCount   = $TotalMentions
-        AliasCount     = @($AliasEntries).Count
-        IndexedStatus  = @($Status | Sort-Object -Unique)
-        Unchanged      = $unchanged
-        Written        = $false
+        OutputPath            = $OutPath
+        ContainerCount        = @($NewContainers.Keys).Count   # containers THIS cmdlet built (sei:*/summary:*)
+        PreservedForeignCount = $PreservedForeign              # node:* etc. carried forward untouched (t/3160 G7)
+        MentionCount          = $TotalMentions
+        AliasCount            = @($AliasEntries).Count
+        IndexedStatus         = @($Status | Sort-Object -Unique)
+        Unchanged             = $unchanged
+        Written               = $false
     }
 
     if ($unchanged -and -not $Force) {
-        Write-Verbose "entity_mentions.json unchanged ($($result.ContainerCount) containers); no write."
+        Write-Verbose "entity_mentions.json unchanged ($($result.ContainerCount) own + $PreservedForeign preserved containers); no write."
         return $result
     }
 
     $file = [ordered]@{
         _schema_version = '1.0.0'
-        _doc            = 'Derived artifact — rebuildable via Update-EntityMentionIndex (re-index, epic t/1890 design §7). Absence of a container means "no links yet", never an error.'
+        _doc            = 'Derived artifact — rebuildable via Update-EntityMentionIndex (re-index, epic t/1890 design §7). This tool owns {sei:*, summary:*}; node:* is owned by the CL grounding reconciler (t/3160 G7) and is preserved verbatim on rebuild. Absence of a container means "no links yet", never an error.'
         indexed_status  = @($Status | Sort-Object -Unique)
         last_modified   = $lastModified
-        containers      = $NewContainers
+        containers      = $FinalContainers
     }
 
-    if ($PSCmdlet.ShouldProcess($OutPath, "Write entity_mentions.json ($($result.ContainerCount) containers, $TotalMentions mentions)")) {
+    if ($PSCmdlet.ShouldProcess($OutPath, "Write entity_mentions.json ($($result.ContainerCount) own + $PreservedForeign preserved containers, $TotalMentions mentions)")) {
         $json = ConvertTo-Json $file -Depth 8
         Assert-DataWriteAllowed -Path $OutPath  # t/2902
         $tmp = "$OutPath.tmp"
