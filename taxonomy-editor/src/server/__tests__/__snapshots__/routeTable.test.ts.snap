@@ -220,6 +220,8 @@ exports[`server.ts route table (t/1295 — zero-behaviour-change guard) > ordere
   "POST /debug/events",
   "GET /api/preferences",
   "PUT /api/preferences",
+  "POST /internal/canary/loop-sampler/start",
+  "POST /internal/canary/loop-sampler/report",
 ]
 `;
 
@@ -427,6 +429,8 @@ exports[`server.ts route table (t/1295 — zero-behaviour-change guard) > route 
   "POST /api/upload-document",
   "POST /debug/events",
   "POST /focus-node",
+  "POST /internal/canary/loop-sampler/report",
+  "POST /internal/canary/loop-sampler/start",
   "PUT /api/admin/config",
   "PUT /api/admin/flags/:name",
   "PUT /api/admin/support/cases/:id/status",
