@@ -408,3 +408,13 @@ export function isEmbeddingWorkerOffloadEnabled(): boolean {
   const v = process.env.EMBEDDING_WORKER_OFFLOAD?.trim().toLowerCase();
   return v === '1' || v === 'true';
 }
+
+// t/3206 (t/3165 storm-replay canary): per-revision capability switch for the canary loop-lag
+// sampler + its two /internal/canary/loop-sampler routes. DEFAULT OFF — when off the routes 404 AND
+// the anon-exemption for /internal/canary/* does not exist (double-closed; zero prod exposure).
+// DevOps sets it on the isolated STAGING canary revision only (same mechanism as
+// EMBEDDING_WORKER_OFFLOAD). Read per-call so route/auth checks see the live value.
+export function isCanaryLoopSamplerEnabled(): boolean {
+  const v = process.env.CANARY_LOOP_SAMPLER?.trim().toLowerCase();
+  return v === '1' || v === 'true';
+}
