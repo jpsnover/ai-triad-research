@@ -97,10 +97,14 @@ export interface ConflictQbaf {
     edges: ConflictQbafEdge[];
   };
   resolution?: {
-    prevailing_claim: string;
-    prevailing_strength: number;
+    // Nullable on the undecided path (t/3151 Part 1, #1717): a QBAF with no clear winner
+    // produces null for both + verdict/reason. Consumers null-guard (ConflictDetail.tsx).
+    prevailing_claim: string | null;
+    prevailing_strength: number | null;
     margin: number;
     criterion: string;
+    verdict?: 'decided' | 'undecided';
+    reason?: string;
   };
   computed_at: string;
   algorithm: string;
