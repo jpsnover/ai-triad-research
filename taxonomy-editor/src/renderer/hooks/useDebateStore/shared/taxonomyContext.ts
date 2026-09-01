@@ -172,8 +172,23 @@ export function serializeNodeSourceMap(
 // phase is independently testable.
 type NodeEmbeddingMap = Record<string, { pov: string; vector: number[]; vectors?: number[][] }>;
 
-/** Embed all POV+CC nodes into a combined map, merging synthetic multi-vectors when available. */
-async function buildNodeEmbeddingMap(pov: string, allPovNodes: PovNode[], allCCNodes: SituationNode[]): Promise<{ nodeEmbeddings: NodeEmbeddingMap; allNodeIds: string[] }> {
+// Per-debate base-embedding memo (t/3165 blast-radius mitigation — DEFENSE-IN-DEPTH, not the root
+// fix). getRelevantTaxonomyContext runs once per speaker (acc/saf/skp); each call re-embeds
+// current-POV nodes + ALL situations, and the ~443 situations are identical across all 3 speakers,
+// so they recompute 3×. Each ~800-text recompute is what starves the event loop when prod's
+// embeddings.json is stale vs the taxonomy data (the real driver — DevOps-owned coverage/reseed).
+// Memoizing base vectors by node-id within a debate embeds the shared corpus ONCE, not per speaker.
+// Behaviour-equivalent: embeddings are a deterministic fn of text; the memo keys on node-id and is
+// scoped to the active debate (cleared when the debate id changes), so a node whose text changed
+// between debates is re-embedded.
+const corpusEmbedMemo = new Map<string, number[]>();
+let corpusEmbedMemoDebateId: string | null = null;
+
+/**
+ * Embed all POV+CC nodes into a combined map, merging synthetic multi-vectors when available.
+ * Exported for the t/3165 corpus-dedup regression test.
+ */
+export async function buildNodeEmbeddingMap(pov: string, allPovNodes: PovNode[], allCCNodes: SituationNode[]): Promise<{ nodeEmbeddings: NodeEmbeddingMap; allNodeIds: string[] }> {
   const allNodeTexts = [
     ...allPovNodes.map(n => `${n.label}: ${n.description}`),
     ...allCCNodes.map(n => `${n.label}: ${n.description}`),
@@ -182,10 +197,28 @@ async function buildNodeEmbeddingMap(pov: string, allPovNodes: PovNode[], allCCN
     ...allPovNodes.map(n => n.id),
     ...allCCNodes.map(n => n.id),
   ];
-  const { vectors: allVectors } = await api.computeEmbeddings(allNodeTexts, allNodeIds);
-  const baseNodeEmbeddings: Record<string, { pov: string; vector: number[] }> = {};
+
+  // Reset the memo when the active debate changes, then embed ONLY the ids not yet seen this
+  // debate (the shared situations are embedded on the first speaker, resolved for the rest).
+  const debateId = useDebateStore.getState().activeDebate?.id ?? null;
+  if (debateId !== corpusEmbedMemoDebateId) {
+    corpusEmbedMemo.clear();
+    corpusEmbedMemoDebateId = debateId;
+  }
+  const missIdx: number[] = [];
   for (let i = 0; i < allNodeIds.length; i++) {
-    baseNodeEmbeddings[allNodeIds[i]] = { pov, vector: allVectors[i] };
+    if (!corpusEmbedMemo.has(allNodeIds[i])) missIdx.push(i);
+  }
+  if (missIdx.length > 0) {
+    const missTexts = missIdx.map(i => allNodeTexts[i]);
+    const missIds = missIdx.map(i => allNodeIds[i]);
+    const { vectors } = await api.computeEmbeddings(missTexts, missIds);
+    for (let k = 0; k < missIds.length; k++) corpusEmbedMemo.set(missIds[k], vectors[k]);
+  }
+
+  const baseNodeEmbeddings: Record<string, { pov: string; vector: number[] }> = {};
+  for (const id of allNodeIds) {
+    baseNodeEmbeddings[id] = { pov, vector: corpusEmbedMemo.get(id) as number[] };
   }
 
   // Merge synthetic multi-vector embeddings when available
