@@ -81,6 +81,14 @@ function zaiOkBody(text = 'Hello from Z.AI') {
   };
 }
 
+// ── Mock flight recorder ─────────────────────────────────
+
+const { mockRecord } = vi.hoisted(() => ({ mockRecord: vi.fn() }));
+
+vi.mock('../flight-recorder/index.js', () => ({
+  getGlobalRecorder: () => ({ record: mockRecord }),
+}));
+
 // ── Mock fs to control registry loading ─────────────────
 
 const mockExistsSync = vi.fn();
@@ -132,6 +140,7 @@ beforeEach(() => {
   mockFetch.mockReset();
   mockExistsSync.mockReset();
   mockReadFileSync.mockReset();
+  mockRecord.mockReset();
 
   mockExistsSync.mockReturnValue(true);
   mockReadFileSync.mockReturnValue(JSON.stringify(makeRegistry()));
@@ -1021,6 +1030,35 @@ describe('aiAdapter', () => {
       const mod = await getModule();
       const adapter = mod.createCLIAdapter('/fake/root');
       expect(adapter.generateTextWithSearch).toBeTypeOf('function');
+    });
+  });
+
+  // ── generateTextWithSearch fallback logging ───────────
+
+  describe('generateTextWithSearch — no-Tavily WARN', () => {
+    async function getModule() {
+      vi.resetModules();
+      return import('./aiAdapter.js');
+    }
+
+    it('emits ai.fallback WARN when TAVILY_API_KEY is unset and backend is non-gemini', async () => {
+      process.env.GROQ_API_KEY = 'test-key';
+      delete process.env.TAVILY_API_KEY;
+      mockFetch.mockImplementation(async () => freshResponse(groqOkBody('result'), 200));
+
+      const mod = await getModule();
+      const adapter = mod.createCLIAdapter('/fake/root');
+      const result = await adapter.generateTextWithSearch('test prompt', 'groq-llama-3.3-70b-versatile');
+
+      expect(result.text).toBe('result');
+      const warnCall = mockRecord.mock.calls.find(
+        (c: unknown[]) => (c[0] as { level?: string })?.level === 'warn' &&
+          (c[0] as { message?: string })?.message?.includes('TAVILY_API_KEY not set'),
+      );
+      expect(warnCall).toBeDefined();
+      expect((warnCall![0] as { type: string }).type).toBe('ai.fallback');
+      expect((warnCall![0] as { message: string }).message).toContain('model=groq-llama-3.3-70b-versatile');
+      expect((warnCall![0] as { message: string }).message).toContain('backend=groq');
     });
   });
 
