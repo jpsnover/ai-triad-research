@@ -208,6 +208,7 @@ def selftest():
         ms["containers"][c] = v
     sc = {}
     sei_before = {k for k in ms["containers"] if k.startswith("sei:")}
+    summary_before = {k for k in ms["containers"] if k.startswith("summary:")}
     # run 1 (cold): everything changes
     s1, ubn = reconcile(pov, ms, sc, terms, ents, nv, sense, sit)
     # SITUATION coverage: node:sit-* containers are owned + written here
@@ -222,6 +223,7 @@ def selftest():
     # DISJOINT: sei:* untouched
     sei_after = {k for k in ms["containers"] if k.startswith("sei:")}
     assert sei_before == sei_after, "FAIL: sei:* containers modified (double-write)"
+    assert {k for k in ms["containers"] if k.startswith("summary:")} == summary_before, "FAIL: summary:* containers modified (double-write; PS owns sei:*+summary:*)"
     # IDEMPOTENCE: run 2 (warm) with same sidecar -> 0 changed
     s2, _ = reconcile(pov, ms, sc, terms, ents, nv, sense, sit)
     assert s2["changed"] == 0, f"FAIL: not idempotent, {s2['changed']} changed on warm run"
