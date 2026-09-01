@@ -210,6 +210,7 @@ Rules:
                 $FileDict = $ResultsDict.GetOrAdd($Item.FilePath,
                     [System.Collections.Concurrent.ConcurrentDictionary[int, PSCustomObject]]::new())
                 [void]$FileDict.TryAdd($Item.NodeIndex, [PSCustomObject]@{
+                    NodeId           = $Item.NodeId
                     PlainDescription = $PlainText
                     Version          = $VersionTag
                 })
@@ -234,33 +235,30 @@ Rules:
 
     Write-Progress -Id $ProgressId -Activity 'Generating plain descriptions' -Completed
 
+    # ── Apply via field-surgical writer (t/2926) ─────────────────────────────
+    # Replaces the whole-file ConvertTo-Json round-trip: each edit is an explicit
+    # scalar-field splice via Save-JsonNodeFieldEdits → Update-JsonNodeField, which
+    # re-reads the file FRESH before writing and preserves every untouched byte.
+    # plain_description and plain_description_version are both depth-1 scalars;
+    # absent-key INSERT is supported by Update-JsonNodeField (t/2916).
     foreach ($FilePath in $Results.Keys) {
         $FileResults = $Results[$FilePath]
         if ($FileResults.Count -eq 0) { continue }
 
-        $TaxData = Get-Content $FilePath -Raw | ConvertFrom-Json
-        $NodesArray = @($TaxData.nodes)
+        $Edits = [System.Collections.Generic.List[hashtable]]::new()
         foreach ($Idx in $FileResults.Keys) {
             $Entry = $FileResults[$Idx]
-            $Node  = $NodesArray[$Idx]
-
-            if ($Node.PSObject.Properties['plain_description']) {
-                $Node.plain_description = $Entry.PlainDescription
-            } else {
-                $Node | Add-Member -NotePropertyName 'plain_description' -NotePropertyValue $Entry.PlainDescription
-            }
-
-            if ($Node.PSObject.Properties['plain_description_version']) {
-                $Node.plain_description_version = $Entry.Version
-            } else {
-                $Node | Add-Member -NotePropertyName 'plain_description_version' -NotePropertyValue $Entry.Version
-            }
+            $Edits.Add(@{ NodeId = $Entry.NodeId; Field = 'plain_description';         Value = $Entry.PlainDescription })
+            $Edits.Add(@{ NodeId = $Entry.NodeId; Field = 'plain_description_version'; Value = $Entry.Version })
         }
 
-        Assert-DataWriteAllowed -Path $FilePath  # t/2902
-        $TaxData | ConvertTo-Json -Depth 20 | Set-Content -Path $FilePath -Encoding UTF8
+        $SurgResult = Save-JsonNodeFieldEdits -Path $FilePath -Edits $Edits.ToArray()
         $FileName = Split-Path $FilePath -Leaf
-        Write-Verbose "Updated $($FileResults.Count) nodes in $FileName" # Changed to verbose
+        Write-Verbose "Updated $($SurgResult.Applied / 2) nodes in $FileName"
+        if (@($SurgResult.NotFound).Count -gt 0) {
+            Write-Warning "Invoke-VernacularBatch: nodes not found in ${FileName}: $($SurgResult.NotFound -join ', ')"
+            Write-Verbose "WARN: surgical write fallback — node IDs not found; REASON: NodeId/index mismatch from concurrent node removal"
+        }
     }
 
     $GenCount  = @($Generated).Count
