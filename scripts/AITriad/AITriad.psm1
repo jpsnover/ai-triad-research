@@ -137,6 +137,15 @@ class TaxonomyNode {
     [string[]]$Children
     [string[]]$CrossCuttingRefs
     [string[]]$SituationRefs
+    # t/3197 — G1 grounding refs (t/3157), written onto POV nodes by the G7 reconciler
+    # (reconcile_grounding.py). Arrays of objects:
+    #   ConceptRefs[] : { ref: 'term:<canonical_form>', surface, method: surface|embedding, link_confidence, status: linked|proposed }
+    #   EntityRefs[]  : { ref: <entity_id>, surface, method: exact|alias, link_confidence, match_level, status: linked }
+    # Default to a NON-NULL empty array: under Set-StrictMode -Version Latest, `$null.Count`
+    # THROWS, so a $null default would break the AC filter `Where-Object { $_.ConceptRefs.Count }`
+    # on ungrounded nodes. ([PSObject[]]@() coerces to $null for a typed property; ::new(0) does not.)
+    [PSObject[]]$ConceptRefs = [PSObject[]]::new(0)
+    [PSObject[]]$EntityRefs  = [PSObject[]]::new(0)
     # t/1588 — structural signals mirrored from lib/debate/severeTestScheduler.ts's
     # computeNodeImportance() so PS + TS derive `degree` and `usage` from the
     # same source. ConflictIds may be absent on nodes with no conflict links;

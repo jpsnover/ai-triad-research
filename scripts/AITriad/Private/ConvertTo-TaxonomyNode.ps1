@@ -84,6 +84,14 @@ function ConvertTo-TaxonomyNode {
         if ($null -ne $Node.PSObject.Properties['debate_refs']) {
             $Obj.DebateRefs = @($Node.debate_refs)
         }
+
+        # t/3197 — G1 grounding refs (t/3157), written onto POV nodes by the G7 reconciler
+        # (reconcile_grounding.py). Overwrite ONLY when present; the class defaults both to a
+        # non-null empty array, so an ungrounded node keeps [] (not $null) and
+        # `Get-Tax | Where-Object { $_.ConceptRefs.Count }` / `... EntityRefs.Count` filter safely
+        # under StrictMode. (An `else { @() }` here would re-null the property — @() coerces to $null.)
+        if ($null -ne $Node.PSObject.Properties['concept_refs']) { $Obj.ConceptRefs = @($Node.concept_refs) }
+        if ($null -ne $Node.PSObject.Properties['entity_refs'])  { $Obj.EntityRefs  = @($Node.entity_refs) }
     }
 
     # Cross-cutting file has interpretations and linked_nodes
