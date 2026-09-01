@@ -75,6 +75,7 @@ vi.mock('../security/rateLimiter.js', () => ({
 
 vi.mock('../ai/aiBackends.js', () => ({
   computeEmbeddings: (...a: unknown[]) => computeEmbeddings(...a),
+  getEmbeddingsCacheStatus: () => ({ present: true, nodeCount: 4144 }), // t/3165: response now reads corpusNodeCount
   computeQueryEmbedding: vi.fn(),
   generateText: vi.fn(),
   generateTextByUsage: vi.fn(),

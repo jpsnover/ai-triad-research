@@ -587,7 +587,26 @@ export function registerAiRoutes(r: Router, ctx: ServerCtx): void {
           message: 'embedding.compute',
           data: { duration_ms: Date.now() - t0, item_count: texts.length, model_cold_start: !modelWarm, in_flight_at_entry: inFlightAtEntry, cache_hits: cacheHits, cache_misses: cacheMisses },
         });
-        json(res, { vectors });
+        // t/3166 item 2 / t/3165: a boot-only "loaded N nodes" signal (t/3081) can't see a
+        // MID-LIFE cache miss — the exact shape of t/3165 (present-but-non-resolving cache
+        // re-embedding keyed corpus texts). Emit a WARN when KEYED texts (ids provided) fail to
+        // resolve, so a re-embed is directly greppable instead of inferred from latency. Gated on
+        // `ids` because ad-hoc query embeds pass none (cacheHits=0 by construction) and would spam.
+        if (ids && cacheMisses > 0) {
+          const missMsg = `embeddings.compute: cache miss — re-computing ${cacheMisses} of ${texts.length} keyed texts (resolved ${cacheHits} from cache)`;
+          getGlobalRecorder()?.record({
+            type: 'system.error', component: 'embeddings-compute', level: 'warn',
+            message: missMsg,
+            data: { cache_hits: cacheHits, cache_misses: cacheMisses, item_count: texts.length, request_id: getRequestId() },
+          });
+          log.api.warn({ component: 'embeddings-compute', cache_hits: cacheHits, cache_misses: cacheMisses, item_count: texts.length, request_id: getRequestId() }, missMsg);
+        }
+        // t/3165: expose cacheHits/cacheMisses + corpusNodeCount so the t/3091 resolution gate
+        // (DevOps 2) can (1) assert a canary keyed lookup actually HITS the cache — presence≠resolution —
+        // and (2) disambiguate a DEAD cache from a bad canary id: cacheHits==0 && corpusNodeCount==0 →
+        // cache dead (rollback); cacheHits==0 && corpusNodeCount>0 → id not in corpus (config error, no rollback).
+        const corpusNodeCount = ai.getEmbeddingsCacheStatus?.()?.nodeCount ?? 0;
+        json(res, { vectors, cacheHits, cacheMisses, corpusNodeCount });
       } finally {
         endEmbeddingCompute();
       }
