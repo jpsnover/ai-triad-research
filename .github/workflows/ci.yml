@@ -118,6 +118,13 @@ jobs:
             python:
               - 'scripts/**'
               - '.github/ci/**'
+              # research/comp-linguist/scripts/** — the G7 grounding reconciler
+              # (reconcile_grounding.py) + its selftest. Previously uncovered: a
+              # reconciler change matched NO filter → test-python skipped → ci-gate
+              # false-greened it through, and the selftest never gated (t/3189; #1726
+              # merged its disjoint-scope contract untested). test-python now runs the
+              # reconciler --selftest for these paths (see that job).
+              - 'research/comp-linguist/scripts/**'
               - '.github/workflows/ci.yml'
             # 'container' gates test-container (t/2094). SOUNDNESS: ci-gate treats
             # a SKIPPED gated job as satisfied, so this list must cover EVERYTHING
@@ -1034,6 +1041,15 @@ jobs:
           HF_HUB_OFFLINE: '1'
           TRANSFORMERS_OFFLINE: '1'
         run: python -m pytest test_*.py -v
+      # G7 grounding reconciler selftest (t/3189). reconcile_grounding.py ships a
+      # CLI selftest (--selftest: consistency / disjoint-scope / idempotence /
+      # change-detection / removal-purge — the G7 contract) that exits non-zero on
+      # failure. It is NOT a pytest test_*.py file, so the pytest step above cannot
+      # discover it; invoke it explicitly here. Self-contained (uses in-file
+      # fixtures, no external data/model), so no extra deps. This closes the gap
+      # where a reconciler change (e.g. #1726) merged with the contract untested.
+      - name: Reconciler G7 contract selftest
+        run: python research/comp-linguist/scripts/reconcile_grounding.py --selftest
 
   # ── python-embed-smoke: validate the pip embedding stack (t/1989) ──────────
   # The pip ecosystem (scripts/requirements.txt) was never installed or exercised
