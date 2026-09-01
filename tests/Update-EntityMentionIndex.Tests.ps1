@@ -213,13 +213,19 @@ Describe 'Update-EntityMentionIndex (t/1894 Phase 2-B)' -Tag 'unit' {
 
     Context 'Summary containers (t/3122, §4/R2.2 T2)' {
 
-        It 'Indexes key_points as summary:<doc_id>#kp-<n> with a running index across POVs in fixed order' {
+        It 'Indexes key_points as summary:<doc_id>#<pov>-kp-<n> with <n> reset PER POV (CL ruling p/23#220-221)' {
             $summPath = Join-Path $script:root 'doc1.json'
+            # safetyist has TWO key_points so its index runs 0,1; skeptic then RESETS to 0.
+            # Under the old running-counter scheme skeptic's point would have been kp-3 — this
+            # asserts the per-POV reset, i.e. an insert/remove in one POV can't renumber another.
             New-Summary -Path $summPath -Doc @{
                 doc_id        = 'doc1'
                 pov_summaries = [ordered]@{
                     accelerationist = @{ key_points = @(@{ point = 'No entity here.' }) }
-                    safetyist       = @{ key_points = @(@{ point = 'The Apollo Project reshaped ambition.' }) }
+                    safetyist       = @{ key_points = @(
+                            @{ point = 'The Apollo Project reshaped ambition.' },
+                            @{ point = 'Apollo again, a second safetyist point.' }
+                        ) }
                     skeptic         = @{ key_points = @(@{ point = 'Also mentions Apollo alone.' }) }
                 }
             }
@@ -227,16 +233,22 @@ Describe 'Update-EntityMentionIndex (t/1894 Phase 2-B)' -Tag 'unit' {
             Update-EntityMentionIndex -EntitiesPath $script:entPath -SourceEvidenceIndexPath (Join-Path $script:root 'no-sei.json') -PovPath @() -SummariesPath @($summPath) -OutputPath $script:outPath | Out-Null
 
             $file = Get-Content -Raw -LiteralPath $script:outPath -Encoding utf8 | ConvertFrom-Json
-            # index 0 = accelerationist point (no mentions, so omitted entirely — absence == "no links yet")
-            $file.containers.PSObject.Properties['summary:doc1#kp-0'] | Should -BeNullOrEmpty
-            # index 1 = safetyist point (Apollo Project)
-            $kp1 = $file.containers.'summary:doc1#kp-1'
-            $kp1 | Should -Not -BeNullOrEmpty
-            @($kp1.mentions).entity_ref | Should -Contain 'ent-001'
-            # index 2 = skeptic point (Apollo)
-            $kp2 = $file.containers.'summary:doc1#kp-2'
-            $kp2 | Should -Not -BeNullOrEmpty
-            @($kp2.mentions).entity_ref | Should -Contain 'ent-002'
+            # accelerationist #acc-kp-0 has no entity → omitted (absence == "no links yet")
+            $file.containers.PSObject.Properties['summary:doc1#acc-kp-0'] | Should -BeNullOrEmpty
+            # safetyist indexes reset to 0 within its own array: saf-kp-0 (Apollo Project) + saf-kp-1 (Apollo)
+            $sk0 = $file.containers.'summary:doc1#saf-kp-0'
+            $sk0 | Should -Not -BeNullOrEmpty
+            @($sk0.mentions).entity_ref | Should -Contain 'ent-001'
+            $sk1 = $file.containers.'summary:doc1#saf-kp-1'
+            $sk1 | Should -Not -BeNullOrEmpty
+            @($sk1.mentions).entity_ref | Should -Contain 'ent-002'
+            # skeptic RESETS to 0 (skp-kp-0), proving it is not a document-wide running counter
+            $sp0 = $file.containers.'summary:doc1#skp-kp-0'
+            $sp0 | Should -Not -BeNullOrEmpty
+            @($sp0.mentions).entity_ref | Should -Contain 'ent-002'
+            # the retired running-counter ids must NOT exist
+            $file.containers.PSObject.Properties['summary:doc1#kp-1'] | Should -BeNullOrEmpty
+            $file.containers.PSObject.Properties['summary:doc1#kp-2'] | Should -BeNullOrEmpty
         }
 
         It 'Indexes factual_claims as summary:<doc_id>#fc-<n> by array position' {
