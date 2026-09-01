@@ -76,6 +76,17 @@ export type DolceCategory =
  */
 export type EntityDescriptionProvenance = 'ai-drafted' | 'human-edited' | 'human-authored';
 
+/**
+ * How a link (an `entity_refs[]` entry on a claim or BDI node) matched its target relative to the
+ * register (R4.2) — lets downstream consumers (conflict detection, FOL export) tell an exact match
+ * from a subsumption hop. `exact` = the surface names the target; the others = matched via ≤1–2
+ * relation hops. Shared match-level VOCABULARY only; the link-record shape and the direction
+ * semantics of each label are ASSIGNED by the resolution pass (t/3124) — see there for what each
+ * label means at assignment time. Split out of t/3119 to land early (pure enum, no relations/
+ * allowlist coupling — CL p/3#156), unblocking the t/3157 node link-refs + t/3124.
+ */
+export type EntityMatchLevel = 'exact' | 'instance_of' | 'subclass' | 'superclass' | 'related';
+
 /** The new entity record (ent-*), stored in entities.json. */
 export interface Entity {
   id: string;                     // ent-NNN
