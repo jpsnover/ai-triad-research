@@ -312,6 +312,45 @@ With `concept_refs`/`entity_refs` on nodes, the neo-Davidsonian frames (R1, §7)
 
 Suggested first step: **G2** (concept forward-linking), 80% coverage, high precision, mostly latent already. G3 (entities) is a precise handful. G1 (schema) precedes any write.
 
+## 14. Addendum: keeping the grounding fresh under BDI mutation (2026-08-31)
+
+Owner point: BDI is updated through live paths (debate reflection and others); those updates add, remove, or rewrite nodes and thereby change which concepts/entities are mentioned. The grounding is a derived artifact and must stay current, not be a one-time batch.
+
+### 14.1 The mutation surfaces (measured)
+
+Every path that changes a node's `label`/`description`/`graph_attributes` or adds/removes a node:
+
+- **Interactive: debate reflection** (`debateReflectionSlice.ts`: `add` / `edit_existing` / `propose_new` / node enrichment). All funnel through the server route `PUT /api/taxonomy/:pov` (`taxonomy.ts:60`) to `writeTaxonomyFile` (`fileIO.ts:336`).
+- **PowerShell: `Invoke-ProposalApply.ps1`** (ADD / RELABEL / MERGE / remove / reparent).
+- **Batch: research/comp-linguist enrichers** (`batch_enrich_nodes.py`, `autofix-graph-attributes.py`, `llm-reclassify-attributes.py`) which rewrite node text/attributes directly.
+
+**Critical finding: none of these refresh the grounding.** No writer invalidates `entity_mentions.json` or `used_by_nodes`. The refresh is entirely manual today (`Update-EntityMentionIndex` full scan; `relinkVocabulary` on demand). So grounding would go stale on the first BDI update.
+
+### 14.2 The incremental primitive already exists (it just is not triggered)
+
+`Update-EntityMentionIndex.ps1` is already **content-hash-gated per node** (`text_sha256` over `label`+`description`): it skips unchanged nodes, re-resolves only changed/new ones, and supersedes stale mentions on text change. That is exactly the incremental primitive needed. The only gaps are that no write path triggers it, and it covers entity mentions but not `concept_refs`/`used_by_nodes`.
+
+### 14.3 The design: one hash-gated reconciler, path-agnostic
+
+Wiring a refresh hook into each of the N writers is fragile (the Python enrichers bypass the server entirely). Instead use ONE idempotent, content-hash reconciler that compares each node's stored `text_sha256` against its current text and refreshes only what changed, regardless of which path mutated it:
+
+- **Unify the artifacts it maintains:** entity mentions (`node:*`), node `entity_refs`/`concept_refs` (forward), `term.used_by_nodes` (reverse). One pass, kept mutually consistent.
+- **Trigger it two ways.** (1) **Inline after the interactive write** (post-`writeTaxonomyFile`) for the single changed node: cheap (one node is a surface match plus a few cosines), keeps the UI fresh. (2) **Scheduled/CI sweep** as the path-agnostic backstop that catches batch/PowerShell/Python writes bypassing the server. Hash-gated, so a no-change sweep is a near-no-op.
+- **Node lifecycle:** add/edit (hash change) re-resolves the node and updates the reverse maps; **remove** purges the node id from all reverse maps (`used_by_nodes`, mentions).
+
+### 14.4 Vocabulary churn from updates (the add/remove-concepts point)
+
+- **An update that introduces new vocabulary** (text mentioning a concept/entity not yet registered) surfaces it as a PROPOSAL through the reuse-gate/proposer (§12, t/3130), never a silent mint. Updates grow the vocabulary through the same propose-then-confirm gate.
+- **An update that removes the last mention** of a concept/entity shrinks its `used_by_nodes`; the register-liveness check (R7.5) flags terms/entities that fall to zero usage as deprecate-candidates. The vocabulary does not silently rot.
+
+### 14.5 Ticket additions
+
+| # | Work | Scope |
+|---|------|-------|
+| G7 | Extend `Update-EntityMentionIndex` into a unified grounding reconciler (mentions + `entity_refs`/`concept_refs` + `used_by_nodes`), hash-gated | CL + PowerShell |
+| G8 | Trigger it: inline after `PUT /api/taxonomy/:pov` write (Taxonomy Editor) + a scheduled sweep backstop (DevOps). The scheduled job is gate-adjacent, so route to Main (TL) | Taxonomy Editor + DevOps + TL |
+| G9 | Node-removal purge + new-vocabulary-to-proposer + liveness deprecate wiring | CL + data |
+
 ---
 
 *Survey basis: full-repo exploration 2026-08-31 (claim schemas in `summaries/`, `entities.json`/`entity_mentions.json`/`entity_embeddings.json`, `lib/entities/types.ts`, extraction cmdlets and passes in `scripts/AITriad/`, `embeddings.json` header, ontology docs). Facts stated in §2 were verified against the live files, not recalled.*
