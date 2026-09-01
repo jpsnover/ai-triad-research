@@ -14,6 +14,8 @@
  * Watch the flip pair: `/sw.js` is EXACT, `/workbox-` is a PREFIX.
  */
 
+import { isCanaryLoopSamplerEnabled } from './config.js';
+
 /** Exact-match public paths (were `urlPath === X`).
  *  ⚠️ Adding/removing an entry trips TWO count-guards — update BOTH or CI goes red
  *  (t/3112): `publicPaths.test.ts` (PUBLIC_EXACT_PATHS.size + samples.length) AND, if the
@@ -57,5 +59,12 @@ export const PUBLIC_PATH_PREFIXES: readonly string[] = [
  * equivalent to the original `===`/`startsWith` OR-chain regardless of term order.
  */
 export function computeIsPublicPath(urlPath: string): boolean {
-  return PUBLIC_EXACT_PATHS.has(urlPath) || PUBLIC_PATH_PREFIXES.some(p => urlPath.startsWith(p));
+  if (PUBLIC_EXACT_PATHS.has(urlPath) || PUBLIC_PATH_PREFIXES.some(p => urlPath.startsWith(p))) return true;
+  // t/3206: the canary loop-sampler control routes are auth-exempt ONLY when CANARY_LOOP_SAMPLER is
+  // set (the isolated staging canary rev) — so a headless driver can POST start/report unauthenticated
+  // there. The exemption is FLAG-GATED, not a static allowlist entry: in normal prod the flag is off,
+  // so this branch is inert AND routes/canary.ts 404s → double-closed, zero prod exposure. Scoped to
+  // EXACTLY `/internal/canary/` (not a broad `/internal/`), per Server-Auth review (e/130#6).
+  if (isCanaryLoopSamplerEnabled() && urlPath.startsWith('/internal/canary/')) return true;
+  return false;
 }
