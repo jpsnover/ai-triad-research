@@ -13,6 +13,7 @@ overrides:
   uuid: '>=11.1.1'
   '@opentelemetry/core': '>=2.8.0'
   js-yaml: '>=4.3.1'
+  image-size: '>=1.2.2'
 
 importers:
 
@@ -3921,8 +3922,8 @@ packages:
     resolution: {integrity: sha512-BAg6QkE8W+TuQLrrw0Ugr7HegXduRuuj8/ti2kSOc+jz1dmx8/WNcjr6XGnq5YpDWxFwwaavqD0+jIUOKelTsw==}
     engines: {node: '>= 4'}
 
-  image-size@1.2.1:
-    resolution: {integrity: sha512-rH+46sQJ2dlwfjfhCyNx5thzrv+dtmBIhPHk0zgRUukHzZ/kRueTJXoYYsclBaKcSMBWuGbOFXtioLpzTb5euw==}
+  image-size@2.0.2:
+    resolution: {integrity: sha512-IRqXKlaXwgSMAMtpNzZa1ZAe8m+Sa1770Dhk8VkSsP9LS+iHD62Zd8FQKs8fbPiagBE7BzoFX23cxFnwshpV6w==}
     engines: {node: '>=16.x'}
     hasBin: true
 
@@ -5128,9 +5129,6 @@ packages:
   qs@6.15.3:
     resolution: {integrity: sha512-O9gl3zCl5h5blw1KGUzQKhA5oUXSl8rwUIM5o0S3nCXMliSvy5Dzx7/DJcI+SwgICv+IneSZwhBh1oSyEHA71A==}
     engines: {node: '>=0.6'}
-
-  queue@6.0.2:
-    resolution: {integrity: sha512-iHZWu+q3IdFZFX36ro/lKBkSvfkztY5Y7HMiPlOUjhupPcG2JMfst2KKEpu5XndviX/3UhFbRngUPNKtgvtZiA==}
 
   quick-format-unescaped@4.0.4:
     resolution: {integrity: sha512-tYC1Q1hgyRuHgloV/YXs2w15unPVh8qfu/qCTfhTYamaw7fyhumKa2yGpdSo87vY32rIclj+4fWYQXUMs9EHvg==}
@@ -10422,9 +10420,7 @@ snapshots:
 
   ignore@7.0.6: {}
 
-  image-size@1.2.1:
-    dependencies:
-      queue: 6.0.2
+  image-size@2.0.2: {}
 
   immediate@3.0.6: {}
 
@@ -11707,7 +11703,7 @@ snapshots:
     dependencies:
       '@types/node': 22.20.1
       https: 1.0.0
-      image-size: 1.2.1
+      image-size: 2.0.2
       jszip: 3.10.1
 
   prelude-ls@1.2.1: {}
@@ -11794,10 +11790,6 @@ snapshots:
     dependencies:
       es-define-property: 1.0.1
       side-channel: 1.1.1
-
-  queue@6.0.2:
-    dependencies:
-      inherits: 2.0.4
 
   quick-format-unescaped@4.0.4: {}
 
