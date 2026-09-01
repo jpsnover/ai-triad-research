@@ -1103,7 +1103,7 @@ Each debate logs a `CalibrationDataPoint` (~1KB) with metrics from existing inst
 |---|-----------|---------|-----------|-------------|
 | 1 | `exploration_exit` | 0.65 | Bucket-average quality | Neutral evaluator |
 | 2 | `relevance_threshold` | 0.45 | Directional (waste/miss rate) | Context injection manifest |
-| 3 | `attack_weights` | [1.0, 1.1, 1.2] | Concordance maximization | QBAF vs synthesis preferences |
+| 3 | `attack_weights` | [1.0, 1.05, 1.1] | Concordance maximization | QBAF vs synthesis preferences |
 | 4 | `draft_temperature` | 0.7 | Composite cost minimization | Turn validator errors |
 | 5 | `saturation_weights` | 6 weights | OLS regression | Convergence signals vs quality |
 | 6 | `recent_window` | 8 | Directional (forgotten rate) | Unanswered claims ledger |
