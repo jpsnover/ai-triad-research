@@ -20,7 +20,7 @@ AUTHOR (for the authority line / bio):
 SOURCE MATERIAL (use as factual grounding; quote or paraphrase from it where it strengthens a pillar — do not invent statistics it does not support):
 {{SOURCE_MATERIAL}}
 
-WHAT THE SOURCE ACTUALLY ARGUES. This is a neutral brief prepared from the source above. Treat each line as an established fact about the document that you must represent accurately:
+WHAT THE SOURCE ACTUALLY ARGUES. This is a neutral brief prepared from the source above. Treat each line as this brief's representation of the source. It is a machine-prepared summary — represent it faithfully, but do not assert any line as established fact beyond what the source text supports:
 - Published by: {{SOURCE_AUTHOR}} ({{SOURCE_ACTOR_TYPE}})
 - Its thesis: {{SOURCE_THESIS}}
 - Its stance: {{SOURCE_STANCE}}
