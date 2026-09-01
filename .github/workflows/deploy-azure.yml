@@ -514,6 +514,23 @@ jobs:
           $BaseUrl = "${{ steps.health_check.outputs.base_url }}"
           & ./operations/devops/Invoke-ReadyzWarmGateCheck.ps1 -BaseUrl $BaseUrl -TimeoutSec 300 -PollIntervalSec 10
 
+      - name: Verify embeddings cache resolution (warn-only — t/3091)
+        # Calls POST /api/embeddings/compute with canary acc-beliefs-003 (confirmed-real stored key,
+        # p/555#4). Asserts cacheHits>=1: the same nodes[id] lookup computeEmbeddings uses. Runs
+        # AFTER warm-gate (which proved corpusNodeCount>0), so cacheHits:0 here is a genuine
+        # resolution failure on the compute path, not a dead-cache (t/3165 pattern).
+        # Requires ServerAPI t/3165 PR #1704 merged (adds cacheHits/cacheMisses/corpusNodeCount
+        # to compute 200 response). Script degrades gracefully (warn) if fields are absent.
+        # WARN-ONLY: continue-on-error:true until both GV arms proven on real envs. Flip-to-
+        # blocking is a separate PR per Gate Promotion Discipline (operations/devops/AGENTS.md).
+        id: embeddings_resolution
+        if: steps.warm_gate.outputs.warm == 'true'
+        shell: pwsh
+        continue-on-error: true
+        run: |
+          & ./operations/devops/Invoke-EmbeddingsResolutionGateCheck.ps1 `
+            -BaseUrl '${{ steps.health_check.outputs.base_url }}'
+
       - name: Shift traffic to new revision
         # t/3148: warm_gate is now a peer gate — traffic shifts only when the /readyz warm-gate
         # reports warm=='true' (embeddings.json cache proven warm), alongside acceptance/persona.
