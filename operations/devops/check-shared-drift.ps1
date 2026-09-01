@@ -84,6 +84,7 @@ $result = [PSCustomObject]@{
     HasRealDiff      = $false
     JunkPaths        = @()
     SuspiciousPaths  = @()
+    NestedWorktrees  = @()
     AutoRemoved      = @()
     Attribution      = @{}
     RemediationHint  = ''
@@ -143,6 +144,38 @@ try {
     }
     $result.SuspiciousPaths = $suspiciousPaths
 
+    # 5c. NESTED .worktrees directories outside repo root (t/3145; t/2222 cwd-reset class).
+    #     A `git worktree add` run with the shell cwd reset into a subdir drops .worktrees UNDER a
+    #     role subtree instead of the repo root (Rosetta found two such inert dirs, p/519). Legit
+    #     worktrees live ONLY at <root>/.worktrees/; a .worktrees segment anywhere else is cruft.
+    #     Warn-only (advisory). Detected two ways so both variants are caught:
+    #       (a) registered-but-misplaced — `git worktree list` path not directly under <root>/.worktrees/
+    #       (b) inert leftover (no .git linkage) — an untracked path with a non-root .worktrees segment
+    $rootFull    = ((Resolve-Path $RepoRoot -ErrorAction SilentlyContinue).Path -replace '\\', '/').TrimEnd('/')
+    $legitPrefix = "$rootFull/.worktrees/"
+    $nestedWorktrees = @()
+    # (a) registered worktrees
+    foreach ($line in @(Invoke-Git @('-C', $RepoRoot, 'worktree', 'list', '--porcelain') | Where-Object { $_ -like 'worktree *' })) {
+        $wtPath = (($line -replace '^worktree\s+', '') -replace '\\', '/').TrimEnd('/')
+        if ($wtPath -eq $rootFull) { continue }                 # the main checkout — fine
+        if ($wtPath.StartsWith($legitPrefix)) { continue }      # <root>/.worktrees/<name> — fine
+        if (-not $wtPath.StartsWith("$rootFull/")) { continue } # worktree OUTSIDE the repo (e.g. ../wt-x) — legit/out-of-scope, NOT nested cruft
+        $nestedWorktrees += $wtPath.Substring($rootFull.Length + 1)
+    }
+    # (b) inert leftover (no .git linkage). NOTE: the root .worktrees/ is .gitignore'd, so the
+    #     $untracked list above (--exclude-standard) never surfaces a nested .worktrees either.
+    #     Use `git ls-files --others --directory` WITHOUT --exclude-standard so ignored dirs are
+    #     surfaced, and --directory collapses each untracked dir to one entry (cheap — no descent
+    #     into node_modules/dist contents). Filter to non-root .worktrees segments.
+    foreach ($d in @(Invoke-Git @('-C', $RepoRoot, 'ls-files', '--others', '--directory') | Where-Object { $_ })) {
+        $nd = ($d -replace '\\', '/').TrimEnd('/')
+        if ($nd -notmatch '^\.worktrees(/|$)' -and $nd -match '^(.+?/\.worktrees)(/|$)') {
+            $nestedWorktrees += $matches[1]
+        }
+    }
+    $nestedWorktrees = @($nestedWorktrees | Select-Object -Unique)
+    $result.NestedWorktrees = $nestedWorktrees
+
     # 5b. Auto-remediate 0-byte junk — triple guard per t/2476#1:
     #     (a) path is in $junkPaths (already classified as 0-byte untracked)
     #     (b1) not tracked in main repo (git ls-files returns empty at delete time)
@@ -183,7 +216,7 @@ try {
 
     # t/3058: also attribute non-removed spray (guard-blocked junk + suspicious files) so the
     # tally covers every fragment, not just the auto-cleaned ones. mtime best-effort (may be gone).
-    foreach ($f in @($remainingJunk + $suspiciousPaths)) {
+    foreach ($f in @($remainingJunk + $suspiciousPaths + $nestedWorktrees)) {
         $mtime = $null
         try { $mtime = (Get-Item (Join-Path $RepoRoot $f) -ErrorAction Stop).LastWriteTime.ToString('o') } catch { }
         $owner = Get-OwningScope -Path $f
@@ -208,7 +241,7 @@ try {
     }
 
     # 6. Determine alarm + remediation hint
-    $alarm = $behind -gt 0 -or $dirtyFiles.Count -gt 0 -or $remainingJunk.Count -gt 0 -or $suspiciousPaths.Count -gt 0
+    $alarm = $behind -gt 0 -or $dirtyFiles.Count -gt 0 -or $remainingJunk.Count -gt 0 -or $suspiciousPaths.Count -gt 0 -or $nestedWorktrees.Count -gt 0
     $result.Alarm = $alarm
 
     if ($alarm) {
@@ -227,6 +260,10 @@ try {
         if ($suspiciousPaths.Count -gt 0) {
             $listed = $suspiciousPaths -join ', '
             $hints += "suspicious extension-less file(s) in source dir [$listed]: verify untracked, then Remove-Item <paths>"
+        }
+        if ($nestedWorktrees.Count -gt 0) {
+            $listed = $nestedWorktrees -join ', '
+            $hints += "NESTED .worktrees dir(s) outside repo root (t/3145; t/2222 cwd-reset class) [$listed]: a worktree add landed in a role subtree instead of <root>/.worktrees/ — verify no unpushed work, then 'git worktree remove <path>' (if registered) or 'Remove-Item -Recurse -Force <path>' (if inert cruft)"
         }
         if ($dirtyFiles.Count -gt 0) {
             if (-not $hasRealDiff) {
