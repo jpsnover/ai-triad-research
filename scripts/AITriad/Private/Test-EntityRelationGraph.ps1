@@ -136,7 +136,9 @@ function Test-EntityRelationGraph {
 
     # ── Check 4: depth (longest path in EDGES) — only when acyclic ────────
     # A cycle makes longest-path unbounded; the cycle violation already fails the gate, so skip
-    # depth to avoid non-termination.
+    # depth to avoid non-termination. NOTE: depth is skipped GLOBALLY under ANY cycle — a candidate
+    # that is both cyclic AND over-depth reports only the 'cycle' violation. That's fine for a
+    # reject-gate (either violation rejects); the audit sweep re-runs once the cycle is resolved.
     if ($cycleNodes.Count -eq 0) {
         $memo = @{}
         # Post-order longest-path via an explicit stack (DAG guaranteed here).
