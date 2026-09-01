@@ -788,20 +788,25 @@ export async function computeEmbeddings(
   // t/1641/t/1643: in-process ONNX all-MiniLM-L6-v2 (shared lib t/1651) — hosted
   // fallback when the Python ML venv is absent (DevOps venv slim, t/1642). Same
   // 384-dim vector space as the stored corpus; no API key, no network.
-  if (await onnxTryWarmup()) {
+  if (isEmbeddingWorkerOffloadEnabled()) {
+    // t/3183 (t/2977 Item B): flag ON → run the ONNX pass in the shared worker thread so a large
+    // miss-text batch can't block the event loop past ACA's liveness deadline (t/3165). Widen the
+    // worker's Float32Array views → number[][] for the resolver. A shed/crash rejects (load-shed
+    // 503) and is NOT caught here — an in-thread recompute would reintroduce the exact starvation the
+    // offload removes.
+    // t/3209 (C1 — the SO single-session invariant): do NOT call onnxTryWarmup() under the flag. It
+    // warms/inits a MAIN-THREAD ONNX session, but the WORKER owns the only session (t/3181); warming
+    // here too was a 2× ~250MB model double-load that could OOM under storm load (the C1 defect the
+    // canary surfaced alongside the emit bug). The worker inits ONNX itself; if it's genuinely
+    // unavailable the worker fails LOUD → resolveEmbeddings "all fallbacks failed" (caught below),
+    // which the canary sees — no silent in-thread fallback.
     chain.push({
-      // t/3183 (t/2977 Item B): flag ON → run the ONNX pass in the shared worker thread so a large
-      // miss-text batch can't block the event loop past ACA's liveness deadline (t/3165). The worker
-      // returns Float32Array views over a transferred buffer → widen to number[][] for the resolver.
-      // A shed/crash rejects (load-shed 503) and is NOT caught here — an in-thread recompute would
-      // reintroduce the exact starvation the offload removes (the worker already WARNs the shed with
-      // the requester, per Fallback-Path Logging). Flag OFF → today's exact in-thread call → the
-      // 'onnx-batch' name and behaviour are byte-identical.
-      name: isEmbeddingWorkerOffloadEnabled() ? 'onnx-batch-worker' : 'onnx-batch',
-      compute: (t) => isEmbeddingWorkerOffloadEnabled()
-        ? computeEmbeddingsOffThread(t, { requester }).then(vecs => vecs.map(v => Array.from(v)))
-        : onnxComputeEmbeddings(t),
+      name: 'onnx-batch-worker',
+      compute: (t) => computeEmbeddingsOffThread(t, { requester }).then(vecs => vecs.map(v => Array.from(v))),
     });
+  } else if (await onnxTryWarmup()) {
+    // Flag OFF → today's exact in-thread call (warms + uses the main-thread session) → byte-identical.
+    chain.push({ name: 'onnx-batch', compute: (t) => onnxComputeEmbeddings(t) });
   }
 
   try {
@@ -822,6 +827,12 @@ export async function computeEmbeddings(
       error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       data: { inputCount: texts.length, elapsedMs, chainMembers: chain.map(c => c.name) },
     });
+    // t/3209: also surface the underlying error to Pino/stdout (→ Log Analytics). The FR record above
+    // lives in the ring buffer only, so a container-side compute failure was previously invisible in
+    // logs — the offload NO-GO was diagnosable ONLY by inference (zero worker/fallback lines reached
+    // stdout). The real cause (e.g. the worker's ERR_MODULE_NOT_FOUND surfaced through resolveEmbeddings)
+    // is now greppable instead of masked by the generic ActionableError below.
+    log.api.error({ component: 'ai-backends', inputCount: texts.length, elapsedMs, chainMembers: chain.map(c => c.name), err: String(err) }, 'computeEmbeddings failed');
     // t/2985: distinguish a per-chunk timeout from an empty-chain init failure so triage
     // isn't misdirected to a packaging cause when the encoder worked but timed out.
     const msg = err instanceof Error ? err.message : String(err);
