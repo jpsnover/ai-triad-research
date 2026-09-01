@@ -32,6 +32,7 @@ function Get-EntityProposalFieldName {
         'description_provenance'
         'external_refs'
         'source_refs'
+        'relations'
         'merged_into'
         'discovered_by'
         'confidence'

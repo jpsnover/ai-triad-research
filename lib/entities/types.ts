@@ -129,6 +129,34 @@ export interface ConceptLinkRef {
   status: EntityLinkStatus;
 }
 
+/**
+ * A DOLCE-typed relation between two register entities (or an entity and a `term:*` type) — R4.1.
+ * The three types are kept explicitly DISTINCT (CL DOLCE review, t/3119#2):
+ * - `instance_of` — a particular → its type. This is the bridge that crosses `ent-*` → `term:*`
+ *   (a particular entity is an instance of a vocabulary kind). NOT interchangeable with subclass.
+ * - `subclass_of` — a type → its supertype (type-level subsumption, e.g. one term narrows another).
+ * - `part_of` — generic mereology (a particular part_of a particular, a sub-event part_of a
+ *   perdurant). Constitution is deliberately excluded (CL §7.2); `part_of` must NEVER be used to
+ *   encode an instance/subclass hop.
+ */
+export type EntityRelationType = 'instance_of' | 'subclass_of' | 'part_of';
+
+/**
+ * One relation edge on an {@link Entity}. `target` is a RAW `ent-*` | `term:<slug>` token (parsed on
+ * read via {@link parseEntityRef}, like `Mention.entity_ref` — never persist a pre-parsed form).
+ *
+ * INVARIANT (R4.3, enforced WRITE-SIDE — not by this type): the relation graph is a shallow DAG —
+ * acyclic, depth ≤ 3, `target` well-formed. A TypeScript interface cannot prevent a cycle or an
+ * over-depth graph, so enforcement lives at the relation-authoring path (Import-Entity when a
+ * relation is added) + the entity audit-cycle sweep, NOT here (TL t/3119, p/342#204). The DAG/
+ * depth/target validator is a separate ticket (t/3170) that hard-BLOCKS any relations-populating
+ * work — no path may persist an unvalidated `relations[]` (fast-follow enforced, not intended).
+ */
+export interface EntityRelation {
+  type: EntityRelationType;
+  target: string;                 // ent-* | term:<slug> raw token (parsed via parseEntityRef)
+}
+
 /** The new entity record (ent-*), stored in entities.json. */
 export interface Entity {
   id: string;                     // ent-NNN
@@ -144,6 +172,11 @@ export interface Entity {
   description_provenance?: EntityDescriptionProvenance;
   external_refs?: { label: string; url: string }[];
   source_refs?: string[];         // doc_ids
+  /** DOLCE-typed relation edges (instance_of/subclass_of/part_of) to other entities/terms (R4.1).
+   *  Optional; shallow-DAG + depth≤3 + acyclic invariant is enforced write-side, NOT by this type —
+   *  see {@link EntityRelation}. Currently ACCEPTED-BUT-DROPPED by Import-Entity (allowlisted, not
+   *  persisted) until the relation-authoring path + DAG validator land (t/3119 fast-follow). */
+  relations?: EntityRelation[];
   status: 'proposed' | 'approved' | 'deprecated';
   /** Set ⇒ this record is a merge tombstone; resolve to the canonical id (Section 7). */
   merged_into?: string;
