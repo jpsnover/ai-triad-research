@@ -1,15 +1,16 @@
 """CL session startup scan.
 
-Runs the 5 mandatory checks from AGENTS.md:
+Runs the mandatory checks from AGENTS.md (1-4 + audit budget), plus a register-liveness scan:
 1. Calibration scan — 7-day rolling delta on owned metrics
 2. Diff scan — changes to owned files since last session
 3. Open ticket scan — (handled by Orca MCP, not this script)
 4. Validation sign-off — check for unsigned validation-report.json
-5. Audit budget — (manual, when 1-4 produce no urgent work)
+5. Register liveness — concept/entity mint health + deprecate-candidates (t/3125)
+6. Audit budget — (manual, when 1-5 produce no urgent work)
 
 Usage: python research/comp-linguist/scripts/session-startup.py
 """
-import json, os, sys, math
+import json, os, sys, math, collections
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -17,6 +18,12 @@ sys.stdout.reconfigure(encoding='utf-8')
 
 REPO_ROOT = Path('C:/Users/jsnov/repos/ai-triad-research')
 DATA_ROOT = Path('C:/Users/jsnov/repos/ai-triad-data')
+
+# Register-liveness scan (t/3125): the vocabulary registers (concepts = dictionary/standardized,
+# entities = taxonomy/Origin/entities.json) can silently stop being minted — the 2026-07-28 stall
+# went unnoticed for ~a month. Normal cadence is ~daily; WARN when the newest mint is older than
+# this. Stipulated (see docs/metric-provenance-register.md).
+MINT_STALL_WARN_DAYS = 14
 
 # Live calibration data is appended per-debate to these JSONL logs.
 JSONL_LOG_PATHS = [
@@ -298,6 +305,79 @@ def validation_signoff():
     print()
 
 
+def _days_since(date_str, now):
+    """Days from an ISO/`YYYY-MM-DD` date string to `now` (UTC). None if unparseable."""
+    try:
+        d = datetime.fromisoformat(str(date_str)[:10]).replace(tzinfo=timezone.utc)
+        return (now - d).days
+    except (ValueError, TypeError):
+        return None
+
+
+def _mint_line(label, latest, dsm):
+    if latest is None:
+        print(f'{label}: unknown (no date field)')
+        return
+    stall = dsm is not None and dsm > MINT_STALL_WARN_DAYS
+    flag = f'   ⚠ STALL (> {MINT_STALL_WARN_DAYS}d — mint may have silently stopped)' if stall else ''
+    ago = f'{dsm}d ago' if dsm is not None else 'age unknown'
+    print(f'{label}: {latest} ({ago}){flag}')
+
+
+def register_liveness_scan():
+    """Vocabulary-register health (t/3125): concept (dictionary/standardized) + entity mint liveness.
+    Surfaces the failure the 2026-07-28 stall showed — minting silently stops and no one notices —
+    plus deprecate-candidates (concepts that dropped to 0 used_by_nodes, the G9 t/3164 shrink signal)."""
+    print('=' * 60)
+    print('5. REGISTER LIVENESS (concepts + entities)')
+    print('=' * 60)
+    now = datetime.now(timezone.utc)
+
+    concept_dir = DATA_ROOT / 'dictionary' / 'standardized'
+    concept_files = sorted(concept_dir.glob('*.json')) if concept_dir.exists() else []
+    if not concept_files:
+        print(f'  WARNING: concept register not found or empty: {concept_dir}')
+    else:
+        statuses = collections.Counter()
+        coined, empty_ubn = [], []
+        for f in concept_files:
+            try:
+                d = json.loads(f.read_text(encoding='utf-8'))
+            except (ValueError, OSError):
+                continue
+            statuses[d.get('coinage_status', '?')] += 1
+            if d.get('coined_at'):
+                coined.append(d['coined_at'])
+            if not (d.get('used_by_nodes') or []):
+                empty_ubn.append(d.get('canonical_form', f.stem))
+        latest = max(coined) if coined else None
+        print(f'  Concepts: {len(concept_files)} ({dict(statuses)})')
+        _mint_line('  Concepts last coined', latest, _days_since(latest, now))
+        if empty_ubn:
+            shown = ', '.join(empty_ubn[:5]) + ('…' if len(empty_ubn) > 5 else '')
+            print(f'  WARNING: {len(empty_ubn)} concept(s) with 0 used_by_nodes (deprecate-candidates): {shown}')
+        else:
+            print('  Coverage: every concept has >=1 used_by_nodes (no deprecate-candidates)')
+
+    entities_path = DATA_ROOT / 'taxonomy' / 'Origin' / 'entities.json'
+    if not entities_path.exists():
+        print(f'  WARNING: entity register not found: {entities_path}')
+    else:
+        try:
+            ents = json.loads(entities_path.read_text(encoding='utf-8')).get('entities', [])
+        except (ValueError, OSError):
+            ents = []
+        st = collections.Counter(e.get('status', '?') for e in ents)
+        created = [e['created_at'] for e in ents if e.get('created_at')]
+        total = len(ents)
+        ratio = st.get('approved', 0) / total if total else 0.0
+        latest = max(created) if created else None
+        print(f'  Entities: {total} (approved {st.get("approved", 0)} / proposed {st.get("proposed", 0)} '
+              f'/ deprecated {st.get("deprecated", 0)}); approval ratio {ratio:.1%}')
+        _mint_line('  Entities last created', latest, _days_since(latest, now))
+    print()
+
+
 def main():
     print()
     print('CL SESSION STARTUP SCAN')
@@ -321,11 +401,12 @@ def main():
     print()
 
     validation_signoff()
+    register_liveness_scan()
 
     print('=' * 60)
-    print('5. AUDIT BUDGET')
+    print('6. AUDIT BUDGET')
     print('=' * 60)
-    print('  If steps 1-4 produced no urgent work, pick one:')
+    print('  If steps 1-5 produced no urgent work, pick one:')
     print('    a) Situation injection effectiveness audit')
     print('    b) Prompt drift check on a random role')
     print('    c) DOLCE compliance on newest 10 situations')
