@@ -65,6 +65,19 @@
 .debate-daily-limit-text {
   flex: 1;
 }
+.debate-daily-limit-action {
+  font-size: var(--text-xs);
+  padding: 2px 10px;
+  border: 1px solid var(--warning, #e6a700);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--warning, #e6a700);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.debate-daily-limit-action:hover {
+  background: color-mix(in srgb, var(--warning, #e6a700) 15%, transparent);
+}
 .debate-daily-limit-dismiss {
   font-size: var(--text-lg);
   line-height: 1;

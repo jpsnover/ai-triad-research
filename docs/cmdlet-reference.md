@@ -122,6 +122,7 @@ Get-Help <CmdletName> -Full                     # full docs for any cmdlet
 | `Test-PersonaEndpoints` | Auth-gate regression matrix across anonymous/authenticated/admin personas |
 | `Test-ServiceWorkerHealth` | Parse deployed /sw.js for skipWaiting mode, denylist coverage, precache stats |
 | `Get-FreeTierStatus` | Live free-tier budget/usage report (live config + token consumption) |
+| `Sync-FreeTierKeys` | Validate-then-set the FREE_TIER_GEMINI_KEY pool — auth-probes each key, excludes failures, sets passing keys as the comma-separated pool value (GHA secret / local env), reports K and resulting front-door RPM |
 | `Test-AnalyticsBackend` | Analytics storage round-trip probe — POST synthetic event, wait, GET query, verify event appears; confirms write failures in <60s (t/2668) |
 | `Test-AzureHealth` | Azure infra status |
 | `Test-AnalyticsBlobHealth` | Verify the analytics blob container exists, is accessible, and has recent data (daily NDJSON blobs, event counts, stale-write threshold) |

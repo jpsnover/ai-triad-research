@@ -1,0 +1,192 @@
+# ─── Free-tier Gemini Key-Pool Health ───
+# What:  Daily validates the DEPLOYED free-tier Gemini key pool (the
+#        FREE_TIER_GEMINI_KEY secret — the authoritative live pool; GitHub
+#        secrets are write-only, so a job holding the secret is the only durable
+#        way to know per-key validity). Pages when the pool degrades. (t/3142)
+# Why:   Free `AQ.`-format keys can expire/revoke SILENTLY — today nothing
+#        notices until generations start 401'ing mid-debate (t/3165 secondary).
+# How:   Reuses Test-GeminiKeyPool (t/3141) — auth-only probe per key
+#        (GET /v1beta/models?key= — ZERO tokens), masked fingerprints only,
+#        NEVER prints a raw key.
+#
+# ── Gate config (co-located — change deliberately) ──
+#   FLOOR = 2  → page when usable (Valid+Throttled) < 2. 2 is the LOCKED
+#     minimum-viable pool: front-door capacity = min(V×K, 30) with V=12
+#     (FREE_TIER_RPM_PER_KEY, proxyTiers.ts) and K = pool size; K=2 gives
+#     min(12×2,30)=24 ≥ 1.2·T (debate burst T≈20). Below K=2 the front door
+#     collapses → critical. If V or the T target changes, re-derive this floor.
+#   THROTTLED = HEALTHY  → a 429 key is rate-limited, not dead; it self-heals
+#     (rotation + paid overflow absorb bursts). Paging on 429 = noise, so
+#     Throttled counts toward "usable" and NEVER pages. (The load-bearing arm.)
+#   DEAD>0 (early-warning rung) → any 401/403 key is permanent capacity loss;
+#     page even while usable≥2 so it gets replaced before we near the floor.
+#   PAGE_ENABLED = 'false'  → OBSERVE-ONLY (Gate Promotion / warn-first): logs
+#     the would-be alert but opens NO issue. TL flips this to 'true' AFTER ≥1
+#     green real-env cycle proves it doesn't false-page the live pool. The flip
+#     is a deliberate one-line PR (promotion on evidence, not fiat). (t/3142#3)
+
+name: Key Pool Health
+
+on:
+  schedule:
+    - cron: '17 6 * * *'  # daily 06:17 UTC (off the top-of-hour cron rush)
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  FLOOR: '2'
+  PAGE_ENABLED: 'true'    # PROMOTED to paging (TL auth p/331#829) after 1 green real-env observe cycle (run 33536887620: usable=4, alert=False, NetworkErr quiet). See header for the observe→paging rule.
+  OWNER_HANDLE: 'jpsnover'
+
+jobs:
+  key-pool-health:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v6
+
+      - name: Probe deployed key pool (auth-only, masked)
+        id: probe
+        shell: pwsh
+        env:
+          # The deployed pool secret — held only in this step's env, written to a
+          # temp file for Test-GeminiKeyPool, deleted in the finally block below.
+          FREE_TIER_GEMINI_KEY: ${{ secrets.FREE_TIER_GEMINI_KEY }}
+        run: |
+          Import-Module ./scripts/AITriad/AITriad.psm1 -Force
+          $floor = [int]$env:FLOOR
+
+          if ([string]::IsNullOrWhiteSpace($env:FREE_TIER_GEMINI_KEY)) {
+            # Absent secret is itself a degraded state — treat as alert (0 usable).
+            Write-Host "::warning::FREE_TIER_GEMINI_KEY is empty/unset."
+            "alert=true"        | Add-Content $env:GITHUB_OUTPUT
+            "usable=0"          | Add-Content $env:GITHUB_OUTPUT
+            "dead=0"; "unique=0" | ForEach-Object { $_ | Add-Content $env:GITHUB_OUTPUT }
+            "reason=secret FREE_TIER_GEMINI_KEY is empty/unset"       | Add-Content $env:GITHUB_OUTPUT
+            $d = "| (no keys) | SECRET-EMPTY |"
+            "summary<<EOF"; $d; "EOF" | ForEach-Object { $_ | Add-Content $env:GITHUB_OUTPUT }
+            exit 0
+          }
+
+          # Write the comma-separated pool to a temp file (Test-GeminiKeyPool's
+          # regex extracts keys regardless of delimiter); delete it no matter what.
+          $tmp = Join-Path $env:RUNNER_TEMP "keypool-$([guid]::NewGuid().ToString('N')).txt"
+          function Probe {
+            try {
+              Set-Content -LiteralPath $tmp -Value $env:FREE_TIER_GEMINI_KEY -NoNewline
+              return (Test-GeminiKeyPool -Path $tmp)
+            } finally {
+              Remove-Item -LiteralPath $tmp -Force -ErrorAction SilentlyContinue
+            }
+          }
+
+          $p = Probe
+          $usable = [int]$p.Valid + [int]$p.Throttled   # THROTTLED = HEALTHY
+          $alert  = ($p.Dead -gt 0) -or ($usable -lt $floor) -or ($p.NetworkErr -gt 0)
+
+          # Confirm-before-page: a single auth-only re-probe kills flaky pages
+          # (network blip / momentary throttle). Second result is authoritative.
+          if ($alert) {
+            Write-Host "First probe tripped (Dead=$($p.Dead) usable=$usable netErr=$($p.NetworkErr)); re-probing to confirm..."
+            Start-Sleep -Seconds 20
+            $p = Probe
+            $usable = [int]$p.Valid + [int]$p.Throttled
+            $alert  = ($p.Dead -gt 0) -or ($usable -lt $floor) -or ($p.NetworkErr -gt 0)
+          }
+
+          # Masked table for the issue body (Test-GeminiKeyPool already masks).
+          $rows = $p.Keys | ForEach-Object { "| $($_.Fingerprint) | $($_.Status) | $($_.StatusCode) |" }
+          $reason = @()
+          if ($p.Dead -gt 0)        { $reason += "$($p.Dead) DEAD (401/403) key(s)" }
+          if ($usable -lt $floor)   { $reason += "usable $usable < floor $floor" }
+          if ($p.NetworkErr -gt 0)  { $reason += "$($p.NetworkErr) NETWORK-ERR (indeterminate)" }
+          $reasonStr = if ($reason) { $reason -join '; ' } else { 'healthy' }
+
+          Write-Host "Pool: unique=$($p.UniqueCount) valid=$($p.Valid) throttled=$($p.Throttled) dead=$($p.Dead) netErr=$($p.NetworkErr) usable=$usable floor=$floor alert=$alert"
+
+          "alert=$($alert.ToString().ToLower())" | Add-Content $env:GITHUB_OUTPUT
+          "usable=$usable"                       | Add-Content $env:GITHUB_OUTPUT
+          "dead=$($p.Dead)"                      | Add-Content $env:GITHUB_OUTPUT
+          "unique=$($p.UniqueCount)"             | Add-Content $env:GITHUB_OUTPUT
+          "reason=$reasonStr"                    | Add-Content $env:GITHUB_OUTPUT
+          "summary<<EOF"                         | Add-Content $env:GITHUB_OUTPUT
+          ($rows -join "`n")                     | Add-Content $env:GITHUB_OUTPUT
+          "EOF"                                  | Add-Content $env:GITHUB_OUTPUT
+
+      - name: Page on degraded pool (open/refresh issue)
+        if: steps.probe.outputs.alert == 'true' && env.PAGE_ENABLED == 'true'
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3  # v9
+        env:
+          REASON: ${{ steps.probe.outputs.reason }}
+          SUMMARY: ${{ steps.probe.outputs.summary }}
+          USABLE: ${{ steps.probe.outputs.usable }}
+          UNIQUE: ${{ steps.probe.outputs.unique }}
+        with:
+          script: |
+            const body = [
+              `## Free-tier Gemini key-pool degraded`,
+              ``,
+              `**Reason:** ${process.env.REASON}`,
+              `**Usable (valid+throttled):** ${process.env.USABLE} / floor 2 · **unique keys:** ${process.env.UNIQUE}`,
+              `**Time:** ${new Date().toISOString()}`,
+              `**Run:** ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
+              ``,
+              `| Key (masked) | Status | HTTP |`,
+              `|---|---|---|`,
+              process.env.SUMMARY,
+              ``,
+              `Throttled (429) counts as healthy and does not page — this fired on DEAD keys and/or usable below the K=2 floor.`,
+              `### Fix`,
+              `Replace dead keys and re-set the pool: \`operations/devops\` runbook → \`FREE_TIER_GEMINI_KEY\` (comma-separated). Then re-run this workflow to confirm recovery.`,
+              ``,
+              `cc @${process.env.OWNER_HANDLE || 'jpsnover'}`
+            ].join('\n');
+            const open = await github.rest.issues.listForRepo({
+              owner: context.repo.owner, repo: context.repo.repo,
+              state: 'open', labels: 'key-pool-alert', per_page: 1
+            });
+            if (open.data.length > 0) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner, repo: context.repo.repo,
+                issue_number: open.data[0].number, body
+              });
+              console.log(`Refreshed key-pool-alert issue #${open.data[0].number}`);
+            } else {
+              await github.rest.issues.create({
+                owner: context.repo.owner, repo: context.repo.repo,
+                title: `Key-pool degraded: ${process.env.REASON}`,
+                body, labels: ['key-pool-alert', 'bug']
+              });
+              console.log('Opened new key-pool-alert issue');
+            }
+
+      - name: Observe-only (no page) — log the would-be alert
+        if: steps.probe.outputs.alert == 'true' && env.PAGE_ENABLED != 'true'
+        shell: pwsh
+        run: |
+          Write-Host "::warning::[OBSERVE-ONLY] key-pool alert would fire: ${{ steps.probe.outputs.reason }} (usable=${{ steps.probe.outputs.usable }}). Paging disabled (PAGE_ENABLED=false) until TL promotes after >=1 green real-env cycle. No issue opened."
+
+      - name: Auto-close on recovery
+        if: steps.probe.outputs.alert == 'false' && env.PAGE_ENABLED == 'true'
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3  # v9
+        with:
+          script: |
+            const open = await github.rest.issues.listForRepo({
+              owner: context.repo.owner, repo: context.repo.repo,
+              state: 'open', labels: 'key-pool-alert', per_page: 10
+            });
+            for (const issue of open.data) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner, repo: context.repo.repo,
+                issue_number: issue.number,
+                body: `Recovered at ${new Date().toISOString()} — key pool healthy again (usable ≥ floor, no dead keys). Auto-closing.`
+              });
+              await github.rest.issues.update({
+                owner: context.repo.owner, repo: context.repo.repo,
+                issue_number: issue.number, state: 'closed'
+              });
+              console.log(`Auto-closed key-pool-alert issue #${issue.number}`);
+            }

@@ -56,6 +56,22 @@
   line-height: 1.4;
 }
 
+.quota-banner-action {
+  flex-shrink: 0;
+  font-size: var(--text-sm);
+  padding: 2px 10px;
+  border: 1px solid var(--danger, #ef4444);
+  border-radius: var(--radius-sm, 4px);
+  background: transparent;
+  color: var(--danger, #ef4444);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.quota-banner-action:hover {
+  background: color-mix(in srgb, var(--danger, #ef4444) 15%, transparent);
+}
+
 .quota-banner-dismiss {
   flex-shrink: 0;
   background: none;
