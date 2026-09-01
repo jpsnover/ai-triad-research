@@ -12,14 +12,17 @@
 #>
 
 BeforeAll {
-    $ModulePath = Join-Path $PSScriptRoot '..' 'scripts' 'AITriad' 'AITriad.psm1'
+    # Protect-SensitiveText lives in AIEnrich.psm1 (t/3123) — its sole runtime caller is
+    # Invoke-AIApi's error path, and AIEnrich is a separate module scope, so the function
+    # must be defined + exported there (was mis-homed in AITriad/Private).
+    $ModulePath = Join-Path $PSScriptRoot '..' 'scripts' 'AIEnrich.psm1'
     Import-Module $ModulePath -Force -WarningAction SilentlyContinue
 }
 
 Describe 'Protect-SensitiveText (t/2530 L14)' -Tag 'unit' {
 
     It 'redacts an explicitly-supplied literal secret' {
-        InModuleScope AITriad {
+        InModuleScope AIEnrich {
             $out = Protect-SensitiveText -Text 'the key was sekret-value-abc in the body' -Secret 'sekret-value-abc'
             $out | Should -Not -Match 'sekret-value-abc'
             $out | Should -Match '\[REDACTED\]'
@@ -27,13 +30,13 @@ Describe 'Protect-SensitiveText (t/2530 L14)' -Tag 'unit' {
     }
 
     It 'redacts a ?key= query parameter' {
-        InModuleScope AITriad {
+        InModuleScope AIEnrich {
             (Protect-SensitiveText -Text 'GET https://api/models?key=AIzaSyABCDEF123456') | Should -Not -Match 'AIzaSy'
         }
     }
 
     It 'redacts Google AIza + AQ. keys, a Bearer token, sk-, and gsk_ tokens' {
-        InModuleScope AITriad {
+        InModuleScope AIEnrich {
             # Synthetic, never-valid fixture. Split so the source literal cannot match a
             # Google-key pattern — the inline form tripped GitHub secret scanning as a
             # false positive (alert #12). Runtime value is unchanged.
@@ -48,14 +51,14 @@ Describe 'Protect-SensitiveText (t/2530 L14)' -Tag 'unit' {
     }
 
     It 'returns null/empty input unchanged' {
-        InModuleScope AITriad {
+        InModuleScope AIEnrich {
             (Protect-SensitiveText -Text '') | Should -Be ''
             (Protect-SensitiveText -Text $null) | Should -BeNullOrEmpty
         }
     }
 
     It 'truncates output past MaxLength' {
-        InModuleScope AITriad {
+        InModuleScope AIEnrich {
             $long = 'a' * 2000
             $out = Protect-SensitiveText -Text $long -MaxLength 100
             $out.Length | Should -BeLessThan 200
@@ -64,7 +67,7 @@ Describe 'Protect-SensitiveText (t/2530 L14)' -Tag 'unit' {
     }
 
     It 'leaves benign text intact' {
-        InModuleScope AITriad {
+        InModuleScope AIEnrich {
             (Protect-SensitiveText -Text 'model overloaded, please retry') | Should -Be 'model overloaded, please retry'
         }
     }
