@@ -181,6 +181,58 @@ def test_env_override_wins_over_tier():
         assert raised, "env=Block must override the WARN tier"
 
 
+def test_surgical_write_arm1_true_proceeds_on_dirty_block_tier():
+    # ARM 1 — surgical_write=True on a dirty BLOCK-tier target must PROCEED (exemption
+    # honored). A field-surgical write is sweep-proof by construction, so the dirty-tree
+    # check is N/A (t/2926, mirrors PS -SurgicalWrite). Guard must return before the tier
+    # or the git check are even consulted.
+    with tempfile.TemporaryDirectory() as tmp:
+        f = _make_repo(Path(tmp) / "sw_arm1", name="situations.json")
+        f.write_text("mutated\n", encoding="utf-8")
+        with _guard_mode(None):  # no env override — tier decides (Block for situations.json)
+            assert_clean_data_tree(f, surgical_write=True)  # must not raise
+
+
+def test_surgical_write_arm2_false_fires_on_dirty_block_tier():
+    # ARM 2 / fire arm — surgical_write=False (default) on the same dirty BLOCK-tier target
+    # MUST raise DirtyTreeError, proving the gate fires. A detection gate never proven to
+    # fire is assumed, not verified (mirrors TL ruling t/2916#10 applied to t/2926).
+    with tempfile.TemporaryDirectory() as tmp:
+        f = _make_repo(Path(tmp) / "sw_arm2", name="situations.json")
+        f.write_text("mutated\n", encoding="utf-8")
+        raised = False
+        with _guard_mode(None):  # no env -> tier = Block for situations.json
+            try:
+                assert_clean_data_tree(f)  # surgical_write defaults to False -> must raise
+            except DirtyTreeError:
+                raised = True
+        assert raised, (
+            "Without surgical_write=True, a dirty BLOCK-tier target must raise DirtyTreeError; "
+            "the gate is assumed working, not verified, if this arm never executes."
+        )
+
+
+def test_surgical_write_distinct_from_force():
+    # surgical_write and force are SEPARATE parameters with different risk profiles:
+    # surgical_write = "sweep-proof by construction" (safe); force = "blanket override" (scrutinize).
+    # Verify the signature accepts both independently and that surgical_write short-circuits
+    # before force is evaluated (implementation detail of the guard contract).
+    import inspect
+    sig = inspect.signature(assert_clean_data_tree)
+    assert "surgical_write" in sig.parameters, "assert_clean_data_tree must have surgical_write param"
+    assert "force" in sig.parameters, "assert_clean_data_tree must retain force param"
+    # Both False (default) -> guard runs normally (no raise on a clean file)
+    with tempfile.TemporaryDirectory() as tmp:
+        f = _make_repo(Path(tmp) / "sw_distinct")
+        assert_clean_data_tree(f, force=False, surgical_write=False)  # clean -> no raise
+    # surgical_write alone bypasses even block mode
+    with tempfile.TemporaryDirectory() as tmp:
+        f = _make_repo(Path(tmp) / "sw_distinct2", name="situations.json")
+        f.write_text("mutated\n", encoding="utf-8")
+        with _guard_mode("Block"):
+            assert_clean_data_tree(f, force=False, surgical_write=True)  # must not raise
+
+
 if __name__ == "__main__":
     _tests = [v for k, v in sorted(globals().items()) if k.startswith("test_") and callable(v)]
     failed = 0

@@ -89,7 +89,9 @@ def _data_write_guard_mode(path=None) -> str:
     return "warn"
 
 
-def assert_clean_data_tree(path, force: bool = False) -> None:
+def assert_clean_data_tree(
+    path, force: bool = False, surgical_write: bool = False
+) -> None:
     """Guard a whole-file data-repo rewrite against a dirty-tree sweep (t/2902).
 
     Warn-first by default; the mode comes from ``$AI_TRIAD_DATA_WRITE_GUARD``
@@ -101,7 +103,19 @@ def assert_clean_data_tree(path, force: bool = False) -> None:
 
     ``force=True`` opts out entirely (mirrors PowerShell ``-AllowDirty``) — for a
     writer that legitimately rewrites a target left dirty by a prior pass.
+
+    ``surgical_write=True`` is a DISTINCT, semantically-honest exemption for a
+    field-surgical writer (t/2926, mirrors PowerShell ``-SurgicalWrite``). Its claim
+    is NOT "ignore the dirty tree" but "this write is sweep-proof by construction, so
+    the dirty-tree check is N/A." Kept separate from ``force`` on purpose: the two
+    carry different risk profiles, and a grep for ``surgical_write=True`` must not
+    conflate "provably safe surgical" with "blanket override — scrutinise." Reachable
+    only via an allowlisted writer (enforced by the detection gate in
+    SurgicalWriteExemption.Tests.ps1), so a whole-file writer cannot claim it and
+    bypass the BLOCK tier.
     """
+    if surgical_write:
+        return
     if force:
         return
     mode = _data_write_guard_mode(path)   # per-target tier (t/2909)
