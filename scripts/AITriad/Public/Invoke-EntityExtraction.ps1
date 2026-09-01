@@ -81,10 +81,12 @@ function Invoke-EntityExtraction {
     .PARAMETER Concurrency
         Parallel AI calls. Default 3 (same conservative default as Invoke-OrgStanceExtraction).
     .PARAMETER Model
-        AI model id used for every extraction call, overriding the model the
-        enrichment.entity-extraction UsageID resolves from ai-usages.json. Default
-        gemini-3.5-flash-lite. Tab-completes against registered ids; validated by
-        Test-AIModelId.
+        AI model id used for every extraction call, OVERRIDING the model the
+        enrichment.entity-extraction UsageID resolves from ai-usages.json. Default:
+        unset — the usage's configured model wins (currently claude-sonnet-4-6, whose
+        Claude-shaped structured-output schema a gemini-flash model rejects with HTTP
+        400, t/3123). Pass -Model only to deliberately override. Tab-completes against
+        registered ids; validated by Test-AIModelId.
     .PARAMETER Force
         Re-extract for node ids that already have a log entry.
     .PARAMETER ConfidenceThreshold
@@ -141,9 +143,9 @@ function Invoke-EntityExtraction {
         [int]$Concurrency = 3,
 
         [Parameter()]
-        [ValidateScript({ Test-AIModelId $_ })]
+        [ValidateScript({ [string]::IsNullOrEmpty($_) -or (Test-AIModelId $_) })]
         [ArgumentCompleter({ param($cmd, $param, $word) $script:ValidModelIds | Where-Object { $_ -like "$word*" } })]
-        [string]$Model = 'gemini-3.5-flash-lite',
+        [string]$Model = '',
 
         [Parameter()]
         [switch]$Force,
@@ -422,7 +424,11 @@ function Invoke-EntityExtraction {
         param($Item, $UsageId, $KnownTypes, $InvBag, $FailBag, $Model)
         $Node = [PSCustomObject]@{ NodeId = $Item.NodeId; DocIds = $Item.DocIds; Proposals = @(); OrgMentions = @(); Model = $null; ParseOk = $false }
         try {
-            $ai = Invoke-AIByUsage -UsageId $UsageId -Values @{ node_id = $Item.NodeId; facts = $Item.FactsText } -Override @{ model = $Model }
+            # t/3123: only override the usage's configured model when -Model was explicitly passed
+            # ($Model is '' by default). Otherwise the usage's model (claude-sonnet-4-6) wins — a
+            # gemini-flash default here sent the Claude-shaped schema to Gemini → HTTP 400.
+            $ModelOverride = if ($Model) { @{ model = $Model } } else { @{} }
+            $ai = Invoke-AIByUsage -UsageId $UsageId -Values @{ node_id = $Item.NodeId; facts = $Item.FactsText } -Override $ModelOverride
             if ($null -ne $ai -and $ai.Text) {
                 $body = [string]$ai.Text
                 $body = $body -replace '^\s*```(json)?\s*', ''
@@ -497,7 +503,9 @@ function Invoke-EntityExtraction {
 
             $Node = [PSCustomObject]@{ NodeId = $Item.NodeId; DocIds = $Item.DocIds; Proposals = @(); OrgMentions = @(); Model = $null; ParseOk = $false }
             try {
-                $ai = Invoke-AIByUsage -UsageId $UsageIdVal -Values @{ node_id = $Item.NodeId; facts = $Item.FactsText } -Override @{ model = $ModelVal }
+                # t/3123: override only when -Model was explicitly passed (see sequential path).
+                $ModelOverride = if ($ModelVal) { @{ model = $ModelVal } } else { @{} }
+                $ai = Invoke-AIByUsage -UsageId $UsageIdVal -Values @{ node_id = $Item.NodeId; facts = $Item.FactsText } -Override $ModelOverride
                 if ($null -ne $ai -and $ai.Text) {
                     $body = [string]$ai.Text
                     $body = $body -replace '^\s*```(json)?\s*', ''
