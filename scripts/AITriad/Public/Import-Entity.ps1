@@ -122,6 +122,22 @@ function Import-Entity {
                 ))
         }
 
+        # t/3170: write-side relation-DAG gate. `relations[]` is allowlisted (t/3119) but VALIDATE-ONLY
+        # (Q1, TL-approved t/3170#2) — invalid edges are rejected here and valid relations are still
+        # DROPPED (not persisted); persistence is the downstream ticket this gate blocks. Enforced now:
+        # target well-formedness, ent-* existence (from the store), acyclicity, depth<=3 (combined DAG,
+        # depth = edges). Term-target EXISTENCE is DEFERRED to Q4 (Shared Lib parseEntityRef parity) —
+        # until it lands we accept any WELL-FORMED term:* by treating the candidate's term targets as
+        # known, so well-formedness + acyclic + depth still bind on term edges.
+        $propRelations = @(& $prop $p 'relations' @())
+        if ($propRelations.Count -gt 0) {
+            $candId = if ($propId) { $propId } else { 'ent-NEW' }
+            $candTermRefs = @($propRelations |
+                    ForEach-Object { [string](& $prop $_ 'target') } |
+                    Where-Object { $_ -match '^term:' })
+            Assert-EntityRelationsValid -EntityId $candId -Relation $propRelations -ExistingEntity $existing -KnownTermRef $candTermRefs
+        }
+
         $idx = if ($propId) { & $findIndex $propId } else { -1 }
         $isUpdate = ($idx -ge 0)
 
