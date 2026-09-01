@@ -396,6 +396,10 @@ export const PORT = parseInt(process.env.PORT || '7862', 10);
 export const EMBED_SCRIPT = path.join(PROJECT_ROOT, 'scripts', 'embed_taxonomy.py');
 export const SCRIPTS_DIR = path.join(PROJECT_ROOT, 'scripts');
 export const BROKER_SCRIPT = path.join(PROJECT_ROOT, 'src', 'main', 'pty-broker.py');
+// t/3171 (G8a): the CL-owned grounding reconciler (t/3160/#1736), invoked in scoped mode
+// (`--nodes <ids> --apply`) by the inline write-hook after a PUT /api/taxonomy/:pov. Resolved off
+// PROJECT_ROOT like EMBED_SCRIPT; the script is stdlib+numpy (present in the web container).
+export const RECONCILE_SCRIPT = path.join(PROJECT_ROOT, 'research', 'comp-linguist', 'scripts', 'reconcile_grounding.py');
 
 // t/3183 (t/2977 Item B): per-build capability switch that routes embedding miss-text compute
 // off the main thread to the lib/embeddings worker (t/3181). DEFAULT OFF, web-first — when off,

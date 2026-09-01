@@ -14,8 +14,10 @@ import type { ServerCtx } from './context.js';
 import { json, error, param } from '../httpKit.js';
 import { getGlobalRecorder } from '../../../../lib/flight-recorder/index.js';
 import * as fileIO from '../storage/fileIO.js';
-import { stampNodeAuthorship } from '../storage/editMeta.js';
+import { stampNodeAuthorship, diffNodes } from '../storage/editMeta.js';
 import { isAnonymousUser } from '../security/userContext.js';
+import { getFlag } from '../featureFlags.js';
+import { enqueueGroundingReconcile } from '../groundingReconcileHook.js';
 
 export function registerTaxonomyRoutes(r: Router, ctx: ServerCtx): void {
   const { get, put } = r;
@@ -63,12 +65,23 @@ export function registerTaxonomyRoutes(r: Router, ctx: ServerCtx): void {
       await ensureSessionBranch();
       const pov = param(req, 'pov', '/api/taxonomy/:pov');
       const incoming = body as { nodes?: unknown[] };
+      // t/3171 (G8a): changed-node ids for the inline grounding reconcile, captured before stamping
+      // (nodeContentHash excludes the stamp fields, so pre/post-stamp content diffs identically) and
+      // while oldNodes is in scope. Only computed when the flag is on → flag-OFF adds one getFlag().
+      let changedNodeIds: string[] = [];
       if (incoming.nodes && Array.isArray(incoming.nodes)) {
         let oldNodes: unknown[] = [];
         try {
           const existing = await fileIO.readTaxonomyFile(pov) as { nodes?: unknown[] };
           oldNodes = existing?.nodes ?? [];
         } catch { /* telemetry — silent by design: first write or missing file — treat as empty */ }
+        if (getFlag('grounding_reconcile_inline')) {
+          const { added, modified, deleted } = diffNodes(
+            oldNodes as Parameters<typeof diffNodes>[0],
+            incoming.nodes as Parameters<typeof diffNodes>[1],
+          );
+          changedNodeIds = [...added, ...modified, ...deleted]; // deleted → the reconciler purges their grounding
+        }
         incoming.nodes = stampNodeAuthorship(
           oldNodes as Parameters<typeof stampNodeAuthorship>[0],
           incoming.nodes as Parameters<typeof stampNodeAuthorship>[1],
@@ -76,6 +89,9 @@ export function registerTaxonomyRoutes(r: Router, ctx: ServerCtx): void {
       }
       await fileIO.writeTaxonomyFile(pov, body);
       json(res, { ok: true });
+      // Fire-and-forget AFTER the 200 (never blocks/fails the write): debounced scoped grounding
+      // reconcile for the changed nodes. Gated OFF above until the tool-lock + PS lock (t/3203) land.
+      if (changedNodeIds.length > 0) enqueueGroundingReconcile(changedNodeIds);
     } catch (err) { getGlobalRecorder()?.record({ type: 'system.error', component: 'server', level: 'error', message: 'Failed to write taxonomy file', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } }); error(res, String(err), 500, err); }
   });
 
