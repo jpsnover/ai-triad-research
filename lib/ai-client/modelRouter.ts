@@ -11,6 +11,7 @@ import type { FetchFn } from './types.js';
 import type { ModelRegistry } from './registry.js';
 import { isOllamaAvailable } from './providers/ollama.js';
 import { ActionableError } from '../debate/errors.js';
+import { getGlobalRecorder } from '../flight-recorder/index.js';
 
 // ── Task tiers ───────────────────────────────────────────
 
@@ -108,6 +109,10 @@ const DEFAULT_ROUTER_CONFIG: RouterConfig = {
 
 let _ollamaAvailable: boolean | null = null;
 let _config: RouterConfig = { ...DEFAULT_ROUTER_CONFIG };
+// Warn-once gate for the Ollama→cloud fallback (Fallback-Path Logging, t/3178): warn on the
+// first routed call of each unavailable episode, not on every call. A fresh probe restarts the
+// episode, so a later outage warns again.
+let _ollamaFallbackWarned = false;
 
 /**
  * Probe Ollama availability and cache the result.
@@ -115,7 +120,25 @@ let _config: RouterConfig = { ...DEFAULT_ROUTER_CONFIG };
  */
 export async function probeOllama(fetchFn: FetchFn): Promise<boolean> {
   _ollamaAvailable = await isOllamaAvailable(fetchFn);
+  _ollamaFallbackWarned = false; // fresh probe → new episode; re-arm the fallback WARN
   return _ollamaAvailable;
+}
+
+/**
+ * Record the Ollama→cloud-fast fallback once per unavailable episode (Fallback-Path Logging,
+ * docs/error-handling.md). A caller expecting local inference (no quota cost, data stays local)
+ * silently gets cloud otherwise — the t/3165 class of invisible degradation.
+ */
+function warnOllamaFallbackOnce(purpose: TaskPurpose, substitutedModel: string): void {
+  if (_ollamaFallbackWarned) return;
+  _ollamaFallbackWarned = true;
+  getGlobalRecorder()?.record({
+    type: 'ai.fallback',
+    component: 'model-router',
+    level: 'warn',
+    message: 'Ollama unavailable — routing LOCAL-tier task to cloud fast',
+    data: { purpose, fromModel: _config.localModel, substitutedModel, reason: 'ollama_unavailable' },
+  });
 }
 
 /** Update router configuration. Merges with current config. */
@@ -172,7 +195,8 @@ export async function resolveModelForPurpose(
     if (_ollamaAvailable) {
       return { model: _config.localModel, tier, isLocal: true, purpose };
     }
-    // Fall through to cloud fast when Ollama unavailable
+    // Ollama unavailable — fall through to cloud fast, logging the degraded path (t/3178).
+    warnOllamaFallbackOnce(purpose, _config.cloudFastModel);
   }
 
   // Cloud routing by tier
