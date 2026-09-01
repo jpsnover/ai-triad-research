@@ -21,6 +21,7 @@ import { spawn, execFile, ChildProcess } from 'child_process';
 import { getGlobalRecorder, setGlobalRecorder } from '../../../lib/flight-recorder/index.js';
 import { warmup as warmupEmbeddings } from '../../../lib/embeddings/onnxEmbedding.js';
 import { prewarmEmbeddingsCache, getEmbeddingsCacheStatus } from './ai/aiBackends.js';
+import { startEventLoopMonitor } from './eventLoopMonitor.js';
 
 const require = createRequire(import.meta.url);
 
@@ -1299,6 +1300,10 @@ server.listen(PORT, BIND_HOST, () => {
   serverRecorder.record({ type: 'lifecycle', component: 'server', level: 'info', message: 'Server started', data: { port: PORT, host: BIND_HOST, version: SERVER_VERSION, dataRoot: getDataRoot(), platform: process.platform, arch: process.arch, storageMode: STORAGE_MODE } });
   log.server.info({ port: PORT, host: BIND_HOST }, 'Taxonomy Editor running');
   log.server.info({ dataRoot: getDataRoot() }, 'Data root');
+  // t/3166: periodic event-loop lag gauge (Pino) + threshold-crossing FR warn at >1s block,
+  // so a starvation event (t/3165: 7–8s in-process ONNX froze the loop → ingress-fabricated
+  // 500) is directly greppable instead of inferred. Unref'd interval — never holds the process.
+  startEventLoopMonitor();
   void warmupEmbeddings().catch((err: unknown) => {
     log.server.error({ err: String(err) }, 'ONNX embedding warmup failed at boot');
     getGlobalRecorder()?.record({ type: 'system.error', component: 'server', level: 'error', message: 'ONNX embedding warmup failed at boot', error: { name: (err as Error)?.name ?? 'Error', message: String(err), stack: (err as Error)?.stack } });
