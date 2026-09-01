@@ -33,44 +33,52 @@ describe('publicPaths — /readyz', () => {
 });
 
 // ── handler response shape (inline simulation) ───────────────────────────────
-// The route handler is a thin conditional over getEmbeddingsCacheStatus(). We test the
+// The route handler is a thin conditional over getEmbeddingsResolution(). We test the
 // output the conditional produces rather than importing meta.ts (which pulls heavy deps).
 // Keep this in lockstep with the handler in routes/meta.ts.
+// t/3165: 200 now requires RESOLUTION (a canary keyed lookup hits a real vector), not mere
+// presence — a present-but-non-resolving cache (stale/wrong corpus) → 503.
 
-type CacheStatus = { present: boolean; nodeCount: number | null };
+const CANARY = 'acc-beliefs-003';
+type Resolution = { present: boolean; nodeCount: number | null; resolves: boolean };
 type HandlerResult = { statusCode: number; body: Record<string, unknown> };
 
-function simulateReadyz(status: CacheStatus): HandlerResult {
-  const { present, nodeCount } = status;
-  if (present && (nodeCount ?? 0) > 0) {
-    return { statusCode: 200, body: { status: 'ready', nodeCount } };
+function simulateReadyz(r: Resolution): HandlerResult {
+  const { present, nodeCount, resolves } = r;
+  if (present && (nodeCount ?? 0) > 0 && resolves) {
+    return { statusCode: 200, body: { status: 'ready', nodeCount, resolves: true } };
   }
-  return { statusCode: 503, body: { status: 'warming', present, nodeCount } };
+  const reason = !present ? 'cache-absent' : !resolves ? 'canary-not-resolving' : 'empty';
+  return { statusCode: 503, body: { status: 'warming', present, nodeCount, resolves: false, reason, canary: CANARY } };
 }
 
-describe('GET /readyz — response shape (t/3112)', () => {
-  it('200 { status: ready, nodeCount } when cache present with nodeCount>0', () => {
-    const { statusCode, body } = simulateReadyz({ present: true, nodeCount: 4144 });
+describe('GET /readyz — response shape (t/3112, t/3165 resolution)', () => {
+  it('200 { status: ready, nodeCount, resolves } when present, nodeCount>0 AND canary resolves', () => {
+    const { statusCode, body } = simulateReadyz({ present: true, nodeCount: 4144, resolves: true });
     expect(statusCode).toBe(200);
-    expect(body).toEqual({ status: 'ready', nodeCount: 4144 });
+    expect(body).toEqual({ status: 'ready', nodeCount: 4144, resolves: true });
+  });
+
+  it('t/3165: 503 when cache present + nodeCount>0 but the canary does NOT resolve (stale/wrong corpus)', () => {
+    const { statusCode, body } = simulateReadyz({ present: true, nodeCount: 4144, resolves: false });
+    expect(statusCode).toBe(503);
+    expect(body.status).toBe('warming');
+    expect(body.resolves).toBe(false);
+    expect(body.reason).toBe('canary-not-resolving');
   });
 
   it('503 while warming when cache absent', () => {
-    const { statusCode, body } = simulateReadyz({ present: false, nodeCount: null });
+    const { statusCode, body } = simulateReadyz({ present: false, nodeCount: null, resolves: false });
     expect(statusCode).toBe(503);
     expect(body.status).toBe('warming');
     expect(body.present).toBe(false);
+    expect(body.reason).toBe('cache-absent');
   });
 
   it('503 when present but nodeCount is 0 (empty/partial cache is not ready)', () => {
-    const { statusCode, body } = simulateReadyz({ present: true, nodeCount: 0 });
+    const { statusCode, body } = simulateReadyz({ present: true, nodeCount: 0, resolves: false });
     expect(statusCode).toBe(503);
     expect(body.status).toBe('warming');
-  });
-
-  it('503 when present but nodeCount is null (guards the ?? 0 branch)', () => {
-    const { statusCode } = simulateReadyz({ present: true, nodeCount: null });
-    expect(statusCode).toBe(503);
   });
 });
 
@@ -85,12 +93,13 @@ describe('GET /readyz — response shape (t/3112)', () => {
 // or in the Pester (gate parses the old key, gets a non-'ready' body → wait).
 describe('/readyz shared body-contract fixture (t/3114)', () => {
   it('fixture equals the handler\'s real 200 ready body (producer-side pin)', () => {
-    const real = simulateReadyz({ present: true, nodeCount: readyBody.nodeCount }).body;
+    const real = simulateReadyz({ present: true, nodeCount: readyBody.nodeCount, resolves: true }).body;
     expect(real).toEqual(readyBody);
   });
 
-  it('fixture carries the contract invariant the gate keys on: status==="ready", nodeCount>0', () => {
+  it('fixture carries the contract invariants the gate keys on: status==="ready", nodeCount>0, resolves===true', () => {
     expect(readyBody.status).toBe('ready');
     expect(readyBody.nodeCount).toBeGreaterThan(0);
+    expect(readyBody.resolves).toBe(true); // t/3165: resolution is now part of the 200 contract
   });
 });
