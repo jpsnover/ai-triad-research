@@ -78,7 +78,7 @@ vi.mock('../../../../lib/ai-client/index.js', async (importActual) => {
 
 // ── Imports after mocks ───────────────────────────────────────────────────────
 
-import { prewarmEmbeddingsCache, _resetEmbeddingsCacheForTest } from '../ai/aiBackends.js';
+import { prewarmEmbeddingsCache, _resetEmbeddingsCacheForTest, getEmbeddingsResolution, EMBEDDINGS_RESOLUTION_CANARY } from '../ai/aiBackends.js';
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
@@ -133,5 +133,50 @@ describe('embeddingsCache async hydration (t/3085)', () => {
     readDataFileMock.mockClear();
     await prewarmEmbeddingsCache();
     expect(readDataFileMock).toHaveBeenCalledTimes(1);
+  });
+});
+
+// t/3165 — getEmbeddingsResolution: presence != resolution. Asserts the canary keyed lookup
+// hits a REAL EMBEDDING_DIM vector; a present-but-non-resolving cache (canary absent, or its
+// vector empty/wrong-dim) → resolves:false. This is the /readyz + deploy-gate resolution core.
+const withCanary = (vector: number[]) => JSON.stringify({
+  model: 'all-MiniLM-L6-v2', dimension: 384, node_count: 2,
+  nodes: { [EMBEDDINGS_RESOLUTION_CANARY]: { vector }, 'saf-beliefs-001': { vector } },
+});
+const VALID_384 = Array.from({ length: 384 }, (_v, i) => (i % 7) * 0.01 + 0.001); // non-zero, 384-dim
+
+describe('getEmbeddingsResolution (t/3165)', () => {
+  beforeEach(() => { _resetEmbeddingsCacheForTest(); readDataFileMock.mockReset(); });
+
+  it('resolves:true when the canary node has a real 384-dim non-zero vector', async () => {
+    readDataFileMock.mockResolvedValue(Buffer.from(withCanary(VALID_384)));
+    await prewarmEmbeddingsCache();
+    const r = getEmbeddingsResolution();
+    expect(r.present).toBe(true);
+    expect(r.resolves).toBe(true);
+    expect(r.canaryId).toBe(EMBEDDINGS_RESOLUTION_CANARY);
+  });
+
+  it('resolves:false when the canary is ABSENT though the cache is loaded (stale/wrong corpus)', async () => {
+    readDataFileMock.mockResolvedValue(Buffer.from(JSON.stringify({
+      model: 'x', dimension: 384, node_count: 1, nodes: { 'some-other-001': { vector: VALID_384 } },
+    })));
+    await prewarmEmbeddingsCache();
+    const r = getEmbeddingsResolution();
+    expect(r.present).toBe(true);       // cache loaded (nodeCount>0)
+    expect(r.nodeCount).toBe(1);
+    expect(r.resolves).toBe(false);     // but the expected canary doesn't resolve
+  });
+
+  it('resolves:false when the canary vector is the wrong dimension', async () => {
+    readDataFileMock.mockResolvedValue(Buffer.from(withCanary([0.1, 0.2, 0.3])));
+    await prewarmEmbeddingsCache();
+    expect(getEmbeddingsResolution().resolves).toBe(false);
+  });
+
+  it('resolves:false + present:false when the cache never loaded', () => {
+    const r = getEmbeddingsResolution();
+    expect(r.present).toBe(false);
+    expect(r.resolves).toBe(false);
   });
 });

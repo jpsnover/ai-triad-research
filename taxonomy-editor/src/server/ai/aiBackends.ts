@@ -597,6 +597,31 @@ export function getEmbeddingsCacheStatus(): { present: boolean; nodeCount: numbe
   return { present: true, nodeCount: Object.keys(embeddingsCache.nodes ?? {}).length };
 }
 
+/** t/3165: a stable core POV belief node used as the /readyz + deploy-gate RESOLUTION canary.
+ *  If the taxonomy ever legitimately drops it, update this one constant (the resolution check
+ *  will otherwise false-fail; corpusNodeCount>0 distinguishes that config case from a dead cache). */
+export const EMBEDDINGS_RESOLUTION_CANARY = 'acc-beliefs-003';
+const EMBEDDING_DIM = 384; // all-MiniLM-L6-v2
+
+/**
+ * t/3165: RESOLUTION probe (presence != resolution). The t/3165 class is a cache that is
+ * present (nodeCount>0) but doesn't actually resolve a keyed lookup at runtime (stale/wrong
+ * corpus, or empty/corrupt vectors). Asserts the canary id resolves to a real EMBEDDING_DIM
+ * vector — the SAME `nodes[id].vector` lookup the compute path uses (embeddingResolver.ts),
+ * so /readyz gates on the real resolve path, not mere file presence. `/readyz` and DevOps2's
+ * deploy gate (t/3091) share this single predicate.
+ */
+export function getEmbeddingsResolution(): {
+  present: boolean; nodeCount: number | null; resolves: boolean; canaryId: string;
+} {
+  const cache = embeddingsCache;
+  const present = !!(cache && cache.nodes && Object.keys(cache.nodes).length > 0);
+  const nodeCount = cache ? Object.keys(cache.nodes ?? {}).length : null;
+  const vec = cache?.nodes?.[EMBEDDINGS_RESOLUTION_CANARY]?.vector;
+  const resolves = present && Array.isArray(vec) && vec.length === EMBEDDING_DIM && vec.some((v) => v !== 0);
+  return { present, nodeCount, resolves, canaryId: EMBEDDINGS_RESOLUTION_CANARY };
+}
+
 /** Reset the embeddings cache — test isolation only. */
 export function _resetEmbeddingsCacheForTest(): void {
   embeddingsCache = null;

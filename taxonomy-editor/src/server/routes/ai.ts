@@ -536,6 +536,10 @@ export function registerAiRoutes(r: Router, ctx: ServerCtx): void {
   // Invariant: MAX_EMBED_BATCH must be ≥ the client's chunk size (currently 512 per t/3072).
   // A server cap below the client chunk size would 413 every legitimate request.
   const MAX_EMBED_BATCH = 512;
+  // t/3165: a fully-recomputed batch at/above this size is flagged as a volume event (novel
+  // no-ids text). ≥64 catches the ~200/792 debate grounding batches; below it, small ad-hoc
+  // computes stay silent (TL p/522#111 threshold guidance).
+  const LARGE_RECOMPUTE_WARN_ITEMS = 64;
 
   post('/api/embeddings/compute', (req, res, body) => withEndpointTimeout(res, 50_000, 'embeddings-compute', async () => {
     const { texts, ids } = body as { texts: string[]; ids?: string[] };
@@ -600,6 +604,21 @@ export function registerAiRoutes(r: Router, ctx: ServerCtx): void {
             data: { cache_hits: cacheHits, cache_misses: cacheMisses, item_count: texts.length, request_id: getRequestId() },
           });
           log.api.warn({ component: 'embeddings-compute', cache_hits: cacheHits, cache_misses: cacheMisses, item_count: texts.length, request_id: getRequestId() }, missMsg);
+        }
+        // t/3165 (TL p/522#111): the keyed-miss WARN above is ids-gated, so it MISSES the actual
+        // t/3165 mechanism — a large batch of NOVEL, no-ids text (frames/paras/claims) that
+        // legitimately re-computes (correct-miss → VOLUME, ties t/2977). Flag that volume case:
+        // a big batch (≥ LARGE_RECOMPUTE_WARN_ITEMS) that fully re-computes (cacheHits==0),
+        // regardless of ids. Threshold ≥64 catches the ~200/792 debate batches but stays silent
+        // on small legit ad-hoc computes (both arms — TL GV condition).
+        if (texts.length >= LARGE_RECOMPUTE_WARN_ITEMS && cacheHits === 0) {
+          const volMsg = `embeddings.compute: large no-cache recompute — ${texts.length} texts, 0 cache hits (${ids ? 'keyed but unresolved' : 'novel no-ids text — volume, not a cache miss'})`;
+          getGlobalRecorder()?.record({
+            type: 'system.error', component: 'embeddings-compute', level: 'warn',
+            message: volMsg,
+            data: { item_count: texts.length, cache_hits: 0, has_ids: !!ids, request_id: getRequestId() },
+          });
+          log.api.warn({ component: 'embeddings-compute', item_count: texts.length, cache_hits: 0, has_ids: !!ids, request_id: getRequestId() }, volMsg);
         }
         // t/3165: expose cacheHits/cacheMisses + corpusNodeCount so the t/3091 resolution gate
         // (DevOps 2) can (1) assert a canary keyed lookup actually HITS the cache — presence≠resolution —

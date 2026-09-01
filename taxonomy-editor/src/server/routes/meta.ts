@@ -19,7 +19,7 @@ import { getGlobalRecorder } from '../../../../lib/flight-recorder/index.js';
 import { getProjectRoot, getDataRoot, hasApiKey, STORAGE_MODE } from '../config.js';
 import { getConfig } from '../runtimeConfig.js';
 import * as proxyTiers from '../ai/proxyTiers.js';
-import { getEmbeddingsCacheStatus } from '../ai/aiBackends.js';
+import { getEmbeddingsCacheStatus, getEmbeddingsResolution } from '../ai/aiBackends.js';
 import * as community from '../community/community.js';
 import * as fileIO from '../storage/fileIO.js';
 import { log } from '../logger.js';
@@ -81,20 +81,23 @@ export function registerMetaRoutes(r: Router, ctx: ServerCtx): void {
     json(res, { status: 'unhealthy', state: readiness.state, reason: readiness.reason, dataRoot }, 503);
   });
 
-  // t/3112: deploy warm-gate. Constraint #1 (t/3090#11): no traffic to an un-warmed
-  // revision. /healthz gates on DATA load only; the embeddings.json cache is pre-warmed
-  // fire-and-forget (server.ts), so a revision can be /healthz-ready while debates would
-  // still re-embed ~3600 texts. /readyz reports 200 ONLY when the precomputed-vector cache
-  // is loaded (present AND nodeCount>0); the ACA deploy gate polls it and blocks the
-  // traffic-shift until 200. Distinct from /api/health/embeddings (that reflects the ONNX
-  // model warmup, not this cache). Anon (PUBLIC_EXACT_PATHS) so the pre-auth probe reaches it.
+  // t/3112/t/3165: deploy warm-gate + RESOLUTION gate. Constraint #1 (t/3090#11): no traffic
+  // to an un-warmed revision. /healthz gates on DATA load only; the embeddings.json cache is
+  // pre-warmed fire-and-forget (server.ts). t/3165 hardened this from PRESENCE to RESOLUTION:
+  // a cache can be present (nodeCount>0) yet not resolve a keyed lookup at runtime (stale/wrong
+  // corpus, empty/corrupt vectors) — the t/3165 class that mere-presence let through the gate.
+  // /readyz now returns 200 ONLY when a canary keyed lookup RESOLVES to a real vector via the
+  // same nodes[id].vector path the compute path uses. Single shared predicate: the ACA warm-gate
+  // AND DevOps2's resolution deploy-gate (t/3091) both poll GET /readyz — status code 503 = block,
+  // no auth (PUBLIC_EXACT_PATHS, anon). Distinct from /api/health/embeddings (ONNX model warmup).
   get('/readyz', (_req, res) => {
-    const { present, nodeCount } = getEmbeddingsCacheStatus();
-    if (present && (nodeCount ?? 0) > 0) {
-      json(res, { status: 'ready', nodeCount });
+    const { present, nodeCount, resolves, canaryId } = getEmbeddingsResolution();
+    if (present && (nodeCount ?? 0) > 0 && resolves) {
+      json(res, { status: 'ready', nodeCount, resolves: true });
       return;
     }
-    json(res, { status: 'warming', present, nodeCount }, 503);
+    const reason = !present ? 'cache-absent' : !resolves ? 'canary-not-resolving' : 'empty';
+    json(res, { status: 'warming', present, nodeCount, resolves: false, reason, canary: canaryId }, 503);
   });
 
   get('/health', async (_req, res) => {
