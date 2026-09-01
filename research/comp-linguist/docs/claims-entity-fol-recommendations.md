@@ -267,6 +267,51 @@ The gate runs after stage 1. A surface below threshold stays a raw mention with 
 - **T2/t/3122, T3/t/3124:** the mention-index extension and resolution pass gain the two-stage normalizer and the reuse gate as explicit steps; `match_level` already carries the instance/kind distinction from R4.
 - No change to the FOL track (T6 to T8) or to R6's symbol-is-identity rule.
 
+## 13. Addendum: BDI ↔ {Entity, Concept} bidirectional grounding (2026-08-31)
+
+Owner observation: there is no mapping between BDI statements and entities, and concepts should be first-class alongside entities, with a bidirectional BDI ↔ {entity, concept} mapping. Confirmed, scoped, and measured.
+
+### 13.1 Current state (measured, not recalled)
+
+Resolved all 904 acc/saf/skp BDI node descriptions against the 72 approved entities and the 54 concept terms (surface + embedding), no writes (`scratchpad/resolve_bdi_grounding.py`):
+
+- **Entities are an island.** 0 of 904 nodes carry an entity ref. Resolution yield is 61/904 (6.7%) union, but only **3 by precise surface/alias match**; the other 58 are cosine >= 0.60 embedding matches dominated by semantic-proximity noise (for example "Marc Andreessen" cosine-matches 45 accelerationist nodes it does not mention). Real entity grounding is a precise handful, and entities add only 2 nodes beyond concepts.
+- **Concepts are the dense workhorse.** 779/904 (86%) ground to at least one concept: 80% by characteristic-phrase surface match, 35% already latent in the terms' `used_by_nodes`. But the FORWARD field (node to concept ref) does not exist; only the reverse (`term.used_by_nodes`) is partly populated.
+- **Overall:** 86.4% of nodes ground to a concept or entity; 13.6% (123) have none.
+
+This is the particulars-vs-universals prediction of §12 confirmed empirically: BDI argues in kinds, names few particulars.
+
+### 13.2 The model
+
+Each BDI node gains two forward ref slots (unified addressing, distinct types per §12): `concept_refs[]` (`term:*`, dense) and `entity_refs[]` (`ent:*`, sparse and precise). Reverse maps stay consistent: `term.used_by_nodes[]` (exists) and entity `node:*` mentions in `entity_mentions.json`.
+
+### 13.3 The passes (§12 resolution discipline carries over)
+
+- **Concept forward-linking (high yield, mostly automatic).** Characteristic-phrase surface match writes `concept_refs[]` (80% coverage, high precision because the phrases are curated). Embedding proposes for the remainder under human/threshold confirm. The same pass refreshes `term.used_by_nodes[]`.
+- **Entity forward-linking (sparse, precise-only).** Name/alias surface match writes `entity_refs[]`. Embedding is **propose-only, never an auto-link**: the Andreessen-45 result is the proof that raw cosine over-links a particular onto semantically-near abstract nodes.
+- **Bidirectional consistency.** One pass writes node-to-refs and ref-to-nodes together.
+
+### 13.4 The 13.6% ungrounded
+
+The 123 nodes that ground to nothing are the genuine vocabulary gaps. Route them to the t/3130 concept proposer as its next extraction target, or confirm they are irreducibly abstract.
+
+### 13.5 FOL payoff
+
+With `concept_refs`/`entity_refs` on nodes, the neo-Davidsonian frames (R1, §7) become populatable over the BDI corpus: a node proposition's participants resolve to typed referents (kind vs particular), which is exactly what the sort-checker needs.
+
+### 13.6 Ticket breakdown
+
+| # | Work | Scope |
+|---|------|-------|
+| G1 | Node schema: add `concept_refs[]` + `entity_refs[]` to the BDI node type | Shared Lib (types) |
+| G2 | Concept forward-linking pass (surface-primary, embedding-propose) + refresh `used_by_nodes` | CL + data |
+| G3 | Entity forward-linking pass (surface/alias precise, embedding propose-only) | CL + data; PowerShell resolution |
+| G4 | Reverse-map consistency (`term.used_by_nodes`, entity `node:*` mentions) | CL + data |
+| G5 | Ungrounded-node sweep feeds the t/3130 concept proposer | CL |
+| G6 | Populate FOL frames (R1) over the new node refs | CL + Shared Lib |
+
+Suggested first step: **G2** (concept forward-linking), 80% coverage, high precision, mostly latent already. G3 (entities) is a precise handful. G1 (schema) precedes any write.
+
 ---
 
 *Survey basis: full-repo exploration 2026-08-31 (claim schemas in `summaries/`, `entities.json`/`entity_mentions.json`/`entity_embeddings.json`, `lib/entities/types.ts`, extraction cmdlets and passes in `scripts/AITriad/`, `embeddings.json` header, ontology docs). Facts stated in §2 were verified against the live files, not recalled.*
