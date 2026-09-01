@@ -988,6 +988,17 @@ export const PROMPT_CATALOG: PromptCatalogEntry[] = [
     applicableDataSources: ['taxonomyNodes'],
     promptFiles: ['qbaf-pair-confirm'],
   },
+  {
+    id: 'ps-entity-link-judge',
+    title: 'Entity Link Judge',
+    description: 'LLM judge prompt that classifies entity_refs as genuine or spurious surface/alias matches in extraction quality audits.',
+    source: 'AITriad/Prompts/entity-link-judge.prompt',
+    template: '(Loading from disk...)',
+    group: 'powershell',
+    purpose: 'Used by Test-ExtractionQuality -EntityLinkAudit. For each sampled entity_ref, the judge assesses whether the link is a genuine semantic match or a spurious surface/alias coincidence, enabling entity_link_precision measurement.',
+    applicableDataSources: ['taxonomyNodes'],
+    promptFiles: ['entity-link-judge'],
+  },
 
   // === Debate pipeline: Quality & repair prompts ===
   {
