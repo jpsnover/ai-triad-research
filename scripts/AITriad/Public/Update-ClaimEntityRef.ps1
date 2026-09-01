@@ -120,7 +120,12 @@ function Update-ClaimEntityRef {
         }
 
         try {
-            $summary = Get-Content -Raw -LiteralPath $file -Encoding utf8 | ConvertFrom-Json
+            # ConvertFrom-JsonPreserveShape (NOT ConvertFrom-Json): PS 7.4 mutates document shape on
+            # a whole-file round-trip — it coerces ISO datetimes to [datetime] (re-emitting
+            # measured_at/generated_at in a different offset) AND unwraps single-element arrays to
+            # scalars (vocabulary_terms: ["x"] -> "x"). The re-serialize below would bake both into
+            # fields this pass never targeted (t/3124 follow-up; class of ConvertFrom-EdgesJson/t/2974).
+            $summary = ConvertFrom-JsonPreserveShape -Json (Get-Content -Raw -LiteralPath $file -Encoding utf8)
         }
         catch {
             # Fallback-path logging: an unreadable/invalid summary is skipped rather than

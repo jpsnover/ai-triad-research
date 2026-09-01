@@ -186,4 +186,55 @@ Describe 'Update-ClaimEntityRef (t/3124)' -Tag 'unit', 'entity' {
             $r.FilesWritten | Should -Be 1
         }
     }
+
+    Context 'Document shape is preserved on write (t/3124 follow-up)' {
+
+        It 'Does NOT mutate measured_at / generated_at when appending entity_refs' {
+            # These fields have timezone offsets + fractional seconds that PS 7.4 ConvertFrom-Json
+            # would coerce to [datetime] and re-emit in a different offset. The write must touch
+            # ONLY entity_refs. New-Summary via ConvertTo-Json emits these as strings, matching how
+            # Invoke-DocumentSummary writes real summaries.
+            New-Summary -Path $script:sumPath -Doc @{
+                doc_id        = 'd1'
+                generated_at  = '2026-05-02T20:38:45.7336380-04:00'
+                context_rot   = @{ measured_at = '2026-05-02T20:38:45.7336380-04:00' }
+                pov_summaries = @{ accelerationist = @{ key_points = @(@{ point = 'The Apollo Project endures.' }) } }
+                factual_claims = @()
+            }
+
+            $r = Update-ClaimEntityRef -EntitiesPath $script:entPath -SummariesPath $script:sumPath
+            $r.RefsWritten | Should -Be 1   # proves the write actually happened
+
+            # Re-read the RAW string values (not the coerced form) and assert byte-identity.
+            $after = Get-Content -Raw -LiteralPath $script:sumPath -Encoding utf8
+            $after | Should -BeLike '*"generated_at": "2026-05-02T20:38:45.7336380-04:00"*'
+            $after | Should -BeLike '*"measured_at": "2026-05-02T20:38:45.7336380-04:00"*'
+            # And the entity_ref was in fact added.
+            $after | Should -BeLike '*"entity_refs"*ent-001*'
+        }
+
+        It 'Does NOT collapse a single-element array (vocabulary_terms) to a scalar' {
+            # ConvertFrom-Json unwraps ["x"] -> "x"; a whole-file re-serialize would then persist
+            # the scalar, silently changing the schema of an untargeted field. -Depth 12 keeps the
+            # 1-element array intact in the fixture.
+            $doc = @{
+                doc_id        = 'd1'
+                pov_summaries = @{ accelerationist = @{ key_points = @(
+                            @{ point = 'The Apollo Project endures.'; vocabulary_terms = @('capabilities_scaling') }
+                        ) } }
+                factual_claims = @()
+            }
+            ($doc | ConvertTo-Json -Depth 12) | Set-Content -LiteralPath $script:sumPath -Encoding utf8NoBOM
+
+            Update-ClaimEntityRef -EntitiesPath $script:entPath -SummariesPath $script:sumPath | Out-Null
+
+            # Must still be an array in the raw text (the [ ] survive) — the real shape proof.
+            # ('[' is a -BeLike metachar, so assert via .Contains, not -BeLike.)
+            $raw = Get-Content -Raw -LiteralPath $script:sumPath -Encoding utf8
+            $raw.Contains('"vocabulary_terms": [') | Should -BeTrue
+            $parsed = $raw | ConvertFrom-Json
+            $vt = $parsed.pov_summaries.accelerationist.key_points[0].vocabulary_terms
+            $vt[0] | Should -Be 'capabilities_scaling'
+        }
+    }
 }
