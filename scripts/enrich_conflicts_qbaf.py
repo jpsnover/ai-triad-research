@@ -343,6 +343,14 @@ def enrich_conflict(conflict, node_meta):
     }
 
 
+# Resolution margin floor (t/3151, CL neutrality ruling t/3151#2). computed_strength is DF-QuAD
+# in [0, 1]; a top−runner-up gap below this means the two sides are not meaningfully separated, so
+# crowning the first-listed instance is noise (Python's stable sort silently made inst-0 win a
+# perfect tie with margin 0.0). Below the floor → explicit `undecided` (mirrors the crux layer);
+# at/above → `decided`. Stipulated day-one (registered; derivation path is t/3152).
+QBAF_MARGIN_FLOOR = 0.05
+
+
 def _finalize_qbaf(pre, bridge_result):
     """Finalize a QBAF object after bridge results are available."""
     qbaf_nodes_output = pre["qbaf_nodes_output"]
@@ -359,12 +367,24 @@ def _finalize_qbaf(pre, bridge_result):
         top = sorted_nodes[0]
         runner_up = sorted_nodes[1]
         margin = round(top["computed_strength"] - runner_up["computed_strength"], 4)
-        resolution = {
-            "prevailing_claim": top["id"],
-            "prevailing_strength": top["computed_strength"],
-            "margin": margin,
-            "criterion": "qbaf_computed_strength",
-        }
+        if margin < QBAF_MARGIN_FLOOR:
+            # Sides not meaningfully separated — explicit undecided, never a first-listed default.
+            resolution = {
+                "verdict": "undecided",
+                "prevailing_claim": None,
+                "prevailing_strength": None,
+                "margin": margin,
+                "criterion": "qbaf_computed_strength",
+                "reason": "margin below floor — sides not meaningfully separated",
+            }
+        else:
+            resolution = {
+                "verdict": "decided",
+                "prevailing_claim": top["id"],
+                "prevailing_strength": top["computed_strength"],
+                "margin": margin,
+                "criterion": "qbaf_computed_strength",
+            }
 
     qbaf = {
         "graph": {
