@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { useQuotaWarning, type QuotaLevel } from '../../hooks/useQuotaWarning';
+import { useSettingsDialog } from '../../hooks/useSettingsDialog';
 import './QuotaBanner.css';
 
 function QuotaIcon({ level }: { level: QuotaLevel }) {
@@ -35,6 +36,7 @@ function QuotaIcon({ level }: { level: QuotaLevel }) {
 export function QuotaBanner() {
   const warning = useQuotaWarning(s => s.warning);
   const dismiss = useQuotaWarning(s => s.dismiss);
+  const openSettings = useSettingsDialog(s => s.open);
 
   if (!warning || warning.dismissedAt) return null;
 
@@ -46,6 +48,16 @@ export function QuotaBanner() {
     >
       <QuotaIcon level={warning.level} />
       <span className="quota-banner-text">{warning.message}</span>
+      {/* Daily-cap (error) surface: the "continue now" path is registering a BYOK
+          key, so give the user an actionable route to Settings → API Keys (t/3190). */}
+      {warning.level === 'error' && (
+        <button
+          className="quota-banner-action"
+          onClick={openSettings}
+        >
+          Add API key
+        </button>
+      )}
       {warning.level !== 'error' && (
         <button
           className="quota-banner-dismiss"

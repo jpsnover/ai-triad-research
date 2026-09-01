@@ -15,6 +15,7 @@ import { SettingsDialog } from '../settings/SettingsDialog';
 import { useAuthStatus, useUserProfile } from '../../hooks/useAuthStatus';
 import { useFlag } from '../../hooks/useFeatureFlags';
 import { useNavVisibilityContext } from '../../hooks/useNavVisibilityContext';
+import { useSettingsDialog } from '../../hooks/useSettingsDialog';
 import { useTierInfo } from '../../hooks/useTierInfo';
 import { FeedbackPopover } from './FeedbackPopover';
 import { NAV_ITEMS, getVisibleNavItems, getSecondaryByGroup, type NavItem, type NavAction } from '../../data/navConfig';
@@ -198,6 +199,10 @@ export function Toolbar() {
   const adminFlag = useFlag('permission-admin-features');
   const [showHelp, setShowHelp] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  // Global open-signal so surfaces outside the toolbar (e.g. the daily-quota
+  // banners) can route the user to Settings → API Keys (t/3190).
+  const settingsRequested = useSettingsDialog(s => s.isOpen);
+  const closeSettingsSignal = useSettingsDialog(s => s.close);
   const [showMore, setShowMore] = useState(false);
   const [showFeedback, setShowFeedback] = useState(false);
   const moreRef = useRef<HTMLDivElement>(null);
@@ -396,7 +401,9 @@ export function Toolbar() {
           <Settings size="1.25em" />
         </button>
       </div>
-      {showSettings && <SettingsDialog onClose={() => setShowSettings(false)} />}
+      {(showSettings || settingsRequested) && (
+        <SettingsDialog onClose={() => { setShowSettings(false); closeSettingsSignal(); }} />
+      )}
       {showHelp && <HelpDialog onClose={() => setShowHelp(false)} />}
     </nav>
   );
