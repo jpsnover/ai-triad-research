@@ -396,3 +396,15 @@ export const PORT = parseInt(process.env.PORT || '7862', 10);
 export const EMBED_SCRIPT = path.join(PROJECT_ROOT, 'scripts', 'embed_taxonomy.py');
 export const SCRIPTS_DIR = path.join(PROJECT_ROOT, 'scripts');
 export const BROKER_SCRIPT = path.join(PROJECT_ROOT, 'src', 'main', 'pty-broker.py');
+
+// t/3183 (t/2977 Item B): per-build capability switch that routes embedding miss-text compute
+// off the main thread to the lib/embeddings worker (t/3181). DEFAULT OFF, web-first — when off,
+// computeEmbeddings runs the ONNX fallback in-thread exactly as before (byte-identical). Read
+// per-call (not a module-load const) so the both-arms liveness test can toggle it around a single
+// compute. `EMBEDDING_WORKER_OFFLOAD=1` (or `true`) enables. This is a build/deploy capability, not
+// the admin runtime feature-flag surface (feature-flags.json) — the worker's availability is a
+// property of the build, and the canary flip is an ops action, not a per-user admin toggle.
+export function isEmbeddingWorkerOffloadEnabled(): boolean {
+  const v = process.env.EMBEDDING_WORKER_OFFLOAD?.trim().toLowerCase();
+  return v === '1' || v === 'true';
+}

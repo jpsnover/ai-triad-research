@@ -581,6 +581,10 @@ export function registerAiRoutes(r: Router, ctx: ServerCtx): void {
   // t/3165: a fully-recomputed batch at/above this size is flagged as a volume event (novel
   // no-ids text). ≥64 catches the ~200/792 debate grounding batches; below it, small ad-hoc
   // computes stay silent (TL p/522#111 threshold guidance).
+  // TIERED with aiBackends' NOVEL_TEXT_DEMAND_BASELINE=256 (t/3183, TL p/522#134) — NOT redundant:
+  // 64 here = "notable volume, a large recompute happened" (expected under cold cache); 256 there =
+  // "demand baseline exceeded — the demand ITSELF may be the bug" (the novel-text class's failure
+  // mode). Two rungs of the same ladder, different meanings.
   const LARGE_RECOMPUTE_WARN_ITEMS = 64;
 
   post('/api/embeddings/compute', (req, res, body) => withEndpointTimeout(res, 50_000, 'embeddings-compute', async () => {
@@ -625,7 +629,9 @@ export function registerAiRoutes(r: Router, ctx: ServerCtx): void {
       beginEmbeddingCompute();
       try {
         // t/3061: local ONNX — no Gemini call, no key needed.
-        const { vectors, cacheHits, cacheMisses } = await ai.computeEmbeddings(texts, ids, undefined);
+        // t/3183: name the caller so a worker-queue shed WARN (offload on) / demand-baseline WARN
+        // attributes the drop to this route rather than 'unknown'.
+        const { vectors, cacheHits, cacheMisses } = await ai.computeEmbeddings(texts, ids, undefined, { requester: 'embeddings-compute' });
         markEmbeddingModelWarm();
         // t/3079: item_count; t/3086: cache_hits/cache_misses (sustained 0% hit = t/3085 condition).
         getGlobalRecorder()?.record({
