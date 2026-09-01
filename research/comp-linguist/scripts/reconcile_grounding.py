@@ -33,7 +33,36 @@ import json, re, os, glob, sys, hashlib, time, socket, contextlib
 from datetime import datetime, timezone
 import numpy as np
 
-D = r"C:\Users\jsnov\repos\ai-triad-data"
+def _resolve_data_root():
+    """Portable data-root resolution (root AGENTS.md): AI_TRIAD_DATA_ROOT env > .aitriad.json
+    `data_root` (relative to the repo root that holds it) > `../ai-triad-data` monorepo fallback.
+    Uses only the CODE repo (.aitriad.json is code-tracked), so it resolves on any host incl. the
+    ACA Linux container and CI runners — no data-repo checkout needed just to compute paths (t/3189)."""
+    env = os.environ.get("AI_TRIAD_DATA_ROOT")
+    if env:
+        return os.path.abspath(env)
+    here = os.path.dirname(os.path.abspath(__file__))
+    d = here
+    for _ in range(8):  # walk up to the repo root that holds .aitriad.json
+        cfg = os.path.join(d, ".aitriad.json")
+        if os.path.isfile(cfg):
+            try:
+                with open(cfg, encoding="utf-8") as fh:
+                    dr = (json.load(fh) or {}).get("data_root")
+            except (OSError, ValueError):
+                dr = None
+            if dr:
+                return os.path.abspath(dr if os.path.isabs(dr) else os.path.join(d, dr))
+            break
+        parent = os.path.dirname(d)
+        if parent == d:
+            break
+        d = parent
+    # fallback: <repo>/../ai-triad-data — repo root is 3 levels up from this script
+    repo_root = os.path.abspath(os.path.join(here, os.pardir, os.pardir, os.pardir))
+    return os.path.abspath(os.path.join(repo_root, os.pardir, "ai-triad-data"))
+
+D = _resolve_data_root()
 O = os.path.join(D, "taxonomy", "Origin")
 STD = os.path.join(D, "dictionary", "standardized")
 MENTIONS = os.path.join(O, "entity_mentions.json")
@@ -345,14 +374,38 @@ def reconcile_scoped(pov_data, mentions_store, sidecar, dirty_ids, terms, ents, 
     return {"changed": changed, "skipped": skipped, "removed": removed}, by_term, touched_povs
 
 # ---------- selftest ----------
+def _fixtures():
+    """Synthetic in-memory inputs for a HERMETIC selftest — zero data-repo reads (t/3189), so the
+    contract gate runs on any host / CI runner without an ai-triad-data checkout. Fresh objects each
+    call (selftest mutates them). Exercises: surface links, an embedding-proposed ref, an entity ref,
+    a node:* mention, a situation mention, and preserved sei:*/summary:* containers."""
+    terms = [
+        {"cf": "adaptive_governance", "phrases": ["adaptive governance"], "file": None},
+        {"cf": "strict_liability", "phrases": ["strict liability"], "file": None},
+        {"cf": "human_oversight", "phrases": ["human oversight"], "file": None},
+    ]
+    ents = [("ent-001", [("exact", "Manhattan Project"), ("alias", "Manhattan")])]
+    mk = lambda nid, desc: {"id": nid, "label": nid, "description": desc}
+    pov = {
+        "accelerationist": {"nodes": [mk("acc-1", "adaptive governance is the priority"),
+                                      mk("acc-2", "markets favor rapid deployment")]},
+        "safetyist": {"nodes": [mk("saf-1", "human oversight, unlike the Manhattan Project, is essential"),
+                                mk("saf-2", "precaution over speed")]},
+        "skeptic": {"nodes": [mk("skp-1", "the hype exceeds reality")]},
+    }
+    ms = {"containers": {
+        "sei:doc-1#e1": {"text_sha256": "x", "extracted_at": "t", "mentions": []},
+        "summary:doc-1#acc-kp-1": {"text_sha256": "y", "extracted_at": "t", "mentions": []},
+    }}
+    # one embedding-proposed case: acc-1's (already unit-norm) vector aligns with the human_oversight sense vector
+    v = [1.0, 0.0, 0.0, 0.0]
+    nv = {"acc-1": np.array(v, dtype=np.float64)}
+    sense = {"human_oversight": {"embedding": v}}
+    sit = [("sit-001", "a debate invoking the Manhattan Project as precedent")]
+    return terms, ents, pov, ms, nv, sense, sit
+
 def selftest():
-    terms, ents = load_terms(), load_entities()
-    nv, sense = load_vectors()
-    sit = load_situations()
-    pov = {p: load_json(os.path.join(O, p + ".json")) for p in ("accelerationist", "safetyist", "skeptic")}
-    ms = {"containers": {}}
-    for c, v in load_json(MENTIONS).get("containers", {}).items():
-        ms["containers"][c] = v
+    terms, ents, pov, ms, nv, sense, sit = _fixtures()
     sc = {}
     sei_before = {k for k in ms["containers"] if k.startswith("sei:")}
     summary_before = {k for k in ms["containers"] if k.startswith("summary:")}
@@ -386,8 +439,7 @@ def selftest():
     assert ("node:" + victim) not in ms["containers"], "FAIL: removed node still has node:* mention"
     assert all(victim not in v for v in ubn4.values()), "FAIL: removed node still in used_by_nodes"
     # SCOPED (G8a, t/3171): re-resolve only the dirty-set; non-dirty nodes preserved; consistency holds
-    pov2 = {p: load_json(os.path.join(O, p + ".json")) for p in ("accelerationist", "safetyist", "skeptic")}
-    ms2 = {"containers": dict(load_json(MENTIONS).get("containers", {}))}
+    _t2, _e2, pov2, ms2, _nv2, _s2, _sit2 = _fixtures()  # fresh synthetic tree (hermetic, t/3189)
     sc2 = {}
     reconcile(pov2, ms2, sc2, terms, ents, nv, sense, sit)  # cold baseline: full refs + sidecar
     a, b = pov2["accelerationist"]["nodes"][0], pov2["accelerationist"]["nodes"][1]
