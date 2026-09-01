@@ -40,7 +40,7 @@ The honest summary: nearly every judgment-bearing number in the system is curren
 | `relevance_threshold` (0.48 base) | **derived** | Pairwise cosine-distribution analysis over 1,182 nodes (2026-05): 0.3 admitted 93.3% of pairs; 0.48 ≈ 65%. Self-tunes ±0.02–0.03 in [0.35, 0.60] from utilization telemetry (`calibrationOptimizer.ts`). | 2026-05 |
 | `argumentation_exit_threshold` | stipulated | Optimizer produces recommend-only adjustments from quality score; not auto-applied. | — |
 | `qbaf_damping_level` | **derived** | Raised in response to observed oscillation telemetry (`qbaf_oscillation_*`). | 2026-06 |
-| `attack_weights` [1.0, 1.1, 1.2] | stipulated | Rebut/undercut/undermine escalation asserted. Named validation path: gradient-learned edge weights from a labeled outcome set (Gradual AA-CBR, t/3023). | — |
+| `attack_weights` [1.0, 1.05, 1.1] | **derived** | Rebut/undercut/undermine escalation; values are a concordance-max fit against synthesis preferences (`provisional-weights.json`). Future validation path: gradient-learned edge weights from a labeled outcome set (Gradual AA-CBR, t/3023). | c135624d / t/244 |
 | `draft_temperature` (0.7) | stipulated | Informed by the temperature-per-task audit but no formal optimization. | — |
 | `argumentative_saturation_weights` | stipulated | Composite signal weights asserted. | — |
 | `semantic_recycling_threshold` | stipulated | | — |
