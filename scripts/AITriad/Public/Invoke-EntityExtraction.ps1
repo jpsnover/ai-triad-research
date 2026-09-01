@@ -433,7 +433,9 @@ function Invoke-EntityExtraction {
                 $body = [string]$ai.Text
                 $body = $body -replace '^\s*```(json)?\s*', ''
                 $body = $body -replace '\s*```\s*$', ''
-                $parsed = $body.Trim() | ConvertFrom-Json -ErrorAction Stop
+                # t/3195: recover the valid prefix when a dense node's structured output truncates
+                # mid-JSON, instead of failing the whole node.
+                $parsed = ConvertFrom-TruncatableJson -Text $body.Trim() -Context $Item.NodeId
                 $Node.Model = if ($ai.PSObject.Properties['Model']) { $ai.Model } else { $Model }
                 $Node.ParseOk = $true
 
@@ -510,7 +512,8 @@ function Invoke-EntityExtraction {
                     $body = [string]$ai.Text
                     $body = $body -replace '^\s*```(json)?\s*', ''
                     $body = $body -replace '\s*```\s*$', ''
-                    $parsed = $body.Trim() | ConvertFrom-Json -ErrorAction Stop
+                    # t/3195: recover the valid prefix on a truncated dense-node response.
+                    $parsed = ConvertFrom-TruncatableJson -Text $body.Trim() -Context $Item.NodeId
                     $Node.Model = if ($ai.PSObject.Properties['Model']) { $ai.Model } else { $ModelVal }
                     $Node.ParseOk = $true
 

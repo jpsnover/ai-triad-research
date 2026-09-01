@@ -16,7 +16,7 @@ import { createRequire } from 'module';
 import { getGlobalRecorder } from '../../../../lib/flight-recorder/index.js';
 
 const require = createRequire(import.meta.url);
-import { getApiKey, getApiKeys, getProjectRoot, EMBED_SCRIPT, resolveDataPath, type AIBackend } from '../config.js';
+import { getApiKey, getApiKeys, getProjectRoot, EMBED_SCRIPT, resolveDataPath, isEmbeddingWorkerOffloadEnabled, type AIBackend } from '../config.js';
 import { ActionableError } from '../../../../lib/debate/errors.js';
 import { parseJsonRobust } from '../../../../lib/debate/helpers.js';
 import { extractProviderReason, deriveKeyErrorMessage } from './providerErrors.js';
@@ -33,6 +33,9 @@ import {
   computeEmbeddings as onnxComputeEmbeddings,
   tryWarmup as onnxTryWarmup,
 } from '../../../../lib/embeddings/onnxEmbedding.js';
+// t/3183 (t/2977 Item B): off-main-thread ONNX compute via the shared worker (t/3181). Consumed
+// only when EMBEDDING_WORKER_OFFLOAD is on; flag-off never touches this path (byte-identical).
+import { computeEmbeddingsOffThread } from '../../../../lib/embeddings/offThreadEmbedding.js';
 import {
   resolveBackend,
   callProvider,
@@ -663,6 +666,26 @@ const EMBEDDINGS_REQUEST_TIMEOUT_MS = 45_000;
 // (reduces, doesn't eliminate — the durable fix is worker-offload, t/2977 Item B / t/3183).
 const EMBEDDING_COMPUTE_CHUNK = 128;
 
+// t/3183 C6 (t/2977#6) — PROVISIONAL demand baseline for the novel-text class's 3rd recurrence.
+// The worker (Item B) raises the compute CEILING (a big batch no longer blocks the loop) but does
+// NOT bound DEMAND. When a single request's NOVEL (cacheHits=0) count exceeds this, we emit ONE
+// WARN naming the requester — never a hard reject — so an unbounded-demand caller is visible BEFORE
+// it saturates the worker queue (offload on) or the loop (offload off).
+//
+// TIERING vs LARGE_RECOMPUTE_WARN_ITEMS=64 (routes/ai.ts, #1720) — intentionally NOT redundant
+// (TL p/522#134):
+//   • 64  = "notable volume" — a large recompute happened (INFO/WARN, expected under cold cache).
+//   • 256 = "demand baseline exceeded — the DEMAND itself may be the bug" (the class's failure mode).
+//
+// 256 is PROVISIONAL and MUST be calibrated from real data before the flag flips on (TL p/522#133;
+// t/3085 baseline-validation — do NOT confirm a baseline by fiat). It has to sit ABOVE the legit
+// residual-novel-per-turn max or it fires every normal debate (noise = dead gate). The t/3165
+// 792/1347 batches were largely STATIC corpus (now cached), so they do NOT reveal the residual
+// novel count of a normal turn — the storm-replay canary replays the real debate shape and yields
+// that cacheHits=0 distribution; set baseline = observed-legit-max + margin at the canary. 256 is a
+// deliberately-generous placeholder (2× the 128 chunk) chosen to under-fire until calibrated.
+const NOVEL_TEXT_DEMAND_BASELINE = 256;
+
 // Resolve a (possibly large) batch in chunks, yielding the event loop between chunks. Safe
 // because resolveEmbeddings is order-preserving and per-text pure (local cache-hit or chain
 // compute), so concatenating per-chunk results is identical to resolving the whole batch at
@@ -707,14 +730,30 @@ export async function resolveEmbeddingsChunked(
 // Python encoder or the in-process ONNX fallback, both 384-dim/all-MiniLM-L6-v2, no API.
 export async function computeEmbeddings(
   texts: string[], ids?: string[], _explicitApiKey?: string,
+  opts?: { requester?: string },
 ): Promise<{ vectors: number[][]; cacheHits: number; cacheMisses: number }> {
   const startMs = Date.now();
+  // t/3183: label the caller so a worker-queue shed WARN (offload on) and the demand-baseline WARN
+  // both name WHO. Defaults to 'unknown' — callers pass the route/usage (see routes/ai.ts).
+  const requester = opts?.requester ?? 'unknown';
   const local = await loadEmbeddingsFileAsync();
   // t/3086: pre-pass hit count (cheap dict lookup, same data resolveEmbeddings uses).
   const cacheHits = (ids && local)
     ? ids.filter(id => id != null && local.nodes[id] != null).length
     : 0;
   const cacheMisses = texts.length - cacheHits;
+
+  // t/3183 C6: the worker raises the compute ceiling but does not bound demand (class's 3rd
+  // recurrence). One WARN per over-baseline request makes an unbounded-demand caller visible
+  // BEFORE it saturates the worker queue / starves the loop — offload on or off.
+  if (cacheMisses > NOVEL_TEXT_DEMAND_BASELINE) {
+    getGlobalRecorder()?.record({
+      type: 'system.error', component: 'ai-backends', level: 'warn',
+      message: `Novel-text demand ${cacheMisses} exceeds by-design baseline ${NOVEL_TEXT_DEMAND_BASELINE} (provisional — calibrated at the storm-replay canary) — the worker raises the compute ceiling but does not bound demand; check for an unbounded-demand caller`,
+      data: { requester, cacheMisses, cacheHits, baseline: NOVEL_TEXT_DEMAND_BASELINE, provisional: true, inputCount: texts.length },
+    });
+  }
+
   const chain: EmbeddingFallback[] = [];
 
   // Local Python encoder stays primary when present (TL ruling t/1641#10).
@@ -735,8 +774,17 @@ export async function computeEmbeddings(
   // 384-dim vector space as the stored corpus; no API key, no network.
   if (await onnxTryWarmup()) {
     chain.push({
-      name: 'onnx-batch',
-      compute: (t) => onnxComputeEmbeddings(t),
+      // t/3183 (t/2977 Item B): flag ON → run the ONNX pass in the shared worker thread so a large
+      // miss-text batch can't block the event loop past ACA's liveness deadline (t/3165). The worker
+      // returns Float32Array views over a transferred buffer → widen to number[][] for the resolver.
+      // A shed/crash rejects (load-shed 503) and is NOT caught here — an in-thread recompute would
+      // reintroduce the exact starvation the offload removes (the worker already WARNs the shed with
+      // the requester, per Fallback-Path Logging). Flag OFF → today's exact in-thread call → the
+      // 'onnx-batch' name and behaviour are byte-identical.
+      name: isEmbeddingWorkerOffloadEnabled() ? 'onnx-batch-worker' : 'onnx-batch',
+      compute: (t) => isEmbeddingWorkerOffloadEnabled()
+        ? computeEmbeddingsOffThread(t, { requester }).then(vecs => vecs.map(v => Array.from(v)))
+        : onnxComputeEmbeddings(t),
     });
   }
 
