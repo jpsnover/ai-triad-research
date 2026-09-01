@@ -454,9 +454,20 @@ export async function generateTextWithSearch(
     return { text: result.text };
   }
 
-  const apiKey = (typeof explicitApiKey === 'string' ? explicitApiKey : explicitApiKey?.[0])
-    ?? await getApiKey('gemini');
-  if (!apiKey) {
+  // t/3175: parity with generateText's resilience stack. Previously this used only
+  // explicitApiKey[0] and called geminiGroundedSearch directly — so a debate round's
+  // search-verify bursts hammered ONE free-tier key (the other pool keys idle) → 429
+  // api_key_exhausted with no retry. Route the grounded-search provider call through
+  // callWithKeyRotation (round-robin + 429 cooldown across the whole pool) wrapped in
+  // withRetry (backoff), exactly like generateText (aiBackends.ts:383). Paid-overflow
+  // is layered at the route caller (routes/ai.ts), mirroring generateWithPaidFallback.
+  const fallbackKey = (Array.isArray(explicitApiKey) || explicitApiKey) ? undefined : await getApiKey('gemini');
+  const keys: string[] = Array.isArray(explicitApiKey)
+    ? explicitApiKey.filter(Boolean)
+    : explicitApiKey
+      ? [explicitApiKey]
+      : (fallbackKey ? [fallbackKey] : []);
+  if (keys.length === 0) {
     throw new ActionableError({
       goal: 'Perform grounded search via Gemini',
       problem: 'No Gemini API key configured',
@@ -466,7 +477,12 @@ export async function generateTextWithSearch(
   }
 
   const apiModel = getApiModelId(resolved);
-  return geminiGroundedSearch(fetch, prompt, apiModel, apiKey);
+  return withRetry(
+    () => callWithKeyRotation('gemini', keys,
+      (apiKey) => geminiGroundedSearch(fetch, prompt, apiModel, apiKey)),
+    SERVER_RETRY_CONFIG,
+    `gemini-search/${apiModel}`,
+  );
 }
 
 // ── UsageID wrappers (t/1262) ──
