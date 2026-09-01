@@ -615,9 +615,12 @@ const EMBEDDINGS_REQUEST_TIMEOUT_MS = 45_000;
 // batch froze it ~46.8s → 500, past ACA's liveness deadline, and the t/2905 concurrency cap
 // can't catch a *single* request. Splitting the batch and yielding (setImmediate) between
 // chunks keeps the loop responsive to health checks + other work during a big compute.
-// TUNE from the first post-deploy large-compute trace (t/2904 loop-delay/heap observability);
-// 256 is the pre-calibration default.
-const EMBEDDING_COMPUTE_CHUNK = 256;
+// TUNE from the first post-deploy large-compute trace (t/2904 loop-delay/heap observability).
+// t/3180 (t/2977 Item A, interim relief): 256→128 — the t/3165 incident's novel-text batches
+// (~200/792) still blocked the loop enough to trip ACA liveness 503s at chunk=256; halving the
+// chunk yields the loop 2× as often between ONNX passes → fewer liveness 503s. Interim only
+// (reduces, doesn't eliminate — the durable fix is worker-offload, t/2977 Item B / t/3183).
+const EMBEDDING_COMPUTE_CHUNK = 128;
 
 // Resolve a (possibly large) batch in chunks, yielding the event loop between chunks. Safe
 // because resolveEmbeddings is order-preserving and per-text pure (local cache-hit or chain
