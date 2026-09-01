@@ -44,6 +44,7 @@ Institutional memory for failure patterns across the AI Triad Research project.
 - 2026-07-17 — PowerShell (t/1712, p/20#23): an inline `pwsh -Command` containing a PowerShell `-split "`n"` (backtick-n) plus nested single/double quotes broke **bash's own parser** (`unexpected EOF while looking for matching quote`) before pwsh ran at all. Fixed by writing the PS snippet to a temp `.ps1` and running `pwsh -File` — the ADR-004 remedy. Reinforces that once inlined PS carries backtick escapes AND nested quotes, `-File` beats fighting the quoting.
 - 2026-08-07 — DebateWorkspace (p/124#10, t/2256): `@'...'@` here-string in Bash tool with `-m` placed after `--` separator — git read the message text and the `-m` flag as filenames ("pathspec '-m' did not match"). Fixed: wrote message to file, used `git commit -F <file> -- <paths>`.
 - 2026-08-09 — Rosetta Stone 3 (p/355#3): `@'...'@` in Bash tool left a stray `@` in the commit subject (same facet as p/83#1). Fixed with `git commit --amend -F <file>` to rewrite the subject cleanly.
+- 2026-09-01 — Computational Linguist (p/7#74): inline `python -c` with backslash path-escaping (Windows `C:\...` paths inside a string argument) threw `SyntaxError: unterminated string literal` — the shell mangled the `\` escape sequences before Python saw them. Fix: write the script to a temp file and execute it (Shell Quoting Rule / ADR-004). Same root as p/7#30 + p/20#23 — the moment a script carries backslashes, nested quotes, or path escapes, inline `-c` fights the shell; a temp file avoids both layers.
 
 **Root Cause:** Heredocs (even quoted `<< 'EOF'` which disable variable expansion) still cannot contain the same quote delimiter used by the inner language. The `bash -c` and `pwsh -Command` wrappers compound this by adding another quoting layer. Additionally, PowerShell-specific syntax (`@'...'@` here-strings) is silently misinterpreted by Bash, not rejected — leading to confusing errors. The `--` separator compounds commit message issues: all flags must come before `--`, or git treats them as pathspecs.
 
@@ -2677,6 +2678,7 @@ Institutional memory for failure patterns across the AI Triad Research project.
 
 **Instances:**
 - 2026-08-01 — DevOps (t/2091, p/26#31): a CI script built a tracked-dir set via a **`$(dirname)` subshell loop over `git ls-files` (~3k files)** → tens of thousands of subprocess spawns → **timed out (>2 min)** on Git Bash/Windows. Fixed with **pure-bash ancestor extraction via parameter expansion** — `while [[ $d == */* ]]; do d=${d%/*}; done` (zero subprocesses) → **47s**.
+- 2026-09-01 — PowerShell 2 (t/3124, p/228#18): a shell loop spawning a **per-file `git diff` over 236 files** timed out at the 2-min cap. Fixed by issuing **one bulk `git diff` piped to a single Python pass** — one subprocess vs 236 → well under the limit. Prevention #3 (batch all items into one invocation) confirmed as the right fix class.
 
 **Root Cause:** each `$(...)` / backtick command substitution **forks a subprocess**; on Windows Git Bash, fork/exec is emulated and ~orders of magnitude slower than native, so N-thousand spawns dominate wall-clock. Bash **parameter expansion** (`${d%/*}` = dirname, `${f##*/}` = basename, `${f%.*}` = strip-ext) does the same string ops **in-process** — zero spawns. Ties to the "foreground op > 120s Bash-tool cap → SIGTERM" genus (#78/#95/#116), but here the cost is **spawn-count**, not a single slow op or I/O.
 
@@ -3626,3 +3628,66 @@ Institutional memory for failure patterns across the AI Triad Research project.
 **Status:** Active — 1 instance (CL PR #1712, p/7#71). Sibling of the Pre-Self-Merge Verification rule (root AGENTS.md, step 1) — extends it to the case where the author is not the merge actor.
 
 **Applies To:** All agents enabling auto-merge on PRs where further pushes are possible; all PRs where a third party (bot, teammate, scheduled action) may trigger the merge.
+
+---
+
+## #177 [Build] `ConvertFrom-Json` Round-Trip Silently Mutates Untargeted Fields — ISO Datetimes Re-Offset, Single-Element Arrays Collapse to Scalars
+
+**Pattern:** A PowerShell 7.4 whole-file JSON read-modify-write (`ConvertFrom-Json` → mutate → `ConvertTo-Json`) silently corrupts fields the code never touched: ISO 8601 datetime strings (`measured_at`, `generated_at`) are re-offset to local timezone, and single-element arrays (`vocabulary_terms: ["x"]`) collapse to bare scalars (`"x"`). The mutations are invisible until downstream readers fail on type mismatches. Any cmdlet that reads a data JSON file and unconditionally rewrites the whole file via `ConvertTo-Json` is at risk.
+
+**Instances:**
+- 2026-09-01 — PowerShell 2 (t/3124, p/228#17+18): `Update-ClaimEntityRef` caught the pattern before bad data landed — a whole-file JSON round-trip via `ConvertFrom-Json` + `ConvertTo-Json` would have re-offset ISO datetimes in `measured_at`/`generated_at` and collapsed single-element `vocabulary_terms` arrays to strings. Fix: `ConvertFrom-JsonPreserveShape` — a `ConvertFrom-Json` + `System.Text.Json` tandem walk that restores datetime strings and re-wraps collapsed single-element arrays. Mirrors the existing `ConvertFrom-EdgesJson` pattern. Recurrence of t/2974.
+
+**Root Cause:** `ConvertFrom-Json` maps ISO 8601 strings to .NET `DateTime` objects; `ConvertTo-Json` serializes them back with local-timezone offset, changing the string representation. Single-element JSON arrays deserialize to a bare .NET object (not a `[object[]]`); `ConvertTo-Json` then emits a scalar, not a one-element array. Both corruptions are type-level coercions invisible to PowerShell code that reads/mutates only other fields — the round-trip "works" from the mutation's perspective while silently destroying field shapes elsewhere in the file.
+
+**Prevention:**
+1. **Any new cmdlet that reads a data JSON file and rewrites the whole file must use a shape-preserving reader, never raw `ConvertFrom-Json`.** Use `ConvertFrom-JsonPreserveShape` (or the equivalent `ConvertFrom-EdgesJson` pattern) — the `System.Text.Json` tandem walk restores datetime strings and single-element arrays.
+2. **If a shape-preserving reader isn't available, write back ONLY the fields that were mutated** — construct a targeted patch rather than a full round-trip of the parsed object.
+3. **Treat `ConvertFrom-Json` → `ConvertTo-Json` as a lossy transform on datetime fields and arrays with ≤1 element.** Any file that passes through this pipeline is silently corrupted unless protected.
+4. **Test with files that contain (a) ISO datetime fields and (b) single-element arrays** — the corruption is invisible in unit fixtures that use multi-element arrays or omit datetime fields.
+
+**Status:** Active — recurrence of t/2974; 1 instance caught pre-land (PowerShell 2 t/3124, p/228#17+18). `ConvertFrom-JsonPreserveShape` is the fix pattern; flag any new whole-file rewriter that uses raw `ConvertFrom-Json`.
+
+**Applies To:** All PowerShell cmdlets that perform whole-file JSON read-modify-write on data files in this repo (entities, claims, situations, etc.).
+
+---
+
+## #178 [Diagnostic] Cache-Miss Discrimination — Slow Embedding Computes May Be Volume Demand, Not a Dead Cache; Inspect WHAT Is Computed, Not Just Duration
+
+**Pattern:** A flight-recorder showing slow embedding computes is misread as "cache is dead" based on duration alone. The correct discriminator is WHAT is being computed: node-IDs already present in the cache that appear in the slow batch → genuine cache misses (cache failure); node-IDs absent from the cache (novel frames, paragraphs, claims) → correct misses → the slowness is demand-side VOLUME, not a cache defect. Treating correct-novel-misses as evidence of a dead cache sends the diagnosis down a wrong root-cause path and drives the wrong fix class.
+
+**Instances:**
+- 2026-09-01 — t/3165 embedding-saturation incident (Diagnostics, p/334#225; TL p/335#49): FR showed slow embedding computes; initial diagnosis inferred "cache dead." Corrected by Diagnostics: the slow items were novel frames/paragraphs/claims not yet in the cache → correct misses → slowness was volume-starvation, not a cache failure. Durable fix: off-thread ONNX compute behind `EMBEDDING_WORKER_OFFLOAD` (t/3183, PR #1753) — a worker-offload, not a cache fix. Incident anchor: t/3165#24/#32.
+
+**Root Cause:** Duration alone is an ambiguous signal — both a dead cache and a high-volume correct-miss load produce long compute times. The discriminating dimension is novelty of the requested items: a cache failure shows known items missing; volume-starvation shows only novel items (expected misses). Collapsing the two into one "slow = broken" hypothesis produces a wrong fix class (cache repair vs worker offload).
+
+**Prevention:**
+1. **When a FR shows slow embedding (or other cached) computes, inspect what's in the batch** — are the slow items node-IDs that should have been cached (known IDs, previously seen)? Or are they all novel? Known-IDs-slow = cache failure; novel-IDs-slow = volume demand.
+2. **Fix class depends on root cause** — volume-starvation → off-thread / worker offload; genuine cache failure → cache invalidation, warming, or schema fix. Don't apply a cache fix to a volume problem.
+3. **Log the novel-vs-cached breakdown per compute batch** (observability follow-up) — makes this discrimination instant in future incidents without manual FR archaeology.
+4. **Note for `/triage-flight-recorder`**: add "slow embedding" as a known pattern requiring the novel-vs-cached split before concluding cache failure.
+
+**Status:** Active — 1 incident (t/3165). The discrimination heuristic (inspect what's computed, not just duration) is the durable prevention; observability improvement (novel/cached breakdown per batch) is the follow-up.
+
+**Applies To:** Anyone triaging flight-recorder embedding-compute slowdowns; the `/triage-flight-recorder` skill should surface this split before concluding cache failure.
+
+---
+
+## #179 [Process] Deleting a PR's Head Branch Before `state=MERGED` Closes the PR — Confirm Merge Before Branch Cleanup
+
+**Pattern:** An agent deletes a PR's remote head branch (e.g., `git push origin --delete <branch>`) before confirming `state=MERGED`, assuming auto-merge will handle the rest. GitHub interprets the branch deletion as abandonment and CLOSES the PR — it does not merge it. The PR transitions from OPEN to CLOSED (not MERGED), stranding the work.
+
+**Instances:**
+- 2026-09-01 — Computational Linguist (PR #1780, p/7#76): deleted the remote head branch of an open (not-yet-merged) PR assuming auto-merge was in progress (as prior PRs had auto-merged). GitHub closed PR #1780 on branch deletion. Recovery: the local branch ref survived `git worktree remove`, so the branch was re-pushed + `gh pr reopen`, then watched to MERGED state before cleanup. No work lost.
+
+**Root Cause:** GitHub closes a PR when its head branch is deleted while the PR is still OPEN — deletion signals "this work is abandoned." Auto-merge does not protect against this: if the branch is deleted before auto-merge fires, GitHub closes the PR rather than merging it. The assumption "auto-merge will handle it" only holds if the branch persists until CI is green and the merge fires.
+
+**Prevention:**
+1. **Confirm `state=MERGED` (via `gh pr view <n> --json state,mergedAt`) BEFORE deleting any PR's head branch** — never delete a branch on an OPEN PR, even if auto-merge is enabled.
+2. **The cleanup order is: wait for MERGED → then delete the branch** (remote + local). Never reverse this order.
+3. **Recovery if you accidentally close a PR**: if the local branch ref still exists, re-push it (`git push origin <branch>`) + `gh pr reopen <n>` + re-enable auto-merge if needed, then watch to MERGED before cleanup.
+4. **Sibling of #106** (gh pr merge --delete-branch exits non-zero after a successful merge): in both cases, the discriminator is checking `state=MERGED` before concluding the merge is incomplete and taking action.
+
+**Status:** Active — 1 instance (CL PR #1780, p/7#76). Complement to Pre-Self-Merge Verification and #106 — the branch-cleanup-before-merge failure mode.
+
+**Applies To:** All agents performing branch cleanup after landing PRs, especially those using auto-merge or relying on a third party to trigger the merge.
