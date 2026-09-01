@@ -254,7 +254,7 @@ Rules:
 
         $SurgResult = Save-JsonNodeFieldEdits -Path $FilePath -Edits $Edits.ToArray()
         $FileName = Split-Path $FilePath -Leaf
-        Write-Verbose "Updated $($SurgResult.Applied / 2) nodes in $FileName"
+        Write-Verbose "Updated $([Math]::Floor($SurgResult.Applied / 2)) nodes in $FileName"
         if (@($SurgResult.NotFound).Count -gt 0) {
             Write-Warning "Invoke-VernacularBatch: nodes not found in ${FileName}: $($SurgResult.NotFound -join ', ')"
             Write-Verbose "WARN: surgical write fallback — node IDs not found; REASON: NodeId/index mismatch from concurrent node removal"
