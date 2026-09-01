@@ -12,16 +12,22 @@
 # hash basis and must never be collapsed). NFC is applied LAST to the whole reconstructed
 # string — never a per-field normalize, never a whitespace-collapse. Returns "" when nothing
 # remains. Dot-sourced — do NOT export.
+#
+# 'kp'/'fc' (t/3122, claims-entity-fol-recommendations.md §4/R2.2 T2): summary claim
+# containers. 'kp' = a pov_summaries.<pov>.key_points[] entry's `point` field (the extracted
+# narrative text). 'fc' = a factual_claims[] entry's `claim` field. Both are single-field
+# today, so the delimiter choice is inert, but they share the omission/NFC contract above.
 function Get-MentionContainerText {
     [CmdletBinding()]
     [OutputType([string])]
     param(
         [Parameter(Mandatory)]
-        [ValidateSet('node', 'sei')]
+        [ValidateSet('node', 'sei', 'kp', 'fc')]
         [string]$Kind,
 
-        # Ordered raw field values (node: label, description, plain_description; sei: claims).
-        # Absent fields pass as $null. Filtering/omission happens here, not at the call site.
+        # Ordered raw field values (node: label, description, plain_description; sei: claims;
+        # kp: point; fc: claim). Absent fields pass as $null. Filtering/omission happens here,
+        # not at the call site.
         [Parameter()]
         [AllowNull()]
         [AllowEmptyCollection()]

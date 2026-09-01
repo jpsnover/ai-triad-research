@@ -25,6 +25,15 @@ function Update-EntityMentionIndex {
             `facts[].claim` values joined by newline in file order.
           - POV / situation nodes: container id `node:<node_id>`, text = `label`, then
             `description`, then `plain_description` (present fields only), newline-separated.
+          - Summary key points (t/3122, claims-entity-fol-recommendations.md §4/R2.2 T2):
+            container id `summary:<doc_id>#kp-<n>`, text = the key point's `point` field.
+            `<n>` is a 0-based index over the concatenation of `pov_summaries.accelerationist
+            .key_points`, then `.safetyist.key_points`, then `.skeptic.key_points`, in that
+            fixed order (matching the POV order used elsewhere for summary claims, e.g.
+            Remove-DuplicateClaims) — one running counter per document, not per POV.
+          - Summary factual claims (t/3122, same doc §4/R2.2 T2): container id
+            `summary:<doc_id>#fc-<n>`, text = the `factual_claims[n].claim` field, `<n>` the
+            0-based index into that array.
         Live statement-side (debate/chat, `<debate_id>#<entry_id>`) is Phase 2b — NOT here.
 
         Per-container `text_sha256` (lowercase hex over the exact text's UTF-8 bytes) is the
@@ -48,6 +57,11 @@ function Update-EntityMentionIndex {
         Override the POV/situation node files to scan. Defaults to the four canonical files
         under Get-TaxonomyDir (accelerationist/safetyist/skeptic/situations). Pass @() to
         skip POV containers entirely. Absent files are skipped (non-fatal).
+    .PARAMETER SummariesPath
+        Override the summary JSON files to scan for `summary:<doc_id>#kp-<n>` /
+        `#fc-<n>` containers (t/3122). Defaults to every `*.json` file directly under
+        Get-SummariesDir. Pass @() to skip summary containers entirely. Absent files/dir
+        are skipped (non-fatal).
     .PARAMETER OutputPath
         Override entity_mentions.json output path. Defaults to Get-EntityMentionsFilePath.
     .PARAMETER Status
@@ -63,6 +77,8 @@ function Update-EntityMentionIndex {
         Update-EntityMentionIndex
     .EXAMPLE
         Update-EntityMentionIndex -PovPath @()   # facts-only re-index
+    .EXAMPLE
+        Update-EntityMentionIndex -SummariesPath @()   # skip summary key-point/claim containers
     .LINK
         Invoke-EntityExtraction
     .LINK
@@ -79,6 +95,9 @@ function Update-EntityMentionIndex {
 
         [Parameter()]
         [string[]]$PovPath,
+
+        [Parameter()]
+        [string[]]$SummariesPath,
 
         [Parameter()]
         [Alias('Path')]
@@ -105,6 +124,20 @@ function Update-EntityMentionIndex {
         $TaxDir = Get-TaxonomyDir
         $PovFiles = @('accelerationist.json', 'safetyist.json', 'skeptic.json', 'situations.json') |
             ForEach-Object { Join-Path $TaxDir $_ }
+    }
+    if ($PSBoundParameters.ContainsKey('SummariesPath')) {
+        $SummaryFiles = @($SummariesPath)
+    }
+    else {
+        $SummDir = Get-SummariesDir
+        if (Test-Path -LiteralPath $SummDir) {
+            $SummaryFiles = @(Get-ChildItem -LiteralPath $SummDir -Filter '*.json' -File |
+                    Sort-Object -Property Name | ForEach-Object { $_.FullName })
+        }
+        else {
+            Write-Verbose "Summaries dir not found: $SummDir; skipping summary containers."
+            $SummaryFiles = @()
+        }
     }
 
     # Safe field read across both shapes we handle: [ordered] dicts (our freshly-built
@@ -222,6 +255,45 @@ function Update-EntityMentionIndex {
             $text = Get-MentionContainerText -Kind 'node' -Fields @($vals)
             if ($text -eq '') { continue }
             $Containers["node:$($node.id)"] = $text
+        }
+    }
+
+    # --- Summary key points + factual claims (t/3122, §4/R2.2 T2) -------------------------
+    foreach ($summaryFile in $SummaryFiles) {
+        if (-not (Test-Path -LiteralPath $summaryFile)) {
+            Write-Verbose "Summary file not found: $summaryFile; skipping."
+            continue
+        }
+        $summary = Get-Content -Raw -LiteralPath $summaryFile -Encoding utf8 | ConvertFrom-Json
+        if (-not $summary.PSObject.Properties['doc_id'] -or -not $summary.doc_id) { continue }
+        $docId = [string]$summary.doc_id
+
+        # key_points: ONE running 0-based index over the concatenation of the three POV
+        # arrays in fixed order — not per-POV — so `summary:<doc_id>#kp-<n>` is unique per
+        # document (the container-id shape carries no POV segment).
+        if ($summary.PSObject.Properties['pov_summaries'] -and $summary.pov_summaries) {
+            $kpIndex = 0
+            foreach ($povName in @('accelerationist', 'safetyist', 'skeptic')) {
+                if (-not $summary.pov_summaries.PSObject.Properties[$povName]) { continue }
+                $povData = $summary.pov_summaries.$povName
+                if (-not $povData -or -not $povData.PSObject.Properties['key_points'] -or -not $povData.key_points) { continue }
+                foreach ($kp in @($povData.key_points)) {
+                    $pointVal = if ($kp.PSObject.Properties['point']) { $kp.point } else { $null }
+                    $text = Get-MentionContainerText -Kind 'kp' -Fields @($pointVal)
+                    if ($text -ne '') { $Containers["summary:$docId#kp-$kpIndex"] = $text }
+                    $kpIndex++
+                }
+            }
+        }
+
+        # factual_claims: 0-based index into the top-level array.
+        if ($summary.PSObject.Properties['factual_claims'] -and $summary.factual_claims) {
+            $claims = @($summary.factual_claims)
+            for ($i = 0; $i -lt $claims.Count; $i++) {
+                $claimVal = if ($claims[$i].PSObject.Properties['claim']) { $claims[$i].claim } else { $null }
+                $text = Get-MentionContainerText -Kind 'fc' -Fields @($claimVal)
+                if ($text -ne '') { $Containers["summary:$docId#fc-$i"] = $text }
+            }
         }
     }
 
