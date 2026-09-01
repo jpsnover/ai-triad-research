@@ -119,3 +119,32 @@ adjudication is **done** (all CONFIRMED orphans): claim-attribution is fixed + a
 are **routed to the owning child roles** (Conflict, DebateWorkspace, DebateDiagnostics) and are
 deliberately **not** asserted here (the gate stays POV-scoped + low-flake). Those routed fixes are
 tracked in **t/3059**. A green check here covers the five POV surfaces above, not the gated ones.
+
+## Computed-style invariance leg (t/2940 — second assertion class)
+
+The reachability leg above answers *"is the class's sheet loaded on its surface?"* This leg answers
+*"did a CSS source-split change any computed value?"* — TL's Option C (t/2940#5/#6). A source-split is
+a pure move (delete from `styles.css` → co-locate, **no value change**), so its invariant is
+identical `getComputedStyle` per theme. Files: `computed-style-invariance.smoke.mjs` (+ `.manifest.mjs`).
+
+**Covered clusters** (split in the t/2989 push *without* the automated leg — t/2940#3):
+`sumt-*` (SummariesTab.css), `lineage-*` (LineagePanel.css + LineageDetailView.css), debate-popout
+(DebatePopoutWindow.css). Representative selectors × the 4 themes (`light`/`dark`/`bkc`/`harvard`,
+set via `data-theme`) × TL's prop set (grid/border/color/background/padding/font) → committed fixture
+`fixtures/computed-style-invariance.json`.
+
+**Modes:** default = ASSERT (current computed style `== fixture`; **skips** when the fixture is
+absent, so the gate is inert until a baseline is committed). `SMOKE_CAPTURE=1` = capture → write the
+fixture (`npm run smoke:invariance:capture`).
+
+**Baseline capture + both-arms run in CI (Node 22), not local Node 24** — the `@playwright/test`
+runner hangs on Node 24 (the t/3026 finding), and a committed style baseline must come from the
+deterministic CI browser. DevOps owns the CI wiring (the spec is already picked up by
+`testMatch: **/*.smoke.mjs`, so it rides the existing `render-smoke` job). **Both-arms GV (TL):**
+alter one moved value in a cluster CSS → computed style diverges from the fixture → gate FIRES;
+revert / pure move → PASSES.
+
+**Reachability caveat (CI-validated):** `openTab` per cluster is best-effort (SummariesTab/LineagePanel
+ride ToolbarPaneRenderer ← PovTab, so a POV tab). The capture run confirms each cluster's CSS actually
+loads there; `debatePopout` is a separate window (`reachabilityUnconfirmed`) — the capture confirms
+whether it's reachable in the web smoke or needs the popout route opened.
