@@ -1310,9 +1310,15 @@ resource fallbackActive 'Microsoft.Insights/scheduledQueryRules@2023-03-15-previ
 // single paid key as overflow-only fallback (t/3111); the default path is free,
 // so paid-fallback usage should be ~0. Any sustained nonzero is a real operational
 // signal that the free pool is under-provisioned or throttling — NOT steady-state
-// cost. Keys on the `Paid fallback succeeded` log emitted at routes/ai.ts:187 when
-// generateWithPaidFallback completes a billed call. 60-min window distinguishes
-// sustained overflow from a lone transient.
+// cost. 60-min window distinguishes sustained overflow from a lone transient.
+//
+// MATCH-TOKEN IS A CONTRACT: the substring "Paid fallback succeeded" below is a
+// shared marker that EVERY paid-fallback success emitter must include verbatim, or
+// its overflow goes unmonitored. Emitters today: routes/ai.ts:187 (generate) ✓ and
+// routes/ai.ts:232 (generate+search) — the search path must carry the same marker
+// (t/3110 GV coverage-gap fix, ServerAPI). A mirror of this comment lives at each
+// emitter. Change the token in one place → change it in all, or this alert silently
+// misses the overflow it exists to catch (the t/3165 debate-search second front).
 resource paidFallbackOverflow 'Microsoft.Insights/scheduledQueryRules@2023-03-15-preview' = {
   name: 'alert-paid-fallback-overflow'
   location: location
