@@ -8,6 +8,22 @@ This document defines the project-wide error handling standard for AI Triad Rese
 2. **Recover** — prefer making it work over reporting failure. Retry transient errors, try fallbacks, accept partial results.
 3. **Report** — when recovery fails, produce a structured diagnostic for humans AND AI agents.
 4. **Never** silently swallow errors or produce bare `throw "something broke"`.
+5. **Never** take a fallback path silently — see **Fallback-Path Logging** below.
+
+## Fallback-Path Logging (log every fallback, and why)
+
+**Rule.** Whenever code takes a **fallback / degraded / alternate path** instead of the primary one, it MUST emit a `WARN` log (or a flight-recorder event) recording **both**:
+
+1. **That** a fallback was taken — name the path, e.g. `embeddings: recompute instead of cache-hit`.
+2. **Why** — the specific triggering condition, *with the discriminating data*, e.g. `cache miss: 47 of 798 ids absent from cache: [sit-… ]`, `primary backend 429`, `feature flag X off`.
+
+**Rationale.** A silent fallback is *invisible degradation*: every layer reports local success while the aggregate is broken. In the t/3165 embedding-saturation incident, a cache-miss→recompute returned a normal `200` at every layer, so **nothing logged an error** — the failure was only reconstructable from latency traces hours later. A one-line fallback WARN turns a slow-success into a greppable signal, diagnosable in seconds.
+
+**Applies to** (non-exhaustive): cache miss → recompute; primary backend → secondary/fallback backend; retry-exhausted → default value; ADR-001 graceful-empty (empty result substituted for missing data); feature-flag-off branches; any `catch`-and-continue that proceeds on a degraded path.
+
+**Level discipline.** Use **`WARN`** — a fallback is *visible* by design (not buried at `INFO`), but it is *not itself a failure* (not `ERROR`; the fallback succeeded). If a fallback path is expected to be common and benign, it may log at `INFO` **only** with an explicit comment justifying why it is not a degradation worth surfacing — the default is `WARN`.
+
+**This generalizes Principle #2** ("try fallbacks") and ADR-001's "degradation must be observable" from graceful-empty to *every* fallback path. Recover, yes — but never silently.
 
 ## Structured Error Format
 
