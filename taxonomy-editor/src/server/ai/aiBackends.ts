@@ -693,13 +693,18 @@ const EMBEDDING_COMPUTE_CHUNK = 128;
 //   • 64  = "notable volume" — a large recompute happened (INFO/WARN, expected under cold cache).
 //   • 256 = "demand baseline exceeded — the DEMAND itself may be the bug" (the class's failure mode).
 //
-// 256 is PROVISIONAL and MUST be calibrated from real data before the flag flips on (TL p/522#133;
-// t/3085 baseline-validation — do NOT confirm a baseline by fiat). It has to sit ABOVE the legit
-// residual-novel-per-turn max or it fires every normal debate (noise = dead gate). The t/3165
-// 792/1347 batches were largely STATIC corpus (now cached), so they do NOT reveal the residual
-// novel count of a normal turn — the storm-replay canary replays the real debate shape and yields
-// that cacheHits=0 distribution; set baseline = observed-legit-max + margin at the canary. 256 is a
-// deliberately-generous placeholder (2× the 128 chunk) chosen to under-fire until calibrated.
+// 256 is CALIBRATED (t/3199, TL sign-off t/3199#3) on two independent axes — it must sit ABOVE the
+// legit residual-novel-per-turn max or it fires every normal debate (noise = dead gate):
+//  • Organic demand: a normal turn's residual-novel count is ~200 (trace-derived from t/3165 — the
+//    792/1347 batches were largely STATIC corpus, now cached, so they over-state a normal turn).
+//    256 > ~200 → normal turns never false-fire.
+//  • Physical ceiling: the offload worker computes ~10 texts/s (measured at the re-canary) and the
+//    route timeout is ~50s → a single all-novel request hits a ~500-text wall. 256 ≈ HALF that wall,
+//    so the WARN fires with ~2× margin BEFORE requests start timing out.
+// Validated at the storm-replay canary (GREEN — staging rev 0000166, image b2b79c95; t/3209). t/3085
+// residual (kept visible): that storm was SYNTHETIC (uniform 128-novel/request), so the ORGANIC leg
+// stays trace-derived, not directly measured — the prod-turn re-confirm (t/3210) closes it after the
+// flag flips ON. WARN-only; never a hard cap.
 const NOVEL_TEXT_DEMAND_BASELINE = 256;
 
 // Resolve a (possibly large) batch in chunks, yielding the event loop between chunks. Safe
@@ -765,8 +770,8 @@ export async function computeEmbeddings(
   if (cacheMisses > NOVEL_TEXT_DEMAND_BASELINE) {
     getGlobalRecorder()?.record({
       type: 'system.error', component: 'ai-backends', level: 'warn',
-      message: `Novel-text demand ${cacheMisses} exceeds by-design baseline ${NOVEL_TEXT_DEMAND_BASELINE} (provisional — calibrated at the storm-replay canary) — the worker raises the compute ceiling but does not bound demand; check for an unbounded-demand caller`,
-      data: { requester, cacheMisses, cacheHits, baseline: NOVEL_TEXT_DEMAND_BASELINE, provisional: true, inputCount: texts.length },
+      message: `Novel-text demand ${cacheMisses} exceeds by-design baseline ${NOVEL_TEXT_DEMAND_BASELINE} (calibrated: organic-normal ~200 + ~500-text throughput/timeout wall, t/3199) — the worker raises the compute ceiling but does not bound demand; check for an unbounded-demand caller`,
+      data: { requester, cacheMisses, cacheHits, baseline: NOVEL_TEXT_DEMAND_BASELINE, inputCount: texts.length },
     });
   }
 
