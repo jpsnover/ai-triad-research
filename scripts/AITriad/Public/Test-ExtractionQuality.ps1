@@ -468,6 +468,7 @@ function Invoke-EntityLinkPrecisionAudit {
         }
 
         $JsonLine = $MetricRow | ConvertTo-Json -Depth 3 -Compress
+        Assert-DataWriteAllowed -Path $MetricsPath  # t/2902
         Add-Content -Path $MetricsPath -Value $JsonLine -Encoding utf8
 
         Write-Host "  Persisted to calibration/core/extraction-metrics.jsonl" -ForegroundColor Gray
