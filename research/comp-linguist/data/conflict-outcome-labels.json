@@ -1,0 +1,399 @@
+{
+  "schema_version": "1.0",
+  "description": "Labeled conflict-outcome set for QBAF gradient validation and Potyka-2021 pilot. Records human-interpretable outcome labels and Pollock attack-type labels for dispute instances across all consolidated conflicts that contain at least one dispute instance.",
+  "created_at": "2026-09-01",
+  "created_by": "Computational Linguist (CL agent, temp1.research-comp-linguist@ai-triad-research.orca.local)",
+  "ticket": "t/3152",
+  "methodology": "CL-agent linguistic analysis of conflict assertions. Each dispute instance labeled for Pollock attack type (rebut/undercut/undermine); each conflict labeled for expected outcome (prevail-claim/prevail-dispute/tie/undecided). Methodology is 'derived' — produced from analysis, not a human-rater study. Pending human verification before promotion to 'human-validated'.",
+  "provenance_class": "derived",
+  "reporting_treatment": "single-draw",
+  "human_verification_status": "pending",
+  "intended_uses": [
+    "Potyka-2021 conflict-module pilot: compare DF-QuAD vs MLP-simulating gradual semantics against gold outcome labels",
+    "attack_weights gradient validation: learn rebut/undercut/undermine edge weights that minimize outcome loss on this set"
+  ],
+  "label_vocabulary": {
+    "outcome": {
+      "prevail-claim": "The claim (supporting assertions) is more strongly warranted given the evidence on both sides.",
+      "prevail-dispute": "The disputing assertion(s) are more strongly warranted; the claim should not hold.",
+      "tie": "Both sides are approximately equally compelling; no clear winner.",
+      "undecided": "Insufficient information, internally contradictory disputes, or a genuinely unresolvable framing difference. Includes degenerate cases (no bilateral structure)."
+    },
+    "attack_type": {
+      "rebut": "Direct contradiction of the claim's conclusion (Pollock 1987). The dispute denies what the support asserts.",
+      "undercut": "Attacks the warrant or inference rule — the reason the evidence leads to the conclusion — without denying the conclusion directly.",
+      "undermine": "Attacks the foundational premise or base strength of the supporting claim, undermining the evidentiary chain from the root."
+    },
+    "confidence": {
+      "high": "Unambiguous bilateral conflict; clear semantic winner.",
+      "medium": "Genuine bilateral conflict; outcome requires judgment but is defensible.",
+      "low": "Contested framing, internally contradictory disputes, degenerate structure, or policy/values question with no epistemic resolution."
+    }
+  },
+  "dataset_stats": {
+    "total_conflicts_sampled": 1240,
+    "conflicts_with_disputes": 19,
+    "labeled_conflicts": 19,
+    "total_dispute_instances": 27,
+    "labeled_dispute_instances": 27,
+    "degenerate_cases": 2,
+    "outcome_distribution": {
+      "prevail-claim": 2,
+      "prevail-dispute": 6,
+      "tie": 6,
+      "undecided": 5
+    },
+    "attack_type_distribution": {
+      "rebut": 14,
+      "undercut": 6,
+      "undermine": 7
+    }
+  },
+  "notes": [
+    "All 27 dispute instances had attack_type=None in conflicts.json at labeling time — the NLI-based classifier (consolidate_conflicts.py) had not been applied. These labels are the first population of that field for this sample.",
+    "Two degenerate conflicts are flagged: conflict-the-document-identifies-a-colorado-law (disputes and supports are near-duplicates from the same document, not a genuine bilateral conflict) and conflict-the-promise-of-ai-reducing-work-burdens (0 supports, 1 dispute — no bilateral structure). Both labeled undecided.",
+    "For gradient learning, the 27 instances provide: rebut=14, undercut=6, undermine=7. Sufficient variation to differentiate 3 attack weights, but small — treat as a bootstrap set to be expanded as more disputes are extracted.",
+    "QBAF enrichment (enrich_conflicts_qbaf.py) has not been run on conflicts.json; no computed_strength values exist. The gradient validation step will need to run QBAF with candidate weight grids against this labeled set to identify the minimizing configuration."
+  ],
+  "conflicts": [
+    {
+      "conflict_id": "conflict-agi-timelines-001",
+      "claim_label": "AGI Timeline Estimates",
+      "outcome_label": "prevail-claim",
+      "outcome_rationale": "13 supporting instances vs 1 dispute. The dispute ('no evidence that current forms of AI present an existential risk') is tangential to the claim about timeline estimates — it rebutts a subclaim about risk rather than the timeline framing itself. Weight of evidence strongly favors the claim.",
+      "confidence": "medium",
+      "note": "Dispute is off-topic relative to the main claim; a more targeted dispute would change the difficulty.",
+      "disputes": [
+        {
+          "doc_id": "yann-lecuns-united-nations-security-council-address-2026",
+          "assertion": "There is no evidence that current forms of AI present an existential risk.",
+          "attack_type": "rebut",
+          "attack_rationale": "Directly denies a conclusion embedded in several supporting instances (AI-as-existential-risk framing). Classic Pollock rebut — same target proposition, opposite truth value."
+        }
+      ]
+    },
+    {
+      "conflict_id": "conflict-ai-development-competitive-industry-vs-p-7e272d3b",
+      "claim_label": "AI Development: Competitive Industry vs. Public Utility",
+      "outcome_label": "tie",
+      "outcome_rationale": "Support (industrial discipline with empirical safety standards) and dispute (public utility to prevent corporate capture) represent two internally coherent regulatory philosophies. Neither is empirically refuted; both capture genuine tradeoffs between innovation velocity and accountability. No clear winner.",
+      "confidence": "medium",
+      "disputes": [
+        {
+          "doc_id": "debate:7e272d3b-4ec0-409d-8095-be4b5bf97b9a",
+          "assertion": "Development must be treated as a public utility to prevent corporate capture and ensure accountability for labor and societal harms.",
+          "attack_type": "rebut",
+          "attack_rationale": "Directly contradicts the claim's conclusion that an industrial/competitive framing is appropriate. Asserts the opposite governance model."
+        }
+      ]
+    },
+    {
+      "conflict_id": "conflict-ai-predictable-engineering-tool-vs-auton-af5410a2",
+      "claim_label": "AI: Predictable Engineering Tool vs. Autonomous Extractive Agent",
+      "outcome_label": "prevail-claim",
+      "outcome_rationale": "The support ('observable technology subject to standard engineering and adversarial testing') is more empirically grounded than the dispute ('autonomous agent used to bypass human oversight for extractive corporate efficiency'). The dispute conflates a normative/political framing with an empirical claim. The engineering characterization has more measurable anchors.",
+      "confidence": "medium",
+      "disputes": [
+        {
+          "doc_id": "debate:af5410a2-adab-425b-ac3c-c1f375df523f",
+          "assertion": "AI is an autonomous agent used to bypass human oversight and maximize extractive corporate efficiency.",
+          "attack_type": "rebut",
+          "attack_rationale": "Directly denies the engineering-tool characterization and substitutes a contradictory ontological framing. Pollock rebut on the category claim."
+        }
+      ]
+    },
+    {
+      "conflict_id": "conflict-competing-priorities-for-government-regu-26650ac0",
+      "claim_label": "Competing priorities for government regulation of AI in schools",
+      "outcome_label": "undecided",
+      "outcome_rationale": "Three disputes are internally contradictory: D0 calls for an immediate ban on answer-giving AI; D1 argues against any ban or delay; D2 advocates mandatory pre-deployment interpretability audits. D0 and D1 directly contradict each other. With internally inconsistent disputes and two competing support positions, no stable outcome is achievable.",
+      "confidence": "low",
+      "disputes": [
+        {
+          "doc_id": "debate:26650ac0-1d18-43db-92fd-efada5930c64",
+          "assertion": "Waiting for trials is a delay tactic; the government should immediately ban AI that gives answers and only allow AI that asks questions.",
+          "attack_type": "undercut",
+          "attack_rationale": "Does not deny the claim that clinical trials are valuable, but attacks the inference that waiting for them is the right response. Cuts the warrant: 'if trials are needed, delay is justified' → dispute: 'delay is itself harmful.' Pollock undercut."
+        },
+        {
+          "doc_id": "debate:26650ac0-1d18-43db-92fd-efada5930c64",
+          "assertion": "The government should not ban or delay AI, as doing so will leave students unprepared for the modern workforce.",
+          "attack_type": "rebut",
+          "attack_rationale": "Directly contradicts the claim that government should impose safety-based regulatory delays. Denies the conclusion rather than attacking the warrant."
+        },
+        {
+          "doc_id": "debate:b052404b-100a-435a-931d-6448b27bcee4",
+          "assertion": "Advocates for mandatory pre-deployment mechanistic interpretability audits to identify 'manipulative latent features' before harm occurs.",
+          "attack_type": "undercut",
+          "attack_rationale": "Accepts that pre-deployment review is warranted but attacks the specific inference that clinical-trial-style testing is the right mechanism. Proposes an alternative warrant (mechanistic interpretability) rather than denying the need for oversight."
+        }
+      ]
+    },
+    {
+      "conflict_id": "conflict-defining-student-success-as-independent-26650ac0",
+      "claim_label": "Defining student success as independent mastery versus AI collaboration",
+      "outcome_label": "tie",
+      "outcome_rationale": "Support and dispute express two directly contradictory but internally coherent educational philosophies. 'Unassisted mastery' and 'AI-directed collaboration' are both defensible success metrics for different educational goals. No empirical evidence resolves the priority question.",
+      "confidence": "high",
+      "disputes": [
+        {
+          "doc_id": "debate:26650ac0-1d18-43db-92fd-efada5930c64",
+          "assertion": "Success should be measured by how well a student can direct an AI to solve complex problems collaboratively.",
+          "attack_type": "rebut",
+          "attack_rationale": "Directly contradicts the definition of success in the supporting assertion. Same target (what 'success' means) with opposite truth condition."
+        }
+      ]
+    },
+    {
+      "conflict_id": "conflict-does-user-feedback-inherently-reduce-ai-231bea20",
+      "claim_label": "Does user feedback inherently reduce AI model bias?",
+      "outcome_label": "prevail-dispute",
+      "outcome_rationale": "The dispute ('without transparency, feedback reinforces bias by optimizing for engagement metrics that favor stereotypes') has stronger epistemic grounding. The engagement-optimization mechanism for bias amplification is well-documented in recommendation systems. The support ('feedback signals failures, forcing developers to patch') assumes a corrective loop that empirical evidence suggests is weak without structured auditing.",
+      "confidence": "medium",
+      "disputes": [
+        {
+          "doc_id": "debate:231bea20-9e57-45f9-a82b-790a24980dfe",
+          "assertion": "No, without transparency, user feedback often reinforces biases by optimizing for engagement metrics that favor stereotypes.",
+          "attack_type": "undercut",
+          "attack_rationale": "Accepts that feedback exists but attacks the inference rule: 'feedback → bias correction.' Shows the mechanism runs in reverse under engagement-optimized conditions. Pollock undercut — the warrant is wrong, not the evidence."
+        }
+      ]
+    },
+    {
+      "conflict_id": "conflict-efficacy-of-free-market-forces-in-ensuri-75a57b33",
+      "claim_label": "Efficacy of free market forces in ensuring AI safety",
+      "outcome_label": "prevail-dispute",
+      "outcome_rationale": "Two dispute instances attack the foundational premise that market incentives align with safety. The race-to-the-bottom dynamic (D0) and misaligned principal-agent relationship (D1, real customers are corporations, not end users) are both empirically supported by comparable technology markets (social media, mobile). The support's premise ('customers won't buy unpredictable/biased products') is weaker in B2B AI markets.",
+      "confidence": "medium",
+      "disputes": [
+        {
+          "doc_id": "debate:75a57b33-fe6d-4e8b-a665-7a107d7206e8",
+          "assertion": "The market creates a race to the bottom where companies cut safety corners to maximize profit and beat competitors.",
+          "attack_type": "undermine",
+          "attack_rationale": "Attacks the base premise that competitive markets produce safety incentives. Does not deny that customers exist, but denies that competitive dynamics produce the incentive the support assumes. Pollock undermine — the foundational premise is wrong."
+        },
+        {
+          "doc_id": "debate:75a57b33-fe6d-4e8b-a665-7a107d7206e8",
+          "assertion": "The market actively rewards AI that exploits workers and consumers because the real customers are corporations trying to maximize their own profits.",
+          "attack_type": "undermine",
+          "attack_rationale": "Undermines the premise that end-user preferences drive the market. The principal-agent mismatch (corporations as buyers, workers/consumers as affected parties) makes the support's consumer-safety-filter argument structurally unsound."
+        }
+      ]
+    },
+    {
+      "conflict_id": "conflict-greatest-societal-risk-to-prioritize-reg-75a57b33",
+      "claim_label": "Prioritizing present-day algorithmic bias versus future existential risks",
+      "outcome_label": "undecided",
+      "outcome_rationale": "Three disputes represent three distinct risk framings (existential AI risk, present corporate harm, existential as top priority). The two support positions also split (opportunity cost of delay vs. immediate bias harm). All five positions capture real considerations; no stable partial order exists across the priority rankings. A genuine trilemma.",
+      "confidence": "low",
+      "disputes": [
+        {
+          "doc_id": "debate:75a57b33-fe6d-4e8b-a665-7a107d7206e8",
+          "assertion": "The biggest risk is an unrecoverable global disaster caused by an uncontrollable, superintelligent AI.",
+          "attack_type": "rebut",
+          "attack_rationale": "Directly contradicts the implied priority ordering (present harms > existential risk). States the opposite ranking."
+        },
+        {
+          "doc_id": "debate:75a57b33-fe6d-4e8b-a665-7a107d7206e8",
+          "assertion": "The biggest risk is present-day corporate exploitation, such as algorithmic bias, job loss, and surveillance.",
+          "attack_type": "rebut",
+          "attack_rationale": "Contradicts the opportunity-cost framing of the supporting assertion. Direct denial of which risk class dominates."
+        },
+        {
+          "doc_id": "debate:c8a829cc-7b34-4fb2-b3c6-07b220447e22",
+          "assertion": "Argues that while present harms matter, preventing the irreversible existential risk of an unaligned superintelligence must be the top priority.",
+          "attack_type": "undermine",
+          "attack_rationale": "Accepts present harms as real (does not rebut) but undermines the foundational premise that reversibility is not the key discriminator. Irreversibility as a decision criterion shifts the priority ordering at the base level."
+        }
+      ]
+    },
+    {
+      "conflict_id": "conflict-impact-of-ai-writing-automation-on-criti-26650ac0",
+      "claim_label": "Impact of AI writing automation on critical thinking skills",
+      "outcome_label": "prevail-dispute",
+      "outcome_rationale": "The dispute ('writing is the actual process of thinking; skipping it prevents the brain from building necessary neural pathways') is grounded in cognitive science on expressive writing and embodied cognition (cf. Emig 1977, cognitive load theory). The support ('automating basic writing frees students for higher-level problem-solving') assumes writing and thinking are separable, which the dispute's empirical grounding specifically refutes.",
+      "confidence": "medium",
+      "disputes": [
+        {
+          "doc_id": "debate:26650ac0-1d18-43db-92fd-efada5930c64",
+          "assertion": "Writing is the actual process of thinking; skipping it prevents the brain from building necessary neural pathways.",
+          "attack_type": "undermine",
+          "attack_rationale": "Attacks the foundational premise that writing and thinking are separable activities. If writing IS thinking (not a medium for expressing it), then automating writing is not 'freeing' cognitive capacity — it is eliminating the cognitive process itself. Pollock undermine on the separability premise."
+        }
+      ]
+    },
+    {
+      "conflict_id": "conflict-is-fierce-ambivalence-a-viable-professio-231bea20",
+      "claim_label": "Is fierce ambivalence a viable professional strategy for women?",
+      "outcome_label": "tie",
+      "outcome_rationale": "Support ('professional paralysis that leaves women behind') and dispute ('necessary resistance to avoid mastering marginalization systems') are both defensible strategic framings. The choice depends on professional context, risk tolerance, and the specific system being navigated — no universal resolution is possible.",
+      "confidence": "medium",
+      "disputes": [
+        {
+          "doc_id": "debate:231bea20-9e57-45f9-a82b-790a24980dfe",
+          "assertion": "Yes, it is a necessary act of resistance to avoid 'mastering' systems designed for our own marginalization.",
+          "attack_type": "rebut",
+          "attack_rationale": "Directly contradicts the support's conclusion ('no, it is professional paralysis'). Opposite truth value for the same proposition (is fierce ambivalence viable?)."
+        }
+      ]
+    },
+    {
+      "conflict_id": "conflict-market-deployment-versus-predeployment-t-c8a829cc",
+      "claim_label": "Market deployment versus pre-deployment testing for AI safety",
+      "outcome_label": "prevail-dispute",
+      "outcome_rationale": "The dispute ('advanced AI has systemic vulnerabilities that scale too fast for market corrections, requiring mandatory pre-deployment audits') correctly identifies that market correction speed is bounded while model capability scaling is not. The support ('deployment and iteration is the only way to find real-world vulnerabilities') is weaker for frontier AI specifically, where the cost of discovered vulnerabilities scales with deployment.",
+      "confidence": "medium",
+      "disputes": [
+        {
+          "doc_id": "debate:c8a829cc-7b34-4fb2-b3c6-07b220447e22",
+          "assertion": "Believes advanced AI has systemic vulnerabilities that scale too fast for market corrections, requiring mandatory pre-deployment audits.",
+          "attack_type": "undercut",
+          "attack_rationale": "Does not deny that market iteration is valuable, but attacks the inference that it is sufficient for advanced AI. The warrant 'market iteration corrects safety issues' fails when the harm-discovery lag exceeds the deployment scale. Pollock undercut on the inference rule."
+        }
+      ]
+    },
+    {
+      "conflict_id": "conflict-opensource-ai-as-a-solution-to-corporate-75a57b33",
+      "claim_label": "Open-Source AI as a Solution to Corporate Monopolies",
+      "outcome_label": "undecided",
+      "outcome_rationale": "Two disputes attack different dimensions of the open-source claim (safety gatekeeping vs. profit-motive persistence). The support captures genuine democratization benefits. All three positions are simultaneously valid for different aspects of the open-source question; they are not mutually exclusive negations of a single proposition.",
+      "confidence": "medium",
+      "disputes": [
+        {
+          "doc_id": "debate:75a57b33-fe6d-4e8b-a665-7a107d7206e8",
+          "assertion": "Open-sourcing advanced AI is like handing out blueprints for weapons of mass destruction to bad actors.",
+          "attack_type": "undermine",
+          "attack_rationale": "Undermines the foundational premise that open distribution of dangerous capability is net-positive for security. Does not deny democratization benefits but denies that open access is safe for sufficiently powerful systems."
+        },
+        {
+          "doc_id": "debate:75a57b33-fe6d-4e8b-a665-7a107d7206e8",
+          "assertion": "Open-source AI does not fix the profit motive; it just gives startups a free tool to exploit people more cheaply.",
+          "attack_type": "undercut",
+          "attack_rationale": "Attacks the inference 'open-source → reduced monopoly power / exploitation.' Accepts that open-source distributes access but denies that this changes the incentive structure. Pollock undercut on the anti-monopoly warrant."
+        }
+      ]
+    },
+    {
+      "conflict_id": "conflict-sufficiency-of-stress-testing-vs-mechani-7e272d3b",
+      "claim_label": "Sufficiency of Stress Testing vs. Mechanistic Interpretability",
+      "outcome_label": "tie",
+      "outcome_rationale": "The support (stress testing is sufficient and practical; MI is currently impossible at scale) and dispute (stress testing is insufficient for deceptive alignment; MI is necessary) are both correct about different things. The support is right that production-scale MI is currently impractical; the dispute is right that output-based testing is insufficient for non-transparent deceptive behavior. Neither position is refuted — they describe a genuine practical/theoretical tension.",
+      "confidence": "medium",
+      "disputes": [
+        {
+          "doc_id": "debate:7e272d3b-4ec0-409d-8095-be4b5bf97b9a",
+          "assertion": "Output-based testing is insufficient because advanced models can engage in deceptive alignment; mechanistic interpretability is necessary to verify internal goal representation.",
+          "attack_type": "undercut",
+          "attack_rationale": "Attacks the inference 'output testing → safety assurance.' The warrant fails specifically when the model's behavior is conditioned on whether it is being observed (deceptive alignment). Pollock undercut — the inference rule breaks in the adversarial case."
+        }
+      ]
+    },
+    {
+      "conflict_id": "conflict-sustainability-standards-vs-ai-infrastru-e6a83426",
+      "claim_label": "Sustainability Standards vs. AI Infrastructure Resource Requirements",
+      "outcome_label": "prevail-dispute",
+      "outcome_rationale": "The dispute ('Zero-Net-Depletion hard-stop; water as non-negotiable physical floor') takes a stronger position for finite physical resources than the support's 'Net-Benefit model where efficiency offsets resource use.' For non-substitutable resources (potable water), efficiency offsets are contested — they may displace rather than reduce consumption. The physical-floor argument is harder to refute for genuinely scarce resources.",
+      "confidence": "low",
+      "note": "This is a contested policy question; confidence is low because the outcome depends on empirical assumptions about offset validity that are not resolved in the assertions alone.",
+      "disputes": [
+        {
+          "doc_id": "debate:e6a83426-48b5-4056-ba72-2531a7a70d30",
+          "assertion": "Argues for a strict 'Zero-Net-Depletion' hard-stop; treats water as a non-negotiable physical floor for survival.",
+          "attack_type": "rebut",
+          "attack_rationale": "Directly contradicts the Net-Benefit model by insisting on a categorical constraint (hard-stop) rather than a comparative efficiency judgment. Denies the conclusion that offsets are sufficient."
+        }
+      ]
+    },
+    {
+      "conflict_id": "conflict-the-document-identifies-a-colorado-law-b-ensuring",
+      "claim_label": "State laws banning algorithmic discrimination may force AI models to produce false results",
+      "outcome_label": "undecided",
+      "outcome_rationale": "DEGENERATE CASE: The three 'dispute' instances and three 'support' instances are all near-duplicates sourced from the same document (ensuring-national-policy-framework-artificial-intelligence-2026), all reporting the same administration claim from the same perspective. There is no genuine bilateral conflict; the stance classifications appear to be pipeline errors. Labeled undecided as a sentinel.",
+      "confidence": "low",
+      "is_degenerate": true,
+      "degenerate_reason": "All six instances (supports + disputes) are near-duplicate restatements of the same claim from the same source document. No genuine bilateral conflict structure.",
+      "disputes": [
+        {
+          "doc_id": "ensuring-national-policy-framework-artificial-intelligence-2026",
+          "assertion": "The document identifies a Colorado law banning 'algorithmic discrimination' as an example of an onerous state regulation that forces AI models to produce false results to avoid differential impact.",
+          "attack_type": "rebut",
+          "attack_rationale": "Nominal rebut label; in practice this instance reports the same position as the supports. Attack type assignment is low-confidence for this degenerate case."
+        },
+        {
+          "doc_id": "ensuring-national-policy-framework-artificial-intelligence-2026",
+          "assertion": "A new Colorado law bans algorithmic discrimination, which the administration claims forces models to produce false results to avoid differential impact.",
+          "attack_type": "rebut",
+          "attack_rationale": "Near-duplicate of D0; same source, same framing. Degenerate."
+        },
+        {
+          "doc_id": "ensuring-national-policy-framework-artificial-intelligence-2026",
+          "assertion": "The Colorado law banning algorithmic discrimination may force AI models to produce false results to avoid differential impact.",
+          "attack_type": "rebut",
+          "attack_rationale": "Near-duplicate of D0 and D1. Degenerate."
+        }
+      ]
+    },
+    {
+      "conflict_id": "conflict-the-ethics-and-necessity-of-ai-tutor-mem-b052404b",
+      "claim_label": "The Ethics and Necessity of AI Tutor Memory",
+      "outcome_label": "tie",
+      "outcome_rationale": "The support ('memory is essential for personalized learning; purging it lobotomizes the tool') and dispute ('persistent memory of emotional states is inherently predatory and must be purged') are both right for different memory types. The tension is real and cannot be resolved by denying either claim — it requires distinguishing learning-state memory from emotional-state profiling. No single winner.",
+      "confidence": "medium",
+      "disputes": [
+        {
+          "doc_id": "debate:b052404b-100a-435a-931d-6448b27bcee4",
+          "assertion": "Persistent memory of emotional states is inherently predatory and must be purged to prevent profiling.",
+          "attack_type": "undermine",
+          "attack_rationale": "Undermines the foundational premise that persistent memory is categorically beneficial. Reframes the base (what memory IS used for) — emotional-state persistence is not a pedagogical tool but a profiling instrument. Pollock undermine on the characterization of the base strength."
+        }
+      ]
+    },
+    {
+      "conflict_id": "conflict-the-promise-of-ai-reducing-work-burdens-ai-doesn",
+      "claim_label": "AI Productivity Promise Gap",
+      "outcome_label": "undecided",
+      "outcome_rationale": "DEGENERATE CASE: 0 supporting instances, 1 dispute instance. No bilateral conflict structure exists — there is nothing for the dispute to attack. The dispute assertion is the only instance and states the claim itself. Cannot evaluate QBAF semantics without at least one support node.",
+      "confidence": "low",
+      "is_degenerate": true,
+      "degenerate_reason": "No supporting instances; the dispute is the only assertion. Bilateral conflict structure absent.",
+      "disputes": [
+        {
+          "doc_id": "ai-doesnt-reduce-workit-intensifies-it-2026",
+          "assertion": "The promise of AI reducing work burdens and allowing more time for high-value tasks is not being realized as expected.",
+          "attack_type": "rebut",
+          "attack_rationale": "Nominal rebut of the implied promise. Attack type is structurally valid but labeling confidence is low given degenerate case."
+        }
+      ]
+    },
+    {
+      "conflict_id": "conflict-the-security-implications-of-opensource-af5410a2",
+      "claim_label": "The Security Implications of Open-Source AI Development",
+      "outcome_label": "tie",
+      "outcome_rationale": "Support ('open-source creates a distributed immune system and prevents monopolistic control') and dispute ('open-source removes the only gatekeepers capable of preventing dangerous deceptively aligned agents') capture two genuine and non-exclusive security models. Distributed vs. centralized gatekeeping is a longstanding security debate without universal resolution.",
+      "confidence": "medium",
+      "disputes": [
+        {
+          "doc_id": "debate:af5410a2-adab-425b-ac3c-c1f375df523f",
+          "assertion": "Open-source removes the only gatekeepers capable of preventing the deployment of dangerous, deceptively aligned agents.",
+          "attack_type": "undermine",
+          "attack_rationale": "Undermines the foundational premise that distributed security is functionally equivalent to centralized gatekeeping for safety-critical AI. Accepts that open-source distributes access but denies the implied equivalence between distributed auditing and gating deployment."
+        }
+      ]
+    },
+    {
+      "conflict_id": "conflict-whether-transparency-and-interpretabilit-c8a829cc",
+      "claim_label": "Whether transparency and interpretability requirements will freeze AI innovation",
+      "outcome_label": "prevail-dispute",
+      "outcome_rationale": "The dispute ('transparency is a basic consumer protection standard already used in other industries, not a ban on innovation') has stronger cross-domain grounding. Comparable requirements (financial disclosure, pharmaceutical labeling, food ingredient lists) coexist with active innovation in those sectors. The support's 'impossible standard' framing is weakened by this precedent. The dispute's analogy is empirically checkable and holds.",
+      "confidence": "medium",
+      "disputes": [
+        {
+          "doc_id": "debate:c8a829cc-7b34-4fb2-b3c6-07b220447e22",
+          "assertion": "Argues that transparency is a basic consumer protection standard already used in other industries, not a ban on innovation.",
+          "attack_type": "rebut",
+          "attack_rationale": "Directly contradicts the 'impossible standard' framing. Denies the conclusion that transparency requirements are categorically innovation-blocking by citing cross-industry precedent."
+        }
+      ]
+    }
+  ]
+}

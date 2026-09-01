@@ -63,6 +63,7 @@ Files the Computational Linguist holds **mandatory review authority** over. Chan
 | `research/comp-linguist/docs/frame-survival-metric-spec.md` | Frame-survival metric family — definitions, thresholds, validation gates (t/2042) | Mandatory |
 | `research/comp-linguist/analyses/edge-rationale-quality/check_rationale_quality.py` | Edge-rationale mechanical quality screen — stipulated flag thresholds (t/2444 A′) | Mandatory |
 | `research/comp-linguist/analyses/edge-rationale-quality/judge-prompt.txt` | Edge-rationale LLM-judge scoring prompt (t/2444 A′) | Mandatory |
+| `research/comp-linguist/data/conflict-outcome-labels.json` | Labeled conflict-outcome set — Pollock attack-type labels + outcome labels (prevail-claim/prevail-dispute/tie/undecided) for all 19 dispute-bearing conflicts; gates Potyka-2021 pilot and attack_weights gradient validation (t/3152) | Mandatory |
 
 ## Maintenance rule
 
