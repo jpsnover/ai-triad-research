@@ -1,6 +1,6 @@
-# CLAUDE.md
+# AGENTS.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Guidance for agents working in this repository.
 
 ## Project Overview
 
@@ -8,158 +8,124 @@ AI Triad Research — multi-perspective research platform for AI policy/safety l
 
 ## Build & Test Commands
 
-Build and test commands are role-specific — see the owning subtree's `AGENTS.md` (they load automatically when you work in that scope):
+Role-specific — see the owning subtree's `AGENTS.md` (auto-loads in scope):
 
-- **PowerShell module / Pester / manifest** → `scripts/AGENTS.md`
-- **Taxonomy Editor / poviewer / summary-viewer (npm, vitest, tsc)** → `taxonomy-editor/AGENTS.md`
-- **Debate engine (vitest)** → `lib/debate/AGENTS.md`
-- **CI pipeline (`ci.yml` jobs)** → `operations/devops/AGENTS.md`
+- PowerShell module / Pester / manifest → `scripts/AGENTS.md`
+- Taxonomy Editor / poviewer / summary-viewer (npm, vitest, tsc) → `taxonomy-editor/AGENTS.md`
+- Debate engine (vitest) → `lib/debate/AGENTS.md`
+- CI pipeline (`ci.yml`) → `operations/devops/AGENTS.md`
 
 ## Architecture
 
 ### Two-Repo Split
 
-Code lives here; data lives in `../ai-triad-data`. The file `.aitriad.json` maps relative paths to data directories. Override with `$env:AI_TRIAD_DATA_ROOT`. Priority: env var > `.aitriad.json` > monorepo fallback.
+Code here; data in `../ai-triad-data`. `.aitriad.json` maps relative paths to data dirs. Override with `$env:AI_TRIAD_DATA_ROOT`. Priority: env var > `.aitriad.json` > monorepo fallback.
 
 ### Orca Overlay Repo
 
-Orca config files (`.orca.yaml`, `AGENTS.md`, `.orca/` directory) live in a **separate overlay repo** stored at `.orca-git/`. This keeps Orca infrastructure private while the main project repo stays public.
+Orca config (`.orca.yaml`, nested `AGENTS.md`, `.orca/`) lives in a **separate overlay repo** at `.orca-git/`, keeping Orca infra private while the main repo stays public.
 
-- **`git` commands** operate on the main project repo
-- **`ogit` commands** (alias for `git --git-dir=.orca-git --work-tree=.`) operate on the overlay
-- **Never `git add` or `git commit`** files tracked by the overlay: `.orca.yaml`, `.orca/`, `.orca-gitignore`, and every **nested** `AGENTS.md`
-- Run `ogit` from the repo root — `.orca-git` is not visible from subdirectories
-- A **new** nested `AGENTS.md` needs `ogit add -f` — the overlay whitelist alone does not stage it
+- `git` → main repo; `ogit` (alias for `git --git-dir=.orca-git --work-tree=.`) → overlay. Run `ogit` from repo root only.
+- **Never `git add`/`commit`** overlay-tracked files: `.orca.yaml`, `.orca/`, `.orca-gitignore`, every **nested** `AGENTS.md`.
+- Which repo owns an `AGENTS.md`? Don't guess — run `sh .githooks/agent-file-owner.sh --path <file>` → `main | overlay | NEITHER` (t/2080). Rule: main-repo-tracked **iff a public-repo consumer needs it without the overlay** — today exactly two files, this root `AGENTS.md` and `operations/devops/azure/AGENTS.md` (commit both with `git`). All other `AGENTS.md` are overlay-only. The sets are disjoint by construction (`.gitignore` allowlist vs `.orca-gitignore` re-exclusions); the pre-commit audit refuses any double-track or neither-tracked nested file.
 
-**Creating a role/instance?** After `create_role`/`create_instance`, the generated nested `AGENTS.md` is tracked by **neither** repo until you overlay-track it — do this **before** your next commit:
+**Creating a role/instance?** The generated nested `AGENTS.md` is tracked by neither repo until you overlay-track it — before your next commit:
+1. `ogit add -f <new-role>/AGENTS.md` (whitelist alone won't stage a *new* file — t/1971).
+2. `sh .githooks/agent-file-owner.sh --audit` → expect clean.
+3. Commit normally. **Never `--no-verify` past the audit** (strands an unbacked orphan — Pattern #146). If the audit flags a `.worktrees/<name>/AGENTS.md`, that's a worktree checkout of a main-tracked file — do **not** ogit-add it (t/2205).
 
-1. `ogit add -f <new-role>/AGENTS.md`  (the overlay whitelist alone does not stage a *new* nested file — t/1971)
-2. `sh .githooks/agent-file-owner.sh --audit`  → expect **clean**
-3. Commit normally. **Never** `--no-verify` past the audit — that strands the file with no backing repo (F3 orphan; Pattern #146). If the audit instead flags a `.worktrees/<name>/AGENTS.md`, that is a worktree checkout of a main-tracked file — do **not** ogit-add it (t/2205).
+### Shared-Checkout Commit Guard (pre-commit hook)
 
-**Which repo owns an `AGENTS.md`? Don't recall it — ask (t/2080):**
+The fleet shares one `main` checkout, so committing **directly on `main`** strands work local-only (t/1926). `.githooks/pre-commit` refuses commits on `main` and on a detached HEAD inside a worktree (t/2009). Commits on named/non-`main` branches and `--no-verify` are allowed, so landing is never blocked. Enable once per checkout: `git config core.hooksPath .githooks`. Emergency override: `git commit --no-verify`.
 
-```
-sh .githooks/agent-file-owner.sh --path <file>    # → main | overlay | NEITHER
-```
+**Feature work is worktree-only; shared checkout stays on `main`.** `/land-from-worktree` is branch-first (`git worktree add -b <branch>`). A `.githooks/post-checkout` hook warns (advisory) when the shared tree leaves `main` (t/2209).
 
-The rule is a predicate, not a list: a file is **main-repo-tracked iff a public-repo consumer needs it without the overlay**. Today that is exactly two files — this root `AGENTS.md` (commit it with **`git`**, not `ogit`) and `operations/devops/azure/AGENTS.md`. Every other `AGENTS.md` is overlay-only.
+**Shell cwd resets to the shared checkout between tool calls (t/2222).** Creating a worktree isn't enough — always `cd` into it **in the same command**: `cd .worktrees/<name> && <cmd>`. A stray `cd`-reliant command combined with a mis-quote sprays 0-byte junk files across every scope. Prevention: same-command `cd`; never paste multi-line code into the shell (see Shell Quoting Rule).
 
-The two sets are **disjoint by construction**: the code repo's allowlist lives in `.gitignore`, the matching re-exclusions in `.orca-gitignore`. Both `AGENTS.md` above were previously tracked in *both* repos and had silently diverged. The pre-commit hook runs `agent-file-owner.sh --audit` on every commit and **refuses** one that re-creates a double-track — or that leaves a nested `AGENTS.md` tracked by **neither** repo, the state that left two role files with a single unbacked copy on one machine.
+### Pre-Self-Merge Verification
 
-### Shared-Checkout Commit Guard (git pre-commit hook)
+Before `gh pr merge`, confirm all four (prevents stranded/stale-head merges — #710, #701, #830/#831, t/2470):
+0. **Base is `main`** — `gh pr view <N> --json baseRefName` (GitHub silently suggests the parent feature branch).
+1. **Head matches your push** — `gh pr view <N> --json headRefOid` equals your latest pushed SHA (the ref can lag; re-push and wait).
+2. **CI ran on that exact OID** — `gh run list --commit <headRefOid>` is green, not a predecessor's.
+3. **No open decision/hold** you haven't cleared.
 
-The fleet shares one `main` checkout, so a commit made **directly on its `main` branch** strands work local-only and diverges `main` from `origin` (t/1926). A committed pre-commit hook (`.githooks/pre-commit`) **refuses** such commits. It also **refuses a commit on a detached HEAD inside a worktree** (t/2009, orphaned-commit guard) — so `/land-from-worktree` is now **branch-first** (`git worktree add -b <branch> ...`). Worktree commits on a **named branch**, non-`main` branches, and `--no-verify` are allowed, so landing is never blocked. Git does not auto-run committed hooks — **enable once per checkout**:
+The advisory `pre-self-merge-verify` hook nudges this; this rule is the contract.
 
-```
-git config core.hooksPath .githooks
-```
+### PR-Flow Practice Rules (q/40)
 
-The hook is self-documenting (see its header comment). Owner / emergency override: `git commit --no-verify`.
+- **Batch sequential same-feature work** onto one branch / one PR unless the diff exceeds ~400 lines, mixes concerns, or a peer needs an intermediate step on `main`.
+- **Merge promptly on green** — verify (above) and merge within ~15 min, or record the hold as a PR/ticket comment. An unmerged green PR with no recorded hold is drift.
+- **Gated PRs stay draft; never enable auto-merge on a gated PR.** A comment/design/`blocks` hold gives visibility but does **not** gate GitHub; only draft enforces. Un-draft only when the gate is verifiably clear (t/2603/#997).
 
-**Feature work is worktree-only; the shared checkout stays on `main`.** A companion `.githooks/post-checkout` hook **warns** (advisory, non-blocking) the moment the shared tree's HEAD leaves `main` for a feature branch — pointing you to `git worktree add -b <branch>` instead (t/2209). It is silent inside linked worktrees (the correct home for feature work) and on `main`. Don't do feature work on the shared tree: it strands unpushed commits and turns the next `git add -A` into a cross-role sweep.
+### Claim Before Implement (q/42)
 
-**Your shell cwd resets to the shared checkout between tool calls (t/2222).** Creating a worktree is **not enough** — the Bash/PowerShell tool returns your shell to the shared tree after every command, so any command that relies on a *previous* `cd` actually runs against the shared `main`. Always `cd` into your worktree **in the same command**: `cd .worktrees/<name> && <cmd>`. Combined with a Shell Quoting Rule slip (below), a mis-quoted command run with the shared tree as cwd word-splits code fragments into **0-byte junk files** scattered across every role's scope — the t/2222 incident sprayed ~35 such files (`lib/debate/setTimeout(r`, `taxonomy-editor/.../r.node_id)`, a file literally named `'`). They are never committed, so no pre-commit guard catches them; they clutter `git status` and risk a `git add -A` sweep. Prevention is behavioral: same-command `cd`, and never paste multi-line JS/TS/PS into the shell — write it to a file and execute (see **Shell Quoting Rule**).
-
-### Pre-Self-Merge Verification (confirm head + CI-on-that-head)
-
-Before `gh pr merge`, confirm the merge lands the commit you intend, onto the base you intend, with checks that ran on **that** commit. Three incident classes: a stale PR-head squash-merged on a predecessor's green checks (#710 — the pushed fix never shipped), a merge that raced an unresolved decision (#701), and two PRs merged into a squash-dead feature branch instead of `main` (#830/#831 — content stranded off-main, t/2470).
-
-Confirm all four first:
-
-0. **Base is `main`.** `gh pr view <N> --json baseRefName` MUST be `main` (or a base the ticket explicitly names). GitHub silently suggests the parent feature branch as base when your branch was cut from one — and a "merged" PR against a branch that later squash-merges leaves your content off-main with no error anywhere.
-1. **Head matches your push.** `gh pr view <N> --json headRefOid` MUST equal your latest pushed commit SHA. GitHub's PR-head ref can lag a fresh push by minutes — if it doesn't match, re-push (or `git push --force-with-lease`) and wait for the head to advance. Never merge against a stale head.
-2. **CI ran on that exact OID.** `gh run list --commit <headRefOid>` is green — **not** a predecessor's run. A green check attached to an older commit does not vouch for the new one.
-3. **No open decision/hold** on the PR you haven't cleared.
-
-A squash-merge of a stale head ships the *old* content on the *old* commit's green — the fix you pushed never lands. Verify; don't assume the PR reflects your last push. The advisory `pre-self-merge-verify` Instant Feedback hook nudges this on every `gh pr merge`; this rule is the contract.
-
-### PR-Flow Practice Rules (approved q/40, 2026-08-12)
-
-- **Batch sequential same-feature work.** When one agent works sequentially on a feature and no other agent is blocked between steps, stage all steps on one branch and open a **single PR** — not a PR per step (the URL-context feature burned 6 CI cycles for one feature). Split anyway when the accumulated diff exceeds ~400 changed lines or mixes unrelated concerns; and revert to per-step PRs the moment a peer needs an intermediate step on `main`.
-- **Merge promptly on green.** Once CI is green on your current head, complete the pre-self-merge verification (above) and merge within ~15 minutes — or record the hold (pending decision, blocked dependency, review condition) as a PR/ticket comment so the delay is visible. A green PR sitting unmerged with no recorded hold is drift: it invites stale-head merges and landing races. (Deliberate holds are fine — record them; PR #879's multi-hour hold for a manual visual check was correct *because* it was recorded.)
-- **Gated PRs stay draft; never enable auto-merge on a gated PR.** A comment hold, a design-review hold, or a ticket `blocks` relation does **not** prevent a GitHub merge — and auto-merge lands the PR the moment CI is green with *no agent in the loop*, bypassing the Pre-Self-Merge Verification above entirely (the "no open decision/hold" check never runs). Recording a hold as a comment gives **visibility**, but only **draft** gives **enforcement**. Any PR gated on an unmet dependency — a blocking sibling PR/ticket, a design-review hold, an unfinished prerequisite — MUST be opened as **draft** and stay draft until the gate is verifiably clear; un-draft (or enable auto-merge) only then. (t/2603/#997: a comment-held reveal-flag flip auto-merged 22 min before its crash-fix dependency because the hold was only a ticket comment + `blocks` relation, neither of which gates GitHub.)
-
-### Claim Before Implement (approved q/42, 2026-08-12)
-
-Before implementing a ticket assigned to your role, **claim it** — assign it to your specific instance, or comment that you're starting. Multi-instance roles: check for a peer instance's claim, in-flight PR, or recent landed commit on the ticket **before** committing to an implementation approach. Two DebateTool instances implemented t/2514 in parallel (#898 constructor check vs #903 run-entry check); the semantic collision on the merge ref burned two CI cycles. Same failure shape as the incident duplicate-filing rule.
+Before implementing an assigned ticket, claim it (assign to your instance or comment you're starting). Multi-instance roles: check for a peer's claim, in-flight PR, or recent landed commit **before** choosing an approach (parallel impls of t/2514 burned two CI cycles).
 
 ### Subsystem Map
 
-Detailed conventions and build/test commands live in each subtree's `AGENTS.md` (loaded when you work in that scope). This is the orientation map only.
+Detailed conventions live in each subtree's `AGENTS.md`. Orientation only:
 
-- **PowerShell module** (`scripts/AITriad/`) — 40+ cmdlets (Public/Private split), AI prompt templates in `Prompts/`, companion `AIEnrich.psm1` (multi-backend AI abstraction) + `DocConverters.psm1` (doc→Markdown). → `scripts/AGENTS.md`
-- **Electron apps** — 3 independent apps, each Vite + React 19 + Electron 35 + TypeScript: **taxonomy-editor/** (main editing UI; Zustand + Zod), **poviewer/** (POV analysis; pdfjs-dist), **summary-viewer/**. → `taxonomy-editor/AGENTS.md`
-- **Debate engine** (`lib/debate/`) — three-agent BDI system (Accelerationist / Safetyist / Skeptic). Entry points: `Show-TriadDialogue` (PowerShell) or `npm run debate` (CLI). `aiAdapter.ts` abstracts multi-backend AI calls. → `lib/debate/AGENTS.md`
+- **PowerShell module** (`scripts/AITriad/`) — 40+ cmdlets (Public/Private), prompts in `Prompts/`, `AIEnrich.psm1` (multi-backend AI) + `DocConverters.psm1`. → `scripts/AGENTS.md`
+- **Electron apps** — 3 independent Vite + React 19 + Electron 35 + TS apps: **taxonomy-editor/** (Zustand + Zod), **poviewer/** (pdfjs-dist), **summary-viewer/**. → `taxonomy-editor/AGENTS.md`
+- **Debate engine** (`lib/debate/`) — three-agent BDI (Accelerationist / Safetyist / Skeptic). Entry: `Show-TriadDialogue` or `npm run debate`; `aiAdapter.ts` abstracts backends. → `lib/debate/AGENTS.md`
 
 ### Taxonomy Model
 
-Four POV camps with BDI categories (Beliefs, Desires, Intentions). Node IDs: `{pov}-{category}-{NNN}` where pov is `acc`/`saf`/`skp`/`cc`. Policy actions use `pol-*` IDs in a shared registry (`policy_actions.json`). Embeddings: all-MiniLM-L6-v2, 384-dim in `embeddings.json`.
+Four POV camps with BDI categories. Node IDs: `{pov}-{category}-{NNN}` (pov ∈ `acc`/`saf`/`skp`/`cc`). Policy actions use `pol-*` IDs in `policy_actions.json`. Embeddings: all-MiniLM-L6-v2, 384-dim in `embeddings.json`.
 
-**Data File Convention:** Project JSON files use nested structures — never assume flat schemas. Always inspect a sample (`head` or `jq`) before coding against data files. Common patterns: enriched fields live under `node.graph_attributes.*` (not at node root), `embeddings.json` wraps entries under `data['nodes']` with metadata at top level, and field types vary per context (list vs dict). Check `type()` / `isinstance()` before calling type-specific methods.
+**Data File Convention:** JSON files use nested structures — never assume flat schemas; inspect a sample (`head`/`jq`) first. Enriched fields live under `node.graph_attributes.*`; `embeddings.json` wraps entries under `data['nodes']`; field types vary (list vs dict) — check `type()`/`isinstance()` before use.
 
 ### AI Backends
 
-Configured in `ai-models.json` (single source of truth for PS and Electron). Backends: Google Gemini (free tier), Anthropic Claude, Groq (free tier). Keys via `Register-AIBackend` or env vars (`GEMINI_API_KEY`, `ANTHROPIC_API_KEY`, `GROQ_API_KEY`, `AI_API_KEY` fallback).
-
-**Before landing any `ai-models.json` edit, run `npm run verify:config`** — it runs all six registry-completeness gates (whose signal lives in other packages' suites) in one command and exits non-zero naming the failing gate; skipping it is how an incomplete edit went red in CI (t/1933). Adding a backend? Follow the `/add-ai-backend` playbook — it enumerates every coupling site.
+Configured in `ai-models.json` (single source of truth for PS + Electron): Gemini, Claude, Groq. Keys via `Register-AIBackend` or env vars (`GEMINI_API_KEY`, `ANTHROPIC_API_KEY`, `GROQ_API_KEY`, `AI_API_KEY` fallback). **Before landing any edit, run `npm run verify:config`** (runs all six registry-completeness gates; t/1933). Adding a backend? Follow `/add-ai-backend`.
 
 ## Shell Quoting Rule
 
-When writing, editing, or executing code containing special shell characters (template literals, nested quotes, apostrophes, backticks, `$` variables, f-strings), **always use Edit/Write tools** instead of Bash `sed`, `awk`, or heredocs. When running Python/PowerShell scripts that contain quotes or f-strings, write the script to a temp file with the `Write` tool and execute it, rather than inlining in a heredoc or `bash -c`. Shell escaping is the #1 source of silent corruption bugs.
+For code with special shell chars (template literals, nested quotes, apostrophes, backticks, `$` vars, f-strings), **use Edit/Write, not Bash `sed`/`awk`/heredocs**. Run Python/PowerShell scripts from a temp file (Write then execute), never inline heredocs. Shell escaping is the #1 silent-corruption source.
 
-**Junk-file hygiene (t/2112).** A mis-quoted Bash command (stray backtick, unbalanced `)`/`{`, a `$(...)` fragment, an inlined interval like `30s`) word-splits into **0-byte files** named after the fragment — e.g. `0)`, `void`, `30s`, `15000\``, `{,+`. They are never committed, so no gate catches them, but they clutter `git status` and a careless `git add -A` sweeps them into a commit. **Before any `git add`, scan `git status --short` for bare-fragment filenames and `rm --` them.** Prefer `git add <explicit paths>` over `git add -A`/`-u`. The advisory `t/2112` hook warns on these at commit time but does not block — treat its warning as a stop-and-clean signal.
+**Junk-file hygiene (t/2112).** Mis-quoted Bash commands word-split into 0-byte files named after the fragment (`0)`, `30s`, `{,+`). Before any `git add`, scan `git status --short` for bare-fragment filenames and `rm --` them. Prefer explicit paths over `git add -A`/`-u`.
 
 ## Git Forensics on the Bash Tool
 
-On some Windows agents, MSYS path conversion mangles the `<path>` half of a git colon-revspec (`git show <ref>:<path>`, `cat-file`, `rev-parse <ref>:<path>`) — a **valid** ref then reports a spurious `unknown revision or path`, masquerading as a missing commit/file. It is environment-dependent (varies by Git-for-Windows install; confirmed on ≥2 agents, not reproduced on others), so don't dismiss a peer's report as "just their config." Discriminator: valid ref + `unknown revision` = suspect MSYS, not a real absence. Fix: prefix `MSYS_NO_PATHCONV=1`, or run the git command via the PowerShell tool.
+On some Windows agents, MSYS path conversion mangles the `<path>` half of a git colon-revspec (`git show <ref>:<path>`, `cat-file`, `rev-parse`), so a **valid** ref reports a spurious `unknown revision or path`. Discriminator: valid ref + `unknown revision` = suspect MSYS, not a real absence (confirmed on ≥2 agents). Fix: prefix `MSYS_NO_PATHCONV=1` or run via PowerShell.
 
 ## Error Handling Convention
 
-All unrecoverable errors must use `New-ActionableError` (PowerShell) or `ActionableError` (TypeScript) with four fields: **Goal**, **Problem**, **Location**, **Next Steps**. Never use bare `throw "message"`. Prefer recovery (retry, fallback, partial results) over failure. See `docs/error-handling.md`.
+Unrecoverable errors use `New-ActionableError` (PS) / `ActionableError` (TS) with **Goal / Problem / Location / Next Steps**. Never bare `throw "message"`. Prefer recovery over failure. See `docs/error-handling.md`.
 
-**Rendered surface labels differ from the field names (PowerShell) — assert against the rendered labels.** The four fields above are the *parameter* names (`-Goal` / `-Problem` / `-Location` / `-NextSteps`), but `New-ActionableError` renders the emitted message with labels **`Goal:` / `Error:` / `Location:` / `Resolve:`** — i.e. `-Problem` prints as `Error:` and `-NextSteps` prints as `Resolve:`. Any test, log scraper, or reviewer assertion written against the *emitted text* must match the rendered labels (`Error:` / `Resolve:`), not the convention/parameter vocabulary — an assertion written honestly from the field names above will spuriously fail against a correctly-formed error (t/2952).
+**Assert against rendered labels, not param names (PS).** `New-ActionableError` renders `-Problem` as `Error:` and `-NextSteps` as `Resolve:` (labels: `Goal:`/`Error:`/`Location:`/`Resolve:`). Assertions on emitted text must match the rendered labels or they spuriously fail (t/2952).
 
 ## Token Efficiency
 
-- Batch ToolSearch: always fetch all needed schemas in one call (select:t1,t2,t3)
-- Prefer ping over email for status updates and single-question exchanges
-- Use verbose:false and include_ids:false on all MCP list/create calls unless IDs are needed
-- Do not re-read AGENTS.md — it is already injected as claudeMd
-- Keep ticket comments and email bodies concise; reference entities (t/KEY) instead of inlining content
+- Batch ToolSearch: fetch all schemas in one `select:t1,t2,t3` call.
+- Prefer ping over email for status updates and single-question exchanges.
+- Use `verbose:false` / `include_ids:false` on MCP list/create calls unless IDs are needed.
+- Don't re-read AGENTS.md (already injected as claudeMd).
+- Keep comments/emails concise; reference entities (t/KEY) instead of inlining.
 
 ## Incident Response
 
-- **Live incident: claim follow-ups before filing.** Before `create_ticket` for a follow-up during an active incident, claim it on the incident anchor thread (or route through the incident coordinator) — prevents concurrent duplicate filings across roles (this bit twice: t/2053+t/2054, t/2061+t/2062).
-- **The claim binds per-instance, and to writes — not just filings (t/2945).** The rule above bit again *inside a single role*: concurrent same-role background jobs, each with its own context and blind to each other's writes, produced t/2945's authorship oscillation and two duplicate filings (t/2954+t/2956, t/2959+t/2960). So during a live incident, claim per **instance / background-job** (not per role) on the anchor **before any shared-tree write** (data or code repo) *and* before any ticket filing. The anchor is a **visibility** point, not a lock: it makes concurrent actors see each other, it does not serialize them. Where actual serialization is required, use the stronger form — claim, then re-read the anchor before acting.
-- The Technical Lead coordinates incidents (runs `/tl-incident-response`); the anchor ticket is the source of truth for status and follow-up claims.
+- **Claim follow-ups before filing.** During a live incident, claim a follow-up on the anchor thread before `create_ticket` — prevents duplicate filings (t/2053+t/2054, t/2061+t/2062).
+- **Claim binds per-instance and to writes, not just filings (t/2945).** Claim per instance/background-job on the anchor **before any shared-tree write** *and* before any filing. The anchor is a visibility point, not a lock; where serialization is required, re-read the anchor after claiming before acting.
+- The Technical Lead coordinates incidents (`/tl-incident-response`); the anchor ticket is the source of truth.
 
-### Prevention-per-incident: every diagnosis files observability AND prevention (t/2379)
+### Prevention-per-incident (t/2379)
 
-Every incident diagnosis produces **two** kinds of follow-up, not one:
-
-1. **Observability** — make it *diagnosable* next time (the flight-recorder field / log line / metric the diagnosis wished it had had).
-2. **Prevention** — make it *not recur*: the gate, test, or guard that would have caught it before prod.
-
-**A diagnosis that files only observability tickets is incomplete.** Map each incident to a **failure class** (see `docs/CodeReview/failure-classes.md`) and file the prevention that closes that class's gap *for this surface*. Rationale: quality coverage is point-in-time — each gate was sufficient when written; without a prevention ticket per incident, coverage lags system growth and the next prod bug finds the gap, not a gate.
-
-**Gate-touching prevention tickets** (a new/changed CI step, deploy gate, verify script, or config validation) route to **Main (TL)** for Gate Verification: proven with **both arms** (a deliberate failure fires the gate; the clean case passes with zero noise), reliable enough to block prod (a flaky blocking gate is the *next* incident), and config co-located at point of use. See the *Gate signal integrity* rules under **Code Review & Quality** (the tech-lead scope's `AGENTS.md`).
+Every diagnosis files **two** follow-ups: **Observability** (make it diagnosable next time) **and Prevention** (the gate/test/guard that stops recurrence). Map each incident to a failure class (`docs/CodeReview/failure-classes.md`) and file the prevention that closes that class's gap for this surface. Gate-touching prevention tickets route to **Main (TL)** for Gate Verification (both arms proven; no flaky blocking gates; config co-located).
 
 ### Second recurrence → baseline validation (t/3085)
 
-When an incident maps to a failure class that has **already recurred at least once**, the diagnosis MUST include a **baseline-validation pass**: state explicitly what load, latency, or behavior the diagnosis treats as "normal," then verify that baseline against **design intent** — docs, precomputation assets, the original PR/ticket — not merely against recent observations. A recurring class whose fixes keep landing at the symptom layer is itself the signal that the **assumed baseline is the bug**, one level upstream of every prior diagnosis. (t/3085: three incidents in the embedding-saturation class were each diagnosed one level downstream of the real cause — a silently-dead embeddings cache since the May 14 API-First migration — because each treated "the server re-embeds ~800 static texts per debate" as normal load instead of challenging why that baseline existed at all.)
+When an incident maps to a failure class that has **already recurred**, the diagnosis MUST include a **baseline-validation pass**: state what load/latency/behavior you treat as "normal," then verify it against **design intent** (docs, precomputation assets, original PR/ticket) — not just recent observations. A recurring class whose fixes keep landing at the symptom layer signals the assumed baseline is itself the bug.
+
+## Ticket Lifecycle
+
+- Starting work → `transition_ticket` to **In Progress** immediately.
+- Done (PR merged or no-code task complete) → **Done**.
+- Never leave a ticket Unstarted while actively working it.
 
 ## Second Opinion
 
-Any Main instance may consult `main.engineering-second-opinion@ai-triad-research.orca.local` when **any one** of these conditions holds:
+Any Main instance may consult `main.engineering-second-opinion@ai-triad-research.orca.local` when any one holds: **irreversibility** (>1 sprint to undo, prod data, shared infra), **cost/risk asymmetry**, **novel territory** (no precedent), **conflicting signals** (no tie-breaker), **security/compliance surface**, or **post-incident gate design**.
 
-1. **Irreversibility** — Decision takes >1 sprint to undo, touches production data, or modifies shared infrastructure (CI gates, deploy pipeline, branch protection).
-2. **Cost/risk asymmetry** — Getting it wrong costs far more than the consultation. Architecture choices that constrain future work for months qualify; single-file refactors do not.
-3. **Novel territory** — No established precedent in AGENTS.md, no prior incident for the pattern, or involves a capability not yet used in the project.
-4. **Conflicting signals** — Two reasonable approaches with no clear tie-breaker from existing conventions or ticket history.
-5. **Security or compliance surface** — Auth, data privacy, key management, session tokens, or compliance requirements.
-6. **Post-incident gate design** — Designing a gate or guard intended to prevent a failure-class recurrence.
-
-**Non-triggers:** routine work covered by a playbook (self-certify), decisions bounded to one role's scope and easily reversed, or clarifying questions for QnA/human.
-
-Consult via email with: the full proposal, alternatives considered, what's at stake if wrong, and any time constraint. Second Opinion responds with a structured Recommendation / Key risks / Conditions / Dissent.
+**Non-triggers:** playbook-covered routine work, easily-reversed single-role decisions, clarifying questions (use QnA/human). Consult via email with proposal, alternatives, what's at stake, time constraint. Response is Recommendation / Key risks / Conditions / Dissent.
