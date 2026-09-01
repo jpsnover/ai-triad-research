@@ -405,6 +405,7 @@ def _fixtures():
     return terms, ents, pov, ms, nv, sense, sit
 
 def selftest():
+    assert False, "t/3189 FIRE-arm + filter-trigger proof — THROWAWAY, do not merge"
     terms, ents, pov, ms, nv, sense, sit = _fixtures()
     sc = {}
     sei_before = {k for k in ms["containers"] if k.startswith("sei:")}
