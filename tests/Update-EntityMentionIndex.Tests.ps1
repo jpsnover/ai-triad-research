@@ -448,6 +448,91 @@ Describe 'Update-EntityMentionIndex (t/1894 Phase 2-B)' -Tag 'unit' {
         }
     }
 
+    # Lockfile tests (t/3203): advisory entity_mentions.lock shared with reconcile_grounding.py.
+    Context 'Lockfile (t/3203)' {
+
+        It 'Lock is acquired and released — lockfile absent before and after a normal run' {
+            # Verify the lockfile does not linger after a successful run.
+            New-Sei -Path $script:seiPath -Map @{ 'n1' = @{ facts = @(@{ claim = 'Apollo Project.'; doc_id = 'd1' }) } }
+            $lockPath = "$($script:outPath).lock"
+
+            $r = Update-EntityMentionIndex -EntitiesPath $script:entPath -SourceEvidenceIndexPath $script:seiPath -SummariesPath @() -OutputPath $script:outPath
+            $r.Written | Should -BeTrue
+            # Lock must be cleaned up after a successful run.
+            Test-Path -LiteralPath $lockPath | Should -BeFalse
+        }
+
+        It 'Lockfile is released even when the write fails (finally cleanup)' {
+            # Simulate a write error by making OutputPath a directory — the move will fail, but
+            # the lockfile must still be removed.
+            New-Sei -Path $script:seiPath -Map @{ 'n1' = @{ facts = @(@{ claim = 'Apollo Project.'; doc_id = 'd1' }) } }
+            $lockPath = "$($script:outPath).lock"
+            # Make OutputPath a directory so the write throws.
+            New-Item -ItemType Directory -Path $script:outPath -Force | Out-Null
+            try {
+                Update-EntityMentionIndex -EntitiesPath $script:entPath -SourceEvidenceIndexPath $script:seiPath -SummariesPath @() -OutputPath $script:outPath -ErrorAction Stop
+            }
+            catch { }
+            # Lock must be cleaned up even after write failure.
+            Test-Path -LiteralPath $lockPath | Should -BeFalse
+            # Cleanup: remove the directory we created.
+            Remove-Item -LiteralPath $script:outPath -Recurse -Force -ErrorAction SilentlyContinue
+        }
+
+        It 'Pre-existing non-stale lock causes timeout with New-ActionableError (simulates concurrent writer)' {
+            # Pre-seed a fresh (non-stale) lock file. The cmdlet must time out and raise ActionableError.
+            New-Sei -Path $script:seiPath -Map @{ 'n1' = @{ facts = @(@{ claim = 'Apollo Project.'; doc_id = 'd1' }) } }
+            $lockPath = "$($script:outPath).lock"
+            # Hold the lock with an open FileStream (exclusive) to block the cmdlet.
+            $blocker = [System.IO.File]::Open($lockPath, [System.IO.FileMode]::CreateNew, [System.IO.FileAccess]::Write, [System.IO.FileShare]::None)
+            try {
+                # Use LockTimeoutSeconds=1 so the test runs in ~1 s instead of 60 s.
+                # New-ActionableError -PassThru returns a string; throw wraps it as RuntimeException.
+                # Assert on the message content (rendered label 'Error:') rather than the ErrorId.
+                { Update-EntityMentionIndex -EntitiesPath $script:entPath -SourceEvidenceIndexPath $script:seiPath `
+                        -SummariesPath @() -OutputPath $script:outPath -LockTimeoutSeconds 1 -ErrorAction Stop } |
+                    Should -Throw -ExpectedMessage '*Timed out*waiting for advisory lockfile*'
+            }
+            finally {
+                $blocker.Dispose()
+                Remove-Item -LiteralPath $lockPath -Force -ErrorAction SilentlyContinue
+            }
+        }
+
+        It 'Stale lock (>120 s mtime) is broken with Write-Warning and cmdlet succeeds' {
+            New-Sei -Path $script:seiPath -Map @{ 'n1' = @{ facts = @(@{ claim = 'Apollo Project.'; doc_id = 'd1' }) } }
+            $lockPath = "$($script:outPath).lock"
+            # Create a lock file and backdate its LastWriteTime to 200 s ago (> 120 s staleness threshold).
+            [System.IO.File]::WriteAllText($lockPath, '')
+            $staleTime = (Get-Date).AddSeconds(-200)
+            (Get-Item -LiteralPath $lockPath).LastWriteTime = $staleTime
+
+            $warnings = @()
+            $r = Update-EntityMentionIndex -EntitiesPath $script:entPath -SourceEvidenceIndexPath $script:seiPath `
+                -SummariesPath @() -OutputPath $script:outPath -WarningVariable warnings
+            # Cmdlet must succeed and write the index.
+            $r.Written | Should -BeTrue
+            # A warning about the stale lock must have been emitted.
+            [string]($warnings -join ' ') | Should -Match 'stale'
+            # Lock must be cleaned up after completion.
+            Test-Path -LiteralPath $lockPath | Should -BeFalse
+        }
+
+        It 'Atomic write uses tmp+rename — tmp file is absent after a successful write' {
+            # Confirm the existing atomic-write pattern: entity_mentions.json.tmp must not linger.
+            New-Sei -Path $script:seiPath -Map @{ 'n1' = @{ facts = @(@{ claim = 'Apollo Project.'; doc_id = 'd1' }) } }
+            $tmpPath = "$($script:outPath).tmp"
+
+            Update-EntityMentionIndex -EntitiesPath $script:entPath -SourceEvidenceIndexPath $script:seiPath `
+                -SummariesPath @() -OutputPath $script:outPath | Out-Null
+            # The .tmp file must be renamed away; it must not be present after success.
+            Test-Path -LiteralPath $tmpPath | Should -BeFalse
+            # The output file must exist and be valid JSON.
+            Test-Path -LiteralPath $script:outPath | Should -BeTrue
+            { Get-Content -Raw -LiteralPath $script:outPath -Encoding utf8 | ConvertFrom-Json } | Should -Not -Throw
+        }
+    }
+
     # Cross-runtime recipe drift guard (t/1904). Reconstructs each shared golden fixture through
     # the SAME production helper the indexer uses (Get-MentionContainerText) and asserts the
     # NFC code points + sha256 match lib/entities/mentionTextFixtures.json — the identical file

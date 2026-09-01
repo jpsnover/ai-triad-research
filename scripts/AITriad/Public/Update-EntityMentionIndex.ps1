@@ -109,7 +109,11 @@ function Update-EntityMentionIndex {
         [string[]]$Status = @('approved'),
 
         [Parameter()]
-        [switch]$Force
+        [switch]$Force,
+
+        # Advisory lockfile timeout in seconds (default 60). Override in tests for fast timeout.
+        [Parameter()]
+        [int]$LockTimeoutSeconds = 60
     )
 
     Set-StrictMode -Version Latest
@@ -195,23 +199,7 @@ function Update-EntityMentionIndex {
         }
     }
 
-    # --- Existing index (for human-mention preservation + idempotency) ---------------------
-    $ExistingById = @{}
-    $ExistingLastModified = $null
-    if (Test-Path -LiteralPath $OutPath) {
-        try {
-            $prior = Get-Content -Raw -LiteralPath $OutPath -Encoding utf8 | ConvertFrom-Json
-            if ($prior.PSObject.Properties['last_modified']) { $ExistingLastModified = [string]$prior.last_modified }
-            if ($prior.PSObject.Properties['containers'] -and $prior.containers) {
-                foreach ($p in $prior.containers.PSObject.Properties) { $ExistingById[$p.Name] = $p.Value }
-            }
-        }
-        catch {
-            Write-Verbose "Existing $OutPath unreadable ($($_.Exception.Message)); rebuilding from scratch."
-        }
-    }
-
-    # --- Collect containers: id -> exact analyzed text ------------------------------------
+    # --- Collect containers: id -> exact analyzed text (outside lock — heavy load) -----------
     $Containers = [ordered]@{}   # insertion order irrelevant; sorted before write
 
     if (Test-Path -LiteralPath $SeiPath) {
@@ -278,6 +266,67 @@ function Update-EntityMentionIndex {
                 $text = Get-MentionContainerText -Kind 'fc' -Fields @($claimVal)
                 if ($text -ne '') { $Containers["summary:$docId#fc-$i"] = $text }
             }
+        }
+    }
+
+    # --- Advisory lockfile (entity_mentions.lock) — shared with reconcile_grounding.py (t/3203) --
+    # Alias table and container collection (heavy loads) complete above, outside the lock.
+    # Lock wraps only the read-merge-write of entity_mentions.json.
+    # Contract: exclusive create (O_CREAT|O_EXCL equivalent); stale lock (>120 s mtime) is
+    # broken with Write-Warning (fallback-path logging rule); bounded wait 0.5 s poll / 60 s timeout.
+    $LockPath = "$OutPath.lock"
+    $LockStream = $null
+    $LockStaleSec = 120
+    $LockWaitStart = [System.Diagnostics.Stopwatch]::StartNew()
+
+    while ($true) {
+        try {
+            $LockStream = [System.IO.File]::Open(
+                $LockPath,
+                [System.IO.FileMode]::CreateNew,
+                [System.IO.FileAccess]::Write,
+                [System.IO.FileShare]::None)
+            break   # exclusive lock acquired
+        }
+        catch [System.IO.IOException] {
+            # Lock file exists — inspect staleness before deciding to wait
+            $lockItem = Get-Item -LiteralPath $LockPath -ErrorAction SilentlyContinue
+            if ($lockItem) {
+                $lockAgeSec = ((Get-Date) - $lockItem.LastWriteTime).TotalSeconds
+                if ($lockAgeSec -gt $LockStaleSec) {
+                    Write-Warning ("Update-EntityMentionIndex: breaking stale entity_mentions.lock " +
+                        "(age $([int]$lockAgeSec)s > ${LockStaleSec}s); prior writer may have crashed. Re-acquiring.")
+                    Remove-Item -LiteralPath $LockPath -Force -ErrorAction SilentlyContinue
+                    continue   # retry immediately after stale-break
+                }
+            }
+            if ($LockWaitStart.Elapsed.TotalSeconds -ge $LockTimeoutSeconds) {
+                throw (New-ActionableError -PassThru `
+                        -Goal      'Update the entity mention index (entity_mentions.json)' `
+                        -Problem   "Timed out after ${LockTimeoutSeconds}s waiting for advisory lockfile '$LockPath'. Another Update-EntityMentionIndex or reconcile_grounding.py may be running." `
+                        -Location  'Update-EntityMentionIndex' `
+                        -NextSteps @(
+                            'Check whether another Update-EntityMentionIndex or reconcile_grounding.py process is running',
+                            "Delete '$LockPath' manually if the previous writer crashed and the lock is stale (> ${LockStaleSec}s old)"))
+            }
+            Start-Sleep -Milliseconds 500
+        }
+    }
+    try {
+
+    # --- Existing index (for human-mention preservation + idempotency) ---------------------
+    $ExistingById = @{}
+    $ExistingLastModified = $null
+    if (Test-Path -LiteralPath $OutPath) {
+        try {
+            $prior = Get-Content -Raw -LiteralPath $OutPath -Encoding utf8 | ConvertFrom-Json
+            if ($prior.PSObject.Properties['last_modified']) { $ExistingLastModified = [string]$prior.last_modified }
+            if ($prior.PSObject.Properties['containers'] -and $prior.containers) {
+                foreach ($p in $prior.containers.PSObject.Properties) { $ExistingById[$p.Name] = $p.Value }
+            }
+        }
+        catch {
+            Write-Verbose "Existing $OutPath unreadable ($($_.Exception.Message)); rebuilding from scratch."
         }
     }
 
@@ -470,4 +519,14 @@ function Update-EntityMentionIndex {
     }
 
     return $result
+
+    } # end try (lockfile scope)
+    finally {
+        # Release advisory lock: close and delete lockfile regardless of success or error.
+        if ($null -ne $LockStream) {
+            try { $LockStream.Dispose() } catch { }
+            $LockStream = $null
+        }
+        Remove-Item -LiteralPath $LockPath -Force -ErrorAction SilentlyContinue
+    }
 }
