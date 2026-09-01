@@ -422,3 +422,14 @@ export function isCanaryLoopSamplerEnabled(): boolean {
   const v = process.env.CANARY_LOOP_SAMPLER?.trim().toLowerCase();
   return v === '1' || v === 'true';
 }
+
+// t/3172 (G8b): per-deploy switch for the scheduled full-taxonomy grounding sweep. DEFAULT OFF —
+// when off, startGroundingSweep() never arms its timer (zero behavior). Enable is sequenced behind
+// the reconciler tool-lock (t/3194, landed) AND the PS cmdlet lock-honoring (t/3203) with TL
+// lock-symmetry sign-off — the SAME lock-symmetry dependency as G8a's grounding_reconcile_inline
+// flag (t/3163#1); an unlocked concurrent writer could otherwise lost-update the shared grounding
+// file mid-sweep. Read per-call so the enable can be flipped via a revision env without a rebuild.
+export function isGroundingSweepEnabled(): boolean {
+  const v = process.env.GROUNDING_SWEEP_ENABLED?.trim().toLowerCase();
+  return v === '1' || v === 'true';
+}
