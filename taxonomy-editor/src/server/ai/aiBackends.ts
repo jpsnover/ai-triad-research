@@ -643,7 +643,12 @@ export function getEmbeddingsResolution(): {
   const present = !!(cache && cache.nodes && Object.keys(cache.nodes).length > 0);
   const nodeCount = cache ? Object.keys(cache.nodes ?? {}).length : null;
   const vec = cache?.nodes?.[EMBEDDINGS_RESOLUTION_CANARY]?.vector;
-  const resolves = present && Array.isArray(vec) && vec.length === EMBEDDING_DIM && vec.some((v) => v !== 0);
+  // t/3192: non-prod-only test knob — force resolves:false so /readyz returns 503 warming, letting
+  // DevOps exercise the deploy warm-gate's FIRE arm (resolves:false → block the traffic-shift)
+  // against a REAL staging/throwaway revision without an actually-broken cache. Gated to
+  // NODE_ENV!=='production' so it can NEVER force a false-negative /readyz in prod.
+  const forceResolvesFalse = process.env.NODE_ENV !== 'production' && process.env.READYZ_FORCE_RESOLVES_FALSE === '1';
+  const resolves = !forceResolvesFalse && present && Array.isArray(vec) && vec.length === EMBEDDING_DIM && vec.some((v) => v !== 0);
   return { present, nodeCount, resolves, canaryId: EMBEDDINGS_RESOLUTION_CANARY };
 }
 
