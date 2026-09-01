@@ -142,6 +142,7 @@
         'Watch-DebateProgress'
         'Invoke-DebateBatch'
         'Get-FreeTierStatus'
+        'Sync-FreeTierKeys'
         'Invoke-TaxEditorSmokeTest'
         'Test-PreloadHealth'
         'Test-AnalyticsBackend'
