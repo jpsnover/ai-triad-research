@@ -195,6 +195,17 @@ function Update-EntityMentionIndex {
         }
     }
 
+    # --- Grounding write-lock (t/3203) ----------------------------------------------------
+    # entity_mentions.json is a SHARED read-merge-write with CL's reconcile_grounding.py (which
+    # owns node:*). Serialize the read→merge→write below against it via the same advisory lockfile
+    # + mtime-staleness rule the Python side honors (TL contract t/3163#1 / t/3194). The heavy
+    # entities.json alias-table load above is intentionally OUTSIDE the lock; the source-file
+    # container collection stays inside because the existing-index read (the lost-update surface)
+    # must be under the lock and precedes it here.
+    $LockPath = Join-Path (Split-Path -Parent $OutPath) 'entity_mentions.lock'
+    $LockHandle = Enter-GroundingLock -LockPath $LockPath
+    try {
+
     # --- Existing index (for human-mention preservation + idempotency) ---------------------
     $ExistingById = @{}
     $ExistingLastModified = $null
@@ -470,4 +481,10 @@ function Update-EntityMentionIndex {
     }
 
     return $result
+
+    }
+    finally {
+        # t/3203: always release the grounding lock (even on an early return or a write error).
+        Exit-GroundingLock -Handle $LockHandle -LockPath $LockPath
+    }
 }
