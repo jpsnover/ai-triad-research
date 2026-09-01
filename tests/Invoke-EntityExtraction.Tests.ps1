@@ -56,23 +56,27 @@ Describe 'Invoke-EntityExtraction (t/1806 Phase 1)' -Tag 'unit' {
             ($seiContent | ConvertTo-Json -Depth 8) | Set-Content -Path $script:seiPath -Encoding utf8NoBOM
         }
 
-        It 'Passes the default gemini-3.5-flash-lite to Invoke-AIByUsage when -Model is omitted' {
+        It 'Does NOT override the model when -Model is omitted — the usage''s configured model wins (t/3123)' {
             InModuleScope AITriad -Parameters @{ TaxDir = $script:emptyTaxDir; DataRoot = $script:emptyDataRoot; EntPath = $script:entPath; EmbPath = $script:embPath; SeiPath = $script:seiPath; LogPath = $script:logPath } {
                 param($TaxDir, $DataRoot, $EntPath, $EmbPath, $SeiPath, $LogPath)
 
                 Mock Get-UsageRegistry -MockWith { [PSCustomObject]@{ 'enrichment.entity-extraction' = @{} } }
                 Mock Get-TaxonomyDir -MockWith ({ $TaxDir }.GetNewClosure())
                 Mock Get-DataRoot -MockWith ({ $DataRoot }.GetNewClosure())
+                # t/3123: with -Model omitted, the cmdlet must pass an EMPTY override (no `model` key)
+                # so Invoke-AIByUsage falls back to the usage's configured model (claude-sonnet-4-6).
+                # Previously it force-injected gemini-3.5-flash-lite, which 400'd the Claude-shaped schema.
+                $script:capturedHasModel = 'MOCK-NOT-CALLED'
                 Mock Invoke-AIByUsage -MockWith {
                     param($UsageId, $Values, $Override, $ApiKey, $FallbackModels)
-                    $script:capturedModel = $Override.model
+                    $script:capturedHasModel = [bool]($Override -and $Override.ContainsKey('model'))
                     [PSCustomObject]@{ Text = '{"proposals":[],"org_mentions":[]}'; Model = 'stub' }
                 }
 
                 Invoke-EntityExtraction -NodeId 'node-a' -Concurrency 1 `
                     -EntitiesPath $EntPath -EmbeddingsPath $EmbPath -SourceEvidenceIndexPath $SeiPath -OutputPath $LogPath -Confirm:$false | Out-Null
 
-                $script:capturedModel | Should -Be 'gemini-3.5-flash-lite'
+                $script:capturedHasModel | Should -BeFalse
             }
         }
 
