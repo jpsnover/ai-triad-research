@@ -26,9 +26,20 @@ import { getGlobalRecorder } from '../flight-recorder/index.js';
 
 // ── Types (onnxruntime-node is a peer dependency, resolved at runtime) ──
 
+interface OrtSessionOptions {
+  executionProviders?: string[];
+  // t/3181 Q3 (worker-only): when the off-thread worker owns the session it pins ONNX to a
+  // SINGLE op thread so onnxruntime can't oversubscribe the 1–2 vCPUs and contend with the
+  // main event loop (C2). Left UNSET on the in-thread path — that path stays byte-identical to
+  // today's baseline (SO C5 equivalence + rollback safety), so we never pass these unless a
+  // caller (the worker) opts in via setSessionThreadOptions().
+  intraOpNumThreads?: number;
+  interOpNumThreads?: number;
+}
+
 interface OrtModule {
   InferenceSession: {
-    create(path: string, options?: { executionProviders?: string[] }): Promise<OrtSession>;
+    create(path: string, options?: OrtSessionOptions): Promise<OrtSession>;
   };
   Tensor: new (type: string, data: Float32Array | BigInt64Array, dims: number[]) => OrtTensor;
   listSupportedBackends(): { name: string; bundled: boolean }[];
@@ -67,7 +78,7 @@ const TOKENIZER_CONFIG_FILE = 'tokenizer_config.json';
 // absent (t/1651, unblocks t/1641's removal of the Python ML venv from the container).
 const MODEL_DIR_ENV = 'AI_TRIAD_ONNX_MODEL_DIR';
 const HF_BASE = `https://huggingface.co/${MODEL_ID}/resolve/main`;
-const EMBEDDING_DIM = 384;
+export const EMBEDDING_DIM = 384;
 // Matches the sentence-transformers all-MiniLM-L6-v2 default (256), which generated
 // the stored corpus. Short texts are unaffected (padding is masked out); only long
 // field texts differ from the old 128 cap. Corpus parity verified by the t/1651
@@ -94,6 +105,12 @@ let _selectedEP: string = 'none';
 // t/2060 — set once a non-CPU EP OOMs during inference; pins CPU for the process lifetime
 // so init() re-selects CPU and no subsequent call re-OOMs (and re-recreates). Non-null = why.
 let _forcedCpuReason: string | null = null;
+// t/3181 Q3 — extra InferenceSession options merged in at create() time. Default EMPTY, so the
+// in-thread path calls create() with exactly `{ executionProviders }` as before (byte-identical
+// baseline). ONLY the off-thread worker sets these (intra/interOp=1) via setSessionThreadOptions()
+// before warmup, so onnxruntime pins a single op thread inside the worker and can't oversubscribe
+// the host's 1–2 vCPUs (C2). Must be set BEFORE the session is created (first warmup/compute).
+let _sessionThreadOptions: { intraOpNumThreads?: number; interOpNumThreads?: number } = {};
 
 // ── WordPiece Tokenizer ───────────────────────────────
 
@@ -404,9 +421,11 @@ async function init(): Promise<void> {
   }
   console.log(`[onnxEmbedding] Using ${_selectedEP} EP (available: ${backendNames.join(', ')})`);
 
-  // Create session
+  // Create session. `_sessionThreadOptions` is EMPTY on the in-thread path, so this reduces to
+  // `{ executionProviders }` exactly as before (byte-identical baseline, TL Q3); the worker sets
+  // intra/interOp=1 via setSessionThreadOptions() to avoid core oversubscription (C2).
   const t0 = Date.now();
-  _session = await _ort.InferenceSession.create(modelPath, { executionProviders });
+  _session = await _ort.InferenceSession.create(modelPath, { executionProviders, ..._sessionThreadOptions });
   console.log(`[onnxEmbedding] Model loaded in ${Date.now() - t0}ms (${EMBEDDING_DIM}d, fp32, EP=${_selectedEP})`);
 }
 
@@ -467,6 +486,18 @@ function l2Normalize(vec: Float32Array): number[] {
 }
 
 // ── Public API ────────────────────────────────────────
+
+/**
+ * Set extra InferenceSession options applied at session-create time (t/3181 Q3). Used by the
+ * off-thread embedding worker to pin ONNX to a single op thread (`{intraOpNumThreads:1,
+ * interOpNumThreads:1}`) so it can't oversubscribe the host's 1–2 vCPUs (C2). MUST be called
+ * before the first warmup/compute (the session is created once). The in-thread path never calls
+ * this, so its create() call stays byte-identical to the pre-t/3181 baseline (equivalence +
+ * rollback safety — TL Q3). No effect once the session already exists.
+ */
+export function setSessionThreadOptions(opts: { intraOpNumThreads?: number; interOpNumThreads?: number }): void {
+  _sessionThreadOptions = { ...opts };
+}
 
 /**
  * Preload the ONNX model and tokenizer.
@@ -585,14 +616,23 @@ async function runInferenceWithCpuFallback(
  * concatenated in the original input order. Each chunk's run carries a GPU→CPU OOM
  * fallback (see runInferenceWithCpuFallback).
  */
-export async function computeEmbeddings(texts: string[]): Promise<number[][]> {
+export async function computeEmbeddings(
+  texts: string[],
+  onChunkDone?: (chunkIndex: number) => void,
+): Promise<number[][]> {
   await ensureReady();
   if (texts.length === 0) return [];
 
+  // `onChunkDone` (t/3181) fires after each chunk RESOLVES — the off-thread worker uses it to emit
+  // a forward-progress heartbeat to its watchdog (a healthy-but-slow large batch keeps heartbeating;
+  // a truly wedged worker stops within ~1 chunk). Optional; in-thread callers omit it → no behavior
+  // change. It signals completed progress only, never gates or reorders compute.
   const results: number[][] = [];
+  let chunkIndex = 0;
   for (let start = 0; start < texts.length; start += CHUNK_SIZE) {
     const chunkResults = await computeChunk(texts.slice(start, start + CHUNK_SIZE));
     results.push(...chunkResults);
+    onChunkDone?.(chunkIndex++);
   }
   return results;
 }

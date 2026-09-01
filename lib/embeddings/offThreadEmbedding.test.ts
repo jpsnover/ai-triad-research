@@ -1,0 +1,255 @@
+// Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+// Licensed under the MIT License. See LICENSE file in the project root.
+
+// @vitest-environment node
+
+// t/3181 four-arm proof for the off-thread embedding manager (TL GV condition 2). The failure arms
+// use an INJECTED fake worker (no real thread) so queue-shed / crash→respawn / wedge→terminate /
+// no-in-thread-fallback are exercised deterministically — vitest's onnxruntime mock does NOT reach a
+// real spawned worker_thread, so a fake is the correct CI-portable seam. The real-ONNX same-EP
+// bit-exact equivalence test (condition 3) is skip-guarded with a VISIBLE skip when the model/runtime
+// is absent (it runs locally to produce the reported finding; wiring it into CI is tracked separately).
+
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { createRequire } from 'node:module';
+import fs from 'node:fs';
+
+const recorded: { level?: string; message?: string; data?: Record<string, unknown> }[] = [];
+vi.mock('../flight-recorder/index.js', () => ({
+  getGlobalRecorder: () => ({ record: (e: never) => { recorded.push(e); } }),
+}));
+
+import {
+  computeEmbeddingsOffThread,
+  shutdownEmbeddingWorker,
+  __setEmbeddingWorkerFactory,
+  __resetEmbeddingWorkerForTests,
+  __queueDepthForTests,
+  type EmbeddingWorkerLike,
+} from './offThreadEmbedding.js';
+import * as onnx from './onnxEmbedding.js';
+
+// ── Controllable fake worker ──────────────────────────
+
+interface Posted { id: number; texts: string[] }
+
+class FakeWorker implements EmbeddingWorkerLike {
+  private handlers: Record<string, ((arg: never) => void)[]> = {};
+  posted: Posted[] = [];
+  transfers: readonly ArrayBuffer[][] = [];
+  terminated = false;
+  /** Called on each postMessage — lets a test script the worker's reply behavior. */
+  onPost?: (msg: Posted, self: FakeWorker) => void;
+
+  postMessage(value: unknown, transferList?: readonly ArrayBuffer[]): void {
+    this.posted.push(value as Posted);
+    if (transferList) this.transfers = [...this.transfers, transferList];
+    this.onPost?.(value as Posted, this);
+  }
+  on(event: 'message' | 'error' | 'exit', listener: (arg: never) => void): void {
+    (this.handlers[event] ??= []).push(listener);
+  }
+  terminate(): void { this.terminated = true; }
+  emit(event: 'message' | 'error' | 'exit', arg?: unknown): void {
+    (this.handlers[event] ?? []).forEach(cb => cb(arg as never));
+  }
+  lastId(): number { return this.posted[this.posted.length - 1].id; }
+}
+
+/** Pack known vectors into the worker's result-message shape (mirrors embeddingWorker.ts). */
+function resultFor(id: number, vectors: number[][]) {
+  const dim = vectors[0].length;
+  const packed = new Float32Array(vectors.length * dim);
+  vectors.forEach((v, i) => packed.set(v, i * dim));
+  return { type: 'result' as const, id, ok: true as const, buffer: packed.buffer, count: vectors.length, dim };
+}
+
+const warns = () => recorded.filter(r => r.level === 'warn');
+
+beforeEach(() => {
+  recorded.length = 0;
+  __resetEmbeddingWorkerForTests();
+});
+
+afterEach(() => {
+  vi.useRealTimers();
+  __setEmbeddingWorkerFactory(null);
+  shutdownEmbeddingWorker();
+});
+
+describe('offThreadEmbedding — arm (a): queue saturation → shed 503 + WARN (requester named)', () => {
+  it('sheds past MAX_QUEUE_DEPTH with an ActionableError and a WARN carrying requester + depth', async () => {
+    // Worker that never replies → the first task stays in flight, the rest queue up.
+    const w = new FakeWorker();
+    __setEmbeddingWorkerFactory(() => w);
+
+    // Fill to the bound (1 in-flight + 15 queued = 16). These never settle — swallow their rejections.
+    const pending: Promise<unknown>[] = [];
+    for (let i = 0; i < 16; i++) pending.push(computeEmbeddingsOffThread(['x'], { requester: `filler-${i}` }).catch(() => {}));
+    expect(__queueDepthForTests()).toBe(16);
+
+    // The 17th overflows → shed.
+    await expect(computeEmbeddingsOffThread(['x'], { requester: 'overflow-caller' })).rejects.toThrow(/shed|queue full/i);
+
+    const shedWarn = warns().find(warn => /queue full/i.test(warn.message ?? ''));
+    expect(shedWarn).toBeDefined();
+    expect(shedWarn!.data?.requester).toBe('overflow-caller');
+    expect(shedWarn!.data?.queueDepth).toBe(16);
+    void pending;
+  });
+});
+
+describe('offThreadEmbedding — arm (b): crash → reject + respawn with backoff', () => {
+  it('rejects the in-flight task on worker error, terminates it, and respawns a fresh worker after backoff', async () => {
+    vi.useFakeTimers();
+    const workers: FakeWorker[] = [];
+    __setEmbeddingWorkerFactory(() => { const w = new FakeWorker(); workers.push(w); return w; });
+
+    const p = computeEmbeddingsOffThread(['x'], { requester: 'crash-caller' });
+    const pRejected = expect(p).rejects.toThrow(/worker crash/i); // attach handler before the crash
+    expect(workers).toHaveLength(1);
+
+    // Worker crashes mid-task.
+    workers[0].emit('error', new Error('boom'));
+    await pRejected;
+    expect(workers[0].terminated).toBe(true);
+
+    // During the backoff gap, new work is shed (not queued onto a dead worker).
+    await expect(computeEmbeddingsOffThread(['y'], { requester: 'gap-caller' })).rejects.toThrow(/respawn/i);
+    expect(workers).toHaveLength(1); // no new worker yet — still in the backoff gap
+
+    // Advance past the base backoff (250ms) → gap clears → next task spawns a fresh worker.
+    await vi.advanceTimersByTimeAsync(300);
+    const p2 = computeEmbeddingsOffThread(['z'], { requester: 'after-gap' }).catch(() => {});
+    expect(workers).toHaveLength(2); // respawned
+    void p2;
+  });
+});
+
+describe('offThreadEmbedding — arm (c): wedge (heartbeat stall) → terminate + respawn + WARN', () => {
+  it('terminates + respawns + WARNs when no heartbeat arrives within the watchdog window', async () => {
+    vi.useFakeTimers();
+    const w = new FakeWorker(); // never replies, never heartbeats → wedged
+    __setEmbeddingWorkerFactory(() => w);
+
+    const p = computeEmbeddingsOffThread(['x'], { requester: 'wedge-caller' });
+    // Attach the rejection handler NOW, before advancing timers — the wedge rejects inside
+    // advanceTimersByTimeAsync, so a handler attached afterwards would momentarily read as unhandled.
+    const rejected = expect(p).rejects.toThrow(/wedge/i);
+
+    // Not yet timed out.
+    await vi.advanceTimersByTimeAsync(7000);
+    expect(w.terminated).toBe(false);
+
+    // Cross the 8000ms window → wedge detected.
+    await vi.advanceTimersByTimeAsync(1500);
+    await rejected;
+    expect(w.terminated).toBe(true);
+
+    const wedgeWarn = warns().find(warn => /wedge/i.test(warn.message ?? ''));
+    expect(wedgeWarn).toBeDefined();
+    expect(wedgeWarn!.data?.requester).toBe('wedge-caller');
+    expect(wedgeWarn!.data?.cause).toBe('wedge');
+  });
+
+  it('a heartbeat RESETS the watchdog so a healthy-but-slow batch is not false-killed', async () => {
+    vi.useFakeTimers();
+    const w = new FakeWorker();
+    __setEmbeddingWorkerFactory(() => w);
+
+    const p = computeEmbeddingsOffThread(['x'], { requester: 'slow-batch' });
+    const id = w.lastId();
+
+    // Heartbeat at 6s (before the 8s window), then advance another 6s (12s total elapsed). Without the
+    // reset this would have wedged at 8s; with it, the window restarted at 6s so we're still healthy.
+    await vi.advanceTimersByTimeAsync(6000);
+    w.emit('message', { type: 'heartbeat', id, chunk: 0 });
+    await vi.advanceTimersByTimeAsync(6000);
+    expect(w.terminated).toBe(false);
+
+    // Deliver the result → resolves cleanly.
+    w.emit('message', resultFor(id, [[1, 0, 0, 0]]));
+    await expect(p).resolves.toHaveLength(1);
+  });
+});
+
+describe('offThreadEmbedding — arm (d): worker failure NEVER computes in-thread (throws instead)', () => {
+  it('rejects with an ActionableError naming the no-fallback contract and never calls in-thread compute', async () => {
+    const spy = vi.spyOn(onnx, 'computeEmbeddings');
+    const w = new FakeWorker();
+    // Crash immediately on dispatch.
+    w.onPost = (_msg, self) => self.emit('error', new Error('immediate crash'));
+    __setEmbeddingWorkerFactory(() => w);
+
+    const p = computeEmbeddingsOffThread(['x'], { requester: 'no-fallback' });
+    await expect(p).rejects.toThrow(/no in-thread fallback/i);
+
+    // The load-bearing invariant: on worker failure the manager must NOT run ONNX on the main thread
+    // (that silently reintroduces the t/3165 starvation). It structurally never imports the compute
+    // for the failure path — assert it was never invoked.
+    expect(spy).not.toHaveBeenCalled();
+    spy.mockRestore();
+  });
+});
+
+describe('offThreadEmbedding — marshaling round-trip preserves vectors exactly (transfer path)', () => {
+  it('unpacks the transferred buffer into per-text Float32Array views, bit-identical to what the worker packed', async () => {
+    const vectors = [
+      [0.1, -0.2, 0.3, 0.4],
+      [0.5, 0.6, -0.7, 0.8],
+      [-0.9, 1.0, 0.11, -0.12],
+    ];
+    const w = new FakeWorker();
+    w.onPost = (msg, self) => {
+      self.emit('message', { type: 'heartbeat', id: msg.id, chunk: 0 });
+      self.emit('message', resultFor(msg.id, vectors));
+    };
+    __setEmbeddingWorkerFactory(() => w);
+
+    const out = await computeEmbeddingsOffThread(['a', 'b', 'c'], { requester: 'marshal-test' });
+    expect(out).toHaveLength(3);
+    for (let i = 0; i < vectors.length; i++) {
+      expect(out[i]).toBeInstanceOf(Float32Array);
+      // fp32 round-trip: compare against the fp32-cast expected value (Float32Array quantizes on write).
+      expect(Array.from(out[i])).toEqual(Array.from(new Float32Array(vectors[i])));
+    }
+    // Each output is a 384-analog view sliced from the single packed buffer (contract: one view per text).
+    expect(out[0]).toHaveLength(vectors[0].length);
+    // The manager's request to the worker carries no transferList — only text strings marshal IN.
+    expect(w.transfers.length).toBe(0);
+  });
+});
+
+// ── Equivalence (condition 3): real-ONNX worker intra-op=1 vs in-thread default — skip-guarded ──
+
+function realOnnxAvailable(): boolean {
+  try {
+    const require = createRequire(import.meta.url);
+    require.resolve('onnxruntime-node');
+  } catch { return false; }
+  const dir = process.env.AI_TRIAD_ONNX_MODEL_DIR;
+  return !!(dir && fs.existsSync(`${dir}/model.onnx`));
+}
+
+const REAL_ONNX = realOnnxAvailable();
+if (!REAL_ONNX) {
+  // VISIBLE skip (TL condition, p/342#227): a green CI must never read as "equivalence verified" when
+  // it was actually skipped. Run locally with AI_TRIAD_ONNX_MODEL_DIR set + `lib` built; CI wiring is
+  // tracked as a follow-up (equivalence-in-CI whenever the ONNX-node model next lands in a CI job).
+  console.warn('[offThreadEmbedding.test] real-ONNX equivalence test SKIPPED — onnxruntime-node/model absent (condition-3 evidence is the reported local run; CI wiring tracked in follow-up)');
+}
+
+describe('offThreadEmbedding — real-ONNX same-EP bit-exact equivalence (condition 3, skip-guarded)', () => {
+  (REAL_ONNX ? it : it.skip)('worker (intra-op=1) vectors are bit-exact vs in-thread (default) on the same EP', async () => {
+    __setEmbeddingWorkerFactory(null); // real worker
+    const texts = ['AI policy alignment', 'open-source model release', 'compute governance regime'];
+    const [offThread, inThread] = await Promise.all([
+      computeEmbeddingsOffThread(texts, { requester: 'equivalence-test' }),
+      onnx.computeEmbeddings(texts),
+    ]);
+    expect(offThread).toHaveLength(inThread.length);
+    for (let i = 0; i < inThread.length; i++) {
+      expect(Array.from(offThread[i])).toEqual(inThread[i]); // bit-exact — no tolerance (report if it diverges)
+    }
+  });
+});
