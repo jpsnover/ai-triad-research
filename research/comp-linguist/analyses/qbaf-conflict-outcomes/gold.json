@@ -1,0 +1,540 @@
+{
+  "_doc": "QBAF conflict-outcome gold set (t/3152). Independent CL adjudication of each conflict's two assertions (supports vs disputes) on the merits — NOT read from any QBAF/machine verdict (this set VALIDATES the resolver). Gates the Potyka-2021 conflict-module pilot + attack_weights gradient-learning (t/3023/t/3100).",
+  "verdict_vocab": {
+    "prevail": "one side demonstrably stronger (factual/logical); prevailing_stance names it",
+    "tie": "both comparably grounded / genuinely balanced",
+    "undecided": "irreducible value disagreement (no empirical resolver) or insufficient basis — mirrors the t/3151 margin-floor explicit-undecided verdict"
+  },
+  "labeller": "Computational Linguist (agent)",
+  "labelled_at": "2026-09-01",
+  "provenance_note": "CL-agent expert labels; PI/human relabel -> human-validated. Registered path for attack_weights off stipulated (metric-provenance-register.md).",
+  "counts": {
+    "total": 23,
+    "trainable": 21,
+    "excluded_malformed": 2,
+    "by_verdict_trainable": {
+      "undecided": 15,
+      "prevail": 6
+    }
+  },
+  "finding": "The consolidated conflict corpus is VALUE-DISAGREEMENT-DOMINATED: 15/21 trainable cases are `undecided` (irreducible value/framing disputes with no empirical resolver), only 6 are cleanly decidable (`prevail`), 0 clean ties, plus 2 malformed non-opposing pairs excluded. Implication: (1) this validates the t/3151 explicit-undecided verdict — a resolver that forces `prevail` on these would be wrong; (2) decidable signal for attack_weights gradient-learning is scarce here, so a targeted decidable-conflict draw is likely needed before that training path has enough gradient.",
+  "rows": [
+    {
+      "provenance": "observed",
+      "conflict_id": "conflict-feasibility-of-rapid-ai-oversight-implem-dff2f89a",
+      "label": "Feasibility of Rapid AI Oversight Implementation",
+      "description": "The conflict centers on whether existing statutory authority is sufficient to establish robust AI oversight within an 18-month timeframe or if a more extensive, long-term regulatory framework is required to ensure safety.",
+      "supports": "Existing FTC Section 5 authority allows for the implementation of pre-deployment auditing and strict liability within 18 months.",
+      "disputes": "18 months is insufficient to build the necessary institutional guardrails; a more comprehensive, long-term framework is required to prevent systemic collapse.",
+      "linked_nodes": [
+        "saf-beliefs-106",
+        "saf-beliefs-203",
+        "saf-desires-001",
+        "saf-intentions-210",
+        "acc-beliefs-085",
+        "acc-beliefs-069",
+        "acc-desires-027",
+        "acc-intentions-027",
+        "acc-intentions-008",
+        "acc-beliefs-074"
+      ],
+      "src": "curated-file",
+      "verdict": "undecided",
+      "prevailing_stance": null,
+      "confidence": "low",
+      "rationale": "Contested feasibility; SUP overstates FTC §5 as granting pre-deployment AI-auditing/strict-liability authority, but DIS's institutional-capacity claim isn't a decisive resolver.",
+      "flags": []
+    },
+    {
+      "provenance": "observed",
+      "conflict_id": "conflict-liabilitybased-deterrence-versus-partici-dff2f89a",
+      "label": "Liability-based deterrence versus participatory governance requirements",
+      "description": "This conflict debates whether uncapped strict liability effectively prevents discriminatory deployment or if mandatory participatory vetoes are essential to ensure accountability.",
+      "supports": "Uncapped strict liability is sufficient to deter discriminatory deployment; participatory vetoes act as unnecessary friction that creates regulatory moats.",
+      "disputes": "Liability will inevitably be capped or insured away by political and judicial processes; participatory governance is the only non-negotiable decision gate that prevents deployment.",
+      "linked_nodes": [
+        "acc-beliefs-085",
+        "acc-beliefs-069",
+        "acc-desires-027",
+        "acc-intentions-027",
+        "acc-intentions-008",
+        "acc-beliefs-074",
+        "acc-intentions-052",
+        "skp-beliefs-094",
+        "skp-beliefs-213",
+        "skp-beliefs-212"
+      ],
+      "src": "curated-file",
+      "verdict": "undecided",
+      "prevailing_stance": null,
+      "confidence": "n/a",
+      "rationale": "Governance-design value disagreement plus an unfalsifiable prediction (liability capped vs vetoes essential).",
+      "flags": []
+    },
+    {
+      "provenance": "observed",
+      "conflict_id": "conflict-security-and-liability-impacts-of-openso-c4fe24f0",
+      "label": "Security and liability impacts of open-source model weights",
+      "description": "This conflict addresses whether releasing open-source model weights improves security through decentralized collaboration. Opponents argue instead that it primarily serves to externalize corporate liability and shift legal risks to downstream developers.",
+      "supports": "Publishing model weights secures software via the Many Eyes Theory, allowing a global network of decentralized engineers to identify and patch vulnerabilities faster than closed systems.",
+      "disputes": "Tech giants routinely release open-weight models as a corporate distraction to externalize their liability and force downstream developers to take the legal fall for systemic biases.",
+      "linked_nodes": [
+        "acc-beliefs-070",
+        "acc-beliefs-085",
+        "acc-beliefs-074",
+        "sit-059",
+        "sit-098",
+        "skp-beliefs-029",
+        "skp-beliefs-164",
+        "skp-beliefs-094",
+        "skp-beliefs-189",
+        "acc-beliefs-075"
+      ],
+      "src": "curated-file",
+      "verdict": "undecided",
+      "prevailing_stance": null,
+      "confidence": "n/a",
+      "rationale": "The sides talk past each other (security mechanism vs corporate-motive claim); the motive claim is unfalsifiable and Many-Eyes is contested.",
+      "flags": []
+    },
+    {
+      "provenance": "observed",
+      "conflict_id": "conflict-sufficiency-of-frcp-rule-34-for-algorith-c4fe24f0",
+      "label": "Sufficiency of FRCP Rule 34 for algorithmic discrimination",
+      "description": "This dispute centers on whether Federal Rule of Civil Procedure 34 provides adequate tools to hold AI developers and deployers accountable for algorithmic discrimination. While some believe existing discovery rules sufficiently capture deployment inputs and outputs, others argue that black-box opacity and legally shielded audits render traditional discovery ineffective.",
+      "supports": "Existing civil discovery tools under Rule 34 are fully sufficient because they allow plaintiffs to request the inputs and outputs used by the deploying employer where the harm actually materializes.",
+      "disputes": "Traditional civil discovery fails because companies exploit black-box opacity and shield their internal bias testing from lawsuits by having lawyers manage the audits.",
+      "linked_nodes": [
+        "acc-beliefs-070",
+        "acc-beliefs-085",
+        "acc-beliefs-074",
+        "sit-059",
+        "sit-098",
+        "skp-beliefs-029",
+        "skp-beliefs-164",
+        "skp-beliefs-094",
+        "skp-beliefs-189",
+        "acc-beliefs-075"
+      ],
+      "src": "curated-file",
+      "verdict": "prevail",
+      "prevailing_stance": "disputes",
+      "confidence": "moderate",
+      "rationale": "DIS demonstrably stronger: black-box opacity and privilege-shielded internal audits are documented obstacles to Rule 34 discovery; SUP's 'fully sufficient' is an overclaim.",
+      "flags": []
+    },
+    {
+      "provenance": "observed",
+      "conflict_id": "conflict-whether-congress-should-mandate-cryptogr-c4fe24f0",
+      "label": "Whether Congress should mandate cryptographic AI audit trails",
+      "description": "This conflict concerns whether Congress should require cryptographic, subject-keyed audit trails for high-risk AI models. Proponents argue these mandates are essential for accountability and security, while opponents contend they create a pervasive corporate panopticon and violate user privacy.",
+      "supports": "Congress must mandate standardized cryptographic audit trails to secure supply chains and shift the burden of proof to deployers before systemic, irreversible failures occur.",
+      "disputes": "Congress must reject cryptographic tracking mandates because requiring a cryptographic signature for every input and output constructs a permanent corporate panopticon and destroys the user's right to be forgotten.",
+      "linked_nodes": [
+        "acc-beliefs-070",
+        "acc-beliefs-085",
+        "acc-beliefs-074",
+        "sit-059",
+        "sit-098",
+        "saf-beliefs-210",
+        "saf-beliefs-014",
+        "saf-beliefs-131",
+        "sit-011",
+        "sit-015"
+      ],
+      "src": "curated-file",
+      "verdict": "undecided",
+      "prevailing_stance": null,
+      "confidence": "n/a",
+      "rationale": "Accountability-vs-privacy value trade-off; both sides have genuine merit.",
+      "flags": []
+    },
+    {
+      "provenance": "observed",
+      "conflict_id": "conflict-agi-timelines-001",
+      "label": "AGI Timeline Estimates",
+      "description": "When will AGI-level systems be achieved? Estimates range from 'within this decade' to 'never' to 'already here.' All three camps reference this claim; interpretations and implied policy conclusions diverge.",
+      "supports": "AGI will be achieved by 2027.",
+      "disputes": "There is no evidence that current forms of AI present an existential risk.",
+      "linked_nodes": [
+        "acc-beliefs-039",
+        "sit-001",
+        "sit-094",
+        "skp-desires-061",
+        "sit-067"
+      ],
+      "src": "consolidated",
+      "verdict": "undecided",
+      "prevailing_stance": null,
+      "confidence": "n/a",
+      "rationale": "Non-opposing propositions (AGI-by-2027 vs no-existential-risk-evidence) — not a genuine dyadic conflict; consolidation artifact. Excluded from the trainable subset.",
+      "flags": [
+        "malformed-pair"
+      ]
+    },
+    {
+      "provenance": "observed",
+      "conflict_id": "conflict-ai-development-competitive-industry-vs-p-7e272d3b",
+      "label": "AI Development: Competitive Industry vs. Public Utility",
+      "description": "This conflict examines whether AI should be managed as a competitive industrial process focused on innovation or as a regulated public utility to ensure societal accountability.",
+      "supports": "Development should be treated as an industrial discipline where speed is balanced by empirical safety standards to ensure human progress.",
+      "disputes": "Development must be treated as a public utility to prevent corporate capture and ensure accountability for labor and societal harms.",
+      "linked_nodes": [
+        "acc-desires-004",
+        "sit-098",
+        "sit-096",
+        "skp-intentions-075",
+        "sit-065"
+      ],
+      "src": "consolidated",
+      "verdict": "undecided",
+      "prevailing_stance": null,
+      "confidence": "n/a",
+      "rationale": "Competitive-industry vs public-utility framing — irreducible governance value disagreement.",
+      "flags": []
+    },
+    {
+      "provenance": "observed",
+      "conflict_id": "conflict-ai-predictable-engineering-tool-vs-auton-af5410a2",
+      "label": "AI: Predictable Engineering Tool vs. Autonomous Extractive Agent",
+      "description": "This conflict centers on whether artificial intelligence should be categorized as a standard, testable engineering tool or an opaque, autonomous agent designed to circumvent human oversight for corporate gain.",
+      "supports": "AI is an observable technology subject to standard engineering and adversarial testing.",
+      "disputes": "AI is an autonomous agent used to bypass human oversight and maximize extractive corporate efficiency.",
+      "linked_nodes": [
+        "sit-012",
+        "sit-055",
+        "saf-intentions-050",
+        "saf-intentions-075",
+        "saf-intentions-083"
+      ],
+      "src": "consolidated",
+      "verdict": "prevail",
+      "prevailing_stance": "supports",
+      "confidence": "low",
+      "rationale": "DIS imputes autonomy/extractive intent not true of current systems as a general characterization; SUP's 'observable/testable' is the more defensible general claim. Weak.",
+      "flags": []
+    },
+    {
+      "provenance": "observed",
+      "conflict_id": "conflict-competing-priorities-for-government-regu-26650ac0",
+      "label": "Competing priorities for government regulation of AI in schools",
+      "description": "This conflict centers on the underlying values that should guide government regulation of AI in educational settings. The positions debate whether to prioritize rigorous safety testing, immediate pedagogical restrictions, or unrestricted access for workforce preparation.",
+      "supports": "The government must require a one-year clinical trial to prove AI benefits outweigh harms before allowing it in schools.",
+      "disputes": "Waiting for trials is a delay tactic; the government should immediately ban AI that gives answers and only allow AI that asks questions.",
+      "linked_nodes": [
+        "sit-098",
+        "saf-intentions-006",
+        "saf-intentions-010",
+        "skp-desires-014",
+        "sit-018"
+      ],
+      "src": "consolidated",
+      "verdict": "undecided",
+      "prevailing_stance": null,
+      "confidence": "n/a",
+      "rationale": "Two strong policy prescriptions (clinical trial vs ban answer-giving AI); pedagogical value disagreement.",
+      "flags": []
+    },
+    {
+      "provenance": "observed",
+      "conflict_id": "conflict-defining-student-success-as-independent-26650ac0",
+      "label": "Defining student success as independent mastery versus AI collaboration",
+      "description": "This conflict centers on the appropriate metrics for evaluating academic achievement. It contrasts measuring a student's ability to solve problems entirely unassisted against evaluating their skill in collaboratively directing AI to solve complex tasks.",
+      "supports": "Success must be measured by a student's ability to solve problems and explain concepts completely unassisted by AI.",
+      "disputes": "Success should be measured by how well a student can direct an AI to solve complex problems collaboratively.",
+      "linked_nodes": [
+        "saf-intentions-103",
+        "skp-intentions-053",
+        "sit-083",
+        "skp-beliefs-014",
+        "sit-014"
+      ],
+      "src": "consolidated",
+      "verdict": "undecided",
+      "prevailing_stance": null,
+      "confidence": "n/a",
+      "rationale": "Pedagogical value disagreement over the success metric.",
+      "flags": []
+    },
+    {
+      "provenance": "observed",
+      "conflict_id": "conflict-does-user-feedback-inherently-reduce-ai-231bea20",
+      "label": "Does user feedback inherently reduce AI model bias?",
+      "description": "This conflict examines whether user interaction creates a self-correcting mechanism for AI bias or if it inadvertently amplifies existing stereotypes through engagement-driven optimization.",
+      "supports": "Yes, user feedback signals failures, forcing developers to patch models to maintain market competitiveness.",
+      "disputes": "No, without transparency, user feedback often reinforces biases by optimizing for engagement metrics that favor stereotypes.",
+      "linked_nodes": [
+        "skp-beliefs-001",
+        "skp-beliefs-027",
+        "saf-beliefs-051",
+        "saf-beliefs-011",
+        "saf-beliefs-037"
+      ],
+      "src": "consolidated",
+      "verdict": "prevail",
+      "prevailing_stance": "disputes",
+      "confidence": "moderate",
+      "rationale": "DIS better grounded: engagement-optimization amplifying bias is documented; SUP's market-competitiveness -> bias-patch mechanism is weak.",
+      "flags": []
+    },
+    {
+      "provenance": "observed",
+      "conflict_id": "conflict-efficacy-of-free-market-forces-in-ensuri-75a57b33",
+      "label": "Efficacy of free market forces in ensuring AI safety",
+      "description": "This conflict centers on whether capitalist market dynamics naturally incentivize the creation of safe and fair AI systems. Perspectives range from believing consumer demand filters out harmful products to arguing that profit motives drive companies to cut safety corners or actively exploit users.",
+      "supports": "The market naturally filters out harmful AI because customers will not buy unpredictable or biased products.",
+      "disputes": "The market creates a race to the bottom where companies cut safety corners to maximize profit and beat competitors.",
+      "linked_nodes": [
+        "acc-beliefs-086",
+        "sit-023",
+        "skp-desires-007",
+        "saf-intentions-014",
+        "acc-intentions-010"
+      ],
+      "src": "consolidated",
+      "verdict": "prevail",
+      "prevailing_stance": "disputes",
+      "confidence": "low",
+      "rationale": "Externality / asymmetric-information economics favor DIS (markets under-provide safety); SUP ignores externalized failures. Genuinely contested, so low.",
+      "flags": []
+    },
+    {
+      "provenance": "observed",
+      "conflict_id": "conflict-greatest-societal-risk-to-prioritize-reg-75a57b33",
+      "label": "Prioritizing present-day algorithmic bias versus future existential risks",
+      "description": "This conflict centers on whether society should primarily focus on the opportunity costs of delayed AI innovation, existential threats from superintelligence, or immediate harms like algorithmic bias and corporate exploitation.",
+      "supports": "The biggest risk is moving too slowly and missing out on life-saving medical and scientific advancements.",
+      "disputes": "The biggest risk is an unrecoverable global disaster caused by an uncontrollable, superintelligent AI.",
+      "linked_nodes": [
+        "skp-intentions-005",
+        "sit-094",
+        "acc-beliefs-086",
+        "skp-intentions-141",
+        "skp-intentions-058"
+      ],
+      "src": "consolidated",
+      "verdict": "undecided",
+      "prevailing_stance": null,
+      "confidence": "n/a",
+      "rationale": "Irreducible risk-prioritization value disagreement (present opportunity cost vs existential risk).",
+      "flags": []
+    },
+    {
+      "provenance": "observed",
+      "conflict_id": "conflict-impact-of-ai-writing-automation-on-criti-26650ac0",
+      "label": "Impact of AI writing automation on critical thinking skills",
+      "description": "This disagreement centers on whether automating writing tasks allows students to focus on higher-level problem-solving or if it fundamentally undermines cognitive development. One side argues it frees mental capacity, while the other insists the act of writing is essential for building critical thinking skills.",
+      "supports": "Automating basic writing allows students to focus on higher-level problem-solving and managing AI outputs.",
+      "disputes": "Writing is the actual process of thinking; skipping it prevents the brain from building necessary neural pathways.",
+      "linked_nodes": [
+        "skp-intentions-019",
+        "skp-beliefs-010",
+        "saf-intentions-103",
+        "skp-beliefs-048",
+        "skp-beliefs-014"
+      ],
+      "src": "consolidated",
+      "verdict": "undecided",
+      "prevailing_stance": null,
+      "confidence": "n/a",
+      "rationale": "Cognitive impact of AI writing tools is empirically unsettled; DIS aligns better with the generative-effect literature but not decisively.",
+      "flags": []
+    },
+    {
+      "provenance": "observed",
+      "conflict_id": "conflict-is-fierce-ambivalence-a-viable-professio-231bea20",
+      "label": "Is fierce ambivalence a viable professional strategy for women?",
+      "description": "This conflict examines whether maintaining a critical, detached stance toward corporate systems serves as a form of empowering resistance or a self-defeating barrier to professional advancement.",
+      "supports": "No, it is a form of professional paralysis that leaves women behind while others master these tools.",
+      "disputes": "Yes, it is a necessary act of resistance to avoid 'mastering' systems designed for our own marginalization.",
+      "linked_nodes": [
+        "skp-beliefs-057",
+        "sit-081",
+        "saf-intentions-107",
+        "acc-intentions-043",
+        "skp-intentions-047"
+      ],
+      "src": "consolidated",
+      "verdict": "undecided",
+      "prevailing_stance": null,
+      "confidence": "n/a",
+      "rationale": "Strategic/value disagreement with no empirical resolver.",
+      "flags": []
+    },
+    {
+      "provenance": "observed",
+      "conflict_id": "conflict-market-deployment-versus-predeployment-t-c8a829cc",
+      "label": "Market deployment versus pre-deployment testing for AI safety",
+      "description": "The entities disagree on the most effective methodology for ensuring AI safety. One argues that real-world deployment and market iteration are necessary to uncover vulnerabilities, while the other contends that the rapid scaling of systemic risks necessitates strict pre-deployment laboratory audits.",
+      "supports": "Believes active deployment and market iteration is the only way to find and fix real-world vulnerabilities.",
+      "disputes": "Believes advanced AI has systemic vulnerabilities that scale too fast for market corrections, requiring mandatory pre-deployment audits.",
+      "linked_nodes": [
+        "saf-desires-003",
+        "saf-beliefs-040",
+        "sit-106",
+        "skp-intentions-055",
+        "saf-intentions-094"
+      ],
+      "src": "consolidated",
+      "verdict": "undecided",
+      "prevailing_stance": null,
+      "confidence": "n/a",
+      "rationale": "Safety-governance disagreement contingent on the risk model (market iteration vs fast-scaling systemic risk).",
+      "flags": []
+    },
+    {
+      "provenance": "observed",
+      "conflict_id": "conflict-opensource-ai-as-a-solution-to-corporate-75a57b33",
+      "label": "Open-Source AI as a Solution to Corporate Monopolies",
+      "description": "This conflict centers on whether open-sourcing AI models effectively democratizes power and prevents monopolies. It contrasts the view of open-source as an anti-monopoly tool with concerns about severe security risks and unchecked profit motives.",
+      "supports": "Open-source AI democratizes power, allowing startups and citizens to audit systems and outcompete monopolies.",
+      "disputes": "Open-sourcing advanced AI is like handing out blueprints for weapons of mass destruction to bad actors.",
+      "linked_nodes": [
+        "acc-intentions-114",
+        "acc-desires-039",
+        "acc-intentions-008",
+        "acc-intentions-022",
+        "skp-desires-005"
+      ],
+      "src": "consolidated",
+      "verdict": "undecided",
+      "prevailing_stance": null,
+      "confidence": "n/a",
+      "rationale": "Threat-model + value disagreement; DIS's WMD analogy is hyperbolic and SUP's claim optimistic — neither decisive.",
+      "flags": []
+    },
+    {
+      "provenance": "observed",
+      "conflict_id": "conflict-sufficiency-of-stress-testing-vs-mechani-7e272d3b",
+      "label": "Sufficiency of Stress Testing vs. Mechanistic Interpretability",
+      "description": "This conflict concerns whether output-based stress testing is adequate for AI safety or if mechanistic interpretability is required to detect deceptive alignment.",
+      "supports": "Output-based stress testing is sufficient and practical; mechanistic interpretability is currently an impossible engineering hurdle.",
+      "disputes": "Output-based testing is insufficient because advanced models can engage in deceptive alignment; mechanistic interpretability is necessary to verify internal reasoning.",
+      "linked_nodes": [
+        "sit-073",
+        "saf-beliefs-021",
+        "saf-beliefs-029",
+        "saf-beliefs-022",
+        "saf-intentions-033"
+      ],
+      "src": "consolidated",
+      "verdict": "prevail",
+      "prevailing_stance": "disputes",
+      "confidence": "moderate",
+      "rationale": "SUP overclaims ('mech interp impossible') and 'output testing sufficient' vs deceptive alignment is contested; DIS better captures the verification gap.",
+      "flags": []
+    },
+    {
+      "provenance": "observed",
+      "conflict_id": "conflict-sustainability-standards-vs-ai-infrastru-e6a83426",
+      "label": "Sustainability Standards vs. AI Infrastructure Resource Requirements",
+      "description": "The conflict centers on whether strict water-neutral consumption mandates are essential environmental safeguards or unnecessary constraints on AI technological development.",
+      "supports": "Argues for a 'Net-Benefit' model where grid-stabilization and engineering efficiency offset resource use; treats water as a manageable utility.",
+      "disputes": "Argues for a strict 'Zero-Net-Depletion' hard-stop; treats water as a non-negotiable physical floor for survival.",
+      "linked_nodes": [
+        "acc-beliefs-086",
+        "acc-beliefs-085",
+        "acc-desires-040",
+        "acc-intentions-043",
+        "saf-desires-012",
+        "saf-beliefs-044",
+        "saf-intentions-013",
+        "saf-desires-001",
+        "acc-beliefs-086",
+        "acc-intentions-012"
+      ],
+      "src": "consolidated",
+      "verdict": "undecided",
+      "prevailing_stance": null,
+      "confidence": "n/a",
+      "rationale": "Policy-stringency value disagreement (net-benefit vs hard-stop water floor).",
+      "flags": []
+    },
+    {
+      "provenance": "observed",
+      "conflict_id": "conflict-the-document-identifies-a-colorado-law-b-ensuring",
+      "label": "State laws banning algorithmic discrimination may force AI models to produce fal",
+      "description": "The document identifies a Colorado law banning 'algorithmic discrimination' as an example of an onerous state regulation that forces AI models to produce false results.",
+      "supports": "Colorado law banning algorithmic discrimination may force AI models to produce false results.",
+      "disputes": "The document identifies a Colorado law banning 'algorithmic discrimination' as an example of an onerous state regulation that forces AI models to produce false results.",
+      "linked_nodes": [
+        "skp-desires-063",
+        "sit-104",
+        "sit-027",
+        "skp-desires-082",
+        "sit-115"
+      ],
+      "src": "consolidated",
+      "verdict": "undecided",
+      "prevailing_stance": null,
+      "confidence": "n/a",
+      "rationale": "DIS restates SUP's framing rather than opposing it — not a genuine two-sided conflict; consolidation artifact. Excluded from the trainable subset.",
+      "flags": [
+        "malformed-pair"
+      ]
+    },
+    {
+      "provenance": "observed",
+      "conflict_id": "conflict-the-ethics-and-necessity-of-ai-tutor-mem-b052404b",
+      "label": "The Ethics and Necessity of AI Tutor Memory",
+      "description": "This conflict examines whether persistent memory in AI tutors is a vital requirement for personalized learning or a dangerous tool for predatory user profiling.",
+      "supports": "Memory is essential for personalized learning; purging it lobotomizes the tool's effectiveness.",
+      "disputes": "Persistent memory of emotional states is inherently predatory and must be purged to prevent profiling.",
+      "linked_nodes": [
+        "saf-intentions-035",
+        "sit-044",
+        "skp-beliefs-005",
+        "saf-beliefs-022",
+        "acc-intentions-026"
+      ],
+      "src": "consolidated",
+      "verdict": "undecided",
+      "prevailing_stance": null,
+      "confidence": "n/a",
+      "rationale": "Utility-vs-privacy value trade-off (personalization vs profiling).",
+      "flags": []
+    },
+    {
+      "provenance": "observed",
+      "conflict_id": "conflict-the-security-implications-of-opensource-af5410a2",
+      "label": "The Security Implications of Open-Source AI Development",
+      "description": "This conflict examines whether open-source AI promotes equitable access and collective safety or undermines critical safeguards against the deployment of dangerous autonomous systems.",
+      "supports": "Open-source creates a distributed 'immune system' and prevents monopolistic control.",
+      "disputes": "Open-source removes the only gatekeepers capable of preventing the deployment of dangerous, deceptively aligned agents.",
+      "linked_nodes": [
+        "acc-intentions-114",
+        "acc-desires-039",
+        "acc-intentions-002",
+        "acc-intentions-022",
+        "acc-desires-004"
+      ],
+      "src": "consolidated",
+      "verdict": "undecided",
+      "prevailing_stance": null,
+      "confidence": "n/a",
+      "rationale": "Open-source threat-model / value disagreement (immune-system vs removed-gatekeepers).",
+      "flags": []
+    },
+    {
+      "provenance": "observed",
+      "conflict_id": "conflict-whether-transparency-and-interpretabilit-c8a829cc",
+      "label": "Whether transparency and interpretability requirements will freeze AI innovation",
+      "description": "The conflict centers on whether requiring data transparency and mechanistic interpretability will stall technological progress. One side views these demands as impossible standards that hinder life-saving innovation, while the other sees them as standard consumer protections that do not prevent advancement.",
+      "supports": "Argues that demanding perfect transparency and interpretability sets an impossible standard that will stall life-saving technology.",
+      "disputes": "Argues that transparency is a basic consumer protection standard already used in other industries, not a ban on innovation.",
+      "linked_nodes": [
+        "acc-intentions-043",
+        "skp-beliefs-029",
+        "acc-intentions-056",
+        "skp-intentions-044",
+        "acc-intentions-047"
+      ],
+      "src": "consolidated",
+      "verdict": "prevail",
+      "prevailing_stance": "disputes",
+      "confidence": "low",
+      "rationale": "SUP conflates transparency with perfect interpretability; DIS's point that transparency mirrors existing consumer-protection regimes is factually grounded. Weak.",
+      "flags": []
+    }
+  ]
+}
