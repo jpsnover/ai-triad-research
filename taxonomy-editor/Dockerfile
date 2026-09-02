@@ -205,6 +205,20 @@ COPY --chown=aitriad:aitriad --from=builder /build/taxonomy-editor/THIRD-PARTY-N
 # 5. PTY broker script (Python, not compiled by tsc — copy to where config.ts expects it)
 COPY --chown=aitriad:aitriad taxonomy-editor/src/main/pty-broker.py ./src/main/pty-broker.py
 
+# 5b. Grounding reconciler (Python, G8 enable prereq — t/3213). The G8a inline write-hook
+#     (groundingReconcileHook.ts) and the G8b full sweep (groundingSweepScheduler.ts) shell out
+#     to this at RECONCILE_SCRIPT (config.ts:402 = /app/research/comp-linguist/scripts/
+#     reconcile_grounding.py; PROJECT_ROOT=/app). Without it every sweep would ENOENT/
+#     ModuleNotFoundError — dead-on-arrival as shipped (t/3172#4). The script is stdlib + numpy;
+#     numpy is NOT in the base image, so install it via apt (python3-numpy) — debian-native, no
+#     pip/PEP-668/venv dance, into the same system python3 the server's execFile('python3', …)
+#     uses. DevOps's container smoke asserts `python3 <script> --selftest` exits 0 (t/3213 AC).
+# hadolint ignore=DL3008
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    apt-get update && apt-get install -y --no-install-recommends python3-numpy
+COPY --chown=aitriad:aitriad research/comp-linguist/scripts/reconcile_grounding.py ./research/comp-linguist/scripts/reconcile_grounding.py
+
 # 6. Fallback taxonomy snapshot — baked last-known-good data for GitHub outages.
 #    CI fetches from ai-triad-data HEAD; changes on every build — LAST layer.
 #    Contains snapshot-meta.json with generation timestamp for stale-data banner.
