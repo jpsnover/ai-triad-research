@@ -1345,9 +1345,13 @@ jobs:
           DIR=.cache/onnx-models/all-MiniLM-L6-v2
           mkdir -p "$DIR"
           BASE=https://huggingface.co/Xenova/all-MiniLM-L6-v2/resolve/main
-          curl -fsSL "$BASE/onnx/model.onnx"       -o "$DIR/model.onnx"
-          curl -fsSL "$BASE/tokenizer.json"        -o "$DIR/tokenizer.json"
-          curl -fsSL "$BASE/tokenizer_config.json" -o "$DIR/tokenizer_config.json"
+          # Retry the HF fetch — it 429s / times out intermittently on cache-miss, and a bare
+          # curl fails the job (DevOps review, p/27#41). curl's native retry backs off on all
+          # errors (incl. 429) + connection refusals; --fail keeps a non-200 an error.
+          fetch() { curl --retry 5 --retry-delay 5 --retry-connrefused --retry-all-errors -fSL "$1" -o "$2"; }
+          fetch "$BASE/onnx/model.onnx"       "$DIR/model.onnx"
+          fetch "$BASE/tokenizer.json"        "$DIR/tokenizer.json"
+          fetch "$BASE/tokenizer_config.json" "$DIR/tokenizer_config.json"
           ls -l "$DIR"
 
       - name: Real-ONNX bit-exact equivalence (off-thread intra-op=1 vs in-thread default, CPU EP)
