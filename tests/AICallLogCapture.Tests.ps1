@@ -121,9 +121,15 @@ Describe 'AI Call Log capture — Invoke-AIByUsage end-to-end wiring (t/3242)' -
 
     BeforeEach {
         Mock Get-UsageConfig -ModuleName AITriad -MockWith { @{ message = 'Say hi'; model = 'gemini-3.5-flash-lite' } }
-        Mock Invoke-RestMethod -ModuleName AIEnrich -MockWith { $global:AclGeminiOk }
-        Mock Resolve-AIApiKey -ModuleName AIEnrich -MockWith { 'fake-key' }
-        Mock Start-Sleep -ModuleName AIEnrich -MockWith { }
+        # Mock Invoke-AIApi at the AITriad boundary: fire the injected logger like a real success (one
+        # attempt, HTTP 200) and return a result. This isolates the Invoke-AIByUsage WIRING from the
+        # AIEnrich internals (model registry / key resolution / HTTP / extraction) — the real
+        # Invoke-AIApi behavior (firing the logger with the right RetryCount/Status) is covered by the
+        # IoC tests above, so it must not be re-driven through the full stack here (env-fragile).
+        Mock Invoke-AIApi -ModuleName AITriad -MockWith {
+            if ($CallLogger) { & $CallLogger 0 '200' }
+            [pscustomobject]@{ Text = 'ok'; Backend = 'gemini' }
+        }
         $global:AclLogFile = Join-Path $TestDrive 'e2e-ai-call-log.jsonl'
         # $TestDrive persists across Its in a Describe — clear any prior record so each test is isolated.
         Remove-Item -LiteralPath $global:AclLogFile -Force -ErrorAction SilentlyContinue
