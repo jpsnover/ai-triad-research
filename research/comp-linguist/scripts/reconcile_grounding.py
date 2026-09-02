@@ -168,6 +168,35 @@ def load_terms():
         out.append({"cf": d["canonical_form"], "phrases": phrases, "file": f})
     return out
 
+# Distinctiveness gate for entity SURFACE auto-linking (t/3219). A single-token surface that is a
+# common English word (Capital, Nature, Windows, Gospel) collides with ordinary prose: case-
+# insensitive word-boundary matching turns "venture capital" into a link to Marx's "Capital" and
+# "AI's nature" into a link to the journal "Nature" (measured: 42 such false positives across the
+# 904 BDI nodes once the entity set grew to 459). Such surfaces are EXCLUDED from surface auto-
+# linking; they can still be reached by semantic (embedding) proposal or manual confirmation.
+# Distinctive iff: multiword, OR contains a digit, OR contains a hyphen/dot, OR has an internal/
+# acronym uppercase (>=2 caps: GDPR, RLHF, BERT), OR a single word NOT in COMMON_WORDS.
+# Precision over recall — a well-structured entity space, not an infinite dictionary. Provenance:
+# stipulated lexicon, evidence = the measured false-positive set (metric-provenance-register).
+COMMON_WORDS = frozenset('''
+a an the of to in on at by for with from into over under and or but so as is are was were be been
+being do does did have has had not no it its they them their we our you your can could may might
+must shall should will would if then than when where which who whose what why how all any both each
+more most other some such only own same too very just also about above below between through during
+before after out up down off again further once this that these those he she his her him
+capital nature windows gospel control surface scale gap beam beams pattern patterns state states
+model models agent agents policy policies power labor value values market markets light matter
+subject object nation summit index reason reasons ground grounds system systems means end ends
+'''.split())
+
+def distinctive(surface):
+    s = surface.strip()
+    if len(s.split()) >= 2: return True                      # multiword
+    if any(c.isdigit() for c in s): return True              # GPT-5, 10 USC 3252
+    if "-" in s or "." in s: return True                     # robots.txt, GPT-4-base
+    if sum(1 for c in s if c.isupper()) >= 2: return True    # GDPR, RLHF, BERT, iOS
+    return s.lower() not in COMMON_WORDS                     # single word: link iff not common
+
 def load_entities():
     with open(os.path.join(O, "entities.json"), encoding="utf-8") as f:
         store = json.load(f)
@@ -179,7 +208,8 @@ def load_entities():
         al = e.get("aliases")
         if isinstance(al, list): surfs += [("alias", a) for a in al]
         elif isinstance(al, str) and al: surfs.append(("alias", al))
-        out.append((e["id"], [(m, s) for m, s in surfs if s and len(s) > 2]))
+        # distinctiveness gate: drop common-word surfaces that would false-match ordinary prose
+        out.append((e["id"], [(m, s) for m, s in surfs if s and len(s) > 2 and distinctive(s)]))
     return out
 
 def load_situations():
