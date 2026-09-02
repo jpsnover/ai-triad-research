@@ -14,40 +14,44 @@
 #             only when the PR diff actually touches taxonomy-editor/package.json
 #             (the "Scope guard" step). An unrelated PR produces ZERO commits —
 #             this is the GV arm-2 property the prior version failed.
-#          2. CREDENTIAL GUARD: if the DEPENDABOT_HEAL_APP_ID secret is absent the
-#             job SUCCEEDS as a no-op (never fails the mint step).
+#          2. CREDENTIAL GUARD: if the DEPENDABOT_HEAL_PAT secret is absent the
+#             job SUCCEEDS as a no-op (drift detected but push skipped, never red).
 #
 # SECURITY (do not refactor without re-reading e/127#2):
-#   * App token minted AFTER every dependency-touching step, referenced ONLY by
-#     the push step (step ordering IS the security boundary — see marked step).
+#   * The PAT is referenced ONLY by the push step, AFTER every dependency-touching
+#     step (step ordering IS the security boundary — see marked step). No mint step
+#     is needed for a static secret, but the ordering discipline is unchanged.
 #   * `--lockfile-only` (inside sync-standalone-lockfile.mjs) + `--ignore-scripts`
 #     belt → no registry lifecycle script executes during a resolve.
 #   * Guard requires actor == dependabot[bot] AND same-repo head → forks excluded.
-#   * The App-token push (unlike GITHUB_TOKEN) DOES retrigger CI so the heal
-#     commit gets fresh checks. Do not "simplify" to the default token.
+#   * The PAT push (unlike GITHUB_TOKEN) DOES retrigger CI so the heal commit gets
+#     fresh checks. Do not "simplify" to the default token.
 #   * Auth is passed via http.extraheader (not the remote URL) so the token is
 #     never materialized in a URL or log line.
 #
-# CREDENTIAL (owner/admin, provisioned 2026-08-31): a GitHub App with
-#   contents:write on this repo, installed, App ID + private key stored as
-#   DEPENDABOT secrets (Dependabot-triggered runs read the Dependabot secret
-#   store, not the Actions store):
-#     - DEPENDABOT_HEAL_APP_ID
-#     - DEPENDABOT_HEAL_APP_PRIVATE_KEY
+# CREDENTIAL (owner/admin): a fine-grained Personal Access Token scoped to THIS repo
+#   only, with Contents: read+write, stored as a DEPENDABOT secret named
+#   DEPENDABOT_HEAL_PAT (Dependabot-triggered runs read the Dependabot secret store,
+#   not the Actions store). Owner chose the PAT over the GitHub App (jsnover via
+#   PM p/33#79); the PAT was the e/127#2-documented acceptable fallback. NOTE:
+#   GitHub reserves the `GITHUB_` prefix for secret names, so the secret CANNOT be
+#   named GITHUB_PAT — DEPENDABOT_HEAL_PAT is the valid name. Rotate on the PAT's
+#   90-day expiry (a longer-lived credential than the App's per-run token — the
+#   tradeoff of choosing the PAT).
 #
 # NOTE: lib/debate is NOT healed here — its root-workspace importer is empty (the
 #   root entry never bumps it); its standalone lockfile is managed by the
 #   /lib/debate Dependabot entry. Extend sync-standalone-lockfile.mjs + this scope
 #   guard if that ever changes.
 #
-# POST-MERGE WATCH-ITEM (GV condition, t/3134): the App-token push retriggering CI
-#   is only observable once this workflow is on main (a pull_request workflow runs
+# POST-MERGE WATCH-ITEM (GV condition, t/3134): the PAT push retriggering CI is
+#   only observable once this workflow is on main (a pull_request workflow runs
 #   from the BASE branch). VERIFY on the FIRST taxonomy-editor-touching Dependabot
-#   npm PR after merge: the heal commits → the App-token push retriggers CI → the
-#   PR goes GREEN including this heal job. If instead it loops/reds (e.g. the push
-#   fails to retrigger, or an empty commit), REVERT immediately per #1674 and
-#   re-open t/3134. Offline both-arms were proven at GV (#1676 evidence); this is
-#   the one arm only main can exercise.
+#   npm PR after merge: the heal commits → the PAT push retriggers CI → the PR goes
+#   GREEN including this heal job. If instead it loops/reds (e.g. the push fails to
+#   retrigger, or an empty commit), REVERT immediately per #1674 and re-open t/3134.
+#   Offline both-arms were proven at GV (#1676 evidence); the PAT-push retrigger is
+#   the one arm only main can exercise (identical retrigger property to the App token).
 
 name: Dependabot Lockfile Heal
 
@@ -149,35 +153,32 @@ jobs:
             echo "Already in sync — nothing to heal."
           fi
 
-      # Credential guard: no-op (success) when the secret is absent — never fail.
+      # Credential guard: no-op (success) when the PAT secret is absent — never fail.
       - name: Check heal credential
         id: cred
         if: steps.drift.outputs.changed == 'true'
         env:
-          APP_ID: ${{ secrets.DEPENDABOT_HEAL_APP_ID }}
+          HEAL_PAT: ${{ secrets.DEPENDABOT_HEAL_PAT }}
         run: |
-          if [ -n "$APP_ID" ]; then
+          if [ -n "$HEAL_PAT" ]; then
             echo "present=true" >> "$GITHUB_OUTPUT"
           else
             echo "present=false" >> "$GITHUB_OUTPUT"
-            echo "::notice::DEPENDABOT_HEAL_APP_ID not set — drift detected but heal skipped (no-op)."
+            echo "::notice::DEPENDABOT_HEAL_PAT not set — drift detected but heal skipped (no-op)."
           fi
 
       # ── SECURITY BOUNDARY ─────────────────────────────────────────────────
-      # Mint the write credential ONLY here, AFTER every dependency/script step
-      # above. Do NOT move earlier; do NOT expose `token` to any step but push.
-      - name: Mint GitHub App token
-        id: app-token
-        if: steps.drift.outputs.changed == 'true' && steps.cred.outputs.present == 'true'
-        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1  # v3.2.0
-        with:
-          app-id: ${{ secrets.DEPENDABOT_HEAL_APP_ID }}
-          private-key: ${{ secrets.DEPENDABOT_HEAL_APP_PRIVATE_KEY }}
-
+      # The write credential (a fine-grained PAT: contents:write, single-repo) is
+      # referenced ONLY by the push step below — AFTER every dependency/script step
+      # above. Step ordering IS the security boundary: no PR-controlled step
+      # (checkout/install/licenses) ever has the PAT in scope. Like the GitHub App
+      # token and UNLIKE the default GITHUB_TOKEN, a PAT push RETRIGGERS CI on the
+      # heal commit (load-bearing — do NOT "simplify" to the default token).
+      # (Owner chose the PAT over the GitHub App per the e/127#2 documented fallback.)
       - name: Commit and push heal
         if: steps.drift.outputs.changed == 'true' && steps.cred.outputs.present == 'true'
         env:
-          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          GH_TOKEN: ${{ secrets.DEPENDABOT_HEAL_PAT }}
         run: |
           git config user.name "dependabot-heal[bot]"
           git config user.email "dependabot-heal[bot]@users.noreply.github.com"
