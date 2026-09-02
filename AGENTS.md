@@ -40,6 +40,8 @@ The fleet shares one `main` checkout, so committing **directly on `main`** stran
 
 **Feature work is worktree-only; shared checkout stays on `main`.** `/land-from-worktree` is branch-first (`git worktree add -b <branch>`). A `.githooks/post-checkout` hook warns (advisory) when the shared tree leaves `main` (t/2209).
 
+**Confirm you're in a worktree before your FIRST edit (t/3207).** Before editing any tracked file for feature work, confirm your cwd/target is under `.worktrees/<name>`, not the shared checkout. Editing tracked files on the shared `main` tree leaks uncommitted WIP (and risks a `git add -A` sweep spraying 0-byte junk) — the PreToolUse Edit/Write hook warns, but the discipline is: worktree first, then edit.
+
 **Shell cwd resets to the shared checkout between tool calls (t/2222).** Creating a worktree isn't enough — always `cd` into it **in the same command**: `cd .worktrees/<name> && <cmd>`. A stray `cd`-reliant command combined with a mis-quote sprays 0-byte junk files across every scope. Prevention: same-command `cd`; never paste multi-line code into the shell (see Shell Quoting Rule).
 
 ### Pre-Self-Merge Verification
