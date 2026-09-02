@@ -743,4 +743,124 @@ CVE-2026-52490
 CVE-2025-71329
 CVE-2025-71330
 
+# ==============================================================================
+# Wave 6 — 2026-09-02 base-rebuild CVE surge (t/3136)
+# The monthly base rebuild surfaced newly-disclosed 2026 CVEs in Trixie base OS
+# packages. Verified via GitHub code-scanning: EVERY entry below has an empty
+# Fixed Version (no upstream debian:trixie / npm patch as of 2026-09-02) — cannot
+# be patched, only suppressed until the backport lands. 0 fixable in the whole set;
+# 0 SAST findings. All packages already carry a documented exposure analysis in the
+# sections above (same not-reachable rationale); Wave-6 extends those with the new
+# CVE IDs. Policy t/2006: CVE + package + justification + REVISIT preserved.
+# ==============================================================================
+
+# -- python3.13 / python3.13-venv (Trixie 3.13.5) -- no trixie fix as of 2026-09-02
+# Exposure: unchanged from the python3.13/python3.13-venv sections above (installed
+# for pty-broker.py; no untrusted venv creation or pip installs at runtime).
+# REVISIT: drop when Debian trixie ships a fixed python3.13 (deb13u5+). Re-scan.
+CVE-2026-11940
+CVE-2026-15308
+CVE-2026-0864
+CVE-2026-11972
+CVE-2026-15806
+CVE-2026-17084
+CVE-2026-19672
+CVE-2026-15310
+CVE-2026-18503
+CVE-2026-6879
+
+# -- libcurl4t64 / curl (Trixie 8.14.1) -- no trixie fix as of 2026-09-02
+# Exposure: unchanged from the libcurl4t64 sections above (curl used only at image
+# BUILD time to fetch ONNX models; runtime HTTP uses Node.js undici/fetch — not reachable).
+# REVISIT: drop when Debian trixie ships a fixed curl (deb13u5+). Re-scan.
+CVE-2026-12064
+CVE-2026-8286
+CVE-2026-8458
+CVE-2026-8927
+CVE-2026-10536
+CVE-2026-11856
+CVE-2026-8924
+CVE-2026-8932
+CVE-2026-9547
+
+# -- perl-modules-5.40 / perl (Trixie) -- no trixie fix as of 2026-09-02
+# Exposure: unchanged from the perl / perl-modules-5.40 sections above (transitive
+# dpkg-maintenance dep; no exec surface — CMD is direct `node`, console spawns pwsh).
+# REVISIT: drop when Debian trixie ships a fixed perl. Re-scan.
+CVE-2026-57432
+CVE-2026-57433
+CVE-2026-7017
+CVE-2026-15534
+CVE-2026-19487
+
+# -- libssh2-1t64 (Trixie) -- no trixie fix as of 2026-09-02
+# Exposure: unchanged from the libssh2-1t64 section above (transitive TLS/git dep;
+# no attacker-controlled SSH sessions at runtime).
+# REVISIT: drop when Debian trixie ships a fixed libssh2. Re-scan.
+CVE-2026-58050
+CVE-2026-58051
+CVE-2026-66032
+CVE-2026-66033
+CVE-2026-66034
+CVE-2026-66035
+
+# -- libexpat1 (Trixie) -- no trixie fix as of 2026-09-02
+# Exposure: unchanged from the libexpat1 section above (app is JSON; XML parsing uses
+# the pure-JS fast-xml-parser override; libexpat DoS/overflow paths not reachable).
+# REVISIT: drop when Debian trixie ships a fixed libexpat1. Re-scan.
+CVE-2026-66046
+CVE-2026-76956
+CVE-2026-76957
+
+# -- libtiff6 (Trixie) -- no trixie fix as of 2026-09-02
+# Exposure: unchanged from the libtiff6 section above (transitive poppler dep; PDF
+# pipeline extracts text only, not embedded TIFF images).
+# REVISIT: drop when Debian trixie ships a fixed libtiff6. Re-scan.
+CVE-2026-52491
+CVE-2026-52492
+
+# -- python3-pip-whl (Trixie) -- no trixie fix as of 2026-09-02
+# Exposure: unchanged from the python3-pip-whl section above (transitive pip dep;
+# no runtime wheel installs from external sources).
+# REVISIT: drop when Debian trixie ships a fixed python3-pip-whl. Re-scan.
+CVE-2026-13346
+
+# -- libudev1 / systemd (Trixie) -- no trixie fix as of 2026-09-02
+# Exposure: unchanged from the libudev1/systemd section above (base OS dep; app does
+# not consume attacker-controlled udev/journald input).
+# REVISIT: drop when Debian trixie ships a fixed libudev1. Re-scan.
+CVE-2026-15059
+CVE-2026-16742
+
+# -- libc6 / glibc (Trixie) -- no trixie fix as of 2026-09-02
+# Exposure: unchanged from the libc6/glibc section above (base C library; the DNS/
+# scanf/glob paths are not invoked on attacker-controlled input at runtime).
+# REVISIT: drop when Debian trixie ships a fixed libc6. Re-scan.
+CVE-2026-19499
+CVE-2026-19542
+CVE-2026-77117
+CVE-2026-80489
+CVE-2026-18374
+
+# -- libsqlite3-0 (Trixie) -- no trixie fix as of 2026-09-02
+# Exposure: unchanged from the libsqlite3-0 section above (transitive python dep; app
+# uses no SQLite directly — state is in Azure Blob; no attacker-controlled SQL).
+# REVISIT: drop when Debian trixie ships a fixed libsqlite3-0. Re-scan.
+CVE-2026-39113
+
+# -- libpcre2-8-0 (Trixie) -- NEW package -- no trixie fix as of 2026-09-02
+# 5 Debian TEMP- placeholders (no-DSA-yet), all Fixed Version empty.
+# Package: libpcre2-8-0 (PCRE2 regex library, transitive dep of grep/git/glib).
+# Exposure: PCRE2 is a base OS library. The application does not compile or execute
+# attacker-controlled regular expressions against it — Node.js uses V8's own regex
+# engine, not libpcre2. The vulnerable pattern-compilation paths are not reachable
+# from any external-facing interface in the deployed container.
+# REVISIT: drop when Debian trixie assigns + fixes these (real CVE ids replace the
+# TEMP- placeholders), or the next base rebuild clears them. Re-scan.
+TEMP-0000000-21C4F8
+TEMP-0000000-64109B
+TEMP-0000000-8188AC
+TEMP-0000000-A5518C
+TEMP-0000000-B05303
+
 
