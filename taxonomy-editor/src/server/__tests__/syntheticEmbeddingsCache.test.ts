@@ -102,4 +102,26 @@ describe('synthetic-embeddings serialize-once cache (t/3165)', () => {
     const b = await getBuffer();
     expect(b.toString('utf-8')).toBe('null');
   });
+
+  it('generation-guard: invalidate() during an in-flight cold build does NOT cache the stale bytes (t/3237)', async () => {
+    let resolveLoad!: (v: unknown) => void;
+    const fresh = { n2: { pov: 'saf', vectors: [[9, 9]] } };
+    loadSynth.mockReturnValueOnce(new Promise((r) => { resolveLoad = r; })).mockResolvedValue(fresh);
+    const p = getBuffer();      // cold build in-flight
+    invalidate();               // invalidation lands MID-BUILD → bumps the generation
+    resolveLoad(sample);        // the in-flight build resolves with the now-stale sample
+    const stale = await p;
+    expect(JSON.parse(stale.toString('utf-8'))).toEqual(sample); // the awaiter still gets its requested bytes
+    const next = await getBuffer();                              // NOT cached → rebuilds
+    expect(loadSynth).toHaveBeenCalledTimes(2);
+    expect(JSON.parse(next.toString('utf-8'))).toEqual(fresh);   // serves the fresh generation
+  });
+
+  it('jsonStringifyChunked does NOT honor a top-level toJSON (documented caveat, t/3237)', async () => {
+    const withTopLevelToJSON = { toJSON: () => 'custom', a: 1 } as unknown;
+    const buf = await jsonStringifyChunked(withTopLevelToJSON, 2);
+    // JSON.stringify honors toJSON → '"custom"'; the chunked serializer iterates entries directly.
+    expect(buf.toString('utf-8')).not.toBe(JSON.stringify(withTopLevelToJSON));
+    expect(JSON.parse(buf.toString('utf-8'))).toEqual({ a: 1 }); // function value omitted, a:1 kept
+  });
 });
