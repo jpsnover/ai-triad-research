@@ -58,6 +58,7 @@ BeforeAll {
         'scripts/AITriad/Public/New-OpEd.ps1'              = 'writes op-ed Markdown output (new file, non-data-of-record)'
         'scripts/AITriad/Public/New-SyntheticCorpus.ps1'   = 'append-checkpoint + fresh corpus generation + NEW metadata (not a whole-file data rewrite)'
         'scripts/AITriad/Public/Test-DebatePersistence.ps1' = 'writes a random persist-probe .tmp (test probe, non-data)'
+        'scripts/AITriad/Private/AICallLog.ps1'            = 'append-only AI call-log JSONL (Add-Content); references Get-DataRoot only to locate the log file — never read-mutate-rewrites a data-of-record file (t/3241)'
     }
 
     # A data-of-record path token (basename or data-dir accessor). Kept specific so

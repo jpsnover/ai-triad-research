@@ -13,6 +13,7 @@
 
     # Functions exported from this module
     FunctionsToExport = @(
+        'Clear-AICallLog'   # t/3241 — AI Call Log core (rotate/clear)
         'Get-Tax'
         'Update-TaxEmbeddings'
         'Import-AITriadDocument'

@@ -113,6 +113,11 @@ Get-Help <CmdletName> -Full                     # full docs for any cmdlet
 | `Invoke-AphorismBatch` | Backfill camp-voiced sober aphorisms (~3-8 words) on POV nodes — presentational only, never a scoring input; skips pillars/deprecated (t/1550) |
 | `New-SyntheticCorpus` | Generate synthetic training data |
 
+### AI Call Log (t/3235)
+| Cmdlet | Use when |
+|--------|----------|
+| `Clear-AICallLog` | Rotate/clear the AI call log (`ai-call-log.jsonl`) so the next logged call restarts `ID` at 1 — a "session" is one log file. No-op if absent; honors `-WhatIf`. Capture is behind the default-off `AI_CALL_LOG_ENABLED` flag (t/3241) |
+
 ### Health & Diagnostics
 | Cmdlet | Use when |
 |--------|----------|
