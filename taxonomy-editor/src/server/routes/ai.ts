@@ -27,7 +27,7 @@ import { hasApiKey, getPaidGeminiFallbackKey, type AIBackend } from '../config.j
 import * as proxyTiers from '../ai/proxyTiers.js';
 import * as rateLimiter from '../security/rateLimiter.js';
 import * as ai from '../ai/aiBackends.js';
-import { resolveGenerationContext, enforceBackendAllowed } from './generationContext.js';
+import { resolveGenerationContext, enforceBackendAllowed, enforceAnonDebateGate } from './generationContext.js';
 
 import * as fileIO from '../storage/fileIO.js';
 import { beginEmbeddingCompute, endEmbeddingCompute, embeddingLoadSnapshot, evaluateEmbeddingLoadShed, isEmbeddingModelWarm, markEmbeddingModelWarm } from '../embeddingsLoad.js';
@@ -392,6 +392,11 @@ export function registerAiRoutes(r: Router, ctx: ServerCtx): void {
       // Free-tier cost is bounded by tokensPerDay + per-IP rate limits; the redundant
       // per-prompt char cap was removed in t/812 (broke long debate prompts).
       const { tier, isFree, limitKey, effectiveModel, backend } = resolveGenerationContext(req, model);
+      // t/3230: a single anonymous debate drains the shared free Gemini key pool (K=4) → 429 storm
+      // → ~485s retry → user-facing 500. Block free-tier debate generation (reversible via the
+      // `anon-debates` flag) BEFORE any key/provider call — covers debate rounds AND the fact-check
+      // `search` calls (both carry debateId). Authenticated debates + non-debate free-tier untouched.
+      if (enforceAnonDebateGate(res, isFree, debateId)) return; // 403 when anon debates disabled
       if (enforceBackendAllowed(res, tier, backend)) return; // 403 if backend not on tier
 
       // Rate limiting: per-IP RPM (free tier) / per-user RPM + daily token budget (429 on breach).
