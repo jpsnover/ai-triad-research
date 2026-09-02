@@ -122,6 +122,36 @@ Describe 'Invoke-LogicalFormPass — helpers (t/3215)' -Tag 'unit', 'fol' {
         }
     }
 
+    It 'ConvertTo-DolceSort maps full-DOLCE lit sorts to the 5-value set (and defaults the unknown)' {
+        InModuleScope AITriad {
+            (ConvertTo-DolceSort -Sort 'process'                -WarningAction SilentlyContinue) | Should -Be 'perdurant'
+            (ConvertTo-DolceSort -Sort 'abstract'               -WarningAction SilentlyContinue) | Should -Be 'non-agentive-social-object'
+            (ConvertTo-DolceSort -Sort 'agentive-social-object' -WarningAction SilentlyContinue) | Should -Be 'agentive-physical-object'
+            (ConvertTo-DolceSort -Sort 'law'                    -WarningAction SilentlyContinue) | Should -Be 'normative-description'
+            (ConvertTo-DolceSort -Sort 'artifact'               -WarningAction SilentlyContinue) | Should -Be 'non-agentive-functional-artifact'
+            (ConvertTo-DolceSort -Sort 'zzz-unknown'            -WarningAction SilentlyContinue) | Should -Be 'non-agentive-social-object'
+            # An already-valid sort passes through unchanged (no coercion).
+            (ConvertTo-DolceSort -Sort 'perdurant') | Should -Be 'perdurant'
+        }
+    }
+
+    It 'ConvertTo-GroundedLogicalForm coerces an out-of-set lit sort instead of dropping the arg or nuking the form' {
+        InModuleScope AITriad {
+            $raw = [pscustomobject]@{
+                predicate = 'exist'; event_ref = 'e1'
+                args = @([pscustomobject]@{ role = 'theme'; ref = 'lit:"the market"'; sort = 'social-object'; match_level = 'exact' })
+                polarity = 'positive'; modality = $null
+                temporal = [pscustomobject]@{ type = 'unspecified'; value = $null }
+                about = @(); formalization_confidence = 0.6; status = 'proposed'
+            }
+            $lf = ConvertTo-GroundedLogicalForm -Raw $raw -RefTable @() -Category 'factual' -Camp '' -WarningAction SilentlyContinue
+            @($lf.args).Count | Should -Be 1                      # arg kept, not dropped
+            $lf.args[0].sort  | Should -Be 'non-agentive-social-object'   # coerced from 'social-object'
+            # And the coerced form now passes validation (no nuke).
+            (Test-LogicalFormStructure -LogicalForm $lf -Category 'factual').Ok | Should -BeTrue
+        }
+    }
+
     It 'Test-LogicalFormStructure passes a well-formed factual form and a rejected form' {
         InModuleScope AITriad {
             $ok = [pscustomobject][ordered]@{
@@ -290,5 +320,21 @@ Describe 'Invoke-LogicalFormPass — orchestrator (t/3215)' -Tag 'unit', 'fol' {
         $r = Invoke-LogicalFormPass -EntitiesPath $script:entPath -SummariesPath $script:sumPath -MaxClaims 1
         $r.ClaimsSelected      | Should -Be 1
         $r.LogicalFormsWritten | Should -Be 1
+    }
+
+    It '-MaxClaims caps on ATTEMPTS even when every form is invalid (no unbounded spend, t/3215#3 (c))' {
+        # All responses invalid (empty predicate) -> 0 forms written. The cap must still stop at 2
+        # ATTEMPTS (2 paid calls), not run through the whole corpus (the prior cap-on-success bug).
+        Mock -ModuleName AITriad Invoke-AIByUsage {
+            [pscustomobject]@{ Text = (@{ predicate = ''; event_ref = 'e1'; args = @(); polarity = 'positive'
+                        modality = $null; temporal = @{ type = 'unspecified'; value = $null }; about = @()
+                        formalization_confidence = 0.5; status = 'proposed' } | ConvertTo-Json -Depth 6 -Compress)
+                Backend = 'test'; Model = 'test' }
+        }
+        $r = Invoke-LogicalFormPass -EntitiesPath $script:entPath -SummariesPath $script:sumPath -MaxClaims 2 -IncludeUngrounded
+        $r.ClaimsSelected      | Should -Be 2
+        $r.LogicalFormsWritten | Should -Be 0
+        $r.InvalidDropped      | Should -Be 2
+        Should -Invoke -CommandName Invoke-AIByUsage -ModuleName AITriad -Times 2 -Exactly
     }
 }

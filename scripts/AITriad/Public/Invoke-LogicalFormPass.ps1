@@ -212,6 +212,10 @@ function Invoke-LogicalFormPass {
             }
 
             $claimsSelected++
+            # Cap on ATTEMPTS, not successes (t/3215#3 (c)): set here — right after this attempt is
+            # counted — so invalid/failed forms still consume the budget. The prior cap-on-success
+            # placement let a run of dropped forms blow past -MaxClaims (unbounded paid-spend hazard).
+            if ($MaxClaims -and $claimsSelected -ge $MaxClaims) { $capReached = $true }
 
             # Render the prompt (Get-Prompt substitutes {{...}} case-sensitively).
             $rendered = Get-Prompt -Name 'logical-form-formalization' -Replacements @{
@@ -270,8 +274,7 @@ function Invoke-LogicalFormPass {
             $fileForms++
             $formsWritten++
             if ([string]$lf.status -eq 'rejected') { $rejectedWritten++ }
-
-            if ($MaxClaims -and $claimsSelected -ge $MaxClaims) { $capReached = $true }
+            # (cap is set on attempt above, not here — a dropped/failed form still counts, t/3215#3 (c))
         }
 
         $written = $false
