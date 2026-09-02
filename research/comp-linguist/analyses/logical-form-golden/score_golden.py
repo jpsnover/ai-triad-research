@@ -19,6 +19,47 @@ DOLCE_SORTS = {"agentive-physical-object","non-agentive-functional-artifact","pe
 TEMPORAL_TYPES = {"at","before","after","during","unspecified"}
 STATUSES = {"proposed","accepted","rejected"}
 
+# --- t/3228 predicate-synonymy (DIAGNOSTIC ONLY; not in the strict OVERALL) ---
+# CL-curated content-predicate equivalence classes (stipulated, metric-provenance-register.md).
+# Deliberately excludes stance verbs (support/oppose/believe/... — those must not be predicates
+# post-t/3227) and never pairs antonyms (prevent≠promote, obstruct≠enable).
+PRED_SYNONYMS = [
+    {"obstruct","hinder","impede","hamper","block"},
+    {"prevent","preclude","avert","forestall"},
+    {"preempt","supersede","override","displace"},
+    {"lower","reduce","cut","decrease","diminish"},
+    {"raise","increase","boost","elevate"},
+    {"remove","eliminate","strip","abolish"},
+    {"encourage","promote","foster","spur"},
+    {"require","mandate","compel","oblige"},
+    {"allow","permit","enable"},
+    {"protect","safeguard","shield"},
+]
+
+def _norm_pred(p):
+    """Normalize a predicate lemma: lowercase, strip a leading copula 'be-'/'be ' token, trim punctuation.
+    Only strips 'be' at a token boundary so 'believe' is untouched."""
+    p = (p or "").strip().lower().strip('".,')
+    if p.startswith("be-"): p = p[3:]
+    elif p.startswith("be "): p = p[3:]
+    return p
+
+def _pred_score(ref_pred, cand_pred):
+    """exact (normalized) -> 1.0; same curated synonym class -> 0.5; else 0.0."""
+    r, c = _norm_pred(ref_pred), _norm_pred(cand_pred)
+    if r == c: return 1.0
+    for cls in PRED_SYNONYMS:
+        if r in cls and c in cls: return 0.5
+    return 0.0
+
+def _participants(lf):
+    """Role-agnostic participant ref-set (lit: text lowercased, ent ids as-is) for recall scoring."""
+    out = set()
+    for a in lf.get("args") or []:
+        ref = str(a.get("ref",""))
+        out.add(ref.lower() if ref.startswith("lit:") else ref)
+    return out
+
 
 def schema_errors(lf):
     """Return a list of schema violations for one logical_form (empty = valid)."""
@@ -77,6 +118,9 @@ def score(ref, cand):
     rab = {(a.get("ref"), a.get("match_level")) for a in (ref.get("about") or [])}
     cab = {(a.get("ref"), a.get("match_level")) for a in (cand.get("about") or [])}
     s["about"] = _f1(rab, cab)
+    # t/3228 DIAGNOSTIC-ONLY components (not in the strict OVERALL):
+    s["predicate_syn"] = _pred_score(ref.get("predicate",""), cand.get("predicate",""))
+    s["args_participant"] = _f1(_participants(ref), _participants(cand))
     return s
 
 
@@ -99,20 +143,28 @@ def main():
         sys.exit(1 if bad else 0)
 
     cand = json.load(open(args.candidates, encoding="utf-8"))
-    comps = ["predicate","args","polarity","modality","temporal","about"]
-    tot = {c: [] for c in comps}; overall = []
+    # STRICT components define the headline formalization_accuracy (unchanged across time,
+    # comparable to the D3b 0.803 baseline). DIAG components (t/3228) are reported alongside
+    # but NEVER enter OVERALL — they isolate metric-strictness from real error.
+    strict = ["predicate","args","polarity","modality","temporal","about"]
+    diag = ["predicate_syn","args_participant"]
+    tot = {c: [] for c in strict + diag}; overall = []
     for r in rows:
         c = cand.get(r["id"])
         if c is None:
             print(f"  [{r['id']}] NO CANDIDATE"); continue
         sc = score(r["reference"], c)
-        for k in comps: tot[k].append(sc[k])
-        row_acc = sum(sc.values())/len(sc); overall.append(row_acc)
-        print(f"  [{r['id']:6}] acc={row_acc:.2f}  " + " ".join(f"{k}={sc[k]:.2f}" for k in comps))
-    print("\n=== formalization_accuracy (per component, mean over scored rows) ===")
-    for k in comps:
+        for k in strict + diag: tot[k].append(sc[k])
+        row_acc = sum(sc[k] for k in strict)/len(strict); overall.append(row_acc)
+        print(f"  [{r['id']:6}] acc={row_acc:.2f}  " + " ".join(f"{k}={sc[k]:.2f}" for k in strict)
+              + "   | " + " ".join(f"{k}={sc[k]:.2f}" for k in diag))
+    print("\n=== formalization_accuracy (STRICT — headline, mean over scored rows) ===")
+    for k in strict:
         print(f"  {k:10}: {sum(tot[k])/len(tot[k]):.3f}" if tot[k] else f"  {k}: n/a")
     print(f"  OVERALL   : {sum(overall)/len(overall):.3f}" if overall else "  OVERALL: n/a")
+    print("\n=== diagnostics (t/3228 — NOT in OVERALL) ===")
+    for k in diag:
+        print(f"  {k:16}: {sum(tot[k])/len(tot[k]):.3f}" if tot[k] else f"  {k}: n/a")
 
 
 if __name__ == "__main__":
