@@ -821,8 +821,11 @@ export async function computeEmbeddings(
   // (in-process, main-thread — the t/3165 starvation shape) vs offloadFlag=true +
   // chain=['onnx-batch-worker'] (engaged). Unconditional + pre-compute → can't be masked by a
   // swallowed downstream error.
+  // t/3246: emit under the established component:'api' (proven to reach Log Analytics) with the
+  // subsystem identity in a `subsystem` field — the earlier novel component:'ai-backends' kept
+  // offloadFlag/chainMembers invisible in LA (same drop as the synth serialize_ms lines).
   log.api.info({
-    component: 'ai-backends', requester,
+    component: 'api', subsystem: 'ai-backends', requester,
     offloadFlag: isEmbeddingWorkerOffloadEnabled(),
     chainMembers: chain.map(c => c.name),
     inputCount: texts.length, cacheHits, cacheMisses,
@@ -851,7 +854,7 @@ export async function computeEmbeddings(
     // logs — the offload NO-GO was diagnosable ONLY by inference (zero worker/fallback lines reached
     // stdout). The real cause (e.g. the worker's ERR_MODULE_NOT_FOUND surfaced through resolveEmbeddings)
     // is now greppable instead of masked by the generic ActionableError below.
-    log.api.error({ component: 'ai-backends', inputCount: texts.length, elapsedMs, chainMembers: chain.map(c => c.name), err: String(err) }, 'computeEmbeddings failed');
+    log.api.error({ component: 'api', subsystem: 'ai-backends', inputCount: texts.length, elapsedMs, chainMembers: chain.map(c => c.name), err: String(err) }, 'computeEmbeddings failed');
     // t/2985: distinguish a per-chunk timeout from an empty-chain init failure so triage
     // isn't misdirected to a packaging cause when the encoder worked but timed out.
     const msg = err instanceof Error ? err.message : String(err);
