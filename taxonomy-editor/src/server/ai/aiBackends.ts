@@ -814,6 +814,20 @@ export async function computeEmbeddings(
     chain.push({ name: 'onnx-batch', compute: (t) => onnxComputeEmbeddings(t) });
   }
 
+  // t/3165 observability: emit the RESOLVED chain + the offload-flag value to Pino/stdout. The
+  // completion record at :821 lands in the FR ring ONLY (invisible to Log Analytics) — which is
+  // precisely why the "offload looked engaged at flip but silently wasn't" regression took inference
+  // to diagnose. A prod compute now self-reports on stdout: offloadFlag=false + chain=['onnx-batch']
+  // (in-process, main-thread — the t/3165 starvation shape) vs offloadFlag=true +
+  // chain=['onnx-batch-worker'] (engaged). Unconditional + pre-compute → can't be masked by a
+  // swallowed downstream error.
+  log.api.info({
+    component: 'ai-backends', requester,
+    offloadFlag: isEmbeddingWorkerOffloadEnabled(),
+    chainMembers: chain.map(c => c.name),
+    inputCount: texts.length, cacheHits, cacheMisses,
+  }, 'computeEmbeddings chain resolved');
+
   try {
     // t/2985: timeout is now per-chunk inside resolveEmbeddingsChunked — no aggregate ceiling.
     const result = await resolveEmbeddingsChunked(texts, ids, local, chain);
