@@ -564,7 +564,7 @@ jobs:
             -ExpectedTrafficRevision '${{ steps.new_revision.outputs.revision }}' `
             -ExpectedTrafficWeight 100 `
             -ExpectedEnvVars @{
-              # MANDATORY: Keep in sync with baseEnv in deploy/azure/main.bicep (lines 383-417).
+              # MANDATORY: Keep in sync with the baseEnv block in deploy/azure/main.bicep.
               # Every PR that adds/changes a Bicep env var MUST update this table in the same PR.
               # Drift here = false-red OR silently missed config check (t/2631).
               NODE_ENV                           = 'production'
