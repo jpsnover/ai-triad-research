@@ -96,7 +96,16 @@ export function registerSourceHandlers(): void {
       _docTitles = Object.keys(metaMap).length > 0 ? metaMap as unknown as DocTitleMap : undefined;
       if (_docTitles) console.log(`[evidence] Loaded ${Object.keys(metaMap).length} document metadata entries`);
       return _docTitles;
-    } catch { /* telemetry — silent by design */ return undefined; }
+    } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'ipc-handlers',
+        level: 'warn',
+        message: 'loadDocTitles: failed to read sources directory — returning undefined (source evidence will have no title labels)',
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+      });
+      return undefined;
+    }
   }
 
   ipcMain.handle('load-source-evidence-index', () => loadEvidenceIndex());
