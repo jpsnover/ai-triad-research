@@ -217,6 +217,9 @@ vi.mock('@lib/debate/convergenceSignals', () => ({
 
 vi.mock('@lib/debate/cruxResolution', () => ({
   updateCruxTracker: vi.fn().mockReturnValue(undefined),
+  // t/3226: requestSynthesis now runs the debate-end finalization sweep. Passthrough mock —
+  // the real transition (identified→undecided) is unit-tested in lib/debate; here it's a no-op.
+  finalizeUndecidedCruxes: vi.fn((tracker?: unknown[]) => tracker ?? []),
 }));
 
 vi.mock('@lib/debate/taxonomyGapAnalysis', () => ({

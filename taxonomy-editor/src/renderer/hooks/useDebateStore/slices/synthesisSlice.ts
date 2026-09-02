@@ -16,6 +16,7 @@ import { trackDebateComplete } from '../../../lib/analyticsEmitter';
 import { generateId, nowISO, stripCodeFences, parseAIJson, extractArraysFromPartialJson, formatRecentTranscript } from '@lib/debate/helpers';
 import { runSynthesisPhases } from '@lib/debate/synthesisPhases';
 import type { SynthesisInput } from '@lib/debate/synthesisPhases';
+import { finalizeUndecidedCruxes } from '@lib/debate/cruxResolution';
 import { formatTaxonomyContext } from '../../../utils/taxonomyContext';
 import { formatCommitments, formatEstablishedPoints, formatConcessionCandidatesHint } from '../../../prompts/argumentNetwork';
 import { formatVocabularyContext } from '@lib/debate/vocabularyContext';
@@ -892,11 +893,27 @@ export const createSynthesisSlice: StateCreator<DebateStore, [], [], SynthesisSl
       ? policyRegistry.slice(0, 10).map(p => `${p.id}: ${p.action}`)
       : undefined;
 
+    // t/3226: debate-end finalization sweep — transition unadjudicated `identified` cruxes to the
+    // terminal `undecided` state (t/1676) BEFORE synthesis reads crux_tracker, so calibration
+    // extract() sees `undecided` and crux_undecided_rate stops being trivially 0. App-run debates
+    // never instantiate DebateEngine (the CLI path that runs this at Phase 3b), so without this the
+    // whole corpus ends with unresolved cruxes stuck in `identified` (t/3226#1). Idempotent, so a
+    // resume()→re-synthesis double-fire is a no-op. saveDebate persists it before the read below.
+    const finalCruxTracker = finalizeUndecidedCruxes(
+      activeDebate.crux_tracker,
+      activeDebate.transcript.length,
+      activeDebate.argument_network?.nodes ?? [],
+      activeDebate.argument_network?.edges ?? [],
+      activeDebate.transcript,
+    );
+    set({ activeDebate: { ...activeDebate, crux_tracker: finalCruxTracker } });
+    await saveDebate('finalizeUndecidedCruxes');
+
     const synthInput: SynthesisInput = {
       topic: activeDebate.topic.final,
       transcript: fullTranscript,
       audience: activeDebate.audience,
-      cruxTracker: activeDebate.crux_tracker,
+      cruxTracker: finalCruxTracker,
       policyLines,
       hasSourceDoc,
     };
