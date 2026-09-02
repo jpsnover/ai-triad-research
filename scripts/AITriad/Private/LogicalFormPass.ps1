@@ -28,6 +28,69 @@ $script:LogicalFormAttitudes     = @('belief', 'desire', 'intention')
 $script:LogicalFormPolarities    = @('positive', 'negative')
 $script:LogicalFormStatuses      = @('proposed', 'accepted', 'rejected')
 
+# Coercion map (t/3215#3, CL): full-DOLCE lit:/event sorts the model may still emit → the register's
+# 5-value DolceCategory. The prompt now enumerates the 5 (t/3126, 90ce0d3e), so this is a
+# defense-in-depth belt for RESIDUAL out-of-set lit:/event sorts — coerce to the nearest of the 5 and
+# WARN, NEVER drop the arg or reject the form. ent-* sorts are register-copied and never coerced.
+# Keys are lowercased; anything unmatched falls back to non-agentive-social-object (+WARN).
+$script:LogicalFormSortCoercion = @{
+    'abstract'                = 'non-agentive-social-object'
+    'quality'                 = 'non-agentive-social-object'
+    'region'                  = 'non-agentive-social-object'
+    'social-object'           = 'non-agentive-social-object'
+    'process'                 = 'perdurant'
+    'event'                   = 'perdurant'
+    'state'                   = 'perdurant'
+    'achievement'             = 'perdurant'
+    'accomplishment'          = 'perdurant'
+    'agentive-social-object'  = 'agentive-physical-object'
+    'social-group'            = 'agentive-physical-object'
+    'organization'            = 'agentive-physical-object'
+    'person'                  = 'agentive-physical-object'
+    'agent'                   = 'agentive-physical-object'
+    'physical-object'         = 'non-agentive-functional-artifact'
+    'artifact'                = 'non-agentive-functional-artifact'
+    'functional-artifact'     = 'non-agentive-functional-artifact'
+    'norm'                    = 'normative-description'
+    'law'                     = 'normative-description'
+    'regulation'              = 'normative-description'
+    'description'             = 'normative-description'
+}
+
+function ConvertTo-DolceSort {
+    <#
+    .SYNOPSIS
+        Coerce a lit:/event arg's sort to the 5-value DolceCategory (t/3215#3 belt (b)).
+    .DESCRIPTION
+        In-set sorts pass through unchanged. A residual out-of-set sort is mapped via
+        $script:LogicalFormSortCoercion (nearest of the 5); an unmapped value defaults to
+        non-agentive-social-object. Every coercion emits a WARN (fallback-path logging,
+        docs/error-handling.md) naming the original → coerced value. NEVER used for ent-* args —
+        those are register-copied (copy-not-judge) and always valid by construction.
+    .OUTPUTS
+        [string] one of the 5 DolceCategory values.
+    #>
+    [CmdletBinding()]
+    [OutputType([string])]
+    param(
+        [AllowNull()]
+        [string]$Sort
+    )
+    Set-StrictMode -Version Latest
+
+    $s = if ($null -eq $Sort) { '' } else { $Sort.Trim() }
+    if ($s -in $script:LogicalFormDolceSorts) { return $s }   # already valid — no coercion
+
+    $key = $s.ToLowerInvariant()
+    if ($script:LogicalFormSortCoercion.ContainsKey($key)) {
+        $coerced = $script:LogicalFormSortCoercion[$key]
+        Write-Warning "LogicalForm: coerced out-of-set lit sort '$s' -> '$coerced' (DolceCategory belt, t/3215)."
+        return $coerced
+    }
+    Write-Warning "LogicalForm: unmapped lit sort '$s' -> 'non-agentive-social-object' (default coercion, t/3215)."
+    return 'non-agentive-social-object'
+}
+
 function Get-EntityDolceMap {
     <#
     .SYNOPSIS
@@ -265,8 +328,11 @@ function ConvertTo-GroundedLogicalForm {
                 $ml   = [string]$reg.match_level  # copied from the entity_ref
             }
             else {
-                # lit:"…" or event var — keep the model's DOLCE-lite sort / default match_level.
-                $sort = if ($a.PSObject.Properties['sort']) { [string]$a.sort } else { '' }
+                # lit:"…" or event var — the model's DOLCE-lite sort, COERCED to the 5-value set
+                # (t/3215#3 belt (b)): the prompt now constrains it, but a residual out-of-set sort is
+                # coerced (never dropped/nuked) so one bad lit sort can't reject an otherwise-good form.
+                $rawSort = if ($a.PSObject.Properties['sort']) { [string]$a.sort } else { '' }
+                $sort = ConvertTo-DolceSort -Sort $rawSort
                 $ml   = if ($a.PSObject.Properties['match_level']) { [string]$a.match_level } else { 'exact' }
             }
             $groundedArgs.Add([ordered]@{ role = $role; ref = $ref; sort = $sort; match_level = $ml })
