@@ -101,6 +101,18 @@ def word_span(surface, text_lower):
     m = re.search(r"\b" + re.escape(surface.lower()) + r"\b", text_lower)
     return m.start() if m else None
 
+def entity_span(surface, text, low):
+    """Entity surface match with an acronym case-sensitivity guard (t/3222). An all-caps alpha
+    acronym surface (AIMS, GDPR, RLHF) matches CASE-SENSITIVELY against the original text: the
+    acronym is uppercase in prose, while its lowercase homograph is an ordinary word ("AIMS" the
+    institute vs "aims" the verb — the alias "AIMS" was false-linking 52 nodes on "aims"). All other
+    surfaces stay case-insensitive (word_span). Complements distinctive()'s common-word gate, which
+    already drops single lowercase-common names (Capital, Nature)."""
+    if surface.isalpha() and surface.isupper() and len(surface) >= 2:
+        m = re.search(r"\b" + re.escape(surface) + r"\b", text)
+        return m.start() if m else None
+    return word_span(surface, low)
+
 def load_json(path):
     with open(path, encoding="utf-8") as f:
         return json.load(f)
@@ -236,7 +248,7 @@ def load_situations():
 def entity_mentions_for(text, low, ents):
     mentions = []
     for eid, surfs in ents:
-        hit = next(((meth, s, word_span(s, low)) for meth, s in surfs if word_span(s, low) is not None), None)
+        hit = next(((meth, s, entity_span(s, text, low)) for meth, s in surfs if entity_span(s, text, low) is not None), None)
         if hit:
             meth, s, off = hit
             mentions.append({"entity_ref": eid, "quote": text[off:off + len(s)], "offset": off, "discovered_by": meth})
@@ -275,7 +287,7 @@ def resolve(n, terms, ents, nv, sense):
                 crefs.append({"ref": "term:" + t["cf"], "surface": "", "method": "embedding", "link_confidence": round(cos, 4), "status": "proposed"})
     erefs, mentions = [], []
     for eid, surfs in ents:
-        hit = next(((meth, s, word_span(s, low)) for meth, s in surfs if word_span(s, low) is not None), None)
+        hit = next(((meth, s, entity_span(s, txt, low)) for meth, s in surfs if entity_span(s, txt, low) is not None), None)
         if hit:
             meth, s, off = hit
             erefs.append({"ref": eid, "surface": s, "method": meth, "link_confidence": 1.0, "match_level": "exact", "status": "linked"})
