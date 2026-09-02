@@ -118,6 +118,7 @@ Get-Help <CmdletName> -Full                     # full docs for any cmdlet
 |--------|----------|
 | `Clear-AICallLog` | Rotate/clear the AI call log (`ai-call-log.jsonl`) so the next logged call restarts `ID` at 1 — a "session" is one log file. No-op if absent; honors `-WhatIf`. Capture is behind the default-off `AI_CALL_LOG_ENABLED` flag (t/3241) |
 | `Get-AICallLog` | Read the AI call log as filterable, pipeline-friendly `[AICallLogEntry]` objects — filter by `-Scenario`/`-Status` (wildcards) and `-After`/`-Before` date range. Reading ignores the capture flag; absent/empty log → empty result (t/3243) |
+| `Show-AICallLog` | Render the AI call log as a self-contained, sortable/filterable HTML viewer and open it in the browser (same filters as `Get-AICallLog`). `-PassThru` returns the generated HTML path instead of opening (t/3244) |
 
 ### Health & Diagnostics
 | Cmdlet | Use when |

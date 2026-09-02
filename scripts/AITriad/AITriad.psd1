@@ -15,6 +15,7 @@
     FunctionsToExport = @(
         'Clear-AICallLog'   # t/3241 — AI Call Log core (rotate/clear)
         'Get-AICallLog'     # t/3243 — AI Call Log reader (filterable, pipeline)
+        'Show-AICallLog'    # t/3244 — AI Call Log HTML viewer (sortable/filterable)
         'Get-Tax'
         'Update-TaxEmbeddings'
         'Import-AITriadDocument'

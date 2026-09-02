@@ -249,3 +249,81 @@ Describe 'Get-AICallLog (t/3243)' -Tag 'unit' {
         }
     }
 }
+
+Describe 'Show-AICallLog (t/3244)' -Tag 'unit' {
+
+    BeforeEach {
+        $script:log = Join-Path $TestDrive "show-$([guid]::NewGuid()).jsonl"
+        $fixture = @(
+            [ordered]@{ ID = 1; Datetime = '2026-01-01T08:00:00.0000000Z'; Scenario = 'Debate';     PromptID = 'p1'; PromptStart = 'alpha';   RetryCount = 0; Status = '200' }
+            [ordered]@{ ID = 2; Datetime = '2026-01-02T09:30:00.0000000Z'; Scenario = 'Chat';       PromptID = '';   PromptStart = 'bravo';   RetryCount = 1; Status = '429' }
+            [ordered]@{ ID = 3; Datetime = '2026-01-03T11:15:00.0000000Z'; Scenario = 'Fact Check'; PromptID = 'p3'; PromptStart = 'charlie'; RetryCount = 0; Status = '500' }
+        )
+        $fixture | ForEach-Object { $_ | ConvertTo-Json -Compress } |
+            Set-Content -LiteralPath $script:log -Encoding utf8
+    }
+
+    Context 'render (-PassThru returns the HTML file)' {
+        It 'writes a valid HTML file with a table and one row per record (AC)' {
+            $out = Show-AICallLog -Path $script:log -PassThru
+            $out | Should -Not -BeNullOrEmpty
+            Test-Path -LiteralPath $out | Should -BeTrue
+            $out | Should -Match '\.html$'
+            $html = Get-Content -LiteralPath $out -Raw
+            $html | Should -Match '<!DOCTYPE html>'
+            $html | Should -Match '<table id="log">'
+            # 3 data rows (class="r"); the header row lives in <thead> and is not class="r".
+            ([regex]::Matches($html, '<tr class="r">')).Count | Should -Be 3
+            $html | Should -Match 'Fact Check'
+            $html | Should -Match 'charlie'
+        }
+
+        It 'includes all 7 column headers' {
+            $html = Get-Content -LiteralPath (Show-AICallLog -Path $script:log -PassThru) -Raw
+            foreach ($c in 'ID', 'Datetime', 'Scenario', 'PromptID', 'PromptStart', 'RetryCount', 'Status') {
+                $html | Should -Match ">$c</th>"
+            }
+        }
+
+        It 'forwards filters to Get-AICallLog (only matching rows rendered)' {
+            $html = Get-Content -LiteralPath (Show-AICallLog -Path $script:log -Status '4*' -PassThru) -Raw
+            ([regex]::Matches($html, '<tr class="r">')).Count | Should -Be 1
+            $html | Should -Match 'bravo'
+            $html | Should -Not -Match 'charlie'
+        }
+    }
+
+    Context 'safety + non-fatal paths' {
+        It 'HTML-escapes cell values (no raw <script> injection)' {
+            $evil = Join-Path $TestDrive 'evil.jsonl'
+            ([ordered]@{ ID = 1; Datetime = '2026-01-01T00:00:00.0000000Z'; Scenario = '<script>alert(1)</script>'; PromptID = ''; PromptStart = 'x'; RetryCount = 0; Status = '200' } |
+                ConvertTo-Json -Compress) | Set-Content -LiteralPath $evil -Encoding utf8
+            $html = Get-Content -LiteralPath (Show-AICallLog -Path $evil -PassThru) -Raw
+            $html | Should -Match '&lt;script&gt;'
+            $html | Should -Not -Match '<script>alert\(1\)</script>'
+        }
+
+        It 'renders a valid empty-state page (no throw) when the log is absent' {
+            $absent = Join-Path $TestDrive 'nope.jsonl'
+            # Direct capture (not inside a { } | Should -Not-Throw scriptblock, which runs in a
+            # child scope and wouldn't propagate $out); reaching the next line proves no throw.
+            $out = Show-AICallLog -Path $absent -PassThru
+            $out | Should -Not -BeNullOrEmpty
+            Test-Path -LiteralPath $out | Should -BeTrue
+            $html = Get-Content -LiteralPath $out -Raw
+            $html | Should -Match '<!DOCTYPE html>'
+            $html | Should -Match 'No AI call log records'
+            $html | Should -Not -Match '<table id="log">'
+        }
+    }
+
+    Context 'Manifest export' {
+        It 'exports Show-AICallLog' {
+            Get-Command Show-AICallLog -Module AITriad | Should -Not -BeNullOrEmpty
+        }
+        It 'FunctionsToExport includes Show-AICallLog' {
+            $manifestPath = Join-Path $PSScriptRoot '..' 'scripts' 'AITriad' 'AITriad.psd1'
+            (Test-ModuleManifest -Path $manifestPath).ExportedFunctions.Keys | Should -Contain 'Show-AICallLog'
+        }
+    }
+}
