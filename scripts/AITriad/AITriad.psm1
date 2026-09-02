@@ -762,6 +762,7 @@ Set-Alias -Name 'Workflow'             -Value 'Show-WorkflowRunner'    -Scope Gl
 # Export public surface
 # ─────────────────────────────────────────────────────────────────────────────
 Export-ModuleMember -Function @(
+    'Clear-AICallLog'   # t/3241 — AI Call Log core (rotate/clear)
     'Get-Tax'
     'Update-TaxEmbeddings'
     'Import-AITriadDocument'

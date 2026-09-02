@@ -1,0 +1,145 @@
+# Tag: unit (t/3241)
+# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+# Licensed under the MIT License. See LICENSE file in the project root.
+
+#Requires -Module Pester
+
+<#
+.SYNOPSIS
+    AI Call Log — core (t/3241; epic t/3235). Flag semantics, the append-writer record shape +
+    monotonic ID, and the rotate/clear cmdlet.
+.DESCRIPTION
+    Private helpers (Test-AICallLogEnabled / Write-AICallLogEntry) are exercised via InModuleScope;
+    the writer takes a -Path override so nothing touches the real data-root log. The env flag is
+    process-global, so an AfterEach clears it to keep tests independent.
+#>
+
+BeforeAll {
+    Import-Module (Join-Path $PSScriptRoot '..' 'scripts' 'AITriad' 'AITriad.psm1') -Force -WarningAction SilentlyContinue
+}
+
+Describe 'AI Call Log core (t/3241)' -Tag 'unit' {
+
+    AfterEach {
+        Remove-Item Env:AI_CALL_LOG_ENABLED -ErrorAction SilentlyContinue
+    }
+
+    Context 'Test-AICallLogEnabled — default-off flag' {
+        It 'is FALSE when the flag is unset (default off)' {
+            Remove-Item Env:AI_CALL_LOG_ENABLED -ErrorAction SilentlyContinue
+            InModuleScope AITriad { Test-AICallLogEnabled } | Should -BeFalse
+        }
+        It 'is TRUE for truthy value <_>' -ForEach @('1', 'true', 'TRUE', 'yes', 'on') {
+            $env:AI_CALL_LOG_ENABLED = $_
+            InModuleScope AITriad { Test-AICallLogEnabled } | Should -BeTrue
+        }
+        It 'is FALSE for non-truthy value "<_>"' -ForEach @('0', 'false', 'no', 'off', '') {
+            $env:AI_CALL_LOG_ENABLED = $_
+            InModuleScope AITriad { Test-AICallLogEnabled } | Should -BeFalse
+        }
+    }
+
+    Context 'Write-AICallLogEntry — no-op when the flag is off' {
+        It 'writes NOTHING when the flag is off (zero-overhead early return, AC)' {
+            Remove-Item Env:AI_CALL_LOG_ENABLED -ErrorAction SilentlyContinue
+            $log = Join-Path $TestDrive 'off.jsonl'
+            InModuleScope AITriad -Parameters @{ P = $log } {
+                param($P)
+                Write-AICallLogEntry -Scenario 'Debate' -Status '200' -Path $P
+            }
+            Test-Path -LiteralPath $log | Should -BeFalse
+        }
+    }
+
+    Context 'Write-AICallLogEntry — record shape when on' {
+        BeforeEach { $env:AI_CALL_LOG_ENABLED = '1' }
+
+        It 'writes one well-formed JSONL record with all 7 fields' {
+            $log = Join-Path $TestDrive 'on.jsonl'
+            InModuleScope AITriad -Parameters @{ P = $log } {
+                param($P)
+                Write-AICallLogEntry -Scenario 'Logical Form' `
+                    -PromptID 'enrichment.logical-form-formalization' `
+                    -PromptStart 'Formalize this claim.' -RetryCount 2 -Status '200' -Path $P
+            }
+            $lines = @(Get-Content -LiteralPath $log)
+            $lines.Count | Should -Be 1
+            $rec = $lines[0] | ConvertFrom-Json
+            foreach ($f in 'ID', 'Datetime', 'Scenario', 'PromptID', 'PromptStart', 'RetryCount', 'Status') {
+                $rec.PSObject.Properties[$f] | Should -Not -BeNullOrEmpty -Because "field '$f' must be present"
+            }
+            $rec.ID         | Should -Be 1
+            $rec.Scenario   | Should -Be 'Logical Form'
+            $rec.PromptID   | Should -Be 'enrichment.logical-form-formalization'
+            $rec.RetryCount | Should -Be 2
+            $rec.Status     | Should -Be '200'
+            # Assert Datetime on the RAW line, not $rec.Datetime — PS7 ConvertFrom-Json coerces the
+            # ISO-8601 string to [DateTime] (drops the literal 'Z'); the on-disk contract is the text.
+            $lines[0] | Should -Match '"Datetime":"\d{4}-\d{2}-\d{2}T[0-9:.]+Z"'   # UTC ISO-8601
+        }
+
+        It 'truncates PromptStart to 160 chars' {
+            $log = Join-Path $TestDrive 'trunc.jsonl'
+            $long = 'x' * 500
+            InModuleScope AITriad -Parameters @{ P = $log; Long = $long } {
+                param($P, $Long)
+                Write-AICallLogEntry -Scenario 'Chat' -PromptStart $Long -Status '200' -Path $P
+            }
+            $rec = Get-Content -LiteralPath $log | Select-Object -First 1 | ConvertFrom-Json
+            $rec.PromptStart.Length | Should -Be 160
+        }
+
+        It 'assigns monotonic IDs across appends (1,2,3)' {
+            $log = Join-Path $TestDrive 'mono.jsonl'
+            InModuleScope AITriad -Parameters @{ P = $log } {
+                param($P)
+                Write-AICallLogEntry -Scenario 'A' -Status '200' -Path $P
+                Write-AICallLogEntry -Scenario 'B' -Status '429' -Path $P
+                Write-AICallLogEntry -Scenario 'C' -Status '500' -Path $P
+            }
+            $ids = @(Get-Content -LiteralPath $log | ForEach-Object { ($_ | ConvertFrom-Json).ID })
+            $ids | Should -Be @(1, 2, 3)
+        }
+    }
+
+    Context 'Clear-AICallLog — rotate resets the session' {
+        BeforeEach { $env:AI_CALL_LOG_ENABLED = '1' }
+
+        It 'removes the file and the next write restarts ID at 1' {
+            $log = Join-Path $TestDrive 'rotate.jsonl'
+            InModuleScope AITriad -Parameters @{ P = $log } {
+                param($P)
+                Write-AICallLogEntry -Scenario 'A' -Status '200' -Path $P
+                Write-AICallLogEntry -Scenario 'B' -Status '200' -Path $P
+            }
+            @(Get-Content -LiteralPath $log).Count | Should -Be 2
+
+            $res = Clear-AICallLog -Path $log
+            $res.Removed | Should -BeTrue
+            Test-Path -LiteralPath $log | Should -BeFalse
+
+            InModuleScope AITriad -Parameters @{ P = $log } {
+                param($P)
+                Write-AICallLogEntry -Scenario 'C' -Status '200' -Path $P
+            }
+            (Get-Content -LiteralPath $log | Select-Object -First 1 | ConvertFrom-Json).ID | Should -Be 1
+        }
+
+        It 'is a no-op (Removed=$false) when the file is absent' {
+            $log = Join-Path $TestDrive 'absent.jsonl'
+            $res = Clear-AICallLog -Path $log
+            $res.Removed | Should -BeFalse
+            { Clear-AICallLog -Path $log } | Should -Not -Throw
+        }
+    }
+
+    Context 'Manifest export' {
+        It 'exports Clear-AICallLog' {
+            Get-Command Clear-AICallLog -Module AITriad | Should -Not -BeNullOrEmpty
+        }
+        It 'FunctionsToExport includes Clear-AICallLog' {
+            $manifestPath = Join-Path $PSScriptRoot '..' 'scripts' 'AITriad' 'AITriad.psd1'
+            (Test-ModuleManifest -Path $manifestPath).ExportedFunctions.Keys | Should -Contain 'Clear-AICallLog'
+        }
+    }
+}
