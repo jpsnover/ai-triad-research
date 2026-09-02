@@ -11,13 +11,66 @@
 
 import type { Router } from '../httpKit.js';
 import type { ServerCtx } from './context.js';
-import { json, error, param } from '../httpKit.js';
+import { json, error, param, jsonStringifyChunked, sendJsonBuffer } from '../httpKit.js';
 import { getGlobalRecorder } from '../../../../lib/flight-recorder/index.js';
 import * as fileIO from '../storage/fileIO.js';
 import { stampNodeAuthorship, diffNodes } from '../storage/editMeta.js';
 import { isAnonymousUser } from '../security/userContext.js';
 import { getFlag } from '../featureFlags.js';
 import { enqueueGroundingReconcile } from '../groundingReconcileHook.js';
+import { log } from '../logger.js';
+
+// ── t/3165: serialize-once cache for /api/taxonomy/synthetic-embeddings ───────────────────────────
+// The synthetic corpus (~4144 vectors, ~400MB) is STATIC, but loadSyntheticEmbeddings() rebuilds it on
+// EVERY call (per-POV .npy network read + parseNpy + build) and the route re-JSON.stringify'd it — an
+// un-yielded ~3s main-thread block + ~400MB GC churn, once PER DEBATE (taxonomyContext fetches the full
+// corpus). Cache the SERIALIZED Buffer: the cold path builds+serializes once (chunk-yielded so even that
+// doesn't block), every later GET serves the Buffer near-free. Promise-dedupe (cache the in-flight
+// promise) so a cold-start BURST launches ONE build, not N (= DevOps's single-flight guard, subsumed).
+//
+// CACHE-INVALIDATION CONTRACT (Gate Co-Location): this process-lifetime cache is correct ONLY while the
+// synthetic corpus is WRITE-FROZEN. No server route mutates it today (the client updateSyntheticEmbeddings
+// POST is not wired server-side). IF a synth-mutation route is ever added it MUST call
+// __invalidateSyntheticEmbeddingsCache() after the write, or GETs will serve a stale corpus.
+let _synthEmbeddingsBuffer: Buffer | null = null;
+let _synthEmbeddingsInFlight: Promise<Buffer> | null = null;
+
+async function getSyntheticEmbeddingsBuffer(): Promise<Buffer> {
+  if (_synthEmbeddingsBuffer) return _synthEmbeddingsBuffer;
+  if (_synthEmbeddingsInFlight) return _synthEmbeddingsInFlight; // promise-dedupe: one cold build for a burst
+  _synthEmbeddingsInFlight = (async () => {
+    const t0 = Date.now();
+    const heapBefore = process.memoryUsage().heapUsed;
+    const data = await fileIO.loadSyntheticEmbeddings();
+    const loadMs = Date.now() - t0;
+    const t1 = Date.now();
+    const buffer = await jsonStringifyChunked(data); // yields the loop during the cold serialize
+    const serializeMs = Date.now() - t1;
+    _synthEmbeddingsBuffer = buffer;
+    // t/3165 phase-timing (cold path only) → the next real synth GET proves load_ms vs serialize_ms +
+    // heap; on a warm hit this line never runs (serve is near-zero) = the fix's self-proof.
+    log.api.info({
+      component: 'synthetic-embeddings', load_ms: loadMs, serialize_ms: serializeMs, bytes: buffer.length,
+      node_count: data ? Object.keys(data).length : 0,
+      heap_before: heapBefore, heap_after: process.memoryUsage().heapUsed,
+    }, 'synthetic-embeddings built + serialized + cached (cold path)');
+    return buffer;
+  })();
+  try {
+    return await _synthEmbeddingsInFlight;
+  } finally {
+    // Clear the in-flight handle: on success _synthEmbeddingsBuffer now holds the result; on failure the
+    // handle is dropped so the next request retries the build rather than re-throwing a stale rejection.
+    _synthEmbeddingsInFlight = null;
+  }
+}
+
+/** t/3165: drop the cached serialized synthetic-embeddings. MUST be called by any future
+ *  synth-mutation route after it writes (see the write-frozen contract above). Exported for that + tests. */
+export function __invalidateSyntheticEmbeddingsCache(): void { _synthEmbeddingsBuffer = null; }
+
+/** @internal t/3165 test hook — exercise the cache/dedupe path without the full Router harness. */
+export const __getSyntheticEmbeddingsBufferForTest = getSyntheticEmbeddingsBuffer;
 
 export function registerTaxonomyRoutes(r: Router, ctx: ServerCtx): void {
   const { get, put } = r;
@@ -27,8 +80,11 @@ export function registerTaxonomyRoutes(r: Router, ctx: ServerCtx): void {
 
   get('/api/taxonomy/synthetic-embeddings', async (_req, res) => {
     try {
-      const data = await fileIO.loadSyntheticEmbeddings();
-      json(res, data);
+      // t/3165: serve the serialize-once cached Buffer (near-free on a hit). The cold path builds +
+      // chunk-yield-serializes once, promise-deduped for concurrent cold callers. See the cache-
+      // invalidation (write-frozen) contract at the cache site above.
+      const buffer = await getSyntheticEmbeddingsBuffer();
+      sendJsonBuffer(res, buffer);
     } catch (err) {
       getGlobalRecorder()?.record({
         type: 'system.error',
