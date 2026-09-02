@@ -100,6 +100,15 @@ export interface RetryConfig {
   strategy: 'fixed' | 'exponential';
   fixedDelays?: number[];
   maxBackoffS?: number;
+  /** Separate, LOW cap on RATE-LIMIT (429) attempts (t/3232). On the ingress-bound SERVER path a
+   *  rate-limited generate must surface a retryable 429 FAST (routes/ai.ts maps it) rather than sleep
+   *  through ~480s of 120s-floor retries and blow the ACA ingress timeout into an opaque 500. Unset →
+   *  falls back to `maxRetries` (CLI keeps its full "wait for quota" budget, unchanged). */
+  rateLimitMaxAttempts?: number;
+  /** Cap (seconds) on each rate-limit sleep AND on a respected server `Retry-After` (t/3232). Unset →
+   *  the `RATE_LIMIT_MIN_DELAY_S` floor. The SERVER sets this low so neither the floor nor a long
+   *  provider Retry-After can hold ingress — the 429 surfaces and is converted to a fast 429. */
+  rateLimitMaxSleepS?: number;
 }
 
 export const CLI_RETRY_CONFIG: RetryConfig = {
@@ -112,6 +121,11 @@ export const SERVER_RETRY_CONFIG: RetryConfig = {
   maxRetries: 5,
   strategy: 'exponential',
   maxBackoffS: 30,
+  // t/3232: the server path is ACA-ingress-bound. Cap rate-limit retries so a 429 surfaces as a
+  // retryable 429 in ≤~30s (routes/ai.ts → fast 429 + Retry-After), not ~480s of 120s-floor sleeps
+  // that exceed the ingress timeout → opaque 500. Transient (network) retries keep maxRetries=5.
+  rateLimitMaxAttempts: 2,
+  rateLimitMaxSleepS: 30,
 };
 
 // Server-side rate limiting (429, not user quota) typically clears within 1-2 minutes.
@@ -130,6 +144,7 @@ export async function withRetry<T>(
   // taxonomy-editor/src/renderer/utils/retryClassifier.ts — intentionally NOT shared (different
   // layer, different budget). If you change the transient-retry set here, check whether that
   // classifier wants the same, and vice versa.
+  let rateLimitAttempts = 0; // t/3232: rate-limit attempts are budgeted separately from transient retries
   for (let attempt = 1; attempt <= config.maxRetries; attempt++) {
     if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
     try {
@@ -153,10 +168,24 @@ export async function withRetry<T>(
       if (!isRetryable || attempt === config.maxRetries) throw err;
       if (lower.includes('per day') || lower.includes('rpd') || lower.includes('daily')) throw err;
       const isRateLimit = msg.includes('429') || /rate[_ -]?limit/.test(lower);
+      // t/3232: an EXHAUSTED key pool won't clear by sleeping — surface the 429 immediately.
+      if (isRateLimit && (lower.includes('api_key_exhausted') || lower.includes('all keys') || lower.includes('key pool exhausted'))) throw err;
+      // t/3232: rate-limit attempts are capped SEPARATELY (low, on the server) so a 429 surfaces fast
+      // instead of sleeping past the ingress timeout. CLI leaves rateLimitMaxAttempts unset → full budget.
+      if (isRateLimit) {
+        rateLimitAttempts++;
+        if (config.rateLimitMaxAttempts != null && rateLimitAttempts >= config.rateLimitMaxAttempts) throw err;
+      }
       const baseDelay = config.strategy === 'fixed'
         ? (config.fixedDelays?.[attempt - 1] ?? 45)
         : Math.min(2 ** attempt, config.maxBackoffS ?? 30);
-      const delay = isRateLimit ? Math.max(baseDelay, RATE_LIMIT_MIN_DELAY_S) : baseDelay;
+      // t/3232: rate-limit sleep is capped at rateLimitMaxSleepS on the server (ingress-safe); unset
+      // (CLI) keeps the RATE_LIMIT_MIN_DELAY_S "wait for quota" floor.
+      const delay = isRateLimit
+        ? (config.rateLimitMaxSleepS != null
+            ? Math.min(baseDelay, config.rateLimitMaxSleepS)
+            : Math.max(baseDelay, RATE_LIMIT_MIN_DELAY_S))
+        : baseDelay;
       const errSummary = err instanceof ActionableError ? err.problem : msg.slice(0, 300);
       onLog?.(`[retry] ${label} attempt ${attempt}/${config.maxRetries} failed (${errSummary}), waiting ${delay}s...`);
       await abortableSleep(delay * 1000, signal);
@@ -181,6 +210,7 @@ export async function retryableFetch(opts: {
   signal?: AbortSignal;
 }): Promise<{ response: Response; bodyText: string }> {
   const config = opts.config ?? SERVER_RETRY_CONFIG;
+  let rateLimitAttempts = 0; // t/3232: rate-limit (429/503) attempts budgeted separately from network retries
   for (let attempt = 1; attempt <= config.maxRetries; attempt++) {
     if (opts.signal?.aborted) throw new DOMException('Aborted', 'AbortError');
     let response: Response;
@@ -223,18 +253,35 @@ export async function retryableFetch(opts: {
           ],
         });
       }
-      if (attempt === config.maxRetries) {
+      // t/3232: an EXHAUSTED key pool won't clear by sleeping — surface the 429 immediately.
+      const rlLower = `${retryBody} ${limitMessage}`.toLowerCase();
+      if (response.status === 429 && (rlLower.includes('api_key_exhausted') || rlLower.includes('all keys') || rlLower.includes('key pool exhausted'))) {
         throw new ActionableError({
           goal: `Generate text via ${opts.label}`,
-          problem: `${response.status === 429 ? 'Rate limited' : 'Service unavailable'} after ${config.maxRetries} attempts. ${limitMessage}`,
+          problem: `Rate limited (HTTP 429) — the API key pool is exhausted. ${limitMessage}`,
+          location: `ai-client.retryableFetch(${opts.label})`,
+          nextSteps: ['Retry shortly — the rate limit clears within ~1-2 minutes', 'Switch to a different AI provider (Settings → AI Model)'],
+        });
+      }
+      // t/3232: cap rate-limit attempts on the server so a 429 surfaces FAST (≪ ingress timeout)
+      // rather than ~480s of 120s-floor sleeps. CLI leaves rateLimitMaxAttempts unset → full budget.
+      rateLimitAttempts++;
+      const rateLimitCapHit = config.rateLimitMaxAttempts != null && rateLimitAttempts >= config.rateLimitMaxAttempts;
+      if (attempt === config.maxRetries || rateLimitCapHit) {
+        throw new ActionableError({
+          goal: `Generate text via ${opts.label}`,
+          problem: `${response.status === 429 ? 'Rate limited' : 'Service unavailable'} after ${rateLimitAttempts} rate-limit attempt(s). ${limitMessage}`,
           location: `ai-client.retryableFetch(${opts.label})`,
           nextSteps: ['Wait a minute and retry', 'Switch to a different AI provider (Settings → AI Model)', 'Check the API provider status page'],
         });
       }
       const exponentialBackoff = Math.min(2 ** attempt, config.maxBackoffS ?? 30);
-      const backoff = rateLimitHeaders.retryAfterSeconds != null
-        ? rateLimitHeaders.retryAfterSeconds  // respect server's guidance unconditionally
+      let backoff = rateLimitHeaders.retryAfterSeconds != null
+        ? rateLimitHeaders.retryAfterSeconds  // respect server's guidance...
         : Math.max(exponentialBackoff, RATE_LIMIT_MIN_DELAY_S);
+      // t/3232: ...but CAP it (incl. a long provider Retry-After) on the server so a rate-limit can't
+      // hold ingress past the timeout. Unset (CLI) leaves the guidance/floor intact.
+      if (config.rateLimitMaxSleepS != null) backoff = Math.min(backoff, config.rateLimitMaxSleepS);
       opts.onRetry?.({ attempt, maxRetries: config.maxRetries, backoffSeconds: backoff, limitType, limitMessage, rateLimitHeaders });
       await abortableSleep(backoff * 1000, opts.signal);
       continue;
