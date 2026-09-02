@@ -124,6 +124,17 @@ const SEED_FLAGS: Record<string, FlagDef> = {
     created_at: '2026-08-07T00:00:00.000Z', updated_at: '2026-08-07T00:00:00.000Z',
     created_by: 'seed',
   },
+  'anon-debates': {
+    // t/3230: default OFF — a single anonymous debate exhausts the shared free Gemini key pool
+    // (K=4) → 429 storm → ~485s retry → user-facing 500 (prod incident, owner-approved disable).
+    // While OFF, free-tier debate generation is 403'd (generationContext.enforceAnonDebateGate).
+    // Re-enable = an admin flip to true (data.flags merges over SEED, no redeploy) once a
+    // throttled anon mode (fewer rounds / no fact-check search / per-IP cap) lands.
+    name: 'anon-debates', enabled: false, scope: 'global',
+    description: 'Allow anonymous/free-tier users to run debates — OFF (t/3230: anon debates drain the free-key pool)',
+    created_at: '2026-09-02T00:00:00.000Z', updated_at: '2026-09-02T00:00:00.000Z',
+    created_by: 'seed',
+  },
 };
 
 // ── Config loading (mtime cache, quotas.ts pattern) ──
@@ -327,6 +338,13 @@ function resolve(def: FlagDef | undefined, ctx: FlagUserContext): boolean {
 /** Resolve a single flag for the current user. Unknown → false (AC#1). */
 export function getFlag(name: string): boolean {
   return resolve(getConfig().flags[name], currentContext());
+}
+
+/** t/3230: are anonymous/free-tier debates allowed? Default false (the `anon-debates` seed is OFF)
+ *  — gates free-tier debate generation in generationContext.enforceAnonDebateGate. An admin flip
+ *  to true re-enables without a redeploy. Single swap-point for the mechanism. */
+export function isAnonDebatesEnabled(): boolean {
+  return getFlag('anon-debates');
 }
 
 /** All flags resolved for the current user. */
