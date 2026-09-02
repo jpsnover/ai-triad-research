@@ -143,3 +143,109 @@ Describe 'AI Call Log core (t/3241)' -Tag 'unit' {
         }
     }
 }
+
+Describe 'Get-AICallLog (t/3243)' -Tag 'unit' {
+
+    # A deterministic fixture with known Datetime/Scenario/Status so range + wildcard filters
+    # are testable without depending on wall-clock (the writer stamps UtcNow).
+    BeforeEach {
+        $script:log = Join-Path $TestDrive "get-$([guid]::NewGuid()).jsonl"
+        $fixture = @(
+            [ordered]@{ ID = 1; Datetime = '2026-01-01T08:00:00.0000000Z'; Scenario = 'Debate';     PromptID = 'p1'; PromptStart = 'alpha';   RetryCount = 0; Status = '200' }
+            [ordered]@{ ID = 2; Datetime = '2026-01-02T09:30:00.0000000Z'; Scenario = 'Chat';       PromptID = '';   PromptStart = 'bravo';   RetryCount = 1; Status = '429' }
+            [ordered]@{ ID = 3; Datetime = '2026-01-03T11:15:00.0000000Z'; Scenario = 'Fact Check'; PromptID = 'p3'; PromptStart = 'charlie'; RetryCount = 0; Status = '500' }
+        )
+        $fixture | ForEach-Object { $_ | ConvertTo-Json -Compress } |
+            Set-Content -LiteralPath $script:log -Encoding utf8
+    }
+
+    Context 'read + shape' {
+        It 'returns one [AICallLogEntry] per record with all 7 fields (AC)' {
+            $r = @(Get-AICallLog -Path $script:log)
+            $r.Count | Should -Be 3
+            $r[0].GetType().Name | Should -Be 'AICallLogEntry'
+            foreach ($f in 'ID', 'Datetime', 'Scenario', 'PromptID', 'PromptStart', 'RetryCount', 'Status') {
+                $r[0].PSObject.Properties[$f] | Should -Not -BeNullOrEmpty -Because "field '$f' must be present"
+            }
+            $r[0].ID          | Should -Be 1
+            $r[0].Scenario    | Should -Be 'Debate'
+            $r[0].Status      | Should -Be '200'
+            $r[0].RetryCount  | Should -Be 0
+        }
+
+        It 'parses Datetime to a [datetime]' {
+            $r = @(Get-AICallLog -Path $script:log)
+            $r[0].Datetime | Should -BeOfType ([datetime])
+            $r[0].Datetime.ToUniversalTime().ToString('yyyy-MM-dd') | Should -Be '2026-01-01'
+        }
+
+        It 'emits records one at a time down the pipeline (composes with Where-Object)' {
+            $retried = @(Get-AICallLog -Path $script:log | Where-Object RetryCount -gt 0)
+            $retried.Count | Should -Be 1
+            $retried[0].ID | Should -Be 2
+        }
+
+        It 'reads regardless of the AI_CALL_LOG_ENABLED flag (flag gates writes, not reads)' {
+            Remove-Item Env:AI_CALL_LOG_ENABLED -ErrorAction SilentlyContinue
+            @(Get-AICallLog -Path $script:log).Count | Should -Be 3
+        }
+    }
+
+    Context 'filters' {
+        It 'filters by -Scenario (case-insensitive wildcard)' {
+            $r = @(Get-AICallLog -Path $script:log -Scenario 'fact*')
+            $r.Count | Should -Be 1
+            $r[0].Scenario | Should -Be 'Fact Check'
+        }
+        It 'filters by -Status wildcard (all 4xx)' {
+            $r = @(Get-AICallLog -Path $script:log -Status '4*')
+            $r.Count | Should -Be 1
+            $r[0].Status | Should -Be '429'
+        }
+        It 'filters by -After (inclusive lower bound)' {
+            $r = @(Get-AICallLog -Path $script:log -After ([datetime]::Parse('2026-01-02T00:00:00Z')))
+            @($r.ID) | Should -Be @(2, 3)
+        }
+        It 'filters by -Before (exclusive upper bound)' {
+            $r = @(Get-AICallLog -Path $script:log -Before ([datetime]::Parse('2026-01-02T00:00:00Z')))
+            @($r.ID) | Should -Be @(1)
+        }
+        It 'combines -After and -Before into a range' {
+            $r = @(Get-AICallLog -Path $script:log `
+                    -After ([datetime]::Parse('2026-01-02T00:00:00Z')) `
+                    -Before ([datetime]::Parse('2026-01-03T00:00:00Z')))
+            @($r.ID) | Should -Be @(2)
+        }
+    }
+
+    Context 'non-fatal empty / degraded paths' {
+        It 'returns empty (no throw) when the log file is absent' {
+            $absent = Join-Path $TestDrive 'nope.jsonl'
+            $r = $null
+            { $r = @(Get-AICallLog -Path $absent) } | Should -Not -Throw
+            $r.Count | Should -Be 0
+        }
+        It 'returns empty when the log file is empty' {
+            $empty = Join-Path $TestDrive 'empty.jsonl'
+            Set-Content -LiteralPath $empty -Value '' -Encoding utf8
+            @(Get-AICallLog -Path $empty).Count | Should -Be 0
+        }
+        It 'skips an unparseable line with a warning but returns the valid records' {
+            Add-Content -LiteralPath $script:log -Value 'this is not json' -Encoding utf8
+            $warnings = @()
+            $r = @(Get-AICallLog -Path $script:log -WarningVariable warnings -WarningAction SilentlyContinue)
+            $r.Count | Should -Be 3
+            @($warnings).Count | Should -BeGreaterThan 0
+        }
+    }
+
+    Context 'Manifest export' {
+        It 'exports Get-AICallLog' {
+            Get-Command Get-AICallLog -Module AITriad | Should -Not -BeNullOrEmpty
+        }
+        It 'FunctionsToExport includes Get-AICallLog' {
+            $manifestPath = Join-Path $PSScriptRoot '..' 'scripts' 'AITriad' 'AITriad.psd1'
+            (Test-ModuleManifest -Path $manifestPath).ExportedFunctions.Keys | Should -Contain 'Get-AICallLog'
+        }
+    }
+}
