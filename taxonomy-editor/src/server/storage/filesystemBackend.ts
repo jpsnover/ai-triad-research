@@ -100,8 +100,14 @@ export class FilesystemBackend implements StorageBackend {
     try {
       await fs.access(filePath);
       return true;
-    } catch {
-      /* telemetry — silent by design */
+    } catch (err: unknown) {
+      if ((err as NodeJS.ErrnoException).code !== 'ENOENT') {
+        getGlobalRecorder()?.record({
+          type: 'system.error', component: 'filesystem-backend', level: 'warn',
+          message: 'fileExists: unexpected error from fs.access, treating file as absent',
+          data: { filePath, error: String(err) },
+        });
+      }
       return false;
     }
   }
