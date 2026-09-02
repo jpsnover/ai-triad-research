@@ -52,7 +52,19 @@ async function loadEvidenceIndex(): Promise<SourceEvidenceIndex | null> {
     const buf = await readDataFile(relPath);
     _evidenceIndex = JSON.parse(buf.toString('utf-8')) as SourceEvidenceIndex;
     return _evidenceIndex;
-  } catch { /* telemetry — silent by design */ return null; }
+  } catch (err) {
+    // Fallback-Path Logging (t/3200/t/3169): the source-evidence index failed to load/parse →
+    // evidence-backed source features degrade to null. Cached above, so this warns at most once per
+    // process until a load succeeds; the error distinguishes absent from malformed.
+    getGlobalRecorder()?.record({
+      type: 'system.error', component: 'sources-routes', level: 'warn',
+      message: `source_evidence_index load failed — evidence features degraded to null: ${String(err)}`,
+      data: { fallback: 'evidence-index-null' },
+      error: { name: (err as Error)?.name ?? 'Error', message: String(err), stack: (err as Error)?.stack },
+    });
+    log.server.warn({ component: 'sources-routes', err: String(err) }, 'source_evidence_index load failed — evidence features degraded to null');
+    return null;
+  }
 }
 
 type DocMetaMap = import('../../../../lib/debate/evidenceFromSummaries.js').DocMetaMap;
@@ -139,7 +151,19 @@ export async function loadGreatestHitsNodeIds(): Promise<{ node_ids: string[] } 
         : [];
     const node_ids = raw.filter((id): id is string => typeof id === 'string');
     return { node_ids };
-  } catch { /* telemetry — silent by design: absent/malformed → null (graceful no-op) */ return null; }
+  } catch (err) {
+    // Fallback-Path Logging (t/3200/t/3169): the greatest-hits asset failed to load/parse →
+    // GET /api/greatest-hits degrades to null (client shows no curated set). Warn so a missing or
+    // corrupt asset is visible instead of a silent empty; the error distinguishes absent from malformed.
+    getGlobalRecorder()?.record({
+      type: 'system.error', component: 'sources-routes', level: 'warn',
+      message: `greatest-hits asset load failed — degraded to null: ${String(err)}`,
+      data: { fallback: 'greatest-hits-null' },
+      error: { name: (err as Error)?.name ?? 'Error', message: String(err), stack: (err as Error)?.stack },
+    });
+    log.server.warn({ component: 'sources-routes', err: String(err) }, 'greatest-hits asset load failed — degraded to null');
+    return null;
+  }
 }
 
 export function registerSourcesRoutes(r: Router, _ctx: ServerCtx): void {
