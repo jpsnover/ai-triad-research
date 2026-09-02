@@ -37,7 +37,7 @@ async function isOnline(): Promise<boolean> {
     const resp = await net.fetch('https://github.com', { method: 'HEAD' });
     return resp.ok || resp.status === 301 || resp.status === 302;
   } catch {
-    // eslint-disable-next-line local/require-warn-on-degraded-catch-return -- returning false is the correct offline signal; the caller surfaces it as { error: 'offline' } to the UI, not a silent fallback
+    /* telemetry — silent by design; returning false is the correct offline signal — caller surfaces { error: 'offline' } to the UI */
     return false;
   }
 }
