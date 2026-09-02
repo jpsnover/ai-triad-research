@@ -605,8 +605,8 @@ def run_live():
                     d["used_by_nodes"] = new
                     dump_json(t["file"], d)
                     dict_writes += 1
-            dump_json(SIDECAR, sc)
-            commit_mentions(ms)  # locked: only the shared entity_mentions.json read-merge-write
+            commit_mentions(ms)  # locked: shared entity_mentions.json read-merge-write
+            dump_json(SIDECAR, sc)  # ledger LAST (t/3163 GV): a crash before this UNDER-reports (re-resolve next run), never over-reports done-but-unwritten node:*
             print(f"APPLIED (scoped): {len(touched)} POV file(s), {dict_writes} dict file(s)")
         else:
             print("DRY RUN (scoped)")
@@ -622,8 +622,8 @@ def run_live():
                 d = load_json(t["file"])
                 d["used_by_nodes"] = sorted(ubn.get(t["cf"], set()))
                 dump_json(t["file"], d)
-            dump_json(SIDECAR, sc)
-            commit_mentions(ms)  # locked: only the shared entity_mentions.json read-merge-write
+            commit_mentions(ms)  # locked: shared entity_mentions.json read-merge-write
+            dump_json(SIDECAR, sc)  # ledger LAST (t/3163 GV): a crash before this UNDER-reports (re-resolve next run), never over-reports done-but-unwritten node:*
             print("APPLIED")
         else:
             print("DRY RUN")
