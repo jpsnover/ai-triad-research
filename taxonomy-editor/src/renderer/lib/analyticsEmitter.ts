@@ -90,7 +90,6 @@ export async function resolveAnalyticsUser(): Promise<string> {
     if (prof && prof.isAnonymous === false && prof.userId) return prof.userId;
     const me = meRes.ok ? (await meRes.json()) as { user?: string } : null;
     return me?.user || '_anonymous';
-    // eslint-disable-next-line local/require-warn-on-degraded-catch-return -- benign best-effort telemetry: identity resolution failing degrades analytics to anon-keyed (no functional impact); no recorder dependency in this low-level telemetry-id resolver (t/3222)
   } catch { /* telemetry — silent by design */ return '_anonymous'; }
 }
 
