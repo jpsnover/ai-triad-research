@@ -70,6 +70,7 @@ jobs:
       container: ${{ steps.filter.outputs.container }}
       lockfile-sync: ${{ steps.filter.outputs.lockfile-sync }}
       bicep-env: ${{ steps.filter.outputs.bicep-env }}
+      bicep-resources: ${{ steps.filter.outputs.bicep-resources }}
     steps:
       - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d  # v4.0.3
         id: filter
@@ -181,6 +182,12 @@ jobs:
               - '.github/workflows/deploy-azure.yml'
               - 'operations/devops/Get-BicepBaseEnv.ps1'
               - 'operations/devops/Test-BicepEnvDrift.ps1'
+              - '.github/workflows/ci.yml'
+            # 'bicep-resources' gates bicep-aca-resources (t/3212). Triggers when
+            # main.bicep or the validator script changes. Skip = OK through ci-gate.
+            bicep-resources:
+              - 'deploy/azure/main.bicep'
+              - 'operations/devops/Test-BicepAcaResourcePairs.ps1'
               - '.github/workflows/ci.yml'
 
   test-powershell:
@@ -1301,6 +1308,25 @@ jobs:
         shell: pwsh
         run: ./operations/devops/Test-BicepEnvDrift.ps1
 
+  # ── bicep-aca-resources: ACA cpu:memory allowed-pair validation (t/3212) ──
+  # Parses cpu:memory pairs from deploy/azure/main.bicep and validates each
+  # against the ACA Consumption fixed allowed-pairs table (co-located in the
+  # script). Catches the #1771 escape: 2.0vCPU+2Gi compiled fine with
+  # `az bicep build` but fails ARM deploy with ContainerAppInvalidResourceTotal.
+  # Path-filtered; skip = OK through ci-gate.
+  bicep-aca-resources:
+    needs: [changes]
+    if: >-
+      always() && !cancelled() &&
+      (github.event_name != 'pull_request' || needs.changes.outputs.bicep-resources == 'true')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v6
+
+      - name: Validate ACA cpu:memory pairs in main.bicep (t/3212)
+        shell: pwsh
+        run: ./operations/devops/Test-BicepAcaResourcePairs.ps1
+
   # ── ci-gate: the SINGLE required status context (t/1962) ──────────────────
   # Replaces the 6 individual code-check contexts in branch protection. Those get
   # SKIPPED by path-filtering on non-electron PRs (docs-only, PS-only); a skipped
@@ -1334,9 +1360,11 @@ jobs:
   # lib/brief/schemas/*.write.json contract changes; path-filtered to lib, skip = OK.
   # test-python (t/2933) is gated here: runs scripts/test_*.py under pytest;
   # path-filtered to scripts/** changes, skip = OK.
+  # bicep-aca-resources (t/3212) is gated here: ACA cpu:memory allowed-pair
+  # validation in main.bicep; path-filtered to bicep-resources changes, skip = OK.
   ci-gate:
     name: ci-gate
-    needs: [changes, test-powershell, test-electron, test-container, python-embed-smoke, test-python, dependency-coverage, lockfile-overrides-check, lib-lint, renderer-tsc, contrast-check, test-server-prod-config, workflow-lint, bicep-env-drift, schema-version-bump, render-smoke]
+    needs: [changes, test-powershell, test-electron, test-container, python-embed-smoke, test-python, dependency-coverage, lockfile-overrides-check, lib-lint, renderer-tsc, contrast-check, test-server-prod-config, workflow-lint, bicep-env-drift, schema-version-bump, render-smoke, bicep-aca-resources]
     if: always()
     runs-on: ubuntu-latest
     steps:
