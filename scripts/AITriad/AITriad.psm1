@@ -596,6 +596,18 @@ class DebatePersistenceResult {
     [string] $LockHolder   # process name if identifiable, otherwise $null
 }
 
+# AI Call Log record (t/3243; schema of record from t/3235#1 / t/3241). One instance
+# per ai-call-log.jsonl line. Get-AICallLog emits these; Show-AICallLog (t/3244) renders them.
+class AICallLogEntry {
+    [int]      $ID           # monotonic within the log file (a "session" = the file)
+    [datetime] $Datetime     # UTC; parsed from the ISO-8601 round-trip string on disk
+    [string]   $Scenario     # caller-supplied tag (e.g. Debate, Chat, Fact Check)
+    [string]   $PromptID     # UsageID from ai-usages.json, or '' when absent
+    [string]   $PromptStart  # first 160 chars of the rendered prompt
+    [int]      $RetryCount   # 0 first attempt, N for the Nth retry
+    [string]   $Status       # HTTP/API status (e.g. 200, 429, 500, timeout)
+}
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Module-scoped taxonomy store
 # ─────────────────────────────────────────────────────────────────────────────
@@ -763,6 +775,7 @@ Set-Alias -Name 'Workflow'             -Value 'Show-WorkflowRunner'    -Scope Gl
 # ─────────────────────────────────────────────────────────────────────────────
 Export-ModuleMember -Function @(
     'Clear-AICallLog'   # t/3241 — AI Call Log core (rotate/clear)
+    'Get-AICallLog'     # t/3243 — AI Call Log reader (filterable, pipeline)
     'Get-Tax'
     'Update-TaxEmbeddings'
     'Import-AITriadDocument'

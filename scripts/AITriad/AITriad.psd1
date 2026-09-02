@@ -14,6 +14,7 @@
     # Functions exported from this module
     FunctionsToExport = @(
         'Clear-AICallLog'   # t/3241 — AI Call Log core (rotate/clear)
+        'Get-AICallLog'     # t/3243 — AI Call Log reader (filterable, pipeline)
         'Get-Tax'
         'Update-TaxEmbeddings'
         'Import-AITriadDocument'
