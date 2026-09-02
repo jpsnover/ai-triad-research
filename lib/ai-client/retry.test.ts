@@ -2,7 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { withRetry, parseRateLimitHeaders, parseRateLimitType, retryableFetch, makeFetchSignal } from './retry.js';
+import { withRetry, parseRateLimitHeaders, parseRateLimitType, retryableFetch, makeFetchSignal, CLI_RETRY_CONFIG } from './retry.js';
 import type { RetryConfig } from './retry.js';
 
 const FAST_CONFIG: RetryConfig = {
@@ -475,5 +475,74 @@ describe('retryableFetch — response size cap (t/2719)', () => {
       timeoutMs: 5000, fetchFn, config: FAST_CONFIG,
     });
     expect(result.bodyText).toBe('{"result":"ok"}');
+  });
+});
+
+describe('rate-limit retry budget cap (t/3232)', () => {
+  // The server path is ACA-ingress-bound: a rate-limit must surface a retryable 429 FAST, not sleep
+  // ~480s (120s floor × ~4) past the ingress timeout into an opaque 500. Config-driven so CLI is untouched.
+  const SERVER_CAP: RetryConfig = {
+    maxRetries: 5, strategy: 'exponential', maxBackoffS: 30,
+    rateLimitMaxAttempts: 2, rateLimitMaxSleepS: 30,
+  };
+  afterEach(() => { vi.restoreAllMocks(); });
+
+  it('withRetry: caps rate-limit attempts (surfaces the 429 at rateLimitMaxAttempts, not maxRetries)', async () => {
+    vi.spyOn(globalThis, 'setTimeout').mockImplementation((fn: Function) => { fn(); return 0 as unknown as ReturnType<typeof setTimeout>; });
+    let calls = 0;
+    await expect(withRetry(async () => { calls++; throw new Error('API error 429: Rate limited'); }, SERVER_CAP, 'test'))
+      .rejects.toThrow('429');
+    expect(calls).toBe(2); // rateLimitMaxAttempts, NOT maxRetries(5) → surfaces fast
+  });
+
+  it('withRetry: fast-fails an exhausted key pool (no retry, no sleep)', async () => {
+    let calls = 0;
+    await expect(withRetry(async () => { calls++; throw new Error('429: api_key_exhausted — all keys rate limited'); }, SERVER_CAP, 'test'))
+      .rejects.toThrow('exhausted');
+    expect(calls).toBe(1);
+  });
+
+  it('withRetry: CLI config keeps the full rate-limit budget (unchanged — no cap)', async () => {
+    vi.spyOn(globalThis, 'setTimeout').mockImplementation((fn: Function) => { fn(); return 0 as unknown as ReturnType<typeof setTimeout>; });
+    let calls = 0;
+    await expect(withRetry(async () => { calls++; throw new Error('API error 429: Rate limited'); }, CLI_RETRY_CONFIG, 'test'))
+      .rejects.toThrow('429');
+    expect(calls).toBe(5); // CLI maxRetries, unchanged by t/3232
+  });
+
+  it('retryableFetch: surfaces a 429 after rateLimitMaxAttempts (not maxRetries)', async () => {
+    vi.spyOn(globalThis, 'setTimeout').mockImplementation((fn: Function) => { fn(); return 0 as unknown as ReturnType<typeof setTimeout>; });
+    let calls = 0;
+    const fetchFn = vi.fn().mockImplementation(() => { calls++; return Promise.resolve({
+      ok: false, status: 429, headers: new Headers(),
+      text: () => Promise.resolve('{"error":{"message":"rate limit per minute"}}'),
+    }); });
+    await expect(retryableFetch({ label: 'test', url: 'https://x', init: { method: 'POST' }, timeoutMs: 5000, fetchFn, config: SERVER_CAP }))
+      .rejects.toThrow(/Rate limited/);
+    expect(calls).toBe(2); // capped, not maxRetries(5)
+  });
+
+  it('retryableFetch: caps a long server Retry-After so ingress is not held', async () => {
+    vi.spyOn(globalThis, 'setTimeout').mockImplementation((fn: Function) => { fn(); return 0 as unknown as ReturnType<typeof setTimeout>; });
+    const backoffs: number[] = [];
+    let calls = 0;
+    const fetchFn = vi.fn().mockImplementation(() => {
+      calls++;
+      if (calls === 1) return Promise.resolve({ ok: false, status: 429, headers: new Headers({ 'retry-after': '300' }), text: () => Promise.resolve('{}') });
+      return Promise.resolve({ ok: true, status: 200, headers: new Headers(), text: () => Promise.resolve('{"ok":true}') });
+    });
+    await retryableFetch({ label: 'test', url: 'https://x', init: { method: 'POST' }, timeoutMs: 5000, fetchFn, config: SERVER_CAP, onRetry: (p) => backoffs.push(p.backoffSeconds) });
+    expect(backoffs[0]).toBe(30); // Retry-After 300 capped to rateLimitMaxSleepS
+  });
+
+  it('retryableFetch: fast-fails an exhausted key pool', async () => {
+    let calls = 0;
+    const fetchFn = vi.fn().mockImplementation(() => { calls++; return Promise.resolve({
+      ok: false, status: 429, headers: new Headers(),
+      text: () => Promise.resolve('{"error":{"message":"api_key_exhausted: all keys rate limited"}}'),
+    }); });
+    await expect(retryableFetch({ label: 'test', url: 'https://x', init: { method: 'POST' }, timeoutMs: 5000, fetchFn, config: SERVER_CAP }))
+      .rejects.toThrow(/exhausted/);
+    expect(calls).toBe(1);
   });
 });
