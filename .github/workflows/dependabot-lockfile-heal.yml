@@ -38,6 +38,10 @@
 #   named GITHUB_PAT — DEPENDABOT_HEAL_PAT is the valid name. Rotate on the PAT's
 #   90-day expiry (a longer-lived credential than the App's per-run token — the
 #   tradeoff of choosing the PAT).
+#   DEVIATION (owner choice, p/331#920): the PROVISIONED token is a CLASSIC PAT, not
+#   the fine-grained single-repo token this comment specifies — so a leak of this
+#   secret is REPO-WIDE (every repo the owner can write), NOT single-repo. Migrate to
+#   a fine-grained repo-scoped Contents:read+write PAT when feasible (r/16 rotation).
 #
 # NOTE: lib/debate is NOT healed here — its root-workspace importer is empty (the
 #   root entry never bumps it); its standalone lockfile is managed by the
@@ -153,33 +157,25 @@ jobs:
             echo "Already in sync — nothing to heal."
           fi
 
-      # Credential guard: no-op (success) when the PAT secret is absent — never fail.
-      - name: Check heal credential
-        id: cred
-        if: steps.drift.outputs.changed == 'true'
-        env:
-          HEAL_PAT: ${{ secrets.DEPENDABOT_HEAL_PAT }}
-        run: |
-          if [ -n "$HEAL_PAT" ]; then
-            echo "present=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "present=false" >> "$GITHUB_OUTPUT"
-            echo "::notice::DEPENDABOT_HEAL_PAT not set — drift detected but heal skipped (no-op)."
-          fi
-
       # ── SECURITY BOUNDARY ─────────────────────────────────────────────────
-      # The write credential (a fine-grained PAT: contents:write, single-repo) is
-      # referenced ONLY by the push step below — AFTER every dependency/script step
-      # above. Step ordering IS the security boundary: no PR-controlled step
-      # (checkout/install/licenses) ever has the PAT in scope. Like the GitHub App
-      # token and UNLIKE the default GITHUB_TOKEN, a PAT push RETRIGGERS CI on the
-      # heal commit (load-bearing — do NOT "simplify" to the default token).
-      # (Owner chose the PAT over the GitHub App per the e/127#2 documented fallback.)
+      # The write credential (a PAT: contents:write) is materialized in EXACTLY ONE
+      # step — this one — AFTER every dependency/script step above. Step ordering IS
+      # the security boundary: no PR-controlled step (checkout/install/licenses) ever
+      # has the PAT in scope, and no separate presence-check step needs it either
+      # (TL #1805 review item 1 — GitHub doesn't allow `secrets` in a step `if:`, so
+      # the push self-guards on absence below). Like the GitHub App token and UNLIKE
+      # the default GITHUB_TOKEN, a PAT push RETRIGGERS CI on the heal commit
+      # (load-bearing — do NOT "simplify" to the default token).
       - name: Commit and push heal
-        if: steps.drift.outputs.changed == 'true' && steps.cred.outputs.present == 'true'
+        if: steps.drift.outputs.changed == 'true'
         env:
           GH_TOKEN: ${{ secrets.DEPENDABOT_HEAL_PAT }}
         run: |
+          # Credential guard: no-op success when the PAT secret is absent — never red.
+          if [ -z "$GH_TOKEN" ]; then
+            echo "::notice::DEPENDABOT_HEAL_PAT not set — drift detected but heal skipped (no-op)."
+            exit 0
+          fi
           git config user.name "dependabot-heal[bot]"
           git config user.email "dependabot-heal[bot]@users.noreply.github.com"
           git add taxonomy-editor/pnpm-lock.yaml \
