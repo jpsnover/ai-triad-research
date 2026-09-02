@@ -34,7 +34,7 @@ import {
   getStoredApiKeys, addApiKey, removeApiKey, resolveDataPath,
   getPaidGeminiFallbackKey, setPaidGeminiFallbackKey, deletePaidGeminiFallbackKey,
   BROKER_SCRIPT, SCRIPTS_DIR, getProjectRoot, type AIBackend,
-  STORAGE_MODE, CACHE_DIR,
+  STORAGE_MODE, CACHE_DIR, isEmbeddingWorkerOffloadEnabled,
 } from './config.js';
 import { GitHubAPIBackend } from './storage/githubAPIBackend.js';
 import { SessionBranchManager } from './storage/sessionBranchManager.js';
@@ -1309,6 +1309,11 @@ server.listen(PORT, BIND_HOST, () => {
   // batch/PS/Python writes that bypass the inline G8a hook. Gated on GROUNDING_SWEEP_ENABLED
   // (default OFF): inert until the sequenced enable (t/3203 + TL lock-symmetry sign-off). Unref'd.
   startGroundingSweep();
+  // t/3165 observability: one-line boot record of the offload flag's RUNTIME value, so a deploy's
+  // effective EMBEDDING_WORKER_OFFLOAD is greppable in Log Analytics at startup — the "looked set
+  // in ACA config but process.env evaluated false" regression (bicep value-form) is then visible
+  // immediately, not inferred from a debate's compute path.
+  log.server.info({ embeddingWorkerOffload: isEmbeddingWorkerOffloadEnabled() }, 'embedding offload flag at boot');
   void warmupEmbeddings().catch((err: unknown) => {
     log.server.error({ err: String(err) }, 'ONNX embedding warmup failed at boot');
     getGlobalRecorder()?.record({ type: 'system.error', component: 'server', level: 'error', message: 'ONNX embedding warmup failed at boot', error: { name: (err as Error)?.name ?? 'Error', message: String(err), stack: (err as Error)?.stack } });
