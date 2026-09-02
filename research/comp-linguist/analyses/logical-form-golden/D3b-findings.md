@@ -84,8 +84,14 @@ top-up.
 
 ```
 python score_golden.py --golden golden_set_d3b.json --self                 # references schema-valid
-python score_golden.py --golden golden_set_d3b.json --candidates candidates_d3b.json   # -> 0.803
+python score_golden.py --golden golden_set_d3b.json --candidates candidates_d3b.json   # -> STRICT 0.803
 ```
+
+`score_golden.py` also prints two **diagnostic-only** components (t/3228, never in the strict OVERALL):
+`predicate_syn` (exact 1.0 / CL-curated content-synonym class 0.5 / else 0, + `be-` copula normalization)
+and `args_participant` (role-agnostic participant-set F1). On D3b they show how much of the strict miss is
+metric-strictness rather than error: `predicate` 0.50 → `predicate_syn` **0.65**, `args` 0.32 →
+`args_participant` **0.46**. Strict figures are unchanged, so the 0.803 headline stays comparable over time.
 
 ## t/3227 validation (attitude-attribution prompt fix)
 
