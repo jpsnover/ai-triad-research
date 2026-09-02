@@ -532,6 +532,14 @@ var baseEnv = [
   // Azure Blob Storage — user content (chats, debates) and community library.
   // Auth via managed identity (DefaultAzureCredential), no connection string needed.
   { name: 'AZURE_STORAGE_ACCOUNT_URL', value: storageAccount.properties.primaryEndpoints.blob }
+  // t/3165 DURABLE close: the worker-offload flag lives HERE (baseEnv), not a CLI --set-env-vars —
+  // a CLI value is wiped by the next full template deploy (the ephemeral-drift trap). It routes the
+  // ONNX embedding compute to the off-thread worker (t/3183) so a large novel-text batch can't starve
+  // the event loop past ACA's liveness deadline — the t/3165 fabricated-500 root cause. Requires the
+  // 2 vCPU worker floor above (t/3182). Proven: staging storm-canary GREEN + prod staged-flip AC-1/AC-3
+  // green (loop max 39.6ms under 1536 concurrent computes). MUST stay in sync with deploy-azure.yml's
+  // ExpectedEnvVars config-drift gate (Gate Co-Location — the gate verifies this value is deployed).
+  { name: 'EMBEDDING_WORKER_OFFLOAD', value: '1' }
 ]
 var envWithToken = githubTokenProvided
   ? concat(baseEnv, [ { name: 'GITHUB_TOKEN', secretRef: githubTokenSecretName } ])
