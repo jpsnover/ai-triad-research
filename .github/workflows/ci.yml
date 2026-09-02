@@ -66,6 +66,7 @@ jobs:
       debate: ${{ steps.filter.outputs.debate }}
       schema: ${{ steps.filter.outputs.schema }}
       lib: ${{ steps.filter.outputs.lib }}
+      embeddings: ${{ steps.filter.outputs.embeddings }}
       python: ${{ steps.filter.outputs.python }}
       container: ${{ steps.filter.outputs.container }}
       lockfile-sync: ${{ steps.filter.outputs.lockfile-sync }}
@@ -115,6 +116,14 @@ jobs:
               - '.github/workflows/ci.yml'
             lib:
               - 'lib/**'
+              - '.github/workflows/ci.yml'
+            # 'embeddings' gates embedding-onnx-equivalence (t/3198): the real-ONNX bit-exact
+            # worker↔in-thread check. Narrower than 'lib' — only the embeddings subtree (worker,
+            # in-thread module, harness) or a ci.yml edit can change the equivalence outcome, so
+            # a broad lib change need not pay the build:server + model-download cost. Advisory job
+            # (not in ci-gate needs), so a too-narrow filter cannot false-green a required context.
+            embeddings:
+              - 'lib/embeddings/**'
               - '.github/workflows/ci.yml'
             python:
               - 'scripts/**'
@@ -1267,6 +1276,88 @@ jobs:
           # ALLOWED_ORIGINS='' to catch the getCorsOrigin() empty-array → undefined regression.
           ALLOWED_ORIGINS: ''
         run: pnpm exec vitest run src/server/
+
+  # ── embedding-onnx-equivalence: real-ONNX bit-exact worker↔in-thread equivalence (t/3198) ──
+  # Runs the t/3181 condition-3 check in CI, closing the t/3189 "only-runs-on-one-box" gap: the
+  # off-thread worker (intra-op=1) must produce BIT-EXACT vectors vs the in-thread default path on
+  # the SAME execution provider. `offThreadEmbedding.test.ts`'s equivalence case is skip-guarded and
+  # cannot spawn the real worker under vitest (defaultWorkerFactory loads ./embeddingWorker.js next to
+  # the SOURCE, where no compiled sibling exists, and vitest doesn't transform code inside a spawned
+  # node worker_thread). So this job runs the harness against the BUILT server dist — build:server
+  # emits the runnable worker + in-thread module to dist/server/lib/embeddings/, the exact artifacts
+  # prod ships — with the fp32 model provisioned exactly as taxonomy-editor/Dockerfile's onnx-model
+  # stage does (same 3 HF files, cached).
+  #
+  # ADVISORY — deliberately NOT in ci-gate `needs`. A first-of-its-kind bit-exact float assertion
+  # stays non-blocking per the "no flaky blocking gates" rule until it proves stable across green
+  # cycles; a red here still surfaces as a failed check on the PR. Promotion to a required gate is a
+  # follow-up for TL Gate Verification. Path-filtered to lib/embeddings changes; skip = N/A.
+  embedding-onnx-equivalence:
+    needs: [changes]
+    if: >-
+      always() && !cancelled() &&
+      (github.event_name != 'pull_request' || needs.changes.outputs.embeddings == 'true')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v6
+
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86  # v6.0.10
+        with:
+          version: '11.20.0'
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v6
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+          cache-dependency-path: 'pnpm-lock.yaml'
+
+      - name: Install dependencies (retry on transient failures)
+        run: |
+          for i in 1 2 3; do
+            pnpm install --frozen-lockfile && break
+            if [ "$i" -lt 3 ]; then
+              echo "pnpm install attempt $i failed; retry in $((i * 15))s"
+              sleep $((i * 15))
+            else
+              echo "::error::pnpm install failed after $i attempts"
+              exit 1
+            fi
+          done
+
+      - name: Build server (emits the runnable off-thread worker + in-thread module to dist)
+        working-directory: taxonomy-editor
+        run: pnpm run build:server
+
+      # Cache the flat fp32 model set (model.onnx + tokenizer.json + tokenizer_config.json). Keyed on
+      # the model contract (Xenova/all-MiniLM-L6-v2 fp32, t/1651). Bump the -v1 suffix if the contract
+      # changes. A cache hit skips the HF download → near-zero marginal cost (the t/3198 intent).
+      - name: Cache fp32 ONNX model
+        id: onnx-cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
+        with:
+          path: .cache/onnx-models/all-MiniLM-L6-v2
+          key: onnx-model-all-MiniLM-L6-v2-fp32-v1
+
+      - name: Provision fp32 model from Hugging Face (cache miss only)
+        if: steps.onnx-cache.outputs.cache-hit != 'true'
+        run: |
+          set -euo pipefail
+          DIR=.cache/onnx-models/all-MiniLM-L6-v2
+          mkdir -p "$DIR"
+          BASE=https://huggingface.co/Xenova/all-MiniLM-L6-v2/resolve/main
+          curl -fsSL "$BASE/onnx/model.onnx"       -o "$DIR/model.onnx"
+          curl -fsSL "$BASE/tokenizer.json"        -o "$DIR/tokenizer.json"
+          curl -fsSL "$BASE/tokenizer_config.json" -o "$DIR/tokenizer_config.json"
+          ls -l "$DIR"
+
+      - name: Real-ONNX bit-exact equivalence (off-thread intra-op=1 vs in-thread default, CPU EP)
+        env:
+          AI_TRIAD_ONNX_MODEL_DIR: ${{ github.workspace }}/.cache/onnx-models/all-MiniLM-L6-v2
+          # Pin the CPU EP — the EP CI and prod (ACA, no GPU) run, and the only one where the
+          # bit-exact contract holds (a GPU EP is non-deterministic across sessions). The harness
+          # also self-defaults this; set here for visibility.
+          AI_TRIAD_ONNX_FORCE_CPU: '1'
+        run: node lib/embeddings/onnx-equivalence-check.mjs
 
   # ── workflow-lint: enforce SHA-pinned actions, env-var indirection, permissions ──
   # Mechanically catches the M14/M15/L8 failure classes (t/2529). Always runs —

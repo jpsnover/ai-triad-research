@@ -404,7 +404,20 @@ async function init(): Promise<void> {
   const backendNames = backends.map(b => b.name);
   let executionProviders: string[];
 
-  if (_forcedCpuReason) {
+  // t/3198 — opt-in CPU pin. When AI_TRIAD_ONNX_FORCE_CPU is truthy, select the CPU EP regardless
+  // of available GPU backends. Default (env unset) is byte-identical to before. Two uses: (1) the
+  // real-ONNX equivalence check (onnx-equivalence-check.mjs) must run on the CPU EP — the EP CI and
+  // prod (ACA, no GPU) actually use, and the only one where the worker's intra-op=1 is bit-exact vs
+  // the in-thread default (a GPU EP is non-deterministic across sessions: ~1e-8 kernel noise, not a
+  // real divergence); (2) reproducing prod's CPU-only embedding behavior on a GPU dev box.
+  const forceCpuEnv = process.env.AI_TRIAD_ONNX_FORCE_CPU;
+  const forceCpu = !!forceCpuEnv && forceCpuEnv !== '0' && forceCpuEnv.toLowerCase() !== 'false';
+
+  if (forceCpu) {
+    executionProviders = ['cpu'];
+    _selectedEP = 'cpu';
+    console.warn(`[onnxEmbedding] CPU EP forced by AI_TRIAD_ONNX_FORCE_CPU=${forceCpuEnv} (skipping GPU backends: ${backendNames.filter(n => n !== 'cpu').join(', ') || 'none'})`);
+  } else if (_forcedCpuReason) {
     // t/2060 — a prior non-CPU EP OOM'd during inference; stay pinned to CPU for the
     // rest of the process so we don't re-OOM. Slower but correct.
     executionProviders = ['cpu'];
