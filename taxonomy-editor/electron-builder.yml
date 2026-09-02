@@ -21,8 +21,14 @@ asarUnpack:
   - "node_modules/node-pty/**"
   # worker_threads.Worker() cannot load scripts from inside an asar archive — Electron's
   # asar layer patches fs/require but NOT the worker URL loader (t/3184 C4 exit criterion).
-  # embeddingWorker.js is emitted by tsc (rootDir="../") as dist/main/lib/embeddings/embeddingWorker.js.
-  - "dist/main/lib/embeddings/embeddingWorker.js"
+  # The embedding worker's transitive import closure spans lib/embeddings/, lib/debate/
+  # (ActionableError), and lib/flight-recorder/ — unpack the whole lib/ tree so every
+  # import the worker resolves at runtime is available outside the asar.
+  - "dist/main/lib/**"
+  # onnxruntime-node is auto-unpacked by electron-builder (native .node binary), but its
+  # pure-JS peer dep onnxruntime-common stays inside the asar. Workers can't reach inside
+  # the asar, so unpack the whole onnxruntime-* family explicitly.
+  - "node_modules/onnxruntime-*/**"
 
 extraResources:
   - from: "../ai-models.json"
