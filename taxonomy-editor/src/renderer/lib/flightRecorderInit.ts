@@ -371,6 +371,7 @@ async function _fetchSM(url: string): Promise<_SM | null> {
     if (!r.ok) { _smCache.set(key, null); return null; }
     const sm = await r.json() as _SM;
     _smCache.set(key, sm); return sm;
+    // eslint-disable-next-line local/require-warn-on-degraded-catch-return -- benign dev-only source-map fetch (import.meta.env.DEV-gated); failure caches null + returns null, callers guard; must not affect app (t/3222)
   } catch { /* telemetry — silent by design: source map fetch failures must not affect app */ _smCache.set(key, null); return null; }
 }
 
@@ -771,6 +772,7 @@ export function initFlightRecorder(): FlightRecorder {
           ...(typeof __COMPONENT_VERSIONS__ !== 'undefined' ? __COMPONENT_VERSIONS__ : {}),
         },
       };
+      // eslint-disable-next-line local/require-warn-on-degraded-catch-return -- flight-recorder init assembling its own dump metadata; cannot record to the recorder it is bootstrapping (self-reference) — Error Recording Rule FR-init exception (t/3222)
     } catch {
       /* flight recorder init — silent by design (can't log to itself) */
       return {};

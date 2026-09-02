@@ -331,9 +331,12 @@ async function isBackpressure(res: Response): Promise<boolean> {
   try {
     const data = await res.clone().json() as { retryable?: unknown } | null;
     return data?.retryable === true;
+    // Classifier, not a degradation: a non-JSON / empty body means the response is NOT
+    // typed-backpressure (e.g. a genuinely-down 503). Returning false routes it to the
+    // real-failure path, which fails fast and trips the breaker — recorded there, not here.
+    // eslint-disable-next-line local/require-warn-on-degraded-catch-return -- classification, not a fallback; the genuine-down path is what records (t/3222)
   } catch {
-    // silent by design: a non-JSON / empty body means this is not a typed-backpressure
-    // response (e.g. a genuinely-down 503) — treat as a real failure, not backpressure.
+    /* silent by design: non-JSON / empty body = not typed-backpressure; the genuine-down path records downstream */
     return false;
   }
 }
