@@ -521,8 +521,11 @@ jobs:
         # resolution failure on the compute path, not a dead-cache (t/3165 pattern).
         # Requires ServerAPI t/3165 PR #1704 merged (adds cacheHits/cacheMisses/corpusNodeCount
         # to compute 200 response). Script degrades gracefully (warn) if fields are absent.
-        # WARN-ONLY: continue-on-error:true until both GV arms proven on real envs. Flip-to-
-        # blocking is a separate PR per Gate Promotion Discipline (operations/devops/AGENTS.md).
+        # WARN-ONLY BY DESIGN (t/3192; both GV arms now real-env-proven, t/3192#6): kept
+        # continue-on-error:true. The FIRE arm (resolves:false → block the shift) is the WARM-GATE's
+        # job (step above, peer-blocking t/3148) — this step is a logging confirmation. Flipping THIS
+        # step to blocking would only catch a script crash (resolves:false is a handled exit-0 the
+        # warm-gate already blocks) = a flaky surface with zero new coverage (TL, t/3192#5).
         id: embeddings_resolution
         if: steps.warm_gate.outputs.warm == 'true'
         shell: pwsh

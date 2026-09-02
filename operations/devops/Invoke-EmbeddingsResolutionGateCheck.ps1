@@ -21,12 +21,16 @@
     warm-gate blocks, this step is skipped). This gate is a logging confirmation, not an
     independent guard. Kept separate for per-step observability in CI.
 
-    WARN-ONLY: continue-on-error:true until both GV arms proven on the upgraded /readyz.
-    Flip-to-blocking is a separate Gate-Promotion PR per Gate Promotion Discipline.
+    WARN-ONLY BY DESIGN (t/3192): stays continue-on-error:true. The FIRE arm (resolves:false →
+    BLOCK the traffic-shift) is the WARM-GATE's job (Invoke-ReadyzWarmGateCheck.ps1, peer-blocking
+    t/3148); this step is a logging confirmation only. Flipping it to blocking would only catch an
+    unhandled script crash — resolves:false is a handled exit-0 the warm-gate already blocks — so it
+    adds a flaky surface with zero new signal coverage (TL, t/3192#5). Both GV arms are now REAL-ENV
+    proven (t/3192#6):
 
-    GV FIRE arm:  resolves:false on a non-resolving revision → warm-gate blocks; this step
-                  is skipped (if: warm == 'true'). FIRE arm is warm-gate's responsibility.
-    GV CLEAN arm: resolves:true after warm-gate passes → logs PASS.
+    GV FIRE arm:  a real resolves:false rev (present:true, nodeCount>0; forced via READYZ_FORCE_RESOLVES_FALSE)
+                  → /readyz 503 → warm-gate emits warm=false → deploy blocks the shift + rolls back.
+    GV CLEAN arm: resolves:true → warm-gate warm=true → shift; a healthy rev never false-blocks.
 #>
 [CmdletBinding()]
 param(

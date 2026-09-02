@@ -118,7 +118,10 @@ class FsAnalyticsBackend implements AnalyticsBackend {
       return fs.readdirSync(this.dir)
         .filter(f => f.endsWith('.ndjson'))
         .map(f => f.replace('.ndjson', ''));
-    } catch { /* telemetry — silent by design */ return []; }
+    } catch (err) {
+      log.analytics.warn({ err, dir: this.dir }, 'analytics: listDates readdir failed — treated as no dates');
+      return [];
+    }
   }
 
   async prune(cutoffDate: string): Promise<void> {
