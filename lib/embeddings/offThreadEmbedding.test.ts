@@ -267,9 +267,13 @@ function realOnnxAvailable(): boolean {
 const REAL_ONNX = realOnnxAvailable();
 if (!REAL_ONNX) {
   // VISIBLE skip (TL condition, p/342#227): a green CI must never read as "equivalence verified" when
-  // it was actually skipped. Run locally with AI_TRIAD_ONNX_MODEL_DIR set + `lib` built; CI wiring is
-  // tracked as a follow-up (equivalence-in-CI whenever the ONNX-node model next lands in a CI job).
-  console.warn('[offThreadEmbedding.test] real-ONNX equivalence test SKIPPED — onnxruntime-node/model absent (condition-3 evidence is the reported local run; CI wiring tracked in follow-up)');
+  // it was actually skipped. This vitest case stays skip-guarded for LOCAL use (run with
+  // AI_TRIAD_ONNX_MODEL_DIR set + `lib` built). In CI the equivalence is exercised by the
+  // `embedding-onnx-equivalence` job (t/3198), which runs lib/embeddings/onnx-equivalence-check.mjs
+  // against the BUILT server dist with the fp32 model provisioned — vitest can't spawn the real worker
+  // here (no compiled embeddingWorker.js sibling in the source tree). Keep TEXTS/assertion in sync
+  // with that harness.
+  console.warn('[offThreadEmbedding.test] real-ONNX equivalence test SKIPPED — onnxruntime-node/model absent (local-only path; CI runs it via the embedding-onnx-equivalence job / onnx-equivalence-check.mjs, t/3198)');
 }
 
 describe('offThreadEmbedding — real-ONNX same-EP bit-exact equivalence (condition 3, skip-guarded)', () => {
@@ -282,7 +286,13 @@ describe('offThreadEmbedding — real-ONNX same-EP bit-exact equivalence (condit
     ]);
     expect(offThread).toHaveLength(inThread.length);
     for (let i = 0; i < inThread.length; i++) {
-      expect(Array.from(offThread[i])).toEqual(inThread[i]); // bit-exact — no tolerance (report if it diverges)
+      // Compare at the fp32 boundary: the worker marshals vectors OUT via a Float32Array transfer
+      // buffer (already fp32), while onnx.computeEmbeddings' l2Normalize returns number[] (fp64
+      // doubles). A raw fp32-vs-fp64 compare is off by ~fp32 epsilon BY CONSTRUCTION — a comparison
+      // artifact, not a divergence — so quantize the in-thread side to fp32 (the precision embeddings
+      // are stored/consumed at). Then the contract is genuinely BIT-EXACT (t/3198; CI runs this via
+      // lib/embeddings/onnx-equivalence-check.mjs in the embedding-onnx-equivalence job).
+      expect(Array.from(offThread[i])).toEqual(Array.from(new Float32Array(inThread[i]))); // fp32, bit-exact
     }
   });
 });
