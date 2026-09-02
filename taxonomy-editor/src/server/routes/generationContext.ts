@@ -20,6 +20,7 @@ import { getClientIp } from '../httpKit.js';
 import { callerTierIdentity } from '../security/accessControl.js';
 import { getCurrentUser } from '../security/userContext.js';
 import { isAnonDebatesEnabled } from '../featureFlags.js';
+import { log } from '../logger.js';
 
 export type ResolvedTier = ReturnType<typeof proxyTiers.resolveTier>;
 
@@ -74,6 +75,9 @@ export function enforceAnonDebateGate(res: http.ServerResponse, isFree: boolean,
     message: 'Anonymous debate generation blocked — anon debates disabled (t/3230)',
     data: { tier_level: 'free', debateId: debateId.slice(0, 64), reason: 'anon-debates-disabled' },
   });
+  // TL GV condition (observable): also emit to Pino/stdout so blocks are countable in Log Analytics
+  // (the FR record above lives in the ring buffer only). One line per blocked anon debate.
+  log.api.warn({ component: 'ai-generate', reason: 'anon-debates-disabled', tier_level: 'free', debateId: debateId.slice(0, 64) }, 'anon debate generation blocked (t/3230)');
   res.writeHead(403, { 'Content-Type': 'application/json' });
   res.end(JSON.stringify({
     error: 'Anonymous debates are temporarily disabled. Sign in to run debates.',
