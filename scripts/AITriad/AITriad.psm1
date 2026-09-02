@@ -987,6 +987,8 @@ Export-ModuleMember -Function @(
     'Update-EntityMentionIndex'
     # t/3124 — Claim-side entity grounding: writes entity_refs[] onto summary claims
     'Update-ClaimEntityRef'
+    # t/3215 — FOL Phase 1: formalize claims into neo-Davidsonian logical_form (schema t/3126)
+    'Invoke-LogicalFormPass'
     # t/2196 — Vite dev server diagnostic
     'Get-ViteDevStatus'
     # t/2330 — Debate session state diagnostic
