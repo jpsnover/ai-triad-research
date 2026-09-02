@@ -146,6 +146,11 @@ jobs:
             # change the image — it must trigger the build (t/2094 review, TL2).
             container:
               - 'taxonomy-editor/**'
+              # research/comp-linguist/scripts/** — #1810 COPYs reconcile_grounding.py into the prod
+              # image (t/3213); a reconciler change must re-run test-container so the in-image
+              # --selftest re-verifies it. ci-gate treats a SKIPPED container job as satisfied, so
+              # without this a reconciler regression would skip the build + false-green (t/2094 rule).
+              - 'research/comp-linguist/scripts/**'
               - '.dockerignore'
               - 'lib/**'
               - 'scripts/**'
@@ -973,6 +978,20 @@ jobs:
           push: false
           load: true
           tags: ai-triad-test:ci
+
+      # t/3213 (G8 enable prereq): prove reconcile_grounding.py + numpy are baked into the PROD
+      # IMAGE and runnable THERE (#1810: COPY + apt python3-numpy). test-python's host-side
+      # --selftest (t/3189) proves the reconciler LOGIC; this proves the deployed IMAGE can run it.
+      # Both G8 flags (grounding_reconcile_inline, GROUNDING_SWEEP_ENABLED) execFile this reconciler,
+      # so a missing script / absent numpy in-image = dead-on-arrival (t/3172#4). --selftest is
+      # self-contained (in-file fixtures, no data/model). WORKDIR=/app; override the node entrypoint
+      # to run python3 (base python3 + apt python3-numpy present in the image).
+      - name: Reconciler --selftest INSIDE the prod image (t/3213)
+        env:
+          IMAGE: ai-triad-test:ci
+        run: |
+          docker run --rm --entrypoint python3 "$IMAGE" \
+            research/comp-linguist/scripts/reconcile_grounding.py --selftest
 
       - name: Run container liveness smoke — server starts + answers (t/2048, t/2067)
         timeout-minutes: 8
