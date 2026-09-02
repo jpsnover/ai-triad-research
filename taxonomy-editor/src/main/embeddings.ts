@@ -5,8 +5,10 @@ import fs from 'fs';
 import os from 'os';
 import path from 'path';
 import { execFile, type ExecFileException } from 'child_process';
+import { fileURLToPath } from 'node:url';
+import { Worker as NodeWorker } from 'node:worker_threads';
 import { loadApiKey } from './apiKeyStore.js';
-import { net } from 'electron';
+import { app, net } from 'electron';
 import { PROJECT_ROOT, resolveDataPath } from './fileIO.js';
 import { ActionableError } from '../../../lib/debate/errors.js';
 import { createEmbeddingIO, type EmbeddingsFile } from '../../../lib/electron-shared/embeddingIO.js';
@@ -18,6 +20,12 @@ import {
   dispose as onnxDispose,
 } from '../../../lib/embeddings/onnxEmbedding.js';
 import { resolveEmbeddings, type EmbeddingFallback } from '../../../lib/embeddings/embeddingResolver.js';
+import {
+  computeEmbeddingsOffThread,
+  shutdownEmbeddingWorker,
+  __setEmbeddingWorkerFactory,
+  type EmbeddingWorkerLike,
+} from '../../../lib/embeddings/offThreadEmbedding.js';
 console.log('[embeddings] About to import tavily...');
 import { tavilySearch, buildSearchAugmentedPrompt } from '../../../lib/search/tavily.js';
 import { getGlobalRecorder } from '../../../lib/flight-recorder/index.js';
@@ -66,6 +74,29 @@ function findEmbedScript(): string {
 const EMBED_SCRIPT = findEmbedScript();
 const PYTHON = process.platform === 'win32' ? 'python' : 'python3';
 
+// ---------- Worker-offload flag (EMBEDDING_WORKER_OFFLOAD=1) ----------
+// Default off. When enabled, all embedding compute routes through lib/embeddings/offThreadEmbedding
+// (worker-only chain, no in-thread ONNX, no Gemini API fallback — fail loud per TL GV t/3184#2).
+
+const WORKER_OFFLOAD = process.env.EMBEDDING_WORKER_OFFLOAD === '1';
+
+if (WORKER_OFFLOAD) {
+  // Packaged builds: embeddingWorker.js is listed in asarUnpack → app.asar.unpacked.
+  // Dev builds: tsc emits it to dist/main/lib/embeddings/ relative to this module.
+  // Relative URL ../../../lib/embeddings/embeddingWorker.js from compiled
+  // dist/main/taxonomy-editor/src/main/embeddings.js resolves to dist/main/lib/embeddings/ ✓.
+  __setEmbeddingWorkerFactory((): EmbeddingWorkerLike => {
+    const workerPath = app.isPackaged
+      ? path.join(
+          path.dirname(app.getAppPath()),
+          'app.asar.unpacked',
+          'dist', 'main', 'lib', 'embeddings', 'embeddingWorker.js',
+        )
+      : fileURLToPath(new URL('../../../lib/embeddings/embeddingWorker.js', import.meta.url));
+    return new NodeWorker(workerPath) as unknown as EmbeddingWorkerLike;
+  });
+}
+
 // ---------- Warm-up: ONNX native → Python subprocess fallback ----------
 
 let _warmupDone = false;
@@ -78,6 +109,15 @@ let _onnxReady = false;
 export function warmupEmbeddingModel(): void {
   if (_warmupDone) return;
   _warmupDone = true;
+  if (WORKER_OFFLOAD) {
+    // C2: worker owns the ONNX session exclusively — skip in-thread warmup to avoid
+    // the double ~250MB model footprint. Worker lazily spawns on first compute (t/3184).
+    getGlobalRecorder()?.record({
+      type: 'system.info', component: 'embeddings', level: 'info',
+      message: 'EMBEDDING_WORKER_OFFLOAD active — skipping in-thread ONNX warmup; worker owns the session (t/3184 C2)',
+    });
+    return;
+  }
   console.log('[embeddings] Warming up embedding model (trying ONNX native first)...');
   const t0 = Date.now();
 
@@ -104,12 +144,14 @@ export function warmupEmbeddingModel(): void {
   });
 }
 
-/** Dispose ONNX session on app shutdown. */
+/** Dispose ONNX session (or shut down the embedding worker) on app shutdown. */
 export async function disposeEmbeddingModel(): Promise<void> {
+  if (WORKER_OFFLOAD) { shutdownEmbeddingWorker(); return; }
   if (_onnxReady) await onnxDispose();
 }
 
 export function getEmbeddingInfo(): { backend: string; execution_provider?: string } {
+  if (WORKER_OFFLOAD) return { backend: 'onnx-worker' };
   if (_onnxReady) return { backend: 'onnx', execution_provider: onnxGetEP() };
   if (_warmupDone) return { backend: 'python' };
   return { backend: 'unknown' };
@@ -142,10 +184,24 @@ export async function computeEmbeddings(
 ): Promise<number[][]> {
   const localData = io.loadEmbeddingsFile();
   const chain: EmbeddingFallback[] = [];
-  if (_onnxReady) {
-    chain.push({ name: 'onnx', compute: (t) => onnxComputeEmbeddings(t) });
+  if (WORKER_OFFLOAD) {
+    // Worker-only chain: no Gemini API fallback (t/3184 TL GV Q3 — fail loud, not degrade).
+    // resolveEmbeddings catches compute() errors and falls through to next entry; a single-entry
+    // chain ensures a worker shed propagates as an ActionableError rather than silently
+    // switching to the Gemini API (different embedding space, masks a broken worker).
+    chain.push({
+      name: 'onnx-worker',
+      compute: async (t) => {
+        const vecs = await computeEmbeddingsOffThread(t, { requester: 'computeEmbeddings' });
+        return vecs.map(v => Array.from(v));
+      },
+    });
+  } else {
+    if (_onnxReady) {
+      chain.push({ name: 'onnx', compute: (t) => onnxComputeEmbeddings(t) });
+    }
+    chain.push({ name: 'gemini-api', compute: (t) => computeEmbeddingsViaApi(t) });
   }
-  chain.push({ name: 'gemini-api', compute: (t) => computeEmbeddingsViaApi(t) });
   return resolveEmbeddings(texts, ids, localData, chain);
 }
 
@@ -154,6 +210,11 @@ export async function computeEmbeddings(
  * Priority: ONNX native → Python sentence-transformers → Gemini API.
  */
 export async function computeQueryEmbedding(text: string): Promise<number[]> {
+  if (WORKER_OFFLOAD) {
+    // Worker-only — no in-thread ONNX, no Python, no API fallback (t/3184 TL GV Q3).
+    const [vec] = await computeEmbeddingsOffThread([text], { requester: 'computeQueryEmbedding' });
+    return Array.from(vec);
+  }
   if (_onnxReady) {
     try {
       return await onnxComputeEmbedding(text);
