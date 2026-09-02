@@ -114,6 +114,7 @@ const INDEX_FILE = '_index.json';
 
 function readIndex(): BriefRecord[] {
   try { return JSON.parse(fs.readFileSync(path.join(exportsDir(), INDEX_FILE), 'utf-8')) as BriefRecord[]; }
+  // eslint-disable-next-line local/require-warn-on-degraded-catch-return -- ENOENT on first run is normal new-user state; [] is the correct baseline, not a degraded fallback
   catch { /* no index yet / unreadable → empty list — silent by design (ADR-003) */ return []; }
 }
 function writeIndex(recs: BriefRecord[]): void {
@@ -148,6 +149,7 @@ function listExports(debateId?: string): BriefRecord[] {
 
 function loadArtifact(exportId: string, name: BriefArtifactName): Uint8Array | null {
   const p = path.join(exportDir(exportId), name);
+  // eslint-disable-next-line local/require-warn-on-degraded-catch-return -- ENOENT means the artifact is absent; the IPC handler surfaces 404 to the renderer, so null is the correct route outcome
   try { return fs.readFileSync(p); } catch { /* artifact absent → null (route surfaces not-found) — silent by design (ADR-003) */ return null; }
 }
 

@@ -37,7 +37,7 @@ async function isOnline(): Promise<boolean> {
     const resp = await net.fetch('https://github.com', { method: 'HEAD' });
     return resp.ok || resp.status === 301 || resp.status === 302;
   } catch {
-    /* telemetry — silent by design */
+    /* telemetry — silent by design; returning false is the correct offline signal — caller surfaces { error: 'offline' } to the UI */
     return false;
   }
 }
@@ -111,8 +111,14 @@ export async function getChangedFiles(): Promise<ChangedFileInfo[]> {
       const [status, ...pathParts] = line.split('\t');
       return { path: pathParts.join('\t'), status: status.charAt(0) };
     }).filter(f => !IGNORED_PATH_PREFIXES.some(p => f.path.startsWith(p)));
-  } catch {
-    /* telemetry — silent by design */
+  } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error',
+      component: 'data-update-checker',
+      level: 'warn',
+      message: 'getChangedFiles: git diff failed — returning empty file list (UI will show no pending changes)',
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+    });
     return [];
   }
 }

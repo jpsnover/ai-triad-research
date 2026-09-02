@@ -209,8 +209,14 @@ export function registerTaxonomyHandlers(): void {
       }
 
       return { standardized, colloquial, lintViolations: [] };
-    } catch {
-      /* telemetry — silent by design */
+    } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'ipc-handlers',
+        level: 'warn',
+        message: 'get-conflict-definitions: failed to load conflict definition files — returning empty lists',
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+      });
       return { standardized: [], colloquial: [], lintViolations: [] };
     }
   });
@@ -239,8 +245,14 @@ export function registerTaxonomyHandlers(): void {
         try {
           const data = JSON.parse(fs.readFileSync(path.join(proposalDir, f), 'utf-8'));
           return { filename: f, ...data };
-        } catch {
-          /* telemetry — silent by design */
+        } catch (err) {
+          getGlobalRecorder()?.record({
+            type: 'system.error',
+            component: 'ipc-handlers',
+            level: 'warn',
+            message: `list-proposals: failed to parse proposal file ${f} — returning error entry`,
+            error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+          });
           return { filename: f, error: 'Failed to parse' };
         }
       });
