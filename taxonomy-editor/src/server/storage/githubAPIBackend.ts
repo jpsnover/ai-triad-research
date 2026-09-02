@@ -1302,8 +1302,12 @@ export class GitHubAPIBackend implements StorageBackend {
     const diskPath = path.join(this.cacheDir, repoPath);
     try {
       return await fs.readFile(diskPath, 'utf-8');
-    } catch {
-      /* telemetry — silent by design */
+    } catch (err: unknown) {
+      getGlobalRecorder()?.record({
+        type: 'system.error', component: 'github-api-backend', level: 'warn',
+        message: 'readFromDiskCache: cache file unreadable, returning null (cache miss)',
+        data: { repoPath, diskPath, error: String(err) },
+      });
       return null;
     }
   }

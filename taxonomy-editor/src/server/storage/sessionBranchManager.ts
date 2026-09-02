@@ -554,8 +554,12 @@ export class SessionBranchManager {
         },
       });
       return res.ok;
-    } catch {
-      /* telemetry — silent by design */
+    } catch (err: unknown) {
+      getGlobalRecorder()?.record({
+        type: 'system.error', component: 'session-branch-manager', level: 'warn',
+        message: 'branch existence check failed (network error), treating as absent',
+        data: { url, error: String(err) },
+      });
       return false;
     }
   }

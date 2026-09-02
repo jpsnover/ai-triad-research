@@ -143,8 +143,12 @@ export async function getTaxonomyDirs(): Promise<string[]> {
       }
     }
     return dirs;
-  } catch {
-    /* telemetry — silent by design */
+  } catch (err: unknown) {
+    getGlobalRecorder()?.record({
+      type: 'system.error', component: 'file-io', level: 'warn',
+      message: 'getTaxonomyDirs: listing failed, returning []',
+      data: { error: String(err) },
+    });
     return [];
   }
 }
@@ -695,8 +699,12 @@ export async function readEdgesFile(): Promise<unknown | null> {
     const raw = await backend.readFile(getEdgesPath());
     if (raw === null) return null;
     return JSON.parse(raw);
-  } catch {
-    /* telemetry — silent by design */
+  } catch (err: unknown) {
+    getGlobalRecorder()?.record({
+      type: 'system.error', component: 'file-io', level: 'warn',
+      message: 'readEdgesFile: read/parse failed, returning null',
+      data: { error: String(err) },
+    });
     return null;
   }
 }
@@ -969,8 +977,12 @@ export async function listProposals(): Promise<unknown[]> {
       }
     }
     return proposals;
-  } catch {
-    /* telemetry — silent by design */
+  } catch (err: unknown) {
+    getGlobalRecorder()?.record({
+      type: 'system.error', component: 'file-io', level: 'warn',
+      message: 'listProposals: listing failed, returning []',
+      data: { error: String(err) },
+    });
     return [];
   }
 }
@@ -1397,8 +1409,12 @@ export async function readPsPrompt(promptName: string, dir = 'ps'): Promise<{ te
   const filePath = path.join(promptsDir, `${promptName}.prompt`);
   try {
     return { text: await fs.readFile(filePath, 'utf-8') };
-  } catch {
-    /* telemetry — silent by design */
+  } catch (err: unknown) {
+    getGlobalRecorder()?.record({
+      type: 'system.error', component: 'file-io', level: 'warn',
+      message: `readPsPrompt: prompt file not found or unreadable, returning error result: ${promptName}`,
+      data: { filePath, error: String(err) },
+    });
     return { text: null, error: `Prompt not found: ${promptName}` };
   }
 }
@@ -1410,8 +1426,12 @@ export async function listPsPrompts(): Promise<string[]> {
     return entries
       .filter(f => f.endsWith('.prompt'))
       .map(f => f.replace('.prompt', ''));
-  } catch {
-    /* telemetry — silent by design */
+  } catch (err: unknown) {
+    getGlobalRecorder()?.record({
+      type: 'system.error', component: 'file-io', level: 'warn',
+      message: 'listPsPrompts: directory listing failed, returning []',
+      data: { promptsDir, error: String(err) },
+    });
     return [];
   }
 }
@@ -1422,8 +1442,12 @@ export async function loadAIModels(): Promise<unknown> {
   const configPath = path.join(getProjectRoot(), 'ai-models.json');
   try {
     return JSON.parse(await fs.readFile(configPath, 'utf-8'));
-  } catch {
-    /* telemetry — silent by design */
+  } catch (err: unknown) {
+    getGlobalRecorder()?.record({
+      type: 'system.error', component: 'file-io', level: 'warn',
+      message: 'loadAIModels: failed to load ai-models.json, returning empty config',
+      data: { configPath, error: String(err) },
+    });
     return { backends: [], models: [], defaults: {} };
   }
 }
