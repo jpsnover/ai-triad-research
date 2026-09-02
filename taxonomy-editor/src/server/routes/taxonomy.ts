@@ -44,7 +44,9 @@ async function getSyntheticEmbeddingsBuffer(): Promise<Buffer> {
     // Warm hit — the serialize is skipped entirely (cached Buffer). Emit serialize_ms:0 so the deploy's
     // self-proof (serialize_ms cold-once → warm≈0, t/3165) is greppable on EVERY synth GET, not only the
     // single cold build — independent of which request first warmed the cache. cache:'hit' vs 'cold'.
-    log.api.info({ component: 'synthetic-embeddings', cache: 'hit', serialize_ms: 0, bytes: _synthEmbeddingsBuffer.length }, 'synthetic-embeddings served from cache (warm)');
+    // t/3246: component is the established 'api' (a landing set proven to reach Log Analytics), with the
+    // route identity in a `route` field — the earlier novel component:'synthetic-embeddings' was invisible.
+    log.api.info({ component: 'api', route: 'synthetic-embeddings', cache: 'hit', serialize_ms: 0, bytes: _synthEmbeddingsBuffer.length }, 'synthetic-embeddings served from cache (warm)');
     return _synthEmbeddingsBuffer;
   }
   if (_synthEmbeddingsInFlight) return _synthEmbeddingsInFlight; // promise-dedupe: one cold build for a burst
@@ -64,7 +66,7 @@ async function getSyntheticEmbeddingsBuffer(): Promise<Buffer> {
     // t/3165 phase-timing (cold path only) → the next real synth GET proves load_ms vs serialize_ms +
     // heap; on a warm hit this line never runs (serve is near-zero) = the fix's self-proof.
     log.api.info({
-      component: 'synthetic-embeddings', cache: 'cold', load_ms: loadMs, serialize_ms: serializeMs, bytes: buffer.length,
+      component: 'api', route: 'synthetic-embeddings', cache: 'cold', load_ms: loadMs, serialize_ms: serializeMs, bytes: buffer.length,
       node_count: data ? Object.keys(data).length : 0,
       heap_before: heapBefore, heap_after: process.memoryUsage().heapUsed,
     }, 'synthetic-embeddings built + serialized + cached (cold path)');
@@ -93,6 +95,11 @@ export function registerTaxonomyRoutes(r: Router, ctx: ServerCtx): void {
   // ── Synthetic corpus (must precede the :pov wildcard) ──
 
   get('/api/taxonomy/synthetic-embeddings', async (_req, res) => {
+    // t/3246: unconditional handler-entry marker (established component 'api', token-clean fields) — the
+    // getter's warm/cold serialize_ms lines weren't reaching Log Analytics; if THIS line also never lands
+    // post-deploy, the deployed bundle ≠ source (build/artifact issue), if it lands but the getter lines
+    // don't, the branch logs are the problem. Pinned via the next redeploy-from-main (TL p/522).
+    log.api.info({ component: 'api', route: 'synthetic-embeddings', phase: 'entry' }, 'synthetic-embeddings handler entry');
     try {
       // t/3165: serve the serialize-once cached Buffer (near-free on a hit). The cold path builds +
       // chunk-yield-serializes once, promise-deduped for concurrent cold callers. See the cache-
@@ -100,6 +107,10 @@ export function registerTaxonomyRoutes(r: Router, ctx: ServerCtx): void {
       const buffer = await getSyntheticEmbeddingsBuffer();
       sendJsonBuffer(res, buffer);
     } catch (err) {
+      // t/3246 (Fallback-Path Logging, docs/error-handling.md): a synth-corpus load failure previously
+      // recorded ONLY to the FR ring — invisible on stdout/Log Analytics. Emit an error line too so the
+      // degraded path (500 to the caller) is greppable. No secrets in a corpus load error.
+      log.api.error({ component: 'api', route: 'synthetic-embeddings', err: String(err) }, 'synthetic-embeddings load failed');
       getGlobalRecorder()?.record({
         type: 'system.error',
         component: 'server',
