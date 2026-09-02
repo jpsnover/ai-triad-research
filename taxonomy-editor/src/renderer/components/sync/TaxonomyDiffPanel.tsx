@@ -103,7 +103,7 @@ async function fetchNodeDiff(): Promise<NodeDiffResponse | null> {
     getGlobalRecorder()?.record({
       type: 'system.error',
       component: 'taxonomy-diff-panel',
-      level: 'debug',
+      level: 'warn',
       message: 'Node-level diff unavailable',
       error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
     });
