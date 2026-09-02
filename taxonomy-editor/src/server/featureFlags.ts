@@ -205,8 +205,9 @@ function currentFlagsHash(): string {
     const fd = fs.openSync(flagsPath(), 'r');
     try { return crypto.createHash('sha256').update(fs.readFileSync(fd)).digest('hex'); }
     finally { fs.closeSync(fd); }
+    // eslint-disable-next-line local/require-warn-on-degraded-catch-return -- ENOENT is the expected no-flags-file baseline (→ '' hash), not a degradation; all other errors re-throw
   } catch (err) {
-    // ENOENT (no flags file yet) → '' hash; any other error re-throws to the recording caller. telemetry — silent by design for the ENOENT path.
+    /* telemetry — silent by design: only ENOENT returns the '' baseline (expected, not an error); every other error re-throws to the recording caller */
     if ((err as NodeJS.ErrnoException).code === 'ENOENT') return '';
     throw err;
   }
@@ -221,8 +222,9 @@ function readFreshFlags(): { config: FlagsConfig; hash: string } {
       const data = JSON.parse(buf.toString('utf-8')) as Partial<FlagsConfig>;
       return { config: { flags: { ...SEED_FLAGS, ...(data.flags ?? {}) } }, hash: crypto.createHash('sha256').update(buf).digest('hex') };
     } finally { fs.closeSync(fd); }
+    // eslint-disable-next-line local/require-warn-on-degraded-catch-return -- ENOENT is the expected no-flags-file baseline (→ seed flags), not a degradation; all other errors re-throw
   } catch (err) {
-    // ENOENT (no flags file yet) → seed baseline; any other error re-throws to the recording caller. telemetry — silent by design for the ENOENT path.
+    /* telemetry — silent by design: only ENOENT returns the seed baseline (expected, not an error); every other error re-throws to the recording caller */
     if ((err as NodeJS.ErrnoException).code === 'ENOENT') return { config: { flags: { ...SEED_FLAGS } }, hash: '' };
     throw err;
   }
