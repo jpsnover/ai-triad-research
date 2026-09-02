@@ -195,34 +195,12 @@ function Update-EntityMentionIndex {
         }
     }
 
-    # --- Grounding write-lock (t/3203) ----------------------------------------------------
-    # entity_mentions.json is a SHARED read-merge-write with CL's reconcile_grounding.py (which
-    # owns node:*). Serialize the read→merge→write below against it via the same advisory lockfile
-    # + mtime-staleness rule the Python side honors (TL contract t/3163#1 / t/3194). The heavy
-    # entities.json alias-table load above is intentionally OUTSIDE the lock; the source-file
-    # container collection stays inside because the existing-index read (the lost-update surface)
-    # must be under the lock and precedes it here.
-    $LockPath = Join-Path (Split-Path -Parent $OutPath) 'entity_mentions.lock'
-    $LockHandle = Enter-GroundingLock -LockPath $LockPath
-    try {
-
-    # --- Existing index (for human-mention preservation + idempotency) ---------------------
-    $ExistingById = @{}
-    $ExistingLastModified = $null
-    if (Test-Path -LiteralPath $OutPath) {
-        try {
-            $prior = Get-Content -Raw -LiteralPath $OutPath -Encoding utf8 | ConvertFrom-Json
-            if ($prior.PSObject.Properties['last_modified']) { $ExistingLastModified = [string]$prior.last_modified }
-            if ($prior.PSObject.Properties['containers'] -and $prior.containers) {
-                foreach ($p in $prior.containers.PSObject.Properties) { $ExistingById[$p.Name] = $p.Value }
-            }
-        }
-        catch {
-            Write-Verbose "Existing $OutPath unreadable ($($_.Exception.Message)); rebuilding from scratch."
-        }
-    }
-
-    # --- Collect containers: id -> exact analyzed text ------------------------------------
+    # --- Collect source containers: id -> exact analyzed text (READ-ONLY SCAN) -------------
+    # t/3163: this scan reads only source-of-record files (SEI facts + summary key-points/claims)
+    # and is INDEPENDENT of the shared entity_mentions.json, so it runs OUTSIDE the grounding lock.
+    # It measured ~288s over the real corpus; holding the lock across it was unsafe — >2x the 120s
+    # mtime-stale-break, so a concurrent reconciler could break the "stale" lock mid-scan → both
+    # write → lost update (TL t/3163). Only the existing-read + merge + write below is serialized.
     $Containers = [ordered]@{}   # insertion order irrelevant; sorted before write
 
     if (Test-Path -LiteralPath $SeiPath) {
@@ -292,20 +270,80 @@ function Update-EntityMentionIndex {
         }
     }
 
+    # --- Per-container alias scan (READ-ONLY) — computed OUTSIDE the lock (t/3163) ----------
+    # The ~296s cost is HERE, not the collection I/O: for each container, its NFC text sha256 plus
+    # the fresh alias-candidate hits over the alias table. Both inputs ($Containers + $AliasEntries)
+    # are source-derived and independent of the shared entity_mentions.json, so this whole build runs
+    # OUTSIDE the grounding lock (TL t/3163 GV: read-only w.r.t. the lost-update surface). The
+    # ExistingById-dependent merge (human-mention preservation, extracted_at reuse) stays INSIDE the
+    # lock and merges these candidates against the FRESH in-lock read (GV guardrail 1).
+    $ScanByCid = [ordered]@{}
+    foreach ($cid in ($Containers.Keys | Sort-Object)) {
+        # $nfc IS the "exact analyzed text" — already NFC-canonical from Get-MentionContainerText.
+        # text_sha256 pins it; offset/quote index into it. $lower mirrors D1's ToLowerInvariant for
+        # matching; for the Latin corpus lowercasing is length-preserving, so match offsets align 1:1
+        # with $nfc and quote is sliced from $nfc to preserve original casing.
+        $nfc = [string]$Containers[$cid]
+        $lower = $nfc.ToLowerInvariant()
+        $sha = Get-TextSha256 -Text $nfc
+        $sliceable = ($nfc.Length -eq $lower.Length)
+        $candidates = [System.Collections.Generic.List[object]]::new()
+        foreach ($ae in $AliasEntries) {
+            foreach ($mt in $ae.Regex.Matches($lower)) {
+                $quote = if ($sliceable) { $nfc.Substring($mt.Index, $mt.Length) } else { $mt.Value }
+                $candidates.Add([PSCustomObject]@{
+                        Offset = $mt.Index; Length = $mt.Length; Quote = $quote
+                        EntityRef = $ae.EntityRef; By = 'alias'
+                    })
+            }
+        }
+        $ScanByCid[$cid] = [PSCustomObject]@{ Nfc = $nfc; Sha = $sha; Candidates = $candidates }
+    }
+
+    # --- Grounding write-lock (t/3203 / t/3163) -------------------------------------------
+    # entity_mentions.json is a SHARED read-merge-write with CL's reconcile_grounding.py (which
+    # owns node:*). ONLY the existing-index read + merge + write below is serialized under the
+    # advisory lockfile + mtime-staleness rule (TL contract t/3163#1 / t/3194) — that read is the
+    # lost-update surface and MUST stay under the lock. The heavy entities.json alias load and the
+    # read-only source-container scan above both run OUTSIDE the lock (t/3163: the in-lock scan
+    # measured ~288s, >2x the 120s stale-break, and a peer breaking the "stale" lock mid-scan would
+    # corrupt the file). See GroundingLock (Enter/Exit-GroundingLock).
+    $LockPath = Join-Path (Split-Path -Parent $OutPath) 'entity_mentions.lock'
+    $LockHandle = Enter-GroundingLock -LockPath $LockPath
+    # Lock-hold telemetry (t/3163): the released hold time must stay well under the 120s stale-break.
+    $LockHeld = [System.Diagnostics.Stopwatch]::StartNew()
+    try {
+
+    # --- Existing index (for human-mention preservation + idempotency) --------------------
+    # THE LOST-UPDATE SURFACE: this read of the shared entity_mentions.json must stay INSIDE the
+    # lock so no peer write lands between it and the merge+write below (t/3163 GV condition 1).
+    $ExistingById = @{}
+    $ExistingLastModified = $null
+    if (Test-Path -LiteralPath $OutPath) {
+        try {
+            $prior = Get-Content -Raw -LiteralPath $OutPath -Encoding utf8 | ConvertFrom-Json
+            if ($prior.PSObject.Properties['last_modified']) { $ExistingLastModified = [string]$prior.last_modified }
+            if ($prior.PSObject.Properties['containers'] -and $prior.containers) {
+                foreach ($p in $prior.containers.PSObject.Properties) { $ExistingById[$p.Name] = $p.Value }
+            }
+        }
+        catch {
+            Write-Verbose "Existing $OutPath unreadable ($($_.Exception.Message)); rebuilding from scratch."
+        }
+    }
+
     # --- Scan each container; build canonical container records ---------------------------
     $NewContainers = [ordered]@{}
     $TotalMentions = 0
     $AnyContentChanged = $false
 
-    foreach ($cid in ($Containers.Keys | Sort-Object)) {
-        # $nfc IS the "exact analyzed text" — already NFC-canonical from Get-MentionContainerText
-        # (contract step: reconstruct then NFC the whole). text_sha256 pins it; offset/quote index
-        # into it. $lower mirrors D1's ToLowerInvariant for matching; for the Latin corpus
-        # lowercasing is length-preserving, so match offsets align 1:1 with $nfc and quote is
-        # sliced from $nfc to preserve original casing.
-        $nfc = [string]$Containers[$cid]
-        $lower = $nfc.ToLowerInvariant()
-        $sha = Get-TextSha256 -Text $nfc
+    foreach ($cid in $ScanByCid.Keys) {   # already key-sorted at build time (outside the lock)
+        # Consume the OUTSIDE-lock scan: NFC text + sha256 + fresh alias candidates (t/3163). The
+        # merge below runs against the FRESH in-lock ExistingById read (GV guardrail 1), so a
+        # concurrent reconciler node:* write is still preserved and the sha unchanged-check (guardrail
+        # 2) compares this source-derived $sha against the current file's text_sha256.
+        $scan = $ScanByCid[$cid]
+        $sha = $scan.Sha
 
         # Preserve human mentions only when the container text is unchanged (else supersede).
         $accepted = [System.Collections.Generic.List[object]]::new()   # {Offset,Length,Quote,EntityRef,By}
@@ -332,18 +370,8 @@ function Update-EntityMentionIndex {
             }
         }
 
-        # Candidate alias hits.
-        $candidates = [System.Collections.Generic.List[object]]::new()
-        $sliceable = ($nfc.Length -eq $lower.Length)
-        foreach ($ae in $AliasEntries) {
-            foreach ($mt in $ae.Regex.Matches($lower)) {
-                $quote = if ($sliceable) { $nfc.Substring($mt.Index, $mt.Length) } else { $mt.Value }
-                $candidates.Add([PSCustomObject]@{
-                        Offset = $mt.Index; Length = $mt.Length; Quote = $quote
-                        EntityRef = $ae.EntityRef; By = 'alias'
-                    })
-            }
-        }
+        # Candidate alias hits — precomputed OUTSIDE the lock (t/3163).
+        $candidates = $scan.Candidates
 
         # Longest-most-specific overlap resolution; human intervals (seeded) win.
         $ordered = @($candidates | Sort-Object -Property @{Expression = 'Length'; Descending = $true },
@@ -485,6 +513,9 @@ function Update-EntityMentionIndex {
     }
     finally {
         # t/3203: always release the grounding lock (even on an early return or a write error).
+        # t/3163: stop the hold timer BEFORE releasing so the emitted number is the true hold time.
+        $LockHeld.Stop()
         Exit-GroundingLock -Handle $LockHandle -LockPath $LockPath
+        Write-Verbose ("Grounding lock held {0:N1}s (t/3163: read-only source scan runs outside the lock; must stay < the 120s stale-break)." -f $LockHeld.Elapsed.TotalSeconds)
     }
 }
