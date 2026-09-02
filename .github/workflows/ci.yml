@@ -146,6 +146,11 @@ jobs:
             # change the image — it must trigger the build (t/2094 review, TL2).
             container:
               - 'taxonomy-editor/**'
+              # research/comp-linguist/scripts/** — the grounding reconciler is COPYd into
+              # the prod image (Dockerfile, Rosetta #1810). Per the t/2094 paths-filter
+              # soundness rule, every Dockerfile COPY input must gate test-container, or a
+              # reconciler-only change false-greens a SKIPPED container job.
+              - 'research/comp-linguist/scripts/**'
               - '.dockerignore'
               - 'lib/**'
               - 'scripts/**'
@@ -973,6 +978,18 @@ jobs:
           push: false
           load: true
           tags: ai-triad-test:ci
+
+      - name: Reconciler --selftest INSIDE the prod image (t/3213)
+        # Proves reconcile_grounding.py + its numpy dep are actually present and
+        # runnable IN the shipped image (Rosetta #1810 COPYs them in). The host-side
+        # selftest (test-python, t/3189) proves the source contract; this proves the
+        # image bakes it. G8-enable prereq — without this the reconciler could be
+        # dead-on-arrival in prod (t/3172#4) and no gate would catch it.
+        env:
+          IMAGE: ai-triad-test:ci
+        run: |
+          docker run --rm --entrypoint python3 "$IMAGE" \
+            research/comp-linguist/scripts/reconcile_grounding.py --selftest
 
       - name: Run container liveness smoke — server starts + answers (t/2048, t/2067)
         timeout-minutes: 8
