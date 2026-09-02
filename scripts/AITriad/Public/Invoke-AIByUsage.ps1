@@ -82,7 +82,11 @@ function Invoke-AIByUsage {
 
         [string]$ApiKey = '',
 
-        [string[]]$FallbackModels
+        [string[]]$FallbackModels,
+
+        # t/3242 — AI Call Log Scenario tag (e.g. Debate / Chat / Fact Check / Logical Form).
+        # Defaults to the UsageId when unset so the logged Scenario is never blank.
+        [string]$Scenario = ''
     )
 
     Set-StrictMode -Version Latest
@@ -167,6 +171,23 @@ function Invoke-AIByUsage {
     }
 
     Write-Verbose "Invoke-AIByUsage: UsageID='$UsageId' → Model='$($invokeParams.Model)' Temp=$($invokeParams['Temperature']) MaxTokens=$($invokeParams['MaxTokens'])"
+
+    # t/3242 — AI Call Log: inject a logger scriptblock (IoC, TL ruling t/3242#2). Invoke-AIApi lives
+    # in a SEPARATE module (AIEnrich) and invokes this via `& $CallLogger`; a cross-module `&` runs the
+    # block in the CALLER's scope, so the AITriad-private Write-AICallLogEntry is NOT resolvable by name
+    # there. Instead capture the COMMAND OBJECT here (resolvable in-module) and invoke it — robust to
+    # the scope the block runs in. GetNewClosure bakes in the command + UsageId/Scenario/prompt;
+    # Invoke-AIApi supplies RetryCount + Status. The writer no-ops when the flag is off (zero overhead).
+    $logScenario    = if ($Scenario) { $Scenario } else { $UsageId }
+    $logPromptStart = $userMessage
+    $writeLogCmd    = Get-Command -Name 'Write-AICallLogEntry' -ErrorAction SilentlyContinue
+    if ($writeLogCmd) {
+        $invokeParams['CallLogger'] = {
+            param($RetryCount, $Status)
+            & $writeLogCmd -Scenario $logScenario -PromptID $UsageId `
+                -PromptStart $logPromptStart -RetryCount $RetryCount -Status $Status
+        }.GetNewClosure()
+    }
 
     return (Invoke-AIApi @invokeParams)
 }
