@@ -1,0 +1,59 @@
+{
+  "ticket": "t/3144",
+  "step": 2,
+  "model": "gemini-3.5-flash-lite",
+  "temperature": 0.2,
+  "seed": 3144,
+  "passes": 3,
+  "min_never_resolved": 0.5,
+  "n_debates": 12,
+  "n_cruxes": 47,
+  "arm_A_shipped_distribution": {
+    "partially_addressed": 15,
+    "addressed": 30,
+    "unaddressed": 2
+  },
+  "DECISIVE_undecidable_usage_in_B_per_pass": [
+    0,
+    0,
+    0
+  ],
+  "grammar_absorption_Aprime_to_B_pass0": {
+    "addressed": {
+      "partially_addressed": 5,
+      "addressed": 22
+    },
+    "partially_addressed": {
+      "unaddressed": 2,
+      "partially_addressed": 9,
+      "addressed": 2
+    },
+    "unaddressed": {
+      "unaddressed": 4,
+      "partially_addressed": 2
+    },
+    "undecidable": {}
+  },
+  "crux_addressed_rate": {
+    "A_shipped_labels": 0.6383,
+    "Aprime_3opt_mean": 0.5574,
+    "Aprime_per_pass": [
+      0.587,
+      0.5319,
+      0.5532
+    ],
+    "B_4opt_mean": 0.4965,
+    "B_per_pass": [
+      0.5319,
+      0.4894,
+      0.4681
+    ],
+    "GRAMMAR_effect_Aprime_minus_B": 0.0609,
+    "reclassification_effect_shipped_minus_Aprime": 0.0809,
+    "reclass_run_instability_sd": {
+      "Aprime": 0.0278,
+      "B": 0.0325
+    }
+  },
+  "interpretation": "GRAMMAR_effect isolates the +undecidable option (A' vs B, identical prompt); reclassification_effect is the confound (shipped full-eval vs classification-only re-run). If undecidable usage ~0 and GRAMMAR_effect ~0, the missing option does NOT distort crux_addressed_rate — the t/3097 artifact hypothesis is not supported for this model, and any shipped-vs-reclassified gap is re-run noise, not grammar."
+}

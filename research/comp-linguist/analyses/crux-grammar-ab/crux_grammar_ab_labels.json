@@ -1,0 +1,458 @@
+{
+  "passes_A": [
+    {
+      "1418ee11-5641-4033-a400-c26c9f5e4f45": {
+        "crux-1": "partially_addressed",
+        "crux-2": "unaddressed",
+        "crux-3": "addressed",
+        "crux-4": "unaddressed",
+        "crux-5": "unaddressed",
+        "crux-6": "unaddressed",
+        "crux-7": "partially_addressed"
+      },
+      "4bb43eb9-295b-45a1-9ba8-27c728dd8c9a": {
+        "crux-1": "addressed",
+        "crux-2": "partially_addressed",
+        "crux-3": "addressed",
+        "crux-4": "partially_addressed",
+        "crux-5": "unaddressed",
+        "crux-6": "partially_addressed",
+        "crux-7": "addressed"
+      },
+      "5651af16-687f-4315-a6f6-c759eaa84865": {
+        "crux-1": "partially_addressed",
+        "crux-2": "partially_addressed",
+        "crux-3": "addressed"
+      },
+      "5663d315-ab39-4156-a631-4817abb5a4bd": {
+        "crux-1": "partially_addressed",
+        "crux-2": "addressed",
+        "crux-3": "addressed",
+        "crux-4": "addressed"
+      },
+      "5990c8c2-8798-415b-89da-0c8de630adf0": {
+        "crux-1": "partially_addressed",
+        "crux-2": "addressed"
+      },
+      "61424059-3ebf-4c10-9f08-48cfe593546b": {
+        "crux-1": "addressed",
+        "crux-2": "addressed",
+        "crux-3": "addressed",
+        "crux-4s": "partially_addressed"
+      },
+      "68739781-1a15-44ef-8771-ce5f88bbce92": {
+        "crux-1": "addressed",
+        "crux-2": "partially_addressed",
+        "crux-3": "addressed",
+        "crux-4": "addressed",
+        "crux-5": "addressed",
+        "crux-6": "unaddressed"
+      },
+      "835bff57-5a78-454e-b263-2e51fc3e1832": {
+        "crux-1": "addressed",
+        "crux-2": "addressed"
+      },
+      "a0eaaca9-3732-43f6-b386-44d049c065d1": {
+        "crux-1": "addressed",
+        "crux-2": "addressed",
+        "crux-3": "addressed",
+        "crux-4": "addressed",
+        "crux-5": "partially_addressed"
+      },
+      "aac6f142-8662-401e-b48c-9d0f9e84cc46": {
+        "crux-1": "addressed",
+        "crux-2": "addressed"
+      },
+      "f8e651ef-5e80-4ea8-9434-7e9158fa5c7f": {
+        "crux-1": "addressed",
+        "crux-2": "partially_addressed",
+        "crux-3": "addressed"
+      },
+      "f9c54c70-dfc3-4255-b125-0c49da39c519": {
+        "crux-1": "partially_addressed",
+        "crux-2": "addressed"
+      }
+    },
+    {
+      "1418ee11-5641-4033-a400-c26c9f5e4f45": {
+        "crux-1": "unaddressed",
+        "crux-2": "unaddressed",
+        "crux-3": "addressed",
+        "crux-4": "unaddressed",
+        "crux-5": "unaddressed",
+        "crux-6": "unaddressed",
+        "crux-7": "partially_addressed"
+      },
+      "4bb43eb9-295b-45a1-9ba8-27c728dd8c9a": {
+        "crux-1": "addressed",
+        "crux-2": "partially_addressed",
+        "crux-3": "partially_addressed",
+        "crux-4": "addressed",
+        "crux-5": "unaddressed",
+        "crux-6": "addressed",
+        "crux-7": "addressed"
+      },
+      "5651af16-687f-4315-a6f6-c759eaa84865": {
+        "crux-1": "partially_addressed",
+        "crux-2": "partially_addressed",
+        "crux-3": "partially_addressed"
+      },
+      "5663d315-ab39-4156-a631-4817abb5a4bd": {
+        "crux-1": "partially_addressed",
+        "crux-2": "addressed",
+        "crux-3": "addressed",
+        "crux-4": "addressed"
+      },
+      "5990c8c2-8798-415b-89da-0c8de630adf0": {
+        "crux-1": "partially_addressed",
+        "crux-2": "addressed"
+      },
+      "61424059-3ebf-4c10-9f08-48cfe593546b": {
+        "crux-1": "addressed",
+        "crux-2": "addressed",
+        "crux-3": "addressed",
+        "crux-4": "addressed"
+      },
+      "68739781-1a15-44ef-8771-ce5f88bbce92": {
+        "crux-1": "addressed",
+        "crux-2": "partially_addressed",
+        "crux-3": "addressed",
+        "crux-4": "addressed",
+        "crux-5": "addressed",
+        "crux-6": "unaddressed"
+      },
+      "835bff57-5a78-454e-b263-2e51fc3e1832": {
+        "crux-1": "partially_addressed",
+        "crux-2": "addressed"
+      },
+      "a0eaaca9-3732-43f6-b386-44d049c065d1": {
+        "crux-1": "addressed",
+        "crux-2": "addressed",
+        "crux-3": "addressed",
+        "crux-4": "partially_addressed",
+        "crux-5": "partially_addressed"
+      },
+      "aac6f142-8662-401e-b48c-9d0f9e84cc46": {
+        "crux-1": "addressed",
+        "crux-2": "addressed"
+      },
+      "f8e651ef-5e80-4ea8-9434-7e9158fa5c7f": {
+        "crux-1": "partially_addressed",
+        "crux-2": "addressed",
+        "crux-3": "addressed"
+      },
+      "f9c54c70-dfc3-4255-b125-0c49da39c519": {
+        "crux-1": "partially_addressed",
+        "crux-2": "partially_addressed"
+      }
+    },
+    {
+      "1418ee11-5641-4033-a400-c26c9f5e4f45": {
+        "crux-1": "unaddressed",
+        "crux-2": "unaddressed",
+        "crux-3": "partially_addressed",
+        "crux-4": "unaddressed",
+        "crux-5": "unaddressed",
+        "crux-6": "unaddressed",
+        "crux-7": "partially_addressed"
+      },
+      "4bb43eb9-295b-45a1-9ba8-27c728dd8c9a": {
+        "crux-1": "addressed",
+        "crux-2": "partially_addressed",
+        "crux-3": "addressed",
+        "crux-4": "partially_addressed",
+        "crux-5": "unaddressed",
+        "crux-6": "addressed",
+        "crux-7": "addressed"
+      },
+      "5651af16-687f-4315-a6f6-c759eaa84865": {
+        "crux-1": "addressed",
+        "crux-2": "partially_addressed",
+        "crux-3": "partially_addressed"
+      },
+      "5663d315-ab39-4156-a631-4817abb5a4bd": {
+        "crux-1": "partially_addressed",
+        "crux-2": "addressed",
+        "crux-3": "addressed",
+        "crux-4": "addressed"
+      },
+      "5990c8c2-8798-415b-89da-0c8de630adf0": {
+        "crux-1": "partially_addressed",
+        "crux-2": "addressed"
+      },
+      "61424059-3ebf-4c10-9f08-48cfe593546b": {
+        "crux-1": "addressed",
+        "crux-2": "addressed",
+        "crux-3": "addressed",
+        "crux-4": "addressed"
+      },
+      "68739781-1a15-44ef-8771-ce5f88bbce92": {
+        "crux-1": "addressed",
+        "crux-2": "partially_addressed",
+        "crux-3": "addressed",
+        "crux-4": "addressed",
+        "crux-5": "addressed",
+        "crux-6": "unaddressed"
+      },
+      "835bff57-5a78-454e-b263-2e51fc3e1832": {
+        "crux-1": "addressed",
+        "crux-2": "addressed"
+      },
+      "a0eaaca9-3732-43f6-b386-44d049c065d1": {
+        "crux-1": "addressed",
+        "crux-2": "addressed",
+        "crux-3": "addressed",
+        "crux-4": "partially_addressed",
+        "crux-5": "partially_addressed"
+      },
+      "aac6f142-8662-401e-b48c-9d0f9e84cc46": {
+        "crux-1": "addressed",
+        "crux-2": "addressed"
+      },
+      "f8e651ef-5e80-4ea8-9434-7e9158fa5c7f": {
+        "crux-1": "partially_addressed",
+        "crux-2": "partially_addressed",
+        "crux-3": "addressed"
+      },
+      "f9c54c70-dfc3-4255-b125-0c49da39c519": {
+        "crux-1": "partially_addressed",
+        "crux-2": "addressed"
+      }
+    }
+  ],
+  "passes_B": [
+    {
+      "1418ee11-5641-4033-a400-c26c9f5e4f45": {
+        "crux-1": "unaddressed",
+        "crux-2": "unaddressed",
+        "crux-3": "partially_addressed",
+        "crux-4": "unaddressed",
+        "crux-5": "partially_addressed",
+        "crux-6": "unaddressed",
+        "crux-7": "partially_addressed"
+      },
+      "4bb43eb9-295b-45a1-9ba8-27c728dd8c9a": {
+        "crux-1": "addressed",
+        "crux-2": "partially_addressed",
+        "crux-3": "partially_addressed",
+        "crux-4": "partially_addressed",
+        "crux-5": "partially_addressed",
+        "crux-6": "partially_addressed",
+        "crux-7": "addressed"
+      },
+      "5651af16-687f-4315-a6f6-c759eaa84865": {
+        "crux-1": "addressed",
+        "crux-2": "partially_addressed",
+        "crux-3": "addressed"
+      },
+      "5663d315-ab39-4156-a631-4817abb5a4bd": {
+        "crux-1": "partially_addressed",
+        "crux-2": "addressed",
+        "crux-3": "addressed",
+        "crux-4": "addressed"
+      },
+      "5990c8c2-8798-415b-89da-0c8de630adf0": {
+        "crux-1": "unaddressed",
+        "crux-2": "addressed"
+      },
+      "61424059-3ebf-4c10-9f08-48cfe593546b": {
+        "crux-1": "partially_addressed",
+        "crux-2": "addressed",
+        "crux-3": "addressed",
+        "crux-4": "addressed"
+      },
+      "68739781-1a15-44ef-8771-ce5f88bbce92": {
+        "crux-1": "addressed",
+        "crux-2": "partially_addressed",
+        "crux-3": "addressed",
+        "crux-4": "partially_addressed",
+        "crux-5": "addressed",
+        "crux-6": "unaddressed"
+      },
+      "835bff57-5a78-454e-b263-2e51fc3e1832": {
+        "crux-1": "addressed",
+        "crux-2": "addressed"
+      },
+      "a0eaaca9-3732-43f6-b386-44d049c065d1": {
+        "crux-1": "addressed",
+        "crux-2": "addressed",
+        "crux-3": "addressed",
+        "crux-4": "addressed",
+        "crux-5": "addressed"
+      },
+      "aac6f142-8662-401e-b48c-9d0f9e84cc46": {
+        "crux-1": "addressed",
+        "crux-2": "addressed"
+      },
+      "f8e651ef-5e80-4ea8-9434-7e9158fa5c7f": {
+        "crux-1": "addressed",
+        "crux-2": "partially_addressed",
+        "crux-3": "addressed"
+      },
+      "f9c54c70-dfc3-4255-b125-0c49da39c519": {
+        "crux-1": "partially_addressed",
+        "crux-2": "partially_addressed"
+      }
+    },
+    {
+      "1418ee11-5641-4033-a400-c26c9f5e4f45": {
+        "crux-1": "unaddressed",
+        "crux-2": "unaddressed",
+        "crux-3": "partially_addressed",
+        "crux-4": "unaddressed",
+        "crux-5": "unaddressed",
+        "crux-6": "unaddressed",
+        "crux-7": "partially_addressed"
+      },
+      "4bb43eb9-295b-45a1-9ba8-27c728dd8c9a": {
+        "crux-1": "addressed",
+        "crux-2": "addressed",
+        "crux-3": "partially_addressed",
+        "crux-4": "partially_addressed",
+        "crux-5": "unaddressed",
+        "crux-6": "partially_addressed",
+        "crux-7": "addressed"
+      },
+      "5651af16-687f-4315-a6f6-c759eaa84865": {
+        "crux-1": "addressed",
+        "crux-2": "partially_addressed",
+        "crux-3": "addressed"
+      },
+      "5663d315-ab39-4156-a631-4817abb5a4bd": {
+        "crux-1": "partially_addressed",
+        "crux-2": "addressed",
+        "crux-3": "addressed",
+        "crux-4": "addressed"
+      },
+      "5990c8c2-8798-415b-89da-0c8de630adf0": {
+        "crux-1": "unaddressed",
+        "crux-2": "addressed"
+      },
+      "61424059-3ebf-4c10-9f08-48cfe593546b": {
+        "crux-1": "addressed",
+        "crux-2": "addressed",
+        "crux-3": "addressed",
+        "crux-4": "addressed"
+      },
+      "68739781-1a15-44ef-8771-ce5f88bbce92": {
+        "crux-1": "addressed",
+        "crux-2": "unaddressed",
+        "crux-3": "addressed",
+        "crux-4": "addressed",
+        "crux-5": "partially_addressed",
+        "crux-6": "unaddressed"
+      },
+      "835bff57-5a78-454e-b263-2e51fc3e1832": {
+        "crux-1": "addressed",
+        "crux-2": "partially_addressed"
+      },
+      "a0eaaca9-3732-43f6-b386-44d049c065d1": {
+        "crux-1": "addressed",
+        "crux-2": "addressed",
+        "crux-3": "addressed",
+        "crux-4": "partially_addressed",
+        "crux-5": "partially_addressed"
+      },
+      "aac6f142-8662-401e-b48c-9d0f9e84cc46": {
+        "crux-1": "addressed",
+        "crux-2": "partially_addressed"
+      },
+      "f8e651ef-5e80-4ea8-9434-7e9158fa5c7f": {
+        "crux-1": "addressed",
+        "crux-2": "partially_addressed",
+        "crux-3": "addressed"
+      },
+      "f9c54c70-dfc3-4255-b125-0c49da39c519": {
+        "crux-1": "partially_addressed",
+        "crux-2": "partially_addressed"
+      }
+    },
+    {
+      "1418ee11-5641-4033-a400-c26c9f5e4f45": {
+        "crux-1": "unaddressed",
+        "crux-2": "unaddressed",
+        "crux-3": "partially_addressed",
+        "crux-4": "unaddressed",
+        "crux-5": "unaddressed",
+        "crux-6": "unaddressed",
+        "crux-7": "partially_addressed"
+      },
+      "4bb43eb9-295b-45a1-9ba8-27c728dd8c9a": {
+        "crux-1": "partially_addressed",
+        "crux-2": "partially_addressed",
+        "crux-3": "partially_addressed",
+        "crux-4": "partially_addressed",
+        "crux-5": "unaddressed",
+        "crux-6": "partially_addressed",
+        "crux-7": "partially_addressed"
+      },
+      "5651af16-687f-4315-a6f6-c759eaa84865": {
+        "crux-1": "addressed",
+        "crux-2": "partially_addressed",
+        "crux-3": "partially_addressed"
+      },
+      "5663d315-ab39-4156-a631-4817abb5a4bd": {
+        "crux-1": "partially_addressed",
+        "crux-2": "addressed",
+        "crux-3": "addressed",
+        "crux-4": "addressed"
+      },
+      "5990c8c2-8798-415b-89da-0c8de630adf0": {
+        "crux-1": "unaddressed",
+        "crux-2": "addressed"
+      },
+      "61424059-3ebf-4c10-9f08-48cfe593546b": {
+        "crux-1": "addressed",
+        "crux-2": "addressed",
+        "crux-3": "addressed",
+        "crux-4": "addressed"
+      },
+      "68739781-1a15-44ef-8771-ce5f88bbce92": {
+        "crux-1": "addressed",
+        "crux-2": "unaddressed",
+        "crux-3": "addressed",
+        "crux-4": "addressed",
+        "crux-5": "addressed",
+        "crux-6": "unaddressed"
+      },
+      "835bff57-5a78-454e-b263-2e51fc3e1832": {
+        "crux-1": "addressed",
+        "crux-2": "addressed"
+      },
+      "a0eaaca9-3732-43f6-b386-44d049c065d1": {
+        "crux-1": "addressed",
+        "crux-2": "addressed",
+        "crux-3": "partially_addressed",
+        "crux-4": "addressed",
+        "crux-5": "partially_addressed"
+      },
+      "aac6f142-8662-401e-b48c-9d0f9e84cc46": {
+        "crux-1": "addressed",
+        "crux-2": "addressed"
+      },
+      "f8e651ef-5e80-4ea8-9434-7e9158fa5c7f": {
+        "crux-1": "addressed",
+        "crux-2": "partially_addressed",
+        "crux-3": "addressed"
+      },
+      "f9c54c70-dfc3-4255-b125-0c49da39c519": {
+        "crux-1": "partially_addressed",
+        "crux-2": "partially_addressed"
+      }
+    }
+  ],
+  "sample_ids": [
+    "1418ee11-5641-4033-a400-c26c9f5e4f45",
+    "4bb43eb9-295b-45a1-9ba8-27c728dd8c9a",
+    "5651af16-687f-4315-a6f6-c759eaa84865",
+    "5663d315-ab39-4156-a631-4817abb5a4bd",
+    "5990c8c2-8798-415b-89da-0c8de630adf0",
+    "61424059-3ebf-4c10-9f08-48cfe593546b",
+    "68739781-1a15-44ef-8771-ce5f88bbce92",
+    "835bff57-5a78-454e-b263-2e51fc3e1832",
+    "a0eaaca9-3732-43f6-b386-44d049c065d1",
+    "aac6f142-8662-401e-b48c-9d0f9e84cc46",
+    "f8e651ef-5e80-4ea8-9434-7e9158fa5c7f",
+    "f9c54c70-dfc3-4255-b125-0c49da39c519"
+  ]
+}
