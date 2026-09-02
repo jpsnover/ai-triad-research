@@ -549,5 +549,20 @@
       "enrichment",
       "qbaf"
     ]
+  },
+  "enrichment.logical-form-formalization": {
+    "description": "Formalize one claim's proposition into a neo-Davidsonian first-order logical form (t/3126 schema, t/3215 pass). CL owns the schema + prompt (research/comp-linguist/docs/logical-form-schema.md); PowerShell's Invoke-LogicalFormPass renders logical-form-formalization.prompt per claim and runs this over claims carrying entity_refs[]. jsonMode WITHOUT responseSchema — the nested args[]/about[] object tripped Gemini structured-output HTTP 400s (same failure as enrichment.org-stance-extraction); the prompt enforces a single strict-JSON object and the pass parses + validates + grounds defensively. model/temperature are CALIBRATION-PROVISIONAL until CL's D3b formalization_accuracy run against the golden set.",
+    "model": "claude-sonnet-4-6",
+    "temperature": 0.1,
+    "maxTokens": 1200,
+    "timeoutMs": 60000,
+    "jsonMode": true,
+    "systemMessageTemplate": "{{prompt}}",
+    "messageTemplate": "Return the logical form JSON object now.",
+    "tags": [
+      "enrichment",
+      "logical-form",
+      "fol"
+    ]
   }
 }
