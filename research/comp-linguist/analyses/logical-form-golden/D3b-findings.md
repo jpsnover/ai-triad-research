@@ -86,3 +86,30 @@ top-up.
 python score_golden.py --golden golden_set_d3b.json --self                 # references schema-valid
 python score_golden.py --golden golden_set_d3b.json --candidates candidates_d3b.json   # -> 0.803
 ```
+
+## t/3227 validation (attitude-attribution prompt fix)
+
+The prompt hardening (t/3227, PR #1823 — strip the attitude-attribution clause so a stance verb never
+becomes the predicate) was validated on a **DRY synthetic-fixture probe** (PowerShell, prompt `98597d10`,
+no data write): the pass re-run over the 8 rows b-04/05/07/09/13/19/23/28, reconstructed from this golden
+set's real `proposition` + `entity_refs` + node. Scored vs the same references (`candidates_d3b_t3227probe.json`):
+
+| component | D3b baseline (these 8) | t/3227 probe (these 8) |
+|---|---|---|
+| predicate | 0.50 (4/8) | **0.75 (6/8)** |
+| overall   | ~0.80 | **0.857** |
+| controls b-05/b-07/b-19/b-28 | 1.00 | 1.00 (no regression) |
+
+The lift comes from **b-04 `support`→`protect`** and **b-13 `promote`→`prevent`** — the two attitude-leak
+cases now formalize the content proposition; no stance verb leaked into any predicate; modality unchanged
+(BDI holder/attitude, factual null). b-09 (`preempt`) and b-23 (`democratize`) stay predicate-misses but
+are **content verbs, not attitude leaks** — clause-selection/synonymy divergence, tracked in t/3228, not a
+regression of this fix.
+
+Caveat: this is an 8-row synthetic-fixture probe (faithful proposition/entity_refs, so args/about are real
+not confounded), **not** a full-corpus re-baseline. The corpus-wide re-baseline of `formalization_accuracy`
+under the hardened prompt lands with the t/3229 real top-up run.
+
+```
+python score_golden.py --golden golden_set_d3b.json --candidates candidates_d3b_t3227probe.json   # -> 0.857 (8 rows)
+```
