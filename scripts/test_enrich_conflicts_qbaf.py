@@ -67,6 +67,60 @@ def test_floor_boundary_exactly_005_is_decided():
     assert r["prevailing_claim"] == "inst-0"
 
 
+# ---------------------------------------------------------------------------
+# _detect_edges — same-doc filter behavior (t/3214)
+# ---------------------------------------------------------------------------
+
+def _inst(stance, doc_id, attack_type=None):
+    i = {"stance": stance, "doc_id": doc_id}
+    if attack_type:
+        i["attack_type"] = attack_type
+    return i
+
+
+def test_same_non_debate_doc_produces_no_edge():
+    # Two instances from the same paper — duplicates, not independent positions.
+    instances = [
+        _inst("supports", "some-paper-2026"),
+        _inst("disputes", "some-paper-2026"),
+    ]
+    assert eq._detect_edges(instances) == []
+
+
+def test_same_debate_doc_opposing_stances_produces_edge():
+    # Two instances from the same debate session — independent agent positions.
+    instances = [
+        _inst("supports", "debate:7e272d3b-4ec0-409d-8095-be4b5bf97b9a"),
+        _inst("disputes", "debate:7e272d3b-4ec0-409d-8095-be4b5bf97b9a", attack_type="rebut"),
+    ]
+    edges = eq._detect_edges(instances)
+    assert len(edges) == 1
+    assert edges[0]["type"] == "attacks"
+    assert edges[0]["attack_type"] == "rebut"
+
+
+def test_different_docs_opposing_stances_produces_edge():
+    # Cross-document conflict — always produced edges (existing behavior preserved).
+    instances = [
+        _inst("supports", "doc-a-2026"),
+        _inst("disputes", "doc-b-2026"),
+    ]
+    edges = eq._detect_edges(instances)
+    assert len(edges) == 1
+    assert edges[0]["type"] == "attacks"
+
+
+def test_same_debate_doc_same_stance_produces_support_edge():
+    # Two supporters in the same debate — count as corroborating support.
+    instances = [
+        _inst("supports", "debate:abc-123"),
+        _inst("supports", "debate:abc-123"),
+    ]
+    edges = eq._detect_edges(instances)
+    assert len(edges) == 1
+    assert edges[0]["type"] == "supports"
+
+
 if __name__ == "__main__":
     import pytest
 

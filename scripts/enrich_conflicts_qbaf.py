@@ -140,8 +140,11 @@ def _detect_edges(instances):
     for i in range(len(instances)):
         for j in range(i + 1, len(instances)):
             a, b = instances[i], instances[j]
-            # Skip same-document instances
-            if a.get("doc_id") == b.get("doc_id"):
+            # Skip same-document instances — but not debate-sourced ones.
+            # Debate instances are independent agent positions sharing a session ID,
+            # not duplicate extractions from one text (t/3214).
+            doc_id_a = str(a.get("doc_id") or "")
+            if a.get("doc_id") == b.get("doc_id") and not doc_id_a.startswith("debate:"):
                 continue
 
             a_stance = a.get("stance", "neutral")
