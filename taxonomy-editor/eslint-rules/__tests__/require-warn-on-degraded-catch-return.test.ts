@@ -73,5 +73,10 @@ rt.run('require-warn-on-degraded-catch-return', rule, {
       code: h("try { await load(); } catch (e) { return undefined; }"),
       errors: [{ messageId: 'degradedReturnNeedsWarn' }],
     },
+    // Dedicated empty-array fire branch: bare `return []` from an IO path, no recorder (TL nit, p/342#254).
+    {
+      code: h("try { await load(); } catch (e) { return []; }"),
+      errors: [{ messageId: 'degradedReturnNeedsWarn' }],
+    },
   ],
 });

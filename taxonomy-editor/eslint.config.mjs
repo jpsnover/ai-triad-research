@@ -81,11 +81,12 @@ export default tseslint.config(
       // ADR-003 enforcement (t/1323, repo-review B-401): every catch records to the
       // flight recorder. Flipped warn→error once the tree was clean (0 violations).
       'local/require-flight-recorder-in-catch': 'error',
-      // t/3200 (Fallback-Path Logging): a degraded-default return from a data/IO catch must record
-      // at WARN/ERROR. Shipped 'warn' (non-blocking visibility) — separate rule from the base one so
-      // this severity is independent. Promotion to 'error' is a separate GV-gated step once the
-      // t/3169 cleanup lands the WARNs and the flagged count reaches zero (TL t/3200#2).
-      'local/require-warn-on-degraded-catch-return': 'warn',
+      // t/3200/t/3205 (Fallback-Path Logging): a degraded-default return (`[]`/`{}`/`null`/`undefined`)
+      // from a data/IO catch must record at WARN/ERROR. Flipped warn→error at zero-noise (TL Gate
+      // Promotion, t/3200#2 / p/342#254): the per-owner cleanup (t/3219–t/3223) + the predicate
+      // refinement (#1812) drove the flagged count to 0. Separate rule from the base one so severity
+      // is independent.
+      'local/require-warn-on-degraded-catch-return': 'error',
       'max-lines': MAX_LINES_SRC,
       // ActionableError nesting gate (t/2764 / t/2761): forbid err.message in problem:.
       // Custom rule (not no-restricted-syntax) so it restricts to error-named identifiers
