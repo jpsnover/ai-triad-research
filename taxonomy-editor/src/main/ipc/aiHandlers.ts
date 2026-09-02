@@ -48,8 +48,14 @@ export function registerAiHandlers(): void {
       const configPath = path.join(PROJECT_ROOT, 'ai-models.json');
       const raw = fs.readFileSync(configPath, 'utf-8');
       return JSON.parse(raw);
-    } catch {
-      /* telemetry — silent by design */
+    } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'ipc-handlers',
+        level: 'warn',
+        message: 'load-ai-models: failed to read/parse ai-models.json — returning null (AI features will be unavailable)',
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+      });
       return null;
     }
   });
@@ -362,8 +368,14 @@ export function registerAiHandlers(): void {
       };
 
       return { current, history };
-    } catch {
-      /* telemetry — silent by design */
+    } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'ipc-handlers',
+        level: 'warn',
+        message: 'get-calibration-params: failed to load calibration params — returning nulls (debate engine will use hardcoded defaults)',
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+      });
       return { current: null, history: [] };
     }
   });
@@ -389,8 +401,14 @@ export function registerAiHandlers(): void {
       }
 
       return { entries, validationReport };
-    } catch {
-      /* telemetry — silent by design */
+    } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'ipc-handlers',
+        level: 'warn',
+        message: 'get-calibration-log: failed to read calibration log — returning empty log',
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+      });
       return { entries: [], validationReport: null };
     }
   });

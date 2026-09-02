@@ -61,7 +61,16 @@ export function registerSourceHandlers(): void {
       if (!fs.existsSync(indexPath)) return null;
       _evidenceIndex = JSON.parse(fs.readFileSync(indexPath, 'utf-8'));
       return _evidenceIndex;
-    } catch { /* telemetry — silent by design */ return null; }
+    } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'ipc-handlers',
+        level: 'warn',
+        message: 'loadEvidenceIndex: failed to read source_evidence_index.json — returning null (source evidence will be unavailable)',
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+      });
+      return null;
+    }
   }
 
   /** Build doc_id → metadata map from source metadata.json files (best-effort). */
@@ -117,7 +126,16 @@ export function registerSourceHandlers(): void {
         ?? data.nodes?.map((n) => n.node_id).filter((id): id is string => typeof id === 'string')
         ?? [];
       return { node_ids: nodeIds };
-    } catch { /* telemetry — silent by design; missing/malformed → null, renderer degrades */ return null; }
+    } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'ipc-handlers',
+        level: 'warn',
+        message: 'load-greatest-hits: failed to read greatest-hits.json — returning null (debate exclusion list will be empty)',
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+      });
+      return null;
+    }
   });
 
   ipcMain.handle('get-source-evidence', async (_event, nodeIds: string[], pov: string) => {

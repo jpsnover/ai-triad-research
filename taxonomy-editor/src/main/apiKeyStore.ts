@@ -48,8 +48,14 @@ export function loadApiKeys(backend?: Backend): string[] {
   let decrypted: string;
   try {
     decrypted = safeStorage.decryptString(fs.readFileSync(fp));
-  } catch {
-    /* telemetry — silent by design (corrupt/unreadable key file) */
+  } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error',
+      component: 'api-key-store',
+      level: 'warn',
+      message: 'loadApiKeys: safeStorage decrypt failed — returning empty key list; user must re-enter API keys',
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+    });
     return [];
   }
   try {

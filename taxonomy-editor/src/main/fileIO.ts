@@ -107,8 +107,14 @@ export function isDataAvailable(): boolean {
   try {
     const taxDir = resolveDataPath(loadDataConfig().taxonomy_dir);
     return fs.existsSync(taxDir) && fs.readdirSync(taxDir).some(f => f.endsWith('.json') && f !== 'embeddings.json' && f !== 'edges.json');
-  } catch {
-    /* telemetry — silent by design */
+  } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error',
+      component: 'file-io',
+      level: 'warn',
+      message: 'isDataAvailable: config or directory read failed — returning false (app will show data-unavailable UI)',
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+    });
     return false;
   }
 }
@@ -632,7 +638,16 @@ export function loadSummary(docId: string): unknown | null {
   if (!fs.existsSync(filePath)) return null;
   try {
     return JSON.parse(fs.readFileSync(filePath, 'utf-8'));
-  } catch { /* telemetry — silent by design */ return null; }
+  } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error',
+      component: 'file-io',
+      level: 'warn',
+      message: `loadSummary: failed to read/parse summary for ${docId} — returning null`,
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+    });
+    return null;
+  }
 }
 
 export function loadSnapshot(sourceId: string): string | null {
@@ -642,7 +657,16 @@ export function loadSnapshot(sourceId: string): string | null {
   if (!fs.existsSync(filePath)) return null;
   try {
     return fs.readFileSync(filePath, 'utf-8');
-  } catch { /* telemetry — silent by design */ return null; }
+  } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error',
+      component: 'file-io',
+      level: 'warn',
+      message: `loadSnapshot: failed to read snapshot for ${sourceId} — returning null`,
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+    });
+    return null;
+  }
 }
 
 // ── Source document resolution ──
