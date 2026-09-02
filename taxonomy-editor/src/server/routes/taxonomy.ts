@@ -40,7 +40,13 @@ let _synthEmbeddingsInFlight: Promise<Buffer> | null = null;
 let _synthGen = 0;
 
 async function getSyntheticEmbeddingsBuffer(): Promise<Buffer> {
-  if (_synthEmbeddingsBuffer) return _synthEmbeddingsBuffer;
+  if (_synthEmbeddingsBuffer) {
+    // Warm hit — the serialize is skipped entirely (cached Buffer). Emit serialize_ms:0 so the deploy's
+    // self-proof (serialize_ms cold-once → warm≈0, t/3165) is greppable on EVERY synth GET, not only the
+    // single cold build — independent of which request first warmed the cache. cache:'hit' vs 'cold'.
+    log.api.info({ component: 'synthetic-embeddings', cache: 'hit', serialize_ms: 0, bytes: _synthEmbeddingsBuffer.length }, 'synthetic-embeddings served from cache (warm)');
+    return _synthEmbeddingsBuffer;
+  }
   if (_synthEmbeddingsInFlight) return _synthEmbeddingsInFlight; // promise-dedupe: one cold build for a burst
   const gen = _synthGen; // the generation this build belongs to; a concurrent invalidate() bumps _synthGen
   _synthEmbeddingsInFlight = (async () => {
@@ -58,7 +64,7 @@ async function getSyntheticEmbeddingsBuffer(): Promise<Buffer> {
     // t/3165 phase-timing (cold path only) → the next real synth GET proves load_ms vs serialize_ms +
     // heap; on a warm hit this line never runs (serve is near-zero) = the fix's self-proof.
     log.api.info({
-      component: 'synthetic-embeddings', load_ms: loadMs, serialize_ms: serializeMs, bytes: buffer.length,
+      component: 'synthetic-embeddings', cache: 'cold', load_ms: loadMs, serialize_ms: serializeMs, bytes: buffer.length,
       node_count: data ? Object.keys(data).length : 0,
       heap_before: heapBefore, heap_after: process.memoryUsage().heapUsed,
     }, 'synthetic-embeddings built + serialized + cached (cold path)');
