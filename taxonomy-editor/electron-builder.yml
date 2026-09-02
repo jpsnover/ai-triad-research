@@ -19,6 +19,10 @@ files:
 
 asarUnpack:
   - "node_modules/node-pty/**"
+  # worker_threads.Worker() cannot load scripts from inside an asar archive — Electron's
+  # asar layer patches fs/require but NOT the worker URL loader (t/3184 C4 exit criterion).
+  # embeddingWorker.js is emitted by tsc (rootDir="../") as dist/main/lib/embeddings/embeddingWorker.js.
+  - "dist/main/lib/embeddings/embeddingWorker.js"
 
 extraResources:
   - from: "../ai-models.json"
