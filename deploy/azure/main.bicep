@@ -630,11 +630,14 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
             // offload). 2 vCPU keeps the loop responsive while the worker computes.
             // Stays within the ACA Consumption plan (0.25-4 vCPU) - one-line resources
             // edit, no workload-profile/topology migration. Cost ~$0 (free grant, t/2977#4).
-            // Memory unchanged: incident RSS peaked ~650MB/2048 + ~250MB worker model
-            // copy ~= 900MB, comfortably within 2Gi (embeddings.json is NOT copied to the
-            // worker - the cache resolve stays main-thread, only miss-texts marshal).
+            // Memory MUST be 4Gi: ACA Consumption only permits FIXED cpu:memory pairs, and
+            // 2.0 vCPU is valid ONLY with 4.0Gi. ARM rejects 2.0/2Gi with
+            // ContainerAppInvalidResourceTotal (the #1771 bug — a deploy would fail the ARM
+            // step; t/3182). Headroom is ample regardless: incident RSS ~650MB/2048 + ~250MB
+            // worker model copy ~= 900MB (embeddings.json is NOT copied to the worker — the
+            // cache resolve stays main-thread, only miss-texts marshal).
             cpu: json('2.0')
-            memory: '2Gi'
+            memory: '4Gi'
           }
           env: containerEnv
           probes: [
