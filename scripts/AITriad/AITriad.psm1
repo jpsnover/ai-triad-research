@@ -1016,6 +1016,8 @@ Export-ModuleMember -Function @(
     # t/3195 — parse JSON tolerating truncation (recovers the valid prefix; exported so the
     # Invoke-EntityExtraction parallel runspace can call it)
     'ConvertFrom-TruncatableJson'
+    # t/3225 — stale-head-merge guard: verify PR headRefOid == remote tip before gh pr merge
+    'Invoke-VerifiedMerge'
 ) -Alias @(
     'Import-Document'
     'TaxonomyEditor'

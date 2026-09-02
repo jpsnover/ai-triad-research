@@ -254,6 +254,8 @@
         'Test-EmbeddingsCacheHealth'
         # t/3195 — parse JSON tolerating truncation (recovers the valid prefix)
         'ConvertFrom-TruncatableJson'
+        # t/3225 — stale-head-merge guard: verify PR headRefOid == remote tip before gh pr merge
+        'Invoke-VerifiedMerge'
     )
 
     # Aliases exported from this module
