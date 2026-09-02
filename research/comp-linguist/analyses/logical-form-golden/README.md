@@ -1,5 +1,7 @@
 # logical_form Golden Set (t/3126 D3a) — with input-substrate findings
 
+**D3b measured (2026-09-02):** first `formalization_accuracy` = **0.803** (n=10, convention-pinned; 0.686 pre-pin) on the t/3215 pass batch. Observed golden grown from the real pass output (`golden_set_d3b.json` + frozen `candidates_d3b.json`); full analysis in **`D3b-findings.md`**. Reproduce: `python score_golden.py --golden golden_set_d3b.json --candidates candidates_d3b.json`.
+
 **Status (post-#1778 review):** `about[]` ADOPTED as a first-class schema field (TL p/571; conditions (a)–(e) in `logical-form-schema.md`); `args[].sort` pinned to the register `DolceCategory` set (5 values, `lib/entities/types.ts`); prompt updated (emit `about[]` + meta-descriptive guard + factual→`point`/`verbatim`). The "reshape recommendations" below are now IMPLEMENTED in the schema/prompt — retained as the rationale of record.
 
 Reference set + scorer for the `logical_form` formalization pass (schema: `docs/logical-form-schema.md`;

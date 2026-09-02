@@ -3,7 +3,7 @@
 **Ticket:** t/3126 (T6). **Depends on:** t/3124 (entity_refs resolution, Done).
 **Design of record:** `claims-entity-fol-recommendations.md` §7.2 (Phase 1), §7.3 (reification), §7.4 (ownership).
 **Owner:** CL (schema + prompt); PowerShell implements the formalization pass. Mandatory-review surface.
-**Status:** Under review — PR #1778 (schema + prompt + golden seed). `about[]` adopted (TL p/571 / t/3126#6).
+**Status:** Landed — schema + prompt + golden seed (PR #1778); prompt sort-fix (`90ce0d3e`); pass built (t/3215, PR #1792/#1814). `about[]` adopted (TL p/571 / t/3126#6) and its superset convention **pinned by the D3b measurement** (`formalization_accuracy` = 0.803, n=10).
 
 ## Purpose
 
@@ -64,7 +64,7 @@ for both the argument bindings and the `about[]` projection. It never re-extract
 | `args[].ref` | string | **MUST be an `ent-*` id drawn from this claim's `entity_refs[].ref`** — never a re-invented id (t/2294). If the participant is not a registered entity, use a literal `lit:"…"` or an event var; record `sort` regardless. |
 | `args[].sort` | enum | The entity's DOLCE-lite sort, **pinned to the register's `DolceCategory` closed set** (`lib/entities/types.ts`): `agentive-physical-object \| non-agentive-functional-artifact \| perdurant \| normative-description \| non-agentive-social-object`. Copied verbatim from the referenced entity's `dolce_category`; for a `lit:`/event arg, CL-assigned from the same 5-value set. Copy-not-judge (rule 2). |
 | `args[].match_level` | enum | Copied verbatim from the entity_ref: `exact \| instance_of \| subclass \| superclass \| related`. Load-bearing for the prover — a claim about a superclass matched to an instance is a different assertion (§6, R4). |
-| `about[]` | array | **Topical grounding (additive, optional):** `[{ref, match_level}]` — the `ent-*` ids the claim is *about* (its topical subject), as distinct from `args[]` (entities filling a formal predicate role). Same ids as the claim's `entity_refs[]` (a logical-form projection, **no new resolution**). Governed by the `about[]` conditions below. |
+| `about[]` | array | **Topical grounding (additive, optional):** `[{ref, match_level}]` — the `ent-*` ids the claim is *about* (its topical subject). **Superset convention (pinned, D3b):** `about[]` is the **complete** topical index — every resolved entity the claim is about, **including** those that also fill an `args[]` role (a participant that is topical appears in *both*). Same ids as the claim's `entity_refs[]` (a logical-form projection, **no new resolution**). Governed by the `about[]` conditions below. |
 | `polarity` | enum | `positive \| negative`. Negation of the core predication (`¬acquire(e1)`), not attitude negation. |
 | `modality` | object \| null | **`null` for `factual_claims`** (unattributed fact). Present for BDI/POV claims. |
 | `modality.holder` | enum | `camp:acc \| camp:saf \| camp:skp` (the attributing camp). Derived from the claim's POV/`stance`. |
@@ -112,9 +112,13 @@ holds(camp_acc, belief, p1) ∧ about(p1, ent_055) ∧ acquire(e1) ∧ agent(e1,
 ### `about[]` conditions (TL adopt + CL review, p/571 / t/3126#6)
 
 - **(a) Additive + optional.** Pure §7.2 delta; existing consumers ignore it, no migration.
-- **(b) Crisp boundary.** `about[]` = the topical subject the claim is *about*; `args[]` = entities
-  filling a formal predicate-argument role. A ref may appear in both, or in `about[]` only. It is
-  **never a "couldn't-formalize" dumping bucket.**
+- **(b) Crisp boundary + superset (pinned D3b).** `about[]` = the topical subject the claim is *about*;
+  `args[]` = entities filling a formal predicate-argument role. `about[]` is the **complete** topical index:
+  a resolved entity that is topical **AND** fills an arg role appears in **both** (superset), not `args[]`
+  alone. A ref may also appear in `about[]` only (topical non-participant). It is **never a
+  "couldn't-formalize" dumping bucket.** *(Pinned by the D3b measurement: leaving participants out of
+  `about[]` was an unpinned-convention ambiguity that deflated scored agreement by ~0.12 with no semantic
+  content — see `analyses/logical-form-golden/D3b-findings.md`.)*
 - **(c) Non-substitute.** A cleanly-formalizable claim still populates `args[]`; `about[]` is never an
   excuse to skip formalization.
 - **(d) Earns its place on the non-formalizable majority.** With 54% of claims carrying an empty
@@ -135,9 +139,13 @@ holds(camp_acc, belief, p1) ∧ about(p1, ent_055) ∧ acquire(e1) ∧ agent(e1,
   pass on real claims (t/2294) — not authored from the doc example. Stratified across `category`
   (B/D/I + factual) and `match_level` so accuracy is readable where it matters (superclass/related
   args are where formalization error concentrates).
-- **Provenance:** register entry class **stipulated** until golden-set `formalization_accuracy` is
-  measured, then annotated with the figure. `formalization_confidence` is a pass self-rating
-  (stipulated) until correlated with golden-set correctness.
+- **Provenance:** register entry class **stipulated → measured (seed, D3b)**: `formalization_accuracy` =
+  **0.803** (n=10, convention-pinned; 0.686 as-first-authored pre-`about[]`-pin) on the t/3215 batch
+  (`ai-triad-data` `853b2938`). Mechanical fields (polarity/modality/temporal/about) = 1.00; residual weak
+  axis is `predicate` = 0.50, concentrated on multi-clause meta-descriptive BDI. Not yet `derived` — needs
+  n≥30 with match_level diversity and the bias-free D3a rows. `formalization_confidence` is a pass self-rating
+  (stipulated) until correlated with golden-set correctness. Full analysis:
+  `analyses/logical-form-golden/D3b-findings.md`.
 
 ## Open items (post-review)
 

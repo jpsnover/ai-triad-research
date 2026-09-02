@@ -1,0 +1,514 @@
+{
+  "_note": "D3b observed golden — CL references authored BLIND (proposition+entity_refs only, pass output withheld) over the t/3215 batch, ai-triad-data commit 853b2938. All entity_refs exact (batch carries no non-exact match_level). BDI rows formalize the embedded assertion (props are meta-descriptive). about[] follows the PINNED superset convention (schema rule b/e): every topical resolved entity, INCLUDING those also filling an arg role. See D3b-findings.md.",
+  "rows": [
+    {
+      "id": "b-04",
+      "provenance": "observed",
+      "source_file": "2026-ai-laws-update-key-regulations-practical-guidance-2026.json (skp-desires-003)",
+      "category": "Desires",
+      "camp": "skeptic",
+      "proposition": "The document highlights GDPR Article 22 as a mechanism to protect individual autonomy against solely automated decision-making. Skeptics support these rights as critical safeguards against the dehumanizing effects of algorithmic management and the erosion of individual agency in high-stakes domains like hiring and credit.",
+      "entity_refs": [
+        {
+          "ref": "ent-071",
+          "surface": "GDPR",
+          "match_level": "exact"
+        }
+      ],
+      "reference": {
+        "predicate": "protect",
+        "event_ref": "e1",
+        "args": [
+          {
+            "role": "instrument",
+            "ref": "ent-071",
+            "sort": "normative-description",
+            "match_level": "exact"
+          },
+          {
+            "role": "patient",
+            "ref": "lit:\"individual autonomy\"",
+            "sort": "non-agentive-social-object",
+            "match_level": "exact"
+          },
+          {
+            "role": "source",
+            "ref": "lit:\"solely automated decision-making\"",
+            "sort": "perdurant",
+            "match_level": "exact"
+          }
+        ],
+        "polarity": "positive",
+        "modality": {
+          "holder": "camp:skp",
+          "attitude": "desire"
+        },
+        "temporal": {
+          "type": "unspecified",
+          "value": null
+        },
+        "about": [
+          {
+            "ref": "ent-071",
+            "match_level": "exact"
+          }
+        ],
+        "formalization_confidence": 0.5,
+        "status": "proposed"
+      }
+    },
+    {
+      "id": "b-05",
+      "provenance": "observed",
+      "source_file": "2026-ai-laws-update-key-regulations-practical-guidance-2026.json (None)",
+      "category": "factual",
+      "camp": "",
+      "proposition": "President Trump signed an Executive Order on December 11, 2025, titled 'Ensuring a National Policy Framework for Artificial Intelligence' to consolidate federal AI oversight.",
+      "entity_refs": [
+        {
+          "ref": "ent-032",
+          "surface": "President Trump",
+          "match_level": "exact"
+        }
+      ],
+      "reference": {
+        "predicate": "sign",
+        "event_ref": "e1",
+        "args": [
+          {
+            "role": "agent",
+            "ref": "ent-032",
+            "sort": "agentive-physical-object",
+            "match_level": "exact"
+          },
+          {
+            "role": "patient",
+            "ref": "lit:\"executive order ensuring a national policy framework for artificial intelligence\"",
+            "sort": "normative-description",
+            "match_level": "exact"
+          }
+        ],
+        "polarity": "positive",
+        "modality": null,
+        "temporal": {
+          "type": "at",
+          "value": "2025-12-11"
+        },
+        "about": [
+          {
+            "ref": "ent-032",
+            "match_level": "exact"
+          }
+        ],
+        "formalization_confidence": 0.9,
+        "status": "proposed"
+      }
+    },
+    {
+      "id": "b-07",
+      "provenance": "observed",
+      "source_file": "2026-antitrust-year-preview-ai-2026-1.json (acc-intentions-024)",
+      "category": "Intentions",
+      "camp": "accelerationist",
+      "proposition": "The document highlights the Trump administration's strategy to create a pro-development environment by removing regulatory barriers to AI innovation. This includes executive orders aimed at helping American firms achieve global dominance in AI. From an accelerationist perspective, this approach is essential to maintain competitive advantage and foster rapid technological progress. The document notes that this policy framework is actively being used to challenge state-level legislation that might otherwise obstruct national AI priorities.",
+      "entity_refs": [
+        {
+          "ref": "ent-032",
+          "surface": "Trump",
+          "match_level": "exact"
+        }
+      ],
+      "reference": {
+        "predicate": "remove",
+        "event_ref": "e1",
+        "args": [
+          {
+            "role": "agent",
+            "ref": "ent-032",
+            "sort": "agentive-physical-object",
+            "match_level": "exact"
+          },
+          {
+            "role": "patient",
+            "ref": "lit:\"regulatory barriers to AI innovation\"",
+            "sort": "normative-description",
+            "match_level": "exact"
+          }
+        ],
+        "polarity": "positive",
+        "modality": {
+          "holder": "camp:acc",
+          "attitude": "intention"
+        },
+        "temporal": {
+          "type": "unspecified",
+          "value": null
+        },
+        "about": [
+          {
+            "ref": "ent-032",
+            "match_level": "exact"
+          }
+        ],
+        "formalization_confidence": 0.55,
+        "status": "proposed"
+      }
+    },
+    {
+      "id": "b-09",
+      "provenance": "observed",
+      "source_file": "2026-antitrust-year-preview-ai-2026-2.json (acc-beliefs-043)",
+      "category": "Beliefs",
+      "camp": "accelerationist",
+      "proposition": "The document identifies state-level AI legislation as a significant obstacle to a unified national AI policy, noting that the Trump administration is actively seeking to preempt these laws. The administration views state-level restrictions as an obstruction to interstate commerce and national AI goals. Accelerationists support this federal preemption, arguing that a fragmented regulatory landscape creates unnecessary friction that hinders the scaling of AI technologies across the country.",
+      "entity_refs": [
+        {
+          "ref": "ent-032",
+          "surface": "Trump",
+          "match_level": "exact"
+        }
+      ],
+      "reference": {
+        "predicate": "obstruct",
+        "event_ref": "e1",
+        "args": [
+          {
+            "role": "agent",
+            "ref": "lit:\"state-level AI legislation\"",
+            "sort": "normative-description",
+            "match_level": "exact"
+          },
+          {
+            "role": "patient",
+            "ref": "lit:\"unified national AI policy\"",
+            "sort": "normative-description",
+            "match_level": "exact"
+          }
+        ],
+        "polarity": "positive",
+        "modality": {
+          "holder": "camp:acc",
+          "attitude": "belief"
+        },
+        "temporal": {
+          "type": "unspecified",
+          "value": null
+        },
+        "about": [
+          {
+            "ref": "ent-032",
+            "match_level": "exact"
+          }
+        ],
+        "formalization_confidence": 0.5,
+        "status": "proposed"
+      }
+    },
+    {
+      "id": "b-13",
+      "provenance": "observed",
+      "source_file": "2026-antitrust-year-preview-ai-2026-3.json (acc-beliefs-086)",
+      "category": "Beliefs",
+      "camp": "accelerationist",
+      "proposition": "The document notes that the Trump administration's AI Action Plan encourages open-source and open-weight AI models to promote competition and innovation. This policy reflects the belief that open access to foundational models prevents monopolistic capture and accelerates the diffusion of transformative technology. By fostering an environment where smaller entrants can compete with legacy firms, the administration aims to maximize the societal benefits of AI. This aligns with the accelerationist view that widespread access to AI capabilities is inherently beneficial.",
+      "entity_refs": [
+        {
+          "ref": "ent-032",
+          "surface": "Trump",
+          "match_level": "exact"
+        },
+        {
+          "ref": "ent-049",
+          "surface": "AI Action Plan",
+          "match_level": "exact"
+        }
+      ],
+      "reference": {
+        "predicate": "prevent",
+        "event_ref": "e1",
+        "args": [
+          {
+            "role": "agent",
+            "ref": "lit:\"open access to foundational models\"",
+            "sort": "non-agentive-social-object",
+            "match_level": "exact"
+          },
+          {
+            "role": "patient",
+            "ref": "lit:\"monopolization\"",
+            "sort": "perdurant",
+            "match_level": "exact"
+          }
+        ],
+        "polarity": "positive",
+        "modality": {
+          "holder": "camp:acc",
+          "attitude": "belief"
+        },
+        "temporal": {
+          "type": "unspecified",
+          "value": null
+        },
+        "about": [
+          {
+            "ref": "ent-032",
+            "match_level": "exact"
+          },
+          {
+            "ref": "ent-049",
+            "match_level": "exact"
+          }
+        ],
+        "formalization_confidence": 0.5,
+        "status": "proposed"
+      }
+    },
+    {
+      "id": "b-19",
+      "provenance": "observed",
+      "source_file": "2026-antitrust-year-preview-ai-wilson-sonsini-2026-1.json (acc-intentions-114)",
+      "category": "Intentions",
+      "camp": "accelerationist",
+      "proposition": "The administration's AI Action Plan explicitly encourages the development of open-source and open-weight AI models. This aligns with the accelerationist view that open access to foundational models fosters a more competitive and innovative ecosystem. By promoting these models, the policy aims to prevent monopolistic capture of AI infrastructure. The document notes that federal agencies are aligning their enforcement activities with these pro-openness goals.",
+      "entity_refs": [
+        {
+          "ref": "ent-049",
+          "surface": "AI Action Plan",
+          "match_level": "exact"
+        }
+      ],
+      "reference": {
+        "predicate": "encourage",
+        "event_ref": "e1",
+        "args": [
+          {
+            "role": "agent",
+            "ref": "ent-049",
+            "sort": "normative-description",
+            "match_level": "exact"
+          },
+          {
+            "role": "patient",
+            "ref": "lit:\"development of open-source and open-weight AI models\"",
+            "sort": "perdurant",
+            "match_level": "exact"
+          }
+        ],
+        "polarity": "positive",
+        "modality": {
+          "holder": "camp:acc",
+          "attitude": "intention"
+        },
+        "temporal": {
+          "type": "unspecified",
+          "value": null
+        },
+        "about": [
+          {
+            "ref": "ent-049",
+            "match_level": "exact"
+          }
+        ],
+        "formalization_confidence": 0.7,
+        "status": "proposed"
+      }
+    },
+    {
+      "id": "b-23",
+      "provenance": "observed",
+      "source_file": "2026-antitrust-year-preview-ai-wilson-sonsini-2026-2.json (acc-desires-004)",
+      "category": "Desires",
+      "camp": "accelerationist",
+      "proposition": "The document highlights the administration's encouragement of open-source and open-weight AI models as a key policy recommendation within the AI Action Plan. By promoting open access, the government aims to lower barriers to entry and foster a more competitive ecosystem. This aligns with the accelerationist desire to democratize AI infrastructure and prevent monopolistic capture by a few legacy firms. The document notes that this policy is being mirrored by agency leadership in their enforcement remarks.",
+      "entity_refs": [
+        {
+          "ref": "ent-049",
+          "surface": "AI Action Plan",
+          "match_level": "exact"
+        }
+      ],
+      "reference": {
+        "predicate": "lower",
+        "event_ref": "e1",
+        "args": [
+          {
+            "role": "agent",
+            "ref": "lit:\"the government\"",
+            "sort": "agentive-physical-object",
+            "match_level": "exact"
+          },
+          {
+            "role": "patient",
+            "ref": "lit:\"barriers to entry\"",
+            "sort": "normative-description",
+            "match_level": "exact"
+          }
+        ],
+        "polarity": "positive",
+        "modality": {
+          "holder": "camp:acc",
+          "attitude": "desire"
+        },
+        "temporal": {
+          "type": "unspecified",
+          "value": null
+        },
+        "about": [
+          {
+            "ref": "ent-049",
+            "match_level": "exact"
+          }
+        ],
+        "formalization_confidence": 0.5,
+        "status": "proposed"
+      }
+    },
+    {
+      "id": "b-28",
+      "provenance": "observed",
+      "source_file": "250322732v1-2026.json (None)",
+      "category": "factual",
+      "camp": "",
+      "proposition": "Qwen2.5-Coder-32B outperforms Claude Sonnet 3.5 on the HumanEval benchmark with a score of 92.7 compared to 92.1.",
+      "entity_refs": [
+        {
+          "ref": "ent-034",
+          "surface": "Claude",
+          "match_level": "exact"
+        }
+      ],
+      "reference": {
+        "predicate": "outperform",
+        "event_ref": "e1",
+        "args": [
+          {
+            "role": "agent",
+            "ref": "lit:\"Qwen2.5-Coder-32B\"",
+            "sort": "non-agentive-functional-artifact",
+            "match_level": "exact"
+          },
+          {
+            "role": "patient",
+            "ref": "ent-034",
+            "sort": "non-agentive-functional-artifact",
+            "match_level": "exact"
+          },
+          {
+            "role": "location",
+            "ref": "lit:\"HumanEval benchmark\"",
+            "sort": "non-agentive-functional-artifact",
+            "match_level": "exact"
+          }
+        ],
+        "polarity": "positive",
+        "modality": null,
+        "temporal": {
+          "type": "unspecified",
+          "value": null
+        },
+        "about": [
+          {
+            "ref": "ent-034",
+            "match_level": "exact"
+          }
+        ],
+        "formalization_confidence": 0.85,
+        "status": "proposed"
+      }
+    },
+    {
+      "id": "b-29",
+      "provenance": "observed",
+      "source_file": "250412170v1-2026.json (None)",
+      "category": "factual",
+      "camp": "",
+      "proposition": "OpenAI's GPT-4 model was available internally for six months prior to its public external deployment.",
+      "entity_refs": [
+        {
+          "ref": "ent-014",
+          "surface": "GPT-4",
+          "match_level": "exact"
+        }
+      ],
+      "reference": {
+        "predicate": "available",
+        "event_ref": "e1",
+        "args": [
+          {
+            "role": "theme",
+            "ref": "ent-014",
+            "sort": "non-agentive-functional-artifact",
+            "match_level": "exact"
+          },
+          {
+            "role": "manner",
+            "ref": "lit:\"internally\"",
+            "sort": "non-agentive-social-object",
+            "match_level": "exact"
+          }
+        ],
+        "polarity": "positive",
+        "modality": null,
+        "temporal": {
+          "type": "before",
+          "value": null
+        },
+        "about": [
+          {
+            "ref": "ent-014",
+            "match_level": "exact"
+          }
+        ],
+        "formalization_confidence": 0.6,
+        "status": "proposed"
+      }
+    },
+    {
+      "id": "b-39",
+      "provenance": "observed",
+      "source_file": "260320004v2-2026.json (None)",
+      "category": "factual",
+      "camp": "",
+      "proposition": "Annotation errors were identified in 52.1% of SQL queries, 26.2% of natural language questions, and 18.2% of external knowledge in the BIRD Train set subset.",
+      "entity_refs": [
+        {
+          "ref": "ent-067",
+          "surface": "BIRD",
+          "match_level": "exact"
+        }
+      ],
+      "reference": {
+        "predicate": "identify",
+        "event_ref": "e1",
+        "args": [
+          {
+            "role": "patient",
+            "ref": "lit:\"annotation errors\"",
+            "sort": "non-agentive-social-object",
+            "match_level": "exact"
+          },
+          {
+            "role": "location",
+            "ref": "ent-067",
+            "sort": "non-agentive-functional-artifact",
+            "match_level": "exact"
+          }
+        ],
+        "polarity": "positive",
+        "modality": null,
+        "temporal": {
+          "type": "unspecified",
+          "value": null
+        },
+        "about": [
+          {
+            "ref": "ent-067",
+            "match_level": "exact"
+          }
+        ],
+        "formalization_confidence": 0.7,
+        "status": "proposed"
+      }
+    }
+  ]
+}
