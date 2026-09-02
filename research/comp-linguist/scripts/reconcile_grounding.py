@@ -558,10 +558,33 @@ terms, ents = load_terms(), load_entities()
 nv, sense = load_vectors()
 sit = load_situations()
 
+def commit_mentions(ms):
+    """Tightest critical section (t/3163 lock-hold gate). `node:*` mention containers are derived from
+    SOURCE (pov/dict/vectors), NOT from entity_mentions.json, so `reconcile()` computes the complete
+    node:* set OUTSIDE the lock. Only this shared-file read-merge-write is serialized vs
+    Update-EntityMentionIndex. The re-read INSIDE the lock is the merge basis: a concurrent PS
+    `sei:*`/`summary:*` write landing between compute and acquire is picked up (not a lost update).
+    We own node:* only — drop the fresh read's stale node:* and set our freshly-resolved set; sei:*/
+    summary:* pass through untouched. Hold time = one entity_mentions read+write (was ~61s when the
+    whole run_live, incl. the per-node concept-embedding cosine, sat under the lock)."""
+    node_star = {k: v for k, v in ms["containers"].items() if k.startswith("node:")}
+    with grounding_lock("reconciler"):
+        t0 = datetime.now(timezone.utc)
+        fresh = load_json(MENTIONS)
+        fc = fresh["containers"]
+        for k in [k for k in fc if k.startswith("node:")]:
+            del fc[k]
+        fc.update(node_star)
+        dump_json(MENTIONS, fresh)
+        held = (datetime.now(timezone.utc) - t0).total_seconds()
+        # observability for the t/3163 lock-hold gate: must stay well under the 120s stale-break.
+        sys.stderr.write(f"grounding_lock held {held:.2f}s (node:* merge; PS-shared critical section)\n")
+
 def run_live():
-    """Load the contested files (pov/mentions/sidecar), reconcile, and write. When APPLY, this whole
-    read-merge-write runs under grounding_lock (see below) so it never races Update-EntityMentionIndex
-    or a concurrent reconciler on the shared entity_mentions.json."""
+    """Resolve grounding and write. Resolution + the reconciler-OWNED writes (pov concept_refs/
+    entity_refs, dict used_by_nodes, sidecar) run OUTSIDE the lock — none of those are shared with
+    Update-EntityMentionIndex, and each file write is atomic (tmp+rename). Only the entity_mentions.json
+    read-merge-write is locked, via commit_mentions(). Dry-run/selftest are read-only (no lock)."""
     pov = {p: load_json(os.path.join(O, p + ".json")) for p in ("accelerationist", "safetyist", "skeptic")}
     ms = load_json(MENTIONS)
     sc = load_json(SIDECAR) if os.path.exists(SIDECAR) else {}
@@ -582,8 +605,8 @@ def run_live():
                     d["used_by_nodes"] = new
                     dump_json(t["file"], d)
                     dict_writes += 1
-            dump_json(MENTIONS, ms)
-            dump_json(SIDECAR, sc)
+            commit_mentions(ms)  # locked: shared entity_mentions.json read-merge-write
+            dump_json(SIDECAR, sc)  # ledger LAST (t/3163 GV): a crash before this UNDER-reports (re-resolve next run), never over-reports done-but-unwritten node:*
             print(f"APPLIED (scoped): {len(touched)} POV file(s), {dict_writes} dict file(s)")
         else:
             print("DRY RUN (scoped)")
@@ -599,14 +622,10 @@ def run_live():
                 d = load_json(t["file"])
                 d["used_by_nodes"] = sorted(ubn.get(t["cf"], set()))
                 dump_json(t["file"], d)
-            dump_json(MENTIONS, ms)
-            dump_json(SIDECAR, sc)
+            commit_mentions(ms)  # locked: shared entity_mentions.json read-merge-write
+            dump_json(SIDECAR, sc)  # ledger LAST (t/3163 GV): a crash before this UNDER-reports (re-resolve next run), never over-reports done-but-unwritten node:*
             print("APPLIED")
         else:
             print("DRY RUN")
 
-if APPLY:
-    with grounding_lock("reconciler"):  # serialize the read-merge-write vs the PS cmdlet / concurrent sweeps
-        run_live()
-else:
-    run_live()  # dry-run/selftest are read-only — no lock
+run_live()  # APPLY locks only commit_mentions(); dry-run/selftest are read-only
