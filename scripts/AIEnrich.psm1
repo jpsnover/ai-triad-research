@@ -541,7 +541,11 @@ function Invoke-AIApi {
         [int]   $MaxRetries  = 5,
         [int[]] $RetryDelays = @(15, 45, 90, 120),
         [string[]]$FallbackModels,
-        [switch]$SkipTokenCheck
+        [switch]$SkipTokenCheck,
+        # t/3242 — optional AI Call Log hook (IoC). A scriptblock invoked once per call with
+        # ($RetryCount, $Status). Defined in AITriad (Invoke-AIByUsage) so it retains that module's
+        # affinity and can reach the AITriad-private Write-AICallLogEntry across the module boundary.
+        [scriptblock]$CallLogger
     )
 
     # -- Resolve model info from registry -------------------------------------
@@ -1051,6 +1055,18 @@ function Invoke-AIApi {
         }
     }
 
+    # t/3242 — AI Call Log capture (IoC). Fire the injected logger ONCE per call HERE, before the
+    # failure $null-return AND the success extraction, so a failed call is logged too (TL C, cond.3).
+    # Fail-safe (cond.2): the logger — and the audit write it drives — must never break the AI call.
+    if ($CallLogger) {
+        if ($null -ne $Response -and $null -eq $LastError) { $LogStatus = 200 }
+        elseif ($LastError -and $LastError.Exception.Response) { $LogStatus = $LastError.Exception.Response.StatusCode.value__ }
+        elseif ($LastError) { $LogStatus = 'error' }
+        else { $LogStatus = '?' }
+        try { & $CallLogger $Attempt ([string]$LogStatus) }
+        catch { Write-Warning "Invoke-AIApi: call-logger threw ($($_.Exception.Message)); continuing (audit log is non-fatal)." }
+    }
+
     if ($null -ne $LastError -or $null -eq $Response) {
         if ($LastError) { $StatusCode = $LastError.Exception.Response.StatusCode.value__ } else { $StatusCode = '?' }
         $Hint = switch ($StatusCode) {
@@ -1113,6 +1129,7 @@ function Invoke-AIApi {
                     RetryDelays    = @(5, 15)
                     FallbackModels = @()
                     SkipTokenCheck = $true
+                    CallLogger     = $CallLogger   # t/3242 cond.1: forward the logger through the cascade
                 }
                 if ($SystemInstruction) { $FbParams['SystemInstruction'] = $SystemInstruction }
                 if ($JsonMode)          { $FbParams['JsonMode'] = $true }

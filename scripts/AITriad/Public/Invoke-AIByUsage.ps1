@@ -82,7 +82,11 @@ function Invoke-AIByUsage {
 
         [string]$ApiKey = '',
 
-        [string[]]$FallbackModels
+        [string[]]$FallbackModels,
+
+        # t/3242 — AI Call Log Scenario tag (e.g. Debate / Chat / Fact Check / Logical Form).
+        # Defaults to the UsageId when unset so the logged Scenario is never blank.
+        [string]$Scenario = ''
     )
 
     Set-StrictMode -Version Latest
@@ -168,5 +172,38 @@ function Invoke-AIByUsage {
 
     Write-Verbose "Invoke-AIByUsage: UsageID='$UsageId' → Model='$($invokeParams.Model)' Temp=$($invokeParams['Temperature']) MaxTokens=$($invokeParams['MaxTokens'])"
 
-    return (Invoke-AIApi @invokeParams)
+    # t/3242 — AI Call Log capture (IoC, TL ruling t/3242#2). Invoke-AIApi lives in a SEPARATE module
+    # (AIEnrich) and invokes the logger via `& $CallLogger`; a cross-module `&` runs the block in the
+    # CALLER's scope, where the AITriad-private Write-AICallLogEntry is NOT resolvable by name (and
+    # resolving a private function via Get-Command is environment-fragile). So the injected closure only
+    # APPENDS (RetryCount, Status) to a captured list — a pure, scope-safe op — and we WRITE the records
+    # HERE afterward, in AITriad scope where Write-AICallLogEntry resolves natively. The closure fires
+    # inside Invoke-AIApi BEFORE its failure $null-return, so failures are captured; the cascade forwards
+    # the same closure, so each fallback attempt appends its own entry (one record per attempt).
+    # Gated on Test-AICallLogEnabled so the flag-off path adds no logger and no overhead.
+    $logEntries = $null
+    if (Test-AICallLogEnabled) {
+        $logScenario    = if ($Scenario) { $Scenario } else { $UsageId }
+        $logPromptStart = $userMessage
+        $logEntries     = [System.Collections.Generic.List[object]]::new()
+        $invokeParams['CallLogger'] = {
+            param($RetryCount, $Status)
+            $logEntries.Add([pscustomobject]@{ RetryCount = $RetryCount; Status = $Status })
+        }.GetNewClosure()
+    }
+
+    $result = Invoke-AIApi @invokeParams
+
+    if ($null -ne $logEntries -and $logEntries.Count -gt 0) {
+        foreach ($e in $logEntries) {
+            # Fail-safe: an audit-log write must never break the AI call it audits.
+            try {
+                Write-AICallLogEntry -Scenario $logScenario -PromptID $UsageId `
+                    -PromptStart $logPromptStart -RetryCount $e.RetryCount -Status $e.Status
+            }
+            catch { Write-Warning "Invoke-AIByUsage: AI call-log write failed ($($_.Exception.Message)); continuing." }
+        }
+    }
+
+    return $result
 }
