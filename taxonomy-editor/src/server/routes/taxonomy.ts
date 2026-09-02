@@ -32,12 +32,17 @@ import { log } from '../logger.js';
 // synthetic corpus is WRITE-FROZEN. No server route mutates it today (the client updateSyntheticEmbeddings
 // POST is not wired server-side). IF a synth-mutation route is ever added it MUST call
 // __invalidateSyntheticEmbeddingsCache() after the write, or GETs will serve a stale corpus.
+// A generation counter guards the invalidate-during-in-flight-build race (t/3237): an invalidation that
+// lands WHILE a cold build is running bumps _synthGen, so that build declines to publish its now-stale
+// bytes to the cache and the next GET rebuilds against the new generation.
 let _synthEmbeddingsBuffer: Buffer | null = null;
 let _synthEmbeddingsInFlight: Promise<Buffer> | null = null;
+let _synthGen = 0;
 
 async function getSyntheticEmbeddingsBuffer(): Promise<Buffer> {
   if (_synthEmbeddingsBuffer) return _synthEmbeddingsBuffer;
   if (_synthEmbeddingsInFlight) return _synthEmbeddingsInFlight; // promise-dedupe: one cold build for a burst
+  const gen = _synthGen; // the generation this build belongs to; a concurrent invalidate() bumps _synthGen
   _synthEmbeddingsInFlight = (async () => {
     const t0 = Date.now();
     const heapBefore = process.memoryUsage().heapUsed;
@@ -46,7 +51,10 @@ async function getSyntheticEmbeddingsBuffer(): Promise<Buffer> {
     const t1 = Date.now();
     const buffer = await jsonStringifyChunked(data); // yields the loop during the cold serialize
     const serializeMs = Date.now() - t1;
-    _synthEmbeddingsBuffer = buffer;
+    // Generation-guard (t/3237): publish to the cache ONLY if no invalidation landed mid-build. Else this
+    // build's bytes are stale — still hand them to the current awaiters (they requested pre-invalidation),
+    // but don't cache them, so the next GET rebuilds against the new generation.
+    if (gen === _synthGen) _synthEmbeddingsBuffer = buffer;
     // t/3165 phase-timing (cold path only) → the next real synth GET proves load_ms vs serialize_ms +
     // heap; on a warm hit this line never runs (serve is near-zero) = the fix's self-proof.
     log.api.info({
@@ -67,7 +75,7 @@ async function getSyntheticEmbeddingsBuffer(): Promise<Buffer> {
 
 /** t/3165: drop the cached serialized synthetic-embeddings. MUST be called by any future
  *  synth-mutation route after it writes (see the write-frozen contract above). Exported for that + tests. */
-export function __invalidateSyntheticEmbeddingsCache(): void { _synthEmbeddingsBuffer = null; }
+export function __invalidateSyntheticEmbeddingsCache(): void { _synthEmbeddingsBuffer = null; _synthGen++; }
 
 /** @internal t/3165 test hook — exercise the cache/dedupe path without the full Router harness. */
 export const __getSyntheticEmbeddingsBufferForTest = getSyntheticEmbeddingsBuffer;

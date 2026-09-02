@@ -31,7 +31,10 @@ export function json(res: ServerResponse, data: unknown, status = 200): void {
  *  blocked the prod event loop ~3s. This builds the JSON incrementally, yielding to the loop every
  *  `yieldEvery` top-level items. Output is byte-identical to JSON.stringify for arrays / plain objects
  *  of JSON-safe values (same key order, no whitespace, undefined/function-valued keys omitted, array
- *  holes → null). Non-array/non-object values fall back to a direct stringify. */
+ *  holes → null). Non-array/non-object values fall back to a direct stringify.
+ *  CAVEAT (t/3237): assumes a PLAIN top-level array/object — a top-level `toJSON()` is NOT honored
+ *  (the top level is iterated by entries/elements directly). Nested `toJSON()` IS honored (handled by
+ *  the inner JSON.stringify of each value). Callers with a custom top-level toJSON should use json(). */
 export async function jsonStringifyChunked(value: unknown, yieldEvery = 256): Promise<Buffer> {
   const yieldToLoop = (): Promise<void> => new Promise<void>((r) => setImmediate(r));
   if (Array.isArray(value)) {
