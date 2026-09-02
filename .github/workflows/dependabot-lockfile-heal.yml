@@ -153,33 +153,26 @@ jobs:
             echo "Already in sync — nothing to heal."
           fi
 
-      # Credential guard: no-op (success) when the PAT secret is absent — never fail.
-      - name: Check heal credential
-        id: cred
-        if: steps.drift.outputs.changed == 'true'
-        env:
-          HEAL_PAT: ${{ secrets.DEPENDABOT_HEAL_PAT }}
-        run: |
-          if [ -n "$HEAL_PAT" ]; then
-            echo "present=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "present=false" >> "$GITHUB_OUTPUT"
-            echo "::notice::DEPENDABOT_HEAL_PAT not set — drift detected but heal skipped (no-op)."
-          fi
-
       # ── SECURITY BOUNDARY ─────────────────────────────────────────────────
       # The write credential (a fine-grained PAT: contents:write, single-repo) is
-      # referenced ONLY by the push step below — AFTER every dependency/script step
-      # above. Step ordering IS the security boundary: no PR-controlled step
-      # (checkout/install/licenses) ever has the PAT in scope. Like the GitHub App
-      # token and UNLIKE the default GITHUB_TOKEN, a PAT push RETRIGGERS CI on the
-      # heal commit (load-bearing — do NOT "simplify" to the default token).
-      # (Owner chose the PAT over the GitHub App per the e/127#2 documented fallback.)
+      # materialized in EXACTLY ONE step — this one — AFTER every dependency/script
+      # step above. Step ordering IS the security boundary: no PR-controlled step
+      # (checkout/install/licenses) ever has the PAT in scope, and no separate
+      # presence-check step needs it either (TL #1805 review item 1 — GitHub doesn't
+      # allow `secrets` in a step `if:`, so the push self-guards on absence below).
+      # Like the GitHub App token and UNLIKE the default GITHUB_TOKEN, a PAT push
+      # RETRIGGERS CI on the heal commit (load-bearing — do NOT "simplify" to the
+      # default token). (Owner chose the PAT over the App per the e/127#2 fallback.)
       - name: Commit and push heal
-        if: steps.drift.outputs.changed == 'true' && steps.cred.outputs.present == 'true'
+        if: steps.drift.outputs.changed == 'true'
         env:
           GH_TOKEN: ${{ secrets.DEPENDABOT_HEAL_PAT }}
         run: |
+          # Credential guard: no-op success when the PAT secret is absent — never red.
+          if [ -z "$GH_TOKEN" ]; then
+            echo "::notice::DEPENDABOT_HEAL_PAT not set — drift detected but heal skipped (no-op)."
+            exit 0
+          fi
           git config user.name "dependabot-heal[bot]"
           git config user.email "dependabot-heal[bot]@users.noreply.github.com"
           git add taxonomy-editor/pnpm-lock.yaml \
