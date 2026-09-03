@@ -39,9 +39,9 @@ def refs_block(n):
         lines.append(f"- {eid} ({nm}) sort={sort} match_level={ml}")
         allowed[eid] = (sort, ml)
     for r in (n.get("concept_refs") or []):
-        cid = r["ref"]  # term:cf ; universal/kind -> abstract DOLCE-lite sort
-        lines.append(f"- {cid} ({r.get('surface','')}) sort=non-agentive-social-object match_level=exact")
-        allowed[cid] = ("non-agentive-social-object", "exact")
+        cid = r["ref"]  # term:cf — a concept is a UNIVERSAL (kind), the 6th arg-slot sort (t/3251),
+        lines.append(f"- {cid} ({r.get('surface','')}) sort=universal match_level=exact")
+        allowed[cid] = ("universal", "exact")  # distinct from the 5 particular DolceCategory sorts
     return ("\n".join(lines) if lines else "(none)"), allowed
 
 def build_prompt(tmpl, n):
@@ -61,20 +61,53 @@ def parse_lf(text):
     try: return json.loads(t[s:e+1])
     except Exception: return None
 
+PARTICULAR_SORTS = frozenset({"agentive-physical-object", "non-agentive-functional-artifact",
+                              "perdurant", "normative-description", "non-agentive-social-object"})
+
+
+def _repair_bare(ref, allowed):
+    """A bare cf-name that IS a node concept -> its `term:` id (t/3239: LLM dropped the prefix)."""
+    if isinstance(ref, str) and ref and not ref.startswith(("ent-", "term:", "lit:")) \
+       and not re.fullmatch(r"e\d+", ref):
+        cand = "term:" + ref
+        if cand in allowed:
+            return cand
+    return ref
+
+
 def validate(lf, allowed, camp, cat):
-    """One-identity §7.4: grounded refs must be in `allowed`; copy sort/match_level authoritatively;
-    drop any hallucinated ent-/term: ref (keep lit:). Force mechanical modality."""
+    """One-identity §7.4: grounded refs (ent-/term:) copy sort/match_level authoritatively from
+    `allowed`; a bare cf-name matching a node concept is repaired to its term: id (t/3239); lit:/event
+    args keep a VALID particular sort + non-empty match_level (t/3239#6 hardening); hallucinated
+    grounded ids are dropped. Concept sorts are `universal` (via `allowed`, t/3251). Mechanical modality."""
     if not isinstance(lf, dict): return None
-    args = []
-    for a in (lf.get("args") or []):
-        ref = a.get("ref", "")
+
+    def fix(a):
+        ref = _repair_bare(a.get("ref", ""), allowed)
+        a["ref"] = ref
         if isinstance(ref, str) and (ref.startswith("ent-") or ref.startswith("term:")):
             if ref not in allowed:
-                continue  # hallucinated grounded id -> drop (never mint)
-            a["sort"], a["match_level"] = allowed[ref][0], allowed[ref][1]
-        args.append(a)
-    lf["args"] = args
-    lf["about"] = [x for x in (lf.get("about") or []) if isinstance(x, dict) and x.get("ref") in allowed]
+                return None  # hallucinated grounded id -> drop (never mint)
+            a["sort"], a["match_level"] = allowed[ref]
+            return a
+        # lit: / event / unresolved: a particular; force a valid sort + non-empty match_level
+        if a.get("sort") not in PARTICULAR_SORTS:
+            a["sort"] = "non-agentive-social-object"  # clamp off-enum to the abstract-particular default
+        if not a.get("match_level"):
+            a["match_level"] = "exact"
+        return a
+
+    lf["args"] = [x for x in (fix(a) for a in (lf.get("args") or [])) if x]
+    kept_about = []
+    for ab in (lf.get("about") or []):
+        if not isinstance(ab, dict):
+            continue
+        ab["ref"] = _repair_bare(ab.get("ref", ""), allowed)
+        if ab.get("ref") in allowed:
+            if not ab.get("match_level"):
+                ab["match_level"] = "exact"
+            kept_about.append(ab)
+    lf["about"] = kept_about
     lf["modality"] = {"holder": f"camp:{POV.get(camp, camp)}", "attitude": CAT_ATT.get(cat, "belief")}
     lf.setdefault("status", "proposed")
     return lf
