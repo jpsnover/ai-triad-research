@@ -2,10 +2,11 @@
 
 a.vocab-term,
 .vocab-term {
+  --_vocab-color: var(--color-vocab, #a855f7);
   color: inherit;
   text-decoration: underline;
   text-decoration-style: dotted;
-  text-decoration-color: rgba(168, 85, 247, 0.35);
+  text-decoration-color: color-mix(in srgb, var(--_vocab-color) 35%, transparent);
   text-underline-offset: 2px;
   cursor: pointer;
   border-radius: var(--radius-sm);
@@ -13,8 +14,8 @@ a.vocab-term,
 }
 
 .vocab-term:hover {
-  text-decoration-color: rgba(168, 85, 247, 0.8);
-  background: rgba(168, 85, 247, 0.08);
+  text-decoration-color: color-mix(in srgb, var(--_vocab-color) 80%, transparent);
+  background: color-mix(in srgb, var(--_vocab-color) 8%, transparent);
 }
 
 
@@ -26,7 +27,7 @@ a.vocab-term,
 .vocab-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
 .vocab-header h3 { margin: 0; font-size: var(--text-md); }
 .vocab-stats { font-size: var(--text-xs); color: var(--text-muted); }
-.lint-badge { background: #ef4444; color: #fff; border-radius: var(--radius-md); padding: 1px 6px; margin-left: 6px; font-size: var(--text-2xs); font-weight: 600; }
+.lint-badge { background: var(--danger); color: #fff; border-radius: var(--radius-md); padding: 1px 6px; margin-left: 6px; font-size: var(--text-2xs); font-weight: 600; }
 .vocab-tabs { display: flex; gap: 2px; margin-bottom: 8px; border-bottom: 1px solid var(--border-color); }
 .vocab-tabs button { background: none; border: none; color: var(--text-muted); padding: 4px 10px; cursor: pointer; border-bottom: 2px solid transparent; font-size: var(--text-xs); }
 .vocab-tabs button.active { color: var(--text-primary); border-bottom-color: var(--focus-ring); }
@@ -38,35 +39,35 @@ a.vocab-term,
 .vocab-content { flex: 1; }
 .vocab-list { display: flex; flex-direction: column; gap: 2px; }
 .vocab-entry { padding: 6px 8px; border: 1px solid var(--border-color); border-radius: var(--radius-sm); cursor: pointer; transition: background 0.1s; }
-.vocab-entry:hover { background: rgba(255,255,255,0.03); }
-.vocab-entry.expanded { background: rgba(255,255,255,0.04); border-color: var(--focus-ring); }
+.vocab-entry:hover { background: var(--bg-hover); }
+.vocab-entry.expanded { background: var(--bg-selected); border-color: var(--focus-ring); }
 .vocab-entry-header { display: flex; align-items: center; gap: 6px; font-size: var(--text-xs); }
 .camp-dot { font-size: var(--text-sm); }
-.canonical { font-size: var(--text-xs); color: var(--focus-ring); background: rgba(255,255,255,0.05); padding: 1px 4px; border-radius: var(--radius-sm); }
+.canonical { font-size: var(--text-xs); color: var(--focus-ring); background: var(--bg-tertiary); padding: 1px 4px; border-radius: var(--radius-sm); }
 .display-form { color: var(--text-muted); font-size: var(--text-xs); flex: 1; }
-.node-count { font-size: var(--text-2xs); color: var(--text-muted); background: rgba(255,255,255,0.05); padding: 1px 5px; border-radius: var(--radius-md); }
+.node-count { font-size: var(--text-2xs); color: var(--text-muted); background: var(--bg-tertiary); padding: 1px 5px; border-radius: var(--radius-md); }
 .vocab-entry-detail { margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--border-color); }
 .vocab-entry-detail .definition { margin: 0 0 6px; line-height: 1.4; }
 .detail-row { margin: 3px 0; font-size: var(--text-xs); }
 .detail-row strong { color: var(--text-primary); margin-right: 4px; }
 .detail-row.meta { color: var(--text-muted); font-style: italic; }
-.phrase-tag { display: inline-block; background: rgba(245,158,11,0.12); color: #f59e0b; padding: 1px 5px; border-radius: var(--radius-sm); margin: 1px 2px; font-size: var(--text-2xs); }
+.phrase-tag { display: inline-block; background: color-mix(in srgb, var(--warning, #f59e0b) 12%, transparent); color: var(--warning, #f59e0b); padding: 1px 5px; border-radius: var(--radius-sm); margin: 1px 2px; font-size: var(--text-2xs); }
 .see-also-link { cursor: pointer; color: var(--focus-ring); text-decoration: underline; margin-right: 6px; }
 .see-also-link:hover { opacity: 0.8; }
 .confusion-entry { margin: 2px 0 2px 8px; font-size: var(--text-xs); }
 .status-badge { font-size: var(--text-2xs); padding: 1px 6px; border-radius: var(--radius-sm); font-weight: 500; }
-.status-badge.do_not_use_bare { background: rgba(239,68,68,0.15); color: #ef4444; }
-.status-badge.acceptable_in_quotation { background: rgba(245,158,11,0.15); color: #f59e0b; }
-.status-badge.safe { background: rgba(34,197,94,0.15); color: #22c55e; }
+.status-badge.do_not_use_bare { background: color-mix(in srgb, var(--danger) 15%, transparent); color: var(--danger); }
+.status-badge.acceptable_in_quotation { background: color-mix(in srgb, var(--warning, #f59e0b) 15%, transparent); color: var(--warning, #f59e0b); }
+.status-badge.safe { background: color-mix(in srgb, var(--success, #22c55e) 15%, transparent); color: var(--success, #22c55e); }
 .resolves-to { margin: 4px 0 0 16px; }
 .resolution { display: flex; align-items: center; gap: 6px; margin: 2px 0; font-size: var(--text-xs); }
 .resolution .when { color: var(--text-muted); font-size: var(--text-2xs); }
 .camp-tag { font-size: var(--text-2xs); font-weight: 500; }
 .ambiguous-when { font-size: var(--text-2xs); color: var(--text-muted); margin-top: 4px; }
 .lint-list .lint-violation { padding: 6px 8px; border: 1px solid var(--border-color); border-radius: var(--radius-sm); margin-bottom: 2px; }
-.lint-violation.severity-error { border-left: 3px solid #ef4444; }
-.lint-violation.severity-warning { border-left: 3px solid #f59e0b; }
-.lint-violation.severity-info { border-left: 3px solid #3b82f6; }
+.lint-violation.severity-error { border-left: 3px solid var(--danger); }
+.lint-violation.severity-warning { border-left: 3px solid var(--warning, #f59e0b); }
+.lint-violation.severity-info { border-left: 3px solid var(--focus-ring); }
 .lint-header { display: flex; gap: 6px; font-size: var(--text-xs); margin-bottom: 3px; }
 .lint-header .severity { font-weight: 600; text-transform: uppercase; }
 .lint-header .constraint { color: var(--text-muted); }
@@ -246,21 +247,21 @@ a.vocab-term,
 }
 
 .vocab-ambiguous-count {
-  color: #d97706;
+  color: var(--warning, #d97706);
   margin-left: 6px;
 }
 
 .vocab-ambiguous-block {
   margin-top: 8px;
   padding: 4px 8px;
-  background: rgba(217,119,6,0.06);
-  border-left: 3px solid #d97706;
+  background: color-mix(in srgb, var(--warning, #d97706) 6%, transparent);
+  border-left: 3px solid var(--warning, #d97706);
   border-radius: 4px;
 }
 
 .vocab-ambiguous-header {
   font-weight: 600;
-  color: #d97706;
+  color: var(--warning, #d97706);
   margin-bottom: 4px;
   font-size: 0.72rem;
 }
