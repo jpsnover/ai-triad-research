@@ -6,6 +6,7 @@ import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { bridgeGet } from '../../bridge/web-bridge';
 import { DocLink } from './TheoryLink';
 import type { StandardizedTerm, ColloquialTerm, LintViolation, CampOrigin, CoinageStatus } from '@lib/dictionary';
+import './VocabularyPanel.css'; // t/3287 — readability styles, namespaced under .vocab-shared
 
 const POV_COLORS: Record<string, string> = {
   accelerationist: 'var(--color-acc)',
@@ -107,11 +108,11 @@ export function VocabularyPanel() {
   }, [colloquial, searchQuery]);
 
   if (loading) {
-    return <div className="vocabulary-panel loading">Loading dictionary...</div>;
+    return <div className="vocabulary-panel loading vocab-shared">Loading dictionary...</div>;
   }
 
   return (
-    <div className="vocabulary-panel">
+    <div className="vocabulary-panel vocab-shared">
       <div className="vocab-header">
         <h3>Vocabulary</h3>
         <DocLink docPath="research/comp-linguist/docs/theory-of-success/theory-of-success-vocabulary.md" label="Theory of success: Vocabulary" tooltip="Open the Vocabulary theory-of-success doc in GitHub" />
@@ -171,9 +172,19 @@ export function VocabularyPanel() {
               <div
                 key={term.canonical_form}
                 className={`vocab-entry ${expandedTerm === term.canonical_form ? 'expanded' : ''}`}
+                role="button"
+                tabIndex={0}
+                aria-expanded={expandedTerm === term.canonical_form}
                 onClick={() => setExpandedTerm(
                   expandedTerm === term.canonical_form ? null : term.canonical_form,
                 )}
+                onKeyDown={e => {
+                  // t/3287 §7: keyboard-operable expandable row (Enter/Space toggles).
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    setExpandedTerm(expandedTerm === term.canonical_form ? null : term.canonical_form);
+                  }
+                }}
               >
                 <div className="vocab-entry-header">
                   <span
