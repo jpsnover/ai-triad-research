@@ -11,7 +11,10 @@ import { AI_BACKENDS, MODELS_BY_BACKEND, initAIModels } from '../../hooks/useTax
 import { KeySharingDialog } from './KeySharingDialog';
 import { useDescriptionMode, type DescriptionMode } from '../shared/DescriptionToggle';
 import { backendSelectState, type BackendAvailabilityEntry } from '../shared/backendSelectState';
+import { useSettingsDialog } from '../../hooks/useSettingsDialog';
 import './SettingsDialog.css';
+
+type SettingsTab = 'ai' | 'apiKeys' | 'appearance';
 
 interface SettingsDialogProps {
   onClose: () => void;
@@ -503,6 +506,16 @@ function ApiKeyEntrySection({
 }
 
 export function SettingsDialog({ onClose }: SettingsDialogProps) {
+  const requestedSection = useSettingsDialog(s => s.requestedSection);
+  const [activeTab, setActiveTab] = useState<SettingsTab>(() =>
+    requestedSection === 'apiKeys' ? 'apiKeys' : 'ai',
+  );
+
+  // t/3295: sync tab when caller passes a section target (e.g. QuotaBanner → 'apiKeys')
+  useEffect(() => {
+    if (requestedSection) setActiveTab(requestedSection);
+  }, [requestedSection]);
+
   const { colorScheme, setColorScheme, paneSpacing, setPaneSpacing, aiBackend, setAIBackend, geminiModel, setGeminiModel } = useTaxonomyStore();
   const [descMode, setDescMode] = useDescriptionMode();
   const [hasKey, setHasKey] = useState<Record<string, boolean>>({});
@@ -617,126 +630,146 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
       <div className="dialog settings-dialog" onClick={(e) => e.stopPropagation()}>
         <h3>Settings</h3>
 
-        <div className="settings-row">
-          <label className="settings-label">AI Backend</label>
-          <select
-            className="settings-select"
-            value={aiBackend}
-            onChange={(e) => setAIBackend(e.target.value as AIBackend)}
-          >
-            {AI_BACKENDS.map((b) => {
-              // t/2036 3-state: has-key→plain; no-key-but-BYOK-permitted→selectable "(bring your
-              // own key)"; tier-forbidden (web anon/free)→disabled "(sign in to use)". Never
-              // disable merely for a missing key — that was the ADR-002-violating conflation.
-              const state = backendSelectState(availByReason[b.value], !!hasKey[b.value]);
-              return (
-                <option key={b.value} value={b.value} disabled={!state.selectable}>
-                  {b.label}{state.suffix}
-                </option>
-              );
-            })}
-          </select>
-        </div>
-
-        <div className="settings-row">
-          <label className="settings-label">Model</label>
-          <div className="settings-model-row">
-            <select
-              className="settings-select"
-              value={geminiModel}
-              onChange={(e) => setGeminiModel(e.target.value as AIModel)}
-            >
-              {models.map((m) => (
-                <option key={m.value} value={m.value}>{m.label}</option>
-              ))}
-            </select>
+        <div className="settings-tab-bar" role="tablist">
+          {(['ai', 'apiKeys', 'appearance'] as SettingsTab[]).map(tab => (
             <button
-              className="btn btn-sm settings-refresh-btn"
-              onClick={handleRefresh}
-              disabled={refreshing}
-              title="Query provider APIs for available models and update ai-models.json"
+              key={tab}
+              role="tab"
+              aria-selected={activeTab === tab}
+              className={`settings-tab${activeTab === tab ? ' settings-tab--active' : ''}`}
+              onClick={() => setActiveTab(tab)}
             >
-              {refreshing ? 'Refreshing...' : 'Refresh Models'}
+              {tab === 'ai' ? 'AI' : tab === 'apiKeys' ? 'API Keys' : 'Appearance'}
             </button>
-          </div>
+          ))}
         </div>
 
-        <RefreshModelsResult result={refreshResult} error={refreshError} />
+        {activeTab === 'ai' && (
+          <>
+            <div className="settings-row">
+              <label className="settings-label">AI Backend</label>
+              <select
+                className="settings-select"
+                value={aiBackend}
+                onChange={(e) => setAIBackend(e.target.value as AIBackend)}
+              >
+                {AI_BACKENDS.map((b) => {
+                  // t/2036 3-state: has-key→plain; no-key-but-BYOK-permitted→selectable "(bring your
+                  // own key)"; tier-forbidden (web anon/free)→disabled "(sign in to use)". Never
+                  // disable merely for a missing key — that was the ADR-002-violating conflation.
+                  const state = backendSelectState(availByReason[b.value], !!hasKey[b.value]);
+                  return (
+                    <option key={b.value} value={b.value} disabled={!state.selectable}>
+                      {b.label}{state.suffix}
+                    </option>
+                  );
+                })}
+              </select>
+            </div>
 
-        <div className="settings-divider" />
+            <div className="settings-row">
+              <label className="settings-label">Model</label>
+              <div className="settings-model-row">
+                <select
+                  className="settings-select"
+                  value={geminiModel}
+                  onChange={(e) => setGeminiModel(e.target.value as AIModel)}
+                >
+                  {models.map((m) => (
+                    <option key={m.value} value={m.value}>{m.label}</option>
+                  ))}
+                </select>
+                <button
+                  className="btn btn-sm settings-refresh-btn"
+                  onClick={handleRefresh}
+                  disabled={refreshing}
+                  title="Query provider APIs for available models and update ai-models.json"
+                >
+                  {refreshing ? 'Refreshing...' : 'Refresh Models'}
+                </button>
+              </div>
+            </div>
 
-        <ApiKeyEntrySection
-          aiBackend={aiBackend}
-          hasKey={hasKey}
-          endpointInput={endpointInput}
-          setEndpointInput={setEndpointInput}
-          keyInput={keyInput}
-          setKeyInput={setKeyInput}
-          savingKey={savingKey}
-          onSaveKey={handleSaveKey}
-          keyError={keyError}
-          keySuccess={keySuccess}
-        />
-
-        <div className="settings-key-actions-row">
-          <TestKeysButton hasKey={hasKey} />
-          <button className="btn btn-sm" onClick={() => setShowKeySharing(true)}>
-            Share / Import Keys via QR
-          </button>
-          <ShowKeysSection onKeysChanged={() => setKeyRefreshTrigger(n => n + 1)} />
-        </div>
-
-        {showKeySharing && (
-          <KeySharingDialog
-            onClose={() => setShowKeySharing(false)}
-            onKeysImported={() => setKeySuccess('Keys imported via QR')}
-          />
+            <RefreshModelsResult result={refreshResult} error={refreshError} />
+          </>
         )}
 
-        <div className="settings-divider" />
+        {activeTab === 'apiKeys' && (
+          <>
+            <ApiKeyEntrySection
+              aiBackend={aiBackend}
+              hasKey={hasKey}
+              endpointInput={endpointInput}
+              setEndpointInput={setEndpointInput}
+              keyInput={keyInput}
+              setKeyInput={setKeyInput}
+              savingKey={savingKey}
+              onSaveKey={handleSaveKey}
+              keyError={keyError}
+              keySuccess={keySuccess}
+            />
 
-        <div className="settings-row">
-          <label className="settings-label">Theme</label>
-          <select
-            className="settings-select"
-            value={colorScheme}
-            onChange={(e) => setColorScheme(e.target.value as ColorScheme)}
-          >
-            <option value="light">Light</option>
-            <option value="dark">Dark</option>
-            <option value="bkc">BKC</option>
-            <option value="harvard">Harvard</option>
-            <option value="system">System</option>
-          </select>
-        </div>
+            <div className="settings-key-actions-row">
+              <TestKeysButton hasKey={hasKey} />
+              <button className="btn btn-sm" onClick={() => setShowKeySharing(true)}>
+                Share / Import Keys via QR
+              </button>
+              <ShowKeysSection onKeysChanged={() => setKeyRefreshTrigger(n => n + 1)} />
+            </div>
 
-        <div className="settings-row">
-          <label className="settings-label">Pane 2 Item Spacing</label>
-          <select
-            className="settings-select"
-            value={paneSpacing}
-            onChange={(e) => setPaneSpacing(e.target.value as 'normal' | 'concise')}
-          >
-            <option value="normal">Normal</option>
-            <option value="concise">Concise</option>
-          </select>
-        </div>
+            {showKeySharing && (
+              <KeySharingDialog
+                onClose={() => setShowKeySharing(false)}
+                onKeysImported={() => setKeySuccess('Keys imported via QR')}
+              />
+            )}
+          </>
+        )}
 
-        <div className="settings-divider" />
+        {activeTab === 'appearance' && (
+          <>
+            <div className="settings-row">
+              <label className="settings-label">Theme</label>
+              <select
+                className="settings-select"
+                value={colorScheme}
+                onChange={(e) => setColorScheme(e.target.value as ColorScheme)}
+              >
+                <option value="light">Light</option>
+                <option value="dark">Dark</option>
+                <option value="bkc">BKC</option>
+                <option value="harvard">Harvard</option>
+                <option value="system">System</option>
+              </select>
+            </div>
 
-        <div className="settings-row">
-          <label className="settings-label">Description Display</label>
-          <div className="settings-radio-group" role="radiogroup" aria-label="Default description view">
-            <label className="settings-radio-label">
-              <input type="radio" name="descMode" value="formal" checked={descMode === 'formal'} onChange={() => setDescMode('formal')} />
-              Formal
-            </label>
-            <label className="settings-radio-label">
-              <input type="radio" name="descMode" value="plain" checked={descMode === 'plain'} onChange={() => setDescMode('plain')} />
-              Plain
-            </label>
-          </div>
-        </div>
+            <div className="settings-row">
+              <label className="settings-label">Pane 2 Item Spacing</label>
+              <select
+                className="settings-select"
+                value={paneSpacing}
+                onChange={(e) => setPaneSpacing(e.target.value as 'normal' | 'concise')}
+              >
+                <option value="normal">Normal</option>
+                <option value="concise">Concise</option>
+              </select>
+            </div>
+
+            <div className="settings-row">
+              <label className="settings-label">Description Display</label>
+              <div className="settings-radio-group" role="radiogroup" aria-label="Default description view">
+                <label className="settings-radio-label">
+                  <input type="radio" name="descMode" value="formal" checked={descMode === 'formal'} onChange={() => setDescMode('formal')} />
+                  Formal
+                </label>
+                <label className="settings-radio-label">
+                  <input type="radio" name="descMode" value="plain" checked={descMode === 'plain'} onChange={() => setDescMode('plain')} />
+                  Plain
+                </label>
+              </div>
+            </div>
+          </>
+        )}
 
         <div className="dialog-actions">
           <button className="btn btn-primary" onClick={onClose}>Close</button>
