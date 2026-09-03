@@ -1,0 +1,337 @@
+/* Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+   Licensed under the MIT License. See LICENSE file in the project root. */
+
+/* Vocabulary panel readability styles (t/3287, spec docs/ux/vocabulary-panel-readability.md §3–§8).
+   The shared/ panel imported NO stylesheet, so it rendered as unstyled run-on HTML (t1/t2.png).
+
+   NAMESPACE (TL ruling t/3287#[b], p/336#275): every rule is scoped under `.vocab-shared` — the
+   wrapper class on this panel's root. debate-workspace/VocabularyPanel.css defines the SAME global
+   class names (.vocabulary-panel/.vocab-entry/…); scoping here means (a) these rules never apply to
+   the debate panel, and (b) `.vocab-shared .vocab-entry` (specificity 0,2,0) overrides any debate
+   global (.vocab-entry, 0,1,0) that leaks in when both chunks' CSS co-load in a session. So no
+   cascade collision either direction. (The DRY unify + the debate panel's own theme bugs are a
+   separate DebateWorkspace ticket per TL — not this fix.)
+
+   Tokens only, no hard-coded hex (§2); camp colors stay inline via POV_COLORS. Four themes inherit
+   through the tokens. */
+
+.vocab-shared {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  color: var(--text-primary);
+}
+
+/* ── Header (§3) ── */
+.vocab-shared .vocab-header {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+.vocab-shared .vocab-header h3 {
+  margin: 0;
+  font-size: 1.05em;
+}
+.vocab-shared .vocab-stats {
+  margin-left: auto;
+  color: var(--text-muted);
+  font-size: 0.85em;
+  font-variant-numeric: tabular-nums;
+}
+.vocab-shared .lint-badge {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 7px;
+  border-radius: var(--radius-sm);
+  background: var(--warning);
+  color: var(--error-text, var(--text-primary));
+  font-size: 0.85em;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Tabs (§3) ── */
+.vocab-shared .vocab-tabs {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid var(--border-color);
+}
+.vocab-shared .vocab-tabs button {
+  padding: 6px 12px;
+  border: none;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--text-secondary);
+  font: inherit;
+  cursor: pointer;
+}
+.vocab-shared .vocab-tabs button:hover {
+  color: var(--text-primary);
+  background: var(--bg-hover);
+}
+.vocab-shared .vocab-tabs button.active {
+  color: var(--text-primary);
+  border-bottom-color: var(--focus-ring, var(--text-primary));
+  font-weight: 600;
+}
+.vocab-shared .vocab-tabs button:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: -2px;
+}
+
+/* ── Filters (§3) ── */
+.vocab-shared .vocab-filters {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.vocab-shared .vocab-search {
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font: inherit;
+}
+.vocab-shared .vocab-search:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: -1px;
+}
+.vocab-shared .vocab-filter-row {
+  display: flex;
+  gap: 8px;
+}
+.vocab-shared .vocab-filter-row select {
+  flex: 1;
+  padding: 5px 6px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font: inherit;
+}
+
+/* ── List + rows (§4) ── */
+.vocab-shared .vocab-list {
+  display: flex;
+  flex-direction: column;
+}
+.vocab-shared .vocab-entry {
+  border-bottom: 1px solid var(--border-color);
+  cursor: pointer;
+}
+.vocab-shared .vocab-entry-header {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 8px 10px;
+}
+.vocab-shared .vocab-entry:hover {
+  background: var(--bg-hover);
+}
+.vocab-shared .vocab-entry:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: -2px;
+}
+.vocab-shared .camp-dot {
+  flex-shrink: 0;
+  width: 1em;
+  text-align: center;
+}
+/* §4: readable label primary, machine key muted-mono secondary, count far right.
+   JSX order is camp-dot → canonical → display-form → count; flex `order` sets the
+   visual hierarchy without a JSX reorder. */
+.vocab-shared .display-form {
+  order: 1;
+  flex: 1 1 auto;
+  color: var(--text-primary);
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+.vocab-shared .canonical {
+  order: 2;
+  flex-shrink: 0;
+  font-family: monospace;
+  font-size: 0.85em;
+  color: var(--text-muted);
+  overflow-wrap: anywhere;
+}
+.vocab-shared .node-count {
+  order: 3;
+  margin-left: auto;
+  flex-shrink: 0;
+  padding: 1px 7px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-secondary);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Expanded Dictionary detail (§4) */
+.vocab-shared .vocab-entry-detail {
+  padding: 8px 10px 10px 22px;
+  background: var(--bg-secondary);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.vocab-shared .vocab-entry-detail .definition {
+  margin: 0 0 4px;
+  color: var(--text-primary);
+}
+.vocab-shared .detail-row {
+  color: var(--text-secondary);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 6px;
+  align-items: baseline;
+}
+.vocab-shared .detail-row strong {
+  color: var(--text-primary);
+}
+.vocab-shared .detail-row.meta {
+  color: var(--text-muted);
+  font-size: 0.85em;
+}
+.vocab-shared .phrase-tag,
+.vocab-shared .see-also-link {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-hover);
+  font-size: 0.9em;
+}
+.vocab-shared .see-also-link {
+  font-family: monospace;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+.vocab-shared .see-also-link:hover {
+  text-decoration: underline;
+  color: var(--text-primary);
+}
+.vocab-shared .confusion-entry {
+  color: var(--text-secondary);
+}
+.vocab-shared .confusion-entry code {
+  font-family: monospace;
+  color: var(--text-primary);
+}
+
+/* ── Colloquial rows (§5) ── */
+.vocab-shared .colloquial-entry {
+  padding: 8px 10px;
+  cursor: default;
+}
+.vocab-shared .colloquial-entry .vocab-entry-header {
+  padding: 0 0 4px;
+}
+.vocab-shared .status-badge {
+  flex-shrink: 0;
+  padding: 1px 8px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  font-size: 0.8em;
+  text-transform: capitalize;
+}
+.vocab-shared .colloquial-entry strong {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+.vocab-shared .resolves-to {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.vocab-shared .resolution {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 4px 0;
+}
+.vocab-shared .resolution .when {
+  flex: 1;
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+.vocab-shared .camp-tag {
+  flex-shrink: 0;
+  margin-left: 8px;
+  padding: 0 6px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  font-size: 0.85em;
+  text-transform: capitalize;
+}
+.vocab-shared .ambiguous-when {
+  margin-top: 6px;
+  padding-left: 8px;
+  border-left: 2px solid var(--border-color);
+  color: var(--text-muted);
+}
+
+/* ── Lint rows (§6) ── */
+.vocab-shared .lint-violation {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.vocab-shared .lint-header {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+.vocab-shared .severity {
+  flex-shrink: 0;
+  padding: 1px 8px;
+  border-radius: var(--radius-sm);
+  color: var(--error-text, var(--text-primary));
+  font-size: 0.8em;
+  text-transform: capitalize;
+}
+/* Severity tint by token (§6 — no hex). severity-* is on the .lint-violation row. */
+.vocab-shared .lint-violation.severity-error .severity { background: var(--danger); }
+.vocab-shared .lint-violation.severity-warn .severity,
+.vocab-shared .lint-violation.severity-warning .severity { background: var(--warning); }
+.vocab-shared .lint-violation.severity-info .severity {
+  background: var(--bg-secondary);
+  color: var(--text-muted);
+}
+.vocab-shared .constraint {
+  flex-shrink: 0;
+  font-family: monospace;
+  color: var(--text-secondary);
+}
+.vocab-shared .file {
+  color: var(--text-muted);
+  font-family: monospace;
+  font-size: 0.85em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.vocab-shared .lint-message {
+  color: var(--text-primary);
+}
+.vocab-shared .lint-fix {
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+}
+
+/* ── Empty / loading ── */
+.vocab-shared .empty-state {
+  padding: 24px 12px;
+  text-align: center;
+  color: var(--text-muted);
+}
+.vocab-shared.loading {
+  padding: 24px 12px;
+  color: var(--text-muted);
+}
