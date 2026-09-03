@@ -14,8 +14,11 @@ import { computeLineageDistribution, formatLineageContext } from '@lib/debate/to
 // t/3257: the relevance-selection pipeline moved to lib-pure; this file is now the thin CLIENT
 // wrapper (build corpus embeddings + fetch greatest-hits + assemble session state → call the pure
 // fn → re-apply anchoring + emit diagnostics + map the result). The server calls the SAME fn (T2).
-import { selectRelevantTaxonomy } from '@lib/debate/relevanceSelection';
+import { selectRelevantTaxonomy, assembleNodeEmbeddings } from '@lib/debate/relevanceSelection';
 import type { ANClaimInput } from '@lib/debate/relevanceSelection';
+// t/3257#21: corpus assembly + synthetic merge relocated to lib so the server (T2) + client build
+// the corpus map identically (parity by construction). Re-exported here for argumentNetwork.ts.
+export { mergeSyntheticVectors } from '@lib/debate/relevanceSelection';
 import type { TaxonomyContext } from '../../../utils/taxonomyContext';
 import { getGreatestHits } from './getGreatestHits';
 import { getLineageMapping, getL2Categories, isLineageDataLoaded } from '../../../data/lineageCategories';
@@ -53,18 +56,6 @@ export async function loadSyntheticVectors(): Promise<Record<string, number[][]>
   }
   _syntheticVectorsLoaded = true;
   return _syntheticVectorsCache;
-}
-
-export function mergeSyntheticVectors(
-  nodeEmbeddings: Record<string, { pov: string; vector: number[] }>,
-  syntheticVectors: Record<string, number[][]>,
-): Record<string, { pov: string; vector: number[]; vectors?: number[][] }> {
-  const merged: Record<string, { pov: string; vector: number[]; vectors?: number[][] }> = {};
-  for (const [nodeId, entry] of Object.entries(nodeEmbeddings)) {
-    const sv = syntheticVectors[nodeId];
-    merged[nodeId] = sv ? { ...entry, vectors: sv } : entry;
-  }
-  return merged;
 }
 
 export function enrichPolicyRefs(
@@ -185,44 +176,28 @@ let corpusEmbedMemoDebateId: string | null = null;
  * Exported for the t/3165 corpus-dedup regression test.
  */
 export async function buildNodeEmbeddingMap(pov: string, allPovNodes: PovNode[], allCCNodes: SituationNode[]): Promise<{ nodeEmbeddings: NodeEmbeddingMap; allNodeIds: string[] }> {
-  const allNodeTexts = [
-    ...allPovNodes.map(n => `${n.label}: ${n.description}`),
-    ...allCCNodes.map(n => `${n.label}: ${n.description}`),
-  ];
-  const allNodeIds = [
-    ...allPovNodes.map(n => n.id),
-    ...allCCNodes.map(n => n.id),
-  ];
-
-  // Reset the memo when the active debate changes, then embed ONLY the ids not yet seen this
-  // debate (the shared situations are embedded on the first speaker, resolved for the rest).
+  // Reset the per-debate memo when the active debate changes.
   const debateId = useDebateStore.getState().activeDebate?.id ?? null;
   if (debateId !== corpusEmbedMemoDebateId) {
     corpusEmbedMemo.clear();
     corpusEmbedMemoDebateId = debateId;
   }
-  const missIdx: number[] = [];
-  for (let i = 0; i < allNodeIds.length; i++) {
-    if (!corpusEmbedMemo.has(allNodeIds[i])) missIdx.push(i);
-  }
-  if (missIdx.length > 0) {
-    const missTexts = missIdx.map(i => allNodeTexts[i]);
-    const missIds = missIdx.map(i => allNodeIds[i]);
-    const { vectors } = await api.computeEmbeddings(missTexts, missIds);
-    for (let k = 0; k < missIds.length; k++) corpusEmbedMemo.set(missIds[k], vectors[k]);
-  }
-
-  const baseNodeEmbeddings: Record<string, { pov: string; vector: number[] }> = {};
-  for (const id of allNodeIds) {
-    baseNodeEmbeddings[id] = { pov, vector: corpusEmbedMemo.get(id) as number[] };
-  }
-
-  // Merge synthetic multi-vector embeddings when available
+  // Memoizing corpus-embed adapter: embed ONLY the ids not yet seen this debate (the shared
+  // situations are embedded on the first speaker, resolved from the memo for the rest — t/3165),
+  // returning every id's vector in order. This client optimization stays out of the pure lib fn.
+  const corpusEmbed = async (texts: string[], ids?: string[]): Promise<number[][]> => {
+    const idList = ids ?? [];
+    const missIdx: number[] = [];
+    for (let i = 0; i < idList.length; i++) if (!corpusEmbedMemo.has(idList[i])) missIdx.push(i);
+    if (missIdx.length > 0) {
+      const { vectors } = await api.computeEmbeddings(missIdx.map(i => texts[i]), missIdx.map(i => idList[i]));
+      for (let k = 0; k < missIdx.length; k++) corpusEmbedMemo.set(idList[missIdx[k]], vectors[k]);
+    }
+    return idList.map(id => corpusEmbedMemo.get(id) as number[]);
+  };
   const synVecs = await loadSyntheticVectors();
-  const nodeEmbeddings = synVecs
-    ? mergeSyntheticVectors(baseNodeEmbeddings, synVecs)
-    : baseNodeEmbeddings;
-  return { nodeEmbeddings, allNodeIds };
+  // Shared lib assembly → the server (T2) and client build the corpus map identically (t/3257#21).
+  return assembleNodeEmbeddings(pov, allPovNodes, allCCNodes, corpusEmbed, synVecs);
 }
 
 /** Build the lineage→node map (intellectual_lineage graph attribute) for the given nodes. */

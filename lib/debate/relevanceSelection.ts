@@ -37,6 +37,51 @@ import { computeDoctrinalAnchoring } from './doctrinalAnchoring.js';
 /** Corpus embedding map (single vector + optional synthetic multi-vectors), keyed by node id. */
 export type NodeEmbeddingMap = Record<string, { pov: string; vector: number[]; vectors?: number[][] }>;
 
+/** Merge synthetic multi-vector embeddings into the base corpus map (pure). Moved from the renderer
+ *  so server + client merge identically; the renderer re-exports it for its other consumers. */
+export function mergeSyntheticVectors(
+  base: Record<string, { pov: string; vector: number[] }>,
+  syntheticVectors: Record<string, number[][]>,
+): NodeEmbeddingMap {
+  const merged: NodeEmbeddingMap = {};
+  for (const [nodeId, entry] of Object.entries(base)) {
+    const sv = syntheticVectors[nodeId];
+    merged[nodeId] = sv ? { ...entry, vectors: sv } : entry;
+  }
+  return merged;
+}
+
+/**
+ * Assemble the corpus embedding map both callers feed to `selectRelevantTaxonomy` — the SAME
+ * implementation server-side (T2) and client-side (T3), so the corpus can't drift between them
+ * (parity by construction; ServerAPI t/3257#21). Pure: builds `"label: description"` texts + ids
+ * for every POV + situation node, embeds them via the injected `embed` cb, tags each with `pov`,
+ * then merges synthetic multi-vectors when present. The CLIENT keeps its per-debate embed memo +
+ * synthetic-vector fetch in a thin wrapper (a client optimization / bridge IO — out of lib); the
+ * server passes its own embed + cached synthetic vectors.
+ */
+export async function assembleNodeEmbeddings(
+  pov: string,
+  povNodes: PovNode[],
+  ccNodes: SituationNode[],
+  embed: (texts: string[], ids?: string[]) => Promise<number[][]>,
+  syntheticVectors?: Record<string, number[][]> | null,
+): Promise<{ nodeEmbeddings: NodeEmbeddingMap; allNodeIds: string[] }> {
+  const allNodeTexts = [
+    ...povNodes.map(n => `${n.label}: ${n.description}`),
+    ...ccNodes.map(n => `${n.label}: ${n.description}`),
+  ];
+  const allNodeIds = [
+    ...povNodes.map(n => n.id),
+    ...ccNodes.map(n => n.id),
+  ];
+  const vectors = await embed(allNodeTexts, allNodeIds);
+  const base: Record<string, { pov: string; vector: number[] }> = {};
+  for (let i = 0; i < allNodeIds.length; i++) base[allNodeIds[i]] = { pov, vector: vectors[i] };
+  const nodeEmbeddings = syntheticVectors ? mergeSyntheticVectors(base, syntheticVectors) : base;
+  return { nodeEmbeddings, allNodeIds };
+}
+
 /**
  * Per-node scoring provenance: whether the node was surfaced by AN-claim similarity or the topic
  * query, plus the best-matching AN claim. Relocated from the renderer debate-store types so BOTH
