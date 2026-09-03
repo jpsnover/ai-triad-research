@@ -142,3 +142,22 @@ The threat is real: a false fallacy flag makes the debater unfairly dismiss a *l
 ### Unifying conclusion (corrects the claim-only result above)
 
 Structural block placement changes how a debater acts on injected machine content in exactly ONE case: when the content is a standalone external *claim/node* (Arm 1). A *classification or annotation ABOUT an argument* — self-vulnerability, opponent-fallacy, evidence-basis — is meta-information the debater folds into its reasoning regardless of where it is rendered, so no rendering change reaches it. And `graph_attributes` are annotations-about-arguments by nature. Therefore the graph_attributes fix is a **content-layer control** (validate/filter unverified classifications before injection; `verification_status` as a filter, not a display signal — RA t/3262#13), not rendering separation. #1871 lands on its own merits (flag-off default, no over-suppression) but is not the classification mitigation. Severity: Medium (25%, single-turn, rebuttable).
+
+## Follow-up 4 (t/3269): the content-layer filter works. Investigation resolved.
+
+The disposition above pointed at a content-layer control (validate/filter unverified classifications before injection). That control was built (t/3269, PR #1877: `verification_status` as a filter, not a display signal) and validated with the opponent-directed probe plus a `filtered_false` condition that models the filter dropping an unverified false `fallacy` flag. 120 cells.
+
+| condition | dismiss_rate (≥2) | mean_level |
+|---|---|---|
+| control (no flag) | 0.00 | 0.00 |
+| false_inline (unfiltered false flag) | 0.10 | 0.70 |
+| **filtered_false (filter drops it)** | **0.00** | 0.00 |
+| true_inline (verified flag passes) | 0.73 | 2.00 |
+
+Two-sided bar cleared. The misaligned arm is **eliminated**, not merely reduced: `filtered_false = control = 0.00`, and it is a guaranteed drop rather than a probabilistic one, because the filter removes the classification the debater would otherwise act on. The baseline arm is **preserved**: a verified true flag still drives legitimate fallacy call-out (0.73, unsuppressed), and the no-classification control is clean (0.00). Harness `type_b_opponent_probe.py` (`filtered_false` condition), data `type_b_filter_t3269.json`.
+
+**Resolution of the whole investigation.** Two distinct threats, two distinct controls:
+- **Claim injection** (a false claim rendered as retrieved content): fixed by *structural separation* — the RETRIEVED CONTEXT block (Arm 1 / #1869), which restores resistance because a standalone claim can be quarantined.
+- **Classification injection** (a false `graph_attributes` classification about an argument): NOT fixable by rendering (Type-B), because a classification is meta-information the debater folds into its reasoning wherever it sits. Fixed instead by a *content-layer filter* (t/3269 / #1877) that drops unverified classifications before injection.
+
+The probe was the through-line: it falsified the framing lever (t/3262), validated structural separation for claims (Arm 1), falsified it for classifications (Type-B), located the real threat (opponent-directed, asymmetric-cost), and confirmed the content-layer filter eliminates it while preserving legitimate use.
