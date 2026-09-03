@@ -7,6 +7,7 @@
 import { generateText } from './embeddings.js';
 import type { AIAdapter, GenerateOptions } from '../../../lib/debate/aiAdapter.js';
 import { writeAICallLogEntry } from './aiCallLog.js';
+import { getGlobalRecorder } from '../../../lib/flight-recorder/index.js';
 
 // voiceTimeoutMs: caller-supplied fallback when opts.timeoutMs is absent
 // (wired from runtime-config opedVoiceTimeoutMs so the tunable timeout
@@ -29,6 +30,11 @@ export function makeElectronAIAdapter(voiceTimeoutMs?: number): AIAdapter {
         writeAICallLogEntry({ scenario: 'Debate', promptId: '', promptStart: prompt, retryCount, status: '200' });
         return text;
       } catch (err) {
+        getGlobalRecorder()?.record({
+          type: 'system.error', component: 'electron-ai-adapter', level: 'warn',
+          message: 'electronAIAdapter: generateText failed — rethrowing to debate engine',
+          error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+        });
         writeAICallLogEntry({ scenario: 'Debate', promptId: '', promptStart: prompt, retryCount, status: 'error' });
         throw err;
       }
