@@ -726,6 +726,31 @@ describe('SessionBranchManager — integration', () => {
 
     backend.shutdown();
   });
+
+  it('degrades-and-proceeds when branchExistsOnGitHub times out (t/3267)', async () => {
+    // Simulate the OS-TCP-timeout scenario: the branch existence fetch throws
+    // an AbortError (what the 10s AbortController fires). The fix must degrade
+    // to false (branch absent) so createBranch is called and the save succeeds.
+    apiHandlers.push((url, init) => {
+      if (url.includes('/git/refs/heads/api-session/') && (init.method ?? 'GET') === 'GET') {
+        throw Object.assign(new Error('The operation was aborted.'), { name: 'AbortError' });
+      }
+      return null!;
+    });
+
+    const { manager, backend: be } = await createSessionManager();
+
+    // Must NOT throw — degrade-and-proceed: AbortError → treat branch absent → createBranch
+    const branch = await manager.ensureBranch('alice@example.com');
+    expect(branch).toBe('api-session/alice-example.com');
+
+    // createBranch (POST /git/refs) must have been called — proves the degrade-and-proceed
+    // path completed: timeout → false → createBranch → 201 → session established
+    const createCall = fetchCalls.find(c => c.method === 'POST' && c.url.includes('/git/refs'));
+    expect(createCall).toBeDefined();
+
+    be.shutdown();
+  });
 });
 
 // ═══════════════════════════════════════════════════════════════════════════
