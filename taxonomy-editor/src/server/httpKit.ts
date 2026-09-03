@@ -124,7 +124,15 @@ export function error(res: ServerResponse, message: string, status = 500, cause?
   }
   // t/853: strip ActionableError internals (location, resolve steps) from <500
   // responses in production; keep the user-actionable summary.
-  json(res, { error: clientSafeMessage(message, cause), requestId: getRequestId(), ...extra }, status);
+  // t/3261 (TL ruling t/3261#1, option B): CodeQL js/stack-trace-exposure here is a FALSE POSITIVE —
+  // clientSafeMessage (security/accessControl.ts) NEVER returns cause.stack: in production it returns
+  // only the ActionableError `goal: problem` or a Goal/Error-stripped summary; the prod 5xx branch above
+  // returns a constant. The only uncurated path is DEV (!isProduction), which returns `message`
+  // (= String(err), the message — not the stack). CodeQL taints the caught `cause` Error into the
+  // response but can't see the sanitizer barrier. A true structural fix = modeling clientSafeMessage as a
+  // CodeQL sanitizer (query-side, DevOps), not app code — so suppress with justification here.
+  // REVISIT if that sanitizer model lands or clientSafeMessage's contract changes.
+  json(res, { error: clientSafeMessage(message, cause), requestId: getRequestId(), ...extra }, status); // codeql[js/stack-trace-exposure]
 }
 
 /** t/1515/t/1516 — defense-in-depth wall-clock cap for handlers that call out to
