@@ -340,6 +340,10 @@ const ANON_SAFE_POST_PATHS = [
   '/debug/events',
 ];
 
+/** t/3259: the debate-only ~400MB synthetic-embeddings corpus GET — anon access is gated on the
+ *  anon-debates flag rather than the blanket GET-allow below. */
+const SYNTHETIC_EMBEDDINGS_PATH = '/api/taxonomy/synthetic-embeddings';
+
 /**
  * Whether an anonymous (signed-out) user may call `method urlPath` in
  * AUTH_OPTIONAL mode. Anonymous users get read-only, non-AI access plus
@@ -352,7 +356,17 @@ export function isAnonAllowedRoute(method: string, urlPath: string): boolean {
   if (ANON_SAFE_AI_ROUTES.includes(urlPath)) return true;
   if (isAnonBlockedRoute(urlPath)) return false;
 
-  if (method === 'GET') return true;
+  if (method === 'GET') {
+    // t/3259 + t/3260 (PM ruling, TL-confirmed p/522#192): the ~400MB synthetic-embeddings corpus export
+    // is AUTH-ONLY — never anon-reachable, independent of any flag. This is the SOLE always-on protection:
+    // anon debates, when later enabled, MUST route through the tiny /relevant-nodes endpoint (T2/t/3257),
+    // never the corpus. Bypass-safe: server.ts feeds BOTH this gate and the router (matchRoute) the
+    // identical normalizedRequestPath (new URL().pathname), so a `?query` is stripped for both (=== matches
+    // → blocked) and a trailing slash makes matchRoute's exact segment-count match 404 (nothing served);
+    // the trailing-slash strip here blocks `/synth/` at the gate too.
+    if (urlPath.replace(/\/+$/, '') === SYNTHETIC_EMBEDDINGS_PATH) return false;
+    return true;
+  }
 
   const isMutation = method === 'POST' || method === 'PUT' || method === 'DELETE';
   if (isMutation && isAnonUserContentRoute(urlPath)) return true;

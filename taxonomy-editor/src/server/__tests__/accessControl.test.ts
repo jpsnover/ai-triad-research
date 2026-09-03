@@ -308,6 +308,31 @@ describe('isPathWithinDir (L3)', () => {
   });
 });
 
+describe('isAnonAllowedRoute — synthetic-embeddings corpus is AUTH-ONLY (t/3259 + t/3260)', () => {
+  const SYNTH = '/api/taxonomy/synthetic-embeddings';
+
+  it('BLOCKS anon GET of the ~400MB corpus unconditionally (PM t/3260, TL-confirmed p/522#192)', () => {
+    expect(isAnonAllowedRoute('GET', SYNTH)).toBe(false);
+  });
+
+  it('is bypass-safe — trailing-slash + query vectors are all blocked', () => {
+    // Trailing slash(es): canonicalized here → blocked at the gate (matchRoute would 404 them anyway).
+    expect(isAnonAllowedRoute('GET', SYNTH + '/')).toBe(false);
+    expect(isAnonAllowedRoute('GET', SYNTH + '///')).toBe(false);
+    // Query string: server.ts strips it via normalizedRequestPath (new URL().pathname) BEFORE this fn,
+    // for BOTH the gate and the router — prove the composition sees the canonical path → blocked.
+    const stripped = new URL('http://x' + SYNTH + '?x=1&y=2').pathname;
+    expect(stripped).toBe(SYNTH);
+    expect(isAnonAllowedRoute('GET', stripped)).toBe(false);
+  });
+
+  it('does NOT over-match — sibling GET routes stay anon-allowed', () => {
+    expect(isAnonAllowedRoute('GET', '/api/taxonomy/accelerationist')).toBe(true);
+    expect(isAnonAllowedRoute('GET', '/api/taxonomy/synthetic/acc')).toBe(true); // the :pov route, distinct
+    expect(isAnonAllowedRoute('GET', '/api/edges')).toBe(true);
+  });
+});
+
 describe('isAnonAllowedRoute (t/763 anon_route_blocked classification)', () => {
   it('allows read-only GETs', () => {
     expect(isAnonAllowedRoute('GET', '/api/taxonomy/accelerationist')).toBe(true);
