@@ -8,7 +8,9 @@
 // bidirectional type-equality guards are compile-time (they fail `tsc`, not vitest) — a note
 // documents that so a future reader knows drift is caught at build, not here.
 import { describe, it, expect } from 'vitest';
-import { logicalFormSchema, type LogicalForm } from './logicalForm.js';
+import {
+  logicalFormSchema, particularSortSchema, universalSortSchema, type LogicalForm,
+} from './logicalForm.js';
 
 // The canonical example from research/comp-linguist/docs/logical-form-schema.md §Schema, verbatim.
 const CANONICAL: LogicalForm = {
@@ -131,5 +133,43 @@ describe('logicalFormSchema — reject arm (closed vocabularies strictly validat
   it('rejects formalization_confidence out of [0,1]', () => {
     const r = logicalFormSchema.safeParse({ ...CANONICAL, formalization_confidence: 1.5 });
     expect(r.success).toBe(false);
+  });
+});
+
+describe('universal sort (t/3251) — concept_refs are universals, not particulars', () => {
+  it('accepts sort: "universal" on a concept-ref (term:*) arg', () => {
+    const r = logicalFormSchema.safeParse({
+      ...CANONICAL,
+      args: [{ role: 'theme', ref: 'term:frontier-model', sort: 'universal', match_level: 'exact' }],
+    });
+    expect(r.success).toBe(true);
+  });
+
+  it('accepts a mixed frame: a particular ent-* arg + a universal term:* arg', () => {
+    const r = logicalFormSchema.safeParse({
+      ...CANONICAL,
+      args: [
+        { role: 'agent', ref: 'ent-034', sort: 'agentive-physical-object', match_level: 'exact' },
+        { role: 'theme', ref: 'term:liability-shield', sort: 'universal', match_level: 'instance_of' },
+      ],
+    });
+    expect(r.success).toBe(true);
+  });
+
+  it('still rejects a sort outside BOTH the 5 particulars and universal', () => {
+    const r = logicalFormSchema.safeParse({
+      ...CANONICAL,
+      args: [{ role: 'agent', ref: 'ent-034', sort: 'physical-object', match_level: 'exact' }],
+    });
+    expect(r.success).toBe(false);
+  });
+
+  it('particular and universal spaces are disjoint (category error unrepresentable)', () => {
+    // `universal` is NOT a particular sort, and the 5 particulars are NOT universal — kept separate
+    // by construction so a universal can never be tagged with a particular's sort (t/3251 / TL p/342#266).
+    expect(particularSortSchema.safeParse('universal').success).toBe(false);
+    expect(universalSortSchema.safeParse('non-agentive-social-object').success).toBe(false);
+    expect(particularSortSchema.safeParse('non-agentive-social-object').success).toBe(true);
+    expect(universalSortSchema.safeParse('universal').success).toBe(true);
   });
 });
