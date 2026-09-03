@@ -73,14 +73,15 @@ export function getAICallLogPath(): string {
  * the same value; that's acceptable, no reader joins on ID. A missing/unparseable tail restarts at 1.
  */
 function nextAdvisoryId(logPath: string): number {
-  if (!fs.existsSync(logPath)) return 1; // fresh/rotated file — normal, not an error path
+  // Race-free (no existsSync/statSync check-then-open TOCTOU, js/file-system-race): open the fd FIRST —
+  // a fresh/rotated file throws ENOENT, handled silently below — then fstat/read on that same fd only.
   let fd: number | null = null;
   try {
-    const size = fs.statSync(logPath).size;
+    fd = fs.openSync(logPath, 'r');
+    const size = fs.fstatSync(fd).size;
     if (size === 0) return 1;
     const readLen = Math.min(size, TAIL_READ_BYTES);
     const buf = Buffer.alloc(readLen);
-    fd = fs.openSync(logPath, 'r');
     fs.readSync(fd, buf, 0, readLen, size - readLen);
     const lastLine = buf.toString('utf8').trimEnd().split('\n').pop();
     if (!lastLine) return 1;
@@ -88,6 +89,7 @@ function nextAdvisoryId(logPath: string): number {
     const prevId = typeof prev.ID === 'number' ? prev.ID : Number(prev.ID);
     return Number.isFinite(prevId) ? prevId + 1 : 1;
   } catch (err) {
+    if ((err as NodeJS.ErrnoException)?.code === 'ENOENT') return 1; // fresh/rotated file — normal, silent
     // Fallback-path logging: an unreadable/corrupt tail shouldn't wedge the counter — restart at 1 + record why.
     getGlobalRecorder()?.record({
       type: 'system.error', component: 'ai-call-log', level: 'warn',
@@ -112,8 +114,9 @@ export function writeAICallLogEntry(entry: AICallLogEntry, pathOverride?: string
   const logPath = pathOverride ?? getAICallLogPath();
   let fd: number | null = null;
   try {
+    // recursive mkdir is idempotent (no-op if the dir exists) — no existsSync check-then-create race.
     const dir = path.dirname(logPath);
-    if (dir && !fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    if (dir) fs.mkdirSync(dir, { recursive: true });
 
     const promptStart = entry.promptStart.length > PROMPT_START_MAX
       ? entry.promptStart.slice(0, PROMPT_START_MAX)
@@ -142,7 +145,12 @@ export function writeAICallLogEntry(entry: AICallLogEntry, pathOverride?: string
       });
     }
     fd = fs.openSync(logPath, 'a'); // 'a' → O_APPEND on POSIX
-    fs.writeSync(fd, line);
+    // js/http-to-file-access: writing request-derived data (PromptStart) to the audit log is the
+    // TL-approved feature itself (t/3245#3) — the PS writer does the identical thing. Injection is
+    // prevented: the whole record is one JSON.stringify line (escapes newlines/control chars, so a
+    // crafted prompt cannot forge a second JSONL line), PromptStart is truncated to 160 chars, and the
+    // path is a fixed constant (getAICallLogPath), never derived from the data. No harm sink remains.
+    fs.writeSync(fd, line); // codeql[js/http-to-file-access]
   } catch (err) {
     // Fail-safe (t/3235#1, Fallback-Path Logging): audit logging must never break the call it audits.
     getGlobalRecorder()?.record({
