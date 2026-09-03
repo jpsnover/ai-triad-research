@@ -97,4 +97,20 @@ describe('PUT /api/taxonomy/:pov → grounding reconcile wiring (t/3171)', () =>
     expect(getFlagSpy).toHaveBeenCalledWith('grounding_reconcile_inline'); // gate was consulted → returned false
     expect(enqueueSpy).not.toHaveBeenCalled();
   });
+
+  // t/3267 Fix A (t/3268): the enqueue must fire even when the response write races a client disconnect.
+  // Before the reorder, enqueue ran AFTER json(res); an ECONNRESET on the response write jumped to the
+  // catch and SKIPPED the reconcile. Enqueue-before-json guarantees it runs. This test fails on the old order.
+  it('flag ON + response write throws ECONNRESET → still enqueues (enqueue precedes json, t/3267 Fix A)', async () => {
+    getFlagSpy.mockReturnValue(true);
+    const res = fakeRes();
+    // Simulate the client socket already gone: the first response write (json → res.end) throws ECONNRESET.
+    (res.end as unknown as ReturnType<typeof vi.fn>).mockImplementationOnce(() => {
+      const e = new Error('write ECONNRESET') as Error & { code?: string }; e.code = 'ECONNRESET'; throw e;
+    });
+    await put(fakeReq(), res, { nodes: [{ id: 'n1', text: 'EDITED' }, { id: 'n2', text: 'stable' }] });
+    // The reconcile was enqueued BEFORE the failed response write → not skipped by the ECONNRESET.
+    expect(enqueueSpy).toHaveBeenCalledTimes(1);
+    expect(enqueueSpy.mock.calls[0][0]).toEqual(['n1']);
+  });
 });
