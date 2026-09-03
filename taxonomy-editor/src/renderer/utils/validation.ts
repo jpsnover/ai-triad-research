@@ -3,6 +3,7 @@
 
 import { z } from 'zod';
 import { POV_KEYS } from '@lib/debate/types';
+import { logicalFormSchema } from '@lib/entities/logicalForm';
 
 const categoryEnum = z.enum(['Desires', 'Beliefs', 'Intentions']);
 
@@ -40,6 +41,11 @@ const povNodeSchema = z.object({
   operationality: z.number().int().min(1).max(5).nullish(),
   entity_refs: z.array(entityLinkRefSchema).optional(),   // t/3157 forward grounding
   concept_refs: z.array(conceptLinkRefSchema).optional(), // t/3157 forward grounding
+  // t/3250 (TL G6): the canonical neo-Davidsonian frame, ONE definition shared with the claim path
+  // (`@lib/entities/logicalForm`). Replaces silent `.passthrough()` acceptance — defined fields are
+  // now strictly validated. A malformed frame is degraded gracefully at load (see
+  // stripInvalidLogicalForm), so it never reaches this schema to drop the node.
+  logical_form: logicalFormSchema.optional(),
 }).passthrough();
 
 export const povTaxonomyFileSchema = z.object({
@@ -50,6 +56,26 @@ export const povTaxonomyFileSchema = z.object({
   last_modified: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   nodes: z.array(povNodeSchema),
 });
+
+/**
+ * t/3250 graceful-degrade (TL hard condition, t/3250#2): a malformed *proposed* `logical_form`
+ * must NOT drop the whole node from the editor. Runs a SEPARATED `logicalFormSchema.safeParse` on
+ * the field only; on failure it strips `logical_form` from the node (mutated in place, matching the
+ * load-path normalize convention) so the node still loads, and returns the first issue for the
+ * caller to WARN (fallback-logging rule — observable, not silent). A node with no `logical_form`,
+ * or a valid one, is left untouched. This decouples node loading from frame validation, so one bad
+ * proposed frame can never reject the whole `povNode` (blast-radius + the t/3165 anti-silent lesson).
+ */
+export function stripInvalidLogicalForm(node: Record<string, unknown>): { removed: boolean; issue?: string } {
+  const lf = node.logical_form;
+  if (lf === undefined || lf === null) return { removed: false };
+  const result = logicalFormSchema.safeParse(lf);
+  if (result.success) return { removed: false };
+  delete node.logical_form;
+  const first = result.error.issues[0];
+  const issue = first ? `${first.path.join('.') || '(root)'}: ${first.message}` : 'invalid logical_form';
+  return { removed: true, issue };
+}
 
 const bdiInterpretation = z.object({ belief: z.string().optional(), desire: z.string().optional(), intention: z.string().optional(), summary: z.string().optional() });
 const interpretationField = z.union([z.string(), bdiInterpretation]);

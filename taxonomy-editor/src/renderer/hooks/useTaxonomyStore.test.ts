@@ -68,6 +68,7 @@ vi.mock('../utils/validation', () => ({
   conflictFileSchema: { safeParse: vi.fn().mockReturnValue({ success: true }) },
   extractPovErrors: vi.fn().mockReturnValue({}),
   extractConflictErrors: vi.fn().mockReturnValue({}),
+  stripInvalidLogicalForm: vi.fn().mockReturnValue({ removed: false }), // t/3250: loadAll calls this per node
 }));
 
 vi.mock('../utils/similarity', () => ({

@@ -28,6 +28,7 @@ import {
   extractPovErrors,
   extractConflictErrors,
   ValidationErrors,
+  stripInvalidLogicalForm,
 } from '../../../utils/validation';
 import {
   generatePovNodeId,
@@ -258,7 +259,11 @@ export const createTaxonomyDataSlice: StateCreator<TaxonomyStore, [], [], Taxono
       const accFile = acc as PovTaxonomyFile;
       if (accFile?.nodes) {
         for (const node of accFile.nodes) {
-          normalizeNodeProperties(node as unknown as Record<string, unknown>);
+          const rec = node as unknown as Record<string, unknown>;
+          normalizeNodeProperties(rec);
+          // t/3250: graceful-degrade a malformed proposed logical_form (WARN + omit, never drop the node).
+          const lf = stripInvalidLogicalForm(rec);
+          if (lf.removed) getGlobalRecorder()?.record({ type: 'system.error', component: 'taxonomy-store', level: 'warn', message: 'Stripped malformed node.logical_form (t/3250)', data: { pov: 'accelerationist', node_id: rec.id, issue: lf.issue } });
         }
       }
       set({
@@ -304,7 +309,11 @@ export const createTaxonomyDataSlice: StateCreator<TaxonomyStore, [], [], Taxono
       for (const povFile of [saf, skp] as PovTaxonomyFile[]) {
         if (povFile?.nodes) {
           for (const node of povFile.nodes) {
-            normalizeNodeProperties(node as unknown as Record<string, unknown>);
+            const rec = node as unknown as Record<string, unknown>;
+            normalizeNodeProperties(rec);
+            // t/3250: graceful-degrade a malformed proposed logical_form (WARN + omit, never drop the node).
+            const lf = stripInvalidLogicalForm(rec);
+            if (lf.removed) getGlobalRecorder()?.record({ type: 'system.error', component: 'taxonomy-store', level: 'warn', message: 'Stripped malformed node.logical_form (t/3250)', data: { pov: povFile.pov, node_id: rec.id, issue: lf.issue } });
           }
         }
       }
