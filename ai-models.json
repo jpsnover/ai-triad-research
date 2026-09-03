@@ -47,44 +47,72 @@
       "id": "azure-gpt-4o",
       "apiModelId": "gpt-4o",
       "label": "Azure GPT-4o",
-      "backend": "azure"
+      "backend": "azure",
+      "picker": {
+        "label": "GPT-4o",
+        "order": 10
+      }
     },
     {
       "id": "azure-gpt-4o-mini",
       "apiModelId": "gpt-4o-mini",
       "label": "Azure GPT-4o Mini",
-      "backend": "azure"
+      "backend": "azure",
+      "picker": {
+        "label": "GPT-4o Mini",
+        "order": 20
+      }
     },
     {
       "id": "azure-gpt-4.1",
       "apiModelId": "gpt-4.1",
       "label": "Azure GPT-4.1",
-      "backend": "azure"
+      "backend": "azure",
+      "picker": {
+        "label": "GPT-4.1",
+        "order": 30
+      }
     },
     {
       "id": "azure-gpt-4.1-mini",
       "apiModelId": "gpt-4.1-mini",
       "label": "Azure GPT-4.1 Mini",
-      "backend": "azure"
+      "backend": "azure",
+      "picker": {
+        "label": "GPT-4.1 Mini",
+        "order": 40
+      }
     },
     {
       "id": "zai-glm-5-2",
       "apiModelId": "glm-5.3",
       "label": "GLM 5.3",
-      "backend": "zai"
+      "backend": "zai",
+      "picker": {
+        "label": "GLM 5.3",
+        "order": 10
+      }
     },
     {
       "id": "moonshot-kimi-k3",
       "apiModelId": "kimi-k3",
       "label": "Kimi K3",
       "backend": "moonshot",
-      "fixedTemperature": 1
+      "fixedTemperature": 1,
+      "picker": {
+        "label": "Kimi K3",
+        "order": 10
+      }
     },
     {
       "id": "xai-grok-4-6",
       "apiModelId": "grok-4.6",
       "label": "Grok 4.6",
-      "backend": "xai"
+      "backend": "xai",
+      "picker": {
+        "label": "Grok 4.6",
+        "order": 10
+      }
     },
     {
       "id": "gemini-3.7-flash",
@@ -96,55 +124,91 @@
       "id": "gemini-3.1-pro-preview",
       "apiModelId": "gemini-3.1-pro-preview",
       "label": "Gemini 3.1 Pro Preview",
-      "backend": "gemini"
+      "backend": "gemini",
+      "picker": {
+        "label": "3.1 Pro Preview (best quality)",
+        "order": 20
+      }
     },
     {
       "id": "gemini-3.5-flash-lite",
       "apiModelId": "gemini-3.5-flash-lite",
       "label": "Gemini 3.5 Flash Lite",
-      "backend": "gemini"
+      "backend": "gemini",
+      "picker": {
+        "label": "3.1 Flash Lite Preview (default)",
+        "order": 10
+      }
     },
     {
       "id": "gemini-3.8-flash",
       "apiModelId": "gemini-3.8-flash",
       "label": "Gemini 3.8 Flash",
-      "backend": "gemini"
+      "backend": "gemini",
+      "picker": {
+        "label": "3.8 Flash",
+        "order": 30
+      }
     },
     {
       "id": "gemini-3.6-flash",
       "apiModelId": "gemini-3.6-flash",
       "label": "Gemini 3.6 Flash",
-      "backend": "gemini"
+      "backend": "gemini",
+      "picker": {
+        "label": "3.6 Flash",
+        "order": 40
+      }
     },
     {
       "id": "gemini-3.5-flash",
       "apiModelId": "gemini-3.5-flash",
       "label": "Gemini 3.5 Flash",
-      "backend": "gemini"
+      "backend": "gemini",
+      "picker": {
+        "label": "3.5 Flash",
+        "order": 50
+      }
     },
     {
       "id": "gemini-3.1-flash-lite",
       "apiModelId": "gemini-3.1-flash-lite",
       "label": "Gemini 3.1 Flash Lite",
-      "backend": "gemini"
+      "backend": "gemini",
+      "picker": {
+        "label": "3.1 Flash Lite",
+        "order": 60
+      }
     },
     {
       "id": "gemini-2.5-pro",
       "apiModelId": "gemini-2.5-pro",
       "label": "Gemini 2.5 Pro",
-      "backend": "gemini"
+      "backend": "gemini",
+      "picker": {
+        "label": "2.5 Pro",
+        "order": 90
+      }
     },
     {
       "id": "gemini-2.5-flash",
       "apiModelId": "gemini-2.5-flash",
       "label": "Gemini 2.5 Flash",
-      "backend": "gemini"
+      "backend": "gemini",
+      "picker": {
+        "label": "2.5 Flash",
+        "order": 70
+      }
     },
     {
       "id": "gemini-2.5-flash-lite",
       "apiModelId": "gemini-2.5-flash-lite",
       "label": "Gemini 2.5 Flash-Lite",
-      "backend": "gemini"
+      "backend": "gemini",
+      "picker": {
+        "label": "2.5 Flash Lite (fastest)",
+        "order": 80
+      }
     },
     {
       "id": "claude-opus-5",
@@ -174,13 +238,21 @@
       "id": "claude-opus-4-7",
       "apiModelId": "claude-opus-4-7",
       "label": "Claude Opus 4.7",
-      "backend": "claude"
+      "backend": "claude",
+      "picker": {
+        "label": "Opus 4.7 (flagship)",
+        "order": 10
+      }
     },
     {
       "id": "claude-sonnet-4-6",
       "apiModelId": "claude-sonnet-4-6",
       "label": "Claude Sonnet 4.6",
-      "backend": "claude"
+      "backend": "claude",
+      "picker": {
+        "label": "Sonnet 4.6",
+        "order": 20
+      }
     },
     {
       "id": "claude-opus-4-6",
@@ -198,7 +270,11 @@
       "id": "claude-haiku-4-5",
       "apiModelId": "claude-haiku-4-5-20251001",
       "label": "Claude Haiku 4.5",
-      "backend": "claude"
+      "backend": "claude",
+      "picker": {
+        "label": "Haiku 4.5 (fastest)",
+        "order": 30
+      }
     },
     {
       "id": "claude-sonnet-4-5",
@@ -234,7 +310,11 @@
       "id": "groq-openai-gpt-oss-120b",
       "apiModelId": "openai/gpt-oss-120b",
       "label": "Openai/Gpt Oss 120b",
-      "backend": "groq"
+      "backend": "groq",
+      "picker": {
+        "label": "GPT-OSS 120B",
+        "order": 20
+      }
     },
     {
       "id": "groq-allam-2-7b",
@@ -264,7 +344,11 @@
       "id": "groq-llama-3.3-70b-versatile",
       "apiModelId": "llama-3.3-70b-versatile",
       "label": "Llama 3.3 70b Versatile",
-      "backend": "groq"
+      "backend": "groq",
+      "picker": {
+        "label": "Llama 3.3 70B",
+        "order": 10
+      }
     },
     {
       "id": "openai-gpt-4-0613",
@@ -738,7 +822,11 @@
       "id": "openai-gpt-5.5",
       "apiModelId": "gpt-5.5",
       "label": "Gpt 5.5",
-      "backend": "openai"
+      "backend": "openai",
+      "picker": {
+        "label": "GPT-5.5",
+        "order": 10
+      }
     },
     {
       "id": "openai-gpt-5.5-2026-04-23",
@@ -750,7 +838,11 @@
       "id": "openai-gpt-5.5-pro",
       "apiModelId": "gpt-5.5-pro",
       "label": "Gpt 5.5 Pro",
-      "backend": "openai"
+      "backend": "openai",
+      "picker": {
+        "label": "GPT-5.5 Pro",
+        "order": 20
+      }
     },
     {
       "id": "openai-gpt-5.5-pro-2026-04-23",
@@ -792,7 +884,11 @@
       "id": "ollama-gemma4-e4b-it-q4-k-m",
       "apiModelId": "gemma4:e4b-it-q4_K_M",
       "label": "gemma4:e4b-it-q4_K_M (8.0B) Q4_K_M",
-      "backend": "ollama"
+      "backend": "ollama",
+      "picker": {
+        "label": "Gemma 4 E4B (default)",
+        "order": 10
+      }
     }
   ],
   "defaults": {
