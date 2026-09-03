@@ -40,12 +40,14 @@
   font-variant-numeric: tabular-nums;
 }
 .vocab-shared .lint-badge {
+  /* t/3287#8 (Design): tint-bg + semantic TEXT, not a saturated fill — `--warning` fill with
+     `--error-text` fails AA in all 4 themes. Same tint pattern as .severity-info. */
   display: inline-block;
   margin-left: 6px;
   padding: 1px 7px;
   border-radius: var(--radius-sm);
-  background: var(--warning);
-  color: var(--error-text, var(--text-primary));
+  background: var(--bg-secondary);
+  color: var(--warning);
   font-size: 0.85em;
   font-variant-numeric: tabular-nums;
 }
@@ -290,14 +292,22 @@
   flex-shrink: 0;
   padding: 1px 8px;
   border-radius: var(--radius-sm);
-  color: var(--error-text, var(--text-primary));
+  color: var(--text-secondary);
   font-size: 0.8em;
   text-transform: capitalize;
 }
-/* Severity tint by token (§6 — no hex). severity-* is on the .lint-violation row. */
-.vocab-shared .lint-violation.severity-error .severity { background: var(--danger); }
+/* Severity pills = tint-bg + readable text, per severity (§6, no hex). t/3287#8 (Design): saturated
+   `--danger`/`--warning` fills with `--error-text` fail AA in all themes — error uses the certified
+   `--error-bg`/`--error-text` pair; warn/info keep the semantic color as TEXT on a `--bg-secondary` tint. */
+.vocab-shared .lint-violation.severity-error .severity {
+  background: var(--error-bg);
+  color: var(--error-text);
+}
 .vocab-shared .lint-violation.severity-warn .severity,
-.vocab-shared .lint-violation.severity-warning .severity { background: var(--warning); }
+.vocab-shared .lint-violation.severity-warning .severity {
+  background: var(--bg-secondary);
+  color: var(--warning);
+}
 .vocab-shared .lint-violation.severity-info .severity {
   background: var(--bg-secondary);
   color: var(--text-muted);
