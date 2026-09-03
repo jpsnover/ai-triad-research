@@ -1,0 +1,145 @@
+# Deploy-drift gate (t/3278) — detect "merged-to-main ≠ deployed-to-prod" silent drift.
+#
+# Root incident: container.yml builds :latest only on tag-push / manual dispatch (NOT
+# per-merge), so a full day of merges — including a prod-incident fix (#1872) and a
+# security fix (#1877) — sat un-deployed while main was green and tickets read Done.
+# "Merged + CI-green + Done" silently did NOT mean "live in prod".
+#
+# This gate makes that drift VISIBLE (it deliberately does NOT auto-deploy — a code-bearing
+# prod deploy stays owner-authorized; we kill the SILENCE, not the human gate). It reads the
+# running image's BUILD_SHA from prod /health (baked by container.yml --build-arg → Dockerfile
+# ARG/ENV → surfaced in the non-admin /health branch), measures how long shippable work has
+# sat un-deployed, and — past a TIME threshold — opens/updates a GitHub issue so a human is
+# notified (a red job in an unwatched run list is silent-by-another-name; TL GV cond. 3).
+#
+# Verdict logic is the pure predicate operations/devops/Get-DeployDriftVerdict.ps1, unit-proven
+# in tests/Get-DeployDriftVerdict.Tests.ps1 (both arms, 4 cases — Guard Testability t/2971).
+
+name: deploy-drift-check
+
+on:
+  schedule:
+    - cron: '17 */3 * * *'   # every 3h at :17 (offset off the hour to dodge cron congestion)
+  workflow_dispatch:
+    inputs:
+      prod_url:
+        description: 'Prod base URL to probe (default: canonical prod — see deployment-facts.md)'
+        required: false
+        type: string
+      threshold_hours:
+        description: 'N — fire only when un-deployed work is older than this many hours'
+        required: false
+        type: string
+
+permissions:
+  contents: read
+  issues: write
+
+env:
+  # Canonical prod URL (public, non-secret) — see deploy/azure/runbooks/deployment-facts.md.
+  DEFAULT_PROD_URL: 'https://taxonomy-editor.yellowbush-aeda037d.eastus.azurecontainerapps.io'
+  DEFAULT_THRESHOLD_HOURS: '24'
+  DRIFT_LABEL: 'deploy-drift'
+
+jobs:
+  drift-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v6
+        with:
+          fetch-depth: 0   # full history — rev-list <runningSha>..origin/main needs the range
+
+      - name: Compute drift inputs (running buildSha + un-deployed age)
+        id: inputs
+        env:
+          PROD_URL: ${{ github.event.inputs.prod_url || env.DEFAULT_PROD_URL }}
+        run: |
+          set -uo pipefail
+
+          # --- running build SHA from prod /health (non-admin branch exposes buildSha) ---
+          HEALTH_JSON=$(curl -fsS --max-time 30 "${PROD_URL}/health" 2>/dev/null || echo '')
+          if [ -z "$HEALTH_JSON" ]; then
+            echo "::warning::/health probe failed or timed out — treating as unreachable (NOT drift)."
+            RUNNING_SHA=''
+          else
+            RUNNING_SHA=$(echo "$HEALTH_JSON" | jq -r '.buildSha // empty' 2>/dev/null || echo '')
+          fi
+          echo "running_sha=${RUNNING_SHA}" >> "$GITHUB_OUTPUT"
+
+          git fetch origin main --quiet
+          MAIN_SHA=$(git rev-parse origin/main)
+          echo "main_sha=${MAIN_SHA}" >> "$GITHUB_OUTPUT"
+
+          # --- un-deployed age: hours since the OLDEST commit after RUNNING_SHA on main ---
+          AGE_HOURS='0'
+          if [ -n "$RUNNING_SHA" ] && [ "$RUNNING_SHA" != 'unknown' ]; then
+            if [ "$RUNNING_SHA" = "$MAIN_SHA" ]; then
+              AGE_HOURS='0'   # prod == main HEAD → nothing un-deployed
+            elif git merge-base --is-ancestor "$RUNNING_SHA" "$MAIN_SHA" 2>/dev/null; then
+              OLDEST=$(git rev-list --reverse "${RUNNING_SHA}..${MAIN_SHA}" | head -1)
+              if [ -n "$OLDEST" ]; then
+                CDATE=$(git show -s --format=%ct "$OLDEST")
+                NOW=$(date -u +%s)
+                AGE_HOURS=$(awk "BEGIN { printf \"%.2f\", ($NOW - $CDATE) / 3600 }")
+              fi
+            else
+              # RUNNING_SHA is not an ancestor of main (unknown/force-push/detached) — we
+              # cannot measure lag → treat as unreachable, never fire on ambiguity.
+              echo "::warning::running buildSha ${RUNNING_SHA} is not an ancestor of origin/main — treating as unreachable."
+              RUNNING_SHA=''
+              echo "running_sha=" >> "$GITHUB_OUTPUT"
+            fi
+          fi
+          echo "age_hours=${AGE_HOURS}" >> "$GITHUB_OUTPUT"
+          echo "Running SHA=${RUNNING_SHA:-<unreachable>}  main=${MAIN_SHA}  undeployed-age-h=${AGE_HOURS}"
+
+      - name: Evaluate drift verdict (pure predicate)
+        id: verdict
+        shell: pwsh
+        env:
+          RUNNING_SHA: ${{ steps.inputs.outputs.running_sha }}
+          AGE_HOURS: ${{ steps.inputs.outputs.age_hours }}
+          THRESHOLD_HOURS: ${{ github.event.inputs.threshold_hours || env.DEFAULT_THRESHOLD_HOURS }}
+        run: |
+          . "$env:GITHUB_WORKSPACE/operations/devops/Get-DeployDriftVerdict.ps1"
+          $v = Get-DeployDriftVerdict `
+                 -RunningBuildSha $env:RUNNING_SHA `
+                 -UndeployedAgeHours ([double]$env:AGE_HOURS) `
+                 -ThresholdHours ([double]$env:THRESHOLD_HOURS)
+          "fire=$($v.Fire.ToString().ToLower())" >> $env:GITHUB_OUTPUT
+          "reason=$($v.Reason)"                  >> $env:GITHUB_OUTPUT
+          Write-Host "verdict: Fire=$($v.Fire) Reason=$($v.Reason)"
+
+      - name: Open / update / resolve drift issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          FIRE: ${{ steps.verdict.outputs.fire }}
+          REASON: ${{ steps.verdict.outputs.reason }}
+          RUNNING_SHA: ${{ steps.inputs.outputs.running_sha }}
+          MAIN_SHA: ${{ steps.inputs.outputs.main_sha }}
+          AGE_HOURS: ${{ steps.inputs.outputs.age_hours }}
+        run: |
+          set -uo pipefail
+          TITLE='⚠️ Prod deploy drift: running image is behind main'
+          EXISTING=$(gh issue list --label "$DRIFT_LABEL" --state open --json number --jq '.[0].number // empty')
+
+          if [ "$FIRE" = 'true' ]; then
+            BODY=$(printf '**Prod is running a stale image (t/3278 deploy-drift gate).**\n\n- Running buildSha: `%s`\n- main HEAD: `%s`\n- Un-deployed age: **%s h** (reason: `%s`)\n\nShippable work — possibly including incident/security fixes — has sat un-deployed past the threshold. **Ship it:** owner-authorized `container.yml` build of HEAD + `deploy-azure.yml` (see production-release.md). This gate does not auto-deploy by design; it only makes the drift visible.\n\n_Auto-managed by deploy-drift-check.yml — auto-closes when prod catches up._' "${RUNNING_SHA:-<unreachable>}" "$MAIN_SHA" "$AGE_HOURS" "$REASON")
+            if [ -n "$EXISTING" ]; then
+              gh issue comment "$EXISTING" --body "$BODY"
+              echo "Updated existing drift issue #$EXISTING"
+            else
+              gh issue create --title "$TITLE" --label "$DRIFT_LABEL" --body "$BODY"
+              echo "Opened new drift issue"
+            fi
+            echo "::error::Deploy drift: prod behind main by ${AGE_HOURS}h (${REASON}). See the deploy-drift issue."
+            exit 1
+          else
+            # Not drift — auto-resolve any open drift issue so the signal is self-clearing.
+            if [ -n "$EXISTING" ]; then
+              gh issue comment "$EXISTING" --body "Resolved: prod caught up (verdict reason: \`$REASON\`, running \`${RUNNING_SHA:-<unreachable>}\`). Auto-closing."
+              gh issue close "$EXISTING"
+              echo "Closed drift issue #$EXISTING (no longer drifting)"
+            fi
+            echo "No drift (reason: ${REASON})."
+          fi
