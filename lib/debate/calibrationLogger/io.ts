@@ -15,6 +15,7 @@ import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import type { CalibrationDataPoint } from './schema.js';
+import { getGlobalRecorder } from '../../flight-recorder/index.js';
 
 // ── File I/O ────────────────────────────────────────────────
 
@@ -136,7 +137,8 @@ export function readCalibrationLog(dataRoot: string): CalibrationDataPoint[] {
       .split('\n')
       .filter(line => line.trim().length > 0)
       .map(line => JSON.parse(line));
-  } catch {
+  } catch (err) {
+    getGlobalRecorder()?.record({ type: 'system.error', component: 'calibration-io', level: 'warn', message: 'calibration log unreadable — returning empty. err=' + String(err) });
     return [];
   }
 }

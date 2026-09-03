@@ -4,6 +4,7 @@
 import fs from 'fs';
 import path from 'path';
 import { renameSyncWithRetry } from './persistence.js';
+import { getGlobalRecorder } from '../flight-recorder/index.js';
 
 export interface DebateSessionSummary {
   id: string;
@@ -108,7 +109,8 @@ function readIndex(debatesDir: string): DebateIndex | null {
     const raw = JSON.parse(fs.readFileSync(indexPath, 'utf-8')) as DebateIndex;
     if (raw.version !== 1) return null;
     return raw;
-  } catch {
+  } catch (err) {
+    getGlobalRecorder()?.record({ type: 'system.error', component: 'debate-index', level: 'warn', message: 'debate index unreadable or invalid — returning null. err=' + String(err) });
     return null;
   }
 }

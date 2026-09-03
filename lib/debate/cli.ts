@@ -428,6 +428,7 @@ async function main(): Promise<void> {
       enabled: !disableTurnValidation,
       ...(maxTurnRetries !== undefined ? { maxRetries: maxTurnRetries } : {}),
     },
+    // eslint-disable-next-line local/require-warn-on-degraded-catch-return -- best-effort version read; undefined appVersion is observable in config output
     appVersion: (() => { try { return JSON.parse(fs.readFileSync(path.resolve(__dirname, '../../taxonomy-editor/package.json'), 'utf-8')).version; } catch { return undefined; } })(),
     audience,
     moderatorMode,
