@@ -47,11 +47,18 @@ const CIRCUIT_PROBE_SCHEDULE_MS = [30_000, 60_000, 120_000, 300_000]; // 30s→1
 // CVE-2026-58040 session-reuse identity check in undici 6.28.0+ (node 22.23.2) cannot
 // silently break GitHub API connections on startup. Per-call dispatcher — does not affect
 // urlFetch.ts, healthProbe.ts, or other fetch sites. (t/2053)
+// t/3267: explicit timeouts prevent OS-level TCP hang (~90-120s) on slow/unresponsive
+// GitHub API connections. connectTimeout: 10s (TCP handshake); headersTimeout: 60s
+// (allows large-body uploads before GitHub starts sending a response);
+// bodyTimeout: 120s (full response body including large tree/blob responses).
 const githubAgent = new Agent({
   connect: {
     rejectUnauthorized: true,
     maxCachedSessions: 0,
+    timeout: 10_000,       // TCP connect timeout: 10s
   },
+  headersTimeout: 60_000,  // Server must begin responding within 60s (covers large uploads)
+  bodyTimeout: 120_000,    // Full response body within 120s
   keepAliveTimeout: 4_000,
   keepAliveMaxTimeout: 4_000,
   maxRequestsPerClient: 100,
