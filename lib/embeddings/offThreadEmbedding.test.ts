@@ -327,6 +327,39 @@ describe('offThreadEmbedding — pool: aggregate shed at MAX_QUEUE_DEPTH × K', 
   });
 });
 
+describe('offThreadEmbedding — pool: Condition B backpressure tightens with LIVE slots (dynamic)', () => {
+  it('K=2: crashing one slot tightens the cap 32→16 — a depth admitted at 32 now sheds with max:16', () => {
+    vi.useFakeTimers(); // crash schedules a respawn timer; fake timers keep the slot cleanly "down"
+    configureEmbeddingWorkerPool(2); // K=2 → cap = 16 × 2 = 32 while BOTH slots are live
+    const workers: FakeWorker[] = [];
+    __setEmbeddingWorkerFactory(() => { const w = new FakeWorker(); workers.push(w); return w; });
+
+    // 17 never-reply tasks: 2 in flight (slot0=worker0, slot1=worker1) + 15 queued → resident depth 17.
+    const pending: Promise<unknown>[] = [];
+    for (let i = 0; i < 17; i++) pending.push(computeEmbeddingsOffThread(['x'], { requester: `fill-${i}` }).catch(() => {}));
+    expect(workers).toHaveLength(2);
+    expect(__queueDepthForTests()).toBe(17);
+    // All 17 were admitted (none shed) at the full-capacity cap of 32 — the "admissible at 32" half of
+    // the discriminator. Under a STATIC single-slot cap of 16 the 17th would already have shed.
+    expect(warns().some(warn => /queue full/i.test(warn.message ?? ''))).toBe(false);
+
+    // Crash slot 0 → its in-flight task rejects (depth 17→16) and the slot enters respawn-backoff, so
+    // liveSlotCount drops 2→1 and the cap tightens 32→16. Slot 1 stays live (not an all-down shed).
+    workers[0].emit('error', new Error('boom'));
+    expect(__queueDepthForTests()).toBe(16); // 1 in-flight on slot1 + 15 queued
+
+    // Depth 16 was comfortably admissible at the old cap 32; against the tightened cap 16 it now sheds
+    // — and the WARN carries the SCALED-DOWN max (16, not the configured-K 32). This is the dynamic
+    // tightening that a static ×K cap would miss (TL GV required assertion, t/3211#8).
+    const rejected = expect(computeEmbeddingsOffThread(['x'], { requester: 'tightened' })).rejects.toThrow(/shed|queue full/i);
+    const shedWarn = warns().find(warn => /queue full/i.test(warn.message ?? '') && warn.data?.requester === 'tightened');
+    expect(shedWarn).toBeDefined();
+    expect(shedWarn!.data?.max).toBe(16);        // dynamic: cap followed live slots down from 32 to 16
+    expect(shedWarn!.data?.queueDepth).toBe(16);
+    return rejected.then(() => { void pending; });
+  });
+});
+
 describe('offThreadEmbedding — pool: per-slot fault isolation (t/3181 identity-guard, generalized)', () => {
   it('a crash + late-exit on slot 0 never disturbs slot 1; slot 0 respawns independently', async () => {
     vi.useFakeTimers();
