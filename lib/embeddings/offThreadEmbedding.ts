@@ -2,22 +2,31 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 /**
- * Main-thread manager for the off-thread embedding worker (t/3181, item A).
+ * Main-thread manager for the off-thread embedding worker pool (t/3181 item A; K-slot pool t/3211).
  *
- * Owns a SINGLE persistent worker (no pool), a bounded FIFO queue, an id↔promise map, a heartbeat
- * watchdog, and respawn-with-backoff. Exposes the shared contract B (ServerAPI) and C (ElectronMain)
- * build against:
+ * Owns a POOL of K persistent workers (default K=1 → the original single-worker behavior, byte-
+ * identical and inert), a bounded SHARED FIFO queue, an id↔promise map, a per-slot heartbeat
+ * watchdog, and per-slot respawn-with-backoff. Exposes the shared contract B (ServerAPI) and C
+ * (ElectronMain) build against:
  *
  *     computeEmbeddingsOffThread(texts, opts?: { requester?: string }): Promise<Float32Array[]>
  *
+ * Pool size is set ONCE at startup via {@link configureEmbeddingWorkerPool} (a startup-only mutator,
+ * NOT a ctor — keeping the free-function contract B/C already build against). Default 1 → today's
+ * exact behavior; ramp to K only behind the config knob + a multi-core SKU (t/3211).
+ *
  * Cache RESOLVE stays on the caller's main thread — only miss-texts marshal IN (structured-clone of
- * strings), vectors marshal OUT via a TRANSFERRED ArrayBuffer (zero-copy). The worker owns the ONNX
- * session exclusively; this module NEVER computes embeddings in-thread — not even on worker failure.
- * A worker crash/wedge/queue-overflow fails LOUD (ActionableError → the server's t/3078 block-mode
- * 503 load-shed); an in-thread fallback would reintroduce the exact t/3165 starvation it prevents.
+ * strings), vectors marshal OUT via a TRANSFERRED ArrayBuffer (zero-copy). Each worker owns its own
+ * ONNX session exclusively; this module NEVER computes embeddings in-thread — not even on worker
+ * failure. A worker crash/wedge/queue-overflow fails LOUD (ActionableError → the server's t/3078
+ * block-mode 503 load-shed); an in-thread fallback would reintroduce the exact t/3165 starvation it
+ * prevents. Under partial failure the pool keeps serving on live slots and sheds only when EVERY slot
+ * is down (t/3211 TL condition B); the queue-depth cap scales with LIVE slot count so a lone survivor
+ * cannot accept a K× backlog that tail-latencies past the route timeout.
  */
 
 import { Worker } from 'node:worker_threads';
+import { availableParallelism } from 'node:os';
 import { ActionableError } from '../debate/errors.js';
 import { getGlobalRecorder } from '../flight-recorder/index.js';
 
@@ -32,18 +41,30 @@ import { getGlobalRecorder } from '../flight-recorder/index.js';
 const HEARTBEAT_TIMEOUT_MS = 8000;
 
 /**
- * Max resident tasks (1 in-flight + 15 queued). Enqueue past this → load-shed 503 + WARN. Higher →
- * more memory + longer tail latency under burst; lower → sheds sooner under load. (t/3181 Q2.)
+ * Per-live-slot queue budget: each live slot admits 1 in-flight + (MAX_QUEUE_DEPTH − 1) queued. The
+ * aggregate resident cap is `MAX_QUEUE_DEPTH * liveSlotCount()` — DYNAMIC (t/3211 TL condition B):
+ * as slots go down the cap tightens, so a single survivor can never accept a K× backlog that drains
+ * at 1/K rate and tail-latencies past the ~50s route wall. Enqueue past the cap → load-shed 503 +
+ * WARN. Higher → more memory + longer tail latency under burst; lower → sheds sooner. (t/3181 Q2.)
  */
 const MAX_QUEUE_DEPTH = 16;
 
 /**
  * Respawn backoff after a worker crash/wedge: doubles per consecutive failure up to the cap, resets
  * on a clean task. Too short → tight crash→respawn spin burning CPU; too long → extended shed gap
- * where every request is rejected. New tasks arriving during the gap are shed. (t/3181 Q2.)
+ * where that slot's requests are rejected. New tasks arriving while ALL slots are down are shed.
+ * (t/3181 Q2.)
  */
 const BACKOFF_BASE_MS = 250;
 const BACKOFF_CAP_MS = 5000;
+
+/**
+ * Cores kept for the main thread (event loop + cache resolve + request handling) when clamping the
+ * configured pool size. K is capped at `availableParallelism() - POOL_CORE_HEADROOM` because the
+ * bottleneck is op-thread compute: K worker op-threads beyond the available cores oversubscribe the
+ * box and buy nothing (throughput stays flat — the finding this ticket is built on). (t/3211.)
+ */
+const POOL_CORE_HEADROOM = 1;
 
 // ── Types ─────────────────────────────────────────────
 
@@ -53,6 +74,22 @@ interface Task {
   requester: string;
   resolve: (vectors: Float32Array[]) => void;
   reject: (err: unknown) => void;
+}
+
+/**
+ * One pool slot: a persistent worker plus the per-slot state the single-worker manager used to hold
+ * at module scope. Watchdog, respawn/backoff, consecutive-failure count and the down-flag are ALL
+ * per-slot so a crash/wedge on one slot rejects+respawns only its own worker — a healthy sibling's
+ * concurrent in-flight task is untouched (the t/3181 identity-guard, now keyed on `slot.worker`).
+ */
+interface Slot {
+  worker: EmbeddingWorkerLike | null;
+  inFlight: Task | null;
+  watchdog: ReturnType<typeof setTimeout> | null;
+  lastChunkSeen: number;
+  consecutiveFailures: number;
+  down: boolean; // true during this slot's respawn-backoff gap
+  respawnTimer: ReturnType<typeof setTimeout> | null;
 }
 
 /**
@@ -74,18 +111,13 @@ type WorkerMessage =
 
 type DownCause = 'crash' | 'exit' | 'wedge';
 
-// ── State (module-level singleton — one worker, serial dispatch) ──
+// ── State (module-level — a shared queue feeding K slots) ──
 
 let _workerFactory: EmbeddingWorkerFactory = defaultWorkerFactory;
-let _worker: EmbeddingWorkerLike | null = null;
+let _slots: Slot[] = [];               // materialized lazily on first pump() (see ensureSlots)
+let _desiredSize: number | null = null; // set by configureEmbeddingWorkerPool; null → unconfigured (K=1)
 const _queue: Task[] = [];
-let _inFlight: Task | null = null;
-let _watchdog: ReturnType<typeof setTimeout> | null = null;
-let _lastChunkSeen = -1;
 let _nextId = 1;
-let _consecutiveFailures = 0;
-let _respawnTimer: ReturnType<typeof setTimeout> | null = null;
-let _down = false; // true during the respawn-backoff gap → new tasks are shed
 
 function defaultWorkerFactory(): EmbeddingWorkerLike {
   // Node/dev-Electron resolution. Packaged-Electron asar worker-entry resolution is C's exit
@@ -93,12 +125,38 @@ function defaultWorkerFactory(): EmbeddingWorkerLike {
   return new Worker(new URL('./embeddingWorker.js', import.meta.url)) as unknown as EmbeddingWorkerLike;
 }
 
+/** Effective pool size: the clamped configured value, or 1 when compute precedes configure. */
+function poolSize(): number {
+  return _desiredSize ?? 1;
+}
+
+/** Materialize the slot array on first use (compute-before-configure lands here → K=1). */
+function ensureSlots(): void {
+  if (_slots.length > 0) return;
+  _slots = Array.from({ length: poolSize() }, () => ({
+    worker: null, inFlight: null, watchdog: null,
+    lastChunkSeen: -1, consecutiveFailures: 0, down: false, respawnTimer: null,
+  }));
+}
+
+/** Live slots = those able to serve (not in a respawn-backoff gap). Nominal size before materialize. */
+function liveSlotCount(): number {
+  if (_slots.length === 0) return poolSize();
+  return _slots.reduce((n, s) => n + (s.down ? 0 : 1), 0);
+}
+
+/** True only when the pool has slots AND every one of them is down (respawning) → hard shed. */
+function allSlotsDown(): boolean {
+  return _slots.length > 0 && _slots.every(s => s.down);
+}
+
+/** Current resident tasks: everything queued plus everything in flight across all slots. */
 function queueLen(): number {
-  return _queue.length + (_inFlight ? 1 : 0);
+  return _queue.length + _slots.reduce((n, s) => n + (s.inFlight ? 1 : 0), 0);
 }
 
 function warn(message: string, data: Record<string, unknown>): void {
-  // Fallback-Path Logging: every shed / crash / wedge records WHAT degraded + WHY + WHO (requester).
+  // Fallback-Path Logging: every shed / crash / wedge / clamp records WHAT degraded + WHY + WHO.
   getGlobalRecorder()?.record({ type: 'system.error', component: 'offThreadEmbedding', level: 'warn', message, data });
 }
 
@@ -112,13 +170,46 @@ function safeTerminate(w: EmbeddingWorkerLike | null): void {
   } catch { /* already dead */ }
 }
 
+// ── Startup configuration ─────────────────────────────
+
+/**
+ * Set the worker-pool size. **Startup-only** — call once before the first embedding request; ServerAPI
+ * threads `EMBEDDING_WORKER_POOL_SIZE` (raw, default 1) here from config (t/3211). The RAW size is
+ * self-clamped to `min(size, availableParallelism() − 1)` so a mis-set value can never oversubscribe
+ * the box regardless of SKU (e.g. POOL_SIZE=8 on a 4-core box → K=3), and to a floor of 1.
+ *
+ * Ordering contract (t/3211 TL condition A):
+ *  - Called AFTER the pool has materialized (any request already dispatched) → **no-op + WARN**; a
+ *    live pool is never resized mid-flight.
+ *  - {@link computeEmbeddingsOffThread} called BEFORE this → pool defaults to K=1 (never throws).
+ */
+export function configureEmbeddingWorkerPool(size: number): void {
+  if (_slots.length > 0) {
+    warn('configureEmbeddingWorkerPool ignored — pool already running (startup-only, cannot resize live)', {
+      requestedSize: size, activeSize: _slots.length,
+    });
+    return;
+  }
+  const cores = availableParallelism();
+  const cap = Math.max(1, cores - POOL_CORE_HEADROOM);
+  const requested = Math.max(1, Math.floor(Number.isFinite(size) ? size : 1));
+  const clamped = Math.min(requested, cap);
+  if (clamped < requested) {
+    warn('embedding pool size clamped to available cores', {
+      requestedSize: requested, clampedSize: clamped, cores, headroom: POOL_CORE_HEADROOM,
+    });
+  }
+  _desiredSize = clamped;
+}
+
 // ── Public contract ───────────────────────────────────
 
 /**
  * Compute embeddings off the main thread. Resolves to one 384-dim `Float32Array` per input text
  * (views over a single transferred buffer — do not assume they are independently backed). Rejects
- * with an `ActionableError` when the request is shed (queue full or worker respawning) or the worker
- * crashes/wedges — the server maps that to a 503 load-shed. NEVER falls back to in-thread compute.
+ * with an `ActionableError` when the request is shed (queue full, or every slot respawning) or the
+ * serving worker crashes/wedges — the server maps that to a 503 load-shed. NEVER falls back to
+ * in-thread compute.
  *
  * @param opts.requester short label for the caller (surfaced in the queue-full/shed WARN so a shed
  *   event names who was dropped — fallback-logging rule). Threaded from B/C.
@@ -131,16 +222,18 @@ export function computeEmbeddingsOffThread(
 
   if (texts.length === 0) return Promise.resolve([]); // trivial — no worker round-trip
 
-  // Shed while the worker is down during a respawn-backoff gap (fail loud, no in-thread fallback).
-  if (_down) {
-    warn('embedding request shed — worker respawning (backoff gap)', { requester, queueDepth: queueLen() });
-    return Promise.reject(shedError(requester, 'worker is respawning after a crash/wedge'));
+  // Shed while EVERY slot is down during a respawn-backoff gap (fail loud, no in-thread fallback).
+  if (allSlotsDown()) {
+    warn('embedding request shed — all workers respawning (backoff gap)', { requester, queueDepth: queueLen() });
+    return Promise.reject(shedError(requester, 'all workers are respawning after a crash/wedge'));
   }
 
-  // Bounded queue: 1 in-flight + (MAX_QUEUE_DEPTH − 1) waiting. Overflow → load-shed 503 + WARN.
-  if (queueLen() >= MAX_QUEUE_DEPTH) {
-    warn('embedding request shed — queue full', { requester, queueDepth: queueLen(), max: MAX_QUEUE_DEPTH });
-    return Promise.reject(shedError(requester, `queue full (max ${MAX_QUEUE_DEPTH})`));
+  // Bounded queue, cap scaled by LIVE slots (t/3211): K in-flight + (MAX_QUEUE_DEPTH−1)×live queued.
+  // Overflow → load-shed 503 + WARN.
+  const cap = MAX_QUEUE_DEPTH * liveSlotCount();
+  if (queueLen() >= cap) {
+    warn('embedding request shed — queue full', { requester, queueDepth: queueLen(), max: cap });
+    return Promise.reject(shedError(requester, `queue full (max ${cap})`));
   }
 
   return new Promise<Float32Array[]>((resolve, reject) => {
@@ -149,63 +242,72 @@ export function computeEmbeddingsOffThread(
   });
 }
 
-/** Terminate the worker and drop pending work. Call on app shutdown. */
+/** Terminate all workers and drop pending work. Call on app shutdown. */
 export function shutdownEmbeddingWorker(): void {
-  clearWatchdog();
-  if (_respawnTimer) { clearTimeout(_respawnTimer); _respawnTimer = null; }
-  safeTerminate(_worker);
-  _worker = null;
-  _inFlight = null;
+  for (const slot of _slots) {
+    clearWatchdog(slot);
+    if (slot.respawnTimer) { clearTimeout(slot.respawnTimer); slot.respawnTimer = null; }
+    safeTerminate(slot.worker);
+    slot.worker = null;
+    slot.inFlight = null;
+    slot.down = false;
+  }
   _queue.length = 0;
-  _down = false;
 }
 
 // ── Scheduling ────────────────────────────────────────
 
+/** Drain the shared queue onto any idle, up-and-serving slots (≤ liveSlotCount in flight at once). */
 function pump(): void {
-  if (_inFlight || _queue.length === 0 || _down) return;
-  if (!_worker) _worker = spawnWorker();
-  const task = _queue.shift()!;
-  _inFlight = task;
-  _lastChunkSeen = -1;
-  armWatchdog(); // ARM ON DISPATCH (TL Q1) — catches a hang before the first heartbeat too
-  _worker.postMessage({ id: task.id, texts: task.texts });
+  ensureSlots();
+  for (const slot of _slots) {
+    if (_queue.length === 0) break;
+    if (slot.inFlight || slot.down) continue;         // busy or respawning → skip
+    if (!slot.worker) slot.worker = spawnWorker(slot); // lazily (re)spawn on demand
+    const task = _queue.shift()!;
+    slot.inFlight = task;
+    slot.lastChunkSeen = -1;
+    armWatchdog(slot); // ARM ON DISPATCH (TL Q1) — catches a hang before the first heartbeat too
+    slot.worker.postMessage({ id: task.id, texts: task.texts });
+  }
 }
 
-function spawnWorker(): EmbeddingWorkerLike {
+function spawnWorker(slot: Slot): EmbeddingWorkerLike {
   const w = _workerFactory();
-  // IDENTITY-GUARD every handler on the specific worker instance `w`: after a respawn the OLD
-  // (terminated) worker can still emit a late 'exit'/'error'/'message'. Without this guard that
-  // stale event would act on the CURRENT module state — e.g. an old worker's late 'exit' would
-  // call onWorkerDown and tear down the HEALTHY new worker (reject its task, terminate, re-respawn).
-  // `w !== _worker` means the event came from a superseded worker → drop it. (TL GV required fix.)
-  w.on('message', ((msg: WorkerMessage) => { if (w === _worker) onWorkerMessage(msg); }) as (arg: never) => void);
+  // IDENTITY-GUARD every handler on the specific worker instance `w` AND its owning `slot`: after a
+  // respawn the OLD (terminated) worker can still emit a late 'exit'/'error'/'message'. Without this
+  // guard that stale event would act on the CURRENT slot state — e.g. an old worker's late 'exit'
+  // would call onWorkerDown and tear down the HEALTHY new worker (reject its task, terminate, re-
+  // respawn). `w !== slot.worker` means the event came from a superseded worker → drop it. Keying on
+  // the slot (not a module singleton) is what isolates a fault to its own slot and leaves siblings
+  // serving. (t/3181 GV required fix, generalized to the pool in t/3211.)
+  w.on('message', ((msg: WorkerMessage) => { if (w === slot.worker) onWorkerMessage(slot, msg); }) as (arg: never) => void);
   w.on('error', ((err: Error) => {
-    if (w === _worker) onWorkerDown('crash', err instanceof Error ? err.message : String(err));
+    if (w === slot.worker) onWorkerDown(slot, 'crash', err instanceof Error ? err.message : String(err));
   }) as (arg: never) => void);
   w.on('exit', ((code: number) => {
-    if (w === _worker && code !== 0) onWorkerDown('exit', `worker exited with code ${code}`);
+    if (w === slot.worker && code !== 0) onWorkerDown(slot, 'exit', `worker exited with code ${code}`);
   }) as (arg: never) => void);
   return w;
 }
 
-function onWorkerMessage(msg: WorkerMessage): void {
+function onWorkerMessage(slot: Slot, msg: WorkerMessage): void {
   if (msg.type === 'heartbeat') {
-    if (_inFlight && msg.id === _inFlight.id) {
-      _lastChunkSeen = msg.chunk;
-      armWatchdog(); // forward progress → reset the wedge window
+    if (slot.inFlight && msg.id === slot.inFlight.id) {
+      slot.lastChunkSeen = msg.chunk;
+      armWatchdog(slot); // forward progress → reset the wedge window
     }
     return;
   }
 
-  // result — ignore stale messages from a terminated/superseded worker.
-  if (!_inFlight || msg.id !== _inFlight.id) return;
-  clearWatchdog();
-  const task = _inFlight;
-  _inFlight = null;
+  // result — ignore stale messages from a terminated/superseded worker or a mismatched task.
+  if (!slot.inFlight || msg.id !== slot.inFlight.id) return;
+  clearWatchdog(slot);
+  const task = slot.inFlight;
+  slot.inFlight = null;
 
   if (msg.ok) {
-    _consecutiveFailures = 0; // a clean task resets the respawn backoff
+    slot.consecutiveFailures = 0; // a clean task resets THIS slot's respawn backoff
     task.resolve(unpack(msg.buffer, msg.count, msg.dim));
   } else {
     // Worker is alive but the compute threw (e.g. model load) — reject this task, keep the worker.
@@ -215,49 +317,51 @@ function onWorkerMessage(msg: WorkerMessage): void {
   pump();
 }
 
-function armWatchdog(): void {
-  clearWatchdog();
-  _watchdog = setTimeout(onWedge, HEARTBEAT_TIMEOUT_MS);
+function armWatchdog(slot: Slot): void {
+  clearWatchdog(slot);
+  slot.watchdog = setTimeout(() => onWedge(slot), HEARTBEAT_TIMEOUT_MS);
 }
 
-function clearWatchdog(): void {
-  if (_watchdog) { clearTimeout(_watchdog); _watchdog = null; }
+function clearWatchdog(slot: Slot): void {
+  if (slot.watchdog) { clearTimeout(slot.watchdog); slot.watchdog = null; }
 }
 
-function onWedge(): void {
-  if (!_inFlight) return; // result already handled — spurious fire
-  onWorkerDown('wedge', `no heartbeat within ${HEARTBEAT_TIMEOUT_MS}ms (last chunk seen: ${_lastChunkSeen})`);
+function onWedge(slot: Slot): void {
+  if (!slot.inFlight) return; // result already handled — spurious fire
+  onWorkerDown(slot, 'wedge', `no heartbeat within ${HEARTBEAT_TIMEOUT_MS}ms (last chunk seen: ${slot.lastChunkSeen})`);
 }
 
 /**
- * Unified crash / exit / wedge handler: terminate the faulted worker, reject the in-flight task
- * (never recompute in-thread), and respawn with backoff. New tasks during the gap are shed.
+ * Unified per-slot crash / exit / wedge handler: terminate the faulted worker, reject the in-flight
+ * task (never recompute in-thread), and respawn THIS slot with backoff. Sibling slots are untouched.
+ * New tasks arriving while every slot is down are shed.
  */
-function onWorkerDown(cause: DownCause, detail: string): void {
-  if (_down) return; // already handling this outage (e.g. terminate() → 'exit' re-entry)
-  _down = true;
-  clearWatchdog();
+function onWorkerDown(slot: Slot, cause: DownCause, detail: string): void {
+  if (slot.down) return; // already handling this slot's outage (e.g. terminate() → 'exit' re-entry)
+  slot.down = true;
+  clearWatchdog(slot);
 
-  safeTerminate(_worker);
-  _worker = null;
+  safeTerminate(slot.worker);
+  slot.worker = null;
 
-  if (_inFlight) {
-    const task = _inFlight;
-    _inFlight = null;
+  if (slot.inFlight) {
+    const task = slot.inFlight;
+    slot.inFlight = null;
     warn(`embedding worker ${cause} — terminating + respawning`, {
-      requester: task.requester, taskId: task.id, cause, detail, lastChunkSeen: _lastChunkSeen,
+      requester: task.requester, taskId: task.id, cause, detail, lastChunkSeen: slot.lastChunkSeen,
     });
     task.reject(workerDownError(task.requester, cause, detail));
   } else {
     warn(`embedding worker ${cause} — terminating + respawning (no task in flight)`, { cause, detail });
   }
 
-  // Respawn after backoff; the worker is lazily re-spawned by the next pump() once the gap clears.
-  _consecutiveFailures++;
-  const delay = Math.min(BACKOFF_BASE_MS * 2 ** (_consecutiveFailures - 1), BACKOFF_CAP_MS);
-  _respawnTimer = setTimeout(() => {
-    _respawnTimer = null;
-    _down = false;
+  // Respawn this slot after backoff; the worker is lazily re-spawned by the next pump() once its gap
+  // clears. Backoff is per-slot so one slot's crash storm doesn't stall the others.
+  slot.consecutiveFailures++;
+  const delay = Math.min(BACKOFF_BASE_MS * 2 ** (slot.consecutiveFailures - 1), BACKOFF_CAP_MS);
+  slot.respawnTimer = setTimeout(() => {
+    slot.respawnTimer = null;
+    slot.down = false;
     pump(); // resume any tasks still queued from before the outage
   }, delay);
 }
@@ -316,21 +420,25 @@ export function __setEmbeddingWorkerFactory(factory: EmbeddingWorkerFactory | nu
   _workerFactory = factory ?? defaultWorkerFactory;
 }
 
-/** Reset all manager state between tests (timers, queue, worker, counters). */
+/** Reset all manager state between tests (timers, queue, slots, counters, configured size). */
 export function __resetEmbeddingWorkerForTests(): void {
-  clearWatchdog();
-  if (_respawnTimer) { clearTimeout(_respawnTimer); _respawnTimer = null; }
-  safeTerminate(_worker);
-  _worker = null;
-  _inFlight = null;
+  for (const slot of _slots) {
+    clearWatchdog(slot);
+    if (slot.respawnTimer) { clearTimeout(slot.respawnTimer); slot.respawnTimer = null; }
+    safeTerminate(slot.worker);
+  }
+  _slots = [];
+  _desiredSize = null;
   _queue.length = 0;
   _nextId = 1;
-  _consecutiveFailures = 0;
-  _lastChunkSeen = -1;
-  _down = false;
 }
 
-/** Introspection for tests: current queue depth (in-flight + waiting). */
+/** Introspection for tests: current queue depth (queued + in-flight across all slots). */
 export function __queueDepthForTests(): number {
   return queueLen();
+}
+
+/** Introspection for tests: the effective (clamped) pool size. */
+export function __poolSizeForTests(): number {
+  return poolSize();
 }

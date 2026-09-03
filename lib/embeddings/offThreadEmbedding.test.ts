@@ -19,12 +19,25 @@ vi.mock('../flight-recorder/index.js', () => ({
   getGlobalRecorder: () => ({ record: (e: never) => { recorded.push(e); } }),
 }));
 
+// Control the core count the pool clamps against (t/3211) without depending on the CI machine's real
+// vCPUs — the module reads `availableParallelism()` from node:os. Default high so K=2/3/4 configs in
+// the pool tests are NOT clamped unless a test explicitly lowers `osMock.cores`. All other os exports
+// pass through untouched (spread the real module).
+const osMock = vi.hoisted(() => ({ cores: 8 }));
+vi.mock('node:os', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('node:os')>();
+  const patched = { ...actual, availableParallelism: () => osMock.cores };
+  return { ...patched, default: patched };
+});
+
 import {
   computeEmbeddingsOffThread,
+  configureEmbeddingWorkerPool,
   shutdownEmbeddingWorker,
   __setEmbeddingWorkerFactory,
   __resetEmbeddingWorkerForTests,
   __queueDepthForTests,
+  __poolSizeForTests,
   type EmbeddingWorkerLike,
 } from './offThreadEmbedding.js';
 import * as onnx from './onnxEmbedding.js';
@@ -68,6 +81,7 @@ const warns = () => recorded.filter(r => r.level === 'warn');
 
 beforeEach(() => {
   recorded.length = 0;
+  osMock.cores = 8; // ample headroom; pool-clamp tests lower this explicitly
   __resetEmbeddingWorkerForTests();
 });
 
@@ -250,6 +264,189 @@ describe('offThreadEmbedding — marshaling round-trip preserves vectors exactly
     expect(out[0]).toHaveLength(vectors[0].length);
     // The manager's request to the worker carries no transferList — only text strings marshal IN.
     expect(w.transfers.length).toBe(0);
+  });
+});
+
+// ══ t/3211 K-slot pool ═════════════════════════════════════════════════════════════════════════
+
+describe('offThreadEmbedding — pool: default (unconfigured) is K=1, byte-identical single-worker', () => {
+  it('without configure, pool size is 1 and one worker serves a round-trip', async () => {
+    // The EXISTING four-arm suite above runs entirely UNCONFIGURED — its green is the default-1 parity
+    // proof (TL non-negotiable). This case pins the invariant explicitly: no configure() → K=1.
+    expect(__poolSizeForTests()).toBe(1);
+
+    const workers: FakeWorker[] = [];
+    __setEmbeddingWorkerFactory(() => { const w = new FakeWorker(); workers.push(w); return w; });
+
+    const a = computeEmbeddingsOffThread(['a'], { requester: 'r1' });
+    workers[0].emit('message', resultFor(workers[0].lastId(), [[1, 0, 0, 0]]));
+    await expect(a).resolves.toHaveLength(1);
+    expect(workers).toHaveLength(1); // exactly one worker ever spawned at K=1
+  });
+});
+
+describe('offThreadEmbedding — pool: K tasks dispatch in parallel, K+1th queues', () => {
+  it('configures K=4 and dispatches up to K workers concurrently; the (K+1)th waits in the shared queue', () => {
+    configureEmbeddingWorkerPool(4); // cores=8 → cap 7 → K=4
+    expect(__poolSizeForTests()).toBe(4);
+
+    const workers: FakeWorker[] = [];
+    __setEmbeddingWorkerFactory(() => { const w = new FakeWorker(); workers.push(w); return w; });
+
+    // 4 tasks that never reply → each lands on its own idle slot, all in flight in parallel.
+    const pending: Promise<unknown>[] = [];
+    for (let i = 0; i < 4; i++) pending.push(computeEmbeddingsOffThread(['x'], { requester: `p-${i}` }).catch(() => {}));
+    expect(workers).toHaveLength(4);              // K workers spawned, one per slot
+    expect(__queueDepthForTests()).toBe(4);       // all 4 in flight, none waiting
+
+    // The 5th has no idle slot → it queues (does NOT spawn a 5th worker).
+    pending.push(computeEmbeddingsOffThread(['x'], { requester: 'p-5' }).catch(() => {}));
+    expect(workers).toHaveLength(4);              // still K — no oversubscription
+    expect(__queueDepthForTests()).toBe(5);       // 4 in flight + 1 queued
+    void pending;
+  });
+});
+
+describe('offThreadEmbedding — pool: aggregate shed at MAX_QUEUE_DEPTH × K', () => {
+  it('K=2 admits up to 32 resident tasks, sheds the 33rd with the scaled cap in the WARN', async () => {
+    configureEmbeddingWorkerPool(2); // cores=8 → K=2; cap = 16 × 2 = 32
+    const w = new FakeWorker(); // never replies → tasks stay resident
+    __setEmbeddingWorkerFactory(() => w);
+
+    const pending: Promise<unknown>[] = [];
+    for (let i = 0; i < 32; i++) pending.push(computeEmbeddingsOffThread(['x'], { requester: `fill-${i}` }).catch(() => {}));
+    expect(__queueDepthForTests()).toBe(32);
+
+    await expect(computeEmbeddingsOffThread(['x'], { requester: 'overflow' })).rejects.toThrow(/shed|queue full/i);
+    const shedWarn = warns().find(warn => /queue full/i.test(warn.message ?? ''));
+    expect(shedWarn).toBeDefined();
+    expect(shedWarn!.data?.requester).toBe('overflow');
+    expect(shedWarn!.data?.queueDepth).toBe(32);
+    expect(shedWarn!.data?.max).toBe(32); // scaled ×K, not the base 16
+    void pending;
+  });
+});
+
+describe('offThreadEmbedding — pool: Condition B backpressure tightens with LIVE slots (dynamic)', () => {
+  it('K=2: crashing one slot tightens the cap 32→16 — a depth admitted at 32 now sheds with max:16', () => {
+    vi.useFakeTimers(); // crash schedules a respawn timer; fake timers keep the slot cleanly "down"
+    configureEmbeddingWorkerPool(2); // K=2 → cap = 16 × 2 = 32 while BOTH slots are live
+    const workers: FakeWorker[] = [];
+    __setEmbeddingWorkerFactory(() => { const w = new FakeWorker(); workers.push(w); return w; });
+
+    // 17 never-reply tasks: 2 in flight (slot0=worker0, slot1=worker1) + 15 queued → resident depth 17.
+    const pending: Promise<unknown>[] = [];
+    for (let i = 0; i < 17; i++) pending.push(computeEmbeddingsOffThread(['x'], { requester: `fill-${i}` }).catch(() => {}));
+    expect(workers).toHaveLength(2);
+    expect(__queueDepthForTests()).toBe(17);
+    // All 17 were admitted (none shed) at the full-capacity cap of 32 — the "admissible at 32" half of
+    // the discriminator. Under a STATIC single-slot cap of 16 the 17th would already have shed.
+    expect(warns().some(warn => /queue full/i.test(warn.message ?? ''))).toBe(false);
+
+    // Crash slot 0 → its in-flight task rejects (depth 17→16) and the slot enters respawn-backoff, so
+    // liveSlotCount drops 2→1 and the cap tightens 32→16. Slot 1 stays live (not an all-down shed).
+    workers[0].emit('error', new Error('boom'));
+    expect(__queueDepthForTests()).toBe(16); // 1 in-flight on slot1 + 15 queued
+
+    // Depth 16 was comfortably admissible at the old cap 32; against the tightened cap 16 it now sheds
+    // — and the WARN carries the SCALED-DOWN max (16, not the configured-K 32). This is the dynamic
+    // tightening that a static ×K cap would miss (TL GV required assertion, t/3211#8).
+    const rejected = expect(computeEmbeddingsOffThread(['x'], { requester: 'tightened' })).rejects.toThrow(/shed|queue full/i);
+    const shedWarn = warns().find(warn => /queue full/i.test(warn.message ?? '') && warn.data?.requester === 'tightened');
+    expect(shedWarn).toBeDefined();
+    expect(shedWarn!.data?.max).toBe(16);        // dynamic: cap followed live slots down from 32 to 16
+    expect(shedWarn!.data?.queueDepth).toBe(16);
+    return rejected.then(() => { void pending; });
+  });
+});
+
+describe('offThreadEmbedding — pool: per-slot fault isolation (t/3181 identity-guard, generalized)', () => {
+  it('a crash + late-exit on slot 0 never disturbs slot 1; slot 0 respawns independently', async () => {
+    vi.useFakeTimers();
+    configureEmbeddingWorkerPool(2); // K=2
+    const workers: FakeWorker[] = [];
+    __setEmbeddingWorkerFactory(() => { const w = new FakeWorker(); workers.push(w); return w; });
+
+    // Dispatch A→slot0(worker0), B→slot1(worker1); both in flight in parallel.
+    const pA = computeEmbeddingsOffThread(['a'], { requester: 'slot0-A' });
+    const pARejected = expect(pA).rejects.toThrow(/worker crash/i);
+    const pB = computeEmbeddingsOffThread(['b'], { requester: 'slot1-B' });
+    expect(workers).toHaveLength(2);
+    const worker0 = workers[0], worker1 = workers[1];
+    const staleId = worker0.lastId();
+    const bId = worker1.lastId();
+
+    // Slot 0's worker crashes → A rejects + slot 0 enters respawn-backoff. Slot 1 MUST be untouched.
+    worker0.emit('error', new Error('boom'));
+    await pARejected;
+    expect(worker0.terminated).toBe(true);
+    expect(worker1.terminated).toBe(false);   // sibling slot unaffected by slot 0's crash
+    const warnsAfterCrash = warns().length;
+
+    // Clear slot 0's backoff and dispatch C → slot 0 respawns a fresh worker2.
+    await vi.advanceTimersByTimeAsync(300);
+    const pC = computeEmbeddingsOffThread(['c'], { requester: 'slot0-C' });
+    expect(workers).toHaveLength(3);          // worker2 for slot 0; slot 1 never respawned
+    const worker2 = workers[2];
+    const cId = worker2.lastId();
+
+    // The OLD terminated worker0 fires late events — identity-guard (keyed on slot.worker) DROPS them:
+    // neither the fresh slot-0 worker nor the healthy slot-1 worker is torn down, no new crash WARN.
+    worker0.emit('exit', 137);
+    worker0.emit('message', resultFor(staleId, [[9, 9, 9, 9]]));
+    expect(worker1.terminated).toBe(false);
+    expect(worker2.terminated).toBe(false);
+    expect(warns().length).toBe(warnsAfterCrash); // stale events produced no WARN
+
+    // Both live tasks complete normally → resolve cleanly (pool survived the partial failure).
+    worker1.emit('message', resultFor(bId, [[1, 0, 0, 0]]));
+    worker2.emit('message', resultFor(cId, [[0, 1, 0, 0]]));
+    await expect(pB).resolves.toHaveLength(1);
+    await expect(pC).resolves.toHaveLength(1);
+  });
+});
+
+describe('offThreadEmbedding — pool: configure() clamps to cores and WARNs (fallback-logging)', () => {
+  it('POOL_SIZE=8 on a 4-core box lands K=3 with a clamp WARN carrying asked-vs-cores', () => {
+    osMock.cores = 4; // cap = 4 − 1 = 3
+    configureEmbeddingWorkerPool(8);
+    expect(__poolSizeForTests()).toBe(3); // min(8, 3)
+
+    const clampWarn = warns().find(warn => /clamped/i.test(warn.message ?? ''));
+    expect(clampWarn).toBeDefined();
+    expect(clampWarn!.data?.requestedSize).toBe(8);
+    expect(clampWarn!.data?.clampedSize).toBe(3);
+    expect(clampWarn!.data?.cores).toBe(4);
+  });
+
+  it('a size that fits the box is NOT clamped and produces no clamp WARN', () => {
+    osMock.cores = 8; // cap 7
+    configureEmbeddingWorkerPool(3);
+    expect(__poolSizeForTests()).toBe(3);
+    expect(warns().find(warn => /clamped/i.test(warn.message ?? ''))).toBeUndefined();
+  });
+});
+
+describe('offThreadEmbedding — pool: configure() ordering contract (t/3211 TL condition A)', () => {
+  it('(b) configure BEFORE any compute → the size is applied', () => {
+    configureEmbeddingWorkerPool(3);
+    expect(__poolSizeForTests()).toBe(3);
+  });
+
+  it('(a) configure AFTER the pool has materialized → no-op + WARN, size stays at the default', async () => {
+    // Compute first (no configure) → pool materializes at K=1.
+    const w = new FakeWorker();
+    w.onPost = (msg, self) => self.emit('message', resultFor(msg.id, [[1, 0, 0, 0]]));
+    __setEmbeddingWorkerFactory(() => w);
+    await expect(computeEmbeddingsOffThread(['x'], { requester: 'early' })).resolves.toHaveLength(1);
+    expect(__poolSizeForTests()).toBe(1);
+
+    // A late configure must NOT resize the live pool.
+    configureEmbeddingWorkerPool(4);
+    expect(__poolSizeForTests()).toBe(1);
+    const lateWarn = warns().find(warn => /already running/i.test(warn.message ?? ''));
+    expect(lateWarn).toBeDefined();
+    expect(lateWarn!.data?.requestedSize).toBe(4);
   });
 });
 
