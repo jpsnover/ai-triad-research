@@ -66,12 +66,25 @@ const BACKOFF_CAP_MS = 5000;
  */
 const POOL_CORE_HEADROOM = 1;
 
+/**
+ * Queue age-out budget (t/3275). A task that has waited longer than this in the SHARED queue is
+ * rejected fail-loud at the moment a slot would dispatch it, instead of being computed for a caller
+ * the route has already abandoned. Sized against the ~50s server route wall: must be `< 50s` with
+ * headroom for one dispatch + a first-compute start (~10s, incl. a cold model-load spike) so a task
+ * admitted at the budget still returns before the route times out. Too low → sheds tasks that could
+ * still finish in budget; too high → burns a worker slot on doomed work behind the backlog. The
+ * in-flight watchdog (HEARTBEAT_TIMEOUT_MS) guards tasks already dispatched; this guards the queue
+ * wait the watchdog never sees. (t/3275; ~50s route wall / 512-batch storm.)
+ */
+const QUEUE_AGE_OUT_MS = 40_000;
+
 // ── Types ─────────────────────────────────────────────
 
 interface Task {
   id: number;
   texts: string[];
   requester: string;
+  queuedAt: number; // Date.now() at enqueue — drives the QUEUE_AGE_OUT_MS dispatch-time age-out (t/3275)
   resolve: (vectors: Float32Array[]) => void;
   reject: (err: unknown) => void;
 }
@@ -237,7 +250,7 @@ export function computeEmbeddingsOffThread(
   }
 
   return new Promise<Float32Array[]>((resolve, reject) => {
-    _queue.push({ id: _nextId++, texts, requester, resolve, reject });
+    _queue.push({ id: _nextId++, texts, requester, queuedAt: Date.now(), resolve, reject });
     pump();
   });
 }
@@ -261,15 +274,39 @@ export function shutdownEmbeddingWorker(): void {
 function pump(): void {
   ensureSlots();
   for (const slot of _slots) {
-    if (_queue.length === 0) break;
     if (slot.inFlight || slot.down) continue;         // busy or respawning → skip
+    const task = takeNextServableTask();              // skips + rejects tasks aged past the budget
+    if (!task) break;                                 // queue empty (or fully drained of stale tasks)
     if (!slot.worker) slot.worker = spawnWorker(slot); // lazily (re)spawn on demand
-    const task = _queue.shift()!;
     slot.inFlight = task;
     slot.lastChunkSeen = -1;
     armWatchdog(slot); // ARM ON DISPATCH (TL Q1) — catches a hang before the first heartbeat too
     slot.worker.postMessage({ id: task.id, texts: task.texts });
   }
+}
+
+/**
+ * Pop the next task that is still worth serving, age-out-rejecting any that waited past
+ * `QUEUE_AGE_OUT_MS` (t/3275). The check runs at the DISPATCH decision — exactly when a slot would
+ * take the task — so a doomed task never seizes a worker; the reject just fires at the moment
+ * dispatch would have. Returns `null` when the queue is empty or every remaining task is stale (the
+ * slot then stays idle). Each age-out is a fail-loud shed (ActionableError → 503) + a WARN naming the
+ * requester and wait time (fallback-logging); there is NO in-thread fallback.
+ */
+function takeNextServableTask(): Task | null {
+  while (_queue.length > 0) {
+    const task = _queue.shift()!;
+    const waitedMs = Date.now() - task.queuedAt;
+    if (waitedMs > QUEUE_AGE_OUT_MS) {
+      warn('embedding request shed — queued past age-out budget before dispatch', {
+        requester: task.requester, waitedMs, budgetMs: QUEUE_AGE_OUT_MS, queueDepth: queueLen(),
+      });
+      task.reject(ageOutError(task.requester, waitedMs));
+      continue; // drop this stale task, try the next one — do not consume the slot on it
+    }
+    return task;
+  }
+  return null;
 }
 
 function spawnWorker(slot: Slot): EmbeddingWorkerLike {
@@ -384,6 +421,20 @@ function shedError(requester: string, reason: string): ActionableError {
     nextSteps: [
       'Retry after backpressure clears — this maps to the existing t/3078 block-mode 503 load-shed',
       'Intentional load-shedding, not a fault: the worker queue is bounded to protect request handling',
+    ],
+  });
+}
+
+function ageOutError(requester: string, waitedMs: number): ActionableError {
+  return new ActionableError({
+    goal: 'Compute embeddings off the main thread within the request budget',
+    problem: `Embedding request from "${requester}" was shed: waited ${waitedMs}ms in the queue, past `
+      + `the ${QUEUE_AGE_OUT_MS}ms age-out budget, before a worker was free to serve it`,
+    location: 'lib/embeddings/offThreadEmbedding.ts:takeNextServableTask',
+    nextSteps: [
+      'Retry after backpressure clears — this maps to the existing t/3078 block-mode 503 load-shed',
+      'Intentional load-shedding, not a fault: a task queued past the budget would exceed the route '
+        + 'timeout anyway, so it is rejected rather than dispatched to compute a now-abandoned result',
     ],
   });
 }

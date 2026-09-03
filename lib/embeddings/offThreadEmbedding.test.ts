@@ -450,6 +450,107 @@ describe('offThreadEmbedding — pool: configure() ordering contract (t/3211 TL 
   });
 });
 
+// ══ t/3275 queued-task age-out (dispatch-time reject) ════════════════════════════════════════════
+// QUEUE_AGE_OUT_MS is 40_000 in the module (not exported — same convention as HEARTBEAT_TIMEOUT_MS).
+// Tests advance past it and pin the value via the WARN's budgetMs. A slot is kept alive across the
+// long wait by heartbeating its in-flight task (each heartbeat resets the 8s watchdog) — that's the
+// real shape: slots busy on slow work while a backlog ages behind them.
+
+/** Advance `totalMs` in <8s steps, heartbeating `worker`'s in-flight `id` so its watchdog never fires. */
+async function ageWhileServing(worker: FakeWorker, id: number, totalMs: number): Promise<void> {
+  for (let elapsed = 0; elapsed < totalMs; elapsed += 5_000) {
+    worker.emit('message', { type: 'heartbeat', id, chunk: elapsed / 5_000 });
+    await vi.advanceTimersByTimeAsync(5_000);
+  }
+}
+
+describe('offThreadEmbedding — age-out: reject a task queued past the budget, still serve a fresh one', () => {
+  it('drains the stale head-of-queue on dispatch (WARN carries waitedMs≥budgetMs) and dispatches a fresh task', async () => {
+    vi.useFakeTimers();
+    const workers: FakeWorker[] = [];
+    __setEmbeddingWorkerFactory(() => { const w = new FakeWorker(); workers.push(w); return w; });
+
+    // A holds the single slot (in flight, heartbeating); B queues behind it and will age out.
+    const pA = computeEmbeddingsOffThread(['A'], { requester: 'A-inflight' });
+    const worker = workers[0];
+    const aId = worker.lastId();
+    const pB = computeEmbeddingsOffThread(['B'], { requester: 'B-stale' });
+    const pBRejected = expect(pB).rejects.toThrow(/age-out|queued past/i);
+    expect(__queueDepthForTests()).toBe(2); // A in flight + B queued
+
+    // Time passes past the 40s budget while A keeps its slot alive.
+    await ageWhileServing(worker, aId, 45_000);
+
+    // A fresh task D is enqueued now (well within budget), then A completes → the freed slot drains B
+    // (stale → age-out reject) and dispatches D (fresh → served).
+    const pD = computeEmbeddingsOffThread(['D'], { requester: 'D-fresh' }).catch(() => {});
+    worker.emit('message', resultFor(aId, [[1, 0, 0, 0]]));
+    await pBRejected;
+    await expect(pA).resolves.toHaveLength(1);
+
+    const ageWarn = warns().find(warn => /age-out budget/i.test(warn.message ?? ''));
+    expect(ageWarn).toBeDefined();
+    expect(ageWarn!.data?.requester).toBe('B-stale');
+    expect(ageWarn!.data?.budgetMs).toBe(40_000);
+    expect(ageWarn!.data?.waitedMs as number).toBeGreaterThanOrEqual(40_000); // payload, not just the message
+
+    // D (fresh) was dispatched onto the freed slot — proof age-out drops only the stale head, not the queue.
+    expect(worker.posted[worker.posted.length - 1].texts).toEqual(['D']);
+    void pD;
+  });
+
+  it('does NOT age-out a task still within budget — it dispatches normally', async () => {
+    vi.useFakeTimers();
+    const workers: FakeWorker[] = [];
+    __setEmbeddingWorkerFactory(() => { const w = new FakeWorker(); workers.push(w); return w; });
+
+    const pA = computeEmbeddingsOffThread(['A'], { requester: 'A' });
+    const worker = workers[0];
+    const aId = worker.lastId();
+    const pB = computeEmbeddingsOffThread(['B'], { requester: 'B-young' });
+
+    await ageWhileServing(worker, aId, 10_000); // only 10s < 40s budget
+    worker.emit('message', resultFor(aId, [[1, 0, 0, 0]])); // A done → B dispatched (young, not shed)
+    await expect(pA).resolves.toHaveLength(1);
+
+    expect(worker.posted[worker.posted.length - 1].texts).toEqual(['B']); // B was served, not aged out
+    const bId = worker.lastId();
+    worker.emit('message', resultFor(bId, [[2, 0, 0, 0]]));
+    await expect(pB).resolves.toHaveLength(1);
+    expect(warns().some(warn => /age-out budget/i.test(warn.message ?? ''))).toBe(false);
+  });
+
+  it('drains an ALL-stale queue and leaves the slot idle — nothing dispatched (TL 4th case)', async () => {
+    vi.useFakeTimers();
+    const workers: FakeWorker[] = [];
+    __setEmbeddingWorkerFactory(() => { const w = new FakeWorker(); workers.push(w); return w; });
+
+    // A in flight; B and C both queue behind and both age past the budget.
+    const pA = computeEmbeddingsOffThread(['A'], { requester: 'A' });
+    const worker = workers[0];
+    const aId = worker.lastId();
+    const pB = computeEmbeddingsOffThread(['B'], { requester: 'B' });
+    const pC = computeEmbeddingsOffThread(['C'], { requester: 'C' });
+    const pBRejected = expect(pB).rejects.toThrow(/age-out|queued past/i);
+    const pCRejected = expect(pC).rejects.toThrow(/age-out|queued past/i);
+    expect(__queueDepthForTests()).toBe(3);
+
+    await ageWhileServing(worker, aId, 45_000);
+    const postedBeforeFree = worker.posted.length;
+
+    // A completes → the freed slot pumps: B and C are both stale → both age-out reject, and since no
+    // servable task remains the slot stays idle (no dispatch).
+    worker.emit('message', resultFor(aId, [[1, 0, 0, 0]]));
+    await pBRejected;
+    await pCRejected;
+    await expect(pA).resolves.toHaveLength(1);
+
+    expect(__queueDepthForTests()).toBe(0);                 // queue fully drained, nothing in flight
+    expect(worker.posted.length).toBe(postedBeforeFree);    // slot idle — no new postMessage after A
+    expect(warns().filter(warn => /age-out budget/i.test(warn.message ?? '')).length).toBe(2);
+  });
+});
+
 // ── Equivalence (condition 3): real-ONNX worker intra-op=1 vs in-thread default — skip-guarded ──
 
 function realOnnxAvailable(): boolean {
