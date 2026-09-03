@@ -782,6 +782,14 @@ CVE-2026-11856
 CVE-2026-8924
 CVE-2026-8932
 CVE-2026-9547
+CVE-2026-13608
+CVE-2026-18924
+CVE-2026-19931
+CVE-2026-80229
+CVE-2026-80230
+CVE-2026-80255
+CVE-2026-82208
+CVE-2026-82209
 
 # -- perl-modules-5.40 / perl (Trixie) -- no trixie fix as of 2026-09-02
 # Exposure: unchanged from the perl / perl-modules-5.40 sections above (transitive
@@ -862,5 +870,17 @@ TEMP-0000000-64109B
 TEMP-0000000-8188AC
 TEMP-0000000-A5518C
 TEMP-0000000-B05303
+
+# -- python3-numpy (taxonomy-editor image, Trixie) -- no trixie fix as of 2026-09-03
+# 2021-vintage integer-overflow / null-ptr CVEs in numpy matrix ops (CVE-2021-34141,
+# CVE-2021-41495, CVE-2021-41496). Fixed Version empty — no Debian backport.
+# Exposure: numpy is a transitive Python dep; the taxonomy-editor server handles
+# JSON REST requests and does not perform numpy matrix operations on user-supplied
+# data. The vulnerable code paths (crafted array inputs to matmul/dot) are not
+# reachable from any external-facing API endpoint.
+# REVISIT: drop when Debian trixie ships a fixed python3-numpy. Re-scan.
+CVE-2021-34141
+CVE-2021-41495
+CVE-2021-41496
 
 
