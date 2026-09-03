@@ -1371,24 +1371,54 @@ export async function loadDictionary(): Promise<{ standardized: unknown[]; collo
   const standardized: unknown[] = [];
   try {
     const stdFiles = await backend.listDirectory(stdDir);
-    for (const f of stdFiles.filter(f => f.endsWith('.json'))) {
+    const stdJson = stdFiles.filter(f => f.endsWith('.json'));
+    if (stdJson.length === 0) {
+      getGlobalRecorder()?.record({
+        type: 'system.error', component: 'file-io', level: 'warn',
+        message: 'loadDictionary: standardized dir present but zero .json files — returning empty (t/3289)',
+        data: { dir: stdDir, cause: 'empty-listing', fileCount: stdFiles.length },
+      });
+    }
+    for (const f of stdJson) {
       try {
         const raw = await backend.readFile(path.join(stdDir, f));
         if (raw) standardized.push(JSON.parse(raw));
-      } catch { /* telemetry — silent by design;  skip malformed */ }
+      } catch { /* telemetry — silent by design; skip malformed */ }
     }
-  } catch { /* telemetry — silent by design;  directory may not exist */ }
+  } catch (err: unknown) {
+    const cause = (err as NodeJS.ErrnoException).code === 'ENOENT' ? 'dir-missing' : 'read-error';
+    getGlobalRecorder()?.record({
+      type: 'system.error', component: 'file-io', level: 'warn',
+      message: `loadDictionary: standardized dir unreadable — returning empty (${cause}) (t/3289)`,
+      data: { dir: stdDir, cause, error: String(err) },
+    });
+  }
 
   const colloquial: unknown[] = [];
   try {
     const colFiles = await backend.listDirectory(colDir);
-    for (const f of colFiles.filter(f => f.endsWith('.json'))) {
+    const colJson = colFiles.filter(f => f.endsWith('.json'));
+    if (colJson.length === 0) {
+      getGlobalRecorder()?.record({
+        type: 'system.error', component: 'file-io', level: 'warn',
+        message: 'loadDictionary: colloquial dir present but zero .json files — returning empty (t/3289)',
+        data: { dir: colDir, cause: 'empty-listing', fileCount: colFiles.length },
+      });
+    }
+    for (const f of colJson) {
       try {
         const raw = await backend.readFile(path.join(colDir, f));
         if (raw) colloquial.push(JSON.parse(raw));
-      } catch { /* telemetry — silent by design;  skip malformed */ }
+      } catch { /* telemetry — silent by design; skip malformed */ }
     }
-  } catch { /* telemetry — silent by design;  directory may not exist */ }
+  } catch (err: unknown) {
+    const cause = (err as NodeJS.ErrnoException).code === 'ENOENT' ? 'dir-missing' : 'read-error';
+    getGlobalRecorder()?.record({
+      type: 'system.error', component: 'file-io', level: 'warn',
+      message: `loadDictionary: colloquial dir unreadable — returning empty (${cause}) (t/3289)`,
+      data: { dir: colDir, cause, error: String(err) },
+    });
+  }
 
   return { standardized, colloquial, lintViolations: [] };
 }
