@@ -543,6 +543,10 @@ export class SessionBranchManager {
     const branchPath = branchName.split('/').map(encodeURIComponent).join('/');
     const url = `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repoName)}/git/refs/heads/${branchPath}`;
 
+    // t/3267: 10s timeout prevents OS-level TCP hang (~90-120s) when GitHub is slow
+    // on first write after container restart (in-memory sessions map is cleared).
+    const abort = new AbortController();
+    const timer = setTimeout(() => abort.abort(), 10_000);
     try {
       const res = await fetch(url, {
         method: 'GET',
@@ -552,15 +556,21 @@ export class SessionBranchManager {
           'User-Agent': 'ai-triad-taxonomy-editor',
           'X-GitHub-Api-Version': '2022-11-28',
         },
+        signal: abort.signal,
       });
       return res.ok;
     } catch (err: unknown) {
+      const isTimeout = (err as Error).name === 'AbortError';
       getGlobalRecorder()?.record({
         type: 'system.error', component: 'session-branch-manager', level: 'warn',
-        message: 'branch existence check failed (network error), treating as absent',
-        data: { url, error: String(err) },
+        message: isTimeout
+          ? 'branch existence check timed out after 10s, treating as absent'
+          : 'branch existence check failed (network error), treating as absent',
+        data: { url, error: String(err), timedOut: isTimeout },
       });
       return false;
+    } finally {
+      clearTimeout(timer);
     }
   }
 
