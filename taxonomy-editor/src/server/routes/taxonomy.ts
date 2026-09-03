@@ -169,10 +169,15 @@ export function registerTaxonomyRoutes(r: Router, ctx: ServerCtx): void {
         );
       }
       await fileIO.writeTaxonomyFile(pov, body);
-      json(res, { ok: true });
-      // Fire-and-forget AFTER the 200 (never blocks/fails the write): debounced scoped grounding
-      // reconcile for the changed nodes. Gated OFF above until the tool-lock + PS lock (t/3203) land.
+      // t/3267 Fix A: enqueue the debounced scoped grounding reconcile BEFORE responding. It's
+      // synchronous + fire-and-forget/no-throw (Set.add + a debounce timer), so it can't delay or fail
+      // the response — but placing it AFTER json(res) meant a response-write throw (ECONNRESET when the
+      // client already timed out the ~100s git-sync write) jumped to the catch and SKIPPED the reconcile,
+      // silently leaving grounding stale on exactly the large-write PUTs that need it. Enqueue-first
+      // guarantees it runs; json still returns { ok: true } immediately after. Gated OFF above until the
+      // tool-lock + PS lock (t/3203) land.
       if (changedNodeIds.length > 0) enqueueGroundingReconcile(changedNodeIds);
+      json(res, { ok: true });
     } catch (err) { getGlobalRecorder()?.record({ type: 'system.error', component: 'server', level: 'error', message: 'Failed to write taxonomy file', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } }); error(res, String(err), 500, err); }
   });
 
