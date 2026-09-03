@@ -1349,6 +1349,62 @@ resource fallbackActive 'Microsoft.Insights/scheduledQueryRules@2023-03-15-previ
   }
 }
 
+// ── G8b Grounding-Sweep Stall Alert (t/3279) ──
+// Detects the failed-inline-then-cold edge: a G8a inline reconcile FAILED (emitting the stdout
+// `log.server.warn 'inline grounding reconcile failed'` from groundingReconcileHook.ts → Log_s;
+// condition 1 pre-verified) AND no `Grounding sweep complete` drained the backlog within N hours.
+// Scoped to the REAL edge, NOT bare sweep-absence — under minReplicas=0, no-sweep-while-cold is
+// benign (cold ⇒ no writes ⇒ no failures ⇒ correctly silent). Grace period: only failures OLDER
+// than N are considered (a fresh failure's sweep may still come — TL GV t/3279#2, cond. 2).
+// Correlation logic mirrors operations/devops/Get-SweepStallVerdict.ps1 (both arms unit-proven);
+// the KQL is validated against real prod Log_s for ≥1 cycle before it's trusted (real-env-first).
+//
+// N = 2h (cond. 4): MUST exceed the 15-min sweep cadence with margin so one benign cold gap +
+// container-warmth jitter can't trip it. windowSize 6h covers a failure + its 2h window + slack.
+resource sweepStallAlert 'Microsoft.Insights/scheduledQueryRules@2023-03-15-preview' = {
+  name: 'alert-grounding-sweep-stall'
+  location: location
+  tags: tags
+  properties: {
+    displayName: 'G8b Grounding Sweep Stalled (failed inline reconcile un-swept > N)'
+    description: 'A G8a inline grounding reconcile FAILED and no G8b sweep drained the backlog within N hours — grounding may be silently stale (the failed-inline-then-cold edge, t/3279).'
+    severity: 2
+    enabled: true
+    scopes: [ logAnalytics.id ]
+    evaluationFrequency: 'PT30M'
+    windowSize: 'PT6H'
+    criteria: {
+      allOf: [
+        {
+          // Rows = inline-reconcile failures older than N with NO sweep-complete in [failTime, failTime+N].
+          // k=1 cross-join is cheap: both markers are rare. Fire iff any such stale failure exists.
+          query: '''
+            let N = 2h;
+            let sweeps = ContainerAppConsoleLogs_CL
+              | where TimeGenerated > ago(6h)
+              | where Log_s has "Grounding sweep complete"
+              | project sweepTime = TimeGenerated, k = 1;
+            ContainerAppConsoleLogs_CL
+            | where TimeGenerated > ago(6h)
+            | where Log_s has "inline grounding reconcile failed"
+            | where TimeGenerated < ago(N)
+            | project failTime = TimeGenerated, k = 1
+            | join kind=leftouter (sweeps) on k
+            | summarize sweptInWindow = countif(sweepTime >= failTime and sweepTime <= failTime + N) by failTime
+            | where sweptInWindow == 0
+          '''
+          timeAggregation: 'Count'
+          operator: 'GreaterThan'
+          threshold: 0
+        }
+      ]
+    }
+    actions: {
+      actionGroups: budgetAlertConfigured ? [ restartAlertActionGroup.id ] : []
+    }
+  }
+}
+
 // Paid Gemini fallback overflow (t/3110). The anon key pool is free-primary +
 // single paid key as overflow-only fallback (t/3111); the default path is free,
 // so paid-fallback usage should be ~0. Any sustained nonzero is a real operational
