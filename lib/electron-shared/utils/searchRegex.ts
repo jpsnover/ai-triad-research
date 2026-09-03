@@ -37,6 +37,7 @@ export function buildSearchRegex(
       pattern = query;
     }
     return new RegExp(pattern, caseSensitive ? 'g' : 'gi');
+    // eslint-disable-next-line local/require-warn-on-degraded-catch-return -- false positive + benign guard: the try matches DATA_IO_SIGNAL_RE only via the local `query` name (a search string, NOT a DB query); the actual op is a synchronous `new RegExp` compile on user input. `return null` = "not a valid filter" (caller shows no regex match), a user-input guard, not a silent data/IO fallback — nothing to record (t/3224 Phase A).
   } catch {
     return null;
   }

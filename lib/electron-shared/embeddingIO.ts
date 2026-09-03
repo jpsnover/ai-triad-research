@@ -40,6 +40,7 @@ export function createEmbeddingIO(deps: EmbeddingIODeps) {
       cachePath = filePath;
       console.log(`[embeddings] Loaded ${cache.node_count} local embeddings (${cache.dimension}d)`);
       return cache;
+      // eslint-disable-next-line local/require-warn-on-degraded-catch-return -- observable, not silent: the null fallback records via the injected recordError(err) seam AND console.warn. electron-shared is dependency-injected shared code and cannot use getGlobalRecorder/log.* (the transports the rule recognizes) — recordError IS its structured-logging seam (t/3224 Phase A).
     } catch (err) {
       deps.recordError?.(err);
       console.warn('[embeddings] Could not load embeddings.json:', err);
