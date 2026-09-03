@@ -147,6 +147,13 @@ LABEL org.opencontainers.image.source="https://github.com/jpsnover/ai-triad-rese
 LABEL org.opencontainers.image.description="AI Triad Taxonomy Editor"
 LABEL org.opencontainers.image.licenses="MIT"
 
+# Build commit SHA baked into the RUNTIME image env (t/3278 drift-prevention). container.yml passes
+# --build-arg BUILD_SHA=<sha>; default 'unknown' keeps local/plain builds working. Makes "which
+# commit is running in prod?" answerable from the running image env instead of digest forensics.
+# ARG is re-declared here because ARGs do not cross stages (the builder stage's BUILD_SHA is for Vite).
+ARG BUILD_SHA=unknown
+ENV BUILD_SHA=${BUILD_SHA}
+
 # Cache dir created at runtime by the app (GitHubAPIBackend).
 # TAXONOMY_CACHE_DIR MUST match AI_TRIAD_DATA_ROOT (t/2061): config.ts's cacheDir
 # defaults to ~/.cache/taxonomy (=/root/.cache/taxonomy in-container) when unset,
