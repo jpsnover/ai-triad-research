@@ -147,6 +147,37 @@ holds(camp_acc, belief, p1) ∧ about(p1, ent_055) ∧ acquire(e1) ∧ agent(e1,
   (stipulated) until correlated with golden-set correctness. Full analysis:
   `analyses/logical-form-golden/D3b-findings.md`.
 
+## Prompt-port coupling — one shape across two runtimes (t/3250)
+
+`logical_form` is produced by **two ports of a single prompt** and validated by **one canonical Zod
+schema**. All four artifacts must agree; a change to the frame shape updates all four in lockstep or
+they silently diverge (the t/3250 drift risk).
+
+| # | Artifact | Role | Conformance |
+|---|---|---|---|
+| 1 | `research/comp-linguist/docs/logical-form-schema.md` (this doc) | **Spec — source of truth** (with #4) | defines fields, closed vocabularies, rules |
+| 2 | `scripts/AITriad/Prompts/logical-form-formalization.prompt` | The shared prompt both ports read | emits the JSON shape in §Schema |
+| 3a | `scripts/AITriad/Public/Invoke-LogicalFormPass.ps1` | **Claim path** — runs the prompt over `key_points`/`factual_claims` | writes `claim.logical_form` |
+| 3b | `research/comp-linguist/tools/formalize_node_lf.py` | **Node path** (G6, t/3162) — ports the SAME prompt over BDI nodes | writes `node.logical_form` |
+| 4 | `lib/entities/logicalForm.ts` (`logicalFormSchema`, PR #1851) | **Canonical Zod — cross-runtime source of truth** (with #1) | validates both claim + node frames |
+
+**TL ruling (t/3250#2(3)):** the doc (#1) + the lib Zod (#4) are the cross-runtime source of truth; the
+two prompt ports (#3a/#3b) are *implementations* that must conform to them, never parallel definitions.
+
+**Change protocol.** Any change to the frame shape (new field, vocabulary change, added role) touches
+**#1 (spec) + #4 (Zod) first**, then BOTH ports (#3a PS + #3b Py) which share prompt #2. Never change one
+port's output without the other — node and claim frames must stay the same shape (that is the whole point
+of one schema). Port-specific behavior that does NOT change the shape:
+
+- The **node port (#3b)** forces `modality.holder` = camp (from the node-id prefix) and `attitude` =
+  category mechanically, and grounds args one-identity from node `entity_refs[]` (register `dolce_category`)
+  + `concept_refs[]` (universals). Concept-ref (universal) sorts are the **blanket `non-agentive-social-object`
+  placeholder** pending the t/3251 refinement — "universal, sort unrefined," never a committed leaf (t/3162#5(b)).
+- The **claim port (#3a)** reads `canonical_proposition` (BDI) / `point`+`verbatim` (factual) and sets
+  `modality: null` for `factual_claims`.
+
+Both emit the identical field set in §Schema; the Zod (#4) is the mechanical guard that they do.
+
 ## Open items (post-review)
 
 - [x] `args[].sort` enum pinned to the live register `DolceCategory` set (`lib/entities/types.ts`) — the 5 values above.
