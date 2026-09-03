@@ -48,11 +48,13 @@ The fleet shares one `main` checkout, so committing **directly on `main`** stran
 
 Before `gh pr merge`, confirm all four (prevents stranded/stale-head merges — #710, #701, #830/#831, t/2470):
 0. **Base is `main`** — `gh pr view <N> --json baseRefName` (GitHub silently suggests the parent feature branch).
-1. **Head matches your push** — `gh pr view <N> --json headRefOid` equals your latest pushed SHA (the ref can lag; re-push and wait).
+1. **Head matches your push — ENFORCE it with `--match-head-commit`.** Always self-merge as:
+   `gh pr merge <N> --squash --match-head-commit $(gh pr view <N> --json headRefOid -q .headRefOid)`
+   GitHub then refuses the merge *atomically* if the live head ≠ that SHA — race-free: a stale local view OR a newer push both abort instead of stranding the later commit (#1868). Never run a bare `gh pr merge` without this flag.
 2. **CI ran on that exact OID** — `gh run list --commit <headRefOid>` is green, not a predecessor's.
 3. **No open decision/hold** you haven't cleared.
 
-The advisory `pre-self-merge-verify` hook nudges this; this rule is the contract.
+The `pre-self-merge-verify` hook **blocks** a manual `gh pr merge` that omits `--match-head-commit` (t/3270; pure-predicate `operations/devops/merge-guard-predicate.mjs`, both arms proven). `--auto` is exempt — it can't carry the flag and is stale-head-safe by GitHub re-targeting; its gated-PR risk is the draft-discipline's job. **Emergency override** (broken tooling / P1 hotfix), same spirit as the commit-guard's `--no-verify`: `disable_feedback_rule pre-self-merge-verify`, merge, then re-enable.
 
 ### PR-Flow Practice Rules (q/40)
 
