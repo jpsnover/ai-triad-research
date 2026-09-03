@@ -51,14 +51,10 @@ export interface ReflectionResult {
   new_item_proposals?: NewPovItemProposal[];
 }
 
-export interface NodeScoringSource {
-  source: 'an' | 'topic';
-  anScore: number;
-  topicScore: number;
-  bestClaimId?: string;
-  bestClaimText?: string;
-  bestClaimSim?: number;
-}
+// t/3257: source of truth relocated to lib/debate/relevanceSelection.ts (the pure relevance-
+// selection fn produces it; server + client type against the same definition). Re-exported here
+// so existing renderer imports (`from '../types'`) keep working.
+export type { NodeScoringSource } from '@lib/debate/relevanceSelection';
 
 export interface RelevanceSourceEntry {
   node_id: string;
