@@ -546,6 +546,13 @@ var baseEnv = [
   // baseEnv — never a CLI --set-env-vars (wiped by the next template apply). MUST stay in sync with
   // deploy-azure.yml ExpectedEnvVars (Gate Co-Location — the config-drift gate verifies it's deployed).
   { name: 'GROUNDING_RECONCILE_INLINE', value: '1' }
+  // t/3163 G8b (staged enable, TL GO t/3163#9): arm the scheduled grounding sweep (backstop to the
+  // G8a inline reconcile). Gate cleared — Option C measured grounding_lock held 0.00s + zero
+  // stale-break/contention (≤~2s bar), corroborating the code-level lock-safety GV (t/3163#5).
+  // MUST land + deploy TOGETHER WITH the git-ops-timeout fix (#1872, t/3267): the sweep does git
+  // ops, so it must run on the undici-timeout/degrade-and-proceed code, not the untimed-fetch code.
+  // baseEnv (never CLI --set-env-vars) + MUST stay in sync with deploy-azure.yml ExpectedEnvVars.
+  { name: 'GROUNDING_SWEEP_ENABLED', value: '1' }
 ]
 var envWithToken = githubTokenProvided
   ? concat(baseEnv, [ { name: 'GITHUB_TOKEN', secretRef: githubTokenSecretName } ])
