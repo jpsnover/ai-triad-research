@@ -316,3 +316,56 @@ describe('formatTaxonomyContext — RETRIEVED CONTEXT block (t/3264)', () => {
     expect(situationsIdx).toBeGreaterThan(retrievedIdx);
   });
 });
+
+function makeAnnotatedNode(id: string, label: string): PovNode {
+  return {
+    id, category: 'Beliefs', label, description: 'desc',
+    parent_id: null, children: [], situation_refs: [],
+    graph_attributes: { epistemic_type: 'empirical_claim', steelman_vulnerability: 'key vulnerability here' },
+  };
+}
+
+describe('formatTaxonomyContext — EXTERNAL ANALYTICAL SIGNALS block (t/3264 Phase B v3)', () => {
+  it('flag OFF (default) keeps generateNodeGuidance inline — no EXTERNAL ANALYTICAL SIGNALS block', () => {
+    const ctx = { povNodes: [makeAnnotatedNode('acc-bel-010', 'Annotated')], situationNodes: [] };
+    const output = formatTaxonomyContext(ctx, 'accelerationist');
+    expect(output).not.toContain('EXTERNAL ANALYTICAL SIGNALS');
+    expect(output).toContain('ARGUE:');
+    expect(output).toContain('VULNERABLE:');
+  });
+
+  it('flag ON renders EXTERNAL ANALYTICAL SIGNALS block with third-party voice, removes inline guidance', () => {
+    const ctx = { povNodes: [makeAnnotatedNode('acc-bel-010', 'Annotated')], situationNodes: [] };
+    const output = formatTaxonomyContext(ctx, 'accelerationist', undefined, { machineAnnotationsEnabled: true });
+    expect(output).toContain('EXTERNAL ANALYTICAL SIGNALS');
+    expect(output).toContain('not your beliefs or position assessments');
+    // [id] as pointer in third-party voice
+    expect(output).toContain('External analysis of argument [acc-bel-010]');
+    // Annotation content present (epistemic_type + steelman from makeAnnotatedNode fixture)
+    expect(output).toContain('epistemic_type: empirical_claim');
+    expect(output).toContain('steelman_vulnerability');
+    // The inline [heuristic] prefix is suppressed
+    expect(output).not.toContain('[heuristic] The following tactical annotations');
+  });
+
+  it('flag ON emits no EXTERNAL ANALYTICAL SIGNALS block when nodes have no annotation fields', () => {
+    const ctx = {
+      povNodes: [makeNode('acc-bel-011', 'Plain', 'plain desc')],
+      situationNodes: [],
+    };
+    const output = formatTaxonomyContext(ctx, 'accelerationist', undefined, { machineAnnotationsEnabled: true });
+    expect(output).not.toContain('EXTERNAL ANALYTICAL SIGNALS');
+  });
+
+  it('EXTERNAL ANALYTICAL SIGNALS block appears after RETRIEVED CONTEXT and before SITUATIONS', () => {
+    const ctx = {
+      povNodes: [makeAnnotatedNode('acc-bel-010', 'Annotated')],
+      situationNodes: [makeSit('sit-001', 'A Situation')],
+    };
+    const output = formatTaxonomyContext(ctx, 'accelerationist', undefined, { machineAnnotationsEnabled: true });
+    const externalIdx = output.indexOf('EXTERNAL ANALYTICAL SIGNALS');
+    const situationsIdx = output.indexOf('SITUATIONS');
+    expect(externalIdx).toBeGreaterThan(-1);
+    expect(situationsIdx).toBeGreaterThan(externalIdx);
+  });
+});
