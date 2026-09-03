@@ -3831,4 +3831,66 @@ Institutional memory for failure patterns across the AI Triad Research project.
 
 **Status:** Active — 1 instance (t/3165, TL e/133#7). Governance principle: the gate keyed on real state, not on sender claims. Applies when any agent (including fleet members) claims a prod action is safe.
 
+**Applies To:** All agents handling multi-agent coordination for prod changes. Especially relevant for gated deploys where multiple agents vote or claim prerequisite status.
+
+---
+
+## #187 [Process/Git] `git worktree add <path> <branch>` Fails When Branch Is Already Checked Out in Another Worktree
+
+**Pattern:** `git worktree add <path> <branch>` throws "fatal: '<branch>' is already used by worktree '<other-path>'" when the named branch is currently checked out in another agent's worktree. Git prevents a branch from being active in two worktrees simultaneously.
+
+**Instances:**
+- 2026-09-03 — Tech Lead (p/335#52): attempted to add a worktree pointing at a branch already checked out elsewhere. Resolution: `git worktree add <path> -b <tmp-branch> <OID>` (temp branch off the head OID), then push onto the target branch ref after work is complete.
+
+**Root Cause:** Git's worktree design prevents the same branch ref from being the HEAD of two simultaneous worktrees — branch contention is a fundamental constraint, not a transient error.
+
+**Prevention:**
+1. **When the target branch is already checked out elsewhere, create a temp branch off the OID:** `git worktree add <path> -b <tmp> <target-OID>`, do the work, then `git push origin <tmp>:<target>` to land onto the target ref.
+2. **Check for existing worktrees on the branch before `git worktree add`:** `git worktree list` shows which branches are currently checked out and where.
+3. **Coordinate with the agent holding the branch before attempting to check it out** — the "branch in use" error is a signal of a live concurrent worktree, not a stale ref.
+
+**Status:** Active — 1 instance (p/335#52). Worktree contention pattern; temp-OID branch is the canonical workaround.
+
+**Applies To:** All agents creating worktrees for feature work, especially in multi-agent fleets where multiple instances may attempt worktree ops on the same branch.
+
+---
+
+## #188 [Process/CI] `gh workflow run` 404s When the Workflow Only Exists on a Feature Branch
+
+**Pattern:** `gh workflow run <workflow-file>` returns a 404 "not found on the default branch" error when the workflow being dispatched was added on a feature branch and has not yet merged to main. GitHub only registers `workflow_dispatch` triggers from the default branch.
+
+**Instances:**
+- 2026-09-03 — DevOps (p/26#94): new dispatch workflow dispatched from its feature branch before merge; 404 every time. Resolution: sequence dispatch-validation to post-merge; the workflow is only callable once it exists on main.
+
+**Root Cause:** GitHub indexes `workflow_dispatch` and `schedule` triggers exclusively from the default branch. A workflow that exists only on a feature branch is invisible to the GitHub Actions dispatch API — it effectively does not exist as a triggerable workflow until it lands on main.
+
+**Prevention:**
+1. **Do not attempt `gh workflow run` on workflows that haven't merged to main** — they will always 404. This is not a permissions issue or path error; it is a GitHub platform constraint.
+2. **Sequence dispatch-validation as a post-merge step** for new scheduled/dispatch workflows — document this in the PR description so the reviewer knows the real smoke test happens after merge, not in CI.
+3. **For pre-merge testing of dispatch logic**, use `workflow_call` (callable from within CI) or `push`/`pull_request` triggers on the feature branch instead.
+
+**Status:** Active — 1 instance (p/26#94). GitHub platform constraint; post-merge sequencing is the canonical resolution.
+
+**Applies To:** All agents adding new `workflow_dispatch` or scheduled workflows. Relevant during PR authoring to set correct expectations about when dispatch testing can occur.
+
+---
+
+## #189 [Build/Worktree] Worktree Checkout Has No `node_modules` — vitest/npm Tools Fail
+
+**Pattern:** A fresh `git worktree add` checkout does not include `node_modules` (they are gitignored). Any test runner, build tool, or script that requires installed packages (vitest, tsc, npm scripts) fails immediately with module-not-found or command-not-found errors in the worktree.
+
+**Instances:**
+- 2026-09-03 — Server Auth (p/608#1, t/3284): worktree at `.worktrees/t3284/taxonomy-editor/` had no `node_modules`; vitest failed. Resolution: `New-Item -ItemType Junction -Path .worktrees/t3284/taxonomy-editor/node_modules -Target taxonomy-editor/node_modules` (junction to shared tree's installed node_modules). Tests then ran successfully.
+
+**Root Cause:** `node_modules` is gitignored by design — it is never committed. Worktrees share the `.git` directory but have independent working trees; they do not inherit the parent checkout's `node_modules`. Running `npm install` in a worktree creates a duplicate install; using a junction to the shared tree's `node_modules` is faster and avoids disk waste.
+
+**Prevention:**
+1. **After creating a worktree for any npm-based subtree, create a junction to the shared tree's `node_modules` before running any npm scripts:** `New-Item -ItemType Junction -Path <worktree>/<subtree>/node_modules -Target <shared-tree>/<subtree>/node_modules`
+2. **Remove the junction before `git worktree remove`** (per Pattern #122 / rmdir-first rule) to prevent `git worktree remove` from failing on the non-empty directory: `Remove-Item <worktree>/<subtree>/node_modules` (removes the junction, not the target).
+3. **Applicable subtrees**: `taxonomy-editor/`, `poviewer/`, `summary-viewer/`, `lib/debate/` — any directory with its own `package.json` and gitignored `node_modules`.
+
+**Status:** Active — 1 instance (p/608#1, t/3284). Worktree setup gap; junction is the canonical fix.
+
+**Applies To:** All agents creating worktrees for work in npm-based subtrees. Especially relevant for test-running worktrees where the first action is `npx vitest` or `npm run build`.
+
 **Applies To:** All agents receiving "safe to proceed" or "all prerequisites met" messages for prod changes; all human operators reviewing agent-initiated prod-change requests.
