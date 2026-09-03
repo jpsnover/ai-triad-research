@@ -1315,6 +1315,10 @@ server.listen(PORT, BIND_HOST, () => {
   // in ACA config but process.env evaluated false" regression (bicep value-form) is then visible
   // immediately, not inferred from a debate's compute path.
   log.server.info({ embeddingWorkerOffload: isEmbeddingWorkerOffloadEnabled() }, 'embedding offload flag at boot');
+  // t/3278 Arm-1: log the baked BUILD_SHA at boot so "what SHA is running?" is answerable from LA on
+  // every deploy (the durable primitive vs the incidental t/3211 marker). 'unknown' if the build didn't
+  // pass --build-arg BUILD_SHA → a visible gap, not a silent one (drift-check reads /health.buildSha).
+  log.server.info({ buildSha: process.env.BUILD_SHA ?? 'unknown' }, 'build sha at boot');
   // t/3211: log the live cgroup-effective core count at boot so the embedding-worker-pool SKU sizing
   // (K = min(EMBEDDING_WORKER_POOL_SIZE, availableParallelism()-1)) is confirmed EMPIRICALLY from LA on
   // the next deploy, not asserted blind from the ACA vCPU config (cgroup quota can differ). DevOps reads
