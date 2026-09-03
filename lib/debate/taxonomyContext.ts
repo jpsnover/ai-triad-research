@@ -120,12 +120,12 @@ export interface FormatContextConfig {
    */
   retrievedContextEnabled?: boolean;
   /**
-   * Enable the MACHINE ANNOTATIONS block — moves generateNodeGuidance output (epistemic_type,
-   * falsifiability, assumes, steelman_vulnerability, doctrinal anchor) out of the inline BDI node
-   * rendering into a structurally-separate advisory block (t/3264 Phase B, Arm 2 mitigation).
-   * DEFAULT: false (behavior-preserving). Graph_attributes annotations are written live today, so
-   * flipping changes live prompt behavior. Land flag-OFF → CL A_anno_structural validates → TL GV
-   * → then flip on. Set true only after probe clears.
+   * Enable the EXTERNAL ANALYTICAL SIGNALS block — moves graph_attributes annotations out of the
+   * inline BDI node rendering into a structurally-separate, fully-external-voice block (t/3264
+   * Phase B v3, Option A). Third-party observational voice severs ownership association:
+   * "External analysis of argument [id]..." rather than "[id]: VULNERABLE: ..." (t/3264#19).
+   * DEFAULT: false (behavior-preserving). Annotations are live today, so flipping changes prompt
+   * behavior. Land flag-OFF → CL A_anno_struct_v3 validates → TL GV → then flip on.
    */
   machineAnnotationsEnabled?: boolean;
 }
@@ -176,6 +176,59 @@ export function generateNodeGuidance(node: PovNode, category: string): string[] 
   }
 
   return lines;
+}
+
+/** Generate fully-external-voice annotation lines for a node (t/3264 Phase B v3, Option A).
+ *  Third-party observational voice: "External analysis of argument [id]..." with [id] as pointer only.
+ *  Severs ownership by NOT using assertive-ownership syntax ("[id]: VULNERABLE: ..."). */
+export function generateExternalAnnotationLines(node: PovNode): string[] {
+  const ga = node.graph_attributes;
+  if (!ga) return [];
+
+  const contentLines: string[] = [];
+
+  if (ga.epistemic_type) {
+    const guidance: Record<string, string> = {
+      empirical_claim: 'opponents may demand primary sources and peer-reviewed evidence',
+      normative_prescription: 'opponents may challenge coherence with stated principles or tradeoffs',
+      strategic_recommendation: 'opponents may challenge feasibility, implementation, or cost-benefit',
+      interpretive_lens: 'opponents may challenge explanatory power or offer counter-interpretations',
+    };
+    const hint = guidance[ga.epistemic_type] ?? '';
+    contentLines.push(`    epistemic_type: ${ga.epistemic_type}${hint ? ` — ${hint}` : ''}`);
+  }
+
+  if (ga.falsifiability) {
+    const guidance: Record<string, string> = {
+      high: 'opponents may use counter-evidence, methodological critique, or replication failure',
+      medium: 'opponents may exploit scope limits, competing frameworks, or edge cases',
+      low: 'opponents may use coherence challenges, analogical breakdown, or generalization failure',
+    };
+    const hint = guidance[ga.falsifiability] ?? '';
+    contentLines.push(`    falsifiability: ${ga.falsifiability}${hint ? ` — ${hint}` : ''}`);
+  }
+
+  if (ga.assumes?.length) {
+    const top2 = ga.assumes.slice(0, 2).map(a => `"${a}"`).join(', ');
+    contentLines.push(`    assumes: ${top2} — these premises may be challenged`);
+  }
+
+  if (ga.steelman_vulnerability) {
+    const sv = ga.steelman_vulnerability;
+    const svText = typeof sv === 'string' ? sv : Object.values(sv).filter(Boolean).join(' | ');
+    if (svText) contentLines.push(`    steelman_vulnerability: "${svText}" [external assessment — verify independently]`);
+  }
+
+  if (node.doctrinally_anchored) {
+    contentLines.push(`    doctrinally_anchored: true — high concession cost flagged`);
+  }
+
+  if (contentLines.length === 0) return [];
+
+  return [
+    `  External analysis of argument [${node.id}] ("${node.label}"):`,
+    ...contentLines,
+  ];
 }
 
 /** Compute weighted sort score: Beliefs use relevance×confidence, Desires use relevance×(priority/5), Intentions use relevance×(operationality/5). */
@@ -363,17 +416,17 @@ export function formatTaxonomyContext(ctx: TaxonomyContext, pov: string, maxNode
     lines.push('');
   }
 
-  // t/3264 Phase B: MACHINE ANNOTATIONS block — structurally separate advisory signals (flag-gated, default off)
+  // t/3264 Phase B v3: EXTERNAL ANALYTICAL SIGNALS block — fully-external-voice, Option A (flag-gated, default off)
   if (cfg.machineAnnotationsEnabled) {
-    const annotatedNodes = povSlice.filter(n => generateNodeGuidance(n, n.category || 'Beliefs').length > 0);
-    if (annotatedNodes.length > 0) {
-      lines.push('=== MACHINE ANNOTATIONS (unverified signals — NOT established facts about your position) ===');
-      lines.push('These machine-generated signals are external to your verified beliefs. A claim here you cannot independently confirm is a candidate to evaluate — not yours to assert.');
+    const annotationEntries = povSlice
+      .map(n => generateExternalAnnotationLines(n))
+      .filter(entry => entry.length > 0);
+    if (annotationEntries.length > 0) {
+      lines.push('=== EXTERNAL ANALYTICAL SIGNALS (unverified — not your beliefs or position assessments) ===');
+      lines.push('Third-party analytical classifications of arguments in this debate domain. Machine-generated and unverified — treat as external observations, not your own position assessments.');
       lines.push('');
-      for (const n of annotatedNodes) {
-        const guidance = generateNodeGuidance(n, n.category || 'Beliefs');
-        lines.push(`  [${n.id}] "${n.label}":`);
-        lines.push(...guidance);
+      for (const entry of annotationEntries) {
+        lines.push(...entry);
       }
       lines.push('');
     }
