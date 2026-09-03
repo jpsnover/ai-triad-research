@@ -191,6 +191,31 @@ Describe 'Get-AICallLog (t/3243)' -Tag 'unit' {
         }
     }
 
+    Context 'Datetime fidelity — cross-writer precision + Kind (t/3245)' {
+        # The old reader did [string]$rec.Datetime + TryParse, which dropped sub-seconds and
+        # downgraded Kind Utc->Unspecified (→ -After/-Before shift on non-UTC hosts). The fix uses
+        # the ConvertFrom-Json-coerced [datetime] directly. Guards both JS (3-digit) and PS (7-digit).
+        It 'preserves sub-second precision from a JS 3-digit toISOString Datetime' {
+            $p = Join-Path $TestDrive "js-$([guid]::NewGuid()).jsonl"
+            Set-Content -LiteralPath $p -Encoding utf8 -Value '{"ID":1,"Datetime":"2026-09-03T08:48:00.123Z","Scenario":"Debate","PromptID":"u","PromptStart":"x","RetryCount":0,"Status":"200"}'
+            $r = @(Get-AICallLog -Path $p)
+            $r.Count | Should -Be 1
+            $r[0].Datetime.Millisecond | Should -Be 123
+        }
+        It 'preserves the 7-digit fractional second from a PS-written Datetime' {
+            $p = Join-Path $TestDrive "ps-$([guid]::NewGuid()).jsonl"
+            Set-Content -LiteralPath $p -Encoding utf8 -Value '{"ID":1,"Datetime":"2026-09-03T08:48:00.1234567Z","Scenario":"Chat","PromptID":"u","PromptStart":"x","RetryCount":0,"Status":"200"}'
+            $r = @(Get-AICallLog -Path $p)
+            ($r[0].Datetime.Ticks % 10000000) | Should -Not -Be 0 -Because 'the sub-second (100ns) component must survive'
+        }
+        It 'emits a UTC-kind Datetime (not Unspecified) so -After/-Before do not tz-shift on non-UTC hosts' {
+            $p = Join-Path $TestDrive "kind-$([guid]::NewGuid()).jsonl"
+            Set-Content -LiteralPath $p -Encoding utf8 -Value '{"ID":1,"Datetime":"2026-09-03T08:48:00.123Z","Scenario":"Debate","PromptID":"u","PromptStart":"x","RetryCount":0,"Status":"200"}'
+            $r = @(Get-AICallLog -Path $p)
+            $r[0].Datetime.Kind | Should -Be ([System.DateTimeKind]::Utc)
+        }
+    }
+
     Context 'filters' {
         It 'filters by -Scenario (case-insensitive wildcard)' {
             $r = @(Get-AICallLog -Path $script:log -Scenario 'fact*')

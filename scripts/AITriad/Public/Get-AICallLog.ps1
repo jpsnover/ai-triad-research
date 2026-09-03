@@ -109,14 +109,27 @@ function Get-AICallLog {
         # A missing/unparseable Datetime yields [datetime]::MinValue (never matches a real range).
         $dt = [datetime]::MinValue
         if ($rec.PSObject.Properties['Datetime'] -and -not [string]::IsNullOrWhiteSpace([string]$rec.Datetime)) {
-            $parsed = [datetime]::MinValue
-            if ([datetime]::TryParse(
-                    [string]$rec.Datetime, [cultureinfo]::InvariantCulture,
-                    [System.Globalization.DateTimeStyles]::RoundtripKind, [ref]$parsed)) {
-                $dt = $parsed
+            if ($rec.Datetime -is [datetime]) {
+                # ConvertFrom-Json already parsed the ISO-8601 string to a DateTime (Kind=Utc for a
+                # 'Z' suffix), preserving sub-seconds. Use it DIRECTLY. Re-stringifying + re-parsing
+                # (the old path) rendered default-culture text with no fractional seconds and
+                # downgraded Kind Utc->Unspecified — dropping ms for BOTH JS 3-digit and PS 7-digit
+                # records, and shifting -After/-Before on non-UTC hosts (ToUniversalTime treats
+                # Unspecified as local). See t/3245.
+                $dt = $rec.Datetime
             }
             else {
-                Write-Warning "Get-AICallLog: line $lineNo has an unparseable Datetime '$($rec.Datetime)' in '$logPath'; treating as MinValue."
+                # Fallback: a Datetime value ConvertFrom-Json did NOT coerce (non-ISO / unusual
+                # form) — parse the raw string, round-trip-kind aware.
+                $parsed = [datetime]::MinValue
+                if ([datetime]::TryParse(
+                        [string]$rec.Datetime, [cultureinfo]::InvariantCulture,
+                        [System.Globalization.DateTimeStyles]::RoundtripKind, [ref]$parsed)) {
+                    $dt = $parsed
+                }
+                else {
+                    Write-Warning "Get-AICallLog: line $lineNo has an unparseable Datetime '$($rec.Datetime)' in '$logPath'; treating as MinValue."
+                }
             }
         }
 
