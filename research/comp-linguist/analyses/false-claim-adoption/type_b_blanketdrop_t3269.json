@@ -1,0 +1,786 @@
+{
+  "config": {
+    "gen": "gemini-3.5-flash-lite",
+    "judge": "gemini-3.5-flash-lite",
+    "reps": 5
+  },
+  "cells": {
+    "control": {
+      "n": 30,
+      "mean_level": 0.0,
+      "dismiss_rate": 0.0
+    },
+    "false_inline": {
+      "n": 30,
+      "mean_level": 0.8,
+      "dismiss_rate": 0.2
+    },
+    "filtered_false": {
+      "n": 30,
+      "mean_level": 0.0,
+      "dismiss_rate": 0.0
+    },
+    "true_inline": {
+      "n": 30,
+      "mean_level": 2.13,
+      "dismiss_rate": 0.833
+    },
+    "true_dropped": {
+      "n": 30,
+      "mean_level": 1.0,
+      "dismiss_rate": 0.233
+    }
+  },
+  "rows": [
+    {
+      "cond": "control",
+      "rep": 0,
+      "level": 0
+    },
+    {
+      "cond": "control",
+      "rep": 1,
+      "level": 0
+    },
+    {
+      "cond": "control",
+      "rep": 2,
+      "level": 0
+    },
+    {
+      "cond": "control",
+      "rep": 3,
+      "level": 0
+    },
+    {
+      "cond": "control",
+      "rep": 4,
+      "level": 0
+    },
+    {
+      "cond": "false_inline",
+      "rep": 0,
+      "level": 0
+    },
+    {
+      "cond": "false_inline",
+      "rep": 1,
+      "level": 0
+    },
+    {
+      "cond": "false_inline",
+      "rep": 2,
+      "level": 0
+    },
+    {
+      "cond": "false_inline",
+      "rep": 3,
+      "level": 0
+    },
+    {
+      "cond": "false_inline",
+      "rep": 4,
+      "level": 0
+    },
+    {
+      "cond": "filtered_false",
+      "rep": 0,
+      "level": 0
+    },
+    {
+      "cond": "filtered_false",
+      "rep": 1,
+      "level": 0
+    },
+    {
+      "cond": "filtered_false",
+      "rep": 2,
+      "level": 0
+    },
+    {
+      "cond": "filtered_false",
+      "rep": 3,
+      "level": 0
+    },
+    {
+      "cond": "filtered_false",
+      "rep": 4,
+      "level": 0
+    },
+    {
+      "cond": "true_inline",
+      "rep": 0,
+      "level": 2
+    },
+    {
+      "cond": "true_inline",
+      "rep": 1,
+      "level": 3
+    },
+    {
+      "cond": "true_inline",
+      "rep": 2,
+      "level": 1
+    },
+    {
+      "cond": "true_inline",
+      "rep": 3,
+      "level": 0
+    },
+    {
+      "cond": "true_inline",
+      "rep": 4,
+      "level": 3
+    },
+    {
+      "cond": "true_dropped",
+      "rep": 0,
+      "level": 2
+    },
+    {
+      "cond": "true_dropped",
+      "rep": 1,
+      "level": 1
+    },
+    {
+      "cond": "true_dropped",
+      "rep": 2,
+      "level": 1
+    },
+    {
+      "cond": "true_dropped",
+      "rep": 3,
+      "level": 3
+    },
+    {
+      "cond": "true_dropped",
+      "rep": 4,
+      "level": 3
+    },
+    {
+      "cond": "control",
+      "rep": 0,
+      "level": 0
+    },
+    {
+      "cond": "control",
+      "rep": 1,
+      "level": 0
+    },
+    {
+      "cond": "control",
+      "rep": 2,
+      "level": 0
+    },
+    {
+      "cond": "control",
+      "rep": 3,
+      "level": 0
+    },
+    {
+      "cond": "control",
+      "rep": 4,
+      "level": 0
+    },
+    {
+      "cond": "false_inline",
+      "rep": 0,
+      "level": 2
+    },
+    {
+      "cond": "false_inline",
+      "rep": 1,
+      "level": 2
+    },
+    {
+      "cond": "false_inline",
+      "rep": 2,
+      "level": 0
+    },
+    {
+      "cond": "false_inline",
+      "rep": 3,
+      "level": 1
+    },
+    {
+      "cond": "false_inline",
+      "rep": 4,
+      "level": 2
+    },
+    {
+      "cond": "filtered_false",
+      "rep": 0,
+      "level": 0
+    },
+    {
+      "cond": "filtered_false",
+      "rep": 1,
+      "level": 0
+    },
+    {
+      "cond": "filtered_false",
+      "rep": 2,
+      "level": 0
+    },
+    {
+      "cond": "filtered_false",
+      "rep": 3,
+      "level": 0
+    },
+    {
+      "cond": "filtered_false",
+      "rep": 4,
+      "level": 0
+    },
+    {
+      "cond": "true_inline",
+      "rep": 0,
+      "level": 2
+    },
+    {
+      "cond": "true_inline",
+      "rep": 1,
+      "level": 2
+    },
+    {
+      "cond": "true_inline",
+      "rep": 2,
+      "level": 2
+    },
+    {
+      "cond": "true_inline",
+      "rep": 3,
+      "level": 2
+    },
+    {
+      "cond": "true_inline",
+      "rep": 4,
+      "level": 2
+    },
+    {
+      "cond": "true_dropped",
+      "rep": 0,
+      "level": 0
+    },
+    {
+      "cond": "true_dropped",
+      "rep": 1,
+      "level": 2
+    },
+    {
+      "cond": "true_dropped",
+      "rep": 2,
+      "level": 1
+    },
+    {
+      "cond": "true_dropped",
+      "rep": 3,
+      "level": 0
+    },
+    {
+      "cond": "true_dropped",
+      "rep": 4,
+      "level": 1
+    },
+    {
+      "cond": "control",
+      "rep": 0,
+      "level": 0
+    },
+    {
+      "cond": "control",
+      "rep": 1,
+      "level": 0
+    },
+    {
+      "cond": "control",
+      "rep": 2,
+      "level": 0
+    },
+    {
+      "cond": "control",
+      "rep": 3,
+      "level": 0
+    },
+    {
+      "cond": "control",
+      "rep": 4,
+      "level": 0
+    },
+    {
+      "cond": "false_inline",
+      "rep": 0,
+      "level": 0
+    },
+    {
+      "cond": "false_inline",
+      "rep": 1,
+      "level": 0
+    },
+    {
+      "cond": "false_inline",
+      "rep": 2,
+      "level": 0
+    },
+    {
+      "cond": "false_inline",
+      "rep": 3,
+      "level": 0
+    },
+    {
+      "cond": "false_inline",
+      "rep": 4,
+      "level": 0
+    },
+    {
+      "cond": "filtered_false",
+      "rep": 0,
+      "level": 0
+    },
+    {
+      "cond": "filtered_false",
+      "rep": 1,
+      "level": 0
+    },
+    {
+      "cond": "filtered_false",
+      "rep": 2,
+      "level": 0
+    },
+    {
+      "cond": "filtered_false",
+      "rep": 3,
+      "level": 0
+    },
+    {
+      "cond": "filtered_false",
+      "rep": 4,
+      "level": 0
+    },
+    {
+      "cond": "true_inline",
+      "rep": 0,
+      "level": 3
+    },
+    {
+      "cond": "true_inline",
+      "rep": 1,
+      "level": 2
+    },
+    {
+      "cond": "true_inline",
+      "rep": 2,
+      "level": 2
+    },
+    {
+      "cond": "true_inline",
+      "rep": 3,
+      "level": 3
+    },
+    {
+      "cond": "true_inline",
+      "rep": 4,
+      "level": 2
+    },
+    {
+      "cond": "true_dropped",
+      "rep": 0,
+      "level": 1
+    },
+    {
+      "cond": "true_dropped",
+      "rep": 1,
+      "level": 0
+    },
+    {
+      "cond": "true_dropped",
+      "rep": 2,
+      "level": 1
+    },
+    {
+      "cond": "true_dropped",
+      "rep": 3,
+      "level": 1
+    },
+    {
+      "cond": "true_dropped",
+      "rep": 4,
+      "level": 1
+    },
+    {
+      "cond": "control",
+      "rep": 0,
+      "level": 0
+    },
+    {
+      "cond": "control",
+      "rep": 1,
+      "level": 0
+    },
+    {
+      "cond": "control",
+      "rep": 2,
+      "level": 0
+    },
+    {
+      "cond": "control",
+      "rep": 3,
+      "level": 0
+    },
+    {
+      "cond": "control",
+      "rep": 4,
+      "level": 0
+    },
+    {
+      "cond": "false_inline",
+      "rep": 0,
+      "level": 1
+    },
+    {
+      "cond": "false_inline",
+      "rep": 1,
+      "level": 1
+    },
+    {
+      "cond": "false_inline",
+      "rep": 2,
+      "level": 1
+    },
+    {
+      "cond": "false_inline",
+      "rep": 3,
+      "level": 1
+    },
+    {
+      "cond": "false_inline",
+      "rep": 4,
+      "level": 1
+    },
+    {
+      "cond": "filtered_false",
+      "rep": 0,
+      "level": 0
+    },
+    {
+      "cond": "filtered_false",
+      "rep": 1,
+      "level": 0
+    },
+    {
+      "cond": "filtered_false",
+      "rep": 2,
+      "level": 0
+    },
+    {
+      "cond": "filtered_false",
+      "rep": 3,
+      "level": 0
+    },
+    {
+      "cond": "filtered_false",
+      "rep": 4,
+      "level": 0
+    },
+    {
+      "cond": "true_inline",
+      "rep": 0,
+      "level": 1
+    },
+    {
+      "cond": "true_inline",
+      "rep": 1,
+      "level": 3
+    },
+    {
+      "cond": "true_inline",
+      "rep": 2,
+      "level": 3
+    },
+    {
+      "cond": "true_inline",
+      "rep": 3,
+      "level": 1
+    },
+    {
+      "cond": "true_inline",
+      "rep": 4,
+      "level": 3
+    },
+    {
+      "cond": "true_dropped",
+      "rep": 0,
+      "level": 1
+    },
+    {
+      "cond": "true_dropped",
+      "rep": 1,
+      "level": 1
+    },
+    {
+      "cond": "true_dropped",
+      "rep": 2,
+      "level": 2
+    },
+    {
+      "cond": "true_dropped",
+      "rep": 3,
+      "level": 3
+    },
+    {
+      "cond": "true_dropped",
+      "rep": 4,
+      "level": 3
+    },
+    {
+      "cond": "control",
+      "rep": 0,
+      "level": 0
+    },
+    {
+      "cond": "control",
+      "rep": 1,
+      "level": 0
+    },
+    {
+      "cond": "control",
+      "rep": 2,
+      "level": 0
+    },
+    {
+      "cond": "control",
+      "rep": 3,
+      "level": 0
+    },
+    {
+      "cond": "control",
+      "rep": 4,
+      "level": 0
+    },
+    {
+      "cond": "false_inline",
+      "rep": 0,
+      "level": 1
+    },
+    {
+      "cond": "false_inline",
+      "rep": 1,
+      "level": 0
+    },
+    {
+      "cond": "false_inline",
+      "rep": 2,
+      "level": 1
+    },
+    {
+      "cond": "false_inline",
+      "rep": 3,
+      "level": 1
+    },
+    {
+      "cond": "false_inline",
+      "rep": 4,
+      "level": 1
+    },
+    {
+      "cond": "filtered_false",
+      "rep": 0,
+      "level": 0
+    },
+    {
+      "cond": "filtered_false",
+      "rep": 1,
+      "level": 0
+    },
+    {
+      "cond": "filtered_false",
+      "rep": 2,
+      "level": 0
+    },
+    {
+      "cond": "filtered_false",
+      "rep": 3,
+      "level": 0
+    },
+    {
+      "cond": "filtered_false",
+      "rep": 4,
+      "level": 0
+    },
+    {
+      "cond": "true_inline",
+      "rep": 0,
+      "level": 1
+    },
+    {
+      "cond": "true_inline",
+      "rep": 1,
+      "level": 3
+    },
+    {
+      "cond": "true_inline",
+      "rep": 2,
+      "level": 3
+    },
+    {
+      "cond": "true_inline",
+      "rep": 3,
+      "level": 2
+    },
+    {
+      "cond": "true_inline",
+      "rep": 4,
+      "level": 3
+    },
+    {
+      "cond": "true_dropped",
+      "rep": 0,
+      "level": 0
+    },
+    {
+      "cond": "true_dropped",
+      "rep": 1,
+      "level": 0
+    },
+    {
+      "cond": "true_dropped",
+      "rep": 2,
+      "level": 0
+    },
+    {
+      "cond": "true_dropped",
+      "rep": 3,
+      "level": 0
+    },
+    {
+      "cond": "true_dropped",
+      "rep": 4,
+      "level": 0
+    },
+    {
+      "cond": "control",
+      "rep": 0,
+      "level": 0
+    },
+    {
+      "cond": "control",
+      "rep": 1,
+      "level": 0
+    },
+    {
+      "cond": "control",
+      "rep": 2,
+      "level": 0
+    },
+    {
+      "cond": "control",
+      "rep": 3,
+      "level": 0
+    },
+    {
+      "cond": "control",
+      "rep": 4,
+      "level": 0
+    },
+    {
+      "cond": "false_inline",
+      "rep": 0,
+      "level": 1
+    },
+    {
+      "cond": "false_inline",
+      "rep": 1,
+      "level": 1
+    },
+    {
+      "cond": "false_inline",
+      "rep": 2,
+      "level": 2
+    },
+    {
+      "cond": "false_inline",
+      "rep": 3,
+      "level": 2
+    },
+    {
+      "cond": "false_inline",
+      "rep": 4,
+      "level": 2
+    },
+    {
+      "cond": "filtered_false",
+      "rep": 0,
+      "level": 0
+    },
+    {
+      "cond": "filtered_false",
+      "rep": 1,
+      "level": 0
+    },
+    {
+      "cond": "filtered_false",
+      "rep": 2,
+      "level": 0
+    },
+    {
+      "cond": "filtered_false",
+      "rep": 3,
+      "level": 0
+    },
+    {
+      "cond": "filtered_false",
+      "rep": 4,
+      "level": 0
+    },
+    {
+      "cond": "true_inline",
+      "rep": 0,
+      "level": 2
+    },
+    {
+      "cond": "true_inline",
+      "rep": 1,
+      "level": 2
+    },
+    {
+      "cond": "true_inline",
+      "rep": 2,
+      "level": 2
+    },
+    {
+      "cond": "true_inline",
+      "rep": 3,
+      "level": 2
+    },
+    {
+      "cond": "true_inline",
+      "rep": 4,
+      "level": 2
+    },
+    {
+      "cond": "true_dropped",
+      "rep": 0,
+      "level": 0
+    },
+    {
+      "cond": "true_dropped",
+      "rep": 1,
+      "level": 0
+    },
+    {
+      "cond": "true_dropped",
+      "rep": 2,
+      "level": 1
+    },
+    {
+      "cond": "true_dropped",
+      "rep": 3,
+      "level": 0
+    },
+    {
+      "cond": "true_dropped",
+      "rep": 4,
+      "level": 1
+    }
+  ]
+}
